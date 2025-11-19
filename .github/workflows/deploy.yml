@@ -2,7 +2,7 @@ name: Build and Deploy POS Service
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ staging ]
 
 jobs:
   deploy:

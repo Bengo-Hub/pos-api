@@ -68,7 +68,18 @@ func SwaggerUI(w http.ResponseWriter, r *http.Request) {
           layout: "BaseLayout",
           deepLinking: true,
           filter: true,
-          persistAuthorization: true
+          persistAuthorization: true,
+          requestInterceptor: (request) => {
+            // Automatically add "Bearer " prefix to Authorization header if missing
+            if (request.headers && request.headers.Authorization) {
+              const authHeader = request.headers.Authorization;
+              // Check if it doesn't already start with "Bearer " (case-insensitive)
+              if (!/^bearer\s+/i.test(authHeader)) {
+                request.headers.Authorization = 'Bearer ' + authHeader.trim();
+              }
+            }
+            return request;
+          }
         })
       }
     </script>

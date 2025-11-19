@@ -74,6 +74,7 @@ type AuthConfig struct {
 	JWKSUrl             string        `envconfig:"AUTH_JWKS_URL" default:"https://auth.codevertex.local:4101/api/v1/.well-known/jwks.json"`
 	JWKSCacheTTL        time.Duration `envconfig:"AUTH_JWKS_CACHE_TTL" default:"3600s"`
 	JWKSRefreshInterval  time.Duration `envconfig:"AUTH_JWKS_REFRESH_INTERVAL" default:"300s"`
+	EnableAPIKeyAuth    bool          `envconfig:"AUTH_ENABLE_API_KEY_AUTH" default:"true"`
 }
 
 // Load gathers configuration from environment variables and optional .env files.
