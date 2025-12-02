@@ -123,12 +123,14 @@ if [[ "$SETUP_DATABASES" == "true" && -n "${KUBE_CONFIG:-}" ]]; then
         git clone "$CLONE_URL" "$DEVOPS_DIR" || { warn "Unable to clone devops repo for database setup"; }
       fi
       
-      if [[ -d "$DEVOPS_DIR" && -f "$DEVOPS_DIR/scripts/create-service-database.sh" ]]; then
+      if [[ -d "$DEVOPS_DIR" && -f "$DEVOPS_DIR/scripts/infrastructure/create-service-database.sh" ]]; then
         info "Creating database '${SERVICE_DB_NAME}' for service ${APP_NAME}..."
         SERVICE_DB_NAME="$SERVICE_DB_NAME" \
         APP_NAME="$APP_NAME" \
         NAMESPACE="$NAMESPACE" \
-        bash "$DEVOPS_DIR/scripts/create-service-database.sh" || warn "Database creation failed or already exists"
+        bash "$DEVOPS_DIR/scripts/infrastructure/create-service-database.sh" || warn "Database creation failed or already exists"
+      else
+        warn "create-service-database.sh not found - database should be created via devops-k8s infrastructure"
       fi
     fi
   else
