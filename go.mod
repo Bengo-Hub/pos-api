@@ -2,11 +2,13 @@ module github.com/bengobox/pos-service
 
 go 1.24.0
 
-// Local development: replace with local path (remove when repo is created and tagged)
-replace github.com/Bengo-Hub/shared-auth-client => ../shared/auth-client
+// Map module path to correct GitHub repository
+replace github.com/Bengo-Hub/shared-auth-client => github.com/Bengo-Hub/auth-client v0.3.0
 
 require (
-	github.com/Bengo-Hub/shared-auth-client v0.1.0
+	github.com/Bengo-Hub/httpware v0.1.1
+	github.com/Bengo-Hub/shared-auth-client v0.3.0
+	github.com/Bengo-Hub/shared-events v0.1.0
 	github.com/go-chi/chi/v5 v5.0.12
 	github.com/go-chi/cors v1.2.1
 	github.com/google/uuid v1.6.0
@@ -15,8 +17,8 @@ require (
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/nats-io/nats.go v1.33.1
 	github.com/prometheus/client_golang v1.23.2
-	github.com/redis/go-redis/v9 v9.5.1
-	go.uber.org/zap v1.27.0
+	github.com/redis/go-redis/v9 v9.17.2
+	go.uber.org/zap v1.27.1
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -58,7 +60,7 @@ require (
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.3.0 // indirect
 	go.uber.org/mock v0.5.0 // indirect
-	go.uber.org/multierr v1.10.0 // indirect
+	go.uber.org/multierr v1.11.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.2 // indirect
 	golang.org/x/arch v0.20.0 // indirect
 	golang.org/x/crypto v0.41.0 // indirect
