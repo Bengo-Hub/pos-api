@@ -27,11 +27,11 @@ jobs:
           echo "SETUP_DATABASES=true" >> $GITHUB_ENV
           echo "DB_TYPES=postgres,redis" >> $GITHUB_ENV
           echo "NAMESPACE=pos" >> $GITHUB_ENV
-          echo "ENV_SECRET_NAME=pos-service-secrets" >> $GITHUB_ENV
+          echo "ENV_SECRET_NAME=pos-api-secrets" >> $GITHUB_ENV
           echo "REGISTRY_SERVER=docker.io" >> $GITHUB_ENV
           echo "REGISTRY_NAMESPACE=codevertex" >> $GITHUB_ENV
-          echo "VALUES_FILE_PATH=apps/pos-service/values.yaml" >> $GITHUB_ENV
-          echo "APP_NAME=pos-service" >> $GITHUB_ENV
+          echo "VALUES_FILE_PATH=apps/pos-api/values.yaml" >> $GITHUB_ENV
+          echo "APP_NAME=pos-api" >> $GITHUB_ENV
 
       - name: Run production deployment
         env:
@@ -46,11 +46,11 @@ jobs:
           SETUP_DATABASES: true
           DB_TYPES: postgres,redis
           NAMESPACE: pos
-          ENV_SECRET_NAME: pos-service-secrets
+          ENV_SECRET_NAME: pos-api-secrets
           REGISTRY_SERVER: docker.io
           REGISTRY_NAMESPACE: codevertex
-          VALUES_FILE_PATH: apps/pos-service/values.yaml
-          APP_NAME: pos-service
+          VALUES_FILE_PATH: apps/pos-api/values.yaml
+          APP_NAME: pos-api
           GIT_USER: ${{ secrets.GIT_USER || 'POS Bot' }}
           GIT_EMAIL: ${{ secrets.GIT_EMAIL || 'dev@bengobox.com' }}
         run: |
@@ -66,7 +66,7 @@ jobs:
           REGISTRY_NAMESPACE: codevertex
         run: |
           set -e
-          IMAGE_REPO="${REGISTRY_SERVER}/${REGISTRY_NAMESPACE}/pos-service"
+          IMAGE_REPO="${REGISTRY_SERVER}/${REGISTRY_NAMESPACE}/pos-api"
           SHORT_SHA=${GITHUB_SHA::8}
           echo "Tagging ${IMAGE_REPO}:${SHORT_SHA} as :latest"
           echo "$REGISTRY_PASSWORD" | docker login "$REGISTRY_SERVER" -u "$REGISTRY_USERNAME" --password-stdin
@@ -79,7 +79,7 @@ jobs:
         env:
           KUBE_CONFIG_B64: ${{ secrets.KUBE_CONFIG }}
           NS: pos
-          APP_NAME: pos-service
+          APP_NAME: pos-api
         run: |
           if [ -z "${KUBE_CONFIG_B64}" ]; then
             echo "⏭️ Skipping ArgoCD check - no KUBE_CONFIG available"
@@ -117,8 +117,8 @@ jobs:
           mkdir -p ~/.kube
           echo "$KUBE_CONFIG_B64" | base64 -d > ~/.kube/config
 
-          if kubectl get deployment pos-service-app -n ${NS} >/dev/null 2>&1; then
-            kubectl rollout status deployment/pos-service-app -n ${NS} --timeout=300s
+          if kubectl get deployment pos-api-app -n ${NS} >/dev/null 2>&1; then
+            kubectl rollout status deployment/pos-api-app -n ${NS} --timeout=300s
             HOSTS=$(kubectl get ingress -n ${NS} -o jsonpath='{.items[*].spec.rules[*].host}' | tr ' ' '\n' | grep -E 'pos' || true)
             if [ -n "$HOSTS" ]; then
               for H in $HOSTS; do

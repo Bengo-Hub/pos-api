@@ -58,7 +58,7 @@ Schemas are defined with Ent to ensure type-safe access and migration automation
 | Table | Key Columns | Description |
 |-------|-------------|-------------|
 | `tenders` | `id`, `tenant_id`, `name`, `tender_type`, `provider_code`, `is_active`, `metadata` | Accepted payment types (cash, card, mobile money, loyalty). |
-| `pos_payments` | `id`, `pos_order_id`, `tender_id`, `amount`, `currency`, `tip_amount`, `surcharge_amount`, `payment_status`, `provider_reference`, `processed_at`, `metadata` | Payment records routed through `treasury-app`. |
+| `pos_payments` | `id`, `pos_order_id`, `tender_id`, `amount`, `currency`, `tip_amount`, `surcharge_amount`, `payment_status`, `provider_reference`, `processed_at`, `metadata` | Payment records routed through `treasury-api`. |
 | `cash_drawers` | `id`, `tenant_id`, `outlet_id`, `device_id`, `opening_user_id`, `closing_user_id`, `opening_float`, `closing_amount`, `variance_amount`, `status`, `opened_at`, `closed_at`, `metadata` | Drawer lifecycle. |
 | `cash_drawer_events` | `id`, `cash_drawer_id`, `event_type`, `amount`, `performed_by`, `performed_at`, `notes`, `metadata` | Skims, drops, shortages, audits. |
 | `pos_refunds` | `id`, `tenant_id`, `pos_order_id`, `payment_id`, `amount`, `reason`, `initiated_by`, `initiated_at`, `status`, `metadata` | Refund transactions. |
@@ -112,15 +112,15 @@ Schemas are defined with Ent to ensure type-safe access and migration automation
 - **Tenants/Outlets**: References `tenant_id`, `tenant_slug`, `outlet_id` from `auth-service` registry
 - **Catalog Items**: References `item_id`/`sku` from `inventory-service` (stores `catalog_items` as read-only cache)
 - **Inventory Balances**: Queries `inventory-service` APIs (stores `inventory_snapshots` as read-only cache)
-- **Payments**: Calls `treasury-app` APIs (stores `pos_payments` as references, not full transactions)
+- **Payments**: Calls `treasury-api` APIs (stores `pos_payments` as references, not full transactions)
 - **Riders/Drivers**: Queries `logistics-service` APIs (never stores rider data)
 
 - `pos_orders` connect to `order_links` for references in cafe-backend; no duplication of order state there because both sides share the tenant/outlet registry, hydrated via discovery webhooks when a tenant/outlet first appears.
 - Tenant/outlet discovery callbacks from auth/cafe-backend ensure this service can provision outlets/devices on demand without manual synchronisation or polling.
 - `user_pos_roles.user_id` references identities from `auth-service` (token claims drive UI permissions).
 - `stock_consumption_events` push to `inventory-service`; canonical stock levels remain in inventory.
-- `pos_payments` integrate with `treasury-app` for payment authorization, settlement, and refunds.
-- Notifications (drawer discrepancies, stock alerts) route through `notifications-app`.
+- `pos_payments` integrate with `treasury-api` for payment authorization, settlement, and refunds.
+- Notifications (drawer discrepancies, stock alerts) route through `notifications-api`.
 - `channel_integrations` coordinate with ecommerce storefronts and logistics service for click-and-collect workflows.
 - See `docs/cross-service-entity-ownership.md` for complete entity ownership matrix and integration patterns.
 

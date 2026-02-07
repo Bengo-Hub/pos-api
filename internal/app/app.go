@@ -18,6 +18,8 @@ import (
 	"github.com/bengobox/pos-service/internal/platform/cache"
 	"github.com/bengobox/pos-service/internal/platform/database"
 	"github.com/bengobox/pos-service/internal/platform/events"
+	"github.com/bengobox/pos-service/internal/services/rbac"
+	"github.com/bengobox/pos-service/internal/services/usersync"
 	"github.com/bengobox/pos-service/internal/shared/logger"
 	authclient "github.com/Bengo-Hub/shared-auth-client"
 )
@@ -56,6 +58,11 @@ func New(ctx context.Context) (*App, error) {
 
 	healthHandler := handlers.NewHealthHandler(log, dbPool, redisClient, natsConn)
 
+	// Initialize user management services
+	rbacService := rbac.NewService(log)
+	syncService := usersync.NewService(cfg.Auth.ServiceURL, cfg.Auth.APIKey, log)
+	userHandler := handlers.NewUserHandler(log, rbacService, syncService)
+
 	// Initialize auth-service JWT validator
 	var authMiddleware *authclient.AuthMiddleware
 	authConfig := authclient.DefaultConfig(
@@ -79,7 +86,7 @@ func New(ctx context.Context) (*App, error) {
 		authMiddleware = authclient.NewAuthMiddleware(validator)
 	}
 
-	chiRouter := router.New(log, healthHandler, authMiddleware)
+	chiRouter := router.New(log, healthHandler, userHandler, authMiddleware, cfg.HTTP.AllowedOrigins)
 
 	httpServer := &http.Server{
 		Addr:              fmt.Sprintf("%s:%d", cfg.HTTP.Host, cfg.HTTP.Port),

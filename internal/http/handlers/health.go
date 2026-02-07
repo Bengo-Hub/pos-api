@@ -30,7 +30,7 @@ func NewHealthHandler(log *zap.Logger, db dbPinger, cache *redis.Client, events 
 
 type livenessResponse struct {
 	Status  string `json:"status" example:"ok"`
-	Service string `json:"service" example:"pos-service"`
+	Service string `json:"service" example:"pos-api"`
 }
 
 type readinessResponse struct {
@@ -48,7 +48,7 @@ type readinessResponse struct {
 func (h *HealthHandler) Liveness(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, livenessResponse{
 		Status:  "ok",
-		Service: "pos-service",
+		Service: "pos-api",
 	})
 }
 

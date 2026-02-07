@@ -29,11 +29,12 @@ type AppConfig struct {
 }
 
 type HTTPConfig struct {
-	Host         string        `envconfig:"HTTP_HOST" default:"0.0.0.0"`
-	Port         int           `envconfig:"HTTP_PORT" default:"4004"`
-	ReadTimeout  time.Duration `envconfig:"HTTP_READ_TIMEOUT" default:"20s"`
-	WriteTimeout time.Duration `envconfig:"HTTP_WRITE_TIMEOUT" default:"20s"`
-	IdleTimeout  time.Duration `envconfig:"HTTP_IDLE_TIMEOUT" default:"90s"`
+	Host           string        `envconfig:"HTTP_HOST" default:"0.0.0.0"`
+	Port           int           `envconfig:"HTTP_PORT" default:"4004"`
+	ReadTimeout    time.Duration `envconfig:"HTTP_READ_TIMEOUT" default:"20s"`
+	WriteTimeout   time.Duration `envconfig:"HTTP_WRITE_TIMEOUT" default:"20s"`
+	IdleTimeout    time.Duration `envconfig:"HTTP_IDLE_TIMEOUT" default:"90s"`
+	AllowedOrigins []string      `envconfig:"HTTP_ALLOWED_ORIGINS" default:"https://pos.codevertexitsolutions.com,https://ordersapp.codevertexitsolutions.com,https://accounts.codevertexitsolutions.com"`
 }
 
 type PostgresConfig struct {
@@ -68,13 +69,14 @@ type TelemetryConfig struct {
 
 type AuthConfig struct {
 	// Auth Service SSO (JWT) integration
-	ServiceURL          string        `envconfig:"AUTH_SERVICE_URL" default:"https://auth.codevertex.local:4101"`
-	Issuer              string        `envconfig:"AUTH_ISSUER" default:"https://auth.codevertex.local:4101"`
-	Audience            string        `envconfig:"AUTH_AUDIENCE" default:"bengobox"`
-	JWKSUrl             string        `envconfig:"AUTH_JWKS_URL" default:"https://auth.codevertex.local:4101/api/v1/.well-known/jwks.json"`
+	ServiceURL          string        `envconfig:"AUTH_SERVICE_URL" default:"https://sso.codevertexitsolutions.com"`
+	Issuer              string        `envconfig:"AUTH_ISSUER" default:"https://sso.codevertexitsolutions.com"`
+	Audience            string        `envconfig:"AUTH_AUDIENCE" default:"codevertex"`
+	JWKSUrl             string        `envconfig:"AUTH_JWKS_URL" default:"https://sso.codevertexitsolutions.com/api/v1/.well-known/jwks.json"`
 	JWKSCacheTTL        time.Duration `envconfig:"AUTH_JWKS_CACHE_TTL" default:"3600s"`
-	JWKSRefreshInterval  time.Duration `envconfig:"AUTH_JWKS_REFRESH_INTERVAL" default:"300s"`
+	JWKSRefreshInterval time.Duration `envconfig:"AUTH_JWKS_REFRESH_INTERVAL" default:"300s"`
 	EnableAPIKeyAuth    bool          `envconfig:"AUTH_ENABLE_API_KEY_AUTH" default:"true"`
+	APIKey              string        `envconfig:"AUTH_SERVICE_API_KEY" default:""`
 }
 
 // Load gathers configuration from environment variables and optional .env files.
@@ -88,4 +90,3 @@ func Load() (*Config, error) {
 
 	return &cfg, nil
 }
-

@@ -14,9 +14,9 @@ success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
 warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
-APP_NAME=${APP_NAME:-"pos-service"}
+APP_NAME=${APP_NAME:-"pos-api"}
 NAMESPACE=${NAMESPACE:-"pos"}
-ENV_SECRET_NAME=${ENV_SECRET_NAME:-"pos-service-secrets"}
+ENV_SECRET_NAME=${ENV_SECRET_NAME:-"pos-api-secrets"}
 DEPLOY=${DEPLOY:-true}
 SETUP_DATABASES=${SETUP_DATABASES:-true}
 DB_TYPES=${DB_TYPES:-postgres,redis}
@@ -60,16 +60,8 @@ info "Running Trivy filesystem scan"
 trivy fs . --exit-code "$TRIVY_ECODE" --format table || true
 
 info "Building Docker image"
-# Build from workspace root to include shared/auth-client
-# For local builds: docker build -f pos-service/Dockerfile -t pos-service:local .
-# For CI builds: build from service directory, but Dockerfile expects workspace root context
-if [[ -d "../shared/auth-client" ]]; then
-  # We're in the service directory, build from parent (workspace root)
-  DOCKER_BUILDKIT=1 docker build -f Dockerfile -t "${IMAGE_REPO}:${GIT_COMMIT_ID}" ..
-else
-  # We're already at workspace root or in CI
-  DOCKER_BUILDKIT=1 docker build -f pos-service/Dockerfile -t "${IMAGE_REPO}:${GIT_COMMIT_ID}" .
-fi
+# Build from service directory - go.mod uses remote replace directive for auth-client
+DOCKER_BUILDKIT=1 docker build -t "${IMAGE_REPO}:${GIT_COMMIT_ID}" .
 success "Docker build complete"
 
 if [[ ${DEPLOY} != "true" ]]; then
@@ -117,7 +109,7 @@ if [[ "$SETUP_DATABASES" == "true" && -n "${KUBE_CONFIG:-}" ]]; then
     if [[ -d "$DEVOPS_DIR" ]] || [[ -n "${DEVOPS_REPO:-}" ]]; then
       # Ensure devops repo is cloned
       if [[ ! -d "$DEVOPS_DIR" ]]; then
-        TOKEN="${GH_PAT:-${GIT_SECRET:-${GITHUB_TOKEN:-}}}"
+        TOKEN="${GH_PAT:-${GIT_SECRET:-${GIT_TOKEN:-}}}"
         CLONE_URL="https://github.com/${DEVOPS_REPO}.git"
         [[ -n $TOKEN ]] && CLONE_URL="https://x-access-token:${TOKEN}@github.com/${DEVOPS_REPO}.git"
         git clone "$CLONE_URL" "$DEVOPS_DIR" || { warn "Unable to clone devops repo for database setup"; }
@@ -146,30 +138,14 @@ if ! kubectl -n "$NAMESPACE" get secret "$ENV_SECRET_NAME" >/dev/null 2>&1; then
     --from-literal=POS_NATS_URL="nats://nats.messaging.svc.cluster.local:4222" || true
 fi
 
-TOKEN="${GH_PAT:-${GIT_SECRET:-${GITHUB_TOKEN:-}}}"
-CLONE_URL="https://github.com/${DEVOPS_REPO}.git"
-[[ -n $TOKEN ]] && CLONE_URL="https://x-access-token:${TOKEN}@github.com/${DEVOPS_REPO}.git"
-
-if [[ ! -d $DEVOPS_DIR ]]; then
-  git clone "$CLONE_URL" "$DEVOPS_DIR" || { warn "Unable to clone devops repo"; DEVOPS_DIR=""; }
-fi
-
-if [[ -n $DEVOPS_DIR && -d $DEVOPS_DIR ]]; then
-  pushd "$DEVOPS_DIR" >/dev/null || true
-  git config user.email "$GIT_EMAIL"
-  git config user.name "$GIT_USER"
-  git fetch origin main || true
-  git checkout main || git checkout -b main || true
-  if [[ -f "$VALUES_FILE_PATH" ]]; then
-    IMAGE_REPO_ENV="$IMAGE_REPO" IMAGE_TAG_ENV="$GIT_COMMIT_ID" \
-      yq e -i '.image.repository = strenv(IMAGE_REPO_ENV) | .image.tag = strenv(IMAGE_TAG_ENV)' "$VALUES_FILE_PATH"
-    git add "$VALUES_FILE_PATH"
-    git commit -m "${APP_NAME}:${GIT_COMMIT_ID} released" || true
-    [[ -n $TOKEN ]] && git push origin HEAD:main || warn "Skipped pushing values (no token)"
-  else
-    warn "${VALUES_FILE_PATH} not found in devops repo"
-  fi
-  popd >/dev/null || true
+# Update Helm values using centralized script
+source "${HOME}/devops-k8s/scripts/helm/update-values.sh" 2>/dev/null || {
+  warn "Centralized helm update script not available"
+}
+if declare -f update_helm_values >/dev/null 2>&1; then
+  update_helm_values "$APP_NAME" "$GIT_COMMIT_ID" "$IMAGE_REPO"
+else
+  warn "update_helm_values function not available - helm values not updated"
 fi
 
 info "Deployment summary"

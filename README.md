@@ -4,13 +4,18 @@ The POS Service delivers a configurable, multi-tenant point-of-sale backend for 
 
 ## Core Capabilities
 
-- Outlet/device provisioning and session control.
-- POS-specific RBAC, cashier workflows, and licensing enforcement.
-- Catalog synchronisation with inventory/cafe-backend services, price book management, modifiers, and promotion rules.
-- Order/ticket lifecycle with table management, bar tabs, and kiosk flows.
-- Tendering and cash drawer management integrated with treasury services.
-- Real-time stock consumption events and alerts via inventory service.
-- Omnichannel connectors (ecommerce storefronts, kiosks) and settlement reporting.
+**Scope**: This service handles **OVER-THE-COUNTER**, **PICKUP**, and **DINE-IN** orders. Online delivery orders are handled by the **Ordering Service**.
+
+- **Outlet Operations**: Device provisioning, session control, cashier workflows, offline-first architecture
+- **Order Fulfillment**: Walk-in orders, customer pickup orders (online or walk-in), dine-in/table service, bar tabs
+- **Kitchen Operations**: Kitchen ticket management, prep station workflows, order ready notifications
+- **Cash Management**: Cash drawer operations, shift reconciliation, cash variance tracking
+- **POS RBAC**: Cashier, manager, and supervisor roles with granular permissions
+- **Catalog Sync**: Real-time catalog synchronization with ordering and inventory services
+- **Table Management**: Dine-in order tracking, table assignments, split bills, tab management
+- **Kiosk Flows**: Self-service kiosk ordering for quick-service restaurants
+- **Payment Integration**: Cash, card, mobile payments via treasury service
+- **Settlement Reporting**: End-of-day reports, payment reconciliation, revenue accounting
 
 ## Technology Stack
 
@@ -41,12 +46,12 @@ Default HTTP port: `4104` (`POS_HTTP_PORT` override).
 
 ## Integrations
 
-- **Inventory Service:** stock consumption, low-stock alerts, BOM depletion delivered via signed webhook callbacks (no polling).
-- **Food Delivery Backend:** order linkage, loyalty, subscription entitlements leveraging the shared tenant/outlet registry and webhook events.
-- **Logistics Service:** curbside pickup readiness, delivery handoff via logistics task update callbacks.
-- **Treasury App:** payment intents, settlements, refunds, revenue accounting.
-- **Notifications App:** cash variance alerts, integration failures, license reminders.
-- **Auth Service:** SSO and role claims for POS operators; tenant/outlet discovery callbacks ensure this service has current metadata immediately after login.
+- **Ordering Service**: Receive online-for-pickup orders, notify when pickup ready, catalog sync
+- **Inventory Service**: Stock consumption tracking, low-stock alerts, BOM depletion via webhooks
+- **Logistics Service**: Curbside pickup coordination, delivery handoff for pickup orders
+- **Treasury App**: Payment intents, settlements, refunds, revenue accounting, cash drawer reconciliation
+- **Notifications App**: Cash variance alerts, order ready notifications, integration failures, license reminders
+- **Auth Service**: SSO and role claims for POS staff (cashiers, managers); tenant/outlet discovery
 
 For more detail see `plan.md` and `docs/erd.md`.
 
