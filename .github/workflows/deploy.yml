@@ -3,9 +3,73 @@ name: Build and Deploy POS Service
 on:
   push:
     branches: [ staging ]
+  workflow_dispatch:
 
 jobs:
+  sync-secrets:
+    runs-on: ubuntu-latest
+    outputs:
+      result: ${{ steps.sync.outputs.result }}
+    steps:
+      - name: Check and sync missing secrets
+        id: sync
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+        run: |
+          REQUIRED_SECRETS="REGISTRY_USERNAME REGISTRY_PASSWORD REGISTRY_EMAIL GIT_TOKEN POSTGRES_PASSWORD REDIS_PASSWORD RABBITMQ_PASSWORD KUBE_CONFIG"
+
+          echo "🔍 Checking which deployment secrets exist..."
+          EXISTING=$(gh secret list --repo "${{ github.repository }}" --json name -q '.[].name' 2>/dev/null || echo "")
+
+          MISSING=()
+          for secret in $REQUIRED_SECRETS; do
+            if echo "$EXISTING" | grep -qx "$secret"; then
+              echo "  ✅ $secret"
+            else
+              echo "  ❌ $secret — missing"
+              MISSING+=("$secret")
+            fi
+          done
+
+          echo ""
+          if [ ${#MISSING[@]} -eq 0 ]; then
+            echo "✅ All secrets already exist — skipping sync"
+            echo "result=skipped" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          MISSING_LIST="${MISSING[*]}"
+          echo "📊 ${#MISSING[@]} secret(s) need syncing: $MISSING_LIST"
+          echo ""
+
+          echo "🔄 Triggering devops-k8s/sync-secrets.yml..."
+          gh workflow run sync-secrets.yml \
+            --repo Bengo-Hub/devops-k8s \
+            --ref main \
+            -f target_repo="${{ github.repository }}" \
+            -f secrets="$MISSING_LIST"
+
+          echo "⏳ Waiting for secrets to be synced..."
+          for i in $(seq 1 18); do
+            sleep 10
+            CURRENT=$(gh secret list --repo "${{ github.repository }}" --json name -q '.[].name' 2>/dev/null || echo "")
+            STILL_MISSING=0
+            for secret in "${MISSING[@]}"; do
+              echo "$CURRENT" | grep -qx "$secret" || STILL_MISSING=$((STILL_MISSING + 1))
+            done
+            if [ $STILL_MISSING -eq 0 ]; then
+              echo "✅ All ${#MISSING[@]} secrets synced after $((i * 10))s"
+              echo "result=synced" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+            echo "  ⏳ ${STILL_MISSING} still missing ($((i * 10))s)..."
+          done
+
+          echo "⚠️ Timeout — some secrets may not have synced"
+          echo "result=partial" >> $GITHUB_OUTPUT
+
   deploy:
+    needs: sync-secrets
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -33,6 +97,48 @@ jobs:
           echo "VALUES_FILE_PATH=apps/pos-api/values.yaml" >> $GITHUB_ENV
           echo "APP_NAME=pos-api" >> $GITHUB_ENV
 
+      - name: Verify secrets
+        run: |
+          echo "Verifying deployment secrets..."
+          echo "Sync result: ${{ needs.sync-secrets.outputs.result }}"
+          echo ""
+          FAIL=0
+
+          check_secret() {
+            local name="$1" min_len="$2" value="$3"
+            if [[ -z "$value" ]]; then
+              echo "❌ $name — empty"
+              FAIL=1
+            elif [[ ${#value} -lt $min_len ]]; then
+              echo "⚠️  $name — ${#value} chars (need >=$min_len)"
+              FAIL=1
+            else
+              echo "✅ $name (${#value} chars)"
+            fi
+          }
+
+          check_secret "REGISTRY_USERNAME"  5    "$REGISTRY_USERNAME"
+          check_secret "REGISTRY_PASSWORD"  20   "$REGISTRY_PASSWORD"
+          check_secret "KUBE_CONFIG"        1000 "$KUBE_CONFIG"
+          check_secret "GIT_TOKEN"          20   "$GIT_TOKEN"
+          check_secret "POSTGRES_PASSWORD"  8    "$POSTGRES_PASSWORD"
+          check_secret "REDIS_PASSWORD"     8    "$REDIS_PASSWORD"
+
+          if [[ $FAIL -eq 1 ]]; then
+            echo ""
+            echo "❌ Secret verification failed — re-run workflow if secrets were just synced"
+            exit 1
+          fi
+          echo ""
+          echo "✅ All secrets verified"
+        env:
+          REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
+          REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
+          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
+          GIT_TOKEN: ${{ secrets.GIT_TOKEN }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
+
       - name: Run production deployment
         env:
           KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
@@ -53,6 +159,10 @@ jobs:
           APP_NAME: pos-api
           GIT_USER: ${{ secrets.GIT_USER || 'POS Bot' }}
           GIT_EMAIL: ${{ secrets.GIT_EMAIL || 'dev@bengobox.com' }}
+          # Database passwords from shared infrastructure
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
+          RABBITMQ_PASSWORD: ${{ secrets.RABBITMQ_PASSWORD }}
         run: |
           chmod +x build.sh
           ./build.sh
