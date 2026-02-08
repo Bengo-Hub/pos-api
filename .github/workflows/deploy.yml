@@ -76,16 +76,42 @@ jobs:
       id-token: write
 
     steps:
+      - name: Re-trigger if secrets were just synced
+        if: needs.sync-secrets.outputs.result == 'synced'
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+        run: |
+          echo "Secrets were just synced in this workflow run."
+          echo "GitHub loads secret values at job start — newly created secrets"
+          echo "are not available until the next run."
+          echo ""
+          echo "Re-triggering workflow so the deploy job picks up the new values..."
+          gh workflow run deploy.yml --repo "${{ github.repository }}" --ref "${{ github.ref }}"
+          echo "Workflow re-triggered. This run will exit gracefully."
+          exit 0
+
+      - name: Abort if sync was partial
+        if: needs.sync-secrets.outputs.result == 'partial'
+        run: |
+          echo "Secret sync timed out — some secrets may not have been created."
+          echo "Check the devops-k8s sync-secrets workflow run for errors:"
+          echo "  https://github.com/Bengo-Hub/devops-k8s/actions"
+          exit 1
+
       - name: Checkout code
+        if: needs.sync-secrets.outputs.result != 'synced'
         uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
+        if: needs.sync-secrets.outputs.result != 'synced'
         uses: docker/setup-buildx-action@v3
 
       - name: Install DevOps Tools
+        if: needs.sync-secrets.outputs.result != 'synced'
         uses: Bengo-Hub/devops-k8s/.github/actions/install-devops-tools@main
 
       - name: Set deployment variables
+        if: needs.sync-secrets.outputs.result != 'synced'
         run: |
           echo "DEPLOY=true" >> $GITHUB_ENV
           echo "SETUP_DATABASES=true" >> $GITHUB_ENV
@@ -98,6 +124,7 @@ jobs:
           echo "APP_NAME=pos-api" >> $GITHUB_ENV
 
       - name: Verify secrets
+        if: needs.sync-secrets.outputs.result != 'synced'
         run: |
           echo "Verifying deployment secrets..."
           echo "Sync result: ${{ needs.sync-secrets.outputs.result }}"
@@ -140,6 +167,7 @@ jobs:
           REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
 
       - name: Run production deployment
+        if: needs.sync-secrets.outputs.result != 'synced'
         env:
           KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
           GIT_TOKEN: ${{ secrets.GIT_TOKEN }}
@@ -168,7 +196,7 @@ jobs:
           ./build.sh
 
       - name: Tag and push :latest
-        if: success()
+        if: success() && needs.sync-secrets.outputs.result != 'synced'
         env:
           REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
@@ -185,7 +213,7 @@ jobs:
           docker push "${IMAGE_REPO}:latest"
 
       - name: Check ArgoCD Application status
-        if: success()
+        if: success() && needs.sync-secrets.outputs.result != 'synced'
         env:
           KUBE_CONFIG_B64: ${{ secrets.KUBE_CONFIG }}
           NS: pos
@@ -213,7 +241,7 @@ jobs:
           echo "::endgroup::"
 
       - name: Verify API health
-        if: success()
+        if: success() && needs.sync-secrets.outputs.result != 'synced'
         env:
           KUBE_CONFIG_B64: ${{ secrets.KUBE_CONFIG }}
           NS: pos
