@@ -19,14 +19,12 @@ jobs:
           _REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
           _REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
           _REGISTRY_EMAIL: ${{ secrets.REGISTRY_EMAIL }}
-          _GIT_TOKEN: ${{ secrets.GIT_TOKEN }}
-          _GIT_SECRET: ${{ secrets.GIT_SECRET }}
           _POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           _REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
           _RABBITMQ_PASSWORD: ${{ secrets.RABBITMQ_PASSWORD }}
           _KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
         run: |
-          REQUIRED_SECRETS="REGISTRY_USERNAME REGISTRY_PASSWORD REGISTRY_EMAIL GIT_TOKEN GIT_SECRET POSTGRES_PASSWORD REDIS_PASSWORD RABBITMQ_PASSWORD KUBE_CONFIG"
+ REQUIRED_SECRETS="REGISTRY_USERNAME REGISTRY_PASSWORD REGISTRY_EMAIL POSTGRES_PASSWORD REDIS_PASSWORD RABBITMQ_PASSWORD KUBE_CONFIG"
 
           # Step 1: Delete any secrets that exist but have empty values.
           # gh secret list reports empty-value secrets as "existing", so the
@@ -175,7 +173,6 @@ jobs:
           check_secret "REGISTRY_USERNAME"  5    "$REGISTRY_USERNAME"
           check_secret "REGISTRY_PASSWORD"  20   "$REGISTRY_PASSWORD"
           check_secret "KUBE_CONFIG"        1000 "$KUBE_CONFIG"
-          check_secret "GIT_TOKEN"          20   "$GIT_TOKEN"
           check_secret "POSTGRES_PASSWORD"  8    "$POSTGRES_PASSWORD"
           check_secret "REDIS_PASSWORD"     8    "$REDIS_PASSWORD"
 
@@ -190,7 +187,6 @@ jobs:
           REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
           KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
-          GIT_TOKEN: ${{ secrets.GIT_TOKEN }}
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
 
@@ -198,9 +194,7 @@ jobs:
         if: needs.sync-secrets.outputs.result != 'synced'
         env:
           KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
-          GIT_TOKEN: ${{ secrets.GIT_TOKEN }}
           GH_PAT: ${{ secrets.GH_PAT }}
-          GIT_SECRET: ${{ secrets.GIT_SECRET }}
           REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
           GITHUB_SHA: ${{ github.sha }}
