@@ -15,41 +15,69 @@ jobs:
         id: sync
         env:
           GH_TOKEN: ${{ secrets.GH_PAT }}
+          # Map required secrets to detect empty values (gh secret list can't check values)
+          _REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
+          _REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
+          _REGISTRY_EMAIL: ${{ secrets.REGISTRY_EMAIL }}
+          _GIT_TOKEN: ${{ secrets.GIT_TOKEN }}
+          _GIT_SECRET: ${{ secrets.GIT_SECRET }}
+          _POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          _REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
+          _RABBITMQ_PASSWORD: ${{ secrets.RABBITMQ_PASSWORD }}
+          _KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
         run: |
-          REQUIRED_SECRETS="REGISTRY_USERNAME REGISTRY_PASSWORD REGISTRY_EMAIL GIT_TOKEN POSTGRES_PASSWORD REDIS_PASSWORD RABBITMQ_PASSWORD KUBE_CONFIG"
+          REQUIRED_SECRETS="REGISTRY_USERNAME REGISTRY_PASSWORD REGISTRY_EMAIL GIT_TOKEN GIT_SECRET POSTGRES_PASSWORD REDIS_PASSWORD RABBITMQ_PASSWORD KUBE_CONFIG"
 
-          echo "🔍 Checking which deployment secrets exist..."
+          # Step 1: Delete any secrets that exist but have empty values.
+          # gh secret list reports empty-value secrets as "existing", so the
+          # name-only check passes but deployment fails with empty values.
+          # By deleting them, the existence check below will find them missing
+          # and trigger the devops-k8s sync to recreate them with real values.
+          echo "Checking for empty-valued secrets..."
+          EXISTING=$(gh secret list --repo "${{ github.repository }}" --json name -q '.[].name' 2>/dev/null || echo "")
+          for secret in $REQUIRED_SECRETS; do
+            env_var="_${secret}"
+            value="${!env_var}"
+            if echo "$EXISTING" | grep -qx "$secret" && [ -z "$value" ]; then
+              echo "  Deleting $secret (exists but empty)"
+              gh secret delete "$secret" --repo "${{ github.repository }}" 2>/dev/null || true
+            fi
+          done
+
+          # Step 2: Re-check which secrets actually exist with values
+          echo ""
+          echo "Checking which deployment secrets exist..."
           EXISTING=$(gh secret list --repo "${{ github.repository }}" --json name -q '.[].name' 2>/dev/null || echo "")
 
           MISSING=()
           for secret in $REQUIRED_SECRETS; do
             if echo "$EXISTING" | grep -qx "$secret"; then
-              echo "  ✅ $secret"
+              echo "  $secret"
             else
-              echo "  ❌ $secret — missing"
+              echo "  $secret -- missing"
               MISSING+=("$secret")
             fi
           done
 
           echo ""
           if [ ${#MISSING[@]} -eq 0 ]; then
-            echo "✅ All secrets already exist — skipping sync"
+            echo "All secrets already exist -- skipping sync"
             echo "result=skipped" >> $GITHUB_OUTPUT
             exit 0
           fi
 
           MISSING_LIST="${MISSING[*]}"
-          echo "📊 ${#MISSING[@]} secret(s) need syncing: $MISSING_LIST"
+          echo "${#MISSING[@]} secret(s) need syncing: $MISSING_LIST"
           echo ""
 
-          echo "🔄 Triggering devops-k8s/sync-secrets.yml..."
+          echo "Triggering devops-k8s/sync-secrets.yml..."
           gh workflow run sync-secrets.yml \
             --repo Bengo-Hub/devops-k8s \
             --ref main \
             -f target_repo="${{ github.repository }}" \
             -f secrets="$MISSING_LIST"
 
-          echo "⏳ Waiting for secrets to be synced..."
+          echo "Waiting for secrets to be synced..."
           for i in $(seq 1 18); do
             sleep 10
             CURRENT=$(gh secret list --repo "${{ github.repository }}" --json name -q '.[].name' 2>/dev/null || echo "")
@@ -58,14 +86,14 @@ jobs:
               echo "$CURRENT" | grep -qx "$secret" || STILL_MISSING=$((STILL_MISSING + 1))
             done
             if [ $STILL_MISSING -eq 0 ]; then
-              echo "✅ All ${#MISSING[@]} secrets synced after $((i * 10))s"
+              echo "All ${#MISSING[@]} secrets synced after $((i * 10))s"
               echo "result=synced" >> $GITHUB_OUTPUT
               exit 0
             fi
-            echo "  ⏳ ${STILL_MISSING} still missing ($((i * 10))s)..."
+            echo "  ${STILL_MISSING} still missing ($((i * 10))s)..."
           done
 
-          echo "⚠️ Timeout — some secrets may not have synced"
+          echo "Timeout -- some secrets may not have synced"
           echo "result=partial" >> $GITHUB_OUTPUT
 
   deploy:
