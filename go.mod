@@ -3,12 +3,12 @@ module github.com/bengobox/pos-service
 go 1.24.0
 
 // Map module path to correct GitHub repository
-replace github.com/Bengo-Hub/shared-auth-client => github.com/Bengo-Hub/auth-client v0.3.0
+replace github.com/Bengo-Hub/shared-auth-client => github.com/Bengo-Hub/auth-client v0.3.1
 
 require (
 	github.com/Bengo-Hub/httpware v0.1.1
-	github.com/Bengo-Hub/shared-auth-client v0.3.0
-	github.com/Bengo-Hub/shared-events v0.1.0
+	github.com/Bengo-Hub/shared-auth-client v0.3.1
+	github.com/Bengo-Hub/shared-events v0.1.1
 	github.com/go-chi/chi/v5 v5.0.12
 	github.com/go-chi/cors v1.2.1
 	github.com/google/uuid v1.6.0
