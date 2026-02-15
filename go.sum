@@ -1,9 +1,9 @@
-github.com/Bengo-Hub/auth-client v0.3.0 h1:XcQ3OkNaGeE7guCb76trypBmaz4lOosT4D7oqtrqxnY=
-github.com/Bengo-Hub/auth-client v0.3.0/go.mod h1:DTfmZRTomkZRFm1YYKO8DmvwjLIchZnM7ZaFArIffsI=
+github.com/Bengo-Hub/auth-client v0.3.1 h1:2rehbmpsx67A62hRVUkgqPCyahsSDlJZ8PZOWYIh6Bw=
+github.com/Bengo-Hub/auth-client v0.3.1/go.mod h1:DTfmZRTomkZRFm1YYKO8DmvwjLIchZnM7ZaFArIffsI=
 github.com/Bengo-Hub/httpware v0.1.1 h1:Nm6Ia/I57VCnsmo36zZpss+52Y4eodapYicnu2eIJJY=
 github.com/Bengo-Hub/httpware v0.1.1/go.mod h1:iplyopAHMEyJL7lLlJoharGvb5uN04OcQEZjX85O8TU=
-github.com/Bengo-Hub/shared-events v0.1.0 h1:QKHDacxO+9uE+k9Ec+iNVux/iKYDyF41jm2uabfxwh8=
-github.com/Bengo-Hub/shared-events v0.1.0/go.mod h1:lUGlufCZcRz3pgkmEo552zOO5ove6s6ekf/SRvQ0/N0=
+github.com/Bengo-Hub/shared-events v0.1.1 h1:E3crk5RgGGvesAgmKPittDfu9jvw43gHzVMpKf5xvhM=
+github.com/Bengo-Hub/shared-events v0.1.1/go.mod h1:lUGlufCZcRz3pgkmEo552zOO5ove6s6ekf/SRvQ0/N0=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
 github.com/beorn7/perks v1.0.1/go.mod h1:G2ZrVWU2WbWT9wwq4/hrbKbnv/1ERSJQ0ibhJ6rlkpw=
 github.com/bsm/ginkgo/v2 v2.12.0 h1:Ny8MWAHyOepLGlLKYmXG4IEkioBysk6GpaRTLC8zwWs=
