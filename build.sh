@@ -14,9 +14,9 @@ success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
 warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
-APP_NAME=${APP_NAME:-"pos-service"}
+APP_NAME=${APP_NAME:-"pos-api"}
 NAMESPACE=${NAMESPACE:-"pos"}
-ENV_SECRET_NAME=${ENV_SECRET_NAME:-"pos-service-secrets"}
+ENV_SECRET_NAME=${ENV_SECRET_NAME:-"pos-api-secrets"}
 DEPLOY=${DEPLOY:-true}
 SETUP_DATABASES=${SETUP_DATABASES:-true}
 DB_TYPES=${DB_TYPES:-postgres,redis}
@@ -55,6 +55,21 @@ if [[ ${DEPLOY} == "true" ]]; then
   done
 fi
 success "Prerequisite checks passed"
+
+# =============================================================================
+# Auto-sync secrets from devops-k8s
+# =============================================================================
+if [[ ${DEPLOY} == "true" ]]; then
+  info "Checking and syncing required secrets from devops-k8s..."
+  SYNC_SCRIPT=$(mktemp)
+  if curl -fsSL https://raw.githubusercontent.com/Bengo-Hub/devops-k8s/main/scripts/tools/check-and-sync-secrets.sh -o "$SYNC_SCRIPT" 2>/dev/null; then
+    source "$SYNC_SCRIPT"
+    check_and_sync_secrets "REGISTRY_USERNAME" "REGISTRY_PASSWORD" "GIT_TOKEN" "POSTGRES_PASSWORD" "REDIS_PASSWORD" "KUBE_CONFIG" || warn "Secret sync failed - continuing with existing secrets"
+    rm -f "$SYNC_SCRIPT"
+  else
+    warn "Unable to download secret sync script - continuing with existing secrets"
+  fi
+fi
 
 info "Running Trivy filesystem scan"
 trivy fs . --exit-code "$TRIVY_ECODE" --format table || true
@@ -123,12 +138,12 @@ if [[ "$SETUP_DATABASES" == "true" && -n "${KUBE_CONFIG:-}" ]]; then
         git clone "$CLONE_URL" "$DEVOPS_DIR" || { warn "Unable to clone devops repo for database setup"; }
       fi
       
-      if [[ -d "$DEVOPS_DIR" && -f "$DEVOPS_DIR/scripts/create-service-database.sh" ]]; then
+      if [[ -d "$DEVOPS_DIR" && -f "$DEVOPS_DIR/scripts/infrastructure/create-service-database.sh" ]]; then
         info "Creating database '${SERVICE_DB_NAME}' for service ${APP_NAME}..."
         SERVICE_DB_NAME="$SERVICE_DB_NAME" \
         APP_NAME="$APP_NAME" \
         NAMESPACE="$NAMESPACE" \
-        bash "$DEVOPS_DIR/scripts/create-service-database.sh" || warn "Database creation failed or already exists"
+        bash "$DEVOPS_DIR/scripts/infrastructure/create-service-database.sh" || warn "Database creation failed or already exists"
       fi
     fi
   else
@@ -136,38 +151,38 @@ if [[ "$SETUP_DATABASES" == "true" && -n "${KUBE_CONFIG:-}" ]]; then
   fi
 fi
 
+# Create service secrets using devops-k8s script if not exists
 if ! kubectl -n "$NAMESPACE" get secret "$ENV_SECRET_NAME" >/dev/null 2>&1; then
-  warn "Secret $ENV_SECRET_NAME not found - creating placeholder"
-  kubectl -n "$NAMESPACE" create secret generic "$ENV_SECRET_NAME" \
-    --from-literal=POS_POSTGRES_URL="postgresql://${SERVICE_DB_USER}:PASSWORD@postgresql.infra.svc.cluster.local:5432/${SERVICE_DB_NAME}?sslmode=disable" \
-    --from-literal=POS_REDIS_ADDR="redis-master.infra.svc.cluster.local:6379" \
-    --from-literal=POS_NATS_URL="nats://nats.messaging.svc.cluster.local:4222" || true
-fi
-
-TOKEN="${GH_PAT:-${GIT_SECRET:-${GITHUB_TOKEN:-}}}"
-CLONE_URL="https://github.com/${DEVOPS_REPO}.git"
-[[ -n $TOKEN ]] && CLONE_URL="https://x-access-token:${TOKEN}@github.com/${DEVOPS_REPO}.git"
-
-if [[ ! -d $DEVOPS_DIR ]]; then
-  git clone "$CLONE_URL" "$DEVOPS_DIR" || { warn "Unable to clone devops repo"; DEVOPS_DIR=""; }
-fi
-
-if [[ -n $DEVOPS_DIR && -d $DEVOPS_DIR ]]; then
-  pushd "$DEVOPS_DIR" >/dev/null || true
-  git config user.email "$GIT_EMAIL"
-  git config user.name "$GIT_USER"
-  git fetch origin main || true
-  git checkout main || git checkout -b main || true
-  if [[ -f "$VALUES_FILE_PATH" ]]; then
-    IMAGE_REPO_ENV="$IMAGE_REPO" IMAGE_TAG_ENV="$GIT_COMMIT_ID" \
-      yq e -i '.image.repository = strenv(IMAGE_REPO_ENV) | .image.tag = strenv(IMAGE_TAG_ENV)' "$VALUES_FILE_PATH"
-    git add "$VALUES_FILE_PATH"
-    git commit -m "${APP_NAME}:${GIT_COMMIT_ID} released" || true
-    [[ -n $TOKEN ]] && git push origin HEAD:main || warn "Skipped pushing values (no token)"
+  if [[ -d "$DEVOPS_DIR" && -f "$DEVOPS_DIR/scripts/infrastructure/create-service-secrets.sh" ]]; then
+    info "Creating secrets for ${APP_NAME} using devops-k8s script..."
+    SERVICE_NAME="$APP_NAME" \
+    NAMESPACE="$NAMESPACE" \
+    DB_NAME="$SERVICE_DB_NAME" \
+    DB_USER="$SERVICE_DB_USER" \
+    SECRET_NAME="$ENV_SECRET_NAME" \
+    bash "$DEVOPS_DIR/scripts/infrastructure/create-service-secrets.sh" || warn "Secret creation failed or already exists"
   else
-    warn "${VALUES_FILE_PATH} not found in devops repo"
+    warn "Secret $ENV_SECRET_NAME not found and create-service-secrets.sh not available"
+    warn "Please create the secret manually or ensure devops-k8s repo is cloned"
   fi
-  popd >/dev/null || true
+fi
+
+# Clone devops-k8s if needed for helm update
+if [[ ! -d "$DEVOPS_DIR" ]]; then
+  TOKEN="${GH_PAT:-${GIT_SECRET:-${GITHUB_TOKEN:-}}}"
+  CLONE_URL="https://github.com/${DEVOPS_REPO}.git"
+  [[ -n $TOKEN ]] && CLONE_URL="https://x-access-token:${TOKEN}@github.com/${DEVOPS_REPO}.git"
+  git clone "$CLONE_URL" "$DEVOPS_DIR" || { warn "Unable to clone devops repo for helm values update"; DEVOPS_DIR=""; }
+fi
+
+# Update Helm values using centralized script
+source "${HOME}/devops-k8s/scripts/helm/update-values.sh" 2>/dev/null || {
+  [[ -n "${DEVOPS_DIR:-}" && -d "$DEVOPS_DIR" ]] && source "${DEVOPS_DIR}/scripts/helm/update-values.sh" 2>/dev/null
+}
+if declare -f update_helm_values >/dev/null 2>&1; then
+  update_helm_values "$APP_NAME" "$GIT_COMMIT_ID" "$IMAGE_REPO"
+else
+  warn "update_helm_values function not available - helm values not updated"
 fi
 
 info "Deployment summary"

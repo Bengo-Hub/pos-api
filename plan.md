@@ -20,7 +20,7 @@
 - **Data Stores:**
   - PostgreSQL as the system of record (multi-schema, tenant awareness).
   - Redis for ephemeral state: POS sessions, offline queues, rate limiting, publish/subscribe.
-- **Deployment:** Docker multi-stage builds, Helm charts, ArgoCD GitOps pipeline aligned with other services.
+- **Deployment:** Docker multi-stage builds, Helm charts, ArgoCD GitOps pipeline aligned with other services. **DevOps alignment:** Build (build.sh), image (Dockerfile), and deploy workflow (.github/workflows/deploy.yml) follow the reference pattern from auth-api/notifications-api: sync-secrets job, verify-secrets step, centralized devops-k8s (apps/pos-api/values.yaml, apps/pos-ui/values.yaml), GIT_COMMIT_ID image tags, and update_helm_values script.
 - **Observability:** zap logging, Prometheus metrics, OpenTelemetry tracing, Tempo/Jaeger compatibility.
 - **Testing:** Go test (table-driven), Testcontainers for Postgres/Redis integration, k6 for performance validation.
 - **Auth-Service SSO Integration:** ✅ **COMPLETED** - Integrated `shared/auth-client` v0.1.0 library for production-ready JWT validation using JWKS from auth-service. All protected `/v1/{tenantID}` routes require valid Bearer tokens. Swagger documentation updated with BearerAuth security definition. **Deployment:** Uses monorepo `replace` directives with versioned dependency (`v0.1.0`). Go workspace (`go.work`) handles local development automatically. Each service has independent DevOps workflows and can be deployed separately while sharing the auth library. See `shared/auth-client/DEPLOYMENT.md` and `shared/auth-client/TAGGING.md` for details.
@@ -496,7 +496,7 @@
 - Secrets via Vault/Parameter Store
 - Rate limiting & anomaly detection middleware
 - JWT validation via auth-service
-- **RBAC:** Local in-memory RBAC (roles: admin, member, viewer; permissions: pos:orders:read/write/delete, pos:drawer:manage, pos:payment:process) for API-level authorization. **User identity and tenant context come from auth-api** (JWT claims); pos-api does not implement GET /me—frontends call auth-api GET /me with TanStack Query + TTL for nav and route protection. Local roles exposed at `GET /api/v1/{tenantID}/users/me/roles` and `GET /api/v1/{tenantID}/roles`.
+- **RBAC:** **User identity and tenant context come from auth-api** (JWT claims); pos-api does not implement GET /me—frontends call auth-api GET /me with TanStack Query + TTL for nav and route protection. pos-api has **no local Permission/Role DB schema** today; auth-api is the source of truth for roles and permissions. See **`docs/rbac-and-seed.md`** for the **eight-action set** (add, read, read_own, change, change_own, delete, manage, manage_own) per POS resource (orders, products, drawer, payments, promotions, gift_cards, tables, bar_tabs, reports, settings) and seed intent; when pos-api or auth-api add POS roles/permissions, align with ordering-backend seed patterns.
 - **Redis:** Sessions, offline queues, rate limiting. Health check validates Postgres, Redis, and NATS.
 - **Events:** NATS for real-time order/events; outbox pattern via `shared-events` for reliable domain events.
 
