@@ -2,11 +2,11 @@ module github.com/bengobox/pos-service
 
 go 1.24.0
 
-// Local development: replace with local path (remove when repo is created and tagged)
-replace github.com/Bengo-Hub/shared-auth-client => ../shared/auth-client
+// Use online tagged release (same as ordering-backend) to avoid COPY shared in Docker
+replace github.com/Bengo-Hub/shared-auth-client => github.com/Bengo-Hub/auth-client v0.3.1
 
 require (
-	github.com/Bengo-Hub/shared-auth-client v0.1.0
+	github.com/Bengo-Hub/shared-auth-client v0.3.1
 	github.com/go-chi/chi/v5 v5.0.12
 	github.com/go-chi/cors v1.2.1
 	github.com/google/uuid v1.6.0
@@ -15,8 +15,8 @@ require (
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/nats-io/nats.go v1.33.1
 	github.com/prometheus/client_golang v1.23.2
-	github.com/redis/go-redis/v9 v9.5.1
-	go.uber.org/zap v1.27.0
+	github.com/redis/go-redis/v9 v9.17.2
+	go.uber.org/zap v1.27.1
 	gopkg.in/yaml.v3 v3.0.1
 )
 

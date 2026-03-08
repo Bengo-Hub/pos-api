@@ -41,7 +41,7 @@ Default HTTP port: `4104` (`POS_HTTP_PORT` override).
 
 ## Integrations
 
-- **Inventory Service:** stock consumption, low-stock alerts, BOM depletion delivered via signed webhook callbacks (no polling).
+- **Inventory Service:** catalog sync by SKU (aligned with ordering-service menu items), stock consumption, low-stock alerts, BOM/recipe depletion delivered via signed webhook callbacks (no polling). See ordering-backend `docs/MENU-INVENTORY-LINKAGE.md` for SKU/BOM contract.
 - **Food Delivery Backend:** order linkage, loyalty, subscription entitlements leveraging the shared tenant/outlet registry and webhook events.
 - **Logistics Service:** curbside pickup readiness, delivery handoff via logistics task update callbacks.
 - **Treasury App:** payment intents, settlements, refunds, revenue accounting.
