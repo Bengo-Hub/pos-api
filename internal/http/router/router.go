@@ -42,9 +42,6 @@ func New(log *zap.Logger, health *handlers.HealthHandler, authMiddleware *authcl
 	r.Get("/v1/docs/*", handlers.SwaggerUI)
 
 	r.Route("/api/v1", func(api chi.Router) {
-		// Serve OpenAPI spec (public, no auth required)
-		api.Get("/openapi.json", handlers.OpenAPIJSON)
-		
 		// Apply auth middleware to all v1 routes
 		if authMiddleware != nil {
 			api.Use(authMiddleware.RequireAuth)
@@ -70,6 +67,9 @@ func New(log *zap.Logger, health *handlers.HealthHandler, authMiddleware *authcl
 				})
 			})
 		}
+
+		// Serve OpenAPI spec (public, no auth required)
+		api.Get("/openapi.json", handlers.OpenAPIJSON)
 
 		api.Route("/{tenantID}", func(tenant chi.Router) {
 			tenant.Use(httpware.TenantV2(httpware.TenantConfig{
