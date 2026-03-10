@@ -152,20 +152,17 @@ if [[ "$SETUP_DATABASES" == "true" && -n "${KUBE_CONFIG:-}" ]]; then
   fi
 fi
 
-# Create service secrets using devops-k8s script if not exists
-if ! kubectl -n "$NAMESPACE" get secret "$ENV_SECRET_NAME" >/dev/null 2>&1; then
-  if [[ -d "$DEVOPS_DIR" && -f "$DEVOPS_DIR/scripts/infrastructure/create-service-secrets.sh" ]]; then
-    info "Creating secrets for ${APP_NAME} using devops-k8s script..."
-    SERVICE_NAME="$APP_NAME" \
-    NAMESPACE="$NAMESPACE" \
-    DB_NAME="$SERVICE_DB_NAME" \
-    DB_USER="$SERVICE_DB_USER" \
-    SECRET_NAME="$ENV_SECRET_NAME" \
-    bash "$DEVOPS_DIR/scripts/infrastructure/create-service-secrets.sh" || warn "Secret creation failed or already exists"
-  else
-    warn "Secret $ENV_SECRET_NAME not found and create-service-secrets.sh not available"
-    warn "Please create the secret manually or ensure devops-k8s repo is cloned"
-  fi
+# Ensure service secrets are up-to-date (handles standardized keys)
+if [[ -d "$DEVOPS_DIR" && -f "$DEVOPS_DIR/scripts/infrastructure/create-service-secrets.sh" ]]; then
+  info "Updating secrets for ${APP_NAME} using devops-k8s script..."
+  SERVICE_NAME="$APP_NAME" \
+  NAMESPACE="$NAMESPACE" \
+  DB_NAME="$SERVICE_DB_NAME" \
+  DB_USER="$SERVICE_DB_USER" \
+  SECRET_NAME="$ENV_SECRET_NAME" \
+  bash "$DEVOPS_DIR/scripts/infrastructure/create-service-secrets.sh" || warn "Secret sync failed"
+else
+  warn "create-service-secrets.sh not available - using existing cluster secrets"
 fi
 
 # Clone devops-k8s if needed for helm update
