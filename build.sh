@@ -75,15 +75,11 @@ info "Running Trivy filesystem scan"
 trivy fs . --exit-code "$TRIVY_ECODE" --format table || true
 
 info "Building Docker image"
-# Dockerfile uses online tagged auth-client (no COPY shared). Context must be repo root.
-# From repo root or CI: -f pos-service/pos-api/Dockerfile and context .
-# From pos-api dir: -f Dockerfile and context ../..
-if [[ -d "pos-service" ]] && [[ -d "pos-service/pos-api" ]]; then
-  DOCKER_BUILDKIT=1 docker build -f pos-service/pos-api/Dockerfile -t "${IMAGE_REPO}:${GIT_COMMIT_ID}" .
-elif [[ -f "Dockerfile" ]] && [[ -f "go.mod" ]] && [[ "$(basename "$(dirname "$(pwd)")" 2>/dev/null)" == "pos-service" ]]; then
-  DOCKER_BUILDKIT=1 docker build -f Dockerfile -t "${IMAGE_REPO}:${GIT_COMMIT_ID}" ../..
+if [[ -f "Dockerfile" ]]; then
+  DOCKER_BUILDKIT=1 docker build -f Dockerfile -t "${IMAGE_REPO}:${GIT_COMMIT_ID}" .
 else
-  DOCKER_BUILDKIT=1 docker build -f pos-service/pos-api/Dockerfile -t "${IMAGE_REPO}:${GIT_COMMIT_ID}" .
+  error "Dockerfile not found in current directory"
+  exit 1
 fi
 success "Docker build complete"
 
