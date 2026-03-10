@@ -97,7 +97,12 @@ success "Image pushed"
 
 if [[ -n ${KUBE_CONFIG:-} ]]; then
   mkdir -p ~/.kube
-  echo "$KUBE_CONFIG" | base64 -d > ~/.kube/config
+  if echo "$KUBE_CONFIG" | base64 -d > ~/.kube/config 2>/dev/null; then
+    info "KUBE_CONFIG decoded from base64"
+  else
+    echo "$KUBE_CONFIG" > ~/.kube/config
+    info "KUBE_CONFIG used as raw content (not base64)"
+  fi
   chmod 600 ~/.kube/config
   export KUBECONFIG=~/.kube/config
 fi
