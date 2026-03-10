@@ -2,17 +2,20 @@ package app
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"net/http"
 	"time"
 
+	"entgo.io/ent/dialect"
+	entsql "entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/schema"
 	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/nats-io/nats.go"
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
-	"entgo.io/ent/dialect/sql/schema"
 
 	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/bengobox/pos-service/internal/config"
@@ -79,10 +82,12 @@ func New(ctx context.Context) (*App, error) {
 	}
 	authMiddleware = authclient.NewAuthMiddleware(validator)
 
-	entClient, err := ent.Open("postgres", cfg.Postgres.URL)
+	sqlDB, err := sql.Open("pgx", cfg.Postgres.URL)
 	if err != nil {
-		return nil, fmt.Errorf("ent init: %w", err)
+		return nil, fmt.Errorf("sql open for ent: %w", err)
 	}
+	drv := entsql.OpenDB(dialect.Postgres, sqlDB)
+	entClient := ent.NewClient(ent.Driver(drv))
 
 	// Run versioned migrations on startup
 	if err := entClient.Schema.Create(ctx, 
