@@ -8,18 +8,24 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/nats-io/nats.go"
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
+	"entgo.io/ent/dialect/sql/schema"
 
+	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/bengobox/pos-service/internal/config"
+	"github.com/bengobox/pos-service/internal/ent"
+	"github.com/bengobox/pos-service/internal/ent/migrate"
 	handlers "github.com/bengobox/pos-service/internal/http/handlers"
 	router "github.com/bengobox/pos-service/internal/http/router"
+	"github.com/bengobox/pos-service/internal/modules/identity"
+	"github.com/bengobox/pos-service/internal/modules/tenant"
 	"github.com/bengobox/pos-service/internal/platform/cache"
 	"github.com/bengobox/pos-service/internal/platform/database"
 	"github.com/bengobox/pos-service/internal/platform/events"
 	"github.com/bengobox/pos-service/internal/shared/logger"
-	authclient "github.com/Bengo-Hub/shared-auth-client"
 )
 
 type App struct {
@@ -27,6 +33,7 @@ type App struct {
 	log        *zap.Logger
 	httpServer *http.Server
 	db         *pgxpool.Pool
+	entClient  *ent.Client
 	cache      *redis.Client
 	events     *nats.Conn
 }
@@ -72,7 +79,23 @@ func New(ctx context.Context) (*App, error) {
 	}
 	authMiddleware = authclient.NewAuthMiddleware(validator)
 
-	chiRouter := router.New(log, healthHandler, authMiddleware)
+	entClient, err := ent.Open("postgres", cfg.Postgres.URL)
+	if err != nil {
+		return nil, fmt.Errorf("ent init: %w", err)
+	}
+
+	// Run versioned migrations on startup
+	if err := entClient.Schema.Create(ctx, 
+		schema.WithDir(migrate.Dir),
+	); err != nil {
+		return nil, fmt.Errorf("ent schema create: %w", err)
+	}
+	log.Info("versioned migrations completed")
+
+	tenantSyncer := tenant.NewSyncer(entClient)
+	identitySvc := identity.NewService(entClient, tenantSyncer)
+
+	chiRouter := router.New(log, healthHandler, authMiddleware, identitySvc)
 
 	httpServer := &http.Server{
 		Addr:              fmt.Sprintf("%s:%d", cfg.HTTP.Host, cfg.HTTP.Port),
@@ -88,6 +111,7 @@ func New(ctx context.Context) (*App, error) {
 		log:        log,
 		httpServer: httpServer,
 		db:         dbPool,
+		entClient:  entClient,
 		cache:      redisClient,
 		events:     natsConn,
 	}, nil
@@ -133,10 +157,15 @@ func (a *App) Close() {
 		}
 	}
 
+	if a.entClient != nil {
+		if err := a.entClient.Close(); err != nil {
+			a.log.Warn("ent close failed", zap.Error(err))
+		}
+	}
+
 	if a.db != nil {
 		a.db.Close()
 	}
 
 	_ = a.log.Sync()
 }
-

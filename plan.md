@@ -269,7 +269,6 @@
 
 ---
 
-<<<<<<< Updated upstream
 **Next Steps:** Finalise detailed ERD extensions for subscription/licensing and POS tables, align API contracts with treasury/notifications/delivery teams, document POS<>POS gateway event payloads, and schedule Sprint 0 kickoff after stakeholder approval.
 
 ### 14. Glossary & Acronyms (Plain‑English Reference)
@@ -282,7 +281,6 @@
 - MPesa (Daraja): Mobile money platform and its API for collections/payouts; STK Push prompts payment on user’s phone.
 - API / REST / gRPC / OpenAPI / Webhook: Programmatic interfaces and protocols; see Logistics “Glossary” for definitions.
 - Postgres, Redis, Kafka/NATS, Kubernetes/Helm/Argo CD, Prometheus/Grafana, OpenTelemetry: Data, messaging, deployment, and observability stack; see Logistics “Glossary” for concise descriptions.
-=======
 ## Technology Stack
 
 ### Core Framework
@@ -653,4 +651,3 @@ See `docs/sprints/` folder for detailed sprint plans:
 - [Entity Relationship Diagram](docs/erd.md)
 - [Superset Integration](docs/superset-integration.md)
 - [Sprint Plans](docs/sprints/)
->>>>>>> Stashed changes

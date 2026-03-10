@@ -15,6 +15,7 @@ FROM alpine:3.20
 RUN addgroup -S app && adduser -S app -G app
 WORKDIR /app
 COPY --from=builder /out/pos /app/service
+COPY internal/ent/migrate/migrations ./internal/ent/migrate/migrations
 RUN mkdir -p ./config/certs
 USER app
 EXPOSE 4000
