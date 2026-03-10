@@ -8,7 +8,7 @@ import (
 	"github.com/kelseyhightower/envconfig"
 )
 
-const namespace = "POS"
+const namespace = ""
 
 // Config aggregates runtime configuration for the POS service.
 type Config struct {
