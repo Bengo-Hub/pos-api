@@ -152,14 +152,28 @@ if [[ "$SETUP_DATABASES" == "true" && -n "${KUBE_CONFIG:-}" ]]; then
   fi
 fi
 
-# Ensure service secrets are up-to-date (handles standardized keys)
+# Ensure devops-k8s is available so create-service-secrets always runs when DEPLOY=true
+if [[ "${DEPLOY}" == "true" && -n "${KUBE_CONFIG:-}" ]] && [[ ! -d "$DEVOPS_DIR" || ! -f "$DEVOPS_DIR/scripts/infrastructure/create-service-secrets.sh" ]]; then
+  if [[ ! -d "$DEVOPS_DIR" ]]; then
+    info "Cloning devops-k8s for secret creation..."
+    TOKEN="${GH_PAT:-${GIT_SECRET:-${GITHUB_TOKEN:-}}}"
+    CLONE_URL="https://github.com/${DEVOPS_REPO}.git"
+    [[ -n "$TOKEN" ]] && CLONE_URL="https://x-access-token:${TOKEN}@github.com/${DEVOPS_REPO}.git"
+    git clone "$CLONE_URL" "$DEVOPS_DIR" || warn "Unable to clone devops repo for secret creation"
+  fi
+fi
+
+# Ensure service secrets are up-to-date (handles standardized keys: POSTGRES_URL, etc.)
 if [[ -d "$DEVOPS_DIR" && -f "$DEVOPS_DIR/scripts/infrastructure/create-service-secrets.sh" ]]; then
   info "Updating secrets for ${APP_NAME} using devops-k8s script..."
+  export KUBECONFIG="${KUBECONFIG:-$HOME/.kube/config}"
   SERVICE_NAME="$APP_NAME" \
   NAMESPACE="$NAMESPACE" \
   DB_NAME="$SERVICE_DB_NAME" \
   DB_USER="$SERVICE_DB_USER" \
   SECRET_NAME="$ENV_SECRET_NAME" \
+  POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-}" \
+  REDIS_PASSWORD="${REDIS_PASSWORD:-}" \
   bash "$DEVOPS_DIR/scripts/infrastructure/create-service-secrets.sh" || warn "Secret sync failed"
 else
   warn "create-service-secrets.sh not available - using existing cluster secrets"
