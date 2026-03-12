@@ -29,6 +29,7 @@ func NewService(client *ent.Client, tenantSyncer *tenant.Syncer) *Service {
 // EnsureUserFromToken performs JIT (Just-In-Time) provisioning of users and tenants.
 // If the user doesn't exist locally, it creates them. If the tenant doesn't exist,
 // it syncs it from the auth-service first.
+// Platform admin (tenant_slug=codevertex + superuser in JWT) has full access via IsPlatformOwner in router; no local role assignment needed.
 func (s *Service) EnsureUserFromToken(ctx context.Context, authServiceID uuid.UUID, tenantSlug string, claims map[string]any) (*ent.User, error) {
 	// 1. Check if user exists by auth_service_id
 	u, err := s.client.User.Query().
