@@ -55,7 +55,8 @@ func (Tenant) Fields() []ent.Field {
 			Nillable(),
 		field.String("use_case").
 			Optional().
-			Nillable(),
+			Nillable().
+			Comment("Primary business use case: hospitality | retail | quick_service | manufacturing | warehousing | services | e_commerce | other"),
 		field.String("subscription_plan").
 			Optional().
 			Nillable(),

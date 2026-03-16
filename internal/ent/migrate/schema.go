@@ -332,6 +332,7 @@ var (
 		{Name: "address_json", Type: field.TypeJSON, Nullable: true},
 		{Name: "timezone", Type: field.TypeString, Default: "Africa/Nairobi"},
 		{Name: "status", Type: field.TypeString, Default: "active"},
+		{Name: "use_case", Type: field.TypeString, Nullable: true},
 		{Name: "opened_at", Type: field.TypeTime, Nullable: true},
 		{Name: "closed_at", Type: field.TypeTime, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime},
@@ -346,7 +347,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "outlets_tenants_outlets",
-				Columns:    []*schema.Column{OutletsColumns[12]},
+				Columns:    []*schema.Column{OutletsColumns[13]},
 				RefColumns: []*schema.Column{TenantsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -355,7 +356,7 @@ var (
 			{
 				Name:    "outlet_tenant_id_code",
 				Unique:  true,
-				Columns: []*schema.Column{OutletsColumns[12], OutletsColumns[2]},
+				Columns: []*schema.Column{OutletsColumns[13], OutletsColumns[2]},
 			},
 			{
 				Name:    "outlet_tenant_slug",

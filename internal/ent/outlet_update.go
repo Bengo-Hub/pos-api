@@ -142,6 +142,26 @@ func (_u *OutletUpdate) SetNillableStatus(v *string) *OutletUpdate {
 	return _u
 }
 
+// SetUseCase sets the "use_case" field.
+func (_u *OutletUpdate) SetUseCase(v string) *OutletUpdate {
+	_u.mutation.SetUseCase(v)
+	return _u
+}
+
+// SetNillableUseCase sets the "use_case" field if the given value is not nil.
+func (_u *OutletUpdate) SetNillableUseCase(v *string) *OutletUpdate {
+	if v != nil {
+		_u.SetUseCase(*v)
+	}
+	return _u
+}
+
+// ClearUseCase clears the value of the "use_case" field.
+func (_u *OutletUpdate) ClearUseCase() *OutletUpdate {
+	_u.mutation.ClearUseCase()
+	return _u
+}
+
 // SetOpenedAt sets the "opened_at" field.
 func (_u *OutletUpdate) SetOpenedAt(v time.Time) *OutletUpdate {
 	_u.mutation.SetOpenedAt(v)
@@ -359,6 +379,12 @@ func (_u *OutletUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(outlet.FieldStatus, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.UseCase(); ok {
+		_spec.SetField(outlet.FieldUseCase, field.TypeString, value)
+	}
+	if _u.mutation.UseCaseCleared() {
+		_spec.ClearField(outlet.FieldUseCase, field.TypeString)
 	}
 	if value, ok := _u.mutation.OpenedAt(); ok {
 		_spec.SetField(outlet.FieldOpenedAt, field.TypeTime, value)
@@ -605,6 +631,26 @@ func (_u *OutletUpdateOne) SetNillableStatus(v *string) *OutletUpdateOne {
 	if v != nil {
 		_u.SetStatus(*v)
 	}
+	return _u
+}
+
+// SetUseCase sets the "use_case" field.
+func (_u *OutletUpdateOne) SetUseCase(v string) *OutletUpdateOne {
+	_u.mutation.SetUseCase(v)
+	return _u
+}
+
+// SetNillableUseCase sets the "use_case" field if the given value is not nil.
+func (_u *OutletUpdateOne) SetNillableUseCase(v *string) *OutletUpdateOne {
+	if v != nil {
+		_u.SetUseCase(*v)
+	}
+	return _u
+}
+
+// ClearUseCase clears the value of the "use_case" field.
+func (_u *OutletUpdateOne) ClearUseCase() *OutletUpdateOne {
+	_u.mutation.ClearUseCase()
 	return _u
 }
 
@@ -855,6 +901,12 @@ func (_u *OutletUpdateOne) sqlSave(ctx context.Context) (_node *Outlet, err erro
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(outlet.FieldStatus, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.UseCase(); ok {
+		_spec.SetField(outlet.FieldUseCase, field.TypeString, value)
+	}
+	if _u.mutation.UseCaseCleared() {
+		_spec.ClearField(outlet.FieldUseCase, field.TypeString)
 	}
 	if value, ok := _u.mutation.OpenedAt(); ok {
 		_spec.SetField(outlet.FieldOpenedAt, field.TypeTime, value)

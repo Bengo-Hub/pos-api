@@ -91,6 +91,11 @@ func Status(v string) predicate.Outlet {
 	return predicate.Outlet(sql.FieldEQ(FieldStatus, v))
 }
 
+// UseCase applies equality check predicate on the "use_case" field. It's identical to UseCaseEQ.
+func UseCase(v string) predicate.Outlet {
+	return predicate.Outlet(sql.FieldEQ(FieldUseCase, v))
+}
+
 // OpenedAt applies equality check predicate on the "opened_at" field. It's identical to OpenedAtEQ.
 func OpenedAt(v time.Time) predicate.Outlet {
 	return predicate.Outlet(sql.FieldEQ(FieldOpenedAt, v))
@@ -529,6 +534,81 @@ func StatusEqualFold(v string) predicate.Outlet {
 // StatusContainsFold applies the ContainsFold predicate on the "status" field.
 func StatusContainsFold(v string) predicate.Outlet {
 	return predicate.Outlet(sql.FieldContainsFold(FieldStatus, v))
+}
+
+// UseCaseEQ applies the EQ predicate on the "use_case" field.
+func UseCaseEQ(v string) predicate.Outlet {
+	return predicate.Outlet(sql.FieldEQ(FieldUseCase, v))
+}
+
+// UseCaseNEQ applies the NEQ predicate on the "use_case" field.
+func UseCaseNEQ(v string) predicate.Outlet {
+	return predicate.Outlet(sql.FieldNEQ(FieldUseCase, v))
+}
+
+// UseCaseIn applies the In predicate on the "use_case" field.
+func UseCaseIn(vs ...string) predicate.Outlet {
+	return predicate.Outlet(sql.FieldIn(FieldUseCase, vs...))
+}
+
+// UseCaseNotIn applies the NotIn predicate on the "use_case" field.
+func UseCaseNotIn(vs ...string) predicate.Outlet {
+	return predicate.Outlet(sql.FieldNotIn(FieldUseCase, vs...))
+}
+
+// UseCaseGT applies the GT predicate on the "use_case" field.
+func UseCaseGT(v string) predicate.Outlet {
+	return predicate.Outlet(sql.FieldGT(FieldUseCase, v))
+}
+
+// UseCaseGTE applies the GTE predicate on the "use_case" field.
+func UseCaseGTE(v string) predicate.Outlet {
+	return predicate.Outlet(sql.FieldGTE(FieldUseCase, v))
+}
+
+// UseCaseLT applies the LT predicate on the "use_case" field.
+func UseCaseLT(v string) predicate.Outlet {
+	return predicate.Outlet(sql.FieldLT(FieldUseCase, v))
+}
+
+// UseCaseLTE applies the LTE predicate on the "use_case" field.
+func UseCaseLTE(v string) predicate.Outlet {
+	return predicate.Outlet(sql.FieldLTE(FieldUseCase, v))
+}
+
+// UseCaseContains applies the Contains predicate on the "use_case" field.
+func UseCaseContains(v string) predicate.Outlet {
+	return predicate.Outlet(sql.FieldContains(FieldUseCase, v))
+}
+
+// UseCaseHasPrefix applies the HasPrefix predicate on the "use_case" field.
+func UseCaseHasPrefix(v string) predicate.Outlet {
+	return predicate.Outlet(sql.FieldHasPrefix(FieldUseCase, v))
+}
+
+// UseCaseHasSuffix applies the HasSuffix predicate on the "use_case" field.
+func UseCaseHasSuffix(v string) predicate.Outlet {
+	return predicate.Outlet(sql.FieldHasSuffix(FieldUseCase, v))
+}
+
+// UseCaseIsNil applies the IsNil predicate on the "use_case" field.
+func UseCaseIsNil() predicate.Outlet {
+	return predicate.Outlet(sql.FieldIsNull(FieldUseCase))
+}
+
+// UseCaseNotNil applies the NotNil predicate on the "use_case" field.
+func UseCaseNotNil() predicate.Outlet {
+	return predicate.Outlet(sql.FieldNotNull(FieldUseCase))
+}
+
+// UseCaseEqualFold applies the EqualFold predicate on the "use_case" field.
+func UseCaseEqualFold(v string) predicate.Outlet {
+	return predicate.Outlet(sql.FieldEqualFold(FieldUseCase, v))
+}
+
+// UseCaseContainsFold applies the ContainsFold predicate on the "use_case" field.
+func UseCaseContainsFold(v string) predicate.Outlet {
+	return predicate.Outlet(sql.FieldContainsFold(FieldUseCase, v))
 }
 
 // OpenedAtEQ applies the EQ predicate on the "opened_at" field.

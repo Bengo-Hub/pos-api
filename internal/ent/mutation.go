@@ -11659,6 +11659,7 @@ type OutletMutation struct {
 	address_json    *map[string]interface{}
 	timezone        *string
 	status          *string
+	use_case        *string
 	opened_at       *time.Time
 	closed_at       *time.Time
 	created_at      *time.Time
@@ -12081,6 +12082,55 @@ func (m *OutletMutation) ResetStatus() {
 	m.status = nil
 }
 
+// SetUseCase sets the "use_case" field.
+func (m *OutletMutation) SetUseCase(s string) {
+	m.use_case = &s
+}
+
+// UseCase returns the value of the "use_case" field in the mutation.
+func (m *OutletMutation) UseCase() (r string, exists bool) {
+	v := m.use_case
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUseCase returns the old "use_case" field's value of the Outlet entity.
+// If the Outlet object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OutletMutation) OldUseCase(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUseCase is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUseCase requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUseCase: %w", err)
+	}
+	return oldValue.UseCase, nil
+}
+
+// ClearUseCase clears the value of the "use_case" field.
+func (m *OutletMutation) ClearUseCase() {
+	m.use_case = nil
+	m.clearedFields[outlet.FieldUseCase] = struct{}{}
+}
+
+// UseCaseCleared returns if the "use_case" field was cleared in this mutation.
+func (m *OutletMutation) UseCaseCleared() bool {
+	_, ok := m.clearedFields[outlet.FieldUseCase]
+	return ok
+}
+
+// ResetUseCase resets all changes to the "use_case" field.
+func (m *OutletMutation) ResetUseCase() {
+	m.use_case = nil
+	delete(m.clearedFields, outlet.FieldUseCase)
+}
+
 // SetOpenedAt sets the "opened_at" field.
 func (m *OutletMutation) SetOpenedAt(t time.Time) {
 	m.opened_at = &t
@@ -12405,7 +12455,7 @@ func (m *OutletMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *OutletMutation) Fields() []string {
-	fields := make([]string, 0, 12)
+	fields := make([]string, 0, 13)
 	if m.tenant != nil {
 		fields = append(fields, outlet.FieldTenantID)
 	}
@@ -12429,6 +12479,9 @@ func (m *OutletMutation) Fields() []string {
 	}
 	if m.status != nil {
 		fields = append(fields, outlet.FieldStatus)
+	}
+	if m.use_case != nil {
+		fields = append(fields, outlet.FieldUseCase)
 	}
 	if m.opened_at != nil {
 		fields = append(fields, outlet.FieldOpenedAt)
@@ -12466,6 +12519,8 @@ func (m *OutletMutation) Field(name string) (ent.Value, bool) {
 		return m.Timezone()
 	case outlet.FieldStatus:
 		return m.Status()
+	case outlet.FieldUseCase:
+		return m.UseCase()
 	case outlet.FieldOpenedAt:
 		return m.OpenedAt()
 	case outlet.FieldClosedAt:
@@ -12499,6 +12554,8 @@ func (m *OutletMutation) OldField(ctx context.Context, name string) (ent.Value, 
 		return m.OldTimezone(ctx)
 	case outlet.FieldStatus:
 		return m.OldStatus(ctx)
+	case outlet.FieldUseCase:
+		return m.OldUseCase(ctx)
 	case outlet.FieldOpenedAt:
 		return m.OldOpenedAt(ctx)
 	case outlet.FieldClosedAt:
@@ -12572,6 +12629,13 @@ func (m *OutletMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetStatus(v)
 		return nil
+	case outlet.FieldUseCase:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUseCase(v)
+		return nil
 	case outlet.FieldOpenedAt:
 		v, ok := value.(time.Time)
 		if !ok {
@@ -12633,6 +12697,9 @@ func (m *OutletMutation) ClearedFields() []string {
 	if m.FieldCleared(outlet.FieldAddressJSON) {
 		fields = append(fields, outlet.FieldAddressJSON)
 	}
+	if m.FieldCleared(outlet.FieldUseCase) {
+		fields = append(fields, outlet.FieldUseCase)
+	}
 	if m.FieldCleared(outlet.FieldOpenedAt) {
 		fields = append(fields, outlet.FieldOpenedAt)
 	}
@@ -12655,6 +12722,9 @@ func (m *OutletMutation) ClearField(name string) error {
 	switch name {
 	case outlet.FieldAddressJSON:
 		m.ClearAddressJSON()
+		return nil
+	case outlet.FieldUseCase:
+		m.ClearUseCase()
 		return nil
 	case outlet.FieldOpenedAt:
 		m.ClearOpenedAt()
@@ -12693,6 +12763,9 @@ func (m *OutletMutation) ResetField(name string) error {
 		return nil
 	case outlet.FieldStatus:
 		m.ResetStatus()
+		return nil
+	case outlet.FieldUseCase:
+		m.ResetUseCase()
 		return nil
 	case outlet.FieldOpenedAt:
 		m.ResetOpenedAt()

@@ -37,6 +37,8 @@ type Outlet struct {
 	Timezone string `json:"timezone,omitempty"`
 	// Status holds the value of the "status" field.
 	Status string `json:"status,omitempty"`
+	// Use case for this outlet (e.g., hospitality, retail)
+	UseCase *string `json:"use_case,omitempty"`
 	// OpenedAt holds the value of the "opened_at" field.
 	OpenedAt *time.Time `json:"opened_at,omitempty"`
 	// ClosedAt holds the value of the "closed_at" field.
@@ -102,7 +104,7 @@ func (*Outlet) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case outlet.FieldAddressJSON:
 			values[i] = new([]byte)
-		case outlet.FieldTenantSlug, outlet.FieldCode, outlet.FieldName, outlet.FieldChannelType, outlet.FieldTimezone, outlet.FieldStatus:
+		case outlet.FieldTenantSlug, outlet.FieldCode, outlet.FieldName, outlet.FieldChannelType, outlet.FieldTimezone, outlet.FieldStatus, outlet.FieldUseCase:
 			values[i] = new(sql.NullString)
 		case outlet.FieldOpenedAt, outlet.FieldClosedAt, outlet.FieldCreatedAt, outlet.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -178,6 +180,13 @@ func (_m *Outlet) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field status", values[i])
 			} else if value.Valid {
 				_m.Status = value.String
+			}
+		case outlet.FieldUseCase:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field use_case", values[i])
+			} else if value.Valid {
+				_m.UseCase = new(string)
+				*_m.UseCase = value.String
 			}
 		case outlet.FieldOpenedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -279,6 +288,11 @@ func (_m *Outlet) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("status=")
 	builder.WriteString(_m.Status)
+	builder.WriteString(", ")
+	if v := _m.UseCase; v != nil {
+		builder.WriteString("use_case=")
+		builder.WriteString(*v)
+	}
 	builder.WriteString(", ")
 	if v := _m.OpenedAt; v != nil {
 		builder.WriteString("opened_at=")
