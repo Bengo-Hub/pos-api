@@ -18,7 +18,7 @@ import (
 	"github.com/Bengo-Hub/httpware"
 )
 
-func New(log *zap.Logger, health *handlers.HealthHandler, authMiddleware *authclient.AuthMiddleware, idSvc *identity.Service) http.Handler {
+func New(log *zap.Logger, health *handlers.HealthHandler, authMiddleware *authclient.AuthMiddleware, idSvc *identity.Service, orders *handlers.POSOrderHandler) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(middleware.RequestID)
@@ -85,11 +85,12 @@ func New(log *zap.Logger, health *handlers.HealthHandler, authMiddleware *authcl
 			}))
 
 			tenant.Route("/pos", func(pos chi.Router) {
-				// Placeholder endpoints - to be implemented
-				pos.Get("/orders", func(w http.ResponseWriter, r *http.Request) {
-					w.WriteHeader(http.StatusNotImplemented)
-					w.Write([]byte("Not implemented yet"))
-				})
+				if orders != nil {
+					pos.Get("/orders", orders.ListOrders)
+					pos.Post("/orders", orders.CreateOrder)
+					pos.Get("/orders/{orderID}", orders.GetOrder)
+					pos.Patch("/orders/{orderID}/status", orders.UpdateStatus)
+				}
 			})
 		})
 	})

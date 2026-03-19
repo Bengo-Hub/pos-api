@@ -12,13 +12,20 @@ const namespace = ""
 
 // Config aggregates runtime configuration for the POS service.
 type Config struct {
-	App       AppConfig
-	HTTP      HTTPConfig
-	Postgres  PostgresConfig
-	Redis     RedisConfig
-	Events    EventsConfig
-	Telemetry TelemetryConfig
-	Auth      AuthConfig
+	App           AppConfig
+	HTTP          HTTPConfig
+	Postgres      PostgresConfig
+	Redis         RedisConfig
+	Events        EventsConfig
+	Telemetry     TelemetryConfig
+	Auth          AuthConfig
+	Subscriptions SubscriptionsConfig
+}
+
+// SubscriptionsConfig holds configuration for the subscriptions enforcement client.
+type SubscriptionsConfig struct {
+	ServiceURL     string        `envconfig:"SUBSCRIPTIONS_SERVICE_URL" default:"https://pricingapi.codevertexitsolutions.com"`
+	RequestTimeout time.Duration `envconfig:"SUBSCRIPTIONS_REQUEST_TIMEOUT" default:"10s"`
 }
 
 type AppConfig struct {

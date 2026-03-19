@@ -28,6 +28,7 @@ import (
 	"github.com/bengobox/pos-service/internal/platform/cache"
 	"github.com/bengobox/pos-service/internal/platform/database"
 	"github.com/bengobox/pos-service/internal/platform/events"
+	"github.com/bengobox/pos-service/internal/platform/subscriptions"
 	"github.com/bengobox/pos-service/internal/shared/logger"
 )
 
@@ -97,10 +98,16 @@ func New(ctx context.Context) (*App, error) {
 	}
 	log.Info("versioned migrations completed")
 
+	subsClient := subscriptions.NewClient(subscriptions.Config{
+		ServiceURL:     cfg.Subscriptions.ServiceURL,
+		RequestTimeout: cfg.Subscriptions.RequestTimeout,
+	})
+
 	tenantSyncer := tenant.NewSyncer(entClient)
 	identitySvc := identity.NewService(entClient, tenantSyncer)
+	orderHandler := handlers.NewPOSOrderHandler(log, entClient, subsClient)
 
-	chiRouter := router.New(log, healthHandler, authMiddleware, identitySvc)
+	chiRouter := router.New(log, healthHandler, authMiddleware, identitySvc, orderHandler)
 
 	httpServer := &http.Server{
 		Addr:              fmt.Sprintf("%s:%d", cfg.HTTP.Host, cfg.HTTP.Port),
