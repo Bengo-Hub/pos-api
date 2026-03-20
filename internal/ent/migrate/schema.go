@@ -716,6 +716,45 @@ var (
 		Columns:    PromotionRulesColumns,
 		PrimaryKey: []*schema.Column{PromotionRulesColumns[0]},
 	}
+	// SectionsColumns holds the columns for the "sections" table.
+	SectionsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "outlet_id", Type: field.TypeUUID},
+		{Name: "name", Type: field.TypeString},
+		{Name: "slug", Type: field.TypeString},
+		{Name: "description", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "floor_number", Type: field.TypeInt, Default: 1},
+		{Name: "sort_order", Type: field.TypeInt, Default: 0},
+		{Name: "is_active", Type: field.TypeBool, Default: true},
+		{Name: "section_type", Type: field.TypeEnum, Enums: []string{"main_hall", "outdoor", "private_room", "bar", "vip", "vvip", "rooftop", "other"}, Default: "main_hall"},
+		{Name: "metadata", Type: field.TypeJSON},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// SectionsTable holds the schema information for the "sections" table.
+	SectionsTable = &schema.Table{
+		Name:       "sections",
+		Columns:    SectionsColumns,
+		PrimaryKey: []*schema.Column{SectionsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "section_tenant_id_outlet_id",
+				Unique:  false,
+				Columns: []*schema.Column{SectionsColumns[1], SectionsColumns[2]},
+			},
+			{
+				Name:    "section_tenant_id_outlet_id_slug",
+				Unique:  true,
+				Columns: []*schema.Column{SectionsColumns[1], SectionsColumns[2], SectionsColumns[4]},
+			},
+			{
+				Name:    "section_is_active",
+				Unique:  false,
+				Columns: []*schema.Column{SectionsColumns[8]},
+			},
+		},
+	}
 	// StockAlertSubscriptionsColumns holds the columns for the "stock_alert_subscriptions" table.
 	StockAlertSubscriptionsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -776,15 +815,28 @@ var (
 		{Name: "name", Type: field.TypeString},
 		{Name: "capacity", Type: field.TypeInt, Default: 1},
 		{Name: "status", Type: field.TypeString, Default: "available"},
+		{Name: "table_type", Type: field.TypeEnum, Enums: []string{"standard", "booth", "bar_seat", "counter", "vip", "vvip"}, Default: "standard"},
+		{Name: "x_position", Type: field.TypeFloat64, Nullable: true},
+		{Name: "y_position", Type: field.TypeFloat64, Nullable: true},
+		{Name: "tags", Type: field.TypeJSON, Nullable: true},
 		{Name: "metadata", Type: field.TypeJSON},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "section_id", Type: field.TypeUUID, Nullable: true},
 	}
 	// TablesTable holds the schema information for the "tables" table.
 	TablesTable = &schema.Table{
 		Name:       "tables",
 		Columns:    TablesColumns,
 		PrimaryKey: []*schema.Column{TablesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "tables_sections_tables",
+				Columns:    []*schema.Column{TablesColumns[13]},
+				RefColumns: []*schema.Column{SectionsColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+		},
 		Indexes: []*schema.Index{
 			{
 				Name:    "table_tenant_id_outlet_id_name",
@@ -1026,6 +1078,7 @@ var (
 		PromotionsTable,
 		PromotionApplicationsTable,
 		PromotionRulesTable,
+		SectionsTable,
 		StockAlertSubscriptionsTable,
 		StockConsumptionEventsTable,
 		SyncFailuresTable,
@@ -1055,6 +1108,7 @@ func init() {
 	PosPaymentsTable.ForeignKeys[0].RefTable = PosOrdersTable
 	PriceBookItemsTable.ForeignKeys[0].RefTable = CatalogItemsTable
 	PriceBookItemsTable.ForeignKeys[1].RefTable = PriceBooksTable
+	TablesTable.ForeignKeys[0].RefTable = SectionsTable
 	TableAssignmentsTable.ForeignKeys[0].RefTable = TablesTable
 	UsersTable.ForeignKeys[0].RefTable = TenantsTable
 	UserPosRolesTable.ForeignKeys[0].RefTable = PosRolesTable

@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/bengobox/pos-service/internal/ent/section"
 	"github.com/bengobox/pos-service/internal/ent/table"
 	"github.com/bengobox/pos-service/internal/ent/tableassignment"
 	"github.com/google/uuid"
@@ -34,6 +35,20 @@ func (_c *TableCreate) SetTenantID(v uuid.UUID) *TableCreate {
 // SetOutletID sets the "outlet_id" field.
 func (_c *TableCreate) SetOutletID(v uuid.UUID) *TableCreate {
 	_c.mutation.SetOutletID(v)
+	return _c
+}
+
+// SetSectionID sets the "section_id" field.
+func (_c *TableCreate) SetSectionID(v uuid.UUID) *TableCreate {
+	_c.mutation.SetSectionID(v)
+	return _c
+}
+
+// SetNillableSectionID sets the "section_id" field if the given value is not nil.
+func (_c *TableCreate) SetNillableSectionID(v *uuid.UUID) *TableCreate {
+	if v != nil {
+		_c.SetSectionID(*v)
+	}
 	return _c
 }
 
@@ -68,6 +83,54 @@ func (_c *TableCreate) SetNillableStatus(v *string) *TableCreate {
 	if v != nil {
 		_c.SetStatus(*v)
 	}
+	return _c
+}
+
+// SetTableType sets the "table_type" field.
+func (_c *TableCreate) SetTableType(v table.TableType) *TableCreate {
+	_c.mutation.SetTableType(v)
+	return _c
+}
+
+// SetNillableTableType sets the "table_type" field if the given value is not nil.
+func (_c *TableCreate) SetNillableTableType(v *table.TableType) *TableCreate {
+	if v != nil {
+		_c.SetTableType(*v)
+	}
+	return _c
+}
+
+// SetXPosition sets the "x_position" field.
+func (_c *TableCreate) SetXPosition(v float64) *TableCreate {
+	_c.mutation.SetXPosition(v)
+	return _c
+}
+
+// SetNillableXPosition sets the "x_position" field if the given value is not nil.
+func (_c *TableCreate) SetNillableXPosition(v *float64) *TableCreate {
+	if v != nil {
+		_c.SetXPosition(*v)
+	}
+	return _c
+}
+
+// SetYPosition sets the "y_position" field.
+func (_c *TableCreate) SetYPosition(v float64) *TableCreate {
+	_c.mutation.SetYPosition(v)
+	return _c
+}
+
+// SetNillableYPosition sets the "y_position" field if the given value is not nil.
+func (_c *TableCreate) SetNillableYPosition(v *float64) *TableCreate {
+	if v != nil {
+		_c.SetYPosition(*v)
+	}
+	return _c
+}
+
+// SetTags sets the "tags" field.
+func (_c *TableCreate) SetTags(v []string) *TableCreate {
+	_c.mutation.SetTags(v)
 	return _c
 }
 
@@ -117,6 +180,11 @@ func (_c *TableCreate) SetNillableID(v *uuid.UUID) *TableCreate {
 		_c.SetID(*v)
 	}
 	return _c
+}
+
+// SetSection sets the "section" edge to the Section entity.
+func (_c *TableCreate) SetSection(v *Section) *TableCreate {
+	return _c.SetSectionID(v.ID)
 }
 
 // AddAssignmentIDs adds the "assignments" edge to the TableAssignment entity by IDs.
@@ -177,6 +245,10 @@ func (_c *TableCreate) defaults() {
 		v := table.DefaultStatus
 		_c.mutation.SetStatus(v)
 	}
+	if _, ok := _c.mutation.TableType(); !ok {
+		v := table.DefaultTableType
+		_c.mutation.SetTableType(v)
+	}
 	if _, ok := _c.mutation.Metadata(); !ok {
 		v := table.DefaultMetadata
 		_c.mutation.SetMetadata(v)
@@ -216,6 +288,14 @@ func (_c *TableCreate) check() error {
 	}
 	if _, ok := _c.mutation.Status(); !ok {
 		return &ValidationError{Name: "status", err: errors.New(`ent: missing required field "Table.status"`)}
+	}
+	if _, ok := _c.mutation.TableType(); !ok {
+		return &ValidationError{Name: "table_type", err: errors.New(`ent: missing required field "Table.table_type"`)}
+	}
+	if v, ok := _c.mutation.TableType(); ok {
+		if err := table.TableTypeValidator(v); err != nil {
+			return &ValidationError{Name: "table_type", err: fmt.Errorf(`ent: validator failed for field "Table.table_type": %w`, err)}
+		}
 	}
 	if _, ok := _c.mutation.Metadata(); !ok {
 		return &ValidationError{Name: "metadata", err: errors.New(`ent: missing required field "Table.metadata"`)}
@@ -282,6 +362,22 @@ func (_c *TableCreate) createSpec() (*Table, *sqlgraph.CreateSpec) {
 		_spec.SetField(table.FieldStatus, field.TypeString, value)
 		_node.Status = value
 	}
+	if value, ok := _c.mutation.TableType(); ok {
+		_spec.SetField(table.FieldTableType, field.TypeEnum, value)
+		_node.TableType = value
+	}
+	if value, ok := _c.mutation.XPosition(); ok {
+		_spec.SetField(table.FieldXPosition, field.TypeFloat64, value)
+		_node.XPosition = &value
+	}
+	if value, ok := _c.mutation.YPosition(); ok {
+		_spec.SetField(table.FieldYPosition, field.TypeFloat64, value)
+		_node.YPosition = &value
+	}
+	if value, ok := _c.mutation.Tags(); ok {
+		_spec.SetField(table.FieldTags, field.TypeJSON, value)
+		_node.Tags = value
+	}
 	if value, ok := _c.mutation.Metadata(); ok {
 		_spec.SetField(table.FieldMetadata, field.TypeJSON, value)
 		_node.Metadata = value
@@ -293,6 +389,23 @@ func (_c *TableCreate) createSpec() (*Table, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.UpdatedAt(); ok {
 		_spec.SetField(table.FieldUpdatedAt, field.TypeTime, value)
 		_node.UpdatedAt = value
+	}
+	if nodes := _c.mutation.SectionIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   table.SectionTable,
+			Columns: []string{table.SectionColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(section.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_node.SectionID = &nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
 	}
 	if nodes := _c.mutation.AssignmentsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
@@ -386,6 +499,24 @@ func (u *TableUpsert) UpdateOutletID() *TableUpsert {
 	return u
 }
 
+// SetSectionID sets the "section_id" field.
+func (u *TableUpsert) SetSectionID(v uuid.UUID) *TableUpsert {
+	u.Set(table.FieldSectionID, v)
+	return u
+}
+
+// UpdateSectionID sets the "section_id" field to the value that was provided on create.
+func (u *TableUpsert) UpdateSectionID() *TableUpsert {
+	u.SetExcluded(table.FieldSectionID)
+	return u
+}
+
+// ClearSectionID clears the value of the "section_id" field.
+func (u *TableUpsert) ClearSectionID() *TableUpsert {
+	u.SetNull(table.FieldSectionID)
+	return u
+}
+
 // SetName sets the "name" field.
 func (u *TableUpsert) SetName(v string) *TableUpsert {
 	u.Set(table.FieldName, v)
@@ -425,6 +556,84 @@ func (u *TableUpsert) SetStatus(v string) *TableUpsert {
 // UpdateStatus sets the "status" field to the value that was provided on create.
 func (u *TableUpsert) UpdateStatus() *TableUpsert {
 	u.SetExcluded(table.FieldStatus)
+	return u
+}
+
+// SetTableType sets the "table_type" field.
+func (u *TableUpsert) SetTableType(v table.TableType) *TableUpsert {
+	u.Set(table.FieldTableType, v)
+	return u
+}
+
+// UpdateTableType sets the "table_type" field to the value that was provided on create.
+func (u *TableUpsert) UpdateTableType() *TableUpsert {
+	u.SetExcluded(table.FieldTableType)
+	return u
+}
+
+// SetXPosition sets the "x_position" field.
+func (u *TableUpsert) SetXPosition(v float64) *TableUpsert {
+	u.Set(table.FieldXPosition, v)
+	return u
+}
+
+// UpdateXPosition sets the "x_position" field to the value that was provided on create.
+func (u *TableUpsert) UpdateXPosition() *TableUpsert {
+	u.SetExcluded(table.FieldXPosition)
+	return u
+}
+
+// AddXPosition adds v to the "x_position" field.
+func (u *TableUpsert) AddXPosition(v float64) *TableUpsert {
+	u.Add(table.FieldXPosition, v)
+	return u
+}
+
+// ClearXPosition clears the value of the "x_position" field.
+func (u *TableUpsert) ClearXPosition() *TableUpsert {
+	u.SetNull(table.FieldXPosition)
+	return u
+}
+
+// SetYPosition sets the "y_position" field.
+func (u *TableUpsert) SetYPosition(v float64) *TableUpsert {
+	u.Set(table.FieldYPosition, v)
+	return u
+}
+
+// UpdateYPosition sets the "y_position" field to the value that was provided on create.
+func (u *TableUpsert) UpdateYPosition() *TableUpsert {
+	u.SetExcluded(table.FieldYPosition)
+	return u
+}
+
+// AddYPosition adds v to the "y_position" field.
+func (u *TableUpsert) AddYPosition(v float64) *TableUpsert {
+	u.Add(table.FieldYPosition, v)
+	return u
+}
+
+// ClearYPosition clears the value of the "y_position" field.
+func (u *TableUpsert) ClearYPosition() *TableUpsert {
+	u.SetNull(table.FieldYPosition)
+	return u
+}
+
+// SetTags sets the "tags" field.
+func (u *TableUpsert) SetTags(v []string) *TableUpsert {
+	u.Set(table.FieldTags, v)
+	return u
+}
+
+// UpdateTags sets the "tags" field to the value that was provided on create.
+func (u *TableUpsert) UpdateTags() *TableUpsert {
+	u.SetExcluded(table.FieldTags)
+	return u
+}
+
+// ClearTags clears the value of the "tags" field.
+func (u *TableUpsert) ClearTags() *TableUpsert {
+	u.SetNull(table.FieldTags)
 	return u
 }
 
@@ -531,6 +740,27 @@ func (u *TableUpsertOne) UpdateOutletID() *TableUpsertOne {
 	})
 }
 
+// SetSectionID sets the "section_id" field.
+func (u *TableUpsertOne) SetSectionID(v uuid.UUID) *TableUpsertOne {
+	return u.Update(func(s *TableUpsert) {
+		s.SetSectionID(v)
+	})
+}
+
+// UpdateSectionID sets the "section_id" field to the value that was provided on create.
+func (u *TableUpsertOne) UpdateSectionID() *TableUpsertOne {
+	return u.Update(func(s *TableUpsert) {
+		s.UpdateSectionID()
+	})
+}
+
+// ClearSectionID clears the value of the "section_id" field.
+func (u *TableUpsertOne) ClearSectionID() *TableUpsertOne {
+	return u.Update(func(s *TableUpsert) {
+		s.ClearSectionID()
+	})
+}
+
 // SetName sets the "name" field.
 func (u *TableUpsertOne) SetName(v string) *TableUpsertOne {
 	return u.Update(func(s *TableUpsert) {
@@ -577,6 +807,97 @@ func (u *TableUpsertOne) SetStatus(v string) *TableUpsertOne {
 func (u *TableUpsertOne) UpdateStatus() *TableUpsertOne {
 	return u.Update(func(s *TableUpsert) {
 		s.UpdateStatus()
+	})
+}
+
+// SetTableType sets the "table_type" field.
+func (u *TableUpsertOne) SetTableType(v table.TableType) *TableUpsertOne {
+	return u.Update(func(s *TableUpsert) {
+		s.SetTableType(v)
+	})
+}
+
+// UpdateTableType sets the "table_type" field to the value that was provided on create.
+func (u *TableUpsertOne) UpdateTableType() *TableUpsertOne {
+	return u.Update(func(s *TableUpsert) {
+		s.UpdateTableType()
+	})
+}
+
+// SetXPosition sets the "x_position" field.
+func (u *TableUpsertOne) SetXPosition(v float64) *TableUpsertOne {
+	return u.Update(func(s *TableUpsert) {
+		s.SetXPosition(v)
+	})
+}
+
+// AddXPosition adds v to the "x_position" field.
+func (u *TableUpsertOne) AddXPosition(v float64) *TableUpsertOne {
+	return u.Update(func(s *TableUpsert) {
+		s.AddXPosition(v)
+	})
+}
+
+// UpdateXPosition sets the "x_position" field to the value that was provided on create.
+func (u *TableUpsertOne) UpdateXPosition() *TableUpsertOne {
+	return u.Update(func(s *TableUpsert) {
+		s.UpdateXPosition()
+	})
+}
+
+// ClearXPosition clears the value of the "x_position" field.
+func (u *TableUpsertOne) ClearXPosition() *TableUpsertOne {
+	return u.Update(func(s *TableUpsert) {
+		s.ClearXPosition()
+	})
+}
+
+// SetYPosition sets the "y_position" field.
+func (u *TableUpsertOne) SetYPosition(v float64) *TableUpsertOne {
+	return u.Update(func(s *TableUpsert) {
+		s.SetYPosition(v)
+	})
+}
+
+// AddYPosition adds v to the "y_position" field.
+func (u *TableUpsertOne) AddYPosition(v float64) *TableUpsertOne {
+	return u.Update(func(s *TableUpsert) {
+		s.AddYPosition(v)
+	})
+}
+
+// UpdateYPosition sets the "y_position" field to the value that was provided on create.
+func (u *TableUpsertOne) UpdateYPosition() *TableUpsertOne {
+	return u.Update(func(s *TableUpsert) {
+		s.UpdateYPosition()
+	})
+}
+
+// ClearYPosition clears the value of the "y_position" field.
+func (u *TableUpsertOne) ClearYPosition() *TableUpsertOne {
+	return u.Update(func(s *TableUpsert) {
+		s.ClearYPosition()
+	})
+}
+
+// SetTags sets the "tags" field.
+func (u *TableUpsertOne) SetTags(v []string) *TableUpsertOne {
+	return u.Update(func(s *TableUpsert) {
+		s.SetTags(v)
+	})
+}
+
+// UpdateTags sets the "tags" field to the value that was provided on create.
+func (u *TableUpsertOne) UpdateTags() *TableUpsertOne {
+	return u.Update(func(s *TableUpsert) {
+		s.UpdateTags()
+	})
+}
+
+// ClearTags clears the value of the "tags" field.
+func (u *TableUpsertOne) ClearTags() *TableUpsertOne {
+	return u.Update(func(s *TableUpsert) {
+		s.ClearTags()
 	})
 }
 
@@ -854,6 +1175,27 @@ func (u *TableUpsertBulk) UpdateOutletID() *TableUpsertBulk {
 	})
 }
 
+// SetSectionID sets the "section_id" field.
+func (u *TableUpsertBulk) SetSectionID(v uuid.UUID) *TableUpsertBulk {
+	return u.Update(func(s *TableUpsert) {
+		s.SetSectionID(v)
+	})
+}
+
+// UpdateSectionID sets the "section_id" field to the value that was provided on create.
+func (u *TableUpsertBulk) UpdateSectionID() *TableUpsertBulk {
+	return u.Update(func(s *TableUpsert) {
+		s.UpdateSectionID()
+	})
+}
+
+// ClearSectionID clears the value of the "section_id" field.
+func (u *TableUpsertBulk) ClearSectionID() *TableUpsertBulk {
+	return u.Update(func(s *TableUpsert) {
+		s.ClearSectionID()
+	})
+}
+
 // SetName sets the "name" field.
 func (u *TableUpsertBulk) SetName(v string) *TableUpsertBulk {
 	return u.Update(func(s *TableUpsert) {
@@ -900,6 +1242,97 @@ func (u *TableUpsertBulk) SetStatus(v string) *TableUpsertBulk {
 func (u *TableUpsertBulk) UpdateStatus() *TableUpsertBulk {
 	return u.Update(func(s *TableUpsert) {
 		s.UpdateStatus()
+	})
+}
+
+// SetTableType sets the "table_type" field.
+func (u *TableUpsertBulk) SetTableType(v table.TableType) *TableUpsertBulk {
+	return u.Update(func(s *TableUpsert) {
+		s.SetTableType(v)
+	})
+}
+
+// UpdateTableType sets the "table_type" field to the value that was provided on create.
+func (u *TableUpsertBulk) UpdateTableType() *TableUpsertBulk {
+	return u.Update(func(s *TableUpsert) {
+		s.UpdateTableType()
+	})
+}
+
+// SetXPosition sets the "x_position" field.
+func (u *TableUpsertBulk) SetXPosition(v float64) *TableUpsertBulk {
+	return u.Update(func(s *TableUpsert) {
+		s.SetXPosition(v)
+	})
+}
+
+// AddXPosition adds v to the "x_position" field.
+func (u *TableUpsertBulk) AddXPosition(v float64) *TableUpsertBulk {
+	return u.Update(func(s *TableUpsert) {
+		s.AddXPosition(v)
+	})
+}
+
+// UpdateXPosition sets the "x_position" field to the value that was provided on create.
+func (u *TableUpsertBulk) UpdateXPosition() *TableUpsertBulk {
+	return u.Update(func(s *TableUpsert) {
+		s.UpdateXPosition()
+	})
+}
+
+// ClearXPosition clears the value of the "x_position" field.
+func (u *TableUpsertBulk) ClearXPosition() *TableUpsertBulk {
+	return u.Update(func(s *TableUpsert) {
+		s.ClearXPosition()
+	})
+}
+
+// SetYPosition sets the "y_position" field.
+func (u *TableUpsertBulk) SetYPosition(v float64) *TableUpsertBulk {
+	return u.Update(func(s *TableUpsert) {
+		s.SetYPosition(v)
+	})
+}
+
+// AddYPosition adds v to the "y_position" field.
+func (u *TableUpsertBulk) AddYPosition(v float64) *TableUpsertBulk {
+	return u.Update(func(s *TableUpsert) {
+		s.AddYPosition(v)
+	})
+}
+
+// UpdateYPosition sets the "y_position" field to the value that was provided on create.
+func (u *TableUpsertBulk) UpdateYPosition() *TableUpsertBulk {
+	return u.Update(func(s *TableUpsert) {
+		s.UpdateYPosition()
+	})
+}
+
+// ClearYPosition clears the value of the "y_position" field.
+func (u *TableUpsertBulk) ClearYPosition() *TableUpsertBulk {
+	return u.Update(func(s *TableUpsert) {
+		s.ClearYPosition()
+	})
+}
+
+// SetTags sets the "tags" field.
+func (u *TableUpsertBulk) SetTags(v []string) *TableUpsertBulk {
+	return u.Update(func(s *TableUpsert) {
+		s.SetTags(v)
+	})
+}
+
+// UpdateTags sets the "tags" field to the value that was provided on create.
+func (u *TableUpsertBulk) UpdateTags() *TableUpsertBulk {
+	return u.Update(func(s *TableUpsert) {
+		s.UpdateTags()
+	})
+}
+
+// ClearTags clears the value of the "tags" field.
+func (u *TableUpsertBulk) ClearTags() *TableUpsertBulk {
+	return u.Update(func(s *TableUpsert) {
+		s.ClearTags()
 	})
 }
 

@@ -45,6 +45,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/promotion"
 	"github.com/bengobox/pos-service/internal/ent/promotionapplication"
 	"github.com/bengobox/pos-service/internal/ent/promotionrule"
+	"github.com/bengobox/pos-service/internal/ent/section"
 	"github.com/bengobox/pos-service/internal/ent/stockalertsubscription"
 	"github.com/bengobox/pos-service/internal/ent/stockconsumptionevent"
 	"github.com/bengobox/pos-service/internal/ent/syncfailure"
@@ -149,6 +150,7 @@ func checkColumn(t, c string) error {
 			promotion.Table:              promotion.ValidColumn,
 			promotionapplication.Table:   promotionapplication.ValidColumn,
 			promotionrule.Table:          promotionrule.ValidColumn,
+			section.Table:                section.ValidColumn,
 			stockalertsubscription.Table: stockalertsubscription.ValidColumn,
 			stockconsumptionevent.Table:  stockconsumptionevent.ValidColumn,
 			syncfailure.Table:            syncfailure.ValidColumn,

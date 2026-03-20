@@ -15,58 +15,56 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/predicate"
 	"github.com/bengobox/pos-service/internal/ent/section"
 	"github.com/bengobox/pos-service/internal/ent/table"
-	"github.com/bengobox/pos-service/internal/ent/tableassignment"
 	"github.com/google/uuid"
 )
 
-// TableQuery is the builder for querying Table entities.
-type TableQuery struct {
+// SectionQuery is the builder for querying Section entities.
+type SectionQuery struct {
 	config
-	ctx             *QueryContext
-	order           []table.OrderOption
-	inters          []Interceptor
-	predicates      []predicate.Table
-	withSection     *SectionQuery
-	withAssignments *TableAssignmentQuery
+	ctx        *QueryContext
+	order      []section.OrderOption
+	inters     []Interceptor
+	predicates []predicate.Section
+	withTables *TableQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
 }
 
-// Where adds a new predicate for the TableQuery builder.
-func (_q *TableQuery) Where(ps ...predicate.Table) *TableQuery {
+// Where adds a new predicate for the SectionQuery builder.
+func (_q *SectionQuery) Where(ps ...predicate.Section) *SectionQuery {
 	_q.predicates = append(_q.predicates, ps...)
 	return _q
 }
 
 // Limit the number of records to be returned by this query.
-func (_q *TableQuery) Limit(limit int) *TableQuery {
+func (_q *SectionQuery) Limit(limit int) *SectionQuery {
 	_q.ctx.Limit = &limit
 	return _q
 }
 
 // Offset to start from.
-func (_q *TableQuery) Offset(offset int) *TableQuery {
+func (_q *SectionQuery) Offset(offset int) *SectionQuery {
 	_q.ctx.Offset = &offset
 	return _q
 }
 
 // Unique configures the query builder to filter duplicate records on query.
 // By default, unique is set to true, and can be disabled using this method.
-func (_q *TableQuery) Unique(unique bool) *TableQuery {
+func (_q *SectionQuery) Unique(unique bool) *SectionQuery {
 	_q.ctx.Unique = &unique
 	return _q
 }
 
 // Order specifies how the records should be ordered.
-func (_q *TableQuery) Order(o ...table.OrderOption) *TableQuery {
+func (_q *SectionQuery) Order(o ...section.OrderOption) *SectionQuery {
 	_q.order = append(_q.order, o...)
 	return _q
 }
 
-// QuerySection chains the current query on the "section" edge.
-func (_q *TableQuery) QuerySection() *SectionQuery {
-	query := (&SectionClient{config: _q.config}).Query()
+// QueryTables chains the current query on the "tables" edge.
+func (_q *SectionQuery) QueryTables() *TableQuery {
+	query := (&TableClient{config: _q.config}).Query()
 	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
 		if err := _q.prepareQuery(ctx); err != nil {
 			return nil, err
@@ -76,9 +74,9 @@ func (_q *TableQuery) QuerySection() *SectionQuery {
 			return nil, err
 		}
 		step := sqlgraph.NewStep(
-			sqlgraph.From(table.Table, table.FieldID, selector),
-			sqlgraph.To(section.Table, section.FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, true, table.SectionTable, table.SectionColumn),
+			sqlgraph.From(section.Table, section.FieldID, selector),
+			sqlgraph.To(table.Table, table.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, section.TablesTable, section.TablesColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -86,43 +84,21 @@ func (_q *TableQuery) QuerySection() *SectionQuery {
 	return query
 }
 
-// QueryAssignments chains the current query on the "assignments" edge.
-func (_q *TableQuery) QueryAssignments() *TableAssignmentQuery {
-	query := (&TableAssignmentClient{config: _q.config}).Query()
-	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
-		if err := _q.prepareQuery(ctx); err != nil {
-			return nil, err
-		}
-		selector := _q.sqlQuery(ctx)
-		if err := selector.Err(); err != nil {
-			return nil, err
-		}
-		step := sqlgraph.NewStep(
-			sqlgraph.From(table.Table, table.FieldID, selector),
-			sqlgraph.To(tableassignment.Table, tableassignment.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, table.AssignmentsTable, table.AssignmentsColumn),
-		)
-		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
-		return fromU, nil
-	}
-	return query
-}
-
-// First returns the first Table entity from the query.
-// Returns a *NotFoundError when no Table was found.
-func (_q *TableQuery) First(ctx context.Context) (*Table, error) {
+// First returns the first Section entity from the query.
+// Returns a *NotFoundError when no Section was found.
+func (_q *SectionQuery) First(ctx context.Context) (*Section, error) {
 	nodes, err := _q.Limit(1).All(setContextOp(ctx, _q.ctx, ent.OpQueryFirst))
 	if err != nil {
 		return nil, err
 	}
 	if len(nodes) == 0 {
-		return nil, &NotFoundError{table.Label}
+		return nil, &NotFoundError{section.Label}
 	}
 	return nodes[0], nil
 }
 
 // FirstX is like First, but panics if an error occurs.
-func (_q *TableQuery) FirstX(ctx context.Context) *Table {
+func (_q *SectionQuery) FirstX(ctx context.Context) *Section {
 	node, err := _q.First(ctx)
 	if err != nil && !IsNotFound(err) {
 		panic(err)
@@ -130,22 +106,22 @@ func (_q *TableQuery) FirstX(ctx context.Context) *Table {
 	return node
 }
 
-// FirstID returns the first Table ID from the query.
-// Returns a *NotFoundError when no Table ID was found.
-func (_q *TableQuery) FirstID(ctx context.Context) (id uuid.UUID, err error) {
+// FirstID returns the first Section ID from the query.
+// Returns a *NotFoundError when no Section ID was found.
+func (_q *SectionQuery) FirstID(ctx context.Context) (id uuid.UUID, err error) {
 	var ids []uuid.UUID
 	if ids, err = _q.Limit(1).IDs(setContextOp(ctx, _q.ctx, ent.OpQueryFirstID)); err != nil {
 		return
 	}
 	if len(ids) == 0 {
-		err = &NotFoundError{table.Label}
+		err = &NotFoundError{section.Label}
 		return
 	}
 	return ids[0], nil
 }
 
 // FirstIDX is like FirstID, but panics if an error occurs.
-func (_q *TableQuery) FirstIDX(ctx context.Context) uuid.UUID {
+func (_q *SectionQuery) FirstIDX(ctx context.Context) uuid.UUID {
 	id, err := _q.FirstID(ctx)
 	if err != nil && !IsNotFound(err) {
 		panic(err)
@@ -153,10 +129,10 @@ func (_q *TableQuery) FirstIDX(ctx context.Context) uuid.UUID {
 	return id
 }
 
-// Only returns a single Table entity found by the query, ensuring it only returns one.
-// Returns a *NotSingularError when more than one Table entity is found.
-// Returns a *NotFoundError when no Table entities are found.
-func (_q *TableQuery) Only(ctx context.Context) (*Table, error) {
+// Only returns a single Section entity found by the query, ensuring it only returns one.
+// Returns a *NotSingularError when more than one Section entity is found.
+// Returns a *NotFoundError when no Section entities are found.
+func (_q *SectionQuery) Only(ctx context.Context) (*Section, error) {
 	nodes, err := _q.Limit(2).All(setContextOp(ctx, _q.ctx, ent.OpQueryOnly))
 	if err != nil {
 		return nil, err
@@ -165,14 +141,14 @@ func (_q *TableQuery) Only(ctx context.Context) (*Table, error) {
 	case 1:
 		return nodes[0], nil
 	case 0:
-		return nil, &NotFoundError{table.Label}
+		return nil, &NotFoundError{section.Label}
 	default:
-		return nil, &NotSingularError{table.Label}
+		return nil, &NotSingularError{section.Label}
 	}
 }
 
 // OnlyX is like Only, but panics if an error occurs.
-func (_q *TableQuery) OnlyX(ctx context.Context) *Table {
+func (_q *SectionQuery) OnlyX(ctx context.Context) *Section {
 	node, err := _q.Only(ctx)
 	if err != nil {
 		panic(err)
@@ -180,10 +156,10 @@ func (_q *TableQuery) OnlyX(ctx context.Context) *Table {
 	return node
 }
 
-// OnlyID is like Only, but returns the only Table ID in the query.
-// Returns a *NotSingularError when more than one Table ID is found.
+// OnlyID is like Only, but returns the only Section ID in the query.
+// Returns a *NotSingularError when more than one Section ID is found.
 // Returns a *NotFoundError when no entities are found.
-func (_q *TableQuery) OnlyID(ctx context.Context) (id uuid.UUID, err error) {
+func (_q *SectionQuery) OnlyID(ctx context.Context) (id uuid.UUID, err error) {
 	var ids []uuid.UUID
 	if ids, err = _q.Limit(2).IDs(setContextOp(ctx, _q.ctx, ent.OpQueryOnlyID)); err != nil {
 		return
@@ -192,15 +168,15 @@ func (_q *TableQuery) OnlyID(ctx context.Context) (id uuid.UUID, err error) {
 	case 1:
 		id = ids[0]
 	case 0:
-		err = &NotFoundError{table.Label}
+		err = &NotFoundError{section.Label}
 	default:
-		err = &NotSingularError{table.Label}
+		err = &NotSingularError{section.Label}
 	}
 	return
 }
 
 // OnlyIDX is like OnlyID, but panics if an error occurs.
-func (_q *TableQuery) OnlyIDX(ctx context.Context) uuid.UUID {
+func (_q *SectionQuery) OnlyIDX(ctx context.Context) uuid.UUID {
 	id, err := _q.OnlyID(ctx)
 	if err != nil {
 		panic(err)
@@ -208,18 +184,18 @@ func (_q *TableQuery) OnlyIDX(ctx context.Context) uuid.UUID {
 	return id
 }
 
-// All executes the query and returns a list of Tables.
-func (_q *TableQuery) All(ctx context.Context) ([]*Table, error) {
+// All executes the query and returns a list of Sections.
+func (_q *SectionQuery) All(ctx context.Context) ([]*Section, error) {
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryAll)
 	if err := _q.prepareQuery(ctx); err != nil {
 		return nil, err
 	}
-	qr := querierAll[[]*Table, *TableQuery]()
-	return withInterceptors[[]*Table](ctx, _q, qr, _q.inters)
+	qr := querierAll[[]*Section, *SectionQuery]()
+	return withInterceptors[[]*Section](ctx, _q, qr, _q.inters)
 }
 
 // AllX is like All, but panics if an error occurs.
-func (_q *TableQuery) AllX(ctx context.Context) []*Table {
+func (_q *SectionQuery) AllX(ctx context.Context) []*Section {
 	nodes, err := _q.All(ctx)
 	if err != nil {
 		panic(err)
@@ -227,20 +203,20 @@ func (_q *TableQuery) AllX(ctx context.Context) []*Table {
 	return nodes
 }
 
-// IDs executes the query and returns a list of Table IDs.
-func (_q *TableQuery) IDs(ctx context.Context) (ids []uuid.UUID, err error) {
+// IDs executes the query and returns a list of Section IDs.
+func (_q *SectionQuery) IDs(ctx context.Context) (ids []uuid.UUID, err error) {
 	if _q.ctx.Unique == nil && _q.path != nil {
 		_q.Unique(true)
 	}
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryIDs)
-	if err = _q.Select(table.FieldID).Scan(ctx, &ids); err != nil {
+	if err = _q.Select(section.FieldID).Scan(ctx, &ids); err != nil {
 		return nil, err
 	}
 	return ids, nil
 }
 
 // IDsX is like IDs, but panics if an error occurs.
-func (_q *TableQuery) IDsX(ctx context.Context) []uuid.UUID {
+func (_q *SectionQuery) IDsX(ctx context.Context) []uuid.UUID {
 	ids, err := _q.IDs(ctx)
 	if err != nil {
 		panic(err)
@@ -249,16 +225,16 @@ func (_q *TableQuery) IDsX(ctx context.Context) []uuid.UUID {
 }
 
 // Count returns the count of the given query.
-func (_q *TableQuery) Count(ctx context.Context) (int, error) {
+func (_q *SectionQuery) Count(ctx context.Context) (int, error) {
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryCount)
 	if err := _q.prepareQuery(ctx); err != nil {
 		return 0, err
 	}
-	return withInterceptors[int](ctx, _q, querierCount[*TableQuery](), _q.inters)
+	return withInterceptors[int](ctx, _q, querierCount[*SectionQuery](), _q.inters)
 }
 
 // CountX is like Count, but panics if an error occurs.
-func (_q *TableQuery) CountX(ctx context.Context) int {
+func (_q *SectionQuery) CountX(ctx context.Context) int {
 	count, err := _q.Count(ctx)
 	if err != nil {
 		panic(err)
@@ -267,7 +243,7 @@ func (_q *TableQuery) CountX(ctx context.Context) int {
 }
 
 // Exist returns true if the query has elements in the graph.
-func (_q *TableQuery) Exist(ctx context.Context) (bool, error) {
+func (_q *SectionQuery) Exist(ctx context.Context) (bool, error) {
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryExist)
 	switch _, err := _q.FirstID(ctx); {
 	case IsNotFound(err):
@@ -280,7 +256,7 @@ func (_q *TableQuery) Exist(ctx context.Context) (bool, error) {
 }
 
 // ExistX is like Exist, but panics if an error occurs.
-func (_q *TableQuery) ExistX(ctx context.Context) bool {
+func (_q *SectionQuery) ExistX(ctx context.Context) bool {
 	exist, err := _q.Exist(ctx)
 	if err != nil {
 		panic(err)
@@ -288,45 +264,33 @@ func (_q *TableQuery) ExistX(ctx context.Context) bool {
 	return exist
 }
 
-// Clone returns a duplicate of the TableQuery builder, including all associated steps. It can be
+// Clone returns a duplicate of the SectionQuery builder, including all associated steps. It can be
 // used to prepare common query builders and use them differently after the clone is made.
-func (_q *TableQuery) Clone() *TableQuery {
+func (_q *SectionQuery) Clone() *SectionQuery {
 	if _q == nil {
 		return nil
 	}
-	return &TableQuery{
-		config:          _q.config,
-		ctx:             _q.ctx.Clone(),
-		order:           append([]table.OrderOption{}, _q.order...),
-		inters:          append([]Interceptor{}, _q.inters...),
-		predicates:      append([]predicate.Table{}, _q.predicates...),
-		withSection:     _q.withSection.Clone(),
-		withAssignments: _q.withAssignments.Clone(),
+	return &SectionQuery{
+		config:     _q.config,
+		ctx:        _q.ctx.Clone(),
+		order:      append([]section.OrderOption{}, _q.order...),
+		inters:     append([]Interceptor{}, _q.inters...),
+		predicates: append([]predicate.Section{}, _q.predicates...),
+		withTables: _q.withTables.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
 	}
 }
 
-// WithSection tells the query-builder to eager-load the nodes that are connected to
-// the "section" edge. The optional arguments are used to configure the query builder of the edge.
-func (_q *TableQuery) WithSection(opts ...func(*SectionQuery)) *TableQuery {
-	query := (&SectionClient{config: _q.config}).Query()
+// WithTables tells the query-builder to eager-load the nodes that are connected to
+// the "tables" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *SectionQuery) WithTables(opts ...func(*TableQuery)) *SectionQuery {
+	query := (&TableClient{config: _q.config}).Query()
 	for _, opt := range opts {
 		opt(query)
 	}
-	_q.withSection = query
-	return _q
-}
-
-// WithAssignments tells the query-builder to eager-load the nodes that are connected to
-// the "assignments" edge. The optional arguments are used to configure the query builder of the edge.
-func (_q *TableQuery) WithAssignments(opts ...func(*TableAssignmentQuery)) *TableQuery {
-	query := (&TableAssignmentClient{config: _q.config}).Query()
-	for _, opt := range opts {
-		opt(query)
-	}
-	_q.withAssignments = query
+	_q.withTables = query
 	return _q
 }
 
@@ -340,15 +304,15 @@ func (_q *TableQuery) WithAssignments(opts ...func(*TableAssignmentQuery)) *Tabl
 //		Count int `json:"count,omitempty"`
 //	}
 //
-//	client.Table.Query().
-//		GroupBy(table.FieldTenantID).
+//	client.Section.Query().
+//		GroupBy(section.FieldTenantID).
 //		Aggregate(ent.Count()).
 //		Scan(ctx, &v)
-func (_q *TableQuery) GroupBy(field string, fields ...string) *TableGroupBy {
+func (_q *SectionQuery) GroupBy(field string, fields ...string) *SectionGroupBy {
 	_q.ctx.Fields = append([]string{field}, fields...)
-	grbuild := &TableGroupBy{build: _q}
+	grbuild := &SectionGroupBy{build: _q}
 	grbuild.flds = &_q.ctx.Fields
-	grbuild.label = table.Label
+	grbuild.label = section.Label
 	grbuild.scan = grbuild.Scan
 	return grbuild
 }
@@ -362,23 +326,23 @@ func (_q *TableQuery) GroupBy(field string, fields ...string) *TableGroupBy {
 //		TenantID uuid.UUID `json:"tenant_id,omitempty"`
 //	}
 //
-//	client.Table.Query().
-//		Select(table.FieldTenantID).
+//	client.Section.Query().
+//		Select(section.FieldTenantID).
 //		Scan(ctx, &v)
-func (_q *TableQuery) Select(fields ...string) *TableSelect {
+func (_q *SectionQuery) Select(fields ...string) *SectionSelect {
 	_q.ctx.Fields = append(_q.ctx.Fields, fields...)
-	sbuild := &TableSelect{TableQuery: _q}
-	sbuild.label = table.Label
+	sbuild := &SectionSelect{SectionQuery: _q}
+	sbuild.label = section.Label
 	sbuild.flds, sbuild.scan = &_q.ctx.Fields, sbuild.Scan
 	return sbuild
 }
 
-// Aggregate returns a TableSelect configured with the given aggregations.
-func (_q *TableQuery) Aggregate(fns ...AggregateFunc) *TableSelect {
+// Aggregate returns a SectionSelect configured with the given aggregations.
+func (_q *SectionQuery) Aggregate(fns ...AggregateFunc) *SectionSelect {
 	return _q.Select().Aggregate(fns...)
 }
 
-func (_q *TableQuery) prepareQuery(ctx context.Context) error {
+func (_q *SectionQuery) prepareQuery(ctx context.Context) error {
 	for _, inter := range _q.inters {
 		if inter == nil {
 			return fmt.Errorf("ent: uninitialized interceptor (forgotten import ent/runtime?)")
@@ -390,7 +354,7 @@ func (_q *TableQuery) prepareQuery(ctx context.Context) error {
 		}
 	}
 	for _, f := range _q.ctx.Fields {
-		if !table.ValidColumn(f) {
+		if !section.ValidColumn(f) {
 			return &ValidationError{Name: f, err: fmt.Errorf("ent: invalid field %q for query", f)}
 		}
 	}
@@ -404,20 +368,19 @@ func (_q *TableQuery) prepareQuery(ctx context.Context) error {
 	return nil
 }
 
-func (_q *TableQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Table, error) {
+func (_q *SectionQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Section, error) {
 	var (
-		nodes       = []*Table{}
+		nodes       = []*Section{}
 		_spec       = _q.querySpec()
-		loadedTypes = [2]bool{
-			_q.withSection != nil,
-			_q.withAssignments != nil,
+		loadedTypes = [1]bool{
+			_q.withTables != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
-		return (*Table).scanValues(nil, columns)
+		return (*Section).scanValues(nil, columns)
 	}
 	_spec.Assign = func(columns []string, values []any) error {
-		node := &Table{config: _q.config}
+		node := &Section{config: _q.config}
 		nodes = append(nodes, node)
 		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
@@ -431,57 +394,19 @@ func (_q *TableQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Table,
 	if len(nodes) == 0 {
 		return nodes, nil
 	}
-	if query := _q.withSection; query != nil {
-		if err := _q.loadSection(ctx, query, nodes, nil,
-			func(n *Table, e *Section) { n.Edges.Section = e }); err != nil {
-			return nil, err
-		}
-	}
-	if query := _q.withAssignments; query != nil {
-		if err := _q.loadAssignments(ctx, query, nodes,
-			func(n *Table) { n.Edges.Assignments = []*TableAssignment{} },
-			func(n *Table, e *TableAssignment) { n.Edges.Assignments = append(n.Edges.Assignments, e) }); err != nil {
+	if query := _q.withTables; query != nil {
+		if err := _q.loadTables(ctx, query, nodes,
+			func(n *Section) { n.Edges.Tables = []*Table{} },
+			func(n *Section, e *Table) { n.Edges.Tables = append(n.Edges.Tables, e) }); err != nil {
 			return nil, err
 		}
 	}
 	return nodes, nil
 }
 
-func (_q *TableQuery) loadSection(ctx context.Context, query *SectionQuery, nodes []*Table, init func(*Table), assign func(*Table, *Section)) error {
-	ids := make([]uuid.UUID, 0, len(nodes))
-	nodeids := make(map[uuid.UUID][]*Table)
-	for i := range nodes {
-		if nodes[i].SectionID == nil {
-			continue
-		}
-		fk := *nodes[i].SectionID
-		if _, ok := nodeids[fk]; !ok {
-			ids = append(ids, fk)
-		}
-		nodeids[fk] = append(nodeids[fk], nodes[i])
-	}
-	if len(ids) == 0 {
-		return nil
-	}
-	query.Where(section.IDIn(ids...))
-	neighbors, err := query.All(ctx)
-	if err != nil {
-		return err
-	}
-	for _, n := range neighbors {
-		nodes, ok := nodeids[n.ID]
-		if !ok {
-			return fmt.Errorf(`unexpected foreign-key "section_id" returned %v`, n.ID)
-		}
-		for i := range nodes {
-			assign(nodes[i], n)
-		}
-	}
-	return nil
-}
-func (_q *TableQuery) loadAssignments(ctx context.Context, query *TableAssignmentQuery, nodes []*Table, init func(*Table), assign func(*Table, *TableAssignment)) error {
+func (_q *SectionQuery) loadTables(ctx context.Context, query *TableQuery, nodes []*Section, init func(*Section), assign func(*Section, *Table)) error {
 	fks := make([]driver.Value, 0, len(nodes))
-	nodeids := make(map[uuid.UUID]*Table)
+	nodeids := make(map[uuid.UUID]*Section)
 	for i := range nodes {
 		fks = append(fks, nodes[i].ID)
 		nodeids[nodes[i].ID] = nodes[i]
@@ -490,27 +415,30 @@ func (_q *TableQuery) loadAssignments(ctx context.Context, query *TableAssignmen
 		}
 	}
 	if len(query.ctx.Fields) > 0 {
-		query.ctx.AppendFieldOnce(tableassignment.FieldTableID)
+		query.ctx.AppendFieldOnce(table.FieldSectionID)
 	}
-	query.Where(predicate.TableAssignment(func(s *sql.Selector) {
-		s.Where(sql.InValues(s.C(table.AssignmentsColumn), fks...))
+	query.Where(predicate.Table(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(section.TablesColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {
 		return err
 	}
 	for _, n := range neighbors {
-		fk := n.TableID
-		node, ok := nodeids[fk]
+		fk := n.SectionID
+		if fk == nil {
+			return fmt.Errorf(`foreign-key "section_id" is nil for node %v`, n.ID)
+		}
+		node, ok := nodeids[*fk]
 		if !ok {
-			return fmt.Errorf(`unexpected referenced foreign-key "table_id" returned %v for node %v`, fk, n.ID)
+			return fmt.Errorf(`unexpected referenced foreign-key "section_id" returned %v for node %v`, *fk, n.ID)
 		}
 		assign(node, n)
 	}
 	return nil
 }
 
-func (_q *TableQuery) sqlCount(ctx context.Context) (int, error) {
+func (_q *SectionQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := _q.querySpec()
 	_spec.Node.Columns = _q.ctx.Fields
 	if len(_q.ctx.Fields) > 0 {
@@ -519,8 +447,8 @@ func (_q *TableQuery) sqlCount(ctx context.Context) (int, error) {
 	return sqlgraph.CountNodes(ctx, _q.driver, _spec)
 }
 
-func (_q *TableQuery) querySpec() *sqlgraph.QuerySpec {
-	_spec := sqlgraph.NewQuerySpec(table.Table, table.Columns, sqlgraph.NewFieldSpec(table.FieldID, field.TypeUUID))
+func (_q *SectionQuery) querySpec() *sqlgraph.QuerySpec {
+	_spec := sqlgraph.NewQuerySpec(section.Table, section.Columns, sqlgraph.NewFieldSpec(section.FieldID, field.TypeUUID))
 	_spec.From = _q.sql
 	if unique := _q.ctx.Unique; unique != nil {
 		_spec.Unique = *unique
@@ -529,14 +457,11 @@ func (_q *TableQuery) querySpec() *sqlgraph.QuerySpec {
 	}
 	if fields := _q.ctx.Fields; len(fields) > 0 {
 		_spec.Node.Columns = make([]string, 0, len(fields))
-		_spec.Node.Columns = append(_spec.Node.Columns, table.FieldID)
+		_spec.Node.Columns = append(_spec.Node.Columns, section.FieldID)
 		for i := range fields {
-			if fields[i] != table.FieldID {
+			if fields[i] != section.FieldID {
 				_spec.Node.Columns = append(_spec.Node.Columns, fields[i])
 			}
-		}
-		if _q.withSection != nil {
-			_spec.Node.AddColumnOnce(table.FieldSectionID)
 		}
 	}
 	if ps := _q.predicates; len(ps) > 0 {
@@ -562,12 +487,12 @@ func (_q *TableQuery) querySpec() *sqlgraph.QuerySpec {
 	return _spec
 }
 
-func (_q *TableQuery) sqlQuery(ctx context.Context) *sql.Selector {
+func (_q *SectionQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	builder := sql.Dialect(_q.driver.Dialect())
-	t1 := builder.Table(table.Table)
+	t1 := builder.Table(section.Table)
 	columns := _q.ctx.Fields
 	if len(columns) == 0 {
-		columns = table.Columns
+		columns = section.Columns
 	}
 	selector := builder.Select(t1.Columns(columns...)...).From(t1)
 	if _q.sql != nil {
@@ -594,28 +519,28 @@ func (_q *TableQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	return selector
 }
 
-// TableGroupBy is the group-by builder for Table entities.
-type TableGroupBy struct {
+// SectionGroupBy is the group-by builder for Section entities.
+type SectionGroupBy struct {
 	selector
-	build *TableQuery
+	build *SectionQuery
 }
 
 // Aggregate adds the given aggregation functions to the group-by query.
-func (_g *TableGroupBy) Aggregate(fns ...AggregateFunc) *TableGroupBy {
+func (_g *SectionGroupBy) Aggregate(fns ...AggregateFunc) *SectionGroupBy {
 	_g.fns = append(_g.fns, fns...)
 	return _g
 }
 
 // Scan applies the selector query and scans the result into the given value.
-func (_g *TableGroupBy) Scan(ctx context.Context, v any) error {
+func (_g *SectionGroupBy) Scan(ctx context.Context, v any) error {
 	ctx = setContextOp(ctx, _g.build.ctx, ent.OpQueryGroupBy)
 	if err := _g.build.prepareQuery(ctx); err != nil {
 		return err
 	}
-	return scanWithInterceptors[*TableQuery, *TableGroupBy](ctx, _g.build, _g, _g.build.inters, v)
+	return scanWithInterceptors[*SectionQuery, *SectionGroupBy](ctx, _g.build, _g, _g.build.inters, v)
 }
 
-func (_g *TableGroupBy) sqlScan(ctx context.Context, root *TableQuery, v any) error {
+func (_g *SectionGroupBy) sqlScan(ctx context.Context, root *SectionQuery, v any) error {
 	selector := root.sqlQuery(ctx).Select()
 	aggregation := make([]string, 0, len(_g.fns))
 	for _, fn := range _g.fns {
@@ -642,28 +567,28 @@ func (_g *TableGroupBy) sqlScan(ctx context.Context, root *TableQuery, v any) er
 	return sql.ScanSlice(rows, v)
 }
 
-// TableSelect is the builder for selecting fields of Table entities.
-type TableSelect struct {
-	*TableQuery
+// SectionSelect is the builder for selecting fields of Section entities.
+type SectionSelect struct {
+	*SectionQuery
 	selector
 }
 
 // Aggregate adds the given aggregation functions to the selector query.
-func (_s *TableSelect) Aggregate(fns ...AggregateFunc) *TableSelect {
+func (_s *SectionSelect) Aggregate(fns ...AggregateFunc) *SectionSelect {
 	_s.fns = append(_s.fns, fns...)
 	return _s
 }
 
 // Scan applies the selector query and scans the result into the given value.
-func (_s *TableSelect) Scan(ctx context.Context, v any) error {
+func (_s *SectionSelect) Scan(ctx context.Context, v any) error {
 	ctx = setContextOp(ctx, _s.ctx, ent.OpQuerySelect)
 	if err := _s.prepareQuery(ctx); err != nil {
 		return err
 	}
-	return scanWithInterceptors[*TableQuery, *TableSelect](ctx, _s.TableQuery, _s, _s.inters, v)
+	return scanWithInterceptors[*SectionQuery, *SectionSelect](ctx, _s.SectionQuery, _s, _s.inters, v)
 }
 
-func (_s *TableSelect) sqlScan(ctx context.Context, root *TableQuery, v any) error {
+func (_s *SectionSelect) sqlScan(ctx context.Context, root *SectionQuery, v any) error {
 	selector := root.sqlQuery(ctx)
 	aggregation := make([]string, 0, len(_s.fns))
 	for _, fn := range _s.fns {

@@ -66,6 +66,11 @@ func OutletID(v uuid.UUID) predicate.Table {
 	return predicate.Table(sql.FieldEQ(FieldOutletID, v))
 }
 
+// SectionID applies equality check predicate on the "section_id" field. It's identical to SectionIDEQ.
+func SectionID(v uuid.UUID) predicate.Table {
+	return predicate.Table(sql.FieldEQ(FieldSectionID, v))
+}
+
 // Name applies equality check predicate on the "name" field. It's identical to NameEQ.
 func Name(v string) predicate.Table {
 	return predicate.Table(sql.FieldEQ(FieldName, v))
@@ -79,6 +84,16 @@ func Capacity(v int) predicate.Table {
 // Status applies equality check predicate on the "status" field. It's identical to StatusEQ.
 func Status(v string) predicate.Table {
 	return predicate.Table(sql.FieldEQ(FieldStatus, v))
+}
+
+// XPosition applies equality check predicate on the "x_position" field. It's identical to XPositionEQ.
+func XPosition(v float64) predicate.Table {
+	return predicate.Table(sql.FieldEQ(FieldXPosition, v))
+}
+
+// YPosition applies equality check predicate on the "y_position" field. It's identical to YPositionEQ.
+func YPosition(v float64) predicate.Table {
+	return predicate.Table(sql.FieldEQ(FieldYPosition, v))
 }
 
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
@@ -169,6 +184,36 @@ func OutletIDLT(v uuid.UUID) predicate.Table {
 // OutletIDLTE applies the LTE predicate on the "outlet_id" field.
 func OutletIDLTE(v uuid.UUID) predicate.Table {
 	return predicate.Table(sql.FieldLTE(FieldOutletID, v))
+}
+
+// SectionIDEQ applies the EQ predicate on the "section_id" field.
+func SectionIDEQ(v uuid.UUID) predicate.Table {
+	return predicate.Table(sql.FieldEQ(FieldSectionID, v))
+}
+
+// SectionIDNEQ applies the NEQ predicate on the "section_id" field.
+func SectionIDNEQ(v uuid.UUID) predicate.Table {
+	return predicate.Table(sql.FieldNEQ(FieldSectionID, v))
+}
+
+// SectionIDIn applies the In predicate on the "section_id" field.
+func SectionIDIn(vs ...uuid.UUID) predicate.Table {
+	return predicate.Table(sql.FieldIn(FieldSectionID, vs...))
+}
+
+// SectionIDNotIn applies the NotIn predicate on the "section_id" field.
+func SectionIDNotIn(vs ...uuid.UUID) predicate.Table {
+	return predicate.Table(sql.FieldNotIn(FieldSectionID, vs...))
+}
+
+// SectionIDIsNil applies the IsNil predicate on the "section_id" field.
+func SectionIDIsNil() predicate.Table {
+	return predicate.Table(sql.FieldIsNull(FieldSectionID))
+}
+
+// SectionIDNotNil applies the NotNil predicate on the "section_id" field.
+func SectionIDNotNil() predicate.Table {
+	return predicate.Table(sql.FieldNotNull(FieldSectionID))
 }
 
 // NameEQ applies the EQ predicate on the "name" field.
@@ -341,6 +386,136 @@ func StatusContainsFold(v string) predicate.Table {
 	return predicate.Table(sql.FieldContainsFold(FieldStatus, v))
 }
 
+// TableTypeEQ applies the EQ predicate on the "table_type" field.
+func TableTypeEQ(v TableType) predicate.Table {
+	return predicate.Table(sql.FieldEQ(FieldTableType, v))
+}
+
+// TableTypeNEQ applies the NEQ predicate on the "table_type" field.
+func TableTypeNEQ(v TableType) predicate.Table {
+	return predicate.Table(sql.FieldNEQ(FieldTableType, v))
+}
+
+// TableTypeIn applies the In predicate on the "table_type" field.
+func TableTypeIn(vs ...TableType) predicate.Table {
+	return predicate.Table(sql.FieldIn(FieldTableType, vs...))
+}
+
+// TableTypeNotIn applies the NotIn predicate on the "table_type" field.
+func TableTypeNotIn(vs ...TableType) predicate.Table {
+	return predicate.Table(sql.FieldNotIn(FieldTableType, vs...))
+}
+
+// XPositionEQ applies the EQ predicate on the "x_position" field.
+func XPositionEQ(v float64) predicate.Table {
+	return predicate.Table(sql.FieldEQ(FieldXPosition, v))
+}
+
+// XPositionNEQ applies the NEQ predicate on the "x_position" field.
+func XPositionNEQ(v float64) predicate.Table {
+	return predicate.Table(sql.FieldNEQ(FieldXPosition, v))
+}
+
+// XPositionIn applies the In predicate on the "x_position" field.
+func XPositionIn(vs ...float64) predicate.Table {
+	return predicate.Table(sql.FieldIn(FieldXPosition, vs...))
+}
+
+// XPositionNotIn applies the NotIn predicate on the "x_position" field.
+func XPositionNotIn(vs ...float64) predicate.Table {
+	return predicate.Table(sql.FieldNotIn(FieldXPosition, vs...))
+}
+
+// XPositionGT applies the GT predicate on the "x_position" field.
+func XPositionGT(v float64) predicate.Table {
+	return predicate.Table(sql.FieldGT(FieldXPosition, v))
+}
+
+// XPositionGTE applies the GTE predicate on the "x_position" field.
+func XPositionGTE(v float64) predicate.Table {
+	return predicate.Table(sql.FieldGTE(FieldXPosition, v))
+}
+
+// XPositionLT applies the LT predicate on the "x_position" field.
+func XPositionLT(v float64) predicate.Table {
+	return predicate.Table(sql.FieldLT(FieldXPosition, v))
+}
+
+// XPositionLTE applies the LTE predicate on the "x_position" field.
+func XPositionLTE(v float64) predicate.Table {
+	return predicate.Table(sql.FieldLTE(FieldXPosition, v))
+}
+
+// XPositionIsNil applies the IsNil predicate on the "x_position" field.
+func XPositionIsNil() predicate.Table {
+	return predicate.Table(sql.FieldIsNull(FieldXPosition))
+}
+
+// XPositionNotNil applies the NotNil predicate on the "x_position" field.
+func XPositionNotNil() predicate.Table {
+	return predicate.Table(sql.FieldNotNull(FieldXPosition))
+}
+
+// YPositionEQ applies the EQ predicate on the "y_position" field.
+func YPositionEQ(v float64) predicate.Table {
+	return predicate.Table(sql.FieldEQ(FieldYPosition, v))
+}
+
+// YPositionNEQ applies the NEQ predicate on the "y_position" field.
+func YPositionNEQ(v float64) predicate.Table {
+	return predicate.Table(sql.FieldNEQ(FieldYPosition, v))
+}
+
+// YPositionIn applies the In predicate on the "y_position" field.
+func YPositionIn(vs ...float64) predicate.Table {
+	return predicate.Table(sql.FieldIn(FieldYPosition, vs...))
+}
+
+// YPositionNotIn applies the NotIn predicate on the "y_position" field.
+func YPositionNotIn(vs ...float64) predicate.Table {
+	return predicate.Table(sql.FieldNotIn(FieldYPosition, vs...))
+}
+
+// YPositionGT applies the GT predicate on the "y_position" field.
+func YPositionGT(v float64) predicate.Table {
+	return predicate.Table(sql.FieldGT(FieldYPosition, v))
+}
+
+// YPositionGTE applies the GTE predicate on the "y_position" field.
+func YPositionGTE(v float64) predicate.Table {
+	return predicate.Table(sql.FieldGTE(FieldYPosition, v))
+}
+
+// YPositionLT applies the LT predicate on the "y_position" field.
+func YPositionLT(v float64) predicate.Table {
+	return predicate.Table(sql.FieldLT(FieldYPosition, v))
+}
+
+// YPositionLTE applies the LTE predicate on the "y_position" field.
+func YPositionLTE(v float64) predicate.Table {
+	return predicate.Table(sql.FieldLTE(FieldYPosition, v))
+}
+
+// YPositionIsNil applies the IsNil predicate on the "y_position" field.
+func YPositionIsNil() predicate.Table {
+	return predicate.Table(sql.FieldIsNull(FieldYPosition))
+}
+
+// YPositionNotNil applies the NotNil predicate on the "y_position" field.
+func YPositionNotNil() predicate.Table {
+	return predicate.Table(sql.FieldNotNull(FieldYPosition))
+}
+
+// TagsIsNil applies the IsNil predicate on the "tags" field.
+func TagsIsNil() predicate.Table {
+	return predicate.Table(sql.FieldIsNull(FieldTags))
+}
+
+// TagsNotNil applies the NotNil predicate on the "tags" field.
+func TagsNotNil() predicate.Table {
+	return predicate.Table(sql.FieldNotNull(FieldTags))
+}
+
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.
 func CreatedAtEQ(v time.Time) predicate.Table {
 	return predicate.Table(sql.FieldEQ(FieldCreatedAt, v))
@@ -419,6 +594,29 @@ func UpdatedAtLT(v time.Time) predicate.Table {
 // UpdatedAtLTE applies the LTE predicate on the "updated_at" field.
 func UpdatedAtLTE(v time.Time) predicate.Table {
 	return predicate.Table(sql.FieldLTE(FieldUpdatedAt, v))
+}
+
+// HasSection applies the HasEdge predicate on the "section" edge.
+func HasSection() predicate.Table {
+	return predicate.Table(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, SectionTable, SectionColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasSectionWith applies the HasEdge predicate on the "section" edge with a given conditions (other predicates).
+func HasSectionWith(preds ...predicate.Section) predicate.Table {
+	return predicate.Table(func(s *sql.Selector) {
+		step := newSectionStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
 }
 
 // HasAssignments applies the HasEdge predicate on the "assignments" edge.

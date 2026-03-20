@@ -78,6 +78,8 @@ type Tx struct {
 	PromotionApplication *PromotionApplicationClient
 	// PromotionRule is the client for interacting with the PromotionRule builders.
 	PromotionRule *PromotionRuleClient
+	// Section is the client for interacting with the Section builders.
+	Section *SectionClient
 	// StockAlertSubscription is the client for interacting with the StockAlertSubscription builders.
 	StockAlertSubscription *StockAlertSubscriptionClient
 	// StockConsumptionEvent is the client for interacting with the StockConsumptionEvent builders.
@@ -264,6 +266,7 @@ func (tx *Tx) init() {
 	tx.Promotion = NewPromotionClient(tx.config)
 	tx.PromotionApplication = NewPromotionApplicationClient(tx.config)
 	tx.PromotionRule = NewPromotionRuleClient(tx.config)
+	tx.Section = NewSectionClient(tx.config)
 	tx.StockAlertSubscription = NewStockAlertSubscriptionClient(tx.config)
 	tx.StockConsumptionEvent = NewStockConsumptionEventClient(tx.config)
 	tx.SyncFailure = NewSyncFailureClient(tx.config)

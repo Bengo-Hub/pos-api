@@ -105,6 +105,9 @@ type PromotionApplication func(*sql.Selector)
 // PromotionRule is the predicate function for promotionrule builders.
 type PromotionRule func(*sql.Selector)
 
+// Section is the predicate function for section builders.
+type Section func(*sql.Selector)
+
 // StockAlertSubscription is the predicate function for stockalertsubscription builders.
 type StockAlertSubscription func(*sql.Selector)
 

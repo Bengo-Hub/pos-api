@@ -43,6 +43,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/promotion"
 	"github.com/bengobox/pos-service/internal/ent/promotionapplication"
 	"github.com/bengobox/pos-service/internal/ent/promotionrule"
+	"github.com/bengobox/pos-service/internal/ent/section"
 	"github.com/bengobox/pos-service/internal/ent/stockalertsubscription"
 	"github.com/bengobox/pos-service/internal/ent/stockconsumptionevent"
 	"github.com/bengobox/pos-service/internal/ent/syncfailure"
@@ -99,6 +100,7 @@ const (
 	TypePromotion              = "Promotion"
 	TypePromotionApplication   = "PromotionApplication"
 	TypePromotionRule          = "PromotionRule"
+	TypeSection                = "Section"
 	TypeStockAlertSubscription = "StockAlertSubscription"
 	TypeStockConsumptionEvent  = "StockConsumptionEvent"
 	TypeSyncFailure            = "SyncFailure"
@@ -24685,6 +24687,1116 @@ func (m *PromotionRuleMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown PromotionRule edge %s", name)
 }
 
+// SectionMutation represents an operation that mutates the Section nodes in the graph.
+type SectionMutation struct {
+	config
+	op              Op
+	typ             string
+	id              *uuid.UUID
+	tenant_id       *uuid.UUID
+	outlet_id       *uuid.UUID
+	name            *string
+	slug            *string
+	description     *string
+	floor_number    *int
+	addfloor_number *int
+	sort_order      *int
+	addsort_order   *int
+	is_active       *bool
+	section_type    *section.SectionType
+	metadata        *map[string]interface{}
+	created_at      *time.Time
+	updated_at      *time.Time
+	clearedFields   map[string]struct{}
+	tables          map[uuid.UUID]struct{}
+	removedtables   map[uuid.UUID]struct{}
+	clearedtables   bool
+	done            bool
+	oldValue        func(context.Context) (*Section, error)
+	predicates      []predicate.Section
+}
+
+var _ ent.Mutation = (*SectionMutation)(nil)
+
+// sectionOption allows management of the mutation configuration using functional options.
+type sectionOption func(*SectionMutation)
+
+// newSectionMutation creates new mutation for the Section entity.
+func newSectionMutation(c config, op Op, opts ...sectionOption) *SectionMutation {
+	m := &SectionMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeSection,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withSectionID sets the ID field of the mutation.
+func withSectionID(id uuid.UUID) sectionOption {
+	return func(m *SectionMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *Section
+		)
+		m.oldValue = func(ctx context.Context) (*Section, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().Section.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withSection sets the old Section of the mutation.
+func withSection(node *Section) sectionOption {
+	return func(m *SectionMutation) {
+		m.oldValue = func(context.Context) (*Section, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m SectionMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m SectionMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of Section entities.
+func (m *SectionMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *SectionMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *SectionMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().Section.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *SectionMutation) SetTenantID(u uuid.UUID) {
+	m.tenant_id = &u
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *SectionMutation) TenantID() (r uuid.UUID, exists bool) {
+	v := m.tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the Section entity.
+// If the Section object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SectionMutation) OldTenantID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *SectionMutation) ResetTenantID() {
+	m.tenant_id = nil
+}
+
+// SetOutletID sets the "outlet_id" field.
+func (m *SectionMutation) SetOutletID(u uuid.UUID) {
+	m.outlet_id = &u
+}
+
+// OutletID returns the value of the "outlet_id" field in the mutation.
+func (m *SectionMutation) OutletID() (r uuid.UUID, exists bool) {
+	v := m.outlet_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOutletID returns the old "outlet_id" field's value of the Section entity.
+// If the Section object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SectionMutation) OldOutletID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOutletID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOutletID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOutletID: %w", err)
+	}
+	return oldValue.OutletID, nil
+}
+
+// ResetOutletID resets all changes to the "outlet_id" field.
+func (m *SectionMutation) ResetOutletID() {
+	m.outlet_id = nil
+}
+
+// SetName sets the "name" field.
+func (m *SectionMutation) SetName(s string) {
+	m.name = &s
+}
+
+// Name returns the value of the "name" field in the mutation.
+func (m *SectionMutation) Name() (r string, exists bool) {
+	v := m.name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldName returns the old "name" field's value of the Section entity.
+// If the Section object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SectionMutation) OldName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldName: %w", err)
+	}
+	return oldValue.Name, nil
+}
+
+// ResetName resets all changes to the "name" field.
+func (m *SectionMutation) ResetName() {
+	m.name = nil
+}
+
+// SetSlug sets the "slug" field.
+func (m *SectionMutation) SetSlug(s string) {
+	m.slug = &s
+}
+
+// Slug returns the value of the "slug" field in the mutation.
+func (m *SectionMutation) Slug() (r string, exists bool) {
+	v := m.slug
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSlug returns the old "slug" field's value of the Section entity.
+// If the Section object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SectionMutation) OldSlug(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSlug is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSlug requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSlug: %w", err)
+	}
+	return oldValue.Slug, nil
+}
+
+// ResetSlug resets all changes to the "slug" field.
+func (m *SectionMutation) ResetSlug() {
+	m.slug = nil
+}
+
+// SetDescription sets the "description" field.
+func (m *SectionMutation) SetDescription(s string) {
+	m.description = &s
+}
+
+// Description returns the value of the "description" field in the mutation.
+func (m *SectionMutation) Description() (r string, exists bool) {
+	v := m.description
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDescription returns the old "description" field's value of the Section entity.
+// If the Section object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SectionMutation) OldDescription(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDescription is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDescription requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDescription: %w", err)
+	}
+	return oldValue.Description, nil
+}
+
+// ClearDescription clears the value of the "description" field.
+func (m *SectionMutation) ClearDescription() {
+	m.description = nil
+	m.clearedFields[section.FieldDescription] = struct{}{}
+}
+
+// DescriptionCleared returns if the "description" field was cleared in this mutation.
+func (m *SectionMutation) DescriptionCleared() bool {
+	_, ok := m.clearedFields[section.FieldDescription]
+	return ok
+}
+
+// ResetDescription resets all changes to the "description" field.
+func (m *SectionMutation) ResetDescription() {
+	m.description = nil
+	delete(m.clearedFields, section.FieldDescription)
+}
+
+// SetFloorNumber sets the "floor_number" field.
+func (m *SectionMutation) SetFloorNumber(i int) {
+	m.floor_number = &i
+	m.addfloor_number = nil
+}
+
+// FloorNumber returns the value of the "floor_number" field in the mutation.
+func (m *SectionMutation) FloorNumber() (r int, exists bool) {
+	v := m.floor_number
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFloorNumber returns the old "floor_number" field's value of the Section entity.
+// If the Section object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SectionMutation) OldFloorNumber(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFloorNumber is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFloorNumber requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFloorNumber: %w", err)
+	}
+	return oldValue.FloorNumber, nil
+}
+
+// AddFloorNumber adds i to the "floor_number" field.
+func (m *SectionMutation) AddFloorNumber(i int) {
+	if m.addfloor_number != nil {
+		*m.addfloor_number += i
+	} else {
+		m.addfloor_number = &i
+	}
+}
+
+// AddedFloorNumber returns the value that was added to the "floor_number" field in this mutation.
+func (m *SectionMutation) AddedFloorNumber() (r int, exists bool) {
+	v := m.addfloor_number
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetFloorNumber resets all changes to the "floor_number" field.
+func (m *SectionMutation) ResetFloorNumber() {
+	m.floor_number = nil
+	m.addfloor_number = nil
+}
+
+// SetSortOrder sets the "sort_order" field.
+func (m *SectionMutation) SetSortOrder(i int) {
+	m.sort_order = &i
+	m.addsort_order = nil
+}
+
+// SortOrder returns the value of the "sort_order" field in the mutation.
+func (m *SectionMutation) SortOrder() (r int, exists bool) {
+	v := m.sort_order
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSortOrder returns the old "sort_order" field's value of the Section entity.
+// If the Section object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SectionMutation) OldSortOrder(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSortOrder is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSortOrder requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSortOrder: %w", err)
+	}
+	return oldValue.SortOrder, nil
+}
+
+// AddSortOrder adds i to the "sort_order" field.
+func (m *SectionMutation) AddSortOrder(i int) {
+	if m.addsort_order != nil {
+		*m.addsort_order += i
+	} else {
+		m.addsort_order = &i
+	}
+}
+
+// AddedSortOrder returns the value that was added to the "sort_order" field in this mutation.
+func (m *SectionMutation) AddedSortOrder() (r int, exists bool) {
+	v := m.addsort_order
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetSortOrder resets all changes to the "sort_order" field.
+func (m *SectionMutation) ResetSortOrder() {
+	m.sort_order = nil
+	m.addsort_order = nil
+}
+
+// SetIsActive sets the "is_active" field.
+func (m *SectionMutation) SetIsActive(b bool) {
+	m.is_active = &b
+}
+
+// IsActive returns the value of the "is_active" field in the mutation.
+func (m *SectionMutation) IsActive() (r bool, exists bool) {
+	v := m.is_active
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIsActive returns the old "is_active" field's value of the Section entity.
+// If the Section object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SectionMutation) OldIsActive(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIsActive is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIsActive requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIsActive: %w", err)
+	}
+	return oldValue.IsActive, nil
+}
+
+// ResetIsActive resets all changes to the "is_active" field.
+func (m *SectionMutation) ResetIsActive() {
+	m.is_active = nil
+}
+
+// SetSectionType sets the "section_type" field.
+func (m *SectionMutation) SetSectionType(st section.SectionType) {
+	m.section_type = &st
+}
+
+// SectionType returns the value of the "section_type" field in the mutation.
+func (m *SectionMutation) SectionType() (r section.SectionType, exists bool) {
+	v := m.section_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSectionType returns the old "section_type" field's value of the Section entity.
+// If the Section object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SectionMutation) OldSectionType(ctx context.Context) (v section.SectionType, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSectionType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSectionType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSectionType: %w", err)
+	}
+	return oldValue.SectionType, nil
+}
+
+// ResetSectionType resets all changes to the "section_type" field.
+func (m *SectionMutation) ResetSectionType() {
+	m.section_type = nil
+}
+
+// SetMetadata sets the "metadata" field.
+func (m *SectionMutation) SetMetadata(value map[string]interface{}) {
+	m.metadata = &value
+}
+
+// Metadata returns the value of the "metadata" field in the mutation.
+func (m *SectionMutation) Metadata() (r map[string]interface{}, exists bool) {
+	v := m.metadata
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMetadata returns the old "metadata" field's value of the Section entity.
+// If the Section object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SectionMutation) OldMetadata(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMetadata is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMetadata requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMetadata: %w", err)
+	}
+	return oldValue.Metadata, nil
+}
+
+// ResetMetadata resets all changes to the "metadata" field.
+func (m *SectionMutation) ResetMetadata() {
+	m.metadata = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *SectionMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *SectionMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the Section entity.
+// If the Section object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SectionMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *SectionMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *SectionMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *SectionMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the Section entity.
+// If the Section object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SectionMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *SectionMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// AddTableIDs adds the "tables" edge to the Table entity by ids.
+func (m *SectionMutation) AddTableIDs(ids ...uuid.UUID) {
+	if m.tables == nil {
+		m.tables = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		m.tables[ids[i]] = struct{}{}
+	}
+}
+
+// ClearTables clears the "tables" edge to the Table entity.
+func (m *SectionMutation) ClearTables() {
+	m.clearedtables = true
+}
+
+// TablesCleared reports if the "tables" edge to the Table entity was cleared.
+func (m *SectionMutation) TablesCleared() bool {
+	return m.clearedtables
+}
+
+// RemoveTableIDs removes the "tables" edge to the Table entity by IDs.
+func (m *SectionMutation) RemoveTableIDs(ids ...uuid.UUID) {
+	if m.removedtables == nil {
+		m.removedtables = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		delete(m.tables, ids[i])
+		m.removedtables[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedTables returns the removed IDs of the "tables" edge to the Table entity.
+func (m *SectionMutation) RemovedTablesIDs() (ids []uuid.UUID) {
+	for id := range m.removedtables {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// TablesIDs returns the "tables" edge IDs in the mutation.
+func (m *SectionMutation) TablesIDs() (ids []uuid.UUID) {
+	for id := range m.tables {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetTables resets all changes to the "tables" edge.
+func (m *SectionMutation) ResetTables() {
+	m.tables = nil
+	m.clearedtables = false
+	m.removedtables = nil
+}
+
+// Where appends a list predicates to the SectionMutation builder.
+func (m *SectionMutation) Where(ps ...predicate.Section) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the SectionMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *SectionMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.Section, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *SectionMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *SectionMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (Section).
+func (m *SectionMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *SectionMutation) Fields() []string {
+	fields := make([]string, 0, 12)
+	if m.tenant_id != nil {
+		fields = append(fields, section.FieldTenantID)
+	}
+	if m.outlet_id != nil {
+		fields = append(fields, section.FieldOutletID)
+	}
+	if m.name != nil {
+		fields = append(fields, section.FieldName)
+	}
+	if m.slug != nil {
+		fields = append(fields, section.FieldSlug)
+	}
+	if m.description != nil {
+		fields = append(fields, section.FieldDescription)
+	}
+	if m.floor_number != nil {
+		fields = append(fields, section.FieldFloorNumber)
+	}
+	if m.sort_order != nil {
+		fields = append(fields, section.FieldSortOrder)
+	}
+	if m.is_active != nil {
+		fields = append(fields, section.FieldIsActive)
+	}
+	if m.section_type != nil {
+		fields = append(fields, section.FieldSectionType)
+	}
+	if m.metadata != nil {
+		fields = append(fields, section.FieldMetadata)
+	}
+	if m.created_at != nil {
+		fields = append(fields, section.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, section.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *SectionMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case section.FieldTenantID:
+		return m.TenantID()
+	case section.FieldOutletID:
+		return m.OutletID()
+	case section.FieldName:
+		return m.Name()
+	case section.FieldSlug:
+		return m.Slug()
+	case section.FieldDescription:
+		return m.Description()
+	case section.FieldFloorNumber:
+		return m.FloorNumber()
+	case section.FieldSortOrder:
+		return m.SortOrder()
+	case section.FieldIsActive:
+		return m.IsActive()
+	case section.FieldSectionType:
+		return m.SectionType()
+	case section.FieldMetadata:
+		return m.Metadata()
+	case section.FieldCreatedAt:
+		return m.CreatedAt()
+	case section.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *SectionMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case section.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case section.FieldOutletID:
+		return m.OldOutletID(ctx)
+	case section.FieldName:
+		return m.OldName(ctx)
+	case section.FieldSlug:
+		return m.OldSlug(ctx)
+	case section.FieldDescription:
+		return m.OldDescription(ctx)
+	case section.FieldFloorNumber:
+		return m.OldFloorNumber(ctx)
+	case section.FieldSortOrder:
+		return m.OldSortOrder(ctx)
+	case section.FieldIsActive:
+		return m.OldIsActive(ctx)
+	case section.FieldSectionType:
+		return m.OldSectionType(ctx)
+	case section.FieldMetadata:
+		return m.OldMetadata(ctx)
+	case section.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case section.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown Section field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *SectionMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case section.FieldTenantID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case section.FieldOutletID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOutletID(v)
+		return nil
+	case section.FieldName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetName(v)
+		return nil
+	case section.FieldSlug:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSlug(v)
+		return nil
+	case section.FieldDescription:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDescription(v)
+		return nil
+	case section.FieldFloorNumber:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFloorNumber(v)
+		return nil
+	case section.FieldSortOrder:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSortOrder(v)
+		return nil
+	case section.FieldIsActive:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIsActive(v)
+		return nil
+	case section.FieldSectionType:
+		v, ok := value.(section.SectionType)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSectionType(v)
+		return nil
+	case section.FieldMetadata:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMetadata(v)
+		return nil
+	case section.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case section.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown Section field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *SectionMutation) AddedFields() []string {
+	var fields []string
+	if m.addfloor_number != nil {
+		fields = append(fields, section.FieldFloorNumber)
+	}
+	if m.addsort_order != nil {
+		fields = append(fields, section.FieldSortOrder)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *SectionMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case section.FieldFloorNumber:
+		return m.AddedFloorNumber()
+	case section.FieldSortOrder:
+		return m.AddedSortOrder()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *SectionMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case section.FieldFloorNumber:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddFloorNumber(v)
+		return nil
+	case section.FieldSortOrder:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSortOrder(v)
+		return nil
+	}
+	return fmt.Errorf("unknown Section numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *SectionMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(section.FieldDescription) {
+		fields = append(fields, section.FieldDescription)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *SectionMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *SectionMutation) ClearField(name string) error {
+	switch name {
+	case section.FieldDescription:
+		m.ClearDescription()
+		return nil
+	}
+	return fmt.Errorf("unknown Section nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *SectionMutation) ResetField(name string) error {
+	switch name {
+	case section.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case section.FieldOutletID:
+		m.ResetOutletID()
+		return nil
+	case section.FieldName:
+		m.ResetName()
+		return nil
+	case section.FieldSlug:
+		m.ResetSlug()
+		return nil
+	case section.FieldDescription:
+		m.ResetDescription()
+		return nil
+	case section.FieldFloorNumber:
+		m.ResetFloorNumber()
+		return nil
+	case section.FieldSortOrder:
+		m.ResetSortOrder()
+		return nil
+	case section.FieldIsActive:
+		m.ResetIsActive()
+		return nil
+	case section.FieldSectionType:
+		m.ResetSectionType()
+		return nil
+	case section.FieldMetadata:
+		m.ResetMetadata()
+		return nil
+	case section.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case section.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown Section field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *SectionMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.tables != nil {
+		edges = append(edges, section.EdgeTables)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *SectionMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case section.EdgeTables:
+		ids := make([]ent.Value, 0, len(m.tables))
+		for id := range m.tables {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *SectionMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.removedtables != nil {
+		edges = append(edges, section.EdgeTables)
+	}
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *SectionMutation) RemovedIDs(name string) []ent.Value {
+	switch name {
+	case section.EdgeTables:
+		ids := make([]ent.Value, 0, len(m.removedtables))
+		for id := range m.removedtables {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *SectionMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.clearedtables {
+		edges = append(edges, section.EdgeTables)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *SectionMutation) EdgeCleared(name string) bool {
+	switch name {
+	case section.EdgeTables:
+		return m.clearedtables
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *SectionMutation) ClearEdge(name string) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown Section unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *SectionMutation) ResetEdge(name string) error {
+	switch name {
+	case section.EdgeTables:
+		m.ResetTables()
+		return nil
+	}
+	return fmt.Errorf("unknown Section edge %s", name)
+}
+
 // StockAlertSubscriptionMutation represents an operation that mutates the StockAlertSubscription nodes in the graph.
 type StockAlertSubscriptionMutation struct {
 	config
@@ -26868,10 +27980,19 @@ type TableMutation struct {
 	capacity           *int
 	addcapacity        *int
 	status             *string
+	table_type         *table.TableType
+	x_position         *float64
+	addx_position      *float64
+	y_position         *float64
+	addy_position      *float64
+	tags               *[]string
+	appendtags         []string
 	metadata           *map[string]interface{}
 	created_at         *time.Time
 	updated_at         *time.Time
 	clearedFields      map[string]struct{}
+	section            *uuid.UUID
+	clearedsection     bool
 	assignments        map[uuid.UUID]struct{}
 	removedassignments map[uuid.UUID]struct{}
 	clearedassignments bool
@@ -27056,6 +28177,55 @@ func (m *TableMutation) ResetOutletID() {
 	m.outlet_id = nil
 }
 
+// SetSectionID sets the "section_id" field.
+func (m *TableMutation) SetSectionID(u uuid.UUID) {
+	m.section = &u
+}
+
+// SectionID returns the value of the "section_id" field in the mutation.
+func (m *TableMutation) SectionID() (r uuid.UUID, exists bool) {
+	v := m.section
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSectionID returns the old "section_id" field's value of the Table entity.
+// If the Table object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TableMutation) OldSectionID(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSectionID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSectionID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSectionID: %w", err)
+	}
+	return oldValue.SectionID, nil
+}
+
+// ClearSectionID clears the value of the "section_id" field.
+func (m *TableMutation) ClearSectionID() {
+	m.section = nil
+	m.clearedFields[table.FieldSectionID] = struct{}{}
+}
+
+// SectionIDCleared returns if the "section_id" field was cleared in this mutation.
+func (m *TableMutation) SectionIDCleared() bool {
+	_, ok := m.clearedFields[table.FieldSectionID]
+	return ok
+}
+
+// ResetSectionID resets all changes to the "section_id" field.
+func (m *TableMutation) ResetSectionID() {
+	m.section = nil
+	delete(m.clearedFields, table.FieldSectionID)
+}
+
 // SetName sets the "name" field.
 func (m *TableMutation) SetName(s string) {
 	m.name = &s
@@ -27184,6 +28354,247 @@ func (m *TableMutation) ResetStatus() {
 	m.status = nil
 }
 
+// SetTableType sets the "table_type" field.
+func (m *TableMutation) SetTableType(tt table.TableType) {
+	m.table_type = &tt
+}
+
+// TableType returns the value of the "table_type" field in the mutation.
+func (m *TableMutation) TableType() (r table.TableType, exists bool) {
+	v := m.table_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTableType returns the old "table_type" field's value of the Table entity.
+// If the Table object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TableMutation) OldTableType(ctx context.Context) (v table.TableType, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTableType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTableType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTableType: %w", err)
+	}
+	return oldValue.TableType, nil
+}
+
+// ResetTableType resets all changes to the "table_type" field.
+func (m *TableMutation) ResetTableType() {
+	m.table_type = nil
+}
+
+// SetXPosition sets the "x_position" field.
+func (m *TableMutation) SetXPosition(f float64) {
+	m.x_position = &f
+	m.addx_position = nil
+}
+
+// XPosition returns the value of the "x_position" field in the mutation.
+func (m *TableMutation) XPosition() (r float64, exists bool) {
+	v := m.x_position
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldXPosition returns the old "x_position" field's value of the Table entity.
+// If the Table object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TableMutation) OldXPosition(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldXPosition is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldXPosition requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldXPosition: %w", err)
+	}
+	return oldValue.XPosition, nil
+}
+
+// AddXPosition adds f to the "x_position" field.
+func (m *TableMutation) AddXPosition(f float64) {
+	if m.addx_position != nil {
+		*m.addx_position += f
+	} else {
+		m.addx_position = &f
+	}
+}
+
+// AddedXPosition returns the value that was added to the "x_position" field in this mutation.
+func (m *TableMutation) AddedXPosition() (r float64, exists bool) {
+	v := m.addx_position
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearXPosition clears the value of the "x_position" field.
+func (m *TableMutation) ClearXPosition() {
+	m.x_position = nil
+	m.addx_position = nil
+	m.clearedFields[table.FieldXPosition] = struct{}{}
+}
+
+// XPositionCleared returns if the "x_position" field was cleared in this mutation.
+func (m *TableMutation) XPositionCleared() bool {
+	_, ok := m.clearedFields[table.FieldXPosition]
+	return ok
+}
+
+// ResetXPosition resets all changes to the "x_position" field.
+func (m *TableMutation) ResetXPosition() {
+	m.x_position = nil
+	m.addx_position = nil
+	delete(m.clearedFields, table.FieldXPosition)
+}
+
+// SetYPosition sets the "y_position" field.
+func (m *TableMutation) SetYPosition(f float64) {
+	m.y_position = &f
+	m.addy_position = nil
+}
+
+// YPosition returns the value of the "y_position" field in the mutation.
+func (m *TableMutation) YPosition() (r float64, exists bool) {
+	v := m.y_position
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldYPosition returns the old "y_position" field's value of the Table entity.
+// If the Table object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TableMutation) OldYPosition(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldYPosition is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldYPosition requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldYPosition: %w", err)
+	}
+	return oldValue.YPosition, nil
+}
+
+// AddYPosition adds f to the "y_position" field.
+func (m *TableMutation) AddYPosition(f float64) {
+	if m.addy_position != nil {
+		*m.addy_position += f
+	} else {
+		m.addy_position = &f
+	}
+}
+
+// AddedYPosition returns the value that was added to the "y_position" field in this mutation.
+func (m *TableMutation) AddedYPosition() (r float64, exists bool) {
+	v := m.addy_position
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearYPosition clears the value of the "y_position" field.
+func (m *TableMutation) ClearYPosition() {
+	m.y_position = nil
+	m.addy_position = nil
+	m.clearedFields[table.FieldYPosition] = struct{}{}
+}
+
+// YPositionCleared returns if the "y_position" field was cleared in this mutation.
+func (m *TableMutation) YPositionCleared() bool {
+	_, ok := m.clearedFields[table.FieldYPosition]
+	return ok
+}
+
+// ResetYPosition resets all changes to the "y_position" field.
+func (m *TableMutation) ResetYPosition() {
+	m.y_position = nil
+	m.addy_position = nil
+	delete(m.clearedFields, table.FieldYPosition)
+}
+
+// SetTags sets the "tags" field.
+func (m *TableMutation) SetTags(s []string) {
+	m.tags = &s
+	m.appendtags = nil
+}
+
+// Tags returns the value of the "tags" field in the mutation.
+func (m *TableMutation) Tags() (r []string, exists bool) {
+	v := m.tags
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTags returns the old "tags" field's value of the Table entity.
+// If the Table object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TableMutation) OldTags(ctx context.Context) (v []string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTags is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTags requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTags: %w", err)
+	}
+	return oldValue.Tags, nil
+}
+
+// AppendTags adds s to the "tags" field.
+func (m *TableMutation) AppendTags(s []string) {
+	m.appendtags = append(m.appendtags, s...)
+}
+
+// AppendedTags returns the list of values that were appended to the "tags" field in this mutation.
+func (m *TableMutation) AppendedTags() ([]string, bool) {
+	if len(m.appendtags) == 0 {
+		return nil, false
+	}
+	return m.appendtags, true
+}
+
+// ClearTags clears the value of the "tags" field.
+func (m *TableMutation) ClearTags() {
+	m.tags = nil
+	m.appendtags = nil
+	m.clearedFields[table.FieldTags] = struct{}{}
+}
+
+// TagsCleared returns if the "tags" field was cleared in this mutation.
+func (m *TableMutation) TagsCleared() bool {
+	_, ok := m.clearedFields[table.FieldTags]
+	return ok
+}
+
+// ResetTags resets all changes to the "tags" field.
+func (m *TableMutation) ResetTags() {
+	m.tags = nil
+	m.appendtags = nil
+	delete(m.clearedFields, table.FieldTags)
+}
+
 // SetMetadata sets the "metadata" field.
 func (m *TableMutation) SetMetadata(value map[string]interface{}) {
 	m.metadata = &value
@@ -27292,6 +28703,33 @@ func (m *TableMutation) ResetUpdatedAt() {
 	m.updated_at = nil
 }
 
+// ClearSection clears the "section" edge to the Section entity.
+func (m *TableMutation) ClearSection() {
+	m.clearedsection = true
+	m.clearedFields[table.FieldSectionID] = struct{}{}
+}
+
+// SectionCleared reports if the "section" edge to the Section entity was cleared.
+func (m *TableMutation) SectionCleared() bool {
+	return m.SectionIDCleared() || m.clearedsection
+}
+
+// SectionIDs returns the "section" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// SectionID instead. It exists only for internal usage by the builders.
+func (m *TableMutation) SectionIDs() (ids []uuid.UUID) {
+	if id := m.section; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetSection resets all changes to the "section" edge.
+func (m *TableMutation) ResetSection() {
+	m.section = nil
+	m.clearedsection = false
+}
+
 // AddAssignmentIDs adds the "assignments" edge to the TableAssignment entity by ids.
 func (m *TableMutation) AddAssignmentIDs(ids ...uuid.UUID) {
 	if m.assignments == nil {
@@ -27380,12 +28818,15 @@ func (m *TableMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *TableMutation) Fields() []string {
-	fields := make([]string, 0, 8)
+	fields := make([]string, 0, 13)
 	if m.tenant_id != nil {
 		fields = append(fields, table.FieldTenantID)
 	}
 	if m.outlet_id != nil {
 		fields = append(fields, table.FieldOutletID)
+	}
+	if m.section != nil {
+		fields = append(fields, table.FieldSectionID)
 	}
 	if m.name != nil {
 		fields = append(fields, table.FieldName)
@@ -27395,6 +28836,18 @@ func (m *TableMutation) Fields() []string {
 	}
 	if m.status != nil {
 		fields = append(fields, table.FieldStatus)
+	}
+	if m.table_type != nil {
+		fields = append(fields, table.FieldTableType)
+	}
+	if m.x_position != nil {
+		fields = append(fields, table.FieldXPosition)
+	}
+	if m.y_position != nil {
+		fields = append(fields, table.FieldYPosition)
+	}
+	if m.tags != nil {
+		fields = append(fields, table.FieldTags)
 	}
 	if m.metadata != nil {
 		fields = append(fields, table.FieldMetadata)
@@ -27417,12 +28870,22 @@ func (m *TableMutation) Field(name string) (ent.Value, bool) {
 		return m.TenantID()
 	case table.FieldOutletID:
 		return m.OutletID()
+	case table.FieldSectionID:
+		return m.SectionID()
 	case table.FieldName:
 		return m.Name()
 	case table.FieldCapacity:
 		return m.Capacity()
 	case table.FieldStatus:
 		return m.Status()
+	case table.FieldTableType:
+		return m.TableType()
+	case table.FieldXPosition:
+		return m.XPosition()
+	case table.FieldYPosition:
+		return m.YPosition()
+	case table.FieldTags:
+		return m.Tags()
 	case table.FieldMetadata:
 		return m.Metadata()
 	case table.FieldCreatedAt:
@@ -27442,12 +28905,22 @@ func (m *TableMutation) OldField(ctx context.Context, name string) (ent.Value, e
 		return m.OldTenantID(ctx)
 	case table.FieldOutletID:
 		return m.OldOutletID(ctx)
+	case table.FieldSectionID:
+		return m.OldSectionID(ctx)
 	case table.FieldName:
 		return m.OldName(ctx)
 	case table.FieldCapacity:
 		return m.OldCapacity(ctx)
 	case table.FieldStatus:
 		return m.OldStatus(ctx)
+	case table.FieldTableType:
+		return m.OldTableType(ctx)
+	case table.FieldXPosition:
+		return m.OldXPosition(ctx)
+	case table.FieldYPosition:
+		return m.OldYPosition(ctx)
+	case table.FieldTags:
+		return m.OldTags(ctx)
 	case table.FieldMetadata:
 		return m.OldMetadata(ctx)
 	case table.FieldCreatedAt:
@@ -27477,6 +28950,13 @@ func (m *TableMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetOutletID(v)
 		return nil
+	case table.FieldSectionID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSectionID(v)
+		return nil
 	case table.FieldName:
 		v, ok := value.(string)
 		if !ok {
@@ -27497,6 +28977,34 @@ func (m *TableMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetStatus(v)
+		return nil
+	case table.FieldTableType:
+		v, ok := value.(table.TableType)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTableType(v)
+		return nil
+	case table.FieldXPosition:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetXPosition(v)
+		return nil
+	case table.FieldYPosition:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetYPosition(v)
+		return nil
+	case table.FieldTags:
+		v, ok := value.([]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTags(v)
 		return nil
 	case table.FieldMetadata:
 		v, ok := value.(map[string]interface{})
@@ -27530,6 +29038,12 @@ func (m *TableMutation) AddedFields() []string {
 	if m.addcapacity != nil {
 		fields = append(fields, table.FieldCapacity)
 	}
+	if m.addx_position != nil {
+		fields = append(fields, table.FieldXPosition)
+	}
+	if m.addy_position != nil {
+		fields = append(fields, table.FieldYPosition)
+	}
 	return fields
 }
 
@@ -27540,6 +29054,10 @@ func (m *TableMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
 	case table.FieldCapacity:
 		return m.AddedCapacity()
+	case table.FieldXPosition:
+		return m.AddedXPosition()
+	case table.FieldYPosition:
+		return m.AddedYPosition()
 	}
 	return nil, false
 }
@@ -27556,6 +29074,20 @@ func (m *TableMutation) AddField(name string, value ent.Value) error {
 		}
 		m.AddCapacity(v)
 		return nil
+	case table.FieldXPosition:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddXPosition(v)
+		return nil
+	case table.FieldYPosition:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddYPosition(v)
+		return nil
 	}
 	return fmt.Errorf("unknown Table numeric field %s", name)
 }
@@ -27563,7 +29095,20 @@ func (m *TableMutation) AddField(name string, value ent.Value) error {
 // ClearedFields returns all nullable fields that were cleared during this
 // mutation.
 func (m *TableMutation) ClearedFields() []string {
-	return nil
+	var fields []string
+	if m.FieldCleared(table.FieldSectionID) {
+		fields = append(fields, table.FieldSectionID)
+	}
+	if m.FieldCleared(table.FieldXPosition) {
+		fields = append(fields, table.FieldXPosition)
+	}
+	if m.FieldCleared(table.FieldYPosition) {
+		fields = append(fields, table.FieldYPosition)
+	}
+	if m.FieldCleared(table.FieldTags) {
+		fields = append(fields, table.FieldTags)
+	}
+	return fields
 }
 
 // FieldCleared returns a boolean indicating if a field with the given name was
@@ -27576,6 +29121,20 @@ func (m *TableMutation) FieldCleared(name string) bool {
 // ClearField clears the value of the field with the given name. It returns an
 // error if the field is not defined in the schema.
 func (m *TableMutation) ClearField(name string) error {
+	switch name {
+	case table.FieldSectionID:
+		m.ClearSectionID()
+		return nil
+	case table.FieldXPosition:
+		m.ClearXPosition()
+		return nil
+	case table.FieldYPosition:
+		m.ClearYPosition()
+		return nil
+	case table.FieldTags:
+		m.ClearTags()
+		return nil
+	}
 	return fmt.Errorf("unknown Table nullable field %s", name)
 }
 
@@ -27589,6 +29148,9 @@ func (m *TableMutation) ResetField(name string) error {
 	case table.FieldOutletID:
 		m.ResetOutletID()
 		return nil
+	case table.FieldSectionID:
+		m.ResetSectionID()
+		return nil
 	case table.FieldName:
 		m.ResetName()
 		return nil
@@ -27597,6 +29159,18 @@ func (m *TableMutation) ResetField(name string) error {
 		return nil
 	case table.FieldStatus:
 		m.ResetStatus()
+		return nil
+	case table.FieldTableType:
+		m.ResetTableType()
+		return nil
+	case table.FieldXPosition:
+		m.ResetXPosition()
+		return nil
+	case table.FieldYPosition:
+		m.ResetYPosition()
+		return nil
+	case table.FieldTags:
+		m.ResetTags()
 		return nil
 	case table.FieldMetadata:
 		m.ResetMetadata()
@@ -27613,7 +29187,10 @@ func (m *TableMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *TableMutation) AddedEdges() []string {
-	edges := make([]string, 0, 1)
+	edges := make([]string, 0, 2)
+	if m.section != nil {
+		edges = append(edges, table.EdgeSection)
+	}
 	if m.assignments != nil {
 		edges = append(edges, table.EdgeAssignments)
 	}
@@ -27624,6 +29201,10 @@ func (m *TableMutation) AddedEdges() []string {
 // name in this mutation.
 func (m *TableMutation) AddedIDs(name string) []ent.Value {
 	switch name {
+	case table.EdgeSection:
+		if id := m.section; id != nil {
+			return []ent.Value{*id}
+		}
 	case table.EdgeAssignments:
 		ids := make([]ent.Value, 0, len(m.assignments))
 		for id := range m.assignments {
@@ -27636,7 +29217,7 @@ func (m *TableMutation) AddedIDs(name string) []ent.Value {
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *TableMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 1)
+	edges := make([]string, 0, 2)
 	if m.removedassignments != nil {
 		edges = append(edges, table.EdgeAssignments)
 	}
@@ -27659,7 +29240,10 @@ func (m *TableMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *TableMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 1)
+	edges := make([]string, 0, 2)
+	if m.clearedsection {
+		edges = append(edges, table.EdgeSection)
+	}
 	if m.clearedassignments {
 		edges = append(edges, table.EdgeAssignments)
 	}
@@ -27670,6 +29254,8 @@ func (m *TableMutation) ClearedEdges() []string {
 // was cleared in this mutation.
 func (m *TableMutation) EdgeCleared(name string) bool {
 	switch name {
+	case table.EdgeSection:
+		return m.clearedsection
 	case table.EdgeAssignments:
 		return m.clearedassignments
 	}
@@ -27680,6 +29266,9 @@ func (m *TableMutation) EdgeCleared(name string) bool {
 // if that edge is not defined in the schema.
 func (m *TableMutation) ClearEdge(name string) error {
 	switch name {
+	case table.EdgeSection:
+		m.ClearSection()
+		return nil
 	}
 	return fmt.Errorf("unknown Table unique edge %s", name)
 }
@@ -27688,6 +29277,9 @@ func (m *TableMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *TableMutation) ResetEdge(name string) error {
 	switch name {
+	case table.EdgeSection:
+		m.ResetSection()
+		return nil
 	case table.EdgeAssignments:
 		m.ResetAssignments()
 		return nil

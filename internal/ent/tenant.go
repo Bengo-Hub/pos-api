@@ -41,7 +41,7 @@ type Tenant struct {
 	BrandColors map[string]interface{} `json:"brand_colors,omitempty"`
 	// OrgSize holds the value of the "org_size" field.
 	OrgSize *string `json:"org_size,omitempty"`
-	// UseCase holds the value of the "use_case" field.
+	// Primary business use case: hospitality | retail | quick_service | manufacturing | warehousing | services | e_commerce | other
 	UseCase *string `json:"use_case,omitempty"`
 	// SubscriptionPlan holds the value of the "subscription_plan" field.
 	SubscriptionPlan *string `json:"subscription_plan,omitempty"`

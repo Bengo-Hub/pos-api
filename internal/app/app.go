@@ -106,8 +106,15 @@ func New(ctx context.Context) (*App, error) {
 	tenantSyncer := tenant.NewSyncer(entClient)
 	identitySvc := identity.NewService(entClient, tenantSyncer)
 	orderHandler := handlers.NewPOSOrderHandler(log, entClient, subsClient)
+	catalogHandler := handlers.NewCatalogHandler(log, entClient)
+	tableHandler := handlers.NewTableHandler(log, entClient)
+	tenderHandler := handlers.NewTenderHandler(log, entClient)
+	paymentHandler := handlers.NewPaymentHandler(log, entClient)
+	drawerHandler := handlers.NewDrawerHandler(log, entClient)
+	barTabHandler := handlers.NewBarTabHandler(log, entClient)
+	promotionHandler := handlers.NewPromotionHandler(log, entClient)
 
-	chiRouter := router.New(log, healthHandler, authMiddleware, identitySvc, orderHandler)
+	chiRouter := router.New(log, healthHandler, authMiddleware, identitySvc, orderHandler, catalogHandler, tableHandler, tenderHandler, paymentHandler, drawerHandler, barTabHandler, promotionHandler)
 
 	httpServer := &http.Server{
 		Addr:              fmt.Sprintf("%s:%d", cfg.HTTP.Host, cfg.HTTP.Port),

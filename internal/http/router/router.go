@@ -18,7 +18,20 @@ import (
 	"github.com/Bengo-Hub/httpware"
 )
 
-func New(log *zap.Logger, health *handlers.HealthHandler, authMiddleware *authclient.AuthMiddleware, idSvc *identity.Service, orders *handlers.POSOrderHandler) http.Handler {
+func New(
+	log *zap.Logger,
+	health *handlers.HealthHandler,
+	authMiddleware *authclient.AuthMiddleware,
+	idSvc *identity.Service,
+	orders *handlers.POSOrderHandler,
+	catalog *handlers.CatalogHandler,
+	tables *handlers.TableHandler,
+	tenders *handlers.TenderHandler,
+	payments *handlers.PaymentHandler,
+	drawers *handlers.DrawerHandler,
+	barTabs *handlers.BarTabHandler,
+	promotions *handlers.PromotionHandler,
+) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(middleware.RequestID)
@@ -87,11 +100,72 @@ func New(log *zap.Logger, health *handlers.HealthHandler, authMiddleware *authcl
 			}))
 
 			tenant.Route("/pos", func(pos chi.Router) {
+				// Orders
 				if orders != nil {
 					pos.Get("/orders", orders.ListOrders)
 					pos.Post("/orders", orders.CreateOrder)
 					pos.Get("/orders/{orderID}", orders.GetOrder)
 					pos.Patch("/orders/{orderID}/status", orders.UpdateStatus)
+				}
+
+				// Catalog
+				if catalog != nil {
+					pos.Route("/catalog", func(cat chi.Router) {
+						cat.Get("/items", catalog.ListCatalogItems)
+						cat.Post("/items", catalog.CreateCatalogItem)
+						cat.Get("/items/{id}", catalog.GetCatalogItem)
+						cat.Put("/items/{id}", catalog.UpdateCatalogItem)
+						cat.Delete("/items/{id}", catalog.DeleteCatalogItem)
+					})
+				}
+
+				// Sections & Tables
+				if tables != nil {
+					pos.Get("/sections", tables.ListSections)
+					pos.Post("/sections", tables.CreateSection)
+					pos.Put("/sections/{id}", tables.UpdateSection)
+					pos.Get("/tables", tables.ListTables)
+					pos.Post("/tables", tables.CreateTable)
+					pos.Put("/tables/{id}", tables.UpdateTable)
+					pos.Patch("/tables/{id}/status", tables.UpdateTableStatus)
+					pos.Post("/tables/{id}/assign", tables.AssignTable)
+					pos.Post("/tables/{id}/release", tables.ReleaseTable)
+				}
+
+				// Tenders
+				if tenders != nil {
+					pos.Get("/tenders", tenders.ListTenders)
+					pos.Post("/tenders", tenders.CreateTender)
+					pos.Put("/tenders/{id}", tenders.UpdateTender)
+				}
+
+				// Payments
+				if payments != nil {
+					pos.Post("/orders/{orderID}/payments", payments.RecordPayment)
+					pos.Get("/orders/{orderID}/payments", payments.ListOrderPayments)
+				}
+
+				// Cash Drawers
+				if drawers != nil {
+					pos.Post("/drawers/open", drawers.OpenDrawer)
+					pos.Get("/drawers/current", drawers.GetCurrentDrawer)
+					pos.Post("/drawers/{id}/close", drawers.CloseDrawer)
+					pos.Get("/drawers", drawers.ListDrawerHistory)
+				}
+
+				// Bar Tabs
+				if barTabs != nil {
+					pos.Post("/bar-tabs", barTabs.OpenBarTab)
+					pos.Get("/bar-tabs", barTabs.ListBarTabs)
+					pos.Get("/bar-tabs/{id}", barTabs.GetBarTab)
+					pos.Post("/bar-tabs/{id}/close", barTabs.CloseBarTab)
+				}
+
+				// Promotions
+				if promotions != nil {
+					pos.Get("/promotions", promotions.ListPromotions)
+					pos.Post("/promotions", promotions.CreatePromotion)
+					pos.Post("/promotions/apply", promotions.ApplyPromoCode)
 				}
 			})
 		})

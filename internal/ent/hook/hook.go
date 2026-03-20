@@ -405,6 +405,18 @@ func (f PromotionRuleFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Valu
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.PromotionRuleMutation", m)
 }
 
+// The SectionFunc type is an adapter to allow the use of ordinary
+// function as Section mutator.
+type SectionFunc func(context.Context, *ent.SectionMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f SectionFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.SectionMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SectionMutation", m)
+}
+
 // The StockAlertSubscriptionFunc type is an adapter to allow the use of ordinary
 // function as StockAlertSubscription mutator.
 type StockAlertSubscriptionFunc func(context.Context, *ent.StockAlertSubscriptionMutation) (ent.Value, error)

@@ -1,6 +1,10 @@
 # POS Service – Entity Relationship Overview
 
-The POS service delivers a multi-tenant, omni-channel point-of-sale backend supporting cafés/bars, retail, kitchen display, kiosk, and ecommerce scenarios.  
+**Last updated:** 2026-03-20
+
+**March 20 update:** Added 30+ HTTP endpoints covering catalog CRUD, table/section management (with floor plan layout fields), tender CRUD, payment recording, cash drawer lifecycle, bar tab management, and promotions. Seed script (`cmd/seed/main.go`) added with outlet (UUID-aligned with ordering-backend/inventory-api), 4 tenders, 3 sections, 12 tables (with VIP/VVIP tags), and 48 catalog items from inventory-api master data. pos-ui pages wired to real API via TanStack Query hooks (`usePOS.ts`).
+
+The POS service delivers a multi-tenant, omni-channel point-of-sale backend supporting cafés/bars, retail, kitchen display, kiosk, and ecommerce scenarios.
 Schemas are defined with Ent to ensure type-safe access and migration automation.
 
 > **Conventions**
@@ -48,7 +52,8 @@ Schemas are defined with Ent to ensure type-safe access and migration automation
 | `pos_order_lines` | `id`, `pos_order_id`, `catalog_item_id`, `variant_id`, `name_snapshot`, `quantity`, `unit_price`, `discount_amount`, `tax_amount`, `notes`, `metadata` | Line items. |
 | `pos_line_modifiers` | `id`, `order_line_id`, `modifier_id`, `label_snapshot`, `price_delta`, `metadata` | Applied modifiers. |
 | `pos_order_events` | `id`, `pos_order_id`, `event_type`, `payload`, `actor_user_id`, `occurred_at` | Status changes, voids, discounts, reopenings. |
-| `tables` | `id`, `tenant_id`, `outlet_id`, `table_code`, `area`, `seat_count`, `status`, `metadata` | Dining area table definitions. |
+| `sections` | `id`, `tenant_id`, `outlet_id`, `name`, `slug`, `description`, `floor_number`, `sort_order`, `is_active`, `section_type` (main_hall/outdoor/private_room/bar/vip/vvip/rooftop), `metadata`, `created_at`, `updated_at` | Floor plan sections that organize tables into logical areas. Added March 2026. |
+| `tables` | `id`, `tenant_id`, `outlet_id`, `section_id` (FK optional), `name`, `capacity`, `status`, `table_type` (standard/booth/bar_seat/counter/vip/vvip), `x_position`, `y_position` (for floor plan rendering), `tags` (JSON: VIP, Window, etc.), `metadata`, `created_at`, `updated_at` | Dining area table definitions with spatial layout support. Updated March 2026 with section FK, position, type, tags. |
 | `table_assignments` | `id`, `table_id`, `pos_order_id`, `assigned_at`, `released_at`, `metadata` | Table ↔ order linkage. |
 | `bar_tabs` | `id`, `tenant_id`, `outlet_id`, `tab_code`, `customer_name`, `limit_amount`, `opened_by`, `opened_at`, `closed_at`, `status`, `metadata` | Bar/KTV tab tracking. |
 | `bar_tab_events` | `id`, `bar_tab_id`, `event_type`, `payload`, `occurred_at`, `actor_user_id` | Tab lifecycle. |
