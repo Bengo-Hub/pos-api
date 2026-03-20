@@ -114,7 +114,7 @@ func New(ctx context.Context) (*App, error) {
 	barTabHandler := handlers.NewBarTabHandler(log, entClient)
 	promotionHandler := handlers.NewPromotionHandler(log, entClient)
 
-	chiRouter := router.New(log, healthHandler, authMiddleware, identitySvc, orderHandler, catalogHandler, tableHandler, tenderHandler, paymentHandler, drawerHandler, barTabHandler, promotionHandler)
+	chiRouter := router.New(log, healthHandler, authMiddleware, identitySvc, orderHandler, catalogHandler, tableHandler, tenderHandler, paymentHandler, drawerHandler, barTabHandler, promotionHandler, cfg.HTTP.AllowedOrigins)
 
 	httpServer := &http.Server{
 		Addr:              fmt.Sprintf("%s:%d", cfg.HTTP.Host, cfg.HTTP.Port),

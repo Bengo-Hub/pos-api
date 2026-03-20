@@ -36,11 +36,12 @@ type AppConfig struct {
 }
 
 type HTTPConfig struct {
-	Host         string        `envconfig:"HTTP_HOST" default:"0.0.0.0"`
-	Port         int           `envconfig:"HTTP_PORT" default:"4004"`
-	ReadTimeout  time.Duration `envconfig:"HTTP_READ_TIMEOUT" default:"20s"`
-	WriteTimeout time.Duration `envconfig:"HTTP_WRITE_TIMEOUT" default:"20s"`
-	IdleTimeout  time.Duration `envconfig:"HTTP_IDLE_TIMEOUT" default:"90s"`
+	Host           string        `envconfig:"HTTP_HOST" default:"0.0.0.0"`
+	Port           int           `envconfig:"HTTP_PORT" default:"4004"`
+	ReadTimeout    time.Duration `envconfig:"HTTP_READ_TIMEOUT" default:"20s"`
+	WriteTimeout   time.Duration `envconfig:"HTTP_WRITE_TIMEOUT" default:"20s"`
+	IdleTimeout    time.Duration `envconfig:"HTTP_IDLE_TIMEOUT" default:"90s"`
+	AllowedOrigins []string      `envconfig:"HTTP_ALLOWED_ORIGINS" default:"http://localhost:3000,http://localhost:3001"`
 }
 
 type PostgresConfig struct {

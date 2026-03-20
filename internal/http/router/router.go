@@ -31,6 +31,7 @@ func New(
 	drawers *handlers.DrawerHandler,
 	barTabs *handlers.BarTabHandler,
 	promotions *handlers.PromotionHandler,
+	allowedOrigins []string,
 ) http.Handler {
 	r := chi.NewRouter()
 
@@ -41,10 +42,10 @@ func New(
 	r.Use(httpware.Recover(log))
 	r.Use(middleware.Timeout(30 * time.Second))
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"*"},
+		AllowedOrigins:   allowedOrigins,
 		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Authorization", "Content-Type", "X-Tenant-ID", "X-Request-ID"},
-		ExposedHeaders:   []string{"Link"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "Origin", "X-Request-ID", "X-Tenant-ID", "X-Tenant-Slug"},
+		ExposedHeaders:   []string{"Link", "X-RateLimit-Limit", "X-RateLimit-Remaining", "X-RateLimit-Reset", "Retry-After"},
 		AllowCredentials: true,
 		MaxAge:           300,
 	}))
