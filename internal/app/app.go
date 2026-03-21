@@ -24,6 +24,9 @@ import (
 	handlers "github.com/bengobox/pos-service/internal/http/handlers"
 	router "github.com/bengobox/pos-service/internal/http/router"
 	"github.com/bengobox/pos-service/internal/modules/identity"
+	ordermodule "github.com/bengobox/pos-service/internal/modules/orders"
+	paymentmodule "github.com/bengobox/pos-service/internal/modules/payments"
+	promommodule "github.com/bengobox/pos-service/internal/modules/promotions"
 	"github.com/bengobox/pos-service/internal/modules/tenant"
 	"github.com/bengobox/pos-service/internal/platform/cache"
 	"github.com/bengobox/pos-service/internal/platform/database"
@@ -105,14 +108,25 @@ func New(ctx context.Context) (*App, error) {
 
 	tenantSyncer := tenant.NewSyncer(entClient)
 	identitySvc := identity.NewService(entClient, tenantSyncer)
-	orderHandler := handlers.NewPOSOrderHandler(log, entClient, subsClient)
+
+	// Initialize business services
+	orderSvc := ordermodule.NewService(entClient, ordermodule.Config{
+		DefaultCurrency: cfg.App.DefaultCurrency,
+		TaxRatePercent:  cfg.App.TaxRatePercent,
+		OrderPrefix:     cfg.App.OrderPrefix,
+	}, log)
+	paymentSvc := paymentmodule.NewService(entClient, orderSvc, cfg.App.DefaultCurrency, log)
+	promoSvc := promommodule.NewService(entClient, log)
+
+	// Create HTTP handlers
+	orderHandler := handlers.NewPOSOrderHandler(log, entClient, orderSvc, subsClient)
 	catalogHandler := handlers.NewCatalogHandler(log, entClient)
 	tableHandler := handlers.NewTableHandler(log, entClient)
 	tenderHandler := handlers.NewTenderHandler(log, entClient)
-	paymentHandler := handlers.NewPaymentHandler(log, entClient)
+	paymentHandler := handlers.NewPaymentHandler(log, paymentSvc)
 	drawerHandler := handlers.NewDrawerHandler(log, entClient)
 	barTabHandler := handlers.NewBarTabHandler(log, entClient)
-	promotionHandler := handlers.NewPromotionHandler(log, entClient)
+	promotionHandler := handlers.NewPromotionHandler(log, entClient, promoSvc)
 
 	chiRouter := router.New(log, healthHandler, authMiddleware, identitySvc, orderHandler, catalogHandler, tableHandler, tenderHandler, paymentHandler, drawerHandler, barTabHandler, promotionHandler, cfg.HTTP.AllowedOrigins)
 

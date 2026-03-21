@@ -6,20 +6,23 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 
 	"github.com/bengobox/pos-service/internal/ent"
 	"github.com/bengobox/pos-service/internal/ent/promotion"
+	promotions "github.com/bengobox/pos-service/internal/modules/promotions"
 )
 
 // PromotionHandler handles promotion management endpoints.
 type PromotionHandler struct {
-	log    *zap.Logger
-	client *ent.Client
+	log      *zap.Logger
+	client   *ent.Client
+	promoSvc *promotions.Service
 }
 
-func NewPromotionHandler(log *zap.Logger, client *ent.Client) *PromotionHandler {
-	return &PromotionHandler{log: log, client: client}
+func NewPromotionHandler(log *zap.Logger, client *ent.Client, promoSvc *promotions.Service) *PromotionHandler {
+	return &PromotionHandler{log: log, client: client, promoSvc: promoSvc}
 }
 
 // ListPromotions handles GET /{tenantID}/pos/promotions
@@ -114,33 +117,26 @@ func (h *PromotionHandler) ApplyPromoCode(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// Find active promotion
-	promo, err := h.client.Promotion.Query().
-		Where(
-			promotion.TenantID(tid),
-			promotion.PromoCode(input.PromoCode),
-			promotion.Status("active"),
-		).
-		Only(r.Context())
+	orderAmount := decimal.NewFromFloat(input.Amount)
+	result, err := h.promoSvc.ApplyPromoCode(r.Context(), tid, input.PromoCode, orderAmount)
 	if err != nil {
-		if ent.IsNotFound(err) {
-			jsonError(w, "invalid or expired promo code", http.StatusNotFound)
-			return
-		}
+		h.log.Error("apply promo code failed", zap.Error(err))
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 
-	// Check expiry
-	now := time.Now()
-	if promo.EndAt != nil && now.After(*promo.EndAt) {
-		jsonError(w, "promo code has expired", http.StatusBadRequest)
+	if !result.Valid {
+		jsonOK(w, map[string]any{
+			"valid":  false,
+			"reason": result.Reason,
+		})
 		return
 	}
 
 	jsonOK(w, map[string]any{
-		"valid":     true,
-		"promoCode": promo.PromoCode,
-		"promoId":   promo.ID,
+		"valid":          true,
+		"promoCode":      result.PromoCode,
+		"promoId":        result.PromoID,
+		"discountAmount": result.DiscountAmount.StringFixed(2),
 	})
 }

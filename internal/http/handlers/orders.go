@@ -2,10 +2,8 @@ package handlers
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -16,6 +14,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
+	"github.com/bengobox/pos-service/internal/modules/orders"
 	"github.com/bengobox/pos-service/internal/platform/subscriptions"
 )
 
@@ -23,11 +22,12 @@ import (
 type POSOrderHandler struct {
 	log        *zap.Logger
 	client     *ent.Client
+	orderSvc   *orders.Service
 	subsClient *subscriptions.Client
 }
 
-func NewPOSOrderHandler(log *zap.Logger, client *ent.Client, subsClient *subscriptions.Client) *POSOrderHandler {
-	return &POSOrderHandler{log: log, client: client, subsClient: subsClient}
+func NewPOSOrderHandler(log *zap.Logger, client *ent.Client, orderSvc *orders.Service, subsClient *subscriptions.Client) *POSOrderHandler {
+	return &POSOrderHandler{log: log, client: client, orderSvc: orderSvc, subsClient: subsClient}
 }
 
 // createOrderLineInput is a single line in the order create request body.
@@ -159,65 +159,38 @@ func (h *POSOrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
-	if input.OrderNumber == "" {
-		input.OrderNumber = fmt.Sprintf("POS-%d", time.Now().UnixMilli())
-	}
-	if input.Currency == "" {
-		input.Currency = "KES"
+
+	// Get user ID from auth claims
+	var userID uuid.UUID
+	if claims, ok := authclient.ClaimsFromContext(r.Context()); ok && claims.Subject != "" {
+		userID, _ = uuid.Parse(claims.Subject)
 	}
 
-	// Calculate totals from lines
-	subtotal := 0.0
-	for _, l := range input.Lines {
-		subtotal += l.TotalPrice
-	}
-
-	// Use a transaction to create order + lines atomically
-	tx, err := h.client.Tx(r.Context())
-	if err != nil {
-		h.log.Error("tx begin failed", zap.Error(err))
-		jsonError(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-
-	order, err := tx.POSOrder.Create().
-		SetTenantID(tid).
-		SetOutletID(input.OutletID).
-		SetDeviceID(input.DeviceID).
-		SetOrderNumber(input.OrderNumber).
-		SetSubtotal(subtotal).
-		SetTaxTotal(0).
-		SetDiscountTotal(0).
-		SetTotalAmount(subtotal).
-		SetCurrency(input.Currency).
-		SetMetadata(input.Metadata).
-		Save(r.Context())
-	if err != nil {
-		_ = tx.Rollback()
-		h.log.Error("create order failed", zap.Error(err))
-		jsonError(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-
-	for _, l := range input.Lines {
-		if _, err := tx.POSOrderLine.Create().
-			SetOrderID(order.ID).
-			SetCatalogItemID(l.CatalogItemID).
-			SetSku(l.SKU).
-			SetName(l.Name).
-			SetQuantity(l.Quantity).
-			SetUnitPrice(l.UnitPrice).
-			SetTotalPrice(l.TotalPrice).
-			Save(r.Context()); err != nil {
-			_ = tx.Rollback()
-			h.log.Error("create order line failed", zap.Error(err))
-			jsonError(w, "internal error", http.StatusInternalServerError)
-			return
+	// Convert handler input to service request
+	lines := make([]orders.OrderLineInput, len(input.Lines))
+	for i, l := range input.Lines {
+		lines[i] = orders.OrderLineInput{
+			CatalogItemID: l.CatalogItemID,
+			SKU:           l.SKU,
+			Name:          l.Name,
+			Quantity:      l.Quantity,
+			UnitPrice:     l.UnitPrice,
+			TotalPrice:    l.TotalPrice,
 		}
 	}
 
-	if err := tx.Commit(); err != nil {
-		h.log.Error("tx commit failed", zap.Error(err))
+	order, err := h.orderSvc.CreateOrder(r.Context(), orders.CreateOrderRequest{
+		TenantID:    tid,
+		OutletID:    input.OutletID,
+		DeviceID:    input.DeviceID,
+		UserID:      userID,
+		OrderNumber: input.OrderNumber,
+		Currency:    input.Currency,
+		Lines:       lines,
+		Metadata:    input.Metadata,
+	})
+	if err != nil {
+		h.log.Error("create order failed", zap.Error(err))
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
 	}
@@ -256,23 +229,14 @@ func (h *POSOrderHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	order, err := h.client.POSOrder.Query().
-		Where(posorder.ID(orderID), posorder.TenantID(tid)).
-		Only(r.Context())
+	updated, err := h.orderSvc.UpdateStatus(r.Context(), tid, orderID, input.Status)
 	if err != nil {
 		if ent.IsNotFound(err) {
 			jsonError(w, "order not found", http.StatusNotFound)
 			return
 		}
-		h.log.Error("get order for update failed", zap.Error(err))
-		jsonError(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-
-	updated, err := order.Update().SetStatus(input.Status).Save(r.Context())
-	if err != nil {
 		h.log.Error("update order status failed", zap.Error(err))
-		jsonError(w, "internal error", http.StatusInternalServerError)
+		jsonError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 

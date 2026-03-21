@@ -10,8 +10,12 @@ The POS service is designed for **Multi-Domain Flexibility**. It adapts its UI a
 
 ## Layers
 - **Core (Domain)**: Deals with Sales Transactions, Shifts, and Catalogs.
+- **Service Layer** (`internal/modules/`):
+  - `orders.Service` — Order creation with tax/discount calculation, order number generation, status state machine (draft → open → completed/cancelled/voided → refunded).
+  - `payments.Service` — Payment recording with proper state transitions; auto-completes order only when fully paid.
+  - `promotions.Service` — Promo code validation with actual discount calculation (percentage/fixed with max cap).
 - **Projections**: Maintains a fast, indexed version of the Inventory Product Master.
-- **Workflow Engine**: Swaps business rules based on the `outlet_type` (e.g., Retail Mode vs. Restaurant Mode).
+- **Configuration**: Tax rate, default currency, and order prefix are configurable via env vars (`TAX_RATE_PERCENT`, `DEFAULT_CURRENCY`, `ORDER_PREFIX`).
 
 ## Data Authority
 - **Primary Owner**: Sales Transactions, Shift Sessions, POS-specific Categories, Modifiers.
