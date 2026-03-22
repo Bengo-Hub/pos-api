@@ -2,8 +2,8 @@ ariga.io/atlas v0.32.1-0.20250325101103-175b25e1c1b9 h1:E0wvcUXTkgyN4wy4LGtNzMNG
 ariga.io/atlas v0.32.1-0.20250325101103-175b25e1c1b9/go.mod h1:Oe1xWPuu5q9LzyrWfbZmEZxFYeu4BHTyzfjeW2aZp/w=
 entgo.io/ent v0.14.5 h1:Rj2WOYJtCkWyFo6a+5wB3EfBRP0rnx1fMk6gGA0UUe4=
 entgo.io/ent v0.14.5/go.mod h1:zTzLmWtPvGpmSwtkaayM2cm5m819NdM7z7tYPq3vN0U=
-github.com/Bengo-Hub/auth-client v0.4.0 h1:QO08Ljau0Elih2OWt4um+DUuMx4HA3LnGV1ToeiVDL8=
-github.com/Bengo-Hub/auth-client v0.4.0/go.mod h1:DTfmZRTomkZRFm1YYKO8DmvwjLIchZnM7ZaFArIffsI=
+github.com/Bengo-Hub/auth-client v0.5.0 h1:XYtUqReJRQOGmIZwZuSMSpKGgoiqQ/P8TOh/HzWjQiY=
+github.com/Bengo-Hub/auth-client v0.5.0/go.mod h1:DTfmZRTomkZRFm1YYKO8DmvwjLIchZnM7ZaFArIffsI=
 github.com/Bengo-Hub/httpware v0.3.0 h1:2ldI6DZtx3t5N9USZLDEakFqmkdgPDm93URjMaMJQy4=
 github.com/Bengo-Hub/httpware v0.3.0/go.mod h1:iplyopAHMEyJL7lLlJoharGvb5uN04OcQEZjX85O8TU=
 github.com/DATA-DOG/go-sqlmock v1.5.0 h1:Shsta01QNfFxHCfpW6YH2STWB0MudeXXEWMr20OEh60=
