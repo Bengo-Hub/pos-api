@@ -47,7 +47,7 @@ func main() {
 	defer client.Close()
 
 	// Sync tenant from auth-api
-	syncer := tenant.NewSyncer(client)
+	syncer := tenant.NewSyncer(client, cfg.Auth.ServiceURL)
 	tenantID, err := syncer.SyncTenant(ctx, "urban-loft")
 	if err != nil {
 		log.Fatalf("sync tenant: %v", err)

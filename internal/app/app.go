@@ -108,7 +108,7 @@ func New(ctx context.Context) (*App, error) {
 		RequestTimeout: cfg.Subscriptions.RequestTimeout,
 	})
 
-	tenantSyncer := tenant.NewSyncer(entClient)
+	tenantSyncer := tenant.NewSyncer(entClient, cfg.Auth.ServiceURL)
 	identitySvc := identity.NewService(entClient, tenantSyncer)
 
 	// Initialize business services
