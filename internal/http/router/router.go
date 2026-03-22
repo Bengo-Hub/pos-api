@@ -73,7 +73,10 @@ func New(
 						slug := claims.GetTenantSlug()
 						if slug != "" {
 							_, err := idSvc.EnsureUserFromToken(r.Context(), subject, slug, map[string]any{
-								"email": claims.Email,
+								"email":             claims.Email,
+								"roles":             claims.Roles,
+								"permissions":       claims.Permissions,
+								"is_platform_owner": claims.IsPlatformOwner,
 							})
 							if err != nil {
 								log.Warn("jit provisioning failed", zap.Error(err))

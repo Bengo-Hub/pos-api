@@ -106,6 +106,25 @@ func (s *Service) RevokeRole(ctx context.Context, tenantID uuid.UUID, userID uui
 	return nil
 }
 
+// AssignRoleByCode looks up a role by code and assigns it to a user (idempotent).
+func (s *Service) AssignRoleByCode(ctx context.Context, tenantID uuid.UUID, userID uuid.UUID, assignedBy uuid.UUID, roleCode string) error {
+	role, err := s.repo.GetRoleByCode(ctx, tenantID, roleCode)
+	if err != nil {
+		return fmt.Errorf("role %q not found: %w", roleCode, err)
+	}
+
+	// Idempotent: skip if already assigned
+	assignments, err := s.repo.ListUserAssignments(ctx, tenantID, AssignmentFilters{
+		UserID: &userID,
+		RoleID: &role.ID,
+	})
+	if err == nil && len(assignments) > 0 {
+		return nil
+	}
+
+	return s.AssignRole(ctx, tenantID, userID, role.ID, assignedBy)
+}
+
 // GetUserRoles retrieves all roles for a user.
 func (s *Service) GetUserRoles(ctx context.Context, tenantID uuid.UUID, userID uuid.UUID) ([]*POSRoleV2, error) {
 	return s.repo.GetUserRoles(ctx, tenantID, userID)

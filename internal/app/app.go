@@ -135,6 +135,9 @@ func New(ctx context.Context) (*App, error) {
 	rbacSvc := rbacmodule.NewService(rbacRepo, log)
 	rbacHandler := handlers.NewRBACHandler(log, rbacSvc, rbacRepo)
 
+	// Wire RBAC service into identity for JIT role assignment from JWT claims
+	identitySvc.SetRBACService(rbacSvc)
+
 	// Subscribe to inventory events for catalog projection sync
 	if natsConn != nil {
 		inventoryEventHandler := catalogmodule.NewInventoryEventHandler(entClient, log)
