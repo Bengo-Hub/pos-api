@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -10,6 +11,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/Bengo-Hub/httpware"
+	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/bengobox/pos-service/internal/ent"
 	"github.com/bengobox/pos-service/internal/ent/catalogitem"
 )
@@ -234,7 +236,29 @@ func (h *CatalogHandler) DeleteCatalogItem(w http.ResponseWriter, r *http.Reques
 }
 
 // parseTenantUUID extracts and parses tenant UUID from httpware context.
+// Platform owners can override via ?tenantId= query param for cross-tenant access.
 func parseTenantUUID(r *http.Request) (uuid.UUID, error) {
-	tenantID := httpware.GetTenantID(r.Context())
-	return uuid.Parse(tenantID)
+	ctx := r.Context()
+
+	// Platform owner query-param override
+	if httpware.IsPlatformOwner(ctx) {
+		if q := r.URL.Query().Get("tenantId"); q != "" {
+			return uuid.Parse(q)
+		}
+	}
+
+	// Standard: httpware context (from TenantV2 middleware)
+	tenantIDStr := httpware.GetTenantID(ctx)
+	if tenantIDStr != "" {
+		if httpware.IsPlatformOwner(ctx) {
+			claims, ok := authclient.ClaimsFromContext(ctx)
+			if ok && claims.TenantID == tenantIDStr {
+				// Platform owner's own tenant — return Nil to indicate "all"
+				return uuid.Nil, nil
+			}
+		}
+		return uuid.Parse(tenantIDStr)
+	}
+
+	return uuid.Nil, fmt.Errorf("tenant context required")
 }
