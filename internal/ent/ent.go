@@ -38,14 +38,20 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/posorderevent"
 	"github.com/bengobox/pos-service/internal/ent/posorderline"
 	"github.com/bengobox/pos-service/internal/ent/pospayment"
+	"github.com/bengobox/pos-service/internal/ent/pospermission"
 	"github.com/bengobox/pos-service/internal/ent/posrefund"
 	"github.com/bengobox/pos-service/internal/ent/posrole"
+	"github.com/bengobox/pos-service/internal/ent/posrolepermission"
+	"github.com/bengobox/pos-service/internal/ent/posrolev2"
+	"github.com/bengobox/pos-service/internal/ent/posuserroleassignment"
 	"github.com/bengobox/pos-service/internal/ent/pricebook"
 	"github.com/bengobox/pos-service/internal/ent/pricebookitem"
 	"github.com/bengobox/pos-service/internal/ent/promotion"
 	"github.com/bengobox/pos-service/internal/ent/promotionapplication"
 	"github.com/bengobox/pos-service/internal/ent/promotionrule"
+	"github.com/bengobox/pos-service/internal/ent/ratelimitconfig"
 	"github.com/bengobox/pos-service/internal/ent/section"
+	"github.com/bengobox/pos-service/internal/ent/serviceconfig"
 	"github.com/bengobox/pos-service/internal/ent/stockalertsubscription"
 	"github.com/bengobox/pos-service/internal/ent/stockconsumptionevent"
 	"github.com/bengobox/pos-service/internal/ent/syncfailure"
@@ -143,14 +149,20 @@ func checkColumn(t, c string) error {
 			posorderevent.Table:          posorderevent.ValidColumn,
 			posorderline.Table:           posorderline.ValidColumn,
 			pospayment.Table:             pospayment.ValidColumn,
+			pospermission.Table:          pospermission.ValidColumn,
 			posrefund.Table:              posrefund.ValidColumn,
 			posrole.Table:                posrole.ValidColumn,
+			posrolepermission.Table:      posrolepermission.ValidColumn,
+			posrolev2.Table:              posrolev2.ValidColumn,
+			posuserroleassignment.Table:  posuserroleassignment.ValidColumn,
 			pricebook.Table:              pricebook.ValidColumn,
 			pricebookitem.Table:          pricebookitem.ValidColumn,
 			promotion.Table:              promotion.ValidColumn,
 			promotionapplication.Table:   promotionapplication.ValidColumn,
 			promotionrule.Table:          promotionrule.ValidColumn,
+			ratelimitconfig.Table:        ratelimitconfig.ValidColumn,
 			section.Table:                section.ValidColumn,
+			serviceconfig.Table:          serviceconfig.ValidColumn,
 			stockalertsubscription.Table: stockalertsubscription.ValidColumn,
 			stockconsumptionevent.Table:  stockconsumptionevent.ValidColumn,
 			syncfailure.Table:            syncfailure.ValidColumn,

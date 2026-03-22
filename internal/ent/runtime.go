@@ -29,15 +29,20 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/posorderevent"
 	"github.com/bengobox/pos-service/internal/ent/posorderline"
 	"github.com/bengobox/pos-service/internal/ent/pospayment"
+	"github.com/bengobox/pos-service/internal/ent/pospermission"
 	"github.com/bengobox/pos-service/internal/ent/posrefund"
 	"github.com/bengobox/pos-service/internal/ent/posrole"
+	"github.com/bengobox/pos-service/internal/ent/posrolev2"
+	"github.com/bengobox/pos-service/internal/ent/posuserroleassignment"
 	"github.com/bengobox/pos-service/internal/ent/pricebook"
 	"github.com/bengobox/pos-service/internal/ent/pricebookitem"
 	"github.com/bengobox/pos-service/internal/ent/promotion"
 	"github.com/bengobox/pos-service/internal/ent/promotionapplication"
 	"github.com/bengobox/pos-service/internal/ent/promotionrule"
+	"github.com/bengobox/pos-service/internal/ent/ratelimitconfig"
 	"github.com/bengobox/pos-service/internal/ent/schema"
 	"github.com/bengobox/pos-service/internal/ent/section"
+	"github.com/bengobox/pos-service/internal/ent/serviceconfig"
 	"github.com/bengobox/pos-service/internal/ent/stockalertsubscription"
 	"github.com/bengobox/pos-service/internal/ent/stockconsumptionevent"
 	"github.com/bengobox/pos-service/internal/ent/syncfailure"
@@ -590,6 +595,32 @@ func init() {
 	pospaymentDescID := pospaymentFields[0].Descriptor()
 	// pospayment.DefaultID holds the default value on creation for the id field.
 	pospayment.DefaultID = pospaymentDescID.Default.(func() uuid.UUID)
+	pospermissionFields := schema.POSPermission{}.Fields()
+	_ = pospermissionFields
+	// pospermissionDescPermissionCode is the schema descriptor for permission_code field.
+	pospermissionDescPermissionCode := pospermissionFields[1].Descriptor()
+	// pospermission.PermissionCodeValidator is a validator for the "permission_code" field. It is called by the builders before save.
+	pospermission.PermissionCodeValidator = pospermissionDescPermissionCode.Validators[0].(func(string) error)
+	// pospermissionDescName is the schema descriptor for name field.
+	pospermissionDescName := pospermissionFields[2].Descriptor()
+	// pospermission.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	pospermission.NameValidator = pospermissionDescName.Validators[0].(func(string) error)
+	// pospermissionDescModule is the schema descriptor for module field.
+	pospermissionDescModule := pospermissionFields[3].Descriptor()
+	// pospermission.ModuleValidator is a validator for the "module" field. It is called by the builders before save.
+	pospermission.ModuleValidator = pospermissionDescModule.Validators[0].(func(string) error)
+	// pospermissionDescAction is the schema descriptor for action field.
+	pospermissionDescAction := pospermissionFields[4].Descriptor()
+	// pospermission.ActionValidator is a validator for the "action" field. It is called by the builders before save.
+	pospermission.ActionValidator = pospermissionDescAction.Validators[0].(func(string) error)
+	// pospermissionDescCreatedAt is the schema descriptor for created_at field.
+	pospermissionDescCreatedAt := pospermissionFields[7].Descriptor()
+	// pospermission.DefaultCreatedAt holds the default value on creation for the created_at field.
+	pospermission.DefaultCreatedAt = pospermissionDescCreatedAt.Default.(func() time.Time)
+	// pospermissionDescID is the schema descriptor for id field.
+	pospermissionDescID := pospermissionFields[0].Descriptor()
+	// pospermission.DefaultID holds the default value on creation for the id field.
+	pospermission.DefaultID = pospermissionDescID.Default.(func() uuid.UUID)
 	posrefundFields := schema.POSRefund{}.Fields()
 	_ = posrefundFields
 	// posrefundDescStatus is the schema descriptor for status field.
@@ -632,6 +663,44 @@ func init() {
 	posroleDescID := posroleFields[0].Descriptor()
 	// posrole.DefaultID holds the default value on creation for the id field.
 	posrole.DefaultID = posroleDescID.Default.(func() uuid.UUID)
+	posrolev2Fields := schema.POSRoleV2{}.Fields()
+	_ = posrolev2Fields
+	// posrolev2DescRoleCode is the schema descriptor for role_code field.
+	posrolev2DescRoleCode := posrolev2Fields[2].Descriptor()
+	// posrolev2.RoleCodeValidator is a validator for the "role_code" field. It is called by the builders before save.
+	posrolev2.RoleCodeValidator = posrolev2DescRoleCode.Validators[0].(func(string) error)
+	// posrolev2DescName is the schema descriptor for name field.
+	posrolev2DescName := posrolev2Fields[3].Descriptor()
+	// posrolev2.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	posrolev2.NameValidator = posrolev2DescName.Validators[0].(func(string) error)
+	// posrolev2DescIsSystemRole is the schema descriptor for is_system_role field.
+	posrolev2DescIsSystemRole := posrolev2Fields[5].Descriptor()
+	// posrolev2.DefaultIsSystemRole holds the default value on creation for the is_system_role field.
+	posrolev2.DefaultIsSystemRole = posrolev2DescIsSystemRole.Default.(bool)
+	// posrolev2DescCreatedAt is the schema descriptor for created_at field.
+	posrolev2DescCreatedAt := posrolev2Fields[6].Descriptor()
+	// posrolev2.DefaultCreatedAt holds the default value on creation for the created_at field.
+	posrolev2.DefaultCreatedAt = posrolev2DescCreatedAt.Default.(func() time.Time)
+	// posrolev2DescUpdatedAt is the schema descriptor for updated_at field.
+	posrolev2DescUpdatedAt := posrolev2Fields[7].Descriptor()
+	// posrolev2.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	posrolev2.DefaultUpdatedAt = posrolev2DescUpdatedAt.Default.(func() time.Time)
+	// posrolev2.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	posrolev2.UpdateDefaultUpdatedAt = posrolev2DescUpdatedAt.UpdateDefault.(func() time.Time)
+	// posrolev2DescID is the schema descriptor for id field.
+	posrolev2DescID := posrolev2Fields[0].Descriptor()
+	// posrolev2.DefaultID holds the default value on creation for the id field.
+	posrolev2.DefaultID = posrolev2DescID.Default.(func() uuid.UUID)
+	posuserroleassignmentFields := schema.POSUserRoleAssignment{}.Fields()
+	_ = posuserroleassignmentFields
+	// posuserroleassignmentDescAssignedAt is the schema descriptor for assigned_at field.
+	posuserroleassignmentDescAssignedAt := posuserroleassignmentFields[5].Descriptor()
+	// posuserroleassignment.DefaultAssignedAt holds the default value on creation for the assigned_at field.
+	posuserroleassignment.DefaultAssignedAt = posuserroleassignmentDescAssignedAt.Default.(func() time.Time)
+	// posuserroleassignmentDescID is the schema descriptor for id field.
+	posuserroleassignmentDescID := posuserroleassignmentFields[0].Descriptor()
+	// posuserroleassignment.DefaultID holds the default value on creation for the id field.
+	posuserroleassignment.DefaultID = posuserroleassignmentDescID.Default.(func() uuid.UUID)
 	pricebookFields := schema.PriceBook{}.Fields()
 	_ = pricebookFields
 	// pricebookDescName is the schema descriptor for name field.
@@ -716,6 +785,54 @@ func init() {
 	promotionruleDescID := promotionruleFields[0].Descriptor()
 	// promotionrule.DefaultID holds the default value on creation for the id field.
 	promotionrule.DefaultID = promotionruleDescID.Default.(func() uuid.UUID)
+	ratelimitconfigFields := schema.RateLimitConfig{}.Fields()
+	_ = ratelimitconfigFields
+	// ratelimitconfigDescServiceName is the schema descriptor for service_name field.
+	ratelimitconfigDescServiceName := ratelimitconfigFields[1].Descriptor()
+	// ratelimitconfig.ServiceNameValidator is a validator for the "service_name" field. It is called by the builders before save.
+	ratelimitconfig.ServiceNameValidator = ratelimitconfigDescServiceName.Validators[0].(func(string) error)
+	// ratelimitconfigDescKeyType is the schema descriptor for key_type field.
+	ratelimitconfigDescKeyType := ratelimitconfigFields[2].Descriptor()
+	// ratelimitconfig.KeyTypeValidator is a validator for the "key_type" field. It is called by the builders before save.
+	ratelimitconfig.KeyTypeValidator = ratelimitconfigDescKeyType.Validators[0].(func(string) error)
+	// ratelimitconfigDescEndpointPattern is the schema descriptor for endpoint_pattern field.
+	ratelimitconfigDescEndpointPattern := ratelimitconfigFields[3].Descriptor()
+	// ratelimitconfig.DefaultEndpointPattern holds the default value on creation for the endpoint_pattern field.
+	ratelimitconfig.DefaultEndpointPattern = ratelimitconfigDescEndpointPattern.Default.(string)
+	// ratelimitconfigDescRequestsPerWindow is the schema descriptor for requests_per_window field.
+	ratelimitconfigDescRequestsPerWindow := ratelimitconfigFields[4].Descriptor()
+	// ratelimitconfig.DefaultRequestsPerWindow holds the default value on creation for the requests_per_window field.
+	ratelimitconfig.DefaultRequestsPerWindow = ratelimitconfigDescRequestsPerWindow.Default.(int)
+	// ratelimitconfig.RequestsPerWindowValidator is a validator for the "requests_per_window" field. It is called by the builders before save.
+	ratelimitconfig.RequestsPerWindowValidator = ratelimitconfigDescRequestsPerWindow.Validators[0].(func(int) error)
+	// ratelimitconfigDescWindowSeconds is the schema descriptor for window_seconds field.
+	ratelimitconfigDescWindowSeconds := ratelimitconfigFields[5].Descriptor()
+	// ratelimitconfig.DefaultWindowSeconds holds the default value on creation for the window_seconds field.
+	ratelimitconfig.DefaultWindowSeconds = ratelimitconfigDescWindowSeconds.Default.(int)
+	// ratelimitconfig.WindowSecondsValidator is a validator for the "window_seconds" field. It is called by the builders before save.
+	ratelimitconfig.WindowSecondsValidator = ratelimitconfigDescWindowSeconds.Validators[0].(func(int) error)
+	// ratelimitconfigDescBurstMultiplier is the schema descriptor for burst_multiplier field.
+	ratelimitconfigDescBurstMultiplier := ratelimitconfigFields[6].Descriptor()
+	// ratelimitconfig.DefaultBurstMultiplier holds the default value on creation for the burst_multiplier field.
+	ratelimitconfig.DefaultBurstMultiplier = ratelimitconfigDescBurstMultiplier.Default.(float64)
+	// ratelimitconfigDescIsActive is the schema descriptor for is_active field.
+	ratelimitconfigDescIsActive := ratelimitconfigFields[7].Descriptor()
+	// ratelimitconfig.DefaultIsActive holds the default value on creation for the is_active field.
+	ratelimitconfig.DefaultIsActive = ratelimitconfigDescIsActive.Default.(bool)
+	// ratelimitconfigDescCreatedAt is the schema descriptor for created_at field.
+	ratelimitconfigDescCreatedAt := ratelimitconfigFields[9].Descriptor()
+	// ratelimitconfig.DefaultCreatedAt holds the default value on creation for the created_at field.
+	ratelimitconfig.DefaultCreatedAt = ratelimitconfigDescCreatedAt.Default.(func() time.Time)
+	// ratelimitconfigDescUpdatedAt is the schema descriptor for updated_at field.
+	ratelimitconfigDescUpdatedAt := ratelimitconfigFields[10].Descriptor()
+	// ratelimitconfig.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	ratelimitconfig.DefaultUpdatedAt = ratelimitconfigDescUpdatedAt.Default.(func() time.Time)
+	// ratelimitconfig.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	ratelimitconfig.UpdateDefaultUpdatedAt = ratelimitconfigDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// ratelimitconfigDescID is the schema descriptor for id field.
+	ratelimitconfigDescID := ratelimitconfigFields[0].Descriptor()
+	// ratelimitconfig.DefaultID holds the default value on creation for the id field.
+	ratelimitconfig.DefaultID = ratelimitconfigDescID.Default.(func() uuid.UUID)
 	sectionFields := schema.Section{}.Fields()
 	_ = sectionFields
 	// sectionDescName is the schema descriptor for name field.
@@ -756,6 +873,38 @@ func init() {
 	sectionDescID := sectionFields[0].Descriptor()
 	// section.DefaultID holds the default value on creation for the id field.
 	section.DefaultID = sectionDescID.Default.(func() uuid.UUID)
+	serviceconfigFields := schema.ServiceConfig{}.Fields()
+	_ = serviceconfigFields
+	// serviceconfigDescConfigKey is the schema descriptor for config_key field.
+	serviceconfigDescConfigKey := serviceconfigFields[2].Descriptor()
+	// serviceconfig.ConfigKeyValidator is a validator for the "config_key" field. It is called by the builders before save.
+	serviceconfig.ConfigKeyValidator = serviceconfigDescConfigKey.Validators[0].(func(string) error)
+	// serviceconfigDescConfigValue is the schema descriptor for config_value field.
+	serviceconfigDescConfigValue := serviceconfigFields[3].Descriptor()
+	// serviceconfig.ConfigValueValidator is a validator for the "config_value" field. It is called by the builders before save.
+	serviceconfig.ConfigValueValidator = serviceconfigDescConfigValue.Validators[0].(func(string) error)
+	// serviceconfigDescConfigType is the schema descriptor for config_type field.
+	serviceconfigDescConfigType := serviceconfigFields[4].Descriptor()
+	// serviceconfig.DefaultConfigType holds the default value on creation for the config_type field.
+	serviceconfig.DefaultConfigType = serviceconfigDescConfigType.Default.(string)
+	// serviceconfigDescIsSecret is the schema descriptor for is_secret field.
+	serviceconfigDescIsSecret := serviceconfigFields[6].Descriptor()
+	// serviceconfig.DefaultIsSecret holds the default value on creation for the is_secret field.
+	serviceconfig.DefaultIsSecret = serviceconfigDescIsSecret.Default.(bool)
+	// serviceconfigDescCreatedAt is the schema descriptor for created_at field.
+	serviceconfigDescCreatedAt := serviceconfigFields[7].Descriptor()
+	// serviceconfig.DefaultCreatedAt holds the default value on creation for the created_at field.
+	serviceconfig.DefaultCreatedAt = serviceconfigDescCreatedAt.Default.(func() time.Time)
+	// serviceconfigDescUpdatedAt is the schema descriptor for updated_at field.
+	serviceconfigDescUpdatedAt := serviceconfigFields[8].Descriptor()
+	// serviceconfig.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	serviceconfig.DefaultUpdatedAt = serviceconfigDescUpdatedAt.Default.(func() time.Time)
+	// serviceconfig.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	serviceconfig.UpdateDefaultUpdatedAt = serviceconfigDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// serviceconfigDescID is the schema descriptor for id field.
+	serviceconfigDescID := serviceconfigFields[0].Descriptor()
+	// serviceconfig.DefaultID holds the default value on creation for the id field.
+	serviceconfig.DefaultID = serviceconfigDescID.Default.(func() uuid.UUID)
 	stockalertsubscriptionFields := schema.StockAlertSubscription{}.Fields()
 	_ = stockalertsubscriptionFields
 	// stockalertsubscriptionDescNotificationChannel is the schema descriptor for notification_channel field.

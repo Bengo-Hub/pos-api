@@ -64,10 +64,18 @@ type Tx struct {
 	POSOrderLine *POSOrderLineClient
 	// POSPayment is the client for interacting with the POSPayment builders.
 	POSPayment *POSPaymentClient
+	// POSPermission is the client for interacting with the POSPermission builders.
+	POSPermission *POSPermissionClient
 	// POSRefund is the client for interacting with the POSRefund builders.
 	POSRefund *POSRefundClient
 	// POSRole is the client for interacting with the POSRole builders.
 	POSRole *POSRoleClient
+	// POSRolePermission is the client for interacting with the POSRolePermission builders.
+	POSRolePermission *POSRolePermissionClient
+	// POSRoleV2 is the client for interacting with the POSRoleV2 builders.
+	POSRoleV2 *POSRoleV2Client
+	// POSUserRoleAssignment is the client for interacting with the POSUserRoleAssignment builders.
+	POSUserRoleAssignment *POSUserRoleAssignmentClient
 	// PriceBook is the client for interacting with the PriceBook builders.
 	PriceBook *PriceBookClient
 	// PriceBookItem is the client for interacting with the PriceBookItem builders.
@@ -78,8 +86,12 @@ type Tx struct {
 	PromotionApplication *PromotionApplicationClient
 	// PromotionRule is the client for interacting with the PromotionRule builders.
 	PromotionRule *PromotionRuleClient
+	// RateLimitConfig is the client for interacting with the RateLimitConfig builders.
+	RateLimitConfig *RateLimitConfigClient
 	// Section is the client for interacting with the Section builders.
 	Section *SectionClient
+	// ServiceConfig is the client for interacting with the ServiceConfig builders.
+	ServiceConfig *ServiceConfigClient
 	// StockAlertSubscription is the client for interacting with the StockAlertSubscription builders.
 	StockAlertSubscription *StockAlertSubscriptionClient
 	// StockConsumptionEvent is the client for interacting with the StockConsumptionEvent builders.
@@ -259,14 +271,20 @@ func (tx *Tx) init() {
 	tx.POSOrderEvent = NewPOSOrderEventClient(tx.config)
 	tx.POSOrderLine = NewPOSOrderLineClient(tx.config)
 	tx.POSPayment = NewPOSPaymentClient(tx.config)
+	tx.POSPermission = NewPOSPermissionClient(tx.config)
 	tx.POSRefund = NewPOSRefundClient(tx.config)
 	tx.POSRole = NewPOSRoleClient(tx.config)
+	tx.POSRolePermission = NewPOSRolePermissionClient(tx.config)
+	tx.POSRoleV2 = NewPOSRoleV2Client(tx.config)
+	tx.POSUserRoleAssignment = NewPOSUserRoleAssignmentClient(tx.config)
 	tx.PriceBook = NewPriceBookClient(tx.config)
 	tx.PriceBookItem = NewPriceBookItemClient(tx.config)
 	tx.Promotion = NewPromotionClient(tx.config)
 	tx.PromotionApplication = NewPromotionApplicationClient(tx.config)
 	tx.PromotionRule = NewPromotionRuleClient(tx.config)
+	tx.RateLimitConfig = NewRateLimitConfigClient(tx.config)
 	tx.Section = NewSectionClient(tx.config)
+	tx.ServiceConfig = NewServiceConfigClient(tx.config)
 	tx.StockAlertSubscription = NewStockAlertSubscriptionClient(tx.config)
 	tx.StockConsumptionEvent = NewStockConsumptionEventClient(tx.config)
 	tx.SyncFailure = NewSyncFailureClient(tx.config)

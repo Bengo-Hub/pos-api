@@ -1,6 +1,8 @@
 # POS Service – Entity Relationship Overview
 
-**Last updated:** 2026-03-20
+**Last updated:** 2026-03-22
+
+**March 22 update:** Full RBAC system added alongside existing POSRole/UserPOSRole schemas: POSPermission, POSRoleV2, POSRolePermission (junction), POSUserRoleAssignment, RateLimitConfig, ServiceConfig. RBAC module (`internal/modules/rbac/`) with repository pattern, service layer, and HTTP handler with 7 endpoints. Seed script extended with 126 permissions (14 modules x 9 actions), 5 system roles (pos_admin, store_manager, cashier, waiter, viewer), 6 rate limit configs, and 10 platform-level service configs.
 
 **March 20 update:** Added 30+ HTTP endpoints covering catalog CRUD, table/section management (with floor plan layout fields), tender CRUD, payment recording, cash drawer lifecycle, bar tab management, and promotions. Seed script (`cmd/seed/main.go`) added with outlet (UUID-aligned with ordering-backend/inventory-api), 4 tenders, 3 sections, 12 tables (with VIP/VVIP tags), and 48 catalog items from inventory-api master data. pos-ui pages wired to real API via TanStack Query hooks (`usePOS.ts`).
 
@@ -29,10 +31,26 @@ Schemas are defined with Ent to ensure type-safe access and migration automation
 
 | Table | Key Columns | Description |
 |-------|-------------|-------------|
-| `pos_roles` | `code (PK)`, `name`, `description`, `default_permissions`, `is_system` | POS-specific roles (cashier, supervisor, manager). |
-| `user_pos_roles` | `id`, `tenant_id`, `user_id`, `outlet_id`, `role_code`, `assigned_at`, `assigned_by` | Role assignments referencing identities from `auth-service`. |
+| `pos_roles` | `code (PK)`, `name`, `description`, `default_permissions`, `is_system` | Legacy POS-specific roles (cashier, supervisor, manager). Retained for backward compatibility. |
+| `user_pos_roles` | `id`, `tenant_id`, `user_id`, `outlet_id`, `role_code`, `assigned_at`, `assigned_by` | Legacy role assignments referencing identities from `auth-service`. Retained for backward compatibility. |
 | `license_usage_snapshots` | `id`, `tenant_id`, `snapshot_date`, `active_devices`, `active_users`, `orders_processed`, `api_calls`, `metadata` | Usage metrics for billing/entitlement enforcement. |
 | `feature_overrides` | `id`, `tenant_id`, `feature_code`, `override_type`, `value_json`, `effective_from`, `effective_to`, `metadata` | Tenant-specific feature toggles aligned with subscription service. |
+
+## RBAC (Role-Based Access Control)
+
+| Table | Key Columns | Description |
+|-------|-------------|-------------|
+| `pos_permissions` | `id`, `permission_code` (unique), `name`, `module`, `action`, `resource`, `description`, `created_at` | Granular permissions in `pos.{module}.{action}` format. 14 modules x 9 actions = 126 permissions. |
+| `pos_role_v2s` | `id`, `tenant_id`, `role_code`, `name`, `description`, `is_system_role`, `created_at`, `updated_at` | RBAC roles per tenant. System roles: pos_admin, store_manager, cashier, waiter, viewer. |
+| `pos_role_permissions` | `role_id`, `permission_id` | Junction table linking roles to permissions. Unique on (role_id, permission_id). |
+| `pos_user_role_assignments` | `id`, `tenant_id`, `user_id`, `role_id`, `assigned_by`, `assigned_at`, `expires_at` | User-to-role assignments with optional expiry. Unique on (tenant_id, user_id, role_id). |
+
+## Rate Limiting & Service Configuration
+
+| Table | Key Columns | Description |
+|-------|-------------|-------------|
+| `rate_limit_configs` | `id`, `service_name`, `key_type`, `endpoint_pattern`, `requests_per_window`, `window_seconds`, `burst_multiplier`, `is_active`, `description` | Database-driven rate limit configuration. Key types: ip, tenant, user, endpoint, global. |
+| `service_configs` | `id`, `tenant_id` (nullable), `config_key`, `config_value`, `config_type`, `description`, `is_secret` | Service-level key-value configuration. Nil tenant_id = platform default; set = tenant override. |
 
 ## Catalog & Pricing (Sync with Inventory/Food Delivery)
 
@@ -130,8 +148,12 @@ Schemas are defined with Ent to ensure type-safe access and migration automation
 - See **shared-docs/CROSS-SERVICE-DATA-OWNERSHIP.md** for the canonical entity ownership matrix and integration patterns.
 
 ## Seed & Defaults
-- Default roles: `cashier`, `supervisor`, `manager`, `inventory_clerk`.
-- Demo outlets (flagship café, express kiosk) seeded for QA.
+- Default roles: `cashier`, `supervisor`, `manager`, `inventory_clerk` (legacy POSRole).
+- RBAC system roles: `pos_admin` (all permissions), `store_manager`, `cashier`, `waiter`, `viewer` with granular permission assignments.
+- 126 RBAC permissions across 14 modules (orders, payments, catalog, outlets, devices, sessions, cash_drawers, tables, gift_cards, price_books, modifiers, channels, config, users) and 9 actions (add, view, view_own, change, change_own, delete, delete_own, manage, manage_own).
+- 6 rate limit configs (global, tenant, IP, user, order creation, payment recording).
+- 10 platform-level service configs (currency, tax rate, session timeout, etc.).
+- Demo outlets (flagship cafe, express kiosk) seeded for QA.
 - Standard tenders (cash, card, Mpesa, loyalty) and example price book configured for demonstrations.
 
 ---

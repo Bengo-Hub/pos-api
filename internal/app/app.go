@@ -28,6 +28,7 @@ import (
 	paymentmodule "github.com/bengobox/pos-service/internal/modules/payments"
 	promommodule "github.com/bengobox/pos-service/internal/modules/promotions"
 	catalogmodule "github.com/bengobox/pos-service/internal/modules/catalog"
+	rbacmodule "github.com/bengobox/pos-service/internal/modules/rbac"
 	"github.com/bengobox/pos-service/internal/modules/tenant"
 	"github.com/bengobox/pos-service/internal/platform/cache"
 	"github.com/bengobox/pos-service/internal/platform/database"
@@ -129,6 +130,11 @@ func New(ctx context.Context) (*App, error) {
 	barTabHandler := handlers.NewBarTabHandler(log, entClient)
 	promotionHandler := handlers.NewPromotionHandler(log, entClient, promoSvc)
 
+	// Initialize RBAC
+	rbacRepo := rbacmodule.NewEntRepository(entClient)
+	rbacSvc := rbacmodule.NewService(rbacRepo, log)
+	rbacHandler := handlers.NewRBACHandler(log, rbacSvc, rbacRepo)
+
 	// Subscribe to inventory events for catalog projection sync
 	if natsConn != nil {
 		inventoryEventHandler := catalogmodule.NewInventoryEventHandler(entClient, log)
@@ -137,7 +143,7 @@ func New(ctx context.Context) (*App, error) {
 		}
 	}
 
-	chiRouter := router.New(log, healthHandler, authMiddleware, identitySvc, orderHandler, catalogHandler, tableHandler, tenderHandler, paymentHandler, drawerHandler, barTabHandler, promotionHandler, cfg.HTTP.AllowedOrigins)
+	chiRouter := router.New(log, healthHandler, authMiddleware, identitySvc, orderHandler, catalogHandler, tableHandler, tenderHandler, paymentHandler, drawerHandler, barTabHandler, promotionHandler, rbacHandler, cfg.HTTP.AllowedOrigins)
 
 	httpServer := &http.Server{
 		Addr:              fmt.Sprintf("%s:%d", cfg.HTTP.Host, cfg.HTTP.Port),

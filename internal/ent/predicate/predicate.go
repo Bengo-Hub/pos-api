@@ -84,11 +84,23 @@ type POSOrderLine func(*sql.Selector)
 // POSPayment is the predicate function for pospayment builders.
 type POSPayment func(*sql.Selector)
 
+// POSPermission is the predicate function for pospermission builders.
+type POSPermission func(*sql.Selector)
+
 // POSRefund is the predicate function for posrefund builders.
 type POSRefund func(*sql.Selector)
 
 // POSRole is the predicate function for posrole builders.
 type POSRole func(*sql.Selector)
+
+// POSRolePermission is the predicate function for posrolepermission builders.
+type POSRolePermission func(*sql.Selector)
+
+// POSRoleV2 is the predicate function for posrolev2 builders.
+type POSRoleV2 func(*sql.Selector)
+
+// POSUserRoleAssignment is the predicate function for posuserroleassignment builders.
+type POSUserRoleAssignment func(*sql.Selector)
 
 // PriceBook is the predicate function for pricebook builders.
 type PriceBook func(*sql.Selector)
@@ -105,8 +117,14 @@ type PromotionApplication func(*sql.Selector)
 // PromotionRule is the predicate function for promotionrule builders.
 type PromotionRule func(*sql.Selector)
 
+// RateLimitConfig is the predicate function for ratelimitconfig builders.
+type RateLimitConfig func(*sql.Selector)
+
 // Section is the predicate function for section builders.
 type Section func(*sql.Selector)
+
+// ServiceConfig is the predicate function for serviceconfig builders.
+type ServiceConfig func(*sql.Selector)
 
 // StockAlertSubscription is the predicate function for stockalertsubscription builders.
 type StockAlertSubscription func(*sql.Selector)

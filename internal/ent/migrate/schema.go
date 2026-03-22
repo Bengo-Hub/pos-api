@@ -584,6 +584,45 @@ var (
 			},
 		},
 	}
+	// PosPermissionsColumns holds the columns for the "pos_permissions" table.
+	PosPermissionsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "permission_code", Type: field.TypeString, Unique: true},
+		{Name: "name", Type: field.TypeString},
+		{Name: "module", Type: field.TypeString},
+		{Name: "action", Type: field.TypeString},
+		{Name: "resource", Type: field.TypeString, Nullable: true},
+		{Name: "description", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "created_at", Type: field.TypeTime},
+	}
+	// PosPermissionsTable holds the schema information for the "pos_permissions" table.
+	PosPermissionsTable = &schema.Table{
+		Name:       "pos_permissions",
+		Columns:    PosPermissionsColumns,
+		PrimaryKey: []*schema.Column{PosPermissionsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "pospermission_permission_code",
+				Unique:  true,
+				Columns: []*schema.Column{PosPermissionsColumns[1]},
+			},
+			{
+				Name:    "pospermission_module",
+				Unique:  false,
+				Columns: []*schema.Column{PosPermissionsColumns[3]},
+			},
+			{
+				Name:    "pospermission_action",
+				Unique:  false,
+				Columns: []*schema.Column{PosPermissionsColumns[4]},
+			},
+			{
+				Name:    "pospermission_module_action",
+				Unique:  false,
+				Columns: []*schema.Column{PosPermissionsColumns[3], PosPermissionsColumns[4]},
+			},
+		},
+	}
 	// PosRefundsColumns holds the columns for the "pos_refunds" table.
 	PosRefundsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -621,6 +660,147 @@ var (
 				Name:    "posrole_tenant_id_name",
 				Unique:  true,
 				Columns: []*schema.Column{PosRolesColumns[1], PosRolesColumns[2]},
+			},
+		},
+	}
+	// PosRolePermissionsColumns holds the columns for the "pos_role_permissions" table.
+	PosRolePermissionsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "role_id", Type: field.TypeUUID},
+		{Name: "permission_id", Type: field.TypeUUID},
+	}
+	// PosRolePermissionsTable holds the schema information for the "pos_role_permissions" table.
+	PosRolePermissionsTable = &schema.Table{
+		Name:       "pos_role_permissions",
+		Columns:    PosRolePermissionsColumns,
+		PrimaryKey: []*schema.Column{PosRolePermissionsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "pos_role_permissions_pos_role_v2s_role",
+				Columns:    []*schema.Column{PosRolePermissionsColumns[1]},
+				RefColumns: []*schema.Column{PosRoleV2sColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "pos_role_permissions_pos_permissions_permission",
+				Columns:    []*schema.Column{PosRolePermissionsColumns[2]},
+				RefColumns: []*schema.Column{PosPermissionsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "posrolepermission_role_id_permission_id",
+				Unique:  true,
+				Columns: []*schema.Column{PosRolePermissionsColumns[1], PosRolePermissionsColumns[2]},
+			},
+			{
+				Name:    "posrolepermission_role_id",
+				Unique:  false,
+				Columns: []*schema.Column{PosRolePermissionsColumns[1]},
+			},
+			{
+				Name:    "posrolepermission_permission_id",
+				Unique:  false,
+				Columns: []*schema.Column{PosRolePermissionsColumns[2]},
+			},
+		},
+	}
+	// PosRoleV2sColumns holds the columns for the "pos_role_v2s" table.
+	PosRoleV2sColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "role_code", Type: field.TypeString},
+		{Name: "name", Type: field.TypeString},
+		{Name: "description", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "is_system_role", Type: field.TypeBool, Default: false},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// PosRoleV2sTable holds the schema information for the "pos_role_v2s" table.
+	PosRoleV2sTable = &schema.Table{
+		Name:       "pos_role_v2s",
+		Columns:    PosRoleV2sColumns,
+		PrimaryKey: []*schema.Column{PosRoleV2sColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "posrolev2_tenant_id",
+				Unique:  false,
+				Columns: []*schema.Column{PosRoleV2sColumns[1]},
+			},
+			{
+				Name:    "posrolev2_tenant_id_role_code",
+				Unique:  true,
+				Columns: []*schema.Column{PosRoleV2sColumns[1], PosRoleV2sColumns[2]},
+			},
+			{
+				Name:    "posrolev2_is_system_role",
+				Unique:  false,
+				Columns: []*schema.Column{PosRoleV2sColumns[5]},
+			},
+		},
+	}
+	// PosUserRoleAssignmentsColumns holds the columns for the "pos_user_role_assignments" table.
+	PosUserRoleAssignmentsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "assigned_by", Type: field.TypeUUID},
+		{Name: "assigned_at", Type: field.TypeTime},
+		{Name: "expires_at", Type: field.TypeTime, Nullable: true},
+		{Name: "pos_role_v2_user_assignments", Type: field.TypeUUID, Nullable: true},
+		{Name: "user_id", Type: field.TypeUUID},
+		{Name: "role_id", Type: field.TypeUUID},
+	}
+	// PosUserRoleAssignmentsTable holds the schema information for the "pos_user_role_assignments" table.
+	PosUserRoleAssignmentsTable = &schema.Table{
+		Name:       "pos_user_role_assignments",
+		Columns:    PosUserRoleAssignmentsColumns,
+		PrimaryKey: []*schema.Column{PosUserRoleAssignmentsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "pos_user_role_assignments_pos_role_v2s_user_assignments",
+				Columns:    []*schema.Column{PosUserRoleAssignmentsColumns[5]},
+				RefColumns: []*schema.Column{PosRoleV2sColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+			{
+				Symbol:     "pos_user_role_assignments_users_user",
+				Columns:    []*schema.Column{PosUserRoleAssignmentsColumns[6]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "pos_user_role_assignments_pos_role_v2s_role",
+				Columns:    []*schema.Column{PosUserRoleAssignmentsColumns[7]},
+				RefColumns: []*schema.Column{PosRoleV2sColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "posuserroleassignment_tenant_id_user_id_role_id",
+				Unique:  true,
+				Columns: []*schema.Column{PosUserRoleAssignmentsColumns[1], PosUserRoleAssignmentsColumns[6], PosUserRoleAssignmentsColumns[7]},
+			},
+			{
+				Name:    "posuserroleassignment_tenant_id",
+				Unique:  false,
+				Columns: []*schema.Column{PosUserRoleAssignmentsColumns[1]},
+			},
+			{
+				Name:    "posuserroleassignment_user_id",
+				Unique:  false,
+				Columns: []*schema.Column{PosUserRoleAssignmentsColumns[6]},
+			},
+			{
+				Name:    "posuserroleassignment_role_id",
+				Unique:  false,
+				Columns: []*schema.Column{PosUserRoleAssignmentsColumns[7]},
+			},
+			{
+				Name:    "posuserroleassignment_expires_at",
+				Unique:  false,
+				Columns: []*schema.Column{PosUserRoleAssignmentsColumns[4]},
 			},
 		},
 	}
@@ -716,6 +896,43 @@ var (
 		Columns:    PromotionRulesColumns,
 		PrimaryKey: []*schema.Column{PromotionRulesColumns[0]},
 	}
+	// RateLimitConfigsColumns holds the columns for the "rate_limit_configs" table.
+	RateLimitConfigsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "service_name", Type: field.TypeString},
+		{Name: "key_type", Type: field.TypeString},
+		{Name: "endpoint_pattern", Type: field.TypeString, Default: "*"},
+		{Name: "requests_per_window", Type: field.TypeInt, Default: 60},
+		{Name: "window_seconds", Type: field.TypeInt, Default: 60},
+		{Name: "burst_multiplier", Type: field.TypeFloat64, Default: 1.5},
+		{Name: "is_active", Type: field.TypeBool, Default: true},
+		{Name: "description", Type: field.TypeString, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// RateLimitConfigsTable holds the schema information for the "rate_limit_configs" table.
+	RateLimitConfigsTable = &schema.Table{
+		Name:       "rate_limit_configs",
+		Columns:    RateLimitConfigsColumns,
+		PrimaryKey: []*schema.Column{RateLimitConfigsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "ratelimitconfig_service_name_key_type_endpoint_pattern",
+				Unique:  true,
+				Columns: []*schema.Column{RateLimitConfigsColumns[1], RateLimitConfigsColumns[2], RateLimitConfigsColumns[3]},
+			},
+			{
+				Name:    "ratelimitconfig_service_name",
+				Unique:  false,
+				Columns: []*schema.Column{RateLimitConfigsColumns[1]},
+			},
+			{
+				Name:    "ratelimitconfig_is_active",
+				Unique:  false,
+				Columns: []*schema.Column{RateLimitConfigsColumns[7]},
+			},
+		},
+	}
 	// SectionsColumns holds the columns for the "sections" table.
 	SectionsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -752,6 +969,36 @@ var (
 				Name:    "section_is_active",
 				Unique:  false,
 				Columns: []*schema.Column{SectionsColumns[8]},
+			},
+		},
+	}
+	// ServiceConfigsColumns holds the columns for the "service_configs" table.
+	ServiceConfigsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "config_key", Type: field.TypeString},
+		{Name: "config_value", Type: field.TypeString, Size: 2147483647},
+		{Name: "config_type", Type: field.TypeString, Default: "string"},
+		{Name: "description", Type: field.TypeString, Nullable: true},
+		{Name: "is_secret", Type: field.TypeBool, Default: false},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// ServiceConfigsTable holds the schema information for the "service_configs" table.
+	ServiceConfigsTable = &schema.Table{
+		Name:       "service_configs",
+		Columns:    ServiceConfigsColumns,
+		PrimaryKey: []*schema.Column{ServiceConfigsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "serviceconfig_tenant_id_config_key",
+				Unique:  true,
+				Columns: []*schema.Column{ServiceConfigsColumns[1], ServiceConfigsColumns[2]},
+			},
+			{
+				Name:    "serviceconfig_config_key",
+				Unique:  false,
+				Columns: []*schema.Column{ServiceConfigsColumns[2]},
 			},
 		},
 	}
@@ -1071,14 +1318,20 @@ var (
 		PosOrderEventsTable,
 		PosOrderLinesTable,
 		PosPaymentsTable,
+		PosPermissionsTable,
 		PosRefundsTable,
 		PosRolesTable,
+		PosRolePermissionsTable,
+		PosRoleV2sTable,
+		PosUserRoleAssignmentsTable,
 		PriceBooksTable,
 		PriceBookItemsTable,
 		PromotionsTable,
 		PromotionApplicationsTable,
 		PromotionRulesTable,
+		RateLimitConfigsTable,
 		SectionsTable,
+		ServiceConfigsTable,
 		StockAlertSubscriptionsTable,
 		StockConsumptionEventsTable,
 		SyncFailuresTable,
@@ -1106,6 +1359,11 @@ func init() {
 	PosOrderEventsTable.ForeignKeys[0].RefTable = PosOrdersTable
 	PosOrderLinesTable.ForeignKeys[0].RefTable = PosOrdersTable
 	PosPaymentsTable.ForeignKeys[0].RefTable = PosOrdersTable
+	PosRolePermissionsTable.ForeignKeys[0].RefTable = PosRoleV2sTable
+	PosRolePermissionsTable.ForeignKeys[1].RefTable = PosPermissionsTable
+	PosUserRoleAssignmentsTable.ForeignKeys[0].RefTable = PosRoleV2sTable
+	PosUserRoleAssignmentsTable.ForeignKeys[1].RefTable = UsersTable
+	PosUserRoleAssignmentsTable.ForeignKeys[2].RefTable = PosRoleV2sTable
 	PriceBookItemsTable.ForeignKeys[0].RefTable = CatalogItemsTable
 	PriceBookItemsTable.ForeignKeys[1].RefTable = PriceBooksTable
 	TablesTable.ForeignKeys[0].RefTable = SectionsTable

@@ -17,12 +17,14 @@ import (
 
 // Syncer handles dynamic syncing of tenant data from auth-api using Ent ORM.
 type Syncer struct {
-	client *ent.Client
+	client  *ent.Client
+	authURL string
 }
 
 // NewSyncer creates a new TenantSyncer.
-func NewSyncer(client *ent.Client) *Syncer {
-	return &Syncer{client: client}
+// authURL is the base URL of the auth-api (e.g. from AUTH_SERVICE_URL config).
+func NewSyncer(client *ent.Client, authURL string) *Syncer {
+	return &Syncer{client: client, authURL: authURL}
 }
 
 // authAPITenantResponse is the full tenant JSON response from GET /api/v1/tenants/by-slug/{slug}.
@@ -55,9 +57,9 @@ func (s *Syncer) SyncTenant(ctx context.Context, slug string) (uuid.UUID, error)
 		return existing.ID, nil
 	}
 
-	authAPIURL := os.Getenv("AUTH_API_URL")
-	if authAPIURL == "" {
-		authAPIURL = "https://sso.codevertexitsolutions.com"
+	authAPIURL := s.authURL
+	if envURL := os.Getenv("AUTH_API_URL"); envURL != "" {
+		authAPIURL = envURL
 	}
 	endpoint := strings.TrimRight(authAPIURL, "/") + "/api/v1/tenants/by-slug/" + slug
 

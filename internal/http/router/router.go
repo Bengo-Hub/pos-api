@@ -31,6 +31,7 @@ func New(
 	drawers *handlers.DrawerHandler,
 	barTabs *handlers.BarTabHandler,
 	promotions *handlers.PromotionHandler,
+	rbacHandler *handlers.RBACHandler,
 	allowedOrigins []string,
 ) http.Handler {
 	r := chi.NewRouter()
@@ -99,6 +100,11 @@ func New(
 				URLParamFunc: chi.URLParam,
 				Required:     true,
 			}))
+
+			// RBAC routes
+			if rbacHandler != nil {
+				rbacHandler.RegisterRoutes(tenant)
+			}
 
 			tenant.Route("/pos", func(pos chi.Router) {
 				// Orders
