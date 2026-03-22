@@ -27,6 +27,7 @@ import (
 	ordermodule "github.com/bengobox/pos-service/internal/modules/orders"
 	paymentmodule "github.com/bengobox/pos-service/internal/modules/payments"
 	promommodule "github.com/bengobox/pos-service/internal/modules/promotions"
+	catalogmodule "github.com/bengobox/pos-service/internal/modules/catalog"
 	"github.com/bengobox/pos-service/internal/modules/tenant"
 	"github.com/bengobox/pos-service/internal/platform/cache"
 	"github.com/bengobox/pos-service/internal/platform/database"
@@ -127,6 +128,14 @@ func New(ctx context.Context) (*App, error) {
 	drawerHandler := handlers.NewDrawerHandler(log, entClient)
 	barTabHandler := handlers.NewBarTabHandler(log, entClient)
 	promotionHandler := handlers.NewPromotionHandler(log, entClient, promoSvc)
+
+	// Subscribe to inventory events for catalog projection sync
+	if natsConn != nil {
+		inventoryEventHandler := catalogmodule.NewInventoryEventHandler(entClient, log)
+		if err := inventoryEventHandler.SubscribeToInventoryEvents(natsConn); err != nil {
+			log.Warn("app: failed to subscribe to inventory events for catalog sync", zap.Error(err))
+		}
+	}
 
 	chiRouter := router.New(log, healthHandler, authMiddleware, identitySvc, orderHandler, catalogHandler, tableHandler, tenderHandler, paymentHandler, drawerHandler, barTabHandler, promotionHandler, cfg.HTTP.AllowedOrigins)
 
