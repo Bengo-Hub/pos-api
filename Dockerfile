@@ -12,15 +12,21 @@ RUN go mod download
 
 COPY . .
 
-RUN CGO_ENABLED=0 go build -o /out/pos ./cmd/api
+# Build all binaries: api and seed
+RUN CGO_ENABLED=0 go build -o /out/pos-api ./cmd/api
+RUN CGO_ENABLED=0 go build -o /out/pos-seed ./cmd/seed
 
 FROM alpine:3.20
 RUN addgroup -S app && adduser -S app -G app
 WORKDIR /app
-COPY --from=builder /out/pos /app/service
+COPY --from=builder /out/pos-api /usr/local/bin/pos-api
+COPY --from=builder /out/pos-seed /usr/local/bin/pos-seed
 COPY internal/ent/migrate/migrations ./internal/ent/migrate/migrations
+# Entrypoint script: run seed, then start server
+COPY scripts/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
 RUN mkdir -p ./config/certs
 USER app
 EXPOSE 4000
 ENV PORT=4000
-ENTRYPOINT ["/app/service"]
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
