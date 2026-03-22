@@ -118,6 +118,17 @@ func New(ctx context.Context) (*App, error) {
 		TaxRatePercent:  cfg.App.TaxRatePercent,
 		OrderPrefix:     cfg.App.OrderPrefix,
 	}, log)
+
+	// Wire event publisher for POS order lifecycle events
+	if natsConn != nil {
+		eventPub, pubErr := events.NewPublisher(natsConn, log)
+		if pubErr != nil {
+			log.Warn("pos event publisher init failed", zap.Error(pubErr))
+		} else {
+			orderSvc.SetPublisher(eventPub)
+		}
+	}
+
 	paymentSvc := paymentmodule.NewService(entClient, orderSvc, cfg.App.DefaultCurrency, log)
 	promoSvc := promommodule.NewService(entClient, log)
 

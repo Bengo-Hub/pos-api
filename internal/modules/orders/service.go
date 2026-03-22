@@ -14,6 +14,7 @@ import (
 
 	"github.com/bengobox/pos-service/internal/ent"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
+	"github.com/bengobox/pos-service/internal/platform/events"
 )
 
 // OrderStatus defines valid order states.
@@ -74,6 +75,12 @@ type Service struct {
 	defaultCurrency string
 	taxRate         decimal.Decimal // e.g. 0.16 for 16% VAT
 	orderPrefix     string
+	publisher       *events.Publisher
+}
+
+// SetPublisher sets the event publisher for order lifecycle events.
+func (s *Service) SetPublisher(p *events.Publisher) {
+	s.publisher = p
 }
 
 // Config holds order service configuration.
@@ -218,10 +225,27 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent
 	}
 
 	// Re-query with edges loaded
-	return s.client.POSOrder.Query().
+	result, err := s.client.POSOrder.Query().
 		Where(posorder.ID(order.ID)).
 		WithLines().
 		Only(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("orders: reload: %w", err)
+	}
+
+	// Publish order created event
+	if s.publisher != nil {
+		_ = s.publisher.PublishOrderCreated(ctx, req.TenantID, map[string]any{
+			"order_id":     order.ID.String(),
+			"order_number": orderNumber,
+			"outlet_id":    req.OutletID.String(),
+			"total_amount": totals.TotalAmount.String(),
+			"currency":     currency,
+			"item_count":   len(req.Lines),
+		})
+	}
+
+	return result, nil
 }
 
 // ValidateStatusTransition checks if a status transition is allowed.
@@ -251,5 +275,20 @@ func (s *Service) UpdateStatus(ctx context.Context, tenantID, orderID uuid.UUID,
 		return nil, err
 	}
 
-	return order.Update().SetStatus(newStatus).Save(ctx)
+	updated, err := order.Update().SetStatus(newStatus).Save(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("orders: update status: %w", err)
+	}
+
+	// Publish order status changed event
+	if s.publisher != nil {
+		_ = s.publisher.PublishOrderStatusChanged(ctx, tenantID, map[string]any{
+			"order_id":        orderID.String(),
+			"order_number":    order.OrderNumber,
+			"previous_status": order.Status,
+			"new_status":      newStatus,
+		})
+	}
+
+	return updated, nil
 }
