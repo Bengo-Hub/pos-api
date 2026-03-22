@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 
 	"github.com/google/uuid"
 	"github.com/nats-io/nats.go"
@@ -81,6 +83,103 @@ func (h *InventoryEventHandler) SubscribeToInventoryEvents(nc *nats.Conn) error 
 	h.logger.Info("inventory event subscriptions active",
 		zap.String("subjects", "inventory.item.created, inventory.item.updated"))
 	return nil
+}
+
+// InitialSync pulls all items from inventory-api via REST and upserts them locally.
+// Called once on startup to catch items created before the event subscriber was deployed.
+func (h *InventoryEventHandler) InitialSync(ctx context.Context, inventoryAPIURL, tenantSlug string) {
+	url := fmt.Sprintf("%s/v1/%s/inventory/items", inventoryAPIURL, tenantSlug)
+	resp, err := http.Get(url)
+	if err != nil {
+		h.logger.Warn("initial catalog sync failed: HTTP error", zap.String("url", url), zap.Error(err))
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		h.logger.Warn("initial catalog sync failed: non-200 status", zap.Int("status", resp.StatusCode))
+		return
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		h.logger.Warn("initial catalog sync failed: read body", zap.Error(err))
+		return
+	}
+
+	var result struct {
+		Data []struct {
+			ID          string  `json:"id"`
+			SKU         string  `json:"sku"`
+			Name        string  `json:"name"`
+			Description string  `json:"description"`
+			CategoryID  *string `json:"category_id"`
+			IsActive    bool    `json:"is_active"`
+			ImageURL    string  `json:"image_url"`
+			Type        string  `json:"type"`
+		} `json:"data"`
+	}
+
+	if err := json.Unmarshal(body, &result); err != nil {
+		h.logger.Warn("initial catalog sync failed: unmarshal", zap.Error(err))
+		return
+	}
+
+	synced := 0
+	for _, item := range result.Data {
+		// Resolve tenant ID from the first item or use the slug-based approach
+		// For now, we'll try to find the tenant from the POS tenant table
+		tenants, _ := h.client.Tenant.Query().All(ctx)
+		var tenantID uuid.UUID
+		for _, t := range tenants {
+			if t.Slug == tenantSlug {
+				tenantID = t.ID
+				break
+			}
+		}
+		if tenantID == uuid.Nil && len(tenants) > 0 {
+			tenantID = tenants[0].ID // Fallback to first tenant
+		}
+		if tenantID == uuid.Nil {
+			h.logger.Warn("initial catalog sync: no tenant found", zap.String("slug", tenantSlug))
+			return
+		}
+
+		// Check if already exists
+		existing, _ := h.client.CatalogItem.Query().
+			Where(entcatalogitem.TenantID(tenantID), entcatalogitem.Sku(item.SKU)).
+			First(ctx)
+		if existing != nil {
+			continue
+		}
+
+		status := "active"
+		if !item.IsActive {
+			status = "inactive"
+		}
+
+		builder := h.client.CatalogItem.Create().
+			SetTenantID(tenantID).
+			SetSku(item.SKU).
+			SetName(item.Name).
+			SetStatus(status)
+
+		if item.Description != "" {
+			builder.SetDescription(item.Description)
+		}
+		if item.ImageURL != "" {
+			builder.SetImageURL(item.ImageURL)
+		}
+
+		if _, err := builder.Save(ctx); err != nil {
+			h.logger.Warn("initial catalog sync: create failed",
+				zap.String("sku", item.SKU), zap.Error(err))
+			continue
+		}
+		synced++
+	}
+
+	h.logger.Info("initial catalog sync completed", zap.Int("synced", synced), zap.Int("total", len(result.Data)))
 }
 
 // handleItemUpsert creates or updates a POS CatalogItem from an inventory event.

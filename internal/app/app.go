@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"time"
 
 	"entgo.io/ent/dialect"
@@ -138,13 +139,26 @@ func New(ctx context.Context) (*App, error) {
 	// Wire RBAC service into identity for JIT role assignment from JWT claims
 	identitySvc.SetRBACService(rbacSvc)
 
-	// Subscribe to inventory events for catalog projection sync
+	// Subscribe to inventory events for catalog projection sync + initial sync
+	inventoryEventHandler := catalogmodule.NewInventoryEventHandler(entClient, log)
 	if natsConn != nil {
-		inventoryEventHandler := catalogmodule.NewInventoryEventHandler(entClient, log)
 		if err := inventoryEventHandler.SubscribeToInventoryEvents(natsConn); err != nil {
 			log.Warn("app: failed to subscribe to inventory events for catalog sync", zap.Error(err))
 		}
 	}
+
+	// Initial catalog sync from inventory-api (catches items created before subscriber was deployed)
+	go func() {
+		inventoryURL := os.Getenv("INVENTORY_API_URL")
+		if inventoryURL == "" {
+			inventoryURL = "http://inventory-api.inventory.svc.cluster.local:4000"
+		}
+		tenantSlug := os.Getenv("DEFAULT_TENANT_SLUG")
+		if tenantSlug == "" {
+			tenantSlug = "urban-loft"
+		}
+		inventoryEventHandler.InitialSync(ctx, inventoryURL, tenantSlug)
+	}()
 
 	chiRouter := router.New(log, healthHandler, authMiddleware, identitySvc, orderHandler, catalogHandler, tableHandler, tenderHandler, paymentHandler, drawerHandler, barTabHandler, promotionHandler, rbacHandler, cfg.HTTP.AllowedOrigins)
 
