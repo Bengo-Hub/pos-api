@@ -25,6 +25,7 @@ require (
 )
 
 require (
+	github.com/Bengo-Hub/shared-events v0.2.0 // indirect
 	github.com/agext/levenshtein v1.2.3 // indirect
 	github.com/apparentlymart/go-textseg/v15 v15.0.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect

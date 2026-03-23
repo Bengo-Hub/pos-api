@@ -19,6 +19,7 @@ import (
 	"go.uber.org/zap"
 
 	authclient "github.com/Bengo-Hub/shared-auth-client"
+	eventslib "github.com/Bengo-Hub/shared-events"
 	"github.com/bengobox/pos-service/internal/config"
 	"github.com/bengobox/pos-service/internal/ent"
 	"github.com/bengobox/pos-service/internal/ent/migrate"
@@ -39,13 +40,14 @@ import (
 )
 
 type App struct {
-	cfg        *config.Config
-	log        *zap.Logger
-	httpServer *http.Server
-	db         *pgxpool.Pool
-	entClient  *ent.Client
-	cache      *redis.Client
-	events     *nats.Conn
+	cfg             *config.Config
+	log             *zap.Logger
+	httpServer      *http.Server
+	db              *pgxpool.Pool
+	entClient       *ent.Client
+	cache           *redis.Client
+	events          *nats.Conn
+	outboxPublisher *eventslib.Publisher
 }
 
 func New(ctx context.Context) (*App, error) {
@@ -119,13 +121,19 @@ func New(ctx context.Context) (*App, error) {
 		OrderPrefix:     cfg.App.OrderPrefix,
 	}, log)
 
-	// Wire event publisher for POS order lifecycle events
+	// Wire event publisher for POS order lifecycle events (shared-events outbox pattern)
+	var outboxPub *eventslib.Publisher
 	if natsConn != nil {
-		eventPub, pubErr := events.NewPublisher(natsConn, log)
-		if pubErr != nil {
-			log.Warn("pos event publisher init failed", zap.Error(pubErr))
+		eventPub := events.NewPublisher(sqlDB, log)
+		orderSvc.SetPublisher(eventPub)
+
+		// Start background outbox publisher
+		js, jsErr := natsConn.JetStream()
+		if jsErr != nil {
+			log.Warn("jetstream init for outbox publisher", zap.Error(jsErr))
 		} else {
-			orderSvc.SetPublisher(eventPub)
+			pubCfg := eventslib.DefaultPublisherConfig(js, eventPub.OutboxRepo(), log)
+			outboxPub = eventslib.NewPublisher(pubCfg)
 		}
 	}
 
@@ -183,17 +191,28 @@ func New(ctx context.Context) (*App, error) {
 	}
 
 	return &App{
-		cfg:        cfg,
-		log:        log,
-		httpServer: httpServer,
-		db:         dbPool,
-		entClient:  entClient,
-		cache:      redisClient,
-		events:     natsConn,
+		cfg:             cfg,
+		log:             log,
+		httpServer:      httpServer,
+		db:              dbPool,
+		entClient:       entClient,
+		cache:           redisClient,
+		events:          natsConn,
+		outboxPublisher: outboxPub,
 	}, nil
 }
 
 func (a *App) Run(ctx context.Context) error {
+	// Start outbox background publisher for POS events
+	if a.outboxPublisher != nil {
+		go func() {
+			if err := a.outboxPublisher.Start(ctx); err != nil {
+				a.log.Error("outbox publisher stopped", zap.Error(err))
+			}
+		}()
+		a.log.Info("outbox background publisher started")
+	}
+
 	a.log.Info("pos service starting", zap.String("addr", a.httpServer.Addr))
 
 	errCh := make(chan error, 1)

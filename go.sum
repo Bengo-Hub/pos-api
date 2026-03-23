@@ -6,6 +6,8 @@ github.com/Bengo-Hub/auth-client v0.5.0 h1:XYtUqReJRQOGmIZwZuSMSpKGgoiqQ/P8TOh/H
 github.com/Bengo-Hub/auth-client v0.5.0/go.mod h1:DTfmZRTomkZRFm1YYKO8DmvwjLIchZnM7ZaFArIffsI=
 github.com/Bengo-Hub/httpware v0.3.0 h1:2ldI6DZtx3t5N9USZLDEakFqmkdgPDm93URjMaMJQy4=
 github.com/Bengo-Hub/httpware v0.3.0/go.mod h1:iplyopAHMEyJL7lLlJoharGvb5uN04OcQEZjX85O8TU=
+github.com/Bengo-Hub/shared-events v0.2.0 h1:boWYHnssTEmUg1c4qd7/YiMoo0ShBqrg4xyUwxwKFsY=
+github.com/Bengo-Hub/shared-events v0.2.0/go.mod h1:lUGlufCZcRz3pgkmEo552zOO5ove6s6ekf/SRvQ0/N0=
 github.com/DATA-DOG/go-sqlmock v1.5.0 h1:Shsta01QNfFxHCfpW6YH2STWB0MudeXXEWMr20OEh60=
 github.com/DATA-DOG/go-sqlmock v1.5.0/go.mod h1:f/Ixk793poVmq4qj/V1dPUg2JEAKC73Q5eFN3EC/SaM=
 github.com/agext/levenshtein v1.2.3 h1:YB2fHEn0UJagG8T1rrWknE3ZQzWM06O8AMAatNn7lmo=
