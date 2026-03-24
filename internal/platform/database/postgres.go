@@ -28,6 +28,14 @@ func NewPool(ctx context.Context, cfg config.PostgresConfig) (*pgxpool.Pool, err
 		return nil, fmt.Errorf("postgres: create pool: %w", err)
 	}
 
+	// Apply session-level timeout guardrails.
+	if cfg.StatementTimeout > 0 {
+		_, _ = pool.Exec(ctx, fmt.Sprintf("SET statement_timeout = '%dms'", cfg.StatementTimeout.Milliseconds()))
+	}
+	if cfg.IdleInTransactionTimeout > 0 {
+		_, _ = pool.Exec(ctx, fmt.Sprintf("SET idle_in_transaction_session_timeout = '%dms'", cfg.IdleInTransactionTimeout.Milliseconds()))
+	}
+
 	return pool, nil
 }
 
