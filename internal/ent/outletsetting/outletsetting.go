@@ -27,6 +27,18 @@ const (
 	FieldOpeningHoursJSON = "opening_hours_json"
 	// FieldMetadata holds the string denoting the metadata field in the database.
 	FieldMetadata = "metadata"
+	// FieldDisplayMode holds the string denoting the display_mode field in the database.
+	FieldDisplayMode = "display_mode"
+	// FieldShowImages holds the string denoting the show_images field in the database.
+	FieldShowImages = "show_images"
+	// FieldShowBarcodeScanner holds the string denoting the show_barcode_scanner field in the database.
+	FieldShowBarcodeScanner = "show_barcode_scanner"
+	// FieldDefaultView holds the string denoting the default_view field in the database.
+	FieldDefaultView = "default_view"
+	// FieldEnableKds holds the string denoting the enable_kds field in the database.
+	FieldEnableKds = "enable_kds"
+	// FieldEnableAppointments holds the string denoting the enable_appointments field in the database.
+	FieldEnableAppointments = "enable_appointments"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
 	FieldUpdatedAt = "updated_at"
 	// EdgeOutlet holds the string denoting the outlet edge name in mutations.
@@ -51,6 +63,12 @@ var Columns = []string{
 	FieldServiceChargeJSON,
 	FieldOpeningHoursJSON,
 	FieldMetadata,
+	FieldDisplayMode,
+	FieldShowImages,
+	FieldShowBarcodeScanner,
+	FieldDefaultView,
+	FieldEnableKds,
+	FieldEnableAppointments,
 	FieldUpdatedAt,
 }
 
@@ -67,6 +85,18 @@ func ValidColumn(column string) bool {
 var (
 	// DefaultMetadata holds the default value on creation for the "metadata" field.
 	DefaultMetadata map[string]interface{}
+	// DefaultDisplayMode holds the default value on creation for the "display_mode" field.
+	DefaultDisplayMode string
+	// DefaultShowImages holds the default value on creation for the "show_images" field.
+	DefaultShowImages bool
+	// DefaultShowBarcodeScanner holds the default value on creation for the "show_barcode_scanner" field.
+	DefaultShowBarcodeScanner bool
+	// DefaultDefaultView holds the default value on creation for the "default_view" field.
+	DefaultDefaultView string
+	// DefaultEnableKds holds the default value on creation for the "enable_kds" field.
+	DefaultEnableKds bool
+	// DefaultEnableAppointments holds the default value on creation for the "enable_appointments" field.
+	DefaultEnableAppointments bool
 	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
 	DefaultUpdatedAt func() time.Time
 	// UpdateDefaultUpdatedAt holds the default value on update for the "updated_at" field.
@@ -86,6 +116,36 @@ func ByID(opts ...sql.OrderTermOption) OrderOption {
 // ByOutletID orders the results by the outlet_id field.
 func ByOutletID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldOutletID, opts...).ToFunc()
+}
+
+// ByDisplayMode orders the results by the display_mode field.
+func ByDisplayMode(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDisplayMode, opts...).ToFunc()
+}
+
+// ByShowImages orders the results by the show_images field.
+func ByShowImages(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldShowImages, opts...).ToFunc()
+}
+
+// ByShowBarcodeScanner orders the results by the show_barcode_scanner field.
+func ByShowBarcodeScanner(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldShowBarcodeScanner, opts...).ToFunc()
+}
+
+// ByDefaultView orders the results by the default_view field.
+func ByDefaultView(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDefaultView, opts...).ToFunc()
+}
+
+// ByEnableKds orders the results by the enable_kds field.
+func ByEnableKds(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldEnableKds, opts...).ToFunc()
+}
+
+// ByEnableAppointments orders the results by the enable_appointments field.
+func ByEnableAppointments(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldEnableAppointments, opts...).ToFunc()
 }
 
 // ByUpdatedAt orders the results by the updated_at field.

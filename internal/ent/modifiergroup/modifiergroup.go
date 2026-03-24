@@ -23,6 +23,8 @@ const (
 	FieldMinSelection = "min_selection"
 	// FieldMaxSelection holds the string denoting the max_selection field in the database.
 	FieldMaxSelection = "max_selection"
+	// FieldInventoryModifierGroupID holds the string denoting the inventory_modifier_group_id field in the database.
+	FieldInventoryModifierGroupID = "inventory_modifier_group_id"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
@@ -47,6 +49,7 @@ var Columns = []string{
 	FieldName,
 	FieldMinSelection,
 	FieldMaxSelection,
+	FieldInventoryModifierGroupID,
 	FieldCreatedAt,
 	FieldUpdatedAt,
 }
@@ -104,6 +107,11 @@ func ByMinSelection(opts ...sql.OrderTermOption) OrderOption {
 // ByMaxSelection orders the results by the max_selection field.
 func ByMaxSelection(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldMaxSelection, opts...).ToFunc()
+}
+
+// ByInventoryModifierGroupID orders the results by the inventory_modifier_group_id field.
+func ByInventoryModifierGroupID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldInventoryModifierGroupID, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.

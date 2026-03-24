@@ -37,6 +37,22 @@ type CatalogItem struct {
 	TaxStatus string `json:"tax_status,omitempty"`
 	// Status holds the value of the "status" field.
 	Status string `json:"status,omitempty"`
+	// FK to inventory master item for sync
+	InventoryItemID *uuid.UUID `json:"inventory_item_id,omitempty"`
+	// GOODS, SERVICE, RECIPE, etc. synced from inventory
+	ItemType string `json:"item_type,omitempty"`
+	// Synced from inventory — liquor, tobacco, 18+
+	RequiresAgeVerification bool `json:"requires_age_verification,omitempty"`
+	// Synced from inventory — pharmacy scheduled drugs
+	IsControlledSubstance bool `json:"is_controlled_substance,omitempty"`
+	// Synced from inventory — electronics, equipment
+	TrackSerialNumber bool `json:"track_serial_number,omitempty"`
+	// Service duration for salon/appointment flow
+	DurationMinutes *int `json:"duration_minutes,omitempty"`
+	// Cost for margin analysis
+	CostPrice *float64 `json:"cost_price,omitempty"`
+	// Synced dietary/custom tags from inventory
+	Tags []string `json:"tags,omitempty"`
 	// Metadata holds the value of the "metadata" field.
 	Metadata map[string]interface{} `json:"metadata,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
@@ -72,9 +88,17 @@ func (*CatalogItem) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case catalogitem.FieldMetadata:
+		case catalogitem.FieldInventoryItemID:
+			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
+		case catalogitem.FieldTags, catalogitem.FieldMetadata:
 			values[i] = new([]byte)
-		case catalogitem.FieldName, catalogitem.FieldDescription, catalogitem.FieldSku, catalogitem.FieldBarcode, catalogitem.FieldCategory, catalogitem.FieldImageURL, catalogitem.FieldTaxStatus, catalogitem.FieldStatus:
+		case catalogitem.FieldRequiresAgeVerification, catalogitem.FieldIsControlledSubstance, catalogitem.FieldTrackSerialNumber:
+			values[i] = new(sql.NullBool)
+		case catalogitem.FieldCostPrice:
+			values[i] = new(sql.NullFloat64)
+		case catalogitem.FieldDurationMinutes:
+			values[i] = new(sql.NullInt64)
+		case catalogitem.FieldName, catalogitem.FieldDescription, catalogitem.FieldSku, catalogitem.FieldBarcode, catalogitem.FieldCategory, catalogitem.FieldImageURL, catalogitem.FieldTaxStatus, catalogitem.FieldStatus, catalogitem.FieldItemType:
 			values[i] = new(sql.NullString)
 		case catalogitem.FieldCreatedAt, catalogitem.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -154,6 +178,59 @@ func (_m *CatalogItem) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field status", values[i])
 			} else if value.Valid {
 				_m.Status = value.String
+			}
+		case catalogitem.FieldInventoryItemID:
+			if value, ok := values[i].(*sql.NullScanner); !ok {
+				return fmt.Errorf("unexpected type %T for field inventory_item_id", values[i])
+			} else if value.Valid {
+				_m.InventoryItemID = new(uuid.UUID)
+				*_m.InventoryItemID = *value.S.(*uuid.UUID)
+			}
+		case catalogitem.FieldItemType:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field item_type", values[i])
+			} else if value.Valid {
+				_m.ItemType = value.String
+			}
+		case catalogitem.FieldRequiresAgeVerification:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field requires_age_verification", values[i])
+			} else if value.Valid {
+				_m.RequiresAgeVerification = value.Bool
+			}
+		case catalogitem.FieldIsControlledSubstance:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field is_controlled_substance", values[i])
+			} else if value.Valid {
+				_m.IsControlledSubstance = value.Bool
+			}
+		case catalogitem.FieldTrackSerialNumber:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field track_serial_number", values[i])
+			} else if value.Valid {
+				_m.TrackSerialNumber = value.Bool
+			}
+		case catalogitem.FieldDurationMinutes:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field duration_minutes", values[i])
+			} else if value.Valid {
+				_m.DurationMinutes = new(int)
+				*_m.DurationMinutes = int(value.Int64)
+			}
+		case catalogitem.FieldCostPrice:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field cost_price", values[i])
+			} else if value.Valid {
+				_m.CostPrice = new(float64)
+				*_m.CostPrice = value.Float64
+			}
+		case catalogitem.FieldTags:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field tags", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.Tags); err != nil {
+					return fmt.Errorf("unmarshal field tags: %w", err)
+				}
 			}
 		case catalogitem.FieldMetadata:
 			if value, ok := values[i].(*[]byte); !ok {
@@ -242,6 +319,36 @@ func (_m *CatalogItem) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("status=")
 	builder.WriteString(_m.Status)
+	builder.WriteString(", ")
+	if v := _m.InventoryItemID; v != nil {
+		builder.WriteString("inventory_item_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("item_type=")
+	builder.WriteString(_m.ItemType)
+	builder.WriteString(", ")
+	builder.WriteString("requires_age_verification=")
+	builder.WriteString(fmt.Sprintf("%v", _m.RequiresAgeVerification))
+	builder.WriteString(", ")
+	builder.WriteString("is_controlled_substance=")
+	builder.WriteString(fmt.Sprintf("%v", _m.IsControlledSubstance))
+	builder.WriteString(", ")
+	builder.WriteString("track_serial_number=")
+	builder.WriteString(fmt.Sprintf("%v", _m.TrackSerialNumber))
+	builder.WriteString(", ")
+	if v := _m.DurationMinutes; v != nil {
+		builder.WriteString("duration_minutes=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.CostPrice; v != nil {
+		builder.WriteString("cost_price=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("tags=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Tags))
 	builder.WriteString(", ")
 	builder.WriteString("metadata=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Metadata))

@@ -101,6 +101,41 @@ func Status(v string) predicate.CatalogItem {
 	return predicate.CatalogItem(sql.FieldEQ(FieldStatus, v))
 }
 
+// InventoryItemID applies equality check predicate on the "inventory_item_id" field. It's identical to InventoryItemIDEQ.
+func InventoryItemID(v uuid.UUID) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldEQ(FieldInventoryItemID, v))
+}
+
+// ItemType applies equality check predicate on the "item_type" field. It's identical to ItemTypeEQ.
+func ItemType(v string) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldEQ(FieldItemType, v))
+}
+
+// RequiresAgeVerification applies equality check predicate on the "requires_age_verification" field. It's identical to RequiresAgeVerificationEQ.
+func RequiresAgeVerification(v bool) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldEQ(FieldRequiresAgeVerification, v))
+}
+
+// IsControlledSubstance applies equality check predicate on the "is_controlled_substance" field. It's identical to IsControlledSubstanceEQ.
+func IsControlledSubstance(v bool) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldEQ(FieldIsControlledSubstance, v))
+}
+
+// TrackSerialNumber applies equality check predicate on the "track_serial_number" field. It's identical to TrackSerialNumberEQ.
+func TrackSerialNumber(v bool) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldEQ(FieldTrackSerialNumber, v))
+}
+
+// DurationMinutes applies equality check predicate on the "duration_minutes" field. It's identical to DurationMinutesEQ.
+func DurationMinutes(v int) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldEQ(FieldDurationMinutes, v))
+}
+
+// CostPrice applies equality check predicate on the "cost_price" field. It's identical to CostPriceEQ.
+func CostPrice(v float64) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldEQ(FieldCostPrice, v))
+}
+
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.CatalogItem {
 	return predicate.CatalogItem(sql.FieldEQ(FieldCreatedAt, v))
@@ -709,6 +744,261 @@ func StatusEqualFold(v string) predicate.CatalogItem {
 // StatusContainsFold applies the ContainsFold predicate on the "status" field.
 func StatusContainsFold(v string) predicate.CatalogItem {
 	return predicate.CatalogItem(sql.FieldContainsFold(FieldStatus, v))
+}
+
+// InventoryItemIDEQ applies the EQ predicate on the "inventory_item_id" field.
+func InventoryItemIDEQ(v uuid.UUID) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldEQ(FieldInventoryItemID, v))
+}
+
+// InventoryItemIDNEQ applies the NEQ predicate on the "inventory_item_id" field.
+func InventoryItemIDNEQ(v uuid.UUID) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldNEQ(FieldInventoryItemID, v))
+}
+
+// InventoryItemIDIn applies the In predicate on the "inventory_item_id" field.
+func InventoryItemIDIn(vs ...uuid.UUID) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldIn(FieldInventoryItemID, vs...))
+}
+
+// InventoryItemIDNotIn applies the NotIn predicate on the "inventory_item_id" field.
+func InventoryItemIDNotIn(vs ...uuid.UUID) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldNotIn(FieldInventoryItemID, vs...))
+}
+
+// InventoryItemIDGT applies the GT predicate on the "inventory_item_id" field.
+func InventoryItemIDGT(v uuid.UUID) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldGT(FieldInventoryItemID, v))
+}
+
+// InventoryItemIDGTE applies the GTE predicate on the "inventory_item_id" field.
+func InventoryItemIDGTE(v uuid.UUID) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldGTE(FieldInventoryItemID, v))
+}
+
+// InventoryItemIDLT applies the LT predicate on the "inventory_item_id" field.
+func InventoryItemIDLT(v uuid.UUID) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldLT(FieldInventoryItemID, v))
+}
+
+// InventoryItemIDLTE applies the LTE predicate on the "inventory_item_id" field.
+func InventoryItemIDLTE(v uuid.UUID) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldLTE(FieldInventoryItemID, v))
+}
+
+// InventoryItemIDIsNil applies the IsNil predicate on the "inventory_item_id" field.
+func InventoryItemIDIsNil() predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldIsNull(FieldInventoryItemID))
+}
+
+// InventoryItemIDNotNil applies the NotNil predicate on the "inventory_item_id" field.
+func InventoryItemIDNotNil() predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldNotNull(FieldInventoryItemID))
+}
+
+// ItemTypeEQ applies the EQ predicate on the "item_type" field.
+func ItemTypeEQ(v string) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldEQ(FieldItemType, v))
+}
+
+// ItemTypeNEQ applies the NEQ predicate on the "item_type" field.
+func ItemTypeNEQ(v string) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldNEQ(FieldItemType, v))
+}
+
+// ItemTypeIn applies the In predicate on the "item_type" field.
+func ItemTypeIn(vs ...string) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldIn(FieldItemType, vs...))
+}
+
+// ItemTypeNotIn applies the NotIn predicate on the "item_type" field.
+func ItemTypeNotIn(vs ...string) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldNotIn(FieldItemType, vs...))
+}
+
+// ItemTypeGT applies the GT predicate on the "item_type" field.
+func ItemTypeGT(v string) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldGT(FieldItemType, v))
+}
+
+// ItemTypeGTE applies the GTE predicate on the "item_type" field.
+func ItemTypeGTE(v string) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldGTE(FieldItemType, v))
+}
+
+// ItemTypeLT applies the LT predicate on the "item_type" field.
+func ItemTypeLT(v string) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldLT(FieldItemType, v))
+}
+
+// ItemTypeLTE applies the LTE predicate on the "item_type" field.
+func ItemTypeLTE(v string) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldLTE(FieldItemType, v))
+}
+
+// ItemTypeContains applies the Contains predicate on the "item_type" field.
+func ItemTypeContains(v string) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldContains(FieldItemType, v))
+}
+
+// ItemTypeHasPrefix applies the HasPrefix predicate on the "item_type" field.
+func ItemTypeHasPrefix(v string) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldHasPrefix(FieldItemType, v))
+}
+
+// ItemTypeHasSuffix applies the HasSuffix predicate on the "item_type" field.
+func ItemTypeHasSuffix(v string) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldHasSuffix(FieldItemType, v))
+}
+
+// ItemTypeIsNil applies the IsNil predicate on the "item_type" field.
+func ItemTypeIsNil() predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldIsNull(FieldItemType))
+}
+
+// ItemTypeNotNil applies the NotNil predicate on the "item_type" field.
+func ItemTypeNotNil() predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldNotNull(FieldItemType))
+}
+
+// ItemTypeEqualFold applies the EqualFold predicate on the "item_type" field.
+func ItemTypeEqualFold(v string) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldEqualFold(FieldItemType, v))
+}
+
+// ItemTypeContainsFold applies the ContainsFold predicate on the "item_type" field.
+func ItemTypeContainsFold(v string) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldContainsFold(FieldItemType, v))
+}
+
+// RequiresAgeVerificationEQ applies the EQ predicate on the "requires_age_verification" field.
+func RequiresAgeVerificationEQ(v bool) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldEQ(FieldRequiresAgeVerification, v))
+}
+
+// RequiresAgeVerificationNEQ applies the NEQ predicate on the "requires_age_verification" field.
+func RequiresAgeVerificationNEQ(v bool) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldNEQ(FieldRequiresAgeVerification, v))
+}
+
+// IsControlledSubstanceEQ applies the EQ predicate on the "is_controlled_substance" field.
+func IsControlledSubstanceEQ(v bool) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldEQ(FieldIsControlledSubstance, v))
+}
+
+// IsControlledSubstanceNEQ applies the NEQ predicate on the "is_controlled_substance" field.
+func IsControlledSubstanceNEQ(v bool) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldNEQ(FieldIsControlledSubstance, v))
+}
+
+// TrackSerialNumberEQ applies the EQ predicate on the "track_serial_number" field.
+func TrackSerialNumberEQ(v bool) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldEQ(FieldTrackSerialNumber, v))
+}
+
+// TrackSerialNumberNEQ applies the NEQ predicate on the "track_serial_number" field.
+func TrackSerialNumberNEQ(v bool) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldNEQ(FieldTrackSerialNumber, v))
+}
+
+// DurationMinutesEQ applies the EQ predicate on the "duration_minutes" field.
+func DurationMinutesEQ(v int) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldEQ(FieldDurationMinutes, v))
+}
+
+// DurationMinutesNEQ applies the NEQ predicate on the "duration_minutes" field.
+func DurationMinutesNEQ(v int) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldNEQ(FieldDurationMinutes, v))
+}
+
+// DurationMinutesIn applies the In predicate on the "duration_minutes" field.
+func DurationMinutesIn(vs ...int) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldIn(FieldDurationMinutes, vs...))
+}
+
+// DurationMinutesNotIn applies the NotIn predicate on the "duration_minutes" field.
+func DurationMinutesNotIn(vs ...int) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldNotIn(FieldDurationMinutes, vs...))
+}
+
+// DurationMinutesGT applies the GT predicate on the "duration_minutes" field.
+func DurationMinutesGT(v int) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldGT(FieldDurationMinutes, v))
+}
+
+// DurationMinutesGTE applies the GTE predicate on the "duration_minutes" field.
+func DurationMinutesGTE(v int) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldGTE(FieldDurationMinutes, v))
+}
+
+// DurationMinutesLT applies the LT predicate on the "duration_minutes" field.
+func DurationMinutesLT(v int) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldLT(FieldDurationMinutes, v))
+}
+
+// DurationMinutesLTE applies the LTE predicate on the "duration_minutes" field.
+func DurationMinutesLTE(v int) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldLTE(FieldDurationMinutes, v))
+}
+
+// DurationMinutesIsNil applies the IsNil predicate on the "duration_minutes" field.
+func DurationMinutesIsNil() predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldIsNull(FieldDurationMinutes))
+}
+
+// DurationMinutesNotNil applies the NotNil predicate on the "duration_minutes" field.
+func DurationMinutesNotNil() predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldNotNull(FieldDurationMinutes))
+}
+
+// CostPriceEQ applies the EQ predicate on the "cost_price" field.
+func CostPriceEQ(v float64) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldEQ(FieldCostPrice, v))
+}
+
+// CostPriceNEQ applies the NEQ predicate on the "cost_price" field.
+func CostPriceNEQ(v float64) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldNEQ(FieldCostPrice, v))
+}
+
+// CostPriceIn applies the In predicate on the "cost_price" field.
+func CostPriceIn(vs ...float64) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldIn(FieldCostPrice, vs...))
+}
+
+// CostPriceNotIn applies the NotIn predicate on the "cost_price" field.
+func CostPriceNotIn(vs ...float64) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldNotIn(FieldCostPrice, vs...))
+}
+
+// CostPriceGT applies the GT predicate on the "cost_price" field.
+func CostPriceGT(v float64) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldGT(FieldCostPrice, v))
+}
+
+// CostPriceGTE applies the GTE predicate on the "cost_price" field.
+func CostPriceGTE(v float64) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldGTE(FieldCostPrice, v))
+}
+
+// CostPriceLT applies the LT predicate on the "cost_price" field.
+func CostPriceLT(v float64) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldLT(FieldCostPrice, v))
+}
+
+// CostPriceLTE applies the LTE predicate on the "cost_price" field.
+func CostPriceLTE(v float64) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldLTE(FieldCostPrice, v))
+}
+
+// CostPriceIsNil applies the IsNil predicate on the "cost_price" field.
+func CostPriceIsNil() predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldIsNull(FieldCostPrice))
+}
+
+// CostPriceNotNil applies the NotNil predicate on the "cost_price" field.
+func CostPriceNotNil() predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldNotNull(FieldCostPrice))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.

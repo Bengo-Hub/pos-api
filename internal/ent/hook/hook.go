@@ -9,6 +9,18 @@ import (
 	"github.com/bengobox/pos-service/internal/ent"
 )
 
+// The AppointmentFunc type is an adapter to allow the use of ordinary
+// function as Appointment mutator.
+type AppointmentFunc func(context.Context, *ent.AppointmentMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f AppointmentFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.AppointmentMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.AppointmentMutation", m)
+}
+
 // The BarTabFunc type is an adapter to allow the use of ordinary
 // function as BarTab mutator.
 type BarTabFunc func(context.Context, *ent.BarTabMutation) (ent.Value, error)
@@ -93,6 +105,18 @@ func (f ChannelSyncJobFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Val
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ChannelSyncJobMutation", m)
 }
 
+// The CommissionRecordFunc type is an adapter to allow the use of ordinary
+// function as CommissionRecord mutator.
+type CommissionRecordFunc func(context.Context, *ent.CommissionRecordMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f CommissionRecordFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.CommissionRecordMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.CommissionRecordMutation", m)
+}
+
 // The FeatureOverrideFunc type is an adapter to allow the use of ordinary
 // function as FeatureOverride mutator.
 type FeatureOverrideFunc func(context.Context, *ent.FeatureOverrideMutation) (ent.Value, error)
@@ -151,6 +175,30 @@ func (f InventorySnapshotFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.InventorySnapshotMutation", m)
+}
+
+// The KDSStationFunc type is an adapter to allow the use of ordinary
+// function as KDSStation mutator.
+type KDSStationFunc func(context.Context, *ent.KDSStationMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f KDSStationFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.KDSStationMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.KDSStationMutation", m)
+}
+
+// The KDSTicketFunc type is an adapter to allow the use of ordinary
+// function as KDSTicket mutator.
+type KDSTicketFunc func(context.Context, *ent.KDSTicketMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f KDSTicketFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.KDSTicketMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.KDSTicketMutation", m)
 }
 
 // The LicenseUsageSnapshotFunc type is an adapter to allow the use of ordinary
@@ -477,6 +525,18 @@ func (f SectionFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, err
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SectionMutation", m)
 }
 
+// The SerialNumberLogFunc type is an adapter to allow the use of ordinary
+// function as SerialNumberLog mutator.
+type SerialNumberLogFunc func(context.Context, *ent.SerialNumberLogMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f SerialNumberLogFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.SerialNumberLogMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SerialNumberLogMutation", m)
+}
+
 // The ServiceConfigFunc type is an adapter to allow the use of ordinary
 // function as ServiceConfig mutator.
 type ServiceConfigFunc func(context.Context, *ent.ServiceConfigMutation) (ent.Value, error)
@@ -487,6 +547,18 @@ func (f ServiceConfigFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Valu
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ServiceConfigMutation", m)
+}
+
+// The StaffMemberFunc type is an adapter to allow the use of ordinary
+// function as StaffMember mutator.
+type StaffMemberFunc func(context.Context, *ent.StaffMemberMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f StaffMemberFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.StaffMemberMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.StaffMemberMutation", m)
 }
 
 // The StockAlertSubscriptionFunc type is an adapter to allow the use of ordinary

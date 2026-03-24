@@ -76,6 +76,11 @@ func IsAvailable(v bool) predicate.Modifier {
 	return predicate.Modifier(sql.FieldEQ(FieldIsAvailable, v))
 }
 
+// InventoryModifierOptionID applies equality check predicate on the "inventory_modifier_option_id" field. It's identical to InventoryModifierOptionIDEQ.
+func InventoryModifierOptionID(v uuid.UUID) predicate.Modifier {
+	return predicate.Modifier(sql.FieldEQ(FieldInventoryModifierOptionID, v))
+}
+
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.Modifier {
 	return predicate.Modifier(sql.FieldEQ(FieldCreatedAt, v))
@@ -229,6 +234,56 @@ func IsAvailableEQ(v bool) predicate.Modifier {
 // IsAvailableNEQ applies the NEQ predicate on the "is_available" field.
 func IsAvailableNEQ(v bool) predicate.Modifier {
 	return predicate.Modifier(sql.FieldNEQ(FieldIsAvailable, v))
+}
+
+// InventoryModifierOptionIDEQ applies the EQ predicate on the "inventory_modifier_option_id" field.
+func InventoryModifierOptionIDEQ(v uuid.UUID) predicate.Modifier {
+	return predicate.Modifier(sql.FieldEQ(FieldInventoryModifierOptionID, v))
+}
+
+// InventoryModifierOptionIDNEQ applies the NEQ predicate on the "inventory_modifier_option_id" field.
+func InventoryModifierOptionIDNEQ(v uuid.UUID) predicate.Modifier {
+	return predicate.Modifier(sql.FieldNEQ(FieldInventoryModifierOptionID, v))
+}
+
+// InventoryModifierOptionIDIn applies the In predicate on the "inventory_modifier_option_id" field.
+func InventoryModifierOptionIDIn(vs ...uuid.UUID) predicate.Modifier {
+	return predicate.Modifier(sql.FieldIn(FieldInventoryModifierOptionID, vs...))
+}
+
+// InventoryModifierOptionIDNotIn applies the NotIn predicate on the "inventory_modifier_option_id" field.
+func InventoryModifierOptionIDNotIn(vs ...uuid.UUID) predicate.Modifier {
+	return predicate.Modifier(sql.FieldNotIn(FieldInventoryModifierOptionID, vs...))
+}
+
+// InventoryModifierOptionIDGT applies the GT predicate on the "inventory_modifier_option_id" field.
+func InventoryModifierOptionIDGT(v uuid.UUID) predicate.Modifier {
+	return predicate.Modifier(sql.FieldGT(FieldInventoryModifierOptionID, v))
+}
+
+// InventoryModifierOptionIDGTE applies the GTE predicate on the "inventory_modifier_option_id" field.
+func InventoryModifierOptionIDGTE(v uuid.UUID) predicate.Modifier {
+	return predicate.Modifier(sql.FieldGTE(FieldInventoryModifierOptionID, v))
+}
+
+// InventoryModifierOptionIDLT applies the LT predicate on the "inventory_modifier_option_id" field.
+func InventoryModifierOptionIDLT(v uuid.UUID) predicate.Modifier {
+	return predicate.Modifier(sql.FieldLT(FieldInventoryModifierOptionID, v))
+}
+
+// InventoryModifierOptionIDLTE applies the LTE predicate on the "inventory_modifier_option_id" field.
+func InventoryModifierOptionIDLTE(v uuid.UUID) predicate.Modifier {
+	return predicate.Modifier(sql.FieldLTE(FieldInventoryModifierOptionID, v))
+}
+
+// InventoryModifierOptionIDIsNil applies the IsNil predicate on the "inventory_modifier_option_id" field.
+func InventoryModifierOptionIDIsNil() predicate.Modifier {
+	return predicate.Modifier(sql.FieldIsNull(FieldInventoryModifierOptionID))
+}
+
+// InventoryModifierOptionIDNotNil applies the NotNil predicate on the "inventory_modifier_option_id" field.
+func InventoryModifierOptionIDNotNil() predicate.Modifier {
+	return predicate.Modifier(sql.FieldNotNull(FieldInventoryModifierOptionID))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.

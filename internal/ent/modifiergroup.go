@@ -26,6 +26,8 @@ type ModifierGroup struct {
 	MinSelection int `json:"min_selection,omitempty"`
 	// MaxSelection holds the value of the "max_selection" field.
 	MaxSelection int `json:"max_selection,omitempty"`
+	// FK to inventory master modifier group for sync
+	InventoryModifierGroupID *uuid.UUID `json:"inventory_modifier_group_id,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
@@ -59,6 +61,8 @@ func (*ModifierGroup) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case modifiergroup.FieldInventoryModifierGroupID:
+			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		case modifiergroup.FieldMinSelection, modifiergroup.FieldMaxSelection:
 			values[i] = new(sql.NullInt64)
 		case modifiergroup.FieldName:
@@ -111,6 +115,13 @@ func (_m *ModifierGroup) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field max_selection", values[i])
 			} else if value.Valid {
 				_m.MaxSelection = int(value.Int64)
+			}
+		case modifiergroup.FieldInventoryModifierGroupID:
+			if value, ok := values[i].(*sql.NullScanner); !ok {
+				return fmt.Errorf("unexpected type %T for field inventory_modifier_group_id", values[i])
+			} else if value.Valid {
+				_m.InventoryModifierGroupID = new(uuid.UUID)
+				*_m.InventoryModifierGroupID = *value.S.(*uuid.UUID)
 			}
 		case modifiergroup.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -176,6 +187,11 @@ func (_m *ModifierGroup) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("max_selection=")
 	builder.WriteString(fmt.Sprintf("%v", _m.MaxSelection))
+	builder.WriteString(", ")
+	if v := _m.InventoryModifierGroupID; v != nil {
+		builder.WriteString("inventory_modifier_group_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))

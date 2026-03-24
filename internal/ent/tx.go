@@ -12,6 +12,8 @@ import (
 // Tx is a transactional client that is created by calling Client.Tx().
 type Tx struct {
 	config
+	// Appointment is the client for interacting with the Appointment builders.
+	Appointment *AppointmentClient
 	// BarTab is the client for interacting with the BarTab builders.
 	BarTab *BarTabClient
 	// BarTabEvent is the client for interacting with the BarTabEvent builders.
@@ -26,6 +28,8 @@ type Tx struct {
 	ChannelIntegration *ChannelIntegrationClient
 	// ChannelSyncJob is the client for interacting with the ChannelSyncJob builders.
 	ChannelSyncJob *ChannelSyncJobClient
+	// CommissionRecord is the client for interacting with the CommissionRecord builders.
+	CommissionRecord *CommissionRecordClient
 	// FeatureOverride is the client for interacting with the FeatureOverride builders.
 	FeatureOverride *FeatureOverrideClient
 	// GiftCard is the client for interacting with the GiftCard builders.
@@ -36,6 +40,10 @@ type Tx struct {
 	IntegrationSetting *IntegrationSettingClient
 	// InventorySnapshot is the client for interacting with the InventorySnapshot builders.
 	InventorySnapshot *InventorySnapshotClient
+	// KDSStation is the client for interacting with the KDSStation builders.
+	KDSStation *KDSStationClient
+	// KDSTicket is the client for interacting with the KDSTicket builders.
+	KDSTicket *KDSTicketClient
 	// LicenseUsageSnapshot is the client for interacting with the LicenseUsageSnapshot builders.
 	LicenseUsageSnapshot *LicenseUsageSnapshotClient
 	// Modifier is the client for interacting with the Modifier builders.
@@ -90,8 +98,12 @@ type Tx struct {
 	RateLimitConfig *RateLimitConfigClient
 	// Section is the client for interacting with the Section builders.
 	Section *SectionClient
+	// SerialNumberLog is the client for interacting with the SerialNumberLog builders.
+	SerialNumberLog *SerialNumberLogClient
 	// ServiceConfig is the client for interacting with the ServiceConfig builders.
 	ServiceConfig *ServiceConfigClient
+	// StaffMember is the client for interacting with the StaffMember builders.
+	StaffMember *StaffMemberClient
 	// StockAlertSubscription is the client for interacting with the StockAlertSubscription builders.
 	StockAlertSubscription *StockAlertSubscriptionClient
 	// StockConsumptionEvent is the client for interacting with the StockConsumptionEvent builders.
@@ -245,6 +257,7 @@ func (tx *Tx) Client() *Client {
 }
 
 func (tx *Tx) init() {
+	tx.Appointment = NewAppointmentClient(tx.config)
 	tx.BarTab = NewBarTabClient(tx.config)
 	tx.BarTabEvent = NewBarTabEventClient(tx.config)
 	tx.CashDrawer = NewCashDrawerClient(tx.config)
@@ -252,11 +265,14 @@ func (tx *Tx) init() {
 	tx.CatalogItem = NewCatalogItemClient(tx.config)
 	tx.ChannelIntegration = NewChannelIntegrationClient(tx.config)
 	tx.ChannelSyncJob = NewChannelSyncJobClient(tx.config)
+	tx.CommissionRecord = NewCommissionRecordClient(tx.config)
 	tx.FeatureOverride = NewFeatureOverrideClient(tx.config)
 	tx.GiftCard = NewGiftCardClient(tx.config)
 	tx.GiftCardTransaction = NewGiftCardTransactionClient(tx.config)
 	tx.IntegrationSetting = NewIntegrationSettingClient(tx.config)
 	tx.InventorySnapshot = NewInventorySnapshotClient(tx.config)
+	tx.KDSStation = NewKDSStationClient(tx.config)
+	tx.KDSTicket = NewKDSTicketClient(tx.config)
 	tx.LicenseUsageSnapshot = NewLicenseUsageSnapshotClient(tx.config)
 	tx.Modifier = NewModifierClient(tx.config)
 	tx.ModifierGroup = NewModifierGroupClient(tx.config)
@@ -284,7 +300,9 @@ func (tx *Tx) init() {
 	tx.PromotionRule = NewPromotionRuleClient(tx.config)
 	tx.RateLimitConfig = NewRateLimitConfigClient(tx.config)
 	tx.Section = NewSectionClient(tx.config)
+	tx.SerialNumberLog = NewSerialNumberLogClient(tx.config)
 	tx.ServiceConfig = NewServiceConfigClient(tx.config)
+	tx.StaffMember = NewStaffMemberClient(tx.config)
 	tx.StockAlertSubscription = NewStockAlertSubscriptionClient(tx.config)
 	tx.StockConsumptionEvent = NewStockConsumptionEventClient(tx.config)
 	tx.SyncFailure = NewSyncFailureClient(tx.config)
@@ -305,7 +323,7 @@ func (tx *Tx) init() {
 // of them in order to commit or rollback the transaction.
 //
 // If a closed transaction is embedded in one of the generated entities, and the entity
-// applies a query, for example: BarTab.QueryXXX(), the query will be executed
+// applies a query, for example: Appointment.QueryXXX(), the query will be executed
 // through the driver which created this transaction.
 //
 // Note that txDriver is not goroutine safe.

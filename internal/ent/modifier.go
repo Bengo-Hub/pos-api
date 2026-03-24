@@ -27,6 +27,8 @@ type Modifier struct {
 	PriceOverride *float64 `json:"price_override,omitempty"`
 	// IsAvailable holds the value of the "is_available" field.
 	IsAvailable bool `json:"is_available,omitempty"`
+	// FK to inventory master modifier option for sync
+	InventoryModifierOptionID *uuid.UUID `json:"inventory_modifier_option_id,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
@@ -62,6 +64,8 @@ func (*Modifier) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case modifier.FieldInventoryModifierOptionID:
+			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		case modifier.FieldIsAvailable:
 			values[i] = new(sql.NullBool)
 		case modifier.FieldPriceOverride:
@@ -117,6 +121,13 @@ func (_m *Modifier) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field is_available", values[i])
 			} else if value.Valid {
 				_m.IsAvailable = value.Bool
+			}
+		case modifier.FieldInventoryModifierOptionID:
+			if value, ok := values[i].(*sql.NullScanner); !ok {
+				return fmt.Errorf("unexpected type %T for field inventory_modifier_option_id", values[i])
+			} else if value.Valid {
+				_m.InventoryModifierOptionID = new(uuid.UUID)
+				*_m.InventoryModifierOptionID = *value.S.(*uuid.UUID)
 			}
 		case modifier.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -184,6 +195,11 @@ func (_m *Modifier) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("is_available=")
 	builder.WriteString(fmt.Sprintf("%v", _m.IsAvailable))
+	builder.WriteString(", ")
+	if v := _m.InventoryModifierOptionID; v != nil {
+		builder.WriteString("inventory_modifier_option_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))

@@ -6,6 +6,9 @@ import (
 	"entgo.io/ent/dialect/sql"
 )
 
+// Appointment is the predicate function for appointment builders.
+type Appointment func(*sql.Selector)
+
 // BarTab is the predicate function for bartab builders.
 type BarTab func(*sql.Selector)
 
@@ -27,6 +30,9 @@ type ChannelIntegration func(*sql.Selector)
 // ChannelSyncJob is the predicate function for channelsyncjob builders.
 type ChannelSyncJob func(*sql.Selector)
 
+// CommissionRecord is the predicate function for commissionrecord builders.
+type CommissionRecord func(*sql.Selector)
+
 // FeatureOverride is the predicate function for featureoverride builders.
 type FeatureOverride func(*sql.Selector)
 
@@ -41,6 +47,12 @@ type IntegrationSetting func(*sql.Selector)
 
 // InventorySnapshot is the predicate function for inventorysnapshot builders.
 type InventorySnapshot func(*sql.Selector)
+
+// KDSStation is the predicate function for kdsstation builders.
+type KDSStation func(*sql.Selector)
+
+// KDSTicket is the predicate function for kdsticket builders.
+type KDSTicket func(*sql.Selector)
 
 // LicenseUsageSnapshot is the predicate function for licenseusagesnapshot builders.
 type LicenseUsageSnapshot func(*sql.Selector)
@@ -123,8 +135,14 @@ type RateLimitConfig func(*sql.Selector)
 // Section is the predicate function for section builders.
 type Section func(*sql.Selector)
 
+// SerialNumberLog is the predicate function for serialnumberlog builders.
+type SerialNumberLog func(*sql.Selector)
+
 // ServiceConfig is the predicate function for serviceconfig builders.
 type ServiceConfig func(*sql.Selector)
+
+// StaffMember is the predicate function for staffmember builders.
+type StaffMember func(*sql.Selector)
 
 // StockAlertSubscription is the predicate function for stockalertsubscription builders.
 type StockAlertSubscription func(*sql.Selector)

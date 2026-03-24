@@ -65,6 +65,20 @@ func (_c *ModifierGroupCreate) SetNillableMaxSelection(v *int) *ModifierGroupCre
 	return _c
 }
 
+// SetInventoryModifierGroupID sets the "inventory_modifier_group_id" field.
+func (_c *ModifierGroupCreate) SetInventoryModifierGroupID(v uuid.UUID) *ModifierGroupCreate {
+	_c.mutation.SetInventoryModifierGroupID(v)
+	return _c
+}
+
+// SetNillableInventoryModifierGroupID sets the "inventory_modifier_group_id" field if the given value is not nil.
+func (_c *ModifierGroupCreate) SetNillableInventoryModifierGroupID(v *uuid.UUID) *ModifierGroupCreate {
+	if v != nil {
+		_c.SetInventoryModifierGroupID(*v)
+	}
+	return _c
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_c *ModifierGroupCreate) SetCreatedAt(v time.Time) *ModifierGroupCreate {
 	_c.mutation.SetCreatedAt(v)
@@ -256,6 +270,10 @@ func (_c *ModifierGroupCreate) createSpec() (*ModifierGroup, *sqlgraph.CreateSpe
 		_spec.SetField(modifiergroup.FieldMaxSelection, field.TypeInt, value)
 		_node.MaxSelection = value
 	}
+	if value, ok := _c.mutation.InventoryModifierGroupID(); ok {
+		_spec.SetField(modifiergroup.FieldInventoryModifierGroupID, field.TypeUUID, value)
+		_node.InventoryModifierGroupID = &value
+	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(modifiergroup.FieldCreatedAt, field.TypeTime, value)
 		_node.CreatedAt = value
@@ -392,6 +410,24 @@ func (u *ModifierGroupUpsert) AddMaxSelection(v int) *ModifierGroupUpsert {
 	return u
 }
 
+// SetInventoryModifierGroupID sets the "inventory_modifier_group_id" field.
+func (u *ModifierGroupUpsert) SetInventoryModifierGroupID(v uuid.UUID) *ModifierGroupUpsert {
+	u.Set(modifiergroup.FieldInventoryModifierGroupID, v)
+	return u
+}
+
+// UpdateInventoryModifierGroupID sets the "inventory_modifier_group_id" field to the value that was provided on create.
+func (u *ModifierGroupUpsert) UpdateInventoryModifierGroupID() *ModifierGroupUpsert {
+	u.SetExcluded(modifiergroup.FieldInventoryModifierGroupID)
+	return u
+}
+
+// ClearInventoryModifierGroupID clears the value of the "inventory_modifier_group_id" field.
+func (u *ModifierGroupUpsert) ClearInventoryModifierGroupID() *ModifierGroupUpsert {
+	u.SetNull(modifiergroup.FieldInventoryModifierGroupID)
+	return u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (u *ModifierGroupUpsert) SetUpdatedAt(v time.Time) *ModifierGroupUpsert {
 	u.Set(modifiergroup.FieldUpdatedAt, v)
@@ -522,6 +558,27 @@ func (u *ModifierGroupUpsertOne) AddMaxSelection(v int) *ModifierGroupUpsertOne 
 func (u *ModifierGroupUpsertOne) UpdateMaxSelection() *ModifierGroupUpsertOne {
 	return u.Update(func(s *ModifierGroupUpsert) {
 		s.UpdateMaxSelection()
+	})
+}
+
+// SetInventoryModifierGroupID sets the "inventory_modifier_group_id" field.
+func (u *ModifierGroupUpsertOne) SetInventoryModifierGroupID(v uuid.UUID) *ModifierGroupUpsertOne {
+	return u.Update(func(s *ModifierGroupUpsert) {
+		s.SetInventoryModifierGroupID(v)
+	})
+}
+
+// UpdateInventoryModifierGroupID sets the "inventory_modifier_group_id" field to the value that was provided on create.
+func (u *ModifierGroupUpsertOne) UpdateInventoryModifierGroupID() *ModifierGroupUpsertOne {
+	return u.Update(func(s *ModifierGroupUpsert) {
+		s.UpdateInventoryModifierGroupID()
+	})
+}
+
+// ClearInventoryModifierGroupID clears the value of the "inventory_modifier_group_id" field.
+func (u *ModifierGroupUpsertOne) ClearInventoryModifierGroupID() *ModifierGroupUpsertOne {
+	return u.Update(func(s *ModifierGroupUpsert) {
+		s.ClearInventoryModifierGroupID()
 	})
 }
 
@@ -824,6 +881,27 @@ func (u *ModifierGroupUpsertBulk) AddMaxSelection(v int) *ModifierGroupUpsertBul
 func (u *ModifierGroupUpsertBulk) UpdateMaxSelection() *ModifierGroupUpsertBulk {
 	return u.Update(func(s *ModifierGroupUpsert) {
 		s.UpdateMaxSelection()
+	})
+}
+
+// SetInventoryModifierGroupID sets the "inventory_modifier_group_id" field.
+func (u *ModifierGroupUpsertBulk) SetInventoryModifierGroupID(v uuid.UUID) *ModifierGroupUpsertBulk {
+	return u.Update(func(s *ModifierGroupUpsert) {
+		s.SetInventoryModifierGroupID(v)
+	})
+}
+
+// UpdateInventoryModifierGroupID sets the "inventory_modifier_group_id" field to the value that was provided on create.
+func (u *ModifierGroupUpsertBulk) UpdateInventoryModifierGroupID() *ModifierGroupUpsertBulk {
+	return u.Update(func(s *ModifierGroupUpsert) {
+		s.UpdateInventoryModifierGroupID()
+	})
+}
+
+// ClearInventoryModifierGroupID clears the value of the "inventory_modifier_group_id" field.
+func (u *ModifierGroupUpsertBulk) ClearInventoryModifierGroupID() *ModifierGroupUpsertBulk {
+	return u.Update(func(s *ModifierGroupUpsert) {
+		s.ClearInventoryModifierGroupID()
 	})
 }
 

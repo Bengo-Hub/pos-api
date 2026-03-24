@@ -98,6 +98,126 @@ func (_u *OutletSettingUpdate) SetMetadata(v map[string]interface{}) *OutletSett
 	return _u
 }
 
+// SetDisplayMode sets the "display_mode" field.
+func (_u *OutletSettingUpdate) SetDisplayMode(v string) *OutletSettingUpdate {
+	_u.mutation.SetDisplayMode(v)
+	return _u
+}
+
+// SetNillableDisplayMode sets the "display_mode" field if the given value is not nil.
+func (_u *OutletSettingUpdate) SetNillableDisplayMode(v *string) *OutletSettingUpdate {
+	if v != nil {
+		_u.SetDisplayMode(*v)
+	}
+	return _u
+}
+
+// ClearDisplayMode clears the value of the "display_mode" field.
+func (_u *OutletSettingUpdate) ClearDisplayMode() *OutletSettingUpdate {
+	_u.mutation.ClearDisplayMode()
+	return _u
+}
+
+// SetShowImages sets the "show_images" field.
+func (_u *OutletSettingUpdate) SetShowImages(v bool) *OutletSettingUpdate {
+	_u.mutation.SetShowImages(v)
+	return _u
+}
+
+// SetNillableShowImages sets the "show_images" field if the given value is not nil.
+func (_u *OutletSettingUpdate) SetNillableShowImages(v *bool) *OutletSettingUpdate {
+	if v != nil {
+		_u.SetShowImages(*v)
+	}
+	return _u
+}
+
+// ClearShowImages clears the value of the "show_images" field.
+func (_u *OutletSettingUpdate) ClearShowImages() *OutletSettingUpdate {
+	_u.mutation.ClearShowImages()
+	return _u
+}
+
+// SetShowBarcodeScanner sets the "show_barcode_scanner" field.
+func (_u *OutletSettingUpdate) SetShowBarcodeScanner(v bool) *OutletSettingUpdate {
+	_u.mutation.SetShowBarcodeScanner(v)
+	return _u
+}
+
+// SetNillableShowBarcodeScanner sets the "show_barcode_scanner" field if the given value is not nil.
+func (_u *OutletSettingUpdate) SetNillableShowBarcodeScanner(v *bool) *OutletSettingUpdate {
+	if v != nil {
+		_u.SetShowBarcodeScanner(*v)
+	}
+	return _u
+}
+
+// ClearShowBarcodeScanner clears the value of the "show_barcode_scanner" field.
+func (_u *OutletSettingUpdate) ClearShowBarcodeScanner() *OutletSettingUpdate {
+	_u.mutation.ClearShowBarcodeScanner()
+	return _u
+}
+
+// SetDefaultView sets the "default_view" field.
+func (_u *OutletSettingUpdate) SetDefaultView(v string) *OutletSettingUpdate {
+	_u.mutation.SetDefaultView(v)
+	return _u
+}
+
+// SetNillableDefaultView sets the "default_view" field if the given value is not nil.
+func (_u *OutletSettingUpdate) SetNillableDefaultView(v *string) *OutletSettingUpdate {
+	if v != nil {
+		_u.SetDefaultView(*v)
+	}
+	return _u
+}
+
+// ClearDefaultView clears the value of the "default_view" field.
+func (_u *OutletSettingUpdate) ClearDefaultView() *OutletSettingUpdate {
+	_u.mutation.ClearDefaultView()
+	return _u
+}
+
+// SetEnableKds sets the "enable_kds" field.
+func (_u *OutletSettingUpdate) SetEnableKds(v bool) *OutletSettingUpdate {
+	_u.mutation.SetEnableKds(v)
+	return _u
+}
+
+// SetNillableEnableKds sets the "enable_kds" field if the given value is not nil.
+func (_u *OutletSettingUpdate) SetNillableEnableKds(v *bool) *OutletSettingUpdate {
+	if v != nil {
+		_u.SetEnableKds(*v)
+	}
+	return _u
+}
+
+// ClearEnableKds clears the value of the "enable_kds" field.
+func (_u *OutletSettingUpdate) ClearEnableKds() *OutletSettingUpdate {
+	_u.mutation.ClearEnableKds()
+	return _u
+}
+
+// SetEnableAppointments sets the "enable_appointments" field.
+func (_u *OutletSettingUpdate) SetEnableAppointments(v bool) *OutletSettingUpdate {
+	_u.mutation.SetEnableAppointments(v)
+	return _u
+}
+
+// SetNillableEnableAppointments sets the "enable_appointments" field if the given value is not nil.
+func (_u *OutletSettingUpdate) SetNillableEnableAppointments(v *bool) *OutletSettingUpdate {
+	if v != nil {
+		_u.SetEnableAppointments(*v)
+	}
+	return _u
+}
+
+// ClearEnableAppointments clears the value of the "enable_appointments" field.
+func (_u *OutletSettingUpdate) ClearEnableAppointments() *OutletSettingUpdate {
+	_u.mutation.ClearEnableAppointments()
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *OutletSettingUpdate) SetUpdatedAt(v time.Time) *OutletSettingUpdate {
 	_u.mutation.SetUpdatedAt(v)
@@ -202,6 +322,42 @@ func (_u *OutletSettingUpdate) sqlSave(ctx context.Context) (_node int, err erro
 	}
 	if value, ok := _u.mutation.Metadata(); ok {
 		_spec.SetField(outletsetting.FieldMetadata, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.DisplayMode(); ok {
+		_spec.SetField(outletsetting.FieldDisplayMode, field.TypeString, value)
+	}
+	if _u.mutation.DisplayModeCleared() {
+		_spec.ClearField(outletsetting.FieldDisplayMode, field.TypeString)
+	}
+	if value, ok := _u.mutation.ShowImages(); ok {
+		_spec.SetField(outletsetting.FieldShowImages, field.TypeBool, value)
+	}
+	if _u.mutation.ShowImagesCleared() {
+		_spec.ClearField(outletsetting.FieldShowImages, field.TypeBool)
+	}
+	if value, ok := _u.mutation.ShowBarcodeScanner(); ok {
+		_spec.SetField(outletsetting.FieldShowBarcodeScanner, field.TypeBool, value)
+	}
+	if _u.mutation.ShowBarcodeScannerCleared() {
+		_spec.ClearField(outletsetting.FieldShowBarcodeScanner, field.TypeBool)
+	}
+	if value, ok := _u.mutation.DefaultView(); ok {
+		_spec.SetField(outletsetting.FieldDefaultView, field.TypeString, value)
+	}
+	if _u.mutation.DefaultViewCleared() {
+		_spec.ClearField(outletsetting.FieldDefaultView, field.TypeString)
+	}
+	if value, ok := _u.mutation.EnableKds(); ok {
+		_spec.SetField(outletsetting.FieldEnableKds, field.TypeBool, value)
+	}
+	if _u.mutation.EnableKdsCleared() {
+		_spec.ClearField(outletsetting.FieldEnableKds, field.TypeBool)
+	}
+	if value, ok := _u.mutation.EnableAppointments(); ok {
+		_spec.SetField(outletsetting.FieldEnableAppointments, field.TypeBool, value)
+	}
+	if _u.mutation.EnableAppointmentsCleared() {
+		_spec.ClearField(outletsetting.FieldEnableAppointments, field.TypeBool)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(outletsetting.FieldUpdatedAt, field.TypeTime, value)
@@ -320,6 +476,126 @@ func (_u *OutletSettingUpdateOne) ClearOpeningHoursJSON() *OutletSettingUpdateOn
 // SetMetadata sets the "metadata" field.
 func (_u *OutletSettingUpdateOne) SetMetadata(v map[string]interface{}) *OutletSettingUpdateOne {
 	_u.mutation.SetMetadata(v)
+	return _u
+}
+
+// SetDisplayMode sets the "display_mode" field.
+func (_u *OutletSettingUpdateOne) SetDisplayMode(v string) *OutletSettingUpdateOne {
+	_u.mutation.SetDisplayMode(v)
+	return _u
+}
+
+// SetNillableDisplayMode sets the "display_mode" field if the given value is not nil.
+func (_u *OutletSettingUpdateOne) SetNillableDisplayMode(v *string) *OutletSettingUpdateOne {
+	if v != nil {
+		_u.SetDisplayMode(*v)
+	}
+	return _u
+}
+
+// ClearDisplayMode clears the value of the "display_mode" field.
+func (_u *OutletSettingUpdateOne) ClearDisplayMode() *OutletSettingUpdateOne {
+	_u.mutation.ClearDisplayMode()
+	return _u
+}
+
+// SetShowImages sets the "show_images" field.
+func (_u *OutletSettingUpdateOne) SetShowImages(v bool) *OutletSettingUpdateOne {
+	_u.mutation.SetShowImages(v)
+	return _u
+}
+
+// SetNillableShowImages sets the "show_images" field if the given value is not nil.
+func (_u *OutletSettingUpdateOne) SetNillableShowImages(v *bool) *OutletSettingUpdateOne {
+	if v != nil {
+		_u.SetShowImages(*v)
+	}
+	return _u
+}
+
+// ClearShowImages clears the value of the "show_images" field.
+func (_u *OutletSettingUpdateOne) ClearShowImages() *OutletSettingUpdateOne {
+	_u.mutation.ClearShowImages()
+	return _u
+}
+
+// SetShowBarcodeScanner sets the "show_barcode_scanner" field.
+func (_u *OutletSettingUpdateOne) SetShowBarcodeScanner(v bool) *OutletSettingUpdateOne {
+	_u.mutation.SetShowBarcodeScanner(v)
+	return _u
+}
+
+// SetNillableShowBarcodeScanner sets the "show_barcode_scanner" field if the given value is not nil.
+func (_u *OutletSettingUpdateOne) SetNillableShowBarcodeScanner(v *bool) *OutletSettingUpdateOne {
+	if v != nil {
+		_u.SetShowBarcodeScanner(*v)
+	}
+	return _u
+}
+
+// ClearShowBarcodeScanner clears the value of the "show_barcode_scanner" field.
+func (_u *OutletSettingUpdateOne) ClearShowBarcodeScanner() *OutletSettingUpdateOne {
+	_u.mutation.ClearShowBarcodeScanner()
+	return _u
+}
+
+// SetDefaultView sets the "default_view" field.
+func (_u *OutletSettingUpdateOne) SetDefaultView(v string) *OutletSettingUpdateOne {
+	_u.mutation.SetDefaultView(v)
+	return _u
+}
+
+// SetNillableDefaultView sets the "default_view" field if the given value is not nil.
+func (_u *OutletSettingUpdateOne) SetNillableDefaultView(v *string) *OutletSettingUpdateOne {
+	if v != nil {
+		_u.SetDefaultView(*v)
+	}
+	return _u
+}
+
+// ClearDefaultView clears the value of the "default_view" field.
+func (_u *OutletSettingUpdateOne) ClearDefaultView() *OutletSettingUpdateOne {
+	_u.mutation.ClearDefaultView()
+	return _u
+}
+
+// SetEnableKds sets the "enable_kds" field.
+func (_u *OutletSettingUpdateOne) SetEnableKds(v bool) *OutletSettingUpdateOne {
+	_u.mutation.SetEnableKds(v)
+	return _u
+}
+
+// SetNillableEnableKds sets the "enable_kds" field if the given value is not nil.
+func (_u *OutletSettingUpdateOne) SetNillableEnableKds(v *bool) *OutletSettingUpdateOne {
+	if v != nil {
+		_u.SetEnableKds(*v)
+	}
+	return _u
+}
+
+// ClearEnableKds clears the value of the "enable_kds" field.
+func (_u *OutletSettingUpdateOne) ClearEnableKds() *OutletSettingUpdateOne {
+	_u.mutation.ClearEnableKds()
+	return _u
+}
+
+// SetEnableAppointments sets the "enable_appointments" field.
+func (_u *OutletSettingUpdateOne) SetEnableAppointments(v bool) *OutletSettingUpdateOne {
+	_u.mutation.SetEnableAppointments(v)
+	return _u
+}
+
+// SetNillableEnableAppointments sets the "enable_appointments" field if the given value is not nil.
+func (_u *OutletSettingUpdateOne) SetNillableEnableAppointments(v *bool) *OutletSettingUpdateOne {
+	if v != nil {
+		_u.SetEnableAppointments(*v)
+	}
+	return _u
+}
+
+// ClearEnableAppointments clears the value of the "enable_appointments" field.
+func (_u *OutletSettingUpdateOne) ClearEnableAppointments() *OutletSettingUpdateOne {
+	_u.mutation.ClearEnableAppointments()
 	return _u
 }
 
@@ -457,6 +733,42 @@ func (_u *OutletSettingUpdateOne) sqlSave(ctx context.Context) (_node *OutletSet
 	}
 	if value, ok := _u.mutation.Metadata(); ok {
 		_spec.SetField(outletsetting.FieldMetadata, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.DisplayMode(); ok {
+		_spec.SetField(outletsetting.FieldDisplayMode, field.TypeString, value)
+	}
+	if _u.mutation.DisplayModeCleared() {
+		_spec.ClearField(outletsetting.FieldDisplayMode, field.TypeString)
+	}
+	if value, ok := _u.mutation.ShowImages(); ok {
+		_spec.SetField(outletsetting.FieldShowImages, field.TypeBool, value)
+	}
+	if _u.mutation.ShowImagesCleared() {
+		_spec.ClearField(outletsetting.FieldShowImages, field.TypeBool)
+	}
+	if value, ok := _u.mutation.ShowBarcodeScanner(); ok {
+		_spec.SetField(outletsetting.FieldShowBarcodeScanner, field.TypeBool, value)
+	}
+	if _u.mutation.ShowBarcodeScannerCleared() {
+		_spec.ClearField(outletsetting.FieldShowBarcodeScanner, field.TypeBool)
+	}
+	if value, ok := _u.mutation.DefaultView(); ok {
+		_spec.SetField(outletsetting.FieldDefaultView, field.TypeString, value)
+	}
+	if _u.mutation.DefaultViewCleared() {
+		_spec.ClearField(outletsetting.FieldDefaultView, field.TypeString)
+	}
+	if value, ok := _u.mutation.EnableKds(); ok {
+		_spec.SetField(outletsetting.FieldEnableKds, field.TypeBool, value)
+	}
+	if _u.mutation.EnableKdsCleared() {
+		_spec.ClearField(outletsetting.FieldEnableKds, field.TypeBool)
+	}
+	if value, ok := _u.mutation.EnableAppointments(); ok {
+		_spec.SetField(outletsetting.FieldEnableAppointments, field.TypeBool, value)
+	}
+	if _u.mutation.EnableAppointmentsCleared() {
+		_spec.ClearField(outletsetting.FieldEnableAppointments, field.TypeBool)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(outletsetting.FieldUpdatedAt, field.TypeTime, value)

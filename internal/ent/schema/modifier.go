@@ -28,6 +28,7 @@ func (Modifier) Fields() []ent.Field {
 			Nillable(),
 		field.Bool("is_available").
 			Default(true),
+		field.UUID("inventory_modifier_option_id", uuid.UUID{}).Optional().Nillable().Comment("FK to inventory master modifier option for sync"),
 		field.Time("created_at").
 			Default(time.Now).
 			Immutable(),

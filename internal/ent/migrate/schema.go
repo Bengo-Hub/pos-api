@@ -8,6 +8,48 @@ import (
 )
 
 var (
+	// AppointmentsColumns holds the columns for the "appointments" table.
+	AppointmentsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "outlet_id", Type: field.TypeUUID},
+		{Name: "customer_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "customer_name", Type: field.TypeString, Nullable: true},
+		{Name: "customer_phone", Type: field.TypeString, Nullable: true},
+		{Name: "staff_member_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "service_item_id", Type: field.TypeUUID},
+		{Name: "service_sku", Type: field.TypeString},
+		{Name: "start_time", Type: field.TypeTime},
+		{Name: "end_time", Type: field.TypeTime},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"scheduled", "confirmed", "in_progress", "completed", "cancelled", "no_show"}, Default: "scheduled"},
+		{Name: "notes", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "pos_order_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// AppointmentsTable holds the schema information for the "appointments" table.
+	AppointmentsTable = &schema.Table{
+		Name:       "appointments",
+		Columns:    AppointmentsColumns,
+		PrimaryKey: []*schema.Column{AppointmentsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "appointment_tenant_id_outlet_id_start_time",
+				Unique:  false,
+				Columns: []*schema.Column{AppointmentsColumns[1], AppointmentsColumns[2], AppointmentsColumns[9]},
+			},
+			{
+				Name:    "appointment_tenant_id_staff_member_id_start_time",
+				Unique:  false,
+				Columns: []*schema.Column{AppointmentsColumns[1], AppointmentsColumns[6], AppointmentsColumns[9]},
+			},
+			{
+				Name:    "appointment_status",
+				Unique:  false,
+				Columns: []*schema.Column{AppointmentsColumns[11]},
+			},
+		},
+	}
 	// BarTabsColumns holds the columns for the "bar_tabs" table.
 	BarTabsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -102,6 +144,14 @@ var (
 		{Name: "image_url", Type: field.TypeString, Nullable: true},
 		{Name: "tax_status", Type: field.TypeString, Default: "taxable"},
 		{Name: "status", Type: field.TypeString, Default: "active"},
+		{Name: "inventory_item_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "item_type", Type: field.TypeString, Nullable: true},
+		{Name: "requires_age_verification", Type: field.TypeBool, Default: false},
+		{Name: "is_controlled_substance", Type: field.TypeBool, Default: false},
+		{Name: "track_serial_number", Type: field.TypeBool, Default: false},
+		{Name: "duration_minutes", Type: field.TypeInt, Nullable: true},
+		{Name: "cost_price", Type: field.TypeFloat64, Nullable: true},
+		{Name: "tags", Type: field.TypeJSON},
 		{Name: "metadata", Type: field.TypeJSON},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
@@ -111,6 +161,18 @@ var (
 		Name:       "catalog_items",
 		Columns:    CatalogItemsColumns,
 		PrimaryKey: []*schema.Column{CatalogItemsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "catalogitem_tenant_id_inventory_item_id",
+				Unique:  false,
+				Columns: []*schema.Column{CatalogItemsColumns[1], CatalogItemsColumns[10]},
+			},
+			{
+				Name:    "catalogitem_tenant_id_sku",
+				Unique:  false,
+				Columns: []*schema.Column{CatalogItemsColumns[1], CatalogItemsColumns[4]},
+			},
+		},
 	}
 	// ChannelIntegrationsColumns holds the columns for the "channel_integrations" table.
 	ChannelIntegrationsColumns = []*schema.Column{
@@ -144,6 +206,37 @@ var (
 		Name:       "channel_sync_jobs",
 		Columns:    ChannelSyncJobsColumns,
 		PrimaryKey: []*schema.Column{ChannelSyncJobsColumns[0]},
+	}
+	// CommissionRecordsColumns holds the columns for the "commission_records" table.
+	CommissionRecordsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "staff_member_id", Type: field.TypeUUID},
+		{Name: "order_id", Type: field.TypeUUID},
+		{Name: "order_line_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "service_sku", Type: field.TypeString},
+		{Name: "sale_amount", Type: field.TypeFloat64, Default: 0},
+		{Name: "commission_rate", Type: field.TypeFloat64, Default: 0},
+		{Name: "commission_amount", Type: field.TypeFloat64, Default: 0},
+		{Name: "created_at", Type: field.TypeTime},
+	}
+	// CommissionRecordsTable holds the schema information for the "commission_records" table.
+	CommissionRecordsTable = &schema.Table{
+		Name:       "commission_records",
+		Columns:    CommissionRecordsColumns,
+		PrimaryKey: []*schema.Column{CommissionRecordsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "commissionrecord_tenant_id_staff_member_id",
+				Unique:  false,
+				Columns: []*schema.Column{CommissionRecordsColumns[1], CommissionRecordsColumns[2]},
+			},
+			{
+				Name:    "commissionrecord_tenant_id_order_id",
+				Unique:  false,
+				Columns: []*schema.Column{CommissionRecordsColumns[1], CommissionRecordsColumns[3]},
+			},
+		},
 	}
 	// FeatureOverridesColumns holds the columns for the "feature_overrides" table.
 	FeatureOverridesColumns = []*schema.Column{
@@ -227,6 +320,71 @@ var (
 		Columns:    InventorySnapshotsColumns,
 		PrimaryKey: []*schema.Column{InventorySnapshotsColumns[0]},
 	}
+	// KdsStationsColumns holds the columns for the "kds_stations" table.
+	KdsStationsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "outlet_id", Type: field.TypeUUID},
+		{Name: "name", Type: field.TypeString},
+		{Name: "category_filter", Type: field.TypeJSON, Nullable: true},
+		{Name: "sort_order", Type: field.TypeInt, Default: 0},
+		{Name: "is_active", Type: field.TypeBool, Default: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// KdsStationsTable holds the schema information for the "kds_stations" table.
+	KdsStationsTable = &schema.Table{
+		Name:       "kds_stations",
+		Columns:    KdsStationsColumns,
+		PrimaryKey: []*schema.Column{KdsStationsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "kdsstation_tenant_id_outlet_id",
+				Unique:  false,
+				Columns: []*schema.Column{KdsStationsColumns[1], KdsStationsColumns[2]},
+			},
+		},
+	}
+	// KdsTicketsColumns holds the columns for the "kds_tickets" table.
+	KdsTicketsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "order_id", Type: field.TypeUUID},
+		{Name: "order_number", Type: field.TypeString},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending", "in_progress", "ready", "served", "voided"}, Default: "pending"},
+		{Name: "items", Type: field.TypeJSON},
+		{Name: "received_at", Type: field.TypeTime},
+		{Name: "started_at", Type: field.TypeTime, Nullable: true},
+		{Name: "completed_at", Type: field.TypeTime, Nullable: true},
+		{Name: "priority", Type: field.TypeInt, Default: 0},
+		{Name: "station_id", Type: field.TypeUUID},
+	}
+	// KdsTicketsTable holds the schema information for the "kds_tickets" table.
+	KdsTicketsTable = &schema.Table{
+		Name:       "kds_tickets",
+		Columns:    KdsTicketsColumns,
+		PrimaryKey: []*schema.Column{KdsTicketsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "kds_tickets_kds_stations_tickets",
+				Columns:    []*schema.Column{KdsTicketsColumns[10]},
+				RefColumns: []*schema.Column{KdsStationsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "kdsticket_tenant_id_station_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{KdsTicketsColumns[1], KdsTicketsColumns[10], KdsTicketsColumns[4]},
+			},
+			{
+				Name:    "kdsticket_order_id",
+				Unique:  false,
+				Columns: []*schema.Column{KdsTicketsColumns[2]},
+			},
+		},
+	}
 	// LicenseUsageSnapshotsColumns holds the columns for the "license_usage_snapshots" table.
 	LicenseUsageSnapshotsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -243,6 +401,7 @@ var (
 		{Name: "name", Type: field.TypeString},
 		{Name: "price_override", Type: field.TypeFloat64, Nullable: true},
 		{Name: "is_available", Type: field.TypeBool, Default: true},
+		{Name: "inventory_modifier_option_id", Type: field.TypeUUID, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
 		{Name: "modifier_group_id", Type: field.TypeUUID},
@@ -255,7 +414,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "modifiers_modifier_groups_modifiers",
-				Columns:    []*schema.Column{ModifiersColumns[6]},
+				Columns:    []*schema.Column{ModifiersColumns[7]},
 				RefColumns: []*schema.Column{ModifierGroupsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -268,6 +427,7 @@ var (
 		{Name: "name", Type: field.TypeString},
 		{Name: "min_selection", Type: field.TypeInt, Default: 0},
 		{Name: "max_selection", Type: field.TypeInt, Default: 1},
+		{Name: "inventory_modifier_group_id", Type: field.TypeUUID, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
 	}
@@ -373,6 +533,12 @@ var (
 		{Name: "service_charge_json", Type: field.TypeJSON, Nullable: true},
 		{Name: "opening_hours_json", Type: field.TypeJSON, Nullable: true},
 		{Name: "metadata", Type: field.TypeJSON},
+		{Name: "display_mode", Type: field.TypeString, Nullable: true, Default: "card"},
+		{Name: "show_images", Type: field.TypeBool, Nullable: true, Default: true},
+		{Name: "show_barcode_scanner", Type: field.TypeBool, Nullable: true, Default: false},
+		{Name: "default_view", Type: field.TypeString, Nullable: true, Default: "catalog"},
+		{Name: "enable_kds", Type: field.TypeBool, Nullable: true, Default: false},
+		{Name: "enable_appointments", Type: field.TypeBool, Nullable: true, Default: false},
 		{Name: "updated_at", Type: field.TypeTime},
 		{Name: "outlet_id", Type: field.TypeUUID, Unique: true},
 	}
@@ -384,7 +550,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "outlet_settings_outlets_settings",
-				Columns:    []*schema.Column{OutletSettingsColumns[7]},
+				Columns:    []*schema.Column{OutletSettingsColumns[13]},
 				RefColumns: []*schema.Column{OutletsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -972,6 +1138,38 @@ var (
 			},
 		},
 	}
+	// SerialNumberLogsColumns holds the columns for the "serial_number_logs" table.
+	SerialNumberLogsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "order_line_id", Type: field.TypeUUID},
+		{Name: "serial_number", Type: field.TypeString},
+		{Name: "item_sku", Type: field.TypeString},
+		{Name: "sold_at", Type: field.TypeTime},
+	}
+	// SerialNumberLogsTable holds the schema information for the "serial_number_logs" table.
+	SerialNumberLogsTable = &schema.Table{
+		Name:       "serial_number_logs",
+		Columns:    SerialNumberLogsColumns,
+		PrimaryKey: []*schema.Column{SerialNumberLogsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "serialnumberlog_tenant_id_serial_number",
+				Unique:  false,
+				Columns: []*schema.Column{SerialNumberLogsColumns[1], SerialNumberLogsColumns[3]},
+			},
+			{
+				Name:    "serialnumberlog_tenant_id_item_sku",
+				Unique:  false,
+				Columns: []*schema.Column{SerialNumberLogsColumns[1], SerialNumberLogsColumns[4]},
+			},
+			{
+				Name:    "serialnumberlog_order_line_id",
+				Unique:  false,
+				Columns: []*schema.Column{SerialNumberLogsColumns[2]},
+			},
+		},
+	}
 	// ServiceConfigsColumns holds the columns for the "service_configs" table.
 	ServiceConfigsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -999,6 +1197,38 @@ var (
 				Name:    "serviceconfig_config_key",
 				Unique:  false,
 				Columns: []*schema.Column{ServiceConfigsColumns[2]},
+			},
+		},
+	}
+	// StaffMembersColumns holds the columns for the "staff_members" table.
+	StaffMembersColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "outlet_id", Type: field.TypeUUID},
+		{Name: "user_id", Type: field.TypeUUID},
+		{Name: "name", Type: field.TypeString},
+		{Name: "service_skus", Type: field.TypeJSON, Nullable: true},
+		{Name: "working_hours", Type: field.TypeJSON, Nullable: true},
+		{Name: "commission_rate", Type: field.TypeFloat64, Nullable: true},
+		{Name: "is_active", Type: field.TypeBool, Default: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// StaffMembersTable holds the schema information for the "staff_members" table.
+	StaffMembersTable = &schema.Table{
+		Name:       "staff_members",
+		Columns:    StaffMembersColumns,
+		PrimaryKey: []*schema.Column{StaffMembersColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "staffmember_tenant_id_outlet_id",
+				Unique:  false,
+				Columns: []*schema.Column{StaffMembersColumns[1], StaffMembersColumns[2]},
+			},
+			{
+				Name:    "staffmember_tenant_id_user_id",
+				Unique:  true,
+				Columns: []*schema.Column{StaffMembersColumns[1], StaffMembersColumns[3]},
 			},
 		},
 	}
@@ -1280,6 +1510,7 @@ var (
 	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
+		AppointmentsTable,
 		BarTabsTable,
 		BarTabEventsTable,
 		CashDrawersTable,
@@ -1287,11 +1518,14 @@ var (
 		CatalogItemsTable,
 		ChannelIntegrationsTable,
 		ChannelSyncJobsTable,
+		CommissionRecordsTable,
 		FeatureOverridesTable,
 		GiftCardsTable,
 		GiftCardTransactionsTable,
 		IntegrationSettingsTable,
 		InventorySnapshotsTable,
+		KdsStationsTable,
+		KdsTicketsTable,
 		LicenseUsageSnapshotsTable,
 		ModifiersTable,
 		ModifierGroupsTable,
@@ -1319,7 +1553,9 @@ var (
 		PromotionRulesTable,
 		RateLimitConfigsTable,
 		SectionsTable,
+		SerialNumberLogsTable,
 		ServiceConfigsTable,
+		StaffMembersTable,
 		StockAlertSubscriptionsTable,
 		StockConsumptionEventsTable,
 		SyncFailuresTable,
@@ -1337,6 +1573,7 @@ var (
 func init() {
 	BarTabEventsTable.ForeignKeys[0].RefTable = BarTabsTable
 	CashDrawerEventsTable.ForeignKeys[0].RefTable = CashDrawersTable
+	KdsTicketsTable.ForeignKeys[0].RefTable = KdsStationsTable
 	ModifiersTable.ForeignKeys[0].RefTable = ModifierGroupsTable
 	OutletsTable.ForeignKeys[0].RefTable = TenantsTable
 	OutletSettingsTable.ForeignKeys[0].RefTable = OutletsTable

@@ -32,6 +32,18 @@ type OutletSetting struct {
 	OpeningHoursJSON map[string]interface{} `json:"opening_hours_json,omitempty"`
 	// Metadata holds the value of the "metadata" field.
 	Metadata map[string]interface{} `json:"metadata,omitempty"`
+	// list=supermarket/hardware, card=restaurant, image_grid=bar/lounge
+	DisplayMode string `json:"display_mode,omitempty"`
+	// Show item images in catalog view
+	ShowImages bool `json:"show_images,omitempty"`
+	// Show barcode scanner input for retail
+	ShowBarcodeScanner bool `json:"show_barcode_scanner,omitempty"`
+	// catalog, quick_sale, tables, appointments
+	DefaultView string `json:"default_view,omitempty"`
+	// Kitchen Display System for hospitality
+	EnableKds bool `json:"enable_kds,omitempty"`
+	// Appointment booking for salons/services
+	EnableAppointments bool `json:"enable_appointments,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
@@ -67,6 +79,10 @@ func (*OutletSetting) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case outletsetting.FieldReceiptsJSON, outletsetting.FieldTaxConfigJSON, outletsetting.FieldServiceChargeJSON, outletsetting.FieldOpeningHoursJSON, outletsetting.FieldMetadata:
 			values[i] = new([]byte)
+		case outletsetting.FieldShowImages, outletsetting.FieldShowBarcodeScanner, outletsetting.FieldEnableKds, outletsetting.FieldEnableAppointments:
+			values[i] = new(sql.NullBool)
+		case outletsetting.FieldDisplayMode, outletsetting.FieldDefaultView:
+			values[i] = new(sql.NullString)
 		case outletsetting.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
 		case outletsetting.FieldID, outletsetting.FieldOutletID:
@@ -138,6 +154,42 @@ func (_m *OutletSetting) assignValues(columns []string, values []any) error {
 					return fmt.Errorf("unmarshal field metadata: %w", err)
 				}
 			}
+		case outletsetting.FieldDisplayMode:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field display_mode", values[i])
+			} else if value.Valid {
+				_m.DisplayMode = value.String
+			}
+		case outletsetting.FieldShowImages:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field show_images", values[i])
+			} else if value.Valid {
+				_m.ShowImages = value.Bool
+			}
+		case outletsetting.FieldShowBarcodeScanner:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field show_barcode_scanner", values[i])
+			} else if value.Valid {
+				_m.ShowBarcodeScanner = value.Bool
+			}
+		case outletsetting.FieldDefaultView:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field default_view", values[i])
+			} else if value.Valid {
+				_m.DefaultView = value.String
+			}
+		case outletsetting.FieldEnableKds:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field enable_kds", values[i])
+			} else if value.Valid {
+				_m.EnableKds = value.Bool
+			}
+		case outletsetting.FieldEnableAppointments:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field enable_appointments", values[i])
+			} else if value.Valid {
+				_m.EnableAppointments = value.Bool
+			}
 		case outletsetting.FieldUpdatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field updated_at", values[i])
@@ -202,6 +254,24 @@ func (_m *OutletSetting) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("metadata=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Metadata))
+	builder.WriteString(", ")
+	builder.WriteString("display_mode=")
+	builder.WriteString(_m.DisplayMode)
+	builder.WriteString(", ")
+	builder.WriteString("show_images=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ShowImages))
+	builder.WriteString(", ")
+	builder.WriteString("show_barcode_scanner=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ShowBarcodeScanner))
+	builder.WriteString(", ")
+	builder.WriteString("default_view=")
+	builder.WriteString(_m.DefaultView)
+	builder.WriteString(", ")
+	builder.WriteString("enable_kds=")
+	builder.WriteString(fmt.Sprintf("%v", _m.EnableKds))
+	builder.WriteString(", ")
+	builder.WriteString("enable_appointments=")
+	builder.WriteString(fmt.Sprintf("%v", _m.EnableAppointments))
 	builder.WriteString(", ")
 	builder.WriteString("updated_at=")
 	builder.WriteString(_m.UpdatedAt.Format(time.ANSIC))

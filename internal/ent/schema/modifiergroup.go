@@ -27,6 +27,7 @@ func (ModifierGroup) Fields() []ent.Field {
 			Default(0),
 		field.Int("max_selection").
 			Default(1),
+		field.UUID("inventory_modifier_group_id", uuid.UUID{}).Optional().Nillable().Comment("FK to inventory master modifier group for sync"),
 		field.Time("created_at").
 			Default(time.Now).
 			Immutable(),

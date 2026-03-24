@@ -10,6 +10,7 @@ import (
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"entgo.io/ent/dialect/sql/sqljson"
 	"entgo.io/ent/schema/field"
 	"github.com/bengobox/pos-service/internal/ent/catalogitem"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
@@ -180,6 +181,154 @@ func (_u *CatalogItemUpdate) SetNillableStatus(v *string) *CatalogItemUpdate {
 	return _u
 }
 
+// SetInventoryItemID sets the "inventory_item_id" field.
+func (_u *CatalogItemUpdate) SetInventoryItemID(v uuid.UUID) *CatalogItemUpdate {
+	_u.mutation.SetInventoryItemID(v)
+	return _u
+}
+
+// SetNillableInventoryItemID sets the "inventory_item_id" field if the given value is not nil.
+func (_u *CatalogItemUpdate) SetNillableInventoryItemID(v *uuid.UUID) *CatalogItemUpdate {
+	if v != nil {
+		_u.SetInventoryItemID(*v)
+	}
+	return _u
+}
+
+// ClearInventoryItemID clears the value of the "inventory_item_id" field.
+func (_u *CatalogItemUpdate) ClearInventoryItemID() *CatalogItemUpdate {
+	_u.mutation.ClearInventoryItemID()
+	return _u
+}
+
+// SetItemType sets the "item_type" field.
+func (_u *CatalogItemUpdate) SetItemType(v string) *CatalogItemUpdate {
+	_u.mutation.SetItemType(v)
+	return _u
+}
+
+// SetNillableItemType sets the "item_type" field if the given value is not nil.
+func (_u *CatalogItemUpdate) SetNillableItemType(v *string) *CatalogItemUpdate {
+	if v != nil {
+		_u.SetItemType(*v)
+	}
+	return _u
+}
+
+// ClearItemType clears the value of the "item_type" field.
+func (_u *CatalogItemUpdate) ClearItemType() *CatalogItemUpdate {
+	_u.mutation.ClearItemType()
+	return _u
+}
+
+// SetRequiresAgeVerification sets the "requires_age_verification" field.
+func (_u *CatalogItemUpdate) SetRequiresAgeVerification(v bool) *CatalogItemUpdate {
+	_u.mutation.SetRequiresAgeVerification(v)
+	return _u
+}
+
+// SetNillableRequiresAgeVerification sets the "requires_age_verification" field if the given value is not nil.
+func (_u *CatalogItemUpdate) SetNillableRequiresAgeVerification(v *bool) *CatalogItemUpdate {
+	if v != nil {
+		_u.SetRequiresAgeVerification(*v)
+	}
+	return _u
+}
+
+// SetIsControlledSubstance sets the "is_controlled_substance" field.
+func (_u *CatalogItemUpdate) SetIsControlledSubstance(v bool) *CatalogItemUpdate {
+	_u.mutation.SetIsControlledSubstance(v)
+	return _u
+}
+
+// SetNillableIsControlledSubstance sets the "is_controlled_substance" field if the given value is not nil.
+func (_u *CatalogItemUpdate) SetNillableIsControlledSubstance(v *bool) *CatalogItemUpdate {
+	if v != nil {
+		_u.SetIsControlledSubstance(*v)
+	}
+	return _u
+}
+
+// SetTrackSerialNumber sets the "track_serial_number" field.
+func (_u *CatalogItemUpdate) SetTrackSerialNumber(v bool) *CatalogItemUpdate {
+	_u.mutation.SetTrackSerialNumber(v)
+	return _u
+}
+
+// SetNillableTrackSerialNumber sets the "track_serial_number" field if the given value is not nil.
+func (_u *CatalogItemUpdate) SetNillableTrackSerialNumber(v *bool) *CatalogItemUpdate {
+	if v != nil {
+		_u.SetTrackSerialNumber(*v)
+	}
+	return _u
+}
+
+// SetDurationMinutes sets the "duration_minutes" field.
+func (_u *CatalogItemUpdate) SetDurationMinutes(v int) *CatalogItemUpdate {
+	_u.mutation.ResetDurationMinutes()
+	_u.mutation.SetDurationMinutes(v)
+	return _u
+}
+
+// SetNillableDurationMinutes sets the "duration_minutes" field if the given value is not nil.
+func (_u *CatalogItemUpdate) SetNillableDurationMinutes(v *int) *CatalogItemUpdate {
+	if v != nil {
+		_u.SetDurationMinutes(*v)
+	}
+	return _u
+}
+
+// AddDurationMinutes adds value to the "duration_minutes" field.
+func (_u *CatalogItemUpdate) AddDurationMinutes(v int) *CatalogItemUpdate {
+	_u.mutation.AddDurationMinutes(v)
+	return _u
+}
+
+// ClearDurationMinutes clears the value of the "duration_minutes" field.
+func (_u *CatalogItemUpdate) ClearDurationMinutes() *CatalogItemUpdate {
+	_u.mutation.ClearDurationMinutes()
+	return _u
+}
+
+// SetCostPrice sets the "cost_price" field.
+func (_u *CatalogItemUpdate) SetCostPrice(v float64) *CatalogItemUpdate {
+	_u.mutation.ResetCostPrice()
+	_u.mutation.SetCostPrice(v)
+	return _u
+}
+
+// SetNillableCostPrice sets the "cost_price" field if the given value is not nil.
+func (_u *CatalogItemUpdate) SetNillableCostPrice(v *float64) *CatalogItemUpdate {
+	if v != nil {
+		_u.SetCostPrice(*v)
+	}
+	return _u
+}
+
+// AddCostPrice adds value to the "cost_price" field.
+func (_u *CatalogItemUpdate) AddCostPrice(v float64) *CatalogItemUpdate {
+	_u.mutation.AddCostPrice(v)
+	return _u
+}
+
+// ClearCostPrice clears the value of the "cost_price" field.
+func (_u *CatalogItemUpdate) ClearCostPrice() *CatalogItemUpdate {
+	_u.mutation.ClearCostPrice()
+	return _u
+}
+
+// SetTags sets the "tags" field.
+func (_u *CatalogItemUpdate) SetTags(v []string) *CatalogItemUpdate {
+	_u.mutation.SetTags(v)
+	return _u
+}
+
+// AppendTags appends value to the "tags" field.
+func (_u *CatalogItemUpdate) AppendTags(v []string) *CatalogItemUpdate {
+	_u.mutation.AppendTags(v)
+	return _u
+}
+
 // SetMetadata sets the "metadata" field.
 func (_u *CatalogItemUpdate) SetMetadata(v map[string]interface{}) *CatalogItemUpdate {
 	_u.mutation.SetMetadata(v)
@@ -334,6 +483,53 @@ func (_u *CatalogItemUpdate) sqlSave(ctx context.Context) (_node int, err error)
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(catalogitem.FieldStatus, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.InventoryItemID(); ok {
+		_spec.SetField(catalogitem.FieldInventoryItemID, field.TypeUUID, value)
+	}
+	if _u.mutation.InventoryItemIDCleared() {
+		_spec.ClearField(catalogitem.FieldInventoryItemID, field.TypeUUID)
+	}
+	if value, ok := _u.mutation.ItemType(); ok {
+		_spec.SetField(catalogitem.FieldItemType, field.TypeString, value)
+	}
+	if _u.mutation.ItemTypeCleared() {
+		_spec.ClearField(catalogitem.FieldItemType, field.TypeString)
+	}
+	if value, ok := _u.mutation.RequiresAgeVerification(); ok {
+		_spec.SetField(catalogitem.FieldRequiresAgeVerification, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.IsControlledSubstance(); ok {
+		_spec.SetField(catalogitem.FieldIsControlledSubstance, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.TrackSerialNumber(); ok {
+		_spec.SetField(catalogitem.FieldTrackSerialNumber, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.DurationMinutes(); ok {
+		_spec.SetField(catalogitem.FieldDurationMinutes, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedDurationMinutes(); ok {
+		_spec.AddField(catalogitem.FieldDurationMinutes, field.TypeInt, value)
+	}
+	if _u.mutation.DurationMinutesCleared() {
+		_spec.ClearField(catalogitem.FieldDurationMinutes, field.TypeInt)
+	}
+	if value, ok := _u.mutation.CostPrice(); ok {
+		_spec.SetField(catalogitem.FieldCostPrice, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedCostPrice(); ok {
+		_spec.AddField(catalogitem.FieldCostPrice, field.TypeFloat64, value)
+	}
+	if _u.mutation.CostPriceCleared() {
+		_spec.ClearField(catalogitem.FieldCostPrice, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.Tags(); ok {
+		_spec.SetField(catalogitem.FieldTags, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedTags(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, catalogitem.FieldTags, value)
+		})
 	}
 	if value, ok := _u.mutation.Metadata(); ok {
 		_spec.SetField(catalogitem.FieldMetadata, field.TypeJSON, value)
@@ -556,6 +752,154 @@ func (_u *CatalogItemUpdateOne) SetNillableStatus(v *string) *CatalogItemUpdateO
 	return _u
 }
 
+// SetInventoryItemID sets the "inventory_item_id" field.
+func (_u *CatalogItemUpdateOne) SetInventoryItemID(v uuid.UUID) *CatalogItemUpdateOne {
+	_u.mutation.SetInventoryItemID(v)
+	return _u
+}
+
+// SetNillableInventoryItemID sets the "inventory_item_id" field if the given value is not nil.
+func (_u *CatalogItemUpdateOne) SetNillableInventoryItemID(v *uuid.UUID) *CatalogItemUpdateOne {
+	if v != nil {
+		_u.SetInventoryItemID(*v)
+	}
+	return _u
+}
+
+// ClearInventoryItemID clears the value of the "inventory_item_id" field.
+func (_u *CatalogItemUpdateOne) ClearInventoryItemID() *CatalogItemUpdateOne {
+	_u.mutation.ClearInventoryItemID()
+	return _u
+}
+
+// SetItemType sets the "item_type" field.
+func (_u *CatalogItemUpdateOne) SetItemType(v string) *CatalogItemUpdateOne {
+	_u.mutation.SetItemType(v)
+	return _u
+}
+
+// SetNillableItemType sets the "item_type" field if the given value is not nil.
+func (_u *CatalogItemUpdateOne) SetNillableItemType(v *string) *CatalogItemUpdateOne {
+	if v != nil {
+		_u.SetItemType(*v)
+	}
+	return _u
+}
+
+// ClearItemType clears the value of the "item_type" field.
+func (_u *CatalogItemUpdateOne) ClearItemType() *CatalogItemUpdateOne {
+	_u.mutation.ClearItemType()
+	return _u
+}
+
+// SetRequiresAgeVerification sets the "requires_age_verification" field.
+func (_u *CatalogItemUpdateOne) SetRequiresAgeVerification(v bool) *CatalogItemUpdateOne {
+	_u.mutation.SetRequiresAgeVerification(v)
+	return _u
+}
+
+// SetNillableRequiresAgeVerification sets the "requires_age_verification" field if the given value is not nil.
+func (_u *CatalogItemUpdateOne) SetNillableRequiresAgeVerification(v *bool) *CatalogItemUpdateOne {
+	if v != nil {
+		_u.SetRequiresAgeVerification(*v)
+	}
+	return _u
+}
+
+// SetIsControlledSubstance sets the "is_controlled_substance" field.
+func (_u *CatalogItemUpdateOne) SetIsControlledSubstance(v bool) *CatalogItemUpdateOne {
+	_u.mutation.SetIsControlledSubstance(v)
+	return _u
+}
+
+// SetNillableIsControlledSubstance sets the "is_controlled_substance" field if the given value is not nil.
+func (_u *CatalogItemUpdateOne) SetNillableIsControlledSubstance(v *bool) *CatalogItemUpdateOne {
+	if v != nil {
+		_u.SetIsControlledSubstance(*v)
+	}
+	return _u
+}
+
+// SetTrackSerialNumber sets the "track_serial_number" field.
+func (_u *CatalogItemUpdateOne) SetTrackSerialNumber(v bool) *CatalogItemUpdateOne {
+	_u.mutation.SetTrackSerialNumber(v)
+	return _u
+}
+
+// SetNillableTrackSerialNumber sets the "track_serial_number" field if the given value is not nil.
+func (_u *CatalogItemUpdateOne) SetNillableTrackSerialNumber(v *bool) *CatalogItemUpdateOne {
+	if v != nil {
+		_u.SetTrackSerialNumber(*v)
+	}
+	return _u
+}
+
+// SetDurationMinutes sets the "duration_minutes" field.
+func (_u *CatalogItemUpdateOne) SetDurationMinutes(v int) *CatalogItemUpdateOne {
+	_u.mutation.ResetDurationMinutes()
+	_u.mutation.SetDurationMinutes(v)
+	return _u
+}
+
+// SetNillableDurationMinutes sets the "duration_minutes" field if the given value is not nil.
+func (_u *CatalogItemUpdateOne) SetNillableDurationMinutes(v *int) *CatalogItemUpdateOne {
+	if v != nil {
+		_u.SetDurationMinutes(*v)
+	}
+	return _u
+}
+
+// AddDurationMinutes adds value to the "duration_minutes" field.
+func (_u *CatalogItemUpdateOne) AddDurationMinutes(v int) *CatalogItemUpdateOne {
+	_u.mutation.AddDurationMinutes(v)
+	return _u
+}
+
+// ClearDurationMinutes clears the value of the "duration_minutes" field.
+func (_u *CatalogItemUpdateOne) ClearDurationMinutes() *CatalogItemUpdateOne {
+	_u.mutation.ClearDurationMinutes()
+	return _u
+}
+
+// SetCostPrice sets the "cost_price" field.
+func (_u *CatalogItemUpdateOne) SetCostPrice(v float64) *CatalogItemUpdateOne {
+	_u.mutation.ResetCostPrice()
+	_u.mutation.SetCostPrice(v)
+	return _u
+}
+
+// SetNillableCostPrice sets the "cost_price" field if the given value is not nil.
+func (_u *CatalogItemUpdateOne) SetNillableCostPrice(v *float64) *CatalogItemUpdateOne {
+	if v != nil {
+		_u.SetCostPrice(*v)
+	}
+	return _u
+}
+
+// AddCostPrice adds value to the "cost_price" field.
+func (_u *CatalogItemUpdateOne) AddCostPrice(v float64) *CatalogItemUpdateOne {
+	_u.mutation.AddCostPrice(v)
+	return _u
+}
+
+// ClearCostPrice clears the value of the "cost_price" field.
+func (_u *CatalogItemUpdateOne) ClearCostPrice() *CatalogItemUpdateOne {
+	_u.mutation.ClearCostPrice()
+	return _u
+}
+
+// SetTags sets the "tags" field.
+func (_u *CatalogItemUpdateOne) SetTags(v []string) *CatalogItemUpdateOne {
+	_u.mutation.SetTags(v)
+	return _u
+}
+
+// AppendTags appends value to the "tags" field.
+func (_u *CatalogItemUpdateOne) AppendTags(v []string) *CatalogItemUpdateOne {
+	_u.mutation.AppendTags(v)
+	return _u
+}
+
 // SetMetadata sets the "metadata" field.
 func (_u *CatalogItemUpdateOne) SetMetadata(v map[string]interface{}) *CatalogItemUpdateOne {
 	_u.mutation.SetMetadata(v)
@@ -740,6 +1084,53 @@ func (_u *CatalogItemUpdateOne) sqlSave(ctx context.Context) (_node *CatalogItem
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(catalogitem.FieldStatus, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.InventoryItemID(); ok {
+		_spec.SetField(catalogitem.FieldInventoryItemID, field.TypeUUID, value)
+	}
+	if _u.mutation.InventoryItemIDCleared() {
+		_spec.ClearField(catalogitem.FieldInventoryItemID, field.TypeUUID)
+	}
+	if value, ok := _u.mutation.ItemType(); ok {
+		_spec.SetField(catalogitem.FieldItemType, field.TypeString, value)
+	}
+	if _u.mutation.ItemTypeCleared() {
+		_spec.ClearField(catalogitem.FieldItemType, field.TypeString)
+	}
+	if value, ok := _u.mutation.RequiresAgeVerification(); ok {
+		_spec.SetField(catalogitem.FieldRequiresAgeVerification, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.IsControlledSubstance(); ok {
+		_spec.SetField(catalogitem.FieldIsControlledSubstance, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.TrackSerialNumber(); ok {
+		_spec.SetField(catalogitem.FieldTrackSerialNumber, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.DurationMinutes(); ok {
+		_spec.SetField(catalogitem.FieldDurationMinutes, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedDurationMinutes(); ok {
+		_spec.AddField(catalogitem.FieldDurationMinutes, field.TypeInt, value)
+	}
+	if _u.mutation.DurationMinutesCleared() {
+		_spec.ClearField(catalogitem.FieldDurationMinutes, field.TypeInt)
+	}
+	if value, ok := _u.mutation.CostPrice(); ok {
+		_spec.SetField(catalogitem.FieldCostPrice, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedCostPrice(); ok {
+		_spec.AddField(catalogitem.FieldCostPrice, field.TypeFloat64, value)
+	}
+	if _u.mutation.CostPriceCleared() {
+		_spec.ClearField(catalogitem.FieldCostPrice, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.Tags(); ok {
+		_spec.SetField(catalogitem.FieldTags, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedTags(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, catalogitem.FieldTags, value)
+		})
 	}
 	if value, ok := _u.mutation.Metadata(); ok {
 		_spec.SetField(catalogitem.FieldMetadata, field.TypeJSON, value)
