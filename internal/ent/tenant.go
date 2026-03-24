@@ -3,7 +3,6 @@
 package ent
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -19,42 +18,18 @@ type Tenant struct {
 	config `json:"-"`
 	// ID of the ent.
 	ID uuid.UUID `json:"id,omitempty"`
-	// Name holds the value of the "name" field.
+	// Display name — synced from auth-api
 	Name string `json:"name,omitempty"`
-	// Slug holds the value of the "slug" field.
+	// URL-safe identifier — synced from auth-api
 	Slug string `json:"slug,omitempty"`
-	// Status holds the value of the "status" field.
+	// Tenant status: active | inactive | suspended
 	Status string `json:"status,omitempty"`
-	// ContactEmail holds the value of the "contact_email" field.
-	ContactEmail *string `json:"contact_email,omitempty"`
-	// ContactPhone holds the value of the "contact_phone" field.
-	ContactPhone *string `json:"contact_phone,omitempty"`
-	// LogoURL holds the value of the "logo_url" field.
-	LogoURL *string `json:"logo_url,omitempty"`
-	// Website holds the value of the "website" field.
-	Website *string `json:"website,omitempty"`
-	// Country holds the value of the "country" field.
-	Country *string `json:"country,omitempty"`
-	// Timezone holds the value of the "timezone" field.
-	Timezone *string `json:"timezone,omitempty"`
-	// BrandColors holds the value of the "brand_colors" field.
-	BrandColors map[string]interface{} `json:"brand_colors,omitempty"`
-	// OrgSize holds the value of the "org_size" field.
-	OrgSize *string `json:"org_size,omitempty"`
-	// Primary business use case: hospitality | retail | quick_service | manufacturing | warehousing | services | e_commerce | other
+	// Primary business use case — synced from auth-api
 	UseCase *string `json:"use_case,omitempty"`
-	// SubscriptionPlan holds the value of the "subscription_plan" field.
-	SubscriptionPlan *string `json:"subscription_plan,omitempty"`
-	// SubscriptionStatus holds the value of the "subscription_status" field.
-	SubscriptionStatus *string `json:"subscription_status,omitempty"`
-	// SubscriptionExpiresAt holds the value of the "subscription_expires_at" field.
-	SubscriptionExpiresAt *time.Time `json:"subscription_expires_at,omitempty"`
-	// SubscriptionID holds the value of the "subscription_id" field.
-	SubscriptionID *string `json:"subscription_id,omitempty"`
-	// TierLimits holds the value of the "tier_limits" field.
-	TierLimits map[string]interface{} `json:"tier_limits,omitempty"`
-	// Metadata holds the value of the "metadata" field.
-	Metadata map[string]interface{} `json:"metadata,omitempty"`
+	// Sync status from auth-api: synced | pending | failed
+	SyncStatus string `json:"sync_status,omitempty"`
+	// Last successful sync from auth-api
+	LastSyncAt *time.Time `json:"last_sync_at,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
@@ -99,11 +74,9 @@ func (*Tenant) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case tenant.FieldBrandColors, tenant.FieldTierLimits, tenant.FieldMetadata:
-			values[i] = new([]byte)
-		case tenant.FieldName, tenant.FieldSlug, tenant.FieldStatus, tenant.FieldContactEmail, tenant.FieldContactPhone, tenant.FieldLogoURL, tenant.FieldWebsite, tenant.FieldCountry, tenant.FieldTimezone, tenant.FieldOrgSize, tenant.FieldUseCase, tenant.FieldSubscriptionPlan, tenant.FieldSubscriptionStatus, tenant.FieldSubscriptionID:
+		case tenant.FieldName, tenant.FieldSlug, tenant.FieldStatus, tenant.FieldUseCase, tenant.FieldSyncStatus:
 			values[i] = new(sql.NullString)
-		case tenant.FieldSubscriptionExpiresAt, tenant.FieldCreatedAt, tenant.FieldUpdatedAt:
+		case tenant.FieldLastSyncAt, tenant.FieldCreatedAt, tenant.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
 		case tenant.FieldID:
 			values[i] = new(uuid.UUID)
@@ -146,63 +119,6 @@ func (_m *Tenant) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.Status = value.String
 			}
-		case tenant.FieldContactEmail:
-			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field contact_email", values[i])
-			} else if value.Valid {
-				_m.ContactEmail = new(string)
-				*_m.ContactEmail = value.String
-			}
-		case tenant.FieldContactPhone:
-			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field contact_phone", values[i])
-			} else if value.Valid {
-				_m.ContactPhone = new(string)
-				*_m.ContactPhone = value.String
-			}
-		case tenant.FieldLogoURL:
-			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field logo_url", values[i])
-			} else if value.Valid {
-				_m.LogoURL = new(string)
-				*_m.LogoURL = value.String
-			}
-		case tenant.FieldWebsite:
-			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field website", values[i])
-			} else if value.Valid {
-				_m.Website = new(string)
-				*_m.Website = value.String
-			}
-		case tenant.FieldCountry:
-			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field country", values[i])
-			} else if value.Valid {
-				_m.Country = new(string)
-				*_m.Country = value.String
-			}
-		case tenant.FieldTimezone:
-			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field timezone", values[i])
-			} else if value.Valid {
-				_m.Timezone = new(string)
-				*_m.Timezone = value.String
-			}
-		case tenant.FieldBrandColors:
-			if value, ok := values[i].(*[]byte); !ok {
-				return fmt.Errorf("unexpected type %T for field brand_colors", values[i])
-			} else if value != nil && len(*value) > 0 {
-				if err := json.Unmarshal(*value, &_m.BrandColors); err != nil {
-					return fmt.Errorf("unmarshal field brand_colors: %w", err)
-				}
-			}
-		case tenant.FieldOrgSize:
-			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field org_size", values[i])
-			} else if value.Valid {
-				_m.OrgSize = new(string)
-				*_m.OrgSize = value.String
-			}
 		case tenant.FieldUseCase:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field use_case", values[i])
@@ -210,49 +126,18 @@ func (_m *Tenant) assignValues(columns []string, values []any) error {
 				_m.UseCase = new(string)
 				*_m.UseCase = value.String
 			}
-		case tenant.FieldSubscriptionPlan:
+		case tenant.FieldSyncStatus:
 			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field subscription_plan", values[i])
+				return fmt.Errorf("unexpected type %T for field sync_status", values[i])
 			} else if value.Valid {
-				_m.SubscriptionPlan = new(string)
-				*_m.SubscriptionPlan = value.String
+				_m.SyncStatus = value.String
 			}
-		case tenant.FieldSubscriptionStatus:
-			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field subscription_status", values[i])
-			} else if value.Valid {
-				_m.SubscriptionStatus = new(string)
-				*_m.SubscriptionStatus = value.String
-			}
-		case tenant.FieldSubscriptionExpiresAt:
+		case tenant.FieldLastSyncAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
-				return fmt.Errorf("unexpected type %T for field subscription_expires_at", values[i])
+				return fmt.Errorf("unexpected type %T for field last_sync_at", values[i])
 			} else if value.Valid {
-				_m.SubscriptionExpiresAt = new(time.Time)
-				*_m.SubscriptionExpiresAt = value.Time
-			}
-		case tenant.FieldSubscriptionID:
-			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field subscription_id", values[i])
-			} else if value.Valid {
-				_m.SubscriptionID = new(string)
-				*_m.SubscriptionID = value.String
-			}
-		case tenant.FieldTierLimits:
-			if value, ok := values[i].(*[]byte); !ok {
-				return fmt.Errorf("unexpected type %T for field tier_limits", values[i])
-			} else if value != nil && len(*value) > 0 {
-				if err := json.Unmarshal(*value, &_m.TierLimits); err != nil {
-					return fmt.Errorf("unmarshal field tier_limits: %w", err)
-				}
-			}
-		case tenant.FieldMetadata:
-			if value, ok := values[i].(*[]byte); !ok {
-				return fmt.Errorf("unexpected type %T for field metadata", values[i])
-			} else if value != nil && len(*value) > 0 {
-				if err := json.Unmarshal(*value, &_m.Metadata); err != nil {
-					return fmt.Errorf("unmarshal field metadata: %w", err)
-				}
+				_m.LastSyncAt = new(time.Time)
+				*_m.LastSyncAt = value.Time
 			}
 		case tenant.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -321,74 +206,18 @@ func (_m *Tenant) String() string {
 	builder.WriteString("status=")
 	builder.WriteString(_m.Status)
 	builder.WriteString(", ")
-	if v := _m.ContactEmail; v != nil {
-		builder.WriteString("contact_email=")
-		builder.WriteString(*v)
-	}
-	builder.WriteString(", ")
-	if v := _m.ContactPhone; v != nil {
-		builder.WriteString("contact_phone=")
-		builder.WriteString(*v)
-	}
-	builder.WriteString(", ")
-	if v := _m.LogoURL; v != nil {
-		builder.WriteString("logo_url=")
-		builder.WriteString(*v)
-	}
-	builder.WriteString(", ")
-	if v := _m.Website; v != nil {
-		builder.WriteString("website=")
-		builder.WriteString(*v)
-	}
-	builder.WriteString(", ")
-	if v := _m.Country; v != nil {
-		builder.WriteString("country=")
-		builder.WriteString(*v)
-	}
-	builder.WriteString(", ")
-	if v := _m.Timezone; v != nil {
-		builder.WriteString("timezone=")
-		builder.WriteString(*v)
-	}
-	builder.WriteString(", ")
-	builder.WriteString("brand_colors=")
-	builder.WriteString(fmt.Sprintf("%v", _m.BrandColors))
-	builder.WriteString(", ")
-	if v := _m.OrgSize; v != nil {
-		builder.WriteString("org_size=")
-		builder.WriteString(*v)
-	}
-	builder.WriteString(", ")
 	if v := _m.UseCase; v != nil {
 		builder.WriteString("use_case=")
 		builder.WriteString(*v)
 	}
 	builder.WriteString(", ")
-	if v := _m.SubscriptionPlan; v != nil {
-		builder.WriteString("subscription_plan=")
-		builder.WriteString(*v)
-	}
+	builder.WriteString("sync_status=")
+	builder.WriteString(_m.SyncStatus)
 	builder.WriteString(", ")
-	if v := _m.SubscriptionStatus; v != nil {
-		builder.WriteString("subscription_status=")
-		builder.WriteString(*v)
-	}
-	builder.WriteString(", ")
-	if v := _m.SubscriptionExpiresAt; v != nil {
-		builder.WriteString("subscription_expires_at=")
+	if v := _m.LastSyncAt; v != nil {
+		builder.WriteString("last_sync_at=")
 		builder.WriteString(v.Format(time.ANSIC))
 	}
-	builder.WriteString(", ")
-	if v := _m.SubscriptionID; v != nil {
-		builder.WriteString("subscription_id=")
-		builder.WriteString(*v)
-	}
-	builder.WriteString(", ")
-	builder.WriteString("tier_limits=")
-	builder.WriteString(fmt.Sprintf("%v", _m.TierLimits))
-	builder.WriteString(", ")
-	builder.WriteString("metadata=")
-	builder.WriteString(fmt.Sprintf("%v", _m.Metadata))
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))

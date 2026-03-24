@@ -1,5 +1,6 @@
-h1:KRuVxmkJV0ITuLoRkge/oKtJp04PYwgQ/y42v6ii2+A=
+h1:BeHJyurOCPEYYZsjP1ULxxLibjCjO6emjtT4mqx0VfY=
 20260310133203_initial_schema.sql h1:nHMXdb1vzukWvs4OC3cZXL6A73NTlc9Gu3dvs6apZrg=
 20260315160756_add_outlet_use_case.sql h1:/n3+AuaA6sxbmJnqlUWu+bnbMPAAnRJysfCy7ZmaIA0=
 20260320122431_add_section_schema_and_table_layout_fields.sql h1:jWossA/ebL5jx2CcHUbvuXuE2Ns7peAr3Pte5p2wafw=
 20260322095849_add_rbac_rate_limit_service_config.sql h1:VHGULodE53+Wkp6H45r/pGqjw0zmTLTm3WOW57dBZdA=
+20260324063744_reduce_tenant_schema.sql h1:67XhC+6SLEMYcZn3xOUg0/QX5PIP38AucJWy0ktObYs=

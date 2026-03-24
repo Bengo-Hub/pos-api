@@ -1019,20 +1019,16 @@ func init() {
 	tenantDescStatus := tenantFields[3].Descriptor()
 	// tenant.DefaultStatus holds the default value on creation for the status field.
 	tenant.DefaultStatus = tenantDescStatus.Default.(string)
-	// tenantDescCountry is the schema descriptor for country field.
-	tenantDescCountry := tenantFields[8].Descriptor()
-	// tenant.DefaultCountry holds the default value on creation for the country field.
-	tenant.DefaultCountry = tenantDescCountry.Default.(string)
-	// tenantDescTimezone is the schema descriptor for timezone field.
-	tenantDescTimezone := tenantFields[9].Descriptor()
-	// tenant.DefaultTimezone holds the default value on creation for the timezone field.
-	tenant.DefaultTimezone = tenantDescTimezone.Default.(string)
+	// tenantDescSyncStatus is the schema descriptor for sync_status field.
+	tenantDescSyncStatus := tenantFields[5].Descriptor()
+	// tenant.DefaultSyncStatus holds the default value on creation for the sync_status field.
+	tenant.DefaultSyncStatus = tenantDescSyncStatus.Default.(string)
 	// tenantDescCreatedAt is the schema descriptor for created_at field.
-	tenantDescCreatedAt := tenantFields[19].Descriptor()
+	tenantDescCreatedAt := tenantFields[7].Descriptor()
 	// tenant.DefaultCreatedAt holds the default value on creation for the created_at field.
 	tenant.DefaultCreatedAt = tenantDescCreatedAt.Default.(func() time.Time)
 	// tenantDescUpdatedAt is the schema descriptor for updated_at field.
-	tenantDescUpdatedAt := tenantFields[20].Descriptor()
+	tenantDescUpdatedAt := tenantFields[8].Descriptor()
 	// tenant.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	tenant.DefaultUpdatedAt = tenantDescUpdatedAt.Default.(func() time.Time)
 	// tenant.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
