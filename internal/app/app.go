@@ -158,6 +158,17 @@ func New(ctx context.Context) (*App, error) {
 	// Wire RBAC service into identity for JIT role assignment from JWT claims
 	identitySvc.SetRBACService(rbacSvc)
 
+	// Subscribe to ordering click-and-collect events for POS kitchen orders
+	pickupConsumer := ordermodule.NewPickupConsumer(entClient, orderSvc, log)
+	if natsConn != nil {
+		if eventPub := orderSvc.GetPublisher(); eventPub != nil {
+			pickupConsumer.SetPublisher(eventPub)
+		}
+		if err := pickupConsumer.SubscribeToPickupOrders(natsConn); err != nil {
+			log.Warn("app: failed to subscribe to ordering click-and-collect events", zap.Error(err))
+		}
+	}
+
 	// Subscribe to inventory events for catalog projection sync + initial sync
 	inventoryEventHandler := catalogmodule.NewInventoryEventHandler(entClient, log)
 	if natsConn != nil {

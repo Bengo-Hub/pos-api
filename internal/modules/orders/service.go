@@ -83,6 +83,11 @@ func (s *Service) SetPublisher(p *events.Publisher) {
 	s.publisher = p
 }
 
+// GetPublisher returns the event publisher (nil if not set).
+func (s *Service) GetPublisher() *events.Publisher {
+	return s.publisher
+}
+
 // Config holds order service configuration.
 type Config struct {
 	DefaultCurrency string
