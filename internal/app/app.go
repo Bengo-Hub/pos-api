@@ -18,6 +18,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 
+	sharedcache "github.com/Bengo-Hub/cache"
 	authclient "github.com/Bengo-Hub/shared-auth-client"
 	eventslib "github.com/Bengo-Hub/shared-events"
 	"github.com/bengobox/pos-service/internal/config"
@@ -111,7 +112,8 @@ func New(ctx context.Context) (*App, error) {
 		RequestTimeout: cfg.Subscriptions.RequestTimeout,
 	})
 
-	tenantSyncer := tenant.NewSyncer(entClient, cfg.Auth.ServiceURL)
+	tenantCache := sharedcache.New(redisClient, log)
+	tenantSyncer := tenant.NewSyncer(entClient, cfg.Auth.ServiceURL, tenantCache)
 	identitySvc := identity.NewService(entClient, tenantSyncer)
 
 	// Initialize business services
