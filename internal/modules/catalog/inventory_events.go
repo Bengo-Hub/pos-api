@@ -109,14 +109,20 @@ func (h *InventoryEventHandler) InitialSync(ctx context.Context, inventoryAPIURL
 
 	var result struct {
 		Data []struct {
-			ID          string  `json:"id"`
-			SKU         string  `json:"sku"`
-			Name        string  `json:"name"`
-			Description string  `json:"description"`
-			CategoryID  *string `json:"category_id"`
-			IsActive    bool    `json:"is_active"`
-			ImageURL    string  `json:"image_url"`
-			Type        string  `json:"type"`
+			ID                       string  `json:"id"`
+			SKU                      string  `json:"sku"`
+			Name                     string  `json:"name"`
+			Description              string  `json:"description"`
+			CategoryID               *string `json:"category_id"`
+			CategoryName             string  `json:"category_name"`
+			IsActive                 bool    `json:"is_active"`
+			ImageURL                 string  `json:"image_url"`
+			Type                     string  `json:"type"`
+			RequiresAgeVerification  bool    `json:"requires_age_verification"`
+			IsControlledSubstance    bool    `json:"is_controlled_substance"`
+			TrackSerialNumbers       bool    `json:"track_serial_numbers"`
+			DurationMinutes          int     `json:"duration_minutes"`
+			Barcode                  string  `json:"barcode"`
 		} `json:"data"`
 	}
 
@@ -162,13 +168,31 @@ func (h *InventoryEventHandler) InitialSync(ctx context.Context, inventoryAPIURL
 			SetTenantID(tenantID).
 			SetSku(item.SKU).
 			SetName(item.Name).
-			SetStatus(status)
+			SetStatus(status).
+			SetRequiresAgeVerification(item.RequiresAgeVerification).
+			SetIsControlledSubstance(item.IsControlledSubstance).
+			SetTrackSerialNumber(item.TrackSerialNumbers)
 
 		if item.Description != "" {
 			builder.SetDescription(item.Description)
 		}
 		if item.ImageURL != "" {
 			builder.SetImageURL(item.ImageURL)
+		}
+		if item.CategoryName != "" {
+			builder.SetCategory(item.CategoryName)
+		}
+		if item.Type != "" {
+			builder.SetItemType(item.Type)
+		}
+		if item.DurationMinutes > 0 {
+			builder.SetDurationMinutes(item.DurationMinutes)
+		}
+		if item.Barcode != "" {
+			builder.SetBarcode(item.Barcode)
+		}
+		if itemID, err := uuid.Parse(item.ID); err == nil && itemID != uuid.Nil {
+			builder.SetInventoryItemID(itemID)
 		}
 
 		if _, err := builder.Save(ctx); err != nil {
@@ -196,6 +220,19 @@ func (h *InventoryEventHandler) handleItemUpsert(ctx context.Context, evt *Inven
 	imageURL, _ := data["image_url"].(string)
 	isActive, _ := data["is_active"].(bool)
 	categoryName, _ := data["category_name"].(string)
+	itemType, _ := data["type"].(string)
+	inventoryItemIDStr, _ := data["id"].(string)
+	requiresAgeVerification, _ := data["requires_age_verification"].(bool)
+	isControlledSubstance, _ := data["is_controlled_substance"].(bool)
+	trackSerialNumbers, _ := data["track_serial_numbers"].(bool)
+	durationMinutes, _ := data["duration_minutes"].(float64)
+	barcode, _ := data["barcode"].(string)
+
+	// Parse inventory item ID for FK reference
+	var inventoryItemID uuid.UUID
+	if inventoryItemIDStr != "" {
+		inventoryItemID, _ = uuid.Parse(inventoryItemIDStr)
+	}
 
 	status := "active"
 	if !isActive {
@@ -214,7 +251,10 @@ func (h *InventoryEventHandler) handleItemUpsert(ctx context.Context, evt *Inven
 		// Update existing item
 		builder := h.client.CatalogItem.UpdateOne(existing).
 			SetName(name).
-			SetStatus(status)
+			SetStatus(status).
+			SetRequiresAgeVerification(requiresAgeVerification).
+			SetIsControlledSubstance(isControlledSubstance).
+			SetTrackSerialNumber(trackSerialNumbers)
 
 		if description != "" {
 			builder.SetDescription(description)
@@ -224,6 +264,18 @@ func (h *InventoryEventHandler) handleItemUpsert(ctx context.Context, evt *Inven
 		}
 		if categoryName != "" {
 			builder.SetCategory(categoryName)
+		}
+		if itemType != "" {
+			builder.SetItemType(itemType)
+		}
+		if inventoryItemID != uuid.Nil {
+			builder.SetInventoryItemID(inventoryItemID)
+		}
+		if durationMinutes > 0 {
+			builder.SetDurationMinutes(int(durationMinutes))
+		}
+		if barcode != "" {
+			builder.SetBarcode(barcode)
 		}
 
 		if _, err := builder.Save(ctx); err != nil {
@@ -240,7 +292,10 @@ func (h *InventoryEventHandler) handleItemUpsert(ctx context.Context, evt *Inven
 		SetTenantID(tenantID).
 		SetSku(sku).
 		SetName(name).
-		SetStatus(status)
+		SetStatus(status).
+		SetRequiresAgeVerification(requiresAgeVerification).
+		SetIsControlledSubstance(isControlledSubstance).
+		SetTrackSerialNumber(trackSerialNumbers)
 
 	if description != "" {
 		builder.SetDescription(description)
@@ -250,6 +305,18 @@ func (h *InventoryEventHandler) handleItemUpsert(ctx context.Context, evt *Inven
 	}
 	if categoryName != "" {
 		builder.SetCategory(categoryName)
+	}
+	if itemType != "" {
+		builder.SetItemType(itemType)
+	}
+	if inventoryItemID != uuid.Nil {
+		builder.SetInventoryItemID(inventoryItemID)
+	}
+	if durationMinutes > 0 {
+		builder.SetDurationMinutes(int(durationMinutes))
+	}
+	if barcode != "" {
+		builder.SetBarcode(barcode)
 	}
 
 	if _, err := builder.Save(ctx); err != nil {
