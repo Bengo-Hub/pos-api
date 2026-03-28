@@ -240,7 +240,12 @@ jobs:
 
           echo "::group::ArgoCD Application Status"
           mkdir -p ~/.kube
-          echo "$KUBE_CONFIG_B64" | base64 -d > ~/.kube/config
+          if echo "$KUBE_CONFIG_B64" | base64 -d > ~/.kube/config 2>/dev/null; then
+            echo "KUBE_CONFIG decoded from base64"
+          else
+            echo "$KUBE_CONFIG_B64" > ~/.kube/config
+            echo "KUBE_CONFIG used as raw content (not base64)"
+          fi
 
           if kubectl get application ${APP_NAME} -n argocd >/dev/null 2>&1; then
             echo "✓ ArgoCD Application '${APP_NAME}' found"
@@ -267,10 +272,15 @@ jobs:
 
           echo "::group::Health check"
           mkdir -p ~/.kube
-          echo "$KUBE_CONFIG_B64" | base64 -d > ~/.kube/config
+          if echo "$KUBE_CONFIG_B64" | base64 -d > ~/.kube/config 2>/dev/null; then
+            echo "KUBE_CONFIG decoded from base64"
+          else
+            echo "$KUBE_CONFIG_B64" > ~/.kube/config
+            echo "KUBE_CONFIG used as raw content (not base64)"
+          fi
 
           if kubectl get deployment pos-api -n ${NS} >/dev/null 2>&1; then
-            kubectl rollout status deployment/pos-api -n ${NS} --timeout=300s
+            kubectl rollout status deployment/pos-api -n ${NS} --timeout=900s
             HOSTS=$(kubectl get ingress -n ${NS} -o jsonpath='{.items[*].spec.rules[*].host}' | tr ' ' '\n' | grep -E 'pos' || true)
             if [ -n "$HOSTS" ]; then
               for H in $HOSTS; do

@@ -61,6 +61,90 @@ func (_c *OutletSettingCreate) SetMetadata(v map[string]interface{}) *OutletSett
 	return _c
 }
 
+// SetDisplayMode sets the "display_mode" field.
+func (_c *OutletSettingCreate) SetDisplayMode(v string) *OutletSettingCreate {
+	_c.mutation.SetDisplayMode(v)
+	return _c
+}
+
+// SetNillableDisplayMode sets the "display_mode" field if the given value is not nil.
+func (_c *OutletSettingCreate) SetNillableDisplayMode(v *string) *OutletSettingCreate {
+	if v != nil {
+		_c.SetDisplayMode(*v)
+	}
+	return _c
+}
+
+// SetShowImages sets the "show_images" field.
+func (_c *OutletSettingCreate) SetShowImages(v bool) *OutletSettingCreate {
+	_c.mutation.SetShowImages(v)
+	return _c
+}
+
+// SetNillableShowImages sets the "show_images" field if the given value is not nil.
+func (_c *OutletSettingCreate) SetNillableShowImages(v *bool) *OutletSettingCreate {
+	if v != nil {
+		_c.SetShowImages(*v)
+	}
+	return _c
+}
+
+// SetShowBarcodeScanner sets the "show_barcode_scanner" field.
+func (_c *OutletSettingCreate) SetShowBarcodeScanner(v bool) *OutletSettingCreate {
+	_c.mutation.SetShowBarcodeScanner(v)
+	return _c
+}
+
+// SetNillableShowBarcodeScanner sets the "show_barcode_scanner" field if the given value is not nil.
+func (_c *OutletSettingCreate) SetNillableShowBarcodeScanner(v *bool) *OutletSettingCreate {
+	if v != nil {
+		_c.SetShowBarcodeScanner(*v)
+	}
+	return _c
+}
+
+// SetDefaultView sets the "default_view" field.
+func (_c *OutletSettingCreate) SetDefaultView(v string) *OutletSettingCreate {
+	_c.mutation.SetDefaultView(v)
+	return _c
+}
+
+// SetNillableDefaultView sets the "default_view" field if the given value is not nil.
+func (_c *OutletSettingCreate) SetNillableDefaultView(v *string) *OutletSettingCreate {
+	if v != nil {
+		_c.SetDefaultView(*v)
+	}
+	return _c
+}
+
+// SetEnableKds sets the "enable_kds" field.
+func (_c *OutletSettingCreate) SetEnableKds(v bool) *OutletSettingCreate {
+	_c.mutation.SetEnableKds(v)
+	return _c
+}
+
+// SetNillableEnableKds sets the "enable_kds" field if the given value is not nil.
+func (_c *OutletSettingCreate) SetNillableEnableKds(v *bool) *OutletSettingCreate {
+	if v != nil {
+		_c.SetEnableKds(*v)
+	}
+	return _c
+}
+
+// SetEnableAppointments sets the "enable_appointments" field.
+func (_c *OutletSettingCreate) SetEnableAppointments(v bool) *OutletSettingCreate {
+	_c.mutation.SetEnableAppointments(v)
+	return _c
+}
+
+// SetNillableEnableAppointments sets the "enable_appointments" field if the given value is not nil.
+func (_c *OutletSettingCreate) SetNillableEnableAppointments(v *bool) *OutletSettingCreate {
+	if v != nil {
+		_c.SetEnableAppointments(*v)
+	}
+	return _c
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_c *OutletSettingCreate) SetUpdatedAt(v time.Time) *OutletSettingCreate {
 	_c.mutation.SetUpdatedAt(v)
@@ -132,6 +216,30 @@ func (_c *OutletSettingCreate) defaults() {
 	if _, ok := _c.mutation.Metadata(); !ok {
 		v := outletsetting.DefaultMetadata
 		_c.mutation.SetMetadata(v)
+	}
+	if _, ok := _c.mutation.DisplayMode(); !ok {
+		v := outletsetting.DefaultDisplayMode
+		_c.mutation.SetDisplayMode(v)
+	}
+	if _, ok := _c.mutation.ShowImages(); !ok {
+		v := outletsetting.DefaultShowImages
+		_c.mutation.SetShowImages(v)
+	}
+	if _, ok := _c.mutation.ShowBarcodeScanner(); !ok {
+		v := outletsetting.DefaultShowBarcodeScanner
+		_c.mutation.SetShowBarcodeScanner(v)
+	}
+	if _, ok := _c.mutation.DefaultView(); !ok {
+		v := outletsetting.DefaultDefaultView
+		_c.mutation.SetDefaultView(v)
+	}
+	if _, ok := _c.mutation.EnableKds(); !ok {
+		v := outletsetting.DefaultEnableKds
+		_c.mutation.SetEnableKds(v)
+	}
+	if _, ok := _c.mutation.EnableAppointments(); !ok {
+		v := outletsetting.DefaultEnableAppointments
+		_c.mutation.SetEnableAppointments(v)
 	}
 	if _, ok := _c.mutation.UpdatedAt(); !ok {
 		v := outletsetting.DefaultUpdatedAt()
@@ -212,6 +320,30 @@ func (_c *OutletSettingCreate) createSpec() (*OutletSetting, *sqlgraph.CreateSpe
 	if value, ok := _c.mutation.Metadata(); ok {
 		_spec.SetField(outletsetting.FieldMetadata, field.TypeJSON, value)
 		_node.Metadata = value
+	}
+	if value, ok := _c.mutation.DisplayMode(); ok {
+		_spec.SetField(outletsetting.FieldDisplayMode, field.TypeString, value)
+		_node.DisplayMode = value
+	}
+	if value, ok := _c.mutation.ShowImages(); ok {
+		_spec.SetField(outletsetting.FieldShowImages, field.TypeBool, value)
+		_node.ShowImages = value
+	}
+	if value, ok := _c.mutation.ShowBarcodeScanner(); ok {
+		_spec.SetField(outletsetting.FieldShowBarcodeScanner, field.TypeBool, value)
+		_node.ShowBarcodeScanner = value
+	}
+	if value, ok := _c.mutation.DefaultView(); ok {
+		_spec.SetField(outletsetting.FieldDefaultView, field.TypeString, value)
+		_node.DefaultView = value
+	}
+	if value, ok := _c.mutation.EnableKds(); ok {
+		_spec.SetField(outletsetting.FieldEnableKds, field.TypeBool, value)
+		_node.EnableKds = value
+	}
+	if value, ok := _c.mutation.EnableAppointments(); ok {
+		_spec.SetField(outletsetting.FieldEnableAppointments, field.TypeBool, value)
+		_node.EnableAppointments = value
 	}
 	if value, ok := _c.mutation.UpdatedAt(); ok {
 		_spec.SetField(outletsetting.FieldUpdatedAt, field.TypeTime, value)
@@ -379,6 +511,114 @@ func (u *OutletSettingUpsert) SetMetadata(v map[string]interface{}) *OutletSetti
 // UpdateMetadata sets the "metadata" field to the value that was provided on create.
 func (u *OutletSettingUpsert) UpdateMetadata() *OutletSettingUpsert {
 	u.SetExcluded(outletsetting.FieldMetadata)
+	return u
+}
+
+// SetDisplayMode sets the "display_mode" field.
+func (u *OutletSettingUpsert) SetDisplayMode(v string) *OutletSettingUpsert {
+	u.Set(outletsetting.FieldDisplayMode, v)
+	return u
+}
+
+// UpdateDisplayMode sets the "display_mode" field to the value that was provided on create.
+func (u *OutletSettingUpsert) UpdateDisplayMode() *OutletSettingUpsert {
+	u.SetExcluded(outletsetting.FieldDisplayMode)
+	return u
+}
+
+// ClearDisplayMode clears the value of the "display_mode" field.
+func (u *OutletSettingUpsert) ClearDisplayMode() *OutletSettingUpsert {
+	u.SetNull(outletsetting.FieldDisplayMode)
+	return u
+}
+
+// SetShowImages sets the "show_images" field.
+func (u *OutletSettingUpsert) SetShowImages(v bool) *OutletSettingUpsert {
+	u.Set(outletsetting.FieldShowImages, v)
+	return u
+}
+
+// UpdateShowImages sets the "show_images" field to the value that was provided on create.
+func (u *OutletSettingUpsert) UpdateShowImages() *OutletSettingUpsert {
+	u.SetExcluded(outletsetting.FieldShowImages)
+	return u
+}
+
+// ClearShowImages clears the value of the "show_images" field.
+func (u *OutletSettingUpsert) ClearShowImages() *OutletSettingUpsert {
+	u.SetNull(outletsetting.FieldShowImages)
+	return u
+}
+
+// SetShowBarcodeScanner sets the "show_barcode_scanner" field.
+func (u *OutletSettingUpsert) SetShowBarcodeScanner(v bool) *OutletSettingUpsert {
+	u.Set(outletsetting.FieldShowBarcodeScanner, v)
+	return u
+}
+
+// UpdateShowBarcodeScanner sets the "show_barcode_scanner" field to the value that was provided on create.
+func (u *OutletSettingUpsert) UpdateShowBarcodeScanner() *OutletSettingUpsert {
+	u.SetExcluded(outletsetting.FieldShowBarcodeScanner)
+	return u
+}
+
+// ClearShowBarcodeScanner clears the value of the "show_barcode_scanner" field.
+func (u *OutletSettingUpsert) ClearShowBarcodeScanner() *OutletSettingUpsert {
+	u.SetNull(outletsetting.FieldShowBarcodeScanner)
+	return u
+}
+
+// SetDefaultView sets the "default_view" field.
+func (u *OutletSettingUpsert) SetDefaultView(v string) *OutletSettingUpsert {
+	u.Set(outletsetting.FieldDefaultView, v)
+	return u
+}
+
+// UpdateDefaultView sets the "default_view" field to the value that was provided on create.
+func (u *OutletSettingUpsert) UpdateDefaultView() *OutletSettingUpsert {
+	u.SetExcluded(outletsetting.FieldDefaultView)
+	return u
+}
+
+// ClearDefaultView clears the value of the "default_view" field.
+func (u *OutletSettingUpsert) ClearDefaultView() *OutletSettingUpsert {
+	u.SetNull(outletsetting.FieldDefaultView)
+	return u
+}
+
+// SetEnableKds sets the "enable_kds" field.
+func (u *OutletSettingUpsert) SetEnableKds(v bool) *OutletSettingUpsert {
+	u.Set(outletsetting.FieldEnableKds, v)
+	return u
+}
+
+// UpdateEnableKds sets the "enable_kds" field to the value that was provided on create.
+func (u *OutletSettingUpsert) UpdateEnableKds() *OutletSettingUpsert {
+	u.SetExcluded(outletsetting.FieldEnableKds)
+	return u
+}
+
+// ClearEnableKds clears the value of the "enable_kds" field.
+func (u *OutletSettingUpsert) ClearEnableKds() *OutletSettingUpsert {
+	u.SetNull(outletsetting.FieldEnableKds)
+	return u
+}
+
+// SetEnableAppointments sets the "enable_appointments" field.
+func (u *OutletSettingUpsert) SetEnableAppointments(v bool) *OutletSettingUpsert {
+	u.Set(outletsetting.FieldEnableAppointments, v)
+	return u
+}
+
+// UpdateEnableAppointments sets the "enable_appointments" field to the value that was provided on create.
+func (u *OutletSettingUpsert) UpdateEnableAppointments() *OutletSettingUpsert {
+	u.SetExcluded(outletsetting.FieldEnableAppointments)
+	return u
+}
+
+// ClearEnableAppointments clears the value of the "enable_appointments" field.
+func (u *OutletSettingUpsert) ClearEnableAppointments() *OutletSettingUpsert {
+	u.SetNull(outletsetting.FieldEnableAppointments)
 	return u
 }
 
@@ -551,6 +791,132 @@ func (u *OutletSettingUpsertOne) SetMetadata(v map[string]interface{}) *OutletSe
 func (u *OutletSettingUpsertOne) UpdateMetadata() *OutletSettingUpsertOne {
 	return u.Update(func(s *OutletSettingUpsert) {
 		s.UpdateMetadata()
+	})
+}
+
+// SetDisplayMode sets the "display_mode" field.
+func (u *OutletSettingUpsertOne) SetDisplayMode(v string) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetDisplayMode(v)
+	})
+}
+
+// UpdateDisplayMode sets the "display_mode" field to the value that was provided on create.
+func (u *OutletSettingUpsertOne) UpdateDisplayMode() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateDisplayMode()
+	})
+}
+
+// ClearDisplayMode clears the value of the "display_mode" field.
+func (u *OutletSettingUpsertOne) ClearDisplayMode() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearDisplayMode()
+	})
+}
+
+// SetShowImages sets the "show_images" field.
+func (u *OutletSettingUpsertOne) SetShowImages(v bool) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetShowImages(v)
+	})
+}
+
+// UpdateShowImages sets the "show_images" field to the value that was provided on create.
+func (u *OutletSettingUpsertOne) UpdateShowImages() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateShowImages()
+	})
+}
+
+// ClearShowImages clears the value of the "show_images" field.
+func (u *OutletSettingUpsertOne) ClearShowImages() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearShowImages()
+	})
+}
+
+// SetShowBarcodeScanner sets the "show_barcode_scanner" field.
+func (u *OutletSettingUpsertOne) SetShowBarcodeScanner(v bool) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetShowBarcodeScanner(v)
+	})
+}
+
+// UpdateShowBarcodeScanner sets the "show_barcode_scanner" field to the value that was provided on create.
+func (u *OutletSettingUpsertOne) UpdateShowBarcodeScanner() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateShowBarcodeScanner()
+	})
+}
+
+// ClearShowBarcodeScanner clears the value of the "show_barcode_scanner" field.
+func (u *OutletSettingUpsertOne) ClearShowBarcodeScanner() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearShowBarcodeScanner()
+	})
+}
+
+// SetDefaultView sets the "default_view" field.
+func (u *OutletSettingUpsertOne) SetDefaultView(v string) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetDefaultView(v)
+	})
+}
+
+// UpdateDefaultView sets the "default_view" field to the value that was provided on create.
+func (u *OutletSettingUpsertOne) UpdateDefaultView() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateDefaultView()
+	})
+}
+
+// ClearDefaultView clears the value of the "default_view" field.
+func (u *OutletSettingUpsertOne) ClearDefaultView() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearDefaultView()
+	})
+}
+
+// SetEnableKds sets the "enable_kds" field.
+func (u *OutletSettingUpsertOne) SetEnableKds(v bool) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetEnableKds(v)
+	})
+}
+
+// UpdateEnableKds sets the "enable_kds" field to the value that was provided on create.
+func (u *OutletSettingUpsertOne) UpdateEnableKds() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateEnableKds()
+	})
+}
+
+// ClearEnableKds clears the value of the "enable_kds" field.
+func (u *OutletSettingUpsertOne) ClearEnableKds() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearEnableKds()
+	})
+}
+
+// SetEnableAppointments sets the "enable_appointments" field.
+func (u *OutletSettingUpsertOne) SetEnableAppointments(v bool) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetEnableAppointments(v)
+	})
+}
+
+// UpdateEnableAppointments sets the "enable_appointments" field to the value that was provided on create.
+func (u *OutletSettingUpsertOne) UpdateEnableAppointments() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateEnableAppointments()
+	})
+}
+
+// ClearEnableAppointments clears the value of the "enable_appointments" field.
+func (u *OutletSettingUpsertOne) ClearEnableAppointments() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearEnableAppointments()
 	})
 }
 
@@ -892,6 +1258,132 @@ func (u *OutletSettingUpsertBulk) SetMetadata(v map[string]interface{}) *OutletS
 func (u *OutletSettingUpsertBulk) UpdateMetadata() *OutletSettingUpsertBulk {
 	return u.Update(func(s *OutletSettingUpsert) {
 		s.UpdateMetadata()
+	})
+}
+
+// SetDisplayMode sets the "display_mode" field.
+func (u *OutletSettingUpsertBulk) SetDisplayMode(v string) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetDisplayMode(v)
+	})
+}
+
+// UpdateDisplayMode sets the "display_mode" field to the value that was provided on create.
+func (u *OutletSettingUpsertBulk) UpdateDisplayMode() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateDisplayMode()
+	})
+}
+
+// ClearDisplayMode clears the value of the "display_mode" field.
+func (u *OutletSettingUpsertBulk) ClearDisplayMode() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearDisplayMode()
+	})
+}
+
+// SetShowImages sets the "show_images" field.
+func (u *OutletSettingUpsertBulk) SetShowImages(v bool) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetShowImages(v)
+	})
+}
+
+// UpdateShowImages sets the "show_images" field to the value that was provided on create.
+func (u *OutletSettingUpsertBulk) UpdateShowImages() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateShowImages()
+	})
+}
+
+// ClearShowImages clears the value of the "show_images" field.
+func (u *OutletSettingUpsertBulk) ClearShowImages() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearShowImages()
+	})
+}
+
+// SetShowBarcodeScanner sets the "show_barcode_scanner" field.
+func (u *OutletSettingUpsertBulk) SetShowBarcodeScanner(v bool) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetShowBarcodeScanner(v)
+	})
+}
+
+// UpdateShowBarcodeScanner sets the "show_barcode_scanner" field to the value that was provided on create.
+func (u *OutletSettingUpsertBulk) UpdateShowBarcodeScanner() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateShowBarcodeScanner()
+	})
+}
+
+// ClearShowBarcodeScanner clears the value of the "show_barcode_scanner" field.
+func (u *OutletSettingUpsertBulk) ClearShowBarcodeScanner() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearShowBarcodeScanner()
+	})
+}
+
+// SetDefaultView sets the "default_view" field.
+func (u *OutletSettingUpsertBulk) SetDefaultView(v string) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetDefaultView(v)
+	})
+}
+
+// UpdateDefaultView sets the "default_view" field to the value that was provided on create.
+func (u *OutletSettingUpsertBulk) UpdateDefaultView() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateDefaultView()
+	})
+}
+
+// ClearDefaultView clears the value of the "default_view" field.
+func (u *OutletSettingUpsertBulk) ClearDefaultView() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearDefaultView()
+	})
+}
+
+// SetEnableKds sets the "enable_kds" field.
+func (u *OutletSettingUpsertBulk) SetEnableKds(v bool) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetEnableKds(v)
+	})
+}
+
+// UpdateEnableKds sets the "enable_kds" field to the value that was provided on create.
+func (u *OutletSettingUpsertBulk) UpdateEnableKds() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateEnableKds()
+	})
+}
+
+// ClearEnableKds clears the value of the "enable_kds" field.
+func (u *OutletSettingUpsertBulk) ClearEnableKds() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearEnableKds()
+	})
+}
+
+// SetEnableAppointments sets the "enable_appointments" field.
+func (u *OutletSettingUpsertBulk) SetEnableAppointments(v bool) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetEnableAppointments(v)
+	})
+}
+
+// UpdateEnableAppointments sets the "enable_appointments" field to the value that was provided on create.
+func (u *OutletSettingUpsertBulk) UpdateEnableAppointments() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateEnableAppointments()
+	})
+}
+
+// ClearEnableAppointments clears the value of the "enable_appointments" field.
+func (u *OutletSettingUpsertBulk) ClearEnableAppointments() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearEnableAppointments()
 	})
 }
 

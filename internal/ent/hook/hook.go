@@ -9,6 +9,18 @@ import (
 	"github.com/bengobox/pos-service/internal/ent"
 )
 
+// The AppointmentFunc type is an adapter to allow the use of ordinary
+// function as Appointment mutator.
+type AppointmentFunc func(context.Context, *ent.AppointmentMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f AppointmentFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.AppointmentMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.AppointmentMutation", m)
+}
+
 // The BarTabFunc type is an adapter to allow the use of ordinary
 // function as BarTab mutator.
 type BarTabFunc func(context.Context, *ent.BarTabMutation) (ent.Value, error)
@@ -93,6 +105,18 @@ func (f ChannelSyncJobFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Val
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ChannelSyncJobMutation", m)
 }
 
+// The CommissionRecordFunc type is an adapter to allow the use of ordinary
+// function as CommissionRecord mutator.
+type CommissionRecordFunc func(context.Context, *ent.CommissionRecordMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f CommissionRecordFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.CommissionRecordMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.CommissionRecordMutation", m)
+}
+
 // The FeatureOverrideFunc type is an adapter to allow the use of ordinary
 // function as FeatureOverride mutator.
 type FeatureOverrideFunc func(context.Context, *ent.FeatureOverrideMutation) (ent.Value, error)
@@ -151,6 +175,30 @@ func (f InventorySnapshotFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.InventorySnapshotMutation", m)
+}
+
+// The KDSStationFunc type is an adapter to allow the use of ordinary
+// function as KDSStation mutator.
+type KDSStationFunc func(context.Context, *ent.KDSStationMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f KDSStationFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.KDSStationMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.KDSStationMutation", m)
+}
+
+// The KDSTicketFunc type is an adapter to allow the use of ordinary
+// function as KDSTicket mutator.
+type KDSTicketFunc func(context.Context, *ent.KDSTicketMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f KDSTicketFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.KDSTicketMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.KDSTicketMutation", m)
 }
 
 // The LicenseUsageSnapshotFunc type is an adapter to allow the use of ordinary
@@ -321,6 +369,18 @@ func (f POSPaymentFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, 
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.POSPaymentMutation", m)
 }
 
+// The POSPermissionFunc type is an adapter to allow the use of ordinary
+// function as POSPermission mutator.
+type POSPermissionFunc func(context.Context, *ent.POSPermissionMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f POSPermissionFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.POSPermissionMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.POSPermissionMutation", m)
+}
+
 // The POSRefundFunc type is an adapter to allow the use of ordinary
 // function as POSRefund mutator.
 type POSRefundFunc func(context.Context, *ent.POSRefundMutation) (ent.Value, error)
@@ -343,6 +403,42 @@ func (f POSRoleFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, err
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.POSRoleMutation", m)
+}
+
+// The POSRolePermissionFunc type is an adapter to allow the use of ordinary
+// function as POSRolePermission mutator.
+type POSRolePermissionFunc func(context.Context, *ent.POSRolePermissionMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f POSRolePermissionFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.POSRolePermissionMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.POSRolePermissionMutation", m)
+}
+
+// The POSRoleV2Func type is an adapter to allow the use of ordinary
+// function as POSRoleV2 mutator.
+type POSRoleV2Func func(context.Context, *ent.POSRoleV2Mutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f POSRoleV2Func) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.POSRoleV2Mutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.POSRoleV2Mutation", m)
+}
+
+// The POSUserRoleAssignmentFunc type is an adapter to allow the use of ordinary
+// function as POSUserRoleAssignment mutator.
+type POSUserRoleAssignmentFunc func(context.Context, *ent.POSUserRoleAssignmentMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f POSUserRoleAssignmentFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.POSUserRoleAssignmentMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.POSUserRoleAssignmentMutation", m)
 }
 
 // The PriceBookFunc type is an adapter to allow the use of ordinary
@@ -403,6 +499,66 @@ func (f PromotionRuleFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Valu
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.PromotionRuleMutation", m)
+}
+
+// The RateLimitConfigFunc type is an adapter to allow the use of ordinary
+// function as RateLimitConfig mutator.
+type RateLimitConfigFunc func(context.Context, *ent.RateLimitConfigMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f RateLimitConfigFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.RateLimitConfigMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.RateLimitConfigMutation", m)
+}
+
+// The SectionFunc type is an adapter to allow the use of ordinary
+// function as Section mutator.
+type SectionFunc func(context.Context, *ent.SectionMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f SectionFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.SectionMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SectionMutation", m)
+}
+
+// The SerialNumberLogFunc type is an adapter to allow the use of ordinary
+// function as SerialNumberLog mutator.
+type SerialNumberLogFunc func(context.Context, *ent.SerialNumberLogMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f SerialNumberLogFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.SerialNumberLogMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SerialNumberLogMutation", m)
+}
+
+// The ServiceConfigFunc type is an adapter to allow the use of ordinary
+// function as ServiceConfig mutator.
+type ServiceConfigFunc func(context.Context, *ent.ServiceConfigMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ServiceConfigFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ServiceConfigMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ServiceConfigMutation", m)
+}
+
+// The StaffMemberFunc type is an adapter to allow the use of ordinary
+// function as StaffMember mutator.
+type StaffMemberFunc func(context.Context, *ent.StaffMemberMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f StaffMemberFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.StaffMemberMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.StaffMemberMutation", m)
 }
 
 // The StockAlertSubscriptionFunc type is an adapter to allow the use of ordinary

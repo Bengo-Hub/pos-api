@@ -61,6 +61,36 @@ func OutletID(v uuid.UUID) predicate.OutletSetting {
 	return predicate.OutletSetting(sql.FieldEQ(FieldOutletID, v))
 }
 
+// DisplayMode applies equality check predicate on the "display_mode" field. It's identical to DisplayModeEQ.
+func DisplayMode(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldDisplayMode, v))
+}
+
+// ShowImages applies equality check predicate on the "show_images" field. It's identical to ShowImagesEQ.
+func ShowImages(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldShowImages, v))
+}
+
+// ShowBarcodeScanner applies equality check predicate on the "show_barcode_scanner" field. It's identical to ShowBarcodeScannerEQ.
+func ShowBarcodeScanner(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldShowBarcodeScanner, v))
+}
+
+// DefaultView applies equality check predicate on the "default_view" field. It's identical to DefaultViewEQ.
+func DefaultView(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldDefaultView, v))
+}
+
+// EnableKds applies equality check predicate on the "enable_kds" field. It's identical to EnableKdsEQ.
+func EnableKds(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldEnableKds, v))
+}
+
+// EnableAppointments applies equality check predicate on the "enable_appointments" field. It's identical to EnableAppointmentsEQ.
+func EnableAppointments(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldEnableAppointments, v))
+}
+
 // UpdatedAt applies equality check predicate on the "updated_at" field. It's identical to UpdatedAtEQ.
 func UpdatedAt(v time.Time) predicate.OutletSetting {
 	return predicate.OutletSetting(sql.FieldEQ(FieldUpdatedAt, v))
@@ -124,6 +154,236 @@ func OpeningHoursJSONIsNil() predicate.OutletSetting {
 // OpeningHoursJSONNotNil applies the NotNil predicate on the "opening_hours_json" field.
 func OpeningHoursJSONNotNil() predicate.OutletSetting {
 	return predicate.OutletSetting(sql.FieldNotNull(FieldOpeningHoursJSON))
+}
+
+// DisplayModeEQ applies the EQ predicate on the "display_mode" field.
+func DisplayModeEQ(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldDisplayMode, v))
+}
+
+// DisplayModeNEQ applies the NEQ predicate on the "display_mode" field.
+func DisplayModeNEQ(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNEQ(FieldDisplayMode, v))
+}
+
+// DisplayModeIn applies the In predicate on the "display_mode" field.
+func DisplayModeIn(vs ...string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIn(FieldDisplayMode, vs...))
+}
+
+// DisplayModeNotIn applies the NotIn predicate on the "display_mode" field.
+func DisplayModeNotIn(vs ...string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotIn(FieldDisplayMode, vs...))
+}
+
+// DisplayModeGT applies the GT predicate on the "display_mode" field.
+func DisplayModeGT(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGT(FieldDisplayMode, v))
+}
+
+// DisplayModeGTE applies the GTE predicate on the "display_mode" field.
+func DisplayModeGTE(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGTE(FieldDisplayMode, v))
+}
+
+// DisplayModeLT applies the LT predicate on the "display_mode" field.
+func DisplayModeLT(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLT(FieldDisplayMode, v))
+}
+
+// DisplayModeLTE applies the LTE predicate on the "display_mode" field.
+func DisplayModeLTE(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLTE(FieldDisplayMode, v))
+}
+
+// DisplayModeContains applies the Contains predicate on the "display_mode" field.
+func DisplayModeContains(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldContains(FieldDisplayMode, v))
+}
+
+// DisplayModeHasPrefix applies the HasPrefix predicate on the "display_mode" field.
+func DisplayModeHasPrefix(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldHasPrefix(FieldDisplayMode, v))
+}
+
+// DisplayModeHasSuffix applies the HasSuffix predicate on the "display_mode" field.
+func DisplayModeHasSuffix(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldHasSuffix(FieldDisplayMode, v))
+}
+
+// DisplayModeIsNil applies the IsNil predicate on the "display_mode" field.
+func DisplayModeIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldDisplayMode))
+}
+
+// DisplayModeNotNil applies the NotNil predicate on the "display_mode" field.
+func DisplayModeNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldDisplayMode))
+}
+
+// DisplayModeEqualFold applies the EqualFold predicate on the "display_mode" field.
+func DisplayModeEqualFold(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEqualFold(FieldDisplayMode, v))
+}
+
+// DisplayModeContainsFold applies the ContainsFold predicate on the "display_mode" field.
+func DisplayModeContainsFold(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldContainsFold(FieldDisplayMode, v))
+}
+
+// ShowImagesEQ applies the EQ predicate on the "show_images" field.
+func ShowImagesEQ(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldShowImages, v))
+}
+
+// ShowImagesNEQ applies the NEQ predicate on the "show_images" field.
+func ShowImagesNEQ(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNEQ(FieldShowImages, v))
+}
+
+// ShowImagesIsNil applies the IsNil predicate on the "show_images" field.
+func ShowImagesIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldShowImages))
+}
+
+// ShowImagesNotNil applies the NotNil predicate on the "show_images" field.
+func ShowImagesNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldShowImages))
+}
+
+// ShowBarcodeScannerEQ applies the EQ predicate on the "show_barcode_scanner" field.
+func ShowBarcodeScannerEQ(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldShowBarcodeScanner, v))
+}
+
+// ShowBarcodeScannerNEQ applies the NEQ predicate on the "show_barcode_scanner" field.
+func ShowBarcodeScannerNEQ(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNEQ(FieldShowBarcodeScanner, v))
+}
+
+// ShowBarcodeScannerIsNil applies the IsNil predicate on the "show_barcode_scanner" field.
+func ShowBarcodeScannerIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldShowBarcodeScanner))
+}
+
+// ShowBarcodeScannerNotNil applies the NotNil predicate on the "show_barcode_scanner" field.
+func ShowBarcodeScannerNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldShowBarcodeScanner))
+}
+
+// DefaultViewEQ applies the EQ predicate on the "default_view" field.
+func DefaultViewEQ(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldDefaultView, v))
+}
+
+// DefaultViewNEQ applies the NEQ predicate on the "default_view" field.
+func DefaultViewNEQ(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNEQ(FieldDefaultView, v))
+}
+
+// DefaultViewIn applies the In predicate on the "default_view" field.
+func DefaultViewIn(vs ...string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIn(FieldDefaultView, vs...))
+}
+
+// DefaultViewNotIn applies the NotIn predicate on the "default_view" field.
+func DefaultViewNotIn(vs ...string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotIn(FieldDefaultView, vs...))
+}
+
+// DefaultViewGT applies the GT predicate on the "default_view" field.
+func DefaultViewGT(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGT(FieldDefaultView, v))
+}
+
+// DefaultViewGTE applies the GTE predicate on the "default_view" field.
+func DefaultViewGTE(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGTE(FieldDefaultView, v))
+}
+
+// DefaultViewLT applies the LT predicate on the "default_view" field.
+func DefaultViewLT(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLT(FieldDefaultView, v))
+}
+
+// DefaultViewLTE applies the LTE predicate on the "default_view" field.
+func DefaultViewLTE(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLTE(FieldDefaultView, v))
+}
+
+// DefaultViewContains applies the Contains predicate on the "default_view" field.
+func DefaultViewContains(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldContains(FieldDefaultView, v))
+}
+
+// DefaultViewHasPrefix applies the HasPrefix predicate on the "default_view" field.
+func DefaultViewHasPrefix(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldHasPrefix(FieldDefaultView, v))
+}
+
+// DefaultViewHasSuffix applies the HasSuffix predicate on the "default_view" field.
+func DefaultViewHasSuffix(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldHasSuffix(FieldDefaultView, v))
+}
+
+// DefaultViewIsNil applies the IsNil predicate on the "default_view" field.
+func DefaultViewIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldDefaultView))
+}
+
+// DefaultViewNotNil applies the NotNil predicate on the "default_view" field.
+func DefaultViewNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldDefaultView))
+}
+
+// DefaultViewEqualFold applies the EqualFold predicate on the "default_view" field.
+func DefaultViewEqualFold(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEqualFold(FieldDefaultView, v))
+}
+
+// DefaultViewContainsFold applies the ContainsFold predicate on the "default_view" field.
+func DefaultViewContainsFold(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldContainsFold(FieldDefaultView, v))
+}
+
+// EnableKdsEQ applies the EQ predicate on the "enable_kds" field.
+func EnableKdsEQ(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldEnableKds, v))
+}
+
+// EnableKdsNEQ applies the NEQ predicate on the "enable_kds" field.
+func EnableKdsNEQ(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNEQ(FieldEnableKds, v))
+}
+
+// EnableKdsIsNil applies the IsNil predicate on the "enable_kds" field.
+func EnableKdsIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldEnableKds))
+}
+
+// EnableKdsNotNil applies the NotNil predicate on the "enable_kds" field.
+func EnableKdsNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldEnableKds))
+}
+
+// EnableAppointmentsEQ applies the EQ predicate on the "enable_appointments" field.
+func EnableAppointmentsEQ(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldEnableAppointments, v))
+}
+
+// EnableAppointmentsNEQ applies the NEQ predicate on the "enable_appointments" field.
+func EnableAppointmentsNEQ(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNEQ(FieldEnableAppointments, v))
+}
+
+// EnableAppointmentsIsNil applies the IsNil predicate on the "enable_appointments" field.
+func EnableAppointmentsIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldEnableAppointments))
+}
+
+// EnableAppointmentsNotNil applies the NotNil predicate on the "enable_appointments" field.
+func EnableAppointmentsNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldEnableAppointments))
 }
 
 // UpdatedAtEQ applies the EQ predicate on the "updated_at" field.

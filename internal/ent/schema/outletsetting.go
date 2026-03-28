@@ -31,6 +31,12 @@ func (OutletSetting) Fields() []ent.Field {
 			Optional(),
 		field.JSON("metadata", map[string]any{}).
 			Default(map[string]any{}),
+		field.String("display_mode").Default("card").Optional().Comment("list=supermarket/hardware, card=restaurant, image_grid=bar/lounge"),
+		field.Bool("show_images").Default(true).Optional().Comment("Show item images in catalog view"),
+		field.Bool("show_barcode_scanner").Default(false).Optional().Comment("Show barcode scanner input for retail"),
+		field.String("default_view").Default("catalog").Optional().Comment("catalog, quick_sale, tables, appointments"),
+		field.Bool("enable_kds").Default(false).Optional().Comment("Kitchen Display System for hospitality"),
+		field.Bool("enable_appointments").Default(false).Optional().Comment("Appointment booking for salons/services"),
 		field.Time("updated_at").
 			Default(time.Now).
 			UpdateDefault(time.Now),

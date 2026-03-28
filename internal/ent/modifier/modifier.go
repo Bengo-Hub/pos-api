@@ -23,6 +23,8 @@ const (
 	FieldPriceOverride = "price_override"
 	// FieldIsAvailable holds the string denoting the is_available field in the database.
 	FieldIsAvailable = "is_available"
+	// FieldInventoryModifierOptionID holds the string denoting the inventory_modifier_option_id field in the database.
+	FieldInventoryModifierOptionID = "inventory_modifier_option_id"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
@@ -47,6 +49,7 @@ var Columns = []string{
 	FieldName,
 	FieldPriceOverride,
 	FieldIsAvailable,
+	FieldInventoryModifierOptionID,
 	FieldCreatedAt,
 	FieldUpdatedAt,
 }
@@ -102,6 +105,11 @@ func ByPriceOverride(opts ...sql.OrderTermOption) OrderOption {
 // ByIsAvailable orders the results by the is_available field.
 func ByIsAvailable(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldIsAvailable, opts...).ToFunc()
+}
+
+// ByInventoryModifierOptionID orders the results by the inventory_modifier_option_id field.
+func ByInventoryModifierOptionID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldInventoryModifierOptionID, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.

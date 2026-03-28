@@ -10,8 +10,10 @@ import (
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"entgo.io/ent/dialect/sql/sqljson"
 	"entgo.io/ent/schema/field"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
+	"github.com/bengobox/pos-service/internal/ent/section"
 	"github.com/bengobox/pos-service/internal/ent/table"
 	"github.com/bengobox/pos-service/internal/ent/tableassignment"
 	"github.com/google/uuid"
@@ -55,6 +57,26 @@ func (_u *TableUpdate) SetNillableOutletID(v *uuid.UUID) *TableUpdate {
 	if v != nil {
 		_u.SetOutletID(*v)
 	}
+	return _u
+}
+
+// SetSectionID sets the "section_id" field.
+func (_u *TableUpdate) SetSectionID(v uuid.UUID) *TableUpdate {
+	_u.mutation.SetSectionID(v)
+	return _u
+}
+
+// SetNillableSectionID sets the "section_id" field if the given value is not nil.
+func (_u *TableUpdate) SetNillableSectionID(v *uuid.UUID) *TableUpdate {
+	if v != nil {
+		_u.SetSectionID(*v)
+	}
+	return _u
+}
+
+// ClearSectionID clears the value of the "section_id" field.
+func (_u *TableUpdate) ClearSectionID() *TableUpdate {
+	_u.mutation.ClearSectionID()
 	return _u
 }
 
@@ -107,6 +129,92 @@ func (_u *TableUpdate) SetNillableStatus(v *string) *TableUpdate {
 	return _u
 }
 
+// SetTableType sets the "table_type" field.
+func (_u *TableUpdate) SetTableType(v table.TableType) *TableUpdate {
+	_u.mutation.SetTableType(v)
+	return _u
+}
+
+// SetNillableTableType sets the "table_type" field if the given value is not nil.
+func (_u *TableUpdate) SetNillableTableType(v *table.TableType) *TableUpdate {
+	if v != nil {
+		_u.SetTableType(*v)
+	}
+	return _u
+}
+
+// SetXPosition sets the "x_position" field.
+func (_u *TableUpdate) SetXPosition(v float64) *TableUpdate {
+	_u.mutation.ResetXPosition()
+	_u.mutation.SetXPosition(v)
+	return _u
+}
+
+// SetNillableXPosition sets the "x_position" field if the given value is not nil.
+func (_u *TableUpdate) SetNillableXPosition(v *float64) *TableUpdate {
+	if v != nil {
+		_u.SetXPosition(*v)
+	}
+	return _u
+}
+
+// AddXPosition adds value to the "x_position" field.
+func (_u *TableUpdate) AddXPosition(v float64) *TableUpdate {
+	_u.mutation.AddXPosition(v)
+	return _u
+}
+
+// ClearXPosition clears the value of the "x_position" field.
+func (_u *TableUpdate) ClearXPosition() *TableUpdate {
+	_u.mutation.ClearXPosition()
+	return _u
+}
+
+// SetYPosition sets the "y_position" field.
+func (_u *TableUpdate) SetYPosition(v float64) *TableUpdate {
+	_u.mutation.ResetYPosition()
+	_u.mutation.SetYPosition(v)
+	return _u
+}
+
+// SetNillableYPosition sets the "y_position" field if the given value is not nil.
+func (_u *TableUpdate) SetNillableYPosition(v *float64) *TableUpdate {
+	if v != nil {
+		_u.SetYPosition(*v)
+	}
+	return _u
+}
+
+// AddYPosition adds value to the "y_position" field.
+func (_u *TableUpdate) AddYPosition(v float64) *TableUpdate {
+	_u.mutation.AddYPosition(v)
+	return _u
+}
+
+// ClearYPosition clears the value of the "y_position" field.
+func (_u *TableUpdate) ClearYPosition() *TableUpdate {
+	_u.mutation.ClearYPosition()
+	return _u
+}
+
+// SetTags sets the "tags" field.
+func (_u *TableUpdate) SetTags(v []string) *TableUpdate {
+	_u.mutation.SetTags(v)
+	return _u
+}
+
+// AppendTags appends value to the "tags" field.
+func (_u *TableUpdate) AppendTags(v []string) *TableUpdate {
+	_u.mutation.AppendTags(v)
+	return _u
+}
+
+// ClearTags clears the value of the "tags" field.
+func (_u *TableUpdate) ClearTags() *TableUpdate {
+	_u.mutation.ClearTags()
+	return _u
+}
+
 // SetMetadata sets the "metadata" field.
 func (_u *TableUpdate) SetMetadata(v map[string]interface{}) *TableUpdate {
 	_u.mutation.SetMetadata(v)
@@ -117,6 +225,11 @@ func (_u *TableUpdate) SetMetadata(v map[string]interface{}) *TableUpdate {
 func (_u *TableUpdate) SetUpdatedAt(v time.Time) *TableUpdate {
 	_u.mutation.SetUpdatedAt(v)
 	return _u
+}
+
+// SetSection sets the "section" edge to the Section entity.
+func (_u *TableUpdate) SetSection(v *Section) *TableUpdate {
+	return _u.SetSectionID(v.ID)
 }
 
 // AddAssignmentIDs adds the "assignments" edge to the TableAssignment entity by IDs.
@@ -137,6 +250,12 @@ func (_u *TableUpdate) AddAssignments(v ...*TableAssignment) *TableUpdate {
 // Mutation returns the TableMutation object of the builder.
 func (_u *TableUpdate) Mutation() *TableMutation {
 	return _u.mutation
+}
+
+// ClearSection clears the "section" edge to the Section entity.
+func (_u *TableUpdate) ClearSection() *TableUpdate {
+	_u.mutation.ClearSection()
+	return _u
 }
 
 // ClearAssignments clears all "assignments" edges to the TableAssignment entity.
@@ -203,6 +322,11 @@ func (_u *TableUpdate) check() error {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "Table.name": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.TableType(); ok {
+		if err := table.TableTypeValidator(v); err != nil {
+			return &ValidationError{Name: "table_type", err: fmt.Errorf(`ent: validator failed for field "Table.table_type": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -236,11 +360,72 @@ func (_u *TableUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(table.FieldStatus, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.TableType(); ok {
+		_spec.SetField(table.FieldTableType, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.XPosition(); ok {
+		_spec.SetField(table.FieldXPosition, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedXPosition(); ok {
+		_spec.AddField(table.FieldXPosition, field.TypeFloat64, value)
+	}
+	if _u.mutation.XPositionCleared() {
+		_spec.ClearField(table.FieldXPosition, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.YPosition(); ok {
+		_spec.SetField(table.FieldYPosition, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedYPosition(); ok {
+		_spec.AddField(table.FieldYPosition, field.TypeFloat64, value)
+	}
+	if _u.mutation.YPositionCleared() {
+		_spec.ClearField(table.FieldYPosition, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.Tags(); ok {
+		_spec.SetField(table.FieldTags, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedTags(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, table.FieldTags, value)
+		})
+	}
+	if _u.mutation.TagsCleared() {
+		_spec.ClearField(table.FieldTags, field.TypeJSON)
+	}
 	if value, ok := _u.mutation.Metadata(); ok {
 		_spec.SetField(table.FieldMetadata, field.TypeJSON, value)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(table.FieldUpdatedAt, field.TypeTime, value)
+	}
+	if _u.mutation.SectionCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   table.SectionTable,
+			Columns: []string{table.SectionColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(section.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.SectionIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   table.SectionTable,
+			Columns: []string{table.SectionColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(section.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if _u.mutation.AssignmentsCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -335,6 +520,26 @@ func (_u *TableUpdateOne) SetNillableOutletID(v *uuid.UUID) *TableUpdateOne {
 	return _u
 }
 
+// SetSectionID sets the "section_id" field.
+func (_u *TableUpdateOne) SetSectionID(v uuid.UUID) *TableUpdateOne {
+	_u.mutation.SetSectionID(v)
+	return _u
+}
+
+// SetNillableSectionID sets the "section_id" field if the given value is not nil.
+func (_u *TableUpdateOne) SetNillableSectionID(v *uuid.UUID) *TableUpdateOne {
+	if v != nil {
+		_u.SetSectionID(*v)
+	}
+	return _u
+}
+
+// ClearSectionID clears the value of the "section_id" field.
+func (_u *TableUpdateOne) ClearSectionID() *TableUpdateOne {
+	_u.mutation.ClearSectionID()
+	return _u
+}
+
 // SetName sets the "name" field.
 func (_u *TableUpdateOne) SetName(v string) *TableUpdateOne {
 	_u.mutation.SetName(v)
@@ -384,6 +589,92 @@ func (_u *TableUpdateOne) SetNillableStatus(v *string) *TableUpdateOne {
 	return _u
 }
 
+// SetTableType sets the "table_type" field.
+func (_u *TableUpdateOne) SetTableType(v table.TableType) *TableUpdateOne {
+	_u.mutation.SetTableType(v)
+	return _u
+}
+
+// SetNillableTableType sets the "table_type" field if the given value is not nil.
+func (_u *TableUpdateOne) SetNillableTableType(v *table.TableType) *TableUpdateOne {
+	if v != nil {
+		_u.SetTableType(*v)
+	}
+	return _u
+}
+
+// SetXPosition sets the "x_position" field.
+func (_u *TableUpdateOne) SetXPosition(v float64) *TableUpdateOne {
+	_u.mutation.ResetXPosition()
+	_u.mutation.SetXPosition(v)
+	return _u
+}
+
+// SetNillableXPosition sets the "x_position" field if the given value is not nil.
+func (_u *TableUpdateOne) SetNillableXPosition(v *float64) *TableUpdateOne {
+	if v != nil {
+		_u.SetXPosition(*v)
+	}
+	return _u
+}
+
+// AddXPosition adds value to the "x_position" field.
+func (_u *TableUpdateOne) AddXPosition(v float64) *TableUpdateOne {
+	_u.mutation.AddXPosition(v)
+	return _u
+}
+
+// ClearXPosition clears the value of the "x_position" field.
+func (_u *TableUpdateOne) ClearXPosition() *TableUpdateOne {
+	_u.mutation.ClearXPosition()
+	return _u
+}
+
+// SetYPosition sets the "y_position" field.
+func (_u *TableUpdateOne) SetYPosition(v float64) *TableUpdateOne {
+	_u.mutation.ResetYPosition()
+	_u.mutation.SetYPosition(v)
+	return _u
+}
+
+// SetNillableYPosition sets the "y_position" field if the given value is not nil.
+func (_u *TableUpdateOne) SetNillableYPosition(v *float64) *TableUpdateOne {
+	if v != nil {
+		_u.SetYPosition(*v)
+	}
+	return _u
+}
+
+// AddYPosition adds value to the "y_position" field.
+func (_u *TableUpdateOne) AddYPosition(v float64) *TableUpdateOne {
+	_u.mutation.AddYPosition(v)
+	return _u
+}
+
+// ClearYPosition clears the value of the "y_position" field.
+func (_u *TableUpdateOne) ClearYPosition() *TableUpdateOne {
+	_u.mutation.ClearYPosition()
+	return _u
+}
+
+// SetTags sets the "tags" field.
+func (_u *TableUpdateOne) SetTags(v []string) *TableUpdateOne {
+	_u.mutation.SetTags(v)
+	return _u
+}
+
+// AppendTags appends value to the "tags" field.
+func (_u *TableUpdateOne) AppendTags(v []string) *TableUpdateOne {
+	_u.mutation.AppendTags(v)
+	return _u
+}
+
+// ClearTags clears the value of the "tags" field.
+func (_u *TableUpdateOne) ClearTags() *TableUpdateOne {
+	_u.mutation.ClearTags()
+	return _u
+}
+
 // SetMetadata sets the "metadata" field.
 func (_u *TableUpdateOne) SetMetadata(v map[string]interface{}) *TableUpdateOne {
 	_u.mutation.SetMetadata(v)
@@ -394,6 +685,11 @@ func (_u *TableUpdateOne) SetMetadata(v map[string]interface{}) *TableUpdateOne 
 func (_u *TableUpdateOne) SetUpdatedAt(v time.Time) *TableUpdateOne {
 	_u.mutation.SetUpdatedAt(v)
 	return _u
+}
+
+// SetSection sets the "section" edge to the Section entity.
+func (_u *TableUpdateOne) SetSection(v *Section) *TableUpdateOne {
+	return _u.SetSectionID(v.ID)
 }
 
 // AddAssignmentIDs adds the "assignments" edge to the TableAssignment entity by IDs.
@@ -414,6 +710,12 @@ func (_u *TableUpdateOne) AddAssignments(v ...*TableAssignment) *TableUpdateOne 
 // Mutation returns the TableMutation object of the builder.
 func (_u *TableUpdateOne) Mutation() *TableMutation {
 	return _u.mutation
+}
+
+// ClearSection clears the "section" edge to the Section entity.
+func (_u *TableUpdateOne) ClearSection() *TableUpdateOne {
+	_u.mutation.ClearSection()
+	return _u
 }
 
 // ClearAssignments clears all "assignments" edges to the TableAssignment entity.
@@ -493,6 +795,11 @@ func (_u *TableUpdateOne) check() error {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "Table.name": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.TableType(); ok {
+		if err := table.TableTypeValidator(v); err != nil {
+			return &ValidationError{Name: "table_type", err: fmt.Errorf(`ent: validator failed for field "Table.table_type": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -543,11 +850,72 @@ func (_u *TableUpdateOne) sqlSave(ctx context.Context) (_node *Table, err error)
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(table.FieldStatus, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.TableType(); ok {
+		_spec.SetField(table.FieldTableType, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.XPosition(); ok {
+		_spec.SetField(table.FieldXPosition, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedXPosition(); ok {
+		_spec.AddField(table.FieldXPosition, field.TypeFloat64, value)
+	}
+	if _u.mutation.XPositionCleared() {
+		_spec.ClearField(table.FieldXPosition, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.YPosition(); ok {
+		_spec.SetField(table.FieldYPosition, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedYPosition(); ok {
+		_spec.AddField(table.FieldYPosition, field.TypeFloat64, value)
+	}
+	if _u.mutation.YPositionCleared() {
+		_spec.ClearField(table.FieldYPosition, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.Tags(); ok {
+		_spec.SetField(table.FieldTags, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedTags(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, table.FieldTags, value)
+		})
+	}
+	if _u.mutation.TagsCleared() {
+		_spec.ClearField(table.FieldTags, field.TypeJSON)
+	}
 	if value, ok := _u.mutation.Metadata(); ok {
 		_spec.SetField(table.FieldMetadata, field.TypeJSON, value)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(table.FieldUpdatedAt, field.TypeTime, value)
+	}
+	if _u.mutation.SectionCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   table.SectionTable,
+			Columns: []string{table.SectionColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(section.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.SectionIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   table.SectionTable,
+			Columns: []string{table.SectionColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(section.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if _u.mutation.AssignmentsCleared() {
 		edge := &sqlgraph.EdgeSpec{

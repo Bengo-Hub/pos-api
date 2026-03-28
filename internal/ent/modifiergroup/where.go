@@ -76,6 +76,11 @@ func MaxSelection(v int) predicate.ModifierGroup {
 	return predicate.ModifierGroup(sql.FieldEQ(FieldMaxSelection, v))
 }
 
+// InventoryModifierGroupID applies equality check predicate on the "inventory_modifier_group_id" field. It's identical to InventoryModifierGroupIDEQ.
+func InventoryModifierGroupID(v uuid.UUID) predicate.ModifierGroup {
+	return predicate.ModifierGroup(sql.FieldEQ(FieldInventoryModifierGroupID, v))
+}
+
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.ModifierGroup {
 	return predicate.ModifierGroup(sql.FieldEQ(FieldCreatedAt, v))
@@ -269,6 +274,56 @@ func MaxSelectionLT(v int) predicate.ModifierGroup {
 // MaxSelectionLTE applies the LTE predicate on the "max_selection" field.
 func MaxSelectionLTE(v int) predicate.ModifierGroup {
 	return predicate.ModifierGroup(sql.FieldLTE(FieldMaxSelection, v))
+}
+
+// InventoryModifierGroupIDEQ applies the EQ predicate on the "inventory_modifier_group_id" field.
+func InventoryModifierGroupIDEQ(v uuid.UUID) predicate.ModifierGroup {
+	return predicate.ModifierGroup(sql.FieldEQ(FieldInventoryModifierGroupID, v))
+}
+
+// InventoryModifierGroupIDNEQ applies the NEQ predicate on the "inventory_modifier_group_id" field.
+func InventoryModifierGroupIDNEQ(v uuid.UUID) predicate.ModifierGroup {
+	return predicate.ModifierGroup(sql.FieldNEQ(FieldInventoryModifierGroupID, v))
+}
+
+// InventoryModifierGroupIDIn applies the In predicate on the "inventory_modifier_group_id" field.
+func InventoryModifierGroupIDIn(vs ...uuid.UUID) predicate.ModifierGroup {
+	return predicate.ModifierGroup(sql.FieldIn(FieldInventoryModifierGroupID, vs...))
+}
+
+// InventoryModifierGroupIDNotIn applies the NotIn predicate on the "inventory_modifier_group_id" field.
+func InventoryModifierGroupIDNotIn(vs ...uuid.UUID) predicate.ModifierGroup {
+	return predicate.ModifierGroup(sql.FieldNotIn(FieldInventoryModifierGroupID, vs...))
+}
+
+// InventoryModifierGroupIDGT applies the GT predicate on the "inventory_modifier_group_id" field.
+func InventoryModifierGroupIDGT(v uuid.UUID) predicate.ModifierGroup {
+	return predicate.ModifierGroup(sql.FieldGT(FieldInventoryModifierGroupID, v))
+}
+
+// InventoryModifierGroupIDGTE applies the GTE predicate on the "inventory_modifier_group_id" field.
+func InventoryModifierGroupIDGTE(v uuid.UUID) predicate.ModifierGroup {
+	return predicate.ModifierGroup(sql.FieldGTE(FieldInventoryModifierGroupID, v))
+}
+
+// InventoryModifierGroupIDLT applies the LT predicate on the "inventory_modifier_group_id" field.
+func InventoryModifierGroupIDLT(v uuid.UUID) predicate.ModifierGroup {
+	return predicate.ModifierGroup(sql.FieldLT(FieldInventoryModifierGroupID, v))
+}
+
+// InventoryModifierGroupIDLTE applies the LTE predicate on the "inventory_modifier_group_id" field.
+func InventoryModifierGroupIDLTE(v uuid.UUID) predicate.ModifierGroup {
+	return predicate.ModifierGroup(sql.FieldLTE(FieldInventoryModifierGroupID, v))
+}
+
+// InventoryModifierGroupIDIsNil applies the IsNil predicate on the "inventory_modifier_group_id" field.
+func InventoryModifierGroupIDIsNil() predicate.ModifierGroup {
+	return predicate.ModifierGroup(sql.FieldIsNull(FieldInventoryModifierGroupID))
+}
+
+// InventoryModifierGroupIDNotNil applies the NotNil predicate on the "inventory_modifier_group_id" field.
+func InventoryModifierGroupIDNotNil() predicate.ModifierGroup {
+	return predicate.ModifierGroup(sql.FieldNotNull(FieldInventoryModifierGroupID))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.

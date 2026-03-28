@@ -33,6 +33,22 @@ const (
 	FieldTaxStatus = "tax_status"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
+	// FieldInventoryItemID holds the string denoting the inventory_item_id field in the database.
+	FieldInventoryItemID = "inventory_item_id"
+	// FieldItemType holds the string denoting the item_type field in the database.
+	FieldItemType = "item_type"
+	// FieldRequiresAgeVerification holds the string denoting the requires_age_verification field in the database.
+	FieldRequiresAgeVerification = "requires_age_verification"
+	// FieldIsControlledSubstance holds the string denoting the is_controlled_substance field in the database.
+	FieldIsControlledSubstance = "is_controlled_substance"
+	// FieldTrackSerialNumber holds the string denoting the track_serial_number field in the database.
+	FieldTrackSerialNumber = "track_serial_number"
+	// FieldDurationMinutes holds the string denoting the duration_minutes field in the database.
+	FieldDurationMinutes = "duration_minutes"
+	// FieldCostPrice holds the string denoting the cost_price field in the database.
+	FieldCostPrice = "cost_price"
+	// FieldTags holds the string denoting the tags field in the database.
+	FieldTags = "tags"
 	// FieldMetadata holds the string denoting the metadata field in the database.
 	FieldMetadata = "metadata"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
@@ -64,6 +80,14 @@ var Columns = []string{
 	FieldImageURL,
 	FieldTaxStatus,
 	FieldStatus,
+	FieldInventoryItemID,
+	FieldItemType,
+	FieldRequiresAgeVerification,
+	FieldIsControlledSubstance,
+	FieldTrackSerialNumber,
+	FieldDurationMinutes,
+	FieldCostPrice,
+	FieldTags,
 	FieldMetadata,
 	FieldCreatedAt,
 	FieldUpdatedAt,
@@ -88,6 +112,14 @@ var (
 	DefaultTaxStatus string
 	// DefaultStatus holds the default value on creation for the "status" field.
 	DefaultStatus string
+	// DefaultRequiresAgeVerification holds the default value on creation for the "requires_age_verification" field.
+	DefaultRequiresAgeVerification bool
+	// DefaultIsControlledSubstance holds the default value on creation for the "is_controlled_substance" field.
+	DefaultIsControlledSubstance bool
+	// DefaultTrackSerialNumber holds the default value on creation for the "track_serial_number" field.
+	DefaultTrackSerialNumber bool
+	// DefaultTags holds the default value on creation for the "tags" field.
+	DefaultTags []string
 	// DefaultMetadata holds the default value on creation for the "metadata" field.
 	DefaultMetadata map[string]interface{}
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
@@ -151,6 +183,41 @@ func ByTaxStatus(opts ...sql.OrderTermOption) OrderOption {
 // ByStatus orders the results by the status field.
 func ByStatus(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldStatus, opts...).ToFunc()
+}
+
+// ByInventoryItemID orders the results by the inventory_item_id field.
+func ByInventoryItemID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldInventoryItemID, opts...).ToFunc()
+}
+
+// ByItemType orders the results by the item_type field.
+func ByItemType(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldItemType, opts...).ToFunc()
+}
+
+// ByRequiresAgeVerification orders the results by the requires_age_verification field.
+func ByRequiresAgeVerification(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRequiresAgeVerification, opts...).ToFunc()
+}
+
+// ByIsControlledSubstance orders the results by the is_controlled_substance field.
+func ByIsControlledSubstance(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldIsControlledSubstance, opts...).ToFunc()
+}
+
+// ByTrackSerialNumber orders the results by the track_serial_number field.
+func ByTrackSerialNumber(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTrackSerialNumber, opts...).ToFunc()
+}
+
+// ByDurationMinutes orders the results by the duration_minutes field.
+func ByDurationMinutes(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDurationMinutes, opts...).ToFunc()
+}
+
+// ByCostPrice orders the results by the cost_price field.
+func ByCostPrice(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCostPrice, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.

@@ -1,17 +1,17 @@
 ## POS Service Delivery Plan
 
 ### 1. Vision & Guiding Principles
-- Build a multi-tenant, cloud-ready Point-of-Sale backend that powers third-party outlets (cafés/bars, quick-service restaurants, supermarkets, ecommerce fulfilment/ecommerce shops, kitchen displays, kiosks) using the shared `tenant_slug` and outlet registry consumed by the cafe-backend, inventory, logistics, and auth services.
+- Build a multi-tenant, cloud-ready Point-of-Sale backend that powers third-party outlets (cafés/bars, quick-service restaurants, supermarkets, ecommerce fulfilment/ecommerce shops, kitchen displays, kiosks) using the shared `tenant_slug` and outlet registry consumed by the ordering-backend, inventory, logistics, and auth services.
 - Provide a composable API layer that can be embedded into client surfaces (web, mobile, kiosk, delivery app) while remaining extensible for partner ecosystems and white-label deployments.
 - Embrace an event-driven architecture so POS actions (sales, refunds, drawer activity, menu changes, stock events) propagate in real time to treasury, notifications, delivery, inventory, licensing, and analytics services.
 - Optimise for resilience and near-real-time operation even with intermittent connectivity through smart caching, queueing, offline queues, and automated sync jobs.
 - Treat subscription/licensing state as a first-class domain so feature availability, device limits, and renewal reminders are centrally managed and surfaced to administrators.
-- **Entity Ownership**: This service owns POS-specific entities: POS orders, devices, sessions, cash drawers, POS payments (references), promotions, gift cards, price books (outlet-specific overrides), table management, and bar tabs. **POS does NOT own**: catalog items (references inventory-service), users (references auth-service via `user_id`), payment processing (uses treasury-app APIs), inventory balances (queries inventory-service APIs). See `docs/cross-service-entity-ownership.md` for complete ownership matrix.
+- **Entity Ownership**: This service owns POS-specific entities: POS orders, devices, sessions, cash drawers, POS payments (references), promotions, gift cards, price books (outlet-specific overrides), table management, and bar tabs. **POS does NOT own**: catalog items (references inventory-service), users (references auth-service via `user_id`), payment processing (uses treasury-app APIs), inventory balances (queries inventory-service APIs). See **shared-docs/CROSS-SERVICE-DATA-OWNERSHIP.md** for the canonical ownership matrix.
 
 ### 2. Technical Foundations
 - **Language & Runtime:** Go 1.22+, strict gofmt, golangci-lint.
 - **Frameworks & Libraries:**
-  - HTTP transport with `chi` router, middleware stack mirroring the cafe-backend for consistency.
+  - HTTP transport with `chi` router, middleware stack mirroring the ordering-backend for consistency.
   - Validation via `go-playground/validator`, configuration via `kelseyhightower/envconfig`.
   - `ent` ORM for schema-as-code modelling and migrations.
   - `pq`/`pgx` driver wrapped by `ent/dialect/sql` for PostgreSQL connectivity.
@@ -27,7 +27,7 @@
 
 ### 3. Core Capabilities & Domain Modules
 1. **Tenant & Outlet Management**
-   - Register tenants (franchises, merchant partners) and map POS outlets/locations using the shared tenant/outlet identifiers agreed across cafe-backend, inventory, and logistics services. If an outlet does not exist locally, the service triggers a tenant discovery webhook to fetch authoritative data before persisting POS records.
+   - Register tenants (franchises, merchant partners) and map POS outlets/locations using the shared tenant/outlet identifiers agreed across ordering-backend, inventory, and logistics services. If an outlet does not exist locally, the service triggers a tenant discovery webhook to fetch authoritative data before persisting POS records.
    - Store configuration profiles (timezone, tax config, operating hours, supported tenders).
    - Manage device provisioning (register POS terminals/tablets/kiosks) while syncing device metadata with the common registry (no duplicate outlet tables downstream).
 
@@ -37,7 +37,7 @@
    - Session heartbeat tracking, forced logout, device-level permissions.
 
 3. **Catalog & Pricebook**
-   - Sync menu/product data from cafe-backend or external ERP.
+   - Sync menu/product data from ordering-backend or external ERP.
    - Support multiple pricebooks per outlet (happy hour, wholesale, ecommerce, regional).
    - Local overrides, modifiers, bundles/combos, allergen/nutritional metadata, barcode/PLU mapping.
 
@@ -67,7 +67,7 @@
 
 9. **Promotions, Loyalty & Giftcards**
    - Apply promo codes, auto-discounts, membership pricing based on plan entitlements.
-   - Integrate with loyalty ledger from cafe-backend for earn/burn operations.
+   - Integrate with loyalty ledger from ordering-backend for earn/burn operations.
    - Gift card issuance, redemption, and balance management.
 
 10. **Reporting & Analytics**
@@ -132,9 +132,9 @@
 - **Notifications Service (`notifications-app`):**
   - Push/SMS/email for order readiness, shift reminders, cash exceptions, stock alerts.
   - Multi-channel alerts for license renewals, integration failures.
-- **Cafe Backend:**
+- **Ordering-Backend** (online orders; cafe-website and ordering-frontend call it):
   - Shared catalog, menu items, loyalty accounts, customer profiles using canonical item IDs from inventory.
-  - Delivery order status exchange (POS ready -> delivery dispatch) aligned with `logistics-service` task IDs and shared tenant/outlet registry.
+  - Delivery order status exchange (POS ready → delivery dispatch) aligned with `logistics-service` task IDs and shared tenant/outlet registry.
   - Subscription entitlements to gate advanced POS features without duplicating entitlement tables.
 - **Inventory Service (`inventory-service`):**
    - Receives stock consumption events and provides low-stock alerts and BOM depletion using the shared tenant/outlet and item identifiers with webhook callbacks.
@@ -185,7 +185,7 @@
 
 ### 8. Cross-Cutting Concerns
 - **Security:** JWT/OAuth tokens validated via identity service, optional mTLS for internal calls, audit logging for privileged actions.
-- **Multi-tenancy:** Row-level scoping by `tenant_id`; connection pooling per tenant to Postgres for future sharding; outlets/devices reference the shared registry used by cafe-backend, inventory, and logistics so tenants manage locations once.
+- **Multi-tenancy:** Row-level scoping by `tenant_id`; connection pooling per tenant to Postgres for future sharding; outlets/devices reference the shared registry used by ordering-backend, inventory, and logistics so tenants manage locations once.
 - **Configuration & Feature Flags:** Subscription entitlements drive dynamic configuration delivered to client applications; tenant-level feature switches exposed via admin UI.
 - **Resilience:** Circuit breakers for external services (treasury, notifications); retry policies with exponential backoff; offline-first queue with reconciliation playbooks.
 - **Compliance:** Sales tax handling per locale, ETR integration roadmap, digital receipt storage, GDPR-compliant data export/delete endpoints.
@@ -443,7 +443,7 @@
 - `gift_card_transactions` - Gift card transactions
 
 **Integration Points**:
-- **cafe-backend**: Loyalty integration
+- **ordering-backend**: Loyalty integration
 - **treasury-api**: Gift card payment processing
 
 ### 9. Reporting & Analytics

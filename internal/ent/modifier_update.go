@@ -99,6 +99,26 @@ func (_u *ModifierUpdate) SetNillableIsAvailable(v *bool) *ModifierUpdate {
 	return _u
 }
 
+// SetInventoryModifierOptionID sets the "inventory_modifier_option_id" field.
+func (_u *ModifierUpdate) SetInventoryModifierOptionID(v uuid.UUID) *ModifierUpdate {
+	_u.mutation.SetInventoryModifierOptionID(v)
+	return _u
+}
+
+// SetNillableInventoryModifierOptionID sets the "inventory_modifier_option_id" field if the given value is not nil.
+func (_u *ModifierUpdate) SetNillableInventoryModifierOptionID(v *uuid.UUID) *ModifierUpdate {
+	if v != nil {
+		_u.SetInventoryModifierOptionID(*v)
+	}
+	return _u
+}
+
+// ClearInventoryModifierOptionID clears the value of the "inventory_modifier_option_id" field.
+func (_u *ModifierUpdate) ClearInventoryModifierOptionID() *ModifierUpdate {
+	_u.mutation.ClearInventoryModifierOptionID()
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *ModifierUpdate) SetUpdatedAt(v time.Time) *ModifierUpdate {
 	_u.mutation.SetUpdatedAt(v)
@@ -202,6 +222,12 @@ func (_u *ModifierUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.IsAvailable(); ok {
 		_spec.SetField(modifier.FieldIsAvailable, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.InventoryModifierOptionID(); ok {
+		_spec.SetField(modifier.FieldInventoryModifierOptionID, field.TypeUUID, value)
+	}
+	if _u.mutation.InventoryModifierOptionIDCleared() {
+		_spec.ClearField(modifier.FieldInventoryModifierOptionID, field.TypeUUID)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(modifier.FieldUpdatedAt, field.TypeTime, value)
@@ -321,6 +347,26 @@ func (_u *ModifierUpdateOne) SetNillableIsAvailable(v *bool) *ModifierUpdateOne 
 	if v != nil {
 		_u.SetIsAvailable(*v)
 	}
+	return _u
+}
+
+// SetInventoryModifierOptionID sets the "inventory_modifier_option_id" field.
+func (_u *ModifierUpdateOne) SetInventoryModifierOptionID(v uuid.UUID) *ModifierUpdateOne {
+	_u.mutation.SetInventoryModifierOptionID(v)
+	return _u
+}
+
+// SetNillableInventoryModifierOptionID sets the "inventory_modifier_option_id" field if the given value is not nil.
+func (_u *ModifierUpdateOne) SetNillableInventoryModifierOptionID(v *uuid.UUID) *ModifierUpdateOne {
+	if v != nil {
+		_u.SetInventoryModifierOptionID(*v)
+	}
+	return _u
+}
+
+// ClearInventoryModifierOptionID clears the value of the "inventory_modifier_option_id" field.
+func (_u *ModifierUpdateOne) ClearInventoryModifierOptionID() *ModifierUpdateOne {
+	_u.mutation.ClearInventoryModifierOptionID()
 	return _u
 }
 
@@ -457,6 +503,12 @@ func (_u *ModifierUpdateOne) sqlSave(ctx context.Context) (_node *Modifier, err 
 	}
 	if value, ok := _u.mutation.IsAvailable(); ok {
 		_spec.SetField(modifier.FieldIsAvailable, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.InventoryModifierOptionID(); ok {
+		_spec.SetField(modifier.FieldInventoryModifierOptionID, field.TypeUUID, value)
+	}
+	if _u.mutation.InventoryModifierOptionIDCleared() {
+		_spec.ClearField(modifier.FieldInventoryModifierOptionID, field.TypeUUID)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(modifier.FieldUpdatedAt, field.TypeTime, value)

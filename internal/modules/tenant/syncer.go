@@ -2,13 +2,12 @@ package tenant
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
-	"net/http"
 	"os"
-	"strings"
+	"time"
 
+	sharedcache "github.com/Bengo-Hub/cache"
 	"github.com/google/uuid"
 
 	"github.com/bengobox/pos-service/internal/ent"
@@ -16,38 +15,23 @@ import (
 )
 
 // Syncer handles dynamic syncing of tenant data from auth-api using Ent ORM.
+// It uses the shared cache library to fetch tenant details from Redis first,
+// falling back to auth-api on cache miss.
 type Syncer struct {
-	client *ent.Client
+	client  *ent.Client
+	authURL string
+	cache   *sharedcache.Aside
 }
 
 // NewSyncer creates a new TenantSyncer.
-func NewSyncer(client *ent.Client) *Syncer {
-	return &Syncer{client: client}
+// authURL is the base URL of the auth-api (e.g. from AUTH_SERVICE_URL config).
+// c may be nil — in that case every call falls through to auth-api directly.
+func NewSyncer(client *ent.Client, authURL string, c *sharedcache.Aside) *Syncer {
+	return &Syncer{client: client, authURL: authURL, cache: c}
 }
 
-// authAPITenantResponse is the full tenant JSON response from GET /api/v1/tenants/by-slug/{slug}.
-type authAPITenantResponse struct {
-	ID                 string         `json:"id"`
-	Name               string         `json:"name"`
-	Slug               string         `json:"slug"`
-	Status             string         `json:"status"`
-	ContactEmail       string         `json:"contact_email,omitempty"`
-	ContactPhone       string         `json:"contact_phone,omitempty"`
-	LogoURL            string         `json:"logo_url,omitempty"`
-	Website            string         `json:"website,omitempty"`
-	Country            string         `json:"country,omitempty"`
-	Timezone           string         `json:"timezone,omitempty"`
-	BrandColors        map[string]any `json:"brand_colors,omitempty"`
-	OrgSize            string         `json:"org_size,omitempty"`
-	UseCase            string         `json:"use_case,omitempty"`
-	SubscriptionPlan   string         `json:"subscription_plan,omitempty"`
-	SubscriptionStatus string         `json:"subscription_status,omitempty"`
-	TierLimits         map[string]any `json:"tier_limits,omitempty"`
-	Metadata           map[string]any `json:"metadata,omitempty"`
-}
-
-// SyncTenant fetches the FULL tenant record from auth-api and persists it
-// in the local PG DB using Ent.
+// SyncTenant fetches the tenant record (via shared cache / auth-api) and
+// persists the minimal reference in the local PG DB using Ent.
 func (s *Syncer) SyncTenant(ctx context.Context, slug string) (uuid.UUID, error) {
 	// Fast path: check if tenant exists locally
 	existing, err := s.client.Tenant.Query().Where(enttenant.SlugEQ(slug)).Only(ctx)
@@ -55,39 +39,23 @@ func (s *Syncer) SyncTenant(ctx context.Context, slug string) (uuid.UUID, error)
 		return existing.ID, nil
 	}
 
-	authAPIURL := os.Getenv("AUTH_API_URL")
-	if authAPIURL == "" {
-		authAPIURL = "https://sso.codevertexitsolutions.com"
+	authAPIURL := s.authURL
+	if envURL := os.Getenv("AUTH_API_URL"); envURL != "" {
+		authAPIURL = envURL
 	}
-	endpoint := strings.TrimRight(authAPIURL, "/") + "/api/v1/tenants/by-slug/" + slug
 
-	log.Printf("  [tenant-sync] dynamically fetching %s from %s", slug, endpoint)
-	resp, err := http.Get(endpoint) //nolint:noctx
+	// Use shared cache library to get tenant details (Redis → auth-api fallback).
+	remote, err := sharedcache.GetTenantDetails(ctx, s.cache, authAPIURL, slug, sharedcache.DefaultTenantTTL)
 	if err != nil {
-		return uuid.Nil, fmt.Errorf("tenant.Syncer: GET %s: %w", endpoint, err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusNotFound {
-		return uuid.Nil, fmt.Errorf("tenant.Syncer: tenant %q not found (404)", slug)
-	}
-	if resp.StatusCode != http.StatusOK {
-		return uuid.Nil, fmt.Errorf("tenant.Syncer: auth-api HTTP %d for %q", resp.StatusCode, slug)
+		return uuid.Nil, fmt.Errorf("tenant.Syncer: cache.GetTenantDetails: %w", err)
 	}
 
-	var remote authAPITenantResponse
-	if err := json.NewDecoder(resp.Body).Decode(&remote); err != nil {
-		return uuid.Nil, fmt.Errorf("tenant.Syncer: decode response: %w", err)
-	}
 	realID, err := uuid.Parse(remote.ID)
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("tenant.Syncer: invalid UUID %q: %w", remote.ID, err)
 	}
 
-	extMeta := map[string]any{}
-	for k, v := range remote.Metadata {
-		extMeta[k] = v
-	}
+	now := time.Now()
 
 	// Use Ent Upsert
 	err = s.client.Tenant.Create().
@@ -95,19 +63,9 @@ func (s *Syncer) SyncTenant(ctx context.Context, slug string) (uuid.UUID, error)
 		SetName(remote.Name).
 		SetSlug(remote.Slug).
 		SetStatus(remote.Status).
-		SetContactEmail(remote.ContactEmail).
-		SetContactPhone(remote.ContactPhone).
-		SetLogoURL(remote.LogoURL).
-		SetWebsite(remote.Website).
-		SetCountry(remote.Country).
-		SetTimezone(remote.Timezone).
-		SetBrandColors(remote.BrandColors).
-		SetOrgSize(remote.OrgSize).
-		SetUseCase(remote.UseCase).
-		SetSubscriptionPlan(remote.SubscriptionPlan).
-		SetSubscriptionStatus(remote.SubscriptionStatus).
-		SetTierLimits(remote.TierLimits).
-		SetMetadata(extMeta).
+		SetNillableUseCase(nillableStr(remote.UseCase)).
+		SetSyncStatus("synced").
+		SetLastSyncAt(now).
 		OnConflictColumns(enttenant.FieldID).
 		UpdateNewValues().
 		Exec(ctx)
@@ -116,6 +74,14 @@ func (s *Syncer) SyncTenant(ctx context.Context, slug string) (uuid.UUID, error)
 		return uuid.Nil, fmt.Errorf("tenant.Syncer: upsert failed: %w", err)
 	}
 
-	log.Printf("  [tenant-sync] dynamically synced %s (UUID %s) into pos-api DB", slug, realID)
+	log.Printf("  [tenant-sync] synced %s (UUID %s) into pos-api DB via shared cache", slug, realID)
 	return realID, nil
+}
+
+// nillableStr returns a *string if non-empty, nil otherwise.
+func nillableStr(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
 }

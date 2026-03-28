@@ -99,6 +99,20 @@ func (_c *OutletCreate) SetNillableStatus(v *string) *OutletCreate {
 	return _c
 }
 
+// SetUseCase sets the "use_case" field.
+func (_c *OutletCreate) SetUseCase(v string) *OutletCreate {
+	_c.mutation.SetUseCase(v)
+	return _c
+}
+
+// SetNillableUseCase sets the "use_case" field if the given value is not nil.
+func (_c *OutletCreate) SetNillableUseCase(v *string) *OutletCreate {
+	if v != nil {
+		_c.SetUseCase(*v)
+	}
+	return _c
+}
+
 // SetOpenedAt sets the "opened_at" field.
 func (_c *OutletCreate) SetOpenedAt(v time.Time) *OutletCreate {
 	_c.mutation.SetOpenedAt(v)
@@ -380,6 +394,10 @@ func (_c *OutletCreate) createSpec() (*Outlet, *sqlgraph.CreateSpec) {
 		_spec.SetField(outlet.FieldStatus, field.TypeString, value)
 		_node.Status = value
 	}
+	if value, ok := _c.mutation.UseCase(); ok {
+		_spec.SetField(outlet.FieldUseCase, field.TypeString, value)
+		_node.UseCase = &value
+	}
 	if value, ok := _c.mutation.OpenedAt(); ok {
 		_spec.SetField(outlet.FieldOpenedAt, field.TypeTime, value)
 		_node.OpenedAt = &value
@@ -599,6 +617,24 @@ func (u *OutletUpsert) UpdateStatus() *OutletUpsert {
 	return u
 }
 
+// SetUseCase sets the "use_case" field.
+func (u *OutletUpsert) SetUseCase(v string) *OutletUpsert {
+	u.Set(outlet.FieldUseCase, v)
+	return u
+}
+
+// UpdateUseCase sets the "use_case" field to the value that was provided on create.
+func (u *OutletUpsert) UpdateUseCase() *OutletUpsert {
+	u.SetExcluded(outlet.FieldUseCase)
+	return u
+}
+
+// ClearUseCase clears the value of the "use_case" field.
+func (u *OutletUpsert) ClearUseCase() *OutletUpsert {
+	u.SetNull(outlet.FieldUseCase)
+	return u
+}
+
 // SetOpenedAt sets the "opened_at" field.
 func (u *OutletUpsert) SetOpenedAt(v time.Time) *OutletUpsert {
 	u.Set(outlet.FieldOpenedAt, v)
@@ -814,6 +850,27 @@ func (u *OutletUpsertOne) SetStatus(v string) *OutletUpsertOne {
 func (u *OutletUpsertOne) UpdateStatus() *OutletUpsertOne {
 	return u.Update(func(s *OutletUpsert) {
 		s.UpdateStatus()
+	})
+}
+
+// SetUseCase sets the "use_case" field.
+func (u *OutletUpsertOne) SetUseCase(v string) *OutletUpsertOne {
+	return u.Update(func(s *OutletUpsert) {
+		s.SetUseCase(v)
+	})
+}
+
+// UpdateUseCase sets the "use_case" field to the value that was provided on create.
+func (u *OutletUpsertOne) UpdateUseCase() *OutletUpsertOne {
+	return u.Update(func(s *OutletUpsert) {
+		s.UpdateUseCase()
+	})
+}
+
+// ClearUseCase clears the value of the "use_case" field.
+func (u *OutletUpsertOne) ClearUseCase() *OutletUpsertOne {
+	return u.Update(func(s *OutletUpsert) {
+		s.ClearUseCase()
 	})
 }
 
@@ -1207,6 +1264,27 @@ func (u *OutletUpsertBulk) SetStatus(v string) *OutletUpsertBulk {
 func (u *OutletUpsertBulk) UpdateStatus() *OutletUpsertBulk {
 	return u.Update(func(s *OutletUpsert) {
 		s.UpdateStatus()
+	})
+}
+
+// SetUseCase sets the "use_case" field.
+func (u *OutletUpsertBulk) SetUseCase(v string) *OutletUpsertBulk {
+	return u.Update(func(s *OutletUpsert) {
+		s.SetUseCase(v)
+	})
+}
+
+// UpdateUseCase sets the "use_case" field to the value that was provided on create.
+func (u *OutletUpsertBulk) UpdateUseCase() *OutletUpsertBulk {
+	return u.Update(func(s *OutletUpsert) {
+		s.UpdateUseCase()
+	})
+}
+
+// ClearUseCase clears the value of the "use_case" field.
+func (u *OutletUpsertBulk) ClearUseCase() *OutletUpsertBulk {
+	return u.Update(func(s *OutletUpsert) {
+		s.ClearUseCase()
 	})
 }
 

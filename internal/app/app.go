@@ -2,40 +2,53 @@ package app
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"time"
 
+	"entgo.io/ent/dialect"
+	entsql "entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/schema"
 	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/nats-io/nats.go"
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
-	"entgo.io/ent/dialect/sql/schema"
 
+	sharedcache "github.com/Bengo-Hub/cache"
 	authclient "github.com/Bengo-Hub/shared-auth-client"
+	eventslib "github.com/Bengo-Hub/shared-events"
 	"github.com/bengobox/pos-service/internal/config"
 	"github.com/bengobox/pos-service/internal/ent"
 	"github.com/bengobox/pos-service/internal/ent/migrate"
 	handlers "github.com/bengobox/pos-service/internal/http/handlers"
 	router "github.com/bengobox/pos-service/internal/http/router"
 	"github.com/bengobox/pos-service/internal/modules/identity"
+	ordermodule "github.com/bengobox/pos-service/internal/modules/orders"
+	paymentmodule "github.com/bengobox/pos-service/internal/modules/payments"
+	promommodule "github.com/bengobox/pos-service/internal/modules/promotions"
+	catalogmodule "github.com/bengobox/pos-service/internal/modules/catalog"
+	rbacmodule "github.com/bengobox/pos-service/internal/modules/rbac"
 	"github.com/bengobox/pos-service/internal/modules/tenant"
 	"github.com/bengobox/pos-service/internal/platform/cache"
 	"github.com/bengobox/pos-service/internal/platform/database"
 	"github.com/bengobox/pos-service/internal/platform/events"
+	"github.com/bengobox/pos-service/internal/platform/subscriptions"
 	"github.com/bengobox/pos-service/internal/shared/logger"
 )
 
 type App struct {
-	cfg        *config.Config
-	log        *zap.Logger
-	httpServer *http.Server
-	db         *pgxpool.Pool
-	entClient  *ent.Client
-	cache      *redis.Client
-	events     *nats.Conn
+	cfg             *config.Config
+	log             *zap.Logger
+	httpServer      *http.Server
+	db              *pgxpool.Pool
+	entClient       *ent.Client
+	cache           *redis.Client
+	events          *nats.Conn
+	outboxPublisher *eventslib.Publisher
 }
 
 func New(ctx context.Context) (*App, error) {
@@ -79,10 +92,12 @@ func New(ctx context.Context) (*App, error) {
 	}
 	authMiddleware = authclient.NewAuthMiddleware(validator)
 
-	entClient, err := ent.Open("postgres", cfg.Postgres.URL)
+	sqlDB, err := sql.Open("pgx", cfg.Postgres.URL)
 	if err != nil {
-		return nil, fmt.Errorf("ent init: %w", err)
+		return nil, fmt.Errorf("sql open for ent: %w", err)
 	}
+	drv := entsql.OpenDB(dialect.Postgres, sqlDB)
+	entClient := ent.NewClient(ent.Driver(drv))
 
 	// Run versioned migrations on startup
 	if err := entClient.Schema.Create(ctx, 
@@ -92,10 +107,92 @@ func New(ctx context.Context) (*App, error) {
 	}
 	log.Info("versioned migrations completed")
 
-	tenantSyncer := tenant.NewSyncer(entClient)
+	subsClient := subscriptions.NewClient(subscriptions.Config{
+		ServiceURL:     cfg.Subscriptions.ServiceURL,
+		RequestTimeout: cfg.Subscriptions.RequestTimeout,
+	})
+
+	tenantCache := sharedcache.New(redisClient, log)
+	tenantSyncer := tenant.NewSyncer(entClient, cfg.Auth.ServiceURL, tenantCache)
 	identitySvc := identity.NewService(entClient, tenantSyncer)
 
-	chiRouter := router.New(log, healthHandler, authMiddleware, identitySvc)
+	// Initialize business services
+	orderSvc := ordermodule.NewService(entClient, ordermodule.Config{
+		DefaultCurrency: cfg.App.DefaultCurrency,
+		TaxRatePercent:  cfg.App.TaxRatePercent,
+		OrderPrefix:     cfg.App.OrderPrefix,
+	}, log)
+
+	// Wire event publisher for POS order lifecycle events (shared-events outbox pattern)
+	var outboxPub *eventslib.Publisher
+	if natsConn != nil {
+		eventPub := events.NewPublisher(sqlDB, log)
+		orderSvc.SetPublisher(eventPub)
+
+		// Start background outbox publisher
+		js, jsErr := natsConn.JetStream()
+		if jsErr != nil {
+			log.Warn("jetstream init for outbox publisher", zap.Error(jsErr))
+		} else {
+			pubCfg := eventslib.DefaultPublisherConfig(js, eventPub.OutboxRepo(), log)
+			outboxPub = eventslib.NewPublisher(pubCfg)
+		}
+	}
+
+	paymentSvc := paymentmodule.NewService(entClient, orderSvc, cfg.App.DefaultCurrency, log)
+	promoSvc := promommodule.NewService(entClient, log)
+
+	// Create HTTP handlers
+	orderHandler := handlers.NewPOSOrderHandler(log, entClient, orderSvc, subsClient)
+	catalogHandler := handlers.NewCatalogHandler(log, entClient)
+	tableHandler := handlers.NewTableHandler(log, entClient)
+	tenderHandler := handlers.NewTenderHandler(log, entClient)
+	paymentHandler := handlers.NewPaymentHandler(log, paymentSvc)
+	drawerHandler := handlers.NewDrawerHandler(log, entClient)
+	barTabHandler := handlers.NewBarTabHandler(log, entClient)
+	promotionHandler := handlers.NewPromotionHandler(log, entClient, promoSvc)
+
+	// Initialize RBAC
+	rbacRepo := rbacmodule.NewEntRepository(entClient)
+	rbacSvc := rbacmodule.NewService(rbacRepo, log)
+	rbacHandler := handlers.NewRBACHandler(log, rbacSvc, rbacRepo)
+
+	// Wire RBAC service into identity for JIT role assignment from JWT claims
+	identitySvc.SetRBACService(rbacSvc)
+
+	// Subscribe to ordering click-and-collect events for POS kitchen orders
+	pickupConsumer := ordermodule.NewPickupConsumer(entClient, orderSvc, log)
+	if natsConn != nil {
+		if eventPub := orderSvc.GetPublisher(); eventPub != nil {
+			pickupConsumer.SetPublisher(eventPub)
+		}
+		if err := pickupConsumer.SubscribeToPickupOrders(natsConn); err != nil {
+			log.Warn("app: failed to subscribe to ordering click-and-collect events", zap.Error(err))
+		}
+	}
+
+	// Subscribe to inventory events for catalog projection sync + initial sync
+	inventoryEventHandler := catalogmodule.NewInventoryEventHandler(entClient, log)
+	if natsConn != nil {
+		if err := inventoryEventHandler.SubscribeToInventoryEvents(natsConn); err != nil {
+			log.Warn("app: failed to subscribe to inventory events for catalog sync", zap.Error(err))
+		}
+	}
+
+	// Initial catalog sync from inventory-api (catches items created before subscriber was deployed)
+	go func() {
+		inventoryURL := os.Getenv("INVENTORY_API_URL")
+		if inventoryURL == "" {
+			inventoryURL = "http://inventory-api.inventory.svc.cluster.local:4000"
+		}
+		tenantSlug := os.Getenv("DEFAULT_TENANT_SLUG")
+		if tenantSlug == "" {
+			tenantSlug = "urban-loft"
+		}
+		inventoryEventHandler.InitialSync(ctx, inventoryURL, tenantSlug)
+	}()
+
+	chiRouter := router.New(log, healthHandler, authMiddleware, identitySvc, orderHandler, catalogHandler, tableHandler, tenderHandler, paymentHandler, drawerHandler, barTabHandler, promotionHandler, rbacHandler, cfg.HTTP.AllowedOrigins)
 
 	httpServer := &http.Server{
 		Addr:              fmt.Sprintf("%s:%d", cfg.HTTP.Host, cfg.HTTP.Port),
@@ -107,17 +204,28 @@ func New(ctx context.Context) (*App, error) {
 	}
 
 	return &App{
-		cfg:        cfg,
-		log:        log,
-		httpServer: httpServer,
-		db:         dbPool,
-		entClient:  entClient,
-		cache:      redisClient,
-		events:     natsConn,
+		cfg:             cfg,
+		log:             log,
+		httpServer:      httpServer,
+		db:              dbPool,
+		entClient:       entClient,
+		cache:           redisClient,
+		events:          natsConn,
+		outboxPublisher: outboxPub,
 	}, nil
 }
 
 func (a *App) Run(ctx context.Context) error {
+	// Start outbox background publisher for POS events
+	if a.outboxPublisher != nil {
+		go func() {
+			if err := a.outboxPublisher.Start(ctx); err != nil {
+				a.log.Error("outbox publisher stopped", zap.Error(err))
+			}
+		}()
+		a.log.Info("outbox background publisher started")
+	}
+
 	a.log.Info("pos service starting", zap.String("addr", a.httpServer.Addr))
 
 	errCh := make(chan error, 1)

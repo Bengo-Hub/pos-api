@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"github.com/bengobox/pos-service/internal/ent/appointment"
 	"github.com/bengobox/pos-service/internal/ent/bartab"
 	"github.com/bengobox/pos-service/internal/ent/bartabevent"
 	"github.com/bengobox/pos-service/internal/ent/cashdrawer"
@@ -19,11 +20,14 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/catalogitem"
 	"github.com/bengobox/pos-service/internal/ent/channelintegration"
 	"github.com/bengobox/pos-service/internal/ent/channelsyncjob"
+	"github.com/bengobox/pos-service/internal/ent/commissionrecord"
 	"github.com/bengobox/pos-service/internal/ent/featureoverride"
 	"github.com/bengobox/pos-service/internal/ent/giftcard"
 	"github.com/bengobox/pos-service/internal/ent/giftcardtransaction"
 	"github.com/bengobox/pos-service/internal/ent/integrationsetting"
 	"github.com/bengobox/pos-service/internal/ent/inventorysnapshot"
+	"github.com/bengobox/pos-service/internal/ent/kdsstation"
+	"github.com/bengobox/pos-service/internal/ent/kdsticket"
 	"github.com/bengobox/pos-service/internal/ent/licenseusagesnapshot"
 	"github.com/bengobox/pos-service/internal/ent/modifier"
 	"github.com/bengobox/pos-service/internal/ent/modifiergroup"
@@ -38,13 +42,22 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/posorderevent"
 	"github.com/bengobox/pos-service/internal/ent/posorderline"
 	"github.com/bengobox/pos-service/internal/ent/pospayment"
+	"github.com/bengobox/pos-service/internal/ent/pospermission"
 	"github.com/bengobox/pos-service/internal/ent/posrefund"
 	"github.com/bengobox/pos-service/internal/ent/posrole"
+	"github.com/bengobox/pos-service/internal/ent/posrolepermission"
+	"github.com/bengobox/pos-service/internal/ent/posrolev2"
+	"github.com/bengobox/pos-service/internal/ent/posuserroleassignment"
 	"github.com/bengobox/pos-service/internal/ent/pricebook"
 	"github.com/bengobox/pos-service/internal/ent/pricebookitem"
 	"github.com/bengobox/pos-service/internal/ent/promotion"
 	"github.com/bengobox/pos-service/internal/ent/promotionapplication"
 	"github.com/bengobox/pos-service/internal/ent/promotionrule"
+	"github.com/bengobox/pos-service/internal/ent/ratelimitconfig"
+	"github.com/bengobox/pos-service/internal/ent/section"
+	"github.com/bengobox/pos-service/internal/ent/serialnumberlog"
+	"github.com/bengobox/pos-service/internal/ent/serviceconfig"
+	"github.com/bengobox/pos-service/internal/ent/staffmember"
 	"github.com/bengobox/pos-service/internal/ent/stockalertsubscription"
 	"github.com/bengobox/pos-service/internal/ent/stockconsumptionevent"
 	"github.com/bengobox/pos-service/internal/ent/syncfailure"
@@ -116,6 +129,7 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
+			appointment.Table:            appointment.ValidColumn,
 			bartab.Table:                 bartab.ValidColumn,
 			bartabevent.Table:            bartabevent.ValidColumn,
 			cashdrawer.Table:             cashdrawer.ValidColumn,
@@ -123,11 +137,14 @@ func checkColumn(t, c string) error {
 			catalogitem.Table:            catalogitem.ValidColumn,
 			channelintegration.Table:     channelintegration.ValidColumn,
 			channelsyncjob.Table:         channelsyncjob.ValidColumn,
+			commissionrecord.Table:       commissionrecord.ValidColumn,
 			featureoverride.Table:        featureoverride.ValidColumn,
 			giftcard.Table:               giftcard.ValidColumn,
 			giftcardtransaction.Table:    giftcardtransaction.ValidColumn,
 			integrationsetting.Table:     integrationsetting.ValidColumn,
 			inventorysnapshot.Table:      inventorysnapshot.ValidColumn,
+			kdsstation.Table:             kdsstation.ValidColumn,
+			kdsticket.Table:              kdsticket.ValidColumn,
 			licenseusagesnapshot.Table:   licenseusagesnapshot.ValidColumn,
 			modifier.Table:               modifier.ValidColumn,
 			modifiergroup.Table:          modifiergroup.ValidColumn,
@@ -142,13 +159,22 @@ func checkColumn(t, c string) error {
 			posorderevent.Table:          posorderevent.ValidColumn,
 			posorderline.Table:           posorderline.ValidColumn,
 			pospayment.Table:             pospayment.ValidColumn,
+			pospermission.Table:          pospermission.ValidColumn,
 			posrefund.Table:              posrefund.ValidColumn,
 			posrole.Table:                posrole.ValidColumn,
+			posrolepermission.Table:      posrolepermission.ValidColumn,
+			posrolev2.Table:              posrolev2.ValidColumn,
+			posuserroleassignment.Table:  posuserroleassignment.ValidColumn,
 			pricebook.Table:              pricebook.ValidColumn,
 			pricebookitem.Table:          pricebookitem.ValidColumn,
 			promotion.Table:              promotion.ValidColumn,
 			promotionapplication.Table:   promotionapplication.ValidColumn,
 			promotionrule.Table:          promotionrule.ValidColumn,
+			ratelimitconfig.Table:        ratelimitconfig.ValidColumn,
+			section.Table:                section.ValidColumn,
+			serialnumberlog.Table:        serialnumberlog.ValidColumn,
+			serviceconfig.Table:          serviceconfig.ValidColumn,
+			staffmember.Table:            staffmember.ValidColumn,
 			stockalertsubscription.Table: stockalertsubscription.ValidColumn,
 			stockconsumptionevent.Table:  stockconsumptionevent.ValidColumn,
 			syncfailure.Table:            syncfailure.ValidColumn,

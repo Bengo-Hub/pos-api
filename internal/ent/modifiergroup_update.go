@@ -100,6 +100,26 @@ func (_u *ModifierGroupUpdate) AddMaxSelection(v int) *ModifierGroupUpdate {
 	return _u
 }
 
+// SetInventoryModifierGroupID sets the "inventory_modifier_group_id" field.
+func (_u *ModifierGroupUpdate) SetInventoryModifierGroupID(v uuid.UUID) *ModifierGroupUpdate {
+	_u.mutation.SetInventoryModifierGroupID(v)
+	return _u
+}
+
+// SetNillableInventoryModifierGroupID sets the "inventory_modifier_group_id" field if the given value is not nil.
+func (_u *ModifierGroupUpdate) SetNillableInventoryModifierGroupID(v *uuid.UUID) *ModifierGroupUpdate {
+	if v != nil {
+		_u.SetInventoryModifierGroupID(*v)
+	}
+	return _u
+}
+
+// ClearInventoryModifierGroupID clears the value of the "inventory_modifier_group_id" field.
+func (_u *ModifierGroupUpdate) ClearInventoryModifierGroupID() *ModifierGroupUpdate {
+	_u.mutation.ClearInventoryModifierGroupID()
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *ModifierGroupUpdate) SetUpdatedAt(v time.Time) *ModifierGroupUpdate {
 	_u.mutation.SetUpdatedAt(v)
@@ -222,6 +242,12 @@ func (_u *ModifierGroupUpdate) sqlSave(ctx context.Context) (_node int, err erro
 	}
 	if value, ok := _u.mutation.AddedMaxSelection(); ok {
 		_spec.AddField(modifiergroup.FieldMaxSelection, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.InventoryModifierGroupID(); ok {
+		_spec.SetField(modifiergroup.FieldInventoryModifierGroupID, field.TypeUUID, value)
+	}
+	if _u.mutation.InventoryModifierGroupIDCleared() {
+		_spec.ClearField(modifiergroup.FieldInventoryModifierGroupID, field.TypeUUID)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(modifiergroup.FieldUpdatedAt, field.TypeTime, value)
@@ -358,6 +384,26 @@ func (_u *ModifierGroupUpdateOne) SetNillableMaxSelection(v *int) *ModifierGroup
 // AddMaxSelection adds value to the "max_selection" field.
 func (_u *ModifierGroupUpdateOne) AddMaxSelection(v int) *ModifierGroupUpdateOne {
 	_u.mutation.AddMaxSelection(v)
+	return _u
+}
+
+// SetInventoryModifierGroupID sets the "inventory_modifier_group_id" field.
+func (_u *ModifierGroupUpdateOne) SetInventoryModifierGroupID(v uuid.UUID) *ModifierGroupUpdateOne {
+	_u.mutation.SetInventoryModifierGroupID(v)
+	return _u
+}
+
+// SetNillableInventoryModifierGroupID sets the "inventory_modifier_group_id" field if the given value is not nil.
+func (_u *ModifierGroupUpdateOne) SetNillableInventoryModifierGroupID(v *uuid.UUID) *ModifierGroupUpdateOne {
+	if v != nil {
+		_u.SetInventoryModifierGroupID(*v)
+	}
+	return _u
+}
+
+// ClearInventoryModifierGroupID clears the value of the "inventory_modifier_group_id" field.
+func (_u *ModifierGroupUpdateOne) ClearInventoryModifierGroupID() *ModifierGroupUpdateOne {
+	_u.mutation.ClearInventoryModifierGroupID()
 	return _u
 }
 
@@ -513,6 +559,12 @@ func (_u *ModifierGroupUpdateOne) sqlSave(ctx context.Context) (_node *ModifierG
 	}
 	if value, ok := _u.mutation.AddedMaxSelection(); ok {
 		_spec.AddField(modifiergroup.FieldMaxSelection, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.InventoryModifierGroupID(); ok {
+		_spec.SetField(modifiergroup.FieldInventoryModifierGroupID, field.TypeUUID, value)
+	}
+	if _u.mutation.InventoryModifierGroupIDCleared() {
+		_spec.ClearField(modifiergroup.FieldInventoryModifierGroupID, field.TypeUUID)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(modifiergroup.FieldUpdatedAt, field.TypeTime, value)

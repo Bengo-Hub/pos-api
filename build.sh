@@ -75,15 +75,11 @@ info "Running Trivy filesystem scan"
 trivy fs . --exit-code "$TRIVY_ECODE" --format table || true
 
 info "Building Docker image"
-# Dockerfile uses online tagged auth-client (no COPY shared). Context must be repo root.
-# From repo root or CI: -f pos-service/pos-api/Dockerfile and context .
-# From pos-api dir: -f Dockerfile and context ../..
-if [[ -d "pos-service" ]] && [[ -d "pos-service/pos-api" ]]; then
-  DOCKER_BUILDKIT=1 docker build -f pos-service/pos-api/Dockerfile -t "${IMAGE_REPO}:${GIT_COMMIT_ID}" .
-elif [[ -f "Dockerfile" ]] && [[ -f "go.mod" ]] && [[ "$(basename "$(dirname "$(pwd)")" 2>/dev/null)" == "pos-service" ]]; then
-  DOCKER_BUILDKIT=1 docker build -f Dockerfile -t "${IMAGE_REPO}:${GIT_COMMIT_ID}" ../..
+if [[ -f "Dockerfile" ]]; then
+  DOCKER_BUILDKIT=1 docker build -f Dockerfile -t "${IMAGE_REPO}:${GIT_COMMIT_ID}" .
 else
-  DOCKER_BUILDKIT=1 docker build -f pos-service/pos-api/Dockerfile -t "${IMAGE_REPO}:${GIT_COMMIT_ID}" .
+  error "Dockerfile not found in current directory"
+  exit 1
 fi
 success "Docker build complete"
 
@@ -101,7 +97,12 @@ success "Image pushed"
 
 if [[ -n ${KUBE_CONFIG:-} ]]; then
   mkdir -p ~/.kube
-  echo "$KUBE_CONFIG" | base64 -d > ~/.kube/config
+  if echo "$KUBE_CONFIG" | base64 -d > ~/.kube/config 2>/dev/null; then
+    info "KUBE_CONFIG decoded from base64"
+  else
+    echo "$KUBE_CONFIG" > ~/.kube/config
+    info "KUBE_CONFIG used as raw content (not base64)"
+  fi
   chmod 600 ~/.kube/config
   export KUBECONFIG=~/.kube/config
 fi
@@ -151,20 +152,31 @@ if [[ "$SETUP_DATABASES" == "true" && -n "${KUBE_CONFIG:-}" ]]; then
   fi
 fi
 
-# Create service secrets using devops-k8s script if not exists
-if ! kubectl -n "$NAMESPACE" get secret "$ENV_SECRET_NAME" >/dev/null 2>&1; then
-  if [[ -d "$DEVOPS_DIR" && -f "$DEVOPS_DIR/scripts/infrastructure/create-service-secrets.sh" ]]; then
-    info "Creating secrets for ${APP_NAME} using devops-k8s script..."
-    SERVICE_NAME="$APP_NAME" \
-    NAMESPACE="$NAMESPACE" \
-    DB_NAME="$SERVICE_DB_NAME" \
-    DB_USER="$SERVICE_DB_USER" \
-    SECRET_NAME="$ENV_SECRET_NAME" \
-    bash "$DEVOPS_DIR/scripts/infrastructure/create-service-secrets.sh" || warn "Secret creation failed or already exists"
-  else
-    warn "Secret $ENV_SECRET_NAME not found and create-service-secrets.sh not available"
-    warn "Please create the secret manually or ensure devops-k8s repo is cloned"
+# Ensure devops-k8s is available so create-service-secrets always runs when DEPLOY=true
+if [[ "${DEPLOY}" == "true" && -n "${KUBE_CONFIG:-}" ]] && [[ ! -d "$DEVOPS_DIR" || ! -f "$DEVOPS_DIR/scripts/infrastructure/create-service-secrets.sh" ]]; then
+  if [[ ! -d "$DEVOPS_DIR" ]]; then
+    info "Cloning devops-k8s for secret creation..."
+    TOKEN="${GH_PAT:-${GIT_SECRET:-${GITHUB_TOKEN:-}}}"
+    CLONE_URL="https://github.com/${DEVOPS_REPO}.git"
+    [[ -n "$TOKEN" ]] && CLONE_URL="https://x-access-token:${TOKEN}@github.com/${DEVOPS_REPO}.git"
+    git clone "$CLONE_URL" "$DEVOPS_DIR" || warn "Unable to clone devops repo for secret creation"
   fi
+fi
+
+# Ensure service secrets are up-to-date (handles standardized keys: POSTGRES_URL, etc.)
+if [[ -d "$DEVOPS_DIR" && -f "$DEVOPS_DIR/scripts/infrastructure/create-service-secrets.sh" ]]; then
+  info "Updating secrets for ${APP_NAME} using devops-k8s script..."
+  export KUBECONFIG="${KUBECONFIG:-$HOME/.kube/config}"
+  SERVICE_NAME="$APP_NAME" \
+  NAMESPACE="$NAMESPACE" \
+  DB_NAME="$SERVICE_DB_NAME" \
+  DB_USER="$SERVICE_DB_USER" \
+  SECRET_NAME="$ENV_SECRET_NAME" \
+  POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-}" \
+  REDIS_PASSWORD="${REDIS_PASSWORD:-}" \
+  bash "$DEVOPS_DIR/scripts/infrastructure/create-service-secrets.sh" || warn "Secret sync failed"
+else
+  warn "create-service-secrets.sh not available - using existing cluster secrets"
 fi
 
 # Clone devops-k8s if needed for helm update

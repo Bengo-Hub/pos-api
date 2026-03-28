@@ -18,7 +18,22 @@ import (
 	"github.com/Bengo-Hub/httpware"
 )
 
-func New(log *zap.Logger, health *handlers.HealthHandler, authMiddleware *authclient.AuthMiddleware, idSvc *identity.Service) http.Handler {
+func New(
+	log *zap.Logger,
+	health *handlers.HealthHandler,
+	authMiddleware *authclient.AuthMiddleware,
+	idSvc *identity.Service,
+	orders *handlers.POSOrderHandler,
+	catalog *handlers.CatalogHandler,
+	tables *handlers.TableHandler,
+	tenders *handlers.TenderHandler,
+	payments *handlers.PaymentHandler,
+	drawers *handlers.DrawerHandler,
+	barTabs *handlers.BarTabHandler,
+	promotions *handlers.PromotionHandler,
+	rbacHandler *handlers.RBACHandler,
+	allowedOrigins []string,
+) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(middleware.RequestID)
@@ -28,10 +43,10 @@ func New(log *zap.Logger, health *handlers.HealthHandler, authMiddleware *authcl
 	r.Use(httpware.Recover(log))
 	r.Use(middleware.Timeout(30 * time.Second))
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"*"},
+		AllowedOrigins:   allowedOrigins,
 		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Authorization", "Content-Type", "X-Tenant-ID", "X-Request-ID"},
-		ExposedHeaders:   []string{"Link"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "Origin", "X-Request-ID", "X-Tenant-ID", "X-Tenant-Slug"},
+		ExposedHeaders:   []string{"Link", "X-RateLimit-Limit", "X-RateLimit-Remaining", "X-RateLimit-Reset", "Retry-After"},
 		AllowCredentials: true,
 		MaxAge:           300,
 	}))
@@ -42,12 +57,11 @@ func New(log *zap.Logger, health *handlers.HealthHandler, authMiddleware *authcl
 	r.Get("/v1/docs/*", handlers.SwaggerUI)
 
 	r.Route("/api/v1", func(api chi.Router) {
-		// Serve OpenAPI spec (public, no auth required)
-		api.Get("/openapi.json", handlers.OpenAPIJSON)
-		
 		// Apply auth middleware to all v1 routes
 		if authMiddleware != nil {
 			api.Use(authMiddleware.RequireAuth)
+			// Layer 2: Subscription enforcement — reject expired/cancelled tenants
+			api.Use(authclient.RequireActiveSubscription())
 		}
 
 		if idSvc != nil {
@@ -59,7 +73,10 @@ func New(log *zap.Logger, health *handlers.HealthHandler, authMiddleware *authcl
 						slug := claims.GetTenantSlug()
 						if slug != "" {
 							_, err := idSvc.EnsureUserFromToken(r.Context(), subject, slug, map[string]any{
-								"email": claims.Email,
+								"email":             claims.Email,
+								"roles":             claims.Roles,
+								"permissions":       claims.Permissions,
+								"is_platform_owner": claims.IsPlatformOwner,
 							})
 							if err != nil {
 								log.Warn("jit provisioning failed", zap.Error(err))
@@ -70,6 +87,9 @@ func New(log *zap.Logger, health *handlers.HealthHandler, authMiddleware *authcl
 				})
 			})
 		}
+
+		// Serve OpenAPI spec (public, no auth required)
+		api.Get("/openapi.json", handlers.OpenAPIJSON)
 
 		api.Route("/{tenantID}", func(tenant chi.Router) {
 			tenant.Use(httpware.TenantV2(httpware.TenantConfig{
@@ -84,12 +104,79 @@ func New(log *zap.Logger, health *handlers.HealthHandler, authMiddleware *authcl
 				Required:     true,
 			}))
 
+			// RBAC routes
+			if rbacHandler != nil {
+				rbacHandler.RegisterRoutes(tenant)
+			}
+
 			tenant.Route("/pos", func(pos chi.Router) {
-				// Placeholder endpoints - to be implemented
-				pos.Get("/orders", func(w http.ResponseWriter, r *http.Request) {
-					w.WriteHeader(http.StatusNotImplemented)
-					w.Write([]byte("Not implemented yet"))
-				})
+				// Orders
+				if orders != nil {
+					pos.Get("/orders", orders.ListOrders)
+					pos.Post("/orders", orders.CreateOrder)
+					pos.Get("/orders/{orderID}", orders.GetOrder)
+					pos.Patch("/orders/{orderID}/status", orders.UpdateStatus)
+				}
+
+				// Catalog
+				if catalog != nil {
+					pos.Route("/catalog", func(cat chi.Router) {
+						cat.Get("/items", catalog.ListCatalogItems)
+						cat.Post("/items", catalog.CreateCatalogItem)
+						cat.Get("/items/{id}", catalog.GetCatalogItem)
+						cat.Put("/items/{id}", catalog.UpdateCatalogItem)
+						cat.Delete("/items/{id}", catalog.DeleteCatalogItem)
+					})
+				}
+
+				// Sections & Tables
+				if tables != nil {
+					pos.Get("/sections", tables.ListSections)
+					pos.Post("/sections", tables.CreateSection)
+					pos.Put("/sections/{id}", tables.UpdateSection)
+					pos.Get("/tables", tables.ListTables)
+					pos.Post("/tables", tables.CreateTable)
+					pos.Put("/tables/{id}", tables.UpdateTable)
+					pos.Patch("/tables/{id}/status", tables.UpdateTableStatus)
+					pos.Post("/tables/{id}/assign", tables.AssignTable)
+					pos.Post("/tables/{id}/release", tables.ReleaseTable)
+				}
+
+				// Tenders
+				if tenders != nil {
+					pos.Get("/tenders", tenders.ListTenders)
+					pos.Post("/tenders", tenders.CreateTender)
+					pos.Put("/tenders/{id}", tenders.UpdateTender)
+				}
+
+				// Payments
+				if payments != nil {
+					pos.Post("/orders/{orderID}/payments", payments.RecordPayment)
+					pos.Get("/orders/{orderID}/payments", payments.ListOrderPayments)
+				}
+
+				// Cash Drawers
+				if drawers != nil {
+					pos.Post("/drawers/open", drawers.OpenDrawer)
+					pos.Get("/drawers/current", drawers.GetCurrentDrawer)
+					pos.Post("/drawers/{id}/close", drawers.CloseDrawer)
+					pos.Get("/drawers", drawers.ListDrawerHistory)
+				}
+
+				// Bar Tabs
+				if barTabs != nil {
+					pos.Post("/bar-tabs", barTabs.OpenBarTab)
+					pos.Get("/bar-tabs", barTabs.ListBarTabs)
+					pos.Get("/bar-tabs/{id}", barTabs.GetBarTab)
+					pos.Post("/bar-tabs/{id}/close", barTabs.CloseBarTab)
+				}
+
+				// Promotions
+				if promotions != nil {
+					pos.Get("/promotions", promotions.ListPromotions)
+					pos.Post("/promotions", promotions.CreatePromotion)
+					pos.Post("/promotions/apply", promotions.ApplyPromoCode)
+				}
 			})
 		})
 	})

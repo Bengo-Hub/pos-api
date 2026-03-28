@@ -73,158 +73,6 @@ func (_u *TenantUpdate) SetNillableStatus(v *string) *TenantUpdate {
 	return _u
 }
 
-// SetContactEmail sets the "contact_email" field.
-func (_u *TenantUpdate) SetContactEmail(v string) *TenantUpdate {
-	_u.mutation.SetContactEmail(v)
-	return _u
-}
-
-// SetNillableContactEmail sets the "contact_email" field if the given value is not nil.
-func (_u *TenantUpdate) SetNillableContactEmail(v *string) *TenantUpdate {
-	if v != nil {
-		_u.SetContactEmail(*v)
-	}
-	return _u
-}
-
-// ClearContactEmail clears the value of the "contact_email" field.
-func (_u *TenantUpdate) ClearContactEmail() *TenantUpdate {
-	_u.mutation.ClearContactEmail()
-	return _u
-}
-
-// SetContactPhone sets the "contact_phone" field.
-func (_u *TenantUpdate) SetContactPhone(v string) *TenantUpdate {
-	_u.mutation.SetContactPhone(v)
-	return _u
-}
-
-// SetNillableContactPhone sets the "contact_phone" field if the given value is not nil.
-func (_u *TenantUpdate) SetNillableContactPhone(v *string) *TenantUpdate {
-	if v != nil {
-		_u.SetContactPhone(*v)
-	}
-	return _u
-}
-
-// ClearContactPhone clears the value of the "contact_phone" field.
-func (_u *TenantUpdate) ClearContactPhone() *TenantUpdate {
-	_u.mutation.ClearContactPhone()
-	return _u
-}
-
-// SetLogoURL sets the "logo_url" field.
-func (_u *TenantUpdate) SetLogoURL(v string) *TenantUpdate {
-	_u.mutation.SetLogoURL(v)
-	return _u
-}
-
-// SetNillableLogoURL sets the "logo_url" field if the given value is not nil.
-func (_u *TenantUpdate) SetNillableLogoURL(v *string) *TenantUpdate {
-	if v != nil {
-		_u.SetLogoURL(*v)
-	}
-	return _u
-}
-
-// ClearLogoURL clears the value of the "logo_url" field.
-func (_u *TenantUpdate) ClearLogoURL() *TenantUpdate {
-	_u.mutation.ClearLogoURL()
-	return _u
-}
-
-// SetWebsite sets the "website" field.
-func (_u *TenantUpdate) SetWebsite(v string) *TenantUpdate {
-	_u.mutation.SetWebsite(v)
-	return _u
-}
-
-// SetNillableWebsite sets the "website" field if the given value is not nil.
-func (_u *TenantUpdate) SetNillableWebsite(v *string) *TenantUpdate {
-	if v != nil {
-		_u.SetWebsite(*v)
-	}
-	return _u
-}
-
-// ClearWebsite clears the value of the "website" field.
-func (_u *TenantUpdate) ClearWebsite() *TenantUpdate {
-	_u.mutation.ClearWebsite()
-	return _u
-}
-
-// SetCountry sets the "country" field.
-func (_u *TenantUpdate) SetCountry(v string) *TenantUpdate {
-	_u.mutation.SetCountry(v)
-	return _u
-}
-
-// SetNillableCountry sets the "country" field if the given value is not nil.
-func (_u *TenantUpdate) SetNillableCountry(v *string) *TenantUpdate {
-	if v != nil {
-		_u.SetCountry(*v)
-	}
-	return _u
-}
-
-// ClearCountry clears the value of the "country" field.
-func (_u *TenantUpdate) ClearCountry() *TenantUpdate {
-	_u.mutation.ClearCountry()
-	return _u
-}
-
-// SetTimezone sets the "timezone" field.
-func (_u *TenantUpdate) SetTimezone(v string) *TenantUpdate {
-	_u.mutation.SetTimezone(v)
-	return _u
-}
-
-// SetNillableTimezone sets the "timezone" field if the given value is not nil.
-func (_u *TenantUpdate) SetNillableTimezone(v *string) *TenantUpdate {
-	if v != nil {
-		_u.SetTimezone(*v)
-	}
-	return _u
-}
-
-// ClearTimezone clears the value of the "timezone" field.
-func (_u *TenantUpdate) ClearTimezone() *TenantUpdate {
-	_u.mutation.ClearTimezone()
-	return _u
-}
-
-// SetBrandColors sets the "brand_colors" field.
-func (_u *TenantUpdate) SetBrandColors(v map[string]interface{}) *TenantUpdate {
-	_u.mutation.SetBrandColors(v)
-	return _u
-}
-
-// ClearBrandColors clears the value of the "brand_colors" field.
-func (_u *TenantUpdate) ClearBrandColors() *TenantUpdate {
-	_u.mutation.ClearBrandColors()
-	return _u
-}
-
-// SetOrgSize sets the "org_size" field.
-func (_u *TenantUpdate) SetOrgSize(v string) *TenantUpdate {
-	_u.mutation.SetOrgSize(v)
-	return _u
-}
-
-// SetNillableOrgSize sets the "org_size" field if the given value is not nil.
-func (_u *TenantUpdate) SetNillableOrgSize(v *string) *TenantUpdate {
-	if v != nil {
-		_u.SetOrgSize(*v)
-	}
-	return _u
-}
-
-// ClearOrgSize clears the value of the "org_size" field.
-func (_u *TenantUpdate) ClearOrgSize() *TenantUpdate {
-	_u.mutation.ClearOrgSize()
-	return _u
-}
-
 // SetUseCase sets the "use_case" field.
 func (_u *TenantUpdate) SetUseCase(v string) *TenantUpdate {
 	_u.mutation.SetUseCase(v)
@@ -245,107 +93,37 @@ func (_u *TenantUpdate) ClearUseCase() *TenantUpdate {
 	return _u
 }
 
-// SetSubscriptionPlan sets the "subscription_plan" field.
-func (_u *TenantUpdate) SetSubscriptionPlan(v string) *TenantUpdate {
-	_u.mutation.SetSubscriptionPlan(v)
+// SetSyncStatus sets the "sync_status" field.
+func (_u *TenantUpdate) SetSyncStatus(v string) *TenantUpdate {
+	_u.mutation.SetSyncStatus(v)
 	return _u
 }
 
-// SetNillableSubscriptionPlan sets the "subscription_plan" field if the given value is not nil.
-func (_u *TenantUpdate) SetNillableSubscriptionPlan(v *string) *TenantUpdate {
+// SetNillableSyncStatus sets the "sync_status" field if the given value is not nil.
+func (_u *TenantUpdate) SetNillableSyncStatus(v *string) *TenantUpdate {
 	if v != nil {
-		_u.SetSubscriptionPlan(*v)
+		_u.SetSyncStatus(*v)
 	}
 	return _u
 }
 
-// ClearSubscriptionPlan clears the value of the "subscription_plan" field.
-func (_u *TenantUpdate) ClearSubscriptionPlan() *TenantUpdate {
-	_u.mutation.ClearSubscriptionPlan()
+// SetLastSyncAt sets the "last_sync_at" field.
+func (_u *TenantUpdate) SetLastSyncAt(v time.Time) *TenantUpdate {
+	_u.mutation.SetLastSyncAt(v)
 	return _u
 }
 
-// SetSubscriptionStatus sets the "subscription_status" field.
-func (_u *TenantUpdate) SetSubscriptionStatus(v string) *TenantUpdate {
-	_u.mutation.SetSubscriptionStatus(v)
-	return _u
-}
-
-// SetNillableSubscriptionStatus sets the "subscription_status" field if the given value is not nil.
-func (_u *TenantUpdate) SetNillableSubscriptionStatus(v *string) *TenantUpdate {
+// SetNillableLastSyncAt sets the "last_sync_at" field if the given value is not nil.
+func (_u *TenantUpdate) SetNillableLastSyncAt(v *time.Time) *TenantUpdate {
 	if v != nil {
-		_u.SetSubscriptionStatus(*v)
+		_u.SetLastSyncAt(*v)
 	}
 	return _u
 }
 
-// ClearSubscriptionStatus clears the value of the "subscription_status" field.
-func (_u *TenantUpdate) ClearSubscriptionStatus() *TenantUpdate {
-	_u.mutation.ClearSubscriptionStatus()
-	return _u
-}
-
-// SetSubscriptionExpiresAt sets the "subscription_expires_at" field.
-func (_u *TenantUpdate) SetSubscriptionExpiresAt(v time.Time) *TenantUpdate {
-	_u.mutation.SetSubscriptionExpiresAt(v)
-	return _u
-}
-
-// SetNillableSubscriptionExpiresAt sets the "subscription_expires_at" field if the given value is not nil.
-func (_u *TenantUpdate) SetNillableSubscriptionExpiresAt(v *time.Time) *TenantUpdate {
-	if v != nil {
-		_u.SetSubscriptionExpiresAt(*v)
-	}
-	return _u
-}
-
-// ClearSubscriptionExpiresAt clears the value of the "subscription_expires_at" field.
-func (_u *TenantUpdate) ClearSubscriptionExpiresAt() *TenantUpdate {
-	_u.mutation.ClearSubscriptionExpiresAt()
-	return _u
-}
-
-// SetSubscriptionID sets the "subscription_id" field.
-func (_u *TenantUpdate) SetSubscriptionID(v string) *TenantUpdate {
-	_u.mutation.SetSubscriptionID(v)
-	return _u
-}
-
-// SetNillableSubscriptionID sets the "subscription_id" field if the given value is not nil.
-func (_u *TenantUpdate) SetNillableSubscriptionID(v *string) *TenantUpdate {
-	if v != nil {
-		_u.SetSubscriptionID(*v)
-	}
-	return _u
-}
-
-// ClearSubscriptionID clears the value of the "subscription_id" field.
-func (_u *TenantUpdate) ClearSubscriptionID() *TenantUpdate {
-	_u.mutation.ClearSubscriptionID()
-	return _u
-}
-
-// SetTierLimits sets the "tier_limits" field.
-func (_u *TenantUpdate) SetTierLimits(v map[string]interface{}) *TenantUpdate {
-	_u.mutation.SetTierLimits(v)
-	return _u
-}
-
-// ClearTierLimits clears the value of the "tier_limits" field.
-func (_u *TenantUpdate) ClearTierLimits() *TenantUpdate {
-	_u.mutation.ClearTierLimits()
-	return _u
-}
-
-// SetMetadata sets the "metadata" field.
-func (_u *TenantUpdate) SetMetadata(v map[string]interface{}) *TenantUpdate {
-	_u.mutation.SetMetadata(v)
-	return _u
-}
-
-// ClearMetadata clears the value of the "metadata" field.
-func (_u *TenantUpdate) ClearMetadata() *TenantUpdate {
-	_u.mutation.ClearMetadata()
+// ClearLastSyncAt clears the value of the "last_sync_at" field.
+func (_u *TenantUpdate) ClearLastSyncAt() *TenantUpdate {
+	_u.mutation.ClearLastSyncAt()
 	return _u
 }
 
@@ -504,95 +282,20 @@ func (_u *TenantUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(tenant.FieldStatus, field.TypeString, value)
 	}
-	if value, ok := _u.mutation.ContactEmail(); ok {
-		_spec.SetField(tenant.FieldContactEmail, field.TypeString, value)
-	}
-	if _u.mutation.ContactEmailCleared() {
-		_spec.ClearField(tenant.FieldContactEmail, field.TypeString)
-	}
-	if value, ok := _u.mutation.ContactPhone(); ok {
-		_spec.SetField(tenant.FieldContactPhone, field.TypeString, value)
-	}
-	if _u.mutation.ContactPhoneCleared() {
-		_spec.ClearField(tenant.FieldContactPhone, field.TypeString)
-	}
-	if value, ok := _u.mutation.LogoURL(); ok {
-		_spec.SetField(tenant.FieldLogoURL, field.TypeString, value)
-	}
-	if _u.mutation.LogoURLCleared() {
-		_spec.ClearField(tenant.FieldLogoURL, field.TypeString)
-	}
-	if value, ok := _u.mutation.Website(); ok {
-		_spec.SetField(tenant.FieldWebsite, field.TypeString, value)
-	}
-	if _u.mutation.WebsiteCleared() {
-		_spec.ClearField(tenant.FieldWebsite, field.TypeString)
-	}
-	if value, ok := _u.mutation.Country(); ok {
-		_spec.SetField(tenant.FieldCountry, field.TypeString, value)
-	}
-	if _u.mutation.CountryCleared() {
-		_spec.ClearField(tenant.FieldCountry, field.TypeString)
-	}
-	if value, ok := _u.mutation.Timezone(); ok {
-		_spec.SetField(tenant.FieldTimezone, field.TypeString, value)
-	}
-	if _u.mutation.TimezoneCleared() {
-		_spec.ClearField(tenant.FieldTimezone, field.TypeString)
-	}
-	if value, ok := _u.mutation.BrandColors(); ok {
-		_spec.SetField(tenant.FieldBrandColors, field.TypeJSON, value)
-	}
-	if _u.mutation.BrandColorsCleared() {
-		_spec.ClearField(tenant.FieldBrandColors, field.TypeJSON)
-	}
-	if value, ok := _u.mutation.OrgSize(); ok {
-		_spec.SetField(tenant.FieldOrgSize, field.TypeString, value)
-	}
-	if _u.mutation.OrgSizeCleared() {
-		_spec.ClearField(tenant.FieldOrgSize, field.TypeString)
-	}
 	if value, ok := _u.mutation.UseCase(); ok {
 		_spec.SetField(tenant.FieldUseCase, field.TypeString, value)
 	}
 	if _u.mutation.UseCaseCleared() {
 		_spec.ClearField(tenant.FieldUseCase, field.TypeString)
 	}
-	if value, ok := _u.mutation.SubscriptionPlan(); ok {
-		_spec.SetField(tenant.FieldSubscriptionPlan, field.TypeString, value)
+	if value, ok := _u.mutation.SyncStatus(); ok {
+		_spec.SetField(tenant.FieldSyncStatus, field.TypeString, value)
 	}
-	if _u.mutation.SubscriptionPlanCleared() {
-		_spec.ClearField(tenant.FieldSubscriptionPlan, field.TypeString)
+	if value, ok := _u.mutation.LastSyncAt(); ok {
+		_spec.SetField(tenant.FieldLastSyncAt, field.TypeTime, value)
 	}
-	if value, ok := _u.mutation.SubscriptionStatus(); ok {
-		_spec.SetField(tenant.FieldSubscriptionStatus, field.TypeString, value)
-	}
-	if _u.mutation.SubscriptionStatusCleared() {
-		_spec.ClearField(tenant.FieldSubscriptionStatus, field.TypeString)
-	}
-	if value, ok := _u.mutation.SubscriptionExpiresAt(); ok {
-		_spec.SetField(tenant.FieldSubscriptionExpiresAt, field.TypeTime, value)
-	}
-	if _u.mutation.SubscriptionExpiresAtCleared() {
-		_spec.ClearField(tenant.FieldSubscriptionExpiresAt, field.TypeTime)
-	}
-	if value, ok := _u.mutation.SubscriptionID(); ok {
-		_spec.SetField(tenant.FieldSubscriptionID, field.TypeString, value)
-	}
-	if _u.mutation.SubscriptionIDCleared() {
-		_spec.ClearField(tenant.FieldSubscriptionID, field.TypeString)
-	}
-	if value, ok := _u.mutation.TierLimits(); ok {
-		_spec.SetField(tenant.FieldTierLimits, field.TypeJSON, value)
-	}
-	if _u.mutation.TierLimitsCleared() {
-		_spec.ClearField(tenant.FieldTierLimits, field.TypeJSON)
-	}
-	if value, ok := _u.mutation.Metadata(); ok {
-		_spec.SetField(tenant.FieldMetadata, field.TypeJSON, value)
-	}
-	if _u.mutation.MetadataCleared() {
-		_spec.ClearField(tenant.FieldMetadata, field.TypeJSON)
+	if _u.mutation.LastSyncAtCleared() {
+		_spec.ClearField(tenant.FieldLastSyncAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(tenant.FieldUpdatedAt, field.TypeTime, value)
@@ -749,158 +452,6 @@ func (_u *TenantUpdateOne) SetNillableStatus(v *string) *TenantUpdateOne {
 	return _u
 }
 
-// SetContactEmail sets the "contact_email" field.
-func (_u *TenantUpdateOne) SetContactEmail(v string) *TenantUpdateOne {
-	_u.mutation.SetContactEmail(v)
-	return _u
-}
-
-// SetNillableContactEmail sets the "contact_email" field if the given value is not nil.
-func (_u *TenantUpdateOne) SetNillableContactEmail(v *string) *TenantUpdateOne {
-	if v != nil {
-		_u.SetContactEmail(*v)
-	}
-	return _u
-}
-
-// ClearContactEmail clears the value of the "contact_email" field.
-func (_u *TenantUpdateOne) ClearContactEmail() *TenantUpdateOne {
-	_u.mutation.ClearContactEmail()
-	return _u
-}
-
-// SetContactPhone sets the "contact_phone" field.
-func (_u *TenantUpdateOne) SetContactPhone(v string) *TenantUpdateOne {
-	_u.mutation.SetContactPhone(v)
-	return _u
-}
-
-// SetNillableContactPhone sets the "contact_phone" field if the given value is not nil.
-func (_u *TenantUpdateOne) SetNillableContactPhone(v *string) *TenantUpdateOne {
-	if v != nil {
-		_u.SetContactPhone(*v)
-	}
-	return _u
-}
-
-// ClearContactPhone clears the value of the "contact_phone" field.
-func (_u *TenantUpdateOne) ClearContactPhone() *TenantUpdateOne {
-	_u.mutation.ClearContactPhone()
-	return _u
-}
-
-// SetLogoURL sets the "logo_url" field.
-func (_u *TenantUpdateOne) SetLogoURL(v string) *TenantUpdateOne {
-	_u.mutation.SetLogoURL(v)
-	return _u
-}
-
-// SetNillableLogoURL sets the "logo_url" field if the given value is not nil.
-func (_u *TenantUpdateOne) SetNillableLogoURL(v *string) *TenantUpdateOne {
-	if v != nil {
-		_u.SetLogoURL(*v)
-	}
-	return _u
-}
-
-// ClearLogoURL clears the value of the "logo_url" field.
-func (_u *TenantUpdateOne) ClearLogoURL() *TenantUpdateOne {
-	_u.mutation.ClearLogoURL()
-	return _u
-}
-
-// SetWebsite sets the "website" field.
-func (_u *TenantUpdateOne) SetWebsite(v string) *TenantUpdateOne {
-	_u.mutation.SetWebsite(v)
-	return _u
-}
-
-// SetNillableWebsite sets the "website" field if the given value is not nil.
-func (_u *TenantUpdateOne) SetNillableWebsite(v *string) *TenantUpdateOne {
-	if v != nil {
-		_u.SetWebsite(*v)
-	}
-	return _u
-}
-
-// ClearWebsite clears the value of the "website" field.
-func (_u *TenantUpdateOne) ClearWebsite() *TenantUpdateOne {
-	_u.mutation.ClearWebsite()
-	return _u
-}
-
-// SetCountry sets the "country" field.
-func (_u *TenantUpdateOne) SetCountry(v string) *TenantUpdateOne {
-	_u.mutation.SetCountry(v)
-	return _u
-}
-
-// SetNillableCountry sets the "country" field if the given value is not nil.
-func (_u *TenantUpdateOne) SetNillableCountry(v *string) *TenantUpdateOne {
-	if v != nil {
-		_u.SetCountry(*v)
-	}
-	return _u
-}
-
-// ClearCountry clears the value of the "country" field.
-func (_u *TenantUpdateOne) ClearCountry() *TenantUpdateOne {
-	_u.mutation.ClearCountry()
-	return _u
-}
-
-// SetTimezone sets the "timezone" field.
-func (_u *TenantUpdateOne) SetTimezone(v string) *TenantUpdateOne {
-	_u.mutation.SetTimezone(v)
-	return _u
-}
-
-// SetNillableTimezone sets the "timezone" field if the given value is not nil.
-func (_u *TenantUpdateOne) SetNillableTimezone(v *string) *TenantUpdateOne {
-	if v != nil {
-		_u.SetTimezone(*v)
-	}
-	return _u
-}
-
-// ClearTimezone clears the value of the "timezone" field.
-func (_u *TenantUpdateOne) ClearTimezone() *TenantUpdateOne {
-	_u.mutation.ClearTimezone()
-	return _u
-}
-
-// SetBrandColors sets the "brand_colors" field.
-func (_u *TenantUpdateOne) SetBrandColors(v map[string]interface{}) *TenantUpdateOne {
-	_u.mutation.SetBrandColors(v)
-	return _u
-}
-
-// ClearBrandColors clears the value of the "brand_colors" field.
-func (_u *TenantUpdateOne) ClearBrandColors() *TenantUpdateOne {
-	_u.mutation.ClearBrandColors()
-	return _u
-}
-
-// SetOrgSize sets the "org_size" field.
-func (_u *TenantUpdateOne) SetOrgSize(v string) *TenantUpdateOne {
-	_u.mutation.SetOrgSize(v)
-	return _u
-}
-
-// SetNillableOrgSize sets the "org_size" field if the given value is not nil.
-func (_u *TenantUpdateOne) SetNillableOrgSize(v *string) *TenantUpdateOne {
-	if v != nil {
-		_u.SetOrgSize(*v)
-	}
-	return _u
-}
-
-// ClearOrgSize clears the value of the "org_size" field.
-func (_u *TenantUpdateOne) ClearOrgSize() *TenantUpdateOne {
-	_u.mutation.ClearOrgSize()
-	return _u
-}
-
 // SetUseCase sets the "use_case" field.
 func (_u *TenantUpdateOne) SetUseCase(v string) *TenantUpdateOne {
 	_u.mutation.SetUseCase(v)
@@ -921,107 +472,37 @@ func (_u *TenantUpdateOne) ClearUseCase() *TenantUpdateOne {
 	return _u
 }
 
-// SetSubscriptionPlan sets the "subscription_plan" field.
-func (_u *TenantUpdateOne) SetSubscriptionPlan(v string) *TenantUpdateOne {
-	_u.mutation.SetSubscriptionPlan(v)
+// SetSyncStatus sets the "sync_status" field.
+func (_u *TenantUpdateOne) SetSyncStatus(v string) *TenantUpdateOne {
+	_u.mutation.SetSyncStatus(v)
 	return _u
 }
 
-// SetNillableSubscriptionPlan sets the "subscription_plan" field if the given value is not nil.
-func (_u *TenantUpdateOne) SetNillableSubscriptionPlan(v *string) *TenantUpdateOne {
+// SetNillableSyncStatus sets the "sync_status" field if the given value is not nil.
+func (_u *TenantUpdateOne) SetNillableSyncStatus(v *string) *TenantUpdateOne {
 	if v != nil {
-		_u.SetSubscriptionPlan(*v)
+		_u.SetSyncStatus(*v)
 	}
 	return _u
 }
 
-// ClearSubscriptionPlan clears the value of the "subscription_plan" field.
-func (_u *TenantUpdateOne) ClearSubscriptionPlan() *TenantUpdateOne {
-	_u.mutation.ClearSubscriptionPlan()
+// SetLastSyncAt sets the "last_sync_at" field.
+func (_u *TenantUpdateOne) SetLastSyncAt(v time.Time) *TenantUpdateOne {
+	_u.mutation.SetLastSyncAt(v)
 	return _u
 }
 
-// SetSubscriptionStatus sets the "subscription_status" field.
-func (_u *TenantUpdateOne) SetSubscriptionStatus(v string) *TenantUpdateOne {
-	_u.mutation.SetSubscriptionStatus(v)
-	return _u
-}
-
-// SetNillableSubscriptionStatus sets the "subscription_status" field if the given value is not nil.
-func (_u *TenantUpdateOne) SetNillableSubscriptionStatus(v *string) *TenantUpdateOne {
+// SetNillableLastSyncAt sets the "last_sync_at" field if the given value is not nil.
+func (_u *TenantUpdateOne) SetNillableLastSyncAt(v *time.Time) *TenantUpdateOne {
 	if v != nil {
-		_u.SetSubscriptionStatus(*v)
+		_u.SetLastSyncAt(*v)
 	}
 	return _u
 }
 
-// ClearSubscriptionStatus clears the value of the "subscription_status" field.
-func (_u *TenantUpdateOne) ClearSubscriptionStatus() *TenantUpdateOne {
-	_u.mutation.ClearSubscriptionStatus()
-	return _u
-}
-
-// SetSubscriptionExpiresAt sets the "subscription_expires_at" field.
-func (_u *TenantUpdateOne) SetSubscriptionExpiresAt(v time.Time) *TenantUpdateOne {
-	_u.mutation.SetSubscriptionExpiresAt(v)
-	return _u
-}
-
-// SetNillableSubscriptionExpiresAt sets the "subscription_expires_at" field if the given value is not nil.
-func (_u *TenantUpdateOne) SetNillableSubscriptionExpiresAt(v *time.Time) *TenantUpdateOne {
-	if v != nil {
-		_u.SetSubscriptionExpiresAt(*v)
-	}
-	return _u
-}
-
-// ClearSubscriptionExpiresAt clears the value of the "subscription_expires_at" field.
-func (_u *TenantUpdateOne) ClearSubscriptionExpiresAt() *TenantUpdateOne {
-	_u.mutation.ClearSubscriptionExpiresAt()
-	return _u
-}
-
-// SetSubscriptionID sets the "subscription_id" field.
-func (_u *TenantUpdateOne) SetSubscriptionID(v string) *TenantUpdateOne {
-	_u.mutation.SetSubscriptionID(v)
-	return _u
-}
-
-// SetNillableSubscriptionID sets the "subscription_id" field if the given value is not nil.
-func (_u *TenantUpdateOne) SetNillableSubscriptionID(v *string) *TenantUpdateOne {
-	if v != nil {
-		_u.SetSubscriptionID(*v)
-	}
-	return _u
-}
-
-// ClearSubscriptionID clears the value of the "subscription_id" field.
-func (_u *TenantUpdateOne) ClearSubscriptionID() *TenantUpdateOne {
-	_u.mutation.ClearSubscriptionID()
-	return _u
-}
-
-// SetTierLimits sets the "tier_limits" field.
-func (_u *TenantUpdateOne) SetTierLimits(v map[string]interface{}) *TenantUpdateOne {
-	_u.mutation.SetTierLimits(v)
-	return _u
-}
-
-// ClearTierLimits clears the value of the "tier_limits" field.
-func (_u *TenantUpdateOne) ClearTierLimits() *TenantUpdateOne {
-	_u.mutation.ClearTierLimits()
-	return _u
-}
-
-// SetMetadata sets the "metadata" field.
-func (_u *TenantUpdateOne) SetMetadata(v map[string]interface{}) *TenantUpdateOne {
-	_u.mutation.SetMetadata(v)
-	return _u
-}
-
-// ClearMetadata clears the value of the "metadata" field.
-func (_u *TenantUpdateOne) ClearMetadata() *TenantUpdateOne {
-	_u.mutation.ClearMetadata()
+// ClearLastSyncAt clears the value of the "last_sync_at" field.
+func (_u *TenantUpdateOne) ClearLastSyncAt() *TenantUpdateOne {
+	_u.mutation.ClearLastSyncAt()
 	return _u
 }
 
@@ -1210,95 +691,20 @@ func (_u *TenantUpdateOne) sqlSave(ctx context.Context) (_node *Tenant, err erro
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(tenant.FieldStatus, field.TypeString, value)
 	}
-	if value, ok := _u.mutation.ContactEmail(); ok {
-		_spec.SetField(tenant.FieldContactEmail, field.TypeString, value)
-	}
-	if _u.mutation.ContactEmailCleared() {
-		_spec.ClearField(tenant.FieldContactEmail, field.TypeString)
-	}
-	if value, ok := _u.mutation.ContactPhone(); ok {
-		_spec.SetField(tenant.FieldContactPhone, field.TypeString, value)
-	}
-	if _u.mutation.ContactPhoneCleared() {
-		_spec.ClearField(tenant.FieldContactPhone, field.TypeString)
-	}
-	if value, ok := _u.mutation.LogoURL(); ok {
-		_spec.SetField(tenant.FieldLogoURL, field.TypeString, value)
-	}
-	if _u.mutation.LogoURLCleared() {
-		_spec.ClearField(tenant.FieldLogoURL, field.TypeString)
-	}
-	if value, ok := _u.mutation.Website(); ok {
-		_spec.SetField(tenant.FieldWebsite, field.TypeString, value)
-	}
-	if _u.mutation.WebsiteCleared() {
-		_spec.ClearField(tenant.FieldWebsite, field.TypeString)
-	}
-	if value, ok := _u.mutation.Country(); ok {
-		_spec.SetField(tenant.FieldCountry, field.TypeString, value)
-	}
-	if _u.mutation.CountryCleared() {
-		_spec.ClearField(tenant.FieldCountry, field.TypeString)
-	}
-	if value, ok := _u.mutation.Timezone(); ok {
-		_spec.SetField(tenant.FieldTimezone, field.TypeString, value)
-	}
-	if _u.mutation.TimezoneCleared() {
-		_spec.ClearField(tenant.FieldTimezone, field.TypeString)
-	}
-	if value, ok := _u.mutation.BrandColors(); ok {
-		_spec.SetField(tenant.FieldBrandColors, field.TypeJSON, value)
-	}
-	if _u.mutation.BrandColorsCleared() {
-		_spec.ClearField(tenant.FieldBrandColors, field.TypeJSON)
-	}
-	if value, ok := _u.mutation.OrgSize(); ok {
-		_spec.SetField(tenant.FieldOrgSize, field.TypeString, value)
-	}
-	if _u.mutation.OrgSizeCleared() {
-		_spec.ClearField(tenant.FieldOrgSize, field.TypeString)
-	}
 	if value, ok := _u.mutation.UseCase(); ok {
 		_spec.SetField(tenant.FieldUseCase, field.TypeString, value)
 	}
 	if _u.mutation.UseCaseCleared() {
 		_spec.ClearField(tenant.FieldUseCase, field.TypeString)
 	}
-	if value, ok := _u.mutation.SubscriptionPlan(); ok {
-		_spec.SetField(tenant.FieldSubscriptionPlan, field.TypeString, value)
+	if value, ok := _u.mutation.SyncStatus(); ok {
+		_spec.SetField(tenant.FieldSyncStatus, field.TypeString, value)
 	}
-	if _u.mutation.SubscriptionPlanCleared() {
-		_spec.ClearField(tenant.FieldSubscriptionPlan, field.TypeString)
+	if value, ok := _u.mutation.LastSyncAt(); ok {
+		_spec.SetField(tenant.FieldLastSyncAt, field.TypeTime, value)
 	}
-	if value, ok := _u.mutation.SubscriptionStatus(); ok {
-		_spec.SetField(tenant.FieldSubscriptionStatus, field.TypeString, value)
-	}
-	if _u.mutation.SubscriptionStatusCleared() {
-		_spec.ClearField(tenant.FieldSubscriptionStatus, field.TypeString)
-	}
-	if value, ok := _u.mutation.SubscriptionExpiresAt(); ok {
-		_spec.SetField(tenant.FieldSubscriptionExpiresAt, field.TypeTime, value)
-	}
-	if _u.mutation.SubscriptionExpiresAtCleared() {
-		_spec.ClearField(tenant.FieldSubscriptionExpiresAt, field.TypeTime)
-	}
-	if value, ok := _u.mutation.SubscriptionID(); ok {
-		_spec.SetField(tenant.FieldSubscriptionID, field.TypeString, value)
-	}
-	if _u.mutation.SubscriptionIDCleared() {
-		_spec.ClearField(tenant.FieldSubscriptionID, field.TypeString)
-	}
-	if value, ok := _u.mutation.TierLimits(); ok {
-		_spec.SetField(tenant.FieldTierLimits, field.TypeJSON, value)
-	}
-	if _u.mutation.TierLimitsCleared() {
-		_spec.ClearField(tenant.FieldTierLimits, field.TypeJSON)
-	}
-	if value, ok := _u.mutation.Metadata(); ok {
-		_spec.SetField(tenant.FieldMetadata, field.TypeJSON, value)
-	}
-	if _u.mutation.MetadataCleared() {
-		_spec.ClearField(tenant.FieldMetadata, field.TypeJSON)
+	if _u.mutation.LastSyncAtCleared() {
+		_spec.ClearField(tenant.FieldLastSyncAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(tenant.FieldUpdatedAt, field.TypeTime, value)

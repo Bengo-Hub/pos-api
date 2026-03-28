@@ -36,6 +36,10 @@ func (Outlet) Fields() []ent.Field {
 			Default("Africa/Nairobi"),
 		field.String("status").
 			Default("active"),
+		field.String("use_case").
+			Optional().
+			Nillable().
+			Comment("Use case for this outlet (e.g., hospitality, retail)"),
 		field.Time("opened_at").
 			Optional().
 			Nillable(),

@@ -13,6 +13,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
+	"github.com/bengobox/pos-service/internal/ent/section"
 	"github.com/bengobox/pos-service/internal/ent/table"
 	"github.com/bengobox/pos-service/internal/ent/tableassignment"
 	"github.com/google/uuid"
@@ -25,6 +26,7 @@ type TableQuery struct {
 	order           []table.OrderOption
 	inters          []Interceptor
 	predicates      []predicate.Table
+	withSection     *SectionQuery
 	withAssignments *TableAssignmentQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
@@ -60,6 +62,28 @@ func (_q *TableQuery) Unique(unique bool) *TableQuery {
 func (_q *TableQuery) Order(o ...table.OrderOption) *TableQuery {
 	_q.order = append(_q.order, o...)
 	return _q
+}
+
+// QuerySection chains the current query on the "section" edge.
+func (_q *TableQuery) QuerySection() *SectionQuery {
+	query := (&SectionClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(table.Table, table.FieldID, selector),
+			sqlgraph.To(section.Table, section.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, table.SectionTable, table.SectionColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
 }
 
 // QueryAssignments chains the current query on the "assignments" edge.
@@ -276,11 +300,23 @@ func (_q *TableQuery) Clone() *TableQuery {
 		order:           append([]table.OrderOption{}, _q.order...),
 		inters:          append([]Interceptor{}, _q.inters...),
 		predicates:      append([]predicate.Table{}, _q.predicates...),
+		withSection:     _q.withSection.Clone(),
 		withAssignments: _q.withAssignments.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
 	}
+}
+
+// WithSection tells the query-builder to eager-load the nodes that are connected to
+// the "section" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *TableQuery) WithSection(opts ...func(*SectionQuery)) *TableQuery {
+	query := (&SectionClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withSection = query
+	return _q
 }
 
 // WithAssignments tells the query-builder to eager-load the nodes that are connected to
@@ -372,7 +408,8 @@ func (_q *TableQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Table,
 	var (
 		nodes       = []*Table{}
 		_spec       = _q.querySpec()
-		loadedTypes = [1]bool{
+		loadedTypes = [2]bool{
+			_q.withSection != nil,
 			_q.withAssignments != nil,
 		}
 	)
@@ -394,6 +431,12 @@ func (_q *TableQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Table,
 	if len(nodes) == 0 {
 		return nodes, nil
 	}
+	if query := _q.withSection; query != nil {
+		if err := _q.loadSection(ctx, query, nodes, nil,
+			func(n *Table, e *Section) { n.Edges.Section = e }); err != nil {
+			return nil, err
+		}
+	}
 	if query := _q.withAssignments; query != nil {
 		if err := _q.loadAssignments(ctx, query, nodes,
 			func(n *Table) { n.Edges.Assignments = []*TableAssignment{} },
@@ -404,6 +447,38 @@ func (_q *TableQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Table,
 	return nodes, nil
 }
 
+func (_q *TableQuery) loadSection(ctx context.Context, query *SectionQuery, nodes []*Table, init func(*Table), assign func(*Table, *Section)) error {
+	ids := make([]uuid.UUID, 0, len(nodes))
+	nodeids := make(map[uuid.UUID][]*Table)
+	for i := range nodes {
+		if nodes[i].SectionID == nil {
+			continue
+		}
+		fk := *nodes[i].SectionID
+		if _, ok := nodeids[fk]; !ok {
+			ids = append(ids, fk)
+		}
+		nodeids[fk] = append(nodeids[fk], nodes[i])
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	query.Where(section.IDIn(ids...))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		nodes, ok := nodeids[n.ID]
+		if !ok {
+			return fmt.Errorf(`unexpected foreign-key "section_id" returned %v`, n.ID)
+		}
+		for i := range nodes {
+			assign(nodes[i], n)
+		}
+	}
+	return nil
+}
 func (_q *TableQuery) loadAssignments(ctx context.Context, query *TableAssignmentQuery, nodes []*Table, init func(*Table), assign func(*Table, *TableAssignment)) error {
 	fks := make([]driver.Value, 0, len(nodes))
 	nodeids := make(map[uuid.UUID]*Table)
@@ -459,6 +534,9 @@ func (_q *TableQuery) querySpec() *sqlgraph.QuerySpec {
 			if fields[i] != table.FieldID {
 				_spec.Node.Columns = append(_spec.Node.Columns, fields[i])
 			}
+		}
+		if _q.withSection != nil {
+			_spec.Node.AddColumnOnce(table.FieldSectionID)
 		}
 	}
 	if ps := _q.predicates; len(ps) > 0 {

@@ -38,7 +38,7 @@ func EnsureStream(ctx context.Context, nc *nats.Conn, cfg config.EventsConfig) e
 
 	_, err = js.AddStream(&nats.StreamConfig{
 		Name:     cfg.StreamName,
-		Subjects: []string{"pos.*"},
+		Subjects: []string{"pos.>"},
 		Replicas: 1,
 	})
 	return err

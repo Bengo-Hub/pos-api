@@ -6,6 +6,7 @@ import (
 	"context"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/bengobox/pos-service/internal/ent/migrate"
 
@@ -39,8 +40,14 @@ func main() {
 	if dbURL == "" {
 		dbURL = "postgres://postgres:postgres@localhost:5432/pos?sslmode=disable"
 	}
+	devURL := dbURL
+	if strings.Contains(devURL, "?") {
+		devURL += "&search_path=ent_dev"
+	} else {
+		devURL += "?search_path=ent_dev"
+	}
 
-	err = migrate.NamedDiff(ctx, dbURL, os.Args[1], opts...)
+	err = migrate.NamedDiff(ctx, devURL, os.Args[1], opts...)
 	if err != nil {
 		log.Fatalf("failed generating migration: %v", err)
 	}

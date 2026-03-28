@@ -127,6 +127,110 @@ func (_c *CatalogItemCreate) SetNillableStatus(v *string) *CatalogItemCreate {
 	return _c
 }
 
+// SetInventoryItemID sets the "inventory_item_id" field.
+func (_c *CatalogItemCreate) SetInventoryItemID(v uuid.UUID) *CatalogItemCreate {
+	_c.mutation.SetInventoryItemID(v)
+	return _c
+}
+
+// SetNillableInventoryItemID sets the "inventory_item_id" field if the given value is not nil.
+func (_c *CatalogItemCreate) SetNillableInventoryItemID(v *uuid.UUID) *CatalogItemCreate {
+	if v != nil {
+		_c.SetInventoryItemID(*v)
+	}
+	return _c
+}
+
+// SetItemType sets the "item_type" field.
+func (_c *CatalogItemCreate) SetItemType(v string) *CatalogItemCreate {
+	_c.mutation.SetItemType(v)
+	return _c
+}
+
+// SetNillableItemType sets the "item_type" field if the given value is not nil.
+func (_c *CatalogItemCreate) SetNillableItemType(v *string) *CatalogItemCreate {
+	if v != nil {
+		_c.SetItemType(*v)
+	}
+	return _c
+}
+
+// SetRequiresAgeVerification sets the "requires_age_verification" field.
+func (_c *CatalogItemCreate) SetRequiresAgeVerification(v bool) *CatalogItemCreate {
+	_c.mutation.SetRequiresAgeVerification(v)
+	return _c
+}
+
+// SetNillableRequiresAgeVerification sets the "requires_age_verification" field if the given value is not nil.
+func (_c *CatalogItemCreate) SetNillableRequiresAgeVerification(v *bool) *CatalogItemCreate {
+	if v != nil {
+		_c.SetRequiresAgeVerification(*v)
+	}
+	return _c
+}
+
+// SetIsControlledSubstance sets the "is_controlled_substance" field.
+func (_c *CatalogItemCreate) SetIsControlledSubstance(v bool) *CatalogItemCreate {
+	_c.mutation.SetIsControlledSubstance(v)
+	return _c
+}
+
+// SetNillableIsControlledSubstance sets the "is_controlled_substance" field if the given value is not nil.
+func (_c *CatalogItemCreate) SetNillableIsControlledSubstance(v *bool) *CatalogItemCreate {
+	if v != nil {
+		_c.SetIsControlledSubstance(*v)
+	}
+	return _c
+}
+
+// SetTrackSerialNumber sets the "track_serial_number" field.
+func (_c *CatalogItemCreate) SetTrackSerialNumber(v bool) *CatalogItemCreate {
+	_c.mutation.SetTrackSerialNumber(v)
+	return _c
+}
+
+// SetNillableTrackSerialNumber sets the "track_serial_number" field if the given value is not nil.
+func (_c *CatalogItemCreate) SetNillableTrackSerialNumber(v *bool) *CatalogItemCreate {
+	if v != nil {
+		_c.SetTrackSerialNumber(*v)
+	}
+	return _c
+}
+
+// SetDurationMinutes sets the "duration_minutes" field.
+func (_c *CatalogItemCreate) SetDurationMinutes(v int) *CatalogItemCreate {
+	_c.mutation.SetDurationMinutes(v)
+	return _c
+}
+
+// SetNillableDurationMinutes sets the "duration_minutes" field if the given value is not nil.
+func (_c *CatalogItemCreate) SetNillableDurationMinutes(v *int) *CatalogItemCreate {
+	if v != nil {
+		_c.SetDurationMinutes(*v)
+	}
+	return _c
+}
+
+// SetCostPrice sets the "cost_price" field.
+func (_c *CatalogItemCreate) SetCostPrice(v float64) *CatalogItemCreate {
+	_c.mutation.SetCostPrice(v)
+	return _c
+}
+
+// SetNillableCostPrice sets the "cost_price" field if the given value is not nil.
+func (_c *CatalogItemCreate) SetNillableCostPrice(v *float64) *CatalogItemCreate {
+	if v != nil {
+		_c.SetCostPrice(*v)
+	}
+	return _c
+}
+
+// SetTags sets the "tags" field.
+func (_c *CatalogItemCreate) SetTags(v []string) *CatalogItemCreate {
+	_c.mutation.SetTags(v)
+	return _c
+}
+
 // SetMetadata sets the "metadata" field.
 func (_c *CatalogItemCreate) SetMetadata(v map[string]interface{}) *CatalogItemCreate {
 	_c.mutation.SetMetadata(v)
@@ -233,6 +337,22 @@ func (_c *CatalogItemCreate) defaults() {
 		v := catalogitem.DefaultStatus
 		_c.mutation.SetStatus(v)
 	}
+	if _, ok := _c.mutation.RequiresAgeVerification(); !ok {
+		v := catalogitem.DefaultRequiresAgeVerification
+		_c.mutation.SetRequiresAgeVerification(v)
+	}
+	if _, ok := _c.mutation.IsControlledSubstance(); !ok {
+		v := catalogitem.DefaultIsControlledSubstance
+		_c.mutation.SetIsControlledSubstance(v)
+	}
+	if _, ok := _c.mutation.TrackSerialNumber(); !ok {
+		v := catalogitem.DefaultTrackSerialNumber
+		_c.mutation.SetTrackSerialNumber(v)
+	}
+	if _, ok := _c.mutation.Tags(); !ok {
+		v := catalogitem.DefaultTags
+		_c.mutation.SetTags(v)
+	}
 	if _, ok := _c.mutation.Metadata(); !ok {
 		v := catalogitem.DefaultMetadata
 		_c.mutation.SetMetadata(v)
@@ -277,6 +397,18 @@ func (_c *CatalogItemCreate) check() error {
 	}
 	if _, ok := _c.mutation.Status(); !ok {
 		return &ValidationError{Name: "status", err: errors.New(`ent: missing required field "CatalogItem.status"`)}
+	}
+	if _, ok := _c.mutation.RequiresAgeVerification(); !ok {
+		return &ValidationError{Name: "requires_age_verification", err: errors.New(`ent: missing required field "CatalogItem.requires_age_verification"`)}
+	}
+	if _, ok := _c.mutation.IsControlledSubstance(); !ok {
+		return &ValidationError{Name: "is_controlled_substance", err: errors.New(`ent: missing required field "CatalogItem.is_controlled_substance"`)}
+	}
+	if _, ok := _c.mutation.TrackSerialNumber(); !ok {
+		return &ValidationError{Name: "track_serial_number", err: errors.New(`ent: missing required field "CatalogItem.track_serial_number"`)}
+	}
+	if _, ok := _c.mutation.Tags(); !ok {
+		return &ValidationError{Name: "tags", err: errors.New(`ent: missing required field "CatalogItem.tags"`)}
 	}
 	if _, ok := _c.mutation.Metadata(); !ok {
 		return &ValidationError{Name: "metadata", err: errors.New(`ent: missing required field "CatalogItem.metadata"`)}
@@ -358,6 +490,38 @@ func (_c *CatalogItemCreate) createSpec() (*CatalogItem, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Status(); ok {
 		_spec.SetField(catalogitem.FieldStatus, field.TypeString, value)
 		_node.Status = value
+	}
+	if value, ok := _c.mutation.InventoryItemID(); ok {
+		_spec.SetField(catalogitem.FieldInventoryItemID, field.TypeUUID, value)
+		_node.InventoryItemID = &value
+	}
+	if value, ok := _c.mutation.ItemType(); ok {
+		_spec.SetField(catalogitem.FieldItemType, field.TypeString, value)
+		_node.ItemType = value
+	}
+	if value, ok := _c.mutation.RequiresAgeVerification(); ok {
+		_spec.SetField(catalogitem.FieldRequiresAgeVerification, field.TypeBool, value)
+		_node.RequiresAgeVerification = value
+	}
+	if value, ok := _c.mutation.IsControlledSubstance(); ok {
+		_spec.SetField(catalogitem.FieldIsControlledSubstance, field.TypeBool, value)
+		_node.IsControlledSubstance = value
+	}
+	if value, ok := _c.mutation.TrackSerialNumber(); ok {
+		_spec.SetField(catalogitem.FieldTrackSerialNumber, field.TypeBool, value)
+		_node.TrackSerialNumber = value
+	}
+	if value, ok := _c.mutation.DurationMinutes(); ok {
+		_spec.SetField(catalogitem.FieldDurationMinutes, field.TypeInt, value)
+		_node.DurationMinutes = &value
+	}
+	if value, ok := _c.mutation.CostPrice(); ok {
+		_spec.SetField(catalogitem.FieldCostPrice, field.TypeFloat64, value)
+		_node.CostPrice = &value
+	}
+	if value, ok := _c.mutation.Tags(); ok {
+		_spec.SetField(catalogitem.FieldTags, field.TypeJSON, value)
+		_node.Tags = value
 	}
 	if value, ok := _c.mutation.Metadata(); ok {
 		_spec.SetField(catalogitem.FieldMetadata, field.TypeJSON, value)
@@ -568,6 +732,138 @@ func (u *CatalogItemUpsert) SetStatus(v string) *CatalogItemUpsert {
 // UpdateStatus sets the "status" field to the value that was provided on create.
 func (u *CatalogItemUpsert) UpdateStatus() *CatalogItemUpsert {
 	u.SetExcluded(catalogitem.FieldStatus)
+	return u
+}
+
+// SetInventoryItemID sets the "inventory_item_id" field.
+func (u *CatalogItemUpsert) SetInventoryItemID(v uuid.UUID) *CatalogItemUpsert {
+	u.Set(catalogitem.FieldInventoryItemID, v)
+	return u
+}
+
+// UpdateInventoryItemID sets the "inventory_item_id" field to the value that was provided on create.
+func (u *CatalogItemUpsert) UpdateInventoryItemID() *CatalogItemUpsert {
+	u.SetExcluded(catalogitem.FieldInventoryItemID)
+	return u
+}
+
+// ClearInventoryItemID clears the value of the "inventory_item_id" field.
+func (u *CatalogItemUpsert) ClearInventoryItemID() *CatalogItemUpsert {
+	u.SetNull(catalogitem.FieldInventoryItemID)
+	return u
+}
+
+// SetItemType sets the "item_type" field.
+func (u *CatalogItemUpsert) SetItemType(v string) *CatalogItemUpsert {
+	u.Set(catalogitem.FieldItemType, v)
+	return u
+}
+
+// UpdateItemType sets the "item_type" field to the value that was provided on create.
+func (u *CatalogItemUpsert) UpdateItemType() *CatalogItemUpsert {
+	u.SetExcluded(catalogitem.FieldItemType)
+	return u
+}
+
+// ClearItemType clears the value of the "item_type" field.
+func (u *CatalogItemUpsert) ClearItemType() *CatalogItemUpsert {
+	u.SetNull(catalogitem.FieldItemType)
+	return u
+}
+
+// SetRequiresAgeVerification sets the "requires_age_verification" field.
+func (u *CatalogItemUpsert) SetRequiresAgeVerification(v bool) *CatalogItemUpsert {
+	u.Set(catalogitem.FieldRequiresAgeVerification, v)
+	return u
+}
+
+// UpdateRequiresAgeVerification sets the "requires_age_verification" field to the value that was provided on create.
+func (u *CatalogItemUpsert) UpdateRequiresAgeVerification() *CatalogItemUpsert {
+	u.SetExcluded(catalogitem.FieldRequiresAgeVerification)
+	return u
+}
+
+// SetIsControlledSubstance sets the "is_controlled_substance" field.
+func (u *CatalogItemUpsert) SetIsControlledSubstance(v bool) *CatalogItemUpsert {
+	u.Set(catalogitem.FieldIsControlledSubstance, v)
+	return u
+}
+
+// UpdateIsControlledSubstance sets the "is_controlled_substance" field to the value that was provided on create.
+func (u *CatalogItemUpsert) UpdateIsControlledSubstance() *CatalogItemUpsert {
+	u.SetExcluded(catalogitem.FieldIsControlledSubstance)
+	return u
+}
+
+// SetTrackSerialNumber sets the "track_serial_number" field.
+func (u *CatalogItemUpsert) SetTrackSerialNumber(v bool) *CatalogItemUpsert {
+	u.Set(catalogitem.FieldTrackSerialNumber, v)
+	return u
+}
+
+// UpdateTrackSerialNumber sets the "track_serial_number" field to the value that was provided on create.
+func (u *CatalogItemUpsert) UpdateTrackSerialNumber() *CatalogItemUpsert {
+	u.SetExcluded(catalogitem.FieldTrackSerialNumber)
+	return u
+}
+
+// SetDurationMinutes sets the "duration_minutes" field.
+func (u *CatalogItemUpsert) SetDurationMinutes(v int) *CatalogItemUpsert {
+	u.Set(catalogitem.FieldDurationMinutes, v)
+	return u
+}
+
+// UpdateDurationMinutes sets the "duration_minutes" field to the value that was provided on create.
+func (u *CatalogItemUpsert) UpdateDurationMinutes() *CatalogItemUpsert {
+	u.SetExcluded(catalogitem.FieldDurationMinutes)
+	return u
+}
+
+// AddDurationMinutes adds v to the "duration_minutes" field.
+func (u *CatalogItemUpsert) AddDurationMinutes(v int) *CatalogItemUpsert {
+	u.Add(catalogitem.FieldDurationMinutes, v)
+	return u
+}
+
+// ClearDurationMinutes clears the value of the "duration_minutes" field.
+func (u *CatalogItemUpsert) ClearDurationMinutes() *CatalogItemUpsert {
+	u.SetNull(catalogitem.FieldDurationMinutes)
+	return u
+}
+
+// SetCostPrice sets the "cost_price" field.
+func (u *CatalogItemUpsert) SetCostPrice(v float64) *CatalogItemUpsert {
+	u.Set(catalogitem.FieldCostPrice, v)
+	return u
+}
+
+// UpdateCostPrice sets the "cost_price" field to the value that was provided on create.
+func (u *CatalogItemUpsert) UpdateCostPrice() *CatalogItemUpsert {
+	u.SetExcluded(catalogitem.FieldCostPrice)
+	return u
+}
+
+// AddCostPrice adds v to the "cost_price" field.
+func (u *CatalogItemUpsert) AddCostPrice(v float64) *CatalogItemUpsert {
+	u.Add(catalogitem.FieldCostPrice, v)
+	return u
+}
+
+// ClearCostPrice clears the value of the "cost_price" field.
+func (u *CatalogItemUpsert) ClearCostPrice() *CatalogItemUpsert {
+	u.SetNull(catalogitem.FieldCostPrice)
+	return u
+}
+
+// SetTags sets the "tags" field.
+func (u *CatalogItemUpsert) SetTags(v []string) *CatalogItemUpsert {
+	u.Set(catalogitem.FieldTags, v)
+	return u
+}
+
+// UpdateTags sets the "tags" field to the value that was provided on create.
+func (u *CatalogItemUpsert) UpdateTags() *CatalogItemUpsert {
+	u.SetExcluded(catalogitem.FieldTags)
 	return u
 }
 
@@ -797,6 +1093,160 @@ func (u *CatalogItemUpsertOne) SetStatus(v string) *CatalogItemUpsertOne {
 func (u *CatalogItemUpsertOne) UpdateStatus() *CatalogItemUpsertOne {
 	return u.Update(func(s *CatalogItemUpsert) {
 		s.UpdateStatus()
+	})
+}
+
+// SetInventoryItemID sets the "inventory_item_id" field.
+func (u *CatalogItemUpsertOne) SetInventoryItemID(v uuid.UUID) *CatalogItemUpsertOne {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.SetInventoryItemID(v)
+	})
+}
+
+// UpdateInventoryItemID sets the "inventory_item_id" field to the value that was provided on create.
+func (u *CatalogItemUpsertOne) UpdateInventoryItemID() *CatalogItemUpsertOne {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.UpdateInventoryItemID()
+	})
+}
+
+// ClearInventoryItemID clears the value of the "inventory_item_id" field.
+func (u *CatalogItemUpsertOne) ClearInventoryItemID() *CatalogItemUpsertOne {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.ClearInventoryItemID()
+	})
+}
+
+// SetItemType sets the "item_type" field.
+func (u *CatalogItemUpsertOne) SetItemType(v string) *CatalogItemUpsertOne {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.SetItemType(v)
+	})
+}
+
+// UpdateItemType sets the "item_type" field to the value that was provided on create.
+func (u *CatalogItemUpsertOne) UpdateItemType() *CatalogItemUpsertOne {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.UpdateItemType()
+	})
+}
+
+// ClearItemType clears the value of the "item_type" field.
+func (u *CatalogItemUpsertOne) ClearItemType() *CatalogItemUpsertOne {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.ClearItemType()
+	})
+}
+
+// SetRequiresAgeVerification sets the "requires_age_verification" field.
+func (u *CatalogItemUpsertOne) SetRequiresAgeVerification(v bool) *CatalogItemUpsertOne {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.SetRequiresAgeVerification(v)
+	})
+}
+
+// UpdateRequiresAgeVerification sets the "requires_age_verification" field to the value that was provided on create.
+func (u *CatalogItemUpsertOne) UpdateRequiresAgeVerification() *CatalogItemUpsertOne {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.UpdateRequiresAgeVerification()
+	})
+}
+
+// SetIsControlledSubstance sets the "is_controlled_substance" field.
+func (u *CatalogItemUpsertOne) SetIsControlledSubstance(v bool) *CatalogItemUpsertOne {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.SetIsControlledSubstance(v)
+	})
+}
+
+// UpdateIsControlledSubstance sets the "is_controlled_substance" field to the value that was provided on create.
+func (u *CatalogItemUpsertOne) UpdateIsControlledSubstance() *CatalogItemUpsertOne {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.UpdateIsControlledSubstance()
+	})
+}
+
+// SetTrackSerialNumber sets the "track_serial_number" field.
+func (u *CatalogItemUpsertOne) SetTrackSerialNumber(v bool) *CatalogItemUpsertOne {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.SetTrackSerialNumber(v)
+	})
+}
+
+// UpdateTrackSerialNumber sets the "track_serial_number" field to the value that was provided on create.
+func (u *CatalogItemUpsertOne) UpdateTrackSerialNumber() *CatalogItemUpsertOne {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.UpdateTrackSerialNumber()
+	})
+}
+
+// SetDurationMinutes sets the "duration_minutes" field.
+func (u *CatalogItemUpsertOne) SetDurationMinutes(v int) *CatalogItemUpsertOne {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.SetDurationMinutes(v)
+	})
+}
+
+// AddDurationMinutes adds v to the "duration_minutes" field.
+func (u *CatalogItemUpsertOne) AddDurationMinutes(v int) *CatalogItemUpsertOne {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.AddDurationMinutes(v)
+	})
+}
+
+// UpdateDurationMinutes sets the "duration_minutes" field to the value that was provided on create.
+func (u *CatalogItemUpsertOne) UpdateDurationMinutes() *CatalogItemUpsertOne {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.UpdateDurationMinutes()
+	})
+}
+
+// ClearDurationMinutes clears the value of the "duration_minutes" field.
+func (u *CatalogItemUpsertOne) ClearDurationMinutes() *CatalogItemUpsertOne {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.ClearDurationMinutes()
+	})
+}
+
+// SetCostPrice sets the "cost_price" field.
+func (u *CatalogItemUpsertOne) SetCostPrice(v float64) *CatalogItemUpsertOne {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.SetCostPrice(v)
+	})
+}
+
+// AddCostPrice adds v to the "cost_price" field.
+func (u *CatalogItemUpsertOne) AddCostPrice(v float64) *CatalogItemUpsertOne {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.AddCostPrice(v)
+	})
+}
+
+// UpdateCostPrice sets the "cost_price" field to the value that was provided on create.
+func (u *CatalogItemUpsertOne) UpdateCostPrice() *CatalogItemUpsertOne {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.UpdateCostPrice()
+	})
+}
+
+// ClearCostPrice clears the value of the "cost_price" field.
+func (u *CatalogItemUpsertOne) ClearCostPrice() *CatalogItemUpsertOne {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.ClearCostPrice()
+	})
+}
+
+// SetTags sets the "tags" field.
+func (u *CatalogItemUpsertOne) SetTags(v []string) *CatalogItemUpsertOne {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.SetTags(v)
+	})
+}
+
+// UpdateTags sets the "tags" field to the value that was provided on create.
+func (u *CatalogItemUpsertOne) UpdateTags() *CatalogItemUpsertOne {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.UpdateTags()
 	})
 }
 
@@ -1197,6 +1647,160 @@ func (u *CatalogItemUpsertBulk) SetStatus(v string) *CatalogItemUpsertBulk {
 func (u *CatalogItemUpsertBulk) UpdateStatus() *CatalogItemUpsertBulk {
 	return u.Update(func(s *CatalogItemUpsert) {
 		s.UpdateStatus()
+	})
+}
+
+// SetInventoryItemID sets the "inventory_item_id" field.
+func (u *CatalogItemUpsertBulk) SetInventoryItemID(v uuid.UUID) *CatalogItemUpsertBulk {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.SetInventoryItemID(v)
+	})
+}
+
+// UpdateInventoryItemID sets the "inventory_item_id" field to the value that was provided on create.
+func (u *CatalogItemUpsertBulk) UpdateInventoryItemID() *CatalogItemUpsertBulk {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.UpdateInventoryItemID()
+	})
+}
+
+// ClearInventoryItemID clears the value of the "inventory_item_id" field.
+func (u *CatalogItemUpsertBulk) ClearInventoryItemID() *CatalogItemUpsertBulk {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.ClearInventoryItemID()
+	})
+}
+
+// SetItemType sets the "item_type" field.
+func (u *CatalogItemUpsertBulk) SetItemType(v string) *CatalogItemUpsertBulk {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.SetItemType(v)
+	})
+}
+
+// UpdateItemType sets the "item_type" field to the value that was provided on create.
+func (u *CatalogItemUpsertBulk) UpdateItemType() *CatalogItemUpsertBulk {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.UpdateItemType()
+	})
+}
+
+// ClearItemType clears the value of the "item_type" field.
+func (u *CatalogItemUpsertBulk) ClearItemType() *CatalogItemUpsertBulk {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.ClearItemType()
+	})
+}
+
+// SetRequiresAgeVerification sets the "requires_age_verification" field.
+func (u *CatalogItemUpsertBulk) SetRequiresAgeVerification(v bool) *CatalogItemUpsertBulk {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.SetRequiresAgeVerification(v)
+	})
+}
+
+// UpdateRequiresAgeVerification sets the "requires_age_verification" field to the value that was provided on create.
+func (u *CatalogItemUpsertBulk) UpdateRequiresAgeVerification() *CatalogItemUpsertBulk {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.UpdateRequiresAgeVerification()
+	})
+}
+
+// SetIsControlledSubstance sets the "is_controlled_substance" field.
+func (u *CatalogItemUpsertBulk) SetIsControlledSubstance(v bool) *CatalogItemUpsertBulk {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.SetIsControlledSubstance(v)
+	})
+}
+
+// UpdateIsControlledSubstance sets the "is_controlled_substance" field to the value that was provided on create.
+func (u *CatalogItemUpsertBulk) UpdateIsControlledSubstance() *CatalogItemUpsertBulk {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.UpdateIsControlledSubstance()
+	})
+}
+
+// SetTrackSerialNumber sets the "track_serial_number" field.
+func (u *CatalogItemUpsertBulk) SetTrackSerialNumber(v bool) *CatalogItemUpsertBulk {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.SetTrackSerialNumber(v)
+	})
+}
+
+// UpdateTrackSerialNumber sets the "track_serial_number" field to the value that was provided on create.
+func (u *CatalogItemUpsertBulk) UpdateTrackSerialNumber() *CatalogItemUpsertBulk {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.UpdateTrackSerialNumber()
+	})
+}
+
+// SetDurationMinutes sets the "duration_minutes" field.
+func (u *CatalogItemUpsertBulk) SetDurationMinutes(v int) *CatalogItemUpsertBulk {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.SetDurationMinutes(v)
+	})
+}
+
+// AddDurationMinutes adds v to the "duration_minutes" field.
+func (u *CatalogItemUpsertBulk) AddDurationMinutes(v int) *CatalogItemUpsertBulk {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.AddDurationMinutes(v)
+	})
+}
+
+// UpdateDurationMinutes sets the "duration_minutes" field to the value that was provided on create.
+func (u *CatalogItemUpsertBulk) UpdateDurationMinutes() *CatalogItemUpsertBulk {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.UpdateDurationMinutes()
+	})
+}
+
+// ClearDurationMinutes clears the value of the "duration_minutes" field.
+func (u *CatalogItemUpsertBulk) ClearDurationMinutes() *CatalogItemUpsertBulk {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.ClearDurationMinutes()
+	})
+}
+
+// SetCostPrice sets the "cost_price" field.
+func (u *CatalogItemUpsertBulk) SetCostPrice(v float64) *CatalogItemUpsertBulk {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.SetCostPrice(v)
+	})
+}
+
+// AddCostPrice adds v to the "cost_price" field.
+func (u *CatalogItemUpsertBulk) AddCostPrice(v float64) *CatalogItemUpsertBulk {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.AddCostPrice(v)
+	})
+}
+
+// UpdateCostPrice sets the "cost_price" field to the value that was provided on create.
+func (u *CatalogItemUpsertBulk) UpdateCostPrice() *CatalogItemUpsertBulk {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.UpdateCostPrice()
+	})
+}
+
+// ClearCostPrice clears the value of the "cost_price" field.
+func (u *CatalogItemUpsertBulk) ClearCostPrice() *CatalogItemUpsertBulk {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.ClearCostPrice()
+	})
+}
+
+// SetTags sets the "tags" field.
+func (u *CatalogItemUpsertBulk) SetTags(v []string) *CatalogItemUpsertBulk {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.SetTags(v)
+	})
+}
+
+// UpdateTags sets the "tags" field to the value that was provided on create.
+func (u *CatalogItemUpsertBulk) UpdateTags() *CatalogItemUpsertBulk {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.UpdateTags()
 	})
 }
 

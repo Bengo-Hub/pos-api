@@ -3,6 +3,7 @@
 package table
 
 import (
+	"fmt"
 	"time"
 
 	"entgo.io/ent/dialect/sql"
@@ -19,22 +20,41 @@ const (
 	FieldTenantID = "tenant_id"
 	// FieldOutletID holds the string denoting the outlet_id field in the database.
 	FieldOutletID = "outlet_id"
+	// FieldSectionID holds the string denoting the section_id field in the database.
+	FieldSectionID = "section_id"
 	// FieldName holds the string denoting the name field in the database.
 	FieldName = "name"
 	// FieldCapacity holds the string denoting the capacity field in the database.
 	FieldCapacity = "capacity"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
+	// FieldTableType holds the string denoting the table_type field in the database.
+	FieldTableType = "table_type"
+	// FieldXPosition holds the string denoting the x_position field in the database.
+	FieldXPosition = "x_position"
+	// FieldYPosition holds the string denoting the y_position field in the database.
+	FieldYPosition = "y_position"
+	// FieldTags holds the string denoting the tags field in the database.
+	FieldTags = "tags"
 	// FieldMetadata holds the string denoting the metadata field in the database.
 	FieldMetadata = "metadata"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
 	FieldUpdatedAt = "updated_at"
+	// EdgeSection holds the string denoting the section edge name in mutations.
+	EdgeSection = "section"
 	// EdgeAssignments holds the string denoting the assignments edge name in mutations.
 	EdgeAssignments = "assignments"
 	// Table holds the table name of the table in the database.
 	Table = "tables"
+	// SectionTable is the table that holds the section relation/edge.
+	SectionTable = "tables"
+	// SectionInverseTable is the table name for the Section entity.
+	// It exists in this package in order to avoid circular dependency with the "section" package.
+	SectionInverseTable = "sections"
+	// SectionColumn is the table column denoting the section relation/edge.
+	SectionColumn = "section_id"
 	// AssignmentsTable is the table that holds the assignments relation/edge.
 	AssignmentsTable = "table_assignments"
 	// AssignmentsInverseTable is the table name for the TableAssignment entity.
@@ -49,9 +69,14 @@ var Columns = []string{
 	FieldID,
 	FieldTenantID,
 	FieldOutletID,
+	FieldSectionID,
 	FieldName,
 	FieldCapacity,
 	FieldStatus,
+	FieldTableType,
+	FieldXPosition,
+	FieldYPosition,
+	FieldTags,
 	FieldMetadata,
 	FieldCreatedAt,
 	FieldUpdatedAt,
@@ -86,6 +111,36 @@ var (
 	DefaultID func() uuid.UUID
 )
 
+// TableType defines the type for the "table_type" enum field.
+type TableType string
+
+// TableTypeStandard is the default value of the TableType enum.
+const DefaultTableType = TableTypeStandard
+
+// TableType values.
+const (
+	TableTypeStandard TableType = "standard"
+	TableTypeBooth    TableType = "booth"
+	TableTypeBarSeat  TableType = "bar_seat"
+	TableTypeCounter  TableType = "counter"
+	TableTypeVip      TableType = "vip"
+	TableTypeVvip     TableType = "vvip"
+)
+
+func (tt TableType) String() string {
+	return string(tt)
+}
+
+// TableTypeValidator is a validator for the "table_type" field enum values. It is called by the builders before save.
+func TableTypeValidator(tt TableType) error {
+	switch tt {
+	case TableTypeStandard, TableTypeBooth, TableTypeBarSeat, TableTypeCounter, TableTypeVip, TableTypeVvip:
+		return nil
+	default:
+		return fmt.Errorf("table: invalid enum value for table_type field: %q", tt)
+	}
+}
+
 // OrderOption defines the ordering options for the Table queries.
 type OrderOption func(*sql.Selector)
 
@@ -104,6 +159,11 @@ func ByOutletID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldOutletID, opts...).ToFunc()
 }
 
+// BySectionID orders the results by the section_id field.
+func BySectionID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSectionID, opts...).ToFunc()
+}
+
 // ByName orders the results by the name field.
 func ByName(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldName, opts...).ToFunc()
@@ -119,6 +179,21 @@ func ByStatus(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldStatus, opts...).ToFunc()
 }
 
+// ByTableType orders the results by the table_type field.
+func ByTableType(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTableType, opts...).ToFunc()
+}
+
+// ByXPosition orders the results by the x_position field.
+func ByXPosition(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldXPosition, opts...).ToFunc()
+}
+
+// ByYPosition orders the results by the y_position field.
+func ByYPosition(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldYPosition, opts...).ToFunc()
+}
+
 // ByCreatedAt orders the results by the created_at field.
 func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCreatedAt, opts...).ToFunc()
@@ -127,6 +202,13 @@ func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
 // ByUpdatedAt orders the results by the updated_at field.
 func ByUpdatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldUpdatedAt, opts...).ToFunc()
+}
+
+// BySectionField orders the results by section field.
+func BySectionField(field string, opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newSectionStep(), sql.OrderByField(field, opts...))
+	}
 }
 
 // ByAssignmentsCount orders the results by assignments count.
@@ -141,6 +223,13 @@ func ByAssignments(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	return func(s *sql.Selector) {
 		sqlgraph.OrderByNeighborTerms(s, newAssignmentsStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
+}
+func newSectionStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(SectionInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.M2O, true, SectionTable, SectionColumn),
+	)
 }
 func newAssignmentsStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(

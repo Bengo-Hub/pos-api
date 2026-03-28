@@ -31,6 +31,8 @@ const (
 	FieldTimezone = "timezone"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
+	// FieldUseCase holds the string denoting the use_case field in the database.
+	FieldUseCase = "use_case"
 	// FieldOpenedAt holds the string denoting the opened_at field in the database.
 	FieldOpenedAt = "opened_at"
 	// FieldClosedAt holds the string denoting the closed_at field in the database.
@@ -81,6 +83,7 @@ var Columns = []string{
 	FieldAddressJSON,
 	FieldTimezone,
 	FieldStatus,
+	FieldUseCase,
 	FieldOpenedAt,
 	FieldClosedAt,
 	FieldCreatedAt,
@@ -161,6 +164,11 @@ func ByTimezone(opts ...sql.OrderTermOption) OrderOption {
 // ByStatus orders the results by the status field.
 func ByStatus(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldStatus, opts...).ToFunc()
+}
+
+// ByUseCase orders the results by the use_case field.
+func ByUseCase(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldUseCase, opts...).ToFunc()
 }
 
 // ByOpenedAt orders the results by the opened_at field.

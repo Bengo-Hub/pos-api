@@ -65,6 +65,20 @@ func (_c *ModifierCreate) SetNillableIsAvailable(v *bool) *ModifierCreate {
 	return _c
 }
 
+// SetInventoryModifierOptionID sets the "inventory_modifier_option_id" field.
+func (_c *ModifierCreate) SetInventoryModifierOptionID(v uuid.UUID) *ModifierCreate {
+	_c.mutation.SetInventoryModifierOptionID(v)
+	return _c
+}
+
+// SetNillableInventoryModifierOptionID sets the "inventory_modifier_option_id" field if the given value is not nil.
+func (_c *ModifierCreate) SetNillableInventoryModifierOptionID(v *uuid.UUID) *ModifierCreate {
+	if v != nil {
+		_c.SetInventoryModifierOptionID(*v)
+	}
+	return _c
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_c *ModifierCreate) SetCreatedAt(v time.Time) *ModifierCreate {
 	_c.mutation.SetCreatedAt(v)
@@ -244,6 +258,10 @@ func (_c *ModifierCreate) createSpec() (*Modifier, *sqlgraph.CreateSpec) {
 		_spec.SetField(modifier.FieldIsAvailable, field.TypeBool, value)
 		_node.IsAvailable = value
 	}
+	if value, ok := _c.mutation.InventoryModifierOptionID(); ok {
+		_spec.SetField(modifier.FieldInventoryModifierOptionID, field.TypeUUID, value)
+		_node.InventoryModifierOptionID = &value
+	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(modifier.FieldCreatedAt, field.TypeTime, value)
 		_node.CreatedAt = value
@@ -381,6 +399,24 @@ func (u *ModifierUpsert) UpdateIsAvailable() *ModifierUpsert {
 	return u
 }
 
+// SetInventoryModifierOptionID sets the "inventory_modifier_option_id" field.
+func (u *ModifierUpsert) SetInventoryModifierOptionID(v uuid.UUID) *ModifierUpsert {
+	u.Set(modifier.FieldInventoryModifierOptionID, v)
+	return u
+}
+
+// UpdateInventoryModifierOptionID sets the "inventory_modifier_option_id" field to the value that was provided on create.
+func (u *ModifierUpsert) UpdateInventoryModifierOptionID() *ModifierUpsert {
+	u.SetExcluded(modifier.FieldInventoryModifierOptionID)
+	return u
+}
+
+// ClearInventoryModifierOptionID clears the value of the "inventory_modifier_option_id" field.
+func (u *ModifierUpsert) ClearInventoryModifierOptionID() *ModifierUpsert {
+	u.SetNull(modifier.FieldInventoryModifierOptionID)
+	return u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (u *ModifierUpsert) SetUpdatedAt(v time.Time) *ModifierUpsert {
 	u.Set(modifier.FieldUpdatedAt, v)
@@ -511,6 +547,27 @@ func (u *ModifierUpsertOne) SetIsAvailable(v bool) *ModifierUpsertOne {
 func (u *ModifierUpsertOne) UpdateIsAvailable() *ModifierUpsertOne {
 	return u.Update(func(s *ModifierUpsert) {
 		s.UpdateIsAvailable()
+	})
+}
+
+// SetInventoryModifierOptionID sets the "inventory_modifier_option_id" field.
+func (u *ModifierUpsertOne) SetInventoryModifierOptionID(v uuid.UUID) *ModifierUpsertOne {
+	return u.Update(func(s *ModifierUpsert) {
+		s.SetInventoryModifierOptionID(v)
+	})
+}
+
+// UpdateInventoryModifierOptionID sets the "inventory_modifier_option_id" field to the value that was provided on create.
+func (u *ModifierUpsertOne) UpdateInventoryModifierOptionID() *ModifierUpsertOne {
+	return u.Update(func(s *ModifierUpsert) {
+		s.UpdateInventoryModifierOptionID()
+	})
+}
+
+// ClearInventoryModifierOptionID clears the value of the "inventory_modifier_option_id" field.
+func (u *ModifierUpsertOne) ClearInventoryModifierOptionID() *ModifierUpsertOne {
+	return u.Update(func(s *ModifierUpsert) {
+		s.ClearInventoryModifierOptionID()
 	})
 }
 
@@ -813,6 +870,27 @@ func (u *ModifierUpsertBulk) SetIsAvailable(v bool) *ModifierUpsertBulk {
 func (u *ModifierUpsertBulk) UpdateIsAvailable() *ModifierUpsertBulk {
 	return u.Update(func(s *ModifierUpsert) {
 		s.UpdateIsAvailable()
+	})
+}
+
+// SetInventoryModifierOptionID sets the "inventory_modifier_option_id" field.
+func (u *ModifierUpsertBulk) SetInventoryModifierOptionID(v uuid.UUID) *ModifierUpsertBulk {
+	return u.Update(func(s *ModifierUpsert) {
+		s.SetInventoryModifierOptionID(v)
+	})
+}
+
+// UpdateInventoryModifierOptionID sets the "inventory_modifier_option_id" field to the value that was provided on create.
+func (u *ModifierUpsertBulk) UpdateInventoryModifierOptionID() *ModifierUpsertBulk {
+	return u.Update(func(s *ModifierUpsert) {
+		s.UpdateInventoryModifierOptionID()
+	})
+}
+
+// ClearInventoryModifierOptionID clears the value of the "inventory_modifier_option_id" field.
+func (u *ModifierUpsertBulk) ClearInventoryModifierOptionID() *ModifierUpsertBulk {
+	return u.Update(func(s *ModifierUpsert) {
+		s.ClearInventoryModifierOptionID()
 	})
 }
 

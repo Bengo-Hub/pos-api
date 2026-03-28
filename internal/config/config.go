@@ -8,39 +8,52 @@ import (
 	"github.com/kelseyhightower/envconfig"
 )
 
-const namespace = "POS"
+const namespace = ""
 
 // Config aggregates runtime configuration for the POS service.
 type Config struct {
-	App       AppConfig
-	HTTP      HTTPConfig
-	Postgres  PostgresConfig
-	Redis     RedisConfig
-	Events    EventsConfig
-	Telemetry TelemetryConfig
-	Auth      AuthConfig
+	App           AppConfig
+	HTTP          HTTPConfig
+	Postgres      PostgresConfig
+	Redis         RedisConfig
+	Events        EventsConfig
+	Telemetry     TelemetryConfig
+	Auth          AuthConfig
+	Subscriptions SubscriptionsConfig
+}
+
+// SubscriptionsConfig holds configuration for the subscriptions enforcement client.
+type SubscriptionsConfig struct {
+	ServiceURL     string        `envconfig:"SUBSCRIPTIONS_SERVICE_URL" default:"https://pricingapi.codevertexitsolutions.com"`
+	RequestTimeout time.Duration `envconfig:"SUBSCRIPTIONS_REQUEST_TIMEOUT" default:"10s"`
 }
 
 type AppConfig struct {
-	Name    string `envconfig:"APP_NAME" default:"pos-service"`
-	Env     string `envconfig:"APP_ENV" default:"development"`
-	Region  string `envconfig:"APP_REGION" default:"africa-east-1"`
-	Version string `envconfig:"APP_VERSION" default:"0.1.0"`
+	Name            string  `envconfig:"APP_NAME" default:"pos-service"`
+	Env             string  `envconfig:"APP_ENV" default:"development"`
+	Region          string  `envconfig:"APP_REGION" default:"africa-east-1"`
+	Version         string  `envconfig:"APP_VERSION" default:"0.1.0"`
+	DefaultCurrency string  `envconfig:"DEFAULT_CURRENCY" default:"KES"`
+	TaxRatePercent  float64 `envconfig:"TAX_RATE_PERCENT" default:"16.0"`
+	OrderPrefix     string  `envconfig:"ORDER_PREFIX" default:"POS"`
 }
 
 type HTTPConfig struct {
-	Host         string        `envconfig:"HTTP_HOST" default:"0.0.0.0"`
-	Port         int           `envconfig:"HTTP_PORT" default:"4004"`
-	ReadTimeout  time.Duration `envconfig:"HTTP_READ_TIMEOUT" default:"20s"`
-	WriteTimeout time.Duration `envconfig:"HTTP_WRITE_TIMEOUT" default:"20s"`
-	IdleTimeout  time.Duration `envconfig:"HTTP_IDLE_TIMEOUT" default:"90s"`
+	Host           string        `envconfig:"HTTP_HOST" default:"0.0.0.0"`
+	Port           int           `envconfig:"HTTP_PORT" default:"4006"`
+	ReadTimeout    time.Duration `envconfig:"HTTP_READ_TIMEOUT" default:"20s"`
+	WriteTimeout   time.Duration `envconfig:"HTTP_WRITE_TIMEOUT" default:"20s"`
+	IdleTimeout    time.Duration `envconfig:"HTTP_IDLE_TIMEOUT" default:"90s"`
+	AllowedOrigins []string      `envconfig:"HTTP_ALLOWED_ORIGINS" default:"http://localhost:3000,http://localhost:3001"`
 }
 
 type PostgresConfig struct {
-	URL             string        `envconfig:"POSTGRES_URL" default:"postgres://postgres:postgres@localhost:5432/pos?sslmode=disable"`
-	MaxOpenConns    int           `envconfig:"POSTGRES_MAX_OPEN_CONNS" default:"30"`
-	MaxIdleConns    int           `envconfig:"POSTGRES_MAX_IDLE_CONNS" default:"15"`
-	ConnMaxLifetime time.Duration `envconfig:"POSTGRES_CONN_MAX_LIFETIME" default:"45m"`
+	URL                      string        `envconfig:"POSTGRES_URL" default:"postgres://postgres:postgres@localhost:5432/pos?sslmode=disable"`
+	MaxOpenConns             int           `envconfig:"POSTGRES_MAX_OPEN_CONNS" default:"30"`
+	MaxIdleConns             int           `envconfig:"POSTGRES_MAX_IDLE_CONNS" default:"15"`
+	ConnMaxLifetime          time.Duration `envconfig:"POSTGRES_CONN_MAX_LIFETIME" default:"45m"`
+	StatementTimeout         time.Duration `envconfig:"POSTGRES_STATEMENT_TIMEOUT" default:"30s"`
+	IdleInTransactionTimeout time.Duration `envconfig:"POSTGRES_IDLE_IN_TRANSACTION_TIMEOUT" default:"60s"`
 }
 
 type RedisConfig struct {
