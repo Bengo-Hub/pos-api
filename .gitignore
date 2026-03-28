@@ -28,3 +28,11 @@
 /internal/ent/migrate/schema/*
 
 
+
+# Security hardening
+!.env.example
+!example.env
+*.pem
+*-key.pem
+KubeSecrets/
+kubeSecrets/
