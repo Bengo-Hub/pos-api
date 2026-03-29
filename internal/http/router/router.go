@@ -60,8 +60,27 @@ func New(
 		// Apply auth middleware to all v1 routes
 		if authMiddleware != nil {
 			api.Use(authMiddleware.RequireAuth)
-			// Layer 2: Subscription enforcement — reject expired/cancelled tenants
-			api.Use(authclient.RequireActiveSubscription())
+			// Layer 2: Subscription enforcement — mutations only (GET/HEAD/OPTIONS pass through)
+			api.Use(func(next http.Handler) http.Handler {
+				return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					if r.Method == http.MethodGet || r.Method == http.MethodHead || r.Method == http.MethodOptions {
+						next.ServeHTTP(w, r)
+						return
+					}
+					claims, ok := authclient.ClaimsFromContext(r.Context())
+					if !ok {
+						next.ServeHTTP(w, r)
+						return
+					}
+					if claims.IsSuperuser() || claims.IsPlatformOwner || claims.IsSubscriptionActive() {
+						next.ServeHTTP(w, r)
+						return
+					}
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusForbidden)
+					_, _ = w.Write([]byte(`{"error":"Your subscription is not active. Please renew to continue.","code":"subscription_inactive","upgrade":true}`))
+				})
+			})
 		}
 
 		if idSvc != nil {
