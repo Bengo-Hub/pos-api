@@ -62,7 +62,7 @@ func (s *Service) EnsureUserFromToken(ctx context.Context, authServiceID uuid.UU
 	fullName, _ := claims["name"].(string)
 	
 	newUsr, err := s.client.User.Create().
-		SetID(uuid.New()).
+		SetID(authServiceID).
 		SetAuthServiceUserID(authServiceID).
 		SetTenantID(tenantID).
 		SetEmail(email).
