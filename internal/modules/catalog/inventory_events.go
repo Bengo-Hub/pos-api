@@ -88,7 +88,7 @@ func (h *InventoryEventHandler) SubscribeToInventoryEvents(nc *nats.Conn) error 
 // InitialSync pulls all items from inventory-api via REST and upserts them locally.
 // Called once on startup to catch items created before the event subscriber was deployed.
 func (h *InventoryEventHandler) InitialSync(ctx context.Context, inventoryAPIURL, tenantSlug string) {
-	url := fmt.Sprintf("%s/v1/%s/inventory/items", inventoryAPIURL, tenantSlug)
+	url := fmt.Sprintf("%s/v1/%s/inventory/items?type=GOODS", inventoryAPIURL, tenantSlug)
 	resp, err := http.Get(url)
 	if err != nil {
 		h.logger.Warn("initial catalog sync failed: HTTP error", zap.String("url", url), zap.Error(err))
@@ -222,6 +222,13 @@ func (h *InventoryEventHandler) handleItemUpsert(ctx context.Context, evt *Inven
 	categoryName, _ := data["category_name"].(string)
 	itemType, _ := data["type"].(string)
 	inventoryItemIDStr, _ := data["id"].(string)
+
+	// Skip non-sellable inventory types — only GOODS, RECIPE, SERVICE, VOUCHER belong in POS.
+	if itemType == "INGREDIENT" || itemType == "EQUIPMENT" {
+		h.logger.Debug("skipping non-sellable inventory item",
+			zap.String("sku", sku), zap.String("type", itemType))
+		return nil
+	}
 	requiresAgeVerification, _ := data["requires_age_verification"].(bool)
 	isControlledSubstance, _ := data["is_controlled_substance"].(bool)
 	trackSerialNumbers, _ := data["track_serial_numbers"].(bool)

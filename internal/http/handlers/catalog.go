@@ -34,7 +34,10 @@ func (h *CatalogHandler) ListCatalogItems(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	query := h.client.CatalogItem.Query().Where(catalogitem.TenantID(tid))
+	query := h.client.CatalogItem.Query().Where(
+		catalogitem.TenantID(tid),
+		catalogitem.ItemTypeNotIn("INGREDIENT", "EQUIPMENT"),
+	)
 
 	if cat := r.URL.Query().Get("category"); cat != "" {
 		query = query.Where(catalogitem.Category(cat))
