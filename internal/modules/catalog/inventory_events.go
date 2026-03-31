@@ -88,7 +88,7 @@ func (h *InventoryEventHandler) SubscribeToInventoryEvents(nc *nats.Conn) error 
 // InitialSync pulls all items from inventory-api via REST and upserts them locally.
 // Called once on startup to catch items created before the event subscriber was deployed.
 func (h *InventoryEventHandler) InitialSync(ctx context.Context, inventoryAPIURL, tenantSlug string) {
-	url := fmt.Sprintf("%s/v1/%s/inventory/items?type=GOODS", inventoryAPIURL, tenantSlug)
+	url := fmt.Sprintf("%s/v1/%s/inventory/items?type=GOODS,RECIPE", inventoryAPIURL, tenantSlug)
 	resp, err := http.Get(url)
 	if err != nil {
 		h.logger.Warn("initial catalog sync failed: HTTP error", zap.String("url", url), zap.Error(err))
