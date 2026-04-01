@@ -160,6 +160,14 @@ func New(ctx context.Context) (*App, error) {
 	// Wire RBAC service into identity for JIT role assignment from JWT claims
 	identitySvc.SetRBACService(rbacSvc)
 
+	// Subscribe to auth-service user events for proactive user sync
+	authEventHandler := identity.NewAuthEventHandler(entClient, identitySvc, log)
+	if natsConn != nil {
+		if err := authEventHandler.SubscribeToAuthEvents(natsConn); err != nil {
+			log.Warn("app: failed to subscribe to auth user events", zap.Error(err))
+		}
+	}
+
 	// Subscribe to ordering click-and-collect events for POS kitchen orders
 	pickupConsumer := ordermodule.NewPickupConsumer(entClient, orderSvc, log)
 	if natsConn != nil {
