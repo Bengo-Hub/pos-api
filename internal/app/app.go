@@ -96,6 +96,10 @@ func New(ctx context.Context) (*App, error) {
 	if err != nil {
 		return nil, fmt.Errorf("sql open for ent: %w", err)
 	}
+	sqlDB.SetMaxOpenConns(cfg.Postgres.MaxOpenConns)
+	sqlDB.SetMaxIdleConns(cfg.Postgres.MaxIdleConns)
+	sqlDB.SetConnMaxLifetime(cfg.Postgres.ConnMaxLifetime)
+	sqlDB.SetConnMaxIdleTime(1 * time.Minute)
 	drv := entsql.OpenDB(dialect.Postgres, sqlDB)
 	entClient := ent.NewClient(ent.Driver(drv))
 
