@@ -54,6 +54,7 @@ type PostgresConfig struct {
 	ConnMaxLifetime          time.Duration `envconfig:"POSTGRES_CONN_MAX_LIFETIME" default:"5m"`
 	StatementTimeout         time.Duration `envconfig:"POSTGRES_STATEMENT_TIMEOUT" default:"30s"`
 	IdleInTransactionTimeout time.Duration `envconfig:"POSTGRES_IDLE_IN_TRANSACTION_TIMEOUT" default:"60s"`
+	RunMigrations            bool          `envconfig:"POSTGRES_RUN_MIGRATIONS" default:"false"`
 }
 
 type RedisConfig struct {
@@ -83,7 +84,7 @@ type AuthConfig struct {
 	// Auth Service SSO (JWT) integration
 	ServiceURL          string        `envconfig:"AUTH_SERVICE_URL" default:"https://auth.codevertex.local:4101"`
 	Issuer              string        `envconfig:"AUTH_ISSUER" default:"https://auth.codevertex.local:4101"`
-	Audience            string        `envconfig:"AUTH_AUDIENCE" default:codevertex`
+	Audience            string        `envconfig:"AUTH_AUDIENCE" default:"codevertex"`
 	JWKSUrl             string        `envconfig:"AUTH_JWKS_URL" default:"https://auth.codevertex.local:4101/api/v1/.well-known/jwks.json"`
 	JWKSCacheTTL        time.Duration `envconfig:"AUTH_JWKS_CACHE_TTL" default:"3600s"`
 	JWKSRefreshInterval time.Duration `envconfig:"AUTH_JWKS_REFRESH_INTERVAL" default:"300s"`
