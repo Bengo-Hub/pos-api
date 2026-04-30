@@ -12,14 +12,17 @@ RUN go mod download
 
 COPY . .
 
-# Build all binaries: api and seed
-RUN CGO_ENABLED=0 go build -o /out/pos-api ./cmd/api
-RUN CGO_ENABLED=0 go build -o /out/pos-seed ./cmd/seed
+# Build all binaries: api, migrate, seed
+RUN CGO_ENABLED=0 go build -o /out/pos-api ./cmd/api && \
+    CGO_ENABLED=0 go build -o /out/pos-migrate ./cmd/migrate && \
+    CGO_ENABLED=0 go build -o /out/pos-seed ./cmd/seed
 
 FROM alpine:3.20
-RUN addgroup -S app && adduser -S app -G app
+RUN apk add --no-cache ca-certificates tzdata && \
+    addgroup -S app && adduser -S app -G app
 WORKDIR /app
 COPY --from=builder /out/pos-api /usr/local/bin/pos-api
+COPY --from=builder /out/pos-migrate /usr/local/bin/pos-migrate
 COPY --from=builder /out/pos-seed /usr/local/bin/pos-seed
 COPY internal/ent/migrate/migrations ./internal/ent/migrate/migrations
 # Entrypoint script: run seed, then start server

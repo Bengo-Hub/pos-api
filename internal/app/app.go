@@ -104,13 +104,14 @@ func New(ctx context.Context) (*App, error) {
 	drv := entsql.OpenDB(dialect.Postgres, sqlDB)
 	entClient := ent.NewClient(ent.Driver(drv))
 
-	// Run versioned migrations on startup
-	if err := entClient.Schema.Create(ctx, 
-		schema.WithDir(migrate.Dir),
-	); err != nil {
-		return nil, fmt.Errorf("ent schema create: %w", err)
+	if cfg.Postgres.RunMigrations {
+		if err := entClient.Schema.Create(ctx,
+			schema.WithDir(migrate.Dir),
+		); err != nil {
+			return nil, fmt.Errorf("ent schema create: %w", err)
+		}
+		log.Info("versioned migrations completed")
 	}
-	log.Info("versioned migrations completed")
 
 	subsClient := subscriptions.NewClient(subscriptions.Config{
 		ServiceURL:     cfg.Subscriptions.ServiceURL,
