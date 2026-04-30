@@ -90,7 +90,12 @@ func New(ctx context.Context) (*App, error) {
 	if err != nil {
 		return nil, fmt.Errorf("auth validator init: %w", err)
 	}
-	authMiddleware = authclient.NewAuthMiddleware(validator)
+	if cfg.Auth.EnableAPIKeyAuth {
+		apiKeyValidator := authclient.NewAPIKeyValidator(cfg.Auth.ServiceURL, nil)
+		authMiddleware = authclient.NewAuthMiddlewareWithAPIKey(validator, apiKeyValidator)
+	} else {
+		authMiddleware = authclient.NewAuthMiddleware(validator)
+	}
 
 	sqlDB, err := sql.Open("pgx", cfg.Postgres.URL)
 	if err != nil {

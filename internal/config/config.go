@@ -67,7 +67,7 @@ type RedisConfig struct {
 
 type EventsConfig struct {
 	Bus           string `envconfig:"EVENT_BUS" default:"nats"`
-	NATSURL       string `envconfig:"NATS_URL" default:"nats://localhost:4222"`
+	NATSURL       string `envconfig:"EVENTS_NATS_URL" default:"nats://localhost:4222"`
 	StreamName    string `envconfig:"NATS_STREAM" default:"pos"`
 	DeliverGroup  string `envconfig:"NATS_DELIVER_GROUP" default:"pos-workers"`
 	DeadLetterJet string `envconfig:"NATS_DLQ_STREAM" default:"pos-dlq"`
@@ -86,7 +86,9 @@ type AuthConfig struct {
 	Audience            string        `envconfig:"AUTH_AUDIENCE" default:"bengobox"`
 	JWKSUrl             string        `envconfig:"AUTH_JWKS_URL" default:"https://auth.codevertex.local:4101/api/v1/.well-known/jwks.json"`
 	JWKSCacheTTL        time.Duration `envconfig:"AUTH_JWKS_CACHE_TTL" default:"3600s"`
-	JWKSRefreshInterval  time.Duration `envconfig:"AUTH_JWKS_REFRESH_INTERVAL" default:"300s"`
+	JWKSRefreshInterval time.Duration `envconfig:"AUTH_JWKS_REFRESH_INTERVAL" default:"300s"`
+	// EnableAPIKeyAuth allows S2S callers to authenticate with INTERNAL_SERVICE_KEY via X-API-Key header.
+	EnableAPIKeyAuth bool `envconfig:"AUTH_ENABLE_API_KEY_AUTH" default:"true"`
 }
 
 // Load gathers configuration from environment variables and optional .env files.
