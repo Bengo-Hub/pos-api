@@ -85,7 +85,7 @@ type AuthConfig struct {
 	// Auth Service SSO (JWT) integration
 	ServiceURL          string        `envconfig:"AUTH_SERVICE_URL" default:"https://auth.codevertex.local:4101"`
 	Issuer              string        `envconfig:"AUTH_ISSUER" default:"https://auth.codevertex.local:4101"`
-	Audience            string        `envconfig:"AUTH_AUDIENCE" default:"bengobox"`
+	Audience            string        `envconfig:"AUTH_AUDIENCE" default:"codevertex"`
 	JWKSUrl             string        `envconfig:"AUTH_JWKS_URL" default:"https://auth.codevertex.local:4101/api/v1/.well-known/jwks.json"`
 	JWKSCacheTTL        time.Duration `envconfig:"AUTH_JWKS_CACHE_TTL" default:"3600s"`
 	JWKSRefreshInterval time.Duration `envconfig:"AUTH_JWKS_REFRESH_INTERVAL" default:"300s"`
@@ -104,4 +104,3 @@ func Load() (*Config, error) {
 
 	return &cfg, nil
 }
-

@@ -101,9 +101,15 @@ func New(ctx context.Context) (*App, error) {
 	if err != nil {
 		return nil, fmt.Errorf("sql open for ent: %w", err)
 	}
+	sqlDB.SetMaxOpenConns(cfg.Postgres.MaxOpenConns)
+	sqlDB.SetMaxIdleConns(cfg.Postgres.MaxIdleConns)
+	sqlDB.SetConnMaxLifetime(cfg.Postgres.ConnMaxLifetime)
+	sqlDB.SetConnMaxIdleTime(1 * time.Minute)
 	drv := entsql.OpenDB(dialect.Postgres, sqlDB)
 	entClient := ent.NewClient(ent.Driver(drv))
 
+	// Run versioned migrations only when explicitly enabled.
+	// In production, migrations are run by the entrypoint before the server starts.
 	if cfg.Postgres.RunMigrations {
 		if err := entClient.Schema.Create(ctx,
 			schema.WithDir(migrate.Dir),
