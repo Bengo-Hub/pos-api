@@ -20,6 +20,8 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/channelintegration"
 	"github.com/bengobox/pos-service/internal/ent/channelsyncjob"
 	"github.com/bengobox/pos-service/internal/ent/commissionrecord"
+	"github.com/bengobox/pos-service/internal/ent/facility"
+	"github.com/bengobox/pos-service/internal/ent/facilitybooking"
 	"github.com/bengobox/pos-service/internal/ent/giftcard"
 	"github.com/bengobox/pos-service/internal/ent/giftcardtransaction"
 	"github.com/bengobox/pos-service/internal/ent/integrationsetting"
@@ -52,6 +54,9 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/promotionapplication"
 	"github.com/bengobox/pos-service/internal/ent/promotionrule"
 	"github.com/bengobox/pos-service/internal/ent/ratelimitconfig"
+	"github.com/bengobox/pos-service/internal/ent/room"
+	"github.com/bengobox/pos-service/internal/ent/roomfolioitem"
+	"github.com/bengobox/pos-service/internal/ent/roomguest"
 	"github.com/bengobox/pos-service/internal/ent/section"
 	"github.com/bengobox/pos-service/internal/ent/serialnumberlog"
 	"github.com/bengobox/pos-service/internal/ent/serviceconfig"
@@ -88,6 +93,8 @@ const (
 	TypeChannelIntegration     = "ChannelIntegration"
 	TypeChannelSyncJob         = "ChannelSyncJob"
 	TypeCommissionRecord       = "CommissionRecord"
+	TypeFacility               = "Facility"
+	TypeFacilityBooking        = "FacilityBooking"
 	TypeFeatureOverride        = "FeatureOverride"
 	TypeGiftCard               = "GiftCard"
 	TypeGiftCardTransaction    = "GiftCardTransaction"
@@ -121,6 +128,9 @@ const (
 	TypePromotionApplication   = "PromotionApplication"
 	TypePromotionRule          = "PromotionRule"
 	TypeRateLimitConfig        = "RateLimitConfig"
+	TypeRoom                   = "Room"
+	TypeRoomFolioItem          = "RoomFolioItem"
+	TypeRoomGuest              = "RoomGuest"
 	TypeSection                = "Section"
 	TypeSerialNumberLog        = "SerialNumberLog"
 	TypeServiceConfig          = "ServiceConfig"
@@ -8298,6 +8308,2508 @@ func (m *CommissionRecordMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown CommissionRecord edge %s", name)
 }
 
+// FacilityMutation represents an operation that mutates the Facility nodes in the graph.
+type FacilityMutation struct {
+	config
+	op                  Op
+	typ                 string
+	id                  *uuid.UUID
+	tenant_id           *uuid.UUID
+	outlet_id           *uuid.UUID
+	name                *string
+	facility_type       *facility.FacilityType
+	capacity            *int
+	addcapacity         *int
+	rate_per_session    *float64
+	addrate_per_session *float64
+	currency            *string
+	opening_time        *string
+	closing_time        *string
+	status              *facility.Status
+	is_active           *bool
+	metadata            *map[string]interface{}
+	created_at          *time.Time
+	updated_at          *time.Time
+	clearedFields       map[string]struct{}
+	bookings            map[uuid.UUID]struct{}
+	removedbookings     map[uuid.UUID]struct{}
+	clearedbookings     bool
+	done                bool
+	oldValue            func(context.Context) (*Facility, error)
+	predicates          []predicate.Facility
+}
+
+var _ ent.Mutation = (*FacilityMutation)(nil)
+
+// facilityOption allows management of the mutation configuration using functional options.
+type facilityOption func(*FacilityMutation)
+
+// newFacilityMutation creates new mutation for the Facility entity.
+func newFacilityMutation(c config, op Op, opts ...facilityOption) *FacilityMutation {
+	m := &FacilityMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeFacility,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withFacilityID sets the ID field of the mutation.
+func withFacilityID(id uuid.UUID) facilityOption {
+	return func(m *FacilityMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *Facility
+		)
+		m.oldValue = func(ctx context.Context) (*Facility, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().Facility.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withFacility sets the old Facility of the mutation.
+func withFacility(node *Facility) facilityOption {
+	return func(m *FacilityMutation) {
+		m.oldValue = func(context.Context) (*Facility, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m FacilityMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m FacilityMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of Facility entities.
+func (m *FacilityMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *FacilityMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *FacilityMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().Facility.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *FacilityMutation) SetTenantID(u uuid.UUID) {
+	m.tenant_id = &u
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *FacilityMutation) TenantID() (r uuid.UUID, exists bool) {
+	v := m.tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the Facility entity.
+// If the Facility object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *FacilityMutation) OldTenantID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *FacilityMutation) ResetTenantID() {
+	m.tenant_id = nil
+}
+
+// SetOutletID sets the "outlet_id" field.
+func (m *FacilityMutation) SetOutletID(u uuid.UUID) {
+	m.outlet_id = &u
+}
+
+// OutletID returns the value of the "outlet_id" field in the mutation.
+func (m *FacilityMutation) OutletID() (r uuid.UUID, exists bool) {
+	v := m.outlet_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOutletID returns the old "outlet_id" field's value of the Facility entity.
+// If the Facility object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *FacilityMutation) OldOutletID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOutletID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOutletID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOutletID: %w", err)
+	}
+	return oldValue.OutletID, nil
+}
+
+// ResetOutletID resets all changes to the "outlet_id" field.
+func (m *FacilityMutation) ResetOutletID() {
+	m.outlet_id = nil
+}
+
+// SetName sets the "name" field.
+func (m *FacilityMutation) SetName(s string) {
+	m.name = &s
+}
+
+// Name returns the value of the "name" field in the mutation.
+func (m *FacilityMutation) Name() (r string, exists bool) {
+	v := m.name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldName returns the old "name" field's value of the Facility entity.
+// If the Facility object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *FacilityMutation) OldName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldName: %w", err)
+	}
+	return oldValue.Name, nil
+}
+
+// ResetName resets all changes to the "name" field.
+func (m *FacilityMutation) ResetName() {
+	m.name = nil
+}
+
+// SetFacilityType sets the "facility_type" field.
+func (m *FacilityMutation) SetFacilityType(ft facility.FacilityType) {
+	m.facility_type = &ft
+}
+
+// FacilityType returns the value of the "facility_type" field in the mutation.
+func (m *FacilityMutation) FacilityType() (r facility.FacilityType, exists bool) {
+	v := m.facility_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFacilityType returns the old "facility_type" field's value of the Facility entity.
+// If the Facility object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *FacilityMutation) OldFacilityType(ctx context.Context) (v facility.FacilityType, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFacilityType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFacilityType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFacilityType: %w", err)
+	}
+	return oldValue.FacilityType, nil
+}
+
+// ResetFacilityType resets all changes to the "facility_type" field.
+func (m *FacilityMutation) ResetFacilityType() {
+	m.facility_type = nil
+}
+
+// SetCapacity sets the "capacity" field.
+func (m *FacilityMutation) SetCapacity(i int) {
+	m.capacity = &i
+	m.addcapacity = nil
+}
+
+// Capacity returns the value of the "capacity" field in the mutation.
+func (m *FacilityMutation) Capacity() (r int, exists bool) {
+	v := m.capacity
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCapacity returns the old "capacity" field's value of the Facility entity.
+// If the Facility object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *FacilityMutation) OldCapacity(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCapacity is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCapacity requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCapacity: %w", err)
+	}
+	return oldValue.Capacity, nil
+}
+
+// AddCapacity adds i to the "capacity" field.
+func (m *FacilityMutation) AddCapacity(i int) {
+	if m.addcapacity != nil {
+		*m.addcapacity += i
+	} else {
+		m.addcapacity = &i
+	}
+}
+
+// AddedCapacity returns the value that was added to the "capacity" field in this mutation.
+func (m *FacilityMutation) AddedCapacity() (r int, exists bool) {
+	v := m.addcapacity
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetCapacity resets all changes to the "capacity" field.
+func (m *FacilityMutation) ResetCapacity() {
+	m.capacity = nil
+	m.addcapacity = nil
+}
+
+// SetRatePerSession sets the "rate_per_session" field.
+func (m *FacilityMutation) SetRatePerSession(f float64) {
+	m.rate_per_session = &f
+	m.addrate_per_session = nil
+}
+
+// RatePerSession returns the value of the "rate_per_session" field in the mutation.
+func (m *FacilityMutation) RatePerSession() (r float64, exists bool) {
+	v := m.rate_per_session
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRatePerSession returns the old "rate_per_session" field's value of the Facility entity.
+// If the Facility object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *FacilityMutation) OldRatePerSession(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRatePerSession is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRatePerSession requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRatePerSession: %w", err)
+	}
+	return oldValue.RatePerSession, nil
+}
+
+// AddRatePerSession adds f to the "rate_per_session" field.
+func (m *FacilityMutation) AddRatePerSession(f float64) {
+	if m.addrate_per_session != nil {
+		*m.addrate_per_session += f
+	} else {
+		m.addrate_per_session = &f
+	}
+}
+
+// AddedRatePerSession returns the value that was added to the "rate_per_session" field in this mutation.
+func (m *FacilityMutation) AddedRatePerSession() (r float64, exists bool) {
+	v := m.addrate_per_session
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetRatePerSession resets all changes to the "rate_per_session" field.
+func (m *FacilityMutation) ResetRatePerSession() {
+	m.rate_per_session = nil
+	m.addrate_per_session = nil
+}
+
+// SetCurrency sets the "currency" field.
+func (m *FacilityMutation) SetCurrency(s string) {
+	m.currency = &s
+}
+
+// Currency returns the value of the "currency" field in the mutation.
+func (m *FacilityMutation) Currency() (r string, exists bool) {
+	v := m.currency
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCurrency returns the old "currency" field's value of the Facility entity.
+// If the Facility object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *FacilityMutation) OldCurrency(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCurrency is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCurrency requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCurrency: %w", err)
+	}
+	return oldValue.Currency, nil
+}
+
+// ResetCurrency resets all changes to the "currency" field.
+func (m *FacilityMutation) ResetCurrency() {
+	m.currency = nil
+}
+
+// SetOpeningTime sets the "opening_time" field.
+func (m *FacilityMutation) SetOpeningTime(s string) {
+	m.opening_time = &s
+}
+
+// OpeningTime returns the value of the "opening_time" field in the mutation.
+func (m *FacilityMutation) OpeningTime() (r string, exists bool) {
+	v := m.opening_time
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOpeningTime returns the old "opening_time" field's value of the Facility entity.
+// If the Facility object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *FacilityMutation) OldOpeningTime(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOpeningTime is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOpeningTime requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOpeningTime: %w", err)
+	}
+	return oldValue.OpeningTime, nil
+}
+
+// ResetOpeningTime resets all changes to the "opening_time" field.
+func (m *FacilityMutation) ResetOpeningTime() {
+	m.opening_time = nil
+}
+
+// SetClosingTime sets the "closing_time" field.
+func (m *FacilityMutation) SetClosingTime(s string) {
+	m.closing_time = &s
+}
+
+// ClosingTime returns the value of the "closing_time" field in the mutation.
+func (m *FacilityMutation) ClosingTime() (r string, exists bool) {
+	v := m.closing_time
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldClosingTime returns the old "closing_time" field's value of the Facility entity.
+// If the Facility object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *FacilityMutation) OldClosingTime(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldClosingTime is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldClosingTime requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldClosingTime: %w", err)
+	}
+	return oldValue.ClosingTime, nil
+}
+
+// ResetClosingTime resets all changes to the "closing_time" field.
+func (m *FacilityMutation) ResetClosingTime() {
+	m.closing_time = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *FacilityMutation) SetStatus(f facility.Status) {
+	m.status = &f
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *FacilityMutation) Status() (r facility.Status, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the Facility entity.
+// If the Facility object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *FacilityMutation) OldStatus(ctx context.Context) (v facility.Status, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *FacilityMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetIsActive sets the "is_active" field.
+func (m *FacilityMutation) SetIsActive(b bool) {
+	m.is_active = &b
+}
+
+// IsActive returns the value of the "is_active" field in the mutation.
+func (m *FacilityMutation) IsActive() (r bool, exists bool) {
+	v := m.is_active
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIsActive returns the old "is_active" field's value of the Facility entity.
+// If the Facility object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *FacilityMutation) OldIsActive(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIsActive is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIsActive requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIsActive: %w", err)
+	}
+	return oldValue.IsActive, nil
+}
+
+// ResetIsActive resets all changes to the "is_active" field.
+func (m *FacilityMutation) ResetIsActive() {
+	m.is_active = nil
+}
+
+// SetMetadata sets the "metadata" field.
+func (m *FacilityMutation) SetMetadata(value map[string]interface{}) {
+	m.metadata = &value
+}
+
+// Metadata returns the value of the "metadata" field in the mutation.
+func (m *FacilityMutation) Metadata() (r map[string]interface{}, exists bool) {
+	v := m.metadata
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMetadata returns the old "metadata" field's value of the Facility entity.
+// If the Facility object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *FacilityMutation) OldMetadata(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMetadata is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMetadata requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMetadata: %w", err)
+	}
+	return oldValue.Metadata, nil
+}
+
+// ResetMetadata resets all changes to the "metadata" field.
+func (m *FacilityMutation) ResetMetadata() {
+	m.metadata = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *FacilityMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *FacilityMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the Facility entity.
+// If the Facility object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *FacilityMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *FacilityMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *FacilityMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *FacilityMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the Facility entity.
+// If the Facility object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *FacilityMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *FacilityMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// AddBookingIDs adds the "bookings" edge to the FacilityBooking entity by ids.
+func (m *FacilityMutation) AddBookingIDs(ids ...uuid.UUID) {
+	if m.bookings == nil {
+		m.bookings = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		m.bookings[ids[i]] = struct{}{}
+	}
+}
+
+// ClearBookings clears the "bookings" edge to the FacilityBooking entity.
+func (m *FacilityMutation) ClearBookings() {
+	m.clearedbookings = true
+}
+
+// BookingsCleared reports if the "bookings" edge to the FacilityBooking entity was cleared.
+func (m *FacilityMutation) BookingsCleared() bool {
+	return m.clearedbookings
+}
+
+// RemoveBookingIDs removes the "bookings" edge to the FacilityBooking entity by IDs.
+func (m *FacilityMutation) RemoveBookingIDs(ids ...uuid.UUID) {
+	if m.removedbookings == nil {
+		m.removedbookings = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		delete(m.bookings, ids[i])
+		m.removedbookings[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedBookings returns the removed IDs of the "bookings" edge to the FacilityBooking entity.
+func (m *FacilityMutation) RemovedBookingsIDs() (ids []uuid.UUID) {
+	for id := range m.removedbookings {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// BookingsIDs returns the "bookings" edge IDs in the mutation.
+func (m *FacilityMutation) BookingsIDs() (ids []uuid.UUID) {
+	for id := range m.bookings {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetBookings resets all changes to the "bookings" edge.
+func (m *FacilityMutation) ResetBookings() {
+	m.bookings = nil
+	m.clearedbookings = false
+	m.removedbookings = nil
+}
+
+// Where appends a list predicates to the FacilityMutation builder.
+func (m *FacilityMutation) Where(ps ...predicate.Facility) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the FacilityMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *FacilityMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.Facility, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *FacilityMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *FacilityMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (Facility).
+func (m *FacilityMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *FacilityMutation) Fields() []string {
+	fields := make([]string, 0, 14)
+	if m.tenant_id != nil {
+		fields = append(fields, facility.FieldTenantID)
+	}
+	if m.outlet_id != nil {
+		fields = append(fields, facility.FieldOutletID)
+	}
+	if m.name != nil {
+		fields = append(fields, facility.FieldName)
+	}
+	if m.facility_type != nil {
+		fields = append(fields, facility.FieldFacilityType)
+	}
+	if m.capacity != nil {
+		fields = append(fields, facility.FieldCapacity)
+	}
+	if m.rate_per_session != nil {
+		fields = append(fields, facility.FieldRatePerSession)
+	}
+	if m.currency != nil {
+		fields = append(fields, facility.FieldCurrency)
+	}
+	if m.opening_time != nil {
+		fields = append(fields, facility.FieldOpeningTime)
+	}
+	if m.closing_time != nil {
+		fields = append(fields, facility.FieldClosingTime)
+	}
+	if m.status != nil {
+		fields = append(fields, facility.FieldStatus)
+	}
+	if m.is_active != nil {
+		fields = append(fields, facility.FieldIsActive)
+	}
+	if m.metadata != nil {
+		fields = append(fields, facility.FieldMetadata)
+	}
+	if m.created_at != nil {
+		fields = append(fields, facility.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, facility.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *FacilityMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case facility.FieldTenantID:
+		return m.TenantID()
+	case facility.FieldOutletID:
+		return m.OutletID()
+	case facility.FieldName:
+		return m.Name()
+	case facility.FieldFacilityType:
+		return m.FacilityType()
+	case facility.FieldCapacity:
+		return m.Capacity()
+	case facility.FieldRatePerSession:
+		return m.RatePerSession()
+	case facility.FieldCurrency:
+		return m.Currency()
+	case facility.FieldOpeningTime:
+		return m.OpeningTime()
+	case facility.FieldClosingTime:
+		return m.ClosingTime()
+	case facility.FieldStatus:
+		return m.Status()
+	case facility.FieldIsActive:
+		return m.IsActive()
+	case facility.FieldMetadata:
+		return m.Metadata()
+	case facility.FieldCreatedAt:
+		return m.CreatedAt()
+	case facility.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *FacilityMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case facility.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case facility.FieldOutletID:
+		return m.OldOutletID(ctx)
+	case facility.FieldName:
+		return m.OldName(ctx)
+	case facility.FieldFacilityType:
+		return m.OldFacilityType(ctx)
+	case facility.FieldCapacity:
+		return m.OldCapacity(ctx)
+	case facility.FieldRatePerSession:
+		return m.OldRatePerSession(ctx)
+	case facility.FieldCurrency:
+		return m.OldCurrency(ctx)
+	case facility.FieldOpeningTime:
+		return m.OldOpeningTime(ctx)
+	case facility.FieldClosingTime:
+		return m.OldClosingTime(ctx)
+	case facility.FieldStatus:
+		return m.OldStatus(ctx)
+	case facility.FieldIsActive:
+		return m.OldIsActive(ctx)
+	case facility.FieldMetadata:
+		return m.OldMetadata(ctx)
+	case facility.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case facility.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown Facility field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *FacilityMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case facility.FieldTenantID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case facility.FieldOutletID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOutletID(v)
+		return nil
+	case facility.FieldName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetName(v)
+		return nil
+	case facility.FieldFacilityType:
+		v, ok := value.(facility.FacilityType)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFacilityType(v)
+		return nil
+	case facility.FieldCapacity:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCapacity(v)
+		return nil
+	case facility.FieldRatePerSession:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRatePerSession(v)
+		return nil
+	case facility.FieldCurrency:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCurrency(v)
+		return nil
+	case facility.FieldOpeningTime:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOpeningTime(v)
+		return nil
+	case facility.FieldClosingTime:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetClosingTime(v)
+		return nil
+	case facility.FieldStatus:
+		v, ok := value.(facility.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case facility.FieldIsActive:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIsActive(v)
+		return nil
+	case facility.FieldMetadata:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMetadata(v)
+		return nil
+	case facility.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case facility.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown Facility field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *FacilityMutation) AddedFields() []string {
+	var fields []string
+	if m.addcapacity != nil {
+		fields = append(fields, facility.FieldCapacity)
+	}
+	if m.addrate_per_session != nil {
+		fields = append(fields, facility.FieldRatePerSession)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *FacilityMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case facility.FieldCapacity:
+		return m.AddedCapacity()
+	case facility.FieldRatePerSession:
+		return m.AddedRatePerSession()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *FacilityMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case facility.FieldCapacity:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCapacity(v)
+		return nil
+	case facility.FieldRatePerSession:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRatePerSession(v)
+		return nil
+	}
+	return fmt.Errorf("unknown Facility numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *FacilityMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *FacilityMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *FacilityMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown Facility nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *FacilityMutation) ResetField(name string) error {
+	switch name {
+	case facility.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case facility.FieldOutletID:
+		m.ResetOutletID()
+		return nil
+	case facility.FieldName:
+		m.ResetName()
+		return nil
+	case facility.FieldFacilityType:
+		m.ResetFacilityType()
+		return nil
+	case facility.FieldCapacity:
+		m.ResetCapacity()
+		return nil
+	case facility.FieldRatePerSession:
+		m.ResetRatePerSession()
+		return nil
+	case facility.FieldCurrency:
+		m.ResetCurrency()
+		return nil
+	case facility.FieldOpeningTime:
+		m.ResetOpeningTime()
+		return nil
+	case facility.FieldClosingTime:
+		m.ResetClosingTime()
+		return nil
+	case facility.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case facility.FieldIsActive:
+		m.ResetIsActive()
+		return nil
+	case facility.FieldMetadata:
+		m.ResetMetadata()
+		return nil
+	case facility.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case facility.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown Facility field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *FacilityMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.bookings != nil {
+		edges = append(edges, facility.EdgeBookings)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *FacilityMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case facility.EdgeBookings:
+		ids := make([]ent.Value, 0, len(m.bookings))
+		for id := range m.bookings {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *FacilityMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.removedbookings != nil {
+		edges = append(edges, facility.EdgeBookings)
+	}
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *FacilityMutation) RemovedIDs(name string) []ent.Value {
+	switch name {
+	case facility.EdgeBookings:
+		ids := make([]ent.Value, 0, len(m.removedbookings))
+		for id := range m.removedbookings {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *FacilityMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.clearedbookings {
+		edges = append(edges, facility.EdgeBookings)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *FacilityMutation) EdgeCleared(name string) bool {
+	switch name {
+	case facility.EdgeBookings:
+		return m.clearedbookings
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *FacilityMutation) ClearEdge(name string) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown Facility unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *FacilityMutation) ResetEdge(name string) error {
+	switch name {
+	case facility.EdgeBookings:
+		m.ResetBookings()
+		return nil
+	}
+	return fmt.Errorf("unknown Facility edge %s", name)
+}
+
+// FacilityBookingMutation represents an operation that mutates the FacilityBooking nodes in the graph.
+type FacilityBookingMutation struct {
+	config
+	op              Op
+	typ             string
+	id              *uuid.UUID
+	tenant_id       *uuid.UUID
+	room_guest_id   *uuid.UUID
+	guest_name      *string
+	phone           *string
+	session_date    *time.Time
+	start_time      *string
+	end_time        *string
+	guests_count    *int
+	addguests_count *int
+	amount          *float64
+	addamount       *float64
+	currency        *string
+	status          *facilitybooking.Status
+	booked_by       *uuid.UUID
+	notes           *string
+	metadata        *map[string]interface{}
+	created_at      *time.Time
+	clearedFields   map[string]struct{}
+	facility        *uuid.UUID
+	clearedfacility bool
+	done            bool
+	oldValue        func(context.Context) (*FacilityBooking, error)
+	predicates      []predicate.FacilityBooking
+}
+
+var _ ent.Mutation = (*FacilityBookingMutation)(nil)
+
+// facilitybookingOption allows management of the mutation configuration using functional options.
+type facilitybookingOption func(*FacilityBookingMutation)
+
+// newFacilityBookingMutation creates new mutation for the FacilityBooking entity.
+func newFacilityBookingMutation(c config, op Op, opts ...facilitybookingOption) *FacilityBookingMutation {
+	m := &FacilityBookingMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeFacilityBooking,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withFacilityBookingID sets the ID field of the mutation.
+func withFacilityBookingID(id uuid.UUID) facilitybookingOption {
+	return func(m *FacilityBookingMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *FacilityBooking
+		)
+		m.oldValue = func(ctx context.Context) (*FacilityBooking, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().FacilityBooking.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withFacilityBooking sets the old FacilityBooking of the mutation.
+func withFacilityBooking(node *FacilityBooking) facilitybookingOption {
+	return func(m *FacilityBookingMutation) {
+		m.oldValue = func(context.Context) (*FacilityBooking, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m FacilityBookingMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m FacilityBookingMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of FacilityBooking entities.
+func (m *FacilityBookingMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *FacilityBookingMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *FacilityBookingMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().FacilityBooking.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *FacilityBookingMutation) SetTenantID(u uuid.UUID) {
+	m.tenant_id = &u
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *FacilityBookingMutation) TenantID() (r uuid.UUID, exists bool) {
+	v := m.tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the FacilityBooking entity.
+// If the FacilityBooking object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *FacilityBookingMutation) OldTenantID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *FacilityBookingMutation) ResetTenantID() {
+	m.tenant_id = nil
+}
+
+// SetFacilityID sets the "facility_id" field.
+func (m *FacilityBookingMutation) SetFacilityID(u uuid.UUID) {
+	m.facility = &u
+}
+
+// FacilityID returns the value of the "facility_id" field in the mutation.
+func (m *FacilityBookingMutation) FacilityID() (r uuid.UUID, exists bool) {
+	v := m.facility
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFacilityID returns the old "facility_id" field's value of the FacilityBooking entity.
+// If the FacilityBooking object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *FacilityBookingMutation) OldFacilityID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFacilityID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFacilityID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFacilityID: %w", err)
+	}
+	return oldValue.FacilityID, nil
+}
+
+// ResetFacilityID resets all changes to the "facility_id" field.
+func (m *FacilityBookingMutation) ResetFacilityID() {
+	m.facility = nil
+}
+
+// SetRoomGuestID sets the "room_guest_id" field.
+func (m *FacilityBookingMutation) SetRoomGuestID(u uuid.UUID) {
+	m.room_guest_id = &u
+}
+
+// RoomGuestID returns the value of the "room_guest_id" field in the mutation.
+func (m *FacilityBookingMutation) RoomGuestID() (r uuid.UUID, exists bool) {
+	v := m.room_guest_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRoomGuestID returns the old "room_guest_id" field's value of the FacilityBooking entity.
+// If the FacilityBooking object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *FacilityBookingMutation) OldRoomGuestID(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRoomGuestID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRoomGuestID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRoomGuestID: %w", err)
+	}
+	return oldValue.RoomGuestID, nil
+}
+
+// ClearRoomGuestID clears the value of the "room_guest_id" field.
+func (m *FacilityBookingMutation) ClearRoomGuestID() {
+	m.room_guest_id = nil
+	m.clearedFields[facilitybooking.FieldRoomGuestID] = struct{}{}
+}
+
+// RoomGuestIDCleared returns if the "room_guest_id" field was cleared in this mutation.
+func (m *FacilityBookingMutation) RoomGuestIDCleared() bool {
+	_, ok := m.clearedFields[facilitybooking.FieldRoomGuestID]
+	return ok
+}
+
+// ResetRoomGuestID resets all changes to the "room_guest_id" field.
+func (m *FacilityBookingMutation) ResetRoomGuestID() {
+	m.room_guest_id = nil
+	delete(m.clearedFields, facilitybooking.FieldRoomGuestID)
+}
+
+// SetGuestName sets the "guest_name" field.
+func (m *FacilityBookingMutation) SetGuestName(s string) {
+	m.guest_name = &s
+}
+
+// GuestName returns the value of the "guest_name" field in the mutation.
+func (m *FacilityBookingMutation) GuestName() (r string, exists bool) {
+	v := m.guest_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGuestName returns the old "guest_name" field's value of the FacilityBooking entity.
+// If the FacilityBooking object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *FacilityBookingMutation) OldGuestName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGuestName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGuestName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGuestName: %w", err)
+	}
+	return oldValue.GuestName, nil
+}
+
+// ResetGuestName resets all changes to the "guest_name" field.
+func (m *FacilityBookingMutation) ResetGuestName() {
+	m.guest_name = nil
+}
+
+// SetPhone sets the "phone" field.
+func (m *FacilityBookingMutation) SetPhone(s string) {
+	m.phone = &s
+}
+
+// Phone returns the value of the "phone" field in the mutation.
+func (m *FacilityBookingMutation) Phone() (r string, exists bool) {
+	v := m.phone
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPhone returns the old "phone" field's value of the FacilityBooking entity.
+// If the FacilityBooking object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *FacilityBookingMutation) OldPhone(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPhone is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPhone requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPhone: %w", err)
+	}
+	return oldValue.Phone, nil
+}
+
+// ResetPhone resets all changes to the "phone" field.
+func (m *FacilityBookingMutation) ResetPhone() {
+	m.phone = nil
+}
+
+// SetSessionDate sets the "session_date" field.
+func (m *FacilityBookingMutation) SetSessionDate(t time.Time) {
+	m.session_date = &t
+}
+
+// SessionDate returns the value of the "session_date" field in the mutation.
+func (m *FacilityBookingMutation) SessionDate() (r time.Time, exists bool) {
+	v := m.session_date
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSessionDate returns the old "session_date" field's value of the FacilityBooking entity.
+// If the FacilityBooking object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *FacilityBookingMutation) OldSessionDate(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSessionDate is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSessionDate requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSessionDate: %w", err)
+	}
+	return oldValue.SessionDate, nil
+}
+
+// ResetSessionDate resets all changes to the "session_date" field.
+func (m *FacilityBookingMutation) ResetSessionDate() {
+	m.session_date = nil
+}
+
+// SetStartTime sets the "start_time" field.
+func (m *FacilityBookingMutation) SetStartTime(s string) {
+	m.start_time = &s
+}
+
+// StartTime returns the value of the "start_time" field in the mutation.
+func (m *FacilityBookingMutation) StartTime() (r string, exists bool) {
+	v := m.start_time
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStartTime returns the old "start_time" field's value of the FacilityBooking entity.
+// If the FacilityBooking object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *FacilityBookingMutation) OldStartTime(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStartTime is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStartTime requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStartTime: %w", err)
+	}
+	return oldValue.StartTime, nil
+}
+
+// ResetStartTime resets all changes to the "start_time" field.
+func (m *FacilityBookingMutation) ResetStartTime() {
+	m.start_time = nil
+}
+
+// SetEndTime sets the "end_time" field.
+func (m *FacilityBookingMutation) SetEndTime(s string) {
+	m.end_time = &s
+}
+
+// EndTime returns the value of the "end_time" field in the mutation.
+func (m *FacilityBookingMutation) EndTime() (r string, exists bool) {
+	v := m.end_time
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEndTime returns the old "end_time" field's value of the FacilityBooking entity.
+// If the FacilityBooking object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *FacilityBookingMutation) OldEndTime(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEndTime is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEndTime requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEndTime: %w", err)
+	}
+	return oldValue.EndTime, nil
+}
+
+// ResetEndTime resets all changes to the "end_time" field.
+func (m *FacilityBookingMutation) ResetEndTime() {
+	m.end_time = nil
+}
+
+// SetGuestsCount sets the "guests_count" field.
+func (m *FacilityBookingMutation) SetGuestsCount(i int) {
+	m.guests_count = &i
+	m.addguests_count = nil
+}
+
+// GuestsCount returns the value of the "guests_count" field in the mutation.
+func (m *FacilityBookingMutation) GuestsCount() (r int, exists bool) {
+	v := m.guests_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGuestsCount returns the old "guests_count" field's value of the FacilityBooking entity.
+// If the FacilityBooking object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *FacilityBookingMutation) OldGuestsCount(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGuestsCount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGuestsCount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGuestsCount: %w", err)
+	}
+	return oldValue.GuestsCount, nil
+}
+
+// AddGuestsCount adds i to the "guests_count" field.
+func (m *FacilityBookingMutation) AddGuestsCount(i int) {
+	if m.addguests_count != nil {
+		*m.addguests_count += i
+	} else {
+		m.addguests_count = &i
+	}
+}
+
+// AddedGuestsCount returns the value that was added to the "guests_count" field in this mutation.
+func (m *FacilityBookingMutation) AddedGuestsCount() (r int, exists bool) {
+	v := m.addguests_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetGuestsCount resets all changes to the "guests_count" field.
+func (m *FacilityBookingMutation) ResetGuestsCount() {
+	m.guests_count = nil
+	m.addguests_count = nil
+}
+
+// SetAmount sets the "amount" field.
+func (m *FacilityBookingMutation) SetAmount(f float64) {
+	m.amount = &f
+	m.addamount = nil
+}
+
+// Amount returns the value of the "amount" field in the mutation.
+func (m *FacilityBookingMutation) Amount() (r float64, exists bool) {
+	v := m.amount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAmount returns the old "amount" field's value of the FacilityBooking entity.
+// If the FacilityBooking object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *FacilityBookingMutation) OldAmount(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAmount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAmount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAmount: %w", err)
+	}
+	return oldValue.Amount, nil
+}
+
+// AddAmount adds f to the "amount" field.
+func (m *FacilityBookingMutation) AddAmount(f float64) {
+	if m.addamount != nil {
+		*m.addamount += f
+	} else {
+		m.addamount = &f
+	}
+}
+
+// AddedAmount returns the value that was added to the "amount" field in this mutation.
+func (m *FacilityBookingMutation) AddedAmount() (r float64, exists bool) {
+	v := m.addamount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAmount resets all changes to the "amount" field.
+func (m *FacilityBookingMutation) ResetAmount() {
+	m.amount = nil
+	m.addamount = nil
+}
+
+// SetCurrency sets the "currency" field.
+func (m *FacilityBookingMutation) SetCurrency(s string) {
+	m.currency = &s
+}
+
+// Currency returns the value of the "currency" field in the mutation.
+func (m *FacilityBookingMutation) Currency() (r string, exists bool) {
+	v := m.currency
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCurrency returns the old "currency" field's value of the FacilityBooking entity.
+// If the FacilityBooking object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *FacilityBookingMutation) OldCurrency(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCurrency is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCurrency requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCurrency: %w", err)
+	}
+	return oldValue.Currency, nil
+}
+
+// ResetCurrency resets all changes to the "currency" field.
+func (m *FacilityBookingMutation) ResetCurrency() {
+	m.currency = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *FacilityBookingMutation) SetStatus(f facilitybooking.Status) {
+	m.status = &f
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *FacilityBookingMutation) Status() (r facilitybooking.Status, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the FacilityBooking entity.
+// If the FacilityBooking object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *FacilityBookingMutation) OldStatus(ctx context.Context) (v facilitybooking.Status, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *FacilityBookingMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetBookedBy sets the "booked_by" field.
+func (m *FacilityBookingMutation) SetBookedBy(u uuid.UUID) {
+	m.booked_by = &u
+}
+
+// BookedBy returns the value of the "booked_by" field in the mutation.
+func (m *FacilityBookingMutation) BookedBy() (r uuid.UUID, exists bool) {
+	v := m.booked_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBookedBy returns the old "booked_by" field's value of the FacilityBooking entity.
+// If the FacilityBooking object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *FacilityBookingMutation) OldBookedBy(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBookedBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBookedBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBookedBy: %w", err)
+	}
+	return oldValue.BookedBy, nil
+}
+
+// ResetBookedBy resets all changes to the "booked_by" field.
+func (m *FacilityBookingMutation) ResetBookedBy() {
+	m.booked_by = nil
+}
+
+// SetNotes sets the "notes" field.
+func (m *FacilityBookingMutation) SetNotes(s string) {
+	m.notes = &s
+}
+
+// Notes returns the value of the "notes" field in the mutation.
+func (m *FacilityBookingMutation) Notes() (r string, exists bool) {
+	v := m.notes
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNotes returns the old "notes" field's value of the FacilityBooking entity.
+// If the FacilityBooking object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *FacilityBookingMutation) OldNotes(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNotes is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNotes requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNotes: %w", err)
+	}
+	return oldValue.Notes, nil
+}
+
+// ClearNotes clears the value of the "notes" field.
+func (m *FacilityBookingMutation) ClearNotes() {
+	m.notes = nil
+	m.clearedFields[facilitybooking.FieldNotes] = struct{}{}
+}
+
+// NotesCleared returns if the "notes" field was cleared in this mutation.
+func (m *FacilityBookingMutation) NotesCleared() bool {
+	_, ok := m.clearedFields[facilitybooking.FieldNotes]
+	return ok
+}
+
+// ResetNotes resets all changes to the "notes" field.
+func (m *FacilityBookingMutation) ResetNotes() {
+	m.notes = nil
+	delete(m.clearedFields, facilitybooking.FieldNotes)
+}
+
+// SetMetadata sets the "metadata" field.
+func (m *FacilityBookingMutation) SetMetadata(value map[string]interface{}) {
+	m.metadata = &value
+}
+
+// Metadata returns the value of the "metadata" field in the mutation.
+func (m *FacilityBookingMutation) Metadata() (r map[string]interface{}, exists bool) {
+	v := m.metadata
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMetadata returns the old "metadata" field's value of the FacilityBooking entity.
+// If the FacilityBooking object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *FacilityBookingMutation) OldMetadata(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMetadata is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMetadata requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMetadata: %w", err)
+	}
+	return oldValue.Metadata, nil
+}
+
+// ResetMetadata resets all changes to the "metadata" field.
+func (m *FacilityBookingMutation) ResetMetadata() {
+	m.metadata = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *FacilityBookingMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *FacilityBookingMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the FacilityBooking entity.
+// If the FacilityBooking object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *FacilityBookingMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *FacilityBookingMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// ClearFacility clears the "facility" edge to the Facility entity.
+func (m *FacilityBookingMutation) ClearFacility() {
+	m.clearedfacility = true
+	m.clearedFields[facilitybooking.FieldFacilityID] = struct{}{}
+}
+
+// FacilityCleared reports if the "facility" edge to the Facility entity was cleared.
+func (m *FacilityBookingMutation) FacilityCleared() bool {
+	return m.clearedfacility
+}
+
+// FacilityIDs returns the "facility" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// FacilityID instead. It exists only for internal usage by the builders.
+func (m *FacilityBookingMutation) FacilityIDs() (ids []uuid.UUID) {
+	if id := m.facility; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetFacility resets all changes to the "facility" edge.
+func (m *FacilityBookingMutation) ResetFacility() {
+	m.facility = nil
+	m.clearedfacility = false
+}
+
+// Where appends a list predicates to the FacilityBookingMutation builder.
+func (m *FacilityBookingMutation) Where(ps ...predicate.FacilityBooking) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the FacilityBookingMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *FacilityBookingMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.FacilityBooking, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *FacilityBookingMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *FacilityBookingMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (FacilityBooking).
+func (m *FacilityBookingMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *FacilityBookingMutation) Fields() []string {
+	fields := make([]string, 0, 16)
+	if m.tenant_id != nil {
+		fields = append(fields, facilitybooking.FieldTenantID)
+	}
+	if m.facility != nil {
+		fields = append(fields, facilitybooking.FieldFacilityID)
+	}
+	if m.room_guest_id != nil {
+		fields = append(fields, facilitybooking.FieldRoomGuestID)
+	}
+	if m.guest_name != nil {
+		fields = append(fields, facilitybooking.FieldGuestName)
+	}
+	if m.phone != nil {
+		fields = append(fields, facilitybooking.FieldPhone)
+	}
+	if m.session_date != nil {
+		fields = append(fields, facilitybooking.FieldSessionDate)
+	}
+	if m.start_time != nil {
+		fields = append(fields, facilitybooking.FieldStartTime)
+	}
+	if m.end_time != nil {
+		fields = append(fields, facilitybooking.FieldEndTime)
+	}
+	if m.guests_count != nil {
+		fields = append(fields, facilitybooking.FieldGuestsCount)
+	}
+	if m.amount != nil {
+		fields = append(fields, facilitybooking.FieldAmount)
+	}
+	if m.currency != nil {
+		fields = append(fields, facilitybooking.FieldCurrency)
+	}
+	if m.status != nil {
+		fields = append(fields, facilitybooking.FieldStatus)
+	}
+	if m.booked_by != nil {
+		fields = append(fields, facilitybooking.FieldBookedBy)
+	}
+	if m.notes != nil {
+		fields = append(fields, facilitybooking.FieldNotes)
+	}
+	if m.metadata != nil {
+		fields = append(fields, facilitybooking.FieldMetadata)
+	}
+	if m.created_at != nil {
+		fields = append(fields, facilitybooking.FieldCreatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *FacilityBookingMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case facilitybooking.FieldTenantID:
+		return m.TenantID()
+	case facilitybooking.FieldFacilityID:
+		return m.FacilityID()
+	case facilitybooking.FieldRoomGuestID:
+		return m.RoomGuestID()
+	case facilitybooking.FieldGuestName:
+		return m.GuestName()
+	case facilitybooking.FieldPhone:
+		return m.Phone()
+	case facilitybooking.FieldSessionDate:
+		return m.SessionDate()
+	case facilitybooking.FieldStartTime:
+		return m.StartTime()
+	case facilitybooking.FieldEndTime:
+		return m.EndTime()
+	case facilitybooking.FieldGuestsCount:
+		return m.GuestsCount()
+	case facilitybooking.FieldAmount:
+		return m.Amount()
+	case facilitybooking.FieldCurrency:
+		return m.Currency()
+	case facilitybooking.FieldStatus:
+		return m.Status()
+	case facilitybooking.FieldBookedBy:
+		return m.BookedBy()
+	case facilitybooking.FieldNotes:
+		return m.Notes()
+	case facilitybooking.FieldMetadata:
+		return m.Metadata()
+	case facilitybooking.FieldCreatedAt:
+		return m.CreatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *FacilityBookingMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case facilitybooking.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case facilitybooking.FieldFacilityID:
+		return m.OldFacilityID(ctx)
+	case facilitybooking.FieldRoomGuestID:
+		return m.OldRoomGuestID(ctx)
+	case facilitybooking.FieldGuestName:
+		return m.OldGuestName(ctx)
+	case facilitybooking.FieldPhone:
+		return m.OldPhone(ctx)
+	case facilitybooking.FieldSessionDate:
+		return m.OldSessionDate(ctx)
+	case facilitybooking.FieldStartTime:
+		return m.OldStartTime(ctx)
+	case facilitybooking.FieldEndTime:
+		return m.OldEndTime(ctx)
+	case facilitybooking.FieldGuestsCount:
+		return m.OldGuestsCount(ctx)
+	case facilitybooking.FieldAmount:
+		return m.OldAmount(ctx)
+	case facilitybooking.FieldCurrency:
+		return m.OldCurrency(ctx)
+	case facilitybooking.FieldStatus:
+		return m.OldStatus(ctx)
+	case facilitybooking.FieldBookedBy:
+		return m.OldBookedBy(ctx)
+	case facilitybooking.FieldNotes:
+		return m.OldNotes(ctx)
+	case facilitybooking.FieldMetadata:
+		return m.OldMetadata(ctx)
+	case facilitybooking.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown FacilityBooking field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *FacilityBookingMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case facilitybooking.FieldTenantID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case facilitybooking.FieldFacilityID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFacilityID(v)
+		return nil
+	case facilitybooking.FieldRoomGuestID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRoomGuestID(v)
+		return nil
+	case facilitybooking.FieldGuestName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGuestName(v)
+		return nil
+	case facilitybooking.FieldPhone:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPhone(v)
+		return nil
+	case facilitybooking.FieldSessionDate:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSessionDate(v)
+		return nil
+	case facilitybooking.FieldStartTime:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStartTime(v)
+		return nil
+	case facilitybooking.FieldEndTime:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEndTime(v)
+		return nil
+	case facilitybooking.FieldGuestsCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGuestsCount(v)
+		return nil
+	case facilitybooking.FieldAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAmount(v)
+		return nil
+	case facilitybooking.FieldCurrency:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCurrency(v)
+		return nil
+	case facilitybooking.FieldStatus:
+		v, ok := value.(facilitybooking.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case facilitybooking.FieldBookedBy:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBookedBy(v)
+		return nil
+	case facilitybooking.FieldNotes:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNotes(v)
+		return nil
+	case facilitybooking.FieldMetadata:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMetadata(v)
+		return nil
+	case facilitybooking.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown FacilityBooking field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *FacilityBookingMutation) AddedFields() []string {
+	var fields []string
+	if m.addguests_count != nil {
+		fields = append(fields, facilitybooking.FieldGuestsCount)
+	}
+	if m.addamount != nil {
+		fields = append(fields, facilitybooking.FieldAmount)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *FacilityBookingMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case facilitybooking.FieldGuestsCount:
+		return m.AddedGuestsCount()
+	case facilitybooking.FieldAmount:
+		return m.AddedAmount()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *FacilityBookingMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case facilitybooking.FieldGuestsCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddGuestsCount(v)
+		return nil
+	case facilitybooking.FieldAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAmount(v)
+		return nil
+	}
+	return fmt.Errorf("unknown FacilityBooking numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *FacilityBookingMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(facilitybooking.FieldRoomGuestID) {
+		fields = append(fields, facilitybooking.FieldRoomGuestID)
+	}
+	if m.FieldCleared(facilitybooking.FieldNotes) {
+		fields = append(fields, facilitybooking.FieldNotes)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *FacilityBookingMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *FacilityBookingMutation) ClearField(name string) error {
+	switch name {
+	case facilitybooking.FieldRoomGuestID:
+		m.ClearRoomGuestID()
+		return nil
+	case facilitybooking.FieldNotes:
+		m.ClearNotes()
+		return nil
+	}
+	return fmt.Errorf("unknown FacilityBooking nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *FacilityBookingMutation) ResetField(name string) error {
+	switch name {
+	case facilitybooking.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case facilitybooking.FieldFacilityID:
+		m.ResetFacilityID()
+		return nil
+	case facilitybooking.FieldRoomGuestID:
+		m.ResetRoomGuestID()
+		return nil
+	case facilitybooking.FieldGuestName:
+		m.ResetGuestName()
+		return nil
+	case facilitybooking.FieldPhone:
+		m.ResetPhone()
+		return nil
+	case facilitybooking.FieldSessionDate:
+		m.ResetSessionDate()
+		return nil
+	case facilitybooking.FieldStartTime:
+		m.ResetStartTime()
+		return nil
+	case facilitybooking.FieldEndTime:
+		m.ResetEndTime()
+		return nil
+	case facilitybooking.FieldGuestsCount:
+		m.ResetGuestsCount()
+		return nil
+	case facilitybooking.FieldAmount:
+		m.ResetAmount()
+		return nil
+	case facilitybooking.FieldCurrency:
+		m.ResetCurrency()
+		return nil
+	case facilitybooking.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case facilitybooking.FieldBookedBy:
+		m.ResetBookedBy()
+		return nil
+	case facilitybooking.FieldNotes:
+		m.ResetNotes()
+		return nil
+	case facilitybooking.FieldMetadata:
+		m.ResetMetadata()
+		return nil
+	case facilitybooking.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown FacilityBooking field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *FacilityBookingMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.facility != nil {
+		edges = append(edges, facilitybooking.EdgeFacility)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *FacilityBookingMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case facilitybooking.EdgeFacility:
+		if id := m.facility; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *FacilityBookingMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *FacilityBookingMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *FacilityBookingMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.clearedfacility {
+		edges = append(edges, facilitybooking.EdgeFacility)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *FacilityBookingMutation) EdgeCleared(name string) bool {
+	switch name {
+	case facilitybooking.EdgeFacility:
+		return m.clearedfacility
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *FacilityBookingMutation) ClearEdge(name string) error {
+	switch name {
+	case facilitybooking.EdgeFacility:
+		m.ClearFacility()
+		return nil
+	}
+	return fmt.Errorf("unknown FacilityBooking unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *FacilityBookingMutation) ResetEdge(name string) error {
+	switch name {
+	case facilitybooking.EdgeFacility:
+		m.ResetFacility()
+		return nil
+	}
+	return fmt.Errorf("unknown FacilityBooking edge %s", name)
+}
+
 // FeatureOverrideMutation represents an operation that mutates the FeatureOverride nodes in the graph.
 type FeatureOverrideMutation struct {
 	config
@@ -15495,23 +18007,26 @@ func (m *OrderLinkMutation) ResetEdge(name string) error {
 // OutboxEventMutation represents an operation that mutates the OutboxEvent nodes in the graph.
 type OutboxEventMutation struct {
 	config
-	op             Op
-	typ            string
-	id             *uuid.UUID
-	tenant_id      *uuid.UUID
-	event_type     *string
-	payload        *map[string]interface{}
-	metadata       *map[string]interface{}
-	status         *string
-	retry_count    *int
-	addretry_count *int
-	created_at     *time.Time
-	processed_at   *time.Time
-	last_error     *string
-	clearedFields  map[string]struct{}
-	done           bool
-	oldValue       func(context.Context) (*OutboxEvent, error)
-	predicates     []predicate.OutboxEvent
+	op              Op
+	typ             string
+	id              *uuid.UUID
+	tenant_id       *uuid.UUID
+	aggregate_type  *string
+	aggregate_id    *string
+	event_type      *string
+	payload         *[]uint8
+	appendpayload   []uint8
+	status          *string
+	attempts        *int
+	addattempts     *int
+	last_attempt_at *time.Time
+	published_at    *time.Time
+	error_message   *string
+	created_at      *time.Time
+	clearedFields   map[string]struct{}
+	done            bool
+	oldValue        func(context.Context) (*OutboxEvent, error)
+	predicates      []predicate.OutboxEvent
 }
 
 var _ ent.Mutation = (*OutboxEventMutation)(nil)
@@ -15654,6 +18169,78 @@ func (m *OutboxEventMutation) ResetTenantID() {
 	m.tenant_id = nil
 }
 
+// SetAggregateType sets the "aggregate_type" field.
+func (m *OutboxEventMutation) SetAggregateType(s string) {
+	m.aggregate_type = &s
+}
+
+// AggregateType returns the value of the "aggregate_type" field in the mutation.
+func (m *OutboxEventMutation) AggregateType() (r string, exists bool) {
+	v := m.aggregate_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAggregateType returns the old "aggregate_type" field's value of the OutboxEvent entity.
+// If the OutboxEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OutboxEventMutation) OldAggregateType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAggregateType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAggregateType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAggregateType: %w", err)
+	}
+	return oldValue.AggregateType, nil
+}
+
+// ResetAggregateType resets all changes to the "aggregate_type" field.
+func (m *OutboxEventMutation) ResetAggregateType() {
+	m.aggregate_type = nil
+}
+
+// SetAggregateID sets the "aggregate_id" field.
+func (m *OutboxEventMutation) SetAggregateID(s string) {
+	m.aggregate_id = &s
+}
+
+// AggregateID returns the value of the "aggregate_id" field in the mutation.
+func (m *OutboxEventMutation) AggregateID() (r string, exists bool) {
+	v := m.aggregate_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAggregateID returns the old "aggregate_id" field's value of the OutboxEvent entity.
+// If the OutboxEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OutboxEventMutation) OldAggregateID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAggregateID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAggregateID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAggregateID: %w", err)
+	}
+	return oldValue.AggregateID, nil
+}
+
+// ResetAggregateID resets all changes to the "aggregate_id" field.
+func (m *OutboxEventMutation) ResetAggregateID() {
+	m.aggregate_id = nil
+}
+
 // SetEventType sets the "event_type" field.
 func (m *OutboxEventMutation) SetEventType(s string) {
 	m.event_type = &s
@@ -15691,12 +18278,13 @@ func (m *OutboxEventMutation) ResetEventType() {
 }
 
 // SetPayload sets the "payload" field.
-func (m *OutboxEventMutation) SetPayload(value map[string]interface{}) {
-	m.payload = &value
+func (m *OutboxEventMutation) SetPayload(u []uint8) {
+	m.payload = &u
+	m.appendpayload = nil
 }
 
 // Payload returns the value of the "payload" field in the mutation.
-func (m *OutboxEventMutation) Payload() (r map[string]interface{}, exists bool) {
+func (m *OutboxEventMutation) Payload() (r []uint8, exists bool) {
 	v := m.payload
 	if v == nil {
 		return
@@ -15707,7 +18295,7 @@ func (m *OutboxEventMutation) Payload() (r map[string]interface{}, exists bool) 
 // OldPayload returns the old "payload" field's value of the OutboxEvent entity.
 // If the OutboxEvent object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *OutboxEventMutation) OldPayload(ctx context.Context) (v map[string]interface{}, err error) {
+func (m *OutboxEventMutation) OldPayload(ctx context.Context) (v []uint8, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldPayload is only allowed on UpdateOne operations")
 	}
@@ -15721,58 +18309,23 @@ func (m *OutboxEventMutation) OldPayload(ctx context.Context) (v map[string]inte
 	return oldValue.Payload, nil
 }
 
+// AppendPayload adds u to the "payload" field.
+func (m *OutboxEventMutation) AppendPayload(u []uint8) {
+	m.appendpayload = append(m.appendpayload, u...)
+}
+
+// AppendedPayload returns the list of values that were appended to the "payload" field in this mutation.
+func (m *OutboxEventMutation) AppendedPayload() ([]uint8, bool) {
+	if len(m.appendpayload) == 0 {
+		return nil, false
+	}
+	return m.appendpayload, true
+}
+
 // ResetPayload resets all changes to the "payload" field.
 func (m *OutboxEventMutation) ResetPayload() {
 	m.payload = nil
-}
-
-// SetMetadata sets the "metadata" field.
-func (m *OutboxEventMutation) SetMetadata(value map[string]interface{}) {
-	m.metadata = &value
-}
-
-// Metadata returns the value of the "metadata" field in the mutation.
-func (m *OutboxEventMutation) Metadata() (r map[string]interface{}, exists bool) {
-	v := m.metadata
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldMetadata returns the old "metadata" field's value of the OutboxEvent entity.
-// If the OutboxEvent object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *OutboxEventMutation) OldMetadata(ctx context.Context) (v map[string]interface{}, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldMetadata is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldMetadata requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldMetadata: %w", err)
-	}
-	return oldValue.Metadata, nil
-}
-
-// ClearMetadata clears the value of the "metadata" field.
-func (m *OutboxEventMutation) ClearMetadata() {
-	m.metadata = nil
-	m.clearedFields[outboxevent.FieldMetadata] = struct{}{}
-}
-
-// MetadataCleared returns if the "metadata" field was cleared in this mutation.
-func (m *OutboxEventMutation) MetadataCleared() bool {
-	_, ok := m.clearedFields[outboxevent.FieldMetadata]
-	return ok
-}
-
-// ResetMetadata resets all changes to the "metadata" field.
-func (m *OutboxEventMutation) ResetMetadata() {
-	m.metadata = nil
-	delete(m.clearedFields, outboxevent.FieldMetadata)
+	m.appendpayload = nil
 }
 
 // SetStatus sets the "status" field.
@@ -15811,60 +18364,207 @@ func (m *OutboxEventMutation) ResetStatus() {
 	m.status = nil
 }
 
-// SetRetryCount sets the "retry_count" field.
-func (m *OutboxEventMutation) SetRetryCount(i int) {
-	m.retry_count = &i
-	m.addretry_count = nil
+// SetAttempts sets the "attempts" field.
+func (m *OutboxEventMutation) SetAttempts(i int) {
+	m.attempts = &i
+	m.addattempts = nil
 }
 
-// RetryCount returns the value of the "retry_count" field in the mutation.
-func (m *OutboxEventMutation) RetryCount() (r int, exists bool) {
-	v := m.retry_count
+// Attempts returns the value of the "attempts" field in the mutation.
+func (m *OutboxEventMutation) Attempts() (r int, exists bool) {
+	v := m.attempts
 	if v == nil {
 		return
 	}
 	return *v, true
 }
 
-// OldRetryCount returns the old "retry_count" field's value of the OutboxEvent entity.
+// OldAttempts returns the old "attempts" field's value of the OutboxEvent entity.
 // If the OutboxEvent object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *OutboxEventMutation) OldRetryCount(ctx context.Context) (v int, err error) {
+func (m *OutboxEventMutation) OldAttempts(ctx context.Context) (v int, err error) {
 	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldRetryCount is only allowed on UpdateOne operations")
+		return v, errors.New("OldAttempts is only allowed on UpdateOne operations")
 	}
 	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldRetryCount requires an ID field in the mutation")
+		return v, errors.New("OldAttempts requires an ID field in the mutation")
 	}
 	oldValue, err := m.oldValue(ctx)
 	if err != nil {
-		return v, fmt.Errorf("querying old value for OldRetryCount: %w", err)
+		return v, fmt.Errorf("querying old value for OldAttempts: %w", err)
 	}
-	return oldValue.RetryCount, nil
+	return oldValue.Attempts, nil
 }
 
-// AddRetryCount adds i to the "retry_count" field.
-func (m *OutboxEventMutation) AddRetryCount(i int) {
-	if m.addretry_count != nil {
-		*m.addretry_count += i
+// AddAttempts adds i to the "attempts" field.
+func (m *OutboxEventMutation) AddAttempts(i int) {
+	if m.addattempts != nil {
+		*m.addattempts += i
 	} else {
-		m.addretry_count = &i
+		m.addattempts = &i
 	}
 }
 
-// AddedRetryCount returns the value that was added to the "retry_count" field in this mutation.
-func (m *OutboxEventMutation) AddedRetryCount() (r int, exists bool) {
-	v := m.addretry_count
+// AddedAttempts returns the value that was added to the "attempts" field in this mutation.
+func (m *OutboxEventMutation) AddedAttempts() (r int, exists bool) {
+	v := m.addattempts
 	if v == nil {
 		return
 	}
 	return *v, true
 }
 
-// ResetRetryCount resets all changes to the "retry_count" field.
-func (m *OutboxEventMutation) ResetRetryCount() {
-	m.retry_count = nil
-	m.addretry_count = nil
+// ResetAttempts resets all changes to the "attempts" field.
+func (m *OutboxEventMutation) ResetAttempts() {
+	m.attempts = nil
+	m.addattempts = nil
+}
+
+// SetLastAttemptAt sets the "last_attempt_at" field.
+func (m *OutboxEventMutation) SetLastAttemptAt(t time.Time) {
+	m.last_attempt_at = &t
+}
+
+// LastAttemptAt returns the value of the "last_attempt_at" field in the mutation.
+func (m *OutboxEventMutation) LastAttemptAt() (r time.Time, exists bool) {
+	v := m.last_attempt_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastAttemptAt returns the old "last_attempt_at" field's value of the OutboxEvent entity.
+// If the OutboxEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OutboxEventMutation) OldLastAttemptAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastAttemptAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastAttemptAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastAttemptAt: %w", err)
+	}
+	return oldValue.LastAttemptAt, nil
+}
+
+// ClearLastAttemptAt clears the value of the "last_attempt_at" field.
+func (m *OutboxEventMutation) ClearLastAttemptAt() {
+	m.last_attempt_at = nil
+	m.clearedFields[outboxevent.FieldLastAttemptAt] = struct{}{}
+}
+
+// LastAttemptAtCleared returns if the "last_attempt_at" field was cleared in this mutation.
+func (m *OutboxEventMutation) LastAttemptAtCleared() bool {
+	_, ok := m.clearedFields[outboxevent.FieldLastAttemptAt]
+	return ok
+}
+
+// ResetLastAttemptAt resets all changes to the "last_attempt_at" field.
+func (m *OutboxEventMutation) ResetLastAttemptAt() {
+	m.last_attempt_at = nil
+	delete(m.clearedFields, outboxevent.FieldLastAttemptAt)
+}
+
+// SetPublishedAt sets the "published_at" field.
+func (m *OutboxEventMutation) SetPublishedAt(t time.Time) {
+	m.published_at = &t
+}
+
+// PublishedAt returns the value of the "published_at" field in the mutation.
+func (m *OutboxEventMutation) PublishedAt() (r time.Time, exists bool) {
+	v := m.published_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPublishedAt returns the old "published_at" field's value of the OutboxEvent entity.
+// If the OutboxEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OutboxEventMutation) OldPublishedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPublishedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPublishedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPublishedAt: %w", err)
+	}
+	return oldValue.PublishedAt, nil
+}
+
+// ClearPublishedAt clears the value of the "published_at" field.
+func (m *OutboxEventMutation) ClearPublishedAt() {
+	m.published_at = nil
+	m.clearedFields[outboxevent.FieldPublishedAt] = struct{}{}
+}
+
+// PublishedAtCleared returns if the "published_at" field was cleared in this mutation.
+func (m *OutboxEventMutation) PublishedAtCleared() bool {
+	_, ok := m.clearedFields[outboxevent.FieldPublishedAt]
+	return ok
+}
+
+// ResetPublishedAt resets all changes to the "published_at" field.
+func (m *OutboxEventMutation) ResetPublishedAt() {
+	m.published_at = nil
+	delete(m.clearedFields, outboxevent.FieldPublishedAt)
+}
+
+// SetErrorMessage sets the "error_message" field.
+func (m *OutboxEventMutation) SetErrorMessage(s string) {
+	m.error_message = &s
+}
+
+// ErrorMessage returns the value of the "error_message" field in the mutation.
+func (m *OutboxEventMutation) ErrorMessage() (r string, exists bool) {
+	v := m.error_message
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldErrorMessage returns the old "error_message" field's value of the OutboxEvent entity.
+// If the OutboxEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OutboxEventMutation) OldErrorMessage(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldErrorMessage is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldErrorMessage requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldErrorMessage: %w", err)
+	}
+	return oldValue.ErrorMessage, nil
+}
+
+// ClearErrorMessage clears the value of the "error_message" field.
+func (m *OutboxEventMutation) ClearErrorMessage() {
+	m.error_message = nil
+	m.clearedFields[outboxevent.FieldErrorMessage] = struct{}{}
+}
+
+// ErrorMessageCleared returns if the "error_message" field was cleared in this mutation.
+func (m *OutboxEventMutation) ErrorMessageCleared() bool {
+	_, ok := m.clearedFields[outboxevent.FieldErrorMessage]
+	return ok
+}
+
+// ResetErrorMessage resets all changes to the "error_message" field.
+func (m *OutboxEventMutation) ResetErrorMessage() {
+	m.error_message = nil
+	delete(m.clearedFields, outboxevent.FieldErrorMessage)
 }
 
 // SetCreatedAt sets the "created_at" field.
@@ -15903,104 +18603,6 @@ func (m *OutboxEventMutation) ResetCreatedAt() {
 	m.created_at = nil
 }
 
-// SetProcessedAt sets the "processed_at" field.
-func (m *OutboxEventMutation) SetProcessedAt(t time.Time) {
-	m.processed_at = &t
-}
-
-// ProcessedAt returns the value of the "processed_at" field in the mutation.
-func (m *OutboxEventMutation) ProcessedAt() (r time.Time, exists bool) {
-	v := m.processed_at
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldProcessedAt returns the old "processed_at" field's value of the OutboxEvent entity.
-// If the OutboxEvent object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *OutboxEventMutation) OldProcessedAt(ctx context.Context) (v *time.Time, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldProcessedAt is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldProcessedAt requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldProcessedAt: %w", err)
-	}
-	return oldValue.ProcessedAt, nil
-}
-
-// ClearProcessedAt clears the value of the "processed_at" field.
-func (m *OutboxEventMutation) ClearProcessedAt() {
-	m.processed_at = nil
-	m.clearedFields[outboxevent.FieldProcessedAt] = struct{}{}
-}
-
-// ProcessedAtCleared returns if the "processed_at" field was cleared in this mutation.
-func (m *OutboxEventMutation) ProcessedAtCleared() bool {
-	_, ok := m.clearedFields[outboxevent.FieldProcessedAt]
-	return ok
-}
-
-// ResetProcessedAt resets all changes to the "processed_at" field.
-func (m *OutboxEventMutation) ResetProcessedAt() {
-	m.processed_at = nil
-	delete(m.clearedFields, outboxevent.FieldProcessedAt)
-}
-
-// SetLastError sets the "last_error" field.
-func (m *OutboxEventMutation) SetLastError(s string) {
-	m.last_error = &s
-}
-
-// LastError returns the value of the "last_error" field in the mutation.
-func (m *OutboxEventMutation) LastError() (r string, exists bool) {
-	v := m.last_error
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldLastError returns the old "last_error" field's value of the OutboxEvent entity.
-// If the OutboxEvent object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *OutboxEventMutation) OldLastError(ctx context.Context) (v string, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldLastError is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldLastError requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldLastError: %w", err)
-	}
-	return oldValue.LastError, nil
-}
-
-// ClearLastError clears the value of the "last_error" field.
-func (m *OutboxEventMutation) ClearLastError() {
-	m.last_error = nil
-	m.clearedFields[outboxevent.FieldLastError] = struct{}{}
-}
-
-// LastErrorCleared returns if the "last_error" field was cleared in this mutation.
-func (m *OutboxEventMutation) LastErrorCleared() bool {
-	_, ok := m.clearedFields[outboxevent.FieldLastError]
-	return ok
-}
-
-// ResetLastError resets all changes to the "last_error" field.
-func (m *OutboxEventMutation) ResetLastError() {
-	m.last_error = nil
-	delete(m.clearedFields, outboxevent.FieldLastError)
-}
-
 // Where appends a list predicates to the OutboxEventMutation builder.
 func (m *OutboxEventMutation) Where(ps ...predicate.OutboxEvent) {
 	m.predicates = append(m.predicates, ps...)
@@ -16035,9 +18637,15 @@ func (m *OutboxEventMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *OutboxEventMutation) Fields() []string {
-	fields := make([]string, 0, 9)
+	fields := make([]string, 0, 11)
 	if m.tenant_id != nil {
 		fields = append(fields, outboxevent.FieldTenantID)
+	}
+	if m.aggregate_type != nil {
+		fields = append(fields, outboxevent.FieldAggregateType)
+	}
+	if m.aggregate_id != nil {
+		fields = append(fields, outboxevent.FieldAggregateID)
 	}
 	if m.event_type != nil {
 		fields = append(fields, outboxevent.FieldEventType)
@@ -16045,23 +18653,23 @@ func (m *OutboxEventMutation) Fields() []string {
 	if m.payload != nil {
 		fields = append(fields, outboxevent.FieldPayload)
 	}
-	if m.metadata != nil {
-		fields = append(fields, outboxevent.FieldMetadata)
-	}
 	if m.status != nil {
 		fields = append(fields, outboxevent.FieldStatus)
 	}
-	if m.retry_count != nil {
-		fields = append(fields, outboxevent.FieldRetryCount)
+	if m.attempts != nil {
+		fields = append(fields, outboxevent.FieldAttempts)
+	}
+	if m.last_attempt_at != nil {
+		fields = append(fields, outboxevent.FieldLastAttemptAt)
+	}
+	if m.published_at != nil {
+		fields = append(fields, outboxevent.FieldPublishedAt)
+	}
+	if m.error_message != nil {
+		fields = append(fields, outboxevent.FieldErrorMessage)
 	}
 	if m.created_at != nil {
 		fields = append(fields, outboxevent.FieldCreatedAt)
-	}
-	if m.processed_at != nil {
-		fields = append(fields, outboxevent.FieldProcessedAt)
-	}
-	if m.last_error != nil {
-		fields = append(fields, outboxevent.FieldLastError)
 	}
 	return fields
 }
@@ -16073,22 +18681,26 @@ func (m *OutboxEventMutation) Field(name string) (ent.Value, bool) {
 	switch name {
 	case outboxevent.FieldTenantID:
 		return m.TenantID()
+	case outboxevent.FieldAggregateType:
+		return m.AggregateType()
+	case outboxevent.FieldAggregateID:
+		return m.AggregateID()
 	case outboxevent.FieldEventType:
 		return m.EventType()
 	case outboxevent.FieldPayload:
 		return m.Payload()
-	case outboxevent.FieldMetadata:
-		return m.Metadata()
 	case outboxevent.FieldStatus:
 		return m.Status()
-	case outboxevent.FieldRetryCount:
-		return m.RetryCount()
+	case outboxevent.FieldAttempts:
+		return m.Attempts()
+	case outboxevent.FieldLastAttemptAt:
+		return m.LastAttemptAt()
+	case outboxevent.FieldPublishedAt:
+		return m.PublishedAt()
+	case outboxevent.FieldErrorMessage:
+		return m.ErrorMessage()
 	case outboxevent.FieldCreatedAt:
 		return m.CreatedAt()
-	case outboxevent.FieldProcessedAt:
-		return m.ProcessedAt()
-	case outboxevent.FieldLastError:
-		return m.LastError()
 	}
 	return nil, false
 }
@@ -16100,22 +18712,26 @@ func (m *OutboxEventMutation) OldField(ctx context.Context, name string) (ent.Va
 	switch name {
 	case outboxevent.FieldTenantID:
 		return m.OldTenantID(ctx)
+	case outboxevent.FieldAggregateType:
+		return m.OldAggregateType(ctx)
+	case outboxevent.FieldAggregateID:
+		return m.OldAggregateID(ctx)
 	case outboxevent.FieldEventType:
 		return m.OldEventType(ctx)
 	case outboxevent.FieldPayload:
 		return m.OldPayload(ctx)
-	case outboxevent.FieldMetadata:
-		return m.OldMetadata(ctx)
 	case outboxevent.FieldStatus:
 		return m.OldStatus(ctx)
-	case outboxevent.FieldRetryCount:
-		return m.OldRetryCount(ctx)
+	case outboxevent.FieldAttempts:
+		return m.OldAttempts(ctx)
+	case outboxevent.FieldLastAttemptAt:
+		return m.OldLastAttemptAt(ctx)
+	case outboxevent.FieldPublishedAt:
+		return m.OldPublishedAt(ctx)
+	case outboxevent.FieldErrorMessage:
+		return m.OldErrorMessage(ctx)
 	case outboxevent.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
-	case outboxevent.FieldProcessedAt:
-		return m.OldProcessedAt(ctx)
-	case outboxevent.FieldLastError:
-		return m.OldLastError(ctx)
 	}
 	return nil, fmt.Errorf("unknown OutboxEvent field %s", name)
 }
@@ -16132,6 +18748,20 @@ func (m *OutboxEventMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetTenantID(v)
 		return nil
+	case outboxevent.FieldAggregateType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAggregateType(v)
+		return nil
+	case outboxevent.FieldAggregateID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAggregateID(v)
+		return nil
 	case outboxevent.FieldEventType:
 		v, ok := value.(string)
 		if !ok {
@@ -16140,18 +18770,11 @@ func (m *OutboxEventMutation) SetField(name string, value ent.Value) error {
 		m.SetEventType(v)
 		return nil
 	case outboxevent.FieldPayload:
-		v, ok := value.(map[string]interface{})
+		v, ok := value.([]uint8)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetPayload(v)
-		return nil
-	case outboxevent.FieldMetadata:
-		v, ok := value.(map[string]interface{})
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetMetadata(v)
 		return nil
 	case outboxevent.FieldStatus:
 		v, ok := value.(string)
@@ -16160,12 +18783,33 @@ func (m *OutboxEventMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetStatus(v)
 		return nil
-	case outboxevent.FieldRetryCount:
+	case outboxevent.FieldAttempts:
 		v, ok := value.(int)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
-		m.SetRetryCount(v)
+		m.SetAttempts(v)
+		return nil
+	case outboxevent.FieldLastAttemptAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastAttemptAt(v)
+		return nil
+	case outboxevent.FieldPublishedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPublishedAt(v)
+		return nil
+	case outboxevent.FieldErrorMessage:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetErrorMessage(v)
 		return nil
 	case outboxevent.FieldCreatedAt:
 		v, ok := value.(time.Time)
@@ -16173,20 +18817,6 @@ func (m *OutboxEventMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetCreatedAt(v)
-		return nil
-	case outboxevent.FieldProcessedAt:
-		v, ok := value.(time.Time)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetProcessedAt(v)
-		return nil
-	case outboxevent.FieldLastError:
-		v, ok := value.(string)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetLastError(v)
 		return nil
 	}
 	return fmt.Errorf("unknown OutboxEvent field %s", name)
@@ -16196,8 +18826,8 @@ func (m *OutboxEventMutation) SetField(name string, value ent.Value) error {
 // this mutation.
 func (m *OutboxEventMutation) AddedFields() []string {
 	var fields []string
-	if m.addretry_count != nil {
-		fields = append(fields, outboxevent.FieldRetryCount)
+	if m.addattempts != nil {
+		fields = append(fields, outboxevent.FieldAttempts)
 	}
 	return fields
 }
@@ -16207,8 +18837,8 @@ func (m *OutboxEventMutation) AddedFields() []string {
 // was not set, or was not defined in the schema.
 func (m *OutboxEventMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
-	case outboxevent.FieldRetryCount:
-		return m.AddedRetryCount()
+	case outboxevent.FieldAttempts:
+		return m.AddedAttempts()
 	}
 	return nil, false
 }
@@ -16218,12 +18848,12 @@ func (m *OutboxEventMutation) AddedField(name string) (ent.Value, bool) {
 // type.
 func (m *OutboxEventMutation) AddField(name string, value ent.Value) error {
 	switch name {
-	case outboxevent.FieldRetryCount:
+	case outboxevent.FieldAttempts:
 		v, ok := value.(int)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
-		m.AddRetryCount(v)
+		m.AddAttempts(v)
 		return nil
 	}
 	return fmt.Errorf("unknown OutboxEvent numeric field %s", name)
@@ -16233,14 +18863,14 @@ func (m *OutboxEventMutation) AddField(name string, value ent.Value) error {
 // mutation.
 func (m *OutboxEventMutation) ClearedFields() []string {
 	var fields []string
-	if m.FieldCleared(outboxevent.FieldMetadata) {
-		fields = append(fields, outboxevent.FieldMetadata)
+	if m.FieldCleared(outboxevent.FieldLastAttemptAt) {
+		fields = append(fields, outboxevent.FieldLastAttemptAt)
 	}
-	if m.FieldCleared(outboxevent.FieldProcessedAt) {
-		fields = append(fields, outboxevent.FieldProcessedAt)
+	if m.FieldCleared(outboxevent.FieldPublishedAt) {
+		fields = append(fields, outboxevent.FieldPublishedAt)
 	}
-	if m.FieldCleared(outboxevent.FieldLastError) {
-		fields = append(fields, outboxevent.FieldLastError)
+	if m.FieldCleared(outboxevent.FieldErrorMessage) {
+		fields = append(fields, outboxevent.FieldErrorMessage)
 	}
 	return fields
 }
@@ -16256,14 +18886,14 @@ func (m *OutboxEventMutation) FieldCleared(name string) bool {
 // error if the field is not defined in the schema.
 func (m *OutboxEventMutation) ClearField(name string) error {
 	switch name {
-	case outboxevent.FieldMetadata:
-		m.ClearMetadata()
+	case outboxevent.FieldLastAttemptAt:
+		m.ClearLastAttemptAt()
 		return nil
-	case outboxevent.FieldProcessedAt:
-		m.ClearProcessedAt()
+	case outboxevent.FieldPublishedAt:
+		m.ClearPublishedAt()
 		return nil
-	case outboxevent.FieldLastError:
-		m.ClearLastError()
+	case outboxevent.FieldErrorMessage:
+		m.ClearErrorMessage()
 		return nil
 	}
 	return fmt.Errorf("unknown OutboxEvent nullable field %s", name)
@@ -16276,29 +18906,35 @@ func (m *OutboxEventMutation) ResetField(name string) error {
 	case outboxevent.FieldTenantID:
 		m.ResetTenantID()
 		return nil
+	case outboxevent.FieldAggregateType:
+		m.ResetAggregateType()
+		return nil
+	case outboxevent.FieldAggregateID:
+		m.ResetAggregateID()
+		return nil
 	case outboxevent.FieldEventType:
 		m.ResetEventType()
 		return nil
 	case outboxevent.FieldPayload:
 		m.ResetPayload()
 		return nil
-	case outboxevent.FieldMetadata:
-		m.ResetMetadata()
-		return nil
 	case outboxevent.FieldStatus:
 		m.ResetStatus()
 		return nil
-	case outboxevent.FieldRetryCount:
-		m.ResetRetryCount()
+	case outboxevent.FieldAttempts:
+		m.ResetAttempts()
+		return nil
+	case outboxevent.FieldLastAttemptAt:
+		m.ResetLastAttemptAt()
+		return nil
+	case outboxevent.FieldPublishedAt:
+		m.ResetPublishedAt()
+		return nil
+	case outboxevent.FieldErrorMessage:
+		m.ResetErrorMessage()
 		return nil
 	case outboxevent.FieldCreatedAt:
 		m.ResetCreatedAt()
-		return nil
-	case outboxevent.FieldProcessedAt:
-		m.ResetProcessedAt()
-		return nil
-	case outboxevent.FieldLastError:
-		m.ResetLastError()
 		return nil
 	}
 	return fmt.Errorf("unknown OutboxEvent field %s", name)
@@ -21253,6 +23889,9 @@ type POSOrderMutation struct {
 	total_amount      *float64
 	addtotal_amount   *float64
 	currency          *string
+	order_subtype     *posorder.OrderSubtype
+	room_id           *uuid.UUID
+	room_guest_id     *uuid.UUID
 	metadata          *map[string]interface{}
 	created_at        *time.Time
 	updated_at        *time.Time
@@ -21851,6 +24490,140 @@ func (m *POSOrderMutation) ResetCurrency() {
 	m.currency = nil
 }
 
+// SetOrderSubtype sets the "order_subtype" field.
+func (m *POSOrderMutation) SetOrderSubtype(ps posorder.OrderSubtype) {
+	m.order_subtype = &ps
+}
+
+// OrderSubtype returns the value of the "order_subtype" field in the mutation.
+func (m *POSOrderMutation) OrderSubtype() (r posorder.OrderSubtype, exists bool) {
+	v := m.order_subtype
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOrderSubtype returns the old "order_subtype" field's value of the POSOrder entity.
+// If the POSOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSOrderMutation) OldOrderSubtype(ctx context.Context) (v posorder.OrderSubtype, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOrderSubtype is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOrderSubtype requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOrderSubtype: %w", err)
+	}
+	return oldValue.OrderSubtype, nil
+}
+
+// ResetOrderSubtype resets all changes to the "order_subtype" field.
+func (m *POSOrderMutation) ResetOrderSubtype() {
+	m.order_subtype = nil
+}
+
+// SetRoomID sets the "room_id" field.
+func (m *POSOrderMutation) SetRoomID(u uuid.UUID) {
+	m.room_id = &u
+}
+
+// RoomID returns the value of the "room_id" field in the mutation.
+func (m *POSOrderMutation) RoomID() (r uuid.UUID, exists bool) {
+	v := m.room_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRoomID returns the old "room_id" field's value of the POSOrder entity.
+// If the POSOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSOrderMutation) OldRoomID(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRoomID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRoomID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRoomID: %w", err)
+	}
+	return oldValue.RoomID, nil
+}
+
+// ClearRoomID clears the value of the "room_id" field.
+func (m *POSOrderMutation) ClearRoomID() {
+	m.room_id = nil
+	m.clearedFields[posorder.FieldRoomID] = struct{}{}
+}
+
+// RoomIDCleared returns if the "room_id" field was cleared in this mutation.
+func (m *POSOrderMutation) RoomIDCleared() bool {
+	_, ok := m.clearedFields[posorder.FieldRoomID]
+	return ok
+}
+
+// ResetRoomID resets all changes to the "room_id" field.
+func (m *POSOrderMutation) ResetRoomID() {
+	m.room_id = nil
+	delete(m.clearedFields, posorder.FieldRoomID)
+}
+
+// SetRoomGuestID sets the "room_guest_id" field.
+func (m *POSOrderMutation) SetRoomGuestID(u uuid.UUID) {
+	m.room_guest_id = &u
+}
+
+// RoomGuestID returns the value of the "room_guest_id" field in the mutation.
+func (m *POSOrderMutation) RoomGuestID() (r uuid.UUID, exists bool) {
+	v := m.room_guest_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRoomGuestID returns the old "room_guest_id" field's value of the POSOrder entity.
+// If the POSOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSOrderMutation) OldRoomGuestID(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRoomGuestID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRoomGuestID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRoomGuestID: %w", err)
+	}
+	return oldValue.RoomGuestID, nil
+}
+
+// ClearRoomGuestID clears the value of the "room_guest_id" field.
+func (m *POSOrderMutation) ClearRoomGuestID() {
+	m.room_guest_id = nil
+	m.clearedFields[posorder.FieldRoomGuestID] = struct{}{}
+}
+
+// RoomGuestIDCleared returns if the "room_guest_id" field was cleared in this mutation.
+func (m *POSOrderMutation) RoomGuestIDCleared() bool {
+	_, ok := m.clearedFields[posorder.FieldRoomGuestID]
+	return ok
+}
+
+// ResetRoomGuestID resets all changes to the "room_guest_id" field.
+func (m *POSOrderMutation) ResetRoomGuestID() {
+	m.room_guest_id = nil
+	delete(m.clearedFields, posorder.FieldRoomGuestID)
+}
+
 // SetMetadata sets the "metadata" field.
 func (m *POSOrderMutation) SetMetadata(value map[string]interface{}) {
 	m.metadata = &value
@@ -22155,7 +24928,7 @@ func (m *POSOrderMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *POSOrderMutation) Fields() []string {
-	fields := make([]string, 0, 14)
+	fields := make([]string, 0, 17)
 	if m.tenant_id != nil {
 		fields = append(fields, posorder.FieldTenantID)
 	}
@@ -22188,6 +24961,15 @@ func (m *POSOrderMutation) Fields() []string {
 	}
 	if m.currency != nil {
 		fields = append(fields, posorder.FieldCurrency)
+	}
+	if m.order_subtype != nil {
+		fields = append(fields, posorder.FieldOrderSubtype)
+	}
+	if m.room_id != nil {
+		fields = append(fields, posorder.FieldRoomID)
+	}
+	if m.room_guest_id != nil {
+		fields = append(fields, posorder.FieldRoomGuestID)
 	}
 	if m.metadata != nil {
 		fields = append(fields, posorder.FieldMetadata)
@@ -22228,6 +25010,12 @@ func (m *POSOrderMutation) Field(name string) (ent.Value, bool) {
 		return m.TotalAmount()
 	case posorder.FieldCurrency:
 		return m.Currency()
+	case posorder.FieldOrderSubtype:
+		return m.OrderSubtype()
+	case posorder.FieldRoomID:
+		return m.RoomID()
+	case posorder.FieldRoomGuestID:
+		return m.RoomGuestID()
 	case posorder.FieldMetadata:
 		return m.Metadata()
 	case posorder.FieldCreatedAt:
@@ -22265,6 +25053,12 @@ func (m *POSOrderMutation) OldField(ctx context.Context, name string) (ent.Value
 		return m.OldTotalAmount(ctx)
 	case posorder.FieldCurrency:
 		return m.OldCurrency(ctx)
+	case posorder.FieldOrderSubtype:
+		return m.OldOrderSubtype(ctx)
+	case posorder.FieldRoomID:
+		return m.OldRoomID(ctx)
+	case posorder.FieldRoomGuestID:
+		return m.OldRoomGuestID(ctx)
 	case posorder.FieldMetadata:
 		return m.OldMetadata(ctx)
 	case posorder.FieldCreatedAt:
@@ -22356,6 +25150,27 @@ func (m *POSOrderMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetCurrency(v)
+		return nil
+	case posorder.FieldOrderSubtype:
+		v, ok := value.(posorder.OrderSubtype)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOrderSubtype(v)
+		return nil
+	case posorder.FieldRoomID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRoomID(v)
+		return nil
+	case posorder.FieldRoomGuestID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRoomGuestID(v)
 		return nil
 	case posorder.FieldMetadata:
 		v, ok := value.(map[string]interface{})
@@ -22458,7 +25273,14 @@ func (m *POSOrderMutation) AddField(name string, value ent.Value) error {
 // ClearedFields returns all nullable fields that were cleared during this
 // mutation.
 func (m *POSOrderMutation) ClearedFields() []string {
-	return nil
+	var fields []string
+	if m.FieldCleared(posorder.FieldRoomID) {
+		fields = append(fields, posorder.FieldRoomID)
+	}
+	if m.FieldCleared(posorder.FieldRoomGuestID) {
+		fields = append(fields, posorder.FieldRoomGuestID)
+	}
+	return fields
 }
 
 // FieldCleared returns a boolean indicating if a field with the given name was
@@ -22471,6 +25293,14 @@ func (m *POSOrderMutation) FieldCleared(name string) bool {
 // ClearField clears the value of the field with the given name. It returns an
 // error if the field is not defined in the schema.
 func (m *POSOrderMutation) ClearField(name string) error {
+	switch name {
+	case posorder.FieldRoomID:
+		m.ClearRoomID()
+		return nil
+	case posorder.FieldRoomGuestID:
+		m.ClearRoomGuestID()
+		return nil
+	}
 	return fmt.Errorf("unknown POSOrder nullable field %s", name)
 }
 
@@ -22510,6 +25340,15 @@ func (m *POSOrderMutation) ResetField(name string) error {
 		return nil
 	case posorder.FieldCurrency:
 		m.ResetCurrency()
+		return nil
+	case posorder.FieldOrderSubtype:
+		m.ResetOrderSubtype()
+		return nil
+	case posorder.FieldRoomID:
+		m.ResetRoomID()
+		return nil
+	case posorder.FieldRoomGuestID:
+		m.ResetRoomGuestID()
 		return nil
 	case posorder.FieldMetadata:
 		m.ResetMetadata()
@@ -33783,6 +36622,3719 @@ func (m *RateLimitConfigMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *RateLimitConfigMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown RateLimitConfig edge %s", name)
+}
+
+// RoomMutation represents an operation that mutates the Room nodes in the graph.
+type RoomMutation struct {
+	config
+	op                 Op
+	typ                string
+	id                 *uuid.UUID
+	tenant_id          *uuid.UUID
+	outlet_id          *uuid.UUID
+	room_number        *string
+	name               *string
+	room_type          *room.RoomType
+	floor              *int
+	addfloor           *int
+	rate_per_night     *float64
+	addrate_per_night  *float64
+	currency           *string
+	status             *room.Status
+	is_active          *bool
+	metadata           *map[string]interface{}
+	created_at         *time.Time
+	updated_at         *time.Time
+	clearedFields      map[string]struct{}
+	guests             map[uuid.UUID]struct{}
+	removedguests      map[uuid.UUID]struct{}
+	clearedguests      bool
+	folio_items        map[uuid.UUID]struct{}
+	removedfolio_items map[uuid.UUID]struct{}
+	clearedfolio_items bool
+	done               bool
+	oldValue           func(context.Context) (*Room, error)
+	predicates         []predicate.Room
+}
+
+var _ ent.Mutation = (*RoomMutation)(nil)
+
+// roomOption allows management of the mutation configuration using functional options.
+type roomOption func(*RoomMutation)
+
+// newRoomMutation creates new mutation for the Room entity.
+func newRoomMutation(c config, op Op, opts ...roomOption) *RoomMutation {
+	m := &RoomMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeRoom,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withRoomID sets the ID field of the mutation.
+func withRoomID(id uuid.UUID) roomOption {
+	return func(m *RoomMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *Room
+		)
+		m.oldValue = func(ctx context.Context) (*Room, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().Room.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withRoom sets the old Room of the mutation.
+func withRoom(node *Room) roomOption {
+	return func(m *RoomMutation) {
+		m.oldValue = func(context.Context) (*Room, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m RoomMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m RoomMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of Room entities.
+func (m *RoomMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *RoomMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *RoomMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().Room.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *RoomMutation) SetTenantID(u uuid.UUID) {
+	m.tenant_id = &u
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *RoomMutation) TenantID() (r uuid.UUID, exists bool) {
+	v := m.tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the Room entity.
+// If the Room object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoomMutation) OldTenantID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *RoomMutation) ResetTenantID() {
+	m.tenant_id = nil
+}
+
+// SetOutletID sets the "outlet_id" field.
+func (m *RoomMutation) SetOutletID(u uuid.UUID) {
+	m.outlet_id = &u
+}
+
+// OutletID returns the value of the "outlet_id" field in the mutation.
+func (m *RoomMutation) OutletID() (r uuid.UUID, exists bool) {
+	v := m.outlet_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOutletID returns the old "outlet_id" field's value of the Room entity.
+// If the Room object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoomMutation) OldOutletID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOutletID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOutletID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOutletID: %w", err)
+	}
+	return oldValue.OutletID, nil
+}
+
+// ResetOutletID resets all changes to the "outlet_id" field.
+func (m *RoomMutation) ResetOutletID() {
+	m.outlet_id = nil
+}
+
+// SetRoomNumber sets the "room_number" field.
+func (m *RoomMutation) SetRoomNumber(s string) {
+	m.room_number = &s
+}
+
+// RoomNumber returns the value of the "room_number" field in the mutation.
+func (m *RoomMutation) RoomNumber() (r string, exists bool) {
+	v := m.room_number
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRoomNumber returns the old "room_number" field's value of the Room entity.
+// If the Room object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoomMutation) OldRoomNumber(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRoomNumber is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRoomNumber requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRoomNumber: %w", err)
+	}
+	return oldValue.RoomNumber, nil
+}
+
+// ResetRoomNumber resets all changes to the "room_number" field.
+func (m *RoomMutation) ResetRoomNumber() {
+	m.room_number = nil
+}
+
+// SetName sets the "name" field.
+func (m *RoomMutation) SetName(s string) {
+	m.name = &s
+}
+
+// Name returns the value of the "name" field in the mutation.
+func (m *RoomMutation) Name() (r string, exists bool) {
+	v := m.name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldName returns the old "name" field's value of the Room entity.
+// If the Room object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoomMutation) OldName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldName: %w", err)
+	}
+	return oldValue.Name, nil
+}
+
+// ResetName resets all changes to the "name" field.
+func (m *RoomMutation) ResetName() {
+	m.name = nil
+}
+
+// SetRoomType sets the "room_type" field.
+func (m *RoomMutation) SetRoomType(rt room.RoomType) {
+	m.room_type = &rt
+}
+
+// RoomType returns the value of the "room_type" field in the mutation.
+func (m *RoomMutation) RoomType() (r room.RoomType, exists bool) {
+	v := m.room_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRoomType returns the old "room_type" field's value of the Room entity.
+// If the Room object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoomMutation) OldRoomType(ctx context.Context) (v room.RoomType, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRoomType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRoomType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRoomType: %w", err)
+	}
+	return oldValue.RoomType, nil
+}
+
+// ResetRoomType resets all changes to the "room_type" field.
+func (m *RoomMutation) ResetRoomType() {
+	m.room_type = nil
+}
+
+// SetFloor sets the "floor" field.
+func (m *RoomMutation) SetFloor(i int) {
+	m.floor = &i
+	m.addfloor = nil
+}
+
+// Floor returns the value of the "floor" field in the mutation.
+func (m *RoomMutation) Floor() (r int, exists bool) {
+	v := m.floor
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFloor returns the old "floor" field's value of the Room entity.
+// If the Room object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoomMutation) OldFloor(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFloor is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFloor requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFloor: %w", err)
+	}
+	return oldValue.Floor, nil
+}
+
+// AddFloor adds i to the "floor" field.
+func (m *RoomMutation) AddFloor(i int) {
+	if m.addfloor != nil {
+		*m.addfloor += i
+	} else {
+		m.addfloor = &i
+	}
+}
+
+// AddedFloor returns the value that was added to the "floor" field in this mutation.
+func (m *RoomMutation) AddedFloor() (r int, exists bool) {
+	v := m.addfloor
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetFloor resets all changes to the "floor" field.
+func (m *RoomMutation) ResetFloor() {
+	m.floor = nil
+	m.addfloor = nil
+}
+
+// SetRatePerNight sets the "rate_per_night" field.
+func (m *RoomMutation) SetRatePerNight(f float64) {
+	m.rate_per_night = &f
+	m.addrate_per_night = nil
+}
+
+// RatePerNight returns the value of the "rate_per_night" field in the mutation.
+func (m *RoomMutation) RatePerNight() (r float64, exists bool) {
+	v := m.rate_per_night
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRatePerNight returns the old "rate_per_night" field's value of the Room entity.
+// If the Room object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoomMutation) OldRatePerNight(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRatePerNight is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRatePerNight requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRatePerNight: %w", err)
+	}
+	return oldValue.RatePerNight, nil
+}
+
+// AddRatePerNight adds f to the "rate_per_night" field.
+func (m *RoomMutation) AddRatePerNight(f float64) {
+	if m.addrate_per_night != nil {
+		*m.addrate_per_night += f
+	} else {
+		m.addrate_per_night = &f
+	}
+}
+
+// AddedRatePerNight returns the value that was added to the "rate_per_night" field in this mutation.
+func (m *RoomMutation) AddedRatePerNight() (r float64, exists bool) {
+	v := m.addrate_per_night
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetRatePerNight resets all changes to the "rate_per_night" field.
+func (m *RoomMutation) ResetRatePerNight() {
+	m.rate_per_night = nil
+	m.addrate_per_night = nil
+}
+
+// SetCurrency sets the "currency" field.
+func (m *RoomMutation) SetCurrency(s string) {
+	m.currency = &s
+}
+
+// Currency returns the value of the "currency" field in the mutation.
+func (m *RoomMutation) Currency() (r string, exists bool) {
+	v := m.currency
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCurrency returns the old "currency" field's value of the Room entity.
+// If the Room object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoomMutation) OldCurrency(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCurrency is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCurrency requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCurrency: %w", err)
+	}
+	return oldValue.Currency, nil
+}
+
+// ResetCurrency resets all changes to the "currency" field.
+func (m *RoomMutation) ResetCurrency() {
+	m.currency = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *RoomMutation) SetStatus(r room.Status) {
+	m.status = &r
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *RoomMutation) Status() (r room.Status, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the Room entity.
+// If the Room object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoomMutation) OldStatus(ctx context.Context) (v room.Status, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *RoomMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetIsActive sets the "is_active" field.
+func (m *RoomMutation) SetIsActive(b bool) {
+	m.is_active = &b
+}
+
+// IsActive returns the value of the "is_active" field in the mutation.
+func (m *RoomMutation) IsActive() (r bool, exists bool) {
+	v := m.is_active
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIsActive returns the old "is_active" field's value of the Room entity.
+// If the Room object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoomMutation) OldIsActive(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIsActive is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIsActive requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIsActive: %w", err)
+	}
+	return oldValue.IsActive, nil
+}
+
+// ResetIsActive resets all changes to the "is_active" field.
+func (m *RoomMutation) ResetIsActive() {
+	m.is_active = nil
+}
+
+// SetMetadata sets the "metadata" field.
+func (m *RoomMutation) SetMetadata(value map[string]interface{}) {
+	m.metadata = &value
+}
+
+// Metadata returns the value of the "metadata" field in the mutation.
+func (m *RoomMutation) Metadata() (r map[string]interface{}, exists bool) {
+	v := m.metadata
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMetadata returns the old "metadata" field's value of the Room entity.
+// If the Room object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoomMutation) OldMetadata(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMetadata is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMetadata requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMetadata: %w", err)
+	}
+	return oldValue.Metadata, nil
+}
+
+// ResetMetadata resets all changes to the "metadata" field.
+func (m *RoomMutation) ResetMetadata() {
+	m.metadata = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *RoomMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *RoomMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the Room entity.
+// If the Room object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoomMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *RoomMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *RoomMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *RoomMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the Room entity.
+// If the Room object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoomMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *RoomMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// AddGuestIDs adds the "guests" edge to the RoomGuest entity by ids.
+func (m *RoomMutation) AddGuestIDs(ids ...uuid.UUID) {
+	if m.guests == nil {
+		m.guests = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		m.guests[ids[i]] = struct{}{}
+	}
+}
+
+// ClearGuests clears the "guests" edge to the RoomGuest entity.
+func (m *RoomMutation) ClearGuests() {
+	m.clearedguests = true
+}
+
+// GuestsCleared reports if the "guests" edge to the RoomGuest entity was cleared.
+func (m *RoomMutation) GuestsCleared() bool {
+	return m.clearedguests
+}
+
+// RemoveGuestIDs removes the "guests" edge to the RoomGuest entity by IDs.
+func (m *RoomMutation) RemoveGuestIDs(ids ...uuid.UUID) {
+	if m.removedguests == nil {
+		m.removedguests = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		delete(m.guests, ids[i])
+		m.removedguests[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedGuests returns the removed IDs of the "guests" edge to the RoomGuest entity.
+func (m *RoomMutation) RemovedGuestsIDs() (ids []uuid.UUID) {
+	for id := range m.removedguests {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// GuestsIDs returns the "guests" edge IDs in the mutation.
+func (m *RoomMutation) GuestsIDs() (ids []uuid.UUID) {
+	for id := range m.guests {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetGuests resets all changes to the "guests" edge.
+func (m *RoomMutation) ResetGuests() {
+	m.guests = nil
+	m.clearedguests = false
+	m.removedguests = nil
+}
+
+// AddFolioItemIDs adds the "folio_items" edge to the RoomFolioItem entity by ids.
+func (m *RoomMutation) AddFolioItemIDs(ids ...uuid.UUID) {
+	if m.folio_items == nil {
+		m.folio_items = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		m.folio_items[ids[i]] = struct{}{}
+	}
+}
+
+// ClearFolioItems clears the "folio_items" edge to the RoomFolioItem entity.
+func (m *RoomMutation) ClearFolioItems() {
+	m.clearedfolio_items = true
+}
+
+// FolioItemsCleared reports if the "folio_items" edge to the RoomFolioItem entity was cleared.
+func (m *RoomMutation) FolioItemsCleared() bool {
+	return m.clearedfolio_items
+}
+
+// RemoveFolioItemIDs removes the "folio_items" edge to the RoomFolioItem entity by IDs.
+func (m *RoomMutation) RemoveFolioItemIDs(ids ...uuid.UUID) {
+	if m.removedfolio_items == nil {
+		m.removedfolio_items = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		delete(m.folio_items, ids[i])
+		m.removedfolio_items[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedFolioItems returns the removed IDs of the "folio_items" edge to the RoomFolioItem entity.
+func (m *RoomMutation) RemovedFolioItemsIDs() (ids []uuid.UUID) {
+	for id := range m.removedfolio_items {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// FolioItemsIDs returns the "folio_items" edge IDs in the mutation.
+func (m *RoomMutation) FolioItemsIDs() (ids []uuid.UUID) {
+	for id := range m.folio_items {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetFolioItems resets all changes to the "folio_items" edge.
+func (m *RoomMutation) ResetFolioItems() {
+	m.folio_items = nil
+	m.clearedfolio_items = false
+	m.removedfolio_items = nil
+}
+
+// Where appends a list predicates to the RoomMutation builder.
+func (m *RoomMutation) Where(ps ...predicate.Room) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the RoomMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *RoomMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.Room, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *RoomMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *RoomMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (Room).
+func (m *RoomMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *RoomMutation) Fields() []string {
+	fields := make([]string, 0, 13)
+	if m.tenant_id != nil {
+		fields = append(fields, room.FieldTenantID)
+	}
+	if m.outlet_id != nil {
+		fields = append(fields, room.FieldOutletID)
+	}
+	if m.room_number != nil {
+		fields = append(fields, room.FieldRoomNumber)
+	}
+	if m.name != nil {
+		fields = append(fields, room.FieldName)
+	}
+	if m.room_type != nil {
+		fields = append(fields, room.FieldRoomType)
+	}
+	if m.floor != nil {
+		fields = append(fields, room.FieldFloor)
+	}
+	if m.rate_per_night != nil {
+		fields = append(fields, room.FieldRatePerNight)
+	}
+	if m.currency != nil {
+		fields = append(fields, room.FieldCurrency)
+	}
+	if m.status != nil {
+		fields = append(fields, room.FieldStatus)
+	}
+	if m.is_active != nil {
+		fields = append(fields, room.FieldIsActive)
+	}
+	if m.metadata != nil {
+		fields = append(fields, room.FieldMetadata)
+	}
+	if m.created_at != nil {
+		fields = append(fields, room.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, room.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *RoomMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case room.FieldTenantID:
+		return m.TenantID()
+	case room.FieldOutletID:
+		return m.OutletID()
+	case room.FieldRoomNumber:
+		return m.RoomNumber()
+	case room.FieldName:
+		return m.Name()
+	case room.FieldRoomType:
+		return m.RoomType()
+	case room.FieldFloor:
+		return m.Floor()
+	case room.FieldRatePerNight:
+		return m.RatePerNight()
+	case room.FieldCurrency:
+		return m.Currency()
+	case room.FieldStatus:
+		return m.Status()
+	case room.FieldIsActive:
+		return m.IsActive()
+	case room.FieldMetadata:
+		return m.Metadata()
+	case room.FieldCreatedAt:
+		return m.CreatedAt()
+	case room.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *RoomMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case room.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case room.FieldOutletID:
+		return m.OldOutletID(ctx)
+	case room.FieldRoomNumber:
+		return m.OldRoomNumber(ctx)
+	case room.FieldName:
+		return m.OldName(ctx)
+	case room.FieldRoomType:
+		return m.OldRoomType(ctx)
+	case room.FieldFloor:
+		return m.OldFloor(ctx)
+	case room.FieldRatePerNight:
+		return m.OldRatePerNight(ctx)
+	case room.FieldCurrency:
+		return m.OldCurrency(ctx)
+	case room.FieldStatus:
+		return m.OldStatus(ctx)
+	case room.FieldIsActive:
+		return m.OldIsActive(ctx)
+	case room.FieldMetadata:
+		return m.OldMetadata(ctx)
+	case room.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case room.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown Room field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *RoomMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case room.FieldTenantID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case room.FieldOutletID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOutletID(v)
+		return nil
+	case room.FieldRoomNumber:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRoomNumber(v)
+		return nil
+	case room.FieldName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetName(v)
+		return nil
+	case room.FieldRoomType:
+		v, ok := value.(room.RoomType)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRoomType(v)
+		return nil
+	case room.FieldFloor:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFloor(v)
+		return nil
+	case room.FieldRatePerNight:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRatePerNight(v)
+		return nil
+	case room.FieldCurrency:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCurrency(v)
+		return nil
+	case room.FieldStatus:
+		v, ok := value.(room.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case room.FieldIsActive:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIsActive(v)
+		return nil
+	case room.FieldMetadata:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMetadata(v)
+		return nil
+	case room.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case room.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown Room field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *RoomMutation) AddedFields() []string {
+	var fields []string
+	if m.addfloor != nil {
+		fields = append(fields, room.FieldFloor)
+	}
+	if m.addrate_per_night != nil {
+		fields = append(fields, room.FieldRatePerNight)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *RoomMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case room.FieldFloor:
+		return m.AddedFloor()
+	case room.FieldRatePerNight:
+		return m.AddedRatePerNight()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *RoomMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case room.FieldFloor:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddFloor(v)
+		return nil
+	case room.FieldRatePerNight:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRatePerNight(v)
+		return nil
+	}
+	return fmt.Errorf("unknown Room numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *RoomMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *RoomMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *RoomMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown Room nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *RoomMutation) ResetField(name string) error {
+	switch name {
+	case room.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case room.FieldOutletID:
+		m.ResetOutletID()
+		return nil
+	case room.FieldRoomNumber:
+		m.ResetRoomNumber()
+		return nil
+	case room.FieldName:
+		m.ResetName()
+		return nil
+	case room.FieldRoomType:
+		m.ResetRoomType()
+		return nil
+	case room.FieldFloor:
+		m.ResetFloor()
+		return nil
+	case room.FieldRatePerNight:
+		m.ResetRatePerNight()
+		return nil
+	case room.FieldCurrency:
+		m.ResetCurrency()
+		return nil
+	case room.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case room.FieldIsActive:
+		m.ResetIsActive()
+		return nil
+	case room.FieldMetadata:
+		m.ResetMetadata()
+		return nil
+	case room.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case room.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown Room field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *RoomMutation) AddedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.guests != nil {
+		edges = append(edges, room.EdgeGuests)
+	}
+	if m.folio_items != nil {
+		edges = append(edges, room.EdgeFolioItems)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *RoomMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case room.EdgeGuests:
+		ids := make([]ent.Value, 0, len(m.guests))
+		for id := range m.guests {
+			ids = append(ids, id)
+		}
+		return ids
+	case room.EdgeFolioItems:
+		ids := make([]ent.Value, 0, len(m.folio_items))
+		for id := range m.folio_items {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *RoomMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.removedguests != nil {
+		edges = append(edges, room.EdgeGuests)
+	}
+	if m.removedfolio_items != nil {
+		edges = append(edges, room.EdgeFolioItems)
+	}
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *RoomMutation) RemovedIDs(name string) []ent.Value {
+	switch name {
+	case room.EdgeGuests:
+		ids := make([]ent.Value, 0, len(m.removedguests))
+		for id := range m.removedguests {
+			ids = append(ids, id)
+		}
+		return ids
+	case room.EdgeFolioItems:
+		ids := make([]ent.Value, 0, len(m.removedfolio_items))
+		for id := range m.removedfolio_items {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *RoomMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.clearedguests {
+		edges = append(edges, room.EdgeGuests)
+	}
+	if m.clearedfolio_items {
+		edges = append(edges, room.EdgeFolioItems)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *RoomMutation) EdgeCleared(name string) bool {
+	switch name {
+	case room.EdgeGuests:
+		return m.clearedguests
+	case room.EdgeFolioItems:
+		return m.clearedfolio_items
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *RoomMutation) ClearEdge(name string) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown Room unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *RoomMutation) ResetEdge(name string) error {
+	switch name {
+	case room.EdgeGuests:
+		m.ResetGuests()
+		return nil
+	case room.EdgeFolioItems:
+		m.ResetFolioItems()
+		return nil
+	}
+	return fmt.Errorf("unknown Room edge %s", name)
+}
+
+// RoomFolioItemMutation represents an operation that mutates the RoomFolioItem nodes in the graph.
+type RoomFolioItemMutation struct {
+	config
+	op            Op
+	typ           string
+	id            *uuid.UUID
+	tenant_id     *uuid.UUID
+	description   *string
+	amount        *float64
+	addamount     *float64
+	currency      *string
+	charge_type   *roomfolioitem.ChargeType
+	pos_order_id  *uuid.UUID
+	created_by    *uuid.UUID
+	metadata      *map[string]interface{}
+	created_at    *time.Time
+	clearedFields map[string]struct{}
+	room          *uuid.UUID
+	clearedroom   bool
+	guest         *uuid.UUID
+	clearedguest  bool
+	done          bool
+	oldValue      func(context.Context) (*RoomFolioItem, error)
+	predicates    []predicate.RoomFolioItem
+}
+
+var _ ent.Mutation = (*RoomFolioItemMutation)(nil)
+
+// roomfolioitemOption allows management of the mutation configuration using functional options.
+type roomfolioitemOption func(*RoomFolioItemMutation)
+
+// newRoomFolioItemMutation creates new mutation for the RoomFolioItem entity.
+func newRoomFolioItemMutation(c config, op Op, opts ...roomfolioitemOption) *RoomFolioItemMutation {
+	m := &RoomFolioItemMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeRoomFolioItem,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withRoomFolioItemID sets the ID field of the mutation.
+func withRoomFolioItemID(id uuid.UUID) roomfolioitemOption {
+	return func(m *RoomFolioItemMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *RoomFolioItem
+		)
+		m.oldValue = func(ctx context.Context) (*RoomFolioItem, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().RoomFolioItem.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withRoomFolioItem sets the old RoomFolioItem of the mutation.
+func withRoomFolioItem(node *RoomFolioItem) roomfolioitemOption {
+	return func(m *RoomFolioItemMutation) {
+		m.oldValue = func(context.Context) (*RoomFolioItem, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m RoomFolioItemMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m RoomFolioItemMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of RoomFolioItem entities.
+func (m *RoomFolioItemMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *RoomFolioItemMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *RoomFolioItemMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().RoomFolioItem.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *RoomFolioItemMutation) SetTenantID(u uuid.UUID) {
+	m.tenant_id = &u
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *RoomFolioItemMutation) TenantID() (r uuid.UUID, exists bool) {
+	v := m.tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the RoomFolioItem entity.
+// If the RoomFolioItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoomFolioItemMutation) OldTenantID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *RoomFolioItemMutation) ResetTenantID() {
+	m.tenant_id = nil
+}
+
+// SetRoomID sets the "room_id" field.
+func (m *RoomFolioItemMutation) SetRoomID(u uuid.UUID) {
+	m.room = &u
+}
+
+// RoomID returns the value of the "room_id" field in the mutation.
+func (m *RoomFolioItemMutation) RoomID() (r uuid.UUID, exists bool) {
+	v := m.room
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRoomID returns the old "room_id" field's value of the RoomFolioItem entity.
+// If the RoomFolioItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoomFolioItemMutation) OldRoomID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRoomID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRoomID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRoomID: %w", err)
+	}
+	return oldValue.RoomID, nil
+}
+
+// ResetRoomID resets all changes to the "room_id" field.
+func (m *RoomFolioItemMutation) ResetRoomID() {
+	m.room = nil
+}
+
+// SetRoomGuestID sets the "room_guest_id" field.
+func (m *RoomFolioItemMutation) SetRoomGuestID(u uuid.UUID) {
+	m.guest = &u
+}
+
+// RoomGuestID returns the value of the "room_guest_id" field in the mutation.
+func (m *RoomFolioItemMutation) RoomGuestID() (r uuid.UUID, exists bool) {
+	v := m.guest
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRoomGuestID returns the old "room_guest_id" field's value of the RoomFolioItem entity.
+// If the RoomFolioItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoomFolioItemMutation) OldRoomGuestID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRoomGuestID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRoomGuestID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRoomGuestID: %w", err)
+	}
+	return oldValue.RoomGuestID, nil
+}
+
+// ResetRoomGuestID resets all changes to the "room_guest_id" field.
+func (m *RoomFolioItemMutation) ResetRoomGuestID() {
+	m.guest = nil
+}
+
+// SetDescription sets the "description" field.
+func (m *RoomFolioItemMutation) SetDescription(s string) {
+	m.description = &s
+}
+
+// Description returns the value of the "description" field in the mutation.
+func (m *RoomFolioItemMutation) Description() (r string, exists bool) {
+	v := m.description
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDescription returns the old "description" field's value of the RoomFolioItem entity.
+// If the RoomFolioItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoomFolioItemMutation) OldDescription(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDescription is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDescription requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDescription: %w", err)
+	}
+	return oldValue.Description, nil
+}
+
+// ResetDescription resets all changes to the "description" field.
+func (m *RoomFolioItemMutation) ResetDescription() {
+	m.description = nil
+}
+
+// SetAmount sets the "amount" field.
+func (m *RoomFolioItemMutation) SetAmount(f float64) {
+	m.amount = &f
+	m.addamount = nil
+}
+
+// Amount returns the value of the "amount" field in the mutation.
+func (m *RoomFolioItemMutation) Amount() (r float64, exists bool) {
+	v := m.amount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAmount returns the old "amount" field's value of the RoomFolioItem entity.
+// If the RoomFolioItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoomFolioItemMutation) OldAmount(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAmount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAmount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAmount: %w", err)
+	}
+	return oldValue.Amount, nil
+}
+
+// AddAmount adds f to the "amount" field.
+func (m *RoomFolioItemMutation) AddAmount(f float64) {
+	if m.addamount != nil {
+		*m.addamount += f
+	} else {
+		m.addamount = &f
+	}
+}
+
+// AddedAmount returns the value that was added to the "amount" field in this mutation.
+func (m *RoomFolioItemMutation) AddedAmount() (r float64, exists bool) {
+	v := m.addamount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAmount resets all changes to the "amount" field.
+func (m *RoomFolioItemMutation) ResetAmount() {
+	m.amount = nil
+	m.addamount = nil
+}
+
+// SetCurrency sets the "currency" field.
+func (m *RoomFolioItemMutation) SetCurrency(s string) {
+	m.currency = &s
+}
+
+// Currency returns the value of the "currency" field in the mutation.
+func (m *RoomFolioItemMutation) Currency() (r string, exists bool) {
+	v := m.currency
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCurrency returns the old "currency" field's value of the RoomFolioItem entity.
+// If the RoomFolioItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoomFolioItemMutation) OldCurrency(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCurrency is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCurrency requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCurrency: %w", err)
+	}
+	return oldValue.Currency, nil
+}
+
+// ResetCurrency resets all changes to the "currency" field.
+func (m *RoomFolioItemMutation) ResetCurrency() {
+	m.currency = nil
+}
+
+// SetChargeType sets the "charge_type" field.
+func (m *RoomFolioItemMutation) SetChargeType(rt roomfolioitem.ChargeType) {
+	m.charge_type = &rt
+}
+
+// ChargeType returns the value of the "charge_type" field in the mutation.
+func (m *RoomFolioItemMutation) ChargeType() (r roomfolioitem.ChargeType, exists bool) {
+	v := m.charge_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldChargeType returns the old "charge_type" field's value of the RoomFolioItem entity.
+// If the RoomFolioItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoomFolioItemMutation) OldChargeType(ctx context.Context) (v roomfolioitem.ChargeType, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldChargeType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldChargeType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldChargeType: %w", err)
+	}
+	return oldValue.ChargeType, nil
+}
+
+// ResetChargeType resets all changes to the "charge_type" field.
+func (m *RoomFolioItemMutation) ResetChargeType() {
+	m.charge_type = nil
+}
+
+// SetPosOrderID sets the "pos_order_id" field.
+func (m *RoomFolioItemMutation) SetPosOrderID(u uuid.UUID) {
+	m.pos_order_id = &u
+}
+
+// PosOrderID returns the value of the "pos_order_id" field in the mutation.
+func (m *RoomFolioItemMutation) PosOrderID() (r uuid.UUID, exists bool) {
+	v := m.pos_order_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPosOrderID returns the old "pos_order_id" field's value of the RoomFolioItem entity.
+// If the RoomFolioItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoomFolioItemMutation) OldPosOrderID(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPosOrderID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPosOrderID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPosOrderID: %w", err)
+	}
+	return oldValue.PosOrderID, nil
+}
+
+// ClearPosOrderID clears the value of the "pos_order_id" field.
+func (m *RoomFolioItemMutation) ClearPosOrderID() {
+	m.pos_order_id = nil
+	m.clearedFields[roomfolioitem.FieldPosOrderID] = struct{}{}
+}
+
+// PosOrderIDCleared returns if the "pos_order_id" field was cleared in this mutation.
+func (m *RoomFolioItemMutation) PosOrderIDCleared() bool {
+	_, ok := m.clearedFields[roomfolioitem.FieldPosOrderID]
+	return ok
+}
+
+// ResetPosOrderID resets all changes to the "pos_order_id" field.
+func (m *RoomFolioItemMutation) ResetPosOrderID() {
+	m.pos_order_id = nil
+	delete(m.clearedFields, roomfolioitem.FieldPosOrderID)
+}
+
+// SetCreatedBy sets the "created_by" field.
+func (m *RoomFolioItemMutation) SetCreatedBy(u uuid.UUID) {
+	m.created_by = &u
+}
+
+// CreatedBy returns the value of the "created_by" field in the mutation.
+func (m *RoomFolioItemMutation) CreatedBy() (r uuid.UUID, exists bool) {
+	v := m.created_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedBy returns the old "created_by" field's value of the RoomFolioItem entity.
+// If the RoomFolioItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoomFolioItemMutation) OldCreatedBy(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedBy: %w", err)
+	}
+	return oldValue.CreatedBy, nil
+}
+
+// ResetCreatedBy resets all changes to the "created_by" field.
+func (m *RoomFolioItemMutation) ResetCreatedBy() {
+	m.created_by = nil
+}
+
+// SetMetadata sets the "metadata" field.
+func (m *RoomFolioItemMutation) SetMetadata(value map[string]interface{}) {
+	m.metadata = &value
+}
+
+// Metadata returns the value of the "metadata" field in the mutation.
+func (m *RoomFolioItemMutation) Metadata() (r map[string]interface{}, exists bool) {
+	v := m.metadata
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMetadata returns the old "metadata" field's value of the RoomFolioItem entity.
+// If the RoomFolioItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoomFolioItemMutation) OldMetadata(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMetadata is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMetadata requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMetadata: %w", err)
+	}
+	return oldValue.Metadata, nil
+}
+
+// ResetMetadata resets all changes to the "metadata" field.
+func (m *RoomFolioItemMutation) ResetMetadata() {
+	m.metadata = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *RoomFolioItemMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *RoomFolioItemMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the RoomFolioItem entity.
+// If the RoomFolioItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoomFolioItemMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *RoomFolioItemMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// ClearRoom clears the "room" edge to the Room entity.
+func (m *RoomFolioItemMutation) ClearRoom() {
+	m.clearedroom = true
+	m.clearedFields[roomfolioitem.FieldRoomID] = struct{}{}
+}
+
+// RoomCleared reports if the "room" edge to the Room entity was cleared.
+func (m *RoomFolioItemMutation) RoomCleared() bool {
+	return m.clearedroom
+}
+
+// RoomIDs returns the "room" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// RoomID instead. It exists only for internal usage by the builders.
+func (m *RoomFolioItemMutation) RoomIDs() (ids []uuid.UUID) {
+	if id := m.room; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetRoom resets all changes to the "room" edge.
+func (m *RoomFolioItemMutation) ResetRoom() {
+	m.room = nil
+	m.clearedroom = false
+}
+
+// SetGuestID sets the "guest" edge to the RoomGuest entity by id.
+func (m *RoomFolioItemMutation) SetGuestID(id uuid.UUID) {
+	m.guest = &id
+}
+
+// ClearGuest clears the "guest" edge to the RoomGuest entity.
+func (m *RoomFolioItemMutation) ClearGuest() {
+	m.clearedguest = true
+	m.clearedFields[roomfolioitem.FieldRoomGuestID] = struct{}{}
+}
+
+// GuestCleared reports if the "guest" edge to the RoomGuest entity was cleared.
+func (m *RoomFolioItemMutation) GuestCleared() bool {
+	return m.clearedguest
+}
+
+// GuestID returns the "guest" edge ID in the mutation.
+func (m *RoomFolioItemMutation) GuestID() (id uuid.UUID, exists bool) {
+	if m.guest != nil {
+		return *m.guest, true
+	}
+	return
+}
+
+// GuestIDs returns the "guest" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// GuestID instead. It exists only for internal usage by the builders.
+func (m *RoomFolioItemMutation) GuestIDs() (ids []uuid.UUID) {
+	if id := m.guest; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetGuest resets all changes to the "guest" edge.
+func (m *RoomFolioItemMutation) ResetGuest() {
+	m.guest = nil
+	m.clearedguest = false
+}
+
+// Where appends a list predicates to the RoomFolioItemMutation builder.
+func (m *RoomFolioItemMutation) Where(ps ...predicate.RoomFolioItem) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the RoomFolioItemMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *RoomFolioItemMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.RoomFolioItem, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *RoomFolioItemMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *RoomFolioItemMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (RoomFolioItem).
+func (m *RoomFolioItemMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *RoomFolioItemMutation) Fields() []string {
+	fields := make([]string, 0, 11)
+	if m.tenant_id != nil {
+		fields = append(fields, roomfolioitem.FieldTenantID)
+	}
+	if m.room != nil {
+		fields = append(fields, roomfolioitem.FieldRoomID)
+	}
+	if m.guest != nil {
+		fields = append(fields, roomfolioitem.FieldRoomGuestID)
+	}
+	if m.description != nil {
+		fields = append(fields, roomfolioitem.FieldDescription)
+	}
+	if m.amount != nil {
+		fields = append(fields, roomfolioitem.FieldAmount)
+	}
+	if m.currency != nil {
+		fields = append(fields, roomfolioitem.FieldCurrency)
+	}
+	if m.charge_type != nil {
+		fields = append(fields, roomfolioitem.FieldChargeType)
+	}
+	if m.pos_order_id != nil {
+		fields = append(fields, roomfolioitem.FieldPosOrderID)
+	}
+	if m.created_by != nil {
+		fields = append(fields, roomfolioitem.FieldCreatedBy)
+	}
+	if m.metadata != nil {
+		fields = append(fields, roomfolioitem.FieldMetadata)
+	}
+	if m.created_at != nil {
+		fields = append(fields, roomfolioitem.FieldCreatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *RoomFolioItemMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case roomfolioitem.FieldTenantID:
+		return m.TenantID()
+	case roomfolioitem.FieldRoomID:
+		return m.RoomID()
+	case roomfolioitem.FieldRoomGuestID:
+		return m.RoomGuestID()
+	case roomfolioitem.FieldDescription:
+		return m.Description()
+	case roomfolioitem.FieldAmount:
+		return m.Amount()
+	case roomfolioitem.FieldCurrency:
+		return m.Currency()
+	case roomfolioitem.FieldChargeType:
+		return m.ChargeType()
+	case roomfolioitem.FieldPosOrderID:
+		return m.PosOrderID()
+	case roomfolioitem.FieldCreatedBy:
+		return m.CreatedBy()
+	case roomfolioitem.FieldMetadata:
+		return m.Metadata()
+	case roomfolioitem.FieldCreatedAt:
+		return m.CreatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *RoomFolioItemMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case roomfolioitem.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case roomfolioitem.FieldRoomID:
+		return m.OldRoomID(ctx)
+	case roomfolioitem.FieldRoomGuestID:
+		return m.OldRoomGuestID(ctx)
+	case roomfolioitem.FieldDescription:
+		return m.OldDescription(ctx)
+	case roomfolioitem.FieldAmount:
+		return m.OldAmount(ctx)
+	case roomfolioitem.FieldCurrency:
+		return m.OldCurrency(ctx)
+	case roomfolioitem.FieldChargeType:
+		return m.OldChargeType(ctx)
+	case roomfolioitem.FieldPosOrderID:
+		return m.OldPosOrderID(ctx)
+	case roomfolioitem.FieldCreatedBy:
+		return m.OldCreatedBy(ctx)
+	case roomfolioitem.FieldMetadata:
+		return m.OldMetadata(ctx)
+	case roomfolioitem.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown RoomFolioItem field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *RoomFolioItemMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case roomfolioitem.FieldTenantID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case roomfolioitem.FieldRoomID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRoomID(v)
+		return nil
+	case roomfolioitem.FieldRoomGuestID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRoomGuestID(v)
+		return nil
+	case roomfolioitem.FieldDescription:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDescription(v)
+		return nil
+	case roomfolioitem.FieldAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAmount(v)
+		return nil
+	case roomfolioitem.FieldCurrency:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCurrency(v)
+		return nil
+	case roomfolioitem.FieldChargeType:
+		v, ok := value.(roomfolioitem.ChargeType)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetChargeType(v)
+		return nil
+	case roomfolioitem.FieldPosOrderID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPosOrderID(v)
+		return nil
+	case roomfolioitem.FieldCreatedBy:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedBy(v)
+		return nil
+	case roomfolioitem.FieldMetadata:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMetadata(v)
+		return nil
+	case roomfolioitem.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown RoomFolioItem field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *RoomFolioItemMutation) AddedFields() []string {
+	var fields []string
+	if m.addamount != nil {
+		fields = append(fields, roomfolioitem.FieldAmount)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *RoomFolioItemMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case roomfolioitem.FieldAmount:
+		return m.AddedAmount()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *RoomFolioItemMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case roomfolioitem.FieldAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAmount(v)
+		return nil
+	}
+	return fmt.Errorf("unknown RoomFolioItem numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *RoomFolioItemMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(roomfolioitem.FieldPosOrderID) {
+		fields = append(fields, roomfolioitem.FieldPosOrderID)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *RoomFolioItemMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *RoomFolioItemMutation) ClearField(name string) error {
+	switch name {
+	case roomfolioitem.FieldPosOrderID:
+		m.ClearPosOrderID()
+		return nil
+	}
+	return fmt.Errorf("unknown RoomFolioItem nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *RoomFolioItemMutation) ResetField(name string) error {
+	switch name {
+	case roomfolioitem.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case roomfolioitem.FieldRoomID:
+		m.ResetRoomID()
+		return nil
+	case roomfolioitem.FieldRoomGuestID:
+		m.ResetRoomGuestID()
+		return nil
+	case roomfolioitem.FieldDescription:
+		m.ResetDescription()
+		return nil
+	case roomfolioitem.FieldAmount:
+		m.ResetAmount()
+		return nil
+	case roomfolioitem.FieldCurrency:
+		m.ResetCurrency()
+		return nil
+	case roomfolioitem.FieldChargeType:
+		m.ResetChargeType()
+		return nil
+	case roomfolioitem.FieldPosOrderID:
+		m.ResetPosOrderID()
+		return nil
+	case roomfolioitem.FieldCreatedBy:
+		m.ResetCreatedBy()
+		return nil
+	case roomfolioitem.FieldMetadata:
+		m.ResetMetadata()
+		return nil
+	case roomfolioitem.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown RoomFolioItem field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *RoomFolioItemMutation) AddedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.room != nil {
+		edges = append(edges, roomfolioitem.EdgeRoom)
+	}
+	if m.guest != nil {
+		edges = append(edges, roomfolioitem.EdgeGuest)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *RoomFolioItemMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case roomfolioitem.EdgeRoom:
+		if id := m.room; id != nil {
+			return []ent.Value{*id}
+		}
+	case roomfolioitem.EdgeGuest:
+		if id := m.guest; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *RoomFolioItemMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 2)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *RoomFolioItemMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *RoomFolioItemMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.clearedroom {
+		edges = append(edges, roomfolioitem.EdgeRoom)
+	}
+	if m.clearedguest {
+		edges = append(edges, roomfolioitem.EdgeGuest)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *RoomFolioItemMutation) EdgeCleared(name string) bool {
+	switch name {
+	case roomfolioitem.EdgeRoom:
+		return m.clearedroom
+	case roomfolioitem.EdgeGuest:
+		return m.clearedguest
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *RoomFolioItemMutation) ClearEdge(name string) error {
+	switch name {
+	case roomfolioitem.EdgeRoom:
+		m.ClearRoom()
+		return nil
+	case roomfolioitem.EdgeGuest:
+		m.ClearGuest()
+		return nil
+	}
+	return fmt.Errorf("unknown RoomFolioItem unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *RoomFolioItemMutation) ResetEdge(name string) error {
+	switch name {
+	case roomfolioitem.EdgeRoom:
+		m.ResetRoom()
+		return nil
+	case roomfolioitem.EdgeGuest:
+		m.ResetGuest()
+		return nil
+	}
+	return fmt.Errorf("unknown RoomFolioItem edge %s", name)
+}
+
+// RoomGuestMutation represents an operation that mutates the RoomGuest nodes in the graph.
+type RoomGuestMutation struct {
+	config
+	op                   Op
+	typ                  string
+	id                   *uuid.UUID
+	tenant_id            *uuid.UUID
+	guest_name           *string
+	phone                *string
+	id_number            *string
+	check_in_date        *time.Time
+	nights               *int
+	addnights            *int
+	check_out_date       *time.Time
+	total_room_charge    *float64
+	addtotal_room_charge *float64
+	status               *roomguest.Status
+	checked_in_by        *uuid.UUID
+	checked_out_by       *uuid.UUID
+	checked_in_at        *time.Time
+	checked_out_at       *time.Time
+	metadata             *map[string]interface{}
+	created_at           *time.Time
+	updated_at           *time.Time
+	clearedFields        map[string]struct{}
+	room                 *uuid.UUID
+	clearedroom          bool
+	folio_items          map[uuid.UUID]struct{}
+	removedfolio_items   map[uuid.UUID]struct{}
+	clearedfolio_items   bool
+	done                 bool
+	oldValue             func(context.Context) (*RoomGuest, error)
+	predicates           []predicate.RoomGuest
+}
+
+var _ ent.Mutation = (*RoomGuestMutation)(nil)
+
+// roomguestOption allows management of the mutation configuration using functional options.
+type roomguestOption func(*RoomGuestMutation)
+
+// newRoomGuestMutation creates new mutation for the RoomGuest entity.
+func newRoomGuestMutation(c config, op Op, opts ...roomguestOption) *RoomGuestMutation {
+	m := &RoomGuestMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeRoomGuest,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withRoomGuestID sets the ID field of the mutation.
+func withRoomGuestID(id uuid.UUID) roomguestOption {
+	return func(m *RoomGuestMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *RoomGuest
+		)
+		m.oldValue = func(ctx context.Context) (*RoomGuest, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().RoomGuest.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withRoomGuest sets the old RoomGuest of the mutation.
+func withRoomGuest(node *RoomGuest) roomguestOption {
+	return func(m *RoomGuestMutation) {
+		m.oldValue = func(context.Context) (*RoomGuest, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m RoomGuestMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m RoomGuestMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of RoomGuest entities.
+func (m *RoomGuestMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *RoomGuestMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *RoomGuestMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().RoomGuest.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *RoomGuestMutation) SetTenantID(u uuid.UUID) {
+	m.tenant_id = &u
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *RoomGuestMutation) TenantID() (r uuid.UUID, exists bool) {
+	v := m.tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the RoomGuest entity.
+// If the RoomGuest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoomGuestMutation) OldTenantID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *RoomGuestMutation) ResetTenantID() {
+	m.tenant_id = nil
+}
+
+// SetRoomID sets the "room_id" field.
+func (m *RoomGuestMutation) SetRoomID(u uuid.UUID) {
+	m.room = &u
+}
+
+// RoomID returns the value of the "room_id" field in the mutation.
+func (m *RoomGuestMutation) RoomID() (r uuid.UUID, exists bool) {
+	v := m.room
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRoomID returns the old "room_id" field's value of the RoomGuest entity.
+// If the RoomGuest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoomGuestMutation) OldRoomID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRoomID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRoomID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRoomID: %w", err)
+	}
+	return oldValue.RoomID, nil
+}
+
+// ResetRoomID resets all changes to the "room_id" field.
+func (m *RoomGuestMutation) ResetRoomID() {
+	m.room = nil
+}
+
+// SetGuestName sets the "guest_name" field.
+func (m *RoomGuestMutation) SetGuestName(s string) {
+	m.guest_name = &s
+}
+
+// GuestName returns the value of the "guest_name" field in the mutation.
+func (m *RoomGuestMutation) GuestName() (r string, exists bool) {
+	v := m.guest_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGuestName returns the old "guest_name" field's value of the RoomGuest entity.
+// If the RoomGuest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoomGuestMutation) OldGuestName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGuestName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGuestName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGuestName: %w", err)
+	}
+	return oldValue.GuestName, nil
+}
+
+// ResetGuestName resets all changes to the "guest_name" field.
+func (m *RoomGuestMutation) ResetGuestName() {
+	m.guest_name = nil
+}
+
+// SetPhone sets the "phone" field.
+func (m *RoomGuestMutation) SetPhone(s string) {
+	m.phone = &s
+}
+
+// Phone returns the value of the "phone" field in the mutation.
+func (m *RoomGuestMutation) Phone() (r string, exists bool) {
+	v := m.phone
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPhone returns the old "phone" field's value of the RoomGuest entity.
+// If the RoomGuest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoomGuestMutation) OldPhone(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPhone is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPhone requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPhone: %w", err)
+	}
+	return oldValue.Phone, nil
+}
+
+// ResetPhone resets all changes to the "phone" field.
+func (m *RoomGuestMutation) ResetPhone() {
+	m.phone = nil
+}
+
+// SetIDNumber sets the "id_number" field.
+func (m *RoomGuestMutation) SetIDNumber(s string) {
+	m.id_number = &s
+}
+
+// IDNumber returns the value of the "id_number" field in the mutation.
+func (m *RoomGuestMutation) IDNumber() (r string, exists bool) {
+	v := m.id_number
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIDNumber returns the old "id_number" field's value of the RoomGuest entity.
+// If the RoomGuest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoomGuestMutation) OldIDNumber(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIDNumber is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIDNumber requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIDNumber: %w", err)
+	}
+	return oldValue.IDNumber, nil
+}
+
+// ResetIDNumber resets all changes to the "id_number" field.
+func (m *RoomGuestMutation) ResetIDNumber() {
+	m.id_number = nil
+}
+
+// SetCheckInDate sets the "check_in_date" field.
+func (m *RoomGuestMutation) SetCheckInDate(t time.Time) {
+	m.check_in_date = &t
+}
+
+// CheckInDate returns the value of the "check_in_date" field in the mutation.
+func (m *RoomGuestMutation) CheckInDate() (r time.Time, exists bool) {
+	v := m.check_in_date
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCheckInDate returns the old "check_in_date" field's value of the RoomGuest entity.
+// If the RoomGuest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoomGuestMutation) OldCheckInDate(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCheckInDate is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCheckInDate requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCheckInDate: %w", err)
+	}
+	return oldValue.CheckInDate, nil
+}
+
+// ResetCheckInDate resets all changes to the "check_in_date" field.
+func (m *RoomGuestMutation) ResetCheckInDate() {
+	m.check_in_date = nil
+}
+
+// SetNights sets the "nights" field.
+func (m *RoomGuestMutation) SetNights(i int) {
+	m.nights = &i
+	m.addnights = nil
+}
+
+// Nights returns the value of the "nights" field in the mutation.
+func (m *RoomGuestMutation) Nights() (r int, exists bool) {
+	v := m.nights
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNights returns the old "nights" field's value of the RoomGuest entity.
+// If the RoomGuest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoomGuestMutation) OldNights(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNights is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNights requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNights: %w", err)
+	}
+	return oldValue.Nights, nil
+}
+
+// AddNights adds i to the "nights" field.
+func (m *RoomGuestMutation) AddNights(i int) {
+	if m.addnights != nil {
+		*m.addnights += i
+	} else {
+		m.addnights = &i
+	}
+}
+
+// AddedNights returns the value that was added to the "nights" field in this mutation.
+func (m *RoomGuestMutation) AddedNights() (r int, exists bool) {
+	v := m.addnights
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetNights resets all changes to the "nights" field.
+func (m *RoomGuestMutation) ResetNights() {
+	m.nights = nil
+	m.addnights = nil
+}
+
+// SetCheckOutDate sets the "check_out_date" field.
+func (m *RoomGuestMutation) SetCheckOutDate(t time.Time) {
+	m.check_out_date = &t
+}
+
+// CheckOutDate returns the value of the "check_out_date" field in the mutation.
+func (m *RoomGuestMutation) CheckOutDate() (r time.Time, exists bool) {
+	v := m.check_out_date
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCheckOutDate returns the old "check_out_date" field's value of the RoomGuest entity.
+// If the RoomGuest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoomGuestMutation) OldCheckOutDate(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCheckOutDate is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCheckOutDate requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCheckOutDate: %w", err)
+	}
+	return oldValue.CheckOutDate, nil
+}
+
+// ResetCheckOutDate resets all changes to the "check_out_date" field.
+func (m *RoomGuestMutation) ResetCheckOutDate() {
+	m.check_out_date = nil
+}
+
+// SetTotalRoomCharge sets the "total_room_charge" field.
+func (m *RoomGuestMutation) SetTotalRoomCharge(f float64) {
+	m.total_room_charge = &f
+	m.addtotal_room_charge = nil
+}
+
+// TotalRoomCharge returns the value of the "total_room_charge" field in the mutation.
+func (m *RoomGuestMutation) TotalRoomCharge() (r float64, exists bool) {
+	v := m.total_room_charge
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTotalRoomCharge returns the old "total_room_charge" field's value of the RoomGuest entity.
+// If the RoomGuest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoomGuestMutation) OldTotalRoomCharge(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTotalRoomCharge is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTotalRoomCharge requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTotalRoomCharge: %w", err)
+	}
+	return oldValue.TotalRoomCharge, nil
+}
+
+// AddTotalRoomCharge adds f to the "total_room_charge" field.
+func (m *RoomGuestMutation) AddTotalRoomCharge(f float64) {
+	if m.addtotal_room_charge != nil {
+		*m.addtotal_room_charge += f
+	} else {
+		m.addtotal_room_charge = &f
+	}
+}
+
+// AddedTotalRoomCharge returns the value that was added to the "total_room_charge" field in this mutation.
+func (m *RoomGuestMutation) AddedTotalRoomCharge() (r float64, exists bool) {
+	v := m.addtotal_room_charge
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetTotalRoomCharge resets all changes to the "total_room_charge" field.
+func (m *RoomGuestMutation) ResetTotalRoomCharge() {
+	m.total_room_charge = nil
+	m.addtotal_room_charge = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *RoomGuestMutation) SetStatus(r roomguest.Status) {
+	m.status = &r
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *RoomGuestMutation) Status() (r roomguest.Status, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the RoomGuest entity.
+// If the RoomGuest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoomGuestMutation) OldStatus(ctx context.Context) (v roomguest.Status, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *RoomGuestMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetCheckedInBy sets the "checked_in_by" field.
+func (m *RoomGuestMutation) SetCheckedInBy(u uuid.UUID) {
+	m.checked_in_by = &u
+}
+
+// CheckedInBy returns the value of the "checked_in_by" field in the mutation.
+func (m *RoomGuestMutation) CheckedInBy() (r uuid.UUID, exists bool) {
+	v := m.checked_in_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCheckedInBy returns the old "checked_in_by" field's value of the RoomGuest entity.
+// If the RoomGuest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoomGuestMutation) OldCheckedInBy(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCheckedInBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCheckedInBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCheckedInBy: %w", err)
+	}
+	return oldValue.CheckedInBy, nil
+}
+
+// ResetCheckedInBy resets all changes to the "checked_in_by" field.
+func (m *RoomGuestMutation) ResetCheckedInBy() {
+	m.checked_in_by = nil
+}
+
+// SetCheckedOutBy sets the "checked_out_by" field.
+func (m *RoomGuestMutation) SetCheckedOutBy(u uuid.UUID) {
+	m.checked_out_by = &u
+}
+
+// CheckedOutBy returns the value of the "checked_out_by" field in the mutation.
+func (m *RoomGuestMutation) CheckedOutBy() (r uuid.UUID, exists bool) {
+	v := m.checked_out_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCheckedOutBy returns the old "checked_out_by" field's value of the RoomGuest entity.
+// If the RoomGuest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoomGuestMutation) OldCheckedOutBy(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCheckedOutBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCheckedOutBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCheckedOutBy: %w", err)
+	}
+	return oldValue.CheckedOutBy, nil
+}
+
+// ClearCheckedOutBy clears the value of the "checked_out_by" field.
+func (m *RoomGuestMutation) ClearCheckedOutBy() {
+	m.checked_out_by = nil
+	m.clearedFields[roomguest.FieldCheckedOutBy] = struct{}{}
+}
+
+// CheckedOutByCleared returns if the "checked_out_by" field was cleared in this mutation.
+func (m *RoomGuestMutation) CheckedOutByCleared() bool {
+	_, ok := m.clearedFields[roomguest.FieldCheckedOutBy]
+	return ok
+}
+
+// ResetCheckedOutBy resets all changes to the "checked_out_by" field.
+func (m *RoomGuestMutation) ResetCheckedOutBy() {
+	m.checked_out_by = nil
+	delete(m.clearedFields, roomguest.FieldCheckedOutBy)
+}
+
+// SetCheckedInAt sets the "checked_in_at" field.
+func (m *RoomGuestMutation) SetCheckedInAt(t time.Time) {
+	m.checked_in_at = &t
+}
+
+// CheckedInAt returns the value of the "checked_in_at" field in the mutation.
+func (m *RoomGuestMutation) CheckedInAt() (r time.Time, exists bool) {
+	v := m.checked_in_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCheckedInAt returns the old "checked_in_at" field's value of the RoomGuest entity.
+// If the RoomGuest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoomGuestMutation) OldCheckedInAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCheckedInAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCheckedInAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCheckedInAt: %w", err)
+	}
+	return oldValue.CheckedInAt, nil
+}
+
+// ResetCheckedInAt resets all changes to the "checked_in_at" field.
+func (m *RoomGuestMutation) ResetCheckedInAt() {
+	m.checked_in_at = nil
+}
+
+// SetCheckedOutAt sets the "checked_out_at" field.
+func (m *RoomGuestMutation) SetCheckedOutAt(t time.Time) {
+	m.checked_out_at = &t
+}
+
+// CheckedOutAt returns the value of the "checked_out_at" field in the mutation.
+func (m *RoomGuestMutation) CheckedOutAt() (r time.Time, exists bool) {
+	v := m.checked_out_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCheckedOutAt returns the old "checked_out_at" field's value of the RoomGuest entity.
+// If the RoomGuest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoomGuestMutation) OldCheckedOutAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCheckedOutAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCheckedOutAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCheckedOutAt: %w", err)
+	}
+	return oldValue.CheckedOutAt, nil
+}
+
+// ClearCheckedOutAt clears the value of the "checked_out_at" field.
+func (m *RoomGuestMutation) ClearCheckedOutAt() {
+	m.checked_out_at = nil
+	m.clearedFields[roomguest.FieldCheckedOutAt] = struct{}{}
+}
+
+// CheckedOutAtCleared returns if the "checked_out_at" field was cleared in this mutation.
+func (m *RoomGuestMutation) CheckedOutAtCleared() bool {
+	_, ok := m.clearedFields[roomguest.FieldCheckedOutAt]
+	return ok
+}
+
+// ResetCheckedOutAt resets all changes to the "checked_out_at" field.
+func (m *RoomGuestMutation) ResetCheckedOutAt() {
+	m.checked_out_at = nil
+	delete(m.clearedFields, roomguest.FieldCheckedOutAt)
+}
+
+// SetMetadata sets the "metadata" field.
+func (m *RoomGuestMutation) SetMetadata(value map[string]interface{}) {
+	m.metadata = &value
+}
+
+// Metadata returns the value of the "metadata" field in the mutation.
+func (m *RoomGuestMutation) Metadata() (r map[string]interface{}, exists bool) {
+	v := m.metadata
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMetadata returns the old "metadata" field's value of the RoomGuest entity.
+// If the RoomGuest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoomGuestMutation) OldMetadata(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMetadata is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMetadata requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMetadata: %w", err)
+	}
+	return oldValue.Metadata, nil
+}
+
+// ResetMetadata resets all changes to the "metadata" field.
+func (m *RoomGuestMutation) ResetMetadata() {
+	m.metadata = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *RoomGuestMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *RoomGuestMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the RoomGuest entity.
+// If the RoomGuest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoomGuestMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *RoomGuestMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *RoomGuestMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *RoomGuestMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the RoomGuest entity.
+// If the RoomGuest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoomGuestMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *RoomGuestMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// ClearRoom clears the "room" edge to the Room entity.
+func (m *RoomGuestMutation) ClearRoom() {
+	m.clearedroom = true
+	m.clearedFields[roomguest.FieldRoomID] = struct{}{}
+}
+
+// RoomCleared reports if the "room" edge to the Room entity was cleared.
+func (m *RoomGuestMutation) RoomCleared() bool {
+	return m.clearedroom
+}
+
+// RoomIDs returns the "room" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// RoomID instead. It exists only for internal usage by the builders.
+func (m *RoomGuestMutation) RoomIDs() (ids []uuid.UUID) {
+	if id := m.room; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetRoom resets all changes to the "room" edge.
+func (m *RoomGuestMutation) ResetRoom() {
+	m.room = nil
+	m.clearedroom = false
+}
+
+// AddFolioItemIDs adds the "folio_items" edge to the RoomFolioItem entity by ids.
+func (m *RoomGuestMutation) AddFolioItemIDs(ids ...uuid.UUID) {
+	if m.folio_items == nil {
+		m.folio_items = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		m.folio_items[ids[i]] = struct{}{}
+	}
+}
+
+// ClearFolioItems clears the "folio_items" edge to the RoomFolioItem entity.
+func (m *RoomGuestMutation) ClearFolioItems() {
+	m.clearedfolio_items = true
+}
+
+// FolioItemsCleared reports if the "folio_items" edge to the RoomFolioItem entity was cleared.
+func (m *RoomGuestMutation) FolioItemsCleared() bool {
+	return m.clearedfolio_items
+}
+
+// RemoveFolioItemIDs removes the "folio_items" edge to the RoomFolioItem entity by IDs.
+func (m *RoomGuestMutation) RemoveFolioItemIDs(ids ...uuid.UUID) {
+	if m.removedfolio_items == nil {
+		m.removedfolio_items = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		delete(m.folio_items, ids[i])
+		m.removedfolio_items[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedFolioItems returns the removed IDs of the "folio_items" edge to the RoomFolioItem entity.
+func (m *RoomGuestMutation) RemovedFolioItemsIDs() (ids []uuid.UUID) {
+	for id := range m.removedfolio_items {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// FolioItemsIDs returns the "folio_items" edge IDs in the mutation.
+func (m *RoomGuestMutation) FolioItemsIDs() (ids []uuid.UUID) {
+	for id := range m.folio_items {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetFolioItems resets all changes to the "folio_items" edge.
+func (m *RoomGuestMutation) ResetFolioItems() {
+	m.folio_items = nil
+	m.clearedfolio_items = false
+	m.removedfolio_items = nil
+}
+
+// Where appends a list predicates to the RoomGuestMutation builder.
+func (m *RoomGuestMutation) Where(ps ...predicate.RoomGuest) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the RoomGuestMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *RoomGuestMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.RoomGuest, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *RoomGuestMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *RoomGuestMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (RoomGuest).
+func (m *RoomGuestMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *RoomGuestMutation) Fields() []string {
+	fields := make([]string, 0, 17)
+	if m.tenant_id != nil {
+		fields = append(fields, roomguest.FieldTenantID)
+	}
+	if m.room != nil {
+		fields = append(fields, roomguest.FieldRoomID)
+	}
+	if m.guest_name != nil {
+		fields = append(fields, roomguest.FieldGuestName)
+	}
+	if m.phone != nil {
+		fields = append(fields, roomguest.FieldPhone)
+	}
+	if m.id_number != nil {
+		fields = append(fields, roomguest.FieldIDNumber)
+	}
+	if m.check_in_date != nil {
+		fields = append(fields, roomguest.FieldCheckInDate)
+	}
+	if m.nights != nil {
+		fields = append(fields, roomguest.FieldNights)
+	}
+	if m.check_out_date != nil {
+		fields = append(fields, roomguest.FieldCheckOutDate)
+	}
+	if m.total_room_charge != nil {
+		fields = append(fields, roomguest.FieldTotalRoomCharge)
+	}
+	if m.status != nil {
+		fields = append(fields, roomguest.FieldStatus)
+	}
+	if m.checked_in_by != nil {
+		fields = append(fields, roomguest.FieldCheckedInBy)
+	}
+	if m.checked_out_by != nil {
+		fields = append(fields, roomguest.FieldCheckedOutBy)
+	}
+	if m.checked_in_at != nil {
+		fields = append(fields, roomguest.FieldCheckedInAt)
+	}
+	if m.checked_out_at != nil {
+		fields = append(fields, roomguest.FieldCheckedOutAt)
+	}
+	if m.metadata != nil {
+		fields = append(fields, roomguest.FieldMetadata)
+	}
+	if m.created_at != nil {
+		fields = append(fields, roomguest.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, roomguest.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *RoomGuestMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case roomguest.FieldTenantID:
+		return m.TenantID()
+	case roomguest.FieldRoomID:
+		return m.RoomID()
+	case roomguest.FieldGuestName:
+		return m.GuestName()
+	case roomguest.FieldPhone:
+		return m.Phone()
+	case roomguest.FieldIDNumber:
+		return m.IDNumber()
+	case roomguest.FieldCheckInDate:
+		return m.CheckInDate()
+	case roomguest.FieldNights:
+		return m.Nights()
+	case roomguest.FieldCheckOutDate:
+		return m.CheckOutDate()
+	case roomguest.FieldTotalRoomCharge:
+		return m.TotalRoomCharge()
+	case roomguest.FieldStatus:
+		return m.Status()
+	case roomguest.FieldCheckedInBy:
+		return m.CheckedInBy()
+	case roomguest.FieldCheckedOutBy:
+		return m.CheckedOutBy()
+	case roomguest.FieldCheckedInAt:
+		return m.CheckedInAt()
+	case roomguest.FieldCheckedOutAt:
+		return m.CheckedOutAt()
+	case roomguest.FieldMetadata:
+		return m.Metadata()
+	case roomguest.FieldCreatedAt:
+		return m.CreatedAt()
+	case roomguest.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *RoomGuestMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case roomguest.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case roomguest.FieldRoomID:
+		return m.OldRoomID(ctx)
+	case roomguest.FieldGuestName:
+		return m.OldGuestName(ctx)
+	case roomguest.FieldPhone:
+		return m.OldPhone(ctx)
+	case roomguest.FieldIDNumber:
+		return m.OldIDNumber(ctx)
+	case roomguest.FieldCheckInDate:
+		return m.OldCheckInDate(ctx)
+	case roomguest.FieldNights:
+		return m.OldNights(ctx)
+	case roomguest.FieldCheckOutDate:
+		return m.OldCheckOutDate(ctx)
+	case roomguest.FieldTotalRoomCharge:
+		return m.OldTotalRoomCharge(ctx)
+	case roomguest.FieldStatus:
+		return m.OldStatus(ctx)
+	case roomguest.FieldCheckedInBy:
+		return m.OldCheckedInBy(ctx)
+	case roomguest.FieldCheckedOutBy:
+		return m.OldCheckedOutBy(ctx)
+	case roomguest.FieldCheckedInAt:
+		return m.OldCheckedInAt(ctx)
+	case roomguest.FieldCheckedOutAt:
+		return m.OldCheckedOutAt(ctx)
+	case roomguest.FieldMetadata:
+		return m.OldMetadata(ctx)
+	case roomguest.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case roomguest.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown RoomGuest field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *RoomGuestMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case roomguest.FieldTenantID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case roomguest.FieldRoomID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRoomID(v)
+		return nil
+	case roomguest.FieldGuestName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGuestName(v)
+		return nil
+	case roomguest.FieldPhone:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPhone(v)
+		return nil
+	case roomguest.FieldIDNumber:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIDNumber(v)
+		return nil
+	case roomguest.FieldCheckInDate:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCheckInDate(v)
+		return nil
+	case roomguest.FieldNights:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNights(v)
+		return nil
+	case roomguest.FieldCheckOutDate:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCheckOutDate(v)
+		return nil
+	case roomguest.FieldTotalRoomCharge:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTotalRoomCharge(v)
+		return nil
+	case roomguest.FieldStatus:
+		v, ok := value.(roomguest.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case roomguest.FieldCheckedInBy:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCheckedInBy(v)
+		return nil
+	case roomguest.FieldCheckedOutBy:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCheckedOutBy(v)
+		return nil
+	case roomguest.FieldCheckedInAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCheckedInAt(v)
+		return nil
+	case roomguest.FieldCheckedOutAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCheckedOutAt(v)
+		return nil
+	case roomguest.FieldMetadata:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMetadata(v)
+		return nil
+	case roomguest.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case roomguest.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown RoomGuest field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *RoomGuestMutation) AddedFields() []string {
+	var fields []string
+	if m.addnights != nil {
+		fields = append(fields, roomguest.FieldNights)
+	}
+	if m.addtotal_room_charge != nil {
+		fields = append(fields, roomguest.FieldTotalRoomCharge)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *RoomGuestMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case roomguest.FieldNights:
+		return m.AddedNights()
+	case roomguest.FieldTotalRoomCharge:
+		return m.AddedTotalRoomCharge()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *RoomGuestMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case roomguest.FieldNights:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddNights(v)
+		return nil
+	case roomguest.FieldTotalRoomCharge:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTotalRoomCharge(v)
+		return nil
+	}
+	return fmt.Errorf("unknown RoomGuest numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *RoomGuestMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(roomguest.FieldCheckedOutBy) {
+		fields = append(fields, roomguest.FieldCheckedOutBy)
+	}
+	if m.FieldCleared(roomguest.FieldCheckedOutAt) {
+		fields = append(fields, roomguest.FieldCheckedOutAt)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *RoomGuestMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *RoomGuestMutation) ClearField(name string) error {
+	switch name {
+	case roomguest.FieldCheckedOutBy:
+		m.ClearCheckedOutBy()
+		return nil
+	case roomguest.FieldCheckedOutAt:
+		m.ClearCheckedOutAt()
+		return nil
+	}
+	return fmt.Errorf("unknown RoomGuest nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *RoomGuestMutation) ResetField(name string) error {
+	switch name {
+	case roomguest.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case roomguest.FieldRoomID:
+		m.ResetRoomID()
+		return nil
+	case roomguest.FieldGuestName:
+		m.ResetGuestName()
+		return nil
+	case roomguest.FieldPhone:
+		m.ResetPhone()
+		return nil
+	case roomguest.FieldIDNumber:
+		m.ResetIDNumber()
+		return nil
+	case roomguest.FieldCheckInDate:
+		m.ResetCheckInDate()
+		return nil
+	case roomguest.FieldNights:
+		m.ResetNights()
+		return nil
+	case roomguest.FieldCheckOutDate:
+		m.ResetCheckOutDate()
+		return nil
+	case roomguest.FieldTotalRoomCharge:
+		m.ResetTotalRoomCharge()
+		return nil
+	case roomguest.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case roomguest.FieldCheckedInBy:
+		m.ResetCheckedInBy()
+		return nil
+	case roomguest.FieldCheckedOutBy:
+		m.ResetCheckedOutBy()
+		return nil
+	case roomguest.FieldCheckedInAt:
+		m.ResetCheckedInAt()
+		return nil
+	case roomguest.FieldCheckedOutAt:
+		m.ResetCheckedOutAt()
+		return nil
+	case roomguest.FieldMetadata:
+		m.ResetMetadata()
+		return nil
+	case roomguest.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case roomguest.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown RoomGuest field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *RoomGuestMutation) AddedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.room != nil {
+		edges = append(edges, roomguest.EdgeRoom)
+	}
+	if m.folio_items != nil {
+		edges = append(edges, roomguest.EdgeFolioItems)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *RoomGuestMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case roomguest.EdgeRoom:
+		if id := m.room; id != nil {
+			return []ent.Value{*id}
+		}
+	case roomguest.EdgeFolioItems:
+		ids := make([]ent.Value, 0, len(m.folio_items))
+		for id := range m.folio_items {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *RoomGuestMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.removedfolio_items != nil {
+		edges = append(edges, roomguest.EdgeFolioItems)
+	}
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *RoomGuestMutation) RemovedIDs(name string) []ent.Value {
+	switch name {
+	case roomguest.EdgeFolioItems:
+		ids := make([]ent.Value, 0, len(m.removedfolio_items))
+		for id := range m.removedfolio_items {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *RoomGuestMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.clearedroom {
+		edges = append(edges, roomguest.EdgeRoom)
+	}
+	if m.clearedfolio_items {
+		edges = append(edges, roomguest.EdgeFolioItems)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *RoomGuestMutation) EdgeCleared(name string) bool {
+	switch name {
+	case roomguest.EdgeRoom:
+		return m.clearedroom
+	case roomguest.EdgeFolioItems:
+		return m.clearedfolio_items
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *RoomGuestMutation) ClearEdge(name string) error {
+	switch name {
+	case roomguest.EdgeRoom:
+		m.ClearRoom()
+		return nil
+	}
+	return fmt.Errorf("unknown RoomGuest unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *RoomGuestMutation) ResetEdge(name string) error {
+	switch name {
+	case roomguest.EdgeRoom:
+		m.ResetRoom()
+		return nil
+	case roomguest.EdgeFolioItems:
+		m.ResetFolioItems()
+		return nil
+	}
+	return fmt.Errorf("unknown RoomGuest edge %s", name)
 }
 
 // SectionMutation represents an operation that mutates the Section nodes in the graph.

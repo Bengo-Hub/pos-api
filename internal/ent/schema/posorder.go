@@ -37,6 +37,17 @@ func (POSOrder) Fields() []ent.Field {
 		field.Float("total_amount"),
 		field.String("currency").
 			Default("KES"),
+		field.Enum("order_subtype").
+			Values("dine_in", "takeaway", "room_service", "delivery", "bar_tab").
+			Default("dine_in"),
+		field.UUID("room_id", uuid.UUID{}).
+			Optional().
+			Nillable().
+			Comment("Room service: linked room"),
+		field.UUID("room_guest_id", uuid.UUID{}).
+			Optional().
+			Nillable().
+			Comment("Room service: linked guest stay"),
 		field.JSON("metadata", map[string]any{}).
 			Default(map[string]any{}),
 		field.Time("created_at").

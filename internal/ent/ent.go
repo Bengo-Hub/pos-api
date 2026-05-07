@@ -21,6 +21,8 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/channelintegration"
 	"github.com/bengobox/pos-service/internal/ent/channelsyncjob"
 	"github.com/bengobox/pos-service/internal/ent/commissionrecord"
+	"github.com/bengobox/pos-service/internal/ent/facility"
+	"github.com/bengobox/pos-service/internal/ent/facilitybooking"
 	"github.com/bengobox/pos-service/internal/ent/featureoverride"
 	"github.com/bengobox/pos-service/internal/ent/giftcard"
 	"github.com/bengobox/pos-service/internal/ent/giftcardtransaction"
@@ -54,6 +56,9 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/promotionapplication"
 	"github.com/bengobox/pos-service/internal/ent/promotionrule"
 	"github.com/bengobox/pos-service/internal/ent/ratelimitconfig"
+	"github.com/bengobox/pos-service/internal/ent/room"
+	"github.com/bengobox/pos-service/internal/ent/roomfolioitem"
+	"github.com/bengobox/pos-service/internal/ent/roomguest"
 	"github.com/bengobox/pos-service/internal/ent/section"
 	"github.com/bengobox/pos-service/internal/ent/serialnumberlog"
 	"github.com/bengobox/pos-service/internal/ent/serviceconfig"
@@ -138,6 +143,8 @@ func checkColumn(t, c string) error {
 			channelintegration.Table:     channelintegration.ValidColumn,
 			channelsyncjob.Table:         channelsyncjob.ValidColumn,
 			commissionrecord.Table:       commissionrecord.ValidColumn,
+			facility.Table:               facility.ValidColumn,
+			facilitybooking.Table:        facilitybooking.ValidColumn,
 			featureoverride.Table:        featureoverride.ValidColumn,
 			giftcard.Table:               giftcard.ValidColumn,
 			giftcardtransaction.Table:    giftcardtransaction.ValidColumn,
@@ -171,6 +178,9 @@ func checkColumn(t, c string) error {
 			promotionapplication.Table:   promotionapplication.ValidColumn,
 			promotionrule.Table:          promotionrule.ValidColumn,
 			ratelimitconfig.Table:        ratelimitconfig.ValidColumn,
+			room.Table:                   room.ValidColumn,
+			roomfolioitem.Table:          roomfolioitem.ValidColumn,
+			roomguest.Table:              roomguest.ValidColumn,
 			section.Table:                section.ValidColumn,
 			serialnumberlog.Table:        serialnumberlog.ValidColumn,
 			serviceconfig.Table:          serviceconfig.ValidColumn,

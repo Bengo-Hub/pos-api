@@ -238,6 +238,88 @@ var (
 			},
 		},
 	}
+	// FacilitiesColumns holds the columns for the "facilities" table.
+	FacilitiesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "outlet_id", Type: field.TypeUUID},
+		{Name: "name", Type: field.TypeString},
+		{Name: "facility_type", Type: field.TypeEnum, Enums: []string{"pool", "gym", "conference", "spa", "kids_area", "other"}, Default: "other"},
+		{Name: "capacity", Type: field.TypeInt, Default: 0},
+		{Name: "rate_per_session", Type: field.TypeFloat64},
+		{Name: "currency", Type: field.TypeString, Default: "KES"},
+		{Name: "opening_time", Type: field.TypeString, Default: "06:00"},
+		{Name: "closing_time", Type: field.TypeString, Default: "22:00"},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"available", "occupied", "maintenance", "closed"}, Default: "available"},
+		{Name: "is_active", Type: field.TypeBool, Default: true},
+		{Name: "metadata", Type: field.TypeJSON},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// FacilitiesTable holds the schema information for the "facilities" table.
+	FacilitiesTable = &schema.Table{
+		Name:       "facilities",
+		Columns:    FacilitiesColumns,
+		PrimaryKey: []*schema.Column{FacilitiesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "facility_tenant_id_outlet_id",
+				Unique:  false,
+				Columns: []*schema.Column{FacilitiesColumns[1], FacilitiesColumns[2]},
+			},
+			{
+				Name:    "facility_tenant_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{FacilitiesColumns[1], FacilitiesColumns[10]},
+			},
+		},
+	}
+	// FacilityBookingsColumns holds the columns for the "facility_bookings" table.
+	FacilityBookingsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "room_guest_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "guest_name", Type: field.TypeString},
+		{Name: "phone", Type: field.TypeString},
+		{Name: "session_date", Type: field.TypeTime},
+		{Name: "start_time", Type: field.TypeString},
+		{Name: "end_time", Type: field.TypeString},
+		{Name: "guests_count", Type: field.TypeInt, Default: 1},
+		{Name: "amount", Type: field.TypeFloat64},
+		{Name: "currency", Type: field.TypeString, Default: "KES"},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"confirmed", "cancelled", "completed"}, Default: "confirmed"},
+		{Name: "booked_by", Type: field.TypeUUID},
+		{Name: "notes", Type: field.TypeString, Nullable: true},
+		{Name: "metadata", Type: field.TypeJSON},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "facility_id", Type: field.TypeUUID},
+	}
+	// FacilityBookingsTable holds the schema information for the "facility_bookings" table.
+	FacilityBookingsTable = &schema.Table{
+		Name:       "facility_bookings",
+		Columns:    FacilityBookingsColumns,
+		PrimaryKey: []*schema.Column{FacilityBookingsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "facility_bookings_facilities_bookings",
+				Columns:    []*schema.Column{FacilityBookingsColumns[16]},
+				RefColumns: []*schema.Column{FacilitiesColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "facilitybooking_tenant_id_facility_id",
+				Unique:  false,
+				Columns: []*schema.Column{FacilityBookingsColumns[1], FacilityBookingsColumns[16]},
+			},
+			{
+				Name:    "facilitybooking_tenant_id_session_date_status",
+				Unique:  false,
+				Columns: []*schema.Column{FacilityBookingsColumns[1], FacilityBookingsColumns[5], FacilityBookingsColumns[11]},
+			},
+		},
+	}
 	// FeatureOverridesColumns holds the columns for the "feature_overrides" table.
 	FeatureOverridesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -455,14 +537,16 @@ var (
 	OutboxEventsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
 		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "aggregate_type", Type: field.TypeString},
+		{Name: "aggregate_id", Type: field.TypeString},
 		{Name: "event_type", Type: field.TypeString},
 		{Name: "payload", Type: field.TypeJSON},
-		{Name: "metadata", Type: field.TypeJSON, Nullable: true},
-		{Name: "status", Type: field.TypeString, Default: "pending"},
-		{Name: "retry_count", Type: field.TypeInt, Default: 0},
+		{Name: "status", Type: field.TypeString, Default: "PENDING"},
+		{Name: "attempts", Type: field.TypeInt, Default: 0},
+		{Name: "last_attempt_at", Type: field.TypeTime, Nullable: true},
+		{Name: "published_at", Type: field.TypeTime, Nullable: true},
+		{Name: "error_message", Type: field.TypeString, Nullable: true, Size: 2147483647},
 		{Name: "created_at", Type: field.TypeTime},
-		{Name: "processed_at", Type: field.TypeTime, Nullable: true},
-		{Name: "last_error", Type: field.TypeString, Nullable: true},
 	}
 	// OutboxEventsTable holds the schema information for the "outbox_events" table.
 	OutboxEventsTable = &schema.Table{
@@ -471,14 +555,19 @@ var (
 		PrimaryKey: []*schema.Column{OutboxEventsColumns[0]},
 		Indexes: []*schema.Index{
 			{
-				Name:    "outboxevent_status_created_at",
+				Name:    "outboxevent_status",
 				Unique:  false,
-				Columns: []*schema.Column{OutboxEventsColumns[5], OutboxEventsColumns[7]},
+				Columns: []*schema.Column{OutboxEventsColumns[6]},
 			},
 			{
-				Name:    "outboxevent_tenant_id",
+				Name:    "outboxevent_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{OutboxEventsColumns[1]},
+				Columns: []*schema.Column{OutboxEventsColumns[11]},
+			},
+			{
+				Name:    "outboxevent_tenant_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{OutboxEventsColumns[1], OutboxEventsColumns[6]},
 			},
 		},
 	}
@@ -658,6 +747,9 @@ var (
 		{Name: "discount_total", Type: field.TypeFloat64, Default: 0},
 		{Name: "total_amount", Type: field.TypeFloat64},
 		{Name: "currency", Type: field.TypeString, Default: "KES"},
+		{Name: "order_subtype", Type: field.TypeEnum, Enums: []string{"dine_in", "takeaway", "room_service", "delivery", "bar_tab"}, Default: "dine_in"},
+		{Name: "room_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "room_guest_id", Type: field.TypeUUID, Nullable: true},
 		{Name: "metadata", Type: field.TypeJSON},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
@@ -1099,6 +1191,140 @@ var (
 			},
 		},
 	}
+	// RoomsColumns holds the columns for the "rooms" table.
+	RoomsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "outlet_id", Type: field.TypeUUID},
+		{Name: "room_number", Type: field.TypeString},
+		{Name: "name", Type: field.TypeString},
+		{Name: "room_type", Type: field.TypeEnum, Enums: []string{"standard", "deluxe", "suite", "presidential", "other"}, Default: "standard"},
+		{Name: "floor", Type: field.TypeInt, Default: 1},
+		{Name: "rate_per_night", Type: field.TypeFloat64},
+		{Name: "currency", Type: field.TypeString, Default: "KES"},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"available", "occupied", "cleaning", "maintenance", "reserved", "checkout"}, Default: "available"},
+		{Name: "is_active", Type: field.TypeBool, Default: true},
+		{Name: "metadata", Type: field.TypeJSON},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// RoomsTable holds the schema information for the "rooms" table.
+	RoomsTable = &schema.Table{
+		Name:       "rooms",
+		Columns:    RoomsColumns,
+		PrimaryKey: []*schema.Column{RoomsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "room_tenant_id_outlet_id",
+				Unique:  false,
+				Columns: []*schema.Column{RoomsColumns[1], RoomsColumns[2]},
+			},
+			{
+				Name:    "room_tenant_id_room_number",
+				Unique:  true,
+				Columns: []*schema.Column{RoomsColumns[1], RoomsColumns[3]},
+			},
+			{
+				Name:    "room_tenant_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{RoomsColumns[1], RoomsColumns[9]},
+			},
+		},
+	}
+	// RoomFolioItemsColumns holds the columns for the "room_folio_items" table.
+	RoomFolioItemsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "description", Type: field.TypeString},
+		{Name: "amount", Type: field.TypeFloat64},
+		{Name: "currency", Type: field.TypeString, Default: "KES"},
+		{Name: "charge_type", Type: field.TypeEnum, Enums: []string{"room_charge", "food", "laundry", "minibar", "room_service", "other"}, Default: "other"},
+		{Name: "pos_order_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "created_by", Type: field.TypeUUID},
+		{Name: "metadata", Type: field.TypeJSON},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "room_id", Type: field.TypeUUID},
+		{Name: "room_guest_id", Type: field.TypeUUID},
+	}
+	// RoomFolioItemsTable holds the schema information for the "room_folio_items" table.
+	RoomFolioItemsTable = &schema.Table{
+		Name:       "room_folio_items",
+		Columns:    RoomFolioItemsColumns,
+		PrimaryKey: []*schema.Column{RoomFolioItemsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "room_folio_items_rooms_folio_items",
+				Columns:    []*schema.Column{RoomFolioItemsColumns[10]},
+				RefColumns: []*schema.Column{RoomsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "room_folio_items_room_guests_folio_items",
+				Columns:    []*schema.Column{RoomFolioItemsColumns[11]},
+				RefColumns: []*schema.Column{RoomGuestsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "roomfolioitem_tenant_id_room_id",
+				Unique:  false,
+				Columns: []*schema.Column{RoomFolioItemsColumns[1], RoomFolioItemsColumns[10]},
+			},
+			{
+				Name:    "roomfolioitem_tenant_id_room_guest_id",
+				Unique:  false,
+				Columns: []*schema.Column{RoomFolioItemsColumns[1], RoomFolioItemsColumns[11]},
+			},
+		},
+	}
+	// RoomGuestsColumns holds the columns for the "room_guests" table.
+	RoomGuestsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "guest_name", Type: field.TypeString},
+		{Name: "phone", Type: field.TypeString},
+		{Name: "id_number", Type: field.TypeString},
+		{Name: "check_in_date", Type: field.TypeTime},
+		{Name: "nights", Type: field.TypeInt},
+		{Name: "check_out_date", Type: field.TypeTime},
+		{Name: "total_room_charge", Type: field.TypeFloat64},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"active", "checked_out"}, Default: "active"},
+		{Name: "checked_in_by", Type: field.TypeUUID},
+		{Name: "checked_out_by", Type: field.TypeUUID, Nullable: true},
+		{Name: "checked_in_at", Type: field.TypeTime},
+		{Name: "checked_out_at", Type: field.TypeTime, Nullable: true},
+		{Name: "metadata", Type: field.TypeJSON},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "room_id", Type: field.TypeUUID},
+	}
+	// RoomGuestsTable holds the schema information for the "room_guests" table.
+	RoomGuestsTable = &schema.Table{
+		Name:       "room_guests",
+		Columns:    RoomGuestsColumns,
+		PrimaryKey: []*schema.Column{RoomGuestsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "room_guests_rooms_guests",
+				Columns:    []*schema.Column{RoomGuestsColumns[17]},
+				RefColumns: []*schema.Column{RoomsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "roomguest_tenant_id_room_id",
+				Unique:  false,
+				Columns: []*schema.Column{RoomGuestsColumns[1], RoomGuestsColumns[17]},
+			},
+			{
+				Name:    "roomguest_tenant_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{RoomGuestsColumns[1], RoomGuestsColumns[9]},
+			},
+		},
+	}
 	// SectionsColumns holds the columns for the "sections" table.
 	SectionsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -1519,6 +1745,8 @@ var (
 		ChannelIntegrationsTable,
 		ChannelSyncJobsTable,
 		CommissionRecordsTable,
+		FacilitiesTable,
+		FacilityBookingsTable,
 		FeatureOverridesTable,
 		GiftCardsTable,
 		GiftCardTransactionsTable,
@@ -1552,6 +1780,9 @@ var (
 		PromotionApplicationsTable,
 		PromotionRulesTable,
 		RateLimitConfigsTable,
+		RoomsTable,
+		RoomFolioItemsTable,
+		RoomGuestsTable,
 		SectionsTable,
 		SerialNumberLogsTable,
 		ServiceConfigsTable,
@@ -1573,6 +1804,7 @@ var (
 func init() {
 	BarTabEventsTable.ForeignKeys[0].RefTable = BarTabsTable
 	CashDrawerEventsTable.ForeignKeys[0].RefTable = CashDrawersTable
+	FacilityBookingsTable.ForeignKeys[0].RefTable = FacilitiesTable
 	KdsTicketsTable.ForeignKeys[0].RefTable = KdsStationsTable
 	ModifiersTable.ForeignKeys[0].RefTable = ModifierGroupsTable
 	OutletsTable.ForeignKeys[0].RefTable = TenantsTable
@@ -1591,6 +1823,9 @@ func init() {
 	PosUserRoleAssignmentsTable.ForeignKeys[2].RefTable = PosRoleV2sTable
 	PriceBookItemsTable.ForeignKeys[0].RefTable = CatalogItemsTable
 	PriceBookItemsTable.ForeignKeys[1].RefTable = PriceBooksTable
+	RoomFolioItemsTable.ForeignKeys[0].RefTable = RoomsTable
+	RoomFolioItemsTable.ForeignKeys[1].RefTable = RoomGuestsTable
+	RoomGuestsTable.ForeignKeys[0].RefTable = RoomsTable
 	TablesTable.ForeignKeys[0].RefTable = SectionsTable
 	TableAssignmentsTable.ForeignKeys[0].RefTable = TablesTable
 	UsersTable.ForeignKeys[0].RefTable = TenantsTable

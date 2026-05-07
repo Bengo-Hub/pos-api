@@ -30,6 +30,10 @@ type Tx struct {
 	ChannelSyncJob *ChannelSyncJobClient
 	// CommissionRecord is the client for interacting with the CommissionRecord builders.
 	CommissionRecord *CommissionRecordClient
+	// Facility is the client for interacting with the Facility builders.
+	Facility *FacilityClient
+	// FacilityBooking is the client for interacting with the FacilityBooking builders.
+	FacilityBooking *FacilityBookingClient
 	// FeatureOverride is the client for interacting with the FeatureOverride builders.
 	FeatureOverride *FeatureOverrideClient
 	// GiftCard is the client for interacting with the GiftCard builders.
@@ -96,6 +100,12 @@ type Tx struct {
 	PromotionRule *PromotionRuleClient
 	// RateLimitConfig is the client for interacting with the RateLimitConfig builders.
 	RateLimitConfig *RateLimitConfigClient
+	// Room is the client for interacting with the Room builders.
+	Room *RoomClient
+	// RoomFolioItem is the client for interacting with the RoomFolioItem builders.
+	RoomFolioItem *RoomFolioItemClient
+	// RoomGuest is the client for interacting with the RoomGuest builders.
+	RoomGuest *RoomGuestClient
 	// Section is the client for interacting with the Section builders.
 	Section *SectionClient
 	// SerialNumberLog is the client for interacting with the SerialNumberLog builders.
@@ -266,6 +276,8 @@ func (tx *Tx) init() {
 	tx.ChannelIntegration = NewChannelIntegrationClient(tx.config)
 	tx.ChannelSyncJob = NewChannelSyncJobClient(tx.config)
 	tx.CommissionRecord = NewCommissionRecordClient(tx.config)
+	tx.Facility = NewFacilityClient(tx.config)
+	tx.FacilityBooking = NewFacilityBookingClient(tx.config)
 	tx.FeatureOverride = NewFeatureOverrideClient(tx.config)
 	tx.GiftCard = NewGiftCardClient(tx.config)
 	tx.GiftCardTransaction = NewGiftCardTransactionClient(tx.config)
@@ -299,6 +311,9 @@ func (tx *Tx) init() {
 	tx.PromotionApplication = NewPromotionApplicationClient(tx.config)
 	tx.PromotionRule = NewPromotionRuleClient(tx.config)
 	tx.RateLimitConfig = NewRateLimitConfigClient(tx.config)
+	tx.Room = NewRoomClient(tx.config)
+	tx.RoomFolioItem = NewRoomFolioItemClient(tx.config)
+	tx.RoomGuest = NewRoomGuestClient(tx.config)
 	tx.Section = NewSectionClient(tx.config)
 	tx.SerialNumberLog = NewSerialNumberLogClient(tx.config)
 	tx.ServiceConfig = NewServiceConfigClient(tx.config)

@@ -117,6 +117,30 @@ func (f CommissionRecordFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.V
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.CommissionRecordMutation", m)
 }
 
+// The FacilityFunc type is an adapter to allow the use of ordinary
+// function as Facility mutator.
+type FacilityFunc func(context.Context, *ent.FacilityMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f FacilityFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.FacilityMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.FacilityMutation", m)
+}
+
+// The FacilityBookingFunc type is an adapter to allow the use of ordinary
+// function as FacilityBooking mutator.
+type FacilityBookingFunc func(context.Context, *ent.FacilityBookingMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f FacilityBookingFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.FacilityBookingMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.FacilityBookingMutation", m)
+}
+
 // The FeatureOverrideFunc type is an adapter to allow the use of ordinary
 // function as FeatureOverride mutator.
 type FeatureOverrideFunc func(context.Context, *ent.FeatureOverrideMutation) (ent.Value, error)
@@ -511,6 +535,42 @@ func (f RateLimitConfigFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Va
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.RateLimitConfigMutation", m)
+}
+
+// The RoomFunc type is an adapter to allow the use of ordinary
+// function as Room mutator.
+type RoomFunc func(context.Context, *ent.RoomMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f RoomFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.RoomMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.RoomMutation", m)
+}
+
+// The RoomFolioItemFunc type is an adapter to allow the use of ordinary
+// function as RoomFolioItem mutator.
+type RoomFolioItemFunc func(context.Context, *ent.RoomFolioItemMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f RoomFolioItemFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.RoomFolioItemMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.RoomFolioItemMutation", m)
+}
+
+// The RoomGuestFunc type is an adapter to allow the use of ordinary
+// function as RoomGuest mutator.
+type RoomGuestFunc func(context.Context, *ent.RoomGuestMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f RoomGuestFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.RoomGuestMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.RoomGuestMutation", m)
 }
 
 // The SectionFunc type is an adapter to allow the use of ordinary

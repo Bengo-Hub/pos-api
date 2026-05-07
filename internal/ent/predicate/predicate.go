@@ -33,6 +33,12 @@ type ChannelSyncJob func(*sql.Selector)
 // CommissionRecord is the predicate function for commissionrecord builders.
 type CommissionRecord func(*sql.Selector)
 
+// Facility is the predicate function for facility builders.
+type Facility func(*sql.Selector)
+
+// FacilityBooking is the predicate function for facilitybooking builders.
+type FacilityBooking func(*sql.Selector)
+
 // FeatureOverride is the predicate function for featureoverride builders.
 type FeatureOverride func(*sql.Selector)
 
@@ -131,6 +137,15 @@ type PromotionRule func(*sql.Selector)
 
 // RateLimitConfig is the predicate function for ratelimitconfig builders.
 type RateLimitConfig func(*sql.Selector)
+
+// Room is the predicate function for room builders.
+type Room func(*sql.Selector)
+
+// RoomFolioItem is the predicate function for roomfolioitem builders.
+type RoomFolioItem func(*sql.Selector)
+
+// RoomGuest is the predicate function for roomguest builders.
+type RoomGuest func(*sql.Selector)
 
 // Section is the predicate function for section builders.
 type Section func(*sql.Selector)

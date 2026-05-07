@@ -32,6 +32,8 @@ func New(
 	barTabs *handlers.BarTabHandler,
 	promotions *handlers.PromotionHandler,
 	rbacHandler *handlers.RBACHandler,
+	hotel *handlers.HotelHandler,
+	kds *handlers.KDSHandler,
 	allowedOrigins []string,
 ) http.Handler {
 	r := chi.NewRouter()
@@ -196,7 +198,42 @@ func New(
 					pos.Post("/promotions", promotions.CreatePromotion)
 					pos.Post("/promotions/apply", promotions.ApplyPromoCode)
 				}
+
+				// KDS
+				if kds != nil {
+					pos.Get("/kds/stations", kds.ListStations)
+					pos.Post("/kds/stations", kds.CreateStation)
+					pos.Put("/kds/stations/{id}", kds.UpdateStation)
+					pos.Get("/kds/kitchen", kds.GetKitchenQueue)
+					pos.Get("/kds/bar", kds.GetBarQueue)
+					pos.Get("/kds/tickets", kds.ListTickets)
+					pos.Post("/kds/tickets/{id}/start", kds.StartTicket)
+					pos.Post("/kds/tickets/{id}/ready", kds.ReadyTicket)
+					pos.Post("/kds/tickets/{id}/serve", kds.ServeTicket)
+					pos.Post("/kds/tickets/{id}/void", kds.VoidTicket)
+					pos.Post("/kds/tickets/{id}/call-waiter", kds.CallWaiter)
+				}
 			})
+
+			// Hotel module
+			if hotel != nil {
+				tenant.Route("/hotel", func(h chi.Router) {
+					h.Get("/rooms", hotel.ListRooms)
+					h.Post("/rooms", hotel.CreateRoom)
+					h.Get("/rooms/{id}", hotel.GetRoom)
+					h.Patch("/rooms/{id}/status", hotel.UpdateRoomStatus)
+					h.Post("/rooms/{id}/check-in", hotel.CheckIn)
+					h.Post("/rooms/{id}/check-out", hotel.CheckOut)
+					h.Post("/rooms/{id}/folio", hotel.PostFolioCharge)
+					h.Get("/rooms/{id}/folio", hotel.GetRoomFolio)
+					h.Get("/facilities", hotel.ListFacilities)
+					h.Post("/facilities", hotel.CreateFacility)
+					h.Get("/facilities/{id}", hotel.GetFacility)
+					h.Post("/facilities/{id}/book", hotel.BookFacility)
+					h.Patch("/facilities/bookings/{bookingID}", hotel.UpdateBooking)
+					h.Get("/facilities/bookings", hotel.ListFacilityBookings)
+				})
+			}
 		})
 	})
 

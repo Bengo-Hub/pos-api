@@ -41,6 +41,12 @@ type POSOrder struct {
 	TotalAmount float64 `json:"total_amount,omitempty"`
 	// Currency holds the value of the "currency" field.
 	Currency string `json:"currency,omitempty"`
+	// OrderSubtype holds the value of the "order_subtype" field.
+	OrderSubtype posorder.OrderSubtype `json:"order_subtype,omitempty"`
+	// Room service: linked room
+	RoomID *uuid.UUID `json:"room_id,omitempty"`
+	// Room service: linked guest stay
+	RoomGuestID *uuid.UUID `json:"room_guest_id,omitempty"`
 	// Metadata holds the value of the "metadata" field.
 	Metadata map[string]interface{} `json:"metadata,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
@@ -98,11 +104,13 @@ func (*POSOrder) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case posorder.FieldRoomID, posorder.FieldRoomGuestID:
+			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		case posorder.FieldMetadata:
 			values[i] = new([]byte)
 		case posorder.FieldSubtotal, posorder.FieldTaxTotal, posorder.FieldDiscountTotal, posorder.FieldTotalAmount:
 			values[i] = new(sql.NullFloat64)
-		case posorder.FieldOrderNumber, posorder.FieldStatus, posorder.FieldCurrency:
+		case posorder.FieldOrderNumber, posorder.FieldStatus, posorder.FieldCurrency, posorder.FieldOrderSubtype:
 			values[i] = new(sql.NullString)
 		case posorder.FieldCreatedAt, posorder.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -194,6 +202,26 @@ func (_m *POSOrder) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field currency", values[i])
 			} else if value.Valid {
 				_m.Currency = value.String
+			}
+		case posorder.FieldOrderSubtype:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field order_subtype", values[i])
+			} else if value.Valid {
+				_m.OrderSubtype = posorder.OrderSubtype(value.String)
+			}
+		case posorder.FieldRoomID:
+			if value, ok := values[i].(*sql.NullScanner); !ok {
+				return fmt.Errorf("unexpected type %T for field room_id", values[i])
+			} else if value.Valid {
+				_m.RoomID = new(uuid.UUID)
+				*_m.RoomID = *value.S.(*uuid.UUID)
+			}
+		case posorder.FieldRoomGuestID:
+			if value, ok := values[i].(*sql.NullScanner); !ok {
+				return fmt.Errorf("unexpected type %T for field room_guest_id", values[i])
+			} else if value.Valid {
+				_m.RoomGuestID = new(uuid.UUID)
+				*_m.RoomGuestID = *value.S.(*uuid.UUID)
 			}
 		case posorder.FieldMetadata:
 			if value, ok := values[i].(*[]byte); !ok {
@@ -298,6 +326,19 @@ func (_m *POSOrder) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("currency=")
 	builder.WriteString(_m.Currency)
+	builder.WriteString(", ")
+	builder.WriteString("order_subtype=")
+	builder.WriteString(fmt.Sprintf("%v", _m.OrderSubtype))
+	builder.WriteString(", ")
+	if v := _m.RoomID; v != nil {
+		builder.WriteString("room_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.RoomGuestID; v != nil {
+		builder.WriteString("room_guest_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("metadata=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Metadata))

@@ -111,6 +111,16 @@ func Currency(v string) predicate.POSOrder {
 	return predicate.POSOrder(sql.FieldEQ(FieldCurrency, v))
 }
 
+// RoomID applies equality check predicate on the "room_id" field. It's identical to RoomIDEQ.
+func RoomID(v uuid.UUID) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEQ(FieldRoomID, v))
+}
+
+// RoomGuestID applies equality check predicate on the "room_guest_id" field. It's identical to RoomGuestIDEQ.
+func RoomGuestID(v uuid.UUID) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEQ(FieldRoomGuestID, v))
+}
+
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.POSOrder {
 	return predicate.POSOrder(sql.FieldEQ(FieldCreatedAt, v))
@@ -634,6 +644,126 @@ func CurrencyEqualFold(v string) predicate.POSOrder {
 // CurrencyContainsFold applies the ContainsFold predicate on the "currency" field.
 func CurrencyContainsFold(v string) predicate.POSOrder {
 	return predicate.POSOrder(sql.FieldContainsFold(FieldCurrency, v))
+}
+
+// OrderSubtypeEQ applies the EQ predicate on the "order_subtype" field.
+func OrderSubtypeEQ(v OrderSubtype) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEQ(FieldOrderSubtype, v))
+}
+
+// OrderSubtypeNEQ applies the NEQ predicate on the "order_subtype" field.
+func OrderSubtypeNEQ(v OrderSubtype) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNEQ(FieldOrderSubtype, v))
+}
+
+// OrderSubtypeIn applies the In predicate on the "order_subtype" field.
+func OrderSubtypeIn(vs ...OrderSubtype) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldIn(FieldOrderSubtype, vs...))
+}
+
+// OrderSubtypeNotIn applies the NotIn predicate on the "order_subtype" field.
+func OrderSubtypeNotIn(vs ...OrderSubtype) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNotIn(FieldOrderSubtype, vs...))
+}
+
+// RoomIDEQ applies the EQ predicate on the "room_id" field.
+func RoomIDEQ(v uuid.UUID) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEQ(FieldRoomID, v))
+}
+
+// RoomIDNEQ applies the NEQ predicate on the "room_id" field.
+func RoomIDNEQ(v uuid.UUID) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNEQ(FieldRoomID, v))
+}
+
+// RoomIDIn applies the In predicate on the "room_id" field.
+func RoomIDIn(vs ...uuid.UUID) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldIn(FieldRoomID, vs...))
+}
+
+// RoomIDNotIn applies the NotIn predicate on the "room_id" field.
+func RoomIDNotIn(vs ...uuid.UUID) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNotIn(FieldRoomID, vs...))
+}
+
+// RoomIDGT applies the GT predicate on the "room_id" field.
+func RoomIDGT(v uuid.UUID) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldGT(FieldRoomID, v))
+}
+
+// RoomIDGTE applies the GTE predicate on the "room_id" field.
+func RoomIDGTE(v uuid.UUID) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldGTE(FieldRoomID, v))
+}
+
+// RoomIDLT applies the LT predicate on the "room_id" field.
+func RoomIDLT(v uuid.UUID) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldLT(FieldRoomID, v))
+}
+
+// RoomIDLTE applies the LTE predicate on the "room_id" field.
+func RoomIDLTE(v uuid.UUID) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldLTE(FieldRoomID, v))
+}
+
+// RoomIDIsNil applies the IsNil predicate on the "room_id" field.
+func RoomIDIsNil() predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldIsNull(FieldRoomID))
+}
+
+// RoomIDNotNil applies the NotNil predicate on the "room_id" field.
+func RoomIDNotNil() predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNotNull(FieldRoomID))
+}
+
+// RoomGuestIDEQ applies the EQ predicate on the "room_guest_id" field.
+func RoomGuestIDEQ(v uuid.UUID) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEQ(FieldRoomGuestID, v))
+}
+
+// RoomGuestIDNEQ applies the NEQ predicate on the "room_guest_id" field.
+func RoomGuestIDNEQ(v uuid.UUID) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNEQ(FieldRoomGuestID, v))
+}
+
+// RoomGuestIDIn applies the In predicate on the "room_guest_id" field.
+func RoomGuestIDIn(vs ...uuid.UUID) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldIn(FieldRoomGuestID, vs...))
+}
+
+// RoomGuestIDNotIn applies the NotIn predicate on the "room_guest_id" field.
+func RoomGuestIDNotIn(vs ...uuid.UUID) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNotIn(FieldRoomGuestID, vs...))
+}
+
+// RoomGuestIDGT applies the GT predicate on the "room_guest_id" field.
+func RoomGuestIDGT(v uuid.UUID) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldGT(FieldRoomGuestID, v))
+}
+
+// RoomGuestIDGTE applies the GTE predicate on the "room_guest_id" field.
+func RoomGuestIDGTE(v uuid.UUID) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldGTE(FieldRoomGuestID, v))
+}
+
+// RoomGuestIDLT applies the LT predicate on the "room_guest_id" field.
+func RoomGuestIDLT(v uuid.UUID) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldLT(FieldRoomGuestID, v))
+}
+
+// RoomGuestIDLTE applies the LTE predicate on the "room_guest_id" field.
+func RoomGuestIDLTE(v uuid.UUID) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldLTE(FieldRoomGuestID, v))
+}
+
+// RoomGuestIDIsNil applies the IsNil predicate on the "room_guest_id" field.
+func RoomGuestIDIsNil() predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldIsNull(FieldRoomGuestID))
+}
+
+// RoomGuestIDNotNil applies the NotNil predicate on the "room_guest_id" field.
+func RoomGuestIDNotNil() predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNotNull(FieldRoomGuestID))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.

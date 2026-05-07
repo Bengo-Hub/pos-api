@@ -1,6 +1,8 @@
 # POS Service – Entity Relationship Overview
 
-**Last updated:** 2026-03-22
+**Last updated:** 2026-05-07
+
+**May 7 update:** Hotel module entities added (Room, RoomGuest, RoomFolioItem, Facility, FacilityBooking). KDS entities documented (KDSStation, KDSTicket — schemas existed since March 2026). pos_orders updated with hotel context fields (room_id, room_guest_id, order_subtype). New system roles: receptionist, kitchen, bar.
 
 **March 22 update:** Full RBAC system added alongside existing POSRole/UserPOSRole schemas: POSPermission, POSRoleV2, POSRolePermission (junction), POSUserRoleAssignment, RateLimitConfig, ServiceConfig. RBAC module (`internal/modules/rbac/`) with repository pattern, service layer, and HTTP handler with 7 endpoints. Seed script extended with 126 permissions (14 modules x 9 actions), 5 system roles (pos_admin, store_manager, cashier, waiter, viewer), 6 rate limit configs, and 10 platform-level service configs.
 
@@ -103,6 +105,36 @@ Schemas are defined with Ent to ensure type-safe access and migration automation
 | `stock_consumption_events` | `id`, `tenant_id`, `tenant_slug`, `pos_order_id`, `item_id`, `warehouse_id`, `quantity`, `uom_code`, `source`, `created_at`, `metadata` | Events emitted to `inventory-service` for decrementing stock/BOM consumption using canonical tenant/outlet/item identifiers. |
 | `stock_alert_subscriptions` | `id`, `tenant_id`, `outlet_id`, `item_id`, `threshold`, `channel`, `metadata` | User-configurable alerts; listens to inventory events. |
 | `inventory_snapshots` | `id`, `tenant_id`, `outlet_id`, `item_id`, `on_hand`, `available`, `snapshot_at`, `source_service` | Read-only cached view of inventory for UI performance (not canonical). |
+
+## Kitchen Display System (KDS)
+
+Schemas exist since March 2026. HTTP endpoints added in Sprint 4.
+
+| Table | Key Columns | Description |
+|-------|-------------|-------------|
+| `kds_stations` | `id`, `tenant_id`, `outlet_id`, `name`, `category_filter` (JSON string array), `sort_order`, `is_active`, `created_at`, `updated_at` | KDS display stations — kitchen, bar, grill, etc. Each station receives tickets for items matching its category filter. |
+| `kds_tickets` | `id`, `tenant_id`, `station_id` (FK → kds_stations), `order_id`, `order_number`, `status` (pending\|in_progress\|ready\|served\|voided), `items` (JSON: `[{line_id, sku, name, qty, kds_status}]`), `received_at`, `started_at`, `completed_at`, `priority` | One ticket per station per order. Created when order transitions to `open`. Items track individual item-level status. |
+
+## Hotel Module (Sprint 3 — Not Yet Started)
+
+Ent schemas to be added. HTTP endpoints under `/{tenant}/hotel/`.
+
+| Table | Key Columns | Description |
+|-------|-------------|-------------|
+| `rooms` | `id`, `tenant_id`, `outlet_id`, `room_number`, `name`, `room_type` (standard\|deluxe\|suite\|presidential\|other), `floor`, `rate_per_night`, `currency`, `status` (available\|occupied\|cleaning\|maintenance\|reserved\|checkout), `is_active`, `metadata`, `created_at`, `updated_at` | Hotel room inventory. Unique on (tenant_id, room_number). |
+| `room_guests` | `id`, `tenant_id`, `room_id` (FK → rooms), `guest_name`, `phone`, `id_number`, `check_in_date`, `nights`, `check_out_date`, `total_room_charge`, `status` (active\|checked_out), `checked_in_by`, `checked_out_by`, `checked_in_at`, `checked_out_at`, `metadata`, `created_at`, `updated_at` | Active and historical guest stays. |
+| `room_folio_items` | `id`, `tenant_id`, `room_id` (FK → rooms), `room_guest_id` (FK → room_guests), `description`, `amount`, `currency`, `charge_type` (room_charge\|food\|laundry\|minibar\|room_service\|other), `pos_order_id` (nullable — linked POS order), `created_at` (Immutable), `created_by`, `metadata` | Per-stay charge history. Room charge added at check-in; F&B/minibar added as POS orders complete. |
+| `facilities` | `id`, `tenant_id`, `outlet_id`, `name`, `facility_type` (pool\|gym\|conference\|spa\|kids_area\|other), `capacity`, `rate_per_session`, `currency`, `opening_time`, `closing_time`, `status` (available\|occupied\|maintenance\|closed), `is_active`, `metadata`, `created_at`, `updated_at` | Hotel facilities (pool, gym, spa, conference). |
+| `facility_bookings` | `id`, `tenant_id`, `facility_id` (FK → facilities), `room_guest_id` (nullable), `guest_name`, `phone`, `session_date`, `start_time`, `end_time`, `guests_count`, `amount`, `currency`, `status` (confirmed\|cancelled\|completed), `booked_by`, `notes`, `metadata`, `created_at` | Facility session bookings. |
+
+**pos_orders hotel context fields (to add):**
+- `room_id` — UUID nullable, links room-service orders to a room
+- `room_guest_id` — UUID nullable, links room-service orders to a guest stay
+- `order_subtype` — enum(dine_in\|takeaway\|room_service\|delivery\|bar_tab) default dine_in
+
+**New RBAC permissions (Sprint 3):** `pos.hotel.view`, `pos.hotel.change`, `pos.hotel.manage`  
+**New RBAC permissions (Sprint 4):** `pos.kds.view`, `pos.kds.change`, `pos.kds.manage`  
+**New system roles:** `receptionist` (hotel.view + hotel.change), `kitchen` (kds.view + kds.change), `bar` (kds.view + kds.change)
 
 ## Ecommerce & Omnichannel
 | Table | Key Columns | Description |

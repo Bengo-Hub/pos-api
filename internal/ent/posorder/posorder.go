@@ -3,6 +3,7 @@
 package posorder
 
 import (
+	"fmt"
 	"time"
 
 	"entgo.io/ent/dialect/sql"
@@ -37,6 +38,12 @@ const (
 	FieldTotalAmount = "total_amount"
 	// FieldCurrency holds the string denoting the currency field in the database.
 	FieldCurrency = "currency"
+	// FieldOrderSubtype holds the string denoting the order_subtype field in the database.
+	FieldOrderSubtype = "order_subtype"
+	// FieldRoomID holds the string denoting the room_id field in the database.
+	FieldRoomID = "room_id"
+	// FieldRoomGuestID holds the string denoting the room_guest_id field in the database.
+	FieldRoomGuestID = "room_guest_id"
 	// FieldMetadata holds the string denoting the metadata field in the database.
 	FieldMetadata = "metadata"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
@@ -88,6 +95,9 @@ var Columns = []string{
 	FieldDiscountTotal,
 	FieldTotalAmount,
 	FieldCurrency,
+	FieldOrderSubtype,
+	FieldRoomID,
+	FieldRoomGuestID,
 	FieldMetadata,
 	FieldCreatedAt,
 	FieldUpdatedAt,
@@ -123,6 +133,35 @@ var (
 	// DefaultID holds the default value on creation for the "id" field.
 	DefaultID func() uuid.UUID
 )
+
+// OrderSubtype defines the type for the "order_subtype" enum field.
+type OrderSubtype string
+
+// OrderSubtypeDineIn is the default value of the OrderSubtype enum.
+const DefaultOrderSubtype = OrderSubtypeDineIn
+
+// OrderSubtype values.
+const (
+	OrderSubtypeDineIn      OrderSubtype = "dine_in"
+	OrderSubtypeTakeaway    OrderSubtype = "takeaway"
+	OrderSubtypeRoomService OrderSubtype = "room_service"
+	OrderSubtypeDelivery    OrderSubtype = "delivery"
+	OrderSubtypeBarTab      OrderSubtype = "bar_tab"
+)
+
+func (os OrderSubtype) String() string {
+	return string(os)
+}
+
+// OrderSubtypeValidator is a validator for the "order_subtype" field enum values. It is called by the builders before save.
+func OrderSubtypeValidator(os OrderSubtype) error {
+	switch os {
+	case OrderSubtypeDineIn, OrderSubtypeTakeaway, OrderSubtypeRoomService, OrderSubtypeDelivery, OrderSubtypeBarTab:
+		return nil
+	default:
+		return fmt.Errorf("posorder: invalid enum value for order_subtype field: %q", os)
+	}
+}
 
 // OrderOption defines the ordering options for the POSOrder queries.
 type OrderOption func(*sql.Selector)
@@ -185,6 +224,21 @@ func ByTotalAmount(opts ...sql.OrderTermOption) OrderOption {
 // ByCurrency orders the results by the currency field.
 func ByCurrency(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCurrency, opts...).ToFunc()
+}
+
+// ByOrderSubtype orders the results by the order_subtype field.
+func ByOrderSubtype(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldOrderSubtype, opts...).ToFunc()
+}
+
+// ByRoomID orders the results by the room_id field.
+func ByRoomID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRoomID, opts...).ToFunc()
+}
+
+// ByRoomGuestID orders the results by the room_guest_id field.
+func ByRoomGuestID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRoomGuestID, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.

@@ -158,6 +158,10 @@ func New(ctx context.Context) (*App, error) {
 	barTabHandler := handlers.NewBarTabHandler(log, entClient)
 	promotionHandler := handlers.NewPromotionHandler(log, entClient, promoSvc)
 
+	// Hotel and KDS handlers
+	hotelHandler := handlers.NewHotelHandler(log, entClient)
+	kdsHandler := handlers.NewKDSHandler(log, entClient)
+
 	// Initialize RBAC
 	rbacRepo := rbacmodule.NewEntRepository(entClient)
 	rbacSvc := rbacmodule.NewService(rbacRepo, log)
@@ -206,7 +210,7 @@ func New(ctx context.Context) (*App, error) {
 		inventoryEventHandler.InitialSync(ctx, inventoryURL, tenantSlug)
 	}()
 
-	chiRouter := router.New(log, healthHandler, authMiddleware, identitySvc, orderHandler, catalogHandler, tableHandler, tenderHandler, paymentHandler, drawerHandler, barTabHandler, promotionHandler, rbacHandler, cfg.HTTP.AllowedOrigins)
+	chiRouter := router.New(log, healthHandler, authMiddleware, identitySvc, orderHandler, catalogHandler, tableHandler, tenderHandler, paymentHandler, drawerHandler, barTabHandler, promotionHandler, rbacHandler, hotelHandler, kdsHandler, cfg.HTTP.AllowedOrigins)
 
 	httpServer := &http.Server{
 		Addr:              fmt.Sprintf("%s:%d", cfg.HTTP.Host, cfg.HTTP.Port),
