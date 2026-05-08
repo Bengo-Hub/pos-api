@@ -16,22 +16,26 @@ const (
 	FieldID = "id"
 	// FieldTenantID holds the string denoting the tenant_id field in the database.
 	FieldTenantID = "tenant_id"
+	// FieldAggregateType holds the string denoting the aggregate_type field in the database.
+	FieldAggregateType = "aggregate_type"
+	// FieldAggregateID holds the string denoting the aggregate_id field in the database.
+	FieldAggregateID = "aggregate_id"
 	// FieldEventType holds the string denoting the event_type field in the database.
 	FieldEventType = "event_type"
 	// FieldPayload holds the string denoting the payload field in the database.
 	FieldPayload = "payload"
-	// FieldMetadata holds the string denoting the metadata field in the database.
-	FieldMetadata = "metadata"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
-	// FieldRetryCount holds the string denoting the retry_count field in the database.
-	FieldRetryCount = "retry_count"
+	// FieldAttempts holds the string denoting the attempts field in the database.
+	FieldAttempts = "attempts"
+	// FieldLastAttemptAt holds the string denoting the last_attempt_at field in the database.
+	FieldLastAttemptAt = "last_attempt_at"
+	// FieldPublishedAt holds the string denoting the published_at field in the database.
+	FieldPublishedAt = "published_at"
+	// FieldErrorMessage holds the string denoting the error_message field in the database.
+	FieldErrorMessage = "error_message"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
-	// FieldProcessedAt holds the string denoting the processed_at field in the database.
-	FieldProcessedAt = "processed_at"
-	// FieldLastError holds the string denoting the last_error field in the database.
-	FieldLastError = "last_error"
 	// Table holds the table name of the outboxevent in the database.
 	Table = "outbox_events"
 )
@@ -40,14 +44,16 @@ const (
 var Columns = []string{
 	FieldID,
 	FieldTenantID,
+	FieldAggregateType,
+	FieldAggregateID,
 	FieldEventType,
 	FieldPayload,
-	FieldMetadata,
 	FieldStatus,
-	FieldRetryCount,
+	FieldAttempts,
+	FieldLastAttemptAt,
+	FieldPublishedAt,
+	FieldErrorMessage,
 	FieldCreatedAt,
-	FieldProcessedAt,
-	FieldLastError,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -61,12 +67,16 @@ func ValidColumn(column string) bool {
 }
 
 var (
+	// AggregateTypeValidator is a validator for the "aggregate_type" field. It is called by the builders before save.
+	AggregateTypeValidator func(string) error
+	// AggregateIDValidator is a validator for the "aggregate_id" field. It is called by the builders before save.
+	AggregateIDValidator func(string) error
 	// EventTypeValidator is a validator for the "event_type" field. It is called by the builders before save.
 	EventTypeValidator func(string) error
 	// DefaultStatus holds the default value on creation for the "status" field.
 	DefaultStatus string
-	// DefaultRetryCount holds the default value on creation for the "retry_count" field.
-	DefaultRetryCount int
+	// DefaultAttempts holds the default value on creation for the "attempts" field.
+	DefaultAttempts int
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 	// DefaultID holds the default value on creation for the "id" field.
@@ -86,6 +96,16 @@ func ByTenantID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldTenantID, opts...).ToFunc()
 }
 
+// ByAggregateType orders the results by the aggregate_type field.
+func ByAggregateType(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAggregateType, opts...).ToFunc()
+}
+
+// ByAggregateID orders the results by the aggregate_id field.
+func ByAggregateID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAggregateID, opts...).ToFunc()
+}
+
 // ByEventType orders the results by the event_type field.
 func ByEventType(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldEventType, opts...).ToFunc()
@@ -96,22 +116,27 @@ func ByStatus(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldStatus, opts...).ToFunc()
 }
 
-// ByRetryCount orders the results by the retry_count field.
-func ByRetryCount(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldRetryCount, opts...).ToFunc()
+// ByAttempts orders the results by the attempts field.
+func ByAttempts(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAttempts, opts...).ToFunc()
+}
+
+// ByLastAttemptAt orders the results by the last_attempt_at field.
+func ByLastAttemptAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLastAttemptAt, opts...).ToFunc()
+}
+
+// ByPublishedAt orders the results by the published_at field.
+func ByPublishedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPublishedAt, opts...).ToFunc()
+}
+
+// ByErrorMessage orders the results by the error_message field.
+func ByErrorMessage(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldErrorMessage, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.
 func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCreatedAt, opts...).ToFunc()
-}
-
-// ByProcessedAt orders the results by the processed_at field.
-func ByProcessedAt(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldProcessedAt, opts...).ToFunc()
-}
-
-// ByLastError orders the results by the last_error field.
-func ByLastError(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldLastError, opts...).ToFunc()
 }

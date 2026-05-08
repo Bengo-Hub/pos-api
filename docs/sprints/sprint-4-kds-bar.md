@@ -40,6 +40,8 @@ When `POST /{tenant}/pos/orders/{id}/status` transitions order to `open`:
 2. Group lines by station
 3. Create one `KDSTicket` per station with the grouped line items
 
+**Online ordering KDS tickets** (Sprint 13): When an online hospitality order arrives via `ordering.order.status.changed` NATS event, the same ticket creation flow runs. The `KDSTicket` will include an `external_order_id` reference. Add `external_order_id` (nullable string) to `pos_orders` schema to support idempotency and traceability from online ordering.
+
 ---
 
 ## HTTP Endpoints to Add
@@ -103,7 +105,10 @@ Assign to roles:
 - [ ] Wire ticket creation into order status transition (`orders.Service`)
 - [ ] Register KDS routes in `internal/http/router/router.go`
 - [ ] Update seed script with `kitchen` and `bar` system roles + KDS permissions
-- [ ] Update `docs/erd.md` to document KDS endpoints
+- [ ] Add `external_order_id` (nullable string) to `pos_orders` ent schema
+- [ ] Add unique index on `(tenant_id, external_order_id)` for online order idempotency
+- [ ] Run Atlas migration for `external_order_id` field
+- [ ] Update `docs/erd.md` to document KDS endpoints and `external_order_id`
 - [ ] Update Swagger: `swag init`
 - [ ] Build and fix all errors: `go build ./...`
 - [ ] Push to staging, merge to main

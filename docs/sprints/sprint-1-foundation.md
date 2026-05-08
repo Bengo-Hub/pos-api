@@ -58,3 +58,5 @@
 ## Pending / Carry-forward
 - [ ] `pos_device_sessions` — device-specific shift endpoints (`/sessions/open`, `/sessions/close`) not yet wired in HTTP handler
 - [ ] Outlet selector at login (post-MVP: cashier selects outlet per terminal)
+- [ ] Terminal PIN login — `POST /{tenant}/pos/auth/pin` and `POST /{tenant}/pos/auth/pin/set` not implemented; no `pin_hash` on staff (deferred to Sprint 10 auth planning, implemented alongside pos-ui Sprint 10)
+- [ ] `pos.staff.manage` permission not yet seeded (needed for PIN management)

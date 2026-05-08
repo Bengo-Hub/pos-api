@@ -25,7 +25,7 @@ The POS service is the **source of truth for sales catalogs (menus)**. While `in
 
 ```
 POST https://inventoryapi.codevertexitsolutions.com/v1/{tenant}/inventory/consumption
-X-API-Key: {INVENTORY_SERVICE_API_KEY}
+X-API-Key: {SERVICE_API_KEY}
 Content-Type: application/json
 
 {
@@ -38,7 +38,7 @@ Content-Type: application/json
 ```
 
 **Client:** `internal/modules/inventory/client.go` (S2S via `shared-service-client`)  
-**Env vars:** `INVENTORY_SERVICE_URL`, `INVENTORY_SERVICE_API_KEY`  
+**Env vars:** `INVENTORY_SERVICE_URL`, `SERVICE_API_KEY`  
 **Retry:** 3 attempts with exponential backoff  
 **Status:** ❌ HTTP call not yet wired in `orders.Service.Complete()` (Sprint 6)
 
@@ -93,8 +93,8 @@ For non-cash tenders, pos-api creates a payment intent in treasury-api before re
 ```
 
 **Client:** `internal/modules/treasury/client.go`  
-**Env vars:** `TREASURY_SERVICE_URL=https://booksapi.codevertexitsolutions.com`, `TREASURY_SERVICE_API_KEY`  
-**Auth:** `X-API-Key: {TREASURY_SERVICE_API_KEY}` header (S2S)  
+**Env vars:** `TREASURY_SERVICE_URL=https://booksapi.codevertexitsolutions.com`, `SERVICE_API_KEY`  
+**Auth:** `X-API-Key: {SERVICE_API_KEY}` header (S2S)  
 **Status:** ❌ S2S intent creation not yet wired in `payments.Service.Record()` (Sprint 6)
 
 ### 2.2 Room Charge Settlement (Hotel Module)
@@ -136,12 +136,81 @@ POST /api/v1/s2s/{tenant}/payments/intents
 
 ## 3. Ordering Backend Integration
 
-**Catalog Sync:** pos-api publishes `pos.menu.updated` events → ordering-backend consumes to update online storefront projection  
-**Order Handoff:** Online-for-pickup orders initiated in ordering-backend are handed off to pos-api for fulfillment and KDS routing
+### 3.1 Catalog Sync (outbound)
+
+pos-api publishes `pos.menu.updated` on any `CatalogItem` or `CatalogCategory` change.  
+ordering-backend subscribes and updates its storefront projection.
+
+**Status:** ✅ Event published on catalog write operations.
+
+### 3.2 Online Order → KDS Ticket Creation (CRITICAL GAP)
+
+**Background:** Hospitality businesses (restaurant, bar, hotel dining) receive online orders via ordering-backend. When a dine-in or pickup order reaches `confirmed` or `preparing` status, the kitchen must see a KDS ticket in pos-api. Currently, this link does not exist.
+
+**Current state (ordering-backend side):**
+- On order status change → ordering-backend publishes `ordering.order.status.changed` to NATS JetStream
+- For `ready` status, also publishes `ordering.order.ready` (logistics) and `ordering.order.for_pickup` (POS pickup handoff)
+- **No KDS ticket creation anywhere in the ordering-backend codebase**
+
+**Required integration (pos-api side — Sprint 13):**
+- pos-api subscribes to `ordering.order.status.changed`
+- Filters for: `new_status IN (confirmed, preparing)` AND `fulfillment_type IN (dine_in, pickup)`
+- Creates `KDSTicket` entries per line item, routed to station by item category (`kitchen`, `bar`, `grill`)
+- Marks order lines `kds_status = sent`
+
+**Completion callback:**
+- When kitchen marks KDS ticket complete (`kds_status = ready`), pos-api publishes `pos.kds.ticket.ready`
+- ordering-backend may optionally subscribe to update order status to `ready` for same-table orders
+
+**NATS Subject:** `ordering.order.status.changed`  
+**Filter fields:** `new_status`, `fulfillment_type`, `tenant_id`, `outlet_id`  
+**Status:** ❌ Not implemented — see [Sprint 13](sprints/sprint-13-ordering-kds-integration.md)
+
+### 3.3 Pickup Order Handoff (existing)
+
+For `fulfillment_type = pickup`, ordering-backend publishes `ordering.order.for_pickup`. pos-api creates a POS order for cashier settlement.
+
+**Status:** ✅ Event consumed. Pickup orders appear in pos-api with `order_source = online`.
 
 ---
 
-## 4. Notifications Service Integration
+## 4. Auth Service Integration
+
+### 4.1 JWT Validation (SSO Login)
+
+All pos-api protected routes under `/{tenant}/pos/` validate Bearer tokens issued by auth-api (RS256, audience `codevertex`).
+
+**Library:** `shared/auth-client` v0.1.0  
+**Env vars:** `AUTH_SERVICE_URL`, `AUTH_AUDIENCE=codevertex`  
+**Status:** ✅ Implemented
+
+**Flow:**
+1. pos-ui redirects to auth-api OAuth2 PKCE endpoint (`/oauth2/authorize`)
+2. User logs in via SSO (Google, Microsoft) or email/password
+3. auth-api issues access token (15 min) + refresh token (30 days)
+4. pos-ui stores tokens in localStorage, sends `Authorization: Bearer {token}` on all API calls
+
+**Suitable for:** Manager, admin, and office-based staff who have SSO accounts
+
+### 4.2 Terminal PIN Login (CRITICAL GAP)
+
+**Background:** The hotel-pos-v8.jsx design requires a touchscreen PIN login (4–6 digits) for kitchen staff, waiters, cashiers, bar staff, and receptionists. These users cannot go through a browser OAuth2 redirect on a dedicated POS terminal.
+
+**Current state:** No PIN field exists on the user entity. Neither auth-api nor pos-api has a PIN endpoint. SSO-only login is the only option.
+
+**Required design (Sprint 10):**
+- `POSStaffPin` table in pos-api: `id, tenant_id, user_id (FK → user projection), pin_hash (bcrypt), is_active, last_used_at`
+- `POST /{tenant}/pos/auth/pin` — validate PIN, issue short-lived terminal token (4-hour JWT signed by pos-api internal secret)
+- `POST /{tenant}/pos/auth/pin/set` — manager sets or resets a staff PIN (requires `pos.staff.manage` permission)
+- pos-ui: PIN touchscreen on terminal login page (replaces SSO redirect for terminal mode)
+- Quick user switch: staff can hand off the terminal without full logout
+
+**Token type:** `pos_terminal` session — scoped to a single outlet/device; separate from SSO tokens  
+**Status:** ❌ Not implemented — see [pos-ui Sprint 10](../../pos-ui/docs/sprints/sprint-10-pos-auth.md)
+
+---
+
+## 5. Notifications Service Integration
 
 **Used for:**
 - KDS waiter-call notifications (`pos.kds.waiter.called` → notifications-service push)
@@ -150,7 +219,7 @@ POST /api/v1/s2s/{tenant}/payments/intents
 - Stock alert notifications
 
 **Client:** `internal/modules/notifications/client.go` (planned)  
-**Env vars:** `NOTIFICATIONS_SERVICE_URL`, `NOTIFICATIONS_SERVICE_API_KEY`
+**Env vars:** `NOTIFICATIONS_SERVICE_URL`, `INTERNAL_SERVICE_KEY`
 
 ---
 
@@ -178,21 +247,21 @@ POST /api/v1/s2s/{tenant}/payments/intents
 | `inventory.stock.low` | inventory-api | Create stock alert notification | ❌ Not wired |
 | `treasury.payment.success` | treasury-api | Mark payment succeeded, complete order | ❌ Not wired |
 | `treasury.payment.failed` | treasury-api | Mark payment failed | ❌ Not wired |
+| `ordering.order.status.changed` | ordering-backend | Create KDS ticket when hospitality order reaches `confirmed`/`preparing` | ❌ Not wired — Sprint 13 |
 
 ---
 
 ## Environment Variables
 
 ```bash
-# Inventory
+# Single S2S key used for ALL outbound service calls (X-API-Key header)
+INTERNAL_SERVICE_KEY=<platform shared S2S key>
+
+# Service URLs
 INVENTORY_SERVICE_URL=https://inventoryapi.codevertexitsolutions.com
-INVENTORY_SERVICE_API_KEY=<from auth-api S2S>
-
-# Treasury
 TREASURY_SERVICE_URL=https://booksapi.codevertexitsolutions.com
-TREASURY_SERVICE_API_KEY=<from auth-api S2S>
-
-# Notifications
 NOTIFICATIONS_SERVICE_URL=https://notificationsapi.codevertexitsolutions.com
-NOTIFICATIONS_SERVICE_API_KEY=<from auth-api S2S>
+ORDERING_SERVICE_URL=https://orderingapi.codevertexitsolutions.com
 ```
+
+**S2S Auth Standard**: All BengoBox internal services use a single `INTERNAL_SERVICE_KEY` env var. The same key value is sent as `X-API-Key` header on every S2S call regardless of the target service. Each receiving service validates it against its own `INTERNAL_SERVICE_KEY`. There are no per-service API keys.

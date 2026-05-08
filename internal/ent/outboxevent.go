@@ -19,24 +19,28 @@ type OutboxEvent struct {
 	config `json:"-"`
 	// ID of the ent.
 	ID uuid.UUID `json:"id,omitempty"`
-	// TenantID holds the value of the "tenant_id" field.
+	// Tenant ID for scoping; uuid.Nil for global events
 	TenantID uuid.UUID `json:"tenant_id,omitempty"`
+	// AggregateType holds the value of the "aggregate_type" field.
+	AggregateType string `json:"aggregate_type,omitempty"`
+	// AggregateID holds the value of the "aggregate_id" field.
+	AggregateID string `json:"aggregate_id,omitempty"`
 	// EventType holds the value of the "event_type" field.
 	EventType string `json:"event_type,omitempty"`
-	// Payload holds the value of the "payload" field.
-	Payload map[string]interface{} `json:"payload,omitempty"`
-	// Metadata holds the value of the "metadata" field.
-	Metadata map[string]interface{} `json:"metadata,omitempty"`
-	// Status holds the value of the "status" field.
+	// Serialized event payload
+	Payload []uint8 `json:"payload,omitempty"`
+	// PENDING | PUBLISHED | FAILED
 	Status string `json:"status,omitempty"`
-	// RetryCount holds the value of the "retry_count" field.
-	RetryCount int `json:"retry_count,omitempty"`
+	// Attempts holds the value of the "attempts" field.
+	Attempts int `json:"attempts,omitempty"`
+	// LastAttemptAt holds the value of the "last_attempt_at" field.
+	LastAttemptAt *time.Time `json:"last_attempt_at,omitempty"`
+	// PublishedAt holds the value of the "published_at" field.
+	PublishedAt *time.Time `json:"published_at,omitempty"`
+	// ErrorMessage holds the value of the "error_message" field.
+	ErrorMessage *string `json:"error_message,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
-	CreatedAt time.Time `json:"created_at,omitempty"`
-	// ProcessedAt holds the value of the "processed_at" field.
-	ProcessedAt *time.Time `json:"processed_at,omitempty"`
-	// LastError holds the value of the "last_error" field.
-	LastError    string `json:"last_error,omitempty"`
+	CreatedAt    time.Time `json:"created_at,omitempty"`
 	selectValues sql.SelectValues
 }
 
@@ -45,13 +49,13 @@ func (*OutboxEvent) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case outboxevent.FieldPayload, outboxevent.FieldMetadata:
+		case outboxevent.FieldPayload:
 			values[i] = new([]byte)
-		case outboxevent.FieldRetryCount:
+		case outboxevent.FieldAttempts:
 			values[i] = new(sql.NullInt64)
-		case outboxevent.FieldEventType, outboxevent.FieldStatus, outboxevent.FieldLastError:
+		case outboxevent.FieldAggregateType, outboxevent.FieldAggregateID, outboxevent.FieldEventType, outboxevent.FieldStatus, outboxevent.FieldErrorMessage:
 			values[i] = new(sql.NullString)
-		case outboxevent.FieldCreatedAt, outboxevent.FieldProcessedAt:
+		case outboxevent.FieldLastAttemptAt, outboxevent.FieldPublishedAt, outboxevent.FieldCreatedAt:
 			values[i] = new(sql.NullTime)
 		case outboxevent.FieldID, outboxevent.FieldTenantID:
 			values[i] = new(uuid.UUID)
@@ -82,6 +86,18 @@ func (_m *OutboxEvent) assignValues(columns []string, values []any) error {
 			} else if value != nil {
 				_m.TenantID = *value
 			}
+		case outboxevent.FieldAggregateType:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field aggregate_type", values[i])
+			} else if value.Valid {
+				_m.AggregateType = value.String
+			}
+		case outboxevent.FieldAggregateID:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field aggregate_id", values[i])
+			} else if value.Valid {
+				_m.AggregateID = value.String
+			}
 		case outboxevent.FieldEventType:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field event_type", values[i])
@@ -96,44 +112,44 @@ func (_m *OutboxEvent) assignValues(columns []string, values []any) error {
 					return fmt.Errorf("unmarshal field payload: %w", err)
 				}
 			}
-		case outboxevent.FieldMetadata:
-			if value, ok := values[i].(*[]byte); !ok {
-				return fmt.Errorf("unexpected type %T for field metadata", values[i])
-			} else if value != nil && len(*value) > 0 {
-				if err := json.Unmarshal(*value, &_m.Metadata); err != nil {
-					return fmt.Errorf("unmarshal field metadata: %w", err)
-				}
-			}
 		case outboxevent.FieldStatus:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field status", values[i])
 			} else if value.Valid {
 				_m.Status = value.String
 			}
-		case outboxevent.FieldRetryCount:
+		case outboxevent.FieldAttempts:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
-				return fmt.Errorf("unexpected type %T for field retry_count", values[i])
+				return fmt.Errorf("unexpected type %T for field attempts", values[i])
 			} else if value.Valid {
-				_m.RetryCount = int(value.Int64)
+				_m.Attempts = int(value.Int64)
+			}
+		case outboxevent.FieldLastAttemptAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field last_attempt_at", values[i])
+			} else if value.Valid {
+				_m.LastAttemptAt = new(time.Time)
+				*_m.LastAttemptAt = value.Time
+			}
+		case outboxevent.FieldPublishedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field published_at", values[i])
+			} else if value.Valid {
+				_m.PublishedAt = new(time.Time)
+				*_m.PublishedAt = value.Time
+			}
+		case outboxevent.FieldErrorMessage:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field error_message", values[i])
+			} else if value.Valid {
+				_m.ErrorMessage = new(string)
+				*_m.ErrorMessage = value.String
 			}
 		case outboxevent.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field created_at", values[i])
 			} else if value.Valid {
 				_m.CreatedAt = value.Time
-			}
-		case outboxevent.FieldProcessedAt:
-			if value, ok := values[i].(*sql.NullTime); !ok {
-				return fmt.Errorf("unexpected type %T for field processed_at", values[i])
-			} else if value.Valid {
-				_m.ProcessedAt = new(time.Time)
-				*_m.ProcessedAt = value.Time
-			}
-		case outboxevent.FieldLastError:
-			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field last_error", values[i])
-			} else if value.Valid {
-				_m.LastError = value.String
 			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
@@ -174,31 +190,41 @@ func (_m *OutboxEvent) String() string {
 	builder.WriteString("tenant_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.TenantID))
 	builder.WriteString(", ")
+	builder.WriteString("aggregate_type=")
+	builder.WriteString(_m.AggregateType)
+	builder.WriteString(", ")
+	builder.WriteString("aggregate_id=")
+	builder.WriteString(_m.AggregateID)
+	builder.WriteString(", ")
 	builder.WriteString("event_type=")
 	builder.WriteString(_m.EventType)
 	builder.WriteString(", ")
 	builder.WriteString("payload=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Payload))
 	builder.WriteString(", ")
-	builder.WriteString("metadata=")
-	builder.WriteString(fmt.Sprintf("%v", _m.Metadata))
-	builder.WriteString(", ")
 	builder.WriteString("status=")
 	builder.WriteString(_m.Status)
 	builder.WriteString(", ")
-	builder.WriteString("retry_count=")
-	builder.WriteString(fmt.Sprintf("%v", _m.RetryCount))
+	builder.WriteString("attempts=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Attempts))
 	builder.WriteString(", ")
-	builder.WriteString("created_at=")
-	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))
-	builder.WriteString(", ")
-	if v := _m.ProcessedAt; v != nil {
-		builder.WriteString("processed_at=")
+	if v := _m.LastAttemptAt; v != nil {
+		builder.WriteString("last_attempt_at=")
 		builder.WriteString(v.Format(time.ANSIC))
 	}
 	builder.WriteString(", ")
-	builder.WriteString("last_error=")
-	builder.WriteString(_m.LastError)
+	if v := _m.PublishedAt; v != nil {
+		builder.WriteString("published_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.ErrorMessage; v != nil {
+		builder.WriteString("error_message=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	builder.WriteString("created_at=")
+	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))
 	builder.WriteByte(')')
 	return builder.String()
 }

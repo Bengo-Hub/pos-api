@@ -37,7 +37,7 @@ type ConsumptionItem struct {
 ```
 
 Implementation using `shared-service-client` with:
-- Env: `INVENTORY_SERVICE_URL`, `INVENTORY_SERVICE_API_KEY`
+- Env: `INVENTORY_SERVICE_URL`, `INTERNAL_SERVICE_KEY`
 - Auth: `X-API-Key: {api_key}` header (S2S)
 - Retry: 3 attempts with exponential backoff (via shared-service-client)
 
@@ -83,7 +83,7 @@ pos-ui → POST /{tenant}/pos/orders/{id}/payments {tender_type: "card"|"mpesa",
 
 **Environment variables needed:**
 - `TREASURY_SERVICE_URL` — e.g., `https://booksapi.codevertexitsolutions.com`
-- `TREASURY_SERVICE_API_KEY` — S2S API key from auth-api
+- `INTERNAL_SERVICE_KEY` — shared platform S2S key (same for all services)
 
 **Treasury client:**
 ```go
@@ -118,13 +118,14 @@ type TreasuryClient interface {
 
 ## Environment Variables to Add
 ```bash
+INTERNAL_SERVICE_KEY=<platform shared S2S key>
 INVENTORY_SERVICE_URL=https://inventoryapi.codevertexitsolutions.com
-INVENTORY_SERVICE_API_KEY=<from auth-api>
 TREASURY_SERVICE_URL=https://booksapi.codevertexitsolutions.com
-TREASURY_SERVICE_API_KEY=<from auth-api>
 NOTIFICATIONS_SERVICE_URL=https://notificationsapi.codevertexitsolutions.com
-NOTIFICATIONS_SERVICE_API_KEY=<from auth-api>
+ORDERING_SERVICE_URL=https://orderingapi.codevertexitsolutions.com
 ```
+
+**S2S Auth Standard**: All BengoBox services use a single `INTERNAL_SERVICE_KEY` env var. The same key value is sent as `X-API-Key` header to every internal service. Do not create per-service key env vars (e.g., no `TREASURY_API_KEY` or `INVENTORY_API_KEY` — they all use `INTERNAL_SERVICE_KEY`).
 
 ---
 

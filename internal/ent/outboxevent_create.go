@@ -30,6 +30,18 @@ func (_c *OutboxEventCreate) SetTenantID(v uuid.UUID) *OutboxEventCreate {
 	return _c
 }
 
+// SetAggregateType sets the "aggregate_type" field.
+func (_c *OutboxEventCreate) SetAggregateType(v string) *OutboxEventCreate {
+	_c.mutation.SetAggregateType(v)
+	return _c
+}
+
+// SetAggregateID sets the "aggregate_id" field.
+func (_c *OutboxEventCreate) SetAggregateID(v string) *OutboxEventCreate {
+	_c.mutation.SetAggregateID(v)
+	return _c
+}
+
 // SetEventType sets the "event_type" field.
 func (_c *OutboxEventCreate) SetEventType(v string) *OutboxEventCreate {
 	_c.mutation.SetEventType(v)
@@ -37,14 +49,8 @@ func (_c *OutboxEventCreate) SetEventType(v string) *OutboxEventCreate {
 }
 
 // SetPayload sets the "payload" field.
-func (_c *OutboxEventCreate) SetPayload(v map[string]interface{}) *OutboxEventCreate {
+func (_c *OutboxEventCreate) SetPayload(v []uint8) *OutboxEventCreate {
 	_c.mutation.SetPayload(v)
-	return _c
-}
-
-// SetMetadata sets the "metadata" field.
-func (_c *OutboxEventCreate) SetMetadata(v map[string]interface{}) *OutboxEventCreate {
-	_c.mutation.SetMetadata(v)
 	return _c
 }
 
@@ -62,16 +68,58 @@ func (_c *OutboxEventCreate) SetNillableStatus(v *string) *OutboxEventCreate {
 	return _c
 }
 
-// SetRetryCount sets the "retry_count" field.
-func (_c *OutboxEventCreate) SetRetryCount(v int) *OutboxEventCreate {
-	_c.mutation.SetRetryCount(v)
+// SetAttempts sets the "attempts" field.
+func (_c *OutboxEventCreate) SetAttempts(v int) *OutboxEventCreate {
+	_c.mutation.SetAttempts(v)
 	return _c
 }
 
-// SetNillableRetryCount sets the "retry_count" field if the given value is not nil.
-func (_c *OutboxEventCreate) SetNillableRetryCount(v *int) *OutboxEventCreate {
+// SetNillableAttempts sets the "attempts" field if the given value is not nil.
+func (_c *OutboxEventCreate) SetNillableAttempts(v *int) *OutboxEventCreate {
 	if v != nil {
-		_c.SetRetryCount(*v)
+		_c.SetAttempts(*v)
+	}
+	return _c
+}
+
+// SetLastAttemptAt sets the "last_attempt_at" field.
+func (_c *OutboxEventCreate) SetLastAttemptAt(v time.Time) *OutboxEventCreate {
+	_c.mutation.SetLastAttemptAt(v)
+	return _c
+}
+
+// SetNillableLastAttemptAt sets the "last_attempt_at" field if the given value is not nil.
+func (_c *OutboxEventCreate) SetNillableLastAttemptAt(v *time.Time) *OutboxEventCreate {
+	if v != nil {
+		_c.SetLastAttemptAt(*v)
+	}
+	return _c
+}
+
+// SetPublishedAt sets the "published_at" field.
+func (_c *OutboxEventCreate) SetPublishedAt(v time.Time) *OutboxEventCreate {
+	_c.mutation.SetPublishedAt(v)
+	return _c
+}
+
+// SetNillablePublishedAt sets the "published_at" field if the given value is not nil.
+func (_c *OutboxEventCreate) SetNillablePublishedAt(v *time.Time) *OutboxEventCreate {
+	if v != nil {
+		_c.SetPublishedAt(*v)
+	}
+	return _c
+}
+
+// SetErrorMessage sets the "error_message" field.
+func (_c *OutboxEventCreate) SetErrorMessage(v string) *OutboxEventCreate {
+	_c.mutation.SetErrorMessage(v)
+	return _c
+}
+
+// SetNillableErrorMessage sets the "error_message" field if the given value is not nil.
+func (_c *OutboxEventCreate) SetNillableErrorMessage(v *string) *OutboxEventCreate {
+	if v != nil {
+		_c.SetErrorMessage(*v)
 	}
 	return _c
 }
@@ -86,34 +134,6 @@ func (_c *OutboxEventCreate) SetCreatedAt(v time.Time) *OutboxEventCreate {
 func (_c *OutboxEventCreate) SetNillableCreatedAt(v *time.Time) *OutboxEventCreate {
 	if v != nil {
 		_c.SetCreatedAt(*v)
-	}
-	return _c
-}
-
-// SetProcessedAt sets the "processed_at" field.
-func (_c *OutboxEventCreate) SetProcessedAt(v time.Time) *OutboxEventCreate {
-	_c.mutation.SetProcessedAt(v)
-	return _c
-}
-
-// SetNillableProcessedAt sets the "processed_at" field if the given value is not nil.
-func (_c *OutboxEventCreate) SetNillableProcessedAt(v *time.Time) *OutboxEventCreate {
-	if v != nil {
-		_c.SetProcessedAt(*v)
-	}
-	return _c
-}
-
-// SetLastError sets the "last_error" field.
-func (_c *OutboxEventCreate) SetLastError(v string) *OutboxEventCreate {
-	_c.mutation.SetLastError(v)
-	return _c
-}
-
-// SetNillableLastError sets the "last_error" field if the given value is not nil.
-func (_c *OutboxEventCreate) SetNillableLastError(v *string) *OutboxEventCreate {
-	if v != nil {
-		_c.SetLastError(*v)
 	}
 	return _c
 }
@@ -171,9 +191,9 @@ func (_c *OutboxEventCreate) defaults() {
 		v := outboxevent.DefaultStatus
 		_c.mutation.SetStatus(v)
 	}
-	if _, ok := _c.mutation.RetryCount(); !ok {
-		v := outboxevent.DefaultRetryCount
-		_c.mutation.SetRetryCount(v)
+	if _, ok := _c.mutation.Attempts(); !ok {
+		v := outboxevent.DefaultAttempts
+		_c.mutation.SetAttempts(v)
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		v := outboxevent.DefaultCreatedAt()
@@ -190,6 +210,22 @@ func (_c *OutboxEventCreate) check() error {
 	if _, ok := _c.mutation.TenantID(); !ok {
 		return &ValidationError{Name: "tenant_id", err: errors.New(`ent: missing required field "OutboxEvent.tenant_id"`)}
 	}
+	if _, ok := _c.mutation.AggregateType(); !ok {
+		return &ValidationError{Name: "aggregate_type", err: errors.New(`ent: missing required field "OutboxEvent.aggregate_type"`)}
+	}
+	if v, ok := _c.mutation.AggregateType(); ok {
+		if err := outboxevent.AggregateTypeValidator(v); err != nil {
+			return &ValidationError{Name: "aggregate_type", err: fmt.Errorf(`ent: validator failed for field "OutboxEvent.aggregate_type": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.AggregateID(); !ok {
+		return &ValidationError{Name: "aggregate_id", err: errors.New(`ent: missing required field "OutboxEvent.aggregate_id"`)}
+	}
+	if v, ok := _c.mutation.AggregateID(); ok {
+		if err := outboxevent.AggregateIDValidator(v); err != nil {
+			return &ValidationError{Name: "aggregate_id", err: fmt.Errorf(`ent: validator failed for field "OutboxEvent.aggregate_id": %w`, err)}
+		}
+	}
 	if _, ok := _c.mutation.EventType(); !ok {
 		return &ValidationError{Name: "event_type", err: errors.New(`ent: missing required field "OutboxEvent.event_type"`)}
 	}
@@ -204,8 +240,8 @@ func (_c *OutboxEventCreate) check() error {
 	if _, ok := _c.mutation.Status(); !ok {
 		return &ValidationError{Name: "status", err: errors.New(`ent: missing required field "OutboxEvent.status"`)}
 	}
-	if _, ok := _c.mutation.RetryCount(); !ok {
-		return &ValidationError{Name: "retry_count", err: errors.New(`ent: missing required field "OutboxEvent.retry_count"`)}
+	if _, ok := _c.mutation.Attempts(); !ok {
+		return &ValidationError{Name: "attempts", err: errors.New(`ent: missing required field "OutboxEvent.attempts"`)}
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "OutboxEvent.created_at"`)}
@@ -250,6 +286,14 @@ func (_c *OutboxEventCreate) createSpec() (*OutboxEvent, *sqlgraph.CreateSpec) {
 		_spec.SetField(outboxevent.FieldTenantID, field.TypeUUID, value)
 		_node.TenantID = value
 	}
+	if value, ok := _c.mutation.AggregateType(); ok {
+		_spec.SetField(outboxevent.FieldAggregateType, field.TypeString, value)
+		_node.AggregateType = value
+	}
+	if value, ok := _c.mutation.AggregateID(); ok {
+		_spec.SetField(outboxevent.FieldAggregateID, field.TypeString, value)
+		_node.AggregateID = value
+	}
 	if value, ok := _c.mutation.EventType(); ok {
 		_spec.SetField(outboxevent.FieldEventType, field.TypeString, value)
 		_node.EventType = value
@@ -258,29 +302,29 @@ func (_c *OutboxEventCreate) createSpec() (*OutboxEvent, *sqlgraph.CreateSpec) {
 		_spec.SetField(outboxevent.FieldPayload, field.TypeJSON, value)
 		_node.Payload = value
 	}
-	if value, ok := _c.mutation.Metadata(); ok {
-		_spec.SetField(outboxevent.FieldMetadata, field.TypeJSON, value)
-		_node.Metadata = value
-	}
 	if value, ok := _c.mutation.Status(); ok {
 		_spec.SetField(outboxevent.FieldStatus, field.TypeString, value)
 		_node.Status = value
 	}
-	if value, ok := _c.mutation.RetryCount(); ok {
-		_spec.SetField(outboxevent.FieldRetryCount, field.TypeInt, value)
-		_node.RetryCount = value
+	if value, ok := _c.mutation.Attempts(); ok {
+		_spec.SetField(outboxevent.FieldAttempts, field.TypeInt, value)
+		_node.Attempts = value
+	}
+	if value, ok := _c.mutation.LastAttemptAt(); ok {
+		_spec.SetField(outboxevent.FieldLastAttemptAt, field.TypeTime, value)
+		_node.LastAttemptAt = &value
+	}
+	if value, ok := _c.mutation.PublishedAt(); ok {
+		_spec.SetField(outboxevent.FieldPublishedAt, field.TypeTime, value)
+		_node.PublishedAt = &value
+	}
+	if value, ok := _c.mutation.ErrorMessage(); ok {
+		_spec.SetField(outboxevent.FieldErrorMessage, field.TypeString, value)
+		_node.ErrorMessage = &value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(outboxevent.FieldCreatedAt, field.TypeTime, value)
 		_node.CreatedAt = value
-	}
-	if value, ok := _c.mutation.ProcessedAt(); ok {
-		_spec.SetField(outboxevent.FieldProcessedAt, field.TypeTime, value)
-		_node.ProcessedAt = &value
-	}
-	if value, ok := _c.mutation.LastError(); ok {
-		_spec.SetField(outboxevent.FieldLastError, field.TypeString, value)
-		_node.LastError = value
 	}
 	return _node, _spec
 }
@@ -346,6 +390,30 @@ func (u *OutboxEventUpsert) UpdateTenantID() *OutboxEventUpsert {
 	return u
 }
 
+// SetAggregateType sets the "aggregate_type" field.
+func (u *OutboxEventUpsert) SetAggregateType(v string) *OutboxEventUpsert {
+	u.Set(outboxevent.FieldAggregateType, v)
+	return u
+}
+
+// UpdateAggregateType sets the "aggregate_type" field to the value that was provided on create.
+func (u *OutboxEventUpsert) UpdateAggregateType() *OutboxEventUpsert {
+	u.SetExcluded(outboxevent.FieldAggregateType)
+	return u
+}
+
+// SetAggregateID sets the "aggregate_id" field.
+func (u *OutboxEventUpsert) SetAggregateID(v string) *OutboxEventUpsert {
+	u.Set(outboxevent.FieldAggregateID, v)
+	return u
+}
+
+// UpdateAggregateID sets the "aggregate_id" field to the value that was provided on create.
+func (u *OutboxEventUpsert) UpdateAggregateID() *OutboxEventUpsert {
+	u.SetExcluded(outboxevent.FieldAggregateID)
+	return u
+}
+
 // SetEventType sets the "event_type" field.
 func (u *OutboxEventUpsert) SetEventType(v string) *OutboxEventUpsert {
 	u.Set(outboxevent.FieldEventType, v)
@@ -359,7 +427,7 @@ func (u *OutboxEventUpsert) UpdateEventType() *OutboxEventUpsert {
 }
 
 // SetPayload sets the "payload" field.
-func (u *OutboxEventUpsert) SetPayload(v map[string]interface{}) *OutboxEventUpsert {
+func (u *OutboxEventUpsert) SetPayload(v []uint8) *OutboxEventUpsert {
 	u.Set(outboxevent.FieldPayload, v)
 	return u
 }
@@ -367,24 +435,6 @@ func (u *OutboxEventUpsert) SetPayload(v map[string]interface{}) *OutboxEventUps
 // UpdatePayload sets the "payload" field to the value that was provided on create.
 func (u *OutboxEventUpsert) UpdatePayload() *OutboxEventUpsert {
 	u.SetExcluded(outboxevent.FieldPayload)
-	return u
-}
-
-// SetMetadata sets the "metadata" field.
-func (u *OutboxEventUpsert) SetMetadata(v map[string]interface{}) *OutboxEventUpsert {
-	u.Set(outboxevent.FieldMetadata, v)
-	return u
-}
-
-// UpdateMetadata sets the "metadata" field to the value that was provided on create.
-func (u *OutboxEventUpsert) UpdateMetadata() *OutboxEventUpsert {
-	u.SetExcluded(outboxevent.FieldMetadata)
-	return u
-}
-
-// ClearMetadata clears the value of the "metadata" field.
-func (u *OutboxEventUpsert) ClearMetadata() *OutboxEventUpsert {
-	u.SetNull(outboxevent.FieldMetadata)
 	return u
 }
 
@@ -400,57 +450,75 @@ func (u *OutboxEventUpsert) UpdateStatus() *OutboxEventUpsert {
 	return u
 }
 
-// SetRetryCount sets the "retry_count" field.
-func (u *OutboxEventUpsert) SetRetryCount(v int) *OutboxEventUpsert {
-	u.Set(outboxevent.FieldRetryCount, v)
+// SetAttempts sets the "attempts" field.
+func (u *OutboxEventUpsert) SetAttempts(v int) *OutboxEventUpsert {
+	u.Set(outboxevent.FieldAttempts, v)
 	return u
 }
 
-// UpdateRetryCount sets the "retry_count" field to the value that was provided on create.
-func (u *OutboxEventUpsert) UpdateRetryCount() *OutboxEventUpsert {
-	u.SetExcluded(outboxevent.FieldRetryCount)
+// UpdateAttempts sets the "attempts" field to the value that was provided on create.
+func (u *OutboxEventUpsert) UpdateAttempts() *OutboxEventUpsert {
+	u.SetExcluded(outboxevent.FieldAttempts)
 	return u
 }
 
-// AddRetryCount adds v to the "retry_count" field.
-func (u *OutboxEventUpsert) AddRetryCount(v int) *OutboxEventUpsert {
-	u.Add(outboxevent.FieldRetryCount, v)
+// AddAttempts adds v to the "attempts" field.
+func (u *OutboxEventUpsert) AddAttempts(v int) *OutboxEventUpsert {
+	u.Add(outboxevent.FieldAttempts, v)
 	return u
 }
 
-// SetProcessedAt sets the "processed_at" field.
-func (u *OutboxEventUpsert) SetProcessedAt(v time.Time) *OutboxEventUpsert {
-	u.Set(outboxevent.FieldProcessedAt, v)
+// SetLastAttemptAt sets the "last_attempt_at" field.
+func (u *OutboxEventUpsert) SetLastAttemptAt(v time.Time) *OutboxEventUpsert {
+	u.Set(outboxevent.FieldLastAttemptAt, v)
 	return u
 }
 
-// UpdateProcessedAt sets the "processed_at" field to the value that was provided on create.
-func (u *OutboxEventUpsert) UpdateProcessedAt() *OutboxEventUpsert {
-	u.SetExcluded(outboxevent.FieldProcessedAt)
+// UpdateLastAttemptAt sets the "last_attempt_at" field to the value that was provided on create.
+func (u *OutboxEventUpsert) UpdateLastAttemptAt() *OutboxEventUpsert {
+	u.SetExcluded(outboxevent.FieldLastAttemptAt)
 	return u
 }
 
-// ClearProcessedAt clears the value of the "processed_at" field.
-func (u *OutboxEventUpsert) ClearProcessedAt() *OutboxEventUpsert {
-	u.SetNull(outboxevent.FieldProcessedAt)
+// ClearLastAttemptAt clears the value of the "last_attempt_at" field.
+func (u *OutboxEventUpsert) ClearLastAttemptAt() *OutboxEventUpsert {
+	u.SetNull(outboxevent.FieldLastAttemptAt)
 	return u
 }
 
-// SetLastError sets the "last_error" field.
-func (u *OutboxEventUpsert) SetLastError(v string) *OutboxEventUpsert {
-	u.Set(outboxevent.FieldLastError, v)
+// SetPublishedAt sets the "published_at" field.
+func (u *OutboxEventUpsert) SetPublishedAt(v time.Time) *OutboxEventUpsert {
+	u.Set(outboxevent.FieldPublishedAt, v)
 	return u
 }
 
-// UpdateLastError sets the "last_error" field to the value that was provided on create.
-func (u *OutboxEventUpsert) UpdateLastError() *OutboxEventUpsert {
-	u.SetExcluded(outboxevent.FieldLastError)
+// UpdatePublishedAt sets the "published_at" field to the value that was provided on create.
+func (u *OutboxEventUpsert) UpdatePublishedAt() *OutboxEventUpsert {
+	u.SetExcluded(outboxevent.FieldPublishedAt)
 	return u
 }
 
-// ClearLastError clears the value of the "last_error" field.
-func (u *OutboxEventUpsert) ClearLastError() *OutboxEventUpsert {
-	u.SetNull(outboxevent.FieldLastError)
+// ClearPublishedAt clears the value of the "published_at" field.
+func (u *OutboxEventUpsert) ClearPublishedAt() *OutboxEventUpsert {
+	u.SetNull(outboxevent.FieldPublishedAt)
+	return u
+}
+
+// SetErrorMessage sets the "error_message" field.
+func (u *OutboxEventUpsert) SetErrorMessage(v string) *OutboxEventUpsert {
+	u.Set(outboxevent.FieldErrorMessage, v)
+	return u
+}
+
+// UpdateErrorMessage sets the "error_message" field to the value that was provided on create.
+func (u *OutboxEventUpsert) UpdateErrorMessage() *OutboxEventUpsert {
+	u.SetExcluded(outboxevent.FieldErrorMessage)
+	return u
+}
+
+// ClearErrorMessage clears the value of the "error_message" field.
+func (u *OutboxEventUpsert) ClearErrorMessage() *OutboxEventUpsert {
+	u.SetNull(outboxevent.FieldErrorMessage)
 	return u
 }
 
@@ -519,6 +587,34 @@ func (u *OutboxEventUpsertOne) UpdateTenantID() *OutboxEventUpsertOne {
 	})
 }
 
+// SetAggregateType sets the "aggregate_type" field.
+func (u *OutboxEventUpsertOne) SetAggregateType(v string) *OutboxEventUpsertOne {
+	return u.Update(func(s *OutboxEventUpsert) {
+		s.SetAggregateType(v)
+	})
+}
+
+// UpdateAggregateType sets the "aggregate_type" field to the value that was provided on create.
+func (u *OutboxEventUpsertOne) UpdateAggregateType() *OutboxEventUpsertOne {
+	return u.Update(func(s *OutboxEventUpsert) {
+		s.UpdateAggregateType()
+	})
+}
+
+// SetAggregateID sets the "aggregate_id" field.
+func (u *OutboxEventUpsertOne) SetAggregateID(v string) *OutboxEventUpsertOne {
+	return u.Update(func(s *OutboxEventUpsert) {
+		s.SetAggregateID(v)
+	})
+}
+
+// UpdateAggregateID sets the "aggregate_id" field to the value that was provided on create.
+func (u *OutboxEventUpsertOne) UpdateAggregateID() *OutboxEventUpsertOne {
+	return u.Update(func(s *OutboxEventUpsert) {
+		s.UpdateAggregateID()
+	})
+}
+
 // SetEventType sets the "event_type" field.
 func (u *OutboxEventUpsertOne) SetEventType(v string) *OutboxEventUpsertOne {
 	return u.Update(func(s *OutboxEventUpsert) {
@@ -534,7 +630,7 @@ func (u *OutboxEventUpsertOne) UpdateEventType() *OutboxEventUpsertOne {
 }
 
 // SetPayload sets the "payload" field.
-func (u *OutboxEventUpsertOne) SetPayload(v map[string]interface{}) *OutboxEventUpsertOne {
+func (u *OutboxEventUpsertOne) SetPayload(v []uint8) *OutboxEventUpsertOne {
 	return u.Update(func(s *OutboxEventUpsert) {
 		s.SetPayload(v)
 	})
@@ -544,27 +640,6 @@ func (u *OutboxEventUpsertOne) SetPayload(v map[string]interface{}) *OutboxEvent
 func (u *OutboxEventUpsertOne) UpdatePayload() *OutboxEventUpsertOne {
 	return u.Update(func(s *OutboxEventUpsert) {
 		s.UpdatePayload()
-	})
-}
-
-// SetMetadata sets the "metadata" field.
-func (u *OutboxEventUpsertOne) SetMetadata(v map[string]interface{}) *OutboxEventUpsertOne {
-	return u.Update(func(s *OutboxEventUpsert) {
-		s.SetMetadata(v)
-	})
-}
-
-// UpdateMetadata sets the "metadata" field to the value that was provided on create.
-func (u *OutboxEventUpsertOne) UpdateMetadata() *OutboxEventUpsertOne {
-	return u.Update(func(s *OutboxEventUpsert) {
-		s.UpdateMetadata()
-	})
-}
-
-// ClearMetadata clears the value of the "metadata" field.
-func (u *OutboxEventUpsertOne) ClearMetadata() *OutboxEventUpsertOne {
-	return u.Update(func(s *OutboxEventUpsert) {
-		s.ClearMetadata()
 	})
 }
 
@@ -582,66 +657,87 @@ func (u *OutboxEventUpsertOne) UpdateStatus() *OutboxEventUpsertOne {
 	})
 }
 
-// SetRetryCount sets the "retry_count" field.
-func (u *OutboxEventUpsertOne) SetRetryCount(v int) *OutboxEventUpsertOne {
+// SetAttempts sets the "attempts" field.
+func (u *OutboxEventUpsertOne) SetAttempts(v int) *OutboxEventUpsertOne {
 	return u.Update(func(s *OutboxEventUpsert) {
-		s.SetRetryCount(v)
+		s.SetAttempts(v)
 	})
 }
 
-// AddRetryCount adds v to the "retry_count" field.
-func (u *OutboxEventUpsertOne) AddRetryCount(v int) *OutboxEventUpsertOne {
+// AddAttempts adds v to the "attempts" field.
+func (u *OutboxEventUpsertOne) AddAttempts(v int) *OutboxEventUpsertOne {
 	return u.Update(func(s *OutboxEventUpsert) {
-		s.AddRetryCount(v)
+		s.AddAttempts(v)
 	})
 }
 
-// UpdateRetryCount sets the "retry_count" field to the value that was provided on create.
-func (u *OutboxEventUpsertOne) UpdateRetryCount() *OutboxEventUpsertOne {
+// UpdateAttempts sets the "attempts" field to the value that was provided on create.
+func (u *OutboxEventUpsertOne) UpdateAttempts() *OutboxEventUpsertOne {
 	return u.Update(func(s *OutboxEventUpsert) {
-		s.UpdateRetryCount()
+		s.UpdateAttempts()
 	})
 }
 
-// SetProcessedAt sets the "processed_at" field.
-func (u *OutboxEventUpsertOne) SetProcessedAt(v time.Time) *OutboxEventUpsertOne {
+// SetLastAttemptAt sets the "last_attempt_at" field.
+func (u *OutboxEventUpsertOne) SetLastAttemptAt(v time.Time) *OutboxEventUpsertOne {
 	return u.Update(func(s *OutboxEventUpsert) {
-		s.SetProcessedAt(v)
+		s.SetLastAttemptAt(v)
 	})
 }
 
-// UpdateProcessedAt sets the "processed_at" field to the value that was provided on create.
-func (u *OutboxEventUpsertOne) UpdateProcessedAt() *OutboxEventUpsertOne {
+// UpdateLastAttemptAt sets the "last_attempt_at" field to the value that was provided on create.
+func (u *OutboxEventUpsertOne) UpdateLastAttemptAt() *OutboxEventUpsertOne {
 	return u.Update(func(s *OutboxEventUpsert) {
-		s.UpdateProcessedAt()
+		s.UpdateLastAttemptAt()
 	})
 }
 
-// ClearProcessedAt clears the value of the "processed_at" field.
-func (u *OutboxEventUpsertOne) ClearProcessedAt() *OutboxEventUpsertOne {
+// ClearLastAttemptAt clears the value of the "last_attempt_at" field.
+func (u *OutboxEventUpsertOne) ClearLastAttemptAt() *OutboxEventUpsertOne {
 	return u.Update(func(s *OutboxEventUpsert) {
-		s.ClearProcessedAt()
+		s.ClearLastAttemptAt()
 	})
 }
 
-// SetLastError sets the "last_error" field.
-func (u *OutboxEventUpsertOne) SetLastError(v string) *OutboxEventUpsertOne {
+// SetPublishedAt sets the "published_at" field.
+func (u *OutboxEventUpsertOne) SetPublishedAt(v time.Time) *OutboxEventUpsertOne {
 	return u.Update(func(s *OutboxEventUpsert) {
-		s.SetLastError(v)
+		s.SetPublishedAt(v)
 	})
 }
 
-// UpdateLastError sets the "last_error" field to the value that was provided on create.
-func (u *OutboxEventUpsertOne) UpdateLastError() *OutboxEventUpsertOne {
+// UpdatePublishedAt sets the "published_at" field to the value that was provided on create.
+func (u *OutboxEventUpsertOne) UpdatePublishedAt() *OutboxEventUpsertOne {
 	return u.Update(func(s *OutboxEventUpsert) {
-		s.UpdateLastError()
+		s.UpdatePublishedAt()
 	})
 }
 
-// ClearLastError clears the value of the "last_error" field.
-func (u *OutboxEventUpsertOne) ClearLastError() *OutboxEventUpsertOne {
+// ClearPublishedAt clears the value of the "published_at" field.
+func (u *OutboxEventUpsertOne) ClearPublishedAt() *OutboxEventUpsertOne {
 	return u.Update(func(s *OutboxEventUpsert) {
-		s.ClearLastError()
+		s.ClearPublishedAt()
+	})
+}
+
+// SetErrorMessage sets the "error_message" field.
+func (u *OutboxEventUpsertOne) SetErrorMessage(v string) *OutboxEventUpsertOne {
+	return u.Update(func(s *OutboxEventUpsert) {
+		s.SetErrorMessage(v)
+	})
+}
+
+// UpdateErrorMessage sets the "error_message" field to the value that was provided on create.
+func (u *OutboxEventUpsertOne) UpdateErrorMessage() *OutboxEventUpsertOne {
+	return u.Update(func(s *OutboxEventUpsert) {
+		s.UpdateErrorMessage()
+	})
+}
+
+// ClearErrorMessage clears the value of the "error_message" field.
+func (u *OutboxEventUpsertOne) ClearErrorMessage() *OutboxEventUpsertOne {
+	return u.Update(func(s *OutboxEventUpsert) {
+		s.ClearErrorMessage()
 	})
 }
 
@@ -877,6 +973,34 @@ func (u *OutboxEventUpsertBulk) UpdateTenantID() *OutboxEventUpsertBulk {
 	})
 }
 
+// SetAggregateType sets the "aggregate_type" field.
+func (u *OutboxEventUpsertBulk) SetAggregateType(v string) *OutboxEventUpsertBulk {
+	return u.Update(func(s *OutboxEventUpsert) {
+		s.SetAggregateType(v)
+	})
+}
+
+// UpdateAggregateType sets the "aggregate_type" field to the value that was provided on create.
+func (u *OutboxEventUpsertBulk) UpdateAggregateType() *OutboxEventUpsertBulk {
+	return u.Update(func(s *OutboxEventUpsert) {
+		s.UpdateAggregateType()
+	})
+}
+
+// SetAggregateID sets the "aggregate_id" field.
+func (u *OutboxEventUpsertBulk) SetAggregateID(v string) *OutboxEventUpsertBulk {
+	return u.Update(func(s *OutboxEventUpsert) {
+		s.SetAggregateID(v)
+	})
+}
+
+// UpdateAggregateID sets the "aggregate_id" field to the value that was provided on create.
+func (u *OutboxEventUpsertBulk) UpdateAggregateID() *OutboxEventUpsertBulk {
+	return u.Update(func(s *OutboxEventUpsert) {
+		s.UpdateAggregateID()
+	})
+}
+
 // SetEventType sets the "event_type" field.
 func (u *OutboxEventUpsertBulk) SetEventType(v string) *OutboxEventUpsertBulk {
 	return u.Update(func(s *OutboxEventUpsert) {
@@ -892,7 +1016,7 @@ func (u *OutboxEventUpsertBulk) UpdateEventType() *OutboxEventUpsertBulk {
 }
 
 // SetPayload sets the "payload" field.
-func (u *OutboxEventUpsertBulk) SetPayload(v map[string]interface{}) *OutboxEventUpsertBulk {
+func (u *OutboxEventUpsertBulk) SetPayload(v []uint8) *OutboxEventUpsertBulk {
 	return u.Update(func(s *OutboxEventUpsert) {
 		s.SetPayload(v)
 	})
@@ -902,27 +1026,6 @@ func (u *OutboxEventUpsertBulk) SetPayload(v map[string]interface{}) *OutboxEven
 func (u *OutboxEventUpsertBulk) UpdatePayload() *OutboxEventUpsertBulk {
 	return u.Update(func(s *OutboxEventUpsert) {
 		s.UpdatePayload()
-	})
-}
-
-// SetMetadata sets the "metadata" field.
-func (u *OutboxEventUpsertBulk) SetMetadata(v map[string]interface{}) *OutboxEventUpsertBulk {
-	return u.Update(func(s *OutboxEventUpsert) {
-		s.SetMetadata(v)
-	})
-}
-
-// UpdateMetadata sets the "metadata" field to the value that was provided on create.
-func (u *OutboxEventUpsertBulk) UpdateMetadata() *OutboxEventUpsertBulk {
-	return u.Update(func(s *OutboxEventUpsert) {
-		s.UpdateMetadata()
-	})
-}
-
-// ClearMetadata clears the value of the "metadata" field.
-func (u *OutboxEventUpsertBulk) ClearMetadata() *OutboxEventUpsertBulk {
-	return u.Update(func(s *OutboxEventUpsert) {
-		s.ClearMetadata()
 	})
 }
 
@@ -940,66 +1043,87 @@ func (u *OutboxEventUpsertBulk) UpdateStatus() *OutboxEventUpsertBulk {
 	})
 }
 
-// SetRetryCount sets the "retry_count" field.
-func (u *OutboxEventUpsertBulk) SetRetryCount(v int) *OutboxEventUpsertBulk {
+// SetAttempts sets the "attempts" field.
+func (u *OutboxEventUpsertBulk) SetAttempts(v int) *OutboxEventUpsertBulk {
 	return u.Update(func(s *OutboxEventUpsert) {
-		s.SetRetryCount(v)
+		s.SetAttempts(v)
 	})
 }
 
-// AddRetryCount adds v to the "retry_count" field.
-func (u *OutboxEventUpsertBulk) AddRetryCount(v int) *OutboxEventUpsertBulk {
+// AddAttempts adds v to the "attempts" field.
+func (u *OutboxEventUpsertBulk) AddAttempts(v int) *OutboxEventUpsertBulk {
 	return u.Update(func(s *OutboxEventUpsert) {
-		s.AddRetryCount(v)
+		s.AddAttempts(v)
 	})
 }
 
-// UpdateRetryCount sets the "retry_count" field to the value that was provided on create.
-func (u *OutboxEventUpsertBulk) UpdateRetryCount() *OutboxEventUpsertBulk {
+// UpdateAttempts sets the "attempts" field to the value that was provided on create.
+func (u *OutboxEventUpsertBulk) UpdateAttempts() *OutboxEventUpsertBulk {
 	return u.Update(func(s *OutboxEventUpsert) {
-		s.UpdateRetryCount()
+		s.UpdateAttempts()
 	})
 }
 
-// SetProcessedAt sets the "processed_at" field.
-func (u *OutboxEventUpsertBulk) SetProcessedAt(v time.Time) *OutboxEventUpsertBulk {
+// SetLastAttemptAt sets the "last_attempt_at" field.
+func (u *OutboxEventUpsertBulk) SetLastAttemptAt(v time.Time) *OutboxEventUpsertBulk {
 	return u.Update(func(s *OutboxEventUpsert) {
-		s.SetProcessedAt(v)
+		s.SetLastAttemptAt(v)
 	})
 }
 
-// UpdateProcessedAt sets the "processed_at" field to the value that was provided on create.
-func (u *OutboxEventUpsertBulk) UpdateProcessedAt() *OutboxEventUpsertBulk {
+// UpdateLastAttemptAt sets the "last_attempt_at" field to the value that was provided on create.
+func (u *OutboxEventUpsertBulk) UpdateLastAttemptAt() *OutboxEventUpsertBulk {
 	return u.Update(func(s *OutboxEventUpsert) {
-		s.UpdateProcessedAt()
+		s.UpdateLastAttemptAt()
 	})
 }
 
-// ClearProcessedAt clears the value of the "processed_at" field.
-func (u *OutboxEventUpsertBulk) ClearProcessedAt() *OutboxEventUpsertBulk {
+// ClearLastAttemptAt clears the value of the "last_attempt_at" field.
+func (u *OutboxEventUpsertBulk) ClearLastAttemptAt() *OutboxEventUpsertBulk {
 	return u.Update(func(s *OutboxEventUpsert) {
-		s.ClearProcessedAt()
+		s.ClearLastAttemptAt()
 	})
 }
 
-// SetLastError sets the "last_error" field.
-func (u *OutboxEventUpsertBulk) SetLastError(v string) *OutboxEventUpsertBulk {
+// SetPublishedAt sets the "published_at" field.
+func (u *OutboxEventUpsertBulk) SetPublishedAt(v time.Time) *OutboxEventUpsertBulk {
 	return u.Update(func(s *OutboxEventUpsert) {
-		s.SetLastError(v)
+		s.SetPublishedAt(v)
 	})
 }
 
-// UpdateLastError sets the "last_error" field to the value that was provided on create.
-func (u *OutboxEventUpsertBulk) UpdateLastError() *OutboxEventUpsertBulk {
+// UpdatePublishedAt sets the "published_at" field to the value that was provided on create.
+func (u *OutboxEventUpsertBulk) UpdatePublishedAt() *OutboxEventUpsertBulk {
 	return u.Update(func(s *OutboxEventUpsert) {
-		s.UpdateLastError()
+		s.UpdatePublishedAt()
 	})
 }
 
-// ClearLastError clears the value of the "last_error" field.
-func (u *OutboxEventUpsertBulk) ClearLastError() *OutboxEventUpsertBulk {
+// ClearPublishedAt clears the value of the "published_at" field.
+func (u *OutboxEventUpsertBulk) ClearPublishedAt() *OutboxEventUpsertBulk {
 	return u.Update(func(s *OutboxEventUpsert) {
-		s.ClearLastError()
+		s.ClearPublishedAt()
+	})
+}
+
+// SetErrorMessage sets the "error_message" field.
+func (u *OutboxEventUpsertBulk) SetErrorMessage(v string) *OutboxEventUpsertBulk {
+	return u.Update(func(s *OutboxEventUpsert) {
+		s.SetErrorMessage(v)
+	})
+}
+
+// UpdateErrorMessage sets the "error_message" field to the value that was provided on create.
+func (u *OutboxEventUpsertBulk) UpdateErrorMessage() *OutboxEventUpsertBulk {
+	return u.Update(func(s *OutboxEventUpsert) {
+		s.UpdateErrorMessage()
+	})
+}
+
+// ClearErrorMessage clears the value of the "error_message" field.
+func (u *OutboxEventUpsertBulk) ClearErrorMessage() *OutboxEventUpsertBulk {
+	return u.Update(func(s *OutboxEventUpsert) {
+		s.ClearErrorMessage()
 	})
 }
 

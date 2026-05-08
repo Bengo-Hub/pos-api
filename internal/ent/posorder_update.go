@@ -214,6 +214,60 @@ func (_u *POSOrderUpdate) SetNillableCurrency(v *string) *POSOrderUpdate {
 	return _u
 }
 
+// SetOrderSubtype sets the "order_subtype" field.
+func (_u *POSOrderUpdate) SetOrderSubtype(v posorder.OrderSubtype) *POSOrderUpdate {
+	_u.mutation.SetOrderSubtype(v)
+	return _u
+}
+
+// SetNillableOrderSubtype sets the "order_subtype" field if the given value is not nil.
+func (_u *POSOrderUpdate) SetNillableOrderSubtype(v *posorder.OrderSubtype) *POSOrderUpdate {
+	if v != nil {
+		_u.SetOrderSubtype(*v)
+	}
+	return _u
+}
+
+// SetRoomID sets the "room_id" field.
+func (_u *POSOrderUpdate) SetRoomID(v uuid.UUID) *POSOrderUpdate {
+	_u.mutation.SetRoomID(v)
+	return _u
+}
+
+// SetNillableRoomID sets the "room_id" field if the given value is not nil.
+func (_u *POSOrderUpdate) SetNillableRoomID(v *uuid.UUID) *POSOrderUpdate {
+	if v != nil {
+		_u.SetRoomID(*v)
+	}
+	return _u
+}
+
+// ClearRoomID clears the value of the "room_id" field.
+func (_u *POSOrderUpdate) ClearRoomID() *POSOrderUpdate {
+	_u.mutation.ClearRoomID()
+	return _u
+}
+
+// SetRoomGuestID sets the "room_guest_id" field.
+func (_u *POSOrderUpdate) SetRoomGuestID(v uuid.UUID) *POSOrderUpdate {
+	_u.mutation.SetRoomGuestID(v)
+	return _u
+}
+
+// SetNillableRoomGuestID sets the "room_guest_id" field if the given value is not nil.
+func (_u *POSOrderUpdate) SetNillableRoomGuestID(v *uuid.UUID) *POSOrderUpdate {
+	if v != nil {
+		_u.SetRoomGuestID(*v)
+	}
+	return _u
+}
+
+// ClearRoomGuestID clears the value of the "room_guest_id" field.
+func (_u *POSOrderUpdate) ClearRoomGuestID() *POSOrderUpdate {
+	_u.mutation.ClearRoomGuestID()
+	return _u
+}
+
 // SetMetadata sets the "metadata" field.
 func (_u *POSOrderUpdate) SetMetadata(v map[string]interface{}) *POSOrderUpdate {
 	_u.mutation.SetMetadata(v)
@@ -382,6 +436,11 @@ func (_u *POSOrderUpdate) check() error {
 			return &ValidationError{Name: "order_number", err: fmt.Errorf(`ent: validator failed for field "POSOrder.order_number": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.OrderSubtype(); ok {
+		if err := posorder.OrderSubtypeValidator(v); err != nil {
+			return &ValidationError{Name: "order_subtype", err: fmt.Errorf(`ent: validator failed for field "POSOrder.order_subtype": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -441,6 +500,21 @@ func (_u *POSOrderUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.Currency(); ok {
 		_spec.SetField(posorder.FieldCurrency, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.OrderSubtype(); ok {
+		_spec.SetField(posorder.FieldOrderSubtype, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.RoomID(); ok {
+		_spec.SetField(posorder.FieldRoomID, field.TypeUUID, value)
+	}
+	if _u.mutation.RoomIDCleared() {
+		_spec.ClearField(posorder.FieldRoomID, field.TypeUUID)
+	}
+	if value, ok := _u.mutation.RoomGuestID(); ok {
+		_spec.SetField(posorder.FieldRoomGuestID, field.TypeUUID, value)
+	}
+	if _u.mutation.RoomGuestIDCleared() {
+		_spec.ClearField(posorder.FieldRoomGuestID, field.TypeUUID)
 	}
 	if value, ok := _u.mutation.Metadata(); ok {
 		_spec.SetField(posorder.FieldMetadata, field.TypeJSON, value)
@@ -785,6 +859,60 @@ func (_u *POSOrderUpdateOne) SetNillableCurrency(v *string) *POSOrderUpdateOne {
 	return _u
 }
 
+// SetOrderSubtype sets the "order_subtype" field.
+func (_u *POSOrderUpdateOne) SetOrderSubtype(v posorder.OrderSubtype) *POSOrderUpdateOne {
+	_u.mutation.SetOrderSubtype(v)
+	return _u
+}
+
+// SetNillableOrderSubtype sets the "order_subtype" field if the given value is not nil.
+func (_u *POSOrderUpdateOne) SetNillableOrderSubtype(v *posorder.OrderSubtype) *POSOrderUpdateOne {
+	if v != nil {
+		_u.SetOrderSubtype(*v)
+	}
+	return _u
+}
+
+// SetRoomID sets the "room_id" field.
+func (_u *POSOrderUpdateOne) SetRoomID(v uuid.UUID) *POSOrderUpdateOne {
+	_u.mutation.SetRoomID(v)
+	return _u
+}
+
+// SetNillableRoomID sets the "room_id" field if the given value is not nil.
+func (_u *POSOrderUpdateOne) SetNillableRoomID(v *uuid.UUID) *POSOrderUpdateOne {
+	if v != nil {
+		_u.SetRoomID(*v)
+	}
+	return _u
+}
+
+// ClearRoomID clears the value of the "room_id" field.
+func (_u *POSOrderUpdateOne) ClearRoomID() *POSOrderUpdateOne {
+	_u.mutation.ClearRoomID()
+	return _u
+}
+
+// SetRoomGuestID sets the "room_guest_id" field.
+func (_u *POSOrderUpdateOne) SetRoomGuestID(v uuid.UUID) *POSOrderUpdateOne {
+	_u.mutation.SetRoomGuestID(v)
+	return _u
+}
+
+// SetNillableRoomGuestID sets the "room_guest_id" field if the given value is not nil.
+func (_u *POSOrderUpdateOne) SetNillableRoomGuestID(v *uuid.UUID) *POSOrderUpdateOne {
+	if v != nil {
+		_u.SetRoomGuestID(*v)
+	}
+	return _u
+}
+
+// ClearRoomGuestID clears the value of the "room_guest_id" field.
+func (_u *POSOrderUpdateOne) ClearRoomGuestID() *POSOrderUpdateOne {
+	_u.mutation.ClearRoomGuestID()
+	return _u
+}
+
 // SetMetadata sets the "metadata" field.
 func (_u *POSOrderUpdateOne) SetMetadata(v map[string]interface{}) *POSOrderUpdateOne {
 	_u.mutation.SetMetadata(v)
@@ -966,6 +1094,11 @@ func (_u *POSOrderUpdateOne) check() error {
 			return &ValidationError{Name: "order_number", err: fmt.Errorf(`ent: validator failed for field "POSOrder.order_number": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.OrderSubtype(); ok {
+		if err := posorder.OrderSubtypeValidator(v); err != nil {
+			return &ValidationError{Name: "order_subtype", err: fmt.Errorf(`ent: validator failed for field "POSOrder.order_subtype": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -1042,6 +1175,21 @@ func (_u *POSOrderUpdateOne) sqlSave(ctx context.Context) (_node *POSOrder, err 
 	}
 	if value, ok := _u.mutation.Currency(); ok {
 		_spec.SetField(posorder.FieldCurrency, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.OrderSubtype(); ok {
+		_spec.SetField(posorder.FieldOrderSubtype, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.RoomID(); ok {
+		_spec.SetField(posorder.FieldRoomID, field.TypeUUID, value)
+	}
+	if _u.mutation.RoomIDCleared() {
+		_spec.ClearField(posorder.FieldRoomID, field.TypeUUID)
+	}
+	if value, ok := _u.mutation.RoomGuestID(); ok {
+		_spec.SetField(posorder.FieldRoomGuestID, field.TypeUUID, value)
+	}
+	if _u.mutation.RoomGuestIDCleared() {
+		_spec.ClearField(posorder.FieldRoomGuestID, field.TypeUUID)
 	}
 	if value, ok := _u.mutation.Metadata(); ok {
 		_spec.SetField(posorder.FieldMetadata, field.TypeJSON, value)

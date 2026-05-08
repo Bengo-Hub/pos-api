@@ -330,6 +330,7 @@ Applies to all business types.
 | [10](sprints/sprint-10-loyalty-promotions.md) | Loyalty & Advanced Promotions | 🔴 Not started | All verticals |
 | [11](sprints/sprint-11-reporting-analytics.md) | Reporting & Analytics | 🔴 Not started | All verticals |
 | [12](sprints/sprint-12-integrations-webhooks.md) | Integrations & Webhooks | 🔴 Not started | All verticals |
+| [13](sprints/sprint-13-ordering-kds-integration.md) | Online Ordering → KDS Bridge | 🔴 Not started | Restaurant, bar, hotel dining |
 
 ### pos-ui Sprints
 
@@ -344,6 +345,7 @@ Applies to all business types.
 | [7](../../pos-ui/docs/sprints/sprint-7-retail-ui.md) | Retail UI | 🔴 Not started | Supermarket, hardware |
 | [8](../../pos-ui/docs/sprints/sprint-8-service-ui.md) | Service Business UI | 🔴 Not started | Salon, clinic, car wash |
 | [9](../../pos-ui/docs/sprints/sprint-9-reports-ui.md) | Reports & Analytics UI | 🔴 Not started | All verticals |
+| [10](../../pos-ui/docs/sprints/sprint-10-pos-auth.md) | Dual Auth — SSO + PIN Terminal Login | 🔴 Not started | All verticals |
 
 ---
 

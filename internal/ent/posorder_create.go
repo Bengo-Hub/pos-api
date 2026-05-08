@@ -117,6 +117,48 @@ func (_c *POSOrderCreate) SetNillableCurrency(v *string) *POSOrderCreate {
 	return _c
 }
 
+// SetOrderSubtype sets the "order_subtype" field.
+func (_c *POSOrderCreate) SetOrderSubtype(v posorder.OrderSubtype) *POSOrderCreate {
+	_c.mutation.SetOrderSubtype(v)
+	return _c
+}
+
+// SetNillableOrderSubtype sets the "order_subtype" field if the given value is not nil.
+func (_c *POSOrderCreate) SetNillableOrderSubtype(v *posorder.OrderSubtype) *POSOrderCreate {
+	if v != nil {
+		_c.SetOrderSubtype(*v)
+	}
+	return _c
+}
+
+// SetRoomID sets the "room_id" field.
+func (_c *POSOrderCreate) SetRoomID(v uuid.UUID) *POSOrderCreate {
+	_c.mutation.SetRoomID(v)
+	return _c
+}
+
+// SetNillableRoomID sets the "room_id" field if the given value is not nil.
+func (_c *POSOrderCreate) SetNillableRoomID(v *uuid.UUID) *POSOrderCreate {
+	if v != nil {
+		_c.SetRoomID(*v)
+	}
+	return _c
+}
+
+// SetRoomGuestID sets the "room_guest_id" field.
+func (_c *POSOrderCreate) SetRoomGuestID(v uuid.UUID) *POSOrderCreate {
+	_c.mutation.SetRoomGuestID(v)
+	return _c
+}
+
+// SetNillableRoomGuestID sets the "room_guest_id" field if the given value is not nil.
+func (_c *POSOrderCreate) SetNillableRoomGuestID(v *uuid.UUID) *POSOrderCreate {
+	if v != nil {
+		_c.SetRoomGuestID(*v)
+	}
+	return _c
+}
+
 // SetMetadata sets the "metadata" field.
 func (_c *POSOrderCreate) SetMetadata(v map[string]interface{}) *POSOrderCreate {
 	_c.mutation.SetMetadata(v)
@@ -257,6 +299,10 @@ func (_c *POSOrderCreate) defaults() {
 		v := posorder.DefaultCurrency
 		_c.mutation.SetCurrency(v)
 	}
+	if _, ok := _c.mutation.OrderSubtype(); !ok {
+		v := posorder.DefaultOrderSubtype
+		_c.mutation.SetOrderSubtype(v)
+	}
 	if _, ok := _c.mutation.Metadata(); !ok {
 		v := posorder.DefaultMetadata
 		_c.mutation.SetMetadata(v)
@@ -314,6 +360,14 @@ func (_c *POSOrderCreate) check() error {
 	}
 	if _, ok := _c.mutation.Currency(); !ok {
 		return &ValidationError{Name: "currency", err: errors.New(`ent: missing required field "POSOrder.currency"`)}
+	}
+	if _, ok := _c.mutation.OrderSubtype(); !ok {
+		return &ValidationError{Name: "order_subtype", err: errors.New(`ent: missing required field "POSOrder.order_subtype"`)}
+	}
+	if v, ok := _c.mutation.OrderSubtype(); ok {
+		if err := posorder.OrderSubtypeValidator(v); err != nil {
+			return &ValidationError{Name: "order_subtype", err: fmt.Errorf(`ent: validator failed for field "POSOrder.order_subtype": %w`, err)}
+		}
 	}
 	if _, ok := _c.mutation.Metadata(); !ok {
 		return &ValidationError{Name: "metadata", err: errors.New(`ent: missing required field "POSOrder.metadata"`)}
@@ -403,6 +457,18 @@ func (_c *POSOrderCreate) createSpec() (*POSOrder, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Currency(); ok {
 		_spec.SetField(posorder.FieldCurrency, field.TypeString, value)
 		_node.Currency = value
+	}
+	if value, ok := _c.mutation.OrderSubtype(); ok {
+		_spec.SetField(posorder.FieldOrderSubtype, field.TypeEnum, value)
+		_node.OrderSubtype = value
+	}
+	if value, ok := _c.mutation.RoomID(); ok {
+		_spec.SetField(posorder.FieldRoomID, field.TypeUUID, value)
+		_node.RoomID = &value
+	}
+	if value, ok := _c.mutation.RoomGuestID(); ok {
+		_spec.SetField(posorder.FieldRoomGuestID, field.TypeUUID, value)
+		_node.RoomGuestID = &value
 	}
 	if value, ok := _c.mutation.Metadata(); ok {
 		_spec.SetField(posorder.FieldMetadata, field.TypeJSON, value)
@@ -672,6 +738,54 @@ func (u *POSOrderUpsert) UpdateCurrency() *POSOrderUpsert {
 	return u
 }
 
+// SetOrderSubtype sets the "order_subtype" field.
+func (u *POSOrderUpsert) SetOrderSubtype(v posorder.OrderSubtype) *POSOrderUpsert {
+	u.Set(posorder.FieldOrderSubtype, v)
+	return u
+}
+
+// UpdateOrderSubtype sets the "order_subtype" field to the value that was provided on create.
+func (u *POSOrderUpsert) UpdateOrderSubtype() *POSOrderUpsert {
+	u.SetExcluded(posorder.FieldOrderSubtype)
+	return u
+}
+
+// SetRoomID sets the "room_id" field.
+func (u *POSOrderUpsert) SetRoomID(v uuid.UUID) *POSOrderUpsert {
+	u.Set(posorder.FieldRoomID, v)
+	return u
+}
+
+// UpdateRoomID sets the "room_id" field to the value that was provided on create.
+func (u *POSOrderUpsert) UpdateRoomID() *POSOrderUpsert {
+	u.SetExcluded(posorder.FieldRoomID)
+	return u
+}
+
+// ClearRoomID clears the value of the "room_id" field.
+func (u *POSOrderUpsert) ClearRoomID() *POSOrderUpsert {
+	u.SetNull(posorder.FieldRoomID)
+	return u
+}
+
+// SetRoomGuestID sets the "room_guest_id" field.
+func (u *POSOrderUpsert) SetRoomGuestID(v uuid.UUID) *POSOrderUpsert {
+	u.Set(posorder.FieldRoomGuestID, v)
+	return u
+}
+
+// UpdateRoomGuestID sets the "room_guest_id" field to the value that was provided on create.
+func (u *POSOrderUpsert) UpdateRoomGuestID() *POSOrderUpsert {
+	u.SetExcluded(posorder.FieldRoomGuestID)
+	return u
+}
+
+// ClearRoomGuestID clears the value of the "room_guest_id" field.
+func (u *POSOrderUpsert) ClearRoomGuestID() *POSOrderUpsert {
+	u.SetNull(posorder.FieldRoomGuestID)
+	return u
+}
+
 // SetMetadata sets the "metadata" field.
 func (u *POSOrderUpsert) SetMetadata(v map[string]interface{}) *POSOrderUpsert {
 	u.Set(posorder.FieldMetadata, v)
@@ -926,6 +1040,62 @@ func (u *POSOrderUpsertOne) SetCurrency(v string) *POSOrderUpsertOne {
 func (u *POSOrderUpsertOne) UpdateCurrency() *POSOrderUpsertOne {
 	return u.Update(func(s *POSOrderUpsert) {
 		s.UpdateCurrency()
+	})
+}
+
+// SetOrderSubtype sets the "order_subtype" field.
+func (u *POSOrderUpsertOne) SetOrderSubtype(v posorder.OrderSubtype) *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetOrderSubtype(v)
+	})
+}
+
+// UpdateOrderSubtype sets the "order_subtype" field to the value that was provided on create.
+func (u *POSOrderUpsertOne) UpdateOrderSubtype() *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdateOrderSubtype()
+	})
+}
+
+// SetRoomID sets the "room_id" field.
+func (u *POSOrderUpsertOne) SetRoomID(v uuid.UUID) *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetRoomID(v)
+	})
+}
+
+// UpdateRoomID sets the "room_id" field to the value that was provided on create.
+func (u *POSOrderUpsertOne) UpdateRoomID() *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdateRoomID()
+	})
+}
+
+// ClearRoomID clears the value of the "room_id" field.
+func (u *POSOrderUpsertOne) ClearRoomID() *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.ClearRoomID()
+	})
+}
+
+// SetRoomGuestID sets the "room_guest_id" field.
+func (u *POSOrderUpsertOne) SetRoomGuestID(v uuid.UUID) *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetRoomGuestID(v)
+	})
+}
+
+// UpdateRoomGuestID sets the "room_guest_id" field to the value that was provided on create.
+func (u *POSOrderUpsertOne) UpdateRoomGuestID() *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdateRoomGuestID()
+	})
+}
+
+// ClearRoomGuestID clears the value of the "room_guest_id" field.
+func (u *POSOrderUpsertOne) ClearRoomGuestID() *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.ClearRoomGuestID()
 	})
 }
 
@@ -1354,6 +1524,62 @@ func (u *POSOrderUpsertBulk) SetCurrency(v string) *POSOrderUpsertBulk {
 func (u *POSOrderUpsertBulk) UpdateCurrency() *POSOrderUpsertBulk {
 	return u.Update(func(s *POSOrderUpsert) {
 		s.UpdateCurrency()
+	})
+}
+
+// SetOrderSubtype sets the "order_subtype" field.
+func (u *POSOrderUpsertBulk) SetOrderSubtype(v posorder.OrderSubtype) *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetOrderSubtype(v)
+	})
+}
+
+// UpdateOrderSubtype sets the "order_subtype" field to the value that was provided on create.
+func (u *POSOrderUpsertBulk) UpdateOrderSubtype() *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdateOrderSubtype()
+	})
+}
+
+// SetRoomID sets the "room_id" field.
+func (u *POSOrderUpsertBulk) SetRoomID(v uuid.UUID) *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetRoomID(v)
+	})
+}
+
+// UpdateRoomID sets the "room_id" field to the value that was provided on create.
+func (u *POSOrderUpsertBulk) UpdateRoomID() *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdateRoomID()
+	})
+}
+
+// ClearRoomID clears the value of the "room_id" field.
+func (u *POSOrderUpsertBulk) ClearRoomID() *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.ClearRoomID()
+	})
+}
+
+// SetRoomGuestID sets the "room_guest_id" field.
+func (u *POSOrderUpsertBulk) SetRoomGuestID(v uuid.UUID) *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetRoomGuestID(v)
+	})
+}
+
+// UpdateRoomGuestID sets the "room_guest_id" field to the value that was provided on create.
+func (u *POSOrderUpsertBulk) UpdateRoomGuestID() *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdateRoomGuestID()
+	})
+}
+
+// ClearRoomGuestID clears the value of the "room_guest_id" field.
+func (u *POSOrderUpsertBulk) ClearRoomGuestID() *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.ClearRoomGuestID()
 	})
 }
 
