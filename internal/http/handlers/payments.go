@@ -31,9 +31,10 @@ func NewPaymentHandler(log *zap.Logger, paymentSvc *payments.Service, treasuryCl
 
 type createIntentInput struct {
 	TenderID     uuid.UUID `json:"tenderId"`
-	TenderMethod string    `json:"tenderMethod"` // cash | card | mpesa | room_charge
+	TenderMethod string    `json:"tenderMethod"` // cash | card | mpesa | manual | room_charge
 	Amount       float64   `json:"amount"`
 	Currency     string    `json:"currency"`
+	ExternalRef  string    `json:"externalRef,omitempty"` // cashier-entered ref for manual/paybill payments
 }
 
 // CreatePaymentIntent handles POST /{tenantID}/pos/orders/{orderID}/payments/intent
@@ -68,6 +69,7 @@ func (h *PaymentHandler) CreatePaymentIntent(w http.ResponseWriter, r *http.Requ
 		TenderMethod:  input.TenderMethod,
 		Amount:        input.Amount,
 		Currency:      input.Currency,
+		ExternalRef:   input.ExternalRef,
 		PublicBaseURL: h.publicBaseURL,
 	})
 	if err != nil {

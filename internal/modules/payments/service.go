@@ -38,10 +38,11 @@ type RecordPaymentRequest struct {
 	TenantSlug    string
 	OrderID       uuid.UUID
 	TenderID      uuid.UUID
-	TenderMethod  string // cash | card | mpesa | room_charge | etc.
+	TenderMethod  string // cash | card | mpesa | manual | room_charge | etc.
 	Amount        float64
 	Currency      string
 	Reference     string // external reference (optional; set by treasury callback for digital)
+	ExternalRef   string // cashier-entered ref for manual/paybill payments (stored on local payment)
 	IntentID      string // treasury payment_intent_id (set for digital payments)
 	PublicBaseURL string // used to construct initiateUrl for digital payments
 }
@@ -162,14 +163,19 @@ func (s *Service) CreatePaymentIntent(ctx context.Context, req RecordPaymentRequ
 		return result, nil
 	}
 
-	// Cash: record as completed immediately
+	// Cash / manual: record as completed immediately.
+	// For manual payments use the cashier-entered ref; otherwise store the treasury intent ID.
+	cashRef := intent.ID
+	if req.ExternalRef != "" {
+		cashRef = req.ExternalRef
+	}
 	_, err = s.client.POSPayment.Create().
 		SetOrderID(req.OrderID).
 		SetTenderID(req.TenderID).
 		SetAmount(req.Amount).
 		SetCurrency(currency).
 		SetStatus(StatusCompleted).
-		SetNillableExternalReference(nilIfEmpty(intent.ID)).
+		SetNillableExternalReference(nilIfEmpty(cashRef)).
 		Save(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("payments: record cash payment: %w", err)

@@ -168,7 +168,11 @@ func New(ctx context.Context) (*App, error) {
 	tableHandler := handlers.NewTableHandler(log, entClient)
 	tenderHandler := handlers.NewTenderHandler(log, entClient)
 	paymentHandler := handlers.NewPaymentHandler(log, paymentSvc, treasuryClient, cfg.Treasury.PublicBaseURL)
-	drawerHandler := handlers.NewDrawerHandler(log, entClient)
+	var drawerPublisher *events.Publisher
+	if pub := orderSvc.GetPublisher(); pub != nil {
+		drawerPublisher = pub
+	}
+	drawerHandler := handlers.NewDrawerHandler(log, entClient, drawerPublisher)
 	barTabHandler := handlers.NewBarTabHandler(log, entClient)
 	promotionHandler := handlers.NewPromotionHandler(log, entClient, promoSvc)
 

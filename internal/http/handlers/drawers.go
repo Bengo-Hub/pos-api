@@ -11,16 +11,18 @@ import (
 
 	"github.com/bengobox/pos-service/internal/ent"
 	"github.com/bengobox/pos-service/internal/ent/cashdrawer"
+	"github.com/bengobox/pos-service/internal/platform/events"
 )
 
 // DrawerHandler handles cash drawer lifecycle endpoints.
 type DrawerHandler struct {
-	log    *zap.Logger
-	client *ent.Client
+	log       *zap.Logger
+	client    *ent.Client
+	publisher *events.Publisher
 }
 
-func NewDrawerHandler(log *zap.Logger, client *ent.Client) *DrawerHandler {
-	return &DrawerHandler{log: log, client: client}
+func NewDrawerHandler(log *zap.Logger, client *ent.Client, publisher *events.Publisher) *DrawerHandler {
+	return &DrawerHandler{log: log, client: client, publisher: publisher}
 }
 
 type openDrawerInput struct {
@@ -127,6 +129,24 @@ func (h *DrawerHandler) CloseDrawer(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		jsonError(w, "close failed", http.StatusInternalServerError)
 		return
+	}
+
+	if h.publisher != nil {
+		go func() {
+			data := map[string]any{
+				"drawer_id":     updated.ID.String(),
+				"tenant_id":     updated.TenantID.String(),
+				"outlet_id":     updated.OutletID.String(),
+				"starting_cash": updated.StartingCash,
+				"ending_cash":   input.EndingCash,
+				"variance":      input.EndingCash - updated.StartingCash,
+				"opened_at":     updated.OpenedAt.Format(time.RFC3339),
+				"closed_at":     now.Format(time.RFC3339),
+			}
+			if err := h.publisher.PublishDrawerClosed(r.Context(), updated.TenantID, data); err != nil {
+				h.log.Warn("failed to publish pos.drawer.closed", zap.String("drawer_id", updated.ID.String()), zap.Error(err))
+			}
+		}()
 	}
 
 	jsonOK(w, updated)
