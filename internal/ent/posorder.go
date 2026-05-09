@@ -49,6 +49,10 @@ type POSOrder struct {
 	RoomGuestID *uuid.UUID `json:"room_guest_id,omitempty"`
 	// Metadata holds the value of the "metadata" field.
 	Metadata map[string]interface{} `json:"metadata,omitempty"`
+	// EtimsInvoiceNumber holds the value of the "etims_invoice_number" field.
+	EtimsInvoiceNumber *string `json:"etims_invoice_number,omitempty"`
+	// EtimsQrCodeURL holds the value of the "etims_qr_code_url" field.
+	EtimsQrCodeURL *string `json:"etims_qr_code_url,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
@@ -110,7 +114,7 @@ func (*POSOrder) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case posorder.FieldSubtotal, posorder.FieldTaxTotal, posorder.FieldDiscountTotal, posorder.FieldTotalAmount:
 			values[i] = new(sql.NullFloat64)
-		case posorder.FieldOrderNumber, posorder.FieldStatus, posorder.FieldCurrency, posorder.FieldOrderSubtype:
+		case posorder.FieldOrderNumber, posorder.FieldStatus, posorder.FieldCurrency, posorder.FieldOrderSubtype, posorder.FieldEtimsInvoiceNumber, posorder.FieldEtimsQrCodeURL:
 			values[i] = new(sql.NullString)
 		case posorder.FieldCreatedAt, posorder.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -231,6 +235,20 @@ func (_m *POSOrder) assignValues(columns []string, values []any) error {
 					return fmt.Errorf("unmarshal field metadata: %w", err)
 				}
 			}
+		case posorder.FieldEtimsInvoiceNumber:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field etims_invoice_number", values[i])
+			} else if value.Valid {
+				_m.EtimsInvoiceNumber = new(string)
+				*_m.EtimsInvoiceNumber = value.String
+			}
+		case posorder.FieldEtimsQrCodeURL:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field etims_qr_code_url", values[i])
+			} else if value.Valid {
+				_m.EtimsQrCodeURL = new(string)
+				*_m.EtimsQrCodeURL = value.String
+			}
 		case posorder.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field created_at", values[i])
@@ -342,6 +360,16 @@ func (_m *POSOrder) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("metadata=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Metadata))
+	builder.WriteString(", ")
+	if v := _m.EtimsInvoiceNumber; v != nil {
+		builder.WriteString("etims_invoice_number=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.EtimsQrCodeURL; v != nil {
+		builder.WriteString("etims_qr_code_url=")
+		builder.WriteString(*v)
+	}
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))

@@ -34,6 +34,7 @@ func New(
 	rbacHandler *handlers.RBACHandler,
 	hotel *handlers.HotelHandler,
 	kds *handlers.KDSHandler,
+	devices *handlers.DeviceHandler,
 	allowedOrigins []string,
 ) http.Handler {
 	r := chi.NewRouter()
@@ -172,8 +173,10 @@ func New(
 
 				// Payments
 				if payments != nil {
+					pos.Post("/orders/{orderID}/payments/intent", payments.CreatePaymentIntent)
 					pos.Post("/orders/{orderID}/payments", payments.RecordPayment)
 					pos.Get("/orders/{orderID}/payments", payments.ListOrderPayments)
+					pos.Post("/payments/initiate", payments.ProxyInitiate)
 				}
 
 				// Cash Drawers
@@ -197,6 +200,13 @@ func New(
 					pos.Get("/promotions", promotions.ListPromotions)
 					pos.Post("/promotions", promotions.CreatePromotion)
 					pos.Post("/promotions/apply", promotions.ApplyPromoCode)
+				}
+
+				// Device sessions (shift open/close)
+				if devices != nil {
+					pos.Get("/devices/current/sessions/current", devices.GetCurrentSession)
+					pos.Post("/devices/current/sessions/open", devices.OpenSession)
+					pos.Post("/devices/current/sessions/close", devices.CloseSession)
 				}
 
 				// KDS

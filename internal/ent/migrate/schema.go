@@ -751,6 +751,8 @@ var (
 		{Name: "room_id", Type: field.TypeUUID, Nullable: true},
 		{Name: "room_guest_id", Type: field.TypeUUID, Nullable: true},
 		{Name: "metadata", Type: field.TypeJSON},
+		{Name: "etims_invoice_number", Type: field.TypeString, Nullable: true},
+		{Name: "etims_qr_code_url", Type: field.TypeString, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
 	}

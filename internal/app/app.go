@@ -32,6 +32,7 @@ import (
 	promommodule "github.com/bengobox/pos-service/internal/modules/promotions"
 	catalogmodule "github.com/bengobox/pos-service/internal/modules/catalog"
 	rbacmodule "github.com/bengobox/pos-service/internal/modules/rbac"
+	treasurymodule "github.com/bengobox/pos-service/internal/modules/treasury"
 	"github.com/bengobox/pos-service/internal/modules/tenant"
 	"github.com/bengobox/pos-service/internal/platform/cache"
 	"github.com/bengobox/pos-service/internal/platform/database"
@@ -151,7 +152,11 @@ func New(ctx context.Context) (*App, error) {
 		}
 	}
 
+	// Treasury S2S client (thin proxy; pos-api delegates all payment processing to treasury-api)
+	treasuryClient := treasurymodule.NewClient(cfg.Treasury.ServiceURL, cfg.Treasury.InternalServiceKey, cfg.Treasury.RequestTimeout)
+
 	paymentSvc := paymentmodule.NewService(entClient, orderSvc, cfg.App.DefaultCurrency, log)
+	paymentSvc.SetTreasuryClient(treasuryClient)
 	promoSvc := promommodule.NewService(entClient, log)
 
 	// Create HTTP handlers
@@ -159,14 +164,15 @@ func New(ctx context.Context) (*App, error) {
 	catalogHandler := handlers.NewCatalogHandler(log, entClient)
 	tableHandler := handlers.NewTableHandler(log, entClient)
 	tenderHandler := handlers.NewTenderHandler(log, entClient)
-	paymentHandler := handlers.NewPaymentHandler(log, paymentSvc)
+	paymentHandler := handlers.NewPaymentHandler(log, paymentSvc, treasuryClient, cfg.Treasury.PublicBaseURL)
 	drawerHandler := handlers.NewDrawerHandler(log, entClient)
 	barTabHandler := handlers.NewBarTabHandler(log, entClient)
 	promotionHandler := handlers.NewPromotionHandler(log, entClient, promoSvc)
 
-	// Hotel and KDS handlers
+	// Hotel, KDS and device session handlers
 	hotelHandler := handlers.NewHotelHandler(log, entClient)
 	kdsHandler := handlers.NewKDSHandler(log, entClient)
+	deviceHandler := handlers.NewDeviceHandler(log, entClient)
 
 	// Initialize RBAC
 	rbacRepo := rbacmodule.NewEntRepository(entClient)
@@ -195,6 +201,14 @@ func New(ctx context.Context) (*App, error) {
 		}
 	}
 
+	// Subscribe to treasury events: payment.success/failed → complete/fail local payment; etims → store invoice data
+	treasurySubscriber := paymentmodule.NewTreasurySubscriber(entClient, paymentSvc, log)
+	if natsConn != nil {
+		if err := treasurySubscriber.SubscribeToTreasuryEvents(natsConn); err != nil {
+			log.Warn("app: failed to subscribe to treasury events", zap.Error(err))
+		}
+	}
+
 	// Subscribe to inventory events for catalog projection sync + initial sync
 	inventoryEventHandler := catalogmodule.NewInventoryEventHandler(entClient, log)
 	if natsConn != nil {
@@ -216,7 +230,7 @@ func New(ctx context.Context) (*App, error) {
 		inventoryEventHandler.InitialSync(ctx, inventoryURL, tenantSlug)
 	}()
 
-	chiRouter := router.New(log, healthHandler, authMiddleware, identitySvc, orderHandler, catalogHandler, tableHandler, tenderHandler, paymentHandler, drawerHandler, barTabHandler, promotionHandler, rbacHandler, hotelHandler, kdsHandler, cfg.HTTP.AllowedOrigins)
+	chiRouter := router.New(log, healthHandler, authMiddleware, identitySvc, orderHandler, catalogHandler, tableHandler, tenderHandler, paymentHandler, drawerHandler, barTabHandler, promotionHandler, rbacHandler, hotelHandler, kdsHandler, deviceHandler, cfg.HTTP.AllowedOrigins)
 
 	httpServer := &http.Server{
 		Addr:              fmt.Sprintf("%s:%d", cfg.HTTP.Host, cfg.HTTP.Port),

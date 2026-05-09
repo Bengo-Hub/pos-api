@@ -20,12 +20,21 @@ type Config struct {
 	Telemetry     TelemetryConfig
 	Auth          AuthConfig
 	Subscriptions SubscriptionsConfig
+	Treasury      TreasuryConfig
 }
 
 // SubscriptionsConfig holds configuration for the subscriptions enforcement client.
 type SubscriptionsConfig struct {
 	ServiceURL     string        `envconfig:"SUBSCRIPTIONS_SERVICE_URL" default:"https://pricingapi.codevertexitsolutions.com"`
 	RequestTimeout time.Duration `envconfig:"SUBSCRIPTIONS_REQUEST_TIMEOUT" default:"10s"`
+}
+
+// TreasuryConfig holds configuration for the treasury-api S2S client.
+type TreasuryConfig struct {
+	ServiceURL         string        `envconfig:"TREASURY_SERVICE_URL" default:"https://booksapi.codevertexitsolutions.com"`
+	InternalServiceKey string        `envconfig:"INTERNAL_SERVICE_KEY"`
+	RequestTimeout     time.Duration `envconfig:"TREASURY_REQUEST_TIMEOUT" default:"30s"`
+	PublicBaseURL      string        `envconfig:"HTTP_PUBLIC_BASE_URL" default:"https://posapi.codevertexitsolutions.com"`
 }
 
 type AppConfig struct {

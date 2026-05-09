@@ -72,3 +72,13 @@ func (p *Publisher) PublishOrderStatusChanged(ctx context.Context, tenantID uuid
 func (p *Publisher) PublishPaymentRecorded(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {
 	return p.publish(ctx, tenantID, "payment.recorded", data)
 }
+
+// PublishSaleFinalized publishes a pos.sale.finalized event consumed by treasury-api for ledger posting.
+func (p *Publisher) PublishSaleFinalized(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {
+	return p.publish(ctx, tenantID, "sale.finalized", data)
+}
+
+// PublishDrawerClosed publishes a pos.drawer.closed event consumed by treasury-api for cash position ledger.
+func (p *Publisher) PublishDrawerClosed(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {
+	return p.publish(ctx, tenantID, "drawer.closed", data)
+}

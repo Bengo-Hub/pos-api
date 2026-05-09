@@ -274,6 +274,46 @@ func (_u *POSOrderUpdate) SetMetadata(v map[string]interface{}) *POSOrderUpdate 
 	return _u
 }
 
+// SetEtimsInvoiceNumber sets the "etims_invoice_number" field.
+func (_u *POSOrderUpdate) SetEtimsInvoiceNumber(v string) *POSOrderUpdate {
+	_u.mutation.SetEtimsInvoiceNumber(v)
+	return _u
+}
+
+// SetNillableEtimsInvoiceNumber sets the "etims_invoice_number" field if the given value is not nil.
+func (_u *POSOrderUpdate) SetNillableEtimsInvoiceNumber(v *string) *POSOrderUpdate {
+	if v != nil {
+		_u.SetEtimsInvoiceNumber(*v)
+	}
+	return _u
+}
+
+// ClearEtimsInvoiceNumber clears the value of the "etims_invoice_number" field.
+func (_u *POSOrderUpdate) ClearEtimsInvoiceNumber() *POSOrderUpdate {
+	_u.mutation.ClearEtimsInvoiceNumber()
+	return _u
+}
+
+// SetEtimsQrCodeURL sets the "etims_qr_code_url" field.
+func (_u *POSOrderUpdate) SetEtimsQrCodeURL(v string) *POSOrderUpdate {
+	_u.mutation.SetEtimsQrCodeURL(v)
+	return _u
+}
+
+// SetNillableEtimsQrCodeURL sets the "etims_qr_code_url" field if the given value is not nil.
+func (_u *POSOrderUpdate) SetNillableEtimsQrCodeURL(v *string) *POSOrderUpdate {
+	if v != nil {
+		_u.SetEtimsQrCodeURL(*v)
+	}
+	return _u
+}
+
+// ClearEtimsQrCodeURL clears the value of the "etims_qr_code_url" field.
+func (_u *POSOrderUpdate) ClearEtimsQrCodeURL() *POSOrderUpdate {
+	_u.mutation.ClearEtimsQrCodeURL()
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *POSOrderUpdate) SetUpdatedAt(v time.Time) *POSOrderUpdate {
 	_u.mutation.SetUpdatedAt(v)
@@ -518,6 +558,18 @@ func (_u *POSOrderUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.Metadata(); ok {
 		_spec.SetField(posorder.FieldMetadata, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.EtimsInvoiceNumber(); ok {
+		_spec.SetField(posorder.FieldEtimsInvoiceNumber, field.TypeString, value)
+	}
+	if _u.mutation.EtimsInvoiceNumberCleared() {
+		_spec.ClearField(posorder.FieldEtimsInvoiceNumber, field.TypeString)
+	}
+	if value, ok := _u.mutation.EtimsQrCodeURL(); ok {
+		_spec.SetField(posorder.FieldEtimsQrCodeURL, field.TypeString, value)
+	}
+	if _u.mutation.EtimsQrCodeURLCleared() {
+		_spec.ClearField(posorder.FieldEtimsQrCodeURL, field.TypeString)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(posorder.FieldUpdatedAt, field.TypeTime, value)
@@ -919,6 +971,46 @@ func (_u *POSOrderUpdateOne) SetMetadata(v map[string]interface{}) *POSOrderUpda
 	return _u
 }
 
+// SetEtimsInvoiceNumber sets the "etims_invoice_number" field.
+func (_u *POSOrderUpdateOne) SetEtimsInvoiceNumber(v string) *POSOrderUpdateOne {
+	_u.mutation.SetEtimsInvoiceNumber(v)
+	return _u
+}
+
+// SetNillableEtimsInvoiceNumber sets the "etims_invoice_number" field if the given value is not nil.
+func (_u *POSOrderUpdateOne) SetNillableEtimsInvoiceNumber(v *string) *POSOrderUpdateOne {
+	if v != nil {
+		_u.SetEtimsInvoiceNumber(*v)
+	}
+	return _u
+}
+
+// ClearEtimsInvoiceNumber clears the value of the "etims_invoice_number" field.
+func (_u *POSOrderUpdateOne) ClearEtimsInvoiceNumber() *POSOrderUpdateOne {
+	_u.mutation.ClearEtimsInvoiceNumber()
+	return _u
+}
+
+// SetEtimsQrCodeURL sets the "etims_qr_code_url" field.
+func (_u *POSOrderUpdateOne) SetEtimsQrCodeURL(v string) *POSOrderUpdateOne {
+	_u.mutation.SetEtimsQrCodeURL(v)
+	return _u
+}
+
+// SetNillableEtimsQrCodeURL sets the "etims_qr_code_url" field if the given value is not nil.
+func (_u *POSOrderUpdateOne) SetNillableEtimsQrCodeURL(v *string) *POSOrderUpdateOne {
+	if v != nil {
+		_u.SetEtimsQrCodeURL(*v)
+	}
+	return _u
+}
+
+// ClearEtimsQrCodeURL clears the value of the "etims_qr_code_url" field.
+func (_u *POSOrderUpdateOne) ClearEtimsQrCodeURL() *POSOrderUpdateOne {
+	_u.mutation.ClearEtimsQrCodeURL()
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *POSOrderUpdateOne) SetUpdatedAt(v time.Time) *POSOrderUpdateOne {
 	_u.mutation.SetUpdatedAt(v)
@@ -1193,6 +1285,18 @@ func (_u *POSOrderUpdateOne) sqlSave(ctx context.Context) (_node *POSOrder, err 
 	}
 	if value, ok := _u.mutation.Metadata(); ok {
 		_spec.SetField(posorder.FieldMetadata, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.EtimsInvoiceNumber(); ok {
+		_spec.SetField(posorder.FieldEtimsInvoiceNumber, field.TypeString, value)
+	}
+	if _u.mutation.EtimsInvoiceNumberCleared() {
+		_spec.ClearField(posorder.FieldEtimsInvoiceNumber, field.TypeString)
+	}
+	if value, ok := _u.mutation.EtimsQrCodeURL(); ok {
+		_spec.SetField(posorder.FieldEtimsQrCodeURL, field.TypeString, value)
+	}
+	if _u.mutation.EtimsQrCodeURLCleared() {
+		_spec.ClearField(posorder.FieldEtimsQrCodeURL, field.TypeString)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(posorder.FieldUpdatedAt, field.TypeTime, value)

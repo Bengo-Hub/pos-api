@@ -165,6 +165,34 @@ func (_c *POSOrderCreate) SetMetadata(v map[string]interface{}) *POSOrderCreate 
 	return _c
 }
 
+// SetEtimsInvoiceNumber sets the "etims_invoice_number" field.
+func (_c *POSOrderCreate) SetEtimsInvoiceNumber(v string) *POSOrderCreate {
+	_c.mutation.SetEtimsInvoiceNumber(v)
+	return _c
+}
+
+// SetNillableEtimsInvoiceNumber sets the "etims_invoice_number" field if the given value is not nil.
+func (_c *POSOrderCreate) SetNillableEtimsInvoiceNumber(v *string) *POSOrderCreate {
+	if v != nil {
+		_c.SetEtimsInvoiceNumber(*v)
+	}
+	return _c
+}
+
+// SetEtimsQrCodeURL sets the "etims_qr_code_url" field.
+func (_c *POSOrderCreate) SetEtimsQrCodeURL(v string) *POSOrderCreate {
+	_c.mutation.SetEtimsQrCodeURL(v)
+	return _c
+}
+
+// SetNillableEtimsQrCodeURL sets the "etims_qr_code_url" field if the given value is not nil.
+func (_c *POSOrderCreate) SetNillableEtimsQrCodeURL(v *string) *POSOrderCreate {
+	if v != nil {
+		_c.SetEtimsQrCodeURL(*v)
+	}
+	return _c
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_c *POSOrderCreate) SetCreatedAt(v time.Time) *POSOrderCreate {
 	_c.mutation.SetCreatedAt(v)
@@ -473,6 +501,14 @@ func (_c *POSOrderCreate) createSpec() (*POSOrder, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Metadata(); ok {
 		_spec.SetField(posorder.FieldMetadata, field.TypeJSON, value)
 		_node.Metadata = value
+	}
+	if value, ok := _c.mutation.EtimsInvoiceNumber(); ok {
+		_spec.SetField(posorder.FieldEtimsInvoiceNumber, field.TypeString, value)
+		_node.EtimsInvoiceNumber = &value
+	}
+	if value, ok := _c.mutation.EtimsQrCodeURL(); ok {
+		_spec.SetField(posorder.FieldEtimsQrCodeURL, field.TypeString, value)
+		_node.EtimsQrCodeURL = &value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(posorder.FieldCreatedAt, field.TypeTime, value)
@@ -798,6 +834,42 @@ func (u *POSOrderUpsert) UpdateMetadata() *POSOrderUpsert {
 	return u
 }
 
+// SetEtimsInvoiceNumber sets the "etims_invoice_number" field.
+func (u *POSOrderUpsert) SetEtimsInvoiceNumber(v string) *POSOrderUpsert {
+	u.Set(posorder.FieldEtimsInvoiceNumber, v)
+	return u
+}
+
+// UpdateEtimsInvoiceNumber sets the "etims_invoice_number" field to the value that was provided on create.
+func (u *POSOrderUpsert) UpdateEtimsInvoiceNumber() *POSOrderUpsert {
+	u.SetExcluded(posorder.FieldEtimsInvoiceNumber)
+	return u
+}
+
+// ClearEtimsInvoiceNumber clears the value of the "etims_invoice_number" field.
+func (u *POSOrderUpsert) ClearEtimsInvoiceNumber() *POSOrderUpsert {
+	u.SetNull(posorder.FieldEtimsInvoiceNumber)
+	return u
+}
+
+// SetEtimsQrCodeURL sets the "etims_qr_code_url" field.
+func (u *POSOrderUpsert) SetEtimsQrCodeURL(v string) *POSOrderUpsert {
+	u.Set(posorder.FieldEtimsQrCodeURL, v)
+	return u
+}
+
+// UpdateEtimsQrCodeURL sets the "etims_qr_code_url" field to the value that was provided on create.
+func (u *POSOrderUpsert) UpdateEtimsQrCodeURL() *POSOrderUpsert {
+	u.SetExcluded(posorder.FieldEtimsQrCodeURL)
+	return u
+}
+
+// ClearEtimsQrCodeURL clears the value of the "etims_qr_code_url" field.
+func (u *POSOrderUpsert) ClearEtimsQrCodeURL() *POSOrderUpsert {
+	u.SetNull(posorder.FieldEtimsQrCodeURL)
+	return u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (u *POSOrderUpsert) SetUpdatedAt(v time.Time) *POSOrderUpsert {
 	u.Set(posorder.FieldUpdatedAt, v)
@@ -1110,6 +1182,48 @@ func (u *POSOrderUpsertOne) SetMetadata(v map[string]interface{}) *POSOrderUpser
 func (u *POSOrderUpsertOne) UpdateMetadata() *POSOrderUpsertOne {
 	return u.Update(func(s *POSOrderUpsert) {
 		s.UpdateMetadata()
+	})
+}
+
+// SetEtimsInvoiceNumber sets the "etims_invoice_number" field.
+func (u *POSOrderUpsertOne) SetEtimsInvoiceNumber(v string) *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetEtimsInvoiceNumber(v)
+	})
+}
+
+// UpdateEtimsInvoiceNumber sets the "etims_invoice_number" field to the value that was provided on create.
+func (u *POSOrderUpsertOne) UpdateEtimsInvoiceNumber() *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdateEtimsInvoiceNumber()
+	})
+}
+
+// ClearEtimsInvoiceNumber clears the value of the "etims_invoice_number" field.
+func (u *POSOrderUpsertOne) ClearEtimsInvoiceNumber() *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.ClearEtimsInvoiceNumber()
+	})
+}
+
+// SetEtimsQrCodeURL sets the "etims_qr_code_url" field.
+func (u *POSOrderUpsertOne) SetEtimsQrCodeURL(v string) *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetEtimsQrCodeURL(v)
+	})
+}
+
+// UpdateEtimsQrCodeURL sets the "etims_qr_code_url" field to the value that was provided on create.
+func (u *POSOrderUpsertOne) UpdateEtimsQrCodeURL() *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdateEtimsQrCodeURL()
+	})
+}
+
+// ClearEtimsQrCodeURL clears the value of the "etims_qr_code_url" field.
+func (u *POSOrderUpsertOne) ClearEtimsQrCodeURL() *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.ClearEtimsQrCodeURL()
 	})
 }
 
@@ -1594,6 +1708,48 @@ func (u *POSOrderUpsertBulk) SetMetadata(v map[string]interface{}) *POSOrderUpse
 func (u *POSOrderUpsertBulk) UpdateMetadata() *POSOrderUpsertBulk {
 	return u.Update(func(s *POSOrderUpsert) {
 		s.UpdateMetadata()
+	})
+}
+
+// SetEtimsInvoiceNumber sets the "etims_invoice_number" field.
+func (u *POSOrderUpsertBulk) SetEtimsInvoiceNumber(v string) *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetEtimsInvoiceNumber(v)
+	})
+}
+
+// UpdateEtimsInvoiceNumber sets the "etims_invoice_number" field to the value that was provided on create.
+func (u *POSOrderUpsertBulk) UpdateEtimsInvoiceNumber() *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdateEtimsInvoiceNumber()
+	})
+}
+
+// ClearEtimsInvoiceNumber clears the value of the "etims_invoice_number" field.
+func (u *POSOrderUpsertBulk) ClearEtimsInvoiceNumber() *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.ClearEtimsInvoiceNumber()
+	})
+}
+
+// SetEtimsQrCodeURL sets the "etims_qr_code_url" field.
+func (u *POSOrderUpsertBulk) SetEtimsQrCodeURL(v string) *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetEtimsQrCodeURL(v)
+	})
+}
+
+// UpdateEtimsQrCodeURL sets the "etims_qr_code_url" field to the value that was provided on create.
+func (u *POSOrderUpsertBulk) UpdateEtimsQrCodeURL() *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdateEtimsQrCodeURL()
+	})
+}
+
+// ClearEtimsQrCodeURL clears the value of the "etims_qr_code_url" field.
+func (u *POSOrderUpsertBulk) ClearEtimsQrCodeURL() *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.ClearEtimsQrCodeURL()
 	})
 }
 

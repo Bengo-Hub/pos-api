@@ -23871,43 +23871,45 @@ func (m *POSLineModifierMutation) ResetEdge(name string) error {
 // POSOrderMutation represents an operation that mutates the POSOrder nodes in the graph.
 type POSOrderMutation struct {
 	config
-	op                Op
-	typ               string
-	id                *uuid.UUID
-	tenant_id         *uuid.UUID
-	outlet_id         *uuid.UUID
-	device_id         *uuid.UUID
-	user_id           *uuid.UUID
-	order_number      *string
-	status            *string
-	subtotal          *float64
-	addsubtotal       *float64
-	tax_total         *float64
-	addtax_total      *float64
-	discount_total    *float64
-	adddiscount_total *float64
-	total_amount      *float64
-	addtotal_amount   *float64
-	currency          *string
-	order_subtype     *posorder.OrderSubtype
-	room_id           *uuid.UUID
-	room_guest_id     *uuid.UUID
-	metadata          *map[string]interface{}
-	created_at        *time.Time
-	updated_at        *time.Time
-	clearedFields     map[string]struct{}
-	lines             map[uuid.UUID]struct{}
-	removedlines      map[uuid.UUID]struct{}
-	clearedlines      bool
-	payments          map[uuid.UUID]struct{}
-	removedpayments   map[uuid.UUID]struct{}
-	clearedpayments   bool
-	events            map[uuid.UUID]struct{}
-	removedevents     map[uuid.UUID]struct{}
-	clearedevents     bool
-	done              bool
-	oldValue          func(context.Context) (*POSOrder, error)
-	predicates        []predicate.POSOrder
+	op                   Op
+	typ                  string
+	id                   *uuid.UUID
+	tenant_id            *uuid.UUID
+	outlet_id            *uuid.UUID
+	device_id            *uuid.UUID
+	user_id              *uuid.UUID
+	order_number         *string
+	status               *string
+	subtotal             *float64
+	addsubtotal          *float64
+	tax_total            *float64
+	addtax_total         *float64
+	discount_total       *float64
+	adddiscount_total    *float64
+	total_amount         *float64
+	addtotal_amount      *float64
+	currency             *string
+	order_subtype        *posorder.OrderSubtype
+	room_id              *uuid.UUID
+	room_guest_id        *uuid.UUID
+	metadata             *map[string]interface{}
+	etims_invoice_number *string
+	etims_qr_code_url    *string
+	created_at           *time.Time
+	updated_at           *time.Time
+	clearedFields        map[string]struct{}
+	lines                map[uuid.UUID]struct{}
+	removedlines         map[uuid.UUID]struct{}
+	clearedlines         bool
+	payments             map[uuid.UUID]struct{}
+	removedpayments      map[uuid.UUID]struct{}
+	clearedpayments      bool
+	events               map[uuid.UUID]struct{}
+	removedevents        map[uuid.UUID]struct{}
+	clearedevents        bool
+	done                 bool
+	oldValue             func(context.Context) (*POSOrder, error)
+	predicates           []predicate.POSOrder
 }
 
 var _ ent.Mutation = (*POSOrderMutation)(nil)
@@ -24660,6 +24662,104 @@ func (m *POSOrderMutation) ResetMetadata() {
 	m.metadata = nil
 }
 
+// SetEtimsInvoiceNumber sets the "etims_invoice_number" field.
+func (m *POSOrderMutation) SetEtimsInvoiceNumber(s string) {
+	m.etims_invoice_number = &s
+}
+
+// EtimsInvoiceNumber returns the value of the "etims_invoice_number" field in the mutation.
+func (m *POSOrderMutation) EtimsInvoiceNumber() (r string, exists bool) {
+	v := m.etims_invoice_number
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEtimsInvoiceNumber returns the old "etims_invoice_number" field's value of the POSOrder entity.
+// If the POSOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSOrderMutation) OldEtimsInvoiceNumber(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEtimsInvoiceNumber is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEtimsInvoiceNumber requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEtimsInvoiceNumber: %w", err)
+	}
+	return oldValue.EtimsInvoiceNumber, nil
+}
+
+// ClearEtimsInvoiceNumber clears the value of the "etims_invoice_number" field.
+func (m *POSOrderMutation) ClearEtimsInvoiceNumber() {
+	m.etims_invoice_number = nil
+	m.clearedFields[posorder.FieldEtimsInvoiceNumber] = struct{}{}
+}
+
+// EtimsInvoiceNumberCleared returns if the "etims_invoice_number" field was cleared in this mutation.
+func (m *POSOrderMutation) EtimsInvoiceNumberCleared() bool {
+	_, ok := m.clearedFields[posorder.FieldEtimsInvoiceNumber]
+	return ok
+}
+
+// ResetEtimsInvoiceNumber resets all changes to the "etims_invoice_number" field.
+func (m *POSOrderMutation) ResetEtimsInvoiceNumber() {
+	m.etims_invoice_number = nil
+	delete(m.clearedFields, posorder.FieldEtimsInvoiceNumber)
+}
+
+// SetEtimsQrCodeURL sets the "etims_qr_code_url" field.
+func (m *POSOrderMutation) SetEtimsQrCodeURL(s string) {
+	m.etims_qr_code_url = &s
+}
+
+// EtimsQrCodeURL returns the value of the "etims_qr_code_url" field in the mutation.
+func (m *POSOrderMutation) EtimsQrCodeURL() (r string, exists bool) {
+	v := m.etims_qr_code_url
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEtimsQrCodeURL returns the old "etims_qr_code_url" field's value of the POSOrder entity.
+// If the POSOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSOrderMutation) OldEtimsQrCodeURL(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEtimsQrCodeURL is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEtimsQrCodeURL requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEtimsQrCodeURL: %w", err)
+	}
+	return oldValue.EtimsQrCodeURL, nil
+}
+
+// ClearEtimsQrCodeURL clears the value of the "etims_qr_code_url" field.
+func (m *POSOrderMutation) ClearEtimsQrCodeURL() {
+	m.etims_qr_code_url = nil
+	m.clearedFields[posorder.FieldEtimsQrCodeURL] = struct{}{}
+}
+
+// EtimsQrCodeURLCleared returns if the "etims_qr_code_url" field was cleared in this mutation.
+func (m *POSOrderMutation) EtimsQrCodeURLCleared() bool {
+	_, ok := m.clearedFields[posorder.FieldEtimsQrCodeURL]
+	return ok
+}
+
+// ResetEtimsQrCodeURL resets all changes to the "etims_qr_code_url" field.
+func (m *POSOrderMutation) ResetEtimsQrCodeURL() {
+	m.etims_qr_code_url = nil
+	delete(m.clearedFields, posorder.FieldEtimsQrCodeURL)
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (m *POSOrderMutation) SetCreatedAt(t time.Time) {
 	m.created_at = &t
@@ -24928,7 +25028,7 @@ func (m *POSOrderMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *POSOrderMutation) Fields() []string {
-	fields := make([]string, 0, 17)
+	fields := make([]string, 0, 19)
 	if m.tenant_id != nil {
 		fields = append(fields, posorder.FieldTenantID)
 	}
@@ -24974,6 +25074,12 @@ func (m *POSOrderMutation) Fields() []string {
 	if m.metadata != nil {
 		fields = append(fields, posorder.FieldMetadata)
 	}
+	if m.etims_invoice_number != nil {
+		fields = append(fields, posorder.FieldEtimsInvoiceNumber)
+	}
+	if m.etims_qr_code_url != nil {
+		fields = append(fields, posorder.FieldEtimsQrCodeURL)
+	}
 	if m.created_at != nil {
 		fields = append(fields, posorder.FieldCreatedAt)
 	}
@@ -25018,6 +25124,10 @@ func (m *POSOrderMutation) Field(name string) (ent.Value, bool) {
 		return m.RoomGuestID()
 	case posorder.FieldMetadata:
 		return m.Metadata()
+	case posorder.FieldEtimsInvoiceNumber:
+		return m.EtimsInvoiceNumber()
+	case posorder.FieldEtimsQrCodeURL:
+		return m.EtimsQrCodeURL()
 	case posorder.FieldCreatedAt:
 		return m.CreatedAt()
 	case posorder.FieldUpdatedAt:
@@ -25061,6 +25171,10 @@ func (m *POSOrderMutation) OldField(ctx context.Context, name string) (ent.Value
 		return m.OldRoomGuestID(ctx)
 	case posorder.FieldMetadata:
 		return m.OldMetadata(ctx)
+	case posorder.FieldEtimsInvoiceNumber:
+		return m.OldEtimsInvoiceNumber(ctx)
+	case posorder.FieldEtimsQrCodeURL:
+		return m.OldEtimsQrCodeURL(ctx)
 	case posorder.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	case posorder.FieldUpdatedAt:
@@ -25179,6 +25293,20 @@ func (m *POSOrderMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetMetadata(v)
 		return nil
+	case posorder.FieldEtimsInvoiceNumber:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEtimsInvoiceNumber(v)
+		return nil
+	case posorder.FieldEtimsQrCodeURL:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEtimsQrCodeURL(v)
+		return nil
 	case posorder.FieldCreatedAt:
 		v, ok := value.(time.Time)
 		if !ok {
@@ -25280,6 +25408,12 @@ func (m *POSOrderMutation) ClearedFields() []string {
 	if m.FieldCleared(posorder.FieldRoomGuestID) {
 		fields = append(fields, posorder.FieldRoomGuestID)
 	}
+	if m.FieldCleared(posorder.FieldEtimsInvoiceNumber) {
+		fields = append(fields, posorder.FieldEtimsInvoiceNumber)
+	}
+	if m.FieldCleared(posorder.FieldEtimsQrCodeURL) {
+		fields = append(fields, posorder.FieldEtimsQrCodeURL)
+	}
 	return fields
 }
 
@@ -25299,6 +25433,12 @@ func (m *POSOrderMutation) ClearField(name string) error {
 		return nil
 	case posorder.FieldRoomGuestID:
 		m.ClearRoomGuestID()
+		return nil
+	case posorder.FieldEtimsInvoiceNumber:
+		m.ClearEtimsInvoiceNumber()
+		return nil
+	case posorder.FieldEtimsQrCodeURL:
+		m.ClearEtimsQrCodeURL()
 		return nil
 	}
 	return fmt.Errorf("unknown POSOrder nullable field %s", name)
@@ -25352,6 +25492,12 @@ func (m *POSOrderMutation) ResetField(name string) error {
 		return nil
 	case posorder.FieldMetadata:
 		m.ResetMetadata()
+		return nil
+	case posorder.FieldEtimsInvoiceNumber:
+		m.ResetEtimsInvoiceNumber()
+		return nil
+	case posorder.FieldEtimsQrCodeURL:
+		m.ResetEtimsQrCodeURL()
 		return nil
 	case posorder.FieldCreatedAt:
 		m.ResetCreatedAt()

@@ -50,6 +50,14 @@ func (POSOrder) Fields() []ent.Field {
 			Comment("Room service: linked guest stay"),
 		field.JSON("metadata", map[string]any{}).
 			Default(map[string]any{}),
+		// eTIMS fields — set by treasury.etims.invoice_transmitted NATS subscriber.
+		// treasury-api owns eTIMS submission; pos-api only stores the outcome for receipt generation.
+		field.String("etims_invoice_number").
+			Optional().
+			Nillable(),
+		field.String("etims_qr_code_url").
+			Optional().
+			Nillable(),
 		field.Time("created_at").
 			Default(time.Now).
 			Immutable(),

@@ -46,6 +46,10 @@ const (
 	FieldRoomGuestID = "room_guest_id"
 	// FieldMetadata holds the string denoting the metadata field in the database.
 	FieldMetadata = "metadata"
+	// FieldEtimsInvoiceNumber holds the string denoting the etims_invoice_number field in the database.
+	FieldEtimsInvoiceNumber = "etims_invoice_number"
+	// FieldEtimsQrCodeURL holds the string denoting the etims_qr_code_url field in the database.
+	FieldEtimsQrCodeURL = "etims_qr_code_url"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
@@ -99,6 +103,8 @@ var Columns = []string{
 	FieldRoomID,
 	FieldRoomGuestID,
 	FieldMetadata,
+	FieldEtimsInvoiceNumber,
+	FieldEtimsQrCodeURL,
 	FieldCreatedAt,
 	FieldUpdatedAt,
 }
@@ -239,6 +245,16 @@ func ByRoomID(opts ...sql.OrderTermOption) OrderOption {
 // ByRoomGuestID orders the results by the room_guest_id field.
 func ByRoomGuestID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldRoomGuestID, opts...).ToFunc()
+}
+
+// ByEtimsInvoiceNumber orders the results by the etims_invoice_number field.
+func ByEtimsInvoiceNumber(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldEtimsInvoiceNumber, opts...).ToFunc()
+}
+
+// ByEtimsQrCodeURL orders the results by the etims_qr_code_url field.
+func ByEtimsQrCodeURL(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldEtimsQrCodeURL, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.
