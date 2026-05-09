@@ -59,5 +59,5 @@
 ## Pending / Carry-forward
 - [x] `pos_device_sessions` — device-specific shift endpoints added: `GET /devices/current/sessions/current`, `POST /devices/current/sessions/open`, `POST /devices/current/sessions/close` (wired 2026-05-09)
 - [ ] Outlet selector at login (post-MVP: cashier selects outlet per terminal)
-- [ ] Terminal PIN login — `POST /{tenant}/pos/auth/pin` and `POST /{tenant}/pos/auth/pin/set` not implemented; no `pin_hash` on staff (deferred to Sprint 10 auth planning, implemented alongside pos-ui Sprint 10)
-- [ ] `pos.staff.manage` permission not yet seeded (needed for PIN management)
+- [x] Terminal PIN login — `POST /{tenant}/pos/auth/pin`, `POST /{tenant}/pos/auth/pin/set`, `GET /{tenant}/pos/staff`, `GET /{tenant}/pos/auth/pin/profile` implemented (2026-05-09); `pin_hash`, `pin_failed_attempts`, `pin_locked_until` added to `staff_members`; Atlas migration generated; `issueTerminalJWT` HMAC-SHA256 4h token
+- [ ] `pos.staff.manage` permission not yet seeded (needed for manager PIN management guard)
