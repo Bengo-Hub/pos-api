@@ -30,6 +30,12 @@ const (
 	FieldCommissionRate = "commission_rate"
 	// FieldIsActive holds the string denoting the is_active field in the database.
 	FieldIsActive = "is_active"
+	// FieldPinHash holds the string denoting the pin_hash field in the database.
+	FieldPinHash = "pin_hash"
+	// FieldPinFailedAttempts holds the string denoting the pin_failed_attempts field in the database.
+	FieldPinFailedAttempts = "pin_failed_attempts"
+	// FieldPinLockedUntil holds the string denoting the pin_locked_until field in the database.
+	FieldPinLockedUntil = "pin_locked_until"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
@@ -49,6 +55,9 @@ var Columns = []string{
 	FieldWorkingHours,
 	FieldCommissionRate,
 	FieldIsActive,
+	FieldPinHash,
+	FieldPinFailedAttempts,
+	FieldPinLockedUntil,
 	FieldCreatedAt,
 	FieldUpdatedAt,
 }
@@ -68,6 +77,8 @@ var (
 	NameValidator func(string) error
 	// DefaultIsActive holds the default value on creation for the "is_active" field.
 	DefaultIsActive bool
+	// DefaultPinFailedAttempts holds the default value on creation for the "pin_failed_attempts" field.
+	DefaultPinFailedAttempts int
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
@@ -114,6 +125,21 @@ func ByCommissionRate(opts ...sql.OrderTermOption) OrderOption {
 // ByIsActive orders the results by the is_active field.
 func ByIsActive(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldIsActive, opts...).ToFunc()
+}
+
+// ByPinHash orders the results by the pin_hash field.
+func ByPinHash(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPinHash, opts...).ToFunc()
+}
+
+// ByPinFailedAttempts orders the results by the pin_failed_attempts field.
+func ByPinFailedAttempts(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPinFailedAttempts, opts...).ToFunc()
+}
+
+// ByPinLockedUntil orders the results by the pin_locked_until field.
+func ByPinLockedUntil(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPinLockedUntil, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.

@@ -35,6 +35,7 @@ func New(
 	hotel *handlers.HotelHandler,
 	kds *handlers.KDSHandler,
 	devices *handlers.DeviceHandler,
+	pinAuth *handlers.PINAuthHandler,
 	allowedOrigins []string,
 ) http.Handler {
 	r := chi.NewRouter()
@@ -207,6 +208,15 @@ func New(
 					pos.Get("/devices/current/sessions/current", devices.GetCurrentSession)
 					pos.Post("/devices/current/sessions/open", devices.OpenSession)
 					pos.Post("/devices/current/sessions/close", devices.CloseSession)
+				}
+
+				// Terminal PIN auth — login and staff listing are unauthed (terminal-only flow)
+				// SetPIN requires a manager SSO token (handled by the outer auth middleware)
+				if pinAuth != nil {
+					pos.Get("/staff", pinAuth.ListStaff)
+					pos.Post("/auth/pin", pinAuth.Login)
+					pos.Post("/auth/pin/set", pinAuth.SetPIN)
+					pos.Get("/auth/pin/profile", pinAuth.StaffProfiles)
 				}
 
 				// KDS

@@ -157,6 +157,67 @@ func (_u *StaffMemberUpdate) SetNillableIsActive(v *bool) *StaffMemberUpdate {
 	return _u
 }
 
+// SetPinHash sets the "pin_hash" field.
+func (_u *StaffMemberUpdate) SetPinHash(v string) *StaffMemberUpdate {
+	_u.mutation.SetPinHash(v)
+	return _u
+}
+
+// SetNillablePinHash sets the "pin_hash" field if the given value is not nil.
+func (_u *StaffMemberUpdate) SetNillablePinHash(v *string) *StaffMemberUpdate {
+	if v != nil {
+		_u.SetPinHash(*v)
+	}
+	return _u
+}
+
+// ClearPinHash clears the value of the "pin_hash" field.
+func (_u *StaffMemberUpdate) ClearPinHash() *StaffMemberUpdate {
+	_u.mutation.ClearPinHash()
+	return _u
+}
+
+// SetPinFailedAttempts sets the "pin_failed_attempts" field.
+func (_u *StaffMemberUpdate) SetPinFailedAttempts(v int) *StaffMemberUpdate {
+	_u.mutation.ResetPinFailedAttempts()
+	_u.mutation.SetPinFailedAttempts(v)
+	return _u
+}
+
+// SetNillablePinFailedAttempts sets the "pin_failed_attempts" field if the given value is not nil.
+func (_u *StaffMemberUpdate) SetNillablePinFailedAttempts(v *int) *StaffMemberUpdate {
+	if v != nil {
+		_u.SetPinFailedAttempts(*v)
+	}
+	return _u
+}
+
+// AddPinFailedAttempts adds value to the "pin_failed_attempts" field.
+func (_u *StaffMemberUpdate) AddPinFailedAttempts(v int) *StaffMemberUpdate {
+	_u.mutation.AddPinFailedAttempts(v)
+	return _u
+}
+
+// SetPinLockedUntil sets the "pin_locked_until" field.
+func (_u *StaffMemberUpdate) SetPinLockedUntil(v time.Time) *StaffMemberUpdate {
+	_u.mutation.SetPinLockedUntil(v)
+	return _u
+}
+
+// SetNillablePinLockedUntil sets the "pin_locked_until" field if the given value is not nil.
+func (_u *StaffMemberUpdate) SetNillablePinLockedUntil(v *time.Time) *StaffMemberUpdate {
+	if v != nil {
+		_u.SetPinLockedUntil(*v)
+	}
+	return _u
+}
+
+// ClearPinLockedUntil clears the value of the "pin_locked_until" field.
+func (_u *StaffMemberUpdate) ClearPinLockedUntil() *StaffMemberUpdate {
+	_u.mutation.ClearPinLockedUntil()
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *StaffMemberUpdate) SetUpdatedAt(v time.Time) *StaffMemberUpdate {
 	_u.mutation.SetUpdatedAt(v)
@@ -266,6 +327,24 @@ func (_u *StaffMemberUpdate) sqlSave(ctx context.Context) (_node int, err error)
 	}
 	if value, ok := _u.mutation.IsActive(); ok {
 		_spec.SetField(staffmember.FieldIsActive, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.PinHash(); ok {
+		_spec.SetField(staffmember.FieldPinHash, field.TypeString, value)
+	}
+	if _u.mutation.PinHashCleared() {
+		_spec.ClearField(staffmember.FieldPinHash, field.TypeString)
+	}
+	if value, ok := _u.mutation.PinFailedAttempts(); ok {
+		_spec.SetField(staffmember.FieldPinFailedAttempts, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedPinFailedAttempts(); ok {
+		_spec.AddField(staffmember.FieldPinFailedAttempts, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.PinLockedUntil(); ok {
+		_spec.SetField(staffmember.FieldPinLockedUntil, field.TypeTime, value)
+	}
+	if _u.mutation.PinLockedUntilCleared() {
+		_spec.ClearField(staffmember.FieldPinLockedUntil, field.TypeTime)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(staffmember.FieldUpdatedAt, field.TypeTime, value)
@@ -417,6 +496,67 @@ func (_u *StaffMemberUpdateOne) SetNillableIsActive(v *bool) *StaffMemberUpdateO
 	return _u
 }
 
+// SetPinHash sets the "pin_hash" field.
+func (_u *StaffMemberUpdateOne) SetPinHash(v string) *StaffMemberUpdateOne {
+	_u.mutation.SetPinHash(v)
+	return _u
+}
+
+// SetNillablePinHash sets the "pin_hash" field if the given value is not nil.
+func (_u *StaffMemberUpdateOne) SetNillablePinHash(v *string) *StaffMemberUpdateOne {
+	if v != nil {
+		_u.SetPinHash(*v)
+	}
+	return _u
+}
+
+// ClearPinHash clears the value of the "pin_hash" field.
+func (_u *StaffMemberUpdateOne) ClearPinHash() *StaffMemberUpdateOne {
+	_u.mutation.ClearPinHash()
+	return _u
+}
+
+// SetPinFailedAttempts sets the "pin_failed_attempts" field.
+func (_u *StaffMemberUpdateOne) SetPinFailedAttempts(v int) *StaffMemberUpdateOne {
+	_u.mutation.ResetPinFailedAttempts()
+	_u.mutation.SetPinFailedAttempts(v)
+	return _u
+}
+
+// SetNillablePinFailedAttempts sets the "pin_failed_attempts" field if the given value is not nil.
+func (_u *StaffMemberUpdateOne) SetNillablePinFailedAttempts(v *int) *StaffMemberUpdateOne {
+	if v != nil {
+		_u.SetPinFailedAttempts(*v)
+	}
+	return _u
+}
+
+// AddPinFailedAttempts adds value to the "pin_failed_attempts" field.
+func (_u *StaffMemberUpdateOne) AddPinFailedAttempts(v int) *StaffMemberUpdateOne {
+	_u.mutation.AddPinFailedAttempts(v)
+	return _u
+}
+
+// SetPinLockedUntil sets the "pin_locked_until" field.
+func (_u *StaffMemberUpdateOne) SetPinLockedUntil(v time.Time) *StaffMemberUpdateOne {
+	_u.mutation.SetPinLockedUntil(v)
+	return _u
+}
+
+// SetNillablePinLockedUntil sets the "pin_locked_until" field if the given value is not nil.
+func (_u *StaffMemberUpdateOne) SetNillablePinLockedUntil(v *time.Time) *StaffMemberUpdateOne {
+	if v != nil {
+		_u.SetPinLockedUntil(*v)
+	}
+	return _u
+}
+
+// ClearPinLockedUntil clears the value of the "pin_locked_until" field.
+func (_u *StaffMemberUpdateOne) ClearPinLockedUntil() *StaffMemberUpdateOne {
+	_u.mutation.ClearPinLockedUntil()
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *StaffMemberUpdateOne) SetUpdatedAt(v time.Time) *StaffMemberUpdateOne {
 	_u.mutation.SetUpdatedAt(v)
@@ -556,6 +696,24 @@ func (_u *StaffMemberUpdateOne) sqlSave(ctx context.Context) (_node *StaffMember
 	}
 	if value, ok := _u.mutation.IsActive(); ok {
 		_spec.SetField(staffmember.FieldIsActive, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.PinHash(); ok {
+		_spec.SetField(staffmember.FieldPinHash, field.TypeString, value)
+	}
+	if _u.mutation.PinHashCleared() {
+		_spec.ClearField(staffmember.FieldPinHash, field.TypeString)
+	}
+	if value, ok := _u.mutation.PinFailedAttempts(); ok {
+		_spec.SetField(staffmember.FieldPinFailedAttempts, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedPinFailedAttempts(); ok {
+		_spec.AddField(staffmember.FieldPinFailedAttempts, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.PinLockedUntil(); ok {
+		_spec.SetField(staffmember.FieldPinLockedUntil, field.TypeTime, value)
+	}
+	if _u.mutation.PinLockedUntilCleared() {
+		_spec.ClearField(staffmember.FieldPinLockedUntil, field.TypeTime)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(staffmember.FieldUpdatedAt, field.TypeTime, value)

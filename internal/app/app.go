@@ -181,6 +181,13 @@ func New(ctx context.Context) (*App, error) {
 	kdsHandler := handlers.NewKDSHandler(log, entClient)
 	deviceHandler := handlers.NewDeviceHandler(log, entClient)
 
+	// Terminal PIN auth — falls back to INTERNAL_SERVICE_KEY if TERMINAL_JWT_SECRET is not set
+	terminalJWTSecret := []byte(cfg.Auth.TerminalJWTSecret)
+	if len(terminalJWTSecret) == 0 {
+		terminalJWTSecret = []byte(cfg.Treasury.InternalServiceKey)
+	}
+	pinAuthHandler := handlers.NewPINAuthHandler(log, entClient, terminalJWTSecret)
+
 	// Initialize RBAC
 	rbacRepo := rbacmodule.NewEntRepository(entClient)
 	rbacSvc := rbacmodule.NewService(rbacRepo, log)
@@ -237,7 +244,7 @@ func New(ctx context.Context) (*App, error) {
 		inventoryEventHandler.InitialSync(ctx, inventoryURL, tenantSlug)
 	}()
 
-	chiRouter := router.New(log, healthHandler, authMiddleware, identitySvc, orderHandler, catalogHandler, tableHandler, tenderHandler, paymentHandler, drawerHandler, barTabHandler, promotionHandler, rbacHandler, hotelHandler, kdsHandler, deviceHandler, cfg.HTTP.AllowedOrigins)
+	chiRouter := router.New(log, healthHandler, authMiddleware, identitySvc, orderHandler, catalogHandler, tableHandler, tenderHandler, paymentHandler, drawerHandler, barTabHandler, promotionHandler, rbacHandler, hotelHandler, kdsHandler, deviceHandler, pinAuthHandler, cfg.HTTP.AllowedOrigins)
 
 	httpServer := &http.Server{
 		Addr:              fmt.Sprintf("%s:%d", cfg.HTTP.Host, cfg.HTTP.Port),

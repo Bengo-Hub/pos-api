@@ -35,6 +35,12 @@ type StaffMember struct {
 	CommissionRate *float64 `json:"commission_rate,omitempty"`
 	// IsActive holds the value of the "is_active" field.
 	IsActive bool `json:"is_active,omitempty"`
+	// PinHash holds the value of the "pin_hash" field.
+	PinHash *string `json:"-"`
+	// PinFailedAttempts holds the value of the "pin_failed_attempts" field.
+	PinFailedAttempts int `json:"pin_failed_attempts,omitempty"`
+	// PinLockedUntil holds the value of the "pin_locked_until" field.
+	PinLockedUntil *time.Time `json:"pin_locked_until,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
@@ -53,9 +59,11 @@ func (*StaffMember) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullBool)
 		case staffmember.FieldCommissionRate:
 			values[i] = new(sql.NullFloat64)
-		case staffmember.FieldName:
+		case staffmember.FieldPinFailedAttempts:
+			values[i] = new(sql.NullInt64)
+		case staffmember.FieldName, staffmember.FieldPinHash:
 			values[i] = new(sql.NullString)
-		case staffmember.FieldCreatedAt, staffmember.FieldUpdatedAt:
+		case staffmember.FieldPinLockedUntil, staffmember.FieldCreatedAt, staffmember.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
 		case staffmember.FieldID, staffmember.FieldTenantID, staffmember.FieldOutletID, staffmember.FieldUserID:
 			values[i] = new(uuid.UUID)
@@ -133,6 +141,26 @@ func (_m *StaffMember) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.IsActive = value.Bool
 			}
+		case staffmember.FieldPinHash:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field pin_hash", values[i])
+			} else if value.Valid {
+				_m.PinHash = new(string)
+				*_m.PinHash = value.String
+			}
+		case staffmember.FieldPinFailedAttempts:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field pin_failed_attempts", values[i])
+			} else if value.Valid {
+				_m.PinFailedAttempts = int(value.Int64)
+			}
+		case staffmember.FieldPinLockedUntil:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field pin_locked_until", values[i])
+			} else if value.Valid {
+				_m.PinLockedUntil = new(time.Time)
+				*_m.PinLockedUntil = value.Time
+			}
 		case staffmember.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field created_at", values[i])
@@ -206,6 +234,16 @@ func (_m *StaffMember) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("is_active=")
 	builder.WriteString(fmt.Sprintf("%v", _m.IsActive))
+	builder.WriteString(", ")
+	builder.WriteString("pin_hash=<sensitive>")
+	builder.WriteString(", ")
+	builder.WriteString("pin_failed_attempts=")
+	builder.WriteString(fmt.Sprintf("%v", _m.PinFailedAttempts))
+	builder.WriteString(", ")
+	if v := _m.PinLockedUntil; v != nil {
+		builder.WriteString("pin_locked_until=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))

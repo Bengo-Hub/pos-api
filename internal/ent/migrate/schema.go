@@ -1439,6 +1439,9 @@ var (
 		{Name: "working_hours", Type: field.TypeJSON, Nullable: true},
 		{Name: "commission_rate", Type: field.TypeFloat64, Nullable: true},
 		{Name: "is_active", Type: field.TypeBool, Default: true},
+		{Name: "pin_hash", Type: field.TypeString, Nullable: true},
+		{Name: "pin_failed_attempts", Type: field.TypeInt, Default: 0},
+		{Name: "pin_locked_until", Type: field.TypeTime, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
 	}

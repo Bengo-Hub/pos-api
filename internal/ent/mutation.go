@@ -42895,25 +42895,29 @@ func (m *ServiceConfigMutation) ResetEdge(name string) error {
 // StaffMemberMutation represents an operation that mutates the StaffMember nodes in the graph.
 type StaffMemberMutation struct {
 	config
-	op                 Op
-	typ                string
-	id                 *uuid.UUID
-	tenant_id          *uuid.UUID
-	outlet_id          *uuid.UUID
-	user_id            *uuid.UUID
-	name               *string
-	service_skus       *[]string
-	appendservice_skus []string
-	working_hours      *map[string]interface{}
-	commission_rate    *float64
-	addcommission_rate *float64
-	is_active          *bool
-	created_at         *time.Time
-	updated_at         *time.Time
-	clearedFields      map[string]struct{}
-	done               bool
-	oldValue           func(context.Context) (*StaffMember, error)
-	predicates         []predicate.StaffMember
+	op                     Op
+	typ                    string
+	id                     *uuid.UUID
+	tenant_id              *uuid.UUID
+	outlet_id              *uuid.UUID
+	user_id                *uuid.UUID
+	name                   *string
+	service_skus           *[]string
+	appendservice_skus     []string
+	working_hours          *map[string]interface{}
+	commission_rate        *float64
+	addcommission_rate     *float64
+	is_active              *bool
+	pin_hash               *string
+	pin_failed_attempts    *int
+	addpin_failed_attempts *int
+	pin_locked_until       *time.Time
+	created_at             *time.Time
+	updated_at             *time.Time
+	clearedFields          map[string]struct{}
+	done                   bool
+	oldValue               func(context.Context) (*StaffMember, error)
+	predicates             []predicate.StaffMember
 }
 
 var _ ent.Mutation = (*StaffMemberMutation)(nil)
@@ -43384,6 +43388,160 @@ func (m *StaffMemberMutation) ResetIsActive() {
 	m.is_active = nil
 }
 
+// SetPinHash sets the "pin_hash" field.
+func (m *StaffMemberMutation) SetPinHash(s string) {
+	m.pin_hash = &s
+}
+
+// PinHash returns the value of the "pin_hash" field in the mutation.
+func (m *StaffMemberMutation) PinHash() (r string, exists bool) {
+	v := m.pin_hash
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPinHash returns the old "pin_hash" field's value of the StaffMember entity.
+// If the StaffMember object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffMemberMutation) OldPinHash(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPinHash is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPinHash requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPinHash: %w", err)
+	}
+	return oldValue.PinHash, nil
+}
+
+// ClearPinHash clears the value of the "pin_hash" field.
+func (m *StaffMemberMutation) ClearPinHash() {
+	m.pin_hash = nil
+	m.clearedFields[staffmember.FieldPinHash] = struct{}{}
+}
+
+// PinHashCleared returns if the "pin_hash" field was cleared in this mutation.
+func (m *StaffMemberMutation) PinHashCleared() bool {
+	_, ok := m.clearedFields[staffmember.FieldPinHash]
+	return ok
+}
+
+// ResetPinHash resets all changes to the "pin_hash" field.
+func (m *StaffMemberMutation) ResetPinHash() {
+	m.pin_hash = nil
+	delete(m.clearedFields, staffmember.FieldPinHash)
+}
+
+// SetPinFailedAttempts sets the "pin_failed_attempts" field.
+func (m *StaffMemberMutation) SetPinFailedAttempts(i int) {
+	m.pin_failed_attempts = &i
+	m.addpin_failed_attempts = nil
+}
+
+// PinFailedAttempts returns the value of the "pin_failed_attempts" field in the mutation.
+func (m *StaffMemberMutation) PinFailedAttempts() (r int, exists bool) {
+	v := m.pin_failed_attempts
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPinFailedAttempts returns the old "pin_failed_attempts" field's value of the StaffMember entity.
+// If the StaffMember object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffMemberMutation) OldPinFailedAttempts(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPinFailedAttempts is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPinFailedAttempts requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPinFailedAttempts: %w", err)
+	}
+	return oldValue.PinFailedAttempts, nil
+}
+
+// AddPinFailedAttempts adds i to the "pin_failed_attempts" field.
+func (m *StaffMemberMutation) AddPinFailedAttempts(i int) {
+	if m.addpin_failed_attempts != nil {
+		*m.addpin_failed_attempts += i
+	} else {
+		m.addpin_failed_attempts = &i
+	}
+}
+
+// AddedPinFailedAttempts returns the value that was added to the "pin_failed_attempts" field in this mutation.
+func (m *StaffMemberMutation) AddedPinFailedAttempts() (r int, exists bool) {
+	v := m.addpin_failed_attempts
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetPinFailedAttempts resets all changes to the "pin_failed_attempts" field.
+func (m *StaffMemberMutation) ResetPinFailedAttempts() {
+	m.pin_failed_attempts = nil
+	m.addpin_failed_attempts = nil
+}
+
+// SetPinLockedUntil sets the "pin_locked_until" field.
+func (m *StaffMemberMutation) SetPinLockedUntil(t time.Time) {
+	m.pin_locked_until = &t
+}
+
+// PinLockedUntil returns the value of the "pin_locked_until" field in the mutation.
+func (m *StaffMemberMutation) PinLockedUntil() (r time.Time, exists bool) {
+	v := m.pin_locked_until
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPinLockedUntil returns the old "pin_locked_until" field's value of the StaffMember entity.
+// If the StaffMember object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffMemberMutation) OldPinLockedUntil(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPinLockedUntil is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPinLockedUntil requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPinLockedUntil: %w", err)
+	}
+	return oldValue.PinLockedUntil, nil
+}
+
+// ClearPinLockedUntil clears the value of the "pin_locked_until" field.
+func (m *StaffMemberMutation) ClearPinLockedUntil() {
+	m.pin_locked_until = nil
+	m.clearedFields[staffmember.FieldPinLockedUntil] = struct{}{}
+}
+
+// PinLockedUntilCleared returns if the "pin_locked_until" field was cleared in this mutation.
+func (m *StaffMemberMutation) PinLockedUntilCleared() bool {
+	_, ok := m.clearedFields[staffmember.FieldPinLockedUntil]
+	return ok
+}
+
+// ResetPinLockedUntil resets all changes to the "pin_locked_until" field.
+func (m *StaffMemberMutation) ResetPinLockedUntil() {
+	m.pin_locked_until = nil
+	delete(m.clearedFields, staffmember.FieldPinLockedUntil)
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (m *StaffMemberMutation) SetCreatedAt(t time.Time) {
 	m.created_at = &t
@@ -43490,7 +43648,7 @@ func (m *StaffMemberMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *StaffMemberMutation) Fields() []string {
-	fields := make([]string, 0, 10)
+	fields := make([]string, 0, 13)
 	if m.tenant_id != nil {
 		fields = append(fields, staffmember.FieldTenantID)
 	}
@@ -43514,6 +43672,15 @@ func (m *StaffMemberMutation) Fields() []string {
 	}
 	if m.is_active != nil {
 		fields = append(fields, staffmember.FieldIsActive)
+	}
+	if m.pin_hash != nil {
+		fields = append(fields, staffmember.FieldPinHash)
+	}
+	if m.pin_failed_attempts != nil {
+		fields = append(fields, staffmember.FieldPinFailedAttempts)
+	}
+	if m.pin_locked_until != nil {
+		fields = append(fields, staffmember.FieldPinLockedUntil)
 	}
 	if m.created_at != nil {
 		fields = append(fields, staffmember.FieldCreatedAt)
@@ -43545,6 +43712,12 @@ func (m *StaffMemberMutation) Field(name string) (ent.Value, bool) {
 		return m.CommissionRate()
 	case staffmember.FieldIsActive:
 		return m.IsActive()
+	case staffmember.FieldPinHash:
+		return m.PinHash()
+	case staffmember.FieldPinFailedAttempts:
+		return m.PinFailedAttempts()
+	case staffmember.FieldPinLockedUntil:
+		return m.PinLockedUntil()
 	case staffmember.FieldCreatedAt:
 		return m.CreatedAt()
 	case staffmember.FieldUpdatedAt:
@@ -43574,6 +43747,12 @@ func (m *StaffMemberMutation) OldField(ctx context.Context, name string) (ent.Va
 		return m.OldCommissionRate(ctx)
 	case staffmember.FieldIsActive:
 		return m.OldIsActive(ctx)
+	case staffmember.FieldPinHash:
+		return m.OldPinHash(ctx)
+	case staffmember.FieldPinFailedAttempts:
+		return m.OldPinFailedAttempts(ctx)
+	case staffmember.FieldPinLockedUntil:
+		return m.OldPinLockedUntil(ctx)
 	case staffmember.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	case staffmember.FieldUpdatedAt:
@@ -43643,6 +43822,27 @@ func (m *StaffMemberMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetIsActive(v)
 		return nil
+	case staffmember.FieldPinHash:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPinHash(v)
+		return nil
+	case staffmember.FieldPinFailedAttempts:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPinFailedAttempts(v)
+		return nil
+	case staffmember.FieldPinLockedUntil:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPinLockedUntil(v)
+		return nil
 	case staffmember.FieldCreatedAt:
 		v, ok := value.(time.Time)
 		if !ok {
@@ -43668,6 +43868,9 @@ func (m *StaffMemberMutation) AddedFields() []string {
 	if m.addcommission_rate != nil {
 		fields = append(fields, staffmember.FieldCommissionRate)
 	}
+	if m.addpin_failed_attempts != nil {
+		fields = append(fields, staffmember.FieldPinFailedAttempts)
+	}
 	return fields
 }
 
@@ -43678,6 +43881,8 @@ func (m *StaffMemberMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
 	case staffmember.FieldCommissionRate:
 		return m.AddedCommissionRate()
+	case staffmember.FieldPinFailedAttempts:
+		return m.AddedPinFailedAttempts()
 	}
 	return nil, false
 }
@@ -43693,6 +43898,13 @@ func (m *StaffMemberMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddCommissionRate(v)
+		return nil
+	case staffmember.FieldPinFailedAttempts:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddPinFailedAttempts(v)
 		return nil
 	}
 	return fmt.Errorf("unknown StaffMember numeric field %s", name)
@@ -43710,6 +43922,12 @@ func (m *StaffMemberMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(staffmember.FieldCommissionRate) {
 		fields = append(fields, staffmember.FieldCommissionRate)
+	}
+	if m.FieldCleared(staffmember.FieldPinHash) {
+		fields = append(fields, staffmember.FieldPinHash)
+	}
+	if m.FieldCleared(staffmember.FieldPinLockedUntil) {
+		fields = append(fields, staffmember.FieldPinLockedUntil)
 	}
 	return fields
 }
@@ -43733,6 +43951,12 @@ func (m *StaffMemberMutation) ClearField(name string) error {
 		return nil
 	case staffmember.FieldCommissionRate:
 		m.ClearCommissionRate()
+		return nil
+	case staffmember.FieldPinHash:
+		m.ClearPinHash()
+		return nil
+	case staffmember.FieldPinLockedUntil:
+		m.ClearPinLockedUntil()
 		return nil
 	}
 	return fmt.Errorf("unknown StaffMember nullable field %s", name)
@@ -43765,6 +43989,15 @@ func (m *StaffMemberMutation) ResetField(name string) error {
 		return nil
 	case staffmember.FieldIsActive:
 		m.ResetIsActive()
+		return nil
+	case staffmember.FieldPinHash:
+		m.ResetPinHash()
+		return nil
+	case staffmember.FieldPinFailedAttempts:
+		m.ResetPinFailedAttempts()
+		return nil
+	case staffmember.FieldPinLockedUntil:
+		m.ResetPinLockedUntil()
 		return nil
 	case staffmember.FieldCreatedAt:
 		m.ResetCreatedAt()

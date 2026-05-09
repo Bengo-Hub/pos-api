@@ -85,6 +85,21 @@ func IsActive(v bool) predicate.StaffMember {
 	return predicate.StaffMember(sql.FieldEQ(FieldIsActive, v))
 }
 
+// PinHash applies equality check predicate on the "pin_hash" field. It's identical to PinHashEQ.
+func PinHash(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldEQ(FieldPinHash, v))
+}
+
+// PinFailedAttempts applies equality check predicate on the "pin_failed_attempts" field. It's identical to PinFailedAttemptsEQ.
+func PinFailedAttempts(v int) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldEQ(FieldPinFailedAttempts, v))
+}
+
+// PinLockedUntil applies equality check predicate on the "pin_locked_until" field. It's identical to PinLockedUntilEQ.
+func PinLockedUntil(v time.Time) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldEQ(FieldPinLockedUntil, v))
+}
+
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.StaffMember {
 	return predicate.StaffMember(sql.FieldEQ(FieldCreatedAt, v))
@@ -358,6 +373,171 @@ func IsActiveEQ(v bool) predicate.StaffMember {
 // IsActiveNEQ applies the NEQ predicate on the "is_active" field.
 func IsActiveNEQ(v bool) predicate.StaffMember {
 	return predicate.StaffMember(sql.FieldNEQ(FieldIsActive, v))
+}
+
+// PinHashEQ applies the EQ predicate on the "pin_hash" field.
+func PinHashEQ(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldEQ(FieldPinHash, v))
+}
+
+// PinHashNEQ applies the NEQ predicate on the "pin_hash" field.
+func PinHashNEQ(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldNEQ(FieldPinHash, v))
+}
+
+// PinHashIn applies the In predicate on the "pin_hash" field.
+func PinHashIn(vs ...string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldIn(FieldPinHash, vs...))
+}
+
+// PinHashNotIn applies the NotIn predicate on the "pin_hash" field.
+func PinHashNotIn(vs ...string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldNotIn(FieldPinHash, vs...))
+}
+
+// PinHashGT applies the GT predicate on the "pin_hash" field.
+func PinHashGT(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldGT(FieldPinHash, v))
+}
+
+// PinHashGTE applies the GTE predicate on the "pin_hash" field.
+func PinHashGTE(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldGTE(FieldPinHash, v))
+}
+
+// PinHashLT applies the LT predicate on the "pin_hash" field.
+func PinHashLT(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldLT(FieldPinHash, v))
+}
+
+// PinHashLTE applies the LTE predicate on the "pin_hash" field.
+func PinHashLTE(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldLTE(FieldPinHash, v))
+}
+
+// PinHashContains applies the Contains predicate on the "pin_hash" field.
+func PinHashContains(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldContains(FieldPinHash, v))
+}
+
+// PinHashHasPrefix applies the HasPrefix predicate on the "pin_hash" field.
+func PinHashHasPrefix(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldHasPrefix(FieldPinHash, v))
+}
+
+// PinHashHasSuffix applies the HasSuffix predicate on the "pin_hash" field.
+func PinHashHasSuffix(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldHasSuffix(FieldPinHash, v))
+}
+
+// PinHashIsNil applies the IsNil predicate on the "pin_hash" field.
+func PinHashIsNil() predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldIsNull(FieldPinHash))
+}
+
+// PinHashNotNil applies the NotNil predicate on the "pin_hash" field.
+func PinHashNotNil() predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldNotNull(FieldPinHash))
+}
+
+// PinHashEqualFold applies the EqualFold predicate on the "pin_hash" field.
+func PinHashEqualFold(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldEqualFold(FieldPinHash, v))
+}
+
+// PinHashContainsFold applies the ContainsFold predicate on the "pin_hash" field.
+func PinHashContainsFold(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldContainsFold(FieldPinHash, v))
+}
+
+// PinFailedAttemptsEQ applies the EQ predicate on the "pin_failed_attempts" field.
+func PinFailedAttemptsEQ(v int) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldEQ(FieldPinFailedAttempts, v))
+}
+
+// PinFailedAttemptsNEQ applies the NEQ predicate on the "pin_failed_attempts" field.
+func PinFailedAttemptsNEQ(v int) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldNEQ(FieldPinFailedAttempts, v))
+}
+
+// PinFailedAttemptsIn applies the In predicate on the "pin_failed_attempts" field.
+func PinFailedAttemptsIn(vs ...int) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldIn(FieldPinFailedAttempts, vs...))
+}
+
+// PinFailedAttemptsNotIn applies the NotIn predicate on the "pin_failed_attempts" field.
+func PinFailedAttemptsNotIn(vs ...int) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldNotIn(FieldPinFailedAttempts, vs...))
+}
+
+// PinFailedAttemptsGT applies the GT predicate on the "pin_failed_attempts" field.
+func PinFailedAttemptsGT(v int) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldGT(FieldPinFailedAttempts, v))
+}
+
+// PinFailedAttemptsGTE applies the GTE predicate on the "pin_failed_attempts" field.
+func PinFailedAttemptsGTE(v int) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldGTE(FieldPinFailedAttempts, v))
+}
+
+// PinFailedAttemptsLT applies the LT predicate on the "pin_failed_attempts" field.
+func PinFailedAttemptsLT(v int) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldLT(FieldPinFailedAttempts, v))
+}
+
+// PinFailedAttemptsLTE applies the LTE predicate on the "pin_failed_attempts" field.
+func PinFailedAttemptsLTE(v int) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldLTE(FieldPinFailedAttempts, v))
+}
+
+// PinLockedUntilEQ applies the EQ predicate on the "pin_locked_until" field.
+func PinLockedUntilEQ(v time.Time) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldEQ(FieldPinLockedUntil, v))
+}
+
+// PinLockedUntilNEQ applies the NEQ predicate on the "pin_locked_until" field.
+func PinLockedUntilNEQ(v time.Time) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldNEQ(FieldPinLockedUntil, v))
+}
+
+// PinLockedUntilIn applies the In predicate on the "pin_locked_until" field.
+func PinLockedUntilIn(vs ...time.Time) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldIn(FieldPinLockedUntil, vs...))
+}
+
+// PinLockedUntilNotIn applies the NotIn predicate on the "pin_locked_until" field.
+func PinLockedUntilNotIn(vs ...time.Time) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldNotIn(FieldPinLockedUntil, vs...))
+}
+
+// PinLockedUntilGT applies the GT predicate on the "pin_locked_until" field.
+func PinLockedUntilGT(v time.Time) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldGT(FieldPinLockedUntil, v))
+}
+
+// PinLockedUntilGTE applies the GTE predicate on the "pin_locked_until" field.
+func PinLockedUntilGTE(v time.Time) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldGTE(FieldPinLockedUntil, v))
+}
+
+// PinLockedUntilLT applies the LT predicate on the "pin_locked_until" field.
+func PinLockedUntilLT(v time.Time) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldLT(FieldPinLockedUntil, v))
+}
+
+// PinLockedUntilLTE applies the LTE predicate on the "pin_locked_until" field.
+func PinLockedUntilLTE(v time.Time) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldLTE(FieldPinLockedUntil, v))
+}
+
+// PinLockedUntilIsNil applies the IsNil predicate on the "pin_locked_until" field.
+func PinLockedUntilIsNil() predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldIsNull(FieldPinLockedUntil))
+}
+
+// PinLockedUntilNotNil applies the NotNil predicate on the "pin_locked_until" field.
+func PinLockedUntilNotNil() predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldNotNull(FieldPinLockedUntil))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.

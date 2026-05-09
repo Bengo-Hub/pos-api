@@ -88,6 +88,48 @@ func (_c *StaffMemberCreate) SetNillableIsActive(v *bool) *StaffMemberCreate {
 	return _c
 }
 
+// SetPinHash sets the "pin_hash" field.
+func (_c *StaffMemberCreate) SetPinHash(v string) *StaffMemberCreate {
+	_c.mutation.SetPinHash(v)
+	return _c
+}
+
+// SetNillablePinHash sets the "pin_hash" field if the given value is not nil.
+func (_c *StaffMemberCreate) SetNillablePinHash(v *string) *StaffMemberCreate {
+	if v != nil {
+		_c.SetPinHash(*v)
+	}
+	return _c
+}
+
+// SetPinFailedAttempts sets the "pin_failed_attempts" field.
+func (_c *StaffMemberCreate) SetPinFailedAttempts(v int) *StaffMemberCreate {
+	_c.mutation.SetPinFailedAttempts(v)
+	return _c
+}
+
+// SetNillablePinFailedAttempts sets the "pin_failed_attempts" field if the given value is not nil.
+func (_c *StaffMemberCreate) SetNillablePinFailedAttempts(v *int) *StaffMemberCreate {
+	if v != nil {
+		_c.SetPinFailedAttempts(*v)
+	}
+	return _c
+}
+
+// SetPinLockedUntil sets the "pin_locked_until" field.
+func (_c *StaffMemberCreate) SetPinLockedUntil(v time.Time) *StaffMemberCreate {
+	_c.mutation.SetPinLockedUntil(v)
+	return _c
+}
+
+// SetNillablePinLockedUntil sets the "pin_locked_until" field if the given value is not nil.
+func (_c *StaffMemberCreate) SetNillablePinLockedUntil(v *time.Time) *StaffMemberCreate {
+	if v != nil {
+		_c.SetPinLockedUntil(*v)
+	}
+	return _c
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_c *StaffMemberCreate) SetCreatedAt(v time.Time) *StaffMemberCreate {
 	_c.mutation.SetCreatedAt(v)
@@ -169,6 +211,10 @@ func (_c *StaffMemberCreate) defaults() {
 		v := staffmember.DefaultIsActive
 		_c.mutation.SetIsActive(v)
 	}
+	if _, ok := _c.mutation.PinFailedAttempts(); !ok {
+		v := staffmember.DefaultPinFailedAttempts
+		_c.mutation.SetPinFailedAttempts(v)
+	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		v := staffmember.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
@@ -204,6 +250,9 @@ func (_c *StaffMemberCreate) check() error {
 	}
 	if _, ok := _c.mutation.IsActive(); !ok {
 		return &ValidationError{Name: "is_active", err: errors.New(`ent: missing required field "StaffMember.is_active"`)}
+	}
+	if _, ok := _c.mutation.PinFailedAttempts(); !ok {
+		return &ValidationError{Name: "pin_failed_attempts", err: errors.New(`ent: missing required field "StaffMember.pin_failed_attempts"`)}
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "StaffMember.created_at"`)}
@@ -278,6 +327,18 @@ func (_c *StaffMemberCreate) createSpec() (*StaffMember, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.IsActive(); ok {
 		_spec.SetField(staffmember.FieldIsActive, field.TypeBool, value)
 		_node.IsActive = value
+	}
+	if value, ok := _c.mutation.PinHash(); ok {
+		_spec.SetField(staffmember.FieldPinHash, field.TypeString, value)
+		_node.PinHash = &value
+	}
+	if value, ok := _c.mutation.PinFailedAttempts(); ok {
+		_spec.SetField(staffmember.FieldPinFailedAttempts, field.TypeInt, value)
+		_node.PinFailedAttempts = value
+	}
+	if value, ok := _c.mutation.PinLockedUntil(); ok {
+		_spec.SetField(staffmember.FieldPinLockedUntil, field.TypeTime, value)
+		_node.PinLockedUntil = &value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(staffmember.FieldCreatedAt, field.TypeTime, value)
@@ -456,6 +517,60 @@ func (u *StaffMemberUpsert) SetIsActive(v bool) *StaffMemberUpsert {
 // UpdateIsActive sets the "is_active" field to the value that was provided on create.
 func (u *StaffMemberUpsert) UpdateIsActive() *StaffMemberUpsert {
 	u.SetExcluded(staffmember.FieldIsActive)
+	return u
+}
+
+// SetPinHash sets the "pin_hash" field.
+func (u *StaffMemberUpsert) SetPinHash(v string) *StaffMemberUpsert {
+	u.Set(staffmember.FieldPinHash, v)
+	return u
+}
+
+// UpdatePinHash sets the "pin_hash" field to the value that was provided on create.
+func (u *StaffMemberUpsert) UpdatePinHash() *StaffMemberUpsert {
+	u.SetExcluded(staffmember.FieldPinHash)
+	return u
+}
+
+// ClearPinHash clears the value of the "pin_hash" field.
+func (u *StaffMemberUpsert) ClearPinHash() *StaffMemberUpsert {
+	u.SetNull(staffmember.FieldPinHash)
+	return u
+}
+
+// SetPinFailedAttempts sets the "pin_failed_attempts" field.
+func (u *StaffMemberUpsert) SetPinFailedAttempts(v int) *StaffMemberUpsert {
+	u.Set(staffmember.FieldPinFailedAttempts, v)
+	return u
+}
+
+// UpdatePinFailedAttempts sets the "pin_failed_attempts" field to the value that was provided on create.
+func (u *StaffMemberUpsert) UpdatePinFailedAttempts() *StaffMemberUpsert {
+	u.SetExcluded(staffmember.FieldPinFailedAttempts)
+	return u
+}
+
+// AddPinFailedAttempts adds v to the "pin_failed_attempts" field.
+func (u *StaffMemberUpsert) AddPinFailedAttempts(v int) *StaffMemberUpsert {
+	u.Add(staffmember.FieldPinFailedAttempts, v)
+	return u
+}
+
+// SetPinLockedUntil sets the "pin_locked_until" field.
+func (u *StaffMemberUpsert) SetPinLockedUntil(v time.Time) *StaffMemberUpsert {
+	u.Set(staffmember.FieldPinLockedUntil, v)
+	return u
+}
+
+// UpdatePinLockedUntil sets the "pin_locked_until" field to the value that was provided on create.
+func (u *StaffMemberUpsert) UpdatePinLockedUntil() *StaffMemberUpsert {
+	u.SetExcluded(staffmember.FieldPinLockedUntil)
+	return u
+}
+
+// ClearPinLockedUntil clears the value of the "pin_locked_until" field.
+func (u *StaffMemberUpsert) ClearPinLockedUntil() *StaffMemberUpsert {
+	u.SetNull(staffmember.FieldPinLockedUntil)
 	return u
 }
 
@@ -659,6 +774,69 @@ func (u *StaffMemberUpsertOne) SetIsActive(v bool) *StaffMemberUpsertOne {
 func (u *StaffMemberUpsertOne) UpdateIsActive() *StaffMemberUpsertOne {
 	return u.Update(func(s *StaffMemberUpsert) {
 		s.UpdateIsActive()
+	})
+}
+
+// SetPinHash sets the "pin_hash" field.
+func (u *StaffMemberUpsertOne) SetPinHash(v string) *StaffMemberUpsertOne {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.SetPinHash(v)
+	})
+}
+
+// UpdatePinHash sets the "pin_hash" field to the value that was provided on create.
+func (u *StaffMemberUpsertOne) UpdatePinHash() *StaffMemberUpsertOne {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.UpdatePinHash()
+	})
+}
+
+// ClearPinHash clears the value of the "pin_hash" field.
+func (u *StaffMemberUpsertOne) ClearPinHash() *StaffMemberUpsertOne {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.ClearPinHash()
+	})
+}
+
+// SetPinFailedAttempts sets the "pin_failed_attempts" field.
+func (u *StaffMemberUpsertOne) SetPinFailedAttempts(v int) *StaffMemberUpsertOne {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.SetPinFailedAttempts(v)
+	})
+}
+
+// AddPinFailedAttempts adds v to the "pin_failed_attempts" field.
+func (u *StaffMemberUpsertOne) AddPinFailedAttempts(v int) *StaffMemberUpsertOne {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.AddPinFailedAttempts(v)
+	})
+}
+
+// UpdatePinFailedAttempts sets the "pin_failed_attempts" field to the value that was provided on create.
+func (u *StaffMemberUpsertOne) UpdatePinFailedAttempts() *StaffMemberUpsertOne {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.UpdatePinFailedAttempts()
+	})
+}
+
+// SetPinLockedUntil sets the "pin_locked_until" field.
+func (u *StaffMemberUpsertOne) SetPinLockedUntil(v time.Time) *StaffMemberUpsertOne {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.SetPinLockedUntil(v)
+	})
+}
+
+// UpdatePinLockedUntil sets the "pin_locked_until" field to the value that was provided on create.
+func (u *StaffMemberUpsertOne) UpdatePinLockedUntil() *StaffMemberUpsertOne {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.UpdatePinLockedUntil()
+	})
+}
+
+// ClearPinLockedUntil clears the value of the "pin_locked_until" field.
+func (u *StaffMemberUpsertOne) ClearPinLockedUntil() *StaffMemberUpsertOne {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.ClearPinLockedUntil()
 	})
 }
 
@@ -1031,6 +1209,69 @@ func (u *StaffMemberUpsertBulk) SetIsActive(v bool) *StaffMemberUpsertBulk {
 func (u *StaffMemberUpsertBulk) UpdateIsActive() *StaffMemberUpsertBulk {
 	return u.Update(func(s *StaffMemberUpsert) {
 		s.UpdateIsActive()
+	})
+}
+
+// SetPinHash sets the "pin_hash" field.
+func (u *StaffMemberUpsertBulk) SetPinHash(v string) *StaffMemberUpsertBulk {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.SetPinHash(v)
+	})
+}
+
+// UpdatePinHash sets the "pin_hash" field to the value that was provided on create.
+func (u *StaffMemberUpsertBulk) UpdatePinHash() *StaffMemberUpsertBulk {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.UpdatePinHash()
+	})
+}
+
+// ClearPinHash clears the value of the "pin_hash" field.
+func (u *StaffMemberUpsertBulk) ClearPinHash() *StaffMemberUpsertBulk {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.ClearPinHash()
+	})
+}
+
+// SetPinFailedAttempts sets the "pin_failed_attempts" field.
+func (u *StaffMemberUpsertBulk) SetPinFailedAttempts(v int) *StaffMemberUpsertBulk {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.SetPinFailedAttempts(v)
+	})
+}
+
+// AddPinFailedAttempts adds v to the "pin_failed_attempts" field.
+func (u *StaffMemberUpsertBulk) AddPinFailedAttempts(v int) *StaffMemberUpsertBulk {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.AddPinFailedAttempts(v)
+	})
+}
+
+// UpdatePinFailedAttempts sets the "pin_failed_attempts" field to the value that was provided on create.
+func (u *StaffMemberUpsertBulk) UpdatePinFailedAttempts() *StaffMemberUpsertBulk {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.UpdatePinFailedAttempts()
+	})
+}
+
+// SetPinLockedUntil sets the "pin_locked_until" field.
+func (u *StaffMemberUpsertBulk) SetPinLockedUntil(v time.Time) *StaffMemberUpsertBulk {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.SetPinLockedUntil(v)
+	})
+}
+
+// UpdatePinLockedUntil sets the "pin_locked_until" field to the value that was provided on create.
+func (u *StaffMemberUpsertBulk) UpdatePinLockedUntil() *StaffMemberUpsertBulk {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.UpdatePinLockedUntil()
+	})
+}
+
+// ClearPinLockedUntil clears the value of the "pin_locked_until" field.
+func (u *StaffMemberUpsertBulk) ClearPinLockedUntil() *StaffMemberUpsertBulk {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.ClearPinLockedUntil()
 	})
 }
 
