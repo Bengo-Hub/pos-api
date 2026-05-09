@@ -74,8 +74,19 @@
 
 ---
 
+## New Deliverables (2026-05-09)
+
+### Treasury Payment Intent Flow
+- [x] `POST /{tenant}/pos/orders/{id}/payments/intent` — creates treasury intent; cash settles immediately, digital returns `{payment_intent_id, initiate_url}`
+- [x] `POST /{tenant}/pos/payments/initiate` — proxy to treasury `InitiateIntent` (the `initiate_url` target)
+- [x] `internal/modules/treasury/client.go` — S2S client using `INTERNAL_SERVICE_KEY`
+- [x] `payments.Service.CreatePaymentIntent()` — cash path settles locally; digital delegates to treasury-api
+- [x] `payments.Service.ConfirmPaymentByIntentID()` / `FailPaymentByIntentID()` — called by NATS subscribers
+- [x] `internal/modules/payments/treasury_subscriber.go` — subscribes to `treasury.payment.success`, `treasury.payment.failed`, `treasury.etims.invoice_transmitted`
+- [x] eTIMS fields on `pos_orders`: `etims_invoice_number`, `etims_qr_code_url` + Atlas migration `20260509092640_etims_fields.sql`
+
 ## Pending / Carry-forward
-- [ ] `pos.sale.finalized` → inventory-api `POST /consumption` call not yet wired (Sprint 6)
-- [ ] Card/M-Pesa payment → treasury-api intent workflow not yet wired (Sprint 6)
+- [ ] `pos.sale.finalized` — event not yet published after order auto-completion (wired in payments.Service but publish call missing)
+- [ ] `pos.sale.finalized` → inventory-api `POST /consumption` HTTP call not yet wired (Sprint 6)
 - [ ] `inventory.catalog.updated` NATS subscriber not yet implemented (Sprint 6)
 - [ ] KDS endpoints not yet added (Sprint 4)

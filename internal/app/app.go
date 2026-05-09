@@ -157,6 +157,9 @@ func New(ctx context.Context) (*App, error) {
 
 	paymentSvc := paymentmodule.NewService(entClient, orderSvc, cfg.App.DefaultCurrency, log)
 	paymentSvc.SetTreasuryClient(treasuryClient)
+	if pub := orderSvc.GetPublisher(); pub != nil {
+		paymentSvc.SetPublisher(pub)
+	}
 	promoSvc := promommodule.NewService(entClient, log)
 
 	// Create HTTP handlers

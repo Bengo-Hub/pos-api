@@ -11,9 +11,11 @@ import (
 
 	"github.com/bengobox/pos-service/internal/ent"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
+	"github.com/bengobox/pos-service/internal/ent/posorderline"
 	"github.com/bengobox/pos-service/internal/ent/pospayment"
 	"github.com/bengobox/pos-service/internal/modules/orders"
 	"github.com/bengobox/pos-service/internal/modules/treasury"
+	"github.com/bengobox/pos-service/internal/platform/events"
 )
 
 // PaymentStatus defines valid payment states.
@@ -56,6 +58,7 @@ type Service struct {
 	client          *ent.Client
 	orderSvc        *orders.Service
 	treasuryClient  *treasury.Client
+	publisher       *events.Publisher
 	log             *zap.Logger
 	defaultCurrency string
 }
@@ -76,6 +79,11 @@ func NewService(client *ent.Client, orderSvc *orders.Service, defaultCurrency st
 // SetTreasuryClient injects the treasury S2S client after construction (avoids circular init).
 func (s *Service) SetTreasuryClient(c *treasury.Client) {
 	s.treasuryClient = c
+}
+
+// SetPublisher injects the event publisher for pos.sale.finalized and related events.
+func (s *Service) SetPublisher(p *events.Publisher) {
+	s.publisher = p
 }
 
 // CreatePaymentIntent creates a treasury payment intent and returns the intent ID + initiateUrl.
@@ -286,15 +294,57 @@ func (s *Service) completeOrderIfFullyPaid(ctx context.Context, order *ent.POSOr
 
 	if totalPaid >= order.TotalAmount {
 		if err := s.orderSvc.ValidateStatusTransition(order.Status, orders.StatusCompleted); err == nil {
-			_, updateErr := s.client.POSOrder.UpdateOne(order).
+			updated, updateErr := s.client.POSOrder.UpdateOne(order).
 				SetStatus(orders.StatusCompleted).
 				Save(ctx)
 			if updateErr != nil {
 				s.log.Warn("failed to complete order after full payment",
 					zap.String("order_id", order.ID.String()),
 					zap.Error(updateErr))
+				return
 			}
+			s.publishSaleFinalized(ctx, updated)
 		}
+	}
+}
+
+// publishSaleFinalized emits pos.sale.finalized to the NATS outbox.
+// treasury-api consumes this for ledger posting; inventory-api consumes it for stock backflush.
+func (s *Service) publishSaleFinalized(ctx context.Context, order *ent.POSOrder) {
+	if s.publisher == nil {
+		return
+	}
+
+	lines, err := s.client.POSOrderLine.Query().
+		Where(posorderline.OrderID(order.ID)).
+		All(ctx)
+	if err != nil {
+		s.log.Warn("sale.finalized: failed to load lines", zap.String("order_id", order.ID.String()), zap.Error(err))
+	}
+
+	items := make([]map[string]any, 0, len(lines))
+	for _, l := range lines {
+		items = append(items, map[string]any{
+			"catalog_item_id": l.CatalogItemID.String(),
+			"sku":             l.Sku,
+			"name":            l.Name,
+			"quantity":        l.Quantity,
+			"unit_price":      l.UnitPrice,
+			"total_price":     l.TotalPrice,
+		})
+	}
+
+	data := map[string]any{
+		"order_id":     order.ID.String(),
+		"order_number": order.OrderNumber,
+		"tenant_id":    order.TenantID.String(),
+		"total_amount": order.TotalAmount,
+		"currency":     order.Currency,
+		"items":        items,
+	}
+
+	if err := s.publisher.PublishSaleFinalized(ctx, order.TenantID, data); err != nil {
+		s.log.Warn("failed to publish pos.sale.finalized", zap.String("order_id", order.ID.String()), zap.Error(err))
 	}
 }
 
