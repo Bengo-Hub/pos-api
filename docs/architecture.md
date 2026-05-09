@@ -1,6 +1,7 @@
 # POS Service - Architecture Overview
 
-**Last updated:** 2026-05-09
+**Last updated:** 2026-05-09  
+**Audit note (2026-05-09):** Payment flow architecture section added (pos-api as thin treasury client). eTIMS ownership corrected to treasury-api. Event publisher reality gap documented (pos.sale.finalized not yet in publisher.go). Schema field name aliases clarified (status vs payment_status, external_reference vs provider_reference).
 
 ## Design Philosophy
 
@@ -57,6 +58,8 @@ The service adapts UI and business workflows based on the `use_case` configured 
 - Publisher: `internal/platform/events/publisher.go`
 - Subscribers: `internal/platform/events/subscribers.go` (partial — see Integrations doc)
 
+**Publisher reality (2026-05-09):** `publisher.go` currently only defines `PublishOrderCreated`, `PublishOrderStatusChanged`, `PublishPaymentRecorded`. The planned events `pos.sale.finalized` and `pos.drawer.closed` are **not yet implemented** and must be added as part of Sprint 6 before inventory and treasury NATS subscriptions are of any value.
+
 ---
 
 ## Data Authority
@@ -100,22 +103,54 @@ The service adapts UI and business workflows based on the `use_case` configured 
 
 ## Kenya-Specific Requirements
 
-### KRA eTIMS Compliance — ❌ Not Implemented (Sprint 12)
+### KRA eTIMS Compliance — ❌ Not Implemented (Sprint 12, partial)
 Mandatory since January 2024. Without this, clients cannot issue legal tax receipts.
 
-- **OSCU mode**: Always-online — every invoice transmitted to KRA servers at completion
-- **VSCU mode**: Offline queue — invoices queued locally and synced when internet restores
-- **Implementation needed**:
-  - `regulatory_exports` entity exists for tracking submissions
-  - `etims_queue` table needed: `{order_id, invoice_number, kra_cu_invoice_no, status, submitted_at, ack_at}`
-  - Background worker: submit on order completion, retry on failure
-  - KRA eTIMS API client: `internal/modules/etims/client.go`
-  - Env vars: `ETIMS_URL`, `ETIMS_CU_SERIAL`, `ETIMS_API_KEY`
+**eTIMS is owned by treasury-api.** pos-api does NOT call the KRA eTIMS API and does NOT store a `FiscalReceipt` entity. The env vars `ETIMS_URL`, `ETIMS_CU_SERIAL`, `ETIMS_API_KEY` belong in treasury-api only.
+
+**pos-api role in eTIMS compliance:**
+1. Publishes `pos.sale.finalized` on order completion → treasury-api signs the invoice via KRA eTIMS API
+2. Subscribes to `treasury.fiscal.signed` NATS event → writes `etims_invoice_number` + `etims_qr_code_url` to `pos_orders`
+3. Returns those fields in `GET /{tenant}/pos/orders/{id}` so pos-ui can render the QR code on receipts
+
+**Sprint 12 implementation needed (pos-api):**
+- Add `etims_invoice_number` (nullable string) and `etims_qr_code_url` (nullable string) to `pos_orders` Ent schema
+- Add NATS subscriber for `treasury.fiscal.signed`
+- Ensure order response includes both fields
+
+See [integrations.md — eTIMS Ownership ADR](integrations.md) for full rationale.
 
 ### M-Pesa STK Push — ⚠️ Partial (via Treasury)
 - M-Pesa processed via treasury-api (Daraja API integration there)
 - pos-api creates payment intent → treasury-api triggers STK push → NATS callback
-- **Gap**: NATS subscriber for `treasury.payment.success/failed` not wired in pos-api
+- **Gap**: Treasury S2S call not yet wired in `payments.Service.RecordPayment()` (Sprint 6)
+- **Gap**: NATS subscriber for `treasury.payment.success/failed` not wired in pos-api (Sprint 6)
+
+### Payment Architecture — pos-api as Thin Client
+
+pos-api is a **thin client** of treasury-api for all non-cash payment tenders (card, M-Pesa, room charge at check-out). The architecture is:
+
+```
+pos-ui → POST /{tenant}/pos/orders/{id}/payments
+  Cash:        pos-api records immediately, auto-completes order
+  M-Pesa/Card: pos-api → treasury-api POST /s2s/{tenant}/payments/intents
+                       ← { intent_id, checkout_request_id | authorization_url }
+               pos-api stores intent_id in pos_payments.external_reference
+               pos-api returns { status: "pending", intent_id } to pos-ui
+               pos-ui polls GET /{tenant}/pos/orders/{id}/payments every 3s
+               treasury.payment.success NATS → pos-api sets pos_payments.status = "completed"
+               treasury.payment.failed  NATS → pos-api sets pos_payments.status = "failed"
+```
+
+**Schema alignment (actual code, 2026-05-09):**
+- `pos_payments.status` — valid values: `pending`, `completed`, `failed`, `refunded` (field name in Ent schema)
+- `pos_payments.external_reference` — stores treasury `intent_id` (field name in Ent schema)
+- The integrations doc uses `payment_status` and `provider_reference` as aliases — these refer to the same fields above
+
+**What pos-api does NOT own:**
+- Payment gateway credentials (Daraja/Paystack) → treasury-api only
+- Ledger entries, settlement reconciliation → treasury-api only
+- eTIMS invoice signing → treasury-api only (see eTIMS section above)
 
 ### Offline Resilience
 - POS terminals use local cache (SQLite/IndexedDB) during outages

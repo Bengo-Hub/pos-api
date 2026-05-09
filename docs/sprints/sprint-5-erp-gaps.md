@@ -3,6 +3,7 @@
 **Status:** 🟡 Planned  
 **Period:** June 2026  
 **Last updated:** 2026-05-09  
+**Audit note (2026-05-09):** Gap 3 receipt PDF section updated — eTIMS QR data comes from treasury-api via `pos_orders.etims_invoice_number` / `etims_qr_code_url`; pos-api must not call KRA eTIMS API directly.  
 **Goal:** Close feature gaps identified from ERP module audit — daily closing, sale returns/exchanges, receipt PDF
 
 ---
@@ -81,7 +82,15 @@ Thermal receipt format may exist. No server-side PDF generation confirmed.
   - `GET /{tenant}/pos-orders/{id}/receipt?format=pdf` — generate PDF receipt
   - Include: outlet name/address, date/time, items with prices, taxes, payment method, total, receipt number
   - Support tenant branding (logo from auth-api tenant cache)
-- [ ] Verify thermal receipt format covers eTIMS requirements (KRA PIN, eTIMS invoice number, QR code)
+- [ ] Verify thermal receipt format renders eTIMS QR code and invoice number
+
+### eTIMS Receipt Data — Source Clarification
+
+**eTIMS is owned by treasury-api.** pos-api does NOT call the KRA eTIMS API directly. The receipt PDF in pos-api should read `pos_orders.etims_invoice_number` and `pos_orders.etims_qr_code_url` — fields populated by the `treasury.fiscal.signed` NATS subscriber (Sprint 12).
+
+Receipt generation must NOT attempt to call treasury-api at print-time. The eTIMS fields are pre-populated on the order record once treasury-api signs the invoice (typically within milliseconds of order completion). If both fields are `null`, print the receipt without the QR block — eTIMS may be pending or disabled.
+
+See [integrations.md — eTIMS Ownership ADR](../integrations.md) for the full flow.
 
 ---
 

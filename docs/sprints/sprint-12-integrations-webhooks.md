@@ -3,6 +3,7 @@
 **Status:** 🔴 Not Started  
 **Period:** December 2026 – January 2027  
 **Last updated:** 2026-05-09  
+**Audit note (2026-05-09):** eTIMS ownership corrected — treasury-api owns KRA submission; pos-api is a thin consumer of the result. FiscalReceipt entity removed from pos-api scope.  
 **Goal:** External integrations, webhook delivery, channel sync (Uber Eats, Glovo, direct online ordering), accounting export, and multi-device synchronisation
 
 ---
@@ -64,22 +65,32 @@ External integrations serve two purposes:
 - [ ] `GET /{tenant}/pos/carts/{cart_id}` — retrieve cart state
 - [ ] Redis pub/sub for real-time cart updates (device subscribes to `pos:cart:{cart_id}`)
 
-### Fiscal Device Integration (eTIMS / KRA)
-- [ ] `FiscalReceipt` schema — `id, tenant_id, pos_order_id (FK), fiscal_device_id, invoice_number, cu_serial_number, qr_code_data, signed_at, status (pending|signed|failed), raw_response (JSON)`
-- [ ] `POST /{tenant}/pos/fiscal/sign` — submit order to eTIMS API and receive signed receipt
-- [ ] `GET /{tenant}/pos/fiscal/receipts/{order_id}` — retrieve fiscal receipt for an order
-- [ ] Automatic submission on order completion if `FISCAL_ETIMS_ENABLED=true`
-- [ ] KRA eTIMS compliance: invoice number sequence, QR code generation, VSCU/OSCU device support
+### Fiscal Device Integration (eTIMS / KRA) — pos-api Responsibilities Only
+
+> **Architecture Decision (2026-05-09):** eTIMS fiscal submission is **owned by treasury-api**, not pos-api. treasury-api holds the KRA API credentials (`ETIMS_URL`, `ETIMS_CU_SERIAL`, `ETIMS_API_KEY`), owns the `FiscalReceipt` entity, and calls the KRA eTIMS API directly. pos-api's role is limited to:
+>
+> 1. Publishing `pos.sale.finalized` on order completion (already planned — Sprint 6 publisher).
+> 2. Subscribing to `treasury.fiscal.signed` NATS event and writing `etims_invoice_number` + `etims_qr_code_url` to `pos_orders`.
+> 3. Serving those fields in the `GET /{tenant}/pos/orders/{id}` response so pos-ui can render the receipt QR code.
+>
+> pos-api does **NOT** own a `FiscalReceipt` schema. Do **NOT** add `POST /{tenant}/pos/fiscal/sign` — that endpoint belongs in treasury-api. The `FISCAL_ETIMS_ENABLED` flag is also a treasury-api env var.
+
+**pos-api Sprint 12 eTIMS tasks (revised):**
+- [ ] Add nullable fields to `pos_orders` Ent schema: `etims_invoice_number (string, optional)`, `etims_qr_code_url (string, optional)`
+- [ ] Run Atlas migration for new `pos_orders` fields
+- [ ] Add NATS subscriber for `treasury.fiscal.signed` → write `etims_invoice_number` + `etims_qr_code_url` on the matching `pos_order`
+- [ ] Add `pos.fiscal.view` permission (view fiscal status on order) — no `pos.fiscal.manage` needed; pos-api has no signing capability
+- [ ] Ensure `GET /{tenant}/pos/orders/{id}` response includes `etims_invoice_number` and `etims_qr_code_url`
 
 ### RBAC Additions
 - [ ] New permissions: `pos.webhooks.view`, `pos.webhooks.manage`
 - [ ] New permissions: `pos.channels.view`, `pos.channels.manage`
 - [ ] New permissions: `pos.integrations.view`, `pos.integrations.manage`
-- [ ] New permissions: `pos.fiscal.view`, `pos.fiscal.manage`
+- [ ] New permissions: `pos.fiscal.view` (read eTIMS status on order — no signing capability in pos-api)
 
 ### Migration
 - [ ] Add `SharedCart` ent schema
-- [ ] Add `FiscalReceipt` ent schema
+- [ ] Add `etims_invoice_number` + `etims_qr_code_url` nullable fields to `pos_orders` (NOT a separate FiscalReceipt entity)
 - [ ] Run `go generate ./internal/ent`
 - [ ] Generate Atlas migration: `integrations_module`
 - [ ] Update `docs/erd.md`

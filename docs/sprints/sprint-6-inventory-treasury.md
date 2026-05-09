@@ -5,6 +5,12 @@
 **Last updated:** 2026-05-09  
 **Goal:** Wire pos-api → inventory-api stock consumption, wire pos-api → treasury-api payment intent workflow for card/M-Pesa, wire NATS subscribers
 
+> **eTIMS ownership confirmed**: treasury-api owns all KRA eTIMS transmission. This sprint does NOT include any eTIMS work in pos-api. eTIMS subscriber work (`treasury.etims.invoice_transmitted`) is Sprint 12 only.
+
+> **S2S auth standard**: Use `INTERNAL_SERVICE_KEY` as the single `X-API-Key` header for ALL outbound service calls (treasury-api, inventory-api, notifications-api). Do NOT create per-service key env vars.
+
+> **Schema note**: Store treasury `intent_id` in `pos_payments.external_reference` (not `provider_reference`). The field on the Ent schema is `external_reference`. The payment status field is `pos_payments.status` — valid values: `pending`, `completed`, `failed`, `refunded`.
+
 ---
 
 ## Context
@@ -39,7 +45,7 @@ type ConsumptionItem struct {
 
 Implementation using `shared-service-client` with:
 - Env: `INVENTORY_SERVICE_URL`, `INTERNAL_SERVICE_KEY`
-- Auth: `X-API-Key: {api_key}` header (S2S)
+- Auth: `X-API-Key: {INTERNAL_SERVICE_KEY}` header (S2S) — same key for all services
 - Retry: 3 attempts with exponential backoff (via shared-service-client)
 
 ### A2: Catalog Sync (Background Worker)
@@ -71,14 +77,16 @@ pos-ui → POST /{tenant}/pos/orders/{id}/payments {tender_type: "card"|"mpesa",
   → pos-api payments handler
     → if cash: record immediately, auto-complete order
     → if card/mpesa:
-        call treasury-api POST /api/v1/s2s/{tenant}/payments/intents
+        call treasury-api POST https://booksapi.codevertexitsolutions.com/api/v1/s2s/{tenant}/payments/intents
+        X-API-Key: {INTERNAL_SERVICE_KEY}
         {source_service: "pos", reference_id: order_id, reference_type: "pos_order",
-         amount, currency, payment_method: "paystack"|"mpesa", customer_id}
-        → returns {intent_id, checkout_request_id|authorization_url}
-        → store intent_id in pos_payments.provider_reference
+         amount, currency: "KES", payment_method: "paystack"|"mpesa", customer_id}
+        ← 201 (M-Pesa):   {intent_id, checkout_request_id}
+        ← 201 (Paystack): {intent_id, authorization_url}
+        → store intent_id in pos_payments.external_reference   (NOT provider_reference)
         → return {status: "pending", intent_id, checkout_url|mpesa_request_id} to pos-ui
   → pos-ui polls GET /{tenant}/pos/orders/{id}/payments for status update
-  → treasury.payment.success NATS event → pos-api marks payment succeeded
+  → treasury.payment.success NATS event → pos-api marks pos_payments.status = "completed"
   → order auto-completed
 ```
 
