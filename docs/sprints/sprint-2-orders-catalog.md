@@ -2,6 +2,7 @@
 
 **Status:** ✅ Complete  
 **Period:** February–March 2026  
+**Last updated:** 2026-05-09  
 **Goal:** Core POS transaction flow — catalog, order lifecycle, payment recording, table management, cash drawer, bar tabs, promotions
 
 ---

@@ -1,7 +1,8 @@
 # Sprint 6: Inventory & Treasury Integration — pos-api
 
-**Status:** 🟡 Partial (events defined, wiring incomplete)  
+**Status:** 🟡 Planned  
 **Period:** June–July 2026  
+**Last updated:** 2026-05-09  
 **Goal:** Wire pos-api → inventory-api stock consumption, wire pos-api → treasury-api payment intent workflow for card/M-Pesa, wire NATS subscribers
 
 ---

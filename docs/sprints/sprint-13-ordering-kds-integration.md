@@ -2,6 +2,7 @@
 
 **Status:** 🔴 Not Started  
 **Period:** January–February 2027  
+**Last updated:** 2026-05-09  
 **Goal:** Subscribe to ordering-backend events and create KDS tickets when online hospitality orders reach kitchen-ready status, closing the gap between the online ordering channel and the kitchen display system
 
 ---

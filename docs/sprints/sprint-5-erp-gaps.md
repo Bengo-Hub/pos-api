@@ -2,6 +2,7 @@
 
 **Status:** 🟡 Planned  
 **Period:** June 2026  
+**Last updated:** 2026-05-09  
 **Goal:** Close feature gaps identified from ERP module audit — daily closing, sale returns/exchanges, receipt PDF
 
 ---

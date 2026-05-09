@@ -2,6 +2,7 @@
 
 **Status:** 🔴 Not Started  
 **Period:** July–August 2026  
+**Last updated:** 2026-05-09  
 **Goal:** Extend the POS to support general retail, supermarket, and hardware store operations
 
 ---

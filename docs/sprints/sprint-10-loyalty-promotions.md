@@ -2,6 +2,7 @@
 
 **Status:** 🔴 Not Started  
 **Period:** October–November 2026  
+**Last updated:** 2026-05-09  
 **Goal:** Customer loyalty points, tiered membership, advanced promotion engine (multi-buy, combo, time-based discounts)
 
 ---

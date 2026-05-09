@@ -2,6 +2,7 @@
 
 **Status:** 🔴 Not Started  
 **Period:** August–September 2026  
+**Last updated:** 2026-05-09  
 **Goal:** Regulated retail features for pharmacies — prescriptions, controlled substances, age verification, lot/batch tracking
 
 ---

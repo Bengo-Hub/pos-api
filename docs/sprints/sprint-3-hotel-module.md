@@ -1,7 +1,8 @@
 # Sprint 3: Hotel Module — pos-api
 
-**Status:** 🔴 Not Started  
-**Period:** May–June 2026  
+**Status:** ✅ Complete  
+**Period:** March–April 2026  
+**Last updated:** 2026-05-09  
 **Goal:** Add hotel/lodge management — rooms, check-in/out, room folio charges, facilities booking
 
 ---
@@ -163,19 +164,23 @@ go run cmd/migrate/main.go hotel_module
 ---
 
 ## Tasks
-- [ ] Create `internal/ent/schema/room.go`
-- [ ] Create `internal/ent/schema/roomguest.go`
-- [ ] Create `internal/ent/schema/roomfolioitem.go`
-- [ ] Create `internal/ent/schema/facility.go`
-- [ ] Create `internal/ent/schema/facilitybooking.go`
-- [ ] Update `internal/ent/schema/posorder.go` — add hotel context fields
-- [ ] Run `go generate ./internal/ent`
-- [ ] Run Atlas migration: `go run cmd/migrate/main.go hotel_module`
-- [ ] Create `internal/modules/hotel/` — service + repository (rooms, guests, folio, facilities, bookings)
-- [ ] Create `internal/http/handlers/hotel_handler.go`
-- [ ] Register hotel routes in `internal/http/router/router.go`
-- [ ] Update seed script with `receptionist` role + hotel permissions
-- [ ] Update `docs/erd.md` with hotel entities
-- [ ] Update Swagger: `swag init`
-- [ ] Build and fix all errors: `go build ./...`
-- [ ] Push to staging, merge to main
+- [x] Create `internal/ent/schema/room.go`
+- [x] Create `internal/ent/schema/roomguest.go`
+- [x] Create `internal/ent/schema/roomfolioitem.go`
+- [x] Create `internal/ent/schema/facility.go`
+- [x] Create `internal/ent/schema/facilitybooking.go`
+- [x] Update `internal/ent/schema/posorder.go` — add hotel context fields
+- [x] Run `go generate ./internal/ent`
+- [x] Run Atlas migration: `go run cmd/migrate/main.go hotel_module`
+- [x] Create `internal/modules/hotel/` — service + repository (rooms, guests, folio, facilities, bookings)
+- [x] Create `internal/http/handlers/hotel_handler.go`
+- [x] Register hotel routes in `internal/http/router/router.go`
+- [x] Update seed script with `receptionist` role + hotel permissions
+- [x] Update `docs/erd.md` with hotel entities
+- [x] Update Swagger: `swag init`
+- [x] Build and fix all errors: `go build ./...`
+- [x] Push to staging, merge to main
+
+## Completion Notes (2026-05-09)
+
+Audit confirmed all Ent schemas exist: `room.go`, `roomguest.go`, `roomfolioitem.go`, `facility.go`, `facilitybooking.go`. HTTP handler `hotel_handler.go` is in place. Endpoints operational under `/{tenant}/hotel/rooms` (GET/POST/PATCH) and `/{tenant}/hotel/facilities` (GET/POST). Full check-in, check-out, folio, and facilities booking flows are wired.

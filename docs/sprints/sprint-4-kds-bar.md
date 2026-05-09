@@ -1,7 +1,8 @@
 # Sprint 4: KDS & Bar Display — pos-api
 
-**Status:** 🟡 Partial (entities exist, HTTP endpoints missing)  
-**Period:** May 2026  
+**Status:** ✅ Complete  
+**Period:** April–May 2026  
+**Last updated:** 2026-05-09  
 **Goal:** Kitchen Display System and Bar Display REST endpoints — ticket creation, item-level status, station routing, call-waiter
 
 ---
@@ -100,15 +101,19 @@ Assign to roles:
 ---
 
 ## Tasks
-- [ ] Create `internal/modules/kds/` — service + repository
-- [ ] Create `internal/http/handlers/kds_handler.go`
-- [ ] Wire ticket creation into order status transition (`orders.Service`)
-- [ ] Register KDS routes in `internal/http/router/router.go`
-- [ ] Update seed script with `kitchen` and `bar` system roles + KDS permissions
-- [ ] Add `external_order_id` (nullable string) to `pos_orders` ent schema
-- [ ] Add unique index on `(tenant_id, external_order_id)` for online order idempotency
-- [ ] Run Atlas migration for `external_order_id` field
-- [ ] Update `docs/erd.md` to document KDS endpoints and `external_order_id`
-- [ ] Update Swagger: `swag init`
-- [ ] Build and fix all errors: `go build ./...`
-- [ ] Push to staging, merge to main
+- [x] Create `internal/modules/kds/` — service + repository
+- [x] Create `internal/http/handlers/kds_handler.go`
+- [x] Wire ticket creation into order status transition (`orders.Service`)
+- [x] Register KDS routes in `internal/http/router/router.go`
+- [x] Update seed script with `kitchen` and `bar` system roles + KDS permissions
+- [x] Add `external_order_id` (nullable string) to `pos_orders` ent schema
+- [x] Add unique index on `(tenant_id, external_order_id)` for online order idempotency
+- [x] Run Atlas migration for `external_order_id` field
+- [x] Update `docs/erd.md` to document KDS endpoints and `external_order_id`
+- [x] Update Swagger: `swag init`
+- [x] Build and fix all errors: `go build ./...`
+- [x] Push to staging, merge to main
+
+## Completion Notes (2026-05-09)
+
+Audit confirmed: KDS station CRUD complete, ticket creation wired into order `open` status transition, item-level status update endpoints operational (`/start`, `/ready`, `/serve`, `/void`), bar display endpoint filters by station type, call-waiter endpoint (`/call-waiter`) implemented. `kitchen` and `bar` system roles seeded. 5-second polling model confirmed as MVP approach.

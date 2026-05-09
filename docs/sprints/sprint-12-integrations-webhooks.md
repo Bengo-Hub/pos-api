@@ -2,6 +2,7 @@
 
 **Status:** 🔴 Not Started  
 **Period:** December 2026 – January 2027  
+**Last updated:** 2026-05-09  
 **Goal:** External integrations, webhook delivery, channel sync (Uber Eats, Glovo, direct online ordering), accounting export, and multi-device synchronisation
 
 ---

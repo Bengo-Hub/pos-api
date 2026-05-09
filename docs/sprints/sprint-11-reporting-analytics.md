@@ -2,6 +2,7 @@
 
 **Status:** 🔴 Not Started  
 **Period:** November–December 2026  
+**Last updated:** 2026-05-09  
 **Goal:** End-of-day reconciliation, sales reports, staff performance dashboards, export (CSV/PDF), and embedded analytics
 
 ---

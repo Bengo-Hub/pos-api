@@ -2,6 +2,7 @@
 
 **Status:** ✅ Complete  
 **Period:** January–February 2026  
+**Last updated:** 2026-05-09  
 **Goal:** Core infrastructure, authentication, RBAC, devices, sessions, seeding
 
 ---
