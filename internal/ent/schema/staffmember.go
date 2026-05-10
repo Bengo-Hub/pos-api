@@ -26,6 +26,8 @@ func (StaffMember) Fields() []ent.Field {
 		field.JSON("working_hours", map[string]any{}).Optional().Comment("Weekly schedule"),
 		field.Float("commission_rate").Optional().Nillable().Comment("Commission percentage on services"),
 		field.Bool("is_active").Default(true),
+		field.String("role").Default("cashier").
+			Comment("POS role: admin|manager|cashier|waiter|kitchen|bar|receptionist"),
 		// Terminal PIN login — bcrypt hash of the 4-6 digit PIN set by a manager.
 		// Null means PIN not configured; staff must use SSO until a PIN is set.
 		field.String("pin_hash").Optional().Nillable().Sensitive(),

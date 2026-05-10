@@ -30,6 +30,8 @@ const (
 	FieldCommissionRate = "commission_rate"
 	// FieldIsActive holds the string denoting the is_active field in the database.
 	FieldIsActive = "is_active"
+	// FieldRole holds the string denoting the role field in the database.
+	FieldRole = "role"
 	// FieldPinHash holds the string denoting the pin_hash field in the database.
 	FieldPinHash = "pin_hash"
 	// FieldPinFailedAttempts holds the string denoting the pin_failed_attempts field in the database.
@@ -55,6 +57,7 @@ var Columns = []string{
 	FieldWorkingHours,
 	FieldCommissionRate,
 	FieldIsActive,
+	FieldRole,
 	FieldPinHash,
 	FieldPinFailedAttempts,
 	FieldPinLockedUntil,
@@ -77,6 +80,8 @@ var (
 	NameValidator func(string) error
 	// DefaultIsActive holds the default value on creation for the "is_active" field.
 	DefaultIsActive bool
+	// DefaultRole holds the default value on creation for the "role" field.
+	DefaultRole string
 	// DefaultPinFailedAttempts holds the default value on creation for the "pin_failed_attempts" field.
 	DefaultPinFailedAttempts int
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
@@ -125,6 +130,11 @@ func ByCommissionRate(opts ...sql.OrderTermOption) OrderOption {
 // ByIsActive orders the results by the is_active field.
 func ByIsActive(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldIsActive, opts...).ToFunc()
+}
+
+// ByRole orders the results by the role field.
+func ByRole(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRole, opts...).ToFunc()
 }
 
 // ByPinHash orders the results by the pin_hash field.

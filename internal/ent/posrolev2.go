@@ -20,7 +20,7 @@ type POSRoleV2 struct {
 	ID uuid.UUID `json:"id,omitempty"`
 	// Tenant identifier
 	TenantID uuid.UUID `json:"tenant_id,omitempty"`
-	// Role code: pos_admin, store_manager, cashier, waiter, viewer
+	// Role code: admin, manager, cashier, waiter, kitchen, bar, receptionist, viewer
 	RoleCode string `json:"role_code,omitempty"`
 	// Display name
 	Name string `json:"name,omitempty"`

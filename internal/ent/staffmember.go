@@ -35,6 +35,8 @@ type StaffMember struct {
 	CommissionRate *float64 `json:"commission_rate,omitempty"`
 	// IsActive holds the value of the "is_active" field.
 	IsActive bool `json:"is_active,omitempty"`
+	// POS role: admin|manager|cashier|waiter|kitchen|bar|receptionist
+	Role string `json:"role,omitempty"`
 	// PinHash holds the value of the "pin_hash" field.
 	PinHash *string `json:"-"`
 	// PinFailedAttempts holds the value of the "pin_failed_attempts" field.
@@ -61,7 +63,7 @@ func (*StaffMember) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullFloat64)
 		case staffmember.FieldPinFailedAttempts:
 			values[i] = new(sql.NullInt64)
-		case staffmember.FieldName, staffmember.FieldPinHash:
+		case staffmember.FieldName, staffmember.FieldRole, staffmember.FieldPinHash:
 			values[i] = new(sql.NullString)
 		case staffmember.FieldPinLockedUntil, staffmember.FieldCreatedAt, staffmember.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -140,6 +142,12 @@ func (_m *StaffMember) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field is_active", values[i])
 			} else if value.Valid {
 				_m.IsActive = value.Bool
+			}
+		case staffmember.FieldRole:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field role", values[i])
+			} else if value.Valid {
+				_m.Role = value.String
 			}
 		case staffmember.FieldPinHash:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -234,6 +242,9 @@ func (_m *StaffMember) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("is_active=")
 	builder.WriteString(fmt.Sprintf("%v", _m.IsActive))
+	builder.WriteString(", ")
+	builder.WriteString("role=")
+	builder.WriteString(_m.Role)
 	builder.WriteString(", ")
 	builder.WriteString("pin_hash=<sensitive>")
 	builder.WriteString(", ")

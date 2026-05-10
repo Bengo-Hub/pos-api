@@ -157,6 +157,20 @@ func (_u *StaffMemberUpdate) SetNillableIsActive(v *bool) *StaffMemberUpdate {
 	return _u
 }
 
+// SetRole sets the "role" field.
+func (_u *StaffMemberUpdate) SetRole(v string) *StaffMemberUpdate {
+	_u.mutation.SetRole(v)
+	return _u
+}
+
+// SetNillableRole sets the "role" field if the given value is not nil.
+func (_u *StaffMemberUpdate) SetNillableRole(v *string) *StaffMemberUpdate {
+	if v != nil {
+		_u.SetRole(*v)
+	}
+	return _u
+}
+
 // SetPinHash sets the "pin_hash" field.
 func (_u *StaffMemberUpdate) SetPinHash(v string) *StaffMemberUpdate {
 	_u.mutation.SetPinHash(v)
@@ -328,6 +342,9 @@ func (_u *StaffMemberUpdate) sqlSave(ctx context.Context) (_node int, err error)
 	if value, ok := _u.mutation.IsActive(); ok {
 		_spec.SetField(staffmember.FieldIsActive, field.TypeBool, value)
 	}
+	if value, ok := _u.mutation.Role(); ok {
+		_spec.SetField(staffmember.FieldRole, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.PinHash(); ok {
 		_spec.SetField(staffmember.FieldPinHash, field.TypeString, value)
 	}
@@ -492,6 +509,20 @@ func (_u *StaffMemberUpdateOne) SetIsActive(v bool) *StaffMemberUpdateOne {
 func (_u *StaffMemberUpdateOne) SetNillableIsActive(v *bool) *StaffMemberUpdateOne {
 	if v != nil {
 		_u.SetIsActive(*v)
+	}
+	return _u
+}
+
+// SetRole sets the "role" field.
+func (_u *StaffMemberUpdateOne) SetRole(v string) *StaffMemberUpdateOne {
+	_u.mutation.SetRole(v)
+	return _u
+}
+
+// SetNillableRole sets the "role" field if the given value is not nil.
+func (_u *StaffMemberUpdateOne) SetNillableRole(v *string) *StaffMemberUpdateOne {
+	if v != nil {
+		_u.SetRole(*v)
 	}
 	return _u
 }
@@ -696,6 +727,9 @@ func (_u *StaffMemberUpdateOne) sqlSave(ctx context.Context) (_node *StaffMember
 	}
 	if value, ok := _u.mutation.IsActive(); ok {
 		_spec.SetField(staffmember.FieldIsActive, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.Role(); ok {
+		_spec.SetField(staffmember.FieldRole, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.PinHash(); ok {
 		_spec.SetField(staffmember.FieldPinHash, field.TypeString, value)

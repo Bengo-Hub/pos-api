@@ -19,6 +19,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/pospermission"
 	"github.com/bengobox/pos-service/internal/ent/posrolev2"
 	"github.com/bengobox/pos-service/internal/ent/section"
+	entstaff "github.com/bengobox/pos-service/internal/ent/staffmember"
 	enttable "github.com/bengobox/pos-service/internal/ent/table"
 	"github.com/bengobox/pos-service/internal/ent/tender"
 	"github.com/bengobox/pos-service/internal/modules/tenant"
@@ -100,6 +101,10 @@ func runSeed(ctx context.Context, client *ent.Client, tenantID uuid.UUID) error 
 
 	if err := seedRBACRoles(ctx, client, tenantID); err != nil {
 		return fmt.Errorf("seed RBAC roles: %w", err)
+	}
+
+	if err := seedStaffMembers(ctx, client, tenantID, outletID); err != nil {
+		return fmt.Errorf("seed staff members: %w", err)
 	}
 
 	if err := seedRateLimitConfigs(ctx, client); err != nil {
@@ -436,13 +441,13 @@ func seedRBACRoles(ctx context.Context, client *ent.Client, tenantID uuid.UUID) 
 
 	roles := []roleDef{
 		{
-			code:        "pos_admin",
+			code:        "admin",
 			name:        "POS Admin",
 			description: "Full access to all POS modules",
 			permissions: []string{"*"},
 		},
 		{
-			code:        "store_manager",
+			code:        "manager",
 			name:        "Store Manager",
 			description: "Manage store operations, staff, and reporting",
 			permissions: []string{
@@ -479,6 +484,33 @@ func seedRBACRoles(ctx context.Context, client *ent.Client, tenantID uuid.UUID) 
 				"pos.catalog.view",
 				"pos.tables.view", "pos.tables.change_own",
 				"pos.modifiers.view",
+				"pos.sessions.add", "pos.sessions.view_own",
+			},
+		},
+		{
+			code:        "kitchen",
+			name:        "Kitchen Staff",
+			description: "View KDS queue and update item preparation status",
+			permissions: []string{
+				"pos.orders.view", "pos.catalog.view",
+			},
+		},
+		{
+			code:        "bar",
+			name:        "Bar Staff",
+			description: "View bar display queue and update drink preparation status",
+			permissions: []string{
+				"pos.orders.view", "pos.catalog.view",
+			},
+		},
+		{
+			code:        "receptionist",
+			name:        "Receptionist",
+			description: "Manage hotel check-in/out and room service orders",
+			permissions: []string{
+				"pos.orders.add", "pos.orders.view", "pos.orders.change_own",
+				"pos.catalog.view", "pos.payments.view",
+				"pos.tables.view",
 				"pos.sessions.add", "pos.sessions.view_own",
 			},
 		},
@@ -545,6 +577,44 @@ func seedRBACRoles(ctx context.Context, client *ent.Client, tenantID uuid.UUID) 
 		}
 	}
 	log.Printf("  ✓ RBAC roles seeded (%d roles with permission assignments)", len(roles))
+	return nil
+}
+
+func seedStaffMembers(ctx context.Context, client *ent.Client, tenantID, outletID uuid.UUID) error {
+	type staffDef struct {
+		name string
+		role string
+	}
+	staff := []staffDef{
+		{"Alice Manager", "manager"},
+		{"Bob Cashier", "cashier"},
+		{"Carol Waiter", "waiter"},
+		{"David Kitchen", "kitchen"},
+		{"Eve Bartender", "bar"},
+		{"Frank Receptionist", "receptionist"},
+	}
+	for _, s := range staff {
+		uid := uuid.NewSHA1(uuid.NameSpaceURL, []byte(fmt.Sprintf("bengobox:pos:staff:%s:%s", tenantID, s.name)))
+		exists, err := client.StaffMember.Query().
+			Where(entstaff.TenantID(tenantID), entstaff.UserID(uid)).
+			Exist(ctx)
+		if err != nil || exists {
+			continue
+		}
+		_, err = client.StaffMember.Create().
+			SetTenantID(tenantID).
+			SetOutletID(outletID).
+			SetUserID(uid).
+			SetName(s.name).
+			SetRole(s.role).
+			SetIsActive(true).
+			Save(ctx)
+		if err != nil {
+			log.Printf("  ⚠️  seed staff %s: %v", s.name, err)
+		} else {
+			log.Printf("  ✓ Staff seeded: %s (%s)", s.name, s.role)
+		}
+	}
 	return nil
 }
 

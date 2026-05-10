@@ -55,15 +55,17 @@ func (h *PINAuthHandler) ListStaff(w http.ResponseWriter, r *http.Request) {
 	}
 
 	type staffItem struct {
-		UserID  string `json:"user_id"`
-		Name    string `json:"name"`
-		HasPIN  bool   `json:"has_pin"`
+		UserID string `json:"user_id"`
+		Name   string `json:"name"`
+		Role   string `json:"role"`
+		HasPIN bool   `json:"has_pin"`
 	}
 	out := make([]staffItem, 0, len(members))
 	for _, m := range members {
 		out = append(out, staffItem{
 			UserID: m.UserID.String(),
 			Name:   m.Name,
+			Role:   m.Role,
 			HasPIN: m.PinHash != nil,
 		})
 	}
@@ -139,7 +141,7 @@ func (h *PINAuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		Exec(r.Context())
 
 	// Issue a short-lived terminal JWT (4 hours)
-	token, err := issueTerminalJWT(member, tid, h.jwtSecret)
+	token, err := issueTerminalJWT(member, tid, h.jwtSecret, h.client, r.Context())
 	if err != nil {
 		h.log.Error("failed to issue terminal JWT", zap.Error(err))
 		jsonError(w, "internal error", http.StatusInternalServerError)
@@ -153,6 +155,7 @@ func (h *PINAuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		"user": map[string]any{
 			"user_id":   member.UserID.String(),
 			"name":      member.Name,
+			"role":      member.Role,
 			"tenant_id": member.TenantID.String(),
 			"outlet_id": member.OutletID.String(),
 		},
@@ -234,6 +237,7 @@ func (h *PINAuthHandler) StaffProfiles(w http.ResponseWriter, r *http.Request) {
 	type profile struct {
 		UserID   string `json:"user_id"`
 		Name     string `json:"name"`
+		Role     string `json:"role"`
 		TenantID string `json:"tenant_id"`
 		OutletID string `json:"outlet_id"`
 		HasPIN   bool   `json:"has_pin"`
@@ -243,6 +247,7 @@ func (h *PINAuthHandler) StaffProfiles(w http.ResponseWriter, r *http.Request) {
 		out = append(out, profile{
 			UserID:   m.UserID.String(),
 			Name:     m.Name,
+			Role:     m.Role,
 			TenantID: m.TenantID.String(),
 			OutletID: m.OutletID.String(),
 			HasPIN:   m.PinHash != nil,

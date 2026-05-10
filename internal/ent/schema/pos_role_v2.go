@@ -26,7 +26,7 @@ func (POSRoleV2) Fields() []ent.Field {
 			Comment("Tenant identifier"),
 		field.String("role_code").
 			NotEmpty().
-			Comment("Role code: pos_admin, store_manager, cashier, waiter, viewer"),
+			Comment("Role code: admin, manager, cashier, waiter, kitchen, bar, receptionist, viewer"),
 		field.String("name").
 			NotEmpty().
 			Comment("Display name"),

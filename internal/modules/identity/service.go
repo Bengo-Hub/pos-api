@@ -87,7 +87,7 @@ func (s *Service) EnsureUserFromToken(ctx context.Context, authServiceID uuid.UU
 }
 
 // assignDefaultRoleFromJWT maps global JWT roles to POS service-level roles.
-// superuser/admin → pos_admin, staff → cashier, others → viewer.
+// superuser/admin → admin, staff → cashier, others → viewer.
 func (s *Service) assignDefaultRoleFromJWT(ctx context.Context, tenantID uuid.UUID, localUserID uuid.UUID, authUserID uuid.UUID, claims map[string]any) {
 	var roles []string
 	if rolesRaw, ok := claims["roles"].([]string); ok {
@@ -113,11 +113,27 @@ func (s *Service) assignDefaultRoleFromJWT(ctx context.Context, tenantID uuid.UU
 }
 
 // mapGlobalRoleToPOSRole maps global SSO roles to POS service roles.
+// Uses the canonical role names: admin (was pos_admin), manager (was store_manager).
+// Backward-compatible: also accepts legacy names for existing deployments.
 func mapGlobalRoleToPOSRole(roles []string) string {
 	for _, r := range roles {
 		switch r {
-		case "superuser", "admin":
-			return "pos_admin"
+		case "superuser", "admin",
+			// Legacy aliases — accepted for backward compatibility
+			"pos_admin", "tenant_admin", "system_admin":
+			return "admin"
+		case "manager", "store_manager", "outlet_manager":
+			return "manager"
+		case "cashier":
+			return "cashier"
+		case "waiter":
+			return "waiter"
+		case "kitchen":
+			return "kitchen"
+		case "bar":
+			return "bar"
+		case "receptionist":
+			return "receptionist"
 		case "staff":
 			return "cashier"
 		}

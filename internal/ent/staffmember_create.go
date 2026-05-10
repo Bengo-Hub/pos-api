@@ -88,6 +88,20 @@ func (_c *StaffMemberCreate) SetNillableIsActive(v *bool) *StaffMemberCreate {
 	return _c
 }
 
+// SetRole sets the "role" field.
+func (_c *StaffMemberCreate) SetRole(v string) *StaffMemberCreate {
+	_c.mutation.SetRole(v)
+	return _c
+}
+
+// SetNillableRole sets the "role" field if the given value is not nil.
+func (_c *StaffMemberCreate) SetNillableRole(v *string) *StaffMemberCreate {
+	if v != nil {
+		_c.SetRole(*v)
+	}
+	return _c
+}
+
 // SetPinHash sets the "pin_hash" field.
 func (_c *StaffMemberCreate) SetPinHash(v string) *StaffMemberCreate {
 	_c.mutation.SetPinHash(v)
@@ -211,6 +225,10 @@ func (_c *StaffMemberCreate) defaults() {
 		v := staffmember.DefaultIsActive
 		_c.mutation.SetIsActive(v)
 	}
+	if _, ok := _c.mutation.Role(); !ok {
+		v := staffmember.DefaultRole
+		_c.mutation.SetRole(v)
+	}
 	if _, ok := _c.mutation.PinFailedAttempts(); !ok {
 		v := staffmember.DefaultPinFailedAttempts
 		_c.mutation.SetPinFailedAttempts(v)
@@ -250,6 +268,9 @@ func (_c *StaffMemberCreate) check() error {
 	}
 	if _, ok := _c.mutation.IsActive(); !ok {
 		return &ValidationError{Name: "is_active", err: errors.New(`ent: missing required field "StaffMember.is_active"`)}
+	}
+	if _, ok := _c.mutation.Role(); !ok {
+		return &ValidationError{Name: "role", err: errors.New(`ent: missing required field "StaffMember.role"`)}
 	}
 	if _, ok := _c.mutation.PinFailedAttempts(); !ok {
 		return &ValidationError{Name: "pin_failed_attempts", err: errors.New(`ent: missing required field "StaffMember.pin_failed_attempts"`)}
@@ -327,6 +348,10 @@ func (_c *StaffMemberCreate) createSpec() (*StaffMember, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.IsActive(); ok {
 		_spec.SetField(staffmember.FieldIsActive, field.TypeBool, value)
 		_node.IsActive = value
+	}
+	if value, ok := _c.mutation.Role(); ok {
+		_spec.SetField(staffmember.FieldRole, field.TypeString, value)
+		_node.Role = value
 	}
 	if value, ok := _c.mutation.PinHash(); ok {
 		_spec.SetField(staffmember.FieldPinHash, field.TypeString, value)
@@ -517,6 +542,18 @@ func (u *StaffMemberUpsert) SetIsActive(v bool) *StaffMemberUpsert {
 // UpdateIsActive sets the "is_active" field to the value that was provided on create.
 func (u *StaffMemberUpsert) UpdateIsActive() *StaffMemberUpsert {
 	u.SetExcluded(staffmember.FieldIsActive)
+	return u
+}
+
+// SetRole sets the "role" field.
+func (u *StaffMemberUpsert) SetRole(v string) *StaffMemberUpsert {
+	u.Set(staffmember.FieldRole, v)
+	return u
+}
+
+// UpdateRole sets the "role" field to the value that was provided on create.
+func (u *StaffMemberUpsert) UpdateRole() *StaffMemberUpsert {
+	u.SetExcluded(staffmember.FieldRole)
 	return u
 }
 
@@ -774,6 +811,20 @@ func (u *StaffMemberUpsertOne) SetIsActive(v bool) *StaffMemberUpsertOne {
 func (u *StaffMemberUpsertOne) UpdateIsActive() *StaffMemberUpsertOne {
 	return u.Update(func(s *StaffMemberUpsert) {
 		s.UpdateIsActive()
+	})
+}
+
+// SetRole sets the "role" field.
+func (u *StaffMemberUpsertOne) SetRole(v string) *StaffMemberUpsertOne {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.SetRole(v)
+	})
+}
+
+// UpdateRole sets the "role" field to the value that was provided on create.
+func (u *StaffMemberUpsertOne) UpdateRole() *StaffMemberUpsertOne {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.UpdateRole()
 	})
 }
 
@@ -1209,6 +1260,20 @@ func (u *StaffMemberUpsertBulk) SetIsActive(v bool) *StaffMemberUpsertBulk {
 func (u *StaffMemberUpsertBulk) UpdateIsActive() *StaffMemberUpsertBulk {
 	return u.Update(func(s *StaffMemberUpsert) {
 		s.UpdateIsActive()
+	})
+}
+
+// SetRole sets the "role" field.
+func (u *StaffMemberUpsertBulk) SetRole(v string) *StaffMemberUpsertBulk {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.SetRole(v)
+	})
+}
+
+// UpdateRole sets the "role" field to the value that was provided on create.
+func (u *StaffMemberUpsertBulk) UpdateRole() *StaffMemberUpsertBulk {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.UpdateRole()
 	})
 }
 

@@ -42908,6 +42908,7 @@ type StaffMemberMutation struct {
 	commission_rate        *float64
 	addcommission_rate     *float64
 	is_active              *bool
+	role                   *string
 	pin_hash               *string
 	pin_failed_attempts    *int
 	addpin_failed_attempts *int
@@ -43388,6 +43389,42 @@ func (m *StaffMemberMutation) ResetIsActive() {
 	m.is_active = nil
 }
 
+// SetRole sets the "role" field.
+func (m *StaffMemberMutation) SetRole(s string) {
+	m.role = &s
+}
+
+// Role returns the value of the "role" field in the mutation.
+func (m *StaffMemberMutation) Role() (r string, exists bool) {
+	v := m.role
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRole returns the old "role" field's value of the StaffMember entity.
+// If the StaffMember object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffMemberMutation) OldRole(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRole is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRole requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRole: %w", err)
+	}
+	return oldValue.Role, nil
+}
+
+// ResetRole resets all changes to the "role" field.
+func (m *StaffMemberMutation) ResetRole() {
+	m.role = nil
+}
+
 // SetPinHash sets the "pin_hash" field.
 func (m *StaffMemberMutation) SetPinHash(s string) {
 	m.pin_hash = &s
@@ -43648,7 +43685,7 @@ func (m *StaffMemberMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *StaffMemberMutation) Fields() []string {
-	fields := make([]string, 0, 13)
+	fields := make([]string, 0, 14)
 	if m.tenant_id != nil {
 		fields = append(fields, staffmember.FieldTenantID)
 	}
@@ -43672,6 +43709,9 @@ func (m *StaffMemberMutation) Fields() []string {
 	}
 	if m.is_active != nil {
 		fields = append(fields, staffmember.FieldIsActive)
+	}
+	if m.role != nil {
+		fields = append(fields, staffmember.FieldRole)
 	}
 	if m.pin_hash != nil {
 		fields = append(fields, staffmember.FieldPinHash)
@@ -43712,6 +43752,8 @@ func (m *StaffMemberMutation) Field(name string) (ent.Value, bool) {
 		return m.CommissionRate()
 	case staffmember.FieldIsActive:
 		return m.IsActive()
+	case staffmember.FieldRole:
+		return m.Role()
 	case staffmember.FieldPinHash:
 		return m.PinHash()
 	case staffmember.FieldPinFailedAttempts:
@@ -43747,6 +43789,8 @@ func (m *StaffMemberMutation) OldField(ctx context.Context, name string) (ent.Va
 		return m.OldCommissionRate(ctx)
 	case staffmember.FieldIsActive:
 		return m.OldIsActive(ctx)
+	case staffmember.FieldRole:
+		return m.OldRole(ctx)
 	case staffmember.FieldPinHash:
 		return m.OldPinHash(ctx)
 	case staffmember.FieldPinFailedAttempts:
@@ -43821,6 +43865,13 @@ func (m *StaffMemberMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetIsActive(v)
+		return nil
+	case staffmember.FieldRole:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRole(v)
 		return nil
 	case staffmember.FieldPinHash:
 		v, ok := value.(string)
@@ -43989,6 +44040,9 @@ func (m *StaffMemberMutation) ResetField(name string) error {
 		return nil
 	case staffmember.FieldIsActive:
 		m.ResetIsActive()
+		return nil
+	case staffmember.FieldRole:
+		m.ResetRole()
 		return nil
 	case staffmember.FieldPinHash:
 		m.ResetPinHash()
