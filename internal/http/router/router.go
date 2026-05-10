@@ -61,202 +61,216 @@ func New(
 	r.Get("/v1/docs/*", handlers.SwaggerUI)
 
 	r.Route("/api/v1", func(api chi.Router) {
-		// Apply auth middleware to all v1 routes
-		if authMiddleware != nil {
-			api.Use(authMiddleware.RequireAuth)
-			// Layer 2: Subscription enforcement — mutations only (GET/HEAD/OPTIONS pass through)
-			api.Use(func(next http.Handler) http.Handler {
-				return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					if r.Method == http.MethodGet || r.Method == http.MethodHead || r.Method == http.MethodOptions {
-						next.ServeHTTP(w, r)
-						return
-					}
-					claims, ok := authclient.ClaimsFromContext(r.Context())
-					if !ok {
-						next.ServeHTTP(w, r)
-						return
-					}
-					if claims.IsSuperuser() || claims.IsPlatformOwner || claims.IsSubscriptionActive() {
-						next.ServeHTTP(w, r)
-						return
-					}
-					w.Header().Set("Content-Type", "application/json")
-					w.WriteHeader(http.StatusForbidden)
-					_, _ = w.Write([]byte(`{"error":"Your subscription is not active. Please renew to continue.","code":"subscription_inactive","upgrade":true}`))
-				})
-			})
-		}
-
-		if idSvc != nil {
-			api.Use(func(next http.Handler) http.Handler {
-				return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					claims, ok := authclient.ClaimsFromContext(r.Context())
-					if ok && claims.Subject != "" {
-						subject, _ := uuid.Parse(claims.Subject)
-						slug := claims.GetTenantSlug()
-						if slug != "" {
-							_, err := idSvc.EnsureUserFromToken(r.Context(), subject, slug, map[string]any{
-								"email":             claims.Email,
-								"roles":             claims.Roles,
-								"permissions":       claims.Permissions,
-								"is_platform_owner": claims.IsPlatformOwner,
-							})
-							if err != nil {
-								log.Warn("jit provisioning failed", zap.Error(err))
-							}
-						}
-					}
-					next.ServeHTTP(w, r)
-				})
-			})
-		}
-
-		// Serve OpenAPI spec (public, no auth required)
+		// ── Public endpoints (no auth required) ───────────────────────────────
+		// These routes are accessible before the staff member has authenticated.
+		// TenantV2 extracts tenant UUID directly from the URL path parameter.
 		api.Get("/openapi.json", handlers.OpenAPIJSON)
 
-		api.Route("/{tenantID}", func(tenant chi.Router) {
-			tenant.Use(httpware.TenantV2(httpware.TenantConfig{
-				ClaimsExtractor: func(ctx context.Context) (tenantID, tenantSlug string, isPlatformOwner bool, ok bool) {
-					claims, found := authclient.ClaimsFromContext(ctx)
-					if !found {
-						return "", "", false, false
-					}
-					return claims.TenantID, claims.GetTenantSlug(), claims.IsPlatformOwner, true
-				},
-				URLParamFunc: chi.URLParam,
-				Required:     true,
-			}))
-
-			// RBAC routes
-			if rbacHandler != nil {
-				rbacHandler.RegisterRoutes(tenant)
-			}
-
-			tenant.Route("/pos", func(pos chi.Router) {
-				// Orders
-				if orders != nil {
-					pos.Get("/orders", orders.ListOrders)
-					pos.Post("/orders", orders.CreateOrder)
-					pos.Get("/orders/{orderID}", orders.GetOrder)
-					pos.Patch("/orders/{orderID}/status", orders.UpdateStatus)
-				}
-
-				// Catalog
-				if catalog != nil {
-					pos.Route("/catalog", func(cat chi.Router) {
-						cat.Get("/items", catalog.ListCatalogItems)
-						cat.Post("/items", catalog.CreateCatalogItem)
-						cat.Get("/items/{id}", catalog.GetCatalogItem)
-						cat.Put("/items/{id}", catalog.UpdateCatalogItem)
-						cat.Delete("/items/{id}", catalog.DeleteCatalogItem)
-					})
-				}
-
-				// Sections & Tables
-				if tables != nil {
-					pos.Get("/sections", tables.ListSections)
-					pos.Post("/sections", tables.CreateSection)
-					pos.Put("/sections/{id}", tables.UpdateSection)
-					pos.Get("/tables", tables.ListTables)
-					pos.Post("/tables", tables.CreateTable)
-					pos.Put("/tables/{id}", tables.UpdateTable)
-					pos.Patch("/tables/{id}/status", tables.UpdateTableStatus)
-					pos.Post("/tables/{id}/assign", tables.AssignTable)
-					pos.Post("/tables/{id}/release", tables.ReleaseTable)
-				}
-
-				// Tenders
-				if tenders != nil {
-					pos.Get("/tenders", tenders.ListTenders)
-					pos.Post("/tenders", tenders.CreateTender)
-					pos.Put("/tenders/{id}", tenders.UpdateTender)
-				}
-
-				// Payments
-				if payments != nil {
-					pos.Post("/orders/{orderID}/payments/intent", payments.CreatePaymentIntent)
-					pos.Post("/orders/{orderID}/payments", payments.RecordPayment)
-					pos.Get("/orders/{orderID}/payments", payments.ListOrderPayments)
-					pos.Post("/payments/initiate", payments.ProxyInitiate)
-				}
-
-				// Cash Drawers
-				if drawers != nil {
-					pos.Post("/drawers/open", drawers.OpenDrawer)
-					pos.Get("/drawers/current", drawers.GetCurrentDrawer)
-					pos.Post("/drawers/{id}/close", drawers.CloseDrawer)
-					pos.Get("/drawers", drawers.ListDrawerHistory)
-				}
-
-				// Bar Tabs
-				if barTabs != nil {
-					pos.Post("/bar-tabs", barTabs.OpenBarTab)
-					pos.Get("/bar-tabs", barTabs.ListBarTabs)
-					pos.Get("/bar-tabs/{id}", barTabs.GetBarTab)
-					pos.Post("/bar-tabs/{id}/close", barTabs.CloseBarTab)
-				}
-
-				// Promotions
-				if promotions != nil {
-					pos.Get("/promotions", promotions.ListPromotions)
-					pos.Post("/promotions", promotions.CreatePromotion)
-					pos.Post("/promotions/apply", promotions.ApplyPromoCode)
-				}
-
-				// Device sessions (shift open/close)
-				if devices != nil {
-					pos.Get("/devices/current/sessions/current", devices.GetCurrentSession)
-					pos.Post("/devices/current/sessions/open", devices.OpenSession)
-					pos.Post("/devices/current/sessions/close", devices.CloseSession)
-				}
-
-				// Terminal PIN auth — login and staff listing are unauthed (terminal-only flow)
-				// SetPIN requires a manager SSO token (handled by the outer auth middleware)
-				if pinAuth != nil {
-					pos.Get("/staff", pinAuth.ListStaff)
-					pos.Post("/auth/pin", pinAuth.Login)
-					pos.Post("/auth/pin/set", pinAuth.SetPIN)
-					pos.Get("/auth/pin/profile", pinAuth.StaffProfiles)
-					// Service-level identity enrichment — called by pos-ui after SSO to
-					// get POS-specific role + pos.*.* permissions (Trinity Layer 3).
-					pos.Get("/auth/me", pinAuth.AuthMe)
-				}
-
-				// KDS
-				if kds != nil {
-					pos.Get("/kds/stations", kds.ListStations)
-					pos.Post("/kds/stations", kds.CreateStation)
-					pos.Put("/kds/stations/{id}", kds.UpdateStation)
-					pos.Get("/kds/kitchen", kds.GetKitchenQueue)
-					pos.Get("/kds/bar", kds.GetBarQueue)
-					pos.Get("/kds/tickets", kds.ListTickets)
-					pos.Post("/kds/tickets/{id}/start", kds.StartTicket)
-					pos.Post("/kds/tickets/{id}/ready", kds.ReadyTicket)
-					pos.Post("/kds/tickets/{id}/serve", kds.ServeTicket)
-					pos.Post("/kds/tickets/{id}/void", kds.VoidTicket)
-					pos.Post("/kds/tickets/{id}/call-waiter", kds.CallWaiter)
-				}
+		if pinAuth != nil {
+			api.Group(func(pub chi.Router) {
+				pub.Use(httpware.TenantV2(httpware.TenantConfig{
+					URLParamFunc: chi.URLParam,
+					URLParamName: "tenantID",
+					Required:     true,
+				}))
+				pub.Get("/{tenantID}/pos/staff", pinAuth.ListStaff)
+				pub.Post("/{tenantID}/pos/auth/pin", pinAuth.Login)
+				pub.Get("/{tenantID}/pos/auth/pin/profile", pinAuth.StaffProfiles)
 			})
+		}
 
-			// Hotel module
-			if hotel != nil {
-				tenant.Route("/hotel", func(h chi.Router) {
-					h.Get("/rooms", hotel.ListRooms)
-					h.Post("/rooms", hotel.CreateRoom)
-					h.Get("/rooms/{id}", hotel.GetRoom)
-					h.Patch("/rooms/{id}/status", hotel.UpdateRoomStatus)
-					h.Post("/rooms/{id}/check-in", hotel.CheckIn)
-					h.Post("/rooms/{id}/check-out", hotel.CheckOut)
-					h.Post("/rooms/{id}/folio", hotel.PostFolioCharge)
-					h.Get("/rooms/{id}/folio", hotel.GetRoomFolio)
-					h.Get("/facilities", hotel.ListFacilities)
-					h.Post("/facilities", hotel.CreateFacility)
-					h.Get("/facilities/{id}", hotel.GetFacility)
-					h.Post("/facilities/{id}/book", hotel.BookFacility)
-					h.Patch("/facilities/bookings/{bookingID}", hotel.UpdateBooking)
-					h.Get("/facilities/bookings", hotel.ListFacilityBookings)
+		// ── Protected endpoints (auth required) ───────────────────────────────
+		api.Group(func(prot chi.Router) {
+			if authMiddleware != nil {
+				prot.Use(authMiddleware.RequireAuth)
+				// Layer 2: Subscription enforcement — mutations only (GET/HEAD/OPTIONS pass through)
+				prot.Use(func(next http.Handler) http.Handler {
+					return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+						if r.Method == http.MethodGet || r.Method == http.MethodHead || r.Method == http.MethodOptions {
+							next.ServeHTTP(w, r)
+							return
+						}
+						claims, ok := authclient.ClaimsFromContext(r.Context())
+						if !ok {
+							next.ServeHTTP(w, r)
+							return
+						}
+						if claims.IsSuperuser() || claims.IsPlatformOwner || claims.IsSubscriptionActive() {
+							next.ServeHTTP(w, r)
+							return
+						}
+						w.Header().Set("Content-Type", "application/json")
+						w.WriteHeader(http.StatusForbidden)
+						_, _ = w.Write([]byte(`{"error":"Your subscription is not active. Please renew to continue.","code":"subscription_inactive","upgrade":true}`))
+					})
 				})
 			}
+
+			if idSvc != nil {
+				prot.Use(func(next http.Handler) http.Handler {
+					return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+						claims, ok := authclient.ClaimsFromContext(r.Context())
+						if ok && claims.Subject != "" {
+							subject, _ := uuid.Parse(claims.Subject)
+							slug := claims.GetTenantSlug()
+							if slug != "" {
+								_, err := idSvc.EnsureUserFromToken(r.Context(), subject, slug, map[string]any{
+									"email":             claims.Email,
+									"roles":             claims.Roles,
+									"permissions":       claims.Permissions,
+									"is_platform_owner": claims.IsPlatformOwner,
+								})
+								if err != nil {
+									log.Warn("jit provisioning failed", zap.Error(err))
+								}
+							}
+						}
+						next.ServeHTTP(w, r)
+					})
+				})
+			}
+
+			prot.Route("/{tenantID}", func(tenant chi.Router) {
+				tenant.Use(httpware.TenantV2(httpware.TenantConfig{
+					ClaimsExtractor: func(ctx context.Context) (tenantID, tenantSlug string, isPlatformOwner bool, ok bool) {
+						claims, found := authclient.ClaimsFromContext(ctx)
+						if !found {
+							return "", "", false, false
+						}
+						return claims.TenantID, claims.GetTenantSlug(), claims.IsPlatformOwner, true
+					},
+					URLParamFunc: chi.URLParam,
+					URLParamName: "tenantID",
+					Required:     true,
+				}))
+
+				// RBAC routes
+				if rbacHandler != nil {
+					rbacHandler.RegisterRoutes(tenant)
+				}
+
+				tenant.Route("/pos", func(pos chi.Router) {
+					// Orders
+					if orders != nil {
+						pos.Get("/orders", orders.ListOrders)
+						pos.Post("/orders", orders.CreateOrder)
+						pos.Get("/orders/{orderID}", orders.GetOrder)
+						pos.Patch("/orders/{orderID}/status", orders.UpdateStatus)
+					}
+
+					// Catalog
+					if catalog != nil {
+						pos.Route("/catalog", func(cat chi.Router) {
+							cat.Get("/items", catalog.ListCatalogItems)
+							cat.Post("/items", catalog.CreateCatalogItem)
+							cat.Get("/items/{id}", catalog.GetCatalogItem)
+							cat.Put("/items/{id}", catalog.UpdateCatalogItem)
+							cat.Delete("/items/{id}", catalog.DeleteCatalogItem)
+						})
+					}
+
+					// Sections & Tables
+					if tables != nil {
+						pos.Get("/sections", tables.ListSections)
+						pos.Post("/sections", tables.CreateSection)
+						pos.Put("/sections/{id}", tables.UpdateSection)
+						pos.Get("/tables", tables.ListTables)
+						pos.Post("/tables", tables.CreateTable)
+						pos.Put("/tables/{id}", tables.UpdateTable)
+						pos.Patch("/tables/{id}/status", tables.UpdateTableStatus)
+						pos.Post("/tables/{id}/assign", tables.AssignTable)
+						pos.Post("/tables/{id}/release", tables.ReleaseTable)
+					}
+
+					// Tenders
+					if tenders != nil {
+						pos.Get("/tenders", tenders.ListTenders)
+						pos.Post("/tenders", tenders.CreateTender)
+						pos.Put("/tenders/{id}", tenders.UpdateTender)
+					}
+
+					// Payments
+					if payments != nil {
+						pos.Post("/orders/{orderID}/payments/intent", payments.CreatePaymentIntent)
+						pos.Post("/orders/{orderID}/payments", payments.RecordPayment)
+						pos.Get("/orders/{orderID}/payments", payments.ListOrderPayments)
+						pos.Post("/payments/initiate", payments.ProxyInitiate)
+					}
+
+					// Cash Drawers
+					if drawers != nil {
+						pos.Post("/drawers/open", drawers.OpenDrawer)
+						pos.Get("/drawers/current", drawers.GetCurrentDrawer)
+						pos.Post("/drawers/{id}/close", drawers.CloseDrawer)
+						pos.Get("/drawers", drawers.ListDrawerHistory)
+					}
+
+					// Bar Tabs
+					if barTabs != nil {
+						pos.Post("/bar-tabs", barTabs.OpenBarTab)
+						pos.Get("/bar-tabs", barTabs.ListBarTabs)
+						pos.Get("/bar-tabs/{id}", barTabs.GetBarTab)
+						pos.Post("/bar-tabs/{id}/close", barTabs.CloseBarTab)
+					}
+
+					// Promotions
+					if promotions != nil {
+						pos.Get("/promotions", promotions.ListPromotions)
+						pos.Post("/promotions", promotions.CreatePromotion)
+						pos.Post("/promotions/apply", promotions.ApplyPromoCode)
+					}
+
+					// Device sessions (shift open/close)
+					if devices != nil {
+						pos.Get("/devices/current/sessions/current", devices.GetCurrentSession)
+						pos.Post("/devices/current/sessions/open", devices.OpenSession)
+						pos.Post("/devices/current/sessions/close", devices.CloseSession)
+					}
+
+					// Terminal PIN auth (auth-protected endpoints)
+					// SetPIN requires a manager SSO token; AuthMe requires SSO token for Trinity Layer 3.
+					// ListStaff / Login / StaffProfiles are registered in the public group above.
+					if pinAuth != nil {
+						pos.Post("/auth/pin/set", pinAuth.SetPIN)
+						pos.Get("/auth/me", pinAuth.AuthMe)
+					}
+
+					// KDS
+					if kds != nil {
+						pos.Get("/kds/stations", kds.ListStations)
+						pos.Post("/kds/stations", kds.CreateStation)
+						pos.Put("/kds/stations/{id}", kds.UpdateStation)
+						pos.Get("/kds/kitchen", kds.GetKitchenQueue)
+						pos.Get("/kds/bar", kds.GetBarQueue)
+						pos.Get("/kds/tickets", kds.ListTickets)
+						pos.Post("/kds/tickets/{id}/start", kds.StartTicket)
+						pos.Post("/kds/tickets/{id}/ready", kds.ReadyTicket)
+						pos.Post("/kds/tickets/{id}/serve", kds.ServeTicket)
+						pos.Post("/kds/tickets/{id}/void", kds.VoidTicket)
+						pos.Post("/kds/tickets/{id}/call-waiter", kds.CallWaiter)
+					}
+				})
+
+				// Hotel module
+				if hotel != nil {
+					tenant.Route("/hotel", func(h chi.Router) {
+						h.Get("/rooms", hotel.ListRooms)
+						h.Post("/rooms", hotel.CreateRoom)
+						h.Get("/rooms/{id}", hotel.GetRoom)
+						h.Patch("/rooms/{id}/status", hotel.UpdateRoomStatus)
+						h.Post("/rooms/{id}/check-in", hotel.CheckIn)
+						h.Post("/rooms/{id}/check-out", hotel.CheckOut)
+						h.Post("/rooms/{id}/folio", hotel.PostFolioCharge)
+						h.Get("/rooms/{id}/folio", hotel.GetRoomFolio)
+						h.Get("/facilities", hotel.ListFacilities)
+						h.Post("/facilities", hotel.CreateFacility)
+						h.Get("/facilities/{id}", hotel.GetFacility)
+						h.Post("/facilities/{id}/book", hotel.BookFacility)
+						h.Patch("/facilities/bookings/{bookingID}", hotel.UpdateBooking)
+						h.Get("/facilities/bookings", hotel.ListFacilityBookings)
+					})
+				}
+			})
 		})
 	})
 
