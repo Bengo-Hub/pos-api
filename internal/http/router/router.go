@@ -217,6 +217,9 @@ func New(
 					pos.Post("/auth/pin", pinAuth.Login)
 					pos.Post("/auth/pin/set", pinAuth.SetPIN)
 					pos.Get("/auth/pin/profile", pinAuth.StaffProfiles)
+					// Service-level identity enrichment — called by pos-ui after SSO to
+					// get POS-specific role + pos.*.* permissions (Trinity Layer 3).
+					pos.Get("/auth/me", pinAuth.AuthMe)
 				}
 
 				// KDS

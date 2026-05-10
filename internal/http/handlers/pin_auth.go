@@ -10,6 +10,7 @@ import (
 	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
 
+	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/bengobox/pos-service/internal/ent"
 	entstaff "github.com/bengobox/pos-service/internal/ent/staffmember"
 )
@@ -213,6 +214,77 @@ func (h *PINAuthHandler) SetPIN(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// ── GET /{tenant}/pos/auth/me — service-level identity enrichment ─────────────
+// Called by pos-ui after SSO callback to get POS-specific role + permissions.
+// Maps global JWT roles (admin, cashier, etc.) to local POS service roles and
+// resolves fine-grained pos.*.* permissions from POSRoleV2 table.
+
+func (h *PINAuthHandler) AuthMe(w http.ResponseWriter, r *http.Request) {
+	claims, ok := authclient.ClaimsFromContext(r.Context())
+	if !ok {
+		jsonError(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+
+	uid, uidErr := uuid.Parse(claims.Subject)
+	if uidErr != nil {
+		jsonError(w, "invalid user_id in token", http.StatusBadRequest)
+		return
+	}
+
+	// Resolve POS role: prefer local StaffMember record, fall back to JWT role mapping
+	var posRole, displayName string
+	member, memberErr := h.client.StaffMember.Query().
+		Where(entstaff.TenantID(tid), entstaff.UserID(uid)).
+		Only(r.Context())
+	if memberErr == nil {
+		posRole = member.Role
+		displayName = member.Name
+	} else {
+		posRole = globalRoleToPOSRole(claims.Roles)
+		displayName = claims.Email
+	}
+
+	perms := resolveRolePermissions(r.Context(), h.client, tid, posRole)
+
+	jsonOK(w, map[string]any{
+		"user_id":      claims.Subject,
+		"email":        claims.Email,
+		"name":         displayName,
+		"tenant_id":    claims.TenantID,
+		"tenant_slug":  claims.GetTenantSlug(),
+		"global_roles": claims.Roles,
+		"pos_role":     posRole,
+		"permissions":  perms,
+	})
+}
+
+// globalRoleToPOSRole maps the first matching global SSO role to a canonical POS role.
+func globalRoleToPOSRole(roles []string) string {
+	order := []struct{ from, to string }{
+		{"superuser", "admin"}, {"super_admin", "admin"}, {"pos_admin", "admin"},
+		{"admin", "admin"},
+		{"manager", "manager"}, {"store_manager", "manager"}, {"outlet_manager", "manager"},
+		{"cashier", "cashier"}, {"waiter", "waiter"}, {"kitchen", "kitchen"},
+		{"bar", "bar"}, {"receptionist", "receptionist"},
+		{"staff", "cashier"}, {"member", "cashier"}, {"viewer", "cashier"},
+	}
+	for _, m := range order {
+		for _, r := range roles {
+			if r == m.from {
+				return m.to
+			}
+		}
+	}
+	return "cashier"
 }
 
 // ── GET /{tenant}/pos/auth/pin/profile — return cached staff profiles ─────────
