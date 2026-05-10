@@ -11,6 +11,7 @@ import (
 	entsql "entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/bengobox/pos-service/internal/config"
 	"github.com/bengobox/pos-service/internal/ent"
@@ -593,14 +594,40 @@ func seedStaffMembers(ctx context.Context, client *ent.Client, tenantID, outletI
 		{"Eve Bartender", "bar"},
 		{"Frank Receptionist", "receptionist"},
 	}
+
+	// All demo staff share PIN "1234" so the kiosk is immediately usable.
+	pinHashBytes, err := bcrypt.GenerateFromPassword([]byte("1234"), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("generate demo pin hash: %w", err)
+	}
+	pinHash := string(pinHashBytes)
+
 	for _, s := range staff {
 		uid := uuid.NewSHA1(uuid.NameSpaceURL, []byte(fmt.Sprintf("bengobox:pos:staff:%s:%s", tenantID, s.name)))
-		exists, err := client.StaffMember.Query().
+
+		existing, err := client.StaffMember.Query().
 			Where(entstaff.TenantID(tenantID), entstaff.UserID(uid)).
-			Exist(ctx)
-		if err != nil || exists {
+			Only(ctx)
+		if err != nil && !ent.IsNotFound(err) {
+			log.Printf("  ⚠️  query staff %s: %v", s.name, err)
 			continue
 		}
+
+		if existing != nil {
+			// Update pin_hash on existing record so re-runs always set the demo PIN.
+			_, err = client.StaffMember.UpdateOneID(existing.ID).
+				SetPinHash(pinHash).
+				SetPinFailedAttempts(0).
+				ClearPinLockedUntil().
+				Save(ctx)
+			if err != nil {
+				log.Printf("  ⚠️  update pin for %s: %v", s.name, err)
+			} else {
+				log.Printf("  ✓ Staff PIN refreshed: %s (%s)", s.name, s.role)
+			}
+			continue
+		}
+
 		_, err = client.StaffMember.Create().
 			SetTenantID(tenantID).
 			SetOutletID(outletID).
@@ -608,11 +635,13 @@ func seedStaffMembers(ctx context.Context, client *ent.Client, tenantID, outletI
 			SetName(s.name).
 			SetRole(s.role).
 			SetIsActive(true).
+			SetPinHash(pinHash).
+			SetPinFailedAttempts(0).
 			Save(ctx)
 		if err != nil {
 			log.Printf("  ⚠️  seed staff %s: %v", s.name, err)
 		} else {
-			log.Printf("  ✓ Staff seeded: %s (%s)", s.name, s.role)
+			log.Printf("  ✓ Staff seeded: %s (%s) [PIN=1234]", s.name, s.role)
 		}
 	}
 	return nil
@@ -678,7 +707,7 @@ func seedRateLimitConfigs(ctx context.Context, client *ent.Client) error {
 		id := uuid.NewSHA1(uuid.NameSpaceURL, []byte(fmt.Sprintf("bengobox:pos:ratelimit:%s:%s", c.keyType, c.endpoint)))
 		exists, err := client.RateLimitConfig.Query().
 			Where(
-				// Use ID check since unique index uses 3 fields
+			// Use ID check since unique index uses 3 fields
 			).
 			Exist(ctx)
 		// Simplified: just try create, ignore constraint errors
