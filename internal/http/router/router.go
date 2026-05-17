@@ -14,6 +14,7 @@ import (
 
 	handlers "github.com/bengobox/pos-service/internal/http/handlers"
 	"github.com/bengobox/pos-service/internal/modules/identity"
+	"github.com/bengobox/pos-service/internal/platform/subscriptions"
 	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/Bengo-Hub/httpware"
 )
@@ -83,27 +84,7 @@ func New(
 		api.Group(func(prot chi.Router) {
 			if authMiddleware != nil {
 				prot.Use(authMiddleware.RequireAuth)
-				// Layer 2: Subscription enforcement — mutations only (GET/HEAD/OPTIONS pass through)
-				prot.Use(func(next http.Handler) http.Handler {
-					return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-						if r.Method == http.MethodGet || r.Method == http.MethodHead || r.Method == http.MethodOptions {
-							next.ServeHTTP(w, r)
-							return
-						}
-						claims, ok := authclient.ClaimsFromContext(r.Context())
-						if !ok {
-							next.ServeHTTP(w, r)
-							return
-						}
-						if claims.IsSuperuser() || claims.IsPlatformOwner || claims.IsSubscriptionActive() {
-							next.ServeHTTP(w, r)
-							return
-						}
-						w.Header().Set("Content-Type", "application/json")
-						w.WriteHeader(http.StatusForbidden)
-						_, _ = w.Write([]byte(`{"error":"Your subscription is not active. Please renew to continue.","code":"subscription_inactive","upgrade":true}`))
-					})
-				})
+				prot.Use(subscriptions.SubscriptionGate())
 			}
 
 			if idSvc != nil {
@@ -169,17 +150,20 @@ func New(
 						})
 					}
 
-					// Sections & Tables
+					// Sections & Tables — requires table_management feature
 					if tables != nil {
-						pos.Get("/sections", tables.ListSections)
-						pos.Post("/sections", tables.CreateSection)
-						pos.Put("/sections/{id}", tables.UpdateSection)
-						pos.Get("/tables", tables.ListTables)
-						pos.Post("/tables", tables.CreateTable)
-						pos.Put("/tables/{id}", tables.UpdateTable)
-						pos.Patch("/tables/{id}/status", tables.UpdateTableStatus)
-						pos.Post("/tables/{id}/assign", tables.AssignTable)
-						pos.Post("/tables/{id}/release", tables.ReleaseTable)
+						pos.Group(func(tbl chi.Router) {
+							tbl.Use(subscriptions.RequireFeature("table_management"))
+							tbl.Get("/sections", tables.ListSections)
+							tbl.Post("/sections", tables.CreateSection)
+							tbl.Put("/sections/{id}", tables.UpdateSection)
+							tbl.Get("/tables", tables.ListTables)
+							tbl.Post("/tables", tables.CreateTable)
+							tbl.Put("/tables/{id}", tables.UpdateTable)
+							tbl.Patch("/tables/{id}/status", tables.UpdateTableStatus)
+							tbl.Post("/tables/{id}/assign", tables.AssignTable)
+							tbl.Post("/tables/{id}/release", tables.ReleaseTable)
+						})
 					}
 
 					// Tenders
@@ -197,12 +181,15 @@ func New(
 						pos.Post("/payments/initiate", payments.ProxyInitiate)
 					}
 
-					// Cash Drawers
+					// Cash Drawers — shift report history requires shift_reports feature
 					if drawers != nil {
 						pos.Post("/drawers/open", drawers.OpenDrawer)
 						pos.Get("/drawers/current", drawers.GetCurrentDrawer)
 						pos.Post("/drawers/{id}/close", drawers.CloseDrawer)
-						pos.Get("/drawers", drawers.ListDrawerHistory)
+						pos.Group(func(dr chi.Router) {
+							dr.Use(subscriptions.RequireFeature("shift_reports"))
+							dr.Get("/drawers", drawers.ListDrawerHistory)
+						})
 					}
 
 					// Bar Tabs
@@ -231,7 +218,10 @@ func New(
 					// SetPIN requires a manager SSO token; AuthMe requires SSO token for Trinity Layer 3.
 					// ListStaff / Login / StaffProfiles are registered in the public group above.
 					if pinAuth != nil {
-						pos.Post("/auth/pin/set", pinAuth.SetPIN)
+						pos.Group(func(ca chi.Router) {
+							ca.Use(subscriptions.RequireFeature("multi_cashier"))
+							ca.Post("/auth/pin/set", pinAuth.SetPIN)
+						})
 						pos.Get("/auth/me", pinAuth.AuthMe)
 					}
 
