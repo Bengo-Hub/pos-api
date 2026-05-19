@@ -82,3 +82,14 @@ func (p *Publisher) PublishSaleFinalized(ctx context.Context, tenantID uuid.UUID
 func (p *Publisher) PublishDrawerClosed(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {
 	return p.publish(ctx, tenantID, "drawer.closed", data)
 }
+
+// PublishInventoryConsumptionFailed publishes a pos.inventory.consumption.failed event.
+// Consumed by a retry worker to re-attempt the inventory backflush.
+func (p *Publisher) PublishInventoryConsumptionFailed(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {
+	return p.publish(ctx, tenantID, "inventory.consumption.failed", data)
+}
+
+// PublishStockAlert publishes a pos.alert.stock_low event when inventory-api notifies of low stock.
+func (p *Publisher) PublishStockAlert(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {
+	return p.publish(ctx, tenantID, "alert.stock_low", data)
+}

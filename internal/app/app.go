@@ -32,6 +32,7 @@ import (
 	promommodule "github.com/bengobox/pos-service/internal/modules/promotions"
 	catalogmodule "github.com/bengobox/pos-service/internal/modules/catalog"
 	rbacmodule "github.com/bengobox/pos-service/internal/modules/rbac"
+	inventorymodule "github.com/bengobox/pos-service/internal/modules/inventory"
 	treasurymodule "github.com/bengobox/pos-service/internal/modules/treasury"
 	"github.com/bengobox/pos-service/internal/modules/tenant"
 	"github.com/bengobox/pos-service/internal/platform/cache"
@@ -155,8 +156,16 @@ func New(ctx context.Context) (*App, error) {
 	// Treasury S2S client (thin proxy; pos-api delegates all payment processing to treasury-api)
 	treasuryClient := treasurymodule.NewClient(cfg.Treasury.ServiceURL, cfg.Treasury.InternalServiceKey, cfg.Treasury.RequestTimeout)
 
+	// Inventory S2S client for stock backflush after order completion
+	inventoryAPIURL := os.Getenv("INVENTORY_API_URL")
+	if inventoryAPIURL == "" {
+		inventoryAPIURL = "http://inventory-api.inventory.svc.cluster.local:4000"
+	}
+	inventoryClient := inventorymodule.NewClient(inventoryAPIURL, cfg.Treasury.InternalServiceKey, 15*time.Second)
+
 	paymentSvc := paymentmodule.NewService(entClient, orderSvc, cfg.App.DefaultCurrency, log)
 	paymentSvc.SetTreasuryClient(treasuryClient)
+	paymentSvc.SetInventoryClient(inventoryClient)
 	if pub := orderSvc.GetPublisher(); pub != nil {
 		paymentSvc.SetPublisher(pub)
 	}

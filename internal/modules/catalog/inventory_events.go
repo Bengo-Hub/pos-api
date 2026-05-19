@@ -80,8 +80,28 @@ func (h *InventoryEventHandler) SubscribeToInventoryEvents(nc *nats.Conn) error 
 		return fmt.Errorf("pos catalog: subscribe to inventory.item.updated: %w", err)
 	}
 
+	// Subscribe to inventory.stock.low — log the alert; manager notifications handled downstream
+	_, err = nc.Subscribe("inventory.stock.low", func(msg *nats.Msg) {
+		var payload map[string]any
+		if jsonErr := json.Unmarshal(msg.Data, &payload); jsonErr != nil {
+			h.logger.Warn("inventory.stock.low: bad payload", zap.Error(jsonErr))
+			return
+		}
+		sku, _ := payload["sku"].(string)
+		name, _ := payload["name"].(string)
+		qty, _ := payload["quantity"].(float64)
+		h.logger.Warn("inventory stock low alert",
+			zap.String("sku", sku),
+			zap.String("name", name),
+			zap.Float64("quantity", qty))
+		_ = msg.Ack()
+	})
+	if err != nil {
+		h.logger.Warn("pos catalog: subscribe to inventory.stock.low failed (non-fatal)", zap.Error(err))
+	}
+
 	h.logger.Info("inventory event subscriptions active",
-		zap.String("subjects", "inventory.item.created, inventory.item.updated"))
+		zap.String("subjects", "inventory.item.created, inventory.item.updated, inventory.stock.low"))
 	return nil
 }
 

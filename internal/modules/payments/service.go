@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -13,6 +14,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/posorder"
 	"github.com/bengobox/pos-service/internal/ent/posorderline"
 	"github.com/bengobox/pos-service/internal/ent/pospayment"
+	"github.com/bengobox/pos-service/internal/modules/inventory"
 	"github.com/bengobox/pos-service/internal/modules/orders"
 	"github.com/bengobox/pos-service/internal/modules/treasury"
 	"github.com/bengobox/pos-service/internal/platform/events"
@@ -56,12 +58,13 @@ type CreateIntentResult struct {
 
 // Service provides payment business logic.
 type Service struct {
-	client          *ent.Client
-	orderSvc        *orders.Service
-	treasuryClient  *treasury.Client
-	publisher       *events.Publisher
-	log             *zap.Logger
-	defaultCurrency string
+	client           *ent.Client
+	orderSvc         *orders.Service
+	treasuryClient   *treasury.Client
+	inventoryClient  *inventory.Client
+	publisher        *events.Publisher
+	log              *zap.Logger
+	defaultCurrency  string
 }
 
 // NewService creates a new payment service.
@@ -80,6 +83,11 @@ func NewService(client *ent.Client, orderSvc *orders.Service, defaultCurrency st
 // SetTreasuryClient injects the treasury S2S client after construction (avoids circular init).
 func (s *Service) SetTreasuryClient(c *treasury.Client) {
 	s.treasuryClient = c
+}
+
+// SetInventoryClient injects the inventory S2S client for consumption backflush.
+func (s *Service) SetInventoryClient(c *inventory.Client) {
+	s.inventoryClient = c
 }
 
 // SetPublisher injects the event publisher for pos.sale.finalized and related events.
@@ -351,6 +359,50 @@ func (s *Service) publishSaleFinalized(ctx context.Context, order *ent.POSOrder)
 
 	if err := s.publisher.PublishSaleFinalized(ctx, order.TenantID, data); err != nil {
 		s.log.Warn("failed to publish pos.sale.finalized", zap.String("order_id", order.ID.String()), zap.Error(err))
+	}
+
+	// Backflush inventory consumption asynchronously — non-blocking, publish retry event on failure.
+	if s.inventoryClient != nil {
+		go s.backflushInventory(order, lines)
+	}
+}
+
+// backflushInventory calls inventory-api to deduct stock for each sold item.
+// Runs in a goroutine to avoid blocking the payment flow.
+// Publishes pos.inventory.consumption.failed on error so a retry worker can re-attempt.
+func (s *Service) backflushInventory(order *ent.POSOrder, lines []*ent.POSOrderLine) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	items := make([]inventory.ConsumptionItem, 0, len(lines))
+	for _, l := range lines {
+		if l.Sku != "" {
+			items = append(items, inventory.ConsumptionItem{
+				SKU:      l.Sku,
+				Quantity: float64(l.Quantity),
+			})
+		}
+	}
+	if len(items) == 0 {
+		return
+	}
+
+	err := s.inventoryClient.RecordConsumption(ctx, order.TenantID.String(), inventory.ConsumptionRequest{
+		OrderID: order.ID.String(),
+		Items:   items,
+	})
+	if err != nil {
+		s.log.Warn("inventory backflush failed",
+			zap.String("order_id", order.ID.String()),
+			zap.Error(err))
+		if s.publisher != nil {
+			_ = s.publisher.PublishInventoryConsumptionFailed(ctx, order.TenantID, map[string]any{
+				"order_id":  order.ID.String(),
+				"tenant_id": order.TenantID.String(),
+				"items":     items,
+				"error":     err.Error(),
+			})
+		}
 	}
 }
 
