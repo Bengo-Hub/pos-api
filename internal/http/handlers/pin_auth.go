@@ -40,6 +40,7 @@ const lockoutDuration = 15 * time.Minute
 
 // ListStaff returns minimal staff info for the PIN keypad selector screen.
 // Does NOT include pin_hash — only name, user_id, has_pin.
+// Optional ?outlet_id= query param scopes results to a specific outlet.
 func (h *PINAuthHandler) ListStaff(w http.ResponseWriter, r *http.Request) {
 	tid, err := parseTenantUUID(r)
 	if err != nil {
@@ -47,9 +48,14 @@ func (h *PINAuthHandler) ListStaff(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	members, err := h.client.StaffMember.Query().
-		Where(entstaff.TenantID(tid), entstaff.IsActive(true)).
-		All(r.Context())
+	q := h.client.StaffMember.Query().Where(entstaff.TenantID(tid), entstaff.IsActive(true))
+	if oid := r.URL.Query().Get("outlet_id"); oid != "" {
+		if outletUUID, err := uuid.Parse(oid); err == nil {
+			q = q.Where(entstaff.OutletID(outletUUID))
+		}
+	}
+
+	members, err := q.All(r.Context())
 	if err != nil {
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
@@ -287,9 +293,10 @@ func globalRoleToPOSRole(roles []string) string {
 	return "cashier"
 }
 
-// ── GET /{tenant}/pos/auth/pin/profile — return cached staff profiles ─────────
-// Used by pos-ui to populate the offline PIN selector from IndexedDB.
+// ── GET /{tenant}/pos/auth/pin/profile — return staff profiles for PIN selector ─
+// Used by pos-ui to populate the PIN selector from IndexedDB for offline fallback.
 // Returns name, user_id, roles/permissions (NO pin_hash).
+// Optional ?outlet_id= query param scopes results to a specific outlet.
 
 func (h *PINAuthHandler) StaffProfiles(w http.ResponseWriter, r *http.Request) {
 	tid, err := parseTenantUUID(r)
@@ -298,9 +305,14 @@ func (h *PINAuthHandler) StaffProfiles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	members, err := h.client.StaffMember.Query().
-		Where(entstaff.TenantID(tid), entstaff.IsActive(true)).
-		All(r.Context())
+	q := h.client.StaffMember.Query().Where(entstaff.TenantID(tid), entstaff.IsActive(true))
+	if oid := r.URL.Query().Get("outlet_id"); oid != "" {
+		if outletUUID, err := uuid.Parse(oid); err == nil {
+			q = q.Where(entstaff.OutletID(outletUUID))
+		}
+	}
+
+	members, err := q.All(r.Context())
 	if err != nil {
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return

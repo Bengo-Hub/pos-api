@@ -187,6 +187,7 @@ func New(ctx context.Context) (*App, error) {
 		terminalJWTSecret = []byte(cfg.Treasury.InternalServiceKey)
 	}
 	pinAuthHandler := handlers.NewPINAuthHandler(log, entClient, terminalJWTSecret)
+	publicOutletHandler := handlers.NewPublicOutletHandler(log, entClient)
 
 	// Initialize RBAC
 	rbacRepo := rbacmodule.NewEntRepository(entClient)
@@ -252,7 +253,7 @@ func New(ctx context.Context) (*App, error) {
 		inventoryEventHandler.InitialSync(ctx, inventoryURL, tenantSlug)
 	}()
 
-	chiRouter := router.New(log, healthHandler, authMiddleware, entClient, identitySvc, orderHandler, catalogHandler, tableHandler, tenderHandler, paymentHandler, drawerHandler, barTabHandler, promotionHandler, rbacHandler, hotelHandler, kdsHandler, deviceHandler, pinAuthHandler, cfg.HTTP.AllowedOrigins)
+	chiRouter := router.New(log, healthHandler, authMiddleware, entClient, identitySvc, orderHandler, catalogHandler, tableHandler, tenderHandler, paymentHandler, drawerHandler, barTabHandler, promotionHandler, rbacHandler, hotelHandler, kdsHandler, deviceHandler, pinAuthHandler, publicOutletHandler, cfg.HTTP.AllowedOrigins)
 
 	httpServer := &http.Server{
 		Addr:              fmt.Sprintf("%s:%d", cfg.HTTP.Host, cfg.HTTP.Port),

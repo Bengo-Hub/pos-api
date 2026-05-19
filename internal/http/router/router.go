@@ -40,6 +40,7 @@ func New(
 	kds *handlers.KDSHandler,
 	devices *handlers.DeviceHandler,
 	pinAuth *handlers.PINAuthHandler,
+	publicOutlet *handlers.PublicOutletHandler,
 	allowedOrigins []string,
 ) http.Handler {
 	r := chi.NewRouter()
@@ -70,18 +71,22 @@ func New(
 		// TenantV2 extracts tenant UUID directly from the URL path parameter.
 		api.Get("/openapi.json", handlers.OpenAPIJSON)
 
-		if pinAuth != nil {
-			api.Group(func(pub chi.Router) {
-				pub.Use(httpware.TenantV2(httpware.TenantConfig{
-					URLParamFunc: chi.URLParam,
-					URLParamName: "tenantID",
-					Required:     true,
-				}))
+		api.Group(func(pub chi.Router) {
+			pub.Use(httpware.TenantV2(httpware.TenantConfig{
+				URLParamFunc: chi.URLParam,
+				URLParamName: "tenantID",
+				Required:     true,
+			}))
+			if pinAuth != nil {
 				pub.Get("/{tenantID}/pos/staff", pinAuth.ListStaff)
 				pub.Post("/{tenantID}/pos/auth/pin", pinAuth.Login)
 				pub.Get("/{tenantID}/pos/auth/pin/profile", pinAuth.StaffProfiles)
-			})
-		}
+			}
+			if publicOutlet != nil {
+				pub.Get("/{tenantID}/pos/outlets", publicOutlet.ListPublicOutlets)
+				pub.Get("/{tenantID}/pos/outlets/current", publicOutlet.GetCurrentOutlet)
+			}
+		})
 
 		// ── Protected endpoints (auth required) ───────────────────────────────
 		api.Group(func(prot chi.Router) {
