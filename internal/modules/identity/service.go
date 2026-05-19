@@ -4,10 +4,13 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/bengobox/pos-service/internal/ent"
+	entoutlet "github.com/bengobox/pos-service/internal/ent/outlet"
+	entstaff "github.com/bengobox/pos-service/internal/ent/staffmember"
 	"github.com/bengobox/pos-service/internal/ent/user"
 	"github.com/bengobox/pos-service/internal/modules/rbac"
 	"github.com/bengobox/pos-service/internal/modules/tenant"
@@ -42,8 +45,10 @@ func (s *Service) EnsureUserFromToken(ctx context.Context, authServiceID uuid.UU
 	u, err := s.client.User.Query().
 		Where(user.AuthServiceUserIDEQ(authServiceID)).
 		Only(ctx)
-	
+
 	if err == nil {
+		// User exists — ensure StaffMember record is present (idempotent)
+		s.ensureStaffMember(ctx, u.TenantID, authServiceID, claims)
 		return u, nil
 	}
 
@@ -59,8 +64,16 @@ func (s *Service) EnsureUserFromToken(ctx context.Context, authServiceID uuid.UU
 
 	// 3. Create user
 	email, _ := claims["email"].(string)
-	fullName, _ := claims["name"].(string)
-	
+	fullName, _ := claims["full_name"].(string)
+	if fullName == "" {
+		// Derive display name from email prefix if no full_name claim
+		if idx := strings.Index(email, "@"); idx > 0 {
+			fullName = email[:idx]
+		} else {
+			fullName = email
+		}
+	}
+
 	newUsr, err := s.client.User.Create().
 		SetID(authServiceID).
 		SetAuthServiceUserID(authServiceID).
@@ -83,7 +96,93 @@ func (s *Service) EnsureUserFromToken(ctx context.Context, authServiceID uuid.UU
 		s.assignDefaultRoleFromJWT(ctx, tenantID, newUsr.ID, authServiceID, claims)
 	}
 
+	// 5. Create StaffMember record so the user appears on the PIN login page
+	s.ensureStaffMember(ctx, tenantID, authServiceID, claims)
+
 	return newUsr, nil
+}
+
+// ensureStaffMember creates a StaffMember for the user if one does not already exist.
+// Defaults to the HQ outlet if no outlet_id is present in claims.
+func (s *Service) ensureStaffMember(ctx context.Context, tenantID uuid.UUID, authUserID uuid.UUID, claims map[string]any) {
+	// Skip if StaffMember already exists
+	exists, _ := s.client.StaffMember.Query().
+		Where(entstaff.TenantID(tenantID), entstaff.UserID(authUserID)).
+		Exist(ctx)
+	if exists {
+		return
+	}
+
+	// Resolve outlet: prefer JWT outlet_id claim, fall back to HQ outlet
+	var outletID uuid.UUID
+	if oid, ok := claims["outlet_id"].(string); ok && oid != "" {
+		if parsed, err := uuid.Parse(oid); err == nil {
+			// Verify outlet belongs to this tenant and is active
+			o, err := s.client.Outlet.Query().
+				Where(entoutlet.ID(parsed), entoutlet.TenantID(tenantID), entoutlet.StatusNEQ("archived")).
+				Only(ctx)
+			if err == nil {
+				outletID = o.ID
+			}
+		}
+	}
+	if outletID == uuid.Nil {
+		// Fall back to HQ outlet
+		o, err := s.client.Outlet.Query().
+			Where(entoutlet.TenantID(tenantID), entoutlet.IsHq(true), entoutlet.StatusNEQ("archived")).
+			First(ctx)
+		if err != nil {
+			// Last resort: any active outlet
+			o, err = s.client.Outlet.Query().
+				Where(entoutlet.TenantID(tenantID), entoutlet.StatusNEQ("archived")).
+				First(ctx)
+		}
+		if err != nil || o == nil {
+			log.Printf("  [jit-provisioning] no outlet found for tenant %s — skipping StaffMember creation", tenantID)
+			return
+		}
+		outletID = o.ID
+	}
+
+	// Map global role to POS staff role
+	var roles []string
+	if rolesRaw, ok := claims["roles"].([]string); ok {
+		roles = rolesRaw
+	} else if rolesIface, ok := claims["roles"].([]interface{}); ok {
+		for _, r := range rolesIface {
+			if str, ok := r.(string); ok {
+				roles = append(roles, str)
+			}
+		}
+	}
+	posRole := mapGlobalRoleToPOSRole(roles)
+	if posRole == "viewer" {
+		posRole = "cashier" // default POS role for unrecognised global roles
+	}
+
+	email, _ := claims["email"].(string)
+	name, _ := claims["full_name"].(string)
+	if name == "" {
+		if idx := strings.Index(email, "@"); idx > 0 {
+			name = email[:idx]
+		} else {
+			name = email
+		}
+	}
+
+	_, err := s.client.StaffMember.Create().
+		SetTenantID(tenantID).
+		SetOutletID(outletID).
+		SetUserID(authUserID).
+		SetName(name).
+		SetRole(posRole).
+		SetIsActive(true).
+		Save(ctx)
+	if err != nil {
+		log.Printf("  [jit-provisioning] failed to create StaffMember for user %s: %v", authUserID, err)
+		return
+	}
+	log.Printf("  [jit-provisioning] created StaffMember (role=%s, outlet=%s) for user %s", posRole, outletID, authUserID)
 }
 
 // assignDefaultRoleFromJWT maps global JWT roles to POS service-level roles.

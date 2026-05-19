@@ -108,6 +108,7 @@ func New(
 									"roles":             claims.Roles,
 									"permissions":       claims.Permissions,
 									"is_platform_owner": claims.IsPlatformOwner,
+									"outlet_id":         claims.GetOutletID(),
 								})
 								if err != nil {
 									log.Warn("jit provisioning failed", zap.Error(err))
