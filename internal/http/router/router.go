@@ -12,7 +12,9 @@ import (
 	"github.com/go-chi/cors"
 	"go.uber.org/zap"
 
+	"github.com/bengobox/pos-service/internal/ent"
 	handlers "github.com/bengobox/pos-service/internal/http/handlers"
+	outletmw "github.com/bengobox/pos-service/internal/http/middleware"
 	"github.com/bengobox/pos-service/internal/modules/identity"
 	"github.com/bengobox/pos-service/internal/platform/subscriptions"
 	authclient "github.com/Bengo-Hub/shared-auth-client"
@@ -23,6 +25,7 @@ func New(
 	log *zap.Logger,
 	health *handlers.HealthHandler,
 	authMiddleware *authclient.AuthMiddleware,
+	entClient *ent.Client,
 	idSvc *identity.Service,
 	orders *handlers.POSOrderHandler,
 	catalog *handlers.CatalogHandler,
@@ -50,7 +53,7 @@ func New(
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   allowedOrigins,
 		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "Origin", "X-Request-ID", "X-Tenant-ID", "X-Tenant-Slug"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "Origin", "X-Request-ID", "X-Tenant-ID", "X-Tenant-Slug", "X-Outlet-ID"},
 		ExposedHeaders:   []string{"Link", "X-RateLimit-Limit", "X-RateLimit-Remaining", "X-RateLimit-Reset", "Retry-After"},
 		AllowCredentials: true,
 		MaxAge:           300,
@@ -124,6 +127,7 @@ func New(
 					URLParamName: "tenantID",
 					Required:     true,
 				}))
+				tenant.Use(outletmw.OutletContextMiddleware(entClient, log))
 
 				// RBAC routes
 				if rbacHandler != nil {

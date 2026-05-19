@@ -33,6 +33,8 @@ const (
 	FieldStatus = "status"
 	// FieldUseCase holds the string denoting the use_case field in the database.
 	FieldUseCase = "use_case"
+	// FieldIsHq holds the string denoting the is_hq field in the database.
+	FieldIsHq = "is_hq"
 	// FieldOpenedAt holds the string denoting the opened_at field in the database.
 	FieldOpenedAt = "opened_at"
 	// FieldClosedAt holds the string denoting the closed_at field in the database.
@@ -84,6 +86,7 @@ var Columns = []string{
 	FieldTimezone,
 	FieldStatus,
 	FieldUseCase,
+	FieldIsHq,
 	FieldOpenedAt,
 	FieldClosedAt,
 	FieldCreatedAt,
@@ -113,6 +116,8 @@ var (
 	DefaultTimezone string
 	// DefaultStatus holds the default value on creation for the "status" field.
 	DefaultStatus string
+	// DefaultIsHq holds the default value on creation for the "is_hq" field.
+	DefaultIsHq bool
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
@@ -169,6 +174,11 @@ func ByStatus(opts ...sql.OrderTermOption) OrderOption {
 // ByUseCase orders the results by the use_case field.
 func ByUseCase(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldUseCase, opts...).ToFunc()
+}
+
+// ByIsHq orders the results by the is_hq field.
+func ByIsHq(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldIsHq, opts...).ToFunc()
 }
 
 // ByOpenedAt orders the results by the opened_at field.

@@ -19002,6 +19002,7 @@ type OutletMutation struct {
 	timezone        *string
 	status          *string
 	use_case        *string
+	is_hq           *bool
 	opened_at       *time.Time
 	closed_at       *time.Time
 	created_at      *time.Time
@@ -19473,6 +19474,42 @@ func (m *OutletMutation) ResetUseCase() {
 	delete(m.clearedFields, outlet.FieldUseCase)
 }
 
+// SetIsHq sets the "is_hq" field.
+func (m *OutletMutation) SetIsHq(b bool) {
+	m.is_hq = &b
+}
+
+// IsHq returns the value of the "is_hq" field in the mutation.
+func (m *OutletMutation) IsHq() (r bool, exists bool) {
+	v := m.is_hq
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIsHq returns the old "is_hq" field's value of the Outlet entity.
+// If the Outlet object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OutletMutation) OldIsHq(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIsHq is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIsHq requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIsHq: %w", err)
+	}
+	return oldValue.IsHq, nil
+}
+
+// ResetIsHq resets all changes to the "is_hq" field.
+func (m *OutletMutation) ResetIsHq() {
+	m.is_hq = nil
+}
+
 // SetOpenedAt sets the "opened_at" field.
 func (m *OutletMutation) SetOpenedAt(t time.Time) {
 	m.opened_at = &t
@@ -19797,7 +19834,7 @@ func (m *OutletMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *OutletMutation) Fields() []string {
-	fields := make([]string, 0, 13)
+	fields := make([]string, 0, 14)
 	if m.tenant != nil {
 		fields = append(fields, outlet.FieldTenantID)
 	}
@@ -19824,6 +19861,9 @@ func (m *OutletMutation) Fields() []string {
 	}
 	if m.use_case != nil {
 		fields = append(fields, outlet.FieldUseCase)
+	}
+	if m.is_hq != nil {
+		fields = append(fields, outlet.FieldIsHq)
 	}
 	if m.opened_at != nil {
 		fields = append(fields, outlet.FieldOpenedAt)
@@ -19863,6 +19903,8 @@ func (m *OutletMutation) Field(name string) (ent.Value, bool) {
 		return m.Status()
 	case outlet.FieldUseCase:
 		return m.UseCase()
+	case outlet.FieldIsHq:
+		return m.IsHq()
 	case outlet.FieldOpenedAt:
 		return m.OpenedAt()
 	case outlet.FieldClosedAt:
@@ -19898,6 +19940,8 @@ func (m *OutletMutation) OldField(ctx context.Context, name string) (ent.Value, 
 		return m.OldStatus(ctx)
 	case outlet.FieldUseCase:
 		return m.OldUseCase(ctx)
+	case outlet.FieldIsHq:
+		return m.OldIsHq(ctx)
 	case outlet.FieldOpenedAt:
 		return m.OldOpenedAt(ctx)
 	case outlet.FieldClosedAt:
@@ -19977,6 +20021,13 @@ func (m *OutletMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetUseCase(v)
+		return nil
+	case outlet.FieldIsHq:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIsHq(v)
 		return nil
 	case outlet.FieldOpenedAt:
 		v, ok := value.(time.Time)
@@ -20108,6 +20159,9 @@ func (m *OutletMutation) ResetField(name string) error {
 		return nil
 	case outlet.FieldUseCase:
 		m.ResetUseCase()
+		return nil
+	case outlet.FieldIsHq:
+		m.ResetIsHq()
 		return nil
 	case outlet.FieldOpenedAt:
 		m.ResetOpenedAt()
@@ -20256,6 +20310,8 @@ type OutletSettingMutation struct {
 	service_charge_json  *map[string]interface{}
 	opening_hours_json   *map[string]interface{}
 	metadata             *map[string]interface{}
+	pin_login_message    *string
+	screensaver_url      *string
 	display_mode         *string
 	show_images          *bool
 	show_barcode_scanner *bool
@@ -20641,6 +20697,104 @@ func (m *OutletSettingMutation) OldMetadata(ctx context.Context) (v map[string]i
 // ResetMetadata resets all changes to the "metadata" field.
 func (m *OutletSettingMutation) ResetMetadata() {
 	m.metadata = nil
+}
+
+// SetPinLoginMessage sets the "pin_login_message" field.
+func (m *OutletSettingMutation) SetPinLoginMessage(s string) {
+	m.pin_login_message = &s
+}
+
+// PinLoginMessage returns the value of the "pin_login_message" field in the mutation.
+func (m *OutletSettingMutation) PinLoginMessage() (r string, exists bool) {
+	v := m.pin_login_message
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPinLoginMessage returns the old "pin_login_message" field's value of the OutletSetting entity.
+// If the OutletSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OutletSettingMutation) OldPinLoginMessage(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPinLoginMessage is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPinLoginMessage requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPinLoginMessage: %w", err)
+	}
+	return oldValue.PinLoginMessage, nil
+}
+
+// ClearPinLoginMessage clears the value of the "pin_login_message" field.
+func (m *OutletSettingMutation) ClearPinLoginMessage() {
+	m.pin_login_message = nil
+	m.clearedFields[outletsetting.FieldPinLoginMessage] = struct{}{}
+}
+
+// PinLoginMessageCleared returns if the "pin_login_message" field was cleared in this mutation.
+func (m *OutletSettingMutation) PinLoginMessageCleared() bool {
+	_, ok := m.clearedFields[outletsetting.FieldPinLoginMessage]
+	return ok
+}
+
+// ResetPinLoginMessage resets all changes to the "pin_login_message" field.
+func (m *OutletSettingMutation) ResetPinLoginMessage() {
+	m.pin_login_message = nil
+	delete(m.clearedFields, outletsetting.FieldPinLoginMessage)
+}
+
+// SetScreensaverURL sets the "screensaver_url" field.
+func (m *OutletSettingMutation) SetScreensaverURL(s string) {
+	m.screensaver_url = &s
+}
+
+// ScreensaverURL returns the value of the "screensaver_url" field in the mutation.
+func (m *OutletSettingMutation) ScreensaverURL() (r string, exists bool) {
+	v := m.screensaver_url
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldScreensaverURL returns the old "screensaver_url" field's value of the OutletSetting entity.
+// If the OutletSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OutletSettingMutation) OldScreensaverURL(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldScreensaverURL is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldScreensaverURL requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldScreensaverURL: %w", err)
+	}
+	return oldValue.ScreensaverURL, nil
+}
+
+// ClearScreensaverURL clears the value of the "screensaver_url" field.
+func (m *OutletSettingMutation) ClearScreensaverURL() {
+	m.screensaver_url = nil
+	m.clearedFields[outletsetting.FieldScreensaverURL] = struct{}{}
+}
+
+// ScreensaverURLCleared returns if the "screensaver_url" field was cleared in this mutation.
+func (m *OutletSettingMutation) ScreensaverURLCleared() bool {
+	_, ok := m.clearedFields[outletsetting.FieldScreensaverURL]
+	return ok
+}
+
+// ResetScreensaverURL resets all changes to the "screensaver_url" field.
+func (m *OutletSettingMutation) ResetScreensaverURL() {
+	m.screensaver_url = nil
+	delete(m.clearedFields, outletsetting.FieldScreensaverURL)
 }
 
 // SetDisplayMode sets the "display_mode" field.
@@ -21034,7 +21188,7 @@ func (m *OutletSettingMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *OutletSettingMutation) Fields() []string {
-	fields := make([]string, 0, 13)
+	fields := make([]string, 0, 15)
 	if m.outlet != nil {
 		fields = append(fields, outletsetting.FieldOutletID)
 	}
@@ -21052,6 +21206,12 @@ func (m *OutletSettingMutation) Fields() []string {
 	}
 	if m.metadata != nil {
 		fields = append(fields, outletsetting.FieldMetadata)
+	}
+	if m.pin_login_message != nil {
+		fields = append(fields, outletsetting.FieldPinLoginMessage)
+	}
+	if m.screensaver_url != nil {
+		fields = append(fields, outletsetting.FieldScreensaverURL)
 	}
 	if m.display_mode != nil {
 		fields = append(fields, outletsetting.FieldDisplayMode)
@@ -21094,6 +21254,10 @@ func (m *OutletSettingMutation) Field(name string) (ent.Value, bool) {
 		return m.OpeningHoursJSON()
 	case outletsetting.FieldMetadata:
 		return m.Metadata()
+	case outletsetting.FieldPinLoginMessage:
+		return m.PinLoginMessage()
+	case outletsetting.FieldScreensaverURL:
+		return m.ScreensaverURL()
 	case outletsetting.FieldDisplayMode:
 		return m.DisplayMode()
 	case outletsetting.FieldShowImages:
@@ -21129,6 +21293,10 @@ func (m *OutletSettingMutation) OldField(ctx context.Context, name string) (ent.
 		return m.OldOpeningHoursJSON(ctx)
 	case outletsetting.FieldMetadata:
 		return m.OldMetadata(ctx)
+	case outletsetting.FieldPinLoginMessage:
+		return m.OldPinLoginMessage(ctx)
+	case outletsetting.FieldScreensaverURL:
+		return m.OldScreensaverURL(ctx)
 	case outletsetting.FieldDisplayMode:
 		return m.OldDisplayMode(ctx)
 	case outletsetting.FieldShowImages:
@@ -21193,6 +21361,20 @@ func (m *OutletSettingMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetMetadata(v)
+		return nil
+	case outletsetting.FieldPinLoginMessage:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPinLoginMessage(v)
+		return nil
+	case outletsetting.FieldScreensaverURL:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetScreensaverURL(v)
 		return nil
 	case outletsetting.FieldDisplayMode:
 		v, ok := value.(string)
@@ -21285,6 +21467,12 @@ func (m *OutletSettingMutation) ClearedFields() []string {
 	if m.FieldCleared(outletsetting.FieldOpeningHoursJSON) {
 		fields = append(fields, outletsetting.FieldOpeningHoursJSON)
 	}
+	if m.FieldCleared(outletsetting.FieldPinLoginMessage) {
+		fields = append(fields, outletsetting.FieldPinLoginMessage)
+	}
+	if m.FieldCleared(outletsetting.FieldScreensaverURL) {
+		fields = append(fields, outletsetting.FieldScreensaverURL)
+	}
 	if m.FieldCleared(outletsetting.FieldDisplayMode) {
 		fields = append(fields, outletsetting.FieldDisplayMode)
 	}
@@ -21329,6 +21517,12 @@ func (m *OutletSettingMutation) ClearField(name string) error {
 	case outletsetting.FieldOpeningHoursJSON:
 		m.ClearOpeningHoursJSON()
 		return nil
+	case outletsetting.FieldPinLoginMessage:
+		m.ClearPinLoginMessage()
+		return nil
+	case outletsetting.FieldScreensaverURL:
+		m.ClearScreensaverURL()
+		return nil
 	case outletsetting.FieldDisplayMode:
 		m.ClearDisplayMode()
 		return nil
@@ -21372,6 +21566,12 @@ func (m *OutletSettingMutation) ResetField(name string) error {
 		return nil
 	case outletsetting.FieldMetadata:
 		m.ResetMetadata()
+		return nil
+	case outletsetting.FieldPinLoginMessage:
+		m.ResetPinLoginMessage()
+		return nil
+	case outletsetting.FieldScreensaverURL:
+		m.ResetScreensaverURL()
 		return nil
 	case outletsetting.FieldDisplayMode:
 		m.ResetDisplayMode()

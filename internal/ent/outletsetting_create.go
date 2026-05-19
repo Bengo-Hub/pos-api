@@ -61,6 +61,34 @@ func (_c *OutletSettingCreate) SetMetadata(v map[string]interface{}) *OutletSett
 	return _c
 }
 
+// SetPinLoginMessage sets the "pin_login_message" field.
+func (_c *OutletSettingCreate) SetPinLoginMessage(v string) *OutletSettingCreate {
+	_c.mutation.SetPinLoginMessage(v)
+	return _c
+}
+
+// SetNillablePinLoginMessage sets the "pin_login_message" field if the given value is not nil.
+func (_c *OutletSettingCreate) SetNillablePinLoginMessage(v *string) *OutletSettingCreate {
+	if v != nil {
+		_c.SetPinLoginMessage(*v)
+	}
+	return _c
+}
+
+// SetScreensaverURL sets the "screensaver_url" field.
+func (_c *OutletSettingCreate) SetScreensaverURL(v string) *OutletSettingCreate {
+	_c.mutation.SetScreensaverURL(v)
+	return _c
+}
+
+// SetNillableScreensaverURL sets the "screensaver_url" field if the given value is not nil.
+func (_c *OutletSettingCreate) SetNillableScreensaverURL(v *string) *OutletSettingCreate {
+	if v != nil {
+		_c.SetScreensaverURL(*v)
+	}
+	return _c
+}
+
 // SetDisplayMode sets the "display_mode" field.
 func (_c *OutletSettingCreate) SetDisplayMode(v string) *OutletSettingCreate {
 	_c.mutation.SetDisplayMode(v)
@@ -321,6 +349,14 @@ func (_c *OutletSettingCreate) createSpec() (*OutletSetting, *sqlgraph.CreateSpe
 		_spec.SetField(outletsetting.FieldMetadata, field.TypeJSON, value)
 		_node.Metadata = value
 	}
+	if value, ok := _c.mutation.PinLoginMessage(); ok {
+		_spec.SetField(outletsetting.FieldPinLoginMessage, field.TypeString, value)
+		_node.PinLoginMessage = &value
+	}
+	if value, ok := _c.mutation.ScreensaverURL(); ok {
+		_spec.SetField(outletsetting.FieldScreensaverURL, field.TypeString, value)
+		_node.ScreensaverURL = &value
+	}
 	if value, ok := _c.mutation.DisplayMode(); ok {
 		_spec.SetField(outletsetting.FieldDisplayMode, field.TypeString, value)
 		_node.DisplayMode = value
@@ -511,6 +547,42 @@ func (u *OutletSettingUpsert) SetMetadata(v map[string]interface{}) *OutletSetti
 // UpdateMetadata sets the "metadata" field to the value that was provided on create.
 func (u *OutletSettingUpsert) UpdateMetadata() *OutletSettingUpsert {
 	u.SetExcluded(outletsetting.FieldMetadata)
+	return u
+}
+
+// SetPinLoginMessage sets the "pin_login_message" field.
+func (u *OutletSettingUpsert) SetPinLoginMessage(v string) *OutletSettingUpsert {
+	u.Set(outletsetting.FieldPinLoginMessage, v)
+	return u
+}
+
+// UpdatePinLoginMessage sets the "pin_login_message" field to the value that was provided on create.
+func (u *OutletSettingUpsert) UpdatePinLoginMessage() *OutletSettingUpsert {
+	u.SetExcluded(outletsetting.FieldPinLoginMessage)
+	return u
+}
+
+// ClearPinLoginMessage clears the value of the "pin_login_message" field.
+func (u *OutletSettingUpsert) ClearPinLoginMessage() *OutletSettingUpsert {
+	u.SetNull(outletsetting.FieldPinLoginMessage)
+	return u
+}
+
+// SetScreensaverURL sets the "screensaver_url" field.
+func (u *OutletSettingUpsert) SetScreensaverURL(v string) *OutletSettingUpsert {
+	u.Set(outletsetting.FieldScreensaverURL, v)
+	return u
+}
+
+// UpdateScreensaverURL sets the "screensaver_url" field to the value that was provided on create.
+func (u *OutletSettingUpsert) UpdateScreensaverURL() *OutletSettingUpsert {
+	u.SetExcluded(outletsetting.FieldScreensaverURL)
+	return u
+}
+
+// ClearScreensaverURL clears the value of the "screensaver_url" field.
+func (u *OutletSettingUpsert) ClearScreensaverURL() *OutletSettingUpsert {
+	u.SetNull(outletsetting.FieldScreensaverURL)
 	return u
 }
 
@@ -791,6 +863,48 @@ func (u *OutletSettingUpsertOne) SetMetadata(v map[string]interface{}) *OutletSe
 func (u *OutletSettingUpsertOne) UpdateMetadata() *OutletSettingUpsertOne {
 	return u.Update(func(s *OutletSettingUpsert) {
 		s.UpdateMetadata()
+	})
+}
+
+// SetPinLoginMessage sets the "pin_login_message" field.
+func (u *OutletSettingUpsertOne) SetPinLoginMessage(v string) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetPinLoginMessage(v)
+	})
+}
+
+// UpdatePinLoginMessage sets the "pin_login_message" field to the value that was provided on create.
+func (u *OutletSettingUpsertOne) UpdatePinLoginMessage() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdatePinLoginMessage()
+	})
+}
+
+// ClearPinLoginMessage clears the value of the "pin_login_message" field.
+func (u *OutletSettingUpsertOne) ClearPinLoginMessage() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearPinLoginMessage()
+	})
+}
+
+// SetScreensaverURL sets the "screensaver_url" field.
+func (u *OutletSettingUpsertOne) SetScreensaverURL(v string) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetScreensaverURL(v)
+	})
+}
+
+// UpdateScreensaverURL sets the "screensaver_url" field to the value that was provided on create.
+func (u *OutletSettingUpsertOne) UpdateScreensaverURL() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateScreensaverURL()
+	})
+}
+
+// ClearScreensaverURL clears the value of the "screensaver_url" field.
+func (u *OutletSettingUpsertOne) ClearScreensaverURL() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearScreensaverURL()
 	})
 }
 
@@ -1258,6 +1372,48 @@ func (u *OutletSettingUpsertBulk) SetMetadata(v map[string]interface{}) *OutletS
 func (u *OutletSettingUpsertBulk) UpdateMetadata() *OutletSettingUpsertBulk {
 	return u.Update(func(s *OutletSettingUpsert) {
 		s.UpdateMetadata()
+	})
+}
+
+// SetPinLoginMessage sets the "pin_login_message" field.
+func (u *OutletSettingUpsertBulk) SetPinLoginMessage(v string) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetPinLoginMessage(v)
+	})
+}
+
+// UpdatePinLoginMessage sets the "pin_login_message" field to the value that was provided on create.
+func (u *OutletSettingUpsertBulk) UpdatePinLoginMessage() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdatePinLoginMessage()
+	})
+}
+
+// ClearPinLoginMessage clears the value of the "pin_login_message" field.
+func (u *OutletSettingUpsertBulk) ClearPinLoginMessage() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearPinLoginMessage()
+	})
+}
+
+// SetScreensaverURL sets the "screensaver_url" field.
+func (u *OutletSettingUpsertBulk) SetScreensaverURL(v string) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetScreensaverURL(v)
+	})
+}
+
+// UpdateScreensaverURL sets the "screensaver_url" field to the value that was provided on create.
+func (u *OutletSettingUpsertBulk) UpdateScreensaverURL() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateScreensaverURL()
+	})
+}
+
+// ClearScreensaverURL clears the value of the "screensaver_url" field.
+func (u *OutletSettingUpsertBulk) ClearScreensaverURL() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearScreensaverURL()
 	})
 }
 

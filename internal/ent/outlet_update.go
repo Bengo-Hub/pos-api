@@ -162,6 +162,20 @@ func (_u *OutletUpdate) ClearUseCase() *OutletUpdate {
 	return _u
 }
 
+// SetIsHq sets the "is_hq" field.
+func (_u *OutletUpdate) SetIsHq(v bool) *OutletUpdate {
+	_u.mutation.SetIsHq(v)
+	return _u
+}
+
+// SetNillableIsHq sets the "is_hq" field if the given value is not nil.
+func (_u *OutletUpdate) SetNillableIsHq(v *bool) *OutletUpdate {
+	if v != nil {
+		_u.SetIsHq(*v)
+	}
+	return _u
+}
+
 // SetOpenedAt sets the "opened_at" field.
 func (_u *OutletUpdate) SetOpenedAt(v time.Time) *OutletUpdate {
 	_u.mutation.SetOpenedAt(v)
@@ -385,6 +399,9 @@ func (_u *OutletUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.UseCaseCleared() {
 		_spec.ClearField(outlet.FieldUseCase, field.TypeString)
+	}
+	if value, ok := _u.mutation.IsHq(); ok {
+		_spec.SetField(outlet.FieldIsHq, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.OpenedAt(); ok {
 		_spec.SetField(outlet.FieldOpenedAt, field.TypeTime, value)
@@ -654,6 +671,20 @@ func (_u *OutletUpdateOne) ClearUseCase() *OutletUpdateOne {
 	return _u
 }
 
+// SetIsHq sets the "is_hq" field.
+func (_u *OutletUpdateOne) SetIsHq(v bool) *OutletUpdateOne {
+	_u.mutation.SetIsHq(v)
+	return _u
+}
+
+// SetNillableIsHq sets the "is_hq" field if the given value is not nil.
+func (_u *OutletUpdateOne) SetNillableIsHq(v *bool) *OutletUpdateOne {
+	if v != nil {
+		_u.SetIsHq(*v)
+	}
+	return _u
+}
+
 // SetOpenedAt sets the "opened_at" field.
 func (_u *OutletUpdateOne) SetOpenedAt(v time.Time) *OutletUpdateOne {
 	_u.mutation.SetOpenedAt(v)
@@ -907,6 +938,9 @@ func (_u *OutletUpdateOne) sqlSave(ctx context.Context) (_node *Outlet, err erro
 	}
 	if _u.mutation.UseCaseCleared() {
 		_spec.ClearField(outlet.FieldUseCase, field.TypeString)
+	}
+	if value, ok := _u.mutation.IsHq(); ok {
+		_spec.SetField(outlet.FieldIsHq, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.OpenedAt(); ok {
 		_spec.SetField(outlet.FieldOpenedAt, field.TypeTime, value)

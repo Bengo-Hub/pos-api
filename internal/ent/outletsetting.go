@@ -32,6 +32,10 @@ type OutletSetting struct {
 	OpeningHoursJSON map[string]interface{} `json:"opening_hours_json,omitempty"`
 	// Metadata holds the value of the "metadata" field.
 	Metadata map[string]interface{} `json:"metadata,omitempty"`
+	// Admin-set message shown on PIN login screen, e.g. 'Shift starts 8AM'
+	PinLoginMessage *string `json:"pin_login_message,omitempty"`
+	// Custom screensaver URL for idle terminal
+	ScreensaverURL *string `json:"screensaver_url,omitempty"`
 	// list=supermarket/hardware, card=restaurant, image_grid=bar/lounge
 	DisplayMode string `json:"display_mode,omitempty"`
 	// Show item images in catalog view
@@ -81,7 +85,7 @@ func (*OutletSetting) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case outletsetting.FieldShowImages, outletsetting.FieldShowBarcodeScanner, outletsetting.FieldEnableKds, outletsetting.FieldEnableAppointments:
 			values[i] = new(sql.NullBool)
-		case outletsetting.FieldDisplayMode, outletsetting.FieldDefaultView:
+		case outletsetting.FieldPinLoginMessage, outletsetting.FieldScreensaverURL, outletsetting.FieldDisplayMode, outletsetting.FieldDefaultView:
 			values[i] = new(sql.NullString)
 		case outletsetting.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -153,6 +157,20 @@ func (_m *OutletSetting) assignValues(columns []string, values []any) error {
 				if err := json.Unmarshal(*value, &_m.Metadata); err != nil {
 					return fmt.Errorf("unmarshal field metadata: %w", err)
 				}
+			}
+		case outletsetting.FieldPinLoginMessage:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field pin_login_message", values[i])
+			} else if value.Valid {
+				_m.PinLoginMessage = new(string)
+				*_m.PinLoginMessage = value.String
+			}
+		case outletsetting.FieldScreensaverURL:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field screensaver_url", values[i])
+			} else if value.Valid {
+				_m.ScreensaverURL = new(string)
+				*_m.ScreensaverURL = value.String
 			}
 		case outletsetting.FieldDisplayMode:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -254,6 +272,16 @@ func (_m *OutletSetting) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("metadata=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Metadata))
+	builder.WriteString(", ")
+	if v := _m.PinLoginMessage; v != nil {
+		builder.WriteString("pin_login_message=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.ScreensaverURL; v != nil {
+		builder.WriteString("screensaver_url=")
+		builder.WriteString(*v)
+	}
 	builder.WriteString(", ")
 	builder.WriteString("display_mode=")
 	builder.WriteString(_m.DisplayMode)

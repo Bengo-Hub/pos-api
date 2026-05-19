@@ -27,6 +27,10 @@ const (
 	FieldOpeningHoursJSON = "opening_hours_json"
 	// FieldMetadata holds the string denoting the metadata field in the database.
 	FieldMetadata = "metadata"
+	// FieldPinLoginMessage holds the string denoting the pin_login_message field in the database.
+	FieldPinLoginMessage = "pin_login_message"
+	// FieldScreensaverURL holds the string denoting the screensaver_url field in the database.
+	FieldScreensaverURL = "screensaver_url"
 	// FieldDisplayMode holds the string denoting the display_mode field in the database.
 	FieldDisplayMode = "display_mode"
 	// FieldShowImages holds the string denoting the show_images field in the database.
@@ -63,6 +67,8 @@ var Columns = []string{
 	FieldServiceChargeJSON,
 	FieldOpeningHoursJSON,
 	FieldMetadata,
+	FieldPinLoginMessage,
+	FieldScreensaverURL,
 	FieldDisplayMode,
 	FieldShowImages,
 	FieldShowBarcodeScanner,
@@ -116,6 +122,16 @@ func ByID(opts ...sql.OrderTermOption) OrderOption {
 // ByOutletID orders the results by the outlet_id field.
 func ByOutletID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldOutletID, opts...).ToFunc()
+}
+
+// ByPinLoginMessage orders the results by the pin_login_message field.
+func ByPinLoginMessage(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPinLoginMessage, opts...).ToFunc()
+}
+
+// ByScreensaverURL orders the results by the screensaver_url field.
+func ByScreensaverURL(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldScreensaverURL, opts...).ToFunc()
 }
 
 // ByDisplayMode orders the results by the display_mode field.

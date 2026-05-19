@@ -113,6 +113,20 @@ func (_c *OutletCreate) SetNillableUseCase(v *string) *OutletCreate {
 	return _c
 }
 
+// SetIsHq sets the "is_hq" field.
+func (_c *OutletCreate) SetIsHq(v bool) *OutletCreate {
+	_c.mutation.SetIsHq(v)
+	return _c
+}
+
+// SetNillableIsHq sets the "is_hq" field if the given value is not nil.
+func (_c *OutletCreate) SetNillableIsHq(v *bool) *OutletCreate {
+	if v != nil {
+		_c.SetIsHq(*v)
+	}
+	return _c
+}
+
 // SetOpenedAt sets the "opened_at" field.
 func (_c *OutletCreate) SetOpenedAt(v time.Time) *OutletCreate {
 	_c.mutation.SetOpenedAt(v)
@@ -269,6 +283,10 @@ func (_c *OutletCreate) defaults() {
 		v := outlet.DefaultStatus
 		_c.mutation.SetStatus(v)
 	}
+	if _, ok := _c.mutation.IsHq(); !ok {
+		v := outlet.DefaultIsHq
+		_c.mutation.SetIsHq(v)
+	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		v := outlet.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
@@ -320,6 +338,9 @@ func (_c *OutletCreate) check() error {
 	}
 	if _, ok := _c.mutation.Status(); !ok {
 		return &ValidationError{Name: "status", err: errors.New(`ent: missing required field "Outlet.status"`)}
+	}
+	if _, ok := _c.mutation.IsHq(); !ok {
+		return &ValidationError{Name: "is_hq", err: errors.New(`ent: missing required field "Outlet.is_hq"`)}
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "Outlet.created_at"`)}
@@ -397,6 +418,10 @@ func (_c *OutletCreate) createSpec() (*Outlet, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.UseCase(); ok {
 		_spec.SetField(outlet.FieldUseCase, field.TypeString, value)
 		_node.UseCase = &value
+	}
+	if value, ok := _c.mutation.IsHq(); ok {
+		_spec.SetField(outlet.FieldIsHq, field.TypeBool, value)
+		_node.IsHq = value
 	}
 	if value, ok := _c.mutation.OpenedAt(); ok {
 		_spec.SetField(outlet.FieldOpenedAt, field.TypeTime, value)
@@ -632,6 +657,18 @@ func (u *OutletUpsert) UpdateUseCase() *OutletUpsert {
 // ClearUseCase clears the value of the "use_case" field.
 func (u *OutletUpsert) ClearUseCase() *OutletUpsert {
 	u.SetNull(outlet.FieldUseCase)
+	return u
+}
+
+// SetIsHq sets the "is_hq" field.
+func (u *OutletUpsert) SetIsHq(v bool) *OutletUpsert {
+	u.Set(outlet.FieldIsHq, v)
+	return u
+}
+
+// UpdateIsHq sets the "is_hq" field to the value that was provided on create.
+func (u *OutletUpsert) UpdateIsHq() *OutletUpsert {
+	u.SetExcluded(outlet.FieldIsHq)
 	return u
 }
 
@@ -871,6 +908,20 @@ func (u *OutletUpsertOne) UpdateUseCase() *OutletUpsertOne {
 func (u *OutletUpsertOne) ClearUseCase() *OutletUpsertOne {
 	return u.Update(func(s *OutletUpsert) {
 		s.ClearUseCase()
+	})
+}
+
+// SetIsHq sets the "is_hq" field.
+func (u *OutletUpsertOne) SetIsHq(v bool) *OutletUpsertOne {
+	return u.Update(func(s *OutletUpsert) {
+		s.SetIsHq(v)
+	})
+}
+
+// UpdateIsHq sets the "is_hq" field to the value that was provided on create.
+func (u *OutletUpsertOne) UpdateIsHq() *OutletUpsertOne {
+	return u.Update(func(s *OutletUpsert) {
+		s.UpdateIsHq()
 	})
 }
 
@@ -1285,6 +1336,20 @@ func (u *OutletUpsertBulk) UpdateUseCase() *OutletUpsertBulk {
 func (u *OutletUpsertBulk) ClearUseCase() *OutletUpsertBulk {
 	return u.Update(func(s *OutletUpsert) {
 		s.ClearUseCase()
+	})
+}
+
+// SetIsHq sets the "is_hq" field.
+func (u *OutletUpsertBulk) SetIsHq(v bool) *OutletUpsertBulk {
+	return u.Update(func(s *OutletUpsert) {
+		s.SetIsHq(v)
+	})
+}
+
+// UpdateIsHq sets the "is_hq" field to the value that was provided on create.
+func (u *OutletUpsertBulk) UpdateIsHq() *OutletUpsertBulk {
+	return u.Update(func(s *OutletUpsert) {
+		s.UpdateIsHq()
 	})
 }
 

@@ -582,6 +582,7 @@ var (
 		{Name: "timezone", Type: field.TypeString, Default: "Africa/Nairobi"},
 		{Name: "status", Type: field.TypeString, Default: "active"},
 		{Name: "use_case", Type: field.TypeString, Nullable: true},
+		{Name: "is_hq", Type: field.TypeBool, Default: false},
 		{Name: "opened_at", Type: field.TypeTime, Nullable: true},
 		{Name: "closed_at", Type: field.TypeTime, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime},
@@ -596,7 +597,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "outlets_tenants_outlets",
-				Columns:    []*schema.Column{OutletsColumns[13]},
+				Columns:    []*schema.Column{OutletsColumns[14]},
 				RefColumns: []*schema.Column{TenantsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -605,7 +606,7 @@ var (
 			{
 				Name:    "outlet_tenant_id_code",
 				Unique:  true,
-				Columns: []*schema.Column{OutletsColumns[13], OutletsColumns[2]},
+				Columns: []*schema.Column{OutletsColumns[14], OutletsColumns[2]},
 			},
 			{
 				Name:    "outlet_tenant_slug",
@@ -622,6 +623,8 @@ var (
 		{Name: "service_charge_json", Type: field.TypeJSON, Nullable: true},
 		{Name: "opening_hours_json", Type: field.TypeJSON, Nullable: true},
 		{Name: "metadata", Type: field.TypeJSON},
+		{Name: "pin_login_message", Type: field.TypeString, Nullable: true},
+		{Name: "screensaver_url", Type: field.TypeString, Nullable: true},
 		{Name: "display_mode", Type: field.TypeString, Nullable: true, Default: "card"},
 		{Name: "show_images", Type: field.TypeBool, Nullable: true, Default: true},
 		{Name: "show_barcode_scanner", Type: field.TypeBool, Nullable: true, Default: false},
@@ -639,7 +642,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "outlet_settings_outlets_settings",
-				Columns:    []*schema.Column{OutletSettingsColumns[13]},
+				Columns:    []*schema.Column{OutletSettingsColumns[15]},
 				RefColumns: []*schema.Column{OutletsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},

@@ -39,7 +39,10 @@ func (Outlet) Fields() []ent.Field {
 		field.String("use_case").
 			Optional().
 			Nillable().
-			Comment("Use case for this outlet (e.g., hospitality, retail)"),
+			Comment("Use case for this outlet: hospitality | quick_service | retail | pharmacy | services | warehouse"),
+		field.Bool("is_hq").
+			Default(false).
+			Comment("HQ outlets bypass outlet-scoped data filtering — staff see all outlets"),
 		field.Time("opened_at").
 			Optional().
 			Nillable(),

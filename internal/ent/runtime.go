@@ -630,12 +630,16 @@ func init() {
 	outletDescStatus := outletFields[8].Descriptor()
 	// outlet.DefaultStatus holds the default value on creation for the status field.
 	outlet.DefaultStatus = outletDescStatus.Default.(string)
+	// outletDescIsHq is the schema descriptor for is_hq field.
+	outletDescIsHq := outletFields[10].Descriptor()
+	// outlet.DefaultIsHq holds the default value on creation for the is_hq field.
+	outlet.DefaultIsHq = outletDescIsHq.Default.(bool)
 	// outletDescCreatedAt is the schema descriptor for created_at field.
-	outletDescCreatedAt := outletFields[12].Descriptor()
+	outletDescCreatedAt := outletFields[13].Descriptor()
 	// outlet.DefaultCreatedAt holds the default value on creation for the created_at field.
 	outlet.DefaultCreatedAt = outletDescCreatedAt.Default.(func() time.Time)
 	// outletDescUpdatedAt is the schema descriptor for updated_at field.
-	outletDescUpdatedAt := outletFields[13].Descriptor()
+	outletDescUpdatedAt := outletFields[14].Descriptor()
 	// outlet.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	outlet.DefaultUpdatedAt = outletDescUpdatedAt.Default.(func() time.Time)
 	// outlet.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -651,31 +655,31 @@ func init() {
 	// outletsetting.DefaultMetadata holds the default value on creation for the metadata field.
 	outletsetting.DefaultMetadata = outletsettingDescMetadata.Default.(map[string]interface{})
 	// outletsettingDescDisplayMode is the schema descriptor for display_mode field.
-	outletsettingDescDisplayMode := outletsettingFields[7].Descriptor()
+	outletsettingDescDisplayMode := outletsettingFields[9].Descriptor()
 	// outletsetting.DefaultDisplayMode holds the default value on creation for the display_mode field.
 	outletsetting.DefaultDisplayMode = outletsettingDescDisplayMode.Default.(string)
 	// outletsettingDescShowImages is the schema descriptor for show_images field.
-	outletsettingDescShowImages := outletsettingFields[8].Descriptor()
+	outletsettingDescShowImages := outletsettingFields[10].Descriptor()
 	// outletsetting.DefaultShowImages holds the default value on creation for the show_images field.
 	outletsetting.DefaultShowImages = outletsettingDescShowImages.Default.(bool)
 	// outletsettingDescShowBarcodeScanner is the schema descriptor for show_barcode_scanner field.
-	outletsettingDescShowBarcodeScanner := outletsettingFields[9].Descriptor()
+	outletsettingDescShowBarcodeScanner := outletsettingFields[11].Descriptor()
 	// outletsetting.DefaultShowBarcodeScanner holds the default value on creation for the show_barcode_scanner field.
 	outletsetting.DefaultShowBarcodeScanner = outletsettingDescShowBarcodeScanner.Default.(bool)
 	// outletsettingDescDefaultView is the schema descriptor for default_view field.
-	outletsettingDescDefaultView := outletsettingFields[10].Descriptor()
+	outletsettingDescDefaultView := outletsettingFields[12].Descriptor()
 	// outletsetting.DefaultDefaultView holds the default value on creation for the default_view field.
 	outletsetting.DefaultDefaultView = outletsettingDescDefaultView.Default.(string)
 	// outletsettingDescEnableKds is the schema descriptor for enable_kds field.
-	outletsettingDescEnableKds := outletsettingFields[11].Descriptor()
+	outletsettingDescEnableKds := outletsettingFields[13].Descriptor()
 	// outletsetting.DefaultEnableKds holds the default value on creation for the enable_kds field.
 	outletsetting.DefaultEnableKds = outletsettingDescEnableKds.Default.(bool)
 	// outletsettingDescEnableAppointments is the schema descriptor for enable_appointments field.
-	outletsettingDescEnableAppointments := outletsettingFields[12].Descriptor()
+	outletsettingDescEnableAppointments := outletsettingFields[14].Descriptor()
 	// outletsetting.DefaultEnableAppointments holds the default value on creation for the enable_appointments field.
 	outletsetting.DefaultEnableAppointments = outletsettingDescEnableAppointments.Default.(bool)
 	// outletsettingDescUpdatedAt is the schema descriptor for updated_at field.
-	outletsettingDescUpdatedAt := outletsettingFields[13].Descriptor()
+	outletsettingDescUpdatedAt := outletsettingFields[15].Descriptor()
 	// outletsetting.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	outletsetting.DefaultUpdatedAt = outletsettingDescUpdatedAt.Default.(func() time.Time)
 	// outletsetting.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

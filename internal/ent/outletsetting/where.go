@@ -61,6 +61,16 @@ func OutletID(v uuid.UUID) predicate.OutletSetting {
 	return predicate.OutletSetting(sql.FieldEQ(FieldOutletID, v))
 }
 
+// PinLoginMessage applies equality check predicate on the "pin_login_message" field. It's identical to PinLoginMessageEQ.
+func PinLoginMessage(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldPinLoginMessage, v))
+}
+
+// ScreensaverURL applies equality check predicate on the "screensaver_url" field. It's identical to ScreensaverURLEQ.
+func ScreensaverURL(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldScreensaverURL, v))
+}
+
 // DisplayMode applies equality check predicate on the "display_mode" field. It's identical to DisplayModeEQ.
 func DisplayMode(v string) predicate.OutletSetting {
 	return predicate.OutletSetting(sql.FieldEQ(FieldDisplayMode, v))
@@ -154,6 +164,156 @@ func OpeningHoursJSONIsNil() predicate.OutletSetting {
 // OpeningHoursJSONNotNil applies the NotNil predicate on the "opening_hours_json" field.
 func OpeningHoursJSONNotNil() predicate.OutletSetting {
 	return predicate.OutletSetting(sql.FieldNotNull(FieldOpeningHoursJSON))
+}
+
+// PinLoginMessageEQ applies the EQ predicate on the "pin_login_message" field.
+func PinLoginMessageEQ(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldPinLoginMessage, v))
+}
+
+// PinLoginMessageNEQ applies the NEQ predicate on the "pin_login_message" field.
+func PinLoginMessageNEQ(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNEQ(FieldPinLoginMessage, v))
+}
+
+// PinLoginMessageIn applies the In predicate on the "pin_login_message" field.
+func PinLoginMessageIn(vs ...string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIn(FieldPinLoginMessage, vs...))
+}
+
+// PinLoginMessageNotIn applies the NotIn predicate on the "pin_login_message" field.
+func PinLoginMessageNotIn(vs ...string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotIn(FieldPinLoginMessage, vs...))
+}
+
+// PinLoginMessageGT applies the GT predicate on the "pin_login_message" field.
+func PinLoginMessageGT(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGT(FieldPinLoginMessage, v))
+}
+
+// PinLoginMessageGTE applies the GTE predicate on the "pin_login_message" field.
+func PinLoginMessageGTE(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGTE(FieldPinLoginMessage, v))
+}
+
+// PinLoginMessageLT applies the LT predicate on the "pin_login_message" field.
+func PinLoginMessageLT(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLT(FieldPinLoginMessage, v))
+}
+
+// PinLoginMessageLTE applies the LTE predicate on the "pin_login_message" field.
+func PinLoginMessageLTE(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLTE(FieldPinLoginMessage, v))
+}
+
+// PinLoginMessageContains applies the Contains predicate on the "pin_login_message" field.
+func PinLoginMessageContains(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldContains(FieldPinLoginMessage, v))
+}
+
+// PinLoginMessageHasPrefix applies the HasPrefix predicate on the "pin_login_message" field.
+func PinLoginMessageHasPrefix(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldHasPrefix(FieldPinLoginMessage, v))
+}
+
+// PinLoginMessageHasSuffix applies the HasSuffix predicate on the "pin_login_message" field.
+func PinLoginMessageHasSuffix(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldHasSuffix(FieldPinLoginMessage, v))
+}
+
+// PinLoginMessageIsNil applies the IsNil predicate on the "pin_login_message" field.
+func PinLoginMessageIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldPinLoginMessage))
+}
+
+// PinLoginMessageNotNil applies the NotNil predicate on the "pin_login_message" field.
+func PinLoginMessageNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldPinLoginMessage))
+}
+
+// PinLoginMessageEqualFold applies the EqualFold predicate on the "pin_login_message" field.
+func PinLoginMessageEqualFold(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEqualFold(FieldPinLoginMessage, v))
+}
+
+// PinLoginMessageContainsFold applies the ContainsFold predicate on the "pin_login_message" field.
+func PinLoginMessageContainsFold(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldContainsFold(FieldPinLoginMessage, v))
+}
+
+// ScreensaverURLEQ applies the EQ predicate on the "screensaver_url" field.
+func ScreensaverURLEQ(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldScreensaverURL, v))
+}
+
+// ScreensaverURLNEQ applies the NEQ predicate on the "screensaver_url" field.
+func ScreensaverURLNEQ(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNEQ(FieldScreensaverURL, v))
+}
+
+// ScreensaverURLIn applies the In predicate on the "screensaver_url" field.
+func ScreensaverURLIn(vs ...string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIn(FieldScreensaverURL, vs...))
+}
+
+// ScreensaverURLNotIn applies the NotIn predicate on the "screensaver_url" field.
+func ScreensaverURLNotIn(vs ...string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotIn(FieldScreensaverURL, vs...))
+}
+
+// ScreensaverURLGT applies the GT predicate on the "screensaver_url" field.
+func ScreensaverURLGT(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGT(FieldScreensaverURL, v))
+}
+
+// ScreensaverURLGTE applies the GTE predicate on the "screensaver_url" field.
+func ScreensaverURLGTE(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGTE(FieldScreensaverURL, v))
+}
+
+// ScreensaverURLLT applies the LT predicate on the "screensaver_url" field.
+func ScreensaverURLLT(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLT(FieldScreensaverURL, v))
+}
+
+// ScreensaverURLLTE applies the LTE predicate on the "screensaver_url" field.
+func ScreensaverURLLTE(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLTE(FieldScreensaverURL, v))
+}
+
+// ScreensaverURLContains applies the Contains predicate on the "screensaver_url" field.
+func ScreensaverURLContains(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldContains(FieldScreensaverURL, v))
+}
+
+// ScreensaverURLHasPrefix applies the HasPrefix predicate on the "screensaver_url" field.
+func ScreensaverURLHasPrefix(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldHasPrefix(FieldScreensaverURL, v))
+}
+
+// ScreensaverURLHasSuffix applies the HasSuffix predicate on the "screensaver_url" field.
+func ScreensaverURLHasSuffix(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldHasSuffix(FieldScreensaverURL, v))
+}
+
+// ScreensaverURLIsNil applies the IsNil predicate on the "screensaver_url" field.
+func ScreensaverURLIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldScreensaverURL))
+}
+
+// ScreensaverURLNotNil applies the NotNil predicate on the "screensaver_url" field.
+func ScreensaverURLNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldScreensaverURL))
+}
+
+// ScreensaverURLEqualFold applies the EqualFold predicate on the "screensaver_url" field.
+func ScreensaverURLEqualFold(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEqualFold(FieldScreensaverURL, v))
+}
+
+// ScreensaverURLContainsFold applies the ContainsFold predicate on the "screensaver_url" field.
+func ScreensaverURLContainsFold(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldContainsFold(FieldScreensaverURL, v))
 }
 
 // DisplayModeEQ applies the EQ predicate on the "display_mode" field.

@@ -98,6 +98,46 @@ func (_u *OutletSettingUpdate) SetMetadata(v map[string]interface{}) *OutletSett
 	return _u
 }
 
+// SetPinLoginMessage sets the "pin_login_message" field.
+func (_u *OutletSettingUpdate) SetPinLoginMessage(v string) *OutletSettingUpdate {
+	_u.mutation.SetPinLoginMessage(v)
+	return _u
+}
+
+// SetNillablePinLoginMessage sets the "pin_login_message" field if the given value is not nil.
+func (_u *OutletSettingUpdate) SetNillablePinLoginMessage(v *string) *OutletSettingUpdate {
+	if v != nil {
+		_u.SetPinLoginMessage(*v)
+	}
+	return _u
+}
+
+// ClearPinLoginMessage clears the value of the "pin_login_message" field.
+func (_u *OutletSettingUpdate) ClearPinLoginMessage() *OutletSettingUpdate {
+	_u.mutation.ClearPinLoginMessage()
+	return _u
+}
+
+// SetScreensaverURL sets the "screensaver_url" field.
+func (_u *OutletSettingUpdate) SetScreensaverURL(v string) *OutletSettingUpdate {
+	_u.mutation.SetScreensaverURL(v)
+	return _u
+}
+
+// SetNillableScreensaverURL sets the "screensaver_url" field if the given value is not nil.
+func (_u *OutletSettingUpdate) SetNillableScreensaverURL(v *string) *OutletSettingUpdate {
+	if v != nil {
+		_u.SetScreensaverURL(*v)
+	}
+	return _u
+}
+
+// ClearScreensaverURL clears the value of the "screensaver_url" field.
+func (_u *OutletSettingUpdate) ClearScreensaverURL() *OutletSettingUpdate {
+	_u.mutation.ClearScreensaverURL()
+	return _u
+}
+
 // SetDisplayMode sets the "display_mode" field.
 func (_u *OutletSettingUpdate) SetDisplayMode(v string) *OutletSettingUpdate {
 	_u.mutation.SetDisplayMode(v)
@@ -323,6 +363,18 @@ func (_u *OutletSettingUpdate) sqlSave(ctx context.Context) (_node int, err erro
 	if value, ok := _u.mutation.Metadata(); ok {
 		_spec.SetField(outletsetting.FieldMetadata, field.TypeJSON, value)
 	}
+	if value, ok := _u.mutation.PinLoginMessage(); ok {
+		_spec.SetField(outletsetting.FieldPinLoginMessage, field.TypeString, value)
+	}
+	if _u.mutation.PinLoginMessageCleared() {
+		_spec.ClearField(outletsetting.FieldPinLoginMessage, field.TypeString)
+	}
+	if value, ok := _u.mutation.ScreensaverURL(); ok {
+		_spec.SetField(outletsetting.FieldScreensaverURL, field.TypeString, value)
+	}
+	if _u.mutation.ScreensaverURLCleared() {
+		_spec.ClearField(outletsetting.FieldScreensaverURL, field.TypeString)
+	}
 	if value, ok := _u.mutation.DisplayMode(); ok {
 		_spec.SetField(outletsetting.FieldDisplayMode, field.TypeString, value)
 	}
@@ -476,6 +528,46 @@ func (_u *OutletSettingUpdateOne) ClearOpeningHoursJSON() *OutletSettingUpdateOn
 // SetMetadata sets the "metadata" field.
 func (_u *OutletSettingUpdateOne) SetMetadata(v map[string]interface{}) *OutletSettingUpdateOne {
 	_u.mutation.SetMetadata(v)
+	return _u
+}
+
+// SetPinLoginMessage sets the "pin_login_message" field.
+func (_u *OutletSettingUpdateOne) SetPinLoginMessage(v string) *OutletSettingUpdateOne {
+	_u.mutation.SetPinLoginMessage(v)
+	return _u
+}
+
+// SetNillablePinLoginMessage sets the "pin_login_message" field if the given value is not nil.
+func (_u *OutletSettingUpdateOne) SetNillablePinLoginMessage(v *string) *OutletSettingUpdateOne {
+	if v != nil {
+		_u.SetPinLoginMessage(*v)
+	}
+	return _u
+}
+
+// ClearPinLoginMessage clears the value of the "pin_login_message" field.
+func (_u *OutletSettingUpdateOne) ClearPinLoginMessage() *OutletSettingUpdateOne {
+	_u.mutation.ClearPinLoginMessage()
+	return _u
+}
+
+// SetScreensaverURL sets the "screensaver_url" field.
+func (_u *OutletSettingUpdateOne) SetScreensaverURL(v string) *OutletSettingUpdateOne {
+	_u.mutation.SetScreensaverURL(v)
+	return _u
+}
+
+// SetNillableScreensaverURL sets the "screensaver_url" field if the given value is not nil.
+func (_u *OutletSettingUpdateOne) SetNillableScreensaverURL(v *string) *OutletSettingUpdateOne {
+	if v != nil {
+		_u.SetScreensaverURL(*v)
+	}
+	return _u
+}
+
+// ClearScreensaverURL clears the value of the "screensaver_url" field.
+func (_u *OutletSettingUpdateOne) ClearScreensaverURL() *OutletSettingUpdateOne {
+	_u.mutation.ClearScreensaverURL()
 	return _u
 }
 
@@ -733,6 +825,18 @@ func (_u *OutletSettingUpdateOne) sqlSave(ctx context.Context) (_node *OutletSet
 	}
 	if value, ok := _u.mutation.Metadata(); ok {
 		_spec.SetField(outletsetting.FieldMetadata, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.PinLoginMessage(); ok {
+		_spec.SetField(outletsetting.FieldPinLoginMessage, field.TypeString, value)
+	}
+	if _u.mutation.PinLoginMessageCleared() {
+		_spec.ClearField(outletsetting.FieldPinLoginMessage, field.TypeString)
+	}
+	if value, ok := _u.mutation.ScreensaverURL(); ok {
+		_spec.SetField(outletsetting.FieldScreensaverURL, field.TypeString, value)
+	}
+	if _u.mutation.ScreensaverURLCleared() {
+		_spec.ClearField(outletsetting.FieldScreensaverURL, field.TypeString)
 	}
 	if value, ok := _u.mutation.DisplayMode(); ok {
 		_spec.SetField(outletsetting.FieldDisplayMode, field.TypeString, value)

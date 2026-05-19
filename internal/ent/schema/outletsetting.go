@@ -31,6 +31,8 @@ func (OutletSetting) Fields() []ent.Field {
 			Optional(),
 		field.JSON("metadata", map[string]any{}).
 			Default(map[string]any{}),
+		field.String("pin_login_message").Optional().Nillable().Comment("Admin-set message shown on PIN login screen, e.g. 'Shift starts 8AM'"),
+		field.String("screensaver_url").Optional().Nillable().Comment("Custom screensaver URL for idle terminal"),
 		field.String("display_mode").Default("card").Optional().Comment("list=supermarket/hardware, card=restaurant, image_grid=bar/lounge"),
 		field.Bool("show_images").Default(true).Optional().Comment("Show item images in catalog view"),
 		field.Bool("show_barcode_scanner").Default(false).Optional().Comment("Show barcode scanner input for retail"),

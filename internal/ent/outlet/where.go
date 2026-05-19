@@ -96,6 +96,11 @@ func UseCase(v string) predicate.Outlet {
 	return predicate.Outlet(sql.FieldEQ(FieldUseCase, v))
 }
 
+// IsHq applies equality check predicate on the "is_hq" field. It's identical to IsHqEQ.
+func IsHq(v bool) predicate.Outlet {
+	return predicate.Outlet(sql.FieldEQ(FieldIsHq, v))
+}
+
 // OpenedAt applies equality check predicate on the "opened_at" field. It's identical to OpenedAtEQ.
 func OpenedAt(v time.Time) predicate.Outlet {
 	return predicate.Outlet(sql.FieldEQ(FieldOpenedAt, v))
@@ -609,6 +614,16 @@ func UseCaseEqualFold(v string) predicate.Outlet {
 // UseCaseContainsFold applies the ContainsFold predicate on the "use_case" field.
 func UseCaseContainsFold(v string) predicate.Outlet {
 	return predicate.Outlet(sql.FieldContainsFold(FieldUseCase, v))
+}
+
+// IsHqEQ applies the EQ predicate on the "is_hq" field.
+func IsHqEQ(v bool) predicate.Outlet {
+	return predicate.Outlet(sql.FieldEQ(FieldIsHq, v))
+}
+
+// IsHqNEQ applies the NEQ predicate on the "is_hq" field.
+func IsHqNEQ(v bool) predicate.Outlet {
+	return predicate.Outlet(sql.FieldNEQ(FieldIsHq, v))
 }
 
 // OpenedAtEQ applies the EQ predicate on the "opened_at" field.
