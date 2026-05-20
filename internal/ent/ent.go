@@ -22,6 +22,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/channelsyncjob"
 	"github.com/bengobox/pos-service/internal/ent/commissionrecord"
 	"github.com/bengobox/pos-service/internal/ent/dailyclosing"
+	"github.com/bengobox/pos-service/internal/ent/druginteractioncheck"
 	"github.com/bengobox/pos-service/internal/ent/facility"
 	"github.com/bengobox/pos-service/internal/ent/facilitybooking"
 	"github.com/bengobox/pos-service/internal/ent/featureoverride"
@@ -55,6 +56,8 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/posrolepermission"
 	"github.com/bengobox/pos-service/internal/ent/posrolev2"
 	"github.com/bengobox/pos-service/internal/ent/posuserroleassignment"
+	"github.com/bengobox/pos-service/internal/ent/prescription"
+	"github.com/bengobox/pos-service/internal/ent/prescriptionline"
 	"github.com/bengobox/pos-service/internal/ent/pricebook"
 	"github.com/bengobox/pos-service/internal/ent/pricebookitem"
 	"github.com/bengobox/pos-service/internal/ent/promotion"
@@ -68,6 +71,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/serialnumberlog"
 	"github.com/bengobox/pos-service/internal/ent/serviceconfig"
 	"github.com/bengobox/pos-service/internal/ent/staffmember"
+	"github.com/bengobox/pos-service/internal/ent/staffschedule"
 	"github.com/bengobox/pos-service/internal/ent/stockalertsubscription"
 	"github.com/bengobox/pos-service/internal/ent/stockconsumptionevent"
 	"github.com/bengobox/pos-service/internal/ent/syncfailure"
@@ -150,6 +154,7 @@ func checkColumn(t, c string) error {
 			channelsyncjob.Table:         channelsyncjob.ValidColumn,
 			commissionrecord.Table:       commissionrecord.ValidColumn,
 			dailyclosing.Table:           dailyclosing.ValidColumn,
+			druginteractioncheck.Table:   druginteractioncheck.ValidColumn,
 			facility.Table:               facility.ValidColumn,
 			facilitybooking.Table:        facilitybooking.ValidColumn,
 			featureoverride.Table:        featureoverride.ValidColumn,
@@ -183,6 +188,8 @@ func checkColumn(t, c string) error {
 			posrolepermission.Table:      posrolepermission.ValidColumn,
 			posrolev2.Table:              posrolev2.ValidColumn,
 			posuserroleassignment.Table:  posuserroleassignment.ValidColumn,
+			prescription.Table:           prescription.ValidColumn,
+			prescriptionline.Table:       prescriptionline.ValidColumn,
 			pricebook.Table:              pricebook.ValidColumn,
 			pricebookitem.Table:          pricebookitem.ValidColumn,
 			promotion.Table:              promotion.ValidColumn,
@@ -196,6 +203,7 @@ func checkColumn(t, c string) error {
 			serialnumberlog.Table:        serialnumberlog.ValidColumn,
 			serviceconfig.Table:          serviceconfig.ValidColumn,
 			staffmember.Table:            staffmember.ValidColumn,
+			staffschedule.Table:          staffschedule.ValidColumn,
 			stockalertsubscription.Table: stockalertsubscription.ValidColumn,
 			stockconsumptionevent.Table:  stockconsumptionevent.ValidColumn,
 			syncfailure.Table:            syncfailure.ValidColumn,

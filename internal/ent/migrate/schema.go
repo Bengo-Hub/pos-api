@@ -281,6 +281,42 @@ var (
 			},
 		},
 	}
+	// DrugInteractionChecksColumns holds the columns for the "drug_interaction_checks" table.
+	DrugInteractionChecksColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "prescription_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "order_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "drug_skus", Type: field.TypeJSON},
+		{Name: "result", Type: field.TypeString, Default: "clear"},
+		{Name: "details", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "checked_by", Type: field.TypeUUID, Nullable: true},
+		{Name: "checked_at", Type: field.TypeTime},
+		{Name: "created_at", Type: field.TypeTime},
+	}
+	// DrugInteractionChecksTable holds the schema information for the "drug_interaction_checks" table.
+	DrugInteractionChecksTable = &schema.Table{
+		Name:       "drug_interaction_checks",
+		Columns:    DrugInteractionChecksColumns,
+		PrimaryKey: []*schema.Column{DrugInteractionChecksColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "druginteractioncheck_tenant_id",
+				Unique:  false,
+				Columns: []*schema.Column{DrugInteractionChecksColumns[1]},
+			},
+			{
+				Name:    "druginteractioncheck_prescription_id",
+				Unique:  false,
+				Columns: []*schema.Column{DrugInteractionChecksColumns[2]},
+			},
+			{
+				Name:    "druginteractioncheck_order_id",
+				Unique:  false,
+				Columns: []*schema.Column{DrugInteractionChecksColumns[3]},
+			},
+		},
+	}
 	// FacilitiesColumns holds the columns for the "facilities" table.
 	FacilitiesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -1254,6 +1290,92 @@ var (
 			},
 		},
 	}
+	// PrescriptionsColumns holds the columns for the "prescriptions" table.
+	PrescriptionsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "outlet_id", Type: field.TypeUUID},
+		{Name: "order_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "prescription_number", Type: field.TypeString},
+		{Name: "prescriber_name", Type: field.TypeString, Nullable: true},
+		{Name: "prescriber_license", Type: field.TypeString, Nullable: true},
+		{Name: "patient_name", Type: field.TypeString},
+		{Name: "patient_dob", Type: field.TypeString, Nullable: true},
+		{Name: "patient_id_number", Type: field.TypeString, Nullable: true},
+		{Name: "status", Type: field.TypeString, Default: "pending"},
+		{Name: "notes", Type: field.TypeString, Nullable: true},
+		{Name: "dispensed_at", Type: field.TypeTime, Nullable: true},
+		{Name: "dispensed_by", Type: field.TypeUUID, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// PrescriptionsTable holds the schema information for the "prescriptions" table.
+	PrescriptionsTable = &schema.Table{
+		Name:       "prescriptions",
+		Columns:    PrescriptionsColumns,
+		PrimaryKey: []*schema.Column{PrescriptionsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "prescription_tenant_id",
+				Unique:  false,
+				Columns: []*schema.Column{PrescriptionsColumns[1]},
+			},
+			{
+				Name:    "prescription_outlet_id",
+				Unique:  false,
+				Columns: []*schema.Column{PrescriptionsColumns[2]},
+			},
+			{
+				Name:    "prescription_prescription_number",
+				Unique:  false,
+				Columns: []*schema.Column{PrescriptionsColumns[4]},
+			},
+			{
+				Name:    "prescription_status",
+				Unique:  false,
+				Columns: []*schema.Column{PrescriptionsColumns[10]},
+			},
+			{
+				Name:    "prescription_order_id",
+				Unique:  false,
+				Columns: []*schema.Column{PrescriptionsColumns[3]},
+			},
+		},
+	}
+	// PrescriptionLinesColumns holds the columns for the "prescription_lines" table.
+	PrescriptionLinesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "prescription_id", Type: field.TypeUUID},
+		{Name: "catalog_item_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "drug_name", Type: field.TypeString},
+		{Name: "dosage", Type: field.TypeString, Nullable: true},
+		{Name: "form", Type: field.TypeString, Nullable: true},
+		{Name: "instructions", Type: field.TypeString, Nullable: true},
+		{Name: "quantity_prescribed", Type: field.TypeInt},
+		{Name: "quantity_dispensed", Type: field.TypeInt, Default: 0},
+		{Name: "unit_price", Type: field.TypeFloat64, Nullable: true},
+		{Name: "lot_number", Type: field.TypeString, Nullable: true},
+		{Name: "expiry_date", Type: field.TypeTime, Nullable: true},
+		{Name: "status", Type: field.TypeString, Default: "pending"},
+	}
+	// PrescriptionLinesTable holds the schema information for the "prescription_lines" table.
+	PrescriptionLinesTable = &schema.Table{
+		Name:       "prescription_lines",
+		Columns:    PrescriptionLinesColumns,
+		PrimaryKey: []*schema.Column{PrescriptionLinesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "prescriptionline_prescription_id",
+				Unique:  false,
+				Columns: []*schema.Column{PrescriptionLinesColumns[1]},
+			},
+			{
+				Name:    "prescriptionline_catalog_item_id",
+				Unique:  false,
+				Columns: []*schema.Column{PrescriptionLinesColumns[2]},
+			},
+		},
+	}
 	// PriceBooksColumns holds the columns for the "price_books" table.
 	PriceBooksColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -1654,6 +1776,41 @@ var (
 			},
 		},
 	}
+	// StaffSchedulesColumns holds the columns for the "staff_schedules" table.
+	StaffSchedulesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "outlet_id", Type: field.TypeUUID},
+		{Name: "staff_member_id", Type: field.TypeUUID},
+		{Name: "day_of_week", Type: field.TypeInt},
+		{Name: "start_time", Type: field.TypeString},
+		{Name: "end_time", Type: field.TypeString},
+		{Name: "is_available", Type: field.TypeBool, Default: true},
+		{Name: "notes", Type: field.TypeString, Nullable: true},
+	}
+	// StaffSchedulesTable holds the schema information for the "staff_schedules" table.
+	StaffSchedulesTable = &schema.Table{
+		Name:       "staff_schedules",
+		Columns:    StaffSchedulesColumns,
+		PrimaryKey: []*schema.Column{StaffSchedulesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "staffschedule_tenant_id_staff_member_id_day_of_week",
+				Unique:  true,
+				Columns: []*schema.Column{StaffSchedulesColumns[1], StaffSchedulesColumns[3], StaffSchedulesColumns[4]},
+			},
+			{
+				Name:    "staffschedule_staff_member_id",
+				Unique:  false,
+				Columns: []*schema.Column{StaffSchedulesColumns[3]},
+			},
+			{
+				Name:    "staffschedule_outlet_id",
+				Unique:  false,
+				Columns: []*schema.Column{StaffSchedulesColumns[2]},
+			},
+		},
+	}
 	// StockAlertSubscriptionsColumns holds the columns for the "stock_alert_subscriptions" table.
 	StockAlertSubscriptionsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -1984,6 +2141,7 @@ var (
 		ChannelSyncJobsTable,
 		CommissionRecordsTable,
 		DailyClosingsTable,
+		DrugInteractionChecksTable,
 		FacilitiesTable,
 		FacilityBookingsTable,
 		FeatureOverridesTable,
@@ -2017,6 +2175,8 @@ var (
 		PosRolePermissionsTable,
 		PosRoleV2sTable,
 		PosUserRoleAssignmentsTable,
+		PrescriptionsTable,
+		PrescriptionLinesTable,
 		PriceBooksTable,
 		PriceBookItemsTable,
 		PromotionsTable,
@@ -2030,6 +2190,7 @@ var (
 		SerialNumberLogsTable,
 		ServiceConfigsTable,
 		StaffMembersTable,
+		StaffSchedulesTable,
 		StockAlertSubscriptionsTable,
 		StockConsumptionEventsTable,
 		SyncFailuresTable,

@@ -46,6 +46,10 @@ func New(
 	receipt *handlers.ReceiptHandler,
 	layaway *handlers.LayawayHandler,
 	scale *handlers.ScaleHandler,
+	pharmacy *handlers.PharmacyHandler,
+	appointments *handlers.AppointmentHandler,
+	commissions *handlers.CommissionHandler,
+	staffSchedule *handlers.StaffScheduleHandler,
 	allowedOrigins []string,
 ) http.Handler {
 	r := chi.NewRouter()
@@ -292,6 +296,42 @@ func New(
 					if scale != nil {
 						pos.Post("/scale/readings", scale.Create)
 						pos.Get("/scale/readings", scale.List)
+					}
+
+					// Pharmacy — pharmacy use_case only
+					if pharmacy != nil {
+						pos.Group(func(ph chi.Router) {
+							ph.Use(outletmw.RequireUseCase("pharmacy"))
+							ph.Post("/pharmacy/prescriptions", pharmacy.CreatePrescription)
+							ph.Get("/pharmacy/prescriptions", pharmacy.ListPrescriptions)
+							ph.Get("/pharmacy/prescriptions/{prescriptionID}", pharmacy.GetPrescription)
+							ph.Post("/pharmacy/prescriptions/{prescriptionID}/dispense", pharmacy.Dispense)
+							ph.Post("/pharmacy/interaction-checks", pharmacy.CreateInteractionCheck)
+						})
+					}
+
+					// Appointments & staff schedules — services use_case
+					if appointments != nil {
+						pos.Group(func(svc chi.Router) {
+							svc.Use(outletmw.RequireUseCase("services"))
+							svc.Get("/appointments", appointments.List)
+							svc.Post("/appointments", appointments.Create)
+							svc.Get("/appointments/availability", appointments.Availability)
+							svc.Get("/appointments/{appointmentID}", appointments.Get)
+							svc.Put("/appointments/{appointmentID}", appointments.Update)
+						})
+					}
+
+					// Staff schedules
+					if staffSchedule != nil {
+						pos.Get("/staff/{staffID}/schedule", staffSchedule.ListSchedule)
+						pos.Put("/staff/{staffID}/schedule", staffSchedule.UpsertSchedule)
+					}
+
+					// Commissions
+					if commissions != nil {
+						pos.Get("/commissions", commissions.List)
+						pos.Get("/commissions/{commissionID}", commissions.Get)
 					}
 
 					// Daily closings (ERP reconciliation)

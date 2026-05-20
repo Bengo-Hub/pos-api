@@ -15,6 +15,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/channelsyncjob"
 	"github.com/bengobox/pos-service/internal/ent/commissionrecord"
 	"github.com/bengobox/pos-service/internal/ent/dailyclosing"
+	"github.com/bengobox/pos-service/internal/ent/druginteractioncheck"
 	"github.com/bengobox/pos-service/internal/ent/facility"
 	"github.com/bengobox/pos-service/internal/ent/facilitybooking"
 	"github.com/bengobox/pos-service/internal/ent/giftcard"
@@ -45,6 +46,8 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/posrole"
 	"github.com/bengobox/pos-service/internal/ent/posrolev2"
 	"github.com/bengobox/pos-service/internal/ent/posuserroleassignment"
+	"github.com/bengobox/pos-service/internal/ent/prescription"
+	"github.com/bengobox/pos-service/internal/ent/prescriptionline"
 	"github.com/bengobox/pos-service/internal/ent/pricebook"
 	"github.com/bengobox/pos-service/internal/ent/pricebookitem"
 	"github.com/bengobox/pos-service/internal/ent/promotion"
@@ -59,6 +62,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/serialnumberlog"
 	"github.com/bengobox/pos-service/internal/ent/serviceconfig"
 	"github.com/bengobox/pos-service/internal/ent/staffmember"
+	"github.com/bengobox/pos-service/internal/ent/staffschedule"
 	"github.com/bengobox/pos-service/internal/ent/stockalertsubscription"
 	"github.com/bengobox/pos-service/internal/ent/stockconsumptionevent"
 	"github.com/bengobox/pos-service/internal/ent/syncfailure"
@@ -364,6 +368,24 @@ func init() {
 	dailyclosingDescID := dailyclosingFields[0].Descriptor()
 	// dailyclosing.DefaultID holds the default value on creation for the id field.
 	dailyclosing.DefaultID = dailyclosingDescID.Default.(func() uuid.UUID)
+	druginteractioncheckFields := schema.DrugInteractionCheck{}.Fields()
+	_ = druginteractioncheckFields
+	// druginteractioncheckDescResult is the schema descriptor for result field.
+	druginteractioncheckDescResult := druginteractioncheckFields[5].Descriptor()
+	// druginteractioncheck.DefaultResult holds the default value on creation for the result field.
+	druginteractioncheck.DefaultResult = druginteractioncheckDescResult.Default.(string)
+	// druginteractioncheckDescCheckedAt is the schema descriptor for checked_at field.
+	druginteractioncheckDescCheckedAt := druginteractioncheckFields[8].Descriptor()
+	// druginteractioncheck.DefaultCheckedAt holds the default value on creation for the checked_at field.
+	druginteractioncheck.DefaultCheckedAt = druginteractioncheckDescCheckedAt.Default.(func() time.Time)
+	// druginteractioncheckDescCreatedAt is the schema descriptor for created_at field.
+	druginteractioncheckDescCreatedAt := druginteractioncheckFields[9].Descriptor()
+	// druginteractioncheck.DefaultCreatedAt holds the default value on creation for the created_at field.
+	druginteractioncheck.DefaultCreatedAt = druginteractioncheckDescCreatedAt.Default.(func() time.Time)
+	// druginteractioncheckDescID is the schema descriptor for id field.
+	druginteractioncheckDescID := druginteractioncheckFields[0].Descriptor()
+	// druginteractioncheck.DefaultID holds the default value on creation for the id field.
+	druginteractioncheck.DefaultID = druginteractioncheckDescID.Default.(func() uuid.UUID)
 	facilityFields := schema.Facility{}.Fields()
 	_ = facilityFields
 	// facilityDescName is the schema descriptor for name field.
@@ -1080,6 +1102,52 @@ func init() {
 	posuserroleassignmentDescID := posuserroleassignmentFields[0].Descriptor()
 	// posuserroleassignment.DefaultID holds the default value on creation for the id field.
 	posuserroleassignment.DefaultID = posuserroleassignmentDescID.Default.(func() uuid.UUID)
+	prescriptionFields := schema.Prescription{}.Fields()
+	_ = prescriptionFields
+	// prescriptionDescPrescriptionNumber is the schema descriptor for prescription_number field.
+	prescriptionDescPrescriptionNumber := prescriptionFields[4].Descriptor()
+	// prescription.PrescriptionNumberValidator is a validator for the "prescription_number" field. It is called by the builders before save.
+	prescription.PrescriptionNumberValidator = prescriptionDescPrescriptionNumber.Validators[0].(func(string) error)
+	// prescriptionDescPatientName is the schema descriptor for patient_name field.
+	prescriptionDescPatientName := prescriptionFields[7].Descriptor()
+	// prescription.PatientNameValidator is a validator for the "patient_name" field. It is called by the builders before save.
+	prescription.PatientNameValidator = prescriptionDescPatientName.Validators[0].(func(string) error)
+	// prescriptionDescStatus is the schema descriptor for status field.
+	prescriptionDescStatus := prescriptionFields[10].Descriptor()
+	// prescription.DefaultStatus holds the default value on creation for the status field.
+	prescription.DefaultStatus = prescriptionDescStatus.Default.(string)
+	// prescriptionDescCreatedAt is the schema descriptor for created_at field.
+	prescriptionDescCreatedAt := prescriptionFields[14].Descriptor()
+	// prescription.DefaultCreatedAt holds the default value on creation for the created_at field.
+	prescription.DefaultCreatedAt = prescriptionDescCreatedAt.Default.(func() time.Time)
+	// prescriptionDescUpdatedAt is the schema descriptor for updated_at field.
+	prescriptionDescUpdatedAt := prescriptionFields[15].Descriptor()
+	// prescription.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	prescription.DefaultUpdatedAt = prescriptionDescUpdatedAt.Default.(func() time.Time)
+	// prescription.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	prescription.UpdateDefaultUpdatedAt = prescriptionDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// prescriptionDescID is the schema descriptor for id field.
+	prescriptionDescID := prescriptionFields[0].Descriptor()
+	// prescription.DefaultID holds the default value on creation for the id field.
+	prescription.DefaultID = prescriptionDescID.Default.(func() uuid.UUID)
+	prescriptionlineFields := schema.PrescriptionLine{}.Fields()
+	_ = prescriptionlineFields
+	// prescriptionlineDescDrugName is the schema descriptor for drug_name field.
+	prescriptionlineDescDrugName := prescriptionlineFields[3].Descriptor()
+	// prescriptionline.DrugNameValidator is a validator for the "drug_name" field. It is called by the builders before save.
+	prescriptionline.DrugNameValidator = prescriptionlineDescDrugName.Validators[0].(func(string) error)
+	// prescriptionlineDescQuantityDispensed is the schema descriptor for quantity_dispensed field.
+	prescriptionlineDescQuantityDispensed := prescriptionlineFields[8].Descriptor()
+	// prescriptionline.DefaultQuantityDispensed holds the default value on creation for the quantity_dispensed field.
+	prescriptionline.DefaultQuantityDispensed = prescriptionlineDescQuantityDispensed.Default.(int)
+	// prescriptionlineDescStatus is the schema descriptor for status field.
+	prescriptionlineDescStatus := prescriptionlineFields[12].Descriptor()
+	// prescriptionline.DefaultStatus holds the default value on creation for the status field.
+	prescriptionline.DefaultStatus = prescriptionlineDescStatus.Default.(string)
+	// prescriptionlineDescID is the schema descriptor for id field.
+	prescriptionlineDescID := prescriptionlineFields[0].Descriptor()
+	// prescriptionline.DefaultID holds the default value on creation for the id field.
+	prescriptionline.DefaultID = prescriptionlineDescID.Default.(func() uuid.UUID)
 	pricebookFields := schema.PriceBook{}.Fields()
 	_ = pricebookFields
 	// pricebookDescName is the schema descriptor for name field.
@@ -1448,6 +1516,16 @@ func init() {
 	staffmemberDescID := staffmemberFields[0].Descriptor()
 	// staffmember.DefaultID holds the default value on creation for the id field.
 	staffmember.DefaultID = staffmemberDescID.Default.(func() uuid.UUID)
+	staffscheduleFields := schema.StaffSchedule{}.Fields()
+	_ = staffscheduleFields
+	// staffscheduleDescIsAvailable is the schema descriptor for is_available field.
+	staffscheduleDescIsAvailable := staffscheduleFields[7].Descriptor()
+	// staffschedule.DefaultIsAvailable holds the default value on creation for the is_available field.
+	staffschedule.DefaultIsAvailable = staffscheduleDescIsAvailable.Default.(bool)
+	// staffscheduleDescID is the schema descriptor for id field.
+	staffscheduleDescID := staffscheduleFields[0].Descriptor()
+	// staffschedule.DefaultID holds the default value on creation for the id field.
+	staffschedule.DefaultID = staffscheduleDescID.Default.(func() uuid.UUID)
 	stockalertsubscriptionFields := schema.StockAlertSubscription{}.Fields()
 	_ = stockalertsubscriptionFields
 	// stockalertsubscriptionDescNotificationChannel is the schema descriptor for notification_channel field.

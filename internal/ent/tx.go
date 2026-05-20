@@ -32,6 +32,8 @@ type Tx struct {
 	CommissionRecord *CommissionRecordClient
 	// DailyClosing is the client for interacting with the DailyClosing builders.
 	DailyClosing *DailyClosingClient
+	// DrugInteractionCheck is the client for interacting with the DrugInteractionCheck builders.
+	DrugInteractionCheck *DrugInteractionCheckClient
 	// Facility is the client for interacting with the Facility builders.
 	Facility *FacilityClient
 	// FacilityBooking is the client for interacting with the FacilityBooking builders.
@@ -98,6 +100,10 @@ type Tx struct {
 	POSRoleV2 *POSRoleV2Client
 	// POSUserRoleAssignment is the client for interacting with the POSUserRoleAssignment builders.
 	POSUserRoleAssignment *POSUserRoleAssignmentClient
+	// Prescription is the client for interacting with the Prescription builders.
+	Prescription *PrescriptionClient
+	// PrescriptionLine is the client for interacting with the PrescriptionLine builders.
+	PrescriptionLine *PrescriptionLineClient
 	// PriceBook is the client for interacting with the PriceBook builders.
 	PriceBook *PriceBookClient
 	// PriceBookItem is the client for interacting with the PriceBookItem builders.
@@ -124,6 +130,8 @@ type Tx struct {
 	ServiceConfig *ServiceConfigClient
 	// StaffMember is the client for interacting with the StaffMember builders.
 	StaffMember *StaffMemberClient
+	// StaffSchedule is the client for interacting with the StaffSchedule builders.
+	StaffSchedule *StaffScheduleClient
 	// StockAlertSubscription is the client for interacting with the StockAlertSubscription builders.
 	StockAlertSubscription *StockAlertSubscriptionClient
 	// StockConsumptionEvent is the client for interacting with the StockConsumptionEvent builders.
@@ -289,6 +297,7 @@ func (tx *Tx) init() {
 	tx.ChannelSyncJob = NewChannelSyncJobClient(tx.config)
 	tx.CommissionRecord = NewCommissionRecordClient(tx.config)
 	tx.DailyClosing = NewDailyClosingClient(tx.config)
+	tx.DrugInteractionCheck = NewDrugInteractionCheckClient(tx.config)
 	tx.Facility = NewFacilityClient(tx.config)
 	tx.FacilityBooking = NewFacilityBookingClient(tx.config)
 	tx.FeatureOverride = NewFeatureOverrideClient(tx.config)
@@ -322,6 +331,8 @@ func (tx *Tx) init() {
 	tx.POSRolePermission = NewPOSRolePermissionClient(tx.config)
 	tx.POSRoleV2 = NewPOSRoleV2Client(tx.config)
 	tx.POSUserRoleAssignment = NewPOSUserRoleAssignmentClient(tx.config)
+	tx.Prescription = NewPrescriptionClient(tx.config)
+	tx.PrescriptionLine = NewPrescriptionLineClient(tx.config)
 	tx.PriceBook = NewPriceBookClient(tx.config)
 	tx.PriceBookItem = NewPriceBookItemClient(tx.config)
 	tx.Promotion = NewPromotionClient(tx.config)
@@ -335,6 +346,7 @@ func (tx *Tx) init() {
 	tx.SerialNumberLog = NewSerialNumberLogClient(tx.config)
 	tx.ServiceConfig = NewServiceConfigClient(tx.config)
 	tx.StaffMember = NewStaffMemberClient(tx.config)
+	tx.StaffSchedule = NewStaffScheduleClient(tx.config)
 	tx.StockAlertSubscription = NewStockAlertSubscriptionClient(tx.config)
 	tx.StockConsumptionEvent = NewStockConsumptionEventClient(tx.config)
 	tx.SyncFailure = NewSyncFailureClient(tx.config)

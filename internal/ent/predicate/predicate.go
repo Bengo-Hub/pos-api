@@ -36,6 +36,9 @@ type CommissionRecord func(*sql.Selector)
 // DailyClosing is the predicate function for dailyclosing builders.
 type DailyClosing func(*sql.Selector)
 
+// DrugInteractionCheck is the predicate function for druginteractioncheck builders.
+type DrugInteractionCheck func(*sql.Selector)
+
 // Facility is the predicate function for facility builders.
 type Facility func(*sql.Selector)
 
@@ -135,6 +138,12 @@ type POSRoleV2 func(*sql.Selector)
 // POSUserRoleAssignment is the predicate function for posuserroleassignment builders.
 type POSUserRoleAssignment func(*sql.Selector)
 
+// Prescription is the predicate function for prescription builders.
+type Prescription func(*sql.Selector)
+
+// PrescriptionLine is the predicate function for prescriptionline builders.
+type PrescriptionLine func(*sql.Selector)
+
 // PriceBook is the predicate function for pricebook builders.
 type PriceBook func(*sql.Selector)
 
@@ -173,6 +182,9 @@ type ServiceConfig func(*sql.Selector)
 
 // StaffMember is the predicate function for staffmember builders.
 type StaffMember func(*sql.Selector)
+
+// StaffSchedule is the predicate function for staffschedule builders.
+type StaffSchedule func(*sql.Selector)
 
 // StockAlertSubscription is the predicate function for stockalertsubscription builders.
 type StockAlertSubscription func(*sql.Selector)
