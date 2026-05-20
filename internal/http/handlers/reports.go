@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -179,6 +180,131 @@ func (h *ReportsHandler) DailyBreakdown(w http.ResponseWriter, r *http.Request) 
 		}
 		rows = append(rows, row)
 		cur = cur.AddDate(0, 0, 1)
+	}
+
+	jsonOK(w, rows)
+}
+
+// TopItems handles GET /{tenantID}/pos/reports/top-items
+// Returns the top-selling items by quantity and revenue in the date range.
+// Query params: from, to, limit (default 20)
+func (h *ReportsHandler) TopItems(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+
+	from, to := parseDateRange(r)
+
+	limit := 20
+	if ls := r.URL.Query().Get("limit"); ls != "" {
+		if n, err2 := strconv.Atoi(ls); err2 == nil && n > 0 {
+			limit = n
+		}
+	}
+
+	orders, err := h.db.POSOrder.Query().
+		Where(
+			posorder.TenantID(tid),
+			posorder.StatusEQ("completed"),
+			posorder.CreatedAtGTE(from),
+			posorder.CreatedAtLTE(to),
+		).
+		WithLines().
+		All(r.Context())
+	if err != nil {
+		h.log.Error("top items query failed", zap.Error(err))
+		jsonError(w, "failed to generate top items report", http.StatusInternalServerError)
+		return
+	}
+
+	type itemBucket struct {
+		Name     string  `json:"name"`
+		SKU      string  `json:"sku"`
+		Quantity float64 `json:"quantity_sold"`
+		Revenue  float64 `json:"revenue"`
+	}
+	buckets := make(map[string]*itemBucket)
+	for _, o := range orders {
+		for _, l := range o.Edges.Lines {
+			if _, ok := buckets[l.Sku]; !ok {
+				buckets[l.Sku] = &itemBucket{SKU: l.Sku, Name: l.Name}
+			}
+			buckets[l.Sku].Quantity += l.Quantity
+			buckets[l.Sku].Revenue += l.TotalPrice
+		}
+	}
+
+	rows := make([]*itemBucket, 0, len(buckets))
+	for _, b := range buckets {
+		rows = append(rows, b)
+	}
+	// sort by revenue descending
+	for i := 0; i < len(rows)-1; i++ {
+		for j := i + 1; j < len(rows); j++ {
+			if rows[j].Revenue > rows[i].Revenue {
+				rows[i], rows[j] = rows[j], rows[i]
+			}
+		}
+	}
+	if len(rows) > limit {
+		rows = rows[:limit]
+	}
+
+	jsonOK(w, rows)
+}
+
+// SalesByStaff handles GET /{tenantID}/pos/reports/sales-by-staff
+// Groups completed orders by user_id and sums revenue.
+func (h *ReportsHandler) SalesByStaff(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+
+	from, to := parseDateRange(r)
+
+	orders, err := h.db.POSOrder.Query().
+		Where(
+			posorder.TenantID(tid),
+			posorder.StatusEQ("completed"),
+			posorder.CreatedAtGTE(from),
+			posorder.CreatedAtLTE(to),
+		).
+		All(r.Context())
+	if err != nil {
+		h.log.Error("sales by staff query failed", zap.Error(err))
+		jsonError(w, "failed to generate sales-by-staff report", http.StatusInternalServerError)
+		return
+	}
+
+	type staffBucket struct {
+		UserID     uuid.UUID `json:"user_id"`
+		OrderCount int       `json:"order_count"`
+		Revenue    float64   `json:"revenue"`
+	}
+	buckets := make(map[uuid.UUID]*staffBucket)
+	for _, o := range orders {
+		if _, ok := buckets[o.UserID]; !ok {
+			buckets[o.UserID] = &staffBucket{UserID: o.UserID}
+		}
+		buckets[o.UserID].OrderCount++
+		buckets[o.UserID].Revenue += o.TotalAmount
+	}
+
+	rows := make([]*staffBucket, 0, len(buckets))
+	for _, b := range buckets {
+		rows = append(rows, b)
+	}
+	// sort by revenue descending
+	for i := 0; i < len(rows)-1; i++ {
+		for j := i + 1; j < len(rows); j++ {
+			if rows[j].Revenue > rows[i].Revenue {
+				rows[i], rows[j] = rows[j], rows[i]
+			}
+		}
 	}
 
 	jsonOK(w, rows)

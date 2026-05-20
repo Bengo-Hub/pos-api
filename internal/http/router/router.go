@@ -369,6 +369,8 @@ func New(
 						pos.Get("/reports/sales-summary", reports.SalesSummary)
 						pos.Get("/reports/refund-summary", reports.RefundSummary)
 						pos.Get("/reports/daily-breakdown", reports.DailyBreakdown)
+						pos.Get("/reports/top-items", reports.TopItems)
+						pos.Get("/reports/sales-by-staff", reports.SalesByStaff)
 					}
 
 					// Webhook subscriptions & delivery log (Sprint 12)
