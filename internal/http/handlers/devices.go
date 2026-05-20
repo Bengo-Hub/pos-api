@@ -11,6 +11,7 @@ import (
 	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/bengobox/pos-service/internal/ent"
 	"github.com/bengobox/pos-service/internal/ent/posdevicesession"
+	"github.com/bengobox/pos-service/internal/ent/posorder"
 )
 
 // DeviceHandler handles device session (shift) endpoints.
@@ -149,6 +150,61 @@ func (h *DeviceHandler) CloseSession(w http.ResponseWriter, r *http.Request) {
 	}
 
 	jsonOK(w, updated)
+}
+
+// GetSessionSummary handles GET /{tenantID}/pos/devices/current/sessions/current/summary
+// Returns aggregated sales stats for the active shift: order count and revenue.
+func (h *DeviceHandler) GetSessionSummary(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+
+	userID := currentUserID(r)
+
+	session, err := h.client.POSDeviceSession.Query().
+		Where(
+			posdevicesession.TenantID(tid),
+			posdevicesession.UserID(userID),
+			posdevicesession.SessionStatus("open"),
+		).
+		Order(ent.Desc(posdevicesession.FieldOpenedAt)).
+		First(r.Context())
+	if err != nil {
+		w.WriteHeader(http.StatusNotFound)
+		jsonOK(w, nil)
+		return
+	}
+
+	// Query completed orders created on this device since the session opened.
+	orders, err := h.client.POSOrder.Query().
+		Where(
+			posorder.TenantID(tid),
+			posorder.DeviceID(session.DeviceID),
+			posorder.StatusEQ("completed"),
+			posorder.CreatedAtGTE(session.OpenedAt),
+		).
+		All(r.Context())
+	if err != nil {
+		h.log.Error("session summary: order query failed", zap.Error(err))
+		jsonError(w, "failed to compute session summary", http.StatusInternalServerError)
+		return
+	}
+
+	var totalRevenue float64
+	for _, o := range orders {
+		totalRevenue += o.TotalAmount
+	}
+
+	jsonOK(w, map[string]any{
+		"session_id":     session.ID,
+		"opened_at":      session.OpenedAt,
+		"opening_float":  session.FloatAmount,
+		"order_count":    len(orders),
+		"total_revenue":  totalRevenue,
+		"expected_cash":  session.FloatAmount + totalRevenue,
+	})
 }
 
 // currentUserID extracts the user UUID from JWT claims; falls back to nil UUID.

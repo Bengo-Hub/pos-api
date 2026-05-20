@@ -252,6 +252,7 @@ func New(
 					// Device sessions (shift open/close)
 					if devices != nil {
 						pos.Get("/devices/current/sessions/current", devices.GetCurrentSession)
+						pos.Get("/devices/current/sessions/current/summary", devices.GetSessionSummary)
 						pos.Post("/devices/current/sessions/open", devices.OpenSession)
 						pos.Post("/devices/current/sessions/close", devices.CloseSession)
 					}
