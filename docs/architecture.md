@@ -34,20 +34,29 @@ The service adapts UI and business workflows based on the `use_case` configured 
 | Module | Service | Status |
 |--------|---------|--------|
 | `orders` | Order creation, state machine (draft→open→completed/cancelled/voided→refunded) | ✅ Complete |
-| `payments` | Payment recording, tender routing, treasury S2S (card/M-Pesa) | ✅ Entity done; ❌ S2S not wired |
+| `payments` | Payment recording, tender routing, treasury S2S (card/M-Pesa) | ✅ Intent endpoint registered; ❌ NATS subscriber not wired |
 | `promotions` | Promo code validation, percentage/fixed/BOGO discounts | ✅ Complete |
-| `rbac` | Role-based access, 126 permissions, 5 system roles | ✅ Complete |
-| `catalog` | Menu items, categories, price books, modifiers | ✅ Complete |
+| `rbac` | Role-based access, 126 permissions, 8 system roles | ✅ Complete |
+| `catalog` | Menu items, categories, price books, modifiers, barcode lookup | ✅ Complete |
 | `tables` | Floor plan sections, table assignment/release | ✅ Complete |
 | `kds` | Ticket creation, station routing, item-level status | ✅ Complete |
 | `hotel` | Rooms, guests, folio, facilities, bookings | ✅ Schema+handlers done |
-| `inventory` | Catalog sync, stock consumption events | ❌ NATS subscriber not wired |
-| `treasury` | Payment intent creation, NATS event consumption | ❌ Not wired |
-| `retail` | Layaway, weight-based pricing, serial number | 🔴 Not started |
-| `pharmacy` | Prescriptions, lot/batch, drug interactions, NHIF | 🔴 Not started |
-| `services` | Appointments, packages, commission | 🔴 Not started |
-| `loyalty` | Points, tiers, rewards | 🔴 Not started |
-| `reporting` | Daily close, EOD, KRA exports | 🔴 Not started |
+| `closings` | DailyClosing entity, daily-close + list endpoints | ✅ Handler done; gated by shift_reports feature |
+| `returns` | POSReturn + POSReturnLine, create/list/approve endpoints | ✅ Handler done; treasury refund call not wired |
+| `receipt` | Receipt data endpoint | ✅ Handler done; PDF format pending |
+| `layaway` | LayawayPlan + LayawayPayment, create/list/get/payment/cancel | ✅ Complete |
+| `scale` | WeighingScaleReading, create + list readings | ✅ Complete |
+| `pharmacy` | Prescriptions, prescription lines, dispense, drug interaction checks | ✅ Core done; controlled substances, age verification pending |
+| `appointments` | List/create/get/update/availability; gated by services use_case | ✅ Core done; action endpoints (check-in/start/complete/cancel) pending |
+| `staff_schedule` | 7-day schedule upsert per staff member | ✅ Complete |
+| `commissions` | CommissionRecord list/get | ✅ Basic done; rules and payout pending |
+| `loyalty` | LoyaltyProgram + LoyaltyAccount + LoyaltyTransaction, earn/redeem | ✅ Core done |
+| `reports` | Sales-summary, refund-summary, daily-breakdown | ✅ Core done; EOD, shift, export pending |
+| `webhooks` | WebhookSubscription + WebhookDelivery, CRUD + delivery log | ✅ CRUD done; delivery worker pending |
+| `online_orders` | Pickup queue, mark-ready, mark-collected | ✅ Done; NATS KDS subscriber pending |
+| `pin_auth` | Terminal PIN login, set PIN, staff list, auth/me | ✅ Complete |
+| `inventory` | Catalog sync subscriber, stock consumption S2S | ❌ NATS subscriber not wired |
+| `treasury` | Payment intent S2S, NATS success/failed consumers | ❌ NATS subscribers not wired |
 
 ### Data Layer (Ent ORM)
 - All schemas in `internal/ent/schema/`
@@ -224,16 +233,16 @@ pos-ui → POST /{tenant}/pos/orders/{id}/payments
 
 | Sprint | Title | Status |
 |--------|-------|--------|
-| 1 | Foundation (Auth, RBAC, Devices) | ✅ Complete |
+| 1 | Foundation (Auth, RBAC, Devices, PIN Auth) | ✅ Complete |
 | 2 | Orders, Catalog, Payments, Tables | ✅ Complete |
-| 3 | Hotel Module | ✅ Schema + handlers done |
-| 4 | KDS & Bar Display | ✅ Handlers done |
-| 5 | ERP Gaps (Daily Close, Returns) | 🟡 Planned |
-| 6 | Inventory & Treasury Wiring | 🟡 NATS subscribers needed |
-| 7 | Retail Module (Layaway, Barcode, Scale) | 🔴 Not started |
-| 8 | Pharmacy Module | 🔴 Not started |
-| 9 | Service Business Module | 🔴 Not started |
-| 10 | Loyalty & Advanced Promotions | 🔴 Not started |
-| 11 | Reporting & Analytics | 🔴 Not started |
-| 12 | Integrations, Webhooks, KRA eTIMS | 🔴 Not started |
-| 13 | Online Ordering → KDS Bridge | 🔴 Not started |
+| 3 | Hotel Module | ✅ Complete |
+| 4 | KDS & Bar Display | ✅ Complete |
+| 5 | ERP Gaps (DailyClosing, Returns, Receipt) | ✅ Substantially complete |
+| 6 | Inventory & Treasury Wiring | 🟡 S2S clients referenced; NATS subscribers missing |
+| 7 | Retail Module (Layaway, Barcode, Scale, Serial) | ✅ Core delivered |
+| 8 | Pharmacy Module (Prescriptions, Drug Checks) | ✅ Core delivered |
+| 9 | Service Business Module (Appointments, Schedules, Commissions) | ✅ Core delivered |
+| 10 | Loyalty Programs, Accounts, Earn/Redeem | ✅ Core delivered |
+| 11 | Reporting — Sales/Refund/Daily KPIs | ✅ Core KPIs delivered |
+| 12 | Webhook CRUD + Delivery Schema | 🟡 CRUD done; delivery worker missing |
+| 13 | Online Order Pickup Endpoints | 🟡 Pickup done; NATS KDS subscriber missing |

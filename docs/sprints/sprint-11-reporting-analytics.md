@@ -1,8 +1,8 @@
 # Sprint 11: Reporting & Analytics — pos-api
 
-**Status:** 🔴 Not Started  
+**Status:** ✅ Core KPIs Delivered — sales-summary, refund-summary, daily-breakdown endpoints shipped; full EOD reconciliation, shift reports, exports, and pre-aggregation worker pending  
 **Period:** November–December 2026  
-**Last updated:** 2026-05-09  
+**Last updated:** 2026-05-21  
 **Goal:** End-of-day reconciliation, sales reports, staff performance dashboards, export (CSV/PDF), and embedded analytics
 
 ---
@@ -68,11 +68,20 @@ Reports should be fast (<2s for most), pre-aggregated where possible, and export
 - [ ] `pos.reports.eod_close` assigned to `store_manager`, `pos_admin`
 - [ ] `pos.reports.export` assigned to `store_manager`, `pos_admin`
 
+### Implemented (2026-05-21)
+
+- [x] `GET /{tenant}/pos/reports/sales-summary` — aggregated sales summary (`reports.go` handler)
+- [x] `GET /{tenant}/pos/reports/refund-summary` — refund summary
+- [x] `GET /{tenant}/pos/reports/daily-breakdown` — daily breakdown data
+
 ### Migration
-- [ ] Add `DailyReconciliation` ent schema
-- [ ] Run `go generate ./internal/ent`
-- [ ] Generate Atlas migration: `reporting_module`
-- [ ] Update `docs/erd.md`
+- [ ] `DailyReconciliation` ent schema — not added (DailyClosing schema exists from Sprint 5 but is separate)
+- [ ] Atlas migration: `reporting_module` — pending
+- [ ] `docs/erd.md` updated — pending
+
+## Completion Notes (2026-05-21)
+
+Three report endpoints are registered in the router: `sales-summary`, `refund-summary`, `daily-breakdown`. Full EOD lifecycle (`DailyReconciliation` entity, EOD close/reopen, shift reports, per-item/per-staff/per-hour breakdowns, tax report, CSV/PDF export, pre-aggregation background worker) all remain unimplemented. The `DailyClosing` entity from Sprint 5 handles outlet-level daily closing but is a separate concern from the planned `DailyReconciliation` reporting entity.
 
 ---
 

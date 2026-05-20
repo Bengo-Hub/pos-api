@@ -1,8 +1,8 @@
 # Sprint 6: Inventory & Treasury Integration — pos-api
 
-**Status:** ✅ Complete — all integration tasks shipped  
+**Status:** 🟡 Partially Complete — S2S client files exist; NATS subscribers not yet wired; env vars not in devops  
 **Period:** June–July 2026  
-**Last updated:** 2026-05-09  
+**Last updated:** 2026-05-21  
 **Goal:** Wire pos-api → inventory-api stock consumption, wire pos-api → treasury-api payment intent workflow for card/M-Pesa, wire NATS subscribers
 
 > **eTIMS ownership confirmed**: treasury-api owns all KRA eTIMS transmission. This sprint does NOT include any eTIMS work in pos-api. eTIMS subscriber work (`treasury.etims.invoice_transmitted`) is Sprint 12 only.
@@ -139,14 +139,18 @@ ORDERING_SERVICE_URL=https://orderingapi.codevertexitsolutions.com
 ---
 
 ## Tasks
-- [x] Create `internal/modules/inventory/client.go` (S2S inventory client)
-- [x] Wire consumption call in `orders.Service.Complete()`
-- [x] Create `internal/modules/treasury/client.go` (S2S treasury client)
-- [x] Wire treasury intent creation in `payments.Service.Record()` for non-cash tenders
-- [x] Add NATS subscriber for `treasury.payment.success` / `treasury.payment.failed`
-- [x] Add NATS subscriber for `inventory.catalog.updated`
-- [x] Add NATS subscriber for `inventory.stock.low`
+- [~] Create `internal/modules/inventory/client.go` (S2S inventory client) — file exists per architecture docs; HTTP call not confirmed wired in orders.Service.Complete()
+- [ ] Wire consumption call in `orders.Service.Complete()` — NOT wired; integrations.md explicitly states this is missing
+- [~] Create `internal/modules/treasury/client.go` (S2S treasury client) — file referenced in Sprint 2 deliverables; intent endpoint registered in router but S2S call to treasury-api not confirmed wired
+- [ ] Wire treasury intent creation in `payments.Service.Record()` for non-cash tenders — integrations.md states "❌ S2S intent creation not yet wired"
+- [ ] Add NATS subscriber for `treasury.payment.success` / `treasury.payment.failed` — integrations.md states "❌ Not wired — Sprint 6"
+- [ ] Add NATS subscriber for `inventory.catalog.updated` — integrations.md states "❌ Not wired"
+- [ ] Add NATS subscriber for `inventory.stock.low` — integrations.md states "❌ Not wired"
 - [ ] Add env vars to devops-k8s `apps/pos-service/values.yaml`
 - [ ] Update `docs/integrations.md` with complete treasury + inventory flows
-- [ ] Build and fix all errors: `go build ./...`
-- [ ] Push to staging, merge to main
+- [x] Build and fix all errors: `go build ./...`
+- [x] Push to staging, merge to main
+
+## Status as of 2026-05-21
+
+Integration S2S client files referenced in Sprint 2 notes and architecture docs but NATS subscribers are explicitly documented as NOT wired in `docs/integrations.md` and `docs/architecture.md`. The payment intent endpoint (`POST /orders/{id}/payments/intent`) is registered in the router and handler exists, but the actual HTTP call to treasury-api from inside `payments.Service` is unconfirmed. All NATS event subscriptions remain unwired. Sprint 6 is the primary blocker for M-Pesa/card payment completion and inventory backflush.

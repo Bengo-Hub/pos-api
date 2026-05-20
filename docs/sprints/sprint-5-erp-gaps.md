@@ -1,8 +1,8 @@
 # Sprint 5: ERP Gaps — pos-api
 
-**Status:** 🟡 Planned  
+**Status:** ✅ Substantially Complete — DailyClosing, Returns, and Receipt endpoint implemented; full EOD aggregation and PDF export still pending  
 **Period:** June 2026  
-**Last updated:** 2026-05-09  
+**Last updated:** 2026-05-21  
 **Audit note (2026-05-09):** Gap 3 receipt PDF section updated — eTIMS QR data comes from treasury-api via `pos_orders.etims_invoice_number` / `etims_qr_code_url`; pos-api must not call KRA eTIMS API directly.  
 **Goal:** Close feature gaps identified from ERP module audit — daily closing, sale returns/exchanges, receipt PDF
 
@@ -95,13 +95,23 @@ See [integrations.md — eTIMS Ownership ADR](../integrations.md) for the full f
 ---
 
 ## Tasks
-- [ ] Audit POSDeviceSession coverage for daily closing
-- [ ] Add DailyClosing schema if needed + migration
-- [ ] Add DailyClosing handler + service
-- [ ] Add POSReturn + POSReturnLine schemas + migration
-- [ ] Add return/exchange handler + service
-- [ ] Wire treasury refund call on return approval
-- [ ] Add receipt PDF endpoint
+- [x] Audit POSDeviceSession coverage for daily closing
+- [x] Add DailyClosing schema (`internal/ent/schema/dailyclosing.go`) + migration
+- [x] Add DailyClosing handler + service (`internal/http/handlers/closings.go`)
+- [x] Add POSReturn + POSReturnLine schemas (`posreturn.go`, `posreturnline.go`) + migration
+- [x] Add return/exchange handler + service (`internal/http/handlers/returns.go`)
+- [ ] Wire treasury refund call on return approval (returns handler exists; treasury S2S call pending Sprint 6)
+- [x] Add receipt endpoint (`GET /{tenant}/pos/orders/{id}/receipt` — handler at `internal/http/handlers/receipt.go`)
+- [ ] Receipt PDF generation (endpoint returns JSON/text; PDF format pending)
 - [ ] Update Swagger: `swag init`
-- [ ] Build and fix all errors: `go build ./...`
-- [ ] Push to staging, merge to main
+- [x] Build and fix all errors: `go build ./...`
+- [x] Push to staging, merge to main
+
+## Completion Notes (2026-05-21)
+
+Audit of codebase confirmed:
+- `DailyClosing` Ent schema at `internal/ent/schema/dailyclosing.go` (id, tenant_id, outlet_id, date, total_sales, etc.)
+- `closings.go` handler registered at `POST /outlets/{outletID}/daily-close`, `GET /outlets/{outletID}/daily-closings` (gated by `shift_reports` feature)
+- `POSReturn` + `POSReturnLine` Ent schemas present; handler at `returns.go` with `CreateReturn`, `ListReturns`, `ApproveReturn` endpoints
+- Receipt handler at `receipt.go` registered at `GET /orders/{orderID}/receipt` — returns receipt data; server-side PDF generation not yet wired
+- Treasury refund call on `ApproveReturn` not yet wired (see Sprint 6 integrations gap)

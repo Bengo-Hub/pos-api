@@ -34,6 +34,7 @@ import (
 	rbacmodule "github.com/bengobox/pos-service/internal/modules/rbac"
 	inventorymodule "github.com/bengobox/pos-service/internal/modules/inventory"
 	treasurymodule "github.com/bengobox/pos-service/internal/modules/treasury"
+	webhookmodule "github.com/bengobox/pos-service/internal/modules/webhooks"
 	"github.com/bengobox/pos-service/internal/modules/tenant"
 	"github.com/bengobox/pos-service/internal/platform/cache"
 	"github.com/bengobox/pos-service/internal/platform/database"
@@ -51,6 +52,7 @@ type App struct {
 	cache           *redis.Client
 	events          *nats.Conn
 	outboxPublisher *eventslib.Publisher
+	webhookWorker   *webhookmodule.DeliveryWorker
 }
 
 func New(ctx context.Context) (*App, error) {
@@ -220,6 +222,9 @@ func New(ctx context.Context) (*App, error) {
 	// Online ordering pickup status (Sprint 13)
 	onlineOrderHandler := handlers.NewOnlineOrderHandler(log, entClient)
 
+	// Platform admin: service configuration CRUD
+	serviceConfigHandler := handlers.NewServiceConfigHandler(entClient, log)
+
 	// ERP: daily closings + returns
 	closingHandler := handlers.NewDailyClosingHandler(log, entClient)
 	var returnEventPub *events.Publisher
@@ -293,7 +298,9 @@ func New(ctx context.Context) (*App, error) {
 		inventoryEventHandler.InitialSync(ctx, inventoryURL, tenantSlug)
 	}()
 
-	chiRouter := router.New(log, healthHandler, authMiddleware, entClient, identitySvc, orderHandler, catalogHandler, tableHandler, tenderHandler, paymentHandler, drawerHandler, barTabHandler, promotionHandler, rbacHandler, hotelHandler, kdsHandler, deviceHandler, pinAuthHandler, publicOutletHandler, closingHandler, returnHandler, receiptHandler, layawayHandler, scaleHandler, pharmacyHandler, appointmentHandler, commissionHandler, staffScheduleHandler, loyaltyHandler, reportsHandler, webhookHandler, onlineOrderHandler, cfg.HTTP.AllowedOrigins)
+	webhookWorker := webhookmodule.NewDeliveryWorker(entClient, log)
+
+	chiRouter := router.New(log, healthHandler, authMiddleware, entClient, identitySvc, orderHandler, catalogHandler, tableHandler, tenderHandler, paymentHandler, drawerHandler, barTabHandler, promotionHandler, rbacHandler, hotelHandler, kdsHandler, deviceHandler, pinAuthHandler, publicOutletHandler, closingHandler, returnHandler, receiptHandler, layawayHandler, scaleHandler, pharmacyHandler, appointmentHandler, commissionHandler, staffScheduleHandler, loyaltyHandler, reportsHandler, webhookHandler, onlineOrderHandler, serviceConfigHandler, cfg.HTTP.AllowedOrigins)
 
 	httpServer := &http.Server{
 		Addr:              fmt.Sprintf("%s:%d", cfg.HTTP.Host, cfg.HTTP.Port),
@@ -313,6 +320,7 @@ func New(ctx context.Context) (*App, error) {
 		cache:           redisClient,
 		events:          natsConn,
 		outboxPublisher: outboxPub,
+		webhookWorker:   webhookWorker,
 	}, nil
 }
 
@@ -325,6 +333,12 @@ func (a *App) Run(ctx context.Context) error {
 			}
 		}()
 		a.log.Info("outbox background publisher started")
+	}
+
+	// Start webhook delivery worker — polls pending deliveries every 10s
+	if a.webhookWorker != nil {
+		go a.webhookWorker.Start(ctx)
+		a.log.Info("webhook delivery worker started")
 	}
 
 	a.log.Info("pos service starting", zap.String("addr", a.httpServer.Addr))

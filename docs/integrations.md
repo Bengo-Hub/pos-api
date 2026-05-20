@@ -1,6 +1,6 @@
 # POS Service — Integration Guide
 
-**Last updated:** 2026-05-09
+**Last updated:** 2026-05-21
 
 ## Overview
 
@@ -57,7 +57,7 @@ See also: [Sprint 12](sprints/sprint-12-integrations-webhooks.md) and [Sprint 5]
 **Subscriber:** `internal/platform/events/subscribers.go`  
 **Action:** Fetch updated items from `GET /v1/{tenant}/inventory/items`, upsert `catalog_items` projection
 
-**Status:** ❌ NATS subscriber not yet wired (Sprint 6)
+**Status:** ❌ NATS subscriber not yet wired (Sprint 6 — remaining gap)
 
 ### 1.2 Stock Consumption Backflush
 
@@ -81,7 +81,7 @@ Content-Type: application/json
 **Client:** `internal/modules/inventory/client.go` (S2S via `shared-service-client`)  
 **Env vars:** `INVENTORY_SERVICE_URL`, `INTERNAL_SERVICE_KEY`  
 **Retry:** 3 attempts with exponential backoff  
-**Status:** ❌ HTTP call not yet wired in `orders.Service.Complete()` (Sprint 6)
+**Status:** ❌ HTTP call not yet wired in `orders.Service.Complete()` (Sprint 6 — remaining gap)
 
 ### 1.3 Stock Alert Subscriber
 
@@ -245,21 +245,61 @@ All pos-api protected routes under `/{tenant}/pos/` validate Bearer tokens issue
 
 **Background:** The hotel-pos-v8.jsx design requires a touchscreen PIN login (4–6 digits) for kitchen staff, waiters, cashiers, bar staff, and receptionists. These users cannot go through a browser OAuth2 redirect on a dedicated POS terminal.
 
-**Current state:** No PIN field exists on the user entity. Neither auth-api nor pos-api has a PIN endpoint. SSO-only login is the only option.
+**Current state (2026-05-21):** ✅ IMPLEMENTED. PIN login is fully operational.
 
-**Required design (Sprint 10):**
-- `POSStaffPin` table in pos-api: `id, tenant_id, user_id (FK → user projection), pin_hash (bcrypt), is_active, last_used_at`
-- `POST /{tenant}/pos/auth/pin` — validate PIN, issue short-lived terminal token (4-hour JWT signed by pos-api internal secret)
-- `POST /{tenant}/pos/auth/pin/set` — manager sets or resets a staff PIN (requires `pos.staff.manage` permission)
-- pos-ui: PIN touchscreen on terminal login page (replaces SSO redirect for terminal mode)
-- Quick user switch: staff can hand off the terminal without full logout
+**Implemented:**
+- `pin_hash`, `pin_failed_attempts`, `pin_locked_until` fields on `staff_members` Ent schema
+- `POST /{tenant}/pos/auth/pin` — validates PIN, issues 4-hour terminal JWT (HMAC-SHA256)
+- `POST /{tenant}/pos/auth/pin/set` — manager sets/resets staff PIN (requires `pos.staff.manage`)
+- `GET /{tenant}/pos/staff` — list staff for PIN selector grid (public route)
+- `GET /{tenant}/pos/auth/pin/profile` — staff profile for offline PIN auth
+- Terminal JWT embeds: `outlet_id`, `outlet_code`, `outlet_use_case`, `is_hq_user`
+- pos-ui: PIN kiosk at `/[orgSlug]/pin-login` with avatar grid + 12-button keypad
+- Offline PIN validation via bcrypt against IndexedDB cached `staffProfiles`
+- `GET /{tenant}/pos/auth/me` — Trinity Layer 3: returns POS role + permissions for SSO users
 
-**Token type:** `pos_terminal` session — scoped to a single outlet/device; separate from SSO tokens  
-**Status:** ❌ Not implemented — see [pos-ui Sprint 10](../../pos-ui/docs/sprints/sprint-10-pos-auth.md)
+**Token type:** `pos_terminal` HMAC-SHA256 JWT, 4-hour expiry, stored in `sessionStorage`  
+**Status:** ✅ Complete — see [pos-ui Sprint 10](../../pos-ui/docs/sprints/sprint-10-pos-auth.md)
 
 ---
 
-## 5. Notifications Service Integration
+## 5. Webhook Delivery System (Sprint 12)
+
+### Webhook Subscription CRUD
+
+Registered in router under `/{tenantID}/pos/webhooks/`:
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/webhooks` | List subscriptions |
+| POST | `/webhooks` | Create subscription (URL, events, secret) |
+| PUT | `/webhooks/{id}` | Update subscription |
+| DELETE | `/webhooks/{id}` | Remove subscription |
+| GET | `/webhooks/{id}/deliveries` | Delivery log |
+
+**Schemas:** `WebhookSubscription` (`webhooksubscription.go`), `WebhookDelivery` (`webhookdelivery.go`)  
+**Status:** ✅ CRUD implemented. ❌ Delivery worker (NATS fan-out, retry, HMAC signing) not yet implemented.
+
+---
+
+## 6. Online Order Pickup (Sprint 13)
+
+### Click-and-Collect Pickup Endpoints
+
+Registered in router under `/{tenantID}/pos/online-orders/`:
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/online-orders/pickup` | List orders awaiting pickup |
+| POST | `/online-orders/{id}/ready` | Mark order ready for collection |
+| POST | `/online-orders/{id}/collected` | Mark order collected |
+
+**Handler:** `internal/http/handlers/online_orders.go`  
+**Status:** ✅ Pickup endpoints implemented. ❌ NATS subscriber for `ordering.order.status.changed` → KDS ticket creation not yet implemented (see Sprint 13).
+
+---
+
+## 7. Notifications Service Integration
 
 **Used for:**
 - KDS waiter-call notifications (`pos.kds.waiter.called` → notifications-service push)

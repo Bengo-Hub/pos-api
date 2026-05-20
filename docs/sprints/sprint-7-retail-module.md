@@ -1,8 +1,8 @@
 # Sprint 7: Retail Module — pos-api
 
-**Status:** 🔴 Not Started  
+**Status:** ✅ Core Delivered — barcode lookup, scale, layaway, serial/lot fields shipped; stock visibility and pole display pending  
 **Period:** July–August 2026  
-**Last updated:** 2026-05-09  
+**Last updated:** 2026-05-21  
 **Goal:** Extend the POS to support general retail, supermarket, and hardware store operations
 
 ---
@@ -25,58 +25,57 @@ The schemas `SerialNumberLog`, `CatalogItem` (with barcode field), `InventorySna
 ## Deliverables
 
 ### Barcode & SKU Lookup
-- [ ] `GET /{tenant}/pos/catalog/items/lookup?barcode={ean}` — instant barcode lookup endpoint
-- [ ] Support EAN-13, EAN-8, UPC-A, QR code, and internal SKU formats
-- [ ] Return item with current stock level (from `InventorySnapshot`) and price tier (from `PriceBook`)
-- [ ] Cache barcode → item_id mapping in Redis for sub-100ms response
+- [x] `GET /{tenant}/pos/catalog/barcode/{barcode}` — barcode lookup endpoint (`catalog_barcode.go` handler)
+- [x] Return item by barcode field on `CatalogItem`
+- [ ] Redis cache for sub-100ms response (not confirmed)
+- [ ] Stock level included in barcode lookup response (not confirmed)
 
 ### Weighing Scale Integration
-- [ ] `WeighingScaleReading` schema — `id, tenant_id, outlet_id, device_id, weight_grams (int), unit (g|kg|lb), tare_grams (int), read_at`
-- [ ] `POST /{tenant}/pos/devices/{device_id}/scale/reading` — receive scale reading from POS terminal
-- [ ] `GET /{tenant}/pos/devices/{device_id}/scale/current` — get latest reading (polled by pos-ui)
-- [ ] Weight-based line item: `pos_order_lines.weight_grams` (nullable), `price_per_unit` used to compute line total
+- [x] `WeighingScaleReading` schema (`internal/ent/schema/weighingscalereading.go`)
+- [x] `POST /{tenant}/pos/scale/readings` — receive scale reading (`scale.go` handler)
+- [x] `GET /{tenant}/pos/scale/readings` — list readings (polled by pos-ui)
+- [ ] `GET /{tenant}/pos/devices/{device_id}/scale/current` — device-specific current reading (not wired; list endpoint used instead)
+- [x] `pos_order_lines.weight_grams` field on `POSOrderLine` schema
 
 ### Serial Number Capture
-- [ ] Wire existing `SerialNumberLog` into order completion flow
-- [ ] On order finalize: if `catalog_item.requires_serial = true`, require serial number(s) per unit sold
-- [ ] `POST /{tenant}/pos/orders/{order_id}/lines/{line_id}/serials` — attach serial numbers to order line
-- [ ] `GET /{tenant}/pos/serials/{serial}` — look up serial number history (sold to whom, when)
-- [ ] Validation: serial must be unique per tenant, status: `in_stock → sold`
+- [x] `SerialNumberLog` schema exists (`internal/ent/schema/serialnumberlog.go`)
+- [x] `serial_number` and `lot_number` fields on `pos_order_lines` (via `POSOrderLine` schema)
+- [ ] `POST /{tenant}/pos/orders/{order_id}/lines/{line_id}/serials` endpoint — not yet registered
+- [ ] Serial validation and `in_stock → sold` state machine — not wired
 
 ### Layaway (Deferred Payment)
-- [ ] `LayawayPlan` schema — `id, tenant_id, outlet_id, customer_name, customer_phone, pos_order_id (FK), total_amount, amount_paid, balance, due_date, status (active|completed|cancelled|defaulted), notes, created_by, created_at`
-- [ ] `LayawayPayment` schema — `id, layaway_plan_id (FK), amount, payment_method, paid_by, paid_at, notes`
-- [ ] `POST /{tenant}/pos/orders/{order_id}/layaway` — convert order to layaway (initial deposit)
-- [ ] `POST /{tenant}/pos/layaway/{plan_id}/payments` — record instalment payment
-- [ ] `GET /{tenant}/pos/layaway` — list plans (filter: status, due_date_before)
-- [ ] `GET /{tenant}/pos/layaway/{plan_id}` — plan detail + payment history
-- [ ] `PATCH /{tenant}/pos/layaway/{plan_id}/cancel` — cancel plan and restock items
-- [ ] On full payment: auto-complete the linked pos_order
+- [x] `LayawayPlan` schema (`internal/ent/schema/layawayplan.go`)
+- [x] `LayawayPayment` schema (`internal/ent/schema/layawaypayment.go`)
+- [x] `POST /{tenant}/pos/layaways` — create layaway
+- [x] `GET /{tenant}/pos/layaways` — list plans
+- [x] `GET /{tenant}/pos/layaways/{id}` — plan detail
+- [x] `POST /{tenant}/pos/layaways/{id}/payments` — record instalment
+- [x] `POST /{tenant}/pos/layaways/{id}/cancel` — cancel plan
+- [ ] Auto-complete linked pos_order on full payment — not confirmed wired
 
 ### Stock Visibility at POS
-- [ ] `GET /{tenant}/pos/catalog/items/{id}/stock` — current stock level from InventorySnapshot + pending orders
-- [ ] Low-stock badge on menu grid (stock ≤ threshold)
-- [ ] Out-of-stock items: warn but allow override with manager PIN
+- [ ] `GET /{tenant}/pos/catalog/items/{id}/stock` endpoint — not implemented
+- [ ] Low-stock badge on menu grid — not implemented (pos-ui side)
+- [ ] Out-of-stock override with manager PIN — not implemented
 
 ### Customer Pole Display / Customer-Facing Screen
-- [ ] `GET /{tenant}/pos/devices/{device_id}/display` — returns current cart state for customer display
-- [ ] Updated on every cart mutation via Redis pub/sub
-- [ ] Fields: line items, subtotal, tax, total, payment status
+- [ ] `GET /{tenant}/pos/devices/{device_id}/display` — not implemented
+- [ ] Redis pub/sub for real-time cart — not implemented
 
 ### RBAC Additions
-- [ ] New permissions: `pos.retail.view`, `pos.retail.change`, `pos.retail.manage`
-- [ ] New permission: `pos.layaway.view`, `pos.layaway.change`, `pos.layaway.manage`
-- [ ] New permission: `pos.serial.view`, `pos.serial.manage`
-- [ ] Seed new permissions and assign to `pos_admin`, `store_manager`, `cashier`
+- [ ] `pos.retail.*`, `pos.layaway.*`, `pos.serial.*` permissions — not yet seeded
 
 ### Migration
-- [ ] Add `WeighingScaleReading` ent schema
-- [ ] Add `LayawayPlan` + `LayawayPayment` ent schemas
-- [ ] Add `weight_grams` field to `pos_order_lines`
-- [ ] Add `requires_serial` bool field to `catalog_items`
-- [ ] Run `go generate ./internal/ent`
-- [ ] Generate Atlas migration: `retail_module`
-- [ ] Update `docs/erd.md` with new entities
+- [x] `WeighingScaleReading` ent schema added
+- [x] `LayawayPlan` + `LayawayPayment` ent schemas added
+- [x] `weight_grams`, `serial_number`, `lot_number` fields on `pos_order_lines`
+- [x] `barcode`, `requires_serial`, `weight_based` fields on `catalog_items` (via `catalogitem.go`)
+- [x] Atlas migrations generated
+- [ ] `docs/erd.md` updated with new entities — pending
+
+## Completion Notes (2026-05-21)
+
+Core retail schemas and endpoints are shipped: `WeighingScaleReading`, `LayawayPlan`, `LayawayPayment` schemas exist; `scale.go`, `layaway.go` handlers registered in router. Barcode lookup handler at `catalog_barcode.go` registered as `GET /catalog/barcode/{barcode}` (path differs from original spec's `?barcode=` query param). Serial/lot fields added to order lines. Remaining gaps: stock visibility endpoint, serial capture endpoint, pole display, RBAC permission seeding.
 
 ---
 

@@ -230,6 +230,64 @@ func (h *AppointmentHandler) Update(w http.ResponseWriter, r *http.Request) {
 	jsonOK(w, updated)
 }
 
+// action transitions the appointment to a new status via a named action endpoint.
+// Supported actions: check-in → "confirmed", start → "in_progress", complete → "completed",
+// cancel → "cancelled", no-show → "no_show".
+func (h *AppointmentHandler) action(w http.ResponseWriter, r *http.Request, targetStatus entappt.Status) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+
+	apptID, err := uuid.Parse(chi.URLParam(r, "appointmentID"))
+	if err != nil {
+		jsonError(w, "invalid appointment_id", http.StatusBadRequest)
+		return
+	}
+
+	existing, err := h.db.Appointment.Get(r.Context(), apptID)
+	if err != nil || existing.TenantID != tid {
+		jsonError(w, "appointment not found", http.StatusNotFound)
+		return
+	}
+
+	updated, err := h.db.Appointment.UpdateOneID(apptID).
+		SetStatus(targetStatus).
+		Save(r.Context())
+	if err != nil {
+		h.log.Error("appointment action failed", zap.String("action", string(targetStatus)), zap.Error(err))
+		jsonError(w, "failed to update appointment status", http.StatusInternalServerError)
+		return
+	}
+	jsonOK(w, updated)
+}
+
+// CheckIn handles POST /{tenantID}/pos/appointments/{appointmentID}/check-in
+func (h *AppointmentHandler) CheckIn(w http.ResponseWriter, r *http.Request) {
+	h.action(w, r, entappt.StatusConfirmed)
+}
+
+// Start handles POST /{tenantID}/pos/appointments/{appointmentID}/start
+func (h *AppointmentHandler) Start(w http.ResponseWriter, r *http.Request) {
+	h.action(w, r, entappt.StatusInProgress)
+}
+
+// Complete handles POST /{tenantID}/pos/appointments/{appointmentID}/complete
+func (h *AppointmentHandler) Complete(w http.ResponseWriter, r *http.Request) {
+	h.action(w, r, entappt.StatusCompleted)
+}
+
+// Cancel handles POST /{tenantID}/pos/appointments/{appointmentID}/cancel
+func (h *AppointmentHandler) Cancel(w http.ResponseWriter, r *http.Request) {
+	h.action(w, r, entappt.StatusCancelled)
+}
+
+// NoShow handles POST /{tenantID}/pos/appointments/{appointmentID}/no-show
+func (h *AppointmentHandler) NoShow(w http.ResponseWriter, r *http.Request) {
+	h.action(w, r, entappt.StatusNoShow)
+}
+
 // Availability handles GET /{tenantID}/pos/appointments/availability
 // Returns time slots for a given staff member and date that don't overlap with existing appointments.
 func (h *AppointmentHandler) Availability(w http.ResponseWriter, r *http.Request) {

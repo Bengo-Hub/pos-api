@@ -1,6 +1,6 @@
 # BengoBox POS — Use Case & Workflow Reference
 
-**Last updated:** 2026-05-09  
+**Last updated:** 2026-05-21  
 **Scope:** pos-api, pos-ui, cafe-website integration  
 **Research basis:** Codevertex Africa POS Market Research (May 2026) + hotel-pos-v8.jsx design prototype
 
@@ -31,12 +31,12 @@ These are non-negotiable for any Kenyan deployment. Missing any of these makes t
 
 | Requirement | Implementation | Status |
 |-------------|---------------|--------|
-| M-Pesa STK Push | Treasury-api handles Daraja; pos-api creates payment intent | ⚠️ S2S not wired (Sprint 6) |
+| M-Pesa STK Push | Treasury-api handles Daraja; pos-api creates payment intent | ⚠️ Intent endpoint registered; NATS subscriber not wired (Sprint 6) |
 | KRA eTIMS Compliance | OSCU/VSCU modes, offline queue, auto-transmission | ❌ Not implemented (Sprint 12) |
-| Offline Mode | IndexedDB on pos-ui, offline order queue, sync on reconnect | ❌ pos-ui IndexedDB not wired (Sprint 6) |
+| Offline Mode | IndexedDB on pos-ui, offline order queue, sync on reconnect | ✅ pos-ui IndexedDB + sync worker complete (Sprint 6) |
 | Multi-branch Management | Tenant/outlet scoping on all entities | ✅ Complete |
 | KES Currency | `DEFAULT_CURRENCY=KES`, `TAX_RATE_PERCENT=16` | ✅ Configurable |
-| Receipt Generation | Till reports, regulatory exports | 🟡 Entities done, endpoints partial |
+| Receipt Generation | Till reports, regulatory exports | 🟡 Receipt endpoint exists; PDF format pending |
 
 ---
 
@@ -227,30 +227,30 @@ These are non-negotiable for any Kenyan deployment. Missing any of these makes t
 | [2](sprints/sprint-2-orders-catalog.md) | Orders, Catalog, Payments, Tables | ✅ Complete | Restaurant, retail |
 | [3](sprints/sprint-3-hotel-module.md) | Hotel Module (schema + handlers) | ✅ Complete | Hotel, lodge |
 | [4](sprints/sprint-4-kds-bar.md) | KDS & Bar Display (handlers done) | ✅ Complete | Restaurant, bar |
-| [5](sprints/sprint-5-erp-gaps.md) | ERP Gaps — Daily Close, Returns, Receipt PDF | 🟡 Planned | All verticals |
-| [6](sprints/sprint-6-inventory-treasury.md) | Inventory & Treasury Wiring (NATS subscribers) | 🟡 Planned | All verticals |
-| [7](sprints/sprint-7-retail-module.md) | Retail Module (layaway, scale, serial) | 🔴 Not started | Supermarket, hardware |
-| [8](sprints/sprint-8-pharmacy-module.md) | Pharmacy Module (prescriptions, lots, NHIF) | 🔴 Not started | Pharmacy |
-| [9](sprints/sprint-9-service-module.md) | Service Business Module (appointments) | 🔴 Not started | Salon, clinic, car wash |
-| [10](sprints/sprint-10-loyalty-promotions.md) | Loyalty & Advanced Promotions | 🔴 Not started | All verticals |
-| [11](sprints/sprint-11-reporting-analytics.md) | Reporting & Analytics (EOD, KRA export) | 🔴 Not started | All verticals |
-| [12](sprints/sprint-12-integrations-webhooks.md) | Integrations, Webhooks, KRA eTIMS | 🔴 Not started | All verticals |
-| [13](sprints/sprint-13-ordering-kds-integration.md) | Online Ordering → KDS Bridge | 🔴 Not started | Restaurant, bar, hotel |
+| [5](sprints/sprint-5-erp-gaps.md) | ERP Gaps — Daily Close, Returns, Receipt | ✅ Substantially complete | All verticals |
+| [6](sprints/sprint-6-inventory-treasury.md) | Inventory & Treasury Wiring (NATS subscribers) | 🟡 Partial — S2S clients exist; NATS subscribers missing | All verticals |
+| [7](sprints/sprint-7-retail-module.md) | Retail Module (layaway, scale, barcode, serial) | ✅ Core delivered | Supermarket, hardware |
+| [8](sprints/sprint-8-pharmacy-module.md) | Pharmacy Module (prescriptions, drug checks) | ✅ Core delivered | Pharmacy |
+| [9](sprints/sprint-9-service-module.md) | Service Business Module (appointments, schedules, commissions) | ✅ Core delivered | Salon, clinic, car wash |
+| [10](sprints/sprint-10-loyalty-promotions.md) | Loyalty Programs, Accounts, Earn/Redeem | ✅ Core delivered | All verticals |
+| [11](sprints/sprint-11-reporting-analytics.md) | Reporting — Sales/Refund/Daily KPIs | ✅ Core KPIs delivered | All verticals |
+| [12](sprints/sprint-12-integrations-webhooks.md) | Webhook CRUD | 🟡 Subscription CRUD delivered; delivery worker missing | All verticals |
+| [13](sprints/sprint-13-ordering-kds-integration.md) | Online Order Pickup Endpoints | 🟡 Pickup endpoints delivered; NATS KDS subscriber missing | Restaurant, bar, hotel |
 
 ### pos-ui Sprints
 
 | # | Title | Status | Covers |
 |---|-------|--------|--------|
-| [1](../../pos-ui/docs/sprints/sprint-1-mvp-foundation.md) | Foundation — Scaffold, Auth, Layout | 🟡 In progress | All verticals |
-| [2](../../pos-ui/docs/sprints/sprint-2-order-entry.md) | Order Entry — Menu Grid, Cart, Payment | ✅ Implemented | Restaurant, retail |
-| [3](../../pos-ui/docs/sprints/sprint-3-tables-shifts.md) | Tables, Floor Plan, Shifts | ✅ Implemented | Restaurant, hotel |
-| [4](../../pos-ui/docs/sprints/sprint-4-hotel.md) | Hotel UI — Rooms, Facilities | 🟡 Scaffold done | Hotel, lodge |
+| [1](../../pos-ui/docs/sprints/sprint-1-mvp-foundation.md) | Foundation — Scaffold, Auth, Layout | ✅ Complete | All verticals |
+| [2](../../pos-ui/docs/sprints/sprint-2-order-entry.md) | Order Entry — Menu Grid, Cart, Payment | ✅ Complete | Restaurant, retail |
+| [3](../../pos-ui/docs/sprints/sprint-3-tables-shifts.md) | Tables, Floor Plan, Shifts | ✅ Complete | Restaurant, hotel |
+| [4](../../pos-ui/docs/sprints/sprint-4-hotel.md) | Hotel UI — Rooms, Facilities | 🟡 Scaffold done — API hooks not wired | Hotel, lodge |
 | [5](../../pos-ui/docs/sprints/sprint-5-kds.md) | KDS Terminal View | ✅ Complete | Restaurant, bar |
-| [6](../../pos-ui/docs/sprints/sprint-6-offline.md) | Offline / PWA (IndexedDB, sync) | 🔴 Not started | All verticals |
-| [7](../../pos-ui/docs/sprints/sprint-7-retail-ui.md) | Retail UI (barcode, list view, scale) | 🔴 Not started | Supermarket, hardware |
-| [8](../../pos-ui/docs/sprints/sprint-8-service-ui.md) | Service Business UI | 🔴 Not started | Salon, clinic, car wash |
-| [9](../../pos-ui/docs/sprints/sprint-9-reports-ui.md) | Reports & Analytics UI | 🟡 Basic scaffold | All verticals |
-| [10](../../pos-ui/docs/sprints/sprint-10-pos-auth.md) | Dual Auth — SSO + PIN Terminal Login | 🔴 Not started | All verticals |
+| [6](../../pos-ui/docs/sprints/sprint-6-offline.md) | Offline / PWA (IndexedDB, sync worker) | ✅ Complete | All verticals |
+| [7](../../pos-ui/docs/sprints/sprint-7-retail-ui.md) | Retail UI (barcode, layaway, serial) | ✅ Core delivered | Supermarket, hardware |
+| [8](../../pos-ui/docs/sprints/sprint-8-service-ui.md) | Service Business UI (appointments, commissions) | ✅ Core delivered | Salon, clinic, car wash |
+| [9](../../pos-ui/docs/sprints/sprint-9-reports-ui.md) | Reports & Analytics UI | ✅ Core delivered | All verticals |
+| [10](../../pos-ui/docs/sprints/sprint-10-pos-auth.md) | Dual Auth — SSO + PIN Terminal Login | ✅ Complete | All verticals |
 
 ---
 

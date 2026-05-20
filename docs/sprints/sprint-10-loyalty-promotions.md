@@ -1,8 +1,8 @@
 # Sprint 10: Loyalty & Advanced Promotions — pos-api
 
-**Status:** 🔴 Not Started  
+**Status:** ✅ Core Delivered — loyalty programs, accounts, earn/redeem transactions shipped; advanced promotions (BXGY, combo, time-window), referrals, and tier-based pricebook mapping pending  
 **Period:** October–November 2026  
-**Last updated:** 2026-05-09  
+**Last updated:** 2026-05-21  
 **Goal:** Customer loyalty points, tiered membership, advanced promotion engine (multi-buy, combo, time-based discounts)
 
 ---
@@ -61,15 +61,30 @@ Basic promotions (percentage discount, fixed discount) already exist via the `Pr
 - [ ] New permissions: `pos.promotions.manage` (extends existing)
 - [ ] Assign `pos.loyalty.view` to `cashier`; `pos.loyalty.manage` to `store_manager`, `pos_admin`
 
+### Implemented
+
+- [x] `LoyaltyProgram` schema (`internal/ent/schema/loyaltyprogram.go`)
+- [x] `LoyaltyAccount` schema (`internal/ent/schema/loyaltyaccount.go`)
+- [x] `LoyaltyTransaction` schema (`internal/ent/schema/loyaltytransaction.go`)
+- [x] `GET /{tenant}/pos/loyalty/programs`, `POST /loyalty/programs`, `PUT /loyalty/programs/{id}`
+- [x] `GET /{tenant}/pos/loyalty/accounts`, `POST /loyalty/accounts`, `GET /loyalty/accounts/{id}`
+- [x] `POST /{tenant}/pos/loyalty/accounts/{id}/earn`
+- [x] `POST /{tenant}/pos/loyalty/accounts/{id}/redeem`
+- [x] Handler at `internal/http/handlers/loyalty.go`
+
 ### Migration
-- [ ] Add `LoyaltyAccount`, `LoyaltyTransaction`, `LoyaltyConfig` ent schemas
-- [ ] Add `ReferralRecord` ent schema
-- [ ] Extend `PromotionRule`: add `buy_x_get_y`, `combo`, `time_window` rule types and fields
-- [ ] Add `valid_from_time`, `valid_to_time`, `valid_days`, `allow_stacking` to `Promotion`
-- [ ] Add tender type `loyalty_points` to `Tender` seed
-- [ ] Run `go generate ./internal/ent`
-- [ ] Generate Atlas migration: `loyalty_promotions`
-- [ ] Update `docs/erd.md`
+- [x] `LoyaltyProgram`, `LoyaltyAccount`, `LoyaltyTransaction` ent schemas added
+- [ ] `LoyaltyConfig` ent schema — not added (config folded into LoyaltyProgram or not yet implemented)
+- [ ] `ReferralRecord` ent schema — not added
+- [ ] Extend `PromotionRule` with `buy_x_get_y`, `combo`, `time_window` — not implemented
+- [ ] Add `valid_from_time`, `valid_to_time`, `valid_days`, `allow_stacking` to `Promotion` — not implemented
+- [ ] Add tender type `loyalty_points` to `Tender` seed — not confirmed
+- [x] Atlas migrations generated for loyalty schemas
+- [ ] `docs/erd.md` updated — pending
+
+## Completion Notes (2026-05-21)
+
+Core loyalty engine shipped: programs (list/create/update), accounts (list/create/get), and transactions (earn/redeem) are all registered in the router. Advanced promotion engine extensions (BXGY, combo, time-window), referral tracking, and tier-based pricebook integration remain unimplemented.
 
 ---
 

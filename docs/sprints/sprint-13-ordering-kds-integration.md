@@ -1,8 +1,8 @@
 # Sprint 13: Online Ordering → KDS Integration — pos-api
 
-**Status:** 🔴 Not Started  
+**Status:** 🟡 Partial — online order pickup endpoints shipped; NATS subscriber for KDS ticket creation not implemented  
 **Period:** January–February 2027  
-**Last updated:** 2026-05-09  
+**Last updated:** 2026-05-21  
 **Goal:** Subscribe to ordering-backend events and create KDS tickets when online hospitality orders reach kitchen-ready status, closing the gap between the online ordering channel and the kitchen display system
 
 ---
@@ -110,6 +110,21 @@ Expected shape of `ordering.order.status.changed` from ordering-backend:
 - The `external_order_id` field ensures a re-delivered NATS event does not create duplicate tickets (idempotency key)
 
 ---
+
+## Partial Implementation (2026-05-21)
+
+The following online order pickup endpoints are implemented and registered in the router (`online_orders.go` handler):
+- [x] `GET /{tenant}/pos/online-orders/pickup` — list pickup orders
+- [x] `POST /{tenant}/pos/online-orders/{orderID}/ready` — mark order ready for collection
+- [x] `POST /{tenant}/pos/online-orders/{orderID}/collected` — mark order collected
+
+The following remain unimplemented:
+- [ ] NATS subscriber for `ordering.order.status.changed` — no subscriber exists
+- [ ] Automatic KDS ticket creation from online order events
+- [ ] Dead-letter queue (`pos-api-kds-dlq`)
+- [ ] `SyncFailure` record creation on consumer failure
+- [ ] KDS ordering callback (`pos.kds.order.ready`)
+- [ ] Table matching from `table_reference` in event payload
 
 ## Testing
 

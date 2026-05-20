@@ -54,6 +54,7 @@ func New(
 	reports *handlers.ReportsHandler,
 	webhooks *handlers.WebhookHandler,
 	onlineOrders *handlers.OnlineOrderHandler,
+	serviceConfig *handlers.ServiceConfigHandler,
 	allowedOrigins []string,
 ) http.Handler {
 	r := chi.NewRouter()
@@ -79,6 +80,14 @@ func New(
 	r.Get("/v1/docs/*", handlers.SwaggerUI)
 
 	r.Route("/api/v1", func(api chi.Router) {
+		// ── Platform admin endpoints (platform owner JWT required) ────────────
+		if serviceConfig != nil && authMiddleware != nil {
+			api.Group(func(admin chi.Router) {
+				admin.Use(authMiddleware.RequireAuth)
+				serviceConfig.RegisterAdminRoutes(admin)
+			})
+		}
+
 		// ── Public endpoints (no auth required) ───────────────────────────────
 		// These routes are accessible before the staff member has authenticated.
 		// TenantV2 extracts tenant UUID directly from the URL path parameter.
@@ -323,6 +332,11 @@ func New(
 							svc.Get("/appointments/availability", appointments.Availability)
 							svc.Get("/appointments/{appointmentID}", appointments.Get)
 							svc.Put("/appointments/{appointmentID}", appointments.Update)
+							svc.Post("/appointments/{appointmentID}/check-in", appointments.CheckIn)
+							svc.Post("/appointments/{appointmentID}/start", appointments.Start)
+							svc.Post("/appointments/{appointmentID}/complete", appointments.Complete)
+							svc.Post("/appointments/{appointmentID}/cancel", appointments.Cancel)
+							svc.Post("/appointments/{appointmentID}/no-show", appointments.NoShow)
 						})
 					}
 

@@ -1,8 +1,8 @@
 # Sprint 12: Integrations & Webhooks — pos-api
 
-**Status:** 🔴 Not Started  
+**Status:** 🟡 Webhook CRUD Delivered — subscription management and delivery log endpoints shipped; webhook delivery worker, channel ingestion, accounting export, multi-device sync, and eTIMS subscriber pending  
 **Period:** December 2026 – January 2027  
-**Last updated:** 2026-05-09  
+**Last updated:** 2026-05-21  
 **Audit note (2026-05-09):** eTIMS ownership corrected — treasury-api owns KRA submission; pos-api is a thin consumer of the result. FiscalReceipt entity removed from pos-api scope.  
 **Goal:** External integrations, webhook delivery, channel sync (Uber Eats, Glovo, direct online ordering), accounting export, and multi-device synchronisation
 
@@ -21,15 +21,16 @@ External integrations serve two purposes:
 ## Deliverables
 
 ### Webhook Engine
-- [ ] `POST /{tenant}/pos/webhooks` — register a webhook subscription (URL, events, secret)
-- [ ] `GET /{tenant}/pos/webhooks` — list subscriptions
-- [ ] `PATCH /{tenant}/pos/webhooks/{id}` — update (URL, events, active)
-- [ ] `DELETE /{tenant}/pos/webhooks/{id}` — remove subscription
-- [ ] `GET /{tenant}/pos/webhooks/{id}/deliveries` — delivery log (status, response_code, retried)
-- [ ] Webhook delivery worker: on NATS event publication, fan out to all matching webhook subscriptions
-- [ ] Delivery with retry: exponential backoff × 5 attempts; failures logged to `SyncFailure`
-- [ ] HMAC-SHA256 signature header: `X-BengoBox-Signature` — allows receivers to verify authenticity
-- [ ] Events available for subscription: `order.created`, `order.completed`, `order.refunded`, `payment.received`, `stock.low`, `shift.closed`, `eod.closed`
+- [x] `POST /{tenant}/pos/webhooks` — register a webhook subscription (`webhooks.go` handler)
+- [x] `GET /{tenant}/pos/webhooks` — list subscriptions
+- [x] `PUT /{tenant}/pos/webhooks/{id}` — update subscription
+- [x] `DELETE /{tenant}/pos/webhooks/{id}` — remove subscription
+- [x] `GET /{tenant}/pos/webhooks/{id}/deliveries` — delivery log
+- [x] `WebhookSubscription` schema (`internal/ent/schema/webhooksubscription.go`)
+- [x] `WebhookDelivery` schema (`internal/ent/schema/webhookdelivery.go`)
+- [ ] Webhook delivery worker — not implemented (NATS fan-out to subscriptions)
+- [ ] Delivery retry with exponential backoff — not implemented
+- [ ] HMAC-SHA256 `X-BengoBox-Signature` header — not implemented
 
 ### Online Channel Order Ingestion
 - [ ] `POST /{tenant}/pos/channels/{channel_id}/orders` — receive inbound order from marketplace (called by ordering-api or channel adapter)

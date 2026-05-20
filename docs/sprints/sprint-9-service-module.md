@@ -1,8 +1,8 @@
 # Sprint 9: Service Business Module — pos-api
 
-**Status:** 🔴 Not Started  
+**Status:** ✅ Core Delivered — appointments, staff schedules, and commissions shipped; walk-in queue, packages, client records, and resources pending  
 **Period:** September–October 2026  
-**Last updated:** 2026-05-09  
+**Last updated:** 2026-05-21  
 **Goal:** Appointments, staff commissions, service queues, and packages for barbershop/salon, clinic, car wash, and service-based businesses
 
 ---
@@ -106,6 +106,15 @@ The `Appointment`, `StaffMember`, and `CommissionRecord` schemas already exist i
 - [ ] Run `go generate ./internal/ent`
 - [ ] Generate Atlas migration: `service_module`
 - [ ] Update `docs/erd.md`
+
+## Completion Notes (2026-05-21)
+
+Appointment CRUD (list/create/get/update/availability), staff schedules (list/upsert by day-of-week in `staff_schedule.go`), and basic commission records (list/get in `commissions.go`) are shipped and registered in the router. All appointment action endpoints (check-in/start/complete/cancel/no-show), walk-in queue, commission rules and payout, service packages, client records, and bay/resource management remain unimplemented.
+
+Implemented route coverage:
+- `GET /appointments`, `POST /appointments`, `GET /appointments/availability`, `GET /appointments/{id}`, `PUT /appointments/{id}` — all under `RequireUseCase("services")`
+- `GET /staff/{staffID}/schedule`, `PUT /staff/{staffID}/schedule`
+- `GET /commissions`, `GET /commissions/{id}`
 
 ---
 
