@@ -14,6 +14,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/channelintegration"
 	"github.com/bengobox/pos-service/internal/ent/channelsyncjob"
 	"github.com/bengobox/pos-service/internal/ent/commissionrecord"
+	"github.com/bengobox/pos-service/internal/ent/dailyclosing"
 	"github.com/bengobox/pos-service/internal/ent/facility"
 	"github.com/bengobox/pos-service/internal/ent/facilitybooking"
 	"github.com/bengobox/pos-service/internal/ent/giftcard"
@@ -37,6 +38,8 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/pospayment"
 	"github.com/bengobox/pos-service/internal/ent/pospermission"
 	"github.com/bengobox/pos-service/internal/ent/posrefund"
+	"github.com/bengobox/pos-service/internal/ent/posreturn"
+	"github.com/bengobox/pos-service/internal/ent/posreturnline"
 	"github.com/bengobox/pos-service/internal/ent/posrole"
 	"github.com/bengobox/pos-service/internal/ent/posrolev2"
 	"github.com/bengobox/pos-service/internal/ent/posuserroleassignment"
@@ -302,6 +305,58 @@ func init() {
 	commissionrecordDescID := commissionrecordFields[0].Descriptor()
 	// commissionrecord.DefaultID holds the default value on creation for the id field.
 	commissionrecord.DefaultID = commissionrecordDescID.Default.(func() uuid.UUID)
+	dailyclosingFields := schema.DailyClosing{}.Fields()
+	_ = dailyclosingFields
+	// dailyclosingDescTotalSales is the schema descriptor for total_sales field.
+	dailyclosingDescTotalSales := dailyclosingFields[4].Descriptor()
+	// dailyclosing.DefaultTotalSales holds the default value on creation for the total_sales field.
+	dailyclosing.DefaultTotalSales = dailyclosingDescTotalSales.Default.(float64)
+	// dailyclosingDescTotalRefunds is the schema descriptor for total_refunds field.
+	dailyclosingDescTotalRefunds := dailyclosingFields[5].Descriptor()
+	// dailyclosing.DefaultTotalRefunds holds the default value on creation for the total_refunds field.
+	dailyclosing.DefaultTotalRefunds = dailyclosingDescTotalRefunds.Default.(float64)
+	// dailyclosingDescTotalDiscounts is the schema descriptor for total_discounts field.
+	dailyclosingDescTotalDiscounts := dailyclosingFields[6].Descriptor()
+	// dailyclosing.DefaultTotalDiscounts holds the default value on creation for the total_discounts field.
+	dailyclosing.DefaultTotalDiscounts = dailyclosingDescTotalDiscounts.Default.(float64)
+	// dailyclosingDescTotalVoids is the schema descriptor for total_voids field.
+	dailyclosingDescTotalVoids := dailyclosingFields[7].Descriptor()
+	// dailyclosing.DefaultTotalVoids holds the default value on creation for the total_voids field.
+	dailyclosing.DefaultTotalVoids = dailyclosingDescTotalVoids.Default.(float64)
+	// dailyclosingDescCashExpected is the schema descriptor for cash_expected field.
+	dailyclosingDescCashExpected := dailyclosingFields[8].Descriptor()
+	// dailyclosing.DefaultCashExpected holds the default value on creation for the cash_expected field.
+	dailyclosing.DefaultCashExpected = dailyclosingDescCashExpected.Default.(float64)
+	// dailyclosingDescCashActual is the schema descriptor for cash_actual field.
+	dailyclosingDescCashActual := dailyclosingFields[9].Descriptor()
+	// dailyclosing.DefaultCashActual holds the default value on creation for the cash_actual field.
+	dailyclosing.DefaultCashActual = dailyclosingDescCashActual.Default.(float64)
+	// dailyclosingDescVariance is the schema descriptor for variance field.
+	dailyclosingDescVariance := dailyclosingFields[10].Descriptor()
+	// dailyclosing.DefaultVariance holds the default value on creation for the variance field.
+	dailyclosing.DefaultVariance = dailyclosingDescVariance.Default.(float64)
+	// dailyclosingDescStatus is the schema descriptor for status field.
+	dailyclosingDescStatus := dailyclosingFields[11].Descriptor()
+	// dailyclosing.DefaultStatus holds the default value on creation for the status field.
+	dailyclosing.DefaultStatus = dailyclosingDescStatus.Default.(string)
+	// dailyclosingDescDrawerIds is the schema descriptor for drawer_ids field.
+	dailyclosingDescDrawerIds := dailyclosingFields[14].Descriptor()
+	// dailyclosing.DefaultDrawerIds holds the default value on creation for the drawer_ids field.
+	dailyclosing.DefaultDrawerIds = dailyclosingDescDrawerIds.Default.([]uuid.UUID)
+	// dailyclosingDescCreatedAt is the schema descriptor for created_at field.
+	dailyclosingDescCreatedAt := dailyclosingFields[15].Descriptor()
+	// dailyclosing.DefaultCreatedAt holds the default value on creation for the created_at field.
+	dailyclosing.DefaultCreatedAt = dailyclosingDescCreatedAt.Default.(func() time.Time)
+	// dailyclosingDescUpdatedAt is the schema descriptor for updated_at field.
+	dailyclosingDescUpdatedAt := dailyclosingFields[16].Descriptor()
+	// dailyclosing.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	dailyclosing.DefaultUpdatedAt = dailyclosingDescUpdatedAt.Default.(func() time.Time)
+	// dailyclosing.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	dailyclosing.UpdateDefaultUpdatedAt = dailyclosingDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// dailyclosingDescID is the schema descriptor for id field.
+	dailyclosingDescID := dailyclosingFields[0].Descriptor()
+	// dailyclosing.DefaultID holds the default value on creation for the id field.
+	dailyclosing.DefaultID = dailyclosingDescID.Default.(func() uuid.UUID)
 	facilityFields := schema.Facility{}.Fields()
 	_ = facilityFields
 	// facilityDescName is the schema descriptor for name field.
@@ -876,6 +931,40 @@ func init() {
 	posrefundDescID := posrefundFields[0].Descriptor()
 	// posrefund.DefaultID holds the default value on creation for the id field.
 	posrefund.DefaultID = posrefundDescID.Default.(func() uuid.UUID)
+	posreturnFields := schema.POSReturn{}.Fields()
+	_ = posreturnFields
+	// posreturnDescReturnNumber is the schema descriptor for return_number field.
+	posreturnDescReturnNumber := posreturnFields[4].Descriptor()
+	// posreturn.ReturnNumberValidator is a validator for the "return_number" field. It is called by the builders before save.
+	posreturn.ReturnNumberValidator = posreturnDescReturnNumber.Validators[0].(func(string) error)
+	// posreturnDescRefundAmount is the schema descriptor for refund_amount field.
+	posreturnDescRefundAmount := posreturnFields[8].Descriptor()
+	// posreturn.DefaultRefundAmount holds the default value on creation for the refund_amount field.
+	posreturn.DefaultRefundAmount = posreturnDescRefundAmount.Default.(float64)
+	// posreturnDescMetadata is the schema descriptor for metadata field.
+	posreturnDescMetadata := posreturnFields[13].Descriptor()
+	// posreturn.DefaultMetadata holds the default value on creation for the metadata field.
+	posreturn.DefaultMetadata = posreturnDescMetadata.Default.(map[string]interface{})
+	// posreturnDescCreatedAt is the schema descriptor for created_at field.
+	posreturnDescCreatedAt := posreturnFields[14].Descriptor()
+	// posreturn.DefaultCreatedAt holds the default value on creation for the created_at field.
+	posreturn.DefaultCreatedAt = posreturnDescCreatedAt.Default.(func() time.Time)
+	// posreturnDescUpdatedAt is the schema descriptor for updated_at field.
+	posreturnDescUpdatedAt := posreturnFields[15].Descriptor()
+	// posreturn.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	posreturn.DefaultUpdatedAt = posreturnDescUpdatedAt.Default.(func() time.Time)
+	// posreturn.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	posreturn.UpdateDefaultUpdatedAt = posreturnDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// posreturnDescID is the schema descriptor for id field.
+	posreturnDescID := posreturnFields[0].Descriptor()
+	// posreturn.DefaultID holds the default value on creation for the id field.
+	posreturn.DefaultID = posreturnDescID.Default.(func() uuid.UUID)
+	posreturnlineFields := schema.POSReturnLine{}.Fields()
+	_ = posreturnlineFields
+	// posreturnlineDescID is the schema descriptor for id field.
+	posreturnlineDescID := posreturnlineFields[0].Descriptor()
+	// posreturnline.DefaultID holds the default value on creation for the id field.
+	posreturnline.DefaultID = posreturnlineDescID.Default.(func() uuid.UUID)
 	posroleFields := schema.POSRole{}.Fields()
 	_ = posroleFields
 	// posroleDescName is the schema descriptor for name field.

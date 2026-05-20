@@ -21,6 +21,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/channelintegration"
 	"github.com/bengobox/pos-service/internal/ent/channelsyncjob"
 	"github.com/bengobox/pos-service/internal/ent/commissionrecord"
+	"github.com/bengobox/pos-service/internal/ent/dailyclosing"
 	"github.com/bengobox/pos-service/internal/ent/facility"
 	"github.com/bengobox/pos-service/internal/ent/facilitybooking"
 	"github.com/bengobox/pos-service/internal/ent/featureoverride"
@@ -46,6 +47,8 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/pospayment"
 	"github.com/bengobox/pos-service/internal/ent/pospermission"
 	"github.com/bengobox/pos-service/internal/ent/posrefund"
+	"github.com/bengobox/pos-service/internal/ent/posreturn"
+	"github.com/bengobox/pos-service/internal/ent/posreturnline"
 	"github.com/bengobox/pos-service/internal/ent/posrole"
 	"github.com/bengobox/pos-service/internal/ent/posrolepermission"
 	"github.com/bengobox/pos-service/internal/ent/posrolev2"
@@ -143,6 +146,7 @@ func checkColumn(t, c string) error {
 			channelintegration.Table:     channelintegration.ValidColumn,
 			channelsyncjob.Table:         channelsyncjob.ValidColumn,
 			commissionrecord.Table:       commissionrecord.ValidColumn,
+			dailyclosing.Table:           dailyclosing.ValidColumn,
 			facility.Table:               facility.ValidColumn,
 			facilitybooking.Table:        facilitybooking.ValidColumn,
 			featureoverride.Table:        featureoverride.ValidColumn,
@@ -168,6 +172,8 @@ func checkColumn(t, c string) error {
 			pospayment.Table:             pospayment.ValidColumn,
 			pospermission.Table:          pospermission.ValidColumn,
 			posrefund.Table:              posrefund.ValidColumn,
+			posreturn.Table:              posreturn.ValidColumn,
+			posreturnline.Table:          posreturnline.ValidColumn,
 			posrole.Table:                posrole.ValidColumn,
 			posrolepermission.Table:      posrolepermission.ValidColumn,
 			posrolev2.Table:              posrolev2.ValidColumn,

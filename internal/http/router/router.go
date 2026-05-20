@@ -41,6 +41,8 @@ func New(
 	devices *handlers.DeviceHandler,
 	pinAuth *handlers.PINAuthHandler,
 	publicOutlet *handlers.PublicOutletHandler,
+	closings *handlers.DailyClosingHandler,
+	returns *handlers.ReturnHandler,
 	allowedOrigins []string,
 ) http.Handler {
 	r := chi.NewRouter()
@@ -248,6 +250,25 @@ func New(
 						pos.Post("/kds/tickets/{id}/serve", kds.ServeTicket)
 						pos.Post("/kds/tickets/{id}/void", kds.VoidTicket)
 						pos.Post("/kds/tickets/{id}/call-waiter", kds.CallWaiter)
+					}
+
+					// Returns
+					if returns != nil {
+						pos.Post("/orders/{orderID}/returns", returns.CreateReturn)
+						pos.Get("/returns", returns.ListReturns)
+						pos.Group(func(mgr chi.Router) {
+							mgr.Use(subscriptions.RequireFeature("shift_reports"))
+							mgr.Patch("/returns/{returnID}/approve", returns.ApproveReturn)
+						})
+					}
+
+					// Daily closings (ERP reconciliation)
+					if closings != nil {
+						pos.Group(func(mgr chi.Router) {
+							mgr.Use(subscriptions.RequireFeature("shift_reports"))
+							mgr.Post("/outlets/{outletID}/daily-close", closings.CloseDay)
+							mgr.Get("/outlets/{outletID}/daily-closings", closings.ListDailyClosings)
+						})
 					}
 				})
 

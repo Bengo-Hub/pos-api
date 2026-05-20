@@ -11,6 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/bengobox/pos-service/internal/ent/dailyclosing"
 	"github.com/bengobox/pos-service/internal/ent/outlet"
 	"github.com/bengobox/pos-service/internal/ent/outletsetting"
 	"github.com/bengobox/pos-service/internal/ent/posdevice"
@@ -261,6 +262,21 @@ func (_u *OutletUpdate) AddDevices(v ...*POSDevice) *OutletUpdate {
 	return _u.AddDeviceIDs(ids...)
 }
 
+// AddDailyClosingIDs adds the "daily_closings" edge to the DailyClosing entity by IDs.
+func (_u *OutletUpdate) AddDailyClosingIDs(ids ...uuid.UUID) *OutletUpdate {
+	_u.mutation.AddDailyClosingIDs(ids...)
+	return _u
+}
+
+// AddDailyClosings adds the "daily_closings" edges to the DailyClosing entity.
+func (_u *OutletUpdate) AddDailyClosings(v ...*DailyClosing) *OutletUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddDailyClosingIDs(ids...)
+}
+
 // Mutation returns the OutletMutation object of the builder.
 func (_u *OutletUpdate) Mutation() *OutletMutation {
 	return _u.mutation
@@ -297,6 +313,27 @@ func (_u *OutletUpdate) RemoveDevices(v ...*POSDevice) *OutletUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveDeviceIDs(ids...)
+}
+
+// ClearDailyClosings clears all "daily_closings" edges to the DailyClosing entity.
+func (_u *OutletUpdate) ClearDailyClosings() *OutletUpdate {
+	_u.mutation.ClearDailyClosings()
+	return _u
+}
+
+// RemoveDailyClosingIDs removes the "daily_closings" edge to DailyClosing entities by IDs.
+func (_u *OutletUpdate) RemoveDailyClosingIDs(ids ...uuid.UUID) *OutletUpdate {
+	_u.mutation.RemoveDailyClosingIDs(ids...)
+	return _u
+}
+
+// RemoveDailyClosings removes "daily_closings" edges to DailyClosing entities.
+func (_u *OutletUpdate) RemoveDailyClosings(v ...*DailyClosing) *OutletUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveDailyClosingIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -514,6 +551,51 @@ func (_u *OutletUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(posdevice.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.DailyClosingsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   outlet.DailyClosingsTable,
+			Columns: []string{outlet.DailyClosingsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(dailyclosing.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedDailyClosingsIDs(); len(nodes) > 0 && !_u.mutation.DailyClosingsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   outlet.DailyClosingsTable,
+			Columns: []string{outlet.DailyClosingsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(dailyclosing.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.DailyClosingsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   outlet.DailyClosingsTable,
+			Columns: []string{outlet.DailyClosingsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(dailyclosing.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {
@@ -770,6 +852,21 @@ func (_u *OutletUpdateOne) AddDevices(v ...*POSDevice) *OutletUpdateOne {
 	return _u.AddDeviceIDs(ids...)
 }
 
+// AddDailyClosingIDs adds the "daily_closings" edge to the DailyClosing entity by IDs.
+func (_u *OutletUpdateOne) AddDailyClosingIDs(ids ...uuid.UUID) *OutletUpdateOne {
+	_u.mutation.AddDailyClosingIDs(ids...)
+	return _u
+}
+
+// AddDailyClosings adds the "daily_closings" edges to the DailyClosing entity.
+func (_u *OutletUpdateOne) AddDailyClosings(v ...*DailyClosing) *OutletUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddDailyClosingIDs(ids...)
+}
+
 // Mutation returns the OutletMutation object of the builder.
 func (_u *OutletUpdateOne) Mutation() *OutletMutation {
 	return _u.mutation
@@ -806,6 +903,27 @@ func (_u *OutletUpdateOne) RemoveDevices(v ...*POSDevice) *OutletUpdateOne {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveDeviceIDs(ids...)
+}
+
+// ClearDailyClosings clears all "daily_closings" edges to the DailyClosing entity.
+func (_u *OutletUpdateOne) ClearDailyClosings() *OutletUpdateOne {
+	_u.mutation.ClearDailyClosings()
+	return _u
+}
+
+// RemoveDailyClosingIDs removes the "daily_closings" edge to DailyClosing entities by IDs.
+func (_u *OutletUpdateOne) RemoveDailyClosingIDs(ids ...uuid.UUID) *OutletUpdateOne {
+	_u.mutation.RemoveDailyClosingIDs(ids...)
+	return _u
+}
+
+// RemoveDailyClosings removes "daily_closings" edges to DailyClosing entities.
+func (_u *OutletUpdateOne) RemoveDailyClosings(v ...*DailyClosing) *OutletUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveDailyClosingIDs(ids...)
 }
 
 // Where appends a list predicates to the OutletUpdate builder.
@@ -1053,6 +1171,51 @@ func (_u *OutletUpdateOne) sqlSave(ctx context.Context) (_node *Outlet, err erro
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(posdevice.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.DailyClosingsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   outlet.DailyClosingsTable,
+			Columns: []string{outlet.DailyClosingsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(dailyclosing.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedDailyClosingsIDs(); len(nodes) > 0 && !_u.mutation.DailyClosingsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   outlet.DailyClosingsTable,
+			Columns: []string{outlet.DailyClosingsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(dailyclosing.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.DailyClosingsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   outlet.DailyClosingsTable,
+			Columns: []string{outlet.DailyClosingsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(dailyclosing.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

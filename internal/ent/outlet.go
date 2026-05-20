@@ -63,9 +63,11 @@ type OutletEdges struct {
 	Settings *OutletSetting `json:"settings,omitempty"`
 	// Devices holds the value of the devices edge.
 	Devices []*POSDevice `json:"devices,omitempty"`
+	// DailyClosings holds the value of the daily_closings edge.
+	DailyClosings []*DailyClosing `json:"daily_closings,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [3]bool
+	loadedTypes [4]bool
 }
 
 // TenantOrErr returns the Tenant value or an error if the edge
@@ -97,6 +99,15 @@ func (e OutletEdges) DevicesOrErr() ([]*POSDevice, error) {
 		return e.Devices, nil
 	}
 	return nil, &NotLoadedError{edge: "devices"}
+}
+
+// DailyClosingsOrErr returns the DailyClosings value or an error if the edge
+// was not loaded in eager-loading.
+func (e OutletEdges) DailyClosingsOrErr() ([]*DailyClosing, error) {
+	if e.loadedTypes[3] {
+		return e.DailyClosings, nil
+	}
+	return nil, &NotLoadedError{edge: "daily_closings"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -250,6 +261,11 @@ func (_m *Outlet) QuerySettings() *OutletSettingQuery {
 // QueryDevices queries the "devices" edge of the Outlet entity.
 func (_m *Outlet) QueryDevices() *POSDeviceQuery {
 	return NewOutletClient(_m.config).QueryDevices(_m)
+}
+
+// QueryDailyClosings queries the "daily_closings" edge of the Outlet entity.
+func (_m *Outlet) QueryDailyClosings() *DailyClosingQuery {
+	return NewOutletClient(_m.config).QueryDailyClosings(_m)
 }
 
 // Update returns a builder for updating this Outlet.

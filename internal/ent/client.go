@@ -25,6 +25,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/channelintegration"
 	"github.com/bengobox/pos-service/internal/ent/channelsyncjob"
 	"github.com/bengobox/pos-service/internal/ent/commissionrecord"
+	"github.com/bengobox/pos-service/internal/ent/dailyclosing"
 	"github.com/bengobox/pos-service/internal/ent/facility"
 	"github.com/bengobox/pos-service/internal/ent/facilitybooking"
 	"github.com/bengobox/pos-service/internal/ent/featureoverride"
@@ -50,6 +51,8 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/pospayment"
 	"github.com/bengobox/pos-service/internal/ent/pospermission"
 	"github.com/bengobox/pos-service/internal/ent/posrefund"
+	"github.com/bengobox/pos-service/internal/ent/posreturn"
+	"github.com/bengobox/pos-service/internal/ent/posreturnline"
 	"github.com/bengobox/pos-service/internal/ent/posrole"
 	"github.com/bengobox/pos-service/internal/ent/posrolepermission"
 	"github.com/bengobox/pos-service/internal/ent/posrolev2"
@@ -103,6 +106,8 @@ type Client struct {
 	ChannelSyncJob *ChannelSyncJobClient
 	// CommissionRecord is the client for interacting with the CommissionRecord builders.
 	CommissionRecord *CommissionRecordClient
+	// DailyClosing is the client for interacting with the DailyClosing builders.
+	DailyClosing *DailyClosingClient
 	// Facility is the client for interacting with the Facility builders.
 	Facility *FacilityClient
 	// FacilityBooking is the client for interacting with the FacilityBooking builders.
@@ -153,6 +158,10 @@ type Client struct {
 	POSPermission *POSPermissionClient
 	// POSRefund is the client for interacting with the POSRefund builders.
 	POSRefund *POSRefundClient
+	// POSReturn is the client for interacting with the POSReturn builders.
+	POSReturn *POSReturnClient
+	// POSReturnLine is the client for interacting with the POSReturnLine builders.
+	POSReturnLine *POSReturnLineClient
 	// POSRole is the client for interacting with the POSRole builders.
 	POSRole *POSRoleClient
 	// POSRolePermission is the client for interacting with the POSRolePermission builders.
@@ -229,6 +238,7 @@ func (c *Client) init() {
 	c.ChannelIntegration = NewChannelIntegrationClient(c.config)
 	c.ChannelSyncJob = NewChannelSyncJobClient(c.config)
 	c.CommissionRecord = NewCommissionRecordClient(c.config)
+	c.DailyClosing = NewDailyClosingClient(c.config)
 	c.Facility = NewFacilityClient(c.config)
 	c.FacilityBooking = NewFacilityBookingClient(c.config)
 	c.FeatureOverride = NewFeatureOverrideClient(c.config)
@@ -254,6 +264,8 @@ func (c *Client) init() {
 	c.POSPayment = NewPOSPaymentClient(c.config)
 	c.POSPermission = NewPOSPermissionClient(c.config)
 	c.POSRefund = NewPOSRefundClient(c.config)
+	c.POSReturn = NewPOSReturnClient(c.config)
+	c.POSReturnLine = NewPOSReturnLineClient(c.config)
 	c.POSRole = NewPOSRoleClient(c.config)
 	c.POSRolePermission = NewPOSRolePermissionClient(c.config)
 	c.POSRoleV2 = NewPOSRoleV2Client(c.config)
@@ -383,6 +395,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		ChannelIntegration:     NewChannelIntegrationClient(cfg),
 		ChannelSyncJob:         NewChannelSyncJobClient(cfg),
 		CommissionRecord:       NewCommissionRecordClient(cfg),
+		DailyClosing:           NewDailyClosingClient(cfg),
 		Facility:               NewFacilityClient(cfg),
 		FacilityBooking:        NewFacilityBookingClient(cfg),
 		FeatureOverride:        NewFeatureOverrideClient(cfg),
@@ -408,6 +421,8 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		POSPayment:             NewPOSPaymentClient(cfg),
 		POSPermission:          NewPOSPermissionClient(cfg),
 		POSRefund:              NewPOSRefundClient(cfg),
+		POSReturn:              NewPOSReturnClient(cfg),
+		POSReturnLine:          NewPOSReturnLineClient(cfg),
 		POSRole:                NewPOSRoleClient(cfg),
 		POSRolePermission:      NewPOSRolePermissionClient(cfg),
 		POSRoleV2:              NewPOSRoleV2Client(cfg),
@@ -464,6 +479,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		ChannelIntegration:     NewChannelIntegrationClient(cfg),
 		ChannelSyncJob:         NewChannelSyncJobClient(cfg),
 		CommissionRecord:       NewCommissionRecordClient(cfg),
+		DailyClosing:           NewDailyClosingClient(cfg),
 		Facility:               NewFacilityClient(cfg),
 		FacilityBooking:        NewFacilityBookingClient(cfg),
 		FeatureOverride:        NewFeatureOverrideClient(cfg),
@@ -489,6 +505,8 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		POSPayment:             NewPOSPaymentClient(cfg),
 		POSPermission:          NewPOSPermissionClient(cfg),
 		POSRefund:              NewPOSRefundClient(cfg),
+		POSReturn:              NewPOSReturnClient(cfg),
+		POSReturnLine:          NewPOSReturnLineClient(cfg),
 		POSRole:                NewPOSRoleClient(cfg),
 		POSRolePermission:      NewPOSRolePermissionClient(cfg),
 		POSRoleV2:              NewPOSRoleV2Client(cfg),
@@ -548,18 +566,18 @@ func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.Appointment, c.BarTab, c.BarTabEvent, c.CashDrawer, c.CashDrawerEvent,
 		c.CatalogItem, c.ChannelIntegration, c.ChannelSyncJob, c.CommissionRecord,
-		c.Facility, c.FacilityBooking, c.FeatureOverride, c.GiftCard,
+		c.DailyClosing, c.Facility, c.FacilityBooking, c.FeatureOverride, c.GiftCard,
 		c.GiftCardTransaction, c.IntegrationSetting, c.InventorySnapshot, c.KDSStation,
 		c.KDSTicket, c.LicenseUsageSnapshot, c.Modifier, c.ModifierGroup, c.OrderLink,
 		c.OutboxEvent, c.Outlet, c.OutletSetting, c.POSDevice, c.POSDeviceSession,
 		c.POSLineModifier, c.POSOrder, c.POSOrderEvent, c.POSOrderLine, c.POSPayment,
-		c.POSPermission, c.POSRefund, c.POSRole, c.POSRolePermission, c.POSRoleV2,
-		c.POSUserRoleAssignment, c.PriceBook, c.PriceBookItem, c.Promotion,
-		c.PromotionApplication, c.PromotionRule, c.RateLimitConfig, c.Room,
-		c.RoomFolioItem, c.RoomGuest, c.Section, c.SerialNumberLog, c.ServiceConfig,
-		c.StaffMember, c.StockAlertSubscription, c.StockConsumptionEvent,
-		c.SyncFailure, c.Table, c.TableAssignment, c.Tenant, c.TenantSyncEvent,
-		c.Tender, c.User, c.UserPOSRole, c.WebhookSubscription,
+		c.POSPermission, c.POSRefund, c.POSReturn, c.POSReturnLine, c.POSRole,
+		c.POSRolePermission, c.POSRoleV2, c.POSUserRoleAssignment, c.PriceBook,
+		c.PriceBookItem, c.Promotion, c.PromotionApplication, c.PromotionRule,
+		c.RateLimitConfig, c.Room, c.RoomFolioItem, c.RoomGuest, c.Section,
+		c.SerialNumberLog, c.ServiceConfig, c.StaffMember, c.StockAlertSubscription,
+		c.StockConsumptionEvent, c.SyncFailure, c.Table, c.TableAssignment, c.Tenant,
+		c.TenantSyncEvent, c.Tender, c.User, c.UserPOSRole, c.WebhookSubscription,
 	} {
 		n.Use(hooks...)
 	}
@@ -571,18 +589,18 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.Appointment, c.BarTab, c.BarTabEvent, c.CashDrawer, c.CashDrawerEvent,
 		c.CatalogItem, c.ChannelIntegration, c.ChannelSyncJob, c.CommissionRecord,
-		c.Facility, c.FacilityBooking, c.FeatureOverride, c.GiftCard,
+		c.DailyClosing, c.Facility, c.FacilityBooking, c.FeatureOverride, c.GiftCard,
 		c.GiftCardTransaction, c.IntegrationSetting, c.InventorySnapshot, c.KDSStation,
 		c.KDSTicket, c.LicenseUsageSnapshot, c.Modifier, c.ModifierGroup, c.OrderLink,
 		c.OutboxEvent, c.Outlet, c.OutletSetting, c.POSDevice, c.POSDeviceSession,
 		c.POSLineModifier, c.POSOrder, c.POSOrderEvent, c.POSOrderLine, c.POSPayment,
-		c.POSPermission, c.POSRefund, c.POSRole, c.POSRolePermission, c.POSRoleV2,
-		c.POSUserRoleAssignment, c.PriceBook, c.PriceBookItem, c.Promotion,
-		c.PromotionApplication, c.PromotionRule, c.RateLimitConfig, c.Room,
-		c.RoomFolioItem, c.RoomGuest, c.Section, c.SerialNumberLog, c.ServiceConfig,
-		c.StaffMember, c.StockAlertSubscription, c.StockConsumptionEvent,
-		c.SyncFailure, c.Table, c.TableAssignment, c.Tenant, c.TenantSyncEvent,
-		c.Tender, c.User, c.UserPOSRole, c.WebhookSubscription,
+		c.POSPermission, c.POSRefund, c.POSReturn, c.POSReturnLine, c.POSRole,
+		c.POSRolePermission, c.POSRoleV2, c.POSUserRoleAssignment, c.PriceBook,
+		c.PriceBookItem, c.Promotion, c.PromotionApplication, c.PromotionRule,
+		c.RateLimitConfig, c.Room, c.RoomFolioItem, c.RoomGuest, c.Section,
+		c.SerialNumberLog, c.ServiceConfig, c.StaffMember, c.StockAlertSubscription,
+		c.StockConsumptionEvent, c.SyncFailure, c.Table, c.TableAssignment, c.Tenant,
+		c.TenantSyncEvent, c.Tender, c.User, c.UserPOSRole, c.WebhookSubscription,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -609,6 +627,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.ChannelSyncJob.mutate(ctx, m)
 	case *CommissionRecordMutation:
 		return c.CommissionRecord.mutate(ctx, m)
+	case *DailyClosingMutation:
+		return c.DailyClosing.mutate(ctx, m)
 	case *FacilityMutation:
 		return c.Facility.mutate(ctx, m)
 	case *FacilityBookingMutation:
@@ -659,6 +679,10 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.POSPermission.mutate(ctx, m)
 	case *POSRefundMutation:
 		return c.POSRefund.mutate(ctx, m)
+	case *POSReturnMutation:
+		return c.POSReturn.mutate(ctx, m)
+	case *POSReturnLineMutation:
+		return c.POSReturnLine.mutate(ctx, m)
 	case *POSRoleMutation:
 		return c.POSRole.mutate(ctx, m)
 	case *POSRolePermissionMutation:
@@ -1994,6 +2018,155 @@ func (c *CommissionRecordClient) mutate(ctx context.Context, m *CommissionRecord
 		return (&CommissionRecordDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown CommissionRecord mutation op: %q", m.Op())
+	}
+}
+
+// DailyClosingClient is a client for the DailyClosing schema.
+type DailyClosingClient struct {
+	config
+}
+
+// NewDailyClosingClient returns a client for the DailyClosing from the given config.
+func NewDailyClosingClient(c config) *DailyClosingClient {
+	return &DailyClosingClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `dailyclosing.Hooks(f(g(h())))`.
+func (c *DailyClosingClient) Use(hooks ...Hook) {
+	c.hooks.DailyClosing = append(c.hooks.DailyClosing, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `dailyclosing.Intercept(f(g(h())))`.
+func (c *DailyClosingClient) Intercept(interceptors ...Interceptor) {
+	c.inters.DailyClosing = append(c.inters.DailyClosing, interceptors...)
+}
+
+// Create returns a builder for creating a DailyClosing entity.
+func (c *DailyClosingClient) Create() *DailyClosingCreate {
+	mutation := newDailyClosingMutation(c.config, OpCreate)
+	return &DailyClosingCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of DailyClosing entities.
+func (c *DailyClosingClient) CreateBulk(builders ...*DailyClosingCreate) *DailyClosingCreateBulk {
+	return &DailyClosingCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *DailyClosingClient) MapCreateBulk(slice any, setFunc func(*DailyClosingCreate, int)) *DailyClosingCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &DailyClosingCreateBulk{err: fmt.Errorf("calling to DailyClosingClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*DailyClosingCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &DailyClosingCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for DailyClosing.
+func (c *DailyClosingClient) Update() *DailyClosingUpdate {
+	mutation := newDailyClosingMutation(c.config, OpUpdate)
+	return &DailyClosingUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *DailyClosingClient) UpdateOne(_m *DailyClosing) *DailyClosingUpdateOne {
+	mutation := newDailyClosingMutation(c.config, OpUpdateOne, withDailyClosing(_m))
+	return &DailyClosingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *DailyClosingClient) UpdateOneID(id uuid.UUID) *DailyClosingUpdateOne {
+	mutation := newDailyClosingMutation(c.config, OpUpdateOne, withDailyClosingID(id))
+	return &DailyClosingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for DailyClosing.
+func (c *DailyClosingClient) Delete() *DailyClosingDelete {
+	mutation := newDailyClosingMutation(c.config, OpDelete)
+	return &DailyClosingDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *DailyClosingClient) DeleteOne(_m *DailyClosing) *DailyClosingDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *DailyClosingClient) DeleteOneID(id uuid.UUID) *DailyClosingDeleteOne {
+	builder := c.Delete().Where(dailyclosing.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &DailyClosingDeleteOne{builder}
+}
+
+// Query returns a query builder for DailyClosing.
+func (c *DailyClosingClient) Query() *DailyClosingQuery {
+	return &DailyClosingQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeDailyClosing},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a DailyClosing entity by its id.
+func (c *DailyClosingClient) Get(ctx context.Context, id uuid.UUID) (*DailyClosing, error) {
+	return c.Query().Where(dailyclosing.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *DailyClosingClient) GetX(ctx context.Context, id uuid.UUID) *DailyClosing {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryOutlet queries the outlet edge of a DailyClosing.
+func (c *DailyClosingClient) QueryOutlet(_m *DailyClosing) *OutletQuery {
+	query := (&OutletClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(dailyclosing.Table, dailyclosing.FieldID, id),
+			sqlgraph.To(outlet.Table, outlet.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, dailyclosing.OutletTable, dailyclosing.OutletColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *DailyClosingClient) Hooks() []Hook {
+	return c.hooks.DailyClosing
+}
+
+// Interceptors returns the client interceptors.
+func (c *DailyClosingClient) Interceptors() []Interceptor {
+	return c.inters.DailyClosing
+}
+
+func (c *DailyClosingClient) mutate(ctx context.Context, m *DailyClosingMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&DailyClosingCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&DailyClosingUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&DailyClosingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&DailyClosingDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown DailyClosing mutation op: %q", m.Op())
 	}
 }
 
@@ -4111,6 +4284,22 @@ func (c *OutletClient) QueryDevices(_m *Outlet) *POSDeviceQuery {
 	return query
 }
 
+// QueryDailyClosings queries the daily_closings edge of a Outlet.
+func (c *OutletClient) QueryDailyClosings(_m *Outlet) *DailyClosingQuery {
+	query := (&DailyClosingClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(outlet.Table, outlet.FieldID, id),
+			sqlgraph.To(dailyclosing.Table, dailyclosing.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, outlet.DailyClosingsTable, outlet.DailyClosingsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *OutletClient) Hooks() []Hook {
 	return c.hooks.Outlet
@@ -5703,6 +5892,304 @@ func (c *POSRefundClient) mutate(ctx context.Context, m *POSRefundMutation) (Val
 		return (&POSRefundDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown POSRefund mutation op: %q", m.Op())
+	}
+}
+
+// POSReturnClient is a client for the POSReturn schema.
+type POSReturnClient struct {
+	config
+}
+
+// NewPOSReturnClient returns a client for the POSReturn from the given config.
+func NewPOSReturnClient(c config) *POSReturnClient {
+	return &POSReturnClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `posreturn.Hooks(f(g(h())))`.
+func (c *POSReturnClient) Use(hooks ...Hook) {
+	c.hooks.POSReturn = append(c.hooks.POSReturn, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `posreturn.Intercept(f(g(h())))`.
+func (c *POSReturnClient) Intercept(interceptors ...Interceptor) {
+	c.inters.POSReturn = append(c.inters.POSReturn, interceptors...)
+}
+
+// Create returns a builder for creating a POSReturn entity.
+func (c *POSReturnClient) Create() *POSReturnCreate {
+	mutation := newPOSReturnMutation(c.config, OpCreate)
+	return &POSReturnCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of POSReturn entities.
+func (c *POSReturnClient) CreateBulk(builders ...*POSReturnCreate) *POSReturnCreateBulk {
+	return &POSReturnCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *POSReturnClient) MapCreateBulk(slice any, setFunc func(*POSReturnCreate, int)) *POSReturnCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &POSReturnCreateBulk{err: fmt.Errorf("calling to POSReturnClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*POSReturnCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &POSReturnCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for POSReturn.
+func (c *POSReturnClient) Update() *POSReturnUpdate {
+	mutation := newPOSReturnMutation(c.config, OpUpdate)
+	return &POSReturnUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *POSReturnClient) UpdateOne(_m *POSReturn) *POSReturnUpdateOne {
+	mutation := newPOSReturnMutation(c.config, OpUpdateOne, withPOSReturn(_m))
+	return &POSReturnUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *POSReturnClient) UpdateOneID(id uuid.UUID) *POSReturnUpdateOne {
+	mutation := newPOSReturnMutation(c.config, OpUpdateOne, withPOSReturnID(id))
+	return &POSReturnUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for POSReturn.
+func (c *POSReturnClient) Delete() *POSReturnDelete {
+	mutation := newPOSReturnMutation(c.config, OpDelete)
+	return &POSReturnDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *POSReturnClient) DeleteOne(_m *POSReturn) *POSReturnDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *POSReturnClient) DeleteOneID(id uuid.UUID) *POSReturnDeleteOne {
+	builder := c.Delete().Where(posreturn.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &POSReturnDeleteOne{builder}
+}
+
+// Query returns a query builder for POSReturn.
+func (c *POSReturnClient) Query() *POSReturnQuery {
+	return &POSReturnQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypePOSReturn},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a POSReturn entity by its id.
+func (c *POSReturnClient) Get(ctx context.Context, id uuid.UUID) (*POSReturn, error) {
+	return c.Query().Where(posreturn.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *POSReturnClient) GetX(ctx context.Context, id uuid.UUID) *POSReturn {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryLines queries the lines edge of a POSReturn.
+func (c *POSReturnClient) QueryLines(_m *POSReturn) *POSReturnLineQuery {
+	query := (&POSReturnLineClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(posreturn.Table, posreturn.FieldID, id),
+			sqlgraph.To(posreturnline.Table, posreturnline.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, posreturn.LinesTable, posreturn.LinesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *POSReturnClient) Hooks() []Hook {
+	return c.hooks.POSReturn
+}
+
+// Interceptors returns the client interceptors.
+func (c *POSReturnClient) Interceptors() []Interceptor {
+	return c.inters.POSReturn
+}
+
+func (c *POSReturnClient) mutate(ctx context.Context, m *POSReturnMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&POSReturnCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&POSReturnUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&POSReturnUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&POSReturnDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown POSReturn mutation op: %q", m.Op())
+	}
+}
+
+// POSReturnLineClient is a client for the POSReturnLine schema.
+type POSReturnLineClient struct {
+	config
+}
+
+// NewPOSReturnLineClient returns a client for the POSReturnLine from the given config.
+func NewPOSReturnLineClient(c config) *POSReturnLineClient {
+	return &POSReturnLineClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `posreturnline.Hooks(f(g(h())))`.
+func (c *POSReturnLineClient) Use(hooks ...Hook) {
+	c.hooks.POSReturnLine = append(c.hooks.POSReturnLine, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `posreturnline.Intercept(f(g(h())))`.
+func (c *POSReturnLineClient) Intercept(interceptors ...Interceptor) {
+	c.inters.POSReturnLine = append(c.inters.POSReturnLine, interceptors...)
+}
+
+// Create returns a builder for creating a POSReturnLine entity.
+func (c *POSReturnLineClient) Create() *POSReturnLineCreate {
+	mutation := newPOSReturnLineMutation(c.config, OpCreate)
+	return &POSReturnLineCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of POSReturnLine entities.
+func (c *POSReturnLineClient) CreateBulk(builders ...*POSReturnLineCreate) *POSReturnLineCreateBulk {
+	return &POSReturnLineCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *POSReturnLineClient) MapCreateBulk(slice any, setFunc func(*POSReturnLineCreate, int)) *POSReturnLineCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &POSReturnLineCreateBulk{err: fmt.Errorf("calling to POSReturnLineClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*POSReturnLineCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &POSReturnLineCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for POSReturnLine.
+func (c *POSReturnLineClient) Update() *POSReturnLineUpdate {
+	mutation := newPOSReturnLineMutation(c.config, OpUpdate)
+	return &POSReturnLineUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *POSReturnLineClient) UpdateOne(_m *POSReturnLine) *POSReturnLineUpdateOne {
+	mutation := newPOSReturnLineMutation(c.config, OpUpdateOne, withPOSReturnLine(_m))
+	return &POSReturnLineUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *POSReturnLineClient) UpdateOneID(id uuid.UUID) *POSReturnLineUpdateOne {
+	mutation := newPOSReturnLineMutation(c.config, OpUpdateOne, withPOSReturnLineID(id))
+	return &POSReturnLineUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for POSReturnLine.
+func (c *POSReturnLineClient) Delete() *POSReturnLineDelete {
+	mutation := newPOSReturnLineMutation(c.config, OpDelete)
+	return &POSReturnLineDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *POSReturnLineClient) DeleteOne(_m *POSReturnLine) *POSReturnLineDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *POSReturnLineClient) DeleteOneID(id uuid.UUID) *POSReturnLineDeleteOne {
+	builder := c.Delete().Where(posreturnline.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &POSReturnLineDeleteOne{builder}
+}
+
+// Query returns a query builder for POSReturnLine.
+func (c *POSReturnLineClient) Query() *POSReturnLineQuery {
+	return &POSReturnLineQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypePOSReturnLine},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a POSReturnLine entity by its id.
+func (c *POSReturnLineClient) Get(ctx context.Context, id uuid.UUID) (*POSReturnLine, error) {
+	return c.Query().Where(posreturnline.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *POSReturnLineClient) GetX(ctx context.Context, id uuid.UUID) *POSReturnLine {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryReturn queries the return edge of a POSReturnLine.
+func (c *POSReturnLineClient) QueryReturn(_m *POSReturnLine) *POSReturnQuery {
+	query := (&POSReturnClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(posreturnline.Table, posreturnline.FieldID, id),
+			sqlgraph.To(posreturn.Table, posreturn.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, posreturnline.ReturnTable, posreturnline.ReturnColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *POSReturnLineClient) Hooks() []Hook {
+	return c.hooks.POSReturnLine
+}
+
+// Interceptors returns the client interceptors.
+func (c *POSReturnLineClient) Interceptors() []Interceptor {
+	return c.inters.POSReturnLine
+}
+
+func (c *POSReturnLineClient) mutate(ctx context.Context, m *POSReturnLineMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&POSReturnLineCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&POSReturnLineUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&POSReturnLineUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&POSReturnLineDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown POSReturnLine mutation op: %q", m.Op())
 	}
 }
 
@@ -9882,32 +10369,32 @@ func (c *WebhookSubscriptionClient) mutate(ctx context.Context, m *WebhookSubscr
 type (
 	hooks struct {
 		Appointment, BarTab, BarTabEvent, CashDrawer, CashDrawerEvent, CatalogItem,
-		ChannelIntegration, ChannelSyncJob, CommissionRecord, Facility,
+		ChannelIntegration, ChannelSyncJob, CommissionRecord, DailyClosing, Facility,
 		FacilityBooking, FeatureOverride, GiftCard, GiftCardTransaction,
 		IntegrationSetting, InventorySnapshot, KDSStation, KDSTicket,
 		LicenseUsageSnapshot, Modifier, ModifierGroup, OrderLink, OutboxEvent, Outlet,
 		OutletSetting, POSDevice, POSDeviceSession, POSLineModifier, POSOrder,
-		POSOrderEvent, POSOrderLine, POSPayment, POSPermission, POSRefund, POSRole,
-		POSRolePermission, POSRoleV2, POSUserRoleAssignment, PriceBook, PriceBookItem,
-		Promotion, PromotionApplication, PromotionRule, RateLimitConfig, Room,
-		RoomFolioItem, RoomGuest, Section, SerialNumberLog, ServiceConfig, StaffMember,
-		StockAlertSubscription, StockConsumptionEvent, SyncFailure, Table,
-		TableAssignment, Tenant, TenantSyncEvent, Tender, User, UserPOSRole,
-		WebhookSubscription []ent.Hook
+		POSOrderEvent, POSOrderLine, POSPayment, POSPermission, POSRefund, POSReturn,
+		POSReturnLine, POSRole, POSRolePermission, POSRoleV2, POSUserRoleAssignment,
+		PriceBook, PriceBookItem, Promotion, PromotionApplication, PromotionRule,
+		RateLimitConfig, Room, RoomFolioItem, RoomGuest, Section, SerialNumberLog,
+		ServiceConfig, StaffMember, StockAlertSubscription, StockConsumptionEvent,
+		SyncFailure, Table, TableAssignment, Tenant, TenantSyncEvent, Tender, User,
+		UserPOSRole, WebhookSubscription []ent.Hook
 	}
 	inters struct {
 		Appointment, BarTab, BarTabEvent, CashDrawer, CashDrawerEvent, CatalogItem,
-		ChannelIntegration, ChannelSyncJob, CommissionRecord, Facility,
+		ChannelIntegration, ChannelSyncJob, CommissionRecord, DailyClosing, Facility,
 		FacilityBooking, FeatureOverride, GiftCard, GiftCardTransaction,
 		IntegrationSetting, InventorySnapshot, KDSStation, KDSTicket,
 		LicenseUsageSnapshot, Modifier, ModifierGroup, OrderLink, OutboxEvent, Outlet,
 		OutletSetting, POSDevice, POSDeviceSession, POSLineModifier, POSOrder,
-		POSOrderEvent, POSOrderLine, POSPayment, POSPermission, POSRefund, POSRole,
-		POSRolePermission, POSRoleV2, POSUserRoleAssignment, PriceBook, PriceBookItem,
-		Promotion, PromotionApplication, PromotionRule, RateLimitConfig, Room,
-		RoomFolioItem, RoomGuest, Section, SerialNumberLog, ServiceConfig, StaffMember,
-		StockAlertSubscription, StockConsumptionEvent, SyncFailure, Table,
-		TableAssignment, Tenant, TenantSyncEvent, Tender, User, UserPOSRole,
-		WebhookSubscription []ent.Interceptor
+		POSOrderEvent, POSOrderLine, POSPayment, POSPermission, POSRefund, POSReturn,
+		POSReturnLine, POSRole, POSRolePermission, POSRoleV2, POSUserRoleAssignment,
+		PriceBook, PriceBookItem, Promotion, PromotionApplication, PromotionRule,
+		RateLimitConfig, Room, RoomFolioItem, RoomGuest, Section, SerialNumberLog,
+		ServiceConfig, StaffMember, StockAlertSubscription, StockConsumptionEvent,
+		SyncFailure, Table, TableAssignment, Tenant, TenantSyncEvent, Tender, User,
+		UserPOSRole, WebhookSubscription []ent.Interceptor
 	}
 )

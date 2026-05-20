@@ -33,6 +33,9 @@ type ChannelSyncJob func(*sql.Selector)
 // CommissionRecord is the predicate function for commissionrecord builders.
 type CommissionRecord func(*sql.Selector)
 
+// DailyClosing is the predicate function for dailyclosing builders.
+type DailyClosing func(*sql.Selector)
+
 // Facility is the predicate function for facility builders.
 type Facility func(*sql.Selector)
 
@@ -107,6 +110,12 @@ type POSPermission func(*sql.Selector)
 
 // POSRefund is the predicate function for posrefund builders.
 type POSRefund func(*sql.Selector)
+
+// POSReturn is the predicate function for posreturn builders.
+type POSReturn func(*sql.Selector)
+
+// POSReturnLine is the predicate function for posreturnline builders.
+type POSReturnLine func(*sql.Selector)
 
 // POSRole is the predicate function for posrole builders.
 type POSRole func(*sql.Selector)

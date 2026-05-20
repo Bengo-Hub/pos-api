@@ -30,6 +30,8 @@ type Tx struct {
 	ChannelSyncJob *ChannelSyncJobClient
 	// CommissionRecord is the client for interacting with the CommissionRecord builders.
 	CommissionRecord *CommissionRecordClient
+	// DailyClosing is the client for interacting with the DailyClosing builders.
+	DailyClosing *DailyClosingClient
 	// Facility is the client for interacting with the Facility builders.
 	Facility *FacilityClient
 	// FacilityBooking is the client for interacting with the FacilityBooking builders.
@@ -80,6 +82,10 @@ type Tx struct {
 	POSPermission *POSPermissionClient
 	// POSRefund is the client for interacting with the POSRefund builders.
 	POSRefund *POSRefundClient
+	// POSReturn is the client for interacting with the POSReturn builders.
+	POSReturn *POSReturnClient
+	// POSReturnLine is the client for interacting with the POSReturnLine builders.
+	POSReturnLine *POSReturnLineClient
 	// POSRole is the client for interacting with the POSRole builders.
 	POSRole *POSRoleClient
 	// POSRolePermission is the client for interacting with the POSRolePermission builders.
@@ -276,6 +282,7 @@ func (tx *Tx) init() {
 	tx.ChannelIntegration = NewChannelIntegrationClient(tx.config)
 	tx.ChannelSyncJob = NewChannelSyncJobClient(tx.config)
 	tx.CommissionRecord = NewCommissionRecordClient(tx.config)
+	tx.DailyClosing = NewDailyClosingClient(tx.config)
 	tx.Facility = NewFacilityClient(tx.config)
 	tx.FacilityBooking = NewFacilityBookingClient(tx.config)
 	tx.FeatureOverride = NewFeatureOverrideClient(tx.config)
@@ -301,6 +308,8 @@ func (tx *Tx) init() {
 	tx.POSPayment = NewPOSPaymentClient(tx.config)
 	tx.POSPermission = NewPOSPermissionClient(tx.config)
 	tx.POSRefund = NewPOSRefundClient(tx.config)
+	tx.POSReturn = NewPOSReturnClient(tx.config)
+	tx.POSReturnLine = NewPOSReturnLineClient(tx.config)
 	tx.POSRole = NewPOSRoleClient(tx.config)
 	tx.POSRolePermission = NewPOSRolePermissionClient(tx.config)
 	tx.POSRoleV2 = NewPOSRoleV2Client(tx.config)

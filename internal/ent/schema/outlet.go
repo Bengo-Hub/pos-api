@@ -68,6 +68,7 @@ func (Outlet) Edges() []ent.Edge {
 			Required(),
 		edge.To("settings", OutletSetting.Type).Unique(),
 		edge.To("devices", POSDevice.Type),
+		edge.To("daily_closings", DailyClosing.Type),
 	}
 }
 

@@ -238,6 +238,47 @@ var (
 			},
 		},
 	}
+	// DailyClosingsColumns holds the columns for the "daily_closings" table.
+	DailyClosingsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "business_date", Type: field.TypeTime},
+		{Name: "total_sales", Type: field.TypeFloat64, Default: 0},
+		{Name: "total_refunds", Type: field.TypeFloat64, Default: 0},
+		{Name: "total_discounts", Type: field.TypeFloat64, Default: 0},
+		{Name: "total_voids", Type: field.TypeFloat64, Default: 0},
+		{Name: "cash_expected", Type: field.TypeFloat64, Default: 0},
+		{Name: "cash_actual", Type: field.TypeFloat64, Default: 0},
+		{Name: "variance", Type: field.TypeFloat64, Default: 0},
+		{Name: "status", Type: field.TypeString, Default: "open"},
+		{Name: "closed_by", Type: field.TypeUUID, Nullable: true},
+		{Name: "notes", Type: field.TypeString, Nullable: true},
+		{Name: "drawer_ids", Type: field.TypeJSON},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "outlet_id", Type: field.TypeUUID},
+	}
+	// DailyClosingsTable holds the schema information for the "daily_closings" table.
+	DailyClosingsTable = &schema.Table{
+		Name:       "daily_closings",
+		Columns:    DailyClosingsColumns,
+		PrimaryKey: []*schema.Column{DailyClosingsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "daily_closings_outlets_daily_closings",
+				Columns:    []*schema.Column{DailyClosingsColumns[16]},
+				RefColumns: []*schema.Column{OutletsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "dailyclosing_tenant_id_outlet_id_business_date",
+				Unique:  true,
+				Columns: []*schema.Column{DailyClosingsColumns[1], DailyClosingsColumns[16], DailyClosingsColumns[2]},
+			},
+		},
+	}
 	// FacilitiesColumns holds the columns for the "facilities" table.
 	FacilitiesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -901,6 +942,69 @@ var (
 		Name:       "pos_refunds",
 		Columns:    PosRefundsColumns,
 		PrimaryKey: []*schema.Column{PosRefundsColumns[0]},
+	}
+	// PosReturnsColumns holds the columns for the "pos_returns" table.
+	PosReturnsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "outlet_id", Type: field.TypeUUID},
+		{Name: "order_id", Type: field.TypeUUID},
+		{Name: "return_number", Type: field.TypeString, Unique: true},
+		{Name: "return_type", Type: field.TypeEnum, Enums: []string{"refund", "exchange", "store_credit"}, Default: "refund"},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending", "approved", "rejected", "completed"}, Default: "pending"},
+		{Name: "reason", Type: field.TypeString, Nullable: true},
+		{Name: "refund_amount", Type: field.TypeFloat64, Default: 0},
+		{Name: "exchange_order_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "requested_by", Type: field.TypeUUID},
+		{Name: "approved_by", Type: field.TypeUUID, Nullable: true},
+		{Name: "treasury_refund_ref", Type: field.TypeString, Nullable: true},
+		{Name: "metadata", Type: field.TypeJSON},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// PosReturnsTable holds the schema information for the "pos_returns" table.
+	PosReturnsTable = &schema.Table{
+		Name:       "pos_returns",
+		Columns:    PosReturnsColumns,
+		PrimaryKey: []*schema.Column{PosReturnsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "posreturn_tenant_id_return_number",
+				Unique:  true,
+				Columns: []*schema.Column{PosReturnsColumns[1], PosReturnsColumns[4]},
+			},
+			{
+				Name:    "posreturn_tenant_id_order_id",
+				Unique:  false,
+				Columns: []*schema.Column{PosReturnsColumns[1], PosReturnsColumns[3]},
+			},
+		},
+	}
+	// PosReturnLinesColumns holds the columns for the "pos_return_lines" table.
+	PosReturnLinesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "order_line_id", Type: field.TypeUUID},
+		{Name: "sku", Type: field.TypeString, Nullable: true},
+		{Name: "name", Type: field.TypeString},
+		{Name: "quantity", Type: field.TypeFloat64},
+		{Name: "unit_price", Type: field.TypeFloat64},
+		{Name: "total_price", Type: field.TypeFloat64},
+		{Name: "reason", Type: field.TypeString, Nullable: true},
+		{Name: "return_id", Type: field.TypeUUID},
+	}
+	// PosReturnLinesTable holds the schema information for the "pos_return_lines" table.
+	PosReturnLinesTable = &schema.Table{
+		Name:       "pos_return_lines",
+		Columns:    PosReturnLinesColumns,
+		PrimaryKey: []*schema.Column{PosReturnLinesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "pos_return_lines_pos_returns_lines",
+				Columns:    []*schema.Column{PosReturnLinesColumns[8]},
+				RefColumns: []*schema.Column{PosReturnsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
 	}
 	// PosRolesColumns holds the columns for the "pos_roles" table.
 	PosRolesColumns = []*schema.Column{
@@ -1754,6 +1858,7 @@ var (
 		ChannelIntegrationsTable,
 		ChannelSyncJobsTable,
 		CommissionRecordsTable,
+		DailyClosingsTable,
 		FacilitiesTable,
 		FacilityBookingsTable,
 		FeatureOverridesTable,
@@ -1779,6 +1884,8 @@ var (
 		PosPaymentsTable,
 		PosPermissionsTable,
 		PosRefundsTable,
+		PosReturnsTable,
+		PosReturnLinesTable,
 		PosRolesTable,
 		PosRolePermissionsTable,
 		PosRoleV2sTable,
@@ -1813,6 +1920,7 @@ var (
 func init() {
 	BarTabEventsTable.ForeignKeys[0].RefTable = BarTabsTable
 	CashDrawerEventsTable.ForeignKeys[0].RefTable = CashDrawersTable
+	DailyClosingsTable.ForeignKeys[0].RefTable = OutletsTable
 	FacilityBookingsTable.ForeignKeys[0].RefTable = FacilitiesTable
 	KdsTicketsTable.ForeignKeys[0].RefTable = KdsStationsTable
 	ModifiersTable.ForeignKeys[0].RefTable = ModifierGroupsTable
@@ -1825,6 +1933,7 @@ func init() {
 	PosOrderEventsTable.ForeignKeys[0].RefTable = PosOrdersTable
 	PosOrderLinesTable.ForeignKeys[0].RefTable = PosOrdersTable
 	PosPaymentsTable.ForeignKeys[0].RefTable = PosOrdersTable
+	PosReturnLinesTable.ForeignKeys[0].RefTable = PosReturnsTable
 	PosRolePermissionsTable.ForeignKeys[0].RefTable = PosRoleV2sTable
 	PosRolePermissionsTable.ForeignKeys[1].RefTable = PosPermissionsTable
 	PosUserRoleAssignmentsTable.ForeignKeys[0].RefTable = PosRoleV2sTable

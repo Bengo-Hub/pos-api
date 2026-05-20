@@ -117,6 +117,18 @@ func (f CommissionRecordFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.V
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.CommissionRecordMutation", m)
 }
 
+// The DailyClosingFunc type is an adapter to allow the use of ordinary
+// function as DailyClosing mutator.
+type DailyClosingFunc func(context.Context, *ent.DailyClosingMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f DailyClosingFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.DailyClosingMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.DailyClosingMutation", m)
+}
+
 // The FacilityFunc type is an adapter to allow the use of ordinary
 // function as Facility mutator.
 type FacilityFunc func(context.Context, *ent.FacilityMutation) (ent.Value, error)
@@ -415,6 +427,30 @@ func (f POSRefundFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, e
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.POSRefundMutation", m)
+}
+
+// The POSReturnFunc type is an adapter to allow the use of ordinary
+// function as POSReturn mutator.
+type POSReturnFunc func(context.Context, *ent.POSReturnMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f POSReturnFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.POSReturnMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.POSReturnMutation", m)
+}
+
+// The POSReturnLineFunc type is an adapter to allow the use of ordinary
+// function as POSReturnLine mutator.
+type POSReturnLineFunc func(context.Context, *ent.POSReturnLineMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f POSReturnLineFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.POSReturnLineMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.POSReturnLineMutation", m)
 }
 
 // The POSRoleFunc type is an adapter to allow the use of ordinary
