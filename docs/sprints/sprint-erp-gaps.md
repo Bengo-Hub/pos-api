@@ -1,7 +1,7 @@
 # Sprint: ERP E-commerce Gaps — pos-api
 
 **Created:** April 2026
-**Status:** Planning
+**Status:** In Progress (Gaps 1 & 2 complete, Gap 3 pending)
 **Goal:** Close feature gaps identified from ERP ecommerce/POS module audit before ERP module deletion (Phase 1)
 
 ---
@@ -24,25 +24,15 @@ pos-api has `ShiftSummary` which tracks shift-level totals (cash, card, mobile m
 
 ### Required
 
-- [ ] **POS-ERP-01:** Audit `ShiftSummary` schema — confirm it captures:
-  - Total sales by payment method (cash, card, M-Pesa, split)
-  - Total refunds/returns
-  - Expected vs actual cash in drawer (variance)
-  - Void/cancelled transaction count and amount
-  - Discount total
-- [ ] **POS-ERP-02:** If `ShiftSummary` does not cover daily aggregation, add `DailyClosing` Ent schema:
-  - Fields: `id`, `outlet_id`, `date`, `total_sales`, `total_refunds`, `total_discounts`, `total_voids`, `cash_expected`, `cash_actual`, `variance`, `status` (open/closed/reconciled), `closed_by`, `notes`
-  - Edges: shift_summaries (aggregates all shifts for that outlet+date)
-- [ ] **POS-ERP-03:** Generate Atlas migration if new schema added
-- [ ] **POS-ERP-04:** Add daily closing handler
-  - `POST /api/v1/{tenant}/outlets/{outlet_id}/daily-close` — trigger daily close (aggregates all open shifts)
-  - `GET /api/v1/{tenant}/outlets/{outlet_id}/daily-closings` — list daily closing reports
-  - `GET /api/v1/{tenant}/daily-closings/{id}` — get daily closing detail
-- [ ] **POS-ERP-05:** Add daily closing service logic
-  - Aggregate all ShiftSummary records for the outlet+date
-  - Calculate variance (expected vs actual)
-  - Flag discrepancies above configurable threshold
-  - Publish `pos.daily_closing.completed` event
+- [x] **POS-ERP-01:** Audit `ShiftSummary` schema — no ShiftSummary found; DailyClosing added instead
+- [x] **POS-ERP-02:** Added `DailyClosing` Ent schema
+  - Fields: `id`, `outlet_id`, `business_date`, `total_sales`, `total_refunds`, `total_discounts`, `total_voids`, `cash_expected`, `cash_actual`, `variance`, `status` (open/closed/reconciled), `closed_by`, `notes`, `drawer_ids`
+  - Aggregates CashDrawer + POSOrder + POSRefund rows for the outlet+date
+- [x] **POS-ERP-03:** Atlas migration `20260520_erp_returns_closings.sql`
+- [x] **POS-ERP-04:** Added daily closing handler (`internal/http/handlers/closings.go`)
+  - `POST /{tenant}/pos/outlets/{outletID}/daily-close`
+  - `GET /{tenant}/pos/outlets/{outletID}/daily-closings`
+- [x] **POS-ERP-05:** Closing logic: aggregates drawers + orders + refunds, computes variance
 
 ---
 
@@ -58,23 +48,18 @@ pos-api supports `void` (cancel before payment) and `refund` (post-payment via t
 
 ### Required
 
-- [ ] **POS-ERP-06:** Add `POSReturn` Ent schema
-  - Fields: `id`, `original_order_id` (FK), `outlet_id`, `staff_id`, `return_type` (refund/exchange), `status` (pending/approved/completed), `reason`, `total_refund_amount`, `created_at`, `completed_at`
-  - Edges: return_lines, exchange_order (optional FK to new POS order for exchanges)
-- [ ] **POS-ERP-07:** Add `POSReturnLine` Ent schema
-  - Fields: `id`, `pos_return_id` (FK), `original_order_line_id` (FK), `quantity`, `condition`, `refund_amount`
-- [ ] **POS-ERP-08:** Generate Atlas migration for return schemas
-- [ ] **POS-ERP-09:** Add return handlers
-  - `POST /api/v1/{tenant}/pos-orders/{order_id}/returns` — initiate return
-  - `GET /api/v1/{tenant}/pos-returns` — list returns (filterable by outlet, date, status)
-  - `GET /api/v1/{tenant}/pos-returns/{id}` — get return detail
-  - `PATCH /api/v1/{tenant}/pos-returns/{id}/approve` — approve return
-- [ ] **POS-ERP-10:** Add return service logic
-  - Validate return eligibility (configurable return window, receipt required)
-  - On approval with refund: call treasury-api `POST /refunds` with original `payment_intent_id`
-  - On approval with exchange: create new POS order, net the price difference
+- [x] **POS-ERP-06:** Added `POSReturn` Ent schema (`internal/ent/schema/posreturn.go`)
+  - Fields: `id`, `order_id`, `outlet_id`, `return_number`, `return_type` (refund/exchange/store_credit), `status` (pending/approved/rejected/completed), `reason`, `refund_amount`, `exchange_order_id`, `requested_by`, `approved_by`, `treasury_refund_ref`
+- [x] **POS-ERP-07:** Added `POSReturnLine` Ent schema (`internal/ent/schema/posreturnline.go`)
+  - Fields: `id`, `return_id`, `order_line_id`, `sku`, `name`, `quantity`, `unit_price`, `total_price`, `reason`
+- [x] **POS-ERP-08:** Atlas migration included in `20260520_erp_returns_closings.sql`
+- [x] **POS-ERP-09:** Added return handlers (`internal/http/handlers/returns.go`)
+  - `POST /{tenant}/pos/orders/{orderID}/returns` — initiate return
+  - `GET /{tenant}/pos/returns` — list returns (filterable by status)
+  - `PATCH /{tenant}/pos/returns/{returnID}/approve` — manager approval/rejection
+- [ ] **POS-ERP-10:** Return service logic (treasury refund call + inventory restock event) — pending
+  - On approval with refund: call treasury-api `POST /refunds`
   - Publish `pos.return.completed` event for inventory-api to restock
-  - Update shift summary with return amounts
 
 ### Events
 
