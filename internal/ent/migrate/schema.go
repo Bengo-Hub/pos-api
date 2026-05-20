@@ -149,6 +149,8 @@ var (
 		{Name: "requires_age_verification", Type: field.TypeBool, Default: false},
 		{Name: "is_controlled_substance", Type: field.TypeBool, Default: false},
 		{Name: "track_serial_number", Type: field.TypeBool, Default: false},
+		{Name: "requires_serial", Type: field.TypeBool, Default: false},
+		{Name: "minimum_age", Type: field.TypeInt, Nullable: true},
 		{Name: "duration_minutes", Type: field.TypeInt, Nullable: true},
 		{Name: "cost_price", Type: field.TypeFloat64, Nullable: true},
 		{Name: "tags", Type: field.TypeJSON},
@@ -508,6 +510,84 @@ var (
 			},
 		},
 	}
+	// LayawayPaymentsColumns holds the columns for the "layaway_payments" table.
+	LayawayPaymentsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "layaway_plan_id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "amount", Type: field.TypeFloat64},
+		{Name: "payment_method", Type: field.TypeString, Default: "cash"},
+		{Name: "reference", Type: field.TypeString, Nullable: true},
+		{Name: "notes", Type: field.TypeString, Nullable: true},
+		{Name: "recorded_by", Type: field.TypeUUID, Nullable: true},
+		{Name: "paid_at", Type: field.TypeTime},
+		{Name: "created_at", Type: field.TypeTime},
+	}
+	// LayawayPaymentsTable holds the schema information for the "layaway_payments" table.
+	LayawayPaymentsTable = &schema.Table{
+		Name:       "layaway_payments",
+		Columns:    LayawayPaymentsColumns,
+		PrimaryKey: []*schema.Column{LayawayPaymentsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "layawaypayment_layaway_plan_id",
+				Unique:  false,
+				Columns: []*schema.Column{LayawayPaymentsColumns[1]},
+			},
+			{
+				Name:    "layawaypayment_tenant_id",
+				Unique:  false,
+				Columns: []*schema.Column{LayawayPaymentsColumns[2]},
+			},
+		},
+	}
+	// LayawayPlansColumns holds the columns for the "layaway_plans" table.
+	LayawayPlansColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "outlet_id", Type: field.TypeUUID},
+		{Name: "order_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "customer_name", Type: field.TypeString},
+		{Name: "customer_phone", Type: field.TypeString, Nullable: true},
+		{Name: "customer_email", Type: field.TypeString, Nullable: true},
+		{Name: "total_amount", Type: field.TypeFloat64},
+		{Name: "deposit_amount", Type: field.TypeFloat64},
+		{Name: "paid_amount", Type: field.TypeFloat64},
+		{Name: "remaining_amount", Type: field.TypeFloat64},
+		{Name: "status", Type: field.TypeString, Default: "active"},
+		{Name: "notes", Type: field.TypeString, Nullable: true},
+		{Name: "due_date", Type: field.TypeTime, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// LayawayPlansTable holds the schema information for the "layaway_plans" table.
+	LayawayPlansTable = &schema.Table{
+		Name:       "layaway_plans",
+		Columns:    LayawayPlansColumns,
+		PrimaryKey: []*schema.Column{LayawayPlansColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "layawayplan_tenant_id",
+				Unique:  false,
+				Columns: []*schema.Column{LayawayPlansColumns[1]},
+			},
+			{
+				Name:    "layawayplan_outlet_id",
+				Unique:  false,
+				Columns: []*schema.Column{LayawayPlansColumns[2]},
+			},
+			{
+				Name:    "layawayplan_status",
+				Unique:  false,
+				Columns: []*schema.Column{LayawayPlansColumns[11]},
+			},
+			{
+				Name:    "layawayplan_order_id",
+				Unique:  false,
+				Columns: []*schema.Column{LayawayPlansColumns[3]},
+			},
+		},
+	}
 	// LicenseUsageSnapshotsColumns holds the columns for the "license_usage_snapshots" table.
 	LicenseUsageSnapshotsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -845,6 +925,9 @@ var (
 		{Name: "quantity", Type: field.TypeFloat64},
 		{Name: "unit_price", Type: field.TypeFloat64},
 		{Name: "total_price", Type: field.TypeFloat64},
+		{Name: "weight_grams", Type: field.TypeInt, Nullable: true},
+		{Name: "lot_number", Type: field.TypeString, Nullable: true},
+		{Name: "expiry_date", Type: field.TypeTime, Nullable: true},
 		{Name: "metadata", Type: field.TypeJSON},
 		{Name: "order_id", Type: field.TypeUUID},
 	}
@@ -856,7 +939,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "pos_order_lines_pos_orders_lines",
-				Columns:    []*schema.Column{PosOrderLinesColumns[8]},
+				Columns:    []*schema.Column{PosOrderLinesColumns[11]},
 				RefColumns: []*schema.Column{PosOrdersColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -1847,6 +1930,48 @@ var (
 		Columns:    WebhookSubscriptionsColumns,
 		PrimaryKey: []*schema.Column{WebhookSubscriptionsColumns[0]},
 	}
+	// WeighingScaleReadingsColumns holds the columns for the "weighing_scale_readings" table.
+	WeighingScaleReadingsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "outlet_id", Type: field.TypeUUID},
+		{Name: "session_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "device_serial", Type: field.TypeString, Nullable: true},
+		{Name: "weight_kg", Type: field.TypeFloat64},
+		{Name: "unit", Type: field.TypeString, Default: "kg"},
+		{Name: "catalog_item_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "status", Type: field.TypeString, Default: "captured"},
+		{Name: "read_at", Type: field.TypeTime},
+		{Name: "created_at", Type: field.TypeTime},
+	}
+	// WeighingScaleReadingsTable holds the schema information for the "weighing_scale_readings" table.
+	WeighingScaleReadingsTable = &schema.Table{
+		Name:       "weighing_scale_readings",
+		Columns:    WeighingScaleReadingsColumns,
+		PrimaryKey: []*schema.Column{WeighingScaleReadingsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "weighingscalereading_tenant_id",
+				Unique:  false,
+				Columns: []*schema.Column{WeighingScaleReadingsColumns[1]},
+			},
+			{
+				Name:    "weighingscalereading_outlet_id",
+				Unique:  false,
+				Columns: []*schema.Column{WeighingScaleReadingsColumns[2]},
+			},
+			{
+				Name:    "weighingscalereading_session_id",
+				Unique:  false,
+				Columns: []*schema.Column{WeighingScaleReadingsColumns[3]},
+			},
+			{
+				Name:    "weighingscalereading_catalog_item_id",
+				Unique:  false,
+				Columns: []*schema.Column{WeighingScaleReadingsColumns[7]},
+			},
+		},
+	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		AppointmentsTable,
@@ -1868,6 +1993,8 @@ var (
 		InventorySnapshotsTable,
 		KdsStationsTable,
 		KdsTicketsTable,
+		LayawayPaymentsTable,
+		LayawayPlansTable,
 		LicenseUsageSnapshotsTable,
 		ModifiersTable,
 		ModifierGroupsTable,
@@ -1914,6 +2041,7 @@ var (
 		UsersTable,
 		UserPosRolesTable,
 		WebhookSubscriptionsTable,
+		WeighingScaleReadingsTable,
 	}
 )
 

@@ -126,6 +126,16 @@ func TrackSerialNumber(v bool) predicate.CatalogItem {
 	return predicate.CatalogItem(sql.FieldEQ(FieldTrackSerialNumber, v))
 }
 
+// RequiresSerial applies equality check predicate on the "requires_serial" field. It's identical to RequiresSerialEQ.
+func RequiresSerial(v bool) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldEQ(FieldRequiresSerial, v))
+}
+
+// MinimumAge applies equality check predicate on the "minimum_age" field. It's identical to MinimumAgeEQ.
+func MinimumAge(v int) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldEQ(FieldMinimumAge, v))
+}
+
 // DurationMinutes applies equality check predicate on the "duration_minutes" field. It's identical to DurationMinutesEQ.
 func DurationMinutes(v int) predicate.CatalogItem {
 	return predicate.CatalogItem(sql.FieldEQ(FieldDurationMinutes, v))
@@ -899,6 +909,66 @@ func TrackSerialNumberEQ(v bool) predicate.CatalogItem {
 // TrackSerialNumberNEQ applies the NEQ predicate on the "track_serial_number" field.
 func TrackSerialNumberNEQ(v bool) predicate.CatalogItem {
 	return predicate.CatalogItem(sql.FieldNEQ(FieldTrackSerialNumber, v))
+}
+
+// RequiresSerialEQ applies the EQ predicate on the "requires_serial" field.
+func RequiresSerialEQ(v bool) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldEQ(FieldRequiresSerial, v))
+}
+
+// RequiresSerialNEQ applies the NEQ predicate on the "requires_serial" field.
+func RequiresSerialNEQ(v bool) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldNEQ(FieldRequiresSerial, v))
+}
+
+// MinimumAgeEQ applies the EQ predicate on the "minimum_age" field.
+func MinimumAgeEQ(v int) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldEQ(FieldMinimumAge, v))
+}
+
+// MinimumAgeNEQ applies the NEQ predicate on the "minimum_age" field.
+func MinimumAgeNEQ(v int) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldNEQ(FieldMinimumAge, v))
+}
+
+// MinimumAgeIn applies the In predicate on the "minimum_age" field.
+func MinimumAgeIn(vs ...int) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldIn(FieldMinimumAge, vs...))
+}
+
+// MinimumAgeNotIn applies the NotIn predicate on the "minimum_age" field.
+func MinimumAgeNotIn(vs ...int) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldNotIn(FieldMinimumAge, vs...))
+}
+
+// MinimumAgeGT applies the GT predicate on the "minimum_age" field.
+func MinimumAgeGT(v int) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldGT(FieldMinimumAge, v))
+}
+
+// MinimumAgeGTE applies the GTE predicate on the "minimum_age" field.
+func MinimumAgeGTE(v int) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldGTE(FieldMinimumAge, v))
+}
+
+// MinimumAgeLT applies the LT predicate on the "minimum_age" field.
+func MinimumAgeLT(v int) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldLT(FieldMinimumAge, v))
+}
+
+// MinimumAgeLTE applies the LTE predicate on the "minimum_age" field.
+func MinimumAgeLTE(v int) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldLTE(FieldMinimumAge, v))
+}
+
+// MinimumAgeIsNil applies the IsNil predicate on the "minimum_age" field.
+func MinimumAgeIsNil() predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldIsNull(FieldMinimumAge))
+}
+
+// MinimumAgeNotNil applies the NotNil predicate on the "minimum_age" field.
+func MinimumAgeNotNil() predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldNotNull(FieldMinimumAge))
 }
 
 // DurationMinutesEQ applies the EQ predicate on the "duration_minutes" field.

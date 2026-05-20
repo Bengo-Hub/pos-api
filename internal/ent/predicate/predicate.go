@@ -63,6 +63,12 @@ type KDSStation func(*sql.Selector)
 // KDSTicket is the predicate function for kdsticket builders.
 type KDSTicket func(*sql.Selector)
 
+// LayawayPayment is the predicate function for layawaypayment builders.
+type LayawayPayment func(*sql.Selector)
+
+// LayawayPlan is the predicate function for layawayplan builders.
+type LayawayPlan func(*sql.Selector)
+
 // LicenseUsageSnapshot is the predicate function for licenseusagesnapshot builders.
 type LicenseUsageSnapshot func(*sql.Selector)
 
@@ -200,3 +206,6 @@ type UserPOSRole func(*sql.Selector)
 
 // WebhookSubscription is the predicate function for webhooksubscription builders.
 type WebhookSubscription func(*sql.Selector)
+
+// WeighingScaleReading is the predicate function for weighingscalereading builders.
+type WeighingScaleReading func(*sql.Selector)

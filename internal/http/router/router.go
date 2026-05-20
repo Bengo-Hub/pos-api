@@ -44,6 +44,8 @@ func New(
 	closings *handlers.DailyClosingHandler,
 	returns *handlers.ReturnHandler,
 	receipt *handlers.ReceiptHandler,
+	layaway *handlers.LayawayHandler,
+	scale *handlers.ScaleHandler,
 	allowedOrigins []string,
 ) http.Handler {
 	r := chi.NewRouter()
@@ -165,6 +167,7 @@ func New(
 							cat.Get("/items/{id}", catalog.GetCatalogItem)
 							cat.Put("/items/{id}", catalog.UpdateCatalogItem)
 							cat.Delete("/items/{id}", catalog.DeleteCatalogItem)
+							cat.Get("/barcode/{barcode}", catalog.BarcodeLookup)
 						})
 					}
 
@@ -274,6 +277,21 @@ func New(
 							mgr.Use(subscriptions.RequireFeature("shift_reports"))
 							mgr.Patch("/returns/{returnID}/approve", returns.ApproveReturn)
 						})
+					}
+
+					// Layaway plans & payments
+					if layaway != nil {
+						pos.Post("/layaways", layaway.Create)
+						pos.Get("/layaways", layaway.List)
+						pos.Get("/layaways/{id}", layaway.Get)
+						pos.Post("/layaways/{id}/payments", layaway.RecordPayment)
+						pos.Post("/layaways/{id}/cancel", layaway.Cancel)
+					}
+
+					// Weighing scale readings
+					if scale != nil {
+						pos.Post("/scale/readings", scale.Create)
+						pos.Get("/scale/readings", scale.List)
 					}
 
 					// Daily closings (ERP reconciliation)

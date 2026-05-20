@@ -27,6 +27,17 @@ func (POSOrderLine) Fields() []ent.Field {
 		field.Float("quantity"),
 		field.Float("unit_price"),
 		field.Float("total_price"),
+		field.Int("weight_grams").
+			Optional().
+			Nillable().
+			Comment("Weight at sale time for weighed items"),
+		field.String("lot_number").
+			Optional().
+			Comment("Lot/batch number if item tracks lots"),
+		field.Time("expiry_date").
+			Optional().
+			Nillable().
+			Comment("Expiry date from lot if applicable"),
 		field.JSON("metadata", map[string]any{}).
 			Default(map[string]any{}),
 	}

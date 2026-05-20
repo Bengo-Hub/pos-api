@@ -3,6 +3,8 @@
 package posorderline
 
 import (
+	"time"
+
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
@@ -87,6 +89,21 @@ func UnitPrice(v float64) predicate.POSOrderLine {
 // TotalPrice applies equality check predicate on the "total_price" field. It's identical to TotalPriceEQ.
 func TotalPrice(v float64) predicate.POSOrderLine {
 	return predicate.POSOrderLine(sql.FieldEQ(FieldTotalPrice, v))
+}
+
+// WeightGrams applies equality check predicate on the "weight_grams" field. It's identical to WeightGramsEQ.
+func WeightGrams(v int) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldEQ(FieldWeightGrams, v))
+}
+
+// LotNumber applies equality check predicate on the "lot_number" field. It's identical to LotNumberEQ.
+func LotNumber(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldEQ(FieldLotNumber, v))
+}
+
+// ExpiryDate applies equality check predicate on the "expiry_date" field. It's identical to ExpiryDateEQ.
+func ExpiryDate(v time.Time) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldEQ(FieldExpiryDate, v))
 }
 
 // OrderIDEQ applies the EQ predicate on the "order_id" field.
@@ -397,6 +414,181 @@ func TotalPriceLT(v float64) predicate.POSOrderLine {
 // TotalPriceLTE applies the LTE predicate on the "total_price" field.
 func TotalPriceLTE(v float64) predicate.POSOrderLine {
 	return predicate.POSOrderLine(sql.FieldLTE(FieldTotalPrice, v))
+}
+
+// WeightGramsEQ applies the EQ predicate on the "weight_grams" field.
+func WeightGramsEQ(v int) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldEQ(FieldWeightGrams, v))
+}
+
+// WeightGramsNEQ applies the NEQ predicate on the "weight_grams" field.
+func WeightGramsNEQ(v int) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldNEQ(FieldWeightGrams, v))
+}
+
+// WeightGramsIn applies the In predicate on the "weight_grams" field.
+func WeightGramsIn(vs ...int) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldIn(FieldWeightGrams, vs...))
+}
+
+// WeightGramsNotIn applies the NotIn predicate on the "weight_grams" field.
+func WeightGramsNotIn(vs ...int) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldNotIn(FieldWeightGrams, vs...))
+}
+
+// WeightGramsGT applies the GT predicate on the "weight_grams" field.
+func WeightGramsGT(v int) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldGT(FieldWeightGrams, v))
+}
+
+// WeightGramsGTE applies the GTE predicate on the "weight_grams" field.
+func WeightGramsGTE(v int) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldGTE(FieldWeightGrams, v))
+}
+
+// WeightGramsLT applies the LT predicate on the "weight_grams" field.
+func WeightGramsLT(v int) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldLT(FieldWeightGrams, v))
+}
+
+// WeightGramsLTE applies the LTE predicate on the "weight_grams" field.
+func WeightGramsLTE(v int) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldLTE(FieldWeightGrams, v))
+}
+
+// WeightGramsIsNil applies the IsNil predicate on the "weight_grams" field.
+func WeightGramsIsNil() predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldIsNull(FieldWeightGrams))
+}
+
+// WeightGramsNotNil applies the NotNil predicate on the "weight_grams" field.
+func WeightGramsNotNil() predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldNotNull(FieldWeightGrams))
+}
+
+// LotNumberEQ applies the EQ predicate on the "lot_number" field.
+func LotNumberEQ(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldEQ(FieldLotNumber, v))
+}
+
+// LotNumberNEQ applies the NEQ predicate on the "lot_number" field.
+func LotNumberNEQ(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldNEQ(FieldLotNumber, v))
+}
+
+// LotNumberIn applies the In predicate on the "lot_number" field.
+func LotNumberIn(vs ...string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldIn(FieldLotNumber, vs...))
+}
+
+// LotNumberNotIn applies the NotIn predicate on the "lot_number" field.
+func LotNumberNotIn(vs ...string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldNotIn(FieldLotNumber, vs...))
+}
+
+// LotNumberGT applies the GT predicate on the "lot_number" field.
+func LotNumberGT(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldGT(FieldLotNumber, v))
+}
+
+// LotNumberGTE applies the GTE predicate on the "lot_number" field.
+func LotNumberGTE(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldGTE(FieldLotNumber, v))
+}
+
+// LotNumberLT applies the LT predicate on the "lot_number" field.
+func LotNumberLT(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldLT(FieldLotNumber, v))
+}
+
+// LotNumberLTE applies the LTE predicate on the "lot_number" field.
+func LotNumberLTE(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldLTE(FieldLotNumber, v))
+}
+
+// LotNumberContains applies the Contains predicate on the "lot_number" field.
+func LotNumberContains(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldContains(FieldLotNumber, v))
+}
+
+// LotNumberHasPrefix applies the HasPrefix predicate on the "lot_number" field.
+func LotNumberHasPrefix(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldHasPrefix(FieldLotNumber, v))
+}
+
+// LotNumberHasSuffix applies the HasSuffix predicate on the "lot_number" field.
+func LotNumberHasSuffix(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldHasSuffix(FieldLotNumber, v))
+}
+
+// LotNumberIsNil applies the IsNil predicate on the "lot_number" field.
+func LotNumberIsNil() predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldIsNull(FieldLotNumber))
+}
+
+// LotNumberNotNil applies the NotNil predicate on the "lot_number" field.
+func LotNumberNotNil() predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldNotNull(FieldLotNumber))
+}
+
+// LotNumberEqualFold applies the EqualFold predicate on the "lot_number" field.
+func LotNumberEqualFold(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldEqualFold(FieldLotNumber, v))
+}
+
+// LotNumberContainsFold applies the ContainsFold predicate on the "lot_number" field.
+func LotNumberContainsFold(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldContainsFold(FieldLotNumber, v))
+}
+
+// ExpiryDateEQ applies the EQ predicate on the "expiry_date" field.
+func ExpiryDateEQ(v time.Time) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldEQ(FieldExpiryDate, v))
+}
+
+// ExpiryDateNEQ applies the NEQ predicate on the "expiry_date" field.
+func ExpiryDateNEQ(v time.Time) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldNEQ(FieldExpiryDate, v))
+}
+
+// ExpiryDateIn applies the In predicate on the "expiry_date" field.
+func ExpiryDateIn(vs ...time.Time) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldIn(FieldExpiryDate, vs...))
+}
+
+// ExpiryDateNotIn applies the NotIn predicate on the "expiry_date" field.
+func ExpiryDateNotIn(vs ...time.Time) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldNotIn(FieldExpiryDate, vs...))
+}
+
+// ExpiryDateGT applies the GT predicate on the "expiry_date" field.
+func ExpiryDateGT(v time.Time) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldGT(FieldExpiryDate, v))
+}
+
+// ExpiryDateGTE applies the GTE predicate on the "expiry_date" field.
+func ExpiryDateGTE(v time.Time) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldGTE(FieldExpiryDate, v))
+}
+
+// ExpiryDateLT applies the LT predicate on the "expiry_date" field.
+func ExpiryDateLT(v time.Time) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldLT(FieldExpiryDate, v))
+}
+
+// ExpiryDateLTE applies the LTE predicate on the "expiry_date" field.
+func ExpiryDateLTE(v time.Time) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldLTE(FieldExpiryDate, v))
+}
+
+// ExpiryDateIsNil applies the IsNil predicate on the "expiry_date" field.
+func ExpiryDateIsNil() predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldIsNull(FieldExpiryDate))
+}
+
+// ExpiryDateNotNil applies the NotNil predicate on the "expiry_date" field.
+func ExpiryDateNotNil() predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldNotNull(FieldExpiryDate))
 }
 
 // HasOrder applies the HasEdge predicate on the "order" edge.

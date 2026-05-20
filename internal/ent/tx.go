@@ -50,6 +50,10 @@ type Tx struct {
 	KDSStation *KDSStationClient
 	// KDSTicket is the client for interacting with the KDSTicket builders.
 	KDSTicket *KDSTicketClient
+	// LayawayPayment is the client for interacting with the LayawayPayment builders.
+	LayawayPayment *LayawayPaymentClient
+	// LayawayPlan is the client for interacting with the LayawayPlan builders.
+	LayawayPlan *LayawayPlanClient
 	// LicenseUsageSnapshot is the client for interacting with the LicenseUsageSnapshot builders.
 	LicenseUsageSnapshot *LicenseUsageSnapshotClient
 	// Modifier is the client for interacting with the Modifier builders.
@@ -142,6 +146,8 @@ type Tx struct {
 	UserPOSRole *UserPOSRoleClient
 	// WebhookSubscription is the client for interacting with the WebhookSubscription builders.
 	WebhookSubscription *WebhookSubscriptionClient
+	// WeighingScaleReading is the client for interacting with the WeighingScaleReading builders.
+	WeighingScaleReading *WeighingScaleReadingClient
 
 	// lazily loaded.
 	client     *Client
@@ -292,6 +298,8 @@ func (tx *Tx) init() {
 	tx.InventorySnapshot = NewInventorySnapshotClient(tx.config)
 	tx.KDSStation = NewKDSStationClient(tx.config)
 	tx.KDSTicket = NewKDSTicketClient(tx.config)
+	tx.LayawayPayment = NewLayawayPaymentClient(tx.config)
+	tx.LayawayPlan = NewLayawayPlanClient(tx.config)
 	tx.LicenseUsageSnapshot = NewLicenseUsageSnapshotClient(tx.config)
 	tx.Modifier = NewModifierClient(tx.config)
 	tx.ModifierGroup = NewModifierGroupClient(tx.config)
@@ -338,6 +346,7 @@ func (tx *Tx) init() {
 	tx.User = NewUserClient(tx.config)
 	tx.UserPOSRole = NewUserPOSRoleClient(tx.config)
 	tx.WebhookSubscription = NewWebhookSubscriptionClient(tx.config)
+	tx.WeighingScaleReading = NewWeighingScaleReadingClient(tx.config)
 }
 
 // txDriver wraps the given dialect.Tx with a nop dialect.Driver implementation.

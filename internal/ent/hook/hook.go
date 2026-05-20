@@ -237,6 +237,30 @@ func (f KDSTicketFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, e
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.KDSTicketMutation", m)
 }
 
+// The LayawayPaymentFunc type is an adapter to allow the use of ordinary
+// function as LayawayPayment mutator.
+type LayawayPaymentFunc func(context.Context, *ent.LayawayPaymentMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f LayawayPaymentFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.LayawayPaymentMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.LayawayPaymentMutation", m)
+}
+
+// The LayawayPlanFunc type is an adapter to allow the use of ordinary
+// function as LayawayPlan mutator.
+type LayawayPlanFunc func(context.Context, *ent.LayawayPlanMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f LayawayPlanFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.LayawayPlanMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.LayawayPlanMutation", m)
+}
+
 // The LicenseUsageSnapshotFunc type is an adapter to allow the use of ordinary
 // function as LicenseUsageSnapshot mutator.
 type LicenseUsageSnapshotFunc func(context.Context, *ent.LicenseUsageSnapshotMutation) (ent.Value, error)
@@ -787,6 +811,18 @@ func (f WebhookSubscriptionFunc) Mutate(ctx context.Context, m ent.Mutation) (en
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.WebhookSubscriptionMutation", m)
+}
+
+// The WeighingScaleReadingFunc type is an adapter to allow the use of ordinary
+// function as WeighingScaleReading mutator.
+type WeighingScaleReadingFunc func(context.Context, *ent.WeighingScaleReadingMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f WeighingScaleReadingFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.WeighingScaleReadingMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.WeighingScaleReadingMutation", m)
 }
 
 // Condition is a hook condition function.

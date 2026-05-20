@@ -31,6 +31,8 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/inventorysnapshot"
 	"github.com/bengobox/pos-service/internal/ent/kdsstation"
 	"github.com/bengobox/pos-service/internal/ent/kdsticket"
+	"github.com/bengobox/pos-service/internal/ent/layawaypayment"
+	"github.com/bengobox/pos-service/internal/ent/layawayplan"
 	"github.com/bengobox/pos-service/internal/ent/licenseusagesnapshot"
 	"github.com/bengobox/pos-service/internal/ent/modifier"
 	"github.com/bengobox/pos-service/internal/ent/modifiergroup"
@@ -77,6 +79,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/user"
 	"github.com/bengobox/pos-service/internal/ent/userposrole"
 	"github.com/bengobox/pos-service/internal/ent/webhooksubscription"
+	"github.com/bengobox/pos-service/internal/ent/weighingscalereading"
 )
 
 // ent aliases to avoid import conflicts in user's code.
@@ -156,6 +159,8 @@ func checkColumn(t, c string) error {
 			inventorysnapshot.Table:      inventorysnapshot.ValidColumn,
 			kdsstation.Table:             kdsstation.ValidColumn,
 			kdsticket.Table:              kdsticket.ValidColumn,
+			layawaypayment.Table:         layawaypayment.ValidColumn,
+			layawayplan.Table:            layawayplan.ValidColumn,
 			licenseusagesnapshot.Table:   licenseusagesnapshot.ValidColumn,
 			modifier.Table:               modifier.ValidColumn,
 			modifiergroup.Table:          modifiergroup.ValidColumn,
@@ -202,6 +207,7 @@ func checkColumn(t, c string) error {
 			user.Table:                   user.ValidColumn,
 			userposrole.Table:            userposrole.ValidColumn,
 			webhooksubscription.Table:    webhooksubscription.ValidColumn,
+			weighingscalereading.Table:   weighingscalereading.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)

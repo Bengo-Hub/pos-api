@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
@@ -146,6 +147,73 @@ func (_u *POSOrderLineUpdate) SetNillableTotalPrice(v *float64) *POSOrderLineUpd
 // AddTotalPrice adds value to the "total_price" field.
 func (_u *POSOrderLineUpdate) AddTotalPrice(v float64) *POSOrderLineUpdate {
 	_u.mutation.AddTotalPrice(v)
+	return _u
+}
+
+// SetWeightGrams sets the "weight_grams" field.
+func (_u *POSOrderLineUpdate) SetWeightGrams(v int) *POSOrderLineUpdate {
+	_u.mutation.ResetWeightGrams()
+	_u.mutation.SetWeightGrams(v)
+	return _u
+}
+
+// SetNillableWeightGrams sets the "weight_grams" field if the given value is not nil.
+func (_u *POSOrderLineUpdate) SetNillableWeightGrams(v *int) *POSOrderLineUpdate {
+	if v != nil {
+		_u.SetWeightGrams(*v)
+	}
+	return _u
+}
+
+// AddWeightGrams adds value to the "weight_grams" field.
+func (_u *POSOrderLineUpdate) AddWeightGrams(v int) *POSOrderLineUpdate {
+	_u.mutation.AddWeightGrams(v)
+	return _u
+}
+
+// ClearWeightGrams clears the value of the "weight_grams" field.
+func (_u *POSOrderLineUpdate) ClearWeightGrams() *POSOrderLineUpdate {
+	_u.mutation.ClearWeightGrams()
+	return _u
+}
+
+// SetLotNumber sets the "lot_number" field.
+func (_u *POSOrderLineUpdate) SetLotNumber(v string) *POSOrderLineUpdate {
+	_u.mutation.SetLotNumber(v)
+	return _u
+}
+
+// SetNillableLotNumber sets the "lot_number" field if the given value is not nil.
+func (_u *POSOrderLineUpdate) SetNillableLotNumber(v *string) *POSOrderLineUpdate {
+	if v != nil {
+		_u.SetLotNumber(*v)
+	}
+	return _u
+}
+
+// ClearLotNumber clears the value of the "lot_number" field.
+func (_u *POSOrderLineUpdate) ClearLotNumber() *POSOrderLineUpdate {
+	_u.mutation.ClearLotNumber()
+	return _u
+}
+
+// SetExpiryDate sets the "expiry_date" field.
+func (_u *POSOrderLineUpdate) SetExpiryDate(v time.Time) *POSOrderLineUpdate {
+	_u.mutation.SetExpiryDate(v)
+	return _u
+}
+
+// SetNillableExpiryDate sets the "expiry_date" field if the given value is not nil.
+func (_u *POSOrderLineUpdate) SetNillableExpiryDate(v *time.Time) *POSOrderLineUpdate {
+	if v != nil {
+		_u.SetExpiryDate(*v)
+	}
+	return _u
+}
+
+// ClearExpiryDate clears the value of the "expiry_date" field.
+func (_u *POSOrderLineUpdate) ClearExpiryDate() *POSOrderLineUpdate {
+	_u.mutation.ClearExpiryDate()
 	return _u
 }
 
@@ -290,6 +358,27 @@ func (_u *POSOrderLineUpdate) sqlSave(ctx context.Context) (_node int, err error
 	}
 	if value, ok := _u.mutation.AddedTotalPrice(); ok {
 		_spec.AddField(posorderline.FieldTotalPrice, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.WeightGrams(); ok {
+		_spec.SetField(posorderline.FieldWeightGrams, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedWeightGrams(); ok {
+		_spec.AddField(posorderline.FieldWeightGrams, field.TypeInt, value)
+	}
+	if _u.mutation.WeightGramsCleared() {
+		_spec.ClearField(posorderline.FieldWeightGrams, field.TypeInt)
+	}
+	if value, ok := _u.mutation.LotNumber(); ok {
+		_spec.SetField(posorderline.FieldLotNumber, field.TypeString, value)
+	}
+	if _u.mutation.LotNumberCleared() {
+		_spec.ClearField(posorderline.FieldLotNumber, field.TypeString)
+	}
+	if value, ok := _u.mutation.ExpiryDate(); ok {
+		_spec.SetField(posorderline.FieldExpiryDate, field.TypeTime, value)
+	}
+	if _u.mutation.ExpiryDateCleared() {
+		_spec.ClearField(posorderline.FieldExpiryDate, field.TypeTime)
 	}
 	if value, ok := _u.mutation.Metadata(); ok {
 		_spec.SetField(posorderline.FieldMetadata, field.TypeJSON, value)
@@ -507,6 +596,73 @@ func (_u *POSOrderLineUpdateOne) AddTotalPrice(v float64) *POSOrderLineUpdateOne
 	return _u
 }
 
+// SetWeightGrams sets the "weight_grams" field.
+func (_u *POSOrderLineUpdateOne) SetWeightGrams(v int) *POSOrderLineUpdateOne {
+	_u.mutation.ResetWeightGrams()
+	_u.mutation.SetWeightGrams(v)
+	return _u
+}
+
+// SetNillableWeightGrams sets the "weight_grams" field if the given value is not nil.
+func (_u *POSOrderLineUpdateOne) SetNillableWeightGrams(v *int) *POSOrderLineUpdateOne {
+	if v != nil {
+		_u.SetWeightGrams(*v)
+	}
+	return _u
+}
+
+// AddWeightGrams adds value to the "weight_grams" field.
+func (_u *POSOrderLineUpdateOne) AddWeightGrams(v int) *POSOrderLineUpdateOne {
+	_u.mutation.AddWeightGrams(v)
+	return _u
+}
+
+// ClearWeightGrams clears the value of the "weight_grams" field.
+func (_u *POSOrderLineUpdateOne) ClearWeightGrams() *POSOrderLineUpdateOne {
+	_u.mutation.ClearWeightGrams()
+	return _u
+}
+
+// SetLotNumber sets the "lot_number" field.
+func (_u *POSOrderLineUpdateOne) SetLotNumber(v string) *POSOrderLineUpdateOne {
+	_u.mutation.SetLotNumber(v)
+	return _u
+}
+
+// SetNillableLotNumber sets the "lot_number" field if the given value is not nil.
+func (_u *POSOrderLineUpdateOne) SetNillableLotNumber(v *string) *POSOrderLineUpdateOne {
+	if v != nil {
+		_u.SetLotNumber(*v)
+	}
+	return _u
+}
+
+// ClearLotNumber clears the value of the "lot_number" field.
+func (_u *POSOrderLineUpdateOne) ClearLotNumber() *POSOrderLineUpdateOne {
+	_u.mutation.ClearLotNumber()
+	return _u
+}
+
+// SetExpiryDate sets the "expiry_date" field.
+func (_u *POSOrderLineUpdateOne) SetExpiryDate(v time.Time) *POSOrderLineUpdateOne {
+	_u.mutation.SetExpiryDate(v)
+	return _u
+}
+
+// SetNillableExpiryDate sets the "expiry_date" field if the given value is not nil.
+func (_u *POSOrderLineUpdateOne) SetNillableExpiryDate(v *time.Time) *POSOrderLineUpdateOne {
+	if v != nil {
+		_u.SetExpiryDate(*v)
+	}
+	return _u
+}
+
+// ClearExpiryDate clears the value of the "expiry_date" field.
+func (_u *POSOrderLineUpdateOne) ClearExpiryDate() *POSOrderLineUpdateOne {
+	_u.mutation.ClearExpiryDate()
+	return _u
+}
+
 // SetMetadata sets the "metadata" field.
 func (_u *POSOrderLineUpdateOne) SetMetadata(v map[string]interface{}) *POSOrderLineUpdateOne {
 	_u.mutation.SetMetadata(v)
@@ -678,6 +834,27 @@ func (_u *POSOrderLineUpdateOne) sqlSave(ctx context.Context) (_node *POSOrderLi
 	}
 	if value, ok := _u.mutation.AddedTotalPrice(); ok {
 		_spec.AddField(posorderline.FieldTotalPrice, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.WeightGrams(); ok {
+		_spec.SetField(posorderline.FieldWeightGrams, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedWeightGrams(); ok {
+		_spec.AddField(posorderline.FieldWeightGrams, field.TypeInt, value)
+	}
+	if _u.mutation.WeightGramsCleared() {
+		_spec.ClearField(posorderline.FieldWeightGrams, field.TypeInt)
+	}
+	if value, ok := _u.mutation.LotNumber(); ok {
+		_spec.SetField(posorderline.FieldLotNumber, field.TypeString, value)
+	}
+	if _u.mutation.LotNumberCleared() {
+		_spec.ClearField(posorderline.FieldLotNumber, field.TypeString)
+	}
+	if value, ok := _u.mutation.ExpiryDate(); ok {
+		_spec.SetField(posorderline.FieldExpiryDate, field.TypeTime, value)
+	}
+	if _u.mutation.ExpiryDateCleared() {
+		_spec.ClearField(posorderline.FieldExpiryDate, field.TypeTime)
 	}
 	if value, ok := _u.mutation.Metadata(); ok {
 		_spec.SetField(posorderline.FieldMetadata, field.TypeJSON, value)

@@ -47,6 +47,10 @@ type CatalogItem struct {
 	IsControlledSubstance bool `json:"is_controlled_substance,omitempty"`
 	// Synced from inventory — electronics, equipment
 	TrackSerialNumber bool `json:"track_serial_number,omitempty"`
+	// If true, serial number must be captured at sale
+	RequiresSerial bool `json:"requires_serial,omitempty"`
+	// Minimum buyer age (e.g. 18 for alcohol/tobacco)
+	MinimumAge *int `json:"minimum_age,omitempty"`
 	// Service duration for salon/appointment flow
 	DurationMinutes *int `json:"duration_minutes,omitempty"`
 	// Cost for margin analysis
@@ -92,11 +96,11 @@ func (*CatalogItem) scanValues(columns []string) ([]any, error) {
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		case catalogitem.FieldTags, catalogitem.FieldMetadata:
 			values[i] = new([]byte)
-		case catalogitem.FieldRequiresAgeVerification, catalogitem.FieldIsControlledSubstance, catalogitem.FieldTrackSerialNumber:
+		case catalogitem.FieldRequiresAgeVerification, catalogitem.FieldIsControlledSubstance, catalogitem.FieldTrackSerialNumber, catalogitem.FieldRequiresSerial:
 			values[i] = new(sql.NullBool)
 		case catalogitem.FieldCostPrice:
 			values[i] = new(sql.NullFloat64)
-		case catalogitem.FieldDurationMinutes:
+		case catalogitem.FieldMinimumAge, catalogitem.FieldDurationMinutes:
 			values[i] = new(sql.NullInt64)
 		case catalogitem.FieldName, catalogitem.FieldDescription, catalogitem.FieldSku, catalogitem.FieldBarcode, catalogitem.FieldCategory, catalogitem.FieldImageURL, catalogitem.FieldTaxStatus, catalogitem.FieldStatus, catalogitem.FieldItemType:
 			values[i] = new(sql.NullString)
@@ -209,6 +213,19 @@ func (_m *CatalogItem) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field track_serial_number", values[i])
 			} else if value.Valid {
 				_m.TrackSerialNumber = value.Bool
+			}
+		case catalogitem.FieldRequiresSerial:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field requires_serial", values[i])
+			} else if value.Valid {
+				_m.RequiresSerial = value.Bool
+			}
+		case catalogitem.FieldMinimumAge:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field minimum_age", values[i])
+			} else if value.Valid {
+				_m.MinimumAge = new(int)
+				*_m.MinimumAge = int(value.Int64)
 			}
 		case catalogitem.FieldDurationMinutes:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -336,6 +353,14 @@ func (_m *CatalogItem) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("track_serial_number=")
 	builder.WriteString(fmt.Sprintf("%v", _m.TrackSerialNumber))
+	builder.WriteString(", ")
+	builder.WriteString("requires_serial=")
+	builder.WriteString(fmt.Sprintf("%v", _m.RequiresSerial))
+	builder.WriteString(", ")
+	if v := _m.MinimumAge; v != nil {
+		builder.WriteString("minimum_age=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteString(", ")
 	if v := _m.DurationMinutes; v != nil {
 		builder.WriteString("duration_minutes=")

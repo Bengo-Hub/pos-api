@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/sql"
@@ -64,6 +65,48 @@ func (_c *POSOrderLineCreate) SetUnitPrice(v float64) *POSOrderLineCreate {
 // SetTotalPrice sets the "total_price" field.
 func (_c *POSOrderLineCreate) SetTotalPrice(v float64) *POSOrderLineCreate {
 	_c.mutation.SetTotalPrice(v)
+	return _c
+}
+
+// SetWeightGrams sets the "weight_grams" field.
+func (_c *POSOrderLineCreate) SetWeightGrams(v int) *POSOrderLineCreate {
+	_c.mutation.SetWeightGrams(v)
+	return _c
+}
+
+// SetNillableWeightGrams sets the "weight_grams" field if the given value is not nil.
+func (_c *POSOrderLineCreate) SetNillableWeightGrams(v *int) *POSOrderLineCreate {
+	if v != nil {
+		_c.SetWeightGrams(*v)
+	}
+	return _c
+}
+
+// SetLotNumber sets the "lot_number" field.
+func (_c *POSOrderLineCreate) SetLotNumber(v string) *POSOrderLineCreate {
+	_c.mutation.SetLotNumber(v)
+	return _c
+}
+
+// SetNillableLotNumber sets the "lot_number" field if the given value is not nil.
+func (_c *POSOrderLineCreate) SetNillableLotNumber(v *string) *POSOrderLineCreate {
+	if v != nil {
+		_c.SetLotNumber(*v)
+	}
+	return _c
+}
+
+// SetExpiryDate sets the "expiry_date" field.
+func (_c *POSOrderLineCreate) SetExpiryDate(v time.Time) *POSOrderLineCreate {
+	_c.mutation.SetExpiryDate(v)
+	return _c
+}
+
+// SetNillableExpiryDate sets the "expiry_date" field if the given value is not nil.
+func (_c *POSOrderLineCreate) SetNillableExpiryDate(v *time.Time) *POSOrderLineCreate {
+	if v != nil {
+		_c.SetExpiryDate(*v)
+	}
 	return _c
 }
 
@@ -250,6 +293,18 @@ func (_c *POSOrderLineCreate) createSpec() (*POSOrderLine, *sqlgraph.CreateSpec)
 	if value, ok := _c.mutation.TotalPrice(); ok {
 		_spec.SetField(posorderline.FieldTotalPrice, field.TypeFloat64, value)
 		_node.TotalPrice = value
+	}
+	if value, ok := _c.mutation.WeightGrams(); ok {
+		_spec.SetField(posorderline.FieldWeightGrams, field.TypeInt, value)
+		_node.WeightGrams = &value
+	}
+	if value, ok := _c.mutation.LotNumber(); ok {
+		_spec.SetField(posorderline.FieldLotNumber, field.TypeString, value)
+		_node.LotNumber = value
+	}
+	if value, ok := _c.mutation.ExpiryDate(); ok {
+		_spec.SetField(posorderline.FieldExpiryDate, field.TypeTime, value)
+		_node.ExpiryDate = &value
 	}
 	if value, ok := _c.mutation.Metadata(); ok {
 		_spec.SetField(posorderline.FieldMetadata, field.TypeJSON, value)
@@ -442,6 +497,66 @@ func (u *POSOrderLineUpsert) AddTotalPrice(v float64) *POSOrderLineUpsert {
 	return u
 }
 
+// SetWeightGrams sets the "weight_grams" field.
+func (u *POSOrderLineUpsert) SetWeightGrams(v int) *POSOrderLineUpsert {
+	u.Set(posorderline.FieldWeightGrams, v)
+	return u
+}
+
+// UpdateWeightGrams sets the "weight_grams" field to the value that was provided on create.
+func (u *POSOrderLineUpsert) UpdateWeightGrams() *POSOrderLineUpsert {
+	u.SetExcluded(posorderline.FieldWeightGrams)
+	return u
+}
+
+// AddWeightGrams adds v to the "weight_grams" field.
+func (u *POSOrderLineUpsert) AddWeightGrams(v int) *POSOrderLineUpsert {
+	u.Add(posorderline.FieldWeightGrams, v)
+	return u
+}
+
+// ClearWeightGrams clears the value of the "weight_grams" field.
+func (u *POSOrderLineUpsert) ClearWeightGrams() *POSOrderLineUpsert {
+	u.SetNull(posorderline.FieldWeightGrams)
+	return u
+}
+
+// SetLotNumber sets the "lot_number" field.
+func (u *POSOrderLineUpsert) SetLotNumber(v string) *POSOrderLineUpsert {
+	u.Set(posorderline.FieldLotNumber, v)
+	return u
+}
+
+// UpdateLotNumber sets the "lot_number" field to the value that was provided on create.
+func (u *POSOrderLineUpsert) UpdateLotNumber() *POSOrderLineUpsert {
+	u.SetExcluded(posorderline.FieldLotNumber)
+	return u
+}
+
+// ClearLotNumber clears the value of the "lot_number" field.
+func (u *POSOrderLineUpsert) ClearLotNumber() *POSOrderLineUpsert {
+	u.SetNull(posorderline.FieldLotNumber)
+	return u
+}
+
+// SetExpiryDate sets the "expiry_date" field.
+func (u *POSOrderLineUpsert) SetExpiryDate(v time.Time) *POSOrderLineUpsert {
+	u.Set(posorderline.FieldExpiryDate, v)
+	return u
+}
+
+// UpdateExpiryDate sets the "expiry_date" field to the value that was provided on create.
+func (u *POSOrderLineUpsert) UpdateExpiryDate() *POSOrderLineUpsert {
+	u.SetExcluded(posorderline.FieldExpiryDate)
+	return u
+}
+
+// ClearExpiryDate clears the value of the "expiry_date" field.
+func (u *POSOrderLineUpsert) ClearExpiryDate() *POSOrderLineUpsert {
+	u.SetNull(posorderline.FieldExpiryDate)
+	return u
+}
+
 // SetMetadata sets the "metadata" field.
 func (u *POSOrderLineUpsert) SetMetadata(v map[string]interface{}) *POSOrderLineUpsert {
 	u.Set(posorderline.FieldMetadata, v)
@@ -618,6 +733,76 @@ func (u *POSOrderLineUpsertOne) AddTotalPrice(v float64) *POSOrderLineUpsertOne 
 func (u *POSOrderLineUpsertOne) UpdateTotalPrice() *POSOrderLineUpsertOne {
 	return u.Update(func(s *POSOrderLineUpsert) {
 		s.UpdateTotalPrice()
+	})
+}
+
+// SetWeightGrams sets the "weight_grams" field.
+func (u *POSOrderLineUpsertOne) SetWeightGrams(v int) *POSOrderLineUpsertOne {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.SetWeightGrams(v)
+	})
+}
+
+// AddWeightGrams adds v to the "weight_grams" field.
+func (u *POSOrderLineUpsertOne) AddWeightGrams(v int) *POSOrderLineUpsertOne {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.AddWeightGrams(v)
+	})
+}
+
+// UpdateWeightGrams sets the "weight_grams" field to the value that was provided on create.
+func (u *POSOrderLineUpsertOne) UpdateWeightGrams() *POSOrderLineUpsertOne {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.UpdateWeightGrams()
+	})
+}
+
+// ClearWeightGrams clears the value of the "weight_grams" field.
+func (u *POSOrderLineUpsertOne) ClearWeightGrams() *POSOrderLineUpsertOne {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.ClearWeightGrams()
+	})
+}
+
+// SetLotNumber sets the "lot_number" field.
+func (u *POSOrderLineUpsertOne) SetLotNumber(v string) *POSOrderLineUpsertOne {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.SetLotNumber(v)
+	})
+}
+
+// UpdateLotNumber sets the "lot_number" field to the value that was provided on create.
+func (u *POSOrderLineUpsertOne) UpdateLotNumber() *POSOrderLineUpsertOne {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.UpdateLotNumber()
+	})
+}
+
+// ClearLotNumber clears the value of the "lot_number" field.
+func (u *POSOrderLineUpsertOne) ClearLotNumber() *POSOrderLineUpsertOne {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.ClearLotNumber()
+	})
+}
+
+// SetExpiryDate sets the "expiry_date" field.
+func (u *POSOrderLineUpsertOne) SetExpiryDate(v time.Time) *POSOrderLineUpsertOne {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.SetExpiryDate(v)
+	})
+}
+
+// UpdateExpiryDate sets the "expiry_date" field to the value that was provided on create.
+func (u *POSOrderLineUpsertOne) UpdateExpiryDate() *POSOrderLineUpsertOne {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.UpdateExpiryDate()
+	})
+}
+
+// ClearExpiryDate clears the value of the "expiry_date" field.
+func (u *POSOrderLineUpsertOne) ClearExpiryDate() *POSOrderLineUpsertOne {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.ClearExpiryDate()
 	})
 }
 
@@ -966,6 +1151,76 @@ func (u *POSOrderLineUpsertBulk) AddTotalPrice(v float64) *POSOrderLineUpsertBul
 func (u *POSOrderLineUpsertBulk) UpdateTotalPrice() *POSOrderLineUpsertBulk {
 	return u.Update(func(s *POSOrderLineUpsert) {
 		s.UpdateTotalPrice()
+	})
+}
+
+// SetWeightGrams sets the "weight_grams" field.
+func (u *POSOrderLineUpsertBulk) SetWeightGrams(v int) *POSOrderLineUpsertBulk {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.SetWeightGrams(v)
+	})
+}
+
+// AddWeightGrams adds v to the "weight_grams" field.
+func (u *POSOrderLineUpsertBulk) AddWeightGrams(v int) *POSOrderLineUpsertBulk {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.AddWeightGrams(v)
+	})
+}
+
+// UpdateWeightGrams sets the "weight_grams" field to the value that was provided on create.
+func (u *POSOrderLineUpsertBulk) UpdateWeightGrams() *POSOrderLineUpsertBulk {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.UpdateWeightGrams()
+	})
+}
+
+// ClearWeightGrams clears the value of the "weight_grams" field.
+func (u *POSOrderLineUpsertBulk) ClearWeightGrams() *POSOrderLineUpsertBulk {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.ClearWeightGrams()
+	})
+}
+
+// SetLotNumber sets the "lot_number" field.
+func (u *POSOrderLineUpsertBulk) SetLotNumber(v string) *POSOrderLineUpsertBulk {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.SetLotNumber(v)
+	})
+}
+
+// UpdateLotNumber sets the "lot_number" field to the value that was provided on create.
+func (u *POSOrderLineUpsertBulk) UpdateLotNumber() *POSOrderLineUpsertBulk {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.UpdateLotNumber()
+	})
+}
+
+// ClearLotNumber clears the value of the "lot_number" field.
+func (u *POSOrderLineUpsertBulk) ClearLotNumber() *POSOrderLineUpsertBulk {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.ClearLotNumber()
+	})
+}
+
+// SetExpiryDate sets the "expiry_date" field.
+func (u *POSOrderLineUpsertBulk) SetExpiryDate(v time.Time) *POSOrderLineUpsertBulk {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.SetExpiryDate(v)
+	})
+}
+
+// UpdateExpiryDate sets the "expiry_date" field to the value that was provided on create.
+func (u *POSOrderLineUpsertBulk) UpdateExpiryDate() *POSOrderLineUpsertBulk {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.UpdateExpiryDate()
+	})
+}
+
+// ClearExpiryDate clears the value of the "expiry_date" field.
+func (u *POSOrderLineUpsertBulk) ClearExpiryDate() *POSOrderLineUpsertBulk {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.ClearExpiryDate()
 	})
 }
 

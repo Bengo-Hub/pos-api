@@ -27,6 +27,12 @@ const (
 	FieldUnitPrice = "unit_price"
 	// FieldTotalPrice holds the string denoting the total_price field in the database.
 	FieldTotalPrice = "total_price"
+	// FieldWeightGrams holds the string denoting the weight_grams field in the database.
+	FieldWeightGrams = "weight_grams"
+	// FieldLotNumber holds the string denoting the lot_number field in the database.
+	FieldLotNumber = "lot_number"
+	// FieldExpiryDate holds the string denoting the expiry_date field in the database.
+	FieldExpiryDate = "expiry_date"
 	// FieldMetadata holds the string denoting the metadata field in the database.
 	FieldMetadata = "metadata"
 	// EdgeOrder holds the string denoting the order edge name in mutations.
@@ -61,6 +67,9 @@ var Columns = []string{
 	FieldQuantity,
 	FieldUnitPrice,
 	FieldTotalPrice,
+	FieldWeightGrams,
+	FieldLotNumber,
+	FieldExpiryDate,
 	FieldMetadata,
 }
 
@@ -126,6 +135,21 @@ func ByUnitPrice(opts ...sql.OrderTermOption) OrderOption {
 // ByTotalPrice orders the results by the total_price field.
 func ByTotalPrice(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldTotalPrice, opts...).ToFunc()
+}
+
+// ByWeightGrams orders the results by the weight_grams field.
+func ByWeightGrams(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldWeightGrams, opts...).ToFunc()
+}
+
+// ByLotNumber orders the results by the lot_number field.
+func ByLotNumber(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLotNumber, opts...).ToFunc()
+}
+
+// ByExpiryDate orders the results by the expiry_date field.
+func ByExpiryDate(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldExpiryDate, opts...).ToFunc()
 }
 
 // ByOrderField orders the results by order field.

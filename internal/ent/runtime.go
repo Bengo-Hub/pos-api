@@ -23,6 +23,8 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/inventorysnapshot"
 	"github.com/bengobox/pos-service/internal/ent/kdsstation"
 	"github.com/bengobox/pos-service/internal/ent/kdsticket"
+	"github.com/bengobox/pos-service/internal/ent/layawaypayment"
+	"github.com/bengobox/pos-service/internal/ent/layawayplan"
 	"github.com/bengobox/pos-service/internal/ent/modifier"
 	"github.com/bengobox/pos-service/internal/ent/modifiergroup"
 	"github.com/bengobox/pos-service/internal/ent/orderlink"
@@ -68,6 +70,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/user"
 	"github.com/bengobox/pos-service/internal/ent/userposrole"
 	"github.com/bengobox/pos-service/internal/ent/webhooksubscription"
+	"github.com/bengobox/pos-service/internal/ent/weighingscalereading"
 	"github.com/google/uuid"
 )
 
@@ -207,20 +210,24 @@ func init() {
 	catalogitemDescTrackSerialNumber := catalogitemFields[14].Descriptor()
 	// catalogitem.DefaultTrackSerialNumber holds the default value on creation for the track_serial_number field.
 	catalogitem.DefaultTrackSerialNumber = catalogitemDescTrackSerialNumber.Default.(bool)
+	// catalogitemDescRequiresSerial is the schema descriptor for requires_serial field.
+	catalogitemDescRequiresSerial := catalogitemFields[15].Descriptor()
+	// catalogitem.DefaultRequiresSerial holds the default value on creation for the requires_serial field.
+	catalogitem.DefaultRequiresSerial = catalogitemDescRequiresSerial.Default.(bool)
 	// catalogitemDescTags is the schema descriptor for tags field.
-	catalogitemDescTags := catalogitemFields[17].Descriptor()
+	catalogitemDescTags := catalogitemFields[19].Descriptor()
 	// catalogitem.DefaultTags holds the default value on creation for the tags field.
 	catalogitem.DefaultTags = catalogitemDescTags.Default.([]string)
 	// catalogitemDescMetadata is the schema descriptor for metadata field.
-	catalogitemDescMetadata := catalogitemFields[18].Descriptor()
+	catalogitemDescMetadata := catalogitemFields[20].Descriptor()
 	// catalogitem.DefaultMetadata holds the default value on creation for the metadata field.
 	catalogitem.DefaultMetadata = catalogitemDescMetadata.Default.(map[string]interface{})
 	// catalogitemDescCreatedAt is the schema descriptor for created_at field.
-	catalogitemDescCreatedAt := catalogitemFields[19].Descriptor()
+	catalogitemDescCreatedAt := catalogitemFields[21].Descriptor()
 	// catalogitem.DefaultCreatedAt holds the default value on creation for the created_at field.
 	catalogitem.DefaultCreatedAt = catalogitemDescCreatedAt.Default.(func() time.Time)
 	// catalogitemDescUpdatedAt is the schema descriptor for updated_at field.
-	catalogitemDescUpdatedAt := catalogitemFields[20].Descriptor()
+	catalogitemDescUpdatedAt := catalogitemFields[22].Descriptor()
 	// catalogitem.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	catalogitem.DefaultUpdatedAt = catalogitemDescUpdatedAt.Default.(func() time.Time)
 	// catalogitem.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -559,6 +566,48 @@ func init() {
 	kdsticketDescID := kdsticketFields[0].Descriptor()
 	// kdsticket.DefaultID holds the default value on creation for the id field.
 	kdsticket.DefaultID = kdsticketDescID.Default.(func() uuid.UUID)
+	layawaypaymentFields := schema.LayawayPayment{}.Fields()
+	_ = layawaypaymentFields
+	// layawaypaymentDescPaymentMethod is the schema descriptor for payment_method field.
+	layawaypaymentDescPaymentMethod := layawaypaymentFields[4].Descriptor()
+	// layawaypayment.DefaultPaymentMethod holds the default value on creation for the payment_method field.
+	layawaypayment.DefaultPaymentMethod = layawaypaymentDescPaymentMethod.Default.(string)
+	// layawaypaymentDescPaidAt is the schema descriptor for paid_at field.
+	layawaypaymentDescPaidAt := layawaypaymentFields[8].Descriptor()
+	// layawaypayment.DefaultPaidAt holds the default value on creation for the paid_at field.
+	layawaypayment.DefaultPaidAt = layawaypaymentDescPaidAt.Default.(func() time.Time)
+	// layawaypaymentDescCreatedAt is the schema descriptor for created_at field.
+	layawaypaymentDescCreatedAt := layawaypaymentFields[9].Descriptor()
+	// layawaypayment.DefaultCreatedAt holds the default value on creation for the created_at field.
+	layawaypayment.DefaultCreatedAt = layawaypaymentDescCreatedAt.Default.(func() time.Time)
+	// layawaypaymentDescID is the schema descriptor for id field.
+	layawaypaymentDescID := layawaypaymentFields[0].Descriptor()
+	// layawaypayment.DefaultID holds the default value on creation for the id field.
+	layawaypayment.DefaultID = layawaypaymentDescID.Default.(func() uuid.UUID)
+	layawayplanFields := schema.LayawayPlan{}.Fields()
+	_ = layawayplanFields
+	// layawayplanDescCustomerName is the schema descriptor for customer_name field.
+	layawayplanDescCustomerName := layawayplanFields[4].Descriptor()
+	// layawayplan.CustomerNameValidator is a validator for the "customer_name" field. It is called by the builders before save.
+	layawayplan.CustomerNameValidator = layawayplanDescCustomerName.Validators[0].(func(string) error)
+	// layawayplanDescStatus is the schema descriptor for status field.
+	layawayplanDescStatus := layawayplanFields[11].Descriptor()
+	// layawayplan.DefaultStatus holds the default value on creation for the status field.
+	layawayplan.DefaultStatus = layawayplanDescStatus.Default.(string)
+	// layawayplanDescCreatedAt is the schema descriptor for created_at field.
+	layawayplanDescCreatedAt := layawayplanFields[14].Descriptor()
+	// layawayplan.DefaultCreatedAt holds the default value on creation for the created_at field.
+	layawayplan.DefaultCreatedAt = layawayplanDescCreatedAt.Default.(func() time.Time)
+	// layawayplanDescUpdatedAt is the schema descriptor for updated_at field.
+	layawayplanDescUpdatedAt := layawayplanFields[15].Descriptor()
+	// layawayplan.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	layawayplan.DefaultUpdatedAt = layawayplanDescUpdatedAt.Default.(func() time.Time)
+	// layawayplan.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	layawayplan.UpdateDefaultUpdatedAt = layawayplanDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// layawayplanDescID is the schema descriptor for id field.
+	layawayplanDescID := layawayplanFields[0].Descriptor()
+	// layawayplan.DefaultID holds the default value on creation for the id field.
+	layawayplan.DefaultID = layawayplanDescID.Default.(func() uuid.UUID)
 	modifierFields := schema.Modifier{}.Fields()
 	_ = modifierFields
 	// modifierDescName is the schema descriptor for name field.
@@ -866,7 +915,7 @@ func init() {
 	// posorderline.NameValidator is a validator for the "name" field. It is called by the builders before save.
 	posorderline.NameValidator = posorderlineDescName.Validators[0].(func(string) error)
 	// posorderlineDescMetadata is the schema descriptor for metadata field.
-	posorderlineDescMetadata := posorderlineFields[8].Descriptor()
+	posorderlineDescMetadata := posorderlineFields[11].Descriptor()
 	// posorderline.DefaultMetadata holds the default value on creation for the metadata field.
 	posorderline.DefaultMetadata = posorderlineDescMetadata.Default.(map[string]interface{})
 	// posorderlineDescID is the schema descriptor for id field.
@@ -1649,4 +1698,26 @@ func init() {
 	webhooksubscriptionDescID := webhooksubscriptionFields[0].Descriptor()
 	// webhooksubscription.DefaultID holds the default value on creation for the id field.
 	webhooksubscription.DefaultID = webhooksubscriptionDescID.Default.(func() uuid.UUID)
+	weighingscalereadingFields := schema.WeighingScaleReading{}.Fields()
+	_ = weighingscalereadingFields
+	// weighingscalereadingDescUnit is the schema descriptor for unit field.
+	weighingscalereadingDescUnit := weighingscalereadingFields[6].Descriptor()
+	// weighingscalereading.DefaultUnit holds the default value on creation for the unit field.
+	weighingscalereading.DefaultUnit = weighingscalereadingDescUnit.Default.(string)
+	// weighingscalereadingDescStatus is the schema descriptor for status field.
+	weighingscalereadingDescStatus := weighingscalereadingFields[8].Descriptor()
+	// weighingscalereading.DefaultStatus holds the default value on creation for the status field.
+	weighingscalereading.DefaultStatus = weighingscalereadingDescStatus.Default.(string)
+	// weighingscalereadingDescReadAt is the schema descriptor for read_at field.
+	weighingscalereadingDescReadAt := weighingscalereadingFields[9].Descriptor()
+	// weighingscalereading.DefaultReadAt holds the default value on creation for the read_at field.
+	weighingscalereading.DefaultReadAt = weighingscalereadingDescReadAt.Default.(func() time.Time)
+	// weighingscalereadingDescCreatedAt is the schema descriptor for created_at field.
+	weighingscalereadingDescCreatedAt := weighingscalereadingFields[10].Descriptor()
+	// weighingscalereading.DefaultCreatedAt holds the default value on creation for the created_at field.
+	weighingscalereading.DefaultCreatedAt = weighingscalereadingDescCreatedAt.Default.(func() time.Time)
+	// weighingscalereadingDescID is the schema descriptor for id field.
+	weighingscalereadingDescID := weighingscalereadingFields[0].Descriptor()
+	// weighingscalereading.DefaultID holds the default value on creation for the id field.
+	weighingscalereading.DefaultID = weighingscalereadingDescID.Default.(func() uuid.UUID)
 }

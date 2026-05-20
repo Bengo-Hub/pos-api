@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
@@ -33,6 +34,12 @@ type POSOrderLine struct {
 	UnitPrice float64 `json:"unit_price,omitempty"`
 	// TotalPrice holds the value of the "total_price" field.
 	TotalPrice float64 `json:"total_price,omitempty"`
+	// Weight at sale time for weighed items
+	WeightGrams *int `json:"weight_grams,omitempty"`
+	// Lot/batch number if item tracks lots
+	LotNumber string `json:"lot_number,omitempty"`
+	// Expiry date from lot if applicable
+	ExpiryDate *time.Time `json:"expiry_date,omitempty"`
 	// Metadata holds the value of the "metadata" field.
 	Metadata map[string]interface{} `json:"metadata,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
@@ -81,8 +88,12 @@ func (*POSOrderLine) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case posorderline.FieldQuantity, posorderline.FieldUnitPrice, posorderline.FieldTotalPrice:
 			values[i] = new(sql.NullFloat64)
-		case posorderline.FieldSku, posorderline.FieldName:
+		case posorderline.FieldWeightGrams:
+			values[i] = new(sql.NullInt64)
+		case posorderline.FieldSku, posorderline.FieldName, posorderline.FieldLotNumber:
 			values[i] = new(sql.NullString)
+		case posorderline.FieldExpiryDate:
+			values[i] = new(sql.NullTime)
 		case posorderline.FieldID, posorderline.FieldOrderID, posorderline.FieldCatalogItemID:
 			values[i] = new(uuid.UUID)
 		default:
@@ -147,6 +158,26 @@ func (_m *POSOrderLine) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field total_price", values[i])
 			} else if value.Valid {
 				_m.TotalPrice = value.Float64
+			}
+		case posorderline.FieldWeightGrams:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field weight_grams", values[i])
+			} else if value.Valid {
+				_m.WeightGrams = new(int)
+				*_m.WeightGrams = int(value.Int64)
+			}
+		case posorderline.FieldLotNumber:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field lot_number", values[i])
+			} else if value.Valid {
+				_m.LotNumber = value.String
+			}
+		case posorderline.FieldExpiryDate:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field expiry_date", values[i])
+			} else if value.Valid {
+				_m.ExpiryDate = new(time.Time)
+				*_m.ExpiryDate = value.Time
 			}
 		case posorderline.FieldMetadata:
 			if value, ok := values[i].(*[]byte); !ok {
@@ -222,6 +253,19 @@ func (_m *POSOrderLine) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("total_price=")
 	builder.WriteString(fmt.Sprintf("%v", _m.TotalPrice))
+	builder.WriteString(", ")
+	if v := _m.WeightGrams; v != nil {
+		builder.WriteString("weight_grams=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("lot_number=")
+	builder.WriteString(_m.LotNumber)
+	builder.WriteString(", ")
+	if v := _m.ExpiryDate; v != nil {
+		builder.WriteString("expiry_date=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("metadata=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Metadata))

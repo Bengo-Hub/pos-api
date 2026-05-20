@@ -35,6 +35,8 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/inventorysnapshot"
 	"github.com/bengobox/pos-service/internal/ent/kdsstation"
 	"github.com/bengobox/pos-service/internal/ent/kdsticket"
+	"github.com/bengobox/pos-service/internal/ent/layawaypayment"
+	"github.com/bengobox/pos-service/internal/ent/layawayplan"
 	"github.com/bengobox/pos-service/internal/ent/licenseusagesnapshot"
 	"github.com/bengobox/pos-service/internal/ent/modifier"
 	"github.com/bengobox/pos-service/internal/ent/modifiergroup"
@@ -81,6 +83,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/user"
 	"github.com/bengobox/pos-service/internal/ent/userposrole"
 	"github.com/bengobox/pos-service/internal/ent/webhooksubscription"
+	"github.com/bengobox/pos-service/internal/ent/weighingscalereading"
 )
 
 // Client is the client that holds all ent builders.
@@ -126,6 +129,10 @@ type Client struct {
 	KDSStation *KDSStationClient
 	// KDSTicket is the client for interacting with the KDSTicket builders.
 	KDSTicket *KDSTicketClient
+	// LayawayPayment is the client for interacting with the LayawayPayment builders.
+	LayawayPayment *LayawayPaymentClient
+	// LayawayPlan is the client for interacting with the LayawayPlan builders.
+	LayawayPlan *LayawayPlanClient
 	// LicenseUsageSnapshot is the client for interacting with the LicenseUsageSnapshot builders.
 	LicenseUsageSnapshot *LicenseUsageSnapshotClient
 	// Modifier is the client for interacting with the Modifier builders.
@@ -218,6 +225,8 @@ type Client struct {
 	UserPOSRole *UserPOSRoleClient
 	// WebhookSubscription is the client for interacting with the WebhookSubscription builders.
 	WebhookSubscription *WebhookSubscriptionClient
+	// WeighingScaleReading is the client for interacting with the WeighingScaleReading builders.
+	WeighingScaleReading *WeighingScaleReadingClient
 }
 
 // NewClient creates a new client configured with the given options.
@@ -248,6 +257,8 @@ func (c *Client) init() {
 	c.InventorySnapshot = NewInventorySnapshotClient(c.config)
 	c.KDSStation = NewKDSStationClient(c.config)
 	c.KDSTicket = NewKDSTicketClient(c.config)
+	c.LayawayPayment = NewLayawayPaymentClient(c.config)
+	c.LayawayPlan = NewLayawayPlanClient(c.config)
 	c.LicenseUsageSnapshot = NewLicenseUsageSnapshotClient(c.config)
 	c.Modifier = NewModifierClient(c.config)
 	c.ModifierGroup = NewModifierGroupClient(c.config)
@@ -294,6 +305,7 @@ func (c *Client) init() {
 	c.User = NewUserClient(c.config)
 	c.UserPOSRole = NewUserPOSRoleClient(c.config)
 	c.WebhookSubscription = NewWebhookSubscriptionClient(c.config)
+	c.WeighingScaleReading = NewWeighingScaleReadingClient(c.config)
 }
 
 type (
@@ -405,6 +417,8 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		InventorySnapshot:      NewInventorySnapshotClient(cfg),
 		KDSStation:             NewKDSStationClient(cfg),
 		KDSTicket:              NewKDSTicketClient(cfg),
+		LayawayPayment:         NewLayawayPaymentClient(cfg),
+		LayawayPlan:            NewLayawayPlanClient(cfg),
 		LicenseUsageSnapshot:   NewLicenseUsageSnapshotClient(cfg),
 		Modifier:               NewModifierClient(cfg),
 		ModifierGroup:          NewModifierGroupClient(cfg),
@@ -451,6 +465,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		User:                   NewUserClient(cfg),
 		UserPOSRole:            NewUserPOSRoleClient(cfg),
 		WebhookSubscription:    NewWebhookSubscriptionClient(cfg),
+		WeighingScaleReading:   NewWeighingScaleReadingClient(cfg),
 	}, nil
 }
 
@@ -489,6 +504,8 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		InventorySnapshot:      NewInventorySnapshotClient(cfg),
 		KDSStation:             NewKDSStationClient(cfg),
 		KDSTicket:              NewKDSTicketClient(cfg),
+		LayawayPayment:         NewLayawayPaymentClient(cfg),
+		LayawayPlan:            NewLayawayPlanClient(cfg),
 		LicenseUsageSnapshot:   NewLicenseUsageSnapshotClient(cfg),
 		Modifier:               NewModifierClient(cfg),
 		ModifierGroup:          NewModifierGroupClient(cfg),
@@ -535,6 +552,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		User:                   NewUserClient(cfg),
 		UserPOSRole:            NewUserPOSRoleClient(cfg),
 		WebhookSubscription:    NewWebhookSubscriptionClient(cfg),
+		WeighingScaleReading:   NewWeighingScaleReadingClient(cfg),
 	}, nil
 }
 
@@ -568,16 +586,18 @@ func (c *Client) Use(hooks ...Hook) {
 		c.CatalogItem, c.ChannelIntegration, c.ChannelSyncJob, c.CommissionRecord,
 		c.DailyClosing, c.Facility, c.FacilityBooking, c.FeatureOverride, c.GiftCard,
 		c.GiftCardTransaction, c.IntegrationSetting, c.InventorySnapshot, c.KDSStation,
-		c.KDSTicket, c.LicenseUsageSnapshot, c.Modifier, c.ModifierGroup, c.OrderLink,
-		c.OutboxEvent, c.Outlet, c.OutletSetting, c.POSDevice, c.POSDeviceSession,
-		c.POSLineModifier, c.POSOrder, c.POSOrderEvent, c.POSOrderLine, c.POSPayment,
-		c.POSPermission, c.POSRefund, c.POSReturn, c.POSReturnLine, c.POSRole,
-		c.POSRolePermission, c.POSRoleV2, c.POSUserRoleAssignment, c.PriceBook,
-		c.PriceBookItem, c.Promotion, c.PromotionApplication, c.PromotionRule,
-		c.RateLimitConfig, c.Room, c.RoomFolioItem, c.RoomGuest, c.Section,
-		c.SerialNumberLog, c.ServiceConfig, c.StaffMember, c.StockAlertSubscription,
+		c.KDSTicket, c.LayawayPayment, c.LayawayPlan, c.LicenseUsageSnapshot,
+		c.Modifier, c.ModifierGroup, c.OrderLink, c.OutboxEvent, c.Outlet,
+		c.OutletSetting, c.POSDevice, c.POSDeviceSession, c.POSLineModifier,
+		c.POSOrder, c.POSOrderEvent, c.POSOrderLine, c.POSPayment, c.POSPermission,
+		c.POSRefund, c.POSReturn, c.POSReturnLine, c.POSRole, c.POSRolePermission,
+		c.POSRoleV2, c.POSUserRoleAssignment, c.PriceBook, c.PriceBookItem,
+		c.Promotion, c.PromotionApplication, c.PromotionRule, c.RateLimitConfig,
+		c.Room, c.RoomFolioItem, c.RoomGuest, c.Section, c.SerialNumberLog,
+		c.ServiceConfig, c.StaffMember, c.StockAlertSubscription,
 		c.StockConsumptionEvent, c.SyncFailure, c.Table, c.TableAssignment, c.Tenant,
 		c.TenantSyncEvent, c.Tender, c.User, c.UserPOSRole, c.WebhookSubscription,
+		c.WeighingScaleReading,
 	} {
 		n.Use(hooks...)
 	}
@@ -591,16 +611,18 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.CatalogItem, c.ChannelIntegration, c.ChannelSyncJob, c.CommissionRecord,
 		c.DailyClosing, c.Facility, c.FacilityBooking, c.FeatureOverride, c.GiftCard,
 		c.GiftCardTransaction, c.IntegrationSetting, c.InventorySnapshot, c.KDSStation,
-		c.KDSTicket, c.LicenseUsageSnapshot, c.Modifier, c.ModifierGroup, c.OrderLink,
-		c.OutboxEvent, c.Outlet, c.OutletSetting, c.POSDevice, c.POSDeviceSession,
-		c.POSLineModifier, c.POSOrder, c.POSOrderEvent, c.POSOrderLine, c.POSPayment,
-		c.POSPermission, c.POSRefund, c.POSReturn, c.POSReturnLine, c.POSRole,
-		c.POSRolePermission, c.POSRoleV2, c.POSUserRoleAssignment, c.PriceBook,
-		c.PriceBookItem, c.Promotion, c.PromotionApplication, c.PromotionRule,
-		c.RateLimitConfig, c.Room, c.RoomFolioItem, c.RoomGuest, c.Section,
-		c.SerialNumberLog, c.ServiceConfig, c.StaffMember, c.StockAlertSubscription,
+		c.KDSTicket, c.LayawayPayment, c.LayawayPlan, c.LicenseUsageSnapshot,
+		c.Modifier, c.ModifierGroup, c.OrderLink, c.OutboxEvent, c.Outlet,
+		c.OutletSetting, c.POSDevice, c.POSDeviceSession, c.POSLineModifier,
+		c.POSOrder, c.POSOrderEvent, c.POSOrderLine, c.POSPayment, c.POSPermission,
+		c.POSRefund, c.POSReturn, c.POSReturnLine, c.POSRole, c.POSRolePermission,
+		c.POSRoleV2, c.POSUserRoleAssignment, c.PriceBook, c.PriceBookItem,
+		c.Promotion, c.PromotionApplication, c.PromotionRule, c.RateLimitConfig,
+		c.Room, c.RoomFolioItem, c.RoomGuest, c.Section, c.SerialNumberLog,
+		c.ServiceConfig, c.StaffMember, c.StockAlertSubscription,
 		c.StockConsumptionEvent, c.SyncFailure, c.Table, c.TableAssignment, c.Tenant,
 		c.TenantSyncEvent, c.Tender, c.User, c.UserPOSRole, c.WebhookSubscription,
+		c.WeighingScaleReading,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -647,6 +669,10 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.KDSStation.mutate(ctx, m)
 	case *KDSTicketMutation:
 		return c.KDSTicket.mutate(ctx, m)
+	case *LayawayPaymentMutation:
+		return c.LayawayPayment.mutate(ctx, m)
+	case *LayawayPlanMutation:
+		return c.LayawayPlan.mutate(ctx, m)
 	case *LicenseUsageSnapshotMutation:
 		return c.LicenseUsageSnapshot.mutate(ctx, m)
 	case *ModifierMutation:
@@ -739,6 +765,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.UserPOSRole.mutate(ctx, m)
 	case *WebhookSubscriptionMutation:
 		return c.WebhookSubscription.mutate(ctx, m)
+	case *WeighingScaleReadingMutation:
+		return c.WeighingScaleReading.mutate(ctx, m)
 	default:
 		return nil, fmt.Errorf("ent: unknown mutation type %T", m)
 	}
@@ -3428,6 +3456,272 @@ func (c *KDSTicketClient) mutate(ctx context.Context, m *KDSTicketMutation) (Val
 		return (&KDSTicketDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown KDSTicket mutation op: %q", m.Op())
+	}
+}
+
+// LayawayPaymentClient is a client for the LayawayPayment schema.
+type LayawayPaymentClient struct {
+	config
+}
+
+// NewLayawayPaymentClient returns a client for the LayawayPayment from the given config.
+func NewLayawayPaymentClient(c config) *LayawayPaymentClient {
+	return &LayawayPaymentClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `layawaypayment.Hooks(f(g(h())))`.
+func (c *LayawayPaymentClient) Use(hooks ...Hook) {
+	c.hooks.LayawayPayment = append(c.hooks.LayawayPayment, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `layawaypayment.Intercept(f(g(h())))`.
+func (c *LayawayPaymentClient) Intercept(interceptors ...Interceptor) {
+	c.inters.LayawayPayment = append(c.inters.LayawayPayment, interceptors...)
+}
+
+// Create returns a builder for creating a LayawayPayment entity.
+func (c *LayawayPaymentClient) Create() *LayawayPaymentCreate {
+	mutation := newLayawayPaymentMutation(c.config, OpCreate)
+	return &LayawayPaymentCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of LayawayPayment entities.
+func (c *LayawayPaymentClient) CreateBulk(builders ...*LayawayPaymentCreate) *LayawayPaymentCreateBulk {
+	return &LayawayPaymentCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *LayawayPaymentClient) MapCreateBulk(slice any, setFunc func(*LayawayPaymentCreate, int)) *LayawayPaymentCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &LayawayPaymentCreateBulk{err: fmt.Errorf("calling to LayawayPaymentClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*LayawayPaymentCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &LayawayPaymentCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for LayawayPayment.
+func (c *LayawayPaymentClient) Update() *LayawayPaymentUpdate {
+	mutation := newLayawayPaymentMutation(c.config, OpUpdate)
+	return &LayawayPaymentUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *LayawayPaymentClient) UpdateOne(_m *LayawayPayment) *LayawayPaymentUpdateOne {
+	mutation := newLayawayPaymentMutation(c.config, OpUpdateOne, withLayawayPayment(_m))
+	return &LayawayPaymentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *LayawayPaymentClient) UpdateOneID(id uuid.UUID) *LayawayPaymentUpdateOne {
+	mutation := newLayawayPaymentMutation(c.config, OpUpdateOne, withLayawayPaymentID(id))
+	return &LayawayPaymentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for LayawayPayment.
+func (c *LayawayPaymentClient) Delete() *LayawayPaymentDelete {
+	mutation := newLayawayPaymentMutation(c.config, OpDelete)
+	return &LayawayPaymentDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *LayawayPaymentClient) DeleteOne(_m *LayawayPayment) *LayawayPaymentDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *LayawayPaymentClient) DeleteOneID(id uuid.UUID) *LayawayPaymentDeleteOne {
+	builder := c.Delete().Where(layawaypayment.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &LayawayPaymentDeleteOne{builder}
+}
+
+// Query returns a query builder for LayawayPayment.
+func (c *LayawayPaymentClient) Query() *LayawayPaymentQuery {
+	return &LayawayPaymentQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeLayawayPayment},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a LayawayPayment entity by its id.
+func (c *LayawayPaymentClient) Get(ctx context.Context, id uuid.UUID) (*LayawayPayment, error) {
+	return c.Query().Where(layawaypayment.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *LayawayPaymentClient) GetX(ctx context.Context, id uuid.UUID) *LayawayPayment {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *LayawayPaymentClient) Hooks() []Hook {
+	return c.hooks.LayawayPayment
+}
+
+// Interceptors returns the client interceptors.
+func (c *LayawayPaymentClient) Interceptors() []Interceptor {
+	return c.inters.LayawayPayment
+}
+
+func (c *LayawayPaymentClient) mutate(ctx context.Context, m *LayawayPaymentMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&LayawayPaymentCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&LayawayPaymentUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&LayawayPaymentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&LayawayPaymentDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown LayawayPayment mutation op: %q", m.Op())
+	}
+}
+
+// LayawayPlanClient is a client for the LayawayPlan schema.
+type LayawayPlanClient struct {
+	config
+}
+
+// NewLayawayPlanClient returns a client for the LayawayPlan from the given config.
+func NewLayawayPlanClient(c config) *LayawayPlanClient {
+	return &LayawayPlanClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `layawayplan.Hooks(f(g(h())))`.
+func (c *LayawayPlanClient) Use(hooks ...Hook) {
+	c.hooks.LayawayPlan = append(c.hooks.LayawayPlan, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `layawayplan.Intercept(f(g(h())))`.
+func (c *LayawayPlanClient) Intercept(interceptors ...Interceptor) {
+	c.inters.LayawayPlan = append(c.inters.LayawayPlan, interceptors...)
+}
+
+// Create returns a builder for creating a LayawayPlan entity.
+func (c *LayawayPlanClient) Create() *LayawayPlanCreate {
+	mutation := newLayawayPlanMutation(c.config, OpCreate)
+	return &LayawayPlanCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of LayawayPlan entities.
+func (c *LayawayPlanClient) CreateBulk(builders ...*LayawayPlanCreate) *LayawayPlanCreateBulk {
+	return &LayawayPlanCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *LayawayPlanClient) MapCreateBulk(slice any, setFunc func(*LayawayPlanCreate, int)) *LayawayPlanCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &LayawayPlanCreateBulk{err: fmt.Errorf("calling to LayawayPlanClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*LayawayPlanCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &LayawayPlanCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for LayawayPlan.
+func (c *LayawayPlanClient) Update() *LayawayPlanUpdate {
+	mutation := newLayawayPlanMutation(c.config, OpUpdate)
+	return &LayawayPlanUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *LayawayPlanClient) UpdateOne(_m *LayawayPlan) *LayawayPlanUpdateOne {
+	mutation := newLayawayPlanMutation(c.config, OpUpdateOne, withLayawayPlan(_m))
+	return &LayawayPlanUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *LayawayPlanClient) UpdateOneID(id uuid.UUID) *LayawayPlanUpdateOne {
+	mutation := newLayawayPlanMutation(c.config, OpUpdateOne, withLayawayPlanID(id))
+	return &LayawayPlanUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for LayawayPlan.
+func (c *LayawayPlanClient) Delete() *LayawayPlanDelete {
+	mutation := newLayawayPlanMutation(c.config, OpDelete)
+	return &LayawayPlanDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *LayawayPlanClient) DeleteOne(_m *LayawayPlan) *LayawayPlanDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *LayawayPlanClient) DeleteOneID(id uuid.UUID) *LayawayPlanDeleteOne {
+	builder := c.Delete().Where(layawayplan.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &LayawayPlanDeleteOne{builder}
+}
+
+// Query returns a query builder for LayawayPlan.
+func (c *LayawayPlanClient) Query() *LayawayPlanQuery {
+	return &LayawayPlanQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeLayawayPlan},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a LayawayPlan entity by its id.
+func (c *LayawayPlanClient) Get(ctx context.Context, id uuid.UUID) (*LayawayPlan, error) {
+	return c.Query().Where(layawayplan.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *LayawayPlanClient) GetX(ctx context.Context, id uuid.UUID) *LayawayPlan {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *LayawayPlanClient) Hooks() []Hook {
+	return c.hooks.LayawayPlan
+}
+
+// Interceptors returns the client interceptors.
+func (c *LayawayPlanClient) Interceptors() []Interceptor {
+	return c.inters.LayawayPlan
+}
+
+func (c *LayawayPlanClient) mutate(ctx context.Context, m *LayawayPlanMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&LayawayPlanCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&LayawayPlanUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&LayawayPlanUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&LayawayPlanDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown LayawayPlan mutation op: %q", m.Op())
 	}
 }
 
@@ -10365,36 +10659,171 @@ func (c *WebhookSubscriptionClient) mutate(ctx context.Context, m *WebhookSubscr
 	}
 }
 
+// WeighingScaleReadingClient is a client for the WeighingScaleReading schema.
+type WeighingScaleReadingClient struct {
+	config
+}
+
+// NewWeighingScaleReadingClient returns a client for the WeighingScaleReading from the given config.
+func NewWeighingScaleReadingClient(c config) *WeighingScaleReadingClient {
+	return &WeighingScaleReadingClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `weighingscalereading.Hooks(f(g(h())))`.
+func (c *WeighingScaleReadingClient) Use(hooks ...Hook) {
+	c.hooks.WeighingScaleReading = append(c.hooks.WeighingScaleReading, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `weighingscalereading.Intercept(f(g(h())))`.
+func (c *WeighingScaleReadingClient) Intercept(interceptors ...Interceptor) {
+	c.inters.WeighingScaleReading = append(c.inters.WeighingScaleReading, interceptors...)
+}
+
+// Create returns a builder for creating a WeighingScaleReading entity.
+func (c *WeighingScaleReadingClient) Create() *WeighingScaleReadingCreate {
+	mutation := newWeighingScaleReadingMutation(c.config, OpCreate)
+	return &WeighingScaleReadingCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of WeighingScaleReading entities.
+func (c *WeighingScaleReadingClient) CreateBulk(builders ...*WeighingScaleReadingCreate) *WeighingScaleReadingCreateBulk {
+	return &WeighingScaleReadingCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *WeighingScaleReadingClient) MapCreateBulk(slice any, setFunc func(*WeighingScaleReadingCreate, int)) *WeighingScaleReadingCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &WeighingScaleReadingCreateBulk{err: fmt.Errorf("calling to WeighingScaleReadingClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*WeighingScaleReadingCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &WeighingScaleReadingCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for WeighingScaleReading.
+func (c *WeighingScaleReadingClient) Update() *WeighingScaleReadingUpdate {
+	mutation := newWeighingScaleReadingMutation(c.config, OpUpdate)
+	return &WeighingScaleReadingUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *WeighingScaleReadingClient) UpdateOne(_m *WeighingScaleReading) *WeighingScaleReadingUpdateOne {
+	mutation := newWeighingScaleReadingMutation(c.config, OpUpdateOne, withWeighingScaleReading(_m))
+	return &WeighingScaleReadingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *WeighingScaleReadingClient) UpdateOneID(id uuid.UUID) *WeighingScaleReadingUpdateOne {
+	mutation := newWeighingScaleReadingMutation(c.config, OpUpdateOne, withWeighingScaleReadingID(id))
+	return &WeighingScaleReadingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for WeighingScaleReading.
+func (c *WeighingScaleReadingClient) Delete() *WeighingScaleReadingDelete {
+	mutation := newWeighingScaleReadingMutation(c.config, OpDelete)
+	return &WeighingScaleReadingDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *WeighingScaleReadingClient) DeleteOne(_m *WeighingScaleReading) *WeighingScaleReadingDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *WeighingScaleReadingClient) DeleteOneID(id uuid.UUID) *WeighingScaleReadingDeleteOne {
+	builder := c.Delete().Where(weighingscalereading.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &WeighingScaleReadingDeleteOne{builder}
+}
+
+// Query returns a query builder for WeighingScaleReading.
+func (c *WeighingScaleReadingClient) Query() *WeighingScaleReadingQuery {
+	return &WeighingScaleReadingQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeWeighingScaleReading},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a WeighingScaleReading entity by its id.
+func (c *WeighingScaleReadingClient) Get(ctx context.Context, id uuid.UUID) (*WeighingScaleReading, error) {
+	return c.Query().Where(weighingscalereading.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *WeighingScaleReadingClient) GetX(ctx context.Context, id uuid.UUID) *WeighingScaleReading {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *WeighingScaleReadingClient) Hooks() []Hook {
+	return c.hooks.WeighingScaleReading
+}
+
+// Interceptors returns the client interceptors.
+func (c *WeighingScaleReadingClient) Interceptors() []Interceptor {
+	return c.inters.WeighingScaleReading
+}
+
+func (c *WeighingScaleReadingClient) mutate(ctx context.Context, m *WeighingScaleReadingMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&WeighingScaleReadingCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&WeighingScaleReadingUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&WeighingScaleReadingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&WeighingScaleReadingDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown WeighingScaleReading mutation op: %q", m.Op())
+	}
+}
+
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
 		Appointment, BarTab, BarTabEvent, CashDrawer, CashDrawerEvent, CatalogItem,
 		ChannelIntegration, ChannelSyncJob, CommissionRecord, DailyClosing, Facility,
 		FacilityBooking, FeatureOverride, GiftCard, GiftCardTransaction,
-		IntegrationSetting, InventorySnapshot, KDSStation, KDSTicket,
-		LicenseUsageSnapshot, Modifier, ModifierGroup, OrderLink, OutboxEvent, Outlet,
-		OutletSetting, POSDevice, POSDeviceSession, POSLineModifier, POSOrder,
-		POSOrderEvent, POSOrderLine, POSPayment, POSPermission, POSRefund, POSReturn,
-		POSReturnLine, POSRole, POSRolePermission, POSRoleV2, POSUserRoleAssignment,
-		PriceBook, PriceBookItem, Promotion, PromotionApplication, PromotionRule,
-		RateLimitConfig, Room, RoomFolioItem, RoomGuest, Section, SerialNumberLog,
-		ServiceConfig, StaffMember, StockAlertSubscription, StockConsumptionEvent,
-		SyncFailure, Table, TableAssignment, Tenant, TenantSyncEvent, Tender, User,
-		UserPOSRole, WebhookSubscription []ent.Hook
+		IntegrationSetting, InventorySnapshot, KDSStation, KDSTicket, LayawayPayment,
+		LayawayPlan, LicenseUsageSnapshot, Modifier, ModifierGroup, OrderLink,
+		OutboxEvent, Outlet, OutletSetting, POSDevice, POSDeviceSession,
+		POSLineModifier, POSOrder, POSOrderEvent, POSOrderLine, POSPayment,
+		POSPermission, POSRefund, POSReturn, POSReturnLine, POSRole, POSRolePermission,
+		POSRoleV2, POSUserRoleAssignment, PriceBook, PriceBookItem, Promotion,
+		PromotionApplication, PromotionRule, RateLimitConfig, Room, RoomFolioItem,
+		RoomGuest, Section, SerialNumberLog, ServiceConfig, StaffMember,
+		StockAlertSubscription, StockConsumptionEvent, SyncFailure, Table,
+		TableAssignment, Tenant, TenantSyncEvent, Tender, User, UserPOSRole,
+		WebhookSubscription, WeighingScaleReading []ent.Hook
 	}
 	inters struct {
 		Appointment, BarTab, BarTabEvent, CashDrawer, CashDrawerEvent, CatalogItem,
 		ChannelIntegration, ChannelSyncJob, CommissionRecord, DailyClosing, Facility,
 		FacilityBooking, FeatureOverride, GiftCard, GiftCardTransaction,
-		IntegrationSetting, InventorySnapshot, KDSStation, KDSTicket,
-		LicenseUsageSnapshot, Modifier, ModifierGroup, OrderLink, OutboxEvent, Outlet,
-		OutletSetting, POSDevice, POSDeviceSession, POSLineModifier, POSOrder,
-		POSOrderEvent, POSOrderLine, POSPayment, POSPermission, POSRefund, POSReturn,
-		POSReturnLine, POSRole, POSRolePermission, POSRoleV2, POSUserRoleAssignment,
-		PriceBook, PriceBookItem, Promotion, PromotionApplication, PromotionRule,
-		RateLimitConfig, Room, RoomFolioItem, RoomGuest, Section, SerialNumberLog,
-		ServiceConfig, StaffMember, StockAlertSubscription, StockConsumptionEvent,
-		SyncFailure, Table, TableAssignment, Tenant, TenantSyncEvent, Tender, User,
-		UserPOSRole, WebhookSubscription []ent.Interceptor
+		IntegrationSetting, InventorySnapshot, KDSStation, KDSTicket, LayawayPayment,
+		LayawayPlan, LicenseUsageSnapshot, Modifier, ModifierGroup, OrderLink,
+		OutboxEvent, Outlet, OutletSetting, POSDevice, POSDeviceSession,
+		POSLineModifier, POSOrder, POSOrderEvent, POSOrderLine, POSPayment,
+		POSPermission, POSRefund, POSReturn, POSReturnLine, POSRole, POSRolePermission,
+		POSRoleV2, POSUserRoleAssignment, PriceBook, PriceBookItem, Promotion,
+		PromotionApplication, PromotionRule, RateLimitConfig, Room, RoomFolioItem,
+		RoomGuest, Section, SerialNumberLog, ServiceConfig, StaffMember,
+		StockAlertSubscription, StockConsumptionEvent, SyncFailure, Table,
+		TableAssignment, Tenant, TenantSyncEvent, Tender, User, UserPOSRole,
+		WebhookSubscription, WeighingScaleReading []ent.Interceptor
 	}
 )

@@ -263,6 +263,47 @@ func (_u *CatalogItemUpdate) SetNillableTrackSerialNumber(v *bool) *CatalogItemU
 	return _u
 }
 
+// SetRequiresSerial sets the "requires_serial" field.
+func (_u *CatalogItemUpdate) SetRequiresSerial(v bool) *CatalogItemUpdate {
+	_u.mutation.SetRequiresSerial(v)
+	return _u
+}
+
+// SetNillableRequiresSerial sets the "requires_serial" field if the given value is not nil.
+func (_u *CatalogItemUpdate) SetNillableRequiresSerial(v *bool) *CatalogItemUpdate {
+	if v != nil {
+		_u.SetRequiresSerial(*v)
+	}
+	return _u
+}
+
+// SetMinimumAge sets the "minimum_age" field.
+func (_u *CatalogItemUpdate) SetMinimumAge(v int) *CatalogItemUpdate {
+	_u.mutation.ResetMinimumAge()
+	_u.mutation.SetMinimumAge(v)
+	return _u
+}
+
+// SetNillableMinimumAge sets the "minimum_age" field if the given value is not nil.
+func (_u *CatalogItemUpdate) SetNillableMinimumAge(v *int) *CatalogItemUpdate {
+	if v != nil {
+		_u.SetMinimumAge(*v)
+	}
+	return _u
+}
+
+// AddMinimumAge adds value to the "minimum_age" field.
+func (_u *CatalogItemUpdate) AddMinimumAge(v int) *CatalogItemUpdate {
+	_u.mutation.AddMinimumAge(v)
+	return _u
+}
+
+// ClearMinimumAge clears the value of the "minimum_age" field.
+func (_u *CatalogItemUpdate) ClearMinimumAge() *CatalogItemUpdate {
+	_u.mutation.ClearMinimumAge()
+	return _u
+}
+
 // SetDurationMinutes sets the "duration_minutes" field.
 func (_u *CatalogItemUpdate) SetDurationMinutes(v int) *CatalogItemUpdate {
 	_u.mutation.ResetDurationMinutes()
@@ -504,6 +545,18 @@ func (_u *CatalogItemUpdate) sqlSave(ctx context.Context) (_node int, err error)
 	}
 	if value, ok := _u.mutation.TrackSerialNumber(); ok {
 		_spec.SetField(catalogitem.FieldTrackSerialNumber, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.RequiresSerial(); ok {
+		_spec.SetField(catalogitem.FieldRequiresSerial, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.MinimumAge(); ok {
+		_spec.SetField(catalogitem.FieldMinimumAge, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedMinimumAge(); ok {
+		_spec.AddField(catalogitem.FieldMinimumAge, field.TypeInt, value)
+	}
+	if _u.mutation.MinimumAgeCleared() {
+		_spec.ClearField(catalogitem.FieldMinimumAge, field.TypeInt)
 	}
 	if value, ok := _u.mutation.DurationMinutes(); ok {
 		_spec.SetField(catalogitem.FieldDurationMinutes, field.TypeInt, value)
@@ -834,6 +887,47 @@ func (_u *CatalogItemUpdateOne) SetNillableTrackSerialNumber(v *bool) *CatalogIt
 	return _u
 }
 
+// SetRequiresSerial sets the "requires_serial" field.
+func (_u *CatalogItemUpdateOne) SetRequiresSerial(v bool) *CatalogItemUpdateOne {
+	_u.mutation.SetRequiresSerial(v)
+	return _u
+}
+
+// SetNillableRequiresSerial sets the "requires_serial" field if the given value is not nil.
+func (_u *CatalogItemUpdateOne) SetNillableRequiresSerial(v *bool) *CatalogItemUpdateOne {
+	if v != nil {
+		_u.SetRequiresSerial(*v)
+	}
+	return _u
+}
+
+// SetMinimumAge sets the "minimum_age" field.
+func (_u *CatalogItemUpdateOne) SetMinimumAge(v int) *CatalogItemUpdateOne {
+	_u.mutation.ResetMinimumAge()
+	_u.mutation.SetMinimumAge(v)
+	return _u
+}
+
+// SetNillableMinimumAge sets the "minimum_age" field if the given value is not nil.
+func (_u *CatalogItemUpdateOne) SetNillableMinimumAge(v *int) *CatalogItemUpdateOne {
+	if v != nil {
+		_u.SetMinimumAge(*v)
+	}
+	return _u
+}
+
+// AddMinimumAge adds value to the "minimum_age" field.
+func (_u *CatalogItemUpdateOne) AddMinimumAge(v int) *CatalogItemUpdateOne {
+	_u.mutation.AddMinimumAge(v)
+	return _u
+}
+
+// ClearMinimumAge clears the value of the "minimum_age" field.
+func (_u *CatalogItemUpdateOne) ClearMinimumAge() *CatalogItemUpdateOne {
+	_u.mutation.ClearMinimumAge()
+	return _u
+}
+
 // SetDurationMinutes sets the "duration_minutes" field.
 func (_u *CatalogItemUpdateOne) SetDurationMinutes(v int) *CatalogItemUpdateOne {
 	_u.mutation.ResetDurationMinutes()
@@ -1105,6 +1199,18 @@ func (_u *CatalogItemUpdateOne) sqlSave(ctx context.Context) (_node *CatalogItem
 	}
 	if value, ok := _u.mutation.TrackSerialNumber(); ok {
 		_spec.SetField(catalogitem.FieldTrackSerialNumber, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.RequiresSerial(); ok {
+		_spec.SetField(catalogitem.FieldRequiresSerial, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.MinimumAge(); ok {
+		_spec.SetField(catalogitem.FieldMinimumAge, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedMinimumAge(); ok {
+		_spec.AddField(catalogitem.FieldMinimumAge, field.TypeInt, value)
+	}
+	if _u.mutation.MinimumAgeCleared() {
+		_spec.ClearField(catalogitem.FieldMinimumAge, field.TypeInt)
 	}
 	if value, ok := _u.mutation.DurationMinutes(); ok {
 		_spec.SetField(catalogitem.FieldDurationMinutes, field.TypeInt, value)

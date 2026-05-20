@@ -43,6 +43,13 @@ func (CatalogItem) Fields() []ent.Field {
 		field.Bool("requires_age_verification").Default(false).Comment("Synced from inventory — liquor, tobacco, 18+"),
 		field.Bool("is_controlled_substance").Default(false).Comment("Synced from inventory — pharmacy scheduled drugs"),
 		field.Bool("track_serial_number").Default(false).Comment("Synced from inventory — electronics, equipment"),
+		field.Bool("requires_serial").
+			Default(false).
+			Comment("If true, serial number must be captured at sale"),
+		field.Int("minimum_age").
+			Optional().
+			Nillable().
+			Comment("Minimum buyer age (e.g. 18 for alcohol/tobacco)"),
 		field.Int("duration_minutes").Optional().Nillable().Comment("Service duration for salon/appointment flow"),
 		field.Float("cost_price").Optional().Nillable().Comment("Cost for margin analysis"),
 		field.JSON("tags", []string{}).Default([]string{}).Comment("Synced dietary/custom tags from inventory"),

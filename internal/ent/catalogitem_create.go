@@ -197,6 +197,34 @@ func (_c *CatalogItemCreate) SetNillableTrackSerialNumber(v *bool) *CatalogItemC
 	return _c
 }
 
+// SetRequiresSerial sets the "requires_serial" field.
+func (_c *CatalogItemCreate) SetRequiresSerial(v bool) *CatalogItemCreate {
+	_c.mutation.SetRequiresSerial(v)
+	return _c
+}
+
+// SetNillableRequiresSerial sets the "requires_serial" field if the given value is not nil.
+func (_c *CatalogItemCreate) SetNillableRequiresSerial(v *bool) *CatalogItemCreate {
+	if v != nil {
+		_c.SetRequiresSerial(*v)
+	}
+	return _c
+}
+
+// SetMinimumAge sets the "minimum_age" field.
+func (_c *CatalogItemCreate) SetMinimumAge(v int) *CatalogItemCreate {
+	_c.mutation.SetMinimumAge(v)
+	return _c
+}
+
+// SetNillableMinimumAge sets the "minimum_age" field if the given value is not nil.
+func (_c *CatalogItemCreate) SetNillableMinimumAge(v *int) *CatalogItemCreate {
+	if v != nil {
+		_c.SetMinimumAge(*v)
+	}
+	return _c
+}
+
 // SetDurationMinutes sets the "duration_minutes" field.
 func (_c *CatalogItemCreate) SetDurationMinutes(v int) *CatalogItemCreate {
 	_c.mutation.SetDurationMinutes(v)
@@ -349,6 +377,10 @@ func (_c *CatalogItemCreate) defaults() {
 		v := catalogitem.DefaultTrackSerialNumber
 		_c.mutation.SetTrackSerialNumber(v)
 	}
+	if _, ok := _c.mutation.RequiresSerial(); !ok {
+		v := catalogitem.DefaultRequiresSerial
+		_c.mutation.SetRequiresSerial(v)
+	}
 	if _, ok := _c.mutation.Tags(); !ok {
 		v := catalogitem.DefaultTags
 		_c.mutation.SetTags(v)
@@ -406,6 +438,9 @@ func (_c *CatalogItemCreate) check() error {
 	}
 	if _, ok := _c.mutation.TrackSerialNumber(); !ok {
 		return &ValidationError{Name: "track_serial_number", err: errors.New(`ent: missing required field "CatalogItem.track_serial_number"`)}
+	}
+	if _, ok := _c.mutation.RequiresSerial(); !ok {
+		return &ValidationError{Name: "requires_serial", err: errors.New(`ent: missing required field "CatalogItem.requires_serial"`)}
 	}
 	if _, ok := _c.mutation.Tags(); !ok {
 		return &ValidationError{Name: "tags", err: errors.New(`ent: missing required field "CatalogItem.tags"`)}
@@ -510,6 +545,14 @@ func (_c *CatalogItemCreate) createSpec() (*CatalogItem, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.TrackSerialNumber(); ok {
 		_spec.SetField(catalogitem.FieldTrackSerialNumber, field.TypeBool, value)
 		_node.TrackSerialNumber = value
+	}
+	if value, ok := _c.mutation.RequiresSerial(); ok {
+		_spec.SetField(catalogitem.FieldRequiresSerial, field.TypeBool, value)
+		_node.RequiresSerial = value
+	}
+	if value, ok := _c.mutation.MinimumAge(); ok {
+		_spec.SetField(catalogitem.FieldMinimumAge, field.TypeInt, value)
+		_node.MinimumAge = &value
 	}
 	if value, ok := _c.mutation.DurationMinutes(); ok {
 		_spec.SetField(catalogitem.FieldDurationMinutes, field.TypeInt, value)
@@ -804,6 +847,42 @@ func (u *CatalogItemUpsert) SetTrackSerialNumber(v bool) *CatalogItemUpsert {
 // UpdateTrackSerialNumber sets the "track_serial_number" field to the value that was provided on create.
 func (u *CatalogItemUpsert) UpdateTrackSerialNumber() *CatalogItemUpsert {
 	u.SetExcluded(catalogitem.FieldTrackSerialNumber)
+	return u
+}
+
+// SetRequiresSerial sets the "requires_serial" field.
+func (u *CatalogItemUpsert) SetRequiresSerial(v bool) *CatalogItemUpsert {
+	u.Set(catalogitem.FieldRequiresSerial, v)
+	return u
+}
+
+// UpdateRequiresSerial sets the "requires_serial" field to the value that was provided on create.
+func (u *CatalogItemUpsert) UpdateRequiresSerial() *CatalogItemUpsert {
+	u.SetExcluded(catalogitem.FieldRequiresSerial)
+	return u
+}
+
+// SetMinimumAge sets the "minimum_age" field.
+func (u *CatalogItemUpsert) SetMinimumAge(v int) *CatalogItemUpsert {
+	u.Set(catalogitem.FieldMinimumAge, v)
+	return u
+}
+
+// UpdateMinimumAge sets the "minimum_age" field to the value that was provided on create.
+func (u *CatalogItemUpsert) UpdateMinimumAge() *CatalogItemUpsert {
+	u.SetExcluded(catalogitem.FieldMinimumAge)
+	return u
+}
+
+// AddMinimumAge adds v to the "minimum_age" field.
+func (u *CatalogItemUpsert) AddMinimumAge(v int) *CatalogItemUpsert {
+	u.Add(catalogitem.FieldMinimumAge, v)
+	return u
+}
+
+// ClearMinimumAge clears the value of the "minimum_age" field.
+func (u *CatalogItemUpsert) ClearMinimumAge() *CatalogItemUpsert {
+	u.SetNull(catalogitem.FieldMinimumAge)
 	return u
 }
 
@@ -1177,6 +1256,48 @@ func (u *CatalogItemUpsertOne) SetTrackSerialNumber(v bool) *CatalogItemUpsertOn
 func (u *CatalogItemUpsertOne) UpdateTrackSerialNumber() *CatalogItemUpsertOne {
 	return u.Update(func(s *CatalogItemUpsert) {
 		s.UpdateTrackSerialNumber()
+	})
+}
+
+// SetRequiresSerial sets the "requires_serial" field.
+func (u *CatalogItemUpsertOne) SetRequiresSerial(v bool) *CatalogItemUpsertOne {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.SetRequiresSerial(v)
+	})
+}
+
+// UpdateRequiresSerial sets the "requires_serial" field to the value that was provided on create.
+func (u *CatalogItemUpsertOne) UpdateRequiresSerial() *CatalogItemUpsertOne {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.UpdateRequiresSerial()
+	})
+}
+
+// SetMinimumAge sets the "minimum_age" field.
+func (u *CatalogItemUpsertOne) SetMinimumAge(v int) *CatalogItemUpsertOne {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.SetMinimumAge(v)
+	})
+}
+
+// AddMinimumAge adds v to the "minimum_age" field.
+func (u *CatalogItemUpsertOne) AddMinimumAge(v int) *CatalogItemUpsertOne {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.AddMinimumAge(v)
+	})
+}
+
+// UpdateMinimumAge sets the "minimum_age" field to the value that was provided on create.
+func (u *CatalogItemUpsertOne) UpdateMinimumAge() *CatalogItemUpsertOne {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.UpdateMinimumAge()
+	})
+}
+
+// ClearMinimumAge clears the value of the "minimum_age" field.
+func (u *CatalogItemUpsertOne) ClearMinimumAge() *CatalogItemUpsertOne {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.ClearMinimumAge()
 	})
 }
 
@@ -1731,6 +1852,48 @@ func (u *CatalogItemUpsertBulk) SetTrackSerialNumber(v bool) *CatalogItemUpsertB
 func (u *CatalogItemUpsertBulk) UpdateTrackSerialNumber() *CatalogItemUpsertBulk {
 	return u.Update(func(s *CatalogItemUpsert) {
 		s.UpdateTrackSerialNumber()
+	})
+}
+
+// SetRequiresSerial sets the "requires_serial" field.
+func (u *CatalogItemUpsertBulk) SetRequiresSerial(v bool) *CatalogItemUpsertBulk {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.SetRequiresSerial(v)
+	})
+}
+
+// UpdateRequiresSerial sets the "requires_serial" field to the value that was provided on create.
+func (u *CatalogItemUpsertBulk) UpdateRequiresSerial() *CatalogItemUpsertBulk {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.UpdateRequiresSerial()
+	})
+}
+
+// SetMinimumAge sets the "minimum_age" field.
+func (u *CatalogItemUpsertBulk) SetMinimumAge(v int) *CatalogItemUpsertBulk {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.SetMinimumAge(v)
+	})
+}
+
+// AddMinimumAge adds v to the "minimum_age" field.
+func (u *CatalogItemUpsertBulk) AddMinimumAge(v int) *CatalogItemUpsertBulk {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.AddMinimumAge(v)
+	})
+}
+
+// UpdateMinimumAge sets the "minimum_age" field to the value that was provided on create.
+func (u *CatalogItemUpsertBulk) UpdateMinimumAge() *CatalogItemUpsertBulk {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.UpdateMinimumAge()
+	})
+}
+
+// ClearMinimumAge clears the value of the "minimum_age" field.
+func (u *CatalogItemUpsertBulk) ClearMinimumAge() *CatalogItemUpsertBulk {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.ClearMinimumAge()
 	})
 }
 

@@ -43,6 +43,10 @@ const (
 	FieldIsControlledSubstance = "is_controlled_substance"
 	// FieldTrackSerialNumber holds the string denoting the track_serial_number field in the database.
 	FieldTrackSerialNumber = "track_serial_number"
+	// FieldRequiresSerial holds the string denoting the requires_serial field in the database.
+	FieldRequiresSerial = "requires_serial"
+	// FieldMinimumAge holds the string denoting the minimum_age field in the database.
+	FieldMinimumAge = "minimum_age"
 	// FieldDurationMinutes holds the string denoting the duration_minutes field in the database.
 	FieldDurationMinutes = "duration_minutes"
 	// FieldCostPrice holds the string denoting the cost_price field in the database.
@@ -85,6 +89,8 @@ var Columns = []string{
 	FieldRequiresAgeVerification,
 	FieldIsControlledSubstance,
 	FieldTrackSerialNumber,
+	FieldRequiresSerial,
+	FieldMinimumAge,
 	FieldDurationMinutes,
 	FieldCostPrice,
 	FieldTags,
@@ -118,6 +124,8 @@ var (
 	DefaultIsControlledSubstance bool
 	// DefaultTrackSerialNumber holds the default value on creation for the "track_serial_number" field.
 	DefaultTrackSerialNumber bool
+	// DefaultRequiresSerial holds the default value on creation for the "requires_serial" field.
+	DefaultRequiresSerial bool
 	// DefaultTags holds the default value on creation for the "tags" field.
 	DefaultTags []string
 	// DefaultMetadata holds the default value on creation for the "metadata" field.
@@ -208,6 +216,16 @@ func ByIsControlledSubstance(opts ...sql.OrderTermOption) OrderOption {
 // ByTrackSerialNumber orders the results by the track_serial_number field.
 func ByTrackSerialNumber(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldTrackSerialNumber, opts...).ToFunc()
+}
+
+// ByRequiresSerial orders the results by the requires_serial field.
+func ByRequiresSerial(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRequiresSerial, opts...).ToFunc()
+}
+
+// ByMinimumAge orders the results by the minimum_age field.
+func ByMinimumAge(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldMinimumAge, opts...).ToFunc()
 }
 
 // ByDurationMinutes orders the results by the duration_minutes field.
