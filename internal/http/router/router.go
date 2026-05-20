@@ -43,6 +43,7 @@ func New(
 	publicOutlet *handlers.PublicOutletHandler,
 	closings *handlers.DailyClosingHandler,
 	returns *handlers.ReturnHandler,
+	receipt *handlers.ReceiptHandler,
 	allowedOrigins []string,
 ) http.Handler {
 	r := chi.NewRouter()
@@ -149,6 +150,11 @@ func New(
 						pos.Post("/orders", orders.CreateOrder)
 						pos.Get("/orders/{orderID}", orders.GetOrder)
 						pos.Patch("/orders/{orderID}/status", orders.UpdateStatus)
+					}
+
+					// Receipt
+					if receipt != nil {
+						pos.Get("/orders/{orderID}/receipt", receipt.GetReceipt)
 					}
 
 					// Catalog

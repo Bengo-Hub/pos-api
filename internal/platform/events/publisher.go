@@ -93,3 +93,19 @@ func (p *Publisher) PublishInventoryConsumptionFailed(ctx context.Context, tenan
 func (p *Publisher) PublishStockAlert(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {
 	return p.publish(ctx, tenantID, "alert.stock_low", data)
 }
+
+// PublishReturnInitiated publishes a pos.return.initiated event (audit trail).
+func (p *Publisher) PublishReturnInitiated(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {
+	return p.publish(ctx, tenantID, "return.initiated", data)
+}
+
+// PublishReturnCompleted publishes a pos.return.completed event.
+// Consumed by inventory-api to restock items and treasury-api to process refund.
+func (p *Publisher) PublishReturnCompleted(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {
+	return p.publish(ctx, tenantID, "return.completed", data)
+}
+
+// PublishExchangeCompleted publishes a pos.exchange.completed event.
+func (p *Publisher) PublishExchangeCompleted(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {
+	return p.publish(ctx, tenantID, "exchange.completed", data)
+}

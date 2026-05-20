@@ -200,7 +200,12 @@ func New(ctx context.Context) (*App, error) {
 
 	// ERP: daily closings + returns
 	closingHandler := handlers.NewDailyClosingHandler(log, entClient)
-	returnHandler := handlers.NewReturnHandler(log, entClient)
+	var returnEventPub *events.Publisher
+	if pub := orderSvc.GetPublisher(); pub != nil {
+		returnEventPub = pub
+	}
+	returnHandler := handlers.NewReturnHandler(log, entClient, treasuryClient, returnEventPub)
+	receiptHandler := handlers.NewReceiptHandler(log, entClient)
 
 	// Initialize RBAC
 	rbacRepo := rbacmodule.NewEntRepository(entClient)
@@ -266,7 +271,7 @@ func New(ctx context.Context) (*App, error) {
 		inventoryEventHandler.InitialSync(ctx, inventoryURL, tenantSlug)
 	}()
 
-	chiRouter := router.New(log, healthHandler, authMiddleware, entClient, identitySvc, orderHandler, catalogHandler, tableHandler, tenderHandler, paymentHandler, drawerHandler, barTabHandler, promotionHandler, rbacHandler, hotelHandler, kdsHandler, deviceHandler, pinAuthHandler, publicOutletHandler, closingHandler, returnHandler, cfg.HTTP.AllowedOrigins)
+	chiRouter := router.New(log, healthHandler, authMiddleware, entClient, identitySvc, orderHandler, catalogHandler, tableHandler, tenderHandler, paymentHandler, drawerHandler, barTabHandler, promotionHandler, rbacHandler, hotelHandler, kdsHandler, deviceHandler, pinAuthHandler, publicOutletHandler, closingHandler, returnHandler, receiptHandler, cfg.HTTP.AllowedOrigins)
 
 	httpServer := &http.Server{
 		Addr:              fmt.Sprintf("%s:%d", cfg.HTTP.Host, cfg.HTTP.Port),

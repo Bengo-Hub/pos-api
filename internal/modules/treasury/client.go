@@ -72,6 +72,32 @@ type InitiateResponse struct {
 	Reference          string `json:"reference,omitempty"`
 }
 
+// RefundRequest is the body for POST /api/v1/s2s/{tenant}/refunds
+type RefundRequest struct {
+	SourceService    string  `json:"source_service"`               // "pos"
+	ReferenceID      string  `json:"reference_id"`                 // pos_return UUID
+	ReferenceType    string  `json:"reference_type"`               // "pos_return"
+	OriginalIntentID string  `json:"original_intent_id,omitempty"` // original payment intent if known
+	Amount           float64 `json:"amount"`
+	Currency         string  `json:"currency"`
+	Reason           string  `json:"reason"`
+	CustomerEmail    string  `json:"customer_email,omitempty"`
+}
+
+// RefundResponse is the response from POST /api/v1/s2s/{tenant}/refunds
+type RefundResponse struct {
+	ID       string  `json:"id"`
+	Status   string  `json:"status"`
+	Amount   float64 `json:"amount"`
+	Currency string  `json:"currency"`
+}
+
+// CreateRefund calls POST /api/v1/s2s/{tenantSlug}/refunds on treasury-api.
+func (c *Client) CreateRefund(ctx context.Context, tenantSlug string, req RefundRequest) (*RefundResponse, error) {
+	url := fmt.Sprintf("%s/api/v1/s2s/%s/refunds", c.baseURL, tenantSlug)
+	return doRequest[RefundResponse](ctx, c.httpClient, http.MethodPost, url, c.apiKey, req)
+}
+
 // CreateIntent calls POST /api/v1/{tenantSlug}/payments/intents on treasury-api.
 func (c *Client) CreateIntent(ctx context.Context, tenantSlug string, req CreateIntentRequest) (*IntentResponse, error) {
 	url := fmt.Sprintf("%s/api/v1/%s/payments/intents", c.baseURL, tenantSlug)
