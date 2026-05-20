@@ -28,11 +28,11 @@ The `Appointment`, `StaffMember`, and `CommissionRecord` schemas already exist i
 - [ ] `GET /{tenant}/pos/appointments/{id}` — detail with staff + service + client info
 - [ ] `POST /{tenant}/pos/appointments` — create appointment (client, staff, service, start_time, duration_minutes)
 - [ ] `PATCH /{tenant}/pos/appointments/{id}` — update (reschedule, reassign staff)
-- [ ] `POST /{tenant}/pos/appointments/{id}/check-in` — mark client arrived
-- [ ] `POST /{tenant}/pos/appointments/{id}/start` — mark service in progress
-- [ ] `POST /{tenant}/pos/appointments/{id}/complete` — mark complete + create POS order
-- [ ] `POST /{tenant}/pos/appointments/{id}/cancel` — cancel with reason
-- [ ] `POST /{tenant}/pos/appointments/{id}/no-show` — mark no-show
+- [x] `POST /{tenant}/pos/appointments/{id}/check-in` — mark client arrived (status → confirmed)
+- [x] `POST /{tenant}/pos/appointments/{id}/start` — mark service in progress (status → in_progress)
+- [x] `POST /{tenant}/pos/appointments/{id}/complete` — mark complete (status → completed)
+- [x] `POST /{tenant}/pos/appointments/{id}/cancel` — cancel (status → cancelled)
+- [x] `POST /{tenant}/pos/appointments/{id}/no-show` — mark no-show (status → no_show)
 - [ ] Validation: no double-booking for same staff at same time slot; resource conflicts checked
 
 ### Walk-In Service Queue

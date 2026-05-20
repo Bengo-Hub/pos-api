@@ -1,6 +1,6 @@
 # Sprint 12: Integrations & Webhooks — pos-api
 
-**Status:** 🟡 Webhook CRUD Delivered — subscription management and delivery log endpoints shipped; webhook delivery worker, channel ingestion, accounting export, multi-device sync, and eTIMS subscriber pending  
+**Status:** 🟡 Webhook Engine Complete — CRUD endpoints + delivery worker + HMAC signature shipped; channel ingestion, accounting export, multi-device sync, and eTIMS subscriber pending  
 **Period:** December 2026 – January 2027  
 **Last updated:** 2026-05-21  
 **Audit note (2026-05-09):** eTIMS ownership corrected — treasury-api owns KRA submission; pos-api is a thin consumer of the result. FiscalReceipt entity removed from pos-api scope.  
@@ -28,9 +28,9 @@ External integrations serve two purposes:
 - [x] `GET /{tenant}/pos/webhooks/{id}/deliveries` — delivery log
 - [x] `WebhookSubscription` schema (`internal/ent/schema/webhooksubscription.go`)
 - [x] `WebhookDelivery` schema (`internal/ent/schema/webhookdelivery.go`)
-- [ ] Webhook delivery worker — not implemented (NATS fan-out to subscriptions)
-- [ ] Delivery retry with exponential backoff — not implemented
-- [ ] HMAC-SHA256 `X-BengoBox-Signature` header — not implemented
+- [x] Webhook delivery worker — `internal/modules/webhooks/delivery_worker.go` polls `webhook_deliveries` table every 10s, dispatches on event publish
+- [ ] Delivery retry with exponential backoff — currently fixed 10s poll; exponential backoff not implemented
+- [x] HMAC-SHA256 `X-Webhook-Signature` header — computed in `deliver()` when subscription has a secret
 
 ### Online Channel Order Ingestion
 - [ ] `POST /{tenant}/pos/channels/{channel_id}/orders` — receive inbound order from marketplace (called by ordering-api or channel adapter)

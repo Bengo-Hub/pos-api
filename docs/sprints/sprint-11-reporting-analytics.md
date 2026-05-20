@@ -1,6 +1,6 @@
 # Sprint 11: Reporting & Analytics — pos-api
 
-**Status:** ✅ Core KPIs Delivered — sales-summary, refund-summary, daily-breakdown endpoints shipped; full EOD reconciliation, shift reports, exports, and pre-aggregation worker pending  
+**Status:** ✅ Core KPIs + Top Items + Staff Sales Delivered — sales-summary, refund-summary, daily-breakdown, top-items, sales-by-staff endpoints shipped; full EOD reconciliation, shift reports, exports, and pre-aggregation worker pending  
 **Period:** November–December 2026  
 **Last updated:** 2026-05-21  
 **Goal:** End-of-day reconciliation, sales reports, staff performance dashboards, export (CSV/PDF), and embedded analytics
@@ -37,9 +37,9 @@ Reports should be fast (<2s for most), pre-aggregated where possible, and export
 ### Sales Summary Report
 - [ ] `GET /{tenant}/pos/reports/sales/summary` — aggregated sales by date range
   - Response: total_revenue, total_orders, avg_basket_size, by_tender (cash/card/mpesa/...), by_outlet, by_hour_of_day
-- [ ] `GET /{tenant}/pos/reports/sales/by-item` — items sold with quantity and revenue (filter: date range, category, outlet)
+- [x] `GET /{tenant}/pos/reports/top-items` — items sold with quantity and revenue (filter: date range, limit) — `reports.TopItems`
 - [ ] `GET /{tenant}/pos/reports/sales/by-category` — category-level rollup
-- [ ] `GET /{tenant}/pos/reports/sales/by-staff` — per-staff sales (for commission verification)
+- [x] `GET /{tenant}/pos/reports/sales-by-staff` — per-staff sales (for commission verification) — `reports.SalesByStaff`
 - [ ] `GET /{tenant}/pos/reports/sales/by-hour` — hourly breakdown for a day (heatmap data)
 
 ### Staff Performance Report
