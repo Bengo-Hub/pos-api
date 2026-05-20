@@ -76,6 +76,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/tender"
 	"github.com/bengobox/pos-service/internal/ent/user"
 	"github.com/bengobox/pos-service/internal/ent/userposrole"
+	"github.com/bengobox/pos-service/internal/ent/webhookdelivery"
 	"github.com/bengobox/pos-service/internal/ent/webhooksubscription"
 	"github.com/bengobox/pos-service/internal/ent/weighingscalereading"
 	"github.com/google/uuid"
@@ -1831,28 +1832,40 @@ func init() {
 	userposroleDescID := userposroleFields[0].Descriptor()
 	// userposrole.DefaultID holds the default value on creation for the id field.
 	userposrole.DefaultID = userposroleDescID.Default.(func() uuid.UUID)
+	webhookdeliveryFields := schema.WebhookDelivery{}.Fields()
+	_ = webhookdeliveryFields
+	// webhookdeliveryDescAttempt is the schema descriptor for attempt field.
+	webhookdeliveryDescAttempt := webhookdeliveryFields[7].Descriptor()
+	// webhookdelivery.DefaultAttempt holds the default value on creation for the attempt field.
+	webhookdelivery.DefaultAttempt = webhookdeliveryDescAttempt.Default.(int)
+	// webhookdeliveryDescStatus is the schema descriptor for status field.
+	webhookdeliveryDescStatus := webhookdeliveryFields[8].Descriptor()
+	// webhookdelivery.DefaultStatus holds the default value on creation for the status field.
+	webhookdelivery.DefaultStatus = webhookdeliveryDescStatus.Default.(string)
+	// webhookdeliveryDescCreatedAt is the schema descriptor for created_at field.
+	webhookdeliveryDescCreatedAt := webhookdeliveryFields[10].Descriptor()
+	// webhookdelivery.DefaultCreatedAt holds the default value on creation for the created_at field.
+	webhookdelivery.DefaultCreatedAt = webhookdeliveryDescCreatedAt.Default.(func() time.Time)
+	// webhookdeliveryDescID is the schema descriptor for id field.
+	webhookdeliveryDescID := webhookdeliveryFields[0].Descriptor()
+	// webhookdelivery.DefaultID holds the default value on creation for the id field.
+	webhookdelivery.DefaultID = webhookdeliveryDescID.Default.(func() uuid.UUID)
 	webhooksubscriptionFields := schema.WebhookSubscription{}.Fields()
 	_ = webhooksubscriptionFields
-	// webhooksubscriptionDescURL is the schema descriptor for url field.
-	webhooksubscriptionDescURL := webhooksubscriptionFields[2].Descriptor()
-	// webhooksubscription.URLValidator is a validator for the "url" field. It is called by the builders before save.
-	webhooksubscription.URLValidator = webhooksubscriptionDescURL.Validators[0].(func(string) error)
-	// webhooksubscriptionDescEventType is the schema descriptor for event_type field.
-	webhooksubscriptionDescEventType := webhooksubscriptionFields[3].Descriptor()
-	// webhooksubscription.EventTypeValidator is a validator for the "event_type" field. It is called by the builders before save.
-	webhooksubscription.EventTypeValidator = webhooksubscriptionDescEventType.Validators[0].(func(string) error)
-	// webhooksubscriptionDescSecretKey is the schema descriptor for secret_key field.
-	webhooksubscriptionDescSecretKey := webhooksubscriptionFields[4].Descriptor()
-	// webhooksubscription.SecretKeyValidator is a validator for the "secret_key" field. It is called by the builders before save.
-	webhooksubscription.SecretKeyValidator = webhooksubscriptionDescSecretKey.Validators[0].(func(string) error)
-	// webhooksubscriptionDescStatus is the schema descriptor for status field.
-	webhooksubscriptionDescStatus := webhooksubscriptionFields[5].Descriptor()
-	// webhooksubscription.DefaultStatus holds the default value on creation for the status field.
-	webhooksubscription.DefaultStatus = webhooksubscriptionDescStatus.Default.(string)
+	// webhooksubscriptionDescIsActive is the schema descriptor for is_active field.
+	webhooksubscriptionDescIsActive := webhooksubscriptionFields[6].Descriptor()
+	// webhooksubscription.DefaultIsActive holds the default value on creation for the is_active field.
+	webhooksubscription.DefaultIsActive = webhooksubscriptionDescIsActive.Default.(bool)
 	// webhooksubscriptionDescCreatedAt is the schema descriptor for created_at field.
-	webhooksubscriptionDescCreatedAt := webhooksubscriptionFields[6].Descriptor()
+	webhooksubscriptionDescCreatedAt := webhooksubscriptionFields[7].Descriptor()
 	// webhooksubscription.DefaultCreatedAt holds the default value on creation for the created_at field.
 	webhooksubscription.DefaultCreatedAt = webhooksubscriptionDescCreatedAt.Default.(func() time.Time)
+	// webhooksubscriptionDescUpdatedAt is the schema descriptor for updated_at field.
+	webhooksubscriptionDescUpdatedAt := webhooksubscriptionFields[8].Descriptor()
+	// webhooksubscription.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	webhooksubscription.DefaultUpdatedAt = webhooksubscriptionDescUpdatedAt.Default.(func() time.Time)
+	// webhooksubscription.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	webhooksubscription.UpdateDefaultUpdatedAt = webhooksubscriptionDescUpdatedAt.UpdateDefault.(func() time.Time)
 	// webhooksubscriptionDescID is the schema descriptor for id field.
 	webhooksubscriptionDescID := webhooksubscriptionFields[0].Descriptor()
 	// webhooksubscription.DefaultID holds the default value on creation for the id field.

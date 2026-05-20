@@ -16,16 +16,20 @@ const (
 	FieldID = "id"
 	// FieldTenantID holds the string denoting the tenant_id field in the database.
 	FieldTenantID = "tenant_id"
-	// FieldURL holds the string denoting the url field in the database.
-	FieldURL = "url"
+	// FieldOutletID holds the string denoting the outlet_id field in the database.
+	FieldOutletID = "outlet_id"
 	// FieldEventType holds the string denoting the event_type field in the database.
 	FieldEventType = "event_type"
-	// FieldSecretKey holds the string denoting the secret_key field in the database.
-	FieldSecretKey = "secret_key"
-	// FieldStatus holds the string denoting the status field in the database.
-	FieldStatus = "status"
+	// FieldTargetURL holds the string denoting the target_url field in the database.
+	FieldTargetURL = "target_url"
+	// FieldSecret holds the string denoting the secret field in the database.
+	FieldSecret = "secret"
+	// FieldIsActive holds the string denoting the is_active field in the database.
+	FieldIsActive = "is_active"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
+	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
+	FieldUpdatedAt = "updated_at"
 	// Table holds the table name of the webhooksubscription in the database.
 	Table = "webhook_subscriptions"
 )
@@ -34,11 +38,13 @@ const (
 var Columns = []string{
 	FieldID,
 	FieldTenantID,
-	FieldURL,
+	FieldOutletID,
 	FieldEventType,
-	FieldSecretKey,
-	FieldStatus,
+	FieldTargetURL,
+	FieldSecret,
+	FieldIsActive,
 	FieldCreatedAt,
+	FieldUpdatedAt,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -52,16 +58,14 @@ func ValidColumn(column string) bool {
 }
 
 var (
-	// URLValidator is a validator for the "url" field. It is called by the builders before save.
-	URLValidator func(string) error
-	// EventTypeValidator is a validator for the "event_type" field. It is called by the builders before save.
-	EventTypeValidator func(string) error
-	// SecretKeyValidator is a validator for the "secret_key" field. It is called by the builders before save.
-	SecretKeyValidator func(string) error
-	// DefaultStatus holds the default value on creation for the "status" field.
-	DefaultStatus string
+	// DefaultIsActive holds the default value on creation for the "is_active" field.
+	DefaultIsActive bool
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
+	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
+	DefaultUpdatedAt func() time.Time
+	// UpdateDefaultUpdatedAt holds the default value on update for the "updated_at" field.
+	UpdateDefaultUpdatedAt func() time.Time
 	// DefaultID holds the default value on creation for the "id" field.
 	DefaultID func() uuid.UUID
 )
@@ -79,9 +83,9 @@ func ByTenantID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldTenantID, opts...).ToFunc()
 }
 
-// ByURL orders the results by the url field.
-func ByURL(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldURL, opts...).ToFunc()
+// ByOutletID orders the results by the outlet_id field.
+func ByOutletID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldOutletID, opts...).ToFunc()
 }
 
 // ByEventType orders the results by the event_type field.
@@ -89,17 +93,27 @@ func ByEventType(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldEventType, opts...).ToFunc()
 }
 
-// BySecretKey orders the results by the secret_key field.
-func BySecretKey(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldSecretKey, opts...).ToFunc()
+// ByTargetURL orders the results by the target_url field.
+func ByTargetURL(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTargetURL, opts...).ToFunc()
 }
 
-// ByStatus orders the results by the status field.
-func ByStatus(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldStatus, opts...).ToFunc()
+// BySecret orders the results by the secret field.
+func BySecret(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSecret, opts...).ToFunc()
+}
+
+// ByIsActive orders the results by the is_active field.
+func ByIsActive(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldIsActive, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.
 func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCreatedAt, opts...).ToFunc()
+}
+
+// ByUpdatedAt orders the results by the updated_at field.
+func ByUpdatedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldUpdatedAt, opts...).ToFunc()
 }

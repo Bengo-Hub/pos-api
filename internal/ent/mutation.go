@@ -83,6 +83,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/tender"
 	"github.com/bengobox/pos-service/internal/ent/user"
 	"github.com/bengobox/pos-service/internal/ent/userposrole"
+	"github.com/bengobox/pos-service/internal/ent/webhookdelivery"
 	"github.com/bengobox/pos-service/internal/ent/webhooksubscription"
 	"github.com/bengobox/pos-service/internal/ent/weighingscalereading"
 	"github.com/google/uuid"
@@ -171,6 +172,7 @@ const (
 	TypeTender                 = "Tender"
 	TypeUser                   = "User"
 	TypeUserPOSRole            = "UserPOSRole"
+	TypeWebhookDelivery        = "WebhookDelivery"
 	TypeWebhookSubscription    = "WebhookSubscription"
 	TypeWeighingScaleReading   = "WeighingScaleReading"
 )
@@ -65347,6 +65349,973 @@ func (m *UserPOSRoleMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown UserPOSRole edge %s", name)
 }
 
+// WebhookDeliveryMutation represents an operation that mutates the WebhookDelivery nodes in the graph.
+type WebhookDeliveryMutation struct {
+	config
+	op              Op
+	typ             string
+	id              *uuid.UUID
+	subscription_id *uuid.UUID
+	event_type      *string
+	payload         *string
+	http_status     *int
+	addhttp_status  *int
+	response_body   *string
+	error_message   *string
+	attempt         *int
+	addattempt      *int
+	status          *string
+	delivered_at    *time.Time
+	created_at      *time.Time
+	clearedFields   map[string]struct{}
+	done            bool
+	oldValue        func(context.Context) (*WebhookDelivery, error)
+	predicates      []predicate.WebhookDelivery
+}
+
+var _ ent.Mutation = (*WebhookDeliveryMutation)(nil)
+
+// webhookdeliveryOption allows management of the mutation configuration using functional options.
+type webhookdeliveryOption func(*WebhookDeliveryMutation)
+
+// newWebhookDeliveryMutation creates new mutation for the WebhookDelivery entity.
+func newWebhookDeliveryMutation(c config, op Op, opts ...webhookdeliveryOption) *WebhookDeliveryMutation {
+	m := &WebhookDeliveryMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeWebhookDelivery,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withWebhookDeliveryID sets the ID field of the mutation.
+func withWebhookDeliveryID(id uuid.UUID) webhookdeliveryOption {
+	return func(m *WebhookDeliveryMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *WebhookDelivery
+		)
+		m.oldValue = func(ctx context.Context) (*WebhookDelivery, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().WebhookDelivery.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withWebhookDelivery sets the old WebhookDelivery of the mutation.
+func withWebhookDelivery(node *WebhookDelivery) webhookdeliveryOption {
+	return func(m *WebhookDeliveryMutation) {
+		m.oldValue = func(context.Context) (*WebhookDelivery, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m WebhookDeliveryMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m WebhookDeliveryMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of WebhookDelivery entities.
+func (m *WebhookDeliveryMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *WebhookDeliveryMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *WebhookDeliveryMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().WebhookDelivery.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetSubscriptionID sets the "subscription_id" field.
+func (m *WebhookDeliveryMutation) SetSubscriptionID(u uuid.UUID) {
+	m.subscription_id = &u
+}
+
+// SubscriptionID returns the value of the "subscription_id" field in the mutation.
+func (m *WebhookDeliveryMutation) SubscriptionID() (r uuid.UUID, exists bool) {
+	v := m.subscription_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSubscriptionID returns the old "subscription_id" field's value of the WebhookDelivery entity.
+// If the WebhookDelivery object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *WebhookDeliveryMutation) OldSubscriptionID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSubscriptionID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSubscriptionID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSubscriptionID: %w", err)
+	}
+	return oldValue.SubscriptionID, nil
+}
+
+// ResetSubscriptionID resets all changes to the "subscription_id" field.
+func (m *WebhookDeliveryMutation) ResetSubscriptionID() {
+	m.subscription_id = nil
+}
+
+// SetEventType sets the "event_type" field.
+func (m *WebhookDeliveryMutation) SetEventType(s string) {
+	m.event_type = &s
+}
+
+// EventType returns the value of the "event_type" field in the mutation.
+func (m *WebhookDeliveryMutation) EventType() (r string, exists bool) {
+	v := m.event_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEventType returns the old "event_type" field's value of the WebhookDelivery entity.
+// If the WebhookDelivery object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *WebhookDeliveryMutation) OldEventType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEventType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEventType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEventType: %w", err)
+	}
+	return oldValue.EventType, nil
+}
+
+// ResetEventType resets all changes to the "event_type" field.
+func (m *WebhookDeliveryMutation) ResetEventType() {
+	m.event_type = nil
+}
+
+// SetPayload sets the "payload" field.
+func (m *WebhookDeliveryMutation) SetPayload(s string) {
+	m.payload = &s
+}
+
+// Payload returns the value of the "payload" field in the mutation.
+func (m *WebhookDeliveryMutation) Payload() (r string, exists bool) {
+	v := m.payload
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPayload returns the old "payload" field's value of the WebhookDelivery entity.
+// If the WebhookDelivery object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *WebhookDeliveryMutation) OldPayload(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPayload is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPayload requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPayload: %w", err)
+	}
+	return oldValue.Payload, nil
+}
+
+// ResetPayload resets all changes to the "payload" field.
+func (m *WebhookDeliveryMutation) ResetPayload() {
+	m.payload = nil
+}
+
+// SetHTTPStatus sets the "http_status" field.
+func (m *WebhookDeliveryMutation) SetHTTPStatus(i int) {
+	m.http_status = &i
+	m.addhttp_status = nil
+}
+
+// HTTPStatus returns the value of the "http_status" field in the mutation.
+func (m *WebhookDeliveryMutation) HTTPStatus() (r int, exists bool) {
+	v := m.http_status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldHTTPStatus returns the old "http_status" field's value of the WebhookDelivery entity.
+// If the WebhookDelivery object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *WebhookDeliveryMutation) OldHTTPStatus(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldHTTPStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldHTTPStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldHTTPStatus: %w", err)
+	}
+	return oldValue.HTTPStatus, nil
+}
+
+// AddHTTPStatus adds i to the "http_status" field.
+func (m *WebhookDeliveryMutation) AddHTTPStatus(i int) {
+	if m.addhttp_status != nil {
+		*m.addhttp_status += i
+	} else {
+		m.addhttp_status = &i
+	}
+}
+
+// AddedHTTPStatus returns the value that was added to the "http_status" field in this mutation.
+func (m *WebhookDeliveryMutation) AddedHTTPStatus() (r int, exists bool) {
+	v := m.addhttp_status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearHTTPStatus clears the value of the "http_status" field.
+func (m *WebhookDeliveryMutation) ClearHTTPStatus() {
+	m.http_status = nil
+	m.addhttp_status = nil
+	m.clearedFields[webhookdelivery.FieldHTTPStatus] = struct{}{}
+}
+
+// HTTPStatusCleared returns if the "http_status" field was cleared in this mutation.
+func (m *WebhookDeliveryMutation) HTTPStatusCleared() bool {
+	_, ok := m.clearedFields[webhookdelivery.FieldHTTPStatus]
+	return ok
+}
+
+// ResetHTTPStatus resets all changes to the "http_status" field.
+func (m *WebhookDeliveryMutation) ResetHTTPStatus() {
+	m.http_status = nil
+	m.addhttp_status = nil
+	delete(m.clearedFields, webhookdelivery.FieldHTTPStatus)
+}
+
+// SetResponseBody sets the "response_body" field.
+func (m *WebhookDeliveryMutation) SetResponseBody(s string) {
+	m.response_body = &s
+}
+
+// ResponseBody returns the value of the "response_body" field in the mutation.
+func (m *WebhookDeliveryMutation) ResponseBody() (r string, exists bool) {
+	v := m.response_body
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldResponseBody returns the old "response_body" field's value of the WebhookDelivery entity.
+// If the WebhookDelivery object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *WebhookDeliveryMutation) OldResponseBody(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldResponseBody is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldResponseBody requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldResponseBody: %w", err)
+	}
+	return oldValue.ResponseBody, nil
+}
+
+// ClearResponseBody clears the value of the "response_body" field.
+func (m *WebhookDeliveryMutation) ClearResponseBody() {
+	m.response_body = nil
+	m.clearedFields[webhookdelivery.FieldResponseBody] = struct{}{}
+}
+
+// ResponseBodyCleared returns if the "response_body" field was cleared in this mutation.
+func (m *WebhookDeliveryMutation) ResponseBodyCleared() bool {
+	_, ok := m.clearedFields[webhookdelivery.FieldResponseBody]
+	return ok
+}
+
+// ResetResponseBody resets all changes to the "response_body" field.
+func (m *WebhookDeliveryMutation) ResetResponseBody() {
+	m.response_body = nil
+	delete(m.clearedFields, webhookdelivery.FieldResponseBody)
+}
+
+// SetErrorMessage sets the "error_message" field.
+func (m *WebhookDeliveryMutation) SetErrorMessage(s string) {
+	m.error_message = &s
+}
+
+// ErrorMessage returns the value of the "error_message" field in the mutation.
+func (m *WebhookDeliveryMutation) ErrorMessage() (r string, exists bool) {
+	v := m.error_message
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldErrorMessage returns the old "error_message" field's value of the WebhookDelivery entity.
+// If the WebhookDelivery object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *WebhookDeliveryMutation) OldErrorMessage(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldErrorMessage is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldErrorMessage requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldErrorMessage: %w", err)
+	}
+	return oldValue.ErrorMessage, nil
+}
+
+// ClearErrorMessage clears the value of the "error_message" field.
+func (m *WebhookDeliveryMutation) ClearErrorMessage() {
+	m.error_message = nil
+	m.clearedFields[webhookdelivery.FieldErrorMessage] = struct{}{}
+}
+
+// ErrorMessageCleared returns if the "error_message" field was cleared in this mutation.
+func (m *WebhookDeliveryMutation) ErrorMessageCleared() bool {
+	_, ok := m.clearedFields[webhookdelivery.FieldErrorMessage]
+	return ok
+}
+
+// ResetErrorMessage resets all changes to the "error_message" field.
+func (m *WebhookDeliveryMutation) ResetErrorMessage() {
+	m.error_message = nil
+	delete(m.clearedFields, webhookdelivery.FieldErrorMessage)
+}
+
+// SetAttempt sets the "attempt" field.
+func (m *WebhookDeliveryMutation) SetAttempt(i int) {
+	m.attempt = &i
+	m.addattempt = nil
+}
+
+// Attempt returns the value of the "attempt" field in the mutation.
+func (m *WebhookDeliveryMutation) Attempt() (r int, exists bool) {
+	v := m.attempt
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAttempt returns the old "attempt" field's value of the WebhookDelivery entity.
+// If the WebhookDelivery object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *WebhookDeliveryMutation) OldAttempt(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAttempt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAttempt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAttempt: %w", err)
+	}
+	return oldValue.Attempt, nil
+}
+
+// AddAttempt adds i to the "attempt" field.
+func (m *WebhookDeliveryMutation) AddAttempt(i int) {
+	if m.addattempt != nil {
+		*m.addattempt += i
+	} else {
+		m.addattempt = &i
+	}
+}
+
+// AddedAttempt returns the value that was added to the "attempt" field in this mutation.
+func (m *WebhookDeliveryMutation) AddedAttempt() (r int, exists bool) {
+	v := m.addattempt
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAttempt resets all changes to the "attempt" field.
+func (m *WebhookDeliveryMutation) ResetAttempt() {
+	m.attempt = nil
+	m.addattempt = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *WebhookDeliveryMutation) SetStatus(s string) {
+	m.status = &s
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *WebhookDeliveryMutation) Status() (r string, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the WebhookDelivery entity.
+// If the WebhookDelivery object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *WebhookDeliveryMutation) OldStatus(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *WebhookDeliveryMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetDeliveredAt sets the "delivered_at" field.
+func (m *WebhookDeliveryMutation) SetDeliveredAt(t time.Time) {
+	m.delivered_at = &t
+}
+
+// DeliveredAt returns the value of the "delivered_at" field in the mutation.
+func (m *WebhookDeliveryMutation) DeliveredAt() (r time.Time, exists bool) {
+	v := m.delivered_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDeliveredAt returns the old "delivered_at" field's value of the WebhookDelivery entity.
+// If the WebhookDelivery object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *WebhookDeliveryMutation) OldDeliveredAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDeliveredAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDeliveredAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDeliveredAt: %w", err)
+	}
+	return oldValue.DeliveredAt, nil
+}
+
+// ClearDeliveredAt clears the value of the "delivered_at" field.
+func (m *WebhookDeliveryMutation) ClearDeliveredAt() {
+	m.delivered_at = nil
+	m.clearedFields[webhookdelivery.FieldDeliveredAt] = struct{}{}
+}
+
+// DeliveredAtCleared returns if the "delivered_at" field was cleared in this mutation.
+func (m *WebhookDeliveryMutation) DeliveredAtCleared() bool {
+	_, ok := m.clearedFields[webhookdelivery.FieldDeliveredAt]
+	return ok
+}
+
+// ResetDeliveredAt resets all changes to the "delivered_at" field.
+func (m *WebhookDeliveryMutation) ResetDeliveredAt() {
+	m.delivered_at = nil
+	delete(m.clearedFields, webhookdelivery.FieldDeliveredAt)
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *WebhookDeliveryMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *WebhookDeliveryMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the WebhookDelivery entity.
+// If the WebhookDelivery object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *WebhookDeliveryMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *WebhookDeliveryMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// Where appends a list predicates to the WebhookDeliveryMutation builder.
+func (m *WebhookDeliveryMutation) Where(ps ...predicate.WebhookDelivery) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the WebhookDeliveryMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *WebhookDeliveryMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.WebhookDelivery, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *WebhookDeliveryMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *WebhookDeliveryMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (WebhookDelivery).
+func (m *WebhookDeliveryMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *WebhookDeliveryMutation) Fields() []string {
+	fields := make([]string, 0, 10)
+	if m.subscription_id != nil {
+		fields = append(fields, webhookdelivery.FieldSubscriptionID)
+	}
+	if m.event_type != nil {
+		fields = append(fields, webhookdelivery.FieldEventType)
+	}
+	if m.payload != nil {
+		fields = append(fields, webhookdelivery.FieldPayload)
+	}
+	if m.http_status != nil {
+		fields = append(fields, webhookdelivery.FieldHTTPStatus)
+	}
+	if m.response_body != nil {
+		fields = append(fields, webhookdelivery.FieldResponseBody)
+	}
+	if m.error_message != nil {
+		fields = append(fields, webhookdelivery.FieldErrorMessage)
+	}
+	if m.attempt != nil {
+		fields = append(fields, webhookdelivery.FieldAttempt)
+	}
+	if m.status != nil {
+		fields = append(fields, webhookdelivery.FieldStatus)
+	}
+	if m.delivered_at != nil {
+		fields = append(fields, webhookdelivery.FieldDeliveredAt)
+	}
+	if m.created_at != nil {
+		fields = append(fields, webhookdelivery.FieldCreatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *WebhookDeliveryMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case webhookdelivery.FieldSubscriptionID:
+		return m.SubscriptionID()
+	case webhookdelivery.FieldEventType:
+		return m.EventType()
+	case webhookdelivery.FieldPayload:
+		return m.Payload()
+	case webhookdelivery.FieldHTTPStatus:
+		return m.HTTPStatus()
+	case webhookdelivery.FieldResponseBody:
+		return m.ResponseBody()
+	case webhookdelivery.FieldErrorMessage:
+		return m.ErrorMessage()
+	case webhookdelivery.FieldAttempt:
+		return m.Attempt()
+	case webhookdelivery.FieldStatus:
+		return m.Status()
+	case webhookdelivery.FieldDeliveredAt:
+		return m.DeliveredAt()
+	case webhookdelivery.FieldCreatedAt:
+		return m.CreatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *WebhookDeliveryMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case webhookdelivery.FieldSubscriptionID:
+		return m.OldSubscriptionID(ctx)
+	case webhookdelivery.FieldEventType:
+		return m.OldEventType(ctx)
+	case webhookdelivery.FieldPayload:
+		return m.OldPayload(ctx)
+	case webhookdelivery.FieldHTTPStatus:
+		return m.OldHTTPStatus(ctx)
+	case webhookdelivery.FieldResponseBody:
+		return m.OldResponseBody(ctx)
+	case webhookdelivery.FieldErrorMessage:
+		return m.OldErrorMessage(ctx)
+	case webhookdelivery.FieldAttempt:
+		return m.OldAttempt(ctx)
+	case webhookdelivery.FieldStatus:
+		return m.OldStatus(ctx)
+	case webhookdelivery.FieldDeliveredAt:
+		return m.OldDeliveredAt(ctx)
+	case webhookdelivery.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown WebhookDelivery field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *WebhookDeliveryMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case webhookdelivery.FieldSubscriptionID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSubscriptionID(v)
+		return nil
+	case webhookdelivery.FieldEventType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEventType(v)
+		return nil
+	case webhookdelivery.FieldPayload:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPayload(v)
+		return nil
+	case webhookdelivery.FieldHTTPStatus:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetHTTPStatus(v)
+		return nil
+	case webhookdelivery.FieldResponseBody:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetResponseBody(v)
+		return nil
+	case webhookdelivery.FieldErrorMessage:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetErrorMessage(v)
+		return nil
+	case webhookdelivery.FieldAttempt:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAttempt(v)
+		return nil
+	case webhookdelivery.FieldStatus:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case webhookdelivery.FieldDeliveredAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDeliveredAt(v)
+		return nil
+	case webhookdelivery.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown WebhookDelivery field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *WebhookDeliveryMutation) AddedFields() []string {
+	var fields []string
+	if m.addhttp_status != nil {
+		fields = append(fields, webhookdelivery.FieldHTTPStatus)
+	}
+	if m.addattempt != nil {
+		fields = append(fields, webhookdelivery.FieldAttempt)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *WebhookDeliveryMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case webhookdelivery.FieldHTTPStatus:
+		return m.AddedHTTPStatus()
+	case webhookdelivery.FieldAttempt:
+		return m.AddedAttempt()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *WebhookDeliveryMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case webhookdelivery.FieldHTTPStatus:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddHTTPStatus(v)
+		return nil
+	case webhookdelivery.FieldAttempt:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAttempt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown WebhookDelivery numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *WebhookDeliveryMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(webhookdelivery.FieldHTTPStatus) {
+		fields = append(fields, webhookdelivery.FieldHTTPStatus)
+	}
+	if m.FieldCleared(webhookdelivery.FieldResponseBody) {
+		fields = append(fields, webhookdelivery.FieldResponseBody)
+	}
+	if m.FieldCleared(webhookdelivery.FieldErrorMessage) {
+		fields = append(fields, webhookdelivery.FieldErrorMessage)
+	}
+	if m.FieldCleared(webhookdelivery.FieldDeliveredAt) {
+		fields = append(fields, webhookdelivery.FieldDeliveredAt)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *WebhookDeliveryMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *WebhookDeliveryMutation) ClearField(name string) error {
+	switch name {
+	case webhookdelivery.FieldHTTPStatus:
+		m.ClearHTTPStatus()
+		return nil
+	case webhookdelivery.FieldResponseBody:
+		m.ClearResponseBody()
+		return nil
+	case webhookdelivery.FieldErrorMessage:
+		m.ClearErrorMessage()
+		return nil
+	case webhookdelivery.FieldDeliveredAt:
+		m.ClearDeliveredAt()
+		return nil
+	}
+	return fmt.Errorf("unknown WebhookDelivery nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *WebhookDeliveryMutation) ResetField(name string) error {
+	switch name {
+	case webhookdelivery.FieldSubscriptionID:
+		m.ResetSubscriptionID()
+		return nil
+	case webhookdelivery.FieldEventType:
+		m.ResetEventType()
+		return nil
+	case webhookdelivery.FieldPayload:
+		m.ResetPayload()
+		return nil
+	case webhookdelivery.FieldHTTPStatus:
+		m.ResetHTTPStatus()
+		return nil
+	case webhookdelivery.FieldResponseBody:
+		m.ResetResponseBody()
+		return nil
+	case webhookdelivery.FieldErrorMessage:
+		m.ResetErrorMessage()
+		return nil
+	case webhookdelivery.FieldAttempt:
+		m.ResetAttempt()
+		return nil
+	case webhookdelivery.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case webhookdelivery.FieldDeliveredAt:
+		m.ResetDeliveredAt()
+		return nil
+	case webhookdelivery.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown WebhookDelivery field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *WebhookDeliveryMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *WebhookDeliveryMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *WebhookDeliveryMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *WebhookDeliveryMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *WebhookDeliveryMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *WebhookDeliveryMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *WebhookDeliveryMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown WebhookDelivery unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *WebhookDeliveryMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown WebhookDelivery edge %s", name)
+}
+
 // WebhookSubscriptionMutation represents an operation that mutates the WebhookSubscription nodes in the graph.
 type WebhookSubscriptionMutation struct {
 	config
@@ -65354,11 +66323,13 @@ type WebhookSubscriptionMutation struct {
 	typ           string
 	id            *uuid.UUID
 	tenant_id     *uuid.UUID
-	url           *string
+	outlet_id     *uuid.UUID
 	event_type    *string
-	secret_key    *string
-	status        *string
+	target_url    *string
+	secret        *string
+	is_active     *bool
 	created_at    *time.Time
+	updated_at    *time.Time
 	clearedFields map[string]struct{}
 	done          bool
 	oldValue      func(context.Context) (*WebhookSubscription, error)
@@ -65505,40 +66476,53 @@ func (m *WebhookSubscriptionMutation) ResetTenantID() {
 	m.tenant_id = nil
 }
 
-// SetURL sets the "url" field.
-func (m *WebhookSubscriptionMutation) SetURL(s string) {
-	m.url = &s
+// SetOutletID sets the "outlet_id" field.
+func (m *WebhookSubscriptionMutation) SetOutletID(u uuid.UUID) {
+	m.outlet_id = &u
 }
 
-// URL returns the value of the "url" field in the mutation.
-func (m *WebhookSubscriptionMutation) URL() (r string, exists bool) {
-	v := m.url
+// OutletID returns the value of the "outlet_id" field in the mutation.
+func (m *WebhookSubscriptionMutation) OutletID() (r uuid.UUID, exists bool) {
+	v := m.outlet_id
 	if v == nil {
 		return
 	}
 	return *v, true
 }
 
-// OldURL returns the old "url" field's value of the WebhookSubscription entity.
+// OldOutletID returns the old "outlet_id" field's value of the WebhookSubscription entity.
 // If the WebhookSubscription object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *WebhookSubscriptionMutation) OldURL(ctx context.Context) (v string, err error) {
+func (m *WebhookSubscriptionMutation) OldOutletID(ctx context.Context) (v *uuid.UUID, err error) {
 	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldURL is only allowed on UpdateOne operations")
+		return v, errors.New("OldOutletID is only allowed on UpdateOne operations")
 	}
 	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldURL requires an ID field in the mutation")
+		return v, errors.New("OldOutletID requires an ID field in the mutation")
 	}
 	oldValue, err := m.oldValue(ctx)
 	if err != nil {
-		return v, fmt.Errorf("querying old value for OldURL: %w", err)
+		return v, fmt.Errorf("querying old value for OldOutletID: %w", err)
 	}
-	return oldValue.URL, nil
+	return oldValue.OutletID, nil
 }
 
-// ResetURL resets all changes to the "url" field.
-func (m *WebhookSubscriptionMutation) ResetURL() {
-	m.url = nil
+// ClearOutletID clears the value of the "outlet_id" field.
+func (m *WebhookSubscriptionMutation) ClearOutletID() {
+	m.outlet_id = nil
+	m.clearedFields[webhooksubscription.FieldOutletID] = struct{}{}
+}
+
+// OutletIDCleared returns if the "outlet_id" field was cleared in this mutation.
+func (m *WebhookSubscriptionMutation) OutletIDCleared() bool {
+	_, ok := m.clearedFields[webhooksubscription.FieldOutletID]
+	return ok
+}
+
+// ResetOutletID resets all changes to the "outlet_id" field.
+func (m *WebhookSubscriptionMutation) ResetOutletID() {
+	m.outlet_id = nil
+	delete(m.clearedFields, webhooksubscription.FieldOutletID)
 }
 
 // SetEventType sets the "event_type" field.
@@ -65577,76 +66561,125 @@ func (m *WebhookSubscriptionMutation) ResetEventType() {
 	m.event_type = nil
 }
 
-// SetSecretKey sets the "secret_key" field.
-func (m *WebhookSubscriptionMutation) SetSecretKey(s string) {
-	m.secret_key = &s
+// SetTargetURL sets the "target_url" field.
+func (m *WebhookSubscriptionMutation) SetTargetURL(s string) {
+	m.target_url = &s
 }
 
-// SecretKey returns the value of the "secret_key" field in the mutation.
-func (m *WebhookSubscriptionMutation) SecretKey() (r string, exists bool) {
-	v := m.secret_key
+// TargetURL returns the value of the "target_url" field in the mutation.
+func (m *WebhookSubscriptionMutation) TargetURL() (r string, exists bool) {
+	v := m.target_url
 	if v == nil {
 		return
 	}
 	return *v, true
 }
 
-// OldSecretKey returns the old "secret_key" field's value of the WebhookSubscription entity.
+// OldTargetURL returns the old "target_url" field's value of the WebhookSubscription entity.
 // If the WebhookSubscription object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *WebhookSubscriptionMutation) OldSecretKey(ctx context.Context) (v string, err error) {
+func (m *WebhookSubscriptionMutation) OldTargetURL(ctx context.Context) (v string, err error) {
 	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldSecretKey is only allowed on UpdateOne operations")
+		return v, errors.New("OldTargetURL is only allowed on UpdateOne operations")
 	}
 	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldSecretKey requires an ID field in the mutation")
+		return v, errors.New("OldTargetURL requires an ID field in the mutation")
 	}
 	oldValue, err := m.oldValue(ctx)
 	if err != nil {
-		return v, fmt.Errorf("querying old value for OldSecretKey: %w", err)
+		return v, fmt.Errorf("querying old value for OldTargetURL: %w", err)
 	}
-	return oldValue.SecretKey, nil
+	return oldValue.TargetURL, nil
 }
 
-// ResetSecretKey resets all changes to the "secret_key" field.
-func (m *WebhookSubscriptionMutation) ResetSecretKey() {
-	m.secret_key = nil
+// ResetTargetURL resets all changes to the "target_url" field.
+func (m *WebhookSubscriptionMutation) ResetTargetURL() {
+	m.target_url = nil
 }
 
-// SetStatus sets the "status" field.
-func (m *WebhookSubscriptionMutation) SetStatus(s string) {
-	m.status = &s
+// SetSecret sets the "secret" field.
+func (m *WebhookSubscriptionMutation) SetSecret(s string) {
+	m.secret = &s
 }
 
-// Status returns the value of the "status" field in the mutation.
-func (m *WebhookSubscriptionMutation) Status() (r string, exists bool) {
-	v := m.status
+// Secret returns the value of the "secret" field in the mutation.
+func (m *WebhookSubscriptionMutation) Secret() (r string, exists bool) {
+	v := m.secret
 	if v == nil {
 		return
 	}
 	return *v, true
 }
 
-// OldStatus returns the old "status" field's value of the WebhookSubscription entity.
+// OldSecret returns the old "secret" field's value of the WebhookSubscription entity.
 // If the WebhookSubscription object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *WebhookSubscriptionMutation) OldStatus(ctx context.Context) (v string, err error) {
+func (m *WebhookSubscriptionMutation) OldSecret(ctx context.Context) (v string, err error) {
 	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+		return v, errors.New("OldSecret is only allowed on UpdateOne operations")
 	}
 	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldStatus requires an ID field in the mutation")
+		return v, errors.New("OldSecret requires an ID field in the mutation")
 	}
 	oldValue, err := m.oldValue(ctx)
 	if err != nil {
-		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+		return v, fmt.Errorf("querying old value for OldSecret: %w", err)
 	}
-	return oldValue.Status, nil
+	return oldValue.Secret, nil
 }
 
-// ResetStatus resets all changes to the "status" field.
-func (m *WebhookSubscriptionMutation) ResetStatus() {
-	m.status = nil
+// ClearSecret clears the value of the "secret" field.
+func (m *WebhookSubscriptionMutation) ClearSecret() {
+	m.secret = nil
+	m.clearedFields[webhooksubscription.FieldSecret] = struct{}{}
+}
+
+// SecretCleared returns if the "secret" field was cleared in this mutation.
+func (m *WebhookSubscriptionMutation) SecretCleared() bool {
+	_, ok := m.clearedFields[webhooksubscription.FieldSecret]
+	return ok
+}
+
+// ResetSecret resets all changes to the "secret" field.
+func (m *WebhookSubscriptionMutation) ResetSecret() {
+	m.secret = nil
+	delete(m.clearedFields, webhooksubscription.FieldSecret)
+}
+
+// SetIsActive sets the "is_active" field.
+func (m *WebhookSubscriptionMutation) SetIsActive(b bool) {
+	m.is_active = &b
+}
+
+// IsActive returns the value of the "is_active" field in the mutation.
+func (m *WebhookSubscriptionMutation) IsActive() (r bool, exists bool) {
+	v := m.is_active
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIsActive returns the old "is_active" field's value of the WebhookSubscription entity.
+// If the WebhookSubscription object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *WebhookSubscriptionMutation) OldIsActive(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIsActive is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIsActive requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIsActive: %w", err)
+	}
+	return oldValue.IsActive, nil
+}
+
+// ResetIsActive resets all changes to the "is_active" field.
+func (m *WebhookSubscriptionMutation) ResetIsActive() {
+	m.is_active = nil
 }
 
 // SetCreatedAt sets the "created_at" field.
@@ -65685,6 +66718,42 @@ func (m *WebhookSubscriptionMutation) ResetCreatedAt() {
 	m.created_at = nil
 }
 
+// SetUpdatedAt sets the "updated_at" field.
+func (m *WebhookSubscriptionMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *WebhookSubscriptionMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the WebhookSubscription entity.
+// If the WebhookSubscription object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *WebhookSubscriptionMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *WebhookSubscriptionMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
 // Where appends a list predicates to the WebhookSubscriptionMutation builder.
 func (m *WebhookSubscriptionMutation) Where(ps ...predicate.WebhookSubscription) {
 	m.predicates = append(m.predicates, ps...)
@@ -65719,24 +66788,30 @@ func (m *WebhookSubscriptionMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *WebhookSubscriptionMutation) Fields() []string {
-	fields := make([]string, 0, 6)
+	fields := make([]string, 0, 8)
 	if m.tenant_id != nil {
 		fields = append(fields, webhooksubscription.FieldTenantID)
 	}
-	if m.url != nil {
-		fields = append(fields, webhooksubscription.FieldURL)
+	if m.outlet_id != nil {
+		fields = append(fields, webhooksubscription.FieldOutletID)
 	}
 	if m.event_type != nil {
 		fields = append(fields, webhooksubscription.FieldEventType)
 	}
-	if m.secret_key != nil {
-		fields = append(fields, webhooksubscription.FieldSecretKey)
+	if m.target_url != nil {
+		fields = append(fields, webhooksubscription.FieldTargetURL)
 	}
-	if m.status != nil {
-		fields = append(fields, webhooksubscription.FieldStatus)
+	if m.secret != nil {
+		fields = append(fields, webhooksubscription.FieldSecret)
+	}
+	if m.is_active != nil {
+		fields = append(fields, webhooksubscription.FieldIsActive)
 	}
 	if m.created_at != nil {
 		fields = append(fields, webhooksubscription.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, webhooksubscription.FieldUpdatedAt)
 	}
 	return fields
 }
@@ -65748,16 +66823,20 @@ func (m *WebhookSubscriptionMutation) Field(name string) (ent.Value, bool) {
 	switch name {
 	case webhooksubscription.FieldTenantID:
 		return m.TenantID()
-	case webhooksubscription.FieldURL:
-		return m.URL()
+	case webhooksubscription.FieldOutletID:
+		return m.OutletID()
 	case webhooksubscription.FieldEventType:
 		return m.EventType()
-	case webhooksubscription.FieldSecretKey:
-		return m.SecretKey()
-	case webhooksubscription.FieldStatus:
-		return m.Status()
+	case webhooksubscription.FieldTargetURL:
+		return m.TargetURL()
+	case webhooksubscription.FieldSecret:
+		return m.Secret()
+	case webhooksubscription.FieldIsActive:
+		return m.IsActive()
 	case webhooksubscription.FieldCreatedAt:
 		return m.CreatedAt()
+	case webhooksubscription.FieldUpdatedAt:
+		return m.UpdatedAt()
 	}
 	return nil, false
 }
@@ -65769,16 +66848,20 @@ func (m *WebhookSubscriptionMutation) OldField(ctx context.Context, name string)
 	switch name {
 	case webhooksubscription.FieldTenantID:
 		return m.OldTenantID(ctx)
-	case webhooksubscription.FieldURL:
-		return m.OldURL(ctx)
+	case webhooksubscription.FieldOutletID:
+		return m.OldOutletID(ctx)
 	case webhooksubscription.FieldEventType:
 		return m.OldEventType(ctx)
-	case webhooksubscription.FieldSecretKey:
-		return m.OldSecretKey(ctx)
-	case webhooksubscription.FieldStatus:
-		return m.OldStatus(ctx)
+	case webhooksubscription.FieldTargetURL:
+		return m.OldTargetURL(ctx)
+	case webhooksubscription.FieldSecret:
+		return m.OldSecret(ctx)
+	case webhooksubscription.FieldIsActive:
+		return m.OldIsActive(ctx)
 	case webhooksubscription.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
+	case webhooksubscription.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
 	}
 	return nil, fmt.Errorf("unknown WebhookSubscription field %s", name)
 }
@@ -65795,12 +66878,12 @@ func (m *WebhookSubscriptionMutation) SetField(name string, value ent.Value) err
 		}
 		m.SetTenantID(v)
 		return nil
-	case webhooksubscription.FieldURL:
-		v, ok := value.(string)
+	case webhooksubscription.FieldOutletID:
+		v, ok := value.(uuid.UUID)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
-		m.SetURL(v)
+		m.SetOutletID(v)
 		return nil
 	case webhooksubscription.FieldEventType:
 		v, ok := value.(string)
@@ -65809,19 +66892,26 @@ func (m *WebhookSubscriptionMutation) SetField(name string, value ent.Value) err
 		}
 		m.SetEventType(v)
 		return nil
-	case webhooksubscription.FieldSecretKey:
+	case webhooksubscription.FieldTargetURL:
 		v, ok := value.(string)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
-		m.SetSecretKey(v)
+		m.SetTargetURL(v)
 		return nil
-	case webhooksubscription.FieldStatus:
+	case webhooksubscription.FieldSecret:
 		v, ok := value.(string)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
-		m.SetStatus(v)
+		m.SetSecret(v)
+		return nil
+	case webhooksubscription.FieldIsActive:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIsActive(v)
 		return nil
 	case webhooksubscription.FieldCreatedAt:
 		v, ok := value.(time.Time)
@@ -65829,6 +66919,13 @@ func (m *WebhookSubscriptionMutation) SetField(name string, value ent.Value) err
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetCreatedAt(v)
+		return nil
+	case webhooksubscription.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
 		return nil
 	}
 	return fmt.Errorf("unknown WebhookSubscription field %s", name)
@@ -65859,7 +66956,14 @@ func (m *WebhookSubscriptionMutation) AddField(name string, value ent.Value) err
 // ClearedFields returns all nullable fields that were cleared during this
 // mutation.
 func (m *WebhookSubscriptionMutation) ClearedFields() []string {
-	return nil
+	var fields []string
+	if m.FieldCleared(webhooksubscription.FieldOutletID) {
+		fields = append(fields, webhooksubscription.FieldOutletID)
+	}
+	if m.FieldCleared(webhooksubscription.FieldSecret) {
+		fields = append(fields, webhooksubscription.FieldSecret)
+	}
+	return fields
 }
 
 // FieldCleared returns a boolean indicating if a field with the given name was
@@ -65872,6 +66976,14 @@ func (m *WebhookSubscriptionMutation) FieldCleared(name string) bool {
 // ClearField clears the value of the field with the given name. It returns an
 // error if the field is not defined in the schema.
 func (m *WebhookSubscriptionMutation) ClearField(name string) error {
+	switch name {
+	case webhooksubscription.FieldOutletID:
+		m.ClearOutletID()
+		return nil
+	case webhooksubscription.FieldSecret:
+		m.ClearSecret()
+		return nil
+	}
 	return fmt.Errorf("unknown WebhookSubscription nullable field %s", name)
 }
 
@@ -65882,20 +66994,26 @@ func (m *WebhookSubscriptionMutation) ResetField(name string) error {
 	case webhooksubscription.FieldTenantID:
 		m.ResetTenantID()
 		return nil
-	case webhooksubscription.FieldURL:
-		m.ResetURL()
+	case webhooksubscription.FieldOutletID:
+		m.ResetOutletID()
 		return nil
 	case webhooksubscription.FieldEventType:
 		m.ResetEventType()
 		return nil
-	case webhooksubscription.FieldSecretKey:
-		m.ResetSecretKey()
+	case webhooksubscription.FieldTargetURL:
+		m.ResetTargetURL()
 		return nil
-	case webhooksubscription.FieldStatus:
-		m.ResetStatus()
+	case webhooksubscription.FieldSecret:
+		m.ResetSecret()
+		return nil
+	case webhooksubscription.FieldIsActive:
+		m.ResetIsActive()
 		return nil
 	case webhooksubscription.FieldCreatedAt:
 		m.ResetCreatedAt()
+		return nil
+	case webhooksubscription.FieldUpdatedAt:
+		m.ResetUpdatedAt()
 		return nil
 	}
 	return fmt.Errorf("unknown WebhookSubscription field %s", name)

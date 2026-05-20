@@ -30,9 +30,17 @@ func (_c *WebhookSubscriptionCreate) SetTenantID(v uuid.UUID) *WebhookSubscripti
 	return _c
 }
 
-// SetURL sets the "url" field.
-func (_c *WebhookSubscriptionCreate) SetURL(v string) *WebhookSubscriptionCreate {
-	_c.mutation.SetURL(v)
+// SetOutletID sets the "outlet_id" field.
+func (_c *WebhookSubscriptionCreate) SetOutletID(v uuid.UUID) *WebhookSubscriptionCreate {
+	_c.mutation.SetOutletID(v)
+	return _c
+}
+
+// SetNillableOutletID sets the "outlet_id" field if the given value is not nil.
+func (_c *WebhookSubscriptionCreate) SetNillableOutletID(v *uuid.UUID) *WebhookSubscriptionCreate {
+	if v != nil {
+		_c.SetOutletID(*v)
+	}
 	return _c
 }
 
@@ -42,22 +50,36 @@ func (_c *WebhookSubscriptionCreate) SetEventType(v string) *WebhookSubscription
 	return _c
 }
 
-// SetSecretKey sets the "secret_key" field.
-func (_c *WebhookSubscriptionCreate) SetSecretKey(v string) *WebhookSubscriptionCreate {
-	_c.mutation.SetSecretKey(v)
+// SetTargetURL sets the "target_url" field.
+func (_c *WebhookSubscriptionCreate) SetTargetURL(v string) *WebhookSubscriptionCreate {
+	_c.mutation.SetTargetURL(v)
 	return _c
 }
 
-// SetStatus sets the "status" field.
-func (_c *WebhookSubscriptionCreate) SetStatus(v string) *WebhookSubscriptionCreate {
-	_c.mutation.SetStatus(v)
+// SetSecret sets the "secret" field.
+func (_c *WebhookSubscriptionCreate) SetSecret(v string) *WebhookSubscriptionCreate {
+	_c.mutation.SetSecret(v)
 	return _c
 }
 
-// SetNillableStatus sets the "status" field if the given value is not nil.
-func (_c *WebhookSubscriptionCreate) SetNillableStatus(v *string) *WebhookSubscriptionCreate {
+// SetNillableSecret sets the "secret" field if the given value is not nil.
+func (_c *WebhookSubscriptionCreate) SetNillableSecret(v *string) *WebhookSubscriptionCreate {
 	if v != nil {
-		_c.SetStatus(*v)
+		_c.SetSecret(*v)
+	}
+	return _c
+}
+
+// SetIsActive sets the "is_active" field.
+func (_c *WebhookSubscriptionCreate) SetIsActive(v bool) *WebhookSubscriptionCreate {
+	_c.mutation.SetIsActive(v)
+	return _c
+}
+
+// SetNillableIsActive sets the "is_active" field if the given value is not nil.
+func (_c *WebhookSubscriptionCreate) SetNillableIsActive(v *bool) *WebhookSubscriptionCreate {
+	if v != nil {
+		_c.SetIsActive(*v)
 	}
 	return _c
 }
@@ -72,6 +94,20 @@ func (_c *WebhookSubscriptionCreate) SetCreatedAt(v time.Time) *WebhookSubscript
 func (_c *WebhookSubscriptionCreate) SetNillableCreatedAt(v *time.Time) *WebhookSubscriptionCreate {
 	if v != nil {
 		_c.SetCreatedAt(*v)
+	}
+	return _c
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (_c *WebhookSubscriptionCreate) SetUpdatedAt(v time.Time) *WebhookSubscriptionCreate {
+	_c.mutation.SetUpdatedAt(v)
+	return _c
+}
+
+// SetNillableUpdatedAt sets the "updated_at" field if the given value is not nil.
+func (_c *WebhookSubscriptionCreate) SetNillableUpdatedAt(v *time.Time) *WebhookSubscriptionCreate {
+	if v != nil {
+		_c.SetUpdatedAt(*v)
 	}
 	return _c
 }
@@ -125,13 +161,17 @@ func (_c *WebhookSubscriptionCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *WebhookSubscriptionCreate) defaults() {
-	if _, ok := _c.mutation.Status(); !ok {
-		v := webhooksubscription.DefaultStatus
-		_c.mutation.SetStatus(v)
+	if _, ok := _c.mutation.IsActive(); !ok {
+		v := webhooksubscription.DefaultIsActive
+		_c.mutation.SetIsActive(v)
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		v := webhooksubscription.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
+	}
+	if _, ok := _c.mutation.UpdatedAt(); !ok {
+		v := webhooksubscription.DefaultUpdatedAt()
+		_c.mutation.SetUpdatedAt(v)
 	}
 	if _, ok := _c.mutation.ID(); !ok {
 		v := webhooksubscription.DefaultID()
@@ -144,35 +184,20 @@ func (_c *WebhookSubscriptionCreate) check() error {
 	if _, ok := _c.mutation.TenantID(); !ok {
 		return &ValidationError{Name: "tenant_id", err: errors.New(`ent: missing required field "WebhookSubscription.tenant_id"`)}
 	}
-	if _, ok := _c.mutation.URL(); !ok {
-		return &ValidationError{Name: "url", err: errors.New(`ent: missing required field "WebhookSubscription.url"`)}
-	}
-	if v, ok := _c.mutation.URL(); ok {
-		if err := webhooksubscription.URLValidator(v); err != nil {
-			return &ValidationError{Name: "url", err: fmt.Errorf(`ent: validator failed for field "WebhookSubscription.url": %w`, err)}
-		}
-	}
 	if _, ok := _c.mutation.EventType(); !ok {
 		return &ValidationError{Name: "event_type", err: errors.New(`ent: missing required field "WebhookSubscription.event_type"`)}
 	}
-	if v, ok := _c.mutation.EventType(); ok {
-		if err := webhooksubscription.EventTypeValidator(v); err != nil {
-			return &ValidationError{Name: "event_type", err: fmt.Errorf(`ent: validator failed for field "WebhookSubscription.event_type": %w`, err)}
-		}
+	if _, ok := _c.mutation.TargetURL(); !ok {
+		return &ValidationError{Name: "target_url", err: errors.New(`ent: missing required field "WebhookSubscription.target_url"`)}
 	}
-	if _, ok := _c.mutation.SecretKey(); !ok {
-		return &ValidationError{Name: "secret_key", err: errors.New(`ent: missing required field "WebhookSubscription.secret_key"`)}
-	}
-	if v, ok := _c.mutation.SecretKey(); ok {
-		if err := webhooksubscription.SecretKeyValidator(v); err != nil {
-			return &ValidationError{Name: "secret_key", err: fmt.Errorf(`ent: validator failed for field "WebhookSubscription.secret_key": %w`, err)}
-		}
-	}
-	if _, ok := _c.mutation.Status(); !ok {
-		return &ValidationError{Name: "status", err: errors.New(`ent: missing required field "WebhookSubscription.status"`)}
+	if _, ok := _c.mutation.IsActive(); !ok {
+		return &ValidationError{Name: "is_active", err: errors.New(`ent: missing required field "WebhookSubscription.is_active"`)}
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "WebhookSubscription.created_at"`)}
+	}
+	if _, ok := _c.mutation.UpdatedAt(); !ok {
+		return &ValidationError{Name: "updated_at", err: errors.New(`ent: missing required field "WebhookSubscription.updated_at"`)}
 	}
 	return nil
 }
@@ -214,25 +239,33 @@ func (_c *WebhookSubscriptionCreate) createSpec() (*WebhookSubscription, *sqlgra
 		_spec.SetField(webhooksubscription.FieldTenantID, field.TypeUUID, value)
 		_node.TenantID = value
 	}
-	if value, ok := _c.mutation.URL(); ok {
-		_spec.SetField(webhooksubscription.FieldURL, field.TypeString, value)
-		_node.URL = value
+	if value, ok := _c.mutation.OutletID(); ok {
+		_spec.SetField(webhooksubscription.FieldOutletID, field.TypeUUID, value)
+		_node.OutletID = &value
 	}
 	if value, ok := _c.mutation.EventType(); ok {
 		_spec.SetField(webhooksubscription.FieldEventType, field.TypeString, value)
 		_node.EventType = value
 	}
-	if value, ok := _c.mutation.SecretKey(); ok {
-		_spec.SetField(webhooksubscription.FieldSecretKey, field.TypeString, value)
-		_node.SecretKey = value
+	if value, ok := _c.mutation.TargetURL(); ok {
+		_spec.SetField(webhooksubscription.FieldTargetURL, field.TypeString, value)
+		_node.TargetURL = value
 	}
-	if value, ok := _c.mutation.Status(); ok {
-		_spec.SetField(webhooksubscription.FieldStatus, field.TypeString, value)
-		_node.Status = value
+	if value, ok := _c.mutation.Secret(); ok {
+		_spec.SetField(webhooksubscription.FieldSecret, field.TypeString, value)
+		_node.Secret = value
+	}
+	if value, ok := _c.mutation.IsActive(); ok {
+		_spec.SetField(webhooksubscription.FieldIsActive, field.TypeBool, value)
+		_node.IsActive = value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(webhooksubscription.FieldCreatedAt, field.TypeTime, value)
 		_node.CreatedAt = value
+	}
+	if value, ok := _c.mutation.UpdatedAt(); ok {
+		_spec.SetField(webhooksubscription.FieldUpdatedAt, field.TypeTime, value)
+		_node.UpdatedAt = value
 	}
 	return _node, _spec
 }
@@ -298,15 +331,21 @@ func (u *WebhookSubscriptionUpsert) UpdateTenantID() *WebhookSubscriptionUpsert 
 	return u
 }
 
-// SetURL sets the "url" field.
-func (u *WebhookSubscriptionUpsert) SetURL(v string) *WebhookSubscriptionUpsert {
-	u.Set(webhooksubscription.FieldURL, v)
+// SetOutletID sets the "outlet_id" field.
+func (u *WebhookSubscriptionUpsert) SetOutletID(v uuid.UUID) *WebhookSubscriptionUpsert {
+	u.Set(webhooksubscription.FieldOutletID, v)
 	return u
 }
 
-// UpdateURL sets the "url" field to the value that was provided on create.
-func (u *WebhookSubscriptionUpsert) UpdateURL() *WebhookSubscriptionUpsert {
-	u.SetExcluded(webhooksubscription.FieldURL)
+// UpdateOutletID sets the "outlet_id" field to the value that was provided on create.
+func (u *WebhookSubscriptionUpsert) UpdateOutletID() *WebhookSubscriptionUpsert {
+	u.SetExcluded(webhooksubscription.FieldOutletID)
+	return u
+}
+
+// ClearOutletID clears the value of the "outlet_id" field.
+func (u *WebhookSubscriptionUpsert) ClearOutletID() *WebhookSubscriptionUpsert {
+	u.SetNull(webhooksubscription.FieldOutletID)
 	return u
 }
 
@@ -322,27 +361,57 @@ func (u *WebhookSubscriptionUpsert) UpdateEventType() *WebhookSubscriptionUpsert
 	return u
 }
 
-// SetSecretKey sets the "secret_key" field.
-func (u *WebhookSubscriptionUpsert) SetSecretKey(v string) *WebhookSubscriptionUpsert {
-	u.Set(webhooksubscription.FieldSecretKey, v)
+// SetTargetURL sets the "target_url" field.
+func (u *WebhookSubscriptionUpsert) SetTargetURL(v string) *WebhookSubscriptionUpsert {
+	u.Set(webhooksubscription.FieldTargetURL, v)
 	return u
 }
 
-// UpdateSecretKey sets the "secret_key" field to the value that was provided on create.
-func (u *WebhookSubscriptionUpsert) UpdateSecretKey() *WebhookSubscriptionUpsert {
-	u.SetExcluded(webhooksubscription.FieldSecretKey)
+// UpdateTargetURL sets the "target_url" field to the value that was provided on create.
+func (u *WebhookSubscriptionUpsert) UpdateTargetURL() *WebhookSubscriptionUpsert {
+	u.SetExcluded(webhooksubscription.FieldTargetURL)
 	return u
 }
 
-// SetStatus sets the "status" field.
-func (u *WebhookSubscriptionUpsert) SetStatus(v string) *WebhookSubscriptionUpsert {
-	u.Set(webhooksubscription.FieldStatus, v)
+// SetSecret sets the "secret" field.
+func (u *WebhookSubscriptionUpsert) SetSecret(v string) *WebhookSubscriptionUpsert {
+	u.Set(webhooksubscription.FieldSecret, v)
 	return u
 }
 
-// UpdateStatus sets the "status" field to the value that was provided on create.
-func (u *WebhookSubscriptionUpsert) UpdateStatus() *WebhookSubscriptionUpsert {
-	u.SetExcluded(webhooksubscription.FieldStatus)
+// UpdateSecret sets the "secret" field to the value that was provided on create.
+func (u *WebhookSubscriptionUpsert) UpdateSecret() *WebhookSubscriptionUpsert {
+	u.SetExcluded(webhooksubscription.FieldSecret)
+	return u
+}
+
+// ClearSecret clears the value of the "secret" field.
+func (u *WebhookSubscriptionUpsert) ClearSecret() *WebhookSubscriptionUpsert {
+	u.SetNull(webhooksubscription.FieldSecret)
+	return u
+}
+
+// SetIsActive sets the "is_active" field.
+func (u *WebhookSubscriptionUpsert) SetIsActive(v bool) *WebhookSubscriptionUpsert {
+	u.Set(webhooksubscription.FieldIsActive, v)
+	return u
+}
+
+// UpdateIsActive sets the "is_active" field to the value that was provided on create.
+func (u *WebhookSubscriptionUpsert) UpdateIsActive() *WebhookSubscriptionUpsert {
+	u.SetExcluded(webhooksubscription.FieldIsActive)
+	return u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *WebhookSubscriptionUpsert) SetUpdatedAt(v time.Time) *WebhookSubscriptionUpsert {
+	u.Set(webhooksubscription.FieldUpdatedAt, v)
+	return u
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *WebhookSubscriptionUpsert) UpdateUpdatedAt() *WebhookSubscriptionUpsert {
+	u.SetExcluded(webhooksubscription.FieldUpdatedAt)
 	return u
 }
 
@@ -411,17 +480,24 @@ func (u *WebhookSubscriptionUpsertOne) UpdateTenantID() *WebhookSubscriptionUpse
 	})
 }
 
-// SetURL sets the "url" field.
-func (u *WebhookSubscriptionUpsertOne) SetURL(v string) *WebhookSubscriptionUpsertOne {
+// SetOutletID sets the "outlet_id" field.
+func (u *WebhookSubscriptionUpsertOne) SetOutletID(v uuid.UUID) *WebhookSubscriptionUpsertOne {
 	return u.Update(func(s *WebhookSubscriptionUpsert) {
-		s.SetURL(v)
+		s.SetOutletID(v)
 	})
 }
 
-// UpdateURL sets the "url" field to the value that was provided on create.
-func (u *WebhookSubscriptionUpsertOne) UpdateURL() *WebhookSubscriptionUpsertOne {
+// UpdateOutletID sets the "outlet_id" field to the value that was provided on create.
+func (u *WebhookSubscriptionUpsertOne) UpdateOutletID() *WebhookSubscriptionUpsertOne {
 	return u.Update(func(s *WebhookSubscriptionUpsert) {
-		s.UpdateURL()
+		s.UpdateOutletID()
+	})
+}
+
+// ClearOutletID clears the value of the "outlet_id" field.
+func (u *WebhookSubscriptionUpsertOne) ClearOutletID() *WebhookSubscriptionUpsertOne {
+	return u.Update(func(s *WebhookSubscriptionUpsert) {
+		s.ClearOutletID()
 	})
 }
 
@@ -439,31 +515,66 @@ func (u *WebhookSubscriptionUpsertOne) UpdateEventType() *WebhookSubscriptionUps
 	})
 }
 
-// SetSecretKey sets the "secret_key" field.
-func (u *WebhookSubscriptionUpsertOne) SetSecretKey(v string) *WebhookSubscriptionUpsertOne {
+// SetTargetURL sets the "target_url" field.
+func (u *WebhookSubscriptionUpsertOne) SetTargetURL(v string) *WebhookSubscriptionUpsertOne {
 	return u.Update(func(s *WebhookSubscriptionUpsert) {
-		s.SetSecretKey(v)
+		s.SetTargetURL(v)
 	})
 }
 
-// UpdateSecretKey sets the "secret_key" field to the value that was provided on create.
-func (u *WebhookSubscriptionUpsertOne) UpdateSecretKey() *WebhookSubscriptionUpsertOne {
+// UpdateTargetURL sets the "target_url" field to the value that was provided on create.
+func (u *WebhookSubscriptionUpsertOne) UpdateTargetURL() *WebhookSubscriptionUpsertOne {
 	return u.Update(func(s *WebhookSubscriptionUpsert) {
-		s.UpdateSecretKey()
+		s.UpdateTargetURL()
 	})
 }
 
-// SetStatus sets the "status" field.
-func (u *WebhookSubscriptionUpsertOne) SetStatus(v string) *WebhookSubscriptionUpsertOne {
+// SetSecret sets the "secret" field.
+func (u *WebhookSubscriptionUpsertOne) SetSecret(v string) *WebhookSubscriptionUpsertOne {
 	return u.Update(func(s *WebhookSubscriptionUpsert) {
-		s.SetStatus(v)
+		s.SetSecret(v)
 	})
 }
 
-// UpdateStatus sets the "status" field to the value that was provided on create.
-func (u *WebhookSubscriptionUpsertOne) UpdateStatus() *WebhookSubscriptionUpsertOne {
+// UpdateSecret sets the "secret" field to the value that was provided on create.
+func (u *WebhookSubscriptionUpsertOne) UpdateSecret() *WebhookSubscriptionUpsertOne {
 	return u.Update(func(s *WebhookSubscriptionUpsert) {
-		s.UpdateStatus()
+		s.UpdateSecret()
+	})
+}
+
+// ClearSecret clears the value of the "secret" field.
+func (u *WebhookSubscriptionUpsertOne) ClearSecret() *WebhookSubscriptionUpsertOne {
+	return u.Update(func(s *WebhookSubscriptionUpsert) {
+		s.ClearSecret()
+	})
+}
+
+// SetIsActive sets the "is_active" field.
+func (u *WebhookSubscriptionUpsertOne) SetIsActive(v bool) *WebhookSubscriptionUpsertOne {
+	return u.Update(func(s *WebhookSubscriptionUpsert) {
+		s.SetIsActive(v)
+	})
+}
+
+// UpdateIsActive sets the "is_active" field to the value that was provided on create.
+func (u *WebhookSubscriptionUpsertOne) UpdateIsActive() *WebhookSubscriptionUpsertOne {
+	return u.Update(func(s *WebhookSubscriptionUpsert) {
+		s.UpdateIsActive()
+	})
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *WebhookSubscriptionUpsertOne) SetUpdatedAt(v time.Time) *WebhookSubscriptionUpsertOne {
+	return u.Update(func(s *WebhookSubscriptionUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *WebhookSubscriptionUpsertOne) UpdateUpdatedAt() *WebhookSubscriptionUpsertOne {
+	return u.Update(func(s *WebhookSubscriptionUpsert) {
+		s.UpdateUpdatedAt()
 	})
 }
 
@@ -699,17 +810,24 @@ func (u *WebhookSubscriptionUpsertBulk) UpdateTenantID() *WebhookSubscriptionUps
 	})
 }
 
-// SetURL sets the "url" field.
-func (u *WebhookSubscriptionUpsertBulk) SetURL(v string) *WebhookSubscriptionUpsertBulk {
+// SetOutletID sets the "outlet_id" field.
+func (u *WebhookSubscriptionUpsertBulk) SetOutletID(v uuid.UUID) *WebhookSubscriptionUpsertBulk {
 	return u.Update(func(s *WebhookSubscriptionUpsert) {
-		s.SetURL(v)
+		s.SetOutletID(v)
 	})
 }
 
-// UpdateURL sets the "url" field to the value that was provided on create.
-func (u *WebhookSubscriptionUpsertBulk) UpdateURL() *WebhookSubscriptionUpsertBulk {
+// UpdateOutletID sets the "outlet_id" field to the value that was provided on create.
+func (u *WebhookSubscriptionUpsertBulk) UpdateOutletID() *WebhookSubscriptionUpsertBulk {
 	return u.Update(func(s *WebhookSubscriptionUpsert) {
-		s.UpdateURL()
+		s.UpdateOutletID()
+	})
+}
+
+// ClearOutletID clears the value of the "outlet_id" field.
+func (u *WebhookSubscriptionUpsertBulk) ClearOutletID() *WebhookSubscriptionUpsertBulk {
+	return u.Update(func(s *WebhookSubscriptionUpsert) {
+		s.ClearOutletID()
 	})
 }
 
@@ -727,31 +845,66 @@ func (u *WebhookSubscriptionUpsertBulk) UpdateEventType() *WebhookSubscriptionUp
 	})
 }
 
-// SetSecretKey sets the "secret_key" field.
-func (u *WebhookSubscriptionUpsertBulk) SetSecretKey(v string) *WebhookSubscriptionUpsertBulk {
+// SetTargetURL sets the "target_url" field.
+func (u *WebhookSubscriptionUpsertBulk) SetTargetURL(v string) *WebhookSubscriptionUpsertBulk {
 	return u.Update(func(s *WebhookSubscriptionUpsert) {
-		s.SetSecretKey(v)
+		s.SetTargetURL(v)
 	})
 }
 
-// UpdateSecretKey sets the "secret_key" field to the value that was provided on create.
-func (u *WebhookSubscriptionUpsertBulk) UpdateSecretKey() *WebhookSubscriptionUpsertBulk {
+// UpdateTargetURL sets the "target_url" field to the value that was provided on create.
+func (u *WebhookSubscriptionUpsertBulk) UpdateTargetURL() *WebhookSubscriptionUpsertBulk {
 	return u.Update(func(s *WebhookSubscriptionUpsert) {
-		s.UpdateSecretKey()
+		s.UpdateTargetURL()
 	})
 }
 
-// SetStatus sets the "status" field.
-func (u *WebhookSubscriptionUpsertBulk) SetStatus(v string) *WebhookSubscriptionUpsertBulk {
+// SetSecret sets the "secret" field.
+func (u *WebhookSubscriptionUpsertBulk) SetSecret(v string) *WebhookSubscriptionUpsertBulk {
 	return u.Update(func(s *WebhookSubscriptionUpsert) {
-		s.SetStatus(v)
+		s.SetSecret(v)
 	})
 }
 
-// UpdateStatus sets the "status" field to the value that was provided on create.
-func (u *WebhookSubscriptionUpsertBulk) UpdateStatus() *WebhookSubscriptionUpsertBulk {
+// UpdateSecret sets the "secret" field to the value that was provided on create.
+func (u *WebhookSubscriptionUpsertBulk) UpdateSecret() *WebhookSubscriptionUpsertBulk {
 	return u.Update(func(s *WebhookSubscriptionUpsert) {
-		s.UpdateStatus()
+		s.UpdateSecret()
+	})
+}
+
+// ClearSecret clears the value of the "secret" field.
+func (u *WebhookSubscriptionUpsertBulk) ClearSecret() *WebhookSubscriptionUpsertBulk {
+	return u.Update(func(s *WebhookSubscriptionUpsert) {
+		s.ClearSecret()
+	})
+}
+
+// SetIsActive sets the "is_active" field.
+func (u *WebhookSubscriptionUpsertBulk) SetIsActive(v bool) *WebhookSubscriptionUpsertBulk {
+	return u.Update(func(s *WebhookSubscriptionUpsert) {
+		s.SetIsActive(v)
+	})
+}
+
+// UpdateIsActive sets the "is_active" field to the value that was provided on create.
+func (u *WebhookSubscriptionUpsertBulk) UpdateIsActive() *WebhookSubscriptionUpsertBulk {
+	return u.Update(func(s *WebhookSubscriptionUpsert) {
+		s.UpdateIsActive()
+	})
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *WebhookSubscriptionUpsertBulk) SetUpdatedAt(v time.Time) *WebhookSubscriptionUpsertBulk {
+	return u.Update(func(s *WebhookSubscriptionUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *WebhookSubscriptionUpsertBulk) UpdateUpdatedAt() *WebhookSubscriptionUpsertBulk {
+	return u.Update(func(s *WebhookSubscriptionUpsert) {
+		s.UpdateUpdatedAt()
 	})
 }
 

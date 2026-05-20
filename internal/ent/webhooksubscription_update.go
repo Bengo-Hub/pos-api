@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
@@ -42,17 +43,23 @@ func (_u *WebhookSubscriptionUpdate) SetNillableTenantID(v *uuid.UUID) *WebhookS
 	return _u
 }
 
-// SetURL sets the "url" field.
-func (_u *WebhookSubscriptionUpdate) SetURL(v string) *WebhookSubscriptionUpdate {
-	_u.mutation.SetURL(v)
+// SetOutletID sets the "outlet_id" field.
+func (_u *WebhookSubscriptionUpdate) SetOutletID(v uuid.UUID) *WebhookSubscriptionUpdate {
+	_u.mutation.SetOutletID(v)
 	return _u
 }
 
-// SetNillableURL sets the "url" field if the given value is not nil.
-func (_u *WebhookSubscriptionUpdate) SetNillableURL(v *string) *WebhookSubscriptionUpdate {
+// SetNillableOutletID sets the "outlet_id" field if the given value is not nil.
+func (_u *WebhookSubscriptionUpdate) SetNillableOutletID(v *uuid.UUID) *WebhookSubscriptionUpdate {
 	if v != nil {
-		_u.SetURL(*v)
+		_u.SetOutletID(*v)
 	}
+	return _u
+}
+
+// ClearOutletID clears the value of the "outlet_id" field.
+func (_u *WebhookSubscriptionUpdate) ClearOutletID() *WebhookSubscriptionUpdate {
+	_u.mutation.ClearOutletID()
 	return _u
 }
 
@@ -70,31 +77,57 @@ func (_u *WebhookSubscriptionUpdate) SetNillableEventType(v *string) *WebhookSub
 	return _u
 }
 
-// SetSecretKey sets the "secret_key" field.
-func (_u *WebhookSubscriptionUpdate) SetSecretKey(v string) *WebhookSubscriptionUpdate {
-	_u.mutation.SetSecretKey(v)
+// SetTargetURL sets the "target_url" field.
+func (_u *WebhookSubscriptionUpdate) SetTargetURL(v string) *WebhookSubscriptionUpdate {
+	_u.mutation.SetTargetURL(v)
 	return _u
 }
 
-// SetNillableSecretKey sets the "secret_key" field if the given value is not nil.
-func (_u *WebhookSubscriptionUpdate) SetNillableSecretKey(v *string) *WebhookSubscriptionUpdate {
+// SetNillableTargetURL sets the "target_url" field if the given value is not nil.
+func (_u *WebhookSubscriptionUpdate) SetNillableTargetURL(v *string) *WebhookSubscriptionUpdate {
 	if v != nil {
-		_u.SetSecretKey(*v)
+		_u.SetTargetURL(*v)
 	}
 	return _u
 }
 
-// SetStatus sets the "status" field.
-func (_u *WebhookSubscriptionUpdate) SetStatus(v string) *WebhookSubscriptionUpdate {
-	_u.mutation.SetStatus(v)
+// SetSecret sets the "secret" field.
+func (_u *WebhookSubscriptionUpdate) SetSecret(v string) *WebhookSubscriptionUpdate {
+	_u.mutation.SetSecret(v)
 	return _u
 }
 
-// SetNillableStatus sets the "status" field if the given value is not nil.
-func (_u *WebhookSubscriptionUpdate) SetNillableStatus(v *string) *WebhookSubscriptionUpdate {
+// SetNillableSecret sets the "secret" field if the given value is not nil.
+func (_u *WebhookSubscriptionUpdate) SetNillableSecret(v *string) *WebhookSubscriptionUpdate {
 	if v != nil {
-		_u.SetStatus(*v)
+		_u.SetSecret(*v)
 	}
+	return _u
+}
+
+// ClearSecret clears the value of the "secret" field.
+func (_u *WebhookSubscriptionUpdate) ClearSecret() *WebhookSubscriptionUpdate {
+	_u.mutation.ClearSecret()
+	return _u
+}
+
+// SetIsActive sets the "is_active" field.
+func (_u *WebhookSubscriptionUpdate) SetIsActive(v bool) *WebhookSubscriptionUpdate {
+	_u.mutation.SetIsActive(v)
+	return _u
+}
+
+// SetNillableIsActive sets the "is_active" field if the given value is not nil.
+func (_u *WebhookSubscriptionUpdate) SetNillableIsActive(v *bool) *WebhookSubscriptionUpdate {
+	if v != nil {
+		_u.SetIsActive(*v)
+	}
+	return _u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (_u *WebhookSubscriptionUpdate) SetUpdatedAt(v time.Time) *WebhookSubscriptionUpdate {
+	_u.mutation.SetUpdatedAt(v)
 	return _u
 }
 
@@ -105,6 +138,7 @@ func (_u *WebhookSubscriptionUpdate) Mutation() *WebhookSubscriptionMutation {
 
 // Save executes the query and returns the number of nodes affected by the update operation.
 func (_u *WebhookSubscriptionUpdate) Save(ctx context.Context) (int, error) {
+	_u.defaults()
 	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
 }
 
@@ -130,30 +164,15 @@ func (_u *WebhookSubscriptionUpdate) ExecX(ctx context.Context) {
 	}
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_u *WebhookSubscriptionUpdate) check() error {
-	if v, ok := _u.mutation.URL(); ok {
-		if err := webhooksubscription.URLValidator(v); err != nil {
-			return &ValidationError{Name: "url", err: fmt.Errorf(`ent: validator failed for field "WebhookSubscription.url": %w`, err)}
-		}
+// defaults sets the default values of the builder before save.
+func (_u *WebhookSubscriptionUpdate) defaults() {
+	if _, ok := _u.mutation.UpdatedAt(); !ok {
+		v := webhooksubscription.UpdateDefaultUpdatedAt()
+		_u.mutation.SetUpdatedAt(v)
 	}
-	if v, ok := _u.mutation.EventType(); ok {
-		if err := webhooksubscription.EventTypeValidator(v); err != nil {
-			return &ValidationError{Name: "event_type", err: fmt.Errorf(`ent: validator failed for field "WebhookSubscription.event_type": %w`, err)}
-		}
-	}
-	if v, ok := _u.mutation.SecretKey(); ok {
-		if err := webhooksubscription.SecretKeyValidator(v); err != nil {
-			return &ValidationError{Name: "secret_key", err: fmt.Errorf(`ent: validator failed for field "WebhookSubscription.secret_key": %w`, err)}
-		}
-	}
-	return nil
 }
 
 func (_u *WebhookSubscriptionUpdate) sqlSave(ctx context.Context) (_node int, err error) {
-	if err := _u.check(); err != nil {
-		return _node, err
-	}
 	_spec := sqlgraph.NewUpdateSpec(webhooksubscription.Table, webhooksubscription.Columns, sqlgraph.NewFieldSpec(webhooksubscription.FieldID, field.TypeUUID))
 	if ps := _u.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
@@ -165,17 +184,29 @@ func (_u *WebhookSubscriptionUpdate) sqlSave(ctx context.Context) (_node int, er
 	if value, ok := _u.mutation.TenantID(); ok {
 		_spec.SetField(webhooksubscription.FieldTenantID, field.TypeUUID, value)
 	}
-	if value, ok := _u.mutation.URL(); ok {
-		_spec.SetField(webhooksubscription.FieldURL, field.TypeString, value)
+	if value, ok := _u.mutation.OutletID(); ok {
+		_spec.SetField(webhooksubscription.FieldOutletID, field.TypeUUID, value)
+	}
+	if _u.mutation.OutletIDCleared() {
+		_spec.ClearField(webhooksubscription.FieldOutletID, field.TypeUUID)
 	}
 	if value, ok := _u.mutation.EventType(); ok {
 		_spec.SetField(webhooksubscription.FieldEventType, field.TypeString, value)
 	}
-	if value, ok := _u.mutation.SecretKey(); ok {
-		_spec.SetField(webhooksubscription.FieldSecretKey, field.TypeString, value)
+	if value, ok := _u.mutation.TargetURL(); ok {
+		_spec.SetField(webhooksubscription.FieldTargetURL, field.TypeString, value)
 	}
-	if value, ok := _u.mutation.Status(); ok {
-		_spec.SetField(webhooksubscription.FieldStatus, field.TypeString, value)
+	if value, ok := _u.mutation.Secret(); ok {
+		_spec.SetField(webhooksubscription.FieldSecret, field.TypeString, value)
+	}
+	if _u.mutation.SecretCleared() {
+		_spec.ClearField(webhooksubscription.FieldSecret, field.TypeString)
+	}
+	if value, ok := _u.mutation.IsActive(); ok {
+		_spec.SetField(webhooksubscription.FieldIsActive, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.UpdatedAt(); ok {
+		_spec.SetField(webhooksubscription.FieldUpdatedAt, field.TypeTime, value)
 	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -211,17 +242,23 @@ func (_u *WebhookSubscriptionUpdateOne) SetNillableTenantID(v *uuid.UUID) *Webho
 	return _u
 }
 
-// SetURL sets the "url" field.
-func (_u *WebhookSubscriptionUpdateOne) SetURL(v string) *WebhookSubscriptionUpdateOne {
-	_u.mutation.SetURL(v)
+// SetOutletID sets the "outlet_id" field.
+func (_u *WebhookSubscriptionUpdateOne) SetOutletID(v uuid.UUID) *WebhookSubscriptionUpdateOne {
+	_u.mutation.SetOutletID(v)
 	return _u
 }
 
-// SetNillableURL sets the "url" field if the given value is not nil.
-func (_u *WebhookSubscriptionUpdateOne) SetNillableURL(v *string) *WebhookSubscriptionUpdateOne {
+// SetNillableOutletID sets the "outlet_id" field if the given value is not nil.
+func (_u *WebhookSubscriptionUpdateOne) SetNillableOutletID(v *uuid.UUID) *WebhookSubscriptionUpdateOne {
 	if v != nil {
-		_u.SetURL(*v)
+		_u.SetOutletID(*v)
 	}
+	return _u
+}
+
+// ClearOutletID clears the value of the "outlet_id" field.
+func (_u *WebhookSubscriptionUpdateOne) ClearOutletID() *WebhookSubscriptionUpdateOne {
+	_u.mutation.ClearOutletID()
 	return _u
 }
 
@@ -239,31 +276,57 @@ func (_u *WebhookSubscriptionUpdateOne) SetNillableEventType(v *string) *Webhook
 	return _u
 }
 
-// SetSecretKey sets the "secret_key" field.
-func (_u *WebhookSubscriptionUpdateOne) SetSecretKey(v string) *WebhookSubscriptionUpdateOne {
-	_u.mutation.SetSecretKey(v)
+// SetTargetURL sets the "target_url" field.
+func (_u *WebhookSubscriptionUpdateOne) SetTargetURL(v string) *WebhookSubscriptionUpdateOne {
+	_u.mutation.SetTargetURL(v)
 	return _u
 }
 
-// SetNillableSecretKey sets the "secret_key" field if the given value is not nil.
-func (_u *WebhookSubscriptionUpdateOne) SetNillableSecretKey(v *string) *WebhookSubscriptionUpdateOne {
+// SetNillableTargetURL sets the "target_url" field if the given value is not nil.
+func (_u *WebhookSubscriptionUpdateOne) SetNillableTargetURL(v *string) *WebhookSubscriptionUpdateOne {
 	if v != nil {
-		_u.SetSecretKey(*v)
+		_u.SetTargetURL(*v)
 	}
 	return _u
 }
 
-// SetStatus sets the "status" field.
-func (_u *WebhookSubscriptionUpdateOne) SetStatus(v string) *WebhookSubscriptionUpdateOne {
-	_u.mutation.SetStatus(v)
+// SetSecret sets the "secret" field.
+func (_u *WebhookSubscriptionUpdateOne) SetSecret(v string) *WebhookSubscriptionUpdateOne {
+	_u.mutation.SetSecret(v)
 	return _u
 }
 
-// SetNillableStatus sets the "status" field if the given value is not nil.
-func (_u *WebhookSubscriptionUpdateOne) SetNillableStatus(v *string) *WebhookSubscriptionUpdateOne {
+// SetNillableSecret sets the "secret" field if the given value is not nil.
+func (_u *WebhookSubscriptionUpdateOne) SetNillableSecret(v *string) *WebhookSubscriptionUpdateOne {
 	if v != nil {
-		_u.SetStatus(*v)
+		_u.SetSecret(*v)
 	}
+	return _u
+}
+
+// ClearSecret clears the value of the "secret" field.
+func (_u *WebhookSubscriptionUpdateOne) ClearSecret() *WebhookSubscriptionUpdateOne {
+	_u.mutation.ClearSecret()
+	return _u
+}
+
+// SetIsActive sets the "is_active" field.
+func (_u *WebhookSubscriptionUpdateOne) SetIsActive(v bool) *WebhookSubscriptionUpdateOne {
+	_u.mutation.SetIsActive(v)
+	return _u
+}
+
+// SetNillableIsActive sets the "is_active" field if the given value is not nil.
+func (_u *WebhookSubscriptionUpdateOne) SetNillableIsActive(v *bool) *WebhookSubscriptionUpdateOne {
+	if v != nil {
+		_u.SetIsActive(*v)
+	}
+	return _u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (_u *WebhookSubscriptionUpdateOne) SetUpdatedAt(v time.Time) *WebhookSubscriptionUpdateOne {
+	_u.mutation.SetUpdatedAt(v)
 	return _u
 }
 
@@ -287,6 +350,7 @@ func (_u *WebhookSubscriptionUpdateOne) Select(field string, fields ...string) *
 
 // Save executes the query and returns the updated WebhookSubscription entity.
 func (_u *WebhookSubscriptionUpdateOne) Save(ctx context.Context) (*WebhookSubscription, error) {
+	_u.defaults()
 	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
 }
 
@@ -312,30 +376,15 @@ func (_u *WebhookSubscriptionUpdateOne) ExecX(ctx context.Context) {
 	}
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_u *WebhookSubscriptionUpdateOne) check() error {
-	if v, ok := _u.mutation.URL(); ok {
-		if err := webhooksubscription.URLValidator(v); err != nil {
-			return &ValidationError{Name: "url", err: fmt.Errorf(`ent: validator failed for field "WebhookSubscription.url": %w`, err)}
-		}
+// defaults sets the default values of the builder before save.
+func (_u *WebhookSubscriptionUpdateOne) defaults() {
+	if _, ok := _u.mutation.UpdatedAt(); !ok {
+		v := webhooksubscription.UpdateDefaultUpdatedAt()
+		_u.mutation.SetUpdatedAt(v)
 	}
-	if v, ok := _u.mutation.EventType(); ok {
-		if err := webhooksubscription.EventTypeValidator(v); err != nil {
-			return &ValidationError{Name: "event_type", err: fmt.Errorf(`ent: validator failed for field "WebhookSubscription.event_type": %w`, err)}
-		}
-	}
-	if v, ok := _u.mutation.SecretKey(); ok {
-		if err := webhooksubscription.SecretKeyValidator(v); err != nil {
-			return &ValidationError{Name: "secret_key", err: fmt.Errorf(`ent: validator failed for field "WebhookSubscription.secret_key": %w`, err)}
-		}
-	}
-	return nil
 }
 
 func (_u *WebhookSubscriptionUpdateOne) sqlSave(ctx context.Context) (_node *WebhookSubscription, err error) {
-	if err := _u.check(); err != nil {
-		return _node, err
-	}
 	_spec := sqlgraph.NewUpdateSpec(webhooksubscription.Table, webhooksubscription.Columns, sqlgraph.NewFieldSpec(webhooksubscription.FieldID, field.TypeUUID))
 	id, ok := _u.mutation.ID()
 	if !ok {
@@ -364,17 +413,29 @@ func (_u *WebhookSubscriptionUpdateOne) sqlSave(ctx context.Context) (_node *Web
 	if value, ok := _u.mutation.TenantID(); ok {
 		_spec.SetField(webhooksubscription.FieldTenantID, field.TypeUUID, value)
 	}
-	if value, ok := _u.mutation.URL(); ok {
-		_spec.SetField(webhooksubscription.FieldURL, field.TypeString, value)
+	if value, ok := _u.mutation.OutletID(); ok {
+		_spec.SetField(webhooksubscription.FieldOutletID, field.TypeUUID, value)
+	}
+	if _u.mutation.OutletIDCleared() {
+		_spec.ClearField(webhooksubscription.FieldOutletID, field.TypeUUID)
 	}
 	if value, ok := _u.mutation.EventType(); ok {
 		_spec.SetField(webhooksubscription.FieldEventType, field.TypeString, value)
 	}
-	if value, ok := _u.mutation.SecretKey(); ok {
-		_spec.SetField(webhooksubscription.FieldSecretKey, field.TypeString, value)
+	if value, ok := _u.mutation.TargetURL(); ok {
+		_spec.SetField(webhooksubscription.FieldTargetURL, field.TypeString, value)
 	}
-	if value, ok := _u.mutation.Status(); ok {
-		_spec.SetField(webhooksubscription.FieldStatus, field.TypeString, value)
+	if value, ok := _u.mutation.Secret(); ok {
+		_spec.SetField(webhooksubscription.FieldSecret, field.TypeString, value)
+	}
+	if _u.mutation.SecretCleared() {
+		_spec.ClearField(webhooksubscription.FieldSecret, field.TypeString)
+	}
+	if value, ok := _u.mutation.IsActive(); ok {
+		_spec.SetField(webhooksubscription.FieldIsActive, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.UpdatedAt(); ok {
+		_spec.SetField(webhooksubscription.FieldUpdatedAt, field.TypeTime, value)
 	}
 	_node = &WebhookSubscription{config: _u.config}
 	_spec.Assign = _node.assignValues

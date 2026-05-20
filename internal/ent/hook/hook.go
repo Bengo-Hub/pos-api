@@ -885,6 +885,18 @@ func (f UserPOSRoleFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value,
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.UserPOSRoleMutation", m)
 }
 
+// The WebhookDeliveryFunc type is an adapter to allow the use of ordinary
+// function as WebhookDelivery mutator.
+type WebhookDeliveryFunc func(context.Context, *ent.WebhookDeliveryMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f WebhookDeliveryFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.WebhookDeliveryMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.WebhookDeliveryMutation", m)
+}
+
 // The WebhookSubscriptionFunc type is an adapter to allow the use of ordinary
 // function as WebhookSubscription mutator.
 type WebhookSubscriptionFunc func(context.Context, *ent.WebhookSubscriptionMutation) (ent.Value, error)

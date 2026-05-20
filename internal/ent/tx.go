@@ -158,6 +158,8 @@ type Tx struct {
 	User *UserClient
 	// UserPOSRole is the client for interacting with the UserPOSRole builders.
 	UserPOSRole *UserPOSRoleClient
+	// WebhookDelivery is the client for interacting with the WebhookDelivery builders.
+	WebhookDelivery *WebhookDeliveryClient
 	// WebhookSubscription is the client for interacting with the WebhookSubscription builders.
 	WebhookSubscription *WebhookSubscriptionClient
 	// WeighingScaleReading is the client for interacting with the WeighingScaleReading builders.
@@ -366,6 +368,7 @@ func (tx *Tx) init() {
 	tx.Tender = NewTenderClient(tx.config)
 	tx.User = NewUserClient(tx.config)
 	tx.UserPOSRole = NewUserPOSRoleClient(tx.config)
+	tx.WebhookDelivery = NewWebhookDeliveryClient(tx.config)
 	tx.WebhookSubscription = NewWebhookSubscriptionClient(tx.config)
 	tx.WeighingScaleReading = NewWeighingScaleReadingClient(tx.config)
 }

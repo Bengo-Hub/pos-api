@@ -60,9 +60,9 @@ func TenantID(v uuid.UUID) predicate.WebhookSubscription {
 	return predicate.WebhookSubscription(sql.FieldEQ(FieldTenantID, v))
 }
 
-// URL applies equality check predicate on the "url" field. It's identical to URLEQ.
-func URL(v string) predicate.WebhookSubscription {
-	return predicate.WebhookSubscription(sql.FieldEQ(FieldURL, v))
+// OutletID applies equality check predicate on the "outlet_id" field. It's identical to OutletIDEQ.
+func OutletID(v uuid.UUID) predicate.WebhookSubscription {
+	return predicate.WebhookSubscription(sql.FieldEQ(FieldOutletID, v))
 }
 
 // EventType applies equality check predicate on the "event_type" field. It's identical to EventTypeEQ.
@@ -70,19 +70,29 @@ func EventType(v string) predicate.WebhookSubscription {
 	return predicate.WebhookSubscription(sql.FieldEQ(FieldEventType, v))
 }
 
-// SecretKey applies equality check predicate on the "secret_key" field. It's identical to SecretKeyEQ.
-func SecretKey(v string) predicate.WebhookSubscription {
-	return predicate.WebhookSubscription(sql.FieldEQ(FieldSecretKey, v))
+// TargetURL applies equality check predicate on the "target_url" field. It's identical to TargetURLEQ.
+func TargetURL(v string) predicate.WebhookSubscription {
+	return predicate.WebhookSubscription(sql.FieldEQ(FieldTargetURL, v))
 }
 
-// Status applies equality check predicate on the "status" field. It's identical to StatusEQ.
-func Status(v string) predicate.WebhookSubscription {
-	return predicate.WebhookSubscription(sql.FieldEQ(FieldStatus, v))
+// Secret applies equality check predicate on the "secret" field. It's identical to SecretEQ.
+func Secret(v string) predicate.WebhookSubscription {
+	return predicate.WebhookSubscription(sql.FieldEQ(FieldSecret, v))
+}
+
+// IsActive applies equality check predicate on the "is_active" field. It's identical to IsActiveEQ.
+func IsActive(v bool) predicate.WebhookSubscription {
+	return predicate.WebhookSubscription(sql.FieldEQ(FieldIsActive, v))
 }
 
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.WebhookSubscription {
 	return predicate.WebhookSubscription(sql.FieldEQ(FieldCreatedAt, v))
+}
+
+// UpdatedAt applies equality check predicate on the "updated_at" field. It's identical to UpdatedAtEQ.
+func UpdatedAt(v time.Time) predicate.WebhookSubscription {
+	return predicate.WebhookSubscription(sql.FieldEQ(FieldUpdatedAt, v))
 }
 
 // TenantIDEQ applies the EQ predicate on the "tenant_id" field.
@@ -125,69 +135,54 @@ func TenantIDLTE(v uuid.UUID) predicate.WebhookSubscription {
 	return predicate.WebhookSubscription(sql.FieldLTE(FieldTenantID, v))
 }
 
-// URLEQ applies the EQ predicate on the "url" field.
-func URLEQ(v string) predicate.WebhookSubscription {
-	return predicate.WebhookSubscription(sql.FieldEQ(FieldURL, v))
+// OutletIDEQ applies the EQ predicate on the "outlet_id" field.
+func OutletIDEQ(v uuid.UUID) predicate.WebhookSubscription {
+	return predicate.WebhookSubscription(sql.FieldEQ(FieldOutletID, v))
 }
 
-// URLNEQ applies the NEQ predicate on the "url" field.
-func URLNEQ(v string) predicate.WebhookSubscription {
-	return predicate.WebhookSubscription(sql.FieldNEQ(FieldURL, v))
+// OutletIDNEQ applies the NEQ predicate on the "outlet_id" field.
+func OutletIDNEQ(v uuid.UUID) predicate.WebhookSubscription {
+	return predicate.WebhookSubscription(sql.FieldNEQ(FieldOutletID, v))
 }
 
-// URLIn applies the In predicate on the "url" field.
-func URLIn(vs ...string) predicate.WebhookSubscription {
-	return predicate.WebhookSubscription(sql.FieldIn(FieldURL, vs...))
+// OutletIDIn applies the In predicate on the "outlet_id" field.
+func OutletIDIn(vs ...uuid.UUID) predicate.WebhookSubscription {
+	return predicate.WebhookSubscription(sql.FieldIn(FieldOutletID, vs...))
 }
 
-// URLNotIn applies the NotIn predicate on the "url" field.
-func URLNotIn(vs ...string) predicate.WebhookSubscription {
-	return predicate.WebhookSubscription(sql.FieldNotIn(FieldURL, vs...))
+// OutletIDNotIn applies the NotIn predicate on the "outlet_id" field.
+func OutletIDNotIn(vs ...uuid.UUID) predicate.WebhookSubscription {
+	return predicate.WebhookSubscription(sql.FieldNotIn(FieldOutletID, vs...))
 }
 
-// URLGT applies the GT predicate on the "url" field.
-func URLGT(v string) predicate.WebhookSubscription {
-	return predicate.WebhookSubscription(sql.FieldGT(FieldURL, v))
+// OutletIDGT applies the GT predicate on the "outlet_id" field.
+func OutletIDGT(v uuid.UUID) predicate.WebhookSubscription {
+	return predicate.WebhookSubscription(sql.FieldGT(FieldOutletID, v))
 }
 
-// URLGTE applies the GTE predicate on the "url" field.
-func URLGTE(v string) predicate.WebhookSubscription {
-	return predicate.WebhookSubscription(sql.FieldGTE(FieldURL, v))
+// OutletIDGTE applies the GTE predicate on the "outlet_id" field.
+func OutletIDGTE(v uuid.UUID) predicate.WebhookSubscription {
+	return predicate.WebhookSubscription(sql.FieldGTE(FieldOutletID, v))
 }
 
-// URLLT applies the LT predicate on the "url" field.
-func URLLT(v string) predicate.WebhookSubscription {
-	return predicate.WebhookSubscription(sql.FieldLT(FieldURL, v))
+// OutletIDLT applies the LT predicate on the "outlet_id" field.
+func OutletIDLT(v uuid.UUID) predicate.WebhookSubscription {
+	return predicate.WebhookSubscription(sql.FieldLT(FieldOutletID, v))
 }
 
-// URLLTE applies the LTE predicate on the "url" field.
-func URLLTE(v string) predicate.WebhookSubscription {
-	return predicate.WebhookSubscription(sql.FieldLTE(FieldURL, v))
+// OutletIDLTE applies the LTE predicate on the "outlet_id" field.
+func OutletIDLTE(v uuid.UUID) predicate.WebhookSubscription {
+	return predicate.WebhookSubscription(sql.FieldLTE(FieldOutletID, v))
 }
 
-// URLContains applies the Contains predicate on the "url" field.
-func URLContains(v string) predicate.WebhookSubscription {
-	return predicate.WebhookSubscription(sql.FieldContains(FieldURL, v))
+// OutletIDIsNil applies the IsNil predicate on the "outlet_id" field.
+func OutletIDIsNil() predicate.WebhookSubscription {
+	return predicate.WebhookSubscription(sql.FieldIsNull(FieldOutletID))
 }
 
-// URLHasPrefix applies the HasPrefix predicate on the "url" field.
-func URLHasPrefix(v string) predicate.WebhookSubscription {
-	return predicate.WebhookSubscription(sql.FieldHasPrefix(FieldURL, v))
-}
-
-// URLHasSuffix applies the HasSuffix predicate on the "url" field.
-func URLHasSuffix(v string) predicate.WebhookSubscription {
-	return predicate.WebhookSubscription(sql.FieldHasSuffix(FieldURL, v))
-}
-
-// URLEqualFold applies the EqualFold predicate on the "url" field.
-func URLEqualFold(v string) predicate.WebhookSubscription {
-	return predicate.WebhookSubscription(sql.FieldEqualFold(FieldURL, v))
-}
-
-// URLContainsFold applies the ContainsFold predicate on the "url" field.
-func URLContainsFold(v string) predicate.WebhookSubscription {
-	return predicate.WebhookSubscription(sql.FieldContainsFold(FieldURL, v))
+// OutletIDNotNil applies the NotNil predicate on the "outlet_id" field.
+func OutletIDNotNil() predicate.WebhookSubscription {
+	return predicate.WebhookSubscription(sql.FieldNotNull(FieldOutletID))
 }
 
 // EventTypeEQ applies the EQ predicate on the "event_type" field.
@@ -255,134 +250,154 @@ func EventTypeContainsFold(v string) predicate.WebhookSubscription {
 	return predicate.WebhookSubscription(sql.FieldContainsFold(FieldEventType, v))
 }
 
-// SecretKeyEQ applies the EQ predicate on the "secret_key" field.
-func SecretKeyEQ(v string) predicate.WebhookSubscription {
-	return predicate.WebhookSubscription(sql.FieldEQ(FieldSecretKey, v))
+// TargetURLEQ applies the EQ predicate on the "target_url" field.
+func TargetURLEQ(v string) predicate.WebhookSubscription {
+	return predicate.WebhookSubscription(sql.FieldEQ(FieldTargetURL, v))
 }
 
-// SecretKeyNEQ applies the NEQ predicate on the "secret_key" field.
-func SecretKeyNEQ(v string) predicate.WebhookSubscription {
-	return predicate.WebhookSubscription(sql.FieldNEQ(FieldSecretKey, v))
+// TargetURLNEQ applies the NEQ predicate on the "target_url" field.
+func TargetURLNEQ(v string) predicate.WebhookSubscription {
+	return predicate.WebhookSubscription(sql.FieldNEQ(FieldTargetURL, v))
 }
 
-// SecretKeyIn applies the In predicate on the "secret_key" field.
-func SecretKeyIn(vs ...string) predicate.WebhookSubscription {
-	return predicate.WebhookSubscription(sql.FieldIn(FieldSecretKey, vs...))
+// TargetURLIn applies the In predicate on the "target_url" field.
+func TargetURLIn(vs ...string) predicate.WebhookSubscription {
+	return predicate.WebhookSubscription(sql.FieldIn(FieldTargetURL, vs...))
 }
 
-// SecretKeyNotIn applies the NotIn predicate on the "secret_key" field.
-func SecretKeyNotIn(vs ...string) predicate.WebhookSubscription {
-	return predicate.WebhookSubscription(sql.FieldNotIn(FieldSecretKey, vs...))
+// TargetURLNotIn applies the NotIn predicate on the "target_url" field.
+func TargetURLNotIn(vs ...string) predicate.WebhookSubscription {
+	return predicate.WebhookSubscription(sql.FieldNotIn(FieldTargetURL, vs...))
 }
 
-// SecretKeyGT applies the GT predicate on the "secret_key" field.
-func SecretKeyGT(v string) predicate.WebhookSubscription {
-	return predicate.WebhookSubscription(sql.FieldGT(FieldSecretKey, v))
+// TargetURLGT applies the GT predicate on the "target_url" field.
+func TargetURLGT(v string) predicate.WebhookSubscription {
+	return predicate.WebhookSubscription(sql.FieldGT(FieldTargetURL, v))
 }
 
-// SecretKeyGTE applies the GTE predicate on the "secret_key" field.
-func SecretKeyGTE(v string) predicate.WebhookSubscription {
-	return predicate.WebhookSubscription(sql.FieldGTE(FieldSecretKey, v))
+// TargetURLGTE applies the GTE predicate on the "target_url" field.
+func TargetURLGTE(v string) predicate.WebhookSubscription {
+	return predicate.WebhookSubscription(sql.FieldGTE(FieldTargetURL, v))
 }
 
-// SecretKeyLT applies the LT predicate on the "secret_key" field.
-func SecretKeyLT(v string) predicate.WebhookSubscription {
-	return predicate.WebhookSubscription(sql.FieldLT(FieldSecretKey, v))
+// TargetURLLT applies the LT predicate on the "target_url" field.
+func TargetURLLT(v string) predicate.WebhookSubscription {
+	return predicate.WebhookSubscription(sql.FieldLT(FieldTargetURL, v))
 }
 
-// SecretKeyLTE applies the LTE predicate on the "secret_key" field.
-func SecretKeyLTE(v string) predicate.WebhookSubscription {
-	return predicate.WebhookSubscription(sql.FieldLTE(FieldSecretKey, v))
+// TargetURLLTE applies the LTE predicate on the "target_url" field.
+func TargetURLLTE(v string) predicate.WebhookSubscription {
+	return predicate.WebhookSubscription(sql.FieldLTE(FieldTargetURL, v))
 }
 
-// SecretKeyContains applies the Contains predicate on the "secret_key" field.
-func SecretKeyContains(v string) predicate.WebhookSubscription {
-	return predicate.WebhookSubscription(sql.FieldContains(FieldSecretKey, v))
+// TargetURLContains applies the Contains predicate on the "target_url" field.
+func TargetURLContains(v string) predicate.WebhookSubscription {
+	return predicate.WebhookSubscription(sql.FieldContains(FieldTargetURL, v))
 }
 
-// SecretKeyHasPrefix applies the HasPrefix predicate on the "secret_key" field.
-func SecretKeyHasPrefix(v string) predicate.WebhookSubscription {
-	return predicate.WebhookSubscription(sql.FieldHasPrefix(FieldSecretKey, v))
+// TargetURLHasPrefix applies the HasPrefix predicate on the "target_url" field.
+func TargetURLHasPrefix(v string) predicate.WebhookSubscription {
+	return predicate.WebhookSubscription(sql.FieldHasPrefix(FieldTargetURL, v))
 }
 
-// SecretKeyHasSuffix applies the HasSuffix predicate on the "secret_key" field.
-func SecretKeyHasSuffix(v string) predicate.WebhookSubscription {
-	return predicate.WebhookSubscription(sql.FieldHasSuffix(FieldSecretKey, v))
+// TargetURLHasSuffix applies the HasSuffix predicate on the "target_url" field.
+func TargetURLHasSuffix(v string) predicate.WebhookSubscription {
+	return predicate.WebhookSubscription(sql.FieldHasSuffix(FieldTargetURL, v))
 }
 
-// SecretKeyEqualFold applies the EqualFold predicate on the "secret_key" field.
-func SecretKeyEqualFold(v string) predicate.WebhookSubscription {
-	return predicate.WebhookSubscription(sql.FieldEqualFold(FieldSecretKey, v))
+// TargetURLEqualFold applies the EqualFold predicate on the "target_url" field.
+func TargetURLEqualFold(v string) predicate.WebhookSubscription {
+	return predicate.WebhookSubscription(sql.FieldEqualFold(FieldTargetURL, v))
 }
 
-// SecretKeyContainsFold applies the ContainsFold predicate on the "secret_key" field.
-func SecretKeyContainsFold(v string) predicate.WebhookSubscription {
-	return predicate.WebhookSubscription(sql.FieldContainsFold(FieldSecretKey, v))
+// TargetURLContainsFold applies the ContainsFold predicate on the "target_url" field.
+func TargetURLContainsFold(v string) predicate.WebhookSubscription {
+	return predicate.WebhookSubscription(sql.FieldContainsFold(FieldTargetURL, v))
 }
 
-// StatusEQ applies the EQ predicate on the "status" field.
-func StatusEQ(v string) predicate.WebhookSubscription {
-	return predicate.WebhookSubscription(sql.FieldEQ(FieldStatus, v))
+// SecretEQ applies the EQ predicate on the "secret" field.
+func SecretEQ(v string) predicate.WebhookSubscription {
+	return predicate.WebhookSubscription(sql.FieldEQ(FieldSecret, v))
 }
 
-// StatusNEQ applies the NEQ predicate on the "status" field.
-func StatusNEQ(v string) predicate.WebhookSubscription {
-	return predicate.WebhookSubscription(sql.FieldNEQ(FieldStatus, v))
+// SecretNEQ applies the NEQ predicate on the "secret" field.
+func SecretNEQ(v string) predicate.WebhookSubscription {
+	return predicate.WebhookSubscription(sql.FieldNEQ(FieldSecret, v))
 }
 
-// StatusIn applies the In predicate on the "status" field.
-func StatusIn(vs ...string) predicate.WebhookSubscription {
-	return predicate.WebhookSubscription(sql.FieldIn(FieldStatus, vs...))
+// SecretIn applies the In predicate on the "secret" field.
+func SecretIn(vs ...string) predicate.WebhookSubscription {
+	return predicate.WebhookSubscription(sql.FieldIn(FieldSecret, vs...))
 }
 
-// StatusNotIn applies the NotIn predicate on the "status" field.
-func StatusNotIn(vs ...string) predicate.WebhookSubscription {
-	return predicate.WebhookSubscription(sql.FieldNotIn(FieldStatus, vs...))
+// SecretNotIn applies the NotIn predicate on the "secret" field.
+func SecretNotIn(vs ...string) predicate.WebhookSubscription {
+	return predicate.WebhookSubscription(sql.FieldNotIn(FieldSecret, vs...))
 }
 
-// StatusGT applies the GT predicate on the "status" field.
-func StatusGT(v string) predicate.WebhookSubscription {
-	return predicate.WebhookSubscription(sql.FieldGT(FieldStatus, v))
+// SecretGT applies the GT predicate on the "secret" field.
+func SecretGT(v string) predicate.WebhookSubscription {
+	return predicate.WebhookSubscription(sql.FieldGT(FieldSecret, v))
 }
 
-// StatusGTE applies the GTE predicate on the "status" field.
-func StatusGTE(v string) predicate.WebhookSubscription {
-	return predicate.WebhookSubscription(sql.FieldGTE(FieldStatus, v))
+// SecretGTE applies the GTE predicate on the "secret" field.
+func SecretGTE(v string) predicate.WebhookSubscription {
+	return predicate.WebhookSubscription(sql.FieldGTE(FieldSecret, v))
 }
 
-// StatusLT applies the LT predicate on the "status" field.
-func StatusLT(v string) predicate.WebhookSubscription {
-	return predicate.WebhookSubscription(sql.FieldLT(FieldStatus, v))
+// SecretLT applies the LT predicate on the "secret" field.
+func SecretLT(v string) predicate.WebhookSubscription {
+	return predicate.WebhookSubscription(sql.FieldLT(FieldSecret, v))
 }
 
-// StatusLTE applies the LTE predicate on the "status" field.
-func StatusLTE(v string) predicate.WebhookSubscription {
-	return predicate.WebhookSubscription(sql.FieldLTE(FieldStatus, v))
+// SecretLTE applies the LTE predicate on the "secret" field.
+func SecretLTE(v string) predicate.WebhookSubscription {
+	return predicate.WebhookSubscription(sql.FieldLTE(FieldSecret, v))
 }
 
-// StatusContains applies the Contains predicate on the "status" field.
-func StatusContains(v string) predicate.WebhookSubscription {
-	return predicate.WebhookSubscription(sql.FieldContains(FieldStatus, v))
+// SecretContains applies the Contains predicate on the "secret" field.
+func SecretContains(v string) predicate.WebhookSubscription {
+	return predicate.WebhookSubscription(sql.FieldContains(FieldSecret, v))
 }
 
-// StatusHasPrefix applies the HasPrefix predicate on the "status" field.
-func StatusHasPrefix(v string) predicate.WebhookSubscription {
-	return predicate.WebhookSubscription(sql.FieldHasPrefix(FieldStatus, v))
+// SecretHasPrefix applies the HasPrefix predicate on the "secret" field.
+func SecretHasPrefix(v string) predicate.WebhookSubscription {
+	return predicate.WebhookSubscription(sql.FieldHasPrefix(FieldSecret, v))
 }
 
-// StatusHasSuffix applies the HasSuffix predicate on the "status" field.
-func StatusHasSuffix(v string) predicate.WebhookSubscription {
-	return predicate.WebhookSubscription(sql.FieldHasSuffix(FieldStatus, v))
+// SecretHasSuffix applies the HasSuffix predicate on the "secret" field.
+func SecretHasSuffix(v string) predicate.WebhookSubscription {
+	return predicate.WebhookSubscription(sql.FieldHasSuffix(FieldSecret, v))
 }
 
-// StatusEqualFold applies the EqualFold predicate on the "status" field.
-func StatusEqualFold(v string) predicate.WebhookSubscription {
-	return predicate.WebhookSubscription(sql.FieldEqualFold(FieldStatus, v))
+// SecretIsNil applies the IsNil predicate on the "secret" field.
+func SecretIsNil() predicate.WebhookSubscription {
+	return predicate.WebhookSubscription(sql.FieldIsNull(FieldSecret))
 }
 
-// StatusContainsFold applies the ContainsFold predicate on the "status" field.
-func StatusContainsFold(v string) predicate.WebhookSubscription {
-	return predicate.WebhookSubscription(sql.FieldContainsFold(FieldStatus, v))
+// SecretNotNil applies the NotNil predicate on the "secret" field.
+func SecretNotNil() predicate.WebhookSubscription {
+	return predicate.WebhookSubscription(sql.FieldNotNull(FieldSecret))
+}
+
+// SecretEqualFold applies the EqualFold predicate on the "secret" field.
+func SecretEqualFold(v string) predicate.WebhookSubscription {
+	return predicate.WebhookSubscription(sql.FieldEqualFold(FieldSecret, v))
+}
+
+// SecretContainsFold applies the ContainsFold predicate on the "secret" field.
+func SecretContainsFold(v string) predicate.WebhookSubscription {
+	return predicate.WebhookSubscription(sql.FieldContainsFold(FieldSecret, v))
+}
+
+// IsActiveEQ applies the EQ predicate on the "is_active" field.
+func IsActiveEQ(v bool) predicate.WebhookSubscription {
+	return predicate.WebhookSubscription(sql.FieldEQ(FieldIsActive, v))
+}
+
+// IsActiveNEQ applies the NEQ predicate on the "is_active" field.
+func IsActiveNEQ(v bool) predicate.WebhookSubscription {
+	return predicate.WebhookSubscription(sql.FieldNEQ(FieldIsActive, v))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.
@@ -423,6 +438,46 @@ func CreatedAtLT(v time.Time) predicate.WebhookSubscription {
 // CreatedAtLTE applies the LTE predicate on the "created_at" field.
 func CreatedAtLTE(v time.Time) predicate.WebhookSubscription {
 	return predicate.WebhookSubscription(sql.FieldLTE(FieldCreatedAt, v))
+}
+
+// UpdatedAtEQ applies the EQ predicate on the "updated_at" field.
+func UpdatedAtEQ(v time.Time) predicate.WebhookSubscription {
+	return predicate.WebhookSubscription(sql.FieldEQ(FieldUpdatedAt, v))
+}
+
+// UpdatedAtNEQ applies the NEQ predicate on the "updated_at" field.
+func UpdatedAtNEQ(v time.Time) predicate.WebhookSubscription {
+	return predicate.WebhookSubscription(sql.FieldNEQ(FieldUpdatedAt, v))
+}
+
+// UpdatedAtIn applies the In predicate on the "updated_at" field.
+func UpdatedAtIn(vs ...time.Time) predicate.WebhookSubscription {
+	return predicate.WebhookSubscription(sql.FieldIn(FieldUpdatedAt, vs...))
+}
+
+// UpdatedAtNotIn applies the NotIn predicate on the "updated_at" field.
+func UpdatedAtNotIn(vs ...time.Time) predicate.WebhookSubscription {
+	return predicate.WebhookSubscription(sql.FieldNotIn(FieldUpdatedAt, vs...))
+}
+
+// UpdatedAtGT applies the GT predicate on the "updated_at" field.
+func UpdatedAtGT(v time.Time) predicate.WebhookSubscription {
+	return predicate.WebhookSubscription(sql.FieldGT(FieldUpdatedAt, v))
+}
+
+// UpdatedAtGTE applies the GTE predicate on the "updated_at" field.
+func UpdatedAtGTE(v time.Time) predicate.WebhookSubscription {
+	return predicate.WebhookSubscription(sql.FieldGTE(FieldUpdatedAt, v))
+}
+
+// UpdatedAtLT applies the LT predicate on the "updated_at" field.
+func UpdatedAtLT(v time.Time) predicate.WebhookSubscription {
+	return predicate.WebhookSubscription(sql.FieldLT(FieldUpdatedAt, v))
+}
+
+// UpdatedAtLTE applies the LTE predicate on the "updated_at" field.
+func UpdatedAtLTE(v time.Time) predicate.WebhookSubscription {
+	return predicate.WebhookSubscription(sql.FieldLTE(FieldUpdatedAt, v))
 }
 
 // And groups predicates with the AND operator between them.

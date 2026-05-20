@@ -20,16 +20,20 @@ type WebhookSubscription struct {
 	ID uuid.UUID `json:"id,omitempty"`
 	// TenantID holds the value of the "tenant_id" field.
 	TenantID uuid.UUID `json:"tenant_id,omitempty"`
-	// URL holds the value of the "url" field.
-	URL string `json:"url,omitempty"`
-	// EventType holds the value of the "event_type" field.
+	// OutletID holds the value of the "outlet_id" field.
+	OutletID *uuid.UUID `json:"outlet_id,omitempty"`
+	// e.g. order.completed, payment.received
 	EventType string `json:"event_type,omitempty"`
-	// SecretKey holds the value of the "secret_key" field.
-	SecretKey string `json:"secret_key,omitempty"`
-	// Status holds the value of the "status" field.
-	Status string `json:"status,omitempty"`
+	// TargetURL holds the value of the "target_url" field.
+	TargetURL string `json:"target_url,omitempty"`
+	// HMAC signing secret
+	Secret string `json:"secret,omitempty"`
+	// IsActive holds the value of the "is_active" field.
+	IsActive bool `json:"is_active,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
-	CreatedAt    time.Time `json:"created_at,omitempty"`
+	CreatedAt time.Time `json:"created_at,omitempty"`
+	// UpdatedAt holds the value of the "updated_at" field.
+	UpdatedAt    time.Time `json:"updated_at,omitempty"`
 	selectValues sql.SelectValues
 }
 
@@ -38,9 +42,13 @@ func (*WebhookSubscription) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case webhooksubscription.FieldURL, webhooksubscription.FieldEventType, webhooksubscription.FieldSecretKey, webhooksubscription.FieldStatus:
+		case webhooksubscription.FieldOutletID:
+			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
+		case webhooksubscription.FieldIsActive:
+			values[i] = new(sql.NullBool)
+		case webhooksubscription.FieldEventType, webhooksubscription.FieldTargetURL, webhooksubscription.FieldSecret:
 			values[i] = new(sql.NullString)
-		case webhooksubscription.FieldCreatedAt:
+		case webhooksubscription.FieldCreatedAt, webhooksubscription.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
 		case webhooksubscription.FieldID, webhooksubscription.FieldTenantID:
 			values[i] = new(uuid.UUID)
@@ -71,11 +79,12 @@ func (_m *WebhookSubscription) assignValues(columns []string, values []any) erro
 			} else if value != nil {
 				_m.TenantID = *value
 			}
-		case webhooksubscription.FieldURL:
-			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field url", values[i])
+		case webhooksubscription.FieldOutletID:
+			if value, ok := values[i].(*sql.NullScanner); !ok {
+				return fmt.Errorf("unexpected type %T for field outlet_id", values[i])
 			} else if value.Valid {
-				_m.URL = value.String
+				_m.OutletID = new(uuid.UUID)
+				*_m.OutletID = *value.S.(*uuid.UUID)
 			}
 		case webhooksubscription.FieldEventType:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -83,23 +92,35 @@ func (_m *WebhookSubscription) assignValues(columns []string, values []any) erro
 			} else if value.Valid {
 				_m.EventType = value.String
 			}
-		case webhooksubscription.FieldSecretKey:
+		case webhooksubscription.FieldTargetURL:
 			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field secret_key", values[i])
+				return fmt.Errorf("unexpected type %T for field target_url", values[i])
 			} else if value.Valid {
-				_m.SecretKey = value.String
+				_m.TargetURL = value.String
 			}
-		case webhooksubscription.FieldStatus:
+		case webhooksubscription.FieldSecret:
 			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field status", values[i])
+				return fmt.Errorf("unexpected type %T for field secret", values[i])
 			} else if value.Valid {
-				_m.Status = value.String
+				_m.Secret = value.String
+			}
+		case webhooksubscription.FieldIsActive:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field is_active", values[i])
+			} else if value.Valid {
+				_m.IsActive = value.Bool
 			}
 		case webhooksubscription.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field created_at", values[i])
 			} else if value.Valid {
 				_m.CreatedAt = value.Time
+			}
+		case webhooksubscription.FieldUpdatedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field updated_at", values[i])
+			} else if value.Valid {
+				_m.UpdatedAt = value.Time
 			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
@@ -140,20 +161,28 @@ func (_m *WebhookSubscription) String() string {
 	builder.WriteString("tenant_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.TenantID))
 	builder.WriteString(", ")
-	builder.WriteString("url=")
-	builder.WriteString(_m.URL)
+	if v := _m.OutletID; v != nil {
+		builder.WriteString("outlet_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("event_type=")
 	builder.WriteString(_m.EventType)
 	builder.WriteString(", ")
-	builder.WriteString("secret_key=")
-	builder.WriteString(_m.SecretKey)
+	builder.WriteString("target_url=")
+	builder.WriteString(_m.TargetURL)
 	builder.WriteString(", ")
-	builder.WriteString("status=")
-	builder.WriteString(_m.Status)
+	builder.WriteString("secret=")
+	builder.WriteString(_m.Secret)
+	builder.WriteString(", ")
+	builder.WriteString("is_active=")
+	builder.WriteString(fmt.Sprintf("%v", _m.IsActive))
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))
+	builder.WriteString(", ")
+	builder.WriteString("updated_at=")
+	builder.WriteString(_m.UpdatedAt.Format(time.ANSIC))
 	builder.WriteByte(')')
 	return builder.String()
 }

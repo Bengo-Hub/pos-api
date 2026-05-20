@@ -52,6 +52,8 @@ func New(
 	staffSchedule *handlers.StaffScheduleHandler,
 	loyalty *handlers.LoyaltyHandler,
 	reports *handlers.ReportsHandler,
+	webhooks *handlers.WebhookHandler,
+	onlineOrders *handlers.OnlineOrderHandler,
 	allowedOrigins []string,
 ) http.Handler {
 	r := chi.NewRouter()
@@ -353,6 +355,22 @@ func New(
 						pos.Get("/reports/sales-summary", reports.SalesSummary)
 						pos.Get("/reports/refund-summary", reports.RefundSummary)
 						pos.Get("/reports/daily-breakdown", reports.DailyBreakdown)
+					}
+
+					// Webhook subscriptions & delivery log (Sprint 12)
+					if webhooks != nil {
+						pos.Get("/webhooks", webhooks.List)
+						pos.Post("/webhooks", webhooks.Create)
+						pos.Put("/webhooks/{webhookID}", webhooks.Update)
+						pos.Delete("/webhooks/{webhookID}", webhooks.Delete)
+						pos.Get("/webhooks/{webhookID}/deliveries", webhooks.ListDeliveries)
+					}
+
+					// Online ordering pickup status — KDS click-and-collect (Sprint 13)
+					if onlineOrders != nil {
+						pos.Get("/online-orders/pickup", onlineOrders.ListPickup)
+						pos.Post("/online-orders/{orderID}/ready", onlineOrders.MarkReady)
+						pos.Post("/online-orders/{orderID}/collected", onlineOrders.MarkCollected)
 					}
 
 					// Daily closings (ERP reconciliation)

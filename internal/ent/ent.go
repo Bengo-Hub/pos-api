@@ -85,6 +85,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/tender"
 	"github.com/bengobox/pos-service/internal/ent/user"
 	"github.com/bengobox/pos-service/internal/ent/userposrole"
+	"github.com/bengobox/pos-service/internal/ent/webhookdelivery"
 	"github.com/bengobox/pos-service/internal/ent/webhooksubscription"
 	"github.com/bengobox/pos-service/internal/ent/weighingscalereading"
 )
@@ -220,6 +221,7 @@ func checkColumn(t, c string) error {
 			tender.Table:                 tender.ValidColumn,
 			user.Table:                   user.ValidColumn,
 			userposrole.Table:            userposrole.ValidColumn,
+			webhookdelivery.Table:        webhookdelivery.ValidColumn,
 			webhooksubscription.Table:    webhooksubscription.ValidColumn,
 			weighingscalereading.Table:   weighingscalereading.ValidColumn,
 		})
