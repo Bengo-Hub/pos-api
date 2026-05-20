@@ -285,6 +285,42 @@ func (f LicenseUsageSnapshotFunc) Mutate(ctx context.Context, m ent.Mutation) (e
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.LicenseUsageSnapshotMutation", m)
 }
 
+// The LoyaltyAccountFunc type is an adapter to allow the use of ordinary
+// function as LoyaltyAccount mutator.
+type LoyaltyAccountFunc func(context.Context, *ent.LoyaltyAccountMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f LoyaltyAccountFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.LoyaltyAccountMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.LoyaltyAccountMutation", m)
+}
+
+// The LoyaltyProgramFunc type is an adapter to allow the use of ordinary
+// function as LoyaltyProgram mutator.
+type LoyaltyProgramFunc func(context.Context, *ent.LoyaltyProgramMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f LoyaltyProgramFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.LoyaltyProgramMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.LoyaltyProgramMutation", m)
+}
+
+// The LoyaltyTransactionFunc type is an adapter to allow the use of ordinary
+// function as LoyaltyTransaction mutator.
+type LoyaltyTransactionFunc func(context.Context, *ent.LoyaltyTransactionMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f LoyaltyTransactionFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.LoyaltyTransactionMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.LoyaltyTransactionMutation", m)
+}
+
 // The ModifierFunc type is an adapter to allow the use of ordinary
 // function as Modifier mutator.
 type ModifierFunc func(context.Context, *ent.ModifierMutation) (ent.Value, error)

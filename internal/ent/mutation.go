@@ -32,6 +32,9 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/kdsticket"
 	"github.com/bengobox/pos-service/internal/ent/layawaypayment"
 	"github.com/bengobox/pos-service/internal/ent/layawayplan"
+	"github.com/bengobox/pos-service/internal/ent/loyaltyaccount"
+	"github.com/bengobox/pos-service/internal/ent/loyaltyprogram"
+	"github.com/bengobox/pos-service/internal/ent/loyaltytransaction"
 	"github.com/bengobox/pos-service/internal/ent/modifier"
 	"github.com/bengobox/pos-service/internal/ent/modifiergroup"
 	"github.com/bengobox/pos-service/internal/ent/orderlink"
@@ -118,6 +121,9 @@ const (
 	TypeLayawayPayment         = "LayawayPayment"
 	TypeLayawayPlan            = "LayawayPlan"
 	TypeLicenseUsageSnapshot   = "LicenseUsageSnapshot"
+	TypeLoyaltyAccount         = "LoyaltyAccount"
+	TypeLoyaltyProgram         = "LoyaltyProgram"
+	TypeLoyaltyTransaction     = "LoyaltyTransaction"
 	TypeModifier               = "Modifier"
 	TypeModifierGroup          = "ModifierGroup"
 	TypeOrderLink              = "OrderLink"
@@ -20576,6 +20582,2588 @@ func (m *LicenseUsageSnapshotMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *LicenseUsageSnapshotMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown LicenseUsageSnapshot edge %s", name)
+}
+
+// LoyaltyAccountMutation represents an operation that mutates the LoyaltyAccount nodes in the graph.
+type LoyaltyAccountMutation struct {
+	config
+	op                 Op
+	typ                string
+	id                 *uuid.UUID
+	tenant_id          *uuid.UUID
+	customer_id        *uuid.UUID
+	customer_phone     *string
+	customer_name      *string
+	points_balance     *int
+	addpoints_balance  *int
+	lifetime_points    *int
+	addlifetime_points *int
+	program_id         *uuid.UUID
+	created_at         *time.Time
+	updated_at         *time.Time
+	clearedFields      map[string]struct{}
+	done               bool
+	oldValue           func(context.Context) (*LoyaltyAccount, error)
+	predicates         []predicate.LoyaltyAccount
+}
+
+var _ ent.Mutation = (*LoyaltyAccountMutation)(nil)
+
+// loyaltyaccountOption allows management of the mutation configuration using functional options.
+type loyaltyaccountOption func(*LoyaltyAccountMutation)
+
+// newLoyaltyAccountMutation creates new mutation for the LoyaltyAccount entity.
+func newLoyaltyAccountMutation(c config, op Op, opts ...loyaltyaccountOption) *LoyaltyAccountMutation {
+	m := &LoyaltyAccountMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeLoyaltyAccount,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withLoyaltyAccountID sets the ID field of the mutation.
+func withLoyaltyAccountID(id uuid.UUID) loyaltyaccountOption {
+	return func(m *LoyaltyAccountMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *LoyaltyAccount
+		)
+		m.oldValue = func(ctx context.Context) (*LoyaltyAccount, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().LoyaltyAccount.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withLoyaltyAccount sets the old LoyaltyAccount of the mutation.
+func withLoyaltyAccount(node *LoyaltyAccount) loyaltyaccountOption {
+	return func(m *LoyaltyAccountMutation) {
+		m.oldValue = func(context.Context) (*LoyaltyAccount, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m LoyaltyAccountMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m LoyaltyAccountMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of LoyaltyAccount entities.
+func (m *LoyaltyAccountMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *LoyaltyAccountMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *LoyaltyAccountMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().LoyaltyAccount.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *LoyaltyAccountMutation) SetTenantID(u uuid.UUID) {
+	m.tenant_id = &u
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *LoyaltyAccountMutation) TenantID() (r uuid.UUID, exists bool) {
+	v := m.tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the LoyaltyAccount entity.
+// If the LoyaltyAccount object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LoyaltyAccountMutation) OldTenantID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *LoyaltyAccountMutation) ResetTenantID() {
+	m.tenant_id = nil
+}
+
+// SetCustomerID sets the "customer_id" field.
+func (m *LoyaltyAccountMutation) SetCustomerID(u uuid.UUID) {
+	m.customer_id = &u
+}
+
+// CustomerID returns the value of the "customer_id" field in the mutation.
+func (m *LoyaltyAccountMutation) CustomerID() (r uuid.UUID, exists bool) {
+	v := m.customer_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCustomerID returns the old "customer_id" field's value of the LoyaltyAccount entity.
+// If the LoyaltyAccount object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LoyaltyAccountMutation) OldCustomerID(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCustomerID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCustomerID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCustomerID: %w", err)
+	}
+	return oldValue.CustomerID, nil
+}
+
+// ClearCustomerID clears the value of the "customer_id" field.
+func (m *LoyaltyAccountMutation) ClearCustomerID() {
+	m.customer_id = nil
+	m.clearedFields[loyaltyaccount.FieldCustomerID] = struct{}{}
+}
+
+// CustomerIDCleared returns if the "customer_id" field was cleared in this mutation.
+func (m *LoyaltyAccountMutation) CustomerIDCleared() bool {
+	_, ok := m.clearedFields[loyaltyaccount.FieldCustomerID]
+	return ok
+}
+
+// ResetCustomerID resets all changes to the "customer_id" field.
+func (m *LoyaltyAccountMutation) ResetCustomerID() {
+	m.customer_id = nil
+	delete(m.clearedFields, loyaltyaccount.FieldCustomerID)
+}
+
+// SetCustomerPhone sets the "customer_phone" field.
+func (m *LoyaltyAccountMutation) SetCustomerPhone(s string) {
+	m.customer_phone = &s
+}
+
+// CustomerPhone returns the value of the "customer_phone" field in the mutation.
+func (m *LoyaltyAccountMutation) CustomerPhone() (r string, exists bool) {
+	v := m.customer_phone
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCustomerPhone returns the old "customer_phone" field's value of the LoyaltyAccount entity.
+// If the LoyaltyAccount object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LoyaltyAccountMutation) OldCustomerPhone(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCustomerPhone is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCustomerPhone requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCustomerPhone: %w", err)
+	}
+	return oldValue.CustomerPhone, nil
+}
+
+// ResetCustomerPhone resets all changes to the "customer_phone" field.
+func (m *LoyaltyAccountMutation) ResetCustomerPhone() {
+	m.customer_phone = nil
+}
+
+// SetCustomerName sets the "customer_name" field.
+func (m *LoyaltyAccountMutation) SetCustomerName(s string) {
+	m.customer_name = &s
+}
+
+// CustomerName returns the value of the "customer_name" field in the mutation.
+func (m *LoyaltyAccountMutation) CustomerName() (r string, exists bool) {
+	v := m.customer_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCustomerName returns the old "customer_name" field's value of the LoyaltyAccount entity.
+// If the LoyaltyAccount object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LoyaltyAccountMutation) OldCustomerName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCustomerName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCustomerName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCustomerName: %w", err)
+	}
+	return oldValue.CustomerName, nil
+}
+
+// ResetCustomerName resets all changes to the "customer_name" field.
+func (m *LoyaltyAccountMutation) ResetCustomerName() {
+	m.customer_name = nil
+}
+
+// SetPointsBalance sets the "points_balance" field.
+func (m *LoyaltyAccountMutation) SetPointsBalance(i int) {
+	m.points_balance = &i
+	m.addpoints_balance = nil
+}
+
+// PointsBalance returns the value of the "points_balance" field in the mutation.
+func (m *LoyaltyAccountMutation) PointsBalance() (r int, exists bool) {
+	v := m.points_balance
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPointsBalance returns the old "points_balance" field's value of the LoyaltyAccount entity.
+// If the LoyaltyAccount object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LoyaltyAccountMutation) OldPointsBalance(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPointsBalance is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPointsBalance requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPointsBalance: %w", err)
+	}
+	return oldValue.PointsBalance, nil
+}
+
+// AddPointsBalance adds i to the "points_balance" field.
+func (m *LoyaltyAccountMutation) AddPointsBalance(i int) {
+	if m.addpoints_balance != nil {
+		*m.addpoints_balance += i
+	} else {
+		m.addpoints_balance = &i
+	}
+}
+
+// AddedPointsBalance returns the value that was added to the "points_balance" field in this mutation.
+func (m *LoyaltyAccountMutation) AddedPointsBalance() (r int, exists bool) {
+	v := m.addpoints_balance
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetPointsBalance resets all changes to the "points_balance" field.
+func (m *LoyaltyAccountMutation) ResetPointsBalance() {
+	m.points_balance = nil
+	m.addpoints_balance = nil
+}
+
+// SetLifetimePoints sets the "lifetime_points" field.
+func (m *LoyaltyAccountMutation) SetLifetimePoints(i int) {
+	m.lifetime_points = &i
+	m.addlifetime_points = nil
+}
+
+// LifetimePoints returns the value of the "lifetime_points" field in the mutation.
+func (m *LoyaltyAccountMutation) LifetimePoints() (r int, exists bool) {
+	v := m.lifetime_points
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLifetimePoints returns the old "lifetime_points" field's value of the LoyaltyAccount entity.
+// If the LoyaltyAccount object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LoyaltyAccountMutation) OldLifetimePoints(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLifetimePoints is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLifetimePoints requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLifetimePoints: %w", err)
+	}
+	return oldValue.LifetimePoints, nil
+}
+
+// AddLifetimePoints adds i to the "lifetime_points" field.
+func (m *LoyaltyAccountMutation) AddLifetimePoints(i int) {
+	if m.addlifetime_points != nil {
+		*m.addlifetime_points += i
+	} else {
+		m.addlifetime_points = &i
+	}
+}
+
+// AddedLifetimePoints returns the value that was added to the "lifetime_points" field in this mutation.
+func (m *LoyaltyAccountMutation) AddedLifetimePoints() (r int, exists bool) {
+	v := m.addlifetime_points
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetLifetimePoints resets all changes to the "lifetime_points" field.
+func (m *LoyaltyAccountMutation) ResetLifetimePoints() {
+	m.lifetime_points = nil
+	m.addlifetime_points = nil
+}
+
+// SetProgramID sets the "program_id" field.
+func (m *LoyaltyAccountMutation) SetProgramID(u uuid.UUID) {
+	m.program_id = &u
+}
+
+// ProgramID returns the value of the "program_id" field in the mutation.
+func (m *LoyaltyAccountMutation) ProgramID() (r uuid.UUID, exists bool) {
+	v := m.program_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProgramID returns the old "program_id" field's value of the LoyaltyAccount entity.
+// If the LoyaltyAccount object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LoyaltyAccountMutation) OldProgramID(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProgramID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProgramID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProgramID: %w", err)
+	}
+	return oldValue.ProgramID, nil
+}
+
+// ClearProgramID clears the value of the "program_id" field.
+func (m *LoyaltyAccountMutation) ClearProgramID() {
+	m.program_id = nil
+	m.clearedFields[loyaltyaccount.FieldProgramID] = struct{}{}
+}
+
+// ProgramIDCleared returns if the "program_id" field was cleared in this mutation.
+func (m *LoyaltyAccountMutation) ProgramIDCleared() bool {
+	_, ok := m.clearedFields[loyaltyaccount.FieldProgramID]
+	return ok
+}
+
+// ResetProgramID resets all changes to the "program_id" field.
+func (m *LoyaltyAccountMutation) ResetProgramID() {
+	m.program_id = nil
+	delete(m.clearedFields, loyaltyaccount.FieldProgramID)
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *LoyaltyAccountMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *LoyaltyAccountMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the LoyaltyAccount entity.
+// If the LoyaltyAccount object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LoyaltyAccountMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *LoyaltyAccountMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *LoyaltyAccountMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *LoyaltyAccountMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the LoyaltyAccount entity.
+// If the LoyaltyAccount object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LoyaltyAccountMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *LoyaltyAccountMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the LoyaltyAccountMutation builder.
+func (m *LoyaltyAccountMutation) Where(ps ...predicate.LoyaltyAccount) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the LoyaltyAccountMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *LoyaltyAccountMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.LoyaltyAccount, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *LoyaltyAccountMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *LoyaltyAccountMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (LoyaltyAccount).
+func (m *LoyaltyAccountMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *LoyaltyAccountMutation) Fields() []string {
+	fields := make([]string, 0, 9)
+	if m.tenant_id != nil {
+		fields = append(fields, loyaltyaccount.FieldTenantID)
+	}
+	if m.customer_id != nil {
+		fields = append(fields, loyaltyaccount.FieldCustomerID)
+	}
+	if m.customer_phone != nil {
+		fields = append(fields, loyaltyaccount.FieldCustomerPhone)
+	}
+	if m.customer_name != nil {
+		fields = append(fields, loyaltyaccount.FieldCustomerName)
+	}
+	if m.points_balance != nil {
+		fields = append(fields, loyaltyaccount.FieldPointsBalance)
+	}
+	if m.lifetime_points != nil {
+		fields = append(fields, loyaltyaccount.FieldLifetimePoints)
+	}
+	if m.program_id != nil {
+		fields = append(fields, loyaltyaccount.FieldProgramID)
+	}
+	if m.created_at != nil {
+		fields = append(fields, loyaltyaccount.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, loyaltyaccount.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *LoyaltyAccountMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case loyaltyaccount.FieldTenantID:
+		return m.TenantID()
+	case loyaltyaccount.FieldCustomerID:
+		return m.CustomerID()
+	case loyaltyaccount.FieldCustomerPhone:
+		return m.CustomerPhone()
+	case loyaltyaccount.FieldCustomerName:
+		return m.CustomerName()
+	case loyaltyaccount.FieldPointsBalance:
+		return m.PointsBalance()
+	case loyaltyaccount.FieldLifetimePoints:
+		return m.LifetimePoints()
+	case loyaltyaccount.FieldProgramID:
+		return m.ProgramID()
+	case loyaltyaccount.FieldCreatedAt:
+		return m.CreatedAt()
+	case loyaltyaccount.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *LoyaltyAccountMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case loyaltyaccount.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case loyaltyaccount.FieldCustomerID:
+		return m.OldCustomerID(ctx)
+	case loyaltyaccount.FieldCustomerPhone:
+		return m.OldCustomerPhone(ctx)
+	case loyaltyaccount.FieldCustomerName:
+		return m.OldCustomerName(ctx)
+	case loyaltyaccount.FieldPointsBalance:
+		return m.OldPointsBalance(ctx)
+	case loyaltyaccount.FieldLifetimePoints:
+		return m.OldLifetimePoints(ctx)
+	case loyaltyaccount.FieldProgramID:
+		return m.OldProgramID(ctx)
+	case loyaltyaccount.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case loyaltyaccount.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown LoyaltyAccount field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *LoyaltyAccountMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case loyaltyaccount.FieldTenantID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case loyaltyaccount.FieldCustomerID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCustomerID(v)
+		return nil
+	case loyaltyaccount.FieldCustomerPhone:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCustomerPhone(v)
+		return nil
+	case loyaltyaccount.FieldCustomerName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCustomerName(v)
+		return nil
+	case loyaltyaccount.FieldPointsBalance:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPointsBalance(v)
+		return nil
+	case loyaltyaccount.FieldLifetimePoints:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLifetimePoints(v)
+		return nil
+	case loyaltyaccount.FieldProgramID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProgramID(v)
+		return nil
+	case loyaltyaccount.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case loyaltyaccount.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown LoyaltyAccount field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *LoyaltyAccountMutation) AddedFields() []string {
+	var fields []string
+	if m.addpoints_balance != nil {
+		fields = append(fields, loyaltyaccount.FieldPointsBalance)
+	}
+	if m.addlifetime_points != nil {
+		fields = append(fields, loyaltyaccount.FieldLifetimePoints)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *LoyaltyAccountMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case loyaltyaccount.FieldPointsBalance:
+		return m.AddedPointsBalance()
+	case loyaltyaccount.FieldLifetimePoints:
+		return m.AddedLifetimePoints()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *LoyaltyAccountMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case loyaltyaccount.FieldPointsBalance:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddPointsBalance(v)
+		return nil
+	case loyaltyaccount.FieldLifetimePoints:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddLifetimePoints(v)
+		return nil
+	}
+	return fmt.Errorf("unknown LoyaltyAccount numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *LoyaltyAccountMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(loyaltyaccount.FieldCustomerID) {
+		fields = append(fields, loyaltyaccount.FieldCustomerID)
+	}
+	if m.FieldCleared(loyaltyaccount.FieldProgramID) {
+		fields = append(fields, loyaltyaccount.FieldProgramID)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *LoyaltyAccountMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *LoyaltyAccountMutation) ClearField(name string) error {
+	switch name {
+	case loyaltyaccount.FieldCustomerID:
+		m.ClearCustomerID()
+		return nil
+	case loyaltyaccount.FieldProgramID:
+		m.ClearProgramID()
+		return nil
+	}
+	return fmt.Errorf("unknown LoyaltyAccount nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *LoyaltyAccountMutation) ResetField(name string) error {
+	switch name {
+	case loyaltyaccount.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case loyaltyaccount.FieldCustomerID:
+		m.ResetCustomerID()
+		return nil
+	case loyaltyaccount.FieldCustomerPhone:
+		m.ResetCustomerPhone()
+		return nil
+	case loyaltyaccount.FieldCustomerName:
+		m.ResetCustomerName()
+		return nil
+	case loyaltyaccount.FieldPointsBalance:
+		m.ResetPointsBalance()
+		return nil
+	case loyaltyaccount.FieldLifetimePoints:
+		m.ResetLifetimePoints()
+		return nil
+	case loyaltyaccount.FieldProgramID:
+		m.ResetProgramID()
+		return nil
+	case loyaltyaccount.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case loyaltyaccount.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown LoyaltyAccount field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *LoyaltyAccountMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *LoyaltyAccountMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *LoyaltyAccountMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *LoyaltyAccountMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *LoyaltyAccountMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *LoyaltyAccountMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *LoyaltyAccountMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown LoyaltyAccount unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *LoyaltyAccountMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown LoyaltyAccount edge %s", name)
+}
+
+// LoyaltyProgramMutation represents an operation that mutates the LoyaltyProgram nodes in the graph.
+type LoyaltyProgramMutation struct {
+	config
+	op                   Op
+	typ                  string
+	id                   *uuid.UUID
+	tenant_id            *uuid.UUID
+	name                 *string
+	description          *string
+	earn_rate            *float64
+	addearn_rate         *float64
+	redeem_rate          *float64
+	addredeem_rate       *float64
+	min_redeem_points    *int
+	addmin_redeem_points *int
+	is_active            *bool
+	created_at           *time.Time
+	updated_at           *time.Time
+	clearedFields        map[string]struct{}
+	done                 bool
+	oldValue             func(context.Context) (*LoyaltyProgram, error)
+	predicates           []predicate.LoyaltyProgram
+}
+
+var _ ent.Mutation = (*LoyaltyProgramMutation)(nil)
+
+// loyaltyprogramOption allows management of the mutation configuration using functional options.
+type loyaltyprogramOption func(*LoyaltyProgramMutation)
+
+// newLoyaltyProgramMutation creates new mutation for the LoyaltyProgram entity.
+func newLoyaltyProgramMutation(c config, op Op, opts ...loyaltyprogramOption) *LoyaltyProgramMutation {
+	m := &LoyaltyProgramMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeLoyaltyProgram,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withLoyaltyProgramID sets the ID field of the mutation.
+func withLoyaltyProgramID(id uuid.UUID) loyaltyprogramOption {
+	return func(m *LoyaltyProgramMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *LoyaltyProgram
+		)
+		m.oldValue = func(ctx context.Context) (*LoyaltyProgram, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().LoyaltyProgram.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withLoyaltyProgram sets the old LoyaltyProgram of the mutation.
+func withLoyaltyProgram(node *LoyaltyProgram) loyaltyprogramOption {
+	return func(m *LoyaltyProgramMutation) {
+		m.oldValue = func(context.Context) (*LoyaltyProgram, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m LoyaltyProgramMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m LoyaltyProgramMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of LoyaltyProgram entities.
+func (m *LoyaltyProgramMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *LoyaltyProgramMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *LoyaltyProgramMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().LoyaltyProgram.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *LoyaltyProgramMutation) SetTenantID(u uuid.UUID) {
+	m.tenant_id = &u
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *LoyaltyProgramMutation) TenantID() (r uuid.UUID, exists bool) {
+	v := m.tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the LoyaltyProgram entity.
+// If the LoyaltyProgram object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LoyaltyProgramMutation) OldTenantID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *LoyaltyProgramMutation) ResetTenantID() {
+	m.tenant_id = nil
+}
+
+// SetName sets the "name" field.
+func (m *LoyaltyProgramMutation) SetName(s string) {
+	m.name = &s
+}
+
+// Name returns the value of the "name" field in the mutation.
+func (m *LoyaltyProgramMutation) Name() (r string, exists bool) {
+	v := m.name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldName returns the old "name" field's value of the LoyaltyProgram entity.
+// If the LoyaltyProgram object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LoyaltyProgramMutation) OldName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldName: %w", err)
+	}
+	return oldValue.Name, nil
+}
+
+// ResetName resets all changes to the "name" field.
+func (m *LoyaltyProgramMutation) ResetName() {
+	m.name = nil
+}
+
+// SetDescription sets the "description" field.
+func (m *LoyaltyProgramMutation) SetDescription(s string) {
+	m.description = &s
+}
+
+// Description returns the value of the "description" field in the mutation.
+func (m *LoyaltyProgramMutation) Description() (r string, exists bool) {
+	v := m.description
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDescription returns the old "description" field's value of the LoyaltyProgram entity.
+// If the LoyaltyProgram object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LoyaltyProgramMutation) OldDescription(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDescription is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDescription requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDescription: %w", err)
+	}
+	return oldValue.Description, nil
+}
+
+// ClearDescription clears the value of the "description" field.
+func (m *LoyaltyProgramMutation) ClearDescription() {
+	m.description = nil
+	m.clearedFields[loyaltyprogram.FieldDescription] = struct{}{}
+}
+
+// DescriptionCleared returns if the "description" field was cleared in this mutation.
+func (m *LoyaltyProgramMutation) DescriptionCleared() bool {
+	_, ok := m.clearedFields[loyaltyprogram.FieldDescription]
+	return ok
+}
+
+// ResetDescription resets all changes to the "description" field.
+func (m *LoyaltyProgramMutation) ResetDescription() {
+	m.description = nil
+	delete(m.clearedFields, loyaltyprogram.FieldDescription)
+}
+
+// SetEarnRate sets the "earn_rate" field.
+func (m *LoyaltyProgramMutation) SetEarnRate(f float64) {
+	m.earn_rate = &f
+	m.addearn_rate = nil
+}
+
+// EarnRate returns the value of the "earn_rate" field in the mutation.
+func (m *LoyaltyProgramMutation) EarnRate() (r float64, exists bool) {
+	v := m.earn_rate
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEarnRate returns the old "earn_rate" field's value of the LoyaltyProgram entity.
+// If the LoyaltyProgram object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LoyaltyProgramMutation) OldEarnRate(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEarnRate is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEarnRate requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEarnRate: %w", err)
+	}
+	return oldValue.EarnRate, nil
+}
+
+// AddEarnRate adds f to the "earn_rate" field.
+func (m *LoyaltyProgramMutation) AddEarnRate(f float64) {
+	if m.addearn_rate != nil {
+		*m.addearn_rate += f
+	} else {
+		m.addearn_rate = &f
+	}
+}
+
+// AddedEarnRate returns the value that was added to the "earn_rate" field in this mutation.
+func (m *LoyaltyProgramMutation) AddedEarnRate() (r float64, exists bool) {
+	v := m.addearn_rate
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetEarnRate resets all changes to the "earn_rate" field.
+func (m *LoyaltyProgramMutation) ResetEarnRate() {
+	m.earn_rate = nil
+	m.addearn_rate = nil
+}
+
+// SetRedeemRate sets the "redeem_rate" field.
+func (m *LoyaltyProgramMutation) SetRedeemRate(f float64) {
+	m.redeem_rate = &f
+	m.addredeem_rate = nil
+}
+
+// RedeemRate returns the value of the "redeem_rate" field in the mutation.
+func (m *LoyaltyProgramMutation) RedeemRate() (r float64, exists bool) {
+	v := m.redeem_rate
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRedeemRate returns the old "redeem_rate" field's value of the LoyaltyProgram entity.
+// If the LoyaltyProgram object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LoyaltyProgramMutation) OldRedeemRate(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRedeemRate is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRedeemRate requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRedeemRate: %w", err)
+	}
+	return oldValue.RedeemRate, nil
+}
+
+// AddRedeemRate adds f to the "redeem_rate" field.
+func (m *LoyaltyProgramMutation) AddRedeemRate(f float64) {
+	if m.addredeem_rate != nil {
+		*m.addredeem_rate += f
+	} else {
+		m.addredeem_rate = &f
+	}
+}
+
+// AddedRedeemRate returns the value that was added to the "redeem_rate" field in this mutation.
+func (m *LoyaltyProgramMutation) AddedRedeemRate() (r float64, exists bool) {
+	v := m.addredeem_rate
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetRedeemRate resets all changes to the "redeem_rate" field.
+func (m *LoyaltyProgramMutation) ResetRedeemRate() {
+	m.redeem_rate = nil
+	m.addredeem_rate = nil
+}
+
+// SetMinRedeemPoints sets the "min_redeem_points" field.
+func (m *LoyaltyProgramMutation) SetMinRedeemPoints(i int) {
+	m.min_redeem_points = &i
+	m.addmin_redeem_points = nil
+}
+
+// MinRedeemPoints returns the value of the "min_redeem_points" field in the mutation.
+func (m *LoyaltyProgramMutation) MinRedeemPoints() (r int, exists bool) {
+	v := m.min_redeem_points
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMinRedeemPoints returns the old "min_redeem_points" field's value of the LoyaltyProgram entity.
+// If the LoyaltyProgram object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LoyaltyProgramMutation) OldMinRedeemPoints(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMinRedeemPoints is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMinRedeemPoints requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMinRedeemPoints: %w", err)
+	}
+	return oldValue.MinRedeemPoints, nil
+}
+
+// AddMinRedeemPoints adds i to the "min_redeem_points" field.
+func (m *LoyaltyProgramMutation) AddMinRedeemPoints(i int) {
+	if m.addmin_redeem_points != nil {
+		*m.addmin_redeem_points += i
+	} else {
+		m.addmin_redeem_points = &i
+	}
+}
+
+// AddedMinRedeemPoints returns the value that was added to the "min_redeem_points" field in this mutation.
+func (m *LoyaltyProgramMutation) AddedMinRedeemPoints() (r int, exists bool) {
+	v := m.addmin_redeem_points
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetMinRedeemPoints resets all changes to the "min_redeem_points" field.
+func (m *LoyaltyProgramMutation) ResetMinRedeemPoints() {
+	m.min_redeem_points = nil
+	m.addmin_redeem_points = nil
+}
+
+// SetIsActive sets the "is_active" field.
+func (m *LoyaltyProgramMutation) SetIsActive(b bool) {
+	m.is_active = &b
+}
+
+// IsActive returns the value of the "is_active" field in the mutation.
+func (m *LoyaltyProgramMutation) IsActive() (r bool, exists bool) {
+	v := m.is_active
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIsActive returns the old "is_active" field's value of the LoyaltyProgram entity.
+// If the LoyaltyProgram object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LoyaltyProgramMutation) OldIsActive(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIsActive is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIsActive requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIsActive: %w", err)
+	}
+	return oldValue.IsActive, nil
+}
+
+// ResetIsActive resets all changes to the "is_active" field.
+func (m *LoyaltyProgramMutation) ResetIsActive() {
+	m.is_active = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *LoyaltyProgramMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *LoyaltyProgramMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the LoyaltyProgram entity.
+// If the LoyaltyProgram object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LoyaltyProgramMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *LoyaltyProgramMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *LoyaltyProgramMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *LoyaltyProgramMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the LoyaltyProgram entity.
+// If the LoyaltyProgram object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LoyaltyProgramMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *LoyaltyProgramMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the LoyaltyProgramMutation builder.
+func (m *LoyaltyProgramMutation) Where(ps ...predicate.LoyaltyProgram) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the LoyaltyProgramMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *LoyaltyProgramMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.LoyaltyProgram, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *LoyaltyProgramMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *LoyaltyProgramMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (LoyaltyProgram).
+func (m *LoyaltyProgramMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *LoyaltyProgramMutation) Fields() []string {
+	fields := make([]string, 0, 9)
+	if m.tenant_id != nil {
+		fields = append(fields, loyaltyprogram.FieldTenantID)
+	}
+	if m.name != nil {
+		fields = append(fields, loyaltyprogram.FieldName)
+	}
+	if m.description != nil {
+		fields = append(fields, loyaltyprogram.FieldDescription)
+	}
+	if m.earn_rate != nil {
+		fields = append(fields, loyaltyprogram.FieldEarnRate)
+	}
+	if m.redeem_rate != nil {
+		fields = append(fields, loyaltyprogram.FieldRedeemRate)
+	}
+	if m.min_redeem_points != nil {
+		fields = append(fields, loyaltyprogram.FieldMinRedeemPoints)
+	}
+	if m.is_active != nil {
+		fields = append(fields, loyaltyprogram.FieldIsActive)
+	}
+	if m.created_at != nil {
+		fields = append(fields, loyaltyprogram.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, loyaltyprogram.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *LoyaltyProgramMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case loyaltyprogram.FieldTenantID:
+		return m.TenantID()
+	case loyaltyprogram.FieldName:
+		return m.Name()
+	case loyaltyprogram.FieldDescription:
+		return m.Description()
+	case loyaltyprogram.FieldEarnRate:
+		return m.EarnRate()
+	case loyaltyprogram.FieldRedeemRate:
+		return m.RedeemRate()
+	case loyaltyprogram.FieldMinRedeemPoints:
+		return m.MinRedeemPoints()
+	case loyaltyprogram.FieldIsActive:
+		return m.IsActive()
+	case loyaltyprogram.FieldCreatedAt:
+		return m.CreatedAt()
+	case loyaltyprogram.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *LoyaltyProgramMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case loyaltyprogram.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case loyaltyprogram.FieldName:
+		return m.OldName(ctx)
+	case loyaltyprogram.FieldDescription:
+		return m.OldDescription(ctx)
+	case loyaltyprogram.FieldEarnRate:
+		return m.OldEarnRate(ctx)
+	case loyaltyprogram.FieldRedeemRate:
+		return m.OldRedeemRate(ctx)
+	case loyaltyprogram.FieldMinRedeemPoints:
+		return m.OldMinRedeemPoints(ctx)
+	case loyaltyprogram.FieldIsActive:
+		return m.OldIsActive(ctx)
+	case loyaltyprogram.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case loyaltyprogram.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown LoyaltyProgram field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *LoyaltyProgramMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case loyaltyprogram.FieldTenantID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case loyaltyprogram.FieldName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetName(v)
+		return nil
+	case loyaltyprogram.FieldDescription:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDescription(v)
+		return nil
+	case loyaltyprogram.FieldEarnRate:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEarnRate(v)
+		return nil
+	case loyaltyprogram.FieldRedeemRate:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRedeemRate(v)
+		return nil
+	case loyaltyprogram.FieldMinRedeemPoints:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMinRedeemPoints(v)
+		return nil
+	case loyaltyprogram.FieldIsActive:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIsActive(v)
+		return nil
+	case loyaltyprogram.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case loyaltyprogram.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown LoyaltyProgram field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *LoyaltyProgramMutation) AddedFields() []string {
+	var fields []string
+	if m.addearn_rate != nil {
+		fields = append(fields, loyaltyprogram.FieldEarnRate)
+	}
+	if m.addredeem_rate != nil {
+		fields = append(fields, loyaltyprogram.FieldRedeemRate)
+	}
+	if m.addmin_redeem_points != nil {
+		fields = append(fields, loyaltyprogram.FieldMinRedeemPoints)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *LoyaltyProgramMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case loyaltyprogram.FieldEarnRate:
+		return m.AddedEarnRate()
+	case loyaltyprogram.FieldRedeemRate:
+		return m.AddedRedeemRate()
+	case loyaltyprogram.FieldMinRedeemPoints:
+		return m.AddedMinRedeemPoints()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *LoyaltyProgramMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case loyaltyprogram.FieldEarnRate:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddEarnRate(v)
+		return nil
+	case loyaltyprogram.FieldRedeemRate:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRedeemRate(v)
+		return nil
+	case loyaltyprogram.FieldMinRedeemPoints:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddMinRedeemPoints(v)
+		return nil
+	}
+	return fmt.Errorf("unknown LoyaltyProgram numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *LoyaltyProgramMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(loyaltyprogram.FieldDescription) {
+		fields = append(fields, loyaltyprogram.FieldDescription)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *LoyaltyProgramMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *LoyaltyProgramMutation) ClearField(name string) error {
+	switch name {
+	case loyaltyprogram.FieldDescription:
+		m.ClearDescription()
+		return nil
+	}
+	return fmt.Errorf("unknown LoyaltyProgram nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *LoyaltyProgramMutation) ResetField(name string) error {
+	switch name {
+	case loyaltyprogram.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case loyaltyprogram.FieldName:
+		m.ResetName()
+		return nil
+	case loyaltyprogram.FieldDescription:
+		m.ResetDescription()
+		return nil
+	case loyaltyprogram.FieldEarnRate:
+		m.ResetEarnRate()
+		return nil
+	case loyaltyprogram.FieldRedeemRate:
+		m.ResetRedeemRate()
+		return nil
+	case loyaltyprogram.FieldMinRedeemPoints:
+		m.ResetMinRedeemPoints()
+		return nil
+	case loyaltyprogram.FieldIsActive:
+		m.ResetIsActive()
+		return nil
+	case loyaltyprogram.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case loyaltyprogram.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown LoyaltyProgram field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *LoyaltyProgramMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *LoyaltyProgramMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *LoyaltyProgramMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *LoyaltyProgramMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *LoyaltyProgramMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *LoyaltyProgramMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *LoyaltyProgramMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown LoyaltyProgram unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *LoyaltyProgramMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown LoyaltyProgram edge %s", name)
+}
+
+// LoyaltyTransactionMutation represents an operation that mutates the LoyaltyTransaction nodes in the graph.
+type LoyaltyTransactionMutation struct {
+	config
+	op               Op
+	typ              string
+	id               *uuid.UUID
+	tenant_id        *uuid.UUID
+	account_id       *uuid.UUID
+	order_id         *uuid.UUID
+	type_field       *string
+	points           *int
+	addpoints        *int
+	balance_after    *int
+	addbalance_after *int
+	notes            *string
+	created_at       *time.Time
+	clearedFields    map[string]struct{}
+	done             bool
+	oldValue         func(context.Context) (*LoyaltyTransaction, error)
+	predicates       []predicate.LoyaltyTransaction
+}
+
+var _ ent.Mutation = (*LoyaltyTransactionMutation)(nil)
+
+// loyaltytransactionOption allows management of the mutation configuration using functional options.
+type loyaltytransactionOption func(*LoyaltyTransactionMutation)
+
+// newLoyaltyTransactionMutation creates new mutation for the LoyaltyTransaction entity.
+func newLoyaltyTransactionMutation(c config, op Op, opts ...loyaltytransactionOption) *LoyaltyTransactionMutation {
+	m := &LoyaltyTransactionMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeLoyaltyTransaction,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withLoyaltyTransactionID sets the ID field of the mutation.
+func withLoyaltyTransactionID(id uuid.UUID) loyaltytransactionOption {
+	return func(m *LoyaltyTransactionMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *LoyaltyTransaction
+		)
+		m.oldValue = func(ctx context.Context) (*LoyaltyTransaction, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().LoyaltyTransaction.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withLoyaltyTransaction sets the old LoyaltyTransaction of the mutation.
+func withLoyaltyTransaction(node *LoyaltyTransaction) loyaltytransactionOption {
+	return func(m *LoyaltyTransactionMutation) {
+		m.oldValue = func(context.Context) (*LoyaltyTransaction, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m LoyaltyTransactionMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m LoyaltyTransactionMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of LoyaltyTransaction entities.
+func (m *LoyaltyTransactionMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *LoyaltyTransactionMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *LoyaltyTransactionMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().LoyaltyTransaction.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *LoyaltyTransactionMutation) SetTenantID(u uuid.UUID) {
+	m.tenant_id = &u
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *LoyaltyTransactionMutation) TenantID() (r uuid.UUID, exists bool) {
+	v := m.tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the LoyaltyTransaction entity.
+// If the LoyaltyTransaction object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LoyaltyTransactionMutation) OldTenantID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *LoyaltyTransactionMutation) ResetTenantID() {
+	m.tenant_id = nil
+}
+
+// SetAccountID sets the "account_id" field.
+func (m *LoyaltyTransactionMutation) SetAccountID(u uuid.UUID) {
+	m.account_id = &u
+}
+
+// AccountID returns the value of the "account_id" field in the mutation.
+func (m *LoyaltyTransactionMutation) AccountID() (r uuid.UUID, exists bool) {
+	v := m.account_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAccountID returns the old "account_id" field's value of the LoyaltyTransaction entity.
+// If the LoyaltyTransaction object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LoyaltyTransactionMutation) OldAccountID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAccountID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAccountID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAccountID: %w", err)
+	}
+	return oldValue.AccountID, nil
+}
+
+// ResetAccountID resets all changes to the "account_id" field.
+func (m *LoyaltyTransactionMutation) ResetAccountID() {
+	m.account_id = nil
+}
+
+// SetOrderID sets the "order_id" field.
+func (m *LoyaltyTransactionMutation) SetOrderID(u uuid.UUID) {
+	m.order_id = &u
+}
+
+// OrderID returns the value of the "order_id" field in the mutation.
+func (m *LoyaltyTransactionMutation) OrderID() (r uuid.UUID, exists bool) {
+	v := m.order_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOrderID returns the old "order_id" field's value of the LoyaltyTransaction entity.
+// If the LoyaltyTransaction object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LoyaltyTransactionMutation) OldOrderID(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOrderID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOrderID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOrderID: %w", err)
+	}
+	return oldValue.OrderID, nil
+}
+
+// ClearOrderID clears the value of the "order_id" field.
+func (m *LoyaltyTransactionMutation) ClearOrderID() {
+	m.order_id = nil
+	m.clearedFields[loyaltytransaction.FieldOrderID] = struct{}{}
+}
+
+// OrderIDCleared returns if the "order_id" field was cleared in this mutation.
+func (m *LoyaltyTransactionMutation) OrderIDCleared() bool {
+	_, ok := m.clearedFields[loyaltytransaction.FieldOrderID]
+	return ok
+}
+
+// ResetOrderID resets all changes to the "order_id" field.
+func (m *LoyaltyTransactionMutation) ResetOrderID() {
+	m.order_id = nil
+	delete(m.clearedFields, loyaltytransaction.FieldOrderID)
+}
+
+// SetTypeField sets the "type_field" field.
+func (m *LoyaltyTransactionMutation) SetTypeField(s string) {
+	m.type_field = &s
+}
+
+// TypeField returns the value of the "type_field" field in the mutation.
+func (m *LoyaltyTransactionMutation) TypeField() (r string, exists bool) {
+	v := m.type_field
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTypeField returns the old "type_field" field's value of the LoyaltyTransaction entity.
+// If the LoyaltyTransaction object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LoyaltyTransactionMutation) OldTypeField(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTypeField is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTypeField requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTypeField: %w", err)
+	}
+	return oldValue.TypeField, nil
+}
+
+// ResetTypeField resets all changes to the "type_field" field.
+func (m *LoyaltyTransactionMutation) ResetTypeField() {
+	m.type_field = nil
+}
+
+// SetPoints sets the "points" field.
+func (m *LoyaltyTransactionMutation) SetPoints(i int) {
+	m.points = &i
+	m.addpoints = nil
+}
+
+// Points returns the value of the "points" field in the mutation.
+func (m *LoyaltyTransactionMutation) Points() (r int, exists bool) {
+	v := m.points
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPoints returns the old "points" field's value of the LoyaltyTransaction entity.
+// If the LoyaltyTransaction object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LoyaltyTransactionMutation) OldPoints(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPoints is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPoints requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPoints: %w", err)
+	}
+	return oldValue.Points, nil
+}
+
+// AddPoints adds i to the "points" field.
+func (m *LoyaltyTransactionMutation) AddPoints(i int) {
+	if m.addpoints != nil {
+		*m.addpoints += i
+	} else {
+		m.addpoints = &i
+	}
+}
+
+// AddedPoints returns the value that was added to the "points" field in this mutation.
+func (m *LoyaltyTransactionMutation) AddedPoints() (r int, exists bool) {
+	v := m.addpoints
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetPoints resets all changes to the "points" field.
+func (m *LoyaltyTransactionMutation) ResetPoints() {
+	m.points = nil
+	m.addpoints = nil
+}
+
+// SetBalanceAfter sets the "balance_after" field.
+func (m *LoyaltyTransactionMutation) SetBalanceAfter(i int) {
+	m.balance_after = &i
+	m.addbalance_after = nil
+}
+
+// BalanceAfter returns the value of the "balance_after" field in the mutation.
+func (m *LoyaltyTransactionMutation) BalanceAfter() (r int, exists bool) {
+	v := m.balance_after
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBalanceAfter returns the old "balance_after" field's value of the LoyaltyTransaction entity.
+// If the LoyaltyTransaction object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LoyaltyTransactionMutation) OldBalanceAfter(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBalanceAfter is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBalanceAfter requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBalanceAfter: %w", err)
+	}
+	return oldValue.BalanceAfter, nil
+}
+
+// AddBalanceAfter adds i to the "balance_after" field.
+func (m *LoyaltyTransactionMutation) AddBalanceAfter(i int) {
+	if m.addbalance_after != nil {
+		*m.addbalance_after += i
+	} else {
+		m.addbalance_after = &i
+	}
+}
+
+// AddedBalanceAfter returns the value that was added to the "balance_after" field in this mutation.
+func (m *LoyaltyTransactionMutation) AddedBalanceAfter() (r int, exists bool) {
+	v := m.addbalance_after
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetBalanceAfter resets all changes to the "balance_after" field.
+func (m *LoyaltyTransactionMutation) ResetBalanceAfter() {
+	m.balance_after = nil
+	m.addbalance_after = nil
+}
+
+// SetNotes sets the "notes" field.
+func (m *LoyaltyTransactionMutation) SetNotes(s string) {
+	m.notes = &s
+}
+
+// Notes returns the value of the "notes" field in the mutation.
+func (m *LoyaltyTransactionMutation) Notes() (r string, exists bool) {
+	v := m.notes
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNotes returns the old "notes" field's value of the LoyaltyTransaction entity.
+// If the LoyaltyTransaction object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LoyaltyTransactionMutation) OldNotes(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNotes is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNotes requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNotes: %w", err)
+	}
+	return oldValue.Notes, nil
+}
+
+// ClearNotes clears the value of the "notes" field.
+func (m *LoyaltyTransactionMutation) ClearNotes() {
+	m.notes = nil
+	m.clearedFields[loyaltytransaction.FieldNotes] = struct{}{}
+}
+
+// NotesCleared returns if the "notes" field was cleared in this mutation.
+func (m *LoyaltyTransactionMutation) NotesCleared() bool {
+	_, ok := m.clearedFields[loyaltytransaction.FieldNotes]
+	return ok
+}
+
+// ResetNotes resets all changes to the "notes" field.
+func (m *LoyaltyTransactionMutation) ResetNotes() {
+	m.notes = nil
+	delete(m.clearedFields, loyaltytransaction.FieldNotes)
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *LoyaltyTransactionMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *LoyaltyTransactionMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the LoyaltyTransaction entity.
+// If the LoyaltyTransaction object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LoyaltyTransactionMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *LoyaltyTransactionMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// Where appends a list predicates to the LoyaltyTransactionMutation builder.
+func (m *LoyaltyTransactionMutation) Where(ps ...predicate.LoyaltyTransaction) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the LoyaltyTransactionMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *LoyaltyTransactionMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.LoyaltyTransaction, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *LoyaltyTransactionMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *LoyaltyTransactionMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (LoyaltyTransaction).
+func (m *LoyaltyTransactionMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *LoyaltyTransactionMutation) Fields() []string {
+	fields := make([]string, 0, 8)
+	if m.tenant_id != nil {
+		fields = append(fields, loyaltytransaction.FieldTenantID)
+	}
+	if m.account_id != nil {
+		fields = append(fields, loyaltytransaction.FieldAccountID)
+	}
+	if m.order_id != nil {
+		fields = append(fields, loyaltytransaction.FieldOrderID)
+	}
+	if m.type_field != nil {
+		fields = append(fields, loyaltytransaction.FieldTypeField)
+	}
+	if m.points != nil {
+		fields = append(fields, loyaltytransaction.FieldPoints)
+	}
+	if m.balance_after != nil {
+		fields = append(fields, loyaltytransaction.FieldBalanceAfter)
+	}
+	if m.notes != nil {
+		fields = append(fields, loyaltytransaction.FieldNotes)
+	}
+	if m.created_at != nil {
+		fields = append(fields, loyaltytransaction.FieldCreatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *LoyaltyTransactionMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case loyaltytransaction.FieldTenantID:
+		return m.TenantID()
+	case loyaltytransaction.FieldAccountID:
+		return m.AccountID()
+	case loyaltytransaction.FieldOrderID:
+		return m.OrderID()
+	case loyaltytransaction.FieldTypeField:
+		return m.TypeField()
+	case loyaltytransaction.FieldPoints:
+		return m.Points()
+	case loyaltytransaction.FieldBalanceAfter:
+		return m.BalanceAfter()
+	case loyaltytransaction.FieldNotes:
+		return m.Notes()
+	case loyaltytransaction.FieldCreatedAt:
+		return m.CreatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *LoyaltyTransactionMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case loyaltytransaction.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case loyaltytransaction.FieldAccountID:
+		return m.OldAccountID(ctx)
+	case loyaltytransaction.FieldOrderID:
+		return m.OldOrderID(ctx)
+	case loyaltytransaction.FieldTypeField:
+		return m.OldTypeField(ctx)
+	case loyaltytransaction.FieldPoints:
+		return m.OldPoints(ctx)
+	case loyaltytransaction.FieldBalanceAfter:
+		return m.OldBalanceAfter(ctx)
+	case loyaltytransaction.FieldNotes:
+		return m.OldNotes(ctx)
+	case loyaltytransaction.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown LoyaltyTransaction field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *LoyaltyTransactionMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case loyaltytransaction.FieldTenantID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case loyaltytransaction.FieldAccountID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAccountID(v)
+		return nil
+	case loyaltytransaction.FieldOrderID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOrderID(v)
+		return nil
+	case loyaltytransaction.FieldTypeField:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTypeField(v)
+		return nil
+	case loyaltytransaction.FieldPoints:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPoints(v)
+		return nil
+	case loyaltytransaction.FieldBalanceAfter:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBalanceAfter(v)
+		return nil
+	case loyaltytransaction.FieldNotes:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNotes(v)
+		return nil
+	case loyaltytransaction.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown LoyaltyTransaction field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *LoyaltyTransactionMutation) AddedFields() []string {
+	var fields []string
+	if m.addpoints != nil {
+		fields = append(fields, loyaltytransaction.FieldPoints)
+	}
+	if m.addbalance_after != nil {
+		fields = append(fields, loyaltytransaction.FieldBalanceAfter)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *LoyaltyTransactionMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case loyaltytransaction.FieldPoints:
+		return m.AddedPoints()
+	case loyaltytransaction.FieldBalanceAfter:
+		return m.AddedBalanceAfter()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *LoyaltyTransactionMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case loyaltytransaction.FieldPoints:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddPoints(v)
+		return nil
+	case loyaltytransaction.FieldBalanceAfter:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddBalanceAfter(v)
+		return nil
+	}
+	return fmt.Errorf("unknown LoyaltyTransaction numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *LoyaltyTransactionMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(loyaltytransaction.FieldOrderID) {
+		fields = append(fields, loyaltytransaction.FieldOrderID)
+	}
+	if m.FieldCleared(loyaltytransaction.FieldNotes) {
+		fields = append(fields, loyaltytransaction.FieldNotes)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *LoyaltyTransactionMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *LoyaltyTransactionMutation) ClearField(name string) error {
+	switch name {
+	case loyaltytransaction.FieldOrderID:
+		m.ClearOrderID()
+		return nil
+	case loyaltytransaction.FieldNotes:
+		m.ClearNotes()
+		return nil
+	}
+	return fmt.Errorf("unknown LoyaltyTransaction nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *LoyaltyTransactionMutation) ResetField(name string) error {
+	switch name {
+	case loyaltytransaction.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case loyaltytransaction.FieldAccountID:
+		m.ResetAccountID()
+		return nil
+	case loyaltytransaction.FieldOrderID:
+		m.ResetOrderID()
+		return nil
+	case loyaltytransaction.FieldTypeField:
+		m.ResetTypeField()
+		return nil
+	case loyaltytransaction.FieldPoints:
+		m.ResetPoints()
+		return nil
+	case loyaltytransaction.FieldBalanceAfter:
+		m.ResetBalanceAfter()
+		return nil
+	case loyaltytransaction.FieldNotes:
+		m.ResetNotes()
+		return nil
+	case loyaltytransaction.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown LoyaltyTransaction field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *LoyaltyTransactionMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *LoyaltyTransactionMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *LoyaltyTransactionMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *LoyaltyTransactionMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *LoyaltyTransactionMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *LoyaltyTransactionMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *LoyaltyTransactionMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown LoyaltyTransaction unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *LoyaltyTransactionMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown LoyaltyTransaction edge %s", name)
 }
 
 // ModifierMutation represents an operation that mutates the Modifier nodes in the graph.

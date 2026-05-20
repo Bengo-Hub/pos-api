@@ -634,6 +634,93 @@ var (
 		Columns:    LicenseUsageSnapshotsColumns,
 		PrimaryKey: []*schema.Column{LicenseUsageSnapshotsColumns[0]},
 	}
+	// LoyaltyAccountsColumns holds the columns for the "loyalty_accounts" table.
+	LoyaltyAccountsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "customer_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "customer_phone", Type: field.TypeString},
+		{Name: "customer_name", Type: field.TypeString},
+		{Name: "points_balance", Type: field.TypeInt, Default: 0},
+		{Name: "lifetime_points", Type: field.TypeInt, Default: 0},
+		{Name: "program_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// LoyaltyAccountsTable holds the schema information for the "loyalty_accounts" table.
+	LoyaltyAccountsTable = &schema.Table{
+		Name:       "loyalty_accounts",
+		Columns:    LoyaltyAccountsColumns,
+		PrimaryKey: []*schema.Column{LoyaltyAccountsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "loyaltyaccount_tenant_id_customer_phone",
+				Unique:  true,
+				Columns: []*schema.Column{LoyaltyAccountsColumns[1], LoyaltyAccountsColumns[3]},
+			},
+			{
+				Name:    "loyaltyaccount_tenant_id_customer_id",
+				Unique:  false,
+				Columns: []*schema.Column{LoyaltyAccountsColumns[1], LoyaltyAccountsColumns[2]},
+			},
+		},
+	}
+	// LoyaltyProgramsColumns holds the columns for the "loyalty_programs" table.
+	LoyaltyProgramsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "name", Type: field.TypeString},
+		{Name: "description", Type: field.TypeString, Nullable: true},
+		{Name: "earn_rate", Type: field.TypeFloat64, Default: 1},
+		{Name: "redeem_rate", Type: field.TypeFloat64, Default: 0.01},
+		{Name: "min_redeem_points", Type: field.TypeInt, Default: 100},
+		{Name: "is_active", Type: field.TypeBool, Default: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// LoyaltyProgramsTable holds the schema information for the "loyalty_programs" table.
+	LoyaltyProgramsTable = &schema.Table{
+		Name:       "loyalty_programs",
+		Columns:    LoyaltyProgramsColumns,
+		PrimaryKey: []*schema.Column{LoyaltyProgramsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "loyaltyprogram_tenant_id",
+				Unique:  false,
+				Columns: []*schema.Column{LoyaltyProgramsColumns[1]},
+			},
+		},
+	}
+	// LoyaltyTransactionsColumns holds the columns for the "loyalty_transactions" table.
+	LoyaltyTransactionsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "account_id", Type: field.TypeUUID},
+		{Name: "order_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "type_field", Type: field.TypeString},
+		{Name: "points", Type: field.TypeInt},
+		{Name: "balance_after", Type: field.TypeInt},
+		{Name: "notes", Type: field.TypeString, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+	}
+	// LoyaltyTransactionsTable holds the schema information for the "loyalty_transactions" table.
+	LoyaltyTransactionsTable = &schema.Table{
+		Name:       "loyalty_transactions",
+		Columns:    LoyaltyTransactionsColumns,
+		PrimaryKey: []*schema.Column{LoyaltyTransactionsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "loyaltytransaction_account_id",
+				Unique:  false,
+				Columns: []*schema.Column{LoyaltyTransactionsColumns[2]},
+			},
+			{
+				Name:    "loyaltytransaction_tenant_id_order_id",
+				Unique:  false,
+				Columns: []*schema.Column{LoyaltyTransactionsColumns[1], LoyaltyTransactionsColumns[3]},
+			},
+		},
+	}
 	// ModifiersColumns holds the columns for the "modifiers" table.
 	ModifiersColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -2154,6 +2241,9 @@ var (
 		LayawayPaymentsTable,
 		LayawayPlansTable,
 		LicenseUsageSnapshotsTable,
+		LoyaltyAccountsTable,
+		LoyaltyProgramsTable,
+		LoyaltyTransactionsTable,
 		ModifiersTable,
 		ModifierGroupsTable,
 		OrderLinksTable,

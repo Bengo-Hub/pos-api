@@ -39,6 +39,9 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/layawaypayment"
 	"github.com/bengobox/pos-service/internal/ent/layawayplan"
 	"github.com/bengobox/pos-service/internal/ent/licenseusagesnapshot"
+	"github.com/bengobox/pos-service/internal/ent/loyaltyaccount"
+	"github.com/bengobox/pos-service/internal/ent/loyaltyprogram"
+	"github.com/bengobox/pos-service/internal/ent/loyaltytransaction"
 	"github.com/bengobox/pos-service/internal/ent/modifier"
 	"github.com/bengobox/pos-service/internal/ent/modifiergroup"
 	"github.com/bengobox/pos-service/internal/ent/orderlink"
@@ -141,6 +144,12 @@ type Client struct {
 	LayawayPlan *LayawayPlanClient
 	// LicenseUsageSnapshot is the client for interacting with the LicenseUsageSnapshot builders.
 	LicenseUsageSnapshot *LicenseUsageSnapshotClient
+	// LoyaltyAccount is the client for interacting with the LoyaltyAccount builders.
+	LoyaltyAccount *LoyaltyAccountClient
+	// LoyaltyProgram is the client for interacting with the LoyaltyProgram builders.
+	LoyaltyProgram *LoyaltyProgramClient
+	// LoyaltyTransaction is the client for interacting with the LoyaltyTransaction builders.
+	LoyaltyTransaction *LoyaltyTransactionClient
 	// Modifier is the client for interacting with the Modifier builders.
 	Modifier *ModifierClient
 	// ModifierGroup is the client for interacting with the ModifierGroup builders.
@@ -273,6 +282,9 @@ func (c *Client) init() {
 	c.LayawayPayment = NewLayawayPaymentClient(c.config)
 	c.LayawayPlan = NewLayawayPlanClient(c.config)
 	c.LicenseUsageSnapshot = NewLicenseUsageSnapshotClient(c.config)
+	c.LoyaltyAccount = NewLoyaltyAccountClient(c.config)
+	c.LoyaltyProgram = NewLoyaltyProgramClient(c.config)
+	c.LoyaltyTransaction = NewLoyaltyTransactionClient(c.config)
 	c.Modifier = NewModifierClient(c.config)
 	c.ModifierGroup = NewModifierGroupClient(c.config)
 	c.OrderLink = NewOrderLinkClient(c.config)
@@ -437,6 +449,9 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		LayawayPayment:         NewLayawayPaymentClient(cfg),
 		LayawayPlan:            NewLayawayPlanClient(cfg),
 		LicenseUsageSnapshot:   NewLicenseUsageSnapshotClient(cfg),
+		LoyaltyAccount:         NewLoyaltyAccountClient(cfg),
+		LoyaltyProgram:         NewLoyaltyProgramClient(cfg),
+		LoyaltyTransaction:     NewLoyaltyTransactionClient(cfg),
 		Modifier:               NewModifierClient(cfg),
 		ModifierGroup:          NewModifierGroupClient(cfg),
 		OrderLink:              NewOrderLinkClient(cfg),
@@ -528,6 +543,9 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		LayawayPayment:         NewLayawayPaymentClient(cfg),
 		LayawayPlan:            NewLayawayPlanClient(cfg),
 		LicenseUsageSnapshot:   NewLicenseUsageSnapshotClient(cfg),
+		LoyaltyAccount:         NewLoyaltyAccountClient(cfg),
+		LoyaltyProgram:         NewLoyaltyProgramClient(cfg),
+		LoyaltyTransaction:     NewLoyaltyTransactionClient(cfg),
 		Modifier:               NewModifierClient(cfg),
 		ModifierGroup:          NewModifierGroupClient(cfg),
 		OrderLink:              NewOrderLinkClient(cfg),
@@ -611,15 +629,15 @@ func (c *Client) Use(hooks ...Hook) {
 		c.DailyClosing, c.DrugInteractionCheck, c.Facility, c.FacilityBooking,
 		c.FeatureOverride, c.GiftCard, c.GiftCardTransaction, c.IntegrationSetting,
 		c.InventorySnapshot, c.KDSStation, c.KDSTicket, c.LayawayPayment,
-		c.LayawayPlan, c.LicenseUsageSnapshot, c.Modifier, c.ModifierGroup,
-		c.OrderLink, c.OutboxEvent, c.Outlet, c.OutletSetting, c.POSDevice,
-		c.POSDeviceSession, c.POSLineModifier, c.POSOrder, c.POSOrderEvent,
-		c.POSOrderLine, c.POSPayment, c.POSPermission, c.POSRefund, c.POSReturn,
-		c.POSReturnLine, c.POSRole, c.POSRolePermission, c.POSRoleV2,
-		c.POSUserRoleAssignment, c.Prescription, c.PrescriptionLine, c.PriceBook,
-		c.PriceBookItem, c.Promotion, c.PromotionApplication, c.PromotionRule,
-		c.RateLimitConfig, c.Room, c.RoomFolioItem, c.RoomGuest, c.Section,
-		c.SerialNumberLog, c.ServiceConfig, c.StaffMember, c.StaffSchedule,
+		c.LayawayPlan, c.LicenseUsageSnapshot, c.LoyaltyAccount, c.LoyaltyProgram,
+		c.LoyaltyTransaction, c.Modifier, c.ModifierGroup, c.OrderLink, c.OutboxEvent,
+		c.Outlet, c.OutletSetting, c.POSDevice, c.POSDeviceSession, c.POSLineModifier,
+		c.POSOrder, c.POSOrderEvent, c.POSOrderLine, c.POSPayment, c.POSPermission,
+		c.POSRefund, c.POSReturn, c.POSReturnLine, c.POSRole, c.POSRolePermission,
+		c.POSRoleV2, c.POSUserRoleAssignment, c.Prescription, c.PrescriptionLine,
+		c.PriceBook, c.PriceBookItem, c.Promotion, c.PromotionApplication,
+		c.PromotionRule, c.RateLimitConfig, c.Room, c.RoomFolioItem, c.RoomGuest,
+		c.Section, c.SerialNumberLog, c.ServiceConfig, c.StaffMember, c.StaffSchedule,
 		c.StockAlertSubscription, c.StockConsumptionEvent, c.SyncFailure, c.Table,
 		c.TableAssignment, c.Tenant, c.TenantSyncEvent, c.Tender, c.User,
 		c.UserPOSRole, c.WebhookSubscription, c.WeighingScaleReading,
@@ -637,15 +655,15 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.DailyClosing, c.DrugInteractionCheck, c.Facility, c.FacilityBooking,
 		c.FeatureOverride, c.GiftCard, c.GiftCardTransaction, c.IntegrationSetting,
 		c.InventorySnapshot, c.KDSStation, c.KDSTicket, c.LayawayPayment,
-		c.LayawayPlan, c.LicenseUsageSnapshot, c.Modifier, c.ModifierGroup,
-		c.OrderLink, c.OutboxEvent, c.Outlet, c.OutletSetting, c.POSDevice,
-		c.POSDeviceSession, c.POSLineModifier, c.POSOrder, c.POSOrderEvent,
-		c.POSOrderLine, c.POSPayment, c.POSPermission, c.POSRefund, c.POSReturn,
-		c.POSReturnLine, c.POSRole, c.POSRolePermission, c.POSRoleV2,
-		c.POSUserRoleAssignment, c.Prescription, c.PrescriptionLine, c.PriceBook,
-		c.PriceBookItem, c.Promotion, c.PromotionApplication, c.PromotionRule,
-		c.RateLimitConfig, c.Room, c.RoomFolioItem, c.RoomGuest, c.Section,
-		c.SerialNumberLog, c.ServiceConfig, c.StaffMember, c.StaffSchedule,
+		c.LayawayPlan, c.LicenseUsageSnapshot, c.LoyaltyAccount, c.LoyaltyProgram,
+		c.LoyaltyTransaction, c.Modifier, c.ModifierGroup, c.OrderLink, c.OutboxEvent,
+		c.Outlet, c.OutletSetting, c.POSDevice, c.POSDeviceSession, c.POSLineModifier,
+		c.POSOrder, c.POSOrderEvent, c.POSOrderLine, c.POSPayment, c.POSPermission,
+		c.POSRefund, c.POSReturn, c.POSReturnLine, c.POSRole, c.POSRolePermission,
+		c.POSRoleV2, c.POSUserRoleAssignment, c.Prescription, c.PrescriptionLine,
+		c.PriceBook, c.PriceBookItem, c.Promotion, c.PromotionApplication,
+		c.PromotionRule, c.RateLimitConfig, c.Room, c.RoomFolioItem, c.RoomGuest,
+		c.Section, c.SerialNumberLog, c.ServiceConfig, c.StaffMember, c.StaffSchedule,
 		c.StockAlertSubscription, c.StockConsumptionEvent, c.SyncFailure, c.Table,
 		c.TableAssignment, c.Tenant, c.TenantSyncEvent, c.Tender, c.User,
 		c.UserPOSRole, c.WebhookSubscription, c.WeighingScaleReading,
@@ -703,6 +721,12 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.LayawayPlan.mutate(ctx, m)
 	case *LicenseUsageSnapshotMutation:
 		return c.LicenseUsageSnapshot.mutate(ctx, m)
+	case *LoyaltyAccountMutation:
+		return c.LoyaltyAccount.mutate(ctx, m)
+	case *LoyaltyProgramMutation:
+		return c.LoyaltyProgram.mutate(ctx, m)
+	case *LoyaltyTransactionMutation:
+		return c.LoyaltyTransaction.mutate(ctx, m)
 	case *ModifierMutation:
 		return c.Modifier.mutate(ctx, m)
 	case *ModifierGroupMutation:
@@ -4022,6 +4046,405 @@ func (c *LicenseUsageSnapshotClient) mutate(ctx context.Context, m *LicenseUsage
 		return (&LicenseUsageSnapshotDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown LicenseUsageSnapshot mutation op: %q", m.Op())
+	}
+}
+
+// LoyaltyAccountClient is a client for the LoyaltyAccount schema.
+type LoyaltyAccountClient struct {
+	config
+}
+
+// NewLoyaltyAccountClient returns a client for the LoyaltyAccount from the given config.
+func NewLoyaltyAccountClient(c config) *LoyaltyAccountClient {
+	return &LoyaltyAccountClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `loyaltyaccount.Hooks(f(g(h())))`.
+func (c *LoyaltyAccountClient) Use(hooks ...Hook) {
+	c.hooks.LoyaltyAccount = append(c.hooks.LoyaltyAccount, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `loyaltyaccount.Intercept(f(g(h())))`.
+func (c *LoyaltyAccountClient) Intercept(interceptors ...Interceptor) {
+	c.inters.LoyaltyAccount = append(c.inters.LoyaltyAccount, interceptors...)
+}
+
+// Create returns a builder for creating a LoyaltyAccount entity.
+func (c *LoyaltyAccountClient) Create() *LoyaltyAccountCreate {
+	mutation := newLoyaltyAccountMutation(c.config, OpCreate)
+	return &LoyaltyAccountCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of LoyaltyAccount entities.
+func (c *LoyaltyAccountClient) CreateBulk(builders ...*LoyaltyAccountCreate) *LoyaltyAccountCreateBulk {
+	return &LoyaltyAccountCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *LoyaltyAccountClient) MapCreateBulk(slice any, setFunc func(*LoyaltyAccountCreate, int)) *LoyaltyAccountCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &LoyaltyAccountCreateBulk{err: fmt.Errorf("calling to LoyaltyAccountClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*LoyaltyAccountCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &LoyaltyAccountCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for LoyaltyAccount.
+func (c *LoyaltyAccountClient) Update() *LoyaltyAccountUpdate {
+	mutation := newLoyaltyAccountMutation(c.config, OpUpdate)
+	return &LoyaltyAccountUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *LoyaltyAccountClient) UpdateOne(_m *LoyaltyAccount) *LoyaltyAccountUpdateOne {
+	mutation := newLoyaltyAccountMutation(c.config, OpUpdateOne, withLoyaltyAccount(_m))
+	return &LoyaltyAccountUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *LoyaltyAccountClient) UpdateOneID(id uuid.UUID) *LoyaltyAccountUpdateOne {
+	mutation := newLoyaltyAccountMutation(c.config, OpUpdateOne, withLoyaltyAccountID(id))
+	return &LoyaltyAccountUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for LoyaltyAccount.
+func (c *LoyaltyAccountClient) Delete() *LoyaltyAccountDelete {
+	mutation := newLoyaltyAccountMutation(c.config, OpDelete)
+	return &LoyaltyAccountDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *LoyaltyAccountClient) DeleteOne(_m *LoyaltyAccount) *LoyaltyAccountDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *LoyaltyAccountClient) DeleteOneID(id uuid.UUID) *LoyaltyAccountDeleteOne {
+	builder := c.Delete().Where(loyaltyaccount.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &LoyaltyAccountDeleteOne{builder}
+}
+
+// Query returns a query builder for LoyaltyAccount.
+func (c *LoyaltyAccountClient) Query() *LoyaltyAccountQuery {
+	return &LoyaltyAccountQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeLoyaltyAccount},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a LoyaltyAccount entity by its id.
+func (c *LoyaltyAccountClient) Get(ctx context.Context, id uuid.UUID) (*LoyaltyAccount, error) {
+	return c.Query().Where(loyaltyaccount.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *LoyaltyAccountClient) GetX(ctx context.Context, id uuid.UUID) *LoyaltyAccount {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *LoyaltyAccountClient) Hooks() []Hook {
+	return c.hooks.LoyaltyAccount
+}
+
+// Interceptors returns the client interceptors.
+func (c *LoyaltyAccountClient) Interceptors() []Interceptor {
+	return c.inters.LoyaltyAccount
+}
+
+func (c *LoyaltyAccountClient) mutate(ctx context.Context, m *LoyaltyAccountMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&LoyaltyAccountCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&LoyaltyAccountUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&LoyaltyAccountUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&LoyaltyAccountDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown LoyaltyAccount mutation op: %q", m.Op())
+	}
+}
+
+// LoyaltyProgramClient is a client for the LoyaltyProgram schema.
+type LoyaltyProgramClient struct {
+	config
+}
+
+// NewLoyaltyProgramClient returns a client for the LoyaltyProgram from the given config.
+func NewLoyaltyProgramClient(c config) *LoyaltyProgramClient {
+	return &LoyaltyProgramClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `loyaltyprogram.Hooks(f(g(h())))`.
+func (c *LoyaltyProgramClient) Use(hooks ...Hook) {
+	c.hooks.LoyaltyProgram = append(c.hooks.LoyaltyProgram, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `loyaltyprogram.Intercept(f(g(h())))`.
+func (c *LoyaltyProgramClient) Intercept(interceptors ...Interceptor) {
+	c.inters.LoyaltyProgram = append(c.inters.LoyaltyProgram, interceptors...)
+}
+
+// Create returns a builder for creating a LoyaltyProgram entity.
+func (c *LoyaltyProgramClient) Create() *LoyaltyProgramCreate {
+	mutation := newLoyaltyProgramMutation(c.config, OpCreate)
+	return &LoyaltyProgramCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of LoyaltyProgram entities.
+func (c *LoyaltyProgramClient) CreateBulk(builders ...*LoyaltyProgramCreate) *LoyaltyProgramCreateBulk {
+	return &LoyaltyProgramCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *LoyaltyProgramClient) MapCreateBulk(slice any, setFunc func(*LoyaltyProgramCreate, int)) *LoyaltyProgramCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &LoyaltyProgramCreateBulk{err: fmt.Errorf("calling to LoyaltyProgramClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*LoyaltyProgramCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &LoyaltyProgramCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for LoyaltyProgram.
+func (c *LoyaltyProgramClient) Update() *LoyaltyProgramUpdate {
+	mutation := newLoyaltyProgramMutation(c.config, OpUpdate)
+	return &LoyaltyProgramUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *LoyaltyProgramClient) UpdateOne(_m *LoyaltyProgram) *LoyaltyProgramUpdateOne {
+	mutation := newLoyaltyProgramMutation(c.config, OpUpdateOne, withLoyaltyProgram(_m))
+	return &LoyaltyProgramUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *LoyaltyProgramClient) UpdateOneID(id uuid.UUID) *LoyaltyProgramUpdateOne {
+	mutation := newLoyaltyProgramMutation(c.config, OpUpdateOne, withLoyaltyProgramID(id))
+	return &LoyaltyProgramUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for LoyaltyProgram.
+func (c *LoyaltyProgramClient) Delete() *LoyaltyProgramDelete {
+	mutation := newLoyaltyProgramMutation(c.config, OpDelete)
+	return &LoyaltyProgramDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *LoyaltyProgramClient) DeleteOne(_m *LoyaltyProgram) *LoyaltyProgramDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *LoyaltyProgramClient) DeleteOneID(id uuid.UUID) *LoyaltyProgramDeleteOne {
+	builder := c.Delete().Where(loyaltyprogram.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &LoyaltyProgramDeleteOne{builder}
+}
+
+// Query returns a query builder for LoyaltyProgram.
+func (c *LoyaltyProgramClient) Query() *LoyaltyProgramQuery {
+	return &LoyaltyProgramQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeLoyaltyProgram},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a LoyaltyProgram entity by its id.
+func (c *LoyaltyProgramClient) Get(ctx context.Context, id uuid.UUID) (*LoyaltyProgram, error) {
+	return c.Query().Where(loyaltyprogram.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *LoyaltyProgramClient) GetX(ctx context.Context, id uuid.UUID) *LoyaltyProgram {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *LoyaltyProgramClient) Hooks() []Hook {
+	return c.hooks.LoyaltyProgram
+}
+
+// Interceptors returns the client interceptors.
+func (c *LoyaltyProgramClient) Interceptors() []Interceptor {
+	return c.inters.LoyaltyProgram
+}
+
+func (c *LoyaltyProgramClient) mutate(ctx context.Context, m *LoyaltyProgramMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&LoyaltyProgramCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&LoyaltyProgramUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&LoyaltyProgramUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&LoyaltyProgramDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown LoyaltyProgram mutation op: %q", m.Op())
+	}
+}
+
+// LoyaltyTransactionClient is a client for the LoyaltyTransaction schema.
+type LoyaltyTransactionClient struct {
+	config
+}
+
+// NewLoyaltyTransactionClient returns a client for the LoyaltyTransaction from the given config.
+func NewLoyaltyTransactionClient(c config) *LoyaltyTransactionClient {
+	return &LoyaltyTransactionClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `loyaltytransaction.Hooks(f(g(h())))`.
+func (c *LoyaltyTransactionClient) Use(hooks ...Hook) {
+	c.hooks.LoyaltyTransaction = append(c.hooks.LoyaltyTransaction, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `loyaltytransaction.Intercept(f(g(h())))`.
+func (c *LoyaltyTransactionClient) Intercept(interceptors ...Interceptor) {
+	c.inters.LoyaltyTransaction = append(c.inters.LoyaltyTransaction, interceptors...)
+}
+
+// Create returns a builder for creating a LoyaltyTransaction entity.
+func (c *LoyaltyTransactionClient) Create() *LoyaltyTransactionCreate {
+	mutation := newLoyaltyTransactionMutation(c.config, OpCreate)
+	return &LoyaltyTransactionCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of LoyaltyTransaction entities.
+func (c *LoyaltyTransactionClient) CreateBulk(builders ...*LoyaltyTransactionCreate) *LoyaltyTransactionCreateBulk {
+	return &LoyaltyTransactionCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *LoyaltyTransactionClient) MapCreateBulk(slice any, setFunc func(*LoyaltyTransactionCreate, int)) *LoyaltyTransactionCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &LoyaltyTransactionCreateBulk{err: fmt.Errorf("calling to LoyaltyTransactionClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*LoyaltyTransactionCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &LoyaltyTransactionCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for LoyaltyTransaction.
+func (c *LoyaltyTransactionClient) Update() *LoyaltyTransactionUpdate {
+	mutation := newLoyaltyTransactionMutation(c.config, OpUpdate)
+	return &LoyaltyTransactionUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *LoyaltyTransactionClient) UpdateOne(_m *LoyaltyTransaction) *LoyaltyTransactionUpdateOne {
+	mutation := newLoyaltyTransactionMutation(c.config, OpUpdateOne, withLoyaltyTransaction(_m))
+	return &LoyaltyTransactionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *LoyaltyTransactionClient) UpdateOneID(id uuid.UUID) *LoyaltyTransactionUpdateOne {
+	mutation := newLoyaltyTransactionMutation(c.config, OpUpdateOne, withLoyaltyTransactionID(id))
+	return &LoyaltyTransactionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for LoyaltyTransaction.
+func (c *LoyaltyTransactionClient) Delete() *LoyaltyTransactionDelete {
+	mutation := newLoyaltyTransactionMutation(c.config, OpDelete)
+	return &LoyaltyTransactionDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *LoyaltyTransactionClient) DeleteOne(_m *LoyaltyTransaction) *LoyaltyTransactionDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *LoyaltyTransactionClient) DeleteOneID(id uuid.UUID) *LoyaltyTransactionDeleteOne {
+	builder := c.Delete().Where(loyaltytransaction.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &LoyaltyTransactionDeleteOne{builder}
+}
+
+// Query returns a query builder for LoyaltyTransaction.
+func (c *LoyaltyTransactionClient) Query() *LoyaltyTransactionQuery {
+	return &LoyaltyTransactionQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeLoyaltyTransaction},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a LoyaltyTransaction entity by its id.
+func (c *LoyaltyTransactionClient) Get(ctx context.Context, id uuid.UUID) (*LoyaltyTransaction, error) {
+	return c.Query().Where(loyaltytransaction.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *LoyaltyTransactionClient) GetX(ctx context.Context, id uuid.UUID) *LoyaltyTransaction {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *LoyaltyTransactionClient) Hooks() []Hook {
+	return c.hooks.LoyaltyTransaction
+}
+
+// Interceptors returns the client interceptors.
+func (c *LoyaltyTransactionClient) Interceptors() []Interceptor {
+	return c.inters.LoyaltyTransaction
+}
+
+func (c *LoyaltyTransactionClient) mutate(ctx context.Context, m *LoyaltyTransactionMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&LoyaltyTransactionCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&LoyaltyTransactionUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&LoyaltyTransactionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&LoyaltyTransactionDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown LoyaltyTransaction mutation op: %q", m.Op())
 	}
 }
 
@@ -11365,33 +11788,33 @@ type (
 		ChannelIntegration, ChannelSyncJob, CommissionRecord, DailyClosing,
 		DrugInteractionCheck, Facility, FacilityBooking, FeatureOverride, GiftCard,
 		GiftCardTransaction, IntegrationSetting, InventorySnapshot, KDSStation,
-		KDSTicket, LayawayPayment, LayawayPlan, LicenseUsageSnapshot, Modifier,
-		ModifierGroup, OrderLink, OutboxEvent, Outlet, OutletSetting, POSDevice,
-		POSDeviceSession, POSLineModifier, POSOrder, POSOrderEvent, POSOrderLine,
-		POSPayment, POSPermission, POSRefund, POSReturn, POSReturnLine, POSRole,
-		POSRolePermission, POSRoleV2, POSUserRoleAssignment, Prescription,
-		PrescriptionLine, PriceBook, PriceBookItem, Promotion, PromotionApplication,
-		PromotionRule, RateLimitConfig, Room, RoomFolioItem, RoomGuest, Section,
-		SerialNumberLog, ServiceConfig, StaffMember, StaffSchedule,
-		StockAlertSubscription, StockConsumptionEvent, SyncFailure, Table,
-		TableAssignment, Tenant, TenantSyncEvent, Tender, User, UserPOSRole,
-		WebhookSubscription, WeighingScaleReading []ent.Hook
+		KDSTicket, LayawayPayment, LayawayPlan, LicenseUsageSnapshot, LoyaltyAccount,
+		LoyaltyProgram, LoyaltyTransaction, Modifier, ModifierGroup, OrderLink,
+		OutboxEvent, Outlet, OutletSetting, POSDevice, POSDeviceSession,
+		POSLineModifier, POSOrder, POSOrderEvent, POSOrderLine, POSPayment,
+		POSPermission, POSRefund, POSReturn, POSReturnLine, POSRole, POSRolePermission,
+		POSRoleV2, POSUserRoleAssignment, Prescription, PrescriptionLine, PriceBook,
+		PriceBookItem, Promotion, PromotionApplication, PromotionRule, RateLimitConfig,
+		Room, RoomFolioItem, RoomGuest, Section, SerialNumberLog, ServiceConfig,
+		StaffMember, StaffSchedule, StockAlertSubscription, StockConsumptionEvent,
+		SyncFailure, Table, TableAssignment, Tenant, TenantSyncEvent, Tender, User,
+		UserPOSRole, WebhookSubscription, WeighingScaleReading []ent.Hook
 	}
 	inters struct {
 		Appointment, BarTab, BarTabEvent, CashDrawer, CashDrawerEvent, CatalogItem,
 		ChannelIntegration, ChannelSyncJob, CommissionRecord, DailyClosing,
 		DrugInteractionCheck, Facility, FacilityBooking, FeatureOverride, GiftCard,
 		GiftCardTransaction, IntegrationSetting, InventorySnapshot, KDSStation,
-		KDSTicket, LayawayPayment, LayawayPlan, LicenseUsageSnapshot, Modifier,
-		ModifierGroup, OrderLink, OutboxEvent, Outlet, OutletSetting, POSDevice,
-		POSDeviceSession, POSLineModifier, POSOrder, POSOrderEvent, POSOrderLine,
-		POSPayment, POSPermission, POSRefund, POSReturn, POSReturnLine, POSRole,
-		POSRolePermission, POSRoleV2, POSUserRoleAssignment, Prescription,
-		PrescriptionLine, PriceBook, PriceBookItem, Promotion, PromotionApplication,
-		PromotionRule, RateLimitConfig, Room, RoomFolioItem, RoomGuest, Section,
-		SerialNumberLog, ServiceConfig, StaffMember, StaffSchedule,
-		StockAlertSubscription, StockConsumptionEvent, SyncFailure, Table,
-		TableAssignment, Tenant, TenantSyncEvent, Tender, User, UserPOSRole,
-		WebhookSubscription, WeighingScaleReading []ent.Interceptor
+		KDSTicket, LayawayPayment, LayawayPlan, LicenseUsageSnapshot, LoyaltyAccount,
+		LoyaltyProgram, LoyaltyTransaction, Modifier, ModifierGroup, OrderLink,
+		OutboxEvent, Outlet, OutletSetting, POSDevice, POSDeviceSession,
+		POSLineModifier, POSOrder, POSOrderEvent, POSOrderLine, POSPayment,
+		POSPermission, POSRefund, POSReturn, POSReturnLine, POSRole, POSRolePermission,
+		POSRoleV2, POSUserRoleAssignment, Prescription, PrescriptionLine, PriceBook,
+		PriceBookItem, Promotion, PromotionApplication, PromotionRule, RateLimitConfig,
+		Room, RoomFolioItem, RoomGuest, Section, SerialNumberLog, ServiceConfig,
+		StaffMember, StaffSchedule, StockAlertSubscription, StockConsumptionEvent,
+		SyncFailure, Table, TableAssignment, Tenant, TenantSyncEvent, Tender, User,
+		UserPOSRole, WebhookSubscription, WeighingScaleReading []ent.Interceptor
 	}
 )

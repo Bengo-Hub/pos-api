@@ -35,6 +35,9 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/layawaypayment"
 	"github.com/bengobox/pos-service/internal/ent/layawayplan"
 	"github.com/bengobox/pos-service/internal/ent/licenseusagesnapshot"
+	"github.com/bengobox/pos-service/internal/ent/loyaltyaccount"
+	"github.com/bengobox/pos-service/internal/ent/loyaltyprogram"
+	"github.com/bengobox/pos-service/internal/ent/loyaltytransaction"
 	"github.com/bengobox/pos-service/internal/ent/modifier"
 	"github.com/bengobox/pos-service/internal/ent/modifiergroup"
 	"github.com/bengobox/pos-service/internal/ent/orderlink"
@@ -167,6 +170,9 @@ func checkColumn(t, c string) error {
 			layawaypayment.Table:         layawaypayment.ValidColumn,
 			layawayplan.Table:            layawayplan.ValidColumn,
 			licenseusagesnapshot.Table:   licenseusagesnapshot.ValidColumn,
+			loyaltyaccount.Table:         loyaltyaccount.ValidColumn,
+			loyaltyprogram.Table:         loyaltyprogram.ValidColumn,
+			loyaltytransaction.Table:     loyaltytransaction.ValidColumn,
 			modifier.Table:               modifier.ValidColumn,
 			modifiergroup.Table:          modifiergroup.ValidColumn,
 			orderlink.Table:              orderlink.ValidColumn,

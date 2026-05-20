@@ -26,6 +26,9 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/kdsticket"
 	"github.com/bengobox/pos-service/internal/ent/layawaypayment"
 	"github.com/bengobox/pos-service/internal/ent/layawayplan"
+	"github.com/bengobox/pos-service/internal/ent/loyaltyaccount"
+	"github.com/bengobox/pos-service/internal/ent/loyaltyprogram"
+	"github.com/bengobox/pos-service/internal/ent/loyaltytransaction"
 	"github.com/bengobox/pos-service/internal/ent/modifier"
 	"github.com/bengobox/pos-service/internal/ent/modifiergroup"
 	"github.com/bengobox/pos-service/internal/ent/orderlink"
@@ -630,6 +633,84 @@ func init() {
 	layawayplanDescID := layawayplanFields[0].Descriptor()
 	// layawayplan.DefaultID holds the default value on creation for the id field.
 	layawayplan.DefaultID = layawayplanDescID.Default.(func() uuid.UUID)
+	loyaltyaccountFields := schema.LoyaltyAccount{}.Fields()
+	_ = loyaltyaccountFields
+	// loyaltyaccountDescCustomerPhone is the schema descriptor for customer_phone field.
+	loyaltyaccountDescCustomerPhone := loyaltyaccountFields[3].Descriptor()
+	// loyaltyaccount.CustomerPhoneValidator is a validator for the "customer_phone" field. It is called by the builders before save.
+	loyaltyaccount.CustomerPhoneValidator = loyaltyaccountDescCustomerPhone.Validators[0].(func(string) error)
+	// loyaltyaccountDescCustomerName is the schema descriptor for customer_name field.
+	loyaltyaccountDescCustomerName := loyaltyaccountFields[4].Descriptor()
+	// loyaltyaccount.CustomerNameValidator is a validator for the "customer_name" field. It is called by the builders before save.
+	loyaltyaccount.CustomerNameValidator = loyaltyaccountDescCustomerName.Validators[0].(func(string) error)
+	// loyaltyaccountDescPointsBalance is the schema descriptor for points_balance field.
+	loyaltyaccountDescPointsBalance := loyaltyaccountFields[5].Descriptor()
+	// loyaltyaccount.DefaultPointsBalance holds the default value on creation for the points_balance field.
+	loyaltyaccount.DefaultPointsBalance = loyaltyaccountDescPointsBalance.Default.(int)
+	// loyaltyaccountDescLifetimePoints is the schema descriptor for lifetime_points field.
+	loyaltyaccountDescLifetimePoints := loyaltyaccountFields[6].Descriptor()
+	// loyaltyaccount.DefaultLifetimePoints holds the default value on creation for the lifetime_points field.
+	loyaltyaccount.DefaultLifetimePoints = loyaltyaccountDescLifetimePoints.Default.(int)
+	// loyaltyaccountDescCreatedAt is the schema descriptor for created_at field.
+	loyaltyaccountDescCreatedAt := loyaltyaccountFields[8].Descriptor()
+	// loyaltyaccount.DefaultCreatedAt holds the default value on creation for the created_at field.
+	loyaltyaccount.DefaultCreatedAt = loyaltyaccountDescCreatedAt.Default.(func() time.Time)
+	// loyaltyaccountDescUpdatedAt is the schema descriptor for updated_at field.
+	loyaltyaccountDescUpdatedAt := loyaltyaccountFields[9].Descriptor()
+	// loyaltyaccount.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	loyaltyaccount.DefaultUpdatedAt = loyaltyaccountDescUpdatedAt.Default.(func() time.Time)
+	// loyaltyaccount.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	loyaltyaccount.UpdateDefaultUpdatedAt = loyaltyaccountDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// loyaltyaccountDescID is the schema descriptor for id field.
+	loyaltyaccountDescID := loyaltyaccountFields[0].Descriptor()
+	// loyaltyaccount.DefaultID holds the default value on creation for the id field.
+	loyaltyaccount.DefaultID = loyaltyaccountDescID.Default.(func() uuid.UUID)
+	loyaltyprogramFields := schema.LoyaltyProgram{}.Fields()
+	_ = loyaltyprogramFields
+	// loyaltyprogramDescName is the schema descriptor for name field.
+	loyaltyprogramDescName := loyaltyprogramFields[2].Descriptor()
+	// loyaltyprogram.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	loyaltyprogram.NameValidator = loyaltyprogramDescName.Validators[0].(func(string) error)
+	// loyaltyprogramDescEarnRate is the schema descriptor for earn_rate field.
+	loyaltyprogramDescEarnRate := loyaltyprogramFields[4].Descriptor()
+	// loyaltyprogram.DefaultEarnRate holds the default value on creation for the earn_rate field.
+	loyaltyprogram.DefaultEarnRate = loyaltyprogramDescEarnRate.Default.(float64)
+	// loyaltyprogramDescRedeemRate is the schema descriptor for redeem_rate field.
+	loyaltyprogramDescRedeemRate := loyaltyprogramFields[5].Descriptor()
+	// loyaltyprogram.DefaultRedeemRate holds the default value on creation for the redeem_rate field.
+	loyaltyprogram.DefaultRedeemRate = loyaltyprogramDescRedeemRate.Default.(float64)
+	// loyaltyprogramDescMinRedeemPoints is the schema descriptor for min_redeem_points field.
+	loyaltyprogramDescMinRedeemPoints := loyaltyprogramFields[6].Descriptor()
+	// loyaltyprogram.DefaultMinRedeemPoints holds the default value on creation for the min_redeem_points field.
+	loyaltyprogram.DefaultMinRedeemPoints = loyaltyprogramDescMinRedeemPoints.Default.(int)
+	// loyaltyprogramDescIsActive is the schema descriptor for is_active field.
+	loyaltyprogramDescIsActive := loyaltyprogramFields[7].Descriptor()
+	// loyaltyprogram.DefaultIsActive holds the default value on creation for the is_active field.
+	loyaltyprogram.DefaultIsActive = loyaltyprogramDescIsActive.Default.(bool)
+	// loyaltyprogramDescCreatedAt is the schema descriptor for created_at field.
+	loyaltyprogramDescCreatedAt := loyaltyprogramFields[8].Descriptor()
+	// loyaltyprogram.DefaultCreatedAt holds the default value on creation for the created_at field.
+	loyaltyprogram.DefaultCreatedAt = loyaltyprogramDescCreatedAt.Default.(func() time.Time)
+	// loyaltyprogramDescUpdatedAt is the schema descriptor for updated_at field.
+	loyaltyprogramDescUpdatedAt := loyaltyprogramFields[9].Descriptor()
+	// loyaltyprogram.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	loyaltyprogram.DefaultUpdatedAt = loyaltyprogramDescUpdatedAt.Default.(func() time.Time)
+	// loyaltyprogram.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	loyaltyprogram.UpdateDefaultUpdatedAt = loyaltyprogramDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// loyaltyprogramDescID is the schema descriptor for id field.
+	loyaltyprogramDescID := loyaltyprogramFields[0].Descriptor()
+	// loyaltyprogram.DefaultID holds the default value on creation for the id field.
+	loyaltyprogram.DefaultID = loyaltyprogramDescID.Default.(func() uuid.UUID)
+	loyaltytransactionFields := schema.LoyaltyTransaction{}.Fields()
+	_ = loyaltytransactionFields
+	// loyaltytransactionDescCreatedAt is the schema descriptor for created_at field.
+	loyaltytransactionDescCreatedAt := loyaltytransactionFields[8].Descriptor()
+	// loyaltytransaction.DefaultCreatedAt holds the default value on creation for the created_at field.
+	loyaltytransaction.DefaultCreatedAt = loyaltytransactionDescCreatedAt.Default.(func() time.Time)
+	// loyaltytransactionDescID is the schema descriptor for id field.
+	loyaltytransactionDescID := loyaltytransactionFields[0].Descriptor()
+	// loyaltytransaction.DefaultID holds the default value on creation for the id field.
+	loyaltytransaction.DefaultID = loyaltytransactionDescID.Default.(func() uuid.UUID)
 	modifierFields := schema.Modifier{}.Fields()
 	_ = modifierFields
 	// modifierDescName is the schema descriptor for name field.

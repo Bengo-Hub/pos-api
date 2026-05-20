@@ -58,6 +58,12 @@ type Tx struct {
 	LayawayPlan *LayawayPlanClient
 	// LicenseUsageSnapshot is the client for interacting with the LicenseUsageSnapshot builders.
 	LicenseUsageSnapshot *LicenseUsageSnapshotClient
+	// LoyaltyAccount is the client for interacting with the LoyaltyAccount builders.
+	LoyaltyAccount *LoyaltyAccountClient
+	// LoyaltyProgram is the client for interacting with the LoyaltyProgram builders.
+	LoyaltyProgram *LoyaltyProgramClient
+	// LoyaltyTransaction is the client for interacting with the LoyaltyTransaction builders.
+	LoyaltyTransaction *LoyaltyTransactionClient
 	// Modifier is the client for interacting with the Modifier builders.
 	Modifier *ModifierClient
 	// ModifierGroup is the client for interacting with the ModifierGroup builders.
@@ -310,6 +316,9 @@ func (tx *Tx) init() {
 	tx.LayawayPayment = NewLayawayPaymentClient(tx.config)
 	tx.LayawayPlan = NewLayawayPlanClient(tx.config)
 	tx.LicenseUsageSnapshot = NewLicenseUsageSnapshotClient(tx.config)
+	tx.LoyaltyAccount = NewLoyaltyAccountClient(tx.config)
+	tx.LoyaltyProgram = NewLoyaltyProgramClient(tx.config)
+	tx.LoyaltyTransaction = NewLoyaltyTransactionClient(tx.config)
 	tx.Modifier = NewModifierClient(tx.config)
 	tx.ModifierGroup = NewModifierGroupClient(tx.config)
 	tx.OrderLink = NewOrderLinkClient(tx.config)

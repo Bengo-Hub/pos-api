@@ -75,6 +75,15 @@ type LayawayPlan func(*sql.Selector)
 // LicenseUsageSnapshot is the predicate function for licenseusagesnapshot builders.
 type LicenseUsageSnapshot func(*sql.Selector)
 
+// LoyaltyAccount is the predicate function for loyaltyaccount builders.
+type LoyaltyAccount func(*sql.Selector)
+
+// LoyaltyProgram is the predicate function for loyaltyprogram builders.
+type LoyaltyProgram func(*sql.Selector)
+
+// LoyaltyTransaction is the predicate function for loyaltytransaction builders.
+type LoyaltyTransaction func(*sql.Selector)
+
 // Modifier is the predicate function for modifier builders.
 type Modifier func(*sql.Selector)
 

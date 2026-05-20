@@ -208,6 +208,12 @@ func New(ctx context.Context) (*App, error) {
 	commissionHandler := handlers.NewCommissionHandler(log, entClient)
 	staffScheduleHandler := handlers.NewStaffScheduleHandler(log, entClient)
 
+	// Loyalty programs (Sprint 10)
+	loyaltyHandler := handlers.NewLoyaltyHandler(log, entClient)
+
+	// Reports & Analytics (Sprint 11)
+	reportsHandler := handlers.NewReportsHandler(log, entClient)
+
 	// ERP: daily closings + returns
 	closingHandler := handlers.NewDailyClosingHandler(log, entClient)
 	var returnEventPub *events.Publisher
@@ -281,7 +287,7 @@ func New(ctx context.Context) (*App, error) {
 		inventoryEventHandler.InitialSync(ctx, inventoryURL, tenantSlug)
 	}()
 
-	chiRouter := router.New(log, healthHandler, authMiddleware, entClient, identitySvc, orderHandler, catalogHandler, tableHandler, tenderHandler, paymentHandler, drawerHandler, barTabHandler, promotionHandler, rbacHandler, hotelHandler, kdsHandler, deviceHandler, pinAuthHandler, publicOutletHandler, closingHandler, returnHandler, receiptHandler, layawayHandler, scaleHandler, pharmacyHandler, appointmentHandler, commissionHandler, staffScheduleHandler, cfg.HTTP.AllowedOrigins)
+	chiRouter := router.New(log, healthHandler, authMiddleware, entClient, identitySvc, orderHandler, catalogHandler, tableHandler, tenderHandler, paymentHandler, drawerHandler, barTabHandler, promotionHandler, rbacHandler, hotelHandler, kdsHandler, deviceHandler, pinAuthHandler, publicOutletHandler, closingHandler, returnHandler, receiptHandler, layawayHandler, scaleHandler, pharmacyHandler, appointmentHandler, commissionHandler, staffScheduleHandler, loyaltyHandler, reportsHandler, cfg.HTTP.AllowedOrigins)
 
 	httpServer := &http.Server{
 		Addr:              fmt.Sprintf("%s:%d", cfg.HTTP.Host, cfg.HTTP.Port),

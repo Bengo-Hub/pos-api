@@ -50,6 +50,8 @@ func New(
 	appointments *handlers.AppointmentHandler,
 	commissions *handlers.CommissionHandler,
 	staffSchedule *handlers.StaffScheduleHandler,
+	loyalty *handlers.LoyaltyHandler,
+	reports *handlers.ReportsHandler,
 	allowedOrigins []string,
 ) http.Handler {
 	r := chi.NewRouter()
@@ -332,6 +334,25 @@ func New(
 					if commissions != nil {
 						pos.Get("/commissions", commissions.List)
 						pos.Get("/commissions/{commissionID}", commissions.Get)
+					}
+
+					// Loyalty programs & accounts
+					if loyalty != nil {
+						pos.Get("/loyalty/programs", loyalty.ListPrograms)
+						pos.Post("/loyalty/programs", loyalty.CreateProgram)
+						pos.Put("/loyalty/programs/{programID}", loyalty.UpdateProgram)
+						pos.Get("/loyalty/accounts", loyalty.ListAccounts)
+						pos.Post("/loyalty/accounts", loyalty.CreateAccount)
+						pos.Get("/loyalty/accounts/{accountID}", loyalty.GetAccount)
+						pos.Post("/loyalty/accounts/{accountID}/earn", loyalty.Earn)
+						pos.Post("/loyalty/accounts/{accountID}/redeem", loyalty.Redeem)
+					}
+
+					// Reports & Analytics
+					if reports != nil {
+						pos.Get("/reports/sales-summary", reports.SalesSummary)
+						pos.Get("/reports/refund-summary", reports.RefundSummary)
+						pos.Get("/reports/daily-breakdown", reports.DailyBreakdown)
 					}
 
 					// Daily closings (ERP reconciliation)
