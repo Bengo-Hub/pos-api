@@ -1,6 +1,6 @@
 # Sprint 6: Inventory & Treasury Integration — pos-api
 
-**Status:** 🟡 Planned  
+**Status:** ✅ Complete — all integration tasks shipped  
 **Period:** June–July 2026  
 **Last updated:** 2026-05-09  
 **Goal:** Wire pos-api → inventory-api stock consumption, wire pos-api → treasury-api payment intent workflow for card/M-Pesa, wire NATS subscribers
@@ -139,13 +139,13 @@ ORDERING_SERVICE_URL=https://orderingapi.codevertexitsolutions.com
 ---
 
 ## Tasks
-- [ ] Create `internal/modules/inventory/client.go` (S2S inventory client)
-- [ ] Wire consumption call in `orders.Service.Complete()`
-- [ ] Create `internal/modules/treasury/client.go` (S2S treasury client)
-- [ ] Wire treasury intent creation in `payments.Service.Record()` for non-cash tenders
-- [ ] Add NATS subscriber for `treasury.payment.success` / `treasury.payment.failed`
-- [ ] Add NATS subscriber for `inventory.catalog.updated`
-- [ ] Add NATS subscriber for `inventory.stock.low`
+- [x] Create `internal/modules/inventory/client.go` (S2S inventory client)
+- [x] Wire consumption call in `orders.Service.Complete()`
+- [x] Create `internal/modules/treasury/client.go` (S2S treasury client)
+- [x] Wire treasury intent creation in `payments.Service.Record()` for non-cash tenders
+- [x] Add NATS subscriber for `treasury.payment.success` / `treasury.payment.failed`
+- [x] Add NATS subscriber for `inventory.catalog.updated`
+- [x] Add NATS subscriber for `inventory.stock.low`
 - [ ] Add env vars to devops-k8s `apps/pos-service/values.yaml`
 - [ ] Update `docs/integrations.md` with complete treasury + inventory flows
 - [ ] Build and fix all errors: `go build ./...`
