@@ -162,9 +162,10 @@ func New(
 						})
 					}
 
-					// Sections & Tables — requires table_management feature
+					// Sections & Tables — hospitality only + table_management subscription
 					if tables != nil {
 						pos.Group(func(tbl chi.Router) {
+							tbl.Use(outletmw.RequireUseCase("hospitality"))
 							tbl.Use(subscriptions.RequireFeature("table_management"))
 							tbl.Get("/sections", tables.ListSections)
 							tbl.Post("/sections", tables.CreateSection)
@@ -204,12 +205,15 @@ func New(
 						})
 					}
 
-					// Bar Tabs
+					// Bar Tabs — hospitality only
 					if barTabs != nil {
-						pos.Post("/bar-tabs", barTabs.OpenBarTab)
-						pos.Get("/bar-tabs", barTabs.ListBarTabs)
-						pos.Get("/bar-tabs/{id}", barTabs.GetBarTab)
-						pos.Post("/bar-tabs/{id}/close", barTabs.CloseBarTab)
+						pos.Group(func(bt chi.Router) {
+							bt.Use(outletmw.RequireUseCase("hospitality"))
+							bt.Post("/bar-tabs", barTabs.OpenBarTab)
+							bt.Get("/bar-tabs", barTabs.ListBarTabs)
+							bt.Get("/bar-tabs/{id}", barTabs.GetBarTab)
+							bt.Post("/bar-tabs/{id}/close", barTabs.CloseBarTab)
+						})
 					}
 
 					// Promotions
@@ -237,19 +241,23 @@ func New(
 						pos.Get("/auth/me", pinAuth.AuthMe)
 					}
 
-					// KDS
+					// KDS — hospitality and quick_service only; outlet must have enable_kds=true
 					if kds != nil {
-						pos.Get("/kds/stations", kds.ListStations)
-						pos.Post("/kds/stations", kds.CreateStation)
-						pos.Put("/kds/stations/{id}", kds.UpdateStation)
-						pos.Get("/kds/kitchen", kds.GetKitchenQueue)
-						pos.Get("/kds/bar", kds.GetBarQueue)
-						pos.Get("/kds/tickets", kds.ListTickets)
-						pos.Post("/kds/tickets/{id}/start", kds.StartTicket)
-						pos.Post("/kds/tickets/{id}/ready", kds.ReadyTicket)
-						pos.Post("/kds/tickets/{id}/serve", kds.ServeTicket)
-						pos.Post("/kds/tickets/{id}/void", kds.VoidTicket)
-						pos.Post("/kds/tickets/{id}/call-waiter", kds.CallWaiter)
+						pos.Group(func(k chi.Router) {
+							k.Use(outletmw.RequireUseCase("hospitality", "quick_service"))
+							k.Use(outletmw.RequireKDSEnabled(entClient))
+							k.Get("/kds/stations", kds.ListStations)
+							k.Post("/kds/stations", kds.CreateStation)
+							k.Put("/kds/stations/{id}", kds.UpdateStation)
+							k.Get("/kds/kitchen", kds.GetKitchenQueue)
+							k.Get("/kds/bar", kds.GetBarQueue)
+							k.Get("/kds/tickets", kds.ListTickets)
+							k.Post("/kds/tickets/{id}/start", kds.StartTicket)
+							k.Post("/kds/tickets/{id}/ready", kds.ReadyTicket)
+							k.Post("/kds/tickets/{id}/serve", kds.ServeTicket)
+							k.Post("/kds/tickets/{id}/void", kds.VoidTicket)
+							k.Post("/kds/tickets/{id}/call-waiter", kds.CallWaiter)
+						})
 					}
 
 					// Returns
@@ -272,9 +280,10 @@ func New(
 					}
 				})
 
-				// Hotel module
+				// Hotel module — hospitality only
 				if hotel != nil {
 					tenant.Route("/hotel", func(h chi.Router) {
+						h.Use(outletmw.RequireUseCase("hospitality"))
 						h.Get("/rooms", hotel.ListRooms)
 						h.Post("/rooms", hotel.CreateRoom)
 						h.Get("/rooms/{id}", hotel.GetRoom)

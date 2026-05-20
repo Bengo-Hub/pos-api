@@ -17,6 +17,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent"
 	"github.com/bengobox/pos-service/internal/ent/catalogitem"
 	"github.com/bengobox/pos-service/internal/ent/outlet"
+	"github.com/bengobox/pos-service/internal/ent/outletsetting"
 	"github.com/bengobox/pos-service/internal/ent/pospermission"
 	"github.com/bengobox/pos-service/internal/ent/posrolev2"
 	"github.com/bengobox/pos-service/internal/ent/section"
@@ -26,8 +27,15 @@ import (
 	"github.com/bengobox/pos-service/internal/modules/tenant"
 )
 
+// tenantSeedConfig controls what data is seeded for each tenant.
+type tenantSeedConfig struct {
+	slug        string // must match auth-api tenant slug
+	seedStaff   bool   // seed demo staff members (PINs)
+	seedTables  bool   // seed tables & sections (hospitality outlets only)
+}
+
 func main() {
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 
 	cfg, err := config.Load()
@@ -49,15 +57,35 @@ func main() {
 	client := ent.NewClient(ent.Driver(driver))
 	defer client.Close()
 
-	// Sync tenant from auth-api
 	syncer := tenant.NewSyncer(client, cfg.Auth.ServiceURL, nil)
-	tenantID, err := syncer.SyncTenant(ctx, "urban-loft")
-	if err != nil {
-		log.Fatalf("sync tenant: %v", err)
+
+	// Tenants to seed — order matters: urban-loft first (real client), then demo.
+	tenantConfigs := []tenantSeedConfig{
+		// urban-loft: real hospitality client — BUSIA outlet only; no demo staff.
+		{slug: "urban-loft", seedStaff: false, seedTables: true},
+		// codevertex-demo: cross-platform demo tenant — all 6 use-case outlets + demo staff.
+		{slug: "codevertex-demo", seedStaff: true, seedTables: true},
 	}
 
-	if err := runSeed(ctx, client, tenantID); err != nil {
-		log.Fatalf("seed data: %v", err)
+	for _, tc := range tenantConfigs {
+		tenantID, syncErr := syncer.SyncTenant(ctx, tc.slug)
+		if syncErr != nil {
+			log.Printf("⚠️  sync tenant %s: %v (skipping)", tc.slug, syncErr)
+			continue
+		}
+		log.Printf("▶ Seeding tenant: %s (%s)", tc.slug, tenantID)
+		if runErr := runSeed(ctx, client, tenantID, tc); runErr != nil {
+			log.Fatalf("seed data for %s: %v", tc.slug, runErr)
+		}
+		log.Printf("✅ Tenant %s seeded successfully", tc.slug)
+	}
+
+	// Platform-wide configs (rate limits, service configs) — seeded once.
+	if err := seedRateLimitConfigs(ctx, client); err != nil {
+		log.Fatalf("seed rate limit configs: %v", err)
+	}
+	if err := seedServiceConfigs(ctx, client); err != nil {
+		log.Fatalf("seed service configs: %v", err)
 	}
 
 	log.Println("POS seed completed successfully")
@@ -73,23 +101,24 @@ func inventoryItemUUID(tenantID uuid.UUID, sku string) uuid.UUID {
 	return uuid.NewSHA1(uuid.NameSpaceURL, []byte(fmt.Sprintf("bengobox:inventory:item:%s:%s", tenantID, sku)))
 }
 
-func runSeed(ctx context.Context, client *ent.Client, tenantID uuid.UUID) error {
-	outletID, err := seedOutlet(ctx, client, tenantID)
+func runSeed(ctx context.Context, client *ent.Client, tenantID uuid.UUID, tc tenantSeedConfig) error {
+	hqOutletID, err := seedOutlets(ctx, client, tenantID, tc.slug)
 	if err != nil {
-		return fmt.Errorf("seed outlet: %w", err)
+		return fmt.Errorf("seed outlets: %w", err)
 	}
 
-	if err := seedTenders(ctx, client, tenantID, outletID); err != nil {
+	if err := seedTenders(ctx, client, tenantID, hqOutletID); err != nil {
 		return fmt.Errorf("seed tenders: %w", err)
 	}
 
-	sectionIDs, err := seedSections(ctx, client, tenantID, outletID)
-	if err != nil {
-		return fmt.Errorf("seed sections: %w", err)
-	}
-
-	if err := seedTables(ctx, client, tenantID, outletID, sectionIDs); err != nil {
-		return fmt.Errorf("seed tables: %w", err)
+	if tc.seedTables {
+		sectionIDs, err := seedSections(ctx, client, tenantID, hqOutletID)
+		if err != nil {
+			return fmt.Errorf("seed sections: %w", err)
+		}
+		if err := seedTables(ctx, client, tenantID, hqOutletID, sectionIDs); err != nil {
+			return fmt.Errorf("seed tables: %w", err)
+		}
 	}
 
 	if err := seedCatalogItems(ctx, client, tenantID); err != nil {
@@ -104,47 +133,207 @@ func runSeed(ctx context.Context, client *ent.Client, tenantID uuid.UUID) error 
 		return fmt.Errorf("seed RBAC roles: %w", err)
 	}
 
-	if err := seedStaffMembers(ctx, client, tenantID, outletID); err != nil {
-		return fmt.Errorf("seed staff members: %w", err)
-	}
-
-	if err := seedRateLimitConfigs(ctx, client); err != nil {
-		return fmt.Errorf("seed rate limit configs: %w", err)
-	}
-
-	if err := seedServiceConfigs(ctx, client); err != nil {
-		return fmt.Errorf("seed service configs: %w", err)
+	if tc.seedStaff {
+		if err := seedStaffMembers(ctx, client, tenantID, hqOutletID); err != nil {
+			return fmt.Errorf("seed staff members: %w", err)
+		}
 	}
 
 	return nil
 }
 
-func seedOutlet(ctx context.Context, client *ent.Client, tenantID uuid.UUID) (uuid.UUID, error) {
-	outletID := outletUUID("urban-loft", "busia")
+type outletDef struct {
+	slug        string
+	code        string
+	name        string
+	useCase     string
+	isHQ        bool
+	pinMessage  string
+	displayMode string
+	enableKDS   bool
+	enableAppts bool
+	defaultView string
+}
 
-	existing, err := client.Outlet.Query().Where(outlet.ID(outletID)).Only(ctx)
-	if err == nil {
-		return existing.ID, nil
-	}
-	if !ent.IsNotFound(err) {
-		return uuid.Nil, err
+// outletsByTenantSlug defines the POS outlets per tenant.
+// Slugs MUST match auth-api outletsByTenant keys so deterministic UUIDs align.
+var outletsByTenantSlug = map[string][]outletDef{
+	"urban-loft": {
+		// Single hospitality HQ — hotel, bar, grill, cafe, accommodations.
+		{
+			slug:        "busia",
+			code:        "BUSIA",
+			name:        "Urban Loft Cafe Busia",
+			useCase:     "hospitality",
+			isHQ:        true,
+			pinMessage:  "Welcome to Urban Loft Cafe — Shift starts 7:00 AM",
+			displayMode: "card",
+			enableKDS:   true,
+			enableAppts: false,
+			defaultView: "tables",
+		},
+	},
+	"codevertex-demo": {
+		{
+			slug:        "demo-hospitality",
+			code:        "HOSP",
+			name:        "Demo Grand Hotel & Restaurant",
+			useCase:     "hospitality",
+			isHQ:        true,
+			pinMessage:  "Welcome to Demo Grand Hotel — check your shift schedule",
+			displayMode: "card",
+			enableKDS:   true,
+			enableAppts: false,
+			defaultView: "tables",
+		},
+		{
+			slug:        "demo-retail",
+			code:        "RETAIL",
+			name:        "Demo Tech Store",
+			useCase:     "retail",
+			isHQ:        false,
+			pinMessage:  "Welcome to Demo Tech Store — barcode scanner is active",
+			displayMode: "list",
+			enableKDS:   false,
+			enableAppts: false,
+			defaultView: "catalog",
+		},
+		{
+			slug:        "demo-quick",
+			code:        "QSR",
+			name:        "Demo Express Kiosk",
+			useCase:     "quick_service",
+			isHQ:        false,
+			pinMessage:  "Welcome to Demo Express — fast service starts here!",
+			displayMode: "card",
+			enableKDS:   true,
+			enableAppts: false,
+			defaultView: "catalog",
+		},
+		{
+			slug:        "demo-pharmacy",
+			code:        "PHARMA",
+			name:        "Demo Health Pharmacy",
+			useCase:     "pharmacy",
+			isHQ:        false,
+			pinMessage:  "Welcome to Demo Health Pharmacy — verify prescriptions at counter",
+			displayMode: "list",
+			enableKDS:   false,
+			enableAppts: false,
+			defaultView: "catalog",
+		},
+		{
+			slug:        "demo-services",
+			code:        "SVC",
+			name:        "Demo Beauty & Wellness",
+			useCase:     "services",
+			isHQ:        false,
+			pinMessage:  "Welcome to Demo Beauty & Wellness — check appointments board",
+			displayMode: "card",
+			enableKDS:   false,
+			enableAppts: true,
+			defaultView: "catalog",
+		},
+		{
+			slug:        "demo-logistics",
+			code:        "LOGIS",
+			name:        "Demo Logistics Hub",
+			useCase:     "logistics",
+			isHQ:        false,
+			pinMessage:  "Welcome to Demo Logistics Hub — report to dispatch supervisor",
+			displayMode: "list",
+			enableKDS:   false,
+			enableAppts: false,
+			defaultView: "catalog",
+		},
+	},
+}
+
+// seedOutlets creates all outlets for the given tenant and returns the HQ outlet ID.
+// Outlet slugs match auth-api so deterministic UUIDs are identical across services.
+func seedOutlets(ctx context.Context, client *ent.Client, tenantID uuid.UUID, tenantSlug string) (uuid.UUID, error) {
+	defs, ok := outletsByTenantSlug[tenantSlug]
+	if !ok {
+		return uuid.Nil, fmt.Errorf("no outlet definitions for tenant %q", tenantSlug)
 	}
 
-	o, err := client.Outlet.Create().
-		SetID(outletID).
-		SetTenantID(tenantID).
-		SetTenantSlug("urban-loft").
-		SetCode("BUSIA").
-		SetName("Urban Loft Cafe Busia").
-		SetChannelType("physical").
-		SetStatus("active").
-		SetUseCase("hospitality").
-		Save(ctx)
+	var hqID uuid.UUID
+	for _, d := range defs {
+		id := outletUUID(tenantSlug, d.slug)
+		existing, err := client.Outlet.Query().Where(outlet.ID(id)).Only(ctx)
+		if err == nil {
+			if d.isHQ {
+				hqID = existing.ID
+			}
+			if err2 := seedOutletSetting(ctx, client, existing.ID, d); err2 != nil {
+				log.Printf("  ⚠️  outlet setting for %s: %v", d.name, err2)
+			}
+			log.Printf("  ✓ Outlet exists: %s/%s (use_case=%s)", tenantSlug, d.code, d.useCase)
+			continue
+		}
+		if !ent.IsNotFound(err) {
+			return uuid.Nil, fmt.Errorf("query outlet %s: %w", d.slug, err)
+		}
+
+		o, err := client.Outlet.Create().
+			SetID(id).
+			SetTenantID(tenantID).
+			SetTenantSlug(tenantSlug).
+			SetCode(d.code).
+			SetName(d.name).
+			SetChannelType("physical").
+			SetStatus("active").
+			SetUseCase(d.useCase).
+			SetIsHq(d.isHQ).
+			Save(ctx)
+		if err != nil {
+			return uuid.Nil, fmt.Errorf("create outlet %s: %w", d.slug, err)
+		}
+		log.Printf("  ✓ Outlet created: %s (use_case=%s, is_hq=%v)", o.Name, d.useCase, d.isHQ)
+
+		if err := seedOutletSetting(ctx, client, o.ID, d); err != nil {
+			log.Printf("  ⚠️  outlet setting for %s: %v", d.name, err)
+		}
+
+		if d.isHQ {
+			hqID = o.ID
+		}
+	}
+
+	if hqID == uuid.Nil {
+		return uuid.Nil, fmt.Errorf("HQ outlet not found after seeding for %s", tenantSlug)
+	}
+	return hqID, nil
+}
+
+func seedOutletSetting(ctx context.Context, client *ent.Client, outletID uuid.UUID, d outletDef) error {
+	exists, err := client.OutletSetting.Query().
+		Where(outletsetting.OutletID(outletID)).
+		Exist(ctx)
 	if err != nil {
-		return uuid.Nil, err
+		return err
 	}
-	log.Printf("  ✓ Outlet created: %s (ID=%s)", o.Name, o.ID)
-	return o.ID, nil
+	if exists {
+		return nil
+	}
+
+	create := client.OutletSetting.Create().
+		SetOutletID(outletID).
+		SetDisplayMode(d.displayMode).
+		SetShowImages(true).
+		SetShowBarcodeScanner(d.useCase == "retail").
+		SetDefaultView(d.defaultView).
+		SetEnableKds(d.enableKDS).
+		SetEnableAppointments(d.enableAppts)
+	if d.pinMessage != "" {
+		create = create.SetPinLoginMessage(d.pinMessage)
+	}
+	_, err = create.Save(ctx)
+	if err != nil {
+		return fmt.Errorf("create outlet setting: %w", err)
+	}
+	log.Printf("  ✓ OutletSetting created for outlet %s", outletID)
+	return nil
 }
 
 func seedTenders(ctx context.Context, client *ent.Client, tenantID, outletID uuid.UUID) error {

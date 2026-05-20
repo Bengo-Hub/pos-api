@@ -2,7 +2,7 @@
 
 **Status:** ✅ Complete  
 **Period:** January–February 2026  
-**Last updated:** 2026-05-09  
+**Last updated:** 2026-05-20  
 **Goal:** Core infrastructure, authentication, RBAC, devices, sessions, seeding
 
 ---
@@ -58,6 +58,11 @@
 
 ## Pending / Carry-forward
 - [x] `pos_device_sessions` — device-specific shift endpoints added: `GET /devices/current/sessions/current`, `POST /devices/current/sessions/open`, `POST /devices/current/sessions/close` (wired 2026-05-09)
-- [ ] Outlet selector at login (post-MVP: cashier selects outlet per terminal)
+- [x] Outlet selector at login — outlet use_case embedded in terminal JWT and PIN auth response (2026-05-20); clients use `outlet_use_case` + `is_hq_user` claims to adapt UI
 - [x] Terminal PIN login — `POST /{tenant}/pos/auth/pin`, `POST /{tenant}/pos/auth/pin/set`, `GET /{tenant}/pos/staff`, `GET /{tenant}/pos/auth/pin/profile` implemented (2026-05-09); `pin_hash`, `pin_failed_attempts`, `pin_locked_until` added to `staff_members`; Atlas migration generated; `issueTerminalJWT` HMAC-SHA256 4h token
+- [x] Terminal JWT now embeds `outlet_code`, `outlet_use_case`, `is_hq_user` (2026-05-20)
+- [x] PIN auth response now returns `outlet_use_case`, `is_hq_user` in user object (2026-05-20)
+- [x] `RequireUseCase` middleware — route-level use-case gating for tables, bar-tabs, KDS, hotel (2026-05-20)
+- [x] `RequireKDSEnabled` + `RequireAppointmentsEnabled` OutletSetting-based toggles (2026-05-20)
+- [x] Seed restructured: codevertex-demo (6 outlets, demo staff) + urban-loft (hospitality only, no demo staff) (2026-05-20)
 - [ ] `pos.staff.manage` permission not yet seeded (needed for manager PIN management guard)

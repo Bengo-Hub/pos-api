@@ -12,31 +12,51 @@ import (
 )
 
 // terminalClaims are embedded in short-lived JWTs issued to POS terminals after PIN login.
+// Mirrors the SSO JWT shape so pos-ui can use the same claim parsing path.
 type terminalClaims struct {
-	UserID      string   `json:"user_id"`
-	TenantID    string   `json:"tenant_id"`
-	OutletID    string   `json:"outlet_id"`
-	Name        string   `json:"name"`
-	Role        string   `json:"role"`
-	Permissions []string `json:"permissions"`
+	UserID         string   `json:"user_id"`
+	TenantID       string   `json:"tenant_id"`
+	OutletID       string   `json:"outlet_id"`
+	OutletCode     string   `json:"outlet_code"`
+	OutletUseCase  string   `json:"outlet_use_case"`
+	IsHQUser       bool     `json:"is_hq_user"`
+	Name           string   `json:"name"`
+	Role           string   `json:"role"`
+	Permissions    []string `json:"permissions"`
 	jwt.RegisteredClaims
 }
 
 // issueTerminalJWT signs a 4-hour HMAC-SHA256 JWT for terminal PIN sessions.
-// It resolves permissions from the tenant's POSRoleV2 for the staff member's role.
-// If the role is not found, it falls back to an empty permissions list.
+// It resolves permissions from the tenant's POSRoleV2 for the staff member's role
+// and embeds outlet_use_case + is_hq_user so pos-ui can gate modules without an
+// extra API round-trip.
 func issueTerminalJWT(member *ent.StaffMember, tenantID uuid.UUID, secret []byte, client *ent.Client, ctx context.Context) (string, error) {
-	// Resolve permissions for the role
 	permissions := resolveRolePermissions(ctx, client, tenantID, member.Role)
+
+	// Load outlet to include use_case and is_hq in terminal JWT claims
+	outletCode := ""
+	outletUseCase := "hospitality" // safe default
+	isHQ := false
+	outlet, err := client.Outlet.Get(ctx, member.OutletID)
+	if err == nil {
+		outletCode = outlet.Code
+		if outlet.UseCase != nil {
+			outletUseCase = *outlet.UseCase
+		}
+		isHQ = outlet.IsHq
+	}
 
 	now := time.Now()
 	claims := terminalClaims{
-		UserID:      member.UserID.String(),
-		TenantID:    tenantID.String(),
-		OutletID:    member.OutletID.String(),
-		Name:        member.Name,
-		Role:        member.Role,
-		Permissions: permissions,
+		UserID:        member.UserID.String(),
+		TenantID:      tenantID.String(),
+		OutletID:      member.OutletID.String(),
+		OutletCode:    outletCode,
+		OutletUseCase: outletUseCase,
+		IsHQUser:      isHQ,
+		Name:          member.Name,
+		Role:          member.Role,
+		Permissions:   permissions,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   member.UserID.String(),
 			Issuer:    "pos-terminal",

@@ -155,16 +155,28 @@ func (h *PINAuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Load outlet to include use_case and is_hq in the login response so pos-ui
+	// can initialise outlet state without an extra round-trip.
+	outletUseCase := "hospitality"
+	isHQ := false
+	outlet, outletErr := h.client.Outlet.Get(r.Context(), member.OutletID)
+	if outletErr == nil && outlet.UseCase != nil {
+		outletUseCase = *outlet.UseCase
+		isHQ = outlet.IsHq
+	}
+
 	jsonOK(w, map[string]any{
 		"access_token": token,
 		"token_type":   "Bearer",
 		"expires_in":   int((4 * time.Hour).Seconds()),
 		"user": map[string]any{
-			"user_id":   member.UserID.String(),
-			"name":      member.Name,
-			"role":      member.Role,
-			"tenant_id": member.TenantID.String(),
-			"outlet_id": member.OutletID.String(),
+			"user_id":        member.UserID.String(),
+			"name":           member.Name,
+			"role":           member.Role,
+			"tenant_id":      member.TenantID.String(),
+			"outlet_id":      member.OutletID.String(),
+			"outlet_use_case": outletUseCase,
+			"is_hq_user":     isHQ,
 		},
 	})
 }

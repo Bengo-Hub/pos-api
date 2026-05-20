@@ -1,7 +1,8 @@
 # POS Service - Architecture Overview
 
-**Last updated:** 2026-05-09  
-**Audit note (2026-05-09):** Payment flow architecture section added (pos-api as thin treasury client). eTIMS ownership corrected to treasury-api. Event publisher reality gap documented (pos.sale.finalized not yet in publisher.go). Schema field name aliases clarified (status vs payment_status, external_reference vs provider_reference).
+**Last updated:** 2026-05-20  
+**Audit note (2026-05-20):** Outlet use-case gating added (RequireUseCase middleware, OutletSetting per-outlet toggles). Terminal JWT and PIN auth response now embed outlet_use_case + is_hq_user claims. Seed restructured for codevertex-demo (6 outlets) + urban-loft (hospitality only). Demo staff moved from urban-loft to codevertex-demo.  
+**Previous audit (2026-05-09):** Payment flow architecture section added (pos-api as thin treasury client). eTIMS ownership corrected to treasury-api. Event publisher reality gap documented (pos.sale.finalized not yet in publisher.go).
 
 ## Design Philosophy
 
@@ -75,6 +76,49 @@ The service adapts UI and business workflows based on the `use_case` configured 
 
 ---
 
+## Outlet Use-Case Gating
+
+Routes are gated at both the middleware and sidebar level based on `outlet.use_case`. This is separate from RBAC — use-case gating prevents hospitality-specific features from being accessible on a retail or pharmacy outlet.
+
+### Middleware (`internal/http/middleware/use_case.go`)
+
+| Middleware | Gates | Allowed Use Cases |
+|------------|-------|------------------|
+| `RequireUseCase("hospitality")` | `/tables/*`, `/bar-tabs/*`, `/hotel/*` | hospitality only |
+| `RequireUseCase("hospitality", "quick_service")` | `/kds/*` | hospitality, quick_service |
+| `RequireKDSEnabled(client)` | `/kds/*` | outlet must have `enable_kds=true` |
+| `RequireAppointmentsEnabled(client)` | `/appointments/*` | outlet must have `enable_appointments=true` |
+
+Platform owners and HQ users (`is_hq_user=true`) bypass all use-case gates.
+
+### OutletSetting (`outlet_settings` table)
+
+Per-outlet configuration stored in `outlet_settings`. Fields:
+- `pin_login_message` — shown on PIN login page
+- `display_mode` — `card` | `list`
+- `default_view` — `tables` | `catalog` | `orders`
+- `enable_kds` — boolean
+- `enable_appointments` — boolean
+- `show_barcode_scanner` — boolean (auto-true for retail outlets)
+
+Settings are cached in-memory with a 5-minute TTL to avoid DB hits on every request.
+
+### Seed Outlets
+
+| Tenant | Outlet | Code | Use Case | Is HQ |
+|--------|--------|------|----------|-------|
+| urban-loft | Urban Loft Cafe Busia | BUSIA | hospitality | ✅ |
+| codevertex-demo | Demo Grand Hotel & Restaurant | HOSP | hospitality | ✅ |
+| codevertex-demo | Demo Tech Store | RETAIL | retail | ❌ |
+| codevertex-demo | Demo Express Kiosk | QSR | quick_service | ❌ |
+| codevertex-demo | Demo Health Pharmacy | PHARMA | pharmacy | ❌ |
+| codevertex-demo | Demo Beauty & Wellness | SVC | services | ❌ |
+| codevertex-demo | Demo Logistics Hub | LOGIS | logistics | ❌ |
+
+Demo staff (PIN=`1234`) are seeded under `codevertex-demo` only. Urban-loft has no demo staff — it is a real client.
+
+---
+
 ## RBAC & Authorization
 
 - **Format**: `pos.{module}.{action}` — e.g., `pos.orders.view`, `pos.hotel.manage`
@@ -92,11 +136,13 @@ The service adapts UI and business workflows based on the `use_case` configured 
 - JWT validation via `shared/auth-client` (JWKS RS256, audience `codevertex`)
 - Used by: managers, admins, office staff
 
-### Terminal PIN Login (POS Terminals) — Sprint 10
-- Status: ❌ Not implemented
-- `POSStaffPin` table: `{tenant_id, user_id, pin_hash (bcrypt), is_active, last_used_at}`
+### Terminal PIN Login (POS Terminals)
+- Status: ✅ Implemented
+- `StaffMember` table: `{tenant_id, outlet_id, user_id, name, role, pin_hash (bcrypt), ...}`
 - `POST /{tenant}/pos/auth/pin` — validates PIN, issues short-lived 4-hour terminal JWT
-- `POST /{tenant}/pos/auth/pin/set` — manager sets/resets staff PIN (requires `pos.staff.manage`)
+  - Response includes: `outlet_use_case`, `is_hq_user`, full permissions array
+- `POST /{tenant}/pos/auth/pin/set` — manager sets/resets staff PIN
+- Terminal JWT claims mirror SSO JWT: `outlet_id`, `outlet_code`, `outlet_use_case`, `is_hq_user`
 - Required for: waiters, cashiers, kitchen, bar staff, receptionists on dedicated terminals
 
 ---
