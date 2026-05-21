@@ -11,6 +11,8 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/bengobox/pos-service/internal/ent"
+	"github.com/bengobox/pos-service/internal/ent/outlet"
+	"github.com/bengobox/pos-service/internal/ent/staffmember"
 	"github.com/bengobox/pos-service/internal/ent/user"
 )
 
@@ -85,8 +87,27 @@ func (h *AuthEventHandler) SubscribeToAuthEvents(nc *nats.Conn) error {
 		return fmt.Errorf("subscribe to auth.user.updated: %w", err)
 	}
 
+	// Subscribe to auth.user.pin_set
+	_, err = nc.Subscribe("auth.user.pin_set", func(msg *nats.Msg) {
+		var evt authUserEvent
+		if err := json.Unmarshal(msg.Data, &evt); err != nil {
+			h.logger.Error("failed to unmarshal auth.user.pin_set event", zap.Error(err))
+			return
+		}
+
+		ctx := context.Background()
+		if err := h.handleUserPINSet(ctx, &evt); err != nil {
+			h.logger.Error("failed to handle auth.user.pin_set event", zap.Error(err))
+			return
+		}
+		_ = msg.Ack()
+	})
+	if err != nil {
+		return fmt.Errorf("subscribe to auth.user.pin_set: %w", err)
+	}
+
 	h.logger.Info("auth event subscriptions active",
-		zap.Strings("subjects", []string{"auth.user.created", "auth.user.updated"}))
+		zap.Strings("subjects", []string{"auth.user.created", "auth.user.updated", "auth.user.pin_set"}))
 	return nil
 }
 
@@ -147,6 +168,10 @@ func (h *AuthEventHandler) handleUserCreated(ctx context.Context, evt *authUserE
 		zap.String("user_id", userIDStr),
 		zap.String("tenant_id", tenantID.String()),
 		zap.String("email", email))
+
+	// Upsert StaffMember so this user can set a PIN and log in at POS terminals.
+	h.upsertStaffMember(ctx, authServiceUserID, tenantID, fullName, evt)
+
 	return nil
 }
 
@@ -187,8 +212,144 @@ func (h *AuthEventHandler) handleUserUpdated(ctx context.Context, evt *authUserE
 		return fmt.Errorf("update user from auth event: %w", err)
 	}
 
+	// Patch StaffMember name if it changed
+	if fullName != "" {
+		_ = h.client.StaffMember.Update().
+			Where(staffmember.TenantID(u.TenantID), staffmember.UserID(authServiceUserID)).
+			SetName(fullName).
+			Exec(ctx)
+	}
+
 	h.logger.Info("user updated from auth.user.updated event",
 		zap.String("user_id", userIDStr),
 		zap.String("email", email))
 	return nil
+}
+
+func (h *AuthEventHandler) handleUserPINSet(ctx context.Context, evt *authUserEvent) error {
+	userIDStr, _ := evt.Payload["user_id"].(string)
+	service, _ := evt.Payload["service"].(string)
+	pinHash, _ := evt.Payload["pin_hash"].(string)
+
+	if service != "pos" {
+		// Not for this service — silently skip
+		return nil
+	}
+
+	authServiceUserID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		return fmt.Errorf("invalid user_id %q: %w", userIDStr, err)
+	}
+
+	if pinHash == "" {
+		return fmt.Errorf("pin_hash is required")
+	}
+
+	existing, err := h.client.StaffMember.Query().
+		Where(staffmember.TenantID(evt.TenantID), staffmember.UserID(authServiceUserID)).
+		Only(ctx)
+	if err != nil {
+		if !ent.IsNotFound(err) {
+			return fmt.Errorf("query StaffMember: %w", err)
+		}
+		// StaffMember doesn't exist — create it with HQ outlet as default
+		tenantID := evt.TenantID
+		name := ""
+		// Try to get name from User record
+		u, uErr := h.client.User.Query().
+			Where(user.AuthServiceUserIDEQ(authServiceUserID)).
+			Only(ctx)
+		if uErr == nil {
+			name = u.FullName
+			tenantID = u.TenantID
+		}
+		if name == "" {
+			name = userIDStr[:8]
+		}
+		h.upsertStaffMember(ctx, authServiceUserID, tenantID, name, evt)
+		// Now try again
+		existing, err = h.client.StaffMember.Query().
+			Where(staffmember.TenantID(tenantID), staffmember.UserID(authServiceUserID)).
+			Only(ctx)
+		if err != nil {
+			return fmt.Errorf("StaffMember not found after upsert: %w", err)
+		}
+	}
+
+	if err := existing.Update().SetPinHash(pinHash).Exec(ctx); err != nil {
+		return fmt.Errorf("update PIN hash: %w", err)
+	}
+
+	h.logger.Info("staff PIN updated from auth.user.pin_set event",
+		zap.String("user_id", userIDStr))
+	return nil
+}
+
+// upsertStaffMember creates a StaffMember for the given user if one does not exist,
+// or updates the name if it has changed. This is idempotent.
+func (h *AuthEventHandler) upsertStaffMember(ctx context.Context, userID, tenantID uuid.UUID, name string, evt *authUserEvent) {
+	// Find HQ outlet for the tenant (fallback to first outlet if no HQ)
+	hqOutlet, err := h.client.Outlet.Query().
+		Where(outlet.TenantID(tenantID), outlet.IsHq(true)).
+		First(ctx)
+	if err != nil {
+		// Fallback: use any outlet for this tenant
+		hqOutlet, err = h.client.Outlet.Query().
+			Where(outlet.TenantID(tenantID)).
+			First(ctx)
+		if err != nil {
+			h.logger.Warn("no outlet found for tenant, cannot create StaffMember",
+				zap.String("tenant_id", tenantID.String()))
+			return
+		}
+	}
+
+	// Map SSO roles to a POS role
+	posRole := mapSSORoleToPOS(evt.Payload)
+
+	// Upsert StaffMember — idempotent
+	existing, err := h.client.StaffMember.Query().
+		Where(staffmember.TenantID(tenantID), staffmember.UserID(userID)).
+		Only(ctx)
+	if err == nil {
+		// Update name if changed
+		if existing.Name != name {
+			_ = existing.Update().SetName(name).Exec(ctx)
+		}
+		return
+	}
+	if !ent.IsNotFound(err) {
+		h.logger.Warn("error querying StaffMember", zap.Error(err))
+		return
+	}
+
+	_, err = h.client.StaffMember.Create().
+		SetTenantID(tenantID).
+		SetOutletID(hqOutlet.ID).
+		SetUserID(userID).
+		SetName(name).
+		SetRole(posRole).
+		SetIsActive(true).
+		SetPinFailedAttempts(0).
+		Save(ctx)
+	if err != nil {
+		h.logger.Warn("failed to create StaffMember from auth event", zap.Error(err))
+	}
+}
+
+// mapSSORoleToPOS converts SSO-level roles from the event payload to a POS role code.
+func mapSSORoleToPOS(payload map[string]interface{}) string {
+	roles, _ := payload["roles"].([]interface{})
+	for _, r := range roles {
+		role, _ := r.(string)
+		switch role {
+		case "admin", "superuser":
+			return "manager"
+		case "cashier", "waiter", "receptionist", "kitchen", "bar", "pharmacist":
+			return role // direct match
+		case "manager":
+			return "manager"
+		}
+	}
+	return "cashier" // safe default
 }
