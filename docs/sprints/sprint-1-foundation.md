@@ -56,6 +56,12 @@
 
 ---
 
+## Security Hardening (2026-05-21)
+- [x] Request body size limited to 10MB (`middleware.RequestSize`) — prevents memory DoS
+- [x] IP rate limiting via Redis sliding window — 100 req/60s per IP, returns 429 + `X-RateLimit-*` headers
+- [x] `HTTP_ALLOWED_ORIGINS` default updated to production-only origins (localhost removed)
+- [x] Startup warning logged if `TERMINAL_JWT_SECRET` falls back to `INTERNAL_SERVICE_KEY`
+
 ## Pending / Carry-forward
 - [x] `pos_device_sessions` — device-specific shift endpoints added: `GET /devices/current/sessions/current`, `POST /devices/current/sessions/open`, `POST /devices/current/sessions/close` (wired 2026-05-09)
 - [x] Outlet selector at login — outlet use_case embedded in terminal JWT and PIN auth response (2026-05-20); clients use `outlet_use_case` + `is_hq_user` claims to adapt UI
