@@ -273,13 +273,12 @@ func New(
 					}
 
 					// Terminal PIN auth (auth-protected endpoints)
-					// SetPIN requires a manager SSO token; AuthMe requires SSO token for Trinity Layer 3.
+					// SetPIN requires a manager/admin SSO token — no subscription gate so admins
+					// can always set staff PINs regardless of plan.
+					// AuthMe requires SSO token for Trinity Layer 3.
 					// ListStaff / Login / StaffProfiles are registered in the public group above.
 					if pinAuth != nil {
-						pos.Group(func(ca chi.Router) {
-							ca.Use(subscriptions.RequireFeature("multi_cashier"))
-							ca.Post("/auth/pin/set", pinAuth.SetPIN)
-						})
+						pos.Post("/auth/pin/set", pinAuth.SetPIN)
 						pos.Get("/auth/me", pinAuth.AuthMe)
 					}
 
