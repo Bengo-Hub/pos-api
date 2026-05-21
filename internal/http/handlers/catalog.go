@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -101,30 +102,14 @@ func (h *CatalogHandler) proxyFromInventory(ctx context.Context, tenantSlug stri
 }
 
 // ListCatalogItems handles GET /{tenantID}/pos/catalog/items
-// Primary source: local CatalogItem table (populated by startup sync + NATS events).
-// Fallback: live proxy from inventory-api when local catalog is empty.
+// Primary source: inventory-api (always proxied — ensures fresh data even when local sync is stale).
+// Local CatalogItem table is used as an override layer (status, tax_status per SKU).
+// Fallback: local-only query when inventory-api is unreachable.
 func (h *CatalogHandler) ListCatalogItems(w http.ResponseWriter, r *http.Request) {
 	tid, err := parseTenantUUID(r)
 	if err != nil {
 		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
 		return
-	}
-
-	query := h.client.CatalogItem.Query().Where(
-		catalogitem.TenantID(tid),
-		catalogitem.ItemTypeNotIn("INGREDIENT", "EQUIPMENT"),
-	)
-
-	if cat := r.URL.Query().Get("category"); cat != "" {
-		query = query.Where(catalogitem.Category(cat))
-	}
-	if status := r.URL.Query().Get("status"); status != "" {
-		query = query.Where(catalogitem.Status(status))
-	} else {
-		query = query.Where(catalogitem.Status("active"))
-	}
-	if search := r.URL.Query().Get("search"); search != "" {
-		query = query.Where(catalogitem.NameContainsFold(search))
 	}
 
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
@@ -137,28 +122,99 @@ func (h *CatalogHandler) ListCatalogItems(w http.ResponseWriter, r *http.Request
 	}
 	offset := (page - 1) * limit
 
-	total, _ := query.Clone().Count(r.Context())
+	catFilter := r.URL.Query().Get("category")
+	statusFilter := r.URL.Query().Get("status")
+	if statusFilter == "" {
+		statusFilter = "active"
+	}
+	searchFilter := strings.ToLower(r.URL.Query().Get("search"))
 
-	// Proxy from inventory-api when local catalog is empty (e.g. fresh deploy, sync not yet run)
-	if total == 0 {
-		tenantSlug := ""
-		if claims, ok := authclient.ClaimsFromContext(r.Context()); ok {
-			tenantSlug = claims.GetTenantSlug()
-		}
-		if tenantSlug == "" {
-			tenantSlug = httpware.GetTenantSlug(r.Context())
-		}
-		if tenantSlug != "" {
-			proxyItems, proxyErr := h.proxyFromInventory(r.Context(), tenantSlug)
-			if proxyErr != nil {
-				h.log.Warn("inventory proxy failed, returning empty catalog", zap.Error(proxyErr))
-			} else {
-				jsonOK(w, map[string]any{"data": proxyItems, "total": len(proxyItems), "limit": limit, "page": page})
-				return
+	// Resolve tenant slug from JWT claims or httpware context
+	tenantSlug := ""
+	if claims, ok := authclient.ClaimsFromContext(r.Context()); ok {
+		tenantSlug = claims.GetTenantSlug()
+	}
+	if tenantSlug == "" {
+		tenantSlug = httpware.GetTenantSlug(r.Context())
+	}
+
+	// ── Primary path: inventory-api proxy + local overrides ──────────────────
+	if tenantSlug != "" {
+		proxyItems, proxyErr := h.proxyFromInventory(r.Context(), tenantSlug)
+		if proxyErr == nil && len(proxyItems) > 0 {
+			// Fetch local overrides (status/tax_status set via POS catalog management)
+			localItems, _ := h.client.CatalogItem.Query().
+				Where(catalogitem.TenantID(tid)).
+				All(r.Context())
+			overrides := make(map[string]*ent.CatalogItem, len(localItems))
+			for _, li := range localItems {
+				overrides[li.Sku] = li
 			}
+
+			// Merge inventory items with local overrides, then apply filters
+			merged := make([]map[string]any, 0, len(proxyItems))
+			for _, item := range proxyItems {
+				sku, _ := item["sku"].(string)
+				if local, ok := overrides[sku]; ok {
+					item["status"] = local.Status
+					item["tax_status"] = local.TaxStatus
+				}
+				// Apply filters on merged result
+				if catFilter != "" {
+					cat, _ := item["category"].(string)
+					if !strings.EqualFold(cat, catFilter) {
+						continue
+					}
+				}
+				if statusFilter != "" {
+					st, _ := item["status"].(string)
+					if st != statusFilter {
+						continue
+					}
+				}
+				if searchFilter != "" {
+					name := strings.ToLower(fmt.Sprintf("%v", item["name"]))
+					if !strings.Contains(name, searchFilter) {
+						continue
+					}
+				}
+				merged = append(merged, item)
+			}
+
+			total := len(merged)
+			start := offset
+			if start > total {
+				start = total
+			}
+			end := start + limit
+			if end > total {
+				end = total
+			}
+			jsonOK(w, map[string]any{"data": merged[start:end], "total": total, "limit": limit, "page": page})
+			return
+		}
+		if proxyErr != nil {
+			h.log.Warn("inventory proxy failed, falling back to local catalog", zap.Error(proxyErr))
 		}
 	}
 
+	// ── Fallback: local catalog only ─────────────────────────────────────────
+	query := h.client.CatalogItem.Query().Where(
+		catalogitem.TenantID(tid),
+		catalogitem.ItemTypeNotIn("INGREDIENT", "EQUIPMENT"),
+	)
+
+	if catFilter != "" {
+		query = query.Where(catalogitem.Category(catFilter))
+	}
+	if statusFilter != "" {
+		query = query.Where(catalogitem.Status(statusFilter))
+	}
+	if searchFilter != "" {
+		query = query.Where(catalogitem.NameContainsFold(searchFilter))
+	}
+
+	total, _ := query.Clone().Count(r.Context())
 	items, err := query.
 		Offset(offset).
 		Limit(limit).
