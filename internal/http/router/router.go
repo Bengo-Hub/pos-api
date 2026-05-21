@@ -116,9 +116,14 @@ func New(
 		})
 
 		// ── Protected endpoints (auth required) ───────────────────────────────
+		// RequireAnyAuth accepts both SSO JWTs and HMAC terminal JWTs from PIN login.
 		api.Group(func(prot chi.Router) {
-			if authMiddleware != nil {
+			if pinAuth != nil {
+				prot.Use(pinAuth.RequireAnyAuth(authMiddleware))
+			} else if authMiddleware != nil {
 				prot.Use(authMiddleware.RequireAuth)
+			}
+			if authMiddleware != nil {
 				prot.Use(subscriptions.SubscriptionGate())
 			}
 

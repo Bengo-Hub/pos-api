@@ -2,11 +2,15 @@ package handlers
 
 import (
 	"context"
+	"fmt"
+	"net/http"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 
+	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/bengobox/pos-service/internal/ent"
 	"github.com/bengobox/pos-service/internal/ent/posrolev2"
 )
@@ -66,6 +70,71 @@ func issueTerminalJWT(member *ent.StaffMember, tenantID uuid.UUID, secret []byte
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString(secret)
+}
+
+// validateTerminalJWT parses and validates an HMAC-signed terminal JWT.
+func validateTerminalJWT(tokenStr string, secret []byte) (*terminalClaims, error) {
+	token, err := jwt.ParseWithClaims(tokenStr, &terminalClaims{}, func(t *jwt.Token) (interface{}, error) {
+		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
+		}
+		return secret, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	claims, ok := token.Claims.(*terminalClaims)
+	if !ok || !token.Valid {
+		return nil, fmt.Errorf("invalid terminal JWT")
+	}
+	if claims.Issuer != "pos-terminal" {
+		return nil, fmt.Errorf("not a terminal JWT")
+	}
+	return claims, nil
+}
+
+// terminalToAuthClaims converts a terminal JWT's claims into the shared authclient.Claims
+// format so downstream middleware (TenantV2, SubscriptionGate, RBAC) can use them uniformly.
+func terminalToAuthClaims(tc *terminalClaims) *authclient.Claims {
+	return &authclient.Claims{
+		TenantID:      tc.TenantID,
+		OutletID:      tc.OutletID,
+		OutletCode:    tc.OutletCode,
+		OutletUseCase: tc.OutletUseCase,
+		IsHQUser:      tc.IsHQUser,
+		Roles:         []string{tc.Role},
+		Permissions:   tc.Permissions,
+		// SubscriptionStatus left empty → SubscriptionGate treats "" as ACTIVE/allowed
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject: tc.Subject,
+			Issuer:  tc.Issuer,
+		},
+	}
+}
+
+// RequireAnyAuth returns a middleware that accepts either a terminal PIN JWT (HMAC-SHA256
+// signed by pos-api) or a standard SSO JWT. Terminal JWTs are validated first; if they
+// fail, the request falls through to the standard RequireAuth middleware.
+func (h *PINAuthHandler) RequireAnyAuth(ssoAuth *authclient.AuthMiddleware) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			authHeader := r.Header.Get("Authorization")
+			if strings.HasPrefix(authHeader, "Bearer ") {
+				tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
+				if tc, err := validateTerminalJWT(tokenStr, h.jwtSecret); err == nil {
+					ctx := authclient.ContextWithClaims(r.Context(), terminalToAuthClaims(tc))
+					next.ServeHTTP(w, r.WithContext(ctx))
+					return
+				}
+			}
+			// Not a valid terminal JWT — delegate to SSO auth
+			if ssoAuth != nil {
+				ssoAuth.RequireAuth(next).ServeHTTP(w, r)
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
 }
 
 // resolveRolePermissions looks up the POSRoleV2 for the given tenantID and roleCode,
