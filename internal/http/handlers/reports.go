@@ -9,6 +9,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/bengobox/pos-service/internal/ent"
+	"github.com/bengobox/pos-service/internal/ent/posdevicesession"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
 	"github.com/bengobox/pos-service/internal/ent/posrefund"
 )
@@ -20,6 +21,86 @@ type ReportsHandler struct {
 
 func NewReportsHandler(log *zap.Logger, db *ent.Client) *ReportsHandler {
 	return &ReportsHandler{log: log, db: db}
+}
+
+// GetSummary handles GET /{tenantID}/pos/reports/summary
+// Returns today's KPI snapshot: total revenue, order count, avg ticket, active shifts, and day-over-day growth.
+func (h *ReportsHandler) GetSummary(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+
+	now := time.Now().UTC()
+	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+	yesterdayStart := todayStart.AddDate(0, 0, -1)
+
+	queryRevenue := func(from, to time.Time) (float64, int, error) {
+		orders, qErr := h.db.POSOrder.Query().
+			Where(
+				posorder.TenantID(tid),
+				posorder.StatusEQ("completed"),
+				posorder.CreatedAtGTE(from),
+				posorder.CreatedAtLT(to),
+			).All(r.Context())
+		if qErr != nil {
+			return 0, 0, qErr
+		}
+		var total float64
+		for _, o := range orders {
+			total += o.TotalAmount
+		}
+		return total, len(orders), nil
+	}
+
+	todayRev, todayOrders, err := queryRevenue(todayStart, now)
+	if err != nil {
+		h.log.Error("summary: today revenue query failed", zap.Error(err))
+		jsonError(w, "failed to generate summary", http.StatusInternalServerError)
+		return
+	}
+
+	yesterdayRev, yesterdayOrders, err := queryRevenue(yesterdayStart, todayStart)
+	if err != nil {
+		h.log.Error("summary: yesterday revenue query failed", zap.Error(err))
+		jsonError(w, "failed to generate summary", http.StatusInternalServerError)
+		return
+	}
+
+	activeShifts, err := h.db.POSDeviceSession.Query().
+		Where(
+			posdevicesession.TenantID(tid),
+			posdevicesession.SessionStatusEQ("open"),
+		).Count(r.Context())
+	if err != nil {
+		h.log.Warn("summary: active sessions query failed", zap.Error(err))
+		activeShifts = 0
+	}
+
+	var avgTicket float64
+	if todayOrders > 0 {
+		avgTicket = todayRev / float64(todayOrders)
+	}
+
+	revenueGrowth := 0.0
+	ordersGrowth := 0.0
+	if yesterdayRev > 0 {
+		revenueGrowth = (todayRev - yesterdayRev) / yesterdayRev * 100
+	}
+	if yesterdayOrders > 0 {
+		ordersGrowth = float64(todayOrders-yesterdayOrders) / float64(yesterdayOrders) * 100
+	}
+
+	jsonOK(w, map[string]any{
+		"total_revenue":    todayRev,
+		"total_orders":     todayOrders,
+		"avg_ticket":       avgTicket,
+		"active_staff":     activeShifts,
+		"revenue_growth":   revenueGrowth,
+		"orders_growth":    ordersGrowth,
+		"as_of":            now.Format(time.RFC3339),
+	})
 }
 
 // SalesSummary handles GET /{tenantID}/pos/reports/sales-summary

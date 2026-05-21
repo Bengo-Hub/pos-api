@@ -56,6 +56,7 @@ func New(
 	webhooks *handlers.WebhookHandler,
 	onlineOrders *handlers.OnlineOrderHandler,
 	serviceConfig *handlers.ServiceConfigHandler,
+	serviceSettings *handlers.ServiceSettingsHandler,
 	allowedOrigins []string,
 	redisClient *redis.Client,
 ) http.Handler {
@@ -164,6 +165,11 @@ func New(
 				// RBAC routes
 				if rbacHandler != nil {
 					rbacHandler.RegisterRoutes(tenant)
+				}
+
+				// Outlet settings + TruLoad-inspired outlet switch
+				if serviceSettings != nil {
+					serviceSettings.RegisterRoutes(tenant)
 				}
 
 				tenant.Route("/pos", func(pos chi.Router) {
@@ -371,6 +377,7 @@ func New(
 
 					// Reports & Analytics
 					if reports != nil {
+						pos.Get("/reports/summary", reports.GetSummary)
 						pos.Get("/reports/sales-summary", reports.SalesSummary)
 						pos.Get("/reports/refund-summary", reports.RefundSummary)
 						pos.Get("/reports/daily-breakdown", reports.DailyBreakdown)
