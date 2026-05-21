@@ -6,8 +6,8 @@ github.com/Bengo-Hub/auth-client v0.6.1 h1:7yW9wbp70gcirFJlmVQe+b2GDEgFV2DdBqfL8
 github.com/Bengo-Hub/auth-client v0.6.1/go.mod h1:DTfmZRTomkZRFm1YYKO8DmvwjLIchZnM7ZaFArIffsI=
 github.com/Bengo-Hub/cache v0.2.0 h1:EHRYE5ItBudsY8B15pEQGztt+V5hVBQPSpL72SeBE54=
 github.com/Bengo-Hub/cache v0.2.0/go.mod h1:sgPlF4ekK/sUgfv1YRg7HKq6YNYgyBsDsX1bzfZzJPQ=
-github.com/Bengo-Hub/httpware v0.4.0 h1:nOk2JYNMBWYfPnXPEhtec+dhZ6jxLKrRCFHyncbpo/A=
-github.com/Bengo-Hub/httpware v0.4.0/go.mod h1:iplyopAHMEyJL7lLlJoharGvb5uN04OcQEZjX85O8TU=
+github.com/Bengo-Hub/httpware v0.4.1 h1:4I2C82lxJeRnETxJKxyMpFfsH1gk9r7ytLxiIwLVmaM=
+github.com/Bengo-Hub/httpware v0.4.1/go.mod h1:iplyopAHMEyJL7lLlJoharGvb5uN04OcQEZjX85O8TU=
 github.com/Bengo-Hub/shared-events v0.2.0 h1:boWYHnssTEmUg1c4qd7/YiMoo0ShBqrg4xyUwxwKFsY=
 github.com/Bengo-Hub/shared-events v0.2.0/go.mod h1:lUGlufCZcRz3pgkmEo552zOO5ove6s6ekf/SRvQ0/N0=
 github.com/DATA-DOG/go-sqlmock v1.5.0 h1:Shsta01QNfFxHCfpW6YH2STWB0MudeXXEWMr20OEh60=
