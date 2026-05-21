@@ -54,6 +54,9 @@ func (OutletSetting) Fields() []ent.Field {
 		field.Bool("hotel_module_enabled").Default(false).Optional().Comment("Hotel/room management module (hospitality use case)"),
 		field.Bool("layaway_enabled").Default(false).Optional().Comment("Layaway plan / instalment payment module"),
 		field.Bool("shift_reports_enabled").Default(false).Optional().Comment("Shift reports & daily closing module"),
+		// Shift duration enforcement
+		field.Bool("shift_auto_end_enabled").Default(false).Optional().Comment("Automatically end shift after shift_max_hours to prevent forgotten open sessions"),
+		field.Int("shift_max_hours").Default(12).Optional().Comment("Maximum shift length in hours before auto-end (1–24, default 12)"),
 		field.Time("updated_at").
 			Default(time.Now).
 			UpdateDefault(time.Now),

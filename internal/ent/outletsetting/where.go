@@ -166,6 +166,16 @@ func ShiftReportsEnabled(v bool) predicate.OutletSetting {
 	return predicate.OutletSetting(sql.FieldEQ(FieldShiftReportsEnabled, v))
 }
 
+// ShiftAutoEndEnabled applies equality check predicate on the "shift_auto_end_enabled" field. It's identical to ShiftAutoEndEnabledEQ.
+func ShiftAutoEndEnabled(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldShiftAutoEndEnabled, v))
+}
+
+// ShiftMaxHours applies equality check predicate on the "shift_max_hours" field. It's identical to ShiftMaxHoursEQ.
+func ShiftMaxHours(v int) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldShiftMaxHours, v))
+}
+
 // UpdatedAt applies equality check predicate on the "updated_at" field. It's identical to UpdatedAtEQ.
 func UpdatedAt(v time.Time) predicate.OutletSetting {
 	return predicate.OutletSetting(sql.FieldEQ(FieldUpdatedAt, v))
@@ -1229,6 +1239,76 @@ func ShiftReportsEnabledIsNil() predicate.OutletSetting {
 // ShiftReportsEnabledNotNil applies the NotNil predicate on the "shift_reports_enabled" field.
 func ShiftReportsEnabledNotNil() predicate.OutletSetting {
 	return predicate.OutletSetting(sql.FieldNotNull(FieldShiftReportsEnabled))
+}
+
+// ShiftAutoEndEnabledEQ applies the EQ predicate on the "shift_auto_end_enabled" field.
+func ShiftAutoEndEnabledEQ(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldShiftAutoEndEnabled, v))
+}
+
+// ShiftAutoEndEnabledNEQ applies the NEQ predicate on the "shift_auto_end_enabled" field.
+func ShiftAutoEndEnabledNEQ(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNEQ(FieldShiftAutoEndEnabled, v))
+}
+
+// ShiftAutoEndEnabledIsNil applies the IsNil predicate on the "shift_auto_end_enabled" field.
+func ShiftAutoEndEnabledIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldShiftAutoEndEnabled))
+}
+
+// ShiftAutoEndEnabledNotNil applies the NotNil predicate on the "shift_auto_end_enabled" field.
+func ShiftAutoEndEnabledNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldShiftAutoEndEnabled))
+}
+
+// ShiftMaxHoursEQ applies the EQ predicate on the "shift_max_hours" field.
+func ShiftMaxHoursEQ(v int) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldShiftMaxHours, v))
+}
+
+// ShiftMaxHoursNEQ applies the NEQ predicate on the "shift_max_hours" field.
+func ShiftMaxHoursNEQ(v int) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNEQ(FieldShiftMaxHours, v))
+}
+
+// ShiftMaxHoursIn applies the In predicate on the "shift_max_hours" field.
+func ShiftMaxHoursIn(vs ...int) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIn(FieldShiftMaxHours, vs...))
+}
+
+// ShiftMaxHoursNotIn applies the NotIn predicate on the "shift_max_hours" field.
+func ShiftMaxHoursNotIn(vs ...int) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotIn(FieldShiftMaxHours, vs...))
+}
+
+// ShiftMaxHoursGT applies the GT predicate on the "shift_max_hours" field.
+func ShiftMaxHoursGT(v int) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGT(FieldShiftMaxHours, v))
+}
+
+// ShiftMaxHoursGTE applies the GTE predicate on the "shift_max_hours" field.
+func ShiftMaxHoursGTE(v int) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGTE(FieldShiftMaxHours, v))
+}
+
+// ShiftMaxHoursLT applies the LT predicate on the "shift_max_hours" field.
+func ShiftMaxHoursLT(v int) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLT(FieldShiftMaxHours, v))
+}
+
+// ShiftMaxHoursLTE applies the LTE predicate on the "shift_max_hours" field.
+func ShiftMaxHoursLTE(v int) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLTE(FieldShiftMaxHours, v))
+}
+
+// ShiftMaxHoursIsNil applies the IsNil predicate on the "shift_max_hours" field.
+func ShiftMaxHoursIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldShiftMaxHours))
+}
+
+// ShiftMaxHoursNotNil applies the NotNil predicate on the "shift_max_hours" field.
+func ShiftMaxHoursNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldShiftMaxHours))
 }
 
 // UpdatedAtEQ applies the EQ predicate on the "updated_at" field.

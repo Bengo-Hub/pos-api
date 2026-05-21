@@ -926,8 +926,16 @@ func init() {
 	outletsettingDescShiftReportsEnabled := outletsettingFields[27].Descriptor()
 	// outletsetting.DefaultShiftReportsEnabled holds the default value on creation for the shift_reports_enabled field.
 	outletsetting.DefaultShiftReportsEnabled = outletsettingDescShiftReportsEnabled.Default.(bool)
+	// outletsettingDescShiftAutoEndEnabled is the schema descriptor for shift_auto_end_enabled field.
+	outletsettingDescShiftAutoEndEnabled := outletsettingFields[28].Descriptor()
+	// outletsetting.DefaultShiftAutoEndEnabled holds the default value on creation for the shift_auto_end_enabled field.
+	outletsetting.DefaultShiftAutoEndEnabled = outletsettingDescShiftAutoEndEnabled.Default.(bool)
+	// outletsettingDescShiftMaxHours is the schema descriptor for shift_max_hours field.
+	outletsettingDescShiftMaxHours := outletsettingFields[29].Descriptor()
+	// outletsetting.DefaultShiftMaxHours holds the default value on creation for the shift_max_hours field.
+	outletsetting.DefaultShiftMaxHours = outletsettingDescShiftMaxHours.Default.(int)
 	// outletsettingDescUpdatedAt is the schema descriptor for updated_at field.
-	outletsettingDescUpdatedAt := outletsettingFields[28].Descriptor()
+	outletsettingDescUpdatedAt := outletsettingFields[30].Descriptor()
 	// outletsetting.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	outletsetting.DefaultUpdatedAt = outletsettingDescUpdatedAt.Default.(func() time.Time)
 	// outletsetting.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

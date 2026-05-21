@@ -74,6 +74,10 @@ type OutletSetting struct {
 	LayawayEnabled bool `json:"layaway_enabled,omitempty"`
 	// Shift reports & daily closing module
 	ShiftReportsEnabled bool `json:"shift_reports_enabled,omitempty"`
+	// Automatically end shift after shift_max_hours to prevent forgotten open sessions
+	ShiftAutoEndEnabled bool `json:"shift_auto_end_enabled,omitempty"`
+	// Maximum shift length in hours before auto-end (1–24, default 12)
+	ShiftMaxHours int `json:"shift_max_hours,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
@@ -109,10 +113,12 @@ func (*OutletSetting) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case outletsetting.FieldReceiptsJSON, outletsetting.FieldTaxConfigJSON, outletsetting.FieldServiceChargeJSON, outletsetting.FieldOpeningHoursJSON, outletsetting.FieldMetadata:
 			values[i] = new([]byte)
-		case outletsetting.FieldShowImages, outletsetting.FieldShowBarcodeScanner, outletsetting.FieldEnableKds, outletsetting.FieldEnableAppointments, outletsetting.FieldVatEnabled, outletsetting.FieldAutoPrintOrder, outletsetting.FieldAutoPrintKitchen, outletsetting.FieldHotelModuleEnabled, outletsetting.FieldLayawayEnabled, outletsetting.FieldShiftReportsEnabled:
+		case outletsetting.FieldShowImages, outletsetting.FieldShowBarcodeScanner, outletsetting.FieldEnableKds, outletsetting.FieldEnableAppointments, outletsetting.FieldVatEnabled, outletsetting.FieldAutoPrintOrder, outletsetting.FieldAutoPrintKitchen, outletsetting.FieldHotelModuleEnabled, outletsetting.FieldLayawayEnabled, outletsetting.FieldShiftReportsEnabled, outletsetting.FieldShiftAutoEndEnabled:
 			values[i] = new(sql.NullBool)
 		case outletsetting.FieldVatRate:
 			values[i] = new(sql.NullFloat64)
+		case outletsetting.FieldShiftMaxHours:
+			values[i] = new(sql.NullInt64)
 		case outletsetting.FieldPinLoginMessage, outletsetting.FieldScreensaverURL, outletsetting.FieldDisplayMode, outletsetting.FieldDefaultView, outletsetting.FieldReceiptHeader, outletsetting.FieldReceiptFooter, outletsetting.FieldCurrency, outletsetting.FieldPrinterType, outletsetting.FieldPrinterIP, outletsetting.FieldPaperWidth:
 			values[i] = new(sql.NullString)
 		case outletsetting.FieldUpdatedAt:
@@ -317,6 +323,18 @@ func (_m *OutletSetting) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.ShiftReportsEnabled = value.Bool
 			}
+		case outletsetting.FieldShiftAutoEndEnabled:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field shift_auto_end_enabled", values[i])
+			} else if value.Valid {
+				_m.ShiftAutoEndEnabled = value.Bool
+			}
+		case outletsetting.FieldShiftMaxHours:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field shift_max_hours", values[i])
+			} else if value.Valid {
+				_m.ShiftMaxHours = int(value.Int64)
+			}
 		case outletsetting.FieldUpdatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field updated_at", values[i])
@@ -454,6 +472,12 @@ func (_m *OutletSetting) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("shift_reports_enabled=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ShiftReportsEnabled))
+	builder.WriteString(", ")
+	builder.WriteString("shift_auto_end_enabled=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ShiftAutoEndEnabled))
+	builder.WriteString(", ")
+	builder.WriteString("shift_max_hours=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ShiftMaxHours))
 	builder.WriteString(", ")
 	builder.WriteString("updated_at=")
 	builder.WriteString(_m.UpdatedAt.Format(time.ANSIC))

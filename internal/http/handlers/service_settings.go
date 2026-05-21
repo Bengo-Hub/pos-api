@@ -52,6 +52,9 @@ type settingsResponse struct {
 	HotelModuleEnabled    bool    `json:"hotel_module_enabled"`
 	LayawayEnabled        bool    `json:"layaway_enabled"`
 	ShiftReportsEnabled   bool    `json:"shift_reports_enabled"`
+	// shift settings
+	ShiftAutoEndEnabled bool `json:"shift_auto_end_enabled"`
+	ShiftMaxHours       int  `json:"shift_max_hours"`
 	// terminal
 	PINLoginMessage *string `json:"pin_login_message"`
 	ScreensaverURL  *string `json:"screensaver_url"`
@@ -80,9 +83,11 @@ func toSettingsResponse(outletID uuid.UUID, s *ent.OutletSetting) settingsRespon
 		ReceiptHeader:      s.ReceiptHeader,
 		ReceiptFooter:      s.ReceiptFooter,
 		PrinterIP:          s.PrinterIP,
-		PINLoginMessage:    s.PinLoginMessage,
-		ScreensaverURL:     s.ScreensaverURL,
-		UpdatedAt:          s.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+		ShiftAutoEndEnabled: s.ShiftAutoEndEnabled,
+		ShiftMaxHours:       s.ShiftMaxHours,
+		PINLoginMessage:     s.PinLoginMessage,
+		ScreensaverURL:      s.ScreensaverURL,
+		UpdatedAt:           s.UpdatedAt.Format("2006-01-02T15:04:05Z"),
 	}
 	return r
 }
@@ -342,6 +347,62 @@ func (h *ServiceSettingsHandler) PatchModules(w http.ResponseWriter, r *http.Req
 	jsonOK(w, toSettingsResponse(outlet.ID, updated))
 }
 
+// shiftSettingsInput for PATCH /settings/shifts
+type shiftSettingsInput struct {
+	ShiftAutoEndEnabled *bool `json:"shift_auto_end_enabled"`
+	ShiftMaxHours       *int  `json:"shift_max_hours"`
+}
+
+// PatchShiftSettings handles PATCH /{tenantID}/pos/settings/shifts
+func (h *ServiceSettingsHandler) PatchShiftSettings(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+	outlet, err := h.resolveOutlet(r, tid)
+	if err != nil {
+		jsonError(w, "outlet not found", http.StatusNotFound)
+		return
+	}
+
+	var input shiftSettingsInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		jsonError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	setting, err := h.getOrCreateSetting(r, outlet.ID)
+	if err != nil {
+		h.log.Error("get settings for shift patch", zap.Error(err))
+		jsonError(w, "failed to load settings", http.StatusInternalServerError)
+		return
+	}
+
+	upd := setting.Update()
+	if input.ShiftAutoEndEnabled != nil {
+		upd = upd.SetShiftAutoEndEnabled(*input.ShiftAutoEndEnabled)
+	}
+	if input.ShiftMaxHours != nil {
+		hours := *input.ShiftMaxHours
+		if hours < 1 {
+			hours = 1
+		}
+		if hours > 24 {
+			hours = 24
+		}
+		upd = upd.SetShiftMaxHours(hours)
+	}
+
+	updated, err := upd.Save(r.Context())
+	if err != nil {
+		h.log.Error("patch shift settings", zap.Error(err))
+		jsonError(w, "failed to save shift settings", http.StatusInternalServerError)
+		return
+	}
+	jsonOK(w, toSettingsResponse(outlet.ID, updated))
+}
+
 // switchOutletInput for POST /outlets/{outletID}/switch — TruLoad-inspired outlet context switch.
 type switchOutletInput struct {
 	OutletID string `json:"outlet_id"`
@@ -436,6 +497,7 @@ func (h *ServiceSettingsHandler) RegisterRoutes(r chi.Router) {
 	r.Get("/pos/settings", h.GetSettings)
 	r.Put("/pos/settings", h.PutSettings)
 	r.Patch("/pos/settings/modules", h.PatchModules)
+	r.Patch("/pos/settings/shifts", h.PatchShiftSettings)
 	r.Get("/pos/outlets/{outletID}/settings", h.GetSettings)
 	r.Put("/pos/outlets/{outletID}/settings", h.PutSettings)
 	// TruLoad-inspired outlet switch endpoint

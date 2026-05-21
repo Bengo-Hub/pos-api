@@ -27830,43 +27830,46 @@ func (m *OutletMutation) ResetEdge(name string) error {
 // OutletSettingMutation represents an operation that mutates the OutletSetting nodes in the graph.
 type OutletSettingMutation struct {
 	config
-	op                    Op
-	typ                   string
-	id                    *uuid.UUID
-	receipts_json         *map[string]interface{}
-	tax_config_json       *map[string]interface{}
-	service_charge_json   *map[string]interface{}
-	opening_hours_json    *map[string]interface{}
-	metadata              *map[string]interface{}
-	pin_login_message     *string
-	screensaver_url       *string
-	display_mode          *string
-	show_images           *bool
-	show_barcode_scanner  *bool
-	default_view          *string
-	enable_kds            *bool
-	enable_appointments   *bool
-	receipt_header        *string
-	receipt_footer        *string
-	currency              *string
-	vat_enabled           *bool
-	vat_rate              *float64
-	addvat_rate           *float64
-	printer_type          *string
-	printer_ip            *string
-	paper_width           *string
-	auto_print_order      *bool
-	auto_print_kitchen    *bool
-	hotel_module_enabled  *bool
-	layaway_enabled       *bool
-	shift_reports_enabled *bool
-	updated_at            *time.Time
-	clearedFields         map[string]struct{}
-	outlet                *uuid.UUID
-	clearedoutlet         bool
-	done                  bool
-	oldValue              func(context.Context) (*OutletSetting, error)
-	predicates            []predicate.OutletSetting
+	op                     Op
+	typ                    string
+	id                     *uuid.UUID
+	receipts_json          *map[string]interface{}
+	tax_config_json        *map[string]interface{}
+	service_charge_json    *map[string]interface{}
+	opening_hours_json     *map[string]interface{}
+	metadata               *map[string]interface{}
+	pin_login_message      *string
+	screensaver_url        *string
+	display_mode           *string
+	show_images            *bool
+	show_barcode_scanner   *bool
+	default_view           *string
+	enable_kds             *bool
+	enable_appointments    *bool
+	receipt_header         *string
+	receipt_footer         *string
+	currency               *string
+	vat_enabled            *bool
+	vat_rate               *float64
+	addvat_rate            *float64
+	printer_type           *string
+	printer_ip             *string
+	paper_width            *string
+	auto_print_order       *bool
+	auto_print_kitchen     *bool
+	hotel_module_enabled   *bool
+	layaway_enabled        *bool
+	shift_reports_enabled  *bool
+	shift_auto_end_enabled *bool
+	shift_max_hours        *int
+	addshift_max_hours     *int
+	updated_at             *time.Time
+	clearedFields          map[string]struct{}
+	outlet                 *uuid.UUID
+	clearedoutlet          bool
+	done                   bool
+	oldValue               func(context.Context) (*OutletSetting, error)
+	predicates             []predicate.OutletSetting
 }
 
 var _ ent.Mutation = (*OutletSettingMutation)(nil)
@@ -29291,6 +29294,125 @@ func (m *OutletSettingMutation) ResetShiftReportsEnabled() {
 	delete(m.clearedFields, outletsetting.FieldShiftReportsEnabled)
 }
 
+// SetShiftAutoEndEnabled sets the "shift_auto_end_enabled" field.
+func (m *OutletSettingMutation) SetShiftAutoEndEnabled(b bool) {
+	m.shift_auto_end_enabled = &b
+}
+
+// ShiftAutoEndEnabled returns the value of the "shift_auto_end_enabled" field in the mutation.
+func (m *OutletSettingMutation) ShiftAutoEndEnabled() (r bool, exists bool) {
+	v := m.shift_auto_end_enabled
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldShiftAutoEndEnabled returns the old "shift_auto_end_enabled" field's value of the OutletSetting entity.
+// If the OutletSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OutletSettingMutation) OldShiftAutoEndEnabled(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldShiftAutoEndEnabled is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldShiftAutoEndEnabled requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldShiftAutoEndEnabled: %w", err)
+	}
+	return oldValue.ShiftAutoEndEnabled, nil
+}
+
+// ClearShiftAutoEndEnabled clears the value of the "shift_auto_end_enabled" field.
+func (m *OutletSettingMutation) ClearShiftAutoEndEnabled() {
+	m.shift_auto_end_enabled = nil
+	m.clearedFields[outletsetting.FieldShiftAutoEndEnabled] = struct{}{}
+}
+
+// ShiftAutoEndEnabledCleared returns if the "shift_auto_end_enabled" field was cleared in this mutation.
+func (m *OutletSettingMutation) ShiftAutoEndEnabledCleared() bool {
+	_, ok := m.clearedFields[outletsetting.FieldShiftAutoEndEnabled]
+	return ok
+}
+
+// ResetShiftAutoEndEnabled resets all changes to the "shift_auto_end_enabled" field.
+func (m *OutletSettingMutation) ResetShiftAutoEndEnabled() {
+	m.shift_auto_end_enabled = nil
+	delete(m.clearedFields, outletsetting.FieldShiftAutoEndEnabled)
+}
+
+// SetShiftMaxHours sets the "shift_max_hours" field.
+func (m *OutletSettingMutation) SetShiftMaxHours(i int) {
+	m.shift_max_hours = &i
+	m.addshift_max_hours = nil
+}
+
+// ShiftMaxHours returns the value of the "shift_max_hours" field in the mutation.
+func (m *OutletSettingMutation) ShiftMaxHours() (r int, exists bool) {
+	v := m.shift_max_hours
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldShiftMaxHours returns the old "shift_max_hours" field's value of the OutletSetting entity.
+// If the OutletSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OutletSettingMutation) OldShiftMaxHours(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldShiftMaxHours is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldShiftMaxHours requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldShiftMaxHours: %w", err)
+	}
+	return oldValue.ShiftMaxHours, nil
+}
+
+// AddShiftMaxHours adds i to the "shift_max_hours" field.
+func (m *OutletSettingMutation) AddShiftMaxHours(i int) {
+	if m.addshift_max_hours != nil {
+		*m.addshift_max_hours += i
+	} else {
+		m.addshift_max_hours = &i
+	}
+}
+
+// AddedShiftMaxHours returns the value that was added to the "shift_max_hours" field in this mutation.
+func (m *OutletSettingMutation) AddedShiftMaxHours() (r int, exists bool) {
+	v := m.addshift_max_hours
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearShiftMaxHours clears the value of the "shift_max_hours" field.
+func (m *OutletSettingMutation) ClearShiftMaxHours() {
+	m.shift_max_hours = nil
+	m.addshift_max_hours = nil
+	m.clearedFields[outletsetting.FieldShiftMaxHours] = struct{}{}
+}
+
+// ShiftMaxHoursCleared returns if the "shift_max_hours" field was cleared in this mutation.
+func (m *OutletSettingMutation) ShiftMaxHoursCleared() bool {
+	_, ok := m.clearedFields[outletsetting.FieldShiftMaxHours]
+	return ok
+}
+
+// ResetShiftMaxHours resets all changes to the "shift_max_hours" field.
+func (m *OutletSettingMutation) ResetShiftMaxHours() {
+	m.shift_max_hours = nil
+	m.addshift_max_hours = nil
+	delete(m.clearedFields, outletsetting.FieldShiftMaxHours)
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (m *OutletSettingMutation) SetUpdatedAt(t time.Time) {
 	m.updated_at = &t
@@ -29388,7 +29510,7 @@ func (m *OutletSettingMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *OutletSettingMutation) Fields() []string {
-	fields := make([]string, 0, 28)
+	fields := make([]string, 0, 30)
 	if m.outlet != nil {
 		fields = append(fields, outletsetting.FieldOutletID)
 	}
@@ -29470,6 +29592,12 @@ func (m *OutletSettingMutation) Fields() []string {
 	if m.shift_reports_enabled != nil {
 		fields = append(fields, outletsetting.FieldShiftReportsEnabled)
 	}
+	if m.shift_auto_end_enabled != nil {
+		fields = append(fields, outletsetting.FieldShiftAutoEndEnabled)
+	}
+	if m.shift_max_hours != nil {
+		fields = append(fields, outletsetting.FieldShiftMaxHours)
+	}
 	if m.updated_at != nil {
 		fields = append(fields, outletsetting.FieldUpdatedAt)
 	}
@@ -29535,6 +29663,10 @@ func (m *OutletSettingMutation) Field(name string) (ent.Value, bool) {
 		return m.LayawayEnabled()
 	case outletsetting.FieldShiftReportsEnabled:
 		return m.ShiftReportsEnabled()
+	case outletsetting.FieldShiftAutoEndEnabled:
+		return m.ShiftAutoEndEnabled()
+	case outletsetting.FieldShiftMaxHours:
+		return m.ShiftMaxHours()
 	case outletsetting.FieldUpdatedAt:
 		return m.UpdatedAt()
 	}
@@ -29600,6 +29732,10 @@ func (m *OutletSettingMutation) OldField(ctx context.Context, name string) (ent.
 		return m.OldLayawayEnabled(ctx)
 	case outletsetting.FieldShiftReportsEnabled:
 		return m.OldShiftReportsEnabled(ctx)
+	case outletsetting.FieldShiftAutoEndEnabled:
+		return m.OldShiftAutoEndEnabled(ctx)
+	case outletsetting.FieldShiftMaxHours:
+		return m.OldShiftMaxHours(ctx)
 	case outletsetting.FieldUpdatedAt:
 		return m.OldUpdatedAt(ctx)
 	}
@@ -29800,6 +29936,20 @@ func (m *OutletSettingMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetShiftReportsEnabled(v)
 		return nil
+	case outletsetting.FieldShiftAutoEndEnabled:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetShiftAutoEndEnabled(v)
+		return nil
+	case outletsetting.FieldShiftMaxHours:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetShiftMaxHours(v)
+		return nil
 	case outletsetting.FieldUpdatedAt:
 		v, ok := value.(time.Time)
 		if !ok {
@@ -29818,6 +29968,9 @@ func (m *OutletSettingMutation) AddedFields() []string {
 	if m.addvat_rate != nil {
 		fields = append(fields, outletsetting.FieldVatRate)
 	}
+	if m.addshift_max_hours != nil {
+		fields = append(fields, outletsetting.FieldShiftMaxHours)
+	}
 	return fields
 }
 
@@ -29828,6 +29981,8 @@ func (m *OutletSettingMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
 	case outletsetting.FieldVatRate:
 		return m.AddedVatRate()
+	case outletsetting.FieldShiftMaxHours:
+		return m.AddedShiftMaxHours()
 	}
 	return nil, false
 }
@@ -29843,6 +29998,13 @@ func (m *OutletSettingMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddVatRate(v)
+		return nil
+	case outletsetting.FieldShiftMaxHours:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddShiftMaxHours(v)
 		return nil
 	}
 	return fmt.Errorf("unknown OutletSetting numeric field %s", name)
@@ -29926,6 +30088,12 @@ func (m *OutletSettingMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(outletsetting.FieldShiftReportsEnabled) {
 		fields = append(fields, outletsetting.FieldShiftReportsEnabled)
+	}
+	if m.FieldCleared(outletsetting.FieldShiftAutoEndEnabled) {
+		fields = append(fields, outletsetting.FieldShiftAutoEndEnabled)
+	}
+	if m.FieldCleared(outletsetting.FieldShiftMaxHours) {
+		fields = append(fields, outletsetting.FieldShiftMaxHours)
 	}
 	return fields
 }
@@ -30016,6 +30184,12 @@ func (m *OutletSettingMutation) ClearField(name string) error {
 	case outletsetting.FieldShiftReportsEnabled:
 		m.ClearShiftReportsEnabled()
 		return nil
+	case outletsetting.FieldShiftAutoEndEnabled:
+		m.ClearShiftAutoEndEnabled()
+		return nil
+	case outletsetting.FieldShiftMaxHours:
+		m.ClearShiftMaxHours()
+		return nil
 	}
 	return fmt.Errorf("unknown OutletSetting nullable field %s", name)
 }
@@ -30104,6 +30278,12 @@ func (m *OutletSettingMutation) ResetField(name string) error {
 		return nil
 	case outletsetting.FieldShiftReportsEnabled:
 		m.ResetShiftReportsEnabled()
+		return nil
+	case outletsetting.FieldShiftAutoEndEnabled:
+		m.ResetShiftAutoEndEnabled()
+		return nil
+	case outletsetting.FieldShiftMaxHours:
+		m.ResetShiftMaxHours()
 		return nil
 	case outletsetting.FieldUpdatedAt:
 		m.ResetUpdatedAt()

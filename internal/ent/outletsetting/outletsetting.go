@@ -69,6 +69,10 @@ const (
 	FieldLayawayEnabled = "layaway_enabled"
 	// FieldShiftReportsEnabled holds the string denoting the shift_reports_enabled field in the database.
 	FieldShiftReportsEnabled = "shift_reports_enabled"
+	// FieldShiftAutoEndEnabled holds the string denoting the shift_auto_end_enabled field in the database.
+	FieldShiftAutoEndEnabled = "shift_auto_end_enabled"
+	// FieldShiftMaxHours holds the string denoting the shift_max_hours field in the database.
+	FieldShiftMaxHours = "shift_max_hours"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
 	FieldUpdatedAt = "updated_at"
 	// EdgeOutlet holds the string denoting the outlet edge name in mutations.
@@ -114,6 +118,8 @@ var Columns = []string{
 	FieldHotelModuleEnabled,
 	FieldLayawayEnabled,
 	FieldShiftReportsEnabled,
+	FieldShiftAutoEndEnabled,
+	FieldShiftMaxHours,
 	FieldUpdatedAt,
 }
 
@@ -162,6 +168,10 @@ var (
 	DefaultLayawayEnabled bool
 	// DefaultShiftReportsEnabled holds the default value on creation for the "shift_reports_enabled" field.
 	DefaultShiftReportsEnabled bool
+	// DefaultShiftAutoEndEnabled holds the default value on creation for the "shift_auto_end_enabled" field.
+	DefaultShiftAutoEndEnabled bool
+	// DefaultShiftMaxHours holds the default value on creation for the "shift_max_hours" field.
+	DefaultShiftMaxHours int
 	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
 	DefaultUpdatedAt func() time.Time
 	// UpdateDefaultUpdatedAt holds the default value on update for the "updated_at" field.
@@ -286,6 +296,16 @@ func ByLayawayEnabled(opts ...sql.OrderTermOption) OrderOption {
 // ByShiftReportsEnabled orders the results by the shift_reports_enabled field.
 func ByShiftReportsEnabled(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldShiftReportsEnabled, opts...).ToFunc()
+}
+
+// ByShiftAutoEndEnabled orders the results by the shift_auto_end_enabled field.
+func ByShiftAutoEndEnabled(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldShiftAutoEndEnabled, opts...).ToFunc()
+}
+
+// ByShiftMaxHours orders the results by the shift_max_hours field.
+func ByShiftMaxHours(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldShiftMaxHours, opts...).ToFunc()
 }
 
 // ByUpdatedAt orders the results by the updated_at field.

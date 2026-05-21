@@ -43,8 +43,16 @@ type inventoryProxyItem struct {
 	Barcode      string `json:"barcode"`
 }
 
+// inventoryBulkPrice is one entry from GET /inventory/items/pricing.
+type inventoryBulkPrice struct {
+	ItemID   string  `json:"item_id"`
+	Price    float64 `json:"price"`
+	Currency string  `json:"currency"`
+	TierCode string  `json:"tier_code"`
+}
+
 // proxyFromInventory calls inventory-api and returns items in the same DTO format
-// as ListCatalogItems. Used as a live fallback when the local catalog is empty.
+// as ListCatalogItems. Fetches items and bulk pricing concurrently.
 func (h *CatalogHandler) proxyFromInventory(ctx context.Context, tenantSlug string) ([]map[string]any, error) {
 	inventoryURL := os.Getenv("INVENTORY_API_URL")
 	if inventoryURL == "" {
@@ -52,35 +60,84 @@ func (h *CatalogHandler) proxyFromInventory(ctx context.Context, tenantSlug stri
 	}
 	apiKey := os.Getenv("INTERNAL_SERVICE_KEY")
 
-	url := fmt.Sprintf("%s/v1/%s/inventory/items?type=GOODS,RECIPE&status=active&limit=500", inventoryURL, tenantSlug)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if err != nil {
-		return nil, err
-	}
-	if apiKey != "" {
-		req.Header.Set("X-API-Key", apiKey)
-	}
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("inventory-api returned %d", resp.StatusCode)
-	}
-
-	body, _ := io.ReadAll(resp.Body)
-	var wrapper struct {
-		Data []inventoryProxyItem `json:"data"`
-	}
-	if err := json.Unmarshal(body, &wrapper); err != nil {
-		return nil, err
+	doGet := func(url string) ([]byte, error) {
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+		if err != nil {
+			return nil, err
+		}
+		if apiKey != "" {
+			req.Header.Set("X-API-Key", apiKey)
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return nil, err
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			return nil, fmt.Errorf("inventory-api %s returned %d", url, resp.StatusCode)
+		}
+		return io.ReadAll(resp.Body)
 	}
 
-	out := make([]map[string]any, 0, len(wrapper.Data))
-	for _, item := range wrapper.Data {
+	type itemsResult struct {
+		items []inventoryProxyItem
+		err   error
+	}
+	type priceResult struct {
+		prices []inventoryBulkPrice
+		err    error
+	}
+
+	itemsCh := make(chan itemsResult, 1)
+	priceCh := make(chan priceResult, 1)
+
+	go func() {
+		body, err := doGet(fmt.Sprintf("%s/v1/%s/inventory/items?type=GOODS,RECIPE&status=active&limit=500", inventoryURL, tenantSlug))
+		if err != nil {
+			itemsCh <- itemsResult{err: err}
+			return
+		}
+		var wrapper struct {
+			Data []inventoryProxyItem `json:"data"`
+		}
+		if err := json.Unmarshal(body, &wrapper); err != nil {
+			itemsCh <- itemsResult{err: err}
+			return
+		}
+		itemsCh <- itemsResult{items: wrapper.Data}
+	}()
+
+	go func() {
+		body, err := doGet(fmt.Sprintf("%s/v1/%s/inventory/items/pricing", inventoryURL, tenantSlug))
+		if err != nil {
+			// Pricing is best-effort — log and continue with price=0
+			h.log.Warn("failed to fetch bulk pricing from inventory-api", zap.Error(err))
+			priceCh <- priceResult{}
+			return
+		}
+		var prices []inventoryBulkPrice
+		if err := json.Unmarshal(body, &prices); err != nil {
+			h.log.Warn("failed to decode bulk pricing", zap.Error(err))
+			priceCh <- priceResult{}
+			return
+		}
+		priceCh <- priceResult{prices: prices}
+	}()
+
+	ir := <-itemsCh
+	pr := <-priceCh
+	if ir.err != nil {
+		return nil, ir.err
+	}
+
+	// Build item_id → price map
+	priceByID := make(map[string]float64, len(pr.prices))
+	for _, p := range pr.prices {
+		priceByID[p.ItemID] = p.Price
+	}
+
+	out := make([]map[string]any, 0, len(ir.items))
+	for _, item := range ir.items {
 		status := "active"
 		if !item.IsActive {
 			status = "inactive"
@@ -95,7 +152,7 @@ func (h *CatalogHandler) proxyFromInventory(ctx context.Context, tenantSlug stri
 			"status":      status,
 			"image_url":   item.ImageURL,
 			"barcode":     item.Barcode,
-			"price":       0,
+			"price":       priceByID[item.ID],
 		})
 	}
 	return out, nil

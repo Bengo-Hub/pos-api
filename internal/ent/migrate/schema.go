@@ -890,6 +890,8 @@ var (
 		{Name: "hotel_module_enabled", Type: field.TypeBool, Nullable: true, Default: false},
 		{Name: "layaway_enabled", Type: field.TypeBool, Nullable: true, Default: false},
 		{Name: "shift_reports_enabled", Type: field.TypeBool, Nullable: true, Default: false},
+		{Name: "shift_auto_end_enabled", Type: field.TypeBool, Nullable: true, Default: false},
+		{Name: "shift_max_hours", Type: field.TypeInt, Nullable: true, Default: 12},
 		{Name: "updated_at", Type: field.TypeTime},
 		{Name: "outlet_id", Type: field.TypeUUID, Unique: true},
 	}
@@ -901,7 +903,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "outlet_settings_outlets_settings",
-				Columns:    []*schema.Column{OutletSettingsColumns[28]},
+				Columns:    []*schema.Column{OutletSettingsColumns[30]},
 				RefColumns: []*schema.Column{OutletsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},

@@ -35,6 +35,7 @@ import (
 	inventorymodule "github.com/bengobox/pos-service/internal/modules/inventory"
 	treasurymodule "github.com/bengobox/pos-service/internal/modules/treasury"
 	webhookmodule "github.com/bengobox/pos-service/internal/modules/webhooks"
+	shiftsmodule "github.com/bengobox/pos-service/internal/modules/shifts"
 	"github.com/bengobox/pos-service/internal/modules/tenant"
 	"github.com/bengobox/pos-service/internal/platform/cache"
 	"github.com/bengobox/pos-service/internal/platform/database"
@@ -52,7 +53,8 @@ type App struct {
 	cache           *redis.Client
 	events          *nats.Conn
 	outboxPublisher *eventslib.Publisher
-	webhookWorker   *webhookmodule.DeliveryWorker
+	webhookWorker      *webhookmodule.DeliveryWorker
+	shiftAutoEndWorker *shiftsmodule.AutoEndWorker
 }
 
 func New(ctx context.Context) (*App, error) {
@@ -316,6 +318,7 @@ func New(ctx context.Context) (*App, error) {
 	}()
 
 	webhookWorker := webhookmodule.NewDeliveryWorker(entClient, log)
+	shiftAutoEndWorker := shiftsmodule.NewAutoEndWorker(entClient, log)
 
 	chiRouter := router.New(log, healthHandler, authMiddleware, entClient, identitySvc, orderHandler, catalogHandler, tableHandler, tenderHandler, paymentHandler, drawerHandler, barTabHandler, promotionHandler, rbacHandler, hotelHandler, kdsHandler, deviceHandler, pinAuthHandler, publicOutletHandler, closingHandler, returnHandler, receiptHandler, layawayHandler, scaleHandler, pharmacyHandler, appointmentHandler, commissionHandler, staffScheduleHandler, loyaltyHandler, reportsHandler, webhookHandler, onlineOrderHandler, serviceConfigHandler, serviceSettingsHandler, cfg.HTTP.AllowedOrigins, redisClient)
 
@@ -336,8 +339,9 @@ func New(ctx context.Context) (*App, error) {
 		entClient:       entClient,
 		cache:           redisClient,
 		events:          natsConn,
-		outboxPublisher: outboxPub,
-		webhookWorker:   webhookWorker,
+		outboxPublisher:    outboxPub,
+		webhookWorker:      webhookWorker,
+		shiftAutoEndWorker: shiftAutoEndWorker,
 	}, nil
 }
 
@@ -356,6 +360,11 @@ func (a *App) Run(ctx context.Context) error {
 	if a.webhookWorker != nil {
 		go a.webhookWorker.Start(ctx)
 		a.log.Info("webhook delivery worker started")
+	}
+
+	// Start shift auto-end worker — closes overdue shift sessions every 15 min
+	if a.shiftAutoEndWorker != nil {
+		go a.shiftAutoEndWorker.Start(ctx)
 	}
 
 	a.log.Info("pos service starting", zap.String("addr", a.httpServer.Addr))

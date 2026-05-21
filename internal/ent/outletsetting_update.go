@@ -525,6 +525,53 @@ func (_u *OutletSettingUpdate) ClearShiftReportsEnabled() *OutletSettingUpdate {
 	return _u
 }
 
+// SetShiftAutoEndEnabled sets the "shift_auto_end_enabled" field.
+func (_u *OutletSettingUpdate) SetShiftAutoEndEnabled(v bool) *OutletSettingUpdate {
+	_u.mutation.SetShiftAutoEndEnabled(v)
+	return _u
+}
+
+// SetNillableShiftAutoEndEnabled sets the "shift_auto_end_enabled" field if the given value is not nil.
+func (_u *OutletSettingUpdate) SetNillableShiftAutoEndEnabled(v *bool) *OutletSettingUpdate {
+	if v != nil {
+		_u.SetShiftAutoEndEnabled(*v)
+	}
+	return _u
+}
+
+// ClearShiftAutoEndEnabled clears the value of the "shift_auto_end_enabled" field.
+func (_u *OutletSettingUpdate) ClearShiftAutoEndEnabled() *OutletSettingUpdate {
+	_u.mutation.ClearShiftAutoEndEnabled()
+	return _u
+}
+
+// SetShiftMaxHours sets the "shift_max_hours" field.
+func (_u *OutletSettingUpdate) SetShiftMaxHours(v int) *OutletSettingUpdate {
+	_u.mutation.ResetShiftMaxHours()
+	_u.mutation.SetShiftMaxHours(v)
+	return _u
+}
+
+// SetNillableShiftMaxHours sets the "shift_max_hours" field if the given value is not nil.
+func (_u *OutletSettingUpdate) SetNillableShiftMaxHours(v *int) *OutletSettingUpdate {
+	if v != nil {
+		_u.SetShiftMaxHours(*v)
+	}
+	return _u
+}
+
+// AddShiftMaxHours adds value to the "shift_max_hours" field.
+func (_u *OutletSettingUpdate) AddShiftMaxHours(v int) *OutletSettingUpdate {
+	_u.mutation.AddShiftMaxHours(v)
+	return _u
+}
+
+// ClearShiftMaxHours clears the value of the "shift_max_hours" field.
+func (_u *OutletSettingUpdate) ClearShiftMaxHours() *OutletSettingUpdate {
+	_u.mutation.ClearShiftMaxHours()
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *OutletSettingUpdate) SetUpdatedAt(v time.Time) *OutletSettingUpdate {
 	_u.mutation.SetUpdatedAt(v)
@@ -758,6 +805,21 @@ func (_u *OutletSettingUpdate) sqlSave(ctx context.Context) (_node int, err erro
 	}
 	if _u.mutation.ShiftReportsEnabledCleared() {
 		_spec.ClearField(outletsetting.FieldShiftReportsEnabled, field.TypeBool)
+	}
+	if value, ok := _u.mutation.ShiftAutoEndEnabled(); ok {
+		_spec.SetField(outletsetting.FieldShiftAutoEndEnabled, field.TypeBool, value)
+	}
+	if _u.mutation.ShiftAutoEndEnabledCleared() {
+		_spec.ClearField(outletsetting.FieldShiftAutoEndEnabled, field.TypeBool)
+	}
+	if value, ok := _u.mutation.ShiftMaxHours(); ok {
+		_spec.SetField(outletsetting.FieldShiftMaxHours, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedShiftMaxHours(); ok {
+		_spec.AddField(outletsetting.FieldShiftMaxHours, field.TypeInt, value)
+	}
+	if _u.mutation.ShiftMaxHoursCleared() {
+		_spec.ClearField(outletsetting.FieldShiftMaxHours, field.TypeInt)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(outletsetting.FieldUpdatedAt, field.TypeTime, value)
@@ -1306,6 +1368,53 @@ func (_u *OutletSettingUpdateOne) ClearShiftReportsEnabled() *OutletSettingUpdat
 	return _u
 }
 
+// SetShiftAutoEndEnabled sets the "shift_auto_end_enabled" field.
+func (_u *OutletSettingUpdateOne) SetShiftAutoEndEnabled(v bool) *OutletSettingUpdateOne {
+	_u.mutation.SetShiftAutoEndEnabled(v)
+	return _u
+}
+
+// SetNillableShiftAutoEndEnabled sets the "shift_auto_end_enabled" field if the given value is not nil.
+func (_u *OutletSettingUpdateOne) SetNillableShiftAutoEndEnabled(v *bool) *OutletSettingUpdateOne {
+	if v != nil {
+		_u.SetShiftAutoEndEnabled(*v)
+	}
+	return _u
+}
+
+// ClearShiftAutoEndEnabled clears the value of the "shift_auto_end_enabled" field.
+func (_u *OutletSettingUpdateOne) ClearShiftAutoEndEnabled() *OutletSettingUpdateOne {
+	_u.mutation.ClearShiftAutoEndEnabled()
+	return _u
+}
+
+// SetShiftMaxHours sets the "shift_max_hours" field.
+func (_u *OutletSettingUpdateOne) SetShiftMaxHours(v int) *OutletSettingUpdateOne {
+	_u.mutation.ResetShiftMaxHours()
+	_u.mutation.SetShiftMaxHours(v)
+	return _u
+}
+
+// SetNillableShiftMaxHours sets the "shift_max_hours" field if the given value is not nil.
+func (_u *OutletSettingUpdateOne) SetNillableShiftMaxHours(v *int) *OutletSettingUpdateOne {
+	if v != nil {
+		_u.SetShiftMaxHours(*v)
+	}
+	return _u
+}
+
+// AddShiftMaxHours adds value to the "shift_max_hours" field.
+func (_u *OutletSettingUpdateOne) AddShiftMaxHours(v int) *OutletSettingUpdateOne {
+	_u.mutation.AddShiftMaxHours(v)
+	return _u
+}
+
+// ClearShiftMaxHours clears the value of the "shift_max_hours" field.
+func (_u *OutletSettingUpdateOne) ClearShiftMaxHours() *OutletSettingUpdateOne {
+	_u.mutation.ClearShiftMaxHours()
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *OutletSettingUpdateOne) SetUpdatedAt(v time.Time) *OutletSettingUpdateOne {
 	_u.mutation.SetUpdatedAt(v)
@@ -1569,6 +1678,21 @@ func (_u *OutletSettingUpdateOne) sqlSave(ctx context.Context) (_node *OutletSet
 	}
 	if _u.mutation.ShiftReportsEnabledCleared() {
 		_spec.ClearField(outletsetting.FieldShiftReportsEnabled, field.TypeBool)
+	}
+	if value, ok := _u.mutation.ShiftAutoEndEnabled(); ok {
+		_spec.SetField(outletsetting.FieldShiftAutoEndEnabled, field.TypeBool, value)
+	}
+	if _u.mutation.ShiftAutoEndEnabledCleared() {
+		_spec.ClearField(outletsetting.FieldShiftAutoEndEnabled, field.TypeBool)
+	}
+	if value, ok := _u.mutation.ShiftMaxHours(); ok {
+		_spec.SetField(outletsetting.FieldShiftMaxHours, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedShiftMaxHours(); ok {
+		_spec.AddField(outletsetting.FieldShiftMaxHours, field.TypeInt, value)
+	}
+	if _u.mutation.ShiftMaxHoursCleared() {
+		_spec.ClearField(outletsetting.FieldShiftMaxHours, field.TypeInt)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(outletsetting.FieldUpdatedAt, field.TypeTime, value)
