@@ -26,6 +26,58 @@ func NewDeviceHandler(log *zap.Logger, client *ent.Client) *DeviceHandler {
 	return &DeviceHandler{log: log, client: client}
 }
 
+// ListDevices handles GET /{tenantID}/pos/devices
+// Returns all registered terminals for the tenant with outlet info.
+func (h *DeviceHandler) ListDevices(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+
+	devices, err := h.client.POSDevice.Query().
+		Where(posdevice.TenantID(tid)).
+		WithOutlet().
+		Order(ent.Desc(posdevice.FieldRegisteredAt)).
+		All(r.Context())
+	if err != nil {
+		h.log.Error("list devices failed", zap.Error(err))
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	type deviceResp struct {
+		ID           string  `json:"id"`
+		DeviceCode   string  `json:"device_code"`
+		DeviceType   string  `json:"device_type"`
+		Status       string  `json:"status"`
+		OutletName   string  `json:"outlet_name,omitempty"`
+		LastSeenAt   *string `json:"last_seen_at,omitempty"`
+		RegisteredAt string  `json:"registered_at"`
+	}
+
+	result := make([]deviceResp, 0, len(devices))
+	for _, d := range devices {
+		dr := deviceResp{
+			ID:           d.ID.String(),
+			DeviceCode:   d.DeviceCode,
+			DeviceType:   d.DeviceType,
+			Status:       d.Status,
+			RegisteredAt: d.RegisteredAt.Format(time.RFC3339),
+		}
+		if d.LastSeenAt != nil {
+			s := d.LastSeenAt.Format(time.RFC3339)
+			dr.LastSeenAt = &s
+		}
+		if d.Edges.Outlet != nil {
+			dr.OutletName = d.Edges.Outlet.Name
+		}
+		result = append(result, dr)
+	}
+
+	jsonOK(w, map[string]any{"data": result, "total": len(result)})
+}
+
 // GetCurrentSession handles GET /{tenantID}/pos/devices/current/sessions/current
 // Returns the open session for the currently authenticated user, or 404.
 func (h *DeviceHandler) GetCurrentSession(w http.ResponseWriter, r *http.Request) {
