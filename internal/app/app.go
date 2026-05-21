@@ -126,6 +126,7 @@ func New(ctx context.Context) (*App, error) {
 	subsClient := subscriptions.NewClient(subscriptions.Config{
 		ServiceURL:     cfg.Subscriptions.ServiceURL,
 		RequestTimeout: cfg.Subscriptions.RequestTimeout,
+		APIKey:         cfg.Subscriptions.APIKey,
 	})
 
 	tenantCache := sharedcache.New(redisClient, log)
@@ -227,6 +228,9 @@ func New(ctx context.Context) (*App, error) {
 	// Platform admin: service configuration CRUD
 	serviceConfigHandler := handlers.NewServiceConfigHandler(entClient, log)
 
+	// Tenant/outlet POS settings (receipt, printer, module toggles, outlet switch)
+	serviceSettingsHandler := handlers.NewServiceSettingsHandler(log, entClient)
+
 	// ERP: daily closings + returns
 	closingHandler := handlers.NewDailyClosingHandler(log, entClient)
 	var returnEventPub *events.Publisher
@@ -302,7 +306,7 @@ func New(ctx context.Context) (*App, error) {
 
 	webhookWorker := webhookmodule.NewDeliveryWorker(entClient, log)
 
-	chiRouter := router.New(log, healthHandler, authMiddleware, entClient, identitySvc, orderHandler, catalogHandler, tableHandler, tenderHandler, paymentHandler, drawerHandler, barTabHandler, promotionHandler, rbacHandler, hotelHandler, kdsHandler, deviceHandler, pinAuthHandler, publicOutletHandler, closingHandler, returnHandler, receiptHandler, layawayHandler, scaleHandler, pharmacyHandler, appointmentHandler, commissionHandler, staffScheduleHandler, loyaltyHandler, reportsHandler, webhookHandler, onlineOrderHandler, serviceConfigHandler, cfg.HTTP.AllowedOrigins, redisClient)
+	chiRouter := router.New(log, healthHandler, authMiddleware, entClient, identitySvc, orderHandler, catalogHandler, tableHandler, tenderHandler, paymentHandler, drawerHandler, barTabHandler, promotionHandler, rbacHandler, hotelHandler, kdsHandler, deviceHandler, pinAuthHandler, publicOutletHandler, closingHandler, returnHandler, receiptHandler, layawayHandler, scaleHandler, pharmacyHandler, appointmentHandler, commissionHandler, staffScheduleHandler, loyaltyHandler, reportsHandler, webhookHandler, onlineOrderHandler, serviceConfigHandler, serviceSettingsHandler, cfg.HTTP.AllowedOrigins, redisClient)
 
 	httpServer := &http.Server{
 		Addr:              fmt.Sprintf("%s:%d", cfg.HTTP.Host, cfg.HTTP.Port),

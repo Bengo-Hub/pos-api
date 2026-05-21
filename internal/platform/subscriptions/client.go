@@ -12,6 +12,7 @@ import (
 type Config struct {
 	ServiceURL     string
 	RequestTimeout time.Duration
+	APIKey         string
 }
 
 // SubscriptionStatus represents the tenant's subscription response from subscriptions-api.
@@ -36,16 +37,21 @@ func NewClient(cfg Config) *Client {
 }
 
 // IsSubscriptionActive returns true if the tenant has an active subscription.
+// Uses the S2S tenant-scoped endpoint so callers don't need to pass a user JWT.
 // Fails open (returns true) on network errors to avoid blocking service on subscriptions-api downtime.
 func (c *Client) IsSubscriptionActive(ctx context.Context, tenantID, tenantSlug, bearerToken string) bool {
-	url := fmt.Sprintf("%s/api/v1/subscription", c.cfg.ServiceURL)
+	// Use the S2S tenant-scoped path — subscriptions-api resolves tenant from URL param,
+	// not from JWT claims, so API-key auth works correctly without a user JWT in context.
+	url := fmt.Sprintf("%s/api/v1/tenants/%s/subscription", c.cfg.ServiceURL, tenantID)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return true // fail open
 	}
-	req.Header.Set("Authorization", "Bearer "+bearerToken)
-	req.Header.Set("X-Tenant-ID", tenantID)
-	req.Header.Set("X-Tenant-Slug", tenantSlug)
+	if c.cfg.APIKey != "" {
+		req.Header.Set("X-API-Key", c.cfg.APIKey)
+	} else if bearerToken != "" {
+		req.Header.Set("Authorization", "Bearer "+bearerToken)
+	}
 	resp, err := c.http.Do(req)
 	if err != nil {
 		return true // fail open
