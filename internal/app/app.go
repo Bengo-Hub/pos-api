@@ -304,6 +304,15 @@ func New(ctx context.Context) (*App, error) {
 		}
 	}
 
+	// Invalidate tenant branding cache when subscription changes so new plan
+	// is reflected in subsequent JWT-enriched responses without a restart.
+	if natsConn != nil {
+		subCacheSub := subscriptions.NewCacheSubscriber(redisClient, log)
+		if err := subCacheSub.Start(natsConn); err != nil {
+			log.Warn("app: failed to start subscription cache subscriber", zap.Error(err))
+		}
+	}
+
 	// Initial catalog sync from inventory-api (catches items created before subscriber was deployed)
 	go func() {
 		inventoryURL := os.Getenv("INVENTORY_API_URL")
