@@ -1,0 +1,421 @@
+package handlers
+
+import (
+	"encoding/json"
+	"net/http"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
+	"go.uber.org/zap"
+
+	authclient "github.com/Bengo-Hub/shared-auth-client"
+	"github.com/bengobox/pos-service/internal/ent"
+	entoutlet "github.com/bengobox/pos-service/internal/ent/outlet"
+	entoutletsetting "github.com/bengobox/pos-service/internal/ent/outletsetting"
+	entstaff "github.com/bengobox/pos-service/internal/ent/staffmember"
+	outletmw "github.com/bengobox/pos-service/internal/http/middleware"
+)
+
+// ServiceSettingsHandler manages tenant/outlet POS configuration.
+type ServiceSettingsHandler struct {
+	log *zap.Logger
+	db  *ent.Client
+}
+
+func NewServiceSettingsHandler(log *zap.Logger, db *ent.Client) *ServiceSettingsHandler {
+	return &ServiceSettingsHandler{log: log, db: db}
+}
+
+// settingsResponse is the API shape for outlet settings.
+type settingsResponse struct {
+	OutletID string `json:"outlet_id"`
+	// display
+	DisplayMode       string `json:"display_mode"`
+	ShowImages        bool   `json:"show_images"`
+	ShowBarcodeScanner bool  `json:"show_barcode_scanner"`
+	DefaultView       string `json:"default_view"`
+	// receipt
+	ReceiptHeader  *string `json:"receipt_header"`
+	ReceiptFooter  *string `json:"receipt_footer"`
+	Currency       string  `json:"currency"`
+	VATEnabled     bool    `json:"vat_enabled"`
+	VATRate        float64 `json:"vat_rate"`
+	// printer
+	PrinterType       string  `json:"printer_type"`
+	PrinterIP         *string `json:"printer_ip"`
+	PaperWidth        string  `json:"paper_width"`
+	AutoPrintOrder    bool    `json:"auto_print_order"`
+	AutoPrintKitchen  bool    `json:"auto_print_kitchen"`
+	// modules
+	EnableKDS             bool    `json:"enable_kds"`
+	EnableAppointments    bool    `json:"enable_appointments"`
+	HotelModuleEnabled    bool    `json:"hotel_module_enabled"`
+	LayawayEnabled        bool    `json:"layaway_enabled"`
+	ShiftReportsEnabled   bool    `json:"shift_reports_enabled"`
+	// terminal
+	PINLoginMessage *string `json:"pin_login_message"`
+	ScreensaverURL  *string `json:"screensaver_url"`
+	UpdatedAt       string  `json:"updated_at"`
+}
+
+func toSettingsResponse(outletID uuid.UUID, s *ent.OutletSetting) settingsResponse {
+	r := settingsResponse{
+		OutletID:           outletID.String(),
+		DisplayMode:        s.DisplayMode,
+		ShowImages:         s.ShowImages,
+		ShowBarcodeScanner: s.ShowBarcodeScanner,
+		DefaultView:        s.DefaultView,
+		Currency:           s.Currency,
+		VATEnabled:         s.VatEnabled,
+		VATRate:            s.VatRate,
+		PrinterType:        s.PrinterType,
+		PaperWidth:         s.PaperWidth,
+		AutoPrintOrder:     s.AutoPrintOrder,
+		AutoPrintKitchen:   s.AutoPrintKitchen,
+		EnableKDS:          s.EnableKds,
+		EnableAppointments: s.EnableAppointments,
+		HotelModuleEnabled: s.HotelModuleEnabled,
+		LayawayEnabled:     s.LayawayEnabled,
+		ShiftReportsEnabled: s.ShiftReportsEnabled,
+		ReceiptHeader:      s.ReceiptHeader,
+		ReceiptFooter:      s.ReceiptFooter,
+		PrinterIP:          s.PrinterIP,
+		PINLoginMessage:    s.PinLoginMessage,
+		ScreensaverURL:     s.ScreensaverURL,
+		UpdatedAt:          s.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+	}
+	return r
+}
+
+// getOrCreateSetting fetches the OutletSetting for outletID or creates a default one.
+func (h *ServiceSettingsHandler) getOrCreateSetting(r *http.Request, outletID uuid.UUID) (*ent.OutletSetting, error) {
+	ctx := r.Context()
+	s, err := h.db.OutletSetting.Query().
+		Where(entoutletsetting.OutletID(outletID)).
+		Only(ctx)
+	if err == nil {
+		return s, nil
+	}
+	if !ent.IsNotFound(err) {
+		return nil, err
+	}
+	// auto-create default settings
+	return h.db.OutletSetting.Create().
+		SetOutletID(outletID).
+		Save(ctx)
+}
+
+// resolveOutlet returns the outlet for the request, preferring the URL param outletID,
+// then falling back to the middleware-resolved outlet context.
+func (h *ServiceSettingsHandler) resolveOutlet(r *http.Request, tenantID uuid.UUID) (*ent.Outlet, error) {
+	ctx := r.Context()
+	// Try URL param first (outlet-specific settings endpoint)
+	if raw := chi.URLParam(r, "outletID"); raw != "" {
+		id, err := uuid.Parse(raw)
+		if err != nil {
+			return nil, err
+		}
+		return h.db.Outlet.Query().
+			Where(entoutlet.ID(id), entoutlet.TenantID(tenantID)).
+			Only(ctx)
+	}
+	// Fall back to the middleware-resolved outlet context
+	oc := outletmw.OutletFromContext(ctx)
+	if oc != nil {
+		return h.db.Outlet.Query().
+			Where(entoutlet.ID(oc.ID), entoutlet.TenantID(tenantID)).
+			Only(ctx)
+	}
+	// Last resort: HQ outlet
+	return h.db.Outlet.Query().
+		Where(entoutlet.TenantID(tenantID), entoutlet.IsHq(true)).
+		First(ctx)
+}
+
+// GetSettings handles GET /{tenantID}/pos/settings and GET /{tenantID}/pos/outlets/{outletID}/settings
+func (h *ServiceSettingsHandler) GetSettings(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+	outlet, err := h.resolveOutlet(r, tid)
+	if err != nil {
+		jsonError(w, "outlet not found", http.StatusNotFound)
+		return
+	}
+	setting, err := h.getOrCreateSetting(r, outlet.ID)
+	if err != nil {
+		h.log.Error("get settings", zap.Error(err))
+		jsonError(w, "failed to load settings", http.StatusInternalServerError)
+		return
+	}
+	jsonOK(w, toSettingsResponse(outlet.ID, setting))
+}
+
+// updateSettingsInput covers all writable fields.
+type updateSettingsInput struct {
+	DisplayMode        *string  `json:"display_mode"`
+	ShowImages         *bool    `json:"show_images"`
+	ShowBarcodeScanner *bool    `json:"show_barcode_scanner"`
+	DefaultView        *string  `json:"default_view"`
+	ReceiptHeader      *string  `json:"receipt_header"`
+	ReceiptFooter      *string  `json:"receipt_footer"`
+	Currency           *string  `json:"currency"`
+	VATEnabled         *bool    `json:"vat_enabled"`
+	VATRate            *float64 `json:"vat_rate"`
+	PrinterType        *string  `json:"printer_type"`
+	PrinterIP          *string  `json:"printer_ip"`
+	PaperWidth         *string  `json:"paper_width"`
+	AutoPrintOrder     *bool    `json:"auto_print_order"`
+	AutoPrintKitchen   *bool    `json:"auto_print_kitchen"`
+	PINLoginMessage    *string  `json:"pin_login_message"`
+	ScreensaverURL     *string  `json:"screensaver_url"`
+}
+
+// PutSettings handles PUT /{tenantID}/pos/settings and PUT /{tenantID}/pos/outlets/{outletID}/settings
+func (h *ServiceSettingsHandler) PutSettings(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+	outlet, err := h.resolveOutlet(r, tid)
+	if err != nil {
+		jsonError(w, "outlet not found", http.StatusNotFound)
+		return
+	}
+
+	var input updateSettingsInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		jsonError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	setting, err := h.getOrCreateSetting(r, outlet.ID)
+	if err != nil {
+		h.log.Error("get settings for update", zap.Error(err))
+		jsonError(w, "failed to load settings", http.StatusInternalServerError)
+		return
+	}
+
+	upd := setting.Update()
+	if input.DisplayMode != nil {
+		upd = upd.SetDisplayMode(*input.DisplayMode)
+	}
+	if input.ShowImages != nil {
+		upd = upd.SetShowImages(*input.ShowImages)
+	}
+	if input.ShowBarcodeScanner != nil {
+		upd = upd.SetShowBarcodeScanner(*input.ShowBarcodeScanner)
+	}
+	if input.DefaultView != nil {
+		upd = upd.SetDefaultView(*input.DefaultView)
+	}
+	if input.ReceiptHeader != nil {
+		upd = upd.SetReceiptHeader(*input.ReceiptHeader)
+	}
+	if input.ReceiptFooter != nil {
+		upd = upd.SetReceiptFooter(*input.ReceiptFooter)
+	}
+	if input.Currency != nil {
+		upd = upd.SetCurrency(*input.Currency)
+	}
+	if input.VATEnabled != nil {
+		upd = upd.SetVatEnabled(*input.VATEnabled)
+	}
+	if input.VATRate != nil {
+		upd = upd.SetVatRate(*input.VATRate)
+	}
+	if input.PrinterType != nil {
+		upd = upd.SetPrinterType(*input.PrinterType)
+	}
+	if input.PrinterIP != nil {
+		upd = upd.SetPrinterIP(*input.PrinterIP)
+	}
+	if input.PaperWidth != nil {
+		upd = upd.SetPaperWidth(*input.PaperWidth)
+	}
+	if input.AutoPrintOrder != nil {
+		upd = upd.SetAutoPrintOrder(*input.AutoPrintOrder)
+	}
+	if input.AutoPrintKitchen != nil {
+		upd = upd.SetAutoPrintKitchen(*input.AutoPrintKitchen)
+	}
+	if input.PINLoginMessage != nil {
+		upd = upd.SetPinLoginMessage(*input.PINLoginMessage)
+	}
+	if input.ScreensaverURL != nil {
+		upd = upd.SetScreensaverURL(*input.ScreensaverURL)
+	}
+
+	updated, err := upd.Save(r.Context())
+	if err != nil {
+		h.log.Error("update settings", zap.Error(err))
+		jsonError(w, "failed to save settings", http.StatusInternalServerError)
+		return
+	}
+	jsonOK(w, toSettingsResponse(outlet.ID, updated))
+}
+
+// modulesInput for PATCH /settings/modules — enables tenant admins to toggle modules.
+type modulesInput struct {
+	EnableKDS           *bool `json:"enable_kds"`
+	EnableAppointments  *bool `json:"enable_appointments"`
+	HotelModuleEnabled  *bool `json:"hotel_module_enabled"`
+	LayawayEnabled      *bool `json:"layaway_enabled"`
+	ShiftReportsEnabled *bool `json:"shift_reports_enabled"`
+}
+
+// PatchModules handles PATCH /{tenantID}/pos/settings/modules
+// Requires pos.config.manage permission — enforced at router level via RBAC middleware.
+func (h *ServiceSettingsHandler) PatchModules(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+	outlet, err := h.resolveOutlet(r, tid)
+	if err != nil {
+		jsonError(w, "outlet not found", http.StatusNotFound)
+		return
+	}
+
+	var input modulesInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		jsonError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	setting, err := h.getOrCreateSetting(r, outlet.ID)
+	if err != nil {
+		h.log.Error("get settings for module patch", zap.Error(err))
+		jsonError(w, "failed to load settings", http.StatusInternalServerError)
+		return
+	}
+
+	upd := setting.Update()
+	if input.EnableKDS != nil {
+		upd = upd.SetEnableKds(*input.EnableKDS)
+	}
+	if input.EnableAppointments != nil {
+		upd = upd.SetEnableAppointments(*input.EnableAppointments)
+	}
+	if input.HotelModuleEnabled != nil {
+		upd = upd.SetHotelModuleEnabled(*input.HotelModuleEnabled)
+	}
+	if input.LayawayEnabled != nil {
+		upd = upd.SetLayawayEnabled(*input.LayawayEnabled)
+	}
+	if input.ShiftReportsEnabled != nil {
+		upd = upd.SetShiftReportsEnabled(*input.ShiftReportsEnabled)
+	}
+
+	updated, err := upd.Save(r.Context())
+	if err != nil {
+		h.log.Error("patch modules", zap.Error(err))
+		jsonError(w, "failed to save module settings", http.StatusInternalServerError)
+		return
+	}
+	jsonOK(w, toSettingsResponse(outlet.ID, updated))
+}
+
+// switchOutletInput for POST /outlets/{outletID}/switch — TruLoad-inspired outlet context switch.
+type switchOutletInput struct {
+	OutletID string `json:"outlet_id"`
+}
+
+// SwitchOutlet validates that the requesting user can access the target outlet,
+// then returns the outlet + its settings so the frontend can update its local context.
+// For terminal (PIN) sessions, the client should re-issue a PIN login against the new outlet.
+// GET /{tenantID}/pos/outlets/{outletID}/switch
+func (h *ServiceSettingsHandler) SwitchOutlet(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+
+	rawID := chi.URLParam(r, "outletID")
+	outletID, err := uuid.Parse(rawID)
+	if err != nil {
+		jsonError(w, "invalid outlet_id", http.StatusBadRequest)
+		return
+	}
+
+	ctx := r.Context()
+	claims, hasClaims := authclient.ClaimsFromContext(ctx)
+
+	outlet, err := h.db.Outlet.Query().
+		Where(entoutlet.ID(outletID), entoutlet.TenantID(tid)).
+		WithSettings().
+		Only(ctx)
+	if err != nil {
+		jsonError(w, "outlet not found", http.StatusNotFound)
+		return
+	}
+
+	// HQ users and superusers can switch to any outlet.
+	// Regular staff must be assigned to the target outlet.
+	if hasClaims && !claims.IsPlatformOwner {
+		isHQ := claims.CanAccessAllOutlets()
+		isSuper := false
+		for _, role := range claims.Roles {
+			if role == "superuser" || role == "admin" || role == "pos_admin" {
+				isSuper = true
+				break
+			}
+		}
+		if !isHQ && !isSuper {
+			userID, parseErr := uuid.Parse(claims.Subject)
+			if parseErr != nil {
+				jsonError(w, "invalid user identity", http.StatusForbidden)
+				return
+			}
+			assigned, _ := h.db.StaffMember.Query().
+				Where(
+					entstaff.TenantID(tid),
+					entstaff.UserID(userID),
+					entstaff.OutletID(outletID),
+				).Exist(ctx)
+			if !assigned {
+				jsonError(w, "you are not assigned to this outlet", http.StatusForbidden)
+				return
+			}
+		}
+	}
+
+	useCase := ""
+	if outlet.UseCase != nil {
+		useCase = *outlet.UseCase
+	}
+
+	var settings *settingsResponse
+	if outlet.Edges.Settings != nil {
+		sr := toSettingsResponse(outlet.ID, outlet.Edges.Settings)
+		settings = &sr
+	}
+
+	jsonOK(w, map[string]any{
+		"outlet": map[string]any{
+			"id":       outlet.ID.String(),
+			"code":     outlet.Code,
+			"name":     outlet.Name,
+			"use_case": useCase,
+			"is_hq":    outlet.IsHq,
+			"status":   outlet.Status,
+		},
+		"settings": settings,
+	})
+}
+
+// RegisterRoutes registers settings routes under the tenant router group.
+func (h *ServiceSettingsHandler) RegisterRoutes(r chi.Router) {
+	r.Get("/pos/settings", h.GetSettings)
+	r.Put("/pos/settings", h.PutSettings)
+	r.Patch("/pos/settings/modules", h.PatchModules)
+	r.Get("/pos/outlets/{outletID}/settings", h.GetSettings)
+	r.Put("/pos/outlets/{outletID}/settings", h.PutSettings)
+	// TruLoad-inspired outlet switch endpoint
+	r.Post("/pos/outlets/{outletID}/switch", h.SwitchOutlet)
+}
