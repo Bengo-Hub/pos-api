@@ -165,14 +165,6 @@ func (h *PINAuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		ClearPinLockedUntil().
 		Exec(r.Context())
 
-	// Issue a short-lived terminal JWT (4 hours)
-	token, err := issueTerminalJWT(member, tid, h.jwtSecret, h.client, r.Context())
-	if err != nil {
-		h.log.Error("failed to issue terminal JWT", zap.Error(err))
-		jsonError(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-
 	// Determine session outlet: prefer the outlet the terminal selected (X-Outlet-ID),
 	// fall back to the StaffMember's home outlet.
 	sessionOutletID := member.OutletID
@@ -180,6 +172,14 @@ func (h *PINAuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		if parsed, err := uuid.Parse(xOID); err == nil {
 			sessionOutletID = parsed
 		}
+	}
+
+	// Issue a short-lived terminal JWT (4 hours)
+	token, err := issueTerminalJWT(member, tid, sessionOutletID, h.jwtSecret, h.client, r.Context())
+	if err != nil {
+		h.log.Error("failed to issue terminal JWT", zap.Error(err))
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
 	}
 
 	// Load outlet to include use_case and is_hq in the login response so pos-ui
@@ -335,7 +335,7 @@ func globalRoleToPOSRole(roles []string) string {
 // ── GET /{tenant}/pos/auth/pin/profile — return staff profiles for PIN selector ─
 // Used by pos-ui to populate the PIN selector from IndexedDB for offline fallback.
 // Returns name, user_id, roles/permissions (NO pin_hash).
-// Staff visibility is tenant-wide — outlet_id param accepted but not used as a filter.
+// When ?outlet_id= is provided, result is filtered to use-case-appropriate roles.
 func (h *PINAuthHandler) StaffProfiles(w http.ResponseWriter, r *http.Request) {
 	tid, err := parseTenantUUID(r)
 	if err != nil {
@@ -344,6 +344,16 @@ func (h *PINAuthHandler) StaffProfiles(w http.ResponseWriter, r *http.Request) {
 	}
 
 	q := h.client.StaffMember.Query().Where(entstaff.TenantID(tid), entstaff.IsActive(true))
+
+	if outletIDStr := r.URL.Query().Get("outlet_id"); outletIDStr != "" {
+		if outletUUID, err := uuid.Parse(outletIDStr); err == nil {
+			if o, err := h.client.Outlet.Query().Where(entoutlet.ID(outletUUID)).Only(r.Context()); err == nil && o.UseCase != nil {
+				if allowed, ok := useCaseRoles[*o.UseCase]; ok {
+					q = q.Where(entstaff.RoleIn(allowed...))
+				}
+			}
+		}
+	}
 
 	members, err := q.All(r.Context())
 	if err != nil {

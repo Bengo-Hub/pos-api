@@ -189,10 +189,10 @@ var outletsByTenantSlug = map[string][]outletDef{
 		{
 			slug:        "demo-retail",
 			code:        "RETAIL",
-			name:        "Demo Tech Store",
+			name:        "Demo City Supermarket",
 			useCase:     "retail",
 			isHQ:        false,
-			pinMessage:  "Welcome to Demo Tech Store — barcode scanner is active",
+			pinMessage:  "Welcome to Demo City Supermarket — barcode scanner is active",
 			displayMode: "list",
 			enableKDS:   false,
 			enableAppts: false,
@@ -782,6 +782,7 @@ func seedStaffMembers(ctx context.Context, client *ent.Client, tenantID, outletI
 		{"David Kitchen", "kitchen"},
 		{"Eve Bartender", "bar"},
 		{"Frank Receptionist", "receptionist"},
+		{"Grace Pharmacist", "pharmacist"},
 	}
 
 	// All demo staff share PIN "1234" so the kiosk is immediately usable.

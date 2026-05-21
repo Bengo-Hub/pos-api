@@ -376,7 +376,7 @@ func mapSSORoleToPOS(payload map[string]interface{}) string {
 		case "cashier", "waiter", "receptionist", "kitchen", "bar", "pharmacist":
 			return role
 		case "viewer":
-			return "viewer"
+			return "" // viewer accesses POS via SSO only, no PIN login
 		// Non-POS roles — these users don't log into POS terminals.
 		case "rider", "driver", "delivery_coordinator", "technician", "customer", "member":
 			return ""

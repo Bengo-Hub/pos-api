@@ -33,15 +33,16 @@ type terminalClaims struct {
 // issueTerminalJWT signs a 4-hour HMAC-SHA256 JWT for terminal PIN sessions.
 // It resolves permissions from the tenant's POSRoleV2 for the staff member's role
 // and embeds outlet_use_case + is_hq_user so pos-ui can gate modules without an
-// extra API round-trip.
-func issueTerminalJWT(member *ent.StaffMember, tenantID uuid.UUID, secret []byte, client *ent.Client, ctx context.Context) (string, error) {
+// extra API round-trip. sessionOutletID is the outlet the terminal selected at login
+// (may differ from member.OutletID which is the staff member's home outlet).
+func issueTerminalJWT(member *ent.StaffMember, tenantID uuid.UUID, sessionOutletID uuid.UUID, secret []byte, client *ent.Client, ctx context.Context) (string, error) {
 	permissions := resolveRolePermissions(ctx, client, tenantID, member.Role)
 
 	// Load outlet to include use_case and is_hq in terminal JWT claims
 	outletCode := ""
 	outletUseCase := "hospitality" // safe default
 	isHQ := false
-	outlet, err := client.Outlet.Get(ctx, member.OutletID)
+	outlet, err := client.Outlet.Get(ctx, sessionOutletID)
 	if err == nil {
 		outletCode = outlet.Code
 		if outlet.UseCase != nil {
@@ -54,7 +55,7 @@ func issueTerminalJWT(member *ent.StaffMember, tenantID uuid.UUID, secret []byte
 	claims := terminalClaims{
 		UserID:        member.UserID.String(),
 		TenantID:      tenantID.String(),
-		OutletID:      member.OutletID.String(),
+		OutletID:      sessionOutletID.String(),
 		OutletCode:    outletCode,
 		OutletUseCase: outletUseCase,
 		IsHQUser:      isHQ,
