@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -56,6 +57,7 @@ func New(
 	onlineOrders *handlers.OnlineOrderHandler,
 	serviceConfig *handlers.ServiceConfigHandler,
 	allowedOrigins []string,
+	redisClient *redis.Client,
 ) http.Handler {
 	r := chi.NewRouter()
 
@@ -65,6 +67,8 @@ func New(
 	r.Use(httpware.Logging(log))
 	r.Use(httpware.Recover(log))
 	r.Use(middleware.Timeout(30 * time.Second))
+	r.Use(middleware.RequestSize(10 << 20)) // 10 MB max body size
+	r.Use(outletmw.IPRateLimit(redisClient, outletmw.DefaultRateLimitConfig()))
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   allowedOrigins,
 		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},

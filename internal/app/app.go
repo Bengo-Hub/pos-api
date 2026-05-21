@@ -192,9 +192,11 @@ func New(ctx context.Context) (*App, error) {
 	kdsHandler := handlers.NewKDSHandler(log, entClient)
 	deviceHandler := handlers.NewDeviceHandler(log, entClient)
 
-	// Terminal PIN auth — falls back to INTERNAL_SERVICE_KEY if TERMINAL_JWT_SECRET is not set
+	// Terminal PIN auth — TERMINAL_JWT_SECRET must be set in production.
+	// Falls back to INTERNAL_SERVICE_KEY only to prevent a hard startup failure in dev/local environments.
 	terminalJWTSecret := []byte(cfg.Auth.TerminalJWTSecret)
 	if len(terminalJWTSecret) == 0 {
+		log.Warn("TERMINAL_JWT_SECRET is not set; falling back to INTERNAL_SERVICE_KEY for terminal JWT signing — set TERMINAL_JWT_SECRET in production")
 		terminalJWTSecret = []byte(cfg.Treasury.InternalServiceKey)
 	}
 	pinAuthHandler := handlers.NewPINAuthHandler(log, entClient, terminalJWTSecret)
@@ -300,7 +302,7 @@ func New(ctx context.Context) (*App, error) {
 
 	webhookWorker := webhookmodule.NewDeliveryWorker(entClient, log)
 
-	chiRouter := router.New(log, healthHandler, authMiddleware, entClient, identitySvc, orderHandler, catalogHandler, tableHandler, tenderHandler, paymentHandler, drawerHandler, barTabHandler, promotionHandler, rbacHandler, hotelHandler, kdsHandler, deviceHandler, pinAuthHandler, publicOutletHandler, closingHandler, returnHandler, receiptHandler, layawayHandler, scaleHandler, pharmacyHandler, appointmentHandler, commissionHandler, staffScheduleHandler, loyaltyHandler, reportsHandler, webhookHandler, onlineOrderHandler, serviceConfigHandler, cfg.HTTP.AllowedOrigins)
+	chiRouter := router.New(log, healthHandler, authMiddleware, entClient, identitySvc, orderHandler, catalogHandler, tableHandler, tenderHandler, paymentHandler, drawerHandler, barTabHandler, promotionHandler, rbacHandler, hotelHandler, kdsHandler, deviceHandler, pinAuthHandler, publicOutletHandler, closingHandler, returnHandler, receiptHandler, layawayHandler, scaleHandler, pharmacyHandler, appointmentHandler, commissionHandler, staffScheduleHandler, loyaltyHandler, reportsHandler, webhookHandler, onlineOrderHandler, serviceConfigHandler, cfg.HTTP.AllowedOrigins, redisClient)
 
 	httpServer := &http.Server{
 		Addr:              fmt.Sprintf("%s:%d", cfg.HTTP.Host, cfg.HTTP.Port),
