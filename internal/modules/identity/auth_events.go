@@ -220,6 +220,17 @@ func (h *AuthEventHandler) handleUserUpdated(ctx context.Context, evt *authUserE
 			Exec(ctx)
 	}
 
+	// Patch StaffMember outlet if outlet_id is present in event
+	outletIDStr, _ := evt.Payload["outlet_id"].(string)
+	if outletIDStr != "" {
+		if outletID, err := uuid.Parse(outletIDStr); err == nil {
+			_ = h.client.StaffMember.Update().
+				Where(staffmember.TenantID(u.TenantID), staffmember.UserID(authServiceUserID)).
+				SetOutletID(outletID).
+				Exec(ctx)
+		}
+	}
+
 	h.logger.Info("user updated from auth.user.updated event",
 		zap.String("user_id", userIDStr),
 		zap.String("email", email))
