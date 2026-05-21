@@ -54,11 +54,9 @@ type UserEdges struct {
 	Tenant *Tenant `json:"tenant,omitempty"`
 	// PosRoles holds the value of the pos_roles edge.
 	PosRoles []*UserPOSRole `json:"pos_roles,omitempty"`
-	// PosSessions holds the value of the pos_sessions edge.
-	PosSessions []*POSDeviceSession `json:"pos_sessions,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [3]bool
+	loadedTypes [2]bool
 }
 
 // TenantOrErr returns the Tenant value or an error if the edge
@@ -79,15 +77,6 @@ func (e UserEdges) PosRolesOrErr() ([]*UserPOSRole, error) {
 		return e.PosRoles, nil
 	}
 	return nil, &NotLoadedError{edge: "pos_roles"}
-}
-
-// PosSessionsOrErr returns the PosSessions value or an error if the edge
-// was not loaded in eager-loading.
-func (e UserEdges) PosSessionsOrErr() ([]*POSDeviceSession, error) {
-	if e.loadedTypes[2] {
-		return e.PosSessions, nil
-	}
-	return nil, &NotLoadedError{edge: "pos_sessions"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -213,11 +202,6 @@ func (_m *User) QueryTenant() *TenantQuery {
 // QueryPosRoles queries the "pos_roles" edge of the User entity.
 func (_m *User) QueryPosRoles() *UserPOSRoleQuery {
 	return NewUserClient(_m.config).QueryPosRoles(_m)
-}
-
-// QueryPosSessions queries the "pos_sessions" edge of the User entity.
-func (_m *User) QueryPosSessions() *POSDeviceSessionQuery {
-	return NewUserClient(_m.config).QueryPosSessions(_m)
 }
 
 // Update returns a builder for updating this User.

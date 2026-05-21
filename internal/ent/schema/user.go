@@ -60,7 +60,6 @@ func (User) Edges() []ent.Edge {
 			Required().
 			Unique(),
 		edge.To("pos_roles", UserPOSRole.Type),
-		edge.To("pos_sessions", POSDeviceSession.Type),
 	}
 }
 

@@ -5657,22 +5657,6 @@ func (c *POSDeviceSessionClient) QueryDevice(_m *POSDeviceSession) *POSDeviceQue
 	return query
 }
 
-// QueryUser queries the user edge of a POSDeviceSession.
-func (c *POSDeviceSessionClient) QueryUser(_m *POSDeviceSession) *UserQuery {
-	query := (&UserClient{config: c.config}).Query()
-	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
-		id := _m.ID
-		step := sqlgraph.NewStep(
-			sqlgraph.From(posdevicesession.Table, posdevicesession.FieldID, id),
-			sqlgraph.To(user.Table, user.FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, true, posdevicesession.UserTable, posdevicesession.UserColumn),
-		)
-		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
-		return fromV, nil
-	}
-	return query
-}
-
 // Hooks returns the client hooks.
 func (c *POSDeviceSessionClient) Hooks() []Hook {
 	return c.hooks.POSDeviceSession
@@ -11312,22 +11296,6 @@ func (c *UserClient) QueryPosRoles(_m *User) *UserPOSRoleQuery {
 			sqlgraph.From(user.Table, user.FieldID, id),
 			sqlgraph.To(userposrole.Table, userposrole.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, user.PosRolesTable, user.PosRolesColumn),
-		)
-		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
-		return fromV, nil
-	}
-	return query
-}
-
-// QueryPosSessions queries the pos_sessions edge of a User.
-func (c *UserClient) QueryPosSessions(_m *User) *POSDeviceSessionQuery {
-	query := (&POSDeviceSessionClient{config: c.config}).Query()
-	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
-		id := _m.ID
-		step := sqlgraph.NewStep(
-			sqlgraph.From(user.Table, user.FieldID, id),
-			sqlgraph.To(posdevicesession.Table, posdevicesession.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, user.PosSessionsTable, user.PosSessionsColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil

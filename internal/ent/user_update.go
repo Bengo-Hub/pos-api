@@ -11,7 +11,6 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"github.com/bengobox/pos-service/internal/ent/posdevicesession"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
 	"github.com/bengobox/pos-service/internal/ent/tenant"
 	"github.com/bengobox/pos-service/internal/ent/user"
@@ -194,21 +193,6 @@ func (_u *UserUpdate) AddPosRoles(v ...*UserPOSRole) *UserUpdate {
 	return _u.AddPosRoleIDs(ids...)
 }
 
-// AddPosSessionIDs adds the "pos_sessions" edge to the POSDeviceSession entity by IDs.
-func (_u *UserUpdate) AddPosSessionIDs(ids ...uuid.UUID) *UserUpdate {
-	_u.mutation.AddPosSessionIDs(ids...)
-	return _u
-}
-
-// AddPosSessions adds the "pos_sessions" edges to the POSDeviceSession entity.
-func (_u *UserUpdate) AddPosSessions(v ...*POSDeviceSession) *UserUpdate {
-	ids := make([]uuid.UUID, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
-	}
-	return _u.AddPosSessionIDs(ids...)
-}
-
 // Mutation returns the UserMutation object of the builder.
 func (_u *UserUpdate) Mutation() *UserMutation {
 	return _u.mutation
@@ -239,27 +223,6 @@ func (_u *UserUpdate) RemovePosRoles(v ...*UserPOSRole) *UserUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.RemovePosRoleIDs(ids...)
-}
-
-// ClearPosSessions clears all "pos_sessions" edges to the POSDeviceSession entity.
-func (_u *UserUpdate) ClearPosSessions() *UserUpdate {
-	_u.mutation.ClearPosSessions()
-	return _u
-}
-
-// RemovePosSessionIDs removes the "pos_sessions" edge to POSDeviceSession entities by IDs.
-func (_u *UserUpdate) RemovePosSessionIDs(ids ...uuid.UUID) *UserUpdate {
-	_u.mutation.RemovePosSessionIDs(ids...)
-	return _u
-}
-
-// RemovePosSessions removes "pos_sessions" edges to POSDeviceSession entities.
-func (_u *UserUpdate) RemovePosSessions(v ...*POSDeviceSession) *UserUpdate {
-	ids := make([]uuid.UUID, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
-	}
-	return _u.RemovePosSessionIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -431,51 +394,6 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(userposrole.FieldID, field.TypeUUID),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges.Add = append(_spec.Edges.Add, edge)
-	}
-	if _u.mutation.PosSessionsCleared() {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
-			Table:   user.PosSessionsTable,
-			Columns: []string{user.PosSessionsColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(posdevicesession.FieldID, field.TypeUUID),
-			},
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
-	}
-	if nodes := _u.mutation.RemovedPosSessionsIDs(); len(nodes) > 0 && !_u.mutation.PosSessionsCleared() {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
-			Table:   user.PosSessionsTable,
-			Columns: []string{user.PosSessionsColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(posdevicesession.FieldID, field.TypeUUID),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
-	}
-	if nodes := _u.mutation.PosSessionsIDs(); len(nodes) > 0 {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
-			Table:   user.PosSessionsTable,
-			Columns: []string{user.PosSessionsColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(posdevicesession.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {
@@ -665,21 +583,6 @@ func (_u *UserUpdateOne) AddPosRoles(v ...*UserPOSRole) *UserUpdateOne {
 	return _u.AddPosRoleIDs(ids...)
 }
 
-// AddPosSessionIDs adds the "pos_sessions" edge to the POSDeviceSession entity by IDs.
-func (_u *UserUpdateOne) AddPosSessionIDs(ids ...uuid.UUID) *UserUpdateOne {
-	_u.mutation.AddPosSessionIDs(ids...)
-	return _u
-}
-
-// AddPosSessions adds the "pos_sessions" edges to the POSDeviceSession entity.
-func (_u *UserUpdateOne) AddPosSessions(v ...*POSDeviceSession) *UserUpdateOne {
-	ids := make([]uuid.UUID, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
-	}
-	return _u.AddPosSessionIDs(ids...)
-}
-
 // Mutation returns the UserMutation object of the builder.
 func (_u *UserUpdateOne) Mutation() *UserMutation {
 	return _u.mutation
@@ -710,27 +613,6 @@ func (_u *UserUpdateOne) RemovePosRoles(v ...*UserPOSRole) *UserUpdateOne {
 		ids[i] = v[i].ID
 	}
 	return _u.RemovePosRoleIDs(ids...)
-}
-
-// ClearPosSessions clears all "pos_sessions" edges to the POSDeviceSession entity.
-func (_u *UserUpdateOne) ClearPosSessions() *UserUpdateOne {
-	_u.mutation.ClearPosSessions()
-	return _u
-}
-
-// RemovePosSessionIDs removes the "pos_sessions" edge to POSDeviceSession entities by IDs.
-func (_u *UserUpdateOne) RemovePosSessionIDs(ids ...uuid.UUID) *UserUpdateOne {
-	_u.mutation.RemovePosSessionIDs(ids...)
-	return _u
-}
-
-// RemovePosSessions removes "pos_sessions" edges to POSDeviceSession entities.
-func (_u *UserUpdateOne) RemovePosSessions(v ...*POSDeviceSession) *UserUpdateOne {
-	ids := make([]uuid.UUID, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
-	}
-	return _u.RemovePosSessionIDs(ids...)
 }
 
 // Where appends a list predicates to the UserUpdate builder.
@@ -932,51 +814,6 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(userposrole.FieldID, field.TypeUUID),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges.Add = append(_spec.Edges.Add, edge)
-	}
-	if _u.mutation.PosSessionsCleared() {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
-			Table:   user.PosSessionsTable,
-			Columns: []string{user.PosSessionsColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(posdevicesession.FieldID, field.TypeUUID),
-			},
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
-	}
-	if nodes := _u.mutation.RemovedPosSessionsIDs(); len(nodes) > 0 && !_u.mutation.PosSessionsCleared() {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
-			Table:   user.PosSessionsTable,
-			Columns: []string{user.PosSessionsColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(posdevicesession.FieldID, field.TypeUUID),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
-	}
-	if nodes := _u.mutation.PosSessionsIDs(); len(nodes) > 0 {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
-			Table:   user.PosSessionsTable,
-			Columns: []string{user.PosSessionsColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(posdevicesession.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

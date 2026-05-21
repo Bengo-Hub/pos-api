@@ -12,7 +12,6 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"github.com/bengobox/pos-service/internal/ent/posdevicesession"
 	"github.com/bengobox/pos-service/internal/ent/tenant"
 	"github.com/bengobox/pos-service/internal/ent/user"
 	"github.com/bengobox/pos-service/internal/ent/userposrole"
@@ -181,21 +180,6 @@ func (_c *UserCreate) AddPosRoles(v ...*UserPOSRole) *UserCreate {
 		ids[i] = v[i].ID
 	}
 	return _c.AddPosRoleIDs(ids...)
-}
-
-// AddPosSessionIDs adds the "pos_sessions" edge to the POSDeviceSession entity by IDs.
-func (_c *UserCreate) AddPosSessionIDs(ids ...uuid.UUID) *UserCreate {
-	_c.mutation.AddPosSessionIDs(ids...)
-	return _c
-}
-
-// AddPosSessions adds the "pos_sessions" edges to the POSDeviceSession entity.
-func (_c *UserCreate) AddPosSessions(v ...*POSDeviceSession) *UserCreate {
-	ids := make([]uuid.UUID, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
-	}
-	return _c.AddPosSessionIDs(ids...)
 }
 
 // Mutation returns the UserMutation object of the builder.
@@ -400,22 +384,6 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(userposrole.FieldID, field.TypeUUID),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges = append(_spec.Edges, edge)
-	}
-	if nodes := _c.mutation.PosSessionsIDs(); len(nodes) > 0 {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
-			Table:   user.PosSessionsTable,
-			Columns: []string{user.PosSessionsColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(posdevicesession.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

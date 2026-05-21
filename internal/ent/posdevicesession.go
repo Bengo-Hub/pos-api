@@ -12,7 +12,6 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"github.com/bengobox/pos-service/internal/ent/posdevice"
 	"github.com/bengobox/pos-service/internal/ent/posdevicesession"
-	"github.com/bengobox/pos-service/internal/ent/user"
 	"github.com/google/uuid"
 )
 
@@ -47,11 +46,9 @@ type POSDeviceSession struct {
 type POSDeviceSessionEdges struct {
 	// Device holds the value of the device edge.
 	Device *POSDevice `json:"device,omitempty"`
-	// User holds the value of the user edge.
-	User *User `json:"user,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [2]bool
+	loadedTypes [1]bool
 }
 
 // DeviceOrErr returns the Device value or an error if the edge
@@ -63,17 +60,6 @@ func (e POSDeviceSessionEdges) DeviceOrErr() (*POSDevice, error) {
 		return nil, &NotFoundError{label: posdevice.Label}
 	}
 	return nil, &NotLoadedError{edge: "device"}
-}
-
-// UserOrErr returns the User value or an error if the edge
-// was not loaded in eager-loading, or loaded but was not found.
-func (e POSDeviceSessionEdges) UserOrErr() (*User, error) {
-	if e.User != nil {
-		return e.User, nil
-	} else if e.loadedTypes[1] {
-		return nil, &NotFoundError{label: user.Label}
-	}
-	return nil, &NotLoadedError{edge: "user"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -179,11 +165,6 @@ func (_m *POSDeviceSession) Value(name string) (ent.Value, error) {
 // QueryDevice queries the "device" edge of the POSDeviceSession entity.
 func (_m *POSDeviceSession) QueryDevice() *POSDeviceQuery {
 	return NewPOSDeviceSessionClient(_m.config).QueryDevice(_m)
-}
-
-// QueryUser queries the "user" edge of the POSDeviceSession entity.
-func (_m *POSDeviceSession) QueryUser() *UserQuery {
-	return NewPOSDeviceSessionClient(_m.config).QueryUser(_m)
 }
 
 // Update returns a builder for updating this POSDeviceSession.

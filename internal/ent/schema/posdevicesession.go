@@ -45,10 +45,8 @@ func (POSDeviceSession) Edges() []ent.Edge {
 			Field("device_id").
 			Unique().
 			Required(),
-		edge.From("user", User.Type).
-			Ref("pos_sessions").
-			Field("user_id").
-			Unique().
-			Required(),
+		// user_id is a plain reference to the staff user who opened the session.
+		// No FK edge so that terminal PIN staff (in staff_members) can open sessions
+		// without requiring a corresponding record in the users table.
 	}
 }

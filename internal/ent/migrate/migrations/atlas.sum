@@ -1,4 +1,4 @@
-h1:o3DC/HXgevRYrp/fE7Il2SUUQHM5PwuTncT9bie4Aqg=
+h1:w4uj9hTDjq+tw8aGRztUcGQhod2u7nak9xvKVwLcLvs=
 20260324210314_initial_schema.sql h1:L7ICP+7BHePtjHfQRRY9yP85A6Q9SyiYsqSvGK7paxA=
 20260403120000_fix_outbox_events_schema.sql h1:VNlTFTGCLBkz4+UvvvqZf5y5tyS0FfS1AXy770Ybc8o=
 20260507090905_hotel_module.sql h1:PGKqdzMQaeFLALmRXUmGsXjha3Rt42EldWJceFVNGDo=
@@ -12,3 +12,4 @@ h1:o3DC/HXgevRYrp/fE7Il2SUUQHM5PwuTncT9bie4Aqg=
 20260520221328_sprint12_13_webhooks_online_orders.sql h1:IGD5ODC+Yg0tdITQMi3+p2EhywvqUE/vO7Yshl/A5Rk=
 20260521072228_add_outlet_settings_extended.sql h1:aDxOH6EP7j3LZHXW/7sHTotO9a0PWJwl9eURjiwRvLM=
 20260521114800_add_crm_contact_id.sql h1:v7eU7HBgYNu/TrQfCM91lloXKW5KdmneMWHfVnQXxKc=
+20260521180000_drop_session_user_fk.sql h1:Ea3dZL6A7pHAhNqNHrqx2t6uT4IVL8Vdady6fwgA8m0=

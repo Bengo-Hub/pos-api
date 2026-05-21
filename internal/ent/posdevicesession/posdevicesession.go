@@ -33,8 +33,6 @@ const (
 	FieldMetadata = "metadata"
 	// EdgeDevice holds the string denoting the device edge name in mutations.
 	EdgeDevice = "device"
-	// EdgeUser holds the string denoting the user edge name in mutations.
-	EdgeUser = "user"
 	// Table holds the table name of the posdevicesession in the database.
 	Table = "pos_device_sessions"
 	// DeviceTable is the table that holds the device relation/edge.
@@ -44,13 +42,6 @@ const (
 	DeviceInverseTable = "pos_devices"
 	// DeviceColumn is the table column denoting the device relation/edge.
 	DeviceColumn = "device_id"
-	// UserTable is the table that holds the user relation/edge.
-	UserTable = "pos_device_sessions"
-	// UserInverseTable is the table name for the User entity.
-	// It exists in this package in order to avoid circular dependency with the "user" package.
-	UserInverseTable = "users"
-	// UserColumn is the table column denoting the user relation/edge.
-	UserColumn = "user_id"
 )
 
 // Columns holds all SQL columns for posdevicesession fields.
@@ -138,24 +129,10 @@ func ByDeviceField(field string, opts ...sql.OrderTermOption) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newDeviceStep(), sql.OrderByField(field, opts...))
 	}
 }
-
-// ByUserField orders the results by user field.
-func ByUserField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newUserStep(), sql.OrderByField(field, opts...))
-	}
-}
 func newDeviceStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(DeviceInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.M2O, true, DeviceTable, DeviceColumn),
-	)
-}
-func newUserStep() *sqlgraph.Step {
-	return sqlgraph.NewStep(
-		sqlgraph.From(Table, FieldID),
-		sqlgraph.To(UserInverseTable, FieldID),
-		sqlgraph.Edge(sqlgraph.M2O, true, UserTable, UserColumn),
 	)
 }

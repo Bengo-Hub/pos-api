@@ -41,8 +41,6 @@ const (
 	EdgeTenant = "tenant"
 	// EdgePosRoles holds the string denoting the pos_roles edge name in mutations.
 	EdgePosRoles = "pos_roles"
-	// EdgePosSessions holds the string denoting the pos_sessions edge name in mutations.
-	EdgePosSessions = "pos_sessions"
 	// Table holds the table name of the user in the database.
 	Table = "users"
 	// TenantTable is the table that holds the tenant relation/edge.
@@ -59,13 +57,6 @@ const (
 	PosRolesInverseTable = "user_pos_roles"
 	// PosRolesColumn is the table column denoting the pos_roles relation/edge.
 	PosRolesColumn = "user_id"
-	// PosSessionsTable is the table that holds the pos_sessions relation/edge.
-	PosSessionsTable = "pos_device_sessions"
-	// PosSessionsInverseTable is the table name for the POSDeviceSession entity.
-	// It exists in this package in order to avoid circular dependency with the "posdevicesession" package.
-	PosSessionsInverseTable = "pos_device_sessions"
-	// PosSessionsColumn is the table column denoting the pos_sessions relation/edge.
-	PosSessionsColumn = "user_id"
 )
 
 // Columns holds all SQL columns for user fields.
@@ -193,20 +184,6 @@ func ByPosRoles(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newPosRolesStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
-
-// ByPosSessionsCount orders the results by pos_sessions count.
-func ByPosSessionsCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newPosSessionsStep(), opts...)
-	}
-}
-
-// ByPosSessions orders the results by pos_sessions terms.
-func ByPosSessions(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newPosSessionsStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
 func newTenantStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -219,12 +196,5 @@ func newPosRolesStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(PosRolesInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, PosRolesTable, PosRolesColumn),
-	)
-}
-func newPosSessionsStep() *sqlgraph.Step {
-	return sqlgraph.NewStep(
-		sqlgraph.From(Table, FieldID),
-		sqlgraph.To(PosSessionsInverseTable, FieldID),
-		sqlgraph.Edge(sqlgraph.O2M, false, PosSessionsTable, PosSessionsColumn),
 	)
 }

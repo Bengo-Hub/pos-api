@@ -14,7 +14,6 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/posdevice"
 	"github.com/bengobox/pos-service/internal/ent/posdevicesession"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
-	"github.com/bengobox/pos-service/internal/ent/user"
 	"github.com/google/uuid"
 )
 
@@ -26,7 +25,6 @@ type POSDeviceSessionQuery struct {
 	inters     []Interceptor
 	predicates []predicate.POSDeviceSession
 	withDevice *POSDeviceQuery
-	withUser   *UserQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -78,28 +76,6 @@ func (_q *POSDeviceSessionQuery) QueryDevice() *POSDeviceQuery {
 			sqlgraph.From(posdevicesession.Table, posdevicesession.FieldID, selector),
 			sqlgraph.To(posdevice.Table, posdevice.FieldID),
 			sqlgraph.Edge(sqlgraph.M2O, true, posdevicesession.DeviceTable, posdevicesession.DeviceColumn),
-		)
-		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
-		return fromU, nil
-	}
-	return query
-}
-
-// QueryUser chains the current query on the "user" edge.
-func (_q *POSDeviceSessionQuery) QueryUser() *UserQuery {
-	query := (&UserClient{config: _q.config}).Query()
-	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
-		if err := _q.prepareQuery(ctx); err != nil {
-			return nil, err
-		}
-		selector := _q.sqlQuery(ctx)
-		if err := selector.Err(); err != nil {
-			return nil, err
-		}
-		step := sqlgraph.NewStep(
-			sqlgraph.From(posdevicesession.Table, posdevicesession.FieldID, selector),
-			sqlgraph.To(user.Table, user.FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, true, posdevicesession.UserTable, posdevicesession.UserColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -300,7 +276,6 @@ func (_q *POSDeviceSessionQuery) Clone() *POSDeviceSessionQuery {
 		inters:     append([]Interceptor{}, _q.inters...),
 		predicates: append([]predicate.POSDeviceSession{}, _q.predicates...),
 		withDevice: _q.withDevice.Clone(),
-		withUser:   _q.withUser.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -315,17 +290,6 @@ func (_q *POSDeviceSessionQuery) WithDevice(opts ...func(*POSDeviceQuery)) *POSD
 		opt(query)
 	}
 	_q.withDevice = query
-	return _q
-}
-
-// WithUser tells the query-builder to eager-load the nodes that are connected to
-// the "user" edge. The optional arguments are used to configure the query builder of the edge.
-func (_q *POSDeviceSessionQuery) WithUser(opts ...func(*UserQuery)) *POSDeviceSessionQuery {
-	query := (&UserClient{config: _q.config}).Query()
-	for _, opt := range opts {
-		opt(query)
-	}
-	_q.withUser = query
 	return _q
 }
 
@@ -407,9 +371,8 @@ func (_q *POSDeviceSessionQuery) sqlAll(ctx context.Context, hooks ...queryHook)
 	var (
 		nodes       = []*POSDeviceSession{}
 		_spec       = _q.querySpec()
-		loadedTypes = [2]bool{
+		loadedTypes = [1]bool{
 			_q.withDevice != nil,
-			_q.withUser != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -433,12 +396,6 @@ func (_q *POSDeviceSessionQuery) sqlAll(ctx context.Context, hooks ...queryHook)
 	if query := _q.withDevice; query != nil {
 		if err := _q.loadDevice(ctx, query, nodes, nil,
 			func(n *POSDeviceSession, e *POSDevice) { n.Edges.Device = e }); err != nil {
-			return nil, err
-		}
-	}
-	if query := _q.withUser; query != nil {
-		if err := _q.loadUser(ctx, query, nodes, nil,
-			func(n *POSDeviceSession, e *User) { n.Edges.User = e }); err != nil {
 			return nil, err
 		}
 	}
@@ -474,35 +431,6 @@ func (_q *POSDeviceSessionQuery) loadDevice(ctx context.Context, query *POSDevic
 	}
 	return nil
 }
-func (_q *POSDeviceSessionQuery) loadUser(ctx context.Context, query *UserQuery, nodes []*POSDeviceSession, init func(*POSDeviceSession), assign func(*POSDeviceSession, *User)) error {
-	ids := make([]uuid.UUID, 0, len(nodes))
-	nodeids := make(map[uuid.UUID][]*POSDeviceSession)
-	for i := range nodes {
-		fk := nodes[i].UserID
-		if _, ok := nodeids[fk]; !ok {
-			ids = append(ids, fk)
-		}
-		nodeids[fk] = append(nodeids[fk], nodes[i])
-	}
-	if len(ids) == 0 {
-		return nil
-	}
-	query.Where(user.IDIn(ids...))
-	neighbors, err := query.All(ctx)
-	if err != nil {
-		return err
-	}
-	for _, n := range neighbors {
-		nodes, ok := nodeids[n.ID]
-		if !ok {
-			return fmt.Errorf(`unexpected foreign-key "user_id" returned %v`, n.ID)
-		}
-		for i := range nodes {
-			assign(nodes[i], n)
-		}
-	}
-	return nil
-}
 
 func (_q *POSDeviceSessionQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := _q.querySpec()
@@ -531,9 +459,6 @@ func (_q *POSDeviceSessionQuery) querySpec() *sqlgraph.QuerySpec {
 		}
 		if _q.withDevice != nil {
 			_spec.Node.AddColumnOnce(posdevicesession.FieldDeviceID)
-		}
-		if _q.withUser != nil {
-			_spec.Node.AddColumnOnce(posdevicesession.FieldUserID)
 		}
 	}
 	if ps := _q.predicates; len(ps) > 0 {

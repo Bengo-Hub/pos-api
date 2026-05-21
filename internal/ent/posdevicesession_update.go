@@ -14,7 +14,6 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/posdevice"
 	"github.com/bengobox/pos-service/internal/ent/posdevicesession"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
-	"github.com/bengobox/pos-service/internal/ent/user"
 	"github.com/google/uuid"
 )
 
@@ -153,11 +152,6 @@ func (_u *POSDeviceSessionUpdate) SetDevice(v *POSDevice) *POSDeviceSessionUpdat
 	return _u.SetDeviceID(v.ID)
 }
 
-// SetUser sets the "user" edge to the User entity.
-func (_u *POSDeviceSessionUpdate) SetUser(v *User) *POSDeviceSessionUpdate {
-	return _u.SetUserID(v.ID)
-}
-
 // Mutation returns the POSDeviceSessionMutation object of the builder.
 func (_u *POSDeviceSessionUpdate) Mutation() *POSDeviceSessionMutation {
 	return _u.mutation
@@ -166,12 +160,6 @@ func (_u *POSDeviceSessionUpdate) Mutation() *POSDeviceSessionMutation {
 // ClearDevice clears the "device" edge to the POSDevice entity.
 func (_u *POSDeviceSessionUpdate) ClearDevice() *POSDeviceSessionUpdate {
 	_u.mutation.ClearDevice()
-	return _u
-}
-
-// ClearUser clears the "user" edge to the User entity.
-func (_u *POSDeviceSessionUpdate) ClearUser() *POSDeviceSessionUpdate {
-	_u.mutation.ClearUser()
 	return _u
 }
 
@@ -207,9 +195,6 @@ func (_u *POSDeviceSessionUpdate) check() error {
 	if _u.mutation.DeviceCleared() && len(_u.mutation.DeviceIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "POSDeviceSession.device"`)
 	}
-	if _u.mutation.UserCleared() && len(_u.mutation.UserIDs()) > 0 {
-		return errors.New(`ent: clearing a required unique edge "POSDeviceSession.user"`)
-	}
 	return nil
 }
 
@@ -227,6 +212,9 @@ func (_u *POSDeviceSessionUpdate) sqlSave(ctx context.Context) (_node int, err e
 	}
 	if value, ok := _u.mutation.TenantID(); ok {
 		_spec.SetField(posdevicesession.FieldTenantID, field.TypeUUID, value)
+	}
+	if value, ok := _u.mutation.UserID(); ok {
+		_spec.SetField(posdevicesession.FieldUserID, field.TypeUUID, value)
 	}
 	if value, ok := _u.mutation.SessionStatus(); ok {
 		_spec.SetField(posdevicesession.FieldSessionStatus, field.TypeString, value)
@@ -271,35 +259,6 @@ func (_u *POSDeviceSessionUpdate) sqlSave(ctx context.Context) (_node int, err e
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(posdevice.FieldID, field.TypeUUID),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges.Add = append(_spec.Edges.Add, edge)
-	}
-	if _u.mutation.UserCleared() {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2O,
-			Inverse: true,
-			Table:   posdevicesession.UserTable,
-			Columns: []string{posdevicesession.UserColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeUUID),
-			},
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
-	}
-	if nodes := _u.mutation.UserIDs(); len(nodes) > 0 {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2O,
-			Inverse: true,
-			Table:   posdevicesession.UserTable,
-			Columns: []string{posdevicesession.UserColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {
@@ -449,11 +408,6 @@ func (_u *POSDeviceSessionUpdateOne) SetDevice(v *POSDevice) *POSDeviceSessionUp
 	return _u.SetDeviceID(v.ID)
 }
 
-// SetUser sets the "user" edge to the User entity.
-func (_u *POSDeviceSessionUpdateOne) SetUser(v *User) *POSDeviceSessionUpdateOne {
-	return _u.SetUserID(v.ID)
-}
-
 // Mutation returns the POSDeviceSessionMutation object of the builder.
 func (_u *POSDeviceSessionUpdateOne) Mutation() *POSDeviceSessionMutation {
 	return _u.mutation
@@ -462,12 +416,6 @@ func (_u *POSDeviceSessionUpdateOne) Mutation() *POSDeviceSessionMutation {
 // ClearDevice clears the "device" edge to the POSDevice entity.
 func (_u *POSDeviceSessionUpdateOne) ClearDevice() *POSDeviceSessionUpdateOne {
 	_u.mutation.ClearDevice()
-	return _u
-}
-
-// ClearUser clears the "user" edge to the User entity.
-func (_u *POSDeviceSessionUpdateOne) ClearUser() *POSDeviceSessionUpdateOne {
-	_u.mutation.ClearUser()
 	return _u
 }
 
@@ -516,9 +464,6 @@ func (_u *POSDeviceSessionUpdateOne) check() error {
 	if _u.mutation.DeviceCleared() && len(_u.mutation.DeviceIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "POSDeviceSession.device"`)
 	}
-	if _u.mutation.UserCleared() && len(_u.mutation.UserIDs()) > 0 {
-		return errors.New(`ent: clearing a required unique edge "POSDeviceSession.user"`)
-	}
 	return nil
 }
 
@@ -553,6 +498,9 @@ func (_u *POSDeviceSessionUpdateOne) sqlSave(ctx context.Context) (_node *POSDev
 	}
 	if value, ok := _u.mutation.TenantID(); ok {
 		_spec.SetField(posdevicesession.FieldTenantID, field.TypeUUID, value)
+	}
+	if value, ok := _u.mutation.UserID(); ok {
+		_spec.SetField(posdevicesession.FieldUserID, field.TypeUUID, value)
 	}
 	if value, ok := _u.mutation.SessionStatus(); ok {
 		_spec.SetField(posdevicesession.FieldSessionStatus, field.TypeString, value)
@@ -597,35 +545,6 @@ func (_u *POSDeviceSessionUpdateOne) sqlSave(ctx context.Context) (_node *POSDev
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(posdevice.FieldID, field.TypeUUID),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges.Add = append(_spec.Edges.Add, edge)
-	}
-	if _u.mutation.UserCleared() {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2O,
-			Inverse: true,
-			Table:   posdevicesession.UserTable,
-			Columns: []string{posdevicesession.UserColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeUUID),
-			},
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
-	}
-	if nodes := _u.mutation.UserIDs(); len(nodes) > 0 {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2O,
-			Inverse: true,
-			Table:   posdevicesession.UserTable,
-			Columns: []string{posdevicesession.UserColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

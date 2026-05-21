@@ -14,7 +14,6 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/bengobox/pos-service/internal/ent/posdevice"
 	"github.com/bengobox/pos-service/internal/ent/posdevicesession"
-	"github.com/bengobox/pos-service/internal/ent/user"
 	"github.com/google/uuid"
 )
 
@@ -125,11 +124,6 @@ func (_c *POSDeviceSessionCreate) SetDevice(v *POSDevice) *POSDeviceSessionCreat
 	return _c.SetDeviceID(v.ID)
 }
 
-// SetUser sets the "user" edge to the User entity.
-func (_c *POSDeviceSessionCreate) SetUser(v *User) *POSDeviceSessionCreate {
-	return _c.SetUserID(v.ID)
-}
-
 // Mutation returns the POSDeviceSessionMutation object of the builder.
 func (_c *POSDeviceSessionCreate) Mutation() *POSDeviceSessionMutation {
 	return _c.mutation
@@ -213,9 +207,6 @@ func (_c *POSDeviceSessionCreate) check() error {
 	if len(_c.mutation.DeviceIDs()) == 0 {
 		return &ValidationError{Name: "device", err: errors.New(`ent: missing required edge "POSDeviceSession.device"`)}
 	}
-	if len(_c.mutation.UserIDs()) == 0 {
-		return &ValidationError{Name: "user", err: errors.New(`ent: missing required edge "POSDeviceSession.user"`)}
-	}
 	return nil
 }
 
@@ -256,6 +247,10 @@ func (_c *POSDeviceSessionCreate) createSpec() (*POSDeviceSession, *sqlgraph.Cre
 		_spec.SetField(posdevicesession.FieldTenantID, field.TypeUUID, value)
 		_node.TenantID = value
 	}
+	if value, ok := _c.mutation.UserID(); ok {
+		_spec.SetField(posdevicesession.FieldUserID, field.TypeUUID, value)
+		_node.UserID = value
+	}
 	if value, ok := _c.mutation.SessionStatus(); ok {
 		_spec.SetField(posdevicesession.FieldSessionStatus, field.TypeString, value)
 		_node.SessionStatus = value
@@ -291,23 +286,6 @@ func (_c *POSDeviceSessionCreate) createSpec() (*POSDeviceSession, *sqlgraph.Cre
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_node.DeviceID = nodes[0]
-		_spec.Edges = append(_spec.Edges, edge)
-	}
-	if nodes := _c.mutation.UserIDs(); len(nodes) > 0 {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2O,
-			Inverse: true,
-			Table:   posdevicesession.UserTable,
-			Columns: []string{posdevicesession.UserColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeUUID),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_node.UserID = nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec

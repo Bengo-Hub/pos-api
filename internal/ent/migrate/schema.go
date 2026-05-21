@@ -945,13 +945,13 @@ var (
 	PosDeviceSessionsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
 		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "user_id", Type: field.TypeUUID},
 		{Name: "session_status", Type: field.TypeString, Default: "open"},
 		{Name: "opened_at", Type: field.TypeTime},
 		{Name: "closed_at", Type: field.TypeTime, Nullable: true},
 		{Name: "float_amount", Type: field.TypeFloat64, Default: 0},
 		{Name: "metadata", Type: field.TypeJSON},
 		{Name: "device_id", Type: field.TypeUUID},
-		{Name: "user_id", Type: field.TypeUUID},
 	}
 	// PosDeviceSessionsTable holds the schema information for the "pos_device_sessions" table.
 	PosDeviceSessionsTable = &schema.Table{
@@ -961,14 +961,8 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "pos_device_sessions_pos_devices_sessions",
-				Columns:    []*schema.Column{PosDeviceSessionsColumns[7]},
-				RefColumns: []*schema.Column{PosDevicesColumns[0]},
-				OnDelete:   schema.NoAction,
-			},
-			{
-				Symbol:     "pos_device_sessions_users_pos_sessions",
 				Columns:    []*schema.Column{PosDeviceSessionsColumns[8]},
-				RefColumns: []*schema.Column{UsersColumns[0]},
+				RefColumns: []*schema.Column{PosDevicesColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 		},
@@ -2369,7 +2363,6 @@ func init() {
 	OutletSettingsTable.ForeignKeys[0].RefTable = OutletsTable
 	PosDevicesTable.ForeignKeys[0].RefTable = OutletsTable
 	PosDeviceSessionsTable.ForeignKeys[0].RefTable = PosDevicesTable
-	PosDeviceSessionsTable.ForeignKeys[1].RefTable = UsersTable
 	PosLineModifiersTable.ForeignKeys[0].RefTable = PosOrderLinesTable
 	PosOrderEventsTable.ForeignKeys[0].RefTable = PosOrdersTable
 	PosOrderLinesTable.ForeignKeys[0].RefTable = PosOrdersTable

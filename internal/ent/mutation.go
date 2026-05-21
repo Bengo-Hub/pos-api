@@ -31137,6 +31137,7 @@ type POSDeviceSessionMutation struct {
 	typ             string
 	id              *uuid.UUID
 	tenant_id       *uuid.UUID
+	user_id         *uuid.UUID
 	session_status  *string
 	opened_at       *time.Time
 	closed_at       *time.Time
@@ -31146,8 +31147,6 @@ type POSDeviceSessionMutation struct {
 	clearedFields   map[string]struct{}
 	device          *uuid.UUID
 	cleareddevice   bool
-	user            *uuid.UUID
-	cleareduser     bool
 	done            bool
 	oldValue        func(context.Context) (*POSDeviceSession, error)
 	predicates      []predicate.POSDeviceSession
@@ -31331,12 +31330,12 @@ func (m *POSDeviceSessionMutation) ResetDeviceID() {
 
 // SetUserID sets the "user_id" field.
 func (m *POSDeviceSessionMutation) SetUserID(u uuid.UUID) {
-	m.user = &u
+	m.user_id = &u
 }
 
 // UserID returns the value of the "user_id" field in the mutation.
 func (m *POSDeviceSessionMutation) UserID() (r uuid.UUID, exists bool) {
-	v := m.user
+	v := m.user_id
 	if v == nil {
 		return
 	}
@@ -31362,7 +31361,7 @@ func (m *POSDeviceSessionMutation) OldUserID(ctx context.Context) (v uuid.UUID, 
 
 // ResetUserID resets all changes to the "user_id" field.
 func (m *POSDeviceSessionMutation) ResetUserID() {
-	m.user = nil
+	m.user_id = nil
 }
 
 // SetSessionStatus sets the "session_status" field.
@@ -31605,33 +31604,6 @@ func (m *POSDeviceSessionMutation) ResetDevice() {
 	m.cleareddevice = false
 }
 
-// ClearUser clears the "user" edge to the User entity.
-func (m *POSDeviceSessionMutation) ClearUser() {
-	m.cleareduser = true
-	m.clearedFields[posdevicesession.FieldUserID] = struct{}{}
-}
-
-// UserCleared reports if the "user" edge to the User entity was cleared.
-func (m *POSDeviceSessionMutation) UserCleared() bool {
-	return m.cleareduser
-}
-
-// UserIDs returns the "user" edge IDs in the mutation.
-// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
-// UserID instead. It exists only for internal usage by the builders.
-func (m *POSDeviceSessionMutation) UserIDs() (ids []uuid.UUID) {
-	if id := m.user; id != nil {
-		ids = append(ids, *id)
-	}
-	return
-}
-
-// ResetUser resets all changes to the "user" edge.
-func (m *POSDeviceSessionMutation) ResetUser() {
-	m.user = nil
-	m.cleareduser = false
-}
-
 // Where appends a list predicates to the POSDeviceSessionMutation builder.
 func (m *POSDeviceSessionMutation) Where(ps ...predicate.POSDeviceSession) {
 	m.predicates = append(m.predicates, ps...)
@@ -31673,7 +31645,7 @@ func (m *POSDeviceSessionMutation) Fields() []string {
 	if m.device != nil {
 		fields = append(fields, posdevicesession.FieldDeviceID)
 	}
-	if m.user != nil {
+	if m.user_id != nil {
 		fields = append(fields, posdevicesession.FieldUserID)
 	}
 	if m.session_status != nil {
@@ -31908,12 +31880,9 @@ func (m *POSDeviceSessionMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *POSDeviceSessionMutation) AddedEdges() []string {
-	edges := make([]string, 0, 2)
+	edges := make([]string, 0, 1)
 	if m.device != nil {
 		edges = append(edges, posdevicesession.EdgeDevice)
-	}
-	if m.user != nil {
-		edges = append(edges, posdevicesession.EdgeUser)
 	}
 	return edges
 }
@@ -31926,17 +31895,13 @@ func (m *POSDeviceSessionMutation) AddedIDs(name string) []ent.Value {
 		if id := m.device; id != nil {
 			return []ent.Value{*id}
 		}
-	case posdevicesession.EdgeUser:
-		if id := m.user; id != nil {
-			return []ent.Value{*id}
-		}
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *POSDeviceSessionMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 2)
+	edges := make([]string, 0, 1)
 	return edges
 }
 
@@ -31948,12 +31913,9 @@ func (m *POSDeviceSessionMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *POSDeviceSessionMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 2)
+	edges := make([]string, 0, 1)
 	if m.cleareddevice {
 		edges = append(edges, posdevicesession.EdgeDevice)
-	}
-	if m.cleareduser {
-		edges = append(edges, posdevicesession.EdgeUser)
 	}
 	return edges
 }
@@ -31964,8 +31926,6 @@ func (m *POSDeviceSessionMutation) EdgeCleared(name string) bool {
 	switch name {
 	case posdevicesession.EdgeDevice:
 		return m.cleareddevice
-	case posdevicesession.EdgeUser:
-		return m.cleareduser
 	}
 	return false
 }
@@ -31977,9 +31937,6 @@ func (m *POSDeviceSessionMutation) ClearEdge(name string) error {
 	case posdevicesession.EdgeDevice:
 		m.ClearDevice()
 		return nil
-	case posdevicesession.EdgeUser:
-		m.ClearUser()
-		return nil
 	}
 	return fmt.Errorf("unknown POSDeviceSession unique edge %s", name)
 }
@@ -31990,9 +31947,6 @@ func (m *POSDeviceSessionMutation) ResetEdge(name string) error {
 	switch name {
 	case posdevicesession.EdgeDevice:
 		m.ResetDevice()
-		return nil
-	case posdevicesession.EdgeUser:
-		m.ResetUser()
 		return nil
 	}
 	return fmt.Errorf("unknown POSDeviceSession edge %s", name)
@@ -64733,9 +64687,6 @@ type UserMutation struct {
 	pos_roles            map[uuid.UUID]struct{}
 	removedpos_roles     map[uuid.UUID]struct{}
 	clearedpos_roles     bool
-	pos_sessions         map[uuid.UUID]struct{}
-	removedpos_sessions  map[uuid.UUID]struct{}
-	clearedpos_sessions  bool
 	done                 bool
 	oldValue             func(context.Context) (*User, error)
 	predicates           []predicate.User
@@ -65361,60 +65312,6 @@ func (m *UserMutation) ResetPosRoles() {
 	m.removedpos_roles = nil
 }
 
-// AddPosSessionIDs adds the "pos_sessions" edge to the POSDeviceSession entity by ids.
-func (m *UserMutation) AddPosSessionIDs(ids ...uuid.UUID) {
-	if m.pos_sessions == nil {
-		m.pos_sessions = make(map[uuid.UUID]struct{})
-	}
-	for i := range ids {
-		m.pos_sessions[ids[i]] = struct{}{}
-	}
-}
-
-// ClearPosSessions clears the "pos_sessions" edge to the POSDeviceSession entity.
-func (m *UserMutation) ClearPosSessions() {
-	m.clearedpos_sessions = true
-}
-
-// PosSessionsCleared reports if the "pos_sessions" edge to the POSDeviceSession entity was cleared.
-func (m *UserMutation) PosSessionsCleared() bool {
-	return m.clearedpos_sessions
-}
-
-// RemovePosSessionIDs removes the "pos_sessions" edge to the POSDeviceSession entity by IDs.
-func (m *UserMutation) RemovePosSessionIDs(ids ...uuid.UUID) {
-	if m.removedpos_sessions == nil {
-		m.removedpos_sessions = make(map[uuid.UUID]struct{})
-	}
-	for i := range ids {
-		delete(m.pos_sessions, ids[i])
-		m.removedpos_sessions[ids[i]] = struct{}{}
-	}
-}
-
-// RemovedPosSessions returns the removed IDs of the "pos_sessions" edge to the POSDeviceSession entity.
-func (m *UserMutation) RemovedPosSessionsIDs() (ids []uuid.UUID) {
-	for id := range m.removedpos_sessions {
-		ids = append(ids, id)
-	}
-	return
-}
-
-// PosSessionsIDs returns the "pos_sessions" edge IDs in the mutation.
-func (m *UserMutation) PosSessionsIDs() (ids []uuid.UUID) {
-	for id := range m.pos_sessions {
-		ids = append(ids, id)
-	}
-	return
-}
-
-// ResetPosSessions resets all changes to the "pos_sessions" edge.
-func (m *UserMutation) ResetPosSessions() {
-	m.pos_sessions = nil
-	m.clearedpos_sessions = false
-	m.removedpos_sessions = nil
-}
-
 // Where appends a list predicates to the UserMutation builder.
 func (m *UserMutation) Where(ps ...predicate.User) {
 	m.predicates = append(m.predicates, ps...)
@@ -65739,15 +65636,12 @@ func (m *UserMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *UserMutation) AddedEdges() []string {
-	edges := make([]string, 0, 3)
+	edges := make([]string, 0, 2)
 	if m.tenant != nil {
 		edges = append(edges, user.EdgeTenant)
 	}
 	if m.pos_roles != nil {
 		edges = append(edges, user.EdgePosRoles)
-	}
-	if m.pos_sessions != nil {
-		edges = append(edges, user.EdgePosSessions)
 	}
 	return edges
 }
@@ -65766,24 +65660,15 @@ func (m *UserMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
-	case user.EdgePosSessions:
-		ids := make([]ent.Value, 0, len(m.pos_sessions))
-		for id := range m.pos_sessions {
-			ids = append(ids, id)
-		}
-		return ids
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *UserMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 3)
+	edges := make([]string, 0, 2)
 	if m.removedpos_roles != nil {
 		edges = append(edges, user.EdgePosRoles)
-	}
-	if m.removedpos_sessions != nil {
-		edges = append(edges, user.EdgePosSessions)
 	}
 	return edges
 }
@@ -65798,27 +65683,18 @@ func (m *UserMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
-	case user.EdgePosSessions:
-		ids := make([]ent.Value, 0, len(m.removedpos_sessions))
-		for id := range m.removedpos_sessions {
-			ids = append(ids, id)
-		}
-		return ids
 	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *UserMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 3)
+	edges := make([]string, 0, 2)
 	if m.clearedtenant {
 		edges = append(edges, user.EdgeTenant)
 	}
 	if m.clearedpos_roles {
 		edges = append(edges, user.EdgePosRoles)
-	}
-	if m.clearedpos_sessions {
-		edges = append(edges, user.EdgePosSessions)
 	}
 	return edges
 }
@@ -65831,8 +65707,6 @@ func (m *UserMutation) EdgeCleared(name string) bool {
 		return m.clearedtenant
 	case user.EdgePosRoles:
 		return m.clearedpos_roles
-	case user.EdgePosSessions:
-		return m.clearedpos_sessions
 	}
 	return false
 }
@@ -65857,9 +65731,6 @@ func (m *UserMutation) ResetEdge(name string) error {
 		return nil
 	case user.EdgePosRoles:
 		m.ResetPosRoles()
-		return nil
-	case user.EdgePosSessions:
-		m.ResetPosSessions()
 		return nil
 	}
 	return fmt.Errorf("unknown User edge %s", name)
