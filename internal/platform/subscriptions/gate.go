@@ -28,18 +28,27 @@ func SubscriptionGate() func(http.Handler) http.Handler {
 				return
 			}
 
+			// Service-charge tenants pay per transaction; demo tenants bypass for demos.
+			if claims.BillingMode == "service_charge" || claims.IsDemo {
+				next.ServeHTTP(w, r)
+				return
+			}
+
 			switch claims.SubscriptionStatus {
 			case "ACTIVE", "TRIAL", "":
 				next.ServeHTTP(w, r)
 				return
 			case "EXPIRED":
 				if claims.SubscriptionExpires != nil {
-					deadline := claims.SubscriptionExpires.Add(gracePeriodDays * 24 * time.Hour)
-					if time.Now().Before(deadline) {
-						daysLeft := int(time.Until(deadline).Hours()/24) + 1
-						w.Header().Set("X-Sub-Grace-Days-Left", fmt.Sprintf("%d", daysLeft))
-						next.ServeHTTP(w, r)
-						return
+					expAt := claims.ExpiresAt()
+					if expAt != nil {
+						deadline := expAt.Add(gracePeriodDays * 24 * time.Hour)
+						if time.Now().Before(deadline) {
+							daysLeft := int(time.Until(deadline).Hours()/24) + 1
+							w.Header().Set("X-Sub-Grace-Days-Left", fmt.Sprintf("%d", daysLeft))
+							next.ServeHTTP(w, r)
+							return
+						}
 					}
 				}
 				writeSubscriptionError(w, true)
