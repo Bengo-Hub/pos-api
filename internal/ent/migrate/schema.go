@@ -24,6 +24,7 @@ var (
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"scheduled", "confirmed", "in_progress", "completed", "cancelled", "no_show"}, Default: "scheduled"},
 		{Name: "notes", Type: field.TypeString, Nullable: true, Size: 2147483647},
 		{Name: "pos_order_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "crm_contact_id", Type: field.TypeUUID, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
 	}
@@ -644,6 +645,7 @@ var (
 		{Name: "points_balance", Type: field.TypeInt, Default: 0},
 		{Name: "lifetime_points", Type: field.TypeInt, Default: 0},
 		{Name: "program_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "crm_contact_id", Type: field.TypeUUID, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
 	}
@@ -875,6 +877,19 @@ var (
 		{Name: "default_view", Type: field.TypeString, Nullable: true, Default: "catalog"},
 		{Name: "enable_kds", Type: field.TypeBool, Nullable: true, Default: false},
 		{Name: "enable_appointments", Type: field.TypeBool, Nullable: true, Default: false},
+		{Name: "receipt_header", Type: field.TypeString, Nullable: true},
+		{Name: "receipt_footer", Type: field.TypeString, Nullable: true},
+		{Name: "currency", Type: field.TypeString, Nullable: true, Default: "KES"},
+		{Name: "vat_enabled", Type: field.TypeBool, Nullable: true, Default: true},
+		{Name: "vat_rate", Type: field.TypeFloat64, Nullable: true, Default: 16},
+		{Name: "printer_type", Type: field.TypeString, Nullable: true, Default: "thermal"},
+		{Name: "printer_ip", Type: field.TypeString, Nullable: true},
+		{Name: "paper_width", Type: field.TypeString, Nullable: true, Default: "80mm"},
+		{Name: "auto_print_order", Type: field.TypeBool, Nullable: true, Default: false},
+		{Name: "auto_print_kitchen", Type: field.TypeBool, Nullable: true, Default: false},
+		{Name: "hotel_module_enabled", Type: field.TypeBool, Nullable: true, Default: false},
+		{Name: "layaway_enabled", Type: field.TypeBool, Nullable: true, Default: false},
+		{Name: "shift_reports_enabled", Type: field.TypeBool, Nullable: true, Default: false},
 		{Name: "updated_at", Type: field.TypeTime},
 		{Name: "outlet_id", Type: field.TypeUUID, Unique: true},
 	}
@@ -886,7 +901,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "outlet_settings_outlets_settings",
-				Columns:    []*schema.Column{OutletSettingsColumns[15]},
+				Columns:    []*schema.Column{OutletSettingsColumns[28]},
 				RefColumns: []*schema.Column{OutletsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},

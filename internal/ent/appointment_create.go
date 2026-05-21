@@ -158,6 +158,20 @@ func (_c *AppointmentCreate) SetNillablePosOrderID(v *uuid.UUID) *AppointmentCre
 	return _c
 }
 
+// SetCrmContactID sets the "crm_contact_id" field.
+func (_c *AppointmentCreate) SetCrmContactID(v uuid.UUID) *AppointmentCreate {
+	_c.mutation.SetCrmContactID(v)
+	return _c
+}
+
+// SetNillableCrmContactID sets the "crm_contact_id" field if the given value is not nil.
+func (_c *AppointmentCreate) SetNillableCrmContactID(v *uuid.UUID) *AppointmentCreate {
+	if v != nil {
+		_c.SetCrmContactID(*v)
+	}
+	return _c
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_c *AppointmentCreate) SetCreatedAt(v time.Time) *AppointmentCreate {
 	_c.mutation.SetCreatedAt(v)
@@ -379,6 +393,10 @@ func (_c *AppointmentCreate) createSpec() (*Appointment, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.PosOrderID(); ok {
 		_spec.SetField(appointment.FieldPosOrderID, field.TypeUUID, value)
 		_node.PosOrderID = &value
+	}
+	if value, ok := _c.mutation.CrmContactID(); ok {
+		_spec.SetField(appointment.FieldCrmContactID, field.TypeUUID, value)
+		_node.CrmContactID = &value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(appointment.FieldCreatedAt, field.TypeTime, value)
@@ -629,6 +647,24 @@ func (u *AppointmentUpsert) UpdatePosOrderID() *AppointmentUpsert {
 // ClearPosOrderID clears the value of the "pos_order_id" field.
 func (u *AppointmentUpsert) ClearPosOrderID() *AppointmentUpsert {
 	u.SetNull(appointment.FieldPosOrderID)
+	return u
+}
+
+// SetCrmContactID sets the "crm_contact_id" field.
+func (u *AppointmentUpsert) SetCrmContactID(v uuid.UUID) *AppointmentUpsert {
+	u.Set(appointment.FieldCrmContactID, v)
+	return u
+}
+
+// UpdateCrmContactID sets the "crm_contact_id" field to the value that was provided on create.
+func (u *AppointmentUpsert) UpdateCrmContactID() *AppointmentUpsert {
+	u.SetExcluded(appointment.FieldCrmContactID)
+	return u
+}
+
+// ClearCrmContactID clears the value of the "crm_contact_id" field.
+func (u *AppointmentUpsert) ClearCrmContactID() *AppointmentUpsert {
+	u.SetNull(appointment.FieldCrmContactID)
 	return u
 }
 
@@ -916,6 +952,27 @@ func (u *AppointmentUpsertOne) UpdatePosOrderID() *AppointmentUpsertOne {
 func (u *AppointmentUpsertOne) ClearPosOrderID() *AppointmentUpsertOne {
 	return u.Update(func(s *AppointmentUpsert) {
 		s.ClearPosOrderID()
+	})
+}
+
+// SetCrmContactID sets the "crm_contact_id" field.
+func (u *AppointmentUpsertOne) SetCrmContactID(v uuid.UUID) *AppointmentUpsertOne {
+	return u.Update(func(s *AppointmentUpsert) {
+		s.SetCrmContactID(v)
+	})
+}
+
+// UpdateCrmContactID sets the "crm_contact_id" field to the value that was provided on create.
+func (u *AppointmentUpsertOne) UpdateCrmContactID() *AppointmentUpsertOne {
+	return u.Update(func(s *AppointmentUpsert) {
+		s.UpdateCrmContactID()
+	})
+}
+
+// ClearCrmContactID clears the value of the "crm_contact_id" field.
+func (u *AppointmentUpsertOne) ClearCrmContactID() *AppointmentUpsertOne {
+	return u.Update(func(s *AppointmentUpsert) {
+		s.ClearCrmContactID()
 	})
 }
 
@@ -1372,6 +1429,27 @@ func (u *AppointmentUpsertBulk) UpdatePosOrderID() *AppointmentUpsertBulk {
 func (u *AppointmentUpsertBulk) ClearPosOrderID() *AppointmentUpsertBulk {
 	return u.Update(func(s *AppointmentUpsert) {
 		s.ClearPosOrderID()
+	})
+}
+
+// SetCrmContactID sets the "crm_contact_id" field.
+func (u *AppointmentUpsertBulk) SetCrmContactID(v uuid.UUID) *AppointmentUpsertBulk {
+	return u.Update(func(s *AppointmentUpsert) {
+		s.SetCrmContactID(v)
+	})
+}
+
+// UpdateCrmContactID sets the "crm_contact_id" field to the value that was provided on create.
+func (u *AppointmentUpsertBulk) UpdateCrmContactID() *AppointmentUpsertBulk {
+	return u.Update(func(s *AppointmentUpsert) {
+		s.UpdateCrmContactID()
+	})
+}
+
+// ClearCrmContactID clears the value of the "crm_contact_id" field.
+func (u *AppointmentUpsertBulk) ClearCrmContactID() *AppointmentUpsertBulk {
+	return u.Update(func(s *AppointmentUpsert) {
+		s.ClearCrmContactID()
 	})
 }
 

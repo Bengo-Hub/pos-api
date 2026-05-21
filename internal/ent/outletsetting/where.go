@@ -101,6 +101,71 @@ func EnableAppointments(v bool) predicate.OutletSetting {
 	return predicate.OutletSetting(sql.FieldEQ(FieldEnableAppointments, v))
 }
 
+// ReceiptHeader applies equality check predicate on the "receipt_header" field. It's identical to ReceiptHeaderEQ.
+func ReceiptHeader(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldReceiptHeader, v))
+}
+
+// ReceiptFooter applies equality check predicate on the "receipt_footer" field. It's identical to ReceiptFooterEQ.
+func ReceiptFooter(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldReceiptFooter, v))
+}
+
+// Currency applies equality check predicate on the "currency" field. It's identical to CurrencyEQ.
+func Currency(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldCurrency, v))
+}
+
+// VatEnabled applies equality check predicate on the "vat_enabled" field. It's identical to VatEnabledEQ.
+func VatEnabled(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldVatEnabled, v))
+}
+
+// VatRate applies equality check predicate on the "vat_rate" field. It's identical to VatRateEQ.
+func VatRate(v float64) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldVatRate, v))
+}
+
+// PrinterType applies equality check predicate on the "printer_type" field. It's identical to PrinterTypeEQ.
+func PrinterType(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldPrinterType, v))
+}
+
+// PrinterIP applies equality check predicate on the "printer_ip" field. It's identical to PrinterIPEQ.
+func PrinterIP(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldPrinterIP, v))
+}
+
+// PaperWidth applies equality check predicate on the "paper_width" field. It's identical to PaperWidthEQ.
+func PaperWidth(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldPaperWidth, v))
+}
+
+// AutoPrintOrder applies equality check predicate on the "auto_print_order" field. It's identical to AutoPrintOrderEQ.
+func AutoPrintOrder(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldAutoPrintOrder, v))
+}
+
+// AutoPrintKitchen applies equality check predicate on the "auto_print_kitchen" field. It's identical to AutoPrintKitchenEQ.
+func AutoPrintKitchen(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldAutoPrintKitchen, v))
+}
+
+// HotelModuleEnabled applies equality check predicate on the "hotel_module_enabled" field. It's identical to HotelModuleEnabledEQ.
+func HotelModuleEnabled(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldHotelModuleEnabled, v))
+}
+
+// LayawayEnabled applies equality check predicate on the "layaway_enabled" field. It's identical to LayawayEnabledEQ.
+func LayawayEnabled(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldLayawayEnabled, v))
+}
+
+// ShiftReportsEnabled applies equality check predicate on the "shift_reports_enabled" field. It's identical to ShiftReportsEnabledEQ.
+func ShiftReportsEnabled(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldShiftReportsEnabled, v))
+}
+
 // UpdatedAt applies equality check predicate on the "updated_at" field. It's identical to UpdatedAtEQ.
 func UpdatedAt(v time.Time) predicate.OutletSetting {
 	return predicate.OutletSetting(sql.FieldEQ(FieldUpdatedAt, v))
@@ -544,6 +609,626 @@ func EnableAppointmentsIsNil() predicate.OutletSetting {
 // EnableAppointmentsNotNil applies the NotNil predicate on the "enable_appointments" field.
 func EnableAppointmentsNotNil() predicate.OutletSetting {
 	return predicate.OutletSetting(sql.FieldNotNull(FieldEnableAppointments))
+}
+
+// ReceiptHeaderEQ applies the EQ predicate on the "receipt_header" field.
+func ReceiptHeaderEQ(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldReceiptHeader, v))
+}
+
+// ReceiptHeaderNEQ applies the NEQ predicate on the "receipt_header" field.
+func ReceiptHeaderNEQ(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNEQ(FieldReceiptHeader, v))
+}
+
+// ReceiptHeaderIn applies the In predicate on the "receipt_header" field.
+func ReceiptHeaderIn(vs ...string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIn(FieldReceiptHeader, vs...))
+}
+
+// ReceiptHeaderNotIn applies the NotIn predicate on the "receipt_header" field.
+func ReceiptHeaderNotIn(vs ...string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotIn(FieldReceiptHeader, vs...))
+}
+
+// ReceiptHeaderGT applies the GT predicate on the "receipt_header" field.
+func ReceiptHeaderGT(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGT(FieldReceiptHeader, v))
+}
+
+// ReceiptHeaderGTE applies the GTE predicate on the "receipt_header" field.
+func ReceiptHeaderGTE(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGTE(FieldReceiptHeader, v))
+}
+
+// ReceiptHeaderLT applies the LT predicate on the "receipt_header" field.
+func ReceiptHeaderLT(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLT(FieldReceiptHeader, v))
+}
+
+// ReceiptHeaderLTE applies the LTE predicate on the "receipt_header" field.
+func ReceiptHeaderLTE(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLTE(FieldReceiptHeader, v))
+}
+
+// ReceiptHeaderContains applies the Contains predicate on the "receipt_header" field.
+func ReceiptHeaderContains(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldContains(FieldReceiptHeader, v))
+}
+
+// ReceiptHeaderHasPrefix applies the HasPrefix predicate on the "receipt_header" field.
+func ReceiptHeaderHasPrefix(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldHasPrefix(FieldReceiptHeader, v))
+}
+
+// ReceiptHeaderHasSuffix applies the HasSuffix predicate on the "receipt_header" field.
+func ReceiptHeaderHasSuffix(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldHasSuffix(FieldReceiptHeader, v))
+}
+
+// ReceiptHeaderIsNil applies the IsNil predicate on the "receipt_header" field.
+func ReceiptHeaderIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldReceiptHeader))
+}
+
+// ReceiptHeaderNotNil applies the NotNil predicate on the "receipt_header" field.
+func ReceiptHeaderNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldReceiptHeader))
+}
+
+// ReceiptHeaderEqualFold applies the EqualFold predicate on the "receipt_header" field.
+func ReceiptHeaderEqualFold(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEqualFold(FieldReceiptHeader, v))
+}
+
+// ReceiptHeaderContainsFold applies the ContainsFold predicate on the "receipt_header" field.
+func ReceiptHeaderContainsFold(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldContainsFold(FieldReceiptHeader, v))
+}
+
+// ReceiptFooterEQ applies the EQ predicate on the "receipt_footer" field.
+func ReceiptFooterEQ(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldReceiptFooter, v))
+}
+
+// ReceiptFooterNEQ applies the NEQ predicate on the "receipt_footer" field.
+func ReceiptFooterNEQ(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNEQ(FieldReceiptFooter, v))
+}
+
+// ReceiptFooterIn applies the In predicate on the "receipt_footer" field.
+func ReceiptFooterIn(vs ...string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIn(FieldReceiptFooter, vs...))
+}
+
+// ReceiptFooterNotIn applies the NotIn predicate on the "receipt_footer" field.
+func ReceiptFooterNotIn(vs ...string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotIn(FieldReceiptFooter, vs...))
+}
+
+// ReceiptFooterGT applies the GT predicate on the "receipt_footer" field.
+func ReceiptFooterGT(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGT(FieldReceiptFooter, v))
+}
+
+// ReceiptFooterGTE applies the GTE predicate on the "receipt_footer" field.
+func ReceiptFooterGTE(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGTE(FieldReceiptFooter, v))
+}
+
+// ReceiptFooterLT applies the LT predicate on the "receipt_footer" field.
+func ReceiptFooterLT(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLT(FieldReceiptFooter, v))
+}
+
+// ReceiptFooterLTE applies the LTE predicate on the "receipt_footer" field.
+func ReceiptFooterLTE(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLTE(FieldReceiptFooter, v))
+}
+
+// ReceiptFooterContains applies the Contains predicate on the "receipt_footer" field.
+func ReceiptFooterContains(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldContains(FieldReceiptFooter, v))
+}
+
+// ReceiptFooterHasPrefix applies the HasPrefix predicate on the "receipt_footer" field.
+func ReceiptFooterHasPrefix(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldHasPrefix(FieldReceiptFooter, v))
+}
+
+// ReceiptFooterHasSuffix applies the HasSuffix predicate on the "receipt_footer" field.
+func ReceiptFooterHasSuffix(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldHasSuffix(FieldReceiptFooter, v))
+}
+
+// ReceiptFooterIsNil applies the IsNil predicate on the "receipt_footer" field.
+func ReceiptFooterIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldReceiptFooter))
+}
+
+// ReceiptFooterNotNil applies the NotNil predicate on the "receipt_footer" field.
+func ReceiptFooterNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldReceiptFooter))
+}
+
+// ReceiptFooterEqualFold applies the EqualFold predicate on the "receipt_footer" field.
+func ReceiptFooterEqualFold(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEqualFold(FieldReceiptFooter, v))
+}
+
+// ReceiptFooterContainsFold applies the ContainsFold predicate on the "receipt_footer" field.
+func ReceiptFooterContainsFold(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldContainsFold(FieldReceiptFooter, v))
+}
+
+// CurrencyEQ applies the EQ predicate on the "currency" field.
+func CurrencyEQ(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldCurrency, v))
+}
+
+// CurrencyNEQ applies the NEQ predicate on the "currency" field.
+func CurrencyNEQ(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNEQ(FieldCurrency, v))
+}
+
+// CurrencyIn applies the In predicate on the "currency" field.
+func CurrencyIn(vs ...string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIn(FieldCurrency, vs...))
+}
+
+// CurrencyNotIn applies the NotIn predicate on the "currency" field.
+func CurrencyNotIn(vs ...string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotIn(FieldCurrency, vs...))
+}
+
+// CurrencyGT applies the GT predicate on the "currency" field.
+func CurrencyGT(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGT(FieldCurrency, v))
+}
+
+// CurrencyGTE applies the GTE predicate on the "currency" field.
+func CurrencyGTE(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGTE(FieldCurrency, v))
+}
+
+// CurrencyLT applies the LT predicate on the "currency" field.
+func CurrencyLT(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLT(FieldCurrency, v))
+}
+
+// CurrencyLTE applies the LTE predicate on the "currency" field.
+func CurrencyLTE(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLTE(FieldCurrency, v))
+}
+
+// CurrencyContains applies the Contains predicate on the "currency" field.
+func CurrencyContains(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldContains(FieldCurrency, v))
+}
+
+// CurrencyHasPrefix applies the HasPrefix predicate on the "currency" field.
+func CurrencyHasPrefix(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldHasPrefix(FieldCurrency, v))
+}
+
+// CurrencyHasSuffix applies the HasSuffix predicate on the "currency" field.
+func CurrencyHasSuffix(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldHasSuffix(FieldCurrency, v))
+}
+
+// CurrencyIsNil applies the IsNil predicate on the "currency" field.
+func CurrencyIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldCurrency))
+}
+
+// CurrencyNotNil applies the NotNil predicate on the "currency" field.
+func CurrencyNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldCurrency))
+}
+
+// CurrencyEqualFold applies the EqualFold predicate on the "currency" field.
+func CurrencyEqualFold(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEqualFold(FieldCurrency, v))
+}
+
+// CurrencyContainsFold applies the ContainsFold predicate on the "currency" field.
+func CurrencyContainsFold(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldContainsFold(FieldCurrency, v))
+}
+
+// VatEnabledEQ applies the EQ predicate on the "vat_enabled" field.
+func VatEnabledEQ(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldVatEnabled, v))
+}
+
+// VatEnabledNEQ applies the NEQ predicate on the "vat_enabled" field.
+func VatEnabledNEQ(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNEQ(FieldVatEnabled, v))
+}
+
+// VatEnabledIsNil applies the IsNil predicate on the "vat_enabled" field.
+func VatEnabledIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldVatEnabled))
+}
+
+// VatEnabledNotNil applies the NotNil predicate on the "vat_enabled" field.
+func VatEnabledNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldVatEnabled))
+}
+
+// VatRateEQ applies the EQ predicate on the "vat_rate" field.
+func VatRateEQ(v float64) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldVatRate, v))
+}
+
+// VatRateNEQ applies the NEQ predicate on the "vat_rate" field.
+func VatRateNEQ(v float64) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNEQ(FieldVatRate, v))
+}
+
+// VatRateIn applies the In predicate on the "vat_rate" field.
+func VatRateIn(vs ...float64) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIn(FieldVatRate, vs...))
+}
+
+// VatRateNotIn applies the NotIn predicate on the "vat_rate" field.
+func VatRateNotIn(vs ...float64) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotIn(FieldVatRate, vs...))
+}
+
+// VatRateGT applies the GT predicate on the "vat_rate" field.
+func VatRateGT(v float64) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGT(FieldVatRate, v))
+}
+
+// VatRateGTE applies the GTE predicate on the "vat_rate" field.
+func VatRateGTE(v float64) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGTE(FieldVatRate, v))
+}
+
+// VatRateLT applies the LT predicate on the "vat_rate" field.
+func VatRateLT(v float64) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLT(FieldVatRate, v))
+}
+
+// VatRateLTE applies the LTE predicate on the "vat_rate" field.
+func VatRateLTE(v float64) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLTE(FieldVatRate, v))
+}
+
+// VatRateIsNil applies the IsNil predicate on the "vat_rate" field.
+func VatRateIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldVatRate))
+}
+
+// VatRateNotNil applies the NotNil predicate on the "vat_rate" field.
+func VatRateNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldVatRate))
+}
+
+// PrinterTypeEQ applies the EQ predicate on the "printer_type" field.
+func PrinterTypeEQ(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldPrinterType, v))
+}
+
+// PrinterTypeNEQ applies the NEQ predicate on the "printer_type" field.
+func PrinterTypeNEQ(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNEQ(FieldPrinterType, v))
+}
+
+// PrinterTypeIn applies the In predicate on the "printer_type" field.
+func PrinterTypeIn(vs ...string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIn(FieldPrinterType, vs...))
+}
+
+// PrinterTypeNotIn applies the NotIn predicate on the "printer_type" field.
+func PrinterTypeNotIn(vs ...string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotIn(FieldPrinterType, vs...))
+}
+
+// PrinterTypeGT applies the GT predicate on the "printer_type" field.
+func PrinterTypeGT(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGT(FieldPrinterType, v))
+}
+
+// PrinterTypeGTE applies the GTE predicate on the "printer_type" field.
+func PrinterTypeGTE(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGTE(FieldPrinterType, v))
+}
+
+// PrinterTypeLT applies the LT predicate on the "printer_type" field.
+func PrinterTypeLT(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLT(FieldPrinterType, v))
+}
+
+// PrinterTypeLTE applies the LTE predicate on the "printer_type" field.
+func PrinterTypeLTE(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLTE(FieldPrinterType, v))
+}
+
+// PrinterTypeContains applies the Contains predicate on the "printer_type" field.
+func PrinterTypeContains(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldContains(FieldPrinterType, v))
+}
+
+// PrinterTypeHasPrefix applies the HasPrefix predicate on the "printer_type" field.
+func PrinterTypeHasPrefix(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldHasPrefix(FieldPrinterType, v))
+}
+
+// PrinterTypeHasSuffix applies the HasSuffix predicate on the "printer_type" field.
+func PrinterTypeHasSuffix(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldHasSuffix(FieldPrinterType, v))
+}
+
+// PrinterTypeIsNil applies the IsNil predicate on the "printer_type" field.
+func PrinterTypeIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldPrinterType))
+}
+
+// PrinterTypeNotNil applies the NotNil predicate on the "printer_type" field.
+func PrinterTypeNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldPrinterType))
+}
+
+// PrinterTypeEqualFold applies the EqualFold predicate on the "printer_type" field.
+func PrinterTypeEqualFold(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEqualFold(FieldPrinterType, v))
+}
+
+// PrinterTypeContainsFold applies the ContainsFold predicate on the "printer_type" field.
+func PrinterTypeContainsFold(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldContainsFold(FieldPrinterType, v))
+}
+
+// PrinterIPEQ applies the EQ predicate on the "printer_ip" field.
+func PrinterIPEQ(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldPrinterIP, v))
+}
+
+// PrinterIPNEQ applies the NEQ predicate on the "printer_ip" field.
+func PrinterIPNEQ(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNEQ(FieldPrinterIP, v))
+}
+
+// PrinterIPIn applies the In predicate on the "printer_ip" field.
+func PrinterIPIn(vs ...string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIn(FieldPrinterIP, vs...))
+}
+
+// PrinterIPNotIn applies the NotIn predicate on the "printer_ip" field.
+func PrinterIPNotIn(vs ...string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotIn(FieldPrinterIP, vs...))
+}
+
+// PrinterIPGT applies the GT predicate on the "printer_ip" field.
+func PrinterIPGT(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGT(FieldPrinterIP, v))
+}
+
+// PrinterIPGTE applies the GTE predicate on the "printer_ip" field.
+func PrinterIPGTE(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGTE(FieldPrinterIP, v))
+}
+
+// PrinterIPLT applies the LT predicate on the "printer_ip" field.
+func PrinterIPLT(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLT(FieldPrinterIP, v))
+}
+
+// PrinterIPLTE applies the LTE predicate on the "printer_ip" field.
+func PrinterIPLTE(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLTE(FieldPrinterIP, v))
+}
+
+// PrinterIPContains applies the Contains predicate on the "printer_ip" field.
+func PrinterIPContains(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldContains(FieldPrinterIP, v))
+}
+
+// PrinterIPHasPrefix applies the HasPrefix predicate on the "printer_ip" field.
+func PrinterIPHasPrefix(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldHasPrefix(FieldPrinterIP, v))
+}
+
+// PrinterIPHasSuffix applies the HasSuffix predicate on the "printer_ip" field.
+func PrinterIPHasSuffix(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldHasSuffix(FieldPrinterIP, v))
+}
+
+// PrinterIPIsNil applies the IsNil predicate on the "printer_ip" field.
+func PrinterIPIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldPrinterIP))
+}
+
+// PrinterIPNotNil applies the NotNil predicate on the "printer_ip" field.
+func PrinterIPNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldPrinterIP))
+}
+
+// PrinterIPEqualFold applies the EqualFold predicate on the "printer_ip" field.
+func PrinterIPEqualFold(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEqualFold(FieldPrinterIP, v))
+}
+
+// PrinterIPContainsFold applies the ContainsFold predicate on the "printer_ip" field.
+func PrinterIPContainsFold(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldContainsFold(FieldPrinterIP, v))
+}
+
+// PaperWidthEQ applies the EQ predicate on the "paper_width" field.
+func PaperWidthEQ(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldPaperWidth, v))
+}
+
+// PaperWidthNEQ applies the NEQ predicate on the "paper_width" field.
+func PaperWidthNEQ(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNEQ(FieldPaperWidth, v))
+}
+
+// PaperWidthIn applies the In predicate on the "paper_width" field.
+func PaperWidthIn(vs ...string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIn(FieldPaperWidth, vs...))
+}
+
+// PaperWidthNotIn applies the NotIn predicate on the "paper_width" field.
+func PaperWidthNotIn(vs ...string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotIn(FieldPaperWidth, vs...))
+}
+
+// PaperWidthGT applies the GT predicate on the "paper_width" field.
+func PaperWidthGT(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGT(FieldPaperWidth, v))
+}
+
+// PaperWidthGTE applies the GTE predicate on the "paper_width" field.
+func PaperWidthGTE(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGTE(FieldPaperWidth, v))
+}
+
+// PaperWidthLT applies the LT predicate on the "paper_width" field.
+func PaperWidthLT(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLT(FieldPaperWidth, v))
+}
+
+// PaperWidthLTE applies the LTE predicate on the "paper_width" field.
+func PaperWidthLTE(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLTE(FieldPaperWidth, v))
+}
+
+// PaperWidthContains applies the Contains predicate on the "paper_width" field.
+func PaperWidthContains(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldContains(FieldPaperWidth, v))
+}
+
+// PaperWidthHasPrefix applies the HasPrefix predicate on the "paper_width" field.
+func PaperWidthHasPrefix(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldHasPrefix(FieldPaperWidth, v))
+}
+
+// PaperWidthHasSuffix applies the HasSuffix predicate on the "paper_width" field.
+func PaperWidthHasSuffix(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldHasSuffix(FieldPaperWidth, v))
+}
+
+// PaperWidthIsNil applies the IsNil predicate on the "paper_width" field.
+func PaperWidthIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldPaperWidth))
+}
+
+// PaperWidthNotNil applies the NotNil predicate on the "paper_width" field.
+func PaperWidthNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldPaperWidth))
+}
+
+// PaperWidthEqualFold applies the EqualFold predicate on the "paper_width" field.
+func PaperWidthEqualFold(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEqualFold(FieldPaperWidth, v))
+}
+
+// PaperWidthContainsFold applies the ContainsFold predicate on the "paper_width" field.
+func PaperWidthContainsFold(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldContainsFold(FieldPaperWidth, v))
+}
+
+// AutoPrintOrderEQ applies the EQ predicate on the "auto_print_order" field.
+func AutoPrintOrderEQ(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldAutoPrintOrder, v))
+}
+
+// AutoPrintOrderNEQ applies the NEQ predicate on the "auto_print_order" field.
+func AutoPrintOrderNEQ(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNEQ(FieldAutoPrintOrder, v))
+}
+
+// AutoPrintOrderIsNil applies the IsNil predicate on the "auto_print_order" field.
+func AutoPrintOrderIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldAutoPrintOrder))
+}
+
+// AutoPrintOrderNotNil applies the NotNil predicate on the "auto_print_order" field.
+func AutoPrintOrderNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldAutoPrintOrder))
+}
+
+// AutoPrintKitchenEQ applies the EQ predicate on the "auto_print_kitchen" field.
+func AutoPrintKitchenEQ(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldAutoPrintKitchen, v))
+}
+
+// AutoPrintKitchenNEQ applies the NEQ predicate on the "auto_print_kitchen" field.
+func AutoPrintKitchenNEQ(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNEQ(FieldAutoPrintKitchen, v))
+}
+
+// AutoPrintKitchenIsNil applies the IsNil predicate on the "auto_print_kitchen" field.
+func AutoPrintKitchenIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldAutoPrintKitchen))
+}
+
+// AutoPrintKitchenNotNil applies the NotNil predicate on the "auto_print_kitchen" field.
+func AutoPrintKitchenNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldAutoPrintKitchen))
+}
+
+// HotelModuleEnabledEQ applies the EQ predicate on the "hotel_module_enabled" field.
+func HotelModuleEnabledEQ(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldHotelModuleEnabled, v))
+}
+
+// HotelModuleEnabledNEQ applies the NEQ predicate on the "hotel_module_enabled" field.
+func HotelModuleEnabledNEQ(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNEQ(FieldHotelModuleEnabled, v))
+}
+
+// HotelModuleEnabledIsNil applies the IsNil predicate on the "hotel_module_enabled" field.
+func HotelModuleEnabledIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldHotelModuleEnabled))
+}
+
+// HotelModuleEnabledNotNil applies the NotNil predicate on the "hotel_module_enabled" field.
+func HotelModuleEnabledNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldHotelModuleEnabled))
+}
+
+// LayawayEnabledEQ applies the EQ predicate on the "layaway_enabled" field.
+func LayawayEnabledEQ(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldLayawayEnabled, v))
+}
+
+// LayawayEnabledNEQ applies the NEQ predicate on the "layaway_enabled" field.
+func LayawayEnabledNEQ(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNEQ(FieldLayawayEnabled, v))
+}
+
+// LayawayEnabledIsNil applies the IsNil predicate on the "layaway_enabled" field.
+func LayawayEnabledIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldLayawayEnabled))
+}
+
+// LayawayEnabledNotNil applies the NotNil predicate on the "layaway_enabled" field.
+func LayawayEnabledNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldLayawayEnabled))
+}
+
+// ShiftReportsEnabledEQ applies the EQ predicate on the "shift_reports_enabled" field.
+func ShiftReportsEnabledEQ(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldShiftReportsEnabled, v))
+}
+
+// ShiftReportsEnabledNEQ applies the NEQ predicate on the "shift_reports_enabled" field.
+func ShiftReportsEnabledNEQ(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNEQ(FieldShiftReportsEnabled, v))
+}
+
+// ShiftReportsEnabledIsNil applies the IsNil predicate on the "shift_reports_enabled" field.
+func ShiftReportsEnabledIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldShiftReportsEnabled))
+}
+
+// ShiftReportsEnabledNotNil applies the NotNil predicate on the "shift_reports_enabled" field.
+func ShiftReportsEnabledNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldShiftReportsEnabled))
 }
 
 // UpdatedAtEQ applies the EQ predicate on the "updated_at" field.

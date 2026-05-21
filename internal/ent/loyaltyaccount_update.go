@@ -153,6 +153,26 @@ func (_u *LoyaltyAccountUpdate) ClearProgramID() *LoyaltyAccountUpdate {
 	return _u
 }
 
+// SetCrmContactID sets the "crm_contact_id" field.
+func (_u *LoyaltyAccountUpdate) SetCrmContactID(v uuid.UUID) *LoyaltyAccountUpdate {
+	_u.mutation.SetCrmContactID(v)
+	return _u
+}
+
+// SetNillableCrmContactID sets the "crm_contact_id" field if the given value is not nil.
+func (_u *LoyaltyAccountUpdate) SetNillableCrmContactID(v *uuid.UUID) *LoyaltyAccountUpdate {
+	if v != nil {
+		_u.SetCrmContactID(*v)
+	}
+	return _u
+}
+
+// ClearCrmContactID clears the value of the "crm_contact_id" field.
+func (_u *LoyaltyAccountUpdate) ClearCrmContactID() *LoyaltyAccountUpdate {
+	_u.mutation.ClearCrmContactID()
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *LoyaltyAccountUpdate) SetUpdatedAt(v time.Time) *LoyaltyAccountUpdate {
 	_u.mutation.SetUpdatedAt(v)
@@ -259,6 +279,12 @@ func (_u *LoyaltyAccountUpdate) sqlSave(ctx context.Context) (_node int, err err
 	}
 	if _u.mutation.ProgramIDCleared() {
 		_spec.ClearField(loyaltyaccount.FieldProgramID, field.TypeUUID)
+	}
+	if value, ok := _u.mutation.CrmContactID(); ok {
+		_spec.SetField(loyaltyaccount.FieldCrmContactID, field.TypeUUID, value)
+	}
+	if _u.mutation.CrmContactIDCleared() {
+		_spec.ClearField(loyaltyaccount.FieldCrmContactID, field.TypeUUID)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(loyaltyaccount.FieldUpdatedAt, field.TypeTime, value)
@@ -407,6 +433,26 @@ func (_u *LoyaltyAccountUpdateOne) ClearProgramID() *LoyaltyAccountUpdateOne {
 	return _u
 }
 
+// SetCrmContactID sets the "crm_contact_id" field.
+func (_u *LoyaltyAccountUpdateOne) SetCrmContactID(v uuid.UUID) *LoyaltyAccountUpdateOne {
+	_u.mutation.SetCrmContactID(v)
+	return _u
+}
+
+// SetNillableCrmContactID sets the "crm_contact_id" field if the given value is not nil.
+func (_u *LoyaltyAccountUpdateOne) SetNillableCrmContactID(v *uuid.UUID) *LoyaltyAccountUpdateOne {
+	if v != nil {
+		_u.SetCrmContactID(*v)
+	}
+	return _u
+}
+
+// ClearCrmContactID clears the value of the "crm_contact_id" field.
+func (_u *LoyaltyAccountUpdateOne) ClearCrmContactID() *LoyaltyAccountUpdateOne {
+	_u.mutation.ClearCrmContactID()
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *LoyaltyAccountUpdateOne) SetUpdatedAt(v time.Time) *LoyaltyAccountUpdateOne {
 	_u.mutation.SetUpdatedAt(v)
@@ -543,6 +589,12 @@ func (_u *LoyaltyAccountUpdateOne) sqlSave(ctx context.Context) (_node *LoyaltyA
 	}
 	if _u.mutation.ProgramIDCleared() {
 		_spec.ClearField(loyaltyaccount.FieldProgramID, field.TypeUUID)
+	}
+	if value, ok := _u.mutation.CrmContactID(); ok {
+		_spec.SetField(loyaltyaccount.FieldCrmContactID, field.TypeUUID, value)
+	}
+	if _u.mutation.CrmContactIDCleared() {
+		_spec.ClearField(loyaltyaccount.FieldCrmContactID, field.TypeUUID)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(loyaltyaccount.FieldUpdatedAt, field.TypeTime, value)

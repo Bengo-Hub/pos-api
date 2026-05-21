@@ -28,6 +28,8 @@ const (
 	FieldLifetimePoints = "lifetime_points"
 	// FieldProgramID holds the string denoting the program_id field in the database.
 	FieldProgramID = "program_id"
+	// FieldCrmContactID holds the string denoting the crm_contact_id field in the database.
+	FieldCrmContactID = "crm_contact_id"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
@@ -46,6 +48,7 @@ var Columns = []string{
 	FieldPointsBalance,
 	FieldLifetimePoints,
 	FieldProgramID,
+	FieldCrmContactID,
 	FieldCreatedAt,
 	FieldUpdatedAt,
 }
@@ -120,6 +123,11 @@ func ByLifetimePoints(opts ...sql.OrderTermOption) OrderOption {
 // ByProgramID orders the results by the program_id field.
 func ByProgramID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldProgramID, opts...).ToFunc()
+}
+
+// ByCrmContactID orders the results by the crm_contact_id field.
+func ByCrmContactID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCrmContactID, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.

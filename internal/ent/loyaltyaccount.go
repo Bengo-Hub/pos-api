@@ -32,6 +32,8 @@ type LoyaltyAccount struct {
 	LifetimePoints int `json:"lifetime_points,omitempty"`
 	// ProgramID holds the value of the "program_id" field.
 	ProgramID *uuid.UUID `json:"program_id,omitempty"`
+	// MarketFlow CRM contact reference — never duplicate contact data here
+	CrmContactID *uuid.UUID `json:"crm_contact_id,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
@@ -44,7 +46,7 @@ func (*LoyaltyAccount) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case loyaltyaccount.FieldCustomerID, loyaltyaccount.FieldProgramID:
+		case loyaltyaccount.FieldCustomerID, loyaltyaccount.FieldProgramID, loyaltyaccount.FieldCrmContactID:
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		case loyaltyaccount.FieldPointsBalance, loyaltyaccount.FieldLifetimePoints:
 			values[i] = new(sql.NullInt64)
@@ -119,6 +121,13 @@ func (_m *LoyaltyAccount) assignValues(columns []string, values []any) error {
 				_m.ProgramID = new(uuid.UUID)
 				*_m.ProgramID = *value.S.(*uuid.UUID)
 			}
+		case loyaltyaccount.FieldCrmContactID:
+			if value, ok := values[i].(*sql.NullScanner); !ok {
+				return fmt.Errorf("unexpected type %T for field crm_contact_id", values[i])
+			} else if value.Valid {
+				_m.CrmContactID = new(uuid.UUID)
+				*_m.CrmContactID = *value.S.(*uuid.UUID)
+			}
 		case loyaltyaccount.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field created_at", values[i])
@@ -189,6 +198,11 @@ func (_m *LoyaltyAccount) String() string {
 	builder.WriteString(", ")
 	if v := _m.ProgramID; v != nil {
 		builder.WriteString("program_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.CrmContactID; v != nil {
+		builder.WriteString("crm_contact_id=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
 	builder.WriteString(", ")

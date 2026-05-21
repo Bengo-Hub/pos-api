@@ -31,6 +31,7 @@ func (Appointment) Fields() []ent.Field {
 		field.Enum("status").Values("scheduled", "confirmed", "in_progress", "completed", "cancelled", "no_show").Default("scheduled"),
 		field.Text("notes").Optional(),
 		field.UUID("pos_order_id", uuid.UUID{}).Optional().Nillable().Comment("Linked POS order for payment"),
+		field.UUID("crm_contact_id", uuid.UUID{}).Optional().Nillable().Comment("MarketFlow CRM contact reference — never duplicate contact data here"),
 		field.Time("created_at").Default(time.Now).Immutable(),
 		field.Time("updated_at").Default(time.Now).UpdateDefault(time.Now),
 	}

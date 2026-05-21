@@ -43,6 +43,32 @@ const (
 	FieldEnableKds = "enable_kds"
 	// FieldEnableAppointments holds the string denoting the enable_appointments field in the database.
 	FieldEnableAppointments = "enable_appointments"
+	// FieldReceiptHeader holds the string denoting the receipt_header field in the database.
+	FieldReceiptHeader = "receipt_header"
+	// FieldReceiptFooter holds the string denoting the receipt_footer field in the database.
+	FieldReceiptFooter = "receipt_footer"
+	// FieldCurrency holds the string denoting the currency field in the database.
+	FieldCurrency = "currency"
+	// FieldVatEnabled holds the string denoting the vat_enabled field in the database.
+	FieldVatEnabled = "vat_enabled"
+	// FieldVatRate holds the string denoting the vat_rate field in the database.
+	FieldVatRate = "vat_rate"
+	// FieldPrinterType holds the string denoting the printer_type field in the database.
+	FieldPrinterType = "printer_type"
+	// FieldPrinterIP holds the string denoting the printer_ip field in the database.
+	FieldPrinterIP = "printer_ip"
+	// FieldPaperWidth holds the string denoting the paper_width field in the database.
+	FieldPaperWidth = "paper_width"
+	// FieldAutoPrintOrder holds the string denoting the auto_print_order field in the database.
+	FieldAutoPrintOrder = "auto_print_order"
+	// FieldAutoPrintKitchen holds the string denoting the auto_print_kitchen field in the database.
+	FieldAutoPrintKitchen = "auto_print_kitchen"
+	// FieldHotelModuleEnabled holds the string denoting the hotel_module_enabled field in the database.
+	FieldHotelModuleEnabled = "hotel_module_enabled"
+	// FieldLayawayEnabled holds the string denoting the layaway_enabled field in the database.
+	FieldLayawayEnabled = "layaway_enabled"
+	// FieldShiftReportsEnabled holds the string denoting the shift_reports_enabled field in the database.
+	FieldShiftReportsEnabled = "shift_reports_enabled"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
 	FieldUpdatedAt = "updated_at"
 	// EdgeOutlet holds the string denoting the outlet edge name in mutations.
@@ -75,6 +101,19 @@ var Columns = []string{
 	FieldDefaultView,
 	FieldEnableKds,
 	FieldEnableAppointments,
+	FieldReceiptHeader,
+	FieldReceiptFooter,
+	FieldCurrency,
+	FieldVatEnabled,
+	FieldVatRate,
+	FieldPrinterType,
+	FieldPrinterIP,
+	FieldPaperWidth,
+	FieldAutoPrintOrder,
+	FieldAutoPrintKitchen,
+	FieldHotelModuleEnabled,
+	FieldLayawayEnabled,
+	FieldShiftReportsEnabled,
 	FieldUpdatedAt,
 }
 
@@ -103,6 +142,26 @@ var (
 	DefaultEnableKds bool
 	// DefaultEnableAppointments holds the default value on creation for the "enable_appointments" field.
 	DefaultEnableAppointments bool
+	// DefaultCurrency holds the default value on creation for the "currency" field.
+	DefaultCurrency string
+	// DefaultVatEnabled holds the default value on creation for the "vat_enabled" field.
+	DefaultVatEnabled bool
+	// DefaultVatRate holds the default value on creation for the "vat_rate" field.
+	DefaultVatRate float64
+	// DefaultPrinterType holds the default value on creation for the "printer_type" field.
+	DefaultPrinterType string
+	// DefaultPaperWidth holds the default value on creation for the "paper_width" field.
+	DefaultPaperWidth string
+	// DefaultAutoPrintOrder holds the default value on creation for the "auto_print_order" field.
+	DefaultAutoPrintOrder bool
+	// DefaultAutoPrintKitchen holds the default value on creation for the "auto_print_kitchen" field.
+	DefaultAutoPrintKitchen bool
+	// DefaultHotelModuleEnabled holds the default value on creation for the "hotel_module_enabled" field.
+	DefaultHotelModuleEnabled bool
+	// DefaultLayawayEnabled holds the default value on creation for the "layaway_enabled" field.
+	DefaultLayawayEnabled bool
+	// DefaultShiftReportsEnabled holds the default value on creation for the "shift_reports_enabled" field.
+	DefaultShiftReportsEnabled bool
 	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
 	DefaultUpdatedAt func() time.Time
 	// UpdateDefaultUpdatedAt holds the default value on update for the "updated_at" field.
@@ -162,6 +221,71 @@ func ByEnableKds(opts ...sql.OrderTermOption) OrderOption {
 // ByEnableAppointments orders the results by the enable_appointments field.
 func ByEnableAppointments(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldEnableAppointments, opts...).ToFunc()
+}
+
+// ByReceiptHeader orders the results by the receipt_header field.
+func ByReceiptHeader(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldReceiptHeader, opts...).ToFunc()
+}
+
+// ByReceiptFooter orders the results by the receipt_footer field.
+func ByReceiptFooter(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldReceiptFooter, opts...).ToFunc()
+}
+
+// ByCurrency orders the results by the currency field.
+func ByCurrency(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCurrency, opts...).ToFunc()
+}
+
+// ByVatEnabled orders the results by the vat_enabled field.
+func ByVatEnabled(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldVatEnabled, opts...).ToFunc()
+}
+
+// ByVatRate orders the results by the vat_rate field.
+func ByVatRate(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldVatRate, opts...).ToFunc()
+}
+
+// ByPrinterType orders the results by the printer_type field.
+func ByPrinterType(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPrinterType, opts...).ToFunc()
+}
+
+// ByPrinterIP orders the results by the printer_ip field.
+func ByPrinterIP(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPrinterIP, opts...).ToFunc()
+}
+
+// ByPaperWidth orders the results by the paper_width field.
+func ByPaperWidth(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPaperWidth, opts...).ToFunc()
+}
+
+// ByAutoPrintOrder orders the results by the auto_print_order field.
+func ByAutoPrintOrder(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAutoPrintOrder, opts...).ToFunc()
+}
+
+// ByAutoPrintKitchen orders the results by the auto_print_kitchen field.
+func ByAutoPrintKitchen(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAutoPrintKitchen, opts...).ToFunc()
+}
+
+// ByHotelModuleEnabled orders the results by the hotel_module_enabled field.
+func ByHotelModuleEnabled(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldHotelModuleEnabled, opts...).ToFunc()
+}
+
+// ByLayawayEnabled orders the results by the layaway_enabled field.
+func ByLayawayEnabled(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLayawayEnabled, opts...).ToFunc()
+}
+
+// ByShiftReportsEnabled orders the results by the shift_reports_enabled field.
+func ByShiftReportsEnabled(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldShiftReportsEnabled, opts...).ToFunc()
 }
 
 // ByUpdatedAt orders the results by the updated_at field.

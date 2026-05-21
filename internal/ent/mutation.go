@@ -196,6 +196,7 @@ type AppointmentMutation struct {
 	status          *appointment.Status
 	notes           *string
 	pos_order_id    *uuid.UUID
+	crm_contact_id  *uuid.UUID
 	created_at      *time.Time
 	updated_at      *time.Time
 	clearedFields   map[string]struct{}
@@ -854,6 +855,55 @@ func (m *AppointmentMutation) ResetPosOrderID() {
 	delete(m.clearedFields, appointment.FieldPosOrderID)
 }
 
+// SetCrmContactID sets the "crm_contact_id" field.
+func (m *AppointmentMutation) SetCrmContactID(u uuid.UUID) {
+	m.crm_contact_id = &u
+}
+
+// CrmContactID returns the value of the "crm_contact_id" field in the mutation.
+func (m *AppointmentMutation) CrmContactID() (r uuid.UUID, exists bool) {
+	v := m.crm_contact_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCrmContactID returns the old "crm_contact_id" field's value of the Appointment entity.
+// If the Appointment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AppointmentMutation) OldCrmContactID(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCrmContactID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCrmContactID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCrmContactID: %w", err)
+	}
+	return oldValue.CrmContactID, nil
+}
+
+// ClearCrmContactID clears the value of the "crm_contact_id" field.
+func (m *AppointmentMutation) ClearCrmContactID() {
+	m.crm_contact_id = nil
+	m.clearedFields[appointment.FieldCrmContactID] = struct{}{}
+}
+
+// CrmContactIDCleared returns if the "crm_contact_id" field was cleared in this mutation.
+func (m *AppointmentMutation) CrmContactIDCleared() bool {
+	_, ok := m.clearedFields[appointment.FieldCrmContactID]
+	return ok
+}
+
+// ResetCrmContactID resets all changes to the "crm_contact_id" field.
+func (m *AppointmentMutation) ResetCrmContactID() {
+	m.crm_contact_id = nil
+	delete(m.clearedFields, appointment.FieldCrmContactID)
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (m *AppointmentMutation) SetCreatedAt(t time.Time) {
 	m.created_at = &t
@@ -960,7 +1010,7 @@ func (m *AppointmentMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *AppointmentMutation) Fields() []string {
-	fields := make([]string, 0, 15)
+	fields := make([]string, 0, 16)
 	if m.tenant_id != nil {
 		fields = append(fields, appointment.FieldTenantID)
 	}
@@ -999,6 +1049,9 @@ func (m *AppointmentMutation) Fields() []string {
 	}
 	if m.pos_order_id != nil {
 		fields = append(fields, appointment.FieldPosOrderID)
+	}
+	if m.crm_contact_id != nil {
+		fields = append(fields, appointment.FieldCrmContactID)
 	}
 	if m.created_at != nil {
 		fields = append(fields, appointment.FieldCreatedAt)
@@ -1040,6 +1093,8 @@ func (m *AppointmentMutation) Field(name string) (ent.Value, bool) {
 		return m.Notes()
 	case appointment.FieldPosOrderID:
 		return m.PosOrderID()
+	case appointment.FieldCrmContactID:
+		return m.CrmContactID()
 	case appointment.FieldCreatedAt:
 		return m.CreatedAt()
 	case appointment.FieldUpdatedAt:
@@ -1079,6 +1134,8 @@ func (m *AppointmentMutation) OldField(ctx context.Context, name string) (ent.Va
 		return m.OldNotes(ctx)
 	case appointment.FieldPosOrderID:
 		return m.OldPosOrderID(ctx)
+	case appointment.FieldCrmContactID:
+		return m.OldCrmContactID(ctx)
 	case appointment.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	case appointment.FieldUpdatedAt:
@@ -1183,6 +1240,13 @@ func (m *AppointmentMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetPosOrderID(v)
 		return nil
+	case appointment.FieldCrmContactID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCrmContactID(v)
+		return nil
 	case appointment.FieldCreatedAt:
 		v, ok := value.(time.Time)
 		if !ok {
@@ -1245,6 +1309,9 @@ func (m *AppointmentMutation) ClearedFields() []string {
 	if m.FieldCleared(appointment.FieldPosOrderID) {
 		fields = append(fields, appointment.FieldPosOrderID)
 	}
+	if m.FieldCleared(appointment.FieldCrmContactID) {
+		fields = append(fields, appointment.FieldCrmContactID)
+	}
 	return fields
 }
 
@@ -1276,6 +1343,9 @@ func (m *AppointmentMutation) ClearField(name string) error {
 		return nil
 	case appointment.FieldPosOrderID:
 		m.ClearPosOrderID()
+		return nil
+	case appointment.FieldCrmContactID:
+		m.ClearCrmContactID()
 		return nil
 	}
 	return fmt.Errorf("unknown Appointment nullable field %s", name)
@@ -1323,6 +1393,9 @@ func (m *AppointmentMutation) ResetField(name string) error {
 		return nil
 	case appointment.FieldPosOrderID:
 		m.ResetPosOrderID()
+		return nil
+	case appointment.FieldCrmContactID:
+		m.ResetCrmContactID()
 		return nil
 	case appointment.FieldCreatedAt:
 		m.ResetCreatedAt()
@@ -20601,6 +20674,7 @@ type LoyaltyAccountMutation struct {
 	lifetime_points    *int
 	addlifetime_points *int
 	program_id         *uuid.UUID
+	crm_contact_id     *uuid.UUID
 	created_at         *time.Time
 	updated_at         *time.Time
 	clearedFields      map[string]struct{}
@@ -21031,6 +21105,55 @@ func (m *LoyaltyAccountMutation) ResetProgramID() {
 	delete(m.clearedFields, loyaltyaccount.FieldProgramID)
 }
 
+// SetCrmContactID sets the "crm_contact_id" field.
+func (m *LoyaltyAccountMutation) SetCrmContactID(u uuid.UUID) {
+	m.crm_contact_id = &u
+}
+
+// CrmContactID returns the value of the "crm_contact_id" field in the mutation.
+func (m *LoyaltyAccountMutation) CrmContactID() (r uuid.UUID, exists bool) {
+	v := m.crm_contact_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCrmContactID returns the old "crm_contact_id" field's value of the LoyaltyAccount entity.
+// If the LoyaltyAccount object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LoyaltyAccountMutation) OldCrmContactID(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCrmContactID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCrmContactID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCrmContactID: %w", err)
+	}
+	return oldValue.CrmContactID, nil
+}
+
+// ClearCrmContactID clears the value of the "crm_contact_id" field.
+func (m *LoyaltyAccountMutation) ClearCrmContactID() {
+	m.crm_contact_id = nil
+	m.clearedFields[loyaltyaccount.FieldCrmContactID] = struct{}{}
+}
+
+// CrmContactIDCleared returns if the "crm_contact_id" field was cleared in this mutation.
+func (m *LoyaltyAccountMutation) CrmContactIDCleared() bool {
+	_, ok := m.clearedFields[loyaltyaccount.FieldCrmContactID]
+	return ok
+}
+
+// ResetCrmContactID resets all changes to the "crm_contact_id" field.
+func (m *LoyaltyAccountMutation) ResetCrmContactID() {
+	m.crm_contact_id = nil
+	delete(m.clearedFields, loyaltyaccount.FieldCrmContactID)
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (m *LoyaltyAccountMutation) SetCreatedAt(t time.Time) {
 	m.created_at = &t
@@ -21137,7 +21260,7 @@ func (m *LoyaltyAccountMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *LoyaltyAccountMutation) Fields() []string {
-	fields := make([]string, 0, 9)
+	fields := make([]string, 0, 10)
 	if m.tenant_id != nil {
 		fields = append(fields, loyaltyaccount.FieldTenantID)
 	}
@@ -21158,6 +21281,9 @@ func (m *LoyaltyAccountMutation) Fields() []string {
 	}
 	if m.program_id != nil {
 		fields = append(fields, loyaltyaccount.FieldProgramID)
+	}
+	if m.crm_contact_id != nil {
+		fields = append(fields, loyaltyaccount.FieldCrmContactID)
 	}
 	if m.created_at != nil {
 		fields = append(fields, loyaltyaccount.FieldCreatedAt)
@@ -21187,6 +21313,8 @@ func (m *LoyaltyAccountMutation) Field(name string) (ent.Value, bool) {
 		return m.LifetimePoints()
 	case loyaltyaccount.FieldProgramID:
 		return m.ProgramID()
+	case loyaltyaccount.FieldCrmContactID:
+		return m.CrmContactID()
 	case loyaltyaccount.FieldCreatedAt:
 		return m.CreatedAt()
 	case loyaltyaccount.FieldUpdatedAt:
@@ -21214,6 +21342,8 @@ func (m *LoyaltyAccountMutation) OldField(ctx context.Context, name string) (ent
 		return m.OldLifetimePoints(ctx)
 	case loyaltyaccount.FieldProgramID:
 		return m.OldProgramID(ctx)
+	case loyaltyaccount.FieldCrmContactID:
+		return m.OldCrmContactID(ctx)
 	case loyaltyaccount.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	case loyaltyaccount.FieldUpdatedAt:
@@ -21275,6 +21405,13 @@ func (m *LoyaltyAccountMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetProgramID(v)
+		return nil
+	case loyaltyaccount.FieldCrmContactID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCrmContactID(v)
 		return nil
 	case loyaltyaccount.FieldCreatedAt:
 		v, ok := value.(time.Time)
@@ -21353,6 +21490,9 @@ func (m *LoyaltyAccountMutation) ClearedFields() []string {
 	if m.FieldCleared(loyaltyaccount.FieldProgramID) {
 		fields = append(fields, loyaltyaccount.FieldProgramID)
 	}
+	if m.FieldCleared(loyaltyaccount.FieldCrmContactID) {
+		fields = append(fields, loyaltyaccount.FieldCrmContactID)
+	}
 	return fields
 }
 
@@ -21372,6 +21512,9 @@ func (m *LoyaltyAccountMutation) ClearField(name string) error {
 		return nil
 	case loyaltyaccount.FieldProgramID:
 		m.ClearProgramID()
+		return nil
+	case loyaltyaccount.FieldCrmContactID:
+		m.ClearCrmContactID()
 		return nil
 	}
 	return fmt.Errorf("unknown LoyaltyAccount nullable field %s", name)
@@ -21401,6 +21544,9 @@ func (m *LoyaltyAccountMutation) ResetField(name string) error {
 		return nil
 	case loyaltyaccount.FieldProgramID:
 		m.ResetProgramID()
+		return nil
+	case loyaltyaccount.FieldCrmContactID:
+		m.ResetCrmContactID()
 		return nil
 	case loyaltyaccount.FieldCreatedAt:
 		m.ResetCreatedAt()
@@ -27684,29 +27830,43 @@ func (m *OutletMutation) ResetEdge(name string) error {
 // OutletSettingMutation represents an operation that mutates the OutletSetting nodes in the graph.
 type OutletSettingMutation struct {
 	config
-	op                   Op
-	typ                  string
-	id                   *uuid.UUID
-	receipts_json        *map[string]interface{}
-	tax_config_json      *map[string]interface{}
-	service_charge_json  *map[string]interface{}
-	opening_hours_json   *map[string]interface{}
-	metadata             *map[string]interface{}
-	pin_login_message    *string
-	screensaver_url      *string
-	display_mode         *string
-	show_images          *bool
-	show_barcode_scanner *bool
-	default_view         *string
-	enable_kds           *bool
-	enable_appointments  *bool
-	updated_at           *time.Time
-	clearedFields        map[string]struct{}
-	outlet               *uuid.UUID
-	clearedoutlet        bool
-	done                 bool
-	oldValue             func(context.Context) (*OutletSetting, error)
-	predicates           []predicate.OutletSetting
+	op                    Op
+	typ                   string
+	id                    *uuid.UUID
+	receipts_json         *map[string]interface{}
+	tax_config_json       *map[string]interface{}
+	service_charge_json   *map[string]interface{}
+	opening_hours_json    *map[string]interface{}
+	metadata              *map[string]interface{}
+	pin_login_message     *string
+	screensaver_url       *string
+	display_mode          *string
+	show_images           *bool
+	show_barcode_scanner  *bool
+	default_view          *string
+	enable_kds            *bool
+	enable_appointments   *bool
+	receipt_header        *string
+	receipt_footer        *string
+	currency              *string
+	vat_enabled           *bool
+	vat_rate              *float64
+	addvat_rate           *float64
+	printer_type          *string
+	printer_ip            *string
+	paper_width           *string
+	auto_print_order      *bool
+	auto_print_kitchen    *bool
+	hotel_module_enabled  *bool
+	layaway_enabled       *bool
+	shift_reports_enabled *bool
+	updated_at            *time.Time
+	clearedFields         map[string]struct{}
+	outlet                *uuid.UUID
+	clearedoutlet         bool
+	done                  bool
+	oldValue              func(context.Context) (*OutletSetting, error)
+	predicates            []predicate.OutletSetting
 }
 
 var _ ent.Mutation = (*OutletSettingMutation)(nil)
@@ -28473,6 +28633,664 @@ func (m *OutletSettingMutation) ResetEnableAppointments() {
 	delete(m.clearedFields, outletsetting.FieldEnableAppointments)
 }
 
+// SetReceiptHeader sets the "receipt_header" field.
+func (m *OutletSettingMutation) SetReceiptHeader(s string) {
+	m.receipt_header = &s
+}
+
+// ReceiptHeader returns the value of the "receipt_header" field in the mutation.
+func (m *OutletSettingMutation) ReceiptHeader() (r string, exists bool) {
+	v := m.receipt_header
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReceiptHeader returns the old "receipt_header" field's value of the OutletSetting entity.
+// If the OutletSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OutletSettingMutation) OldReceiptHeader(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReceiptHeader is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReceiptHeader requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReceiptHeader: %w", err)
+	}
+	return oldValue.ReceiptHeader, nil
+}
+
+// ClearReceiptHeader clears the value of the "receipt_header" field.
+func (m *OutletSettingMutation) ClearReceiptHeader() {
+	m.receipt_header = nil
+	m.clearedFields[outletsetting.FieldReceiptHeader] = struct{}{}
+}
+
+// ReceiptHeaderCleared returns if the "receipt_header" field was cleared in this mutation.
+func (m *OutletSettingMutation) ReceiptHeaderCleared() bool {
+	_, ok := m.clearedFields[outletsetting.FieldReceiptHeader]
+	return ok
+}
+
+// ResetReceiptHeader resets all changes to the "receipt_header" field.
+func (m *OutletSettingMutation) ResetReceiptHeader() {
+	m.receipt_header = nil
+	delete(m.clearedFields, outletsetting.FieldReceiptHeader)
+}
+
+// SetReceiptFooter sets the "receipt_footer" field.
+func (m *OutletSettingMutation) SetReceiptFooter(s string) {
+	m.receipt_footer = &s
+}
+
+// ReceiptFooter returns the value of the "receipt_footer" field in the mutation.
+func (m *OutletSettingMutation) ReceiptFooter() (r string, exists bool) {
+	v := m.receipt_footer
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReceiptFooter returns the old "receipt_footer" field's value of the OutletSetting entity.
+// If the OutletSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OutletSettingMutation) OldReceiptFooter(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReceiptFooter is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReceiptFooter requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReceiptFooter: %w", err)
+	}
+	return oldValue.ReceiptFooter, nil
+}
+
+// ClearReceiptFooter clears the value of the "receipt_footer" field.
+func (m *OutletSettingMutation) ClearReceiptFooter() {
+	m.receipt_footer = nil
+	m.clearedFields[outletsetting.FieldReceiptFooter] = struct{}{}
+}
+
+// ReceiptFooterCleared returns if the "receipt_footer" field was cleared in this mutation.
+func (m *OutletSettingMutation) ReceiptFooterCleared() bool {
+	_, ok := m.clearedFields[outletsetting.FieldReceiptFooter]
+	return ok
+}
+
+// ResetReceiptFooter resets all changes to the "receipt_footer" field.
+func (m *OutletSettingMutation) ResetReceiptFooter() {
+	m.receipt_footer = nil
+	delete(m.clearedFields, outletsetting.FieldReceiptFooter)
+}
+
+// SetCurrency sets the "currency" field.
+func (m *OutletSettingMutation) SetCurrency(s string) {
+	m.currency = &s
+}
+
+// Currency returns the value of the "currency" field in the mutation.
+func (m *OutletSettingMutation) Currency() (r string, exists bool) {
+	v := m.currency
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCurrency returns the old "currency" field's value of the OutletSetting entity.
+// If the OutletSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OutletSettingMutation) OldCurrency(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCurrency is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCurrency requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCurrency: %w", err)
+	}
+	return oldValue.Currency, nil
+}
+
+// ClearCurrency clears the value of the "currency" field.
+func (m *OutletSettingMutation) ClearCurrency() {
+	m.currency = nil
+	m.clearedFields[outletsetting.FieldCurrency] = struct{}{}
+}
+
+// CurrencyCleared returns if the "currency" field was cleared in this mutation.
+func (m *OutletSettingMutation) CurrencyCleared() bool {
+	_, ok := m.clearedFields[outletsetting.FieldCurrency]
+	return ok
+}
+
+// ResetCurrency resets all changes to the "currency" field.
+func (m *OutletSettingMutation) ResetCurrency() {
+	m.currency = nil
+	delete(m.clearedFields, outletsetting.FieldCurrency)
+}
+
+// SetVatEnabled sets the "vat_enabled" field.
+func (m *OutletSettingMutation) SetVatEnabled(b bool) {
+	m.vat_enabled = &b
+}
+
+// VatEnabled returns the value of the "vat_enabled" field in the mutation.
+func (m *OutletSettingMutation) VatEnabled() (r bool, exists bool) {
+	v := m.vat_enabled
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldVatEnabled returns the old "vat_enabled" field's value of the OutletSetting entity.
+// If the OutletSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OutletSettingMutation) OldVatEnabled(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldVatEnabled is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldVatEnabled requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldVatEnabled: %w", err)
+	}
+	return oldValue.VatEnabled, nil
+}
+
+// ClearVatEnabled clears the value of the "vat_enabled" field.
+func (m *OutletSettingMutation) ClearVatEnabled() {
+	m.vat_enabled = nil
+	m.clearedFields[outletsetting.FieldVatEnabled] = struct{}{}
+}
+
+// VatEnabledCleared returns if the "vat_enabled" field was cleared in this mutation.
+func (m *OutletSettingMutation) VatEnabledCleared() bool {
+	_, ok := m.clearedFields[outletsetting.FieldVatEnabled]
+	return ok
+}
+
+// ResetVatEnabled resets all changes to the "vat_enabled" field.
+func (m *OutletSettingMutation) ResetVatEnabled() {
+	m.vat_enabled = nil
+	delete(m.clearedFields, outletsetting.FieldVatEnabled)
+}
+
+// SetVatRate sets the "vat_rate" field.
+func (m *OutletSettingMutation) SetVatRate(f float64) {
+	m.vat_rate = &f
+	m.addvat_rate = nil
+}
+
+// VatRate returns the value of the "vat_rate" field in the mutation.
+func (m *OutletSettingMutation) VatRate() (r float64, exists bool) {
+	v := m.vat_rate
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldVatRate returns the old "vat_rate" field's value of the OutletSetting entity.
+// If the OutletSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OutletSettingMutation) OldVatRate(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldVatRate is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldVatRate requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldVatRate: %w", err)
+	}
+	return oldValue.VatRate, nil
+}
+
+// AddVatRate adds f to the "vat_rate" field.
+func (m *OutletSettingMutation) AddVatRate(f float64) {
+	if m.addvat_rate != nil {
+		*m.addvat_rate += f
+	} else {
+		m.addvat_rate = &f
+	}
+}
+
+// AddedVatRate returns the value that was added to the "vat_rate" field in this mutation.
+func (m *OutletSettingMutation) AddedVatRate() (r float64, exists bool) {
+	v := m.addvat_rate
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearVatRate clears the value of the "vat_rate" field.
+func (m *OutletSettingMutation) ClearVatRate() {
+	m.vat_rate = nil
+	m.addvat_rate = nil
+	m.clearedFields[outletsetting.FieldVatRate] = struct{}{}
+}
+
+// VatRateCleared returns if the "vat_rate" field was cleared in this mutation.
+func (m *OutletSettingMutation) VatRateCleared() bool {
+	_, ok := m.clearedFields[outletsetting.FieldVatRate]
+	return ok
+}
+
+// ResetVatRate resets all changes to the "vat_rate" field.
+func (m *OutletSettingMutation) ResetVatRate() {
+	m.vat_rate = nil
+	m.addvat_rate = nil
+	delete(m.clearedFields, outletsetting.FieldVatRate)
+}
+
+// SetPrinterType sets the "printer_type" field.
+func (m *OutletSettingMutation) SetPrinterType(s string) {
+	m.printer_type = &s
+}
+
+// PrinterType returns the value of the "printer_type" field in the mutation.
+func (m *OutletSettingMutation) PrinterType() (r string, exists bool) {
+	v := m.printer_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPrinterType returns the old "printer_type" field's value of the OutletSetting entity.
+// If the OutletSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OutletSettingMutation) OldPrinterType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPrinterType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPrinterType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPrinterType: %w", err)
+	}
+	return oldValue.PrinterType, nil
+}
+
+// ClearPrinterType clears the value of the "printer_type" field.
+func (m *OutletSettingMutation) ClearPrinterType() {
+	m.printer_type = nil
+	m.clearedFields[outletsetting.FieldPrinterType] = struct{}{}
+}
+
+// PrinterTypeCleared returns if the "printer_type" field was cleared in this mutation.
+func (m *OutletSettingMutation) PrinterTypeCleared() bool {
+	_, ok := m.clearedFields[outletsetting.FieldPrinterType]
+	return ok
+}
+
+// ResetPrinterType resets all changes to the "printer_type" field.
+func (m *OutletSettingMutation) ResetPrinterType() {
+	m.printer_type = nil
+	delete(m.clearedFields, outletsetting.FieldPrinterType)
+}
+
+// SetPrinterIP sets the "printer_ip" field.
+func (m *OutletSettingMutation) SetPrinterIP(s string) {
+	m.printer_ip = &s
+}
+
+// PrinterIP returns the value of the "printer_ip" field in the mutation.
+func (m *OutletSettingMutation) PrinterIP() (r string, exists bool) {
+	v := m.printer_ip
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPrinterIP returns the old "printer_ip" field's value of the OutletSetting entity.
+// If the OutletSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OutletSettingMutation) OldPrinterIP(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPrinterIP is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPrinterIP requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPrinterIP: %w", err)
+	}
+	return oldValue.PrinterIP, nil
+}
+
+// ClearPrinterIP clears the value of the "printer_ip" field.
+func (m *OutletSettingMutation) ClearPrinterIP() {
+	m.printer_ip = nil
+	m.clearedFields[outletsetting.FieldPrinterIP] = struct{}{}
+}
+
+// PrinterIPCleared returns if the "printer_ip" field was cleared in this mutation.
+func (m *OutletSettingMutation) PrinterIPCleared() bool {
+	_, ok := m.clearedFields[outletsetting.FieldPrinterIP]
+	return ok
+}
+
+// ResetPrinterIP resets all changes to the "printer_ip" field.
+func (m *OutletSettingMutation) ResetPrinterIP() {
+	m.printer_ip = nil
+	delete(m.clearedFields, outletsetting.FieldPrinterIP)
+}
+
+// SetPaperWidth sets the "paper_width" field.
+func (m *OutletSettingMutation) SetPaperWidth(s string) {
+	m.paper_width = &s
+}
+
+// PaperWidth returns the value of the "paper_width" field in the mutation.
+func (m *OutletSettingMutation) PaperWidth() (r string, exists bool) {
+	v := m.paper_width
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPaperWidth returns the old "paper_width" field's value of the OutletSetting entity.
+// If the OutletSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OutletSettingMutation) OldPaperWidth(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPaperWidth is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPaperWidth requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPaperWidth: %w", err)
+	}
+	return oldValue.PaperWidth, nil
+}
+
+// ClearPaperWidth clears the value of the "paper_width" field.
+func (m *OutletSettingMutation) ClearPaperWidth() {
+	m.paper_width = nil
+	m.clearedFields[outletsetting.FieldPaperWidth] = struct{}{}
+}
+
+// PaperWidthCleared returns if the "paper_width" field was cleared in this mutation.
+func (m *OutletSettingMutation) PaperWidthCleared() bool {
+	_, ok := m.clearedFields[outletsetting.FieldPaperWidth]
+	return ok
+}
+
+// ResetPaperWidth resets all changes to the "paper_width" field.
+func (m *OutletSettingMutation) ResetPaperWidth() {
+	m.paper_width = nil
+	delete(m.clearedFields, outletsetting.FieldPaperWidth)
+}
+
+// SetAutoPrintOrder sets the "auto_print_order" field.
+func (m *OutletSettingMutation) SetAutoPrintOrder(b bool) {
+	m.auto_print_order = &b
+}
+
+// AutoPrintOrder returns the value of the "auto_print_order" field in the mutation.
+func (m *OutletSettingMutation) AutoPrintOrder() (r bool, exists bool) {
+	v := m.auto_print_order
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAutoPrintOrder returns the old "auto_print_order" field's value of the OutletSetting entity.
+// If the OutletSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OutletSettingMutation) OldAutoPrintOrder(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAutoPrintOrder is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAutoPrintOrder requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAutoPrintOrder: %w", err)
+	}
+	return oldValue.AutoPrintOrder, nil
+}
+
+// ClearAutoPrintOrder clears the value of the "auto_print_order" field.
+func (m *OutletSettingMutation) ClearAutoPrintOrder() {
+	m.auto_print_order = nil
+	m.clearedFields[outletsetting.FieldAutoPrintOrder] = struct{}{}
+}
+
+// AutoPrintOrderCleared returns if the "auto_print_order" field was cleared in this mutation.
+func (m *OutletSettingMutation) AutoPrintOrderCleared() bool {
+	_, ok := m.clearedFields[outletsetting.FieldAutoPrintOrder]
+	return ok
+}
+
+// ResetAutoPrintOrder resets all changes to the "auto_print_order" field.
+func (m *OutletSettingMutation) ResetAutoPrintOrder() {
+	m.auto_print_order = nil
+	delete(m.clearedFields, outletsetting.FieldAutoPrintOrder)
+}
+
+// SetAutoPrintKitchen sets the "auto_print_kitchen" field.
+func (m *OutletSettingMutation) SetAutoPrintKitchen(b bool) {
+	m.auto_print_kitchen = &b
+}
+
+// AutoPrintKitchen returns the value of the "auto_print_kitchen" field in the mutation.
+func (m *OutletSettingMutation) AutoPrintKitchen() (r bool, exists bool) {
+	v := m.auto_print_kitchen
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAutoPrintKitchen returns the old "auto_print_kitchen" field's value of the OutletSetting entity.
+// If the OutletSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OutletSettingMutation) OldAutoPrintKitchen(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAutoPrintKitchen is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAutoPrintKitchen requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAutoPrintKitchen: %w", err)
+	}
+	return oldValue.AutoPrintKitchen, nil
+}
+
+// ClearAutoPrintKitchen clears the value of the "auto_print_kitchen" field.
+func (m *OutletSettingMutation) ClearAutoPrintKitchen() {
+	m.auto_print_kitchen = nil
+	m.clearedFields[outletsetting.FieldAutoPrintKitchen] = struct{}{}
+}
+
+// AutoPrintKitchenCleared returns if the "auto_print_kitchen" field was cleared in this mutation.
+func (m *OutletSettingMutation) AutoPrintKitchenCleared() bool {
+	_, ok := m.clearedFields[outletsetting.FieldAutoPrintKitchen]
+	return ok
+}
+
+// ResetAutoPrintKitchen resets all changes to the "auto_print_kitchen" field.
+func (m *OutletSettingMutation) ResetAutoPrintKitchen() {
+	m.auto_print_kitchen = nil
+	delete(m.clearedFields, outletsetting.FieldAutoPrintKitchen)
+}
+
+// SetHotelModuleEnabled sets the "hotel_module_enabled" field.
+func (m *OutletSettingMutation) SetHotelModuleEnabled(b bool) {
+	m.hotel_module_enabled = &b
+}
+
+// HotelModuleEnabled returns the value of the "hotel_module_enabled" field in the mutation.
+func (m *OutletSettingMutation) HotelModuleEnabled() (r bool, exists bool) {
+	v := m.hotel_module_enabled
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldHotelModuleEnabled returns the old "hotel_module_enabled" field's value of the OutletSetting entity.
+// If the OutletSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OutletSettingMutation) OldHotelModuleEnabled(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldHotelModuleEnabled is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldHotelModuleEnabled requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldHotelModuleEnabled: %w", err)
+	}
+	return oldValue.HotelModuleEnabled, nil
+}
+
+// ClearHotelModuleEnabled clears the value of the "hotel_module_enabled" field.
+func (m *OutletSettingMutation) ClearHotelModuleEnabled() {
+	m.hotel_module_enabled = nil
+	m.clearedFields[outletsetting.FieldHotelModuleEnabled] = struct{}{}
+}
+
+// HotelModuleEnabledCleared returns if the "hotel_module_enabled" field was cleared in this mutation.
+func (m *OutletSettingMutation) HotelModuleEnabledCleared() bool {
+	_, ok := m.clearedFields[outletsetting.FieldHotelModuleEnabled]
+	return ok
+}
+
+// ResetHotelModuleEnabled resets all changes to the "hotel_module_enabled" field.
+func (m *OutletSettingMutation) ResetHotelModuleEnabled() {
+	m.hotel_module_enabled = nil
+	delete(m.clearedFields, outletsetting.FieldHotelModuleEnabled)
+}
+
+// SetLayawayEnabled sets the "layaway_enabled" field.
+func (m *OutletSettingMutation) SetLayawayEnabled(b bool) {
+	m.layaway_enabled = &b
+}
+
+// LayawayEnabled returns the value of the "layaway_enabled" field in the mutation.
+func (m *OutletSettingMutation) LayawayEnabled() (r bool, exists bool) {
+	v := m.layaway_enabled
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLayawayEnabled returns the old "layaway_enabled" field's value of the OutletSetting entity.
+// If the OutletSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OutletSettingMutation) OldLayawayEnabled(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLayawayEnabled is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLayawayEnabled requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLayawayEnabled: %w", err)
+	}
+	return oldValue.LayawayEnabled, nil
+}
+
+// ClearLayawayEnabled clears the value of the "layaway_enabled" field.
+func (m *OutletSettingMutation) ClearLayawayEnabled() {
+	m.layaway_enabled = nil
+	m.clearedFields[outletsetting.FieldLayawayEnabled] = struct{}{}
+}
+
+// LayawayEnabledCleared returns if the "layaway_enabled" field was cleared in this mutation.
+func (m *OutletSettingMutation) LayawayEnabledCleared() bool {
+	_, ok := m.clearedFields[outletsetting.FieldLayawayEnabled]
+	return ok
+}
+
+// ResetLayawayEnabled resets all changes to the "layaway_enabled" field.
+func (m *OutletSettingMutation) ResetLayawayEnabled() {
+	m.layaway_enabled = nil
+	delete(m.clearedFields, outletsetting.FieldLayawayEnabled)
+}
+
+// SetShiftReportsEnabled sets the "shift_reports_enabled" field.
+func (m *OutletSettingMutation) SetShiftReportsEnabled(b bool) {
+	m.shift_reports_enabled = &b
+}
+
+// ShiftReportsEnabled returns the value of the "shift_reports_enabled" field in the mutation.
+func (m *OutletSettingMutation) ShiftReportsEnabled() (r bool, exists bool) {
+	v := m.shift_reports_enabled
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldShiftReportsEnabled returns the old "shift_reports_enabled" field's value of the OutletSetting entity.
+// If the OutletSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OutletSettingMutation) OldShiftReportsEnabled(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldShiftReportsEnabled is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldShiftReportsEnabled requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldShiftReportsEnabled: %w", err)
+	}
+	return oldValue.ShiftReportsEnabled, nil
+}
+
+// ClearShiftReportsEnabled clears the value of the "shift_reports_enabled" field.
+func (m *OutletSettingMutation) ClearShiftReportsEnabled() {
+	m.shift_reports_enabled = nil
+	m.clearedFields[outletsetting.FieldShiftReportsEnabled] = struct{}{}
+}
+
+// ShiftReportsEnabledCleared returns if the "shift_reports_enabled" field was cleared in this mutation.
+func (m *OutletSettingMutation) ShiftReportsEnabledCleared() bool {
+	_, ok := m.clearedFields[outletsetting.FieldShiftReportsEnabled]
+	return ok
+}
+
+// ResetShiftReportsEnabled resets all changes to the "shift_reports_enabled" field.
+func (m *OutletSettingMutation) ResetShiftReportsEnabled() {
+	m.shift_reports_enabled = nil
+	delete(m.clearedFields, outletsetting.FieldShiftReportsEnabled)
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (m *OutletSettingMutation) SetUpdatedAt(t time.Time) {
 	m.updated_at = &t
@@ -28570,7 +29388,7 @@ func (m *OutletSettingMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *OutletSettingMutation) Fields() []string {
-	fields := make([]string, 0, 15)
+	fields := make([]string, 0, 28)
 	if m.outlet != nil {
 		fields = append(fields, outletsetting.FieldOutletID)
 	}
@@ -28613,6 +29431,45 @@ func (m *OutletSettingMutation) Fields() []string {
 	if m.enable_appointments != nil {
 		fields = append(fields, outletsetting.FieldEnableAppointments)
 	}
+	if m.receipt_header != nil {
+		fields = append(fields, outletsetting.FieldReceiptHeader)
+	}
+	if m.receipt_footer != nil {
+		fields = append(fields, outletsetting.FieldReceiptFooter)
+	}
+	if m.currency != nil {
+		fields = append(fields, outletsetting.FieldCurrency)
+	}
+	if m.vat_enabled != nil {
+		fields = append(fields, outletsetting.FieldVatEnabled)
+	}
+	if m.vat_rate != nil {
+		fields = append(fields, outletsetting.FieldVatRate)
+	}
+	if m.printer_type != nil {
+		fields = append(fields, outletsetting.FieldPrinterType)
+	}
+	if m.printer_ip != nil {
+		fields = append(fields, outletsetting.FieldPrinterIP)
+	}
+	if m.paper_width != nil {
+		fields = append(fields, outletsetting.FieldPaperWidth)
+	}
+	if m.auto_print_order != nil {
+		fields = append(fields, outletsetting.FieldAutoPrintOrder)
+	}
+	if m.auto_print_kitchen != nil {
+		fields = append(fields, outletsetting.FieldAutoPrintKitchen)
+	}
+	if m.hotel_module_enabled != nil {
+		fields = append(fields, outletsetting.FieldHotelModuleEnabled)
+	}
+	if m.layaway_enabled != nil {
+		fields = append(fields, outletsetting.FieldLayawayEnabled)
+	}
+	if m.shift_reports_enabled != nil {
+		fields = append(fields, outletsetting.FieldShiftReportsEnabled)
+	}
 	if m.updated_at != nil {
 		fields = append(fields, outletsetting.FieldUpdatedAt)
 	}
@@ -28652,6 +29509,32 @@ func (m *OutletSettingMutation) Field(name string) (ent.Value, bool) {
 		return m.EnableKds()
 	case outletsetting.FieldEnableAppointments:
 		return m.EnableAppointments()
+	case outletsetting.FieldReceiptHeader:
+		return m.ReceiptHeader()
+	case outletsetting.FieldReceiptFooter:
+		return m.ReceiptFooter()
+	case outletsetting.FieldCurrency:
+		return m.Currency()
+	case outletsetting.FieldVatEnabled:
+		return m.VatEnabled()
+	case outletsetting.FieldVatRate:
+		return m.VatRate()
+	case outletsetting.FieldPrinterType:
+		return m.PrinterType()
+	case outletsetting.FieldPrinterIP:
+		return m.PrinterIP()
+	case outletsetting.FieldPaperWidth:
+		return m.PaperWidth()
+	case outletsetting.FieldAutoPrintOrder:
+		return m.AutoPrintOrder()
+	case outletsetting.FieldAutoPrintKitchen:
+		return m.AutoPrintKitchen()
+	case outletsetting.FieldHotelModuleEnabled:
+		return m.HotelModuleEnabled()
+	case outletsetting.FieldLayawayEnabled:
+		return m.LayawayEnabled()
+	case outletsetting.FieldShiftReportsEnabled:
+		return m.ShiftReportsEnabled()
 	case outletsetting.FieldUpdatedAt:
 		return m.UpdatedAt()
 	}
@@ -28691,6 +29574,32 @@ func (m *OutletSettingMutation) OldField(ctx context.Context, name string) (ent.
 		return m.OldEnableKds(ctx)
 	case outletsetting.FieldEnableAppointments:
 		return m.OldEnableAppointments(ctx)
+	case outletsetting.FieldReceiptHeader:
+		return m.OldReceiptHeader(ctx)
+	case outletsetting.FieldReceiptFooter:
+		return m.OldReceiptFooter(ctx)
+	case outletsetting.FieldCurrency:
+		return m.OldCurrency(ctx)
+	case outletsetting.FieldVatEnabled:
+		return m.OldVatEnabled(ctx)
+	case outletsetting.FieldVatRate:
+		return m.OldVatRate(ctx)
+	case outletsetting.FieldPrinterType:
+		return m.OldPrinterType(ctx)
+	case outletsetting.FieldPrinterIP:
+		return m.OldPrinterIP(ctx)
+	case outletsetting.FieldPaperWidth:
+		return m.OldPaperWidth(ctx)
+	case outletsetting.FieldAutoPrintOrder:
+		return m.OldAutoPrintOrder(ctx)
+	case outletsetting.FieldAutoPrintKitchen:
+		return m.OldAutoPrintKitchen(ctx)
+	case outletsetting.FieldHotelModuleEnabled:
+		return m.OldHotelModuleEnabled(ctx)
+	case outletsetting.FieldLayawayEnabled:
+		return m.OldLayawayEnabled(ctx)
+	case outletsetting.FieldShiftReportsEnabled:
+		return m.OldShiftReportsEnabled(ctx)
 	case outletsetting.FieldUpdatedAt:
 		return m.OldUpdatedAt(ctx)
 	}
@@ -28800,6 +29709,97 @@ func (m *OutletSettingMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetEnableAppointments(v)
 		return nil
+	case outletsetting.FieldReceiptHeader:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReceiptHeader(v)
+		return nil
+	case outletsetting.FieldReceiptFooter:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReceiptFooter(v)
+		return nil
+	case outletsetting.FieldCurrency:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCurrency(v)
+		return nil
+	case outletsetting.FieldVatEnabled:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetVatEnabled(v)
+		return nil
+	case outletsetting.FieldVatRate:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetVatRate(v)
+		return nil
+	case outletsetting.FieldPrinterType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPrinterType(v)
+		return nil
+	case outletsetting.FieldPrinterIP:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPrinterIP(v)
+		return nil
+	case outletsetting.FieldPaperWidth:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPaperWidth(v)
+		return nil
+	case outletsetting.FieldAutoPrintOrder:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAutoPrintOrder(v)
+		return nil
+	case outletsetting.FieldAutoPrintKitchen:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAutoPrintKitchen(v)
+		return nil
+	case outletsetting.FieldHotelModuleEnabled:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetHotelModuleEnabled(v)
+		return nil
+	case outletsetting.FieldLayawayEnabled:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLayawayEnabled(v)
+		return nil
+	case outletsetting.FieldShiftReportsEnabled:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetShiftReportsEnabled(v)
+		return nil
 	case outletsetting.FieldUpdatedAt:
 		v, ok := value.(time.Time)
 		if !ok {
@@ -28814,13 +29814,21 @@ func (m *OutletSettingMutation) SetField(name string, value ent.Value) error {
 // AddedFields returns all numeric fields that were incremented/decremented during
 // this mutation.
 func (m *OutletSettingMutation) AddedFields() []string {
-	return nil
+	var fields []string
+	if m.addvat_rate != nil {
+		fields = append(fields, outletsetting.FieldVatRate)
+	}
+	return fields
 }
 
 // AddedField returns the numeric value that was incremented/decremented on a field
 // with the given name. The second boolean return value indicates that this field
 // was not set, or was not defined in the schema.
 func (m *OutletSettingMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case outletsetting.FieldVatRate:
+		return m.AddedVatRate()
+	}
 	return nil, false
 }
 
@@ -28829,6 +29837,13 @@ func (m *OutletSettingMutation) AddedField(name string) (ent.Value, bool) {
 // type.
 func (m *OutletSettingMutation) AddField(name string, value ent.Value) error {
 	switch name {
+	case outletsetting.FieldVatRate:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddVatRate(v)
+		return nil
 	}
 	return fmt.Errorf("unknown OutletSetting numeric field %s", name)
 }
@@ -28872,6 +29887,45 @@ func (m *OutletSettingMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(outletsetting.FieldEnableAppointments) {
 		fields = append(fields, outletsetting.FieldEnableAppointments)
+	}
+	if m.FieldCleared(outletsetting.FieldReceiptHeader) {
+		fields = append(fields, outletsetting.FieldReceiptHeader)
+	}
+	if m.FieldCleared(outletsetting.FieldReceiptFooter) {
+		fields = append(fields, outletsetting.FieldReceiptFooter)
+	}
+	if m.FieldCleared(outletsetting.FieldCurrency) {
+		fields = append(fields, outletsetting.FieldCurrency)
+	}
+	if m.FieldCleared(outletsetting.FieldVatEnabled) {
+		fields = append(fields, outletsetting.FieldVatEnabled)
+	}
+	if m.FieldCleared(outletsetting.FieldVatRate) {
+		fields = append(fields, outletsetting.FieldVatRate)
+	}
+	if m.FieldCleared(outletsetting.FieldPrinterType) {
+		fields = append(fields, outletsetting.FieldPrinterType)
+	}
+	if m.FieldCleared(outletsetting.FieldPrinterIP) {
+		fields = append(fields, outletsetting.FieldPrinterIP)
+	}
+	if m.FieldCleared(outletsetting.FieldPaperWidth) {
+		fields = append(fields, outletsetting.FieldPaperWidth)
+	}
+	if m.FieldCleared(outletsetting.FieldAutoPrintOrder) {
+		fields = append(fields, outletsetting.FieldAutoPrintOrder)
+	}
+	if m.FieldCleared(outletsetting.FieldAutoPrintKitchen) {
+		fields = append(fields, outletsetting.FieldAutoPrintKitchen)
+	}
+	if m.FieldCleared(outletsetting.FieldHotelModuleEnabled) {
+		fields = append(fields, outletsetting.FieldHotelModuleEnabled)
+	}
+	if m.FieldCleared(outletsetting.FieldLayawayEnabled) {
+		fields = append(fields, outletsetting.FieldLayawayEnabled)
+	}
+	if m.FieldCleared(outletsetting.FieldShiftReportsEnabled) {
+		fields = append(fields, outletsetting.FieldShiftReportsEnabled)
 	}
 	return fields
 }
@@ -28923,6 +29977,45 @@ func (m *OutletSettingMutation) ClearField(name string) error {
 	case outletsetting.FieldEnableAppointments:
 		m.ClearEnableAppointments()
 		return nil
+	case outletsetting.FieldReceiptHeader:
+		m.ClearReceiptHeader()
+		return nil
+	case outletsetting.FieldReceiptFooter:
+		m.ClearReceiptFooter()
+		return nil
+	case outletsetting.FieldCurrency:
+		m.ClearCurrency()
+		return nil
+	case outletsetting.FieldVatEnabled:
+		m.ClearVatEnabled()
+		return nil
+	case outletsetting.FieldVatRate:
+		m.ClearVatRate()
+		return nil
+	case outletsetting.FieldPrinterType:
+		m.ClearPrinterType()
+		return nil
+	case outletsetting.FieldPrinterIP:
+		m.ClearPrinterIP()
+		return nil
+	case outletsetting.FieldPaperWidth:
+		m.ClearPaperWidth()
+		return nil
+	case outletsetting.FieldAutoPrintOrder:
+		m.ClearAutoPrintOrder()
+		return nil
+	case outletsetting.FieldAutoPrintKitchen:
+		m.ClearAutoPrintKitchen()
+		return nil
+	case outletsetting.FieldHotelModuleEnabled:
+		m.ClearHotelModuleEnabled()
+		return nil
+	case outletsetting.FieldLayawayEnabled:
+		m.ClearLayawayEnabled()
+		return nil
+	case outletsetting.FieldShiftReportsEnabled:
+		m.ClearShiftReportsEnabled()
+		return nil
 	}
 	return fmt.Errorf("unknown OutletSetting nullable field %s", name)
 }
@@ -28972,6 +30065,45 @@ func (m *OutletSettingMutation) ResetField(name string) error {
 		return nil
 	case outletsetting.FieldEnableAppointments:
 		m.ResetEnableAppointments()
+		return nil
+	case outletsetting.FieldReceiptHeader:
+		m.ResetReceiptHeader()
+		return nil
+	case outletsetting.FieldReceiptFooter:
+		m.ResetReceiptFooter()
+		return nil
+	case outletsetting.FieldCurrency:
+		m.ResetCurrency()
+		return nil
+	case outletsetting.FieldVatEnabled:
+		m.ResetVatEnabled()
+		return nil
+	case outletsetting.FieldVatRate:
+		m.ResetVatRate()
+		return nil
+	case outletsetting.FieldPrinterType:
+		m.ResetPrinterType()
+		return nil
+	case outletsetting.FieldPrinterIP:
+		m.ResetPrinterIP()
+		return nil
+	case outletsetting.FieldPaperWidth:
+		m.ResetPaperWidth()
+		return nil
+	case outletsetting.FieldAutoPrintOrder:
+		m.ResetAutoPrintOrder()
+		return nil
+	case outletsetting.FieldAutoPrintKitchen:
+		m.ResetAutoPrintKitchen()
+		return nil
+	case outletsetting.FieldHotelModuleEnabled:
+		m.ResetHotelModuleEnabled()
+		return nil
+	case outletsetting.FieldLayawayEnabled:
+		m.ResetLayawayEnabled()
+		return nil
+	case outletsetting.FieldShiftReportsEnabled:
+		m.ResetShiftReportsEnabled()
 		return nil
 	case outletsetting.FieldUpdatedAt:
 		m.ResetUpdatedAt()

@@ -44,6 +44,8 @@ type Appointment struct {
 	Notes string `json:"notes,omitempty"`
 	// Linked POS order for payment
 	PosOrderID *uuid.UUID `json:"pos_order_id,omitempty"`
+	// MarketFlow CRM contact reference — never duplicate contact data here
+	CrmContactID *uuid.UUID `json:"crm_contact_id,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
@@ -56,7 +58,7 @@ func (*Appointment) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case appointment.FieldCustomerID, appointment.FieldStaffMemberID, appointment.FieldPosOrderID:
+		case appointment.FieldCustomerID, appointment.FieldStaffMemberID, appointment.FieldPosOrderID, appointment.FieldCrmContactID:
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		case appointment.FieldCustomerName, appointment.FieldCustomerPhone, appointment.FieldServiceSku, appointment.FieldStatus, appointment.FieldNotes:
 			values[i] = new(sql.NullString)
@@ -166,6 +168,13 @@ func (_m *Appointment) assignValues(columns []string, values []any) error {
 				_m.PosOrderID = new(uuid.UUID)
 				*_m.PosOrderID = *value.S.(*uuid.UUID)
 			}
+		case appointment.FieldCrmContactID:
+			if value, ok := values[i].(*sql.NullScanner); !ok {
+				return fmt.Errorf("unexpected type %T for field crm_contact_id", values[i])
+			} else if value.Valid {
+				_m.CrmContactID = new(uuid.UUID)
+				*_m.CrmContactID = *value.S.(*uuid.UUID)
+			}
 		case appointment.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field created_at", values[i])
@@ -256,6 +265,11 @@ func (_m *Appointment) String() string {
 	builder.WriteString(", ")
 	if v := _m.PosOrderID; v != nil {
 		builder.WriteString("pos_order_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.CrmContactID; v != nil {
+		builder.WriteString("crm_contact_id=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
 	builder.WriteString(", ")

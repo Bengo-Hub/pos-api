@@ -41,6 +41,8 @@ const (
 	FieldNotes = "notes"
 	// FieldPosOrderID holds the string denoting the pos_order_id field in the database.
 	FieldPosOrderID = "pos_order_id"
+	// FieldCrmContactID holds the string denoting the crm_contact_id field in the database.
+	FieldCrmContactID = "crm_contact_id"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
@@ -65,6 +67,7 @@ var Columns = []string{
 	FieldStatus,
 	FieldNotes,
 	FieldPosOrderID,
+	FieldCrmContactID,
 	FieldCreatedAt,
 	FieldUpdatedAt,
 }
@@ -193,6 +196,11 @@ func ByNotes(opts ...sql.OrderTermOption) OrderOption {
 // ByPosOrderID orders the results by the pos_order_id field.
 func ByPosOrderID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldPosOrderID, opts...).ToFunc()
+}
+
+// ByCrmContactID orders the results by the crm_contact_id field.
+func ByCrmContactID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCrmContactID, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.

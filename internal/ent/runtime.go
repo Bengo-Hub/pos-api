@@ -93,11 +93,11 @@ func init() {
 	// appointment.ServiceSkuValidator is a validator for the "service_sku" field. It is called by the builders before save.
 	appointment.ServiceSkuValidator = appointmentDescServiceSku.Validators[0].(func(string) error)
 	// appointmentDescCreatedAt is the schema descriptor for created_at field.
-	appointmentDescCreatedAt := appointmentFields[14].Descriptor()
+	appointmentDescCreatedAt := appointmentFields[15].Descriptor()
 	// appointment.DefaultCreatedAt holds the default value on creation for the created_at field.
 	appointment.DefaultCreatedAt = appointmentDescCreatedAt.Default.(func() time.Time)
 	// appointmentDescUpdatedAt is the schema descriptor for updated_at field.
-	appointmentDescUpdatedAt := appointmentFields[15].Descriptor()
+	appointmentDescUpdatedAt := appointmentFields[16].Descriptor()
 	// appointment.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	appointment.DefaultUpdatedAt = appointmentDescUpdatedAt.Default.(func() time.Time)
 	// appointment.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -653,11 +653,11 @@ func init() {
 	// loyaltyaccount.DefaultLifetimePoints holds the default value on creation for the lifetime_points field.
 	loyaltyaccount.DefaultLifetimePoints = loyaltyaccountDescLifetimePoints.Default.(int)
 	// loyaltyaccountDescCreatedAt is the schema descriptor for created_at field.
-	loyaltyaccountDescCreatedAt := loyaltyaccountFields[8].Descriptor()
+	loyaltyaccountDescCreatedAt := loyaltyaccountFields[9].Descriptor()
 	// loyaltyaccount.DefaultCreatedAt holds the default value on creation for the created_at field.
 	loyaltyaccount.DefaultCreatedAt = loyaltyaccountDescCreatedAt.Default.(func() time.Time)
 	// loyaltyaccountDescUpdatedAt is the schema descriptor for updated_at field.
-	loyaltyaccountDescUpdatedAt := loyaltyaccountFields[9].Descriptor()
+	loyaltyaccountDescUpdatedAt := loyaltyaccountFields[10].Descriptor()
 	// loyaltyaccount.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	loyaltyaccount.DefaultUpdatedAt = loyaltyaccountDescUpdatedAt.Default.(func() time.Time)
 	// loyaltyaccount.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -886,8 +886,48 @@ func init() {
 	outletsettingDescEnableAppointments := outletsettingFields[14].Descriptor()
 	// outletsetting.DefaultEnableAppointments holds the default value on creation for the enable_appointments field.
 	outletsetting.DefaultEnableAppointments = outletsettingDescEnableAppointments.Default.(bool)
+	// outletsettingDescCurrency is the schema descriptor for currency field.
+	outletsettingDescCurrency := outletsettingFields[17].Descriptor()
+	// outletsetting.DefaultCurrency holds the default value on creation for the currency field.
+	outletsetting.DefaultCurrency = outletsettingDescCurrency.Default.(string)
+	// outletsettingDescVatEnabled is the schema descriptor for vat_enabled field.
+	outletsettingDescVatEnabled := outletsettingFields[18].Descriptor()
+	// outletsetting.DefaultVatEnabled holds the default value on creation for the vat_enabled field.
+	outletsetting.DefaultVatEnabled = outletsettingDescVatEnabled.Default.(bool)
+	// outletsettingDescVatRate is the schema descriptor for vat_rate field.
+	outletsettingDescVatRate := outletsettingFields[19].Descriptor()
+	// outletsetting.DefaultVatRate holds the default value on creation for the vat_rate field.
+	outletsetting.DefaultVatRate = outletsettingDescVatRate.Default.(float64)
+	// outletsettingDescPrinterType is the schema descriptor for printer_type field.
+	outletsettingDescPrinterType := outletsettingFields[20].Descriptor()
+	// outletsetting.DefaultPrinterType holds the default value on creation for the printer_type field.
+	outletsetting.DefaultPrinterType = outletsettingDescPrinterType.Default.(string)
+	// outletsettingDescPaperWidth is the schema descriptor for paper_width field.
+	outletsettingDescPaperWidth := outletsettingFields[22].Descriptor()
+	// outletsetting.DefaultPaperWidth holds the default value on creation for the paper_width field.
+	outletsetting.DefaultPaperWidth = outletsettingDescPaperWidth.Default.(string)
+	// outletsettingDescAutoPrintOrder is the schema descriptor for auto_print_order field.
+	outletsettingDescAutoPrintOrder := outletsettingFields[23].Descriptor()
+	// outletsetting.DefaultAutoPrintOrder holds the default value on creation for the auto_print_order field.
+	outletsetting.DefaultAutoPrintOrder = outletsettingDescAutoPrintOrder.Default.(bool)
+	// outletsettingDescAutoPrintKitchen is the schema descriptor for auto_print_kitchen field.
+	outletsettingDescAutoPrintKitchen := outletsettingFields[24].Descriptor()
+	// outletsetting.DefaultAutoPrintKitchen holds the default value on creation for the auto_print_kitchen field.
+	outletsetting.DefaultAutoPrintKitchen = outletsettingDescAutoPrintKitchen.Default.(bool)
+	// outletsettingDescHotelModuleEnabled is the schema descriptor for hotel_module_enabled field.
+	outletsettingDescHotelModuleEnabled := outletsettingFields[25].Descriptor()
+	// outletsetting.DefaultHotelModuleEnabled holds the default value on creation for the hotel_module_enabled field.
+	outletsetting.DefaultHotelModuleEnabled = outletsettingDescHotelModuleEnabled.Default.(bool)
+	// outletsettingDescLayawayEnabled is the schema descriptor for layaway_enabled field.
+	outletsettingDescLayawayEnabled := outletsettingFields[26].Descriptor()
+	// outletsetting.DefaultLayawayEnabled holds the default value on creation for the layaway_enabled field.
+	outletsetting.DefaultLayawayEnabled = outletsettingDescLayawayEnabled.Default.(bool)
+	// outletsettingDescShiftReportsEnabled is the schema descriptor for shift_reports_enabled field.
+	outletsettingDescShiftReportsEnabled := outletsettingFields[27].Descriptor()
+	// outletsetting.DefaultShiftReportsEnabled holds the default value on creation for the shift_reports_enabled field.
+	outletsetting.DefaultShiftReportsEnabled = outletsettingDescShiftReportsEnabled.Default.(bool)
 	// outletsettingDescUpdatedAt is the schema descriptor for updated_at field.
-	outletsettingDescUpdatedAt := outletsettingFields[15].Descriptor()
+	outletsettingDescUpdatedAt := outletsettingFields[28].Descriptor()
 	// outletsetting.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	outletsetting.DefaultUpdatedAt = outletsettingDescUpdatedAt.Default.(func() time.Time)
 	// outletsetting.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

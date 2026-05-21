@@ -173,6 +173,188 @@ func (_c *OutletSettingCreate) SetNillableEnableAppointments(v *bool) *OutletSet
 	return _c
 }
 
+// SetReceiptHeader sets the "receipt_header" field.
+func (_c *OutletSettingCreate) SetReceiptHeader(v string) *OutletSettingCreate {
+	_c.mutation.SetReceiptHeader(v)
+	return _c
+}
+
+// SetNillableReceiptHeader sets the "receipt_header" field if the given value is not nil.
+func (_c *OutletSettingCreate) SetNillableReceiptHeader(v *string) *OutletSettingCreate {
+	if v != nil {
+		_c.SetReceiptHeader(*v)
+	}
+	return _c
+}
+
+// SetReceiptFooter sets the "receipt_footer" field.
+func (_c *OutletSettingCreate) SetReceiptFooter(v string) *OutletSettingCreate {
+	_c.mutation.SetReceiptFooter(v)
+	return _c
+}
+
+// SetNillableReceiptFooter sets the "receipt_footer" field if the given value is not nil.
+func (_c *OutletSettingCreate) SetNillableReceiptFooter(v *string) *OutletSettingCreate {
+	if v != nil {
+		_c.SetReceiptFooter(*v)
+	}
+	return _c
+}
+
+// SetCurrency sets the "currency" field.
+func (_c *OutletSettingCreate) SetCurrency(v string) *OutletSettingCreate {
+	_c.mutation.SetCurrency(v)
+	return _c
+}
+
+// SetNillableCurrency sets the "currency" field if the given value is not nil.
+func (_c *OutletSettingCreate) SetNillableCurrency(v *string) *OutletSettingCreate {
+	if v != nil {
+		_c.SetCurrency(*v)
+	}
+	return _c
+}
+
+// SetVatEnabled sets the "vat_enabled" field.
+func (_c *OutletSettingCreate) SetVatEnabled(v bool) *OutletSettingCreate {
+	_c.mutation.SetVatEnabled(v)
+	return _c
+}
+
+// SetNillableVatEnabled sets the "vat_enabled" field if the given value is not nil.
+func (_c *OutletSettingCreate) SetNillableVatEnabled(v *bool) *OutletSettingCreate {
+	if v != nil {
+		_c.SetVatEnabled(*v)
+	}
+	return _c
+}
+
+// SetVatRate sets the "vat_rate" field.
+func (_c *OutletSettingCreate) SetVatRate(v float64) *OutletSettingCreate {
+	_c.mutation.SetVatRate(v)
+	return _c
+}
+
+// SetNillableVatRate sets the "vat_rate" field if the given value is not nil.
+func (_c *OutletSettingCreate) SetNillableVatRate(v *float64) *OutletSettingCreate {
+	if v != nil {
+		_c.SetVatRate(*v)
+	}
+	return _c
+}
+
+// SetPrinterType sets the "printer_type" field.
+func (_c *OutletSettingCreate) SetPrinterType(v string) *OutletSettingCreate {
+	_c.mutation.SetPrinterType(v)
+	return _c
+}
+
+// SetNillablePrinterType sets the "printer_type" field if the given value is not nil.
+func (_c *OutletSettingCreate) SetNillablePrinterType(v *string) *OutletSettingCreate {
+	if v != nil {
+		_c.SetPrinterType(*v)
+	}
+	return _c
+}
+
+// SetPrinterIP sets the "printer_ip" field.
+func (_c *OutletSettingCreate) SetPrinterIP(v string) *OutletSettingCreate {
+	_c.mutation.SetPrinterIP(v)
+	return _c
+}
+
+// SetNillablePrinterIP sets the "printer_ip" field if the given value is not nil.
+func (_c *OutletSettingCreate) SetNillablePrinterIP(v *string) *OutletSettingCreate {
+	if v != nil {
+		_c.SetPrinterIP(*v)
+	}
+	return _c
+}
+
+// SetPaperWidth sets the "paper_width" field.
+func (_c *OutletSettingCreate) SetPaperWidth(v string) *OutletSettingCreate {
+	_c.mutation.SetPaperWidth(v)
+	return _c
+}
+
+// SetNillablePaperWidth sets the "paper_width" field if the given value is not nil.
+func (_c *OutletSettingCreate) SetNillablePaperWidth(v *string) *OutletSettingCreate {
+	if v != nil {
+		_c.SetPaperWidth(*v)
+	}
+	return _c
+}
+
+// SetAutoPrintOrder sets the "auto_print_order" field.
+func (_c *OutletSettingCreate) SetAutoPrintOrder(v bool) *OutletSettingCreate {
+	_c.mutation.SetAutoPrintOrder(v)
+	return _c
+}
+
+// SetNillableAutoPrintOrder sets the "auto_print_order" field if the given value is not nil.
+func (_c *OutletSettingCreate) SetNillableAutoPrintOrder(v *bool) *OutletSettingCreate {
+	if v != nil {
+		_c.SetAutoPrintOrder(*v)
+	}
+	return _c
+}
+
+// SetAutoPrintKitchen sets the "auto_print_kitchen" field.
+func (_c *OutletSettingCreate) SetAutoPrintKitchen(v bool) *OutletSettingCreate {
+	_c.mutation.SetAutoPrintKitchen(v)
+	return _c
+}
+
+// SetNillableAutoPrintKitchen sets the "auto_print_kitchen" field if the given value is not nil.
+func (_c *OutletSettingCreate) SetNillableAutoPrintKitchen(v *bool) *OutletSettingCreate {
+	if v != nil {
+		_c.SetAutoPrintKitchen(*v)
+	}
+	return _c
+}
+
+// SetHotelModuleEnabled sets the "hotel_module_enabled" field.
+func (_c *OutletSettingCreate) SetHotelModuleEnabled(v bool) *OutletSettingCreate {
+	_c.mutation.SetHotelModuleEnabled(v)
+	return _c
+}
+
+// SetNillableHotelModuleEnabled sets the "hotel_module_enabled" field if the given value is not nil.
+func (_c *OutletSettingCreate) SetNillableHotelModuleEnabled(v *bool) *OutletSettingCreate {
+	if v != nil {
+		_c.SetHotelModuleEnabled(*v)
+	}
+	return _c
+}
+
+// SetLayawayEnabled sets the "layaway_enabled" field.
+func (_c *OutletSettingCreate) SetLayawayEnabled(v bool) *OutletSettingCreate {
+	_c.mutation.SetLayawayEnabled(v)
+	return _c
+}
+
+// SetNillableLayawayEnabled sets the "layaway_enabled" field if the given value is not nil.
+func (_c *OutletSettingCreate) SetNillableLayawayEnabled(v *bool) *OutletSettingCreate {
+	if v != nil {
+		_c.SetLayawayEnabled(*v)
+	}
+	return _c
+}
+
+// SetShiftReportsEnabled sets the "shift_reports_enabled" field.
+func (_c *OutletSettingCreate) SetShiftReportsEnabled(v bool) *OutletSettingCreate {
+	_c.mutation.SetShiftReportsEnabled(v)
+	return _c
+}
+
+// SetNillableShiftReportsEnabled sets the "shift_reports_enabled" field if the given value is not nil.
+func (_c *OutletSettingCreate) SetNillableShiftReportsEnabled(v *bool) *OutletSettingCreate {
+	if v != nil {
+		_c.SetShiftReportsEnabled(*v)
+	}
+	return _c
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_c *OutletSettingCreate) SetUpdatedAt(v time.Time) *OutletSettingCreate {
 	_c.mutation.SetUpdatedAt(v)
@@ -268,6 +450,46 @@ func (_c *OutletSettingCreate) defaults() {
 	if _, ok := _c.mutation.EnableAppointments(); !ok {
 		v := outletsetting.DefaultEnableAppointments
 		_c.mutation.SetEnableAppointments(v)
+	}
+	if _, ok := _c.mutation.Currency(); !ok {
+		v := outletsetting.DefaultCurrency
+		_c.mutation.SetCurrency(v)
+	}
+	if _, ok := _c.mutation.VatEnabled(); !ok {
+		v := outletsetting.DefaultVatEnabled
+		_c.mutation.SetVatEnabled(v)
+	}
+	if _, ok := _c.mutation.VatRate(); !ok {
+		v := outletsetting.DefaultVatRate
+		_c.mutation.SetVatRate(v)
+	}
+	if _, ok := _c.mutation.PrinterType(); !ok {
+		v := outletsetting.DefaultPrinterType
+		_c.mutation.SetPrinterType(v)
+	}
+	if _, ok := _c.mutation.PaperWidth(); !ok {
+		v := outletsetting.DefaultPaperWidth
+		_c.mutation.SetPaperWidth(v)
+	}
+	if _, ok := _c.mutation.AutoPrintOrder(); !ok {
+		v := outletsetting.DefaultAutoPrintOrder
+		_c.mutation.SetAutoPrintOrder(v)
+	}
+	if _, ok := _c.mutation.AutoPrintKitchen(); !ok {
+		v := outletsetting.DefaultAutoPrintKitchen
+		_c.mutation.SetAutoPrintKitchen(v)
+	}
+	if _, ok := _c.mutation.HotelModuleEnabled(); !ok {
+		v := outletsetting.DefaultHotelModuleEnabled
+		_c.mutation.SetHotelModuleEnabled(v)
+	}
+	if _, ok := _c.mutation.LayawayEnabled(); !ok {
+		v := outletsetting.DefaultLayawayEnabled
+		_c.mutation.SetLayawayEnabled(v)
+	}
+	if _, ok := _c.mutation.ShiftReportsEnabled(); !ok {
+		v := outletsetting.DefaultShiftReportsEnabled
+		_c.mutation.SetShiftReportsEnabled(v)
 	}
 	if _, ok := _c.mutation.UpdatedAt(); !ok {
 		v := outletsetting.DefaultUpdatedAt()
@@ -380,6 +602,58 @@ func (_c *OutletSettingCreate) createSpec() (*OutletSetting, *sqlgraph.CreateSpe
 	if value, ok := _c.mutation.EnableAppointments(); ok {
 		_spec.SetField(outletsetting.FieldEnableAppointments, field.TypeBool, value)
 		_node.EnableAppointments = value
+	}
+	if value, ok := _c.mutation.ReceiptHeader(); ok {
+		_spec.SetField(outletsetting.FieldReceiptHeader, field.TypeString, value)
+		_node.ReceiptHeader = &value
+	}
+	if value, ok := _c.mutation.ReceiptFooter(); ok {
+		_spec.SetField(outletsetting.FieldReceiptFooter, field.TypeString, value)
+		_node.ReceiptFooter = &value
+	}
+	if value, ok := _c.mutation.Currency(); ok {
+		_spec.SetField(outletsetting.FieldCurrency, field.TypeString, value)
+		_node.Currency = value
+	}
+	if value, ok := _c.mutation.VatEnabled(); ok {
+		_spec.SetField(outletsetting.FieldVatEnabled, field.TypeBool, value)
+		_node.VatEnabled = value
+	}
+	if value, ok := _c.mutation.VatRate(); ok {
+		_spec.SetField(outletsetting.FieldVatRate, field.TypeFloat64, value)
+		_node.VatRate = value
+	}
+	if value, ok := _c.mutation.PrinterType(); ok {
+		_spec.SetField(outletsetting.FieldPrinterType, field.TypeString, value)
+		_node.PrinterType = value
+	}
+	if value, ok := _c.mutation.PrinterIP(); ok {
+		_spec.SetField(outletsetting.FieldPrinterIP, field.TypeString, value)
+		_node.PrinterIP = &value
+	}
+	if value, ok := _c.mutation.PaperWidth(); ok {
+		_spec.SetField(outletsetting.FieldPaperWidth, field.TypeString, value)
+		_node.PaperWidth = value
+	}
+	if value, ok := _c.mutation.AutoPrintOrder(); ok {
+		_spec.SetField(outletsetting.FieldAutoPrintOrder, field.TypeBool, value)
+		_node.AutoPrintOrder = value
+	}
+	if value, ok := _c.mutation.AutoPrintKitchen(); ok {
+		_spec.SetField(outletsetting.FieldAutoPrintKitchen, field.TypeBool, value)
+		_node.AutoPrintKitchen = value
+	}
+	if value, ok := _c.mutation.HotelModuleEnabled(); ok {
+		_spec.SetField(outletsetting.FieldHotelModuleEnabled, field.TypeBool, value)
+		_node.HotelModuleEnabled = value
+	}
+	if value, ok := _c.mutation.LayawayEnabled(); ok {
+		_spec.SetField(outletsetting.FieldLayawayEnabled, field.TypeBool, value)
+		_node.LayawayEnabled = value
+	}
+	if value, ok := _c.mutation.ShiftReportsEnabled(); ok {
+		_spec.SetField(outletsetting.FieldShiftReportsEnabled, field.TypeBool, value)
+		_node.ShiftReportsEnabled = value
 	}
 	if value, ok := _c.mutation.UpdatedAt(); ok {
 		_spec.SetField(outletsetting.FieldUpdatedAt, field.TypeTime, value)
@@ -691,6 +965,246 @@ func (u *OutletSettingUpsert) UpdateEnableAppointments() *OutletSettingUpsert {
 // ClearEnableAppointments clears the value of the "enable_appointments" field.
 func (u *OutletSettingUpsert) ClearEnableAppointments() *OutletSettingUpsert {
 	u.SetNull(outletsetting.FieldEnableAppointments)
+	return u
+}
+
+// SetReceiptHeader sets the "receipt_header" field.
+func (u *OutletSettingUpsert) SetReceiptHeader(v string) *OutletSettingUpsert {
+	u.Set(outletsetting.FieldReceiptHeader, v)
+	return u
+}
+
+// UpdateReceiptHeader sets the "receipt_header" field to the value that was provided on create.
+func (u *OutletSettingUpsert) UpdateReceiptHeader() *OutletSettingUpsert {
+	u.SetExcluded(outletsetting.FieldReceiptHeader)
+	return u
+}
+
+// ClearReceiptHeader clears the value of the "receipt_header" field.
+func (u *OutletSettingUpsert) ClearReceiptHeader() *OutletSettingUpsert {
+	u.SetNull(outletsetting.FieldReceiptHeader)
+	return u
+}
+
+// SetReceiptFooter sets the "receipt_footer" field.
+func (u *OutletSettingUpsert) SetReceiptFooter(v string) *OutletSettingUpsert {
+	u.Set(outletsetting.FieldReceiptFooter, v)
+	return u
+}
+
+// UpdateReceiptFooter sets the "receipt_footer" field to the value that was provided on create.
+func (u *OutletSettingUpsert) UpdateReceiptFooter() *OutletSettingUpsert {
+	u.SetExcluded(outletsetting.FieldReceiptFooter)
+	return u
+}
+
+// ClearReceiptFooter clears the value of the "receipt_footer" field.
+func (u *OutletSettingUpsert) ClearReceiptFooter() *OutletSettingUpsert {
+	u.SetNull(outletsetting.FieldReceiptFooter)
+	return u
+}
+
+// SetCurrency sets the "currency" field.
+func (u *OutletSettingUpsert) SetCurrency(v string) *OutletSettingUpsert {
+	u.Set(outletsetting.FieldCurrency, v)
+	return u
+}
+
+// UpdateCurrency sets the "currency" field to the value that was provided on create.
+func (u *OutletSettingUpsert) UpdateCurrency() *OutletSettingUpsert {
+	u.SetExcluded(outletsetting.FieldCurrency)
+	return u
+}
+
+// ClearCurrency clears the value of the "currency" field.
+func (u *OutletSettingUpsert) ClearCurrency() *OutletSettingUpsert {
+	u.SetNull(outletsetting.FieldCurrency)
+	return u
+}
+
+// SetVatEnabled sets the "vat_enabled" field.
+func (u *OutletSettingUpsert) SetVatEnabled(v bool) *OutletSettingUpsert {
+	u.Set(outletsetting.FieldVatEnabled, v)
+	return u
+}
+
+// UpdateVatEnabled sets the "vat_enabled" field to the value that was provided on create.
+func (u *OutletSettingUpsert) UpdateVatEnabled() *OutletSettingUpsert {
+	u.SetExcluded(outletsetting.FieldVatEnabled)
+	return u
+}
+
+// ClearVatEnabled clears the value of the "vat_enabled" field.
+func (u *OutletSettingUpsert) ClearVatEnabled() *OutletSettingUpsert {
+	u.SetNull(outletsetting.FieldVatEnabled)
+	return u
+}
+
+// SetVatRate sets the "vat_rate" field.
+func (u *OutletSettingUpsert) SetVatRate(v float64) *OutletSettingUpsert {
+	u.Set(outletsetting.FieldVatRate, v)
+	return u
+}
+
+// UpdateVatRate sets the "vat_rate" field to the value that was provided on create.
+func (u *OutletSettingUpsert) UpdateVatRate() *OutletSettingUpsert {
+	u.SetExcluded(outletsetting.FieldVatRate)
+	return u
+}
+
+// AddVatRate adds v to the "vat_rate" field.
+func (u *OutletSettingUpsert) AddVatRate(v float64) *OutletSettingUpsert {
+	u.Add(outletsetting.FieldVatRate, v)
+	return u
+}
+
+// ClearVatRate clears the value of the "vat_rate" field.
+func (u *OutletSettingUpsert) ClearVatRate() *OutletSettingUpsert {
+	u.SetNull(outletsetting.FieldVatRate)
+	return u
+}
+
+// SetPrinterType sets the "printer_type" field.
+func (u *OutletSettingUpsert) SetPrinterType(v string) *OutletSettingUpsert {
+	u.Set(outletsetting.FieldPrinterType, v)
+	return u
+}
+
+// UpdatePrinterType sets the "printer_type" field to the value that was provided on create.
+func (u *OutletSettingUpsert) UpdatePrinterType() *OutletSettingUpsert {
+	u.SetExcluded(outletsetting.FieldPrinterType)
+	return u
+}
+
+// ClearPrinterType clears the value of the "printer_type" field.
+func (u *OutletSettingUpsert) ClearPrinterType() *OutletSettingUpsert {
+	u.SetNull(outletsetting.FieldPrinterType)
+	return u
+}
+
+// SetPrinterIP sets the "printer_ip" field.
+func (u *OutletSettingUpsert) SetPrinterIP(v string) *OutletSettingUpsert {
+	u.Set(outletsetting.FieldPrinterIP, v)
+	return u
+}
+
+// UpdatePrinterIP sets the "printer_ip" field to the value that was provided on create.
+func (u *OutletSettingUpsert) UpdatePrinterIP() *OutletSettingUpsert {
+	u.SetExcluded(outletsetting.FieldPrinterIP)
+	return u
+}
+
+// ClearPrinterIP clears the value of the "printer_ip" field.
+func (u *OutletSettingUpsert) ClearPrinterIP() *OutletSettingUpsert {
+	u.SetNull(outletsetting.FieldPrinterIP)
+	return u
+}
+
+// SetPaperWidth sets the "paper_width" field.
+func (u *OutletSettingUpsert) SetPaperWidth(v string) *OutletSettingUpsert {
+	u.Set(outletsetting.FieldPaperWidth, v)
+	return u
+}
+
+// UpdatePaperWidth sets the "paper_width" field to the value that was provided on create.
+func (u *OutletSettingUpsert) UpdatePaperWidth() *OutletSettingUpsert {
+	u.SetExcluded(outletsetting.FieldPaperWidth)
+	return u
+}
+
+// ClearPaperWidth clears the value of the "paper_width" field.
+func (u *OutletSettingUpsert) ClearPaperWidth() *OutletSettingUpsert {
+	u.SetNull(outletsetting.FieldPaperWidth)
+	return u
+}
+
+// SetAutoPrintOrder sets the "auto_print_order" field.
+func (u *OutletSettingUpsert) SetAutoPrintOrder(v bool) *OutletSettingUpsert {
+	u.Set(outletsetting.FieldAutoPrintOrder, v)
+	return u
+}
+
+// UpdateAutoPrintOrder sets the "auto_print_order" field to the value that was provided on create.
+func (u *OutletSettingUpsert) UpdateAutoPrintOrder() *OutletSettingUpsert {
+	u.SetExcluded(outletsetting.FieldAutoPrintOrder)
+	return u
+}
+
+// ClearAutoPrintOrder clears the value of the "auto_print_order" field.
+func (u *OutletSettingUpsert) ClearAutoPrintOrder() *OutletSettingUpsert {
+	u.SetNull(outletsetting.FieldAutoPrintOrder)
+	return u
+}
+
+// SetAutoPrintKitchen sets the "auto_print_kitchen" field.
+func (u *OutletSettingUpsert) SetAutoPrintKitchen(v bool) *OutletSettingUpsert {
+	u.Set(outletsetting.FieldAutoPrintKitchen, v)
+	return u
+}
+
+// UpdateAutoPrintKitchen sets the "auto_print_kitchen" field to the value that was provided on create.
+func (u *OutletSettingUpsert) UpdateAutoPrintKitchen() *OutletSettingUpsert {
+	u.SetExcluded(outletsetting.FieldAutoPrintKitchen)
+	return u
+}
+
+// ClearAutoPrintKitchen clears the value of the "auto_print_kitchen" field.
+func (u *OutletSettingUpsert) ClearAutoPrintKitchen() *OutletSettingUpsert {
+	u.SetNull(outletsetting.FieldAutoPrintKitchen)
+	return u
+}
+
+// SetHotelModuleEnabled sets the "hotel_module_enabled" field.
+func (u *OutletSettingUpsert) SetHotelModuleEnabled(v bool) *OutletSettingUpsert {
+	u.Set(outletsetting.FieldHotelModuleEnabled, v)
+	return u
+}
+
+// UpdateHotelModuleEnabled sets the "hotel_module_enabled" field to the value that was provided on create.
+func (u *OutletSettingUpsert) UpdateHotelModuleEnabled() *OutletSettingUpsert {
+	u.SetExcluded(outletsetting.FieldHotelModuleEnabled)
+	return u
+}
+
+// ClearHotelModuleEnabled clears the value of the "hotel_module_enabled" field.
+func (u *OutletSettingUpsert) ClearHotelModuleEnabled() *OutletSettingUpsert {
+	u.SetNull(outletsetting.FieldHotelModuleEnabled)
+	return u
+}
+
+// SetLayawayEnabled sets the "layaway_enabled" field.
+func (u *OutletSettingUpsert) SetLayawayEnabled(v bool) *OutletSettingUpsert {
+	u.Set(outletsetting.FieldLayawayEnabled, v)
+	return u
+}
+
+// UpdateLayawayEnabled sets the "layaway_enabled" field to the value that was provided on create.
+func (u *OutletSettingUpsert) UpdateLayawayEnabled() *OutletSettingUpsert {
+	u.SetExcluded(outletsetting.FieldLayawayEnabled)
+	return u
+}
+
+// ClearLayawayEnabled clears the value of the "layaway_enabled" field.
+func (u *OutletSettingUpsert) ClearLayawayEnabled() *OutletSettingUpsert {
+	u.SetNull(outletsetting.FieldLayawayEnabled)
+	return u
+}
+
+// SetShiftReportsEnabled sets the "shift_reports_enabled" field.
+func (u *OutletSettingUpsert) SetShiftReportsEnabled(v bool) *OutletSettingUpsert {
+	u.Set(outletsetting.FieldShiftReportsEnabled, v)
+	return u
+}
+
+// UpdateShiftReportsEnabled sets the "shift_reports_enabled" field to the value that was provided on create.
+func (u *OutletSettingUpsert) UpdateShiftReportsEnabled() *OutletSettingUpsert {
+	u.SetExcluded(outletsetting.FieldShiftReportsEnabled)
+	return u
+}
+
+// ClearShiftReportsEnabled clears the value of the "shift_reports_enabled" field.
+func (u *OutletSettingUpsert) ClearShiftReportsEnabled() *OutletSettingUpsert {
+	u.SetNull(outletsetting.FieldShiftReportsEnabled)
 	return u
 }
 
@@ -1031,6 +1545,286 @@ func (u *OutletSettingUpsertOne) UpdateEnableAppointments() *OutletSettingUpsert
 func (u *OutletSettingUpsertOne) ClearEnableAppointments() *OutletSettingUpsertOne {
 	return u.Update(func(s *OutletSettingUpsert) {
 		s.ClearEnableAppointments()
+	})
+}
+
+// SetReceiptHeader sets the "receipt_header" field.
+func (u *OutletSettingUpsertOne) SetReceiptHeader(v string) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetReceiptHeader(v)
+	})
+}
+
+// UpdateReceiptHeader sets the "receipt_header" field to the value that was provided on create.
+func (u *OutletSettingUpsertOne) UpdateReceiptHeader() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateReceiptHeader()
+	})
+}
+
+// ClearReceiptHeader clears the value of the "receipt_header" field.
+func (u *OutletSettingUpsertOne) ClearReceiptHeader() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearReceiptHeader()
+	})
+}
+
+// SetReceiptFooter sets the "receipt_footer" field.
+func (u *OutletSettingUpsertOne) SetReceiptFooter(v string) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetReceiptFooter(v)
+	})
+}
+
+// UpdateReceiptFooter sets the "receipt_footer" field to the value that was provided on create.
+func (u *OutletSettingUpsertOne) UpdateReceiptFooter() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateReceiptFooter()
+	})
+}
+
+// ClearReceiptFooter clears the value of the "receipt_footer" field.
+func (u *OutletSettingUpsertOne) ClearReceiptFooter() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearReceiptFooter()
+	})
+}
+
+// SetCurrency sets the "currency" field.
+func (u *OutletSettingUpsertOne) SetCurrency(v string) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetCurrency(v)
+	})
+}
+
+// UpdateCurrency sets the "currency" field to the value that was provided on create.
+func (u *OutletSettingUpsertOne) UpdateCurrency() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateCurrency()
+	})
+}
+
+// ClearCurrency clears the value of the "currency" field.
+func (u *OutletSettingUpsertOne) ClearCurrency() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearCurrency()
+	})
+}
+
+// SetVatEnabled sets the "vat_enabled" field.
+func (u *OutletSettingUpsertOne) SetVatEnabled(v bool) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetVatEnabled(v)
+	})
+}
+
+// UpdateVatEnabled sets the "vat_enabled" field to the value that was provided on create.
+func (u *OutletSettingUpsertOne) UpdateVatEnabled() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateVatEnabled()
+	})
+}
+
+// ClearVatEnabled clears the value of the "vat_enabled" field.
+func (u *OutletSettingUpsertOne) ClearVatEnabled() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearVatEnabled()
+	})
+}
+
+// SetVatRate sets the "vat_rate" field.
+func (u *OutletSettingUpsertOne) SetVatRate(v float64) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetVatRate(v)
+	})
+}
+
+// AddVatRate adds v to the "vat_rate" field.
+func (u *OutletSettingUpsertOne) AddVatRate(v float64) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.AddVatRate(v)
+	})
+}
+
+// UpdateVatRate sets the "vat_rate" field to the value that was provided on create.
+func (u *OutletSettingUpsertOne) UpdateVatRate() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateVatRate()
+	})
+}
+
+// ClearVatRate clears the value of the "vat_rate" field.
+func (u *OutletSettingUpsertOne) ClearVatRate() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearVatRate()
+	})
+}
+
+// SetPrinterType sets the "printer_type" field.
+func (u *OutletSettingUpsertOne) SetPrinterType(v string) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetPrinterType(v)
+	})
+}
+
+// UpdatePrinterType sets the "printer_type" field to the value that was provided on create.
+func (u *OutletSettingUpsertOne) UpdatePrinterType() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdatePrinterType()
+	})
+}
+
+// ClearPrinterType clears the value of the "printer_type" field.
+func (u *OutletSettingUpsertOne) ClearPrinterType() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearPrinterType()
+	})
+}
+
+// SetPrinterIP sets the "printer_ip" field.
+func (u *OutletSettingUpsertOne) SetPrinterIP(v string) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetPrinterIP(v)
+	})
+}
+
+// UpdatePrinterIP sets the "printer_ip" field to the value that was provided on create.
+func (u *OutletSettingUpsertOne) UpdatePrinterIP() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdatePrinterIP()
+	})
+}
+
+// ClearPrinterIP clears the value of the "printer_ip" field.
+func (u *OutletSettingUpsertOne) ClearPrinterIP() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearPrinterIP()
+	})
+}
+
+// SetPaperWidth sets the "paper_width" field.
+func (u *OutletSettingUpsertOne) SetPaperWidth(v string) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetPaperWidth(v)
+	})
+}
+
+// UpdatePaperWidth sets the "paper_width" field to the value that was provided on create.
+func (u *OutletSettingUpsertOne) UpdatePaperWidth() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdatePaperWidth()
+	})
+}
+
+// ClearPaperWidth clears the value of the "paper_width" field.
+func (u *OutletSettingUpsertOne) ClearPaperWidth() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearPaperWidth()
+	})
+}
+
+// SetAutoPrintOrder sets the "auto_print_order" field.
+func (u *OutletSettingUpsertOne) SetAutoPrintOrder(v bool) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetAutoPrintOrder(v)
+	})
+}
+
+// UpdateAutoPrintOrder sets the "auto_print_order" field to the value that was provided on create.
+func (u *OutletSettingUpsertOne) UpdateAutoPrintOrder() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateAutoPrintOrder()
+	})
+}
+
+// ClearAutoPrintOrder clears the value of the "auto_print_order" field.
+func (u *OutletSettingUpsertOne) ClearAutoPrintOrder() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearAutoPrintOrder()
+	})
+}
+
+// SetAutoPrintKitchen sets the "auto_print_kitchen" field.
+func (u *OutletSettingUpsertOne) SetAutoPrintKitchen(v bool) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetAutoPrintKitchen(v)
+	})
+}
+
+// UpdateAutoPrintKitchen sets the "auto_print_kitchen" field to the value that was provided on create.
+func (u *OutletSettingUpsertOne) UpdateAutoPrintKitchen() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateAutoPrintKitchen()
+	})
+}
+
+// ClearAutoPrintKitchen clears the value of the "auto_print_kitchen" field.
+func (u *OutletSettingUpsertOne) ClearAutoPrintKitchen() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearAutoPrintKitchen()
+	})
+}
+
+// SetHotelModuleEnabled sets the "hotel_module_enabled" field.
+func (u *OutletSettingUpsertOne) SetHotelModuleEnabled(v bool) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetHotelModuleEnabled(v)
+	})
+}
+
+// UpdateHotelModuleEnabled sets the "hotel_module_enabled" field to the value that was provided on create.
+func (u *OutletSettingUpsertOne) UpdateHotelModuleEnabled() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateHotelModuleEnabled()
+	})
+}
+
+// ClearHotelModuleEnabled clears the value of the "hotel_module_enabled" field.
+func (u *OutletSettingUpsertOne) ClearHotelModuleEnabled() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearHotelModuleEnabled()
+	})
+}
+
+// SetLayawayEnabled sets the "layaway_enabled" field.
+func (u *OutletSettingUpsertOne) SetLayawayEnabled(v bool) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetLayawayEnabled(v)
+	})
+}
+
+// UpdateLayawayEnabled sets the "layaway_enabled" field to the value that was provided on create.
+func (u *OutletSettingUpsertOne) UpdateLayawayEnabled() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateLayawayEnabled()
+	})
+}
+
+// ClearLayawayEnabled clears the value of the "layaway_enabled" field.
+func (u *OutletSettingUpsertOne) ClearLayawayEnabled() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearLayawayEnabled()
+	})
+}
+
+// SetShiftReportsEnabled sets the "shift_reports_enabled" field.
+func (u *OutletSettingUpsertOne) SetShiftReportsEnabled(v bool) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetShiftReportsEnabled(v)
+	})
+}
+
+// UpdateShiftReportsEnabled sets the "shift_reports_enabled" field to the value that was provided on create.
+func (u *OutletSettingUpsertOne) UpdateShiftReportsEnabled() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateShiftReportsEnabled()
+	})
+}
+
+// ClearShiftReportsEnabled clears the value of the "shift_reports_enabled" field.
+func (u *OutletSettingUpsertOne) ClearShiftReportsEnabled() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearShiftReportsEnabled()
 	})
 }
 
@@ -1540,6 +2334,286 @@ func (u *OutletSettingUpsertBulk) UpdateEnableAppointments() *OutletSettingUpser
 func (u *OutletSettingUpsertBulk) ClearEnableAppointments() *OutletSettingUpsertBulk {
 	return u.Update(func(s *OutletSettingUpsert) {
 		s.ClearEnableAppointments()
+	})
+}
+
+// SetReceiptHeader sets the "receipt_header" field.
+func (u *OutletSettingUpsertBulk) SetReceiptHeader(v string) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetReceiptHeader(v)
+	})
+}
+
+// UpdateReceiptHeader sets the "receipt_header" field to the value that was provided on create.
+func (u *OutletSettingUpsertBulk) UpdateReceiptHeader() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateReceiptHeader()
+	})
+}
+
+// ClearReceiptHeader clears the value of the "receipt_header" field.
+func (u *OutletSettingUpsertBulk) ClearReceiptHeader() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearReceiptHeader()
+	})
+}
+
+// SetReceiptFooter sets the "receipt_footer" field.
+func (u *OutletSettingUpsertBulk) SetReceiptFooter(v string) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetReceiptFooter(v)
+	})
+}
+
+// UpdateReceiptFooter sets the "receipt_footer" field to the value that was provided on create.
+func (u *OutletSettingUpsertBulk) UpdateReceiptFooter() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateReceiptFooter()
+	})
+}
+
+// ClearReceiptFooter clears the value of the "receipt_footer" field.
+func (u *OutletSettingUpsertBulk) ClearReceiptFooter() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearReceiptFooter()
+	})
+}
+
+// SetCurrency sets the "currency" field.
+func (u *OutletSettingUpsertBulk) SetCurrency(v string) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetCurrency(v)
+	})
+}
+
+// UpdateCurrency sets the "currency" field to the value that was provided on create.
+func (u *OutletSettingUpsertBulk) UpdateCurrency() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateCurrency()
+	})
+}
+
+// ClearCurrency clears the value of the "currency" field.
+func (u *OutletSettingUpsertBulk) ClearCurrency() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearCurrency()
+	})
+}
+
+// SetVatEnabled sets the "vat_enabled" field.
+func (u *OutletSettingUpsertBulk) SetVatEnabled(v bool) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetVatEnabled(v)
+	})
+}
+
+// UpdateVatEnabled sets the "vat_enabled" field to the value that was provided on create.
+func (u *OutletSettingUpsertBulk) UpdateVatEnabled() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateVatEnabled()
+	})
+}
+
+// ClearVatEnabled clears the value of the "vat_enabled" field.
+func (u *OutletSettingUpsertBulk) ClearVatEnabled() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearVatEnabled()
+	})
+}
+
+// SetVatRate sets the "vat_rate" field.
+func (u *OutletSettingUpsertBulk) SetVatRate(v float64) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetVatRate(v)
+	})
+}
+
+// AddVatRate adds v to the "vat_rate" field.
+func (u *OutletSettingUpsertBulk) AddVatRate(v float64) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.AddVatRate(v)
+	})
+}
+
+// UpdateVatRate sets the "vat_rate" field to the value that was provided on create.
+func (u *OutletSettingUpsertBulk) UpdateVatRate() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateVatRate()
+	})
+}
+
+// ClearVatRate clears the value of the "vat_rate" field.
+func (u *OutletSettingUpsertBulk) ClearVatRate() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearVatRate()
+	})
+}
+
+// SetPrinterType sets the "printer_type" field.
+func (u *OutletSettingUpsertBulk) SetPrinterType(v string) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetPrinterType(v)
+	})
+}
+
+// UpdatePrinterType sets the "printer_type" field to the value that was provided on create.
+func (u *OutletSettingUpsertBulk) UpdatePrinterType() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdatePrinterType()
+	})
+}
+
+// ClearPrinterType clears the value of the "printer_type" field.
+func (u *OutletSettingUpsertBulk) ClearPrinterType() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearPrinterType()
+	})
+}
+
+// SetPrinterIP sets the "printer_ip" field.
+func (u *OutletSettingUpsertBulk) SetPrinterIP(v string) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetPrinterIP(v)
+	})
+}
+
+// UpdatePrinterIP sets the "printer_ip" field to the value that was provided on create.
+func (u *OutletSettingUpsertBulk) UpdatePrinterIP() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdatePrinterIP()
+	})
+}
+
+// ClearPrinterIP clears the value of the "printer_ip" field.
+func (u *OutletSettingUpsertBulk) ClearPrinterIP() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearPrinterIP()
+	})
+}
+
+// SetPaperWidth sets the "paper_width" field.
+func (u *OutletSettingUpsertBulk) SetPaperWidth(v string) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetPaperWidth(v)
+	})
+}
+
+// UpdatePaperWidth sets the "paper_width" field to the value that was provided on create.
+func (u *OutletSettingUpsertBulk) UpdatePaperWidth() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdatePaperWidth()
+	})
+}
+
+// ClearPaperWidth clears the value of the "paper_width" field.
+func (u *OutletSettingUpsertBulk) ClearPaperWidth() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearPaperWidth()
+	})
+}
+
+// SetAutoPrintOrder sets the "auto_print_order" field.
+func (u *OutletSettingUpsertBulk) SetAutoPrintOrder(v bool) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetAutoPrintOrder(v)
+	})
+}
+
+// UpdateAutoPrintOrder sets the "auto_print_order" field to the value that was provided on create.
+func (u *OutletSettingUpsertBulk) UpdateAutoPrintOrder() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateAutoPrintOrder()
+	})
+}
+
+// ClearAutoPrintOrder clears the value of the "auto_print_order" field.
+func (u *OutletSettingUpsertBulk) ClearAutoPrintOrder() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearAutoPrintOrder()
+	})
+}
+
+// SetAutoPrintKitchen sets the "auto_print_kitchen" field.
+func (u *OutletSettingUpsertBulk) SetAutoPrintKitchen(v bool) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetAutoPrintKitchen(v)
+	})
+}
+
+// UpdateAutoPrintKitchen sets the "auto_print_kitchen" field to the value that was provided on create.
+func (u *OutletSettingUpsertBulk) UpdateAutoPrintKitchen() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateAutoPrintKitchen()
+	})
+}
+
+// ClearAutoPrintKitchen clears the value of the "auto_print_kitchen" field.
+func (u *OutletSettingUpsertBulk) ClearAutoPrintKitchen() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearAutoPrintKitchen()
+	})
+}
+
+// SetHotelModuleEnabled sets the "hotel_module_enabled" field.
+func (u *OutletSettingUpsertBulk) SetHotelModuleEnabled(v bool) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetHotelModuleEnabled(v)
+	})
+}
+
+// UpdateHotelModuleEnabled sets the "hotel_module_enabled" field to the value that was provided on create.
+func (u *OutletSettingUpsertBulk) UpdateHotelModuleEnabled() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateHotelModuleEnabled()
+	})
+}
+
+// ClearHotelModuleEnabled clears the value of the "hotel_module_enabled" field.
+func (u *OutletSettingUpsertBulk) ClearHotelModuleEnabled() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearHotelModuleEnabled()
+	})
+}
+
+// SetLayawayEnabled sets the "layaway_enabled" field.
+func (u *OutletSettingUpsertBulk) SetLayawayEnabled(v bool) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetLayawayEnabled(v)
+	})
+}
+
+// UpdateLayawayEnabled sets the "layaway_enabled" field to the value that was provided on create.
+func (u *OutletSettingUpsertBulk) UpdateLayawayEnabled() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateLayawayEnabled()
+	})
+}
+
+// ClearLayawayEnabled clears the value of the "layaway_enabled" field.
+func (u *OutletSettingUpsertBulk) ClearLayawayEnabled() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearLayawayEnabled()
+	})
+}
+
+// SetShiftReportsEnabled sets the "shift_reports_enabled" field.
+func (u *OutletSettingUpsertBulk) SetShiftReportsEnabled(v bool) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetShiftReportsEnabled(v)
+	})
+}
+
+// UpdateShiftReportsEnabled sets the "shift_reports_enabled" field to the value that was provided on create.
+func (u *OutletSettingUpsertBulk) UpdateShiftReportsEnabled() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateShiftReportsEnabled()
+	})
+}
+
+// ClearShiftReportsEnabled clears the value of the "shift_reports_enabled" field.
+func (u *OutletSettingUpsertBulk) ClearShiftReportsEnabled() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearShiftReportsEnabled()
 	})
 }
 

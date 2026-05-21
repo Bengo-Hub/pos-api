@@ -247,6 +247,26 @@ func (_u *AppointmentUpdate) ClearPosOrderID() *AppointmentUpdate {
 	return _u
 }
 
+// SetCrmContactID sets the "crm_contact_id" field.
+func (_u *AppointmentUpdate) SetCrmContactID(v uuid.UUID) *AppointmentUpdate {
+	_u.mutation.SetCrmContactID(v)
+	return _u
+}
+
+// SetNillableCrmContactID sets the "crm_contact_id" field if the given value is not nil.
+func (_u *AppointmentUpdate) SetNillableCrmContactID(v *uuid.UUID) *AppointmentUpdate {
+	if v != nil {
+		_u.SetCrmContactID(*v)
+	}
+	return _u
+}
+
+// ClearCrmContactID clears the value of the "crm_contact_id" field.
+func (_u *AppointmentUpdate) ClearCrmContactID() *AppointmentUpdate {
+	_u.mutation.ClearCrmContactID()
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *AppointmentUpdate) SetUpdatedAt(v time.Time) *AppointmentUpdate {
 	_u.mutation.SetUpdatedAt(v)
@@ -377,6 +397,12 @@ func (_u *AppointmentUpdate) sqlSave(ctx context.Context) (_node int, err error)
 	}
 	if _u.mutation.PosOrderIDCleared() {
 		_spec.ClearField(appointment.FieldPosOrderID, field.TypeUUID)
+	}
+	if value, ok := _u.mutation.CrmContactID(); ok {
+		_spec.SetField(appointment.FieldCrmContactID, field.TypeUUID, value)
+	}
+	if _u.mutation.CrmContactIDCleared() {
+		_spec.ClearField(appointment.FieldCrmContactID, field.TypeUUID)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(appointment.FieldUpdatedAt, field.TypeTime, value)
@@ -619,6 +645,26 @@ func (_u *AppointmentUpdateOne) ClearPosOrderID() *AppointmentUpdateOne {
 	return _u
 }
 
+// SetCrmContactID sets the "crm_contact_id" field.
+func (_u *AppointmentUpdateOne) SetCrmContactID(v uuid.UUID) *AppointmentUpdateOne {
+	_u.mutation.SetCrmContactID(v)
+	return _u
+}
+
+// SetNillableCrmContactID sets the "crm_contact_id" field if the given value is not nil.
+func (_u *AppointmentUpdateOne) SetNillableCrmContactID(v *uuid.UUID) *AppointmentUpdateOne {
+	if v != nil {
+		_u.SetCrmContactID(*v)
+	}
+	return _u
+}
+
+// ClearCrmContactID clears the value of the "crm_contact_id" field.
+func (_u *AppointmentUpdateOne) ClearCrmContactID() *AppointmentUpdateOne {
+	_u.mutation.ClearCrmContactID()
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *AppointmentUpdateOne) SetUpdatedAt(v time.Time) *AppointmentUpdateOne {
 	_u.mutation.SetUpdatedAt(v)
@@ -779,6 +825,12 @@ func (_u *AppointmentUpdateOne) sqlSave(ctx context.Context) (_node *Appointment
 	}
 	if _u.mutation.PosOrderIDCleared() {
 		_spec.ClearField(appointment.FieldPosOrderID, field.TypeUUID)
+	}
+	if value, ok := _u.mutation.CrmContactID(); ok {
+		_spec.SetField(appointment.FieldCrmContactID, field.TypeUUID, value)
+	}
+	if _u.mutation.CrmContactIDCleared() {
+		_spec.ClearField(appointment.FieldCrmContactID, field.TypeUUID)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(appointment.FieldUpdatedAt, field.TypeTime, value)

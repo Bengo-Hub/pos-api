@@ -258,6 +258,273 @@ func (_u *OutletSettingUpdate) ClearEnableAppointments() *OutletSettingUpdate {
 	return _u
 }
 
+// SetReceiptHeader sets the "receipt_header" field.
+func (_u *OutletSettingUpdate) SetReceiptHeader(v string) *OutletSettingUpdate {
+	_u.mutation.SetReceiptHeader(v)
+	return _u
+}
+
+// SetNillableReceiptHeader sets the "receipt_header" field if the given value is not nil.
+func (_u *OutletSettingUpdate) SetNillableReceiptHeader(v *string) *OutletSettingUpdate {
+	if v != nil {
+		_u.SetReceiptHeader(*v)
+	}
+	return _u
+}
+
+// ClearReceiptHeader clears the value of the "receipt_header" field.
+func (_u *OutletSettingUpdate) ClearReceiptHeader() *OutletSettingUpdate {
+	_u.mutation.ClearReceiptHeader()
+	return _u
+}
+
+// SetReceiptFooter sets the "receipt_footer" field.
+func (_u *OutletSettingUpdate) SetReceiptFooter(v string) *OutletSettingUpdate {
+	_u.mutation.SetReceiptFooter(v)
+	return _u
+}
+
+// SetNillableReceiptFooter sets the "receipt_footer" field if the given value is not nil.
+func (_u *OutletSettingUpdate) SetNillableReceiptFooter(v *string) *OutletSettingUpdate {
+	if v != nil {
+		_u.SetReceiptFooter(*v)
+	}
+	return _u
+}
+
+// ClearReceiptFooter clears the value of the "receipt_footer" field.
+func (_u *OutletSettingUpdate) ClearReceiptFooter() *OutletSettingUpdate {
+	_u.mutation.ClearReceiptFooter()
+	return _u
+}
+
+// SetCurrency sets the "currency" field.
+func (_u *OutletSettingUpdate) SetCurrency(v string) *OutletSettingUpdate {
+	_u.mutation.SetCurrency(v)
+	return _u
+}
+
+// SetNillableCurrency sets the "currency" field if the given value is not nil.
+func (_u *OutletSettingUpdate) SetNillableCurrency(v *string) *OutletSettingUpdate {
+	if v != nil {
+		_u.SetCurrency(*v)
+	}
+	return _u
+}
+
+// ClearCurrency clears the value of the "currency" field.
+func (_u *OutletSettingUpdate) ClearCurrency() *OutletSettingUpdate {
+	_u.mutation.ClearCurrency()
+	return _u
+}
+
+// SetVatEnabled sets the "vat_enabled" field.
+func (_u *OutletSettingUpdate) SetVatEnabled(v bool) *OutletSettingUpdate {
+	_u.mutation.SetVatEnabled(v)
+	return _u
+}
+
+// SetNillableVatEnabled sets the "vat_enabled" field if the given value is not nil.
+func (_u *OutletSettingUpdate) SetNillableVatEnabled(v *bool) *OutletSettingUpdate {
+	if v != nil {
+		_u.SetVatEnabled(*v)
+	}
+	return _u
+}
+
+// ClearVatEnabled clears the value of the "vat_enabled" field.
+func (_u *OutletSettingUpdate) ClearVatEnabled() *OutletSettingUpdate {
+	_u.mutation.ClearVatEnabled()
+	return _u
+}
+
+// SetVatRate sets the "vat_rate" field.
+func (_u *OutletSettingUpdate) SetVatRate(v float64) *OutletSettingUpdate {
+	_u.mutation.ResetVatRate()
+	_u.mutation.SetVatRate(v)
+	return _u
+}
+
+// SetNillableVatRate sets the "vat_rate" field if the given value is not nil.
+func (_u *OutletSettingUpdate) SetNillableVatRate(v *float64) *OutletSettingUpdate {
+	if v != nil {
+		_u.SetVatRate(*v)
+	}
+	return _u
+}
+
+// AddVatRate adds value to the "vat_rate" field.
+func (_u *OutletSettingUpdate) AddVatRate(v float64) *OutletSettingUpdate {
+	_u.mutation.AddVatRate(v)
+	return _u
+}
+
+// ClearVatRate clears the value of the "vat_rate" field.
+func (_u *OutletSettingUpdate) ClearVatRate() *OutletSettingUpdate {
+	_u.mutation.ClearVatRate()
+	return _u
+}
+
+// SetPrinterType sets the "printer_type" field.
+func (_u *OutletSettingUpdate) SetPrinterType(v string) *OutletSettingUpdate {
+	_u.mutation.SetPrinterType(v)
+	return _u
+}
+
+// SetNillablePrinterType sets the "printer_type" field if the given value is not nil.
+func (_u *OutletSettingUpdate) SetNillablePrinterType(v *string) *OutletSettingUpdate {
+	if v != nil {
+		_u.SetPrinterType(*v)
+	}
+	return _u
+}
+
+// ClearPrinterType clears the value of the "printer_type" field.
+func (_u *OutletSettingUpdate) ClearPrinterType() *OutletSettingUpdate {
+	_u.mutation.ClearPrinterType()
+	return _u
+}
+
+// SetPrinterIP sets the "printer_ip" field.
+func (_u *OutletSettingUpdate) SetPrinterIP(v string) *OutletSettingUpdate {
+	_u.mutation.SetPrinterIP(v)
+	return _u
+}
+
+// SetNillablePrinterIP sets the "printer_ip" field if the given value is not nil.
+func (_u *OutletSettingUpdate) SetNillablePrinterIP(v *string) *OutletSettingUpdate {
+	if v != nil {
+		_u.SetPrinterIP(*v)
+	}
+	return _u
+}
+
+// ClearPrinterIP clears the value of the "printer_ip" field.
+func (_u *OutletSettingUpdate) ClearPrinterIP() *OutletSettingUpdate {
+	_u.mutation.ClearPrinterIP()
+	return _u
+}
+
+// SetPaperWidth sets the "paper_width" field.
+func (_u *OutletSettingUpdate) SetPaperWidth(v string) *OutletSettingUpdate {
+	_u.mutation.SetPaperWidth(v)
+	return _u
+}
+
+// SetNillablePaperWidth sets the "paper_width" field if the given value is not nil.
+func (_u *OutletSettingUpdate) SetNillablePaperWidth(v *string) *OutletSettingUpdate {
+	if v != nil {
+		_u.SetPaperWidth(*v)
+	}
+	return _u
+}
+
+// ClearPaperWidth clears the value of the "paper_width" field.
+func (_u *OutletSettingUpdate) ClearPaperWidth() *OutletSettingUpdate {
+	_u.mutation.ClearPaperWidth()
+	return _u
+}
+
+// SetAutoPrintOrder sets the "auto_print_order" field.
+func (_u *OutletSettingUpdate) SetAutoPrintOrder(v bool) *OutletSettingUpdate {
+	_u.mutation.SetAutoPrintOrder(v)
+	return _u
+}
+
+// SetNillableAutoPrintOrder sets the "auto_print_order" field if the given value is not nil.
+func (_u *OutletSettingUpdate) SetNillableAutoPrintOrder(v *bool) *OutletSettingUpdate {
+	if v != nil {
+		_u.SetAutoPrintOrder(*v)
+	}
+	return _u
+}
+
+// ClearAutoPrintOrder clears the value of the "auto_print_order" field.
+func (_u *OutletSettingUpdate) ClearAutoPrintOrder() *OutletSettingUpdate {
+	_u.mutation.ClearAutoPrintOrder()
+	return _u
+}
+
+// SetAutoPrintKitchen sets the "auto_print_kitchen" field.
+func (_u *OutletSettingUpdate) SetAutoPrintKitchen(v bool) *OutletSettingUpdate {
+	_u.mutation.SetAutoPrintKitchen(v)
+	return _u
+}
+
+// SetNillableAutoPrintKitchen sets the "auto_print_kitchen" field if the given value is not nil.
+func (_u *OutletSettingUpdate) SetNillableAutoPrintKitchen(v *bool) *OutletSettingUpdate {
+	if v != nil {
+		_u.SetAutoPrintKitchen(*v)
+	}
+	return _u
+}
+
+// ClearAutoPrintKitchen clears the value of the "auto_print_kitchen" field.
+func (_u *OutletSettingUpdate) ClearAutoPrintKitchen() *OutletSettingUpdate {
+	_u.mutation.ClearAutoPrintKitchen()
+	return _u
+}
+
+// SetHotelModuleEnabled sets the "hotel_module_enabled" field.
+func (_u *OutletSettingUpdate) SetHotelModuleEnabled(v bool) *OutletSettingUpdate {
+	_u.mutation.SetHotelModuleEnabled(v)
+	return _u
+}
+
+// SetNillableHotelModuleEnabled sets the "hotel_module_enabled" field if the given value is not nil.
+func (_u *OutletSettingUpdate) SetNillableHotelModuleEnabled(v *bool) *OutletSettingUpdate {
+	if v != nil {
+		_u.SetHotelModuleEnabled(*v)
+	}
+	return _u
+}
+
+// ClearHotelModuleEnabled clears the value of the "hotel_module_enabled" field.
+func (_u *OutletSettingUpdate) ClearHotelModuleEnabled() *OutletSettingUpdate {
+	_u.mutation.ClearHotelModuleEnabled()
+	return _u
+}
+
+// SetLayawayEnabled sets the "layaway_enabled" field.
+func (_u *OutletSettingUpdate) SetLayawayEnabled(v bool) *OutletSettingUpdate {
+	_u.mutation.SetLayawayEnabled(v)
+	return _u
+}
+
+// SetNillableLayawayEnabled sets the "layaway_enabled" field if the given value is not nil.
+func (_u *OutletSettingUpdate) SetNillableLayawayEnabled(v *bool) *OutletSettingUpdate {
+	if v != nil {
+		_u.SetLayawayEnabled(*v)
+	}
+	return _u
+}
+
+// ClearLayawayEnabled clears the value of the "layaway_enabled" field.
+func (_u *OutletSettingUpdate) ClearLayawayEnabled() *OutletSettingUpdate {
+	_u.mutation.ClearLayawayEnabled()
+	return _u
+}
+
+// SetShiftReportsEnabled sets the "shift_reports_enabled" field.
+func (_u *OutletSettingUpdate) SetShiftReportsEnabled(v bool) *OutletSettingUpdate {
+	_u.mutation.SetShiftReportsEnabled(v)
+	return _u
+}
+
+// SetNillableShiftReportsEnabled sets the "shift_reports_enabled" field if the given value is not nil.
+func (_u *OutletSettingUpdate) SetNillableShiftReportsEnabled(v *bool) *OutletSettingUpdate {
+	if v != nil {
+		_u.SetShiftReportsEnabled(*v)
+	}
+	return _u
+}
+
+// ClearShiftReportsEnabled clears the value of the "shift_reports_enabled" field.
+func (_u *OutletSettingUpdate) ClearShiftReportsEnabled() *OutletSettingUpdate {
+	_u.mutation.ClearShiftReportsEnabled()
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *OutletSettingUpdate) SetUpdatedAt(v time.Time) *OutletSettingUpdate {
 	_u.mutation.SetUpdatedAt(v)
@@ -410,6 +677,87 @@ func (_u *OutletSettingUpdate) sqlSave(ctx context.Context) (_node int, err erro
 	}
 	if _u.mutation.EnableAppointmentsCleared() {
 		_spec.ClearField(outletsetting.FieldEnableAppointments, field.TypeBool)
+	}
+	if value, ok := _u.mutation.ReceiptHeader(); ok {
+		_spec.SetField(outletsetting.FieldReceiptHeader, field.TypeString, value)
+	}
+	if _u.mutation.ReceiptHeaderCleared() {
+		_spec.ClearField(outletsetting.FieldReceiptHeader, field.TypeString)
+	}
+	if value, ok := _u.mutation.ReceiptFooter(); ok {
+		_spec.SetField(outletsetting.FieldReceiptFooter, field.TypeString, value)
+	}
+	if _u.mutation.ReceiptFooterCleared() {
+		_spec.ClearField(outletsetting.FieldReceiptFooter, field.TypeString)
+	}
+	if value, ok := _u.mutation.Currency(); ok {
+		_spec.SetField(outletsetting.FieldCurrency, field.TypeString, value)
+	}
+	if _u.mutation.CurrencyCleared() {
+		_spec.ClearField(outletsetting.FieldCurrency, field.TypeString)
+	}
+	if value, ok := _u.mutation.VatEnabled(); ok {
+		_spec.SetField(outletsetting.FieldVatEnabled, field.TypeBool, value)
+	}
+	if _u.mutation.VatEnabledCleared() {
+		_spec.ClearField(outletsetting.FieldVatEnabled, field.TypeBool)
+	}
+	if value, ok := _u.mutation.VatRate(); ok {
+		_spec.SetField(outletsetting.FieldVatRate, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedVatRate(); ok {
+		_spec.AddField(outletsetting.FieldVatRate, field.TypeFloat64, value)
+	}
+	if _u.mutation.VatRateCleared() {
+		_spec.ClearField(outletsetting.FieldVatRate, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.PrinterType(); ok {
+		_spec.SetField(outletsetting.FieldPrinterType, field.TypeString, value)
+	}
+	if _u.mutation.PrinterTypeCleared() {
+		_spec.ClearField(outletsetting.FieldPrinterType, field.TypeString)
+	}
+	if value, ok := _u.mutation.PrinterIP(); ok {
+		_spec.SetField(outletsetting.FieldPrinterIP, field.TypeString, value)
+	}
+	if _u.mutation.PrinterIPCleared() {
+		_spec.ClearField(outletsetting.FieldPrinterIP, field.TypeString)
+	}
+	if value, ok := _u.mutation.PaperWidth(); ok {
+		_spec.SetField(outletsetting.FieldPaperWidth, field.TypeString, value)
+	}
+	if _u.mutation.PaperWidthCleared() {
+		_spec.ClearField(outletsetting.FieldPaperWidth, field.TypeString)
+	}
+	if value, ok := _u.mutation.AutoPrintOrder(); ok {
+		_spec.SetField(outletsetting.FieldAutoPrintOrder, field.TypeBool, value)
+	}
+	if _u.mutation.AutoPrintOrderCleared() {
+		_spec.ClearField(outletsetting.FieldAutoPrintOrder, field.TypeBool)
+	}
+	if value, ok := _u.mutation.AutoPrintKitchen(); ok {
+		_spec.SetField(outletsetting.FieldAutoPrintKitchen, field.TypeBool, value)
+	}
+	if _u.mutation.AutoPrintKitchenCleared() {
+		_spec.ClearField(outletsetting.FieldAutoPrintKitchen, field.TypeBool)
+	}
+	if value, ok := _u.mutation.HotelModuleEnabled(); ok {
+		_spec.SetField(outletsetting.FieldHotelModuleEnabled, field.TypeBool, value)
+	}
+	if _u.mutation.HotelModuleEnabledCleared() {
+		_spec.ClearField(outletsetting.FieldHotelModuleEnabled, field.TypeBool)
+	}
+	if value, ok := _u.mutation.LayawayEnabled(); ok {
+		_spec.SetField(outletsetting.FieldLayawayEnabled, field.TypeBool, value)
+	}
+	if _u.mutation.LayawayEnabledCleared() {
+		_spec.ClearField(outletsetting.FieldLayawayEnabled, field.TypeBool)
+	}
+	if value, ok := _u.mutation.ShiftReportsEnabled(); ok {
+		_spec.SetField(outletsetting.FieldShiftReportsEnabled, field.TypeBool, value)
+	}
+	if _u.mutation.ShiftReportsEnabledCleared() {
+		_spec.ClearField(outletsetting.FieldShiftReportsEnabled, field.TypeBool)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(outletsetting.FieldUpdatedAt, field.TypeTime, value)
@@ -691,6 +1039,273 @@ func (_u *OutletSettingUpdateOne) ClearEnableAppointments() *OutletSettingUpdate
 	return _u
 }
 
+// SetReceiptHeader sets the "receipt_header" field.
+func (_u *OutletSettingUpdateOne) SetReceiptHeader(v string) *OutletSettingUpdateOne {
+	_u.mutation.SetReceiptHeader(v)
+	return _u
+}
+
+// SetNillableReceiptHeader sets the "receipt_header" field if the given value is not nil.
+func (_u *OutletSettingUpdateOne) SetNillableReceiptHeader(v *string) *OutletSettingUpdateOne {
+	if v != nil {
+		_u.SetReceiptHeader(*v)
+	}
+	return _u
+}
+
+// ClearReceiptHeader clears the value of the "receipt_header" field.
+func (_u *OutletSettingUpdateOne) ClearReceiptHeader() *OutletSettingUpdateOne {
+	_u.mutation.ClearReceiptHeader()
+	return _u
+}
+
+// SetReceiptFooter sets the "receipt_footer" field.
+func (_u *OutletSettingUpdateOne) SetReceiptFooter(v string) *OutletSettingUpdateOne {
+	_u.mutation.SetReceiptFooter(v)
+	return _u
+}
+
+// SetNillableReceiptFooter sets the "receipt_footer" field if the given value is not nil.
+func (_u *OutletSettingUpdateOne) SetNillableReceiptFooter(v *string) *OutletSettingUpdateOne {
+	if v != nil {
+		_u.SetReceiptFooter(*v)
+	}
+	return _u
+}
+
+// ClearReceiptFooter clears the value of the "receipt_footer" field.
+func (_u *OutletSettingUpdateOne) ClearReceiptFooter() *OutletSettingUpdateOne {
+	_u.mutation.ClearReceiptFooter()
+	return _u
+}
+
+// SetCurrency sets the "currency" field.
+func (_u *OutletSettingUpdateOne) SetCurrency(v string) *OutletSettingUpdateOne {
+	_u.mutation.SetCurrency(v)
+	return _u
+}
+
+// SetNillableCurrency sets the "currency" field if the given value is not nil.
+func (_u *OutletSettingUpdateOne) SetNillableCurrency(v *string) *OutletSettingUpdateOne {
+	if v != nil {
+		_u.SetCurrency(*v)
+	}
+	return _u
+}
+
+// ClearCurrency clears the value of the "currency" field.
+func (_u *OutletSettingUpdateOne) ClearCurrency() *OutletSettingUpdateOne {
+	_u.mutation.ClearCurrency()
+	return _u
+}
+
+// SetVatEnabled sets the "vat_enabled" field.
+func (_u *OutletSettingUpdateOne) SetVatEnabled(v bool) *OutletSettingUpdateOne {
+	_u.mutation.SetVatEnabled(v)
+	return _u
+}
+
+// SetNillableVatEnabled sets the "vat_enabled" field if the given value is not nil.
+func (_u *OutletSettingUpdateOne) SetNillableVatEnabled(v *bool) *OutletSettingUpdateOne {
+	if v != nil {
+		_u.SetVatEnabled(*v)
+	}
+	return _u
+}
+
+// ClearVatEnabled clears the value of the "vat_enabled" field.
+func (_u *OutletSettingUpdateOne) ClearVatEnabled() *OutletSettingUpdateOne {
+	_u.mutation.ClearVatEnabled()
+	return _u
+}
+
+// SetVatRate sets the "vat_rate" field.
+func (_u *OutletSettingUpdateOne) SetVatRate(v float64) *OutletSettingUpdateOne {
+	_u.mutation.ResetVatRate()
+	_u.mutation.SetVatRate(v)
+	return _u
+}
+
+// SetNillableVatRate sets the "vat_rate" field if the given value is not nil.
+func (_u *OutletSettingUpdateOne) SetNillableVatRate(v *float64) *OutletSettingUpdateOne {
+	if v != nil {
+		_u.SetVatRate(*v)
+	}
+	return _u
+}
+
+// AddVatRate adds value to the "vat_rate" field.
+func (_u *OutletSettingUpdateOne) AddVatRate(v float64) *OutletSettingUpdateOne {
+	_u.mutation.AddVatRate(v)
+	return _u
+}
+
+// ClearVatRate clears the value of the "vat_rate" field.
+func (_u *OutletSettingUpdateOne) ClearVatRate() *OutletSettingUpdateOne {
+	_u.mutation.ClearVatRate()
+	return _u
+}
+
+// SetPrinterType sets the "printer_type" field.
+func (_u *OutletSettingUpdateOne) SetPrinterType(v string) *OutletSettingUpdateOne {
+	_u.mutation.SetPrinterType(v)
+	return _u
+}
+
+// SetNillablePrinterType sets the "printer_type" field if the given value is not nil.
+func (_u *OutletSettingUpdateOne) SetNillablePrinterType(v *string) *OutletSettingUpdateOne {
+	if v != nil {
+		_u.SetPrinterType(*v)
+	}
+	return _u
+}
+
+// ClearPrinterType clears the value of the "printer_type" field.
+func (_u *OutletSettingUpdateOne) ClearPrinterType() *OutletSettingUpdateOne {
+	_u.mutation.ClearPrinterType()
+	return _u
+}
+
+// SetPrinterIP sets the "printer_ip" field.
+func (_u *OutletSettingUpdateOne) SetPrinterIP(v string) *OutletSettingUpdateOne {
+	_u.mutation.SetPrinterIP(v)
+	return _u
+}
+
+// SetNillablePrinterIP sets the "printer_ip" field if the given value is not nil.
+func (_u *OutletSettingUpdateOne) SetNillablePrinterIP(v *string) *OutletSettingUpdateOne {
+	if v != nil {
+		_u.SetPrinterIP(*v)
+	}
+	return _u
+}
+
+// ClearPrinterIP clears the value of the "printer_ip" field.
+func (_u *OutletSettingUpdateOne) ClearPrinterIP() *OutletSettingUpdateOne {
+	_u.mutation.ClearPrinterIP()
+	return _u
+}
+
+// SetPaperWidth sets the "paper_width" field.
+func (_u *OutletSettingUpdateOne) SetPaperWidth(v string) *OutletSettingUpdateOne {
+	_u.mutation.SetPaperWidth(v)
+	return _u
+}
+
+// SetNillablePaperWidth sets the "paper_width" field if the given value is not nil.
+func (_u *OutletSettingUpdateOne) SetNillablePaperWidth(v *string) *OutletSettingUpdateOne {
+	if v != nil {
+		_u.SetPaperWidth(*v)
+	}
+	return _u
+}
+
+// ClearPaperWidth clears the value of the "paper_width" field.
+func (_u *OutletSettingUpdateOne) ClearPaperWidth() *OutletSettingUpdateOne {
+	_u.mutation.ClearPaperWidth()
+	return _u
+}
+
+// SetAutoPrintOrder sets the "auto_print_order" field.
+func (_u *OutletSettingUpdateOne) SetAutoPrintOrder(v bool) *OutletSettingUpdateOne {
+	_u.mutation.SetAutoPrintOrder(v)
+	return _u
+}
+
+// SetNillableAutoPrintOrder sets the "auto_print_order" field if the given value is not nil.
+func (_u *OutletSettingUpdateOne) SetNillableAutoPrintOrder(v *bool) *OutletSettingUpdateOne {
+	if v != nil {
+		_u.SetAutoPrintOrder(*v)
+	}
+	return _u
+}
+
+// ClearAutoPrintOrder clears the value of the "auto_print_order" field.
+func (_u *OutletSettingUpdateOne) ClearAutoPrintOrder() *OutletSettingUpdateOne {
+	_u.mutation.ClearAutoPrintOrder()
+	return _u
+}
+
+// SetAutoPrintKitchen sets the "auto_print_kitchen" field.
+func (_u *OutletSettingUpdateOne) SetAutoPrintKitchen(v bool) *OutletSettingUpdateOne {
+	_u.mutation.SetAutoPrintKitchen(v)
+	return _u
+}
+
+// SetNillableAutoPrintKitchen sets the "auto_print_kitchen" field if the given value is not nil.
+func (_u *OutletSettingUpdateOne) SetNillableAutoPrintKitchen(v *bool) *OutletSettingUpdateOne {
+	if v != nil {
+		_u.SetAutoPrintKitchen(*v)
+	}
+	return _u
+}
+
+// ClearAutoPrintKitchen clears the value of the "auto_print_kitchen" field.
+func (_u *OutletSettingUpdateOne) ClearAutoPrintKitchen() *OutletSettingUpdateOne {
+	_u.mutation.ClearAutoPrintKitchen()
+	return _u
+}
+
+// SetHotelModuleEnabled sets the "hotel_module_enabled" field.
+func (_u *OutletSettingUpdateOne) SetHotelModuleEnabled(v bool) *OutletSettingUpdateOne {
+	_u.mutation.SetHotelModuleEnabled(v)
+	return _u
+}
+
+// SetNillableHotelModuleEnabled sets the "hotel_module_enabled" field if the given value is not nil.
+func (_u *OutletSettingUpdateOne) SetNillableHotelModuleEnabled(v *bool) *OutletSettingUpdateOne {
+	if v != nil {
+		_u.SetHotelModuleEnabled(*v)
+	}
+	return _u
+}
+
+// ClearHotelModuleEnabled clears the value of the "hotel_module_enabled" field.
+func (_u *OutletSettingUpdateOne) ClearHotelModuleEnabled() *OutletSettingUpdateOne {
+	_u.mutation.ClearHotelModuleEnabled()
+	return _u
+}
+
+// SetLayawayEnabled sets the "layaway_enabled" field.
+func (_u *OutletSettingUpdateOne) SetLayawayEnabled(v bool) *OutletSettingUpdateOne {
+	_u.mutation.SetLayawayEnabled(v)
+	return _u
+}
+
+// SetNillableLayawayEnabled sets the "layaway_enabled" field if the given value is not nil.
+func (_u *OutletSettingUpdateOne) SetNillableLayawayEnabled(v *bool) *OutletSettingUpdateOne {
+	if v != nil {
+		_u.SetLayawayEnabled(*v)
+	}
+	return _u
+}
+
+// ClearLayawayEnabled clears the value of the "layaway_enabled" field.
+func (_u *OutletSettingUpdateOne) ClearLayawayEnabled() *OutletSettingUpdateOne {
+	_u.mutation.ClearLayawayEnabled()
+	return _u
+}
+
+// SetShiftReportsEnabled sets the "shift_reports_enabled" field.
+func (_u *OutletSettingUpdateOne) SetShiftReportsEnabled(v bool) *OutletSettingUpdateOne {
+	_u.mutation.SetShiftReportsEnabled(v)
+	return _u
+}
+
+// SetNillableShiftReportsEnabled sets the "shift_reports_enabled" field if the given value is not nil.
+func (_u *OutletSettingUpdateOne) SetNillableShiftReportsEnabled(v *bool) *OutletSettingUpdateOne {
+	if v != nil {
+		_u.SetShiftReportsEnabled(*v)
+	}
+	return _u
+}
+
+// ClearShiftReportsEnabled clears the value of the "shift_reports_enabled" field.
+func (_u *OutletSettingUpdateOne) ClearShiftReportsEnabled() *OutletSettingUpdateOne {
+	_u.mutation.ClearShiftReportsEnabled()
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *OutletSettingUpdateOne) SetUpdatedAt(v time.Time) *OutletSettingUpdateOne {
 	_u.mutation.SetUpdatedAt(v)
@@ -873,6 +1488,87 @@ func (_u *OutletSettingUpdateOne) sqlSave(ctx context.Context) (_node *OutletSet
 	}
 	if _u.mutation.EnableAppointmentsCleared() {
 		_spec.ClearField(outletsetting.FieldEnableAppointments, field.TypeBool)
+	}
+	if value, ok := _u.mutation.ReceiptHeader(); ok {
+		_spec.SetField(outletsetting.FieldReceiptHeader, field.TypeString, value)
+	}
+	if _u.mutation.ReceiptHeaderCleared() {
+		_spec.ClearField(outletsetting.FieldReceiptHeader, field.TypeString)
+	}
+	if value, ok := _u.mutation.ReceiptFooter(); ok {
+		_spec.SetField(outletsetting.FieldReceiptFooter, field.TypeString, value)
+	}
+	if _u.mutation.ReceiptFooterCleared() {
+		_spec.ClearField(outletsetting.FieldReceiptFooter, field.TypeString)
+	}
+	if value, ok := _u.mutation.Currency(); ok {
+		_spec.SetField(outletsetting.FieldCurrency, field.TypeString, value)
+	}
+	if _u.mutation.CurrencyCleared() {
+		_spec.ClearField(outletsetting.FieldCurrency, field.TypeString)
+	}
+	if value, ok := _u.mutation.VatEnabled(); ok {
+		_spec.SetField(outletsetting.FieldVatEnabled, field.TypeBool, value)
+	}
+	if _u.mutation.VatEnabledCleared() {
+		_spec.ClearField(outletsetting.FieldVatEnabled, field.TypeBool)
+	}
+	if value, ok := _u.mutation.VatRate(); ok {
+		_spec.SetField(outletsetting.FieldVatRate, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedVatRate(); ok {
+		_spec.AddField(outletsetting.FieldVatRate, field.TypeFloat64, value)
+	}
+	if _u.mutation.VatRateCleared() {
+		_spec.ClearField(outletsetting.FieldVatRate, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.PrinterType(); ok {
+		_spec.SetField(outletsetting.FieldPrinterType, field.TypeString, value)
+	}
+	if _u.mutation.PrinterTypeCleared() {
+		_spec.ClearField(outletsetting.FieldPrinterType, field.TypeString)
+	}
+	if value, ok := _u.mutation.PrinterIP(); ok {
+		_spec.SetField(outletsetting.FieldPrinterIP, field.TypeString, value)
+	}
+	if _u.mutation.PrinterIPCleared() {
+		_spec.ClearField(outletsetting.FieldPrinterIP, field.TypeString)
+	}
+	if value, ok := _u.mutation.PaperWidth(); ok {
+		_spec.SetField(outletsetting.FieldPaperWidth, field.TypeString, value)
+	}
+	if _u.mutation.PaperWidthCleared() {
+		_spec.ClearField(outletsetting.FieldPaperWidth, field.TypeString)
+	}
+	if value, ok := _u.mutation.AutoPrintOrder(); ok {
+		_spec.SetField(outletsetting.FieldAutoPrintOrder, field.TypeBool, value)
+	}
+	if _u.mutation.AutoPrintOrderCleared() {
+		_spec.ClearField(outletsetting.FieldAutoPrintOrder, field.TypeBool)
+	}
+	if value, ok := _u.mutation.AutoPrintKitchen(); ok {
+		_spec.SetField(outletsetting.FieldAutoPrintKitchen, field.TypeBool, value)
+	}
+	if _u.mutation.AutoPrintKitchenCleared() {
+		_spec.ClearField(outletsetting.FieldAutoPrintKitchen, field.TypeBool)
+	}
+	if value, ok := _u.mutation.HotelModuleEnabled(); ok {
+		_spec.SetField(outletsetting.FieldHotelModuleEnabled, field.TypeBool, value)
+	}
+	if _u.mutation.HotelModuleEnabledCleared() {
+		_spec.ClearField(outletsetting.FieldHotelModuleEnabled, field.TypeBool)
+	}
+	if value, ok := _u.mutation.LayawayEnabled(); ok {
+		_spec.SetField(outletsetting.FieldLayawayEnabled, field.TypeBool, value)
+	}
+	if _u.mutation.LayawayEnabledCleared() {
+		_spec.ClearField(outletsetting.FieldLayawayEnabled, field.TypeBool)
+	}
+	if value, ok := _u.mutation.ShiftReportsEnabled(); ok {
+		_spec.SetField(outletsetting.FieldShiftReportsEnabled, field.TypeBool, value)
+	}
+	if _u.mutation.ShiftReportsEnabledCleared() {
+		_spec.ClearField(outletsetting.FieldShiftReportsEnabled, field.TypeBool)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(outletsetting.FieldUpdatedAt, field.TypeTime, value)

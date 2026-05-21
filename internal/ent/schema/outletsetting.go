@@ -39,6 +39,21 @@ func (OutletSetting) Fields() []ent.Field {
 		field.String("default_view").Default("catalog").Optional().Comment("catalog, quick_sale, tables, appointments"),
 		field.Bool("enable_kds").Default(false).Optional().Comment("Kitchen Display System for hospitality"),
 		field.Bool("enable_appointments").Default(false).Optional().Comment("Appointment booking for salons/services"),
+		// Receipt & printing settings
+		field.String("receipt_header").Optional().Nillable().Comment("Custom header text printed on receipts"),
+		field.String("receipt_footer").Optional().Nillable().Comment("Custom footer text (e.g. return policy) printed on receipts"),
+		field.String("currency").Default("KES").Optional().Comment("ISO 4217 currency code for this outlet"),
+		field.Bool("vat_enabled").Default(true).Optional().Comment("Whether to apply VAT on orders"),
+		field.Float("vat_rate").Default(16.0).Optional().Comment("VAT percentage rate, e.g. 16.0 for 16%"),
+		field.String("printer_type").Default("thermal").Optional().Comment("thermal | network | bluetooth | none"),
+		field.String("printer_ip").Optional().Nillable().Comment("Network printer IP address (only for printer_type=network)"),
+		field.String("paper_width").Default("80mm").Optional().Comment("Receipt paper width: 58mm | 80mm"),
+		field.Bool("auto_print_order").Default(false).Optional().Comment("Automatically print receipt when order is completed"),
+		field.Bool("auto_print_kitchen").Default(false).Optional().Comment("Automatically print kitchen ticket on order creation"),
+		// Module activation toggles — tenant admin controls which modules are active per outlet
+		field.Bool("hotel_module_enabled").Default(false).Optional().Comment("Hotel/room management module (hospitality use case)"),
+		field.Bool("layaway_enabled").Default(false).Optional().Comment("Layaway plan / instalment payment module"),
+		field.Bool("shift_reports_enabled").Default(false).Optional().Comment("Shift reports & daily closing module"),
 		field.Time("updated_at").
 			Default(time.Now).
 			UpdateDefault(time.Now),

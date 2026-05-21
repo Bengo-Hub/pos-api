@@ -98,6 +98,20 @@ func (_c *LoyaltyAccountCreate) SetNillableProgramID(v *uuid.UUID) *LoyaltyAccou
 	return _c
 }
 
+// SetCrmContactID sets the "crm_contact_id" field.
+func (_c *LoyaltyAccountCreate) SetCrmContactID(v uuid.UUID) *LoyaltyAccountCreate {
+	_c.mutation.SetCrmContactID(v)
+	return _c
+}
+
+// SetNillableCrmContactID sets the "crm_contact_id" field if the given value is not nil.
+func (_c *LoyaltyAccountCreate) SetNillableCrmContactID(v *uuid.UUID) *LoyaltyAccountCreate {
+	if v != nil {
+		_c.SetCrmContactID(*v)
+	}
+	return _c
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_c *LoyaltyAccountCreate) SetCreatedAt(v time.Time) *LoyaltyAccountCreate {
 	_c.mutation.SetCreatedAt(v)
@@ -294,6 +308,10 @@ func (_c *LoyaltyAccountCreate) createSpec() (*LoyaltyAccount, *sqlgraph.CreateS
 		_spec.SetField(loyaltyaccount.FieldProgramID, field.TypeUUID, value)
 		_node.ProgramID = &value
 	}
+	if value, ok := _c.mutation.CrmContactID(); ok {
+		_spec.SetField(loyaltyaccount.FieldCrmContactID, field.TypeUUID, value)
+		_node.CrmContactID = &value
+	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(loyaltyaccount.FieldCreatedAt, field.TypeTime, value)
 		_node.CreatedAt = value
@@ -459,6 +477,24 @@ func (u *LoyaltyAccountUpsert) UpdateProgramID() *LoyaltyAccountUpsert {
 // ClearProgramID clears the value of the "program_id" field.
 func (u *LoyaltyAccountUpsert) ClearProgramID() *LoyaltyAccountUpsert {
 	u.SetNull(loyaltyaccount.FieldProgramID)
+	return u
+}
+
+// SetCrmContactID sets the "crm_contact_id" field.
+func (u *LoyaltyAccountUpsert) SetCrmContactID(v uuid.UUID) *LoyaltyAccountUpsert {
+	u.Set(loyaltyaccount.FieldCrmContactID, v)
+	return u
+}
+
+// UpdateCrmContactID sets the "crm_contact_id" field to the value that was provided on create.
+func (u *LoyaltyAccountUpsert) UpdateCrmContactID() *LoyaltyAccountUpsert {
+	u.SetExcluded(loyaltyaccount.FieldCrmContactID)
+	return u
+}
+
+// ClearCrmContactID clears the value of the "crm_contact_id" field.
+func (u *LoyaltyAccountUpsert) ClearCrmContactID() *LoyaltyAccountUpsert {
+	u.SetNull(loyaltyaccount.FieldCrmContactID)
 	return u
 }
 
@@ -648,6 +684,27 @@ func (u *LoyaltyAccountUpsertOne) UpdateProgramID() *LoyaltyAccountUpsertOne {
 func (u *LoyaltyAccountUpsertOne) ClearProgramID() *LoyaltyAccountUpsertOne {
 	return u.Update(func(s *LoyaltyAccountUpsert) {
 		s.ClearProgramID()
+	})
+}
+
+// SetCrmContactID sets the "crm_contact_id" field.
+func (u *LoyaltyAccountUpsertOne) SetCrmContactID(v uuid.UUID) *LoyaltyAccountUpsertOne {
+	return u.Update(func(s *LoyaltyAccountUpsert) {
+		s.SetCrmContactID(v)
+	})
+}
+
+// UpdateCrmContactID sets the "crm_contact_id" field to the value that was provided on create.
+func (u *LoyaltyAccountUpsertOne) UpdateCrmContactID() *LoyaltyAccountUpsertOne {
+	return u.Update(func(s *LoyaltyAccountUpsert) {
+		s.UpdateCrmContactID()
+	})
+}
+
+// ClearCrmContactID clears the value of the "crm_contact_id" field.
+func (u *LoyaltyAccountUpsertOne) ClearCrmContactID() *LoyaltyAccountUpsertOne {
+	return u.Update(func(s *LoyaltyAccountUpsert) {
+		s.ClearCrmContactID()
 	})
 }
 
@@ -1006,6 +1063,27 @@ func (u *LoyaltyAccountUpsertBulk) UpdateProgramID() *LoyaltyAccountUpsertBulk {
 func (u *LoyaltyAccountUpsertBulk) ClearProgramID() *LoyaltyAccountUpsertBulk {
 	return u.Update(func(s *LoyaltyAccountUpsert) {
 		s.ClearProgramID()
+	})
+}
+
+// SetCrmContactID sets the "crm_contact_id" field.
+func (u *LoyaltyAccountUpsertBulk) SetCrmContactID(v uuid.UUID) *LoyaltyAccountUpsertBulk {
+	return u.Update(func(s *LoyaltyAccountUpsert) {
+		s.SetCrmContactID(v)
+	})
+}
+
+// UpdateCrmContactID sets the "crm_contact_id" field to the value that was provided on create.
+func (u *LoyaltyAccountUpsertBulk) UpdateCrmContactID() *LoyaltyAccountUpsertBulk {
+	return u.Update(func(s *LoyaltyAccountUpsert) {
+		s.UpdateCrmContactID()
+	})
+}
+
+// ClearCrmContactID clears the value of the "crm_contact_id" field.
+func (u *LoyaltyAccountUpsertBulk) ClearCrmContactID() *LoyaltyAccountUpsertBulk {
+	return u.Update(func(s *LoyaltyAccountUpsert) {
+		s.ClearCrmContactID()
 	})
 }
 

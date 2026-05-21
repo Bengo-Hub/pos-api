@@ -90,6 +90,11 @@ func ProgramID(v uuid.UUID) predicate.LoyaltyAccount {
 	return predicate.LoyaltyAccount(sql.FieldEQ(FieldProgramID, v))
 }
 
+// CrmContactID applies equality check predicate on the "crm_contact_id" field. It's identical to CrmContactIDEQ.
+func CrmContactID(v uuid.UUID) predicate.LoyaltyAccount {
+	return predicate.LoyaltyAccount(sql.FieldEQ(FieldCrmContactID, v))
+}
+
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.LoyaltyAccount {
 	return predicate.LoyaltyAccount(sql.FieldEQ(FieldCreatedAt, v))
@@ -448,6 +453,56 @@ func ProgramIDIsNil() predicate.LoyaltyAccount {
 // ProgramIDNotNil applies the NotNil predicate on the "program_id" field.
 func ProgramIDNotNil() predicate.LoyaltyAccount {
 	return predicate.LoyaltyAccount(sql.FieldNotNull(FieldProgramID))
+}
+
+// CrmContactIDEQ applies the EQ predicate on the "crm_contact_id" field.
+func CrmContactIDEQ(v uuid.UUID) predicate.LoyaltyAccount {
+	return predicate.LoyaltyAccount(sql.FieldEQ(FieldCrmContactID, v))
+}
+
+// CrmContactIDNEQ applies the NEQ predicate on the "crm_contact_id" field.
+func CrmContactIDNEQ(v uuid.UUID) predicate.LoyaltyAccount {
+	return predicate.LoyaltyAccount(sql.FieldNEQ(FieldCrmContactID, v))
+}
+
+// CrmContactIDIn applies the In predicate on the "crm_contact_id" field.
+func CrmContactIDIn(vs ...uuid.UUID) predicate.LoyaltyAccount {
+	return predicate.LoyaltyAccount(sql.FieldIn(FieldCrmContactID, vs...))
+}
+
+// CrmContactIDNotIn applies the NotIn predicate on the "crm_contact_id" field.
+func CrmContactIDNotIn(vs ...uuid.UUID) predicate.LoyaltyAccount {
+	return predicate.LoyaltyAccount(sql.FieldNotIn(FieldCrmContactID, vs...))
+}
+
+// CrmContactIDGT applies the GT predicate on the "crm_contact_id" field.
+func CrmContactIDGT(v uuid.UUID) predicate.LoyaltyAccount {
+	return predicate.LoyaltyAccount(sql.FieldGT(FieldCrmContactID, v))
+}
+
+// CrmContactIDGTE applies the GTE predicate on the "crm_contact_id" field.
+func CrmContactIDGTE(v uuid.UUID) predicate.LoyaltyAccount {
+	return predicate.LoyaltyAccount(sql.FieldGTE(FieldCrmContactID, v))
+}
+
+// CrmContactIDLT applies the LT predicate on the "crm_contact_id" field.
+func CrmContactIDLT(v uuid.UUID) predicate.LoyaltyAccount {
+	return predicate.LoyaltyAccount(sql.FieldLT(FieldCrmContactID, v))
+}
+
+// CrmContactIDLTE applies the LTE predicate on the "crm_contact_id" field.
+func CrmContactIDLTE(v uuid.UUID) predicate.LoyaltyAccount {
+	return predicate.LoyaltyAccount(sql.FieldLTE(FieldCrmContactID, v))
+}
+
+// CrmContactIDIsNil applies the IsNil predicate on the "crm_contact_id" field.
+func CrmContactIDIsNil() predicate.LoyaltyAccount {
+	return predicate.LoyaltyAccount(sql.FieldIsNull(FieldCrmContactID))
+}
+
+// CrmContactIDNotNil applies the NotNil predicate on the "crm_contact_id" field.
+func CrmContactIDNotNil() predicate.LoyaltyAccount {
+	return predicate.LoyaltyAccount(sql.FieldNotNull(FieldCrmContactID))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.

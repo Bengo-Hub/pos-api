@@ -48,6 +48,32 @@ type OutletSetting struct {
 	EnableKds bool `json:"enable_kds,omitempty"`
 	// Appointment booking for salons/services
 	EnableAppointments bool `json:"enable_appointments,omitempty"`
+	// Custom header text printed on receipts
+	ReceiptHeader *string `json:"receipt_header,omitempty"`
+	// Custom footer text (e.g. return policy) printed on receipts
+	ReceiptFooter *string `json:"receipt_footer,omitempty"`
+	// ISO 4217 currency code for this outlet
+	Currency string `json:"currency,omitempty"`
+	// Whether to apply VAT on orders
+	VatEnabled bool `json:"vat_enabled,omitempty"`
+	// VAT percentage rate, e.g. 16.0 for 16%
+	VatRate float64 `json:"vat_rate,omitempty"`
+	// thermal | network | bluetooth | none
+	PrinterType string `json:"printer_type,omitempty"`
+	// Network printer IP address (only for printer_type=network)
+	PrinterIP *string `json:"printer_ip,omitempty"`
+	// Receipt paper width: 58mm | 80mm
+	PaperWidth string `json:"paper_width,omitempty"`
+	// Automatically print receipt when order is completed
+	AutoPrintOrder bool `json:"auto_print_order,omitempty"`
+	// Automatically print kitchen ticket on order creation
+	AutoPrintKitchen bool `json:"auto_print_kitchen,omitempty"`
+	// Hotel/room management module (hospitality use case)
+	HotelModuleEnabled bool `json:"hotel_module_enabled,omitempty"`
+	// Layaway plan / instalment payment module
+	LayawayEnabled bool `json:"layaway_enabled,omitempty"`
+	// Shift reports & daily closing module
+	ShiftReportsEnabled bool `json:"shift_reports_enabled,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
@@ -83,9 +109,11 @@ func (*OutletSetting) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case outletsetting.FieldReceiptsJSON, outletsetting.FieldTaxConfigJSON, outletsetting.FieldServiceChargeJSON, outletsetting.FieldOpeningHoursJSON, outletsetting.FieldMetadata:
 			values[i] = new([]byte)
-		case outletsetting.FieldShowImages, outletsetting.FieldShowBarcodeScanner, outletsetting.FieldEnableKds, outletsetting.FieldEnableAppointments:
+		case outletsetting.FieldShowImages, outletsetting.FieldShowBarcodeScanner, outletsetting.FieldEnableKds, outletsetting.FieldEnableAppointments, outletsetting.FieldVatEnabled, outletsetting.FieldAutoPrintOrder, outletsetting.FieldAutoPrintKitchen, outletsetting.FieldHotelModuleEnabled, outletsetting.FieldLayawayEnabled, outletsetting.FieldShiftReportsEnabled:
 			values[i] = new(sql.NullBool)
-		case outletsetting.FieldPinLoginMessage, outletsetting.FieldScreensaverURL, outletsetting.FieldDisplayMode, outletsetting.FieldDefaultView:
+		case outletsetting.FieldVatRate:
+			values[i] = new(sql.NullFloat64)
+		case outletsetting.FieldPinLoginMessage, outletsetting.FieldScreensaverURL, outletsetting.FieldDisplayMode, outletsetting.FieldDefaultView, outletsetting.FieldReceiptHeader, outletsetting.FieldReceiptFooter, outletsetting.FieldCurrency, outletsetting.FieldPrinterType, outletsetting.FieldPrinterIP, outletsetting.FieldPaperWidth:
 			values[i] = new(sql.NullString)
 		case outletsetting.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -208,6 +236,87 @@ func (_m *OutletSetting) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.EnableAppointments = value.Bool
 			}
+		case outletsetting.FieldReceiptHeader:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field receipt_header", values[i])
+			} else if value.Valid {
+				_m.ReceiptHeader = new(string)
+				*_m.ReceiptHeader = value.String
+			}
+		case outletsetting.FieldReceiptFooter:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field receipt_footer", values[i])
+			} else if value.Valid {
+				_m.ReceiptFooter = new(string)
+				*_m.ReceiptFooter = value.String
+			}
+		case outletsetting.FieldCurrency:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field currency", values[i])
+			} else if value.Valid {
+				_m.Currency = value.String
+			}
+		case outletsetting.FieldVatEnabled:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field vat_enabled", values[i])
+			} else if value.Valid {
+				_m.VatEnabled = value.Bool
+			}
+		case outletsetting.FieldVatRate:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field vat_rate", values[i])
+			} else if value.Valid {
+				_m.VatRate = value.Float64
+			}
+		case outletsetting.FieldPrinterType:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field printer_type", values[i])
+			} else if value.Valid {
+				_m.PrinterType = value.String
+			}
+		case outletsetting.FieldPrinterIP:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field printer_ip", values[i])
+			} else if value.Valid {
+				_m.PrinterIP = new(string)
+				*_m.PrinterIP = value.String
+			}
+		case outletsetting.FieldPaperWidth:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field paper_width", values[i])
+			} else if value.Valid {
+				_m.PaperWidth = value.String
+			}
+		case outletsetting.FieldAutoPrintOrder:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field auto_print_order", values[i])
+			} else if value.Valid {
+				_m.AutoPrintOrder = value.Bool
+			}
+		case outletsetting.FieldAutoPrintKitchen:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field auto_print_kitchen", values[i])
+			} else if value.Valid {
+				_m.AutoPrintKitchen = value.Bool
+			}
+		case outletsetting.FieldHotelModuleEnabled:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field hotel_module_enabled", values[i])
+			} else if value.Valid {
+				_m.HotelModuleEnabled = value.Bool
+			}
+		case outletsetting.FieldLayawayEnabled:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field layaway_enabled", values[i])
+			} else if value.Valid {
+				_m.LayawayEnabled = value.Bool
+			}
+		case outletsetting.FieldShiftReportsEnabled:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field shift_reports_enabled", values[i])
+			} else if value.Valid {
+				_m.ShiftReportsEnabled = value.Bool
+			}
 		case outletsetting.FieldUpdatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field updated_at", values[i])
@@ -300,6 +409,51 @@ func (_m *OutletSetting) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("enable_appointments=")
 	builder.WriteString(fmt.Sprintf("%v", _m.EnableAppointments))
+	builder.WriteString(", ")
+	if v := _m.ReceiptHeader; v != nil {
+		builder.WriteString("receipt_header=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.ReceiptFooter; v != nil {
+		builder.WriteString("receipt_footer=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	builder.WriteString("currency=")
+	builder.WriteString(_m.Currency)
+	builder.WriteString(", ")
+	builder.WriteString("vat_enabled=")
+	builder.WriteString(fmt.Sprintf("%v", _m.VatEnabled))
+	builder.WriteString(", ")
+	builder.WriteString("vat_rate=")
+	builder.WriteString(fmt.Sprintf("%v", _m.VatRate))
+	builder.WriteString(", ")
+	builder.WriteString("printer_type=")
+	builder.WriteString(_m.PrinterType)
+	builder.WriteString(", ")
+	if v := _m.PrinterIP; v != nil {
+		builder.WriteString("printer_ip=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	builder.WriteString("paper_width=")
+	builder.WriteString(_m.PaperWidth)
+	builder.WriteString(", ")
+	builder.WriteString("auto_print_order=")
+	builder.WriteString(fmt.Sprintf("%v", _m.AutoPrintOrder))
+	builder.WriteString(", ")
+	builder.WriteString("auto_print_kitchen=")
+	builder.WriteString(fmt.Sprintf("%v", _m.AutoPrintKitchen))
+	builder.WriteString(", ")
+	builder.WriteString("hotel_module_enabled=")
+	builder.WriteString(fmt.Sprintf("%v", _m.HotelModuleEnabled))
+	builder.WriteString(", ")
+	builder.WriteString("layaway_enabled=")
+	builder.WriteString(fmt.Sprintf("%v", _m.LayawayEnabled))
+	builder.WriteString(", ")
+	builder.WriteString("shift_reports_enabled=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ShiftReportsEnabled))
 	builder.WriteString(", ")
 	builder.WriteString("updated_at=")
 	builder.WriteString(_m.UpdatedAt.Format(time.ANSIC))
