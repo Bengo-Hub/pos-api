@@ -12,8 +12,20 @@ import (
 
 	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/bengobox/pos-service/internal/ent"
+	entoutlet "github.com/bengobox/pos-service/internal/ent/outlet"
 	entstaff "github.com/bengobox/pos-service/internal/ent/staffmember"
 )
+
+// useCaseRoles maps a POS outlet use case to the staff roles that make sense
+// at that type of terminal. Only these roles appear in the PIN login staff grid
+// when an outlet_id query param is provided.
+var useCaseRoles = map[string][]string{
+	"hospitality":   {"manager", "cashier", "waiter", "kitchen", "bar", "receptionist"},
+	"quick_service": {"manager", "cashier", "kitchen"},
+	"retail":        {"manager", "cashier"},
+	"pharmacy":      {"manager", "cashier", "receptionist", "pharmacist"},
+	"services":      {"manager", "cashier", "receptionist"},
+}
 
 // PINAuthHandler handles terminal PIN login for cashier/waiter/kitchen staff.
 // Staff must use SSO (PKCE) at least once so a StaffMember record exists;
@@ -40,9 +52,8 @@ const lockoutDuration = 15 * time.Minute
 
 // ListStaff returns minimal staff info for the PIN keypad selector screen.
 // Does NOT include pin_hash — only name, user_id, has_pin.
-// Staff visibility is tenant-wide: all active staff appear regardless of which outlet
-// is currently selected. Outlet selection controls session/shift context, not login access.
-// The optional ?outlet_id= param is accepted for API compatibility but not used for filtering.
+// When ?outlet_id= is provided, the result is filtered to roles appropriate for
+// that outlet's use case (e.g. pharmacy shows manager/cashier/receptionist/pharmacist only).
 func (h *PINAuthHandler) ListStaff(w http.ResponseWriter, r *http.Request) {
 	tid, err := parseTenantUUID(r)
 	if err != nil {
@@ -51,6 +62,16 @@ func (h *PINAuthHandler) ListStaff(w http.ResponseWriter, r *http.Request) {
 	}
 
 	q := h.client.StaffMember.Query().Where(entstaff.TenantID(tid), entstaff.IsActive(true))
+
+	if outletIDStr := r.URL.Query().Get("outlet_id"); outletIDStr != "" {
+		if outletUUID, err := uuid.Parse(outletIDStr); err == nil {
+			if o, err := h.client.Outlet.Query().Where(entoutlet.ID(outletUUID)).Only(r.Context()); err == nil && o.UseCase != nil {
+				if allowed, ok := useCaseRoles[*o.UseCase]; ok {
+					q = q.Where(entstaff.RoleIn(allowed...))
+				}
+			}
+		}
+	}
 
 	members, err := q.All(r.Context())
 	if err != nil {
@@ -152,11 +173,20 @@ func (h *PINAuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Determine session outlet: prefer the outlet the terminal selected (X-Outlet-ID),
+	// fall back to the StaffMember's home outlet.
+	sessionOutletID := member.OutletID
+	if xOID := r.Header.Get("X-Outlet-ID"); xOID != "" {
+		if parsed, err := uuid.Parse(xOID); err == nil {
+			sessionOutletID = parsed
+		}
+	}
+
 	// Load outlet to include use_case and is_hq in the login response so pos-ui
 	// can initialise outlet state without an extra round-trip.
 	outletUseCase := "hospitality"
 	isHQ := false
-	outlet, outletErr := h.client.Outlet.Get(r.Context(), member.OutletID)
+	outlet, outletErr := h.client.Outlet.Get(r.Context(), sessionOutletID)
 	if outletErr == nil && outlet.UseCase != nil {
 		outletUseCase = *outlet.UseCase
 		isHQ = outlet.IsHq
@@ -167,13 +197,13 @@ func (h *PINAuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		"token_type":   "Bearer",
 		"expires_in":   int((4 * time.Hour).Seconds()),
 		"user": map[string]any{
-			"user_id":        member.UserID.String(),
-			"name":           member.Name,
-			"role":           member.Role,
-			"tenant_id":      member.TenantID.String(),
-			"outlet_id":      member.OutletID.String(),
+			"user_id":         member.UserID.String(),
+			"name":            member.Name,
+			"role":            member.Role,
+			"tenant_id":       member.TenantID.String(),
+			"outlet_id":       sessionOutletID.String(),
 			"outlet_use_case": outletUseCase,
-			"is_hq_user":     isHQ,
+			"is_hq_user":      isHQ,
 		},
 	})
 }
