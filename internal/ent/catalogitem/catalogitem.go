@@ -51,6 +51,10 @@ const (
 	FieldDurationMinutes = "duration_minutes"
 	// FieldCostPrice holds the string denoting the cost_price field in the database.
 	FieldCostPrice = "cost_price"
+	// FieldSellingPrice holds the string denoting the selling_price field in the database.
+	FieldSellingPrice = "selling_price"
+	// FieldOutletID holds the string denoting the outlet_id field in the database.
+	FieldOutletID = "outlet_id"
 	// FieldTags holds the string denoting the tags field in the database.
 	FieldTags = "tags"
 	// FieldMetadata holds the string denoting the metadata field in the database.
@@ -93,6 +97,8 @@ var Columns = []string{
 	FieldMinimumAge,
 	FieldDurationMinutes,
 	FieldCostPrice,
+	FieldSellingPrice,
+	FieldOutletID,
 	FieldTags,
 	FieldMetadata,
 	FieldCreatedAt,
@@ -236,6 +242,16 @@ func ByDurationMinutes(opts ...sql.OrderTermOption) OrderOption {
 // ByCostPrice orders the results by the cost_price field.
 func ByCostPrice(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCostPrice, opts...).ToFunc()
+}
+
+// BySellingPrice orders the results by the selling_price field.
+func BySellingPrice(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSellingPrice, opts...).ToFunc()
+}
+
+// ByOutletID orders the results by the outlet_id field.
+func ByOutletID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldOutletID, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.

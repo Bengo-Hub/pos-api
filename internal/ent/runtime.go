@@ -223,19 +223,19 @@ func init() {
 	// catalogitem.DefaultRequiresSerial holds the default value on creation for the requires_serial field.
 	catalogitem.DefaultRequiresSerial = catalogitemDescRequiresSerial.Default.(bool)
 	// catalogitemDescTags is the schema descriptor for tags field.
-	catalogitemDescTags := catalogitemFields[19].Descriptor()
+	catalogitemDescTags := catalogitemFields[21].Descriptor()
 	// catalogitem.DefaultTags holds the default value on creation for the tags field.
 	catalogitem.DefaultTags = catalogitemDescTags.Default.([]string)
 	// catalogitemDescMetadata is the schema descriptor for metadata field.
-	catalogitemDescMetadata := catalogitemFields[20].Descriptor()
+	catalogitemDescMetadata := catalogitemFields[22].Descriptor()
 	// catalogitem.DefaultMetadata holds the default value on creation for the metadata field.
 	catalogitem.DefaultMetadata = catalogitemDescMetadata.Default.(map[string]interface{})
 	// catalogitemDescCreatedAt is the schema descriptor for created_at field.
-	catalogitemDescCreatedAt := catalogitemFields[21].Descriptor()
+	catalogitemDescCreatedAt := catalogitemFields[23].Descriptor()
 	// catalogitem.DefaultCreatedAt holds the default value on creation for the created_at field.
 	catalogitem.DefaultCreatedAt = catalogitemDescCreatedAt.Default.(func() time.Time)
 	// catalogitemDescUpdatedAt is the schema descriptor for updated_at field.
-	catalogitemDescUpdatedAt := catalogitemFields[22].Descriptor()
+	catalogitemDescUpdatedAt := catalogitemFields[24].Descriptor()
 	// catalogitem.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	catalogitem.DefaultUpdatedAt = catalogitemDescUpdatedAt.Default.(func() time.Time)
 	// catalogitem.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

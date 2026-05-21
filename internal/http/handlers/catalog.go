@@ -52,8 +52,11 @@ type inventoryBulkPrice struct {
 }
 
 // proxyFromInventory calls inventory-api and returns items in the same DTO format
-// as ListCatalogItems. Fetches items and bulk pricing concurrently.
-func (h *CatalogHandler) proxyFromInventory(ctx context.Context, tenantSlug string) ([]map[string]any, error) {
+// as ListCatalogItems. Price resolution order:
+//  1. Local CatalogItem.selling_price (set by POS admin, outlet-scoped if outlet_id matches)
+//  2. Inventory-api bulk pricing (pricing tiers)
+//  3. 0 (not configured)
+func (h *CatalogHandler) proxyFromInventory(ctx context.Context, tenantSlug string, tenantID uuid.UUID, outletID *uuid.UUID) ([]map[string]any, error) {
 	inventoryURL := os.Getenv("INVENTORY_API_URL")
 	if inventoryURL == "" {
 		inventoryURL = "http://inventory-api.inventory.svc.cluster.local:4000"
@@ -110,7 +113,6 @@ func (h *CatalogHandler) proxyFromInventory(ctx context.Context, tenantSlug stri
 	go func() {
 		body, err := doGet(fmt.Sprintf("%s/v1/%s/inventory/items/pricing", inventoryURL, tenantSlug))
 		if err != nil {
-			// Pricing is best-effort — log and continue with price=0
 			h.log.Warn("failed to fetch bulk pricing from inventory-api", zap.Error(err))
 			priceCh <- priceResult{}
 			return
@@ -130,10 +132,33 @@ func (h *CatalogHandler) proxyFromInventory(ctx context.Context, tenantSlug stri
 		return nil, ir.err
 	}
 
-	// Build item_id → price map
-	priceByID := make(map[string]float64, len(pr.prices))
+	// Build item_id → inventory-tier price map (fallback)
+	invPriceByID := make(map[string]float64, len(pr.prices))
 	for _, p := range pr.prices {
-		priceByID[p.ItemID] = p.Price
+		invPriceByID[p.ItemID] = p.Price
+	}
+
+	// Build SKU → local selling_price map from CatalogItem table.
+	// Prefer outlet-scoped rows; fall back to tenant-scoped (outlet_id IS NULL).
+	localPriceBySKU := make(map[string]float64)
+	if tenantID != uuid.Nil {
+		localItems, _ := h.client.CatalogItem.Query().
+			Where(catalogitem.TenantID(tenantID)).
+			All(ctx)
+		// First pass: tenant-wide (no outlet scope)
+		for _, li := range localItems {
+			if li.OutletID == nil && li.SellingPrice != nil && *li.SellingPrice > 0 {
+				localPriceBySKU[li.Sku] = *li.SellingPrice
+			}
+		}
+		// Second pass: outlet-scoped overrides (higher priority)
+		if outletID != nil {
+			for _, li := range localItems {
+				if li.OutletID != nil && *li.OutletID == *outletID && li.SellingPrice != nil && *li.SellingPrice > 0 {
+					localPriceBySKU[li.Sku] = *li.SellingPrice
+				}
+			}
+		}
 	}
 
 	out := make([]map[string]any, 0, len(ir.items))
@@ -142,6 +167,13 @@ func (h *CatalogHandler) proxyFromInventory(ctx context.Context, tenantSlug stri
 		if !item.IsActive {
 			status = "inactive"
 		}
+
+		// Price resolution: local override → inventory tier → 0
+		price := localPriceBySKU[item.SKU]
+		if price == 0 {
+			price = invPriceByID[item.ID]
+		}
+
 		out = append(out, map[string]any{
 			"id":          item.ID,
 			"sku":         item.SKU,
@@ -152,7 +184,8 @@ func (h *CatalogHandler) proxyFromInventory(ctx context.Context, tenantSlug stri
 			"status":      status,
 			"image_url":   item.ImageURL,
 			"barcode":     item.Barcode,
-			"price":       priceByID[item.ID],
+			"price":       price,
+			"outlet_id":   outletID,
 		})
 	}
 	return out, nil
@@ -195,9 +228,17 @@ func (h *CatalogHandler) ListCatalogItems(w http.ResponseWriter, r *http.Request
 		tenantSlug = httpware.GetTenantSlug(r.Context())
 	}
 
+	// Resolve outlet ID from httpware context (set by apiClient X-Outlet-ID header)
+	var outletID *uuid.UUID
+	if oidStr := httpware.GetOutletID(r.Context()); oidStr != "" {
+		if oid, parseErr := uuid.Parse(oidStr); parseErr == nil {
+			outletID = &oid
+		}
+	}
+
 	// ── Primary path: inventory-api proxy + local overrides ──────────────────
 	if tenantSlug != "" {
-		proxyItems, proxyErr := h.proxyFromInventory(r.Context(), tenantSlug)
+		proxyItems, proxyErr := h.proxyFromInventory(r.Context(), tenantSlug, tid, outletID)
 		if proxyErr == nil && len(proxyItems) > 0 {
 			// Fetch local overrides (status/tax_status set via POS catalog management)
 			localItems, _ := h.client.CatalogItem.Query().
@@ -445,6 +486,136 @@ func (h *CatalogHandler) DeleteCatalogItem(w http.ResponseWriter, r *http.Reques
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// SetCatalogItemPrice handles PATCH /{tenantID}/pos/catalog/items/prices
+// Upserts a selling_price override for an item identified by SKU.
+// Body: { "sku": "...", "selling_price": 350, "outlet_id": "uuid-optional" }
+func (h *CatalogHandler) SetCatalogItemPrice(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+
+	var input struct {
+		SKU          string   `json:"sku"`
+		SellingPrice float64  `json:"selling_price"`
+		OutletID     string   `json:"outlet_id,omitempty"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil || input.SKU == "" {
+		jsonError(w, "sku and selling_price are required", http.StatusBadRequest)
+		return
+	}
+
+	var outletID *uuid.UUID
+	if input.OutletID != "" {
+		if oid, parseErr := uuid.Parse(input.OutletID); parseErr == nil {
+			outletID = &oid
+		}
+	}
+
+	// Try to find existing CatalogItem for this tenant+SKU+(outlet)
+	q := h.client.CatalogItem.Query().Where(catalogitem.TenantID(tid), catalogitem.Sku(input.SKU))
+	existing, _ := q.First(r.Context())
+
+	if existing != nil {
+		upd := existing.Update().SetSellingPrice(input.SellingPrice)
+		if outletID != nil {
+			upd.SetOutletID(*outletID)
+		}
+		updated, saveErr := upd.Save(r.Context())
+		if saveErr != nil {
+			jsonError(w, "update failed: "+saveErr.Error(), http.StatusInternalServerError)
+			return
+		}
+		jsonOK(w, updated)
+		return
+	}
+
+	// Create new override row
+	creator := h.client.CatalogItem.Create().
+		SetTenantID(tid).
+		SetSku(input.SKU).
+		SetName(input.SKU). // placeholder name; real name comes from inventory-api proxy
+		SetSellingPrice(input.SellingPrice).
+		SetStatus("active")
+	if outletID != nil {
+		creator.SetOutletID(*outletID)
+	}
+	created, saveErr := creator.Save(r.Context())
+	if saveErr != nil {
+		jsonError(w, "create failed: "+saveErr.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusCreated)
+	jsonOK(w, created)
+}
+
+// BulkSetCatalogPrices handles POST /{tenantID}/pos/catalog/items/prices/bulk
+// Body: { "outlet_id": "...", "prices": [{ "sku": "...", "selling_price": 350 }] }
+func (h *CatalogHandler) BulkSetCatalogPrices(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+
+	var input struct {
+		OutletID string `json:"outlet_id,omitempty"`
+		Prices   []struct {
+			SKU          string  `json:"sku"`
+			SellingPrice float64 `json:"selling_price"`
+		} `json:"prices"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil || len(input.Prices) == 0 {
+		jsonError(w, "prices array required", http.StatusBadRequest)
+		return
+	}
+
+	var outletID *uuid.UUID
+	if input.OutletID != "" {
+		if oid, parseErr := uuid.Parse(input.OutletID); parseErr == nil {
+			outletID = &oid
+		}
+	}
+
+	// Load existing rows to decide create vs update
+	skus := make([]string, len(input.Prices))
+	for i, p := range input.Prices {
+		skus[i] = p.SKU
+	}
+	existing, _ := h.client.CatalogItem.Query().
+		Where(catalogitem.TenantID(tid), catalogitem.SkuIn(skus...)).
+		All(r.Context())
+	existingBySKU := make(map[string]*ent.CatalogItem, len(existing))
+	for _, e := range existing {
+		existingBySKU[e.Sku] = e
+	}
+
+	updated := 0
+	for _, p := range input.Prices {
+		if e, ok := existingBySKU[p.SKU]; ok {
+			upd := e.Update().SetSellingPrice(p.SellingPrice)
+			if outletID != nil {
+				upd.SetOutletID(*outletID)
+			}
+			if _, saveErr := upd.Save(r.Context()); saveErr == nil {
+				updated++
+			}
+		} else {
+			creator := h.client.CatalogItem.Create().
+				SetTenantID(tid).SetSku(p.SKU).SetName(p.SKU).
+				SetSellingPrice(p.SellingPrice).SetStatus("active")
+			if outletID != nil {
+				creator.SetOutletID(*outletID)
+			}
+			if _, saveErr := creator.Save(r.Context()); saveErr == nil {
+				updated++
+			}
+		}
+	}
+	jsonOK(w, map[string]any{"updated": updated})
 }
 
 // parseTenantUUID extracts and parses tenant UUID from httpware context.

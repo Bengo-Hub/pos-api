@@ -55,6 +55,10 @@ type CatalogItem struct {
 	DurationMinutes *int `json:"duration_minutes,omitempty"`
 	// Cost for margin analysis
 	CostPrice *float64 `json:"cost_price,omitempty"`
+	// POS retail/selling price override — takes precedence over inventory-api pricing tiers
+	SellingPrice *float64 `json:"selling_price,omitempty"`
+	// When set, price/availability applies only to this outlet
+	OutletID *uuid.UUID `json:"outlet_id,omitempty"`
 	// Synced dietary/custom tags from inventory
 	Tags []string `json:"tags,omitempty"`
 	// Metadata holds the value of the "metadata" field.
@@ -92,13 +96,13 @@ func (*CatalogItem) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case catalogitem.FieldInventoryItemID:
+		case catalogitem.FieldInventoryItemID, catalogitem.FieldOutletID:
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		case catalogitem.FieldTags, catalogitem.FieldMetadata:
 			values[i] = new([]byte)
 		case catalogitem.FieldRequiresAgeVerification, catalogitem.FieldIsControlledSubstance, catalogitem.FieldTrackSerialNumber, catalogitem.FieldRequiresSerial:
 			values[i] = new(sql.NullBool)
-		case catalogitem.FieldCostPrice:
+		case catalogitem.FieldCostPrice, catalogitem.FieldSellingPrice:
 			values[i] = new(sql.NullFloat64)
 		case catalogitem.FieldMinimumAge, catalogitem.FieldDurationMinutes:
 			values[i] = new(sql.NullInt64)
@@ -241,6 +245,20 @@ func (_m *CatalogItem) assignValues(columns []string, values []any) error {
 				_m.CostPrice = new(float64)
 				*_m.CostPrice = value.Float64
 			}
+		case catalogitem.FieldSellingPrice:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field selling_price", values[i])
+			} else if value.Valid {
+				_m.SellingPrice = new(float64)
+				*_m.SellingPrice = value.Float64
+			}
+		case catalogitem.FieldOutletID:
+			if value, ok := values[i].(*sql.NullScanner); !ok {
+				return fmt.Errorf("unexpected type %T for field outlet_id", values[i])
+			} else if value.Valid {
+				_m.OutletID = new(uuid.UUID)
+				*_m.OutletID = *value.S.(*uuid.UUID)
+			}
 		case catalogitem.FieldTags:
 			if value, ok := values[i].(*[]byte); !ok {
 				return fmt.Errorf("unexpected type %T for field tags", values[i])
@@ -369,6 +387,16 @@ func (_m *CatalogItem) String() string {
 	builder.WriteString(", ")
 	if v := _m.CostPrice; v != nil {
 		builder.WriteString("cost_price=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.SellingPrice; v != nil {
+		builder.WriteString("selling_price=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.OutletID; v != nil {
+		builder.WriteString("outlet_id=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
 	builder.WriteString(", ")

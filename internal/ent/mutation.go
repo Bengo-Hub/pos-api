@@ -4557,6 +4557,9 @@ type CatalogItemMutation struct {
 	addduration_minutes       *int
 	cost_price                *float64
 	addcost_price             *float64
+	selling_price             *float64
+	addselling_price          *float64
+	outlet_id                 *uuid.UUID
 	tags                      *[]string
 	appendtags                []string
 	metadata                  *map[string]interface{}
@@ -5503,6 +5506,125 @@ func (m *CatalogItemMutation) ResetCostPrice() {
 	delete(m.clearedFields, catalogitem.FieldCostPrice)
 }
 
+// SetSellingPrice sets the "selling_price" field.
+func (m *CatalogItemMutation) SetSellingPrice(f float64) {
+	m.selling_price = &f
+	m.addselling_price = nil
+}
+
+// SellingPrice returns the value of the "selling_price" field in the mutation.
+func (m *CatalogItemMutation) SellingPrice() (r float64, exists bool) {
+	v := m.selling_price
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSellingPrice returns the old "selling_price" field's value of the CatalogItem entity.
+// If the CatalogItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CatalogItemMutation) OldSellingPrice(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSellingPrice is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSellingPrice requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSellingPrice: %w", err)
+	}
+	return oldValue.SellingPrice, nil
+}
+
+// AddSellingPrice adds f to the "selling_price" field.
+func (m *CatalogItemMutation) AddSellingPrice(f float64) {
+	if m.addselling_price != nil {
+		*m.addselling_price += f
+	} else {
+		m.addselling_price = &f
+	}
+}
+
+// AddedSellingPrice returns the value that was added to the "selling_price" field in this mutation.
+func (m *CatalogItemMutation) AddedSellingPrice() (r float64, exists bool) {
+	v := m.addselling_price
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearSellingPrice clears the value of the "selling_price" field.
+func (m *CatalogItemMutation) ClearSellingPrice() {
+	m.selling_price = nil
+	m.addselling_price = nil
+	m.clearedFields[catalogitem.FieldSellingPrice] = struct{}{}
+}
+
+// SellingPriceCleared returns if the "selling_price" field was cleared in this mutation.
+func (m *CatalogItemMutation) SellingPriceCleared() bool {
+	_, ok := m.clearedFields[catalogitem.FieldSellingPrice]
+	return ok
+}
+
+// ResetSellingPrice resets all changes to the "selling_price" field.
+func (m *CatalogItemMutation) ResetSellingPrice() {
+	m.selling_price = nil
+	m.addselling_price = nil
+	delete(m.clearedFields, catalogitem.FieldSellingPrice)
+}
+
+// SetOutletID sets the "outlet_id" field.
+func (m *CatalogItemMutation) SetOutletID(u uuid.UUID) {
+	m.outlet_id = &u
+}
+
+// OutletID returns the value of the "outlet_id" field in the mutation.
+func (m *CatalogItemMutation) OutletID() (r uuid.UUID, exists bool) {
+	v := m.outlet_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOutletID returns the old "outlet_id" field's value of the CatalogItem entity.
+// If the CatalogItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CatalogItemMutation) OldOutletID(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOutletID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOutletID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOutletID: %w", err)
+	}
+	return oldValue.OutletID, nil
+}
+
+// ClearOutletID clears the value of the "outlet_id" field.
+func (m *CatalogItemMutation) ClearOutletID() {
+	m.outlet_id = nil
+	m.clearedFields[catalogitem.FieldOutletID] = struct{}{}
+}
+
+// OutletIDCleared returns if the "outlet_id" field was cleared in this mutation.
+func (m *CatalogItemMutation) OutletIDCleared() bool {
+	_, ok := m.clearedFields[catalogitem.FieldOutletID]
+	return ok
+}
+
+// ResetOutletID resets all changes to the "outlet_id" field.
+func (m *CatalogItemMutation) ResetOutletID() {
+	m.outlet_id = nil
+	delete(m.clearedFields, catalogitem.FieldOutletID)
+}
+
 // SetTags sets the "tags" field.
 func (m *CatalogItemMutation) SetTags(s []string) {
 	m.tags = &s
@@ -5750,7 +5872,7 @@ func (m *CatalogItemMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *CatalogItemMutation) Fields() []string {
-	fields := make([]string, 0, 22)
+	fields := make([]string, 0, 24)
 	if m.tenant_id != nil {
 		fields = append(fields, catalogitem.FieldTenantID)
 	}
@@ -5804,6 +5926,12 @@ func (m *CatalogItemMutation) Fields() []string {
 	}
 	if m.cost_price != nil {
 		fields = append(fields, catalogitem.FieldCostPrice)
+	}
+	if m.selling_price != nil {
+		fields = append(fields, catalogitem.FieldSellingPrice)
+	}
+	if m.outlet_id != nil {
+		fields = append(fields, catalogitem.FieldOutletID)
 	}
 	if m.tags != nil {
 		fields = append(fields, catalogitem.FieldTags)
@@ -5861,6 +5989,10 @@ func (m *CatalogItemMutation) Field(name string) (ent.Value, bool) {
 		return m.DurationMinutes()
 	case catalogitem.FieldCostPrice:
 		return m.CostPrice()
+	case catalogitem.FieldSellingPrice:
+		return m.SellingPrice()
+	case catalogitem.FieldOutletID:
+		return m.OutletID()
 	case catalogitem.FieldTags:
 		return m.Tags()
 	case catalogitem.FieldMetadata:
@@ -5914,6 +6046,10 @@ func (m *CatalogItemMutation) OldField(ctx context.Context, name string) (ent.Va
 		return m.OldDurationMinutes(ctx)
 	case catalogitem.FieldCostPrice:
 		return m.OldCostPrice(ctx)
+	case catalogitem.FieldSellingPrice:
+		return m.OldSellingPrice(ctx)
+	case catalogitem.FieldOutletID:
+		return m.OldOutletID(ctx)
 	case catalogitem.FieldTags:
 		return m.OldTags(ctx)
 	case catalogitem.FieldMetadata:
@@ -6057,6 +6193,20 @@ func (m *CatalogItemMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetCostPrice(v)
 		return nil
+	case catalogitem.FieldSellingPrice:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSellingPrice(v)
+		return nil
+	case catalogitem.FieldOutletID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOutletID(v)
+		return nil
 	case catalogitem.FieldTags:
 		v, ok := value.([]string)
 		if !ok {
@@ -6102,6 +6252,9 @@ func (m *CatalogItemMutation) AddedFields() []string {
 	if m.addcost_price != nil {
 		fields = append(fields, catalogitem.FieldCostPrice)
 	}
+	if m.addselling_price != nil {
+		fields = append(fields, catalogitem.FieldSellingPrice)
+	}
 	return fields
 }
 
@@ -6116,6 +6269,8 @@ func (m *CatalogItemMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedDurationMinutes()
 	case catalogitem.FieldCostPrice:
 		return m.AddedCostPrice()
+	case catalogitem.FieldSellingPrice:
+		return m.AddedSellingPrice()
 	}
 	return nil, false
 }
@@ -6145,6 +6300,13 @@ func (m *CatalogItemMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddCostPrice(v)
+		return nil
+	case catalogitem.FieldSellingPrice:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSellingPrice(v)
 		return nil
 	}
 	return fmt.Errorf("unknown CatalogItem numeric field %s", name)
@@ -6180,6 +6342,12 @@ func (m *CatalogItemMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(catalogitem.FieldCostPrice) {
 		fields = append(fields, catalogitem.FieldCostPrice)
+	}
+	if m.FieldCleared(catalogitem.FieldSellingPrice) {
+		fields = append(fields, catalogitem.FieldSellingPrice)
+	}
+	if m.FieldCleared(catalogitem.FieldOutletID) {
+		fields = append(fields, catalogitem.FieldOutletID)
 	}
 	return fields
 }
@@ -6221,6 +6389,12 @@ func (m *CatalogItemMutation) ClearField(name string) error {
 		return nil
 	case catalogitem.FieldCostPrice:
 		m.ClearCostPrice()
+		return nil
+	case catalogitem.FieldSellingPrice:
+		m.ClearSellingPrice()
+		return nil
+	case catalogitem.FieldOutletID:
+		m.ClearOutletID()
 		return nil
 	}
 	return fmt.Errorf("unknown CatalogItem nullable field %s", name)
@@ -6283,6 +6457,12 @@ func (m *CatalogItemMutation) ResetField(name string) error {
 		return nil
 	case catalogitem.FieldCostPrice:
 		m.ResetCostPrice()
+		return nil
+	case catalogitem.FieldSellingPrice:
+		m.ResetSellingPrice()
+		return nil
+	case catalogitem.FieldOutletID:
+		m.ResetOutletID()
 		return nil
 	case catalogitem.FieldTags:
 		m.ResetTags()

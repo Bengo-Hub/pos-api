@@ -146,6 +146,16 @@ func CostPrice(v float64) predicate.CatalogItem {
 	return predicate.CatalogItem(sql.FieldEQ(FieldCostPrice, v))
 }
 
+// SellingPrice applies equality check predicate on the "selling_price" field. It's identical to SellingPriceEQ.
+func SellingPrice(v float64) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldEQ(FieldSellingPrice, v))
+}
+
+// OutletID applies equality check predicate on the "outlet_id" field. It's identical to OutletIDEQ.
+func OutletID(v uuid.UUID) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldEQ(FieldOutletID, v))
+}
+
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.CatalogItem {
 	return predicate.CatalogItem(sql.FieldEQ(FieldCreatedAt, v))
@@ -1069,6 +1079,106 @@ func CostPriceIsNil() predicate.CatalogItem {
 // CostPriceNotNil applies the NotNil predicate on the "cost_price" field.
 func CostPriceNotNil() predicate.CatalogItem {
 	return predicate.CatalogItem(sql.FieldNotNull(FieldCostPrice))
+}
+
+// SellingPriceEQ applies the EQ predicate on the "selling_price" field.
+func SellingPriceEQ(v float64) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldEQ(FieldSellingPrice, v))
+}
+
+// SellingPriceNEQ applies the NEQ predicate on the "selling_price" field.
+func SellingPriceNEQ(v float64) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldNEQ(FieldSellingPrice, v))
+}
+
+// SellingPriceIn applies the In predicate on the "selling_price" field.
+func SellingPriceIn(vs ...float64) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldIn(FieldSellingPrice, vs...))
+}
+
+// SellingPriceNotIn applies the NotIn predicate on the "selling_price" field.
+func SellingPriceNotIn(vs ...float64) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldNotIn(FieldSellingPrice, vs...))
+}
+
+// SellingPriceGT applies the GT predicate on the "selling_price" field.
+func SellingPriceGT(v float64) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldGT(FieldSellingPrice, v))
+}
+
+// SellingPriceGTE applies the GTE predicate on the "selling_price" field.
+func SellingPriceGTE(v float64) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldGTE(FieldSellingPrice, v))
+}
+
+// SellingPriceLT applies the LT predicate on the "selling_price" field.
+func SellingPriceLT(v float64) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldLT(FieldSellingPrice, v))
+}
+
+// SellingPriceLTE applies the LTE predicate on the "selling_price" field.
+func SellingPriceLTE(v float64) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldLTE(FieldSellingPrice, v))
+}
+
+// SellingPriceIsNil applies the IsNil predicate on the "selling_price" field.
+func SellingPriceIsNil() predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldIsNull(FieldSellingPrice))
+}
+
+// SellingPriceNotNil applies the NotNil predicate on the "selling_price" field.
+func SellingPriceNotNil() predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldNotNull(FieldSellingPrice))
+}
+
+// OutletIDEQ applies the EQ predicate on the "outlet_id" field.
+func OutletIDEQ(v uuid.UUID) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldEQ(FieldOutletID, v))
+}
+
+// OutletIDNEQ applies the NEQ predicate on the "outlet_id" field.
+func OutletIDNEQ(v uuid.UUID) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldNEQ(FieldOutletID, v))
+}
+
+// OutletIDIn applies the In predicate on the "outlet_id" field.
+func OutletIDIn(vs ...uuid.UUID) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldIn(FieldOutletID, vs...))
+}
+
+// OutletIDNotIn applies the NotIn predicate on the "outlet_id" field.
+func OutletIDNotIn(vs ...uuid.UUID) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldNotIn(FieldOutletID, vs...))
+}
+
+// OutletIDGT applies the GT predicate on the "outlet_id" field.
+func OutletIDGT(v uuid.UUID) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldGT(FieldOutletID, v))
+}
+
+// OutletIDGTE applies the GTE predicate on the "outlet_id" field.
+func OutletIDGTE(v uuid.UUID) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldGTE(FieldOutletID, v))
+}
+
+// OutletIDLT applies the LT predicate on the "outlet_id" field.
+func OutletIDLT(v uuid.UUID) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldLT(FieldOutletID, v))
+}
+
+// OutletIDLTE applies the LTE predicate on the "outlet_id" field.
+func OutletIDLTE(v uuid.UUID) predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldLTE(FieldOutletID, v))
+}
+
+// OutletIDIsNil applies the IsNil predicate on the "outlet_id" field.
+func OutletIDIsNil() predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldIsNull(FieldOutletID))
+}
+
+// OutletIDNotNil applies the NotNil predicate on the "outlet_id" field.
+func OutletIDNotNil() predicate.CatalogItem {
+	return predicate.CatalogItem(sql.FieldNotNull(FieldOutletID))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.

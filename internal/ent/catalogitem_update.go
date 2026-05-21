@@ -358,6 +358,53 @@ func (_u *CatalogItemUpdate) ClearCostPrice() *CatalogItemUpdate {
 	return _u
 }
 
+// SetSellingPrice sets the "selling_price" field.
+func (_u *CatalogItemUpdate) SetSellingPrice(v float64) *CatalogItemUpdate {
+	_u.mutation.ResetSellingPrice()
+	_u.mutation.SetSellingPrice(v)
+	return _u
+}
+
+// SetNillableSellingPrice sets the "selling_price" field if the given value is not nil.
+func (_u *CatalogItemUpdate) SetNillableSellingPrice(v *float64) *CatalogItemUpdate {
+	if v != nil {
+		_u.SetSellingPrice(*v)
+	}
+	return _u
+}
+
+// AddSellingPrice adds value to the "selling_price" field.
+func (_u *CatalogItemUpdate) AddSellingPrice(v float64) *CatalogItemUpdate {
+	_u.mutation.AddSellingPrice(v)
+	return _u
+}
+
+// ClearSellingPrice clears the value of the "selling_price" field.
+func (_u *CatalogItemUpdate) ClearSellingPrice() *CatalogItemUpdate {
+	_u.mutation.ClearSellingPrice()
+	return _u
+}
+
+// SetOutletID sets the "outlet_id" field.
+func (_u *CatalogItemUpdate) SetOutletID(v uuid.UUID) *CatalogItemUpdate {
+	_u.mutation.SetOutletID(v)
+	return _u
+}
+
+// SetNillableOutletID sets the "outlet_id" field if the given value is not nil.
+func (_u *CatalogItemUpdate) SetNillableOutletID(v *uuid.UUID) *CatalogItemUpdate {
+	if v != nil {
+		_u.SetOutletID(*v)
+	}
+	return _u
+}
+
+// ClearOutletID clears the value of the "outlet_id" field.
+func (_u *CatalogItemUpdate) ClearOutletID() *CatalogItemUpdate {
+	_u.mutation.ClearOutletID()
+	return _u
+}
+
 // SetTags sets the "tags" field.
 func (_u *CatalogItemUpdate) SetTags(v []string) *CatalogItemUpdate {
 	_u.mutation.SetTags(v)
@@ -575,6 +622,21 @@ func (_u *CatalogItemUpdate) sqlSave(ctx context.Context) (_node int, err error)
 	}
 	if _u.mutation.CostPriceCleared() {
 		_spec.ClearField(catalogitem.FieldCostPrice, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.SellingPrice(); ok {
+		_spec.SetField(catalogitem.FieldSellingPrice, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedSellingPrice(); ok {
+		_spec.AddField(catalogitem.FieldSellingPrice, field.TypeFloat64, value)
+	}
+	if _u.mutation.SellingPriceCleared() {
+		_spec.ClearField(catalogitem.FieldSellingPrice, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.OutletID(); ok {
+		_spec.SetField(catalogitem.FieldOutletID, field.TypeUUID, value)
+	}
+	if _u.mutation.OutletIDCleared() {
+		_spec.ClearField(catalogitem.FieldOutletID, field.TypeUUID)
 	}
 	if value, ok := _u.mutation.Tags(); ok {
 		_spec.SetField(catalogitem.FieldTags, field.TypeJSON, value)
@@ -982,6 +1044,53 @@ func (_u *CatalogItemUpdateOne) ClearCostPrice() *CatalogItemUpdateOne {
 	return _u
 }
 
+// SetSellingPrice sets the "selling_price" field.
+func (_u *CatalogItemUpdateOne) SetSellingPrice(v float64) *CatalogItemUpdateOne {
+	_u.mutation.ResetSellingPrice()
+	_u.mutation.SetSellingPrice(v)
+	return _u
+}
+
+// SetNillableSellingPrice sets the "selling_price" field if the given value is not nil.
+func (_u *CatalogItemUpdateOne) SetNillableSellingPrice(v *float64) *CatalogItemUpdateOne {
+	if v != nil {
+		_u.SetSellingPrice(*v)
+	}
+	return _u
+}
+
+// AddSellingPrice adds value to the "selling_price" field.
+func (_u *CatalogItemUpdateOne) AddSellingPrice(v float64) *CatalogItemUpdateOne {
+	_u.mutation.AddSellingPrice(v)
+	return _u
+}
+
+// ClearSellingPrice clears the value of the "selling_price" field.
+func (_u *CatalogItemUpdateOne) ClearSellingPrice() *CatalogItemUpdateOne {
+	_u.mutation.ClearSellingPrice()
+	return _u
+}
+
+// SetOutletID sets the "outlet_id" field.
+func (_u *CatalogItemUpdateOne) SetOutletID(v uuid.UUID) *CatalogItemUpdateOne {
+	_u.mutation.SetOutletID(v)
+	return _u
+}
+
+// SetNillableOutletID sets the "outlet_id" field if the given value is not nil.
+func (_u *CatalogItemUpdateOne) SetNillableOutletID(v *uuid.UUID) *CatalogItemUpdateOne {
+	if v != nil {
+		_u.SetOutletID(*v)
+	}
+	return _u
+}
+
+// ClearOutletID clears the value of the "outlet_id" field.
+func (_u *CatalogItemUpdateOne) ClearOutletID() *CatalogItemUpdateOne {
+	_u.mutation.ClearOutletID()
+	return _u
+}
+
 // SetTags sets the "tags" field.
 func (_u *CatalogItemUpdateOne) SetTags(v []string) *CatalogItemUpdateOne {
 	_u.mutation.SetTags(v)
@@ -1229,6 +1338,21 @@ func (_u *CatalogItemUpdateOne) sqlSave(ctx context.Context) (_node *CatalogItem
 	}
 	if _u.mutation.CostPriceCleared() {
 		_spec.ClearField(catalogitem.FieldCostPrice, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.SellingPrice(); ok {
+		_spec.SetField(catalogitem.FieldSellingPrice, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedSellingPrice(); ok {
+		_spec.AddField(catalogitem.FieldSellingPrice, field.TypeFloat64, value)
+	}
+	if _u.mutation.SellingPriceCleared() {
+		_spec.ClearField(catalogitem.FieldSellingPrice, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.OutletID(); ok {
+		_spec.SetField(catalogitem.FieldOutletID, field.TypeUUID, value)
+	}
+	if _u.mutation.OutletIDCleared() {
+		_spec.ClearField(catalogitem.FieldOutletID, field.TypeUUID)
 	}
 	if value, ok := _u.mutation.Tags(); ok {
 		_spec.SetField(catalogitem.FieldTags, field.TypeJSON, value)

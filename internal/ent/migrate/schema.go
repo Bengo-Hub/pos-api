@@ -154,6 +154,8 @@ var (
 		{Name: "minimum_age", Type: field.TypeInt, Nullable: true},
 		{Name: "duration_minutes", Type: field.TypeInt, Nullable: true},
 		{Name: "cost_price", Type: field.TypeFloat64, Nullable: true},
+		{Name: "selling_price", Type: field.TypeFloat64, Nullable: true},
+		{Name: "outlet_id", Type: field.TypeUUID, Nullable: true},
 		{Name: "tags", Type: field.TypeJSON},
 		{Name: "metadata", Type: field.TypeJSON},
 		{Name: "created_at", Type: field.TypeTime},

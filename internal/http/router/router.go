@@ -196,6 +196,9 @@ func New(
 						pos.Route("/catalog", func(cat chi.Router) {
 							cat.Get("/items", catalog.ListCatalogItems)
 							cat.Post("/items", catalog.CreateCatalogItem)
+							// Price management endpoints (must come before /{id} routes)
+							cat.Patch("/items/prices", catalog.SetCatalogItemPrice)
+							cat.Post("/items/prices/bulk", catalog.BulkSetCatalogPrices)
 							cat.Get("/items/{id}", catalog.GetCatalogItem)
 							cat.Put("/items/{id}", catalog.UpdateCatalogItem)
 							cat.Delete("/items/{id}", catalog.DeleteCatalogItem)

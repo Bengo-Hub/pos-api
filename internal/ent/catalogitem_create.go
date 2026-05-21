@@ -253,6 +253,34 @@ func (_c *CatalogItemCreate) SetNillableCostPrice(v *float64) *CatalogItemCreate
 	return _c
 }
 
+// SetSellingPrice sets the "selling_price" field.
+func (_c *CatalogItemCreate) SetSellingPrice(v float64) *CatalogItemCreate {
+	_c.mutation.SetSellingPrice(v)
+	return _c
+}
+
+// SetNillableSellingPrice sets the "selling_price" field if the given value is not nil.
+func (_c *CatalogItemCreate) SetNillableSellingPrice(v *float64) *CatalogItemCreate {
+	if v != nil {
+		_c.SetSellingPrice(*v)
+	}
+	return _c
+}
+
+// SetOutletID sets the "outlet_id" field.
+func (_c *CatalogItemCreate) SetOutletID(v uuid.UUID) *CatalogItemCreate {
+	_c.mutation.SetOutletID(v)
+	return _c
+}
+
+// SetNillableOutletID sets the "outlet_id" field if the given value is not nil.
+func (_c *CatalogItemCreate) SetNillableOutletID(v *uuid.UUID) *CatalogItemCreate {
+	if v != nil {
+		_c.SetOutletID(*v)
+	}
+	return _c
+}
+
 // SetTags sets the "tags" field.
 func (_c *CatalogItemCreate) SetTags(v []string) *CatalogItemCreate {
 	_c.mutation.SetTags(v)
@@ -561,6 +589,14 @@ func (_c *CatalogItemCreate) createSpec() (*CatalogItem, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.CostPrice(); ok {
 		_spec.SetField(catalogitem.FieldCostPrice, field.TypeFloat64, value)
 		_node.CostPrice = &value
+	}
+	if value, ok := _c.mutation.SellingPrice(); ok {
+		_spec.SetField(catalogitem.FieldSellingPrice, field.TypeFloat64, value)
+		_node.SellingPrice = &value
+	}
+	if value, ok := _c.mutation.OutletID(); ok {
+		_spec.SetField(catalogitem.FieldOutletID, field.TypeUUID, value)
+		_node.OutletID = &value
 	}
 	if value, ok := _c.mutation.Tags(); ok {
 		_spec.SetField(catalogitem.FieldTags, field.TypeJSON, value)
@@ -931,6 +967,48 @@ func (u *CatalogItemUpsert) AddCostPrice(v float64) *CatalogItemUpsert {
 // ClearCostPrice clears the value of the "cost_price" field.
 func (u *CatalogItemUpsert) ClearCostPrice() *CatalogItemUpsert {
 	u.SetNull(catalogitem.FieldCostPrice)
+	return u
+}
+
+// SetSellingPrice sets the "selling_price" field.
+func (u *CatalogItemUpsert) SetSellingPrice(v float64) *CatalogItemUpsert {
+	u.Set(catalogitem.FieldSellingPrice, v)
+	return u
+}
+
+// UpdateSellingPrice sets the "selling_price" field to the value that was provided on create.
+func (u *CatalogItemUpsert) UpdateSellingPrice() *CatalogItemUpsert {
+	u.SetExcluded(catalogitem.FieldSellingPrice)
+	return u
+}
+
+// AddSellingPrice adds v to the "selling_price" field.
+func (u *CatalogItemUpsert) AddSellingPrice(v float64) *CatalogItemUpsert {
+	u.Add(catalogitem.FieldSellingPrice, v)
+	return u
+}
+
+// ClearSellingPrice clears the value of the "selling_price" field.
+func (u *CatalogItemUpsert) ClearSellingPrice() *CatalogItemUpsert {
+	u.SetNull(catalogitem.FieldSellingPrice)
+	return u
+}
+
+// SetOutletID sets the "outlet_id" field.
+func (u *CatalogItemUpsert) SetOutletID(v uuid.UUID) *CatalogItemUpsert {
+	u.Set(catalogitem.FieldOutletID, v)
+	return u
+}
+
+// UpdateOutletID sets the "outlet_id" field to the value that was provided on create.
+func (u *CatalogItemUpsert) UpdateOutletID() *CatalogItemUpsert {
+	u.SetExcluded(catalogitem.FieldOutletID)
+	return u
+}
+
+// ClearOutletID clears the value of the "outlet_id" field.
+func (u *CatalogItemUpsert) ClearOutletID() *CatalogItemUpsert {
+	u.SetNull(catalogitem.FieldOutletID)
 	return u
 }
 
@@ -1354,6 +1432,55 @@ func (u *CatalogItemUpsertOne) UpdateCostPrice() *CatalogItemUpsertOne {
 func (u *CatalogItemUpsertOne) ClearCostPrice() *CatalogItemUpsertOne {
 	return u.Update(func(s *CatalogItemUpsert) {
 		s.ClearCostPrice()
+	})
+}
+
+// SetSellingPrice sets the "selling_price" field.
+func (u *CatalogItemUpsertOne) SetSellingPrice(v float64) *CatalogItemUpsertOne {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.SetSellingPrice(v)
+	})
+}
+
+// AddSellingPrice adds v to the "selling_price" field.
+func (u *CatalogItemUpsertOne) AddSellingPrice(v float64) *CatalogItemUpsertOne {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.AddSellingPrice(v)
+	})
+}
+
+// UpdateSellingPrice sets the "selling_price" field to the value that was provided on create.
+func (u *CatalogItemUpsertOne) UpdateSellingPrice() *CatalogItemUpsertOne {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.UpdateSellingPrice()
+	})
+}
+
+// ClearSellingPrice clears the value of the "selling_price" field.
+func (u *CatalogItemUpsertOne) ClearSellingPrice() *CatalogItemUpsertOne {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.ClearSellingPrice()
+	})
+}
+
+// SetOutletID sets the "outlet_id" field.
+func (u *CatalogItemUpsertOne) SetOutletID(v uuid.UUID) *CatalogItemUpsertOne {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.SetOutletID(v)
+	})
+}
+
+// UpdateOutletID sets the "outlet_id" field to the value that was provided on create.
+func (u *CatalogItemUpsertOne) UpdateOutletID() *CatalogItemUpsertOne {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.UpdateOutletID()
+	})
+}
+
+// ClearOutletID clears the value of the "outlet_id" field.
+func (u *CatalogItemUpsertOne) ClearOutletID() *CatalogItemUpsertOne {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.ClearOutletID()
 	})
 }
 
@@ -1950,6 +2077,55 @@ func (u *CatalogItemUpsertBulk) UpdateCostPrice() *CatalogItemUpsertBulk {
 func (u *CatalogItemUpsertBulk) ClearCostPrice() *CatalogItemUpsertBulk {
 	return u.Update(func(s *CatalogItemUpsert) {
 		s.ClearCostPrice()
+	})
+}
+
+// SetSellingPrice sets the "selling_price" field.
+func (u *CatalogItemUpsertBulk) SetSellingPrice(v float64) *CatalogItemUpsertBulk {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.SetSellingPrice(v)
+	})
+}
+
+// AddSellingPrice adds v to the "selling_price" field.
+func (u *CatalogItemUpsertBulk) AddSellingPrice(v float64) *CatalogItemUpsertBulk {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.AddSellingPrice(v)
+	})
+}
+
+// UpdateSellingPrice sets the "selling_price" field to the value that was provided on create.
+func (u *CatalogItemUpsertBulk) UpdateSellingPrice() *CatalogItemUpsertBulk {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.UpdateSellingPrice()
+	})
+}
+
+// ClearSellingPrice clears the value of the "selling_price" field.
+func (u *CatalogItemUpsertBulk) ClearSellingPrice() *CatalogItemUpsertBulk {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.ClearSellingPrice()
+	})
+}
+
+// SetOutletID sets the "outlet_id" field.
+func (u *CatalogItemUpsertBulk) SetOutletID(v uuid.UUID) *CatalogItemUpsertBulk {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.SetOutletID(v)
+	})
+}
+
+// UpdateOutletID sets the "outlet_id" field to the value that was provided on create.
+func (u *CatalogItemUpsertBulk) UpdateOutletID() *CatalogItemUpsertBulk {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.UpdateOutletID()
+	})
+}
+
+// ClearOutletID clears the value of the "outlet_id" field.
+func (u *CatalogItemUpsertBulk) ClearOutletID() *CatalogItemUpsertBulk {
+	return u.Update(func(s *CatalogItemUpsert) {
+		s.ClearOutletID()
 	})
 }
 

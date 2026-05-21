@@ -52,6 +52,8 @@ func (CatalogItem) Fields() []ent.Field {
 			Comment("Minimum buyer age (e.g. 18 for alcohol/tobacco)"),
 		field.Int("duration_minutes").Optional().Nillable().Comment("Service duration for salon/appointment flow"),
 		field.Float("cost_price").Optional().Nillable().Comment("Cost for margin analysis"),
+		field.Float("selling_price").Optional().Nillable().Comment("POS retail/selling price override — takes precedence over inventory-api pricing tiers"),
+		field.UUID("outlet_id", uuid.UUID{}).Optional().Nillable().Comment("When set, price/availability applies only to this outlet"),
 		field.JSON("tags", []string{}).Default([]string{}).Comment("Synced dietary/custom tags from inventory"),
 		field.JSON("metadata", map[string]any{}).
 			Default(map[string]any{}),
