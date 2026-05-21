@@ -40,7 +40,9 @@ const lockoutDuration = 15 * time.Minute
 
 // ListStaff returns minimal staff info for the PIN keypad selector screen.
 // Does NOT include pin_hash — only name, user_id, has_pin.
-// Optional ?outlet_id= query param scopes results to a specific outlet.
+// Staff visibility is tenant-wide: all active staff appear regardless of which outlet
+// is currently selected. Outlet selection controls session/shift context, not login access.
+// The optional ?outlet_id= param is accepted for API compatibility but not used for filtering.
 func (h *PINAuthHandler) ListStaff(w http.ResponseWriter, r *http.Request) {
 	tid, err := parseTenantUUID(r)
 	if err != nil {
@@ -49,11 +51,6 @@ func (h *PINAuthHandler) ListStaff(w http.ResponseWriter, r *http.Request) {
 	}
 
 	q := h.client.StaffMember.Query().Where(entstaff.TenantID(tid), entstaff.IsActive(true))
-	if oid := r.URL.Query().Get("outlet_id"); oid != "" {
-		if outletUUID, err := uuid.Parse(oid); err == nil {
-			q = q.Where(entstaff.OutletID(outletUUID))
-		}
-	}
 
 	members, err := q.All(r.Context())
 	if err != nil {
@@ -308,8 +305,7 @@ func globalRoleToPOSRole(roles []string) string {
 // ── GET /{tenant}/pos/auth/pin/profile — return staff profiles for PIN selector ─
 // Used by pos-ui to populate the PIN selector from IndexedDB for offline fallback.
 // Returns name, user_id, roles/permissions (NO pin_hash).
-// Optional ?outlet_id= query param scopes results to a specific outlet.
-
+// Staff visibility is tenant-wide — outlet_id param accepted but not used as a filter.
 func (h *PINAuthHandler) StaffProfiles(w http.ResponseWriter, r *http.Request) {
 	tid, err := parseTenantUUID(r)
 	if err != nil {
@@ -318,11 +314,6 @@ func (h *PINAuthHandler) StaffProfiles(w http.ResponseWriter, r *http.Request) {
 	}
 
 	q := h.client.StaffMember.Query().Where(entstaff.TenantID(tid), entstaff.IsActive(true))
-	if oid := r.URL.Query().Get("outlet_id"); oid != "" {
-		if outletUUID, err := uuid.Parse(oid); err == nil {
-			q = q.Where(entstaff.OutletID(outletUUID))
-		}
-	}
 
 	members, err := q.All(r.Context())
 	if err != nil {

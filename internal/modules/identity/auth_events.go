@@ -286,35 +286,57 @@ func (h *AuthEventHandler) handleUserPINSet(ctx context.Context, evt *authUserEv
 }
 
 // upsertStaffMember creates a StaffMember for the given user if one does not exist,
-// or updates the name if it has changed. This is idempotent.
+// or updates name/role if they changed. This is idempotent.
+// StaffMember.outlet_id is set to the first non-logistics, active outlet for the tenant
+// (preferring HQ). Staff visibility is tenant-wide at PIN login — outlet_id here is a
+// "home outlet" default for session creation, not a login restriction.
+// Roles that are not POS-relevant (rider, driver, customer, technician, viewer,
+// delivery_coordinator) are skipped — they have no business logging into a POS terminal.
 func (h *AuthEventHandler) upsertStaffMember(ctx context.Context, userID, tenantID uuid.UUID, name string, evt *authUserEvent) {
-	// Find HQ outlet for the tenant (fallback to first outlet if no HQ)
-	hqOutlet, err := h.client.Outlet.Query().
-		Where(outlet.TenantID(tenantID), outlet.IsHq(true)).
+	// Skip non-POS roles that have no business accessing a POS terminal.
+	posRole := mapSSORoleToPOS(evt.Payload)
+	if posRole == "" {
+		h.logger.Debug("skipping StaffMember upsert for non-POS role",
+			zap.String("user_id", userID.String()),
+			zap.Any("roles", evt.Payload["roles"]))
+		return
+	}
+
+	// Find the best outlet for this tenant: prefer HQ, then any non-logistics active outlet.
+	// Logistics outlets (use_case=logistics/warehouse) don't run POS terminals.
+	homeOutlet, err := h.client.Outlet.Query().
+		Where(outlet.TenantID(tenantID), outlet.IsHq(true), outlet.StatusEQ("active"),
+			outlet.UseCaseNEQ("logistics"), outlet.UseCaseNEQ("warehouse")).
 		First(ctx)
 	if err != nil {
-		// Fallback: use any outlet for this tenant
-		hqOutlet, err = h.client.Outlet.Query().
-			Where(outlet.TenantID(tenantID)).
+		homeOutlet, err = h.client.Outlet.Query().
+			Where(outlet.TenantID(tenantID), outlet.StatusEQ("active"),
+				outlet.UseCaseNEQ("logistics"), outlet.UseCaseNEQ("warehouse")).
 			First(ctx)
 		if err != nil {
-			h.logger.Warn("no outlet found for tenant, cannot create StaffMember",
+			h.logger.Warn("no active outlet found for tenant, cannot create StaffMember",
 				zap.String("tenant_id", tenantID.String()))
 			return
 		}
 	}
 
-	// Map SSO roles to a POS role
-	posRole := mapSSORoleToPOS(evt.Payload)
-
-	// Upsert StaffMember — idempotent
+	// Upsert StaffMember — idempotent on (tenant_id, user_id)
 	existing, err := h.client.StaffMember.Query().
 		Where(staffmember.TenantID(tenantID), staffmember.UserID(userID)).
 		Only(ctx)
 	if err == nil {
-		// Update name if changed
-		if existing.Name != name {
-			_ = existing.Update().SetName(name).Exec(ctx)
+		upd := existing.Update()
+		changed := false
+		if existing.Name != name && name != "" {
+			upd = upd.SetName(name)
+			changed = true
+		}
+		if existing.Role != posRole {
+			upd = upd.SetRole(posRole)
+			changed = true
+		}
+		if changed {
+			_ = upd.Exec(ctx)
 		}
 		return
 	}
@@ -325,7 +347,7 @@ func (h *AuthEventHandler) upsertStaffMember(ctx context.Context, userID, tenant
 
 	_, err = h.client.StaffMember.Create().
 		SetTenantID(tenantID).
-		SetOutletID(hqOutlet.ID).
+		SetOutletID(homeOutlet.ID).
 		SetUserID(userID).
 		SetName(name).
 		SetRole(posRole).
@@ -338,6 +360,8 @@ func (h *AuthEventHandler) upsertStaffMember(ctx context.Context, userID, tenant
 }
 
 // mapSSORoleToPOS converts SSO-level roles from the event payload to a POS role code.
+// Returns "" for roles that are not POS-relevant (rider, driver, customer, etc.) —
+// the caller must skip StaffMember creation when "" is returned.
 func mapSSORoleToPOS(payload map[string]interface{}) string {
 	roles, _ := payload["roles"].([]interface{})
 	for _, r := range roles {
@@ -345,11 +369,20 @@ func mapSSORoleToPOS(payload map[string]interface{}) string {
 		switch role {
 		case "admin", "superuser":
 			return "manager"
-		case "cashier", "waiter", "receptionist", "kitchen", "bar", "pharmacist":
-			return role // direct match
 		case "manager":
 			return "manager"
+		case "staff":
+			return "cashier"
+		case "cashier", "waiter", "receptionist", "kitchen", "bar", "pharmacist":
+			return role
+		case "viewer":
+			return "viewer"
+		// Non-POS roles — these users don't log into POS terminals.
+		case "rider", "driver", "delivery_coordinator", "technician", "customer", "member":
+			return ""
 		}
 	}
-	return "cashier" // safe default
+	// Unknown role with no explicit POS mapping — skip rather than default to cashier
+	// to avoid ghost staff members for non-POS service users.
+	return ""
 }
