@@ -105,8 +105,12 @@ func (h *ServiceSettingsHandler) getOrCreateSetting(r *http.Request, outletID uu
 		Save(ctx)
 }
 
-// resolveOutlet returns the outlet for the request, preferring the URL param outletID,
-// then falling back to the middleware-resolved outlet context.
+// resolveOutlet returns the outlet for the request. Resolution order:
+//  1. URL param outletID (explicit outlet-scoped endpoint)
+//  2. Middleware-resolved outlet context (X-Outlet-ID header or staff assignment)
+//  3. JWT claims OutletID (terminal PIN sessions embed the outlet in the token)
+//  4. HQ outlet for the tenant
+//  5. Any active outlet for the tenant (last resort)
 func (h *ServiceSettingsHandler) resolveOutlet(r *http.Request, tenantID uuid.UUID) (*ent.Outlet, error) {
 	ctx := r.Context()
 	// Try URL param first (outlet-specific settings endpoint)
@@ -119,16 +123,34 @@ func (h *ServiceSettingsHandler) resolveOutlet(r *http.Request, tenantID uuid.UU
 			Where(entoutlet.ID(id), entoutlet.TenantID(tenantID)).
 			Only(ctx)
 	}
-	// Fall back to the middleware-resolved outlet context
+	// Middleware-resolved outlet context
 	oc := outletmw.OutletFromContext(ctx)
 	if oc != nil {
 		return h.db.Outlet.Query().
 			Where(entoutlet.ID(oc.ID), entoutlet.TenantID(tenantID)).
 			Only(ctx)
 	}
-	// Last resort: HQ outlet
-	return h.db.Outlet.Query().
+	// JWT claims outlet_id (terminal sessions)
+	if claims, ok := authclient.ClaimsFromContext(ctx); ok && claims.OutletID != "" {
+		if id, err := uuid.Parse(claims.OutletID); err == nil {
+			o, err := h.db.Outlet.Query().
+				Where(entoutlet.ID(id), entoutlet.TenantID(tenantID)).
+				Only(ctx)
+			if err == nil {
+				return o, nil
+			}
+		}
+	}
+	// HQ outlet
+	o, err := h.db.Outlet.Query().
 		Where(entoutlet.TenantID(tenantID), entoutlet.IsHq(true)).
+		First(ctx)
+	if err == nil {
+		return o, nil
+	}
+	// Any outlet for the tenant
+	return h.db.Outlet.Query().
+		Where(entoutlet.TenantID(tenantID)).
 		First(ctx)
 }
 

@@ -1,9 +1,12 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"os"
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
@@ -26,7 +29,80 @@ func NewCatalogHandler(log *zap.Logger, client *ent.Client) *CatalogHandler {
 	return &CatalogHandler{log: log, client: client}
 }
 
+// inventoryProxyItem is the shape returned by inventory-api /items list.
+type inventoryProxyItem struct {
+	ID           string `json:"id"`
+	SKU          string `json:"sku"`
+	Name         string `json:"name"`
+	Description  string `json:"description"`
+	Type         string `json:"type"`
+	IsActive     bool   `json:"is_active"`
+	ImageURL     string `json:"image_url"`
+	CategoryName string `json:"category_name"`
+	Barcode      string `json:"barcode"`
+}
+
+// proxyFromInventory calls inventory-api and returns items in the same DTO format
+// as ListCatalogItems. Used as a live fallback when the local catalog is empty.
+func (h *CatalogHandler) proxyFromInventory(ctx context.Context, tenantSlug string) ([]map[string]any, error) {
+	inventoryURL := os.Getenv("INVENTORY_API_URL")
+	if inventoryURL == "" {
+		inventoryURL = "http://inventory-api.inventory.svc.cluster.local:4000"
+	}
+	apiKey := os.Getenv("INTERNAL_SERVICE_KEY")
+
+	url := fmt.Sprintf("%s/v1/%s/inventory/items?type=GOODS,RECIPE&status=active&limit=500", inventoryURL, tenantSlug)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	if apiKey != "" {
+		req.Header.Set("X-API-Key", apiKey)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("inventory-api returned %d", resp.StatusCode)
+	}
+
+	body, _ := io.ReadAll(resp.Body)
+	var wrapper struct {
+		Data []inventoryProxyItem `json:"data"`
+	}
+	if err := json.Unmarshal(body, &wrapper); err != nil {
+		return nil, err
+	}
+
+	out := make([]map[string]any, 0, len(wrapper.Data))
+	for _, item := range wrapper.Data {
+		status := "active"
+		if !item.IsActive {
+			status = "inactive"
+		}
+		out = append(out, map[string]any{
+			"id":          item.ID,
+			"sku":         item.SKU,
+			"name":        item.Name,
+			"description": item.Description,
+			"category":    item.CategoryName,
+			"item_type":   item.Type,
+			"status":      status,
+			"image_url":   item.ImageURL,
+			"barcode":     item.Barcode,
+			"price":       0,
+		})
+	}
+	return out, nil
+}
+
 // ListCatalogItems handles GET /{tenantID}/pos/catalog/items
+// Primary source: local CatalogItem table (populated by startup sync + NATS events).
+// Fallback: live proxy from inventory-api when local catalog is empty.
 func (h *CatalogHandler) ListCatalogItems(w http.ResponseWriter, r *http.Request) {
 	tid, err := parseTenantUUID(r)
 	if err != nil {
@@ -52,8 +128,8 @@ func (h *CatalogHandler) ListCatalogItems(w http.ResponseWriter, r *http.Request
 	}
 
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
-	if limit <= 0 || limit > 200 {
-		limit = 100
+	if limit <= 0 || limit > 500 {
+		limit = 200
 	}
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
 	if page < 1 {
@@ -62,6 +138,26 @@ func (h *CatalogHandler) ListCatalogItems(w http.ResponseWriter, r *http.Request
 	offset := (page - 1) * limit
 
 	total, _ := query.Clone().Count(r.Context())
+
+	// Proxy from inventory-api when local catalog is empty (e.g. fresh deploy, sync not yet run)
+	if total == 0 {
+		tenantSlug := ""
+		if claims, ok := authclient.ClaimsFromContext(r.Context()); ok {
+			tenantSlug = claims.GetTenantSlug()
+		}
+		if tenantSlug == "" {
+			tenantSlug = httpware.GetTenantSlug(r.Context())
+		}
+		if tenantSlug != "" {
+			proxyItems, proxyErr := h.proxyFromInventory(r.Context(), tenantSlug)
+			if proxyErr != nil {
+				h.log.Warn("inventory proxy failed, returning empty catalog", zap.Error(proxyErr))
+			} else {
+				jsonOK(w, map[string]any{"data": proxyItems, "total": len(proxyItems), "limit": limit, "page": page})
+				return
+			}
+		}
+	}
 
 	items, err := query.
 		Offset(offset).

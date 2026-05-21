@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 
 	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/bengobox/pos-service/internal/ent"
+	"github.com/bengobox/pos-service/internal/ent/posdevice"
 	"github.com/bengobox/pos-service/internal/ent/posdevicesession"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
 )
@@ -74,10 +76,12 @@ func (h *DeviceHandler) OpenSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Use provided device_id or a deterministic UUID derived from tenant+user for "current" device
-	deviceID := uuid.New()
-	if input.DeviceID != nil {
-		deviceID = *input.DeviceID
+	// Resolve the device_id — must be a real POSDevice FK or session creation fails.
+	deviceID, err := h.resolveOrCreateDevice(r, tid, input.DeviceID)
+	if err != nil {
+		h.log.Error("could not resolve device", zap.Error(err))
+		jsonError(w, "failed to resolve device", http.StatusInternalServerError)
+		return
 	}
 
 	meta := input.Metadata
@@ -102,6 +106,58 @@ func (h *DeviceHandler) OpenSession(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusCreated)
 	jsonOK(w, session)
+}
+
+// resolveOrCreateDevice finds an existing POSDevice for the outlet (from JWT claims or
+// input.DeviceID), or creates a web_terminal device on first use.
+// The POSDeviceSession schema requires a valid device_id FK.
+func (h *DeviceHandler) resolveOrCreateDevice(r *http.Request, tid uuid.UUID, inputDeviceID *uuid.UUID) (uuid.UUID, error) {
+	ctx := r.Context()
+
+	// Caller-supplied device_id takes precedence when it's a real FK.
+	if inputDeviceID != nil {
+		exists, _ := h.client.POSDevice.Query().
+			Where(posdevice.ID(*inputDeviceID), posdevice.TenantID(tid)).
+			Exist(ctx)
+		if exists {
+			return *inputDeviceID, nil
+		}
+	}
+
+	// Resolve outlet from JWT claims (terminal sessions have OutletID in claims).
+	var outletID uuid.UUID
+	if claims, ok := authclient.ClaimsFromContext(ctx); ok && claims.OutletID != "" {
+		if id, err := uuid.Parse(claims.OutletID); err == nil {
+			outletID = id
+		}
+	}
+	if outletID == uuid.Nil {
+		return uuid.Nil, fmt.Errorf("outlet_id not available in claims")
+	}
+
+	// Look for an existing web_terminal device for this outlet.
+	device, err := h.client.POSDevice.Query().
+		Where(posdevice.TenantID(tid), posdevice.OutletID(outletID), posdevice.DeviceType("web_terminal")).
+		First(ctx)
+	if err == nil {
+		return device.ID, nil
+	}
+	if !ent.IsNotFound(err) {
+		return uuid.Nil, err
+	}
+
+	// Create a web_terminal device for this outlet on first use.
+	device, err = h.client.POSDevice.Create().
+		SetTenantID(tid).
+		SetOutletID(outletID).
+		SetDeviceCode(fmt.Sprintf("WEB-%s", outletID.String()[:8])).
+		SetDeviceType("web_terminal").
+		SetStatus("active").
+		Save(ctx)
+	if err != nil {
+		return uuid.Nil, err
+	}
+	return device.ID, nil
 }
 
 type closeSessionInput struct {
