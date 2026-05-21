@@ -109,3 +109,8 @@ func (p *Publisher) PublishReturnCompleted(ctx context.Context, tenantID uuid.UU
 func (p *Publisher) PublishExchangeCompleted(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {
 	return p.publish(ctx, tenantID, "exchange.completed", data)
 }
+
+// PublishKDSOrderUpdated publishes a pos.kds.order_updated event for real-time KDS UI refresh.
+func (p *Publisher) PublishKDSOrderUpdated(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {
+	return p.publish(ctx, tenantID, "kds.order_updated", data)
+}

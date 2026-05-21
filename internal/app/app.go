@@ -275,6 +275,17 @@ func New(ctx context.Context) (*App, error) {
 		}
 	}
 
+	// Subscribe to ordering.order.status.changed to create/update KDS tickets (Sprint 13)
+	kdsOrderingSubscriber := ordermodule.NewKDSOrderingSubscriber(entClient, log)
+	if natsConn != nil {
+		if eventPub := orderSvc.GetPublisher(); eventPub != nil {
+			kdsOrderingSubscriber.SetPublisher(eventPub)
+		}
+		if err := kdsOrderingSubscriber.SubscribeToOrderingEvents(natsConn); err != nil {
+			log.Warn("app: failed to subscribe to ordering status events for KDS", zap.Error(err))
+		}
+	}
+
 	// Subscribe to treasury events: payment.success/failed → complete/fail local payment; etims → store invoice data
 	treasurySubscriber := paymentmodule.NewTreasurySubscriber(entClient, paymentSvc, log)
 	if natsConn != nil {
