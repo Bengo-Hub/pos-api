@@ -194,6 +194,8 @@ func New(ctx context.Context) (*App, error) {
 	hotelHandler := handlers.NewHotelHandler(log, entClient)
 	kdsHandler := handlers.NewKDSHandler(log, entClient)
 	deviceHandler := handlers.NewDeviceHandler(log, entClient)
+	notificationsHandler := handlers.NewNotificationsHandler(log, entClient)
+	queueHandler := handlers.NewQueueHandler(log, entClient)
 
 	// Terminal PIN auth — TERMINAL_JWT_SECRET must be set in production.
 	// Falls back to INTERNAL_SERVICE_KEY only to prevent a hard startup failure in dev/local environments.
@@ -329,7 +331,12 @@ func New(ctx context.Context) (*App, error) {
 	webhookWorker := webhookmodule.NewDeliveryWorker(entClient, log)
 	shiftAutoEndWorker := shiftsmodule.NewAutoEndWorker(entClient, log)
 
-	chiRouter := router.New(log, healthHandler, authMiddleware, entClient, identitySvc, orderHandler, catalogHandler, tableHandler, tenderHandler, paymentHandler, drawerHandler, barTabHandler, promotionHandler, rbacHandler, hotelHandler, kdsHandler, deviceHandler, pinAuthHandler, publicOutletHandler, closingHandler, returnHandler, receiptHandler, layawayHandler, scaleHandler, pharmacyHandler, appointmentHandler, commissionHandler, staffScheduleHandler, loyaltyHandler, reportsHandler, webhookHandler, onlineOrderHandler, serviceConfigHandler, serviceSettingsHandler, cfg.HTTP.AllowedOrigins, redisClient)
+	// Wire publisher into KDS handler for waiter notification event publishing
+	if pub := orderSvc.GetPublisher(); pub != nil {
+		kdsHandler.SetPublisher(pub)
+	}
+
+	chiRouter := router.New(log, healthHandler, authMiddleware, entClient, identitySvc, orderHandler, catalogHandler, tableHandler, tenderHandler, paymentHandler, drawerHandler, barTabHandler, promotionHandler, rbacHandler, hotelHandler, kdsHandler, deviceHandler, pinAuthHandler, publicOutletHandler, closingHandler, returnHandler, receiptHandler, layawayHandler, scaleHandler, pharmacyHandler, appointmentHandler, commissionHandler, staffScheduleHandler, loyaltyHandler, reportsHandler, webhookHandler, onlineOrderHandler, serviceConfigHandler, serviceSettingsHandler, notificationsHandler, queueHandler, cfg.HTTP.AllowedOrigins, redisClient)
 
 	httpServer := &http.Server{
 		Addr:              fmt.Sprintf("%s:%d", cfg.HTTP.Host, cfg.HTTP.Port),

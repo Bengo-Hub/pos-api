@@ -114,3 +114,8 @@ func (p *Publisher) PublishExchangeCompleted(ctx context.Context, tenantID uuid.
 func (p *Publisher) PublishKDSOrderUpdated(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {
 	return p.publish(ctx, tenantID, "kds.order_updated", data)
 }
+
+// PublishKDSWaiterCalled publishes a pos.kds.waiter.called event when kitchen/bar calls the waiter.
+func (p *Publisher) PublishKDSWaiterCalled(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {
+	return p.publish(ctx, tenantID, "kds.waiter.called", data)
+}

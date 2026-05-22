@@ -51,6 +51,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/posdevice"
 	"github.com/bengobox/pos-service/internal/ent/posdevicesession"
 	"github.com/bengobox/pos-service/internal/ent/poslinemodifier"
+	"github.com/bengobox/pos-service/internal/ent/posnotification"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
 	"github.com/bengobox/pos-service/internal/ent/posorderevent"
 	"github.com/bengobox/pos-service/internal/ent/posorderline"
@@ -77,6 +78,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/section"
 	"github.com/bengobox/pos-service/internal/ent/serialnumberlog"
 	"github.com/bengobox/pos-service/internal/ent/serviceconfig"
+	"github.com/bengobox/pos-service/internal/ent/servicequeueentry"
 	"github.com/bengobox/pos-service/internal/ent/staffmember"
 	"github.com/bengobox/pos-service/internal/ent/staffschedule"
 	"github.com/bengobox/pos-service/internal/ent/stockalertsubscription"
@@ -193,6 +195,8 @@ type Client struct {
 	POSRoleV2 *POSRoleV2Client
 	// POSUserRoleAssignment is the client for interacting with the POSUserRoleAssignment builders.
 	POSUserRoleAssignment *POSUserRoleAssignmentClient
+	// PosNotification is the client for interacting with the PosNotification builders.
+	PosNotification *PosNotificationClient
 	// Prescription is the client for interacting with the Prescription builders.
 	Prescription *PrescriptionClient
 	// PrescriptionLine is the client for interacting with the PrescriptionLine builders.
@@ -221,6 +225,8 @@ type Client struct {
 	SerialNumberLog *SerialNumberLogClient
 	// ServiceConfig is the client for interacting with the ServiceConfig builders.
 	ServiceConfig *ServiceConfigClient
+	// ServiceQueueEntry is the client for interacting with the ServiceQueueEntry builders.
+	ServiceQueueEntry *ServiceQueueEntryClient
 	// StaffMember is the client for interacting with the StaffMember builders.
 	StaffMember *StaffMemberClient
 	// StaffSchedule is the client for interacting with the StaffSchedule builders.
@@ -309,6 +315,7 @@ func (c *Client) init() {
 	c.POSRolePermission = NewPOSRolePermissionClient(c.config)
 	c.POSRoleV2 = NewPOSRoleV2Client(c.config)
 	c.POSUserRoleAssignment = NewPOSUserRoleAssignmentClient(c.config)
+	c.PosNotification = NewPosNotificationClient(c.config)
 	c.Prescription = NewPrescriptionClient(c.config)
 	c.PrescriptionLine = NewPrescriptionLineClient(c.config)
 	c.PriceBook = NewPriceBookClient(c.config)
@@ -323,6 +330,7 @@ func (c *Client) init() {
 	c.Section = NewSectionClient(c.config)
 	c.SerialNumberLog = NewSerialNumberLogClient(c.config)
 	c.ServiceConfig = NewServiceConfigClient(c.config)
+	c.ServiceQueueEntry = NewServiceQueueEntryClient(c.config)
 	c.StaffMember = NewStaffMemberClient(c.config)
 	c.StaffSchedule = NewStaffScheduleClient(c.config)
 	c.StockAlertSubscription = NewStockAlertSubscriptionClient(c.config)
@@ -477,6 +485,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		POSRolePermission:      NewPOSRolePermissionClient(cfg),
 		POSRoleV2:              NewPOSRoleV2Client(cfg),
 		POSUserRoleAssignment:  NewPOSUserRoleAssignmentClient(cfg),
+		PosNotification:        NewPosNotificationClient(cfg),
 		Prescription:           NewPrescriptionClient(cfg),
 		PrescriptionLine:       NewPrescriptionLineClient(cfg),
 		PriceBook:              NewPriceBookClient(cfg),
@@ -491,6 +500,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		Section:                NewSectionClient(cfg),
 		SerialNumberLog:        NewSerialNumberLogClient(cfg),
 		ServiceConfig:          NewServiceConfigClient(cfg),
+		ServiceQueueEntry:      NewServiceQueueEntryClient(cfg),
 		StaffMember:            NewStaffMemberClient(cfg),
 		StaffSchedule:          NewStaffScheduleClient(cfg),
 		StockAlertSubscription: NewStockAlertSubscriptionClient(cfg),
@@ -572,6 +582,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		POSRolePermission:      NewPOSRolePermissionClient(cfg),
 		POSRoleV2:              NewPOSRoleV2Client(cfg),
 		POSUserRoleAssignment:  NewPOSUserRoleAssignmentClient(cfg),
+		PosNotification:        NewPosNotificationClient(cfg),
 		Prescription:           NewPrescriptionClient(cfg),
 		PrescriptionLine:       NewPrescriptionLineClient(cfg),
 		PriceBook:              NewPriceBookClient(cfg),
@@ -586,6 +597,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		Section:                NewSectionClient(cfg),
 		SerialNumberLog:        NewSerialNumberLogClient(cfg),
 		ServiceConfig:          NewServiceConfigClient(cfg),
+		ServiceQueueEntry:      NewServiceQueueEntryClient(cfg),
 		StaffMember:            NewStaffMemberClient(cfg),
 		StaffSchedule:          NewStaffScheduleClient(cfg),
 		StockAlertSubscription: NewStockAlertSubscriptionClient(cfg),
@@ -640,14 +652,14 @@ func (c *Client) Use(hooks ...Hook) {
 		c.Outlet, c.OutletSetting, c.POSDevice, c.POSDeviceSession, c.POSLineModifier,
 		c.POSOrder, c.POSOrderEvent, c.POSOrderLine, c.POSPayment, c.POSPermission,
 		c.POSRefund, c.POSReturn, c.POSReturnLine, c.POSRole, c.POSRolePermission,
-		c.POSRoleV2, c.POSUserRoleAssignment, c.Prescription, c.PrescriptionLine,
-		c.PriceBook, c.PriceBookItem, c.Promotion, c.PromotionApplication,
-		c.PromotionRule, c.RateLimitConfig, c.Room, c.RoomFolioItem, c.RoomGuest,
-		c.Section, c.SerialNumberLog, c.ServiceConfig, c.StaffMember, c.StaffSchedule,
-		c.StockAlertSubscription, c.StockConsumptionEvent, c.SyncFailure, c.Table,
-		c.TableAssignment, c.Tenant, c.TenantSyncEvent, c.Tender, c.User,
-		c.UserPOSRole, c.WebhookDelivery, c.WebhookSubscription,
-		c.WeighingScaleReading,
+		c.POSRoleV2, c.POSUserRoleAssignment, c.PosNotification, c.Prescription,
+		c.PrescriptionLine, c.PriceBook, c.PriceBookItem, c.Promotion,
+		c.PromotionApplication, c.PromotionRule, c.RateLimitConfig, c.Room,
+		c.RoomFolioItem, c.RoomGuest, c.Section, c.SerialNumberLog, c.ServiceConfig,
+		c.ServiceQueueEntry, c.StaffMember, c.StaffSchedule, c.StockAlertSubscription,
+		c.StockConsumptionEvent, c.SyncFailure, c.Table, c.TableAssignment, c.Tenant,
+		c.TenantSyncEvent, c.Tender, c.User, c.UserPOSRole, c.WebhookDelivery,
+		c.WebhookSubscription, c.WeighingScaleReading,
 	} {
 		n.Use(hooks...)
 	}
@@ -667,14 +679,14 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.Outlet, c.OutletSetting, c.POSDevice, c.POSDeviceSession, c.POSLineModifier,
 		c.POSOrder, c.POSOrderEvent, c.POSOrderLine, c.POSPayment, c.POSPermission,
 		c.POSRefund, c.POSReturn, c.POSReturnLine, c.POSRole, c.POSRolePermission,
-		c.POSRoleV2, c.POSUserRoleAssignment, c.Prescription, c.PrescriptionLine,
-		c.PriceBook, c.PriceBookItem, c.Promotion, c.PromotionApplication,
-		c.PromotionRule, c.RateLimitConfig, c.Room, c.RoomFolioItem, c.RoomGuest,
-		c.Section, c.SerialNumberLog, c.ServiceConfig, c.StaffMember, c.StaffSchedule,
-		c.StockAlertSubscription, c.StockConsumptionEvent, c.SyncFailure, c.Table,
-		c.TableAssignment, c.Tenant, c.TenantSyncEvent, c.Tender, c.User,
-		c.UserPOSRole, c.WebhookDelivery, c.WebhookSubscription,
-		c.WeighingScaleReading,
+		c.POSRoleV2, c.POSUserRoleAssignment, c.PosNotification, c.Prescription,
+		c.PrescriptionLine, c.PriceBook, c.PriceBookItem, c.Promotion,
+		c.PromotionApplication, c.PromotionRule, c.RateLimitConfig, c.Room,
+		c.RoomFolioItem, c.RoomGuest, c.Section, c.SerialNumberLog, c.ServiceConfig,
+		c.ServiceQueueEntry, c.StaffMember, c.StaffSchedule, c.StockAlertSubscription,
+		c.StockConsumptionEvent, c.SyncFailure, c.Table, c.TableAssignment, c.Tenant,
+		c.TenantSyncEvent, c.Tender, c.User, c.UserPOSRole, c.WebhookDelivery,
+		c.WebhookSubscription, c.WeighingScaleReading,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -777,6 +789,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.POSRoleV2.mutate(ctx, m)
 	case *POSUserRoleAssignmentMutation:
 		return c.POSUserRoleAssignment.mutate(ctx, m)
+	case *PosNotificationMutation:
+		return c.PosNotification.mutate(ctx, m)
 	case *PrescriptionMutation:
 		return c.Prescription.mutate(ctx, m)
 	case *PrescriptionLineMutation:
@@ -805,6 +819,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.SerialNumberLog.mutate(ctx, m)
 	case *ServiceConfigMutation:
 		return c.ServiceConfig.mutate(ctx, m)
+	case *ServiceQueueEntryMutation:
+		return c.ServiceQueueEntry.mutate(ctx, m)
 	case *StaffMemberMutation:
 		return c.StaffMember.mutate(ctx, m)
 	case *StaffScheduleMutation:
@@ -7731,6 +7747,139 @@ func (c *POSUserRoleAssignmentClient) mutate(ctx context.Context, m *POSUserRole
 	}
 }
 
+// PosNotificationClient is a client for the PosNotification schema.
+type PosNotificationClient struct {
+	config
+}
+
+// NewPosNotificationClient returns a client for the PosNotification from the given config.
+func NewPosNotificationClient(c config) *PosNotificationClient {
+	return &PosNotificationClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `posnotification.Hooks(f(g(h())))`.
+func (c *PosNotificationClient) Use(hooks ...Hook) {
+	c.hooks.PosNotification = append(c.hooks.PosNotification, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `posnotification.Intercept(f(g(h())))`.
+func (c *PosNotificationClient) Intercept(interceptors ...Interceptor) {
+	c.inters.PosNotification = append(c.inters.PosNotification, interceptors...)
+}
+
+// Create returns a builder for creating a PosNotification entity.
+func (c *PosNotificationClient) Create() *PosNotificationCreate {
+	mutation := newPosNotificationMutation(c.config, OpCreate)
+	return &PosNotificationCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of PosNotification entities.
+func (c *PosNotificationClient) CreateBulk(builders ...*PosNotificationCreate) *PosNotificationCreateBulk {
+	return &PosNotificationCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *PosNotificationClient) MapCreateBulk(slice any, setFunc func(*PosNotificationCreate, int)) *PosNotificationCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &PosNotificationCreateBulk{err: fmt.Errorf("calling to PosNotificationClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*PosNotificationCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &PosNotificationCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for PosNotification.
+func (c *PosNotificationClient) Update() *PosNotificationUpdate {
+	mutation := newPosNotificationMutation(c.config, OpUpdate)
+	return &PosNotificationUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *PosNotificationClient) UpdateOne(_m *PosNotification) *PosNotificationUpdateOne {
+	mutation := newPosNotificationMutation(c.config, OpUpdateOne, withPosNotification(_m))
+	return &PosNotificationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *PosNotificationClient) UpdateOneID(id uuid.UUID) *PosNotificationUpdateOne {
+	mutation := newPosNotificationMutation(c.config, OpUpdateOne, withPosNotificationID(id))
+	return &PosNotificationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for PosNotification.
+func (c *PosNotificationClient) Delete() *PosNotificationDelete {
+	mutation := newPosNotificationMutation(c.config, OpDelete)
+	return &PosNotificationDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *PosNotificationClient) DeleteOne(_m *PosNotification) *PosNotificationDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *PosNotificationClient) DeleteOneID(id uuid.UUID) *PosNotificationDeleteOne {
+	builder := c.Delete().Where(posnotification.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &PosNotificationDeleteOne{builder}
+}
+
+// Query returns a query builder for PosNotification.
+func (c *PosNotificationClient) Query() *PosNotificationQuery {
+	return &PosNotificationQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypePosNotification},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a PosNotification entity by its id.
+func (c *PosNotificationClient) Get(ctx context.Context, id uuid.UUID) (*PosNotification, error) {
+	return c.Query().Where(posnotification.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *PosNotificationClient) GetX(ctx context.Context, id uuid.UUID) *PosNotification {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *PosNotificationClient) Hooks() []Hook {
+	return c.hooks.PosNotification
+}
+
+// Interceptors returns the client interceptors.
+func (c *PosNotificationClient) Interceptors() []Interceptor {
+	return c.inters.PosNotification
+}
+
+func (c *PosNotificationClient) mutate(ctx context.Context, m *PosNotificationMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&PosNotificationCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&PosNotificationUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&PosNotificationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&PosNotificationDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown PosNotification mutation op: %q", m.Op())
+	}
+}
+
 // PrescriptionClient is a client for the Prescription schema.
 type PrescriptionClient struct {
 	config
@@ -9750,6 +9899,139 @@ func (c *ServiceConfigClient) mutate(ctx context.Context, m *ServiceConfigMutati
 		return (&ServiceConfigDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown ServiceConfig mutation op: %q", m.Op())
+	}
+}
+
+// ServiceQueueEntryClient is a client for the ServiceQueueEntry schema.
+type ServiceQueueEntryClient struct {
+	config
+}
+
+// NewServiceQueueEntryClient returns a client for the ServiceQueueEntry from the given config.
+func NewServiceQueueEntryClient(c config) *ServiceQueueEntryClient {
+	return &ServiceQueueEntryClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `servicequeueentry.Hooks(f(g(h())))`.
+func (c *ServiceQueueEntryClient) Use(hooks ...Hook) {
+	c.hooks.ServiceQueueEntry = append(c.hooks.ServiceQueueEntry, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `servicequeueentry.Intercept(f(g(h())))`.
+func (c *ServiceQueueEntryClient) Intercept(interceptors ...Interceptor) {
+	c.inters.ServiceQueueEntry = append(c.inters.ServiceQueueEntry, interceptors...)
+}
+
+// Create returns a builder for creating a ServiceQueueEntry entity.
+func (c *ServiceQueueEntryClient) Create() *ServiceQueueEntryCreate {
+	mutation := newServiceQueueEntryMutation(c.config, OpCreate)
+	return &ServiceQueueEntryCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of ServiceQueueEntry entities.
+func (c *ServiceQueueEntryClient) CreateBulk(builders ...*ServiceQueueEntryCreate) *ServiceQueueEntryCreateBulk {
+	return &ServiceQueueEntryCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ServiceQueueEntryClient) MapCreateBulk(slice any, setFunc func(*ServiceQueueEntryCreate, int)) *ServiceQueueEntryCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ServiceQueueEntryCreateBulk{err: fmt.Errorf("calling to ServiceQueueEntryClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ServiceQueueEntryCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ServiceQueueEntryCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for ServiceQueueEntry.
+func (c *ServiceQueueEntryClient) Update() *ServiceQueueEntryUpdate {
+	mutation := newServiceQueueEntryMutation(c.config, OpUpdate)
+	return &ServiceQueueEntryUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ServiceQueueEntryClient) UpdateOne(_m *ServiceQueueEntry) *ServiceQueueEntryUpdateOne {
+	mutation := newServiceQueueEntryMutation(c.config, OpUpdateOne, withServiceQueueEntry(_m))
+	return &ServiceQueueEntryUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ServiceQueueEntryClient) UpdateOneID(id uuid.UUID) *ServiceQueueEntryUpdateOne {
+	mutation := newServiceQueueEntryMutation(c.config, OpUpdateOne, withServiceQueueEntryID(id))
+	return &ServiceQueueEntryUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for ServiceQueueEntry.
+func (c *ServiceQueueEntryClient) Delete() *ServiceQueueEntryDelete {
+	mutation := newServiceQueueEntryMutation(c.config, OpDelete)
+	return &ServiceQueueEntryDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ServiceQueueEntryClient) DeleteOne(_m *ServiceQueueEntry) *ServiceQueueEntryDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ServiceQueueEntryClient) DeleteOneID(id uuid.UUID) *ServiceQueueEntryDeleteOne {
+	builder := c.Delete().Where(servicequeueentry.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ServiceQueueEntryDeleteOne{builder}
+}
+
+// Query returns a query builder for ServiceQueueEntry.
+func (c *ServiceQueueEntryClient) Query() *ServiceQueueEntryQuery {
+	return &ServiceQueueEntryQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeServiceQueueEntry},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a ServiceQueueEntry entity by its id.
+func (c *ServiceQueueEntryClient) Get(ctx context.Context, id uuid.UUID) (*ServiceQueueEntry, error) {
+	return c.Query().Where(servicequeueentry.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ServiceQueueEntryClient) GetX(ctx context.Context, id uuid.UUID) *ServiceQueueEntry {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *ServiceQueueEntryClient) Hooks() []Hook {
+	return c.hooks.ServiceQueueEntry
+}
+
+// Interceptors returns the client interceptors.
+func (c *ServiceQueueEntryClient) Interceptors() []Interceptor {
+	return c.inters.ServiceQueueEntry
+}
+
+func (c *ServiceQueueEntryClient) mutate(ctx context.Context, m *ServiceQueueEntryMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ServiceQueueEntryCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ServiceQueueEntryUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ServiceQueueEntryUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ServiceQueueEntryDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown ServiceQueueEntry mutation op: %q", m.Op())
 	}
 }
 
@@ -11904,13 +12186,13 @@ type (
 		OutboxEvent, Outlet, OutletSetting, POSDevice, POSDeviceSession,
 		POSLineModifier, POSOrder, POSOrderEvent, POSOrderLine, POSPayment,
 		POSPermission, POSRefund, POSReturn, POSReturnLine, POSRole, POSRolePermission,
-		POSRoleV2, POSUserRoleAssignment, Prescription, PrescriptionLine, PriceBook,
-		PriceBookItem, Promotion, PromotionApplication, PromotionRule, RateLimitConfig,
-		Room, RoomFolioItem, RoomGuest, Section, SerialNumberLog, ServiceConfig,
-		StaffMember, StaffSchedule, StockAlertSubscription, StockConsumptionEvent,
-		SyncFailure, Table, TableAssignment, Tenant, TenantSyncEvent, Tender, User,
-		UserPOSRole, WebhookDelivery, WebhookSubscription,
-		WeighingScaleReading []ent.Hook
+		POSRoleV2, POSUserRoleAssignment, PosNotification, Prescription,
+		PrescriptionLine, PriceBook, PriceBookItem, Promotion, PromotionApplication,
+		PromotionRule, RateLimitConfig, Room, RoomFolioItem, RoomGuest, Section,
+		SerialNumberLog, ServiceConfig, ServiceQueueEntry, StaffMember, StaffSchedule,
+		StockAlertSubscription, StockConsumptionEvent, SyncFailure, Table,
+		TableAssignment, Tenant, TenantSyncEvent, Tender, User, UserPOSRole,
+		WebhookDelivery, WebhookSubscription, WeighingScaleReading []ent.Hook
 	}
 	inters struct {
 		Appointment, BarTab, BarTabEvent, CashDrawer, CashDrawerEvent, CatalogItem,
@@ -11922,12 +12204,12 @@ type (
 		OutboxEvent, Outlet, OutletSetting, POSDevice, POSDeviceSession,
 		POSLineModifier, POSOrder, POSOrderEvent, POSOrderLine, POSPayment,
 		POSPermission, POSRefund, POSReturn, POSReturnLine, POSRole, POSRolePermission,
-		POSRoleV2, POSUserRoleAssignment, Prescription, PrescriptionLine, PriceBook,
-		PriceBookItem, Promotion, PromotionApplication, PromotionRule, RateLimitConfig,
-		Room, RoomFolioItem, RoomGuest, Section, SerialNumberLog, ServiceConfig,
-		StaffMember, StaffSchedule, StockAlertSubscription, StockConsumptionEvent,
-		SyncFailure, Table, TableAssignment, Tenant, TenantSyncEvent, Tender, User,
-		UserPOSRole, WebhookDelivery, WebhookSubscription,
-		WeighingScaleReading []ent.Interceptor
+		POSRoleV2, POSUserRoleAssignment, PosNotification, Prescription,
+		PrescriptionLine, PriceBook, PriceBookItem, Promotion, PromotionApplication,
+		PromotionRule, RateLimitConfig, Room, RoomFolioItem, RoomGuest, Section,
+		SerialNumberLog, ServiceConfig, ServiceQueueEntry, StaffMember, StaffSchedule,
+		StockAlertSubscription, StockConsumptionEvent, SyncFailure, Table,
+		TableAssignment, Tenant, TenantSyncEvent, Tender, User, UserPOSRole,
+		WebhookDelivery, WebhookSubscription, WeighingScaleReading []ent.Interceptor
 	}
 )

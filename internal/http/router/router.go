@@ -57,6 +57,8 @@ func New(
 	onlineOrders *handlers.OnlineOrderHandler,
 	serviceConfig *handlers.ServiceConfigHandler,
 	serviceSettings *handlers.ServiceSettingsHandler,
+	notifications *handlers.NotificationsHandler,
+	queue *handlers.QueueHandler,
 	allowedOrigins []string,
 	redisClient *redis.Client,
 ) http.Handler {
@@ -184,6 +186,14 @@ func New(
 						pos.Post("/orders", orders.CreateOrder)
 						pos.Get("/orders/{orderID}", orders.GetOrder)
 						pos.Patch("/orders/{orderID}/status", orders.UpdateStatus)
+						pos.Patch("/orders/{orderID}/void", orders.VoidOrder)
+					}
+
+					// In-app notifications (waiter order-ready alerts)
+					if notifications != nil {
+						pos.Get("/notifications", notifications.List)
+						pos.Post("/notifications/mark-all-read", notifications.MarkAllRead)
+						pos.Patch("/notifications/{id}/read", notifications.MarkRead)
 					}
 
 					// Receipt
@@ -359,6 +369,16 @@ func New(
 						})
 					}
 
+					// Walk-in queue — services use_case
+					if queue != nil {
+						pos.Group(func(svc chi.Router) {
+							svc.Use(outletmw.RequireUseCase("services"))
+							svc.Get("/queue", queue.List)
+							svc.Post("/queue/entries", queue.Create)
+							svc.Patch("/queue/entries/{entryID}/status", queue.UpdateStatus)
+						})
+					}
+
 					// Staff schedules
 					if staffSchedule != nil {
 						pos.Get("/staff/{staffID}/schedule", staffSchedule.ListSchedule)
@@ -391,6 +411,7 @@ func New(
 						pos.Get("/reports/daily-breakdown", reports.DailyBreakdown)
 						pos.Get("/reports/top-items", reports.TopItems)
 						pos.Get("/reports/sales-by-staff", reports.SalesByStaff)
+						pos.Get("/reports/export", reports.ExportDailyReport)
 					}
 
 					// Webhook subscriptions & delivery log (Sprint 12)

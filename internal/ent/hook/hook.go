@@ -573,6 +573,18 @@ func (f POSUserRoleAssignmentFunc) Mutate(ctx context.Context, m ent.Mutation) (
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.POSUserRoleAssignmentMutation", m)
 }
 
+// The PosNotificationFunc type is an adapter to allow the use of ordinary
+// function as PosNotification mutator.
+type PosNotificationFunc func(context.Context, *ent.PosNotificationMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f PosNotificationFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.PosNotificationMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.PosNotificationMutation", m)
+}
+
 // The PrescriptionFunc type is an adapter to allow the use of ordinary
 // function as Prescription mutator.
 type PrescriptionFunc func(context.Context, *ent.PrescriptionMutation) (ent.Value, error)
@@ -739,6 +751,18 @@ func (f ServiceConfigFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Valu
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ServiceConfigMutation", m)
+}
+
+// The ServiceQueueEntryFunc type is an adapter to allow the use of ordinary
+// function as ServiceQueueEntry mutator.
+type ServiceQueueEntryFunc func(context.Context, *ent.ServiceQueueEntryMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ServiceQueueEntryFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ServiceQueueEntryMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ServiceQueueEntryMutation", m)
 }
 
 // The StaffMemberFunc type is an adapter to allow the use of ordinary

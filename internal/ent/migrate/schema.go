@@ -1013,6 +1013,9 @@ var (
 		{Name: "metadata", Type: field.TypeJSON},
 		{Name: "etims_invoice_number", Type: field.TypeString, Nullable: true},
 		{Name: "etims_qr_code_url", Type: field.TypeString, Nullable: true},
+		{Name: "voided_reason", Type: field.TypeString, Nullable: true},
+		{Name: "voided_by", Type: field.TypeUUID, Nullable: true},
+		{Name: "voided_at", Type: field.TypeTime, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
 	}
@@ -1387,6 +1390,37 @@ var (
 				Name:    "posuserroleassignment_expires_at",
 				Unique:  false,
 				Columns: []*schema.Column{PosUserRoleAssignmentsColumns[4]},
+			},
+		},
+	}
+	// PosNotificationsColumns holds the columns for the "pos_notifications" table.
+	PosNotificationsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "outlet_id", Type: field.TypeUUID},
+		{Name: "user_id", Type: field.TypeUUID},
+		{Name: "notification_type", Type: field.TypeString},
+		{Name: "title", Type: field.TypeString},
+		{Name: "body", Type: field.TypeString, Default: ""},
+		{Name: "payload", Type: field.TypeJSON},
+		{Name: "is_read", Type: field.TypeBool, Default: false},
+		{Name: "created_at", Type: field.TypeTime},
+	}
+	// PosNotificationsTable holds the schema information for the "pos_notifications" table.
+	PosNotificationsTable = &schema.Table{
+		Name:       "pos_notifications",
+		Columns:    PosNotificationsColumns,
+		PrimaryKey: []*schema.Column{PosNotificationsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "posnotification_tenant_id_user_id_is_read",
+				Unique:  false,
+				Columns: []*schema.Column{PosNotificationsColumns[1], PosNotificationsColumns[3], PosNotificationsColumns[8]},
+			},
+			{
+				Name:    "posnotification_tenant_id_outlet_id",
+				Unique:  false,
+				Columns: []*schema.Column{PosNotificationsColumns[1], PosNotificationsColumns[2]},
 			},
 		},
 	}
@@ -1837,6 +1871,43 @@ var (
 				Name:    "serviceconfig_config_key",
 				Unique:  false,
 				Columns: []*schema.Column{ServiceConfigsColumns[2]},
+			},
+		},
+	}
+	// ServiceQueueEntriesColumns holds the columns for the "service_queue_entries" table.
+	ServiceQueueEntriesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "outlet_id", Type: field.TypeUUID},
+		{Name: "customer_name", Type: field.TypeString},
+		{Name: "customer_phone", Type: field.TypeString, Nullable: true},
+		{Name: "service_name", Type: field.TypeString, Nullable: true},
+		{Name: "staff_member_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"waiting", "in_progress", "done", "cancelled"}, Default: "waiting"},
+		{Name: "queue_position", Type: field.TypeInt, Default: 0},
+		{Name: "pos_order_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "notes", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "called_at", Type: field.TypeTime, Nullable: true},
+		{Name: "started_at", Type: field.TypeTime, Nullable: true},
+		{Name: "completed_at", Type: field.TypeTime, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// ServiceQueueEntriesTable holds the schema information for the "service_queue_entries" table.
+	ServiceQueueEntriesTable = &schema.Table{
+		Name:       "service_queue_entries",
+		Columns:    ServiceQueueEntriesColumns,
+		PrimaryKey: []*schema.Column{ServiceQueueEntriesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "servicequeueentry_tenant_id_outlet_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{ServiceQueueEntriesColumns[1], ServiceQueueEntriesColumns[2], ServiceQueueEntriesColumns[7]},
+			},
+			{
+				Name:    "servicequeueentry_tenant_id_outlet_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{ServiceQueueEntriesColumns[1], ServiceQueueEntriesColumns[2], ServiceQueueEntriesColumns[14]},
 			},
 		},
 	}
@@ -2324,6 +2395,7 @@ var (
 		PosRolePermissionsTable,
 		PosRoleV2sTable,
 		PosUserRoleAssignmentsTable,
+		PosNotificationsTable,
 		PrescriptionsTable,
 		PrescriptionLinesTable,
 		PriceBooksTable,
@@ -2338,6 +2410,7 @@ var (
 		SectionsTable,
 		SerialNumberLogsTable,
 		ServiceConfigsTable,
+		ServiceQueueEntriesTable,
 		StaffMembersTable,
 		StaffSchedulesTable,
 		StockAlertSubscriptionsTable,

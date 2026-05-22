@@ -314,6 +314,66 @@ func (_u *POSOrderUpdate) ClearEtimsQrCodeURL() *POSOrderUpdate {
 	return _u
 }
 
+// SetVoidedReason sets the "voided_reason" field.
+func (_u *POSOrderUpdate) SetVoidedReason(v string) *POSOrderUpdate {
+	_u.mutation.SetVoidedReason(v)
+	return _u
+}
+
+// SetNillableVoidedReason sets the "voided_reason" field if the given value is not nil.
+func (_u *POSOrderUpdate) SetNillableVoidedReason(v *string) *POSOrderUpdate {
+	if v != nil {
+		_u.SetVoidedReason(*v)
+	}
+	return _u
+}
+
+// ClearVoidedReason clears the value of the "voided_reason" field.
+func (_u *POSOrderUpdate) ClearVoidedReason() *POSOrderUpdate {
+	_u.mutation.ClearVoidedReason()
+	return _u
+}
+
+// SetVoidedBy sets the "voided_by" field.
+func (_u *POSOrderUpdate) SetVoidedBy(v uuid.UUID) *POSOrderUpdate {
+	_u.mutation.SetVoidedBy(v)
+	return _u
+}
+
+// SetNillableVoidedBy sets the "voided_by" field if the given value is not nil.
+func (_u *POSOrderUpdate) SetNillableVoidedBy(v *uuid.UUID) *POSOrderUpdate {
+	if v != nil {
+		_u.SetVoidedBy(*v)
+	}
+	return _u
+}
+
+// ClearVoidedBy clears the value of the "voided_by" field.
+func (_u *POSOrderUpdate) ClearVoidedBy() *POSOrderUpdate {
+	_u.mutation.ClearVoidedBy()
+	return _u
+}
+
+// SetVoidedAt sets the "voided_at" field.
+func (_u *POSOrderUpdate) SetVoidedAt(v time.Time) *POSOrderUpdate {
+	_u.mutation.SetVoidedAt(v)
+	return _u
+}
+
+// SetNillableVoidedAt sets the "voided_at" field if the given value is not nil.
+func (_u *POSOrderUpdate) SetNillableVoidedAt(v *time.Time) *POSOrderUpdate {
+	if v != nil {
+		_u.SetVoidedAt(*v)
+	}
+	return _u
+}
+
+// ClearVoidedAt clears the value of the "voided_at" field.
+func (_u *POSOrderUpdate) ClearVoidedAt() *POSOrderUpdate {
+	_u.mutation.ClearVoidedAt()
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *POSOrderUpdate) SetUpdatedAt(v time.Time) *POSOrderUpdate {
 	_u.mutation.SetUpdatedAt(v)
@@ -570,6 +630,24 @@ func (_u *POSOrderUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.EtimsQrCodeURLCleared() {
 		_spec.ClearField(posorder.FieldEtimsQrCodeURL, field.TypeString)
+	}
+	if value, ok := _u.mutation.VoidedReason(); ok {
+		_spec.SetField(posorder.FieldVoidedReason, field.TypeString, value)
+	}
+	if _u.mutation.VoidedReasonCleared() {
+		_spec.ClearField(posorder.FieldVoidedReason, field.TypeString)
+	}
+	if value, ok := _u.mutation.VoidedBy(); ok {
+		_spec.SetField(posorder.FieldVoidedBy, field.TypeUUID, value)
+	}
+	if _u.mutation.VoidedByCleared() {
+		_spec.ClearField(posorder.FieldVoidedBy, field.TypeUUID)
+	}
+	if value, ok := _u.mutation.VoidedAt(); ok {
+		_spec.SetField(posorder.FieldVoidedAt, field.TypeTime, value)
+	}
+	if _u.mutation.VoidedAtCleared() {
+		_spec.ClearField(posorder.FieldVoidedAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(posorder.FieldUpdatedAt, field.TypeTime, value)
@@ -1011,6 +1089,66 @@ func (_u *POSOrderUpdateOne) ClearEtimsQrCodeURL() *POSOrderUpdateOne {
 	return _u
 }
 
+// SetVoidedReason sets the "voided_reason" field.
+func (_u *POSOrderUpdateOne) SetVoidedReason(v string) *POSOrderUpdateOne {
+	_u.mutation.SetVoidedReason(v)
+	return _u
+}
+
+// SetNillableVoidedReason sets the "voided_reason" field if the given value is not nil.
+func (_u *POSOrderUpdateOne) SetNillableVoidedReason(v *string) *POSOrderUpdateOne {
+	if v != nil {
+		_u.SetVoidedReason(*v)
+	}
+	return _u
+}
+
+// ClearVoidedReason clears the value of the "voided_reason" field.
+func (_u *POSOrderUpdateOne) ClearVoidedReason() *POSOrderUpdateOne {
+	_u.mutation.ClearVoidedReason()
+	return _u
+}
+
+// SetVoidedBy sets the "voided_by" field.
+func (_u *POSOrderUpdateOne) SetVoidedBy(v uuid.UUID) *POSOrderUpdateOne {
+	_u.mutation.SetVoidedBy(v)
+	return _u
+}
+
+// SetNillableVoidedBy sets the "voided_by" field if the given value is not nil.
+func (_u *POSOrderUpdateOne) SetNillableVoidedBy(v *uuid.UUID) *POSOrderUpdateOne {
+	if v != nil {
+		_u.SetVoidedBy(*v)
+	}
+	return _u
+}
+
+// ClearVoidedBy clears the value of the "voided_by" field.
+func (_u *POSOrderUpdateOne) ClearVoidedBy() *POSOrderUpdateOne {
+	_u.mutation.ClearVoidedBy()
+	return _u
+}
+
+// SetVoidedAt sets the "voided_at" field.
+func (_u *POSOrderUpdateOne) SetVoidedAt(v time.Time) *POSOrderUpdateOne {
+	_u.mutation.SetVoidedAt(v)
+	return _u
+}
+
+// SetNillableVoidedAt sets the "voided_at" field if the given value is not nil.
+func (_u *POSOrderUpdateOne) SetNillableVoidedAt(v *time.Time) *POSOrderUpdateOne {
+	if v != nil {
+		_u.SetVoidedAt(*v)
+	}
+	return _u
+}
+
+// ClearVoidedAt clears the value of the "voided_at" field.
+func (_u *POSOrderUpdateOne) ClearVoidedAt() *POSOrderUpdateOne {
+	_u.mutation.ClearVoidedAt()
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *POSOrderUpdateOne) SetUpdatedAt(v time.Time) *POSOrderUpdateOne {
 	_u.mutation.SetUpdatedAt(v)
@@ -1297,6 +1435,24 @@ func (_u *POSOrderUpdateOne) sqlSave(ctx context.Context) (_node *POSOrder, err 
 	}
 	if _u.mutation.EtimsQrCodeURLCleared() {
 		_spec.ClearField(posorder.FieldEtimsQrCodeURL, field.TypeString)
+	}
+	if value, ok := _u.mutation.VoidedReason(); ok {
+		_spec.SetField(posorder.FieldVoidedReason, field.TypeString, value)
+	}
+	if _u.mutation.VoidedReasonCleared() {
+		_spec.ClearField(posorder.FieldVoidedReason, field.TypeString)
+	}
+	if value, ok := _u.mutation.VoidedBy(); ok {
+		_spec.SetField(posorder.FieldVoidedBy, field.TypeUUID, value)
+	}
+	if _u.mutation.VoidedByCleared() {
+		_spec.ClearField(posorder.FieldVoidedBy, field.TypeUUID)
+	}
+	if value, ok := _u.mutation.VoidedAt(); ok {
+		_spec.SetField(posorder.FieldVoidedAt, field.TypeTime, value)
+	}
+	if _u.mutation.VoidedAtCleared() {
+		_spec.ClearField(posorder.FieldVoidedAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(posorder.FieldUpdatedAt, field.TypeTime, value)

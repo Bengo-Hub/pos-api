@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"encoding/csv"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -389,6 +391,83 @@ func (h *ReportsHandler) SalesByStaff(w http.ResponseWriter, r *http.Request) {
 	}
 
 	jsonOK(w, rows)
+}
+
+// ExportDailyReport handles GET /{tenantID}/pos/reports/export
+// Streams a CSV of daily sales totals for the requested date range.
+// Query params: from, to (YYYY-MM-DD or RFC3339), format (default "csv")
+func (h *ReportsHandler) ExportDailyReport(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+
+	from, to := parseDateRange(r)
+
+	orders, err := h.db.POSOrder.Query().
+		Where(
+			posorder.TenantID(tid),
+			posorder.StatusEQ("completed"),
+			posorder.CreatedAtGTE(from),
+			posorder.CreatedAtLTE(to),
+		).
+		All(r.Context())
+	if err != nil {
+		h.log.Error("export report query failed", zap.Error(err))
+		jsonError(w, "failed to export report", http.StatusInternalServerError)
+		return
+	}
+
+	type dayRow struct {
+		Date       string
+		OrderCount int
+		Revenue    float64
+		Tax        float64
+		Net        float64
+	}
+
+	buckets := make(map[string]*dayRow)
+	for _, o := range orders {
+		day := o.CreatedAt.UTC().Format("2006-01-02")
+		if _, ok := buckets[day]; !ok {
+			buckets[day] = &dayRow{Date: day}
+		}
+		buckets[day].OrderCount++
+		buckets[day].Revenue += o.TotalAmount
+		buckets[day].Tax += o.TaxTotal
+		buckets[day].Net += o.Subtotal
+	}
+
+	// Build rows in date order
+	var rows []*dayRow
+	cur := from
+	for !cur.After(to) {
+		day := cur.UTC().Format("2006-01-02")
+		if b, ok := buckets[day]; ok {
+			rows = append(rows, b)
+		} else {
+			rows = append(rows, &dayRow{Date: day})
+		}
+		cur = cur.AddDate(0, 0, 1)
+	}
+
+	filename := fmt.Sprintf("sales-%s-%s.csv", from.Format("2006-01-02"), to.Format("2006-01-02"))
+	w.Header().Set("Content-Type", "text/csv")
+	w.Header().Set("Content-Disposition", "attachment; filename="+filename)
+
+	cw := csv.NewWriter(w)
+	_ = cw.Write([]string{"Date", "Orders", "Net Sales (KES)", "VAT (KES)", "Gross Revenue (KES)"})
+	for _, row := range rows {
+		_ = cw.Write([]string{
+			row.Date,
+			strconv.Itoa(row.OrderCount),
+			fmt.Sprintf("%.2f", row.Net),
+			fmt.Sprintf("%.2f", row.Tax),
+			fmt.Sprintf("%.2f", row.Revenue),
+		})
+	}
+	cw.Flush()
 }
 
 // ── helpers ──────────────────────────────────────────────────────────────────

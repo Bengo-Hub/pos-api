@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -240,6 +241,70 @@ func (h *POSOrderHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	jsonOK(w, updated)
+}
+
+// VoidOrder handles PATCH /{tenantID}/pos/orders/{orderID}/void
+// Requires pos.orders.void permission (admin/manager only).
+func (h *POSOrderHandler) VoidOrder(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+
+	orderID, err := uuid.Parse(chi.URLParam(r, "orderID"))
+	if err != nil {
+		jsonError(w, "invalid order id", http.StatusBadRequest)
+		return
+	}
+
+	var input struct {
+		Reason string `json:"reason"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil || input.Reason == "" {
+		jsonError(w, "reason is required", http.StatusBadRequest)
+		return
+	}
+
+	claims, ok := authclient.ClaimsFromContext(r.Context())
+	if !ok || claims.Subject == "" {
+		jsonError(w, "unauthenticated", http.StatusUnauthorized)
+		return
+	}
+	callerID, _ := uuid.Parse(claims.Subject)
+
+	order, err := h.client.POSOrder.Query().
+		Where(posorder.ID(orderID), posorder.TenantID(tid)).
+		Only(r.Context())
+	if err != nil {
+		jsonError(w, "order not found", http.StatusNotFound)
+		return
+	}
+
+	if order.Status == "voided" {
+		jsonError(w, "order is already voided", http.StatusBadRequest)
+		return
+	}
+
+	now := time.Now()
+	updated, err := order.Update().
+		SetStatus("voided").
+		SetVoidedReason(input.Reason).
+		SetVoidedBy(callerID).
+		SetVoidedAt(now).
+		Save(r.Context())
+	if err != nil {
+		h.log.Error("void order failed", zap.Error(err))
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	h.log.Info("order voided",
+		zap.Stringer("order_id", orderID),
+		zap.Stringer("voided_by", callerID),
+		zap.String("reason", input.Reason),
+	)
 	jsonOK(w, updated)
 }
 

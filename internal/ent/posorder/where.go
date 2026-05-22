@@ -131,6 +131,21 @@ func EtimsQrCodeURL(v string) predicate.POSOrder {
 	return predicate.POSOrder(sql.FieldEQ(FieldEtimsQrCodeURL, v))
 }
 
+// VoidedReason applies equality check predicate on the "voided_reason" field. It's identical to VoidedReasonEQ.
+func VoidedReason(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEQ(FieldVoidedReason, v))
+}
+
+// VoidedBy applies equality check predicate on the "voided_by" field. It's identical to VoidedByEQ.
+func VoidedBy(v uuid.UUID) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEQ(FieldVoidedBy, v))
+}
+
+// VoidedAt applies equality check predicate on the "voided_at" field. It's identical to VoidedAtEQ.
+func VoidedAt(v time.Time) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEQ(FieldVoidedAt, v))
+}
+
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.POSOrder {
 	return predicate.POSOrder(sql.FieldEQ(FieldCreatedAt, v))
@@ -924,6 +939,181 @@ func EtimsQrCodeURLEqualFold(v string) predicate.POSOrder {
 // EtimsQrCodeURLContainsFold applies the ContainsFold predicate on the "etims_qr_code_url" field.
 func EtimsQrCodeURLContainsFold(v string) predicate.POSOrder {
 	return predicate.POSOrder(sql.FieldContainsFold(FieldEtimsQrCodeURL, v))
+}
+
+// VoidedReasonEQ applies the EQ predicate on the "voided_reason" field.
+func VoidedReasonEQ(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEQ(FieldVoidedReason, v))
+}
+
+// VoidedReasonNEQ applies the NEQ predicate on the "voided_reason" field.
+func VoidedReasonNEQ(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNEQ(FieldVoidedReason, v))
+}
+
+// VoidedReasonIn applies the In predicate on the "voided_reason" field.
+func VoidedReasonIn(vs ...string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldIn(FieldVoidedReason, vs...))
+}
+
+// VoidedReasonNotIn applies the NotIn predicate on the "voided_reason" field.
+func VoidedReasonNotIn(vs ...string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNotIn(FieldVoidedReason, vs...))
+}
+
+// VoidedReasonGT applies the GT predicate on the "voided_reason" field.
+func VoidedReasonGT(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldGT(FieldVoidedReason, v))
+}
+
+// VoidedReasonGTE applies the GTE predicate on the "voided_reason" field.
+func VoidedReasonGTE(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldGTE(FieldVoidedReason, v))
+}
+
+// VoidedReasonLT applies the LT predicate on the "voided_reason" field.
+func VoidedReasonLT(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldLT(FieldVoidedReason, v))
+}
+
+// VoidedReasonLTE applies the LTE predicate on the "voided_reason" field.
+func VoidedReasonLTE(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldLTE(FieldVoidedReason, v))
+}
+
+// VoidedReasonContains applies the Contains predicate on the "voided_reason" field.
+func VoidedReasonContains(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldContains(FieldVoidedReason, v))
+}
+
+// VoidedReasonHasPrefix applies the HasPrefix predicate on the "voided_reason" field.
+func VoidedReasonHasPrefix(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldHasPrefix(FieldVoidedReason, v))
+}
+
+// VoidedReasonHasSuffix applies the HasSuffix predicate on the "voided_reason" field.
+func VoidedReasonHasSuffix(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldHasSuffix(FieldVoidedReason, v))
+}
+
+// VoidedReasonIsNil applies the IsNil predicate on the "voided_reason" field.
+func VoidedReasonIsNil() predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldIsNull(FieldVoidedReason))
+}
+
+// VoidedReasonNotNil applies the NotNil predicate on the "voided_reason" field.
+func VoidedReasonNotNil() predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNotNull(FieldVoidedReason))
+}
+
+// VoidedReasonEqualFold applies the EqualFold predicate on the "voided_reason" field.
+func VoidedReasonEqualFold(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEqualFold(FieldVoidedReason, v))
+}
+
+// VoidedReasonContainsFold applies the ContainsFold predicate on the "voided_reason" field.
+func VoidedReasonContainsFold(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldContainsFold(FieldVoidedReason, v))
+}
+
+// VoidedByEQ applies the EQ predicate on the "voided_by" field.
+func VoidedByEQ(v uuid.UUID) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEQ(FieldVoidedBy, v))
+}
+
+// VoidedByNEQ applies the NEQ predicate on the "voided_by" field.
+func VoidedByNEQ(v uuid.UUID) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNEQ(FieldVoidedBy, v))
+}
+
+// VoidedByIn applies the In predicate on the "voided_by" field.
+func VoidedByIn(vs ...uuid.UUID) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldIn(FieldVoidedBy, vs...))
+}
+
+// VoidedByNotIn applies the NotIn predicate on the "voided_by" field.
+func VoidedByNotIn(vs ...uuid.UUID) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNotIn(FieldVoidedBy, vs...))
+}
+
+// VoidedByGT applies the GT predicate on the "voided_by" field.
+func VoidedByGT(v uuid.UUID) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldGT(FieldVoidedBy, v))
+}
+
+// VoidedByGTE applies the GTE predicate on the "voided_by" field.
+func VoidedByGTE(v uuid.UUID) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldGTE(FieldVoidedBy, v))
+}
+
+// VoidedByLT applies the LT predicate on the "voided_by" field.
+func VoidedByLT(v uuid.UUID) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldLT(FieldVoidedBy, v))
+}
+
+// VoidedByLTE applies the LTE predicate on the "voided_by" field.
+func VoidedByLTE(v uuid.UUID) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldLTE(FieldVoidedBy, v))
+}
+
+// VoidedByIsNil applies the IsNil predicate on the "voided_by" field.
+func VoidedByIsNil() predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldIsNull(FieldVoidedBy))
+}
+
+// VoidedByNotNil applies the NotNil predicate on the "voided_by" field.
+func VoidedByNotNil() predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNotNull(FieldVoidedBy))
+}
+
+// VoidedAtEQ applies the EQ predicate on the "voided_at" field.
+func VoidedAtEQ(v time.Time) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEQ(FieldVoidedAt, v))
+}
+
+// VoidedAtNEQ applies the NEQ predicate on the "voided_at" field.
+func VoidedAtNEQ(v time.Time) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNEQ(FieldVoidedAt, v))
+}
+
+// VoidedAtIn applies the In predicate on the "voided_at" field.
+func VoidedAtIn(vs ...time.Time) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldIn(FieldVoidedAt, vs...))
+}
+
+// VoidedAtNotIn applies the NotIn predicate on the "voided_at" field.
+func VoidedAtNotIn(vs ...time.Time) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNotIn(FieldVoidedAt, vs...))
+}
+
+// VoidedAtGT applies the GT predicate on the "voided_at" field.
+func VoidedAtGT(v time.Time) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldGT(FieldVoidedAt, v))
+}
+
+// VoidedAtGTE applies the GTE predicate on the "voided_at" field.
+func VoidedAtGTE(v time.Time) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldGTE(FieldVoidedAt, v))
+}
+
+// VoidedAtLT applies the LT predicate on the "voided_at" field.
+func VoidedAtLT(v time.Time) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldLT(FieldVoidedAt, v))
+}
+
+// VoidedAtLTE applies the LTE predicate on the "voided_at" field.
+func VoidedAtLTE(v time.Time) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldLTE(FieldVoidedAt, v))
+}
+
+// VoidedAtIsNil applies the IsNil predicate on the "voided_at" field.
+func VoidedAtIsNil() predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldIsNull(FieldVoidedAt))
+}
+
+// VoidedAtNotNil applies the NotNil predicate on the "voided_at" field.
+func VoidedAtNotNil() predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNotNull(FieldVoidedAt))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.

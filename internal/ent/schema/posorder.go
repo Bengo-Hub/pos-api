@@ -58,6 +58,16 @@ func (POSOrder) Fields() []ent.Field {
 		field.String("etims_qr_code_url").
 			Optional().
 			Nillable(),
+		// Void fields — set when Admin/Manager voids an order.
+		field.String("voided_reason").
+			Optional().
+			Nillable(),
+		field.UUID("voided_by", uuid.UUID{}).
+			Optional().
+			Nillable(),
+		field.Time("voided_at").
+			Optional().
+			Nillable(),
 		field.Time("created_at").
 			Default(time.Now).
 			Immutable(),

@@ -106,6 +106,8 @@ type Tx struct {
 	POSRoleV2 *POSRoleV2Client
 	// POSUserRoleAssignment is the client for interacting with the POSUserRoleAssignment builders.
 	POSUserRoleAssignment *POSUserRoleAssignmentClient
+	// PosNotification is the client for interacting with the PosNotification builders.
+	PosNotification *PosNotificationClient
 	// Prescription is the client for interacting with the Prescription builders.
 	Prescription *PrescriptionClient
 	// PrescriptionLine is the client for interacting with the PrescriptionLine builders.
@@ -134,6 +136,8 @@ type Tx struct {
 	SerialNumberLog *SerialNumberLogClient
 	// ServiceConfig is the client for interacting with the ServiceConfig builders.
 	ServiceConfig *ServiceConfigClient
+	// ServiceQueueEntry is the client for interacting with the ServiceQueueEntry builders.
+	ServiceQueueEntry *ServiceQueueEntryClient
 	// StaffMember is the client for interacting with the StaffMember builders.
 	StaffMember *StaffMemberClient
 	// StaffSchedule is the client for interacting with the StaffSchedule builders.
@@ -342,6 +346,7 @@ func (tx *Tx) init() {
 	tx.POSRolePermission = NewPOSRolePermissionClient(tx.config)
 	tx.POSRoleV2 = NewPOSRoleV2Client(tx.config)
 	tx.POSUserRoleAssignment = NewPOSUserRoleAssignmentClient(tx.config)
+	tx.PosNotification = NewPosNotificationClient(tx.config)
 	tx.Prescription = NewPrescriptionClient(tx.config)
 	tx.PrescriptionLine = NewPrescriptionLineClient(tx.config)
 	tx.PriceBook = NewPriceBookClient(tx.config)
@@ -356,6 +361,7 @@ func (tx *Tx) init() {
 	tx.Section = NewSectionClient(tx.config)
 	tx.SerialNumberLog = NewSerialNumberLogClient(tx.config)
 	tx.ServiceConfig = NewServiceConfigClient(tx.config)
+	tx.ServiceQueueEntry = NewServiceQueueEntryClient(tx.config)
 	tx.StaffMember = NewStaffMemberClient(tx.config)
 	tx.StaffSchedule = NewStaffScheduleClient(tx.config)
 	tx.StockAlertSubscription = NewStockAlertSubscriptionClient(tx.config)

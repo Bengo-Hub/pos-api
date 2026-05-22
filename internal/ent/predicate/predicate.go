@@ -147,6 +147,9 @@ type POSRoleV2 func(*sql.Selector)
 // POSUserRoleAssignment is the predicate function for posuserroleassignment builders.
 type POSUserRoleAssignment func(*sql.Selector)
 
+// PosNotification is the predicate function for posnotification builders.
+type PosNotification func(*sql.Selector)
+
 // Prescription is the predicate function for prescription builders.
 type Prescription func(*sql.Selector)
 
@@ -188,6 +191,9 @@ type SerialNumberLog func(*sql.Selector)
 
 // ServiceConfig is the predicate function for serviceconfig builders.
 type ServiceConfig func(*sql.Selector)
+
+// ServiceQueueEntry is the predicate function for servicequeueentry builders.
+type ServiceQueueEntry func(*sql.Selector)
 
 // StaffMember is the predicate function for staffmember builders.
 type StaffMember func(*sql.Selector)

@@ -47,6 +47,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/posdevice"
 	"github.com/bengobox/pos-service/internal/ent/posdevicesession"
 	"github.com/bengobox/pos-service/internal/ent/poslinemodifier"
+	"github.com/bengobox/pos-service/internal/ent/posnotification"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
 	"github.com/bengobox/pos-service/internal/ent/posorderevent"
 	"github.com/bengobox/pos-service/internal/ent/posorderline"
@@ -73,6 +74,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/section"
 	"github.com/bengobox/pos-service/internal/ent/serialnumberlog"
 	"github.com/bengobox/pos-service/internal/ent/serviceconfig"
+	"github.com/bengobox/pos-service/internal/ent/servicequeueentry"
 	"github.com/bengobox/pos-service/internal/ent/staffmember"
 	"github.com/bengobox/pos-service/internal/ent/staffschedule"
 	"github.com/bengobox/pos-service/internal/ent/stockalertsubscription"
@@ -195,6 +197,7 @@ func checkColumn(t, c string) error {
 			posrolepermission.Table:      posrolepermission.ValidColumn,
 			posrolev2.Table:              posrolev2.ValidColumn,
 			posuserroleassignment.Table:  posuserroleassignment.ValidColumn,
+			posnotification.Table:        posnotification.ValidColumn,
 			prescription.Table:           prescription.ValidColumn,
 			prescriptionline.Table:       prescriptionline.ValidColumn,
 			pricebook.Table:              pricebook.ValidColumn,
@@ -209,6 +212,7 @@ func checkColumn(t, c string) error {
 			section.Table:                section.ValidColumn,
 			serialnumberlog.Table:        serialnumberlog.ValidColumn,
 			serviceconfig.Table:          serviceconfig.ValidColumn,
+			servicequeueentry.Table:      servicequeueentry.ValidColumn,
 			staffmember.Table:            staffmember.ValidColumn,
 			staffschedule.Table:          staffschedule.ValidColumn,
 			stockalertsubscription.Table: stockalertsubscription.ValidColumn,

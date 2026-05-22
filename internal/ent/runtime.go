@@ -38,6 +38,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/posdevice"
 	"github.com/bengobox/pos-service/internal/ent/posdevicesession"
 	"github.com/bengobox/pos-service/internal/ent/poslinemodifier"
+	"github.com/bengobox/pos-service/internal/ent/posnotification"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
 	"github.com/bengobox/pos-service/internal/ent/posorderevent"
 	"github.com/bengobox/pos-service/internal/ent/posorderline"
@@ -64,6 +65,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/section"
 	"github.com/bengobox/pos-service/internal/ent/serialnumberlog"
 	"github.com/bengobox/pos-service/internal/ent/serviceconfig"
+	"github.com/bengobox/pos-service/internal/ent/servicequeueentry"
 	"github.com/bengobox/pos-service/internal/ent/staffmember"
 	"github.com/bengobox/pos-service/internal/ent/staffschedule"
 	"github.com/bengobox/pos-service/internal/ent/stockalertsubscription"
@@ -1025,11 +1027,11 @@ func init() {
 	// posorder.DefaultMetadata holds the default value on creation for the metadata field.
 	posorder.DefaultMetadata = posorderDescMetadata.Default.(map[string]interface{})
 	// posorderDescCreatedAt is the schema descriptor for created_at field.
-	posorderDescCreatedAt := posorderFields[18].Descriptor()
+	posorderDescCreatedAt := posorderFields[21].Descriptor()
 	// posorder.DefaultCreatedAt holds the default value on creation for the created_at field.
 	posorder.DefaultCreatedAt = posorderDescCreatedAt.Default.(func() time.Time)
 	// posorderDescUpdatedAt is the schema descriptor for updated_at field.
-	posorderDescUpdatedAt := posorderFields[19].Descriptor()
+	posorderDescUpdatedAt := posorderFields[22].Descriptor()
 	// posorder.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	posorder.DefaultUpdatedAt = posorderDescUpdatedAt.Default.(func() time.Time)
 	// posorder.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -1232,6 +1234,36 @@ func init() {
 	posuserroleassignmentDescID := posuserroleassignmentFields[0].Descriptor()
 	// posuserroleassignment.DefaultID holds the default value on creation for the id field.
 	posuserroleassignment.DefaultID = posuserroleassignmentDescID.Default.(func() uuid.UUID)
+	posnotificationFields := schema.PosNotification{}.Fields()
+	_ = posnotificationFields
+	// posnotificationDescNotificationType is the schema descriptor for notification_type field.
+	posnotificationDescNotificationType := posnotificationFields[4].Descriptor()
+	// posnotification.NotificationTypeValidator is a validator for the "notification_type" field. It is called by the builders before save.
+	posnotification.NotificationTypeValidator = posnotificationDescNotificationType.Validators[0].(func(string) error)
+	// posnotificationDescTitle is the schema descriptor for title field.
+	posnotificationDescTitle := posnotificationFields[5].Descriptor()
+	// posnotification.TitleValidator is a validator for the "title" field. It is called by the builders before save.
+	posnotification.TitleValidator = posnotificationDescTitle.Validators[0].(func(string) error)
+	// posnotificationDescBody is the schema descriptor for body field.
+	posnotificationDescBody := posnotificationFields[6].Descriptor()
+	// posnotification.DefaultBody holds the default value on creation for the body field.
+	posnotification.DefaultBody = posnotificationDescBody.Default.(string)
+	// posnotificationDescPayload is the schema descriptor for payload field.
+	posnotificationDescPayload := posnotificationFields[7].Descriptor()
+	// posnotification.DefaultPayload holds the default value on creation for the payload field.
+	posnotification.DefaultPayload = posnotificationDescPayload.Default.(map[string]interface{})
+	// posnotificationDescIsRead is the schema descriptor for is_read field.
+	posnotificationDescIsRead := posnotificationFields[8].Descriptor()
+	// posnotification.DefaultIsRead holds the default value on creation for the is_read field.
+	posnotification.DefaultIsRead = posnotificationDescIsRead.Default.(bool)
+	// posnotificationDescCreatedAt is the schema descriptor for created_at field.
+	posnotificationDescCreatedAt := posnotificationFields[9].Descriptor()
+	// posnotification.DefaultCreatedAt holds the default value on creation for the created_at field.
+	posnotification.DefaultCreatedAt = posnotificationDescCreatedAt.Default.(func() time.Time)
+	// posnotificationDescID is the schema descriptor for id field.
+	posnotificationDescID := posnotificationFields[0].Descriptor()
+	// posnotification.DefaultID holds the default value on creation for the id field.
+	posnotification.DefaultID = posnotificationDescID.Default.(func() uuid.UUID)
 	prescriptionFields := schema.Prescription{}.Fields()
 	_ = prescriptionFields
 	// prescriptionDescPrescriptionNumber is the schema descriptor for prescription_number field.
@@ -1614,6 +1646,30 @@ func init() {
 	serviceconfigDescID := serviceconfigFields[0].Descriptor()
 	// serviceconfig.DefaultID holds the default value on creation for the id field.
 	serviceconfig.DefaultID = serviceconfigDescID.Default.(func() uuid.UUID)
+	servicequeueentryFields := schema.ServiceQueueEntry{}.Fields()
+	_ = servicequeueentryFields
+	// servicequeueentryDescCustomerName is the schema descriptor for customer_name field.
+	servicequeueentryDescCustomerName := servicequeueentryFields[3].Descriptor()
+	// servicequeueentry.CustomerNameValidator is a validator for the "customer_name" field. It is called by the builders before save.
+	servicequeueentry.CustomerNameValidator = servicequeueentryDescCustomerName.Validators[0].(func(string) error)
+	// servicequeueentryDescQueuePosition is the schema descriptor for queue_position field.
+	servicequeueentryDescQueuePosition := servicequeueentryFields[8].Descriptor()
+	// servicequeueentry.DefaultQueuePosition holds the default value on creation for the queue_position field.
+	servicequeueentry.DefaultQueuePosition = servicequeueentryDescQueuePosition.Default.(int)
+	// servicequeueentryDescCreatedAt is the schema descriptor for created_at field.
+	servicequeueentryDescCreatedAt := servicequeueentryFields[14].Descriptor()
+	// servicequeueentry.DefaultCreatedAt holds the default value on creation for the created_at field.
+	servicequeueentry.DefaultCreatedAt = servicequeueentryDescCreatedAt.Default.(func() time.Time)
+	// servicequeueentryDescUpdatedAt is the schema descriptor for updated_at field.
+	servicequeueentryDescUpdatedAt := servicequeueentryFields[15].Descriptor()
+	// servicequeueentry.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	servicequeueentry.DefaultUpdatedAt = servicequeueentryDescUpdatedAt.Default.(func() time.Time)
+	// servicequeueentry.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	servicequeueentry.UpdateDefaultUpdatedAt = servicequeueentryDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// servicequeueentryDescID is the schema descriptor for id field.
+	servicequeueentryDescID := servicequeueentryFields[0].Descriptor()
+	// servicequeueentry.DefaultID holds the default value on creation for the id field.
+	servicequeueentry.DefaultID = servicequeueentryDescID.Default.(func() uuid.UUID)
 	staffmemberFields := schema.StaffMember{}.Fields()
 	_ = staffmemberFields
 	// staffmemberDescName is the schema descriptor for name field.

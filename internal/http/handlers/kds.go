@@ -12,16 +12,23 @@ import (
 	"github.com/bengobox/pos-service/internal/ent"
 	entkdsstation "github.com/bengobox/pos-service/internal/ent/kdsstation"
 	entkdsticket "github.com/bengobox/pos-service/internal/ent/kdsticket"
+	entposorder "github.com/bengobox/pos-service/internal/ent/posorder"
+	"github.com/bengobox/pos-service/internal/platform/events"
 )
 
 // KDSHandler handles Kitchen Display System endpoints.
 type KDSHandler struct {
-	log    *zap.Logger
-	client *ent.Client
+	log       *zap.Logger
+	client    *ent.Client
+	publisher *events.Publisher
 }
 
 func NewKDSHandler(log *zap.Logger, client *ent.Client) *KDSHandler {
 	return &KDSHandler{log: log, client: client}
+}
+
+func (h *KDSHandler) SetPublisher(p *events.Publisher) {
+	h.publisher = p
 }
 
 // ListStations handles GET /{tenantID}/pos/kds/stations
@@ -228,9 +235,46 @@ func (h *KDSHandler) CallWaiter(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: Publish pos.kds.waiter.called event via outbox for notifications-service
-	h.log.Info("waiter called", zap.Stringer("ticket_id", ticket.ID), zap.String("order_number", ticket.OrderNumber))
+	// Look up the order to find the waiter's user_id and outlet_id.
+	order, err := h.client.POSOrder.Query().
+		Where(entposorder.ID(ticket.OrderID), entposorder.TenantID(tid)).
+		Only(r.Context())
+	if err != nil {
+		h.log.Warn("call-waiter: order not found for ticket", zap.Stringer("order_id", ticket.OrderID))
+	}
 
+	if order != nil {
+		// Create an in-app notification for the waiter.
+		_, notifErr := h.client.PosNotification.Create().
+			SetTenantID(tid).
+			SetOutletID(order.OutletID).
+			SetUserID(order.UserID).
+			SetNotificationType("kds.order_ready").
+			SetTitle("Order Ready").
+			SetBody("Order " + ticket.OrderNumber + " is ready for collection.").
+			SetPayload(map[string]any{
+				"ticket_id":    ticket.ID.String(),
+				"order_id":     ticket.OrderID.String(),
+				"order_number": ticket.OrderNumber,
+			}).
+			Save(r.Context())
+		if notifErr != nil {
+			h.log.Warn("call-waiter: failed to create notification", zap.Error(notifErr))
+		}
+
+		// Publish outbox event for future notifications-service integration.
+		if h.publisher != nil {
+			_ = h.publisher.PublishKDSWaiterCalled(r.Context(), tid, map[string]any{
+				"ticket_id":    ticket.ID.String(),
+				"order_id":     ticket.OrderID.String(),
+				"order_number": ticket.OrderNumber,
+				"waiter_user_id": order.UserID.String(),
+				"outlet_id":    order.OutletID.String(),
+			})
+		}
+	}
+
+	h.log.Info("waiter called", zap.Stringer("ticket_id", ticket.ID), zap.String("order_number", ticket.OrderNumber))
 	jsonOK(w, map[string]any{"status": "waiter_called", "ticket_id": ticket.ID})
 }
 

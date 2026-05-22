@@ -50,6 +50,12 @@ const (
 	FieldEtimsInvoiceNumber = "etims_invoice_number"
 	// FieldEtimsQrCodeURL holds the string denoting the etims_qr_code_url field in the database.
 	FieldEtimsQrCodeURL = "etims_qr_code_url"
+	// FieldVoidedReason holds the string denoting the voided_reason field in the database.
+	FieldVoidedReason = "voided_reason"
+	// FieldVoidedBy holds the string denoting the voided_by field in the database.
+	FieldVoidedBy = "voided_by"
+	// FieldVoidedAt holds the string denoting the voided_at field in the database.
+	FieldVoidedAt = "voided_at"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
@@ -105,6 +111,9 @@ var Columns = []string{
 	FieldMetadata,
 	FieldEtimsInvoiceNumber,
 	FieldEtimsQrCodeURL,
+	FieldVoidedReason,
+	FieldVoidedBy,
+	FieldVoidedAt,
 	FieldCreatedAt,
 	FieldUpdatedAt,
 }
@@ -255,6 +264,21 @@ func ByEtimsInvoiceNumber(opts ...sql.OrderTermOption) OrderOption {
 // ByEtimsQrCodeURL orders the results by the etims_qr_code_url field.
 func ByEtimsQrCodeURL(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldEtimsQrCodeURL, opts...).ToFunc()
+}
+
+// ByVoidedReason orders the results by the voided_reason field.
+func ByVoidedReason(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldVoidedReason, opts...).ToFunc()
+}
+
+// ByVoidedBy orders the results by the voided_by field.
+func ByVoidedBy(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldVoidedBy, opts...).ToFunc()
+}
+
+// ByVoidedAt orders the results by the voided_at field.
+func ByVoidedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldVoidedAt, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.

@@ -53,6 +53,12 @@ type POSOrder struct {
 	EtimsInvoiceNumber *string `json:"etims_invoice_number,omitempty"`
 	// EtimsQrCodeURL holds the value of the "etims_qr_code_url" field.
 	EtimsQrCodeURL *string `json:"etims_qr_code_url,omitempty"`
+	// VoidedReason holds the value of the "voided_reason" field.
+	VoidedReason *string `json:"voided_reason,omitempty"`
+	// VoidedBy holds the value of the "voided_by" field.
+	VoidedBy *uuid.UUID `json:"voided_by,omitempty"`
+	// VoidedAt holds the value of the "voided_at" field.
+	VoidedAt *time.Time `json:"voided_at,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
@@ -108,15 +114,15 @@ func (*POSOrder) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case posorder.FieldRoomID, posorder.FieldRoomGuestID:
+		case posorder.FieldRoomID, posorder.FieldRoomGuestID, posorder.FieldVoidedBy:
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		case posorder.FieldMetadata:
 			values[i] = new([]byte)
 		case posorder.FieldSubtotal, posorder.FieldTaxTotal, posorder.FieldDiscountTotal, posorder.FieldTotalAmount:
 			values[i] = new(sql.NullFloat64)
-		case posorder.FieldOrderNumber, posorder.FieldStatus, posorder.FieldCurrency, posorder.FieldOrderSubtype, posorder.FieldEtimsInvoiceNumber, posorder.FieldEtimsQrCodeURL:
+		case posorder.FieldOrderNumber, posorder.FieldStatus, posorder.FieldCurrency, posorder.FieldOrderSubtype, posorder.FieldEtimsInvoiceNumber, posorder.FieldEtimsQrCodeURL, posorder.FieldVoidedReason:
 			values[i] = new(sql.NullString)
-		case posorder.FieldCreatedAt, posorder.FieldUpdatedAt:
+		case posorder.FieldVoidedAt, posorder.FieldCreatedAt, posorder.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
 		case posorder.FieldID, posorder.FieldTenantID, posorder.FieldOutletID, posorder.FieldDeviceID, posorder.FieldUserID:
 			values[i] = new(uuid.UUID)
@@ -249,6 +255,27 @@ func (_m *POSOrder) assignValues(columns []string, values []any) error {
 				_m.EtimsQrCodeURL = new(string)
 				*_m.EtimsQrCodeURL = value.String
 			}
+		case posorder.FieldVoidedReason:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field voided_reason", values[i])
+			} else if value.Valid {
+				_m.VoidedReason = new(string)
+				*_m.VoidedReason = value.String
+			}
+		case posorder.FieldVoidedBy:
+			if value, ok := values[i].(*sql.NullScanner); !ok {
+				return fmt.Errorf("unexpected type %T for field voided_by", values[i])
+			} else if value.Valid {
+				_m.VoidedBy = new(uuid.UUID)
+				*_m.VoidedBy = *value.S.(*uuid.UUID)
+			}
+		case posorder.FieldVoidedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field voided_at", values[i])
+			} else if value.Valid {
+				_m.VoidedAt = new(time.Time)
+				*_m.VoidedAt = value.Time
+			}
 		case posorder.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field created_at", values[i])
@@ -369,6 +396,21 @@ func (_m *POSOrder) String() string {
 	if v := _m.EtimsQrCodeURL; v != nil {
 		builder.WriteString("etims_qr_code_url=")
 		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.VoidedReason; v != nil {
+		builder.WriteString("voided_reason=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.VoidedBy; v != nil {
+		builder.WriteString("voided_by=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.VoidedAt; v != nil {
+		builder.WriteString("voided_at=")
+		builder.WriteString(v.Format(time.ANSIC))
 	}
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")

@@ -193,6 +193,48 @@ func (_c *POSOrderCreate) SetNillableEtimsQrCodeURL(v *string) *POSOrderCreate {
 	return _c
 }
 
+// SetVoidedReason sets the "voided_reason" field.
+func (_c *POSOrderCreate) SetVoidedReason(v string) *POSOrderCreate {
+	_c.mutation.SetVoidedReason(v)
+	return _c
+}
+
+// SetNillableVoidedReason sets the "voided_reason" field if the given value is not nil.
+func (_c *POSOrderCreate) SetNillableVoidedReason(v *string) *POSOrderCreate {
+	if v != nil {
+		_c.SetVoidedReason(*v)
+	}
+	return _c
+}
+
+// SetVoidedBy sets the "voided_by" field.
+func (_c *POSOrderCreate) SetVoidedBy(v uuid.UUID) *POSOrderCreate {
+	_c.mutation.SetVoidedBy(v)
+	return _c
+}
+
+// SetNillableVoidedBy sets the "voided_by" field if the given value is not nil.
+func (_c *POSOrderCreate) SetNillableVoidedBy(v *uuid.UUID) *POSOrderCreate {
+	if v != nil {
+		_c.SetVoidedBy(*v)
+	}
+	return _c
+}
+
+// SetVoidedAt sets the "voided_at" field.
+func (_c *POSOrderCreate) SetVoidedAt(v time.Time) *POSOrderCreate {
+	_c.mutation.SetVoidedAt(v)
+	return _c
+}
+
+// SetNillableVoidedAt sets the "voided_at" field if the given value is not nil.
+func (_c *POSOrderCreate) SetNillableVoidedAt(v *time.Time) *POSOrderCreate {
+	if v != nil {
+		_c.SetVoidedAt(*v)
+	}
+	return _c
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_c *POSOrderCreate) SetCreatedAt(v time.Time) *POSOrderCreate {
 	_c.mutation.SetCreatedAt(v)
@@ -509,6 +551,18 @@ func (_c *POSOrderCreate) createSpec() (*POSOrder, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.EtimsQrCodeURL(); ok {
 		_spec.SetField(posorder.FieldEtimsQrCodeURL, field.TypeString, value)
 		_node.EtimsQrCodeURL = &value
+	}
+	if value, ok := _c.mutation.VoidedReason(); ok {
+		_spec.SetField(posorder.FieldVoidedReason, field.TypeString, value)
+		_node.VoidedReason = &value
+	}
+	if value, ok := _c.mutation.VoidedBy(); ok {
+		_spec.SetField(posorder.FieldVoidedBy, field.TypeUUID, value)
+		_node.VoidedBy = &value
+	}
+	if value, ok := _c.mutation.VoidedAt(); ok {
+		_spec.SetField(posorder.FieldVoidedAt, field.TypeTime, value)
+		_node.VoidedAt = &value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(posorder.FieldCreatedAt, field.TypeTime, value)
@@ -870,6 +924,60 @@ func (u *POSOrderUpsert) ClearEtimsQrCodeURL() *POSOrderUpsert {
 	return u
 }
 
+// SetVoidedReason sets the "voided_reason" field.
+func (u *POSOrderUpsert) SetVoidedReason(v string) *POSOrderUpsert {
+	u.Set(posorder.FieldVoidedReason, v)
+	return u
+}
+
+// UpdateVoidedReason sets the "voided_reason" field to the value that was provided on create.
+func (u *POSOrderUpsert) UpdateVoidedReason() *POSOrderUpsert {
+	u.SetExcluded(posorder.FieldVoidedReason)
+	return u
+}
+
+// ClearVoidedReason clears the value of the "voided_reason" field.
+func (u *POSOrderUpsert) ClearVoidedReason() *POSOrderUpsert {
+	u.SetNull(posorder.FieldVoidedReason)
+	return u
+}
+
+// SetVoidedBy sets the "voided_by" field.
+func (u *POSOrderUpsert) SetVoidedBy(v uuid.UUID) *POSOrderUpsert {
+	u.Set(posorder.FieldVoidedBy, v)
+	return u
+}
+
+// UpdateVoidedBy sets the "voided_by" field to the value that was provided on create.
+func (u *POSOrderUpsert) UpdateVoidedBy() *POSOrderUpsert {
+	u.SetExcluded(posorder.FieldVoidedBy)
+	return u
+}
+
+// ClearVoidedBy clears the value of the "voided_by" field.
+func (u *POSOrderUpsert) ClearVoidedBy() *POSOrderUpsert {
+	u.SetNull(posorder.FieldVoidedBy)
+	return u
+}
+
+// SetVoidedAt sets the "voided_at" field.
+func (u *POSOrderUpsert) SetVoidedAt(v time.Time) *POSOrderUpsert {
+	u.Set(posorder.FieldVoidedAt, v)
+	return u
+}
+
+// UpdateVoidedAt sets the "voided_at" field to the value that was provided on create.
+func (u *POSOrderUpsert) UpdateVoidedAt() *POSOrderUpsert {
+	u.SetExcluded(posorder.FieldVoidedAt)
+	return u
+}
+
+// ClearVoidedAt clears the value of the "voided_at" field.
+func (u *POSOrderUpsert) ClearVoidedAt() *POSOrderUpsert {
+	u.SetNull(posorder.FieldVoidedAt)
+	return u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (u *POSOrderUpsert) SetUpdatedAt(v time.Time) *POSOrderUpsert {
 	u.Set(posorder.FieldUpdatedAt, v)
@@ -1224,6 +1332,69 @@ func (u *POSOrderUpsertOne) UpdateEtimsQrCodeURL() *POSOrderUpsertOne {
 func (u *POSOrderUpsertOne) ClearEtimsQrCodeURL() *POSOrderUpsertOne {
 	return u.Update(func(s *POSOrderUpsert) {
 		s.ClearEtimsQrCodeURL()
+	})
+}
+
+// SetVoidedReason sets the "voided_reason" field.
+func (u *POSOrderUpsertOne) SetVoidedReason(v string) *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetVoidedReason(v)
+	})
+}
+
+// UpdateVoidedReason sets the "voided_reason" field to the value that was provided on create.
+func (u *POSOrderUpsertOne) UpdateVoidedReason() *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdateVoidedReason()
+	})
+}
+
+// ClearVoidedReason clears the value of the "voided_reason" field.
+func (u *POSOrderUpsertOne) ClearVoidedReason() *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.ClearVoidedReason()
+	})
+}
+
+// SetVoidedBy sets the "voided_by" field.
+func (u *POSOrderUpsertOne) SetVoidedBy(v uuid.UUID) *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetVoidedBy(v)
+	})
+}
+
+// UpdateVoidedBy sets the "voided_by" field to the value that was provided on create.
+func (u *POSOrderUpsertOne) UpdateVoidedBy() *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdateVoidedBy()
+	})
+}
+
+// ClearVoidedBy clears the value of the "voided_by" field.
+func (u *POSOrderUpsertOne) ClearVoidedBy() *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.ClearVoidedBy()
+	})
+}
+
+// SetVoidedAt sets the "voided_at" field.
+func (u *POSOrderUpsertOne) SetVoidedAt(v time.Time) *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetVoidedAt(v)
+	})
+}
+
+// UpdateVoidedAt sets the "voided_at" field to the value that was provided on create.
+func (u *POSOrderUpsertOne) UpdateVoidedAt() *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdateVoidedAt()
+	})
+}
+
+// ClearVoidedAt clears the value of the "voided_at" field.
+func (u *POSOrderUpsertOne) ClearVoidedAt() *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.ClearVoidedAt()
 	})
 }
 
@@ -1750,6 +1921,69 @@ func (u *POSOrderUpsertBulk) UpdateEtimsQrCodeURL() *POSOrderUpsertBulk {
 func (u *POSOrderUpsertBulk) ClearEtimsQrCodeURL() *POSOrderUpsertBulk {
 	return u.Update(func(s *POSOrderUpsert) {
 		s.ClearEtimsQrCodeURL()
+	})
+}
+
+// SetVoidedReason sets the "voided_reason" field.
+func (u *POSOrderUpsertBulk) SetVoidedReason(v string) *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetVoidedReason(v)
+	})
+}
+
+// UpdateVoidedReason sets the "voided_reason" field to the value that was provided on create.
+func (u *POSOrderUpsertBulk) UpdateVoidedReason() *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdateVoidedReason()
+	})
+}
+
+// ClearVoidedReason clears the value of the "voided_reason" field.
+func (u *POSOrderUpsertBulk) ClearVoidedReason() *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.ClearVoidedReason()
+	})
+}
+
+// SetVoidedBy sets the "voided_by" field.
+func (u *POSOrderUpsertBulk) SetVoidedBy(v uuid.UUID) *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetVoidedBy(v)
+	})
+}
+
+// UpdateVoidedBy sets the "voided_by" field to the value that was provided on create.
+func (u *POSOrderUpsertBulk) UpdateVoidedBy() *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdateVoidedBy()
+	})
+}
+
+// ClearVoidedBy clears the value of the "voided_by" field.
+func (u *POSOrderUpsertBulk) ClearVoidedBy() *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.ClearVoidedBy()
+	})
+}
+
+// SetVoidedAt sets the "voided_at" field.
+func (u *POSOrderUpsertBulk) SetVoidedAt(v time.Time) *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetVoidedAt(v)
+	})
+}
+
+// UpdateVoidedAt sets the "voided_at" field to the value that was provided on create.
+func (u *POSOrderUpsertBulk) UpdateVoidedAt() *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdateVoidedAt()
+	})
+}
+
+// ClearVoidedAt clears the value of the "voided_at" field.
+func (u *POSOrderUpsertBulk) ClearVoidedAt() *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.ClearVoidedAt()
 	})
 }
 
