@@ -8,11 +8,13 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
+	"nhooyr.io/websocket"
 
 	"github.com/bengobox/pos-service/internal/ent"
 	entkdsstation "github.com/bengobox/pos-service/internal/ent/kdsstation"
 	entkdsticket "github.com/bengobox/pos-service/internal/ent/kdsticket"
 	entposorder "github.com/bengobox/pos-service/internal/ent/posorder"
+	kdsmod "github.com/bengobox/pos-service/internal/modules/kds"
 	"github.com/bengobox/pos-service/internal/platform/events"
 )
 
@@ -21,14 +23,61 @@ type KDSHandler struct {
 	log       *zap.Logger
 	client    *ent.Client
 	publisher *events.Publisher
+	hub       *kdsmod.Hub
 }
 
 func NewKDSHandler(log *zap.Logger, client *ent.Client) *KDSHandler {
-	return &KDSHandler{log: log, client: client}
+	return &KDSHandler{
+		log:    log,
+		client: client,
+		hub:    kdsmod.NewHub(log),
+	}
 }
 
 func (h *KDSHandler) SetPublisher(p *events.Publisher) {
 	h.publisher = p
+}
+
+// Hub returns the KDS WebSocket hub for broadcasting from NATS subscribers.
+func (h *KDSHandler) Hub() *kdsmod.Hub {
+	return h.hub
+}
+
+// StreamKDS handles GET /{tenantID}/pos/kds/stream — WebSocket endpoint.
+// KDS tablets connect here to receive real-time ticket updates.
+func (h *KDSHandler) StreamKDS(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+
+	var outletID uuid.UUID
+	if outletParam := r.URL.Query().Get("outlet_id"); outletParam != "" {
+		outletID, _ = uuid.Parse(outletParam)
+	}
+
+	conn, wsErr := websocket.Accept(w, r, &websocket.AcceptOptions{
+		InsecureSkipVerify: false,
+		OriginPatterns:     []string{"*"},
+	})
+	if wsErr != nil {
+		h.log.Warn("kds: websocket upgrade failed", zap.Error(wsErr))
+		return
+	}
+	defer conn.Close(websocket.StatusNormalClosure, "")
+
+	h.log.Info("kds: client connected",
+		zap.Stringer("tenant_id", tid),
+		zap.Stringer("outlet_id", outletID),
+	)
+
+	h.hub.ServeWS(r.Context(), conn, tid, outletID)
+
+	h.log.Debug("kds: client disconnected",
+		zap.Stringer("tenant_id", tid),
+		zap.Stringer("outlet_id", outletID),
+	)
 }
 
 // ListStations handles GET /{tenantID}/pos/kds/stations

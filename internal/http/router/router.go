@@ -304,6 +304,7 @@ func New(
 							k.Get("/kds/stations", kds.ListStations)
 							k.Post("/kds/stations", kds.CreateStation)
 							k.Put("/kds/stations/{id}", kds.UpdateStation)
+							k.Get("/kds/stream", kds.StreamKDS)
 							k.Get("/kds/kitchen", kds.GetKitchenQueue)
 							k.Get("/kds/bar", kds.GetBarQueue)
 							k.Get("/kds/tickets", kds.ListTickets)
