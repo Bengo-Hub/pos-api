@@ -17,17 +17,23 @@ import (
 	entroomfolioitem "github.com/bengobox/pos-service/internal/ent/roomfolioitem"
 	entroomguest "github.com/bengobox/pos-service/internal/ent/roomguest"
 	"github.com/bengobox/pos-service/internal/platform/events"
+	treasury "github.com/bengobox/pos-service/internal/modules/treasury"
 )
 
 // HotelHandler handles hotel management endpoints (rooms, guests, folio, facilities, bookings).
 type HotelHandler struct {
-	log       *zap.Logger
-	client    *ent.Client
-	publisher *events.Publisher
+	log            *zap.Logger
+	client         *ent.Client
+	publisher      *events.Publisher
+	treasuryClient *treasury.Client
 }
 
 func NewHotelHandler(log *zap.Logger, client *ent.Client, publisher *events.Publisher) *HotelHandler {
 	return &HotelHandler{log: log, client: client, publisher: publisher}
+}
+
+func (h *HotelHandler) SetTreasuryClient(c *treasury.Client) {
+	h.treasuryClient = c
 }
 
 // --- Rooms ---
@@ -384,19 +390,45 @@ func (h *HotelHandler) CheckOut(w http.ResponseWriter, r *http.Request) {
 
 	if h.publisher != nil {
 		_ = h.publisher.PublishHotelCheckOut(r.Context(), tid, map[string]any{
-			"room_id":     roomID,
-			"guest_id":    guest.ID,
-			"guest_name":  guest.GuestName,
-			"total_folio": totalFolio,
+			"room_id":        roomID,
+			"guest_id":       guest.ID,
+			"guest_name":     guest.GuestName,
+			"total_folio":    totalFolio,
 			"checked_out_at": now,
 		})
 	}
 
-	jsonOK(w, map[string]any{
+	resp := map[string]any{
 		"guest":       guest,
 		"total_folio": totalFolio,
 		"status":      "checked_out",
-	})
+	}
+
+	// Create treasury payment intent for the folio total so pos-ui can present the payment modal.
+	if h.treasuryClient != nil && totalFolio > 0 {
+		tenantSlug := chi.URLParam(r, "tenantID")
+		intent, err := h.treasuryClient.CreateIntent(r.Context(), tenantSlug, treasury.CreateIntentRequest{
+			SourceService: "pos",
+			ReferenceID:   guest.ID.String(),
+			ReferenceType: "hotel_folio",
+			Amount:        totalFolio,
+			Currency:      "KES",
+			PaymentMethod: "pending",
+			Description:   fmt.Sprintf("Hotel folio checkout - %s", guest.GuestName),
+			Metadata: map[string]any{
+				"room_id":  roomID,
+				"guest_id": guest.ID,
+			},
+		})
+		if err != nil {
+			h.log.Warn("failed to create treasury intent for hotel folio", zap.Error(err))
+		} else {
+			resp["intent_id"] = intent.ID
+			resp["intent_status"] = intent.Status
+		}
+	}
+
+	jsonOK(w, resp)
 }
 
 type postFolioInput struct {

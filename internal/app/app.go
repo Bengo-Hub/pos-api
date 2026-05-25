@@ -203,6 +203,7 @@ func New(ctx context.Context) (*App, error) {
 		hotelEventPub = pub
 	}
 	hotelHandler := handlers.NewHotelHandler(log, entClient, hotelEventPub)
+	hotelHandler.SetTreasuryClient(treasuryClient)
 	kdsHandler := handlers.NewKDSHandler(log, entClient)
 	deviceHandler := handlers.NewDeviceHandler(log, entClient)
 	notificationsHandler := handlers.NewNotificationsHandler(log, entClient)
