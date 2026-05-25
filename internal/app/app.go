@@ -27,6 +27,7 @@ import (
 	handlers "github.com/bengobox/pos-service/internal/http/handlers"
 	router "github.com/bengobox/pos-service/internal/http/router"
 	"github.com/bengobox/pos-service/internal/modules/identity"
+	kdsmodule "github.com/bengobox/pos-service/internal/modules/kds"
 	ordermodule "github.com/bengobox/pos-service/internal/modules/orders"
 	paymentmodule "github.com/bengobox/pos-service/internal/modules/payments"
 	promommodule "github.com/bengobox/pos-service/internal/modules/promotions"
@@ -53,9 +54,10 @@ type App struct {
 	entClient       *ent.Client
 	cache           *redis.Client
 	events          *nats.Conn
-	outboxPublisher *eventslib.Publisher
+	outboxPublisher    *eventslib.Publisher
 	webhookWorker      *webhookmodule.DeliveryWorker
 	shiftAutoEndWorker *shiftsmodule.AutoEndWorker
+	kdsHub             *kdsmodule.Hub
 }
 
 func New(ctx context.Context) (*App, error) {
@@ -205,6 +207,8 @@ func New(ctx context.Context) (*App, error) {
 	hotelHandler := handlers.NewHotelHandler(log, entClient, hotelEventPub)
 	hotelHandler.SetTreasuryClient(treasuryClient)
 	kdsHandler := handlers.NewKDSHandler(log, entClient)
+	kdsHandler.Hub().SetRedis(redisClient)
+	kdsHub := kdsHandler.Hub()
 	deviceHandler := handlers.NewDeviceHandler(log, entClient)
 	notificationsHandler := handlers.NewNotificationsHandler(log, entClient)
 	queueHandler := handlers.NewQueueHandler(log, entClient)
@@ -387,6 +391,7 @@ func New(ctx context.Context) (*App, error) {
 		outboxPublisher:    outboxPub,
 		webhookWorker:      webhookWorker,
 		shiftAutoEndWorker: shiftAutoEndWorker,
+		kdsHub:             kdsHub,
 	}, nil
 }
 
@@ -411,6 +416,9 @@ func (a *App) Run(ctx context.Context) error {
 	if a.shiftAutoEndWorker != nil {
 		go a.shiftAutoEndWorker.Start(ctx)
 	}
+
+	// Start KDS hub Redis pub/sub relay — no-op if Redis is not configured
+	go a.kdsHub.Start(ctx)
 
 	a.log.Info("pos service starting", zap.String("addr", a.httpServer.Addr))
 

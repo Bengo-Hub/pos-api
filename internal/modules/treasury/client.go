@@ -100,9 +100,15 @@ func (c *Client) CreateRefund(ctx context.Context, tenantSlug string, req Refund
 }
 
 // CreateIntent calls POST /api/v1/{tenantSlug}/payments/intents on treasury-api.
-func (c *Client) CreateIntent(ctx context.Context, tenantSlug string, req CreateIntentRequest) (*IntentResponse, error) {
+// idempotencyKey (e.g. order UUID) is sent as Idempotency-Key header to prevent duplicate intents
+// on network retries; pass empty string to skip.
+func (c *Client) CreateIntent(ctx context.Context, tenantSlug, idempotencyKey string, req CreateIntentRequest) (*IntentResponse, error) {
 	url := fmt.Sprintf("%s/api/v1/%s/payments/intents", c.baseURL, tenantSlug)
-	return doRequest[IntentResponse](ctx, c.httpClient, http.MethodPost, url, c.apiKey, req)
+	extraHeaders := map[string]string{}
+	if idempotencyKey != "" {
+		extraHeaders["Idempotency-Key"] = idempotencyKey
+	}
+	return doRequestWithHeaders[IntentResponse](ctx, c.httpClient, http.MethodPost, url, c.apiKey, extraHeaders, req)
 }
 
 // InitiateIntent calls POST /api/v1/{tenantSlug}/payments/intents/{intentID}/initiate on treasury-api.
@@ -206,6 +212,11 @@ func containsStr(s, substr string) bool {
 
 // doRequest performs an authenticated JSON request and decodes the response.
 func doRequest[T any](ctx context.Context, client *http.Client, method, url, apiKey string, body any) (*T, error) {
+	return doRequestWithHeaders[T](ctx, client, method, url, apiKey, nil, body)
+}
+
+// doRequestWithHeaders is like doRequest but accepts additional headers.
+func doRequestWithHeaders[T any](ctx context.Context, client *http.Client, method, url, apiKey string, extraHeaders map[string]string, body any) (*T, error) {
 	var req *http.Request
 	var err error
 	if body != nil {
@@ -224,6 +235,9 @@ func doRequest[T any](ctx context.Context, client *http.Client, method, url, api
 		return nil, fmt.Errorf("treasury: build request: %w", err)
 	}
 	req.Header.Set("X-API-Key", apiKey)
+	for k, v := range extraHeaders {
+		req.Header.Set(k, v)
+	}
 
 	resp, err := client.Do(req)
 	if err != nil {

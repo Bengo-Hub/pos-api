@@ -15,7 +15,9 @@ import (
 	entcommrec "github.com/bengobox/pos-service/internal/ent/commissionrecord"
 	"github.com/bengobox/pos-service/internal/ent/posdevicesession"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
+	"github.com/bengobox/pos-service/internal/ent/posorderline"
 	"github.com/bengobox/pos-service/internal/ent/posrefund"
+	"github.com/bengobox/pos-service/internal/ent/posreturn"
 )
 
 type ReportsHandler struct {
@@ -755,6 +757,108 @@ func (h *ReportsHandler) SalesByCategory(w http.ResponseWriter, r *http.Request)
 		rows = append(rows, b)
 	}
 	jsonOK(w, map[string]any{"data": rows, "total": len(rows)})
+}
+
+// StockConsumptionReport handles GET /{tenantID}/pos/reports/stock-consumption
+// Returns per-SKU consumed quantities for completed orders in the requested date range.
+func (h *ReportsHandler) StockConsumptionReport(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+	from, to := parseDateRange(r)
+
+	lines, err := h.db.POSOrderLine.Query().
+		Where(posorderline.HasOrderWith(
+			posorder.TenantID(tid),
+			posorder.StatusEQ("completed"),
+			posorder.CreatedAtGTE(from),
+			posorder.CreatedAtLT(to),
+		)).
+		All(r.Context())
+	if err != nil {
+		h.log.Error("stock consumption report query failed", zap.Error(err))
+		jsonError(w, "failed to query stock consumption", http.StatusInternalServerError)
+		return
+	}
+
+	type skuRow struct {
+		SKU      string  `json:"sku"`
+		Name     string  `json:"name"`
+		Quantity float64 `json:"quantity"`
+	}
+	bysku := map[string]*skuRow{}
+	for _, l := range lines {
+		if row, ok := bysku[l.Sku]; ok {
+			row.Quantity += l.Quantity
+		} else {
+			bysku[l.Sku] = &skuRow{SKU: l.Sku, Name: l.Name, Quantity: l.Quantity}
+		}
+	}
+	rows := make([]*skuRow, 0, len(bysku))
+	for _, r := range bysku {
+		rows = append(rows, r)
+	}
+	jsonOK(w, map[string]any{"data": rows, "from": from, "to": to})
+}
+
+// ReturnsSummary handles GET /{tenantID}/pos/reports/returns
+// Returns a summary of returns in the requested date range grouped by reason.
+func (h *ReportsHandler) ReturnsSummary(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+	from, to := parseDateRange(r)
+
+	returns, err := h.db.POSReturn.Query().
+		Where(
+			posreturn.TenantID(tid),
+			posreturn.CreatedAtGTE(from),
+			posreturn.CreatedAtLT(to),
+		).
+		All(r.Context())
+	if err != nil {
+		h.log.Error("returns report query failed", zap.Error(err))
+		jsonError(w, "failed to query returns", http.StatusInternalServerError)
+		return
+	}
+
+	type reasonRow struct {
+		Reason      string  `json:"reason"`
+		Count       int     `json:"count"`
+		TotalRefund float64 `json:"total_refund"`
+	}
+	byReason := map[string]*reasonRow{}
+	totalCount := 0
+	totalRefund := 0.0
+	for _, ret := range returns {
+		totalCount++
+		totalRefund += ret.RefundAmount
+		key := ret.Reason
+		if key == "" {
+			key = "other"
+		}
+		if row, ok := byReason[key]; ok {
+			row.Count++
+			row.TotalRefund += ret.RefundAmount
+		} else {
+			byReason[key] = &reasonRow{Reason: key, Count: 1, TotalRefund: ret.RefundAmount}
+		}
+	}
+	rows := make([]*reasonRow, 0, len(byReason))
+	for _, r := range byReason {
+		rows = append(rows, r)
+	}
+	jsonOK(w, map[string]any{
+		"data":         rows,
+		"total_count":  totalCount,
+		"total_refund": totalRefund,
+		"from":         from,
+		"to":           to,
+	})
 }
 
 // ── helpers ──────────────────────────────────────────────────────────────────

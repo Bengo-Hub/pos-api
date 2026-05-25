@@ -423,7 +423,7 @@ func (h *HotelHandler) CheckOut(w http.ResponseWriter, r *http.Request) {
 	// Create treasury payment intent for the folio total so pos-ui can present the payment modal.
 	if h.treasuryClient != nil && totalFolio > 0 {
 		tenantSlug := chi.URLParam(r, "tenantID")
-		intent, err := h.treasuryClient.CreateIntent(r.Context(), tenantSlug, treasury.CreateIntentRequest{
+		intent, err := h.treasuryClient.CreateIntent(r.Context(), tenantSlug, guest.ID.String(), treasury.CreateIntentRequest{
 			SourceService: "pos",
 			ReferenceID:   guest.ID.String(),
 			ReferenceType: "hotel_folio",

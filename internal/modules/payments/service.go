@@ -146,7 +146,7 @@ func (s *Service) CreatePaymentIntent(ctx context.Context, req RecordPaymentRequ
 		OutletID:      order.OutletID.String(),
 	}
 
-	intent, err := s.treasuryClient.CreateIntent(ctx, req.TenantSlug, intentReq)
+	intent, err := s.treasuryClient.CreateIntent(ctx, req.TenantSlug, req.OrderID.String(), intentReq)
 	if err != nil {
 		return nil, fmt.Errorf("payments: create treasury intent: %w", err)
 	}
