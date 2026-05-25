@@ -27,9 +27,9 @@ func NewDailyClosingHandler(log *zap.Logger, client *ent.Client) *DailyClosingHa
 }
 
 type closeDayInput struct {
-	OutletID    uuid.UUID `json:"outlet_id"`
-	CashActual  float64   `json:"cash_actual"`
-	Notes       string    `json:"notes"`
+	OutletID   string  `json:"outlet_id"`
+	CashActual float64 `json:"cash_actual"`
+	Notes      string  `json:"notes"`
 }
 
 // CloseDayHandler handles POST /{tenantID}/pos/outlets/{outletID}/daily-close

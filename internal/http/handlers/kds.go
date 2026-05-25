@@ -378,19 +378,26 @@ func (h *KDSHandler) CreateStation(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var input struct {
-		OutletID       uuid.UUID `json:"outlet_id"`
-		Name           string    `json:"name"`
-		CategoryFilter []string  `json:"category_filter"`
-		SortOrder      int       `json:"sort_order"`
+		OutletID       string   `json:"outlet_id"`
+		Name           string   `json:"name"`
+		CategoryFilter []string `json:"category_filter"`
+		SortOrder      int      `json:"sort_order"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		jsonError(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
 
+	outletID, _ := uuid.Parse(input.OutletID)
+	if outletID == uuid.Nil {
+		if hv := r.Header.Get("X-Outlet-ID"); hv != "" {
+			outletID, _ = uuid.Parse(hv)
+		}
+	}
+
 	station, err := h.client.KDSStation.Create().
 		SetTenantID(tid).
-		SetOutletID(input.OutletID).
+		SetOutletID(outletID).
 		SetName(input.Name).
 		SetCategoryFilter(input.CategoryFilter).
 		SetSortOrder(input.SortOrder).

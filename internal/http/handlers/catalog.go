@@ -687,3 +687,19 @@ func parseTenantUUID(r *http.Request) (uuid.UUID, error) {
 
 	return uuid.Nil, fmt.Errorf("tenant context required")
 }
+
+// parseOptionalUUID parses s as a UUID; on empty string or parse failure it falls
+// back to the X-Outlet-ID request header (for outlet_id fields), then returns uuid.Nil.
+func parseOptionalUUID(s string, r *http.Request) uuid.UUID {
+	if id, err := uuid.Parse(s); err == nil {
+		return id
+	}
+	if r != nil {
+		if hv := r.Header.Get("X-Outlet-ID"); hv != "" {
+			if id, err := uuid.Parse(hv); err == nil {
+				return id
+			}
+		}
+	}
+	return uuid.Nil
+}

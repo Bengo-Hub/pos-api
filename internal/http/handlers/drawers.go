@@ -26,9 +26,9 @@ func NewDrawerHandler(log *zap.Logger, client *ent.Client, publisher *events.Pub
 }
 
 type openDrawerInput struct {
-	OutletID     uuid.UUID `json:"outletId"`
-	DeviceID     uuid.UUID `json:"deviceId"`
-	StartingCash float64   `json:"startingCash"`
+	OutletID     string  `json:"outletId"`
+	DeviceID     string  `json:"deviceId"`
+	StartingCash float64 `json:"startingCash"`
 }
 
 // OpenDrawer handles POST /{tenantID}/pos/drawers/open
@@ -45,11 +45,14 @@ func (h *DrawerHandler) OpenDrawer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	outletID := parseOptionalUUID(input.OutletID, r)
+	deviceID, _ := uuid.Parse(input.DeviceID)
+
 	now := time.Now()
 	drawer, err := h.client.CashDrawer.Create().
 		SetTenantID(tid).
-		SetOutletID(input.OutletID).
-		SetDeviceID(input.DeviceID).
+		SetOutletID(outletID).
+		SetDeviceID(deviceID).
 		SetStartingCash(input.StartingCash).
 		SetStatus("open").
 		SetOpenedAt(now).

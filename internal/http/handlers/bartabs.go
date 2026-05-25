@@ -23,9 +23,9 @@ func NewBarTabHandler(log *zap.Logger, client *ent.Client) *BarTabHandler {
 }
 
 type openBarTabInput struct {
-	OutletID     uuid.UUID `json:"outletId"`
-	CustomerName string    `json:"customerName"`
-	LimitAmount  float64   `json:"limitAmount"`
+	OutletID     string  `json:"outletId"`
+	CustomerName string  `json:"customerName"`
+	LimitAmount  float64 `json:"limitAmount"`
 }
 
 // OpenBarTab handles POST /{tenantID}/pos/bar-tabs
@@ -42,9 +42,11 @@ func (h *BarTabHandler) OpenBarTab(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	barTabOutletID := parseOptionalUUID(input.OutletID, r)
+
 	tab, err := h.client.BarTab.Create().
 		SetTenantID(tid).
-		SetOutletID(input.OutletID).
+		SetOutletID(barTabOutletID).
 		SetTabName(input.CustomerName).
 		SetStatus("open").
 		SetTotalAmount(0).

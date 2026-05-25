@@ -42,7 +42,7 @@ type returnLineInput struct {
 }
 
 type createReturnInput struct {
-	OutletID   uuid.UUID         `json:"outlet_id"`
+	OutletID   string            `json:"outlet_id"`
 	ReturnType string            `json:"return_type"` // refund | exchange | store_credit
 	Reason     string            `json:"reason"`
 	Lines      []returnLineInput `json:"lines"`
@@ -127,10 +127,12 @@ func (h *ReturnHandler) CreateReturn(w http.ResponseWriter, r *http.Request) {
 		refundAmount += l.TotalPrice
 	}
 
+	returnOutletID := parseOptionalUUID(input.OutletID, r)
+
 	ctx := r.Context()
 	ret, err := h.client.POSReturn.Create().
 		SetTenantID(tid).
-		SetOutletID(input.OutletID).
+		SetOutletID(returnOutletID).
 		SetOrderID(orderID).
 		SetReturnNumber(returnNumber).
 		SetReturnType(posreturn.ReturnType(returnType)).

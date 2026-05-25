@@ -100,13 +100,13 @@ func (h *HotelHandler) GetRoom(w http.ResponseWriter, r *http.Request) {
 }
 
 type createRoomInput struct {
-	OutletID     uuid.UUID `json:"outlet_id"`
-	RoomNumber   string    `json:"room_number"`
-	Name         string    `json:"name"`
-	RoomType     string    `json:"room_type"`
-	Floor        int       `json:"floor"`
-	RatePerNight float64   `json:"rate_per_night"`
-	Currency     string    `json:"currency"`
+	OutletID     string  `json:"outlet_id"`
+	RoomNumber   string  `json:"room_number"`
+	Name         string  `json:"name"`
+	RoomType     string  `json:"room_type"`
+	Floor        int     `json:"floor"`
+	RatePerNight float64 `json:"rate_per_night"`
+	Currency     string  `json:"currency"`
 }
 
 // CreateRoom handles POST /{tenantID}/hotel/rooms
@@ -131,9 +131,11 @@ func (h *HotelHandler) CreateRoom(w http.ResponseWriter, r *http.Request) {
 		roomType = entroom.RoomTypeStandard
 	}
 
+	roomOutletID := parseOptionalUUID(input.OutletID, r)
+
 	room, err := h.client.Room.Create().
 		SetTenantID(tid).
-		SetOutletID(input.OutletID).
+		SetOutletID(roomOutletID).
 		SetRoomNumber(input.RoomNumber).
 		SetName(input.Name).
 		SetRoomType(roomType).
@@ -192,11 +194,11 @@ func (h *HotelHandler) UpdateRoomStatus(w http.ResponseWriter, r *http.Request) 
 }
 
 type checkInInput struct {
-	GuestName  string    `json:"guest_name"`
-	Phone      string    `json:"phone"`
-	IDNumber   string    `json:"id_number"`
-	Nights     int       `json:"nights"`
-	CheckedBy  uuid.UUID `json:"checked_in_by"`
+	GuestName string `json:"guest_name"`
+	Phone     string `json:"phone"`
+	IDNumber  string `json:"id_number"`
+	Nights    int    `json:"nights"`
+	CheckedBy string `json:"checked_in_by"`
 }
 
 // CheckIn handles POST /{tenantID}/hotel/rooms/{id}/check-in
@@ -237,6 +239,7 @@ func (h *HotelHandler) CheckIn(w http.ResponseWriter, r *http.Request) {
 	now := time.Now()
 	checkOutDate := now.AddDate(0, 0, input.Nights)
 	totalCharge := room.RatePerNight * float64(input.Nights)
+	checkedInBy, _ := uuid.Parse(input.CheckedBy)
 
 	tx, err := h.client.Tx(r.Context())
 	if err != nil {
@@ -254,7 +257,7 @@ func (h *HotelHandler) CheckIn(w http.ResponseWriter, r *http.Request) {
 		SetNights(input.Nights).
 		SetCheckOutDate(checkOutDate).
 		SetTotalRoomCharge(totalCharge).
-		SetCheckedInBy(input.CheckedBy).
+		SetCheckedInBy(checkedInBy).
 		SetCheckedInAt(now).
 		Save(r.Context())
 	if err != nil {
@@ -273,7 +276,7 @@ func (h *HotelHandler) CheckIn(w http.ResponseWriter, r *http.Request) {
 		SetAmount(totalCharge).
 		SetCurrency(room.Currency).
 		SetChargeType(entroomfolioitem.ChargeTypeRoomCharge).
-		SetCreatedBy(input.CheckedBy).
+		SetCreatedBy(checkedInBy).
 		Save(r.Context())
 	if err != nil {
 		_ = tx.Rollback()
@@ -312,7 +315,7 @@ func (h *HotelHandler) CheckIn(w http.ResponseWriter, r *http.Request) {
 }
 
 type checkOutInput struct {
-	CheckedBy uuid.UUID `json:"checked_out_by"`
+	CheckedBy string `json:"checked_out_by"`
 }
 
 // CheckOut handles POST /{tenantID}/hotel/rooms/{id}/check-out
@@ -357,6 +360,7 @@ func (h *HotelHandler) CheckOut(w http.ResponseWriter, r *http.Request) {
 	}
 
 	now := time.Now()
+	checkedOutBy, _ := uuid.Parse(input.CheckedBy)
 	tx, err := h.client.Tx(r.Context())
 	if err != nil {
 		jsonError(w, "internal error", http.StatusInternalServerError)
@@ -366,7 +370,7 @@ func (h *HotelHandler) CheckOut(w http.ResponseWriter, r *http.Request) {
 	// Mark guest as checked out
 	_, err = tx.RoomGuest.UpdateOne(guest).
 		SetStatus(entroomguest.StatusCheckedOut).
-		SetCheckedOutBy(input.CheckedBy).
+		SetCheckedOutBy(checkedOutBy).
 		SetCheckedOutAt(now).
 		Save(r.Context())
 	if err != nil {
@@ -432,11 +436,11 @@ func (h *HotelHandler) CheckOut(w http.ResponseWriter, r *http.Request) {
 }
 
 type postFolioInput struct {
-	Description string    `json:"description"`
-	Amount      float64   `json:"amount"`
-	ChargeType  string    `json:"charge_type"`
+	Description string     `json:"description"`
+	Amount      float64    `json:"amount"`
+	ChargeType  string     `json:"charge_type"`
 	POSOrderID  *uuid.UUID `json:"pos_order_id,omitempty"`
-	CreatedBy   uuid.UUID `json:"created_by"`
+	CreatedBy   string     `json:"created_by"`
 }
 
 // PostFolioCharge handles POST /{tenantID}/hotel/rooms/{id}/folio
@@ -471,6 +475,7 @@ func (h *HotelHandler) PostFolioCharge(w http.ResponseWriter, r *http.Request) {
 	if input.ChargeType == "" {
 		chargeType = entroomfolioitem.ChargeTypeOther
 	}
+	folioCreatedBy, _ := uuid.Parse(input.CreatedBy)
 
 	c := h.client.RoomFolioItem.Create().
 		SetTenantID(tid).
@@ -479,7 +484,7 @@ func (h *HotelHandler) PostFolioCharge(w http.ResponseWriter, r *http.Request) {
 		SetDescription(input.Description).
 		SetAmount(input.Amount).
 		SetChargeType(chargeType).
-		SetCreatedBy(input.CreatedBy)
+		SetCreatedBy(folioCreatedBy)
 
 	if input.POSOrderID != nil {
 		c = c.SetPosOrderID(*input.POSOrderID)
@@ -589,14 +594,14 @@ func (h *HotelHandler) GetFacility(w http.ResponseWriter, r *http.Request) {
 }
 
 type createFacilityInput struct {
-	OutletID       uuid.UUID `json:"outlet_id"`
-	Name           string    `json:"name"`
-	FacilityType   string    `json:"facility_type"`
-	Capacity       int       `json:"capacity"`
-	RatePerSession float64   `json:"rate_per_session"`
-	Currency       string    `json:"currency"`
-	OpeningTime    string    `json:"opening_time"`
-	ClosingTime    string    `json:"closing_time"`
+	OutletID       string  `json:"outlet_id"`
+	Name           string  `json:"name"`
+	FacilityType   string  `json:"facility_type"`
+	Capacity       int     `json:"capacity"`
+	RatePerSession float64 `json:"rate_per_session"`
+	Currency       string  `json:"currency"`
+	OpeningTime    string  `json:"opening_time"`
+	ClosingTime    string  `json:"closing_time"`
 }
 
 // CreateFacility handles POST /{tenantID}/hotel/facilities
@@ -621,9 +626,11 @@ func (h *HotelHandler) CreateFacility(w http.ResponseWriter, r *http.Request) {
 		facilityType = entfacility.FacilityTypeOther
 	}
 
+	facilityOutletID := parseOptionalUUID(input.OutletID, r)
+
 	facility, err := h.client.Facility.Create().
 		SetTenantID(tid).
-		SetOutletID(input.OutletID).
+		SetOutletID(facilityOutletID).
 		SetName(input.Name).
 		SetFacilityType(facilityType).
 		SetCapacity(input.Capacity).
@@ -651,7 +658,7 @@ type bookFacilityInput struct {
 	GuestsCount int        `json:"guests_count"`
 	Amount      float64    `json:"amount"`
 	RoomGuestID *uuid.UUID `json:"room_guest_id,omitempty"`
-	BookedBy    uuid.UUID  `json:"booked_by"`
+	BookedBy    string     `json:"booked_by"`
 	Notes       string     `json:"notes"`
 }
 
@@ -677,6 +684,8 @@ func (h *HotelHandler) BookFacility(w http.ResponseWriter, r *http.Request) {
 		input.GuestsCount = 1
 	}
 
+	facilityBookedBy, _ := uuid.Parse(input.BookedBy)
+
 	c := h.client.FacilityBooking.Create().
 		SetTenantID(tid).
 		SetFacilityID(facilityID).
@@ -687,7 +696,7 @@ func (h *HotelHandler) BookFacility(w http.ResponseWriter, r *http.Request) {
 		SetEndTime(input.EndTime).
 		SetGuestsCount(input.GuestsCount).
 		SetAmount(input.Amount).
-		SetBookedBy(input.BookedBy)
+		SetBookedBy(facilityBookedBy)
 
 	if input.RoomGuestID != nil {
 		c = c.SetRoomGuestID(*input.RoomGuestID)

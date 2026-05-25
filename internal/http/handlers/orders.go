@@ -46,13 +46,13 @@ type createOrderLineInput struct {
 
 // createOrderInput is the body for POST /pos/orders.
 type createOrderInput struct {
-	OutletID       uuid.UUID              `json:"outlet_id"`
-	DeviceID       uuid.UUID              `json:"device_id"`
+	OutletID       string                 `json:"outlet_id"`
+	DeviceID       string                 `json:"device_id"`
 	OrderNumber    string                 `json:"order_number"`
 	Currency       string                 `json:"currency"`
 	Lines          []createOrderLineInput `json:"lines"`
 	Metadata       map[string]interface{} `json:"metadata"`
-	PrescriptionID *string                `json:"prescription_id,omitempty"` // required when any line requires prescription
+	PrescriptionID *string                `json:"prescription_id,omitempty"`
 }
 
 // updateStatusInput is the body for PATCH /pos/orders/{id}/status.
@@ -197,6 +197,17 @@ func (h *POSOrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Parse optional UUID fields — fall back to zero UUID if missing/invalid.
+	outletID, _ := uuid.Parse(input.OutletID)
+	deviceID, _ := uuid.Parse(input.DeviceID)
+
+	// If outlet_id not in body, try the X-Outlet-ID header set by pos-ui.
+	if outletID == uuid.Nil {
+		if hv := r.Header.Get("X-Outlet-ID"); hv != "" {
+			outletID, _ = uuid.Parse(hv)
+		}
+	}
+
 	// Convert handler input to service request
 	lines := make([]orders.OrderLineInput, len(input.Lines))
 	for i, l := range input.Lines {
@@ -213,8 +224,8 @@ func (h *POSOrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 
 	order, err := h.orderSvc.CreateOrder(r.Context(), orders.CreateOrderRequest{
 		TenantID:    tid,
-		OutletID:    input.OutletID,
-		DeviceID:    input.DeviceID,
+		OutletID:    outletID,
+		DeviceID:    deviceID,
 		UserID:      userID,
 		OrderNumber: input.OrderNumber,
 		Currency:    input.Currency,

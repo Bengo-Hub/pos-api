@@ -50,12 +50,12 @@ func (h *TableHandler) ListSections(w http.ResponseWriter, r *http.Request) {
 }
 
 type createSectionInput struct {
-	OutletID    uuid.UUID `json:"outletId"`
-	Name        string    `json:"name"`
-	Slug        string    `json:"slug"`
-	SectionType string    `json:"sectionType"`
-	FloorNumber int       `json:"floorNumber"`
-	SortOrder   int       `json:"sortOrder"`
+	OutletID    string `json:"outletId"`
+	Name        string `json:"name"`
+	Slug        string `json:"slug"`
+	SectionType string `json:"sectionType"`
+	FloorNumber int    `json:"floorNumber"`
+	SortOrder   int    `json:"sortOrder"`
 }
 
 // CreateSection handles POST /{tenantID}/pos/sections
@@ -72,9 +72,11 @@ func (h *TableHandler) CreateSection(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	outletID := parseOptionalUUID(input.OutletID, r)
+
 	sec, err := h.client.Section.Create().
 		SetTenantID(tid).
-		SetOutletID(input.OutletID).
+		SetOutletID(outletID).
 		SetName(input.Name).
 		SetSlug(input.Slug).
 		SetSectionType(entsection.SectionType(input.SectionType)).
@@ -169,14 +171,14 @@ func (h *TableHandler) ListTables(w http.ResponseWriter, r *http.Request) {
 }
 
 type createTableInput struct {
-	OutletID  uuid.UUID `json:"outletId"`
-	SectionID uuid.UUID `json:"sectionId"`
-	Name      string    `json:"name"`
-	Capacity  int       `json:"capacity"`
-	TableType string    `json:"tableType"`
-	XPosition float64   `json:"xPosition"`
-	YPosition float64   `json:"yPosition"`
-	Tags      []string  `json:"tags"`
+	OutletID  string   `json:"outletId"`
+	SectionID string   `json:"sectionId"`
+	Name      string   `json:"name"`
+	Capacity  int      `json:"capacity"`
+	TableType string   `json:"tableType"`
+	XPosition float64  `json:"xPosition"`
+	YPosition float64  `json:"yPosition"`
+	Tags      []string `json:"tags"`
 }
 
 // CreateTable handles POST /{tenantID}/pos/tables
@@ -193,15 +195,18 @@ func (h *TableHandler) CreateTable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	tableOutletID := parseOptionalUUID(input.OutletID, r)
+	tableSectionID, _ := uuid.Parse(input.SectionID)
+
 	builder := h.client.Table.Create().
 		SetTenantID(tid).
-		SetOutletID(input.OutletID).
+		SetOutletID(tableOutletID).
 		SetName(input.Name).
 		SetCapacity(input.Capacity).
 		SetStatus("available")
 
-	if input.SectionID != uuid.Nil {
-		builder.SetSectionID(input.SectionID)
+	if tableSectionID != uuid.Nil {
+		builder.SetSectionID(tableSectionID)
 	}
 	if input.TableType != "" {
 		builder.SetTableType(enttable.TableType(input.TableType))

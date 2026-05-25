@@ -75,6 +75,12 @@ func RequireFeature(featureCode string) func(http.Handler) http.Handler {
 				return
 			}
 
+			// Demo and service-charge tenants get all features.
+			if claims.IsDemo || claims.BillingMode == "service_charge" {
+				next.ServeHTTP(w, r)
+				return
+			}
+
 			if !claims.HasFeature(featureCode) {
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusForbidden)
