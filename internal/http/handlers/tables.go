@@ -3,7 +3,9 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 	"time"
+	"unicode"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -16,6 +18,23 @@ import (
 	entposorder "github.com/bengobox/pos-service/internal/ent/posorder"
 	entposorderline "github.com/bengobox/pos-service/internal/ent/posorderline"
 )
+
+// slugify turns a display name into a URL-safe slug.
+func slugify(s string) string {
+	s = strings.ToLower(strings.TrimSpace(s))
+	var b strings.Builder
+	prev := '-'
+	for _, r := range s {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			b.WriteRune(r)
+			prev = r
+		} else if prev != '-' {
+			b.WriteRune('-')
+			prev = '-'
+		}
+	}
+	return strings.Trim(b.String(), "-")
+}
 
 // TableHandler handles table and section management endpoints.
 type TableHandler struct {
@@ -74,19 +93,28 @@ func (h *TableHandler) CreateSection(w http.ResponseWriter, r *http.Request) {
 
 	outletID := parseOptionalUUID(input.OutletID, r)
 
+	slug := input.Slug
+	if slug == "" {
+		slug = slugify(input.Name)
+	}
+	sectionType := entsection.SectionTypeOther
+	if input.SectionType != "" {
+		sectionType = entsection.SectionType(input.SectionType)
+	}
+
 	sec, err := h.client.Section.Create().
 		SetTenantID(tid).
 		SetOutletID(outletID).
 		SetName(input.Name).
-		SetSlug(input.Slug).
-		SetSectionType(entsection.SectionType(input.SectionType)).
+		SetSlug(slug).
+		SetSectionType(sectionType).
 		SetFloorNumber(input.FloorNumber).
 		SetSortOrder(input.SortOrder).
 		SetIsActive(true).
 		Save(r.Context())
 	if err != nil {
 		h.log.Error("create section failed", zap.Error(err))
-		jsonError(w, "failed to create section", http.StatusInternalServerError)
+		jsonError(w, "failed to create section: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -269,6 +297,15 @@ func (h *TableHandler) UpdateTable(w http.ResponseWriter, r *http.Request) {
 	}
 	if v, ok := input["status"].(string); ok {
 		updater.SetStatus(v)
+	}
+	if v, ok := input["xPosition"].(float64); ok {
+		updater.SetXPosition(v)
+	}
+	if v, ok := input["yPosition"].(float64); ok {
+		updater.SetYPosition(v)
+	}
+	if v, ok := input["tableType"].(string); ok && v != "" {
+		updater.SetTableType(enttable.TableType(v))
 	}
 
 	updated, err := updater.Save(r.Context())
