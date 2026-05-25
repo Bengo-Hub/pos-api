@@ -782,7 +782,7 @@ func seedRBACRoles(ctx context.Context, client *ent.Client, tenantID uuid.UUID) 
 				"pos.modifiers.*", "pos.channels.view",
 				"pos.config.view", "pos.config.change",
 				"pos.users.view", "pos.users.change",
-				"pos.reports.*", "pos.hotel.*", "pos.appointments.*",
+				"pos.reports.*", "pos.hotel.*", "pos.appointments.*", "pos.pharmacy.*",
 			},
 		},
 		{
@@ -863,6 +863,18 @@ func seedRBACRoles(ctx context.Context, client *ent.Client, tenantID uuid.UUID) 
 				"pos.catalog.view",
 				"pos.sessions.add", "pos.sessions.view_own",
 				"pos.pharmacy.*",
+			},
+		},
+		{
+			code:        "pharmacy_technician",
+			name:        "Pharmacy Technician",
+			description: "Assist with prescription filling, labelling, and inventory under pharmacist supervision",
+			permissions: []string{
+				"pos.orders.add", "pos.orders.view_own", "pos.orders.change_own",
+				"pos.payments.add", "pos.payments.view_own",
+				"pos.catalog.view",
+				"pos.sessions.add", "pos.sessions.view_own",
+				"pos.pharmacy.view", "pos.pharmacy.change",
 			},
 		},
 	}
