@@ -15,6 +15,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/kdsticket"
 	"github.com/bengobox/pos-service/internal/ent/orderlink"
 	"github.com/bengobox/pos-service/internal/ent/posorderline"
+	kdsmod "github.com/bengobox/pos-service/internal/modules/kds"
 	"github.com/bengobox/pos-service/internal/platform/events"
 )
 
@@ -31,7 +32,11 @@ type KDSOrderingSubscriber struct {
 	client    *ent.Client
 	logger    *zap.Logger
 	publisher *events.Publisher
+	kdsHub    *kdsmod.Hub
 }
+
+// SetKDSHub wires the WebSocket hub so new KDS tickets broadcast immediately.
+func (s *KDSOrderingSubscriber) SetKDSHub(h *kdsmod.Hub) { s.kdsHub = h }
 
 // NewKDSOrderingSubscriber creates a new KDS subscriber for ordering service events.
 func NewKDSOrderingSubscriber(client *ent.Client, logger *zap.Logger) *KDSOrderingSubscriber {
@@ -178,7 +183,7 @@ func (s *KDSOrderingSubscriber) handleStatusChanged(ctx context.Context, evt *or
 	}
 
 	for _, station := range stations {
-		if err := s.upsertKDSTicket(ctx, tenantID, station.ID, posOrder.ID, orderNumber, newStatus, tableRef, items); err != nil {
+		if err := s.upsertKDSTicket(ctx, tenantID, posOrder.OutletID, station.ID, posOrder.ID, orderNumber, newStatus, tableRef, items); err != nil {
 			s.logger.Error("kds: failed to upsert ticket",
 				zap.String("station_id", station.ID.String()),
 				zap.Error(err))
@@ -206,7 +211,7 @@ func (s *KDSOrderingSubscriber) handleStatusChanged(ctx context.Context, evt *or
 
 func (s *KDSOrderingSubscriber) upsertKDSTicket(
 	ctx context.Context,
-	tenantID, stationID, posOrderID uuid.UUID,
+	tenantID, outletID, stationID, posOrderID uuid.UUID,
 	orderNumber, newStatus, tableRef string,
 	items []map[string]any,
 ) error {
@@ -222,7 +227,6 @@ func (s *KDSOrderingSubscriber) upsertKDSTicket(
 	}
 
 	if ent.IsNotFound(err) {
-		// Create new ticket
 		ticketStatus := kdsticket.StatusPending
 		if newStatus == "preparing" {
 			ticketStatus = kdsticket.StatusInProgress
@@ -237,18 +241,50 @@ func (s *KDSOrderingSubscriber) upsertKDSTicket(
 		if tableRef != "" {
 			c = c.SetTableReference(tableRef)
 		}
-		_, err = c.Save(ctx)
-		return err
+		ticket, err := c.Save(ctx)
+		if err != nil {
+			return err
+		}
+		if s.kdsHub != nil {
+			s.kdsHub.BroadcastToOutlet(tenantID, outletID, kdsmod.Message{
+				Type: "ticket_created",
+				Payload: map[string]any{
+					"ticket_id":       ticket.ID,
+					"order_id":        posOrderID,
+					"order_number":    orderNumber,
+					"station_id":      stationID,
+					"table_reference": tableRef,
+					"status":          string(ticketStatus),
+					"items":           items,
+				},
+			})
+		}
+		return nil
 	}
 
 	// Update existing ticket status if moving to preparing
 	if newStatus == "preparing" && existing.Status == kdsticket.StatusPending {
 		now := time.Now()
-		_, err = existing.Update().
+		updated, err := existing.Update().
 			SetStatus(kdsticket.StatusInProgress).
 			SetStartedAt(now).
 			Save(ctx)
-		return err
+		if err != nil {
+			return err
+		}
+		if s.kdsHub != nil {
+			s.kdsHub.BroadcastToOutlet(tenantID, outletID, kdsmod.Message{
+				Type: "ticket_updated",
+				Payload: map[string]any{
+					"ticket_id":    updated.ID,
+					"order_id":     posOrderID,
+					"order_number": orderNumber,
+					"station_id":   stationID,
+					"status":       string(kdsticket.StatusInProgress),
+				},
+			})
+		}
+		return nil
 	}
 
 	return nil

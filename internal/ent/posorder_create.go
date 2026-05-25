@@ -165,6 +165,20 @@ func (_c *POSOrderCreate) SetMetadata(v map[string]interface{}) *POSOrderCreate 
 	return _c
 }
 
+// SetFiredCourses sets the "fired_courses" field.
+func (_c *POSOrderCreate) SetFiredCourses(v int) *POSOrderCreate {
+	_c.mutation.SetFiredCourses(v)
+	return _c
+}
+
+// SetNillableFiredCourses sets the "fired_courses" field if the given value is not nil.
+func (_c *POSOrderCreate) SetNillableFiredCourses(v *int) *POSOrderCreate {
+	if v != nil {
+		_c.SetFiredCourses(*v)
+	}
+	return _c
+}
+
 // SetEtimsInvoiceNumber sets the "etims_invoice_number" field.
 func (_c *POSOrderCreate) SetEtimsInvoiceNumber(v string) *POSOrderCreate {
 	_c.mutation.SetEtimsInvoiceNumber(v)
@@ -377,6 +391,10 @@ func (_c *POSOrderCreate) defaults() {
 		v := posorder.DefaultMetadata
 		_c.mutation.SetMetadata(v)
 	}
+	if _, ok := _c.mutation.FiredCourses(); !ok {
+		v := posorder.DefaultFiredCourses
+		_c.mutation.SetFiredCourses(v)
+	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		v := posorder.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
@@ -441,6 +459,9 @@ func (_c *POSOrderCreate) check() error {
 	}
 	if _, ok := _c.mutation.Metadata(); !ok {
 		return &ValidationError{Name: "metadata", err: errors.New(`ent: missing required field "POSOrder.metadata"`)}
+	}
+	if _, ok := _c.mutation.FiredCourses(); !ok {
+		return &ValidationError{Name: "fired_courses", err: errors.New(`ent: missing required field "POSOrder.fired_courses"`)}
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "POSOrder.created_at"`)}
@@ -543,6 +564,10 @@ func (_c *POSOrderCreate) createSpec() (*POSOrder, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Metadata(); ok {
 		_spec.SetField(posorder.FieldMetadata, field.TypeJSON, value)
 		_node.Metadata = value
+	}
+	if value, ok := _c.mutation.FiredCourses(); ok {
+		_spec.SetField(posorder.FieldFiredCourses, field.TypeInt, value)
+		_node.FiredCourses = value
 	}
 	if value, ok := _c.mutation.EtimsInvoiceNumber(); ok {
 		_spec.SetField(posorder.FieldEtimsInvoiceNumber, field.TypeString, value)
@@ -885,6 +910,24 @@ func (u *POSOrderUpsert) SetMetadata(v map[string]interface{}) *POSOrderUpsert {
 // UpdateMetadata sets the "metadata" field to the value that was provided on create.
 func (u *POSOrderUpsert) UpdateMetadata() *POSOrderUpsert {
 	u.SetExcluded(posorder.FieldMetadata)
+	return u
+}
+
+// SetFiredCourses sets the "fired_courses" field.
+func (u *POSOrderUpsert) SetFiredCourses(v int) *POSOrderUpsert {
+	u.Set(posorder.FieldFiredCourses, v)
+	return u
+}
+
+// UpdateFiredCourses sets the "fired_courses" field to the value that was provided on create.
+func (u *POSOrderUpsert) UpdateFiredCourses() *POSOrderUpsert {
+	u.SetExcluded(posorder.FieldFiredCourses)
+	return u
+}
+
+// AddFiredCourses adds v to the "fired_courses" field.
+func (u *POSOrderUpsert) AddFiredCourses(v int) *POSOrderUpsert {
+	u.Add(posorder.FieldFiredCourses, v)
 	return u
 }
 
@@ -1290,6 +1333,27 @@ func (u *POSOrderUpsertOne) SetMetadata(v map[string]interface{}) *POSOrderUpser
 func (u *POSOrderUpsertOne) UpdateMetadata() *POSOrderUpsertOne {
 	return u.Update(func(s *POSOrderUpsert) {
 		s.UpdateMetadata()
+	})
+}
+
+// SetFiredCourses sets the "fired_courses" field.
+func (u *POSOrderUpsertOne) SetFiredCourses(v int) *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetFiredCourses(v)
+	})
+}
+
+// AddFiredCourses adds v to the "fired_courses" field.
+func (u *POSOrderUpsertOne) AddFiredCourses(v int) *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.AddFiredCourses(v)
+	})
+}
+
+// UpdateFiredCourses sets the "fired_courses" field to the value that was provided on create.
+func (u *POSOrderUpsertOne) UpdateFiredCourses() *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdateFiredCourses()
 	})
 }
 
@@ -1879,6 +1943,27 @@ func (u *POSOrderUpsertBulk) SetMetadata(v map[string]interface{}) *POSOrderUpse
 func (u *POSOrderUpsertBulk) UpdateMetadata() *POSOrderUpsertBulk {
 	return u.Update(func(s *POSOrderUpsert) {
 		s.UpdateMetadata()
+	})
+}
+
+// SetFiredCourses sets the "fired_courses" field.
+func (u *POSOrderUpsertBulk) SetFiredCourses(v int) *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetFiredCourses(v)
+	})
+}
+
+// AddFiredCourses adds v to the "fired_courses" field.
+func (u *POSOrderUpsertBulk) AddFiredCourses(v int) *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.AddFiredCourses(v)
+	})
+}
+
+// UpdateFiredCourses sets the "fired_courses" field to the value that was provided on create.
+func (u *POSOrderUpsertBulk) UpdateFiredCourses() *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdateFiredCourses()
 	})
 }
 

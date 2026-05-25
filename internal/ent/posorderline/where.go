@@ -141,6 +141,11 @@ func PriceIncludesTax(v bool) predicate.POSOrderLine {
 	return predicate.POSOrderLine(sql.FieldEQ(FieldPriceIncludesTax, v))
 }
 
+// CourseNumber applies equality check predicate on the "course_number" field. It's identical to CourseNumberEQ.
+func CourseNumber(v int) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldEQ(FieldCourseNumber, v))
+}
+
 // OrderIDEQ applies the EQ predicate on the "order_id" field.
 func OrderIDEQ(v uuid.UUID) predicate.POSOrderLine {
 	return predicate.POSOrderLine(sql.FieldEQ(FieldOrderID, v))
@@ -1009,6 +1014,46 @@ func PriceIncludesTaxEQ(v bool) predicate.POSOrderLine {
 // PriceIncludesTaxNEQ applies the NEQ predicate on the "price_includes_tax" field.
 func PriceIncludesTaxNEQ(v bool) predicate.POSOrderLine {
 	return predicate.POSOrderLine(sql.FieldNEQ(FieldPriceIncludesTax, v))
+}
+
+// CourseNumberEQ applies the EQ predicate on the "course_number" field.
+func CourseNumberEQ(v int) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldEQ(FieldCourseNumber, v))
+}
+
+// CourseNumberNEQ applies the NEQ predicate on the "course_number" field.
+func CourseNumberNEQ(v int) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldNEQ(FieldCourseNumber, v))
+}
+
+// CourseNumberIn applies the In predicate on the "course_number" field.
+func CourseNumberIn(vs ...int) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldIn(FieldCourseNumber, vs...))
+}
+
+// CourseNumberNotIn applies the NotIn predicate on the "course_number" field.
+func CourseNumberNotIn(vs ...int) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldNotIn(FieldCourseNumber, vs...))
+}
+
+// CourseNumberGT applies the GT predicate on the "course_number" field.
+func CourseNumberGT(v int) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldGT(FieldCourseNumber, v))
+}
+
+// CourseNumberGTE applies the GTE predicate on the "course_number" field.
+func CourseNumberGTE(v int) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldGTE(FieldCourseNumber, v))
+}
+
+// CourseNumberLT applies the LT predicate on the "course_number" field.
+func CourseNumberLT(v int) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldLT(FieldCourseNumber, v))
+}
+
+// CourseNumberLTE applies the LTE predicate on the "course_number" field.
+func CourseNumberLTE(v int) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldLTE(FieldCourseNumber, v))
 }
 
 // HasOrder applies the HasEdge predicate on the "order" edge.

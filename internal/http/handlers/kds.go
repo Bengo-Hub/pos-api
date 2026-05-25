@@ -238,6 +238,7 @@ func (h *KDSHandler) transitionTicket(w http.ResponseWriter, r *http.Request, to
 
 	ticket, err := h.client.KDSTicket.Query().
 		Where(entkdsticket.ID(ticketID), entkdsticket.TenantID(tid)).
+		WithStation().
 		Only(r.Context())
 	if err != nil {
 		jsonError(w, "ticket not found", http.StatusNotFound)
@@ -261,8 +262,22 @@ func (h *KDSHandler) transitionTicket(w http.ResponseWriter, r *http.Request, to
 		return
 	}
 
+	// Broadcast real-time update to connected KDS screens for this outlet.
+	if ticket.Edges.Station != nil {
+		h.hub.BroadcastToOutlet(tid, ticket.Edges.Station.OutletID, kdsmod.Message{
+			Type: "ticket_updated",
+			Payload: map[string]any{
+				"ticket_id":    updated.ID,
+				"order_id":     updated.OrderID,
+				"order_number": updated.OrderNumber,
+				"station_id":   updated.StationID,
+				"status":       string(toStatus),
+				"completed_at": now,
+			},
+		})
+	}
+
 	if toStatus == entkdsticket.StatusReady && h.publisher != nil {
-		tid, _ := parseTenantUUID(r)
 		_ = h.publisher.PublishKDSOrderReady(r.Context(), tid, map[string]any{
 			"ticket_id":       updated.ID,
 			"order_id":        updated.OrderID,
@@ -291,6 +306,7 @@ func (h *KDSHandler) CallWaiter(w http.ResponseWriter, r *http.Request) {
 
 	ticket, err := h.client.KDSTicket.Query().
 		Where(entkdsticket.ID(ticketID), entkdsticket.TenantID(tid)).
+		WithStation().
 		Only(r.Context())
 	if err != nil {
 		jsonError(w, "ticket not found", http.StatusNotFound)
@@ -334,6 +350,19 @@ func (h *KDSHandler) CallWaiter(w http.ResponseWriter, r *http.Request) {
 				"outlet_id":    order.OutletID.String(),
 			})
 		}
+	}
+
+	// Broadcast waiter_called event to KDS screens on this outlet.
+	if ticket.Edges.Station != nil {
+		h.hub.BroadcastToOutlet(tid, ticket.Edges.Station.OutletID, kdsmod.Message{
+			Type: "waiter_called",
+			Payload: map[string]any{
+				"ticket_id":    ticket.ID,
+				"order_id":     ticket.OrderID,
+				"order_number": ticket.OrderNumber,
+				"station_id":   ticket.StationID,
+			},
+		})
 	}
 
 	h.log.Info("waiter called", zap.Stringer("ticket_id", ticket.ID), zap.String("order_number", ticket.OrderNumber))

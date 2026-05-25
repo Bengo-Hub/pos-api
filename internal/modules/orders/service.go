@@ -17,6 +17,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/kdsstation"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
 	"github.com/bengobox/pos-service/internal/ent/posorderline"
+	kdsmod "github.com/bengobox/pos-service/internal/modules/kds"
 	"github.com/bengobox/pos-service/internal/platform/events"
 )
 
@@ -84,6 +85,7 @@ type Service struct {
 	orderPrefix     string
 	publisher       *events.Publisher
 	taxResolver     *TaxResolver // resolves tax codes from treasury with Redis cache
+	kdsHub          *kdsmod.Hub
 }
 
 // SetPublisher sets the event publisher for order lifecycle events.
@@ -94,6 +96,11 @@ func (s *Service) SetPublisher(p *events.Publisher) {
 // SetTaxResolver attaches the treasury tax resolver for per-line tax computation.
 func (s *Service) SetTaxResolver(tr *TaxResolver) {
 	s.taxResolver = tr
+}
+
+// SetKDSHub wires the KDS WebSocket hub so new tickets broadcast immediately.
+func (s *Service) SetKDSHub(h *kdsmod.Hub) {
+	s.kdsHub = h
 }
 
 // GetPublisher returns the event publisher (nil if not set).
@@ -400,7 +407,7 @@ func (s *Service) createKDSTicketsForOrder(ctx context.Context, tenantID uuid.UU
 		if exists {
 			continue
 		}
-		c := s.client.KDSTicket.Create().
+		cc := s.client.KDSTicket.Create().
 			SetTenantID(tenantID).
 			SetStationID(station.ID).
 			SetOrderID(order.ID).
@@ -408,13 +415,99 @@ func (s *Service) createKDSTicketsForOrder(ctx context.Context, tenantID uuid.UU
 			SetStatus(kdsticket.StatusPending).
 			SetItems(items)
 		if tableRef != "" {
-			c = c.SetTableReference(tableRef)
+			cc = cc.SetTableReference(tableRef)
 		}
-		if _, err := c.Save(ctx); err != nil {
+		ticket, err := cc.Save(ctx)
+		if err != nil {
 			s.log.Warn("kds: failed to create ticket for pos order",
 				zap.String("order_id", order.ID.String()),
 				zap.String("station_id", station.ID.String()),
 				zap.Error(err))
+			continue
+		}
+		if s.kdsHub != nil {
+			s.kdsHub.BroadcastToOutlet(order.TenantID, order.OutletID, kdsmod.Message{
+				Type: "ticket_created",
+				Payload: map[string]any{
+					"ticket_id":       ticket.ID,
+					"order_id":        order.ID,
+					"order_number":    order.OrderNumber,
+					"station_id":      station.ID,
+					"table_reference": tableRef,
+					"status":          string(kdsticket.StatusPending),
+					"items":           items,
+				},
+			})
+		}
+	}
+	return nil
+}
+
+// FireCourseKDS creates KDS tickets for order lines with course_number == course.
+// The order must be queried with WithLines() before calling.
+func (s *Service) FireCourseKDS(ctx context.Context, tenantID uuid.UUID, order *ent.POSOrder, course int) error {
+	courseLines := make([]*ent.POSOrderLine, 0)
+	for _, l := range order.Edges.Lines {
+		if l.CourseNumber == course {
+			courseLines = append(courseLines, l)
+		}
+	}
+	if len(courseLines) == 0 {
+		return nil
+	}
+
+	stations, err := s.client.KDSStation.Query().
+		Where(kdsstation.TenantID(tenantID), kdsstation.OutletID(order.OutletID), kdsstation.IsActive(true)).
+		All(ctx)
+	if err != nil || len(stations) == 0 {
+		return err
+	}
+
+	items := make([]map[string]any, 0, len(courseLines))
+	for _, l := range courseLines {
+		items = append(items, map[string]any{
+			"sku":      l.Sku,
+			"name":     l.Name,
+			"quantity": l.Quantity,
+		})
+	}
+
+	tableRef := ""
+	if v, ok := order.Metadata["table_number"].(string); ok {
+		tableRef = v
+	}
+
+	for _, station := range stations {
+		ticket, err := s.client.KDSTicket.Create().
+			SetTenantID(tenantID).
+			SetStationID(station.ID).
+			SetOrderID(order.ID).
+			SetOrderNumber(order.OrderNumber).
+			SetStatus(kdsticket.StatusPending).
+			SetItems(items).
+			SetTableReference(tableRef).
+			Save(ctx)
+		if err != nil {
+			s.log.Warn("kds: fire-course ticket creation failed",
+				zap.String("order_id", order.ID.String()),
+				zap.Int("course", course),
+				zap.Error(err))
+			continue
+		}
+		if s.kdsHub != nil {
+			s.kdsHub.BroadcastToOutlet(tenantID, order.OutletID, kdsmod.Message{
+				Type: "ticket_created",
+				Payload: map[string]any{
+					"ticket_id":       ticket.ID,
+					"order_id":        order.ID,
+					"order_number":    order.OrderNumber,
+					"station_id":      station.ID,
+					"table_reference": tableRef,
+					"course":          course,
+					"status":          string(kdsticket.StatusPending),
+					"items":           items,
+				},
+			})
 		}
 	}
 	return nil

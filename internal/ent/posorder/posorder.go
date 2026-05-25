@@ -46,6 +46,8 @@ const (
 	FieldRoomGuestID = "room_guest_id"
 	// FieldMetadata holds the string denoting the metadata field in the database.
 	FieldMetadata = "metadata"
+	// FieldFiredCourses holds the string denoting the fired_courses field in the database.
+	FieldFiredCourses = "fired_courses"
 	// FieldEtimsInvoiceNumber holds the string denoting the etims_invoice_number field in the database.
 	FieldEtimsInvoiceNumber = "etims_invoice_number"
 	// FieldEtimsQrCodeURL holds the string denoting the etims_qr_code_url field in the database.
@@ -109,6 +111,7 @@ var Columns = []string{
 	FieldRoomID,
 	FieldRoomGuestID,
 	FieldMetadata,
+	FieldFiredCourses,
 	FieldEtimsInvoiceNumber,
 	FieldEtimsQrCodeURL,
 	FieldVoidedReason,
@@ -139,6 +142,8 @@ var (
 	DefaultCurrency string
 	// DefaultMetadata holds the default value on creation for the "metadata" field.
 	DefaultMetadata map[string]interface{}
+	// DefaultFiredCourses holds the default value on creation for the "fired_courses" field.
+	DefaultFiredCourses int
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
@@ -254,6 +259,11 @@ func ByRoomID(opts ...sql.OrderTermOption) OrderOption {
 // ByRoomGuestID orders the results by the room_guest_id field.
 func ByRoomGuestID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldRoomGuestID, opts...).ToFunc()
+}
+
+// ByFiredCourses orders the results by the fired_courses field.
+func ByFiredCourses(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldFiredCourses, opts...).ToFunc()
 }
 
 // ByEtimsInvoiceNumber orders the results by the etims_invoice_number field.

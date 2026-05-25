@@ -54,6 +54,8 @@ type POSOrderLine struct {
 	TaxAmount *float64 `json:"tax_amount,omitempty"`
 	// True when unit_price is VAT-inclusive; tax_amount is back-calculated
 	PriceIncludesTax bool `json:"price_includes_tax,omitempty"`
+	// Course firing order: 0=immediate, 1=starter, 2=main, 3=dessert. KDS hides items with course_number > order.fired_courses.
+	CourseNumber int `json:"course_number,omitempty"`
 	// Metadata holds the value of the "metadata" field.
 	Metadata map[string]interface{} `json:"metadata,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
@@ -104,7 +106,7 @@ func (*POSOrderLine) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullBool)
 		case posorderline.FieldQuantity, posorderline.FieldUnitPrice, posorderline.FieldTotalPrice, posorderline.FieldPartialUnits, posorderline.FieldTaxRate, posorderline.FieldTaxAmount:
 			values[i] = new(sql.NullFloat64)
-		case posorderline.FieldWeightGrams:
+		case posorderline.FieldWeightGrams, posorderline.FieldCourseNumber:
 			values[i] = new(sql.NullInt64)
 		case posorderline.FieldSku, posorderline.FieldName, posorderline.FieldLotNumber, posorderline.FieldSerialNumber, posorderline.FieldTaxCodeID, posorderline.FieldTaxKraCode:
 			values[i] = new(sql.NullString)
@@ -241,6 +243,12 @@ func (_m *POSOrderLine) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.PriceIncludesTax = value.Bool
 			}
+		case posorderline.FieldCourseNumber:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field course_number", values[i])
+			} else if value.Valid {
+				_m.CourseNumber = int(value.Int64)
+			}
 		case posorderline.FieldMetadata:
 			if value, ok := values[i].(*[]byte); !ok {
 				return fmt.Errorf("unexpected type %T for field metadata", values[i])
@@ -357,6 +365,9 @@ func (_m *POSOrderLine) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("price_includes_tax=")
 	builder.WriteString(fmt.Sprintf("%v", _m.PriceIncludesTax))
+	builder.WriteString(", ")
+	builder.WriteString("course_number=")
+	builder.WriteString(fmt.Sprintf("%v", _m.CourseNumber))
 	builder.WriteString(", ")
 	builder.WriteString("metadata=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Metadata))

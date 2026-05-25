@@ -47,6 +47,8 @@ const (
 	FieldTaxAmount = "tax_amount"
 	// FieldPriceIncludesTax holds the string denoting the price_includes_tax field in the database.
 	FieldPriceIncludesTax = "price_includes_tax"
+	// FieldCourseNumber holds the string denoting the course_number field in the database.
+	FieldCourseNumber = "course_number"
 	// FieldMetadata holds the string denoting the metadata field in the database.
 	FieldMetadata = "metadata"
 	// EdgeOrder holds the string denoting the order edge name in mutations.
@@ -91,6 +93,7 @@ var Columns = []string{
 	FieldTaxRate,
 	FieldTaxAmount,
 	FieldPriceIncludesTax,
+	FieldCourseNumber,
 	FieldMetadata,
 }
 
@@ -111,6 +114,8 @@ var (
 	NameValidator func(string) error
 	// DefaultPriceIncludesTax holds the default value on creation for the "price_includes_tax" field.
 	DefaultPriceIncludesTax bool
+	// DefaultCourseNumber holds the default value on creation for the "course_number" field.
+	DefaultCourseNumber int
 	// DefaultMetadata holds the default value on creation for the "metadata" field.
 	DefaultMetadata map[string]interface{}
 	// DefaultID holds the default value on creation for the "id" field.
@@ -208,6 +213,11 @@ func ByTaxAmount(opts ...sql.OrderTermOption) OrderOption {
 // ByPriceIncludesTax orders the results by the price_includes_tax field.
 func ByPriceIncludesTax(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldPriceIncludesTax, opts...).ToFunc()
+}
+
+// ByCourseNumber orders the results by the course_number field.
+func ByCourseNumber(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCourseNumber, opts...).ToFunc()
 }
 
 // ByOrderField orders the results by order field.

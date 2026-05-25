@@ -372,6 +372,27 @@ func (_u *POSOrderLineUpdate) SetNillablePriceIncludesTax(v *bool) *POSOrderLine
 	return _u
 }
 
+// SetCourseNumber sets the "course_number" field.
+func (_u *POSOrderLineUpdate) SetCourseNumber(v int) *POSOrderLineUpdate {
+	_u.mutation.ResetCourseNumber()
+	_u.mutation.SetCourseNumber(v)
+	return _u
+}
+
+// SetNillableCourseNumber sets the "course_number" field if the given value is not nil.
+func (_u *POSOrderLineUpdate) SetNillableCourseNumber(v *int) *POSOrderLineUpdate {
+	if v != nil {
+		_u.SetCourseNumber(*v)
+	}
+	return _u
+}
+
+// AddCourseNumber adds value to the "course_number" field.
+func (_u *POSOrderLineUpdate) AddCourseNumber(v int) *POSOrderLineUpdate {
+	_u.mutation.AddCourseNumber(v)
+	return _u
+}
+
 // SetMetadata sets the "metadata" field.
 func (_u *POSOrderLineUpdate) SetMetadata(v map[string]interface{}) *POSOrderLineUpdate {
 	_u.mutation.SetMetadata(v)
@@ -582,6 +603,12 @@ func (_u *POSOrderLineUpdate) sqlSave(ctx context.Context) (_node int, err error
 	}
 	if value, ok := _u.mutation.PriceIncludesTax(); ok {
 		_spec.SetField(posorderline.FieldPriceIncludesTax, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.CourseNumber(); ok {
+		_spec.SetField(posorderline.FieldCourseNumber, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedCourseNumber(); ok {
+		_spec.AddField(posorderline.FieldCourseNumber, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.Metadata(); ok {
 		_spec.SetField(posorderline.FieldMetadata, field.TypeJSON, value)
@@ -1021,6 +1048,27 @@ func (_u *POSOrderLineUpdateOne) SetNillablePriceIncludesTax(v *bool) *POSOrderL
 	return _u
 }
 
+// SetCourseNumber sets the "course_number" field.
+func (_u *POSOrderLineUpdateOne) SetCourseNumber(v int) *POSOrderLineUpdateOne {
+	_u.mutation.ResetCourseNumber()
+	_u.mutation.SetCourseNumber(v)
+	return _u
+}
+
+// SetNillableCourseNumber sets the "course_number" field if the given value is not nil.
+func (_u *POSOrderLineUpdateOne) SetNillableCourseNumber(v *int) *POSOrderLineUpdateOne {
+	if v != nil {
+		_u.SetCourseNumber(*v)
+	}
+	return _u
+}
+
+// AddCourseNumber adds value to the "course_number" field.
+func (_u *POSOrderLineUpdateOne) AddCourseNumber(v int) *POSOrderLineUpdateOne {
+	_u.mutation.AddCourseNumber(v)
+	return _u
+}
+
 // SetMetadata sets the "metadata" field.
 func (_u *POSOrderLineUpdateOne) SetMetadata(v map[string]interface{}) *POSOrderLineUpdateOne {
 	_u.mutation.SetMetadata(v)
@@ -1261,6 +1309,12 @@ func (_u *POSOrderLineUpdateOne) sqlSave(ctx context.Context) (_node *POSOrderLi
 	}
 	if value, ok := _u.mutation.PriceIncludesTax(); ok {
 		_spec.SetField(posorderline.FieldPriceIncludesTax, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.CourseNumber(); ok {
+		_spec.SetField(posorderline.FieldCourseNumber, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedCourseNumber(); ok {
+		_spec.AddField(posorderline.FieldCourseNumber, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.Metadata(); ok {
 		_spec.SetField(posorderline.FieldMetadata, field.TypeJSON, value)

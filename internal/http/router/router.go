@@ -194,6 +194,7 @@ func New(
 						pos.Get("/orders/{orderID}", orders.GetOrder)
 						pos.Patch("/orders/{orderID}/status", orders.UpdateStatus)
 						pos.Patch("/orders/{orderID}/void", orders.VoidOrder)
+						pos.Post("/orders/{orderID}/fire-course", orders.FireCourse)
 						pos.Post("/orders/{orderID}/lines/{lineID}/serials", orders.CaptureSerial)
 					}
 					if print != nil {

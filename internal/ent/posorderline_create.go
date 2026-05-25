@@ -208,6 +208,20 @@ func (_c *POSOrderLineCreate) SetNillablePriceIncludesTax(v *bool) *POSOrderLine
 	return _c
 }
 
+// SetCourseNumber sets the "course_number" field.
+func (_c *POSOrderLineCreate) SetCourseNumber(v int) *POSOrderLineCreate {
+	_c.mutation.SetCourseNumber(v)
+	return _c
+}
+
+// SetNillableCourseNumber sets the "course_number" field if the given value is not nil.
+func (_c *POSOrderLineCreate) SetNillableCourseNumber(v *int) *POSOrderLineCreate {
+	if v != nil {
+		_c.SetCourseNumber(*v)
+	}
+	return _c
+}
+
 // SetMetadata sets the "metadata" field.
 func (_c *POSOrderLineCreate) SetMetadata(v map[string]interface{}) *POSOrderLineCreate {
 	_c.mutation.SetMetadata(v)
@@ -287,6 +301,10 @@ func (_c *POSOrderLineCreate) defaults() {
 		v := posorderline.DefaultPriceIncludesTax
 		_c.mutation.SetPriceIncludesTax(v)
 	}
+	if _, ok := _c.mutation.CourseNumber(); !ok {
+		v := posorderline.DefaultCourseNumber
+		_c.mutation.SetCourseNumber(v)
+	}
 	if _, ok := _c.mutation.Metadata(); !ok {
 		v := posorderline.DefaultMetadata
 		_c.mutation.SetMetadata(v)
@@ -332,6 +350,9 @@ func (_c *POSOrderLineCreate) check() error {
 	}
 	if _, ok := _c.mutation.PriceIncludesTax(); !ok {
 		return &ValidationError{Name: "price_includes_tax", err: errors.New(`ent: missing required field "POSOrderLine.price_includes_tax"`)}
+	}
+	if _, ok := _c.mutation.CourseNumber(); !ok {
+		return &ValidationError{Name: "course_number", err: errors.New(`ent: missing required field "POSOrderLine.course_number"`)}
 	}
 	if _, ok := _c.mutation.Metadata(); !ok {
 		return &ValidationError{Name: "metadata", err: errors.New(`ent: missing required field "POSOrderLine.metadata"`)}
@@ -438,6 +459,10 @@ func (_c *POSOrderLineCreate) createSpec() (*POSOrderLine, *sqlgraph.CreateSpec)
 	if value, ok := _c.mutation.PriceIncludesTax(); ok {
 		_spec.SetField(posorderline.FieldPriceIncludesTax, field.TypeBool, value)
 		_node.PriceIncludesTax = value
+	}
+	if value, ok := _c.mutation.CourseNumber(); ok {
+		_spec.SetField(posorderline.FieldCourseNumber, field.TypeInt, value)
+		_node.CourseNumber = value
 	}
 	if value, ok := _c.mutation.Metadata(); ok {
 		_spec.SetField(posorderline.FieldMetadata, field.TypeJSON, value)
@@ -825,6 +850,24 @@ func (u *POSOrderLineUpsert) SetPriceIncludesTax(v bool) *POSOrderLineUpsert {
 // UpdatePriceIncludesTax sets the "price_includes_tax" field to the value that was provided on create.
 func (u *POSOrderLineUpsert) UpdatePriceIncludesTax() *POSOrderLineUpsert {
 	u.SetExcluded(posorderline.FieldPriceIncludesTax)
+	return u
+}
+
+// SetCourseNumber sets the "course_number" field.
+func (u *POSOrderLineUpsert) SetCourseNumber(v int) *POSOrderLineUpsert {
+	u.Set(posorderline.FieldCourseNumber, v)
+	return u
+}
+
+// UpdateCourseNumber sets the "course_number" field to the value that was provided on create.
+func (u *POSOrderLineUpsert) UpdateCourseNumber() *POSOrderLineUpsert {
+	u.SetExcluded(posorderline.FieldCourseNumber)
+	return u
+}
+
+// AddCourseNumber adds v to the "course_number" field.
+func (u *POSOrderLineUpsert) AddCourseNumber(v int) *POSOrderLineUpsert {
+	u.Add(posorderline.FieldCourseNumber, v)
 	return u
 }
 
@@ -1235,6 +1278,27 @@ func (u *POSOrderLineUpsertOne) SetPriceIncludesTax(v bool) *POSOrderLineUpsertO
 func (u *POSOrderLineUpsertOne) UpdatePriceIncludesTax() *POSOrderLineUpsertOne {
 	return u.Update(func(s *POSOrderLineUpsert) {
 		s.UpdatePriceIncludesTax()
+	})
+}
+
+// SetCourseNumber sets the "course_number" field.
+func (u *POSOrderLineUpsertOne) SetCourseNumber(v int) *POSOrderLineUpsertOne {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.SetCourseNumber(v)
+	})
+}
+
+// AddCourseNumber adds v to the "course_number" field.
+func (u *POSOrderLineUpsertOne) AddCourseNumber(v int) *POSOrderLineUpsertOne {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.AddCourseNumber(v)
+	})
+}
+
+// UpdateCourseNumber sets the "course_number" field to the value that was provided on create.
+func (u *POSOrderLineUpsertOne) UpdateCourseNumber() *POSOrderLineUpsertOne {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.UpdateCourseNumber()
 	})
 }
 
@@ -1814,6 +1878,27 @@ func (u *POSOrderLineUpsertBulk) SetPriceIncludesTax(v bool) *POSOrderLineUpsert
 func (u *POSOrderLineUpsertBulk) UpdatePriceIncludesTax() *POSOrderLineUpsertBulk {
 	return u.Update(func(s *POSOrderLineUpsert) {
 		s.UpdatePriceIncludesTax()
+	})
+}
+
+// SetCourseNumber sets the "course_number" field.
+func (u *POSOrderLineUpsertBulk) SetCourseNumber(v int) *POSOrderLineUpsertBulk {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.SetCourseNumber(v)
+	})
+}
+
+// AddCourseNumber adds v to the "course_number" field.
+func (u *POSOrderLineUpsertBulk) AddCourseNumber(v int) *POSOrderLineUpsertBulk {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.AddCourseNumber(v)
+	})
+}
+
+// UpdateCourseNumber sets the "course_number" field to the value that was provided on create.
+func (u *POSOrderLineUpsertBulk) UpdateCourseNumber() *POSOrderLineUpsertBulk {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.UpdateCourseNumber()
 	})
 }
 

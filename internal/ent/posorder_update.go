@@ -274,6 +274,27 @@ func (_u *POSOrderUpdate) SetMetadata(v map[string]interface{}) *POSOrderUpdate 
 	return _u
 }
 
+// SetFiredCourses sets the "fired_courses" field.
+func (_u *POSOrderUpdate) SetFiredCourses(v int) *POSOrderUpdate {
+	_u.mutation.ResetFiredCourses()
+	_u.mutation.SetFiredCourses(v)
+	return _u
+}
+
+// SetNillableFiredCourses sets the "fired_courses" field if the given value is not nil.
+func (_u *POSOrderUpdate) SetNillableFiredCourses(v *int) *POSOrderUpdate {
+	if v != nil {
+		_u.SetFiredCourses(*v)
+	}
+	return _u
+}
+
+// AddFiredCourses adds value to the "fired_courses" field.
+func (_u *POSOrderUpdate) AddFiredCourses(v int) *POSOrderUpdate {
+	_u.mutation.AddFiredCourses(v)
+	return _u
+}
+
 // SetEtimsInvoiceNumber sets the "etims_invoice_number" field.
 func (_u *POSOrderUpdate) SetEtimsInvoiceNumber(v string) *POSOrderUpdate {
 	_u.mutation.SetEtimsInvoiceNumber(v)
@@ -618,6 +639,12 @@ func (_u *POSOrderUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.Metadata(); ok {
 		_spec.SetField(posorder.FieldMetadata, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.FiredCourses(); ok {
+		_spec.SetField(posorder.FieldFiredCourses, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedFiredCourses(); ok {
+		_spec.AddField(posorder.FieldFiredCourses, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.EtimsInvoiceNumber(); ok {
 		_spec.SetField(posorder.FieldEtimsInvoiceNumber, field.TypeString, value)
@@ -1049,6 +1076,27 @@ func (_u *POSOrderUpdateOne) SetMetadata(v map[string]interface{}) *POSOrderUpda
 	return _u
 }
 
+// SetFiredCourses sets the "fired_courses" field.
+func (_u *POSOrderUpdateOne) SetFiredCourses(v int) *POSOrderUpdateOne {
+	_u.mutation.ResetFiredCourses()
+	_u.mutation.SetFiredCourses(v)
+	return _u
+}
+
+// SetNillableFiredCourses sets the "fired_courses" field if the given value is not nil.
+func (_u *POSOrderUpdateOne) SetNillableFiredCourses(v *int) *POSOrderUpdateOne {
+	if v != nil {
+		_u.SetFiredCourses(*v)
+	}
+	return _u
+}
+
+// AddFiredCourses adds value to the "fired_courses" field.
+func (_u *POSOrderUpdateOne) AddFiredCourses(v int) *POSOrderUpdateOne {
+	_u.mutation.AddFiredCourses(v)
+	return _u
+}
+
 // SetEtimsInvoiceNumber sets the "etims_invoice_number" field.
 func (_u *POSOrderUpdateOne) SetEtimsInvoiceNumber(v string) *POSOrderUpdateOne {
 	_u.mutation.SetEtimsInvoiceNumber(v)
@@ -1423,6 +1471,12 @@ func (_u *POSOrderUpdateOne) sqlSave(ctx context.Context) (_node *POSOrder, err 
 	}
 	if value, ok := _u.mutation.Metadata(); ok {
 		_spec.SetField(posorder.FieldMetadata, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.FiredCourses(); ok {
+		_spec.SetField(posorder.FieldFiredCourses, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedFiredCourses(); ok {
+		_spec.AddField(posorder.FieldFiredCourses, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.EtimsInvoiceNumber(); ok {
 		_spec.SetField(posorder.FieldEtimsInvoiceNumber, field.TypeString, value)

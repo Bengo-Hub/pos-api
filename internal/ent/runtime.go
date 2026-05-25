@@ -1185,12 +1185,16 @@ func init() {
 	posorderDescMetadata := posorderFields[15].Descriptor()
 	// posorder.DefaultMetadata holds the default value on creation for the metadata field.
 	posorder.DefaultMetadata = posorderDescMetadata.Default.(map[string]interface{})
+	// posorderDescFiredCourses is the schema descriptor for fired_courses field.
+	posorderDescFiredCourses := posorderFields[16].Descriptor()
+	// posorder.DefaultFiredCourses holds the default value on creation for the fired_courses field.
+	posorder.DefaultFiredCourses = posorderDescFiredCourses.Default.(int)
 	// posorderDescCreatedAt is the schema descriptor for created_at field.
-	posorderDescCreatedAt := posorderFields[21].Descriptor()
+	posorderDescCreatedAt := posorderFields[22].Descriptor()
 	// posorder.DefaultCreatedAt holds the default value on creation for the created_at field.
 	posorder.DefaultCreatedAt = posorderDescCreatedAt.Default.(func() time.Time)
 	// posorderDescUpdatedAt is the schema descriptor for updated_at field.
-	posorderDescUpdatedAt := posorderFields[22].Descriptor()
+	posorderDescUpdatedAt := posorderFields[23].Descriptor()
 	// posorder.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	posorder.DefaultUpdatedAt = posorderDescUpdatedAt.Default.(func() time.Time)
 	// posorder.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -1231,8 +1235,12 @@ func init() {
 	posorderlineDescPriceIncludesTax := posorderlineFields[17].Descriptor()
 	// posorderline.DefaultPriceIncludesTax holds the default value on creation for the price_includes_tax field.
 	posorderline.DefaultPriceIncludesTax = posorderlineDescPriceIncludesTax.Default.(bool)
+	// posorderlineDescCourseNumber is the schema descriptor for course_number field.
+	posorderlineDescCourseNumber := posorderlineFields[18].Descriptor()
+	// posorderline.DefaultCourseNumber holds the default value on creation for the course_number field.
+	posorderline.DefaultCourseNumber = posorderlineDescCourseNumber.Default.(int)
 	// posorderlineDescMetadata is the schema descriptor for metadata field.
-	posorderlineDescMetadata := posorderlineFields[18].Descriptor()
+	posorderlineDescMetadata := posorderlineFields[19].Descriptor()
 	// posorderline.DefaultMetadata holds the default value on creation for the metadata field.
 	posorderline.DefaultMetadata = posorderlineDescMetadata.Default.(map[string]interface{})
 	// posorderlineDescID is the schema descriptor for id field.

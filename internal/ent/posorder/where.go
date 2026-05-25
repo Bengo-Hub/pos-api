@@ -121,6 +121,11 @@ func RoomGuestID(v uuid.UUID) predicate.POSOrder {
 	return predicate.POSOrder(sql.FieldEQ(FieldRoomGuestID, v))
 }
 
+// FiredCourses applies equality check predicate on the "fired_courses" field. It's identical to FiredCoursesEQ.
+func FiredCourses(v int) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEQ(FieldFiredCourses, v))
+}
+
 // EtimsInvoiceNumber applies equality check predicate on the "etims_invoice_number" field. It's identical to EtimsInvoiceNumberEQ.
 func EtimsInvoiceNumber(v string) predicate.POSOrder {
 	return predicate.POSOrder(sql.FieldEQ(FieldEtimsInvoiceNumber, v))
@@ -789,6 +794,46 @@ func RoomGuestIDIsNil() predicate.POSOrder {
 // RoomGuestIDNotNil applies the NotNil predicate on the "room_guest_id" field.
 func RoomGuestIDNotNil() predicate.POSOrder {
 	return predicate.POSOrder(sql.FieldNotNull(FieldRoomGuestID))
+}
+
+// FiredCoursesEQ applies the EQ predicate on the "fired_courses" field.
+func FiredCoursesEQ(v int) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEQ(FieldFiredCourses, v))
+}
+
+// FiredCoursesNEQ applies the NEQ predicate on the "fired_courses" field.
+func FiredCoursesNEQ(v int) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNEQ(FieldFiredCourses, v))
+}
+
+// FiredCoursesIn applies the In predicate on the "fired_courses" field.
+func FiredCoursesIn(vs ...int) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldIn(FieldFiredCourses, vs...))
+}
+
+// FiredCoursesNotIn applies the NotIn predicate on the "fired_courses" field.
+func FiredCoursesNotIn(vs ...int) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNotIn(FieldFiredCourses, vs...))
+}
+
+// FiredCoursesGT applies the GT predicate on the "fired_courses" field.
+func FiredCoursesGT(v int) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldGT(FieldFiredCourses, v))
+}
+
+// FiredCoursesGTE applies the GTE predicate on the "fired_courses" field.
+func FiredCoursesGTE(v int) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldGTE(FieldFiredCourses, v))
+}
+
+// FiredCoursesLT applies the LT predicate on the "fired_courses" field.
+func FiredCoursesLT(v int) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldLT(FieldFiredCourses, v))
+}
+
+// FiredCoursesLTE applies the LTE predicate on the "fired_courses" field.
+func FiredCoursesLTE(v int) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldLTE(FieldFiredCourses, v))
 }
 
 // EtimsInvoiceNumberEQ applies the EQ predicate on the "etims_invoice_number" field.

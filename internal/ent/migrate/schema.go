@@ -1199,6 +1199,7 @@ var (
 		{Name: "room_id", Type: field.TypeUUID, Nullable: true},
 		{Name: "room_guest_id", Type: field.TypeUUID, Nullable: true},
 		{Name: "metadata", Type: field.TypeJSON},
+		{Name: "fired_courses", Type: field.TypeInt, Default: 0},
 		{Name: "etims_invoice_number", Type: field.TypeString, Nullable: true},
 		{Name: "etims_qr_code_url", Type: field.TypeString, Nullable: true},
 		{Name: "voided_reason", Type: field.TypeString, Nullable: true},
@@ -1262,6 +1263,7 @@ var (
 		{Name: "tax_rate", Type: field.TypeFloat64, Nullable: true},
 		{Name: "tax_amount", Type: field.TypeFloat64, Nullable: true},
 		{Name: "price_includes_tax", Type: field.TypeBool, Default: false},
+		{Name: "course_number", Type: field.TypeInt, Default: 0},
 		{Name: "metadata", Type: field.TypeJSON},
 		{Name: "order_id", Type: field.TypeUUID},
 	}
@@ -1273,7 +1275,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "pos_order_lines_pos_orders_lines",
-				Columns:    []*schema.Column{PosOrderLinesColumns[18]},
+				Columns:    []*schema.Column{PosOrderLinesColumns[19]},
 				RefColumns: []*schema.Column{PosOrdersColumns[0]},
 				OnDelete:   schema.NoAction,
 			},

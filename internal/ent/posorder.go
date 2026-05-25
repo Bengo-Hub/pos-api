@@ -49,6 +49,8 @@ type POSOrder struct {
 	RoomGuestID *uuid.UUID `json:"room_guest_id,omitempty"`
 	// Metadata holds the value of the "metadata" field.
 	Metadata map[string]interface{} `json:"metadata,omitempty"`
+	// Highest course number sent to KDS. 0 = no courses fired (all course_number=0 items fire immediately).
+	FiredCourses int `json:"fired_courses,omitempty"`
 	// EtimsInvoiceNumber holds the value of the "etims_invoice_number" field.
 	EtimsInvoiceNumber *string `json:"etims_invoice_number,omitempty"`
 	// EtimsQrCodeURL holds the value of the "etims_qr_code_url" field.
@@ -120,6 +122,8 @@ func (*POSOrder) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case posorder.FieldSubtotal, posorder.FieldTaxTotal, posorder.FieldDiscountTotal, posorder.FieldTotalAmount:
 			values[i] = new(sql.NullFloat64)
+		case posorder.FieldFiredCourses:
+			values[i] = new(sql.NullInt64)
 		case posorder.FieldOrderNumber, posorder.FieldStatus, posorder.FieldCurrency, posorder.FieldOrderSubtype, posorder.FieldEtimsInvoiceNumber, posorder.FieldEtimsQrCodeURL, posorder.FieldVoidedReason:
 			values[i] = new(sql.NullString)
 		case posorder.FieldVoidedAt, posorder.FieldCreatedAt, posorder.FieldUpdatedAt:
@@ -240,6 +244,12 @@ func (_m *POSOrder) assignValues(columns []string, values []any) error {
 				if err := json.Unmarshal(*value, &_m.Metadata); err != nil {
 					return fmt.Errorf("unmarshal field metadata: %w", err)
 				}
+			}
+		case posorder.FieldFiredCourses:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field fired_courses", values[i])
+			} else if value.Valid {
+				_m.FiredCourses = int(value.Int64)
 			}
 		case posorder.FieldEtimsInvoiceNumber:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -387,6 +397,9 @@ func (_m *POSOrder) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("metadata=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Metadata))
+	builder.WriteString(", ")
+	builder.WriteString("fired_courses=")
+	builder.WriteString(fmt.Sprintf("%v", _m.FiredCourses))
 	builder.WriteString(", ")
 	if v := _m.EtimsInvoiceNumber; v != nil {
 		builder.WriteString("etims_invoice_number=")

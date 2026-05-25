@@ -369,3 +369,61 @@ func (h *POSOrderHandler) CaptureSerial(w http.ResponseWriter, r *http.Request) 
 	jsonOK(w, map[string]any{"order_line_id": lineID, "serial_number": input.SerialNumber})
 }
 
+// FireCourse handles POST /{tenantID}/pos/orders/{orderID}/fire-course
+// Marks a course as fired: sets order.fired_courses = course, then creates KDS tickets
+// for all lines whose course_number == course (items with lower courses already fired,
+// course_number=0 items fire at order creation).
+func (h *POSOrderHandler) FireCourse(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+	orderID, err := uuid.Parse(chi.URLParam(r, "orderID"))
+	if err != nil {
+		jsonError(w, "invalid order_id", http.StatusBadRequest)
+		return
+	}
+
+	var input struct {
+		Course int `json:"course"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil || input.Course < 1 || input.Course > 9 {
+		jsonError(w, "course must be 1–9", http.StatusBadRequest)
+		return
+	}
+
+	order, err := h.client.POSOrder.Query().
+		Where(posorder.ID(orderID), posorder.TenantID(tid)).
+		WithLines().
+		Only(r.Context())
+	if err != nil {
+		jsonError(w, "order not found", http.StatusNotFound)
+		return
+	}
+
+	if input.Course <= order.FiredCourses {
+		jsonError(w, "course already fired", http.StatusConflict)
+		return
+	}
+
+	// Update the order's fired_courses watermark
+	updated, err := order.Update().SetFiredCourses(input.Course).Save(r.Context())
+	if err != nil {
+		h.log.Error("fire-course: update failed", zap.Error(err))
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	// Trigger KDS ticket creation for all lines belonging to the fired course
+	if err := h.orderSvc.FireCourseKDS(r.Context(), tid, order, input.Course); err != nil {
+		h.log.Warn("fire-course: KDS ticket creation partially failed", zap.Error(err))
+	}
+
+	jsonOK(w, map[string]any{
+		"order_id":      orderID,
+		"fired_courses": updated.FiredCourses,
+		"course":        input.Course,
+	})
+}
+

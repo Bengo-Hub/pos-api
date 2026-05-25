@@ -290,8 +290,13 @@ func New(ctx context.Context) (*App, error) {
 		}
 	}
 
+	// Wire KDS hub into order service and ordering subscriber so new tickets
+	// broadcast immediately to connected KDS WebSocket clients.
+	orderSvc.SetKDSHub(kdsHandler.Hub())
+
 	// Subscribe to ordering.order.status.changed to create/update KDS tickets (Sprint 13)
 	kdsOrderingSubscriber := ordermodule.NewKDSOrderingSubscriber(entClient, log)
+	kdsOrderingSubscriber.SetKDSHub(kdsHandler.Hub())
 	if natsConn != nil {
 		if eventPub := orderSvc.GetPublisher(); eventPub != nil {
 			kdsOrderingSubscriber.SetPublisher(eventPub)

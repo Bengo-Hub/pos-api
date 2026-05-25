@@ -50,6 +50,11 @@ func (POSOrder) Fields() []ent.Field {
 			Comment("Room service: linked guest stay"),
 		field.JSON("metadata", map[string]any{}).
 			Default(map[string]any{}),
+		// Course firing: tracks the highest course number whose items have been sent to the kitchen.
+		// KDS shows items with course_number <= fired_courses; higher courses stay hidden until fired.
+		field.Int("fired_courses").
+			Default(0).
+			Comment("Highest course number sent to KDS. 0 = no courses fired (all course_number=0 items fire immediately)."),
 		// eTIMS fields — set by treasury.etims.invoice_transmitted NATS subscriber.
 		// treasury-api owns eTIMS submission; pos-api only stores the outcome for receipt generation.
 		field.String("etims_invoice_number").

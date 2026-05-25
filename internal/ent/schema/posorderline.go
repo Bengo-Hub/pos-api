@@ -66,6 +66,9 @@ func (POSOrderLine) Fields() []ent.Field {
 		field.Bool("price_includes_tax").
 			Default(false).
 			Comment("True when unit_price is VAT-inclusive; tax_amount is back-calculated"),
+		field.Int("course_number").
+			Default(0).
+			Comment("Course firing order: 0=immediate, 1=starter, 2=main, 3=dessert. KDS hides items with course_number > order.fired_courses."),
 		field.JSON("metadata", map[string]any{}).
 			Default(map[string]any{}),
 	}

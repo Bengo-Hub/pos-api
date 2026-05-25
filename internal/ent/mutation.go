@@ -38483,6 +38483,8 @@ type POSOrderMutation struct {
 	room_id              *uuid.UUID
 	room_guest_id        *uuid.UUID
 	metadata             *map[string]interface{}
+	fired_courses        *int
+	addfired_courses     *int
 	etims_invoice_number *string
 	etims_qr_code_url    *string
 	voided_reason        *string
@@ -39255,6 +39257,62 @@ func (m *POSOrderMutation) ResetMetadata() {
 	m.metadata = nil
 }
 
+// SetFiredCourses sets the "fired_courses" field.
+func (m *POSOrderMutation) SetFiredCourses(i int) {
+	m.fired_courses = &i
+	m.addfired_courses = nil
+}
+
+// FiredCourses returns the value of the "fired_courses" field in the mutation.
+func (m *POSOrderMutation) FiredCourses() (r int, exists bool) {
+	v := m.fired_courses
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFiredCourses returns the old "fired_courses" field's value of the POSOrder entity.
+// If the POSOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSOrderMutation) OldFiredCourses(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFiredCourses is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFiredCourses requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFiredCourses: %w", err)
+	}
+	return oldValue.FiredCourses, nil
+}
+
+// AddFiredCourses adds i to the "fired_courses" field.
+func (m *POSOrderMutation) AddFiredCourses(i int) {
+	if m.addfired_courses != nil {
+		*m.addfired_courses += i
+	} else {
+		m.addfired_courses = &i
+	}
+}
+
+// AddedFiredCourses returns the value that was added to the "fired_courses" field in this mutation.
+func (m *POSOrderMutation) AddedFiredCourses() (r int, exists bool) {
+	v := m.addfired_courses
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetFiredCourses resets all changes to the "fired_courses" field.
+func (m *POSOrderMutation) ResetFiredCourses() {
+	m.fired_courses = nil
+	m.addfired_courses = nil
+}
+
 // SetEtimsInvoiceNumber sets the "etims_invoice_number" field.
 func (m *POSOrderMutation) SetEtimsInvoiceNumber(s string) {
 	m.etims_invoice_number = &s
@@ -39768,7 +39826,7 @@ func (m *POSOrderMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *POSOrderMutation) Fields() []string {
-	fields := make([]string, 0, 22)
+	fields := make([]string, 0, 23)
 	if m.tenant_id != nil {
 		fields = append(fields, posorder.FieldTenantID)
 	}
@@ -39813,6 +39871,9 @@ func (m *POSOrderMutation) Fields() []string {
 	}
 	if m.metadata != nil {
 		fields = append(fields, posorder.FieldMetadata)
+	}
+	if m.fired_courses != nil {
+		fields = append(fields, posorder.FieldFiredCourses)
 	}
 	if m.etims_invoice_number != nil {
 		fields = append(fields, posorder.FieldEtimsInvoiceNumber)
@@ -39873,6 +39934,8 @@ func (m *POSOrderMutation) Field(name string) (ent.Value, bool) {
 		return m.RoomGuestID()
 	case posorder.FieldMetadata:
 		return m.Metadata()
+	case posorder.FieldFiredCourses:
+		return m.FiredCourses()
 	case posorder.FieldEtimsInvoiceNumber:
 		return m.EtimsInvoiceNumber()
 	case posorder.FieldEtimsQrCodeURL:
@@ -39926,6 +39989,8 @@ func (m *POSOrderMutation) OldField(ctx context.Context, name string) (ent.Value
 		return m.OldRoomGuestID(ctx)
 	case posorder.FieldMetadata:
 		return m.OldMetadata(ctx)
+	case posorder.FieldFiredCourses:
+		return m.OldFiredCourses(ctx)
 	case posorder.FieldEtimsInvoiceNumber:
 		return m.OldEtimsInvoiceNumber(ctx)
 	case posorder.FieldEtimsQrCodeURL:
@@ -40054,6 +40119,13 @@ func (m *POSOrderMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetMetadata(v)
 		return nil
+	case posorder.FieldFiredCourses:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFiredCourses(v)
+		return nil
 	case posorder.FieldEtimsInvoiceNumber:
 		v, ok := value.(string)
 		if !ok {
@@ -40123,6 +40195,9 @@ func (m *POSOrderMutation) AddedFields() []string {
 	if m.addtotal_amount != nil {
 		fields = append(fields, posorder.FieldTotalAmount)
 	}
+	if m.addfired_courses != nil {
+		fields = append(fields, posorder.FieldFiredCourses)
+	}
 	return fields
 }
 
@@ -40139,6 +40214,8 @@ func (m *POSOrderMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedDiscountTotal()
 	case posorder.FieldTotalAmount:
 		return m.AddedTotalAmount()
+	case posorder.FieldFiredCourses:
+		return m.AddedFiredCourses()
 	}
 	return nil, false
 }
@@ -40175,6 +40252,13 @@ func (m *POSOrderMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddTotalAmount(v)
+		return nil
+	case posorder.FieldFiredCourses:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddFiredCourses(v)
 		return nil
 	}
 	return fmt.Errorf("unknown POSOrder numeric field %s", name)
@@ -40292,6 +40376,9 @@ func (m *POSOrderMutation) ResetField(name string) error {
 		return nil
 	case posorder.FieldMetadata:
 		m.ResetMetadata()
+		return nil
+	case posorder.FieldFiredCourses:
+		m.ResetFiredCourses()
 		return nil
 	case posorder.FieldEtimsInvoiceNumber:
 		m.ResetEtimsInvoiceNumber()
@@ -41107,6 +41194,8 @@ type POSOrderLineMutation struct {
 	tax_amount         *float64
 	addtax_amount      *float64
 	price_includes_tax *bool
+	course_number      *int
+	addcourse_number   *int
 	metadata           *map[string]interface{}
 	clearedFields      map[string]struct{}
 	_order             *uuid.UUID
@@ -42096,6 +42185,62 @@ func (m *POSOrderLineMutation) ResetPriceIncludesTax() {
 	m.price_includes_tax = nil
 }
 
+// SetCourseNumber sets the "course_number" field.
+func (m *POSOrderLineMutation) SetCourseNumber(i int) {
+	m.course_number = &i
+	m.addcourse_number = nil
+}
+
+// CourseNumber returns the value of the "course_number" field in the mutation.
+func (m *POSOrderLineMutation) CourseNumber() (r int, exists bool) {
+	v := m.course_number
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCourseNumber returns the old "course_number" field's value of the POSOrderLine entity.
+// If the POSOrderLine object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSOrderLineMutation) OldCourseNumber(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCourseNumber is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCourseNumber requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCourseNumber: %w", err)
+	}
+	return oldValue.CourseNumber, nil
+}
+
+// AddCourseNumber adds i to the "course_number" field.
+func (m *POSOrderLineMutation) AddCourseNumber(i int) {
+	if m.addcourse_number != nil {
+		*m.addcourse_number += i
+	} else {
+		m.addcourse_number = &i
+	}
+}
+
+// AddedCourseNumber returns the value that was added to the "course_number" field in this mutation.
+func (m *POSOrderLineMutation) AddedCourseNumber() (r int, exists bool) {
+	v := m.addcourse_number
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetCourseNumber resets all changes to the "course_number" field.
+func (m *POSOrderLineMutation) ResetCourseNumber() {
+	m.course_number = nil
+	m.addcourse_number = nil
+}
+
 // SetMetadata sets the "metadata" field.
 func (m *POSOrderLineMutation) SetMetadata(value map[string]interface{}) {
 	m.metadata = &value
@@ -42247,7 +42392,7 @@ func (m *POSOrderLineMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *POSOrderLineMutation) Fields() []string {
-	fields := make([]string, 0, 18)
+	fields := make([]string, 0, 19)
 	if m._order != nil {
 		fields = append(fields, posorderline.FieldOrderID)
 	}
@@ -42299,6 +42444,9 @@ func (m *POSOrderLineMutation) Fields() []string {
 	if m.price_includes_tax != nil {
 		fields = append(fields, posorderline.FieldPriceIncludesTax)
 	}
+	if m.course_number != nil {
+		fields = append(fields, posorderline.FieldCourseNumber)
+	}
 	if m.metadata != nil {
 		fields = append(fields, posorderline.FieldMetadata)
 	}
@@ -42344,6 +42492,8 @@ func (m *POSOrderLineMutation) Field(name string) (ent.Value, bool) {
 		return m.TaxAmount()
 	case posorderline.FieldPriceIncludesTax:
 		return m.PriceIncludesTax()
+	case posorderline.FieldCourseNumber:
+		return m.CourseNumber()
 	case posorderline.FieldMetadata:
 		return m.Metadata()
 	}
@@ -42389,6 +42539,8 @@ func (m *POSOrderLineMutation) OldField(ctx context.Context, name string) (ent.V
 		return m.OldTaxAmount(ctx)
 	case posorderline.FieldPriceIncludesTax:
 		return m.OldPriceIncludesTax(ctx)
+	case posorderline.FieldCourseNumber:
+		return m.OldCourseNumber(ctx)
 	case posorderline.FieldMetadata:
 		return m.OldMetadata(ctx)
 	}
@@ -42519,6 +42671,13 @@ func (m *POSOrderLineMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetPriceIncludesTax(v)
 		return nil
+	case posorderline.FieldCourseNumber:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCourseNumber(v)
+		return nil
 	case posorderline.FieldMetadata:
 		v, ok := value.(map[string]interface{})
 		if !ok {
@@ -42555,6 +42714,9 @@ func (m *POSOrderLineMutation) AddedFields() []string {
 	if m.addtax_amount != nil {
 		fields = append(fields, posorderline.FieldTaxAmount)
 	}
+	if m.addcourse_number != nil {
+		fields = append(fields, posorderline.FieldCourseNumber)
+	}
 	return fields
 }
 
@@ -42577,6 +42739,8 @@ func (m *POSOrderLineMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedTaxRate()
 	case posorderline.FieldTaxAmount:
 		return m.AddedTaxAmount()
+	case posorderline.FieldCourseNumber:
+		return m.AddedCourseNumber()
 	}
 	return nil, false
 }
@@ -42634,6 +42798,13 @@ func (m *POSOrderLineMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddTaxAmount(v)
+		return nil
+	case posorderline.FieldCourseNumber:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCourseNumber(v)
 		return nil
 	}
 	return fmt.Errorf("unknown POSOrderLine numeric field %s", name)
@@ -42769,6 +42940,9 @@ func (m *POSOrderLineMutation) ResetField(name string) error {
 		return nil
 	case posorderline.FieldPriceIncludesTax:
 		m.ResetPriceIncludesTax()
+		return nil
+	case posorderline.FieldCourseNumber:
+		m.ResetCourseNumber()
 		return nil
 	case posorderline.FieldMetadata:
 		m.ResetMetadata()
