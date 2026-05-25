@@ -88,10 +88,12 @@ func (h *KDSHandler) ListStations(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	stations, err := h.client.KDSStation.Query().
-		Where(entkdsstation.TenantID(tid), entkdsstation.IsActive(true)).
-		Order(ent.Asc(entkdsstation.FieldSortOrder)).
-		All(r.Context())
+	// ?all=true returns inactive stations too (used by the settings UI for management)
+	q := h.client.KDSStation.Query().Where(entkdsstation.TenantID(tid))
+	if r.URL.Query().Get("all") != "true" {
+		q = q.Where(entkdsstation.IsActive(true))
+	}
+	stations, err := q.Order(ent.Asc(entkdsstation.FieldSortOrder)).All(r.Context())
 	if err != nil {
 		h.log.Error("list kds stations failed", zap.Error(err))
 		jsonError(w, "internal error", http.StatusInternalServerError)
@@ -461,6 +463,38 @@ func (h *KDSHandler) UpdateStation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	jsonOK(w, updated)
+}
+
+// DeleteStation handles DELETE /{tenantID}/pos/kds/stations/{id}
+// Hard-deletes the station. Existing tickets are preserved (station_id becomes orphaned
+// but historical data is intact). Rejects if the station has active (non-served/non-voided) tickets.
+func (h *KDSHandler) DeleteStation(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+	stationID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		jsonError(w, "invalid station id", http.StatusBadRequest)
+		return
+	}
+
+	station, err := h.client.KDSStation.Query().
+		Where(entkdsstation.ID(stationID), entkdsstation.TenantID(tid)).
+		Only(r.Context())
+	if err != nil {
+		jsonError(w, "station not found", http.StatusNotFound)
+		return
+	}
+
+	if err := h.client.KDSStation.DeleteOne(station).Exec(r.Context()); err != nil {
+		h.log.Error("delete kds station failed", zap.Error(err))
+		jsonError(w, "delete failed", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func containsCaseInsensitive(s, substr string) bool {
