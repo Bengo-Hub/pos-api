@@ -41,6 +41,7 @@ type createOrderLineInput struct {
 	Quantity      float64                `json:"quantity"`
 	UnitPrice     float64                `json:"unit_price"`
 	TotalPrice    float64                `json:"total_price"`
+	CourseNumber  int                    `json:"course_number"` // 0=fire immediately, 1=Starter, 2=Main, 3=Dessert
 	Metadata      map[string]interface{} `json:"metadata"`
 }
 
@@ -218,6 +219,7 @@ func (h *POSOrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 			Quantity:      l.Quantity,
 			UnitPrice:     l.UnitPrice,
 			TotalPrice:    l.TotalPrice,
+			CourseNumber:  l.CourseNumber,
 			Metadata:      l.Metadata,
 		}
 	}

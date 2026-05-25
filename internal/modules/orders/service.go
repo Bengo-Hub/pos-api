@@ -56,16 +56,17 @@ type CreateOrderRequest struct {
 
 // OrderLineInput represents a single line item in an order.
 type OrderLineInput struct {
-	CatalogItemID   uuid.UUID
-	SKU             string
-	Name            string
-	Quantity        float64
-	UnitPrice       float64
-	TotalPrice      float64
-	TaxStatus       string         // "taxable", "exempt", "zero_rated"
-	TaxCodeID       string         // Treasury TaxCode.code (e.g. "VAT-16"); empty = use service default
-	PriceIncludesTax bool          // True if UnitPrice is VAT-inclusive
-	Metadata        map[string]any // modifiers, notes, serial numbers, etc.
+	CatalogItemID    uuid.UUID
+	SKU              string
+	Name             string
+	Quantity         float64
+	UnitPrice        float64
+	TotalPrice       float64
+	TaxStatus        string         // "taxable", "exempt", "zero_rated"
+	TaxCodeID        string         // Treasury TaxCode.code (e.g. "VAT-16"); empty = use service default
+	PriceIncludesTax bool           // True if UnitPrice is VAT-inclusive
+	CourseNumber     int            // 0=fire immediately, 1=Starter, 2=Main, 3=Dessert (0 = default)
+	Metadata         map[string]any // modifiers, notes, serial numbers, etc.
 }
 
 // OrderTotals holds calculated totals for an order.
@@ -261,6 +262,7 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent
 			SetUnitPrice(line.UnitPrice).
 			SetTotalPrice(lineTotal.InexactFloat64()).
 			SetPriceIncludesTax(priceIncludesTax).
+			SetCourseNumber(line.CourseNumber).
 			SetMetadata(meta)
 
 		if taxCodeID != "" {
