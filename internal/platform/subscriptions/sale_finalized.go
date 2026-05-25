@@ -155,6 +155,56 @@ func (s *SaleFinalizedSubscriber) autoEarnLoyalty(ctx context.Context, tenantID,
 	if err != nil {
 		s.logger.Error("sale.finalized: failed to create loyalty transaction", zap.Error(err))
 	}
+
+	// Publish tier upgrade event if the customer crossed a tier threshold.
+	oldTier := evaluateTier(prog.TierThresholds, account.LifetimePoints)
+	newTier := evaluateTier(prog.TierThresholds, newLifetime)
+	if oldTier != newTier && s.publisher != nil {
+		crmContactID := ""
+		if account.CrmContactID != nil {
+			crmContactID = account.CrmContactID.String()
+		}
+		_ = s.publisher.PublishLoyaltyTierUpgraded(ctx, tenantID, map[string]any{
+			"account_id":      account.ID.String(),
+			"customer_phone":  account.CustomerPhone,
+			"customer_name":   account.CustomerName,
+			"crm_contact_id":  crmContactID,
+			"old_tier":        oldTier,
+			"new_tier":        newTier,
+			"lifetime_points": newLifetime,
+			"program_id":      prog.ID.String(),
+		})
+		s.logger.Info("loyalty tier upgraded",
+			zap.String("phone", account.CustomerPhone),
+			zap.String("old_tier", oldTier),
+			zap.String("new_tier", newTier),
+		)
+	}
+}
+
+// evaluateTier returns the highest tier name the customer qualifies for based on lifetime points.
+// The program's tier_thresholds map encodes "tier_name" → min_lifetime_points.
+// Returns "member" when no threshold is defined or none are reached.
+func evaluateTier(thresholds map[string]any, lifetimePoints int) string {
+	best := ""
+	bestMin := -1
+	for tier, raw := range thresholds {
+		var minPts int
+		switch v := raw.(type) {
+		case float64:
+			minPts = int(v)
+		case int:
+			minPts = v
+		}
+		if lifetimePoints >= minPts && minPts > bestMin {
+			bestMin = minPts
+			best = tier
+		}
+	}
+	if best == "" {
+		return "member"
+	}
+	return best
 }
 
 func (s *SaleFinalizedSubscriber) autoCreateCommissions(ctx context.Context, tenantID, orderID uuid.UUID, p saleFinalizedPayload) {
