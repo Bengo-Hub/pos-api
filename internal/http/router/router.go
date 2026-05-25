@@ -60,6 +60,7 @@ func New(
 	notifications *handlers.NotificationsHandler,
 	queue *handlers.QueueHandler,
 	billSplits *handlers.BillSplitHandler,
+	resources *handlers.ResourceHandler,
 	allowedOrigins []string,
 	redisClient *redis.Client,
 ) http.Handler {
@@ -357,6 +358,7 @@ func New(
 							ph.Get("/pharmacy/prescriptions/{prescriptionID}", pharmacy.GetPrescription)
 							ph.Post("/pharmacy/prescriptions/{prescriptionID}/dispense", pharmacy.Dispense)
 							ph.Post("/pharmacy/interaction-checks", pharmacy.CreateInteractionCheck)
+							ph.Get("/pharmacy/patients", pharmacy.ListPatients)
 						})
 					}
 
@@ -384,6 +386,16 @@ func New(
 							svc.Get("/queue", queue.List)
 							svc.Post("/queue/entries", queue.Create)
 							svc.Patch("/queue/entries/{entryID}/status", queue.UpdateStatus)
+						})
+					}
+
+					// Resources — services use_case (chairs, rooms, equipment)
+					if resources != nil {
+						pos.Group(func(svc chi.Router) {
+							svc.Use(outletmw.RequireUseCase("services"))
+							svc.Get("/resources", resources.List)
+							svc.Post("/resources", resources.Create)
+							svc.Patch("/resources/{resourceID}", resources.PatchStatus)
 						})
 					}
 

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/nats-io/nats.go"
@@ -16,13 +17,14 @@ import (
 )
 
 // InventoryItemEvent represents an inventory item event from inventory-service.
+// JSON fields match the shared-events library Event struct.
 type InventoryItemEvent struct {
 	ID            string                 `json:"id"`
-	TenantID      string                 `json:"tenantId"`
-	AggregateType string                 `json:"aggregateType"`
-	AggregateID   string                 `json:"aggregateId"`
-	EventType     string                 `json:"type"`
-	Data          map[string]interface{} `json:"data"`
+	TenantID      string                 `json:"tenant_id"`
+	AggregateType string                 `json:"aggregate_type"`
+	AggregateID   string                 `json:"aggregate_id"`
+	EventType     string                 `json:"event_type"`
+	Data          map[string]interface{} `json:"payload"`
 	Timestamp     string                 `json:"timestamp"`
 }
 
@@ -40,68 +42,64 @@ func NewInventoryEventHandler(client *ent.Client, logger *zap.Logger) *Inventory
 	}
 }
 
-// SubscribeToInventoryEvents subscribes to inventory-service events via NATS.
+// SubscribeToInventoryEvents subscribes to inventory-service events via JetStream.
 func (h *InventoryEventHandler) SubscribeToInventoryEvents(nc *nats.Conn) error {
-	// Subscribe to inventory.item.created
-	_, err := nc.Subscribe("inventory.item.created", func(msg *nats.Msg) {
+	js, err := nc.JetStream()
+	if err != nil {
+		return fmt.Errorf("pos catalog: jetstream init: %w", err)
+	}
+
+	// Ensure the inventory stream exists (inventory-api creates it, but may not be ready at pos-api start)
+	if _, err := js.StreamInfo("inventory"); err != nil {
+		_, addErr := js.AddStream(&nats.StreamConfig{
+			Name:      "inventory",
+			Subjects:  []string{"inventory.>"},
+			Retention: nats.LimitsPolicy,
+			MaxAge:    72 * time.Hour,
+			Storage:   nats.FileStorage,
+		})
+		if addErr != nil && addErr != nats.ErrStreamNameAlreadyInUse {
+			return fmt.Errorf("pos catalog: ensure inventory stream: %w", addErr)
+		}
+	}
+
+	upsertHandler := func(msg *nats.Msg) {
 		var evt InventoryItemEvent
 		if err := json.Unmarshal(msg.Data, &evt); err != nil {
-			h.logger.Error("failed to unmarshal inventory.item.created event", zap.Error(err))
+			h.logger.Error("catalog sync: unmarshal failed", zap.Error(err))
+			_ = msg.Nak()
 			return
 		}
-
-		ctx := context.Background()
-		if err := h.handleItemUpsert(ctx, &evt); err != nil {
-			h.logger.Error("failed to handle inventory.item.created event", zap.Error(err))
-			return
-		}
-		_ = msg.Ack()
-	})
-	if err != nil {
-		return fmt.Errorf("pos catalog: subscribe to inventory.item.created: %w", err)
-	}
-
-	// Subscribe to inventory.item.updated
-	_, err = nc.Subscribe("inventory.item.updated", func(msg *nats.Msg) {
-		var evt InventoryItemEvent
-		if err := json.Unmarshal(msg.Data, &evt); err != nil {
-			h.logger.Error("failed to unmarshal inventory.item.updated event", zap.Error(err))
-			return
-		}
-
-		ctx := context.Background()
-		if err := h.handleItemUpsert(ctx, &evt); err != nil {
-			h.logger.Error("failed to handle inventory.item.updated event", zap.Error(err))
+		if err := h.handleItemUpsert(context.Background(), &evt); err != nil {
+			h.logger.Error("catalog sync: upsert failed", zap.Error(err))
+			_ = msg.Nak()
 			return
 		}
 		_ = msg.Ack()
-	})
-	if err != nil {
-		return fmt.Errorf("pos catalog: subscribe to inventory.item.updated: %w", err)
 	}
 
-	// Subscribe to inventory.stock.low — log the alert; manager notifications handled downstream
-	_, err = nc.Subscribe("inventory.stock.low", func(msg *nats.Msg) {
-		var payload map[string]any
-		if jsonErr := json.Unmarshal(msg.Data, &payload); jsonErr != nil {
-			h.logger.Warn("inventory.stock.low: bad payload", zap.Error(jsonErr))
-			return
+	type sub struct {
+		subject string
+		durable string
+	}
+	subs := []sub{
+		{"inventory.item.created", "pos-catalog-item-created"},
+		{"inventory.item.updated", "pos-catalog-item-updated"},
+	}
+	for _, s := range subs {
+		if _, err := js.Subscribe(s.subject, upsertHandler,
+			nats.Durable(s.durable),
+			nats.AckExplicit(),
+			nats.AckWait(30*time.Second),
+			nats.MaxDeliver(5),
+			nats.DeliverAll(),
+		); err != nil {
+			h.logger.Warn("pos catalog: subscribe failed", zap.String("subject", s.subject), zap.Error(err))
 		}
-		sku, _ := payload["sku"].(string)
-		name, _ := payload["name"].(string)
-		qty, _ := payload["quantity"].(float64)
-		h.logger.Warn("inventory stock low alert",
-			zap.String("sku", sku),
-			zap.String("name", name),
-			zap.Float64("quantity", qty))
-		_ = msg.Ack()
-	})
-	if err != nil {
-		h.logger.Warn("pos catalog: subscribe to inventory.stock.low failed (non-fatal)", zap.Error(err))
 	}
 
-	h.logger.Info("inventory event subscriptions active",
-		zap.String("subjects", "inventory.item.created, inventory.item.updated, inventory.stock.low"))
+	h.logger.Info("inventory catalog sync subscriptions active",
+		zap.String("subjects", "inventory.item.created, inventory.item.updated"))
 	return nil
 }
 

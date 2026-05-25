@@ -1,8 +1,8 @@
 # Sprint 9: Service Business Module — pos-api
 
-**Status:** ✅ Core Delivered — appointments, staff schedules, and commissions shipped; walk-in queue, packages, client records, and resources pending  
+**Status:** ✅ Core Delivered — appointments (full CRUD + all status actions), staff schedules, commissions, walk-in queue, and resource management shipped; packages, client records CRUD, and commission rules/payout pending  
 **Period:** September–October 2026  
-**Last updated:** 2026-05-21  
+**Last updated:** 2026-05-25  
 **Goal:** Appointments, staff commissions, service queues, and packages for barbershop/salon, clinic, car wash, and service-based businesses
 
 ---
@@ -24,10 +24,11 @@ The `Appointment`, `StaffMember`, and `CommissionRecord` schemas already exist i
 ## Deliverables
 
 ### Appointment Management (complete HTTP layer)
-- [ ] `GET /{tenant}/pos/appointments` — list (filter: date, staff_id, status, outlet_id)
-- [ ] `GET /{tenant}/pos/appointments/{id}` — detail with staff + service + client info
-- [ ] `POST /{tenant}/pos/appointments` — create appointment (client, staff, service, start_time, duration_minutes)
-- [ ] `PATCH /{tenant}/pos/appointments/{id}` — update (reschedule, reassign staff)
+- [x] `GET /{tenant}/pos/appointments` — list (filter: date, staff_id, status, outlet_id)
+- [x] `GET /{tenant}/pos/appointments/{id}` — detail with staff + service + client info
+- [x] `POST /{tenant}/pos/appointments` — create appointment (client, staff, service, start_time, duration_minutes, deposit)
+- [x] `PUT /{tenant}/pos/appointments/{id}` — update (reschedule, reassign staff)
+- [x] `GET /{tenant}/pos/appointments/availability` — available slots for a staff/date
 - [x] `POST /{tenant}/pos/appointments/{id}/check-in` — mark client arrived (status → confirmed)
 - [x] `POST /{tenant}/pos/appointments/{id}/start` — mark service in progress (status → in_progress)
 - [x] `POST /{tenant}/pos/appointments/{id}/complete` — mark complete (status → completed)
@@ -36,13 +37,11 @@ The `Appointment`, `StaffMember`, and `CommissionRecord` schemas already exist i
 - [ ] Validation: no double-booking for same staff at same time slot; resource conflicts checked
 
 ### Walk-In Service Queue
-- [ ] `ServiceQueueEntry` schema — `id, tenant_id, outlet_id, client_name, client_phone (nullable), service_id (FK → CatalogItem), staff_id (nullable, assigned or auto-assigned), queue_position (int), status (waiting|in_progress|done|left), checked_in_at, started_at, completed_at, estimated_wait_minutes`
-- [ ] `POST /{tenant}/pos/queue` — add walk-in to queue
-- [ ] `GET /{tenant}/pos/queue` — list active queue (ordered by position)
-- [ ] `POST /{tenant}/pos/queue/{id}/assign` — assign staff to entry
-- [ ] `POST /{tenant}/pos/queue/{id}/start` — start service
-- [ ] `POST /{tenant}/pos/queue/{id}/complete` — complete + create POS order
-- [ ] `DELETE /{tenant}/pos/queue/{id}` — remove from queue (left/cancelled)
+- [x] `ServiceQueueEntry` schema (`internal/ent/schema/servicequeueentry.go`)
+- [x] `POST /{tenant}/pos/queue/entries` — add walk-in to queue
+- [x] `GET /{tenant}/pos/queue` — list active queue (ordered by position)
+- [x] `PATCH /{tenant}/pos/queue/entries/{entryID}/status` — update status (waiting → in_progress → done/left)
+- [ ] `POST /{tenant}/pos/queue/{id}/assign` — explicit staff assignment endpoint
 - [ ] Auto-estimate wait time based on active service durations ahead in queue
 
 ### Staff Member Management (complete HTTP layer)
@@ -82,10 +81,12 @@ The `Appointment`, `StaffMember`, and `CommissionRecord` schemas already exist i
 - [ ] Auto-link appointments and orders to client via phone number
 
 ### Resource / Bay Management
-- [ ] `ServiceResource` schema — `id, tenant_id, outlet_id, name, resource_type (chair|bay|room|equipment), is_active`
-- [ ] Appointment can be linked to a resource (e.g., car wash bay, styling chair)
-- [ ] `GET /{tenant}/pos/resources` — list resources + current occupancy
-- [ ] Resource conflict detection in appointment booking
+- [x] `Resource` schema (`internal/ent/schema/resource.go`) — `id, tenant_id, outlet_id, name, type (chair|room|table|equipment|general), status (available|occupied|maintenance|reserved), notes, timestamps`
+- [x] `GET /{tenant}/pos/resources` — list resources (filter: type, status); gated by `RequireUseCase("services")`
+- [x] `POST /{tenant}/pos/resources` — create resource
+- [x] `PATCH /{tenant}/pos/resources/{id}` — update status/notes
+- [x] Atlas migration generated: `20260525004518_add_resources_and_pharmacy_patients.sql`
+- [ ] Appointment can be linked to a resource (resource conflict detection in booking)
 
 ### RBAC Additions
 - [ ] New permissions: `pos.appointments.view`, `pos.appointments.change`, `pos.appointments.manage`
@@ -97,22 +98,24 @@ The `Appointment`, `StaffMember`, and `CommissionRecord` schemas already exist i
 - [ ] New system roles: `stylist`, `therapist`, `technician` (service staff roles with limited RBAC)
 
 ### Migration
-- [ ] Add `ServiceQueueEntry` ent schema
-- [ ] Add `CommissionRule` ent schema
-- [ ] Add `ServicePackage`, `ServicePackagePurchase`, `ServicePackageRedemption` ent schemas
-- [ ] Add `ClientRecord` ent schema
-- [ ] Add `ServiceResource` ent schema
+- [x] `ServiceQueueEntry` ent schema — shipped in prior sprint
+- [x] `Resource` ent schema — `20260525004518_add_resources_and_pharmacy_patients.sql`
+- [x] `go generate ./internal/ent` — all ent files generated
+- [ ] `CommissionRule` ent schema
+- [ ] `ServicePackage`, `ServicePackagePurchase`, `ServicePackageRedemption` ent schemas
+- [ ] `ClientRecord` ent schema
 - [ ] Wire `CommissionRecord` creation into `orders.Service.Complete()`
-- [ ] Run `go generate ./internal/ent`
-- [ ] Generate Atlas migration: `service_module`
 - [ ] Update `docs/erd.md`
 
-## Completion Notes (2026-05-21)
+## Completion Notes (2026-05-25)
 
-Appointment CRUD (list/create/get/update/availability), staff schedules (list/upsert by day-of-week in `staff_schedule.go`), and basic commission records (list/get in `commissions.go`) are shipped and registered in the router. All appointment action endpoints (check-in/start/complete/cancel/no-show), walk-in queue, commission rules and payout, service packages, client records, and bay/resource management remain unimplemented.
+Full appointment CRUD and all status action endpoints are shipped. Walk-in queue (list/create/patch status) is implemented under `RequireUseCase("services")`. Resource management (list/create/patch status) is implemented with `Resource` ent schema and Atlas migration. Commission records (list/get) are shipped. Service packages, client records CRUD, commission rules/payout, and appointment-to-resource conflict detection remain unimplemented.
 
 Implemented route coverage:
 - `GET /appointments`, `POST /appointments`, `GET /appointments/availability`, `GET /appointments/{id}`, `PUT /appointments/{id}` — all under `RequireUseCase("services")`
+- `POST /appointments/{id}/check-in`, `POST /appointments/{id}/start`, `POST /appointments/{id}/complete`, `POST /appointments/{id}/cancel`, `POST /appointments/{id}/no-show`
+- `GET /queue`, `POST /queue/entries`, `PATCH /queue/entries/{entryID}/status` — under `RequireUseCase("services")`
+- `GET /resources`, `POST /resources`, `PATCH /resources/{resourceID}` — under `RequireUseCase("services")`
 - `GET /staff/{staffID}/schedule`, `PUT /staff/{staffID}/schedule`
 - `GET /commissions`, `GET /commissions/{id}`
 

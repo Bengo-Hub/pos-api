@@ -1670,6 +1670,41 @@ var (
 			},
 		},
 	}
+	// ResourcesColumns holds the columns for the "resources" table.
+	ResourcesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "outlet_id", Type: field.TypeUUID},
+		{Name: "name", Type: field.TypeString},
+		{Name: "type", Type: field.TypeString, Default: "general"},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"available", "occupied", "maintenance", "reserved"}, Default: "available"},
+		{Name: "notes", Type: field.TypeString, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// ResourcesTable holds the schema information for the "resources" table.
+	ResourcesTable = &schema.Table{
+		Name:       "resources",
+		Columns:    ResourcesColumns,
+		PrimaryKey: []*schema.Column{ResourcesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "resource_tenant_id_outlet_id",
+				Unique:  false,
+				Columns: []*schema.Column{ResourcesColumns[1], ResourcesColumns[2]},
+			},
+			{
+				Name:    "resource_tenant_id_outlet_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{ResourcesColumns[1], ResourcesColumns[2], ResourcesColumns[5]},
+			},
+			{
+				Name:    "resource_tenant_id_outlet_id_type",
+				Unique:  false,
+				Columns: []*schema.Column{ResourcesColumns[1], ResourcesColumns[2], ResourcesColumns[4]},
+			},
+		},
+	}
 	// RoomsColumns holds the columns for the "rooms" table.
 	RoomsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -2436,6 +2471,7 @@ var (
 		PromotionApplicationsTable,
 		PromotionRulesTable,
 		RateLimitConfigsTable,
+		ResourcesTable,
 		RoomsTable,
 		RoomFolioItemsTable,
 		RoomGuestsTable,

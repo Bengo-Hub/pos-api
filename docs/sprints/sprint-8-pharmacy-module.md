@@ -1,8 +1,8 @@
 # Sprint 8: Pharmacy Module — pos-api
 
-**Status:** ✅ Core Delivered — prescriptions, drug interaction checks, and dispense endpoint shipped; controlled substance register and age verification pending  
+**Status:** ✅ Core Delivered — prescriptions, drug interaction checks, dispense, and patient list shipped; controlled substance register and age verification pending  
 **Period:** August–September 2026  
-**Last updated:** 2026-05-21  
+**Last updated:** 2026-05-25  
 **Goal:** Regulated retail features for pharmacies — prescriptions, controlled substances, age verification, lot/batch tracking
 
 ---
@@ -31,6 +31,7 @@ Inventory lot/batch tracking is handled by the inventory-api. This sprint focuse
 - [x] `GET /{tenant}/pos/pharmacy/prescriptions/{id}` — detail
 - [x] `POST /{tenant}/pos/pharmacy/prescriptions/{id}/dispense` — dispense prescription (marks filled)
 - [x] Route group gated by `RequireUseCase("pharmacy")` middleware
+- [x] `GET /{tenant}/pos/pharmacy/patients` — aggregate distinct patient profiles from prescriptions (name, DOB, ID, visit count)
 
 ### Drug Interaction Checks
 - [x] `DrugInteractionCheck` schema (`internal/ent/schema/druginteractioncheck.go`)
@@ -67,9 +68,9 @@ Inventory lot/batch tracking is handled by the inventory-api. This sprint focuse
 - [ ] `expiry_date`, `partial_units`, `age_verification_method` on `pos_order_lines` — not confirmed
 - [ ] `docs/erd.md` updated — pending
 
-## Completion Notes (2026-05-21)
+## Completion Notes (2026-05-25)
 
-Pharmacy handler (`pharmacy.go`) is implemented and routes are registered under `RequireUseCase("pharmacy")` middleware. Core prescription CRUD, dispense, and drug interaction check endpoints are working. Controlled substance register, age verification, lot/batch dispensing, and prescription-only blocking remain unimplemented.
+Pharmacy handler (`pharmacy.go`) is implemented and routes are registered under `RequireUseCase("pharmacy")` middleware. Core prescription CRUD, dispense, drug interaction check, and patient profile aggregation endpoints are working. Controlled substance register, age verification, lot/batch dispensing, and prescription-only blocking remain unimplemented.
 
 ---
 

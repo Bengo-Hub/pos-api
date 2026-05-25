@@ -244,6 +244,62 @@ func (h *PharmacyHandler) Dispense(w http.ResponseWriter, r *http.Request) {
 	jsonOK(w, updated)
 }
 
+// ListPatients handles GET /{tenantID}/pos/pharmacy/patients
+// Derives distinct patient records from the prescriptions table.
+func (h *PharmacyHandler) ListPatients(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+
+	q := h.db.Prescription.Query().Where(entpx.TenantID(tid))
+	if search := r.URL.Query().Get("q"); search != "" {
+		q = q.Where(entpx.PatientNameContainsFold(search))
+	}
+
+	prescriptions, err := q.Order(ent.Desc(entpx.FieldCreatedAt)).All(r.Context())
+	if err != nil {
+		h.log.Error("list patients failed", zap.Error(err))
+		jsonError(w, "failed to list patients", http.StatusInternalServerError)
+		return
+	}
+
+	// Deduplicate by patient_id_number (fallback: patient_name)
+	seen := make(map[string]struct{})
+	type patientRow struct {
+		PatientName     string `json:"patient_name"`
+		PatientDOB      string `json:"patient_dob"`
+		PatientIDNumber string `json:"patient_id_number"`
+		VisitCount      int    `json:"visit_count"`
+		LastVisit       string `json:"last_visit"`
+	}
+	countMap := make(map[string]*patientRow)
+	for _, px := range prescriptions {
+		key := px.PatientIDNumber
+		if key == "" {
+			key = px.PatientName
+		}
+		if _, ok := seen[key]; !ok {
+			seen[key] = struct{}{}
+			countMap[key] = &patientRow{
+				PatientName:     px.PatientName,
+				PatientDOB:      px.PatientDob,
+				PatientIDNumber: px.PatientIDNumber,
+				LastVisit:       px.CreatedAt.Format(time.RFC3339),
+			}
+		}
+		countMap[key].VisitCount++
+	}
+
+	patients := make([]*patientRow, 0, len(countMap))
+	for _, p := range countMap {
+		patients = append(patients, p)
+	}
+
+	jsonOK(w, map[string]any{"data": patients, "total": len(patients)})
+}
+
 // CreateInteractionCheck handles POST /{tenantID}/pos/pharmacy/interaction-checks
 func (h *PharmacyHandler) CreateInteractionCheck(w http.ResponseWriter, r *http.Request) {
 	tid, err := parseTenantUUID(r)

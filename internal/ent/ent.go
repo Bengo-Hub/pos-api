@@ -69,6 +69,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/promotionapplication"
 	"github.com/bengobox/pos-service/internal/ent/promotionrule"
 	"github.com/bengobox/pos-service/internal/ent/ratelimitconfig"
+	"github.com/bengobox/pos-service/internal/ent/resource"
 	"github.com/bengobox/pos-service/internal/ent/room"
 	"github.com/bengobox/pos-service/internal/ent/roomfolioitem"
 	"github.com/bengobox/pos-service/internal/ent/roomguest"
@@ -208,6 +209,7 @@ func checkColumn(t, c string) error {
 			promotionapplication.Table:   promotionapplication.ValidColumn,
 			promotionrule.Table:          promotionrule.ValidColumn,
 			ratelimitconfig.Table:        ratelimitconfig.ValidColumn,
+			resource.Table:               resource.ValidColumn,
 			room.Table:                   room.ValidColumn,
 			roomfolioitem.Table:          roomfolioitem.ValidColumn,
 			roomguest.Table:              roomguest.ValidColumn,

@@ -59,6 +59,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/promotionapplication"
 	"github.com/bengobox/pos-service/internal/ent/promotionrule"
 	"github.com/bengobox/pos-service/internal/ent/ratelimitconfig"
+	"github.com/bengobox/pos-service/internal/ent/resource"
 	"github.com/bengobox/pos-service/internal/ent/room"
 	"github.com/bengobox/pos-service/internal/ent/roomfolioitem"
 	"github.com/bengobox/pos-service/internal/ent/roomguest"
@@ -1461,6 +1462,30 @@ func init() {
 	ratelimitconfigDescID := ratelimitconfigFields[0].Descriptor()
 	// ratelimitconfig.DefaultID holds the default value on creation for the id field.
 	ratelimitconfig.DefaultID = ratelimitconfigDescID.Default.(func() uuid.UUID)
+	resourceFields := schema.Resource{}.Fields()
+	_ = resourceFields
+	// resourceDescName is the schema descriptor for name field.
+	resourceDescName := resourceFields[3].Descriptor()
+	// resource.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	resource.NameValidator = resourceDescName.Validators[0].(func(string) error)
+	// resourceDescType is the schema descriptor for type field.
+	resourceDescType := resourceFields[4].Descriptor()
+	// resource.DefaultType holds the default value on creation for the type field.
+	resource.DefaultType = resourceDescType.Default.(string)
+	// resourceDescCreatedAt is the schema descriptor for created_at field.
+	resourceDescCreatedAt := resourceFields[7].Descriptor()
+	// resource.DefaultCreatedAt holds the default value on creation for the created_at field.
+	resource.DefaultCreatedAt = resourceDescCreatedAt.Default.(func() time.Time)
+	// resourceDescUpdatedAt is the schema descriptor for updated_at field.
+	resourceDescUpdatedAt := resourceFields[8].Descriptor()
+	// resource.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	resource.DefaultUpdatedAt = resourceDescUpdatedAt.Default.(func() time.Time)
+	// resource.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	resource.UpdateDefaultUpdatedAt = resourceDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// resourceDescID is the schema descriptor for id field.
+	resourceDescID := resourceFields[0].Descriptor()
+	// resource.DefaultID holds the default value on creation for the id field.
+	resource.DefaultID = resourceDescID.Default.(func() uuid.UUID)
 	roomFields := schema.Room{}.Fields()
 	_ = roomFields
 	// roomDescRoomNumber is the schema descriptor for room_number field.

@@ -73,6 +73,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/promotionapplication"
 	"github.com/bengobox/pos-service/internal/ent/promotionrule"
 	"github.com/bengobox/pos-service/internal/ent/ratelimitconfig"
+	"github.com/bengobox/pos-service/internal/ent/resource"
 	"github.com/bengobox/pos-service/internal/ent/room"
 	"github.com/bengobox/pos-service/internal/ent/roomfolioitem"
 	"github.com/bengobox/pos-service/internal/ent/roomguest"
@@ -216,6 +217,8 @@ type Client struct {
 	PromotionRule *PromotionRuleClient
 	// RateLimitConfig is the client for interacting with the RateLimitConfig builders.
 	RateLimitConfig *RateLimitConfigClient
+	// Resource is the client for interacting with the Resource builders.
+	Resource *ResourceClient
 	// Room is the client for interacting with the Room builders.
 	Room *RoomClient
 	// RoomFolioItem is the client for interacting with the RoomFolioItem builders.
@@ -328,6 +331,7 @@ func (c *Client) init() {
 	c.PromotionApplication = NewPromotionApplicationClient(c.config)
 	c.PromotionRule = NewPromotionRuleClient(c.config)
 	c.RateLimitConfig = NewRateLimitConfigClient(c.config)
+	c.Resource = NewResourceClient(c.config)
 	c.Room = NewRoomClient(c.config)
 	c.RoomFolioItem = NewRoomFolioItemClient(c.config)
 	c.RoomGuest = NewRoomGuestClient(c.config)
@@ -499,6 +503,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		PromotionApplication:   NewPromotionApplicationClient(cfg),
 		PromotionRule:          NewPromotionRuleClient(cfg),
 		RateLimitConfig:        NewRateLimitConfigClient(cfg),
+		Resource:               NewResourceClient(cfg),
 		Room:                   NewRoomClient(cfg),
 		RoomFolioItem:          NewRoomFolioItemClient(cfg),
 		RoomGuest:              NewRoomGuestClient(cfg),
@@ -597,6 +602,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		PromotionApplication:   NewPromotionApplicationClient(cfg),
 		PromotionRule:          NewPromotionRuleClient(cfg),
 		RateLimitConfig:        NewRateLimitConfigClient(cfg),
+		Resource:               NewResourceClient(cfg),
 		Room:                   NewRoomClient(cfg),
 		RoomFolioItem:          NewRoomFolioItemClient(cfg),
 		RoomGuest:              NewRoomGuestClient(cfg),
@@ -661,9 +667,9 @@ func (c *Client) Use(hooks ...Hook) {
 		c.POSReturnLine, c.POSRole, c.POSRolePermission, c.POSRoleV2,
 		c.POSUserRoleAssignment, c.PosNotification, c.Prescription, c.PrescriptionLine,
 		c.PriceBook, c.PriceBookItem, c.Promotion, c.PromotionApplication,
-		c.PromotionRule, c.RateLimitConfig, c.Room, c.RoomFolioItem, c.RoomGuest,
-		c.Section, c.SerialNumberLog, c.ServiceConfig, c.ServiceQueueEntry,
-		c.StaffMember, c.StaffSchedule, c.StockAlertSubscription,
+		c.PromotionRule, c.RateLimitConfig, c.Resource, c.Room, c.RoomFolioItem,
+		c.RoomGuest, c.Section, c.SerialNumberLog, c.ServiceConfig,
+		c.ServiceQueueEntry, c.StaffMember, c.StaffSchedule, c.StockAlertSubscription,
 		c.StockConsumptionEvent, c.SyncFailure, c.Table, c.TableAssignment, c.Tenant,
 		c.TenantSyncEvent, c.Tender, c.User, c.UserPOSRole, c.WebhookDelivery,
 		c.WebhookSubscription, c.WeighingScaleReading,
@@ -689,9 +695,9 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.POSReturnLine, c.POSRole, c.POSRolePermission, c.POSRoleV2,
 		c.POSUserRoleAssignment, c.PosNotification, c.Prescription, c.PrescriptionLine,
 		c.PriceBook, c.PriceBookItem, c.Promotion, c.PromotionApplication,
-		c.PromotionRule, c.RateLimitConfig, c.Room, c.RoomFolioItem, c.RoomGuest,
-		c.Section, c.SerialNumberLog, c.ServiceConfig, c.ServiceQueueEntry,
-		c.StaffMember, c.StaffSchedule, c.StockAlertSubscription,
+		c.PromotionRule, c.RateLimitConfig, c.Resource, c.Room, c.RoomFolioItem,
+		c.RoomGuest, c.Section, c.SerialNumberLog, c.ServiceConfig,
+		c.ServiceQueueEntry, c.StaffMember, c.StaffSchedule, c.StockAlertSubscription,
 		c.StockConsumptionEvent, c.SyncFailure, c.Table, c.TableAssignment, c.Tenant,
 		c.TenantSyncEvent, c.Tender, c.User, c.UserPOSRole, c.WebhookDelivery,
 		c.WebhookSubscription, c.WeighingScaleReading,
@@ -817,6 +823,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.PromotionRule.mutate(ctx, m)
 	case *RateLimitConfigMutation:
 		return c.RateLimitConfig.mutate(ctx, m)
+	case *ResourceMutation:
+		return c.Resource.mutate(ctx, m)
 	case *RoomMutation:
 		return c.Room.mutate(ctx, m)
 	case *RoomFolioItemMutation:
@@ -9135,6 +9143,139 @@ func (c *RateLimitConfigClient) mutate(ctx context.Context, m *RateLimitConfigMu
 	}
 }
 
+// ResourceClient is a client for the Resource schema.
+type ResourceClient struct {
+	config
+}
+
+// NewResourceClient returns a client for the Resource from the given config.
+func NewResourceClient(c config) *ResourceClient {
+	return &ResourceClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `resource.Hooks(f(g(h())))`.
+func (c *ResourceClient) Use(hooks ...Hook) {
+	c.hooks.Resource = append(c.hooks.Resource, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `resource.Intercept(f(g(h())))`.
+func (c *ResourceClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Resource = append(c.inters.Resource, interceptors...)
+}
+
+// Create returns a builder for creating a Resource entity.
+func (c *ResourceClient) Create() *ResourceCreate {
+	mutation := newResourceMutation(c.config, OpCreate)
+	return &ResourceCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Resource entities.
+func (c *ResourceClient) CreateBulk(builders ...*ResourceCreate) *ResourceCreateBulk {
+	return &ResourceCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ResourceClient) MapCreateBulk(slice any, setFunc func(*ResourceCreate, int)) *ResourceCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ResourceCreateBulk{err: fmt.Errorf("calling to ResourceClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ResourceCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ResourceCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Resource.
+func (c *ResourceClient) Update() *ResourceUpdate {
+	mutation := newResourceMutation(c.config, OpUpdate)
+	return &ResourceUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ResourceClient) UpdateOne(_m *Resource) *ResourceUpdateOne {
+	mutation := newResourceMutation(c.config, OpUpdateOne, withResource(_m))
+	return &ResourceUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ResourceClient) UpdateOneID(id uuid.UUID) *ResourceUpdateOne {
+	mutation := newResourceMutation(c.config, OpUpdateOne, withResourceID(id))
+	return &ResourceUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Resource.
+func (c *ResourceClient) Delete() *ResourceDelete {
+	mutation := newResourceMutation(c.config, OpDelete)
+	return &ResourceDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ResourceClient) DeleteOne(_m *Resource) *ResourceDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ResourceClient) DeleteOneID(id uuid.UUID) *ResourceDeleteOne {
+	builder := c.Delete().Where(resource.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ResourceDeleteOne{builder}
+}
+
+// Query returns a query builder for Resource.
+func (c *ResourceClient) Query() *ResourceQuery {
+	return &ResourceQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeResource},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a Resource entity by its id.
+func (c *ResourceClient) Get(ctx context.Context, id uuid.UUID) (*Resource, error) {
+	return c.Query().Where(resource.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ResourceClient) GetX(ctx context.Context, id uuid.UUID) *Resource {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *ResourceClient) Hooks() []Hook {
+	return c.hooks.Resource
+}
+
+// Interceptors returns the client interceptors.
+func (c *ResourceClient) Interceptors() []Interceptor {
+	return c.inters.Resource
+}
+
+func (c *ResourceClient) mutate(ctx context.Context, m *ResourceMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ResourceCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ResourceUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ResourceUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ResourceDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown Resource mutation op: %q", m.Op())
+	}
+}
+
 // RoomClient is a client for the Room schema.
 type RoomClient struct {
 	config
@@ -12331,10 +12472,10 @@ type (
 		POSPermission, POSRefund, POSReturn, POSReturnLine, POSRole, POSRolePermission,
 		POSRoleV2, POSUserRoleAssignment, PosNotification, Prescription,
 		PrescriptionLine, PriceBook, PriceBookItem, Promotion, PromotionApplication,
-		PromotionRule, RateLimitConfig, Room, RoomFolioItem, RoomGuest, Section,
-		SerialNumberLog, ServiceConfig, ServiceQueueEntry, StaffMember, StaffSchedule,
-		StockAlertSubscription, StockConsumptionEvent, SyncFailure, Table,
-		TableAssignment, Tenant, TenantSyncEvent, Tender, User, UserPOSRole,
+		PromotionRule, RateLimitConfig, Resource, Room, RoomFolioItem, RoomGuest,
+		Section, SerialNumberLog, ServiceConfig, ServiceQueueEntry, StaffMember,
+		StaffSchedule, StockAlertSubscription, StockConsumptionEvent, SyncFailure,
+		Table, TableAssignment, Tenant, TenantSyncEvent, Tender, User, UserPOSRole,
 		WebhookDelivery, WebhookSubscription, WeighingScaleReading []ent.Hook
 	}
 	inters struct {
@@ -12349,10 +12490,10 @@ type (
 		POSPermission, POSRefund, POSReturn, POSReturnLine, POSRole, POSRolePermission,
 		POSRoleV2, POSUserRoleAssignment, PosNotification, Prescription,
 		PrescriptionLine, PriceBook, PriceBookItem, Promotion, PromotionApplication,
-		PromotionRule, RateLimitConfig, Room, RoomFolioItem, RoomGuest, Section,
-		SerialNumberLog, ServiceConfig, ServiceQueueEntry, StaffMember, StaffSchedule,
-		StockAlertSubscription, StockConsumptionEvent, SyncFailure, Table,
-		TableAssignment, Tenant, TenantSyncEvent, Tender, User, UserPOSRole,
+		PromotionRule, RateLimitConfig, Resource, Room, RoomFolioItem, RoomGuest,
+		Section, SerialNumberLog, ServiceConfig, ServiceQueueEntry, StaffMember,
+		StaffSchedule, StockAlertSubscription, StockConsumptionEvent, SyncFailure,
+		Table, TableAssignment, Tenant, TenantSyncEvent, Tender, User, UserPOSRole,
 		WebhookDelivery, WebhookSubscription, WeighingScaleReading []ent.Interceptor
 	}
 )

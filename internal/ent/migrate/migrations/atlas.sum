@@ -1,4 +1,4 @@
-h1:tkV4wEwSay250pQY2Su7UAOzumm06mD3BeMf9Hcu0aM=
+h1:YBbtKKkcUr7Jz2Gvu1p4TjQWUcQ7+yxgkZbjfDh53yk=
 20260324210314_initial_schema.sql h1:L7ICP+7BHePtjHfQRRY9yP85A6Q9SyiYsqSvGK7paxA=
 20260403120000_fix_outbox_events_schema.sql h1:VNlTFTGCLBkz4+UvvvqZf5y5tyS0FfS1AXy770Ybc8o=
 20260507090905_hotel_module.sql h1:PGKqdzMQaeFLALmRXUmGsXjha3Rt42EldWJceFVNGDo=
@@ -19,3 +19,4 @@ h1:tkV4wEwSay250pQY2Su7UAOzumm06mD3BeMf9Hcu0aM=
 20260522121315_add_order_void_fields.sql h1:Cds6oDV3mGjOGUpPV6qr9IPD8+pDtTSLWgFjOV0fQi4=
 20260522122515_add_service_queue_entries.sql h1:NrWCq34XDYtaDoZB/CWTsQ5/Z1maypnrjOS5MaRsC/8=
 20260525001539_bill_splits.sql h1:USJdcUhpKMkTi0WjqhOZsuMpp0ETPbp3puHNnRqnV60=
+20260525004518_add_resources_and_pharmacy_patients.sql h1:u0pwCuMbeEmB2s8kLSrUSKl65VW0YqoqnmekwsndZmE=

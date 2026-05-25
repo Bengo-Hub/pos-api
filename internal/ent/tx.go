@@ -126,6 +126,8 @@ type Tx struct {
 	PromotionRule *PromotionRuleClient
 	// RateLimitConfig is the client for interacting with the RateLimitConfig builders.
 	RateLimitConfig *RateLimitConfigClient
+	// Resource is the client for interacting with the Resource builders.
+	Resource *ResourceClient
 	// Room is the client for interacting with the Room builders.
 	Room *RoomClient
 	// RoomFolioItem is the client for interacting with the RoomFolioItem builders.
@@ -358,6 +360,7 @@ func (tx *Tx) init() {
 	tx.PromotionApplication = NewPromotionApplicationClient(tx.config)
 	tx.PromotionRule = NewPromotionRuleClient(tx.config)
 	tx.RateLimitConfig = NewRateLimitConfigClient(tx.config)
+	tx.Resource = NewResourceClient(tx.config)
 	tx.Room = NewRoomClient(tx.config)
 	tx.RoomFolioItem = NewRoomFolioItemClient(tx.config)
 	tx.RoomGuest = NewRoomGuestClient(tx.config)
