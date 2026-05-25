@@ -34,6 +34,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/integrationsetting"
 	"github.com/bengobox/pos-service/internal/ent/inventorysnapshot"
 	"github.com/bengobox/pos-service/internal/ent/kdsstation"
+	"github.com/bengobox/pos-service/internal/ent/kdssyncfailure"
 	"github.com/bengobox/pos-service/internal/ent/kdsticket"
 	"github.com/bengobox/pos-service/internal/ent/layawaypayment"
 	"github.com/bengobox/pos-service/internal/ent/layawayplan"
@@ -180,6 +181,7 @@ func checkColumn(t, c string) error {
 			integrationsetting.Table:       integrationsetting.ValidColumn,
 			inventorysnapshot.Table:        inventorysnapshot.ValidColumn,
 			kdsstation.Table:               kdsstation.ValidColumn,
+			kdssyncfailure.Table:           kdssyncfailure.ValidColumn,
 			kdsticket.Table:                kdsticket.ValidColumn,
 			layawaypayment.Table:           layawaypayment.ValidColumn,
 			layawayplan.Table:              layawayplan.ValidColumn,

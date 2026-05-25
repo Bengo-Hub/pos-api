@@ -273,6 +273,18 @@ func (f KDSStationFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, 
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.KDSStationMutation", m)
 }
 
+// The KDSSyncFailureFunc type is an adapter to allow the use of ordinary
+// function as KDSSyncFailure mutator.
+type KDSSyncFailureFunc func(context.Context, *ent.KDSSyncFailureMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f KDSSyncFailureFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.KDSSyncFailureMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.KDSSyncFailureMutation", m)
+}
+
 // The KDSTicketFunc type is an adapter to allow the use of ordinary
 // function as KDSTicket mutator.
 type KDSTicketFunc func(context.Context, *ent.KDSTicketMutation) (ent.Value, error)

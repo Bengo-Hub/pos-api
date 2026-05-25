@@ -14,21 +14,25 @@ import (
 	entaccount "github.com/bengobox/pos-service/internal/ent/loyaltyaccount"
 	entprogram "github.com/bengobox/pos-service/internal/ent/loyaltyprogram"
 	entcommrule "github.com/bengobox/pos-service/internal/ent/commissionrule"
+	"github.com/bengobox/pos-service/internal/platform/events"
 )
 
 // SaleFinalizedSubscriber listens for pos.sale.finalized and handles:
 //  1. Loyalty points auto-earn
 //  2. Commission record auto-creation per service line
+//  3. ERP sale_posted event (pass-through stub — wired when an ERP system is ready)
 type SaleFinalizedSubscriber struct {
-	db     *ent.Client
-	logger *zap.Logger
-	sub    *nats.Subscription
+	db        *ent.Client
+	logger    *zap.Logger
+	publisher *events.Publisher
+	sub       *nats.Subscription
 }
 
-func NewSaleFinalizedSubscriber(db *ent.Client, logger *zap.Logger) *SaleFinalizedSubscriber {
+func NewSaleFinalizedSubscriber(db *ent.Client, logger *zap.Logger, publisher *events.Publisher) *SaleFinalizedSubscriber {
 	return &SaleFinalizedSubscriber{
-		db:     db,
-		logger: logger.Named("subscriptions.sale-finalized"),
+		db:        db,
+		logger:    logger.Named("subscriptions.sale-finalized"),
+		publisher: publisher,
 	}
 }
 
@@ -90,6 +94,15 @@ func (s *SaleFinalizedSubscriber) handle(msg *nats.Msg) {
 
 	s.autoEarnLoyalty(ctx, tenantID, orderID, p)
 	s.autoCreateCommissions(ctx, tenantID, orderID, p)
+	// ERP sale_posted: pass-through stub — no-op until an ERP system is integrated.
+	// When an ERP integration is ready, wire the ERP client call here and remove this comment.
+	if s.publisher != nil {
+		_ = s.publisher.PublishERPSalePosted(ctx, tenantID, map[string]any{
+			"order_id":     p.OrderID,
+			"outlet_id":    p.OutletID,
+			"total_amount": p.TotalAmount,
+		})
+	}
 }
 
 func (s *SaleFinalizedSubscriber) autoEarnLoyalty(ctx context.Context, tenantID, orderID uuid.UUID, p saleFinalizedPayload) {

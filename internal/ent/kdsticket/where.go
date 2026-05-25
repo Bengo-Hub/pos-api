@@ -76,6 +76,11 @@ func OrderNumber(v string) predicate.KDSTicket {
 	return predicate.KDSTicket(sql.FieldEQ(FieldOrderNumber, v))
 }
 
+// TableReference applies equality check predicate on the "table_reference" field. It's identical to TableReferenceEQ.
+func TableReference(v string) predicate.KDSTicket {
+	return predicate.KDSTicket(sql.FieldEQ(FieldTableReference, v))
+}
+
 // ReceivedAt applies equality check predicate on the "received_at" field. It's identical to ReceivedAtEQ.
 func ReceivedAt(v time.Time) predicate.KDSTicket {
 	return predicate.KDSTicket(sql.FieldEQ(FieldReceivedAt, v))
@@ -279,6 +284,81 @@ func StatusIn(vs ...Status) predicate.KDSTicket {
 // StatusNotIn applies the NotIn predicate on the "status" field.
 func StatusNotIn(vs ...Status) predicate.KDSTicket {
 	return predicate.KDSTicket(sql.FieldNotIn(FieldStatus, vs...))
+}
+
+// TableReferenceEQ applies the EQ predicate on the "table_reference" field.
+func TableReferenceEQ(v string) predicate.KDSTicket {
+	return predicate.KDSTicket(sql.FieldEQ(FieldTableReference, v))
+}
+
+// TableReferenceNEQ applies the NEQ predicate on the "table_reference" field.
+func TableReferenceNEQ(v string) predicate.KDSTicket {
+	return predicate.KDSTicket(sql.FieldNEQ(FieldTableReference, v))
+}
+
+// TableReferenceIn applies the In predicate on the "table_reference" field.
+func TableReferenceIn(vs ...string) predicate.KDSTicket {
+	return predicate.KDSTicket(sql.FieldIn(FieldTableReference, vs...))
+}
+
+// TableReferenceNotIn applies the NotIn predicate on the "table_reference" field.
+func TableReferenceNotIn(vs ...string) predicate.KDSTicket {
+	return predicate.KDSTicket(sql.FieldNotIn(FieldTableReference, vs...))
+}
+
+// TableReferenceGT applies the GT predicate on the "table_reference" field.
+func TableReferenceGT(v string) predicate.KDSTicket {
+	return predicate.KDSTicket(sql.FieldGT(FieldTableReference, v))
+}
+
+// TableReferenceGTE applies the GTE predicate on the "table_reference" field.
+func TableReferenceGTE(v string) predicate.KDSTicket {
+	return predicate.KDSTicket(sql.FieldGTE(FieldTableReference, v))
+}
+
+// TableReferenceLT applies the LT predicate on the "table_reference" field.
+func TableReferenceLT(v string) predicate.KDSTicket {
+	return predicate.KDSTicket(sql.FieldLT(FieldTableReference, v))
+}
+
+// TableReferenceLTE applies the LTE predicate on the "table_reference" field.
+func TableReferenceLTE(v string) predicate.KDSTicket {
+	return predicate.KDSTicket(sql.FieldLTE(FieldTableReference, v))
+}
+
+// TableReferenceContains applies the Contains predicate on the "table_reference" field.
+func TableReferenceContains(v string) predicate.KDSTicket {
+	return predicate.KDSTicket(sql.FieldContains(FieldTableReference, v))
+}
+
+// TableReferenceHasPrefix applies the HasPrefix predicate on the "table_reference" field.
+func TableReferenceHasPrefix(v string) predicate.KDSTicket {
+	return predicate.KDSTicket(sql.FieldHasPrefix(FieldTableReference, v))
+}
+
+// TableReferenceHasSuffix applies the HasSuffix predicate on the "table_reference" field.
+func TableReferenceHasSuffix(v string) predicate.KDSTicket {
+	return predicate.KDSTicket(sql.FieldHasSuffix(FieldTableReference, v))
+}
+
+// TableReferenceIsNil applies the IsNil predicate on the "table_reference" field.
+func TableReferenceIsNil() predicate.KDSTicket {
+	return predicate.KDSTicket(sql.FieldIsNull(FieldTableReference))
+}
+
+// TableReferenceNotNil applies the NotNil predicate on the "table_reference" field.
+func TableReferenceNotNil() predicate.KDSTicket {
+	return predicate.KDSTicket(sql.FieldNotNull(FieldTableReference))
+}
+
+// TableReferenceEqualFold applies the EqualFold predicate on the "table_reference" field.
+func TableReferenceEqualFold(v string) predicate.KDSTicket {
+	return predicate.KDSTicket(sql.FieldEqualFold(FieldTableReference, v))
+}
+
+// TableReferenceContainsFold applies the ContainsFold predicate on the "table_reference" field.
+func TableReferenceContainsFold(v string) predicate.KDSTicket {
+	return predicate.KDSTicket(sql.FieldContainsFold(FieldTableReference, v))
 }
 
 // ReceivedAtEQ applies the EQ predicate on the "received_at" field.

@@ -32,6 +32,8 @@ type KDSTicket struct {
 	Status kdsticket.Status `json:"status,omitempty"`
 	// Line items for this station
 	Items []map[string]interface{} `json:"items,omitempty"`
+	// Table number or name from the originating order, parsed at ticket creation
+	TableReference string `json:"table_reference,omitempty"`
 	// ReceivedAt holds the value of the "received_at" field.
 	ReceivedAt time.Time `json:"received_at,omitempty"`
 	// StartedAt holds the value of the "started_at" field.
@@ -75,7 +77,7 @@ func (*KDSTicket) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case kdsticket.FieldPriority:
 			values[i] = new(sql.NullInt64)
-		case kdsticket.FieldOrderNumber, kdsticket.FieldStatus:
+		case kdsticket.FieldOrderNumber, kdsticket.FieldStatus, kdsticket.FieldTableReference:
 			values[i] = new(sql.NullString)
 		case kdsticket.FieldReceivedAt, kdsticket.FieldStartedAt, kdsticket.FieldCompletedAt:
 			values[i] = new(sql.NullTime)
@@ -139,6 +141,12 @@ func (_m *KDSTicket) assignValues(columns []string, values []any) error {
 				if err := json.Unmarshal(*value, &_m.Items); err != nil {
 					return fmt.Errorf("unmarshal field items: %w", err)
 				}
+			}
+		case kdsticket.FieldTableReference:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field table_reference", values[i])
+			} else if value.Valid {
+				_m.TableReference = value.String
 			}
 		case kdsticket.FieldReceivedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -224,6 +232,9 @@ func (_m *KDSTicket) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("items=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Items))
+	builder.WriteString(", ")
+	builder.WriteString("table_reference=")
+	builder.WriteString(_m.TableReference)
 	builder.WriteString(", ")
 	builder.WriteString("received_at=")
 	builder.WriteString(_m.ReceivedAt.Format(time.ANSIC))

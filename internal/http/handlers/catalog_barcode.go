@@ -46,6 +46,11 @@ func (h *CatalogHandler) BarcodeLookup(w http.ResponseWriter, r *http.Request) {
 		tenantSlug = httpware.GetTenantSlug(r.Context())
 	}
 	if tenantSlug == "" {
+		if t, lookupErr := h.client.Tenant.Get(r.Context(), tid); lookupErr == nil {
+			tenantSlug = t.Slug
+		}
+	}
+	if tenantSlug == "" {
 		jsonError(w, "tenant slug required", http.StatusBadRequest)
 		return
 	}

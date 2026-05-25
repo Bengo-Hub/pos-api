@@ -28,6 +28,8 @@ const (
 	FieldStatus = "status"
 	// FieldItems holds the string denoting the items field in the database.
 	FieldItems = "items"
+	// FieldTableReference holds the string denoting the table_reference field in the database.
+	FieldTableReference = "table_reference"
 	// FieldReceivedAt holds the string denoting the received_at field in the database.
 	FieldReceivedAt = "received_at"
 	// FieldStartedAt holds the string denoting the started_at field in the database.
@@ -58,6 +60,7 @@ var Columns = []string{
 	FieldOrderNumber,
 	FieldStatus,
 	FieldItems,
+	FieldTableReference,
 	FieldReceivedAt,
 	FieldStartedAt,
 	FieldCompletedAt,
@@ -145,6 +148,11 @@ func ByOrderNumber(opts ...sql.OrderTermOption) OrderOption {
 // ByStatus orders the results by the status field.
 func ByStatus(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldStatus, opts...).ToFunc()
+}
+
+// ByTableReference orders the results by the table_reference field.
+func ByTableReference(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTableReference, opts...).ToFunc()
 }
 
 // ByReceivedAt orders the results by the received_at field.

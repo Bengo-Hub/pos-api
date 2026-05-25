@@ -1,4 +1,4 @@
-h1:Yq1zB6Mv6ny3d17wRDZQ57W2Am3UXPy1aEF07W/Xp+4=
+h1:DDKLy92z+4UcQrlymluUPOsOHPcln487VObxiiTn+TQ=
 20260324210314_initial_schema.sql h1:L7ICP+7BHePtjHfQRRY9yP85A6Q9SyiYsqSvGK7paxA=
 20260403120000_fix_outbox_events_schema.sql h1:VNlTFTGCLBkz4+UvvvqZf5y5tyS0FfS1AXy770Ybc8o=
 20260507090905_hotel_module.sql h1:PGKqdzMQaeFLALmRXUmGsXjha3Rt42EldWJceFVNGDo=
@@ -26,4 +26,6 @@ h1:Yq1zB6Mv6ny3d17wRDZQ57W2Am3UXPy1aEF07W/Xp+4=
 20260525021022_fix_clientrecord_crm_pattern.sql h1:FdX7K8XVOdFmom2trvs9Wycksf0tcSg5XLi7LeCX0Qc=
 20260525021510_drop_clientrecord_contact_fields.sql h1:DYd5U759Yc4gsMxvUfVP1uLNEiWwolbC6u4UbQ1/CO4=
 20260525022021_add_loyalty_tier_thresholds.sql h1:k7cg3pr8Ylxtb7+V/YQh8K38Kvsw1O2m/MsjrfQspZA=
-20260525100000_pos_catalog_override.sql h1:s5vurigpYdGQ03YkjLhH3CGyDzWARkenTeuc/dCFj+U=
+20260525025138_sprint11_daily_closing_reporting.sql h1:KwEbJccv8Fp/vw44JPsBzuMZDTVu8SUadpJAN7uKSLU=
+20260525030115_sprint13_kds_sync_failure.sql h1:BpqemoUFBhgICN200RuCoqshrvhwOOT6tML7OK9qnIM=
+20260525100000_pos_catalog_override.sql h1:h7agyp79+TNnavWjK2mUNR1NNP+zalpgtIGkwUuiS/E=

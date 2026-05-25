@@ -331,6 +331,21 @@ func (s *Service) createKDSTicketsForOrder(ctx context.Context, tenantID uuid.UU
 		})
 	}
 
+	// Parse table_reference from order metadata (set by hospitality terminal when table is assigned).
+	tableRef := ""
+	if v, ok := order.Metadata["table_number"]; ok {
+		if s, ok := v.(string); ok {
+			tableRef = s
+		}
+	}
+	if tableRef == "" {
+		if v, ok := order.Metadata["table_name"]; ok {
+			if s, ok := v.(string); ok {
+				tableRef = s
+			}
+		}
+	}
+
 	for _, station := range stations {
 		exists, _ := s.client.KDSTicket.Query().
 			Where(kdsticket.OrderID(order.ID), kdsticket.StationID(station.ID)).
@@ -338,15 +353,17 @@ func (s *Service) createKDSTicketsForOrder(ctx context.Context, tenantID uuid.UU
 		if exists {
 			continue
 		}
-		_, err := s.client.KDSTicket.Create().
+		c := s.client.KDSTicket.Create().
 			SetTenantID(tenantID).
 			SetStationID(station.ID).
 			SetOrderID(order.ID).
 			SetOrderNumber(order.OrderNumber).
 			SetStatus(kdsticket.StatusPending).
-			SetItems(items).
-			Save(ctx)
-		if err != nil {
+			SetItems(items)
+		if tableRef != "" {
+			c = c.SetTableReference(tableRef)
+		}
+		if _, err := c.Save(ctx); err != nil {
 			s.log.Warn("kds: failed to create ticket for pos order",
 				zap.String("order_id", order.ID.String()),
 				zap.String("station_id", station.ID.String()),

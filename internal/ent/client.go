@@ -38,6 +38,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/integrationsetting"
 	"github.com/bengobox/pos-service/internal/ent/inventorysnapshot"
 	"github.com/bengobox/pos-service/internal/ent/kdsstation"
+	"github.com/bengobox/pos-service/internal/ent/kdssyncfailure"
 	"github.com/bengobox/pos-service/internal/ent/kdsticket"
 	"github.com/bengobox/pos-service/internal/ent/layawaypayment"
 	"github.com/bengobox/pos-service/internal/ent/layawayplan"
@@ -153,6 +154,8 @@ type Client struct {
 	InventorySnapshot *InventorySnapshotClient
 	// KDSStation is the client for interacting with the KDSStation builders.
 	KDSStation *KDSStationClient
+	// KDSSyncFailure is the client for interacting with the KDSSyncFailure builders.
+	KDSSyncFailure *KDSSyncFailureClient
 	// KDSTicket is the client for interacting with the KDSTicket builders.
 	KDSTicket *KDSTicketClient
 	// LayawayPayment is the client for interacting with the LayawayPayment builders.
@@ -314,6 +317,7 @@ func (c *Client) init() {
 	c.IntegrationSetting = NewIntegrationSettingClient(c.config)
 	c.InventorySnapshot = NewInventorySnapshotClient(c.config)
 	c.KDSStation = NewKDSStationClient(c.config)
+	c.KDSSyncFailure = NewKDSSyncFailureClient(c.config)
 	c.KDSTicket = NewKDSTicketClient(c.config)
 	c.LayawayPayment = NewLayawayPaymentClient(c.config)
 	c.LayawayPlan = NewLayawayPlanClient(c.config)
@@ -492,6 +496,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		IntegrationSetting:       NewIntegrationSettingClient(cfg),
 		InventorySnapshot:        NewInventorySnapshotClient(cfg),
 		KDSStation:               NewKDSStationClient(cfg),
+		KDSSyncFailure:           NewKDSSyncFailureClient(cfg),
 		KDSTicket:                NewKDSTicketClient(cfg),
 		LayawayPayment:           NewLayawayPaymentClient(cfg),
 		LayawayPlan:              NewLayawayPlanClient(cfg),
@@ -597,6 +602,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		IntegrationSetting:       NewIntegrationSettingClient(cfg),
 		InventorySnapshot:        NewInventorySnapshotClient(cfg),
 		KDSStation:               NewKDSStationClient(cfg),
+		KDSSyncFailure:           NewKDSSyncFailureClient(cfg),
 		KDSTicket:                NewKDSTicketClient(cfg),
 		LayawayPayment:           NewLayawayPaymentClient(cfg),
 		LayawayPlan:              NewLayawayPlanClient(cfg),
@@ -695,7 +701,7 @@ func (c *Client) Use(hooks ...Hook) {
 		c.CommissionRecord, c.CommissionRule, c.ControlledSubstanceLog, c.DailyClosing,
 		c.DrugInteractionCheck, c.Facility, c.FacilityBooking, c.FeatureOverride,
 		c.GiftCard, c.GiftCardTransaction, c.IntegrationSetting, c.InventorySnapshot,
-		c.KDSStation, c.KDSTicket, c.LayawayPayment, c.LayawayPlan,
+		c.KDSStation, c.KDSSyncFailure, c.KDSTicket, c.LayawayPayment, c.LayawayPlan,
 		c.LicenseUsageSnapshot, c.LoyaltyAccount, c.LoyaltyProgram,
 		c.LoyaltyTransaction, c.Modifier, c.ModifierGroup, c.OrderLink, c.OutboxEvent,
 		c.Outlet, c.OutletSetting, c.POSCatalogOverride, c.POSDevice,
@@ -725,7 +731,7 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.CommissionRecord, c.CommissionRule, c.ControlledSubstanceLog, c.DailyClosing,
 		c.DrugInteractionCheck, c.Facility, c.FacilityBooking, c.FeatureOverride,
 		c.GiftCard, c.GiftCardTransaction, c.IntegrationSetting, c.InventorySnapshot,
-		c.KDSStation, c.KDSTicket, c.LayawayPayment, c.LayawayPlan,
+		c.KDSStation, c.KDSSyncFailure, c.KDSTicket, c.LayawayPayment, c.LayawayPlan,
 		c.LicenseUsageSnapshot, c.LoyaltyAccount, c.LoyaltyProgram,
 		c.LoyaltyTransaction, c.Modifier, c.ModifierGroup, c.OrderLink, c.OutboxEvent,
 		c.Outlet, c.OutletSetting, c.POSCatalogOverride, c.POSDevice,
@@ -793,6 +799,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.InventorySnapshot.mutate(ctx, m)
 	case *KDSStationMutation:
 		return c.KDSStation.mutate(ctx, m)
+	case *KDSSyncFailureMutation:
+		return c.KDSSyncFailure.mutate(ctx, m)
 	case *KDSTicketMutation:
 		return c.KDSTicket.mutate(ctx, m)
 	case *LayawayPaymentMutation:
@@ -3977,6 +3985,139 @@ func (c *KDSStationClient) mutate(ctx context.Context, m *KDSStationMutation) (V
 		return (&KDSStationDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown KDSStation mutation op: %q", m.Op())
+	}
+}
+
+// KDSSyncFailureClient is a client for the KDSSyncFailure schema.
+type KDSSyncFailureClient struct {
+	config
+}
+
+// NewKDSSyncFailureClient returns a client for the KDSSyncFailure from the given config.
+func NewKDSSyncFailureClient(c config) *KDSSyncFailureClient {
+	return &KDSSyncFailureClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `kdssyncfailure.Hooks(f(g(h())))`.
+func (c *KDSSyncFailureClient) Use(hooks ...Hook) {
+	c.hooks.KDSSyncFailure = append(c.hooks.KDSSyncFailure, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `kdssyncfailure.Intercept(f(g(h())))`.
+func (c *KDSSyncFailureClient) Intercept(interceptors ...Interceptor) {
+	c.inters.KDSSyncFailure = append(c.inters.KDSSyncFailure, interceptors...)
+}
+
+// Create returns a builder for creating a KDSSyncFailure entity.
+func (c *KDSSyncFailureClient) Create() *KDSSyncFailureCreate {
+	mutation := newKDSSyncFailureMutation(c.config, OpCreate)
+	return &KDSSyncFailureCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of KDSSyncFailure entities.
+func (c *KDSSyncFailureClient) CreateBulk(builders ...*KDSSyncFailureCreate) *KDSSyncFailureCreateBulk {
+	return &KDSSyncFailureCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *KDSSyncFailureClient) MapCreateBulk(slice any, setFunc func(*KDSSyncFailureCreate, int)) *KDSSyncFailureCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &KDSSyncFailureCreateBulk{err: fmt.Errorf("calling to KDSSyncFailureClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*KDSSyncFailureCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &KDSSyncFailureCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for KDSSyncFailure.
+func (c *KDSSyncFailureClient) Update() *KDSSyncFailureUpdate {
+	mutation := newKDSSyncFailureMutation(c.config, OpUpdate)
+	return &KDSSyncFailureUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *KDSSyncFailureClient) UpdateOne(_m *KDSSyncFailure) *KDSSyncFailureUpdateOne {
+	mutation := newKDSSyncFailureMutation(c.config, OpUpdateOne, withKDSSyncFailure(_m))
+	return &KDSSyncFailureUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *KDSSyncFailureClient) UpdateOneID(id uuid.UUID) *KDSSyncFailureUpdateOne {
+	mutation := newKDSSyncFailureMutation(c.config, OpUpdateOne, withKDSSyncFailureID(id))
+	return &KDSSyncFailureUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for KDSSyncFailure.
+func (c *KDSSyncFailureClient) Delete() *KDSSyncFailureDelete {
+	mutation := newKDSSyncFailureMutation(c.config, OpDelete)
+	return &KDSSyncFailureDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *KDSSyncFailureClient) DeleteOne(_m *KDSSyncFailure) *KDSSyncFailureDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *KDSSyncFailureClient) DeleteOneID(id uuid.UUID) *KDSSyncFailureDeleteOne {
+	builder := c.Delete().Where(kdssyncfailure.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &KDSSyncFailureDeleteOne{builder}
+}
+
+// Query returns a query builder for KDSSyncFailure.
+func (c *KDSSyncFailureClient) Query() *KDSSyncFailureQuery {
+	return &KDSSyncFailureQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeKDSSyncFailure},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a KDSSyncFailure entity by its id.
+func (c *KDSSyncFailureClient) Get(ctx context.Context, id uuid.UUID) (*KDSSyncFailure, error) {
+	return c.Query().Where(kdssyncfailure.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *KDSSyncFailureClient) GetX(ctx context.Context, id uuid.UUID) *KDSSyncFailure {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *KDSSyncFailureClient) Hooks() []Hook {
+	return c.hooks.KDSSyncFailure
+}
+
+// Interceptors returns the client interceptors.
+func (c *KDSSyncFailureClient) Interceptors() []Interceptor {
+	return c.inters.KDSSyncFailure
+}
+
+func (c *KDSSyncFailureClient) mutate(ctx context.Context, m *KDSSyncFailureMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&KDSSyncFailureCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&KDSSyncFailureUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&KDSSyncFailureUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&KDSSyncFailureDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown KDSSyncFailure mutation op: %q", m.Op())
 	}
 }
 
@@ -13283,41 +13424,41 @@ type (
 		ChannelIntegration, ChannelSyncJob, ClientRecord, CommissionRecord,
 		CommissionRule, ControlledSubstanceLog, DailyClosing, DrugInteractionCheck,
 		Facility, FacilityBooking, FeatureOverride, GiftCard, GiftCardTransaction,
-		IntegrationSetting, InventorySnapshot, KDSStation, KDSTicket, LayawayPayment,
-		LayawayPlan, LicenseUsageSnapshot, LoyaltyAccount, LoyaltyProgram,
-		LoyaltyTransaction, Modifier, ModifierGroup, OrderLink, OutboxEvent, Outlet,
-		OutletSetting, POSCatalogOverride, POSDevice, POSDeviceSession,
-		POSLineModifier, POSOrder, POSOrderEvent, POSOrderLine, POSPayment,
-		POSPermission, POSRefund, POSReturn, POSReturnLine, POSRole, POSRolePermission,
-		POSRoleV2, POSUserRoleAssignment, PosNotification, Prescription,
-		PrescriptionLine, PriceBook, PriceBookItem, Promotion, PromotionApplication,
-		PromotionRule, RateLimitConfig, Resource, Room, RoomFolioItem, RoomGuest,
-		Section, SerialNumberLog, ServiceConfig, ServicePackage,
-		ServicePackagePurchase, ServicePackageRedemption, ServiceQueueEntry,
-		StaffMember, StaffSchedule, StockAlertSubscription, StockConsumptionEvent,
-		SyncFailure, Table, TableAssignment, Tenant, TenantSyncEvent, Tender, User,
-		UserPOSRole, WebhookDelivery, WebhookSubscription,
-		WeighingScaleReading []ent.Hook
+		IntegrationSetting, InventorySnapshot, KDSStation, KDSSyncFailure, KDSTicket,
+		LayawayPayment, LayawayPlan, LicenseUsageSnapshot, LoyaltyAccount,
+		LoyaltyProgram, LoyaltyTransaction, Modifier, ModifierGroup, OrderLink,
+		OutboxEvent, Outlet, OutletSetting, POSCatalogOverride, POSDevice,
+		POSDeviceSession, POSLineModifier, POSOrder, POSOrderEvent, POSOrderLine,
+		POSPayment, POSPermission, POSRefund, POSReturn, POSReturnLine, POSRole,
+		POSRolePermission, POSRoleV2, POSUserRoleAssignment, PosNotification,
+		Prescription, PrescriptionLine, PriceBook, PriceBookItem, Promotion,
+		PromotionApplication, PromotionRule, RateLimitConfig, Resource, Room,
+		RoomFolioItem, RoomGuest, Section, SerialNumberLog, ServiceConfig,
+		ServicePackage, ServicePackagePurchase, ServicePackageRedemption,
+		ServiceQueueEntry, StaffMember, StaffSchedule, StockAlertSubscription,
+		StockConsumptionEvent, SyncFailure, Table, TableAssignment, Tenant,
+		TenantSyncEvent, Tender, User, UserPOSRole, WebhookDelivery,
+		WebhookSubscription, WeighingScaleReading []ent.Hook
 	}
 	inters struct {
 		Appointment, BarTab, BarTabEvent, BillSplit, CashDrawer, CashDrawerEvent,
 		ChannelIntegration, ChannelSyncJob, ClientRecord, CommissionRecord,
 		CommissionRule, ControlledSubstanceLog, DailyClosing, DrugInteractionCheck,
 		Facility, FacilityBooking, FeatureOverride, GiftCard, GiftCardTransaction,
-		IntegrationSetting, InventorySnapshot, KDSStation, KDSTicket, LayawayPayment,
-		LayawayPlan, LicenseUsageSnapshot, LoyaltyAccount, LoyaltyProgram,
-		LoyaltyTransaction, Modifier, ModifierGroup, OrderLink, OutboxEvent, Outlet,
-		OutletSetting, POSCatalogOverride, POSDevice, POSDeviceSession,
-		POSLineModifier, POSOrder, POSOrderEvent, POSOrderLine, POSPayment,
-		POSPermission, POSRefund, POSReturn, POSReturnLine, POSRole, POSRolePermission,
-		POSRoleV2, POSUserRoleAssignment, PosNotification, Prescription,
-		PrescriptionLine, PriceBook, PriceBookItem, Promotion, PromotionApplication,
-		PromotionRule, RateLimitConfig, Resource, Room, RoomFolioItem, RoomGuest,
-		Section, SerialNumberLog, ServiceConfig, ServicePackage,
-		ServicePackagePurchase, ServicePackageRedemption, ServiceQueueEntry,
-		StaffMember, StaffSchedule, StockAlertSubscription, StockConsumptionEvent,
-		SyncFailure, Table, TableAssignment, Tenant, TenantSyncEvent, Tender, User,
-		UserPOSRole, WebhookDelivery, WebhookSubscription,
-		WeighingScaleReading []ent.Interceptor
+		IntegrationSetting, InventorySnapshot, KDSStation, KDSSyncFailure, KDSTicket,
+		LayawayPayment, LayawayPlan, LicenseUsageSnapshot, LoyaltyAccount,
+		LoyaltyProgram, LoyaltyTransaction, Modifier, ModifierGroup, OrderLink,
+		OutboxEvent, Outlet, OutletSetting, POSCatalogOverride, POSDevice,
+		POSDeviceSession, POSLineModifier, POSOrder, POSOrderEvent, POSOrderLine,
+		POSPayment, POSPermission, POSRefund, POSReturn, POSReturnLine, POSRole,
+		POSRolePermission, POSRoleV2, POSUserRoleAssignment, PosNotification,
+		Prescription, PrescriptionLine, PriceBook, PriceBookItem, Promotion,
+		PromotionApplication, PromotionRule, RateLimitConfig, Resource, Room,
+		RoomFolioItem, RoomGuest, Section, SerialNumberLog, ServiceConfig,
+		ServicePackage, ServicePackagePurchase, ServicePackageRedemption,
+		ServiceQueueEntry, StaffMember, StaffSchedule, StockAlertSubscription,
+		StockConsumptionEvent, SyncFailure, Table, TableAssignment, Tenant,
+		TenantSyncEvent, Tender, User, UserPOSRole, WebhookDelivery,
+		WebhookSubscription, WeighingScaleReading []ent.Interceptor
 	}
 )

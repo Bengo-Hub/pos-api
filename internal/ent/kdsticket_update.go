@@ -113,6 +113,26 @@ func (_u *KDSTicketUpdate) AppendItems(v []map[string]interface{}) *KDSTicketUpd
 	return _u
 }
 
+// SetTableReference sets the "table_reference" field.
+func (_u *KDSTicketUpdate) SetTableReference(v string) *KDSTicketUpdate {
+	_u.mutation.SetTableReference(v)
+	return _u
+}
+
+// SetNillableTableReference sets the "table_reference" field if the given value is not nil.
+func (_u *KDSTicketUpdate) SetNillableTableReference(v *string) *KDSTicketUpdate {
+	if v != nil {
+		_u.SetTableReference(*v)
+	}
+	return _u
+}
+
+// ClearTableReference clears the value of the "table_reference" field.
+func (_u *KDSTicketUpdate) ClearTableReference() *KDSTicketUpdate {
+	_u.mutation.ClearTableReference()
+	return _u
+}
+
 // SetReceivedAt sets the "received_at" field.
 func (_u *KDSTicketUpdate) SetReceivedAt(v time.Time) *KDSTicketUpdate {
 	_u.mutation.SetReceivedAt(v)
@@ -281,6 +301,12 @@ func (_u *KDSTicketUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			sqljson.Append(u, kdsticket.FieldItems, value)
 		})
 	}
+	if value, ok := _u.mutation.TableReference(); ok {
+		_spec.SetField(kdsticket.FieldTableReference, field.TypeString, value)
+	}
+	if _u.mutation.TableReferenceCleared() {
+		_spec.ClearField(kdsticket.FieldTableReference, field.TypeString)
+	}
 	if value, ok := _u.mutation.ReceivedAt(); ok {
 		_spec.SetField(kdsticket.FieldReceivedAt, field.TypeTime, value)
 	}
@@ -430,6 +456,26 @@ func (_u *KDSTicketUpdateOne) SetItems(v []map[string]interface{}) *KDSTicketUpd
 // AppendItems appends value to the "items" field.
 func (_u *KDSTicketUpdateOne) AppendItems(v []map[string]interface{}) *KDSTicketUpdateOne {
 	_u.mutation.AppendItems(v)
+	return _u
+}
+
+// SetTableReference sets the "table_reference" field.
+func (_u *KDSTicketUpdateOne) SetTableReference(v string) *KDSTicketUpdateOne {
+	_u.mutation.SetTableReference(v)
+	return _u
+}
+
+// SetNillableTableReference sets the "table_reference" field if the given value is not nil.
+func (_u *KDSTicketUpdateOne) SetNillableTableReference(v *string) *KDSTicketUpdateOne {
+	if v != nil {
+		_u.SetTableReference(*v)
+	}
+	return _u
+}
+
+// ClearTableReference clears the value of the "table_reference" field.
+func (_u *KDSTicketUpdateOne) ClearTableReference() *KDSTicketUpdateOne {
+	_u.mutation.ClearTableReference()
 	return _u
 }
 
@@ -630,6 +676,12 @@ func (_u *KDSTicketUpdateOne) sqlSave(ctx context.Context) (_node *KDSTicket, er
 		_spec.AddModifier(func(u *sql.UpdateBuilder) {
 			sqljson.Append(u, kdsticket.FieldItems, value)
 		})
+	}
+	if value, ok := _u.mutation.TableReference(); ok {
+		_spec.SetField(kdsticket.FieldTableReference, field.TypeString, value)
+	}
+	if _u.mutation.TableReferenceCleared() {
+		_spec.ClearField(kdsticket.FieldTableReference, field.TypeString)
 	}
 	if value, ok := _u.mutation.ReceivedAt(); ok {
 		_spec.SetField(kdsticket.FieldReceivedAt, field.TypeTime, value)

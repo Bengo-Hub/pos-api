@@ -16,16 +16,18 @@ import (
 	entroom "github.com/bengobox/pos-service/internal/ent/room"
 	entroomfolioitem "github.com/bengobox/pos-service/internal/ent/roomfolioitem"
 	entroomguest "github.com/bengobox/pos-service/internal/ent/roomguest"
+	"github.com/bengobox/pos-service/internal/platform/events"
 )
 
 // HotelHandler handles hotel management endpoints (rooms, guests, folio, facilities, bookings).
 type HotelHandler struct {
-	log    *zap.Logger
-	client *ent.Client
+	log       *zap.Logger
+	client    *ent.Client
+	publisher *events.Publisher
 }
 
-func NewHotelHandler(log *zap.Logger, client *ent.Client) *HotelHandler {
-	return &HotelHandler{log: log, client: client}
+func NewHotelHandler(log *zap.Logger, client *ent.Client, publisher *events.Publisher) *HotelHandler {
+	return &HotelHandler{log: log, client: client, publisher: publisher}
 }
 
 // --- Rooms ---
@@ -287,6 +289,18 @@ func (h *HotelHandler) CheckIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if h.publisher != nil {
+		_ = h.publisher.PublishHotelCheckIn(r.Context(), tid, map[string]any{
+			"room_id":       roomID,
+			"room_number":   room.RoomNumber,
+			"guest_id":      guest.ID,
+			"guest_name":    input.GuestName,
+			"nights":        input.Nights,
+			"total_charge":  totalCharge,
+			"check_in_date": now,
+		})
+	}
+
 	w.WriteHeader(http.StatusCreated)
 	jsonOK(w, guest)
 }
@@ -368,6 +382,16 @@ func (h *HotelHandler) CheckOut(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if h.publisher != nil {
+		_ = h.publisher.PublishHotelCheckOut(r.Context(), tid, map[string]any{
+			"room_id":     roomID,
+			"guest_id":    guest.ID,
+			"guest_name":  guest.GuestName,
+			"total_folio": totalFolio,
+			"checked_out_at": now,
+		})
+	}
+
 	jsonOK(w, map[string]any{
 		"guest":       guest,
 		"total_folio": totalFolio,
@@ -434,6 +458,17 @@ func (h *HotelHandler) PostFolioCharge(w http.ResponseWriter, r *http.Request) {
 		h.log.Error("post folio charge failed", zap.Error(err))
 		jsonError(w, "failed to post charge", http.StatusInternalServerError)
 		return
+	}
+
+	if h.publisher != nil {
+		_ = h.publisher.PublishHotelFolioCharge(r.Context(), tid, map[string]any{
+			"room_id":     roomID,
+			"guest_id":    guest.ID,
+			"item_id":     item.ID,
+			"description": input.Description,
+			"amount":      input.Amount,
+			"charge_type": input.ChargeType,
+		})
 	}
 
 	w.WriteHeader(http.StatusCreated)

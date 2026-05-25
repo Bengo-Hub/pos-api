@@ -119,3 +119,28 @@ func (p *Publisher) PublishKDSOrderUpdated(ctx context.Context, tenantID uuid.UU
 func (p *Publisher) PublishKDSWaiterCalled(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {
 	return p.publish(ctx, tenantID, "kds.waiter.called", data)
 }
+
+// PublishKDSOrderReady publishes a pos.kds.order.ready event when a kitchen ticket is marked ready.
+func (p *Publisher) PublishKDSOrderReady(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {
+	return p.publish(ctx, tenantID, "kds.order.ready", data)
+}
+
+// PublishERPSalePosted publishes a pos.erp.sale_posted event for external ERP / accounting system sync.
+func (p *Publisher) PublishERPSalePosted(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {
+	return p.publish(ctx, tenantID, "erp.sale_posted", data)
+}
+
+// PublishHotelCheckIn publishes a pos.hotel.check_in event (treasury-api folio ledger, CRM audit).
+func (p *Publisher) PublishHotelCheckIn(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {
+	return p.publish(ctx, tenantID, "hotel.check_in", data)
+}
+
+// PublishHotelCheckOut publishes a pos.hotel.check_out event (treasury-api settlement, housekeeping).
+func (p *Publisher) PublishHotelCheckOut(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {
+	return p.publish(ctx, tenantID, "hotel.check_out", data)
+}
+
+// PublishHotelFolioCharge publishes a pos.hotel.folio_charge event when a charge is posted to a room folio.
+func (p *Publisher) PublishHotelFolioCharge(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {
+	return p.publish(ctx, tenantID, "hotel.folio_charge", data)
+}

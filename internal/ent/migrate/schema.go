@@ -619,6 +619,38 @@ var (
 			},
 		},
 	}
+	// KdsSyncFailuresColumns holds the columns for the "kds_sync_failures" table.
+	KdsSyncFailuresColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "station_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "order_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "event_type", Type: field.TypeString},
+		{Name: "payload", Type: field.TypeString, Size: 2147483647},
+		{Name: "error_message", Type: field.TypeString},
+		{Name: "attempt", Type: field.TypeInt, Default: 1},
+		{Name: "status", Type: field.TypeString, Default: "failed"},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "resolved_at", Type: field.TypeTime, Nullable: true},
+	}
+	// KdsSyncFailuresTable holds the schema information for the "kds_sync_failures" table.
+	KdsSyncFailuresTable = &schema.Table{
+		Name:       "kds_sync_failures",
+		Columns:    KdsSyncFailuresColumns,
+		PrimaryKey: []*schema.Column{KdsSyncFailuresColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "kdssyncfailure_tenant_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{KdsSyncFailuresColumns[1], KdsSyncFailuresColumns[8]},
+			},
+			{
+				Name:    "kdssyncfailure_tenant_id_event_type",
+				Unique:  false,
+				Columns: []*schema.Column{KdsSyncFailuresColumns[1], KdsSyncFailuresColumns[4]},
+			},
+		},
+	}
 	// KdsTicketsColumns holds the columns for the "kds_tickets" table.
 	KdsTicketsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -627,6 +659,7 @@ var (
 		{Name: "order_number", Type: field.TypeString},
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending", "in_progress", "ready", "served", "voided"}, Default: "pending"},
 		{Name: "items", Type: field.TypeJSON},
+		{Name: "table_reference", Type: field.TypeString, Nullable: true},
 		{Name: "received_at", Type: field.TypeTime},
 		{Name: "started_at", Type: field.TypeTime, Nullable: true},
 		{Name: "completed_at", Type: field.TypeTime, Nullable: true},
@@ -641,7 +674,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "kds_tickets_kds_stations_tickets",
-				Columns:    []*schema.Column{KdsTicketsColumns[10]},
+				Columns:    []*schema.Column{KdsTicketsColumns[11]},
 				RefColumns: []*schema.Column{KdsStationsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -650,7 +683,7 @@ var (
 			{
 				Name:    "kdsticket_tenant_id_station_id_status",
 				Unique:  false,
-				Columns: []*schema.Column{KdsTicketsColumns[1], KdsTicketsColumns[10], KdsTicketsColumns[4]},
+				Columns: []*schema.Column{KdsTicketsColumns[1], KdsTicketsColumns[11], KdsTicketsColumns[4]},
 			},
 			{
 				Name:    "kdsticket_order_id",
@@ -2652,6 +2685,7 @@ var (
 		IntegrationSettingsTable,
 		InventorySnapshotsTable,
 		KdsStationsTable,
+		KdsSyncFailuresTable,
 		KdsTicketsTable,
 		LayawayPaymentsTable,
 		LayawayPlansTable,

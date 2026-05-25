@@ -152,6 +152,12 @@ func (h *CatalogHandler) ListCatalogItems(w http.ResponseWriter, r *http.Request
 	if tenantSlug == "" {
 		tenantSlug = httpware.GetTenantSlug(r.Context())
 	}
+	// Terminal PIN JWTs don't embed tenant_slug — look it up from the local Tenant table.
+	if tenantSlug == "" {
+		if t, lookupErr := h.client.Tenant.Get(r.Context(), tid); lookupErr == nil {
+			tenantSlug = t.Slug
+		}
+	}
 
 	var outletID *uuid.UUID
 	if oidStr := httpware.GetOutletID(r.Context()); oidStr != "" {

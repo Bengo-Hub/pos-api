@@ -64,6 +64,7 @@ func New(
 	commissionRules *handlers.CommissionRuleHandler,
 	packages *handlers.PackageHandler,
 	clients *handlers.ClientHandler,
+	channels *handlers.ChannelHandler,
 	allowedOrigins []string,
 	redisClient *redis.Client,
 ) http.Handler {
@@ -485,6 +486,16 @@ func New(
 						pos.Put("/webhooks/{webhookID}", webhooks.Update)
 						pos.Delete("/webhooks/{webhookID}", webhooks.Delete)
 						pos.Get("/webhooks/{webhookID}/deliveries", webhooks.ListDeliveries)
+					}
+
+					// Delivery channel integrations (Uber Eats, Glovo, etc.) — Sprint 12
+					if channels != nil {
+						pos.Get("/channels", channels.ListChannels)
+						pos.Post("/channels", channels.CreateChannel)
+						pos.Put("/channels/{channelID}", channels.UpdateChannel)
+						pos.Delete("/channels/{channelID}", channels.DeleteChannel)
+						pos.Get("/channels/{channelID}/sync-jobs", channels.ListSyncJobs)
+						pos.Post("/channels/{channelID}/sync-jobs", channels.TriggerSyncJob)
 					}
 
 					// Online ordering pickup status — KDS click-and-collect (Sprint 13)

@@ -41,6 +41,7 @@ import (
 	"github.com/bengobox/pos-service/internal/platform/database"
 	"github.com/bengobox/pos-service/internal/platform/events"
 	"github.com/bengobox/pos-service/internal/platform/subscriptions"
+	webhookspkg "github.com/bengobox/pos-service/internal/platform/webhooks"
 	"github.com/bengobox/pos-service/internal/shared/logger"
 )
 
@@ -192,7 +193,11 @@ func New(ctx context.Context) (*App, error) {
 	promotionHandler := handlers.NewPromotionHandler(log, entClient, promoSvc)
 
 	// Hotel, KDS and device session handlers
-	hotelHandler := handlers.NewHotelHandler(log, entClient)
+	var hotelEventPub *events.Publisher
+	if pub := orderSvc.GetPublisher(); pub != nil {
+		hotelEventPub = pub
+	}
+	hotelHandler := handlers.NewHotelHandler(log, entClient, hotelEventPub)
 	kdsHandler := handlers.NewKDSHandler(log, entClient)
 	deviceHandler := handlers.NewDeviceHandler(log, entClient)
 	notificationsHandler := handlers.NewNotificationsHandler(log, entClient)
@@ -316,11 +321,19 @@ func New(ctx context.Context) (*App, error) {
 		}
 	}
 
-	// Subscribe to pos.sale.finalized: auto-earn loyalty points + create commission records
+	// Subscribe to pos.sale.finalized: auto-earn loyalty points + create commission records + ERP pass-through
 	if natsConn != nil {
-		saleFinalizedSub := subscriptions.NewSaleFinalizedSubscriber(entClient, log)
+		saleFinalizedSub := subscriptions.NewSaleFinalizedSubscriber(entClient, log, orderSvc.GetPublisher())
 		if err := saleFinalizedSub.Start(natsConn); err != nil {
 			log.Warn("app: failed to start sale.finalized subscriber", zap.Error(err))
+		}
+	}
+
+	// Webhook dispatcher: fan-out pos.> NATS events to matching webhook subscriptions with HTTP delivery + backoff
+	if natsConn != nil {
+		webhookDispatcher := webhookspkg.NewDispatcher(entClient, log)
+		if err := webhookDispatcher.Start(natsConn); err != nil {
+			log.Warn("app: failed to start webhook dispatcher", zap.Error(err))
 		}
 	}
 
@@ -338,7 +351,8 @@ func New(ctx context.Context) (*App, error) {
 	commissionRuleHandler := handlers.NewCommissionRuleHandler(log, entClient)
 	packageHandler := handlers.NewPackageHandler(log, entClient)
 	clientHandler := handlers.NewClientHandler(log, entClient)
-	chiRouter := router.New(log, healthHandler, authMiddleware, entClient, identitySvc, orderHandler, catalogHandler, tableHandler, tenderHandler, paymentHandler, drawerHandler, barTabHandler, promotionHandler, rbacHandler, hotelHandler, kdsHandler, deviceHandler, pinAuthHandler, publicOutletHandler, closingHandler, returnHandler, receiptHandler, layawayHandler, scaleHandler, pharmacyHandler, appointmentHandler, commissionHandler, staffScheduleHandler, loyaltyHandler, reportsHandler, webhookHandler, onlineOrderHandler, serviceConfigHandler, serviceSettingsHandler, notificationsHandler, queueHandler, billSplitHandler, resourceHandler, commissionRuleHandler, packageHandler, clientHandler, cfg.HTTP.AllowedOrigins, redisClient)
+	channelHandler := handlers.NewChannelHandler(log, entClient)
+	chiRouter := router.New(log, healthHandler, authMiddleware, entClient, identitySvc, orderHandler, catalogHandler, tableHandler, tenderHandler, paymentHandler, drawerHandler, barTabHandler, promotionHandler, rbacHandler, hotelHandler, kdsHandler, deviceHandler, pinAuthHandler, publicOutletHandler, closingHandler, returnHandler, receiptHandler, layawayHandler, scaleHandler, pharmacyHandler, appointmentHandler, commissionHandler, staffScheduleHandler, loyaltyHandler, reportsHandler, webhookHandler, onlineOrderHandler, serviceConfigHandler, serviceSettingsHandler, notificationsHandler, queueHandler, billSplitHandler, resourceHandler, commissionRuleHandler, packageHandler, clientHandler, channelHandler, cfg.HTTP.AllowedOrigins, redisClient)
 
 	httpServer := &http.Server{
 		Addr:              fmt.Sprintf("%s:%d", cfg.HTTP.Host, cfg.HTTP.Port),

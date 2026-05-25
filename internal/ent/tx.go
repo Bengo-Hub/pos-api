@@ -56,6 +56,8 @@ type Tx struct {
 	InventorySnapshot *InventorySnapshotClient
 	// KDSStation is the client for interacting with the KDSStation builders.
 	KDSStation *KDSStationClient
+	// KDSSyncFailure is the client for interacting with the KDSSyncFailure builders.
+	KDSSyncFailure *KDSSyncFailureClient
 	// KDSTicket is the client for interacting with the KDSTicket builders.
 	KDSTicket *KDSTicketClient
 	// LayawayPayment is the client for interacting with the LayawayPayment builders.
@@ -337,6 +339,7 @@ func (tx *Tx) init() {
 	tx.IntegrationSetting = NewIntegrationSettingClient(tx.config)
 	tx.InventorySnapshot = NewInventorySnapshotClient(tx.config)
 	tx.KDSStation = NewKDSStationClient(tx.config)
+	tx.KDSSyncFailure = NewKDSSyncFailureClient(tx.config)
 	tx.KDSTicket = NewKDSTicketClient(tx.config)
 	tx.LayawayPayment = NewLayawayPaymentClient(tx.config)
 	tx.LayawayPlan = NewLayawayPlanClient(tx.config)

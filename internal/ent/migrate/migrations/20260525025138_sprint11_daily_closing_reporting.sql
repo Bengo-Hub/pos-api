@@ -1,0 +1,2 @@
+-- Modify "daily_closings" table
+ALTER TABLE "daily_closings" ADD COLUMN "total_card" double precision NOT NULL DEFAULT 0, ADD COLUMN "total_mpesa" double precision NOT NULL DEFAULT 0, ADD COLUMN "total_tax" double precision NOT NULL DEFAULT 0, ADD COLUMN "total_loyalty_redemptions" double precision NOT NULL DEFAULT 0, ADD COLUMN "total_room_charge" double precision NOT NULL DEFAULT 0, ADD COLUMN "total_orders" bigint NOT NULL DEFAULT 0, ADD COLUMN "total_items_sold" bigint NOT NULL DEFAULT 0, ADD COLUMN "closed_at" timestamptz NULL;

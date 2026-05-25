@@ -26,6 +26,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/integrationsetting"
 	"github.com/bengobox/pos-service/internal/ent/inventorysnapshot"
 	"github.com/bengobox/pos-service/internal/ent/kdsstation"
+	"github.com/bengobox/pos-service/internal/ent/kdssyncfailure"
 	"github.com/bengobox/pos-service/internal/ent/kdsticket"
 	"github.com/bengobox/pos-service/internal/ent/layawaypayment"
 	"github.com/bengobox/pos-service/internal/ent/layawayplan"
@@ -648,6 +649,24 @@ func init() {
 	kdsstationDescID := kdsstationFields[0].Descriptor()
 	// kdsstation.DefaultID holds the default value on creation for the id field.
 	kdsstation.DefaultID = kdsstationDescID.Default.(func() uuid.UUID)
+	kdssyncfailureFields := schema.KDSSyncFailure{}.Fields()
+	_ = kdssyncfailureFields
+	// kdssyncfailureDescAttempt is the schema descriptor for attempt field.
+	kdssyncfailureDescAttempt := kdssyncfailureFields[7].Descriptor()
+	// kdssyncfailure.DefaultAttempt holds the default value on creation for the attempt field.
+	kdssyncfailure.DefaultAttempt = kdssyncfailureDescAttempt.Default.(int)
+	// kdssyncfailureDescStatus is the schema descriptor for status field.
+	kdssyncfailureDescStatus := kdssyncfailureFields[8].Descriptor()
+	// kdssyncfailure.DefaultStatus holds the default value on creation for the status field.
+	kdssyncfailure.DefaultStatus = kdssyncfailureDescStatus.Default.(string)
+	// kdssyncfailureDescCreatedAt is the schema descriptor for created_at field.
+	kdssyncfailureDescCreatedAt := kdssyncfailureFields[9].Descriptor()
+	// kdssyncfailure.DefaultCreatedAt holds the default value on creation for the created_at field.
+	kdssyncfailure.DefaultCreatedAt = kdssyncfailureDescCreatedAt.Default.(func() time.Time)
+	// kdssyncfailureDescID is the schema descriptor for id field.
+	kdssyncfailureDescID := kdssyncfailureFields[0].Descriptor()
+	// kdssyncfailure.DefaultID holds the default value on creation for the id field.
+	kdssyncfailure.DefaultID = kdssyncfailureDescID.Default.(func() uuid.UUID)
 	kdsticketFields := schema.KDSTicket{}.Fields()
 	_ = kdsticketFields
 	// kdsticketDescOrderNumber is the schema descriptor for order_number field.
@@ -655,11 +674,11 @@ func init() {
 	// kdsticket.OrderNumberValidator is a validator for the "order_number" field. It is called by the builders before save.
 	kdsticket.OrderNumberValidator = kdsticketDescOrderNumber.Validators[0].(func(string) error)
 	// kdsticketDescReceivedAt is the schema descriptor for received_at field.
-	kdsticketDescReceivedAt := kdsticketFields[7].Descriptor()
+	kdsticketDescReceivedAt := kdsticketFields[8].Descriptor()
 	// kdsticket.DefaultReceivedAt holds the default value on creation for the received_at field.
 	kdsticket.DefaultReceivedAt = kdsticketDescReceivedAt.Default.(func() time.Time)
 	// kdsticketDescPriority is the schema descriptor for priority field.
-	kdsticketDescPriority := kdsticketFields[10].Descriptor()
+	kdsticketDescPriority := kdsticketFields[11].Descriptor()
 	// kdsticket.DefaultPriority holds the default value on creation for the priority field.
 	kdsticket.DefaultPriority = kdsticketDescPriority.Default.(int)
 	// kdsticketDescID is the schema descriptor for id field.

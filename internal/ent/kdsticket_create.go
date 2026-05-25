@@ -69,6 +69,20 @@ func (_c *KDSTicketCreate) SetItems(v []map[string]interface{}) *KDSTicketCreate
 	return _c
 }
 
+// SetTableReference sets the "table_reference" field.
+func (_c *KDSTicketCreate) SetTableReference(v string) *KDSTicketCreate {
+	_c.mutation.SetTableReference(v)
+	return _c
+}
+
+// SetNillableTableReference sets the "table_reference" field if the given value is not nil.
+func (_c *KDSTicketCreate) SetNillableTableReference(v *string) *KDSTicketCreate {
+	if v != nil {
+		_c.SetTableReference(*v)
+	}
+	return _c
+}
+
 // SetReceivedAt sets the "received_at" field.
 func (_c *KDSTicketCreate) SetReceivedAt(v time.Time) *KDSTicketCreate {
 	_c.mutation.SetReceivedAt(v)
@@ -292,6 +306,10 @@ func (_c *KDSTicketCreate) createSpec() (*KDSTicket, *sqlgraph.CreateSpec) {
 		_spec.SetField(kdsticket.FieldItems, field.TypeJSON, value)
 		_node.Items = value
 	}
+	if value, ok := _c.mutation.TableReference(); ok {
+		_spec.SetField(kdsticket.FieldTableReference, field.TypeString, value)
+		_node.TableReference = value
+	}
 	if value, ok := _c.mutation.ReceivedAt(); ok {
 		_spec.SetField(kdsticket.FieldReceivedAt, field.TypeTime, value)
 		_node.ReceivedAt = value
@@ -446,6 +464,24 @@ func (u *KDSTicketUpsert) SetItems(v []map[string]interface{}) *KDSTicketUpsert 
 // UpdateItems sets the "items" field to the value that was provided on create.
 func (u *KDSTicketUpsert) UpdateItems() *KDSTicketUpsert {
 	u.SetExcluded(kdsticket.FieldItems)
+	return u
+}
+
+// SetTableReference sets the "table_reference" field.
+func (u *KDSTicketUpsert) SetTableReference(v string) *KDSTicketUpsert {
+	u.Set(kdsticket.FieldTableReference, v)
+	return u
+}
+
+// UpdateTableReference sets the "table_reference" field to the value that was provided on create.
+func (u *KDSTicketUpsert) UpdateTableReference() *KDSTicketUpsert {
+	u.SetExcluded(kdsticket.FieldTableReference)
+	return u
+}
+
+// ClearTableReference clears the value of the "table_reference" field.
+func (u *KDSTicketUpsert) ClearTableReference() *KDSTicketUpsert {
+	u.SetNull(kdsticket.FieldTableReference)
 	return u
 }
 
@@ -644,6 +680,27 @@ func (u *KDSTicketUpsertOne) SetItems(v []map[string]interface{}) *KDSTicketUpse
 func (u *KDSTicketUpsertOne) UpdateItems() *KDSTicketUpsertOne {
 	return u.Update(func(s *KDSTicketUpsert) {
 		s.UpdateItems()
+	})
+}
+
+// SetTableReference sets the "table_reference" field.
+func (u *KDSTicketUpsertOne) SetTableReference(v string) *KDSTicketUpsertOne {
+	return u.Update(func(s *KDSTicketUpsert) {
+		s.SetTableReference(v)
+	})
+}
+
+// UpdateTableReference sets the "table_reference" field to the value that was provided on create.
+func (u *KDSTicketUpsertOne) UpdateTableReference() *KDSTicketUpsertOne {
+	return u.Update(func(s *KDSTicketUpsert) {
+		s.UpdateTableReference()
+	})
+}
+
+// ClearTableReference clears the value of the "table_reference" field.
+func (u *KDSTicketUpsertOne) ClearTableReference() *KDSTicketUpsertOne {
+	return u.Update(func(s *KDSTicketUpsert) {
+		s.ClearTableReference()
 	})
 }
 
@@ -1020,6 +1077,27 @@ func (u *KDSTicketUpsertBulk) SetItems(v []map[string]interface{}) *KDSTicketUps
 func (u *KDSTicketUpsertBulk) UpdateItems() *KDSTicketUpsertBulk {
 	return u.Update(func(s *KDSTicketUpsert) {
 		s.UpdateItems()
+	})
+}
+
+// SetTableReference sets the "table_reference" field.
+func (u *KDSTicketUpsertBulk) SetTableReference(v string) *KDSTicketUpsertBulk {
+	return u.Update(func(s *KDSTicketUpsert) {
+		s.SetTableReference(v)
+	})
+}
+
+// UpdateTableReference sets the "table_reference" field to the value that was provided on create.
+func (u *KDSTicketUpsertBulk) UpdateTableReference() *KDSTicketUpsertBulk {
+	return u.Update(func(s *KDSTicketUpsert) {
+		s.UpdateTableReference()
+	})
+}
+
+// ClearTableReference clears the value of the "table_reference" field.
+func (u *KDSTicketUpsertBulk) ClearTableReference() *KDSTicketUpsertBulk {
+	return u.Update(func(s *KDSTicketUpsert) {
+		s.ClearTableReference()
 	})
 }
 

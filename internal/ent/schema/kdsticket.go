@@ -25,6 +25,7 @@ func (KDSTicket) Fields() []ent.Field {
 		field.String("order_number").NotEmpty(),
 		field.Enum("status").Values("pending", "in_progress", "ready", "served", "voided").Default("pending"),
 		field.JSON("items", []map[string]any{}).Comment("Line items for this station"),
+		field.String("table_reference").Optional().Comment("Table number or name from the originating order, parsed at ticket creation"),
 		field.Time("received_at").Default(time.Now),
 		field.Time("started_at").Optional().Nillable(),
 		field.Time("completed_at").Optional().Nillable(),

@@ -166,8 +166,19 @@ func (s *KDSOrderingSubscriber) handleStatusChanged(ctx context.Context, evt *or
 		return nil
 	}
 
+	// Parse table reference from metadata for display on the KDS screen.
+	tableRef := ""
+	if v, ok := posOrder.Metadata["table_number"].(string); ok {
+		tableRef = v
+	}
+	if tableRef == "" {
+		if v, ok := posOrder.Metadata["table_name"].(string); ok {
+			tableRef = v
+		}
+	}
+
 	for _, station := range stations {
-		if err := s.upsertKDSTicket(ctx, tenantID, station.ID, posOrder.ID, orderNumber, newStatus, items); err != nil {
+		if err := s.upsertKDSTicket(ctx, tenantID, station.ID, posOrder.ID, orderNumber, newStatus, tableRef, items); err != nil {
 			s.logger.Error("kds: failed to upsert ticket",
 				zap.String("station_id", station.ID.String()),
 				zap.Error(err))
@@ -196,7 +207,7 @@ func (s *KDSOrderingSubscriber) handleStatusChanged(ctx context.Context, evt *or
 func (s *KDSOrderingSubscriber) upsertKDSTicket(
 	ctx context.Context,
 	tenantID, stationID, posOrderID uuid.UUID,
-	orderNumber, newStatus string,
+	orderNumber, newStatus, tableRef string,
 	items []map[string]any,
 ) error {
 	existing, err := s.client.KDSTicket.Query().
@@ -216,14 +227,17 @@ func (s *KDSOrderingSubscriber) upsertKDSTicket(
 		if newStatus == "preparing" {
 			ticketStatus = kdsticket.StatusInProgress
 		}
-		_, err = s.client.KDSTicket.Create().
+		c := s.client.KDSTicket.Create().
 			SetTenantID(tenantID).
 			SetStationID(stationID).
 			SetOrderID(posOrderID).
 			SetOrderNumber(orderNumber).
 			SetStatus(ticketStatus).
-			SetItems(items).
-			Save(ctx)
+			SetItems(items)
+		if tableRef != "" {
+			c = c.SetTableReference(tableRef)
+		}
+		_, err = c.Save(ctx)
 		return err
 	}
 

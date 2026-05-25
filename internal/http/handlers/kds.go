@@ -260,6 +260,19 @@ func (h *KDSHandler) transitionTicket(w http.ResponseWriter, r *http.Request, to
 		jsonError(w, "failed to update ticket", http.StatusInternalServerError)
 		return
 	}
+
+	if toStatus == entkdsticket.StatusReady && h.publisher != nil {
+		tid, _ := parseTenantUUID(r)
+		_ = h.publisher.PublishKDSOrderReady(r.Context(), tid, map[string]any{
+			"ticket_id":       updated.ID,
+			"order_id":        updated.OrderID,
+			"order_number":    updated.OrderNumber,
+			"station_id":      updated.StationID,
+			"table_reference": updated.TableReference,
+			"completed_at":    now,
+		})
+	}
+
 	jsonOK(w, updated)
 }
 

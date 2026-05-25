@@ -72,6 +72,9 @@ type InventorySnapshot func(*sql.Selector)
 // KDSStation is the predicate function for kdsstation builders.
 type KDSStation func(*sql.Selector)
 
+// KDSSyncFailure is the predicate function for kdssyncfailure builders.
+type KDSSyncFailure func(*sql.Selector)
+
 // KDSTicket is the predicate function for kdsticket builders.
 type KDSTicket func(*sql.Selector)
 

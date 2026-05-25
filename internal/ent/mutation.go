@@ -32,6 +32,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/integrationsetting"
 	"github.com/bengobox/pos-service/internal/ent/inventorysnapshot"
 	"github.com/bengobox/pos-service/internal/ent/kdsstation"
+	"github.com/bengobox/pos-service/internal/ent/kdssyncfailure"
 	"github.com/bengobox/pos-service/internal/ent/kdsticket"
 	"github.com/bengobox/pos-service/internal/ent/layawaypayment"
 	"github.com/bengobox/pos-service/internal/ent/layawayplan"
@@ -131,6 +132,7 @@ const (
 	TypeIntegrationSetting       = "IntegrationSetting"
 	TypeInventorySnapshot        = "InventorySnapshot"
 	TypeKDSStation               = "KDSStation"
+	TypeKDSSyncFailure           = "KDSSyncFailure"
 	TypeKDSTicket                = "KDSTicket"
 	TypeLayawayPayment           = "LayawayPayment"
 	TypeLayawayPlan              = "LayawayPlan"
@@ -20172,29 +20174,944 @@ func (m *KDSStationMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown KDSStation edge %s", name)
 }
 
+// KDSSyncFailureMutation represents an operation that mutates the KDSSyncFailure nodes in the graph.
+type KDSSyncFailureMutation struct {
+	config
+	op            Op
+	typ           string
+	id            *uuid.UUID
+	tenant_id     *uuid.UUID
+	station_id    *uuid.UUID
+	order_id      *uuid.UUID
+	event_type    *string
+	payload       *string
+	error_message *string
+	attempt       *int
+	addattempt    *int
+	status        *string
+	created_at    *time.Time
+	resolved_at   *time.Time
+	clearedFields map[string]struct{}
+	done          bool
+	oldValue      func(context.Context) (*KDSSyncFailure, error)
+	predicates    []predicate.KDSSyncFailure
+}
+
+var _ ent.Mutation = (*KDSSyncFailureMutation)(nil)
+
+// kdssyncfailureOption allows management of the mutation configuration using functional options.
+type kdssyncfailureOption func(*KDSSyncFailureMutation)
+
+// newKDSSyncFailureMutation creates new mutation for the KDSSyncFailure entity.
+func newKDSSyncFailureMutation(c config, op Op, opts ...kdssyncfailureOption) *KDSSyncFailureMutation {
+	m := &KDSSyncFailureMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeKDSSyncFailure,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withKDSSyncFailureID sets the ID field of the mutation.
+func withKDSSyncFailureID(id uuid.UUID) kdssyncfailureOption {
+	return func(m *KDSSyncFailureMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *KDSSyncFailure
+		)
+		m.oldValue = func(ctx context.Context) (*KDSSyncFailure, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().KDSSyncFailure.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withKDSSyncFailure sets the old KDSSyncFailure of the mutation.
+func withKDSSyncFailure(node *KDSSyncFailure) kdssyncfailureOption {
+	return func(m *KDSSyncFailureMutation) {
+		m.oldValue = func(context.Context) (*KDSSyncFailure, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m KDSSyncFailureMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m KDSSyncFailureMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of KDSSyncFailure entities.
+func (m *KDSSyncFailureMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *KDSSyncFailureMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *KDSSyncFailureMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().KDSSyncFailure.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *KDSSyncFailureMutation) SetTenantID(u uuid.UUID) {
+	m.tenant_id = &u
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *KDSSyncFailureMutation) TenantID() (r uuid.UUID, exists bool) {
+	v := m.tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the KDSSyncFailure entity.
+// If the KDSSyncFailure object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KDSSyncFailureMutation) OldTenantID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *KDSSyncFailureMutation) ResetTenantID() {
+	m.tenant_id = nil
+}
+
+// SetStationID sets the "station_id" field.
+func (m *KDSSyncFailureMutation) SetStationID(u uuid.UUID) {
+	m.station_id = &u
+}
+
+// StationID returns the value of the "station_id" field in the mutation.
+func (m *KDSSyncFailureMutation) StationID() (r uuid.UUID, exists bool) {
+	v := m.station_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStationID returns the old "station_id" field's value of the KDSSyncFailure entity.
+// If the KDSSyncFailure object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KDSSyncFailureMutation) OldStationID(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStationID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStationID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStationID: %w", err)
+	}
+	return oldValue.StationID, nil
+}
+
+// ClearStationID clears the value of the "station_id" field.
+func (m *KDSSyncFailureMutation) ClearStationID() {
+	m.station_id = nil
+	m.clearedFields[kdssyncfailure.FieldStationID] = struct{}{}
+}
+
+// StationIDCleared returns if the "station_id" field was cleared in this mutation.
+func (m *KDSSyncFailureMutation) StationIDCleared() bool {
+	_, ok := m.clearedFields[kdssyncfailure.FieldStationID]
+	return ok
+}
+
+// ResetStationID resets all changes to the "station_id" field.
+func (m *KDSSyncFailureMutation) ResetStationID() {
+	m.station_id = nil
+	delete(m.clearedFields, kdssyncfailure.FieldStationID)
+}
+
+// SetOrderID sets the "order_id" field.
+func (m *KDSSyncFailureMutation) SetOrderID(u uuid.UUID) {
+	m.order_id = &u
+}
+
+// OrderID returns the value of the "order_id" field in the mutation.
+func (m *KDSSyncFailureMutation) OrderID() (r uuid.UUID, exists bool) {
+	v := m.order_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOrderID returns the old "order_id" field's value of the KDSSyncFailure entity.
+// If the KDSSyncFailure object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KDSSyncFailureMutation) OldOrderID(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOrderID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOrderID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOrderID: %w", err)
+	}
+	return oldValue.OrderID, nil
+}
+
+// ClearOrderID clears the value of the "order_id" field.
+func (m *KDSSyncFailureMutation) ClearOrderID() {
+	m.order_id = nil
+	m.clearedFields[kdssyncfailure.FieldOrderID] = struct{}{}
+}
+
+// OrderIDCleared returns if the "order_id" field was cleared in this mutation.
+func (m *KDSSyncFailureMutation) OrderIDCleared() bool {
+	_, ok := m.clearedFields[kdssyncfailure.FieldOrderID]
+	return ok
+}
+
+// ResetOrderID resets all changes to the "order_id" field.
+func (m *KDSSyncFailureMutation) ResetOrderID() {
+	m.order_id = nil
+	delete(m.clearedFields, kdssyncfailure.FieldOrderID)
+}
+
+// SetEventType sets the "event_type" field.
+func (m *KDSSyncFailureMutation) SetEventType(s string) {
+	m.event_type = &s
+}
+
+// EventType returns the value of the "event_type" field in the mutation.
+func (m *KDSSyncFailureMutation) EventType() (r string, exists bool) {
+	v := m.event_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEventType returns the old "event_type" field's value of the KDSSyncFailure entity.
+// If the KDSSyncFailure object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KDSSyncFailureMutation) OldEventType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEventType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEventType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEventType: %w", err)
+	}
+	return oldValue.EventType, nil
+}
+
+// ResetEventType resets all changes to the "event_type" field.
+func (m *KDSSyncFailureMutation) ResetEventType() {
+	m.event_type = nil
+}
+
+// SetPayload sets the "payload" field.
+func (m *KDSSyncFailureMutation) SetPayload(s string) {
+	m.payload = &s
+}
+
+// Payload returns the value of the "payload" field in the mutation.
+func (m *KDSSyncFailureMutation) Payload() (r string, exists bool) {
+	v := m.payload
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPayload returns the old "payload" field's value of the KDSSyncFailure entity.
+// If the KDSSyncFailure object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KDSSyncFailureMutation) OldPayload(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPayload is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPayload requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPayload: %w", err)
+	}
+	return oldValue.Payload, nil
+}
+
+// ResetPayload resets all changes to the "payload" field.
+func (m *KDSSyncFailureMutation) ResetPayload() {
+	m.payload = nil
+}
+
+// SetErrorMessage sets the "error_message" field.
+func (m *KDSSyncFailureMutation) SetErrorMessage(s string) {
+	m.error_message = &s
+}
+
+// ErrorMessage returns the value of the "error_message" field in the mutation.
+func (m *KDSSyncFailureMutation) ErrorMessage() (r string, exists bool) {
+	v := m.error_message
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldErrorMessage returns the old "error_message" field's value of the KDSSyncFailure entity.
+// If the KDSSyncFailure object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KDSSyncFailureMutation) OldErrorMessage(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldErrorMessage is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldErrorMessage requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldErrorMessage: %w", err)
+	}
+	return oldValue.ErrorMessage, nil
+}
+
+// ResetErrorMessage resets all changes to the "error_message" field.
+func (m *KDSSyncFailureMutation) ResetErrorMessage() {
+	m.error_message = nil
+}
+
+// SetAttempt sets the "attempt" field.
+func (m *KDSSyncFailureMutation) SetAttempt(i int) {
+	m.attempt = &i
+	m.addattempt = nil
+}
+
+// Attempt returns the value of the "attempt" field in the mutation.
+func (m *KDSSyncFailureMutation) Attempt() (r int, exists bool) {
+	v := m.attempt
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAttempt returns the old "attempt" field's value of the KDSSyncFailure entity.
+// If the KDSSyncFailure object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KDSSyncFailureMutation) OldAttempt(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAttempt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAttempt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAttempt: %w", err)
+	}
+	return oldValue.Attempt, nil
+}
+
+// AddAttempt adds i to the "attempt" field.
+func (m *KDSSyncFailureMutation) AddAttempt(i int) {
+	if m.addattempt != nil {
+		*m.addattempt += i
+	} else {
+		m.addattempt = &i
+	}
+}
+
+// AddedAttempt returns the value that was added to the "attempt" field in this mutation.
+func (m *KDSSyncFailureMutation) AddedAttempt() (r int, exists bool) {
+	v := m.addattempt
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAttempt resets all changes to the "attempt" field.
+func (m *KDSSyncFailureMutation) ResetAttempt() {
+	m.attempt = nil
+	m.addattempt = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *KDSSyncFailureMutation) SetStatus(s string) {
+	m.status = &s
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *KDSSyncFailureMutation) Status() (r string, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the KDSSyncFailure entity.
+// If the KDSSyncFailure object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KDSSyncFailureMutation) OldStatus(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *KDSSyncFailureMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *KDSSyncFailureMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *KDSSyncFailureMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the KDSSyncFailure entity.
+// If the KDSSyncFailure object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KDSSyncFailureMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *KDSSyncFailureMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetResolvedAt sets the "resolved_at" field.
+func (m *KDSSyncFailureMutation) SetResolvedAt(t time.Time) {
+	m.resolved_at = &t
+}
+
+// ResolvedAt returns the value of the "resolved_at" field in the mutation.
+func (m *KDSSyncFailureMutation) ResolvedAt() (r time.Time, exists bool) {
+	v := m.resolved_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldResolvedAt returns the old "resolved_at" field's value of the KDSSyncFailure entity.
+// If the KDSSyncFailure object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KDSSyncFailureMutation) OldResolvedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldResolvedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldResolvedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldResolvedAt: %w", err)
+	}
+	return oldValue.ResolvedAt, nil
+}
+
+// ClearResolvedAt clears the value of the "resolved_at" field.
+func (m *KDSSyncFailureMutation) ClearResolvedAt() {
+	m.resolved_at = nil
+	m.clearedFields[kdssyncfailure.FieldResolvedAt] = struct{}{}
+}
+
+// ResolvedAtCleared returns if the "resolved_at" field was cleared in this mutation.
+func (m *KDSSyncFailureMutation) ResolvedAtCleared() bool {
+	_, ok := m.clearedFields[kdssyncfailure.FieldResolvedAt]
+	return ok
+}
+
+// ResetResolvedAt resets all changes to the "resolved_at" field.
+func (m *KDSSyncFailureMutation) ResetResolvedAt() {
+	m.resolved_at = nil
+	delete(m.clearedFields, kdssyncfailure.FieldResolvedAt)
+}
+
+// Where appends a list predicates to the KDSSyncFailureMutation builder.
+func (m *KDSSyncFailureMutation) Where(ps ...predicate.KDSSyncFailure) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the KDSSyncFailureMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *KDSSyncFailureMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.KDSSyncFailure, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *KDSSyncFailureMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *KDSSyncFailureMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (KDSSyncFailure).
+func (m *KDSSyncFailureMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *KDSSyncFailureMutation) Fields() []string {
+	fields := make([]string, 0, 10)
+	if m.tenant_id != nil {
+		fields = append(fields, kdssyncfailure.FieldTenantID)
+	}
+	if m.station_id != nil {
+		fields = append(fields, kdssyncfailure.FieldStationID)
+	}
+	if m.order_id != nil {
+		fields = append(fields, kdssyncfailure.FieldOrderID)
+	}
+	if m.event_type != nil {
+		fields = append(fields, kdssyncfailure.FieldEventType)
+	}
+	if m.payload != nil {
+		fields = append(fields, kdssyncfailure.FieldPayload)
+	}
+	if m.error_message != nil {
+		fields = append(fields, kdssyncfailure.FieldErrorMessage)
+	}
+	if m.attempt != nil {
+		fields = append(fields, kdssyncfailure.FieldAttempt)
+	}
+	if m.status != nil {
+		fields = append(fields, kdssyncfailure.FieldStatus)
+	}
+	if m.created_at != nil {
+		fields = append(fields, kdssyncfailure.FieldCreatedAt)
+	}
+	if m.resolved_at != nil {
+		fields = append(fields, kdssyncfailure.FieldResolvedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *KDSSyncFailureMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case kdssyncfailure.FieldTenantID:
+		return m.TenantID()
+	case kdssyncfailure.FieldStationID:
+		return m.StationID()
+	case kdssyncfailure.FieldOrderID:
+		return m.OrderID()
+	case kdssyncfailure.FieldEventType:
+		return m.EventType()
+	case kdssyncfailure.FieldPayload:
+		return m.Payload()
+	case kdssyncfailure.FieldErrorMessage:
+		return m.ErrorMessage()
+	case kdssyncfailure.FieldAttempt:
+		return m.Attempt()
+	case kdssyncfailure.FieldStatus:
+		return m.Status()
+	case kdssyncfailure.FieldCreatedAt:
+		return m.CreatedAt()
+	case kdssyncfailure.FieldResolvedAt:
+		return m.ResolvedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *KDSSyncFailureMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case kdssyncfailure.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case kdssyncfailure.FieldStationID:
+		return m.OldStationID(ctx)
+	case kdssyncfailure.FieldOrderID:
+		return m.OldOrderID(ctx)
+	case kdssyncfailure.FieldEventType:
+		return m.OldEventType(ctx)
+	case kdssyncfailure.FieldPayload:
+		return m.OldPayload(ctx)
+	case kdssyncfailure.FieldErrorMessage:
+		return m.OldErrorMessage(ctx)
+	case kdssyncfailure.FieldAttempt:
+		return m.OldAttempt(ctx)
+	case kdssyncfailure.FieldStatus:
+		return m.OldStatus(ctx)
+	case kdssyncfailure.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case kdssyncfailure.FieldResolvedAt:
+		return m.OldResolvedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown KDSSyncFailure field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *KDSSyncFailureMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case kdssyncfailure.FieldTenantID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case kdssyncfailure.FieldStationID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStationID(v)
+		return nil
+	case kdssyncfailure.FieldOrderID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOrderID(v)
+		return nil
+	case kdssyncfailure.FieldEventType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEventType(v)
+		return nil
+	case kdssyncfailure.FieldPayload:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPayload(v)
+		return nil
+	case kdssyncfailure.FieldErrorMessage:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetErrorMessage(v)
+		return nil
+	case kdssyncfailure.FieldAttempt:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAttempt(v)
+		return nil
+	case kdssyncfailure.FieldStatus:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case kdssyncfailure.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case kdssyncfailure.FieldResolvedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetResolvedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown KDSSyncFailure field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *KDSSyncFailureMutation) AddedFields() []string {
+	var fields []string
+	if m.addattempt != nil {
+		fields = append(fields, kdssyncfailure.FieldAttempt)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *KDSSyncFailureMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case kdssyncfailure.FieldAttempt:
+		return m.AddedAttempt()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *KDSSyncFailureMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case kdssyncfailure.FieldAttempt:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAttempt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown KDSSyncFailure numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *KDSSyncFailureMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(kdssyncfailure.FieldStationID) {
+		fields = append(fields, kdssyncfailure.FieldStationID)
+	}
+	if m.FieldCleared(kdssyncfailure.FieldOrderID) {
+		fields = append(fields, kdssyncfailure.FieldOrderID)
+	}
+	if m.FieldCleared(kdssyncfailure.FieldResolvedAt) {
+		fields = append(fields, kdssyncfailure.FieldResolvedAt)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *KDSSyncFailureMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *KDSSyncFailureMutation) ClearField(name string) error {
+	switch name {
+	case kdssyncfailure.FieldStationID:
+		m.ClearStationID()
+		return nil
+	case kdssyncfailure.FieldOrderID:
+		m.ClearOrderID()
+		return nil
+	case kdssyncfailure.FieldResolvedAt:
+		m.ClearResolvedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown KDSSyncFailure nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *KDSSyncFailureMutation) ResetField(name string) error {
+	switch name {
+	case kdssyncfailure.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case kdssyncfailure.FieldStationID:
+		m.ResetStationID()
+		return nil
+	case kdssyncfailure.FieldOrderID:
+		m.ResetOrderID()
+		return nil
+	case kdssyncfailure.FieldEventType:
+		m.ResetEventType()
+		return nil
+	case kdssyncfailure.FieldPayload:
+		m.ResetPayload()
+		return nil
+	case kdssyncfailure.FieldErrorMessage:
+		m.ResetErrorMessage()
+		return nil
+	case kdssyncfailure.FieldAttempt:
+		m.ResetAttempt()
+		return nil
+	case kdssyncfailure.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case kdssyncfailure.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case kdssyncfailure.FieldResolvedAt:
+		m.ResetResolvedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown KDSSyncFailure field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *KDSSyncFailureMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *KDSSyncFailureMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *KDSSyncFailureMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *KDSSyncFailureMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *KDSSyncFailureMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *KDSSyncFailureMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *KDSSyncFailureMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown KDSSyncFailure unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *KDSSyncFailureMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown KDSSyncFailure edge %s", name)
+}
+
 // KDSTicketMutation represents an operation that mutates the KDSTicket nodes in the graph.
 type KDSTicketMutation struct {
 	config
-	op             Op
-	typ            string
-	id             *uuid.UUID
-	tenant_id      *uuid.UUID
-	order_id       *uuid.UUID
-	order_number   *string
-	status         *kdsticket.Status
-	items          *[]map[string]interface{}
-	appenditems    []map[string]interface{}
-	received_at    *time.Time
-	started_at     *time.Time
-	completed_at   *time.Time
-	priority       *int
-	addpriority    *int
-	clearedFields  map[string]struct{}
-	station        *uuid.UUID
-	clearedstation bool
-	done           bool
-	oldValue       func(context.Context) (*KDSTicket, error)
-	predicates     []predicate.KDSTicket
+	op              Op
+	typ             string
+	id              *uuid.UUID
+	tenant_id       *uuid.UUID
+	order_id        *uuid.UUID
+	order_number    *string
+	status          *kdsticket.Status
+	items           *[]map[string]interface{}
+	appenditems     []map[string]interface{}
+	table_reference *string
+	received_at     *time.Time
+	started_at      *time.Time
+	completed_at    *time.Time
+	priority        *int
+	addpriority     *int
+	clearedFields   map[string]struct{}
+	station         *uuid.UUID
+	clearedstation  bool
+	done            bool
+	oldValue        func(context.Context) (*KDSTicket, error)
+	predicates      []predicate.KDSTicket
 }
 
 var _ ent.Mutation = (*KDSTicketMutation)(nil)
@@ -20532,6 +21449,55 @@ func (m *KDSTicketMutation) ResetItems() {
 	m.appenditems = nil
 }
 
+// SetTableReference sets the "table_reference" field.
+func (m *KDSTicketMutation) SetTableReference(s string) {
+	m.table_reference = &s
+}
+
+// TableReference returns the value of the "table_reference" field in the mutation.
+func (m *KDSTicketMutation) TableReference() (r string, exists bool) {
+	v := m.table_reference
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTableReference returns the old "table_reference" field's value of the KDSTicket entity.
+// If the KDSTicket object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KDSTicketMutation) OldTableReference(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTableReference is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTableReference requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTableReference: %w", err)
+	}
+	return oldValue.TableReference, nil
+}
+
+// ClearTableReference clears the value of the "table_reference" field.
+func (m *KDSTicketMutation) ClearTableReference() {
+	m.table_reference = nil
+	m.clearedFields[kdsticket.FieldTableReference] = struct{}{}
+}
+
+// TableReferenceCleared returns if the "table_reference" field was cleared in this mutation.
+func (m *KDSTicketMutation) TableReferenceCleared() bool {
+	_, ok := m.clearedFields[kdsticket.FieldTableReference]
+	return ok
+}
+
+// ResetTableReference resets all changes to the "table_reference" field.
+func (m *KDSTicketMutation) ResetTableReference() {
+	m.table_reference = nil
+	delete(m.clearedFields, kdsticket.FieldTableReference)
+}
+
 // SetReceivedAt sets the "received_at" field.
 func (m *KDSTicketMutation) SetReceivedAt(t time.Time) {
 	m.received_at = &t
@@ -20783,7 +21749,7 @@ func (m *KDSTicketMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *KDSTicketMutation) Fields() []string {
-	fields := make([]string, 0, 10)
+	fields := make([]string, 0, 11)
 	if m.tenant_id != nil {
 		fields = append(fields, kdsticket.FieldTenantID)
 	}
@@ -20801,6 +21767,9 @@ func (m *KDSTicketMutation) Fields() []string {
 	}
 	if m.items != nil {
 		fields = append(fields, kdsticket.FieldItems)
+	}
+	if m.table_reference != nil {
+		fields = append(fields, kdsticket.FieldTableReference)
 	}
 	if m.received_at != nil {
 		fields = append(fields, kdsticket.FieldReceivedAt)
@@ -20834,6 +21803,8 @@ func (m *KDSTicketMutation) Field(name string) (ent.Value, bool) {
 		return m.Status()
 	case kdsticket.FieldItems:
 		return m.Items()
+	case kdsticket.FieldTableReference:
+		return m.TableReference()
 	case kdsticket.FieldReceivedAt:
 		return m.ReceivedAt()
 	case kdsticket.FieldStartedAt:
@@ -20863,6 +21834,8 @@ func (m *KDSTicketMutation) OldField(ctx context.Context, name string) (ent.Valu
 		return m.OldStatus(ctx)
 	case kdsticket.FieldItems:
 		return m.OldItems(ctx)
+	case kdsticket.FieldTableReference:
+		return m.OldTableReference(ctx)
 	case kdsticket.FieldReceivedAt:
 		return m.OldReceivedAt(ctx)
 	case kdsticket.FieldStartedAt:
@@ -20921,6 +21894,13 @@ func (m *KDSTicketMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetItems(v)
+		return nil
+	case kdsticket.FieldTableReference:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTableReference(v)
 		return nil
 	case kdsticket.FieldReceivedAt:
 		v, ok := value.(time.Time)
@@ -20995,6 +21975,9 @@ func (m *KDSTicketMutation) AddField(name string, value ent.Value) error {
 // mutation.
 func (m *KDSTicketMutation) ClearedFields() []string {
 	var fields []string
+	if m.FieldCleared(kdsticket.FieldTableReference) {
+		fields = append(fields, kdsticket.FieldTableReference)
+	}
 	if m.FieldCleared(kdsticket.FieldStartedAt) {
 		fields = append(fields, kdsticket.FieldStartedAt)
 	}
@@ -21015,6 +21998,9 @@ func (m *KDSTicketMutation) FieldCleared(name string) bool {
 // error if the field is not defined in the schema.
 func (m *KDSTicketMutation) ClearField(name string) error {
 	switch name {
+	case kdsticket.FieldTableReference:
+		m.ClearTableReference()
+		return nil
 	case kdsticket.FieldStartedAt:
 		m.ClearStartedAt()
 		return nil
@@ -21046,6 +22032,9 @@ func (m *KDSTicketMutation) ResetField(name string) error {
 		return nil
 	case kdsticket.FieldItems:
 		m.ResetItems()
+		return nil
+	case kdsticket.FieldTableReference:
+		m.ResetTableReference()
 		return nil
 	case kdsticket.FieldReceivedAt:
 		m.ResetReceivedAt()
