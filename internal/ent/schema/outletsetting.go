@@ -50,6 +50,10 @@ func (OutletSetting) Fields() []ent.Field {
 		field.String("paper_width").Default("80mm").Optional().Comment("Receipt paper width: 58mm | 80mm"),
 		field.Bool("auto_print_order").Default(false).Optional().Comment("Automatically print receipt when order is completed"),
 		field.Bool("auto_print_kitchen").Default(false).Optional().Comment("Automatically print kitchen ticket on order creation"),
+		field.JSON("printer_profiles", []map[string]any{}).
+			Default([]map[string]any{}).
+			Optional().
+			Comment("Array of printer profile objects: [{id, label, printer_type, printer_ip, paper_width, auto_print, categories}]"),
 		// Module activation toggles — tenant admin controls which modules are active per outlet
 		field.Bool("hotel_module_enabled").Default(false).Optional().Comment("Hotel/room management module (hospitality use case)"),
 		field.Bool("layaway_enabled").Default(false).Optional().Comment("Layaway plan / instalment payment module"),

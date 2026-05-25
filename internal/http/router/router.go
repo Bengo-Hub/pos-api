@@ -65,6 +65,7 @@ func New(
 	packages *handlers.PackageHandler,
 	clients *handlers.ClientHandler,
 	channels *handlers.ChannelHandler,
+	print *handlers.PrintHandler,
 	allowedOrigins []string,
 	redisClient *redis.Client,
 ) http.Handler {
@@ -194,6 +195,9 @@ func New(
 						pos.Patch("/orders/{orderID}/status", orders.UpdateStatus)
 						pos.Patch("/orders/{orderID}/void", orders.VoidOrder)
 						pos.Post("/orders/{orderID}/lines/{lineID}/serials", orders.CaptureSerial)
+					}
+					if print != nil {
+						pos.Post("/orders/{orderID}/print", print.PrintReceipt)
 					}
 
 					// In-app notifications (waiter order-ready alerts)

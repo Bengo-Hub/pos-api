@@ -10,6 +10,7 @@ import (
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"entgo.io/ent/dialect/sql/sqljson"
 	"entgo.io/ent/schema/field"
 	"github.com/bengobox/pos-service/internal/ent/outlet"
 	"github.com/bengobox/pos-service/internal/ent/outletsetting"
@@ -465,6 +466,24 @@ func (_u *OutletSettingUpdate) ClearAutoPrintKitchen() *OutletSettingUpdate {
 	return _u
 }
 
+// SetPrinterProfiles sets the "printer_profiles" field.
+func (_u *OutletSettingUpdate) SetPrinterProfiles(v []map[string]interface{}) *OutletSettingUpdate {
+	_u.mutation.SetPrinterProfiles(v)
+	return _u
+}
+
+// AppendPrinterProfiles appends value to the "printer_profiles" field.
+func (_u *OutletSettingUpdate) AppendPrinterProfiles(v []map[string]interface{}) *OutletSettingUpdate {
+	_u.mutation.AppendPrinterProfiles(v)
+	return _u
+}
+
+// ClearPrinterProfiles clears the value of the "printer_profiles" field.
+func (_u *OutletSettingUpdate) ClearPrinterProfiles() *OutletSettingUpdate {
+	_u.mutation.ClearPrinterProfiles()
+	return _u
+}
+
 // SetHotelModuleEnabled sets the "hotel_module_enabled" field.
 func (_u *OutletSettingUpdate) SetHotelModuleEnabled(v bool) *OutletSettingUpdate {
 	_u.mutation.SetHotelModuleEnabled(v)
@@ -787,6 +806,17 @@ func (_u *OutletSettingUpdate) sqlSave(ctx context.Context) (_node int, err erro
 	}
 	if _u.mutation.AutoPrintKitchenCleared() {
 		_spec.ClearField(outletsetting.FieldAutoPrintKitchen, field.TypeBool)
+	}
+	if value, ok := _u.mutation.PrinterProfiles(); ok {
+		_spec.SetField(outletsetting.FieldPrinterProfiles, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedPrinterProfiles(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, outletsetting.FieldPrinterProfiles, value)
+		})
+	}
+	if _u.mutation.PrinterProfilesCleared() {
+		_spec.ClearField(outletsetting.FieldPrinterProfiles, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.HotelModuleEnabled(); ok {
 		_spec.SetField(outletsetting.FieldHotelModuleEnabled, field.TypeBool, value)
@@ -1308,6 +1338,24 @@ func (_u *OutletSettingUpdateOne) ClearAutoPrintKitchen() *OutletSettingUpdateOn
 	return _u
 }
 
+// SetPrinterProfiles sets the "printer_profiles" field.
+func (_u *OutletSettingUpdateOne) SetPrinterProfiles(v []map[string]interface{}) *OutletSettingUpdateOne {
+	_u.mutation.SetPrinterProfiles(v)
+	return _u
+}
+
+// AppendPrinterProfiles appends value to the "printer_profiles" field.
+func (_u *OutletSettingUpdateOne) AppendPrinterProfiles(v []map[string]interface{}) *OutletSettingUpdateOne {
+	_u.mutation.AppendPrinterProfiles(v)
+	return _u
+}
+
+// ClearPrinterProfiles clears the value of the "printer_profiles" field.
+func (_u *OutletSettingUpdateOne) ClearPrinterProfiles() *OutletSettingUpdateOne {
+	_u.mutation.ClearPrinterProfiles()
+	return _u
+}
+
 // SetHotelModuleEnabled sets the "hotel_module_enabled" field.
 func (_u *OutletSettingUpdateOne) SetHotelModuleEnabled(v bool) *OutletSettingUpdateOne {
 	_u.mutation.SetHotelModuleEnabled(v)
@@ -1660,6 +1708,17 @@ func (_u *OutletSettingUpdateOne) sqlSave(ctx context.Context) (_node *OutletSet
 	}
 	if _u.mutation.AutoPrintKitchenCleared() {
 		_spec.ClearField(outletsetting.FieldAutoPrintKitchen, field.TypeBool)
+	}
+	if value, ok := _u.mutation.PrinterProfiles(); ok {
+		_spec.SetField(outletsetting.FieldPrinterProfiles, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedPrinterProfiles(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, outletsetting.FieldPrinterProfiles, value)
+		})
+	}
+	if _u.mutation.PrinterProfilesCleared() {
+		_spec.ClearField(outletsetting.FieldPrinterProfiles, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.HotelModuleEnabled(); ok {
 		_spec.SetField(outletsetting.FieldHotelModuleEnabled, field.TypeBool, value)

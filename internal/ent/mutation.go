@@ -31842,6 +31842,8 @@ type OutletSettingMutation struct {
 	paper_width            *string
 	auto_print_order       *bool
 	auto_print_kitchen     *bool
+	printer_profiles       *[]map[string]interface{}
+	appendprinter_profiles []map[string]interface{}
 	hotel_module_enabled   *bool
 	layaway_enabled        *bool
 	shift_reports_enabled  *bool
@@ -33132,6 +33134,71 @@ func (m *OutletSettingMutation) ResetAutoPrintKitchen() {
 	delete(m.clearedFields, outletsetting.FieldAutoPrintKitchen)
 }
 
+// SetPrinterProfiles sets the "printer_profiles" field.
+func (m *OutletSettingMutation) SetPrinterProfiles(value []map[string]interface{}) {
+	m.printer_profiles = &value
+	m.appendprinter_profiles = nil
+}
+
+// PrinterProfiles returns the value of the "printer_profiles" field in the mutation.
+func (m *OutletSettingMutation) PrinterProfiles() (r []map[string]interface{}, exists bool) {
+	v := m.printer_profiles
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPrinterProfiles returns the old "printer_profiles" field's value of the OutletSetting entity.
+// If the OutletSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OutletSettingMutation) OldPrinterProfiles(ctx context.Context) (v []map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPrinterProfiles is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPrinterProfiles requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPrinterProfiles: %w", err)
+	}
+	return oldValue.PrinterProfiles, nil
+}
+
+// AppendPrinterProfiles adds value to the "printer_profiles" field.
+func (m *OutletSettingMutation) AppendPrinterProfiles(value []map[string]interface{}) {
+	m.appendprinter_profiles = append(m.appendprinter_profiles, value...)
+}
+
+// AppendedPrinterProfiles returns the list of values that were appended to the "printer_profiles" field in this mutation.
+func (m *OutletSettingMutation) AppendedPrinterProfiles() ([]map[string]interface{}, bool) {
+	if len(m.appendprinter_profiles) == 0 {
+		return nil, false
+	}
+	return m.appendprinter_profiles, true
+}
+
+// ClearPrinterProfiles clears the value of the "printer_profiles" field.
+func (m *OutletSettingMutation) ClearPrinterProfiles() {
+	m.printer_profiles = nil
+	m.appendprinter_profiles = nil
+	m.clearedFields[outletsetting.FieldPrinterProfiles] = struct{}{}
+}
+
+// PrinterProfilesCleared returns if the "printer_profiles" field was cleared in this mutation.
+func (m *OutletSettingMutation) PrinterProfilesCleared() bool {
+	_, ok := m.clearedFields[outletsetting.FieldPrinterProfiles]
+	return ok
+}
+
+// ResetPrinterProfiles resets all changes to the "printer_profiles" field.
+func (m *OutletSettingMutation) ResetPrinterProfiles() {
+	m.printer_profiles = nil
+	m.appendprinter_profiles = nil
+	delete(m.clearedFields, outletsetting.FieldPrinterProfiles)
+}
+
 // SetHotelModuleEnabled sets the "hotel_module_enabled" field.
 func (m *OutletSettingMutation) SetHotelModuleEnabled(b bool) {
 	m.hotel_module_enabled = &b
@@ -33495,7 +33562,7 @@ func (m *OutletSettingMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *OutletSettingMutation) Fields() []string {
-	fields := make([]string, 0, 30)
+	fields := make([]string, 0, 31)
 	if m.outlet != nil {
 		fields = append(fields, outletsetting.FieldOutletID)
 	}
@@ -33567,6 +33634,9 @@ func (m *OutletSettingMutation) Fields() []string {
 	}
 	if m.auto_print_kitchen != nil {
 		fields = append(fields, outletsetting.FieldAutoPrintKitchen)
+	}
+	if m.printer_profiles != nil {
+		fields = append(fields, outletsetting.FieldPrinterProfiles)
 	}
 	if m.hotel_module_enabled != nil {
 		fields = append(fields, outletsetting.FieldHotelModuleEnabled)
@@ -33642,6 +33712,8 @@ func (m *OutletSettingMutation) Field(name string) (ent.Value, bool) {
 		return m.AutoPrintOrder()
 	case outletsetting.FieldAutoPrintKitchen:
 		return m.AutoPrintKitchen()
+	case outletsetting.FieldPrinterProfiles:
+		return m.PrinterProfiles()
 	case outletsetting.FieldHotelModuleEnabled:
 		return m.HotelModuleEnabled()
 	case outletsetting.FieldLayawayEnabled:
@@ -33711,6 +33783,8 @@ func (m *OutletSettingMutation) OldField(ctx context.Context, name string) (ent.
 		return m.OldAutoPrintOrder(ctx)
 	case outletsetting.FieldAutoPrintKitchen:
 		return m.OldAutoPrintKitchen(ctx)
+	case outletsetting.FieldPrinterProfiles:
+		return m.OldPrinterProfiles(ctx)
 	case outletsetting.FieldHotelModuleEnabled:
 		return m.OldHotelModuleEnabled(ctx)
 	case outletsetting.FieldLayawayEnabled:
@@ -33900,6 +33974,13 @@ func (m *OutletSettingMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetAutoPrintKitchen(v)
 		return nil
+	case outletsetting.FieldPrinterProfiles:
+		v, ok := value.([]map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPrinterProfiles(v)
+		return nil
 	case outletsetting.FieldHotelModuleEnabled:
 		v, ok := value.(bool)
 		if !ok {
@@ -34065,6 +34146,9 @@ func (m *OutletSettingMutation) ClearedFields() []string {
 	if m.FieldCleared(outletsetting.FieldAutoPrintKitchen) {
 		fields = append(fields, outletsetting.FieldAutoPrintKitchen)
 	}
+	if m.FieldCleared(outletsetting.FieldPrinterProfiles) {
+		fields = append(fields, outletsetting.FieldPrinterProfiles)
+	}
 	if m.FieldCleared(outletsetting.FieldHotelModuleEnabled) {
 		fields = append(fields, outletsetting.FieldHotelModuleEnabled)
 	}
@@ -34160,6 +34244,9 @@ func (m *OutletSettingMutation) ClearField(name string) error {
 	case outletsetting.FieldAutoPrintKitchen:
 		m.ClearAutoPrintKitchen()
 		return nil
+	case outletsetting.FieldPrinterProfiles:
+		m.ClearPrinterProfiles()
+		return nil
 	case outletsetting.FieldHotelModuleEnabled:
 		m.ClearHotelModuleEnabled()
 		return nil
@@ -34254,6 +34341,9 @@ func (m *OutletSettingMutation) ResetField(name string) error {
 		return nil
 	case outletsetting.FieldAutoPrintKitchen:
 		m.ResetAutoPrintKitchen()
+		return nil
+	case outletsetting.FieldPrinterProfiles:
+		m.ResetPrinterProfiles()
 		return nil
 	case outletsetting.FieldHotelModuleEnabled:
 		m.ResetHotelModuleEnabled()

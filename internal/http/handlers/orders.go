@@ -34,12 +34,13 @@ func NewPOSOrderHandler(log *zap.Logger, client *ent.Client, orderSvc *orders.Se
 
 // createOrderLineInput is a single line in the order create request body.
 type createOrderLineInput struct {
-	CatalogItemID uuid.UUID `json:"catalog_item_id"`
-	SKU           string    `json:"sku"`
-	Name          string    `json:"name"`
-	Quantity      float64   `json:"quantity"`
-	UnitPrice     float64   `json:"unit_price"`
-	TotalPrice    float64   `json:"total_price"`
+	CatalogItemID uuid.UUID              `json:"catalog_item_id"`
+	SKU           string                 `json:"sku"`
+	Name          string                 `json:"name"`
+	Quantity      float64                `json:"quantity"`
+	UnitPrice     float64                `json:"unit_price"`
+	TotalPrice    float64                `json:"total_price"`
+	Metadata      map[string]interface{} `json:"metadata"`
 }
 
 // createOrderInput is the body for POST /pos/orders.
@@ -178,6 +179,7 @@ func (h *POSOrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 			Quantity:      l.Quantity,
 			UnitPrice:     l.UnitPrice,
 			TotalPrice:    l.TotalPrice,
+			Metadata:      l.Metadata,
 		}
 	}
 

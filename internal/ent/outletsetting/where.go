@@ -1181,6 +1181,16 @@ func AutoPrintKitchenNotNil() predicate.OutletSetting {
 	return predicate.OutletSetting(sql.FieldNotNull(FieldAutoPrintKitchen))
 }
 
+// PrinterProfilesIsNil applies the IsNil predicate on the "printer_profiles" field.
+func PrinterProfilesIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldPrinterProfiles))
+}
+
+// PrinterProfilesNotNil applies the NotNil predicate on the "printer_profiles" field.
+func PrinterProfilesNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldPrinterProfiles))
+}
+
 // HotelModuleEnabledEQ applies the EQ predicate on the "hotel_module_enabled" field.
 func HotelModuleEnabledEQ(v bool) predicate.OutletSetting {
 	return predicate.OutletSetting(sql.FieldEQ(FieldHotelModuleEnabled, v))

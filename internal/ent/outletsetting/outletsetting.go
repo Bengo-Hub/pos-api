@@ -63,6 +63,8 @@ const (
 	FieldAutoPrintOrder = "auto_print_order"
 	// FieldAutoPrintKitchen holds the string denoting the auto_print_kitchen field in the database.
 	FieldAutoPrintKitchen = "auto_print_kitchen"
+	// FieldPrinterProfiles holds the string denoting the printer_profiles field in the database.
+	FieldPrinterProfiles = "printer_profiles"
 	// FieldHotelModuleEnabled holds the string denoting the hotel_module_enabled field in the database.
 	FieldHotelModuleEnabled = "hotel_module_enabled"
 	// FieldLayawayEnabled holds the string denoting the layaway_enabled field in the database.
@@ -115,6 +117,7 @@ var Columns = []string{
 	FieldPaperWidth,
 	FieldAutoPrintOrder,
 	FieldAutoPrintKitchen,
+	FieldPrinterProfiles,
 	FieldHotelModuleEnabled,
 	FieldLayawayEnabled,
 	FieldShiftReportsEnabled,
@@ -162,6 +165,8 @@ var (
 	DefaultAutoPrintOrder bool
 	// DefaultAutoPrintKitchen holds the default value on creation for the "auto_print_kitchen" field.
 	DefaultAutoPrintKitchen bool
+	// DefaultPrinterProfiles holds the default value on creation for the "printer_profiles" field.
+	DefaultPrinterProfiles []map[string]interface{}
 	// DefaultHotelModuleEnabled holds the default value on creation for the "hotel_module_enabled" field.
 	DefaultHotelModuleEnabled bool
 	// DefaultLayawayEnabled holds the default value on creation for the "layaway_enabled" field.

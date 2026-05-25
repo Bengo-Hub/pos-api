@@ -60,7 +60,8 @@ type OrderLineInput struct {
 	Quantity      float64
 	UnitPrice     float64
 	TotalPrice    float64
-	TaxStatus     string // "taxable", "exempt", "zero_rated"
+	TaxStatus     string         // "taxable", "exempt", "zero_rated"
+	Metadata      map[string]any // modifiers, notes, serial numbers, etc.
 }
 
 // OrderTotals holds calculated totals for an order.
@@ -214,6 +215,10 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent
 		if lineTotal.IsZero() {
 			lineTotal = decimal.NewFromFloat(line.UnitPrice).Mul(decimal.NewFromFloat(line.Quantity))
 		}
+		meta := line.Metadata
+		if meta == nil {
+			meta = map[string]any{}
+		}
 		_, err = tx.POSOrderLine.Create().
 			SetOrderID(order.ID).
 			SetCatalogItemID(line.CatalogItemID).
@@ -222,6 +227,7 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent
 			SetQuantity(line.Quantity).
 			SetUnitPrice(line.UnitPrice).
 			SetTotalPrice(lineTotal.InexactFloat64()).
+			SetMetadata(meta).
 			Save(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("orders: create line: %w", err)

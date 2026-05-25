@@ -68,6 +68,8 @@ type OutletSetting struct {
 	AutoPrintOrder bool `json:"auto_print_order,omitempty"`
 	// Automatically print kitchen ticket on order creation
 	AutoPrintKitchen bool `json:"auto_print_kitchen,omitempty"`
+	// Array of printer profile objects: [{id, label, printer_type, printer_ip, paper_width, auto_print, categories}]
+	PrinterProfiles []map[string]interface{} `json:"printer_profiles,omitempty"`
 	// Hotel/room management module (hospitality use case)
 	HotelModuleEnabled bool `json:"hotel_module_enabled,omitempty"`
 	// Layaway plan / instalment payment module
@@ -111,7 +113,7 @@ func (*OutletSetting) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case outletsetting.FieldReceiptsJSON, outletsetting.FieldTaxConfigJSON, outletsetting.FieldServiceChargeJSON, outletsetting.FieldOpeningHoursJSON, outletsetting.FieldMetadata:
+		case outletsetting.FieldReceiptsJSON, outletsetting.FieldTaxConfigJSON, outletsetting.FieldServiceChargeJSON, outletsetting.FieldOpeningHoursJSON, outletsetting.FieldMetadata, outletsetting.FieldPrinterProfiles:
 			values[i] = new([]byte)
 		case outletsetting.FieldShowImages, outletsetting.FieldShowBarcodeScanner, outletsetting.FieldEnableKds, outletsetting.FieldEnableAppointments, outletsetting.FieldVatEnabled, outletsetting.FieldAutoPrintOrder, outletsetting.FieldAutoPrintKitchen, outletsetting.FieldHotelModuleEnabled, outletsetting.FieldLayawayEnabled, outletsetting.FieldShiftReportsEnabled, outletsetting.FieldShiftAutoEndEnabled:
 			values[i] = new(sql.NullBool)
@@ -305,6 +307,14 @@ func (_m *OutletSetting) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.AutoPrintKitchen = value.Bool
 			}
+		case outletsetting.FieldPrinterProfiles:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field printer_profiles", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.PrinterProfiles); err != nil {
+					return fmt.Errorf("unmarshal field printer_profiles: %w", err)
+				}
+			}
 		case outletsetting.FieldHotelModuleEnabled:
 			if value, ok := values[i].(*sql.NullBool); !ok {
 				return fmt.Errorf("unexpected type %T for field hotel_module_enabled", values[i])
@@ -463,6 +473,9 @@ func (_m *OutletSetting) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("auto_print_kitchen=")
 	builder.WriteString(fmt.Sprintf("%v", _m.AutoPrintKitchen))
+	builder.WriteString(", ")
+	builder.WriteString("printer_profiles=")
+	builder.WriteString(fmt.Sprintf("%v", _m.PrinterProfiles))
 	builder.WriteString(", ")
 	builder.WriteString("hotel_module_enabled=")
 	builder.WriteString(fmt.Sprintf("%v", _m.HotelModuleEnabled))

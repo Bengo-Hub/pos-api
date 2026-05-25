@@ -352,7 +352,8 @@ func New(ctx context.Context) (*App, error) {
 	packageHandler := handlers.NewPackageHandler(log, entClient)
 	clientHandler := handlers.NewClientHandler(log, entClient)
 	channelHandler := handlers.NewChannelHandler(log, entClient)
-	chiRouter := router.New(log, healthHandler, authMiddleware, entClient, identitySvc, orderHandler, catalogHandler, tableHandler, tenderHandler, paymentHandler, drawerHandler, barTabHandler, promotionHandler, rbacHandler, hotelHandler, kdsHandler, deviceHandler, pinAuthHandler, publicOutletHandler, closingHandler, returnHandler, receiptHandler, layawayHandler, scaleHandler, pharmacyHandler, appointmentHandler, commissionHandler, staffScheduleHandler, loyaltyHandler, reportsHandler, webhookHandler, onlineOrderHandler, serviceConfigHandler, serviceSettingsHandler, notificationsHandler, queueHandler, billSplitHandler, resourceHandler, commissionRuleHandler, packageHandler, clientHandler, channelHandler, cfg.HTTP.AllowedOrigins, redisClient)
+	printHandler := handlers.NewPrintHandler(log, entClient)
+	chiRouter := router.New(log, healthHandler, authMiddleware, entClient, identitySvc, orderHandler, catalogHandler, tableHandler, tenderHandler, paymentHandler, drawerHandler, barTabHandler, promotionHandler, rbacHandler, hotelHandler, kdsHandler, deviceHandler, pinAuthHandler, publicOutletHandler, closingHandler, returnHandler, receiptHandler, layawayHandler, scaleHandler, pharmacyHandler, appointmentHandler, commissionHandler, staffScheduleHandler, loyaltyHandler, reportsHandler, webhookHandler, onlineOrderHandler, serviceConfigHandler, serviceSettingsHandler, notificationsHandler, queueHandler, billSplitHandler, resourceHandler, commissionRuleHandler, packageHandler, clientHandler, channelHandler, printHandler, cfg.HTTP.AllowedOrigins, redisClient)
 
 	httpServer := &http.Server{
 		Addr:              fmt.Sprintf("%s:%d", cfg.HTTP.Host, cfg.HTTP.Port),

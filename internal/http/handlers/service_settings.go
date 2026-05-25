@@ -55,6 +55,8 @@ type settingsResponse struct {
 	// shift settings
 	ShiftAutoEndEnabled bool `json:"shift_auto_end_enabled"`
 	ShiftMaxHours       int  `json:"shift_max_hours"`
+	// printer profiles (multi-printer support)
+	PrinterProfiles []map[string]any `json:"printer_profiles"`
 	// terminal
 	PINLoginMessage *string `json:"pin_login_message"`
 	ScreensaverURL  *string `json:"screensaver_url"`
@@ -85,6 +87,7 @@ func toSettingsResponse(outletID uuid.UUID, s *ent.OutletSetting) settingsRespon
 		PrinterIP:          s.PrinterIP,
 		ShiftAutoEndEnabled: s.ShiftAutoEndEnabled,
 		ShiftMaxHours:       s.ShiftMaxHours,
+		PrinterProfiles:    s.PrinterProfiles,
 		PINLoginMessage:     s.PinLoginMessage,
 		ScreensaverURL:      s.ScreensaverURL,
 		UpdatedAt:           s.UpdatedAt.Format("2006-01-02T15:04:05Z"),
@@ -194,10 +197,11 @@ type updateSettingsInput struct {
 	PrinterType        *string  `json:"printer_type"`
 	PrinterIP          *string  `json:"printer_ip"`
 	PaperWidth         *string  `json:"paper_width"`
-	AutoPrintOrder     *bool    `json:"auto_print_order"`
-	AutoPrintKitchen   *bool    `json:"auto_print_kitchen"`
-	PINLoginMessage    *string  `json:"pin_login_message"`
-	ScreensaverURL     *string  `json:"screensaver_url"`
+	AutoPrintOrder     *bool              `json:"auto_print_order"`
+	AutoPrintKitchen   *bool              `json:"auto_print_kitchen"`
+	PrinterProfiles    []map[string]any   `json:"printer_profiles"`
+	PINLoginMessage    *string            `json:"pin_login_message"`
+	ScreensaverURL     *string            `json:"screensaver_url"`
 }
 
 // PutSettings handles PUT /{tenantID}/pos/settings and PUT /{tenantID}/pos/outlets/{outletID}/settings
@@ -268,6 +272,9 @@ func (h *ServiceSettingsHandler) PutSettings(w http.ResponseWriter, r *http.Requ
 	}
 	if input.AutoPrintKitchen != nil {
 		upd = upd.SetAutoPrintKitchen(*input.AutoPrintKitchen)
+	}
+	if input.PrinterProfiles != nil {
+		upd = upd.SetPrinterProfiles(input.PrinterProfiles)
 	}
 	if input.PINLoginMessage != nil {
 		upd = upd.SetPinLoginMessage(*input.PINLoginMessage)

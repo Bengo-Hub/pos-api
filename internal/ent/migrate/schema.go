@@ -1033,6 +1033,7 @@ var (
 		{Name: "paper_width", Type: field.TypeString, Nullable: true, Default: "80mm"},
 		{Name: "auto_print_order", Type: field.TypeBool, Nullable: true, Default: false},
 		{Name: "auto_print_kitchen", Type: field.TypeBool, Nullable: true, Default: false},
+		{Name: "printer_profiles", Type: field.TypeJSON, Nullable: true},
 		{Name: "hotel_module_enabled", Type: field.TypeBool, Nullable: true, Default: false},
 		{Name: "layaway_enabled", Type: field.TypeBool, Nullable: true, Default: false},
 		{Name: "shift_reports_enabled", Type: field.TypeBool, Nullable: true, Default: false},
@@ -1049,7 +1050,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "outlet_settings_outlets_settings",
-				Columns:    []*schema.Column{OutletSettingsColumns[30]},
+				Columns:    []*schema.Column{OutletSettingsColumns[31]},
 				RefColumns: []*schema.Column{OutletsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},

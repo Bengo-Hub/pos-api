@@ -313,6 +313,12 @@ func (_c *OutletSettingCreate) SetNillableAutoPrintKitchen(v *bool) *OutletSetti
 	return _c
 }
 
+// SetPrinterProfiles sets the "printer_profiles" field.
+func (_c *OutletSettingCreate) SetPrinterProfiles(v []map[string]interface{}) *OutletSettingCreate {
+	_c.mutation.SetPrinterProfiles(v)
+	return _c
+}
+
 // SetHotelModuleEnabled sets the "hotel_module_enabled" field.
 func (_c *OutletSettingCreate) SetHotelModuleEnabled(v bool) *OutletSettingCreate {
 	_c.mutation.SetHotelModuleEnabled(v)
@@ -507,6 +513,10 @@ func (_c *OutletSettingCreate) defaults() {
 		v := outletsetting.DefaultAutoPrintKitchen
 		_c.mutation.SetAutoPrintKitchen(v)
 	}
+	if _, ok := _c.mutation.PrinterProfiles(); !ok {
+		v := outletsetting.DefaultPrinterProfiles
+		_c.mutation.SetPrinterProfiles(v)
+	}
 	if _, ok := _c.mutation.HotelModuleEnabled(); !ok {
 		v := outletsetting.DefaultHotelModuleEnabled
 		_c.mutation.SetHotelModuleEnabled(v)
@@ -678,6 +688,10 @@ func (_c *OutletSettingCreate) createSpec() (*OutletSetting, *sqlgraph.CreateSpe
 	if value, ok := _c.mutation.AutoPrintKitchen(); ok {
 		_spec.SetField(outletsetting.FieldAutoPrintKitchen, field.TypeBool, value)
 		_node.AutoPrintKitchen = value
+	}
+	if value, ok := _c.mutation.PrinterProfiles(); ok {
+		_spec.SetField(outletsetting.FieldPrinterProfiles, field.TypeJSON, value)
+		_node.PrinterProfiles = value
 	}
 	if value, ok := _c.mutation.HotelModuleEnabled(); ok {
 		_spec.SetField(outletsetting.FieldHotelModuleEnabled, field.TypeBool, value)
@@ -1195,6 +1209,24 @@ func (u *OutletSettingUpsert) UpdateAutoPrintKitchen() *OutletSettingUpsert {
 // ClearAutoPrintKitchen clears the value of the "auto_print_kitchen" field.
 func (u *OutletSettingUpsert) ClearAutoPrintKitchen() *OutletSettingUpsert {
 	u.SetNull(outletsetting.FieldAutoPrintKitchen)
+	return u
+}
+
+// SetPrinterProfiles sets the "printer_profiles" field.
+func (u *OutletSettingUpsert) SetPrinterProfiles(v []map[string]interface{}) *OutletSettingUpsert {
+	u.Set(outletsetting.FieldPrinterProfiles, v)
+	return u
+}
+
+// UpdatePrinterProfiles sets the "printer_profiles" field to the value that was provided on create.
+func (u *OutletSettingUpsert) UpdatePrinterProfiles() *OutletSettingUpsert {
+	u.SetExcluded(outletsetting.FieldPrinterProfiles)
+	return u
+}
+
+// ClearPrinterProfiles clears the value of the "printer_profiles" field.
+func (u *OutletSettingUpsert) ClearPrinterProfiles() *OutletSettingUpsert {
+	u.SetNull(outletsetting.FieldPrinterProfiles)
 	return u
 }
 
@@ -1848,6 +1880,27 @@ func (u *OutletSettingUpsertOne) UpdateAutoPrintKitchen() *OutletSettingUpsertOn
 func (u *OutletSettingUpsertOne) ClearAutoPrintKitchen() *OutletSettingUpsertOne {
 	return u.Update(func(s *OutletSettingUpsert) {
 		s.ClearAutoPrintKitchen()
+	})
+}
+
+// SetPrinterProfiles sets the "printer_profiles" field.
+func (u *OutletSettingUpsertOne) SetPrinterProfiles(v []map[string]interface{}) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetPrinterProfiles(v)
+	})
+}
+
+// UpdatePrinterProfiles sets the "printer_profiles" field to the value that was provided on create.
+func (u *OutletSettingUpsertOne) UpdatePrinterProfiles() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdatePrinterProfiles()
+	})
+}
+
+// ClearPrinterProfiles clears the value of the "printer_profiles" field.
+func (u *OutletSettingUpsertOne) ClearPrinterProfiles() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearPrinterProfiles()
 	})
 }
 
@@ -2686,6 +2739,27 @@ func (u *OutletSettingUpsertBulk) UpdateAutoPrintKitchen() *OutletSettingUpsertB
 func (u *OutletSettingUpsertBulk) ClearAutoPrintKitchen() *OutletSettingUpsertBulk {
 	return u.Update(func(s *OutletSettingUpsert) {
 		s.ClearAutoPrintKitchen()
+	})
+}
+
+// SetPrinterProfiles sets the "printer_profiles" field.
+func (u *OutletSettingUpsertBulk) SetPrinterProfiles(v []map[string]interface{}) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetPrinterProfiles(v)
+	})
+}
+
+// UpdatePrinterProfiles sets the "printer_profiles" field to the value that was provided on create.
+func (u *OutletSettingUpsertBulk) UpdatePrinterProfiles() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdatePrinterProfiles()
+	})
+}
+
+// ClearPrinterProfiles clears the value of the "printer_profiles" field.
+func (u *OutletSettingUpsertBulk) ClearPrinterProfiles() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearPrinterProfiles()
 	})
 }
 

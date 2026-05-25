@@ -1007,28 +1007,32 @@ func init() {
 	outletsettingDescAutoPrintKitchen := outletsettingFields[24].Descriptor()
 	// outletsetting.DefaultAutoPrintKitchen holds the default value on creation for the auto_print_kitchen field.
 	outletsetting.DefaultAutoPrintKitchen = outletsettingDescAutoPrintKitchen.Default.(bool)
+	// outletsettingDescPrinterProfiles is the schema descriptor for printer_profiles field.
+	outletsettingDescPrinterProfiles := outletsettingFields[25].Descriptor()
+	// outletsetting.DefaultPrinterProfiles holds the default value on creation for the printer_profiles field.
+	outletsetting.DefaultPrinterProfiles = outletsettingDescPrinterProfiles.Default.([]map[string]interface{})
 	// outletsettingDescHotelModuleEnabled is the schema descriptor for hotel_module_enabled field.
-	outletsettingDescHotelModuleEnabled := outletsettingFields[25].Descriptor()
+	outletsettingDescHotelModuleEnabled := outletsettingFields[26].Descriptor()
 	// outletsetting.DefaultHotelModuleEnabled holds the default value on creation for the hotel_module_enabled field.
 	outletsetting.DefaultHotelModuleEnabled = outletsettingDescHotelModuleEnabled.Default.(bool)
 	// outletsettingDescLayawayEnabled is the schema descriptor for layaway_enabled field.
-	outletsettingDescLayawayEnabled := outletsettingFields[26].Descriptor()
+	outletsettingDescLayawayEnabled := outletsettingFields[27].Descriptor()
 	// outletsetting.DefaultLayawayEnabled holds the default value on creation for the layaway_enabled field.
 	outletsetting.DefaultLayawayEnabled = outletsettingDescLayawayEnabled.Default.(bool)
 	// outletsettingDescShiftReportsEnabled is the schema descriptor for shift_reports_enabled field.
-	outletsettingDescShiftReportsEnabled := outletsettingFields[27].Descriptor()
+	outletsettingDescShiftReportsEnabled := outletsettingFields[28].Descriptor()
 	// outletsetting.DefaultShiftReportsEnabled holds the default value on creation for the shift_reports_enabled field.
 	outletsetting.DefaultShiftReportsEnabled = outletsettingDescShiftReportsEnabled.Default.(bool)
 	// outletsettingDescShiftAutoEndEnabled is the schema descriptor for shift_auto_end_enabled field.
-	outletsettingDescShiftAutoEndEnabled := outletsettingFields[28].Descriptor()
+	outletsettingDescShiftAutoEndEnabled := outletsettingFields[29].Descriptor()
 	// outletsetting.DefaultShiftAutoEndEnabled holds the default value on creation for the shift_auto_end_enabled field.
 	outletsetting.DefaultShiftAutoEndEnabled = outletsettingDescShiftAutoEndEnabled.Default.(bool)
 	// outletsettingDescShiftMaxHours is the schema descriptor for shift_max_hours field.
-	outletsettingDescShiftMaxHours := outletsettingFields[29].Descriptor()
+	outletsettingDescShiftMaxHours := outletsettingFields[30].Descriptor()
 	// outletsetting.DefaultShiftMaxHours holds the default value on creation for the shift_max_hours field.
 	outletsetting.DefaultShiftMaxHours = outletsettingDescShiftMaxHours.Default.(int)
 	// outletsettingDescUpdatedAt is the schema descriptor for updated_at field.
-	outletsettingDescUpdatedAt := outletsettingFields[30].Descriptor()
+	outletsettingDescUpdatedAt := outletsettingFields[31].Descriptor()
 	// outletsetting.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	outletsetting.DefaultUpdatedAt = outletsettingDescUpdatedAt.Default.(func() time.Time)
 	// outletsetting.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
