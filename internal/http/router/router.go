@@ -59,6 +59,7 @@ func New(
 	serviceSettings *handlers.ServiceSettingsHandler,
 	notifications *handlers.NotificationsHandler,
 	queue *handlers.QueueHandler,
+	billSplits *handlers.BillSplitHandler,
 	allowedOrigins []string,
 	redisClient *redis.Client,
 ) http.Handler {
@@ -319,6 +320,12 @@ func New(
 					// Returns
 					if returns != nil {
 						pos.Post("/orders/{orderID}/returns", returns.CreateReturn)
+						// Bill splitting
+						if billSplits != nil {
+							pos.Get("/orders/{orderID}/splits", billSplits.ListSplits)
+							pos.Post("/orders/{orderID}/splits", billSplits.CreateSplits)
+							pos.Post("/orders/{orderID}/splits/{splitID}/settle", billSplits.SettleSplit)
+						}
 						pos.Get("/returns", returns.ListReturns)
 						pos.Group(func(mgr chi.Router) {
 							mgr.Use(subscriptions.RequireFeature("shift_reports"))

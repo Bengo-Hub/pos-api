@@ -14,6 +14,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/appointment"
 	"github.com/bengobox/pos-service/internal/ent/bartab"
 	"github.com/bengobox/pos-service/internal/ent/bartabevent"
+	"github.com/bengobox/pos-service/internal/ent/billsplit"
 	"github.com/bengobox/pos-service/internal/ent/cashdrawer"
 	"github.com/bengobox/pos-service/internal/ent/cashdrawerevent"
 	"github.com/bengobox/pos-service/internal/ent/catalogitem"
@@ -104,6 +105,7 @@ const (
 	TypeAppointment            = "Appointment"
 	TypeBarTab                 = "BarTab"
 	TypeBarTabEvent            = "BarTabEvent"
+	TypeBillSplit              = "BillSplit"
 	TypeCashDrawer             = "CashDrawer"
 	TypeCashDrawerEvent        = "CashDrawerEvent"
 	TypeCatalogItem            = "CatalogItem"
@@ -2866,6 +2868,866 @@ func (m *BarTabEventMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown BarTabEvent edge %s", name)
+}
+
+// BillSplitMutation represents an operation that mutates the BillSplit nodes in the graph.
+type BillSplitMutation struct {
+	config
+	op             Op
+	typ            string
+	id             *uuid.UUID
+	tenant_id      *uuid.UUID
+	order_id       *uuid.UUID
+	split_label    *string
+	amount         *float64
+	addamount      *float64
+	currency       *string
+	status         *string
+	payment_method *string
+	external_ref   *string
+	payment_id     *uuid.UUID
+	clearedFields  map[string]struct{}
+	done           bool
+	oldValue       func(context.Context) (*BillSplit, error)
+	predicates     []predicate.BillSplit
+}
+
+var _ ent.Mutation = (*BillSplitMutation)(nil)
+
+// billsplitOption allows management of the mutation configuration using functional options.
+type billsplitOption func(*BillSplitMutation)
+
+// newBillSplitMutation creates new mutation for the BillSplit entity.
+func newBillSplitMutation(c config, op Op, opts ...billsplitOption) *BillSplitMutation {
+	m := &BillSplitMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeBillSplit,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withBillSplitID sets the ID field of the mutation.
+func withBillSplitID(id uuid.UUID) billsplitOption {
+	return func(m *BillSplitMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *BillSplit
+		)
+		m.oldValue = func(ctx context.Context) (*BillSplit, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().BillSplit.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withBillSplit sets the old BillSplit of the mutation.
+func withBillSplit(node *BillSplit) billsplitOption {
+	return func(m *BillSplitMutation) {
+		m.oldValue = func(context.Context) (*BillSplit, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m BillSplitMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m BillSplitMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of BillSplit entities.
+func (m *BillSplitMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *BillSplitMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *BillSplitMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().BillSplit.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *BillSplitMutation) SetTenantID(u uuid.UUID) {
+	m.tenant_id = &u
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *BillSplitMutation) TenantID() (r uuid.UUID, exists bool) {
+	v := m.tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the BillSplit entity.
+// If the BillSplit object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BillSplitMutation) OldTenantID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *BillSplitMutation) ResetTenantID() {
+	m.tenant_id = nil
+}
+
+// SetOrderID sets the "order_id" field.
+func (m *BillSplitMutation) SetOrderID(u uuid.UUID) {
+	m.order_id = &u
+}
+
+// OrderID returns the value of the "order_id" field in the mutation.
+func (m *BillSplitMutation) OrderID() (r uuid.UUID, exists bool) {
+	v := m.order_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOrderID returns the old "order_id" field's value of the BillSplit entity.
+// If the BillSplit object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BillSplitMutation) OldOrderID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOrderID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOrderID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOrderID: %w", err)
+	}
+	return oldValue.OrderID, nil
+}
+
+// ResetOrderID resets all changes to the "order_id" field.
+func (m *BillSplitMutation) ResetOrderID() {
+	m.order_id = nil
+}
+
+// SetSplitLabel sets the "split_label" field.
+func (m *BillSplitMutation) SetSplitLabel(s string) {
+	m.split_label = &s
+}
+
+// SplitLabel returns the value of the "split_label" field in the mutation.
+func (m *BillSplitMutation) SplitLabel() (r string, exists bool) {
+	v := m.split_label
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSplitLabel returns the old "split_label" field's value of the BillSplit entity.
+// If the BillSplit object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BillSplitMutation) OldSplitLabel(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSplitLabel is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSplitLabel requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSplitLabel: %w", err)
+	}
+	return oldValue.SplitLabel, nil
+}
+
+// ResetSplitLabel resets all changes to the "split_label" field.
+func (m *BillSplitMutation) ResetSplitLabel() {
+	m.split_label = nil
+}
+
+// SetAmount sets the "amount" field.
+func (m *BillSplitMutation) SetAmount(f float64) {
+	m.amount = &f
+	m.addamount = nil
+}
+
+// Amount returns the value of the "amount" field in the mutation.
+func (m *BillSplitMutation) Amount() (r float64, exists bool) {
+	v := m.amount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAmount returns the old "amount" field's value of the BillSplit entity.
+// If the BillSplit object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BillSplitMutation) OldAmount(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAmount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAmount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAmount: %w", err)
+	}
+	return oldValue.Amount, nil
+}
+
+// AddAmount adds f to the "amount" field.
+func (m *BillSplitMutation) AddAmount(f float64) {
+	if m.addamount != nil {
+		*m.addamount += f
+	} else {
+		m.addamount = &f
+	}
+}
+
+// AddedAmount returns the value that was added to the "amount" field in this mutation.
+func (m *BillSplitMutation) AddedAmount() (r float64, exists bool) {
+	v := m.addamount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAmount resets all changes to the "amount" field.
+func (m *BillSplitMutation) ResetAmount() {
+	m.amount = nil
+	m.addamount = nil
+}
+
+// SetCurrency sets the "currency" field.
+func (m *BillSplitMutation) SetCurrency(s string) {
+	m.currency = &s
+}
+
+// Currency returns the value of the "currency" field in the mutation.
+func (m *BillSplitMutation) Currency() (r string, exists bool) {
+	v := m.currency
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCurrency returns the old "currency" field's value of the BillSplit entity.
+// If the BillSplit object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BillSplitMutation) OldCurrency(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCurrency is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCurrency requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCurrency: %w", err)
+	}
+	return oldValue.Currency, nil
+}
+
+// ResetCurrency resets all changes to the "currency" field.
+func (m *BillSplitMutation) ResetCurrency() {
+	m.currency = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *BillSplitMutation) SetStatus(s string) {
+	m.status = &s
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *BillSplitMutation) Status() (r string, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the BillSplit entity.
+// If the BillSplit object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BillSplitMutation) OldStatus(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *BillSplitMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetPaymentMethod sets the "payment_method" field.
+func (m *BillSplitMutation) SetPaymentMethod(s string) {
+	m.payment_method = &s
+}
+
+// PaymentMethod returns the value of the "payment_method" field in the mutation.
+func (m *BillSplitMutation) PaymentMethod() (r string, exists bool) {
+	v := m.payment_method
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPaymentMethod returns the old "payment_method" field's value of the BillSplit entity.
+// If the BillSplit object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BillSplitMutation) OldPaymentMethod(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPaymentMethod is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPaymentMethod requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPaymentMethod: %w", err)
+	}
+	return oldValue.PaymentMethod, nil
+}
+
+// ClearPaymentMethod clears the value of the "payment_method" field.
+func (m *BillSplitMutation) ClearPaymentMethod() {
+	m.payment_method = nil
+	m.clearedFields[billsplit.FieldPaymentMethod] = struct{}{}
+}
+
+// PaymentMethodCleared returns if the "payment_method" field was cleared in this mutation.
+func (m *BillSplitMutation) PaymentMethodCleared() bool {
+	_, ok := m.clearedFields[billsplit.FieldPaymentMethod]
+	return ok
+}
+
+// ResetPaymentMethod resets all changes to the "payment_method" field.
+func (m *BillSplitMutation) ResetPaymentMethod() {
+	m.payment_method = nil
+	delete(m.clearedFields, billsplit.FieldPaymentMethod)
+}
+
+// SetExternalRef sets the "external_ref" field.
+func (m *BillSplitMutation) SetExternalRef(s string) {
+	m.external_ref = &s
+}
+
+// ExternalRef returns the value of the "external_ref" field in the mutation.
+func (m *BillSplitMutation) ExternalRef() (r string, exists bool) {
+	v := m.external_ref
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExternalRef returns the old "external_ref" field's value of the BillSplit entity.
+// If the BillSplit object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BillSplitMutation) OldExternalRef(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExternalRef is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExternalRef requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExternalRef: %w", err)
+	}
+	return oldValue.ExternalRef, nil
+}
+
+// ClearExternalRef clears the value of the "external_ref" field.
+func (m *BillSplitMutation) ClearExternalRef() {
+	m.external_ref = nil
+	m.clearedFields[billsplit.FieldExternalRef] = struct{}{}
+}
+
+// ExternalRefCleared returns if the "external_ref" field was cleared in this mutation.
+func (m *BillSplitMutation) ExternalRefCleared() bool {
+	_, ok := m.clearedFields[billsplit.FieldExternalRef]
+	return ok
+}
+
+// ResetExternalRef resets all changes to the "external_ref" field.
+func (m *BillSplitMutation) ResetExternalRef() {
+	m.external_ref = nil
+	delete(m.clearedFields, billsplit.FieldExternalRef)
+}
+
+// SetPaymentID sets the "payment_id" field.
+func (m *BillSplitMutation) SetPaymentID(u uuid.UUID) {
+	m.payment_id = &u
+}
+
+// PaymentID returns the value of the "payment_id" field in the mutation.
+func (m *BillSplitMutation) PaymentID() (r uuid.UUID, exists bool) {
+	v := m.payment_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPaymentID returns the old "payment_id" field's value of the BillSplit entity.
+// If the BillSplit object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BillSplitMutation) OldPaymentID(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPaymentID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPaymentID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPaymentID: %w", err)
+	}
+	return oldValue.PaymentID, nil
+}
+
+// ClearPaymentID clears the value of the "payment_id" field.
+func (m *BillSplitMutation) ClearPaymentID() {
+	m.payment_id = nil
+	m.clearedFields[billsplit.FieldPaymentID] = struct{}{}
+}
+
+// PaymentIDCleared returns if the "payment_id" field was cleared in this mutation.
+func (m *BillSplitMutation) PaymentIDCleared() bool {
+	_, ok := m.clearedFields[billsplit.FieldPaymentID]
+	return ok
+}
+
+// ResetPaymentID resets all changes to the "payment_id" field.
+func (m *BillSplitMutation) ResetPaymentID() {
+	m.payment_id = nil
+	delete(m.clearedFields, billsplit.FieldPaymentID)
+}
+
+// Where appends a list predicates to the BillSplitMutation builder.
+func (m *BillSplitMutation) Where(ps ...predicate.BillSplit) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the BillSplitMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *BillSplitMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.BillSplit, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *BillSplitMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *BillSplitMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (BillSplit).
+func (m *BillSplitMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *BillSplitMutation) Fields() []string {
+	fields := make([]string, 0, 9)
+	if m.tenant_id != nil {
+		fields = append(fields, billsplit.FieldTenantID)
+	}
+	if m.order_id != nil {
+		fields = append(fields, billsplit.FieldOrderID)
+	}
+	if m.split_label != nil {
+		fields = append(fields, billsplit.FieldSplitLabel)
+	}
+	if m.amount != nil {
+		fields = append(fields, billsplit.FieldAmount)
+	}
+	if m.currency != nil {
+		fields = append(fields, billsplit.FieldCurrency)
+	}
+	if m.status != nil {
+		fields = append(fields, billsplit.FieldStatus)
+	}
+	if m.payment_method != nil {
+		fields = append(fields, billsplit.FieldPaymentMethod)
+	}
+	if m.external_ref != nil {
+		fields = append(fields, billsplit.FieldExternalRef)
+	}
+	if m.payment_id != nil {
+		fields = append(fields, billsplit.FieldPaymentID)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *BillSplitMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case billsplit.FieldTenantID:
+		return m.TenantID()
+	case billsplit.FieldOrderID:
+		return m.OrderID()
+	case billsplit.FieldSplitLabel:
+		return m.SplitLabel()
+	case billsplit.FieldAmount:
+		return m.Amount()
+	case billsplit.FieldCurrency:
+		return m.Currency()
+	case billsplit.FieldStatus:
+		return m.Status()
+	case billsplit.FieldPaymentMethod:
+		return m.PaymentMethod()
+	case billsplit.FieldExternalRef:
+		return m.ExternalRef()
+	case billsplit.FieldPaymentID:
+		return m.PaymentID()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *BillSplitMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case billsplit.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case billsplit.FieldOrderID:
+		return m.OldOrderID(ctx)
+	case billsplit.FieldSplitLabel:
+		return m.OldSplitLabel(ctx)
+	case billsplit.FieldAmount:
+		return m.OldAmount(ctx)
+	case billsplit.FieldCurrency:
+		return m.OldCurrency(ctx)
+	case billsplit.FieldStatus:
+		return m.OldStatus(ctx)
+	case billsplit.FieldPaymentMethod:
+		return m.OldPaymentMethod(ctx)
+	case billsplit.FieldExternalRef:
+		return m.OldExternalRef(ctx)
+	case billsplit.FieldPaymentID:
+		return m.OldPaymentID(ctx)
+	}
+	return nil, fmt.Errorf("unknown BillSplit field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *BillSplitMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case billsplit.FieldTenantID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case billsplit.FieldOrderID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOrderID(v)
+		return nil
+	case billsplit.FieldSplitLabel:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSplitLabel(v)
+		return nil
+	case billsplit.FieldAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAmount(v)
+		return nil
+	case billsplit.FieldCurrency:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCurrency(v)
+		return nil
+	case billsplit.FieldStatus:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case billsplit.FieldPaymentMethod:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPaymentMethod(v)
+		return nil
+	case billsplit.FieldExternalRef:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExternalRef(v)
+		return nil
+	case billsplit.FieldPaymentID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPaymentID(v)
+		return nil
+	}
+	return fmt.Errorf("unknown BillSplit field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *BillSplitMutation) AddedFields() []string {
+	var fields []string
+	if m.addamount != nil {
+		fields = append(fields, billsplit.FieldAmount)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *BillSplitMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case billsplit.FieldAmount:
+		return m.AddedAmount()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *BillSplitMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case billsplit.FieldAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAmount(v)
+		return nil
+	}
+	return fmt.Errorf("unknown BillSplit numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *BillSplitMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(billsplit.FieldPaymentMethod) {
+		fields = append(fields, billsplit.FieldPaymentMethod)
+	}
+	if m.FieldCleared(billsplit.FieldExternalRef) {
+		fields = append(fields, billsplit.FieldExternalRef)
+	}
+	if m.FieldCleared(billsplit.FieldPaymentID) {
+		fields = append(fields, billsplit.FieldPaymentID)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *BillSplitMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *BillSplitMutation) ClearField(name string) error {
+	switch name {
+	case billsplit.FieldPaymentMethod:
+		m.ClearPaymentMethod()
+		return nil
+	case billsplit.FieldExternalRef:
+		m.ClearExternalRef()
+		return nil
+	case billsplit.FieldPaymentID:
+		m.ClearPaymentID()
+		return nil
+	}
+	return fmt.Errorf("unknown BillSplit nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *BillSplitMutation) ResetField(name string) error {
+	switch name {
+	case billsplit.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case billsplit.FieldOrderID:
+		m.ResetOrderID()
+		return nil
+	case billsplit.FieldSplitLabel:
+		m.ResetSplitLabel()
+		return nil
+	case billsplit.FieldAmount:
+		m.ResetAmount()
+		return nil
+	case billsplit.FieldCurrency:
+		m.ResetCurrency()
+		return nil
+	case billsplit.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case billsplit.FieldPaymentMethod:
+		m.ResetPaymentMethod()
+		return nil
+	case billsplit.FieldExternalRef:
+		m.ResetExternalRef()
+		return nil
+	case billsplit.FieldPaymentID:
+		m.ResetPaymentID()
+		return nil
+	}
+	return fmt.Errorf("unknown BillSplit field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *BillSplitMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *BillSplitMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *BillSplitMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *BillSplitMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *BillSplitMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *BillSplitMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *BillSplitMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown BillSplit unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *BillSplitMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown BillSplit edge %s", name)
 }
 
 // CashDrawerMutation represents an operation that mutates the CashDrawer nodes in the graph.

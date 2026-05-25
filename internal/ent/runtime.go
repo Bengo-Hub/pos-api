@@ -8,6 +8,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/appointment"
 	"github.com/bengobox/pos-service/internal/ent/bartab"
 	"github.com/bengobox/pos-service/internal/ent/bartabevent"
+	"github.com/bengobox/pos-service/internal/ent/billsplit"
 	"github.com/bengobox/pos-service/internal/ent/cashdrawer"
 	"github.com/bengobox/pos-service/internal/ent/cashdrawerevent"
 	"github.com/bengobox/pos-service/internal/ent/catalogitem"
@@ -154,6 +155,24 @@ func init() {
 	bartabeventDescID := bartabeventFields[0].Descriptor()
 	// bartabevent.DefaultID holds the default value on creation for the id field.
 	bartabevent.DefaultID = bartabeventDescID.Default.(func() uuid.UUID)
+	billsplitFields := schema.BillSplit{}.Fields()
+	_ = billsplitFields
+	// billsplitDescSplitLabel is the schema descriptor for split_label field.
+	billsplitDescSplitLabel := billsplitFields[3].Descriptor()
+	// billsplit.SplitLabelValidator is a validator for the "split_label" field. It is called by the builders before save.
+	billsplit.SplitLabelValidator = billsplitDescSplitLabel.Validators[0].(func(string) error)
+	// billsplitDescCurrency is the schema descriptor for currency field.
+	billsplitDescCurrency := billsplitFields[5].Descriptor()
+	// billsplit.DefaultCurrency holds the default value on creation for the currency field.
+	billsplit.DefaultCurrency = billsplitDescCurrency.Default.(string)
+	// billsplitDescStatus is the schema descriptor for status field.
+	billsplitDescStatus := billsplitFields[6].Descriptor()
+	// billsplit.DefaultStatus holds the default value on creation for the status field.
+	billsplit.DefaultStatus = billsplitDescStatus.Default.(string)
+	// billsplitDescID is the schema descriptor for id field.
+	billsplitDescID := billsplitFields[0].Descriptor()
+	// billsplit.DefaultID holds the default value on creation for the id field.
+	billsplit.DefaultID = billsplitDescID.Default.(func() uuid.UUID)
 	cashdrawerFields := schema.CashDrawer{}.Fields()
 	_ = cashdrawerFields
 	// cashdrawerDescStatus is the schema descriptor for status field.

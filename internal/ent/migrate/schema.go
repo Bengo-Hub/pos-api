@@ -91,6 +91,37 @@ var (
 			},
 		},
 	}
+	// BillSplitsColumns holds the columns for the "bill_splits" table.
+	BillSplitsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "order_id", Type: field.TypeUUID},
+		{Name: "split_label", Type: field.TypeString, Size: 100},
+		{Name: "amount", Type: field.TypeFloat64},
+		{Name: "currency", Type: field.TypeString, Default: "KES"},
+		{Name: "status", Type: field.TypeString, Default: "pending"},
+		{Name: "payment_method", Type: field.TypeString, Nullable: true},
+		{Name: "external_ref", Type: field.TypeString, Nullable: true},
+		{Name: "payment_id", Type: field.TypeUUID, Nullable: true},
+	}
+	// BillSplitsTable holds the schema information for the "bill_splits" table.
+	BillSplitsTable = &schema.Table{
+		Name:       "bill_splits",
+		Columns:    BillSplitsColumns,
+		PrimaryKey: []*schema.Column{BillSplitsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "billsplit_tenant_id_order_id",
+				Unique:  false,
+				Columns: []*schema.Column{BillSplitsColumns[1], BillSplitsColumns[2]},
+			},
+			{
+				Name:    "billsplit_tenant_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{BillSplitsColumns[1], BillSplitsColumns[6]},
+			},
+		},
+	}
 	// CashDrawersColumns holds the columns for the "cash_drawers" table.
 	CashDrawersColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -2351,6 +2382,7 @@ var (
 		AppointmentsTable,
 		BarTabsTable,
 		BarTabEventsTable,
+		BillSplitsTable,
 		CashDrawersTable,
 		CashDrawerEventsTable,
 		CatalogItemsTable,

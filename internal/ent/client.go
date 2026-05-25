@@ -19,6 +19,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/appointment"
 	"github.com/bengobox/pos-service/internal/ent/bartab"
 	"github.com/bengobox/pos-service/internal/ent/bartabevent"
+	"github.com/bengobox/pos-service/internal/ent/billsplit"
 	"github.com/bengobox/pos-service/internal/ent/cashdrawer"
 	"github.com/bengobox/pos-service/internal/ent/cashdrawerevent"
 	"github.com/bengobox/pos-service/internal/ent/catalogitem"
@@ -107,6 +108,8 @@ type Client struct {
 	BarTab *BarTabClient
 	// BarTabEvent is the client for interacting with the BarTabEvent builders.
 	BarTabEvent *BarTabEventClient
+	// BillSplit is the client for interacting with the BillSplit builders.
+	BillSplit *BillSplitClient
 	// CashDrawer is the client for interacting with the CashDrawer builders.
 	CashDrawer *CashDrawerClient
 	// CashDrawerEvent is the client for interacting with the CashDrawerEvent builders.
@@ -271,6 +274,7 @@ func (c *Client) init() {
 	c.Appointment = NewAppointmentClient(c.config)
 	c.BarTab = NewBarTabClient(c.config)
 	c.BarTabEvent = NewBarTabEventClient(c.config)
+	c.BillSplit = NewBillSplitClient(c.config)
 	c.CashDrawer = NewCashDrawerClient(c.config)
 	c.CashDrawerEvent = NewCashDrawerEventClient(c.config)
 	c.CatalogItem = NewCatalogItemClient(c.config)
@@ -441,6 +445,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		Appointment:            NewAppointmentClient(cfg),
 		BarTab:                 NewBarTabClient(cfg),
 		BarTabEvent:            NewBarTabEventClient(cfg),
+		BillSplit:              NewBillSplitClient(cfg),
 		CashDrawer:             NewCashDrawerClient(cfg),
 		CashDrawerEvent:        NewCashDrawerEventClient(cfg),
 		CatalogItem:            NewCatalogItemClient(cfg),
@@ -538,6 +543,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		Appointment:            NewAppointmentClient(cfg),
 		BarTab:                 NewBarTabClient(cfg),
 		BarTabEvent:            NewBarTabEventClient(cfg),
+		BillSplit:              NewBillSplitClient(cfg),
 		CashDrawer:             NewCashDrawerClient(cfg),
 		CashDrawerEvent:        NewCashDrawerEventClient(cfg),
 		CatalogItem:            NewCatalogItemClient(cfg),
@@ -642,21 +648,22 @@ func (c *Client) Close() error {
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
-		c.Appointment, c.BarTab, c.BarTabEvent, c.CashDrawer, c.CashDrawerEvent,
-		c.CatalogItem, c.ChannelIntegration, c.ChannelSyncJob, c.CommissionRecord,
-		c.DailyClosing, c.DrugInteractionCheck, c.Facility, c.FacilityBooking,
-		c.FeatureOverride, c.GiftCard, c.GiftCardTransaction, c.IntegrationSetting,
-		c.InventorySnapshot, c.KDSStation, c.KDSTicket, c.LayawayPayment,
-		c.LayawayPlan, c.LicenseUsageSnapshot, c.LoyaltyAccount, c.LoyaltyProgram,
-		c.LoyaltyTransaction, c.Modifier, c.ModifierGroup, c.OrderLink, c.OutboxEvent,
-		c.Outlet, c.OutletSetting, c.POSDevice, c.POSDeviceSession, c.POSLineModifier,
-		c.POSOrder, c.POSOrderEvent, c.POSOrderLine, c.POSPayment, c.POSPermission,
-		c.POSRefund, c.POSReturn, c.POSReturnLine, c.POSRole, c.POSRolePermission,
-		c.POSRoleV2, c.POSUserRoleAssignment, c.PosNotification, c.Prescription,
-		c.PrescriptionLine, c.PriceBook, c.PriceBookItem, c.Promotion,
-		c.PromotionApplication, c.PromotionRule, c.RateLimitConfig, c.Room,
-		c.RoomFolioItem, c.RoomGuest, c.Section, c.SerialNumberLog, c.ServiceConfig,
-		c.ServiceQueueEntry, c.StaffMember, c.StaffSchedule, c.StockAlertSubscription,
+		c.Appointment, c.BarTab, c.BarTabEvent, c.BillSplit, c.CashDrawer,
+		c.CashDrawerEvent, c.CatalogItem, c.ChannelIntegration, c.ChannelSyncJob,
+		c.CommissionRecord, c.DailyClosing, c.DrugInteractionCheck, c.Facility,
+		c.FacilityBooking, c.FeatureOverride, c.GiftCard, c.GiftCardTransaction,
+		c.IntegrationSetting, c.InventorySnapshot, c.KDSStation, c.KDSTicket,
+		c.LayawayPayment, c.LayawayPlan, c.LicenseUsageSnapshot, c.LoyaltyAccount,
+		c.LoyaltyProgram, c.LoyaltyTransaction, c.Modifier, c.ModifierGroup,
+		c.OrderLink, c.OutboxEvent, c.Outlet, c.OutletSetting, c.POSDevice,
+		c.POSDeviceSession, c.POSLineModifier, c.POSOrder, c.POSOrderEvent,
+		c.POSOrderLine, c.POSPayment, c.POSPermission, c.POSRefund, c.POSReturn,
+		c.POSReturnLine, c.POSRole, c.POSRolePermission, c.POSRoleV2,
+		c.POSUserRoleAssignment, c.PosNotification, c.Prescription, c.PrescriptionLine,
+		c.PriceBook, c.PriceBookItem, c.Promotion, c.PromotionApplication,
+		c.PromotionRule, c.RateLimitConfig, c.Room, c.RoomFolioItem, c.RoomGuest,
+		c.Section, c.SerialNumberLog, c.ServiceConfig, c.ServiceQueueEntry,
+		c.StaffMember, c.StaffSchedule, c.StockAlertSubscription,
 		c.StockConsumptionEvent, c.SyncFailure, c.Table, c.TableAssignment, c.Tenant,
 		c.TenantSyncEvent, c.Tender, c.User, c.UserPOSRole, c.WebhookDelivery,
 		c.WebhookSubscription, c.WeighingScaleReading,
@@ -669,21 +676,22 @@ func (c *Client) Use(hooks ...Hook) {
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
-		c.Appointment, c.BarTab, c.BarTabEvent, c.CashDrawer, c.CashDrawerEvent,
-		c.CatalogItem, c.ChannelIntegration, c.ChannelSyncJob, c.CommissionRecord,
-		c.DailyClosing, c.DrugInteractionCheck, c.Facility, c.FacilityBooking,
-		c.FeatureOverride, c.GiftCard, c.GiftCardTransaction, c.IntegrationSetting,
-		c.InventorySnapshot, c.KDSStation, c.KDSTicket, c.LayawayPayment,
-		c.LayawayPlan, c.LicenseUsageSnapshot, c.LoyaltyAccount, c.LoyaltyProgram,
-		c.LoyaltyTransaction, c.Modifier, c.ModifierGroup, c.OrderLink, c.OutboxEvent,
-		c.Outlet, c.OutletSetting, c.POSDevice, c.POSDeviceSession, c.POSLineModifier,
-		c.POSOrder, c.POSOrderEvent, c.POSOrderLine, c.POSPayment, c.POSPermission,
-		c.POSRefund, c.POSReturn, c.POSReturnLine, c.POSRole, c.POSRolePermission,
-		c.POSRoleV2, c.POSUserRoleAssignment, c.PosNotification, c.Prescription,
-		c.PrescriptionLine, c.PriceBook, c.PriceBookItem, c.Promotion,
-		c.PromotionApplication, c.PromotionRule, c.RateLimitConfig, c.Room,
-		c.RoomFolioItem, c.RoomGuest, c.Section, c.SerialNumberLog, c.ServiceConfig,
-		c.ServiceQueueEntry, c.StaffMember, c.StaffSchedule, c.StockAlertSubscription,
+		c.Appointment, c.BarTab, c.BarTabEvent, c.BillSplit, c.CashDrawer,
+		c.CashDrawerEvent, c.CatalogItem, c.ChannelIntegration, c.ChannelSyncJob,
+		c.CommissionRecord, c.DailyClosing, c.DrugInteractionCheck, c.Facility,
+		c.FacilityBooking, c.FeatureOverride, c.GiftCard, c.GiftCardTransaction,
+		c.IntegrationSetting, c.InventorySnapshot, c.KDSStation, c.KDSTicket,
+		c.LayawayPayment, c.LayawayPlan, c.LicenseUsageSnapshot, c.LoyaltyAccount,
+		c.LoyaltyProgram, c.LoyaltyTransaction, c.Modifier, c.ModifierGroup,
+		c.OrderLink, c.OutboxEvent, c.Outlet, c.OutletSetting, c.POSDevice,
+		c.POSDeviceSession, c.POSLineModifier, c.POSOrder, c.POSOrderEvent,
+		c.POSOrderLine, c.POSPayment, c.POSPermission, c.POSRefund, c.POSReturn,
+		c.POSReturnLine, c.POSRole, c.POSRolePermission, c.POSRoleV2,
+		c.POSUserRoleAssignment, c.PosNotification, c.Prescription, c.PrescriptionLine,
+		c.PriceBook, c.PriceBookItem, c.Promotion, c.PromotionApplication,
+		c.PromotionRule, c.RateLimitConfig, c.Room, c.RoomFolioItem, c.RoomGuest,
+		c.Section, c.SerialNumberLog, c.ServiceConfig, c.ServiceQueueEntry,
+		c.StaffMember, c.StaffSchedule, c.StockAlertSubscription,
 		c.StockConsumptionEvent, c.SyncFailure, c.Table, c.TableAssignment, c.Tenant,
 		c.TenantSyncEvent, c.Tender, c.User, c.UserPOSRole, c.WebhookDelivery,
 		c.WebhookSubscription, c.WeighingScaleReading,
@@ -701,6 +709,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.BarTab.mutate(ctx, m)
 	case *BarTabEventMutation:
 		return c.BarTabEvent.mutate(ctx, m)
+	case *BillSplitMutation:
+		return c.BillSplit.mutate(ctx, m)
 	case *CashDrawerMutation:
 		return c.CashDrawer.mutate(ctx, m)
 	case *CashDrawerEventMutation:
@@ -1284,6 +1294,139 @@ func (c *BarTabEventClient) mutate(ctx context.Context, m *BarTabEventMutation) 
 		return (&BarTabEventDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown BarTabEvent mutation op: %q", m.Op())
+	}
+}
+
+// BillSplitClient is a client for the BillSplit schema.
+type BillSplitClient struct {
+	config
+}
+
+// NewBillSplitClient returns a client for the BillSplit from the given config.
+func NewBillSplitClient(c config) *BillSplitClient {
+	return &BillSplitClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `billsplit.Hooks(f(g(h())))`.
+func (c *BillSplitClient) Use(hooks ...Hook) {
+	c.hooks.BillSplit = append(c.hooks.BillSplit, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `billsplit.Intercept(f(g(h())))`.
+func (c *BillSplitClient) Intercept(interceptors ...Interceptor) {
+	c.inters.BillSplit = append(c.inters.BillSplit, interceptors...)
+}
+
+// Create returns a builder for creating a BillSplit entity.
+func (c *BillSplitClient) Create() *BillSplitCreate {
+	mutation := newBillSplitMutation(c.config, OpCreate)
+	return &BillSplitCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of BillSplit entities.
+func (c *BillSplitClient) CreateBulk(builders ...*BillSplitCreate) *BillSplitCreateBulk {
+	return &BillSplitCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *BillSplitClient) MapCreateBulk(slice any, setFunc func(*BillSplitCreate, int)) *BillSplitCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &BillSplitCreateBulk{err: fmt.Errorf("calling to BillSplitClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*BillSplitCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &BillSplitCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for BillSplit.
+func (c *BillSplitClient) Update() *BillSplitUpdate {
+	mutation := newBillSplitMutation(c.config, OpUpdate)
+	return &BillSplitUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *BillSplitClient) UpdateOne(_m *BillSplit) *BillSplitUpdateOne {
+	mutation := newBillSplitMutation(c.config, OpUpdateOne, withBillSplit(_m))
+	return &BillSplitUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *BillSplitClient) UpdateOneID(id uuid.UUID) *BillSplitUpdateOne {
+	mutation := newBillSplitMutation(c.config, OpUpdateOne, withBillSplitID(id))
+	return &BillSplitUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for BillSplit.
+func (c *BillSplitClient) Delete() *BillSplitDelete {
+	mutation := newBillSplitMutation(c.config, OpDelete)
+	return &BillSplitDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *BillSplitClient) DeleteOne(_m *BillSplit) *BillSplitDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *BillSplitClient) DeleteOneID(id uuid.UUID) *BillSplitDeleteOne {
+	builder := c.Delete().Where(billsplit.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &BillSplitDeleteOne{builder}
+}
+
+// Query returns a query builder for BillSplit.
+func (c *BillSplitClient) Query() *BillSplitQuery {
+	return &BillSplitQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeBillSplit},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a BillSplit entity by its id.
+func (c *BillSplitClient) Get(ctx context.Context, id uuid.UUID) (*BillSplit, error) {
+	return c.Query().Where(billsplit.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *BillSplitClient) GetX(ctx context.Context, id uuid.UUID) *BillSplit {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *BillSplitClient) Hooks() []Hook {
+	return c.hooks.BillSplit
+}
+
+// Interceptors returns the client interceptors.
+func (c *BillSplitClient) Interceptors() []Interceptor {
+	return c.inters.BillSplit
+}
+
+func (c *BillSplitClient) mutate(ctx context.Context, m *BillSplitMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&BillSplitCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&BillSplitUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&BillSplitUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&BillSplitDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown BillSplit mutation op: %q", m.Op())
 	}
 }
 
@@ -12177,13 +12320,13 @@ func (c *WeighingScaleReadingClient) mutate(ctx context.Context, m *WeighingScal
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		Appointment, BarTab, BarTabEvent, CashDrawer, CashDrawerEvent, CatalogItem,
-		ChannelIntegration, ChannelSyncJob, CommissionRecord, DailyClosing,
-		DrugInteractionCheck, Facility, FacilityBooking, FeatureOverride, GiftCard,
-		GiftCardTransaction, IntegrationSetting, InventorySnapshot, KDSStation,
-		KDSTicket, LayawayPayment, LayawayPlan, LicenseUsageSnapshot, LoyaltyAccount,
-		LoyaltyProgram, LoyaltyTransaction, Modifier, ModifierGroup, OrderLink,
-		OutboxEvent, Outlet, OutletSetting, POSDevice, POSDeviceSession,
+		Appointment, BarTab, BarTabEvent, BillSplit, CashDrawer, CashDrawerEvent,
+		CatalogItem, ChannelIntegration, ChannelSyncJob, CommissionRecord,
+		DailyClosing, DrugInteractionCheck, Facility, FacilityBooking, FeatureOverride,
+		GiftCard, GiftCardTransaction, IntegrationSetting, InventorySnapshot,
+		KDSStation, KDSTicket, LayawayPayment, LayawayPlan, LicenseUsageSnapshot,
+		LoyaltyAccount, LoyaltyProgram, LoyaltyTransaction, Modifier, ModifierGroup,
+		OrderLink, OutboxEvent, Outlet, OutletSetting, POSDevice, POSDeviceSession,
 		POSLineModifier, POSOrder, POSOrderEvent, POSOrderLine, POSPayment,
 		POSPermission, POSRefund, POSReturn, POSReturnLine, POSRole, POSRolePermission,
 		POSRoleV2, POSUserRoleAssignment, PosNotification, Prescription,
@@ -12195,13 +12338,13 @@ type (
 		WebhookDelivery, WebhookSubscription, WeighingScaleReading []ent.Hook
 	}
 	inters struct {
-		Appointment, BarTab, BarTabEvent, CashDrawer, CashDrawerEvent, CatalogItem,
-		ChannelIntegration, ChannelSyncJob, CommissionRecord, DailyClosing,
-		DrugInteractionCheck, Facility, FacilityBooking, FeatureOverride, GiftCard,
-		GiftCardTransaction, IntegrationSetting, InventorySnapshot, KDSStation,
-		KDSTicket, LayawayPayment, LayawayPlan, LicenseUsageSnapshot, LoyaltyAccount,
-		LoyaltyProgram, LoyaltyTransaction, Modifier, ModifierGroup, OrderLink,
-		OutboxEvent, Outlet, OutletSetting, POSDevice, POSDeviceSession,
+		Appointment, BarTab, BarTabEvent, BillSplit, CashDrawer, CashDrawerEvent,
+		CatalogItem, ChannelIntegration, ChannelSyncJob, CommissionRecord,
+		DailyClosing, DrugInteractionCheck, Facility, FacilityBooking, FeatureOverride,
+		GiftCard, GiftCardTransaction, IntegrationSetting, InventorySnapshot,
+		KDSStation, KDSTicket, LayawayPayment, LayawayPlan, LicenseUsageSnapshot,
+		LoyaltyAccount, LoyaltyProgram, LoyaltyTransaction, Modifier, ModifierGroup,
+		OrderLink, OutboxEvent, Outlet, OutletSetting, POSDevice, POSDeviceSession,
 		POSLineModifier, POSOrder, POSOrderEvent, POSOrderLine, POSPayment,
 		POSPermission, POSRefund, POSReturn, POSReturnLine, POSRole, POSRolePermission,
 		POSRoleV2, POSUserRoleAssignment, PosNotification, Prescription,

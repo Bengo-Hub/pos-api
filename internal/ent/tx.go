@@ -18,6 +18,8 @@ type Tx struct {
 	BarTab *BarTabClient
 	// BarTabEvent is the client for interacting with the BarTabEvent builders.
 	BarTabEvent *BarTabEventClient
+	// BillSplit is the client for interacting with the BillSplit builders.
+	BillSplit *BillSplitClient
 	// CashDrawer is the client for interacting with the CashDrawer builders.
 	CashDrawer *CashDrawerClient
 	// CashDrawerEvent is the client for interacting with the CashDrawerEvent builders.
@@ -302,6 +304,7 @@ func (tx *Tx) init() {
 	tx.Appointment = NewAppointmentClient(tx.config)
 	tx.BarTab = NewBarTabClient(tx.config)
 	tx.BarTabEvent = NewBarTabEventClient(tx.config)
+	tx.BillSplit = NewBillSplitClient(tx.config)
 	tx.CashDrawer = NewCashDrawerClient(tx.config)
 	tx.CashDrawerEvent = NewCashDrawerEventClient(tx.config)
 	tx.CatalogItem = NewCatalogItemClient(tx.config)

@@ -15,6 +15,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/appointment"
 	"github.com/bengobox/pos-service/internal/ent/bartab"
 	"github.com/bengobox/pos-service/internal/ent/bartabevent"
+	"github.com/bengobox/pos-service/internal/ent/billsplit"
 	"github.com/bengobox/pos-service/internal/ent/cashdrawer"
 	"github.com/bengobox/pos-service/internal/ent/cashdrawerevent"
 	"github.com/bengobox/pos-service/internal/ent/catalogitem"
@@ -153,6 +154,7 @@ func checkColumn(t, c string) error {
 			appointment.Table:            appointment.ValidColumn,
 			bartab.Table:                 bartab.ValidColumn,
 			bartabevent.Table:            bartabevent.ValidColumn,
+			billsplit.Table:              billsplit.ValidColumn,
 			cashdrawer.Table:             cashdrawer.ValidColumn,
 			cashdrawerevent.Table:        cashdrawerevent.ValidColumn,
 			catalogitem.Table:            catalogitem.ValidColumn,

@@ -45,6 +45,18 @@ func (f BarTabEventFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value,
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.BarTabEventMutation", m)
 }
 
+// The BillSplitFunc type is an adapter to allow the use of ordinary
+// function as BillSplit mutator.
+type BillSplitFunc func(context.Context, *ent.BillSplitMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f BillSplitFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.BillSplitMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.BillSplitMutation", m)
+}
+
 // The CashDrawerFunc type is an adapter to allow the use of ordinary
 // function as CashDrawer mutator.
 type CashDrawerFunc func(context.Context, *ent.CashDrawerMutation) (ent.Value, error)

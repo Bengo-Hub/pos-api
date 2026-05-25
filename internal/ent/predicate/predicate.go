@@ -15,6 +15,9 @@ type BarTab func(*sql.Selector)
 // BarTabEvent is the predicate function for bartabevent builders.
 type BarTabEvent func(*sql.Selector)
 
+// BillSplit is the predicate function for billsplit builders.
+type BillSplit func(*sql.Selector)
+
 // CashDrawer is the predicate function for cashdrawer builders.
 type CashDrawer func(*sql.Selector)
 
