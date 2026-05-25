@@ -232,11 +232,10 @@ func New(
 						})
 					}
 
-					// Sections & Tables — hospitality only + table_management subscription
+					// Sections & Tables — hospitality only
 					if tables != nil {
 						pos.Group(func(tbl chi.Router) {
 							tbl.Use(outletmw.RequireUseCase("hospitality"))
-							tbl.Use(subscriptions.RequireFeature("table_management"))
 							tbl.Get("/sections", tables.ListSections)
 							tbl.Post("/sections", tables.CreateSection)
 							tbl.Put("/sections/{id}", tables.UpdateSection)
@@ -269,15 +268,12 @@ func New(
 						pos.Post("/payments/initiate", payments.ProxyInitiate)
 					}
 
-					// Cash Drawers — shift report history requires shift_reports feature
+					// Cash Drawers
 					if drawers != nil {
 						pos.Post("/drawers/open", drawers.OpenDrawer)
 						pos.Get("/drawers/current", drawers.GetCurrentDrawer)
 						pos.Post("/drawers/{id}/close", drawers.CloseDrawer)
-						pos.Group(func(dr chi.Router) {
-							dr.Use(subscriptions.RequireFeature("shift_reports"))
-							dr.Get("/drawers", drawers.ListDrawerHistory)
-						})
+						pos.Get("/drawers", drawers.ListDrawerHistory)
 					}
 
 					// Bar Tabs — hospitality only
@@ -347,10 +343,7 @@ func New(
 							pos.Post("/orders/{orderID}/splits/{splitID}/settle", billSplits.SettleSplit)
 						}
 						pos.Get("/returns", returns.ListReturns)
-						pos.Group(func(mgr chi.Router) {
-							mgr.Use(subscriptions.RequireFeature("shift_reports"))
-							mgr.Patch("/returns/{returnID}/approve", returns.ApproveReturn)
-						})
+						pos.Patch("/returns/{returnID}/approve", returns.ApproveReturn)
 					}
 
 					// Layaway plans & payments
@@ -531,11 +524,8 @@ func New(
 
 					// Daily closings (ERP reconciliation)
 					if closings != nil {
-						pos.Group(func(mgr chi.Router) {
-							mgr.Use(subscriptions.RequireFeature("shift_reports"))
-							mgr.Post("/outlets/{outletID}/daily-close", closings.CloseDay)
-							mgr.Get("/outlets/{outletID}/daily-closings", closings.ListDailyClosings)
-						})
+						pos.Post("/outlets/{outletID}/daily-close", closings.CloseDay)
+						pos.Get("/outlets/{outletID}/daily-closings", closings.ListDailyClosings)
 					}
 				})
 
