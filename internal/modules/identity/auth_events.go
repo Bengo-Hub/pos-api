@@ -42,72 +42,74 @@ type authUserEvent struct {
 	Payload       map[string]interface{} `json:"payload"`
 }
 
-// SubscribeToAuthEvents subscribes to auth-service user events via NATS.
+// SubscribeToAuthEvents subscribes to auth-service user events via JetStream with durable consumers.
 func (h *AuthEventHandler) SubscribeToAuthEvents(nc *nats.Conn) error {
 	if nc == nil {
 		h.logger.Warn("NATS connection not available, skipping auth event subscriptions")
 		return nil
 	}
 
-	// Subscribe to auth.user.created
-	_, err := nc.Subscribe("auth.user.created", func(msg *nats.Msg) {
-		var evt authUserEvent
-		if err := json.Unmarshal(msg.Data, &evt); err != nil {
-			h.logger.Error("failed to unmarshal auth.user.created event", zap.Error(err))
-			return
-		}
-
-		ctx := context.Background()
-		if err := h.handleUserCreated(ctx, &evt); err != nil {
-			h.logger.Error("failed to handle auth.user.created event", zap.Error(err))
-			return
-		}
-		_ = msg.Ack()
-	})
+	js, err := nc.JetStream()
 	if err != nil {
-		return fmt.Errorf("subscribe to auth.user.created: %w", err)
+		return fmt.Errorf("auth user events: jetstream init: %w", err)
 	}
 
-	// Subscribe to auth.user.updated
-	_, err = nc.Subscribe("auth.user.updated", func(msg *nats.Msg) {
-		var evt authUserEvent
-		if err := json.Unmarshal(msg.Data, &evt); err != nil {
-			h.logger.Error("failed to unmarshal auth.user.updated event", zap.Error(err))
-			return
+	// Ensure auth stream exists (guard against startup race with auth-api).
+	if _, err := js.StreamInfo(authStream); err != nil {
+		if _, addErr := js.AddStream(&nats.StreamConfig{
+			Name:      authStream,
+			Subjects:  []string{"auth.>"},
+			Retention: nats.LimitsPolicy,
+			MaxAge:    72 * time.Hour,
+			Storage:   nats.FileStorage,
+		}); addErr != nil && addErr != nats.ErrStreamNameAlreadyInUse {
+			h.logger.Warn("auth user events: ensure auth stream failed", zap.Error(addErr))
 		}
-
-		ctx := context.Background()
-		if err := h.handleUserUpdated(ctx, &evt); err != nil {
-			h.logger.Error("failed to handle auth.user.updated event", zap.Error(err))
-			return
-		}
-		_ = msg.Ack()
-	})
-	if err != nil {
-		return fmt.Errorf("subscribe to auth.user.updated: %w", err)
 	}
 
-	// Subscribe to auth.user.pin_set
-	_, err = nc.Subscribe("auth.user.pin_set", func(msg *nats.Msg) {
-		var evt authUserEvent
-		if err := json.Unmarshal(msg.Data, &evt); err != nil {
-			h.logger.Error("failed to unmarshal auth.user.pin_set event", zap.Error(err))
-			return
-		}
+	type sub struct {
+		subject string
+		durable string
+		handler func(context.Context, *authUserEvent) error
+	}
+	subs := []sub{
+		{"auth.user.created", "pos-auth-user-created", h.handleUserCreated},
+		{"auth.user.updated", "pos-auth-user-updated", h.handleUserUpdated},
+		{"auth.user.pin_set", "pos-auth-user-pin-set", h.handleUserPINSet},
+	}
 
-		ctx := context.Background()
-		if err := h.handleUserPINSet(ctx, &evt); err != nil {
-			h.logger.Error("failed to handle auth.user.pin_set event", zap.Error(err))
-			return
+	for _, s := range subs {
+		s := s
+		if _, subErr := js.Subscribe(s.subject, func(msg *nats.Msg) {
+			var evt authUserEvent
+			if err := json.Unmarshal(msg.Data, &evt); err != nil {
+				h.logger.Error("failed to unmarshal auth user event",
+					zap.String("subject", s.subject), zap.Error(err))
+				_ = msg.Nak()
+				return
+			}
+			ctx := context.Background()
+			if err := s.handler(ctx, &evt); err != nil {
+				h.logger.Error("failed to handle auth user event",
+					zap.String("subject", s.subject), zap.Error(err))
+				_ = msg.Nak()
+				return
+			}
+			_ = msg.Ack()
+		},
+			nats.Durable(s.durable),
+			nats.AckExplicit(),
+			nats.AckWait(30*time.Second),
+			nats.MaxDeliver(5),
+			nats.DeliverAll(),
+		); subErr != nil {
+			h.logger.Warn("auth user events: subscribe failed",
+				zap.String("subject", s.subject), zap.Error(subErr))
 		}
-		_ = msg.Ack()
-	})
-	if err != nil {
-		return fmt.Errorf("subscribe to auth.user.pin_set: %w", err)
 	}
 
 	h.logger.Info("auth event subscriptions active",
-		zap.Strings("subjects", []string{"auth.user.created", "auth.user.updated", "auth.user.pin_set"}))
+		zap.String("subjects", "auth.user.created, auth.user.updated, auth.user.pin_set"))
 	return nil
 }
 

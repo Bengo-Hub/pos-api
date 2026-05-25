@@ -13,6 +13,9 @@ import (
 	"github.com/bengobox/pos-service/internal/ent"
 )
 
+// authStream is the NATS JetStream stream name that auth-api publishes to.
+const authStream = "auth"
+
 // AuthOutletEventHandler syncs auth.outlet.* events from auth-api into the
 // local pos-api outlets table. This keeps the pos-api mirror in sync with the
 // source-of-truth outlet registry in auth-api.
@@ -35,50 +38,74 @@ type authOutletEvent struct {
 	Payload       map[string]interface{} `json:"payload"`
 }
 
-// SubscribeToOutletEvents subscribes to auth.outlet.* NATS subjects.
+// SubscribeToOutletEvents subscribes to auth.outlet.* JetStream subjects with durable consumers.
 func (h *AuthOutletEventHandler) SubscribeToOutletEvents(nc *nats.Conn) error {
 	if nc == nil {
 		h.logger.Warn("NATS not available, skipping auth outlet event subscriptions")
 		return nil
 	}
 
-	subjects := []struct {
-		subject string
-		handler func(context.Context, *authOutletEvent) error
-	}{
-		{"auth.outlet.created", h.handleUpsert},
-		{"auth.outlet.updated", h.handleUpsert},
-		{"auth.outlet.archived", h.handleArchive},
+	js, err := nc.JetStream()
+	if err != nil {
+		return fmt.Errorf("auth outlet events: jetstream init: %w", err)
 	}
 
-	for _, s := range subjects {
-		s := s // capture loop var
-		_, err := nc.Subscribe(s.subject, func(msg *nats.Msg) {
+	// Ensure the auth stream exists (auth-api creates it; guard against startup race).
+	if _, err := js.StreamInfo(authStream); err != nil {
+		if _, addErr := js.AddStream(&nats.StreamConfig{
+			Name:      authStream,
+			Subjects:  []string{"auth.>"},
+			Retention: nats.LimitsPolicy,
+			MaxAge:    72 * time.Hour,
+			Storage:   nats.FileStorage,
+		}); addErr != nil && addErr != nats.ErrStreamNameAlreadyInUse {
+			h.logger.Warn("auth outlet events: ensure auth stream failed", zap.Error(addErr))
+		}
+	}
+
+	type sub struct {
+		subject string
+		durable string
+		handler func(context.Context, *authOutletEvent) error
+	}
+	subs := []sub{
+		{"auth.outlet.created", "pos-auth-outlet-created", h.handleUpsert},
+		{"auth.outlet.updated", "pos-auth-outlet-updated", h.handleUpsert},
+		{"auth.outlet.archived", "pos-auth-outlet-archived", h.handleArchive},
+	}
+
+	for _, s := range subs {
+		s := s
+		if _, subErr := js.Subscribe(s.subject, func(msg *nats.Msg) {
 			var evt authOutletEvent
 			if err := json.Unmarshal(msg.Data, &evt); err != nil {
 				h.logger.Error("failed to unmarshal outlet event",
 					zap.String("subject", s.subject), zap.Error(err))
+				_ = msg.Nak()
 				return
 			}
 			ctx := context.Background()
 			if err := s.handler(ctx, &evt); err != nil {
 				h.logger.Error("failed to handle outlet event",
 					zap.String("subject", s.subject), zap.Error(err))
+				_ = msg.Nak()
 				return
 			}
 			_ = msg.Ack()
-		})
-		if err != nil {
-			return fmt.Errorf("subscribe to %s: %w", s.subject, err)
+		},
+			nats.Durable(s.durable),
+			nats.AckExplicit(),
+			nats.AckWait(30*time.Second),
+			nats.MaxDeliver(5),
+			nats.DeliverAll(),
+		); subErr != nil {
+			h.logger.Warn("auth outlet events: subscribe failed",
+				zap.String("subject", s.subject), zap.Error(subErr))
 		}
 	}
 
 	h.logger.Info("outlet event subscriptions active",
-		zap.Strings("subjects", []string{
-			"auth.outlet.created",
-			"auth.outlet.updated",
-			"auth.outlet.archived",
-		}))
+		zap.String("subjects", "auth.outlet.created, auth.outlet.updated, auth.outlet.archived"))
 	return nil
 }
 
