@@ -50,6 +50,17 @@ func (POSOrder) Fields() []ent.Field {
 			Comment("Room service: linked guest stay"),
 		field.JSON("metadata", map[string]any{}).
 			Default(map[string]any{}),
+		// Hospitality: number of covers (guests) at the table, set when waiter opens the table.
+		field.Int("covers_count").
+			Default(0).
+			Comment("Number of covers (guests) at the table"),
+		// Hospitality: service charge applied to dine-in orders.
+		field.Float("service_charge_percent").
+			Default(0).
+			Comment("Service charge percentage (e.g. 10.0 for 10%)"),
+		field.Float("service_charge_amount").
+			Default(0).
+			Comment("Computed service charge amount = total_amount * service_charge_percent / 100"),
 		// Course firing: tracks the highest course number whose items have been sent to the kitchen.
 		// KDS shows items with course_number <= fired_courses; higher courses stay hidden until fired.
 		field.Int("fired_courses").

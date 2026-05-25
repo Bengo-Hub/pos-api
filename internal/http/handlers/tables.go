@@ -13,6 +13,8 @@ import (
 	entsection "github.com/bengobox/pos-service/internal/ent/section"
 	enttable "github.com/bengobox/pos-service/internal/ent/table"
 	"github.com/bengobox/pos-service/internal/ent/tableassignment"
+	entposorder "github.com/bengobox/pos-service/internal/ent/posorder"
+	entposorderline "github.com/bengobox/pos-service/internal/ent/posorderline"
 )
 
 // TableHandler handles table and section management endpoints.
@@ -386,4 +388,311 @@ func (h *TableHandler) ReleaseTable(w http.ResponseWriter, r *http.Request) {
 		Save(r.Context())
 
 	jsonOK(w, map[string]string{"status": "released"})
+}
+
+// TransferTable handles POST /{tenantID}/pos/tables/{id}/transfer
+// Moves the active order on {id} to the destination table.
+func (h *TableHandler) TransferTable(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+	fromTableID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		jsonError(w, "invalid table id", http.StatusBadRequest)
+		return
+	}
+
+	var input struct {
+		ToTableID uuid.UUID `json:"to_table_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil || input.ToTableID == uuid.Nil {
+		jsonError(w, "to_table_id is required", http.StatusBadRequest)
+		return
+	}
+
+	ctx := r.Context()
+
+	// Find the active assignment on the source table
+	asgn, err := h.client.TableAssignment.Query().
+		Where(tableassignment.TableID(fromTableID), tableassignment.ReleasedAtIsNil()).
+		First(ctx)
+	if err != nil || asgn.OrderID == nil {
+		jsonError(w, "no active order on source table", http.StatusNotFound)
+		return
+	}
+
+	// Verify destination table exists and is not occupied
+	toTable, err := h.client.Table.Query().
+		Where(enttable.ID(input.ToTableID), enttable.TenantID(tid)).
+		Only(ctx)
+	if err != nil {
+		jsonError(w, "destination table not found", http.StatusNotFound)
+		return
+	}
+	if toTable.Status == "occupied" {
+		jsonError(w, "destination table is already occupied", http.StatusConflict)
+		return
+	}
+
+	// Move the assignment: release source, create on destination
+	now := time.Now()
+	if _, err := asgn.Update().SetReleasedAt(now).Save(ctx); err != nil {
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	_, err = h.client.TableAssignment.Create().
+		SetTableID(input.ToTableID).
+		SetNillableOrderID(asgn.OrderID).
+		Save(ctx)
+	if err != nil {
+		jsonError(w, "failed to create assignment on destination", http.StatusInternalServerError)
+		return
+	}
+
+	// Update table statuses
+	h.client.Table.Update().Where(enttable.ID(fromTableID)).SetStatus("available").Exec(ctx)  //nolint
+	h.client.Table.Update().Where(enttable.ID(input.ToTableID)).SetStatus("occupied").Exec(ctx) //nolint
+
+	// Update order metadata with new table name
+	h.client.POSOrder.Update().Where(entposorder.ID(*asgn.OrderID)).
+		SetMetadata(map[string]any{"table_id": input.ToTableID.String(), "transferred": true}).
+		Exec(ctx) //nolint
+
+	jsonOK(w, map[string]any{"status": "transferred", "order_id": asgn.OrderID, "to_table_id": input.ToTableID})
+}
+
+// MergeTables handles POST /{tenantID}/pos/tables/merge
+// Merges two active orders (one per table) into a single order on the primary table.
+func (h *TableHandler) MergeTables(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+
+	var input struct {
+		PrimaryTableID   uuid.UUID `json:"primary_table_id"`
+		SecondaryTableID uuid.UUID `json:"secondary_table_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		jsonError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	ctx := r.Context()
+
+	// Load both active assignments
+	primaryAsgn, err := h.client.TableAssignment.Query().
+		Where(tableassignment.TableID(input.PrimaryTableID), tableassignment.ReleasedAtIsNil()).
+		First(ctx)
+	if err != nil || primaryAsgn.OrderID == nil {
+		jsonError(w, "no active order on primary table", http.StatusNotFound)
+		return
+	}
+	secondaryAsgn, err := h.client.TableAssignment.Query().
+		Where(tableassignment.TableID(input.SecondaryTableID), tableassignment.ReleasedAtIsNil()).
+		First(ctx)
+	if err != nil || secondaryAsgn.OrderID == nil {
+		jsonError(w, "no active order on secondary table", http.StatusNotFound)
+		return
+	}
+
+	// Load the secondary order's lines
+	secondaryLines, err := h.client.POSOrderLine.Query().
+		Where(entposorderline.OrderID(*secondaryAsgn.OrderID)).
+		All(ctx)
+	if err != nil {
+		jsonError(w, "failed to load secondary order lines", http.StatusInternalServerError)
+		return
+	}
+
+	// Move all secondary lines to the primary order
+	for _, l := range secondaryLines {
+		if _, err := l.Update().SetOrderID(*primaryAsgn.OrderID).Save(ctx); err != nil {
+			h.log.Warn("merge tables: failed to move line", zap.Error(err))
+		}
+	}
+
+	// Load updated primary order to recalculate totals
+	primaryOrder, err := h.client.POSOrder.Query().
+		Where(entposorder.ID(*primaryAsgn.OrderID)).
+		WithLines().
+		Only(ctx)
+	if err == nil {
+		var newSubtotal, newTaxTotal float64
+		for _, l := range primaryOrder.Edges.Lines {
+			newSubtotal += l.TotalPrice
+			if l.TaxAmount != nil {
+				newTaxTotal += *l.TaxAmount
+			}
+		}
+		primaryOrder.Update().
+			SetSubtotal(newSubtotal).
+			SetTaxTotal(newTaxTotal).
+			SetTotalAmount(newSubtotal).
+			Exec(ctx) //nolint
+	}
+
+	// Cancel the secondary order and release its table
+	now := time.Now()
+	h.client.POSOrder.Update().Where(entposorder.ID(*secondaryAsgn.OrderID), entposorder.TenantID(tid)).SetStatus("merged").Exec(ctx) //nolint
+	secondaryAsgn.Update().SetReleasedAt(now).Exec(ctx) //nolint
+	h.client.Table.Update().Where(enttable.ID(input.SecondaryTableID), enttable.TenantID(tid)).SetStatus("available").Exec(ctx) //nolint
+
+	jsonOK(w, map[string]any{
+		"status":            "merged",
+		"primary_order_id":  primaryAsgn.OrderID,
+		"merged_order_id":   secondaryAsgn.OrderID,
+		"lines_transferred": len(secondaryLines),
+	})
+}
+
+// SplitOrder handles POST /{tenantID}/pos/orders/{orderID}/split
+// Creates a new order with the specified line IDs removed from the original.
+func (h *TableHandler) SplitOrder(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+	orderID, err := uuid.Parse(chi.URLParam(r, "orderID"))
+	if err != nil {
+		jsonError(w, "invalid order_id", http.StatusBadRequest)
+		return
+	}
+
+	var input struct {
+		LineIDs []uuid.UUID `json:"line_ids"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil || len(input.LineIDs) == 0 {
+		jsonError(w, "line_ids is required", http.StatusBadRequest)
+		return
+	}
+
+	ctx := r.Context()
+
+	order, err := h.client.POSOrder.Query().
+		Where(entposorder.ID(orderID), entposorder.TenantID(tid)).
+		Only(ctx)
+	if err != nil {
+		jsonError(w, "order not found", http.StatusNotFound)
+		return
+	}
+
+	// Verify all line IDs belong to this order
+	lines, err := h.client.POSOrderLine.Query().
+		Where(entposorderline.OrderID(orderID), entposorderline.IDIn(input.LineIDs...)).
+		All(ctx)
+	if err != nil || len(lines) != len(input.LineIDs) {
+		jsonError(w, "one or more line_ids not found on this order", http.StatusBadRequest)
+		return
+	}
+
+	// Create the new split order
+	var splitSubtotal, splitTaxTotal float64
+	for _, l := range lines {
+		splitSubtotal += l.TotalPrice
+		if l.TaxAmount != nil {
+			splitTaxTotal += *l.TaxAmount
+		}
+	}
+
+	splitOrder, err := h.client.POSOrder.Create().
+		SetTenantID(tid).
+		SetOutletID(order.OutletID).
+		SetDeviceID(order.DeviceID).
+		SetUserID(order.UserID).
+		SetOrderNumber(order.OrderNumber + "-S").
+		SetStatus("open").
+		SetSubtotal(splitSubtotal).
+		SetTaxTotal(splitTaxTotal).
+		SetDiscountTotal(0).
+		SetTotalAmount(splitSubtotal).
+		SetOrderSubtype(order.OrderSubtype).
+		SetMetadata(map[string]any{"split_from": orderID.String()}).
+		Save(ctx)
+	if err != nil {
+		h.log.Error("split order: create failed", zap.Error(err))
+		jsonError(w, "failed to create split order", http.StatusInternalServerError)
+		return
+	}
+
+	// Move selected lines to the new order and recalculate original
+	for _, l := range lines {
+		l.Update().SetOrderID(splitOrder.ID).Exec(ctx) //nolint
+	}
+
+	// Recalculate original order totals
+	remainingLines, _ := h.client.POSOrderLine.Query().Where(entposorderline.OrderID(orderID)).All(ctx)
+	var remSubtotal, remTaxTotal float64
+	for _, l := range remainingLines {
+		remSubtotal += l.TotalPrice
+		if l.TaxAmount != nil {
+			remTaxTotal += *l.TaxAmount
+		}
+	}
+	order.Update().SetSubtotal(remSubtotal).SetTaxTotal(remTaxTotal).SetTotalAmount(remSubtotal).Exec(ctx) //nolint
+
+	jsonOK(w, map[string]any{
+		"split_order_id":    splitOrder.ID,
+		"split_order_number": splitOrder.OrderNumber,
+		"lines_moved":       len(lines),
+	})
+}
+
+// SetServiceCharge handles PATCH /{tenantID}/pos/orders/{orderID}/service-charge
+// Sets or removes the service charge on a dine-in order.
+// Requires pos.orders.manage permission (manager override).
+func (h *TableHandler) SetServiceCharge(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+	orderID, err := uuid.Parse(chi.URLParam(r, "orderID"))
+	if err != nil {
+		jsonError(w, "invalid order_id", http.StatusBadRequest)
+		return
+	}
+
+	var input struct {
+		Percent float64 `json:"percent"` // 0 to remove
+	}
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		jsonError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	if input.Percent < 0 || input.Percent > 100 {
+		jsonError(w, "percent must be 0–100", http.StatusBadRequest)
+		return
+	}
+
+	ctx := r.Context()
+	order, err := h.client.POSOrder.Query().
+		Where(entposorder.ID(orderID), entposorder.TenantID(tid)).
+		Only(ctx)
+	if err != nil {
+		jsonError(w, "order not found", http.StatusNotFound)
+		return
+	}
+
+	chargeAmount := order.TotalAmount * input.Percent / 100
+	updated, err := order.Update().
+		SetServiceChargePercent(input.Percent).
+		SetServiceChargeAmount(chargeAmount).
+		Save(ctx)
+	if err != nil {
+		h.log.Error("set service charge failed", zap.Error(err))
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	jsonOK(w, map[string]any{
+		"order_id":               orderID,
+		"service_charge_percent": updated.ServiceChargePercent,
+		"service_charge_amount":  updated.ServiceChargeAmount,
+		"total_with_charge":      updated.TotalAmount + updated.ServiceChargeAmount,
+	})
 }

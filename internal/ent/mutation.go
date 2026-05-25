@@ -38461,50 +38461,56 @@ func (m *POSLineModifierMutation) ResetEdge(name string) error {
 // POSOrderMutation represents an operation that mutates the POSOrder nodes in the graph.
 type POSOrderMutation struct {
 	config
-	op                   Op
-	typ                  string
-	id                   *uuid.UUID
-	tenant_id            *uuid.UUID
-	outlet_id            *uuid.UUID
-	device_id            *uuid.UUID
-	user_id              *uuid.UUID
-	order_number         *string
-	status               *string
-	subtotal             *float64
-	addsubtotal          *float64
-	tax_total            *float64
-	addtax_total         *float64
-	discount_total       *float64
-	adddiscount_total    *float64
-	total_amount         *float64
-	addtotal_amount      *float64
-	currency             *string
-	order_subtype        *posorder.OrderSubtype
-	room_id              *uuid.UUID
-	room_guest_id        *uuid.UUID
-	metadata             *map[string]interface{}
-	fired_courses        *int
-	addfired_courses     *int
-	etims_invoice_number *string
-	etims_qr_code_url    *string
-	voided_reason        *string
-	voided_by            *uuid.UUID
-	voided_at            *time.Time
-	created_at           *time.Time
-	updated_at           *time.Time
-	clearedFields        map[string]struct{}
-	lines                map[uuid.UUID]struct{}
-	removedlines         map[uuid.UUID]struct{}
-	clearedlines         bool
-	payments             map[uuid.UUID]struct{}
-	removedpayments      map[uuid.UUID]struct{}
-	clearedpayments      bool
-	events               map[uuid.UUID]struct{}
-	removedevents        map[uuid.UUID]struct{}
-	clearedevents        bool
-	done                 bool
-	oldValue             func(context.Context) (*POSOrder, error)
-	predicates           []predicate.POSOrder
+	op                        Op
+	typ                       string
+	id                        *uuid.UUID
+	tenant_id                 *uuid.UUID
+	outlet_id                 *uuid.UUID
+	device_id                 *uuid.UUID
+	user_id                   *uuid.UUID
+	order_number              *string
+	status                    *string
+	subtotal                  *float64
+	addsubtotal               *float64
+	tax_total                 *float64
+	addtax_total              *float64
+	discount_total            *float64
+	adddiscount_total         *float64
+	total_amount              *float64
+	addtotal_amount           *float64
+	currency                  *string
+	order_subtype             *posorder.OrderSubtype
+	room_id                   *uuid.UUID
+	room_guest_id             *uuid.UUID
+	metadata                  *map[string]interface{}
+	covers_count              *int
+	addcovers_count           *int
+	service_charge_percent    *float64
+	addservice_charge_percent *float64
+	service_charge_amount     *float64
+	addservice_charge_amount  *float64
+	fired_courses             *int
+	addfired_courses          *int
+	etims_invoice_number      *string
+	etims_qr_code_url         *string
+	voided_reason             *string
+	voided_by                 *uuid.UUID
+	voided_at                 *time.Time
+	created_at                *time.Time
+	updated_at                *time.Time
+	clearedFields             map[string]struct{}
+	lines                     map[uuid.UUID]struct{}
+	removedlines              map[uuid.UUID]struct{}
+	clearedlines              bool
+	payments                  map[uuid.UUID]struct{}
+	removedpayments           map[uuid.UUID]struct{}
+	clearedpayments           bool
+	events                    map[uuid.UUID]struct{}
+	removedevents             map[uuid.UUID]struct{}
+	clearedevents             bool
+	done                      bool
+	oldValue                  func(context.Context) (*POSOrder, error)
+	predicates                []predicate.POSOrder
 }
 
 var _ ent.Mutation = (*POSOrderMutation)(nil)
@@ -39257,6 +39263,174 @@ func (m *POSOrderMutation) ResetMetadata() {
 	m.metadata = nil
 }
 
+// SetCoversCount sets the "covers_count" field.
+func (m *POSOrderMutation) SetCoversCount(i int) {
+	m.covers_count = &i
+	m.addcovers_count = nil
+}
+
+// CoversCount returns the value of the "covers_count" field in the mutation.
+func (m *POSOrderMutation) CoversCount() (r int, exists bool) {
+	v := m.covers_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCoversCount returns the old "covers_count" field's value of the POSOrder entity.
+// If the POSOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSOrderMutation) OldCoversCount(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCoversCount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCoversCount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCoversCount: %w", err)
+	}
+	return oldValue.CoversCount, nil
+}
+
+// AddCoversCount adds i to the "covers_count" field.
+func (m *POSOrderMutation) AddCoversCount(i int) {
+	if m.addcovers_count != nil {
+		*m.addcovers_count += i
+	} else {
+		m.addcovers_count = &i
+	}
+}
+
+// AddedCoversCount returns the value that was added to the "covers_count" field in this mutation.
+func (m *POSOrderMutation) AddedCoversCount() (r int, exists bool) {
+	v := m.addcovers_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetCoversCount resets all changes to the "covers_count" field.
+func (m *POSOrderMutation) ResetCoversCount() {
+	m.covers_count = nil
+	m.addcovers_count = nil
+}
+
+// SetServiceChargePercent sets the "service_charge_percent" field.
+func (m *POSOrderMutation) SetServiceChargePercent(f float64) {
+	m.service_charge_percent = &f
+	m.addservice_charge_percent = nil
+}
+
+// ServiceChargePercent returns the value of the "service_charge_percent" field in the mutation.
+func (m *POSOrderMutation) ServiceChargePercent() (r float64, exists bool) {
+	v := m.service_charge_percent
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldServiceChargePercent returns the old "service_charge_percent" field's value of the POSOrder entity.
+// If the POSOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSOrderMutation) OldServiceChargePercent(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldServiceChargePercent is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldServiceChargePercent requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldServiceChargePercent: %w", err)
+	}
+	return oldValue.ServiceChargePercent, nil
+}
+
+// AddServiceChargePercent adds f to the "service_charge_percent" field.
+func (m *POSOrderMutation) AddServiceChargePercent(f float64) {
+	if m.addservice_charge_percent != nil {
+		*m.addservice_charge_percent += f
+	} else {
+		m.addservice_charge_percent = &f
+	}
+}
+
+// AddedServiceChargePercent returns the value that was added to the "service_charge_percent" field in this mutation.
+func (m *POSOrderMutation) AddedServiceChargePercent() (r float64, exists bool) {
+	v := m.addservice_charge_percent
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetServiceChargePercent resets all changes to the "service_charge_percent" field.
+func (m *POSOrderMutation) ResetServiceChargePercent() {
+	m.service_charge_percent = nil
+	m.addservice_charge_percent = nil
+}
+
+// SetServiceChargeAmount sets the "service_charge_amount" field.
+func (m *POSOrderMutation) SetServiceChargeAmount(f float64) {
+	m.service_charge_amount = &f
+	m.addservice_charge_amount = nil
+}
+
+// ServiceChargeAmount returns the value of the "service_charge_amount" field in the mutation.
+func (m *POSOrderMutation) ServiceChargeAmount() (r float64, exists bool) {
+	v := m.service_charge_amount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldServiceChargeAmount returns the old "service_charge_amount" field's value of the POSOrder entity.
+// If the POSOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSOrderMutation) OldServiceChargeAmount(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldServiceChargeAmount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldServiceChargeAmount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldServiceChargeAmount: %w", err)
+	}
+	return oldValue.ServiceChargeAmount, nil
+}
+
+// AddServiceChargeAmount adds f to the "service_charge_amount" field.
+func (m *POSOrderMutation) AddServiceChargeAmount(f float64) {
+	if m.addservice_charge_amount != nil {
+		*m.addservice_charge_amount += f
+	} else {
+		m.addservice_charge_amount = &f
+	}
+}
+
+// AddedServiceChargeAmount returns the value that was added to the "service_charge_amount" field in this mutation.
+func (m *POSOrderMutation) AddedServiceChargeAmount() (r float64, exists bool) {
+	v := m.addservice_charge_amount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetServiceChargeAmount resets all changes to the "service_charge_amount" field.
+func (m *POSOrderMutation) ResetServiceChargeAmount() {
+	m.service_charge_amount = nil
+	m.addservice_charge_amount = nil
+}
+
 // SetFiredCourses sets the "fired_courses" field.
 func (m *POSOrderMutation) SetFiredCourses(i int) {
 	m.fired_courses = &i
@@ -39826,7 +40000,7 @@ func (m *POSOrderMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *POSOrderMutation) Fields() []string {
-	fields := make([]string, 0, 23)
+	fields := make([]string, 0, 26)
 	if m.tenant_id != nil {
 		fields = append(fields, posorder.FieldTenantID)
 	}
@@ -39871,6 +40045,15 @@ func (m *POSOrderMutation) Fields() []string {
 	}
 	if m.metadata != nil {
 		fields = append(fields, posorder.FieldMetadata)
+	}
+	if m.covers_count != nil {
+		fields = append(fields, posorder.FieldCoversCount)
+	}
+	if m.service_charge_percent != nil {
+		fields = append(fields, posorder.FieldServiceChargePercent)
+	}
+	if m.service_charge_amount != nil {
+		fields = append(fields, posorder.FieldServiceChargeAmount)
 	}
 	if m.fired_courses != nil {
 		fields = append(fields, posorder.FieldFiredCourses)
@@ -39934,6 +40117,12 @@ func (m *POSOrderMutation) Field(name string) (ent.Value, bool) {
 		return m.RoomGuestID()
 	case posorder.FieldMetadata:
 		return m.Metadata()
+	case posorder.FieldCoversCount:
+		return m.CoversCount()
+	case posorder.FieldServiceChargePercent:
+		return m.ServiceChargePercent()
+	case posorder.FieldServiceChargeAmount:
+		return m.ServiceChargeAmount()
 	case posorder.FieldFiredCourses:
 		return m.FiredCourses()
 	case posorder.FieldEtimsInvoiceNumber:
@@ -39989,6 +40178,12 @@ func (m *POSOrderMutation) OldField(ctx context.Context, name string) (ent.Value
 		return m.OldRoomGuestID(ctx)
 	case posorder.FieldMetadata:
 		return m.OldMetadata(ctx)
+	case posorder.FieldCoversCount:
+		return m.OldCoversCount(ctx)
+	case posorder.FieldServiceChargePercent:
+		return m.OldServiceChargePercent(ctx)
+	case posorder.FieldServiceChargeAmount:
+		return m.OldServiceChargeAmount(ctx)
 	case posorder.FieldFiredCourses:
 		return m.OldFiredCourses(ctx)
 	case posorder.FieldEtimsInvoiceNumber:
@@ -40119,6 +40314,27 @@ func (m *POSOrderMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetMetadata(v)
 		return nil
+	case posorder.FieldCoversCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCoversCount(v)
+		return nil
+	case posorder.FieldServiceChargePercent:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetServiceChargePercent(v)
+		return nil
+	case posorder.FieldServiceChargeAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetServiceChargeAmount(v)
+		return nil
 	case posorder.FieldFiredCourses:
 		v, ok := value.(int)
 		if !ok {
@@ -40195,6 +40411,15 @@ func (m *POSOrderMutation) AddedFields() []string {
 	if m.addtotal_amount != nil {
 		fields = append(fields, posorder.FieldTotalAmount)
 	}
+	if m.addcovers_count != nil {
+		fields = append(fields, posorder.FieldCoversCount)
+	}
+	if m.addservice_charge_percent != nil {
+		fields = append(fields, posorder.FieldServiceChargePercent)
+	}
+	if m.addservice_charge_amount != nil {
+		fields = append(fields, posorder.FieldServiceChargeAmount)
+	}
 	if m.addfired_courses != nil {
 		fields = append(fields, posorder.FieldFiredCourses)
 	}
@@ -40214,6 +40439,12 @@ func (m *POSOrderMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedDiscountTotal()
 	case posorder.FieldTotalAmount:
 		return m.AddedTotalAmount()
+	case posorder.FieldCoversCount:
+		return m.AddedCoversCount()
+	case posorder.FieldServiceChargePercent:
+		return m.AddedServiceChargePercent()
+	case posorder.FieldServiceChargeAmount:
+		return m.AddedServiceChargeAmount()
 	case posorder.FieldFiredCourses:
 		return m.AddedFiredCourses()
 	}
@@ -40252,6 +40483,27 @@ func (m *POSOrderMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddTotalAmount(v)
+		return nil
+	case posorder.FieldCoversCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCoversCount(v)
+		return nil
+	case posorder.FieldServiceChargePercent:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddServiceChargePercent(v)
+		return nil
+	case posorder.FieldServiceChargeAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddServiceChargeAmount(v)
 		return nil
 	case posorder.FieldFiredCourses:
 		v, ok := value.(int)
@@ -40376,6 +40628,15 @@ func (m *POSOrderMutation) ResetField(name string) error {
 		return nil
 	case posorder.FieldMetadata:
 		m.ResetMetadata()
+		return nil
+	case posorder.FieldCoversCount:
+		m.ResetCoversCount()
+		return nil
+	case posorder.FieldServiceChargePercent:
+		m.ResetServiceChargePercent()
+		return nil
+	case posorder.FieldServiceChargeAmount:
+		m.ResetServiceChargeAmount()
 		return nil
 	case posorder.FieldFiredCourses:
 		m.ResetFiredCourses()

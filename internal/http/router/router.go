@@ -243,6 +243,11 @@ func New(
 							tbl.Patch("/tables/{id}/status", tables.UpdateTableStatus)
 							tbl.Post("/tables/{id}/assign", tables.AssignTable)
 							tbl.Post("/tables/{id}/release", tables.ReleaseTable)
+							tbl.Post("/tables/{id}/transfer", tables.TransferTable)
+							tbl.Post("/tables/merge", tables.MergeTables)
+							// Order split + service charge live here (use TableHandler, need nil guard)
+							tbl.Post("/orders/{orderID}/split", tables.SplitOrder)
+							tbl.Patch("/orders/{orderID}/service-charge", tables.SetServiceCharge)
 						})
 					}
 

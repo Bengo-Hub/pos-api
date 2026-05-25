@@ -49,6 +49,12 @@ type POSOrder struct {
 	RoomGuestID *uuid.UUID `json:"room_guest_id,omitempty"`
 	// Metadata holds the value of the "metadata" field.
 	Metadata map[string]interface{} `json:"metadata,omitempty"`
+	// Number of covers (guests) at the table
+	CoversCount int `json:"covers_count,omitempty"`
+	// Service charge percentage (e.g. 10.0 for 10%)
+	ServiceChargePercent float64 `json:"service_charge_percent,omitempty"`
+	// Computed service charge amount = total_amount * service_charge_percent / 100
+	ServiceChargeAmount float64 `json:"service_charge_amount,omitempty"`
 	// Highest course number sent to KDS. 0 = no courses fired (all course_number=0 items fire immediately).
 	FiredCourses int `json:"fired_courses,omitempty"`
 	// EtimsInvoiceNumber holds the value of the "etims_invoice_number" field.
@@ -120,9 +126,9 @@ func (*POSOrder) scanValues(columns []string) ([]any, error) {
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		case posorder.FieldMetadata:
 			values[i] = new([]byte)
-		case posorder.FieldSubtotal, posorder.FieldTaxTotal, posorder.FieldDiscountTotal, posorder.FieldTotalAmount:
+		case posorder.FieldSubtotal, posorder.FieldTaxTotal, posorder.FieldDiscountTotal, posorder.FieldTotalAmount, posorder.FieldServiceChargePercent, posorder.FieldServiceChargeAmount:
 			values[i] = new(sql.NullFloat64)
-		case posorder.FieldFiredCourses:
+		case posorder.FieldCoversCount, posorder.FieldFiredCourses:
 			values[i] = new(sql.NullInt64)
 		case posorder.FieldOrderNumber, posorder.FieldStatus, posorder.FieldCurrency, posorder.FieldOrderSubtype, posorder.FieldEtimsInvoiceNumber, posorder.FieldEtimsQrCodeURL, posorder.FieldVoidedReason:
 			values[i] = new(sql.NullString)
@@ -244,6 +250,24 @@ func (_m *POSOrder) assignValues(columns []string, values []any) error {
 				if err := json.Unmarshal(*value, &_m.Metadata); err != nil {
 					return fmt.Errorf("unmarshal field metadata: %w", err)
 				}
+			}
+		case posorder.FieldCoversCount:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field covers_count", values[i])
+			} else if value.Valid {
+				_m.CoversCount = int(value.Int64)
+			}
+		case posorder.FieldServiceChargePercent:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field service_charge_percent", values[i])
+			} else if value.Valid {
+				_m.ServiceChargePercent = value.Float64
+			}
+		case posorder.FieldServiceChargeAmount:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field service_charge_amount", values[i])
+			} else if value.Valid {
+				_m.ServiceChargeAmount = value.Float64
 			}
 		case posorder.FieldFiredCourses:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -397,6 +421,15 @@ func (_m *POSOrder) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("metadata=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Metadata))
+	builder.WriteString(", ")
+	builder.WriteString("covers_count=")
+	builder.WriteString(fmt.Sprintf("%v", _m.CoversCount))
+	builder.WriteString(", ")
+	builder.WriteString("service_charge_percent=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ServiceChargePercent))
+	builder.WriteString(", ")
+	builder.WriteString("service_charge_amount=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ServiceChargeAmount))
 	builder.WriteString(", ")
 	builder.WriteString("fired_courses=")
 	builder.WriteString(fmt.Sprintf("%v", _m.FiredCourses))

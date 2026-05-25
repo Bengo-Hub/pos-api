@@ -46,6 +46,12 @@ const (
 	FieldRoomGuestID = "room_guest_id"
 	// FieldMetadata holds the string denoting the metadata field in the database.
 	FieldMetadata = "metadata"
+	// FieldCoversCount holds the string denoting the covers_count field in the database.
+	FieldCoversCount = "covers_count"
+	// FieldServiceChargePercent holds the string denoting the service_charge_percent field in the database.
+	FieldServiceChargePercent = "service_charge_percent"
+	// FieldServiceChargeAmount holds the string denoting the service_charge_amount field in the database.
+	FieldServiceChargeAmount = "service_charge_amount"
 	// FieldFiredCourses holds the string denoting the fired_courses field in the database.
 	FieldFiredCourses = "fired_courses"
 	// FieldEtimsInvoiceNumber holds the string denoting the etims_invoice_number field in the database.
@@ -111,6 +117,9 @@ var Columns = []string{
 	FieldRoomID,
 	FieldRoomGuestID,
 	FieldMetadata,
+	FieldCoversCount,
+	FieldServiceChargePercent,
+	FieldServiceChargeAmount,
 	FieldFiredCourses,
 	FieldEtimsInvoiceNumber,
 	FieldEtimsQrCodeURL,
@@ -142,6 +151,12 @@ var (
 	DefaultCurrency string
 	// DefaultMetadata holds the default value on creation for the "metadata" field.
 	DefaultMetadata map[string]interface{}
+	// DefaultCoversCount holds the default value on creation for the "covers_count" field.
+	DefaultCoversCount int
+	// DefaultServiceChargePercent holds the default value on creation for the "service_charge_percent" field.
+	DefaultServiceChargePercent float64
+	// DefaultServiceChargeAmount holds the default value on creation for the "service_charge_amount" field.
+	DefaultServiceChargeAmount float64
 	// DefaultFiredCourses holds the default value on creation for the "fired_courses" field.
 	DefaultFiredCourses int
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
@@ -259,6 +274,21 @@ func ByRoomID(opts ...sql.OrderTermOption) OrderOption {
 // ByRoomGuestID orders the results by the room_guest_id field.
 func ByRoomGuestID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldRoomGuestID, opts...).ToFunc()
+}
+
+// ByCoversCount orders the results by the covers_count field.
+func ByCoversCount(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCoversCount, opts...).ToFunc()
+}
+
+// ByServiceChargePercent orders the results by the service_charge_percent field.
+func ByServiceChargePercent(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldServiceChargePercent, opts...).ToFunc()
+}
+
+// ByServiceChargeAmount orders the results by the service_charge_amount field.
+func ByServiceChargeAmount(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldServiceChargeAmount, opts...).ToFunc()
 }
 
 // ByFiredCourses orders the results by the fired_courses field.

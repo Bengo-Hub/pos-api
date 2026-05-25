@@ -274,6 +274,69 @@ func (_u *POSOrderUpdate) SetMetadata(v map[string]interface{}) *POSOrderUpdate 
 	return _u
 }
 
+// SetCoversCount sets the "covers_count" field.
+func (_u *POSOrderUpdate) SetCoversCount(v int) *POSOrderUpdate {
+	_u.mutation.ResetCoversCount()
+	_u.mutation.SetCoversCount(v)
+	return _u
+}
+
+// SetNillableCoversCount sets the "covers_count" field if the given value is not nil.
+func (_u *POSOrderUpdate) SetNillableCoversCount(v *int) *POSOrderUpdate {
+	if v != nil {
+		_u.SetCoversCount(*v)
+	}
+	return _u
+}
+
+// AddCoversCount adds value to the "covers_count" field.
+func (_u *POSOrderUpdate) AddCoversCount(v int) *POSOrderUpdate {
+	_u.mutation.AddCoversCount(v)
+	return _u
+}
+
+// SetServiceChargePercent sets the "service_charge_percent" field.
+func (_u *POSOrderUpdate) SetServiceChargePercent(v float64) *POSOrderUpdate {
+	_u.mutation.ResetServiceChargePercent()
+	_u.mutation.SetServiceChargePercent(v)
+	return _u
+}
+
+// SetNillableServiceChargePercent sets the "service_charge_percent" field if the given value is not nil.
+func (_u *POSOrderUpdate) SetNillableServiceChargePercent(v *float64) *POSOrderUpdate {
+	if v != nil {
+		_u.SetServiceChargePercent(*v)
+	}
+	return _u
+}
+
+// AddServiceChargePercent adds value to the "service_charge_percent" field.
+func (_u *POSOrderUpdate) AddServiceChargePercent(v float64) *POSOrderUpdate {
+	_u.mutation.AddServiceChargePercent(v)
+	return _u
+}
+
+// SetServiceChargeAmount sets the "service_charge_amount" field.
+func (_u *POSOrderUpdate) SetServiceChargeAmount(v float64) *POSOrderUpdate {
+	_u.mutation.ResetServiceChargeAmount()
+	_u.mutation.SetServiceChargeAmount(v)
+	return _u
+}
+
+// SetNillableServiceChargeAmount sets the "service_charge_amount" field if the given value is not nil.
+func (_u *POSOrderUpdate) SetNillableServiceChargeAmount(v *float64) *POSOrderUpdate {
+	if v != nil {
+		_u.SetServiceChargeAmount(*v)
+	}
+	return _u
+}
+
+// AddServiceChargeAmount adds value to the "service_charge_amount" field.
+func (_u *POSOrderUpdate) AddServiceChargeAmount(v float64) *POSOrderUpdate {
+	_u.mutation.AddServiceChargeAmount(v)
+	return _u
+}
+
 // SetFiredCourses sets the "fired_courses" field.
 func (_u *POSOrderUpdate) SetFiredCourses(v int) *POSOrderUpdate {
 	_u.mutation.ResetFiredCourses()
@@ -639,6 +702,24 @@ func (_u *POSOrderUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.Metadata(); ok {
 		_spec.SetField(posorder.FieldMetadata, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.CoversCount(); ok {
+		_spec.SetField(posorder.FieldCoversCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedCoversCount(); ok {
+		_spec.AddField(posorder.FieldCoversCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.ServiceChargePercent(); ok {
+		_spec.SetField(posorder.FieldServiceChargePercent, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedServiceChargePercent(); ok {
+		_spec.AddField(posorder.FieldServiceChargePercent, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.ServiceChargeAmount(); ok {
+		_spec.SetField(posorder.FieldServiceChargeAmount, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedServiceChargeAmount(); ok {
+		_spec.AddField(posorder.FieldServiceChargeAmount, field.TypeFloat64, value)
 	}
 	if value, ok := _u.mutation.FiredCourses(); ok {
 		_spec.SetField(posorder.FieldFiredCourses, field.TypeInt, value)
@@ -1076,6 +1157,69 @@ func (_u *POSOrderUpdateOne) SetMetadata(v map[string]interface{}) *POSOrderUpda
 	return _u
 }
 
+// SetCoversCount sets the "covers_count" field.
+func (_u *POSOrderUpdateOne) SetCoversCount(v int) *POSOrderUpdateOne {
+	_u.mutation.ResetCoversCount()
+	_u.mutation.SetCoversCount(v)
+	return _u
+}
+
+// SetNillableCoversCount sets the "covers_count" field if the given value is not nil.
+func (_u *POSOrderUpdateOne) SetNillableCoversCount(v *int) *POSOrderUpdateOne {
+	if v != nil {
+		_u.SetCoversCount(*v)
+	}
+	return _u
+}
+
+// AddCoversCount adds value to the "covers_count" field.
+func (_u *POSOrderUpdateOne) AddCoversCount(v int) *POSOrderUpdateOne {
+	_u.mutation.AddCoversCount(v)
+	return _u
+}
+
+// SetServiceChargePercent sets the "service_charge_percent" field.
+func (_u *POSOrderUpdateOne) SetServiceChargePercent(v float64) *POSOrderUpdateOne {
+	_u.mutation.ResetServiceChargePercent()
+	_u.mutation.SetServiceChargePercent(v)
+	return _u
+}
+
+// SetNillableServiceChargePercent sets the "service_charge_percent" field if the given value is not nil.
+func (_u *POSOrderUpdateOne) SetNillableServiceChargePercent(v *float64) *POSOrderUpdateOne {
+	if v != nil {
+		_u.SetServiceChargePercent(*v)
+	}
+	return _u
+}
+
+// AddServiceChargePercent adds value to the "service_charge_percent" field.
+func (_u *POSOrderUpdateOne) AddServiceChargePercent(v float64) *POSOrderUpdateOne {
+	_u.mutation.AddServiceChargePercent(v)
+	return _u
+}
+
+// SetServiceChargeAmount sets the "service_charge_amount" field.
+func (_u *POSOrderUpdateOne) SetServiceChargeAmount(v float64) *POSOrderUpdateOne {
+	_u.mutation.ResetServiceChargeAmount()
+	_u.mutation.SetServiceChargeAmount(v)
+	return _u
+}
+
+// SetNillableServiceChargeAmount sets the "service_charge_amount" field if the given value is not nil.
+func (_u *POSOrderUpdateOne) SetNillableServiceChargeAmount(v *float64) *POSOrderUpdateOne {
+	if v != nil {
+		_u.SetServiceChargeAmount(*v)
+	}
+	return _u
+}
+
+// AddServiceChargeAmount adds value to the "service_charge_amount" field.
+func (_u *POSOrderUpdateOne) AddServiceChargeAmount(v float64) *POSOrderUpdateOne {
+	_u.mutation.AddServiceChargeAmount(v)
+	return _u
+}
+
 // SetFiredCourses sets the "fired_courses" field.
 func (_u *POSOrderUpdateOne) SetFiredCourses(v int) *POSOrderUpdateOne {
 	_u.mutation.ResetFiredCourses()
@@ -1471,6 +1615,24 @@ func (_u *POSOrderUpdateOne) sqlSave(ctx context.Context) (_node *POSOrder, err 
 	}
 	if value, ok := _u.mutation.Metadata(); ok {
 		_spec.SetField(posorder.FieldMetadata, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.CoversCount(); ok {
+		_spec.SetField(posorder.FieldCoversCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedCoversCount(); ok {
+		_spec.AddField(posorder.FieldCoversCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.ServiceChargePercent(); ok {
+		_spec.SetField(posorder.FieldServiceChargePercent, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedServiceChargePercent(); ok {
+		_spec.AddField(posorder.FieldServiceChargePercent, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.ServiceChargeAmount(); ok {
+		_spec.SetField(posorder.FieldServiceChargeAmount, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedServiceChargeAmount(); ok {
+		_spec.AddField(posorder.FieldServiceChargeAmount, field.TypeFloat64, value)
 	}
 	if value, ok := _u.mutation.FiredCourses(); ok {
 		_spec.SetField(posorder.FieldFiredCourses, field.TypeInt, value)

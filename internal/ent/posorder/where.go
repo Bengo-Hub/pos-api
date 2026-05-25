@@ -121,6 +121,21 @@ func RoomGuestID(v uuid.UUID) predicate.POSOrder {
 	return predicate.POSOrder(sql.FieldEQ(FieldRoomGuestID, v))
 }
 
+// CoversCount applies equality check predicate on the "covers_count" field. It's identical to CoversCountEQ.
+func CoversCount(v int) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEQ(FieldCoversCount, v))
+}
+
+// ServiceChargePercent applies equality check predicate on the "service_charge_percent" field. It's identical to ServiceChargePercentEQ.
+func ServiceChargePercent(v float64) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEQ(FieldServiceChargePercent, v))
+}
+
+// ServiceChargeAmount applies equality check predicate on the "service_charge_amount" field. It's identical to ServiceChargeAmountEQ.
+func ServiceChargeAmount(v float64) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEQ(FieldServiceChargeAmount, v))
+}
+
 // FiredCourses applies equality check predicate on the "fired_courses" field. It's identical to FiredCoursesEQ.
 func FiredCourses(v int) predicate.POSOrder {
 	return predicate.POSOrder(sql.FieldEQ(FieldFiredCourses, v))
@@ -794,6 +809,126 @@ func RoomGuestIDIsNil() predicate.POSOrder {
 // RoomGuestIDNotNil applies the NotNil predicate on the "room_guest_id" field.
 func RoomGuestIDNotNil() predicate.POSOrder {
 	return predicate.POSOrder(sql.FieldNotNull(FieldRoomGuestID))
+}
+
+// CoversCountEQ applies the EQ predicate on the "covers_count" field.
+func CoversCountEQ(v int) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEQ(FieldCoversCount, v))
+}
+
+// CoversCountNEQ applies the NEQ predicate on the "covers_count" field.
+func CoversCountNEQ(v int) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNEQ(FieldCoversCount, v))
+}
+
+// CoversCountIn applies the In predicate on the "covers_count" field.
+func CoversCountIn(vs ...int) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldIn(FieldCoversCount, vs...))
+}
+
+// CoversCountNotIn applies the NotIn predicate on the "covers_count" field.
+func CoversCountNotIn(vs ...int) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNotIn(FieldCoversCount, vs...))
+}
+
+// CoversCountGT applies the GT predicate on the "covers_count" field.
+func CoversCountGT(v int) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldGT(FieldCoversCount, v))
+}
+
+// CoversCountGTE applies the GTE predicate on the "covers_count" field.
+func CoversCountGTE(v int) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldGTE(FieldCoversCount, v))
+}
+
+// CoversCountLT applies the LT predicate on the "covers_count" field.
+func CoversCountLT(v int) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldLT(FieldCoversCount, v))
+}
+
+// CoversCountLTE applies the LTE predicate on the "covers_count" field.
+func CoversCountLTE(v int) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldLTE(FieldCoversCount, v))
+}
+
+// ServiceChargePercentEQ applies the EQ predicate on the "service_charge_percent" field.
+func ServiceChargePercentEQ(v float64) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEQ(FieldServiceChargePercent, v))
+}
+
+// ServiceChargePercentNEQ applies the NEQ predicate on the "service_charge_percent" field.
+func ServiceChargePercentNEQ(v float64) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNEQ(FieldServiceChargePercent, v))
+}
+
+// ServiceChargePercentIn applies the In predicate on the "service_charge_percent" field.
+func ServiceChargePercentIn(vs ...float64) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldIn(FieldServiceChargePercent, vs...))
+}
+
+// ServiceChargePercentNotIn applies the NotIn predicate on the "service_charge_percent" field.
+func ServiceChargePercentNotIn(vs ...float64) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNotIn(FieldServiceChargePercent, vs...))
+}
+
+// ServiceChargePercentGT applies the GT predicate on the "service_charge_percent" field.
+func ServiceChargePercentGT(v float64) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldGT(FieldServiceChargePercent, v))
+}
+
+// ServiceChargePercentGTE applies the GTE predicate on the "service_charge_percent" field.
+func ServiceChargePercentGTE(v float64) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldGTE(FieldServiceChargePercent, v))
+}
+
+// ServiceChargePercentLT applies the LT predicate on the "service_charge_percent" field.
+func ServiceChargePercentLT(v float64) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldLT(FieldServiceChargePercent, v))
+}
+
+// ServiceChargePercentLTE applies the LTE predicate on the "service_charge_percent" field.
+func ServiceChargePercentLTE(v float64) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldLTE(FieldServiceChargePercent, v))
+}
+
+// ServiceChargeAmountEQ applies the EQ predicate on the "service_charge_amount" field.
+func ServiceChargeAmountEQ(v float64) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEQ(FieldServiceChargeAmount, v))
+}
+
+// ServiceChargeAmountNEQ applies the NEQ predicate on the "service_charge_amount" field.
+func ServiceChargeAmountNEQ(v float64) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNEQ(FieldServiceChargeAmount, v))
+}
+
+// ServiceChargeAmountIn applies the In predicate on the "service_charge_amount" field.
+func ServiceChargeAmountIn(vs ...float64) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldIn(FieldServiceChargeAmount, vs...))
+}
+
+// ServiceChargeAmountNotIn applies the NotIn predicate on the "service_charge_amount" field.
+func ServiceChargeAmountNotIn(vs ...float64) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNotIn(FieldServiceChargeAmount, vs...))
+}
+
+// ServiceChargeAmountGT applies the GT predicate on the "service_charge_amount" field.
+func ServiceChargeAmountGT(v float64) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldGT(FieldServiceChargeAmount, v))
+}
+
+// ServiceChargeAmountGTE applies the GTE predicate on the "service_charge_amount" field.
+func ServiceChargeAmountGTE(v float64) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldGTE(FieldServiceChargeAmount, v))
+}
+
+// ServiceChargeAmountLT applies the LT predicate on the "service_charge_amount" field.
+func ServiceChargeAmountLT(v float64) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldLT(FieldServiceChargeAmount, v))
+}
+
+// ServiceChargeAmountLTE applies the LTE predicate on the "service_charge_amount" field.
+func ServiceChargeAmountLTE(v float64) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldLTE(FieldServiceChargeAmount, v))
 }
 
 // FiredCoursesEQ applies the EQ predicate on the "fired_courses" field.

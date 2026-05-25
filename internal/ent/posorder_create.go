@@ -165,6 +165,48 @@ func (_c *POSOrderCreate) SetMetadata(v map[string]interface{}) *POSOrderCreate 
 	return _c
 }
 
+// SetCoversCount sets the "covers_count" field.
+func (_c *POSOrderCreate) SetCoversCount(v int) *POSOrderCreate {
+	_c.mutation.SetCoversCount(v)
+	return _c
+}
+
+// SetNillableCoversCount sets the "covers_count" field if the given value is not nil.
+func (_c *POSOrderCreate) SetNillableCoversCount(v *int) *POSOrderCreate {
+	if v != nil {
+		_c.SetCoversCount(*v)
+	}
+	return _c
+}
+
+// SetServiceChargePercent sets the "service_charge_percent" field.
+func (_c *POSOrderCreate) SetServiceChargePercent(v float64) *POSOrderCreate {
+	_c.mutation.SetServiceChargePercent(v)
+	return _c
+}
+
+// SetNillableServiceChargePercent sets the "service_charge_percent" field if the given value is not nil.
+func (_c *POSOrderCreate) SetNillableServiceChargePercent(v *float64) *POSOrderCreate {
+	if v != nil {
+		_c.SetServiceChargePercent(*v)
+	}
+	return _c
+}
+
+// SetServiceChargeAmount sets the "service_charge_amount" field.
+func (_c *POSOrderCreate) SetServiceChargeAmount(v float64) *POSOrderCreate {
+	_c.mutation.SetServiceChargeAmount(v)
+	return _c
+}
+
+// SetNillableServiceChargeAmount sets the "service_charge_amount" field if the given value is not nil.
+func (_c *POSOrderCreate) SetNillableServiceChargeAmount(v *float64) *POSOrderCreate {
+	if v != nil {
+		_c.SetServiceChargeAmount(*v)
+	}
+	return _c
+}
+
 // SetFiredCourses sets the "fired_courses" field.
 func (_c *POSOrderCreate) SetFiredCourses(v int) *POSOrderCreate {
 	_c.mutation.SetFiredCourses(v)
@@ -391,6 +433,18 @@ func (_c *POSOrderCreate) defaults() {
 		v := posorder.DefaultMetadata
 		_c.mutation.SetMetadata(v)
 	}
+	if _, ok := _c.mutation.CoversCount(); !ok {
+		v := posorder.DefaultCoversCount
+		_c.mutation.SetCoversCount(v)
+	}
+	if _, ok := _c.mutation.ServiceChargePercent(); !ok {
+		v := posorder.DefaultServiceChargePercent
+		_c.mutation.SetServiceChargePercent(v)
+	}
+	if _, ok := _c.mutation.ServiceChargeAmount(); !ok {
+		v := posorder.DefaultServiceChargeAmount
+		_c.mutation.SetServiceChargeAmount(v)
+	}
 	if _, ok := _c.mutation.FiredCourses(); !ok {
 		v := posorder.DefaultFiredCourses
 		_c.mutation.SetFiredCourses(v)
@@ -459,6 +513,15 @@ func (_c *POSOrderCreate) check() error {
 	}
 	if _, ok := _c.mutation.Metadata(); !ok {
 		return &ValidationError{Name: "metadata", err: errors.New(`ent: missing required field "POSOrder.metadata"`)}
+	}
+	if _, ok := _c.mutation.CoversCount(); !ok {
+		return &ValidationError{Name: "covers_count", err: errors.New(`ent: missing required field "POSOrder.covers_count"`)}
+	}
+	if _, ok := _c.mutation.ServiceChargePercent(); !ok {
+		return &ValidationError{Name: "service_charge_percent", err: errors.New(`ent: missing required field "POSOrder.service_charge_percent"`)}
+	}
+	if _, ok := _c.mutation.ServiceChargeAmount(); !ok {
+		return &ValidationError{Name: "service_charge_amount", err: errors.New(`ent: missing required field "POSOrder.service_charge_amount"`)}
 	}
 	if _, ok := _c.mutation.FiredCourses(); !ok {
 		return &ValidationError{Name: "fired_courses", err: errors.New(`ent: missing required field "POSOrder.fired_courses"`)}
@@ -564,6 +627,18 @@ func (_c *POSOrderCreate) createSpec() (*POSOrder, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Metadata(); ok {
 		_spec.SetField(posorder.FieldMetadata, field.TypeJSON, value)
 		_node.Metadata = value
+	}
+	if value, ok := _c.mutation.CoversCount(); ok {
+		_spec.SetField(posorder.FieldCoversCount, field.TypeInt, value)
+		_node.CoversCount = value
+	}
+	if value, ok := _c.mutation.ServiceChargePercent(); ok {
+		_spec.SetField(posorder.FieldServiceChargePercent, field.TypeFloat64, value)
+		_node.ServiceChargePercent = value
+	}
+	if value, ok := _c.mutation.ServiceChargeAmount(); ok {
+		_spec.SetField(posorder.FieldServiceChargeAmount, field.TypeFloat64, value)
+		_node.ServiceChargeAmount = value
 	}
 	if value, ok := _c.mutation.FiredCourses(); ok {
 		_spec.SetField(posorder.FieldFiredCourses, field.TypeInt, value)
@@ -910,6 +985,60 @@ func (u *POSOrderUpsert) SetMetadata(v map[string]interface{}) *POSOrderUpsert {
 // UpdateMetadata sets the "metadata" field to the value that was provided on create.
 func (u *POSOrderUpsert) UpdateMetadata() *POSOrderUpsert {
 	u.SetExcluded(posorder.FieldMetadata)
+	return u
+}
+
+// SetCoversCount sets the "covers_count" field.
+func (u *POSOrderUpsert) SetCoversCount(v int) *POSOrderUpsert {
+	u.Set(posorder.FieldCoversCount, v)
+	return u
+}
+
+// UpdateCoversCount sets the "covers_count" field to the value that was provided on create.
+func (u *POSOrderUpsert) UpdateCoversCount() *POSOrderUpsert {
+	u.SetExcluded(posorder.FieldCoversCount)
+	return u
+}
+
+// AddCoversCount adds v to the "covers_count" field.
+func (u *POSOrderUpsert) AddCoversCount(v int) *POSOrderUpsert {
+	u.Add(posorder.FieldCoversCount, v)
+	return u
+}
+
+// SetServiceChargePercent sets the "service_charge_percent" field.
+func (u *POSOrderUpsert) SetServiceChargePercent(v float64) *POSOrderUpsert {
+	u.Set(posorder.FieldServiceChargePercent, v)
+	return u
+}
+
+// UpdateServiceChargePercent sets the "service_charge_percent" field to the value that was provided on create.
+func (u *POSOrderUpsert) UpdateServiceChargePercent() *POSOrderUpsert {
+	u.SetExcluded(posorder.FieldServiceChargePercent)
+	return u
+}
+
+// AddServiceChargePercent adds v to the "service_charge_percent" field.
+func (u *POSOrderUpsert) AddServiceChargePercent(v float64) *POSOrderUpsert {
+	u.Add(posorder.FieldServiceChargePercent, v)
+	return u
+}
+
+// SetServiceChargeAmount sets the "service_charge_amount" field.
+func (u *POSOrderUpsert) SetServiceChargeAmount(v float64) *POSOrderUpsert {
+	u.Set(posorder.FieldServiceChargeAmount, v)
+	return u
+}
+
+// UpdateServiceChargeAmount sets the "service_charge_amount" field to the value that was provided on create.
+func (u *POSOrderUpsert) UpdateServiceChargeAmount() *POSOrderUpsert {
+	u.SetExcluded(posorder.FieldServiceChargeAmount)
+	return u
+}
+
+// AddServiceChargeAmount adds v to the "service_charge_amount" field.
+func (u *POSOrderUpsert) AddServiceChargeAmount(v float64) *POSOrderUpsert {
+	u.Add(posorder.FieldServiceChargeAmount, v)
 	return u
 }
 
@@ -1333,6 +1462,69 @@ func (u *POSOrderUpsertOne) SetMetadata(v map[string]interface{}) *POSOrderUpser
 func (u *POSOrderUpsertOne) UpdateMetadata() *POSOrderUpsertOne {
 	return u.Update(func(s *POSOrderUpsert) {
 		s.UpdateMetadata()
+	})
+}
+
+// SetCoversCount sets the "covers_count" field.
+func (u *POSOrderUpsertOne) SetCoversCount(v int) *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetCoversCount(v)
+	})
+}
+
+// AddCoversCount adds v to the "covers_count" field.
+func (u *POSOrderUpsertOne) AddCoversCount(v int) *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.AddCoversCount(v)
+	})
+}
+
+// UpdateCoversCount sets the "covers_count" field to the value that was provided on create.
+func (u *POSOrderUpsertOne) UpdateCoversCount() *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdateCoversCount()
+	})
+}
+
+// SetServiceChargePercent sets the "service_charge_percent" field.
+func (u *POSOrderUpsertOne) SetServiceChargePercent(v float64) *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetServiceChargePercent(v)
+	})
+}
+
+// AddServiceChargePercent adds v to the "service_charge_percent" field.
+func (u *POSOrderUpsertOne) AddServiceChargePercent(v float64) *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.AddServiceChargePercent(v)
+	})
+}
+
+// UpdateServiceChargePercent sets the "service_charge_percent" field to the value that was provided on create.
+func (u *POSOrderUpsertOne) UpdateServiceChargePercent() *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdateServiceChargePercent()
+	})
+}
+
+// SetServiceChargeAmount sets the "service_charge_amount" field.
+func (u *POSOrderUpsertOne) SetServiceChargeAmount(v float64) *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetServiceChargeAmount(v)
+	})
+}
+
+// AddServiceChargeAmount adds v to the "service_charge_amount" field.
+func (u *POSOrderUpsertOne) AddServiceChargeAmount(v float64) *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.AddServiceChargeAmount(v)
+	})
+}
+
+// UpdateServiceChargeAmount sets the "service_charge_amount" field to the value that was provided on create.
+func (u *POSOrderUpsertOne) UpdateServiceChargeAmount() *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdateServiceChargeAmount()
 	})
 }
 
@@ -1943,6 +2135,69 @@ func (u *POSOrderUpsertBulk) SetMetadata(v map[string]interface{}) *POSOrderUpse
 func (u *POSOrderUpsertBulk) UpdateMetadata() *POSOrderUpsertBulk {
 	return u.Update(func(s *POSOrderUpsert) {
 		s.UpdateMetadata()
+	})
+}
+
+// SetCoversCount sets the "covers_count" field.
+func (u *POSOrderUpsertBulk) SetCoversCount(v int) *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetCoversCount(v)
+	})
+}
+
+// AddCoversCount adds v to the "covers_count" field.
+func (u *POSOrderUpsertBulk) AddCoversCount(v int) *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.AddCoversCount(v)
+	})
+}
+
+// UpdateCoversCount sets the "covers_count" field to the value that was provided on create.
+func (u *POSOrderUpsertBulk) UpdateCoversCount() *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdateCoversCount()
+	})
+}
+
+// SetServiceChargePercent sets the "service_charge_percent" field.
+func (u *POSOrderUpsertBulk) SetServiceChargePercent(v float64) *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetServiceChargePercent(v)
+	})
+}
+
+// AddServiceChargePercent adds v to the "service_charge_percent" field.
+func (u *POSOrderUpsertBulk) AddServiceChargePercent(v float64) *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.AddServiceChargePercent(v)
+	})
+}
+
+// UpdateServiceChargePercent sets the "service_charge_percent" field to the value that was provided on create.
+func (u *POSOrderUpsertBulk) UpdateServiceChargePercent() *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdateServiceChargePercent()
+	})
+}
+
+// SetServiceChargeAmount sets the "service_charge_amount" field.
+func (u *POSOrderUpsertBulk) SetServiceChargeAmount(v float64) *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetServiceChargeAmount(v)
+	})
+}
+
+// AddServiceChargeAmount adds v to the "service_charge_amount" field.
+func (u *POSOrderUpsertBulk) AddServiceChargeAmount(v float64) *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.AddServiceChargeAmount(v)
+	})
+}
+
+// UpdateServiceChargeAmount sets the "service_charge_amount" field to the value that was provided on create.
+func (u *POSOrderUpsertBulk) UpdateServiceChargeAmount() *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdateServiceChargeAmount()
 	})
 }
 
