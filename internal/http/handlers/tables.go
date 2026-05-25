@@ -738,3 +738,84 @@ func (h *TableHandler) SetServiceCharge(w http.ResponseWriter, r *http.Request) 
 		"total_with_charge":      updated.TotalAmount + updated.ServiceChargeAmount,
 	})
 }
+
+// DeleteTable handles DELETE /{tenantID}/pos/tables/{id}
+// Soft-delete: marks the table inactive. Rejects if table is currently occupied.
+func (h *TableHandler) DeleteTable(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+
+	tableID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		jsonError(w, "invalid table id", http.StatusBadRequest)
+		return
+	}
+
+	tbl, err := h.client.Table.Query().
+		Where(enttable.ID(tableID), enttable.TenantID(tid)).
+		Only(r.Context())
+	if err != nil {
+		jsonError(w, "table not found", http.StatusNotFound)
+		return
+	}
+
+	if tbl.Status == "occupied" {
+		jsonError(w, "cannot delete an occupied table — release it first", http.StatusConflict)
+		return
+	}
+
+	if err := h.client.Table.DeleteOne(tbl).Exec(r.Context()); err != nil {
+		h.log.Error("delete table failed", zap.Error(err))
+		jsonError(w, "delete failed", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// DeleteSection handles DELETE /{tenantID}/pos/sections/{id}
+// Rejects if the section still contains tables.
+func (h *TableHandler) DeleteSection(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+
+	secID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		jsonError(w, "invalid section id", http.StatusBadRequest)
+		return
+	}
+
+	sec, err := h.client.Section.Query().
+		Where(entsection.ID(secID), entsection.TenantID(tid)).
+		Only(r.Context())
+	if err != nil {
+		jsonError(w, "section not found", http.StatusNotFound)
+		return
+	}
+
+	count, err := h.client.Table.Query().
+		Where(enttable.SectionID(secID), enttable.TenantID(tid)).
+		Count(r.Context())
+	if err != nil {
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	if count > 0 {
+		jsonError(w, "section still has tables — move or delete them first", http.StatusConflict)
+		return
+	}
+
+	if err := h.client.Section.DeleteOne(sec).Exec(r.Context()); err != nil {
+		h.log.Error("delete section failed", zap.Error(err))
+		jsonError(w, "delete failed", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
