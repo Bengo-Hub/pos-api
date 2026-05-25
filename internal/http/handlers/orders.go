@@ -13,6 +13,7 @@ import (
 	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/Bengo-Hub/httpware"
 	"github.com/bengobox/pos-service/internal/ent"
+	entoverride "github.com/bengobox/pos-service/internal/ent/poscatalogoverride"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
 	"github.com/bengobox/pos-service/internal/ent/posorderline"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
@@ -45,12 +46,13 @@ type createOrderLineInput struct {
 
 // createOrderInput is the body for POST /pos/orders.
 type createOrderInput struct {
-	OutletID    uuid.UUID              `json:"outlet_id"`
-	DeviceID    uuid.UUID              `json:"device_id"`
-	OrderNumber string                 `json:"order_number"`
-	Currency    string                 `json:"currency"`
-	Lines       []createOrderLineInput `json:"lines"`
-	Metadata    map[string]interface{} `json:"metadata"`
+	OutletID       uuid.UUID              `json:"outlet_id"`
+	DeviceID       uuid.UUID              `json:"device_id"`
+	OrderNumber    string                 `json:"order_number"`
+	Currency       string                 `json:"currency"`
+	Lines          []createOrderLineInput `json:"lines"`
+	Metadata       map[string]interface{} `json:"metadata"`
+	PrescriptionID *string                `json:"prescription_id,omitempty"` // required when any line requires prescription
 }
 
 // updateStatusInput is the body for PATCH /pos/orders/{id}/status.
@@ -167,6 +169,32 @@ func (h *POSOrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 	var userID uuid.UUID
 	if claims, ok := authclient.ClaimsFromContext(r.Context()); ok && claims.Subject != "" {
 		userID, _ = uuid.Parse(claims.Subject)
+	}
+
+	// Prescription-only items: block unless a prescription_id is provided.
+	if input.PrescriptionID == nil || *input.PrescriptionID == "" {
+		skus := make([]string, 0, len(input.Lines))
+		for _, l := range input.Lines {
+			if l.SKU != "" {
+				skus = append(skus, l.SKU)
+			}
+		}
+		if len(skus) > 0 {
+			rxOverrides, _ := h.client.POSCatalogOverride.Query().
+				Where(
+					entoverride.TenantID(tid),
+					entoverride.InventorySkuIn(skus...),
+					entoverride.RequiresPrescriptionEQ(true),
+				).All(r.Context())
+			if len(rxOverrides) > 0 {
+				blocked := make([]string, 0, len(rxOverrides))
+				for _, o := range rxOverrides {
+					blocked = append(blocked, o.InventorySku)
+				}
+				jsonError(w, "prescription required for: "+strings.Join(blocked, ", "), http.StatusUnprocessableEntity)
+				return
+			}
+		}
 	}
 
 	// Convert handler input to service request

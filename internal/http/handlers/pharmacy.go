@@ -12,6 +12,7 @@ import (
 
 	"github.com/bengobox/pos-service/internal/ent"
 	entdic "github.com/bengobox/pos-service/internal/ent/druginteractioncheck"
+	entoverride "github.com/bengobox/pos-service/internal/ent/poscatalogoverride"
 	entpx "github.com/bengobox/pos-service/internal/ent/prescription"
 	entpxl "github.com/bengobox/pos-service/internal/ent/prescriptionline"
 )
@@ -343,4 +344,57 @@ func (h *PharmacyHandler) CreateInteractionCheck(w http.ResponseWriter, r *http.
 
 	_ = entdic.TenantID(tid)
 	jsonOK(w, check)
+}
+
+type ageVerifyInput struct {
+	SKU         string `json:"sku"`          // item SKU to check
+	CustomerDOB string `json:"customer_dob"` // YYYY-MM-DD
+}
+
+// AgeVerify handles POST /{tenantID}/pos/pharmacy/age-verify
+// Returns 200 if the customer meets the item's minimum age requirement, 422 if blocked.
+func (h *PharmacyHandler) AgeVerify(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+
+	var input ageVerifyInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil || input.SKU == "" || input.CustomerDOB == "" {
+		jsonError(w, "sku and customer_dob are required", http.StatusBadRequest)
+		return
+	}
+
+	dob, err := time.Parse("2006-01-02", input.CustomerDOB)
+	if err != nil {
+		jsonError(w, "customer_dob must be in YYYY-MM-DD format", http.StatusBadRequest)
+		return
+	}
+
+	override, err := h.db.POSCatalogOverride.Query().
+		Where(
+			entoverride.TenantID(tid),
+			entoverride.InventorySku(input.SKU),
+			entoverride.RequiresAgeVerificationEQ(true),
+			entoverride.MinimumAgeNotNil(),
+		).First(r.Context())
+	if err != nil {
+		// No age-restricted override found — allow
+		jsonOK(w, map[string]any{"allowed": true, "message": "no age restriction for this item"})
+		return
+	}
+
+	minimumAge := *override.MinimumAge
+	ageYears := int(time.Since(dob).Hours() / 8766) // approx years
+	if ageYears < minimumAge {
+		jsonError(w, "customer does not meet the minimum age requirement", http.StatusUnprocessableEntity)
+		return
+	}
+
+	jsonOK(w, map[string]any{
+		"allowed":      true,
+		"minimum_age":  minimumAge,
+		"customer_age": ageYears,
+	})
 }

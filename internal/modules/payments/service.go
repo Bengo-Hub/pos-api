@@ -143,6 +143,7 @@ func (s *Service) CreatePaymentIntent(ctx context.Context, req RecordPaymentRequ
 		Currency:      currency,
 		PaymentMethod: paymentMethod,
 		Description:   fmt.Sprintf("POS order %s", order.OrderNumber),
+		OutletID:      order.OutletID.String(),
 	}
 
 	intent, err := s.treasuryClient.CreateIntent(ctx, req.TenantSlug, intentReq)

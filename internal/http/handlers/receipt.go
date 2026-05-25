@@ -11,6 +11,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/bengobox/pos-service/internal/ent"
+	entoutlet "github.com/bengobox/pos-service/internal/ent/outlet"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
 	"github.com/bengobox/pos-service/internal/ent/pospayment"
 )
@@ -40,6 +41,8 @@ type receiptResponse struct {
 	ReceiptNumber      string        `json:"receipt_number"`
 	OrderNumber        string        `json:"order_number"`
 	OutletID           uuid.UUID     `json:"outlet_id"`
+	OutletName         string        `json:"outlet_name,omitempty"`
+	OutletAddress      string        `json:"outlet_address,omitempty"`
 	IssuedAt           time.Time     `json:"issued_at"`
 	Lines              []receiptLine `json:"lines"`
 	Subtotal           float64       `json:"subtotal"`
@@ -126,8 +129,22 @@ func (h *ReceiptHandler) GetReceipt(w http.ResponseWriter, r *http.Request) {
 		receipt.EtimsQRCodeURL = *order.EtimsQrCodeURL
 	}
 
+	// Enrich with outlet info
+	if outlet, err := h.client.Outlet.Query().
+		Where(entoutlet.ID(order.OutletID)).
+		Only(ctx); err == nil {
+		receipt.OutletName = outlet.Name
+		if addr := outlet.AddressJSON; addr != nil {
+			if street, ok := addr["street"].(string); ok && street != "" {
+				receipt.OutletAddress = street
+			} else if city, ok := addr["city"].(string); ok {
+				receipt.OutletAddress = city
+			}
+		}
+	}
+
 	format := r.URL.Query().Get("format")
-	if format == "pdf" {
+	if format == "pdf" || format == "html" {
 		html := generateReceiptHTML(receipt)
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="receipt-%s.html"`, order.OrderNumber))
@@ -138,23 +155,55 @@ func (h *ReceiptHandler) GetReceipt(w http.ResponseWriter, r *http.Request) {
 	jsonOK(w, receipt)
 }
 
-// generateReceiptHTML generates a printable HTML receipt.
-// Returns an HTML document suitable for window.print() in the browser.
+// GetReceiptHTML handles GET /{tenantID}/pos/orders/{orderID}/receipt/html
+func (h *ReceiptHandler) GetReceiptHTML(w http.ResponseWriter, r *http.Request) {
+	// Delegate to GetReceipt with format=html
+	q := r.URL.Query()
+	q.Set("format", "html")
+	r.URL.RawQuery = q.Encode()
+	h.GetReceipt(w, r)
+}
+
+// GetReceiptPDF handles GET /{tenantID}/pos/orders/{orderID}/receipt/pdf
+// Returns printable HTML (80mm thermal width). True PDF generation requires
+// a headless browser; for now returns HTML with print-optimised CSS.
+func (h *ReceiptHandler) GetReceiptPDF(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	q.Set("format", "pdf")
+	r.URL.RawQuery = q.Encode()
+	h.GetReceipt(w, r)
+}
+
+// generateReceiptHTML generates a printable 80mm thermal-width HTML receipt.
+// Designed for window.print() and direct browser print-to-PDF.
 func generateReceiptHTML(rec receiptResponse) []byte {
 	var buf bytes.Buffer
 	buf.WriteString(`<!DOCTYPE html><html><head><meta charset="utf-8">`)
 	buf.WriteString(`<title>Receipt ` + rec.ReceiptNumber + `</title>`)
 	buf.WriteString(`<style>
-body{font-family:monospace;font-size:12px;max-width:300px;margin:0 auto;padding:8px}
-h1{font-size:14px;text-align:center;margin:0}
+@page{size:80mm auto;margin:4mm}
+*{box-sizing:border-box}
+body{font-family:monospace;font-size:11px;width:72mm;margin:0 auto;padding:4px}
+h1{font-size:13px;text-align:center;margin:2px 0}
+.sub{font-size:10px;text-align:center;margin:1px 0;color:#444}
 .center{text-align:center}
-.line{display:flex;justify-content:space-between}
+.line{display:flex;justify-content:space-between;margin:1px 0}
 .divider{border-top:1px dashed #000;margin:4px 0}
 .bold{font-weight:bold}
+.etims-qr{display:block;margin:4px auto;width:80px;height:80px}
+.etims-num{font-size:9px;text-align:center;word-break:break-all}
+@media print{body{width:100%}}
 </style></head><body>`)
-	buf.WriteString(`<h1>RECEIPT</h1>`)
-	buf.WriteString(fmt.Sprintf(`<p class="center">%s</p>`, rec.IssuedAt.Format("2006-01-02 15:04:05")))
-	buf.WriteString(fmt.Sprintf(`<p class="center">Order: %s</p>`, rec.OrderNumber))
+	if rec.OutletName != "" {
+		buf.WriteString(fmt.Sprintf(`<h1>%s</h1>`, rec.OutletName))
+	} else {
+		buf.WriteString(`<h1>RECEIPT</h1>`)
+	}
+	if rec.OutletAddress != "" {
+		buf.WriteString(fmt.Sprintf(`<p class="sub">%s</p>`, rec.OutletAddress))
+	}
+	buf.WriteString(fmt.Sprintf(`<p class="sub">%s</p>`, rec.IssuedAt.Format("02 Jan 2006  15:04")))
+	buf.WriteString(fmt.Sprintf(`<p class="sub">Receipt: %s</p>`, rec.ReceiptNumber))
 	buf.WriteString(`<div class="divider"></div>`)
 	for _, l := range rec.Lines {
 		buf.WriteString(fmt.Sprintf(`<div class="line"><span>%s x%.0f</span><span>%.2f</span></div>`, l.Name, l.Quantity, l.TotalPrice))
@@ -167,10 +216,17 @@ h1{font-size:14px;text-align:center;margin:0}
 	}
 	buf.WriteString(fmt.Sprintf(`<div class="line bold"><span>TOTAL</span><span>%.2f %s</span></div>`, rec.TotalAmount, rec.Currency))
 	buf.WriteString(fmt.Sprintf(`<div class="line"><span>Paid</span><span>%.2f</span></div>`, rec.AmountPaid))
-	if rec.EtimsInvoiceNumber != "" {
+	if rec.EtimsInvoiceNumber != "" || rec.EtimsQRCodeURL != "" {
 		buf.WriteString(`<div class="divider"></div>`)
-		buf.WriteString(fmt.Sprintf(`<p class="center">eTIMS: %s</p>`, rec.EtimsInvoiceNumber))
+		if rec.EtimsQRCodeURL != "" {
+			buf.WriteString(fmt.Sprintf(`<img class="etims-qr" src="%s" alt="eTIMS QR">`, rec.EtimsQRCodeURL))
+		}
+		if rec.EtimsInvoiceNumber != "" {
+			buf.WriteString(fmt.Sprintf(`<p class="etims-num">CU No: %s</p>`, rec.EtimsInvoiceNumber))
+		}
 	}
+	buf.WriteString(`<div class="divider"></div>`)
+	buf.WriteString(`<p class="center" style="font-size:10px">Thank you for your business</p>`)
 	buf.WriteString(`</body></html>`)
 	return buf.Bytes()
 }

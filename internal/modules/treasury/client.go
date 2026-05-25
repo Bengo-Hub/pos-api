@@ -44,6 +44,7 @@ type CreateIntentRequest struct {
 	Description   string  `json:"description,omitempty"`
 	CustomerEmail string  `json:"customer_email,omitempty"`
 	CustomerPhone string  `json:"customer_phone,omitempty"`
+	OutletID      string  `json:"outlet_id,omitempty"` // outlet context for per-outlet gateway config resolution
 	Metadata      map[string]any `json:"metadata,omitempty"`
 }
 

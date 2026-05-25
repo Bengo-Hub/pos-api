@@ -211,6 +211,8 @@ func New(
 					// Receipt
 					if receipt != nil {
 						pos.Get("/orders/{orderID}/receipt", receipt.GetReceipt)
+						pos.Get("/orders/{orderID}/receipt/html", receipt.GetReceiptHTML)
+						pos.Get("/orders/{orderID}/receipt/pdf", receipt.GetReceiptPDF)
 					}
 
 					// Catalog
@@ -374,6 +376,7 @@ func New(
 							ph.Get("/pharmacy/prescriptions/{prescriptionID}", pharmacy.GetPrescription)
 							ph.Post("/pharmacy/prescriptions/{prescriptionID}/dispense", pharmacy.Dispense)
 							ph.Post("/pharmacy/interaction-checks", pharmacy.CreateInteractionCheck)
+							ph.Post("/pharmacy/age-verify", pharmacy.AgeVerify)
 							ph.Get("/pharmacy/patients", pharmacy.ListPatients)
 							ph.Get("/pharmacy/controlled-substances", pharmacy.ListControlledLogs)
 							ph.Post("/pharmacy/controlled-substances", pharmacy.CreateControlledLog)
