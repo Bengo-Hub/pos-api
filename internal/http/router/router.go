@@ -66,6 +66,7 @@ func New(
 	clients *handlers.ClientHandler,
 	channels *handlers.ChannelHandler,
 	print *handlers.PrintHandler,
+	payroll *handlers.PayrollHandler,
 	allowedOrigins []string,
 	redisClient *redis.Client,
 ) http.Handler {
@@ -426,6 +427,16 @@ func New(
 					if staffSchedule != nil {
 						pos.Get("/staff/{staffID}/schedule", staffSchedule.ListSchedule)
 						pos.Put("/staff/{staffID}/schedule", staffSchedule.UpsertSchedule)
+					}
+
+					// Payroll & advances
+					if payroll != nil {
+						pos.Post("/staff/{staffID}/advances", payroll.CreateAdvance)
+						pos.Get("/staff/{staffID}/advances", payroll.ListAdvances)
+						pos.Post("/payroll/generate", payroll.GeneratePayroll)
+						pos.Get("/payroll/{payrollID}", payroll.GetPayroll)
+						pos.Post("/payroll/{payrollID}/approve", payroll.ApprovePayroll)
+						pos.Post("/payroll/{payrollID}/disburse", payroll.DisbursePayroll)
 					}
 
 					// Commissions (records)
