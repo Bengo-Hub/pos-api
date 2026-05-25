@@ -8,7 +8,6 @@ import (
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
-	"github.com/bengobox/pos-service/internal/ent/catalogitem"
 	"github.com/bengobox/pos-service/internal/ent/pricebook"
 	"github.com/bengobox/pos-service/internal/ent/pricebookitem"
 	"github.com/google/uuid"
@@ -21,7 +20,7 @@ type PriceBookItem struct {
 	ID uuid.UUID `json:"id,omitempty"`
 	// PriceBookID holds the value of the "price_book_id" field.
 	PriceBookID uuid.UUID `json:"price_book_id,omitempty"`
-	// CatalogItemID holds the value of the "catalog_item_id" field.
+	// Inventory item UUID (no FK — inventory-api is source of truth)
 	CatalogItemID uuid.UUID `json:"catalog_item_id,omitempty"`
 	// PriceAmount holds the value of the "price_amount" field.
 	PriceAmount float64 `json:"price_amount,omitempty"`
@@ -37,11 +36,9 @@ type PriceBookItem struct {
 type PriceBookItemEdges struct {
 	// PriceBook holds the value of the price_book edge.
 	PriceBook *PriceBook `json:"price_book,omitempty"`
-	// CatalogItem holds the value of the catalog_item edge.
-	CatalogItem *CatalogItem `json:"catalog_item,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [2]bool
+	loadedTypes [1]bool
 }
 
 // PriceBookOrErr returns the PriceBook value or an error if the edge
@@ -53,17 +50,6 @@ func (e PriceBookItemEdges) PriceBookOrErr() (*PriceBook, error) {
 		return nil, &NotFoundError{label: pricebook.Label}
 	}
 	return nil, &NotLoadedError{edge: "price_book"}
-}
-
-// CatalogItemOrErr returns the CatalogItem value or an error if the edge
-// was not loaded in eager-loading, or loaded but was not found.
-func (e PriceBookItemEdges) CatalogItemOrErr() (*CatalogItem, error) {
-	if e.CatalogItem != nil {
-		return e.CatalogItem, nil
-	} else if e.loadedTypes[1] {
-		return nil, &NotFoundError{label: catalogitem.Label}
-	}
-	return nil, &NotLoadedError{edge: "catalog_item"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -138,11 +124,6 @@ func (_m *PriceBookItem) Value(name string) (ent.Value, error) {
 // QueryPriceBook queries the "price_book" edge of the PriceBookItem entity.
 func (_m *PriceBookItem) QueryPriceBook() *PriceBookQuery {
 	return NewPriceBookItemClient(_m.config).QueryPriceBook(_m)
-}
-
-// QueryCatalogItem queries the "catalog_item" edge of the PriceBookItem entity.
-func (_m *PriceBookItem) QueryCatalogItem() *CatalogItemQuery {
-	return NewPriceBookItemClient(_m.config).QueryCatalogItem(_m)
 }
 
 // Update returns a builder for updating this PriceBookItem.

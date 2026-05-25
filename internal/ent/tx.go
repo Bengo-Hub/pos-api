@@ -24,14 +24,18 @@ type Tx struct {
 	CashDrawer *CashDrawerClient
 	// CashDrawerEvent is the client for interacting with the CashDrawerEvent builders.
 	CashDrawerEvent *CashDrawerEventClient
-	// CatalogItem is the client for interacting with the CatalogItem builders.
-	CatalogItem *CatalogItemClient
 	// ChannelIntegration is the client for interacting with the ChannelIntegration builders.
 	ChannelIntegration *ChannelIntegrationClient
 	// ChannelSyncJob is the client for interacting with the ChannelSyncJob builders.
 	ChannelSyncJob *ChannelSyncJobClient
+	// ClientRecord is the client for interacting with the ClientRecord builders.
+	ClientRecord *ClientRecordClient
 	// CommissionRecord is the client for interacting with the CommissionRecord builders.
 	CommissionRecord *CommissionRecordClient
+	// CommissionRule is the client for interacting with the CommissionRule builders.
+	CommissionRule *CommissionRuleClient
+	// ControlledSubstanceLog is the client for interacting with the ControlledSubstanceLog builders.
+	ControlledSubstanceLog *ControlledSubstanceLogClient
 	// DailyClosing is the client for interacting with the DailyClosing builders.
 	DailyClosing *DailyClosingClient
 	// DrugInteractionCheck is the client for interacting with the DrugInteractionCheck builders.
@@ -78,6 +82,8 @@ type Tx struct {
 	Outlet *OutletClient
 	// OutletSetting is the client for interacting with the OutletSetting builders.
 	OutletSetting *OutletSettingClient
+	// POSCatalogOverride is the client for interacting with the POSCatalogOverride builders.
+	POSCatalogOverride *POSCatalogOverrideClient
 	// POSDevice is the client for interacting with the POSDevice builders.
 	POSDevice *POSDeviceClient
 	// POSDeviceSession is the client for interacting with the POSDeviceSession builders.
@@ -140,6 +146,12 @@ type Tx struct {
 	SerialNumberLog *SerialNumberLogClient
 	// ServiceConfig is the client for interacting with the ServiceConfig builders.
 	ServiceConfig *ServiceConfigClient
+	// ServicePackage is the client for interacting with the ServicePackage builders.
+	ServicePackage *ServicePackageClient
+	// ServicePackagePurchase is the client for interacting with the ServicePackagePurchase builders.
+	ServicePackagePurchase *ServicePackagePurchaseClient
+	// ServicePackageRedemption is the client for interacting with the ServicePackageRedemption builders.
+	ServicePackageRedemption *ServicePackageRedemptionClient
 	// ServiceQueueEntry is the client for interacting with the ServiceQueueEntry builders.
 	ServiceQueueEntry *ServiceQueueEntryClient
 	// StaffMember is the client for interacting with the StaffMember builders.
@@ -309,10 +321,12 @@ func (tx *Tx) init() {
 	tx.BillSplit = NewBillSplitClient(tx.config)
 	tx.CashDrawer = NewCashDrawerClient(tx.config)
 	tx.CashDrawerEvent = NewCashDrawerEventClient(tx.config)
-	tx.CatalogItem = NewCatalogItemClient(tx.config)
 	tx.ChannelIntegration = NewChannelIntegrationClient(tx.config)
 	tx.ChannelSyncJob = NewChannelSyncJobClient(tx.config)
+	tx.ClientRecord = NewClientRecordClient(tx.config)
 	tx.CommissionRecord = NewCommissionRecordClient(tx.config)
+	tx.CommissionRule = NewCommissionRuleClient(tx.config)
+	tx.ControlledSubstanceLog = NewControlledSubstanceLogClient(tx.config)
 	tx.DailyClosing = NewDailyClosingClient(tx.config)
 	tx.DrugInteractionCheck = NewDrugInteractionCheckClient(tx.config)
 	tx.Facility = NewFacilityClient(tx.config)
@@ -336,6 +350,7 @@ func (tx *Tx) init() {
 	tx.OutboxEvent = NewOutboxEventClient(tx.config)
 	tx.Outlet = NewOutletClient(tx.config)
 	tx.OutletSetting = NewOutletSettingClient(tx.config)
+	tx.POSCatalogOverride = NewPOSCatalogOverrideClient(tx.config)
 	tx.POSDevice = NewPOSDeviceClient(tx.config)
 	tx.POSDeviceSession = NewPOSDeviceSessionClient(tx.config)
 	tx.POSLineModifier = NewPOSLineModifierClient(tx.config)
@@ -367,6 +382,9 @@ func (tx *Tx) init() {
 	tx.Section = NewSectionClient(tx.config)
 	tx.SerialNumberLog = NewSerialNumberLogClient(tx.config)
 	tx.ServiceConfig = NewServiceConfigClient(tx.config)
+	tx.ServicePackage = NewServicePackageClient(tx.config)
+	tx.ServicePackagePurchase = NewServicePackagePurchaseClient(tx.config)
+	tx.ServicePackageRedemption = NewServicePackageRedemptionClient(tx.config)
 	tx.ServiceQueueEntry = NewServiceQueueEntryClient(tx.config)
 	tx.StaffMember = NewStaffMemberClient(tx.config)
 	tx.StaffSchedule = NewStaffScheduleClient(tx.config)

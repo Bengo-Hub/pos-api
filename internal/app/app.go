@@ -179,6 +179,7 @@ func New(ctx context.Context) (*App, error) {
 	// Create HTTP handlers
 	orderHandler := handlers.NewPOSOrderHandler(log, entClient, orderSvc, subsClient)
 	catalogHandler := handlers.NewCatalogHandler(log, entClient)
+	catalogHandler.SetRedisClient(redisClient)
 	tableHandler := handlers.NewTableHandler(log, entClient)
 	tenderHandler := handlers.NewTenderHandler(log, entClient)
 	paymentHandler := handlers.NewPaymentHandler(log, paymentSvc, treasuryClient, cfg.Treasury.PublicBaseURL)
@@ -315,18 +316,14 @@ func New(ctx context.Context) (*App, error) {
 		}
 	}
 
-	// Initial catalog sync from inventory-api (catches items created before subscriber was deployed)
-	go func() {
-		inventoryURL := os.Getenv("INVENTORY_API_URL")
-		if inventoryURL == "" {
-			inventoryURL = "http://inventory-api.inventory.svc.cluster.local:4000"
+	// Subscribe to pos.sale.finalized: auto-earn loyalty points + create commission records
+	if natsConn != nil {
+		saleFinalizedSub := subscriptions.NewSaleFinalizedSubscriber(entClient, log)
+		if err := saleFinalizedSub.Start(natsConn); err != nil {
+			log.Warn("app: failed to start sale.finalized subscriber", zap.Error(err))
 		}
-		tenantSlug := os.Getenv("DEFAULT_TENANT_SLUG")
-		if tenantSlug == "" {
-			tenantSlug = "urban-loft"
-		}
-		inventoryEventHandler.InitialSync(ctx, inventoryURL, tenantSlug)
-	}()
+	}
+
 
 	webhookWorker := webhookmodule.NewDeliveryWorker(entClient, log)
 	shiftAutoEndWorker := shiftsmodule.NewAutoEndWorker(entClient, log)
@@ -338,7 +335,10 @@ func New(ctx context.Context) (*App, error) {
 
 	billSplitHandler := handlers.NewBillSplitHandler(log.Named("bill-splits"), entClient)
 	resourceHandler := handlers.NewResourceHandler(log, entClient)
-	chiRouter := router.New(log, healthHandler, authMiddleware, entClient, identitySvc, orderHandler, catalogHandler, tableHandler, tenderHandler, paymentHandler, drawerHandler, barTabHandler, promotionHandler, rbacHandler, hotelHandler, kdsHandler, deviceHandler, pinAuthHandler, publicOutletHandler, closingHandler, returnHandler, receiptHandler, layawayHandler, scaleHandler, pharmacyHandler, appointmentHandler, commissionHandler, staffScheduleHandler, loyaltyHandler, reportsHandler, webhookHandler, onlineOrderHandler, serviceConfigHandler, serviceSettingsHandler, notificationsHandler, queueHandler, billSplitHandler, resourceHandler, cfg.HTTP.AllowedOrigins, redisClient)
+	commissionRuleHandler := handlers.NewCommissionRuleHandler(log, entClient)
+	packageHandler := handlers.NewPackageHandler(log, entClient)
+	clientHandler := handlers.NewClientHandler(log, entClient)
+	chiRouter := router.New(log, healthHandler, authMiddleware, entClient, identitySvc, orderHandler, catalogHandler, tableHandler, tenderHandler, paymentHandler, drawerHandler, barTabHandler, promotionHandler, rbacHandler, hotelHandler, kdsHandler, deviceHandler, pinAuthHandler, publicOutletHandler, closingHandler, returnHandler, receiptHandler, layawayHandler, scaleHandler, pharmacyHandler, appointmentHandler, commissionHandler, staffScheduleHandler, loyaltyHandler, reportsHandler, webhookHandler, onlineOrderHandler, serviceConfigHandler, serviceSettingsHandler, notificationsHandler, queueHandler, billSplitHandler, resourceHandler, commissionRuleHandler, packageHandler, clientHandler, cfg.HTTP.AllowedOrigins, redisClient)
 
 	httpServer := &http.Server{
 		Addr:              fmt.Sprintf("%s:%d", cfg.HTTP.Host, cfg.HTTP.Port),

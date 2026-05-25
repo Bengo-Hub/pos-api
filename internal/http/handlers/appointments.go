@@ -135,6 +135,21 @@ func (h *AppointmentHandler) Create(w http.ResponseWriter, r *http.Request) {
 		smid, err := uuid.Parse(*input.StaffMemberID)
 		if err == nil {
 			creator = creator.SetStaffMemberID(smid)
+
+			// Double-booking check: reject if staff already has an active appointment overlapping this slot.
+			conflict, _ := h.db.Appointment.Query().
+				Where(
+					entappt.TenantID(tid),
+					entappt.StaffMemberID(smid),
+					entappt.StatusNotIn(entappt.StatusCancelled, entappt.StatusNoShow),
+					entappt.StartTimeLT(input.EndTime),
+					entappt.EndTimeGT(input.StartTime),
+				).
+				Exist(r.Context())
+			if conflict {
+				jsonError(w, "staff member already has an appointment in this time slot", http.StatusConflict)
+				return
+			}
 		}
 	}
 

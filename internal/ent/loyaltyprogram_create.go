@@ -106,6 +106,12 @@ func (_c *LoyaltyProgramCreate) SetNillableIsActive(v *bool) *LoyaltyProgramCrea
 	return _c
 }
 
+// SetTierThresholds sets the "tier_thresholds" field.
+func (_c *LoyaltyProgramCreate) SetTierThresholds(v map[string]interface{}) *LoyaltyProgramCreate {
+	_c.mutation.SetTierThresholds(v)
+	return _c
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_c *LoyaltyProgramCreate) SetCreatedAt(v time.Time) *LoyaltyProgramCreate {
 	_c.mutation.SetCreatedAt(v)
@@ -308,6 +314,10 @@ func (_c *LoyaltyProgramCreate) createSpec() (*LoyaltyProgram, *sqlgraph.CreateS
 		_spec.SetField(loyaltyprogram.FieldIsActive, field.TypeBool, value)
 		_node.IsActive = value
 	}
+	if value, ok := _c.mutation.TierThresholds(); ok {
+		_spec.SetField(loyaltyprogram.FieldTierThresholds, field.TypeJSON, value)
+		_node.TierThresholds = value
+	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(loyaltyprogram.FieldCreatedAt, field.TypeTime, value)
 		_node.CreatedAt = value
@@ -473,6 +483,24 @@ func (u *LoyaltyProgramUpsert) SetIsActive(v bool) *LoyaltyProgramUpsert {
 // UpdateIsActive sets the "is_active" field to the value that was provided on create.
 func (u *LoyaltyProgramUpsert) UpdateIsActive() *LoyaltyProgramUpsert {
 	u.SetExcluded(loyaltyprogram.FieldIsActive)
+	return u
+}
+
+// SetTierThresholds sets the "tier_thresholds" field.
+func (u *LoyaltyProgramUpsert) SetTierThresholds(v map[string]interface{}) *LoyaltyProgramUpsert {
+	u.Set(loyaltyprogram.FieldTierThresholds, v)
+	return u
+}
+
+// UpdateTierThresholds sets the "tier_thresholds" field to the value that was provided on create.
+func (u *LoyaltyProgramUpsert) UpdateTierThresholds() *LoyaltyProgramUpsert {
+	u.SetExcluded(loyaltyprogram.FieldTierThresholds)
+	return u
+}
+
+// ClearTierThresholds clears the value of the "tier_thresholds" field.
+func (u *LoyaltyProgramUpsert) ClearTierThresholds() *LoyaltyProgramUpsert {
+	u.SetNull(loyaltyprogram.FieldTierThresholds)
 	return u
 }
 
@@ -662,6 +690,27 @@ func (u *LoyaltyProgramUpsertOne) SetIsActive(v bool) *LoyaltyProgramUpsertOne {
 func (u *LoyaltyProgramUpsertOne) UpdateIsActive() *LoyaltyProgramUpsertOne {
 	return u.Update(func(s *LoyaltyProgramUpsert) {
 		s.UpdateIsActive()
+	})
+}
+
+// SetTierThresholds sets the "tier_thresholds" field.
+func (u *LoyaltyProgramUpsertOne) SetTierThresholds(v map[string]interface{}) *LoyaltyProgramUpsertOne {
+	return u.Update(func(s *LoyaltyProgramUpsert) {
+		s.SetTierThresholds(v)
+	})
+}
+
+// UpdateTierThresholds sets the "tier_thresholds" field to the value that was provided on create.
+func (u *LoyaltyProgramUpsertOne) UpdateTierThresholds() *LoyaltyProgramUpsertOne {
+	return u.Update(func(s *LoyaltyProgramUpsert) {
+		s.UpdateTierThresholds()
+	})
+}
+
+// ClearTierThresholds clears the value of the "tier_thresholds" field.
+func (u *LoyaltyProgramUpsertOne) ClearTierThresholds() *LoyaltyProgramUpsertOne {
+	return u.Update(func(s *LoyaltyProgramUpsert) {
+		s.ClearTierThresholds()
 	})
 }
 
@@ -1020,6 +1069,27 @@ func (u *LoyaltyProgramUpsertBulk) SetIsActive(v bool) *LoyaltyProgramUpsertBulk
 func (u *LoyaltyProgramUpsertBulk) UpdateIsActive() *LoyaltyProgramUpsertBulk {
 	return u.Update(func(s *LoyaltyProgramUpsert) {
 		s.UpdateIsActive()
+	})
+}
+
+// SetTierThresholds sets the "tier_thresholds" field.
+func (u *LoyaltyProgramUpsertBulk) SetTierThresholds(v map[string]interface{}) *LoyaltyProgramUpsertBulk {
+	return u.Update(func(s *LoyaltyProgramUpsert) {
+		s.SetTierThresholds(v)
+	})
+}
+
+// UpdateTierThresholds sets the "tier_thresholds" field to the value that was provided on create.
+func (u *LoyaltyProgramUpsertBulk) UpdateTierThresholds() *LoyaltyProgramUpsertBulk {
+	return u.Update(func(s *LoyaltyProgramUpsert) {
+		s.UpdateTierThresholds()
+	})
+}
+
+// ClearTierThresholds clears the value of the "tier_thresholds" field.
+func (u *LoyaltyProgramUpsertBulk) ClearTierThresholds() *LoyaltyProgramUpsertBulk {
+	return u.Update(func(s *LoyaltyProgramUpsert) {
+		s.ClearTierThresholds()
 	})
 }
 

@@ -11,7 +11,6 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"github.com/bengobox/pos-service/internal/ent/catalogitem"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
 	"github.com/bengobox/pos-service/internal/ent/pricebook"
 	"github.com/bengobox/pos-service/internal/ent/pricebookitem"
@@ -21,12 +20,11 @@ import (
 // PriceBookItemQuery is the builder for querying PriceBookItem entities.
 type PriceBookItemQuery struct {
 	config
-	ctx             *QueryContext
-	order           []pricebookitem.OrderOption
-	inters          []Interceptor
-	predicates      []predicate.PriceBookItem
-	withPriceBook   *PriceBookQuery
-	withCatalogItem *CatalogItemQuery
+	ctx           *QueryContext
+	order         []pricebookitem.OrderOption
+	inters        []Interceptor
+	predicates    []predicate.PriceBookItem
+	withPriceBook *PriceBookQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -78,28 +76,6 @@ func (_q *PriceBookItemQuery) QueryPriceBook() *PriceBookQuery {
 			sqlgraph.From(pricebookitem.Table, pricebookitem.FieldID, selector),
 			sqlgraph.To(pricebook.Table, pricebook.FieldID),
 			sqlgraph.Edge(sqlgraph.M2O, true, pricebookitem.PriceBookTable, pricebookitem.PriceBookColumn),
-		)
-		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
-		return fromU, nil
-	}
-	return query
-}
-
-// QueryCatalogItem chains the current query on the "catalog_item" edge.
-func (_q *PriceBookItemQuery) QueryCatalogItem() *CatalogItemQuery {
-	query := (&CatalogItemClient{config: _q.config}).Query()
-	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
-		if err := _q.prepareQuery(ctx); err != nil {
-			return nil, err
-		}
-		selector := _q.sqlQuery(ctx)
-		if err := selector.Err(); err != nil {
-			return nil, err
-		}
-		step := sqlgraph.NewStep(
-			sqlgraph.From(pricebookitem.Table, pricebookitem.FieldID, selector),
-			sqlgraph.To(catalogitem.Table, catalogitem.FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, true, pricebookitem.CatalogItemTable, pricebookitem.CatalogItemColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -294,13 +270,12 @@ func (_q *PriceBookItemQuery) Clone() *PriceBookItemQuery {
 		return nil
 	}
 	return &PriceBookItemQuery{
-		config:          _q.config,
-		ctx:             _q.ctx.Clone(),
-		order:           append([]pricebookitem.OrderOption{}, _q.order...),
-		inters:          append([]Interceptor{}, _q.inters...),
-		predicates:      append([]predicate.PriceBookItem{}, _q.predicates...),
-		withPriceBook:   _q.withPriceBook.Clone(),
-		withCatalogItem: _q.withCatalogItem.Clone(),
+		config:        _q.config,
+		ctx:           _q.ctx.Clone(),
+		order:         append([]pricebookitem.OrderOption{}, _q.order...),
+		inters:        append([]Interceptor{}, _q.inters...),
+		predicates:    append([]predicate.PriceBookItem{}, _q.predicates...),
+		withPriceBook: _q.withPriceBook.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -315,17 +290,6 @@ func (_q *PriceBookItemQuery) WithPriceBook(opts ...func(*PriceBookQuery)) *Pric
 		opt(query)
 	}
 	_q.withPriceBook = query
-	return _q
-}
-
-// WithCatalogItem tells the query-builder to eager-load the nodes that are connected to
-// the "catalog_item" edge. The optional arguments are used to configure the query builder of the edge.
-func (_q *PriceBookItemQuery) WithCatalogItem(opts ...func(*CatalogItemQuery)) *PriceBookItemQuery {
-	query := (&CatalogItemClient{config: _q.config}).Query()
-	for _, opt := range opts {
-		opt(query)
-	}
-	_q.withCatalogItem = query
 	return _q
 }
 
@@ -407,9 +371,8 @@ func (_q *PriceBookItemQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([
 	var (
 		nodes       = []*PriceBookItem{}
 		_spec       = _q.querySpec()
-		loadedTypes = [2]bool{
+		loadedTypes = [1]bool{
 			_q.withPriceBook != nil,
-			_q.withCatalogItem != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -433,12 +396,6 @@ func (_q *PriceBookItemQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([
 	if query := _q.withPriceBook; query != nil {
 		if err := _q.loadPriceBook(ctx, query, nodes, nil,
 			func(n *PriceBookItem, e *PriceBook) { n.Edges.PriceBook = e }); err != nil {
-			return nil, err
-		}
-	}
-	if query := _q.withCatalogItem; query != nil {
-		if err := _q.loadCatalogItem(ctx, query, nodes, nil,
-			func(n *PriceBookItem, e *CatalogItem) { n.Edges.CatalogItem = e }); err != nil {
 			return nil, err
 		}
 	}
@@ -474,35 +431,6 @@ func (_q *PriceBookItemQuery) loadPriceBook(ctx context.Context, query *PriceBoo
 	}
 	return nil
 }
-func (_q *PriceBookItemQuery) loadCatalogItem(ctx context.Context, query *CatalogItemQuery, nodes []*PriceBookItem, init func(*PriceBookItem), assign func(*PriceBookItem, *CatalogItem)) error {
-	ids := make([]uuid.UUID, 0, len(nodes))
-	nodeids := make(map[uuid.UUID][]*PriceBookItem)
-	for i := range nodes {
-		fk := nodes[i].CatalogItemID
-		if _, ok := nodeids[fk]; !ok {
-			ids = append(ids, fk)
-		}
-		nodeids[fk] = append(nodeids[fk], nodes[i])
-	}
-	if len(ids) == 0 {
-		return nil
-	}
-	query.Where(catalogitem.IDIn(ids...))
-	neighbors, err := query.All(ctx)
-	if err != nil {
-		return err
-	}
-	for _, n := range neighbors {
-		nodes, ok := nodeids[n.ID]
-		if !ok {
-			return fmt.Errorf(`unexpected foreign-key "catalog_item_id" returned %v`, n.ID)
-		}
-		for i := range nodes {
-			assign(nodes[i], n)
-		}
-	}
-	return nil
-}
 
 func (_q *PriceBookItemQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := _q.querySpec()
@@ -531,9 +459,6 @@ func (_q *PriceBookItemQuery) querySpec() *sqlgraph.QuerySpec {
 		}
 		if _q.withPriceBook != nil {
 			_spec.Node.AddColumnOnce(pricebookitem.FieldPriceBookID)
-		}
-		if _q.withCatalogItem != nil {
-			_spec.Node.AddColumnOnce(pricebookitem.FieldCatalogItemID)
 		}
 	}
 	if ps := _q.predicates; len(ps) > 0 {

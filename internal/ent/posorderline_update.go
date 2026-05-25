@@ -217,6 +217,53 @@ func (_u *POSOrderLineUpdate) ClearExpiryDate() *POSOrderLineUpdate {
 	return _u
 }
 
+// SetSerialNumber sets the "serial_number" field.
+func (_u *POSOrderLineUpdate) SetSerialNumber(v string) *POSOrderLineUpdate {
+	_u.mutation.SetSerialNumber(v)
+	return _u
+}
+
+// SetNillableSerialNumber sets the "serial_number" field if the given value is not nil.
+func (_u *POSOrderLineUpdate) SetNillableSerialNumber(v *string) *POSOrderLineUpdate {
+	if v != nil {
+		_u.SetSerialNumber(*v)
+	}
+	return _u
+}
+
+// ClearSerialNumber clears the value of the "serial_number" field.
+func (_u *POSOrderLineUpdate) ClearSerialNumber() *POSOrderLineUpdate {
+	_u.mutation.ClearSerialNumber()
+	return _u
+}
+
+// SetPartialUnits sets the "partial_units" field.
+func (_u *POSOrderLineUpdate) SetPartialUnits(v float64) *POSOrderLineUpdate {
+	_u.mutation.ResetPartialUnits()
+	_u.mutation.SetPartialUnits(v)
+	return _u
+}
+
+// SetNillablePartialUnits sets the "partial_units" field if the given value is not nil.
+func (_u *POSOrderLineUpdate) SetNillablePartialUnits(v *float64) *POSOrderLineUpdate {
+	if v != nil {
+		_u.SetPartialUnits(*v)
+	}
+	return _u
+}
+
+// AddPartialUnits adds value to the "partial_units" field.
+func (_u *POSOrderLineUpdate) AddPartialUnits(v float64) *POSOrderLineUpdate {
+	_u.mutation.AddPartialUnits(v)
+	return _u
+}
+
+// ClearPartialUnits clears the value of the "partial_units" field.
+func (_u *POSOrderLineUpdate) ClearPartialUnits() *POSOrderLineUpdate {
+	_u.mutation.ClearPartialUnits()
+	return _u
+}
+
 // SetMetadata sets the "metadata" field.
 func (_u *POSOrderLineUpdate) SetMetadata(v map[string]interface{}) *POSOrderLineUpdate {
 	_u.mutation.SetMetadata(v)
@@ -379,6 +426,21 @@ func (_u *POSOrderLineUpdate) sqlSave(ctx context.Context) (_node int, err error
 	}
 	if _u.mutation.ExpiryDateCleared() {
 		_spec.ClearField(posorderline.FieldExpiryDate, field.TypeTime)
+	}
+	if value, ok := _u.mutation.SerialNumber(); ok {
+		_spec.SetField(posorderline.FieldSerialNumber, field.TypeString, value)
+	}
+	if _u.mutation.SerialNumberCleared() {
+		_spec.ClearField(posorderline.FieldSerialNumber, field.TypeString)
+	}
+	if value, ok := _u.mutation.PartialUnits(); ok {
+		_spec.SetField(posorderline.FieldPartialUnits, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedPartialUnits(); ok {
+		_spec.AddField(posorderline.FieldPartialUnits, field.TypeFloat64, value)
+	}
+	if _u.mutation.PartialUnitsCleared() {
+		_spec.ClearField(posorderline.FieldPartialUnits, field.TypeFloat64)
 	}
 	if value, ok := _u.mutation.Metadata(); ok {
 		_spec.SetField(posorderline.FieldMetadata, field.TypeJSON, value)
@@ -663,6 +725,53 @@ func (_u *POSOrderLineUpdateOne) ClearExpiryDate() *POSOrderLineUpdateOne {
 	return _u
 }
 
+// SetSerialNumber sets the "serial_number" field.
+func (_u *POSOrderLineUpdateOne) SetSerialNumber(v string) *POSOrderLineUpdateOne {
+	_u.mutation.SetSerialNumber(v)
+	return _u
+}
+
+// SetNillableSerialNumber sets the "serial_number" field if the given value is not nil.
+func (_u *POSOrderLineUpdateOne) SetNillableSerialNumber(v *string) *POSOrderLineUpdateOne {
+	if v != nil {
+		_u.SetSerialNumber(*v)
+	}
+	return _u
+}
+
+// ClearSerialNumber clears the value of the "serial_number" field.
+func (_u *POSOrderLineUpdateOne) ClearSerialNumber() *POSOrderLineUpdateOne {
+	_u.mutation.ClearSerialNumber()
+	return _u
+}
+
+// SetPartialUnits sets the "partial_units" field.
+func (_u *POSOrderLineUpdateOne) SetPartialUnits(v float64) *POSOrderLineUpdateOne {
+	_u.mutation.ResetPartialUnits()
+	_u.mutation.SetPartialUnits(v)
+	return _u
+}
+
+// SetNillablePartialUnits sets the "partial_units" field if the given value is not nil.
+func (_u *POSOrderLineUpdateOne) SetNillablePartialUnits(v *float64) *POSOrderLineUpdateOne {
+	if v != nil {
+		_u.SetPartialUnits(*v)
+	}
+	return _u
+}
+
+// AddPartialUnits adds value to the "partial_units" field.
+func (_u *POSOrderLineUpdateOne) AddPartialUnits(v float64) *POSOrderLineUpdateOne {
+	_u.mutation.AddPartialUnits(v)
+	return _u
+}
+
+// ClearPartialUnits clears the value of the "partial_units" field.
+func (_u *POSOrderLineUpdateOne) ClearPartialUnits() *POSOrderLineUpdateOne {
+	_u.mutation.ClearPartialUnits()
+	return _u
+}
+
 // SetMetadata sets the "metadata" field.
 func (_u *POSOrderLineUpdateOne) SetMetadata(v map[string]interface{}) *POSOrderLineUpdateOne {
 	_u.mutation.SetMetadata(v)
@@ -855,6 +964,21 @@ func (_u *POSOrderLineUpdateOne) sqlSave(ctx context.Context) (_node *POSOrderLi
 	}
 	if _u.mutation.ExpiryDateCleared() {
 		_spec.ClearField(posorderline.FieldExpiryDate, field.TypeTime)
+	}
+	if value, ok := _u.mutation.SerialNumber(); ok {
+		_spec.SetField(posorderline.FieldSerialNumber, field.TypeString, value)
+	}
+	if _u.mutation.SerialNumberCleared() {
+		_spec.ClearField(posorderline.FieldSerialNumber, field.TypeString)
+	}
+	if value, ok := _u.mutation.PartialUnits(); ok {
+		_spec.SetField(posorderline.FieldPartialUnits, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedPartialUnits(); ok {
+		_spec.AddField(posorderline.FieldPartialUnits, field.TypeFloat64, value)
+	}
+	if _u.mutation.PartialUnitsCleared() {
+		_spec.ClearField(posorderline.FieldPartialUnits, field.TypeFloat64)
 	}
 	if value, ok := _u.mutation.Metadata(); ok {
 		_spec.SetField(posorderline.FieldMetadata, field.TypeJSON, value)

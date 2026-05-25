@@ -11,7 +11,6 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"github.com/bengobox/pos-service/internal/ent/catalogitem"
 	"github.com/bengobox/pos-service/internal/ent/pricebook"
 	"github.com/bengobox/pos-service/internal/ent/pricebookitem"
 	"github.com/google/uuid"
@@ -76,11 +75,6 @@ func (_c *PriceBookItemCreate) SetPriceBook(v *PriceBook) *PriceBookItemCreate {
 	return _c.SetPriceBookID(v.ID)
 }
 
-// SetCatalogItem sets the "catalog_item" edge to the CatalogItem entity.
-func (_c *PriceBookItemCreate) SetCatalogItem(v *CatalogItem) *PriceBookItemCreate {
-	return _c.SetCatalogItemID(v.ID)
-}
-
 // Mutation returns the PriceBookItemMutation object of the builder.
 func (_c *PriceBookItemCreate) Mutation() *PriceBookItemMutation {
 	return _c.mutation
@@ -143,9 +137,6 @@ func (_c *PriceBookItemCreate) check() error {
 	if len(_c.mutation.PriceBookIDs()) == 0 {
 		return &ValidationError{Name: "price_book", err: errors.New(`ent: missing required edge "PriceBookItem.price_book"`)}
 	}
-	if len(_c.mutation.CatalogItemIDs()) == 0 {
-		return &ValidationError{Name: "catalog_item", err: errors.New(`ent: missing required edge "PriceBookItem.catalog_item"`)}
-	}
 	return nil
 }
 
@@ -182,6 +173,10 @@ func (_c *PriceBookItemCreate) createSpec() (*PriceBookItem, *sqlgraph.CreateSpe
 		_node.ID = id
 		_spec.ID.Value = &id
 	}
+	if value, ok := _c.mutation.CatalogItemID(); ok {
+		_spec.SetField(pricebookitem.FieldCatalogItemID, field.TypeUUID, value)
+		_node.CatalogItemID = value
+	}
 	if value, ok := _c.mutation.PriceAmount(); ok {
 		_spec.SetField(pricebookitem.FieldPriceAmount, field.TypeFloat64, value)
 		_node.PriceAmount = value
@@ -205,23 +200,6 @@ func (_c *PriceBookItemCreate) createSpec() (*PriceBookItem, *sqlgraph.CreateSpe
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_node.PriceBookID = nodes[0]
-		_spec.Edges = append(_spec.Edges, edge)
-	}
-	if nodes := _c.mutation.CatalogItemIDs(); len(nodes) > 0 {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2O,
-			Inverse: true,
-			Table:   pricebookitem.CatalogItemTable,
-			Columns: []string{pricebookitem.CatalogItemColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(catalogitem.FieldID, field.TypeUUID),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_node.CatalogItemID = nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec

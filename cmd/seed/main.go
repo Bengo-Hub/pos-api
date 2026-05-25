@@ -15,8 +15,8 @@ import (
 
 	"github.com/bengobox/pos-service/internal/config"
 	"github.com/bengobox/pos-service/internal/ent"
-	"github.com/bengobox/pos-service/internal/ent/catalogitem"
 	"github.com/bengobox/pos-service/internal/ent/outlet"
+	entoverride "github.com/bengobox/pos-service/internal/ent/poscatalogoverride"
 	"github.com/bengobox/pos-service/internal/ent/outletsetting"
 	"github.com/bengobox/pos-service/internal/ent/pospermission"
 	"github.com/bengobox/pos-service/internal/ent/posrolev2"
@@ -510,198 +510,182 @@ func seedTables(ctx context.Context, client *ent.Client, tenantID, outletID uuid
 	return nil
 }
 
-// seedCatalogItems creates outlet-scoped catalog items per use case.
-// Each outlet gets its own items so that, e.g., a retail cashier sees grocery
-// items and a services staff member sees appointment services — not cafe menus.
-// For tenants without per-use-case outlets (e.g. urban-loft), items are created
-// tenant-wide (no outlet_id) so they appear at all outlets.
+// seedCatalogItems seeds POSCatalogOverride entries with selling prices per SKU.
+// Inventory-api is the source of truth for item data (name, description, image).
+// This function only configures POS-specific overrides: price, tax, compliance flags.
 func seedCatalogItems(ctx context.Context, client *ent.Client, tenantID uuid.UUID, tenantSlug string) error {
-	type itemDef struct {
-		sku                  string
-		name                 string
-		category             string
-		itemType             string // GOODS | SERVICE | RECIPE
-		outletSlug           string // empty = tenant-wide (no outlet_id)
-		durationMinutes      int    // services only
-		isControlledSubstance bool  // pharmacy scheduled drugs
+	type overrideDef struct {
+		sku                   string
+		price                 float64
+		outletSlug            string // empty = tenant-wide
+		taxStatus             string
+		isControlledSubstance bool
+		requiresPrescription  bool
+		isReturnable          bool
+		durationMinutes       int
 	}
 
-	// Derive outlet UUIDs deterministically — same formula used in seedOutlets.
-	outletID := func(slug string) *uuid.UUID {
-		if slug == "" {
-			return nil
-		}
-		id := outletUUID(tenantSlug, slug)
-		return &id
-	}
-
-	// ── Hospitality (demo-hospitality / HOSP) ────────────────────────────────
-	// Classic hotel & restaurant menu, scoped to the hospitality outlet.
 	hospSlug := "demo-hospitality"
 	if tenantSlug == "urban-loft" {
 		hospSlug = "busia"
 	}
 
-	items := []itemDef{
+	overrides := []overrideDef{
 		// Hot beverages
-		{"BEV-ESP-001", "Espresso", "hot-beverages", "GOODS", hospSlug, 0, false},
-		{"BEV-ESP-002", "Double Espresso", "hot-beverages", "GOODS", hospSlug, 0, false},
-		{"BEV-LAT-001", "Caffe Latte", "hot-beverages", "GOODS", hospSlug, 0, false},
-		{"BEV-CAP-001", "Cappuccino", "hot-beverages", "GOODS", hospSlug, 0, false},
-		{"BEV-AME-001", "Americano", "hot-beverages", "GOODS", hospSlug, 0, false},
-		{"BEV-MOC-001", "Mocha", "hot-beverages", "GOODS", hospSlug, 0, false},
-		{"BEV-MAC-001", "Macchiato", "hot-beverages", "GOODS", hospSlug, 0, false},
-		{"BEV-TEA-001", "Kenya AA Black Tea", "hot-beverages", "GOODS", hospSlug, 0, false},
-		{"BEV-TEA-002", "Masala Chai", "hot-beverages", "GOODS", hospSlug, 0, false},
-		{"BEV-HOT-001", "Hot Chocolate", "hot-beverages", "GOODS", hospSlug, 0, false},
+		{"BEV-ESP-001", 200, hospSlug, "taxable", false, false, true, 0},
+		{"BEV-ESP-002", 250, hospSlug, "taxable", false, false, true, 0},
+		{"BEV-LAT-001", 350, hospSlug, "taxable", false, false, true, 0},
+		{"BEV-CAP-001", 350, hospSlug, "taxable", false, false, true, 0},
+		{"BEV-AME-001", 300, hospSlug, "taxable", false, false, true, 0},
+		{"BEV-MOC-001", 380, hospSlug, "taxable", false, false, true, 0},
+		{"BEV-MAC-001", 320, hospSlug, "taxable", false, false, true, 0},
+		{"BEV-TEA-001", 150, hospSlug, "taxable", false, false, true, 0},
+		{"BEV-TEA-002", 180, hospSlug, "taxable", false, false, true, 0},
+		{"BEV-HOT-001", 280, hospSlug, "taxable", false, false, true, 0},
 		// Cold beverages
-		{"BEV-ICE-001", "Iced Latte", "cold-beverages", "GOODS", hospSlug, 0, false},
-		{"BEV-ICE-002", "Iced Americano", "cold-beverages", "GOODS", hospSlug, 0, false},
-		{"BEV-FRP-001", "Caramel Frappe", "cold-beverages", "GOODS", hospSlug, 0, false},
-		{"BEV-FRP-002", "Vanilla Frappe", "cold-beverages", "GOODS", hospSlug, 0, false},
-		{"BEV-SMO-001", "Mango Smoothie", "cold-beverages", "GOODS", hospSlug, 0, false},
-		{"BEV-SMO-002", "Mixed Berry Smoothie", "cold-beverages", "GOODS", hospSlug, 0, false},
-		{"BEV-JCE-001", "Fresh Orange Juice", "cold-beverages", "GOODS", hospSlug, 0, false},
+		{"BEV-ICE-001", 380, hospSlug, "taxable", false, false, true, 0},
+		{"BEV-ICE-002", 350, hospSlug, "taxable", false, false, true, 0},
+		{"BEV-FRP-001", 420, hospSlug, "taxable", false, false, true, 0},
+		{"BEV-FRP-002", 420, hospSlug, "taxable", false, false, true, 0},
+		{"BEV-SMO-001", 450, hospSlug, "taxable", false, false, true, 0},
+		{"BEV-SMO-002", 450, hospSlug, "taxable", false, false, true, 0},
+		{"BEV-JCE-001", 300, hospSlug, "taxable", false, false, true, 0},
 		// Pastries
-		{"PST-CRO-001", "Butter Croissant", "pastries", "GOODS", hospSlug, 0, false},
-		{"PST-CRO-002", "Chocolate Croissant", "pastries", "GOODS", hospSlug, 0, false},
-		{"PST-MUF-001", "Blueberry Muffin", "pastries", "GOODS", hospSlug, 0, false},
-		{"PST-MUF-002", "Banana Walnut Muffin", "pastries", "GOODS", hospSlug, 0, false},
-		{"PST-CKE-001", "Carrot Cake Slice", "pastries", "GOODS", hospSlug, 0, false},
-		{"PST-CKE-002", "Red Velvet Cake Slice", "pastries", "GOODS", hospSlug, 0, false},
-		{"PST-CKE-003", "Chocolate Fudge Cake Slice", "pastries", "GOODS", hospSlug, 0, false},
-		{"PST-DAN-001", "Danish Pastry", "pastries", "GOODS", hospSlug, 0, false},
-		{"PST-SCO-001", "Classic Scone", "pastries", "GOODS", hospSlug, 0, false},
+		{"PST-CRO-001", 180, hospSlug, "taxable", false, false, true, 0},
+		{"PST-CRO-002", 220, hospSlug, "taxable", false, false, true, 0},
+		{"PST-MUF-001", 200, hospSlug, "taxable", false, false, true, 0},
+		{"PST-MUF-002", 200, hospSlug, "taxable", false, false, true, 0},
+		{"PST-CKE-001", 280, hospSlug, "taxable", false, false, true, 0},
+		{"PST-CKE-002", 300, hospSlug, "taxable", false, false, true, 0},
+		{"PST-CKE-003", 320, hospSlug, "taxable", false, false, true, 0},
+		{"PST-DAN-001", 160, hospSlug, "taxable", false, false, true, 0},
+		{"PST-SCO-001", 150, hospSlug, "taxable", false, false, true, 0},
 		// Sandwiches & salads
-		{"SND-CLB-001", "Club Sandwich", "sandwiches", "GOODS", hospSlug, 0, false},
-		{"SND-GRL-001", "Grilled Chicken Panini", "sandwiches", "GOODS", hospSlug, 0, false},
-		{"SND-VEG-001", "Veggie Wrap", "sandwiches", "GOODS", hospSlug, 0, false},
-		{"SND-BLT-001", "BLT Sandwich", "sandwiches", "GOODS", hospSlug, 0, false},
-		{"SND-TUN-001", "Tuna Melt", "sandwiches", "GOODS", hospSlug, 0, false},
-		{"SAL-CES-001", "Caesar Salad", "salads", "GOODS", hospSlug, 0, false},
-		{"SAL-GRK-001", "Greek Salad", "salads", "GOODS", hospSlug, 0, false},
+		{"SND-CLB-001", 650, hospSlug, "taxable", false, false, true, 0},
+		{"SND-GRL-001", 700, hospSlug, "taxable", false, false, true, 0},
+		{"SND-VEG-001", 550, hospSlug, "taxable", false, false, true, 0},
+		{"SND-BLT-001", 600, hospSlug, "taxable", false, false, true, 0},
+		{"SND-TUN-001", 620, hospSlug, "taxable", false, false, true, 0},
+		{"SAL-CES-001", 750, hospSlug, "taxable", false, false, true, 0},
+		{"SAL-GRK-001", 700, hospSlug, "taxable", false, false, true, 0},
 		// Light bites & mains
-		{"BTE-SAM-001", "Samosa (3pc)", "light-bites", "GOODS", hospSlug, 0, false},
-		{"BTE-SPR-001", "Spring Rolls (4pc)", "light-bites", "GOODS", hospSlug, 0, false},
-		{"MIN-GRL-001", "Grilled Beef Fillet", "main-courses", "GOODS", hospSlug, 0, false},
-		{"MIN-GRL-002", "Grilled Chicken Breast", "main-courses", "GOODS", hospSlug, 0, false},
-		{"MIN-CUR-001", "Chicken Curry", "main-courses", "GOODS", hospSlug, 0, false},
-		{"MIN-CUR-002", "Beef Stew", "main-courses", "GOODS", hospSlug, 0, false},
-		{"MIN-SEA-001", "Fish and Chips", "main-courses", "GOODS", hospSlug, 0, false},
-		{"MIN-PAS-001", "Spaghetti Bolognese", "main-courses", "GOODS", hospSlug, 0, false},
-		{"MIN-RIC-001", "Pilau Rice Bowl", "main-courses", "GOODS", hospSlug, 0, false},
+		{"BTE-SAM-001", 350, hospSlug, "taxable", false, false, true, 0},
+		{"BTE-SPR-001", 380, hospSlug, "taxable", false, false, true, 0},
+		{"MIN-GRL-001", 1800, hospSlug, "taxable", false, false, true, 0},
+		{"MIN-GRL-002", 1500, hospSlug, "taxable", false, false, true, 0},
+		{"MIN-CUR-001", 1200, hospSlug, "taxable", false, false, true, 0},
+		{"MIN-CUR-002", 1100, hospSlug, "taxable", false, false, true, 0},
+		{"MIN-SEA-001", 1400, hospSlug, "taxable", false, false, true, 0},
+		{"MIN-PAS-001", 1300, hospSlug, "taxable", false, false, true, 0},
+		{"MIN-RIC-001", 950, hospSlug, "taxable", false, false, true, 0},
 		// Breakfast & pizza
-		{"BRK-FUL-001", "Full English Breakfast", "breakfast", "GOODS", hospSlug, 0, false},
-		{"BRK-PAN-001", "Pancake Stack", "breakfast", "GOODS", hospSlug, 0, false},
-		{"BRK-AVT-001", "Avocado Toast", "breakfast", "GOODS", hospSlug, 0, false},
-		{"BRK-OAT-001", "Overnight Oats", "breakfast", "GOODS", hospSlug, 0, false},
-		{"PIZ-MAR-001", "Margherita Pizza", "pizza", "GOODS", hospSlug, 0, false},
-		{"PIZ-PEP-001", "Pepperoni Pizza", "pizza", "GOODS", hospSlug, 0, false},
+		{"BRK-FUL-001", 1200, hospSlug, "taxable", false, false, true, 0},
+		{"BRK-PAN-001", 750, hospSlug, "taxable", false, false, true, 0},
+		{"BRK-AVT-001", 650, hospSlug, "taxable", false, false, true, 0},
+		{"BRK-OAT-001", 550, hospSlug, "taxable", false, false, true, 0},
+		{"PIZ-MAR-001", 1100, hospSlug, "taxable", false, false, true, 0},
+		{"PIZ-PEP-001", 1300, hospSlug, "taxable", false, false, true, 0},
 	}
 
-	// ── Retail (demo-retail / RETAIL) — only seeded for codevertex-demo ────────
 	if tenantSlug == "codevertex-demo" {
-		items = append(items, []itemDef{
-			{"RTL-MLK-001", "Whole Milk 1L", "dairy", "GOODS", "demo-retail", 0, false},
-			{"RTL-BRD-001", "White Bread Loaf", "bakery", "GOODS", "demo-retail", 0, false},
-			{"RTL-RIC-001", "Basmati Rice 2kg", "grains", "GOODS", "demo-retail", 0, false},
-			{"RTL-OIL-001", "Sunflower Cooking Oil 1L", "cooking-essentials", "GOODS", "demo-retail", 0, false},
-			{"RTL-SGR-001", "White Sugar 1kg", "cooking-essentials", "GOODS", "demo-retail", 0, false},
-			{"RTL-EGG-001", "Eggs Tray 30pc", "dairy", "GOODS", "demo-retail", 0, false},
-			{"RTL-DET-001", "Washing Powder 500g", "household", "GOODS", "demo-retail", 0, false},
+		// Retail
+		overrides = append(overrides, []overrideDef{
+			{"RTL-MLK-001", 80, "demo-retail", "taxable", false, false, true, 0},
+			{"RTL-BRD-001", 60, "demo-retail", "taxable", false, false, true, 0},
+			{"RTL-RIC-001", 220, "demo-retail", "taxable", false, false, true, 0},
+			{"RTL-OIL-001", 180, "demo-retail", "taxable", false, false, true, 0},
+			{"RTL-SGR-001", 130, "demo-retail", "taxable", false, false, true, 0},
+			{"RTL-EGG-001", 380, "demo-retail", "taxable", false, false, true, 0},
+			{"RTL-DET-001", 150, "demo-retail", "taxable", false, false, true, 0},
 		}...)
-
-		// ── Quick Service (demo-quick / QSR) ─────────────────────────────────
-		items = append(items, []itemDef{
-			{"QSR-BUR-001", "Classic Beef Burger", "burgers", "GOODS", "demo-quick", 0, false},
-			{"QSR-CHK-001", "Crispy Chicken Burger", "burgers", "GOODS", "demo-quick", 0, false},
-			{"QSR-FRI-001", "Large Fries", "sides", "GOODS", "demo-quick", 0, false},
-			{"QSR-SOD-001", "Soft Drink 500ml", "beverages", "GOODS", "demo-quick", 0, false},
-			{"QSR-HOT-001", "Beef Hot Dog", "snacks", "GOODS", "demo-quick", 0, false},
-			{"QSR-PIZ-001", "Slice Pizza", "snacks", "GOODS", "demo-quick", 0, false},
-			{"QSR-COM-001", "Burger + Fries Combo", "combos", "RECIPE", "demo-quick", 0, false},
+		// QSR
+		overrides = append(overrides, []overrideDef{
+			{"QSR-BUR-001", 650, "demo-quick", "taxable", false, false, true, 0},
+			{"QSR-CHK-001", 700, "demo-quick", "taxable", false, false, true, 0},
+			{"QSR-FRI-001", 250, "demo-quick", "taxable", false, false, true, 0},
+			{"QSR-SOD-001", 100, "demo-quick", "taxable", false, false, true, 0},
+			{"QSR-HOT-001", 300, "demo-quick", "taxable", false, false, true, 0},
+			{"QSR-PIZ-001", 350, "demo-quick", "taxable", false, false, true, 0},
+			{"QSR-COM-001", 850, "demo-quick", "taxable", false, false, true, 0},
 		}...)
-
-		// ── Pharmacy (demo-pharmacy / PHARMA) ────────────────────────────────
-		items = append(items, []itemDef{
-			{"PHM-PAR-001", "Paracetamol 500mg 24pk", "otc-pain-relief", "GOODS", "demo-pharmacy", 0, false},
-			{"PHM-IBU-001", "Ibuprofen 400mg 16pk", "otc-pain-relief", "GOODS", "demo-pharmacy", 0, false},
-			{"PHM-ANT-001", "Amoxicillin 250mg 21pk", "antibiotics", "GOODS", "demo-pharmacy", 0, true},
-			{"PHM-VIT-001", "Vitamin C 1000mg 30pk", "vitamins-supplements", "GOODS", "demo-pharmacy", 0, false},
-			{"PHM-ORS-001", "ORS Sachets 6pk", "rehydration", "GOODS", "demo-pharmacy", 0, false},
-			{"PHM-MAS-001", "Surgical Face Mask 10pk", "medical-supplies", "GOODS", "demo-pharmacy", 0, false},
-			{"PHM-CON-001", "Pharmacist Consultation", "consultations", "SERVICE", "demo-pharmacy", 15, false},
+		// Pharmacy — Amoxicillin is controlled (requires prescription, not returnable)
+		overrides = append(overrides, []overrideDef{
+			{"PHM-PAR-001", 120, "demo-pharmacy", "taxable", false, false, true, 0},
+			{"PHM-IBU-001", 180, "demo-pharmacy", "taxable", false, false, true, 0},
+			{"PHM-ANT-001", 450, "demo-pharmacy", "taxable", true, true, false, 0},
+			{"PHM-VIT-001", 350, "demo-pharmacy", "taxable", false, false, true, 0},
+			{"PHM-ORS-001", 80, "demo-pharmacy", "taxable", false, false, true, 0},
+			{"PHM-MAS-001", 250, "demo-pharmacy", "taxable", false, false, true, 0},
+			{"PHM-CON-001", 500, "demo-pharmacy", "taxable", false, false, true, 15},
 		}...)
-
-		// ── Services (demo-services / SVC) ───────────────────────────────────
-		items = append(items, []itemDef{
-			{"SVC-HCT-001", "Ladies Haircut & Style", "hair", "SERVICE", "demo-services", 60, false},
-			{"SVC-HCM-001", "Mens Haircut", "hair", "SERVICE", "demo-services", 30, false},
-			{"SVC-MAN-001", "Classic Manicure", "nails", "SERVICE", "demo-services", 45, false},
-			{"SVC-PED-001", "Classic Pedicure", "nails", "SERVICE", "demo-services", 60, false},
-			{"SVC-FAC-001", "Deep Cleansing Facial", "skin", "SERVICE", "demo-services", 60, false},
-			{"SVC-MSG-001", "Swedish Massage 60min", "massage", "SERVICE", "demo-services", 60, false},
-			{"SVC-EYB-001", "Eyebrow Threading", "hair", "SERVICE", "demo-services", 20, false},
+		// Services
+		overrides = append(overrides, []overrideDef{
+			{"SVC-HCT-001", 1500, "demo-services", "taxable", false, false, true, 60},
+			{"SVC-HCM-001", 800, "demo-services", "taxable", false, false, true, 30},
+			{"SVC-MAN-001", 700, "demo-services", "taxable", false, false, true, 45},
+			{"SVC-PED-001", 900, "demo-services", "taxable", false, false, true, 60},
+			{"SVC-FAC-001", 2500, "demo-services", "taxable", false, false, true, 60},
+			{"SVC-MSG-001", 3500, "demo-services", "taxable", false, false, true, 60},
+			{"SVC-EYB-001", 300, "demo-services", "taxable", false, false, true, 20},
 		}...)
 	}
 
 	created := 0
 	updated := 0
-	for _, it := range items {
-		id := uuid.NewSHA1(uuid.NameSpaceURL, []byte(fmt.Sprintf("bengobox:pos:item:%s:%s", tenantID, it.sku)))
-		oid := outletID(it.outletSlug)
-
-		existing, err := client.CatalogItem.Query().Where(catalogitem.ID(id)).Only(ctx)
-		if err != nil && !ent.IsNotFound(err) {
-			return err
+	for _, o := range overrides {
+		var oid *uuid.UUID
+		if o.outletSlug != "" {
+			id := outletUUID(tenantSlug, o.outletSlug)
+			oid = &id
 		}
 
+		price := o.price
+
+		existing, _ := client.POSCatalogOverride.Query().
+			Where(entoverride.TenantID(tenantID), entoverride.InventorySku(o.sku)).
+			First(ctx)
+
 		if existing != nil {
-			// Update outlet_id and item_type on existing records for idempotency.
-			upd := client.CatalogItem.UpdateOneID(id).
-				SetItemType(it.itemType)
+			upd := existing.Update().
+				SetSellingPrice(price).
+				SetTaxStatus(o.taxStatus).
+				SetIsControlledSubstance(o.isControlledSubstance).
+				SetRequiresPrescription(o.requiresPrescription).
+				SetIsReturnable(o.isReturnable)
 			if oid != nil {
-				upd = upd.SetOutletID(*oid)
+				upd.SetOutletID(*oid)
 			}
-			if it.isControlledSubstance {
-				upd = upd.SetIsControlledSubstance(true)
-			}
-			if it.durationMinutes > 0 {
-				upd = upd.SetDurationMinutes(it.durationMinutes)
+			if o.durationMinutes > 0 {
+				upd.SetDurationMinutes(o.durationMinutes)
 			}
 			if _, err := upd.Save(ctx); err != nil {
-				log.Printf("  ⚠️  update catalog item %s: %v", it.sku, err)
+				log.Printf("  ⚠️  update catalog override %s: %v", o.sku, err)
 			} else {
 				updated++
 			}
 			continue
 		}
 
-		create := client.CatalogItem.Create().
-			SetID(id).
+		creator := client.POSCatalogOverride.Create().
 			SetTenantID(tenantID).
-			SetSku(it.sku).
-			SetName(it.name).
-			SetCategory(it.category).
-			SetItemType(it.itemType).
-			SetTaxStatus("taxable").
-			SetStatus("active")
+			SetInventorySku(o.sku).
+			SetSellingPrice(price).
+			SetTaxStatus(o.taxStatus).
+			SetIsControlledSubstance(o.isControlledSubstance).
+			SetRequiresPrescription(o.requiresPrescription).
+			SetIsReturnable(o.isReturnable)
 		if oid != nil {
-			create = create.SetOutletID(*oid)
+			creator.SetOutletID(*oid)
 		}
-		if it.isControlledSubstance {
-			create = create.SetIsControlledSubstance(true)
+		if o.durationMinutes > 0 {
+			creator.SetDurationMinutes(o.durationMinutes)
 		}
-		if it.durationMinutes > 0 {
-			create = create.SetDurationMinutes(it.durationMinutes)
-		}
-
-		if _, err := create.Save(ctx); err != nil {
-			return fmt.Errorf("create catalog item %s: %w", it.name, err)
+		if _, err := creator.Save(ctx); err != nil {
+			return fmt.Errorf("create catalog override %s: %w", o.sku, err)
 		}
 		created++
 	}
-	log.Printf("  ✓ Catalog items: %d created, %d updated (%d total)", created, updated, len(items))
+	log.Printf("  ✓ Catalog overrides: %d created, %d updated (%d total)", created, updated, len(overrides))
 	return nil
 }
 
@@ -712,6 +696,10 @@ func seedRBACPermissions(ctx context.Context, client *ent.Client) error {
 		"sessions", "cash_drawers", "tables", "gift_cards",
 		"price_books", "modifiers", "channels", "config", "users",
 		"reports", "hotel", "appointments", "pharmacy",
+		// Sprint 4–12 modules
+		"kds", "retail", "layaway", "serial", "loyalty", "webhooks",
+		"integrations", "fiscal", "queue", "staff",
+		"commissions", "packages", "clients",
 	}
 	actions := []string{
 		"add", "view", "view_own", "change", "change_own",
@@ -779,10 +767,14 @@ func seedRBACRoles(ctx context.Context, client *ent.Client, tenantID uuid.UUID) 
 				"pos.outlets.view", "pos.outlets.change",
 				"pos.devices.*", "pos.sessions.*", "pos.cash_drawers.*",
 				"pos.tables.*", "pos.gift_cards.*", "pos.price_books.*",
-				"pos.modifiers.*", "pos.channels.view",
+				"pos.modifiers.*", "pos.channels.*",
 				"pos.config.view", "pos.config.change",
 				"pos.users.view", "pos.users.change",
 				"pos.reports.*", "pos.hotel.*", "pos.appointments.*", "pos.pharmacy.*",
+				"pos.kds.*", "pos.retail.*", "pos.layaway.*", "pos.serial.*",
+				"pos.loyalty.*", "pos.webhooks.*", "pos.integrations.*", "pos.fiscal.*",
+				"pos.queue.*", "pos.staff.*", "pos.commissions.*",
+				"pos.packages.*", "pos.clients.*",
 			},
 		},
 		{
@@ -798,6 +790,10 @@ func seedRBACRoles(ctx context.Context, client *ent.Client, tenantID uuid.UUID) 
 				"pos.gift_cards.view",
 				"pos.modifiers.view",
 				"pos.sessions.add", "pos.sessions.view_own",
+				"pos.retail.add", "pos.retail.view",
+				"pos.layaway.view", "pos.layaway.add",
+				"pos.loyalty.view", "pos.loyalty.add",
+				"pos.serial.view", "pos.serial.add",
 			},
 		},
 		{
@@ -818,6 +814,7 @@ func seedRBACRoles(ctx context.Context, client *ent.Client, tenantID uuid.UUID) 
 			description: "View KDS queue and update item preparation status",
 			permissions: []string{
 				"pos.orders.view", "pos.catalog.view",
+				"pos.kds.view", "pos.kds.change",
 			},
 		},
 		{
@@ -826,6 +823,7 @@ func seedRBACRoles(ctx context.Context, client *ent.Client, tenantID uuid.UUID) 
 			description: "View bar display queue and update drink preparation status",
 			permissions: []string{
 				"pos.orders.view", "pos.catalog.view",
+				"pos.kds.view", "pos.kds.change",
 			},
 		},
 		{
@@ -851,6 +849,50 @@ func seedRBACRoles(ctx context.Context, client *ent.Client, tenantID uuid.UUID) 
 				"pos.price_books.view", "pos.modifiers.view", "pos.channels.view",
 				"pos.config.view", "pos.users.view",
 				"pos.reports.view", "pos.hotel.view", "pos.appointments.view",
+				"pos.queue.view", "pos.staff.view", "pos.commissions.view",
+				"pos.loyalty.view", "pos.packages.view", "pos.clients.view",
+			},
+		},
+		{
+			code:        "stylist",
+			name:        "Stylist",
+			description: "Service staff: manage own appointments, view queue, see own commissions",
+			permissions: []string{
+				"pos.orders.add", "pos.orders.view_own",
+				"pos.catalog.view",
+				"pos.sessions.add", "pos.sessions.view_own",
+				"pos.appointments.view", "pos.appointments.change_own",
+				"pos.queue.view", "pos.queue.change",
+				"pos.commissions.view_own",
+				"pos.clients.view",
+			},
+		},
+		{
+			code:        "therapist",
+			name:        "Therapist",
+			description: "Service staff: manage own appointments, view queue, see own commissions",
+			permissions: []string{
+				"pos.orders.add", "pos.orders.view_own",
+				"pos.catalog.view",
+				"pos.sessions.add", "pos.sessions.view_own",
+				"pos.appointments.view", "pos.appointments.change_own",
+				"pos.queue.view", "pos.queue.change",
+				"pos.commissions.view_own",
+				"pos.clients.view",
+			},
+		},
+		{
+			code:        "technician",
+			name:        "Technician",
+			description: "Service staff: manage own appointments, view queue, see own commissions",
+			permissions: []string{
+				"pos.orders.add", "pos.orders.view_own",
+				"pos.catalog.view",
+				"pos.sessions.add", "pos.sessions.view_own",
+				"pos.appointments.view", "pos.appointments.change_own",
+				"pos.queue.view", "pos.queue.change",
+				"pos.commissions.view_own",
+				"pos.clients.view",
 			},
 		},
 		{
@@ -898,23 +940,21 @@ func seedRBACRoles(ctx context.Context, client *ent.Client, tenantID uuid.UUID) 
 		if err != nil {
 			return err
 		}
-		if exists {
-			continue
+		if !exists {
+			_, err = client.POSRoleV2.Create().
+				SetID(roleID).
+				SetTenantID(tenantID).
+				SetRoleCode(rd.code).
+				SetName(rd.name).
+				SetDescription(rd.description).
+				SetIsSystemRole(true).
+				Save(ctx)
+			if err != nil {
+				return fmt.Errorf("create role %s: %w", rd.code, err)
+			}
 		}
 
-		_, err = client.POSRoleV2.Create().
-			SetID(roleID).
-			SetTenantID(tenantID).
-			SetRoleCode(rd.code).
-			SetName(rd.name).
-			SetDescription(rd.description).
-			SetIsSystemRole(true).
-			Save(ctx)
-		if err != nil {
-			return fmt.Errorf("create role %s: %w", rd.code, err)
-		}
-
-		// Resolve permission codes and assign
+		// Always sync permissions — adds missing ones, ignores duplicates.
 		permIDs := resolvePermissions(rd.permissions, permByCode)
 		for _, permID := range permIDs {
 			_, err = client.POSRolePermission.Create().
@@ -922,7 +962,7 @@ func seedRBACRoles(ctx context.Context, client *ent.Client, tenantID uuid.UUID) 
 				SetPermissionID(permID).
 				Save(ctx)
 			if err != nil {
-				// Ignore duplicates
+				// Ignore duplicates (unique constraint violation)
 				continue
 			}
 		}
@@ -944,6 +984,9 @@ func seedStaffMembers(ctx context.Context, client *ent.Client, tenantID, outletI
 		{"Eve Bartender", "bar"},
 		{"Frank Receptionist", "receptionist"},
 		{"Grace Pharmacist", "pharmacist"},
+		{"Hannah Stylist", "stylist"},
+		{"Ian Therapist", "therapist"},
+		{"Jane Technician", "technician"},
 	}
 
 	// All demo staff share PIN "1234" so the kiosk is immediately usable.

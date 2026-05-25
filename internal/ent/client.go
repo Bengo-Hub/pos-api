@@ -22,10 +22,12 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/billsplit"
 	"github.com/bengobox/pos-service/internal/ent/cashdrawer"
 	"github.com/bengobox/pos-service/internal/ent/cashdrawerevent"
-	"github.com/bengobox/pos-service/internal/ent/catalogitem"
 	"github.com/bengobox/pos-service/internal/ent/channelintegration"
 	"github.com/bengobox/pos-service/internal/ent/channelsyncjob"
+	"github.com/bengobox/pos-service/internal/ent/clientrecord"
 	"github.com/bengobox/pos-service/internal/ent/commissionrecord"
+	"github.com/bengobox/pos-service/internal/ent/commissionrule"
+	"github.com/bengobox/pos-service/internal/ent/controlledsubstancelog"
 	"github.com/bengobox/pos-service/internal/ent/dailyclosing"
 	"github.com/bengobox/pos-service/internal/ent/druginteractioncheck"
 	"github.com/bengobox/pos-service/internal/ent/facility"
@@ -49,6 +51,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/outboxevent"
 	"github.com/bengobox/pos-service/internal/ent/outlet"
 	"github.com/bengobox/pos-service/internal/ent/outletsetting"
+	"github.com/bengobox/pos-service/internal/ent/poscatalogoverride"
 	"github.com/bengobox/pos-service/internal/ent/posdevice"
 	"github.com/bengobox/pos-service/internal/ent/posdevicesession"
 	"github.com/bengobox/pos-service/internal/ent/poslinemodifier"
@@ -80,6 +83,9 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/section"
 	"github.com/bengobox/pos-service/internal/ent/serialnumberlog"
 	"github.com/bengobox/pos-service/internal/ent/serviceconfig"
+	"github.com/bengobox/pos-service/internal/ent/servicepackage"
+	"github.com/bengobox/pos-service/internal/ent/servicepackagepurchase"
+	"github.com/bengobox/pos-service/internal/ent/servicepackageredemption"
 	"github.com/bengobox/pos-service/internal/ent/servicequeueentry"
 	"github.com/bengobox/pos-service/internal/ent/staffmember"
 	"github.com/bengobox/pos-service/internal/ent/staffschedule"
@@ -115,14 +121,18 @@ type Client struct {
 	CashDrawer *CashDrawerClient
 	// CashDrawerEvent is the client for interacting with the CashDrawerEvent builders.
 	CashDrawerEvent *CashDrawerEventClient
-	// CatalogItem is the client for interacting with the CatalogItem builders.
-	CatalogItem *CatalogItemClient
 	// ChannelIntegration is the client for interacting with the ChannelIntegration builders.
 	ChannelIntegration *ChannelIntegrationClient
 	// ChannelSyncJob is the client for interacting with the ChannelSyncJob builders.
 	ChannelSyncJob *ChannelSyncJobClient
+	// ClientRecord is the client for interacting with the ClientRecord builders.
+	ClientRecord *ClientRecordClient
 	// CommissionRecord is the client for interacting with the CommissionRecord builders.
 	CommissionRecord *CommissionRecordClient
+	// CommissionRule is the client for interacting with the CommissionRule builders.
+	CommissionRule *CommissionRuleClient
+	// ControlledSubstanceLog is the client for interacting with the ControlledSubstanceLog builders.
+	ControlledSubstanceLog *ControlledSubstanceLogClient
 	// DailyClosing is the client for interacting with the DailyClosing builders.
 	DailyClosing *DailyClosingClient
 	// DrugInteractionCheck is the client for interacting with the DrugInteractionCheck builders.
@@ -169,6 +179,8 @@ type Client struct {
 	Outlet *OutletClient
 	// OutletSetting is the client for interacting with the OutletSetting builders.
 	OutletSetting *OutletSettingClient
+	// POSCatalogOverride is the client for interacting with the POSCatalogOverride builders.
+	POSCatalogOverride *POSCatalogOverrideClient
 	// POSDevice is the client for interacting with the POSDevice builders.
 	POSDevice *POSDeviceClient
 	// POSDeviceSession is the client for interacting with the POSDeviceSession builders.
@@ -231,6 +243,12 @@ type Client struct {
 	SerialNumberLog *SerialNumberLogClient
 	// ServiceConfig is the client for interacting with the ServiceConfig builders.
 	ServiceConfig *ServiceConfigClient
+	// ServicePackage is the client for interacting with the ServicePackage builders.
+	ServicePackage *ServicePackageClient
+	// ServicePackagePurchase is the client for interacting with the ServicePackagePurchase builders.
+	ServicePackagePurchase *ServicePackagePurchaseClient
+	// ServicePackageRedemption is the client for interacting with the ServicePackageRedemption builders.
+	ServicePackageRedemption *ServicePackageRedemptionClient
 	// ServiceQueueEntry is the client for interacting with the ServiceQueueEntry builders.
 	ServiceQueueEntry *ServiceQueueEntryClient
 	// StaffMember is the client for interacting with the StaffMember builders.
@@ -280,10 +298,12 @@ func (c *Client) init() {
 	c.BillSplit = NewBillSplitClient(c.config)
 	c.CashDrawer = NewCashDrawerClient(c.config)
 	c.CashDrawerEvent = NewCashDrawerEventClient(c.config)
-	c.CatalogItem = NewCatalogItemClient(c.config)
 	c.ChannelIntegration = NewChannelIntegrationClient(c.config)
 	c.ChannelSyncJob = NewChannelSyncJobClient(c.config)
+	c.ClientRecord = NewClientRecordClient(c.config)
 	c.CommissionRecord = NewCommissionRecordClient(c.config)
+	c.CommissionRule = NewCommissionRuleClient(c.config)
+	c.ControlledSubstanceLog = NewControlledSubstanceLogClient(c.config)
 	c.DailyClosing = NewDailyClosingClient(c.config)
 	c.DrugInteractionCheck = NewDrugInteractionCheckClient(c.config)
 	c.Facility = NewFacilityClient(c.config)
@@ -307,6 +327,7 @@ func (c *Client) init() {
 	c.OutboxEvent = NewOutboxEventClient(c.config)
 	c.Outlet = NewOutletClient(c.config)
 	c.OutletSetting = NewOutletSettingClient(c.config)
+	c.POSCatalogOverride = NewPOSCatalogOverrideClient(c.config)
 	c.POSDevice = NewPOSDeviceClient(c.config)
 	c.POSDeviceSession = NewPOSDeviceSessionClient(c.config)
 	c.POSLineModifier = NewPOSLineModifierClient(c.config)
@@ -338,6 +359,9 @@ func (c *Client) init() {
 	c.Section = NewSectionClient(c.config)
 	c.SerialNumberLog = NewSerialNumberLogClient(c.config)
 	c.ServiceConfig = NewServiceConfigClient(c.config)
+	c.ServicePackage = NewServicePackageClient(c.config)
+	c.ServicePackagePurchase = NewServicePackagePurchaseClient(c.config)
+	c.ServicePackageRedemption = NewServicePackageRedemptionClient(c.config)
 	c.ServiceQueueEntry = NewServiceQueueEntryClient(c.config)
 	c.StaffMember = NewStaffMemberClient(c.config)
 	c.StaffSchedule = NewStaffScheduleClient(c.config)
@@ -444,88 +468,94 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	cfg := c.config
 	cfg.driver = tx
 	return &Tx{
-		ctx:                    ctx,
-		config:                 cfg,
-		Appointment:            NewAppointmentClient(cfg),
-		BarTab:                 NewBarTabClient(cfg),
-		BarTabEvent:            NewBarTabEventClient(cfg),
-		BillSplit:              NewBillSplitClient(cfg),
-		CashDrawer:             NewCashDrawerClient(cfg),
-		CashDrawerEvent:        NewCashDrawerEventClient(cfg),
-		CatalogItem:            NewCatalogItemClient(cfg),
-		ChannelIntegration:     NewChannelIntegrationClient(cfg),
-		ChannelSyncJob:         NewChannelSyncJobClient(cfg),
-		CommissionRecord:       NewCommissionRecordClient(cfg),
-		DailyClosing:           NewDailyClosingClient(cfg),
-		DrugInteractionCheck:   NewDrugInteractionCheckClient(cfg),
-		Facility:               NewFacilityClient(cfg),
-		FacilityBooking:        NewFacilityBookingClient(cfg),
-		FeatureOverride:        NewFeatureOverrideClient(cfg),
-		GiftCard:               NewGiftCardClient(cfg),
-		GiftCardTransaction:    NewGiftCardTransactionClient(cfg),
-		IntegrationSetting:     NewIntegrationSettingClient(cfg),
-		InventorySnapshot:      NewInventorySnapshotClient(cfg),
-		KDSStation:             NewKDSStationClient(cfg),
-		KDSTicket:              NewKDSTicketClient(cfg),
-		LayawayPayment:         NewLayawayPaymentClient(cfg),
-		LayawayPlan:            NewLayawayPlanClient(cfg),
-		LicenseUsageSnapshot:   NewLicenseUsageSnapshotClient(cfg),
-		LoyaltyAccount:         NewLoyaltyAccountClient(cfg),
-		LoyaltyProgram:         NewLoyaltyProgramClient(cfg),
-		LoyaltyTransaction:     NewLoyaltyTransactionClient(cfg),
-		Modifier:               NewModifierClient(cfg),
-		ModifierGroup:          NewModifierGroupClient(cfg),
-		OrderLink:              NewOrderLinkClient(cfg),
-		OutboxEvent:            NewOutboxEventClient(cfg),
-		Outlet:                 NewOutletClient(cfg),
-		OutletSetting:          NewOutletSettingClient(cfg),
-		POSDevice:              NewPOSDeviceClient(cfg),
-		POSDeviceSession:       NewPOSDeviceSessionClient(cfg),
-		POSLineModifier:        NewPOSLineModifierClient(cfg),
-		POSOrder:               NewPOSOrderClient(cfg),
-		POSOrderEvent:          NewPOSOrderEventClient(cfg),
-		POSOrderLine:           NewPOSOrderLineClient(cfg),
-		POSPayment:             NewPOSPaymentClient(cfg),
-		POSPermission:          NewPOSPermissionClient(cfg),
-		POSRefund:              NewPOSRefundClient(cfg),
-		POSReturn:              NewPOSReturnClient(cfg),
-		POSReturnLine:          NewPOSReturnLineClient(cfg),
-		POSRole:                NewPOSRoleClient(cfg),
-		POSRolePermission:      NewPOSRolePermissionClient(cfg),
-		POSRoleV2:              NewPOSRoleV2Client(cfg),
-		POSUserRoleAssignment:  NewPOSUserRoleAssignmentClient(cfg),
-		PosNotification:        NewPosNotificationClient(cfg),
-		Prescription:           NewPrescriptionClient(cfg),
-		PrescriptionLine:       NewPrescriptionLineClient(cfg),
-		PriceBook:              NewPriceBookClient(cfg),
-		PriceBookItem:          NewPriceBookItemClient(cfg),
-		Promotion:              NewPromotionClient(cfg),
-		PromotionApplication:   NewPromotionApplicationClient(cfg),
-		PromotionRule:          NewPromotionRuleClient(cfg),
-		RateLimitConfig:        NewRateLimitConfigClient(cfg),
-		Resource:               NewResourceClient(cfg),
-		Room:                   NewRoomClient(cfg),
-		RoomFolioItem:          NewRoomFolioItemClient(cfg),
-		RoomGuest:              NewRoomGuestClient(cfg),
-		Section:                NewSectionClient(cfg),
-		SerialNumberLog:        NewSerialNumberLogClient(cfg),
-		ServiceConfig:          NewServiceConfigClient(cfg),
-		ServiceQueueEntry:      NewServiceQueueEntryClient(cfg),
-		StaffMember:            NewStaffMemberClient(cfg),
-		StaffSchedule:          NewStaffScheduleClient(cfg),
-		StockAlertSubscription: NewStockAlertSubscriptionClient(cfg),
-		StockConsumptionEvent:  NewStockConsumptionEventClient(cfg),
-		SyncFailure:            NewSyncFailureClient(cfg),
-		Table:                  NewTableClient(cfg),
-		TableAssignment:        NewTableAssignmentClient(cfg),
-		Tenant:                 NewTenantClient(cfg),
-		TenantSyncEvent:        NewTenantSyncEventClient(cfg),
-		Tender:                 NewTenderClient(cfg),
-		User:                   NewUserClient(cfg),
-		UserPOSRole:            NewUserPOSRoleClient(cfg),
-		WebhookDelivery:        NewWebhookDeliveryClient(cfg),
-		WebhookSubscription:    NewWebhookSubscriptionClient(cfg),
-		WeighingScaleReading:   NewWeighingScaleReadingClient(cfg),
+		ctx:                      ctx,
+		config:                   cfg,
+		Appointment:              NewAppointmentClient(cfg),
+		BarTab:                   NewBarTabClient(cfg),
+		BarTabEvent:              NewBarTabEventClient(cfg),
+		BillSplit:                NewBillSplitClient(cfg),
+		CashDrawer:               NewCashDrawerClient(cfg),
+		CashDrawerEvent:          NewCashDrawerEventClient(cfg),
+		ChannelIntegration:       NewChannelIntegrationClient(cfg),
+		ChannelSyncJob:           NewChannelSyncJobClient(cfg),
+		ClientRecord:             NewClientRecordClient(cfg),
+		CommissionRecord:         NewCommissionRecordClient(cfg),
+		CommissionRule:           NewCommissionRuleClient(cfg),
+		ControlledSubstanceLog:   NewControlledSubstanceLogClient(cfg),
+		DailyClosing:             NewDailyClosingClient(cfg),
+		DrugInteractionCheck:     NewDrugInteractionCheckClient(cfg),
+		Facility:                 NewFacilityClient(cfg),
+		FacilityBooking:          NewFacilityBookingClient(cfg),
+		FeatureOverride:          NewFeatureOverrideClient(cfg),
+		GiftCard:                 NewGiftCardClient(cfg),
+		GiftCardTransaction:      NewGiftCardTransactionClient(cfg),
+		IntegrationSetting:       NewIntegrationSettingClient(cfg),
+		InventorySnapshot:        NewInventorySnapshotClient(cfg),
+		KDSStation:               NewKDSStationClient(cfg),
+		KDSTicket:                NewKDSTicketClient(cfg),
+		LayawayPayment:           NewLayawayPaymentClient(cfg),
+		LayawayPlan:              NewLayawayPlanClient(cfg),
+		LicenseUsageSnapshot:     NewLicenseUsageSnapshotClient(cfg),
+		LoyaltyAccount:           NewLoyaltyAccountClient(cfg),
+		LoyaltyProgram:           NewLoyaltyProgramClient(cfg),
+		LoyaltyTransaction:       NewLoyaltyTransactionClient(cfg),
+		Modifier:                 NewModifierClient(cfg),
+		ModifierGroup:            NewModifierGroupClient(cfg),
+		OrderLink:                NewOrderLinkClient(cfg),
+		OutboxEvent:              NewOutboxEventClient(cfg),
+		Outlet:                   NewOutletClient(cfg),
+		OutletSetting:            NewOutletSettingClient(cfg),
+		POSCatalogOverride:       NewPOSCatalogOverrideClient(cfg),
+		POSDevice:                NewPOSDeviceClient(cfg),
+		POSDeviceSession:         NewPOSDeviceSessionClient(cfg),
+		POSLineModifier:          NewPOSLineModifierClient(cfg),
+		POSOrder:                 NewPOSOrderClient(cfg),
+		POSOrderEvent:            NewPOSOrderEventClient(cfg),
+		POSOrderLine:             NewPOSOrderLineClient(cfg),
+		POSPayment:               NewPOSPaymentClient(cfg),
+		POSPermission:            NewPOSPermissionClient(cfg),
+		POSRefund:                NewPOSRefundClient(cfg),
+		POSReturn:                NewPOSReturnClient(cfg),
+		POSReturnLine:            NewPOSReturnLineClient(cfg),
+		POSRole:                  NewPOSRoleClient(cfg),
+		POSRolePermission:        NewPOSRolePermissionClient(cfg),
+		POSRoleV2:                NewPOSRoleV2Client(cfg),
+		POSUserRoleAssignment:    NewPOSUserRoleAssignmentClient(cfg),
+		PosNotification:          NewPosNotificationClient(cfg),
+		Prescription:             NewPrescriptionClient(cfg),
+		PrescriptionLine:         NewPrescriptionLineClient(cfg),
+		PriceBook:                NewPriceBookClient(cfg),
+		PriceBookItem:            NewPriceBookItemClient(cfg),
+		Promotion:                NewPromotionClient(cfg),
+		PromotionApplication:     NewPromotionApplicationClient(cfg),
+		PromotionRule:            NewPromotionRuleClient(cfg),
+		RateLimitConfig:          NewRateLimitConfigClient(cfg),
+		Resource:                 NewResourceClient(cfg),
+		Room:                     NewRoomClient(cfg),
+		RoomFolioItem:            NewRoomFolioItemClient(cfg),
+		RoomGuest:                NewRoomGuestClient(cfg),
+		Section:                  NewSectionClient(cfg),
+		SerialNumberLog:          NewSerialNumberLogClient(cfg),
+		ServiceConfig:            NewServiceConfigClient(cfg),
+		ServicePackage:           NewServicePackageClient(cfg),
+		ServicePackagePurchase:   NewServicePackagePurchaseClient(cfg),
+		ServicePackageRedemption: NewServicePackageRedemptionClient(cfg),
+		ServiceQueueEntry:        NewServiceQueueEntryClient(cfg),
+		StaffMember:              NewStaffMemberClient(cfg),
+		StaffSchedule:            NewStaffScheduleClient(cfg),
+		StockAlertSubscription:   NewStockAlertSubscriptionClient(cfg),
+		StockConsumptionEvent:    NewStockConsumptionEventClient(cfg),
+		SyncFailure:              NewSyncFailureClient(cfg),
+		Table:                    NewTableClient(cfg),
+		TableAssignment:          NewTableAssignmentClient(cfg),
+		Tenant:                   NewTenantClient(cfg),
+		TenantSyncEvent:          NewTenantSyncEventClient(cfg),
+		Tender:                   NewTenderClient(cfg),
+		User:                     NewUserClient(cfg),
+		UserPOSRole:              NewUserPOSRoleClient(cfg),
+		WebhookDelivery:          NewWebhookDeliveryClient(cfg),
+		WebhookSubscription:      NewWebhookSubscriptionClient(cfg),
+		WeighingScaleReading:     NewWeighingScaleReadingClient(cfg),
 	}, nil
 }
 
@@ -543,88 +573,94 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	cfg := c.config
 	cfg.driver = &txDriver{tx: tx, drv: c.driver}
 	return &Tx{
-		ctx:                    ctx,
-		config:                 cfg,
-		Appointment:            NewAppointmentClient(cfg),
-		BarTab:                 NewBarTabClient(cfg),
-		BarTabEvent:            NewBarTabEventClient(cfg),
-		BillSplit:              NewBillSplitClient(cfg),
-		CashDrawer:             NewCashDrawerClient(cfg),
-		CashDrawerEvent:        NewCashDrawerEventClient(cfg),
-		CatalogItem:            NewCatalogItemClient(cfg),
-		ChannelIntegration:     NewChannelIntegrationClient(cfg),
-		ChannelSyncJob:         NewChannelSyncJobClient(cfg),
-		CommissionRecord:       NewCommissionRecordClient(cfg),
-		DailyClosing:           NewDailyClosingClient(cfg),
-		DrugInteractionCheck:   NewDrugInteractionCheckClient(cfg),
-		Facility:               NewFacilityClient(cfg),
-		FacilityBooking:        NewFacilityBookingClient(cfg),
-		FeatureOverride:        NewFeatureOverrideClient(cfg),
-		GiftCard:               NewGiftCardClient(cfg),
-		GiftCardTransaction:    NewGiftCardTransactionClient(cfg),
-		IntegrationSetting:     NewIntegrationSettingClient(cfg),
-		InventorySnapshot:      NewInventorySnapshotClient(cfg),
-		KDSStation:             NewKDSStationClient(cfg),
-		KDSTicket:              NewKDSTicketClient(cfg),
-		LayawayPayment:         NewLayawayPaymentClient(cfg),
-		LayawayPlan:            NewLayawayPlanClient(cfg),
-		LicenseUsageSnapshot:   NewLicenseUsageSnapshotClient(cfg),
-		LoyaltyAccount:         NewLoyaltyAccountClient(cfg),
-		LoyaltyProgram:         NewLoyaltyProgramClient(cfg),
-		LoyaltyTransaction:     NewLoyaltyTransactionClient(cfg),
-		Modifier:               NewModifierClient(cfg),
-		ModifierGroup:          NewModifierGroupClient(cfg),
-		OrderLink:              NewOrderLinkClient(cfg),
-		OutboxEvent:            NewOutboxEventClient(cfg),
-		Outlet:                 NewOutletClient(cfg),
-		OutletSetting:          NewOutletSettingClient(cfg),
-		POSDevice:              NewPOSDeviceClient(cfg),
-		POSDeviceSession:       NewPOSDeviceSessionClient(cfg),
-		POSLineModifier:        NewPOSLineModifierClient(cfg),
-		POSOrder:               NewPOSOrderClient(cfg),
-		POSOrderEvent:          NewPOSOrderEventClient(cfg),
-		POSOrderLine:           NewPOSOrderLineClient(cfg),
-		POSPayment:             NewPOSPaymentClient(cfg),
-		POSPermission:          NewPOSPermissionClient(cfg),
-		POSRefund:              NewPOSRefundClient(cfg),
-		POSReturn:              NewPOSReturnClient(cfg),
-		POSReturnLine:          NewPOSReturnLineClient(cfg),
-		POSRole:                NewPOSRoleClient(cfg),
-		POSRolePermission:      NewPOSRolePermissionClient(cfg),
-		POSRoleV2:              NewPOSRoleV2Client(cfg),
-		POSUserRoleAssignment:  NewPOSUserRoleAssignmentClient(cfg),
-		PosNotification:        NewPosNotificationClient(cfg),
-		Prescription:           NewPrescriptionClient(cfg),
-		PrescriptionLine:       NewPrescriptionLineClient(cfg),
-		PriceBook:              NewPriceBookClient(cfg),
-		PriceBookItem:          NewPriceBookItemClient(cfg),
-		Promotion:              NewPromotionClient(cfg),
-		PromotionApplication:   NewPromotionApplicationClient(cfg),
-		PromotionRule:          NewPromotionRuleClient(cfg),
-		RateLimitConfig:        NewRateLimitConfigClient(cfg),
-		Resource:               NewResourceClient(cfg),
-		Room:                   NewRoomClient(cfg),
-		RoomFolioItem:          NewRoomFolioItemClient(cfg),
-		RoomGuest:              NewRoomGuestClient(cfg),
-		Section:                NewSectionClient(cfg),
-		SerialNumberLog:        NewSerialNumberLogClient(cfg),
-		ServiceConfig:          NewServiceConfigClient(cfg),
-		ServiceQueueEntry:      NewServiceQueueEntryClient(cfg),
-		StaffMember:            NewStaffMemberClient(cfg),
-		StaffSchedule:          NewStaffScheduleClient(cfg),
-		StockAlertSubscription: NewStockAlertSubscriptionClient(cfg),
-		StockConsumptionEvent:  NewStockConsumptionEventClient(cfg),
-		SyncFailure:            NewSyncFailureClient(cfg),
-		Table:                  NewTableClient(cfg),
-		TableAssignment:        NewTableAssignmentClient(cfg),
-		Tenant:                 NewTenantClient(cfg),
-		TenantSyncEvent:        NewTenantSyncEventClient(cfg),
-		Tender:                 NewTenderClient(cfg),
-		User:                   NewUserClient(cfg),
-		UserPOSRole:            NewUserPOSRoleClient(cfg),
-		WebhookDelivery:        NewWebhookDeliveryClient(cfg),
-		WebhookSubscription:    NewWebhookSubscriptionClient(cfg),
-		WeighingScaleReading:   NewWeighingScaleReadingClient(cfg),
+		ctx:                      ctx,
+		config:                   cfg,
+		Appointment:              NewAppointmentClient(cfg),
+		BarTab:                   NewBarTabClient(cfg),
+		BarTabEvent:              NewBarTabEventClient(cfg),
+		BillSplit:                NewBillSplitClient(cfg),
+		CashDrawer:               NewCashDrawerClient(cfg),
+		CashDrawerEvent:          NewCashDrawerEventClient(cfg),
+		ChannelIntegration:       NewChannelIntegrationClient(cfg),
+		ChannelSyncJob:           NewChannelSyncJobClient(cfg),
+		ClientRecord:             NewClientRecordClient(cfg),
+		CommissionRecord:         NewCommissionRecordClient(cfg),
+		CommissionRule:           NewCommissionRuleClient(cfg),
+		ControlledSubstanceLog:   NewControlledSubstanceLogClient(cfg),
+		DailyClosing:             NewDailyClosingClient(cfg),
+		DrugInteractionCheck:     NewDrugInteractionCheckClient(cfg),
+		Facility:                 NewFacilityClient(cfg),
+		FacilityBooking:          NewFacilityBookingClient(cfg),
+		FeatureOverride:          NewFeatureOverrideClient(cfg),
+		GiftCard:                 NewGiftCardClient(cfg),
+		GiftCardTransaction:      NewGiftCardTransactionClient(cfg),
+		IntegrationSetting:       NewIntegrationSettingClient(cfg),
+		InventorySnapshot:        NewInventorySnapshotClient(cfg),
+		KDSStation:               NewKDSStationClient(cfg),
+		KDSTicket:                NewKDSTicketClient(cfg),
+		LayawayPayment:           NewLayawayPaymentClient(cfg),
+		LayawayPlan:              NewLayawayPlanClient(cfg),
+		LicenseUsageSnapshot:     NewLicenseUsageSnapshotClient(cfg),
+		LoyaltyAccount:           NewLoyaltyAccountClient(cfg),
+		LoyaltyProgram:           NewLoyaltyProgramClient(cfg),
+		LoyaltyTransaction:       NewLoyaltyTransactionClient(cfg),
+		Modifier:                 NewModifierClient(cfg),
+		ModifierGroup:            NewModifierGroupClient(cfg),
+		OrderLink:                NewOrderLinkClient(cfg),
+		OutboxEvent:              NewOutboxEventClient(cfg),
+		Outlet:                   NewOutletClient(cfg),
+		OutletSetting:            NewOutletSettingClient(cfg),
+		POSCatalogOverride:       NewPOSCatalogOverrideClient(cfg),
+		POSDevice:                NewPOSDeviceClient(cfg),
+		POSDeviceSession:         NewPOSDeviceSessionClient(cfg),
+		POSLineModifier:          NewPOSLineModifierClient(cfg),
+		POSOrder:                 NewPOSOrderClient(cfg),
+		POSOrderEvent:            NewPOSOrderEventClient(cfg),
+		POSOrderLine:             NewPOSOrderLineClient(cfg),
+		POSPayment:               NewPOSPaymentClient(cfg),
+		POSPermission:            NewPOSPermissionClient(cfg),
+		POSRefund:                NewPOSRefundClient(cfg),
+		POSReturn:                NewPOSReturnClient(cfg),
+		POSReturnLine:            NewPOSReturnLineClient(cfg),
+		POSRole:                  NewPOSRoleClient(cfg),
+		POSRolePermission:        NewPOSRolePermissionClient(cfg),
+		POSRoleV2:                NewPOSRoleV2Client(cfg),
+		POSUserRoleAssignment:    NewPOSUserRoleAssignmentClient(cfg),
+		PosNotification:          NewPosNotificationClient(cfg),
+		Prescription:             NewPrescriptionClient(cfg),
+		PrescriptionLine:         NewPrescriptionLineClient(cfg),
+		PriceBook:                NewPriceBookClient(cfg),
+		PriceBookItem:            NewPriceBookItemClient(cfg),
+		Promotion:                NewPromotionClient(cfg),
+		PromotionApplication:     NewPromotionApplicationClient(cfg),
+		PromotionRule:            NewPromotionRuleClient(cfg),
+		RateLimitConfig:          NewRateLimitConfigClient(cfg),
+		Resource:                 NewResourceClient(cfg),
+		Room:                     NewRoomClient(cfg),
+		RoomFolioItem:            NewRoomFolioItemClient(cfg),
+		RoomGuest:                NewRoomGuestClient(cfg),
+		Section:                  NewSectionClient(cfg),
+		SerialNumberLog:          NewSerialNumberLogClient(cfg),
+		ServiceConfig:            NewServiceConfigClient(cfg),
+		ServicePackage:           NewServicePackageClient(cfg),
+		ServicePackagePurchase:   NewServicePackagePurchaseClient(cfg),
+		ServicePackageRedemption: NewServicePackageRedemptionClient(cfg),
+		ServiceQueueEntry:        NewServiceQueueEntryClient(cfg),
+		StaffMember:              NewStaffMemberClient(cfg),
+		StaffSchedule:            NewStaffScheduleClient(cfg),
+		StockAlertSubscription:   NewStockAlertSubscriptionClient(cfg),
+		StockConsumptionEvent:    NewStockConsumptionEventClient(cfg),
+		SyncFailure:              NewSyncFailureClient(cfg),
+		Table:                    NewTableClient(cfg),
+		TableAssignment:          NewTableAssignmentClient(cfg),
+		Tenant:                   NewTenantClient(cfg),
+		TenantSyncEvent:          NewTenantSyncEventClient(cfg),
+		Tender:                   NewTenderClient(cfg),
+		User:                     NewUserClient(cfg),
+		UserPOSRole:              NewUserPOSRoleClient(cfg),
+		WebhookDelivery:          NewWebhookDeliveryClient(cfg),
+		WebhookSubscription:      NewWebhookSubscriptionClient(cfg),
+		WeighingScaleReading:     NewWeighingScaleReadingClient(cfg),
 	}, nil
 }
 
@@ -655,21 +691,23 @@ func (c *Client) Close() error {
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.Appointment, c.BarTab, c.BarTabEvent, c.BillSplit, c.CashDrawer,
-		c.CashDrawerEvent, c.CatalogItem, c.ChannelIntegration, c.ChannelSyncJob,
-		c.CommissionRecord, c.DailyClosing, c.DrugInteractionCheck, c.Facility,
-		c.FacilityBooking, c.FeatureOverride, c.GiftCard, c.GiftCardTransaction,
-		c.IntegrationSetting, c.InventorySnapshot, c.KDSStation, c.KDSTicket,
-		c.LayawayPayment, c.LayawayPlan, c.LicenseUsageSnapshot, c.LoyaltyAccount,
-		c.LoyaltyProgram, c.LoyaltyTransaction, c.Modifier, c.ModifierGroup,
-		c.OrderLink, c.OutboxEvent, c.Outlet, c.OutletSetting, c.POSDevice,
+		c.CashDrawerEvent, c.ChannelIntegration, c.ChannelSyncJob, c.ClientRecord,
+		c.CommissionRecord, c.CommissionRule, c.ControlledSubstanceLog, c.DailyClosing,
+		c.DrugInteractionCheck, c.Facility, c.FacilityBooking, c.FeatureOverride,
+		c.GiftCard, c.GiftCardTransaction, c.IntegrationSetting, c.InventorySnapshot,
+		c.KDSStation, c.KDSTicket, c.LayawayPayment, c.LayawayPlan,
+		c.LicenseUsageSnapshot, c.LoyaltyAccount, c.LoyaltyProgram,
+		c.LoyaltyTransaction, c.Modifier, c.ModifierGroup, c.OrderLink, c.OutboxEvent,
+		c.Outlet, c.OutletSetting, c.POSCatalogOverride, c.POSDevice,
 		c.POSDeviceSession, c.POSLineModifier, c.POSOrder, c.POSOrderEvent,
 		c.POSOrderLine, c.POSPayment, c.POSPermission, c.POSRefund, c.POSReturn,
 		c.POSReturnLine, c.POSRole, c.POSRolePermission, c.POSRoleV2,
 		c.POSUserRoleAssignment, c.PosNotification, c.Prescription, c.PrescriptionLine,
 		c.PriceBook, c.PriceBookItem, c.Promotion, c.PromotionApplication,
 		c.PromotionRule, c.RateLimitConfig, c.Resource, c.Room, c.RoomFolioItem,
-		c.RoomGuest, c.Section, c.SerialNumberLog, c.ServiceConfig,
-		c.ServiceQueueEntry, c.StaffMember, c.StaffSchedule, c.StockAlertSubscription,
+		c.RoomGuest, c.Section, c.SerialNumberLog, c.ServiceConfig, c.ServicePackage,
+		c.ServicePackagePurchase, c.ServicePackageRedemption, c.ServiceQueueEntry,
+		c.StaffMember, c.StaffSchedule, c.StockAlertSubscription,
 		c.StockConsumptionEvent, c.SyncFailure, c.Table, c.TableAssignment, c.Tenant,
 		c.TenantSyncEvent, c.Tender, c.User, c.UserPOSRole, c.WebhookDelivery,
 		c.WebhookSubscription, c.WeighingScaleReading,
@@ -683,21 +721,23 @@ func (c *Client) Use(hooks ...Hook) {
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.Appointment, c.BarTab, c.BarTabEvent, c.BillSplit, c.CashDrawer,
-		c.CashDrawerEvent, c.CatalogItem, c.ChannelIntegration, c.ChannelSyncJob,
-		c.CommissionRecord, c.DailyClosing, c.DrugInteractionCheck, c.Facility,
-		c.FacilityBooking, c.FeatureOverride, c.GiftCard, c.GiftCardTransaction,
-		c.IntegrationSetting, c.InventorySnapshot, c.KDSStation, c.KDSTicket,
-		c.LayawayPayment, c.LayawayPlan, c.LicenseUsageSnapshot, c.LoyaltyAccount,
-		c.LoyaltyProgram, c.LoyaltyTransaction, c.Modifier, c.ModifierGroup,
-		c.OrderLink, c.OutboxEvent, c.Outlet, c.OutletSetting, c.POSDevice,
+		c.CashDrawerEvent, c.ChannelIntegration, c.ChannelSyncJob, c.ClientRecord,
+		c.CommissionRecord, c.CommissionRule, c.ControlledSubstanceLog, c.DailyClosing,
+		c.DrugInteractionCheck, c.Facility, c.FacilityBooking, c.FeatureOverride,
+		c.GiftCard, c.GiftCardTransaction, c.IntegrationSetting, c.InventorySnapshot,
+		c.KDSStation, c.KDSTicket, c.LayawayPayment, c.LayawayPlan,
+		c.LicenseUsageSnapshot, c.LoyaltyAccount, c.LoyaltyProgram,
+		c.LoyaltyTransaction, c.Modifier, c.ModifierGroup, c.OrderLink, c.OutboxEvent,
+		c.Outlet, c.OutletSetting, c.POSCatalogOverride, c.POSDevice,
 		c.POSDeviceSession, c.POSLineModifier, c.POSOrder, c.POSOrderEvent,
 		c.POSOrderLine, c.POSPayment, c.POSPermission, c.POSRefund, c.POSReturn,
 		c.POSReturnLine, c.POSRole, c.POSRolePermission, c.POSRoleV2,
 		c.POSUserRoleAssignment, c.PosNotification, c.Prescription, c.PrescriptionLine,
 		c.PriceBook, c.PriceBookItem, c.Promotion, c.PromotionApplication,
 		c.PromotionRule, c.RateLimitConfig, c.Resource, c.Room, c.RoomFolioItem,
-		c.RoomGuest, c.Section, c.SerialNumberLog, c.ServiceConfig,
-		c.ServiceQueueEntry, c.StaffMember, c.StaffSchedule, c.StockAlertSubscription,
+		c.RoomGuest, c.Section, c.SerialNumberLog, c.ServiceConfig, c.ServicePackage,
+		c.ServicePackagePurchase, c.ServicePackageRedemption, c.ServiceQueueEntry,
+		c.StaffMember, c.StaffSchedule, c.StockAlertSubscription,
 		c.StockConsumptionEvent, c.SyncFailure, c.Table, c.TableAssignment, c.Tenant,
 		c.TenantSyncEvent, c.Tender, c.User, c.UserPOSRole, c.WebhookDelivery,
 		c.WebhookSubscription, c.WeighingScaleReading,
@@ -721,14 +761,18 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.CashDrawer.mutate(ctx, m)
 	case *CashDrawerEventMutation:
 		return c.CashDrawerEvent.mutate(ctx, m)
-	case *CatalogItemMutation:
-		return c.CatalogItem.mutate(ctx, m)
 	case *ChannelIntegrationMutation:
 		return c.ChannelIntegration.mutate(ctx, m)
 	case *ChannelSyncJobMutation:
 		return c.ChannelSyncJob.mutate(ctx, m)
+	case *ClientRecordMutation:
+		return c.ClientRecord.mutate(ctx, m)
 	case *CommissionRecordMutation:
 		return c.CommissionRecord.mutate(ctx, m)
+	case *CommissionRuleMutation:
+		return c.CommissionRule.mutate(ctx, m)
+	case *ControlledSubstanceLogMutation:
+		return c.ControlledSubstanceLog.mutate(ctx, m)
 	case *DailyClosingMutation:
 		return c.DailyClosing.mutate(ctx, m)
 	case *DrugInteractionCheckMutation:
@@ -775,6 +819,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Outlet.mutate(ctx, m)
 	case *OutletSettingMutation:
 		return c.OutletSetting.mutate(ctx, m)
+	case *POSCatalogOverrideMutation:
+		return c.POSCatalogOverride.mutate(ctx, m)
 	case *POSDeviceMutation:
 		return c.POSDevice.mutate(ctx, m)
 	case *POSDeviceSessionMutation:
@@ -837,6 +883,12 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.SerialNumberLog.mutate(ctx, m)
 	case *ServiceConfigMutation:
 		return c.ServiceConfig.mutate(ctx, m)
+	case *ServicePackageMutation:
+		return c.ServicePackage.mutate(ctx, m)
+	case *ServicePackagePurchaseMutation:
+		return c.ServicePackagePurchase.mutate(ctx, m)
+	case *ServicePackageRedemptionMutation:
+		return c.ServicePackageRedemption.mutate(ctx, m)
 	case *ServiceQueueEntryMutation:
 		return c.ServiceQueueEntry.mutate(ctx, m)
 	case *StaffMemberMutation:
@@ -1736,155 +1788,6 @@ func (c *CashDrawerEventClient) mutate(ctx context.Context, m *CashDrawerEventMu
 	}
 }
 
-// CatalogItemClient is a client for the CatalogItem schema.
-type CatalogItemClient struct {
-	config
-}
-
-// NewCatalogItemClient returns a client for the CatalogItem from the given config.
-func NewCatalogItemClient(c config) *CatalogItemClient {
-	return &CatalogItemClient{config: c}
-}
-
-// Use adds a list of mutation hooks to the hooks stack.
-// A call to `Use(f, g, h)` equals to `catalogitem.Hooks(f(g(h())))`.
-func (c *CatalogItemClient) Use(hooks ...Hook) {
-	c.hooks.CatalogItem = append(c.hooks.CatalogItem, hooks...)
-}
-
-// Intercept adds a list of query interceptors to the interceptors stack.
-// A call to `Intercept(f, g, h)` equals to `catalogitem.Intercept(f(g(h())))`.
-func (c *CatalogItemClient) Intercept(interceptors ...Interceptor) {
-	c.inters.CatalogItem = append(c.inters.CatalogItem, interceptors...)
-}
-
-// Create returns a builder for creating a CatalogItem entity.
-func (c *CatalogItemClient) Create() *CatalogItemCreate {
-	mutation := newCatalogItemMutation(c.config, OpCreate)
-	return &CatalogItemCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// CreateBulk returns a builder for creating a bulk of CatalogItem entities.
-func (c *CatalogItemClient) CreateBulk(builders ...*CatalogItemCreate) *CatalogItemCreateBulk {
-	return &CatalogItemCreateBulk{config: c.config, builders: builders}
-}
-
-// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
-// a builder and applies setFunc on it.
-func (c *CatalogItemClient) MapCreateBulk(slice any, setFunc func(*CatalogItemCreate, int)) *CatalogItemCreateBulk {
-	rv := reflect.ValueOf(slice)
-	if rv.Kind() != reflect.Slice {
-		return &CatalogItemCreateBulk{err: fmt.Errorf("calling to CatalogItemClient.MapCreateBulk with wrong type %T, need slice", slice)}
-	}
-	builders := make([]*CatalogItemCreate, rv.Len())
-	for i := 0; i < rv.Len(); i++ {
-		builders[i] = c.Create()
-		setFunc(builders[i], i)
-	}
-	return &CatalogItemCreateBulk{config: c.config, builders: builders}
-}
-
-// Update returns an update builder for CatalogItem.
-func (c *CatalogItemClient) Update() *CatalogItemUpdate {
-	mutation := newCatalogItemMutation(c.config, OpUpdate)
-	return &CatalogItemUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// UpdateOne returns an update builder for the given entity.
-func (c *CatalogItemClient) UpdateOne(_m *CatalogItem) *CatalogItemUpdateOne {
-	mutation := newCatalogItemMutation(c.config, OpUpdateOne, withCatalogItem(_m))
-	return &CatalogItemUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// UpdateOneID returns an update builder for the given id.
-func (c *CatalogItemClient) UpdateOneID(id uuid.UUID) *CatalogItemUpdateOne {
-	mutation := newCatalogItemMutation(c.config, OpUpdateOne, withCatalogItemID(id))
-	return &CatalogItemUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// Delete returns a delete builder for CatalogItem.
-func (c *CatalogItemClient) Delete() *CatalogItemDelete {
-	mutation := newCatalogItemMutation(c.config, OpDelete)
-	return &CatalogItemDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// DeleteOne returns a builder for deleting the given entity.
-func (c *CatalogItemClient) DeleteOne(_m *CatalogItem) *CatalogItemDeleteOne {
-	return c.DeleteOneID(_m.ID)
-}
-
-// DeleteOneID returns a builder for deleting the given entity by its id.
-func (c *CatalogItemClient) DeleteOneID(id uuid.UUID) *CatalogItemDeleteOne {
-	builder := c.Delete().Where(catalogitem.ID(id))
-	builder.mutation.id = &id
-	builder.mutation.op = OpDeleteOne
-	return &CatalogItemDeleteOne{builder}
-}
-
-// Query returns a query builder for CatalogItem.
-func (c *CatalogItemClient) Query() *CatalogItemQuery {
-	return &CatalogItemQuery{
-		config: c.config,
-		ctx:    &QueryContext{Type: TypeCatalogItem},
-		inters: c.Interceptors(),
-	}
-}
-
-// Get returns a CatalogItem entity by its id.
-func (c *CatalogItemClient) Get(ctx context.Context, id uuid.UUID) (*CatalogItem, error) {
-	return c.Query().Where(catalogitem.ID(id)).Only(ctx)
-}
-
-// GetX is like Get, but panics if an error occurs.
-func (c *CatalogItemClient) GetX(ctx context.Context, id uuid.UUID) *CatalogItem {
-	obj, err := c.Get(ctx, id)
-	if err != nil {
-		panic(err)
-	}
-	return obj
-}
-
-// QueryPriceBookItems queries the price_book_items edge of a CatalogItem.
-func (c *CatalogItemClient) QueryPriceBookItems(_m *CatalogItem) *PriceBookItemQuery {
-	query := (&PriceBookItemClient{config: c.config}).Query()
-	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
-		id := _m.ID
-		step := sqlgraph.NewStep(
-			sqlgraph.From(catalogitem.Table, catalogitem.FieldID, id),
-			sqlgraph.To(pricebookitem.Table, pricebookitem.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, catalogitem.PriceBookItemsTable, catalogitem.PriceBookItemsColumn),
-		)
-		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
-		return fromV, nil
-	}
-	return query
-}
-
-// Hooks returns the client hooks.
-func (c *CatalogItemClient) Hooks() []Hook {
-	return c.hooks.CatalogItem
-}
-
-// Interceptors returns the client interceptors.
-func (c *CatalogItemClient) Interceptors() []Interceptor {
-	return c.inters.CatalogItem
-}
-
-func (c *CatalogItemClient) mutate(ctx context.Context, m *CatalogItemMutation) (Value, error) {
-	switch m.Op() {
-	case OpCreate:
-		return (&CatalogItemCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
-	case OpUpdate:
-		return (&CatalogItemUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
-	case OpUpdateOne:
-		return (&CatalogItemUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
-	case OpDelete, OpDeleteOne:
-		return (&CatalogItemDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
-	default:
-		return nil, fmt.Errorf("ent: unknown CatalogItem mutation op: %q", m.Op())
-	}
-}
-
 // ChannelIntegrationClient is a client for the ChannelIntegration schema.
 type ChannelIntegrationClient struct {
 	config
@@ -2151,6 +2054,139 @@ func (c *ChannelSyncJobClient) mutate(ctx context.Context, m *ChannelSyncJobMuta
 	}
 }
 
+// ClientRecordClient is a client for the ClientRecord schema.
+type ClientRecordClient struct {
+	config
+}
+
+// NewClientRecordClient returns a client for the ClientRecord from the given config.
+func NewClientRecordClient(c config) *ClientRecordClient {
+	return &ClientRecordClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `clientrecord.Hooks(f(g(h())))`.
+func (c *ClientRecordClient) Use(hooks ...Hook) {
+	c.hooks.ClientRecord = append(c.hooks.ClientRecord, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `clientrecord.Intercept(f(g(h())))`.
+func (c *ClientRecordClient) Intercept(interceptors ...Interceptor) {
+	c.inters.ClientRecord = append(c.inters.ClientRecord, interceptors...)
+}
+
+// Create returns a builder for creating a ClientRecord entity.
+func (c *ClientRecordClient) Create() *ClientRecordCreate {
+	mutation := newClientRecordMutation(c.config, OpCreate)
+	return &ClientRecordCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of ClientRecord entities.
+func (c *ClientRecordClient) CreateBulk(builders ...*ClientRecordCreate) *ClientRecordCreateBulk {
+	return &ClientRecordCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ClientRecordClient) MapCreateBulk(slice any, setFunc func(*ClientRecordCreate, int)) *ClientRecordCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ClientRecordCreateBulk{err: fmt.Errorf("calling to ClientRecordClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ClientRecordCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ClientRecordCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for ClientRecord.
+func (c *ClientRecordClient) Update() *ClientRecordUpdate {
+	mutation := newClientRecordMutation(c.config, OpUpdate)
+	return &ClientRecordUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ClientRecordClient) UpdateOne(_m *ClientRecord) *ClientRecordUpdateOne {
+	mutation := newClientRecordMutation(c.config, OpUpdateOne, withClientRecord(_m))
+	return &ClientRecordUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ClientRecordClient) UpdateOneID(id uuid.UUID) *ClientRecordUpdateOne {
+	mutation := newClientRecordMutation(c.config, OpUpdateOne, withClientRecordID(id))
+	return &ClientRecordUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for ClientRecord.
+func (c *ClientRecordClient) Delete() *ClientRecordDelete {
+	mutation := newClientRecordMutation(c.config, OpDelete)
+	return &ClientRecordDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ClientRecordClient) DeleteOne(_m *ClientRecord) *ClientRecordDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ClientRecordClient) DeleteOneID(id uuid.UUID) *ClientRecordDeleteOne {
+	builder := c.Delete().Where(clientrecord.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ClientRecordDeleteOne{builder}
+}
+
+// Query returns a query builder for ClientRecord.
+func (c *ClientRecordClient) Query() *ClientRecordQuery {
+	return &ClientRecordQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeClientRecord},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a ClientRecord entity by its id.
+func (c *ClientRecordClient) Get(ctx context.Context, id uuid.UUID) (*ClientRecord, error) {
+	return c.Query().Where(clientrecord.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ClientRecordClient) GetX(ctx context.Context, id uuid.UUID) *ClientRecord {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *ClientRecordClient) Hooks() []Hook {
+	return c.hooks.ClientRecord
+}
+
+// Interceptors returns the client interceptors.
+func (c *ClientRecordClient) Interceptors() []Interceptor {
+	return c.inters.ClientRecord
+}
+
+func (c *ClientRecordClient) mutate(ctx context.Context, m *ClientRecordMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ClientRecordCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ClientRecordUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ClientRecordUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ClientRecordDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown ClientRecord mutation op: %q", m.Op())
+	}
+}
+
 // CommissionRecordClient is a client for the CommissionRecord schema.
 type CommissionRecordClient struct {
 	config
@@ -2281,6 +2317,272 @@ func (c *CommissionRecordClient) mutate(ctx context.Context, m *CommissionRecord
 		return (&CommissionRecordDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown CommissionRecord mutation op: %q", m.Op())
+	}
+}
+
+// CommissionRuleClient is a client for the CommissionRule schema.
+type CommissionRuleClient struct {
+	config
+}
+
+// NewCommissionRuleClient returns a client for the CommissionRule from the given config.
+func NewCommissionRuleClient(c config) *CommissionRuleClient {
+	return &CommissionRuleClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `commissionrule.Hooks(f(g(h())))`.
+func (c *CommissionRuleClient) Use(hooks ...Hook) {
+	c.hooks.CommissionRule = append(c.hooks.CommissionRule, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `commissionrule.Intercept(f(g(h())))`.
+func (c *CommissionRuleClient) Intercept(interceptors ...Interceptor) {
+	c.inters.CommissionRule = append(c.inters.CommissionRule, interceptors...)
+}
+
+// Create returns a builder for creating a CommissionRule entity.
+func (c *CommissionRuleClient) Create() *CommissionRuleCreate {
+	mutation := newCommissionRuleMutation(c.config, OpCreate)
+	return &CommissionRuleCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of CommissionRule entities.
+func (c *CommissionRuleClient) CreateBulk(builders ...*CommissionRuleCreate) *CommissionRuleCreateBulk {
+	return &CommissionRuleCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *CommissionRuleClient) MapCreateBulk(slice any, setFunc func(*CommissionRuleCreate, int)) *CommissionRuleCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &CommissionRuleCreateBulk{err: fmt.Errorf("calling to CommissionRuleClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*CommissionRuleCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &CommissionRuleCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for CommissionRule.
+func (c *CommissionRuleClient) Update() *CommissionRuleUpdate {
+	mutation := newCommissionRuleMutation(c.config, OpUpdate)
+	return &CommissionRuleUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *CommissionRuleClient) UpdateOne(_m *CommissionRule) *CommissionRuleUpdateOne {
+	mutation := newCommissionRuleMutation(c.config, OpUpdateOne, withCommissionRule(_m))
+	return &CommissionRuleUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *CommissionRuleClient) UpdateOneID(id uuid.UUID) *CommissionRuleUpdateOne {
+	mutation := newCommissionRuleMutation(c.config, OpUpdateOne, withCommissionRuleID(id))
+	return &CommissionRuleUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for CommissionRule.
+func (c *CommissionRuleClient) Delete() *CommissionRuleDelete {
+	mutation := newCommissionRuleMutation(c.config, OpDelete)
+	return &CommissionRuleDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *CommissionRuleClient) DeleteOne(_m *CommissionRule) *CommissionRuleDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *CommissionRuleClient) DeleteOneID(id uuid.UUID) *CommissionRuleDeleteOne {
+	builder := c.Delete().Where(commissionrule.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &CommissionRuleDeleteOne{builder}
+}
+
+// Query returns a query builder for CommissionRule.
+func (c *CommissionRuleClient) Query() *CommissionRuleQuery {
+	return &CommissionRuleQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeCommissionRule},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a CommissionRule entity by its id.
+func (c *CommissionRuleClient) Get(ctx context.Context, id uuid.UUID) (*CommissionRule, error) {
+	return c.Query().Where(commissionrule.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *CommissionRuleClient) GetX(ctx context.Context, id uuid.UUID) *CommissionRule {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *CommissionRuleClient) Hooks() []Hook {
+	return c.hooks.CommissionRule
+}
+
+// Interceptors returns the client interceptors.
+func (c *CommissionRuleClient) Interceptors() []Interceptor {
+	return c.inters.CommissionRule
+}
+
+func (c *CommissionRuleClient) mutate(ctx context.Context, m *CommissionRuleMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&CommissionRuleCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&CommissionRuleUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&CommissionRuleUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&CommissionRuleDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown CommissionRule mutation op: %q", m.Op())
+	}
+}
+
+// ControlledSubstanceLogClient is a client for the ControlledSubstanceLog schema.
+type ControlledSubstanceLogClient struct {
+	config
+}
+
+// NewControlledSubstanceLogClient returns a client for the ControlledSubstanceLog from the given config.
+func NewControlledSubstanceLogClient(c config) *ControlledSubstanceLogClient {
+	return &ControlledSubstanceLogClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `controlledsubstancelog.Hooks(f(g(h())))`.
+func (c *ControlledSubstanceLogClient) Use(hooks ...Hook) {
+	c.hooks.ControlledSubstanceLog = append(c.hooks.ControlledSubstanceLog, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `controlledsubstancelog.Intercept(f(g(h())))`.
+func (c *ControlledSubstanceLogClient) Intercept(interceptors ...Interceptor) {
+	c.inters.ControlledSubstanceLog = append(c.inters.ControlledSubstanceLog, interceptors...)
+}
+
+// Create returns a builder for creating a ControlledSubstanceLog entity.
+func (c *ControlledSubstanceLogClient) Create() *ControlledSubstanceLogCreate {
+	mutation := newControlledSubstanceLogMutation(c.config, OpCreate)
+	return &ControlledSubstanceLogCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of ControlledSubstanceLog entities.
+func (c *ControlledSubstanceLogClient) CreateBulk(builders ...*ControlledSubstanceLogCreate) *ControlledSubstanceLogCreateBulk {
+	return &ControlledSubstanceLogCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ControlledSubstanceLogClient) MapCreateBulk(slice any, setFunc func(*ControlledSubstanceLogCreate, int)) *ControlledSubstanceLogCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ControlledSubstanceLogCreateBulk{err: fmt.Errorf("calling to ControlledSubstanceLogClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ControlledSubstanceLogCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ControlledSubstanceLogCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for ControlledSubstanceLog.
+func (c *ControlledSubstanceLogClient) Update() *ControlledSubstanceLogUpdate {
+	mutation := newControlledSubstanceLogMutation(c.config, OpUpdate)
+	return &ControlledSubstanceLogUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ControlledSubstanceLogClient) UpdateOne(_m *ControlledSubstanceLog) *ControlledSubstanceLogUpdateOne {
+	mutation := newControlledSubstanceLogMutation(c.config, OpUpdateOne, withControlledSubstanceLog(_m))
+	return &ControlledSubstanceLogUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ControlledSubstanceLogClient) UpdateOneID(id uuid.UUID) *ControlledSubstanceLogUpdateOne {
+	mutation := newControlledSubstanceLogMutation(c.config, OpUpdateOne, withControlledSubstanceLogID(id))
+	return &ControlledSubstanceLogUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for ControlledSubstanceLog.
+func (c *ControlledSubstanceLogClient) Delete() *ControlledSubstanceLogDelete {
+	mutation := newControlledSubstanceLogMutation(c.config, OpDelete)
+	return &ControlledSubstanceLogDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ControlledSubstanceLogClient) DeleteOne(_m *ControlledSubstanceLog) *ControlledSubstanceLogDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ControlledSubstanceLogClient) DeleteOneID(id uuid.UUID) *ControlledSubstanceLogDeleteOne {
+	builder := c.Delete().Where(controlledsubstancelog.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ControlledSubstanceLogDeleteOne{builder}
+}
+
+// Query returns a query builder for ControlledSubstanceLog.
+func (c *ControlledSubstanceLogClient) Query() *ControlledSubstanceLogQuery {
+	return &ControlledSubstanceLogQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeControlledSubstanceLog},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a ControlledSubstanceLog entity by its id.
+func (c *ControlledSubstanceLogClient) Get(ctx context.Context, id uuid.UUID) (*ControlledSubstanceLog, error) {
+	return c.Query().Where(controlledsubstancelog.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ControlledSubstanceLogClient) GetX(ctx context.Context, id uuid.UUID) *ControlledSubstanceLog {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *ControlledSubstanceLogClient) Hooks() []Hook {
+	return c.hooks.ControlledSubstanceLog
+}
+
+// Interceptors returns the client interceptors.
+func (c *ControlledSubstanceLogClient) Interceptors() []Interceptor {
+	return c.inters.ControlledSubstanceLog
+}
+
+func (c *ControlledSubstanceLogClient) mutate(ctx context.Context, m *ControlledSubstanceLogMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ControlledSubstanceLogCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ControlledSubstanceLogUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ControlledSubstanceLogUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ControlledSubstanceLogDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown ControlledSubstanceLog mutation op: %q", m.Op())
 	}
 }
 
@@ -5535,6 +5837,139 @@ func (c *OutletSettingClient) mutate(ctx context.Context, m *OutletSettingMutati
 	}
 }
 
+// POSCatalogOverrideClient is a client for the POSCatalogOverride schema.
+type POSCatalogOverrideClient struct {
+	config
+}
+
+// NewPOSCatalogOverrideClient returns a client for the POSCatalogOverride from the given config.
+func NewPOSCatalogOverrideClient(c config) *POSCatalogOverrideClient {
+	return &POSCatalogOverrideClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `poscatalogoverride.Hooks(f(g(h())))`.
+func (c *POSCatalogOverrideClient) Use(hooks ...Hook) {
+	c.hooks.POSCatalogOverride = append(c.hooks.POSCatalogOverride, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `poscatalogoverride.Intercept(f(g(h())))`.
+func (c *POSCatalogOverrideClient) Intercept(interceptors ...Interceptor) {
+	c.inters.POSCatalogOverride = append(c.inters.POSCatalogOverride, interceptors...)
+}
+
+// Create returns a builder for creating a POSCatalogOverride entity.
+func (c *POSCatalogOverrideClient) Create() *POSCatalogOverrideCreate {
+	mutation := newPOSCatalogOverrideMutation(c.config, OpCreate)
+	return &POSCatalogOverrideCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of POSCatalogOverride entities.
+func (c *POSCatalogOverrideClient) CreateBulk(builders ...*POSCatalogOverrideCreate) *POSCatalogOverrideCreateBulk {
+	return &POSCatalogOverrideCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *POSCatalogOverrideClient) MapCreateBulk(slice any, setFunc func(*POSCatalogOverrideCreate, int)) *POSCatalogOverrideCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &POSCatalogOverrideCreateBulk{err: fmt.Errorf("calling to POSCatalogOverrideClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*POSCatalogOverrideCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &POSCatalogOverrideCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for POSCatalogOverride.
+func (c *POSCatalogOverrideClient) Update() *POSCatalogOverrideUpdate {
+	mutation := newPOSCatalogOverrideMutation(c.config, OpUpdate)
+	return &POSCatalogOverrideUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *POSCatalogOverrideClient) UpdateOne(_m *POSCatalogOverride) *POSCatalogOverrideUpdateOne {
+	mutation := newPOSCatalogOverrideMutation(c.config, OpUpdateOne, withPOSCatalogOverride(_m))
+	return &POSCatalogOverrideUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *POSCatalogOverrideClient) UpdateOneID(id uuid.UUID) *POSCatalogOverrideUpdateOne {
+	mutation := newPOSCatalogOverrideMutation(c.config, OpUpdateOne, withPOSCatalogOverrideID(id))
+	return &POSCatalogOverrideUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for POSCatalogOverride.
+func (c *POSCatalogOverrideClient) Delete() *POSCatalogOverrideDelete {
+	mutation := newPOSCatalogOverrideMutation(c.config, OpDelete)
+	return &POSCatalogOverrideDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *POSCatalogOverrideClient) DeleteOne(_m *POSCatalogOverride) *POSCatalogOverrideDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *POSCatalogOverrideClient) DeleteOneID(id uuid.UUID) *POSCatalogOverrideDeleteOne {
+	builder := c.Delete().Where(poscatalogoverride.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &POSCatalogOverrideDeleteOne{builder}
+}
+
+// Query returns a query builder for POSCatalogOverride.
+func (c *POSCatalogOverrideClient) Query() *POSCatalogOverrideQuery {
+	return &POSCatalogOverrideQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypePOSCatalogOverride},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a POSCatalogOverride entity by its id.
+func (c *POSCatalogOverrideClient) Get(ctx context.Context, id uuid.UUID) (*POSCatalogOverride, error) {
+	return c.Query().Where(poscatalogoverride.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *POSCatalogOverrideClient) GetX(ctx context.Context, id uuid.UUID) *POSCatalogOverride {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *POSCatalogOverrideClient) Hooks() []Hook {
+	return c.hooks.POSCatalogOverride
+}
+
+// Interceptors returns the client interceptors.
+func (c *POSCatalogOverrideClient) Interceptors() []Interceptor {
+	return c.inters.POSCatalogOverride
+}
+
+func (c *POSCatalogOverrideClient) mutate(ctx context.Context, m *POSCatalogOverrideMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&POSCatalogOverrideCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&POSCatalogOverrideUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&POSCatalogOverrideUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&POSCatalogOverrideDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown POSCatalogOverride mutation op: %q", m.Op())
+	}
+}
+
 // POSDeviceClient is a client for the POSDevice schema.
 type POSDeviceClient struct {
 	config
@@ -8570,22 +9005,6 @@ func (c *PriceBookItemClient) QueryPriceBook(_m *PriceBookItem) *PriceBookQuery 
 	return query
 }
 
-// QueryCatalogItem queries the catalog_item edge of a PriceBookItem.
-func (c *PriceBookItemClient) QueryCatalogItem(_m *PriceBookItem) *CatalogItemQuery {
-	query := (&CatalogItemClient{config: c.config}).Query()
-	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
-		id := _m.ID
-		step := sqlgraph.NewStep(
-			sqlgraph.From(pricebookitem.Table, pricebookitem.FieldID, id),
-			sqlgraph.To(catalogitem.Table, catalogitem.FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, true, pricebookitem.CatalogItemTable, pricebookitem.CatalogItemColumn),
-		)
-		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
-		return fromV, nil
-	}
-	return query
-}
-
 // Hooks returns the client hooks.
 func (c *PriceBookItemClient) Hooks() []Hook {
 	return c.hooks.PriceBookItem
@@ -10183,6 +10602,405 @@ func (c *ServiceConfigClient) mutate(ctx context.Context, m *ServiceConfigMutati
 		return (&ServiceConfigDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown ServiceConfig mutation op: %q", m.Op())
+	}
+}
+
+// ServicePackageClient is a client for the ServicePackage schema.
+type ServicePackageClient struct {
+	config
+}
+
+// NewServicePackageClient returns a client for the ServicePackage from the given config.
+func NewServicePackageClient(c config) *ServicePackageClient {
+	return &ServicePackageClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `servicepackage.Hooks(f(g(h())))`.
+func (c *ServicePackageClient) Use(hooks ...Hook) {
+	c.hooks.ServicePackage = append(c.hooks.ServicePackage, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `servicepackage.Intercept(f(g(h())))`.
+func (c *ServicePackageClient) Intercept(interceptors ...Interceptor) {
+	c.inters.ServicePackage = append(c.inters.ServicePackage, interceptors...)
+}
+
+// Create returns a builder for creating a ServicePackage entity.
+func (c *ServicePackageClient) Create() *ServicePackageCreate {
+	mutation := newServicePackageMutation(c.config, OpCreate)
+	return &ServicePackageCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of ServicePackage entities.
+func (c *ServicePackageClient) CreateBulk(builders ...*ServicePackageCreate) *ServicePackageCreateBulk {
+	return &ServicePackageCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ServicePackageClient) MapCreateBulk(slice any, setFunc func(*ServicePackageCreate, int)) *ServicePackageCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ServicePackageCreateBulk{err: fmt.Errorf("calling to ServicePackageClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ServicePackageCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ServicePackageCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for ServicePackage.
+func (c *ServicePackageClient) Update() *ServicePackageUpdate {
+	mutation := newServicePackageMutation(c.config, OpUpdate)
+	return &ServicePackageUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ServicePackageClient) UpdateOne(_m *ServicePackage) *ServicePackageUpdateOne {
+	mutation := newServicePackageMutation(c.config, OpUpdateOne, withServicePackage(_m))
+	return &ServicePackageUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ServicePackageClient) UpdateOneID(id uuid.UUID) *ServicePackageUpdateOne {
+	mutation := newServicePackageMutation(c.config, OpUpdateOne, withServicePackageID(id))
+	return &ServicePackageUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for ServicePackage.
+func (c *ServicePackageClient) Delete() *ServicePackageDelete {
+	mutation := newServicePackageMutation(c.config, OpDelete)
+	return &ServicePackageDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ServicePackageClient) DeleteOne(_m *ServicePackage) *ServicePackageDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ServicePackageClient) DeleteOneID(id uuid.UUID) *ServicePackageDeleteOne {
+	builder := c.Delete().Where(servicepackage.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ServicePackageDeleteOne{builder}
+}
+
+// Query returns a query builder for ServicePackage.
+func (c *ServicePackageClient) Query() *ServicePackageQuery {
+	return &ServicePackageQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeServicePackage},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a ServicePackage entity by its id.
+func (c *ServicePackageClient) Get(ctx context.Context, id uuid.UUID) (*ServicePackage, error) {
+	return c.Query().Where(servicepackage.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ServicePackageClient) GetX(ctx context.Context, id uuid.UUID) *ServicePackage {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *ServicePackageClient) Hooks() []Hook {
+	return c.hooks.ServicePackage
+}
+
+// Interceptors returns the client interceptors.
+func (c *ServicePackageClient) Interceptors() []Interceptor {
+	return c.inters.ServicePackage
+}
+
+func (c *ServicePackageClient) mutate(ctx context.Context, m *ServicePackageMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ServicePackageCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ServicePackageUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ServicePackageUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ServicePackageDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown ServicePackage mutation op: %q", m.Op())
+	}
+}
+
+// ServicePackagePurchaseClient is a client for the ServicePackagePurchase schema.
+type ServicePackagePurchaseClient struct {
+	config
+}
+
+// NewServicePackagePurchaseClient returns a client for the ServicePackagePurchase from the given config.
+func NewServicePackagePurchaseClient(c config) *ServicePackagePurchaseClient {
+	return &ServicePackagePurchaseClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `servicepackagepurchase.Hooks(f(g(h())))`.
+func (c *ServicePackagePurchaseClient) Use(hooks ...Hook) {
+	c.hooks.ServicePackagePurchase = append(c.hooks.ServicePackagePurchase, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `servicepackagepurchase.Intercept(f(g(h())))`.
+func (c *ServicePackagePurchaseClient) Intercept(interceptors ...Interceptor) {
+	c.inters.ServicePackagePurchase = append(c.inters.ServicePackagePurchase, interceptors...)
+}
+
+// Create returns a builder for creating a ServicePackagePurchase entity.
+func (c *ServicePackagePurchaseClient) Create() *ServicePackagePurchaseCreate {
+	mutation := newServicePackagePurchaseMutation(c.config, OpCreate)
+	return &ServicePackagePurchaseCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of ServicePackagePurchase entities.
+func (c *ServicePackagePurchaseClient) CreateBulk(builders ...*ServicePackagePurchaseCreate) *ServicePackagePurchaseCreateBulk {
+	return &ServicePackagePurchaseCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ServicePackagePurchaseClient) MapCreateBulk(slice any, setFunc func(*ServicePackagePurchaseCreate, int)) *ServicePackagePurchaseCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ServicePackagePurchaseCreateBulk{err: fmt.Errorf("calling to ServicePackagePurchaseClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ServicePackagePurchaseCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ServicePackagePurchaseCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for ServicePackagePurchase.
+func (c *ServicePackagePurchaseClient) Update() *ServicePackagePurchaseUpdate {
+	mutation := newServicePackagePurchaseMutation(c.config, OpUpdate)
+	return &ServicePackagePurchaseUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ServicePackagePurchaseClient) UpdateOne(_m *ServicePackagePurchase) *ServicePackagePurchaseUpdateOne {
+	mutation := newServicePackagePurchaseMutation(c.config, OpUpdateOne, withServicePackagePurchase(_m))
+	return &ServicePackagePurchaseUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ServicePackagePurchaseClient) UpdateOneID(id uuid.UUID) *ServicePackagePurchaseUpdateOne {
+	mutation := newServicePackagePurchaseMutation(c.config, OpUpdateOne, withServicePackagePurchaseID(id))
+	return &ServicePackagePurchaseUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for ServicePackagePurchase.
+func (c *ServicePackagePurchaseClient) Delete() *ServicePackagePurchaseDelete {
+	mutation := newServicePackagePurchaseMutation(c.config, OpDelete)
+	return &ServicePackagePurchaseDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ServicePackagePurchaseClient) DeleteOne(_m *ServicePackagePurchase) *ServicePackagePurchaseDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ServicePackagePurchaseClient) DeleteOneID(id uuid.UUID) *ServicePackagePurchaseDeleteOne {
+	builder := c.Delete().Where(servicepackagepurchase.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ServicePackagePurchaseDeleteOne{builder}
+}
+
+// Query returns a query builder for ServicePackagePurchase.
+func (c *ServicePackagePurchaseClient) Query() *ServicePackagePurchaseQuery {
+	return &ServicePackagePurchaseQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeServicePackagePurchase},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a ServicePackagePurchase entity by its id.
+func (c *ServicePackagePurchaseClient) Get(ctx context.Context, id uuid.UUID) (*ServicePackagePurchase, error) {
+	return c.Query().Where(servicepackagepurchase.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ServicePackagePurchaseClient) GetX(ctx context.Context, id uuid.UUID) *ServicePackagePurchase {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *ServicePackagePurchaseClient) Hooks() []Hook {
+	return c.hooks.ServicePackagePurchase
+}
+
+// Interceptors returns the client interceptors.
+func (c *ServicePackagePurchaseClient) Interceptors() []Interceptor {
+	return c.inters.ServicePackagePurchase
+}
+
+func (c *ServicePackagePurchaseClient) mutate(ctx context.Context, m *ServicePackagePurchaseMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ServicePackagePurchaseCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ServicePackagePurchaseUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ServicePackagePurchaseUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ServicePackagePurchaseDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown ServicePackagePurchase mutation op: %q", m.Op())
+	}
+}
+
+// ServicePackageRedemptionClient is a client for the ServicePackageRedemption schema.
+type ServicePackageRedemptionClient struct {
+	config
+}
+
+// NewServicePackageRedemptionClient returns a client for the ServicePackageRedemption from the given config.
+func NewServicePackageRedemptionClient(c config) *ServicePackageRedemptionClient {
+	return &ServicePackageRedemptionClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `servicepackageredemption.Hooks(f(g(h())))`.
+func (c *ServicePackageRedemptionClient) Use(hooks ...Hook) {
+	c.hooks.ServicePackageRedemption = append(c.hooks.ServicePackageRedemption, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `servicepackageredemption.Intercept(f(g(h())))`.
+func (c *ServicePackageRedemptionClient) Intercept(interceptors ...Interceptor) {
+	c.inters.ServicePackageRedemption = append(c.inters.ServicePackageRedemption, interceptors...)
+}
+
+// Create returns a builder for creating a ServicePackageRedemption entity.
+func (c *ServicePackageRedemptionClient) Create() *ServicePackageRedemptionCreate {
+	mutation := newServicePackageRedemptionMutation(c.config, OpCreate)
+	return &ServicePackageRedemptionCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of ServicePackageRedemption entities.
+func (c *ServicePackageRedemptionClient) CreateBulk(builders ...*ServicePackageRedemptionCreate) *ServicePackageRedemptionCreateBulk {
+	return &ServicePackageRedemptionCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ServicePackageRedemptionClient) MapCreateBulk(slice any, setFunc func(*ServicePackageRedemptionCreate, int)) *ServicePackageRedemptionCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ServicePackageRedemptionCreateBulk{err: fmt.Errorf("calling to ServicePackageRedemptionClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ServicePackageRedemptionCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ServicePackageRedemptionCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for ServicePackageRedemption.
+func (c *ServicePackageRedemptionClient) Update() *ServicePackageRedemptionUpdate {
+	mutation := newServicePackageRedemptionMutation(c.config, OpUpdate)
+	return &ServicePackageRedemptionUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ServicePackageRedemptionClient) UpdateOne(_m *ServicePackageRedemption) *ServicePackageRedemptionUpdateOne {
+	mutation := newServicePackageRedemptionMutation(c.config, OpUpdateOne, withServicePackageRedemption(_m))
+	return &ServicePackageRedemptionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ServicePackageRedemptionClient) UpdateOneID(id uuid.UUID) *ServicePackageRedemptionUpdateOne {
+	mutation := newServicePackageRedemptionMutation(c.config, OpUpdateOne, withServicePackageRedemptionID(id))
+	return &ServicePackageRedemptionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for ServicePackageRedemption.
+func (c *ServicePackageRedemptionClient) Delete() *ServicePackageRedemptionDelete {
+	mutation := newServicePackageRedemptionMutation(c.config, OpDelete)
+	return &ServicePackageRedemptionDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ServicePackageRedemptionClient) DeleteOne(_m *ServicePackageRedemption) *ServicePackageRedemptionDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ServicePackageRedemptionClient) DeleteOneID(id uuid.UUID) *ServicePackageRedemptionDeleteOne {
+	builder := c.Delete().Where(servicepackageredemption.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ServicePackageRedemptionDeleteOne{builder}
+}
+
+// Query returns a query builder for ServicePackageRedemption.
+func (c *ServicePackageRedemptionClient) Query() *ServicePackageRedemptionQuery {
+	return &ServicePackageRedemptionQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeServicePackageRedemption},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a ServicePackageRedemption entity by its id.
+func (c *ServicePackageRedemptionClient) Get(ctx context.Context, id uuid.UUID) (*ServicePackageRedemption, error) {
+	return c.Query().Where(servicepackageredemption.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ServicePackageRedemptionClient) GetX(ctx context.Context, id uuid.UUID) *ServicePackageRedemption {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *ServicePackageRedemptionClient) Hooks() []Hook {
+	return c.hooks.ServicePackageRedemption
+}
+
+// Interceptors returns the client interceptors.
+func (c *ServicePackageRedemptionClient) Interceptors() []Interceptor {
+	return c.inters.ServicePackageRedemption
+}
+
+func (c *ServicePackageRedemptionClient) mutate(ctx context.Context, m *ServicePackageRedemptionMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ServicePackageRedemptionCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ServicePackageRedemptionUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ServicePackageRedemptionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ServicePackageRedemptionDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown ServicePackageRedemption mutation op: %q", m.Op())
 	}
 }
 
@@ -12462,38 +13280,44 @@ func (c *WeighingScaleReadingClient) mutate(ctx context.Context, m *WeighingScal
 type (
 	hooks struct {
 		Appointment, BarTab, BarTabEvent, BillSplit, CashDrawer, CashDrawerEvent,
-		CatalogItem, ChannelIntegration, ChannelSyncJob, CommissionRecord,
-		DailyClosing, DrugInteractionCheck, Facility, FacilityBooking, FeatureOverride,
-		GiftCard, GiftCardTransaction, IntegrationSetting, InventorySnapshot,
-		KDSStation, KDSTicket, LayawayPayment, LayawayPlan, LicenseUsageSnapshot,
-		LoyaltyAccount, LoyaltyProgram, LoyaltyTransaction, Modifier, ModifierGroup,
-		OrderLink, OutboxEvent, Outlet, OutletSetting, POSDevice, POSDeviceSession,
+		ChannelIntegration, ChannelSyncJob, ClientRecord, CommissionRecord,
+		CommissionRule, ControlledSubstanceLog, DailyClosing, DrugInteractionCheck,
+		Facility, FacilityBooking, FeatureOverride, GiftCard, GiftCardTransaction,
+		IntegrationSetting, InventorySnapshot, KDSStation, KDSTicket, LayawayPayment,
+		LayawayPlan, LicenseUsageSnapshot, LoyaltyAccount, LoyaltyProgram,
+		LoyaltyTransaction, Modifier, ModifierGroup, OrderLink, OutboxEvent, Outlet,
+		OutletSetting, POSCatalogOverride, POSDevice, POSDeviceSession,
 		POSLineModifier, POSOrder, POSOrderEvent, POSOrderLine, POSPayment,
 		POSPermission, POSRefund, POSReturn, POSReturnLine, POSRole, POSRolePermission,
 		POSRoleV2, POSUserRoleAssignment, PosNotification, Prescription,
 		PrescriptionLine, PriceBook, PriceBookItem, Promotion, PromotionApplication,
 		PromotionRule, RateLimitConfig, Resource, Room, RoomFolioItem, RoomGuest,
-		Section, SerialNumberLog, ServiceConfig, ServiceQueueEntry, StaffMember,
-		StaffSchedule, StockAlertSubscription, StockConsumptionEvent, SyncFailure,
-		Table, TableAssignment, Tenant, TenantSyncEvent, Tender, User, UserPOSRole,
-		WebhookDelivery, WebhookSubscription, WeighingScaleReading []ent.Hook
+		Section, SerialNumberLog, ServiceConfig, ServicePackage,
+		ServicePackagePurchase, ServicePackageRedemption, ServiceQueueEntry,
+		StaffMember, StaffSchedule, StockAlertSubscription, StockConsumptionEvent,
+		SyncFailure, Table, TableAssignment, Tenant, TenantSyncEvent, Tender, User,
+		UserPOSRole, WebhookDelivery, WebhookSubscription,
+		WeighingScaleReading []ent.Hook
 	}
 	inters struct {
 		Appointment, BarTab, BarTabEvent, BillSplit, CashDrawer, CashDrawerEvent,
-		CatalogItem, ChannelIntegration, ChannelSyncJob, CommissionRecord,
-		DailyClosing, DrugInteractionCheck, Facility, FacilityBooking, FeatureOverride,
-		GiftCard, GiftCardTransaction, IntegrationSetting, InventorySnapshot,
-		KDSStation, KDSTicket, LayawayPayment, LayawayPlan, LicenseUsageSnapshot,
-		LoyaltyAccount, LoyaltyProgram, LoyaltyTransaction, Modifier, ModifierGroup,
-		OrderLink, OutboxEvent, Outlet, OutletSetting, POSDevice, POSDeviceSession,
+		ChannelIntegration, ChannelSyncJob, ClientRecord, CommissionRecord,
+		CommissionRule, ControlledSubstanceLog, DailyClosing, DrugInteractionCheck,
+		Facility, FacilityBooking, FeatureOverride, GiftCard, GiftCardTransaction,
+		IntegrationSetting, InventorySnapshot, KDSStation, KDSTicket, LayawayPayment,
+		LayawayPlan, LicenseUsageSnapshot, LoyaltyAccount, LoyaltyProgram,
+		LoyaltyTransaction, Modifier, ModifierGroup, OrderLink, OutboxEvent, Outlet,
+		OutletSetting, POSCatalogOverride, POSDevice, POSDeviceSession,
 		POSLineModifier, POSOrder, POSOrderEvent, POSOrderLine, POSPayment,
 		POSPermission, POSRefund, POSReturn, POSReturnLine, POSRole, POSRolePermission,
 		POSRoleV2, POSUserRoleAssignment, PosNotification, Prescription,
 		PrescriptionLine, PriceBook, PriceBookItem, Promotion, PromotionApplication,
 		PromotionRule, RateLimitConfig, Resource, Room, RoomFolioItem, RoomGuest,
-		Section, SerialNumberLog, ServiceConfig, ServiceQueueEntry, StaffMember,
-		StaffSchedule, StockAlertSubscription, StockConsumptionEvent, SyncFailure,
-		Table, TableAssignment, Tenant, TenantSyncEvent, Tender, User, UserPOSRole,
-		WebhookDelivery, WebhookSubscription, WeighingScaleReading []ent.Interceptor
+		Section, SerialNumberLog, ServiceConfig, ServicePackage,
+		ServicePackagePurchase, ServicePackageRedemption, ServiceQueueEntry,
+		StaffMember, StaffSchedule, StockAlertSubscription, StockConsumptionEvent,
+		SyncFailure, Table, TableAssignment, Tenant, TenantSyncEvent, Tender, User,
+		UserPOSRole, WebhookDelivery, WebhookSubscription,
+		WeighingScaleReading []ent.Interceptor
 	}
 )

@@ -28,6 +28,8 @@ const (
 	FieldMinRedeemPoints = "min_redeem_points"
 	// FieldIsActive holds the string denoting the is_active field in the database.
 	FieldIsActive = "is_active"
+	// FieldTierThresholds holds the string denoting the tier_thresholds field in the database.
+	FieldTierThresholds = "tier_thresholds"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
@@ -46,6 +48,7 @@ var Columns = []string{
 	FieldRedeemRate,
 	FieldMinRedeemPoints,
 	FieldIsActive,
+	FieldTierThresholds,
 	FieldCreatedAt,
 	FieldUpdatedAt,
 }

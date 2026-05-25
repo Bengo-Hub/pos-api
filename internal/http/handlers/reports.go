@@ -7,10 +7,12 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
 	"github.com/bengobox/pos-service/internal/ent"
+	entcommrec "github.com/bengobox/pos-service/internal/ent/commissionrecord"
 	"github.com/bengobox/pos-service/internal/ent/posdevicesession"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
 	"github.com/bengobox/pos-service/internal/ent/posrefund"
@@ -468,6 +470,291 @@ func (h *ReportsHandler) ExportDailyReport(w http.ResponseWriter, r *http.Reques
 		})
 	}
 	cw.Flush()
+}
+
+// ShiftReport handles GET /{tenantID}/pos/reports/shifts/{sessionID}
+// Returns a per-session (device shift) sales summary: order count, revenue, tender breakdown, refunds, voids.
+func (h *ReportsHandler) ShiftReport(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+
+	sessionID, err := uuid.Parse(chi.URLParam(r, "sessionID"))
+	if err != nil {
+		jsonError(w, "invalid session_id", http.StatusBadRequest)
+		return
+	}
+
+	session, err := h.db.POSDeviceSession.Get(r.Context(), sessionID)
+	if err != nil || session.TenantID != tid {
+		jsonError(w, "session not found", http.StatusNotFound)
+		return
+	}
+
+	orders, err := h.db.POSOrder.Query().
+		Where(posorder.TenantID(tid), posorder.DeviceID(session.DeviceID), posorder.StatusEQ("completed")).
+		All(r.Context())
+	if err != nil {
+		h.log.Error("shift report orders query failed", zap.Error(err))
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	// Collect order IDs so we can query refunds (POSRefund has no tenant_id/session_id).
+	orderIDs := make([]uuid.UUID, 0, len(orders))
+	for _, o := range orders {
+		orderIDs = append(orderIDs, o.ID)
+	}
+	var refunds []*ent.POSRefund
+	if len(orderIDs) > 0 {
+		refunds, err = h.db.POSRefund.Query().
+			Where(posrefund.OrderIDIn(orderIDs...)).
+			All(r.Context())
+		if err != nil {
+			h.log.Error("shift report refunds query failed", zap.Error(err))
+			jsonError(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	totalRevenue, totalTax, totalDiscount := 0.0, 0.0, 0.0
+	for _, o := range orders {
+		totalRevenue += o.TotalAmount
+		totalTax += o.TaxTotal
+		totalDiscount += o.DiscountTotal
+	}
+	totalRefunds := 0.0
+	for _, ref := range refunds {
+		totalRefunds += ref.Amount
+	}
+
+	jsonOK(w, map[string]any{
+		"session_id":      sessionID,
+		"device_id":       session.DeviceID,
+		"started_at":      session.OpenedAt,
+		"ended_at":        session.ClosedAt,
+		"order_count":     len(orders),
+		"total_revenue":   totalRevenue,
+		"total_tax":       totalTax,
+		"total_discounts": totalDiscount,
+		"total_refunds":   totalRefunds,
+		"net_sales":       totalRevenue - totalRefunds,
+		"opening_cash":    session.FloatAmount,
+	})
+}
+
+// ShiftReportList handles GET /{tenantID}/pos/reports/shifts
+// Lists all device sessions with summary stats. Filter: device_id, from, to.
+func (h *ReportsHandler) ShiftReportList(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+
+	from, to := parseDateRange(r)
+	q := h.db.POSDeviceSession.Query().
+		Where(posdevicesession.TenantID(tid),
+			posdevicesession.OpenedAtGTE(from),
+			posdevicesession.OpenedAtLTE(to))
+
+	if devID := r.URL.Query().Get("device_id"); devID != "" {
+		if did, parseErr := uuid.Parse(devID); parseErr == nil {
+			q = q.Where(posdevicesession.DeviceID(did))
+		}
+	}
+
+	sessions, err := q.Order(ent.Desc(posdevicesession.FieldOpenedAt)).All(r.Context())
+	if err != nil {
+		h.log.Error("shift list query failed", zap.Error(err))
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	jsonOK(w, map[string]any{"data": sessions, "total": len(sessions)})
+}
+
+// CommissionReport handles GET /{tenantID}/pos/reports/commissions
+// Returns unpaid (pending) commission totals per staff member.
+func (h *ReportsHandler) CommissionReport(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+
+	from, to := parseDateRange(r)
+	recs, err := h.db.CommissionRecord.Query().
+		Where(
+			entcommrec.TenantID(tid),
+			entcommrec.StatusEQ("pending"),
+			entcommrec.CreatedAtGTE(from),
+			entcommrec.CreatedAtLTE(to),
+		).
+		All(r.Context())
+	if err != nil {
+		h.log.Error("commission report query failed", zap.Error(err))
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	type staffSummary struct {
+		StaffID         uuid.UUID `json:"staff_member_id"`
+		PendingAmount   float64   `json:"pending_amount"`
+		RecordCount     int       `json:"record_count"`
+	}
+	byStaff := make(map[uuid.UUID]*staffSummary)
+	for _, rec := range recs {
+		if _, ok := byStaff[rec.StaffMemberID]; !ok {
+			byStaff[rec.StaffMemberID] = &staffSummary{StaffID: rec.StaffMemberID}
+		}
+		byStaff[rec.StaffMemberID].PendingAmount += rec.CommissionAmount
+		byStaff[rec.StaffMemberID].RecordCount++
+	}
+
+	rows := make([]*staffSummary, 0, len(byStaff))
+	for _, s := range byStaff {
+		rows = append(rows, s)
+	}
+	jsonOK(w, map[string]any{"data": rows, "total": len(rows)})
+}
+
+// TaxReport handles GET /{tenantID}/pos/reports/tax
+// Returns tax collected by date range for VAT/KRA returns.
+func (h *ReportsHandler) TaxReport(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+
+	from, to := parseDateRange(r)
+	orders, err := h.db.POSOrder.Query().
+		Where(posorder.TenantID(tid), posorder.StatusEQ("completed"),
+			posorder.CreatedAtGTE(from), posorder.CreatedAtLTE(to)).
+		All(r.Context())
+	if err != nil {
+		h.log.Error("tax report query failed", zap.Error(err))
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	totalTaxable, totalTax := 0.0, 0.0
+	for _, o := range orders {
+		totalTaxable += o.Subtotal
+		totalTax += o.TaxTotal
+	}
+
+	jsonOK(w, map[string]any{
+		"from":            from.Format("2006-01-02"),
+		"to":              to.Format("2006-01-02"),
+		"total_taxable_sales": totalTaxable,
+		"total_tax_amount":    totalTax,
+		"order_count":         len(orders),
+	})
+}
+
+// SalesByHour handles GET /{tenantID}/pos/reports/sales/by-hour?date=YYYY-MM-DD
+// Returns hourly sales breakdown for a single day.
+func (h *ReportsHandler) SalesByHour(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+
+	dateStr := r.URL.Query().Get("date")
+	if dateStr == "" {
+		dateStr = time.Now().UTC().Format("2006-01-02")
+	}
+	date, err := time.Parse("2006-01-02", dateStr)
+	if err != nil {
+		jsonError(w, "invalid date, use YYYY-MM-DD", http.StatusBadRequest)
+		return
+	}
+
+	dayStart := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.UTC)
+	dayEnd := dayStart.Add(24 * time.Hour)
+
+	orders, err := h.db.POSOrder.Query().
+		Where(posorder.TenantID(tid), posorder.StatusEQ("completed"),
+			posorder.CreatedAtGTE(dayStart), posorder.CreatedAtLT(dayEnd)).
+		All(r.Context())
+	if err != nil {
+		h.log.Error("by-hour query failed", zap.Error(err))
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	type hourBucket struct {
+		Hour       int     `json:"hour"`
+		OrderCount int     `json:"order_count"`
+		Revenue    float64 `json:"revenue"`
+	}
+	buckets := make([]hourBucket, 24)
+	for i := range buckets {
+		buckets[i].Hour = i
+	}
+	for _, o := range orders {
+		h := o.CreatedAt.UTC().Hour()
+		buckets[h].OrderCount++
+		buckets[h].Revenue += o.TotalAmount
+	}
+
+	jsonOK(w, map[string]any{"date": dateStr, "hours": buckets})
+}
+
+// SalesByCategory handles GET /{tenantID}/pos/reports/sales/by-category
+// Returns revenue and order count grouped by catalog item category.
+func (h *ReportsHandler) SalesByCategory(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+
+	from, to := parseDateRange(r)
+
+	// POSOrderLine has no tenant_id/created_at — filter through completed orders.
+	orders, err := h.db.POSOrder.Query().
+		Where(posorder.TenantID(tid),
+			posorder.StatusEQ("completed"),
+			posorder.CreatedAtGTE(from),
+			posorder.CreatedAtLTE(to)).
+		WithLines().
+		All(r.Context())
+	if err != nil {
+		h.log.Error("by-category query failed", zap.Error(err))
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	type catBucket struct {
+		Category string  `json:"category"`
+		Revenue  float64 `json:"revenue"`
+		Quantity float64 `json:"quantity"`
+	}
+	byCategory := make(map[string]*catBucket)
+	for _, o := range orders {
+		for _, line := range o.Edges.Lines {
+			cat, _ := line.Metadata["category"].(string)
+			if cat == "" {
+				cat = "Uncategorised"
+			}
+			if _, ok := byCategory[cat]; !ok {
+				byCategory[cat] = &catBucket{Category: cat}
+			}
+			byCategory[cat].Revenue += line.TotalPrice
+			byCategory[cat].Quantity += line.Quantity
+		}
+	}
+
+	rows := make([]*catBucket, 0, len(byCategory))
+	for _, b := range byCategory {
+		rows = append(rows, b)
+	}
+	jsonOK(w, map[string]any{"data": rows, "total": len(rows)})
 }
 
 // ── helpers ──────────────────────────────────────────────────────────────────

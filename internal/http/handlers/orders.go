@@ -14,6 +14,7 @@ import (
 	"github.com/Bengo-Hub/httpware"
 	"github.com/bengobox/pos-service/internal/ent"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
+	"github.com/bengobox/pos-service/internal/ent/posorderline"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
 	"github.com/bengobox/pos-service/internal/modules/orders"
 	"github.com/bengobox/pos-service/internal/platform/subscriptions"
@@ -306,5 +307,63 @@ func (h *POSOrderHandler) VoidOrder(w http.ResponseWriter, r *http.Request) {
 		zap.String("reason", input.Reason),
 	)
 	jsonOK(w, updated)
+}
+
+// CaptureSerial handles POST /{tenantID}/pos/orders/{orderID}/lines/{lineID}/serials
+// Captures a serial number for a tracked item on an order line.
+func (h *POSOrderHandler) CaptureSerial(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+
+	orderID, err := uuid.Parse(chi.URLParam(r, "orderID"))
+	if err != nil {
+		jsonError(w, "invalid order_id", http.StatusBadRequest)
+		return
+	}
+	lineID, err := uuid.Parse(chi.URLParam(r, "lineID"))
+	if err != nil {
+		jsonError(w, "invalid line_id", http.StatusBadRequest)
+		return
+	}
+
+	var input struct {
+		SerialNumber string `json:"serial_number"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil || input.SerialNumber == "" {
+		jsonError(w, "serial_number is required", http.StatusBadRequest)
+		return
+	}
+
+	// Verify the line belongs to this order + tenant
+	line, err := h.client.POSOrderLine.Query().
+		Where(posorderline.ID(lineID), posorderline.OrderID(orderID)).
+		Only(r.Context())
+	if err != nil {
+		if ent.IsNotFound(err) {
+			jsonError(w, "order line not found", http.StatusNotFound)
+			return
+		}
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	// Create a SerialNumberLog entry for audit trail
+	_, err = h.client.SerialNumberLog.Create().
+		SetTenantID(tid).
+		SetOrderLineID(lineID).
+		SetSerialNumber(input.SerialNumber).
+		SetItemSku(line.Sku).
+		Save(r.Context())
+	if err != nil {
+		h.log.Error("capture serial failed", zap.Error(err))
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	jsonOK(w, map[string]any{"order_line_id": lineID, "serial_number": input.SerialNumber})
 }
 

@@ -43,6 +43,22 @@ const (
 	FieldNotes = "notes"
 	// FieldDrawerIds holds the string denoting the drawer_ids field in the database.
 	FieldDrawerIds = "drawer_ids"
+	// FieldTotalCard holds the string denoting the total_card field in the database.
+	FieldTotalCard = "total_card"
+	// FieldTotalMpesa holds the string denoting the total_mpesa field in the database.
+	FieldTotalMpesa = "total_mpesa"
+	// FieldTotalTax holds the string denoting the total_tax field in the database.
+	FieldTotalTax = "total_tax"
+	// FieldTotalLoyaltyRedemptions holds the string denoting the total_loyalty_redemptions field in the database.
+	FieldTotalLoyaltyRedemptions = "total_loyalty_redemptions"
+	// FieldTotalRoomCharge holds the string denoting the total_room_charge field in the database.
+	FieldTotalRoomCharge = "total_room_charge"
+	// FieldTotalOrders holds the string denoting the total_orders field in the database.
+	FieldTotalOrders = "total_orders"
+	// FieldTotalItemsSold holds the string denoting the total_items_sold field in the database.
+	FieldTotalItemsSold = "total_items_sold"
+	// FieldClosedAt holds the string denoting the closed_at field in the database.
+	FieldClosedAt = "closed_at"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
@@ -77,6 +93,14 @@ var Columns = []string{
 	FieldClosedBy,
 	FieldNotes,
 	FieldDrawerIds,
+	FieldTotalCard,
+	FieldTotalMpesa,
+	FieldTotalTax,
+	FieldTotalLoyaltyRedemptions,
+	FieldTotalRoomCharge,
+	FieldTotalOrders,
+	FieldTotalItemsSold,
+	FieldClosedAt,
 	FieldCreatedAt,
 	FieldUpdatedAt,
 }
@@ -110,6 +134,20 @@ var (
 	DefaultStatus string
 	// DefaultDrawerIds holds the default value on creation for the "drawer_ids" field.
 	DefaultDrawerIds []uuid.UUID
+	// DefaultTotalCard holds the default value on creation for the "total_card" field.
+	DefaultTotalCard float64
+	// DefaultTotalMpesa holds the default value on creation for the "total_mpesa" field.
+	DefaultTotalMpesa float64
+	// DefaultTotalTax holds the default value on creation for the "total_tax" field.
+	DefaultTotalTax float64
+	// DefaultTotalLoyaltyRedemptions holds the default value on creation for the "total_loyalty_redemptions" field.
+	DefaultTotalLoyaltyRedemptions float64
+	// DefaultTotalRoomCharge holds the default value on creation for the "total_room_charge" field.
+	DefaultTotalRoomCharge float64
+	// DefaultTotalOrders holds the default value on creation for the "total_orders" field.
+	DefaultTotalOrders int
+	// DefaultTotalItemsSold holds the default value on creation for the "total_items_sold" field.
+	DefaultTotalItemsSold int
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
@@ -191,6 +229,46 @@ func ByClosedBy(opts ...sql.OrderTermOption) OrderOption {
 // ByNotes orders the results by the notes field.
 func ByNotes(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldNotes, opts...).ToFunc()
+}
+
+// ByTotalCard orders the results by the total_card field.
+func ByTotalCard(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTotalCard, opts...).ToFunc()
+}
+
+// ByTotalMpesa orders the results by the total_mpesa field.
+func ByTotalMpesa(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTotalMpesa, opts...).ToFunc()
+}
+
+// ByTotalTax orders the results by the total_tax field.
+func ByTotalTax(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTotalTax, opts...).ToFunc()
+}
+
+// ByTotalLoyaltyRedemptions orders the results by the total_loyalty_redemptions field.
+func ByTotalLoyaltyRedemptions(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTotalLoyaltyRedemptions, opts...).ToFunc()
+}
+
+// ByTotalRoomCharge orders the results by the total_room_charge field.
+func ByTotalRoomCharge(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTotalRoomCharge, opts...).ToFunc()
+}
+
+// ByTotalOrders orders the results by the total_orders field.
+func ByTotalOrders(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTotalOrders, opts...).ToFunc()
+}
+
+// ByTotalItemsSold orders the results by the total_items_sold field.
+func ByTotalItemsSold(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTotalItemsSold, opts...).ToFunc()
+}
+
+// ByClosedAt orders the results by the closed_at field.
+func ByClosedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldClosedAt, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.

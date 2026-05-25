@@ -33,6 +33,10 @@ const (
 	FieldLotNumber = "lot_number"
 	// FieldExpiryDate holds the string denoting the expiry_date field in the database.
 	FieldExpiryDate = "expiry_date"
+	// FieldSerialNumber holds the string denoting the serial_number field in the database.
+	FieldSerialNumber = "serial_number"
+	// FieldPartialUnits holds the string denoting the partial_units field in the database.
+	FieldPartialUnits = "partial_units"
 	// FieldMetadata holds the string denoting the metadata field in the database.
 	FieldMetadata = "metadata"
 	// EdgeOrder holds the string denoting the order edge name in mutations.
@@ -70,6 +74,8 @@ var Columns = []string{
 	FieldWeightGrams,
 	FieldLotNumber,
 	FieldExpiryDate,
+	FieldSerialNumber,
+	FieldPartialUnits,
 	FieldMetadata,
 }
 
@@ -150,6 +156,16 @@ func ByLotNumber(opts ...sql.OrderTermOption) OrderOption {
 // ByExpiryDate orders the results by the expiry_date field.
 func ByExpiryDate(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldExpiryDate, opts...).ToFunc()
+}
+
+// BySerialNumber orders the results by the serial_number field.
+func BySerialNumber(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSerialNumber, opts...).ToFunc()
+}
+
+// ByPartialUnits orders the results by the partial_units field.
+func ByPartialUnits(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPartialUnits, opts...).ToFunc()
 }
 
 // ByOrderField orders the results by order field.

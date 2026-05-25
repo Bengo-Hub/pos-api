@@ -114,6 +114,26 @@ func CatalogItemIDNotIn(vs ...uuid.UUID) predicate.PriceBookItem {
 	return predicate.PriceBookItem(sql.FieldNotIn(FieldCatalogItemID, vs...))
 }
 
+// CatalogItemIDGT applies the GT predicate on the "catalog_item_id" field.
+func CatalogItemIDGT(v uuid.UUID) predicate.PriceBookItem {
+	return predicate.PriceBookItem(sql.FieldGT(FieldCatalogItemID, v))
+}
+
+// CatalogItemIDGTE applies the GTE predicate on the "catalog_item_id" field.
+func CatalogItemIDGTE(v uuid.UUID) predicate.PriceBookItem {
+	return predicate.PriceBookItem(sql.FieldGTE(FieldCatalogItemID, v))
+}
+
+// CatalogItemIDLT applies the LT predicate on the "catalog_item_id" field.
+func CatalogItemIDLT(v uuid.UUID) predicate.PriceBookItem {
+	return predicate.PriceBookItem(sql.FieldLT(FieldCatalogItemID, v))
+}
+
+// CatalogItemIDLTE applies the LTE predicate on the "catalog_item_id" field.
+func CatalogItemIDLTE(v uuid.UUID) predicate.PriceBookItem {
+	return predicate.PriceBookItem(sql.FieldLTE(FieldCatalogItemID, v))
+}
+
 // PriceAmountEQ applies the EQ predicate on the "price_amount" field.
 func PriceAmountEQ(v float64) predicate.PriceBookItem {
 	return predicate.PriceBookItem(sql.FieldEQ(FieldPriceAmount, v))
@@ -234,29 +254,6 @@ func HasPriceBook() predicate.PriceBookItem {
 func HasPriceBookWith(preds ...predicate.PriceBook) predicate.PriceBookItem {
 	return predicate.PriceBookItem(func(s *sql.Selector) {
 		step := newPriceBookStep()
-		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
-			for _, p := range preds {
-				p(s)
-			}
-		})
-	})
-}
-
-// HasCatalogItem applies the HasEdge predicate on the "catalog_item" edge.
-func HasCatalogItem() predicate.PriceBookItem {
-	return predicate.PriceBookItem(func(s *sql.Selector) {
-		step := sqlgraph.NewStep(
-			sqlgraph.From(Table, FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, true, CatalogItemTable, CatalogItemColumn),
-		)
-		sqlgraph.HasNeighbors(s, step)
-	})
-}
-
-// HasCatalogItemWith applies the HasEdge predicate on the "catalog_item" edge with a given conditions (other predicates).
-func HasCatalogItemWith(preds ...predicate.CatalogItem) predicate.PriceBookItem {
-	return predicate.PriceBookItem(func(s *sql.Selector) {
-		step := newCatalogItemStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

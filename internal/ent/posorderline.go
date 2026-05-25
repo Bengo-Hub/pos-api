@@ -40,6 +40,10 @@ type POSOrderLine struct {
 	LotNumber string `json:"lot_number,omitempty"`
 	// Expiry date from lot if applicable
 	ExpiryDate *time.Time `json:"expiry_date,omitempty"`
+	// Serial number captured at point of sale for tracked items
+	SerialNumber *string `json:"serial_number,omitempty"`
+	// Partial pack decimal quantity (e.g. 10 of 30 tablets dispensed)
+	PartialUnits *float64 `json:"partial_units,omitempty"`
 	// Metadata holds the value of the "metadata" field.
 	Metadata map[string]interface{} `json:"metadata,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
@@ -86,11 +90,11 @@ func (*POSOrderLine) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case posorderline.FieldMetadata:
 			values[i] = new([]byte)
-		case posorderline.FieldQuantity, posorderline.FieldUnitPrice, posorderline.FieldTotalPrice:
+		case posorderline.FieldQuantity, posorderline.FieldUnitPrice, posorderline.FieldTotalPrice, posorderline.FieldPartialUnits:
 			values[i] = new(sql.NullFloat64)
 		case posorderline.FieldWeightGrams:
 			values[i] = new(sql.NullInt64)
-		case posorderline.FieldSku, posorderline.FieldName, posorderline.FieldLotNumber:
+		case posorderline.FieldSku, posorderline.FieldName, posorderline.FieldLotNumber, posorderline.FieldSerialNumber:
 			values[i] = new(sql.NullString)
 		case posorderline.FieldExpiryDate:
 			values[i] = new(sql.NullTime)
@@ -179,6 +183,20 @@ func (_m *POSOrderLine) assignValues(columns []string, values []any) error {
 				_m.ExpiryDate = new(time.Time)
 				*_m.ExpiryDate = value.Time
 			}
+		case posorderline.FieldSerialNumber:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field serial_number", values[i])
+			} else if value.Valid {
+				_m.SerialNumber = new(string)
+				*_m.SerialNumber = value.String
+			}
+		case posorderline.FieldPartialUnits:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field partial_units", values[i])
+			} else if value.Valid {
+				_m.PartialUnits = new(float64)
+				*_m.PartialUnits = value.Float64
+			}
 		case posorderline.FieldMetadata:
 			if value, ok := values[i].(*[]byte); !ok {
 				return fmt.Errorf("unexpected type %T for field metadata", values[i])
@@ -265,6 +283,16 @@ func (_m *POSOrderLine) String() string {
 	if v := _m.ExpiryDate; v != nil {
 		builder.WriteString("expiry_date=")
 		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.SerialNumber; v != nil {
+		builder.WriteString("serial_number=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.PartialUnits; v != nil {
+		builder.WriteString("partial_units=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
 	builder.WriteString(", ")
 	builder.WriteString("metadata=")

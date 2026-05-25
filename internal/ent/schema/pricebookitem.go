@@ -19,7 +19,8 @@ func (PriceBookItem) Fields() []ent.Field {
 			Default(uuid.New).
 			Immutable(),
 		field.UUID("price_book_id", uuid.UUID{}),
-		field.UUID("catalog_item_id", uuid.UUID{}),
+		field.UUID("catalog_item_id", uuid.UUID{}).
+			Comment("Inventory item UUID (no FK — inventory-api is source of truth)"),
 		field.Float("price_amount"),
 		field.String("currency").
 			Default("KES"),
@@ -32,11 +33,6 @@ func (PriceBookItem) Edges() []ent.Edge {
 		edge.From("price_book", PriceBook.Type).
 			Ref("items").
 			Field("price_book_id").
-			Unique().
-			Required(),
-		edge.From("catalog_item", CatalogItem.Type).
-			Ref("price_book_items").
-			Field("catalog_item_id").
 			Unique().
 			Required(),
 	}

@@ -286,6 +286,173 @@ func (_u *DailyClosingUpdate) AppendDrawerIds(v []uuid.UUID) *DailyClosingUpdate
 	return _u
 }
 
+// SetTotalCard sets the "total_card" field.
+func (_u *DailyClosingUpdate) SetTotalCard(v float64) *DailyClosingUpdate {
+	_u.mutation.ResetTotalCard()
+	_u.mutation.SetTotalCard(v)
+	return _u
+}
+
+// SetNillableTotalCard sets the "total_card" field if the given value is not nil.
+func (_u *DailyClosingUpdate) SetNillableTotalCard(v *float64) *DailyClosingUpdate {
+	if v != nil {
+		_u.SetTotalCard(*v)
+	}
+	return _u
+}
+
+// AddTotalCard adds value to the "total_card" field.
+func (_u *DailyClosingUpdate) AddTotalCard(v float64) *DailyClosingUpdate {
+	_u.mutation.AddTotalCard(v)
+	return _u
+}
+
+// SetTotalMpesa sets the "total_mpesa" field.
+func (_u *DailyClosingUpdate) SetTotalMpesa(v float64) *DailyClosingUpdate {
+	_u.mutation.ResetTotalMpesa()
+	_u.mutation.SetTotalMpesa(v)
+	return _u
+}
+
+// SetNillableTotalMpesa sets the "total_mpesa" field if the given value is not nil.
+func (_u *DailyClosingUpdate) SetNillableTotalMpesa(v *float64) *DailyClosingUpdate {
+	if v != nil {
+		_u.SetTotalMpesa(*v)
+	}
+	return _u
+}
+
+// AddTotalMpesa adds value to the "total_mpesa" field.
+func (_u *DailyClosingUpdate) AddTotalMpesa(v float64) *DailyClosingUpdate {
+	_u.mutation.AddTotalMpesa(v)
+	return _u
+}
+
+// SetTotalTax sets the "total_tax" field.
+func (_u *DailyClosingUpdate) SetTotalTax(v float64) *DailyClosingUpdate {
+	_u.mutation.ResetTotalTax()
+	_u.mutation.SetTotalTax(v)
+	return _u
+}
+
+// SetNillableTotalTax sets the "total_tax" field if the given value is not nil.
+func (_u *DailyClosingUpdate) SetNillableTotalTax(v *float64) *DailyClosingUpdate {
+	if v != nil {
+		_u.SetTotalTax(*v)
+	}
+	return _u
+}
+
+// AddTotalTax adds value to the "total_tax" field.
+func (_u *DailyClosingUpdate) AddTotalTax(v float64) *DailyClosingUpdate {
+	_u.mutation.AddTotalTax(v)
+	return _u
+}
+
+// SetTotalLoyaltyRedemptions sets the "total_loyalty_redemptions" field.
+func (_u *DailyClosingUpdate) SetTotalLoyaltyRedemptions(v float64) *DailyClosingUpdate {
+	_u.mutation.ResetTotalLoyaltyRedemptions()
+	_u.mutation.SetTotalLoyaltyRedemptions(v)
+	return _u
+}
+
+// SetNillableTotalLoyaltyRedemptions sets the "total_loyalty_redemptions" field if the given value is not nil.
+func (_u *DailyClosingUpdate) SetNillableTotalLoyaltyRedemptions(v *float64) *DailyClosingUpdate {
+	if v != nil {
+		_u.SetTotalLoyaltyRedemptions(*v)
+	}
+	return _u
+}
+
+// AddTotalLoyaltyRedemptions adds value to the "total_loyalty_redemptions" field.
+func (_u *DailyClosingUpdate) AddTotalLoyaltyRedemptions(v float64) *DailyClosingUpdate {
+	_u.mutation.AddTotalLoyaltyRedemptions(v)
+	return _u
+}
+
+// SetTotalRoomCharge sets the "total_room_charge" field.
+func (_u *DailyClosingUpdate) SetTotalRoomCharge(v float64) *DailyClosingUpdate {
+	_u.mutation.ResetTotalRoomCharge()
+	_u.mutation.SetTotalRoomCharge(v)
+	return _u
+}
+
+// SetNillableTotalRoomCharge sets the "total_room_charge" field if the given value is not nil.
+func (_u *DailyClosingUpdate) SetNillableTotalRoomCharge(v *float64) *DailyClosingUpdate {
+	if v != nil {
+		_u.SetTotalRoomCharge(*v)
+	}
+	return _u
+}
+
+// AddTotalRoomCharge adds value to the "total_room_charge" field.
+func (_u *DailyClosingUpdate) AddTotalRoomCharge(v float64) *DailyClosingUpdate {
+	_u.mutation.AddTotalRoomCharge(v)
+	return _u
+}
+
+// SetTotalOrders sets the "total_orders" field.
+func (_u *DailyClosingUpdate) SetTotalOrders(v int) *DailyClosingUpdate {
+	_u.mutation.ResetTotalOrders()
+	_u.mutation.SetTotalOrders(v)
+	return _u
+}
+
+// SetNillableTotalOrders sets the "total_orders" field if the given value is not nil.
+func (_u *DailyClosingUpdate) SetNillableTotalOrders(v *int) *DailyClosingUpdate {
+	if v != nil {
+		_u.SetTotalOrders(*v)
+	}
+	return _u
+}
+
+// AddTotalOrders adds value to the "total_orders" field.
+func (_u *DailyClosingUpdate) AddTotalOrders(v int) *DailyClosingUpdate {
+	_u.mutation.AddTotalOrders(v)
+	return _u
+}
+
+// SetTotalItemsSold sets the "total_items_sold" field.
+func (_u *DailyClosingUpdate) SetTotalItemsSold(v int) *DailyClosingUpdate {
+	_u.mutation.ResetTotalItemsSold()
+	_u.mutation.SetTotalItemsSold(v)
+	return _u
+}
+
+// SetNillableTotalItemsSold sets the "total_items_sold" field if the given value is not nil.
+func (_u *DailyClosingUpdate) SetNillableTotalItemsSold(v *int) *DailyClosingUpdate {
+	if v != nil {
+		_u.SetTotalItemsSold(*v)
+	}
+	return _u
+}
+
+// AddTotalItemsSold adds value to the "total_items_sold" field.
+func (_u *DailyClosingUpdate) AddTotalItemsSold(v int) *DailyClosingUpdate {
+	_u.mutation.AddTotalItemsSold(v)
+	return _u
+}
+
+// SetClosedAt sets the "closed_at" field.
+func (_u *DailyClosingUpdate) SetClosedAt(v time.Time) *DailyClosingUpdate {
+	_u.mutation.SetClosedAt(v)
+	return _u
+}
+
+// SetNillableClosedAt sets the "closed_at" field if the given value is not nil.
+func (_u *DailyClosingUpdate) SetNillableClosedAt(v *time.Time) *DailyClosingUpdate {
+	if v != nil {
+		_u.SetClosedAt(*v)
+	}
+	return _u
+}
+
+// ClearClosedAt clears the value of the "closed_at" field.
+func (_u *DailyClosingUpdate) ClearClosedAt() *DailyClosingUpdate {
+	_u.mutation.ClearClosedAt()
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *DailyClosingUpdate) SetUpdatedAt(v time.Time) *DailyClosingUpdate {
 	_u.mutation.SetUpdatedAt(v)
@@ -434,6 +601,54 @@ func (_u *DailyClosingUpdate) sqlSave(ctx context.Context) (_node int, err error
 		_spec.AddModifier(func(u *sql.UpdateBuilder) {
 			sqljson.Append(u, dailyclosing.FieldDrawerIds, value)
 		})
+	}
+	if value, ok := _u.mutation.TotalCard(); ok {
+		_spec.SetField(dailyclosing.FieldTotalCard, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedTotalCard(); ok {
+		_spec.AddField(dailyclosing.FieldTotalCard, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.TotalMpesa(); ok {
+		_spec.SetField(dailyclosing.FieldTotalMpesa, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedTotalMpesa(); ok {
+		_spec.AddField(dailyclosing.FieldTotalMpesa, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.TotalTax(); ok {
+		_spec.SetField(dailyclosing.FieldTotalTax, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedTotalTax(); ok {
+		_spec.AddField(dailyclosing.FieldTotalTax, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.TotalLoyaltyRedemptions(); ok {
+		_spec.SetField(dailyclosing.FieldTotalLoyaltyRedemptions, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedTotalLoyaltyRedemptions(); ok {
+		_spec.AddField(dailyclosing.FieldTotalLoyaltyRedemptions, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.TotalRoomCharge(); ok {
+		_spec.SetField(dailyclosing.FieldTotalRoomCharge, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedTotalRoomCharge(); ok {
+		_spec.AddField(dailyclosing.FieldTotalRoomCharge, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.TotalOrders(); ok {
+		_spec.SetField(dailyclosing.FieldTotalOrders, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedTotalOrders(); ok {
+		_spec.AddField(dailyclosing.FieldTotalOrders, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.TotalItemsSold(); ok {
+		_spec.SetField(dailyclosing.FieldTotalItemsSold, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedTotalItemsSold(); ok {
+		_spec.AddField(dailyclosing.FieldTotalItemsSold, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.ClosedAt(); ok {
+		_spec.SetField(dailyclosing.FieldClosedAt, field.TypeTime, value)
+	}
+	if _u.mutation.ClosedAtCleared() {
+		_spec.ClearField(dailyclosing.FieldClosedAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(dailyclosing.FieldUpdatedAt, field.TypeTime, value)
@@ -742,6 +957,173 @@ func (_u *DailyClosingUpdateOne) AppendDrawerIds(v []uuid.UUID) *DailyClosingUpd
 	return _u
 }
 
+// SetTotalCard sets the "total_card" field.
+func (_u *DailyClosingUpdateOne) SetTotalCard(v float64) *DailyClosingUpdateOne {
+	_u.mutation.ResetTotalCard()
+	_u.mutation.SetTotalCard(v)
+	return _u
+}
+
+// SetNillableTotalCard sets the "total_card" field if the given value is not nil.
+func (_u *DailyClosingUpdateOne) SetNillableTotalCard(v *float64) *DailyClosingUpdateOne {
+	if v != nil {
+		_u.SetTotalCard(*v)
+	}
+	return _u
+}
+
+// AddTotalCard adds value to the "total_card" field.
+func (_u *DailyClosingUpdateOne) AddTotalCard(v float64) *DailyClosingUpdateOne {
+	_u.mutation.AddTotalCard(v)
+	return _u
+}
+
+// SetTotalMpesa sets the "total_mpesa" field.
+func (_u *DailyClosingUpdateOne) SetTotalMpesa(v float64) *DailyClosingUpdateOne {
+	_u.mutation.ResetTotalMpesa()
+	_u.mutation.SetTotalMpesa(v)
+	return _u
+}
+
+// SetNillableTotalMpesa sets the "total_mpesa" field if the given value is not nil.
+func (_u *DailyClosingUpdateOne) SetNillableTotalMpesa(v *float64) *DailyClosingUpdateOne {
+	if v != nil {
+		_u.SetTotalMpesa(*v)
+	}
+	return _u
+}
+
+// AddTotalMpesa adds value to the "total_mpesa" field.
+func (_u *DailyClosingUpdateOne) AddTotalMpesa(v float64) *DailyClosingUpdateOne {
+	_u.mutation.AddTotalMpesa(v)
+	return _u
+}
+
+// SetTotalTax sets the "total_tax" field.
+func (_u *DailyClosingUpdateOne) SetTotalTax(v float64) *DailyClosingUpdateOne {
+	_u.mutation.ResetTotalTax()
+	_u.mutation.SetTotalTax(v)
+	return _u
+}
+
+// SetNillableTotalTax sets the "total_tax" field if the given value is not nil.
+func (_u *DailyClosingUpdateOne) SetNillableTotalTax(v *float64) *DailyClosingUpdateOne {
+	if v != nil {
+		_u.SetTotalTax(*v)
+	}
+	return _u
+}
+
+// AddTotalTax adds value to the "total_tax" field.
+func (_u *DailyClosingUpdateOne) AddTotalTax(v float64) *DailyClosingUpdateOne {
+	_u.mutation.AddTotalTax(v)
+	return _u
+}
+
+// SetTotalLoyaltyRedemptions sets the "total_loyalty_redemptions" field.
+func (_u *DailyClosingUpdateOne) SetTotalLoyaltyRedemptions(v float64) *DailyClosingUpdateOne {
+	_u.mutation.ResetTotalLoyaltyRedemptions()
+	_u.mutation.SetTotalLoyaltyRedemptions(v)
+	return _u
+}
+
+// SetNillableTotalLoyaltyRedemptions sets the "total_loyalty_redemptions" field if the given value is not nil.
+func (_u *DailyClosingUpdateOne) SetNillableTotalLoyaltyRedemptions(v *float64) *DailyClosingUpdateOne {
+	if v != nil {
+		_u.SetTotalLoyaltyRedemptions(*v)
+	}
+	return _u
+}
+
+// AddTotalLoyaltyRedemptions adds value to the "total_loyalty_redemptions" field.
+func (_u *DailyClosingUpdateOne) AddTotalLoyaltyRedemptions(v float64) *DailyClosingUpdateOne {
+	_u.mutation.AddTotalLoyaltyRedemptions(v)
+	return _u
+}
+
+// SetTotalRoomCharge sets the "total_room_charge" field.
+func (_u *DailyClosingUpdateOne) SetTotalRoomCharge(v float64) *DailyClosingUpdateOne {
+	_u.mutation.ResetTotalRoomCharge()
+	_u.mutation.SetTotalRoomCharge(v)
+	return _u
+}
+
+// SetNillableTotalRoomCharge sets the "total_room_charge" field if the given value is not nil.
+func (_u *DailyClosingUpdateOne) SetNillableTotalRoomCharge(v *float64) *DailyClosingUpdateOne {
+	if v != nil {
+		_u.SetTotalRoomCharge(*v)
+	}
+	return _u
+}
+
+// AddTotalRoomCharge adds value to the "total_room_charge" field.
+func (_u *DailyClosingUpdateOne) AddTotalRoomCharge(v float64) *DailyClosingUpdateOne {
+	_u.mutation.AddTotalRoomCharge(v)
+	return _u
+}
+
+// SetTotalOrders sets the "total_orders" field.
+func (_u *DailyClosingUpdateOne) SetTotalOrders(v int) *DailyClosingUpdateOne {
+	_u.mutation.ResetTotalOrders()
+	_u.mutation.SetTotalOrders(v)
+	return _u
+}
+
+// SetNillableTotalOrders sets the "total_orders" field if the given value is not nil.
+func (_u *DailyClosingUpdateOne) SetNillableTotalOrders(v *int) *DailyClosingUpdateOne {
+	if v != nil {
+		_u.SetTotalOrders(*v)
+	}
+	return _u
+}
+
+// AddTotalOrders adds value to the "total_orders" field.
+func (_u *DailyClosingUpdateOne) AddTotalOrders(v int) *DailyClosingUpdateOne {
+	_u.mutation.AddTotalOrders(v)
+	return _u
+}
+
+// SetTotalItemsSold sets the "total_items_sold" field.
+func (_u *DailyClosingUpdateOne) SetTotalItemsSold(v int) *DailyClosingUpdateOne {
+	_u.mutation.ResetTotalItemsSold()
+	_u.mutation.SetTotalItemsSold(v)
+	return _u
+}
+
+// SetNillableTotalItemsSold sets the "total_items_sold" field if the given value is not nil.
+func (_u *DailyClosingUpdateOne) SetNillableTotalItemsSold(v *int) *DailyClosingUpdateOne {
+	if v != nil {
+		_u.SetTotalItemsSold(*v)
+	}
+	return _u
+}
+
+// AddTotalItemsSold adds value to the "total_items_sold" field.
+func (_u *DailyClosingUpdateOne) AddTotalItemsSold(v int) *DailyClosingUpdateOne {
+	_u.mutation.AddTotalItemsSold(v)
+	return _u
+}
+
+// SetClosedAt sets the "closed_at" field.
+func (_u *DailyClosingUpdateOne) SetClosedAt(v time.Time) *DailyClosingUpdateOne {
+	_u.mutation.SetClosedAt(v)
+	return _u
+}
+
+// SetNillableClosedAt sets the "closed_at" field if the given value is not nil.
+func (_u *DailyClosingUpdateOne) SetNillableClosedAt(v *time.Time) *DailyClosingUpdateOne {
+	if v != nil {
+		_u.SetClosedAt(*v)
+	}
+	return _u
+}
+
+// ClearClosedAt clears the value of the "closed_at" field.
+func (_u *DailyClosingUpdateOne) ClearClosedAt() *DailyClosingUpdateOne {
+	_u.mutation.ClearClosedAt()
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *DailyClosingUpdateOne) SetUpdatedAt(v time.Time) *DailyClosingUpdateOne {
 	_u.mutation.SetUpdatedAt(v)
@@ -920,6 +1302,54 @@ func (_u *DailyClosingUpdateOne) sqlSave(ctx context.Context) (_node *DailyClosi
 		_spec.AddModifier(func(u *sql.UpdateBuilder) {
 			sqljson.Append(u, dailyclosing.FieldDrawerIds, value)
 		})
+	}
+	if value, ok := _u.mutation.TotalCard(); ok {
+		_spec.SetField(dailyclosing.FieldTotalCard, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedTotalCard(); ok {
+		_spec.AddField(dailyclosing.FieldTotalCard, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.TotalMpesa(); ok {
+		_spec.SetField(dailyclosing.FieldTotalMpesa, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedTotalMpesa(); ok {
+		_spec.AddField(dailyclosing.FieldTotalMpesa, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.TotalTax(); ok {
+		_spec.SetField(dailyclosing.FieldTotalTax, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedTotalTax(); ok {
+		_spec.AddField(dailyclosing.FieldTotalTax, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.TotalLoyaltyRedemptions(); ok {
+		_spec.SetField(dailyclosing.FieldTotalLoyaltyRedemptions, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedTotalLoyaltyRedemptions(); ok {
+		_spec.AddField(dailyclosing.FieldTotalLoyaltyRedemptions, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.TotalRoomCharge(); ok {
+		_spec.SetField(dailyclosing.FieldTotalRoomCharge, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedTotalRoomCharge(); ok {
+		_spec.AddField(dailyclosing.FieldTotalRoomCharge, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.TotalOrders(); ok {
+		_spec.SetField(dailyclosing.FieldTotalOrders, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedTotalOrders(); ok {
+		_spec.AddField(dailyclosing.FieldTotalOrders, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.TotalItemsSold(); ok {
+		_spec.SetField(dailyclosing.FieldTotalItemsSold, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedTotalItemsSold(); ok {
+		_spec.AddField(dailyclosing.FieldTotalItemsSold, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.ClosedAt(); ok {
+		_spec.SetField(dailyclosing.FieldClosedAt, field.TypeTime, value)
+	}
+	if _u.mutation.ClosedAtCleared() {
+		_spec.ClearField(dailyclosing.FieldClosedAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(dailyclosing.FieldUpdatedAt, field.TypeTime, value)

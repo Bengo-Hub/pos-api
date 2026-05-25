@@ -10,7 +10,6 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"github.com/bengobox/pos-service/internal/ent/catalogitem"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
 	"github.com/bengobox/pos-service/internal/ent/pricebook"
 	"github.com/bengobox/pos-service/internal/ent/pricebookitem"
@@ -98,11 +97,6 @@ func (_u *PriceBookItemUpdate) SetPriceBook(v *PriceBook) *PriceBookItemUpdate {
 	return _u.SetPriceBookID(v.ID)
 }
 
-// SetCatalogItem sets the "catalog_item" edge to the CatalogItem entity.
-func (_u *PriceBookItemUpdate) SetCatalogItem(v *CatalogItem) *PriceBookItemUpdate {
-	return _u.SetCatalogItemID(v.ID)
-}
-
 // Mutation returns the PriceBookItemMutation object of the builder.
 func (_u *PriceBookItemUpdate) Mutation() *PriceBookItemMutation {
 	return _u.mutation
@@ -111,12 +105,6 @@ func (_u *PriceBookItemUpdate) Mutation() *PriceBookItemMutation {
 // ClearPriceBook clears the "price_book" edge to the PriceBook entity.
 func (_u *PriceBookItemUpdate) ClearPriceBook() *PriceBookItemUpdate {
 	_u.mutation.ClearPriceBook()
-	return _u
-}
-
-// ClearCatalogItem clears the "catalog_item" edge to the CatalogItem entity.
-func (_u *PriceBookItemUpdate) ClearCatalogItem() *PriceBookItemUpdate {
-	_u.mutation.ClearCatalogItem()
 	return _u
 }
 
@@ -152,9 +140,6 @@ func (_u *PriceBookItemUpdate) check() error {
 	if _u.mutation.PriceBookCleared() && len(_u.mutation.PriceBookIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "PriceBookItem.price_book"`)
 	}
-	if _u.mutation.CatalogItemCleared() && len(_u.mutation.CatalogItemIDs()) > 0 {
-		return errors.New(`ent: clearing a required unique edge "PriceBookItem.catalog_item"`)
-	}
 	return nil
 }
 
@@ -169,6 +154,9 @@ func (_u *PriceBookItemUpdate) sqlSave(ctx context.Context) (_node int, err erro
 				ps[i](selector)
 			}
 		}
+	}
+	if value, ok := _u.mutation.CatalogItemID(); ok {
+		_spec.SetField(pricebookitem.FieldCatalogItemID, field.TypeUUID, value)
 	}
 	if value, ok := _u.mutation.PriceAmount(); ok {
 		_spec.SetField(pricebookitem.FieldPriceAmount, field.TypeFloat64, value)
@@ -201,35 +189,6 @@ func (_u *PriceBookItemUpdate) sqlSave(ctx context.Context) (_node int, err erro
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(pricebook.FieldID, field.TypeUUID),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges.Add = append(_spec.Edges.Add, edge)
-	}
-	if _u.mutation.CatalogItemCleared() {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2O,
-			Inverse: true,
-			Table:   pricebookitem.CatalogItemTable,
-			Columns: []string{pricebookitem.CatalogItemColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(catalogitem.FieldID, field.TypeUUID),
-			},
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
-	}
-	if nodes := _u.mutation.CatalogItemIDs(); len(nodes) > 0 {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2O,
-			Inverse: true,
-			Table:   pricebookitem.CatalogItemTable,
-			Columns: []string{pricebookitem.CatalogItemColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(catalogitem.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {
@@ -325,11 +284,6 @@ func (_u *PriceBookItemUpdateOne) SetPriceBook(v *PriceBook) *PriceBookItemUpdat
 	return _u.SetPriceBookID(v.ID)
 }
 
-// SetCatalogItem sets the "catalog_item" edge to the CatalogItem entity.
-func (_u *PriceBookItemUpdateOne) SetCatalogItem(v *CatalogItem) *PriceBookItemUpdateOne {
-	return _u.SetCatalogItemID(v.ID)
-}
-
 // Mutation returns the PriceBookItemMutation object of the builder.
 func (_u *PriceBookItemUpdateOne) Mutation() *PriceBookItemMutation {
 	return _u.mutation
@@ -338,12 +292,6 @@ func (_u *PriceBookItemUpdateOne) Mutation() *PriceBookItemMutation {
 // ClearPriceBook clears the "price_book" edge to the PriceBook entity.
 func (_u *PriceBookItemUpdateOne) ClearPriceBook() *PriceBookItemUpdateOne {
 	_u.mutation.ClearPriceBook()
-	return _u
-}
-
-// ClearCatalogItem clears the "catalog_item" edge to the CatalogItem entity.
-func (_u *PriceBookItemUpdateOne) ClearCatalogItem() *PriceBookItemUpdateOne {
-	_u.mutation.ClearCatalogItem()
 	return _u
 }
 
@@ -392,9 +340,6 @@ func (_u *PriceBookItemUpdateOne) check() error {
 	if _u.mutation.PriceBookCleared() && len(_u.mutation.PriceBookIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "PriceBookItem.price_book"`)
 	}
-	if _u.mutation.CatalogItemCleared() && len(_u.mutation.CatalogItemIDs()) > 0 {
-		return errors.New(`ent: clearing a required unique edge "PriceBookItem.catalog_item"`)
-	}
 	return nil
 }
 
@@ -427,6 +372,9 @@ func (_u *PriceBookItemUpdateOne) sqlSave(ctx context.Context) (_node *PriceBook
 			}
 		}
 	}
+	if value, ok := _u.mutation.CatalogItemID(); ok {
+		_spec.SetField(pricebookitem.FieldCatalogItemID, field.TypeUUID, value)
+	}
 	if value, ok := _u.mutation.PriceAmount(); ok {
 		_spec.SetField(pricebookitem.FieldPriceAmount, field.TypeFloat64, value)
 	}
@@ -458,35 +406,6 @@ func (_u *PriceBookItemUpdateOne) sqlSave(ctx context.Context) (_node *PriceBook
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(pricebook.FieldID, field.TypeUUID),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges.Add = append(_spec.Edges.Add, edge)
-	}
-	if _u.mutation.CatalogItemCleared() {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2O,
-			Inverse: true,
-			Table:   pricebookitem.CatalogItemTable,
-			Columns: []string{pricebookitem.CatalogItemColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(catalogitem.FieldID, field.TypeUUID),
-			},
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
-	}
-	if nodes := _u.mutation.CatalogItemIDs(); len(nodes) > 0 {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2O,
-			Inverse: true,
-			Table:   pricebookitem.CatalogItemTable,
-			Columns: []string{pricebookitem.CatalogItemColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(catalogitem.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

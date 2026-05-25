@@ -24,17 +24,23 @@ type CashDrawer func(*sql.Selector)
 // CashDrawerEvent is the predicate function for cashdrawerevent builders.
 type CashDrawerEvent func(*sql.Selector)
 
-// CatalogItem is the predicate function for catalogitem builders.
-type CatalogItem func(*sql.Selector)
-
 // ChannelIntegration is the predicate function for channelintegration builders.
 type ChannelIntegration func(*sql.Selector)
 
 // ChannelSyncJob is the predicate function for channelsyncjob builders.
 type ChannelSyncJob func(*sql.Selector)
 
+// ClientRecord is the predicate function for clientrecord builders.
+type ClientRecord func(*sql.Selector)
+
 // CommissionRecord is the predicate function for commissionrecord builders.
 type CommissionRecord func(*sql.Selector)
+
+// CommissionRule is the predicate function for commissionrule builders.
+type CommissionRule func(*sql.Selector)
+
+// ControlledSubstanceLog is the predicate function for controlledsubstancelog builders.
+type ControlledSubstanceLog func(*sql.Selector)
 
 // DailyClosing is the predicate function for dailyclosing builders.
 type DailyClosing func(*sql.Selector)
@@ -104,6 +110,9 @@ type Outlet func(*sql.Selector)
 
 // OutletSetting is the predicate function for outletsetting builders.
 type OutletSetting func(*sql.Selector)
+
+// POSCatalogOverride is the predicate function for poscatalogoverride builders.
+type POSCatalogOverride func(*sql.Selector)
 
 // POSDevice is the predicate function for posdevice builders.
 type POSDevice func(*sql.Selector)
@@ -197,6 +206,15 @@ type SerialNumberLog func(*sql.Selector)
 
 // ServiceConfig is the predicate function for serviceconfig builders.
 type ServiceConfig func(*sql.Selector)
+
+// ServicePackage is the predicate function for servicepackage builders.
+type ServicePackage func(*sql.Selector)
+
+// ServicePackagePurchase is the predicate function for servicepackagepurchase builders.
+type ServicePackagePurchase func(*sql.Selector)
+
+// ServicePackageRedemption is the predicate function for servicepackageredemption builders.
+type ServicePackageRedemption func(*sql.Selector)
 
 // ServiceQueueEntry is the predicate function for servicequeueentry builders.
 type ServiceQueueEntry func(*sql.Selector)

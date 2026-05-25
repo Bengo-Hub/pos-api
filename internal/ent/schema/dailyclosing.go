@@ -53,6 +53,16 @@ func (DailyClosing) Fields() []ent.Field {
 		field.JSON("drawer_ids", []uuid.UUID{}).
 			Default([]uuid.UUID{}).
 			Comment("IDs of CashDrawer rows aggregated into this closing"),
+		// Tender breakdown (added Sprint 11)
+		field.Float("total_card").Default(0),
+		field.Float("total_mpesa").Default(0),
+		field.Float("total_tax").Default(0),
+		field.Float("total_loyalty_redemptions").Default(0),
+		field.Float("total_room_charge").Default(0),
+		// Order and item counts
+		field.Int("total_orders").Default(0),
+		field.Int("total_items_sold").Default(0),
+		field.Time("closed_at").Optional().Nillable(),
 		field.Time("created_at").
 			Default(time.Now).
 			Immutable(),

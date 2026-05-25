@@ -34,6 +34,10 @@ type CommissionRecord struct {
 	CommissionRate float64 `json:"commission_rate,omitempty"`
 	// CommissionAmount holds the value of the "commission_amount" field.
 	CommissionAmount float64 `json:"commission_amount,omitempty"`
+	// pending | paid | voided
+	Status string `json:"status,omitempty"`
+	// Notes holds the value of the "notes" field.
+	Notes string `json:"notes,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt    time.Time `json:"created_at,omitempty"`
 	selectValues sql.SelectValues
@@ -48,7 +52,7 @@ func (*CommissionRecord) scanValues(columns []string) ([]any, error) {
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		case commissionrecord.FieldSaleAmount, commissionrecord.FieldCommissionRate, commissionrecord.FieldCommissionAmount:
 			values[i] = new(sql.NullFloat64)
-		case commissionrecord.FieldServiceSku:
+		case commissionrecord.FieldServiceSku, commissionrecord.FieldStatus, commissionrecord.FieldNotes:
 			values[i] = new(sql.NullString)
 		case commissionrecord.FieldCreatedAt:
 			values[i] = new(sql.NullTime)
@@ -124,6 +128,18 @@ func (_m *CommissionRecord) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.CommissionAmount = value.Float64
 			}
+		case commissionrecord.FieldStatus:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field status", values[i])
+			} else if value.Valid {
+				_m.Status = value.String
+			}
+		case commissionrecord.FieldNotes:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field notes", values[i])
+			} else if value.Valid {
+				_m.Notes = value.String
+			}
 		case commissionrecord.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field created_at", values[i])
@@ -191,6 +207,12 @@ func (_m *CommissionRecord) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("commission_amount=")
 	builder.WriteString(fmt.Sprintf("%v", _m.CommissionAmount))
+	builder.WriteString(", ")
+	builder.WriteString("status=")
+	builder.WriteString(_m.Status)
+	builder.WriteString(", ")
+	builder.WriteString("notes=")
+	builder.WriteString(_m.Notes)
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))

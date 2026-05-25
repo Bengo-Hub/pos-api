@@ -167,6 +167,40 @@ func (_u *CommissionRecordUpdate) AddCommissionAmount(v float64) *CommissionReco
 	return _u
 }
 
+// SetStatus sets the "status" field.
+func (_u *CommissionRecordUpdate) SetStatus(v string) *CommissionRecordUpdate {
+	_u.mutation.SetStatus(v)
+	return _u
+}
+
+// SetNillableStatus sets the "status" field if the given value is not nil.
+func (_u *CommissionRecordUpdate) SetNillableStatus(v *string) *CommissionRecordUpdate {
+	if v != nil {
+		_u.SetStatus(*v)
+	}
+	return _u
+}
+
+// SetNotes sets the "notes" field.
+func (_u *CommissionRecordUpdate) SetNotes(v string) *CommissionRecordUpdate {
+	_u.mutation.SetNotes(v)
+	return _u
+}
+
+// SetNillableNotes sets the "notes" field if the given value is not nil.
+func (_u *CommissionRecordUpdate) SetNillableNotes(v *string) *CommissionRecordUpdate {
+	if v != nil {
+		_u.SetNotes(*v)
+	}
+	return _u
+}
+
+// ClearNotes clears the value of the "notes" field.
+func (_u *CommissionRecordUpdate) ClearNotes() *CommissionRecordUpdate {
+	_u.mutation.ClearNotes()
+	return _u
+}
+
 // Mutation returns the CommissionRecordMutation object of the builder.
 func (_u *CommissionRecordUpdate) Mutation() *CommissionRecordMutation {
 	return _u.mutation
@@ -256,6 +290,15 @@ func (_u *CommissionRecordUpdate) sqlSave(ctx context.Context) (_node int, err e
 	}
 	if value, ok := _u.mutation.AddedCommissionAmount(); ok {
 		_spec.AddField(commissionrecord.FieldCommissionAmount, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.Status(); ok {
+		_spec.SetField(commissionrecord.FieldStatus, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Notes(); ok {
+		_spec.SetField(commissionrecord.FieldNotes, field.TypeString, value)
+	}
+	if _u.mutation.NotesCleared() {
+		_spec.ClearField(commissionrecord.FieldNotes, field.TypeString)
 	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -416,6 +459,40 @@ func (_u *CommissionRecordUpdateOne) AddCommissionAmount(v float64) *CommissionR
 	return _u
 }
 
+// SetStatus sets the "status" field.
+func (_u *CommissionRecordUpdateOne) SetStatus(v string) *CommissionRecordUpdateOne {
+	_u.mutation.SetStatus(v)
+	return _u
+}
+
+// SetNillableStatus sets the "status" field if the given value is not nil.
+func (_u *CommissionRecordUpdateOne) SetNillableStatus(v *string) *CommissionRecordUpdateOne {
+	if v != nil {
+		_u.SetStatus(*v)
+	}
+	return _u
+}
+
+// SetNotes sets the "notes" field.
+func (_u *CommissionRecordUpdateOne) SetNotes(v string) *CommissionRecordUpdateOne {
+	_u.mutation.SetNotes(v)
+	return _u
+}
+
+// SetNillableNotes sets the "notes" field if the given value is not nil.
+func (_u *CommissionRecordUpdateOne) SetNillableNotes(v *string) *CommissionRecordUpdateOne {
+	if v != nil {
+		_u.SetNotes(*v)
+	}
+	return _u
+}
+
+// ClearNotes clears the value of the "notes" field.
+func (_u *CommissionRecordUpdateOne) ClearNotes() *CommissionRecordUpdateOne {
+	_u.mutation.ClearNotes()
+	return _u
+}
+
 // Mutation returns the CommissionRecordMutation object of the builder.
 func (_u *CommissionRecordUpdateOne) Mutation() *CommissionRecordMutation {
 	return _u.mutation
@@ -535,6 +612,15 @@ func (_u *CommissionRecordUpdateOne) sqlSave(ctx context.Context) (_node *Commis
 	}
 	if value, ok := _u.mutation.AddedCommissionAmount(); ok {
 		_spec.AddField(commissionrecord.FieldCommissionAmount, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.Status(); ok {
+		_spec.SetField(commissionrecord.FieldStatus, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Notes(); ok {
+		_spec.SetField(commissionrecord.FieldNotes, field.TypeString, value)
+	}
+	if _u.mutation.NotesCleared() {
+		_spec.ClearField(commissionrecord.FieldNotes, field.TypeString)
 	}
 	_node = &CommissionRecord{config: _u.config}
 	_spec.Assign = _node.assignValues

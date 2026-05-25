@@ -22,6 +22,7 @@ func (LoyaltyProgram) Fields() []ent.Field {
 		field.Float("redeem_rate").Default(0.01).Comment("Currency value per point"),
 		field.Int("min_redeem_points").Default(100),
 		field.Bool("is_active").Default(true),
+		field.JSON("tier_thresholds", map[string]any{}).Optional().Comment("Tier name → min lifetime points, e.g. {\"silver\":500,\"gold\":2000}"),
 		field.Time("created_at").Default(time.Now).Immutable(),
 		field.Time("updated_at").Default(time.Now).UpdateDefault(time.Now),
 	}

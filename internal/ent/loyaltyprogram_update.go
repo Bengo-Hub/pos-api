@@ -154,6 +154,18 @@ func (_u *LoyaltyProgramUpdate) SetNillableIsActive(v *bool) *LoyaltyProgramUpda
 	return _u
 }
 
+// SetTierThresholds sets the "tier_thresholds" field.
+func (_u *LoyaltyProgramUpdate) SetTierThresholds(v map[string]interface{}) *LoyaltyProgramUpdate {
+	_u.mutation.SetTierThresholds(v)
+	return _u
+}
+
+// ClearTierThresholds clears the value of the "tier_thresholds" field.
+func (_u *LoyaltyProgramUpdate) ClearTierThresholds() *LoyaltyProgramUpdate {
+	_u.mutation.ClearTierThresholds()
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *LoyaltyProgramUpdate) SetUpdatedAt(v time.Time) *LoyaltyProgramUpdate {
 	_u.mutation.SetUpdatedAt(v)
@@ -255,6 +267,12 @@ func (_u *LoyaltyProgramUpdate) sqlSave(ctx context.Context) (_node int, err err
 	}
 	if value, ok := _u.mutation.IsActive(); ok {
 		_spec.SetField(loyaltyprogram.FieldIsActive, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.TierThresholds(); ok {
+		_spec.SetField(loyaltyprogram.FieldTierThresholds, field.TypeJSON, value)
+	}
+	if _u.mutation.TierThresholdsCleared() {
+		_spec.ClearField(loyaltyprogram.FieldTierThresholds, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(loyaltyprogram.FieldUpdatedAt, field.TypeTime, value)
@@ -404,6 +422,18 @@ func (_u *LoyaltyProgramUpdateOne) SetNillableIsActive(v *bool) *LoyaltyProgramU
 	return _u
 }
 
+// SetTierThresholds sets the "tier_thresholds" field.
+func (_u *LoyaltyProgramUpdateOne) SetTierThresholds(v map[string]interface{}) *LoyaltyProgramUpdateOne {
+	_u.mutation.SetTierThresholds(v)
+	return _u
+}
+
+// ClearTierThresholds clears the value of the "tier_thresholds" field.
+func (_u *LoyaltyProgramUpdateOne) ClearTierThresholds() *LoyaltyProgramUpdateOne {
+	_u.mutation.ClearTierThresholds()
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *LoyaltyProgramUpdateOne) SetUpdatedAt(v time.Time) *LoyaltyProgramUpdateOne {
 	_u.mutation.SetUpdatedAt(v)
@@ -535,6 +565,12 @@ func (_u *LoyaltyProgramUpdateOne) sqlSave(ctx context.Context) (_node *LoyaltyP
 	}
 	if value, ok := _u.mutation.IsActive(); ok {
 		_spec.SetField(loyaltyprogram.FieldIsActive, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.TierThresholds(); ok {
+		_spec.SetField(loyaltyprogram.FieldTierThresholds, field.TypeJSON, value)
+	}
+	if _u.mutation.TierThresholdsCleared() {
+		_spec.ClearField(loyaltyprogram.FieldTierThresholds, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(loyaltyprogram.FieldUpdatedAt, field.TypeTime, value)

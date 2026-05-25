@@ -48,6 +48,22 @@ type DailyClosing struct {
 	Notes string `json:"notes,omitempty"`
 	// IDs of CashDrawer rows aggregated into this closing
 	DrawerIds []uuid.UUID `json:"drawer_ids,omitempty"`
+	// TotalCard holds the value of the "total_card" field.
+	TotalCard float64 `json:"total_card,omitempty"`
+	// TotalMpesa holds the value of the "total_mpesa" field.
+	TotalMpesa float64 `json:"total_mpesa,omitempty"`
+	// TotalTax holds the value of the "total_tax" field.
+	TotalTax float64 `json:"total_tax,omitempty"`
+	// TotalLoyaltyRedemptions holds the value of the "total_loyalty_redemptions" field.
+	TotalLoyaltyRedemptions float64 `json:"total_loyalty_redemptions,omitempty"`
+	// TotalRoomCharge holds the value of the "total_room_charge" field.
+	TotalRoomCharge float64 `json:"total_room_charge,omitempty"`
+	// TotalOrders holds the value of the "total_orders" field.
+	TotalOrders int `json:"total_orders,omitempty"`
+	// TotalItemsSold holds the value of the "total_items_sold" field.
+	TotalItemsSold int `json:"total_items_sold,omitempty"`
+	// ClosedAt holds the value of the "closed_at" field.
+	ClosedAt *time.Time `json:"closed_at,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
@@ -87,11 +103,13 @@ func (*DailyClosing) scanValues(columns []string) ([]any, error) {
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		case dailyclosing.FieldDrawerIds:
 			values[i] = new([]byte)
-		case dailyclosing.FieldTotalSales, dailyclosing.FieldTotalRefunds, dailyclosing.FieldTotalDiscounts, dailyclosing.FieldTotalVoids, dailyclosing.FieldCashExpected, dailyclosing.FieldCashActual, dailyclosing.FieldVariance:
+		case dailyclosing.FieldTotalSales, dailyclosing.FieldTotalRefunds, dailyclosing.FieldTotalDiscounts, dailyclosing.FieldTotalVoids, dailyclosing.FieldCashExpected, dailyclosing.FieldCashActual, dailyclosing.FieldVariance, dailyclosing.FieldTotalCard, dailyclosing.FieldTotalMpesa, dailyclosing.FieldTotalTax, dailyclosing.FieldTotalLoyaltyRedemptions, dailyclosing.FieldTotalRoomCharge:
 			values[i] = new(sql.NullFloat64)
+		case dailyclosing.FieldTotalOrders, dailyclosing.FieldTotalItemsSold:
+			values[i] = new(sql.NullInt64)
 		case dailyclosing.FieldStatus, dailyclosing.FieldNotes:
 			values[i] = new(sql.NullString)
-		case dailyclosing.FieldBusinessDate, dailyclosing.FieldCreatedAt, dailyclosing.FieldUpdatedAt:
+		case dailyclosing.FieldBusinessDate, dailyclosing.FieldClosedAt, dailyclosing.FieldCreatedAt, dailyclosing.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
 		case dailyclosing.FieldID, dailyclosing.FieldTenantID, dailyclosing.FieldOutletID:
 			values[i] = new(uuid.UUID)
@@ -203,6 +221,55 @@ func (_m *DailyClosing) assignValues(columns []string, values []any) error {
 					return fmt.Errorf("unmarshal field drawer_ids: %w", err)
 				}
 			}
+		case dailyclosing.FieldTotalCard:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field total_card", values[i])
+			} else if value.Valid {
+				_m.TotalCard = value.Float64
+			}
+		case dailyclosing.FieldTotalMpesa:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field total_mpesa", values[i])
+			} else if value.Valid {
+				_m.TotalMpesa = value.Float64
+			}
+		case dailyclosing.FieldTotalTax:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field total_tax", values[i])
+			} else if value.Valid {
+				_m.TotalTax = value.Float64
+			}
+		case dailyclosing.FieldTotalLoyaltyRedemptions:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field total_loyalty_redemptions", values[i])
+			} else if value.Valid {
+				_m.TotalLoyaltyRedemptions = value.Float64
+			}
+		case dailyclosing.FieldTotalRoomCharge:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field total_room_charge", values[i])
+			} else if value.Valid {
+				_m.TotalRoomCharge = value.Float64
+			}
+		case dailyclosing.FieldTotalOrders:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field total_orders", values[i])
+			} else if value.Valid {
+				_m.TotalOrders = int(value.Int64)
+			}
+		case dailyclosing.FieldTotalItemsSold:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field total_items_sold", values[i])
+			} else if value.Valid {
+				_m.TotalItemsSold = int(value.Int64)
+			}
+		case dailyclosing.FieldClosedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field closed_at", values[i])
+			} else if value.Valid {
+				_m.ClosedAt = new(time.Time)
+				*_m.ClosedAt = value.Time
+			}
 		case dailyclosing.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field created_at", values[i])
@@ -299,6 +366,32 @@ func (_m *DailyClosing) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("drawer_ids=")
 	builder.WriteString(fmt.Sprintf("%v", _m.DrawerIds))
+	builder.WriteString(", ")
+	builder.WriteString("total_card=")
+	builder.WriteString(fmt.Sprintf("%v", _m.TotalCard))
+	builder.WriteString(", ")
+	builder.WriteString("total_mpesa=")
+	builder.WriteString(fmt.Sprintf("%v", _m.TotalMpesa))
+	builder.WriteString(", ")
+	builder.WriteString("total_tax=")
+	builder.WriteString(fmt.Sprintf("%v", _m.TotalTax))
+	builder.WriteString(", ")
+	builder.WriteString("total_loyalty_redemptions=")
+	builder.WriteString(fmt.Sprintf("%v", _m.TotalLoyaltyRedemptions))
+	builder.WriteString(", ")
+	builder.WriteString("total_room_charge=")
+	builder.WriteString(fmt.Sprintf("%v", _m.TotalRoomCharge))
+	builder.WriteString(", ")
+	builder.WriteString("total_orders=")
+	builder.WriteString(fmt.Sprintf("%v", _m.TotalOrders))
+	builder.WriteString(", ")
+	builder.WriteString("total_items_sold=")
+	builder.WriteString(fmt.Sprintf("%v", _m.TotalItemsSold))
+	builder.WriteString(", ")
+	if v := _m.ClosedAt; v != nil {
+		builder.WriteString("closed_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))

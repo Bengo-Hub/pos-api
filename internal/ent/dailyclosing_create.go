@@ -189,6 +189,118 @@ func (_c *DailyClosingCreate) SetDrawerIds(v []uuid.UUID) *DailyClosingCreate {
 	return _c
 }
 
+// SetTotalCard sets the "total_card" field.
+func (_c *DailyClosingCreate) SetTotalCard(v float64) *DailyClosingCreate {
+	_c.mutation.SetTotalCard(v)
+	return _c
+}
+
+// SetNillableTotalCard sets the "total_card" field if the given value is not nil.
+func (_c *DailyClosingCreate) SetNillableTotalCard(v *float64) *DailyClosingCreate {
+	if v != nil {
+		_c.SetTotalCard(*v)
+	}
+	return _c
+}
+
+// SetTotalMpesa sets the "total_mpesa" field.
+func (_c *DailyClosingCreate) SetTotalMpesa(v float64) *DailyClosingCreate {
+	_c.mutation.SetTotalMpesa(v)
+	return _c
+}
+
+// SetNillableTotalMpesa sets the "total_mpesa" field if the given value is not nil.
+func (_c *DailyClosingCreate) SetNillableTotalMpesa(v *float64) *DailyClosingCreate {
+	if v != nil {
+		_c.SetTotalMpesa(*v)
+	}
+	return _c
+}
+
+// SetTotalTax sets the "total_tax" field.
+func (_c *DailyClosingCreate) SetTotalTax(v float64) *DailyClosingCreate {
+	_c.mutation.SetTotalTax(v)
+	return _c
+}
+
+// SetNillableTotalTax sets the "total_tax" field if the given value is not nil.
+func (_c *DailyClosingCreate) SetNillableTotalTax(v *float64) *DailyClosingCreate {
+	if v != nil {
+		_c.SetTotalTax(*v)
+	}
+	return _c
+}
+
+// SetTotalLoyaltyRedemptions sets the "total_loyalty_redemptions" field.
+func (_c *DailyClosingCreate) SetTotalLoyaltyRedemptions(v float64) *DailyClosingCreate {
+	_c.mutation.SetTotalLoyaltyRedemptions(v)
+	return _c
+}
+
+// SetNillableTotalLoyaltyRedemptions sets the "total_loyalty_redemptions" field if the given value is not nil.
+func (_c *DailyClosingCreate) SetNillableTotalLoyaltyRedemptions(v *float64) *DailyClosingCreate {
+	if v != nil {
+		_c.SetTotalLoyaltyRedemptions(*v)
+	}
+	return _c
+}
+
+// SetTotalRoomCharge sets the "total_room_charge" field.
+func (_c *DailyClosingCreate) SetTotalRoomCharge(v float64) *DailyClosingCreate {
+	_c.mutation.SetTotalRoomCharge(v)
+	return _c
+}
+
+// SetNillableTotalRoomCharge sets the "total_room_charge" field if the given value is not nil.
+func (_c *DailyClosingCreate) SetNillableTotalRoomCharge(v *float64) *DailyClosingCreate {
+	if v != nil {
+		_c.SetTotalRoomCharge(*v)
+	}
+	return _c
+}
+
+// SetTotalOrders sets the "total_orders" field.
+func (_c *DailyClosingCreate) SetTotalOrders(v int) *DailyClosingCreate {
+	_c.mutation.SetTotalOrders(v)
+	return _c
+}
+
+// SetNillableTotalOrders sets the "total_orders" field if the given value is not nil.
+func (_c *DailyClosingCreate) SetNillableTotalOrders(v *int) *DailyClosingCreate {
+	if v != nil {
+		_c.SetTotalOrders(*v)
+	}
+	return _c
+}
+
+// SetTotalItemsSold sets the "total_items_sold" field.
+func (_c *DailyClosingCreate) SetTotalItemsSold(v int) *DailyClosingCreate {
+	_c.mutation.SetTotalItemsSold(v)
+	return _c
+}
+
+// SetNillableTotalItemsSold sets the "total_items_sold" field if the given value is not nil.
+func (_c *DailyClosingCreate) SetNillableTotalItemsSold(v *int) *DailyClosingCreate {
+	if v != nil {
+		_c.SetTotalItemsSold(*v)
+	}
+	return _c
+}
+
+// SetClosedAt sets the "closed_at" field.
+func (_c *DailyClosingCreate) SetClosedAt(v time.Time) *DailyClosingCreate {
+	_c.mutation.SetClosedAt(v)
+	return _c
+}
+
+// SetNillableClosedAt sets the "closed_at" field if the given value is not nil.
+func (_c *DailyClosingCreate) SetNillableClosedAt(v *time.Time) *DailyClosingCreate {
+	if v != nil {
+		_c.SetClosedAt(*v)
+	}
+	return _c
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_c *DailyClosingCreate) SetCreatedAt(v time.Time) *DailyClosingCreate {
 	_c.mutation.SetCreatedAt(v)
@@ -307,6 +419,34 @@ func (_c *DailyClosingCreate) defaults() {
 		v := dailyclosing.DefaultDrawerIds
 		_c.mutation.SetDrawerIds(v)
 	}
+	if _, ok := _c.mutation.TotalCard(); !ok {
+		v := dailyclosing.DefaultTotalCard
+		_c.mutation.SetTotalCard(v)
+	}
+	if _, ok := _c.mutation.TotalMpesa(); !ok {
+		v := dailyclosing.DefaultTotalMpesa
+		_c.mutation.SetTotalMpesa(v)
+	}
+	if _, ok := _c.mutation.TotalTax(); !ok {
+		v := dailyclosing.DefaultTotalTax
+		_c.mutation.SetTotalTax(v)
+	}
+	if _, ok := _c.mutation.TotalLoyaltyRedemptions(); !ok {
+		v := dailyclosing.DefaultTotalLoyaltyRedemptions
+		_c.mutation.SetTotalLoyaltyRedemptions(v)
+	}
+	if _, ok := _c.mutation.TotalRoomCharge(); !ok {
+		v := dailyclosing.DefaultTotalRoomCharge
+		_c.mutation.SetTotalRoomCharge(v)
+	}
+	if _, ok := _c.mutation.TotalOrders(); !ok {
+		v := dailyclosing.DefaultTotalOrders
+		_c.mutation.SetTotalOrders(v)
+	}
+	if _, ok := _c.mutation.TotalItemsSold(); !ok {
+		v := dailyclosing.DefaultTotalItemsSold
+		_c.mutation.SetTotalItemsSold(v)
+	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		v := dailyclosing.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
@@ -358,6 +498,27 @@ func (_c *DailyClosingCreate) check() error {
 	}
 	if _, ok := _c.mutation.DrawerIds(); !ok {
 		return &ValidationError{Name: "drawer_ids", err: errors.New(`ent: missing required field "DailyClosing.drawer_ids"`)}
+	}
+	if _, ok := _c.mutation.TotalCard(); !ok {
+		return &ValidationError{Name: "total_card", err: errors.New(`ent: missing required field "DailyClosing.total_card"`)}
+	}
+	if _, ok := _c.mutation.TotalMpesa(); !ok {
+		return &ValidationError{Name: "total_mpesa", err: errors.New(`ent: missing required field "DailyClosing.total_mpesa"`)}
+	}
+	if _, ok := _c.mutation.TotalTax(); !ok {
+		return &ValidationError{Name: "total_tax", err: errors.New(`ent: missing required field "DailyClosing.total_tax"`)}
+	}
+	if _, ok := _c.mutation.TotalLoyaltyRedemptions(); !ok {
+		return &ValidationError{Name: "total_loyalty_redemptions", err: errors.New(`ent: missing required field "DailyClosing.total_loyalty_redemptions"`)}
+	}
+	if _, ok := _c.mutation.TotalRoomCharge(); !ok {
+		return &ValidationError{Name: "total_room_charge", err: errors.New(`ent: missing required field "DailyClosing.total_room_charge"`)}
+	}
+	if _, ok := _c.mutation.TotalOrders(); !ok {
+		return &ValidationError{Name: "total_orders", err: errors.New(`ent: missing required field "DailyClosing.total_orders"`)}
+	}
+	if _, ok := _c.mutation.TotalItemsSold(); !ok {
+		return &ValidationError{Name: "total_items_sold", err: errors.New(`ent: missing required field "DailyClosing.total_items_sold"`)}
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "DailyClosing.created_at"`)}
@@ -455,6 +616,38 @@ func (_c *DailyClosingCreate) createSpec() (*DailyClosing, *sqlgraph.CreateSpec)
 	if value, ok := _c.mutation.DrawerIds(); ok {
 		_spec.SetField(dailyclosing.FieldDrawerIds, field.TypeJSON, value)
 		_node.DrawerIds = value
+	}
+	if value, ok := _c.mutation.TotalCard(); ok {
+		_spec.SetField(dailyclosing.FieldTotalCard, field.TypeFloat64, value)
+		_node.TotalCard = value
+	}
+	if value, ok := _c.mutation.TotalMpesa(); ok {
+		_spec.SetField(dailyclosing.FieldTotalMpesa, field.TypeFloat64, value)
+		_node.TotalMpesa = value
+	}
+	if value, ok := _c.mutation.TotalTax(); ok {
+		_spec.SetField(dailyclosing.FieldTotalTax, field.TypeFloat64, value)
+		_node.TotalTax = value
+	}
+	if value, ok := _c.mutation.TotalLoyaltyRedemptions(); ok {
+		_spec.SetField(dailyclosing.FieldTotalLoyaltyRedemptions, field.TypeFloat64, value)
+		_node.TotalLoyaltyRedemptions = value
+	}
+	if value, ok := _c.mutation.TotalRoomCharge(); ok {
+		_spec.SetField(dailyclosing.FieldTotalRoomCharge, field.TypeFloat64, value)
+		_node.TotalRoomCharge = value
+	}
+	if value, ok := _c.mutation.TotalOrders(); ok {
+		_spec.SetField(dailyclosing.FieldTotalOrders, field.TypeInt, value)
+		_node.TotalOrders = value
+	}
+	if value, ok := _c.mutation.TotalItemsSold(); ok {
+		_spec.SetField(dailyclosing.FieldTotalItemsSold, field.TypeInt, value)
+		_node.TotalItemsSold = value
+	}
+	if value, ok := _c.mutation.ClosedAt(); ok {
+		_spec.SetField(dailyclosing.FieldClosedAt, field.TypeTime, value)
+		_node.ClosedAt = &value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(dailyclosing.FieldCreatedAt, field.TypeTime, value)
@@ -752,6 +945,150 @@ func (u *DailyClosingUpsert) SetDrawerIds(v []uuid.UUID) *DailyClosingUpsert {
 // UpdateDrawerIds sets the "drawer_ids" field to the value that was provided on create.
 func (u *DailyClosingUpsert) UpdateDrawerIds() *DailyClosingUpsert {
 	u.SetExcluded(dailyclosing.FieldDrawerIds)
+	return u
+}
+
+// SetTotalCard sets the "total_card" field.
+func (u *DailyClosingUpsert) SetTotalCard(v float64) *DailyClosingUpsert {
+	u.Set(dailyclosing.FieldTotalCard, v)
+	return u
+}
+
+// UpdateTotalCard sets the "total_card" field to the value that was provided on create.
+func (u *DailyClosingUpsert) UpdateTotalCard() *DailyClosingUpsert {
+	u.SetExcluded(dailyclosing.FieldTotalCard)
+	return u
+}
+
+// AddTotalCard adds v to the "total_card" field.
+func (u *DailyClosingUpsert) AddTotalCard(v float64) *DailyClosingUpsert {
+	u.Add(dailyclosing.FieldTotalCard, v)
+	return u
+}
+
+// SetTotalMpesa sets the "total_mpesa" field.
+func (u *DailyClosingUpsert) SetTotalMpesa(v float64) *DailyClosingUpsert {
+	u.Set(dailyclosing.FieldTotalMpesa, v)
+	return u
+}
+
+// UpdateTotalMpesa sets the "total_mpesa" field to the value that was provided on create.
+func (u *DailyClosingUpsert) UpdateTotalMpesa() *DailyClosingUpsert {
+	u.SetExcluded(dailyclosing.FieldTotalMpesa)
+	return u
+}
+
+// AddTotalMpesa adds v to the "total_mpesa" field.
+func (u *DailyClosingUpsert) AddTotalMpesa(v float64) *DailyClosingUpsert {
+	u.Add(dailyclosing.FieldTotalMpesa, v)
+	return u
+}
+
+// SetTotalTax sets the "total_tax" field.
+func (u *DailyClosingUpsert) SetTotalTax(v float64) *DailyClosingUpsert {
+	u.Set(dailyclosing.FieldTotalTax, v)
+	return u
+}
+
+// UpdateTotalTax sets the "total_tax" field to the value that was provided on create.
+func (u *DailyClosingUpsert) UpdateTotalTax() *DailyClosingUpsert {
+	u.SetExcluded(dailyclosing.FieldTotalTax)
+	return u
+}
+
+// AddTotalTax adds v to the "total_tax" field.
+func (u *DailyClosingUpsert) AddTotalTax(v float64) *DailyClosingUpsert {
+	u.Add(dailyclosing.FieldTotalTax, v)
+	return u
+}
+
+// SetTotalLoyaltyRedemptions sets the "total_loyalty_redemptions" field.
+func (u *DailyClosingUpsert) SetTotalLoyaltyRedemptions(v float64) *DailyClosingUpsert {
+	u.Set(dailyclosing.FieldTotalLoyaltyRedemptions, v)
+	return u
+}
+
+// UpdateTotalLoyaltyRedemptions sets the "total_loyalty_redemptions" field to the value that was provided on create.
+func (u *DailyClosingUpsert) UpdateTotalLoyaltyRedemptions() *DailyClosingUpsert {
+	u.SetExcluded(dailyclosing.FieldTotalLoyaltyRedemptions)
+	return u
+}
+
+// AddTotalLoyaltyRedemptions adds v to the "total_loyalty_redemptions" field.
+func (u *DailyClosingUpsert) AddTotalLoyaltyRedemptions(v float64) *DailyClosingUpsert {
+	u.Add(dailyclosing.FieldTotalLoyaltyRedemptions, v)
+	return u
+}
+
+// SetTotalRoomCharge sets the "total_room_charge" field.
+func (u *DailyClosingUpsert) SetTotalRoomCharge(v float64) *DailyClosingUpsert {
+	u.Set(dailyclosing.FieldTotalRoomCharge, v)
+	return u
+}
+
+// UpdateTotalRoomCharge sets the "total_room_charge" field to the value that was provided on create.
+func (u *DailyClosingUpsert) UpdateTotalRoomCharge() *DailyClosingUpsert {
+	u.SetExcluded(dailyclosing.FieldTotalRoomCharge)
+	return u
+}
+
+// AddTotalRoomCharge adds v to the "total_room_charge" field.
+func (u *DailyClosingUpsert) AddTotalRoomCharge(v float64) *DailyClosingUpsert {
+	u.Add(dailyclosing.FieldTotalRoomCharge, v)
+	return u
+}
+
+// SetTotalOrders sets the "total_orders" field.
+func (u *DailyClosingUpsert) SetTotalOrders(v int) *DailyClosingUpsert {
+	u.Set(dailyclosing.FieldTotalOrders, v)
+	return u
+}
+
+// UpdateTotalOrders sets the "total_orders" field to the value that was provided on create.
+func (u *DailyClosingUpsert) UpdateTotalOrders() *DailyClosingUpsert {
+	u.SetExcluded(dailyclosing.FieldTotalOrders)
+	return u
+}
+
+// AddTotalOrders adds v to the "total_orders" field.
+func (u *DailyClosingUpsert) AddTotalOrders(v int) *DailyClosingUpsert {
+	u.Add(dailyclosing.FieldTotalOrders, v)
+	return u
+}
+
+// SetTotalItemsSold sets the "total_items_sold" field.
+func (u *DailyClosingUpsert) SetTotalItemsSold(v int) *DailyClosingUpsert {
+	u.Set(dailyclosing.FieldTotalItemsSold, v)
+	return u
+}
+
+// UpdateTotalItemsSold sets the "total_items_sold" field to the value that was provided on create.
+func (u *DailyClosingUpsert) UpdateTotalItemsSold() *DailyClosingUpsert {
+	u.SetExcluded(dailyclosing.FieldTotalItemsSold)
+	return u
+}
+
+// AddTotalItemsSold adds v to the "total_items_sold" field.
+func (u *DailyClosingUpsert) AddTotalItemsSold(v int) *DailyClosingUpsert {
+	u.Add(dailyclosing.FieldTotalItemsSold, v)
+	return u
+}
+
+// SetClosedAt sets the "closed_at" field.
+func (u *DailyClosingUpsert) SetClosedAt(v time.Time) *DailyClosingUpsert {
+	u.Set(dailyclosing.FieldClosedAt, v)
+	return u
+}
+
+// UpdateClosedAt sets the "closed_at" field to the value that was provided on create.
+func (u *DailyClosingUpsert) UpdateClosedAt() *DailyClosingUpsert {
+	u.SetExcluded(dailyclosing.FieldClosedAt)
+	return u
+}
+
+// ClearClosedAt clears the value of the "closed_at" field.
+func (u *DailyClosingUpsert) ClearClosedAt() *DailyClosingUpsert {
+	u.SetNull(dailyclosing.FieldClosedAt)
 	return u
 }
 
@@ -1074,6 +1411,174 @@ func (u *DailyClosingUpsertOne) SetDrawerIds(v []uuid.UUID) *DailyClosingUpsertO
 func (u *DailyClosingUpsertOne) UpdateDrawerIds() *DailyClosingUpsertOne {
 	return u.Update(func(s *DailyClosingUpsert) {
 		s.UpdateDrawerIds()
+	})
+}
+
+// SetTotalCard sets the "total_card" field.
+func (u *DailyClosingUpsertOne) SetTotalCard(v float64) *DailyClosingUpsertOne {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.SetTotalCard(v)
+	})
+}
+
+// AddTotalCard adds v to the "total_card" field.
+func (u *DailyClosingUpsertOne) AddTotalCard(v float64) *DailyClosingUpsertOne {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.AddTotalCard(v)
+	})
+}
+
+// UpdateTotalCard sets the "total_card" field to the value that was provided on create.
+func (u *DailyClosingUpsertOne) UpdateTotalCard() *DailyClosingUpsertOne {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.UpdateTotalCard()
+	})
+}
+
+// SetTotalMpesa sets the "total_mpesa" field.
+func (u *DailyClosingUpsertOne) SetTotalMpesa(v float64) *DailyClosingUpsertOne {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.SetTotalMpesa(v)
+	})
+}
+
+// AddTotalMpesa adds v to the "total_mpesa" field.
+func (u *DailyClosingUpsertOne) AddTotalMpesa(v float64) *DailyClosingUpsertOne {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.AddTotalMpesa(v)
+	})
+}
+
+// UpdateTotalMpesa sets the "total_mpesa" field to the value that was provided on create.
+func (u *DailyClosingUpsertOne) UpdateTotalMpesa() *DailyClosingUpsertOne {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.UpdateTotalMpesa()
+	})
+}
+
+// SetTotalTax sets the "total_tax" field.
+func (u *DailyClosingUpsertOne) SetTotalTax(v float64) *DailyClosingUpsertOne {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.SetTotalTax(v)
+	})
+}
+
+// AddTotalTax adds v to the "total_tax" field.
+func (u *DailyClosingUpsertOne) AddTotalTax(v float64) *DailyClosingUpsertOne {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.AddTotalTax(v)
+	})
+}
+
+// UpdateTotalTax sets the "total_tax" field to the value that was provided on create.
+func (u *DailyClosingUpsertOne) UpdateTotalTax() *DailyClosingUpsertOne {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.UpdateTotalTax()
+	})
+}
+
+// SetTotalLoyaltyRedemptions sets the "total_loyalty_redemptions" field.
+func (u *DailyClosingUpsertOne) SetTotalLoyaltyRedemptions(v float64) *DailyClosingUpsertOne {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.SetTotalLoyaltyRedemptions(v)
+	})
+}
+
+// AddTotalLoyaltyRedemptions adds v to the "total_loyalty_redemptions" field.
+func (u *DailyClosingUpsertOne) AddTotalLoyaltyRedemptions(v float64) *DailyClosingUpsertOne {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.AddTotalLoyaltyRedemptions(v)
+	})
+}
+
+// UpdateTotalLoyaltyRedemptions sets the "total_loyalty_redemptions" field to the value that was provided on create.
+func (u *DailyClosingUpsertOne) UpdateTotalLoyaltyRedemptions() *DailyClosingUpsertOne {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.UpdateTotalLoyaltyRedemptions()
+	})
+}
+
+// SetTotalRoomCharge sets the "total_room_charge" field.
+func (u *DailyClosingUpsertOne) SetTotalRoomCharge(v float64) *DailyClosingUpsertOne {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.SetTotalRoomCharge(v)
+	})
+}
+
+// AddTotalRoomCharge adds v to the "total_room_charge" field.
+func (u *DailyClosingUpsertOne) AddTotalRoomCharge(v float64) *DailyClosingUpsertOne {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.AddTotalRoomCharge(v)
+	})
+}
+
+// UpdateTotalRoomCharge sets the "total_room_charge" field to the value that was provided on create.
+func (u *DailyClosingUpsertOne) UpdateTotalRoomCharge() *DailyClosingUpsertOne {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.UpdateTotalRoomCharge()
+	})
+}
+
+// SetTotalOrders sets the "total_orders" field.
+func (u *DailyClosingUpsertOne) SetTotalOrders(v int) *DailyClosingUpsertOne {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.SetTotalOrders(v)
+	})
+}
+
+// AddTotalOrders adds v to the "total_orders" field.
+func (u *DailyClosingUpsertOne) AddTotalOrders(v int) *DailyClosingUpsertOne {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.AddTotalOrders(v)
+	})
+}
+
+// UpdateTotalOrders sets the "total_orders" field to the value that was provided on create.
+func (u *DailyClosingUpsertOne) UpdateTotalOrders() *DailyClosingUpsertOne {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.UpdateTotalOrders()
+	})
+}
+
+// SetTotalItemsSold sets the "total_items_sold" field.
+func (u *DailyClosingUpsertOne) SetTotalItemsSold(v int) *DailyClosingUpsertOne {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.SetTotalItemsSold(v)
+	})
+}
+
+// AddTotalItemsSold adds v to the "total_items_sold" field.
+func (u *DailyClosingUpsertOne) AddTotalItemsSold(v int) *DailyClosingUpsertOne {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.AddTotalItemsSold(v)
+	})
+}
+
+// UpdateTotalItemsSold sets the "total_items_sold" field to the value that was provided on create.
+func (u *DailyClosingUpsertOne) UpdateTotalItemsSold() *DailyClosingUpsertOne {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.UpdateTotalItemsSold()
+	})
+}
+
+// SetClosedAt sets the "closed_at" field.
+func (u *DailyClosingUpsertOne) SetClosedAt(v time.Time) *DailyClosingUpsertOne {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.SetClosedAt(v)
+	})
+}
+
+// UpdateClosedAt sets the "closed_at" field to the value that was provided on create.
+func (u *DailyClosingUpsertOne) UpdateClosedAt() *DailyClosingUpsertOne {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.UpdateClosedAt()
+	})
+}
+
+// ClearClosedAt clears the value of the "closed_at" field.
+func (u *DailyClosingUpsertOne) ClearClosedAt() *DailyClosingUpsertOne {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.ClearClosedAt()
 	})
 }
 
@@ -1565,6 +2070,174 @@ func (u *DailyClosingUpsertBulk) SetDrawerIds(v []uuid.UUID) *DailyClosingUpsert
 func (u *DailyClosingUpsertBulk) UpdateDrawerIds() *DailyClosingUpsertBulk {
 	return u.Update(func(s *DailyClosingUpsert) {
 		s.UpdateDrawerIds()
+	})
+}
+
+// SetTotalCard sets the "total_card" field.
+func (u *DailyClosingUpsertBulk) SetTotalCard(v float64) *DailyClosingUpsertBulk {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.SetTotalCard(v)
+	})
+}
+
+// AddTotalCard adds v to the "total_card" field.
+func (u *DailyClosingUpsertBulk) AddTotalCard(v float64) *DailyClosingUpsertBulk {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.AddTotalCard(v)
+	})
+}
+
+// UpdateTotalCard sets the "total_card" field to the value that was provided on create.
+func (u *DailyClosingUpsertBulk) UpdateTotalCard() *DailyClosingUpsertBulk {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.UpdateTotalCard()
+	})
+}
+
+// SetTotalMpesa sets the "total_mpesa" field.
+func (u *DailyClosingUpsertBulk) SetTotalMpesa(v float64) *DailyClosingUpsertBulk {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.SetTotalMpesa(v)
+	})
+}
+
+// AddTotalMpesa adds v to the "total_mpesa" field.
+func (u *DailyClosingUpsertBulk) AddTotalMpesa(v float64) *DailyClosingUpsertBulk {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.AddTotalMpesa(v)
+	})
+}
+
+// UpdateTotalMpesa sets the "total_mpesa" field to the value that was provided on create.
+func (u *DailyClosingUpsertBulk) UpdateTotalMpesa() *DailyClosingUpsertBulk {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.UpdateTotalMpesa()
+	})
+}
+
+// SetTotalTax sets the "total_tax" field.
+func (u *DailyClosingUpsertBulk) SetTotalTax(v float64) *DailyClosingUpsertBulk {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.SetTotalTax(v)
+	})
+}
+
+// AddTotalTax adds v to the "total_tax" field.
+func (u *DailyClosingUpsertBulk) AddTotalTax(v float64) *DailyClosingUpsertBulk {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.AddTotalTax(v)
+	})
+}
+
+// UpdateTotalTax sets the "total_tax" field to the value that was provided on create.
+func (u *DailyClosingUpsertBulk) UpdateTotalTax() *DailyClosingUpsertBulk {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.UpdateTotalTax()
+	})
+}
+
+// SetTotalLoyaltyRedemptions sets the "total_loyalty_redemptions" field.
+func (u *DailyClosingUpsertBulk) SetTotalLoyaltyRedemptions(v float64) *DailyClosingUpsertBulk {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.SetTotalLoyaltyRedemptions(v)
+	})
+}
+
+// AddTotalLoyaltyRedemptions adds v to the "total_loyalty_redemptions" field.
+func (u *DailyClosingUpsertBulk) AddTotalLoyaltyRedemptions(v float64) *DailyClosingUpsertBulk {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.AddTotalLoyaltyRedemptions(v)
+	})
+}
+
+// UpdateTotalLoyaltyRedemptions sets the "total_loyalty_redemptions" field to the value that was provided on create.
+func (u *DailyClosingUpsertBulk) UpdateTotalLoyaltyRedemptions() *DailyClosingUpsertBulk {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.UpdateTotalLoyaltyRedemptions()
+	})
+}
+
+// SetTotalRoomCharge sets the "total_room_charge" field.
+func (u *DailyClosingUpsertBulk) SetTotalRoomCharge(v float64) *DailyClosingUpsertBulk {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.SetTotalRoomCharge(v)
+	})
+}
+
+// AddTotalRoomCharge adds v to the "total_room_charge" field.
+func (u *DailyClosingUpsertBulk) AddTotalRoomCharge(v float64) *DailyClosingUpsertBulk {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.AddTotalRoomCharge(v)
+	})
+}
+
+// UpdateTotalRoomCharge sets the "total_room_charge" field to the value that was provided on create.
+func (u *DailyClosingUpsertBulk) UpdateTotalRoomCharge() *DailyClosingUpsertBulk {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.UpdateTotalRoomCharge()
+	})
+}
+
+// SetTotalOrders sets the "total_orders" field.
+func (u *DailyClosingUpsertBulk) SetTotalOrders(v int) *DailyClosingUpsertBulk {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.SetTotalOrders(v)
+	})
+}
+
+// AddTotalOrders adds v to the "total_orders" field.
+func (u *DailyClosingUpsertBulk) AddTotalOrders(v int) *DailyClosingUpsertBulk {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.AddTotalOrders(v)
+	})
+}
+
+// UpdateTotalOrders sets the "total_orders" field to the value that was provided on create.
+func (u *DailyClosingUpsertBulk) UpdateTotalOrders() *DailyClosingUpsertBulk {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.UpdateTotalOrders()
+	})
+}
+
+// SetTotalItemsSold sets the "total_items_sold" field.
+func (u *DailyClosingUpsertBulk) SetTotalItemsSold(v int) *DailyClosingUpsertBulk {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.SetTotalItemsSold(v)
+	})
+}
+
+// AddTotalItemsSold adds v to the "total_items_sold" field.
+func (u *DailyClosingUpsertBulk) AddTotalItemsSold(v int) *DailyClosingUpsertBulk {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.AddTotalItemsSold(v)
+	})
+}
+
+// UpdateTotalItemsSold sets the "total_items_sold" field to the value that was provided on create.
+func (u *DailyClosingUpsertBulk) UpdateTotalItemsSold() *DailyClosingUpsertBulk {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.UpdateTotalItemsSold()
+	})
+}
+
+// SetClosedAt sets the "closed_at" field.
+func (u *DailyClosingUpsertBulk) SetClosedAt(v time.Time) *DailyClosingUpsertBulk {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.SetClosedAt(v)
+	})
+}
+
+// UpdateClosedAt sets the "closed_at" field to the value that was provided on create.
+func (u *DailyClosingUpsertBulk) UpdateClosedAt() *DailyClosingUpsertBulk {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.UpdateClosedAt()
+	})
+}
+
+// ClearClosedAt clears the value of the "closed_at" field.
+func (u *DailyClosingUpsertBulk) ClearClosedAt() *DailyClosingUpsertBulk {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.ClearClosedAt()
 	})
 }
 

@@ -95,6 +95,16 @@ func CommissionAmount(v float64) predicate.CommissionRecord {
 	return predicate.CommissionRecord(sql.FieldEQ(FieldCommissionAmount, v))
 }
 
+// Status applies equality check predicate on the "status" field. It's identical to StatusEQ.
+func Status(v string) predicate.CommissionRecord {
+	return predicate.CommissionRecord(sql.FieldEQ(FieldStatus, v))
+}
+
+// Notes applies equality check predicate on the "notes" field. It's identical to NotesEQ.
+func Notes(v string) predicate.CommissionRecord {
+	return predicate.CommissionRecord(sql.FieldEQ(FieldNotes, v))
+}
+
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.CommissionRecord {
 	return predicate.CommissionRecord(sql.FieldEQ(FieldCreatedAt, v))
@@ -453,6 +463,146 @@ func CommissionAmountLT(v float64) predicate.CommissionRecord {
 // CommissionAmountLTE applies the LTE predicate on the "commission_amount" field.
 func CommissionAmountLTE(v float64) predicate.CommissionRecord {
 	return predicate.CommissionRecord(sql.FieldLTE(FieldCommissionAmount, v))
+}
+
+// StatusEQ applies the EQ predicate on the "status" field.
+func StatusEQ(v string) predicate.CommissionRecord {
+	return predicate.CommissionRecord(sql.FieldEQ(FieldStatus, v))
+}
+
+// StatusNEQ applies the NEQ predicate on the "status" field.
+func StatusNEQ(v string) predicate.CommissionRecord {
+	return predicate.CommissionRecord(sql.FieldNEQ(FieldStatus, v))
+}
+
+// StatusIn applies the In predicate on the "status" field.
+func StatusIn(vs ...string) predicate.CommissionRecord {
+	return predicate.CommissionRecord(sql.FieldIn(FieldStatus, vs...))
+}
+
+// StatusNotIn applies the NotIn predicate on the "status" field.
+func StatusNotIn(vs ...string) predicate.CommissionRecord {
+	return predicate.CommissionRecord(sql.FieldNotIn(FieldStatus, vs...))
+}
+
+// StatusGT applies the GT predicate on the "status" field.
+func StatusGT(v string) predicate.CommissionRecord {
+	return predicate.CommissionRecord(sql.FieldGT(FieldStatus, v))
+}
+
+// StatusGTE applies the GTE predicate on the "status" field.
+func StatusGTE(v string) predicate.CommissionRecord {
+	return predicate.CommissionRecord(sql.FieldGTE(FieldStatus, v))
+}
+
+// StatusLT applies the LT predicate on the "status" field.
+func StatusLT(v string) predicate.CommissionRecord {
+	return predicate.CommissionRecord(sql.FieldLT(FieldStatus, v))
+}
+
+// StatusLTE applies the LTE predicate on the "status" field.
+func StatusLTE(v string) predicate.CommissionRecord {
+	return predicate.CommissionRecord(sql.FieldLTE(FieldStatus, v))
+}
+
+// StatusContains applies the Contains predicate on the "status" field.
+func StatusContains(v string) predicate.CommissionRecord {
+	return predicate.CommissionRecord(sql.FieldContains(FieldStatus, v))
+}
+
+// StatusHasPrefix applies the HasPrefix predicate on the "status" field.
+func StatusHasPrefix(v string) predicate.CommissionRecord {
+	return predicate.CommissionRecord(sql.FieldHasPrefix(FieldStatus, v))
+}
+
+// StatusHasSuffix applies the HasSuffix predicate on the "status" field.
+func StatusHasSuffix(v string) predicate.CommissionRecord {
+	return predicate.CommissionRecord(sql.FieldHasSuffix(FieldStatus, v))
+}
+
+// StatusEqualFold applies the EqualFold predicate on the "status" field.
+func StatusEqualFold(v string) predicate.CommissionRecord {
+	return predicate.CommissionRecord(sql.FieldEqualFold(FieldStatus, v))
+}
+
+// StatusContainsFold applies the ContainsFold predicate on the "status" field.
+func StatusContainsFold(v string) predicate.CommissionRecord {
+	return predicate.CommissionRecord(sql.FieldContainsFold(FieldStatus, v))
+}
+
+// NotesEQ applies the EQ predicate on the "notes" field.
+func NotesEQ(v string) predicate.CommissionRecord {
+	return predicate.CommissionRecord(sql.FieldEQ(FieldNotes, v))
+}
+
+// NotesNEQ applies the NEQ predicate on the "notes" field.
+func NotesNEQ(v string) predicate.CommissionRecord {
+	return predicate.CommissionRecord(sql.FieldNEQ(FieldNotes, v))
+}
+
+// NotesIn applies the In predicate on the "notes" field.
+func NotesIn(vs ...string) predicate.CommissionRecord {
+	return predicate.CommissionRecord(sql.FieldIn(FieldNotes, vs...))
+}
+
+// NotesNotIn applies the NotIn predicate on the "notes" field.
+func NotesNotIn(vs ...string) predicate.CommissionRecord {
+	return predicate.CommissionRecord(sql.FieldNotIn(FieldNotes, vs...))
+}
+
+// NotesGT applies the GT predicate on the "notes" field.
+func NotesGT(v string) predicate.CommissionRecord {
+	return predicate.CommissionRecord(sql.FieldGT(FieldNotes, v))
+}
+
+// NotesGTE applies the GTE predicate on the "notes" field.
+func NotesGTE(v string) predicate.CommissionRecord {
+	return predicate.CommissionRecord(sql.FieldGTE(FieldNotes, v))
+}
+
+// NotesLT applies the LT predicate on the "notes" field.
+func NotesLT(v string) predicate.CommissionRecord {
+	return predicate.CommissionRecord(sql.FieldLT(FieldNotes, v))
+}
+
+// NotesLTE applies the LTE predicate on the "notes" field.
+func NotesLTE(v string) predicate.CommissionRecord {
+	return predicate.CommissionRecord(sql.FieldLTE(FieldNotes, v))
+}
+
+// NotesContains applies the Contains predicate on the "notes" field.
+func NotesContains(v string) predicate.CommissionRecord {
+	return predicate.CommissionRecord(sql.FieldContains(FieldNotes, v))
+}
+
+// NotesHasPrefix applies the HasPrefix predicate on the "notes" field.
+func NotesHasPrefix(v string) predicate.CommissionRecord {
+	return predicate.CommissionRecord(sql.FieldHasPrefix(FieldNotes, v))
+}
+
+// NotesHasSuffix applies the HasSuffix predicate on the "notes" field.
+func NotesHasSuffix(v string) predicate.CommissionRecord {
+	return predicate.CommissionRecord(sql.FieldHasSuffix(FieldNotes, v))
+}
+
+// NotesIsNil applies the IsNil predicate on the "notes" field.
+func NotesIsNil() predicate.CommissionRecord {
+	return predicate.CommissionRecord(sql.FieldIsNull(FieldNotes))
+}
+
+// NotesNotNil applies the NotNil predicate on the "notes" field.
+func NotesNotNil() predicate.CommissionRecord {
+	return predicate.CommissionRecord(sql.FieldNotNull(FieldNotes))
+}
+
+// NotesEqualFold applies the EqualFold predicate on the "notes" field.
+func NotesEqualFold(v string) predicate.CommissionRecord {
+	return predicate.CommissionRecord(sql.FieldEqualFold(FieldNotes, v))
+}
+
+// NotesContainsFold applies the ContainsFold predicate on the "notes" field.
+func NotesContainsFold(v string) predicate.CommissionRecord {
+	return predicate.CommissionRecord(sql.FieldContainsFold(FieldNotes, v))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.

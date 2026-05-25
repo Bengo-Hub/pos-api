@@ -8,30 +8,30 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"github.com/bengobox/pos-service/internal/ent/catalogitem"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
+	"github.com/bengobox/pos-service/internal/ent/servicepackage"
 )
 
-// CatalogItemDelete is the builder for deleting a CatalogItem entity.
-type CatalogItemDelete struct {
+// ServicePackageDelete is the builder for deleting a ServicePackage entity.
+type ServicePackageDelete struct {
 	config
 	hooks    []Hook
-	mutation *CatalogItemMutation
+	mutation *ServicePackageMutation
 }
 
-// Where appends a list predicates to the CatalogItemDelete builder.
-func (_d *CatalogItemDelete) Where(ps ...predicate.CatalogItem) *CatalogItemDelete {
+// Where appends a list predicates to the ServicePackageDelete builder.
+func (_d *ServicePackageDelete) Where(ps ...predicate.ServicePackage) *ServicePackageDelete {
 	_d.mutation.Where(ps...)
 	return _d
 }
 
 // Exec executes the deletion query and returns how many vertices were deleted.
-func (_d *CatalogItemDelete) Exec(ctx context.Context) (int, error) {
+func (_d *ServicePackageDelete) Exec(ctx context.Context) (int, error) {
 	return withHooks(ctx, _d.sqlExec, _d.mutation, _d.hooks)
 }
 
 // ExecX is like Exec, but panics if an error occurs.
-func (_d *CatalogItemDelete) ExecX(ctx context.Context) int {
+func (_d *ServicePackageDelete) ExecX(ctx context.Context) int {
 	n, err := _d.Exec(ctx)
 	if err != nil {
 		panic(err)
@@ -39,8 +39,8 @@ func (_d *CatalogItemDelete) ExecX(ctx context.Context) int {
 	return n
 }
 
-func (_d *CatalogItemDelete) sqlExec(ctx context.Context) (int, error) {
-	_spec := sqlgraph.NewDeleteSpec(catalogitem.Table, sqlgraph.NewFieldSpec(catalogitem.FieldID, field.TypeUUID))
+func (_d *ServicePackageDelete) sqlExec(ctx context.Context) (int, error) {
+	_spec := sqlgraph.NewDeleteSpec(servicepackage.Table, sqlgraph.NewFieldSpec(servicepackage.FieldID, field.TypeUUID))
 	if ps := _d.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
 			for i := range ps {
@@ -56,32 +56,32 @@ func (_d *CatalogItemDelete) sqlExec(ctx context.Context) (int, error) {
 	return affected, err
 }
 
-// CatalogItemDeleteOne is the builder for deleting a single CatalogItem entity.
-type CatalogItemDeleteOne struct {
-	_d *CatalogItemDelete
+// ServicePackageDeleteOne is the builder for deleting a single ServicePackage entity.
+type ServicePackageDeleteOne struct {
+	_d *ServicePackageDelete
 }
 
-// Where appends a list predicates to the CatalogItemDelete builder.
-func (_d *CatalogItemDeleteOne) Where(ps ...predicate.CatalogItem) *CatalogItemDeleteOne {
+// Where appends a list predicates to the ServicePackageDelete builder.
+func (_d *ServicePackageDeleteOne) Where(ps ...predicate.ServicePackage) *ServicePackageDeleteOne {
 	_d._d.mutation.Where(ps...)
 	return _d
 }
 
 // Exec executes the deletion query.
-func (_d *CatalogItemDeleteOne) Exec(ctx context.Context) error {
+func (_d *ServicePackageDeleteOne) Exec(ctx context.Context) error {
 	n, err := _d._d.Exec(ctx)
 	switch {
 	case err != nil:
 		return err
 	case n == 0:
-		return &NotFoundError{catalogitem.Label}
+		return &NotFoundError{servicepackage.Label}
 	default:
 		return nil
 	}
 }
 
 // ExecX is like Exec, but panics if an error occurs.
-func (_d *CatalogItemDeleteOne) ExecX(ctx context.Context) {
+func (_d *ServicePackageDeleteOne) ExecX(ctx context.Context) {
 	if err := _d.Exec(ctx); err != nil {
 		panic(err)
 	}

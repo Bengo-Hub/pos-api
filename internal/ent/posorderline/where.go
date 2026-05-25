@@ -106,6 +106,16 @@ func ExpiryDate(v time.Time) predicate.POSOrderLine {
 	return predicate.POSOrderLine(sql.FieldEQ(FieldExpiryDate, v))
 }
 
+// SerialNumber applies equality check predicate on the "serial_number" field. It's identical to SerialNumberEQ.
+func SerialNumber(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldEQ(FieldSerialNumber, v))
+}
+
+// PartialUnits applies equality check predicate on the "partial_units" field. It's identical to PartialUnitsEQ.
+func PartialUnits(v float64) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldEQ(FieldPartialUnits, v))
+}
+
 // OrderIDEQ applies the EQ predicate on the "order_id" field.
 func OrderIDEQ(v uuid.UUID) predicate.POSOrderLine {
 	return predicate.POSOrderLine(sql.FieldEQ(FieldOrderID, v))
@@ -589,6 +599,131 @@ func ExpiryDateIsNil() predicate.POSOrderLine {
 // ExpiryDateNotNil applies the NotNil predicate on the "expiry_date" field.
 func ExpiryDateNotNil() predicate.POSOrderLine {
 	return predicate.POSOrderLine(sql.FieldNotNull(FieldExpiryDate))
+}
+
+// SerialNumberEQ applies the EQ predicate on the "serial_number" field.
+func SerialNumberEQ(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldEQ(FieldSerialNumber, v))
+}
+
+// SerialNumberNEQ applies the NEQ predicate on the "serial_number" field.
+func SerialNumberNEQ(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldNEQ(FieldSerialNumber, v))
+}
+
+// SerialNumberIn applies the In predicate on the "serial_number" field.
+func SerialNumberIn(vs ...string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldIn(FieldSerialNumber, vs...))
+}
+
+// SerialNumberNotIn applies the NotIn predicate on the "serial_number" field.
+func SerialNumberNotIn(vs ...string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldNotIn(FieldSerialNumber, vs...))
+}
+
+// SerialNumberGT applies the GT predicate on the "serial_number" field.
+func SerialNumberGT(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldGT(FieldSerialNumber, v))
+}
+
+// SerialNumberGTE applies the GTE predicate on the "serial_number" field.
+func SerialNumberGTE(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldGTE(FieldSerialNumber, v))
+}
+
+// SerialNumberLT applies the LT predicate on the "serial_number" field.
+func SerialNumberLT(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldLT(FieldSerialNumber, v))
+}
+
+// SerialNumberLTE applies the LTE predicate on the "serial_number" field.
+func SerialNumberLTE(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldLTE(FieldSerialNumber, v))
+}
+
+// SerialNumberContains applies the Contains predicate on the "serial_number" field.
+func SerialNumberContains(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldContains(FieldSerialNumber, v))
+}
+
+// SerialNumberHasPrefix applies the HasPrefix predicate on the "serial_number" field.
+func SerialNumberHasPrefix(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldHasPrefix(FieldSerialNumber, v))
+}
+
+// SerialNumberHasSuffix applies the HasSuffix predicate on the "serial_number" field.
+func SerialNumberHasSuffix(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldHasSuffix(FieldSerialNumber, v))
+}
+
+// SerialNumberIsNil applies the IsNil predicate on the "serial_number" field.
+func SerialNumberIsNil() predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldIsNull(FieldSerialNumber))
+}
+
+// SerialNumberNotNil applies the NotNil predicate on the "serial_number" field.
+func SerialNumberNotNil() predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldNotNull(FieldSerialNumber))
+}
+
+// SerialNumberEqualFold applies the EqualFold predicate on the "serial_number" field.
+func SerialNumberEqualFold(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldEqualFold(FieldSerialNumber, v))
+}
+
+// SerialNumberContainsFold applies the ContainsFold predicate on the "serial_number" field.
+func SerialNumberContainsFold(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldContainsFold(FieldSerialNumber, v))
+}
+
+// PartialUnitsEQ applies the EQ predicate on the "partial_units" field.
+func PartialUnitsEQ(v float64) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldEQ(FieldPartialUnits, v))
+}
+
+// PartialUnitsNEQ applies the NEQ predicate on the "partial_units" field.
+func PartialUnitsNEQ(v float64) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldNEQ(FieldPartialUnits, v))
+}
+
+// PartialUnitsIn applies the In predicate on the "partial_units" field.
+func PartialUnitsIn(vs ...float64) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldIn(FieldPartialUnits, vs...))
+}
+
+// PartialUnitsNotIn applies the NotIn predicate on the "partial_units" field.
+func PartialUnitsNotIn(vs ...float64) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldNotIn(FieldPartialUnits, vs...))
+}
+
+// PartialUnitsGT applies the GT predicate on the "partial_units" field.
+func PartialUnitsGT(v float64) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldGT(FieldPartialUnits, v))
+}
+
+// PartialUnitsGTE applies the GTE predicate on the "partial_units" field.
+func PartialUnitsGTE(v float64) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldGTE(FieldPartialUnits, v))
+}
+
+// PartialUnitsLT applies the LT predicate on the "partial_units" field.
+func PartialUnitsLT(v float64) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldLT(FieldPartialUnits, v))
+}
+
+// PartialUnitsLTE applies the LTE predicate on the "partial_units" field.
+func PartialUnitsLTE(v float64) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldLTE(FieldPartialUnits, v))
+}
+
+// PartialUnitsIsNil applies the IsNil predicate on the "partial_units" field.
+func PartialUnitsIsNil() predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldIsNull(FieldPartialUnits))
+}
+
+// PartialUnitsNotNil applies the NotNil predicate on the "partial_units" field.
+func PartialUnitsNotNil() predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldNotNull(FieldPartialUnits))
 }
 
 // HasOrder applies the HasEdge predicate on the "order" edge.

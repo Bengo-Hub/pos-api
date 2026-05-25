@@ -26,6 +26,8 @@ func (CommissionRecord) Fields() []ent.Field {
 		field.Float("sale_amount").Default(0),
 		field.Float("commission_rate").Default(0).Comment("Percentage at time of sale"),
 		field.Float("commission_amount").Default(0),
+		field.String("status").Default("pending").Comment("pending | paid | voided"),
+		field.String("notes").Optional(),
 		field.Time("created_at").Default(time.Now).Immutable(),
 	}
 }

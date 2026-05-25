@@ -410,6 +410,16 @@ func IsActiveNEQ(v bool) predicate.LoyaltyProgram {
 	return predicate.LoyaltyProgram(sql.FieldNEQ(FieldIsActive, v))
 }
 
+// TierThresholdsIsNil applies the IsNil predicate on the "tier_thresholds" field.
+func TierThresholdsIsNil() predicate.LoyaltyProgram {
+	return predicate.LoyaltyProgram(sql.FieldIsNull(FieldTierThresholds))
+}
+
+// TierThresholdsNotNil applies the NotNil predicate on the "tier_thresholds" field.
+func TierThresholdsNotNil() predicate.LoyaltyProgram {
+	return predicate.LoyaltyProgram(sql.FieldNotNull(FieldTierThresholds))
+}
+
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.
 func CreatedAtEQ(v time.Time) predicate.LoyaltyProgram {
 	return predicate.LoyaltyProgram(sql.FieldEQ(FieldCreatedAt, v))

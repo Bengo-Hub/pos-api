@@ -104,6 +104,34 @@ func (_c *CommissionRecordCreate) SetNillableCommissionAmount(v *float64) *Commi
 	return _c
 }
 
+// SetStatus sets the "status" field.
+func (_c *CommissionRecordCreate) SetStatus(v string) *CommissionRecordCreate {
+	_c.mutation.SetStatus(v)
+	return _c
+}
+
+// SetNillableStatus sets the "status" field if the given value is not nil.
+func (_c *CommissionRecordCreate) SetNillableStatus(v *string) *CommissionRecordCreate {
+	if v != nil {
+		_c.SetStatus(*v)
+	}
+	return _c
+}
+
+// SetNotes sets the "notes" field.
+func (_c *CommissionRecordCreate) SetNotes(v string) *CommissionRecordCreate {
+	_c.mutation.SetNotes(v)
+	return _c
+}
+
+// SetNillableNotes sets the "notes" field if the given value is not nil.
+func (_c *CommissionRecordCreate) SetNillableNotes(v *string) *CommissionRecordCreate {
+	if v != nil {
+		_c.SetNotes(*v)
+	}
+	return _c
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_c *CommissionRecordCreate) SetCreatedAt(v time.Time) *CommissionRecordCreate {
 	_c.mutation.SetCreatedAt(v)
@@ -179,6 +207,10 @@ func (_c *CommissionRecordCreate) defaults() {
 		v := commissionrecord.DefaultCommissionAmount
 		_c.mutation.SetCommissionAmount(v)
 	}
+	if _, ok := _c.mutation.Status(); !ok {
+		v := commissionrecord.DefaultStatus
+		_c.mutation.SetStatus(v)
+	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		v := commissionrecord.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
@@ -216,6 +248,9 @@ func (_c *CommissionRecordCreate) check() error {
 	}
 	if _, ok := _c.mutation.CommissionAmount(); !ok {
 		return &ValidationError{Name: "commission_amount", err: errors.New(`ent: missing required field "CommissionRecord.commission_amount"`)}
+	}
+	if _, ok := _c.mutation.Status(); !ok {
+		return &ValidationError{Name: "status", err: errors.New(`ent: missing required field "CommissionRecord.status"`)}
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "CommissionRecord.created_at"`)}
@@ -287,6 +322,14 @@ func (_c *CommissionRecordCreate) createSpec() (*CommissionRecord, *sqlgraph.Cre
 	if value, ok := _c.mutation.CommissionAmount(); ok {
 		_spec.SetField(commissionrecord.FieldCommissionAmount, field.TypeFloat64, value)
 		_node.CommissionAmount = value
+	}
+	if value, ok := _c.mutation.Status(); ok {
+		_spec.SetField(commissionrecord.FieldStatus, field.TypeString, value)
+		_node.Status = value
+	}
+	if value, ok := _c.mutation.Notes(); ok {
+		_spec.SetField(commissionrecord.FieldNotes, field.TypeString, value)
+		_node.Notes = value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(commissionrecord.FieldCreatedAt, field.TypeTime, value)
@@ -461,6 +504,36 @@ func (u *CommissionRecordUpsert) UpdateCommissionAmount() *CommissionRecordUpser
 // AddCommissionAmount adds v to the "commission_amount" field.
 func (u *CommissionRecordUpsert) AddCommissionAmount(v float64) *CommissionRecordUpsert {
 	u.Add(commissionrecord.FieldCommissionAmount, v)
+	return u
+}
+
+// SetStatus sets the "status" field.
+func (u *CommissionRecordUpsert) SetStatus(v string) *CommissionRecordUpsert {
+	u.Set(commissionrecord.FieldStatus, v)
+	return u
+}
+
+// UpdateStatus sets the "status" field to the value that was provided on create.
+func (u *CommissionRecordUpsert) UpdateStatus() *CommissionRecordUpsert {
+	u.SetExcluded(commissionrecord.FieldStatus)
+	return u
+}
+
+// SetNotes sets the "notes" field.
+func (u *CommissionRecordUpsert) SetNotes(v string) *CommissionRecordUpsert {
+	u.Set(commissionrecord.FieldNotes, v)
+	return u
+}
+
+// UpdateNotes sets the "notes" field to the value that was provided on create.
+func (u *CommissionRecordUpsert) UpdateNotes() *CommissionRecordUpsert {
+	u.SetExcluded(commissionrecord.FieldNotes)
+	return u
+}
+
+// ClearNotes clears the value of the "notes" field.
+func (u *CommissionRecordUpsert) ClearNotes() *CommissionRecordUpsert {
+	u.SetNull(commissionrecord.FieldNotes)
 	return u
 }
 
@@ -652,6 +725,41 @@ func (u *CommissionRecordUpsertOne) AddCommissionAmount(v float64) *CommissionRe
 func (u *CommissionRecordUpsertOne) UpdateCommissionAmount() *CommissionRecordUpsertOne {
 	return u.Update(func(s *CommissionRecordUpsert) {
 		s.UpdateCommissionAmount()
+	})
+}
+
+// SetStatus sets the "status" field.
+func (u *CommissionRecordUpsertOne) SetStatus(v string) *CommissionRecordUpsertOne {
+	return u.Update(func(s *CommissionRecordUpsert) {
+		s.SetStatus(v)
+	})
+}
+
+// UpdateStatus sets the "status" field to the value that was provided on create.
+func (u *CommissionRecordUpsertOne) UpdateStatus() *CommissionRecordUpsertOne {
+	return u.Update(func(s *CommissionRecordUpsert) {
+		s.UpdateStatus()
+	})
+}
+
+// SetNotes sets the "notes" field.
+func (u *CommissionRecordUpsertOne) SetNotes(v string) *CommissionRecordUpsertOne {
+	return u.Update(func(s *CommissionRecordUpsert) {
+		s.SetNotes(v)
+	})
+}
+
+// UpdateNotes sets the "notes" field to the value that was provided on create.
+func (u *CommissionRecordUpsertOne) UpdateNotes() *CommissionRecordUpsertOne {
+	return u.Update(func(s *CommissionRecordUpsert) {
+		s.UpdateNotes()
+	})
+}
+
+// ClearNotes clears the value of the "notes" field.
+func (u *CommissionRecordUpsertOne) ClearNotes() *CommissionRecordUpsertOne {
+	return u.Update(func(s *CommissionRecordUpsert) {
+		s.ClearNotes()
 	})
 }
 
@@ -1010,6 +1118,41 @@ func (u *CommissionRecordUpsertBulk) AddCommissionAmount(v float64) *CommissionR
 func (u *CommissionRecordUpsertBulk) UpdateCommissionAmount() *CommissionRecordUpsertBulk {
 	return u.Update(func(s *CommissionRecordUpsert) {
 		s.UpdateCommissionAmount()
+	})
+}
+
+// SetStatus sets the "status" field.
+func (u *CommissionRecordUpsertBulk) SetStatus(v string) *CommissionRecordUpsertBulk {
+	return u.Update(func(s *CommissionRecordUpsert) {
+		s.SetStatus(v)
+	})
+}
+
+// UpdateStatus sets the "status" field to the value that was provided on create.
+func (u *CommissionRecordUpsertBulk) UpdateStatus() *CommissionRecordUpsertBulk {
+	return u.Update(func(s *CommissionRecordUpsert) {
+		s.UpdateStatus()
+	})
+}
+
+// SetNotes sets the "notes" field.
+func (u *CommissionRecordUpsertBulk) SetNotes(v string) *CommissionRecordUpsertBulk {
+	return u.Update(func(s *CommissionRecordUpsert) {
+		s.SetNotes(v)
+	})
+}
+
+// UpdateNotes sets the "notes" field to the value that was provided on create.
+func (u *CommissionRecordUpsertBulk) UpdateNotes() *CommissionRecordUpsertBulk {
+	return u.Update(func(s *CommissionRecordUpsert) {
+		s.UpdateNotes()
+	})
+}
+
+// ClearNotes clears the value of the "notes" field.
+func (u *CommissionRecordUpsertBulk) ClearNotes() *CommissionRecordUpsertBulk {
+	return u.Update(func(s *CommissionRecordUpsert) {
+		s.ClearNotes()
 	})
 }
 

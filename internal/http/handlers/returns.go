@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -11,6 +12,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/bengobox/pos-service/internal/ent"
+	entoverride "github.com/bengobox/pos-service/internal/ent/poscatalogoverride"
 	"github.com/bengobox/pos-service/internal/ent/posreturn"
 	"github.com/bengobox/pos-service/internal/ent/posreturnline"
 	"github.com/bengobox/pos-service/internal/modules/treasury"
@@ -75,6 +77,32 @@ func (h *ReturnHandler) CreateReturn(w http.ResponseWriter, r *http.Request) {
 	if len(input.Lines) == 0 {
 		jsonError(w, "at least one return line is required", http.StatusBadRequest)
 		return
+	}
+
+	// Block returns for non-returnable items (e.g. dispensed medications).
+	// Collect all SKUs from return lines, load catalog items, check is_returnable.
+	skus := make([]string, 0, len(input.Lines))
+	for _, l := range input.Lines {
+		if l.SKU != "" {
+			skus = append(skus, l.SKU)
+		}
+	}
+	if len(skus) > 0 {
+		nonReturnableOverrides, _ := h.client.POSCatalogOverride.Query().
+			Where(
+				entoverride.TenantID(tid),
+				entoverride.InventorySkuIn(skus...),
+				entoverride.IsReturnableEQ(false),
+			).
+			All(r.Context())
+		if len(nonReturnableOverrides) > 0 {
+			names := make([]string, 0, len(nonReturnableOverrides))
+			for _, it := range nonReturnableOverrides {
+				names = append(names, it.InventorySku)
+			}
+			jsonError(w, "return not allowed for: "+strings.Join(names, ", "), http.StatusUnprocessableEntity)
+			return
+		}
 	}
 
 	returnType := input.ReturnType

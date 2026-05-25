@@ -121,6 +121,46 @@ func Notes(v string) predicate.DailyClosing {
 	return predicate.DailyClosing(sql.FieldEQ(FieldNotes, v))
 }
 
+// TotalCard applies equality check predicate on the "total_card" field. It's identical to TotalCardEQ.
+func TotalCard(v float64) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldEQ(FieldTotalCard, v))
+}
+
+// TotalMpesa applies equality check predicate on the "total_mpesa" field. It's identical to TotalMpesaEQ.
+func TotalMpesa(v float64) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldEQ(FieldTotalMpesa, v))
+}
+
+// TotalTax applies equality check predicate on the "total_tax" field. It's identical to TotalTaxEQ.
+func TotalTax(v float64) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldEQ(FieldTotalTax, v))
+}
+
+// TotalLoyaltyRedemptions applies equality check predicate on the "total_loyalty_redemptions" field. It's identical to TotalLoyaltyRedemptionsEQ.
+func TotalLoyaltyRedemptions(v float64) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldEQ(FieldTotalLoyaltyRedemptions, v))
+}
+
+// TotalRoomCharge applies equality check predicate on the "total_room_charge" field. It's identical to TotalRoomChargeEQ.
+func TotalRoomCharge(v float64) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldEQ(FieldTotalRoomCharge, v))
+}
+
+// TotalOrders applies equality check predicate on the "total_orders" field. It's identical to TotalOrdersEQ.
+func TotalOrders(v int) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldEQ(FieldTotalOrders, v))
+}
+
+// TotalItemsSold applies equality check predicate on the "total_items_sold" field. It's identical to TotalItemsSoldEQ.
+func TotalItemsSold(v int) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldEQ(FieldTotalItemsSold, v))
+}
+
+// ClosedAt applies equality check predicate on the "closed_at" field. It's identical to ClosedAtEQ.
+func ClosedAt(v time.Time) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldEQ(FieldClosedAt, v))
+}
+
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.DailyClosing {
 	return predicate.DailyClosing(sql.FieldEQ(FieldCreatedAt, v))
@@ -699,6 +739,336 @@ func NotesEqualFold(v string) predicate.DailyClosing {
 // NotesContainsFold applies the ContainsFold predicate on the "notes" field.
 func NotesContainsFold(v string) predicate.DailyClosing {
 	return predicate.DailyClosing(sql.FieldContainsFold(FieldNotes, v))
+}
+
+// TotalCardEQ applies the EQ predicate on the "total_card" field.
+func TotalCardEQ(v float64) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldEQ(FieldTotalCard, v))
+}
+
+// TotalCardNEQ applies the NEQ predicate on the "total_card" field.
+func TotalCardNEQ(v float64) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldNEQ(FieldTotalCard, v))
+}
+
+// TotalCardIn applies the In predicate on the "total_card" field.
+func TotalCardIn(vs ...float64) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldIn(FieldTotalCard, vs...))
+}
+
+// TotalCardNotIn applies the NotIn predicate on the "total_card" field.
+func TotalCardNotIn(vs ...float64) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldNotIn(FieldTotalCard, vs...))
+}
+
+// TotalCardGT applies the GT predicate on the "total_card" field.
+func TotalCardGT(v float64) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldGT(FieldTotalCard, v))
+}
+
+// TotalCardGTE applies the GTE predicate on the "total_card" field.
+func TotalCardGTE(v float64) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldGTE(FieldTotalCard, v))
+}
+
+// TotalCardLT applies the LT predicate on the "total_card" field.
+func TotalCardLT(v float64) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldLT(FieldTotalCard, v))
+}
+
+// TotalCardLTE applies the LTE predicate on the "total_card" field.
+func TotalCardLTE(v float64) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldLTE(FieldTotalCard, v))
+}
+
+// TotalMpesaEQ applies the EQ predicate on the "total_mpesa" field.
+func TotalMpesaEQ(v float64) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldEQ(FieldTotalMpesa, v))
+}
+
+// TotalMpesaNEQ applies the NEQ predicate on the "total_mpesa" field.
+func TotalMpesaNEQ(v float64) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldNEQ(FieldTotalMpesa, v))
+}
+
+// TotalMpesaIn applies the In predicate on the "total_mpesa" field.
+func TotalMpesaIn(vs ...float64) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldIn(FieldTotalMpesa, vs...))
+}
+
+// TotalMpesaNotIn applies the NotIn predicate on the "total_mpesa" field.
+func TotalMpesaNotIn(vs ...float64) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldNotIn(FieldTotalMpesa, vs...))
+}
+
+// TotalMpesaGT applies the GT predicate on the "total_mpesa" field.
+func TotalMpesaGT(v float64) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldGT(FieldTotalMpesa, v))
+}
+
+// TotalMpesaGTE applies the GTE predicate on the "total_mpesa" field.
+func TotalMpesaGTE(v float64) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldGTE(FieldTotalMpesa, v))
+}
+
+// TotalMpesaLT applies the LT predicate on the "total_mpesa" field.
+func TotalMpesaLT(v float64) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldLT(FieldTotalMpesa, v))
+}
+
+// TotalMpesaLTE applies the LTE predicate on the "total_mpesa" field.
+func TotalMpesaLTE(v float64) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldLTE(FieldTotalMpesa, v))
+}
+
+// TotalTaxEQ applies the EQ predicate on the "total_tax" field.
+func TotalTaxEQ(v float64) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldEQ(FieldTotalTax, v))
+}
+
+// TotalTaxNEQ applies the NEQ predicate on the "total_tax" field.
+func TotalTaxNEQ(v float64) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldNEQ(FieldTotalTax, v))
+}
+
+// TotalTaxIn applies the In predicate on the "total_tax" field.
+func TotalTaxIn(vs ...float64) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldIn(FieldTotalTax, vs...))
+}
+
+// TotalTaxNotIn applies the NotIn predicate on the "total_tax" field.
+func TotalTaxNotIn(vs ...float64) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldNotIn(FieldTotalTax, vs...))
+}
+
+// TotalTaxGT applies the GT predicate on the "total_tax" field.
+func TotalTaxGT(v float64) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldGT(FieldTotalTax, v))
+}
+
+// TotalTaxGTE applies the GTE predicate on the "total_tax" field.
+func TotalTaxGTE(v float64) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldGTE(FieldTotalTax, v))
+}
+
+// TotalTaxLT applies the LT predicate on the "total_tax" field.
+func TotalTaxLT(v float64) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldLT(FieldTotalTax, v))
+}
+
+// TotalTaxLTE applies the LTE predicate on the "total_tax" field.
+func TotalTaxLTE(v float64) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldLTE(FieldTotalTax, v))
+}
+
+// TotalLoyaltyRedemptionsEQ applies the EQ predicate on the "total_loyalty_redemptions" field.
+func TotalLoyaltyRedemptionsEQ(v float64) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldEQ(FieldTotalLoyaltyRedemptions, v))
+}
+
+// TotalLoyaltyRedemptionsNEQ applies the NEQ predicate on the "total_loyalty_redemptions" field.
+func TotalLoyaltyRedemptionsNEQ(v float64) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldNEQ(FieldTotalLoyaltyRedemptions, v))
+}
+
+// TotalLoyaltyRedemptionsIn applies the In predicate on the "total_loyalty_redemptions" field.
+func TotalLoyaltyRedemptionsIn(vs ...float64) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldIn(FieldTotalLoyaltyRedemptions, vs...))
+}
+
+// TotalLoyaltyRedemptionsNotIn applies the NotIn predicate on the "total_loyalty_redemptions" field.
+func TotalLoyaltyRedemptionsNotIn(vs ...float64) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldNotIn(FieldTotalLoyaltyRedemptions, vs...))
+}
+
+// TotalLoyaltyRedemptionsGT applies the GT predicate on the "total_loyalty_redemptions" field.
+func TotalLoyaltyRedemptionsGT(v float64) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldGT(FieldTotalLoyaltyRedemptions, v))
+}
+
+// TotalLoyaltyRedemptionsGTE applies the GTE predicate on the "total_loyalty_redemptions" field.
+func TotalLoyaltyRedemptionsGTE(v float64) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldGTE(FieldTotalLoyaltyRedemptions, v))
+}
+
+// TotalLoyaltyRedemptionsLT applies the LT predicate on the "total_loyalty_redemptions" field.
+func TotalLoyaltyRedemptionsLT(v float64) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldLT(FieldTotalLoyaltyRedemptions, v))
+}
+
+// TotalLoyaltyRedemptionsLTE applies the LTE predicate on the "total_loyalty_redemptions" field.
+func TotalLoyaltyRedemptionsLTE(v float64) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldLTE(FieldTotalLoyaltyRedemptions, v))
+}
+
+// TotalRoomChargeEQ applies the EQ predicate on the "total_room_charge" field.
+func TotalRoomChargeEQ(v float64) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldEQ(FieldTotalRoomCharge, v))
+}
+
+// TotalRoomChargeNEQ applies the NEQ predicate on the "total_room_charge" field.
+func TotalRoomChargeNEQ(v float64) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldNEQ(FieldTotalRoomCharge, v))
+}
+
+// TotalRoomChargeIn applies the In predicate on the "total_room_charge" field.
+func TotalRoomChargeIn(vs ...float64) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldIn(FieldTotalRoomCharge, vs...))
+}
+
+// TotalRoomChargeNotIn applies the NotIn predicate on the "total_room_charge" field.
+func TotalRoomChargeNotIn(vs ...float64) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldNotIn(FieldTotalRoomCharge, vs...))
+}
+
+// TotalRoomChargeGT applies the GT predicate on the "total_room_charge" field.
+func TotalRoomChargeGT(v float64) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldGT(FieldTotalRoomCharge, v))
+}
+
+// TotalRoomChargeGTE applies the GTE predicate on the "total_room_charge" field.
+func TotalRoomChargeGTE(v float64) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldGTE(FieldTotalRoomCharge, v))
+}
+
+// TotalRoomChargeLT applies the LT predicate on the "total_room_charge" field.
+func TotalRoomChargeLT(v float64) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldLT(FieldTotalRoomCharge, v))
+}
+
+// TotalRoomChargeLTE applies the LTE predicate on the "total_room_charge" field.
+func TotalRoomChargeLTE(v float64) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldLTE(FieldTotalRoomCharge, v))
+}
+
+// TotalOrdersEQ applies the EQ predicate on the "total_orders" field.
+func TotalOrdersEQ(v int) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldEQ(FieldTotalOrders, v))
+}
+
+// TotalOrdersNEQ applies the NEQ predicate on the "total_orders" field.
+func TotalOrdersNEQ(v int) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldNEQ(FieldTotalOrders, v))
+}
+
+// TotalOrdersIn applies the In predicate on the "total_orders" field.
+func TotalOrdersIn(vs ...int) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldIn(FieldTotalOrders, vs...))
+}
+
+// TotalOrdersNotIn applies the NotIn predicate on the "total_orders" field.
+func TotalOrdersNotIn(vs ...int) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldNotIn(FieldTotalOrders, vs...))
+}
+
+// TotalOrdersGT applies the GT predicate on the "total_orders" field.
+func TotalOrdersGT(v int) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldGT(FieldTotalOrders, v))
+}
+
+// TotalOrdersGTE applies the GTE predicate on the "total_orders" field.
+func TotalOrdersGTE(v int) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldGTE(FieldTotalOrders, v))
+}
+
+// TotalOrdersLT applies the LT predicate on the "total_orders" field.
+func TotalOrdersLT(v int) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldLT(FieldTotalOrders, v))
+}
+
+// TotalOrdersLTE applies the LTE predicate on the "total_orders" field.
+func TotalOrdersLTE(v int) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldLTE(FieldTotalOrders, v))
+}
+
+// TotalItemsSoldEQ applies the EQ predicate on the "total_items_sold" field.
+func TotalItemsSoldEQ(v int) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldEQ(FieldTotalItemsSold, v))
+}
+
+// TotalItemsSoldNEQ applies the NEQ predicate on the "total_items_sold" field.
+func TotalItemsSoldNEQ(v int) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldNEQ(FieldTotalItemsSold, v))
+}
+
+// TotalItemsSoldIn applies the In predicate on the "total_items_sold" field.
+func TotalItemsSoldIn(vs ...int) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldIn(FieldTotalItemsSold, vs...))
+}
+
+// TotalItemsSoldNotIn applies the NotIn predicate on the "total_items_sold" field.
+func TotalItemsSoldNotIn(vs ...int) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldNotIn(FieldTotalItemsSold, vs...))
+}
+
+// TotalItemsSoldGT applies the GT predicate on the "total_items_sold" field.
+func TotalItemsSoldGT(v int) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldGT(FieldTotalItemsSold, v))
+}
+
+// TotalItemsSoldGTE applies the GTE predicate on the "total_items_sold" field.
+func TotalItemsSoldGTE(v int) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldGTE(FieldTotalItemsSold, v))
+}
+
+// TotalItemsSoldLT applies the LT predicate on the "total_items_sold" field.
+func TotalItemsSoldLT(v int) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldLT(FieldTotalItemsSold, v))
+}
+
+// TotalItemsSoldLTE applies the LTE predicate on the "total_items_sold" field.
+func TotalItemsSoldLTE(v int) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldLTE(FieldTotalItemsSold, v))
+}
+
+// ClosedAtEQ applies the EQ predicate on the "closed_at" field.
+func ClosedAtEQ(v time.Time) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldEQ(FieldClosedAt, v))
+}
+
+// ClosedAtNEQ applies the NEQ predicate on the "closed_at" field.
+func ClosedAtNEQ(v time.Time) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldNEQ(FieldClosedAt, v))
+}
+
+// ClosedAtIn applies the In predicate on the "closed_at" field.
+func ClosedAtIn(vs ...time.Time) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldIn(FieldClosedAt, vs...))
+}
+
+// ClosedAtNotIn applies the NotIn predicate on the "closed_at" field.
+func ClosedAtNotIn(vs ...time.Time) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldNotIn(FieldClosedAt, vs...))
+}
+
+// ClosedAtGT applies the GT predicate on the "closed_at" field.
+func ClosedAtGT(v time.Time) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldGT(FieldClosedAt, v))
+}
+
+// ClosedAtGTE applies the GTE predicate on the "closed_at" field.
+func ClosedAtGTE(v time.Time) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldGTE(FieldClosedAt, v))
+}
+
+// ClosedAtLT applies the LT predicate on the "closed_at" field.
+func ClosedAtLT(v time.Time) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldLT(FieldClosedAt, v))
+}
+
+// ClosedAtLTE applies the LTE predicate on the "closed_at" field.
+func ClosedAtLTE(v time.Time) predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldLTE(FieldClosedAt, v))
+}
+
+// ClosedAtIsNil applies the IsNil predicate on the "closed_at" field.
+func ClosedAtIsNil() predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldIsNull(FieldClosedAt))
+}
+
+// ClosedAtNotNil applies the NotNil predicate on the "closed_at" field.
+func ClosedAtNotNil() predicate.DailyClosing {
+	return predicate.DailyClosing(sql.FieldNotNull(FieldClosedAt))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.

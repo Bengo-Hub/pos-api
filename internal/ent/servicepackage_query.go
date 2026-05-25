@@ -4,7 +4,6 @@ package ent
 
 import (
 	"context"
-	"database/sql/driver"
 	"fmt"
 	"math"
 
@@ -12,93 +11,69 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"github.com/bengobox/pos-service/internal/ent/catalogitem"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
-	"github.com/bengobox/pos-service/internal/ent/pricebookitem"
+	"github.com/bengobox/pos-service/internal/ent/servicepackage"
 	"github.com/google/uuid"
 )
 
-// CatalogItemQuery is the builder for querying CatalogItem entities.
-type CatalogItemQuery struct {
+// ServicePackageQuery is the builder for querying ServicePackage entities.
+type ServicePackageQuery struct {
 	config
-	ctx                *QueryContext
-	order              []catalogitem.OrderOption
-	inters             []Interceptor
-	predicates         []predicate.CatalogItem
-	withPriceBookItems *PriceBookItemQuery
+	ctx        *QueryContext
+	order      []servicepackage.OrderOption
+	inters     []Interceptor
+	predicates []predicate.ServicePackage
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
 }
 
-// Where adds a new predicate for the CatalogItemQuery builder.
-func (_q *CatalogItemQuery) Where(ps ...predicate.CatalogItem) *CatalogItemQuery {
+// Where adds a new predicate for the ServicePackageQuery builder.
+func (_q *ServicePackageQuery) Where(ps ...predicate.ServicePackage) *ServicePackageQuery {
 	_q.predicates = append(_q.predicates, ps...)
 	return _q
 }
 
 // Limit the number of records to be returned by this query.
-func (_q *CatalogItemQuery) Limit(limit int) *CatalogItemQuery {
+func (_q *ServicePackageQuery) Limit(limit int) *ServicePackageQuery {
 	_q.ctx.Limit = &limit
 	return _q
 }
 
 // Offset to start from.
-func (_q *CatalogItemQuery) Offset(offset int) *CatalogItemQuery {
+func (_q *ServicePackageQuery) Offset(offset int) *ServicePackageQuery {
 	_q.ctx.Offset = &offset
 	return _q
 }
 
 // Unique configures the query builder to filter duplicate records on query.
 // By default, unique is set to true, and can be disabled using this method.
-func (_q *CatalogItemQuery) Unique(unique bool) *CatalogItemQuery {
+func (_q *ServicePackageQuery) Unique(unique bool) *ServicePackageQuery {
 	_q.ctx.Unique = &unique
 	return _q
 }
 
 // Order specifies how the records should be ordered.
-func (_q *CatalogItemQuery) Order(o ...catalogitem.OrderOption) *CatalogItemQuery {
+func (_q *ServicePackageQuery) Order(o ...servicepackage.OrderOption) *ServicePackageQuery {
 	_q.order = append(_q.order, o...)
 	return _q
 }
 
-// QueryPriceBookItems chains the current query on the "price_book_items" edge.
-func (_q *CatalogItemQuery) QueryPriceBookItems() *PriceBookItemQuery {
-	query := (&PriceBookItemClient{config: _q.config}).Query()
-	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
-		if err := _q.prepareQuery(ctx); err != nil {
-			return nil, err
-		}
-		selector := _q.sqlQuery(ctx)
-		if err := selector.Err(); err != nil {
-			return nil, err
-		}
-		step := sqlgraph.NewStep(
-			sqlgraph.From(catalogitem.Table, catalogitem.FieldID, selector),
-			sqlgraph.To(pricebookitem.Table, pricebookitem.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, catalogitem.PriceBookItemsTable, catalogitem.PriceBookItemsColumn),
-		)
-		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
-		return fromU, nil
-	}
-	return query
-}
-
-// First returns the first CatalogItem entity from the query.
-// Returns a *NotFoundError when no CatalogItem was found.
-func (_q *CatalogItemQuery) First(ctx context.Context) (*CatalogItem, error) {
+// First returns the first ServicePackage entity from the query.
+// Returns a *NotFoundError when no ServicePackage was found.
+func (_q *ServicePackageQuery) First(ctx context.Context) (*ServicePackage, error) {
 	nodes, err := _q.Limit(1).All(setContextOp(ctx, _q.ctx, ent.OpQueryFirst))
 	if err != nil {
 		return nil, err
 	}
 	if len(nodes) == 0 {
-		return nil, &NotFoundError{catalogitem.Label}
+		return nil, &NotFoundError{servicepackage.Label}
 	}
 	return nodes[0], nil
 }
 
 // FirstX is like First, but panics if an error occurs.
-func (_q *CatalogItemQuery) FirstX(ctx context.Context) *CatalogItem {
+func (_q *ServicePackageQuery) FirstX(ctx context.Context) *ServicePackage {
 	node, err := _q.First(ctx)
 	if err != nil && !IsNotFound(err) {
 		panic(err)
@@ -106,22 +81,22 @@ func (_q *CatalogItemQuery) FirstX(ctx context.Context) *CatalogItem {
 	return node
 }
 
-// FirstID returns the first CatalogItem ID from the query.
-// Returns a *NotFoundError when no CatalogItem ID was found.
-func (_q *CatalogItemQuery) FirstID(ctx context.Context) (id uuid.UUID, err error) {
+// FirstID returns the first ServicePackage ID from the query.
+// Returns a *NotFoundError when no ServicePackage ID was found.
+func (_q *ServicePackageQuery) FirstID(ctx context.Context) (id uuid.UUID, err error) {
 	var ids []uuid.UUID
 	if ids, err = _q.Limit(1).IDs(setContextOp(ctx, _q.ctx, ent.OpQueryFirstID)); err != nil {
 		return
 	}
 	if len(ids) == 0 {
-		err = &NotFoundError{catalogitem.Label}
+		err = &NotFoundError{servicepackage.Label}
 		return
 	}
 	return ids[0], nil
 }
 
 // FirstIDX is like FirstID, but panics if an error occurs.
-func (_q *CatalogItemQuery) FirstIDX(ctx context.Context) uuid.UUID {
+func (_q *ServicePackageQuery) FirstIDX(ctx context.Context) uuid.UUID {
 	id, err := _q.FirstID(ctx)
 	if err != nil && !IsNotFound(err) {
 		panic(err)
@@ -129,10 +104,10 @@ func (_q *CatalogItemQuery) FirstIDX(ctx context.Context) uuid.UUID {
 	return id
 }
 
-// Only returns a single CatalogItem entity found by the query, ensuring it only returns one.
-// Returns a *NotSingularError when more than one CatalogItem entity is found.
-// Returns a *NotFoundError when no CatalogItem entities are found.
-func (_q *CatalogItemQuery) Only(ctx context.Context) (*CatalogItem, error) {
+// Only returns a single ServicePackage entity found by the query, ensuring it only returns one.
+// Returns a *NotSingularError when more than one ServicePackage entity is found.
+// Returns a *NotFoundError when no ServicePackage entities are found.
+func (_q *ServicePackageQuery) Only(ctx context.Context) (*ServicePackage, error) {
 	nodes, err := _q.Limit(2).All(setContextOp(ctx, _q.ctx, ent.OpQueryOnly))
 	if err != nil {
 		return nil, err
@@ -141,14 +116,14 @@ func (_q *CatalogItemQuery) Only(ctx context.Context) (*CatalogItem, error) {
 	case 1:
 		return nodes[0], nil
 	case 0:
-		return nil, &NotFoundError{catalogitem.Label}
+		return nil, &NotFoundError{servicepackage.Label}
 	default:
-		return nil, &NotSingularError{catalogitem.Label}
+		return nil, &NotSingularError{servicepackage.Label}
 	}
 }
 
 // OnlyX is like Only, but panics if an error occurs.
-func (_q *CatalogItemQuery) OnlyX(ctx context.Context) *CatalogItem {
+func (_q *ServicePackageQuery) OnlyX(ctx context.Context) *ServicePackage {
 	node, err := _q.Only(ctx)
 	if err != nil {
 		panic(err)
@@ -156,10 +131,10 @@ func (_q *CatalogItemQuery) OnlyX(ctx context.Context) *CatalogItem {
 	return node
 }
 
-// OnlyID is like Only, but returns the only CatalogItem ID in the query.
-// Returns a *NotSingularError when more than one CatalogItem ID is found.
+// OnlyID is like Only, but returns the only ServicePackage ID in the query.
+// Returns a *NotSingularError when more than one ServicePackage ID is found.
 // Returns a *NotFoundError when no entities are found.
-func (_q *CatalogItemQuery) OnlyID(ctx context.Context) (id uuid.UUID, err error) {
+func (_q *ServicePackageQuery) OnlyID(ctx context.Context) (id uuid.UUID, err error) {
 	var ids []uuid.UUID
 	if ids, err = _q.Limit(2).IDs(setContextOp(ctx, _q.ctx, ent.OpQueryOnlyID)); err != nil {
 		return
@@ -168,15 +143,15 @@ func (_q *CatalogItemQuery) OnlyID(ctx context.Context) (id uuid.UUID, err error
 	case 1:
 		id = ids[0]
 	case 0:
-		err = &NotFoundError{catalogitem.Label}
+		err = &NotFoundError{servicepackage.Label}
 	default:
-		err = &NotSingularError{catalogitem.Label}
+		err = &NotSingularError{servicepackage.Label}
 	}
 	return
 }
 
 // OnlyIDX is like OnlyID, but panics if an error occurs.
-func (_q *CatalogItemQuery) OnlyIDX(ctx context.Context) uuid.UUID {
+func (_q *ServicePackageQuery) OnlyIDX(ctx context.Context) uuid.UUID {
 	id, err := _q.OnlyID(ctx)
 	if err != nil {
 		panic(err)
@@ -184,18 +159,18 @@ func (_q *CatalogItemQuery) OnlyIDX(ctx context.Context) uuid.UUID {
 	return id
 }
 
-// All executes the query and returns a list of CatalogItems.
-func (_q *CatalogItemQuery) All(ctx context.Context) ([]*CatalogItem, error) {
+// All executes the query and returns a list of ServicePackages.
+func (_q *ServicePackageQuery) All(ctx context.Context) ([]*ServicePackage, error) {
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryAll)
 	if err := _q.prepareQuery(ctx); err != nil {
 		return nil, err
 	}
-	qr := querierAll[[]*CatalogItem, *CatalogItemQuery]()
-	return withInterceptors[[]*CatalogItem](ctx, _q, qr, _q.inters)
+	qr := querierAll[[]*ServicePackage, *ServicePackageQuery]()
+	return withInterceptors[[]*ServicePackage](ctx, _q, qr, _q.inters)
 }
 
 // AllX is like All, but panics if an error occurs.
-func (_q *CatalogItemQuery) AllX(ctx context.Context) []*CatalogItem {
+func (_q *ServicePackageQuery) AllX(ctx context.Context) []*ServicePackage {
 	nodes, err := _q.All(ctx)
 	if err != nil {
 		panic(err)
@@ -203,20 +178,20 @@ func (_q *CatalogItemQuery) AllX(ctx context.Context) []*CatalogItem {
 	return nodes
 }
 
-// IDs executes the query and returns a list of CatalogItem IDs.
-func (_q *CatalogItemQuery) IDs(ctx context.Context) (ids []uuid.UUID, err error) {
+// IDs executes the query and returns a list of ServicePackage IDs.
+func (_q *ServicePackageQuery) IDs(ctx context.Context) (ids []uuid.UUID, err error) {
 	if _q.ctx.Unique == nil && _q.path != nil {
 		_q.Unique(true)
 	}
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryIDs)
-	if err = _q.Select(catalogitem.FieldID).Scan(ctx, &ids); err != nil {
+	if err = _q.Select(servicepackage.FieldID).Scan(ctx, &ids); err != nil {
 		return nil, err
 	}
 	return ids, nil
 }
 
 // IDsX is like IDs, but panics if an error occurs.
-func (_q *CatalogItemQuery) IDsX(ctx context.Context) []uuid.UUID {
+func (_q *ServicePackageQuery) IDsX(ctx context.Context) []uuid.UUID {
 	ids, err := _q.IDs(ctx)
 	if err != nil {
 		panic(err)
@@ -225,16 +200,16 @@ func (_q *CatalogItemQuery) IDsX(ctx context.Context) []uuid.UUID {
 }
 
 // Count returns the count of the given query.
-func (_q *CatalogItemQuery) Count(ctx context.Context) (int, error) {
+func (_q *ServicePackageQuery) Count(ctx context.Context) (int, error) {
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryCount)
 	if err := _q.prepareQuery(ctx); err != nil {
 		return 0, err
 	}
-	return withInterceptors[int](ctx, _q, querierCount[*CatalogItemQuery](), _q.inters)
+	return withInterceptors[int](ctx, _q, querierCount[*ServicePackageQuery](), _q.inters)
 }
 
 // CountX is like Count, but panics if an error occurs.
-func (_q *CatalogItemQuery) CountX(ctx context.Context) int {
+func (_q *ServicePackageQuery) CountX(ctx context.Context) int {
 	count, err := _q.Count(ctx)
 	if err != nil {
 		panic(err)
@@ -243,7 +218,7 @@ func (_q *CatalogItemQuery) CountX(ctx context.Context) int {
 }
 
 // Exist returns true if the query has elements in the graph.
-func (_q *CatalogItemQuery) Exist(ctx context.Context) (bool, error) {
+func (_q *ServicePackageQuery) Exist(ctx context.Context) (bool, error) {
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryExist)
 	switch _, err := _q.FirstID(ctx); {
 	case IsNotFound(err):
@@ -256,7 +231,7 @@ func (_q *CatalogItemQuery) Exist(ctx context.Context) (bool, error) {
 }
 
 // ExistX is like Exist, but panics if an error occurs.
-func (_q *CatalogItemQuery) ExistX(ctx context.Context) bool {
+func (_q *ServicePackageQuery) ExistX(ctx context.Context) bool {
 	exist, err := _q.Exist(ctx)
 	if err != nil {
 		panic(err)
@@ -264,34 +239,22 @@ func (_q *CatalogItemQuery) ExistX(ctx context.Context) bool {
 	return exist
 }
 
-// Clone returns a duplicate of the CatalogItemQuery builder, including all associated steps. It can be
+// Clone returns a duplicate of the ServicePackageQuery builder, including all associated steps. It can be
 // used to prepare common query builders and use them differently after the clone is made.
-func (_q *CatalogItemQuery) Clone() *CatalogItemQuery {
+func (_q *ServicePackageQuery) Clone() *ServicePackageQuery {
 	if _q == nil {
 		return nil
 	}
-	return &CatalogItemQuery{
-		config:             _q.config,
-		ctx:                _q.ctx.Clone(),
-		order:              append([]catalogitem.OrderOption{}, _q.order...),
-		inters:             append([]Interceptor{}, _q.inters...),
-		predicates:         append([]predicate.CatalogItem{}, _q.predicates...),
-		withPriceBookItems: _q.withPriceBookItems.Clone(),
+	return &ServicePackageQuery{
+		config:     _q.config,
+		ctx:        _q.ctx.Clone(),
+		order:      append([]servicepackage.OrderOption{}, _q.order...),
+		inters:     append([]Interceptor{}, _q.inters...),
+		predicates: append([]predicate.ServicePackage{}, _q.predicates...),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
 	}
-}
-
-// WithPriceBookItems tells the query-builder to eager-load the nodes that are connected to
-// the "price_book_items" edge. The optional arguments are used to configure the query builder of the edge.
-func (_q *CatalogItemQuery) WithPriceBookItems(opts ...func(*PriceBookItemQuery)) *CatalogItemQuery {
-	query := (&PriceBookItemClient{config: _q.config}).Query()
-	for _, opt := range opts {
-		opt(query)
-	}
-	_q.withPriceBookItems = query
-	return _q
 }
 
 // GroupBy is used to group vertices by one or more fields/columns.
@@ -304,15 +267,15 @@ func (_q *CatalogItemQuery) WithPriceBookItems(opts ...func(*PriceBookItemQuery)
 //		Count int `json:"count,omitempty"`
 //	}
 //
-//	client.CatalogItem.Query().
-//		GroupBy(catalogitem.FieldTenantID).
+//	client.ServicePackage.Query().
+//		GroupBy(servicepackage.FieldTenantID).
 //		Aggregate(ent.Count()).
 //		Scan(ctx, &v)
-func (_q *CatalogItemQuery) GroupBy(field string, fields ...string) *CatalogItemGroupBy {
+func (_q *ServicePackageQuery) GroupBy(field string, fields ...string) *ServicePackageGroupBy {
 	_q.ctx.Fields = append([]string{field}, fields...)
-	grbuild := &CatalogItemGroupBy{build: _q}
+	grbuild := &ServicePackageGroupBy{build: _q}
 	grbuild.flds = &_q.ctx.Fields
-	grbuild.label = catalogitem.Label
+	grbuild.label = servicepackage.Label
 	grbuild.scan = grbuild.Scan
 	return grbuild
 }
@@ -326,23 +289,23 @@ func (_q *CatalogItemQuery) GroupBy(field string, fields ...string) *CatalogItem
 //		TenantID uuid.UUID `json:"tenant_id,omitempty"`
 //	}
 //
-//	client.CatalogItem.Query().
-//		Select(catalogitem.FieldTenantID).
+//	client.ServicePackage.Query().
+//		Select(servicepackage.FieldTenantID).
 //		Scan(ctx, &v)
-func (_q *CatalogItemQuery) Select(fields ...string) *CatalogItemSelect {
+func (_q *ServicePackageQuery) Select(fields ...string) *ServicePackageSelect {
 	_q.ctx.Fields = append(_q.ctx.Fields, fields...)
-	sbuild := &CatalogItemSelect{CatalogItemQuery: _q}
-	sbuild.label = catalogitem.Label
+	sbuild := &ServicePackageSelect{ServicePackageQuery: _q}
+	sbuild.label = servicepackage.Label
 	sbuild.flds, sbuild.scan = &_q.ctx.Fields, sbuild.Scan
 	return sbuild
 }
 
-// Aggregate returns a CatalogItemSelect configured with the given aggregations.
-func (_q *CatalogItemQuery) Aggregate(fns ...AggregateFunc) *CatalogItemSelect {
+// Aggregate returns a ServicePackageSelect configured with the given aggregations.
+func (_q *ServicePackageQuery) Aggregate(fns ...AggregateFunc) *ServicePackageSelect {
 	return _q.Select().Aggregate(fns...)
 }
 
-func (_q *CatalogItemQuery) prepareQuery(ctx context.Context) error {
+func (_q *ServicePackageQuery) prepareQuery(ctx context.Context) error {
 	for _, inter := range _q.inters {
 		if inter == nil {
 			return fmt.Errorf("ent: uninitialized interceptor (forgotten import ent/runtime?)")
@@ -354,7 +317,7 @@ func (_q *CatalogItemQuery) prepareQuery(ctx context.Context) error {
 		}
 	}
 	for _, f := range _q.ctx.Fields {
-		if !catalogitem.ValidColumn(f) {
+		if !servicepackage.ValidColumn(f) {
 			return &ValidationError{Name: f, err: fmt.Errorf("ent: invalid field %q for query", f)}
 		}
 	}
@@ -368,21 +331,17 @@ func (_q *CatalogItemQuery) prepareQuery(ctx context.Context) error {
 	return nil
 }
 
-func (_q *CatalogItemQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*CatalogItem, error) {
+func (_q *ServicePackageQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*ServicePackage, error) {
 	var (
-		nodes       = []*CatalogItem{}
-		_spec       = _q.querySpec()
-		loadedTypes = [1]bool{
-			_q.withPriceBookItems != nil,
-		}
+		nodes = []*ServicePackage{}
+		_spec = _q.querySpec()
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
-		return (*CatalogItem).scanValues(nil, columns)
+		return (*ServicePackage).scanValues(nil, columns)
 	}
 	_spec.Assign = func(columns []string, values []any) error {
-		node := &CatalogItem{config: _q.config}
+		node := &ServicePackage{config: _q.config}
 		nodes = append(nodes, node)
-		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
 	}
 	for i := range hooks {
@@ -394,48 +353,10 @@ func (_q *CatalogItemQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*
 	if len(nodes) == 0 {
 		return nodes, nil
 	}
-	if query := _q.withPriceBookItems; query != nil {
-		if err := _q.loadPriceBookItems(ctx, query, nodes,
-			func(n *CatalogItem) { n.Edges.PriceBookItems = []*PriceBookItem{} },
-			func(n *CatalogItem, e *PriceBookItem) { n.Edges.PriceBookItems = append(n.Edges.PriceBookItems, e) }); err != nil {
-			return nil, err
-		}
-	}
 	return nodes, nil
 }
 
-func (_q *CatalogItemQuery) loadPriceBookItems(ctx context.Context, query *PriceBookItemQuery, nodes []*CatalogItem, init func(*CatalogItem), assign func(*CatalogItem, *PriceBookItem)) error {
-	fks := make([]driver.Value, 0, len(nodes))
-	nodeids := make(map[uuid.UUID]*CatalogItem)
-	for i := range nodes {
-		fks = append(fks, nodes[i].ID)
-		nodeids[nodes[i].ID] = nodes[i]
-		if init != nil {
-			init(nodes[i])
-		}
-	}
-	if len(query.ctx.Fields) > 0 {
-		query.ctx.AppendFieldOnce(pricebookitem.FieldCatalogItemID)
-	}
-	query.Where(predicate.PriceBookItem(func(s *sql.Selector) {
-		s.Where(sql.InValues(s.C(catalogitem.PriceBookItemsColumn), fks...))
-	}))
-	neighbors, err := query.All(ctx)
-	if err != nil {
-		return err
-	}
-	for _, n := range neighbors {
-		fk := n.CatalogItemID
-		node, ok := nodeids[fk]
-		if !ok {
-			return fmt.Errorf(`unexpected referenced foreign-key "catalog_item_id" returned %v for node %v`, fk, n.ID)
-		}
-		assign(node, n)
-	}
-	return nil
-}
-
-func (_q *CatalogItemQuery) sqlCount(ctx context.Context) (int, error) {
+func (_q *ServicePackageQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := _q.querySpec()
 	_spec.Node.Columns = _q.ctx.Fields
 	if len(_q.ctx.Fields) > 0 {
@@ -444,8 +365,8 @@ func (_q *CatalogItemQuery) sqlCount(ctx context.Context) (int, error) {
 	return sqlgraph.CountNodes(ctx, _q.driver, _spec)
 }
 
-func (_q *CatalogItemQuery) querySpec() *sqlgraph.QuerySpec {
-	_spec := sqlgraph.NewQuerySpec(catalogitem.Table, catalogitem.Columns, sqlgraph.NewFieldSpec(catalogitem.FieldID, field.TypeUUID))
+func (_q *ServicePackageQuery) querySpec() *sqlgraph.QuerySpec {
+	_spec := sqlgraph.NewQuerySpec(servicepackage.Table, servicepackage.Columns, sqlgraph.NewFieldSpec(servicepackage.FieldID, field.TypeUUID))
 	_spec.From = _q.sql
 	if unique := _q.ctx.Unique; unique != nil {
 		_spec.Unique = *unique
@@ -454,9 +375,9 @@ func (_q *CatalogItemQuery) querySpec() *sqlgraph.QuerySpec {
 	}
 	if fields := _q.ctx.Fields; len(fields) > 0 {
 		_spec.Node.Columns = make([]string, 0, len(fields))
-		_spec.Node.Columns = append(_spec.Node.Columns, catalogitem.FieldID)
+		_spec.Node.Columns = append(_spec.Node.Columns, servicepackage.FieldID)
 		for i := range fields {
-			if fields[i] != catalogitem.FieldID {
+			if fields[i] != servicepackage.FieldID {
 				_spec.Node.Columns = append(_spec.Node.Columns, fields[i])
 			}
 		}
@@ -484,12 +405,12 @@ func (_q *CatalogItemQuery) querySpec() *sqlgraph.QuerySpec {
 	return _spec
 }
 
-func (_q *CatalogItemQuery) sqlQuery(ctx context.Context) *sql.Selector {
+func (_q *ServicePackageQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	builder := sql.Dialect(_q.driver.Dialect())
-	t1 := builder.Table(catalogitem.Table)
+	t1 := builder.Table(servicepackage.Table)
 	columns := _q.ctx.Fields
 	if len(columns) == 0 {
-		columns = catalogitem.Columns
+		columns = servicepackage.Columns
 	}
 	selector := builder.Select(t1.Columns(columns...)...).From(t1)
 	if _q.sql != nil {
@@ -516,28 +437,28 @@ func (_q *CatalogItemQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	return selector
 }
 
-// CatalogItemGroupBy is the group-by builder for CatalogItem entities.
-type CatalogItemGroupBy struct {
+// ServicePackageGroupBy is the group-by builder for ServicePackage entities.
+type ServicePackageGroupBy struct {
 	selector
-	build *CatalogItemQuery
+	build *ServicePackageQuery
 }
 
 // Aggregate adds the given aggregation functions to the group-by query.
-func (_g *CatalogItemGroupBy) Aggregate(fns ...AggregateFunc) *CatalogItemGroupBy {
+func (_g *ServicePackageGroupBy) Aggregate(fns ...AggregateFunc) *ServicePackageGroupBy {
 	_g.fns = append(_g.fns, fns...)
 	return _g
 }
 
 // Scan applies the selector query and scans the result into the given value.
-func (_g *CatalogItemGroupBy) Scan(ctx context.Context, v any) error {
+func (_g *ServicePackageGroupBy) Scan(ctx context.Context, v any) error {
 	ctx = setContextOp(ctx, _g.build.ctx, ent.OpQueryGroupBy)
 	if err := _g.build.prepareQuery(ctx); err != nil {
 		return err
 	}
-	return scanWithInterceptors[*CatalogItemQuery, *CatalogItemGroupBy](ctx, _g.build, _g, _g.build.inters, v)
+	return scanWithInterceptors[*ServicePackageQuery, *ServicePackageGroupBy](ctx, _g.build, _g, _g.build.inters, v)
 }
 
-func (_g *CatalogItemGroupBy) sqlScan(ctx context.Context, root *CatalogItemQuery, v any) error {
+func (_g *ServicePackageGroupBy) sqlScan(ctx context.Context, root *ServicePackageQuery, v any) error {
 	selector := root.sqlQuery(ctx).Select()
 	aggregation := make([]string, 0, len(_g.fns))
 	for _, fn := range _g.fns {
@@ -564,28 +485,28 @@ func (_g *CatalogItemGroupBy) sqlScan(ctx context.Context, root *CatalogItemQuer
 	return sql.ScanSlice(rows, v)
 }
 
-// CatalogItemSelect is the builder for selecting fields of CatalogItem entities.
-type CatalogItemSelect struct {
-	*CatalogItemQuery
+// ServicePackageSelect is the builder for selecting fields of ServicePackage entities.
+type ServicePackageSelect struct {
+	*ServicePackageQuery
 	selector
 }
 
 // Aggregate adds the given aggregation functions to the selector query.
-func (_s *CatalogItemSelect) Aggregate(fns ...AggregateFunc) *CatalogItemSelect {
+func (_s *ServicePackageSelect) Aggregate(fns ...AggregateFunc) *ServicePackageSelect {
 	_s.fns = append(_s.fns, fns...)
 	return _s
 }
 
 // Scan applies the selector query and scans the result into the given value.
-func (_s *CatalogItemSelect) Scan(ctx context.Context, v any) error {
+func (_s *ServicePackageSelect) Scan(ctx context.Context, v any) error {
 	ctx = setContextOp(ctx, _s.ctx, ent.OpQuerySelect)
 	if err := _s.prepareQuery(ctx); err != nil {
 		return err
 	}
-	return scanWithInterceptors[*CatalogItemQuery, *CatalogItemSelect](ctx, _s.CatalogItemQuery, _s, _s.inters, v)
+	return scanWithInterceptors[*ServicePackageQuery, *ServicePackageSelect](ctx, _s.ServicePackageQuery, _s, _s.inters, v)
 }
 
-func (_s *CatalogItemSelect) sqlScan(ctx context.Context, root *CatalogItemQuery, v any) error {
+func (_s *ServicePackageSelect) sqlScan(ctx context.Context, root *ServicePackageQuery, v any) error {
 	selector := root.sqlQuery(ctx)
 	aggregation := make([]string, 0, len(_s.fns))
 	for _, fn := range _s.fns {

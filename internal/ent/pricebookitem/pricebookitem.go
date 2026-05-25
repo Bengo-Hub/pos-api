@@ -23,8 +23,6 @@ const (
 	FieldCurrency = "currency"
 	// EdgePriceBook holds the string denoting the price_book edge name in mutations.
 	EdgePriceBook = "price_book"
-	// EdgeCatalogItem holds the string denoting the catalog_item edge name in mutations.
-	EdgeCatalogItem = "catalog_item"
 	// Table holds the table name of the pricebookitem in the database.
 	Table = "price_book_items"
 	// PriceBookTable is the table that holds the price_book relation/edge.
@@ -34,13 +32,6 @@ const (
 	PriceBookInverseTable = "price_books"
 	// PriceBookColumn is the table column denoting the price_book relation/edge.
 	PriceBookColumn = "price_book_id"
-	// CatalogItemTable is the table that holds the catalog_item relation/edge.
-	CatalogItemTable = "price_book_items"
-	// CatalogItemInverseTable is the table name for the CatalogItem entity.
-	// It exists in this package in order to avoid circular dependency with the "catalogitem" package.
-	CatalogItemInverseTable = "catalog_items"
-	// CatalogItemColumn is the table column denoting the catalog_item relation/edge.
-	CatalogItemColumn = "catalog_item_id"
 )
 
 // Columns holds all SQL columns for pricebookitem fields.
@@ -103,24 +94,10 @@ func ByPriceBookField(field string, opts ...sql.OrderTermOption) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newPriceBookStep(), sql.OrderByField(field, opts...))
 	}
 }
-
-// ByCatalogItemField orders the results by catalog_item field.
-func ByCatalogItemField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newCatalogItemStep(), sql.OrderByField(field, opts...))
-	}
-}
 func newPriceBookStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(PriceBookInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.M2O, true, PriceBookTable, PriceBookColumn),
-	)
-}
-func newCatalogItemStep() *sqlgraph.Step {
-	return sqlgraph.NewStep(
-		sqlgraph.From(Table, FieldID),
-		sqlgraph.To(CatalogItemInverseTable, FieldID),
-		sqlgraph.Edge(sqlgraph.M2O, true, CatalogItemTable, CatalogItemColumn),
 	)
 }

@@ -30,6 +30,7 @@ func main() {
 		schema.WithMigrationMode(schema.ModeReplay), // provide migration mode
 		schema.WithDialect(dialect.Postgres),        // Ent dialect to use
 		schema.WithFormatter(atlasmigrate.DefaultFormatter),
+		schema.WithDropColumn(true), // allow dropping columns removed from schema
 	}
 	if len(os.Args) != 2 {
 		log.Fatalln("migration name is required. use: 'go run -mod=mod internal/ent/migrate/main.go <name>'")

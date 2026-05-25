@@ -110,6 +110,34 @@ func (_c *POSOrderLineCreate) SetNillableExpiryDate(v *time.Time) *POSOrderLineC
 	return _c
 }
 
+// SetSerialNumber sets the "serial_number" field.
+func (_c *POSOrderLineCreate) SetSerialNumber(v string) *POSOrderLineCreate {
+	_c.mutation.SetSerialNumber(v)
+	return _c
+}
+
+// SetNillableSerialNumber sets the "serial_number" field if the given value is not nil.
+func (_c *POSOrderLineCreate) SetNillableSerialNumber(v *string) *POSOrderLineCreate {
+	if v != nil {
+		_c.SetSerialNumber(*v)
+	}
+	return _c
+}
+
+// SetPartialUnits sets the "partial_units" field.
+func (_c *POSOrderLineCreate) SetPartialUnits(v float64) *POSOrderLineCreate {
+	_c.mutation.SetPartialUnits(v)
+	return _c
+}
+
+// SetNillablePartialUnits sets the "partial_units" field if the given value is not nil.
+func (_c *POSOrderLineCreate) SetNillablePartialUnits(v *float64) *POSOrderLineCreate {
+	if v != nil {
+		_c.SetPartialUnits(*v)
+	}
+	return _c
+}
+
 // SetMetadata sets the "metadata" field.
 func (_c *POSOrderLineCreate) SetMetadata(v map[string]interface{}) *POSOrderLineCreate {
 	_c.mutation.SetMetadata(v)
@@ -305,6 +333,14 @@ func (_c *POSOrderLineCreate) createSpec() (*POSOrderLine, *sqlgraph.CreateSpec)
 	if value, ok := _c.mutation.ExpiryDate(); ok {
 		_spec.SetField(posorderline.FieldExpiryDate, field.TypeTime, value)
 		_node.ExpiryDate = &value
+	}
+	if value, ok := _c.mutation.SerialNumber(); ok {
+		_spec.SetField(posorderline.FieldSerialNumber, field.TypeString, value)
+		_node.SerialNumber = &value
+	}
+	if value, ok := _c.mutation.PartialUnits(); ok {
+		_spec.SetField(posorderline.FieldPartialUnits, field.TypeFloat64, value)
+		_node.PartialUnits = &value
 	}
 	if value, ok := _c.mutation.Metadata(); ok {
 		_spec.SetField(posorderline.FieldMetadata, field.TypeJSON, value)
@@ -557,6 +593,48 @@ func (u *POSOrderLineUpsert) ClearExpiryDate() *POSOrderLineUpsert {
 	return u
 }
 
+// SetSerialNumber sets the "serial_number" field.
+func (u *POSOrderLineUpsert) SetSerialNumber(v string) *POSOrderLineUpsert {
+	u.Set(posorderline.FieldSerialNumber, v)
+	return u
+}
+
+// UpdateSerialNumber sets the "serial_number" field to the value that was provided on create.
+func (u *POSOrderLineUpsert) UpdateSerialNumber() *POSOrderLineUpsert {
+	u.SetExcluded(posorderline.FieldSerialNumber)
+	return u
+}
+
+// ClearSerialNumber clears the value of the "serial_number" field.
+func (u *POSOrderLineUpsert) ClearSerialNumber() *POSOrderLineUpsert {
+	u.SetNull(posorderline.FieldSerialNumber)
+	return u
+}
+
+// SetPartialUnits sets the "partial_units" field.
+func (u *POSOrderLineUpsert) SetPartialUnits(v float64) *POSOrderLineUpsert {
+	u.Set(posorderline.FieldPartialUnits, v)
+	return u
+}
+
+// UpdatePartialUnits sets the "partial_units" field to the value that was provided on create.
+func (u *POSOrderLineUpsert) UpdatePartialUnits() *POSOrderLineUpsert {
+	u.SetExcluded(posorderline.FieldPartialUnits)
+	return u
+}
+
+// AddPartialUnits adds v to the "partial_units" field.
+func (u *POSOrderLineUpsert) AddPartialUnits(v float64) *POSOrderLineUpsert {
+	u.Add(posorderline.FieldPartialUnits, v)
+	return u
+}
+
+// ClearPartialUnits clears the value of the "partial_units" field.
+func (u *POSOrderLineUpsert) ClearPartialUnits() *POSOrderLineUpsert {
+	u.SetNull(posorderline.FieldPartialUnits)
+	return u
+}
+
 // SetMetadata sets the "metadata" field.
 func (u *POSOrderLineUpsert) SetMetadata(v map[string]interface{}) *POSOrderLineUpsert {
 	u.Set(posorderline.FieldMetadata, v)
@@ -803,6 +881,55 @@ func (u *POSOrderLineUpsertOne) UpdateExpiryDate() *POSOrderLineUpsertOne {
 func (u *POSOrderLineUpsertOne) ClearExpiryDate() *POSOrderLineUpsertOne {
 	return u.Update(func(s *POSOrderLineUpsert) {
 		s.ClearExpiryDate()
+	})
+}
+
+// SetSerialNumber sets the "serial_number" field.
+func (u *POSOrderLineUpsertOne) SetSerialNumber(v string) *POSOrderLineUpsertOne {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.SetSerialNumber(v)
+	})
+}
+
+// UpdateSerialNumber sets the "serial_number" field to the value that was provided on create.
+func (u *POSOrderLineUpsertOne) UpdateSerialNumber() *POSOrderLineUpsertOne {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.UpdateSerialNumber()
+	})
+}
+
+// ClearSerialNumber clears the value of the "serial_number" field.
+func (u *POSOrderLineUpsertOne) ClearSerialNumber() *POSOrderLineUpsertOne {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.ClearSerialNumber()
+	})
+}
+
+// SetPartialUnits sets the "partial_units" field.
+func (u *POSOrderLineUpsertOne) SetPartialUnits(v float64) *POSOrderLineUpsertOne {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.SetPartialUnits(v)
+	})
+}
+
+// AddPartialUnits adds v to the "partial_units" field.
+func (u *POSOrderLineUpsertOne) AddPartialUnits(v float64) *POSOrderLineUpsertOne {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.AddPartialUnits(v)
+	})
+}
+
+// UpdatePartialUnits sets the "partial_units" field to the value that was provided on create.
+func (u *POSOrderLineUpsertOne) UpdatePartialUnits() *POSOrderLineUpsertOne {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.UpdatePartialUnits()
+	})
+}
+
+// ClearPartialUnits clears the value of the "partial_units" field.
+func (u *POSOrderLineUpsertOne) ClearPartialUnits() *POSOrderLineUpsertOne {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.ClearPartialUnits()
 	})
 }
 
@@ -1221,6 +1348,55 @@ func (u *POSOrderLineUpsertBulk) UpdateExpiryDate() *POSOrderLineUpsertBulk {
 func (u *POSOrderLineUpsertBulk) ClearExpiryDate() *POSOrderLineUpsertBulk {
 	return u.Update(func(s *POSOrderLineUpsert) {
 		s.ClearExpiryDate()
+	})
+}
+
+// SetSerialNumber sets the "serial_number" field.
+func (u *POSOrderLineUpsertBulk) SetSerialNumber(v string) *POSOrderLineUpsertBulk {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.SetSerialNumber(v)
+	})
+}
+
+// UpdateSerialNumber sets the "serial_number" field to the value that was provided on create.
+func (u *POSOrderLineUpsertBulk) UpdateSerialNumber() *POSOrderLineUpsertBulk {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.UpdateSerialNumber()
+	})
+}
+
+// ClearSerialNumber clears the value of the "serial_number" field.
+func (u *POSOrderLineUpsertBulk) ClearSerialNumber() *POSOrderLineUpsertBulk {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.ClearSerialNumber()
+	})
+}
+
+// SetPartialUnits sets the "partial_units" field.
+func (u *POSOrderLineUpsertBulk) SetPartialUnits(v float64) *POSOrderLineUpsertBulk {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.SetPartialUnits(v)
+	})
+}
+
+// AddPartialUnits adds v to the "partial_units" field.
+func (u *POSOrderLineUpsertBulk) AddPartialUnits(v float64) *POSOrderLineUpsertBulk {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.AddPartialUnits(v)
+	})
+}
+
+// UpdatePartialUnits sets the "partial_units" field to the value that was provided on create.
+func (u *POSOrderLineUpsertBulk) UpdatePartialUnits() *POSOrderLineUpsertBulk {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.UpdatePartialUnits()
+	})
+}
+
+// ClearPartialUnits clears the value of the "partial_units" field.
+func (u *POSOrderLineUpsertBulk) ClearPartialUnits() *POSOrderLineUpsertBulk {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.ClearPartialUnits()
 	})
 }
 

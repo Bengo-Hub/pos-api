@@ -30,6 +30,10 @@ const (
 	FieldCommissionRate = "commission_rate"
 	// FieldCommissionAmount holds the string denoting the commission_amount field in the database.
 	FieldCommissionAmount = "commission_amount"
+	// FieldStatus holds the string denoting the status field in the database.
+	FieldStatus = "status"
+	// FieldNotes holds the string denoting the notes field in the database.
+	FieldNotes = "notes"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// Table holds the table name of the commissionrecord in the database.
@@ -47,6 +51,8 @@ var Columns = []string{
 	FieldSaleAmount,
 	FieldCommissionRate,
 	FieldCommissionAmount,
+	FieldStatus,
+	FieldNotes,
 	FieldCreatedAt,
 }
 
@@ -69,6 +75,8 @@ var (
 	DefaultCommissionRate float64
 	// DefaultCommissionAmount holds the default value on creation for the "commission_amount" field.
 	DefaultCommissionAmount float64
+	// DefaultStatus holds the default value on creation for the "status" field.
+	DefaultStatus string
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 	// DefaultID holds the default value on creation for the "id" field.
@@ -121,6 +129,16 @@ func ByCommissionRate(opts ...sql.OrderTermOption) OrderOption {
 // ByCommissionAmount orders the results by the commission_amount field.
 func ByCommissionAmount(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCommissionAmount, opts...).ToFunc()
+}
+
+// ByStatus orders the results by the status field.
+func ByStatus(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldStatus, opts...).ToFunc()
+}
+
+// ByNotes orders the results by the notes field.
+func ByNotes(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldNotes, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.

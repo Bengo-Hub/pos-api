@@ -190,3 +190,53 @@ func (h *QueueHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(updated)
 }
+
+// AssignStaff handles POST /{tenantID}/pos/queue/entries/{entryID}/assign
+func (h *QueueHandler) AssignStaff(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		http.Error(w, "invalid tenant", http.StatusBadRequest)
+		return
+	}
+
+	entryID, err := uuid.Parse(chi.URLParam(r, "entryID"))
+	if err != nil {
+		http.Error(w, "invalid entry id", http.StatusBadRequest)
+		return
+	}
+
+	var input struct {
+		StaffMemberID string `json:"staff_member_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, "invalid body", http.StatusBadRequest)
+		return
+	}
+	staffID, err := uuid.Parse(input.StaffMemberID)
+	if err != nil {
+		http.Error(w, "invalid staff_member_id", http.StatusBadRequest)
+		return
+	}
+
+	entry, err := h.db.ServiceQueueEntry.Get(r.Context(), entryID)
+	if err != nil {
+		http.Error(w, "not found", http.StatusNotFound)
+		return
+	}
+	if entry.TenantID != tid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+
+	updated, err := h.db.ServiceQueueEntry.UpdateOneID(entryID).
+		SetStaffMemberID(staffID).
+		Save(r.Context())
+	if err != nil {
+		h.log.Error("queue assign staff failed", zap.Error(err))
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(updated)
+}

@@ -11,10 +11,12 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/billsplit"
 	"github.com/bengobox/pos-service/internal/ent/cashdrawer"
 	"github.com/bengobox/pos-service/internal/ent/cashdrawerevent"
-	"github.com/bengobox/pos-service/internal/ent/catalogitem"
 	"github.com/bengobox/pos-service/internal/ent/channelintegration"
 	"github.com/bengobox/pos-service/internal/ent/channelsyncjob"
+	"github.com/bengobox/pos-service/internal/ent/clientrecord"
 	"github.com/bengobox/pos-service/internal/ent/commissionrecord"
+	"github.com/bengobox/pos-service/internal/ent/commissionrule"
+	"github.com/bengobox/pos-service/internal/ent/controlledsubstancelog"
 	"github.com/bengobox/pos-service/internal/ent/dailyclosing"
 	"github.com/bengobox/pos-service/internal/ent/druginteractioncheck"
 	"github.com/bengobox/pos-service/internal/ent/facility"
@@ -36,6 +38,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/outboxevent"
 	"github.com/bengobox/pos-service/internal/ent/outlet"
 	"github.com/bengobox/pos-service/internal/ent/outletsetting"
+	"github.com/bengobox/pos-service/internal/ent/poscatalogoverride"
 	"github.com/bengobox/pos-service/internal/ent/posdevice"
 	"github.com/bengobox/pos-service/internal/ent/posdevicesession"
 	"github.com/bengobox/pos-service/internal/ent/poslinemodifier"
@@ -67,6 +70,9 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/section"
 	"github.com/bengobox/pos-service/internal/ent/serialnumberlog"
 	"github.com/bengobox/pos-service/internal/ent/serviceconfig"
+	"github.com/bengobox/pos-service/internal/ent/servicepackage"
+	"github.com/bengobox/pos-service/internal/ent/servicepackagepurchase"
+	"github.com/bengobox/pos-service/internal/ent/servicepackageredemption"
 	"github.com/bengobox/pos-service/internal/ent/servicequeueentry"
 	"github.com/bengobox/pos-service/internal/ent/staffmember"
 	"github.com/bengobox/pos-service/internal/ent/staffschedule"
@@ -210,62 +216,6 @@ func init() {
 	cashdrawereventDescID := cashdrawereventFields[0].Descriptor()
 	// cashdrawerevent.DefaultID holds the default value on creation for the id field.
 	cashdrawerevent.DefaultID = cashdrawereventDescID.Default.(func() uuid.UUID)
-	catalogitemFields := schema.CatalogItem{}.Fields()
-	_ = catalogitemFields
-	// catalogitemDescName is the schema descriptor for name field.
-	catalogitemDescName := catalogitemFields[2].Descriptor()
-	// catalogitem.NameValidator is a validator for the "name" field. It is called by the builders before save.
-	catalogitem.NameValidator = catalogitemDescName.Validators[0].(func(string) error)
-	// catalogitemDescSku is the schema descriptor for sku field.
-	catalogitemDescSku := catalogitemFields[4].Descriptor()
-	// catalogitem.SkuValidator is a validator for the "sku" field. It is called by the builders before save.
-	catalogitem.SkuValidator = catalogitemDescSku.Validators[0].(func(string) error)
-	// catalogitemDescTaxStatus is the schema descriptor for tax_status field.
-	catalogitemDescTaxStatus := catalogitemFields[8].Descriptor()
-	// catalogitem.DefaultTaxStatus holds the default value on creation for the tax_status field.
-	catalogitem.DefaultTaxStatus = catalogitemDescTaxStatus.Default.(string)
-	// catalogitemDescStatus is the schema descriptor for status field.
-	catalogitemDescStatus := catalogitemFields[9].Descriptor()
-	// catalogitem.DefaultStatus holds the default value on creation for the status field.
-	catalogitem.DefaultStatus = catalogitemDescStatus.Default.(string)
-	// catalogitemDescRequiresAgeVerification is the schema descriptor for requires_age_verification field.
-	catalogitemDescRequiresAgeVerification := catalogitemFields[12].Descriptor()
-	// catalogitem.DefaultRequiresAgeVerification holds the default value on creation for the requires_age_verification field.
-	catalogitem.DefaultRequiresAgeVerification = catalogitemDescRequiresAgeVerification.Default.(bool)
-	// catalogitemDescIsControlledSubstance is the schema descriptor for is_controlled_substance field.
-	catalogitemDescIsControlledSubstance := catalogitemFields[13].Descriptor()
-	// catalogitem.DefaultIsControlledSubstance holds the default value on creation for the is_controlled_substance field.
-	catalogitem.DefaultIsControlledSubstance = catalogitemDescIsControlledSubstance.Default.(bool)
-	// catalogitemDescTrackSerialNumber is the schema descriptor for track_serial_number field.
-	catalogitemDescTrackSerialNumber := catalogitemFields[14].Descriptor()
-	// catalogitem.DefaultTrackSerialNumber holds the default value on creation for the track_serial_number field.
-	catalogitem.DefaultTrackSerialNumber = catalogitemDescTrackSerialNumber.Default.(bool)
-	// catalogitemDescRequiresSerial is the schema descriptor for requires_serial field.
-	catalogitemDescRequiresSerial := catalogitemFields[15].Descriptor()
-	// catalogitem.DefaultRequiresSerial holds the default value on creation for the requires_serial field.
-	catalogitem.DefaultRequiresSerial = catalogitemDescRequiresSerial.Default.(bool)
-	// catalogitemDescTags is the schema descriptor for tags field.
-	catalogitemDescTags := catalogitemFields[21].Descriptor()
-	// catalogitem.DefaultTags holds the default value on creation for the tags field.
-	catalogitem.DefaultTags = catalogitemDescTags.Default.([]string)
-	// catalogitemDescMetadata is the schema descriptor for metadata field.
-	catalogitemDescMetadata := catalogitemFields[22].Descriptor()
-	// catalogitem.DefaultMetadata holds the default value on creation for the metadata field.
-	catalogitem.DefaultMetadata = catalogitemDescMetadata.Default.(map[string]interface{})
-	// catalogitemDescCreatedAt is the schema descriptor for created_at field.
-	catalogitemDescCreatedAt := catalogitemFields[23].Descriptor()
-	// catalogitem.DefaultCreatedAt holds the default value on creation for the created_at field.
-	catalogitem.DefaultCreatedAt = catalogitemDescCreatedAt.Default.(func() time.Time)
-	// catalogitemDescUpdatedAt is the schema descriptor for updated_at field.
-	catalogitemDescUpdatedAt := catalogitemFields[24].Descriptor()
-	// catalogitem.DefaultUpdatedAt holds the default value on creation for the updated_at field.
-	catalogitem.DefaultUpdatedAt = catalogitemDescUpdatedAt.Default.(func() time.Time)
-	// catalogitem.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
-	catalogitem.UpdateDefaultUpdatedAt = catalogitemDescUpdatedAt.UpdateDefault.(func() time.Time)
-	// catalogitemDescID is the schema descriptor for id field.
-	catalogitemDescID := catalogitemFields[0].Descriptor()
-	// catalogitem.DefaultID holds the default value on creation for the id field.
-	catalogitem.DefaultID = catalogitemDescID.Default.(func() uuid.UUID)
 	channelintegrationFields := schema.ChannelIntegration{}.Fields()
 	_ = channelintegrationFields
 	// channelintegrationDescChannelName is the schema descriptor for channel_name field.
@@ -316,6 +266,26 @@ func init() {
 	channelsyncjobDescID := channelsyncjobFields[0].Descriptor()
 	// channelsyncjob.DefaultID holds the default value on creation for the id field.
 	channelsyncjob.DefaultID = channelsyncjobDescID.Default.(func() uuid.UUID)
+	clientrecordFields := schema.ClientRecord{}.Fields()
+	_ = clientrecordFields
+	// clientrecordDescPhone is the schema descriptor for phone field.
+	clientrecordDescPhone := clientrecordFields[4].Descriptor()
+	// clientrecord.PhoneValidator is a validator for the "phone" field. It is called by the builders before save.
+	clientrecord.PhoneValidator = clientrecordDescPhone.Validators[0].(func(string) error)
+	// clientrecordDescCreatedAt is the schema descriptor for created_at field.
+	clientrecordDescCreatedAt := clientrecordFields[7].Descriptor()
+	// clientrecord.DefaultCreatedAt holds the default value on creation for the created_at field.
+	clientrecord.DefaultCreatedAt = clientrecordDescCreatedAt.Default.(func() time.Time)
+	// clientrecordDescUpdatedAt is the schema descriptor for updated_at field.
+	clientrecordDescUpdatedAt := clientrecordFields[8].Descriptor()
+	// clientrecord.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	clientrecord.DefaultUpdatedAt = clientrecordDescUpdatedAt.Default.(func() time.Time)
+	// clientrecord.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	clientrecord.UpdateDefaultUpdatedAt = clientrecordDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// clientrecordDescID is the schema descriptor for id field.
+	clientrecordDescID := clientrecordFields[0].Descriptor()
+	// clientrecord.DefaultID holds the default value on creation for the id field.
+	clientrecord.DefaultID = clientrecordDescID.Default.(func() uuid.UUID)
 	commissionrecordFields := schema.CommissionRecord{}.Fields()
 	_ = commissionrecordFields
 	// commissionrecordDescServiceSku is the schema descriptor for service_sku field.
@@ -334,14 +304,68 @@ func init() {
 	commissionrecordDescCommissionAmount := commissionrecordFields[8].Descriptor()
 	// commissionrecord.DefaultCommissionAmount holds the default value on creation for the commission_amount field.
 	commissionrecord.DefaultCommissionAmount = commissionrecordDescCommissionAmount.Default.(float64)
+	// commissionrecordDescStatus is the schema descriptor for status field.
+	commissionrecordDescStatus := commissionrecordFields[9].Descriptor()
+	// commissionrecord.DefaultStatus holds the default value on creation for the status field.
+	commissionrecord.DefaultStatus = commissionrecordDescStatus.Default.(string)
 	// commissionrecordDescCreatedAt is the schema descriptor for created_at field.
-	commissionrecordDescCreatedAt := commissionrecordFields[9].Descriptor()
+	commissionrecordDescCreatedAt := commissionrecordFields[11].Descriptor()
 	// commissionrecord.DefaultCreatedAt holds the default value on creation for the created_at field.
 	commissionrecord.DefaultCreatedAt = commissionrecordDescCreatedAt.Default.(func() time.Time)
 	// commissionrecordDescID is the schema descriptor for id field.
 	commissionrecordDescID := commissionrecordFields[0].Descriptor()
 	// commissionrecord.DefaultID holds the default value on creation for the id field.
 	commissionrecord.DefaultID = commissionrecordDescID.Default.(func() uuid.UUID)
+	commissionruleFields := schema.CommissionRule{}.Fields()
+	_ = commissionruleFields
+	// commissionruleDescRuleType is the schema descriptor for rule_type field.
+	commissionruleDescRuleType := commissionruleFields[5].Descriptor()
+	// commissionrule.DefaultRuleType holds the default value on creation for the rule_type field.
+	commissionrule.DefaultRuleType = commissionruleDescRuleType.Default.(string)
+	// commissionruleDescIsActive is the schema descriptor for is_active field.
+	commissionruleDescIsActive := commissionruleFields[9].Descriptor()
+	// commissionrule.DefaultIsActive holds the default value on creation for the is_active field.
+	commissionrule.DefaultIsActive = commissionruleDescIsActive.Default.(bool)
+	// commissionruleDescEffectiveFrom is the schema descriptor for effective_from field.
+	commissionruleDescEffectiveFrom := commissionruleFields[10].Descriptor()
+	// commissionrule.DefaultEffectiveFrom holds the default value on creation for the effective_from field.
+	commissionrule.DefaultEffectiveFrom = commissionruleDescEffectiveFrom.Default.(func() time.Time)
+	// commissionruleDescCreatedAt is the schema descriptor for created_at field.
+	commissionruleDescCreatedAt := commissionruleFields[12].Descriptor()
+	// commissionrule.DefaultCreatedAt holds the default value on creation for the created_at field.
+	commissionrule.DefaultCreatedAt = commissionruleDescCreatedAt.Default.(func() time.Time)
+	// commissionruleDescUpdatedAt is the schema descriptor for updated_at field.
+	commissionruleDescUpdatedAt := commissionruleFields[13].Descriptor()
+	// commissionrule.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	commissionrule.DefaultUpdatedAt = commissionruleDescUpdatedAt.Default.(func() time.Time)
+	// commissionrule.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	commissionrule.UpdateDefaultUpdatedAt = commissionruleDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// commissionruleDescID is the schema descriptor for id field.
+	commissionruleDescID := commissionruleFields[0].Descriptor()
+	// commissionrule.DefaultID holds the default value on creation for the id field.
+	commissionrule.DefaultID = commissionruleDescID.Default.(func() uuid.UUID)
+	controlledsubstancelogFields := schema.ControlledSubstanceLog{}.Fields()
+	_ = controlledsubstancelogFields
+	// controlledsubstancelogDescItemSku is the schema descriptor for item_sku field.
+	controlledsubstancelogDescItemSku := controlledsubstancelogFields[5].Descriptor()
+	// controlledsubstancelog.ItemSkuValidator is a validator for the "item_sku" field. It is called by the builders before save.
+	controlledsubstancelog.ItemSkuValidator = controlledsubstancelogDescItemSku.Validators[0].(func(string) error)
+	// controlledsubstancelogDescItemName is the schema descriptor for item_name field.
+	controlledsubstancelogDescItemName := controlledsubstancelogFields[6].Descriptor()
+	// controlledsubstancelog.ItemNameValidator is a validator for the "item_name" field. It is called by the builders before save.
+	controlledsubstancelog.ItemNameValidator = controlledsubstancelogDescItemName.Validators[0].(func(string) error)
+	// controlledsubstancelogDescPatientName is the schema descriptor for patient_name field.
+	controlledsubstancelogDescPatientName := controlledsubstancelogFields[9].Descriptor()
+	// controlledsubstancelog.PatientNameValidator is a validator for the "patient_name" field. It is called by the builders before save.
+	controlledsubstancelog.PatientNameValidator = controlledsubstancelogDescPatientName.Validators[0].(func(string) error)
+	// controlledsubstancelogDescDispensedAt is the schema descriptor for dispensed_at field.
+	controlledsubstancelogDescDispensedAt := controlledsubstancelogFields[13].Descriptor()
+	// controlledsubstancelog.DefaultDispensedAt holds the default value on creation for the dispensed_at field.
+	controlledsubstancelog.DefaultDispensedAt = controlledsubstancelogDescDispensedAt.Default.(func() time.Time)
+	// controlledsubstancelogDescID is the schema descriptor for id field.
+	controlledsubstancelogDescID := controlledsubstancelogFields[0].Descriptor()
+	// controlledsubstancelog.DefaultID holds the default value on creation for the id field.
+	controlledsubstancelog.DefaultID = controlledsubstancelogDescID.Default.(func() uuid.UUID)
 	dailyclosingFields := schema.DailyClosing{}.Fields()
 	_ = dailyclosingFields
 	// dailyclosingDescTotalSales is the schema descriptor for total_sales field.
@@ -380,12 +404,40 @@ func init() {
 	dailyclosingDescDrawerIds := dailyclosingFields[14].Descriptor()
 	// dailyclosing.DefaultDrawerIds holds the default value on creation for the drawer_ids field.
 	dailyclosing.DefaultDrawerIds = dailyclosingDescDrawerIds.Default.([]uuid.UUID)
+	// dailyclosingDescTotalCard is the schema descriptor for total_card field.
+	dailyclosingDescTotalCard := dailyclosingFields[15].Descriptor()
+	// dailyclosing.DefaultTotalCard holds the default value on creation for the total_card field.
+	dailyclosing.DefaultTotalCard = dailyclosingDescTotalCard.Default.(float64)
+	// dailyclosingDescTotalMpesa is the schema descriptor for total_mpesa field.
+	dailyclosingDescTotalMpesa := dailyclosingFields[16].Descriptor()
+	// dailyclosing.DefaultTotalMpesa holds the default value on creation for the total_mpesa field.
+	dailyclosing.DefaultTotalMpesa = dailyclosingDescTotalMpesa.Default.(float64)
+	// dailyclosingDescTotalTax is the schema descriptor for total_tax field.
+	dailyclosingDescTotalTax := dailyclosingFields[17].Descriptor()
+	// dailyclosing.DefaultTotalTax holds the default value on creation for the total_tax field.
+	dailyclosing.DefaultTotalTax = dailyclosingDescTotalTax.Default.(float64)
+	// dailyclosingDescTotalLoyaltyRedemptions is the schema descriptor for total_loyalty_redemptions field.
+	dailyclosingDescTotalLoyaltyRedemptions := dailyclosingFields[18].Descriptor()
+	// dailyclosing.DefaultTotalLoyaltyRedemptions holds the default value on creation for the total_loyalty_redemptions field.
+	dailyclosing.DefaultTotalLoyaltyRedemptions = dailyclosingDescTotalLoyaltyRedemptions.Default.(float64)
+	// dailyclosingDescTotalRoomCharge is the schema descriptor for total_room_charge field.
+	dailyclosingDescTotalRoomCharge := dailyclosingFields[19].Descriptor()
+	// dailyclosing.DefaultTotalRoomCharge holds the default value on creation for the total_room_charge field.
+	dailyclosing.DefaultTotalRoomCharge = dailyclosingDescTotalRoomCharge.Default.(float64)
+	// dailyclosingDescTotalOrders is the schema descriptor for total_orders field.
+	dailyclosingDescTotalOrders := dailyclosingFields[20].Descriptor()
+	// dailyclosing.DefaultTotalOrders holds the default value on creation for the total_orders field.
+	dailyclosing.DefaultTotalOrders = dailyclosingDescTotalOrders.Default.(int)
+	// dailyclosingDescTotalItemsSold is the schema descriptor for total_items_sold field.
+	dailyclosingDescTotalItemsSold := dailyclosingFields[21].Descriptor()
+	// dailyclosing.DefaultTotalItemsSold holds the default value on creation for the total_items_sold field.
+	dailyclosing.DefaultTotalItemsSold = dailyclosingDescTotalItemsSold.Default.(int)
 	// dailyclosingDescCreatedAt is the schema descriptor for created_at field.
-	dailyclosingDescCreatedAt := dailyclosingFields[15].Descriptor()
+	dailyclosingDescCreatedAt := dailyclosingFields[23].Descriptor()
 	// dailyclosing.DefaultCreatedAt holds the default value on creation for the created_at field.
 	dailyclosing.DefaultCreatedAt = dailyclosingDescCreatedAt.Default.(func() time.Time)
 	// dailyclosingDescUpdatedAt is the schema descriptor for updated_at field.
-	dailyclosingDescUpdatedAt := dailyclosingFields[16].Descriptor()
+	dailyclosingDescUpdatedAt := dailyclosingFields[24].Descriptor()
 	// dailyclosing.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	dailyclosing.DefaultUpdatedAt = dailyclosingDescUpdatedAt.Default.(func() time.Time)
 	// dailyclosing.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -711,11 +763,11 @@ func init() {
 	// loyaltyprogram.DefaultIsActive holds the default value on creation for the is_active field.
 	loyaltyprogram.DefaultIsActive = loyaltyprogramDescIsActive.Default.(bool)
 	// loyaltyprogramDescCreatedAt is the schema descriptor for created_at field.
-	loyaltyprogramDescCreatedAt := loyaltyprogramFields[8].Descriptor()
+	loyaltyprogramDescCreatedAt := loyaltyprogramFields[9].Descriptor()
 	// loyaltyprogram.DefaultCreatedAt holds the default value on creation for the created_at field.
 	loyaltyprogram.DefaultCreatedAt = loyaltyprogramDescCreatedAt.Default.(func() time.Time)
 	// loyaltyprogramDescUpdatedAt is the schema descriptor for updated_at field.
-	loyaltyprogramDescUpdatedAt := loyaltyprogramFields[9].Descriptor()
+	loyaltyprogramDescUpdatedAt := loyaltyprogramFields[10].Descriptor()
 	// loyaltyprogram.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	loyaltyprogram.DefaultUpdatedAt = loyaltyprogramDescUpdatedAt.Default.(func() time.Time)
 	// loyaltyprogram.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -966,6 +1018,66 @@ func init() {
 	outletsettingDescID := outletsettingFields[0].Descriptor()
 	// outletsetting.DefaultID holds the default value on creation for the id field.
 	outletsetting.DefaultID = outletsettingDescID.Default.(func() uuid.UUID)
+	poscatalogoverrideFields := schema.POSCatalogOverride{}.Fields()
+	_ = poscatalogoverrideFields
+	// poscatalogoverrideDescInventorySku is the schema descriptor for inventory_sku field.
+	poscatalogoverrideDescInventorySku := poscatalogoverrideFields[3].Descriptor()
+	// poscatalogoverride.InventorySkuValidator is a validator for the "inventory_sku" field. It is called by the builders before save.
+	poscatalogoverride.InventorySkuValidator = poscatalogoverrideDescInventorySku.Validators[0].(func(string) error)
+	// poscatalogoverrideDescCurrency is the schema descriptor for currency field.
+	poscatalogoverrideDescCurrency := poscatalogoverrideFields[5].Descriptor()
+	// poscatalogoverride.DefaultCurrency holds the default value on creation for the currency field.
+	poscatalogoverride.DefaultCurrency = poscatalogoverrideDescCurrency.Default.(string)
+	// poscatalogoverrideDescTaxStatus is the schema descriptor for tax_status field.
+	poscatalogoverrideDescTaxStatus := poscatalogoverrideFields[6].Descriptor()
+	// poscatalogoverride.DefaultTaxStatus holds the default value on creation for the tax_status field.
+	poscatalogoverride.DefaultTaxStatus = poscatalogoverrideDescTaxStatus.Default.(string)
+	// poscatalogoverrideDescIsAvailable is the schema descriptor for is_available field.
+	poscatalogoverrideDescIsAvailable := poscatalogoverrideFields[7].Descriptor()
+	// poscatalogoverride.DefaultIsAvailable holds the default value on creation for the is_available field.
+	poscatalogoverride.DefaultIsAvailable = poscatalogoverrideDescIsAvailable.Default.(bool)
+	// poscatalogoverrideDescIsFeatured is the schema descriptor for is_featured field.
+	poscatalogoverrideDescIsFeatured := poscatalogoverrideFields[8].Descriptor()
+	// poscatalogoverride.DefaultIsFeatured holds the default value on creation for the is_featured field.
+	poscatalogoverride.DefaultIsFeatured = poscatalogoverrideDescIsFeatured.Default.(bool)
+	// poscatalogoverrideDescDisplayOrder is the schema descriptor for display_order field.
+	poscatalogoverrideDescDisplayOrder := poscatalogoverrideFields[9].Descriptor()
+	// poscatalogoverride.DefaultDisplayOrder holds the default value on creation for the display_order field.
+	poscatalogoverride.DefaultDisplayOrder = poscatalogoverrideDescDisplayOrder.Default.(int)
+	// poscatalogoverrideDescRequiresPrescription is the schema descriptor for requires_prescription field.
+	poscatalogoverrideDescRequiresPrescription := poscatalogoverrideFields[10].Descriptor()
+	// poscatalogoverride.DefaultRequiresPrescription holds the default value on creation for the requires_prescription field.
+	poscatalogoverride.DefaultRequiresPrescription = poscatalogoverrideDescRequiresPrescription.Default.(bool)
+	// poscatalogoverrideDescIsReturnable is the schema descriptor for is_returnable field.
+	poscatalogoverrideDescIsReturnable := poscatalogoverrideFields[11].Descriptor()
+	// poscatalogoverride.DefaultIsReturnable holds the default value on creation for the is_returnable field.
+	poscatalogoverride.DefaultIsReturnable = poscatalogoverrideDescIsReturnable.Default.(bool)
+	// poscatalogoverrideDescRequiresAgeVerification is the schema descriptor for requires_age_verification field.
+	poscatalogoverrideDescRequiresAgeVerification := poscatalogoverrideFields[12].Descriptor()
+	// poscatalogoverride.DefaultRequiresAgeVerification holds the default value on creation for the requires_age_verification field.
+	poscatalogoverride.DefaultRequiresAgeVerification = poscatalogoverrideDescRequiresAgeVerification.Default.(bool)
+	// poscatalogoverrideDescIsControlledSubstance is the schema descriptor for is_controlled_substance field.
+	poscatalogoverrideDescIsControlledSubstance := poscatalogoverrideFields[13].Descriptor()
+	// poscatalogoverride.DefaultIsControlledSubstance holds the default value on creation for the is_controlled_substance field.
+	poscatalogoverride.DefaultIsControlledSubstance = poscatalogoverrideDescIsControlledSubstance.Default.(bool)
+	// poscatalogoverrideDescMetadata is the schema descriptor for metadata field.
+	poscatalogoverrideDescMetadata := poscatalogoverrideFields[16].Descriptor()
+	// poscatalogoverride.DefaultMetadata holds the default value on creation for the metadata field.
+	poscatalogoverride.DefaultMetadata = poscatalogoverrideDescMetadata.Default.(map[string]interface{})
+	// poscatalogoverrideDescCreatedAt is the schema descriptor for created_at field.
+	poscatalogoverrideDescCreatedAt := poscatalogoverrideFields[17].Descriptor()
+	// poscatalogoverride.DefaultCreatedAt holds the default value on creation for the created_at field.
+	poscatalogoverride.DefaultCreatedAt = poscatalogoverrideDescCreatedAt.Default.(func() time.Time)
+	// poscatalogoverrideDescUpdatedAt is the schema descriptor for updated_at field.
+	poscatalogoverrideDescUpdatedAt := poscatalogoverrideFields[18].Descriptor()
+	// poscatalogoverride.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	poscatalogoverride.DefaultUpdatedAt = poscatalogoverrideDescUpdatedAt.Default.(func() time.Time)
+	// poscatalogoverride.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	poscatalogoverride.UpdateDefaultUpdatedAt = poscatalogoverrideDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// poscatalogoverrideDescID is the schema descriptor for id field.
+	poscatalogoverrideDescID := poscatalogoverrideFields[0].Descriptor()
+	// poscatalogoverride.DefaultID holds the default value on creation for the id field.
+	poscatalogoverride.DefaultID = poscatalogoverrideDescID.Default.(func() uuid.UUID)
 	posdeviceFields := schema.POSDevice{}.Fields()
 	_ = posdeviceFields
 	// posdeviceDescDeviceCode is the schema descriptor for device_code field.
@@ -1089,7 +1201,7 @@ func init() {
 	// posorderline.NameValidator is a validator for the "name" field. It is called by the builders before save.
 	posorderline.NameValidator = posorderlineDescName.Validators[0].(func(string) error)
 	// posorderlineDescMetadata is the schema descriptor for metadata field.
-	posorderlineDescMetadata := posorderlineFields[11].Descriptor()
+	posorderlineDescMetadata := posorderlineFields[13].Descriptor()
 	// posorderline.DefaultMetadata holds the default value on creation for the metadata field.
 	posorderline.DefaultMetadata = posorderlineDescMetadata.Default.(map[string]interface{})
 	// posorderlineDescID is the schema descriptor for id field.
@@ -1690,6 +1802,80 @@ func init() {
 	serviceconfigDescID := serviceconfigFields[0].Descriptor()
 	// serviceconfig.DefaultID holds the default value on creation for the id field.
 	serviceconfig.DefaultID = serviceconfigDescID.Default.(func() uuid.UUID)
+	servicepackageFields := schema.ServicePackage{}.Fields()
+	_ = servicepackageFields
+	// servicepackageDescName is the schema descriptor for name field.
+	servicepackageDescName := servicepackageFields[3].Descriptor()
+	// servicepackage.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	servicepackage.NameValidator = servicepackageDescName.Validators[0].(func(string) error)
+	// servicepackageDescCurrency is the schema descriptor for currency field.
+	servicepackageDescCurrency := servicepackageFields[6].Descriptor()
+	// servicepackage.DefaultCurrency holds the default value on creation for the currency field.
+	servicepackage.DefaultCurrency = servicepackageDescCurrency.Default.(string)
+	// servicepackageDescValidityDays is the schema descriptor for validity_days field.
+	servicepackageDescValidityDays := servicepackageFields[8].Descriptor()
+	// servicepackage.DefaultValidityDays holds the default value on creation for the validity_days field.
+	servicepackage.DefaultValidityDays = servicepackageDescValidityDays.Default.(int)
+	// servicepackageDescIsActive is the schema descriptor for is_active field.
+	servicepackageDescIsActive := servicepackageFields[10].Descriptor()
+	// servicepackage.DefaultIsActive holds the default value on creation for the is_active field.
+	servicepackage.DefaultIsActive = servicepackageDescIsActive.Default.(bool)
+	// servicepackageDescCreatedAt is the schema descriptor for created_at field.
+	servicepackageDescCreatedAt := servicepackageFields[11].Descriptor()
+	// servicepackage.DefaultCreatedAt holds the default value on creation for the created_at field.
+	servicepackage.DefaultCreatedAt = servicepackageDescCreatedAt.Default.(func() time.Time)
+	// servicepackageDescUpdatedAt is the schema descriptor for updated_at field.
+	servicepackageDescUpdatedAt := servicepackageFields[12].Descriptor()
+	// servicepackage.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	servicepackage.DefaultUpdatedAt = servicepackageDescUpdatedAt.Default.(func() time.Time)
+	// servicepackage.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	servicepackage.UpdateDefaultUpdatedAt = servicepackageDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// servicepackageDescID is the schema descriptor for id field.
+	servicepackageDescID := servicepackageFields[0].Descriptor()
+	// servicepackage.DefaultID holds the default value on creation for the id field.
+	servicepackage.DefaultID = servicepackageDescID.Default.(func() uuid.UUID)
+	servicepackagepurchaseFields := schema.ServicePackagePurchase{}.Fields()
+	_ = servicepackagepurchaseFields
+	// servicepackagepurchaseDescClientName is the schema descriptor for client_name field.
+	servicepackagepurchaseDescClientName := servicepackagepurchaseFields[3].Descriptor()
+	// servicepackagepurchase.ClientNameValidator is a validator for the "client_name" field. It is called by the builders before save.
+	servicepackagepurchase.ClientNameValidator = servicepackagepurchaseDescClientName.Validators[0].(func(string) error)
+	// servicepackagepurchaseDescClientPhone is the schema descriptor for client_phone field.
+	servicepackagepurchaseDescClientPhone := servicepackagepurchaseFields[4].Descriptor()
+	// servicepackagepurchase.ClientPhoneValidator is a validator for the "client_phone" field. It is called by the builders before save.
+	servicepackagepurchase.ClientPhoneValidator = servicepackagepurchaseDescClientPhone.Validators[0].(func(string) error)
+	// servicepackagepurchaseDescSessionsUsed is the schema descriptor for sessions_used field.
+	servicepackagepurchaseDescSessionsUsed := servicepackagepurchaseFields[6].Descriptor()
+	// servicepackagepurchase.DefaultSessionsUsed holds the default value on creation for the sessions_used field.
+	servicepackagepurchase.DefaultSessionsUsed = servicepackagepurchaseDescSessionsUsed.Default.(int)
+	// servicepackagepurchaseDescStatus is the schema descriptor for status field.
+	servicepackagepurchaseDescStatus := servicepackagepurchaseFields[9].Descriptor()
+	// servicepackagepurchase.DefaultStatus holds the default value on creation for the status field.
+	servicepackagepurchase.DefaultStatus = servicepackagepurchaseDescStatus.Default.(string)
+	// servicepackagepurchaseDescCreatedAt is the schema descriptor for created_at field.
+	servicepackagepurchaseDescCreatedAt := servicepackagepurchaseFields[10].Descriptor()
+	// servicepackagepurchase.DefaultCreatedAt holds the default value on creation for the created_at field.
+	servicepackagepurchase.DefaultCreatedAt = servicepackagepurchaseDescCreatedAt.Default.(func() time.Time)
+	// servicepackagepurchaseDescUpdatedAt is the schema descriptor for updated_at field.
+	servicepackagepurchaseDescUpdatedAt := servicepackagepurchaseFields[11].Descriptor()
+	// servicepackagepurchase.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	servicepackagepurchase.DefaultUpdatedAt = servicepackagepurchaseDescUpdatedAt.Default.(func() time.Time)
+	// servicepackagepurchase.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	servicepackagepurchase.UpdateDefaultUpdatedAt = servicepackagepurchaseDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// servicepackagepurchaseDescID is the schema descriptor for id field.
+	servicepackagepurchaseDescID := servicepackagepurchaseFields[0].Descriptor()
+	// servicepackagepurchase.DefaultID holds the default value on creation for the id field.
+	servicepackagepurchase.DefaultID = servicepackagepurchaseDescID.Default.(func() uuid.UUID)
+	servicepackageredemptionFields := schema.ServicePackageRedemption{}.Fields()
+	_ = servicepackageredemptionFields
+	// servicepackageredemptionDescRedeemedAt is the schema descriptor for redeemed_at field.
+	servicepackageredemptionDescRedeemedAt := servicepackageredemptionFields[6].Descriptor()
+	// servicepackageredemption.DefaultRedeemedAt holds the default value on creation for the redeemed_at field.
+	servicepackageredemption.DefaultRedeemedAt = servicepackageredemptionDescRedeemedAt.Default.(func() time.Time)
+	// servicepackageredemptionDescID is the schema descriptor for id field.
+	servicepackageredemptionDescID := servicepackageredemptionFields[0].Descriptor()
+	// servicepackageredemption.DefaultID holds the default value on creation for the id field.
+	servicepackageredemption.DefaultID = servicepackageredemptionDescID.Default.(func() uuid.UUID)
 	servicequeueentryFields := schema.ServiceQueueEntry{}.Fields()
 	_ = servicequeueentryFields
 	// servicequeueentryDescCustomerName is the schema descriptor for customer_name field.

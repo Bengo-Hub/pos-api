@@ -12,18 +12,22 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 
 	"github.com/Bengo-Hub/httpware"
 	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/bengobox/pos-service/internal/ent"
-	"github.com/bengobox/pos-service/internal/ent/catalogitem"
+	entoverride "github.com/bengobox/pos-service/internal/ent/poscatalogoverride"
 )
 
-// CatalogHandler handles catalog item CRUD endpoints.
+// CatalogHandler handles catalog item endpoints.
+// Item data is always sourced from inventory-api (name, description, image, category).
+// Local POSCatalogOverride stores only POS-specific fields (selling_price, tax_status, availability).
 type CatalogHandler struct {
 	log    *zap.Logger
 	client *ent.Client
+	redis  *redis.Client
 }
 
 func NewCatalogHandler(log *zap.Logger, client *ent.Client) *CatalogHandler {
@@ -32,15 +36,19 @@ func NewCatalogHandler(log *zap.Logger, client *ent.Client) *CatalogHandler {
 
 // inventoryProxyItem is the shape returned by inventory-api /items list.
 type inventoryProxyItem struct {
-	ID           string `json:"id"`
-	SKU          string `json:"sku"`
-	Name         string `json:"name"`
-	Description  string `json:"description"`
-	Type         string `json:"type"`
-	IsActive     bool   `json:"is_active"`
-	ImageURL     string `json:"image_url"`
-	CategoryName string `json:"category_name"`
-	Barcode      string `json:"barcode"`
+	ID                      string  `json:"id"`
+	SKU                     string  `json:"sku"`
+	Name                    string  `json:"name"`
+	Description             string  `json:"description"`
+	Type                    string  `json:"type"`
+	IsActive                bool    `json:"is_active"`
+	ImageURL                string  `json:"image_url"`
+	CategoryName            string  `json:"category_name"`
+	Barcode                 string  `json:"barcode"`
+	RequiresAgeVerification bool    `json:"requires_age_verification"`
+	IsControlledSubstance   bool    `json:"is_controlled_substance"`
+	TrackSerialNumbers      bool    `json:"track_serial_numbers"`
+	DurationMinutes         int     `json:"duration_minutes"`
 }
 
 // inventoryBulkPrice is one entry from GET /inventory/items/pricing.
@@ -51,150 +59,72 @@ type inventoryBulkPrice struct {
 	TierCode string  `json:"tier_code"`
 }
 
-// proxyFromInventory calls inventory-api and returns items in the same DTO format
-// as ListCatalogItems. Price resolution order:
-//  1. Local CatalogItem.selling_price (set by POS admin, outlet-scoped if outlet_id matches)
-//  2. Inventory-api bulk pricing (pricing tiers)
-//  3. 0 (not configured)
-func (h *CatalogHandler) proxyFromInventory(ctx context.Context, tenantSlug string, tenantID uuid.UUID, outletID *uuid.UUID) ([]map[string]any, error) {
-	inventoryURL := os.Getenv("INVENTORY_API_URL")
-	if inventoryURL == "" {
-		inventoryURL = "http://inventory-api.inventory.svc.cluster.local:4000"
+func inventoryURL() string {
+	if u := os.Getenv("INVENTORY_API_URL"); u != "" {
+		return u
 	}
-	apiKey := os.Getenv("INTERNAL_SERVICE_KEY")
+	return "http://inventory-api.inventory.svc.cluster.local:4000"
+}
 
-	doGet := func(url string) ([]byte, error) {
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-		if err != nil {
-			return nil, err
-		}
-		if apiKey != "" {
-			req.Header.Set("X-API-Key", apiKey)
-		}
-		resp, err := http.DefaultClient.Do(req)
-		if err != nil {
-			return nil, err
-		}
-		defer resp.Body.Close()
-		if resp.StatusCode != http.StatusOK {
-			return nil, fmt.Errorf("inventory-api %s returned %d", url, resp.StatusCode)
-		}
-		return io.ReadAll(resp.Body)
+func serviceAPIKey() string {
+	return os.Getenv("INTERNAL_SERVICE_KEY")
+}
+
+func doInventoryGET(ctx context.Context, path string) ([]byte, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
 	}
-
-	type itemsResult struct {
-		items []inventoryProxyItem
-		err   error
+	if k := serviceAPIKey(); k != "" {
+		req.Header.Set("X-API-Key", k)
 	}
-	type priceResult struct {
-		prices []inventoryBulkPrice
-		err    error
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
 	}
-
-	itemsCh := make(chan itemsResult, 1)
-	priceCh := make(chan priceResult, 1)
-
-	go func() {
-		body, err := doGet(fmt.Sprintf("%s/v1/%s/inventory/items?type=GOODS,RECIPE&status=active&limit=500", inventoryURL, tenantSlug))
-		if err != nil {
-			itemsCh <- itemsResult{err: err}
-			return
-		}
-		var wrapper struct {
-			Data []inventoryProxyItem `json:"data"`
-		}
-		if err := json.Unmarshal(body, &wrapper); err != nil {
-			itemsCh <- itemsResult{err: err}
-			return
-		}
-		itemsCh <- itemsResult{items: wrapper.Data}
-	}()
-
-	go func() {
-		body, err := doGet(fmt.Sprintf("%s/v1/%s/inventory/items/pricing", inventoryURL, tenantSlug))
-		if err != nil {
-			h.log.Warn("failed to fetch bulk pricing from inventory-api", zap.Error(err))
-			priceCh <- priceResult{}
-			return
-		}
-		var prices []inventoryBulkPrice
-		if err := json.Unmarshal(body, &prices); err != nil {
-			h.log.Warn("failed to decode bulk pricing", zap.Error(err))
-			priceCh <- priceResult{}
-			return
-		}
-		priceCh <- priceResult{prices: prices}
-	}()
-
-	ir := <-itemsCh
-	pr := <-priceCh
-	if ir.err != nil {
-		return nil, ir.err
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("inventory-api %s returned %d", path, resp.StatusCode)
 	}
+	return io.ReadAll(resp.Body)
+}
 
-	// Build item_id → inventory-tier price map (fallback)
-	invPriceByID := make(map[string]float64, len(pr.prices))
-	for _, p := range pr.prices {
-		invPriceByID[p.ItemID] = p.Price
+// fetchInventoryItems calls inventory-api and returns active sellable items.
+func fetchInventoryItems(ctx context.Context, tenantSlug string) ([]inventoryProxyItem, error) {
+	url := fmt.Sprintf("%s/v1/%s/inventory/items?type=GOODS,RECIPE,SERVICE,VOUCHER&status=active&limit=500", inventoryURL(), tenantSlug)
+	body, err := doInventoryGET(ctx, url)
+	if err != nil {
+		return nil, err
 	}
-
-	// Build SKU → local selling_price map from CatalogItem table.
-	// Prefer outlet-scoped rows; fall back to tenant-scoped (outlet_id IS NULL).
-	localPriceBySKU := make(map[string]float64)
-	if tenantID != uuid.Nil {
-		localItems, _ := h.client.CatalogItem.Query().
-			Where(catalogitem.TenantID(tenantID)).
-			All(ctx)
-		// First pass: tenant-wide (no outlet scope)
-		for _, li := range localItems {
-			if li.OutletID == nil && li.SellingPrice != nil && *li.SellingPrice > 0 {
-				localPriceBySKU[li.Sku] = *li.SellingPrice
-			}
-		}
-		// Second pass: outlet-scoped overrides (higher priority)
-		if outletID != nil {
-			for _, li := range localItems {
-				if li.OutletID != nil && *li.OutletID == *outletID && li.SellingPrice != nil && *li.SellingPrice > 0 {
-					localPriceBySKU[li.Sku] = *li.SellingPrice
-				}
-			}
-		}
+	var wrapper struct {
+		Data []inventoryProxyItem `json:"data"`
 	}
-
-	out := make([]map[string]any, 0, len(ir.items))
-	for _, item := range ir.items {
-		status := "active"
-		if !item.IsActive {
-			status = "inactive"
-		}
-
-		// Price resolution: local override → inventory tier → 0
-		price := localPriceBySKU[item.SKU]
-		if price == 0 {
-			price = invPriceByID[item.ID]
-		}
-
-		out = append(out, map[string]any{
-			"id":          item.ID,
-			"sku":         item.SKU,
-			"name":        item.Name,
-			"description": item.Description,
-			"category":    item.CategoryName,
-			"item_type":   item.Type,
-			"status":      status,
-			"image_url":   item.ImageURL,
-			"barcode":     item.Barcode,
-			"price":       price,
-			"outlet_id":   outletID,
-		})
+	if err := json.Unmarshal(body, &wrapper); err != nil {
+		return nil, err
 	}
-	return out, nil
+	return wrapper.Data, nil
+}
+
+// fetchInventoryPricing calls inventory-api for default-tier prices.
+func fetchInventoryPricing(ctx context.Context, tenantSlug string) (map[string]float64, error) {
+	url := fmt.Sprintf("%s/v1/%s/inventory/items/pricing", inventoryURL(), tenantSlug)
+	body, err := doInventoryGET(ctx, url)
+	if err != nil {
+		return nil, err
+	}
+	var prices []inventoryBulkPrice
+	if err := json.Unmarshal(body, &prices); err != nil {
+		return nil, err
+	}
+	m := make(map[string]float64, len(prices))
+	for _, p := range prices {
+		m[p.ItemID] = p.Price
+	}
+	return m, nil
 }
 
 // ListCatalogItems handles GET /{tenantID}/pos/catalog/items
-// Primary source: inventory-api (always proxied — ensures fresh data even when local sync is stale).
-// Local CatalogItem table is used as an override layer (status, tax_status per SKU).
-// Fallback: local-only query when inventory-api is unreachable.
+// Always proxies from inventory-api; merges with local POSCatalogOverride for pricing/availability.
 func (h *CatalogHandler) ListCatalogItems(w http.ResponseWriter, r *http.Request) {
 	tid, err := parseTenantUUID(r)
 	if err != nil {
@@ -213,13 +143,8 @@ func (h *CatalogHandler) ListCatalogItems(w http.ResponseWriter, r *http.Request
 	offset := (page - 1) * limit
 
 	catFilter := r.URL.Query().Get("category")
-	statusFilter := r.URL.Query().Get("status")
-	if statusFilter == "" {
-		statusFilter = "active"
-	}
 	searchFilter := strings.ToLower(r.URL.Query().Get("search"))
 
-	// Resolve tenant slug from JWT claims or httpware context
 	tenantSlug := ""
 	if claims, ok := authclient.ClaimsFromContext(r.Context()); ok {
 		tenantSlug = claims.GetTenantSlug()
@@ -228,179 +153,227 @@ func (h *CatalogHandler) ListCatalogItems(w http.ResponseWriter, r *http.Request
 		tenantSlug = httpware.GetTenantSlug(r.Context())
 	}
 
-	// Resolve outlet ID from httpware context (set by apiClient X-Outlet-ID header)
 	var outletID *uuid.UUID
 	if oidStr := httpware.GetOutletID(r.Context()); oidStr != "" {
 		if oid, parseErr := uuid.Parse(oidStr); parseErr == nil {
 			outletID = &oid
 		}
 	}
-
-	// ── Primary path: inventory-api proxy + local overrides ──────────────────
-	if tenantSlug != "" {
-		proxyItems, proxyErr := h.proxyFromInventory(r.Context(), tenantSlug, tid, outletID)
-		if proxyErr == nil && len(proxyItems) > 0 {
-			// Fetch local overrides (status/tax_status set via POS catalog management)
-			localItems, _ := h.client.CatalogItem.Query().
-				Where(catalogitem.TenantID(tid)).
-				All(r.Context())
-			overrides := make(map[string]*ent.CatalogItem, len(localItems))
-			for _, li := range localItems {
-				overrides[li.Sku] = li
-			}
-
-			// Merge inventory items with local overrides, then apply filters
-			merged := make([]map[string]any, 0, len(proxyItems))
-			for _, item := range proxyItems {
-				sku, _ := item["sku"].(string)
-				if local, ok := overrides[sku]; ok {
-					item["status"] = local.Status
-					item["tax_status"] = local.TaxStatus
-				}
-				// Apply filters on merged result
-				if catFilter != "" {
-					cat, _ := item["category"].(string)
-					if !strings.EqualFold(cat, catFilter) {
-						continue
-					}
-				}
-				if statusFilter != "" {
-					st, _ := item["status"].(string)
-					if st != statusFilter {
-						continue
-					}
-				}
-				if searchFilter != "" {
-					name := strings.ToLower(fmt.Sprintf("%v", item["name"]))
-					if !strings.Contains(name, searchFilter) {
-						continue
-					}
-				}
-				merged = append(merged, item)
-			}
-
-			total := len(merged)
-			start := offset
-			if start > total {
-				start = total
-			}
-			end := start + limit
-			if end > total {
-				end = total
-			}
-			jsonOK(w, map[string]any{"data": merged[start:end], "total": total, "limit": limit, "page": page})
-			return
-		}
-		if proxyErr != nil {
-			h.log.Warn("inventory proxy failed, falling back to local catalog", zap.Error(proxyErr))
+	if outletIDStr := r.URL.Query().Get("outlet_id"); outletIDStr != "" && outletID == nil {
+		if oid, parseErr := uuid.Parse(outletIDStr); parseErr == nil {
+			outletID = &oid
 		}
 	}
 
-	// ── Fallback: local catalog only ─────────────────────────────────────────
-	query := h.client.CatalogItem.Query().Where(
-		catalogitem.TenantID(tid),
-		catalogitem.ItemTypeNotIn("INGREDIENT", "EQUIPMENT"),
-	)
-
-	if catFilter != "" {
-		query = query.Where(catalogitem.Category(catFilter))
-	}
-	if statusFilter != "" {
-		query = query.Where(catalogitem.Status(statusFilter))
-	}
-	if searchFilter != "" {
-		query = query.Where(catalogitem.NameContainsFold(searchFilter))
+	if tenantSlug == "" {
+		jsonError(w, "tenant slug required", http.StatusBadRequest)
+		return
 	}
 
-	total, _ := query.Clone().Count(r.Context())
-	items, err := query.
-		Offset(offset).
-		Limit(limit).
-		Order(ent.Asc(catalogitem.FieldName)).
+	// Fetch items + pricing from inventory-api in parallel
+	type itemsResult struct {
+		items []inventoryProxyItem
+		err   error
+	}
+	type priceResult struct {
+		prices map[string]float64
+		err    error
+	}
+	itemsCh := make(chan itemsResult, 1)
+	priceCh := make(chan priceResult, 1)
+
+	go func() {
+		items, err := fetchInventoryItems(r.Context(), tenantSlug)
+		itemsCh <- itemsResult{items, err}
+	}()
+	go func() {
+		prices, err := fetchInventoryPricing(r.Context(), tenantSlug)
+		priceCh <- priceResult{prices, err}
+	}()
+
+	ir := <-itemsCh
+	pr := <-priceCh
+	if ir.err != nil {
+		h.log.Error("inventory items fetch failed", zap.Error(ir.err))
+		jsonError(w, "failed to fetch catalog from inventory", http.StatusBadGateway)
+		return
+	}
+	if pr.err != nil {
+		h.log.Warn("inventory pricing fetch failed — prices will be 0", zap.Error(pr.err))
+	}
+	invPriceByID := pr.prices
+
+	// Load all POS overrides for this tenant
+	overrides, _ := h.client.POSCatalogOverride.Query().
+		Where(entoverride.TenantID(tid)).
 		All(r.Context())
-	if err != nil {
-		h.log.Error("list catalog items failed", zap.Error(err))
-		jsonError(w, "internal error", http.StatusInternalServerError)
-		return
+
+	// Build SKU → best override map (outlet-scoped wins over tenant-wide)
+	type overrideEntry struct {
+		sellingPrice             *float64
+		taxStatus                string
+		isAvailable              bool
+		isFeatured               bool
+		displayOrder             int
+		requiresPrescription     bool
+		isReturnable             bool
+		requiresAgeVerification  bool
+		isControlledSubstance    bool
+		minimumAge               *int
+		durationMinutes          *int
+	}
+	overrideMap := make(map[string]overrideEntry)
+	for _, o := range overrides {
+		key := o.InventorySku
+		prev, exists := overrideMap[key]
+		// outlet-scoped overrides take precedence over tenant-wide
+		if !exists || (o.OutletID != nil && outletID != nil && *o.OutletID == *outletID) {
+			overrideMap[key] = overrideEntry{
+				sellingPrice:            o.SellingPrice,
+				taxStatus:               o.TaxStatus,
+				isAvailable:             o.IsAvailable,
+				isFeatured:              o.IsFeatured,
+				displayOrder:            o.DisplayOrder,
+				requiresPrescription:    o.RequiresPrescription,
+				isReturnable:            o.IsReturnable,
+				requiresAgeVerification: o.RequiresAgeVerification,
+				isControlledSubstance:   o.IsControlledSubstance,
+				minimumAge:              o.MinimumAge,
+				durationMinutes:         o.DurationMinutes,
+			}
+		} else {
+			_ = prev
+		}
 	}
 
-	jsonOK(w, map[string]any{"data": items, "total": total, "limit": limit, "page": page})
-}
+	out := make([]map[string]any, 0, len(ir.items))
+	for _, item := range ir.items {
+		// Apply filters
+		if catFilter != "" && !strings.EqualFold(item.CategoryName, catFilter) {
+			continue
+		}
+		if searchFilter != "" && !strings.Contains(strings.ToLower(item.Name), searchFilter) {
+			continue
+		}
 
-type createCatalogItemInput struct {
-	SKU       string `json:"sku"`
-	Name      string `json:"name"`
-	Category  string `json:"category"`
-	TaxStatus string `json:"taxStatus"`
-	Status    string `json:"status"`
-	Barcode   string `json:"barcode,omitempty"`
-}
+		o, hasOverride := overrideMap[item.SKU]
 
-// CreateCatalogItem handles POST /{tenantID}/pos/catalog/items
-func (h *CatalogHandler) CreateCatalogItem(w http.ResponseWriter, r *http.Request) {
-	tid, err := parseTenantUUID(r)
-	if err != nil {
-		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
-		return
+		// Price: local selling_price > inventory tier > 0
+		price := 0.0
+		taxStatus := "taxable"
+		isAvailable := item.IsActive
+		isFeatured := false
+		displayOrder := 0
+		requiresPrescription := false
+		isReturnable := true
+		requiresAgeVerification := item.RequiresAgeVerification
+		isControlledSubstance := item.IsControlledSubstance
+		var minimumAge *int
+		var durationMinutes *int
+
+		if invPrice, ok := invPriceByID[item.ID]; ok {
+			price = invPrice
+		}
+
+		if hasOverride {
+			if o.sellingPrice != nil && *o.sellingPrice > 0 {
+				price = *o.sellingPrice
+			}
+			if o.taxStatus != "" {
+				taxStatus = o.taxStatus
+			}
+			isAvailable = o.isAvailable
+			isFeatured = o.isFeatured
+			displayOrder = o.displayOrder
+			requiresPrescription = o.requiresPrescription
+			isReturnable = o.isReturnable
+			if o.requiresAgeVerification {
+				requiresAgeVerification = true
+			}
+			if o.isControlledSubstance {
+				isControlledSubstance = true
+			}
+			minimumAge = o.minimumAge
+			durationMinutes = o.durationMinutes
+		}
+
+		if item.DurationMinutes > 0 && durationMinutes == nil {
+			durationMinutes = &item.DurationMinutes
+		}
+
+		out = append(out, map[string]any{
+			"id":                       item.ID,
+			"sku":                      item.SKU,
+			"name":                     item.Name,
+			"description":              item.Description,
+			"category":                 item.CategoryName,
+			"item_type":                item.Type,
+			"status":                   map[bool]string{true: "active", false: "inactive"}[item.IsActive],
+			"is_available":             isAvailable,
+			"is_featured":              isFeatured,
+			"display_order":            displayOrder,
+			"image_url":                item.ImageURL,
+			"barcode":                  item.Barcode,
+			"price":                    price,
+			"tax_status":               taxStatus,
+			"requires_prescription":    requiresPrescription,
+			"is_returnable":            isReturnable,
+			"requires_age_verification": requiresAgeVerification,
+			"is_controlled_substance":  isControlledSubstance,
+			"minimum_age":              minimumAge,
+			"duration_minutes":         durationMinutes,
+			"outlet_id":                outletID,
+		})
 	}
 
-	var input createCatalogItemInput
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		jsonError(w, "invalid request body", http.StatusBadRequest)
-		return
+	total := len(out)
+	start := offset
+	if start > total {
+		start = total
 	}
-	if input.Name == "" || input.SKU == "" {
-		jsonError(w, "name and sku are required", http.StatusBadRequest)
-		return
-	}
-	if input.TaxStatus == "" {
-		input.TaxStatus = "taxable"
-	}
-	if input.Status == "" {
-		input.Status = "active"
+	end := start + limit
+	if end > total {
+		end = total
 	}
 
-	builder := h.client.CatalogItem.Create().
-		SetTenantID(tid).
-		SetSku(input.SKU).
-		SetName(input.Name).
-		SetCategory(input.Category).
-		SetTaxStatus(input.TaxStatus).
-		SetStatus(input.Status)
-
-	item, err := builder.Save(r.Context())
-	if err != nil {
-		h.log.Error("create catalog item failed", zap.Error(err))
-		jsonError(w, "failed to create item: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusCreated)
-	jsonOK(w, item)
+	jsonOK(w, map[string]any{
+		"data":  out[start:end],
+		"total": total,
+		"limit": limit,
+		"page":  page,
+	})
 }
 
 // GetCatalogItem handles GET /{tenantID}/pos/catalog/items/{id}
+// Fetches by inventory item ID — proxied from inventory-api + merged with local override.
 func (h *CatalogHandler) GetCatalogItem(w http.ResponseWriter, r *http.Request) {
-	tid, err := parseTenantUUID(r)
-	if err != nil {
-		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+	itemID := chi.URLParam(r, "id")
+	if itemID == "" {
+		jsonError(w, "item id required", http.StatusBadRequest)
 		return
 	}
 
-	itemID, err := uuid.Parse(chi.URLParam(r, "id"))
-	if err != nil {
-		jsonError(w, "invalid item id", http.StatusBadRequest)
+	tenantSlug := ""
+	if claims, ok := authclient.ClaimsFromContext(r.Context()); ok {
+		tenantSlug = claims.GetTenantSlug()
+	}
+	if tenantSlug == "" {
+		tenantSlug = httpware.GetTenantSlug(r.Context())
+	}
+	if tenantSlug == "" {
+		jsonError(w, "tenant slug required", http.StatusBadRequest)
 		return
 	}
 
-	item, err := h.client.CatalogItem.Query().
-		Where(catalogitem.ID(itemID), catalogitem.TenantID(tid)).
-		Only(r.Context())
+	url := fmt.Sprintf("%s/v1/%s/inventory/items/%s", inventoryURL(), tenantSlug, itemID)
+	body, err := doInventoryGET(r.Context(), url)
 	if err != nil {
-		if ent.IsNotFound(err) {
-			jsonError(w, "item not found", http.StatusNotFound)
-			return
-		}
+		jsonError(w, "item not found", http.StatusNotFound)
+		return
+	}
+
+	var item map[string]any
+	if err := json.Unmarshal(body, &item); err != nil {
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
 	}
@@ -408,89 +381,8 @@ func (h *CatalogHandler) GetCatalogItem(w http.ResponseWriter, r *http.Request) 
 	jsonOK(w, item)
 }
 
-// UpdateCatalogItem handles PUT /{tenantID}/pos/catalog/items/{id}
-func (h *CatalogHandler) UpdateCatalogItem(w http.ResponseWriter, r *http.Request) {
-	tid, err := parseTenantUUID(r)
-	if err != nil {
-		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
-		return
-	}
-
-	itemID, err := uuid.Parse(chi.URLParam(r, "id"))
-	if err != nil {
-		jsonError(w, "invalid item id", http.StatusBadRequest)
-		return
-	}
-
-	var input map[string]any
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		jsonError(w, "invalid request body", http.StatusBadRequest)
-		return
-	}
-
-	item, err := h.client.CatalogItem.Query().
-		Where(catalogitem.ID(itemID), catalogitem.TenantID(tid)).
-		Only(r.Context())
-	if err != nil {
-		if ent.IsNotFound(err) {
-			jsonError(w, "item not found", http.StatusNotFound)
-			return
-		}
-		jsonError(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-
-	updater := item.Update()
-	if v, ok := input["name"].(string); ok {
-		updater.SetName(v)
-	}
-	if v, ok := input["category"].(string); ok {
-		updater.SetCategory(v)
-	}
-	if v, ok := input["status"].(string); ok {
-		updater.SetStatus(v)
-	}
-	if v, ok := input["taxStatus"].(string); ok {
-		updater.SetTaxStatus(v)
-	}
-
-	updated, err := updater.Save(r.Context())
-	if err != nil {
-		jsonError(w, "update failed", http.StatusInternalServerError)
-		return
-	}
-	jsonOK(w, updated)
-}
-
-// DeleteCatalogItem handles DELETE /{tenantID}/pos/catalog/items/{id} (soft delete)
-func (h *CatalogHandler) DeleteCatalogItem(w http.ResponseWriter, r *http.Request) {
-	tid, err := parseTenantUUID(r)
-	if err != nil {
-		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
-		return
-	}
-
-	itemID, err := uuid.Parse(chi.URLParam(r, "id"))
-	if err != nil {
-		jsonError(w, "invalid item id", http.StatusBadRequest)
-		return
-	}
-
-	_, err = h.client.CatalogItem.Update().
-		Where(catalogitem.ID(itemID), catalogitem.TenantID(tid)).
-		SetStatus("inactive").
-		Save(r.Context())
-	if err != nil {
-		jsonError(w, "delete failed", http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusNoContent)
-}
-
 // SetCatalogItemPrice handles PATCH /{tenantID}/pos/catalog/items/prices
-// Upserts a selling_price override for an item identified by SKU.
-// Body: { "sku": "...", "selling_price": 350, "outlet_id": "uuid-optional" }
+// Upserts a POS selling_price override for an item identified by SKU.
 func (h *CatalogHandler) SetCatalogItemPrice(w http.ResponseWriter, r *http.Request) {
 	tid, err := parseTenantUUID(r)
 	if err != nil {
@@ -499,9 +391,9 @@ func (h *CatalogHandler) SetCatalogItemPrice(w http.ResponseWriter, r *http.Requ
 	}
 
 	var input struct {
-		SKU          string   `json:"sku"`
-		SellingPrice float64  `json:"selling_price"`
-		OutletID     string   `json:"outlet_id,omitempty"`
+		SKU          string  `json:"sku"`
+		SellingPrice float64 `json:"selling_price"`
+		OutletID     string  `json:"outlet_id,omitempty"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil || input.SKU == "" {
 		jsonError(w, "sku and selling_price are required", http.StatusBadRequest)
@@ -515,9 +407,9 @@ func (h *CatalogHandler) SetCatalogItemPrice(w http.ResponseWriter, r *http.Requ
 		}
 	}
 
-	// Try to find existing CatalogItem for this tenant+SKU+(outlet)
-	q := h.client.CatalogItem.Query().Where(catalogitem.TenantID(tid), catalogitem.Sku(input.SKU))
-	existing, _ := q.First(r.Context())
+	existing, _ := h.client.POSCatalogOverride.Query().
+		Where(entoverride.TenantID(tid), entoverride.InventorySku(input.SKU)).
+		First(r.Context())
 
 	if existing != nil {
 		upd := existing.Update().SetSellingPrice(input.SellingPrice)
@@ -533,13 +425,10 @@ func (h *CatalogHandler) SetCatalogItemPrice(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	// Create new override row
-	creator := h.client.CatalogItem.Create().
+	creator := h.client.POSCatalogOverride.Create().
 		SetTenantID(tid).
-		SetSku(input.SKU).
-		SetName(input.SKU). // placeholder name; real name comes from inventory-api proxy
-		SetSellingPrice(input.SellingPrice).
-		SetStatus("active")
+		SetInventorySku(input.SKU).
+		SetSellingPrice(input.SellingPrice)
 	if outletID != nil {
 		creator.SetOutletID(*outletID)
 	}
@@ -553,7 +442,6 @@ func (h *CatalogHandler) SetCatalogItemPrice(w http.ResponseWriter, r *http.Requ
 }
 
 // BulkSetCatalogPrices handles POST /{tenantID}/pos/catalog/items/prices/bulk
-// Body: { "outlet_id": "...", "prices": [{ "sku": "...", "selling_price": 350 }] }
 func (h *CatalogHandler) BulkSetCatalogPrices(w http.ResponseWriter, r *http.Request) {
 	tid, err := parseTenantUUID(r)
 	if err != nil {
@@ -580,17 +468,16 @@ func (h *CatalogHandler) BulkSetCatalogPrices(w http.ResponseWriter, r *http.Req
 		}
 	}
 
-	// Load existing rows to decide create vs update
 	skus := make([]string, len(input.Prices))
 	for i, p := range input.Prices {
 		skus[i] = p.SKU
 	}
-	existing, _ := h.client.CatalogItem.Query().
-		Where(catalogitem.TenantID(tid), catalogitem.SkuIn(skus...)).
+	existing, _ := h.client.POSCatalogOverride.Query().
+		Where(entoverride.TenantID(tid), entoverride.InventorySkuIn(skus...)).
 		All(r.Context())
-	existingBySKU := make(map[string]*ent.CatalogItem, len(existing))
+	existingBySKU := make(map[string]*ent.POSCatalogOverride, len(existing))
 	for _, e := range existing {
-		existingBySKU[e.Sku] = e
+		existingBySKU[e.InventorySku] = e
 	}
 
 	updated := 0
@@ -604,9 +491,9 @@ func (h *CatalogHandler) BulkSetCatalogPrices(w http.ResponseWriter, r *http.Req
 				updated++
 			}
 		} else {
-			creator := h.client.CatalogItem.Create().
-				SetTenantID(tid).SetSku(p.SKU).SetName(p.SKU).
-				SetSellingPrice(p.SellingPrice).SetStatus("active")
+			creator := h.client.POSCatalogOverride.Create().
+				SetTenantID(tid).SetInventorySku(p.SKU).
+				SetSellingPrice(p.SellingPrice)
 			if outletID != nil {
 				creator.SetOutletID(*outletID)
 			}
@@ -618,28 +505,177 @@ func (h *CatalogHandler) BulkSetCatalogPrices(w http.ResponseWriter, r *http.Req
 	jsonOK(w, map[string]any{"updated": updated})
 }
 
+// GetItemStock handles GET /{tenantID}/pos/catalog/items/{id}/stock
+func (h *CatalogHandler) GetItemStock(w http.ResponseWriter, r *http.Request) {
+	itemID := chi.URLParam(r, "id")
+	if itemID == "" {
+		jsonError(w, "item id required", http.StatusBadRequest)
+		return
+	}
+
+	tenantSlug := httpware.GetTenantSlug(r.Context())
+
+	url := fmt.Sprintf("%s/v1/%s/inventory/items/%s/stock", inventoryURL(), tenantSlug, itemID)
+	body, err := doInventoryGET(r.Context(), url)
+	if err != nil {
+		h.log.Warn("inventory-api stock fetch failed", zap.Error(err), zap.String("item_id", itemID))
+		jsonOK(w, map[string]any{"item_id": itemID, "quantity_on_hand": 0, "error": "inventory unavailable"})
+		return
+	}
+
+	var stock map[string]any
+	if err := json.Unmarshal(body, &stock); err != nil {
+		jsonOK(w, map[string]any{"item_id": itemID, "raw": string(body)})
+		return
+	}
+	jsonOK(w, stock)
+}
+
+// CreateCatalogItem handles POST /{tenantID}/pos/catalog/items — creates a POS price override.
+func (h *CatalogHandler) CreateCatalogItem(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+
+	var input struct {
+		SKU          string   `json:"sku"`
+		SellingPrice *float64 `json:"selling_price,omitempty"`
+		TaxStatus    string   `json:"tax_status,omitempty"`
+		IsAvailable  *bool    `json:"is_available,omitempty"`
+		OutletID     string   `json:"outlet_id,omitempty"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil || input.SKU == "" {
+		jsonError(w, "sku is required", http.StatusBadRequest)
+		return
+	}
+
+	if input.TaxStatus == "" {
+		input.TaxStatus = "taxable"
+	}
+
+	creator := h.client.POSCatalogOverride.Create().
+		SetTenantID(tid).
+		SetInventorySku(input.SKU).
+		SetTaxStatus(input.TaxStatus)
+	if input.SellingPrice != nil {
+		creator.SetSellingPrice(*input.SellingPrice)
+	}
+	if input.IsAvailable != nil {
+		creator.SetIsAvailable(*input.IsAvailable)
+	}
+	if input.OutletID != "" {
+		if oid, parseErr := uuid.Parse(input.OutletID); parseErr == nil {
+			creator.SetOutletID(oid)
+		}
+	}
+	item, err := creator.Save(r.Context())
+	if err != nil {
+		jsonError(w, "failed to create override: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusCreated)
+	jsonOK(w, item)
+}
+
+// UpdateCatalogItem handles PUT /{tenantID}/pos/catalog/items/{id} — updates POS override.
+func (h *CatalogHandler) UpdateCatalogItem(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+
+	itemID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		jsonError(w, "invalid item id", http.StatusBadRequest)
+		return
+	}
+
+	item, err := h.client.POSCatalogOverride.Query().
+		Where(entoverride.ID(itemID), entoverride.TenantID(tid)).
+		Only(r.Context())
+	if err != nil {
+		if ent.IsNotFound(err) {
+			jsonError(w, "override not found", http.StatusNotFound)
+			return
+		}
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	var input map[string]any
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		jsonError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	updater := item.Update()
+	if v, ok := input["tax_status"].(string); ok {
+		updater.SetTaxStatus(v)
+	}
+	if v, ok := input["is_available"].(bool); ok {
+		updater.SetIsAvailable(v)
+	}
+	if v, ok := input["selling_price"].(float64); ok {
+		updater.SetSellingPrice(v)
+	}
+	if v, ok := input["is_featured"].(bool); ok {
+		updater.SetIsFeatured(v)
+	}
+
+	updated, err := updater.Save(r.Context())
+	if err != nil {
+		jsonError(w, "update failed", http.StatusInternalServerError)
+		return
+	}
+	jsonOK(w, updated)
+}
+
+// DeleteCatalogItem handles DELETE /{tenantID}/pos/catalog/items/{id} — marks unavailable.
+func (h *CatalogHandler) DeleteCatalogItem(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+
+	itemID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		jsonError(w, "invalid item id", http.StatusBadRequest)
+		return
+	}
+
+	_, err = h.client.POSCatalogOverride.Update().
+		Where(entoverride.ID(itemID), entoverride.TenantID(tid)).
+		SetIsAvailable(false).
+		Save(r.Context())
+	if err != nil {
+		jsonError(w, "delete failed", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func mustParseUUID(s string) uuid.UUID {
+	id, _ := uuid.Parse(s)
+	return id
+}
+
 // parseTenantUUID extracts and parses tenant UUID from httpware context.
-// Platform owners can override via ?tenantId= query param for cross-tenant access.
 func parseTenantUUID(r *http.Request) (uuid.UUID, error) {
 	ctx := r.Context()
 
-	// Platform owner query-param override
 	if httpware.IsPlatformOwner(ctx) {
 		if q := r.URL.Query().Get("tenantId"); q != "" {
 			return uuid.Parse(q)
 		}
 	}
 
-	// Standard: httpware context (from TenantV2 middleware)
 	tenantIDStr := httpware.GetTenantID(ctx)
 	if tenantIDStr != "" {
-		if httpware.IsPlatformOwner(ctx) {
-			claims, ok := authclient.ClaimsFromContext(ctx)
-			if ok && claims.TenantID == tenantIDStr {
-				// Platform owner's own tenant — return Nil to indicate "all"
-				return uuid.Nil, nil
-			}
-		}
 		return uuid.Parse(tenantIDStr)
 	}
 
