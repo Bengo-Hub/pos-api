@@ -170,6 +170,28 @@ func (h *PaymentHandler) RecordPayment(w http.ResponseWriter, r *http.Request) {
 	jsonOK(w, payment)
 }
 
+// GetGateways handles GET /{tenantID}/pos/gateways
+// Proxies the treasury public gateway availability response so the POS UI can
+// conditionally show only the payment methods the tenant has enabled.
+// Fails open: if treasury is unreachable all gateways are returned as enabled.
+func (h *PaymentHandler) GetGateways(w http.ResponseWriter, r *http.Request) {
+	tenantSlug := chi.URLParam(r, "tenantID")
+
+	if h.treasuryClient == nil {
+		jsonOK(w, map[string]any{"mpesa": true, "paystack": true, "wallet": true, "cod": true})
+		return
+	}
+
+	gateways, err := h.treasuryClient.GetPublicGateways(r.Context(), tenantSlug)
+	if err != nil {
+		h.log.Warn("get public gateways failed — failing open", zap.String("tenant", tenantSlug), zap.Error(err))
+		jsonOK(w, map[string]any{"mpesa": true, "paystack": true, "wallet": true, "cod": true})
+		return
+	}
+
+	jsonOK(w, gateways)
+}
+
 // ListOrderPayments handles GET /{tenantID}/pos/orders/{orderID}/payments
 func (h *PaymentHandler) ListOrderPayments(w http.ResponseWriter, r *http.Request) {
 	tid, err := parseTenantUUID(r)

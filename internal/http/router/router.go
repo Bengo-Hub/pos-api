@@ -264,6 +264,7 @@ func New(
 
 					// Payments
 					if payments != nil {
+						pos.Get("/gateways", payments.GetGateways)
 						pos.Post("/orders/{orderID}/payments/intent", payments.CreatePaymentIntent)
 						pos.Post("/orders/{orderID}/payments", payments.RecordPayment)
 						pos.Get("/orders/{orderID}/payments", payments.ListOrderPayments)

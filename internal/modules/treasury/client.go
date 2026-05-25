@@ -160,6 +160,21 @@ func (c *Client) ListTaxCodes(ctx context.Context, tenantSlug string) ([]TaxCode
 	return resp.TaxCodes, nil
 }
 
+// PublicGatewaysResponse is the response from GET /api/v1/pay/{tenant}/gateways.
+type PublicGatewaysResponse struct {
+	MPesa    bool `json:"mpesa"`
+	Paystack bool `json:"paystack"`
+	Wallet   bool `json:"wallet"`
+	COD      bool `json:"cod"`
+}
+
+// GetPublicGateways fetches the active payment gateways for a tenant from the treasury public endpoint.
+// No auth required on treasury side — used by POS to show only enabled payment methods.
+func (c *Client) GetPublicGateways(ctx context.Context, tenantSlug string) (*PublicGatewaysResponse, error) {
+	url := fmt.Sprintf("%s/api/v1/pay/%s/gateways", c.baseURL, tenantSlug)
+	return doRequest[PublicGatewaysResponse](ctx, c.httpClient, http.MethodGet, url, c.apiKey, nil)
+}
+
 // PayoutRequest is the body for POST /api/v1/{tenant}/payouts/disburse.
 type PayoutRequest struct {
 	EntityType   string  `json:"entity_type"`   // "staff"
