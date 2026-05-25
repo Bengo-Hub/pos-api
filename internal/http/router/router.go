@@ -61,6 +61,9 @@ func New(
 	queue *handlers.QueueHandler,
 	billSplits *handlers.BillSplitHandler,
 	resources *handlers.ResourceHandler,
+	commissionRules *handlers.CommissionRuleHandler,
+	packages *handlers.PackageHandler,
+	clients *handlers.ClientHandler,
 	allowedOrigins []string,
 	redisClient *redis.Client,
 ) http.Handler {
@@ -189,6 +192,7 @@ func New(
 						pos.Get("/orders/{orderID}", orders.GetOrder)
 						pos.Patch("/orders/{orderID}/status", orders.UpdateStatus)
 						pos.Patch("/orders/{orderID}/void", orders.VoidOrder)
+						pos.Post("/orders/{orderID}/lines/{lineID}/serials", orders.CaptureSerial)
 					}
 
 					// In-app notifications (waiter order-ready alerts)
@@ -214,6 +218,7 @@ func New(
 							cat.Get("/items/{id}", catalog.GetCatalogItem)
 							cat.Put("/items/{id}", catalog.UpdateCatalogItem)
 							cat.Delete("/items/{id}", catalog.DeleteCatalogItem)
+							cat.Get("/items/{id}/stock", catalog.GetItemStock)
 							cat.Get("/barcode/{barcode}", catalog.BarcodeLookup)
 						})
 					}
@@ -359,6 +364,9 @@ func New(
 							ph.Post("/pharmacy/prescriptions/{prescriptionID}/dispense", pharmacy.Dispense)
 							ph.Post("/pharmacy/interaction-checks", pharmacy.CreateInteractionCheck)
 							ph.Get("/pharmacy/patients", pharmacy.ListPatients)
+							ph.Get("/pharmacy/controlled-substances", pharmacy.ListControlledLogs)
+							ph.Post("/pharmacy/controlled-substances", pharmacy.CreateControlledLog)
+							ph.Get("/pharmacy/controlled-substances/{logID}", pharmacy.GetControlledLog)
 						})
 					}
 
@@ -386,6 +394,7 @@ func New(
 							svc.Get("/queue", queue.List)
 							svc.Post("/queue/entries", queue.Create)
 							svc.Patch("/queue/entries/{entryID}/status", queue.UpdateStatus)
+							svc.Post("/queue/entries/{entryID}/assign", queue.AssignStaff)
 						})
 					}
 
@@ -405,10 +414,38 @@ func New(
 						pos.Put("/staff/{staffID}/schedule", staffSchedule.UpsertSchedule)
 					}
 
-					// Commissions
+					// Commissions (records)
 					if commissions != nil {
 						pos.Get("/commissions", commissions.List)
 						pos.Get("/commissions/{commissionID}", commissions.Get)
+					}
+
+					// Commission rules & payout
+					if commissionRules != nil {
+						pos.Get("/commissions/rules", commissionRules.List)
+						pos.Post("/commissions/rules", commissionRules.Create)
+						pos.Patch("/commissions/rules/{ruleID}", commissionRules.Update)
+						pos.Post("/commissions/payout", commissionRules.Payout)
+					}
+
+					// Service packages
+					if packages != nil {
+						pos.Group(func(svc chi.Router) {
+							svc.Use(outletmw.RequireUseCase("services"))
+							svc.Get("/packages", packages.ListPackages)
+							svc.Post("/packages", packages.CreatePackage)
+							svc.Post("/packages/{packageID}/sell", packages.SellPackage)
+							svc.Get("/packages/purchases", packages.ListPurchases)
+							svc.Post("/packages/purchases/{purchaseID}/redeem", packages.RedeemSession)
+						})
+					}
+
+					// Client records
+					if clients != nil {
+						pos.Get("/clients", clients.List)
+						pos.Post("/clients", clients.CreateOrUpsert)
+						pos.Get("/clients/{clientID}", clients.Get)
+						pos.Patch("/clients/{clientID}", clients.Update)
 					}
 
 					// Loyalty programs & accounts
@@ -432,6 +469,13 @@ func New(
 						pos.Get("/reports/top-items", reports.TopItems)
 						pos.Get("/reports/sales-by-staff", reports.SalesByStaff)
 						pos.Get("/reports/export", reports.ExportDailyReport)
+						// Sprint 11: additional report endpoints
+						pos.Get("/reports/shifts", reports.ShiftReportList)
+						pos.Get("/reports/shifts/{sessionID}", reports.ShiftReport)
+						pos.Get("/reports/commissions", reports.CommissionReport)
+						pos.Get("/reports/tax", reports.TaxReport)
+						pos.Get("/reports/sales/by-hour", reports.SalesByHour)
+						pos.Get("/reports/sales/by-category", reports.SalesByCategory)
 					}
 
 					// Webhook subscriptions & delivery log (Sprint 12)
