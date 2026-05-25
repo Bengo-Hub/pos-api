@@ -90,6 +90,36 @@ func Role(v string) predicate.StaffMember {
 	return predicate.StaffMember(sql.FieldEQ(FieldRole, v))
 }
 
+// HourlyRate applies equality check predicate on the "hourly_rate" field. It's identical to HourlyRateEQ.
+func HourlyRate(v float64) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldEQ(FieldHourlyRate, v))
+}
+
+// DailyRate applies equality check predicate on the "daily_rate" field. It's identical to DailyRateEQ.
+func DailyRate(v float64) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldEQ(FieldDailyRate, v))
+}
+
+// MonthlySalary applies equality check predicate on the "monthly_salary" field. It's identical to MonthlySalaryEQ.
+func MonthlySalary(v float64) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldEQ(FieldMonthlySalary, v))
+}
+
+// MpesaPhone applies equality check predicate on the "mpesa_phone" field. It's identical to MpesaPhoneEQ.
+func MpesaPhone(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldEQ(FieldMpesaPhone, v))
+}
+
+// BankAccountNumber applies equality check predicate on the "bank_account_number" field. It's identical to BankAccountNumberEQ.
+func BankAccountNumber(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldEQ(FieldBankAccountNumber, v))
+}
+
+// BankName applies equality check predicate on the "bank_name" field. It's identical to BankNameEQ.
+func BankName(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldEQ(FieldBankName, v))
+}
+
 // PinHash applies equality check predicate on the "pin_hash" field. It's identical to PinHashEQ.
 func PinHash(v string) predicate.StaffMember {
 	return predicate.StaffMember(sql.FieldEQ(FieldPinHash, v))
@@ -443,6 +473,411 @@ func RoleEqualFold(v string) predicate.StaffMember {
 // RoleContainsFold applies the ContainsFold predicate on the "role" field.
 func RoleContainsFold(v string) predicate.StaffMember {
 	return predicate.StaffMember(sql.FieldContainsFold(FieldRole, v))
+}
+
+// EmploymentTypeEQ applies the EQ predicate on the "employment_type" field.
+func EmploymentTypeEQ(v EmploymentType) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldEQ(FieldEmploymentType, v))
+}
+
+// EmploymentTypeNEQ applies the NEQ predicate on the "employment_type" field.
+func EmploymentTypeNEQ(v EmploymentType) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldNEQ(FieldEmploymentType, v))
+}
+
+// EmploymentTypeIn applies the In predicate on the "employment_type" field.
+func EmploymentTypeIn(vs ...EmploymentType) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldIn(FieldEmploymentType, vs...))
+}
+
+// EmploymentTypeNotIn applies the NotIn predicate on the "employment_type" field.
+func EmploymentTypeNotIn(vs ...EmploymentType) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldNotIn(FieldEmploymentType, vs...))
+}
+
+// EmploymentTypeIsNil applies the IsNil predicate on the "employment_type" field.
+func EmploymentTypeIsNil() predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldIsNull(FieldEmploymentType))
+}
+
+// EmploymentTypeNotNil applies the NotNil predicate on the "employment_type" field.
+func EmploymentTypeNotNil() predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldNotNull(FieldEmploymentType))
+}
+
+// HourlyRateEQ applies the EQ predicate on the "hourly_rate" field.
+func HourlyRateEQ(v float64) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldEQ(FieldHourlyRate, v))
+}
+
+// HourlyRateNEQ applies the NEQ predicate on the "hourly_rate" field.
+func HourlyRateNEQ(v float64) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldNEQ(FieldHourlyRate, v))
+}
+
+// HourlyRateIn applies the In predicate on the "hourly_rate" field.
+func HourlyRateIn(vs ...float64) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldIn(FieldHourlyRate, vs...))
+}
+
+// HourlyRateNotIn applies the NotIn predicate on the "hourly_rate" field.
+func HourlyRateNotIn(vs ...float64) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldNotIn(FieldHourlyRate, vs...))
+}
+
+// HourlyRateGT applies the GT predicate on the "hourly_rate" field.
+func HourlyRateGT(v float64) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldGT(FieldHourlyRate, v))
+}
+
+// HourlyRateGTE applies the GTE predicate on the "hourly_rate" field.
+func HourlyRateGTE(v float64) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldGTE(FieldHourlyRate, v))
+}
+
+// HourlyRateLT applies the LT predicate on the "hourly_rate" field.
+func HourlyRateLT(v float64) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldLT(FieldHourlyRate, v))
+}
+
+// HourlyRateLTE applies the LTE predicate on the "hourly_rate" field.
+func HourlyRateLTE(v float64) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldLTE(FieldHourlyRate, v))
+}
+
+// HourlyRateIsNil applies the IsNil predicate on the "hourly_rate" field.
+func HourlyRateIsNil() predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldIsNull(FieldHourlyRate))
+}
+
+// HourlyRateNotNil applies the NotNil predicate on the "hourly_rate" field.
+func HourlyRateNotNil() predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldNotNull(FieldHourlyRate))
+}
+
+// DailyRateEQ applies the EQ predicate on the "daily_rate" field.
+func DailyRateEQ(v float64) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldEQ(FieldDailyRate, v))
+}
+
+// DailyRateNEQ applies the NEQ predicate on the "daily_rate" field.
+func DailyRateNEQ(v float64) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldNEQ(FieldDailyRate, v))
+}
+
+// DailyRateIn applies the In predicate on the "daily_rate" field.
+func DailyRateIn(vs ...float64) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldIn(FieldDailyRate, vs...))
+}
+
+// DailyRateNotIn applies the NotIn predicate on the "daily_rate" field.
+func DailyRateNotIn(vs ...float64) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldNotIn(FieldDailyRate, vs...))
+}
+
+// DailyRateGT applies the GT predicate on the "daily_rate" field.
+func DailyRateGT(v float64) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldGT(FieldDailyRate, v))
+}
+
+// DailyRateGTE applies the GTE predicate on the "daily_rate" field.
+func DailyRateGTE(v float64) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldGTE(FieldDailyRate, v))
+}
+
+// DailyRateLT applies the LT predicate on the "daily_rate" field.
+func DailyRateLT(v float64) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldLT(FieldDailyRate, v))
+}
+
+// DailyRateLTE applies the LTE predicate on the "daily_rate" field.
+func DailyRateLTE(v float64) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldLTE(FieldDailyRate, v))
+}
+
+// DailyRateIsNil applies the IsNil predicate on the "daily_rate" field.
+func DailyRateIsNil() predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldIsNull(FieldDailyRate))
+}
+
+// DailyRateNotNil applies the NotNil predicate on the "daily_rate" field.
+func DailyRateNotNil() predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldNotNull(FieldDailyRate))
+}
+
+// MonthlySalaryEQ applies the EQ predicate on the "monthly_salary" field.
+func MonthlySalaryEQ(v float64) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldEQ(FieldMonthlySalary, v))
+}
+
+// MonthlySalaryNEQ applies the NEQ predicate on the "monthly_salary" field.
+func MonthlySalaryNEQ(v float64) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldNEQ(FieldMonthlySalary, v))
+}
+
+// MonthlySalaryIn applies the In predicate on the "monthly_salary" field.
+func MonthlySalaryIn(vs ...float64) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldIn(FieldMonthlySalary, vs...))
+}
+
+// MonthlySalaryNotIn applies the NotIn predicate on the "monthly_salary" field.
+func MonthlySalaryNotIn(vs ...float64) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldNotIn(FieldMonthlySalary, vs...))
+}
+
+// MonthlySalaryGT applies the GT predicate on the "monthly_salary" field.
+func MonthlySalaryGT(v float64) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldGT(FieldMonthlySalary, v))
+}
+
+// MonthlySalaryGTE applies the GTE predicate on the "monthly_salary" field.
+func MonthlySalaryGTE(v float64) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldGTE(FieldMonthlySalary, v))
+}
+
+// MonthlySalaryLT applies the LT predicate on the "monthly_salary" field.
+func MonthlySalaryLT(v float64) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldLT(FieldMonthlySalary, v))
+}
+
+// MonthlySalaryLTE applies the LTE predicate on the "monthly_salary" field.
+func MonthlySalaryLTE(v float64) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldLTE(FieldMonthlySalary, v))
+}
+
+// MonthlySalaryIsNil applies the IsNil predicate on the "monthly_salary" field.
+func MonthlySalaryIsNil() predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldIsNull(FieldMonthlySalary))
+}
+
+// MonthlySalaryNotNil applies the NotNil predicate on the "monthly_salary" field.
+func MonthlySalaryNotNil() predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldNotNull(FieldMonthlySalary))
+}
+
+// MpesaPhoneEQ applies the EQ predicate on the "mpesa_phone" field.
+func MpesaPhoneEQ(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldEQ(FieldMpesaPhone, v))
+}
+
+// MpesaPhoneNEQ applies the NEQ predicate on the "mpesa_phone" field.
+func MpesaPhoneNEQ(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldNEQ(FieldMpesaPhone, v))
+}
+
+// MpesaPhoneIn applies the In predicate on the "mpesa_phone" field.
+func MpesaPhoneIn(vs ...string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldIn(FieldMpesaPhone, vs...))
+}
+
+// MpesaPhoneNotIn applies the NotIn predicate on the "mpesa_phone" field.
+func MpesaPhoneNotIn(vs ...string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldNotIn(FieldMpesaPhone, vs...))
+}
+
+// MpesaPhoneGT applies the GT predicate on the "mpesa_phone" field.
+func MpesaPhoneGT(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldGT(FieldMpesaPhone, v))
+}
+
+// MpesaPhoneGTE applies the GTE predicate on the "mpesa_phone" field.
+func MpesaPhoneGTE(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldGTE(FieldMpesaPhone, v))
+}
+
+// MpesaPhoneLT applies the LT predicate on the "mpesa_phone" field.
+func MpesaPhoneLT(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldLT(FieldMpesaPhone, v))
+}
+
+// MpesaPhoneLTE applies the LTE predicate on the "mpesa_phone" field.
+func MpesaPhoneLTE(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldLTE(FieldMpesaPhone, v))
+}
+
+// MpesaPhoneContains applies the Contains predicate on the "mpesa_phone" field.
+func MpesaPhoneContains(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldContains(FieldMpesaPhone, v))
+}
+
+// MpesaPhoneHasPrefix applies the HasPrefix predicate on the "mpesa_phone" field.
+func MpesaPhoneHasPrefix(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldHasPrefix(FieldMpesaPhone, v))
+}
+
+// MpesaPhoneHasSuffix applies the HasSuffix predicate on the "mpesa_phone" field.
+func MpesaPhoneHasSuffix(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldHasSuffix(FieldMpesaPhone, v))
+}
+
+// MpesaPhoneIsNil applies the IsNil predicate on the "mpesa_phone" field.
+func MpesaPhoneIsNil() predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldIsNull(FieldMpesaPhone))
+}
+
+// MpesaPhoneNotNil applies the NotNil predicate on the "mpesa_phone" field.
+func MpesaPhoneNotNil() predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldNotNull(FieldMpesaPhone))
+}
+
+// MpesaPhoneEqualFold applies the EqualFold predicate on the "mpesa_phone" field.
+func MpesaPhoneEqualFold(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldEqualFold(FieldMpesaPhone, v))
+}
+
+// MpesaPhoneContainsFold applies the ContainsFold predicate on the "mpesa_phone" field.
+func MpesaPhoneContainsFold(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldContainsFold(FieldMpesaPhone, v))
+}
+
+// BankAccountNumberEQ applies the EQ predicate on the "bank_account_number" field.
+func BankAccountNumberEQ(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldEQ(FieldBankAccountNumber, v))
+}
+
+// BankAccountNumberNEQ applies the NEQ predicate on the "bank_account_number" field.
+func BankAccountNumberNEQ(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldNEQ(FieldBankAccountNumber, v))
+}
+
+// BankAccountNumberIn applies the In predicate on the "bank_account_number" field.
+func BankAccountNumberIn(vs ...string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldIn(FieldBankAccountNumber, vs...))
+}
+
+// BankAccountNumberNotIn applies the NotIn predicate on the "bank_account_number" field.
+func BankAccountNumberNotIn(vs ...string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldNotIn(FieldBankAccountNumber, vs...))
+}
+
+// BankAccountNumberGT applies the GT predicate on the "bank_account_number" field.
+func BankAccountNumberGT(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldGT(FieldBankAccountNumber, v))
+}
+
+// BankAccountNumberGTE applies the GTE predicate on the "bank_account_number" field.
+func BankAccountNumberGTE(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldGTE(FieldBankAccountNumber, v))
+}
+
+// BankAccountNumberLT applies the LT predicate on the "bank_account_number" field.
+func BankAccountNumberLT(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldLT(FieldBankAccountNumber, v))
+}
+
+// BankAccountNumberLTE applies the LTE predicate on the "bank_account_number" field.
+func BankAccountNumberLTE(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldLTE(FieldBankAccountNumber, v))
+}
+
+// BankAccountNumberContains applies the Contains predicate on the "bank_account_number" field.
+func BankAccountNumberContains(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldContains(FieldBankAccountNumber, v))
+}
+
+// BankAccountNumberHasPrefix applies the HasPrefix predicate on the "bank_account_number" field.
+func BankAccountNumberHasPrefix(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldHasPrefix(FieldBankAccountNumber, v))
+}
+
+// BankAccountNumberHasSuffix applies the HasSuffix predicate on the "bank_account_number" field.
+func BankAccountNumberHasSuffix(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldHasSuffix(FieldBankAccountNumber, v))
+}
+
+// BankAccountNumberIsNil applies the IsNil predicate on the "bank_account_number" field.
+func BankAccountNumberIsNil() predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldIsNull(FieldBankAccountNumber))
+}
+
+// BankAccountNumberNotNil applies the NotNil predicate on the "bank_account_number" field.
+func BankAccountNumberNotNil() predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldNotNull(FieldBankAccountNumber))
+}
+
+// BankAccountNumberEqualFold applies the EqualFold predicate on the "bank_account_number" field.
+func BankAccountNumberEqualFold(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldEqualFold(FieldBankAccountNumber, v))
+}
+
+// BankAccountNumberContainsFold applies the ContainsFold predicate on the "bank_account_number" field.
+func BankAccountNumberContainsFold(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldContainsFold(FieldBankAccountNumber, v))
+}
+
+// BankNameEQ applies the EQ predicate on the "bank_name" field.
+func BankNameEQ(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldEQ(FieldBankName, v))
+}
+
+// BankNameNEQ applies the NEQ predicate on the "bank_name" field.
+func BankNameNEQ(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldNEQ(FieldBankName, v))
+}
+
+// BankNameIn applies the In predicate on the "bank_name" field.
+func BankNameIn(vs ...string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldIn(FieldBankName, vs...))
+}
+
+// BankNameNotIn applies the NotIn predicate on the "bank_name" field.
+func BankNameNotIn(vs ...string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldNotIn(FieldBankName, vs...))
+}
+
+// BankNameGT applies the GT predicate on the "bank_name" field.
+func BankNameGT(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldGT(FieldBankName, v))
+}
+
+// BankNameGTE applies the GTE predicate on the "bank_name" field.
+func BankNameGTE(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldGTE(FieldBankName, v))
+}
+
+// BankNameLT applies the LT predicate on the "bank_name" field.
+func BankNameLT(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldLT(FieldBankName, v))
+}
+
+// BankNameLTE applies the LTE predicate on the "bank_name" field.
+func BankNameLTE(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldLTE(FieldBankName, v))
+}
+
+// BankNameContains applies the Contains predicate on the "bank_name" field.
+func BankNameContains(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldContains(FieldBankName, v))
+}
+
+// BankNameHasPrefix applies the HasPrefix predicate on the "bank_name" field.
+func BankNameHasPrefix(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldHasPrefix(FieldBankName, v))
+}
+
+// BankNameHasSuffix applies the HasSuffix predicate on the "bank_name" field.
+func BankNameHasSuffix(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldHasSuffix(FieldBankName, v))
+}
+
+// BankNameIsNil applies the IsNil predicate on the "bank_name" field.
+func BankNameIsNil() predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldIsNull(FieldBankName))
+}
+
+// BankNameNotNil applies the NotNil predicate on the "bank_name" field.
+func BankNameNotNil() predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldNotNull(FieldBankName))
+}
+
+// BankNameEqualFold applies the EqualFold predicate on the "bank_name" field.
+func BankNameEqualFold(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldEqualFold(FieldBankName, v))
+}
+
+// BankNameContainsFold applies the ContainsFold predicate on the "bank_name" field.
+func BankNameContainsFold(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldContainsFold(FieldBankName, v))
 }
 
 // PinHashEQ applies the EQ predicate on the "pin_hash" field.

@@ -88,7 +88,10 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/servicepackagepurchase"
 	"github.com/bengobox/pos-service/internal/ent/servicepackageredemption"
 	"github.com/bengobox/pos-service/internal/ent/servicequeueentry"
+	"github.com/bengobox/pos-service/internal/ent/staffadvance"
 	"github.com/bengobox/pos-service/internal/ent/staffmember"
+	"github.com/bengobox/pos-service/internal/ent/staffpayroll"
+	"github.com/bengobox/pos-service/internal/ent/staffpayrollline"
 	"github.com/bengobox/pos-service/internal/ent/staffschedule"
 	"github.com/bengobox/pos-service/internal/ent/stockalertsubscription"
 	"github.com/bengobox/pos-service/internal/ent/stockconsumptionevent"
@@ -254,8 +257,14 @@ type Client struct {
 	ServicePackageRedemption *ServicePackageRedemptionClient
 	// ServiceQueueEntry is the client for interacting with the ServiceQueueEntry builders.
 	ServiceQueueEntry *ServiceQueueEntryClient
+	// StaffAdvance is the client for interacting with the StaffAdvance builders.
+	StaffAdvance *StaffAdvanceClient
 	// StaffMember is the client for interacting with the StaffMember builders.
 	StaffMember *StaffMemberClient
+	// StaffPayroll is the client for interacting with the StaffPayroll builders.
+	StaffPayroll *StaffPayrollClient
+	// StaffPayrollLine is the client for interacting with the StaffPayrollLine builders.
+	StaffPayrollLine *StaffPayrollLineClient
 	// StaffSchedule is the client for interacting with the StaffSchedule builders.
 	StaffSchedule *StaffScheduleClient
 	// StockAlertSubscription is the client for interacting with the StockAlertSubscription builders.
@@ -367,7 +376,10 @@ func (c *Client) init() {
 	c.ServicePackagePurchase = NewServicePackagePurchaseClient(c.config)
 	c.ServicePackageRedemption = NewServicePackageRedemptionClient(c.config)
 	c.ServiceQueueEntry = NewServiceQueueEntryClient(c.config)
+	c.StaffAdvance = NewStaffAdvanceClient(c.config)
 	c.StaffMember = NewStaffMemberClient(c.config)
+	c.StaffPayroll = NewStaffPayrollClient(c.config)
+	c.StaffPayrollLine = NewStaffPayrollLineClient(c.config)
 	c.StaffSchedule = NewStaffScheduleClient(c.config)
 	c.StockAlertSubscription = NewStockAlertSubscriptionClient(c.config)
 	c.StockConsumptionEvent = NewStockConsumptionEventClient(c.config)
@@ -546,7 +558,10 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		ServicePackagePurchase:   NewServicePackagePurchaseClient(cfg),
 		ServicePackageRedemption: NewServicePackageRedemptionClient(cfg),
 		ServiceQueueEntry:        NewServiceQueueEntryClient(cfg),
+		StaffAdvance:             NewStaffAdvanceClient(cfg),
 		StaffMember:              NewStaffMemberClient(cfg),
+		StaffPayroll:             NewStaffPayrollClient(cfg),
+		StaffPayrollLine:         NewStaffPayrollLineClient(cfg),
 		StaffSchedule:            NewStaffScheduleClient(cfg),
 		StockAlertSubscription:   NewStockAlertSubscriptionClient(cfg),
 		StockConsumptionEvent:    NewStockConsumptionEventClient(cfg),
@@ -652,7 +667,10 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		ServicePackagePurchase:   NewServicePackagePurchaseClient(cfg),
 		ServicePackageRedemption: NewServicePackageRedemptionClient(cfg),
 		ServiceQueueEntry:        NewServiceQueueEntryClient(cfg),
+		StaffAdvance:             NewStaffAdvanceClient(cfg),
 		StaffMember:              NewStaffMemberClient(cfg),
+		StaffPayroll:             NewStaffPayrollClient(cfg),
+		StaffPayrollLine:         NewStaffPayrollLineClient(cfg),
 		StaffSchedule:            NewStaffScheduleClient(cfg),
 		StockAlertSubscription:   NewStockAlertSubscriptionClient(cfg),
 		StockConsumptionEvent:    NewStockConsumptionEventClient(cfg),
@@ -713,10 +731,11 @@ func (c *Client) Use(hooks ...Hook) {
 		c.PromotionRule, c.RateLimitConfig, c.Resource, c.Room, c.RoomFolioItem,
 		c.RoomGuest, c.Section, c.SerialNumberLog, c.ServiceConfig, c.ServicePackage,
 		c.ServicePackagePurchase, c.ServicePackageRedemption, c.ServiceQueueEntry,
-		c.StaffMember, c.StaffSchedule, c.StockAlertSubscription,
-		c.StockConsumptionEvent, c.SyncFailure, c.Table, c.TableAssignment, c.Tenant,
-		c.TenantSyncEvent, c.Tender, c.User, c.UserPOSRole, c.WebhookDelivery,
-		c.WebhookSubscription, c.WeighingScaleReading,
+		c.StaffAdvance, c.StaffMember, c.StaffPayroll, c.StaffPayrollLine,
+		c.StaffSchedule, c.StockAlertSubscription, c.StockConsumptionEvent,
+		c.SyncFailure, c.Table, c.TableAssignment, c.Tenant, c.TenantSyncEvent,
+		c.Tender, c.User, c.UserPOSRole, c.WebhookDelivery, c.WebhookSubscription,
+		c.WeighingScaleReading,
 	} {
 		n.Use(hooks...)
 	}
@@ -743,10 +762,11 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.PromotionRule, c.RateLimitConfig, c.Resource, c.Room, c.RoomFolioItem,
 		c.RoomGuest, c.Section, c.SerialNumberLog, c.ServiceConfig, c.ServicePackage,
 		c.ServicePackagePurchase, c.ServicePackageRedemption, c.ServiceQueueEntry,
-		c.StaffMember, c.StaffSchedule, c.StockAlertSubscription,
-		c.StockConsumptionEvent, c.SyncFailure, c.Table, c.TableAssignment, c.Tenant,
-		c.TenantSyncEvent, c.Tender, c.User, c.UserPOSRole, c.WebhookDelivery,
-		c.WebhookSubscription, c.WeighingScaleReading,
+		c.StaffAdvance, c.StaffMember, c.StaffPayroll, c.StaffPayrollLine,
+		c.StaffSchedule, c.StockAlertSubscription, c.StockConsumptionEvent,
+		c.SyncFailure, c.Table, c.TableAssignment, c.Tenant, c.TenantSyncEvent,
+		c.Tender, c.User, c.UserPOSRole, c.WebhookDelivery, c.WebhookSubscription,
+		c.WeighingScaleReading,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -899,8 +919,14 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.ServicePackageRedemption.mutate(ctx, m)
 	case *ServiceQueueEntryMutation:
 		return c.ServiceQueueEntry.mutate(ctx, m)
+	case *StaffAdvanceMutation:
+		return c.StaffAdvance.mutate(ctx, m)
 	case *StaffMemberMutation:
 		return c.StaffMember.mutate(ctx, m)
+	case *StaffPayrollMutation:
+		return c.StaffPayroll.mutate(ctx, m)
+	case *StaffPayrollLineMutation:
+		return c.StaffPayrollLine.mutate(ctx, m)
 	case *StaffScheduleMutation:
 		return c.StaffSchedule.mutate(ctx, m)
 	case *StockAlertSubscriptionMutation:
@@ -11278,6 +11304,139 @@ func (c *ServiceQueueEntryClient) mutate(ctx context.Context, m *ServiceQueueEnt
 	}
 }
 
+// StaffAdvanceClient is a client for the StaffAdvance schema.
+type StaffAdvanceClient struct {
+	config
+}
+
+// NewStaffAdvanceClient returns a client for the StaffAdvance from the given config.
+func NewStaffAdvanceClient(c config) *StaffAdvanceClient {
+	return &StaffAdvanceClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `staffadvance.Hooks(f(g(h())))`.
+func (c *StaffAdvanceClient) Use(hooks ...Hook) {
+	c.hooks.StaffAdvance = append(c.hooks.StaffAdvance, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `staffadvance.Intercept(f(g(h())))`.
+func (c *StaffAdvanceClient) Intercept(interceptors ...Interceptor) {
+	c.inters.StaffAdvance = append(c.inters.StaffAdvance, interceptors...)
+}
+
+// Create returns a builder for creating a StaffAdvance entity.
+func (c *StaffAdvanceClient) Create() *StaffAdvanceCreate {
+	mutation := newStaffAdvanceMutation(c.config, OpCreate)
+	return &StaffAdvanceCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of StaffAdvance entities.
+func (c *StaffAdvanceClient) CreateBulk(builders ...*StaffAdvanceCreate) *StaffAdvanceCreateBulk {
+	return &StaffAdvanceCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *StaffAdvanceClient) MapCreateBulk(slice any, setFunc func(*StaffAdvanceCreate, int)) *StaffAdvanceCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &StaffAdvanceCreateBulk{err: fmt.Errorf("calling to StaffAdvanceClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*StaffAdvanceCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &StaffAdvanceCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for StaffAdvance.
+func (c *StaffAdvanceClient) Update() *StaffAdvanceUpdate {
+	mutation := newStaffAdvanceMutation(c.config, OpUpdate)
+	return &StaffAdvanceUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *StaffAdvanceClient) UpdateOne(_m *StaffAdvance) *StaffAdvanceUpdateOne {
+	mutation := newStaffAdvanceMutation(c.config, OpUpdateOne, withStaffAdvance(_m))
+	return &StaffAdvanceUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *StaffAdvanceClient) UpdateOneID(id uuid.UUID) *StaffAdvanceUpdateOne {
+	mutation := newStaffAdvanceMutation(c.config, OpUpdateOne, withStaffAdvanceID(id))
+	return &StaffAdvanceUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for StaffAdvance.
+func (c *StaffAdvanceClient) Delete() *StaffAdvanceDelete {
+	mutation := newStaffAdvanceMutation(c.config, OpDelete)
+	return &StaffAdvanceDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *StaffAdvanceClient) DeleteOne(_m *StaffAdvance) *StaffAdvanceDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *StaffAdvanceClient) DeleteOneID(id uuid.UUID) *StaffAdvanceDeleteOne {
+	builder := c.Delete().Where(staffadvance.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &StaffAdvanceDeleteOne{builder}
+}
+
+// Query returns a query builder for StaffAdvance.
+func (c *StaffAdvanceClient) Query() *StaffAdvanceQuery {
+	return &StaffAdvanceQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeStaffAdvance},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a StaffAdvance entity by its id.
+func (c *StaffAdvanceClient) Get(ctx context.Context, id uuid.UUID) (*StaffAdvance, error) {
+	return c.Query().Where(staffadvance.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *StaffAdvanceClient) GetX(ctx context.Context, id uuid.UUID) *StaffAdvance {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *StaffAdvanceClient) Hooks() []Hook {
+	return c.hooks.StaffAdvance
+}
+
+// Interceptors returns the client interceptors.
+func (c *StaffAdvanceClient) Interceptors() []Interceptor {
+	return c.inters.StaffAdvance
+}
+
+func (c *StaffAdvanceClient) mutate(ctx context.Context, m *StaffAdvanceMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&StaffAdvanceCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&StaffAdvanceUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&StaffAdvanceUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&StaffAdvanceDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown StaffAdvance mutation op: %q", m.Op())
+	}
+}
+
 // StaffMemberClient is a client for the StaffMember schema.
 type StaffMemberClient struct {
 	config
@@ -11408,6 +11567,304 @@ func (c *StaffMemberClient) mutate(ctx context.Context, m *StaffMemberMutation) 
 		return (&StaffMemberDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown StaffMember mutation op: %q", m.Op())
+	}
+}
+
+// StaffPayrollClient is a client for the StaffPayroll schema.
+type StaffPayrollClient struct {
+	config
+}
+
+// NewStaffPayrollClient returns a client for the StaffPayroll from the given config.
+func NewStaffPayrollClient(c config) *StaffPayrollClient {
+	return &StaffPayrollClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `staffpayroll.Hooks(f(g(h())))`.
+func (c *StaffPayrollClient) Use(hooks ...Hook) {
+	c.hooks.StaffPayroll = append(c.hooks.StaffPayroll, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `staffpayroll.Intercept(f(g(h())))`.
+func (c *StaffPayrollClient) Intercept(interceptors ...Interceptor) {
+	c.inters.StaffPayroll = append(c.inters.StaffPayroll, interceptors...)
+}
+
+// Create returns a builder for creating a StaffPayroll entity.
+func (c *StaffPayrollClient) Create() *StaffPayrollCreate {
+	mutation := newStaffPayrollMutation(c.config, OpCreate)
+	return &StaffPayrollCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of StaffPayroll entities.
+func (c *StaffPayrollClient) CreateBulk(builders ...*StaffPayrollCreate) *StaffPayrollCreateBulk {
+	return &StaffPayrollCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *StaffPayrollClient) MapCreateBulk(slice any, setFunc func(*StaffPayrollCreate, int)) *StaffPayrollCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &StaffPayrollCreateBulk{err: fmt.Errorf("calling to StaffPayrollClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*StaffPayrollCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &StaffPayrollCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for StaffPayroll.
+func (c *StaffPayrollClient) Update() *StaffPayrollUpdate {
+	mutation := newStaffPayrollMutation(c.config, OpUpdate)
+	return &StaffPayrollUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *StaffPayrollClient) UpdateOne(_m *StaffPayroll) *StaffPayrollUpdateOne {
+	mutation := newStaffPayrollMutation(c.config, OpUpdateOne, withStaffPayroll(_m))
+	return &StaffPayrollUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *StaffPayrollClient) UpdateOneID(id uuid.UUID) *StaffPayrollUpdateOne {
+	mutation := newStaffPayrollMutation(c.config, OpUpdateOne, withStaffPayrollID(id))
+	return &StaffPayrollUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for StaffPayroll.
+func (c *StaffPayrollClient) Delete() *StaffPayrollDelete {
+	mutation := newStaffPayrollMutation(c.config, OpDelete)
+	return &StaffPayrollDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *StaffPayrollClient) DeleteOne(_m *StaffPayroll) *StaffPayrollDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *StaffPayrollClient) DeleteOneID(id uuid.UUID) *StaffPayrollDeleteOne {
+	builder := c.Delete().Where(staffpayroll.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &StaffPayrollDeleteOne{builder}
+}
+
+// Query returns a query builder for StaffPayroll.
+func (c *StaffPayrollClient) Query() *StaffPayrollQuery {
+	return &StaffPayrollQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeStaffPayroll},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a StaffPayroll entity by its id.
+func (c *StaffPayrollClient) Get(ctx context.Context, id uuid.UUID) (*StaffPayroll, error) {
+	return c.Query().Where(staffpayroll.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *StaffPayrollClient) GetX(ctx context.Context, id uuid.UUID) *StaffPayroll {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryLines queries the lines edge of a StaffPayroll.
+func (c *StaffPayrollClient) QueryLines(_m *StaffPayroll) *StaffPayrollLineQuery {
+	query := (&StaffPayrollLineClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(staffpayroll.Table, staffpayroll.FieldID, id),
+			sqlgraph.To(staffpayrollline.Table, staffpayrollline.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, staffpayroll.LinesTable, staffpayroll.LinesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *StaffPayrollClient) Hooks() []Hook {
+	return c.hooks.StaffPayroll
+}
+
+// Interceptors returns the client interceptors.
+func (c *StaffPayrollClient) Interceptors() []Interceptor {
+	return c.inters.StaffPayroll
+}
+
+func (c *StaffPayrollClient) mutate(ctx context.Context, m *StaffPayrollMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&StaffPayrollCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&StaffPayrollUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&StaffPayrollUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&StaffPayrollDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown StaffPayroll mutation op: %q", m.Op())
+	}
+}
+
+// StaffPayrollLineClient is a client for the StaffPayrollLine schema.
+type StaffPayrollLineClient struct {
+	config
+}
+
+// NewStaffPayrollLineClient returns a client for the StaffPayrollLine from the given config.
+func NewStaffPayrollLineClient(c config) *StaffPayrollLineClient {
+	return &StaffPayrollLineClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `staffpayrollline.Hooks(f(g(h())))`.
+func (c *StaffPayrollLineClient) Use(hooks ...Hook) {
+	c.hooks.StaffPayrollLine = append(c.hooks.StaffPayrollLine, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `staffpayrollline.Intercept(f(g(h())))`.
+func (c *StaffPayrollLineClient) Intercept(interceptors ...Interceptor) {
+	c.inters.StaffPayrollLine = append(c.inters.StaffPayrollLine, interceptors...)
+}
+
+// Create returns a builder for creating a StaffPayrollLine entity.
+func (c *StaffPayrollLineClient) Create() *StaffPayrollLineCreate {
+	mutation := newStaffPayrollLineMutation(c.config, OpCreate)
+	return &StaffPayrollLineCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of StaffPayrollLine entities.
+func (c *StaffPayrollLineClient) CreateBulk(builders ...*StaffPayrollLineCreate) *StaffPayrollLineCreateBulk {
+	return &StaffPayrollLineCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *StaffPayrollLineClient) MapCreateBulk(slice any, setFunc func(*StaffPayrollLineCreate, int)) *StaffPayrollLineCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &StaffPayrollLineCreateBulk{err: fmt.Errorf("calling to StaffPayrollLineClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*StaffPayrollLineCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &StaffPayrollLineCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for StaffPayrollLine.
+func (c *StaffPayrollLineClient) Update() *StaffPayrollLineUpdate {
+	mutation := newStaffPayrollLineMutation(c.config, OpUpdate)
+	return &StaffPayrollLineUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *StaffPayrollLineClient) UpdateOne(_m *StaffPayrollLine) *StaffPayrollLineUpdateOne {
+	mutation := newStaffPayrollLineMutation(c.config, OpUpdateOne, withStaffPayrollLine(_m))
+	return &StaffPayrollLineUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *StaffPayrollLineClient) UpdateOneID(id uuid.UUID) *StaffPayrollLineUpdateOne {
+	mutation := newStaffPayrollLineMutation(c.config, OpUpdateOne, withStaffPayrollLineID(id))
+	return &StaffPayrollLineUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for StaffPayrollLine.
+func (c *StaffPayrollLineClient) Delete() *StaffPayrollLineDelete {
+	mutation := newStaffPayrollLineMutation(c.config, OpDelete)
+	return &StaffPayrollLineDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *StaffPayrollLineClient) DeleteOne(_m *StaffPayrollLine) *StaffPayrollLineDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *StaffPayrollLineClient) DeleteOneID(id uuid.UUID) *StaffPayrollLineDeleteOne {
+	builder := c.Delete().Where(staffpayrollline.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &StaffPayrollLineDeleteOne{builder}
+}
+
+// Query returns a query builder for StaffPayrollLine.
+func (c *StaffPayrollLineClient) Query() *StaffPayrollLineQuery {
+	return &StaffPayrollLineQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeStaffPayrollLine},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a StaffPayrollLine entity by its id.
+func (c *StaffPayrollLineClient) Get(ctx context.Context, id uuid.UUID) (*StaffPayrollLine, error) {
+	return c.Query().Where(staffpayrollline.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *StaffPayrollLineClient) GetX(ctx context.Context, id uuid.UUID) *StaffPayrollLine {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryPayroll queries the payroll edge of a StaffPayrollLine.
+func (c *StaffPayrollLineClient) QueryPayroll(_m *StaffPayrollLine) *StaffPayrollQuery {
+	query := (&StaffPayrollClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(staffpayrollline.Table, staffpayrollline.FieldID, id),
+			sqlgraph.To(staffpayroll.Table, staffpayroll.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, staffpayrollline.PayrollTable, staffpayrollline.PayrollColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *StaffPayrollLineClient) Hooks() []Hook {
+	return c.hooks.StaffPayrollLine
+}
+
+// Interceptors returns the client interceptors.
+func (c *StaffPayrollLineClient) Interceptors() []Interceptor {
+	return c.inters.StaffPayrollLine
+}
+
+func (c *StaffPayrollLineClient) mutate(ctx context.Context, m *StaffPayrollLineMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&StaffPayrollLineCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&StaffPayrollLineUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&StaffPayrollLineUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&StaffPayrollLineDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown StaffPayrollLine mutation op: %q", m.Op())
 	}
 }
 
@@ -13435,10 +13892,10 @@ type (
 		PromotionApplication, PromotionRule, RateLimitConfig, Resource, Room,
 		RoomFolioItem, RoomGuest, Section, SerialNumberLog, ServiceConfig,
 		ServicePackage, ServicePackagePurchase, ServicePackageRedemption,
-		ServiceQueueEntry, StaffMember, StaffSchedule, StockAlertSubscription,
-		StockConsumptionEvent, SyncFailure, Table, TableAssignment, Tenant,
-		TenantSyncEvent, Tender, User, UserPOSRole, WebhookDelivery,
-		WebhookSubscription, WeighingScaleReading []ent.Hook
+		ServiceQueueEntry, StaffAdvance, StaffMember, StaffPayroll, StaffPayrollLine,
+		StaffSchedule, StockAlertSubscription, StockConsumptionEvent, SyncFailure,
+		Table, TableAssignment, Tenant, TenantSyncEvent, Tender, User, UserPOSRole,
+		WebhookDelivery, WebhookSubscription, WeighingScaleReading []ent.Hook
 	}
 	inters struct {
 		Appointment, BarTab, BarTabEvent, BillSplit, CashDrawer, CashDrawerEvent,
@@ -13456,9 +13913,9 @@ type (
 		PromotionApplication, PromotionRule, RateLimitConfig, Resource, Room,
 		RoomFolioItem, RoomGuest, Section, SerialNumberLog, ServiceConfig,
 		ServicePackage, ServicePackagePurchase, ServicePackageRedemption,
-		ServiceQueueEntry, StaffMember, StaffSchedule, StockAlertSubscription,
-		StockConsumptionEvent, SyncFailure, Table, TableAssignment, Tenant,
-		TenantSyncEvent, Tender, User, UserPOSRole, WebhookDelivery,
-		WebhookSubscription, WeighingScaleReading []ent.Interceptor
+		ServiceQueueEntry, StaffAdvance, StaffMember, StaffPayroll, StaffPayrollLine,
+		StaffSchedule, StockAlertSubscription, StockConsumptionEvent, SyncFailure,
+		Table, TableAssignment, Tenant, TenantSyncEvent, Tender, User, UserPOSRole,
+		WebhookDelivery, WebhookSubscription, WeighingScaleReading []ent.Interceptor
 	}
 )

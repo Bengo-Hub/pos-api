@@ -3,6 +3,7 @@
 package staffmember
 
 import (
+	"fmt"
 	"time"
 
 	"entgo.io/ent/dialect/sql"
@@ -32,6 +33,20 @@ const (
 	FieldIsActive = "is_active"
 	// FieldRole holds the string denoting the role field in the database.
 	FieldRole = "role"
+	// FieldEmploymentType holds the string denoting the employment_type field in the database.
+	FieldEmploymentType = "employment_type"
+	// FieldHourlyRate holds the string denoting the hourly_rate field in the database.
+	FieldHourlyRate = "hourly_rate"
+	// FieldDailyRate holds the string denoting the daily_rate field in the database.
+	FieldDailyRate = "daily_rate"
+	// FieldMonthlySalary holds the string denoting the monthly_salary field in the database.
+	FieldMonthlySalary = "monthly_salary"
+	// FieldMpesaPhone holds the string denoting the mpesa_phone field in the database.
+	FieldMpesaPhone = "mpesa_phone"
+	// FieldBankAccountNumber holds the string denoting the bank_account_number field in the database.
+	FieldBankAccountNumber = "bank_account_number"
+	// FieldBankName holds the string denoting the bank_name field in the database.
+	FieldBankName = "bank_name"
 	// FieldPinHash holds the string denoting the pin_hash field in the database.
 	FieldPinHash = "pin_hash"
 	// FieldPinFailedAttempts holds the string denoting the pin_failed_attempts field in the database.
@@ -58,6 +73,13 @@ var Columns = []string{
 	FieldCommissionRate,
 	FieldIsActive,
 	FieldRole,
+	FieldEmploymentType,
+	FieldHourlyRate,
+	FieldDailyRate,
+	FieldMonthlySalary,
+	FieldMpesaPhone,
+	FieldBankAccountNumber,
+	FieldBankName,
 	FieldPinHash,
 	FieldPinFailedAttempts,
 	FieldPinLockedUntil,
@@ -93,6 +115,34 @@ var (
 	// DefaultID holds the default value on creation for the "id" field.
 	DefaultID func() uuid.UUID
 )
+
+// EmploymentType defines the type for the "employment_type" enum field.
+type EmploymentType string
+
+// EmploymentTypeFullTime is the default value of the EmploymentType enum.
+const DefaultEmploymentType = EmploymentTypeFullTime
+
+// EmploymentType values.
+const (
+	EmploymentTypeFullTime   EmploymentType = "full_time"
+	EmploymentTypePartTime   EmploymentType = "part_time"
+	EmploymentTypeCasual     EmploymentType = "casual"
+	EmploymentTypeContractor EmploymentType = "contractor"
+)
+
+func (et EmploymentType) String() string {
+	return string(et)
+}
+
+// EmploymentTypeValidator is a validator for the "employment_type" field enum values. It is called by the builders before save.
+func EmploymentTypeValidator(et EmploymentType) error {
+	switch et {
+	case EmploymentTypeFullTime, EmploymentTypePartTime, EmploymentTypeCasual, EmploymentTypeContractor:
+		return nil
+	default:
+		return fmt.Errorf("staffmember: invalid enum value for employment_type field: %q", et)
+	}
+}
 
 // OrderOption defines the ordering options for the StaffMember queries.
 type OrderOption func(*sql.Selector)
@@ -135,6 +185,41 @@ func ByIsActive(opts ...sql.OrderTermOption) OrderOption {
 // ByRole orders the results by the role field.
 func ByRole(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldRole, opts...).ToFunc()
+}
+
+// ByEmploymentType orders the results by the employment_type field.
+func ByEmploymentType(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldEmploymentType, opts...).ToFunc()
+}
+
+// ByHourlyRate orders the results by the hourly_rate field.
+func ByHourlyRate(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldHourlyRate, opts...).ToFunc()
+}
+
+// ByDailyRate orders the results by the daily_rate field.
+func ByDailyRate(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDailyRate, opts...).ToFunc()
+}
+
+// ByMonthlySalary orders the results by the monthly_salary field.
+func ByMonthlySalary(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldMonthlySalary, opts...).ToFunc()
+}
+
+// ByMpesaPhone orders the results by the mpesa_phone field.
+func ByMpesaPhone(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldMpesaPhone, opts...).ToFunc()
+}
+
+// ByBankAccountNumber orders the results by the bank_account_number field.
+func ByBankAccountNumber(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBankAccountNumber, opts...).ToFunc()
+}
+
+// ByBankName orders the results by the bank_name field.
+func ByBankName(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBankName, opts...).ToFunc()
 }
 
 // ByPinHash orders the results by the pin_hash field.

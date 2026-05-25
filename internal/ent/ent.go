@@ -84,7 +84,10 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/servicepackagepurchase"
 	"github.com/bengobox/pos-service/internal/ent/servicepackageredemption"
 	"github.com/bengobox/pos-service/internal/ent/servicequeueentry"
+	"github.com/bengobox/pos-service/internal/ent/staffadvance"
 	"github.com/bengobox/pos-service/internal/ent/staffmember"
+	"github.com/bengobox/pos-service/internal/ent/staffpayroll"
+	"github.com/bengobox/pos-service/internal/ent/staffpayrollline"
 	"github.com/bengobox/pos-service/internal/ent/staffschedule"
 	"github.com/bengobox/pos-service/internal/ent/stockalertsubscription"
 	"github.com/bengobox/pos-service/internal/ent/stockconsumptionevent"
@@ -231,7 +234,10 @@ func checkColumn(t, c string) error {
 			servicepackagepurchase.Table:   servicepackagepurchase.ValidColumn,
 			servicepackageredemption.Table: servicepackageredemption.ValidColumn,
 			servicequeueentry.Table:        servicequeueentry.ValidColumn,
+			staffadvance.Table:             staffadvance.ValidColumn,
 			staffmember.Table:              staffmember.ValidColumn,
+			staffpayroll.Table:             staffpayroll.ValidColumn,
+			staffpayrollline.Table:         staffpayrollline.ValidColumn,
 			staffschedule.Table:            staffschedule.ValidColumn,
 			stockalertsubscription.Table:   stockalertsubscription.ValidColumn,
 			stockconsumptionevent.Table:    stockconsumptionevent.ValidColumn,

@@ -2240,6 +2240,39 @@ var (
 			},
 		},
 	}
+	// StaffAdvancesColumns holds the columns for the "staff_advances" table.
+	StaffAdvancesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "staff_id", Type: field.TypeUUID},
+		{Name: "amount", Type: field.TypeFloat64},
+		{Name: "currency", Type: field.TypeString, Default: "KES"},
+		{Name: "reason", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "repayment_months", Type: field.TypeInt, Default: 1},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"active", "fully_repaid", "cancelled"}, Default: "active"},
+		{Name: "approved_by", Type: field.TypeUUID, Nullable: true},
+		{Name: "approved_at", Type: field.TypeTime, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// StaffAdvancesTable holds the schema information for the "staff_advances" table.
+	StaffAdvancesTable = &schema.Table{
+		Name:       "staff_advances",
+		Columns:    StaffAdvancesColumns,
+		PrimaryKey: []*schema.Column{StaffAdvancesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "staffadvance_tenant_id_staff_id",
+				Unique:  false,
+				Columns: []*schema.Column{StaffAdvancesColumns[1], StaffAdvancesColumns[2]},
+			},
+			{
+				Name:    "staffadvance_tenant_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{StaffAdvancesColumns[1], StaffAdvancesColumns[7]},
+			},
+		},
+	}
 	// StaffMembersColumns holds the columns for the "staff_members" table.
 	StaffMembersColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -2252,6 +2285,13 @@ var (
 		{Name: "commission_rate", Type: field.TypeFloat64, Nullable: true},
 		{Name: "is_active", Type: field.TypeBool, Default: true},
 		{Name: "role", Type: field.TypeString, Default: "cashier"},
+		{Name: "employment_type", Type: field.TypeEnum, Nullable: true, Enums: []string{"full_time", "part_time", "casual", "contractor"}, Default: "full_time"},
+		{Name: "hourly_rate", Type: field.TypeFloat64, Nullable: true},
+		{Name: "daily_rate", Type: field.TypeFloat64, Nullable: true},
+		{Name: "monthly_salary", Type: field.TypeFloat64, Nullable: true},
+		{Name: "mpesa_phone", Type: field.TypeString, Nullable: true},
+		{Name: "bank_account_number", Type: field.TypeString, Nullable: true},
+		{Name: "bank_name", Type: field.TypeString, Nullable: true},
 		{Name: "pin_hash", Type: field.TypeString, Nullable: true},
 		{Name: "pin_failed_attempts", Type: field.TypeInt, Default: 0},
 		{Name: "pin_locked_until", Type: field.TypeTime, Nullable: true},
@@ -2273,6 +2313,78 @@ var (
 				Name:    "staffmember_tenant_id_user_id",
 				Unique:  true,
 				Columns: []*schema.Column{StaffMembersColumns[1], StaffMembersColumns[3]},
+			},
+		},
+	}
+	// StaffPayrollsColumns holds the columns for the "staff_payrolls" table.
+	StaffPayrollsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "staff_id", Type: field.TypeUUID},
+		{Name: "period_start", Type: field.TypeTime},
+		{Name: "period_end", Type: field.TypeTime},
+		{Name: "gross_amount", Type: field.TypeFloat64, Default: 0},
+		{Name: "total_deductions", Type: field.TypeFloat64, Default: 0},
+		{Name: "net_amount", Type: field.TypeFloat64, Default: 0},
+		{Name: "currency", Type: field.TypeString, Default: "KES"},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"draft", "approved", "paid", "cancelled"}, Default: "draft"},
+		{Name: "approved_by", Type: field.TypeUUID, Nullable: true},
+		{Name: "approved_at", Type: field.TypeTime, Nullable: true},
+		{Name: "paid_at", Type: field.TypeTime, Nullable: true},
+		{Name: "payout_reference", Type: field.TypeString, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// StaffPayrollsTable holds the schema information for the "staff_payrolls" table.
+	StaffPayrollsTable = &schema.Table{
+		Name:       "staff_payrolls",
+		Columns:    StaffPayrollsColumns,
+		PrimaryKey: []*schema.Column{StaffPayrollsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "staffpayroll_tenant_id_staff_id",
+				Unique:  false,
+				Columns: []*schema.Column{StaffPayrollsColumns[1], StaffPayrollsColumns[2]},
+			},
+			{
+				Name:    "staffpayroll_tenant_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{StaffPayrollsColumns[1], StaffPayrollsColumns[9]},
+			},
+			{
+				Name:    "staffpayroll_tenant_id_period_start_period_end",
+				Unique:  false,
+				Columns: []*schema.Column{StaffPayrollsColumns[1], StaffPayrollsColumns[3], StaffPayrollsColumns[4]},
+			},
+		},
+	}
+	// StaffPayrollLinesColumns holds the columns for the "staff_payroll_lines" table.
+	StaffPayrollLinesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "line_type", Type: field.TypeEnum, Enums: []string{"salary", "bonus", "commission", "advance_repayment", "tax", "nhif", "nssf", "deduction"}},
+		{Name: "description", Type: field.TypeString},
+		{Name: "amount", Type: field.TypeFloat64},
+		{Name: "advance_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "payroll_id", Type: field.TypeUUID},
+	}
+	// StaffPayrollLinesTable holds the schema information for the "staff_payroll_lines" table.
+	StaffPayrollLinesTable = &schema.Table{
+		Name:       "staff_payroll_lines",
+		Columns:    StaffPayrollLinesColumns,
+		PrimaryKey: []*schema.Column{StaffPayrollLinesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "staff_payroll_lines_staff_payrolls_lines",
+				Columns:    []*schema.Column{StaffPayrollLinesColumns[5]},
+				RefColumns: []*schema.Column{StaffPayrollsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "staffpayrollline_payroll_id",
+				Unique:  false,
+				Columns: []*schema.Column{StaffPayrollLinesColumns[5]},
 			},
 		},
 	}
@@ -2749,7 +2861,10 @@ var (
 		ServicePackagePurchasesTable,
 		ServicePackageRedemptionsTable,
 		ServiceQueueEntriesTable,
+		StaffAdvancesTable,
 		StaffMembersTable,
+		StaffPayrollsTable,
+		StaffPayrollLinesTable,
 		StaffSchedulesTable,
 		StockAlertSubscriptionsTable,
 		StockConsumptionEventsTable,
@@ -2792,6 +2907,7 @@ func init() {
 	RoomFolioItemsTable.ForeignKeys[0].RefTable = RoomsTable
 	RoomFolioItemsTable.ForeignKeys[1].RefTable = RoomGuestsTable
 	RoomGuestsTable.ForeignKeys[0].RefTable = RoomsTable
+	StaffPayrollLinesTable.ForeignKeys[0].RefTable = StaffPayrollsTable
 	TablesTable.ForeignKeys[0].RefTable = SectionsTable
 	TableAssignmentsTable.ForeignKeys[0].RefTable = TablesTable
 	UsersTable.ForeignKeys[0].RefTable = TenantsTable

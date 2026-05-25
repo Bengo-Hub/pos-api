@@ -37,6 +37,20 @@ type StaffMember struct {
 	IsActive bool `json:"is_active,omitempty"`
 	// POS role: admin|manager|cashier|waiter|kitchen|bar|receptionist
 	Role string `json:"role,omitempty"`
+	// EmploymentType holds the value of the "employment_type" field.
+	EmploymentType staffmember.EmploymentType `json:"employment_type,omitempty"`
+	// Compensation per hour (for hourly/casual staff)
+	HourlyRate *float64 `json:"hourly_rate,omitempty"`
+	// Compensation per day (for day-rate staff)
+	DailyRate *float64 `json:"daily_rate,omitempty"`
+	// Fixed monthly gross salary
+	MonthlySalary *float64 `json:"monthly_salary,omitempty"`
+	// M-Pesa phone (254...) for salary disbursement
+	MpesaPhone *string `json:"mpesa_phone,omitempty"`
+	// BankAccountNumber holds the value of the "bank_account_number" field.
+	BankAccountNumber *string `json:"bank_account_number,omitempty"`
+	// BankName holds the value of the "bank_name" field.
+	BankName *string `json:"bank_name,omitempty"`
 	// PinHash holds the value of the "pin_hash" field.
 	PinHash *string `json:"-"`
 	// PinFailedAttempts holds the value of the "pin_failed_attempts" field.
@@ -59,11 +73,11 @@ func (*StaffMember) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case staffmember.FieldIsActive:
 			values[i] = new(sql.NullBool)
-		case staffmember.FieldCommissionRate:
+		case staffmember.FieldCommissionRate, staffmember.FieldHourlyRate, staffmember.FieldDailyRate, staffmember.FieldMonthlySalary:
 			values[i] = new(sql.NullFloat64)
 		case staffmember.FieldPinFailedAttempts:
 			values[i] = new(sql.NullInt64)
-		case staffmember.FieldName, staffmember.FieldRole, staffmember.FieldPinHash:
+		case staffmember.FieldName, staffmember.FieldRole, staffmember.FieldEmploymentType, staffmember.FieldMpesaPhone, staffmember.FieldBankAccountNumber, staffmember.FieldBankName, staffmember.FieldPinHash:
 			values[i] = new(sql.NullString)
 		case staffmember.FieldPinLockedUntil, staffmember.FieldCreatedAt, staffmember.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -148,6 +162,54 @@ func (_m *StaffMember) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field role", values[i])
 			} else if value.Valid {
 				_m.Role = value.String
+			}
+		case staffmember.FieldEmploymentType:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field employment_type", values[i])
+			} else if value.Valid {
+				_m.EmploymentType = staffmember.EmploymentType(value.String)
+			}
+		case staffmember.FieldHourlyRate:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field hourly_rate", values[i])
+			} else if value.Valid {
+				_m.HourlyRate = new(float64)
+				*_m.HourlyRate = value.Float64
+			}
+		case staffmember.FieldDailyRate:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field daily_rate", values[i])
+			} else if value.Valid {
+				_m.DailyRate = new(float64)
+				*_m.DailyRate = value.Float64
+			}
+		case staffmember.FieldMonthlySalary:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field monthly_salary", values[i])
+			} else if value.Valid {
+				_m.MonthlySalary = new(float64)
+				*_m.MonthlySalary = value.Float64
+			}
+		case staffmember.FieldMpesaPhone:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field mpesa_phone", values[i])
+			} else if value.Valid {
+				_m.MpesaPhone = new(string)
+				*_m.MpesaPhone = value.String
+			}
+		case staffmember.FieldBankAccountNumber:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field bank_account_number", values[i])
+			} else if value.Valid {
+				_m.BankAccountNumber = new(string)
+				*_m.BankAccountNumber = value.String
+			}
+		case staffmember.FieldBankName:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field bank_name", values[i])
+			} else if value.Valid {
+				_m.BankName = new(string)
+				*_m.BankName = value.String
 			}
 		case staffmember.FieldPinHash:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -245,6 +307,39 @@ func (_m *StaffMember) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("role=")
 	builder.WriteString(_m.Role)
+	builder.WriteString(", ")
+	builder.WriteString("employment_type=")
+	builder.WriteString(fmt.Sprintf("%v", _m.EmploymentType))
+	builder.WriteString(", ")
+	if v := _m.HourlyRate; v != nil {
+		builder.WriteString("hourly_rate=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.DailyRate; v != nil {
+		builder.WriteString("daily_rate=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.MonthlySalary; v != nil {
+		builder.WriteString("monthly_salary=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.MpesaPhone; v != nil {
+		builder.WriteString("mpesa_phone=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.BankAccountNumber; v != nil {
+		builder.WriteString("bank_account_number=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.BankName; v != nil {
+		builder.WriteString("bank_name=")
+		builder.WriteString(*v)
+	}
 	builder.WriteString(", ")
 	builder.WriteString("pin_hash=<sensitive>")
 	builder.WriteString(", ")

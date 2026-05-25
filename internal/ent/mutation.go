@@ -82,7 +82,10 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/servicepackagepurchase"
 	"github.com/bengobox/pos-service/internal/ent/servicepackageredemption"
 	"github.com/bengobox/pos-service/internal/ent/servicequeueentry"
+	"github.com/bengobox/pos-service/internal/ent/staffadvance"
 	"github.com/bengobox/pos-service/internal/ent/staffmember"
+	"github.com/bengobox/pos-service/internal/ent/staffpayroll"
+	"github.com/bengobox/pos-service/internal/ent/staffpayrollline"
 	"github.com/bengobox/pos-service/internal/ent/staffschedule"
 	"github.com/bengobox/pos-service/internal/ent/stockalertsubscription"
 	"github.com/bengobox/pos-service/internal/ent/stockconsumptionevent"
@@ -182,7 +185,10 @@ const (
 	TypeServicePackagePurchase   = "ServicePackagePurchase"
 	TypeServicePackageRedemption = "ServicePackageRedemption"
 	TypeServiceQueueEntry        = "ServiceQueueEntry"
+	TypeStaffAdvance             = "StaffAdvance"
 	TypeStaffMember              = "StaffMember"
+	TypeStaffPayroll             = "StaffPayroll"
+	TypeStaffPayrollLine         = "StaffPayrollLine"
 	TypeStaffSchedule            = "StaffSchedule"
 	TypeStockAlertSubscription   = "StockAlertSubscription"
 	TypeStockConsumptionEvent    = "StockConsumptionEvent"
@@ -69037,6 +69043,1007 @@ func (m *ServiceQueueEntryMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown ServiceQueueEntry edge %s", name)
 }
 
+// StaffAdvanceMutation represents an operation that mutates the StaffAdvance nodes in the graph.
+type StaffAdvanceMutation struct {
+	config
+	op                  Op
+	typ                 string
+	id                  *uuid.UUID
+	tenant_id           *uuid.UUID
+	staff_id            *uuid.UUID
+	amount              *float64
+	addamount           *float64
+	currency            *string
+	reason              *string
+	repayment_months    *int
+	addrepayment_months *int
+	status              *staffadvance.Status
+	approved_by         *uuid.UUID
+	approved_at         *time.Time
+	created_at          *time.Time
+	updated_at          *time.Time
+	clearedFields       map[string]struct{}
+	done                bool
+	oldValue            func(context.Context) (*StaffAdvance, error)
+	predicates          []predicate.StaffAdvance
+}
+
+var _ ent.Mutation = (*StaffAdvanceMutation)(nil)
+
+// staffadvanceOption allows management of the mutation configuration using functional options.
+type staffadvanceOption func(*StaffAdvanceMutation)
+
+// newStaffAdvanceMutation creates new mutation for the StaffAdvance entity.
+func newStaffAdvanceMutation(c config, op Op, opts ...staffadvanceOption) *StaffAdvanceMutation {
+	m := &StaffAdvanceMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeStaffAdvance,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withStaffAdvanceID sets the ID field of the mutation.
+func withStaffAdvanceID(id uuid.UUID) staffadvanceOption {
+	return func(m *StaffAdvanceMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *StaffAdvance
+		)
+		m.oldValue = func(ctx context.Context) (*StaffAdvance, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().StaffAdvance.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withStaffAdvance sets the old StaffAdvance of the mutation.
+func withStaffAdvance(node *StaffAdvance) staffadvanceOption {
+	return func(m *StaffAdvanceMutation) {
+		m.oldValue = func(context.Context) (*StaffAdvance, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m StaffAdvanceMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m StaffAdvanceMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of StaffAdvance entities.
+func (m *StaffAdvanceMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *StaffAdvanceMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *StaffAdvanceMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().StaffAdvance.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *StaffAdvanceMutation) SetTenantID(u uuid.UUID) {
+	m.tenant_id = &u
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *StaffAdvanceMutation) TenantID() (r uuid.UUID, exists bool) {
+	v := m.tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the StaffAdvance entity.
+// If the StaffAdvance object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffAdvanceMutation) OldTenantID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *StaffAdvanceMutation) ResetTenantID() {
+	m.tenant_id = nil
+}
+
+// SetStaffID sets the "staff_id" field.
+func (m *StaffAdvanceMutation) SetStaffID(u uuid.UUID) {
+	m.staff_id = &u
+}
+
+// StaffID returns the value of the "staff_id" field in the mutation.
+func (m *StaffAdvanceMutation) StaffID() (r uuid.UUID, exists bool) {
+	v := m.staff_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStaffID returns the old "staff_id" field's value of the StaffAdvance entity.
+// If the StaffAdvance object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffAdvanceMutation) OldStaffID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStaffID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStaffID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStaffID: %w", err)
+	}
+	return oldValue.StaffID, nil
+}
+
+// ResetStaffID resets all changes to the "staff_id" field.
+func (m *StaffAdvanceMutation) ResetStaffID() {
+	m.staff_id = nil
+}
+
+// SetAmount sets the "amount" field.
+func (m *StaffAdvanceMutation) SetAmount(f float64) {
+	m.amount = &f
+	m.addamount = nil
+}
+
+// Amount returns the value of the "amount" field in the mutation.
+func (m *StaffAdvanceMutation) Amount() (r float64, exists bool) {
+	v := m.amount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAmount returns the old "amount" field's value of the StaffAdvance entity.
+// If the StaffAdvance object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffAdvanceMutation) OldAmount(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAmount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAmount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAmount: %w", err)
+	}
+	return oldValue.Amount, nil
+}
+
+// AddAmount adds f to the "amount" field.
+func (m *StaffAdvanceMutation) AddAmount(f float64) {
+	if m.addamount != nil {
+		*m.addamount += f
+	} else {
+		m.addamount = &f
+	}
+}
+
+// AddedAmount returns the value that was added to the "amount" field in this mutation.
+func (m *StaffAdvanceMutation) AddedAmount() (r float64, exists bool) {
+	v := m.addamount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAmount resets all changes to the "amount" field.
+func (m *StaffAdvanceMutation) ResetAmount() {
+	m.amount = nil
+	m.addamount = nil
+}
+
+// SetCurrency sets the "currency" field.
+func (m *StaffAdvanceMutation) SetCurrency(s string) {
+	m.currency = &s
+}
+
+// Currency returns the value of the "currency" field in the mutation.
+func (m *StaffAdvanceMutation) Currency() (r string, exists bool) {
+	v := m.currency
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCurrency returns the old "currency" field's value of the StaffAdvance entity.
+// If the StaffAdvance object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffAdvanceMutation) OldCurrency(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCurrency is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCurrency requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCurrency: %w", err)
+	}
+	return oldValue.Currency, nil
+}
+
+// ResetCurrency resets all changes to the "currency" field.
+func (m *StaffAdvanceMutation) ResetCurrency() {
+	m.currency = nil
+}
+
+// SetReason sets the "reason" field.
+func (m *StaffAdvanceMutation) SetReason(s string) {
+	m.reason = &s
+}
+
+// Reason returns the value of the "reason" field in the mutation.
+func (m *StaffAdvanceMutation) Reason() (r string, exists bool) {
+	v := m.reason
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReason returns the old "reason" field's value of the StaffAdvance entity.
+// If the StaffAdvance object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffAdvanceMutation) OldReason(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReason is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReason requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReason: %w", err)
+	}
+	return oldValue.Reason, nil
+}
+
+// ClearReason clears the value of the "reason" field.
+func (m *StaffAdvanceMutation) ClearReason() {
+	m.reason = nil
+	m.clearedFields[staffadvance.FieldReason] = struct{}{}
+}
+
+// ReasonCleared returns if the "reason" field was cleared in this mutation.
+func (m *StaffAdvanceMutation) ReasonCleared() bool {
+	_, ok := m.clearedFields[staffadvance.FieldReason]
+	return ok
+}
+
+// ResetReason resets all changes to the "reason" field.
+func (m *StaffAdvanceMutation) ResetReason() {
+	m.reason = nil
+	delete(m.clearedFields, staffadvance.FieldReason)
+}
+
+// SetRepaymentMonths sets the "repayment_months" field.
+func (m *StaffAdvanceMutation) SetRepaymentMonths(i int) {
+	m.repayment_months = &i
+	m.addrepayment_months = nil
+}
+
+// RepaymentMonths returns the value of the "repayment_months" field in the mutation.
+func (m *StaffAdvanceMutation) RepaymentMonths() (r int, exists bool) {
+	v := m.repayment_months
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRepaymentMonths returns the old "repayment_months" field's value of the StaffAdvance entity.
+// If the StaffAdvance object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffAdvanceMutation) OldRepaymentMonths(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRepaymentMonths is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRepaymentMonths requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRepaymentMonths: %w", err)
+	}
+	return oldValue.RepaymentMonths, nil
+}
+
+// AddRepaymentMonths adds i to the "repayment_months" field.
+func (m *StaffAdvanceMutation) AddRepaymentMonths(i int) {
+	if m.addrepayment_months != nil {
+		*m.addrepayment_months += i
+	} else {
+		m.addrepayment_months = &i
+	}
+}
+
+// AddedRepaymentMonths returns the value that was added to the "repayment_months" field in this mutation.
+func (m *StaffAdvanceMutation) AddedRepaymentMonths() (r int, exists bool) {
+	v := m.addrepayment_months
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetRepaymentMonths resets all changes to the "repayment_months" field.
+func (m *StaffAdvanceMutation) ResetRepaymentMonths() {
+	m.repayment_months = nil
+	m.addrepayment_months = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *StaffAdvanceMutation) SetStatus(s staffadvance.Status) {
+	m.status = &s
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *StaffAdvanceMutation) Status() (r staffadvance.Status, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the StaffAdvance entity.
+// If the StaffAdvance object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffAdvanceMutation) OldStatus(ctx context.Context) (v staffadvance.Status, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *StaffAdvanceMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetApprovedBy sets the "approved_by" field.
+func (m *StaffAdvanceMutation) SetApprovedBy(u uuid.UUID) {
+	m.approved_by = &u
+}
+
+// ApprovedBy returns the value of the "approved_by" field in the mutation.
+func (m *StaffAdvanceMutation) ApprovedBy() (r uuid.UUID, exists bool) {
+	v := m.approved_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldApprovedBy returns the old "approved_by" field's value of the StaffAdvance entity.
+// If the StaffAdvance object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffAdvanceMutation) OldApprovedBy(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldApprovedBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldApprovedBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldApprovedBy: %w", err)
+	}
+	return oldValue.ApprovedBy, nil
+}
+
+// ClearApprovedBy clears the value of the "approved_by" field.
+func (m *StaffAdvanceMutation) ClearApprovedBy() {
+	m.approved_by = nil
+	m.clearedFields[staffadvance.FieldApprovedBy] = struct{}{}
+}
+
+// ApprovedByCleared returns if the "approved_by" field was cleared in this mutation.
+func (m *StaffAdvanceMutation) ApprovedByCleared() bool {
+	_, ok := m.clearedFields[staffadvance.FieldApprovedBy]
+	return ok
+}
+
+// ResetApprovedBy resets all changes to the "approved_by" field.
+func (m *StaffAdvanceMutation) ResetApprovedBy() {
+	m.approved_by = nil
+	delete(m.clearedFields, staffadvance.FieldApprovedBy)
+}
+
+// SetApprovedAt sets the "approved_at" field.
+func (m *StaffAdvanceMutation) SetApprovedAt(t time.Time) {
+	m.approved_at = &t
+}
+
+// ApprovedAt returns the value of the "approved_at" field in the mutation.
+func (m *StaffAdvanceMutation) ApprovedAt() (r time.Time, exists bool) {
+	v := m.approved_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldApprovedAt returns the old "approved_at" field's value of the StaffAdvance entity.
+// If the StaffAdvance object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffAdvanceMutation) OldApprovedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldApprovedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldApprovedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldApprovedAt: %w", err)
+	}
+	return oldValue.ApprovedAt, nil
+}
+
+// ClearApprovedAt clears the value of the "approved_at" field.
+func (m *StaffAdvanceMutation) ClearApprovedAt() {
+	m.approved_at = nil
+	m.clearedFields[staffadvance.FieldApprovedAt] = struct{}{}
+}
+
+// ApprovedAtCleared returns if the "approved_at" field was cleared in this mutation.
+func (m *StaffAdvanceMutation) ApprovedAtCleared() bool {
+	_, ok := m.clearedFields[staffadvance.FieldApprovedAt]
+	return ok
+}
+
+// ResetApprovedAt resets all changes to the "approved_at" field.
+func (m *StaffAdvanceMutation) ResetApprovedAt() {
+	m.approved_at = nil
+	delete(m.clearedFields, staffadvance.FieldApprovedAt)
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *StaffAdvanceMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *StaffAdvanceMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the StaffAdvance entity.
+// If the StaffAdvance object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffAdvanceMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *StaffAdvanceMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *StaffAdvanceMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *StaffAdvanceMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the StaffAdvance entity.
+// If the StaffAdvance object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffAdvanceMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *StaffAdvanceMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the StaffAdvanceMutation builder.
+func (m *StaffAdvanceMutation) Where(ps ...predicate.StaffAdvance) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the StaffAdvanceMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *StaffAdvanceMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.StaffAdvance, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *StaffAdvanceMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *StaffAdvanceMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (StaffAdvance).
+func (m *StaffAdvanceMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *StaffAdvanceMutation) Fields() []string {
+	fields := make([]string, 0, 11)
+	if m.tenant_id != nil {
+		fields = append(fields, staffadvance.FieldTenantID)
+	}
+	if m.staff_id != nil {
+		fields = append(fields, staffadvance.FieldStaffID)
+	}
+	if m.amount != nil {
+		fields = append(fields, staffadvance.FieldAmount)
+	}
+	if m.currency != nil {
+		fields = append(fields, staffadvance.FieldCurrency)
+	}
+	if m.reason != nil {
+		fields = append(fields, staffadvance.FieldReason)
+	}
+	if m.repayment_months != nil {
+		fields = append(fields, staffadvance.FieldRepaymentMonths)
+	}
+	if m.status != nil {
+		fields = append(fields, staffadvance.FieldStatus)
+	}
+	if m.approved_by != nil {
+		fields = append(fields, staffadvance.FieldApprovedBy)
+	}
+	if m.approved_at != nil {
+		fields = append(fields, staffadvance.FieldApprovedAt)
+	}
+	if m.created_at != nil {
+		fields = append(fields, staffadvance.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, staffadvance.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *StaffAdvanceMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case staffadvance.FieldTenantID:
+		return m.TenantID()
+	case staffadvance.FieldStaffID:
+		return m.StaffID()
+	case staffadvance.FieldAmount:
+		return m.Amount()
+	case staffadvance.FieldCurrency:
+		return m.Currency()
+	case staffadvance.FieldReason:
+		return m.Reason()
+	case staffadvance.FieldRepaymentMonths:
+		return m.RepaymentMonths()
+	case staffadvance.FieldStatus:
+		return m.Status()
+	case staffadvance.FieldApprovedBy:
+		return m.ApprovedBy()
+	case staffadvance.FieldApprovedAt:
+		return m.ApprovedAt()
+	case staffadvance.FieldCreatedAt:
+		return m.CreatedAt()
+	case staffadvance.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *StaffAdvanceMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case staffadvance.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case staffadvance.FieldStaffID:
+		return m.OldStaffID(ctx)
+	case staffadvance.FieldAmount:
+		return m.OldAmount(ctx)
+	case staffadvance.FieldCurrency:
+		return m.OldCurrency(ctx)
+	case staffadvance.FieldReason:
+		return m.OldReason(ctx)
+	case staffadvance.FieldRepaymentMonths:
+		return m.OldRepaymentMonths(ctx)
+	case staffadvance.FieldStatus:
+		return m.OldStatus(ctx)
+	case staffadvance.FieldApprovedBy:
+		return m.OldApprovedBy(ctx)
+	case staffadvance.FieldApprovedAt:
+		return m.OldApprovedAt(ctx)
+	case staffadvance.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case staffadvance.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown StaffAdvance field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *StaffAdvanceMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case staffadvance.FieldTenantID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case staffadvance.FieldStaffID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStaffID(v)
+		return nil
+	case staffadvance.FieldAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAmount(v)
+		return nil
+	case staffadvance.FieldCurrency:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCurrency(v)
+		return nil
+	case staffadvance.FieldReason:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReason(v)
+		return nil
+	case staffadvance.FieldRepaymentMonths:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRepaymentMonths(v)
+		return nil
+	case staffadvance.FieldStatus:
+		v, ok := value.(staffadvance.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case staffadvance.FieldApprovedBy:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetApprovedBy(v)
+		return nil
+	case staffadvance.FieldApprovedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetApprovedAt(v)
+		return nil
+	case staffadvance.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case staffadvance.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown StaffAdvance field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *StaffAdvanceMutation) AddedFields() []string {
+	var fields []string
+	if m.addamount != nil {
+		fields = append(fields, staffadvance.FieldAmount)
+	}
+	if m.addrepayment_months != nil {
+		fields = append(fields, staffadvance.FieldRepaymentMonths)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *StaffAdvanceMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case staffadvance.FieldAmount:
+		return m.AddedAmount()
+	case staffadvance.FieldRepaymentMonths:
+		return m.AddedRepaymentMonths()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *StaffAdvanceMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case staffadvance.FieldAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAmount(v)
+		return nil
+	case staffadvance.FieldRepaymentMonths:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRepaymentMonths(v)
+		return nil
+	}
+	return fmt.Errorf("unknown StaffAdvance numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *StaffAdvanceMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(staffadvance.FieldReason) {
+		fields = append(fields, staffadvance.FieldReason)
+	}
+	if m.FieldCleared(staffadvance.FieldApprovedBy) {
+		fields = append(fields, staffadvance.FieldApprovedBy)
+	}
+	if m.FieldCleared(staffadvance.FieldApprovedAt) {
+		fields = append(fields, staffadvance.FieldApprovedAt)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *StaffAdvanceMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *StaffAdvanceMutation) ClearField(name string) error {
+	switch name {
+	case staffadvance.FieldReason:
+		m.ClearReason()
+		return nil
+	case staffadvance.FieldApprovedBy:
+		m.ClearApprovedBy()
+		return nil
+	case staffadvance.FieldApprovedAt:
+		m.ClearApprovedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown StaffAdvance nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *StaffAdvanceMutation) ResetField(name string) error {
+	switch name {
+	case staffadvance.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case staffadvance.FieldStaffID:
+		m.ResetStaffID()
+		return nil
+	case staffadvance.FieldAmount:
+		m.ResetAmount()
+		return nil
+	case staffadvance.FieldCurrency:
+		m.ResetCurrency()
+		return nil
+	case staffadvance.FieldReason:
+		m.ResetReason()
+		return nil
+	case staffadvance.FieldRepaymentMonths:
+		m.ResetRepaymentMonths()
+		return nil
+	case staffadvance.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case staffadvance.FieldApprovedBy:
+		m.ResetApprovedBy()
+		return nil
+	case staffadvance.FieldApprovedAt:
+		m.ResetApprovedAt()
+		return nil
+	case staffadvance.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case staffadvance.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown StaffAdvance field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *StaffAdvanceMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *StaffAdvanceMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *StaffAdvanceMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *StaffAdvanceMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *StaffAdvanceMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *StaffAdvanceMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *StaffAdvanceMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown StaffAdvance unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *StaffAdvanceMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown StaffAdvance edge %s", name)
+}
+
 // StaffMemberMutation represents an operation that mutates the StaffMember nodes in the graph.
 type StaffMemberMutation struct {
 	config
@@ -69054,6 +70061,16 @@ type StaffMemberMutation struct {
 	addcommission_rate     *float64
 	is_active              *bool
 	role                   *string
+	employment_type        *staffmember.EmploymentType
+	hourly_rate            *float64
+	addhourly_rate         *float64
+	daily_rate             *float64
+	adddaily_rate          *float64
+	monthly_salary         *float64
+	addmonthly_salary      *float64
+	mpesa_phone            *string
+	bank_account_number    *string
+	bank_name              *string
 	pin_hash               *string
 	pin_failed_attempts    *int
 	addpin_failed_attempts *int
@@ -69570,6 +70587,412 @@ func (m *StaffMemberMutation) ResetRole() {
 	m.role = nil
 }
 
+// SetEmploymentType sets the "employment_type" field.
+func (m *StaffMemberMutation) SetEmploymentType(st staffmember.EmploymentType) {
+	m.employment_type = &st
+}
+
+// EmploymentType returns the value of the "employment_type" field in the mutation.
+func (m *StaffMemberMutation) EmploymentType() (r staffmember.EmploymentType, exists bool) {
+	v := m.employment_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEmploymentType returns the old "employment_type" field's value of the StaffMember entity.
+// If the StaffMember object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffMemberMutation) OldEmploymentType(ctx context.Context) (v staffmember.EmploymentType, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEmploymentType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEmploymentType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEmploymentType: %w", err)
+	}
+	return oldValue.EmploymentType, nil
+}
+
+// ClearEmploymentType clears the value of the "employment_type" field.
+func (m *StaffMemberMutation) ClearEmploymentType() {
+	m.employment_type = nil
+	m.clearedFields[staffmember.FieldEmploymentType] = struct{}{}
+}
+
+// EmploymentTypeCleared returns if the "employment_type" field was cleared in this mutation.
+func (m *StaffMemberMutation) EmploymentTypeCleared() bool {
+	_, ok := m.clearedFields[staffmember.FieldEmploymentType]
+	return ok
+}
+
+// ResetEmploymentType resets all changes to the "employment_type" field.
+func (m *StaffMemberMutation) ResetEmploymentType() {
+	m.employment_type = nil
+	delete(m.clearedFields, staffmember.FieldEmploymentType)
+}
+
+// SetHourlyRate sets the "hourly_rate" field.
+func (m *StaffMemberMutation) SetHourlyRate(f float64) {
+	m.hourly_rate = &f
+	m.addhourly_rate = nil
+}
+
+// HourlyRate returns the value of the "hourly_rate" field in the mutation.
+func (m *StaffMemberMutation) HourlyRate() (r float64, exists bool) {
+	v := m.hourly_rate
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldHourlyRate returns the old "hourly_rate" field's value of the StaffMember entity.
+// If the StaffMember object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffMemberMutation) OldHourlyRate(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldHourlyRate is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldHourlyRate requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldHourlyRate: %w", err)
+	}
+	return oldValue.HourlyRate, nil
+}
+
+// AddHourlyRate adds f to the "hourly_rate" field.
+func (m *StaffMemberMutation) AddHourlyRate(f float64) {
+	if m.addhourly_rate != nil {
+		*m.addhourly_rate += f
+	} else {
+		m.addhourly_rate = &f
+	}
+}
+
+// AddedHourlyRate returns the value that was added to the "hourly_rate" field in this mutation.
+func (m *StaffMemberMutation) AddedHourlyRate() (r float64, exists bool) {
+	v := m.addhourly_rate
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearHourlyRate clears the value of the "hourly_rate" field.
+func (m *StaffMemberMutation) ClearHourlyRate() {
+	m.hourly_rate = nil
+	m.addhourly_rate = nil
+	m.clearedFields[staffmember.FieldHourlyRate] = struct{}{}
+}
+
+// HourlyRateCleared returns if the "hourly_rate" field was cleared in this mutation.
+func (m *StaffMemberMutation) HourlyRateCleared() bool {
+	_, ok := m.clearedFields[staffmember.FieldHourlyRate]
+	return ok
+}
+
+// ResetHourlyRate resets all changes to the "hourly_rate" field.
+func (m *StaffMemberMutation) ResetHourlyRate() {
+	m.hourly_rate = nil
+	m.addhourly_rate = nil
+	delete(m.clearedFields, staffmember.FieldHourlyRate)
+}
+
+// SetDailyRate sets the "daily_rate" field.
+func (m *StaffMemberMutation) SetDailyRate(f float64) {
+	m.daily_rate = &f
+	m.adddaily_rate = nil
+}
+
+// DailyRate returns the value of the "daily_rate" field in the mutation.
+func (m *StaffMemberMutation) DailyRate() (r float64, exists bool) {
+	v := m.daily_rate
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDailyRate returns the old "daily_rate" field's value of the StaffMember entity.
+// If the StaffMember object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffMemberMutation) OldDailyRate(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDailyRate is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDailyRate requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDailyRate: %w", err)
+	}
+	return oldValue.DailyRate, nil
+}
+
+// AddDailyRate adds f to the "daily_rate" field.
+func (m *StaffMemberMutation) AddDailyRate(f float64) {
+	if m.adddaily_rate != nil {
+		*m.adddaily_rate += f
+	} else {
+		m.adddaily_rate = &f
+	}
+}
+
+// AddedDailyRate returns the value that was added to the "daily_rate" field in this mutation.
+func (m *StaffMemberMutation) AddedDailyRate() (r float64, exists bool) {
+	v := m.adddaily_rate
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearDailyRate clears the value of the "daily_rate" field.
+func (m *StaffMemberMutation) ClearDailyRate() {
+	m.daily_rate = nil
+	m.adddaily_rate = nil
+	m.clearedFields[staffmember.FieldDailyRate] = struct{}{}
+}
+
+// DailyRateCleared returns if the "daily_rate" field was cleared in this mutation.
+func (m *StaffMemberMutation) DailyRateCleared() bool {
+	_, ok := m.clearedFields[staffmember.FieldDailyRate]
+	return ok
+}
+
+// ResetDailyRate resets all changes to the "daily_rate" field.
+func (m *StaffMemberMutation) ResetDailyRate() {
+	m.daily_rate = nil
+	m.adddaily_rate = nil
+	delete(m.clearedFields, staffmember.FieldDailyRate)
+}
+
+// SetMonthlySalary sets the "monthly_salary" field.
+func (m *StaffMemberMutation) SetMonthlySalary(f float64) {
+	m.monthly_salary = &f
+	m.addmonthly_salary = nil
+}
+
+// MonthlySalary returns the value of the "monthly_salary" field in the mutation.
+func (m *StaffMemberMutation) MonthlySalary() (r float64, exists bool) {
+	v := m.monthly_salary
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMonthlySalary returns the old "monthly_salary" field's value of the StaffMember entity.
+// If the StaffMember object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffMemberMutation) OldMonthlySalary(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMonthlySalary is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMonthlySalary requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMonthlySalary: %w", err)
+	}
+	return oldValue.MonthlySalary, nil
+}
+
+// AddMonthlySalary adds f to the "monthly_salary" field.
+func (m *StaffMemberMutation) AddMonthlySalary(f float64) {
+	if m.addmonthly_salary != nil {
+		*m.addmonthly_salary += f
+	} else {
+		m.addmonthly_salary = &f
+	}
+}
+
+// AddedMonthlySalary returns the value that was added to the "monthly_salary" field in this mutation.
+func (m *StaffMemberMutation) AddedMonthlySalary() (r float64, exists bool) {
+	v := m.addmonthly_salary
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearMonthlySalary clears the value of the "monthly_salary" field.
+func (m *StaffMemberMutation) ClearMonthlySalary() {
+	m.monthly_salary = nil
+	m.addmonthly_salary = nil
+	m.clearedFields[staffmember.FieldMonthlySalary] = struct{}{}
+}
+
+// MonthlySalaryCleared returns if the "monthly_salary" field was cleared in this mutation.
+func (m *StaffMemberMutation) MonthlySalaryCleared() bool {
+	_, ok := m.clearedFields[staffmember.FieldMonthlySalary]
+	return ok
+}
+
+// ResetMonthlySalary resets all changes to the "monthly_salary" field.
+func (m *StaffMemberMutation) ResetMonthlySalary() {
+	m.monthly_salary = nil
+	m.addmonthly_salary = nil
+	delete(m.clearedFields, staffmember.FieldMonthlySalary)
+}
+
+// SetMpesaPhone sets the "mpesa_phone" field.
+func (m *StaffMemberMutation) SetMpesaPhone(s string) {
+	m.mpesa_phone = &s
+}
+
+// MpesaPhone returns the value of the "mpesa_phone" field in the mutation.
+func (m *StaffMemberMutation) MpesaPhone() (r string, exists bool) {
+	v := m.mpesa_phone
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMpesaPhone returns the old "mpesa_phone" field's value of the StaffMember entity.
+// If the StaffMember object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffMemberMutation) OldMpesaPhone(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMpesaPhone is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMpesaPhone requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMpesaPhone: %w", err)
+	}
+	return oldValue.MpesaPhone, nil
+}
+
+// ClearMpesaPhone clears the value of the "mpesa_phone" field.
+func (m *StaffMemberMutation) ClearMpesaPhone() {
+	m.mpesa_phone = nil
+	m.clearedFields[staffmember.FieldMpesaPhone] = struct{}{}
+}
+
+// MpesaPhoneCleared returns if the "mpesa_phone" field was cleared in this mutation.
+func (m *StaffMemberMutation) MpesaPhoneCleared() bool {
+	_, ok := m.clearedFields[staffmember.FieldMpesaPhone]
+	return ok
+}
+
+// ResetMpesaPhone resets all changes to the "mpesa_phone" field.
+func (m *StaffMemberMutation) ResetMpesaPhone() {
+	m.mpesa_phone = nil
+	delete(m.clearedFields, staffmember.FieldMpesaPhone)
+}
+
+// SetBankAccountNumber sets the "bank_account_number" field.
+func (m *StaffMemberMutation) SetBankAccountNumber(s string) {
+	m.bank_account_number = &s
+}
+
+// BankAccountNumber returns the value of the "bank_account_number" field in the mutation.
+func (m *StaffMemberMutation) BankAccountNumber() (r string, exists bool) {
+	v := m.bank_account_number
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBankAccountNumber returns the old "bank_account_number" field's value of the StaffMember entity.
+// If the StaffMember object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffMemberMutation) OldBankAccountNumber(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBankAccountNumber is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBankAccountNumber requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBankAccountNumber: %w", err)
+	}
+	return oldValue.BankAccountNumber, nil
+}
+
+// ClearBankAccountNumber clears the value of the "bank_account_number" field.
+func (m *StaffMemberMutation) ClearBankAccountNumber() {
+	m.bank_account_number = nil
+	m.clearedFields[staffmember.FieldBankAccountNumber] = struct{}{}
+}
+
+// BankAccountNumberCleared returns if the "bank_account_number" field was cleared in this mutation.
+func (m *StaffMemberMutation) BankAccountNumberCleared() bool {
+	_, ok := m.clearedFields[staffmember.FieldBankAccountNumber]
+	return ok
+}
+
+// ResetBankAccountNumber resets all changes to the "bank_account_number" field.
+func (m *StaffMemberMutation) ResetBankAccountNumber() {
+	m.bank_account_number = nil
+	delete(m.clearedFields, staffmember.FieldBankAccountNumber)
+}
+
+// SetBankName sets the "bank_name" field.
+func (m *StaffMemberMutation) SetBankName(s string) {
+	m.bank_name = &s
+}
+
+// BankName returns the value of the "bank_name" field in the mutation.
+func (m *StaffMemberMutation) BankName() (r string, exists bool) {
+	v := m.bank_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBankName returns the old "bank_name" field's value of the StaffMember entity.
+// If the StaffMember object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffMemberMutation) OldBankName(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBankName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBankName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBankName: %w", err)
+	}
+	return oldValue.BankName, nil
+}
+
+// ClearBankName clears the value of the "bank_name" field.
+func (m *StaffMemberMutation) ClearBankName() {
+	m.bank_name = nil
+	m.clearedFields[staffmember.FieldBankName] = struct{}{}
+}
+
+// BankNameCleared returns if the "bank_name" field was cleared in this mutation.
+func (m *StaffMemberMutation) BankNameCleared() bool {
+	_, ok := m.clearedFields[staffmember.FieldBankName]
+	return ok
+}
+
+// ResetBankName resets all changes to the "bank_name" field.
+func (m *StaffMemberMutation) ResetBankName() {
+	m.bank_name = nil
+	delete(m.clearedFields, staffmember.FieldBankName)
+}
+
 // SetPinHash sets the "pin_hash" field.
 func (m *StaffMemberMutation) SetPinHash(s string) {
 	m.pin_hash = &s
@@ -69830,7 +71253,7 @@ func (m *StaffMemberMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *StaffMemberMutation) Fields() []string {
-	fields := make([]string, 0, 14)
+	fields := make([]string, 0, 21)
 	if m.tenant_id != nil {
 		fields = append(fields, staffmember.FieldTenantID)
 	}
@@ -69857,6 +71280,27 @@ func (m *StaffMemberMutation) Fields() []string {
 	}
 	if m.role != nil {
 		fields = append(fields, staffmember.FieldRole)
+	}
+	if m.employment_type != nil {
+		fields = append(fields, staffmember.FieldEmploymentType)
+	}
+	if m.hourly_rate != nil {
+		fields = append(fields, staffmember.FieldHourlyRate)
+	}
+	if m.daily_rate != nil {
+		fields = append(fields, staffmember.FieldDailyRate)
+	}
+	if m.monthly_salary != nil {
+		fields = append(fields, staffmember.FieldMonthlySalary)
+	}
+	if m.mpesa_phone != nil {
+		fields = append(fields, staffmember.FieldMpesaPhone)
+	}
+	if m.bank_account_number != nil {
+		fields = append(fields, staffmember.FieldBankAccountNumber)
+	}
+	if m.bank_name != nil {
+		fields = append(fields, staffmember.FieldBankName)
 	}
 	if m.pin_hash != nil {
 		fields = append(fields, staffmember.FieldPinHash)
@@ -69899,6 +71343,20 @@ func (m *StaffMemberMutation) Field(name string) (ent.Value, bool) {
 		return m.IsActive()
 	case staffmember.FieldRole:
 		return m.Role()
+	case staffmember.FieldEmploymentType:
+		return m.EmploymentType()
+	case staffmember.FieldHourlyRate:
+		return m.HourlyRate()
+	case staffmember.FieldDailyRate:
+		return m.DailyRate()
+	case staffmember.FieldMonthlySalary:
+		return m.MonthlySalary()
+	case staffmember.FieldMpesaPhone:
+		return m.MpesaPhone()
+	case staffmember.FieldBankAccountNumber:
+		return m.BankAccountNumber()
+	case staffmember.FieldBankName:
+		return m.BankName()
 	case staffmember.FieldPinHash:
 		return m.PinHash()
 	case staffmember.FieldPinFailedAttempts:
@@ -69936,6 +71394,20 @@ func (m *StaffMemberMutation) OldField(ctx context.Context, name string) (ent.Va
 		return m.OldIsActive(ctx)
 	case staffmember.FieldRole:
 		return m.OldRole(ctx)
+	case staffmember.FieldEmploymentType:
+		return m.OldEmploymentType(ctx)
+	case staffmember.FieldHourlyRate:
+		return m.OldHourlyRate(ctx)
+	case staffmember.FieldDailyRate:
+		return m.OldDailyRate(ctx)
+	case staffmember.FieldMonthlySalary:
+		return m.OldMonthlySalary(ctx)
+	case staffmember.FieldMpesaPhone:
+		return m.OldMpesaPhone(ctx)
+	case staffmember.FieldBankAccountNumber:
+		return m.OldBankAccountNumber(ctx)
+	case staffmember.FieldBankName:
+		return m.OldBankName(ctx)
 	case staffmember.FieldPinHash:
 		return m.OldPinHash(ctx)
 	case staffmember.FieldPinFailedAttempts:
@@ -70018,6 +71490,55 @@ func (m *StaffMemberMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetRole(v)
 		return nil
+	case staffmember.FieldEmploymentType:
+		v, ok := value.(staffmember.EmploymentType)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEmploymentType(v)
+		return nil
+	case staffmember.FieldHourlyRate:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetHourlyRate(v)
+		return nil
+	case staffmember.FieldDailyRate:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDailyRate(v)
+		return nil
+	case staffmember.FieldMonthlySalary:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMonthlySalary(v)
+		return nil
+	case staffmember.FieldMpesaPhone:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMpesaPhone(v)
+		return nil
+	case staffmember.FieldBankAccountNumber:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBankAccountNumber(v)
+		return nil
+	case staffmember.FieldBankName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBankName(v)
+		return nil
 	case staffmember.FieldPinHash:
 		v, ok := value.(string)
 		if !ok {
@@ -70064,6 +71585,15 @@ func (m *StaffMemberMutation) AddedFields() []string {
 	if m.addcommission_rate != nil {
 		fields = append(fields, staffmember.FieldCommissionRate)
 	}
+	if m.addhourly_rate != nil {
+		fields = append(fields, staffmember.FieldHourlyRate)
+	}
+	if m.adddaily_rate != nil {
+		fields = append(fields, staffmember.FieldDailyRate)
+	}
+	if m.addmonthly_salary != nil {
+		fields = append(fields, staffmember.FieldMonthlySalary)
+	}
 	if m.addpin_failed_attempts != nil {
 		fields = append(fields, staffmember.FieldPinFailedAttempts)
 	}
@@ -70077,6 +71607,12 @@ func (m *StaffMemberMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
 	case staffmember.FieldCommissionRate:
 		return m.AddedCommissionRate()
+	case staffmember.FieldHourlyRate:
+		return m.AddedHourlyRate()
+	case staffmember.FieldDailyRate:
+		return m.AddedDailyRate()
+	case staffmember.FieldMonthlySalary:
+		return m.AddedMonthlySalary()
 	case staffmember.FieldPinFailedAttempts:
 		return m.AddedPinFailedAttempts()
 	}
@@ -70094,6 +71630,27 @@ func (m *StaffMemberMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddCommissionRate(v)
+		return nil
+	case staffmember.FieldHourlyRate:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddHourlyRate(v)
+		return nil
+	case staffmember.FieldDailyRate:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddDailyRate(v)
+		return nil
+	case staffmember.FieldMonthlySalary:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddMonthlySalary(v)
 		return nil
 	case staffmember.FieldPinFailedAttempts:
 		v, ok := value.(int)
@@ -70118,6 +71675,27 @@ func (m *StaffMemberMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(staffmember.FieldCommissionRate) {
 		fields = append(fields, staffmember.FieldCommissionRate)
+	}
+	if m.FieldCleared(staffmember.FieldEmploymentType) {
+		fields = append(fields, staffmember.FieldEmploymentType)
+	}
+	if m.FieldCleared(staffmember.FieldHourlyRate) {
+		fields = append(fields, staffmember.FieldHourlyRate)
+	}
+	if m.FieldCleared(staffmember.FieldDailyRate) {
+		fields = append(fields, staffmember.FieldDailyRate)
+	}
+	if m.FieldCleared(staffmember.FieldMonthlySalary) {
+		fields = append(fields, staffmember.FieldMonthlySalary)
+	}
+	if m.FieldCleared(staffmember.FieldMpesaPhone) {
+		fields = append(fields, staffmember.FieldMpesaPhone)
+	}
+	if m.FieldCleared(staffmember.FieldBankAccountNumber) {
+		fields = append(fields, staffmember.FieldBankAccountNumber)
+	}
+	if m.FieldCleared(staffmember.FieldBankName) {
+		fields = append(fields, staffmember.FieldBankName)
 	}
 	if m.FieldCleared(staffmember.FieldPinHash) {
 		fields = append(fields, staffmember.FieldPinHash)
@@ -70147,6 +71725,27 @@ func (m *StaffMemberMutation) ClearField(name string) error {
 		return nil
 	case staffmember.FieldCommissionRate:
 		m.ClearCommissionRate()
+		return nil
+	case staffmember.FieldEmploymentType:
+		m.ClearEmploymentType()
+		return nil
+	case staffmember.FieldHourlyRate:
+		m.ClearHourlyRate()
+		return nil
+	case staffmember.FieldDailyRate:
+		m.ClearDailyRate()
+		return nil
+	case staffmember.FieldMonthlySalary:
+		m.ClearMonthlySalary()
+		return nil
+	case staffmember.FieldMpesaPhone:
+		m.ClearMpesaPhone()
+		return nil
+	case staffmember.FieldBankAccountNumber:
+		m.ClearBankAccountNumber()
+		return nil
+	case staffmember.FieldBankName:
+		m.ClearBankName()
 		return nil
 	case staffmember.FieldPinHash:
 		m.ClearPinHash()
@@ -70188,6 +71787,27 @@ func (m *StaffMemberMutation) ResetField(name string) error {
 		return nil
 	case staffmember.FieldRole:
 		m.ResetRole()
+		return nil
+	case staffmember.FieldEmploymentType:
+		m.ResetEmploymentType()
+		return nil
+	case staffmember.FieldHourlyRate:
+		m.ResetHourlyRate()
+		return nil
+	case staffmember.FieldDailyRate:
+		m.ResetDailyRate()
+		return nil
+	case staffmember.FieldMonthlySalary:
+		m.ResetMonthlySalary()
+		return nil
+	case staffmember.FieldMpesaPhone:
+		m.ResetMpesaPhone()
+		return nil
+	case staffmember.FieldBankAccountNumber:
+		m.ResetBankAccountNumber()
+		return nil
+	case staffmember.FieldBankName:
+		m.ResetBankName()
 		return nil
 	case staffmember.FieldPinHash:
 		m.ResetPinHash()
@@ -70254,6 +71874,2028 @@ func (m *StaffMemberMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *StaffMemberMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown StaffMember edge %s", name)
+}
+
+// StaffPayrollMutation represents an operation that mutates the StaffPayroll nodes in the graph.
+type StaffPayrollMutation struct {
+	config
+	op                  Op
+	typ                 string
+	id                  *uuid.UUID
+	tenant_id           *uuid.UUID
+	staff_id            *uuid.UUID
+	period_start        *time.Time
+	period_end          *time.Time
+	gross_amount        *float64
+	addgross_amount     *float64
+	total_deductions    *float64
+	addtotal_deductions *float64
+	net_amount          *float64
+	addnet_amount       *float64
+	currency            *string
+	status              *staffpayroll.Status
+	approved_by         *uuid.UUID
+	approved_at         *time.Time
+	paid_at             *time.Time
+	payout_reference    *string
+	created_at          *time.Time
+	updated_at          *time.Time
+	clearedFields       map[string]struct{}
+	lines               map[uuid.UUID]struct{}
+	removedlines        map[uuid.UUID]struct{}
+	clearedlines        bool
+	done                bool
+	oldValue            func(context.Context) (*StaffPayroll, error)
+	predicates          []predicate.StaffPayroll
+}
+
+var _ ent.Mutation = (*StaffPayrollMutation)(nil)
+
+// staffpayrollOption allows management of the mutation configuration using functional options.
+type staffpayrollOption func(*StaffPayrollMutation)
+
+// newStaffPayrollMutation creates new mutation for the StaffPayroll entity.
+func newStaffPayrollMutation(c config, op Op, opts ...staffpayrollOption) *StaffPayrollMutation {
+	m := &StaffPayrollMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeStaffPayroll,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withStaffPayrollID sets the ID field of the mutation.
+func withStaffPayrollID(id uuid.UUID) staffpayrollOption {
+	return func(m *StaffPayrollMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *StaffPayroll
+		)
+		m.oldValue = func(ctx context.Context) (*StaffPayroll, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().StaffPayroll.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withStaffPayroll sets the old StaffPayroll of the mutation.
+func withStaffPayroll(node *StaffPayroll) staffpayrollOption {
+	return func(m *StaffPayrollMutation) {
+		m.oldValue = func(context.Context) (*StaffPayroll, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m StaffPayrollMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m StaffPayrollMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of StaffPayroll entities.
+func (m *StaffPayrollMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *StaffPayrollMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *StaffPayrollMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().StaffPayroll.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *StaffPayrollMutation) SetTenantID(u uuid.UUID) {
+	m.tenant_id = &u
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *StaffPayrollMutation) TenantID() (r uuid.UUID, exists bool) {
+	v := m.tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the StaffPayroll entity.
+// If the StaffPayroll object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffPayrollMutation) OldTenantID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *StaffPayrollMutation) ResetTenantID() {
+	m.tenant_id = nil
+}
+
+// SetStaffID sets the "staff_id" field.
+func (m *StaffPayrollMutation) SetStaffID(u uuid.UUID) {
+	m.staff_id = &u
+}
+
+// StaffID returns the value of the "staff_id" field in the mutation.
+func (m *StaffPayrollMutation) StaffID() (r uuid.UUID, exists bool) {
+	v := m.staff_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStaffID returns the old "staff_id" field's value of the StaffPayroll entity.
+// If the StaffPayroll object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffPayrollMutation) OldStaffID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStaffID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStaffID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStaffID: %w", err)
+	}
+	return oldValue.StaffID, nil
+}
+
+// ResetStaffID resets all changes to the "staff_id" field.
+func (m *StaffPayrollMutation) ResetStaffID() {
+	m.staff_id = nil
+}
+
+// SetPeriodStart sets the "period_start" field.
+func (m *StaffPayrollMutation) SetPeriodStart(t time.Time) {
+	m.period_start = &t
+}
+
+// PeriodStart returns the value of the "period_start" field in the mutation.
+func (m *StaffPayrollMutation) PeriodStart() (r time.Time, exists bool) {
+	v := m.period_start
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPeriodStart returns the old "period_start" field's value of the StaffPayroll entity.
+// If the StaffPayroll object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffPayrollMutation) OldPeriodStart(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPeriodStart is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPeriodStart requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPeriodStart: %w", err)
+	}
+	return oldValue.PeriodStart, nil
+}
+
+// ResetPeriodStart resets all changes to the "period_start" field.
+func (m *StaffPayrollMutation) ResetPeriodStart() {
+	m.period_start = nil
+}
+
+// SetPeriodEnd sets the "period_end" field.
+func (m *StaffPayrollMutation) SetPeriodEnd(t time.Time) {
+	m.period_end = &t
+}
+
+// PeriodEnd returns the value of the "period_end" field in the mutation.
+func (m *StaffPayrollMutation) PeriodEnd() (r time.Time, exists bool) {
+	v := m.period_end
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPeriodEnd returns the old "period_end" field's value of the StaffPayroll entity.
+// If the StaffPayroll object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffPayrollMutation) OldPeriodEnd(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPeriodEnd is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPeriodEnd requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPeriodEnd: %w", err)
+	}
+	return oldValue.PeriodEnd, nil
+}
+
+// ResetPeriodEnd resets all changes to the "period_end" field.
+func (m *StaffPayrollMutation) ResetPeriodEnd() {
+	m.period_end = nil
+}
+
+// SetGrossAmount sets the "gross_amount" field.
+func (m *StaffPayrollMutation) SetGrossAmount(f float64) {
+	m.gross_amount = &f
+	m.addgross_amount = nil
+}
+
+// GrossAmount returns the value of the "gross_amount" field in the mutation.
+func (m *StaffPayrollMutation) GrossAmount() (r float64, exists bool) {
+	v := m.gross_amount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGrossAmount returns the old "gross_amount" field's value of the StaffPayroll entity.
+// If the StaffPayroll object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffPayrollMutation) OldGrossAmount(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGrossAmount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGrossAmount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGrossAmount: %w", err)
+	}
+	return oldValue.GrossAmount, nil
+}
+
+// AddGrossAmount adds f to the "gross_amount" field.
+func (m *StaffPayrollMutation) AddGrossAmount(f float64) {
+	if m.addgross_amount != nil {
+		*m.addgross_amount += f
+	} else {
+		m.addgross_amount = &f
+	}
+}
+
+// AddedGrossAmount returns the value that was added to the "gross_amount" field in this mutation.
+func (m *StaffPayrollMutation) AddedGrossAmount() (r float64, exists bool) {
+	v := m.addgross_amount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetGrossAmount resets all changes to the "gross_amount" field.
+func (m *StaffPayrollMutation) ResetGrossAmount() {
+	m.gross_amount = nil
+	m.addgross_amount = nil
+}
+
+// SetTotalDeductions sets the "total_deductions" field.
+func (m *StaffPayrollMutation) SetTotalDeductions(f float64) {
+	m.total_deductions = &f
+	m.addtotal_deductions = nil
+}
+
+// TotalDeductions returns the value of the "total_deductions" field in the mutation.
+func (m *StaffPayrollMutation) TotalDeductions() (r float64, exists bool) {
+	v := m.total_deductions
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTotalDeductions returns the old "total_deductions" field's value of the StaffPayroll entity.
+// If the StaffPayroll object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffPayrollMutation) OldTotalDeductions(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTotalDeductions is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTotalDeductions requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTotalDeductions: %w", err)
+	}
+	return oldValue.TotalDeductions, nil
+}
+
+// AddTotalDeductions adds f to the "total_deductions" field.
+func (m *StaffPayrollMutation) AddTotalDeductions(f float64) {
+	if m.addtotal_deductions != nil {
+		*m.addtotal_deductions += f
+	} else {
+		m.addtotal_deductions = &f
+	}
+}
+
+// AddedTotalDeductions returns the value that was added to the "total_deductions" field in this mutation.
+func (m *StaffPayrollMutation) AddedTotalDeductions() (r float64, exists bool) {
+	v := m.addtotal_deductions
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetTotalDeductions resets all changes to the "total_deductions" field.
+func (m *StaffPayrollMutation) ResetTotalDeductions() {
+	m.total_deductions = nil
+	m.addtotal_deductions = nil
+}
+
+// SetNetAmount sets the "net_amount" field.
+func (m *StaffPayrollMutation) SetNetAmount(f float64) {
+	m.net_amount = &f
+	m.addnet_amount = nil
+}
+
+// NetAmount returns the value of the "net_amount" field in the mutation.
+func (m *StaffPayrollMutation) NetAmount() (r float64, exists bool) {
+	v := m.net_amount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNetAmount returns the old "net_amount" field's value of the StaffPayroll entity.
+// If the StaffPayroll object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffPayrollMutation) OldNetAmount(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNetAmount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNetAmount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNetAmount: %w", err)
+	}
+	return oldValue.NetAmount, nil
+}
+
+// AddNetAmount adds f to the "net_amount" field.
+func (m *StaffPayrollMutation) AddNetAmount(f float64) {
+	if m.addnet_amount != nil {
+		*m.addnet_amount += f
+	} else {
+		m.addnet_amount = &f
+	}
+}
+
+// AddedNetAmount returns the value that was added to the "net_amount" field in this mutation.
+func (m *StaffPayrollMutation) AddedNetAmount() (r float64, exists bool) {
+	v := m.addnet_amount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetNetAmount resets all changes to the "net_amount" field.
+func (m *StaffPayrollMutation) ResetNetAmount() {
+	m.net_amount = nil
+	m.addnet_amount = nil
+}
+
+// SetCurrency sets the "currency" field.
+func (m *StaffPayrollMutation) SetCurrency(s string) {
+	m.currency = &s
+}
+
+// Currency returns the value of the "currency" field in the mutation.
+func (m *StaffPayrollMutation) Currency() (r string, exists bool) {
+	v := m.currency
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCurrency returns the old "currency" field's value of the StaffPayroll entity.
+// If the StaffPayroll object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffPayrollMutation) OldCurrency(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCurrency is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCurrency requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCurrency: %w", err)
+	}
+	return oldValue.Currency, nil
+}
+
+// ResetCurrency resets all changes to the "currency" field.
+func (m *StaffPayrollMutation) ResetCurrency() {
+	m.currency = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *StaffPayrollMutation) SetStatus(s staffpayroll.Status) {
+	m.status = &s
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *StaffPayrollMutation) Status() (r staffpayroll.Status, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the StaffPayroll entity.
+// If the StaffPayroll object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffPayrollMutation) OldStatus(ctx context.Context) (v staffpayroll.Status, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *StaffPayrollMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetApprovedBy sets the "approved_by" field.
+func (m *StaffPayrollMutation) SetApprovedBy(u uuid.UUID) {
+	m.approved_by = &u
+}
+
+// ApprovedBy returns the value of the "approved_by" field in the mutation.
+func (m *StaffPayrollMutation) ApprovedBy() (r uuid.UUID, exists bool) {
+	v := m.approved_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldApprovedBy returns the old "approved_by" field's value of the StaffPayroll entity.
+// If the StaffPayroll object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffPayrollMutation) OldApprovedBy(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldApprovedBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldApprovedBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldApprovedBy: %w", err)
+	}
+	return oldValue.ApprovedBy, nil
+}
+
+// ClearApprovedBy clears the value of the "approved_by" field.
+func (m *StaffPayrollMutation) ClearApprovedBy() {
+	m.approved_by = nil
+	m.clearedFields[staffpayroll.FieldApprovedBy] = struct{}{}
+}
+
+// ApprovedByCleared returns if the "approved_by" field was cleared in this mutation.
+func (m *StaffPayrollMutation) ApprovedByCleared() bool {
+	_, ok := m.clearedFields[staffpayroll.FieldApprovedBy]
+	return ok
+}
+
+// ResetApprovedBy resets all changes to the "approved_by" field.
+func (m *StaffPayrollMutation) ResetApprovedBy() {
+	m.approved_by = nil
+	delete(m.clearedFields, staffpayroll.FieldApprovedBy)
+}
+
+// SetApprovedAt sets the "approved_at" field.
+func (m *StaffPayrollMutation) SetApprovedAt(t time.Time) {
+	m.approved_at = &t
+}
+
+// ApprovedAt returns the value of the "approved_at" field in the mutation.
+func (m *StaffPayrollMutation) ApprovedAt() (r time.Time, exists bool) {
+	v := m.approved_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldApprovedAt returns the old "approved_at" field's value of the StaffPayroll entity.
+// If the StaffPayroll object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffPayrollMutation) OldApprovedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldApprovedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldApprovedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldApprovedAt: %w", err)
+	}
+	return oldValue.ApprovedAt, nil
+}
+
+// ClearApprovedAt clears the value of the "approved_at" field.
+func (m *StaffPayrollMutation) ClearApprovedAt() {
+	m.approved_at = nil
+	m.clearedFields[staffpayroll.FieldApprovedAt] = struct{}{}
+}
+
+// ApprovedAtCleared returns if the "approved_at" field was cleared in this mutation.
+func (m *StaffPayrollMutation) ApprovedAtCleared() bool {
+	_, ok := m.clearedFields[staffpayroll.FieldApprovedAt]
+	return ok
+}
+
+// ResetApprovedAt resets all changes to the "approved_at" field.
+func (m *StaffPayrollMutation) ResetApprovedAt() {
+	m.approved_at = nil
+	delete(m.clearedFields, staffpayroll.FieldApprovedAt)
+}
+
+// SetPaidAt sets the "paid_at" field.
+func (m *StaffPayrollMutation) SetPaidAt(t time.Time) {
+	m.paid_at = &t
+}
+
+// PaidAt returns the value of the "paid_at" field in the mutation.
+func (m *StaffPayrollMutation) PaidAt() (r time.Time, exists bool) {
+	v := m.paid_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPaidAt returns the old "paid_at" field's value of the StaffPayroll entity.
+// If the StaffPayroll object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffPayrollMutation) OldPaidAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPaidAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPaidAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPaidAt: %w", err)
+	}
+	return oldValue.PaidAt, nil
+}
+
+// ClearPaidAt clears the value of the "paid_at" field.
+func (m *StaffPayrollMutation) ClearPaidAt() {
+	m.paid_at = nil
+	m.clearedFields[staffpayroll.FieldPaidAt] = struct{}{}
+}
+
+// PaidAtCleared returns if the "paid_at" field was cleared in this mutation.
+func (m *StaffPayrollMutation) PaidAtCleared() bool {
+	_, ok := m.clearedFields[staffpayroll.FieldPaidAt]
+	return ok
+}
+
+// ResetPaidAt resets all changes to the "paid_at" field.
+func (m *StaffPayrollMutation) ResetPaidAt() {
+	m.paid_at = nil
+	delete(m.clearedFields, staffpayroll.FieldPaidAt)
+}
+
+// SetPayoutReference sets the "payout_reference" field.
+func (m *StaffPayrollMutation) SetPayoutReference(s string) {
+	m.payout_reference = &s
+}
+
+// PayoutReference returns the value of the "payout_reference" field in the mutation.
+func (m *StaffPayrollMutation) PayoutReference() (r string, exists bool) {
+	v := m.payout_reference
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPayoutReference returns the old "payout_reference" field's value of the StaffPayroll entity.
+// If the StaffPayroll object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffPayrollMutation) OldPayoutReference(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPayoutReference is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPayoutReference requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPayoutReference: %w", err)
+	}
+	return oldValue.PayoutReference, nil
+}
+
+// ClearPayoutReference clears the value of the "payout_reference" field.
+func (m *StaffPayrollMutation) ClearPayoutReference() {
+	m.payout_reference = nil
+	m.clearedFields[staffpayroll.FieldPayoutReference] = struct{}{}
+}
+
+// PayoutReferenceCleared returns if the "payout_reference" field was cleared in this mutation.
+func (m *StaffPayrollMutation) PayoutReferenceCleared() bool {
+	_, ok := m.clearedFields[staffpayroll.FieldPayoutReference]
+	return ok
+}
+
+// ResetPayoutReference resets all changes to the "payout_reference" field.
+func (m *StaffPayrollMutation) ResetPayoutReference() {
+	m.payout_reference = nil
+	delete(m.clearedFields, staffpayroll.FieldPayoutReference)
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *StaffPayrollMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *StaffPayrollMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the StaffPayroll entity.
+// If the StaffPayroll object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffPayrollMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *StaffPayrollMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *StaffPayrollMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *StaffPayrollMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the StaffPayroll entity.
+// If the StaffPayroll object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffPayrollMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *StaffPayrollMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// AddLineIDs adds the "lines" edge to the StaffPayrollLine entity by ids.
+func (m *StaffPayrollMutation) AddLineIDs(ids ...uuid.UUID) {
+	if m.lines == nil {
+		m.lines = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		m.lines[ids[i]] = struct{}{}
+	}
+}
+
+// ClearLines clears the "lines" edge to the StaffPayrollLine entity.
+func (m *StaffPayrollMutation) ClearLines() {
+	m.clearedlines = true
+}
+
+// LinesCleared reports if the "lines" edge to the StaffPayrollLine entity was cleared.
+func (m *StaffPayrollMutation) LinesCleared() bool {
+	return m.clearedlines
+}
+
+// RemoveLineIDs removes the "lines" edge to the StaffPayrollLine entity by IDs.
+func (m *StaffPayrollMutation) RemoveLineIDs(ids ...uuid.UUID) {
+	if m.removedlines == nil {
+		m.removedlines = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		delete(m.lines, ids[i])
+		m.removedlines[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedLines returns the removed IDs of the "lines" edge to the StaffPayrollLine entity.
+func (m *StaffPayrollMutation) RemovedLinesIDs() (ids []uuid.UUID) {
+	for id := range m.removedlines {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// LinesIDs returns the "lines" edge IDs in the mutation.
+func (m *StaffPayrollMutation) LinesIDs() (ids []uuid.UUID) {
+	for id := range m.lines {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetLines resets all changes to the "lines" edge.
+func (m *StaffPayrollMutation) ResetLines() {
+	m.lines = nil
+	m.clearedlines = false
+	m.removedlines = nil
+}
+
+// Where appends a list predicates to the StaffPayrollMutation builder.
+func (m *StaffPayrollMutation) Where(ps ...predicate.StaffPayroll) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the StaffPayrollMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *StaffPayrollMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.StaffPayroll, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *StaffPayrollMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *StaffPayrollMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (StaffPayroll).
+func (m *StaffPayrollMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *StaffPayrollMutation) Fields() []string {
+	fields := make([]string, 0, 15)
+	if m.tenant_id != nil {
+		fields = append(fields, staffpayroll.FieldTenantID)
+	}
+	if m.staff_id != nil {
+		fields = append(fields, staffpayroll.FieldStaffID)
+	}
+	if m.period_start != nil {
+		fields = append(fields, staffpayroll.FieldPeriodStart)
+	}
+	if m.period_end != nil {
+		fields = append(fields, staffpayroll.FieldPeriodEnd)
+	}
+	if m.gross_amount != nil {
+		fields = append(fields, staffpayroll.FieldGrossAmount)
+	}
+	if m.total_deductions != nil {
+		fields = append(fields, staffpayroll.FieldTotalDeductions)
+	}
+	if m.net_amount != nil {
+		fields = append(fields, staffpayroll.FieldNetAmount)
+	}
+	if m.currency != nil {
+		fields = append(fields, staffpayroll.FieldCurrency)
+	}
+	if m.status != nil {
+		fields = append(fields, staffpayroll.FieldStatus)
+	}
+	if m.approved_by != nil {
+		fields = append(fields, staffpayroll.FieldApprovedBy)
+	}
+	if m.approved_at != nil {
+		fields = append(fields, staffpayroll.FieldApprovedAt)
+	}
+	if m.paid_at != nil {
+		fields = append(fields, staffpayroll.FieldPaidAt)
+	}
+	if m.payout_reference != nil {
+		fields = append(fields, staffpayroll.FieldPayoutReference)
+	}
+	if m.created_at != nil {
+		fields = append(fields, staffpayroll.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, staffpayroll.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *StaffPayrollMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case staffpayroll.FieldTenantID:
+		return m.TenantID()
+	case staffpayroll.FieldStaffID:
+		return m.StaffID()
+	case staffpayroll.FieldPeriodStart:
+		return m.PeriodStart()
+	case staffpayroll.FieldPeriodEnd:
+		return m.PeriodEnd()
+	case staffpayroll.FieldGrossAmount:
+		return m.GrossAmount()
+	case staffpayroll.FieldTotalDeductions:
+		return m.TotalDeductions()
+	case staffpayroll.FieldNetAmount:
+		return m.NetAmount()
+	case staffpayroll.FieldCurrency:
+		return m.Currency()
+	case staffpayroll.FieldStatus:
+		return m.Status()
+	case staffpayroll.FieldApprovedBy:
+		return m.ApprovedBy()
+	case staffpayroll.FieldApprovedAt:
+		return m.ApprovedAt()
+	case staffpayroll.FieldPaidAt:
+		return m.PaidAt()
+	case staffpayroll.FieldPayoutReference:
+		return m.PayoutReference()
+	case staffpayroll.FieldCreatedAt:
+		return m.CreatedAt()
+	case staffpayroll.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *StaffPayrollMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case staffpayroll.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case staffpayroll.FieldStaffID:
+		return m.OldStaffID(ctx)
+	case staffpayroll.FieldPeriodStart:
+		return m.OldPeriodStart(ctx)
+	case staffpayroll.FieldPeriodEnd:
+		return m.OldPeriodEnd(ctx)
+	case staffpayroll.FieldGrossAmount:
+		return m.OldGrossAmount(ctx)
+	case staffpayroll.FieldTotalDeductions:
+		return m.OldTotalDeductions(ctx)
+	case staffpayroll.FieldNetAmount:
+		return m.OldNetAmount(ctx)
+	case staffpayroll.FieldCurrency:
+		return m.OldCurrency(ctx)
+	case staffpayroll.FieldStatus:
+		return m.OldStatus(ctx)
+	case staffpayroll.FieldApprovedBy:
+		return m.OldApprovedBy(ctx)
+	case staffpayroll.FieldApprovedAt:
+		return m.OldApprovedAt(ctx)
+	case staffpayroll.FieldPaidAt:
+		return m.OldPaidAt(ctx)
+	case staffpayroll.FieldPayoutReference:
+		return m.OldPayoutReference(ctx)
+	case staffpayroll.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case staffpayroll.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown StaffPayroll field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *StaffPayrollMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case staffpayroll.FieldTenantID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case staffpayroll.FieldStaffID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStaffID(v)
+		return nil
+	case staffpayroll.FieldPeriodStart:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPeriodStart(v)
+		return nil
+	case staffpayroll.FieldPeriodEnd:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPeriodEnd(v)
+		return nil
+	case staffpayroll.FieldGrossAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGrossAmount(v)
+		return nil
+	case staffpayroll.FieldTotalDeductions:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTotalDeductions(v)
+		return nil
+	case staffpayroll.FieldNetAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNetAmount(v)
+		return nil
+	case staffpayroll.FieldCurrency:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCurrency(v)
+		return nil
+	case staffpayroll.FieldStatus:
+		v, ok := value.(staffpayroll.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case staffpayroll.FieldApprovedBy:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetApprovedBy(v)
+		return nil
+	case staffpayroll.FieldApprovedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetApprovedAt(v)
+		return nil
+	case staffpayroll.FieldPaidAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPaidAt(v)
+		return nil
+	case staffpayroll.FieldPayoutReference:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPayoutReference(v)
+		return nil
+	case staffpayroll.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case staffpayroll.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown StaffPayroll field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *StaffPayrollMutation) AddedFields() []string {
+	var fields []string
+	if m.addgross_amount != nil {
+		fields = append(fields, staffpayroll.FieldGrossAmount)
+	}
+	if m.addtotal_deductions != nil {
+		fields = append(fields, staffpayroll.FieldTotalDeductions)
+	}
+	if m.addnet_amount != nil {
+		fields = append(fields, staffpayroll.FieldNetAmount)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *StaffPayrollMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case staffpayroll.FieldGrossAmount:
+		return m.AddedGrossAmount()
+	case staffpayroll.FieldTotalDeductions:
+		return m.AddedTotalDeductions()
+	case staffpayroll.FieldNetAmount:
+		return m.AddedNetAmount()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *StaffPayrollMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case staffpayroll.FieldGrossAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddGrossAmount(v)
+		return nil
+	case staffpayroll.FieldTotalDeductions:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTotalDeductions(v)
+		return nil
+	case staffpayroll.FieldNetAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddNetAmount(v)
+		return nil
+	}
+	return fmt.Errorf("unknown StaffPayroll numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *StaffPayrollMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(staffpayroll.FieldApprovedBy) {
+		fields = append(fields, staffpayroll.FieldApprovedBy)
+	}
+	if m.FieldCleared(staffpayroll.FieldApprovedAt) {
+		fields = append(fields, staffpayroll.FieldApprovedAt)
+	}
+	if m.FieldCleared(staffpayroll.FieldPaidAt) {
+		fields = append(fields, staffpayroll.FieldPaidAt)
+	}
+	if m.FieldCleared(staffpayroll.FieldPayoutReference) {
+		fields = append(fields, staffpayroll.FieldPayoutReference)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *StaffPayrollMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *StaffPayrollMutation) ClearField(name string) error {
+	switch name {
+	case staffpayroll.FieldApprovedBy:
+		m.ClearApprovedBy()
+		return nil
+	case staffpayroll.FieldApprovedAt:
+		m.ClearApprovedAt()
+		return nil
+	case staffpayroll.FieldPaidAt:
+		m.ClearPaidAt()
+		return nil
+	case staffpayroll.FieldPayoutReference:
+		m.ClearPayoutReference()
+		return nil
+	}
+	return fmt.Errorf("unknown StaffPayroll nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *StaffPayrollMutation) ResetField(name string) error {
+	switch name {
+	case staffpayroll.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case staffpayroll.FieldStaffID:
+		m.ResetStaffID()
+		return nil
+	case staffpayroll.FieldPeriodStart:
+		m.ResetPeriodStart()
+		return nil
+	case staffpayroll.FieldPeriodEnd:
+		m.ResetPeriodEnd()
+		return nil
+	case staffpayroll.FieldGrossAmount:
+		m.ResetGrossAmount()
+		return nil
+	case staffpayroll.FieldTotalDeductions:
+		m.ResetTotalDeductions()
+		return nil
+	case staffpayroll.FieldNetAmount:
+		m.ResetNetAmount()
+		return nil
+	case staffpayroll.FieldCurrency:
+		m.ResetCurrency()
+		return nil
+	case staffpayroll.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case staffpayroll.FieldApprovedBy:
+		m.ResetApprovedBy()
+		return nil
+	case staffpayroll.FieldApprovedAt:
+		m.ResetApprovedAt()
+		return nil
+	case staffpayroll.FieldPaidAt:
+		m.ResetPaidAt()
+		return nil
+	case staffpayroll.FieldPayoutReference:
+		m.ResetPayoutReference()
+		return nil
+	case staffpayroll.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case staffpayroll.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown StaffPayroll field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *StaffPayrollMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.lines != nil {
+		edges = append(edges, staffpayroll.EdgeLines)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *StaffPayrollMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case staffpayroll.EdgeLines:
+		ids := make([]ent.Value, 0, len(m.lines))
+		for id := range m.lines {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *StaffPayrollMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.removedlines != nil {
+		edges = append(edges, staffpayroll.EdgeLines)
+	}
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *StaffPayrollMutation) RemovedIDs(name string) []ent.Value {
+	switch name {
+	case staffpayroll.EdgeLines:
+		ids := make([]ent.Value, 0, len(m.removedlines))
+		for id := range m.removedlines {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *StaffPayrollMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.clearedlines {
+		edges = append(edges, staffpayroll.EdgeLines)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *StaffPayrollMutation) EdgeCleared(name string) bool {
+	switch name {
+	case staffpayroll.EdgeLines:
+		return m.clearedlines
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *StaffPayrollMutation) ClearEdge(name string) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown StaffPayroll unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *StaffPayrollMutation) ResetEdge(name string) error {
+	switch name {
+	case staffpayroll.EdgeLines:
+		m.ResetLines()
+		return nil
+	}
+	return fmt.Errorf("unknown StaffPayroll edge %s", name)
+}
+
+// StaffPayrollLineMutation represents an operation that mutates the StaffPayrollLine nodes in the graph.
+type StaffPayrollLineMutation struct {
+	config
+	op             Op
+	typ            string
+	id             *uuid.UUID
+	line_type      *staffpayrollline.LineType
+	description    *string
+	amount         *float64
+	addamount      *float64
+	advance_id     *uuid.UUID
+	clearedFields  map[string]struct{}
+	payroll        *uuid.UUID
+	clearedpayroll bool
+	done           bool
+	oldValue       func(context.Context) (*StaffPayrollLine, error)
+	predicates     []predicate.StaffPayrollLine
+}
+
+var _ ent.Mutation = (*StaffPayrollLineMutation)(nil)
+
+// staffpayrolllineOption allows management of the mutation configuration using functional options.
+type staffpayrolllineOption func(*StaffPayrollLineMutation)
+
+// newStaffPayrollLineMutation creates new mutation for the StaffPayrollLine entity.
+func newStaffPayrollLineMutation(c config, op Op, opts ...staffpayrolllineOption) *StaffPayrollLineMutation {
+	m := &StaffPayrollLineMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeStaffPayrollLine,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withStaffPayrollLineID sets the ID field of the mutation.
+func withStaffPayrollLineID(id uuid.UUID) staffpayrolllineOption {
+	return func(m *StaffPayrollLineMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *StaffPayrollLine
+		)
+		m.oldValue = func(ctx context.Context) (*StaffPayrollLine, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().StaffPayrollLine.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withStaffPayrollLine sets the old StaffPayrollLine of the mutation.
+func withStaffPayrollLine(node *StaffPayrollLine) staffpayrolllineOption {
+	return func(m *StaffPayrollLineMutation) {
+		m.oldValue = func(context.Context) (*StaffPayrollLine, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m StaffPayrollLineMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m StaffPayrollLineMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of StaffPayrollLine entities.
+func (m *StaffPayrollLineMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *StaffPayrollLineMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *StaffPayrollLineMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().StaffPayrollLine.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetPayrollID sets the "payroll_id" field.
+func (m *StaffPayrollLineMutation) SetPayrollID(u uuid.UUID) {
+	m.payroll = &u
+}
+
+// PayrollID returns the value of the "payroll_id" field in the mutation.
+func (m *StaffPayrollLineMutation) PayrollID() (r uuid.UUID, exists bool) {
+	v := m.payroll
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPayrollID returns the old "payroll_id" field's value of the StaffPayrollLine entity.
+// If the StaffPayrollLine object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffPayrollLineMutation) OldPayrollID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPayrollID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPayrollID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPayrollID: %w", err)
+	}
+	return oldValue.PayrollID, nil
+}
+
+// ResetPayrollID resets all changes to the "payroll_id" field.
+func (m *StaffPayrollLineMutation) ResetPayrollID() {
+	m.payroll = nil
+}
+
+// SetLineType sets the "line_type" field.
+func (m *StaffPayrollLineMutation) SetLineType(st staffpayrollline.LineType) {
+	m.line_type = &st
+}
+
+// LineType returns the value of the "line_type" field in the mutation.
+func (m *StaffPayrollLineMutation) LineType() (r staffpayrollline.LineType, exists bool) {
+	v := m.line_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLineType returns the old "line_type" field's value of the StaffPayrollLine entity.
+// If the StaffPayrollLine object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffPayrollLineMutation) OldLineType(ctx context.Context) (v staffpayrollline.LineType, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLineType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLineType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLineType: %w", err)
+	}
+	return oldValue.LineType, nil
+}
+
+// ResetLineType resets all changes to the "line_type" field.
+func (m *StaffPayrollLineMutation) ResetLineType() {
+	m.line_type = nil
+}
+
+// SetDescription sets the "description" field.
+func (m *StaffPayrollLineMutation) SetDescription(s string) {
+	m.description = &s
+}
+
+// Description returns the value of the "description" field in the mutation.
+func (m *StaffPayrollLineMutation) Description() (r string, exists bool) {
+	v := m.description
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDescription returns the old "description" field's value of the StaffPayrollLine entity.
+// If the StaffPayrollLine object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffPayrollLineMutation) OldDescription(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDescription is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDescription requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDescription: %w", err)
+	}
+	return oldValue.Description, nil
+}
+
+// ResetDescription resets all changes to the "description" field.
+func (m *StaffPayrollLineMutation) ResetDescription() {
+	m.description = nil
+}
+
+// SetAmount sets the "amount" field.
+func (m *StaffPayrollLineMutation) SetAmount(f float64) {
+	m.amount = &f
+	m.addamount = nil
+}
+
+// Amount returns the value of the "amount" field in the mutation.
+func (m *StaffPayrollLineMutation) Amount() (r float64, exists bool) {
+	v := m.amount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAmount returns the old "amount" field's value of the StaffPayrollLine entity.
+// If the StaffPayrollLine object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffPayrollLineMutation) OldAmount(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAmount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAmount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAmount: %w", err)
+	}
+	return oldValue.Amount, nil
+}
+
+// AddAmount adds f to the "amount" field.
+func (m *StaffPayrollLineMutation) AddAmount(f float64) {
+	if m.addamount != nil {
+		*m.addamount += f
+	} else {
+		m.addamount = &f
+	}
+}
+
+// AddedAmount returns the value that was added to the "amount" field in this mutation.
+func (m *StaffPayrollLineMutation) AddedAmount() (r float64, exists bool) {
+	v := m.addamount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAmount resets all changes to the "amount" field.
+func (m *StaffPayrollLineMutation) ResetAmount() {
+	m.amount = nil
+	m.addamount = nil
+}
+
+// SetAdvanceID sets the "advance_id" field.
+func (m *StaffPayrollLineMutation) SetAdvanceID(u uuid.UUID) {
+	m.advance_id = &u
+}
+
+// AdvanceID returns the value of the "advance_id" field in the mutation.
+func (m *StaffPayrollLineMutation) AdvanceID() (r uuid.UUID, exists bool) {
+	v := m.advance_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAdvanceID returns the old "advance_id" field's value of the StaffPayrollLine entity.
+// If the StaffPayrollLine object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffPayrollLineMutation) OldAdvanceID(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAdvanceID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAdvanceID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAdvanceID: %w", err)
+	}
+	return oldValue.AdvanceID, nil
+}
+
+// ClearAdvanceID clears the value of the "advance_id" field.
+func (m *StaffPayrollLineMutation) ClearAdvanceID() {
+	m.advance_id = nil
+	m.clearedFields[staffpayrollline.FieldAdvanceID] = struct{}{}
+}
+
+// AdvanceIDCleared returns if the "advance_id" field was cleared in this mutation.
+func (m *StaffPayrollLineMutation) AdvanceIDCleared() bool {
+	_, ok := m.clearedFields[staffpayrollline.FieldAdvanceID]
+	return ok
+}
+
+// ResetAdvanceID resets all changes to the "advance_id" field.
+func (m *StaffPayrollLineMutation) ResetAdvanceID() {
+	m.advance_id = nil
+	delete(m.clearedFields, staffpayrollline.FieldAdvanceID)
+}
+
+// ClearPayroll clears the "payroll" edge to the StaffPayroll entity.
+func (m *StaffPayrollLineMutation) ClearPayroll() {
+	m.clearedpayroll = true
+	m.clearedFields[staffpayrollline.FieldPayrollID] = struct{}{}
+}
+
+// PayrollCleared reports if the "payroll" edge to the StaffPayroll entity was cleared.
+func (m *StaffPayrollLineMutation) PayrollCleared() bool {
+	return m.clearedpayroll
+}
+
+// PayrollIDs returns the "payroll" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// PayrollID instead. It exists only for internal usage by the builders.
+func (m *StaffPayrollLineMutation) PayrollIDs() (ids []uuid.UUID) {
+	if id := m.payroll; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetPayroll resets all changes to the "payroll" edge.
+func (m *StaffPayrollLineMutation) ResetPayroll() {
+	m.payroll = nil
+	m.clearedpayroll = false
+}
+
+// Where appends a list predicates to the StaffPayrollLineMutation builder.
+func (m *StaffPayrollLineMutation) Where(ps ...predicate.StaffPayrollLine) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the StaffPayrollLineMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *StaffPayrollLineMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.StaffPayrollLine, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *StaffPayrollLineMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *StaffPayrollLineMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (StaffPayrollLine).
+func (m *StaffPayrollLineMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *StaffPayrollLineMutation) Fields() []string {
+	fields := make([]string, 0, 5)
+	if m.payroll != nil {
+		fields = append(fields, staffpayrollline.FieldPayrollID)
+	}
+	if m.line_type != nil {
+		fields = append(fields, staffpayrollline.FieldLineType)
+	}
+	if m.description != nil {
+		fields = append(fields, staffpayrollline.FieldDescription)
+	}
+	if m.amount != nil {
+		fields = append(fields, staffpayrollline.FieldAmount)
+	}
+	if m.advance_id != nil {
+		fields = append(fields, staffpayrollline.FieldAdvanceID)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *StaffPayrollLineMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case staffpayrollline.FieldPayrollID:
+		return m.PayrollID()
+	case staffpayrollline.FieldLineType:
+		return m.LineType()
+	case staffpayrollline.FieldDescription:
+		return m.Description()
+	case staffpayrollline.FieldAmount:
+		return m.Amount()
+	case staffpayrollline.FieldAdvanceID:
+		return m.AdvanceID()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *StaffPayrollLineMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case staffpayrollline.FieldPayrollID:
+		return m.OldPayrollID(ctx)
+	case staffpayrollline.FieldLineType:
+		return m.OldLineType(ctx)
+	case staffpayrollline.FieldDescription:
+		return m.OldDescription(ctx)
+	case staffpayrollline.FieldAmount:
+		return m.OldAmount(ctx)
+	case staffpayrollline.FieldAdvanceID:
+		return m.OldAdvanceID(ctx)
+	}
+	return nil, fmt.Errorf("unknown StaffPayrollLine field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *StaffPayrollLineMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case staffpayrollline.FieldPayrollID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPayrollID(v)
+		return nil
+	case staffpayrollline.FieldLineType:
+		v, ok := value.(staffpayrollline.LineType)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLineType(v)
+		return nil
+	case staffpayrollline.FieldDescription:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDescription(v)
+		return nil
+	case staffpayrollline.FieldAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAmount(v)
+		return nil
+	case staffpayrollline.FieldAdvanceID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAdvanceID(v)
+		return nil
+	}
+	return fmt.Errorf("unknown StaffPayrollLine field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *StaffPayrollLineMutation) AddedFields() []string {
+	var fields []string
+	if m.addamount != nil {
+		fields = append(fields, staffpayrollline.FieldAmount)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *StaffPayrollLineMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case staffpayrollline.FieldAmount:
+		return m.AddedAmount()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *StaffPayrollLineMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case staffpayrollline.FieldAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAmount(v)
+		return nil
+	}
+	return fmt.Errorf("unknown StaffPayrollLine numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *StaffPayrollLineMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(staffpayrollline.FieldAdvanceID) {
+		fields = append(fields, staffpayrollline.FieldAdvanceID)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *StaffPayrollLineMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *StaffPayrollLineMutation) ClearField(name string) error {
+	switch name {
+	case staffpayrollline.FieldAdvanceID:
+		m.ClearAdvanceID()
+		return nil
+	}
+	return fmt.Errorf("unknown StaffPayrollLine nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *StaffPayrollLineMutation) ResetField(name string) error {
+	switch name {
+	case staffpayrollline.FieldPayrollID:
+		m.ResetPayrollID()
+		return nil
+	case staffpayrollline.FieldLineType:
+		m.ResetLineType()
+		return nil
+	case staffpayrollline.FieldDescription:
+		m.ResetDescription()
+		return nil
+	case staffpayrollline.FieldAmount:
+		m.ResetAmount()
+		return nil
+	case staffpayrollline.FieldAdvanceID:
+		m.ResetAdvanceID()
+		return nil
+	}
+	return fmt.Errorf("unknown StaffPayrollLine field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *StaffPayrollLineMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.payroll != nil {
+		edges = append(edges, staffpayrollline.EdgePayroll)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *StaffPayrollLineMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case staffpayrollline.EdgePayroll:
+		if id := m.payroll; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *StaffPayrollLineMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *StaffPayrollLineMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *StaffPayrollLineMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.clearedpayroll {
+		edges = append(edges, staffpayrollline.EdgePayroll)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *StaffPayrollLineMutation) EdgeCleared(name string) bool {
+	switch name {
+	case staffpayrollline.EdgePayroll:
+		return m.clearedpayroll
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *StaffPayrollLineMutation) ClearEdge(name string) error {
+	switch name {
+	case staffpayrollline.EdgePayroll:
+		m.ClearPayroll()
+		return nil
+	}
+	return fmt.Errorf("unknown StaffPayrollLine unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *StaffPayrollLineMutation) ResetEdge(name string) error {
+	switch name {
+	case staffpayrollline.EdgePayroll:
+		m.ResetPayroll()
+		return nil
+	}
+	return fmt.Errorf("unknown StaffPayrollLine edge %s", name)
 }
 
 // StaffScheduleMutation represents an operation that mutates the StaffSchedule nodes in the graph.

@@ -154,6 +154,36 @@ func (c *Client) ListTaxCodes(ctx context.Context, tenantSlug string) ([]TaxCode
 	return resp.TaxCodes, nil
 }
 
+// PayoutRequest is the body for POST /api/v1/{tenant}/payouts/disburse.
+type PayoutRequest struct {
+	EntityType   string  `json:"entity_type"`   // "staff"
+	EntityID     string  `json:"entity_id"`     // staff member user_id or UUID
+	Amount       float64 `json:"amount"`
+	Currency     string  `json:"currency"`
+	Reference    string  `json:"reference"`
+	Reason       string  `json:"reason"`
+	PayoutMethod string  `json:"payout_method"` // "mpesa_b2c" | "paystack_bank" | "cash"
+	Recipient    struct {
+		Name          string `json:"name"`
+		Phone         string `json:"phone,omitempty"`
+		AccountNumber string `json:"account_number,omitempty"`
+		AccountName   string `json:"account_name,omitempty"`
+	} `json:"recipient"`
+}
+
+// PayoutResponse is the response from POST /api/v1/{tenant}/payouts/disburse.
+type PayoutResponse struct {
+	PayoutID  string `json:"payout_id"`
+	Reference string `json:"reference"`
+	Status    string `json:"status"`
+}
+
+// DisbursePayout calls POST /api/v1/{tenantSlug}/payouts/disburse on treasury-api.
+func (c *Client) DisbursePayout(ctx context.Context, tenantSlug string, req PayoutRequest) (*PayoutResponse, error) {
+	url := fmt.Sprintf("%s/api/v1/%s/payouts/disburse", c.baseURL, tenantSlug)
+	return doRequest[PayoutResponse](ctx, c.httpClient, http.MethodPost, url, c.apiKey, req)
+}
+
 func isNotFound(err error) bool {
 	if err == nil {
 		return false

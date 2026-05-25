@@ -75,7 +75,10 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/servicepackagepurchase"
 	"github.com/bengobox/pos-service/internal/ent/servicepackageredemption"
 	"github.com/bengobox/pos-service/internal/ent/servicequeueentry"
+	"github.com/bengobox/pos-service/internal/ent/staffadvance"
 	"github.com/bengobox/pos-service/internal/ent/staffmember"
+	"github.com/bengobox/pos-service/internal/ent/staffpayroll"
+	"github.com/bengobox/pos-service/internal/ent/staffpayrollline"
 	"github.com/bengobox/pos-service/internal/ent/staffschedule"
 	"github.com/bengobox/pos-service/internal/ent/stockalertsubscription"
 	"github.com/bengobox/pos-service/internal/ent/stockconsumptionevent"
@@ -1951,6 +1954,30 @@ func init() {
 	servicequeueentryDescID := servicequeueentryFields[0].Descriptor()
 	// servicequeueentry.DefaultID holds the default value on creation for the id field.
 	servicequeueentry.DefaultID = servicequeueentryDescID.Default.(func() uuid.UUID)
+	staffadvanceFields := schema.StaffAdvance{}.Fields()
+	_ = staffadvanceFields
+	// staffadvanceDescCurrency is the schema descriptor for currency field.
+	staffadvanceDescCurrency := staffadvanceFields[4].Descriptor()
+	// staffadvance.DefaultCurrency holds the default value on creation for the currency field.
+	staffadvance.DefaultCurrency = staffadvanceDescCurrency.Default.(string)
+	// staffadvanceDescRepaymentMonths is the schema descriptor for repayment_months field.
+	staffadvanceDescRepaymentMonths := staffadvanceFields[6].Descriptor()
+	// staffadvance.DefaultRepaymentMonths holds the default value on creation for the repayment_months field.
+	staffadvance.DefaultRepaymentMonths = staffadvanceDescRepaymentMonths.Default.(int)
+	// staffadvanceDescCreatedAt is the schema descriptor for created_at field.
+	staffadvanceDescCreatedAt := staffadvanceFields[10].Descriptor()
+	// staffadvance.DefaultCreatedAt holds the default value on creation for the created_at field.
+	staffadvance.DefaultCreatedAt = staffadvanceDescCreatedAt.Default.(func() time.Time)
+	// staffadvanceDescUpdatedAt is the schema descriptor for updated_at field.
+	staffadvanceDescUpdatedAt := staffadvanceFields[11].Descriptor()
+	// staffadvance.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	staffadvance.DefaultUpdatedAt = staffadvanceDescUpdatedAt.Default.(func() time.Time)
+	// staffadvance.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	staffadvance.UpdateDefaultUpdatedAt = staffadvanceDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// staffadvanceDescID is the schema descriptor for id field.
+	staffadvanceDescID := staffadvanceFields[0].Descriptor()
+	// staffadvance.DefaultID holds the default value on creation for the id field.
+	staffadvance.DefaultID = staffadvanceDescID.Default.(func() uuid.UUID)
 	staffmemberFields := schema.StaffMember{}.Fields()
 	_ = staffmemberFields
 	// staffmemberDescName is the schema descriptor for name field.
@@ -1966,15 +1993,15 @@ func init() {
 	// staffmember.DefaultRole holds the default value on creation for the role field.
 	staffmember.DefaultRole = staffmemberDescRole.Default.(string)
 	// staffmemberDescPinFailedAttempts is the schema descriptor for pin_failed_attempts field.
-	staffmemberDescPinFailedAttempts := staffmemberFields[11].Descriptor()
+	staffmemberDescPinFailedAttempts := staffmemberFields[18].Descriptor()
 	// staffmember.DefaultPinFailedAttempts holds the default value on creation for the pin_failed_attempts field.
 	staffmember.DefaultPinFailedAttempts = staffmemberDescPinFailedAttempts.Default.(int)
 	// staffmemberDescCreatedAt is the schema descriptor for created_at field.
-	staffmemberDescCreatedAt := staffmemberFields[13].Descriptor()
+	staffmemberDescCreatedAt := staffmemberFields[20].Descriptor()
 	// staffmember.DefaultCreatedAt holds the default value on creation for the created_at field.
 	staffmember.DefaultCreatedAt = staffmemberDescCreatedAt.Default.(func() time.Time)
 	// staffmemberDescUpdatedAt is the schema descriptor for updated_at field.
-	staffmemberDescUpdatedAt := staffmemberFields[14].Descriptor()
+	staffmemberDescUpdatedAt := staffmemberFields[21].Descriptor()
 	// staffmember.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	staffmember.DefaultUpdatedAt = staffmemberDescUpdatedAt.Default.(func() time.Time)
 	// staffmember.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -1983,6 +2010,48 @@ func init() {
 	staffmemberDescID := staffmemberFields[0].Descriptor()
 	// staffmember.DefaultID holds the default value on creation for the id field.
 	staffmember.DefaultID = staffmemberDescID.Default.(func() uuid.UUID)
+	staffpayrollFields := schema.StaffPayroll{}.Fields()
+	_ = staffpayrollFields
+	// staffpayrollDescGrossAmount is the schema descriptor for gross_amount field.
+	staffpayrollDescGrossAmount := staffpayrollFields[5].Descriptor()
+	// staffpayroll.DefaultGrossAmount holds the default value on creation for the gross_amount field.
+	staffpayroll.DefaultGrossAmount = staffpayrollDescGrossAmount.Default.(float64)
+	// staffpayrollDescTotalDeductions is the schema descriptor for total_deductions field.
+	staffpayrollDescTotalDeductions := staffpayrollFields[6].Descriptor()
+	// staffpayroll.DefaultTotalDeductions holds the default value on creation for the total_deductions field.
+	staffpayroll.DefaultTotalDeductions = staffpayrollDescTotalDeductions.Default.(float64)
+	// staffpayrollDescNetAmount is the schema descriptor for net_amount field.
+	staffpayrollDescNetAmount := staffpayrollFields[7].Descriptor()
+	// staffpayroll.DefaultNetAmount holds the default value on creation for the net_amount field.
+	staffpayroll.DefaultNetAmount = staffpayrollDescNetAmount.Default.(float64)
+	// staffpayrollDescCurrency is the schema descriptor for currency field.
+	staffpayrollDescCurrency := staffpayrollFields[8].Descriptor()
+	// staffpayroll.DefaultCurrency holds the default value on creation for the currency field.
+	staffpayroll.DefaultCurrency = staffpayrollDescCurrency.Default.(string)
+	// staffpayrollDescCreatedAt is the schema descriptor for created_at field.
+	staffpayrollDescCreatedAt := staffpayrollFields[14].Descriptor()
+	// staffpayroll.DefaultCreatedAt holds the default value on creation for the created_at field.
+	staffpayroll.DefaultCreatedAt = staffpayrollDescCreatedAt.Default.(func() time.Time)
+	// staffpayrollDescUpdatedAt is the schema descriptor for updated_at field.
+	staffpayrollDescUpdatedAt := staffpayrollFields[15].Descriptor()
+	// staffpayroll.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	staffpayroll.DefaultUpdatedAt = staffpayrollDescUpdatedAt.Default.(func() time.Time)
+	// staffpayroll.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	staffpayroll.UpdateDefaultUpdatedAt = staffpayrollDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// staffpayrollDescID is the schema descriptor for id field.
+	staffpayrollDescID := staffpayrollFields[0].Descriptor()
+	// staffpayroll.DefaultID holds the default value on creation for the id field.
+	staffpayroll.DefaultID = staffpayrollDescID.Default.(func() uuid.UUID)
+	staffpayrolllineFields := schema.StaffPayrollLine{}.Fields()
+	_ = staffpayrolllineFields
+	// staffpayrolllineDescDescription is the schema descriptor for description field.
+	staffpayrolllineDescDescription := staffpayrolllineFields[3].Descriptor()
+	// staffpayrollline.DescriptionValidator is a validator for the "description" field. It is called by the builders before save.
+	staffpayrollline.DescriptionValidator = staffpayrolllineDescDescription.Validators[0].(func(string) error)
+	// staffpayrolllineDescID is the schema descriptor for id field.
+	staffpayrolllineDescID := staffpayrolllineFields[0].Descriptor()
+	// staffpayrollline.DefaultID holds the default value on creation for the id field.
+	staffpayrollline.DefaultID = staffpayrolllineDescID.Default.(func() uuid.UUID)
 	staffscheduleFields := schema.StaffSchedule{}.Fields()
 	_ = staffscheduleFields
 	// staffscheduleDescIsAvailable is the schema descriptor for is_available field.

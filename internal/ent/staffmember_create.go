@@ -102,6 +102,104 @@ func (_c *StaffMemberCreate) SetNillableRole(v *string) *StaffMemberCreate {
 	return _c
 }
 
+// SetEmploymentType sets the "employment_type" field.
+func (_c *StaffMemberCreate) SetEmploymentType(v staffmember.EmploymentType) *StaffMemberCreate {
+	_c.mutation.SetEmploymentType(v)
+	return _c
+}
+
+// SetNillableEmploymentType sets the "employment_type" field if the given value is not nil.
+func (_c *StaffMemberCreate) SetNillableEmploymentType(v *staffmember.EmploymentType) *StaffMemberCreate {
+	if v != nil {
+		_c.SetEmploymentType(*v)
+	}
+	return _c
+}
+
+// SetHourlyRate sets the "hourly_rate" field.
+func (_c *StaffMemberCreate) SetHourlyRate(v float64) *StaffMemberCreate {
+	_c.mutation.SetHourlyRate(v)
+	return _c
+}
+
+// SetNillableHourlyRate sets the "hourly_rate" field if the given value is not nil.
+func (_c *StaffMemberCreate) SetNillableHourlyRate(v *float64) *StaffMemberCreate {
+	if v != nil {
+		_c.SetHourlyRate(*v)
+	}
+	return _c
+}
+
+// SetDailyRate sets the "daily_rate" field.
+func (_c *StaffMemberCreate) SetDailyRate(v float64) *StaffMemberCreate {
+	_c.mutation.SetDailyRate(v)
+	return _c
+}
+
+// SetNillableDailyRate sets the "daily_rate" field if the given value is not nil.
+func (_c *StaffMemberCreate) SetNillableDailyRate(v *float64) *StaffMemberCreate {
+	if v != nil {
+		_c.SetDailyRate(*v)
+	}
+	return _c
+}
+
+// SetMonthlySalary sets the "monthly_salary" field.
+func (_c *StaffMemberCreate) SetMonthlySalary(v float64) *StaffMemberCreate {
+	_c.mutation.SetMonthlySalary(v)
+	return _c
+}
+
+// SetNillableMonthlySalary sets the "monthly_salary" field if the given value is not nil.
+func (_c *StaffMemberCreate) SetNillableMonthlySalary(v *float64) *StaffMemberCreate {
+	if v != nil {
+		_c.SetMonthlySalary(*v)
+	}
+	return _c
+}
+
+// SetMpesaPhone sets the "mpesa_phone" field.
+func (_c *StaffMemberCreate) SetMpesaPhone(v string) *StaffMemberCreate {
+	_c.mutation.SetMpesaPhone(v)
+	return _c
+}
+
+// SetNillableMpesaPhone sets the "mpesa_phone" field if the given value is not nil.
+func (_c *StaffMemberCreate) SetNillableMpesaPhone(v *string) *StaffMemberCreate {
+	if v != nil {
+		_c.SetMpesaPhone(*v)
+	}
+	return _c
+}
+
+// SetBankAccountNumber sets the "bank_account_number" field.
+func (_c *StaffMemberCreate) SetBankAccountNumber(v string) *StaffMemberCreate {
+	_c.mutation.SetBankAccountNumber(v)
+	return _c
+}
+
+// SetNillableBankAccountNumber sets the "bank_account_number" field if the given value is not nil.
+func (_c *StaffMemberCreate) SetNillableBankAccountNumber(v *string) *StaffMemberCreate {
+	if v != nil {
+		_c.SetBankAccountNumber(*v)
+	}
+	return _c
+}
+
+// SetBankName sets the "bank_name" field.
+func (_c *StaffMemberCreate) SetBankName(v string) *StaffMemberCreate {
+	_c.mutation.SetBankName(v)
+	return _c
+}
+
+// SetNillableBankName sets the "bank_name" field if the given value is not nil.
+func (_c *StaffMemberCreate) SetNillableBankName(v *string) *StaffMemberCreate {
+	if v != nil {
+		_c.SetBankName(*v)
+	}
+	return _c
+}
+
 // SetPinHash sets the "pin_hash" field.
 func (_c *StaffMemberCreate) SetPinHash(v string) *StaffMemberCreate {
 	_c.mutation.SetPinHash(v)
@@ -229,6 +327,10 @@ func (_c *StaffMemberCreate) defaults() {
 		v := staffmember.DefaultRole
 		_c.mutation.SetRole(v)
 	}
+	if _, ok := _c.mutation.EmploymentType(); !ok {
+		v := staffmember.DefaultEmploymentType
+		_c.mutation.SetEmploymentType(v)
+	}
 	if _, ok := _c.mutation.PinFailedAttempts(); !ok {
 		v := staffmember.DefaultPinFailedAttempts
 		_c.mutation.SetPinFailedAttempts(v)
@@ -271,6 +373,11 @@ func (_c *StaffMemberCreate) check() error {
 	}
 	if _, ok := _c.mutation.Role(); !ok {
 		return &ValidationError{Name: "role", err: errors.New(`ent: missing required field "StaffMember.role"`)}
+	}
+	if v, ok := _c.mutation.EmploymentType(); ok {
+		if err := staffmember.EmploymentTypeValidator(v); err != nil {
+			return &ValidationError{Name: "employment_type", err: fmt.Errorf(`ent: validator failed for field "StaffMember.employment_type": %w`, err)}
+		}
 	}
 	if _, ok := _c.mutation.PinFailedAttempts(); !ok {
 		return &ValidationError{Name: "pin_failed_attempts", err: errors.New(`ent: missing required field "StaffMember.pin_failed_attempts"`)}
@@ -352,6 +459,34 @@ func (_c *StaffMemberCreate) createSpec() (*StaffMember, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Role(); ok {
 		_spec.SetField(staffmember.FieldRole, field.TypeString, value)
 		_node.Role = value
+	}
+	if value, ok := _c.mutation.EmploymentType(); ok {
+		_spec.SetField(staffmember.FieldEmploymentType, field.TypeEnum, value)
+		_node.EmploymentType = value
+	}
+	if value, ok := _c.mutation.HourlyRate(); ok {
+		_spec.SetField(staffmember.FieldHourlyRate, field.TypeFloat64, value)
+		_node.HourlyRate = &value
+	}
+	if value, ok := _c.mutation.DailyRate(); ok {
+		_spec.SetField(staffmember.FieldDailyRate, field.TypeFloat64, value)
+		_node.DailyRate = &value
+	}
+	if value, ok := _c.mutation.MonthlySalary(); ok {
+		_spec.SetField(staffmember.FieldMonthlySalary, field.TypeFloat64, value)
+		_node.MonthlySalary = &value
+	}
+	if value, ok := _c.mutation.MpesaPhone(); ok {
+		_spec.SetField(staffmember.FieldMpesaPhone, field.TypeString, value)
+		_node.MpesaPhone = &value
+	}
+	if value, ok := _c.mutation.BankAccountNumber(); ok {
+		_spec.SetField(staffmember.FieldBankAccountNumber, field.TypeString, value)
+		_node.BankAccountNumber = &value
+	}
+	if value, ok := _c.mutation.BankName(); ok {
+		_spec.SetField(staffmember.FieldBankName, field.TypeString, value)
+		_node.BankName = &value
 	}
 	if value, ok := _c.mutation.PinHash(); ok {
 		_spec.SetField(staffmember.FieldPinHash, field.TypeString, value)
@@ -554,6 +689,150 @@ func (u *StaffMemberUpsert) SetRole(v string) *StaffMemberUpsert {
 // UpdateRole sets the "role" field to the value that was provided on create.
 func (u *StaffMemberUpsert) UpdateRole() *StaffMemberUpsert {
 	u.SetExcluded(staffmember.FieldRole)
+	return u
+}
+
+// SetEmploymentType sets the "employment_type" field.
+func (u *StaffMemberUpsert) SetEmploymentType(v staffmember.EmploymentType) *StaffMemberUpsert {
+	u.Set(staffmember.FieldEmploymentType, v)
+	return u
+}
+
+// UpdateEmploymentType sets the "employment_type" field to the value that was provided on create.
+func (u *StaffMemberUpsert) UpdateEmploymentType() *StaffMemberUpsert {
+	u.SetExcluded(staffmember.FieldEmploymentType)
+	return u
+}
+
+// ClearEmploymentType clears the value of the "employment_type" field.
+func (u *StaffMemberUpsert) ClearEmploymentType() *StaffMemberUpsert {
+	u.SetNull(staffmember.FieldEmploymentType)
+	return u
+}
+
+// SetHourlyRate sets the "hourly_rate" field.
+func (u *StaffMemberUpsert) SetHourlyRate(v float64) *StaffMemberUpsert {
+	u.Set(staffmember.FieldHourlyRate, v)
+	return u
+}
+
+// UpdateHourlyRate sets the "hourly_rate" field to the value that was provided on create.
+func (u *StaffMemberUpsert) UpdateHourlyRate() *StaffMemberUpsert {
+	u.SetExcluded(staffmember.FieldHourlyRate)
+	return u
+}
+
+// AddHourlyRate adds v to the "hourly_rate" field.
+func (u *StaffMemberUpsert) AddHourlyRate(v float64) *StaffMemberUpsert {
+	u.Add(staffmember.FieldHourlyRate, v)
+	return u
+}
+
+// ClearHourlyRate clears the value of the "hourly_rate" field.
+func (u *StaffMemberUpsert) ClearHourlyRate() *StaffMemberUpsert {
+	u.SetNull(staffmember.FieldHourlyRate)
+	return u
+}
+
+// SetDailyRate sets the "daily_rate" field.
+func (u *StaffMemberUpsert) SetDailyRate(v float64) *StaffMemberUpsert {
+	u.Set(staffmember.FieldDailyRate, v)
+	return u
+}
+
+// UpdateDailyRate sets the "daily_rate" field to the value that was provided on create.
+func (u *StaffMemberUpsert) UpdateDailyRate() *StaffMemberUpsert {
+	u.SetExcluded(staffmember.FieldDailyRate)
+	return u
+}
+
+// AddDailyRate adds v to the "daily_rate" field.
+func (u *StaffMemberUpsert) AddDailyRate(v float64) *StaffMemberUpsert {
+	u.Add(staffmember.FieldDailyRate, v)
+	return u
+}
+
+// ClearDailyRate clears the value of the "daily_rate" field.
+func (u *StaffMemberUpsert) ClearDailyRate() *StaffMemberUpsert {
+	u.SetNull(staffmember.FieldDailyRate)
+	return u
+}
+
+// SetMonthlySalary sets the "monthly_salary" field.
+func (u *StaffMemberUpsert) SetMonthlySalary(v float64) *StaffMemberUpsert {
+	u.Set(staffmember.FieldMonthlySalary, v)
+	return u
+}
+
+// UpdateMonthlySalary sets the "monthly_salary" field to the value that was provided on create.
+func (u *StaffMemberUpsert) UpdateMonthlySalary() *StaffMemberUpsert {
+	u.SetExcluded(staffmember.FieldMonthlySalary)
+	return u
+}
+
+// AddMonthlySalary adds v to the "monthly_salary" field.
+func (u *StaffMemberUpsert) AddMonthlySalary(v float64) *StaffMemberUpsert {
+	u.Add(staffmember.FieldMonthlySalary, v)
+	return u
+}
+
+// ClearMonthlySalary clears the value of the "monthly_salary" field.
+func (u *StaffMemberUpsert) ClearMonthlySalary() *StaffMemberUpsert {
+	u.SetNull(staffmember.FieldMonthlySalary)
+	return u
+}
+
+// SetMpesaPhone sets the "mpesa_phone" field.
+func (u *StaffMemberUpsert) SetMpesaPhone(v string) *StaffMemberUpsert {
+	u.Set(staffmember.FieldMpesaPhone, v)
+	return u
+}
+
+// UpdateMpesaPhone sets the "mpesa_phone" field to the value that was provided on create.
+func (u *StaffMemberUpsert) UpdateMpesaPhone() *StaffMemberUpsert {
+	u.SetExcluded(staffmember.FieldMpesaPhone)
+	return u
+}
+
+// ClearMpesaPhone clears the value of the "mpesa_phone" field.
+func (u *StaffMemberUpsert) ClearMpesaPhone() *StaffMemberUpsert {
+	u.SetNull(staffmember.FieldMpesaPhone)
+	return u
+}
+
+// SetBankAccountNumber sets the "bank_account_number" field.
+func (u *StaffMemberUpsert) SetBankAccountNumber(v string) *StaffMemberUpsert {
+	u.Set(staffmember.FieldBankAccountNumber, v)
+	return u
+}
+
+// UpdateBankAccountNumber sets the "bank_account_number" field to the value that was provided on create.
+func (u *StaffMemberUpsert) UpdateBankAccountNumber() *StaffMemberUpsert {
+	u.SetExcluded(staffmember.FieldBankAccountNumber)
+	return u
+}
+
+// ClearBankAccountNumber clears the value of the "bank_account_number" field.
+func (u *StaffMemberUpsert) ClearBankAccountNumber() *StaffMemberUpsert {
+	u.SetNull(staffmember.FieldBankAccountNumber)
+	return u
+}
+
+// SetBankName sets the "bank_name" field.
+func (u *StaffMemberUpsert) SetBankName(v string) *StaffMemberUpsert {
+	u.Set(staffmember.FieldBankName, v)
+	return u
+}
+
+// UpdateBankName sets the "bank_name" field to the value that was provided on create.
+func (u *StaffMemberUpsert) UpdateBankName() *StaffMemberUpsert {
+	u.SetExcluded(staffmember.FieldBankName)
+	return u
+}
+
+// ClearBankName clears the value of the "bank_name" field.
+func (u *StaffMemberUpsert) ClearBankName() *StaffMemberUpsert {
+	u.SetNull(staffmember.FieldBankName)
 	return u
 }
 
@@ -825,6 +1104,174 @@ func (u *StaffMemberUpsertOne) SetRole(v string) *StaffMemberUpsertOne {
 func (u *StaffMemberUpsertOne) UpdateRole() *StaffMemberUpsertOne {
 	return u.Update(func(s *StaffMemberUpsert) {
 		s.UpdateRole()
+	})
+}
+
+// SetEmploymentType sets the "employment_type" field.
+func (u *StaffMemberUpsertOne) SetEmploymentType(v staffmember.EmploymentType) *StaffMemberUpsertOne {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.SetEmploymentType(v)
+	})
+}
+
+// UpdateEmploymentType sets the "employment_type" field to the value that was provided on create.
+func (u *StaffMemberUpsertOne) UpdateEmploymentType() *StaffMemberUpsertOne {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.UpdateEmploymentType()
+	})
+}
+
+// ClearEmploymentType clears the value of the "employment_type" field.
+func (u *StaffMemberUpsertOne) ClearEmploymentType() *StaffMemberUpsertOne {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.ClearEmploymentType()
+	})
+}
+
+// SetHourlyRate sets the "hourly_rate" field.
+func (u *StaffMemberUpsertOne) SetHourlyRate(v float64) *StaffMemberUpsertOne {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.SetHourlyRate(v)
+	})
+}
+
+// AddHourlyRate adds v to the "hourly_rate" field.
+func (u *StaffMemberUpsertOne) AddHourlyRate(v float64) *StaffMemberUpsertOne {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.AddHourlyRate(v)
+	})
+}
+
+// UpdateHourlyRate sets the "hourly_rate" field to the value that was provided on create.
+func (u *StaffMemberUpsertOne) UpdateHourlyRate() *StaffMemberUpsertOne {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.UpdateHourlyRate()
+	})
+}
+
+// ClearHourlyRate clears the value of the "hourly_rate" field.
+func (u *StaffMemberUpsertOne) ClearHourlyRate() *StaffMemberUpsertOne {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.ClearHourlyRate()
+	})
+}
+
+// SetDailyRate sets the "daily_rate" field.
+func (u *StaffMemberUpsertOne) SetDailyRate(v float64) *StaffMemberUpsertOne {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.SetDailyRate(v)
+	})
+}
+
+// AddDailyRate adds v to the "daily_rate" field.
+func (u *StaffMemberUpsertOne) AddDailyRate(v float64) *StaffMemberUpsertOne {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.AddDailyRate(v)
+	})
+}
+
+// UpdateDailyRate sets the "daily_rate" field to the value that was provided on create.
+func (u *StaffMemberUpsertOne) UpdateDailyRate() *StaffMemberUpsertOne {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.UpdateDailyRate()
+	})
+}
+
+// ClearDailyRate clears the value of the "daily_rate" field.
+func (u *StaffMemberUpsertOne) ClearDailyRate() *StaffMemberUpsertOne {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.ClearDailyRate()
+	})
+}
+
+// SetMonthlySalary sets the "monthly_salary" field.
+func (u *StaffMemberUpsertOne) SetMonthlySalary(v float64) *StaffMemberUpsertOne {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.SetMonthlySalary(v)
+	})
+}
+
+// AddMonthlySalary adds v to the "monthly_salary" field.
+func (u *StaffMemberUpsertOne) AddMonthlySalary(v float64) *StaffMemberUpsertOne {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.AddMonthlySalary(v)
+	})
+}
+
+// UpdateMonthlySalary sets the "monthly_salary" field to the value that was provided on create.
+func (u *StaffMemberUpsertOne) UpdateMonthlySalary() *StaffMemberUpsertOne {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.UpdateMonthlySalary()
+	})
+}
+
+// ClearMonthlySalary clears the value of the "monthly_salary" field.
+func (u *StaffMemberUpsertOne) ClearMonthlySalary() *StaffMemberUpsertOne {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.ClearMonthlySalary()
+	})
+}
+
+// SetMpesaPhone sets the "mpesa_phone" field.
+func (u *StaffMemberUpsertOne) SetMpesaPhone(v string) *StaffMemberUpsertOne {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.SetMpesaPhone(v)
+	})
+}
+
+// UpdateMpesaPhone sets the "mpesa_phone" field to the value that was provided on create.
+func (u *StaffMemberUpsertOne) UpdateMpesaPhone() *StaffMemberUpsertOne {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.UpdateMpesaPhone()
+	})
+}
+
+// ClearMpesaPhone clears the value of the "mpesa_phone" field.
+func (u *StaffMemberUpsertOne) ClearMpesaPhone() *StaffMemberUpsertOne {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.ClearMpesaPhone()
+	})
+}
+
+// SetBankAccountNumber sets the "bank_account_number" field.
+func (u *StaffMemberUpsertOne) SetBankAccountNumber(v string) *StaffMemberUpsertOne {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.SetBankAccountNumber(v)
+	})
+}
+
+// UpdateBankAccountNumber sets the "bank_account_number" field to the value that was provided on create.
+func (u *StaffMemberUpsertOne) UpdateBankAccountNumber() *StaffMemberUpsertOne {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.UpdateBankAccountNumber()
+	})
+}
+
+// ClearBankAccountNumber clears the value of the "bank_account_number" field.
+func (u *StaffMemberUpsertOne) ClearBankAccountNumber() *StaffMemberUpsertOne {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.ClearBankAccountNumber()
+	})
+}
+
+// SetBankName sets the "bank_name" field.
+func (u *StaffMemberUpsertOne) SetBankName(v string) *StaffMemberUpsertOne {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.SetBankName(v)
+	})
+}
+
+// UpdateBankName sets the "bank_name" field to the value that was provided on create.
+func (u *StaffMemberUpsertOne) UpdateBankName() *StaffMemberUpsertOne {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.UpdateBankName()
+	})
+}
+
+// ClearBankName clears the value of the "bank_name" field.
+func (u *StaffMemberUpsertOne) ClearBankName() *StaffMemberUpsertOne {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.ClearBankName()
 	})
 }
 
@@ -1274,6 +1721,174 @@ func (u *StaffMemberUpsertBulk) SetRole(v string) *StaffMemberUpsertBulk {
 func (u *StaffMemberUpsertBulk) UpdateRole() *StaffMemberUpsertBulk {
 	return u.Update(func(s *StaffMemberUpsert) {
 		s.UpdateRole()
+	})
+}
+
+// SetEmploymentType sets the "employment_type" field.
+func (u *StaffMemberUpsertBulk) SetEmploymentType(v staffmember.EmploymentType) *StaffMemberUpsertBulk {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.SetEmploymentType(v)
+	})
+}
+
+// UpdateEmploymentType sets the "employment_type" field to the value that was provided on create.
+func (u *StaffMemberUpsertBulk) UpdateEmploymentType() *StaffMemberUpsertBulk {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.UpdateEmploymentType()
+	})
+}
+
+// ClearEmploymentType clears the value of the "employment_type" field.
+func (u *StaffMemberUpsertBulk) ClearEmploymentType() *StaffMemberUpsertBulk {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.ClearEmploymentType()
+	})
+}
+
+// SetHourlyRate sets the "hourly_rate" field.
+func (u *StaffMemberUpsertBulk) SetHourlyRate(v float64) *StaffMemberUpsertBulk {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.SetHourlyRate(v)
+	})
+}
+
+// AddHourlyRate adds v to the "hourly_rate" field.
+func (u *StaffMemberUpsertBulk) AddHourlyRate(v float64) *StaffMemberUpsertBulk {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.AddHourlyRate(v)
+	})
+}
+
+// UpdateHourlyRate sets the "hourly_rate" field to the value that was provided on create.
+func (u *StaffMemberUpsertBulk) UpdateHourlyRate() *StaffMemberUpsertBulk {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.UpdateHourlyRate()
+	})
+}
+
+// ClearHourlyRate clears the value of the "hourly_rate" field.
+func (u *StaffMemberUpsertBulk) ClearHourlyRate() *StaffMemberUpsertBulk {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.ClearHourlyRate()
+	})
+}
+
+// SetDailyRate sets the "daily_rate" field.
+func (u *StaffMemberUpsertBulk) SetDailyRate(v float64) *StaffMemberUpsertBulk {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.SetDailyRate(v)
+	})
+}
+
+// AddDailyRate adds v to the "daily_rate" field.
+func (u *StaffMemberUpsertBulk) AddDailyRate(v float64) *StaffMemberUpsertBulk {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.AddDailyRate(v)
+	})
+}
+
+// UpdateDailyRate sets the "daily_rate" field to the value that was provided on create.
+func (u *StaffMemberUpsertBulk) UpdateDailyRate() *StaffMemberUpsertBulk {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.UpdateDailyRate()
+	})
+}
+
+// ClearDailyRate clears the value of the "daily_rate" field.
+func (u *StaffMemberUpsertBulk) ClearDailyRate() *StaffMemberUpsertBulk {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.ClearDailyRate()
+	})
+}
+
+// SetMonthlySalary sets the "monthly_salary" field.
+func (u *StaffMemberUpsertBulk) SetMonthlySalary(v float64) *StaffMemberUpsertBulk {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.SetMonthlySalary(v)
+	})
+}
+
+// AddMonthlySalary adds v to the "monthly_salary" field.
+func (u *StaffMemberUpsertBulk) AddMonthlySalary(v float64) *StaffMemberUpsertBulk {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.AddMonthlySalary(v)
+	})
+}
+
+// UpdateMonthlySalary sets the "monthly_salary" field to the value that was provided on create.
+func (u *StaffMemberUpsertBulk) UpdateMonthlySalary() *StaffMemberUpsertBulk {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.UpdateMonthlySalary()
+	})
+}
+
+// ClearMonthlySalary clears the value of the "monthly_salary" field.
+func (u *StaffMemberUpsertBulk) ClearMonthlySalary() *StaffMemberUpsertBulk {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.ClearMonthlySalary()
+	})
+}
+
+// SetMpesaPhone sets the "mpesa_phone" field.
+func (u *StaffMemberUpsertBulk) SetMpesaPhone(v string) *StaffMemberUpsertBulk {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.SetMpesaPhone(v)
+	})
+}
+
+// UpdateMpesaPhone sets the "mpesa_phone" field to the value that was provided on create.
+func (u *StaffMemberUpsertBulk) UpdateMpesaPhone() *StaffMemberUpsertBulk {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.UpdateMpesaPhone()
+	})
+}
+
+// ClearMpesaPhone clears the value of the "mpesa_phone" field.
+func (u *StaffMemberUpsertBulk) ClearMpesaPhone() *StaffMemberUpsertBulk {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.ClearMpesaPhone()
+	})
+}
+
+// SetBankAccountNumber sets the "bank_account_number" field.
+func (u *StaffMemberUpsertBulk) SetBankAccountNumber(v string) *StaffMemberUpsertBulk {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.SetBankAccountNumber(v)
+	})
+}
+
+// UpdateBankAccountNumber sets the "bank_account_number" field to the value that was provided on create.
+func (u *StaffMemberUpsertBulk) UpdateBankAccountNumber() *StaffMemberUpsertBulk {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.UpdateBankAccountNumber()
+	})
+}
+
+// ClearBankAccountNumber clears the value of the "bank_account_number" field.
+func (u *StaffMemberUpsertBulk) ClearBankAccountNumber() *StaffMemberUpsertBulk {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.ClearBankAccountNumber()
+	})
+}
+
+// SetBankName sets the "bank_name" field.
+func (u *StaffMemberUpsertBulk) SetBankName(v string) *StaffMemberUpsertBulk {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.SetBankName(v)
+	})
+}
+
+// UpdateBankName sets the "bank_name" field to the value that was provided on create.
+func (u *StaffMemberUpsertBulk) UpdateBankName() *StaffMemberUpsertBulk {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.UpdateBankName()
+	})
+}
+
+// ClearBankName clears the value of the "bank_name" field.
+func (u *StaffMemberUpsertBulk) ClearBankName() *StaffMemberUpsertBulk {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.ClearBankName()
 	})
 }
 

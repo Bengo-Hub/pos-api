@@ -222,8 +222,17 @@ type ServicePackageRedemption func(*sql.Selector)
 // ServiceQueueEntry is the predicate function for servicequeueentry builders.
 type ServiceQueueEntry func(*sql.Selector)
 
+// StaffAdvance is the predicate function for staffadvance builders.
+type StaffAdvance func(*sql.Selector)
+
 // StaffMember is the predicate function for staffmember builders.
 type StaffMember func(*sql.Selector)
+
+// StaffPayroll is the predicate function for staffpayroll builders.
+type StaffPayroll func(*sql.Selector)
+
+// StaffPayrollLine is the predicate function for staffpayrollline builders.
+type StaffPayrollLine func(*sql.Selector)
 
 // StaffSchedule is the predicate function for staffschedule builders.
 type StaffSchedule func(*sql.Selector)

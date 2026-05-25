@@ -156,8 +156,14 @@ type Tx struct {
 	ServicePackageRedemption *ServicePackageRedemptionClient
 	// ServiceQueueEntry is the client for interacting with the ServiceQueueEntry builders.
 	ServiceQueueEntry *ServiceQueueEntryClient
+	// StaffAdvance is the client for interacting with the StaffAdvance builders.
+	StaffAdvance *StaffAdvanceClient
 	// StaffMember is the client for interacting with the StaffMember builders.
 	StaffMember *StaffMemberClient
+	// StaffPayroll is the client for interacting with the StaffPayroll builders.
+	StaffPayroll *StaffPayrollClient
+	// StaffPayrollLine is the client for interacting with the StaffPayrollLine builders.
+	StaffPayrollLine *StaffPayrollLineClient
 	// StaffSchedule is the client for interacting with the StaffSchedule builders.
 	StaffSchedule *StaffScheduleClient
 	// StockAlertSubscription is the client for interacting with the StockAlertSubscription builders.
@@ -389,7 +395,10 @@ func (tx *Tx) init() {
 	tx.ServicePackagePurchase = NewServicePackagePurchaseClient(tx.config)
 	tx.ServicePackageRedemption = NewServicePackageRedemptionClient(tx.config)
 	tx.ServiceQueueEntry = NewServiceQueueEntryClient(tx.config)
+	tx.StaffAdvance = NewStaffAdvanceClient(tx.config)
 	tx.StaffMember = NewStaffMemberClient(tx.config)
+	tx.StaffPayroll = NewStaffPayrollClient(tx.config)
+	tx.StaffPayrollLine = NewStaffPayrollLineClient(tx.config)
 	tx.StaffSchedule = NewStaffScheduleClient(tx.config)
 	tx.StockAlertSubscription = NewStockAlertSubscriptionClient(tx.config)
 	tx.StockConsumptionEvent = NewStockConsumptionEventClient(tx.config)

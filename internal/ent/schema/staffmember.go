@@ -28,6 +28,20 @@ func (StaffMember) Fields() []ent.Field {
 		field.Bool("is_active").Default(true),
 		field.String("role").Default("cashier").
 			Comment("POS role: admin|manager|cashier|waiter|kitchen|bar|receptionist"),
+		// Employment & compensation
+		field.Enum("employment_type").
+			Values("full_time", "part_time", "casual", "contractor").
+			Default("full_time").Optional(),
+		field.Float("hourly_rate").Optional().Nillable().
+			Comment("Compensation per hour (for hourly/casual staff)"),
+		field.Float("daily_rate").Optional().Nillable().
+			Comment("Compensation per day (for day-rate staff)"),
+		field.Float("monthly_salary").Optional().Nillable().
+			Comment("Fixed monthly gross salary"),
+		field.String("mpesa_phone").Optional().Nillable().
+			Comment("M-Pesa phone (254...) for salary disbursement"),
+		field.String("bank_account_number").Optional().Nillable(),
+		field.String("bank_name").Optional().Nillable(),
 		// Terminal PIN login — bcrypt hash of the 4-6 digit PIN set by a manager.
 		// Null means PIN not configured; staff must use SSO until a PIN is set.
 		field.String("pin_hash").Optional().Nillable().Sensitive(),

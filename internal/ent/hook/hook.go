@@ -873,6 +873,18 @@ func (f ServiceQueueEntryFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ServiceQueueEntryMutation", m)
 }
 
+// The StaffAdvanceFunc type is an adapter to allow the use of ordinary
+// function as StaffAdvance mutator.
+type StaffAdvanceFunc func(context.Context, *ent.StaffAdvanceMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f StaffAdvanceFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.StaffAdvanceMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.StaffAdvanceMutation", m)
+}
+
 // The StaffMemberFunc type is an adapter to allow the use of ordinary
 // function as StaffMember mutator.
 type StaffMemberFunc func(context.Context, *ent.StaffMemberMutation) (ent.Value, error)
@@ -883,6 +895,30 @@ func (f StaffMemberFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value,
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.StaffMemberMutation", m)
+}
+
+// The StaffPayrollFunc type is an adapter to allow the use of ordinary
+// function as StaffPayroll mutator.
+type StaffPayrollFunc func(context.Context, *ent.StaffPayrollMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f StaffPayrollFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.StaffPayrollMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.StaffPayrollMutation", m)
+}
+
+// The StaffPayrollLineFunc type is an adapter to allow the use of ordinary
+// function as StaffPayrollLine mutator.
+type StaffPayrollLineFunc func(context.Context, *ent.StaffPayrollLineMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f StaffPayrollLineFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.StaffPayrollLineMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.StaffPayrollLineMutation", m)
 }
 
 // The StaffScheduleFunc type is an adapter to allow the use of ordinary

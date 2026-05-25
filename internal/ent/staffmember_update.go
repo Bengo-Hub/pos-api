@@ -171,6 +171,167 @@ func (_u *StaffMemberUpdate) SetNillableRole(v *string) *StaffMemberUpdate {
 	return _u
 }
 
+// SetEmploymentType sets the "employment_type" field.
+func (_u *StaffMemberUpdate) SetEmploymentType(v staffmember.EmploymentType) *StaffMemberUpdate {
+	_u.mutation.SetEmploymentType(v)
+	return _u
+}
+
+// SetNillableEmploymentType sets the "employment_type" field if the given value is not nil.
+func (_u *StaffMemberUpdate) SetNillableEmploymentType(v *staffmember.EmploymentType) *StaffMemberUpdate {
+	if v != nil {
+		_u.SetEmploymentType(*v)
+	}
+	return _u
+}
+
+// ClearEmploymentType clears the value of the "employment_type" field.
+func (_u *StaffMemberUpdate) ClearEmploymentType() *StaffMemberUpdate {
+	_u.mutation.ClearEmploymentType()
+	return _u
+}
+
+// SetHourlyRate sets the "hourly_rate" field.
+func (_u *StaffMemberUpdate) SetHourlyRate(v float64) *StaffMemberUpdate {
+	_u.mutation.ResetHourlyRate()
+	_u.mutation.SetHourlyRate(v)
+	return _u
+}
+
+// SetNillableHourlyRate sets the "hourly_rate" field if the given value is not nil.
+func (_u *StaffMemberUpdate) SetNillableHourlyRate(v *float64) *StaffMemberUpdate {
+	if v != nil {
+		_u.SetHourlyRate(*v)
+	}
+	return _u
+}
+
+// AddHourlyRate adds value to the "hourly_rate" field.
+func (_u *StaffMemberUpdate) AddHourlyRate(v float64) *StaffMemberUpdate {
+	_u.mutation.AddHourlyRate(v)
+	return _u
+}
+
+// ClearHourlyRate clears the value of the "hourly_rate" field.
+func (_u *StaffMemberUpdate) ClearHourlyRate() *StaffMemberUpdate {
+	_u.mutation.ClearHourlyRate()
+	return _u
+}
+
+// SetDailyRate sets the "daily_rate" field.
+func (_u *StaffMemberUpdate) SetDailyRate(v float64) *StaffMemberUpdate {
+	_u.mutation.ResetDailyRate()
+	_u.mutation.SetDailyRate(v)
+	return _u
+}
+
+// SetNillableDailyRate sets the "daily_rate" field if the given value is not nil.
+func (_u *StaffMemberUpdate) SetNillableDailyRate(v *float64) *StaffMemberUpdate {
+	if v != nil {
+		_u.SetDailyRate(*v)
+	}
+	return _u
+}
+
+// AddDailyRate adds value to the "daily_rate" field.
+func (_u *StaffMemberUpdate) AddDailyRate(v float64) *StaffMemberUpdate {
+	_u.mutation.AddDailyRate(v)
+	return _u
+}
+
+// ClearDailyRate clears the value of the "daily_rate" field.
+func (_u *StaffMemberUpdate) ClearDailyRate() *StaffMemberUpdate {
+	_u.mutation.ClearDailyRate()
+	return _u
+}
+
+// SetMonthlySalary sets the "monthly_salary" field.
+func (_u *StaffMemberUpdate) SetMonthlySalary(v float64) *StaffMemberUpdate {
+	_u.mutation.ResetMonthlySalary()
+	_u.mutation.SetMonthlySalary(v)
+	return _u
+}
+
+// SetNillableMonthlySalary sets the "monthly_salary" field if the given value is not nil.
+func (_u *StaffMemberUpdate) SetNillableMonthlySalary(v *float64) *StaffMemberUpdate {
+	if v != nil {
+		_u.SetMonthlySalary(*v)
+	}
+	return _u
+}
+
+// AddMonthlySalary adds value to the "monthly_salary" field.
+func (_u *StaffMemberUpdate) AddMonthlySalary(v float64) *StaffMemberUpdate {
+	_u.mutation.AddMonthlySalary(v)
+	return _u
+}
+
+// ClearMonthlySalary clears the value of the "monthly_salary" field.
+func (_u *StaffMemberUpdate) ClearMonthlySalary() *StaffMemberUpdate {
+	_u.mutation.ClearMonthlySalary()
+	return _u
+}
+
+// SetMpesaPhone sets the "mpesa_phone" field.
+func (_u *StaffMemberUpdate) SetMpesaPhone(v string) *StaffMemberUpdate {
+	_u.mutation.SetMpesaPhone(v)
+	return _u
+}
+
+// SetNillableMpesaPhone sets the "mpesa_phone" field if the given value is not nil.
+func (_u *StaffMemberUpdate) SetNillableMpesaPhone(v *string) *StaffMemberUpdate {
+	if v != nil {
+		_u.SetMpesaPhone(*v)
+	}
+	return _u
+}
+
+// ClearMpesaPhone clears the value of the "mpesa_phone" field.
+func (_u *StaffMemberUpdate) ClearMpesaPhone() *StaffMemberUpdate {
+	_u.mutation.ClearMpesaPhone()
+	return _u
+}
+
+// SetBankAccountNumber sets the "bank_account_number" field.
+func (_u *StaffMemberUpdate) SetBankAccountNumber(v string) *StaffMemberUpdate {
+	_u.mutation.SetBankAccountNumber(v)
+	return _u
+}
+
+// SetNillableBankAccountNumber sets the "bank_account_number" field if the given value is not nil.
+func (_u *StaffMemberUpdate) SetNillableBankAccountNumber(v *string) *StaffMemberUpdate {
+	if v != nil {
+		_u.SetBankAccountNumber(*v)
+	}
+	return _u
+}
+
+// ClearBankAccountNumber clears the value of the "bank_account_number" field.
+func (_u *StaffMemberUpdate) ClearBankAccountNumber() *StaffMemberUpdate {
+	_u.mutation.ClearBankAccountNumber()
+	return _u
+}
+
+// SetBankName sets the "bank_name" field.
+func (_u *StaffMemberUpdate) SetBankName(v string) *StaffMemberUpdate {
+	_u.mutation.SetBankName(v)
+	return _u
+}
+
+// SetNillableBankName sets the "bank_name" field if the given value is not nil.
+func (_u *StaffMemberUpdate) SetNillableBankName(v *string) *StaffMemberUpdate {
+	if v != nil {
+		_u.SetBankName(*v)
+	}
+	return _u
+}
+
+// ClearBankName clears the value of the "bank_name" field.
+func (_u *StaffMemberUpdate) ClearBankName() *StaffMemberUpdate {
+	_u.mutation.ClearBankName()
+	return _u
+}
+
 // SetPinHash sets the "pin_hash" field.
 func (_u *StaffMemberUpdate) SetPinHash(v string) *StaffMemberUpdate {
 	_u.mutation.SetPinHash(v)
@@ -286,6 +447,11 @@ func (_u *StaffMemberUpdate) check() error {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "StaffMember.name": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.EmploymentType(); ok {
+		if err := staffmember.EmploymentTypeValidator(v); err != nil {
+			return &ValidationError{Name: "employment_type", err: fmt.Errorf(`ent: validator failed for field "StaffMember.employment_type": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -344,6 +510,57 @@ func (_u *StaffMemberUpdate) sqlSave(ctx context.Context) (_node int, err error)
 	}
 	if value, ok := _u.mutation.Role(); ok {
 		_spec.SetField(staffmember.FieldRole, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.EmploymentType(); ok {
+		_spec.SetField(staffmember.FieldEmploymentType, field.TypeEnum, value)
+	}
+	if _u.mutation.EmploymentTypeCleared() {
+		_spec.ClearField(staffmember.FieldEmploymentType, field.TypeEnum)
+	}
+	if value, ok := _u.mutation.HourlyRate(); ok {
+		_spec.SetField(staffmember.FieldHourlyRate, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedHourlyRate(); ok {
+		_spec.AddField(staffmember.FieldHourlyRate, field.TypeFloat64, value)
+	}
+	if _u.mutation.HourlyRateCleared() {
+		_spec.ClearField(staffmember.FieldHourlyRate, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.DailyRate(); ok {
+		_spec.SetField(staffmember.FieldDailyRate, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedDailyRate(); ok {
+		_spec.AddField(staffmember.FieldDailyRate, field.TypeFloat64, value)
+	}
+	if _u.mutation.DailyRateCleared() {
+		_spec.ClearField(staffmember.FieldDailyRate, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.MonthlySalary(); ok {
+		_spec.SetField(staffmember.FieldMonthlySalary, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedMonthlySalary(); ok {
+		_spec.AddField(staffmember.FieldMonthlySalary, field.TypeFloat64, value)
+	}
+	if _u.mutation.MonthlySalaryCleared() {
+		_spec.ClearField(staffmember.FieldMonthlySalary, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.MpesaPhone(); ok {
+		_spec.SetField(staffmember.FieldMpesaPhone, field.TypeString, value)
+	}
+	if _u.mutation.MpesaPhoneCleared() {
+		_spec.ClearField(staffmember.FieldMpesaPhone, field.TypeString)
+	}
+	if value, ok := _u.mutation.BankAccountNumber(); ok {
+		_spec.SetField(staffmember.FieldBankAccountNumber, field.TypeString, value)
+	}
+	if _u.mutation.BankAccountNumberCleared() {
+		_spec.ClearField(staffmember.FieldBankAccountNumber, field.TypeString)
+	}
+	if value, ok := _u.mutation.BankName(); ok {
+		_spec.SetField(staffmember.FieldBankName, field.TypeString, value)
+	}
+	if _u.mutation.BankNameCleared() {
+		_spec.ClearField(staffmember.FieldBankName, field.TypeString)
 	}
 	if value, ok := _u.mutation.PinHash(); ok {
 		_spec.SetField(staffmember.FieldPinHash, field.TypeString, value)
@@ -527,6 +744,167 @@ func (_u *StaffMemberUpdateOne) SetNillableRole(v *string) *StaffMemberUpdateOne
 	return _u
 }
 
+// SetEmploymentType sets the "employment_type" field.
+func (_u *StaffMemberUpdateOne) SetEmploymentType(v staffmember.EmploymentType) *StaffMemberUpdateOne {
+	_u.mutation.SetEmploymentType(v)
+	return _u
+}
+
+// SetNillableEmploymentType sets the "employment_type" field if the given value is not nil.
+func (_u *StaffMemberUpdateOne) SetNillableEmploymentType(v *staffmember.EmploymentType) *StaffMemberUpdateOne {
+	if v != nil {
+		_u.SetEmploymentType(*v)
+	}
+	return _u
+}
+
+// ClearEmploymentType clears the value of the "employment_type" field.
+func (_u *StaffMemberUpdateOne) ClearEmploymentType() *StaffMemberUpdateOne {
+	_u.mutation.ClearEmploymentType()
+	return _u
+}
+
+// SetHourlyRate sets the "hourly_rate" field.
+func (_u *StaffMemberUpdateOne) SetHourlyRate(v float64) *StaffMemberUpdateOne {
+	_u.mutation.ResetHourlyRate()
+	_u.mutation.SetHourlyRate(v)
+	return _u
+}
+
+// SetNillableHourlyRate sets the "hourly_rate" field if the given value is not nil.
+func (_u *StaffMemberUpdateOne) SetNillableHourlyRate(v *float64) *StaffMemberUpdateOne {
+	if v != nil {
+		_u.SetHourlyRate(*v)
+	}
+	return _u
+}
+
+// AddHourlyRate adds value to the "hourly_rate" field.
+func (_u *StaffMemberUpdateOne) AddHourlyRate(v float64) *StaffMemberUpdateOne {
+	_u.mutation.AddHourlyRate(v)
+	return _u
+}
+
+// ClearHourlyRate clears the value of the "hourly_rate" field.
+func (_u *StaffMemberUpdateOne) ClearHourlyRate() *StaffMemberUpdateOne {
+	_u.mutation.ClearHourlyRate()
+	return _u
+}
+
+// SetDailyRate sets the "daily_rate" field.
+func (_u *StaffMemberUpdateOne) SetDailyRate(v float64) *StaffMemberUpdateOne {
+	_u.mutation.ResetDailyRate()
+	_u.mutation.SetDailyRate(v)
+	return _u
+}
+
+// SetNillableDailyRate sets the "daily_rate" field if the given value is not nil.
+func (_u *StaffMemberUpdateOne) SetNillableDailyRate(v *float64) *StaffMemberUpdateOne {
+	if v != nil {
+		_u.SetDailyRate(*v)
+	}
+	return _u
+}
+
+// AddDailyRate adds value to the "daily_rate" field.
+func (_u *StaffMemberUpdateOne) AddDailyRate(v float64) *StaffMemberUpdateOne {
+	_u.mutation.AddDailyRate(v)
+	return _u
+}
+
+// ClearDailyRate clears the value of the "daily_rate" field.
+func (_u *StaffMemberUpdateOne) ClearDailyRate() *StaffMemberUpdateOne {
+	_u.mutation.ClearDailyRate()
+	return _u
+}
+
+// SetMonthlySalary sets the "monthly_salary" field.
+func (_u *StaffMemberUpdateOne) SetMonthlySalary(v float64) *StaffMemberUpdateOne {
+	_u.mutation.ResetMonthlySalary()
+	_u.mutation.SetMonthlySalary(v)
+	return _u
+}
+
+// SetNillableMonthlySalary sets the "monthly_salary" field if the given value is not nil.
+func (_u *StaffMemberUpdateOne) SetNillableMonthlySalary(v *float64) *StaffMemberUpdateOne {
+	if v != nil {
+		_u.SetMonthlySalary(*v)
+	}
+	return _u
+}
+
+// AddMonthlySalary adds value to the "monthly_salary" field.
+func (_u *StaffMemberUpdateOne) AddMonthlySalary(v float64) *StaffMemberUpdateOne {
+	_u.mutation.AddMonthlySalary(v)
+	return _u
+}
+
+// ClearMonthlySalary clears the value of the "monthly_salary" field.
+func (_u *StaffMemberUpdateOne) ClearMonthlySalary() *StaffMemberUpdateOne {
+	_u.mutation.ClearMonthlySalary()
+	return _u
+}
+
+// SetMpesaPhone sets the "mpesa_phone" field.
+func (_u *StaffMemberUpdateOne) SetMpesaPhone(v string) *StaffMemberUpdateOne {
+	_u.mutation.SetMpesaPhone(v)
+	return _u
+}
+
+// SetNillableMpesaPhone sets the "mpesa_phone" field if the given value is not nil.
+func (_u *StaffMemberUpdateOne) SetNillableMpesaPhone(v *string) *StaffMemberUpdateOne {
+	if v != nil {
+		_u.SetMpesaPhone(*v)
+	}
+	return _u
+}
+
+// ClearMpesaPhone clears the value of the "mpesa_phone" field.
+func (_u *StaffMemberUpdateOne) ClearMpesaPhone() *StaffMemberUpdateOne {
+	_u.mutation.ClearMpesaPhone()
+	return _u
+}
+
+// SetBankAccountNumber sets the "bank_account_number" field.
+func (_u *StaffMemberUpdateOne) SetBankAccountNumber(v string) *StaffMemberUpdateOne {
+	_u.mutation.SetBankAccountNumber(v)
+	return _u
+}
+
+// SetNillableBankAccountNumber sets the "bank_account_number" field if the given value is not nil.
+func (_u *StaffMemberUpdateOne) SetNillableBankAccountNumber(v *string) *StaffMemberUpdateOne {
+	if v != nil {
+		_u.SetBankAccountNumber(*v)
+	}
+	return _u
+}
+
+// ClearBankAccountNumber clears the value of the "bank_account_number" field.
+func (_u *StaffMemberUpdateOne) ClearBankAccountNumber() *StaffMemberUpdateOne {
+	_u.mutation.ClearBankAccountNumber()
+	return _u
+}
+
+// SetBankName sets the "bank_name" field.
+func (_u *StaffMemberUpdateOne) SetBankName(v string) *StaffMemberUpdateOne {
+	_u.mutation.SetBankName(v)
+	return _u
+}
+
+// SetNillableBankName sets the "bank_name" field if the given value is not nil.
+func (_u *StaffMemberUpdateOne) SetNillableBankName(v *string) *StaffMemberUpdateOne {
+	if v != nil {
+		_u.SetBankName(*v)
+	}
+	return _u
+}
+
+// ClearBankName clears the value of the "bank_name" field.
+func (_u *StaffMemberUpdateOne) ClearBankName() *StaffMemberUpdateOne {
+	_u.mutation.ClearBankName()
+	return _u
+}
+
 // SetPinHash sets the "pin_hash" field.
 func (_u *StaffMemberUpdateOne) SetPinHash(v string) *StaffMemberUpdateOne {
 	_u.mutation.SetPinHash(v)
@@ -655,6 +1033,11 @@ func (_u *StaffMemberUpdateOne) check() error {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "StaffMember.name": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.EmploymentType(); ok {
+		if err := staffmember.EmploymentTypeValidator(v); err != nil {
+			return &ValidationError{Name: "employment_type", err: fmt.Errorf(`ent: validator failed for field "StaffMember.employment_type": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -730,6 +1113,57 @@ func (_u *StaffMemberUpdateOne) sqlSave(ctx context.Context) (_node *StaffMember
 	}
 	if value, ok := _u.mutation.Role(); ok {
 		_spec.SetField(staffmember.FieldRole, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.EmploymentType(); ok {
+		_spec.SetField(staffmember.FieldEmploymentType, field.TypeEnum, value)
+	}
+	if _u.mutation.EmploymentTypeCleared() {
+		_spec.ClearField(staffmember.FieldEmploymentType, field.TypeEnum)
+	}
+	if value, ok := _u.mutation.HourlyRate(); ok {
+		_spec.SetField(staffmember.FieldHourlyRate, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedHourlyRate(); ok {
+		_spec.AddField(staffmember.FieldHourlyRate, field.TypeFloat64, value)
+	}
+	if _u.mutation.HourlyRateCleared() {
+		_spec.ClearField(staffmember.FieldHourlyRate, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.DailyRate(); ok {
+		_spec.SetField(staffmember.FieldDailyRate, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedDailyRate(); ok {
+		_spec.AddField(staffmember.FieldDailyRate, field.TypeFloat64, value)
+	}
+	if _u.mutation.DailyRateCleared() {
+		_spec.ClearField(staffmember.FieldDailyRate, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.MonthlySalary(); ok {
+		_spec.SetField(staffmember.FieldMonthlySalary, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedMonthlySalary(); ok {
+		_spec.AddField(staffmember.FieldMonthlySalary, field.TypeFloat64, value)
+	}
+	if _u.mutation.MonthlySalaryCleared() {
+		_spec.ClearField(staffmember.FieldMonthlySalary, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.MpesaPhone(); ok {
+		_spec.SetField(staffmember.FieldMpesaPhone, field.TypeString, value)
+	}
+	if _u.mutation.MpesaPhoneCleared() {
+		_spec.ClearField(staffmember.FieldMpesaPhone, field.TypeString)
+	}
+	if value, ok := _u.mutation.BankAccountNumber(); ok {
+		_spec.SetField(staffmember.FieldBankAccountNumber, field.TypeString, value)
+	}
+	if _u.mutation.BankAccountNumberCleared() {
+		_spec.ClearField(staffmember.FieldBankAccountNumber, field.TypeString)
+	}
+	if value, ok := _u.mutation.BankName(); ok {
+		_spec.SetField(staffmember.FieldBankName, field.TypeString, value)
+	}
+	if _u.mutation.BankNameCleared() {
+		_spec.ClearField(staffmember.FieldBankName, field.TypeString)
 	}
 	if value, ok := _u.mutation.PinHash(); ok {
 		_spec.SetField(staffmember.FieldPinHash, field.TypeString, value)
