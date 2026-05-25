@@ -85,6 +85,16 @@ func TaxStatus(v string) predicate.POSCatalogOverride {
 	return predicate.POSCatalogOverride(sql.FieldEQ(FieldTaxStatus, v))
 }
 
+// TaxCodeID applies equality check predicate on the "tax_code_id" field. It's identical to TaxCodeIDEQ.
+func TaxCodeID(v string) predicate.POSCatalogOverride {
+	return predicate.POSCatalogOverride(sql.FieldEQ(FieldTaxCodeID, v))
+}
+
+// PriceIncludesTax applies equality check predicate on the "price_includes_tax" field. It's identical to PriceIncludesTaxEQ.
+func PriceIncludesTax(v bool) predicate.POSCatalogOverride {
+	return predicate.POSCatalogOverride(sql.FieldEQ(FieldPriceIncludesTax, v))
+}
+
 // IsAvailable applies equality check predicate on the "is_available" field. It's identical to IsAvailableEQ.
 func IsAvailable(v bool) predicate.POSCatalogOverride {
 	return predicate.POSCatalogOverride(sql.FieldEQ(FieldIsAvailable, v))
@@ -473,6 +483,91 @@ func TaxStatusEqualFold(v string) predicate.POSCatalogOverride {
 // TaxStatusContainsFold applies the ContainsFold predicate on the "tax_status" field.
 func TaxStatusContainsFold(v string) predicate.POSCatalogOverride {
 	return predicate.POSCatalogOverride(sql.FieldContainsFold(FieldTaxStatus, v))
+}
+
+// TaxCodeIDEQ applies the EQ predicate on the "tax_code_id" field.
+func TaxCodeIDEQ(v string) predicate.POSCatalogOverride {
+	return predicate.POSCatalogOverride(sql.FieldEQ(FieldTaxCodeID, v))
+}
+
+// TaxCodeIDNEQ applies the NEQ predicate on the "tax_code_id" field.
+func TaxCodeIDNEQ(v string) predicate.POSCatalogOverride {
+	return predicate.POSCatalogOverride(sql.FieldNEQ(FieldTaxCodeID, v))
+}
+
+// TaxCodeIDIn applies the In predicate on the "tax_code_id" field.
+func TaxCodeIDIn(vs ...string) predicate.POSCatalogOverride {
+	return predicate.POSCatalogOverride(sql.FieldIn(FieldTaxCodeID, vs...))
+}
+
+// TaxCodeIDNotIn applies the NotIn predicate on the "tax_code_id" field.
+func TaxCodeIDNotIn(vs ...string) predicate.POSCatalogOverride {
+	return predicate.POSCatalogOverride(sql.FieldNotIn(FieldTaxCodeID, vs...))
+}
+
+// TaxCodeIDGT applies the GT predicate on the "tax_code_id" field.
+func TaxCodeIDGT(v string) predicate.POSCatalogOverride {
+	return predicate.POSCatalogOverride(sql.FieldGT(FieldTaxCodeID, v))
+}
+
+// TaxCodeIDGTE applies the GTE predicate on the "tax_code_id" field.
+func TaxCodeIDGTE(v string) predicate.POSCatalogOverride {
+	return predicate.POSCatalogOverride(sql.FieldGTE(FieldTaxCodeID, v))
+}
+
+// TaxCodeIDLT applies the LT predicate on the "tax_code_id" field.
+func TaxCodeIDLT(v string) predicate.POSCatalogOverride {
+	return predicate.POSCatalogOverride(sql.FieldLT(FieldTaxCodeID, v))
+}
+
+// TaxCodeIDLTE applies the LTE predicate on the "tax_code_id" field.
+func TaxCodeIDLTE(v string) predicate.POSCatalogOverride {
+	return predicate.POSCatalogOverride(sql.FieldLTE(FieldTaxCodeID, v))
+}
+
+// TaxCodeIDContains applies the Contains predicate on the "tax_code_id" field.
+func TaxCodeIDContains(v string) predicate.POSCatalogOverride {
+	return predicate.POSCatalogOverride(sql.FieldContains(FieldTaxCodeID, v))
+}
+
+// TaxCodeIDHasPrefix applies the HasPrefix predicate on the "tax_code_id" field.
+func TaxCodeIDHasPrefix(v string) predicate.POSCatalogOverride {
+	return predicate.POSCatalogOverride(sql.FieldHasPrefix(FieldTaxCodeID, v))
+}
+
+// TaxCodeIDHasSuffix applies the HasSuffix predicate on the "tax_code_id" field.
+func TaxCodeIDHasSuffix(v string) predicate.POSCatalogOverride {
+	return predicate.POSCatalogOverride(sql.FieldHasSuffix(FieldTaxCodeID, v))
+}
+
+// TaxCodeIDIsNil applies the IsNil predicate on the "tax_code_id" field.
+func TaxCodeIDIsNil() predicate.POSCatalogOverride {
+	return predicate.POSCatalogOverride(sql.FieldIsNull(FieldTaxCodeID))
+}
+
+// TaxCodeIDNotNil applies the NotNil predicate on the "tax_code_id" field.
+func TaxCodeIDNotNil() predicate.POSCatalogOverride {
+	return predicate.POSCatalogOverride(sql.FieldNotNull(FieldTaxCodeID))
+}
+
+// TaxCodeIDEqualFold applies the EqualFold predicate on the "tax_code_id" field.
+func TaxCodeIDEqualFold(v string) predicate.POSCatalogOverride {
+	return predicate.POSCatalogOverride(sql.FieldEqualFold(FieldTaxCodeID, v))
+}
+
+// TaxCodeIDContainsFold applies the ContainsFold predicate on the "tax_code_id" field.
+func TaxCodeIDContainsFold(v string) predicate.POSCatalogOverride {
+	return predicate.POSCatalogOverride(sql.FieldContainsFold(FieldTaxCodeID, v))
+}
+
+// PriceIncludesTaxEQ applies the EQ predicate on the "price_includes_tax" field.
+func PriceIncludesTaxEQ(v bool) predicate.POSCatalogOverride {
+	return predicate.POSCatalogOverride(sql.FieldEQ(FieldPriceIncludesTax, v))
+}
+
+// PriceIncludesTaxNEQ applies the NEQ predicate on the "price_includes_tax" field.
+func PriceIncludesTaxNEQ(v bool) predicate.POSCatalogOverride {
+	return predicate.POSCatalogOverride(sql.FieldNEQ(FieldPriceIncludesTax, v))
 }
 
 // IsAvailableEQ applies the EQ predicate on the "is_available" field.

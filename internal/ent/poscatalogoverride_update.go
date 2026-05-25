@@ -132,6 +132,40 @@ func (_u *POSCatalogOverrideUpdate) SetNillableTaxStatus(v *string) *POSCatalogO
 	return _u
 }
 
+// SetTaxCodeID sets the "tax_code_id" field.
+func (_u *POSCatalogOverrideUpdate) SetTaxCodeID(v string) *POSCatalogOverrideUpdate {
+	_u.mutation.SetTaxCodeID(v)
+	return _u
+}
+
+// SetNillableTaxCodeID sets the "tax_code_id" field if the given value is not nil.
+func (_u *POSCatalogOverrideUpdate) SetNillableTaxCodeID(v *string) *POSCatalogOverrideUpdate {
+	if v != nil {
+		_u.SetTaxCodeID(*v)
+	}
+	return _u
+}
+
+// ClearTaxCodeID clears the value of the "tax_code_id" field.
+func (_u *POSCatalogOverrideUpdate) ClearTaxCodeID() *POSCatalogOverrideUpdate {
+	_u.mutation.ClearTaxCodeID()
+	return _u
+}
+
+// SetPriceIncludesTax sets the "price_includes_tax" field.
+func (_u *POSCatalogOverrideUpdate) SetPriceIncludesTax(v bool) *POSCatalogOverrideUpdate {
+	_u.mutation.SetPriceIncludesTax(v)
+	return _u
+}
+
+// SetNillablePriceIncludesTax sets the "price_includes_tax" field if the given value is not nil.
+func (_u *POSCatalogOverrideUpdate) SetNillablePriceIncludesTax(v *bool) *POSCatalogOverrideUpdate {
+	if v != nil {
+		_u.SetPriceIncludesTax(*v)
+	}
+	return _u
+}
+
 // SetIsAvailable sets the "is_available" field.
 func (_u *POSCatalogOverrideUpdate) SetIsAvailable(v bool) *POSCatalogOverrideUpdate {
 	_u.mutation.SetIsAvailable(v)
@@ -393,6 +427,15 @@ func (_u *POSCatalogOverrideUpdate) sqlSave(ctx context.Context) (_node int, err
 	if value, ok := _u.mutation.TaxStatus(); ok {
 		_spec.SetField(poscatalogoverride.FieldTaxStatus, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.TaxCodeID(); ok {
+		_spec.SetField(poscatalogoverride.FieldTaxCodeID, field.TypeString, value)
+	}
+	if _u.mutation.TaxCodeIDCleared() {
+		_spec.ClearField(poscatalogoverride.FieldTaxCodeID, field.TypeString)
+	}
+	if value, ok := _u.mutation.PriceIncludesTax(); ok {
+		_spec.SetField(poscatalogoverride.FieldPriceIncludesTax, field.TypeBool, value)
+	}
 	if value, ok := _u.mutation.IsAvailable(); ok {
 		_spec.SetField(poscatalogoverride.FieldIsAvailable, field.TypeBool, value)
 	}
@@ -560,6 +603,40 @@ func (_u *POSCatalogOverrideUpdateOne) SetTaxStatus(v string) *POSCatalogOverrid
 func (_u *POSCatalogOverrideUpdateOne) SetNillableTaxStatus(v *string) *POSCatalogOverrideUpdateOne {
 	if v != nil {
 		_u.SetTaxStatus(*v)
+	}
+	return _u
+}
+
+// SetTaxCodeID sets the "tax_code_id" field.
+func (_u *POSCatalogOverrideUpdateOne) SetTaxCodeID(v string) *POSCatalogOverrideUpdateOne {
+	_u.mutation.SetTaxCodeID(v)
+	return _u
+}
+
+// SetNillableTaxCodeID sets the "tax_code_id" field if the given value is not nil.
+func (_u *POSCatalogOverrideUpdateOne) SetNillableTaxCodeID(v *string) *POSCatalogOverrideUpdateOne {
+	if v != nil {
+		_u.SetTaxCodeID(*v)
+	}
+	return _u
+}
+
+// ClearTaxCodeID clears the value of the "tax_code_id" field.
+func (_u *POSCatalogOverrideUpdateOne) ClearTaxCodeID() *POSCatalogOverrideUpdateOne {
+	_u.mutation.ClearTaxCodeID()
+	return _u
+}
+
+// SetPriceIncludesTax sets the "price_includes_tax" field.
+func (_u *POSCatalogOverrideUpdateOne) SetPriceIncludesTax(v bool) *POSCatalogOverrideUpdateOne {
+	_u.mutation.SetPriceIncludesTax(v)
+	return _u
+}
+
+// SetNillablePriceIncludesTax sets the "price_includes_tax" field if the given value is not nil.
+func (_u *POSCatalogOverrideUpdateOne) SetNillablePriceIncludesTax(v *bool) *POSCatalogOverrideUpdateOne {
+	if v != nil {
+		_u.SetPriceIncludesTax(*v)
 	}
 	return _u
 }
@@ -854,6 +931,15 @@ func (_u *POSCatalogOverrideUpdateOne) sqlSave(ctx context.Context) (_node *POSC
 	}
 	if value, ok := _u.mutation.TaxStatus(); ok {
 		_spec.SetField(poscatalogoverride.FieldTaxStatus, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.TaxCodeID(); ok {
+		_spec.SetField(poscatalogoverride.FieldTaxCodeID, field.TypeString, value)
+	}
+	if _u.mutation.TaxCodeIDCleared() {
+		_spec.ClearField(poscatalogoverride.FieldTaxCodeID, field.TypeString)
+	}
+	if value, ok := _u.mutation.PriceIncludesTax(); ok {
+		_spec.SetField(poscatalogoverride.FieldPriceIncludesTax, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.IsAvailable(); ok {
 		_spec.SetField(poscatalogoverride.FieldIsAvailable, field.TypeBool, value)

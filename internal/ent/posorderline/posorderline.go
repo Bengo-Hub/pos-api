@@ -37,6 +37,16 @@ const (
 	FieldSerialNumber = "serial_number"
 	// FieldPartialUnits holds the string denoting the partial_units field in the database.
 	FieldPartialUnits = "partial_units"
+	// FieldTaxCodeID holds the string denoting the tax_code_id field in the database.
+	FieldTaxCodeID = "tax_code_id"
+	// FieldTaxKraCode holds the string denoting the tax_kra_code field in the database.
+	FieldTaxKraCode = "tax_kra_code"
+	// FieldTaxRate holds the string denoting the tax_rate field in the database.
+	FieldTaxRate = "tax_rate"
+	// FieldTaxAmount holds the string denoting the tax_amount field in the database.
+	FieldTaxAmount = "tax_amount"
+	// FieldPriceIncludesTax holds the string denoting the price_includes_tax field in the database.
+	FieldPriceIncludesTax = "price_includes_tax"
 	// FieldMetadata holds the string denoting the metadata field in the database.
 	FieldMetadata = "metadata"
 	// EdgeOrder holds the string denoting the order edge name in mutations.
@@ -76,6 +86,11 @@ var Columns = []string{
 	FieldExpiryDate,
 	FieldSerialNumber,
 	FieldPartialUnits,
+	FieldTaxCodeID,
+	FieldTaxKraCode,
+	FieldTaxRate,
+	FieldTaxAmount,
+	FieldPriceIncludesTax,
 	FieldMetadata,
 }
 
@@ -94,6 +109,8 @@ var (
 	SkuValidator func(string) error
 	// NameValidator is a validator for the "name" field. It is called by the builders before save.
 	NameValidator func(string) error
+	// DefaultPriceIncludesTax holds the default value on creation for the "price_includes_tax" field.
+	DefaultPriceIncludesTax bool
 	// DefaultMetadata holds the default value on creation for the "metadata" field.
 	DefaultMetadata map[string]interface{}
 	// DefaultID holds the default value on creation for the "id" field.
@@ -166,6 +183,31 @@ func BySerialNumber(opts ...sql.OrderTermOption) OrderOption {
 // ByPartialUnits orders the results by the partial_units field.
 func ByPartialUnits(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldPartialUnits, opts...).ToFunc()
+}
+
+// ByTaxCodeID orders the results by the tax_code_id field.
+func ByTaxCodeID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTaxCodeID, opts...).ToFunc()
+}
+
+// ByTaxKraCode orders the results by the tax_kra_code field.
+func ByTaxKraCode(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTaxKraCode, opts...).ToFunc()
+}
+
+// ByTaxRate orders the results by the tax_rate field.
+func ByTaxRate(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTaxRate, opts...).ToFunc()
+}
+
+// ByTaxAmount orders the results by the tax_amount field.
+func ByTaxAmount(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTaxAmount, opts...).ToFunc()
+}
+
+// ByPriceIncludesTax orders the results by the price_includes_tax field.
+func ByPriceIncludesTax(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPriceIncludesTax, opts...).ToFunc()
 }
 
 // ByOrderField orders the results by order field.

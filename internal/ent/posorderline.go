@@ -44,6 +44,16 @@ type POSOrderLine struct {
 	SerialNumber *string `json:"serial_number,omitempty"`
 	// Partial pack decimal quantity (e.g. 10 of 30 tablets dispensed)
 	PartialUnits *float64 `json:"partial_units,omitempty"`
+	// Treasury TaxCode.code applied to this line (e.g. VAT-16, EXM)
+	TaxCodeID string `json:"tax_code_id,omitempty"`
+	// KRA eTIMS TaxTyCd (A=16%VAT, B=8%VAT, C=excise, D=exempt, E=zero)
+	TaxKraCode string `json:"tax_kra_code,omitempty"`
+	// Tax rate percentage applied (e.g. 16.0)
+	TaxRate *float64 `json:"tax_rate,omitempty"`
+	// Computed tax amount for the total line (quantity × unit tax)
+	TaxAmount *float64 `json:"tax_amount,omitempty"`
+	// True when unit_price is VAT-inclusive; tax_amount is back-calculated
+	PriceIncludesTax bool `json:"price_includes_tax,omitempty"`
 	// Metadata holds the value of the "metadata" field.
 	Metadata map[string]interface{} `json:"metadata,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
@@ -90,11 +100,13 @@ func (*POSOrderLine) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case posorderline.FieldMetadata:
 			values[i] = new([]byte)
-		case posorderline.FieldQuantity, posorderline.FieldUnitPrice, posorderline.FieldTotalPrice, posorderline.FieldPartialUnits:
+		case posorderline.FieldPriceIncludesTax:
+			values[i] = new(sql.NullBool)
+		case posorderline.FieldQuantity, posorderline.FieldUnitPrice, posorderline.FieldTotalPrice, posorderline.FieldPartialUnits, posorderline.FieldTaxRate, posorderline.FieldTaxAmount:
 			values[i] = new(sql.NullFloat64)
 		case posorderline.FieldWeightGrams:
 			values[i] = new(sql.NullInt64)
-		case posorderline.FieldSku, posorderline.FieldName, posorderline.FieldLotNumber, posorderline.FieldSerialNumber:
+		case posorderline.FieldSku, posorderline.FieldName, posorderline.FieldLotNumber, posorderline.FieldSerialNumber, posorderline.FieldTaxCodeID, posorderline.FieldTaxKraCode:
 			values[i] = new(sql.NullString)
 		case posorderline.FieldExpiryDate:
 			values[i] = new(sql.NullTime)
@@ -197,6 +209,38 @@ func (_m *POSOrderLine) assignValues(columns []string, values []any) error {
 				_m.PartialUnits = new(float64)
 				*_m.PartialUnits = value.Float64
 			}
+		case posorderline.FieldTaxCodeID:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field tax_code_id", values[i])
+			} else if value.Valid {
+				_m.TaxCodeID = value.String
+			}
+		case posorderline.FieldTaxKraCode:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field tax_kra_code", values[i])
+			} else if value.Valid {
+				_m.TaxKraCode = value.String
+			}
+		case posorderline.FieldTaxRate:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field tax_rate", values[i])
+			} else if value.Valid {
+				_m.TaxRate = new(float64)
+				*_m.TaxRate = value.Float64
+			}
+		case posorderline.FieldTaxAmount:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field tax_amount", values[i])
+			} else if value.Valid {
+				_m.TaxAmount = new(float64)
+				*_m.TaxAmount = value.Float64
+			}
+		case posorderline.FieldPriceIncludesTax:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field price_includes_tax", values[i])
+			} else if value.Valid {
+				_m.PriceIncludesTax = value.Bool
+			}
 		case posorderline.FieldMetadata:
 			if value, ok := values[i].(*[]byte); !ok {
 				return fmt.Errorf("unexpected type %T for field metadata", values[i])
@@ -294,6 +338,25 @@ func (_m *POSOrderLine) String() string {
 		builder.WriteString("partial_units=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
+	builder.WriteString(", ")
+	builder.WriteString("tax_code_id=")
+	builder.WriteString(_m.TaxCodeID)
+	builder.WriteString(", ")
+	builder.WriteString("tax_kra_code=")
+	builder.WriteString(_m.TaxKraCode)
+	builder.WriteString(", ")
+	if v := _m.TaxRate; v != nil {
+		builder.WriteString("tax_rate=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.TaxAmount; v != nil {
+		builder.WriteString("tax_amount=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("price_includes_tax=")
+	builder.WriteString(fmt.Sprintf("%v", _m.PriceIncludesTax))
 	builder.WriteString(", ")
 	builder.WriteString("metadata=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Metadata))

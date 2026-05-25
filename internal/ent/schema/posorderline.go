@@ -46,6 +46,26 @@ func (POSOrderLine) Fields() []ent.Field {
 			Optional().
 			Nillable().
 			Comment("Partial pack decimal quantity (e.g. 10 of 30 tablets dispensed)"),
+		// Tax fields — computed once at order line creation from catalog tax config + treasury rate.
+		// If price_includes_tax=true: tax_amount is back-calculated from unit_price.
+		// If price_includes_tax=false: tax_amount is additive on top of unit_price.
+		field.String("tax_code_id").
+			Optional().
+			Comment("Treasury TaxCode.code applied to this line (e.g. VAT-16, EXM)"),
+		field.String("tax_kra_code").
+			Optional().
+			Comment("KRA eTIMS TaxTyCd (A=16%VAT, B=8%VAT, C=excise, D=exempt, E=zero)"),
+		field.Float("tax_rate").
+			Optional().
+			Nillable().
+			Comment("Tax rate percentage applied (e.g. 16.0)"),
+		field.Float("tax_amount").
+			Optional().
+			Nillable().
+			Comment("Computed tax amount for the total line (quantity × unit tax)"),
+		field.Bool("price_includes_tax").
+			Default(false).
+			Comment("True when unit_price is VAT-inclusive; tax_amount is back-calculated"),
 		field.JSON("metadata", map[string]any{}).
 			Default(map[string]any{}),
 	}

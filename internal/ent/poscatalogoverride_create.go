@@ -92,6 +92,34 @@ func (_c *POSCatalogOverrideCreate) SetNillableTaxStatus(v *string) *POSCatalogO
 	return _c
 }
 
+// SetTaxCodeID sets the "tax_code_id" field.
+func (_c *POSCatalogOverrideCreate) SetTaxCodeID(v string) *POSCatalogOverrideCreate {
+	_c.mutation.SetTaxCodeID(v)
+	return _c
+}
+
+// SetNillableTaxCodeID sets the "tax_code_id" field if the given value is not nil.
+func (_c *POSCatalogOverrideCreate) SetNillableTaxCodeID(v *string) *POSCatalogOverrideCreate {
+	if v != nil {
+		_c.SetTaxCodeID(*v)
+	}
+	return _c
+}
+
+// SetPriceIncludesTax sets the "price_includes_tax" field.
+func (_c *POSCatalogOverrideCreate) SetPriceIncludesTax(v bool) *POSCatalogOverrideCreate {
+	_c.mutation.SetPriceIncludesTax(v)
+	return _c
+}
+
+// SetNillablePriceIncludesTax sets the "price_includes_tax" field if the given value is not nil.
+func (_c *POSCatalogOverrideCreate) SetNillablePriceIncludesTax(v *bool) *POSCatalogOverrideCreate {
+	if v != nil {
+		_c.SetPriceIncludesTax(*v)
+	}
+	return _c
+}
+
 // SetIsAvailable sets the "is_available" field.
 func (_c *POSCatalogOverrideCreate) SetIsAvailable(v bool) *POSCatalogOverrideCreate {
 	_c.mutation.SetIsAvailable(v)
@@ -309,6 +337,10 @@ func (_c *POSCatalogOverrideCreate) defaults() {
 		v := poscatalogoverride.DefaultTaxStatus
 		_c.mutation.SetTaxStatus(v)
 	}
+	if _, ok := _c.mutation.PriceIncludesTax(); !ok {
+		v := poscatalogoverride.DefaultPriceIncludesTax
+		_c.mutation.SetPriceIncludesTax(v)
+	}
 	if _, ok := _c.mutation.IsAvailable(); !ok {
 		v := poscatalogoverride.DefaultIsAvailable
 		_c.mutation.SetIsAvailable(v)
@@ -373,6 +405,9 @@ func (_c *POSCatalogOverrideCreate) check() error {
 	}
 	if _, ok := _c.mutation.TaxStatus(); !ok {
 		return &ValidationError{Name: "tax_status", err: errors.New(`ent: missing required field "POSCatalogOverride.tax_status"`)}
+	}
+	if _, ok := _c.mutation.PriceIncludesTax(); !ok {
+		return &ValidationError{Name: "price_includes_tax", err: errors.New(`ent: missing required field "POSCatalogOverride.price_includes_tax"`)}
 	}
 	if _, ok := _c.mutation.IsAvailable(); !ok {
 		return &ValidationError{Name: "is_available", err: errors.New(`ent: missing required field "POSCatalogOverride.is_available"`)}
@@ -463,6 +498,14 @@ func (_c *POSCatalogOverrideCreate) createSpec() (*POSCatalogOverride, *sqlgraph
 	if value, ok := _c.mutation.TaxStatus(); ok {
 		_spec.SetField(poscatalogoverride.FieldTaxStatus, field.TypeString, value)
 		_node.TaxStatus = value
+	}
+	if value, ok := _c.mutation.TaxCodeID(); ok {
+		_spec.SetField(poscatalogoverride.FieldTaxCodeID, field.TypeString, value)
+		_node.TaxCodeID = value
+	}
+	if value, ok := _c.mutation.PriceIncludesTax(); ok {
+		_spec.SetField(poscatalogoverride.FieldPriceIncludesTax, field.TypeBool, value)
+		_node.PriceIncludesTax = value
 	}
 	if value, ok := _c.mutation.IsAvailable(); ok {
 		_spec.SetField(poscatalogoverride.FieldIsAvailable, field.TypeBool, value)
@@ -651,6 +694,36 @@ func (u *POSCatalogOverrideUpsert) SetTaxStatus(v string) *POSCatalogOverrideUps
 // UpdateTaxStatus sets the "tax_status" field to the value that was provided on create.
 func (u *POSCatalogOverrideUpsert) UpdateTaxStatus() *POSCatalogOverrideUpsert {
 	u.SetExcluded(poscatalogoverride.FieldTaxStatus)
+	return u
+}
+
+// SetTaxCodeID sets the "tax_code_id" field.
+func (u *POSCatalogOverrideUpsert) SetTaxCodeID(v string) *POSCatalogOverrideUpsert {
+	u.Set(poscatalogoverride.FieldTaxCodeID, v)
+	return u
+}
+
+// UpdateTaxCodeID sets the "tax_code_id" field to the value that was provided on create.
+func (u *POSCatalogOverrideUpsert) UpdateTaxCodeID() *POSCatalogOverrideUpsert {
+	u.SetExcluded(poscatalogoverride.FieldTaxCodeID)
+	return u
+}
+
+// ClearTaxCodeID clears the value of the "tax_code_id" field.
+func (u *POSCatalogOverrideUpsert) ClearTaxCodeID() *POSCatalogOverrideUpsert {
+	u.SetNull(poscatalogoverride.FieldTaxCodeID)
+	return u
+}
+
+// SetPriceIncludesTax sets the "price_includes_tax" field.
+func (u *POSCatalogOverrideUpsert) SetPriceIncludesTax(v bool) *POSCatalogOverrideUpsert {
+	u.Set(poscatalogoverride.FieldPriceIncludesTax, v)
+	return u
+}
+
+// UpdatePriceIncludesTax sets the "price_includes_tax" field to the value that was provided on create.
+func (u *POSCatalogOverrideUpsert) UpdatePriceIncludesTax() *POSCatalogOverrideUpsert {
+	u.SetExcluded(poscatalogoverride.FieldPriceIncludesTax)
 	return u
 }
 
@@ -969,6 +1042,41 @@ func (u *POSCatalogOverrideUpsertOne) SetTaxStatus(v string) *POSCatalogOverride
 func (u *POSCatalogOverrideUpsertOne) UpdateTaxStatus() *POSCatalogOverrideUpsertOne {
 	return u.Update(func(s *POSCatalogOverrideUpsert) {
 		s.UpdateTaxStatus()
+	})
+}
+
+// SetTaxCodeID sets the "tax_code_id" field.
+func (u *POSCatalogOverrideUpsertOne) SetTaxCodeID(v string) *POSCatalogOverrideUpsertOne {
+	return u.Update(func(s *POSCatalogOverrideUpsert) {
+		s.SetTaxCodeID(v)
+	})
+}
+
+// UpdateTaxCodeID sets the "tax_code_id" field to the value that was provided on create.
+func (u *POSCatalogOverrideUpsertOne) UpdateTaxCodeID() *POSCatalogOverrideUpsertOne {
+	return u.Update(func(s *POSCatalogOverrideUpsert) {
+		s.UpdateTaxCodeID()
+	})
+}
+
+// ClearTaxCodeID clears the value of the "tax_code_id" field.
+func (u *POSCatalogOverrideUpsertOne) ClearTaxCodeID() *POSCatalogOverrideUpsertOne {
+	return u.Update(func(s *POSCatalogOverrideUpsert) {
+		s.ClearTaxCodeID()
+	})
+}
+
+// SetPriceIncludesTax sets the "price_includes_tax" field.
+func (u *POSCatalogOverrideUpsertOne) SetPriceIncludesTax(v bool) *POSCatalogOverrideUpsertOne {
+	return u.Update(func(s *POSCatalogOverrideUpsert) {
+		s.SetPriceIncludesTax(v)
+	})
+}
+
+// UpdatePriceIncludesTax sets the "price_includes_tax" field to the value that was provided on create.
+func (u *POSCatalogOverrideUpsertOne) UpdatePriceIncludesTax() *POSCatalogOverrideUpsertOne {
+	return u.Update(func(s *POSCatalogOverrideUpsert) {
+		s.UpdatePriceIncludesTax()
 	})
 }
 
@@ -1481,6 +1589,41 @@ func (u *POSCatalogOverrideUpsertBulk) SetTaxStatus(v string) *POSCatalogOverrid
 func (u *POSCatalogOverrideUpsertBulk) UpdateTaxStatus() *POSCatalogOverrideUpsertBulk {
 	return u.Update(func(s *POSCatalogOverrideUpsert) {
 		s.UpdateTaxStatus()
+	})
+}
+
+// SetTaxCodeID sets the "tax_code_id" field.
+func (u *POSCatalogOverrideUpsertBulk) SetTaxCodeID(v string) *POSCatalogOverrideUpsertBulk {
+	return u.Update(func(s *POSCatalogOverrideUpsert) {
+		s.SetTaxCodeID(v)
+	})
+}
+
+// UpdateTaxCodeID sets the "tax_code_id" field to the value that was provided on create.
+func (u *POSCatalogOverrideUpsertBulk) UpdateTaxCodeID() *POSCatalogOverrideUpsertBulk {
+	return u.Update(func(s *POSCatalogOverrideUpsert) {
+		s.UpdateTaxCodeID()
+	})
+}
+
+// ClearTaxCodeID clears the value of the "tax_code_id" field.
+func (u *POSCatalogOverrideUpsertBulk) ClearTaxCodeID() *POSCatalogOverrideUpsertBulk {
+	return u.Update(func(s *POSCatalogOverrideUpsert) {
+		s.ClearTaxCodeID()
+	})
+}
+
+// SetPriceIncludesTax sets the "price_includes_tax" field.
+func (u *POSCatalogOverrideUpsertBulk) SetPriceIncludesTax(v bool) *POSCatalogOverrideUpsertBulk {
+	return u.Update(func(s *POSCatalogOverrideUpsert) {
+		s.SetPriceIncludesTax(v)
+	})
+}
+
+// UpdatePriceIncludesTax sets the "price_includes_tax" field to the value that was provided on create.
+func (u *POSCatalogOverrideUpsertBulk) UpdatePriceIncludesTax() *POSCatalogOverrideUpsertBulk {
+	return u.Update(func(s *POSCatalogOverrideUpsert) {
+		s.UpdatePriceIncludesTax()
 	})
 }
 

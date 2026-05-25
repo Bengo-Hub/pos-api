@@ -43,6 +43,7 @@ var validTransitions = map[string][]string{
 // CreateOrderRequest holds the input for creating a POS order.
 type CreateOrderRequest struct {
 	TenantID    uuid.UUID
+	TenantSlug  string    // used for treasury S2S tax lookups
 	OutletID    uuid.UUID
 	DeviceID    uuid.UUID
 	UserID      uuid.UUID
@@ -54,14 +55,16 @@ type CreateOrderRequest struct {
 
 // OrderLineInput represents a single line item in an order.
 type OrderLineInput struct {
-	CatalogItemID uuid.UUID
-	SKU           string
-	Name          string
-	Quantity      float64
-	UnitPrice     float64
-	TotalPrice    float64
-	TaxStatus     string         // "taxable", "exempt", "zero_rated"
-	Metadata      map[string]any // modifiers, notes, serial numbers, etc.
+	CatalogItemID   uuid.UUID
+	SKU             string
+	Name            string
+	Quantity        float64
+	UnitPrice       float64
+	TotalPrice      float64
+	TaxStatus       string         // "taxable", "exempt", "zero_rated"
+	TaxCodeID       string         // Treasury TaxCode.code (e.g. "VAT-16"); empty = use service default
+	PriceIncludesTax bool          // True if UnitPrice is VAT-inclusive
+	Metadata        map[string]any // modifiers, notes, serial numbers, etc.
 }
 
 // OrderTotals holds calculated totals for an order.
@@ -77,14 +80,20 @@ type Service struct {
 	client          *ent.Client
 	log             *zap.Logger
 	defaultCurrency string
-	taxRate         decimal.Decimal // e.g. 0.16 for 16% VAT
+	taxRate         decimal.Decimal // fallback tax rate when treasury tax code not available
 	orderPrefix     string
 	publisher       *events.Publisher
+	taxResolver     *TaxResolver // resolves tax codes from treasury with Redis cache
 }
 
 // SetPublisher sets the event publisher for order lifecycle events.
 func (s *Service) SetPublisher(p *events.Publisher) {
 	s.publisher = p
+}
+
+// SetTaxResolver attaches the treasury tax resolver for per-line tax computation.
+func (s *Service) SetTaxResolver(tr *TaxResolver) {
+	s.taxResolver = tr
 }
 
 // GetPublisher returns the event publisher (nil if not set).
@@ -219,7 +228,24 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent
 		if meta == nil {
 			meta = map[string]any{}
 		}
-		_, err = tx.POSOrderLine.Create().
+
+		// Resolve tax for this line via treasury S2S (Redis-cached).
+		// Idempotency: if caller provided explicit TaxCodeID, use it;
+		// otherwise skip tax (treasury is the source of truth; not all items are taxable).
+		var taxKraCode, taxCodeID string
+		var taxRate, taxAmt float64
+		priceIncludesTax := line.PriceIncludesTax
+
+		if line.TaxStatus != "tax_exempt" && line.TaxStatus != "zero_rated" && s.taxResolver != nil && line.TaxCodeID != "" {
+			taxCodeID = line.TaxCodeID
+			if tc, resolveErr := s.taxResolver.Resolve(ctx, req.TenantSlug, line.TaxCodeID); resolveErr == nil && tc != nil {
+				taxRate = tc.Rate
+				taxKraCode = tc.KRACode
+				taxAmt, _ = ComputeLineTax(lineTotal.InexactFloat64(), taxRate, priceIncludesTax)
+			}
+		}
+
+		lineCreate := tx.POSOrderLine.Create().
 			SetOrderID(order.ID).
 			SetCatalogItemID(line.CatalogItemID).
 			SetSku(line.SKU).
@@ -227,8 +253,23 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent
 			SetQuantity(line.Quantity).
 			SetUnitPrice(line.UnitPrice).
 			SetTotalPrice(lineTotal.InexactFloat64()).
-			SetMetadata(meta).
-			Save(ctx)
+			SetPriceIncludesTax(priceIncludesTax).
+			SetMetadata(meta)
+
+		if taxCodeID != "" {
+			lineCreate = lineCreate.SetTaxCodeID(taxCodeID)
+		}
+		if taxKraCode != "" {
+			lineCreate = lineCreate.SetTaxKraCode(taxKraCode)
+		}
+		if taxRate > 0 {
+			lineCreate = lineCreate.SetTaxRate(taxRate)
+		}
+		if taxAmt > 0 {
+			lineCreate = lineCreate.SetTaxAmount(taxAmt)
+		}
+
+		_, err = lineCreate.Save(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("orders: create line: %w", err)
 		}

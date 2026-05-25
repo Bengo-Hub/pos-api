@@ -75,6 +75,8 @@ const (
 	FieldShiftAutoEndEnabled = "shift_auto_end_enabled"
 	// FieldShiftMaxHours holds the string denoting the shift_max_hours field in the database.
 	FieldShiftMaxHours = "shift_max_hours"
+	// FieldDefaultWarehouseID holds the string denoting the default_warehouse_id field in the database.
+	FieldDefaultWarehouseID = "default_warehouse_id"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
 	FieldUpdatedAt = "updated_at"
 	// EdgeOutlet holds the string denoting the outlet edge name in mutations.
@@ -123,6 +125,7 @@ var Columns = []string{
 	FieldShiftReportsEnabled,
 	FieldShiftAutoEndEnabled,
 	FieldShiftMaxHours,
+	FieldDefaultWarehouseID,
 	FieldUpdatedAt,
 }
 
@@ -311,6 +314,11 @@ func ByShiftAutoEndEnabled(opts ...sql.OrderTermOption) OrderOption {
 // ByShiftMaxHours orders the results by the shift_max_hours field.
 func ByShiftMaxHours(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldShiftMaxHours, opts...).ToFunc()
+}
+
+// ByDefaultWarehouseID orders the results by the default_warehouse_id field.
+func ByDefaultWarehouseID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDefaultWarehouseID, opts...).ToFunc()
 }
 
 // ByUpdatedAt orders the results by the updated_at field.

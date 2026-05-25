@@ -176,6 +176,11 @@ func ShiftMaxHours(v int) predicate.OutletSetting {
 	return predicate.OutletSetting(sql.FieldEQ(FieldShiftMaxHours, v))
 }
 
+// DefaultWarehouseID applies equality check predicate on the "default_warehouse_id" field. It's identical to DefaultWarehouseIDEQ.
+func DefaultWarehouseID(v uuid.UUID) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldDefaultWarehouseID, v))
+}
+
 // UpdatedAt applies equality check predicate on the "updated_at" field. It's identical to UpdatedAtEQ.
 func UpdatedAt(v time.Time) predicate.OutletSetting {
 	return predicate.OutletSetting(sql.FieldEQ(FieldUpdatedAt, v))
@@ -1319,6 +1324,56 @@ func ShiftMaxHoursIsNil() predicate.OutletSetting {
 // ShiftMaxHoursNotNil applies the NotNil predicate on the "shift_max_hours" field.
 func ShiftMaxHoursNotNil() predicate.OutletSetting {
 	return predicate.OutletSetting(sql.FieldNotNull(FieldShiftMaxHours))
+}
+
+// DefaultWarehouseIDEQ applies the EQ predicate on the "default_warehouse_id" field.
+func DefaultWarehouseIDEQ(v uuid.UUID) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldDefaultWarehouseID, v))
+}
+
+// DefaultWarehouseIDNEQ applies the NEQ predicate on the "default_warehouse_id" field.
+func DefaultWarehouseIDNEQ(v uuid.UUID) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNEQ(FieldDefaultWarehouseID, v))
+}
+
+// DefaultWarehouseIDIn applies the In predicate on the "default_warehouse_id" field.
+func DefaultWarehouseIDIn(vs ...uuid.UUID) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIn(FieldDefaultWarehouseID, vs...))
+}
+
+// DefaultWarehouseIDNotIn applies the NotIn predicate on the "default_warehouse_id" field.
+func DefaultWarehouseIDNotIn(vs ...uuid.UUID) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotIn(FieldDefaultWarehouseID, vs...))
+}
+
+// DefaultWarehouseIDGT applies the GT predicate on the "default_warehouse_id" field.
+func DefaultWarehouseIDGT(v uuid.UUID) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGT(FieldDefaultWarehouseID, v))
+}
+
+// DefaultWarehouseIDGTE applies the GTE predicate on the "default_warehouse_id" field.
+func DefaultWarehouseIDGTE(v uuid.UUID) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGTE(FieldDefaultWarehouseID, v))
+}
+
+// DefaultWarehouseIDLT applies the LT predicate on the "default_warehouse_id" field.
+func DefaultWarehouseIDLT(v uuid.UUID) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLT(FieldDefaultWarehouseID, v))
+}
+
+// DefaultWarehouseIDLTE applies the LTE predicate on the "default_warehouse_id" field.
+func DefaultWarehouseIDLTE(v uuid.UUID) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLTE(FieldDefaultWarehouseID, v))
+}
+
+// DefaultWarehouseIDIsNil applies the IsNil predicate on the "default_warehouse_id" field.
+func DefaultWarehouseIDIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldDefaultWarehouseID))
+}
+
+// DefaultWarehouseIDNotNil applies the NotNil predicate on the "default_warehouse_id" field.
+func DefaultWarehouseIDNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldDefaultWarehouseID))
 }
 
 // UpdatedAtEQ applies the EQ predicate on the "updated_at" field.

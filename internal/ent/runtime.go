@@ -1032,7 +1032,7 @@ func init() {
 	// outletsetting.DefaultShiftMaxHours holds the default value on creation for the shift_max_hours field.
 	outletsetting.DefaultShiftMaxHours = outletsettingDescShiftMaxHours.Default.(int)
 	// outletsettingDescUpdatedAt is the schema descriptor for updated_at field.
-	outletsettingDescUpdatedAt := outletsettingFields[31].Descriptor()
+	outletsettingDescUpdatedAt := outletsettingFields[32].Descriptor()
 	// outletsetting.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	outletsetting.DefaultUpdatedAt = outletsettingDescUpdatedAt.Default.(func() time.Time)
 	// outletsetting.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -1055,44 +1055,48 @@ func init() {
 	poscatalogoverrideDescTaxStatus := poscatalogoverrideFields[6].Descriptor()
 	// poscatalogoverride.DefaultTaxStatus holds the default value on creation for the tax_status field.
 	poscatalogoverride.DefaultTaxStatus = poscatalogoverrideDescTaxStatus.Default.(string)
+	// poscatalogoverrideDescPriceIncludesTax is the schema descriptor for price_includes_tax field.
+	poscatalogoverrideDescPriceIncludesTax := poscatalogoverrideFields[8].Descriptor()
+	// poscatalogoverride.DefaultPriceIncludesTax holds the default value on creation for the price_includes_tax field.
+	poscatalogoverride.DefaultPriceIncludesTax = poscatalogoverrideDescPriceIncludesTax.Default.(bool)
 	// poscatalogoverrideDescIsAvailable is the schema descriptor for is_available field.
-	poscatalogoverrideDescIsAvailable := poscatalogoverrideFields[7].Descriptor()
+	poscatalogoverrideDescIsAvailable := poscatalogoverrideFields[9].Descriptor()
 	// poscatalogoverride.DefaultIsAvailable holds the default value on creation for the is_available field.
 	poscatalogoverride.DefaultIsAvailable = poscatalogoverrideDescIsAvailable.Default.(bool)
 	// poscatalogoverrideDescIsFeatured is the schema descriptor for is_featured field.
-	poscatalogoverrideDescIsFeatured := poscatalogoverrideFields[8].Descriptor()
+	poscatalogoverrideDescIsFeatured := poscatalogoverrideFields[10].Descriptor()
 	// poscatalogoverride.DefaultIsFeatured holds the default value on creation for the is_featured field.
 	poscatalogoverride.DefaultIsFeatured = poscatalogoverrideDescIsFeatured.Default.(bool)
 	// poscatalogoverrideDescDisplayOrder is the schema descriptor for display_order field.
-	poscatalogoverrideDescDisplayOrder := poscatalogoverrideFields[9].Descriptor()
+	poscatalogoverrideDescDisplayOrder := poscatalogoverrideFields[11].Descriptor()
 	// poscatalogoverride.DefaultDisplayOrder holds the default value on creation for the display_order field.
 	poscatalogoverride.DefaultDisplayOrder = poscatalogoverrideDescDisplayOrder.Default.(int)
 	// poscatalogoverrideDescRequiresPrescription is the schema descriptor for requires_prescription field.
-	poscatalogoverrideDescRequiresPrescription := poscatalogoverrideFields[10].Descriptor()
+	poscatalogoverrideDescRequiresPrescription := poscatalogoverrideFields[12].Descriptor()
 	// poscatalogoverride.DefaultRequiresPrescription holds the default value on creation for the requires_prescription field.
 	poscatalogoverride.DefaultRequiresPrescription = poscatalogoverrideDescRequiresPrescription.Default.(bool)
 	// poscatalogoverrideDescIsReturnable is the schema descriptor for is_returnable field.
-	poscatalogoverrideDescIsReturnable := poscatalogoverrideFields[11].Descriptor()
+	poscatalogoverrideDescIsReturnable := poscatalogoverrideFields[13].Descriptor()
 	// poscatalogoverride.DefaultIsReturnable holds the default value on creation for the is_returnable field.
 	poscatalogoverride.DefaultIsReturnable = poscatalogoverrideDescIsReturnable.Default.(bool)
 	// poscatalogoverrideDescRequiresAgeVerification is the schema descriptor for requires_age_verification field.
-	poscatalogoverrideDescRequiresAgeVerification := poscatalogoverrideFields[12].Descriptor()
+	poscatalogoverrideDescRequiresAgeVerification := poscatalogoverrideFields[14].Descriptor()
 	// poscatalogoverride.DefaultRequiresAgeVerification holds the default value on creation for the requires_age_verification field.
 	poscatalogoverride.DefaultRequiresAgeVerification = poscatalogoverrideDescRequiresAgeVerification.Default.(bool)
 	// poscatalogoverrideDescIsControlledSubstance is the schema descriptor for is_controlled_substance field.
-	poscatalogoverrideDescIsControlledSubstance := poscatalogoverrideFields[13].Descriptor()
+	poscatalogoverrideDescIsControlledSubstance := poscatalogoverrideFields[15].Descriptor()
 	// poscatalogoverride.DefaultIsControlledSubstance holds the default value on creation for the is_controlled_substance field.
 	poscatalogoverride.DefaultIsControlledSubstance = poscatalogoverrideDescIsControlledSubstance.Default.(bool)
 	// poscatalogoverrideDescMetadata is the schema descriptor for metadata field.
-	poscatalogoverrideDescMetadata := poscatalogoverrideFields[16].Descriptor()
+	poscatalogoverrideDescMetadata := poscatalogoverrideFields[18].Descriptor()
 	// poscatalogoverride.DefaultMetadata holds the default value on creation for the metadata field.
 	poscatalogoverride.DefaultMetadata = poscatalogoverrideDescMetadata.Default.(map[string]interface{})
 	// poscatalogoverrideDescCreatedAt is the schema descriptor for created_at field.
-	poscatalogoverrideDescCreatedAt := poscatalogoverrideFields[17].Descriptor()
+	poscatalogoverrideDescCreatedAt := poscatalogoverrideFields[19].Descriptor()
 	// poscatalogoverride.DefaultCreatedAt holds the default value on creation for the created_at field.
 	poscatalogoverride.DefaultCreatedAt = poscatalogoverrideDescCreatedAt.Default.(func() time.Time)
 	// poscatalogoverrideDescUpdatedAt is the schema descriptor for updated_at field.
-	poscatalogoverrideDescUpdatedAt := poscatalogoverrideFields[18].Descriptor()
+	poscatalogoverrideDescUpdatedAt := poscatalogoverrideFields[20].Descriptor()
 	// poscatalogoverride.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	poscatalogoverride.DefaultUpdatedAt = poscatalogoverrideDescUpdatedAt.Default.(func() time.Time)
 	// poscatalogoverride.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -1223,8 +1227,12 @@ func init() {
 	posorderlineDescName := posorderlineFields[4].Descriptor()
 	// posorderline.NameValidator is a validator for the "name" field. It is called by the builders before save.
 	posorderline.NameValidator = posorderlineDescName.Validators[0].(func(string) error)
+	// posorderlineDescPriceIncludesTax is the schema descriptor for price_includes_tax field.
+	posorderlineDescPriceIncludesTax := posorderlineFields[17].Descriptor()
+	// posorderline.DefaultPriceIncludesTax holds the default value on creation for the price_includes_tax field.
+	posorderline.DefaultPriceIncludesTax = posorderlineDescPriceIncludesTax.Default.(bool)
 	// posorderlineDescMetadata is the schema descriptor for metadata field.
-	posorderlineDescMetadata := posorderlineFields[13].Descriptor()
+	posorderlineDescMetadata := posorderlineFields[18].Descriptor()
 	// posorderline.DefaultMetadata holds the default value on creation for the metadata field.
 	posorderline.DefaultMetadata = posorderlineDescMetadata.Default.(map[string]interface{})
 	// posorderlineDescID is the schema descriptor for id field.

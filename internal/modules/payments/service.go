@@ -14,6 +14,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/posorder"
 	"github.com/bengobox/pos-service/internal/ent/posorderline"
 	"github.com/bengobox/pos-service/internal/ent/pospayment"
+	outletsettingpredicate "github.com/bengobox/pos-service/internal/ent/outletsetting"
 	"github.com/bengobox/pos-service/internal/modules/inventory"
 	"github.com/bengobox/pos-service/internal/modules/orders"
 	"github.com/bengobox/pos-service/internal/modules/treasury"
@@ -336,22 +337,52 @@ func (s *Service) publishSaleFinalized(ctx context.Context, order *ent.POSOrder)
 		s.log.Warn("sale.finalized: failed to load lines", zap.String("order_id", order.ID.String()), zap.Error(err))
 	}
 
+	// Resolve default warehouse from outlet setting for inventory backflush routing.
+	warehouseID := ""
+	outletSlug := ""
+	if outlet, oErr := s.client.Outlet.Get(ctx, order.OutletID); oErr == nil {
+		outletSlug = outlet.TenantSlug
+		if setting, sErr := s.client.OutletSetting.Query().
+			Where(outletsettingpredicate.OutletID(order.OutletID)).
+			Only(ctx); sErr == nil && setting.DefaultWarehouseID != nil {
+			warehouseID = setting.DefaultWarehouseID.String()
+		}
+	}
+
 	items := make([]map[string]any, 0, len(lines))
 	for _, l := range lines {
-		items = append(items, map[string]any{
-			"catalog_item_id": l.CatalogItemID.String(),
-			"sku":             l.Sku,
-			"name":            l.Name,
-			"quantity":        l.Quantity,
-			"unit_price":      l.UnitPrice,
-			"total_price":     l.TotalPrice,
-		})
+		item := map[string]any{
+			"sku":                l.Sku,
+			"name":               l.Name,
+			"quantity":           l.Quantity,
+			"unit_price":         l.UnitPrice,
+			"total_price":        l.TotalPrice,
+			"uom_code":           "",
+			"price_includes_tax": l.PriceIncludesTax,
+		}
+		// Include pre-computed tax breakdown if available — treasury uses this verbatim for eTIMS.
+		if l.TaxCodeID != "" {
+			item["tax_code_id"] = l.TaxCodeID
+		}
+		if l.TaxKraCode != "" {
+			item["tax_kra_code"] = l.TaxKraCode
+		}
+		if l.TaxRate != nil {
+			item["tax_rate"] = *l.TaxRate
+		}
+		if l.TaxAmount != nil {
+			item["tax_amount"] = *l.TaxAmount
+		}
+		items = append(items, item)
 	}
 
 	data := map[string]any{
 		"order_id":     order.ID.String(),
 		"order_number": order.OrderNumber,
 		"tenant_id":    order.TenantID.String(),
+		"tenant_slug":  outletSlug,
+		"outlet_id":    order.OutletID.String(),
+		"warehouse_id": warehouseID,
 		"total_amount": order.TotalAmount,
 		"currency":     order.Currency,
 		"items":        items,

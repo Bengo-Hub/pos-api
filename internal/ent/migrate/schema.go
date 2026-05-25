@@ -1039,6 +1039,7 @@ var (
 		{Name: "shift_reports_enabled", Type: field.TypeBool, Nullable: true, Default: false},
 		{Name: "shift_auto_end_enabled", Type: field.TypeBool, Nullable: true, Default: false},
 		{Name: "shift_max_hours", Type: field.TypeInt, Nullable: true, Default: 12},
+		{Name: "default_warehouse_id", Type: field.TypeUUID, Nullable: true},
 		{Name: "updated_at", Type: field.TypeTime},
 		{Name: "outlet_id", Type: field.TypeUUID, Unique: true},
 	}
@@ -1050,7 +1051,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "outlet_settings_outlets_settings",
-				Columns:    []*schema.Column{OutletSettingsColumns[31]},
+				Columns:    []*schema.Column{OutletSettingsColumns[32]},
 				RefColumns: []*schema.Column{OutletsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -1065,6 +1066,8 @@ var (
 		{Name: "selling_price", Type: field.TypeFloat64, Nullable: true},
 		{Name: "currency", Type: field.TypeString, Default: "KES"},
 		{Name: "tax_status", Type: field.TypeString, Default: "taxable"},
+		{Name: "tax_code_id", Type: field.TypeString, Nullable: true},
+		{Name: "price_includes_tax", Type: field.TypeBool, Default: false},
 		{Name: "is_available", Type: field.TypeBool, Default: true},
 		{Name: "is_featured", Type: field.TypeBool, Default: false},
 		{Name: "display_order", Type: field.TypeInt, Default: 0},
@@ -1254,6 +1257,11 @@ var (
 		{Name: "expiry_date", Type: field.TypeTime, Nullable: true},
 		{Name: "serial_number", Type: field.TypeString, Nullable: true},
 		{Name: "partial_units", Type: field.TypeFloat64, Nullable: true},
+		{Name: "tax_code_id", Type: field.TypeString, Nullable: true},
+		{Name: "tax_kra_code", Type: field.TypeString, Nullable: true},
+		{Name: "tax_rate", Type: field.TypeFloat64, Nullable: true},
+		{Name: "tax_amount", Type: field.TypeFloat64, Nullable: true},
+		{Name: "price_includes_tax", Type: field.TypeBool, Default: false},
 		{Name: "metadata", Type: field.TypeJSON},
 		{Name: "order_id", Type: field.TypeUUID},
 	}
@@ -1265,7 +1273,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "pos_order_lines_pos_orders_lines",
-				Columns:    []*schema.Column{PosOrderLinesColumns[13]},
+				Columns:    []*schema.Column{PosOrderLinesColumns[18]},
 				RefColumns: []*schema.Column{PosOrdersColumns[0]},
 				OnDelete:   schema.NoAction,
 			},

@@ -591,6 +591,26 @@ func (_u *OutletSettingUpdate) ClearShiftMaxHours() *OutletSettingUpdate {
 	return _u
 }
 
+// SetDefaultWarehouseID sets the "default_warehouse_id" field.
+func (_u *OutletSettingUpdate) SetDefaultWarehouseID(v uuid.UUID) *OutletSettingUpdate {
+	_u.mutation.SetDefaultWarehouseID(v)
+	return _u
+}
+
+// SetNillableDefaultWarehouseID sets the "default_warehouse_id" field if the given value is not nil.
+func (_u *OutletSettingUpdate) SetNillableDefaultWarehouseID(v *uuid.UUID) *OutletSettingUpdate {
+	if v != nil {
+		_u.SetDefaultWarehouseID(*v)
+	}
+	return _u
+}
+
+// ClearDefaultWarehouseID clears the value of the "default_warehouse_id" field.
+func (_u *OutletSettingUpdate) ClearDefaultWarehouseID() *OutletSettingUpdate {
+	_u.mutation.ClearDefaultWarehouseID()
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *OutletSettingUpdate) SetUpdatedAt(v time.Time) *OutletSettingUpdate {
 	_u.mutation.SetUpdatedAt(v)
@@ -850,6 +870,12 @@ func (_u *OutletSettingUpdate) sqlSave(ctx context.Context) (_node int, err erro
 	}
 	if _u.mutation.ShiftMaxHoursCleared() {
 		_spec.ClearField(outletsetting.FieldShiftMaxHours, field.TypeInt)
+	}
+	if value, ok := _u.mutation.DefaultWarehouseID(); ok {
+		_spec.SetField(outletsetting.FieldDefaultWarehouseID, field.TypeUUID, value)
+	}
+	if _u.mutation.DefaultWarehouseIDCleared() {
+		_spec.ClearField(outletsetting.FieldDefaultWarehouseID, field.TypeUUID)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(outletsetting.FieldUpdatedAt, field.TypeTime, value)
@@ -1463,6 +1489,26 @@ func (_u *OutletSettingUpdateOne) ClearShiftMaxHours() *OutletSettingUpdateOne {
 	return _u
 }
 
+// SetDefaultWarehouseID sets the "default_warehouse_id" field.
+func (_u *OutletSettingUpdateOne) SetDefaultWarehouseID(v uuid.UUID) *OutletSettingUpdateOne {
+	_u.mutation.SetDefaultWarehouseID(v)
+	return _u
+}
+
+// SetNillableDefaultWarehouseID sets the "default_warehouse_id" field if the given value is not nil.
+func (_u *OutletSettingUpdateOne) SetNillableDefaultWarehouseID(v *uuid.UUID) *OutletSettingUpdateOne {
+	if v != nil {
+		_u.SetDefaultWarehouseID(*v)
+	}
+	return _u
+}
+
+// ClearDefaultWarehouseID clears the value of the "default_warehouse_id" field.
+func (_u *OutletSettingUpdateOne) ClearDefaultWarehouseID() *OutletSettingUpdateOne {
+	_u.mutation.ClearDefaultWarehouseID()
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *OutletSettingUpdateOne) SetUpdatedAt(v time.Time) *OutletSettingUpdateOne {
 	_u.mutation.SetUpdatedAt(v)
@@ -1752,6 +1798,12 @@ func (_u *OutletSettingUpdateOne) sqlSave(ctx context.Context) (_node *OutletSet
 	}
 	if _u.mutation.ShiftMaxHoursCleared() {
 		_spec.ClearField(outletsetting.FieldShiftMaxHours, field.TypeInt)
+	}
+	if value, ok := _u.mutation.DefaultWarehouseID(); ok {
+		_spec.SetField(outletsetting.FieldDefaultWarehouseID, field.TypeUUID, value)
+	}
+	if _u.mutation.DefaultWarehouseIDCleared() {
+		_spec.ClearField(outletsetting.FieldDefaultWarehouseID, field.TypeUUID)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(outletsetting.FieldUpdatedAt, field.TypeTime, value)

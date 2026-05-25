@@ -389,6 +389,20 @@ func (_c *OutletSettingCreate) SetNillableShiftMaxHours(v *int) *OutletSettingCr
 	return _c
 }
 
+// SetDefaultWarehouseID sets the "default_warehouse_id" field.
+func (_c *OutletSettingCreate) SetDefaultWarehouseID(v uuid.UUID) *OutletSettingCreate {
+	_c.mutation.SetDefaultWarehouseID(v)
+	return _c
+}
+
+// SetNillableDefaultWarehouseID sets the "default_warehouse_id" field if the given value is not nil.
+func (_c *OutletSettingCreate) SetNillableDefaultWarehouseID(v *uuid.UUID) *OutletSettingCreate {
+	if v != nil {
+		_c.SetDefaultWarehouseID(*v)
+	}
+	return _c
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_c *OutletSettingCreate) SetUpdatedAt(v time.Time) *OutletSettingCreate {
 	_c.mutation.SetUpdatedAt(v)
@@ -712,6 +726,10 @@ func (_c *OutletSettingCreate) createSpec() (*OutletSetting, *sqlgraph.CreateSpe
 	if value, ok := _c.mutation.ShiftMaxHours(); ok {
 		_spec.SetField(outletsetting.FieldShiftMaxHours, field.TypeInt, value)
 		_node.ShiftMaxHours = value
+	}
+	if value, ok := _c.mutation.DefaultWarehouseID(); ok {
+		_spec.SetField(outletsetting.FieldDefaultWarehouseID, field.TypeUUID, value)
+		_node.DefaultWarehouseID = &value
 	}
 	if value, ok := _c.mutation.UpdatedAt(); ok {
 		_spec.SetField(outletsetting.FieldUpdatedAt, field.TypeTime, value)
@@ -1323,6 +1341,24 @@ func (u *OutletSettingUpsert) AddShiftMaxHours(v int) *OutletSettingUpsert {
 // ClearShiftMaxHours clears the value of the "shift_max_hours" field.
 func (u *OutletSettingUpsert) ClearShiftMaxHours() *OutletSettingUpsert {
 	u.SetNull(outletsetting.FieldShiftMaxHours)
+	return u
+}
+
+// SetDefaultWarehouseID sets the "default_warehouse_id" field.
+func (u *OutletSettingUpsert) SetDefaultWarehouseID(v uuid.UUID) *OutletSettingUpsert {
+	u.Set(outletsetting.FieldDefaultWarehouseID, v)
+	return u
+}
+
+// UpdateDefaultWarehouseID sets the "default_warehouse_id" field to the value that was provided on create.
+func (u *OutletSettingUpsert) UpdateDefaultWarehouseID() *OutletSettingUpsert {
+	u.SetExcluded(outletsetting.FieldDefaultWarehouseID)
+	return u
+}
+
+// ClearDefaultWarehouseID clears the value of the "default_warehouse_id" field.
+func (u *OutletSettingUpsert) ClearDefaultWarehouseID() *OutletSettingUpsert {
+	u.SetNull(outletsetting.FieldDefaultWarehouseID)
 	return u
 }
 
@@ -2013,6 +2049,27 @@ func (u *OutletSettingUpsertOne) UpdateShiftMaxHours() *OutletSettingUpsertOne {
 func (u *OutletSettingUpsertOne) ClearShiftMaxHours() *OutletSettingUpsertOne {
 	return u.Update(func(s *OutletSettingUpsert) {
 		s.ClearShiftMaxHours()
+	})
+}
+
+// SetDefaultWarehouseID sets the "default_warehouse_id" field.
+func (u *OutletSettingUpsertOne) SetDefaultWarehouseID(v uuid.UUID) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetDefaultWarehouseID(v)
+	})
+}
+
+// UpdateDefaultWarehouseID sets the "default_warehouse_id" field to the value that was provided on create.
+func (u *OutletSettingUpsertOne) UpdateDefaultWarehouseID() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateDefaultWarehouseID()
+	})
+}
+
+// ClearDefaultWarehouseID clears the value of the "default_warehouse_id" field.
+func (u *OutletSettingUpsertOne) ClearDefaultWarehouseID() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearDefaultWarehouseID()
 	})
 }
 
@@ -2872,6 +2929,27 @@ func (u *OutletSettingUpsertBulk) UpdateShiftMaxHours() *OutletSettingUpsertBulk
 func (u *OutletSettingUpsertBulk) ClearShiftMaxHours() *OutletSettingUpsertBulk {
 	return u.Update(func(s *OutletSettingUpsert) {
 		s.ClearShiftMaxHours()
+	})
+}
+
+// SetDefaultWarehouseID sets the "default_warehouse_id" field.
+func (u *OutletSettingUpsertBulk) SetDefaultWarehouseID(v uuid.UUID) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetDefaultWarehouseID(v)
+	})
+}
+
+// UpdateDefaultWarehouseID sets the "default_warehouse_id" field to the value that was provided on create.
+func (u *OutletSettingUpsertBulk) UpdateDefaultWarehouseID() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateDefaultWarehouseID()
+	})
+}
+
+// ClearDefaultWarehouseID clears the value of the "default_warehouse_id" field.
+func (u *OutletSettingUpsertBulk) ClearDefaultWarehouseID() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearDefaultWarehouseID()
 	})
 }
 

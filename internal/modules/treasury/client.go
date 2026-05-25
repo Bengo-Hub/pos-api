@@ -111,18 +111,87 @@ func (c *Client) InitiateIntent(ctx context.Context, tenantSlug, intentID string
 	return doRequest[InitiateResponse](ctx, c.httpClient, http.MethodPost, url, c.apiKey, req)
 }
 
+// TaxCodeResponse is the response from GET /api/v1/s2s/{tenant}/taxes/{code}.
+type TaxCodeResponse struct {
+	ID        string  `json:"id"`
+	Code      string  `json:"code"`
+	Name      string  `json:"name"`
+	Rate      float64 `json:"rate"`
+	TaxType   string  `json:"tax_type"`
+	KRACode   string  `json:"kra_code"`
+	IsDefault bool    `json:"is_default"`
+}
+
+// ListTaxCodesResponse wraps the list response from GET /api/v1/s2s/{tenant}/taxes.
+type ListTaxCodesResponse struct {
+	TaxCodes []TaxCodeResponse `json:"tax_codes"`
+	Total    int               `json:"total"`
+}
+
+// GetTaxCode fetches a single TaxCode by code string from treasury-api S2S.
+// Returns nil, nil when not found (404).
+func (c *Client) GetTaxCode(ctx context.Context, tenantSlug, code string) (*TaxCodeResponse, error) {
+	url := fmt.Sprintf("%s/api/v1/s2s/%s/taxes/%s", c.baseURL, tenantSlug, code)
+	resp, err := doRequest[TaxCodeResponse](ctx, c.httpClient, http.MethodGet, url, c.apiKey, nil)
+	if err != nil {
+		// Treat 404 as "not found" — return nil without error so callers can fall back
+		if isNotFound(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return resp, nil
+}
+
+// ListTaxCodes fetches all active tax codes for a tenant from treasury-api S2S.
+func (c *Client) ListTaxCodes(ctx context.Context, tenantSlug string) ([]TaxCodeResponse, error) {
+	url := fmt.Sprintf("%s/api/v1/s2s/%s/taxes", c.baseURL, tenantSlug)
+	resp, err := doRequest[ListTaxCodesResponse](ctx, c.httpClient, http.MethodGet, url, c.apiKey, nil)
+	if err != nil {
+		return nil, err
+	}
+	return resp.TaxCodes, nil
+}
+
+func isNotFound(err error) bool {
+	if err == nil {
+		return false
+	}
+	return len(err.Error()) > 0 && (contains(err.Error(), "404") || contains(err.Error(), "not found"))
+}
+
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsStr(s, substr))
+}
+
+func containsStr(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
+}
+
 // doRequest performs an authenticated JSON request and decodes the response.
 func doRequest[T any](ctx context.Context, client *http.Client, method, url, apiKey string, body any) (*T, error) {
-	b, err := json.Marshal(body)
-	if err != nil {
-		return nil, fmt.Errorf("treasury: marshal request: %w", err)
+	var req *http.Request
+	var err error
+	if body != nil {
+		b, merr := json.Marshal(body)
+		if merr != nil {
+			return nil, fmt.Errorf("treasury: marshal request: %w", merr)
+		}
+		req, err = http.NewRequestWithContext(ctx, method, url, bytes.NewReader(b))
+		if err == nil {
+			req.Header.Set("Content-Type", "application/json")
+		}
+	} else {
+		req, err = http.NewRequestWithContext(ctx, method, url, http.NoBody)
 	}
-
-	req, err := http.NewRequestWithContext(ctx, method, url, bytes.NewReader(b))
 	if err != nil {
 		return nil, fmt.Errorf("treasury: build request: %w", err)
 	}
-	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-API-Key", apiKey)
 
 	resp, err := client.Do(req)

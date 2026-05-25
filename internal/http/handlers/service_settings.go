@@ -29,6 +29,7 @@ func NewServiceSettingsHandler(log *zap.Logger, db *ent.Client) *ServiceSettings
 // settingsResponse is the API shape for outlet settings.
 type settingsResponse struct {
 	OutletID string `json:"outlet_id"`
+	UseCase  string `json:"use_case"`
 	// display
 	DisplayMode       string `json:"display_mode"`
 	ShowImages        bool   `json:"show_images"`
@@ -63,9 +64,14 @@ type settingsResponse struct {
 	UpdatedAt       string  `json:"updated_at"`
 }
 
-func toSettingsResponse(outletID uuid.UUID, s *ent.OutletSetting) settingsResponse {
+func toSettingsResponse(outlet *ent.Outlet, s *ent.OutletSetting) settingsResponse {
+	useCase := ""
+	if outlet.UseCase != nil {
+		useCase = *outlet.UseCase
+	}
 	r := settingsResponse{
-		OutletID:           outletID.String(),
+		OutletID:           outlet.ID.String(),
+		UseCase:            useCase,
 		DisplayMode:        s.DisplayMode,
 		ShowImages:         s.ShowImages,
 		ShowBarcodeScanner: s.ShowBarcodeScanner,
@@ -180,7 +186,7 @@ func (h *ServiceSettingsHandler) GetSettings(w http.ResponseWriter, r *http.Requ
 		jsonError(w, "failed to load settings", http.StatusInternalServerError)
 		return
 	}
-	jsonOK(w, toSettingsResponse(outlet.ID, setting))
+	jsonOK(w, toSettingsResponse(outlet, setting))
 }
 
 // updateSettingsInput covers all writable fields.
@@ -289,7 +295,7 @@ func (h *ServiceSettingsHandler) PutSettings(w http.ResponseWriter, r *http.Requ
 		jsonError(w, "failed to save settings", http.StatusInternalServerError)
 		return
 	}
-	jsonOK(w, toSettingsResponse(outlet.ID, updated))
+	jsonOK(w, toSettingsResponse(outlet, updated))
 }
 
 // modulesInput for PATCH /settings/modules — enables tenant admins to toggle modules.
@@ -351,7 +357,7 @@ func (h *ServiceSettingsHandler) PatchModules(w http.ResponseWriter, r *http.Req
 		jsonError(w, "failed to save module settings", http.StatusInternalServerError)
 		return
 	}
-	jsonOK(w, toSettingsResponse(outlet.ID, updated))
+	jsonOK(w, toSettingsResponse(outlet, updated))
 }
 
 // shiftSettingsInput for PATCH /settings/shifts
@@ -407,7 +413,7 @@ func (h *ServiceSettingsHandler) PatchShiftSettings(w http.ResponseWriter, r *ht
 		jsonError(w, "failed to save shift settings", http.StatusInternalServerError)
 		return
 	}
-	jsonOK(w, toSettingsResponse(outlet.ID, updated))
+	jsonOK(w, toSettingsResponse(outlet, updated))
 }
 
 // switchOutletInput for POST /outlets/{outletID}/switch — TruLoad-inspired outlet context switch.
@@ -482,7 +488,7 @@ func (h *ServiceSettingsHandler) SwitchOutlet(w http.ResponseWriter, r *http.Req
 
 	var settings *settingsResponse
 	if outlet.Edges.Settings != nil {
-		sr := toSettingsResponse(outlet.ID, outlet.Edges.Settings)
+		sr := toSettingsResponse(outlet, outlet.Edges.Settings)
 		settings = &sr
 	}
 
@@ -499,12 +505,58 @@ func (h *ServiceSettingsHandler) SwitchOutlet(w http.ResponseWriter, r *http.Req
 	})
 }
 
+// outletConfigInput for PATCH /settings/outlet — updates outlet-level config (e.g. use_case).
+type outletConfigInput struct {
+	UseCase *string `json:"use_case"`
+}
+
+// PatchOutletConfig handles PATCH /{tenantID}/pos/settings/outlet
+// Updates outlet-level configuration such as use_case.
+func (h *ServiceSettingsHandler) PatchOutletConfig(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+	outlet, err := h.resolveOutlet(r, tid)
+	if err != nil {
+		jsonError(w, "outlet not found", http.StatusNotFound)
+		return
+	}
+
+	var input outletConfigInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		jsonError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	upd := outlet.Update()
+	if input.UseCase != nil {
+		upd = upd.SetNillableUseCase(input.UseCase)
+	}
+	updated, err := upd.Save(r.Context())
+	if err != nil {
+		h.log.Error("patch outlet config", zap.Error(err))
+		jsonError(w, "failed to update outlet", http.StatusInternalServerError)
+		return
+	}
+
+	setting, err := h.getOrCreateSetting(r, updated.ID)
+	if err != nil {
+		h.log.Error("get settings after outlet config patch", zap.Error(err))
+		jsonError(w, "failed to load settings", http.StatusInternalServerError)
+		return
+	}
+	jsonOK(w, toSettingsResponse(updated, setting))
+}
+
 // RegisterRoutes registers settings routes under the tenant router group.
 func (h *ServiceSettingsHandler) RegisterRoutes(r chi.Router) {
 	r.Get("/pos/settings", h.GetSettings)
 	r.Put("/pos/settings", h.PutSettings)
 	r.Patch("/pos/settings/modules", h.PatchModules)
 	r.Patch("/pos/settings/shifts", h.PatchShiftSettings)
+	r.Patch("/pos/settings/outlet", h.PatchOutletConfig)
 	r.Get("/pos/outlets/{outletID}/settings", h.GetSettings)
 	r.Put("/pos/outlets/{outletID}/settings", h.PutSettings)
 	// TruLoad-inspired outlet switch endpoint

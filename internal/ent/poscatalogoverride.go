@@ -31,6 +31,10 @@ type POSCatalogOverride struct {
 	Currency string `json:"currency,omitempty"`
 	// taxable, tax_exempt, zero_rated
 	TaxStatus string `json:"tax_status,omitempty"`
+	// Treasury TaxCode.code (e.g. VAT-16) — used for computing tax at sale time
+	TaxCodeID string `json:"tax_code_id,omitempty"`
+	// True when selling_price already includes the tax amount (VAT-inclusive pricing)
+	PriceIncludesTax bool `json:"price_includes_tax,omitempty"`
 	// IsAvailable holds the value of the "is_available" field.
 	IsAvailable bool `json:"is_available,omitempty"`
 	// IsFeatured holds the value of the "is_featured" field.
@@ -67,13 +71,13 @@ func (*POSCatalogOverride) scanValues(columns []string) ([]any, error) {
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		case poscatalogoverride.FieldMetadata:
 			values[i] = new([]byte)
-		case poscatalogoverride.FieldIsAvailable, poscatalogoverride.FieldIsFeatured, poscatalogoverride.FieldRequiresPrescription, poscatalogoverride.FieldIsReturnable, poscatalogoverride.FieldRequiresAgeVerification, poscatalogoverride.FieldIsControlledSubstance:
+		case poscatalogoverride.FieldPriceIncludesTax, poscatalogoverride.FieldIsAvailable, poscatalogoverride.FieldIsFeatured, poscatalogoverride.FieldRequiresPrescription, poscatalogoverride.FieldIsReturnable, poscatalogoverride.FieldRequiresAgeVerification, poscatalogoverride.FieldIsControlledSubstance:
 			values[i] = new(sql.NullBool)
 		case poscatalogoverride.FieldSellingPrice:
 			values[i] = new(sql.NullFloat64)
 		case poscatalogoverride.FieldDisplayOrder, poscatalogoverride.FieldMinimumAge, poscatalogoverride.FieldDurationMinutes:
 			values[i] = new(sql.NullInt64)
-		case poscatalogoverride.FieldInventorySku, poscatalogoverride.FieldCurrency, poscatalogoverride.FieldTaxStatus:
+		case poscatalogoverride.FieldInventorySku, poscatalogoverride.FieldCurrency, poscatalogoverride.FieldTaxStatus, poscatalogoverride.FieldTaxCodeID:
 			values[i] = new(sql.NullString)
 		case poscatalogoverride.FieldCreatedAt, poscatalogoverride.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -137,6 +141,18 @@ func (_m *POSCatalogOverride) assignValues(columns []string, values []any) error
 				return fmt.Errorf("unexpected type %T for field tax_status", values[i])
 			} else if value.Valid {
 				_m.TaxStatus = value.String
+			}
+		case poscatalogoverride.FieldTaxCodeID:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field tax_code_id", values[i])
+			} else if value.Valid {
+				_m.TaxCodeID = value.String
+			}
+		case poscatalogoverride.FieldPriceIncludesTax:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field price_includes_tax", values[i])
+			} else if value.Valid {
+				_m.PriceIncludesTax = value.Bool
 			}
 		case poscatalogoverride.FieldIsAvailable:
 			if value, ok := values[i].(*sql.NullBool); !ok {
@@ -271,6 +287,12 @@ func (_m *POSCatalogOverride) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("tax_status=")
 	builder.WriteString(_m.TaxStatus)
+	builder.WriteString(", ")
+	builder.WriteString("tax_code_id=")
+	builder.WriteString(_m.TaxCodeID)
+	builder.WriteString(", ")
+	builder.WriteString("price_includes_tax=")
+	builder.WriteString(fmt.Sprintf("%v", _m.PriceIncludesTax))
 	builder.WriteString(", ")
 	builder.WriteString("is_available=")
 	builder.WriteString(fmt.Sprintf("%v", _m.IsAvailable))

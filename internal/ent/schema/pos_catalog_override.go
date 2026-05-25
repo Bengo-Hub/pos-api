@@ -42,6 +42,15 @@ func (POSCatalogOverride) Fields() []ent.Field {
 			Default("taxable").
 			Comment("taxable, tax_exempt, zero_rated"),
 
+		// Tax config sourced from inventory item and treasury TaxCode.
+		// Synced when catalog updates arrive via NATS inventory.catalog.updated.
+		field.String("tax_code_id").
+			Optional().
+			Comment("Treasury TaxCode.code (e.g. VAT-16) — used for computing tax at sale time"),
+		field.Bool("price_includes_tax").
+			Default(false).
+			Comment("True when selling_price already includes the tax amount (VAT-inclusive pricing)"),
+
 		// Availability
 		field.Bool("is_available").
 			Default(true),

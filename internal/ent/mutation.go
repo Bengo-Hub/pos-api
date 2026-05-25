@@ -31850,6 +31850,7 @@ type OutletSettingMutation struct {
 	shift_auto_end_enabled *bool
 	shift_max_hours        *int
 	addshift_max_hours     *int
+	default_warehouse_id   *uuid.UUID
 	updated_at             *time.Time
 	clearedFields          map[string]struct{}
 	outlet                 *uuid.UUID
@@ -33465,6 +33466,55 @@ func (m *OutletSettingMutation) ResetShiftMaxHours() {
 	delete(m.clearedFields, outletsetting.FieldShiftMaxHours)
 }
 
+// SetDefaultWarehouseID sets the "default_warehouse_id" field.
+func (m *OutletSettingMutation) SetDefaultWarehouseID(u uuid.UUID) {
+	m.default_warehouse_id = &u
+}
+
+// DefaultWarehouseID returns the value of the "default_warehouse_id" field in the mutation.
+func (m *OutletSettingMutation) DefaultWarehouseID() (r uuid.UUID, exists bool) {
+	v := m.default_warehouse_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDefaultWarehouseID returns the old "default_warehouse_id" field's value of the OutletSetting entity.
+// If the OutletSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OutletSettingMutation) OldDefaultWarehouseID(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDefaultWarehouseID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDefaultWarehouseID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDefaultWarehouseID: %w", err)
+	}
+	return oldValue.DefaultWarehouseID, nil
+}
+
+// ClearDefaultWarehouseID clears the value of the "default_warehouse_id" field.
+func (m *OutletSettingMutation) ClearDefaultWarehouseID() {
+	m.default_warehouse_id = nil
+	m.clearedFields[outletsetting.FieldDefaultWarehouseID] = struct{}{}
+}
+
+// DefaultWarehouseIDCleared returns if the "default_warehouse_id" field was cleared in this mutation.
+func (m *OutletSettingMutation) DefaultWarehouseIDCleared() bool {
+	_, ok := m.clearedFields[outletsetting.FieldDefaultWarehouseID]
+	return ok
+}
+
+// ResetDefaultWarehouseID resets all changes to the "default_warehouse_id" field.
+func (m *OutletSettingMutation) ResetDefaultWarehouseID() {
+	m.default_warehouse_id = nil
+	delete(m.clearedFields, outletsetting.FieldDefaultWarehouseID)
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (m *OutletSettingMutation) SetUpdatedAt(t time.Time) {
 	m.updated_at = &t
@@ -33562,7 +33612,7 @@ func (m *OutletSettingMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *OutletSettingMutation) Fields() []string {
-	fields := make([]string, 0, 31)
+	fields := make([]string, 0, 32)
 	if m.outlet != nil {
 		fields = append(fields, outletsetting.FieldOutletID)
 	}
@@ -33653,6 +33703,9 @@ func (m *OutletSettingMutation) Fields() []string {
 	if m.shift_max_hours != nil {
 		fields = append(fields, outletsetting.FieldShiftMaxHours)
 	}
+	if m.default_warehouse_id != nil {
+		fields = append(fields, outletsetting.FieldDefaultWarehouseID)
+	}
 	if m.updated_at != nil {
 		fields = append(fields, outletsetting.FieldUpdatedAt)
 	}
@@ -33724,6 +33777,8 @@ func (m *OutletSettingMutation) Field(name string) (ent.Value, bool) {
 		return m.ShiftAutoEndEnabled()
 	case outletsetting.FieldShiftMaxHours:
 		return m.ShiftMaxHours()
+	case outletsetting.FieldDefaultWarehouseID:
+		return m.DefaultWarehouseID()
 	case outletsetting.FieldUpdatedAt:
 		return m.UpdatedAt()
 	}
@@ -33795,6 +33850,8 @@ func (m *OutletSettingMutation) OldField(ctx context.Context, name string) (ent.
 		return m.OldShiftAutoEndEnabled(ctx)
 	case outletsetting.FieldShiftMaxHours:
 		return m.OldShiftMaxHours(ctx)
+	case outletsetting.FieldDefaultWarehouseID:
+		return m.OldDefaultWarehouseID(ctx)
 	case outletsetting.FieldUpdatedAt:
 		return m.OldUpdatedAt(ctx)
 	}
@@ -34016,6 +34073,13 @@ func (m *OutletSettingMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetShiftMaxHours(v)
 		return nil
+	case outletsetting.FieldDefaultWarehouseID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDefaultWarehouseID(v)
+		return nil
 	case outletsetting.FieldUpdatedAt:
 		v, ok := value.(time.Time)
 		if !ok {
@@ -34164,6 +34228,9 @@ func (m *OutletSettingMutation) ClearedFields() []string {
 	if m.FieldCleared(outletsetting.FieldShiftMaxHours) {
 		fields = append(fields, outletsetting.FieldShiftMaxHours)
 	}
+	if m.FieldCleared(outletsetting.FieldDefaultWarehouseID) {
+		fields = append(fields, outletsetting.FieldDefaultWarehouseID)
+	}
 	return fields
 }
 
@@ -34261,6 +34328,9 @@ func (m *OutletSettingMutation) ClearField(name string) error {
 		return nil
 	case outletsetting.FieldShiftMaxHours:
 		m.ClearShiftMaxHours()
+		return nil
+	case outletsetting.FieldDefaultWarehouseID:
+		m.ClearDefaultWarehouseID()
 		return nil
 	}
 	return fmt.Errorf("unknown OutletSetting nullable field %s", name)
@@ -34360,6 +34430,9 @@ func (m *OutletSettingMutation) ResetField(name string) error {
 	case outletsetting.FieldShiftMaxHours:
 		m.ResetShiftMaxHours()
 		return nil
+	case outletsetting.FieldDefaultWarehouseID:
+		m.ResetDefaultWarehouseID()
+		return nil
 	case outletsetting.FieldUpdatedAt:
 		m.ResetUpdatedAt()
 		return nil
@@ -34454,6 +34527,8 @@ type POSCatalogOverrideMutation struct {
 	addselling_price          *float64
 	currency                  *string
 	tax_status                *string
+	tax_code_id               *string
+	price_includes_tax        *bool
 	is_available              *bool
 	is_featured               *bool
 	display_order             *int
@@ -34840,6 +34915,91 @@ func (m *POSCatalogOverrideMutation) OldTaxStatus(ctx context.Context) (v string
 // ResetTaxStatus resets all changes to the "tax_status" field.
 func (m *POSCatalogOverrideMutation) ResetTaxStatus() {
 	m.tax_status = nil
+}
+
+// SetTaxCodeID sets the "tax_code_id" field.
+func (m *POSCatalogOverrideMutation) SetTaxCodeID(s string) {
+	m.tax_code_id = &s
+}
+
+// TaxCodeID returns the value of the "tax_code_id" field in the mutation.
+func (m *POSCatalogOverrideMutation) TaxCodeID() (r string, exists bool) {
+	v := m.tax_code_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTaxCodeID returns the old "tax_code_id" field's value of the POSCatalogOverride entity.
+// If the POSCatalogOverride object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSCatalogOverrideMutation) OldTaxCodeID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTaxCodeID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTaxCodeID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTaxCodeID: %w", err)
+	}
+	return oldValue.TaxCodeID, nil
+}
+
+// ClearTaxCodeID clears the value of the "tax_code_id" field.
+func (m *POSCatalogOverrideMutation) ClearTaxCodeID() {
+	m.tax_code_id = nil
+	m.clearedFields[poscatalogoverride.FieldTaxCodeID] = struct{}{}
+}
+
+// TaxCodeIDCleared returns if the "tax_code_id" field was cleared in this mutation.
+func (m *POSCatalogOverrideMutation) TaxCodeIDCleared() bool {
+	_, ok := m.clearedFields[poscatalogoverride.FieldTaxCodeID]
+	return ok
+}
+
+// ResetTaxCodeID resets all changes to the "tax_code_id" field.
+func (m *POSCatalogOverrideMutation) ResetTaxCodeID() {
+	m.tax_code_id = nil
+	delete(m.clearedFields, poscatalogoverride.FieldTaxCodeID)
+}
+
+// SetPriceIncludesTax sets the "price_includes_tax" field.
+func (m *POSCatalogOverrideMutation) SetPriceIncludesTax(b bool) {
+	m.price_includes_tax = &b
+}
+
+// PriceIncludesTax returns the value of the "price_includes_tax" field in the mutation.
+func (m *POSCatalogOverrideMutation) PriceIncludesTax() (r bool, exists bool) {
+	v := m.price_includes_tax
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPriceIncludesTax returns the old "price_includes_tax" field's value of the POSCatalogOverride entity.
+// If the POSCatalogOverride object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSCatalogOverrideMutation) OldPriceIncludesTax(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPriceIncludesTax is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPriceIncludesTax requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPriceIncludesTax: %w", err)
+	}
+	return oldValue.PriceIncludesTax, nil
+}
+
+// ResetPriceIncludesTax resets all changes to the "price_includes_tax" field.
+func (m *POSCatalogOverrideMutation) ResetPriceIncludesTax() {
+	m.price_includes_tax = nil
 }
 
 // SetIsAvailable sets the "is_available" field.
@@ -35396,7 +35556,7 @@ func (m *POSCatalogOverrideMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *POSCatalogOverrideMutation) Fields() []string {
-	fields := make([]string, 0, 18)
+	fields := make([]string, 0, 20)
 	if m.tenant_id != nil {
 		fields = append(fields, poscatalogoverride.FieldTenantID)
 	}
@@ -35414,6 +35574,12 @@ func (m *POSCatalogOverrideMutation) Fields() []string {
 	}
 	if m.tax_status != nil {
 		fields = append(fields, poscatalogoverride.FieldTaxStatus)
+	}
+	if m.tax_code_id != nil {
+		fields = append(fields, poscatalogoverride.FieldTaxCodeID)
+	}
+	if m.price_includes_tax != nil {
+		fields = append(fields, poscatalogoverride.FieldPriceIncludesTax)
 	}
 	if m.is_available != nil {
 		fields = append(fields, poscatalogoverride.FieldIsAvailable)
@@ -35471,6 +35637,10 @@ func (m *POSCatalogOverrideMutation) Field(name string) (ent.Value, bool) {
 		return m.Currency()
 	case poscatalogoverride.FieldTaxStatus:
 		return m.TaxStatus()
+	case poscatalogoverride.FieldTaxCodeID:
+		return m.TaxCodeID()
+	case poscatalogoverride.FieldPriceIncludesTax:
+		return m.PriceIncludesTax()
 	case poscatalogoverride.FieldIsAvailable:
 		return m.IsAvailable()
 	case poscatalogoverride.FieldIsFeatured:
@@ -35516,6 +35686,10 @@ func (m *POSCatalogOverrideMutation) OldField(ctx context.Context, name string) 
 		return m.OldCurrency(ctx)
 	case poscatalogoverride.FieldTaxStatus:
 		return m.OldTaxStatus(ctx)
+	case poscatalogoverride.FieldTaxCodeID:
+		return m.OldTaxCodeID(ctx)
+	case poscatalogoverride.FieldPriceIncludesTax:
+		return m.OldPriceIncludesTax(ctx)
 	case poscatalogoverride.FieldIsAvailable:
 		return m.OldIsAvailable(ctx)
 	case poscatalogoverride.FieldIsFeatured:
@@ -35590,6 +35764,20 @@ func (m *POSCatalogOverrideMutation) SetField(name string, value ent.Value) erro
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetTaxStatus(v)
+		return nil
+	case poscatalogoverride.FieldTaxCodeID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTaxCodeID(v)
+		return nil
+	case poscatalogoverride.FieldPriceIncludesTax:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPriceIncludesTax(v)
 		return nil
 	case poscatalogoverride.FieldIsAvailable:
 		v, ok := value.(bool)
@@ -35762,6 +35950,9 @@ func (m *POSCatalogOverrideMutation) ClearedFields() []string {
 	if m.FieldCleared(poscatalogoverride.FieldSellingPrice) {
 		fields = append(fields, poscatalogoverride.FieldSellingPrice)
 	}
+	if m.FieldCleared(poscatalogoverride.FieldTaxCodeID) {
+		fields = append(fields, poscatalogoverride.FieldTaxCodeID)
+	}
 	if m.FieldCleared(poscatalogoverride.FieldMinimumAge) {
 		fields = append(fields, poscatalogoverride.FieldMinimumAge)
 	}
@@ -35787,6 +35978,9 @@ func (m *POSCatalogOverrideMutation) ClearField(name string) error {
 		return nil
 	case poscatalogoverride.FieldSellingPrice:
 		m.ClearSellingPrice()
+		return nil
+	case poscatalogoverride.FieldTaxCodeID:
+		m.ClearTaxCodeID()
 		return nil
 	case poscatalogoverride.FieldMinimumAge:
 		m.ClearMinimumAge()
@@ -35819,6 +36013,12 @@ func (m *POSCatalogOverrideMutation) ResetField(name string) error {
 		return nil
 	case poscatalogoverride.FieldTaxStatus:
 		m.ResetTaxStatus()
+		return nil
+	case poscatalogoverride.FieldTaxCodeID:
+		m.ResetTaxCodeID()
+		return nil
+	case poscatalogoverride.FieldPriceIncludesTax:
+		m.ResetPriceIncludesTax()
 		return nil
 	case poscatalogoverride.FieldIsAvailable:
 		m.ResetIsAvailable()
@@ -40881,35 +41081,42 @@ func (m *POSOrderEventMutation) ResetEdge(name string) error {
 // POSOrderLineMutation represents an operation that mutates the POSOrderLine nodes in the graph.
 type POSOrderLineMutation struct {
 	config
-	op               Op
-	typ              string
-	id               *uuid.UUID
-	catalog_item_id  *uuid.UUID
-	sku              *string
-	name             *string
-	quantity         *float64
-	addquantity      *float64
-	unit_price       *float64
-	addunit_price    *float64
-	total_price      *float64
-	addtotal_price   *float64
-	weight_grams     *int
-	addweight_grams  *int
-	lot_number       *string
-	expiry_date      *time.Time
-	serial_number    *string
-	partial_units    *float64
-	addpartial_units *float64
-	metadata         *map[string]interface{}
-	clearedFields    map[string]struct{}
-	_order           *uuid.UUID
-	cleared_order    bool
-	modifiers        map[uuid.UUID]struct{}
-	removedmodifiers map[uuid.UUID]struct{}
-	clearedmodifiers bool
-	done             bool
-	oldValue         func(context.Context) (*POSOrderLine, error)
-	predicates       []predicate.POSOrderLine
+	op                 Op
+	typ                string
+	id                 *uuid.UUID
+	catalog_item_id    *uuid.UUID
+	sku                *string
+	name               *string
+	quantity           *float64
+	addquantity        *float64
+	unit_price         *float64
+	addunit_price      *float64
+	total_price        *float64
+	addtotal_price     *float64
+	weight_grams       *int
+	addweight_grams    *int
+	lot_number         *string
+	expiry_date        *time.Time
+	serial_number      *string
+	partial_units      *float64
+	addpartial_units   *float64
+	tax_code_id        *string
+	tax_kra_code       *string
+	tax_rate           *float64
+	addtax_rate        *float64
+	tax_amount         *float64
+	addtax_amount      *float64
+	price_includes_tax *bool
+	metadata           *map[string]interface{}
+	clearedFields      map[string]struct{}
+	_order             *uuid.UUID
+	cleared_order      bool
+	modifiers          map[uuid.UUID]struct{}
+	removedmodifiers   map[uuid.UUID]struct{}
+	clearedmodifiers   bool
+	done               bool
+	oldValue           func(context.Context) (*POSOrderLine, error)
+	predicates         []predicate.POSOrderLine
 }
 
 var _ ent.Mutation = (*POSOrderLineMutation)(nil)
@@ -41615,6 +41822,280 @@ func (m *POSOrderLineMutation) ResetPartialUnits() {
 	delete(m.clearedFields, posorderline.FieldPartialUnits)
 }
 
+// SetTaxCodeID sets the "tax_code_id" field.
+func (m *POSOrderLineMutation) SetTaxCodeID(s string) {
+	m.tax_code_id = &s
+}
+
+// TaxCodeID returns the value of the "tax_code_id" field in the mutation.
+func (m *POSOrderLineMutation) TaxCodeID() (r string, exists bool) {
+	v := m.tax_code_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTaxCodeID returns the old "tax_code_id" field's value of the POSOrderLine entity.
+// If the POSOrderLine object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSOrderLineMutation) OldTaxCodeID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTaxCodeID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTaxCodeID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTaxCodeID: %w", err)
+	}
+	return oldValue.TaxCodeID, nil
+}
+
+// ClearTaxCodeID clears the value of the "tax_code_id" field.
+func (m *POSOrderLineMutation) ClearTaxCodeID() {
+	m.tax_code_id = nil
+	m.clearedFields[posorderline.FieldTaxCodeID] = struct{}{}
+}
+
+// TaxCodeIDCleared returns if the "tax_code_id" field was cleared in this mutation.
+func (m *POSOrderLineMutation) TaxCodeIDCleared() bool {
+	_, ok := m.clearedFields[posorderline.FieldTaxCodeID]
+	return ok
+}
+
+// ResetTaxCodeID resets all changes to the "tax_code_id" field.
+func (m *POSOrderLineMutation) ResetTaxCodeID() {
+	m.tax_code_id = nil
+	delete(m.clearedFields, posorderline.FieldTaxCodeID)
+}
+
+// SetTaxKraCode sets the "tax_kra_code" field.
+func (m *POSOrderLineMutation) SetTaxKraCode(s string) {
+	m.tax_kra_code = &s
+}
+
+// TaxKraCode returns the value of the "tax_kra_code" field in the mutation.
+func (m *POSOrderLineMutation) TaxKraCode() (r string, exists bool) {
+	v := m.tax_kra_code
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTaxKraCode returns the old "tax_kra_code" field's value of the POSOrderLine entity.
+// If the POSOrderLine object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSOrderLineMutation) OldTaxKraCode(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTaxKraCode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTaxKraCode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTaxKraCode: %w", err)
+	}
+	return oldValue.TaxKraCode, nil
+}
+
+// ClearTaxKraCode clears the value of the "tax_kra_code" field.
+func (m *POSOrderLineMutation) ClearTaxKraCode() {
+	m.tax_kra_code = nil
+	m.clearedFields[posorderline.FieldTaxKraCode] = struct{}{}
+}
+
+// TaxKraCodeCleared returns if the "tax_kra_code" field was cleared in this mutation.
+func (m *POSOrderLineMutation) TaxKraCodeCleared() bool {
+	_, ok := m.clearedFields[posorderline.FieldTaxKraCode]
+	return ok
+}
+
+// ResetTaxKraCode resets all changes to the "tax_kra_code" field.
+func (m *POSOrderLineMutation) ResetTaxKraCode() {
+	m.tax_kra_code = nil
+	delete(m.clearedFields, posorderline.FieldTaxKraCode)
+}
+
+// SetTaxRate sets the "tax_rate" field.
+func (m *POSOrderLineMutation) SetTaxRate(f float64) {
+	m.tax_rate = &f
+	m.addtax_rate = nil
+}
+
+// TaxRate returns the value of the "tax_rate" field in the mutation.
+func (m *POSOrderLineMutation) TaxRate() (r float64, exists bool) {
+	v := m.tax_rate
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTaxRate returns the old "tax_rate" field's value of the POSOrderLine entity.
+// If the POSOrderLine object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSOrderLineMutation) OldTaxRate(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTaxRate is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTaxRate requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTaxRate: %w", err)
+	}
+	return oldValue.TaxRate, nil
+}
+
+// AddTaxRate adds f to the "tax_rate" field.
+func (m *POSOrderLineMutation) AddTaxRate(f float64) {
+	if m.addtax_rate != nil {
+		*m.addtax_rate += f
+	} else {
+		m.addtax_rate = &f
+	}
+}
+
+// AddedTaxRate returns the value that was added to the "tax_rate" field in this mutation.
+func (m *POSOrderLineMutation) AddedTaxRate() (r float64, exists bool) {
+	v := m.addtax_rate
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearTaxRate clears the value of the "tax_rate" field.
+func (m *POSOrderLineMutation) ClearTaxRate() {
+	m.tax_rate = nil
+	m.addtax_rate = nil
+	m.clearedFields[posorderline.FieldTaxRate] = struct{}{}
+}
+
+// TaxRateCleared returns if the "tax_rate" field was cleared in this mutation.
+func (m *POSOrderLineMutation) TaxRateCleared() bool {
+	_, ok := m.clearedFields[posorderline.FieldTaxRate]
+	return ok
+}
+
+// ResetTaxRate resets all changes to the "tax_rate" field.
+func (m *POSOrderLineMutation) ResetTaxRate() {
+	m.tax_rate = nil
+	m.addtax_rate = nil
+	delete(m.clearedFields, posorderline.FieldTaxRate)
+}
+
+// SetTaxAmount sets the "tax_amount" field.
+func (m *POSOrderLineMutation) SetTaxAmount(f float64) {
+	m.tax_amount = &f
+	m.addtax_amount = nil
+}
+
+// TaxAmount returns the value of the "tax_amount" field in the mutation.
+func (m *POSOrderLineMutation) TaxAmount() (r float64, exists bool) {
+	v := m.tax_amount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTaxAmount returns the old "tax_amount" field's value of the POSOrderLine entity.
+// If the POSOrderLine object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSOrderLineMutation) OldTaxAmount(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTaxAmount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTaxAmount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTaxAmount: %w", err)
+	}
+	return oldValue.TaxAmount, nil
+}
+
+// AddTaxAmount adds f to the "tax_amount" field.
+func (m *POSOrderLineMutation) AddTaxAmount(f float64) {
+	if m.addtax_amount != nil {
+		*m.addtax_amount += f
+	} else {
+		m.addtax_amount = &f
+	}
+}
+
+// AddedTaxAmount returns the value that was added to the "tax_amount" field in this mutation.
+func (m *POSOrderLineMutation) AddedTaxAmount() (r float64, exists bool) {
+	v := m.addtax_amount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearTaxAmount clears the value of the "tax_amount" field.
+func (m *POSOrderLineMutation) ClearTaxAmount() {
+	m.tax_amount = nil
+	m.addtax_amount = nil
+	m.clearedFields[posorderline.FieldTaxAmount] = struct{}{}
+}
+
+// TaxAmountCleared returns if the "tax_amount" field was cleared in this mutation.
+func (m *POSOrderLineMutation) TaxAmountCleared() bool {
+	_, ok := m.clearedFields[posorderline.FieldTaxAmount]
+	return ok
+}
+
+// ResetTaxAmount resets all changes to the "tax_amount" field.
+func (m *POSOrderLineMutation) ResetTaxAmount() {
+	m.tax_amount = nil
+	m.addtax_amount = nil
+	delete(m.clearedFields, posorderline.FieldTaxAmount)
+}
+
+// SetPriceIncludesTax sets the "price_includes_tax" field.
+func (m *POSOrderLineMutation) SetPriceIncludesTax(b bool) {
+	m.price_includes_tax = &b
+}
+
+// PriceIncludesTax returns the value of the "price_includes_tax" field in the mutation.
+func (m *POSOrderLineMutation) PriceIncludesTax() (r bool, exists bool) {
+	v := m.price_includes_tax
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPriceIncludesTax returns the old "price_includes_tax" field's value of the POSOrderLine entity.
+// If the POSOrderLine object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSOrderLineMutation) OldPriceIncludesTax(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPriceIncludesTax is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPriceIncludesTax requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPriceIncludesTax: %w", err)
+	}
+	return oldValue.PriceIncludesTax, nil
+}
+
+// ResetPriceIncludesTax resets all changes to the "price_includes_tax" field.
+func (m *POSOrderLineMutation) ResetPriceIncludesTax() {
+	m.price_includes_tax = nil
+}
+
 // SetMetadata sets the "metadata" field.
 func (m *POSOrderLineMutation) SetMetadata(value map[string]interface{}) {
 	m.metadata = &value
@@ -41766,7 +42247,7 @@ func (m *POSOrderLineMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *POSOrderLineMutation) Fields() []string {
-	fields := make([]string, 0, 13)
+	fields := make([]string, 0, 18)
 	if m._order != nil {
 		fields = append(fields, posorderline.FieldOrderID)
 	}
@@ -41803,6 +42284,21 @@ func (m *POSOrderLineMutation) Fields() []string {
 	if m.partial_units != nil {
 		fields = append(fields, posorderline.FieldPartialUnits)
 	}
+	if m.tax_code_id != nil {
+		fields = append(fields, posorderline.FieldTaxCodeID)
+	}
+	if m.tax_kra_code != nil {
+		fields = append(fields, posorderline.FieldTaxKraCode)
+	}
+	if m.tax_rate != nil {
+		fields = append(fields, posorderline.FieldTaxRate)
+	}
+	if m.tax_amount != nil {
+		fields = append(fields, posorderline.FieldTaxAmount)
+	}
+	if m.price_includes_tax != nil {
+		fields = append(fields, posorderline.FieldPriceIncludesTax)
+	}
 	if m.metadata != nil {
 		fields = append(fields, posorderline.FieldMetadata)
 	}
@@ -41838,6 +42334,16 @@ func (m *POSOrderLineMutation) Field(name string) (ent.Value, bool) {
 		return m.SerialNumber()
 	case posorderline.FieldPartialUnits:
 		return m.PartialUnits()
+	case posorderline.FieldTaxCodeID:
+		return m.TaxCodeID()
+	case posorderline.FieldTaxKraCode:
+		return m.TaxKraCode()
+	case posorderline.FieldTaxRate:
+		return m.TaxRate()
+	case posorderline.FieldTaxAmount:
+		return m.TaxAmount()
+	case posorderline.FieldPriceIncludesTax:
+		return m.PriceIncludesTax()
 	case posorderline.FieldMetadata:
 		return m.Metadata()
 	}
@@ -41873,6 +42379,16 @@ func (m *POSOrderLineMutation) OldField(ctx context.Context, name string) (ent.V
 		return m.OldSerialNumber(ctx)
 	case posorderline.FieldPartialUnits:
 		return m.OldPartialUnits(ctx)
+	case posorderline.FieldTaxCodeID:
+		return m.OldTaxCodeID(ctx)
+	case posorderline.FieldTaxKraCode:
+		return m.OldTaxKraCode(ctx)
+	case posorderline.FieldTaxRate:
+		return m.OldTaxRate(ctx)
+	case posorderline.FieldTaxAmount:
+		return m.OldTaxAmount(ctx)
+	case posorderline.FieldPriceIncludesTax:
+		return m.OldPriceIncludesTax(ctx)
 	case posorderline.FieldMetadata:
 		return m.OldMetadata(ctx)
 	}
@@ -41968,6 +42484,41 @@ func (m *POSOrderLineMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetPartialUnits(v)
 		return nil
+	case posorderline.FieldTaxCodeID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTaxCodeID(v)
+		return nil
+	case posorderline.FieldTaxKraCode:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTaxKraCode(v)
+		return nil
+	case posorderline.FieldTaxRate:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTaxRate(v)
+		return nil
+	case posorderline.FieldTaxAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTaxAmount(v)
+		return nil
+	case posorderline.FieldPriceIncludesTax:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPriceIncludesTax(v)
+		return nil
 	case posorderline.FieldMetadata:
 		v, ok := value.(map[string]interface{})
 		if !ok {
@@ -41998,6 +42549,12 @@ func (m *POSOrderLineMutation) AddedFields() []string {
 	if m.addpartial_units != nil {
 		fields = append(fields, posorderline.FieldPartialUnits)
 	}
+	if m.addtax_rate != nil {
+		fields = append(fields, posorderline.FieldTaxRate)
+	}
+	if m.addtax_amount != nil {
+		fields = append(fields, posorderline.FieldTaxAmount)
+	}
 	return fields
 }
 
@@ -42016,6 +42573,10 @@ func (m *POSOrderLineMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedWeightGrams()
 	case posorderline.FieldPartialUnits:
 		return m.AddedPartialUnits()
+	case posorderline.FieldTaxRate:
+		return m.AddedTaxRate()
+	case posorderline.FieldTaxAmount:
+		return m.AddedTaxAmount()
 	}
 	return nil, false
 }
@@ -42060,6 +42621,20 @@ func (m *POSOrderLineMutation) AddField(name string, value ent.Value) error {
 		}
 		m.AddPartialUnits(v)
 		return nil
+	case posorderline.FieldTaxRate:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTaxRate(v)
+		return nil
+	case posorderline.FieldTaxAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTaxAmount(v)
+		return nil
 	}
 	return fmt.Errorf("unknown POSOrderLine numeric field %s", name)
 }
@@ -42082,6 +42657,18 @@ func (m *POSOrderLineMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(posorderline.FieldPartialUnits) {
 		fields = append(fields, posorderline.FieldPartialUnits)
+	}
+	if m.FieldCleared(posorderline.FieldTaxCodeID) {
+		fields = append(fields, posorderline.FieldTaxCodeID)
+	}
+	if m.FieldCleared(posorderline.FieldTaxKraCode) {
+		fields = append(fields, posorderline.FieldTaxKraCode)
+	}
+	if m.FieldCleared(posorderline.FieldTaxRate) {
+		fields = append(fields, posorderline.FieldTaxRate)
+	}
+	if m.FieldCleared(posorderline.FieldTaxAmount) {
+		fields = append(fields, posorderline.FieldTaxAmount)
 	}
 	return fields
 }
@@ -42111,6 +42698,18 @@ func (m *POSOrderLineMutation) ClearField(name string) error {
 		return nil
 	case posorderline.FieldPartialUnits:
 		m.ClearPartialUnits()
+		return nil
+	case posorderline.FieldTaxCodeID:
+		m.ClearTaxCodeID()
+		return nil
+	case posorderline.FieldTaxKraCode:
+		m.ClearTaxKraCode()
+		return nil
+	case posorderline.FieldTaxRate:
+		m.ClearTaxRate()
+		return nil
+	case posorderline.FieldTaxAmount:
+		m.ClearTaxAmount()
 		return nil
 	}
 	return fmt.Errorf("unknown POSOrderLine nullable field %s", name)
@@ -42155,6 +42754,21 @@ func (m *POSOrderLineMutation) ResetField(name string) error {
 		return nil
 	case posorderline.FieldPartialUnits:
 		m.ResetPartialUnits()
+		return nil
+	case posorderline.FieldTaxCodeID:
+		m.ResetTaxCodeID()
+		return nil
+	case posorderline.FieldTaxKraCode:
+		m.ResetTaxKraCode()
+		return nil
+	case posorderline.FieldTaxRate:
+		m.ResetTaxRate()
+		return nil
+	case posorderline.FieldTaxAmount:
+		m.ResetTaxAmount()
+		return nil
+	case posorderline.FieldPriceIncludesTax:
+		m.ResetPriceIncludesTax()
 		return nil
 	case posorderline.FieldMetadata:
 		m.ResetMetadata()

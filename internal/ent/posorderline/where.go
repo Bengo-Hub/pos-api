@@ -116,6 +116,31 @@ func PartialUnits(v float64) predicate.POSOrderLine {
 	return predicate.POSOrderLine(sql.FieldEQ(FieldPartialUnits, v))
 }
 
+// TaxCodeID applies equality check predicate on the "tax_code_id" field. It's identical to TaxCodeIDEQ.
+func TaxCodeID(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldEQ(FieldTaxCodeID, v))
+}
+
+// TaxKraCode applies equality check predicate on the "tax_kra_code" field. It's identical to TaxKraCodeEQ.
+func TaxKraCode(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldEQ(FieldTaxKraCode, v))
+}
+
+// TaxRate applies equality check predicate on the "tax_rate" field. It's identical to TaxRateEQ.
+func TaxRate(v float64) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldEQ(FieldTaxRate, v))
+}
+
+// TaxAmount applies equality check predicate on the "tax_amount" field. It's identical to TaxAmountEQ.
+func TaxAmount(v float64) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldEQ(FieldTaxAmount, v))
+}
+
+// PriceIncludesTax applies equality check predicate on the "price_includes_tax" field. It's identical to PriceIncludesTaxEQ.
+func PriceIncludesTax(v bool) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldEQ(FieldPriceIncludesTax, v))
+}
+
 // OrderIDEQ applies the EQ predicate on the "order_id" field.
 func OrderIDEQ(v uuid.UUID) predicate.POSOrderLine {
 	return predicate.POSOrderLine(sql.FieldEQ(FieldOrderID, v))
@@ -724,6 +749,266 @@ func PartialUnitsIsNil() predicate.POSOrderLine {
 // PartialUnitsNotNil applies the NotNil predicate on the "partial_units" field.
 func PartialUnitsNotNil() predicate.POSOrderLine {
 	return predicate.POSOrderLine(sql.FieldNotNull(FieldPartialUnits))
+}
+
+// TaxCodeIDEQ applies the EQ predicate on the "tax_code_id" field.
+func TaxCodeIDEQ(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldEQ(FieldTaxCodeID, v))
+}
+
+// TaxCodeIDNEQ applies the NEQ predicate on the "tax_code_id" field.
+func TaxCodeIDNEQ(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldNEQ(FieldTaxCodeID, v))
+}
+
+// TaxCodeIDIn applies the In predicate on the "tax_code_id" field.
+func TaxCodeIDIn(vs ...string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldIn(FieldTaxCodeID, vs...))
+}
+
+// TaxCodeIDNotIn applies the NotIn predicate on the "tax_code_id" field.
+func TaxCodeIDNotIn(vs ...string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldNotIn(FieldTaxCodeID, vs...))
+}
+
+// TaxCodeIDGT applies the GT predicate on the "tax_code_id" field.
+func TaxCodeIDGT(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldGT(FieldTaxCodeID, v))
+}
+
+// TaxCodeIDGTE applies the GTE predicate on the "tax_code_id" field.
+func TaxCodeIDGTE(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldGTE(FieldTaxCodeID, v))
+}
+
+// TaxCodeIDLT applies the LT predicate on the "tax_code_id" field.
+func TaxCodeIDLT(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldLT(FieldTaxCodeID, v))
+}
+
+// TaxCodeIDLTE applies the LTE predicate on the "tax_code_id" field.
+func TaxCodeIDLTE(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldLTE(FieldTaxCodeID, v))
+}
+
+// TaxCodeIDContains applies the Contains predicate on the "tax_code_id" field.
+func TaxCodeIDContains(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldContains(FieldTaxCodeID, v))
+}
+
+// TaxCodeIDHasPrefix applies the HasPrefix predicate on the "tax_code_id" field.
+func TaxCodeIDHasPrefix(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldHasPrefix(FieldTaxCodeID, v))
+}
+
+// TaxCodeIDHasSuffix applies the HasSuffix predicate on the "tax_code_id" field.
+func TaxCodeIDHasSuffix(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldHasSuffix(FieldTaxCodeID, v))
+}
+
+// TaxCodeIDIsNil applies the IsNil predicate on the "tax_code_id" field.
+func TaxCodeIDIsNil() predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldIsNull(FieldTaxCodeID))
+}
+
+// TaxCodeIDNotNil applies the NotNil predicate on the "tax_code_id" field.
+func TaxCodeIDNotNil() predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldNotNull(FieldTaxCodeID))
+}
+
+// TaxCodeIDEqualFold applies the EqualFold predicate on the "tax_code_id" field.
+func TaxCodeIDEqualFold(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldEqualFold(FieldTaxCodeID, v))
+}
+
+// TaxCodeIDContainsFold applies the ContainsFold predicate on the "tax_code_id" field.
+func TaxCodeIDContainsFold(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldContainsFold(FieldTaxCodeID, v))
+}
+
+// TaxKraCodeEQ applies the EQ predicate on the "tax_kra_code" field.
+func TaxKraCodeEQ(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldEQ(FieldTaxKraCode, v))
+}
+
+// TaxKraCodeNEQ applies the NEQ predicate on the "tax_kra_code" field.
+func TaxKraCodeNEQ(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldNEQ(FieldTaxKraCode, v))
+}
+
+// TaxKraCodeIn applies the In predicate on the "tax_kra_code" field.
+func TaxKraCodeIn(vs ...string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldIn(FieldTaxKraCode, vs...))
+}
+
+// TaxKraCodeNotIn applies the NotIn predicate on the "tax_kra_code" field.
+func TaxKraCodeNotIn(vs ...string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldNotIn(FieldTaxKraCode, vs...))
+}
+
+// TaxKraCodeGT applies the GT predicate on the "tax_kra_code" field.
+func TaxKraCodeGT(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldGT(FieldTaxKraCode, v))
+}
+
+// TaxKraCodeGTE applies the GTE predicate on the "tax_kra_code" field.
+func TaxKraCodeGTE(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldGTE(FieldTaxKraCode, v))
+}
+
+// TaxKraCodeLT applies the LT predicate on the "tax_kra_code" field.
+func TaxKraCodeLT(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldLT(FieldTaxKraCode, v))
+}
+
+// TaxKraCodeLTE applies the LTE predicate on the "tax_kra_code" field.
+func TaxKraCodeLTE(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldLTE(FieldTaxKraCode, v))
+}
+
+// TaxKraCodeContains applies the Contains predicate on the "tax_kra_code" field.
+func TaxKraCodeContains(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldContains(FieldTaxKraCode, v))
+}
+
+// TaxKraCodeHasPrefix applies the HasPrefix predicate on the "tax_kra_code" field.
+func TaxKraCodeHasPrefix(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldHasPrefix(FieldTaxKraCode, v))
+}
+
+// TaxKraCodeHasSuffix applies the HasSuffix predicate on the "tax_kra_code" field.
+func TaxKraCodeHasSuffix(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldHasSuffix(FieldTaxKraCode, v))
+}
+
+// TaxKraCodeIsNil applies the IsNil predicate on the "tax_kra_code" field.
+func TaxKraCodeIsNil() predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldIsNull(FieldTaxKraCode))
+}
+
+// TaxKraCodeNotNil applies the NotNil predicate on the "tax_kra_code" field.
+func TaxKraCodeNotNil() predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldNotNull(FieldTaxKraCode))
+}
+
+// TaxKraCodeEqualFold applies the EqualFold predicate on the "tax_kra_code" field.
+func TaxKraCodeEqualFold(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldEqualFold(FieldTaxKraCode, v))
+}
+
+// TaxKraCodeContainsFold applies the ContainsFold predicate on the "tax_kra_code" field.
+func TaxKraCodeContainsFold(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldContainsFold(FieldTaxKraCode, v))
+}
+
+// TaxRateEQ applies the EQ predicate on the "tax_rate" field.
+func TaxRateEQ(v float64) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldEQ(FieldTaxRate, v))
+}
+
+// TaxRateNEQ applies the NEQ predicate on the "tax_rate" field.
+func TaxRateNEQ(v float64) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldNEQ(FieldTaxRate, v))
+}
+
+// TaxRateIn applies the In predicate on the "tax_rate" field.
+func TaxRateIn(vs ...float64) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldIn(FieldTaxRate, vs...))
+}
+
+// TaxRateNotIn applies the NotIn predicate on the "tax_rate" field.
+func TaxRateNotIn(vs ...float64) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldNotIn(FieldTaxRate, vs...))
+}
+
+// TaxRateGT applies the GT predicate on the "tax_rate" field.
+func TaxRateGT(v float64) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldGT(FieldTaxRate, v))
+}
+
+// TaxRateGTE applies the GTE predicate on the "tax_rate" field.
+func TaxRateGTE(v float64) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldGTE(FieldTaxRate, v))
+}
+
+// TaxRateLT applies the LT predicate on the "tax_rate" field.
+func TaxRateLT(v float64) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldLT(FieldTaxRate, v))
+}
+
+// TaxRateLTE applies the LTE predicate on the "tax_rate" field.
+func TaxRateLTE(v float64) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldLTE(FieldTaxRate, v))
+}
+
+// TaxRateIsNil applies the IsNil predicate on the "tax_rate" field.
+func TaxRateIsNil() predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldIsNull(FieldTaxRate))
+}
+
+// TaxRateNotNil applies the NotNil predicate on the "tax_rate" field.
+func TaxRateNotNil() predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldNotNull(FieldTaxRate))
+}
+
+// TaxAmountEQ applies the EQ predicate on the "tax_amount" field.
+func TaxAmountEQ(v float64) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldEQ(FieldTaxAmount, v))
+}
+
+// TaxAmountNEQ applies the NEQ predicate on the "tax_amount" field.
+func TaxAmountNEQ(v float64) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldNEQ(FieldTaxAmount, v))
+}
+
+// TaxAmountIn applies the In predicate on the "tax_amount" field.
+func TaxAmountIn(vs ...float64) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldIn(FieldTaxAmount, vs...))
+}
+
+// TaxAmountNotIn applies the NotIn predicate on the "tax_amount" field.
+func TaxAmountNotIn(vs ...float64) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldNotIn(FieldTaxAmount, vs...))
+}
+
+// TaxAmountGT applies the GT predicate on the "tax_amount" field.
+func TaxAmountGT(v float64) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldGT(FieldTaxAmount, v))
+}
+
+// TaxAmountGTE applies the GTE predicate on the "tax_amount" field.
+func TaxAmountGTE(v float64) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldGTE(FieldTaxAmount, v))
+}
+
+// TaxAmountLT applies the LT predicate on the "tax_amount" field.
+func TaxAmountLT(v float64) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldLT(FieldTaxAmount, v))
+}
+
+// TaxAmountLTE applies the LTE predicate on the "tax_amount" field.
+func TaxAmountLTE(v float64) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldLTE(FieldTaxAmount, v))
+}
+
+// TaxAmountIsNil applies the IsNil predicate on the "tax_amount" field.
+func TaxAmountIsNil() predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldIsNull(FieldTaxAmount))
+}
+
+// TaxAmountNotNil applies the NotNil predicate on the "tax_amount" field.
+func TaxAmountNotNil() predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldNotNull(FieldTaxAmount))
+}
+
+// PriceIncludesTaxEQ applies the EQ predicate on the "price_includes_tax" field.
+func PriceIncludesTaxEQ(v bool) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldEQ(FieldPriceIncludesTax, v))
+}
+
+// PriceIncludesTaxNEQ applies the NEQ predicate on the "price_includes_tax" field.
+func PriceIncludesTaxNEQ(v bool) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldNEQ(FieldPriceIncludesTax, v))
 }
 
 // HasOrder applies the HasEdge predicate on the "order" edge.

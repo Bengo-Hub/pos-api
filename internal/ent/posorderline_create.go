@@ -138,6 +138,76 @@ func (_c *POSOrderLineCreate) SetNillablePartialUnits(v *float64) *POSOrderLineC
 	return _c
 }
 
+// SetTaxCodeID sets the "tax_code_id" field.
+func (_c *POSOrderLineCreate) SetTaxCodeID(v string) *POSOrderLineCreate {
+	_c.mutation.SetTaxCodeID(v)
+	return _c
+}
+
+// SetNillableTaxCodeID sets the "tax_code_id" field if the given value is not nil.
+func (_c *POSOrderLineCreate) SetNillableTaxCodeID(v *string) *POSOrderLineCreate {
+	if v != nil {
+		_c.SetTaxCodeID(*v)
+	}
+	return _c
+}
+
+// SetTaxKraCode sets the "tax_kra_code" field.
+func (_c *POSOrderLineCreate) SetTaxKraCode(v string) *POSOrderLineCreate {
+	_c.mutation.SetTaxKraCode(v)
+	return _c
+}
+
+// SetNillableTaxKraCode sets the "tax_kra_code" field if the given value is not nil.
+func (_c *POSOrderLineCreate) SetNillableTaxKraCode(v *string) *POSOrderLineCreate {
+	if v != nil {
+		_c.SetTaxKraCode(*v)
+	}
+	return _c
+}
+
+// SetTaxRate sets the "tax_rate" field.
+func (_c *POSOrderLineCreate) SetTaxRate(v float64) *POSOrderLineCreate {
+	_c.mutation.SetTaxRate(v)
+	return _c
+}
+
+// SetNillableTaxRate sets the "tax_rate" field if the given value is not nil.
+func (_c *POSOrderLineCreate) SetNillableTaxRate(v *float64) *POSOrderLineCreate {
+	if v != nil {
+		_c.SetTaxRate(*v)
+	}
+	return _c
+}
+
+// SetTaxAmount sets the "tax_amount" field.
+func (_c *POSOrderLineCreate) SetTaxAmount(v float64) *POSOrderLineCreate {
+	_c.mutation.SetTaxAmount(v)
+	return _c
+}
+
+// SetNillableTaxAmount sets the "tax_amount" field if the given value is not nil.
+func (_c *POSOrderLineCreate) SetNillableTaxAmount(v *float64) *POSOrderLineCreate {
+	if v != nil {
+		_c.SetTaxAmount(*v)
+	}
+	return _c
+}
+
+// SetPriceIncludesTax sets the "price_includes_tax" field.
+func (_c *POSOrderLineCreate) SetPriceIncludesTax(v bool) *POSOrderLineCreate {
+	_c.mutation.SetPriceIncludesTax(v)
+	return _c
+}
+
+// SetNillablePriceIncludesTax sets the "price_includes_tax" field if the given value is not nil.
+func (_c *POSOrderLineCreate) SetNillablePriceIncludesTax(v *bool) *POSOrderLineCreate {
+	if v != nil {
+		_c.SetPriceIncludesTax(*v)
+	}
+	return _c
+}
+
 // SetMetadata sets the "metadata" field.
 func (_c *POSOrderLineCreate) SetMetadata(v map[string]interface{}) *POSOrderLineCreate {
 	_c.mutation.SetMetadata(v)
@@ -213,6 +283,10 @@ func (_c *POSOrderLineCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *POSOrderLineCreate) defaults() {
+	if _, ok := _c.mutation.PriceIncludesTax(); !ok {
+		v := posorderline.DefaultPriceIncludesTax
+		_c.mutation.SetPriceIncludesTax(v)
+	}
 	if _, ok := _c.mutation.Metadata(); !ok {
 		v := posorderline.DefaultMetadata
 		_c.mutation.SetMetadata(v)
@@ -255,6 +329,9 @@ func (_c *POSOrderLineCreate) check() error {
 	}
 	if _, ok := _c.mutation.TotalPrice(); !ok {
 		return &ValidationError{Name: "total_price", err: errors.New(`ent: missing required field "POSOrderLine.total_price"`)}
+	}
+	if _, ok := _c.mutation.PriceIncludesTax(); !ok {
+		return &ValidationError{Name: "price_includes_tax", err: errors.New(`ent: missing required field "POSOrderLine.price_includes_tax"`)}
 	}
 	if _, ok := _c.mutation.Metadata(); !ok {
 		return &ValidationError{Name: "metadata", err: errors.New(`ent: missing required field "POSOrderLine.metadata"`)}
@@ -341,6 +418,26 @@ func (_c *POSOrderLineCreate) createSpec() (*POSOrderLine, *sqlgraph.CreateSpec)
 	if value, ok := _c.mutation.PartialUnits(); ok {
 		_spec.SetField(posorderline.FieldPartialUnits, field.TypeFloat64, value)
 		_node.PartialUnits = &value
+	}
+	if value, ok := _c.mutation.TaxCodeID(); ok {
+		_spec.SetField(posorderline.FieldTaxCodeID, field.TypeString, value)
+		_node.TaxCodeID = value
+	}
+	if value, ok := _c.mutation.TaxKraCode(); ok {
+		_spec.SetField(posorderline.FieldTaxKraCode, field.TypeString, value)
+		_node.TaxKraCode = value
+	}
+	if value, ok := _c.mutation.TaxRate(); ok {
+		_spec.SetField(posorderline.FieldTaxRate, field.TypeFloat64, value)
+		_node.TaxRate = &value
+	}
+	if value, ok := _c.mutation.TaxAmount(); ok {
+		_spec.SetField(posorderline.FieldTaxAmount, field.TypeFloat64, value)
+		_node.TaxAmount = &value
+	}
+	if value, ok := _c.mutation.PriceIncludesTax(); ok {
+		_spec.SetField(posorderline.FieldPriceIncludesTax, field.TypeBool, value)
+		_node.PriceIncludesTax = value
 	}
 	if value, ok := _c.mutation.Metadata(); ok {
 		_spec.SetField(posorderline.FieldMetadata, field.TypeJSON, value)
@@ -632,6 +729,102 @@ func (u *POSOrderLineUpsert) AddPartialUnits(v float64) *POSOrderLineUpsert {
 // ClearPartialUnits clears the value of the "partial_units" field.
 func (u *POSOrderLineUpsert) ClearPartialUnits() *POSOrderLineUpsert {
 	u.SetNull(posorderline.FieldPartialUnits)
+	return u
+}
+
+// SetTaxCodeID sets the "tax_code_id" field.
+func (u *POSOrderLineUpsert) SetTaxCodeID(v string) *POSOrderLineUpsert {
+	u.Set(posorderline.FieldTaxCodeID, v)
+	return u
+}
+
+// UpdateTaxCodeID sets the "tax_code_id" field to the value that was provided on create.
+func (u *POSOrderLineUpsert) UpdateTaxCodeID() *POSOrderLineUpsert {
+	u.SetExcluded(posorderline.FieldTaxCodeID)
+	return u
+}
+
+// ClearTaxCodeID clears the value of the "tax_code_id" field.
+func (u *POSOrderLineUpsert) ClearTaxCodeID() *POSOrderLineUpsert {
+	u.SetNull(posorderline.FieldTaxCodeID)
+	return u
+}
+
+// SetTaxKraCode sets the "tax_kra_code" field.
+func (u *POSOrderLineUpsert) SetTaxKraCode(v string) *POSOrderLineUpsert {
+	u.Set(posorderline.FieldTaxKraCode, v)
+	return u
+}
+
+// UpdateTaxKraCode sets the "tax_kra_code" field to the value that was provided on create.
+func (u *POSOrderLineUpsert) UpdateTaxKraCode() *POSOrderLineUpsert {
+	u.SetExcluded(posorderline.FieldTaxKraCode)
+	return u
+}
+
+// ClearTaxKraCode clears the value of the "tax_kra_code" field.
+func (u *POSOrderLineUpsert) ClearTaxKraCode() *POSOrderLineUpsert {
+	u.SetNull(posorderline.FieldTaxKraCode)
+	return u
+}
+
+// SetTaxRate sets the "tax_rate" field.
+func (u *POSOrderLineUpsert) SetTaxRate(v float64) *POSOrderLineUpsert {
+	u.Set(posorderline.FieldTaxRate, v)
+	return u
+}
+
+// UpdateTaxRate sets the "tax_rate" field to the value that was provided on create.
+func (u *POSOrderLineUpsert) UpdateTaxRate() *POSOrderLineUpsert {
+	u.SetExcluded(posorderline.FieldTaxRate)
+	return u
+}
+
+// AddTaxRate adds v to the "tax_rate" field.
+func (u *POSOrderLineUpsert) AddTaxRate(v float64) *POSOrderLineUpsert {
+	u.Add(posorderline.FieldTaxRate, v)
+	return u
+}
+
+// ClearTaxRate clears the value of the "tax_rate" field.
+func (u *POSOrderLineUpsert) ClearTaxRate() *POSOrderLineUpsert {
+	u.SetNull(posorderline.FieldTaxRate)
+	return u
+}
+
+// SetTaxAmount sets the "tax_amount" field.
+func (u *POSOrderLineUpsert) SetTaxAmount(v float64) *POSOrderLineUpsert {
+	u.Set(posorderline.FieldTaxAmount, v)
+	return u
+}
+
+// UpdateTaxAmount sets the "tax_amount" field to the value that was provided on create.
+func (u *POSOrderLineUpsert) UpdateTaxAmount() *POSOrderLineUpsert {
+	u.SetExcluded(posorderline.FieldTaxAmount)
+	return u
+}
+
+// AddTaxAmount adds v to the "tax_amount" field.
+func (u *POSOrderLineUpsert) AddTaxAmount(v float64) *POSOrderLineUpsert {
+	u.Add(posorderline.FieldTaxAmount, v)
+	return u
+}
+
+// ClearTaxAmount clears the value of the "tax_amount" field.
+func (u *POSOrderLineUpsert) ClearTaxAmount() *POSOrderLineUpsert {
+	u.SetNull(posorderline.FieldTaxAmount)
+	return u
+}
+
+// SetPriceIncludesTax sets the "price_includes_tax" field.
+func (u *POSOrderLineUpsert) SetPriceIncludesTax(v bool) *POSOrderLineUpsert {
+	u.Set(posorderline.FieldPriceIncludesTax, v)
+	return u
+}
+
+// UpdatePriceIncludesTax sets the "price_includes_tax" field to the value that was provided on create.
+func (u *POSOrderLineUpsert) UpdatePriceIncludesTax() *POSOrderLineUpsert {
+	u.SetExcluded(posorderline.FieldPriceIncludesTax)
 	return u
 }
 
@@ -930,6 +1123,118 @@ func (u *POSOrderLineUpsertOne) UpdatePartialUnits() *POSOrderLineUpsertOne {
 func (u *POSOrderLineUpsertOne) ClearPartialUnits() *POSOrderLineUpsertOne {
 	return u.Update(func(s *POSOrderLineUpsert) {
 		s.ClearPartialUnits()
+	})
+}
+
+// SetTaxCodeID sets the "tax_code_id" field.
+func (u *POSOrderLineUpsertOne) SetTaxCodeID(v string) *POSOrderLineUpsertOne {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.SetTaxCodeID(v)
+	})
+}
+
+// UpdateTaxCodeID sets the "tax_code_id" field to the value that was provided on create.
+func (u *POSOrderLineUpsertOne) UpdateTaxCodeID() *POSOrderLineUpsertOne {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.UpdateTaxCodeID()
+	})
+}
+
+// ClearTaxCodeID clears the value of the "tax_code_id" field.
+func (u *POSOrderLineUpsertOne) ClearTaxCodeID() *POSOrderLineUpsertOne {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.ClearTaxCodeID()
+	})
+}
+
+// SetTaxKraCode sets the "tax_kra_code" field.
+func (u *POSOrderLineUpsertOne) SetTaxKraCode(v string) *POSOrderLineUpsertOne {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.SetTaxKraCode(v)
+	})
+}
+
+// UpdateTaxKraCode sets the "tax_kra_code" field to the value that was provided on create.
+func (u *POSOrderLineUpsertOne) UpdateTaxKraCode() *POSOrderLineUpsertOne {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.UpdateTaxKraCode()
+	})
+}
+
+// ClearTaxKraCode clears the value of the "tax_kra_code" field.
+func (u *POSOrderLineUpsertOne) ClearTaxKraCode() *POSOrderLineUpsertOne {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.ClearTaxKraCode()
+	})
+}
+
+// SetTaxRate sets the "tax_rate" field.
+func (u *POSOrderLineUpsertOne) SetTaxRate(v float64) *POSOrderLineUpsertOne {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.SetTaxRate(v)
+	})
+}
+
+// AddTaxRate adds v to the "tax_rate" field.
+func (u *POSOrderLineUpsertOne) AddTaxRate(v float64) *POSOrderLineUpsertOne {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.AddTaxRate(v)
+	})
+}
+
+// UpdateTaxRate sets the "tax_rate" field to the value that was provided on create.
+func (u *POSOrderLineUpsertOne) UpdateTaxRate() *POSOrderLineUpsertOne {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.UpdateTaxRate()
+	})
+}
+
+// ClearTaxRate clears the value of the "tax_rate" field.
+func (u *POSOrderLineUpsertOne) ClearTaxRate() *POSOrderLineUpsertOne {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.ClearTaxRate()
+	})
+}
+
+// SetTaxAmount sets the "tax_amount" field.
+func (u *POSOrderLineUpsertOne) SetTaxAmount(v float64) *POSOrderLineUpsertOne {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.SetTaxAmount(v)
+	})
+}
+
+// AddTaxAmount adds v to the "tax_amount" field.
+func (u *POSOrderLineUpsertOne) AddTaxAmount(v float64) *POSOrderLineUpsertOne {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.AddTaxAmount(v)
+	})
+}
+
+// UpdateTaxAmount sets the "tax_amount" field to the value that was provided on create.
+func (u *POSOrderLineUpsertOne) UpdateTaxAmount() *POSOrderLineUpsertOne {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.UpdateTaxAmount()
+	})
+}
+
+// ClearTaxAmount clears the value of the "tax_amount" field.
+func (u *POSOrderLineUpsertOne) ClearTaxAmount() *POSOrderLineUpsertOne {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.ClearTaxAmount()
+	})
+}
+
+// SetPriceIncludesTax sets the "price_includes_tax" field.
+func (u *POSOrderLineUpsertOne) SetPriceIncludesTax(v bool) *POSOrderLineUpsertOne {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.SetPriceIncludesTax(v)
+	})
+}
+
+// UpdatePriceIncludesTax sets the "price_includes_tax" field to the value that was provided on create.
+func (u *POSOrderLineUpsertOne) UpdatePriceIncludesTax() *POSOrderLineUpsertOne {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.UpdatePriceIncludesTax()
 	})
 }
 
@@ -1397,6 +1702,118 @@ func (u *POSOrderLineUpsertBulk) UpdatePartialUnits() *POSOrderLineUpsertBulk {
 func (u *POSOrderLineUpsertBulk) ClearPartialUnits() *POSOrderLineUpsertBulk {
 	return u.Update(func(s *POSOrderLineUpsert) {
 		s.ClearPartialUnits()
+	})
+}
+
+// SetTaxCodeID sets the "tax_code_id" field.
+func (u *POSOrderLineUpsertBulk) SetTaxCodeID(v string) *POSOrderLineUpsertBulk {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.SetTaxCodeID(v)
+	})
+}
+
+// UpdateTaxCodeID sets the "tax_code_id" field to the value that was provided on create.
+func (u *POSOrderLineUpsertBulk) UpdateTaxCodeID() *POSOrderLineUpsertBulk {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.UpdateTaxCodeID()
+	})
+}
+
+// ClearTaxCodeID clears the value of the "tax_code_id" field.
+func (u *POSOrderLineUpsertBulk) ClearTaxCodeID() *POSOrderLineUpsertBulk {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.ClearTaxCodeID()
+	})
+}
+
+// SetTaxKraCode sets the "tax_kra_code" field.
+func (u *POSOrderLineUpsertBulk) SetTaxKraCode(v string) *POSOrderLineUpsertBulk {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.SetTaxKraCode(v)
+	})
+}
+
+// UpdateTaxKraCode sets the "tax_kra_code" field to the value that was provided on create.
+func (u *POSOrderLineUpsertBulk) UpdateTaxKraCode() *POSOrderLineUpsertBulk {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.UpdateTaxKraCode()
+	})
+}
+
+// ClearTaxKraCode clears the value of the "tax_kra_code" field.
+func (u *POSOrderLineUpsertBulk) ClearTaxKraCode() *POSOrderLineUpsertBulk {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.ClearTaxKraCode()
+	})
+}
+
+// SetTaxRate sets the "tax_rate" field.
+func (u *POSOrderLineUpsertBulk) SetTaxRate(v float64) *POSOrderLineUpsertBulk {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.SetTaxRate(v)
+	})
+}
+
+// AddTaxRate adds v to the "tax_rate" field.
+func (u *POSOrderLineUpsertBulk) AddTaxRate(v float64) *POSOrderLineUpsertBulk {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.AddTaxRate(v)
+	})
+}
+
+// UpdateTaxRate sets the "tax_rate" field to the value that was provided on create.
+func (u *POSOrderLineUpsertBulk) UpdateTaxRate() *POSOrderLineUpsertBulk {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.UpdateTaxRate()
+	})
+}
+
+// ClearTaxRate clears the value of the "tax_rate" field.
+func (u *POSOrderLineUpsertBulk) ClearTaxRate() *POSOrderLineUpsertBulk {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.ClearTaxRate()
+	})
+}
+
+// SetTaxAmount sets the "tax_amount" field.
+func (u *POSOrderLineUpsertBulk) SetTaxAmount(v float64) *POSOrderLineUpsertBulk {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.SetTaxAmount(v)
+	})
+}
+
+// AddTaxAmount adds v to the "tax_amount" field.
+func (u *POSOrderLineUpsertBulk) AddTaxAmount(v float64) *POSOrderLineUpsertBulk {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.AddTaxAmount(v)
+	})
+}
+
+// UpdateTaxAmount sets the "tax_amount" field to the value that was provided on create.
+func (u *POSOrderLineUpsertBulk) UpdateTaxAmount() *POSOrderLineUpsertBulk {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.UpdateTaxAmount()
+	})
+}
+
+// ClearTaxAmount clears the value of the "tax_amount" field.
+func (u *POSOrderLineUpsertBulk) ClearTaxAmount() *POSOrderLineUpsertBulk {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.ClearTaxAmount()
+	})
+}
+
+// SetPriceIncludesTax sets the "price_includes_tax" field.
+func (u *POSOrderLineUpsertBulk) SetPriceIncludesTax(v bool) *POSOrderLineUpsertBulk {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.SetPriceIncludesTax(v)
+	})
+}
+
+// UpdatePriceIncludesTax sets the "price_includes_tax" field to the value that was provided on create.
+func (u *POSOrderLineUpsertBulk) UpdatePriceIncludesTax() *POSOrderLineUpsertBulk {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.UpdatePriceIncludesTax()
 	})
 }
 

@@ -26,6 +26,10 @@ const (
 	FieldCurrency = "currency"
 	// FieldTaxStatus holds the string denoting the tax_status field in the database.
 	FieldTaxStatus = "tax_status"
+	// FieldTaxCodeID holds the string denoting the tax_code_id field in the database.
+	FieldTaxCodeID = "tax_code_id"
+	// FieldPriceIncludesTax holds the string denoting the price_includes_tax field in the database.
+	FieldPriceIncludesTax = "price_includes_tax"
 	// FieldIsAvailable holds the string denoting the is_available field in the database.
 	FieldIsAvailable = "is_available"
 	// FieldIsFeatured holds the string denoting the is_featured field in the database.
@@ -63,6 +67,8 @@ var Columns = []string{
 	FieldSellingPrice,
 	FieldCurrency,
 	FieldTaxStatus,
+	FieldTaxCodeID,
+	FieldPriceIncludesTax,
 	FieldIsAvailable,
 	FieldIsFeatured,
 	FieldDisplayOrder,
@@ -94,6 +100,8 @@ var (
 	DefaultCurrency string
 	// DefaultTaxStatus holds the default value on creation for the "tax_status" field.
 	DefaultTaxStatus string
+	// DefaultPriceIncludesTax holds the default value on creation for the "price_includes_tax" field.
+	DefaultPriceIncludesTax bool
 	// DefaultIsAvailable holds the default value on creation for the "is_available" field.
 	DefaultIsAvailable bool
 	// DefaultIsFeatured holds the default value on creation for the "is_featured" field.
@@ -156,6 +164,16 @@ func ByCurrency(opts ...sql.OrderTermOption) OrderOption {
 // ByTaxStatus orders the results by the tax_status field.
 func ByTaxStatus(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldTaxStatus, opts...).ToFunc()
+}
+
+// ByTaxCodeID orders the results by the tax_code_id field.
+func ByTaxCodeID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTaxCodeID, opts...).ToFunc()
+}
+
+// ByPriceIncludesTax orders the results by the price_includes_tax field.
+func ByPriceIncludesTax(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPriceIncludesTax, opts...).ToFunc()
 }
 
 // ByIsAvailable orders the results by the is_available field.

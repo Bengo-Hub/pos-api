@@ -80,6 +80,8 @@ type OutletSetting struct {
 	ShiftAutoEndEnabled bool `json:"shift_auto_end_enabled,omitempty"`
 	// Maximum shift length in hours before auto-end (1–24, default 12)
 	ShiftMaxHours int `json:"shift_max_hours,omitempty"`
+	// Inventory warehouse ID used for stock deduction on pos.sale.finalized events
+	DefaultWarehouseID *uuid.UUID `json:"default_warehouse_id,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
@@ -113,6 +115,8 @@ func (*OutletSetting) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case outletsetting.FieldDefaultWarehouseID:
+			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		case outletsetting.FieldReceiptsJSON, outletsetting.FieldTaxConfigJSON, outletsetting.FieldServiceChargeJSON, outletsetting.FieldOpeningHoursJSON, outletsetting.FieldMetadata, outletsetting.FieldPrinterProfiles:
 			values[i] = new([]byte)
 		case outletsetting.FieldShowImages, outletsetting.FieldShowBarcodeScanner, outletsetting.FieldEnableKds, outletsetting.FieldEnableAppointments, outletsetting.FieldVatEnabled, outletsetting.FieldAutoPrintOrder, outletsetting.FieldAutoPrintKitchen, outletsetting.FieldHotelModuleEnabled, outletsetting.FieldLayawayEnabled, outletsetting.FieldShiftReportsEnabled, outletsetting.FieldShiftAutoEndEnabled:
@@ -345,6 +349,13 @@ func (_m *OutletSetting) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.ShiftMaxHours = int(value.Int64)
 			}
+		case outletsetting.FieldDefaultWarehouseID:
+			if value, ok := values[i].(*sql.NullScanner); !ok {
+				return fmt.Errorf("unexpected type %T for field default_warehouse_id", values[i])
+			} else if value.Valid {
+				_m.DefaultWarehouseID = new(uuid.UUID)
+				*_m.DefaultWarehouseID = *value.S.(*uuid.UUID)
+			}
 		case outletsetting.FieldUpdatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field updated_at", values[i])
@@ -491,6 +502,11 @@ func (_m *OutletSetting) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("shift_max_hours=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ShiftMaxHours))
+	builder.WriteString(", ")
+	if v := _m.DefaultWarehouseID; v != nil {
+		builder.WriteString("default_warehouse_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("updated_at=")
 	builder.WriteString(_m.UpdatedAt.Format(time.ANSIC))

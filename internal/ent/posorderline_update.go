@@ -264,6 +264,114 @@ func (_u *POSOrderLineUpdate) ClearPartialUnits() *POSOrderLineUpdate {
 	return _u
 }
 
+// SetTaxCodeID sets the "tax_code_id" field.
+func (_u *POSOrderLineUpdate) SetTaxCodeID(v string) *POSOrderLineUpdate {
+	_u.mutation.SetTaxCodeID(v)
+	return _u
+}
+
+// SetNillableTaxCodeID sets the "tax_code_id" field if the given value is not nil.
+func (_u *POSOrderLineUpdate) SetNillableTaxCodeID(v *string) *POSOrderLineUpdate {
+	if v != nil {
+		_u.SetTaxCodeID(*v)
+	}
+	return _u
+}
+
+// ClearTaxCodeID clears the value of the "tax_code_id" field.
+func (_u *POSOrderLineUpdate) ClearTaxCodeID() *POSOrderLineUpdate {
+	_u.mutation.ClearTaxCodeID()
+	return _u
+}
+
+// SetTaxKraCode sets the "tax_kra_code" field.
+func (_u *POSOrderLineUpdate) SetTaxKraCode(v string) *POSOrderLineUpdate {
+	_u.mutation.SetTaxKraCode(v)
+	return _u
+}
+
+// SetNillableTaxKraCode sets the "tax_kra_code" field if the given value is not nil.
+func (_u *POSOrderLineUpdate) SetNillableTaxKraCode(v *string) *POSOrderLineUpdate {
+	if v != nil {
+		_u.SetTaxKraCode(*v)
+	}
+	return _u
+}
+
+// ClearTaxKraCode clears the value of the "tax_kra_code" field.
+func (_u *POSOrderLineUpdate) ClearTaxKraCode() *POSOrderLineUpdate {
+	_u.mutation.ClearTaxKraCode()
+	return _u
+}
+
+// SetTaxRate sets the "tax_rate" field.
+func (_u *POSOrderLineUpdate) SetTaxRate(v float64) *POSOrderLineUpdate {
+	_u.mutation.ResetTaxRate()
+	_u.mutation.SetTaxRate(v)
+	return _u
+}
+
+// SetNillableTaxRate sets the "tax_rate" field if the given value is not nil.
+func (_u *POSOrderLineUpdate) SetNillableTaxRate(v *float64) *POSOrderLineUpdate {
+	if v != nil {
+		_u.SetTaxRate(*v)
+	}
+	return _u
+}
+
+// AddTaxRate adds value to the "tax_rate" field.
+func (_u *POSOrderLineUpdate) AddTaxRate(v float64) *POSOrderLineUpdate {
+	_u.mutation.AddTaxRate(v)
+	return _u
+}
+
+// ClearTaxRate clears the value of the "tax_rate" field.
+func (_u *POSOrderLineUpdate) ClearTaxRate() *POSOrderLineUpdate {
+	_u.mutation.ClearTaxRate()
+	return _u
+}
+
+// SetTaxAmount sets the "tax_amount" field.
+func (_u *POSOrderLineUpdate) SetTaxAmount(v float64) *POSOrderLineUpdate {
+	_u.mutation.ResetTaxAmount()
+	_u.mutation.SetTaxAmount(v)
+	return _u
+}
+
+// SetNillableTaxAmount sets the "tax_amount" field if the given value is not nil.
+func (_u *POSOrderLineUpdate) SetNillableTaxAmount(v *float64) *POSOrderLineUpdate {
+	if v != nil {
+		_u.SetTaxAmount(*v)
+	}
+	return _u
+}
+
+// AddTaxAmount adds value to the "tax_amount" field.
+func (_u *POSOrderLineUpdate) AddTaxAmount(v float64) *POSOrderLineUpdate {
+	_u.mutation.AddTaxAmount(v)
+	return _u
+}
+
+// ClearTaxAmount clears the value of the "tax_amount" field.
+func (_u *POSOrderLineUpdate) ClearTaxAmount() *POSOrderLineUpdate {
+	_u.mutation.ClearTaxAmount()
+	return _u
+}
+
+// SetPriceIncludesTax sets the "price_includes_tax" field.
+func (_u *POSOrderLineUpdate) SetPriceIncludesTax(v bool) *POSOrderLineUpdate {
+	_u.mutation.SetPriceIncludesTax(v)
+	return _u
+}
+
+// SetNillablePriceIncludesTax sets the "price_includes_tax" field if the given value is not nil.
+func (_u *POSOrderLineUpdate) SetNillablePriceIncludesTax(v *bool) *POSOrderLineUpdate {
+	if v != nil {
+		_u.SetPriceIncludesTax(*v)
+	}
+	return _u
+}
+
 // SetMetadata sets the "metadata" field.
 func (_u *POSOrderLineUpdate) SetMetadata(v map[string]interface{}) *POSOrderLineUpdate {
 	_u.mutation.SetMetadata(v)
@@ -441,6 +549,39 @@ func (_u *POSOrderLineUpdate) sqlSave(ctx context.Context) (_node int, err error
 	}
 	if _u.mutation.PartialUnitsCleared() {
 		_spec.ClearField(posorderline.FieldPartialUnits, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.TaxCodeID(); ok {
+		_spec.SetField(posorderline.FieldTaxCodeID, field.TypeString, value)
+	}
+	if _u.mutation.TaxCodeIDCleared() {
+		_spec.ClearField(posorderline.FieldTaxCodeID, field.TypeString)
+	}
+	if value, ok := _u.mutation.TaxKraCode(); ok {
+		_spec.SetField(posorderline.FieldTaxKraCode, field.TypeString, value)
+	}
+	if _u.mutation.TaxKraCodeCleared() {
+		_spec.ClearField(posorderline.FieldTaxKraCode, field.TypeString)
+	}
+	if value, ok := _u.mutation.TaxRate(); ok {
+		_spec.SetField(posorderline.FieldTaxRate, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedTaxRate(); ok {
+		_spec.AddField(posorderline.FieldTaxRate, field.TypeFloat64, value)
+	}
+	if _u.mutation.TaxRateCleared() {
+		_spec.ClearField(posorderline.FieldTaxRate, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.TaxAmount(); ok {
+		_spec.SetField(posorderline.FieldTaxAmount, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedTaxAmount(); ok {
+		_spec.AddField(posorderline.FieldTaxAmount, field.TypeFloat64, value)
+	}
+	if _u.mutation.TaxAmountCleared() {
+		_spec.ClearField(posorderline.FieldTaxAmount, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.PriceIncludesTax(); ok {
+		_spec.SetField(posorderline.FieldPriceIncludesTax, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.Metadata(); ok {
 		_spec.SetField(posorderline.FieldMetadata, field.TypeJSON, value)
@@ -772,6 +913,114 @@ func (_u *POSOrderLineUpdateOne) ClearPartialUnits() *POSOrderLineUpdateOne {
 	return _u
 }
 
+// SetTaxCodeID sets the "tax_code_id" field.
+func (_u *POSOrderLineUpdateOne) SetTaxCodeID(v string) *POSOrderLineUpdateOne {
+	_u.mutation.SetTaxCodeID(v)
+	return _u
+}
+
+// SetNillableTaxCodeID sets the "tax_code_id" field if the given value is not nil.
+func (_u *POSOrderLineUpdateOne) SetNillableTaxCodeID(v *string) *POSOrderLineUpdateOne {
+	if v != nil {
+		_u.SetTaxCodeID(*v)
+	}
+	return _u
+}
+
+// ClearTaxCodeID clears the value of the "tax_code_id" field.
+func (_u *POSOrderLineUpdateOne) ClearTaxCodeID() *POSOrderLineUpdateOne {
+	_u.mutation.ClearTaxCodeID()
+	return _u
+}
+
+// SetTaxKraCode sets the "tax_kra_code" field.
+func (_u *POSOrderLineUpdateOne) SetTaxKraCode(v string) *POSOrderLineUpdateOne {
+	_u.mutation.SetTaxKraCode(v)
+	return _u
+}
+
+// SetNillableTaxKraCode sets the "tax_kra_code" field if the given value is not nil.
+func (_u *POSOrderLineUpdateOne) SetNillableTaxKraCode(v *string) *POSOrderLineUpdateOne {
+	if v != nil {
+		_u.SetTaxKraCode(*v)
+	}
+	return _u
+}
+
+// ClearTaxKraCode clears the value of the "tax_kra_code" field.
+func (_u *POSOrderLineUpdateOne) ClearTaxKraCode() *POSOrderLineUpdateOne {
+	_u.mutation.ClearTaxKraCode()
+	return _u
+}
+
+// SetTaxRate sets the "tax_rate" field.
+func (_u *POSOrderLineUpdateOne) SetTaxRate(v float64) *POSOrderLineUpdateOne {
+	_u.mutation.ResetTaxRate()
+	_u.mutation.SetTaxRate(v)
+	return _u
+}
+
+// SetNillableTaxRate sets the "tax_rate" field if the given value is not nil.
+func (_u *POSOrderLineUpdateOne) SetNillableTaxRate(v *float64) *POSOrderLineUpdateOne {
+	if v != nil {
+		_u.SetTaxRate(*v)
+	}
+	return _u
+}
+
+// AddTaxRate adds value to the "tax_rate" field.
+func (_u *POSOrderLineUpdateOne) AddTaxRate(v float64) *POSOrderLineUpdateOne {
+	_u.mutation.AddTaxRate(v)
+	return _u
+}
+
+// ClearTaxRate clears the value of the "tax_rate" field.
+func (_u *POSOrderLineUpdateOne) ClearTaxRate() *POSOrderLineUpdateOne {
+	_u.mutation.ClearTaxRate()
+	return _u
+}
+
+// SetTaxAmount sets the "tax_amount" field.
+func (_u *POSOrderLineUpdateOne) SetTaxAmount(v float64) *POSOrderLineUpdateOne {
+	_u.mutation.ResetTaxAmount()
+	_u.mutation.SetTaxAmount(v)
+	return _u
+}
+
+// SetNillableTaxAmount sets the "tax_amount" field if the given value is not nil.
+func (_u *POSOrderLineUpdateOne) SetNillableTaxAmount(v *float64) *POSOrderLineUpdateOne {
+	if v != nil {
+		_u.SetTaxAmount(*v)
+	}
+	return _u
+}
+
+// AddTaxAmount adds value to the "tax_amount" field.
+func (_u *POSOrderLineUpdateOne) AddTaxAmount(v float64) *POSOrderLineUpdateOne {
+	_u.mutation.AddTaxAmount(v)
+	return _u
+}
+
+// ClearTaxAmount clears the value of the "tax_amount" field.
+func (_u *POSOrderLineUpdateOne) ClearTaxAmount() *POSOrderLineUpdateOne {
+	_u.mutation.ClearTaxAmount()
+	return _u
+}
+
+// SetPriceIncludesTax sets the "price_includes_tax" field.
+func (_u *POSOrderLineUpdateOne) SetPriceIncludesTax(v bool) *POSOrderLineUpdateOne {
+	_u.mutation.SetPriceIncludesTax(v)
+	return _u
+}
+
+// SetNillablePriceIncludesTax sets the "price_includes_tax" field if the given value is not nil.
+func (_u *POSOrderLineUpdateOne) SetNillablePriceIncludesTax(v *bool) *POSOrderLineUpdateOne {
+	if v != nil {
+		_u.SetPriceIncludesTax(*v)
+	}
+	return _u
+}
+
 // SetMetadata sets the "metadata" field.
 func (_u *POSOrderLineUpdateOne) SetMetadata(v map[string]interface{}) *POSOrderLineUpdateOne {
 	_u.mutation.SetMetadata(v)
@@ -979,6 +1228,39 @@ func (_u *POSOrderLineUpdateOne) sqlSave(ctx context.Context) (_node *POSOrderLi
 	}
 	if _u.mutation.PartialUnitsCleared() {
 		_spec.ClearField(posorderline.FieldPartialUnits, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.TaxCodeID(); ok {
+		_spec.SetField(posorderline.FieldTaxCodeID, field.TypeString, value)
+	}
+	if _u.mutation.TaxCodeIDCleared() {
+		_spec.ClearField(posorderline.FieldTaxCodeID, field.TypeString)
+	}
+	if value, ok := _u.mutation.TaxKraCode(); ok {
+		_spec.SetField(posorderline.FieldTaxKraCode, field.TypeString, value)
+	}
+	if _u.mutation.TaxKraCodeCleared() {
+		_spec.ClearField(posorderline.FieldTaxKraCode, field.TypeString)
+	}
+	if value, ok := _u.mutation.TaxRate(); ok {
+		_spec.SetField(posorderline.FieldTaxRate, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedTaxRate(); ok {
+		_spec.AddField(posorderline.FieldTaxRate, field.TypeFloat64, value)
+	}
+	if _u.mutation.TaxRateCleared() {
+		_spec.ClearField(posorderline.FieldTaxRate, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.TaxAmount(); ok {
+		_spec.SetField(posorderline.FieldTaxAmount, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedTaxAmount(); ok {
+		_spec.AddField(posorderline.FieldTaxAmount, field.TypeFloat64, value)
+	}
+	if _u.mutation.TaxAmountCleared() {
+		_spec.ClearField(posorderline.FieldTaxAmount, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.PriceIncludesTax(); ok {
+		_spec.SetField(posorderline.FieldPriceIncludesTax, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.Metadata(); ok {
 		_spec.SetField(posorderline.FieldMetadata, field.TypeJSON, value)

@@ -162,6 +162,11 @@ func New(ctx context.Context) (*App, error) {
 	// Treasury S2S client (thin proxy; pos-api delegates all payment processing to treasury-api)
 	treasuryClient := treasurymodule.NewClient(cfg.Treasury.ServiceURL, cfg.Treasury.InternalServiceKey, cfg.Treasury.RequestTimeout)
 
+	// Tax resolver: fetches TaxCode definitions from treasury S2S with Redis caching (10-min TTL).
+	// Used by orders.Service to compute tax per order line at creation time.
+	taxResolver := ordermodule.NewTaxResolver(treasuryClient, redisClient, log)
+	orderSvc.SetTaxResolver(taxResolver)
+
 	// Inventory S2S client for stock backflush after order completion
 	inventoryAPIURL := os.Getenv("INVENTORY_API_URL")
 	if inventoryAPIURL == "" {
