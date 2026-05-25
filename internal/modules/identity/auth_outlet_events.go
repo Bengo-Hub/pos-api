@@ -2,10 +2,10 @@ package identity
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"time"
 
+	sharedevents "github.com/Bengo-Hub/shared-events"
 	"github.com/google/uuid"
 	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
@@ -17,8 +17,7 @@ import (
 const authStream = "auth"
 
 // AuthOutletEventHandler syncs auth.outlet.* events from auth-api into the
-// local pos-api outlets table. This keeps the pos-api mirror in sync with the
-// source-of-truth outlet registry in auth-api.
+// local pos-api outlets table.
 type AuthOutletEventHandler struct {
 	client *ent.Client
 	logger *zap.Logger
@@ -29,13 +28,6 @@ func NewAuthOutletEventHandler(client *ent.Client, logger *zap.Logger) *AuthOutl
 		client: client,
 		logger: logger.Named("identity.auth_outlet_events"),
 	}
-}
-
-type authOutletEvent struct {
-	EventType     string                 `json:"event_type"`
-	AggregateType string                 `json:"aggregate_type"`
-	TenantID      uuid.UUID              `json:"tenant_id"`
-	Payload       map[string]interface{} `json:"payload"`
 }
 
 // SubscribeToOutletEvents subscribes to auth.outlet.* JetStream subjects with durable consumers.
@@ -66,7 +58,7 @@ func (h *AuthOutletEventHandler) SubscribeToOutletEvents(nc *nats.Conn) error {
 	type sub struct {
 		subject string
 		durable string
-		handler func(context.Context, *authOutletEvent) error
+		handler func(context.Context, *sharedevents.Event) error
 	}
 	subs := []sub{
 		{"auth.outlet.created", "pos-auth-outlet-created", h.handleUpsert},
@@ -77,15 +69,15 @@ func (h *AuthOutletEventHandler) SubscribeToOutletEvents(nc *nats.Conn) error {
 	for _, s := range subs {
 		s := s
 		if _, subErr := js.Subscribe(s.subject, func(msg *nats.Msg) {
-			var evt authOutletEvent
-			if err := json.Unmarshal(msg.Data, &evt); err != nil {
+			evt, err := sharedevents.FromJSON(msg.Data)
+			if err != nil {
 				h.logger.Error("failed to unmarshal outlet event",
 					zap.String("subject", s.subject), zap.Error(err))
 				_ = msg.Nak()
 				return
 			}
 			ctx := context.Background()
-			if err := s.handler(ctx, &evt); err != nil {
+			if err := s.handler(ctx, evt); err != nil {
 				h.logger.Error("failed to handle outlet event",
 					zap.String("subject", s.subject), zap.Error(err))
 				_ = msg.Nak()
@@ -110,7 +102,7 @@ func (h *AuthOutletEventHandler) SubscribeToOutletEvents(nc *nats.Conn) error {
 }
 
 // handleUpsert creates or updates a local outlet mirror from auth.outlet.created/updated.
-func (h *AuthOutletEventHandler) handleUpsert(ctx context.Context, evt *authOutletEvent) error {
+func (h *AuthOutletEventHandler) handleUpsert(ctx context.Context, evt *sharedevents.Event) error {
 	outletIDStr, _ := evt.Payload["outlet_id"].(string)
 	code, _ := evt.Payload["code"].(string)
 	name, _ := evt.Payload["name"].(string)
@@ -129,17 +121,14 @@ func (h *AuthOutletEventHandler) handleUpsert(ctx context.Context, evt *authOutl
 		return fmt.Errorf("missing tenant_id in outlet event")
 	}
 
-	// We need the tenant_slug for the outlet record. Derive from a local tenant lookup.
+	// Derive tenant_slug from local tenant lookup.
 	tenantSlug := ""
-	t, tErr := h.client.Tenant.Get(ctx, evt.TenantID)
-	if tErr == nil {
+	if t, tErr := h.client.Tenant.Get(ctx, evt.TenantID); tErr == nil {
 		tenantSlug = t.Slug
 	}
 
-	// Upsert: try to find existing outlet by its auth-service UUID (we use the same UUID).
 	existing, findErr := h.client.Outlet.Get(ctx, outletID)
 	if findErr != nil {
-		// Not found — create it.
 		createQ := h.client.Outlet.Create().
 			SetID(outletID).
 			SetTenantID(evt.TenantID).
@@ -160,7 +149,6 @@ func (h *AuthOutletEventHandler) handleUpsert(ctx context.Context, evt *authOutl
 		return nil
 	}
 
-	// Found — update mutable fields.
 	upd := h.client.Outlet.UpdateOne(existing).
 		SetName(name).
 		SetIsHq(isHQ).
@@ -179,7 +167,7 @@ func (h *AuthOutletEventHandler) handleUpsert(ctx context.Context, evt *authOutl
 }
 
 // handleArchive sets status = "archived" for the outlet.
-func (h *AuthOutletEventHandler) handleArchive(ctx context.Context, evt *authOutletEvent) error {
+func (h *AuthOutletEventHandler) handleArchive(ctx context.Context, evt *sharedevents.Event) error {
 	outletIDStr, _ := evt.Payload["outlet_id"].(string)
 	outletID, err := uuid.Parse(outletIDStr)
 	if err != nil {
@@ -188,7 +176,7 @@ func (h *AuthOutletEventHandler) handleArchive(ctx context.Context, evt *authOut
 
 	if err := h.client.Outlet.UpdateOneID(outletID).SetStatus("archived").Exec(ctx); err != nil {
 		if ent.IsNotFound(err) {
-			return nil // already gone
+			return nil
 		}
 		return fmt.Errorf("archive outlet mirror: %w", err)
 	}
