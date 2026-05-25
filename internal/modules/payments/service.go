@@ -11,7 +11,9 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/bengobox/pos-service/internal/ent"
+	entcommissionrule "github.com/bengobox/pos-service/internal/ent/commissionrule"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
+	staffmemberent "github.com/bengobox/pos-service/internal/ent/staffmember"
 	"github.com/bengobox/pos-service/internal/ent/posorderline"
 	"github.com/bengobox/pos-service/internal/ent/pospayment"
 	outletsettingpredicate "github.com/bengobox/pos-service/internal/ent/outletsetting"
@@ -319,6 +321,7 @@ func (s *Service) completeOrderIfFullyPaid(ctx context.Context, order *ent.POSOr
 				return
 			}
 			s.publishSaleFinalized(ctx, updated)
+			s.calcCommissions(ctx, updated)
 		}
 	}
 }
@@ -442,4 +445,102 @@ func nilIfEmpty(s string) *string {
 		return nil
 	}
 	return &s
+}
+
+// calcCommissions creates CommissionRecord entries for the order's creator (staff member)
+// based on active CommissionRule definitions. Called after order status → completed.
+// Errors are logged but never block the caller — commission calc is best-effort.
+func (s *Service) calcCommissions(ctx context.Context, order *ent.POSOrder) {
+	// Resolve the staff member from the order's user_id.
+	staffMembers, err := s.client.StaffMember.Query().
+		Where(staffmemberent.TenantID(order.TenantID), staffmemberent.UserID(order.UserID)).
+		All(ctx)
+	if err != nil || len(staffMembers) == 0 {
+		return
+	}
+	staffMember := staffMembers[0]
+
+	lines, err := s.client.POSOrderLine.Query().
+		Where(posorderline.OrderID(order.ID)).
+		All(ctx)
+	if err != nil || len(lines) == 0 {
+		return
+	}
+
+	// Fetch all active rules for this tenant once.
+	rules, err := s.client.CommissionRule.Query().
+		Where(entcommissionrule.TenantID(order.TenantID), entcommissionrule.IsActive(true)).
+		All(ctx)
+	if err != nil || len(rules) == 0 {
+		return
+	}
+
+	for _, line := range lines {
+		// Find the most specific rule: staff+item > staff-only > item-only > global.
+		var bestRule *ent.CommissionRule
+		for _, r := range rules {
+			staffMatch := r.StaffMemberID == nil || *r.StaffMemberID == staffMember.ID
+			itemMatch := r.CatalogItemID == nil || *r.CatalogItemID == line.CatalogItemID
+			if !staffMatch || !itemMatch {
+				continue
+			}
+			if bestRule == nil {
+				bestRule = r
+				continue
+			}
+			// More specific wins (non-nil fields beat nil).
+			bestScore, rScore := 0, 0
+			if bestRule.StaffMemberID != nil {
+				bestScore++
+			}
+			if bestRule.CatalogItemID != nil {
+				bestScore++
+			}
+			if r.StaffMemberID != nil {
+				rScore++
+			}
+			if r.CatalogItemID != nil {
+				rScore++
+			}
+			if rScore > bestScore {
+				bestRule = r
+			}
+		}
+		if bestRule == nil {
+			continue
+		}
+
+		var rate, amount float64
+		switch bestRule.RuleType {
+		case "flat":
+			if bestRule.FlatAmount != nil {
+				amount = *bestRule.FlatAmount
+			}
+		default: // "percentage"
+			if bestRule.Percentage != nil {
+				rate = *bestRule.Percentage
+				amount = line.TotalPrice * rate / 100
+			}
+		}
+		if amount <= 0 {
+			continue
+		}
+
+		creator := s.client.CommissionRecord.Create().
+			SetTenantID(order.TenantID).
+			SetStaffMemberID(staffMember.ID).
+			SetOrderID(order.ID).
+			SetOrderLineID(line.ID).
+			SetServiceSku(line.Sku).
+			SetSaleAmount(line.TotalPrice).
+			SetCommissionRate(rate).
+			SetCommissionAmount(amount).
+			SetStatus("pending")
+		if _, err := creator.Save(ctx); err != nil {
+			s.log.Warn("commission record create failed",
+				zap.String("order_id", order.ID.String()),
+				zap.String("staff_id", staffMember.ID.String()),
+				zap.Error(err))
+		}
+	}
 }
