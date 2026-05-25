@@ -13,7 +13,10 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/bengobox/pos-service/internal/ent"
+	"github.com/bengobox/pos-service/internal/ent/kdsticket"
+	"github.com/bengobox/pos-service/internal/ent/kdsstation"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
+	"github.com/bengobox/pos-service/internal/ent/posorderline"
 	"github.com/bengobox/pos-service/internal/platform/events"
 )
 
@@ -295,5 +298,60 @@ func (s *Service) UpdateStatus(ctx context.Context, tenantID, orderID uuid.UUID,
 		})
 	}
 
+	// Create KDS tickets when a POS-native order is opened (sent to kitchen)
+	if newStatus == StatusOpen {
+		_ = s.createKDSTicketsForOrder(ctx, tenantID, updated)
+	}
+
 	return updated, nil
+}
+
+// createKDSTicketsForOrder creates KDS tickets for all active stations when a POS order opens.
+func (s *Service) createKDSTicketsForOrder(ctx context.Context, tenantID uuid.UUID, order *ent.POSOrder) error {
+	stations, err := s.client.KDSStation.Query().
+		Where(kdsstation.TenantID(tenantID), kdsstation.OutletID(order.OutletID), kdsstation.IsActive(true)).
+		All(ctx)
+	if err != nil || len(stations) == 0 {
+		return nil
+	}
+
+	lines, err := s.client.POSOrderLine.Query().
+		Where(posorderline.OrderID(order.ID)).
+		All(ctx)
+	if err != nil {
+		return err
+	}
+
+	items := make([]map[string]any, 0, len(lines))
+	for _, l := range lines {
+		items = append(items, map[string]any{
+			"sku":      l.Sku,
+			"name":     l.Name,
+			"quantity": l.Quantity,
+		})
+	}
+
+	for _, station := range stations {
+		exists, _ := s.client.KDSTicket.Query().
+			Where(kdsticket.OrderID(order.ID), kdsticket.StationID(station.ID)).
+			Exist(ctx)
+		if exists {
+			continue
+		}
+		_, err := s.client.KDSTicket.Create().
+			SetTenantID(tenantID).
+			SetStationID(station.ID).
+			SetOrderID(order.ID).
+			SetOrderNumber(order.OrderNumber).
+			SetStatus(kdsticket.StatusPending).
+			SetItems(items).
+			Save(ctx)
+		if err != nil {
+			s.log.Warn("kds: failed to create ticket for pos order",
+				zap.String("order_id", order.ID.String()),
+				zap.String("station_id", station.ID.String()),
+				zap.Error(err))
+		}
+	}
+	return nil
 }
