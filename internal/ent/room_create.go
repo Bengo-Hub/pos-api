@@ -12,7 +12,9 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/bengobox/pos-service/internal/ent/housekeepingtask"
 	"github.com/bengobox/pos-service/internal/ent/room"
+	"github.com/bengobox/pos-service/internal/ent/roomamenityassignment"
 	"github.com/bengobox/pos-service/internal/ent/roomfolioitem"
 	"github.com/bengobox/pos-service/internal/ent/roomguest"
 	"github.com/google/uuid"
@@ -202,6 +204,36 @@ func (_c *RoomCreate) AddFolioItems(v ...*RoomFolioItem) *RoomCreate {
 		ids[i] = v[i].ID
 	}
 	return _c.AddFolioItemIDs(ids...)
+}
+
+// AddAmenityAssignmentIDs adds the "amenity_assignments" edge to the RoomAmenityAssignment entity by IDs.
+func (_c *RoomCreate) AddAmenityAssignmentIDs(ids ...uuid.UUID) *RoomCreate {
+	_c.mutation.AddAmenityAssignmentIDs(ids...)
+	return _c
+}
+
+// AddAmenityAssignments adds the "amenity_assignments" edges to the RoomAmenityAssignment entity.
+func (_c *RoomCreate) AddAmenityAssignments(v ...*RoomAmenityAssignment) *RoomCreate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddAmenityAssignmentIDs(ids...)
+}
+
+// AddHousekeepingTaskIDs adds the "housekeeping_tasks" edge to the HousekeepingTask entity by IDs.
+func (_c *RoomCreate) AddHousekeepingTaskIDs(ids ...uuid.UUID) *RoomCreate {
+	_c.mutation.AddHousekeepingTaskIDs(ids...)
+	return _c
+}
+
+// AddHousekeepingTasks adds the "housekeeping_tasks" edges to the HousekeepingTask entity.
+func (_c *RoomCreate) AddHousekeepingTasks(v ...*HousekeepingTask) *RoomCreate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddHousekeepingTaskIDs(ids...)
 }
 
 // Mutation returns the RoomMutation object of the builder.
@@ -456,6 +488,38 @@ func (_c *RoomCreate) createSpec() (*Room, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(roomfolioitem.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.AmenityAssignmentsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   room.AmenityAssignmentsTable,
+			Columns: []string{room.AmenityAssignmentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(roomamenityassignment.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.HousekeepingTasksIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   room.HousekeepingTasksTable,
+			Columns: []string{room.HousekeepingTasksColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(housekeepingtask.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

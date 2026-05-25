@@ -31,7 +31,8 @@ func (RoomFolioItem) Fields() []ent.Field {
 		field.String("currency").
 			Default("KES"),
 		field.Enum("charge_type").
-			Values("room_charge", "food", "laundry", "minibar", "room_service", "other").
+			Values("room_charge", "food", "laundry", "minibar", "room_service",
+				"amenity", "facility", "late_checkout", "damage", "other").
 			Default("other"),
 		field.UUID("pos_order_id", uuid.UUID{}).
 			Optional().

@@ -12,8 +12,10 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/bengobox/pos-service/internal/ent/housekeepingtask"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
 	"github.com/bengobox/pos-service/internal/ent/room"
+	"github.com/bengobox/pos-service/internal/ent/roomamenityassignment"
 	"github.com/bengobox/pos-service/internal/ent/roomfolioitem"
 	"github.com/bengobox/pos-service/internal/ent/roomguest"
 	"github.com/google/uuid"
@@ -22,12 +24,14 @@ import (
 // RoomQuery is the builder for querying Room entities.
 type RoomQuery struct {
 	config
-	ctx            *QueryContext
-	order          []room.OrderOption
-	inters         []Interceptor
-	predicates     []predicate.Room
-	withGuests     *RoomGuestQuery
-	withFolioItems *RoomFolioItemQuery
+	ctx                    *QueryContext
+	order                  []room.OrderOption
+	inters                 []Interceptor
+	predicates             []predicate.Room
+	withGuests             *RoomGuestQuery
+	withFolioItems         *RoomFolioItemQuery
+	withAmenityAssignments *RoomAmenityAssignmentQuery
+	withHousekeepingTasks  *HousekeepingTaskQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -101,6 +105,50 @@ func (_q *RoomQuery) QueryFolioItems() *RoomFolioItemQuery {
 			sqlgraph.From(room.Table, room.FieldID, selector),
 			sqlgraph.To(roomfolioitem.Table, roomfolioitem.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, room.FolioItemsTable, room.FolioItemsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryAmenityAssignments chains the current query on the "amenity_assignments" edge.
+func (_q *RoomQuery) QueryAmenityAssignments() *RoomAmenityAssignmentQuery {
+	query := (&RoomAmenityAssignmentClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(room.Table, room.FieldID, selector),
+			sqlgraph.To(roomamenityassignment.Table, roomamenityassignment.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, room.AmenityAssignmentsTable, room.AmenityAssignmentsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryHousekeepingTasks chains the current query on the "housekeeping_tasks" edge.
+func (_q *RoomQuery) QueryHousekeepingTasks() *HousekeepingTaskQuery {
+	query := (&HousekeepingTaskClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(room.Table, room.FieldID, selector),
+			sqlgraph.To(housekeepingtask.Table, housekeepingtask.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, room.HousekeepingTasksTable, room.HousekeepingTasksColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -295,13 +343,15 @@ func (_q *RoomQuery) Clone() *RoomQuery {
 		return nil
 	}
 	return &RoomQuery{
-		config:         _q.config,
-		ctx:            _q.ctx.Clone(),
-		order:          append([]room.OrderOption{}, _q.order...),
-		inters:         append([]Interceptor{}, _q.inters...),
-		predicates:     append([]predicate.Room{}, _q.predicates...),
-		withGuests:     _q.withGuests.Clone(),
-		withFolioItems: _q.withFolioItems.Clone(),
+		config:                 _q.config,
+		ctx:                    _q.ctx.Clone(),
+		order:                  append([]room.OrderOption{}, _q.order...),
+		inters:                 append([]Interceptor{}, _q.inters...),
+		predicates:             append([]predicate.Room{}, _q.predicates...),
+		withGuests:             _q.withGuests.Clone(),
+		withFolioItems:         _q.withFolioItems.Clone(),
+		withAmenityAssignments: _q.withAmenityAssignments.Clone(),
+		withHousekeepingTasks:  _q.withHousekeepingTasks.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -327,6 +377,28 @@ func (_q *RoomQuery) WithFolioItems(opts ...func(*RoomFolioItemQuery)) *RoomQuer
 		opt(query)
 	}
 	_q.withFolioItems = query
+	return _q
+}
+
+// WithAmenityAssignments tells the query-builder to eager-load the nodes that are connected to
+// the "amenity_assignments" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *RoomQuery) WithAmenityAssignments(opts ...func(*RoomAmenityAssignmentQuery)) *RoomQuery {
+	query := (&RoomAmenityAssignmentClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withAmenityAssignments = query
+	return _q
+}
+
+// WithHousekeepingTasks tells the query-builder to eager-load the nodes that are connected to
+// the "housekeeping_tasks" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *RoomQuery) WithHousekeepingTasks(opts ...func(*HousekeepingTaskQuery)) *RoomQuery {
+	query := (&HousekeepingTaskClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withHousekeepingTasks = query
 	return _q
 }
 
@@ -408,9 +480,11 @@ func (_q *RoomQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Room, e
 	var (
 		nodes       = []*Room{}
 		_spec       = _q.querySpec()
-		loadedTypes = [2]bool{
+		loadedTypes = [4]bool{
 			_q.withGuests != nil,
 			_q.withFolioItems != nil,
+			_q.withAmenityAssignments != nil,
+			_q.withHousekeepingTasks != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -442,6 +516,22 @@ func (_q *RoomQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Room, e
 		if err := _q.loadFolioItems(ctx, query, nodes,
 			func(n *Room) { n.Edges.FolioItems = []*RoomFolioItem{} },
 			func(n *Room, e *RoomFolioItem) { n.Edges.FolioItems = append(n.Edges.FolioItems, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withAmenityAssignments; query != nil {
+		if err := _q.loadAmenityAssignments(ctx, query, nodes,
+			func(n *Room) { n.Edges.AmenityAssignments = []*RoomAmenityAssignment{} },
+			func(n *Room, e *RoomAmenityAssignment) {
+				n.Edges.AmenityAssignments = append(n.Edges.AmenityAssignments, e)
+			}); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withHousekeepingTasks; query != nil {
+		if err := _q.loadHousekeepingTasks(ctx, query, nodes,
+			func(n *Room) { n.Edges.HousekeepingTasks = []*HousekeepingTask{} },
+			func(n *Room, e *HousekeepingTask) { n.Edges.HousekeepingTasks = append(n.Edges.HousekeepingTasks, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -493,6 +583,66 @@ func (_q *RoomQuery) loadFolioItems(ctx context.Context, query *RoomFolioItemQue
 	}
 	query.Where(predicate.RoomFolioItem(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(room.FolioItemsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.RoomID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "room_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *RoomQuery) loadAmenityAssignments(ctx context.Context, query *RoomAmenityAssignmentQuery, nodes []*Room, init func(*Room), assign func(*Room, *RoomAmenityAssignment)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[uuid.UUID]*Room)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(roomamenityassignment.FieldRoomID)
+	}
+	query.Where(predicate.RoomAmenityAssignment(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(room.AmenityAssignmentsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.RoomID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "room_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *RoomQuery) loadHousekeepingTasks(ctx context.Context, query *HousekeepingTaskQuery, nodes []*Room, init func(*Room), assign func(*Room, *HousekeepingTask)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[uuid.UUID]*Room)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(housekeepingtask.FieldRoomID)
+	}
+	query.Where(predicate.HousekeepingTask(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(room.HousekeepingTasksColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {

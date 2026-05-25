@@ -109,12 +109,16 @@ const DefaultChargeType = ChargeTypeOther
 
 // ChargeType values.
 const (
-	ChargeTypeRoomCharge  ChargeType = "room_charge"
-	ChargeTypeFood        ChargeType = "food"
-	ChargeTypeLaundry     ChargeType = "laundry"
-	ChargeTypeMinibar     ChargeType = "minibar"
-	ChargeTypeRoomService ChargeType = "room_service"
-	ChargeTypeOther       ChargeType = "other"
+	ChargeTypeRoomCharge   ChargeType = "room_charge"
+	ChargeTypeFood         ChargeType = "food"
+	ChargeTypeLaundry      ChargeType = "laundry"
+	ChargeTypeMinibar      ChargeType = "minibar"
+	ChargeTypeRoomService  ChargeType = "room_service"
+	ChargeTypeAmenity      ChargeType = "amenity"
+	ChargeTypeFacility     ChargeType = "facility"
+	ChargeTypeLateCheckout ChargeType = "late_checkout"
+	ChargeTypeDamage       ChargeType = "damage"
+	ChargeTypeOther        ChargeType = "other"
 )
 
 func (ct ChargeType) String() string {
@@ -124,7 +128,7 @@ func (ct ChargeType) String() string {
 // ChargeTypeValidator is a validator for the "charge_type" field enum values. It is called by the builders before save.
 func ChargeTypeValidator(ct ChargeType) error {
 	switch ct {
-	case ChargeTypeRoomCharge, ChargeTypeFood, ChargeTypeLaundry, ChargeTypeMinibar, ChargeTypeRoomService, ChargeTypeOther:
+	case ChargeTypeRoomCharge, ChargeTypeFood, ChargeTypeLaundry, ChargeTypeMinibar, ChargeTypeRoomService, ChargeTypeAmenity, ChargeTypeFacility, ChargeTypeLateCheckout, ChargeTypeDamage, ChargeTypeOther:
 		return nil
 	default:
 		return fmt.Errorf("roomfolioitem: invalid enum value for charge_type field: %q", ct)

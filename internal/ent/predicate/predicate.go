@@ -63,6 +63,9 @@ type GiftCard func(*sql.Selector)
 // GiftCardTransaction is the predicate function for giftcardtransaction builders.
 type GiftCardTransaction func(*sql.Selector)
 
+// HousekeepingTask is the predicate function for housekeepingtask builders.
+type HousekeepingTask func(*sql.Selector)
+
 // IntegrationSetting is the predicate function for integrationsetting builders.
 type IntegrationSetting func(*sql.Selector)
 
@@ -194,6 +197,12 @@ type Resource func(*sql.Selector)
 
 // Room is the predicate function for room builders.
 type Room func(*sql.Selector)
+
+// RoomAmenity is the predicate function for roomamenity builders.
+type RoomAmenity func(*sql.Selector)
+
+// RoomAmenityAssignment is the predicate function for roomamenityassignment builders.
+type RoomAmenityAssignment func(*sql.Selector)
 
 // RoomFolioItem is the predicate function for roomfolioitem builders.
 type RoomFolioItem func(*sql.Selector)

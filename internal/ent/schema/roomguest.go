@@ -48,6 +48,10 @@ func (RoomGuest) Fields() []ent.Field {
 		field.Time("checked_out_at").
 			Optional().
 			Nillable(),
+		field.Bool("late_checkout_approved").
+			Default(false),
+		field.Float("late_checkout_surcharge").
+			Default(0),
 		field.JSON("metadata", map[string]any{}).
 			Default(map[string]any{}),
 		field.Time("created_at").

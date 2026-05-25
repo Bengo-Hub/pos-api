@@ -637,6 +637,52 @@ func HasFolioItemsWith(preds ...predicate.RoomFolioItem) predicate.Room {
 	})
 }
 
+// HasAmenityAssignments applies the HasEdge predicate on the "amenity_assignments" edge.
+func HasAmenityAssignments() predicate.Room {
+	return predicate.Room(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, AmenityAssignmentsTable, AmenityAssignmentsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasAmenityAssignmentsWith applies the HasEdge predicate on the "amenity_assignments" edge with a given conditions (other predicates).
+func HasAmenityAssignmentsWith(preds ...predicate.RoomAmenityAssignment) predicate.Room {
+	return predicate.Room(func(s *sql.Selector) {
+		step := newAmenityAssignmentsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasHousekeepingTasks applies the HasEdge predicate on the "housekeeping_tasks" edge.
+func HasHousekeepingTasks() predicate.Room {
+	return predicate.Room(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, HousekeepingTasksTable, HousekeepingTasksColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasHousekeepingTasksWith applies the HasEdge predicate on the "housekeeping_tasks" edge with a given conditions (other predicates).
+func HasHousekeepingTasksWith(preds ...predicate.HousekeepingTask) predicate.Room {
+	return predicate.Room(func(s *sql.Selector) {
+		step := newHousekeepingTasksStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // And groups predicates with the AND operator between them.
 func And(predicates ...predicate.Room) predicate.Room {
 	return predicate.Room(sql.AndPredicates(predicates...))

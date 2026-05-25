@@ -253,6 +253,41 @@ func (_u *RoomGuestUpdate) ClearCheckedOutAt() *RoomGuestUpdate {
 	return _u
 }
 
+// SetLateCheckoutApproved sets the "late_checkout_approved" field.
+func (_u *RoomGuestUpdate) SetLateCheckoutApproved(v bool) *RoomGuestUpdate {
+	_u.mutation.SetLateCheckoutApproved(v)
+	return _u
+}
+
+// SetNillableLateCheckoutApproved sets the "late_checkout_approved" field if the given value is not nil.
+func (_u *RoomGuestUpdate) SetNillableLateCheckoutApproved(v *bool) *RoomGuestUpdate {
+	if v != nil {
+		_u.SetLateCheckoutApproved(*v)
+	}
+	return _u
+}
+
+// SetLateCheckoutSurcharge sets the "late_checkout_surcharge" field.
+func (_u *RoomGuestUpdate) SetLateCheckoutSurcharge(v float64) *RoomGuestUpdate {
+	_u.mutation.ResetLateCheckoutSurcharge()
+	_u.mutation.SetLateCheckoutSurcharge(v)
+	return _u
+}
+
+// SetNillableLateCheckoutSurcharge sets the "late_checkout_surcharge" field if the given value is not nil.
+func (_u *RoomGuestUpdate) SetNillableLateCheckoutSurcharge(v *float64) *RoomGuestUpdate {
+	if v != nil {
+		_u.SetLateCheckoutSurcharge(*v)
+	}
+	return _u
+}
+
+// AddLateCheckoutSurcharge adds value to the "late_checkout_surcharge" field.
+func (_u *RoomGuestUpdate) AddLateCheckoutSurcharge(v float64) *RoomGuestUpdate {
+	_u.mutation.AddLateCheckoutSurcharge(v)
+	return _u
+}
+
 // SetMetadata sets the "metadata" field.
 func (_u *RoomGuestUpdate) SetMetadata(v map[string]interface{}) *RoomGuestUpdate {
 	_u.mutation.SetMetadata(v)
@@ -453,6 +488,15 @@ func (_u *RoomGuestUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.CheckedOutAtCleared() {
 		_spec.ClearField(roomguest.FieldCheckedOutAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.LateCheckoutApproved(); ok {
+		_spec.SetField(roomguest.FieldLateCheckoutApproved, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.LateCheckoutSurcharge(); ok {
+		_spec.SetField(roomguest.FieldLateCheckoutSurcharge, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedLateCheckoutSurcharge(); ok {
+		_spec.AddField(roomguest.FieldLateCheckoutSurcharge, field.TypeFloat64, value)
 	}
 	if value, ok := _u.mutation.Metadata(); ok {
 		_spec.SetField(roomguest.FieldMetadata, field.TypeJSON, value)
@@ -776,6 +820,41 @@ func (_u *RoomGuestUpdateOne) ClearCheckedOutAt() *RoomGuestUpdateOne {
 	return _u
 }
 
+// SetLateCheckoutApproved sets the "late_checkout_approved" field.
+func (_u *RoomGuestUpdateOne) SetLateCheckoutApproved(v bool) *RoomGuestUpdateOne {
+	_u.mutation.SetLateCheckoutApproved(v)
+	return _u
+}
+
+// SetNillableLateCheckoutApproved sets the "late_checkout_approved" field if the given value is not nil.
+func (_u *RoomGuestUpdateOne) SetNillableLateCheckoutApproved(v *bool) *RoomGuestUpdateOne {
+	if v != nil {
+		_u.SetLateCheckoutApproved(*v)
+	}
+	return _u
+}
+
+// SetLateCheckoutSurcharge sets the "late_checkout_surcharge" field.
+func (_u *RoomGuestUpdateOne) SetLateCheckoutSurcharge(v float64) *RoomGuestUpdateOne {
+	_u.mutation.ResetLateCheckoutSurcharge()
+	_u.mutation.SetLateCheckoutSurcharge(v)
+	return _u
+}
+
+// SetNillableLateCheckoutSurcharge sets the "late_checkout_surcharge" field if the given value is not nil.
+func (_u *RoomGuestUpdateOne) SetNillableLateCheckoutSurcharge(v *float64) *RoomGuestUpdateOne {
+	if v != nil {
+		_u.SetLateCheckoutSurcharge(*v)
+	}
+	return _u
+}
+
+// AddLateCheckoutSurcharge adds value to the "late_checkout_surcharge" field.
+func (_u *RoomGuestUpdateOne) AddLateCheckoutSurcharge(v float64) *RoomGuestUpdateOne {
+	_u.mutation.AddLateCheckoutSurcharge(v)
+	return _u
+}
+
 // SetMetadata sets the "metadata" field.
 func (_u *RoomGuestUpdateOne) SetMetadata(v map[string]interface{}) *RoomGuestUpdateOne {
 	_u.mutation.SetMetadata(v)
@@ -1006,6 +1085,15 @@ func (_u *RoomGuestUpdateOne) sqlSave(ctx context.Context) (_node *RoomGuest, er
 	}
 	if _u.mutation.CheckedOutAtCleared() {
 		_spec.ClearField(roomguest.FieldCheckedOutAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.LateCheckoutApproved(); ok {
+		_spec.SetField(roomguest.FieldLateCheckoutApproved, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.LateCheckoutSurcharge(); ok {
+		_spec.SetField(roomguest.FieldLateCheckoutSurcharge, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedLateCheckoutSurcharge(); ok {
+		_spec.AddField(roomguest.FieldLateCheckoutSurcharge, field.TypeFloat64, value)
 	}
 	if value, ok := _u.mutation.Metadata(); ok {
 		_spec.SetField(roomguest.FieldMetadata, field.TypeJSON, value)

@@ -48,6 +48,10 @@ type RoomGuest struct {
 	CheckedInAt time.Time `json:"checked_in_at,omitempty"`
 	// CheckedOutAt holds the value of the "checked_out_at" field.
 	CheckedOutAt *time.Time `json:"checked_out_at,omitempty"`
+	// LateCheckoutApproved holds the value of the "late_checkout_approved" field.
+	LateCheckoutApproved bool `json:"late_checkout_approved,omitempty"`
+	// LateCheckoutSurcharge holds the value of the "late_checkout_surcharge" field.
+	LateCheckoutSurcharge float64 `json:"late_checkout_surcharge,omitempty"`
 	// Metadata holds the value of the "metadata" field.
 	Metadata map[string]interface{} `json:"metadata,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
@@ -100,7 +104,9 @@ func (*RoomGuest) scanValues(columns []string) ([]any, error) {
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		case roomguest.FieldMetadata:
 			values[i] = new([]byte)
-		case roomguest.FieldTotalRoomCharge:
+		case roomguest.FieldLateCheckoutApproved:
+			values[i] = new(sql.NullBool)
+		case roomguest.FieldTotalRoomCharge, roomguest.FieldLateCheckoutSurcharge:
 			values[i] = new(sql.NullFloat64)
 		case roomguest.FieldNights:
 			values[i] = new(sql.NullInt64)
@@ -217,6 +223,18 @@ func (_m *RoomGuest) assignValues(columns []string, values []any) error {
 				_m.CheckedOutAt = new(time.Time)
 				*_m.CheckedOutAt = value.Time
 			}
+		case roomguest.FieldLateCheckoutApproved:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field late_checkout_approved", values[i])
+			} else if value.Valid {
+				_m.LateCheckoutApproved = value.Bool
+			}
+		case roomguest.FieldLateCheckoutSurcharge:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field late_checkout_surcharge", values[i])
+			} else if value.Valid {
+				_m.LateCheckoutSurcharge = value.Float64
+			}
 		case roomguest.FieldMetadata:
 			if value, ok := values[i].(*[]byte); !ok {
 				return fmt.Errorf("unexpected type %T for field metadata", values[i])
@@ -328,6 +346,12 @@ func (_m *RoomGuest) String() string {
 		builder.WriteString("checked_out_at=")
 		builder.WriteString(v.Format(time.ANSIC))
 	}
+	builder.WriteString(", ")
+	builder.WriteString("late_checkout_approved=")
+	builder.WriteString(fmt.Sprintf("%v", _m.LateCheckoutApproved))
+	builder.WriteString(", ")
+	builder.WriteString("late_checkout_surcharge=")
+	builder.WriteString(fmt.Sprintf("%v", _m.LateCheckoutSurcharge))
 	builder.WriteString(", ")
 	builder.WriteString("metadata=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Metadata))

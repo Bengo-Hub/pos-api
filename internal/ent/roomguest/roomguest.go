@@ -44,6 +44,10 @@ const (
 	FieldCheckedInAt = "checked_in_at"
 	// FieldCheckedOutAt holds the string denoting the checked_out_at field in the database.
 	FieldCheckedOutAt = "checked_out_at"
+	// FieldLateCheckoutApproved holds the string denoting the late_checkout_approved field in the database.
+	FieldLateCheckoutApproved = "late_checkout_approved"
+	// FieldLateCheckoutSurcharge holds the string denoting the late_checkout_surcharge field in the database.
+	FieldLateCheckoutSurcharge = "late_checkout_surcharge"
 	// FieldMetadata holds the string denoting the metadata field in the database.
 	FieldMetadata = "metadata"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
@@ -89,6 +93,8 @@ var Columns = []string{
 	FieldCheckedOutBy,
 	FieldCheckedInAt,
 	FieldCheckedOutAt,
+	FieldLateCheckoutApproved,
+	FieldLateCheckoutSurcharge,
 	FieldMetadata,
 	FieldCreatedAt,
 	FieldUpdatedAt,
@@ -117,6 +123,10 @@ var (
 	TotalRoomChargeValidator func(float64) error
 	// DefaultCheckedInAt holds the default value on creation for the "checked_in_at" field.
 	DefaultCheckedInAt func() time.Time
+	// DefaultLateCheckoutApproved holds the default value on creation for the "late_checkout_approved" field.
+	DefaultLateCheckoutApproved bool
+	// DefaultLateCheckoutSurcharge holds the default value on creation for the "late_checkout_surcharge" field.
+	DefaultLateCheckoutSurcharge float64
 	// DefaultMetadata holds the default value on creation for the "metadata" field.
 	DefaultMetadata map[string]interface{}
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
@@ -231,6 +241,16 @@ func ByCheckedInAt(opts ...sql.OrderTermOption) OrderOption {
 // ByCheckedOutAt orders the results by the checked_out_at field.
 func ByCheckedOutAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCheckedOutAt, opts...).ToFunc()
+}
+
+// ByLateCheckoutApproved orders the results by the late_checkout_approved field.
+func ByLateCheckoutApproved(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLateCheckoutApproved, opts...).ToFunc()
+}
+
+// ByLateCheckoutSurcharge orders the results by the late_checkout_surcharge field.
+func ByLateCheckoutSurcharge(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLateCheckoutSurcharge, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.

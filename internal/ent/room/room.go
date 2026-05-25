@@ -46,6 +46,10 @@ const (
 	EdgeGuests = "guests"
 	// EdgeFolioItems holds the string denoting the folio_items edge name in mutations.
 	EdgeFolioItems = "folio_items"
+	// EdgeAmenityAssignments holds the string denoting the amenity_assignments edge name in mutations.
+	EdgeAmenityAssignments = "amenity_assignments"
+	// EdgeHousekeepingTasks holds the string denoting the housekeeping_tasks edge name in mutations.
+	EdgeHousekeepingTasks = "housekeeping_tasks"
 	// Table holds the table name of the room in the database.
 	Table = "rooms"
 	// GuestsTable is the table that holds the guests relation/edge.
@@ -62,6 +66,20 @@ const (
 	FolioItemsInverseTable = "room_folio_items"
 	// FolioItemsColumn is the table column denoting the folio_items relation/edge.
 	FolioItemsColumn = "room_id"
+	// AmenityAssignmentsTable is the table that holds the amenity_assignments relation/edge.
+	AmenityAssignmentsTable = "room_amenity_assignments"
+	// AmenityAssignmentsInverseTable is the table name for the RoomAmenityAssignment entity.
+	// It exists in this package in order to avoid circular dependency with the "roomamenityassignment" package.
+	AmenityAssignmentsInverseTable = "room_amenity_assignments"
+	// AmenityAssignmentsColumn is the table column denoting the amenity_assignments relation/edge.
+	AmenityAssignmentsColumn = "room_id"
+	// HousekeepingTasksTable is the table that holds the housekeeping_tasks relation/edge.
+	HousekeepingTasksTable = "housekeeping_tasks"
+	// HousekeepingTasksInverseTable is the table name for the HousekeepingTask entity.
+	// It exists in this package in order to avoid circular dependency with the "housekeepingtask" package.
+	HousekeepingTasksInverseTable = "housekeeping_tasks"
+	// HousekeepingTasksColumn is the table column denoting the housekeeping_tasks relation/edge.
+	HousekeepingTasksColumn = "room_id"
 )
 
 // Columns holds all SQL columns for room fields.
@@ -271,6 +289,34 @@ func ByFolioItems(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newFolioItemsStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
+
+// ByAmenityAssignmentsCount orders the results by amenity_assignments count.
+func ByAmenityAssignmentsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newAmenityAssignmentsStep(), opts...)
+	}
+}
+
+// ByAmenityAssignments orders the results by amenity_assignments terms.
+func ByAmenityAssignments(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newAmenityAssignmentsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByHousekeepingTasksCount orders the results by housekeeping_tasks count.
+func ByHousekeepingTasksCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newHousekeepingTasksStep(), opts...)
+	}
+}
+
+// ByHousekeepingTasks orders the results by housekeeping_tasks terms.
+func ByHousekeepingTasks(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newHousekeepingTasksStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newGuestsStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -283,5 +329,19 @@ func newFolioItemsStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(FolioItemsInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, FolioItemsTable, FolioItemsColumn),
+	)
+}
+func newAmenityAssignmentsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(AmenityAssignmentsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, AmenityAssignmentsTable, AmenityAssignmentsColumn),
+	)
+}
+func newHousekeepingTasksStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(HousekeepingTasksInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, HousekeepingTasksTable, HousekeepingTasksColumn),
 	)
 }

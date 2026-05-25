@@ -31,6 +31,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/featureoverride"
 	"github.com/bengobox/pos-service/internal/ent/giftcard"
 	"github.com/bengobox/pos-service/internal/ent/giftcardtransaction"
+	"github.com/bengobox/pos-service/internal/ent/housekeepingtask"
 	"github.com/bengobox/pos-service/internal/ent/integrationsetting"
 	"github.com/bengobox/pos-service/internal/ent/inventorysnapshot"
 	"github.com/bengobox/pos-service/internal/ent/kdsstation"
@@ -75,6 +76,8 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/ratelimitconfig"
 	"github.com/bengobox/pos-service/internal/ent/resource"
 	"github.com/bengobox/pos-service/internal/ent/room"
+	"github.com/bengobox/pos-service/internal/ent/roomamenity"
+	"github.com/bengobox/pos-service/internal/ent/roomamenityassignment"
 	"github.com/bengobox/pos-service/internal/ent/roomfolioitem"
 	"github.com/bengobox/pos-service/internal/ent/roomguest"
 	"github.com/bengobox/pos-service/internal/ent/section"
@@ -181,6 +184,7 @@ func checkColumn(t, c string) error {
 			featureoverride.Table:          featureoverride.ValidColumn,
 			giftcard.Table:                 giftcard.ValidColumn,
 			giftcardtransaction.Table:      giftcardtransaction.ValidColumn,
+			housekeepingtask.Table:         housekeepingtask.ValidColumn,
 			integrationsetting.Table:       integrationsetting.ValidColumn,
 			inventorysnapshot.Table:        inventorysnapshot.ValidColumn,
 			kdsstation.Table:               kdsstation.ValidColumn,
@@ -225,6 +229,8 @@ func checkColumn(t, c string) error {
 			ratelimitconfig.Table:          ratelimitconfig.ValidColumn,
 			resource.Table:                 resource.ValidColumn,
 			room.Table:                     room.ValidColumn,
+			roomamenity.Table:              roomamenity.ValidColumn,
+			roomamenityassignment.Table:    roomamenityassignment.ValidColumn,
 			roomfolioitem.Table:            roomfolioitem.ValidColumn,
 			roomguest.Table:                roomguest.ValidColumn,
 			section.Table:                  section.ValidColumn,

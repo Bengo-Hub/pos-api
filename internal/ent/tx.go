@@ -50,6 +50,8 @@ type Tx struct {
 	GiftCard *GiftCardClient
 	// GiftCardTransaction is the client for interacting with the GiftCardTransaction builders.
 	GiftCardTransaction *GiftCardTransactionClient
+	// HousekeepingTask is the client for interacting with the HousekeepingTask builders.
+	HousekeepingTask *HousekeepingTaskClient
 	// IntegrationSetting is the client for interacting with the IntegrationSetting builders.
 	IntegrationSetting *IntegrationSettingClient
 	// InventorySnapshot is the client for interacting with the InventorySnapshot builders.
@@ -138,6 +140,10 @@ type Tx struct {
 	Resource *ResourceClient
 	// Room is the client for interacting with the Room builders.
 	Room *RoomClient
+	// RoomAmenity is the client for interacting with the RoomAmenity builders.
+	RoomAmenity *RoomAmenityClient
+	// RoomAmenityAssignment is the client for interacting with the RoomAmenityAssignment builders.
+	RoomAmenityAssignment *RoomAmenityAssignmentClient
 	// RoomFolioItem is the client for interacting with the RoomFolioItem builders.
 	RoomFolioItem *RoomFolioItemClient
 	// RoomGuest is the client for interacting with the RoomGuest builders.
@@ -342,6 +348,7 @@ func (tx *Tx) init() {
 	tx.FeatureOverride = NewFeatureOverrideClient(tx.config)
 	tx.GiftCard = NewGiftCardClient(tx.config)
 	tx.GiftCardTransaction = NewGiftCardTransactionClient(tx.config)
+	tx.HousekeepingTask = NewHousekeepingTaskClient(tx.config)
 	tx.IntegrationSetting = NewIntegrationSettingClient(tx.config)
 	tx.InventorySnapshot = NewInventorySnapshotClient(tx.config)
 	tx.KDSStation = NewKDSStationClient(tx.config)
@@ -386,6 +393,8 @@ func (tx *Tx) init() {
 	tx.RateLimitConfig = NewRateLimitConfigClient(tx.config)
 	tx.Resource = NewResourceClient(tx.config)
 	tx.Room = NewRoomClient(tx.config)
+	tx.RoomAmenity = NewRoomAmenityClient(tx.config)
+	tx.RoomAmenityAssignment = NewRoomAmenityAssignmentClient(tx.config)
 	tx.RoomFolioItem = NewRoomFolioItemClient(tx.config)
 	tx.RoomGuest = NewRoomGuestClient(tx.config)
 	tx.Section = NewSectionClient(tx.config)

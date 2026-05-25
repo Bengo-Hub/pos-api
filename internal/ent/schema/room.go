@@ -57,6 +57,8 @@ func (Room) Edges() []ent.Edge {
 	return []ent.Edge{
 		edge.To("guests", RoomGuest.Type),
 		edge.To("folio_items", RoomFolioItem.Type),
+		edge.To("amenity_assignments", RoomAmenityAssignment.Type),
+		edge.To("housekeeping_tasks", HousekeepingTask.Type),
 	}
 }
 

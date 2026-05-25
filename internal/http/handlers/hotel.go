@@ -392,6 +392,18 @@ func (h *HotelHandler) CheckOut(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Auto-create housekeeping task for post-checkout clean
+	guestIDCopy := guest.ID
+	go func() {
+		_, _ = h.client.HousekeepingTask.Create().
+			SetTenantID(tid).
+			SetRoomID(roomID).
+			SetNillableRoomGuestID(&guestIDCopy).
+			SetTaskType("checkout_clean").
+			SetPriority("urgent").
+			Save(r.Context())
+	}()
+
 	if h.publisher != nil {
 		_ = h.publisher.PublishHotelCheckOut(r.Context(), tid, map[string]any{
 			"room_id":        roomID,
@@ -775,4 +787,202 @@ func (h *HotelHandler) ListFacilityBookings(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	jsonOK(w, map[string]any{"data": bookings, "total": len(bookings)})
+}
+
+// CompleteFacilityBooking handles POST /{tenantID}/hotel/facilities/bookings/{bookingID}/complete
+// Marks the booking completed and, if the guest is a hotel guest, auto-posts the charge to their folio.
+func (h *HotelHandler) CompleteFacilityBooking(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+	bookingID, err := uuid.Parse(chi.URLParam(r, "bookingID"))
+	if err != nil {
+		jsonError(w, "invalid booking id", http.StatusBadRequest)
+		return
+	}
+
+	booking, err := h.client.FacilityBooking.Query().
+		Where(entfacilitybooking.ID(bookingID), entfacilitybooking.TenantID(tid)).
+		WithFacility().
+		Only(r.Context())
+	if err != nil {
+		jsonError(w, "booking not found", http.StatusNotFound)
+		return
+	}
+
+	_, err = booking.Update().SetStatus(entfacilitybooking.StatusCompleted).Save(r.Context())
+	if err != nil {
+		jsonError(w, "failed to complete booking", http.StatusInternalServerError)
+		return
+	}
+
+	// Auto-post charge to guest folio if this booking is linked to a hotel guest
+	if booking.RoomGuestID != nil && booking.Amount > 0 {
+		guest, guestErr := h.client.RoomGuest.Get(r.Context(), *booking.RoomGuestID)
+		if guestErr == nil && guest.Status == entroomguest.StatusActive {
+			facilityName := ""
+			if booking.Edges.Facility != nil {
+				facilityName = booking.Edges.Facility.Name
+			}
+			chargedBy, _ := uuid.Parse(r.Header.Get("X-User-ID"))
+			_, _ = h.client.RoomFolioItem.Create().
+				SetTenantID(tid).
+				SetRoomID(guest.RoomID).
+				SetRoomGuestID(guest.ID).
+				SetDescription(fmt.Sprintf("Facility: %s (%s)", facilityName, booking.StartTime)).
+				SetAmount(booking.Amount).
+				SetChargeType(entroomfolioitem.ChargeTypeFacility).
+				SetCreatedBy(chargedBy).
+				Save(r.Context())
+		}
+	}
+
+	jsonOK(w, map[string]any{"status": "completed", "booking_id": bookingID, "folio_charged": booking.RoomGuestID != nil && booking.Amount > 0})
+}
+
+// LateCheckout handles POST /{tenantID}/hotel/rooms/{id}/late-checkout
+// Approves a late checkout and posts a late checkout surcharge to the guest's folio.
+func (h *HotelHandler) LateCheckout(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+	roomID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		jsonError(w, "invalid room id", http.StatusBadRequest)
+		return
+	}
+
+	var input struct {
+		SurchargeAmount float64 `json:"surcharge_amount"`
+		Notes           string  `json:"notes"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		jsonError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	guest, err := h.client.RoomGuest.Query().
+		Where(entroomguest.TenantID(tid), entroomguest.RoomID(roomID), entroomguest.StatusEQ(entroomguest.StatusActive)).
+		Only(r.Context())
+	if err != nil {
+		jsonError(w, "no active guest for this room", http.StatusNotFound)
+		return
+	}
+
+	_, err = guest.Update().
+		SetLateCheckoutApproved(true).
+		SetLateCheckoutSurcharge(input.SurchargeAmount).
+		Save(r.Context())
+	if err != nil {
+		jsonError(w, "failed to approve late checkout", http.StatusInternalServerError)
+		return
+	}
+
+	// Post surcharge to folio if amount > 0
+	if input.SurchargeAmount > 0 {
+		chargedBy, _ := uuid.Parse(r.Header.Get("X-User-ID"))
+		desc := "Late checkout surcharge"
+		if input.Notes != "" {
+			desc += " - " + input.Notes
+		}
+		_, _ = h.client.RoomFolioItem.Create().
+			SetTenantID(tid).
+			SetRoomID(roomID).
+			SetRoomGuestID(guest.ID).
+			SetDescription(desc).
+			SetAmount(input.SurchargeAmount).
+			SetChargeType(entroomfolioitem.ChargeTypeLateCheckout).
+			SetCreatedBy(chargedBy).
+			Save(r.Context())
+	}
+
+	jsonOK(w, map[string]any{
+		"guest_id":              guest.ID,
+		"late_checkout_approved": true,
+		"surcharge_amount":      input.SurchargeAmount,
+	})
+}
+
+// BatchCheckout handles POST /{tenantID}/hotel/rooms/batch-checkout
+// Checks out multiple rooms at once (e.g., tour groups).
+func (h *HotelHandler) BatchCheckout(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+
+	var input struct {
+		RoomIDs   []string `json:"room_ids"`
+		CheckedBy string   `json:"checked_out_by"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil || len(input.RoomIDs) == 0 {
+		jsonError(w, "room_ids is required", http.StatusBadRequest)
+		return
+	}
+
+	checkedOutBy, _ := uuid.Parse(input.CheckedBy)
+	now := time.Now()
+	ctx := r.Context()
+
+	type batchResult struct {
+		RoomID     string  `json:"room_id"`
+		GuestName  string  `json:"guest_name"`
+		TotalFolio float64 `json:"total_folio"`
+		Error      string  `json:"error,omitempty"`
+	}
+	results := make([]batchResult, 0, len(input.RoomIDs))
+
+	for _, ridStr := range input.RoomIDs {
+		roomID, err := uuid.Parse(ridStr)
+		if err != nil {
+			results = append(results, batchResult{RoomID: ridStr, Error: "invalid room_id"})
+			continue
+		}
+
+		guest, err := h.client.RoomGuest.Query().
+			Where(entroomguest.TenantID(tid), entroomguest.RoomID(roomID), entroomguest.StatusEQ(entroomguest.StatusActive)).
+			Only(ctx)
+		if err != nil {
+			results = append(results, batchResult{RoomID: ridStr, Error: "no active guest"})
+			continue
+		}
+
+		items, _ := h.client.RoomFolioItem.Query().
+			Where(entroomfolioitem.TenantID(tid), entroomfolioitem.RoomGuestID(guest.ID)).
+			All(ctx)
+		var totalFolio float64
+		for _, item := range items {
+			totalFolio += item.Amount
+		}
+
+		guest.Update().
+			SetStatus(entroomguest.StatusCheckedOut).
+			SetCheckedOutBy(checkedOutBy).
+			SetCheckedOutAt(now).
+			Exec(ctx) //nolint
+		h.client.Room.UpdateOneID(roomID).SetStatus(entroom.StatusCleaning).Exec(ctx) //nolint
+
+		// Auto-create housekeeping task
+		gid := guest.ID
+		h.client.HousekeepingTask.Create().
+			SetTenantID(tid).
+			SetRoomID(roomID).
+			SetNillableRoomGuestID(&gid).
+			SetTaskType("checkout_clean").
+			SetPriority("urgent").
+			Exec(ctx) //nolint
+
+		results = append(results, batchResult{
+			RoomID:     ridStr,
+			GuestName:  guest.GuestName,
+			TotalFolio: totalFolio,
+		})
+	}
+
+	jsonOK(w, map[string]any{"results": results, "processed": len(results)})
 }

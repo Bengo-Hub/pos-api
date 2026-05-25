@@ -121,6 +121,16 @@ func CheckedOutAt(v time.Time) predicate.RoomGuest {
 	return predicate.RoomGuest(sql.FieldEQ(FieldCheckedOutAt, v))
 }
 
+// LateCheckoutApproved applies equality check predicate on the "late_checkout_approved" field. It's identical to LateCheckoutApprovedEQ.
+func LateCheckoutApproved(v bool) predicate.RoomGuest {
+	return predicate.RoomGuest(sql.FieldEQ(FieldLateCheckoutApproved, v))
+}
+
+// LateCheckoutSurcharge applies equality check predicate on the "late_checkout_surcharge" field. It's identical to LateCheckoutSurchargeEQ.
+func LateCheckoutSurcharge(v float64) predicate.RoomGuest {
+	return predicate.RoomGuest(sql.FieldEQ(FieldLateCheckoutSurcharge, v))
+}
+
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.RoomGuest {
 	return predicate.RoomGuest(sql.FieldEQ(FieldCreatedAt, v))
@@ -744,6 +754,56 @@ func CheckedOutAtIsNil() predicate.RoomGuest {
 // CheckedOutAtNotNil applies the NotNil predicate on the "checked_out_at" field.
 func CheckedOutAtNotNil() predicate.RoomGuest {
 	return predicate.RoomGuest(sql.FieldNotNull(FieldCheckedOutAt))
+}
+
+// LateCheckoutApprovedEQ applies the EQ predicate on the "late_checkout_approved" field.
+func LateCheckoutApprovedEQ(v bool) predicate.RoomGuest {
+	return predicate.RoomGuest(sql.FieldEQ(FieldLateCheckoutApproved, v))
+}
+
+// LateCheckoutApprovedNEQ applies the NEQ predicate on the "late_checkout_approved" field.
+func LateCheckoutApprovedNEQ(v bool) predicate.RoomGuest {
+	return predicate.RoomGuest(sql.FieldNEQ(FieldLateCheckoutApproved, v))
+}
+
+// LateCheckoutSurchargeEQ applies the EQ predicate on the "late_checkout_surcharge" field.
+func LateCheckoutSurchargeEQ(v float64) predicate.RoomGuest {
+	return predicate.RoomGuest(sql.FieldEQ(FieldLateCheckoutSurcharge, v))
+}
+
+// LateCheckoutSurchargeNEQ applies the NEQ predicate on the "late_checkout_surcharge" field.
+func LateCheckoutSurchargeNEQ(v float64) predicate.RoomGuest {
+	return predicate.RoomGuest(sql.FieldNEQ(FieldLateCheckoutSurcharge, v))
+}
+
+// LateCheckoutSurchargeIn applies the In predicate on the "late_checkout_surcharge" field.
+func LateCheckoutSurchargeIn(vs ...float64) predicate.RoomGuest {
+	return predicate.RoomGuest(sql.FieldIn(FieldLateCheckoutSurcharge, vs...))
+}
+
+// LateCheckoutSurchargeNotIn applies the NotIn predicate on the "late_checkout_surcharge" field.
+func LateCheckoutSurchargeNotIn(vs ...float64) predicate.RoomGuest {
+	return predicate.RoomGuest(sql.FieldNotIn(FieldLateCheckoutSurcharge, vs...))
+}
+
+// LateCheckoutSurchargeGT applies the GT predicate on the "late_checkout_surcharge" field.
+func LateCheckoutSurchargeGT(v float64) predicate.RoomGuest {
+	return predicate.RoomGuest(sql.FieldGT(FieldLateCheckoutSurcharge, v))
+}
+
+// LateCheckoutSurchargeGTE applies the GTE predicate on the "late_checkout_surcharge" field.
+func LateCheckoutSurchargeGTE(v float64) predicate.RoomGuest {
+	return predicate.RoomGuest(sql.FieldGTE(FieldLateCheckoutSurcharge, v))
+}
+
+// LateCheckoutSurchargeLT applies the LT predicate on the "late_checkout_surcharge" field.
+func LateCheckoutSurchargeLT(v float64) predicate.RoomGuest {
+	return predicate.RoomGuest(sql.FieldLT(FieldLateCheckoutSurcharge, v))
+}
+
+// LateCheckoutSurchargeLTE applies the LTE predicate on the "late_checkout_surcharge" field.
+func LateCheckoutSurchargeLTE(v float64) predicate.RoomGuest {
+	return predicate.RoomGuest(sql.FieldLTE(FieldLateCheckoutSurcharge, v))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.

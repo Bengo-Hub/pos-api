@@ -142,6 +142,34 @@ func (_c *RoomGuestCreate) SetNillableCheckedOutAt(v *time.Time) *RoomGuestCreat
 	return _c
 }
 
+// SetLateCheckoutApproved sets the "late_checkout_approved" field.
+func (_c *RoomGuestCreate) SetLateCheckoutApproved(v bool) *RoomGuestCreate {
+	_c.mutation.SetLateCheckoutApproved(v)
+	return _c
+}
+
+// SetNillableLateCheckoutApproved sets the "late_checkout_approved" field if the given value is not nil.
+func (_c *RoomGuestCreate) SetNillableLateCheckoutApproved(v *bool) *RoomGuestCreate {
+	if v != nil {
+		_c.SetLateCheckoutApproved(*v)
+	}
+	return _c
+}
+
+// SetLateCheckoutSurcharge sets the "late_checkout_surcharge" field.
+func (_c *RoomGuestCreate) SetLateCheckoutSurcharge(v float64) *RoomGuestCreate {
+	_c.mutation.SetLateCheckoutSurcharge(v)
+	return _c
+}
+
+// SetNillableLateCheckoutSurcharge sets the "late_checkout_surcharge" field if the given value is not nil.
+func (_c *RoomGuestCreate) SetNillableLateCheckoutSurcharge(v *float64) *RoomGuestCreate {
+	if v != nil {
+		_c.SetLateCheckoutSurcharge(*v)
+	}
+	return _c
+}
+
 // SetMetadata sets the "metadata" field.
 func (_c *RoomGuestCreate) SetMetadata(v map[string]interface{}) *RoomGuestCreate {
 	_c.mutation.SetMetadata(v)
@@ -253,6 +281,14 @@ func (_c *RoomGuestCreate) defaults() {
 		v := roomguest.DefaultCheckedInAt()
 		_c.mutation.SetCheckedInAt(v)
 	}
+	if _, ok := _c.mutation.LateCheckoutApproved(); !ok {
+		v := roomguest.DefaultLateCheckoutApproved
+		_c.mutation.SetLateCheckoutApproved(v)
+	}
+	if _, ok := _c.mutation.LateCheckoutSurcharge(); !ok {
+		v := roomguest.DefaultLateCheckoutSurcharge
+		_c.mutation.SetLateCheckoutSurcharge(v)
+	}
 	if _, ok := _c.mutation.Metadata(); !ok {
 		v := roomguest.DefaultMetadata
 		_c.mutation.SetMetadata(v)
@@ -338,6 +374,12 @@ func (_c *RoomGuestCreate) check() error {
 	}
 	if _, ok := _c.mutation.CheckedInAt(); !ok {
 		return &ValidationError{Name: "checked_in_at", err: errors.New(`ent: missing required field "RoomGuest.checked_in_at"`)}
+	}
+	if _, ok := _c.mutation.LateCheckoutApproved(); !ok {
+		return &ValidationError{Name: "late_checkout_approved", err: errors.New(`ent: missing required field "RoomGuest.late_checkout_approved"`)}
+	}
+	if _, ok := _c.mutation.LateCheckoutSurcharge(); !ok {
+		return &ValidationError{Name: "late_checkout_surcharge", err: errors.New(`ent: missing required field "RoomGuest.late_checkout_surcharge"`)}
 	}
 	if _, ok := _c.mutation.Metadata(); !ok {
 		return &ValidationError{Name: "metadata", err: errors.New(`ent: missing required field "RoomGuest.metadata"`)}
@@ -438,6 +480,14 @@ func (_c *RoomGuestCreate) createSpec() (*RoomGuest, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.CheckedOutAt(); ok {
 		_spec.SetField(roomguest.FieldCheckedOutAt, field.TypeTime, value)
 		_node.CheckedOutAt = &value
+	}
+	if value, ok := _c.mutation.LateCheckoutApproved(); ok {
+		_spec.SetField(roomguest.FieldLateCheckoutApproved, field.TypeBool, value)
+		_node.LateCheckoutApproved = value
+	}
+	if value, ok := _c.mutation.LateCheckoutSurcharge(); ok {
+		_spec.SetField(roomguest.FieldLateCheckoutSurcharge, field.TypeFloat64, value)
+		_node.LateCheckoutSurcharge = value
 	}
 	if value, ok := _c.mutation.Metadata(); ok {
 		_spec.SetField(roomguest.FieldMetadata, field.TypeJSON, value)
@@ -725,6 +775,36 @@ func (u *RoomGuestUpsert) UpdateCheckedOutAt() *RoomGuestUpsert {
 // ClearCheckedOutAt clears the value of the "checked_out_at" field.
 func (u *RoomGuestUpsert) ClearCheckedOutAt() *RoomGuestUpsert {
 	u.SetNull(roomguest.FieldCheckedOutAt)
+	return u
+}
+
+// SetLateCheckoutApproved sets the "late_checkout_approved" field.
+func (u *RoomGuestUpsert) SetLateCheckoutApproved(v bool) *RoomGuestUpsert {
+	u.Set(roomguest.FieldLateCheckoutApproved, v)
+	return u
+}
+
+// UpdateLateCheckoutApproved sets the "late_checkout_approved" field to the value that was provided on create.
+func (u *RoomGuestUpsert) UpdateLateCheckoutApproved() *RoomGuestUpsert {
+	u.SetExcluded(roomguest.FieldLateCheckoutApproved)
+	return u
+}
+
+// SetLateCheckoutSurcharge sets the "late_checkout_surcharge" field.
+func (u *RoomGuestUpsert) SetLateCheckoutSurcharge(v float64) *RoomGuestUpsert {
+	u.Set(roomguest.FieldLateCheckoutSurcharge, v)
+	return u
+}
+
+// UpdateLateCheckoutSurcharge sets the "late_checkout_surcharge" field to the value that was provided on create.
+func (u *RoomGuestUpsert) UpdateLateCheckoutSurcharge() *RoomGuestUpsert {
+	u.SetExcluded(roomguest.FieldLateCheckoutSurcharge)
+	return u
+}
+
+// AddLateCheckoutSurcharge adds v to the "late_checkout_surcharge" field.
+func (u *RoomGuestUpsert) AddLateCheckoutSurcharge(v float64) *RoomGuestUpsert {
+	u.Add(roomguest.FieldLateCheckoutSurcharge, v)
 	return u
 }
 
@@ -1024,6 +1104,41 @@ func (u *RoomGuestUpsertOne) UpdateCheckedOutAt() *RoomGuestUpsertOne {
 func (u *RoomGuestUpsertOne) ClearCheckedOutAt() *RoomGuestUpsertOne {
 	return u.Update(func(s *RoomGuestUpsert) {
 		s.ClearCheckedOutAt()
+	})
+}
+
+// SetLateCheckoutApproved sets the "late_checkout_approved" field.
+func (u *RoomGuestUpsertOne) SetLateCheckoutApproved(v bool) *RoomGuestUpsertOne {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.SetLateCheckoutApproved(v)
+	})
+}
+
+// UpdateLateCheckoutApproved sets the "late_checkout_approved" field to the value that was provided on create.
+func (u *RoomGuestUpsertOne) UpdateLateCheckoutApproved() *RoomGuestUpsertOne {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.UpdateLateCheckoutApproved()
+	})
+}
+
+// SetLateCheckoutSurcharge sets the "late_checkout_surcharge" field.
+func (u *RoomGuestUpsertOne) SetLateCheckoutSurcharge(v float64) *RoomGuestUpsertOne {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.SetLateCheckoutSurcharge(v)
+	})
+}
+
+// AddLateCheckoutSurcharge adds v to the "late_checkout_surcharge" field.
+func (u *RoomGuestUpsertOne) AddLateCheckoutSurcharge(v float64) *RoomGuestUpsertOne {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.AddLateCheckoutSurcharge(v)
+	})
+}
+
+// UpdateLateCheckoutSurcharge sets the "late_checkout_surcharge" field to the value that was provided on create.
+func (u *RoomGuestUpsertOne) UpdateLateCheckoutSurcharge() *RoomGuestUpsertOne {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.UpdateLateCheckoutSurcharge()
 	})
 }
 
@@ -1494,6 +1609,41 @@ func (u *RoomGuestUpsertBulk) UpdateCheckedOutAt() *RoomGuestUpsertBulk {
 func (u *RoomGuestUpsertBulk) ClearCheckedOutAt() *RoomGuestUpsertBulk {
 	return u.Update(func(s *RoomGuestUpsert) {
 		s.ClearCheckedOutAt()
+	})
+}
+
+// SetLateCheckoutApproved sets the "late_checkout_approved" field.
+func (u *RoomGuestUpsertBulk) SetLateCheckoutApproved(v bool) *RoomGuestUpsertBulk {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.SetLateCheckoutApproved(v)
+	})
+}
+
+// UpdateLateCheckoutApproved sets the "late_checkout_approved" field to the value that was provided on create.
+func (u *RoomGuestUpsertBulk) UpdateLateCheckoutApproved() *RoomGuestUpsertBulk {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.UpdateLateCheckoutApproved()
+	})
+}
+
+// SetLateCheckoutSurcharge sets the "late_checkout_surcharge" field.
+func (u *RoomGuestUpsertBulk) SetLateCheckoutSurcharge(v float64) *RoomGuestUpsertBulk {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.SetLateCheckoutSurcharge(v)
+	})
+}
+
+// AddLateCheckoutSurcharge adds v to the "late_checkout_surcharge" field.
+func (u *RoomGuestUpsertBulk) AddLateCheckoutSurcharge(v float64) *RoomGuestUpsertBulk {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.AddLateCheckoutSurcharge(v)
+	})
+}
+
+// UpdateLateCheckoutSurcharge sets the "late_checkout_surcharge" field to the value that was provided on create.
+func (u *RoomGuestUpsertBulk) UpdateLateCheckoutSurcharge() *RoomGuestUpsertBulk {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.UpdateLateCheckoutSurcharge()
 	})
 }
 

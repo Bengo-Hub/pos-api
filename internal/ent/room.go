@@ -57,9 +57,13 @@ type RoomEdges struct {
 	Guests []*RoomGuest `json:"guests,omitempty"`
 	// FolioItems holds the value of the folio_items edge.
 	FolioItems []*RoomFolioItem `json:"folio_items,omitempty"`
+	// AmenityAssignments holds the value of the amenity_assignments edge.
+	AmenityAssignments []*RoomAmenityAssignment `json:"amenity_assignments,omitempty"`
+	// HousekeepingTasks holds the value of the housekeeping_tasks edge.
+	HousekeepingTasks []*HousekeepingTask `json:"housekeeping_tasks,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [2]bool
+	loadedTypes [4]bool
 }
 
 // GuestsOrErr returns the Guests value or an error if the edge
@@ -78,6 +82,24 @@ func (e RoomEdges) FolioItemsOrErr() ([]*RoomFolioItem, error) {
 		return e.FolioItems, nil
 	}
 	return nil, &NotLoadedError{edge: "folio_items"}
+}
+
+// AmenityAssignmentsOrErr returns the AmenityAssignments value or an error if the edge
+// was not loaded in eager-loading.
+func (e RoomEdges) AmenityAssignmentsOrErr() ([]*RoomAmenityAssignment, error) {
+	if e.loadedTypes[2] {
+		return e.AmenityAssignments, nil
+	}
+	return nil, &NotLoadedError{edge: "amenity_assignments"}
+}
+
+// HousekeepingTasksOrErr returns the HousekeepingTasks value or an error if the edge
+// was not loaded in eager-loading.
+func (e RoomEdges) HousekeepingTasksOrErr() ([]*HousekeepingTask, error) {
+	if e.loadedTypes[3] {
+		return e.HousekeepingTasks, nil
+	}
+	return nil, &NotLoadedError{edge: "housekeeping_tasks"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -221,6 +243,16 @@ func (_m *Room) QueryGuests() *RoomGuestQuery {
 // QueryFolioItems queries the "folio_items" edge of the Room entity.
 func (_m *Room) QueryFolioItems() *RoomFolioItemQuery {
 	return NewRoomClient(_m.config).QueryFolioItems(_m)
+}
+
+// QueryAmenityAssignments queries the "amenity_assignments" edge of the Room entity.
+func (_m *Room) QueryAmenityAssignments() *RoomAmenityAssignmentQuery {
+	return NewRoomClient(_m.config).QueryAmenityAssignments(_m)
+}
+
+// QueryHousekeepingTasks queries the "housekeeping_tasks" edge of the Room entity.
+func (_m *Room) QueryHousekeepingTasks() *HousekeepingTaskQuery {
+	return NewRoomClient(_m.config).QueryHousekeepingTasks(_m)
 }
 
 // Update returns a builder for updating this Room.

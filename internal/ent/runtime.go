@@ -23,6 +23,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/facilitybooking"
 	"github.com/bengobox/pos-service/internal/ent/giftcard"
 	"github.com/bengobox/pos-service/internal/ent/giftcardtransaction"
+	"github.com/bengobox/pos-service/internal/ent/housekeepingtask"
 	"github.com/bengobox/pos-service/internal/ent/integrationsetting"
 	"github.com/bengobox/pos-service/internal/ent/inventorysnapshot"
 	"github.com/bengobox/pos-service/internal/ent/kdsstation"
@@ -65,6 +66,8 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/ratelimitconfig"
 	"github.com/bengobox/pos-service/internal/ent/resource"
 	"github.com/bengobox/pos-service/internal/ent/room"
+	"github.com/bengobox/pos-service/internal/ent/roomamenity"
+	"github.com/bengobox/pos-service/internal/ent/roomamenityassignment"
 	"github.com/bengobox/pos-service/internal/ent/roomfolioitem"
 	"github.com/bengobox/pos-service/internal/ent/roomguest"
 	"github.com/bengobox/pos-service/internal/ent/schema"
@@ -594,6 +597,22 @@ func init() {
 	giftcardtransactionDescID := giftcardtransactionFields[0].Descriptor()
 	// giftcardtransaction.DefaultID holds the default value on creation for the id field.
 	giftcardtransaction.DefaultID = giftcardtransactionDescID.Default.(func() uuid.UUID)
+	housekeepingtaskFields := schema.HousekeepingTask{}.Fields()
+	_ = housekeepingtaskFields
+	// housekeepingtaskDescCreatedAt is the schema descriptor for created_at field.
+	housekeepingtaskDescCreatedAt := housekeepingtaskFields[11].Descriptor()
+	// housekeepingtask.DefaultCreatedAt holds the default value on creation for the created_at field.
+	housekeepingtask.DefaultCreatedAt = housekeepingtaskDescCreatedAt.Default.(func() time.Time)
+	// housekeepingtaskDescUpdatedAt is the schema descriptor for updated_at field.
+	housekeepingtaskDescUpdatedAt := housekeepingtaskFields[12].Descriptor()
+	// housekeepingtask.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	housekeepingtask.DefaultUpdatedAt = housekeepingtaskDescUpdatedAt.Default.(func() time.Time)
+	// housekeepingtask.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	housekeepingtask.UpdateDefaultUpdatedAt = housekeepingtaskDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// housekeepingtaskDescID is the schema descriptor for id field.
+	housekeepingtaskDescID := housekeepingtaskFields[0].Descriptor()
+	// housekeepingtask.DefaultID holds the default value on creation for the id field.
+	housekeepingtask.DefaultID = housekeepingtaskDescID.Default.(func() uuid.UUID)
 	integrationsettingFields := schema.IntegrationSetting{}.Fields()
 	_ = integrationsettingFields
 	// integrationsettingDescProviderName is the schema descriptor for provider_name field.
@@ -1696,6 +1715,58 @@ func init() {
 	roomDescID := roomFields[0].Descriptor()
 	// room.DefaultID holds the default value on creation for the id field.
 	room.DefaultID = roomDescID.Default.(func() uuid.UUID)
+	roomamenityFields := schema.RoomAmenity{}.Fields()
+	_ = roomamenityFields
+	// roomamenityDescName is the schema descriptor for name field.
+	roomamenityDescName := roomamenityFields[3].Descriptor()
+	// roomamenity.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	roomamenity.NameValidator = roomamenityDescName.Validators[0].(func(string) error)
+	// roomamenityDescRate is the schema descriptor for rate field.
+	roomamenityDescRate := roomamenityFields[7].Descriptor()
+	// roomamenity.DefaultRate holds the default value on creation for the rate field.
+	roomamenity.DefaultRate = roomamenityDescRate.Default.(float64)
+	// roomamenity.RateValidator is a validator for the "rate" field. It is called by the builders before save.
+	roomamenity.RateValidator = roomamenityDescRate.Validators[0].(func(float64) error)
+	// roomamenityDescCurrency is the schema descriptor for currency field.
+	roomamenityDescCurrency := roomamenityFields[8].Descriptor()
+	// roomamenity.DefaultCurrency holds the default value on creation for the currency field.
+	roomamenity.DefaultCurrency = roomamenityDescCurrency.Default.(string)
+	// roomamenityDescIsActive is the schema descriptor for is_active field.
+	roomamenityDescIsActive := roomamenityFields[9].Descriptor()
+	// roomamenity.DefaultIsActive holds the default value on creation for the is_active field.
+	roomamenity.DefaultIsActive = roomamenityDescIsActive.Default.(bool)
+	// roomamenityDescMetadata is the schema descriptor for metadata field.
+	roomamenityDescMetadata := roomamenityFields[10].Descriptor()
+	// roomamenity.DefaultMetadata holds the default value on creation for the metadata field.
+	roomamenity.DefaultMetadata = roomamenityDescMetadata.Default.(map[string]interface{})
+	// roomamenityDescCreatedAt is the schema descriptor for created_at field.
+	roomamenityDescCreatedAt := roomamenityFields[11].Descriptor()
+	// roomamenity.DefaultCreatedAt holds the default value on creation for the created_at field.
+	roomamenity.DefaultCreatedAt = roomamenityDescCreatedAt.Default.(func() time.Time)
+	// roomamenityDescUpdatedAt is the schema descriptor for updated_at field.
+	roomamenityDescUpdatedAt := roomamenityFields[12].Descriptor()
+	// roomamenity.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	roomamenity.DefaultUpdatedAt = roomamenityDescUpdatedAt.Default.(func() time.Time)
+	// roomamenity.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	roomamenity.UpdateDefaultUpdatedAt = roomamenityDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// roomamenityDescID is the schema descriptor for id field.
+	roomamenityDescID := roomamenityFields[0].Descriptor()
+	// roomamenity.DefaultID holds the default value on creation for the id field.
+	roomamenity.DefaultID = roomamenityDescID.Default.(func() uuid.UUID)
+	roomamenityassignmentFields := schema.RoomAmenityAssignment{}.Fields()
+	_ = roomamenityassignmentFields
+	// roomamenityassignmentDescIsIncluded is the schema descriptor for is_included field.
+	roomamenityassignmentDescIsIncluded := roomamenityassignmentFields[4].Descriptor()
+	// roomamenityassignment.DefaultIsIncluded holds the default value on creation for the is_included field.
+	roomamenityassignment.DefaultIsIncluded = roomamenityassignmentDescIsIncluded.Default.(bool)
+	// roomamenityassignmentDescCreatedAt is the schema descriptor for created_at field.
+	roomamenityassignmentDescCreatedAt := roomamenityassignmentFields[6].Descriptor()
+	// roomamenityassignment.DefaultCreatedAt holds the default value on creation for the created_at field.
+	roomamenityassignment.DefaultCreatedAt = roomamenityassignmentDescCreatedAt.Default.(func() time.Time)
+	// roomamenityassignmentDescID is the schema descriptor for id field.
+	roomamenityassignmentDescID := roomamenityassignmentFields[0].Descriptor()
+	// roomamenityassignment.DefaultID holds the default value on creation for the id field.
+	roomamenityassignment.DefaultID = roomamenityassignmentDescID.Default.(func() uuid.UUID)
 	roomfolioitemFields := schema.RoomFolioItem{}.Fields()
 	_ = roomfolioitemFields
 	// roomfolioitemDescDescription is the schema descriptor for description field.
@@ -1748,16 +1819,24 @@ func init() {
 	roomguestDescCheckedInAt := roomguestFields[13].Descriptor()
 	// roomguest.DefaultCheckedInAt holds the default value on creation for the checked_in_at field.
 	roomguest.DefaultCheckedInAt = roomguestDescCheckedInAt.Default.(func() time.Time)
+	// roomguestDescLateCheckoutApproved is the schema descriptor for late_checkout_approved field.
+	roomguestDescLateCheckoutApproved := roomguestFields[15].Descriptor()
+	// roomguest.DefaultLateCheckoutApproved holds the default value on creation for the late_checkout_approved field.
+	roomguest.DefaultLateCheckoutApproved = roomguestDescLateCheckoutApproved.Default.(bool)
+	// roomguestDescLateCheckoutSurcharge is the schema descriptor for late_checkout_surcharge field.
+	roomguestDescLateCheckoutSurcharge := roomguestFields[16].Descriptor()
+	// roomguest.DefaultLateCheckoutSurcharge holds the default value on creation for the late_checkout_surcharge field.
+	roomguest.DefaultLateCheckoutSurcharge = roomguestDescLateCheckoutSurcharge.Default.(float64)
 	// roomguestDescMetadata is the schema descriptor for metadata field.
-	roomguestDescMetadata := roomguestFields[15].Descriptor()
+	roomguestDescMetadata := roomguestFields[17].Descriptor()
 	// roomguest.DefaultMetadata holds the default value on creation for the metadata field.
 	roomguest.DefaultMetadata = roomguestDescMetadata.Default.(map[string]interface{})
 	// roomguestDescCreatedAt is the schema descriptor for created_at field.
-	roomguestDescCreatedAt := roomguestFields[16].Descriptor()
+	roomguestDescCreatedAt := roomguestFields[18].Descriptor()
 	// roomguest.DefaultCreatedAt holds the default value on creation for the created_at field.
 	roomguest.DefaultCreatedAt = roomguestDescCreatedAt.Default.(func() time.Time)
 	// roomguestDescUpdatedAt is the schema descriptor for updated_at field.
-	roomguestDescUpdatedAt := roomguestFields[17].Descriptor()
+	roomguestDescUpdatedAt := roomguestFields[19].Descriptor()
 	// roomguest.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	roomguest.DefaultUpdatedAt = roomguestDescUpdatedAt.Default.(func() time.Time)
 	// roomguest.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

@@ -237,6 +237,18 @@ func (f GiftCardTransactionFunc) Mutate(ctx context.Context, m ent.Mutation) (en
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.GiftCardTransactionMutation", m)
 }
 
+// The HousekeepingTaskFunc type is an adapter to allow the use of ordinary
+// function as HousekeepingTask mutator.
+type HousekeepingTaskFunc func(context.Context, *ent.HousekeepingTaskMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f HousekeepingTaskFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.HousekeepingTaskMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.HousekeepingTaskMutation", m)
+}
+
 // The IntegrationSettingFunc type is an adapter to allow the use of ordinary
 // function as IntegrationSetting mutator.
 type IntegrationSettingFunc func(context.Context, *ent.IntegrationSettingMutation) (ent.Value, error)
@@ -763,6 +775,30 @@ func (f RoomFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error)
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.RoomMutation", m)
+}
+
+// The RoomAmenityFunc type is an adapter to allow the use of ordinary
+// function as RoomAmenity mutator.
+type RoomAmenityFunc func(context.Context, *ent.RoomAmenityMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f RoomAmenityFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.RoomAmenityMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.RoomAmenityMutation", m)
+}
+
+// The RoomAmenityAssignmentFunc type is an adapter to allow the use of ordinary
+// function as RoomAmenityAssignment mutator.
+type RoomAmenityAssignmentFunc func(context.Context, *ent.RoomAmenityAssignmentMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f RoomAmenityAssignmentFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.RoomAmenityAssignmentMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.RoomAmenityAssignmentMutation", m)
 }
 
 // The RoomFolioItemFunc type is an adapter to allow the use of ordinary

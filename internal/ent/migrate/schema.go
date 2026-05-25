@@ -556,6 +556,53 @@ var (
 		Columns:    GiftCardTransactionsColumns,
 		PrimaryKey: []*schema.Column{GiftCardTransactionsColumns[0]},
 	}
+	// HousekeepingTasksColumns holds the columns for the "housekeeping_tasks" table.
+	HousekeepingTasksColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "room_guest_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "task_type", Type: field.TypeEnum, Enums: []string{"checkout_clean", "routine_clean", "turndown", "maintenance", "inspection"}, Default: "routine_clean"},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending", "in_progress", "completed", "cancelled"}, Default: "pending"},
+		{Name: "priority", Type: field.TypeEnum, Enums: []string{"normal", "urgent"}, Default: "normal"},
+		{Name: "assigned_to", Type: field.TypeUUID, Nullable: true},
+		{Name: "notes", Type: field.TypeString, Nullable: true},
+		{Name: "due_at", Type: field.TypeTime, Nullable: true},
+		{Name: "completed_at", Type: field.TypeTime, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "room_id", Type: field.TypeUUID},
+	}
+	// HousekeepingTasksTable holds the schema information for the "housekeeping_tasks" table.
+	HousekeepingTasksTable = &schema.Table{
+		Name:       "housekeeping_tasks",
+		Columns:    HousekeepingTasksColumns,
+		PrimaryKey: []*schema.Column{HousekeepingTasksColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "housekeeping_tasks_rooms_housekeeping_tasks",
+				Columns:    []*schema.Column{HousekeepingTasksColumns[12]},
+				RefColumns: []*schema.Column{RoomsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "housekeepingtask_tenant_id_room_id",
+				Unique:  false,
+				Columns: []*schema.Column{HousekeepingTasksColumns[1], HousekeepingTasksColumns[12]},
+			},
+			{
+				Name:    "housekeepingtask_tenant_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{HousekeepingTasksColumns[1], HousekeepingTasksColumns[4]},
+			},
+			{
+				Name:    "housekeepingtask_tenant_id_assigned_to",
+				Unique:  false,
+				Columns: []*schema.Column{HousekeepingTasksColumns[1], HousekeepingTasksColumns[6]},
+			},
+		},
+	}
 	// IntegrationSettingsColumns holds the columns for the "integration_settings" table.
 	IntegrationSettingsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -1908,6 +1955,82 @@ var (
 			},
 		},
 	}
+	// RoomAmenitiesColumns holds the columns for the "room_amenities" table.
+	RoomAmenitiesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "outlet_id", Type: field.TypeUUID},
+		{Name: "name", Type: field.TypeString},
+		{Name: "amenity_type", Type: field.TypeEnum, Enums: []string{"pool", "gym", "steam_room", "sauna", "wifi", "transport", "parking", "breakfast", "spa", "golf", "laundry", "minibar", "airport_transfer", "room_service_24h", "other"}, Default: "other"},
+		{Name: "description", Type: field.TypeString, Nullable: true},
+		{Name: "billing_mode", Type: field.TypeEnum, Enums: []string{"free", "per_session", "per_day", "per_night"}, Default: "free"},
+		{Name: "rate", Type: field.TypeFloat64, Default: 0},
+		{Name: "currency", Type: field.TypeString, Default: "KES"},
+		{Name: "is_active", Type: field.TypeBool, Default: true},
+		{Name: "metadata", Type: field.TypeJSON},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// RoomAmenitiesTable holds the schema information for the "room_amenities" table.
+	RoomAmenitiesTable = &schema.Table{
+		Name:       "room_amenities",
+		Columns:    RoomAmenitiesColumns,
+		PrimaryKey: []*schema.Column{RoomAmenitiesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "roomamenity_tenant_id_outlet_id",
+				Unique:  false,
+				Columns: []*schema.Column{RoomAmenitiesColumns[1], RoomAmenitiesColumns[2]},
+			},
+			{
+				Name:    "roomamenity_tenant_id_amenity_type",
+				Unique:  false,
+				Columns: []*schema.Column{RoomAmenitiesColumns[1], RoomAmenitiesColumns[4]},
+			},
+		},
+	}
+	// RoomAmenityAssignmentsColumns holds the columns for the "room_amenity_assignments" table.
+	RoomAmenityAssignmentsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "is_included", Type: field.TypeBool, Default: false},
+		{Name: "notes", Type: field.TypeString, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "room_id", Type: field.TypeUUID},
+		{Name: "amenity_id", Type: field.TypeUUID},
+	}
+	// RoomAmenityAssignmentsTable holds the schema information for the "room_amenity_assignments" table.
+	RoomAmenityAssignmentsTable = &schema.Table{
+		Name:       "room_amenity_assignments",
+		Columns:    RoomAmenityAssignmentsColumns,
+		PrimaryKey: []*schema.Column{RoomAmenityAssignmentsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "room_amenity_assignments_rooms_amenity_assignments",
+				Columns:    []*schema.Column{RoomAmenityAssignmentsColumns[5]},
+				RefColumns: []*schema.Column{RoomsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "room_amenity_assignments_room_amenities_assignments",
+				Columns:    []*schema.Column{RoomAmenityAssignmentsColumns[6]},
+				RefColumns: []*schema.Column{RoomAmenitiesColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "roomamenityassignment_room_id_amenity_id",
+				Unique:  true,
+				Columns: []*schema.Column{RoomAmenityAssignmentsColumns[5], RoomAmenityAssignmentsColumns[6]},
+			},
+			{
+				Name:    "roomamenityassignment_tenant_id_room_id",
+				Unique:  false,
+				Columns: []*schema.Column{RoomAmenityAssignmentsColumns[1], RoomAmenityAssignmentsColumns[5]},
+			},
+		},
+	}
 	// RoomFolioItemsColumns holds the columns for the "room_folio_items" table.
 	RoomFolioItemsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -1915,7 +2038,7 @@ var (
 		{Name: "description", Type: field.TypeString},
 		{Name: "amount", Type: field.TypeFloat64},
 		{Name: "currency", Type: field.TypeString, Default: "KES"},
-		{Name: "charge_type", Type: field.TypeEnum, Enums: []string{"room_charge", "food", "laundry", "minibar", "room_service", "other"}, Default: "other"},
+		{Name: "charge_type", Type: field.TypeEnum, Enums: []string{"room_charge", "food", "laundry", "minibar", "room_service", "amenity", "facility", "late_checkout", "damage", "other"}, Default: "other"},
 		{Name: "pos_order_id", Type: field.TypeUUID, Nullable: true},
 		{Name: "created_by", Type: field.TypeUUID},
 		{Name: "metadata", Type: field.TypeJSON},
@@ -1971,6 +2094,8 @@ var (
 		{Name: "checked_out_by", Type: field.TypeUUID, Nullable: true},
 		{Name: "checked_in_at", Type: field.TypeTime},
 		{Name: "checked_out_at", Type: field.TypeTime, Nullable: true},
+		{Name: "late_checkout_approved", Type: field.TypeBool, Default: false},
+		{Name: "late_checkout_surcharge", Type: field.TypeFloat64, Default: 0},
 		{Name: "metadata", Type: field.TypeJSON},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
@@ -1984,7 +2109,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "room_guests_rooms_guests",
-				Columns:    []*schema.Column{RoomGuestsColumns[17]},
+				Columns:    []*schema.Column{RoomGuestsColumns[19]},
 				RefColumns: []*schema.Column{RoomsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -1993,7 +2118,7 @@ var (
 			{
 				Name:    "roomguest_tenant_id_room_id",
 				Unique:  false,
-				Columns: []*schema.Column{RoomGuestsColumns[1], RoomGuestsColumns[17]},
+				Columns: []*schema.Column{RoomGuestsColumns[1], RoomGuestsColumns[19]},
 			},
 			{
 				Name:    "roomguest_tenant_id_status",
@@ -2808,6 +2933,7 @@ var (
 		FeatureOverridesTable,
 		GiftCardsTable,
 		GiftCardTransactionsTable,
+		HousekeepingTasksTable,
 		IntegrationSettingsTable,
 		InventorySnapshotsTable,
 		KdsStationsTable,
@@ -2852,6 +2978,8 @@ var (
 		RateLimitConfigsTable,
 		ResourcesTable,
 		RoomsTable,
+		RoomAmenitiesTable,
+		RoomAmenityAssignmentsTable,
 		RoomFolioItemsTable,
 		RoomGuestsTable,
 		SectionsTable,
@@ -2887,6 +3015,7 @@ func init() {
 	CashDrawerEventsTable.ForeignKeys[0].RefTable = CashDrawersTable
 	DailyClosingsTable.ForeignKeys[0].RefTable = OutletsTable
 	FacilityBookingsTable.ForeignKeys[0].RefTable = FacilitiesTable
+	HousekeepingTasksTable.ForeignKeys[0].RefTable = RoomsTable
 	KdsTicketsTable.ForeignKeys[0].RefTable = KdsStationsTable
 	ModifiersTable.ForeignKeys[0].RefTable = ModifierGroupsTable
 	OutletsTable.ForeignKeys[0].RefTable = TenantsTable
@@ -2904,6 +3033,8 @@ func init() {
 	PosUserRoleAssignmentsTable.ForeignKeys[1].RefTable = UsersTable
 	PosUserRoleAssignmentsTable.ForeignKeys[2].RefTable = PosRoleV2sTable
 	PriceBookItemsTable.ForeignKeys[0].RefTable = PriceBooksTable
+	RoomAmenityAssignmentsTable.ForeignKeys[0].RefTable = RoomsTable
+	RoomAmenityAssignmentsTable.ForeignKeys[1].RefTable = RoomAmenitiesTable
 	RoomFolioItemsTable.ForeignKeys[0].RefTable = RoomsTable
 	RoomFolioItemsTable.ForeignKeys[1].RefTable = RoomGuestsTable
 	RoomGuestsTable.ForeignKeys[0].RefTable = RoomsTable

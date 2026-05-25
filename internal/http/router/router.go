@@ -556,7 +556,21 @@ func New(
 						h.Get("/facilities/{id}", hotel.GetFacility)
 						h.Post("/facilities/{id}/book", hotel.BookFacility)
 						h.Patch("/facilities/bookings/{bookingID}", hotel.UpdateBooking)
+						h.Post("/facilities/bookings/{bookingID}/complete", hotel.CompleteFacilityBooking)
 						h.Get("/facilities/bookings", hotel.ListFacilityBookings)
+						// Amenity management
+						h.Get("/amenities", hotel.ListAmenities)
+						h.Post("/amenities", hotel.CreateAmenity)
+						h.Get("/rooms/{id}/amenities", hotel.ListRoomAmenities)
+						h.Post("/rooms/{id}/amenities", hotel.AssignAmenityToRoom)
+						h.Post("/rooms/{id}/amenities/{amenityId}/charge", hotel.ChargeAmenityToGuest)
+						// Late checkout and batch checkout
+						h.Post("/rooms/{id}/late-checkout", hotel.LateCheckout)
+						h.Post("/rooms/batch-checkout", hotel.BatchCheckout)
+						// Housekeeping
+						h.Get("/housekeeping", hotel.ListHousekeepingTasks)
+						h.Post("/housekeeping", hotel.CreateHousekeepingTask)
+						h.Patch("/housekeeping/{taskID}", hotel.UpdateHousekeepingTask)
 					})
 				}
 			})

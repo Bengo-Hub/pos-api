@@ -11,8 +11,10 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/bengobox/pos-service/internal/ent/housekeepingtask"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
 	"github.com/bengobox/pos-service/internal/ent/room"
+	"github.com/bengobox/pos-service/internal/ent/roomamenityassignment"
 	"github.com/bengobox/pos-service/internal/ent/roomfolioitem"
 	"github.com/bengobox/pos-service/internal/ent/roomguest"
 	"github.com/google/uuid"
@@ -227,6 +229,36 @@ func (_u *RoomUpdate) AddFolioItems(v ...*RoomFolioItem) *RoomUpdate {
 	return _u.AddFolioItemIDs(ids...)
 }
 
+// AddAmenityAssignmentIDs adds the "amenity_assignments" edge to the RoomAmenityAssignment entity by IDs.
+func (_u *RoomUpdate) AddAmenityAssignmentIDs(ids ...uuid.UUID) *RoomUpdate {
+	_u.mutation.AddAmenityAssignmentIDs(ids...)
+	return _u
+}
+
+// AddAmenityAssignments adds the "amenity_assignments" edges to the RoomAmenityAssignment entity.
+func (_u *RoomUpdate) AddAmenityAssignments(v ...*RoomAmenityAssignment) *RoomUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddAmenityAssignmentIDs(ids...)
+}
+
+// AddHousekeepingTaskIDs adds the "housekeeping_tasks" edge to the HousekeepingTask entity by IDs.
+func (_u *RoomUpdate) AddHousekeepingTaskIDs(ids ...uuid.UUID) *RoomUpdate {
+	_u.mutation.AddHousekeepingTaskIDs(ids...)
+	return _u
+}
+
+// AddHousekeepingTasks adds the "housekeeping_tasks" edges to the HousekeepingTask entity.
+func (_u *RoomUpdate) AddHousekeepingTasks(v ...*HousekeepingTask) *RoomUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddHousekeepingTaskIDs(ids...)
+}
+
 // Mutation returns the RoomMutation object of the builder.
 func (_u *RoomUpdate) Mutation() *RoomMutation {
 	return _u.mutation
@@ -272,6 +304,48 @@ func (_u *RoomUpdate) RemoveFolioItems(v ...*RoomFolioItem) *RoomUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveFolioItemIDs(ids...)
+}
+
+// ClearAmenityAssignments clears all "amenity_assignments" edges to the RoomAmenityAssignment entity.
+func (_u *RoomUpdate) ClearAmenityAssignments() *RoomUpdate {
+	_u.mutation.ClearAmenityAssignments()
+	return _u
+}
+
+// RemoveAmenityAssignmentIDs removes the "amenity_assignments" edge to RoomAmenityAssignment entities by IDs.
+func (_u *RoomUpdate) RemoveAmenityAssignmentIDs(ids ...uuid.UUID) *RoomUpdate {
+	_u.mutation.RemoveAmenityAssignmentIDs(ids...)
+	return _u
+}
+
+// RemoveAmenityAssignments removes "amenity_assignments" edges to RoomAmenityAssignment entities.
+func (_u *RoomUpdate) RemoveAmenityAssignments(v ...*RoomAmenityAssignment) *RoomUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveAmenityAssignmentIDs(ids...)
+}
+
+// ClearHousekeepingTasks clears all "housekeeping_tasks" edges to the HousekeepingTask entity.
+func (_u *RoomUpdate) ClearHousekeepingTasks() *RoomUpdate {
+	_u.mutation.ClearHousekeepingTasks()
+	return _u
+}
+
+// RemoveHousekeepingTaskIDs removes the "housekeeping_tasks" edge to HousekeepingTask entities by IDs.
+func (_u *RoomUpdate) RemoveHousekeepingTaskIDs(ids ...uuid.UUID) *RoomUpdate {
+	_u.mutation.RemoveHousekeepingTaskIDs(ids...)
+	return _u
+}
+
+// RemoveHousekeepingTasks removes "housekeeping_tasks" edges to HousekeepingTask entities.
+func (_u *RoomUpdate) RemoveHousekeepingTasks(v ...*HousekeepingTask) *RoomUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveHousekeepingTaskIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -477,6 +551,96 @@ func (_u *RoomUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(roomfolioitem.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.AmenityAssignmentsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   room.AmenityAssignmentsTable,
+			Columns: []string{room.AmenityAssignmentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(roomamenityassignment.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedAmenityAssignmentsIDs(); len(nodes) > 0 && !_u.mutation.AmenityAssignmentsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   room.AmenityAssignmentsTable,
+			Columns: []string{room.AmenityAssignmentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(roomamenityassignment.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.AmenityAssignmentsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   room.AmenityAssignmentsTable,
+			Columns: []string{room.AmenityAssignmentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(roomamenityassignment.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.HousekeepingTasksCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   room.HousekeepingTasksTable,
+			Columns: []string{room.HousekeepingTasksColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(housekeepingtask.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedHousekeepingTasksIDs(); len(nodes) > 0 && !_u.mutation.HousekeepingTasksCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   room.HousekeepingTasksTable,
+			Columns: []string{room.HousekeepingTasksColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(housekeepingtask.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.HousekeepingTasksIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   room.HousekeepingTasksTable,
+			Columns: []string{room.HousekeepingTasksColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(housekeepingtask.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {
@@ -700,6 +864,36 @@ func (_u *RoomUpdateOne) AddFolioItems(v ...*RoomFolioItem) *RoomUpdateOne {
 	return _u.AddFolioItemIDs(ids...)
 }
 
+// AddAmenityAssignmentIDs adds the "amenity_assignments" edge to the RoomAmenityAssignment entity by IDs.
+func (_u *RoomUpdateOne) AddAmenityAssignmentIDs(ids ...uuid.UUID) *RoomUpdateOne {
+	_u.mutation.AddAmenityAssignmentIDs(ids...)
+	return _u
+}
+
+// AddAmenityAssignments adds the "amenity_assignments" edges to the RoomAmenityAssignment entity.
+func (_u *RoomUpdateOne) AddAmenityAssignments(v ...*RoomAmenityAssignment) *RoomUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddAmenityAssignmentIDs(ids...)
+}
+
+// AddHousekeepingTaskIDs adds the "housekeeping_tasks" edge to the HousekeepingTask entity by IDs.
+func (_u *RoomUpdateOne) AddHousekeepingTaskIDs(ids ...uuid.UUID) *RoomUpdateOne {
+	_u.mutation.AddHousekeepingTaskIDs(ids...)
+	return _u
+}
+
+// AddHousekeepingTasks adds the "housekeeping_tasks" edges to the HousekeepingTask entity.
+func (_u *RoomUpdateOne) AddHousekeepingTasks(v ...*HousekeepingTask) *RoomUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddHousekeepingTaskIDs(ids...)
+}
+
 // Mutation returns the RoomMutation object of the builder.
 func (_u *RoomUpdateOne) Mutation() *RoomMutation {
 	return _u.mutation
@@ -745,6 +939,48 @@ func (_u *RoomUpdateOne) RemoveFolioItems(v ...*RoomFolioItem) *RoomUpdateOne {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveFolioItemIDs(ids...)
+}
+
+// ClearAmenityAssignments clears all "amenity_assignments" edges to the RoomAmenityAssignment entity.
+func (_u *RoomUpdateOne) ClearAmenityAssignments() *RoomUpdateOne {
+	_u.mutation.ClearAmenityAssignments()
+	return _u
+}
+
+// RemoveAmenityAssignmentIDs removes the "amenity_assignments" edge to RoomAmenityAssignment entities by IDs.
+func (_u *RoomUpdateOne) RemoveAmenityAssignmentIDs(ids ...uuid.UUID) *RoomUpdateOne {
+	_u.mutation.RemoveAmenityAssignmentIDs(ids...)
+	return _u
+}
+
+// RemoveAmenityAssignments removes "amenity_assignments" edges to RoomAmenityAssignment entities.
+func (_u *RoomUpdateOne) RemoveAmenityAssignments(v ...*RoomAmenityAssignment) *RoomUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveAmenityAssignmentIDs(ids...)
+}
+
+// ClearHousekeepingTasks clears all "housekeeping_tasks" edges to the HousekeepingTask entity.
+func (_u *RoomUpdateOne) ClearHousekeepingTasks() *RoomUpdateOne {
+	_u.mutation.ClearHousekeepingTasks()
+	return _u
+}
+
+// RemoveHousekeepingTaskIDs removes the "housekeeping_tasks" edge to HousekeepingTask entities by IDs.
+func (_u *RoomUpdateOne) RemoveHousekeepingTaskIDs(ids ...uuid.UUID) *RoomUpdateOne {
+	_u.mutation.RemoveHousekeepingTaskIDs(ids...)
+	return _u
+}
+
+// RemoveHousekeepingTasks removes "housekeeping_tasks" edges to HousekeepingTask entities.
+func (_u *RoomUpdateOne) RemoveHousekeepingTasks(v ...*HousekeepingTask) *RoomUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveHousekeepingTaskIDs(ids...)
 }
 
 // Where appends a list predicates to the RoomUpdate builder.
@@ -980,6 +1216,96 @@ func (_u *RoomUpdateOne) sqlSave(ctx context.Context) (_node *Room, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(roomfolioitem.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.AmenityAssignmentsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   room.AmenityAssignmentsTable,
+			Columns: []string{room.AmenityAssignmentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(roomamenityassignment.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedAmenityAssignmentsIDs(); len(nodes) > 0 && !_u.mutation.AmenityAssignmentsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   room.AmenityAssignmentsTable,
+			Columns: []string{room.AmenityAssignmentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(roomamenityassignment.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.AmenityAssignmentsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   room.AmenityAssignmentsTable,
+			Columns: []string{room.AmenityAssignmentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(roomamenityassignment.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.HousekeepingTasksCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   room.HousekeepingTasksTable,
+			Columns: []string{room.HousekeepingTasksColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(housekeepingtask.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedHousekeepingTasksIDs(); len(nodes) > 0 && !_u.mutation.HousekeepingTasksCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   room.HousekeepingTasksTable,
+			Columns: []string{room.HousekeepingTasksColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(housekeepingtask.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.HousekeepingTasksIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   room.HousekeepingTasksTable,
+			Columns: []string{room.HousekeepingTasksColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(housekeepingtask.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {
