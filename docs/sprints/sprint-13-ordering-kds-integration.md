@@ -1,8 +1,8 @@
 # Sprint 13: Online Ordering → KDS Integration — pos-api
 
-**Status:** 🟡 Partial — online order pickup endpoints shipped; NATS subscriber for KDS ticket creation not implemented  
+**Status:** 🟡 Partial — online order pickup endpoints, KDSSyncFailure DLQ schema, table_reference field, and kds.order.ready event shipped; NATS subscriber for automatic KDS ticket creation not implemented  
 **Period:** January–February 2027  
-**Last updated:** 2026-05-21  
+**Last updated:** 2026-05-25  
 **Goal:** Subscribe to ordering-backend events and create KDS tickets when online hospitality orders reach kitchen-ready status, closing the gap between the online ordering channel and the kitchen display system
 
 ---
@@ -41,21 +41,20 @@ On qualifying event:
 
 ### Completion Callback (optional — Phase 2)
 
-- [ ] When all KDS tickets for an order reach `ready`, pos-api publishes `pos.kds.order.ready`
-- [ ] ordering-backend may subscribe to transition the ordering order to `ready` automatically
-- [ ] Gate this behind feature flag `ENABLE_KDS_ORDERING_CALLBACK` (default: false)
+- [x] `pos.kds.order.ready` event published when a KDS ticket transitions to `ready` status — payload: `{ tenant_id, order_id, station_id, ticket_id }`
+- [ ] ordering-backend subscription to auto-transition ordering order to `ready` — pending ordering-backend implementation
+- [ ] Feature flag `ENABLE_KDS_ORDERING_CALLBACK` — not yet added (event always fires on ready transition)
 
 ### Table Matching
 
-- [ ] If ordering event includes `table_reference` (outlet table label e.g. "Table 7"):
-  - Lookup `Table` by `label` within the same outlet
-  - Assign `PosOrder.table_id` if found; otherwise create without table context
+- [x] `table_reference` field added to `KDSTicket` Ent schema — stores the raw table label string from the ordering event payload (e.g. "Table 7"); nullable
+- [ ] Lookup `Table` by `label` within the same outlet and assign `PosOrder.table_id` — lookup logic not yet implemented
 - [ ] If `fulfillment_type = pickup`: no table assignment; order shows in KDS as "Pickup — #{queue_number}"
 
 ### Error Handling
 
-- [ ] Dead-letter queue: `pos-api-kds-dlq` — events that fail processing after 3 retries go here
-- [ ] `SyncFailure` record created per failed event with: `external_order_id`, `error_message`, `raw_payload`, `retry_count`
+- [x] Dead-letter queue schema: `KDSSyncFailure` Ent entity (`internal/ent/schema/kdssyncfailure.go`) — `id`, `tenant_id`, `external_order_id`, `error_message`, `raw_payload` (JSON), `retry_count`, `resolved_at`, `created_at`
+- [ ] DLQ consumer: route failed events to `KDSSyncFailure` after 3 retries (schema exists; consumer not wired)
 - [ ] Alert via notifications-service if DLQ exceeds 5 entries within 10 minutes
 
 ### RBAC
@@ -111,20 +110,23 @@ Expected shape of `ordering.order.status.changed` from ordering-backend:
 
 ---
 
-## Partial Implementation (2026-05-21)
+## Partial Implementation (updated 2026-05-25)
 
-The following online order pickup endpoints are implemented and registered in the router (`online_orders.go` handler):
+### Live Endpoints (`online_orders.go` handler)
 - [x] `GET /{tenant}/pos/online-orders/pickup` — list pickup orders
 - [x] `POST /{tenant}/pos/online-orders/{orderID}/ready` — mark order ready for collection
 - [x] `POST /{tenant}/pos/online-orders/{orderID}/collected` — mark order collected
 
-The following remain unimplemented:
+### Schema / Event Additions (2026-05-25)
+- [x] `KDSSyncFailure` Ent schema (`internal/ent/schema/kdssyncfailure.go`) — DLQ entity for failed KDS sync events
+- [x] `table_reference` field on `KDSTicket` Ent schema — stores raw table label from ordering event payload
+- [x] `pos.kds.order.ready` NATS event published when ticket transitions to `ready` status
+
+### Still Unimplemented
 - [ ] NATS subscriber for `ordering.order.status.changed` — no subscriber exists
 - [ ] Automatic KDS ticket creation from online order events
-- [ ] Dead-letter queue (`pos-api-kds-dlq`)
-- [ ] `SyncFailure` record creation on consumer failure
-- [ ] KDS ordering callback (`pos.kds.order.ready`)
-- [ ] Table matching from `table_reference` in event payload
+- [ ] DLQ consumer wiring — schema exists but events are not routed to `KDSSyncFailure` on failure
+- [ ] Table lookup from `table_reference` → `PosOrder.table_id`
 
 ## Testing
 

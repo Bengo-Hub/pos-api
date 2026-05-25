@@ -1,8 +1,8 @@
 # Sprint 12: Integrations & Webhooks — pos-api
 
-**Status:** 🟡 Webhook Engine Complete — CRUD endpoints + delivery worker + HMAC signature shipped; channel ingestion, accounting export, multi-device sync, and eTIMS subscriber pending  
+**Status:** 🟡 Webhook Engine + Channel CRUD + ERP Stub + Hotel Events Complete — CRUD endpoints, delivery worker, HMAC signature, channel management HTTP layer, ERP sale_posted stub, hotel lifecycle NATS events, and webhook NATS dispatcher shipped; channel order ingestion, accounting export, multi-device sync, and eTIMS subscriber pending  
 **Period:** December 2026 – January 2027  
-**Last updated:** 2026-05-21  
+**Last updated:** 2026-05-25  
 **Audit note (2026-05-09):** eTIMS ownership corrected — treasury-api owns KRA submission; pos-api is a thin consumer of the result. FiscalReceipt entity removed from pos-api scope.  
 **Goal:** External integrations, webhook delivery, channel sync (Uber Eats, Glovo, direct online ordering), accounting export, and multi-device synchronisation
 
@@ -38,10 +38,12 @@ External integrations serve two purposes:
 - [ ] Creates KDS tickets automatically (same flow as in-restaurant orders)
 - [ ] `ChannelSyncJob` record created for each inbound order; status tracked (received|processing|completed|failed)
 - [ ] `OrderLink` record created linking `pos_order_id` ↔ `external_order_id`
-- [ ] `GET /{tenant}/pos/channels` — list configured channel integrations
-- [ ] `POST /{tenant}/pos/channels` — register a channel integration (name, type, credentials ref)
-- [ ] `PATCH /{tenant}/pos/channels/{id}` — update channel config
-- [ ] `DELETE /{tenant}/pos/channels/{id}` — remove channel
+- [x] `GET /{tenant}/pos/channels` — list configured channel integrations (`channels.go` handler)
+- [x] `POST /{tenant}/pos/channels` — register a channel integration (name, type, credentials ref)
+- [x] `PUT /{tenant}/pos/channels/{id}` — update channel config (note: PUT not PATCH)
+- [x] `DELETE /{tenant}/pos/channels/{id}` — remove channel
+- [x] `GET /{tenant}/pos/channels/{id}/sync-jobs` — list sync jobs for a channel
+- [x] `POST /{tenant}/pos/channels/{id}/sync-jobs` — trigger a manual sync job
 
 ### Menu Push to Channels
 - [ ] `POST /{tenant}/pos/channels/{channel_id}/sync-menu` — push current catalog to channel
@@ -55,8 +57,8 @@ External integrations serve two purposes:
 - [ ] `GET /{tenant}/pos/integrations/accounting/sync-log` — history of syncs
 
 ### ERP Integration (BengoBox ERP)
-- [ ] On `pos.sale.finalized`: publish structured event to `erp.events` NATS subject with order + line details
-- [ ] ERP-api subscribes and creates sales invoices automatically
+- [x] On `pos.sale.finalized`: publishes `erp.sale.posted` stub event to NATS with order summary — **pass-through until ERP integration is ready; no-op consumer on ERP side for now**
+- [ ] ERP-api subscribes and creates sales invoices automatically — pending ERP-api implementation
 - [ ] On `pos.drawer.closed`: publish cash position event to `erp.events` for ledger entry
 - [ ] `GET /{tenant}/pos/integrations/erp/status` — last sync status + any failures
 
@@ -96,6 +98,25 @@ External integrations serve two purposes:
 - [ ] Generate Atlas migration: `integrations_module`
 - [ ] Update `docs/erd.md`
 - [ ] Update `docs/integrations.md` with channel adapter patterns
+
+### Hotel Lifecycle Events (2026-05-25)
+
+- [x] `hotel.guest.checked_in` — published on `POST /{tenant}/hotel/guests` (check-in); payload: guest_id, room_id, tenant_id
+- [x] `hotel.guest.checked_out` — published on `POST /{tenant}/hotel/guests/{id}/checkout`; payload: guest_id, room_id, tenant_id
+- [x] `hotel.folio.charge` — published when a POS order is closed with `room_charge` tender; payload: folio_item_id, room_guest_id, amount
+
+### Webhook NATS Dispatcher (2026-05-25)
+
+- [x] NATS subscriber (`internal/modules/webhooks/nats_dispatcher.go`) subscribes to `pos.>` wildcard subject
+- [x] On each event, queries `WebhookSubscription` records matching the event key
+- [x] Dispatches HTTP delivery to each matched subscription (creates `WebhookDelivery` record)
+- [x] Works in conjunction with the existing delivery worker for retry handling
+
+---
+
+## Completion Notes (2026-05-25)
+
+Webhook engine fully shipped (CRUD + delivery worker + HMAC). Channel management HTTP layer live (list, create, update, delete channels; list, trigger sync jobs). ERP `erp.sale.posted` stub event published on sale finalized — pass-through until ERP-api is ready. Hotel lifecycle NATS events (check-in, check-out, folio charge) published. Webhook NATS dispatcher wired to `pos.>` wildcard. Channel order ingestion (inbound marketplace orders), accounting export (Xero/QuickBooks), multi-device cart sync, and eTIMS subscriber remain pending.
 
 ---
 

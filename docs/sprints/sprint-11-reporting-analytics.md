@@ -1,8 +1,8 @@
 # Sprint 11: Reporting & Analytics — pos-api
 
-**Status:** ✅ Core KPIs + Top Items + Staff Sales Delivered — sales-summary, refund-summary, daily-breakdown, top-items, sales-by-staff endpoints shipped; full EOD reconciliation, shift reports, exports, and pre-aggregation worker pending  
+**Status:** ✅ Core KPIs + Top Items + Staff Sales Delivered — sales-summary, refund-summary, daily-breakdown, top-items, sales-by-staff endpoints shipped; DailyClosing extended with payment-method and order aggregation fields; full EOD reconciliation entity, shift reports, exports, and pre-aggregation worker pending  
 **Period:** November–December 2026  
-**Last updated:** 2026-05-21  
+**Last updated:** 2026-05-25  
 **Goal:** End-of-day reconciliation, sales reports, staff performance dashboards, export (CSV/PDF), and embedded analytics
 
 ---
@@ -68,20 +68,36 @@ Reports should be fast (<2s for most), pre-aggregated where possible, and export
 - [ ] `pos.reports.eod_close` assigned to `store_manager`, `pos_admin`
 - [ ] `pos.reports.export` assigned to `store_manager`, `pos_admin`
 
-### Implemented (2026-05-21)
+### Implemented (2026-05-21 / updated 2026-05-25)
 
 - [x] `GET /{tenant}/pos/reports/sales-summary` — aggregated sales summary (`reports.go` handler)
 - [x] `GET /{tenant}/pos/reports/refund-summary` — refund summary
 - [x] `GET /{tenant}/pos/reports/daily-breakdown` — daily breakdown data
 
+### DailyClosing Extension (2026-05-25)
+
+Extended the existing Sprint 5 `DailyClosing` Ent schema with payment-method breakdown and order aggregate fields:
+- [x] `total_card` — card tender total for the day
+- [x] `total_mpesa` — M-Pesa tender total for the day
+- [x] `total_tax` — tax collected total
+- [x] `total_loyalty_redemptions` — loyalty points redeemed total
+- [x] `total_room_charge` — room-charge tender total (hotel outlets)
+- [x] `total_orders` — number of orders closed for the day
+- [x] `total_items_sold` — number of line items sold for the day
+- [x] `closed_at` — timestamp when the daily closing was finalised
+
+Atlas migration generated for `DailyClosing` extensions.
+
+> **Note:** `DailyClosing` (Sprint 5) is an outlet-level cash-management entity. The planned `DailyReconciliation` is a separate, more granular reporting entity; it remains unimplemented.
+
 ### Migration
-- [ ] `DailyReconciliation` ent schema — not added (DailyClosing schema exists from Sprint 5 but is separate)
+- [ ] `DailyReconciliation` ent schema — not added (separate from `DailyClosing`)
 - [ ] Atlas migration: `reporting_module` — pending
 - [ ] `docs/erd.md` updated — pending
 
-## Completion Notes (2026-05-21)
+## Completion Notes (2026-05-25)
 
-Three report endpoints are registered in the router: `sales-summary`, `refund-summary`, `daily-breakdown`. Full EOD lifecycle (`DailyReconciliation` entity, EOD close/reopen, shift reports, per-item/per-staff/per-hour breakdowns, tax report, CSV/PDF export, pre-aggregation background worker) all remain unimplemented. The `DailyClosing` entity from Sprint 5 handles outlet-level daily closing but is a separate concern from the planned `DailyReconciliation` reporting entity.
+Report endpoints: `sales-summary`, `refund-summary`, `daily-breakdown`, `top-items`, `sales-by-staff` live. `DailyClosing` extended with payment-method and order aggregate fields. Full EOD lifecycle (`DailyReconciliation` entity, EOD close/reopen, shift reports, per-item/per-staff/per-hour breakdowns, tax report, CSV/PDF export, pre-aggregation background worker) remains unimplemented.
 
 ---
 

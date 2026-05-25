@@ -1,6 +1,8 @@
 # POS Service – Entity Relationship Overview
 
-**Last updated:** 2026-05-09
+**Last updated:** 2026-05-25
+
+**May 25 update:** Sprint 11–13 additions — `DailyClosing` extended with payment-method and order aggregate fields (total_card, total_mpesa, total_tax, total_loyalty_redemptions, total_room_charge, total_orders, total_items_sold, closed_at). `KDSSyncFailure` entity added for KDS NATS DLQ. `table_reference` field added to `KDSTicket`. Channel management HTTP layer live. Hotel lifecycle NATS events (check-in, check-out, folio charge) and webhook NATS dispatcher added.
 
 **May 9 update:** Hotel module fully implemented (Sprint 3 ✅) — Ent schemas exist in `internal/ent/schema/` (room.go, roomguest.go, roomfolioitem.go, facility.go, facilitybooking.go) and HTTP handlers deployed under `/{tenant}/hotel/`. KDS endpoints live (Sprint 4 ✅). pos_orders hotel context fields live (room_id, room_guest_id, order_subtype). System roles extended: receptionist, kitchen, bar.
 
@@ -110,12 +112,13 @@ Schemas are defined with Ent to ensure type-safe access and migration automation
 
 ## Kitchen Display System (KDS)
 
-Schemas exist since March 2026. HTTP endpoints added in Sprint 4.
+Schemas exist since March 2026. HTTP endpoints added in Sprint 4. Sprint 13 additions: `table_reference` on kds_tickets; `KDSSyncFailure` DLQ entity.
 
 | Table | Key Columns | Description |
 |-------|-------------|-------------|
 | `kds_stations` | `id`, `tenant_id`, `outlet_id`, `name`, `category_filter` (JSON string array), `sort_order`, `is_active`, `created_at`, `updated_at` | KDS display stations — kitchen, bar, grill, etc. Each station receives tickets for items matching its category filter. |
-| `kds_tickets` | `id`, `tenant_id`, `station_id` (FK → kds_stations), `order_id`, `order_number`, `status` (pending\|in_progress\|ready\|served\|voided), `items` (JSON: `[{line_id, sku, name, qty, kds_status}]`), `received_at`, `started_at`, `completed_at`, `priority` | One ticket per station per order. Created when order transitions to `open`. Items track individual item-level status. |
+| `kds_tickets` | `id`, `tenant_id`, `station_id` (FK → kds_stations), `order_id`, `order_number`, `status` (pending\|in_progress\|ready\|served\|voided), `items` (JSON: `[{line_id, sku, name, qty, kds_status}]`), `received_at`, `started_at`, `completed_at`, `priority`, `table_reference` (nullable string — raw table label from online order event, e.g. "Table 7") | One ticket per station per order. Created when order transitions to `open`. Items track individual item-level status. `table_reference` added Sprint 13 for online order context. |
+| `kds_sync_failures` | `id`, `tenant_id`, `external_order_id`, `error_message`, `raw_payload` (JSON), `retry_count`, `resolved_at` (nullable), `created_at` | Dead-letter queue for NATS KDS sync events that fail after max retries. Added Sprint 13. `internal/ent/schema/kdssyncfailure.go`. |
 
 ## Hotel Module (Sprint 3 — Complete ✅)
 
@@ -150,6 +153,7 @@ Ent schemas in `internal/ent/schema/` (room.go, roomguest.go, roomfolioitem.go, 
 |-------|-------------|-------------|
 | `till_reports` | `id`, `tenant_id`, `outlet_id`, `device_id`, `report_date`, `opening_float`, `closing_amount`, `cash_variance`, `tender_breakdown_json`, `generated_by`, `generated_at` | End-of-day cash/tender summary. |
 | `sales_reports` | `id`, `tenant_id`, `report_date`, `outlet_id`, `channel`, `gross_sales`, `net_sales`, `tax_total`, `refund_total`, `discount_total`, `metadata` | Daily sales metrics. |
+| `daily_closings` | `id`, `tenant_id`, `outlet_id`, `closing_date`, `opened_by`, `closed_by`, `status`, `total_sales`, `total_cash`, `total_card`, `total_mpesa`, `total_loyalty_redemptions`, `total_room_charge`, `total_tax`, `total_orders`, `total_items_sold`, `closed_at`, `notes`, `metadata`, `created_at`, `updated_at` | Outlet-level daily closing record. Extended Sprint 11 with payment-method breakdown and order aggregate fields. `internal/ent/schema/dailyclosing.go`. |
 | `audit_logs` | `id`, `tenant_id`, `user_id`, `resource_type`, `resource_id`, `action`, `payload`, `ip_address`, `user_agent`, `occurred_at` | Compliance log (voids, discounts, drawer events). |
 | `regulatory_exports` | `id`, `tenant_id`, `export_type`, `period_start`, `period_end`, `status`, `file_url`, `requested_by`, `requested_at`, `completed_at`, `metadata` | Fiscal authority exports / ETR submissions. |
 
