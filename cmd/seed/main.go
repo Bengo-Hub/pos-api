@@ -158,6 +158,7 @@ type outletDef struct {
 	displayMode string
 	enableKDS   bool
 	enableAppts bool
+	enableHotel bool
 	defaultView string
 }
 
@@ -176,6 +177,7 @@ var outletsByTenantSlug = map[string][]outletDef{
 			displayMode: "card",
 			enableKDS:   true,
 			enableAppts: false,
+			enableHotel: true,
 			defaultView: "tables",
 		},
 	},
@@ -190,6 +192,7 @@ var outletsByTenantSlug = map[string][]outletDef{
 			displayMode: "card",
 			enableKDS:   true,
 			enableAppts: false,
+			enableHotel: true,
 			defaultView: "tables",
 		},
 		{
@@ -319,13 +322,23 @@ func deleteLogisticsOutlets(ctx context.Context, client *ent.Client, tenantID uu
 }
 
 func seedOutletSetting(ctx context.Context, client *ent.Client, outletID uuid.UUID, d outletDef) error {
-	exists, err := client.OutletSetting.Query().
+	existing, err := client.OutletSetting.Query().
 		Where(outletsetting.OutletID(outletID)).
-		Exist(ctx)
-	if err != nil {
+		Only(ctx)
+	if err != nil && !ent.IsNotFound(err) {
 		return err
 	}
-	if exists {
+
+	if existing != nil {
+		// Update toggles so re-running seed fixes existing outlets (e.g. hotel_module_enabled).
+		update := existing.Update().
+			SetEnableKds(d.enableKDS).
+			SetEnableAppointments(d.enableAppts).
+			SetHotelModuleEnabled(d.enableHotel)
+		if _, err2 := update.Save(ctx); err2 != nil {
+			return fmt.Errorf("update outlet setting: %w", err2)
+		}
+		log.Printf("  ✓ OutletSetting updated for outlet %s (hotel=%v)", outletID, d.enableHotel)
 		return nil
 	}
 
@@ -336,7 +349,8 @@ func seedOutletSetting(ctx context.Context, client *ent.Client, outletID uuid.UU
 		SetShowBarcodeScanner(d.useCase == "retail").
 		SetDefaultView(d.defaultView).
 		SetEnableKds(d.enableKDS).
-		SetEnableAppointments(d.enableAppts)
+		SetEnableAppointments(d.enableAppts).
+		SetHotelModuleEnabled(d.enableHotel)
 	if d.pinMessage != "" {
 		create = create.SetPinLoginMessage(d.pinMessage)
 	}
@@ -344,7 +358,7 @@ func seedOutletSetting(ctx context.Context, client *ent.Client, outletID uuid.UU
 	if err != nil {
 		return fmt.Errorf("create outlet setting: %w", err)
 	}
-	log.Printf("  ✓ OutletSetting created for outlet %s", outletID)
+	log.Printf("  ✓ OutletSetting created for outlet %s (hotel=%v)", outletID, d.enableHotel)
 	return nil
 }
 
