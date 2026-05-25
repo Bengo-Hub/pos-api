@@ -223,16 +223,49 @@ func (h *AppointmentHandler) Update(w http.ResponseWriter, r *http.Request) {
 	if input.EndTime != nil {
 		upd = upd.SetEndTime(*input.EndTime)
 	}
+	// Resolve effective staff/time for overlap check after applying input changes.
+	var effectiveStaffID *uuid.UUID
+	if existing.StaffMemberID != nil {
+		id := *existing.StaffMemberID
+		effectiveStaffID = &id
+	}
 	if input.StaffMemberID != nil {
 		smid, err := uuid.Parse(*input.StaffMemberID)
 		if err == nil {
 			upd = upd.SetStaffMemberID(smid)
+			effectiveStaffID = &smid
 		}
 	}
 	if input.PosOrderID != nil {
 		oid, err := uuid.Parse(*input.PosOrderID)
 		if err == nil {
 			upd = upd.SetPosOrderID(oid)
+		}
+	}
+
+	// Double-booking check on reschedule/reassign: skip the appointment being updated.
+	if effectiveStaffID != nil && (input.StartTime != nil || input.EndTime != nil || input.StaffMemberID != nil) {
+		effectiveStart := existing.StartTime
+		if input.StartTime != nil {
+			effectiveStart = *input.StartTime
+		}
+		effectiveEnd := existing.EndTime
+		if input.EndTime != nil {
+			effectiveEnd = *input.EndTime
+		}
+		conflict, _ := h.db.Appointment.Query().
+			Where(
+				entappt.TenantID(tid),
+				entappt.StaffMemberID(*effectiveStaffID),
+				entappt.IDNEQ(apptID),
+				entappt.StatusNotIn(entappt.StatusCancelled, entappt.StatusNoShow),
+				entappt.StartTimeLT(effectiveEnd),
+				entappt.EndTimeGT(effectiveStart),
+			).
+			Exist(r.Context())
+		if conflict {
+			jsonError(w, "staff member already has an appointment in this time slot", http.StatusConflict)
+			return
 		}
 	}
 
