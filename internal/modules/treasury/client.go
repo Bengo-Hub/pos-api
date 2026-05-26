@@ -49,11 +49,12 @@ type CreateIntentRequest struct {
 }
 
 // IntentResponse is the response from POST /api/v1/{tenant}/payments/intents.
+// Amount is string because treasury serializes decimal.Decimal as a quoted JSON string.
 type IntentResponse struct {
 	ID            string `json:"id"`
 	Status        string `json:"status"`
 	PaymentMethod string `json:"payment_method"`
-	Amount        float64 `json:"amount"`
+	Amount        string `json:"amount"`
 	Currency      string `json:"currency"`
 }
 
@@ -86,11 +87,12 @@ type RefundRequest struct {
 }
 
 // RefundResponse is the response from POST /api/v1/s2s/{tenant}/refunds
+// Amount is string because treasury serializes decimal.Decimal as a quoted JSON string.
 type RefundResponse struct {
-	ID       string  `json:"id"`
-	Status   string  `json:"status"`
-	Amount   float64 `json:"amount"`
-	Currency string  `json:"currency"`
+	ID       string `json:"id"`
+	Status   string `json:"status"`
+	Amount   string `json:"amount"`
+	Currency string `json:"currency"`
 }
 
 // CreateRefund calls POST /api/v1/s2s/{tenantSlug}/refunds on treasury-api.

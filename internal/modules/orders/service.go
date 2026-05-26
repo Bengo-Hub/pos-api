@@ -43,15 +43,17 @@ var validTransitions = map[string][]string{
 
 // CreateOrderRequest holds the input for creating a POS order.
 type CreateOrderRequest struct {
-	TenantID    uuid.UUID
-	TenantSlug  string    // used for treasury S2S tax lookups
-	OutletID    uuid.UUID
-	DeviceID    uuid.UUID
-	UserID      uuid.UUID
-	OrderNumber string
-	Currency    string
-	Lines       []OrderLineInput
-	Metadata    map[string]any
+	TenantID     uuid.UUID
+	TenantSlug   string    // used for treasury S2S tax lookups
+	OutletID     uuid.UUID
+	DeviceID     uuid.UUID
+	UserID       uuid.UUID
+	OrderNumber  string
+	Currency     string
+	Lines        []OrderLineInput
+	Metadata     map[string]any
+	OrderSubtype string    // dine_in | takeaway | room_service | delivery | bar_tab; defaults to "dine_in"
+	TableID      string    // UUID of the table (hospitality dine-in); stored in metadata (no DB column yet)
 }
 
 // OrderLineInput represents a single line item in an order.
@@ -199,6 +201,21 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent
 
 	totals := s.CalculateTotals(req.Lines, decimal.Zero)
 
+	// Resolve order subtype, defaulting to dine_in.
+	subtype := req.OrderSubtype
+	if subtype == "" {
+		subtype = "dine_in"
+	}
+
+	// Carry table_id in metadata (no dedicated DB column yet).
+	meta := req.Metadata
+	if meta == nil {
+		meta = map[string]any{}
+	}
+	if req.TableID != "" {
+		meta["table_id"] = req.TableID
+	}
+
 	tx, err := s.client.Tx(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("orders: begin tx: %w", err)
@@ -221,7 +238,8 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent
 		SetDiscountTotal(totals.DiscountTotal.InexactFloat64()).
 		SetTotalAmount(totals.TotalAmount.InexactFloat64()).
 		SetCurrency(currency).
-		SetMetadata(req.Metadata).
+		SetOrderSubtype(posorder.OrderSubtype(subtype)).
+		SetMetadata(meta).
 		Save(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("orders: create order: %w", err)
