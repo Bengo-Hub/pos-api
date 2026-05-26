@@ -182,6 +182,8 @@ type Tx struct {
 	Table *TableClient
 	// TableAssignment is the client for interacting with the TableAssignment builders.
 	TableAssignment *TableAssignmentClient
+	// TableReservation is the client for interacting with the TableReservation builders.
+	TableReservation *TableReservationClient
 	// Tenant is the client for interacting with the Tenant builders.
 	Tenant *TenantClient
 	// TenantSyncEvent is the client for interacting with the TenantSyncEvent builders.
@@ -414,6 +416,7 @@ func (tx *Tx) init() {
 	tx.SyncFailure = NewSyncFailureClient(tx.config)
 	tx.Table = NewTableClient(tx.config)
 	tx.TableAssignment = NewTableAssignmentClient(tx.config)
+	tx.TableReservation = NewTableReservationClient(tx.config)
 	tx.Tenant = NewTenantClient(tx.config)
 	tx.TenantSyncEvent = NewTenantSyncEventClient(tx.config)
 	tx.Tender = NewTenderClient(tx.config)

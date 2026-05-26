@@ -97,6 +97,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/syncfailure"
 	"github.com/bengobox/pos-service/internal/ent/table"
 	"github.com/bengobox/pos-service/internal/ent/tableassignment"
+	"github.com/bengobox/pos-service/internal/ent/tablereservation"
 	"github.com/bengobox/pos-service/internal/ent/tenant"
 	"github.com/bengobox/pos-service/internal/ent/tenantsyncevent"
 	"github.com/bengobox/pos-service/internal/ent/tender"
@@ -250,6 +251,7 @@ func checkColumn(t, c string) error {
 			syncfailure.Table:              syncfailure.ValidColumn,
 			table.Table:                    table.ValidColumn,
 			tableassignment.Table:          tableassignment.ValidColumn,
+			tablereservation.Table:         tablereservation.ValidColumn,
 			tenant.Table:                   tenant.ValidColumn,
 			tenantsyncevent.Table:          tenantsyncevent.ValidColumn,
 			tender.Table:                   tender.ValidColumn,

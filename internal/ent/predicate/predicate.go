@@ -261,6 +261,9 @@ type Table func(*sql.Selector)
 // TableAssignment is the predicate function for tableassignment builders.
 type TableAssignment func(*sql.Selector)
 
+// TableReservation is the predicate function for tablereservation builders.
+type TableReservation func(*sql.Selector)
+
 // Tenant is the predicate function for tenant builders.
 type Tenant func(*sql.Selector)
 

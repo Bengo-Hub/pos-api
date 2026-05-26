@@ -125,6 +125,11 @@ func New(
 				pub.Get("/{tenantID}/pos/outlets", publicOutlet.ListPublicOutlets)
 				pub.Get("/{tenantID}/pos/outlets/current", publicOutlet.GetCurrentOutlet)
 			}
+			// Public reservation endpoints — used by the embeddable booking widget
+			if tables != nil {
+				pub.Get("/{tenantID}/pos/reservations/available", tables.GetAvailableSlots)
+				pub.Post("/{tenantID}/pos/reservations", tables.CreateReservation)
+			}
 		})
 
 		// ── Protected endpoints (auth required) ───────────────────────────────
@@ -254,6 +259,15 @@ func New(
 							// Order split + service charge live here (use TableHandler, need nil guard)
 							tbl.Post("/orders/{orderID}/split", tables.SplitOrder)
 							tbl.Patch("/orders/{orderID}/service-charge", tables.SetServiceCharge)
+							// Reservations (staff-managed)
+							tbl.Get("/reservations", tables.ListReservations)
+							tbl.Get("/reservations/available", tables.GetAvailableSlots)
+							tbl.Get("/reservations/{id}", tables.GetReservation)
+							tbl.Post("/reservations", tables.CreateReservation)
+							tbl.Patch("/reservations/{id}", tables.UpdateReservation)
+							tbl.Post("/reservations/{id}/confirm", tables.ConfirmReservation)
+							tbl.Post("/reservations/{id}/check-in", tables.CheckInReservation)
+							tbl.Post("/reservations/{id}/cancel", tables.CancelReservation)
 						})
 					}
 

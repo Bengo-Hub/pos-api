@@ -1029,6 +1029,18 @@ func (f TableAssignmentFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Va
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.TableAssignmentMutation", m)
 }
 
+// The TableReservationFunc type is an adapter to allow the use of ordinary
+// function as TableReservation mutator.
+type TableReservationFunc func(context.Context, *ent.TableReservationMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f TableReservationFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.TableReservationMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.TableReservationMutation", m)
+}
+
 // The TenantFunc type is an adapter to allow the use of ordinary
 // function as Tenant mutator.
 type TenantFunc func(context.Context, *ent.TenantMutation) (ent.Value, error)

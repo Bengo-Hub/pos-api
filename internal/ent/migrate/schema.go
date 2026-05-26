@@ -2670,6 +2670,52 @@ var (
 			},
 		},
 	}
+	// TableReservationsColumns holds the columns for the "table_reservations" table.
+	TableReservationsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "outlet_id", Type: field.TypeUUID},
+		{Name: "table_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "guest_name", Type: field.TypeString},
+		{Name: "guest_phone", Type: field.TypeString, Nullable: true},
+		{Name: "guest_email", Type: field.TypeString, Nullable: true},
+		{Name: "party_size", Type: field.TypeInt, Default: 2},
+		{Name: "scheduled_at", Type: field.TypeTime},
+		{Name: "duration_minutes", Type: field.TypeInt, Default: 90},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending", "confirmed", "checked_in", "cancelled", "no_show"}, Default: "pending"},
+		{Name: "notes", Type: field.TypeString, Nullable: true},
+		{Name: "special_requests", Type: field.TypeString, Nullable: true},
+		{Name: "source", Type: field.TypeString, Default: "staff"},
+		{Name: "cancellation_reason", Type: field.TypeString, Nullable: true},
+		{Name: "confirmed_at", Type: field.TypeTime, Nullable: true},
+		{Name: "checked_in_at", Type: field.TypeTime, Nullable: true},
+		{Name: "cancelled_at", Type: field.TypeTime, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// TableReservationsTable holds the schema information for the "table_reservations" table.
+	TableReservationsTable = &schema.Table{
+		Name:       "table_reservations",
+		Columns:    TableReservationsColumns,
+		PrimaryKey: []*schema.Column{TableReservationsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "tablereservation_tenant_id_outlet_id_scheduled_at",
+				Unique:  false,
+				Columns: []*schema.Column{TableReservationsColumns[1], TableReservationsColumns[2], TableReservationsColumns[8]},
+			},
+			{
+				Name:    "tablereservation_table_id_scheduled_at",
+				Unique:  false,
+				Columns: []*schema.Column{TableReservationsColumns[3], TableReservationsColumns[8]},
+			},
+			{
+				Name:    "tablereservation_tenant_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{TableReservationsColumns[1], TableReservationsColumns[10]},
+			},
+		},
+	}
 	// TenantsColumns holds the columns for the "tenants" table.
 	TenantsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -3008,6 +3054,7 @@ var (
 		SyncFailuresTable,
 		TablesTable,
 		TableAssignmentsTable,
+		TableReservationsTable,
 		TenantsTable,
 		TenantSyncEventsTable,
 		TendersTable,

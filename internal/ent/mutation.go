@@ -95,6 +95,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/syncfailure"
 	"github.com/bengobox/pos-service/internal/ent/table"
 	"github.com/bengobox/pos-service/internal/ent/tableassignment"
+	"github.com/bengobox/pos-service/internal/ent/tablereservation"
 	"github.com/bengobox/pos-service/internal/ent/tenant"
 	"github.com/bengobox/pos-service/internal/ent/tenantsyncevent"
 	"github.com/bengobox/pos-service/internal/ent/tender"
@@ -201,6 +202,7 @@ const (
 	TypeSyncFailure              = "SyncFailure"
 	TypeTable                    = "Table"
 	TypeTableAssignment          = "TableAssignment"
+	TypeTableReservation         = "TableReservation"
 	TypeTenant                   = "Tenant"
 	TypeTenantSyncEvent          = "TenantSyncEvent"
 	TypeTender                   = "Tender"
@@ -82368,6 +82370,1553 @@ func (m *TableAssignmentMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown TableAssignment edge %s", name)
+}
+
+// TableReservationMutation represents an operation that mutates the TableReservation nodes in the graph.
+type TableReservationMutation struct {
+	config
+	op                  Op
+	typ                 string
+	id                  *uuid.UUID
+	tenant_id           *uuid.UUID
+	outlet_id           *uuid.UUID
+	table_id            *uuid.UUID
+	guest_name          *string
+	guest_phone         *string
+	guest_email         *string
+	party_size          *int
+	addparty_size       *int
+	scheduled_at        *time.Time
+	duration_minutes    *int
+	addduration_minutes *int
+	status              *tablereservation.Status
+	notes               *string
+	special_requests    *string
+	source              *string
+	cancellation_reason *string
+	confirmed_at        *time.Time
+	checked_in_at       *time.Time
+	cancelled_at        *time.Time
+	created_at          *time.Time
+	updated_at          *time.Time
+	clearedFields       map[string]struct{}
+	done                bool
+	oldValue            func(context.Context) (*TableReservation, error)
+	predicates          []predicate.TableReservation
+}
+
+var _ ent.Mutation = (*TableReservationMutation)(nil)
+
+// tablereservationOption allows management of the mutation configuration using functional options.
+type tablereservationOption func(*TableReservationMutation)
+
+// newTableReservationMutation creates new mutation for the TableReservation entity.
+func newTableReservationMutation(c config, op Op, opts ...tablereservationOption) *TableReservationMutation {
+	m := &TableReservationMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeTableReservation,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withTableReservationID sets the ID field of the mutation.
+func withTableReservationID(id uuid.UUID) tablereservationOption {
+	return func(m *TableReservationMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *TableReservation
+		)
+		m.oldValue = func(ctx context.Context) (*TableReservation, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().TableReservation.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withTableReservation sets the old TableReservation of the mutation.
+func withTableReservation(node *TableReservation) tablereservationOption {
+	return func(m *TableReservationMutation) {
+		m.oldValue = func(context.Context) (*TableReservation, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m TableReservationMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m TableReservationMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of TableReservation entities.
+func (m *TableReservationMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *TableReservationMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *TableReservationMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().TableReservation.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *TableReservationMutation) SetTenantID(u uuid.UUID) {
+	m.tenant_id = &u
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *TableReservationMutation) TenantID() (r uuid.UUID, exists bool) {
+	v := m.tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the TableReservation entity.
+// If the TableReservation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TableReservationMutation) OldTenantID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *TableReservationMutation) ResetTenantID() {
+	m.tenant_id = nil
+}
+
+// SetOutletID sets the "outlet_id" field.
+func (m *TableReservationMutation) SetOutletID(u uuid.UUID) {
+	m.outlet_id = &u
+}
+
+// OutletID returns the value of the "outlet_id" field in the mutation.
+func (m *TableReservationMutation) OutletID() (r uuid.UUID, exists bool) {
+	v := m.outlet_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOutletID returns the old "outlet_id" field's value of the TableReservation entity.
+// If the TableReservation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TableReservationMutation) OldOutletID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOutletID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOutletID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOutletID: %w", err)
+	}
+	return oldValue.OutletID, nil
+}
+
+// ResetOutletID resets all changes to the "outlet_id" field.
+func (m *TableReservationMutation) ResetOutletID() {
+	m.outlet_id = nil
+}
+
+// SetTableID sets the "table_id" field.
+func (m *TableReservationMutation) SetTableID(u uuid.UUID) {
+	m.table_id = &u
+}
+
+// TableID returns the value of the "table_id" field in the mutation.
+func (m *TableReservationMutation) TableID() (r uuid.UUID, exists bool) {
+	v := m.table_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTableID returns the old "table_id" field's value of the TableReservation entity.
+// If the TableReservation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TableReservationMutation) OldTableID(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTableID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTableID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTableID: %w", err)
+	}
+	return oldValue.TableID, nil
+}
+
+// ClearTableID clears the value of the "table_id" field.
+func (m *TableReservationMutation) ClearTableID() {
+	m.table_id = nil
+	m.clearedFields[tablereservation.FieldTableID] = struct{}{}
+}
+
+// TableIDCleared returns if the "table_id" field was cleared in this mutation.
+func (m *TableReservationMutation) TableIDCleared() bool {
+	_, ok := m.clearedFields[tablereservation.FieldTableID]
+	return ok
+}
+
+// ResetTableID resets all changes to the "table_id" field.
+func (m *TableReservationMutation) ResetTableID() {
+	m.table_id = nil
+	delete(m.clearedFields, tablereservation.FieldTableID)
+}
+
+// SetGuestName sets the "guest_name" field.
+func (m *TableReservationMutation) SetGuestName(s string) {
+	m.guest_name = &s
+}
+
+// GuestName returns the value of the "guest_name" field in the mutation.
+func (m *TableReservationMutation) GuestName() (r string, exists bool) {
+	v := m.guest_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGuestName returns the old "guest_name" field's value of the TableReservation entity.
+// If the TableReservation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TableReservationMutation) OldGuestName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGuestName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGuestName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGuestName: %w", err)
+	}
+	return oldValue.GuestName, nil
+}
+
+// ResetGuestName resets all changes to the "guest_name" field.
+func (m *TableReservationMutation) ResetGuestName() {
+	m.guest_name = nil
+}
+
+// SetGuestPhone sets the "guest_phone" field.
+func (m *TableReservationMutation) SetGuestPhone(s string) {
+	m.guest_phone = &s
+}
+
+// GuestPhone returns the value of the "guest_phone" field in the mutation.
+func (m *TableReservationMutation) GuestPhone() (r string, exists bool) {
+	v := m.guest_phone
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGuestPhone returns the old "guest_phone" field's value of the TableReservation entity.
+// If the TableReservation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TableReservationMutation) OldGuestPhone(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGuestPhone is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGuestPhone requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGuestPhone: %w", err)
+	}
+	return oldValue.GuestPhone, nil
+}
+
+// ClearGuestPhone clears the value of the "guest_phone" field.
+func (m *TableReservationMutation) ClearGuestPhone() {
+	m.guest_phone = nil
+	m.clearedFields[tablereservation.FieldGuestPhone] = struct{}{}
+}
+
+// GuestPhoneCleared returns if the "guest_phone" field was cleared in this mutation.
+func (m *TableReservationMutation) GuestPhoneCleared() bool {
+	_, ok := m.clearedFields[tablereservation.FieldGuestPhone]
+	return ok
+}
+
+// ResetGuestPhone resets all changes to the "guest_phone" field.
+func (m *TableReservationMutation) ResetGuestPhone() {
+	m.guest_phone = nil
+	delete(m.clearedFields, tablereservation.FieldGuestPhone)
+}
+
+// SetGuestEmail sets the "guest_email" field.
+func (m *TableReservationMutation) SetGuestEmail(s string) {
+	m.guest_email = &s
+}
+
+// GuestEmail returns the value of the "guest_email" field in the mutation.
+func (m *TableReservationMutation) GuestEmail() (r string, exists bool) {
+	v := m.guest_email
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGuestEmail returns the old "guest_email" field's value of the TableReservation entity.
+// If the TableReservation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TableReservationMutation) OldGuestEmail(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGuestEmail is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGuestEmail requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGuestEmail: %w", err)
+	}
+	return oldValue.GuestEmail, nil
+}
+
+// ClearGuestEmail clears the value of the "guest_email" field.
+func (m *TableReservationMutation) ClearGuestEmail() {
+	m.guest_email = nil
+	m.clearedFields[tablereservation.FieldGuestEmail] = struct{}{}
+}
+
+// GuestEmailCleared returns if the "guest_email" field was cleared in this mutation.
+func (m *TableReservationMutation) GuestEmailCleared() bool {
+	_, ok := m.clearedFields[tablereservation.FieldGuestEmail]
+	return ok
+}
+
+// ResetGuestEmail resets all changes to the "guest_email" field.
+func (m *TableReservationMutation) ResetGuestEmail() {
+	m.guest_email = nil
+	delete(m.clearedFields, tablereservation.FieldGuestEmail)
+}
+
+// SetPartySize sets the "party_size" field.
+func (m *TableReservationMutation) SetPartySize(i int) {
+	m.party_size = &i
+	m.addparty_size = nil
+}
+
+// PartySize returns the value of the "party_size" field in the mutation.
+func (m *TableReservationMutation) PartySize() (r int, exists bool) {
+	v := m.party_size
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPartySize returns the old "party_size" field's value of the TableReservation entity.
+// If the TableReservation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TableReservationMutation) OldPartySize(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPartySize is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPartySize requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPartySize: %w", err)
+	}
+	return oldValue.PartySize, nil
+}
+
+// AddPartySize adds i to the "party_size" field.
+func (m *TableReservationMutation) AddPartySize(i int) {
+	if m.addparty_size != nil {
+		*m.addparty_size += i
+	} else {
+		m.addparty_size = &i
+	}
+}
+
+// AddedPartySize returns the value that was added to the "party_size" field in this mutation.
+func (m *TableReservationMutation) AddedPartySize() (r int, exists bool) {
+	v := m.addparty_size
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetPartySize resets all changes to the "party_size" field.
+func (m *TableReservationMutation) ResetPartySize() {
+	m.party_size = nil
+	m.addparty_size = nil
+}
+
+// SetScheduledAt sets the "scheduled_at" field.
+func (m *TableReservationMutation) SetScheduledAt(t time.Time) {
+	m.scheduled_at = &t
+}
+
+// ScheduledAt returns the value of the "scheduled_at" field in the mutation.
+func (m *TableReservationMutation) ScheduledAt() (r time.Time, exists bool) {
+	v := m.scheduled_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldScheduledAt returns the old "scheduled_at" field's value of the TableReservation entity.
+// If the TableReservation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TableReservationMutation) OldScheduledAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldScheduledAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldScheduledAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldScheduledAt: %w", err)
+	}
+	return oldValue.ScheduledAt, nil
+}
+
+// ResetScheduledAt resets all changes to the "scheduled_at" field.
+func (m *TableReservationMutation) ResetScheduledAt() {
+	m.scheduled_at = nil
+}
+
+// SetDurationMinutes sets the "duration_minutes" field.
+func (m *TableReservationMutation) SetDurationMinutes(i int) {
+	m.duration_minutes = &i
+	m.addduration_minutes = nil
+}
+
+// DurationMinutes returns the value of the "duration_minutes" field in the mutation.
+func (m *TableReservationMutation) DurationMinutes() (r int, exists bool) {
+	v := m.duration_minutes
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDurationMinutes returns the old "duration_minutes" field's value of the TableReservation entity.
+// If the TableReservation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TableReservationMutation) OldDurationMinutes(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDurationMinutes is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDurationMinutes requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDurationMinutes: %w", err)
+	}
+	return oldValue.DurationMinutes, nil
+}
+
+// AddDurationMinutes adds i to the "duration_minutes" field.
+func (m *TableReservationMutation) AddDurationMinutes(i int) {
+	if m.addduration_minutes != nil {
+		*m.addduration_minutes += i
+	} else {
+		m.addduration_minutes = &i
+	}
+}
+
+// AddedDurationMinutes returns the value that was added to the "duration_minutes" field in this mutation.
+func (m *TableReservationMutation) AddedDurationMinutes() (r int, exists bool) {
+	v := m.addduration_minutes
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetDurationMinutes resets all changes to the "duration_minutes" field.
+func (m *TableReservationMutation) ResetDurationMinutes() {
+	m.duration_minutes = nil
+	m.addduration_minutes = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *TableReservationMutation) SetStatus(t tablereservation.Status) {
+	m.status = &t
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *TableReservationMutation) Status() (r tablereservation.Status, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the TableReservation entity.
+// If the TableReservation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TableReservationMutation) OldStatus(ctx context.Context) (v tablereservation.Status, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *TableReservationMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetNotes sets the "notes" field.
+func (m *TableReservationMutation) SetNotes(s string) {
+	m.notes = &s
+}
+
+// Notes returns the value of the "notes" field in the mutation.
+func (m *TableReservationMutation) Notes() (r string, exists bool) {
+	v := m.notes
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNotes returns the old "notes" field's value of the TableReservation entity.
+// If the TableReservation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TableReservationMutation) OldNotes(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNotes is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNotes requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNotes: %w", err)
+	}
+	return oldValue.Notes, nil
+}
+
+// ClearNotes clears the value of the "notes" field.
+func (m *TableReservationMutation) ClearNotes() {
+	m.notes = nil
+	m.clearedFields[tablereservation.FieldNotes] = struct{}{}
+}
+
+// NotesCleared returns if the "notes" field was cleared in this mutation.
+func (m *TableReservationMutation) NotesCleared() bool {
+	_, ok := m.clearedFields[tablereservation.FieldNotes]
+	return ok
+}
+
+// ResetNotes resets all changes to the "notes" field.
+func (m *TableReservationMutation) ResetNotes() {
+	m.notes = nil
+	delete(m.clearedFields, tablereservation.FieldNotes)
+}
+
+// SetSpecialRequests sets the "special_requests" field.
+func (m *TableReservationMutation) SetSpecialRequests(s string) {
+	m.special_requests = &s
+}
+
+// SpecialRequests returns the value of the "special_requests" field in the mutation.
+func (m *TableReservationMutation) SpecialRequests() (r string, exists bool) {
+	v := m.special_requests
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSpecialRequests returns the old "special_requests" field's value of the TableReservation entity.
+// If the TableReservation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TableReservationMutation) OldSpecialRequests(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSpecialRequests is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSpecialRequests requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSpecialRequests: %w", err)
+	}
+	return oldValue.SpecialRequests, nil
+}
+
+// ClearSpecialRequests clears the value of the "special_requests" field.
+func (m *TableReservationMutation) ClearSpecialRequests() {
+	m.special_requests = nil
+	m.clearedFields[tablereservation.FieldSpecialRequests] = struct{}{}
+}
+
+// SpecialRequestsCleared returns if the "special_requests" field was cleared in this mutation.
+func (m *TableReservationMutation) SpecialRequestsCleared() bool {
+	_, ok := m.clearedFields[tablereservation.FieldSpecialRequests]
+	return ok
+}
+
+// ResetSpecialRequests resets all changes to the "special_requests" field.
+func (m *TableReservationMutation) ResetSpecialRequests() {
+	m.special_requests = nil
+	delete(m.clearedFields, tablereservation.FieldSpecialRequests)
+}
+
+// SetSource sets the "source" field.
+func (m *TableReservationMutation) SetSource(s string) {
+	m.source = &s
+}
+
+// Source returns the value of the "source" field in the mutation.
+func (m *TableReservationMutation) Source() (r string, exists bool) {
+	v := m.source
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSource returns the old "source" field's value of the TableReservation entity.
+// If the TableReservation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TableReservationMutation) OldSource(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSource is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSource requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSource: %w", err)
+	}
+	return oldValue.Source, nil
+}
+
+// ResetSource resets all changes to the "source" field.
+func (m *TableReservationMutation) ResetSource() {
+	m.source = nil
+}
+
+// SetCancellationReason sets the "cancellation_reason" field.
+func (m *TableReservationMutation) SetCancellationReason(s string) {
+	m.cancellation_reason = &s
+}
+
+// CancellationReason returns the value of the "cancellation_reason" field in the mutation.
+func (m *TableReservationMutation) CancellationReason() (r string, exists bool) {
+	v := m.cancellation_reason
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCancellationReason returns the old "cancellation_reason" field's value of the TableReservation entity.
+// If the TableReservation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TableReservationMutation) OldCancellationReason(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCancellationReason is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCancellationReason requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCancellationReason: %w", err)
+	}
+	return oldValue.CancellationReason, nil
+}
+
+// ClearCancellationReason clears the value of the "cancellation_reason" field.
+func (m *TableReservationMutation) ClearCancellationReason() {
+	m.cancellation_reason = nil
+	m.clearedFields[tablereservation.FieldCancellationReason] = struct{}{}
+}
+
+// CancellationReasonCleared returns if the "cancellation_reason" field was cleared in this mutation.
+func (m *TableReservationMutation) CancellationReasonCleared() bool {
+	_, ok := m.clearedFields[tablereservation.FieldCancellationReason]
+	return ok
+}
+
+// ResetCancellationReason resets all changes to the "cancellation_reason" field.
+func (m *TableReservationMutation) ResetCancellationReason() {
+	m.cancellation_reason = nil
+	delete(m.clearedFields, tablereservation.FieldCancellationReason)
+}
+
+// SetConfirmedAt sets the "confirmed_at" field.
+func (m *TableReservationMutation) SetConfirmedAt(t time.Time) {
+	m.confirmed_at = &t
+}
+
+// ConfirmedAt returns the value of the "confirmed_at" field in the mutation.
+func (m *TableReservationMutation) ConfirmedAt() (r time.Time, exists bool) {
+	v := m.confirmed_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldConfirmedAt returns the old "confirmed_at" field's value of the TableReservation entity.
+// If the TableReservation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TableReservationMutation) OldConfirmedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldConfirmedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldConfirmedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldConfirmedAt: %w", err)
+	}
+	return oldValue.ConfirmedAt, nil
+}
+
+// ClearConfirmedAt clears the value of the "confirmed_at" field.
+func (m *TableReservationMutation) ClearConfirmedAt() {
+	m.confirmed_at = nil
+	m.clearedFields[tablereservation.FieldConfirmedAt] = struct{}{}
+}
+
+// ConfirmedAtCleared returns if the "confirmed_at" field was cleared in this mutation.
+func (m *TableReservationMutation) ConfirmedAtCleared() bool {
+	_, ok := m.clearedFields[tablereservation.FieldConfirmedAt]
+	return ok
+}
+
+// ResetConfirmedAt resets all changes to the "confirmed_at" field.
+func (m *TableReservationMutation) ResetConfirmedAt() {
+	m.confirmed_at = nil
+	delete(m.clearedFields, tablereservation.FieldConfirmedAt)
+}
+
+// SetCheckedInAt sets the "checked_in_at" field.
+func (m *TableReservationMutation) SetCheckedInAt(t time.Time) {
+	m.checked_in_at = &t
+}
+
+// CheckedInAt returns the value of the "checked_in_at" field in the mutation.
+func (m *TableReservationMutation) CheckedInAt() (r time.Time, exists bool) {
+	v := m.checked_in_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCheckedInAt returns the old "checked_in_at" field's value of the TableReservation entity.
+// If the TableReservation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TableReservationMutation) OldCheckedInAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCheckedInAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCheckedInAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCheckedInAt: %w", err)
+	}
+	return oldValue.CheckedInAt, nil
+}
+
+// ClearCheckedInAt clears the value of the "checked_in_at" field.
+func (m *TableReservationMutation) ClearCheckedInAt() {
+	m.checked_in_at = nil
+	m.clearedFields[tablereservation.FieldCheckedInAt] = struct{}{}
+}
+
+// CheckedInAtCleared returns if the "checked_in_at" field was cleared in this mutation.
+func (m *TableReservationMutation) CheckedInAtCleared() bool {
+	_, ok := m.clearedFields[tablereservation.FieldCheckedInAt]
+	return ok
+}
+
+// ResetCheckedInAt resets all changes to the "checked_in_at" field.
+func (m *TableReservationMutation) ResetCheckedInAt() {
+	m.checked_in_at = nil
+	delete(m.clearedFields, tablereservation.FieldCheckedInAt)
+}
+
+// SetCancelledAt sets the "cancelled_at" field.
+func (m *TableReservationMutation) SetCancelledAt(t time.Time) {
+	m.cancelled_at = &t
+}
+
+// CancelledAt returns the value of the "cancelled_at" field in the mutation.
+func (m *TableReservationMutation) CancelledAt() (r time.Time, exists bool) {
+	v := m.cancelled_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCancelledAt returns the old "cancelled_at" field's value of the TableReservation entity.
+// If the TableReservation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TableReservationMutation) OldCancelledAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCancelledAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCancelledAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCancelledAt: %w", err)
+	}
+	return oldValue.CancelledAt, nil
+}
+
+// ClearCancelledAt clears the value of the "cancelled_at" field.
+func (m *TableReservationMutation) ClearCancelledAt() {
+	m.cancelled_at = nil
+	m.clearedFields[tablereservation.FieldCancelledAt] = struct{}{}
+}
+
+// CancelledAtCleared returns if the "cancelled_at" field was cleared in this mutation.
+func (m *TableReservationMutation) CancelledAtCleared() bool {
+	_, ok := m.clearedFields[tablereservation.FieldCancelledAt]
+	return ok
+}
+
+// ResetCancelledAt resets all changes to the "cancelled_at" field.
+func (m *TableReservationMutation) ResetCancelledAt() {
+	m.cancelled_at = nil
+	delete(m.clearedFields, tablereservation.FieldCancelledAt)
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *TableReservationMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *TableReservationMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the TableReservation entity.
+// If the TableReservation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TableReservationMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *TableReservationMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *TableReservationMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *TableReservationMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the TableReservation entity.
+// If the TableReservation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TableReservationMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *TableReservationMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the TableReservationMutation builder.
+func (m *TableReservationMutation) Where(ps ...predicate.TableReservation) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the TableReservationMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *TableReservationMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.TableReservation, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *TableReservationMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *TableReservationMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (TableReservation).
+func (m *TableReservationMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *TableReservationMutation) Fields() []string {
+	fields := make([]string, 0, 19)
+	if m.tenant_id != nil {
+		fields = append(fields, tablereservation.FieldTenantID)
+	}
+	if m.outlet_id != nil {
+		fields = append(fields, tablereservation.FieldOutletID)
+	}
+	if m.table_id != nil {
+		fields = append(fields, tablereservation.FieldTableID)
+	}
+	if m.guest_name != nil {
+		fields = append(fields, tablereservation.FieldGuestName)
+	}
+	if m.guest_phone != nil {
+		fields = append(fields, tablereservation.FieldGuestPhone)
+	}
+	if m.guest_email != nil {
+		fields = append(fields, tablereservation.FieldGuestEmail)
+	}
+	if m.party_size != nil {
+		fields = append(fields, tablereservation.FieldPartySize)
+	}
+	if m.scheduled_at != nil {
+		fields = append(fields, tablereservation.FieldScheduledAt)
+	}
+	if m.duration_minutes != nil {
+		fields = append(fields, tablereservation.FieldDurationMinutes)
+	}
+	if m.status != nil {
+		fields = append(fields, tablereservation.FieldStatus)
+	}
+	if m.notes != nil {
+		fields = append(fields, tablereservation.FieldNotes)
+	}
+	if m.special_requests != nil {
+		fields = append(fields, tablereservation.FieldSpecialRequests)
+	}
+	if m.source != nil {
+		fields = append(fields, tablereservation.FieldSource)
+	}
+	if m.cancellation_reason != nil {
+		fields = append(fields, tablereservation.FieldCancellationReason)
+	}
+	if m.confirmed_at != nil {
+		fields = append(fields, tablereservation.FieldConfirmedAt)
+	}
+	if m.checked_in_at != nil {
+		fields = append(fields, tablereservation.FieldCheckedInAt)
+	}
+	if m.cancelled_at != nil {
+		fields = append(fields, tablereservation.FieldCancelledAt)
+	}
+	if m.created_at != nil {
+		fields = append(fields, tablereservation.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, tablereservation.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *TableReservationMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case tablereservation.FieldTenantID:
+		return m.TenantID()
+	case tablereservation.FieldOutletID:
+		return m.OutletID()
+	case tablereservation.FieldTableID:
+		return m.TableID()
+	case tablereservation.FieldGuestName:
+		return m.GuestName()
+	case tablereservation.FieldGuestPhone:
+		return m.GuestPhone()
+	case tablereservation.FieldGuestEmail:
+		return m.GuestEmail()
+	case tablereservation.FieldPartySize:
+		return m.PartySize()
+	case tablereservation.FieldScheduledAt:
+		return m.ScheduledAt()
+	case tablereservation.FieldDurationMinutes:
+		return m.DurationMinutes()
+	case tablereservation.FieldStatus:
+		return m.Status()
+	case tablereservation.FieldNotes:
+		return m.Notes()
+	case tablereservation.FieldSpecialRequests:
+		return m.SpecialRequests()
+	case tablereservation.FieldSource:
+		return m.Source()
+	case tablereservation.FieldCancellationReason:
+		return m.CancellationReason()
+	case tablereservation.FieldConfirmedAt:
+		return m.ConfirmedAt()
+	case tablereservation.FieldCheckedInAt:
+		return m.CheckedInAt()
+	case tablereservation.FieldCancelledAt:
+		return m.CancelledAt()
+	case tablereservation.FieldCreatedAt:
+		return m.CreatedAt()
+	case tablereservation.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *TableReservationMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case tablereservation.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case tablereservation.FieldOutletID:
+		return m.OldOutletID(ctx)
+	case tablereservation.FieldTableID:
+		return m.OldTableID(ctx)
+	case tablereservation.FieldGuestName:
+		return m.OldGuestName(ctx)
+	case tablereservation.FieldGuestPhone:
+		return m.OldGuestPhone(ctx)
+	case tablereservation.FieldGuestEmail:
+		return m.OldGuestEmail(ctx)
+	case tablereservation.FieldPartySize:
+		return m.OldPartySize(ctx)
+	case tablereservation.FieldScheduledAt:
+		return m.OldScheduledAt(ctx)
+	case tablereservation.FieldDurationMinutes:
+		return m.OldDurationMinutes(ctx)
+	case tablereservation.FieldStatus:
+		return m.OldStatus(ctx)
+	case tablereservation.FieldNotes:
+		return m.OldNotes(ctx)
+	case tablereservation.FieldSpecialRequests:
+		return m.OldSpecialRequests(ctx)
+	case tablereservation.FieldSource:
+		return m.OldSource(ctx)
+	case tablereservation.FieldCancellationReason:
+		return m.OldCancellationReason(ctx)
+	case tablereservation.FieldConfirmedAt:
+		return m.OldConfirmedAt(ctx)
+	case tablereservation.FieldCheckedInAt:
+		return m.OldCheckedInAt(ctx)
+	case tablereservation.FieldCancelledAt:
+		return m.OldCancelledAt(ctx)
+	case tablereservation.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case tablereservation.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown TableReservation field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *TableReservationMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case tablereservation.FieldTenantID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case tablereservation.FieldOutletID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOutletID(v)
+		return nil
+	case tablereservation.FieldTableID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTableID(v)
+		return nil
+	case tablereservation.FieldGuestName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGuestName(v)
+		return nil
+	case tablereservation.FieldGuestPhone:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGuestPhone(v)
+		return nil
+	case tablereservation.FieldGuestEmail:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGuestEmail(v)
+		return nil
+	case tablereservation.FieldPartySize:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPartySize(v)
+		return nil
+	case tablereservation.FieldScheduledAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetScheduledAt(v)
+		return nil
+	case tablereservation.FieldDurationMinutes:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDurationMinutes(v)
+		return nil
+	case tablereservation.FieldStatus:
+		v, ok := value.(tablereservation.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case tablereservation.FieldNotes:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNotes(v)
+		return nil
+	case tablereservation.FieldSpecialRequests:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSpecialRequests(v)
+		return nil
+	case tablereservation.FieldSource:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSource(v)
+		return nil
+	case tablereservation.FieldCancellationReason:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCancellationReason(v)
+		return nil
+	case tablereservation.FieldConfirmedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetConfirmedAt(v)
+		return nil
+	case tablereservation.FieldCheckedInAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCheckedInAt(v)
+		return nil
+	case tablereservation.FieldCancelledAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCancelledAt(v)
+		return nil
+	case tablereservation.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case tablereservation.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown TableReservation field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *TableReservationMutation) AddedFields() []string {
+	var fields []string
+	if m.addparty_size != nil {
+		fields = append(fields, tablereservation.FieldPartySize)
+	}
+	if m.addduration_minutes != nil {
+		fields = append(fields, tablereservation.FieldDurationMinutes)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *TableReservationMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case tablereservation.FieldPartySize:
+		return m.AddedPartySize()
+	case tablereservation.FieldDurationMinutes:
+		return m.AddedDurationMinutes()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *TableReservationMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case tablereservation.FieldPartySize:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddPartySize(v)
+		return nil
+	case tablereservation.FieldDurationMinutes:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddDurationMinutes(v)
+		return nil
+	}
+	return fmt.Errorf("unknown TableReservation numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *TableReservationMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(tablereservation.FieldTableID) {
+		fields = append(fields, tablereservation.FieldTableID)
+	}
+	if m.FieldCleared(tablereservation.FieldGuestPhone) {
+		fields = append(fields, tablereservation.FieldGuestPhone)
+	}
+	if m.FieldCleared(tablereservation.FieldGuestEmail) {
+		fields = append(fields, tablereservation.FieldGuestEmail)
+	}
+	if m.FieldCleared(tablereservation.FieldNotes) {
+		fields = append(fields, tablereservation.FieldNotes)
+	}
+	if m.FieldCleared(tablereservation.FieldSpecialRequests) {
+		fields = append(fields, tablereservation.FieldSpecialRequests)
+	}
+	if m.FieldCleared(tablereservation.FieldCancellationReason) {
+		fields = append(fields, tablereservation.FieldCancellationReason)
+	}
+	if m.FieldCleared(tablereservation.FieldConfirmedAt) {
+		fields = append(fields, tablereservation.FieldConfirmedAt)
+	}
+	if m.FieldCleared(tablereservation.FieldCheckedInAt) {
+		fields = append(fields, tablereservation.FieldCheckedInAt)
+	}
+	if m.FieldCleared(tablereservation.FieldCancelledAt) {
+		fields = append(fields, tablereservation.FieldCancelledAt)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *TableReservationMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *TableReservationMutation) ClearField(name string) error {
+	switch name {
+	case tablereservation.FieldTableID:
+		m.ClearTableID()
+		return nil
+	case tablereservation.FieldGuestPhone:
+		m.ClearGuestPhone()
+		return nil
+	case tablereservation.FieldGuestEmail:
+		m.ClearGuestEmail()
+		return nil
+	case tablereservation.FieldNotes:
+		m.ClearNotes()
+		return nil
+	case tablereservation.FieldSpecialRequests:
+		m.ClearSpecialRequests()
+		return nil
+	case tablereservation.FieldCancellationReason:
+		m.ClearCancellationReason()
+		return nil
+	case tablereservation.FieldConfirmedAt:
+		m.ClearConfirmedAt()
+		return nil
+	case tablereservation.FieldCheckedInAt:
+		m.ClearCheckedInAt()
+		return nil
+	case tablereservation.FieldCancelledAt:
+		m.ClearCancelledAt()
+		return nil
+	}
+	return fmt.Errorf("unknown TableReservation nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *TableReservationMutation) ResetField(name string) error {
+	switch name {
+	case tablereservation.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case tablereservation.FieldOutletID:
+		m.ResetOutletID()
+		return nil
+	case tablereservation.FieldTableID:
+		m.ResetTableID()
+		return nil
+	case tablereservation.FieldGuestName:
+		m.ResetGuestName()
+		return nil
+	case tablereservation.FieldGuestPhone:
+		m.ResetGuestPhone()
+		return nil
+	case tablereservation.FieldGuestEmail:
+		m.ResetGuestEmail()
+		return nil
+	case tablereservation.FieldPartySize:
+		m.ResetPartySize()
+		return nil
+	case tablereservation.FieldScheduledAt:
+		m.ResetScheduledAt()
+		return nil
+	case tablereservation.FieldDurationMinutes:
+		m.ResetDurationMinutes()
+		return nil
+	case tablereservation.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case tablereservation.FieldNotes:
+		m.ResetNotes()
+		return nil
+	case tablereservation.FieldSpecialRequests:
+		m.ResetSpecialRequests()
+		return nil
+	case tablereservation.FieldSource:
+		m.ResetSource()
+		return nil
+	case tablereservation.FieldCancellationReason:
+		m.ResetCancellationReason()
+		return nil
+	case tablereservation.FieldConfirmedAt:
+		m.ResetConfirmedAt()
+		return nil
+	case tablereservation.FieldCheckedInAt:
+		m.ResetCheckedInAt()
+		return nil
+	case tablereservation.FieldCancelledAt:
+		m.ResetCancelledAt()
+		return nil
+	case tablereservation.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case tablereservation.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown TableReservation field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *TableReservationMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *TableReservationMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *TableReservationMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *TableReservationMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *TableReservationMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *TableReservationMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *TableReservationMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown TableReservation unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *TableReservationMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown TableReservation edge %s", name)
 }
 
 // TenantMutation represents an operation that mutates the Tenant nodes in the graph.

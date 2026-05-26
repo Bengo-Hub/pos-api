@@ -88,6 +88,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/syncfailure"
 	"github.com/bengobox/pos-service/internal/ent/table"
 	"github.com/bengobox/pos-service/internal/ent/tableassignment"
+	"github.com/bengobox/pos-service/internal/ent/tablereservation"
 	"github.com/bengobox/pos-service/internal/ent/tenant"
 	"github.com/bengobox/pos-service/internal/ent/tenantsyncevent"
 	"github.com/bengobox/pos-service/internal/ent/tender"
@@ -2241,6 +2242,38 @@ func init() {
 	tableassignmentDescID := tableassignmentFields[0].Descriptor()
 	// tableassignment.DefaultID holds the default value on creation for the id field.
 	tableassignment.DefaultID = tableassignmentDescID.Default.(func() uuid.UUID)
+	tablereservationFields := schema.TableReservation{}.Fields()
+	_ = tablereservationFields
+	// tablereservationDescGuestName is the schema descriptor for guest_name field.
+	tablereservationDescGuestName := tablereservationFields[4].Descriptor()
+	// tablereservation.GuestNameValidator is a validator for the "guest_name" field. It is called by the builders before save.
+	tablereservation.GuestNameValidator = tablereservationDescGuestName.Validators[0].(func(string) error)
+	// tablereservationDescPartySize is the schema descriptor for party_size field.
+	tablereservationDescPartySize := tablereservationFields[7].Descriptor()
+	// tablereservation.DefaultPartySize holds the default value on creation for the party_size field.
+	tablereservation.DefaultPartySize = tablereservationDescPartySize.Default.(int)
+	// tablereservationDescDurationMinutes is the schema descriptor for duration_minutes field.
+	tablereservationDescDurationMinutes := tablereservationFields[9].Descriptor()
+	// tablereservation.DefaultDurationMinutes holds the default value on creation for the duration_minutes field.
+	tablereservation.DefaultDurationMinutes = tablereservationDescDurationMinutes.Default.(int)
+	// tablereservationDescSource is the schema descriptor for source field.
+	tablereservationDescSource := tablereservationFields[13].Descriptor()
+	// tablereservation.DefaultSource holds the default value on creation for the source field.
+	tablereservation.DefaultSource = tablereservationDescSource.Default.(string)
+	// tablereservationDescCreatedAt is the schema descriptor for created_at field.
+	tablereservationDescCreatedAt := tablereservationFields[18].Descriptor()
+	// tablereservation.DefaultCreatedAt holds the default value on creation for the created_at field.
+	tablereservation.DefaultCreatedAt = tablereservationDescCreatedAt.Default.(func() time.Time)
+	// tablereservationDescUpdatedAt is the schema descriptor for updated_at field.
+	tablereservationDescUpdatedAt := tablereservationFields[19].Descriptor()
+	// tablereservation.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	tablereservation.DefaultUpdatedAt = tablereservationDescUpdatedAt.Default.(func() time.Time)
+	// tablereservation.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	tablereservation.UpdateDefaultUpdatedAt = tablereservationDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// tablereservationDescID is the schema descriptor for id field.
+	tablereservationDescID := tablereservationFields[0].Descriptor()
+	// tablereservation.DefaultID holds the default value on creation for the id field.
+	tablereservation.DefaultID = tablereservationDescID.Default.(func() uuid.UUID)
 	tenantFields := schema.Tenant{}.Fields()
 	_ = tenantFields
 	// tenantDescName is the schema descriptor for name field.

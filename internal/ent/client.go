@@ -101,6 +101,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/syncfailure"
 	"github.com/bengobox/pos-service/internal/ent/table"
 	"github.com/bengobox/pos-service/internal/ent/tableassignment"
+	"github.com/bengobox/pos-service/internal/ent/tablereservation"
 	"github.com/bengobox/pos-service/internal/ent/tenant"
 	"github.com/bengobox/pos-service/internal/ent/tenantsyncevent"
 	"github.com/bengobox/pos-service/internal/ent/tender"
@@ -286,6 +287,8 @@ type Client struct {
 	Table *TableClient
 	// TableAssignment is the client for interacting with the TableAssignment builders.
 	TableAssignment *TableAssignmentClient
+	// TableReservation is the client for interacting with the TableReservation builders.
+	TableReservation *TableReservationClient
 	// Tenant is the client for interacting with the Tenant builders.
 	Tenant *TenantClient
 	// TenantSyncEvent is the client for interacting with the TenantSyncEvent builders.
@@ -398,6 +401,7 @@ func (c *Client) init() {
 	c.SyncFailure = NewSyncFailureClient(c.config)
 	c.Table = NewTableClient(c.config)
 	c.TableAssignment = NewTableAssignmentClient(c.config)
+	c.TableReservation = NewTableReservationClient(c.config)
 	c.Tenant = NewTenantClient(c.config)
 	c.TenantSyncEvent = NewTenantSyncEventClient(c.config)
 	c.Tender = NewTenderClient(c.config)
@@ -583,6 +587,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		SyncFailure:              NewSyncFailureClient(cfg),
 		Table:                    NewTableClient(cfg),
 		TableAssignment:          NewTableAssignmentClient(cfg),
+		TableReservation:         NewTableReservationClient(cfg),
 		Tenant:                   NewTenantClient(cfg),
 		TenantSyncEvent:          NewTenantSyncEventClient(cfg),
 		Tender:                   NewTenderClient(cfg),
@@ -695,6 +700,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		SyncFailure:              NewSyncFailureClient(cfg),
 		Table:                    NewTableClient(cfg),
 		TableAssignment:          NewTableAssignmentClient(cfg),
+		TableReservation:         NewTableReservationClient(cfg),
 		Tenant:                   NewTenantClient(cfg),
 		TenantSyncEvent:          NewTenantSyncEventClient(cfg),
 		Tender:                   NewTenderClient(cfg),
@@ -751,9 +757,10 @@ func (c *Client) Use(hooks ...Hook) {
 		c.SerialNumberLog, c.ServiceConfig, c.ServicePackage, c.ServicePackagePurchase,
 		c.ServicePackageRedemption, c.ServiceQueueEntry, c.StaffAdvance, c.StaffMember,
 		c.StaffPayroll, c.StaffPayrollLine, c.StaffSchedule, c.StockAlertSubscription,
-		c.StockConsumptionEvent, c.SyncFailure, c.Table, c.TableAssignment, c.Tenant,
-		c.TenantSyncEvent, c.Tender, c.User, c.UserPOSRole, c.WebhookDelivery,
-		c.WebhookSubscription, c.WeighingScaleReading,
+		c.StockConsumptionEvent, c.SyncFailure, c.Table, c.TableAssignment,
+		c.TableReservation, c.Tenant, c.TenantSyncEvent, c.Tender, c.User,
+		c.UserPOSRole, c.WebhookDelivery, c.WebhookSubscription,
+		c.WeighingScaleReading,
 	} {
 		n.Use(hooks...)
 	}
@@ -782,9 +789,10 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.SerialNumberLog, c.ServiceConfig, c.ServicePackage, c.ServicePackagePurchase,
 		c.ServicePackageRedemption, c.ServiceQueueEntry, c.StaffAdvance, c.StaffMember,
 		c.StaffPayroll, c.StaffPayrollLine, c.StaffSchedule, c.StockAlertSubscription,
-		c.StockConsumptionEvent, c.SyncFailure, c.Table, c.TableAssignment, c.Tenant,
-		c.TenantSyncEvent, c.Tender, c.User, c.UserPOSRole, c.WebhookDelivery,
-		c.WebhookSubscription, c.WeighingScaleReading,
+		c.StockConsumptionEvent, c.SyncFailure, c.Table, c.TableAssignment,
+		c.TableReservation, c.Tenant, c.TenantSyncEvent, c.Tender, c.User,
+		c.UserPOSRole, c.WebhookDelivery, c.WebhookSubscription,
+		c.WeighingScaleReading,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -963,6 +971,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Table.mutate(ctx, m)
 	case *TableAssignmentMutation:
 		return c.TableAssignment.mutate(ctx, m)
+	case *TableReservationMutation:
+		return c.TableReservation.mutate(ctx, m)
 	case *TenantMutation:
 		return c.Tenant.mutate(ctx, m)
 	case *TenantSyncEventMutation:
@@ -13233,6 +13243,139 @@ func (c *TableAssignmentClient) mutate(ctx context.Context, m *TableAssignmentMu
 	}
 }
 
+// TableReservationClient is a client for the TableReservation schema.
+type TableReservationClient struct {
+	config
+}
+
+// NewTableReservationClient returns a client for the TableReservation from the given config.
+func NewTableReservationClient(c config) *TableReservationClient {
+	return &TableReservationClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `tablereservation.Hooks(f(g(h())))`.
+func (c *TableReservationClient) Use(hooks ...Hook) {
+	c.hooks.TableReservation = append(c.hooks.TableReservation, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `tablereservation.Intercept(f(g(h())))`.
+func (c *TableReservationClient) Intercept(interceptors ...Interceptor) {
+	c.inters.TableReservation = append(c.inters.TableReservation, interceptors...)
+}
+
+// Create returns a builder for creating a TableReservation entity.
+func (c *TableReservationClient) Create() *TableReservationCreate {
+	mutation := newTableReservationMutation(c.config, OpCreate)
+	return &TableReservationCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of TableReservation entities.
+func (c *TableReservationClient) CreateBulk(builders ...*TableReservationCreate) *TableReservationCreateBulk {
+	return &TableReservationCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *TableReservationClient) MapCreateBulk(slice any, setFunc func(*TableReservationCreate, int)) *TableReservationCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &TableReservationCreateBulk{err: fmt.Errorf("calling to TableReservationClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*TableReservationCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &TableReservationCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for TableReservation.
+func (c *TableReservationClient) Update() *TableReservationUpdate {
+	mutation := newTableReservationMutation(c.config, OpUpdate)
+	return &TableReservationUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *TableReservationClient) UpdateOne(_m *TableReservation) *TableReservationUpdateOne {
+	mutation := newTableReservationMutation(c.config, OpUpdateOne, withTableReservation(_m))
+	return &TableReservationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *TableReservationClient) UpdateOneID(id uuid.UUID) *TableReservationUpdateOne {
+	mutation := newTableReservationMutation(c.config, OpUpdateOne, withTableReservationID(id))
+	return &TableReservationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for TableReservation.
+func (c *TableReservationClient) Delete() *TableReservationDelete {
+	mutation := newTableReservationMutation(c.config, OpDelete)
+	return &TableReservationDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *TableReservationClient) DeleteOne(_m *TableReservation) *TableReservationDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *TableReservationClient) DeleteOneID(id uuid.UUID) *TableReservationDeleteOne {
+	builder := c.Delete().Where(tablereservation.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &TableReservationDeleteOne{builder}
+}
+
+// Query returns a query builder for TableReservation.
+func (c *TableReservationClient) Query() *TableReservationQuery {
+	return &TableReservationQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeTableReservation},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a TableReservation entity by its id.
+func (c *TableReservationClient) Get(ctx context.Context, id uuid.UUID) (*TableReservation, error) {
+	return c.Query().Where(tablereservation.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *TableReservationClient) GetX(ctx context.Context, id uuid.UUID) *TableReservation {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *TableReservationClient) Hooks() []Hook {
+	return c.hooks.TableReservation
+}
+
+// Interceptors returns the client interceptors.
+func (c *TableReservationClient) Interceptors() []Interceptor {
+	return c.inters.TableReservation
+}
+
+func (c *TableReservationClient) mutate(ctx context.Context, m *TableReservationMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&TableReservationCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&TableReservationUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&TableReservationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&TableReservationDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown TableReservation mutation op: %q", m.Op())
+	}
+}
+
 // TenantClient is a client for the Tenant schema.
 type TenantClient struct {
 	config
@@ -14413,8 +14556,8 @@ type (
 		SerialNumberLog, ServiceConfig, ServicePackage, ServicePackagePurchase,
 		ServicePackageRedemption, ServiceQueueEntry, StaffAdvance, StaffMember,
 		StaffPayroll, StaffPayrollLine, StaffSchedule, StockAlertSubscription,
-		StockConsumptionEvent, SyncFailure, Table, TableAssignment, Tenant,
-		TenantSyncEvent, Tender, User, UserPOSRole, WebhookDelivery,
+		StockConsumptionEvent, SyncFailure, Table, TableAssignment, TableReservation,
+		Tenant, TenantSyncEvent, Tender, User, UserPOSRole, WebhookDelivery,
 		WebhookSubscription, WeighingScaleReading []ent.Hook
 	}
 	inters struct {
@@ -14435,8 +14578,8 @@ type (
 		SerialNumberLog, ServiceConfig, ServicePackage, ServicePackagePurchase,
 		ServicePackageRedemption, ServiceQueueEntry, StaffAdvance, StaffMember,
 		StaffPayroll, StaffPayrollLine, StaffSchedule, StockAlertSubscription,
-		StockConsumptionEvent, SyncFailure, Table, TableAssignment, Tenant,
-		TenantSyncEvent, Tender, User, UserPOSRole, WebhookDelivery,
+		StockConsumptionEvent, SyncFailure, Table, TableAssignment, TableReservation,
+		Tenant, TenantSyncEvent, Tender, User, UserPOSRole, WebhookDelivery,
 		WebhookSubscription, WeighingScaleReading []ent.Interceptor
 	}
 )

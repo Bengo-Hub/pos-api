@@ -1,4 +1,4 @@
-h1:jysSSuvx/I3ybwqyWFYsQ2zH1tH1i0x1qUwmvsPqj68=
+h1:aiZqP6SXZiFJk38ndZbpy0CLCm3l/y/VkQlQgQgh4AE=
 20260324210314_initial_schema.sql h1:L7ICP+7BHePtjHfQRRY9yP85A6Q9SyiYsqSvGK7paxA=
 20260403120000_fix_outbox_events_schema.sql h1:VNlTFTGCLBkz4+UvvvqZf5y5tyS0FfS1AXy770Ybc8o=
 20260507090905_hotel_module.sql h1:PGKqdzMQaeFLALmRXUmGsXjha3Rt42EldWJceFVNGDo=
@@ -38,3 +38,4 @@ h1:jysSSuvx/I3ybwqyWFYsQ2zH1tH1i0x1qUwmvsPqj68=
 20260525143744_hotel_amenities_housekeeping.sql h1:GrJpJUe7MsKnVBiRL0x2/q0Ew/lv0RqbYvUx3Fo/VtY=
 20260526213254_shift_close_fields.sql h1:0YEgl9+G0+zdQoyZXtXxTknbDo9hEcYqYpSxcYO+rV0=
 20260526220123_pin_fast_hash.sql h1:WAsiFg1UAuWdJX9ApssXMRaIGXtE3fD3byQrF0NjI8Q=
+20260526225012_table_reservation.sql h1:rRcmEq67FFgrfda8/oXuRifjukYnmZ61v0358GZ/NXw=

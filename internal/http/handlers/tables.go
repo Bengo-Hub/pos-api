@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -17,6 +18,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/tableassignment"
 	entposorder "github.com/bengobox/pos-service/internal/ent/posorder"
 	entposorderline "github.com/bengobox/pos-service/internal/ent/posorderline"
+	entreservation "github.com/bengobox/pos-service/internal/ent/tablereservation"
 )
 
 // slugify turns a display name into a URL-safe slug.
@@ -818,4 +820,476 @@ func (h *TableHandler) DeleteSection(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// ─── Table Reservation handlers ──────────────────────────────────────────────
+
+type reservationInput struct {
+	TableID        *string `json:"table_id"`
+	GuestName      string  `json:"guest_name"`
+	GuestPhone     *string `json:"guest_phone"`
+	GuestEmail     *string `json:"guest_email"`
+	PartySize      int     `json:"party_size"`
+	ScheduledAt    string  `json:"scheduled_at"` // RFC3339
+	DurationMins   int     `json:"duration_minutes"`
+	Notes          *string `json:"notes"`
+	SpecialRequest *string `json:"special_requests"`
+	Source         string  `json:"source"`
+	OutletID       string  `json:"outlet_id"`
+}
+
+// CreateReservation handles POST /{tenantID}/pos/reservations
+func (h *TableHandler) CreateReservation(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+
+	var inp reservationInput
+	if err := json.NewDecoder(r.Body).Decode(&inp); err != nil {
+		jsonError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if strings.TrimSpace(inp.GuestName) == "" {
+		jsonError(w, "guest_name is required", http.StatusBadRequest)
+		return
+	}
+	if inp.PartySize < 1 {
+		inp.PartySize = 1
+	}
+	scheduledAt, err := time.Parse(time.RFC3339, inp.ScheduledAt)
+	if err != nil {
+		jsonError(w, "scheduled_at must be RFC3339", http.StatusBadRequest)
+		return
+	}
+	if scheduledAt.Before(time.Now()) {
+		jsonError(w, "scheduled_at must be in the future", http.StatusBadRequest)
+		return
+	}
+
+	outletID, err := uuid.Parse(inp.OutletID)
+	if err != nil {
+		jsonError(w, "invalid outlet_id", http.StatusBadRequest)
+		return
+	}
+
+	dur := inp.DurationMins
+	if dur <= 0 {
+		dur = 90
+	}
+	source := inp.Source
+	if source == "" {
+		source = "online_widget"
+	}
+
+	q := h.client.TableReservation.Create().
+		SetTenantID(tid).
+		SetOutletID(outletID).
+		SetGuestName(inp.GuestName).
+		SetPartySize(inp.PartySize).
+		SetScheduledAt(scheduledAt).
+		SetDurationMinutes(dur).
+		SetSource(source)
+
+	if inp.TableID != nil {
+		if tbid, err2 := uuid.Parse(*inp.TableID); err2 == nil {
+			q.SetTableID(tbid)
+		}
+	}
+	if inp.GuestPhone != nil {
+		q.SetGuestPhone(*inp.GuestPhone)
+	}
+	if inp.GuestEmail != nil {
+		q.SetGuestEmail(*inp.GuestEmail)
+	}
+	if inp.Notes != nil {
+		q.SetNotes(*inp.Notes)
+	}
+	if inp.SpecialRequest != nil {
+		q.SetSpecialRequests(*inp.SpecialRequest)
+	}
+
+	res, err := q.Save(r.Context())
+	if err != nil {
+		h.log.Error("create reservation", zap.Error(err))
+		jsonError(w, "failed to create reservation", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	jsonOK(w, res)
+}
+
+// ListReservations handles GET /{tenantID}/pos/reservations
+func (h *TableHandler) ListReservations(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+
+	q := h.client.TableReservation.Query().
+		Where(entreservation.TenantID(tid)).
+		Order(ent.Asc(entreservation.FieldScheduledAt))
+
+	if dateStr := r.URL.Query().Get("date"); dateStr != "" {
+		day, err := time.Parse("2006-01-02", dateStr)
+		if err == nil {
+			start := time.Date(day.Year(), day.Month(), day.Day(), 0, 0, 0, 0, time.UTC)
+			end := start.Add(24 * time.Hour)
+			q = q.Where(
+				entreservation.ScheduledAtGTE(start),
+				entreservation.ScheduledAtLT(end),
+			)
+		}
+	}
+	if status := r.URL.Query().Get("status"); status != "" {
+		q = q.Where(entreservation.StatusEQ(entreservation.Status(status)))
+	}
+	if outletStr := r.URL.Query().Get("outlet_id"); outletStr != "" {
+		if oid, err := uuid.Parse(outletStr); err == nil {
+			q = q.Where(entreservation.OutletID(oid))
+		}
+	}
+	if tableStr := r.URL.Query().Get("table_id"); tableStr != "" {
+		if tbid, err := uuid.Parse(tableStr); err == nil {
+			q = q.Where(entreservation.TableIDEQ(tbid))
+		}
+	}
+
+	reservations, err := q.All(r.Context())
+	if err != nil {
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	jsonOK(w, map[string]any{"data": reservations, "total": len(reservations)})
+}
+
+// GetReservation handles GET /{tenantID}/pos/reservations/{id}
+func (h *TableHandler) GetReservation(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+	resID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		jsonError(w, "invalid id", http.StatusBadRequest)
+		return
+	}
+	res, err := h.client.TableReservation.Query().
+		Where(entreservation.ID(resID), entreservation.TenantID(tid)).
+		Only(r.Context())
+	if err != nil {
+		jsonError(w, "reservation not found", http.StatusNotFound)
+		return
+	}
+	jsonOK(w, res)
+}
+
+// UpdateReservation handles PATCH /{tenantID}/pos/reservations/{id}
+func (h *TableHandler) UpdateReservation(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+	resID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		jsonError(w, "invalid id", http.StatusBadRequest)
+		return
+	}
+
+	var inp struct {
+		GuestName      *string `json:"guest_name"`
+		GuestPhone     *string `json:"guest_phone"`
+		GuestEmail     *string `json:"guest_email"`
+		PartySize      *int    `json:"party_size"`
+		ScheduledAt    *string `json:"scheduled_at"`
+		DurationMins   *int    `json:"duration_minutes"`
+		Notes          *string `json:"notes"`
+		SpecialRequest *string `json:"special_requests"`
+		TableID        *string `json:"table_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&inp); err != nil {
+		jsonError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	upd := h.client.TableReservation.UpdateOneID(resID).
+		Where(entreservation.TenantID(tid))
+
+	if inp.GuestName != nil {
+		upd.SetGuestName(*inp.GuestName)
+	}
+	if inp.GuestPhone != nil {
+		upd.SetGuestPhone(*inp.GuestPhone)
+	}
+	if inp.GuestEmail != nil {
+		upd.SetGuestEmail(*inp.GuestEmail)
+	}
+	if inp.PartySize != nil {
+		upd.SetPartySize(*inp.PartySize)
+	}
+	if inp.ScheduledAt != nil {
+		if t, err := time.Parse(time.RFC3339, *inp.ScheduledAt); err == nil {
+			upd.SetScheduledAt(t)
+		}
+	}
+	if inp.DurationMins != nil {
+		upd.SetDurationMinutes(*inp.DurationMins)
+	}
+	if inp.Notes != nil {
+		upd.SetNotes(*inp.Notes)
+	}
+	if inp.SpecialRequest != nil {
+		upd.SetSpecialRequests(*inp.SpecialRequest)
+	}
+	if inp.TableID != nil {
+		if tbid, err := uuid.Parse(*inp.TableID); err == nil {
+			upd.SetTableID(tbid)
+		}
+	}
+
+	res, err := upd.Save(r.Context())
+	if err != nil {
+		jsonError(w, "failed to update reservation", http.StatusInternalServerError)
+		return
+	}
+	jsonOK(w, res)
+}
+
+// ConfirmReservation handles POST /{tenantID}/pos/reservations/{id}/confirm
+func (h *TableHandler) ConfirmReservation(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+	resID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		jsonError(w, "invalid id", http.StatusBadRequest)
+		return
+	}
+
+	var inp struct {
+		TableID *string `json:"table_id"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&inp)
+
+	upd := h.client.TableReservation.UpdateOneID(resID).
+		Where(entreservation.TenantID(tid)).
+		SetStatus("confirmed").
+		SetConfirmedAt(time.Now())
+
+	if inp.TableID != nil {
+		if tbid, err := uuid.Parse(*inp.TableID); err == nil {
+			upd.SetTableID(tbid)
+			h.client.Table.UpdateOneID(tbid).
+				Where(enttable.TenantID(tid)).
+				SetStatus("reserved").
+				SaveX(r.Context())
+		}
+	}
+
+	res, err := upd.Save(r.Context())
+	if err != nil {
+		jsonError(w, "failed to confirm reservation", http.StatusInternalServerError)
+		return
+	}
+	jsonOK(w, res)
+}
+
+// CheckInReservation handles POST /{tenantID}/pos/reservations/{id}/check-in
+func (h *TableHandler) CheckInReservation(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+	resID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		jsonError(w, "invalid id", http.StatusBadRequest)
+		return
+	}
+
+	res, err := h.client.TableReservation.Query().
+		Where(entreservation.ID(resID), entreservation.TenantID(tid)).
+		Only(r.Context())
+	if err != nil {
+		jsonError(w, "reservation not found", http.StatusNotFound)
+		return
+	}
+
+	upd := h.client.TableReservation.UpdateOneID(resID).
+		SetStatus("checked_in").
+		SetCheckedInAt(time.Now())
+
+	if res.TableID != nil {
+		h.client.Table.UpdateOneID(*res.TableID).
+			Where(enttable.TenantID(tid)).
+			SetStatus("occupied").
+			SaveX(r.Context())
+	}
+
+	updated, err := upd.Save(r.Context())
+	if err != nil {
+		jsonError(w, "failed to check in", http.StatusInternalServerError)
+		return
+	}
+	jsonOK(w, updated)
+}
+
+// CancelReservation handles POST /{tenantID}/pos/reservations/{id}/cancel
+func (h *TableHandler) CancelReservation(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+	resID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		jsonError(w, "invalid id", http.StatusBadRequest)
+		return
+	}
+
+	var inp struct {
+		Reason *string `json:"reason"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&inp)
+
+	res, err := h.client.TableReservation.Query().
+		Where(entreservation.ID(resID), entreservation.TenantID(tid)).
+		Only(r.Context())
+	if err != nil {
+		jsonError(w, "reservation not found", http.StatusNotFound)
+		return
+	}
+
+	if res.TableID != nil {
+		h.client.Table.UpdateOneID(*res.TableID).
+			Where(enttable.TenantID(tid)).
+			SetStatus("available").
+			SaveX(r.Context())
+	}
+
+	upd := h.client.TableReservation.UpdateOneID(resID).
+		Where(entreservation.TenantID(tid)).
+		SetStatus("cancelled").
+		SetCancelledAt(time.Now())
+	if inp.Reason != nil {
+		upd.SetCancellationReason(*inp.Reason)
+	}
+
+	updated, err := upd.Save(r.Context())
+	if err != nil {
+		jsonError(w, "failed to cancel reservation", http.StatusInternalServerError)
+		return
+	}
+	jsonOK(w, updated)
+}
+
+// GetAvailableSlots handles GET /{tenantID}/pos/reservations/available
+// Query: date=YYYY-MM-DD, party_size=N, outlet_id=UUID
+// Returns tables and their booked time slots for the requested date.
+func (h *TableHandler) GetAvailableSlots(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+
+	dateStr := r.URL.Query().Get("date")
+	if dateStr == "" {
+		dateStr = time.Now().Format("2006-01-02")
+	}
+	day, err := time.Parse("2006-01-02", dateStr)
+	if err != nil {
+		jsonError(w, "date must be YYYY-MM-DD", http.StatusBadRequest)
+		return
+	}
+	dayStart := time.Date(day.Year(), day.Month(), day.Day(), 0, 0, 0, 0, time.UTC)
+	dayEnd := dayStart.Add(24 * time.Hour)
+
+	partySize := 1
+	if ps := r.URL.Query().Get("party_size"); ps != "" {
+		fmt.Sscanf(ps, "%d", &partySize)
+	}
+
+	tq := h.client.Table.Query().
+		Where(enttable.TenantID(tid), enttable.CapacityGTE(partySize))
+	if outletStr := r.URL.Query().Get("outlet_id"); outletStr != "" {
+		if oid, err := uuid.Parse(outletStr); err == nil {
+			tq = tq.Where(enttable.OutletID(oid))
+		}
+	}
+	tables, err := tq.All(r.Context())
+	if err != nil {
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	reservations, err := h.client.TableReservation.Query().
+		Where(
+			entreservation.TenantID(tid),
+			entreservation.ScheduledAtGTE(dayStart),
+			entreservation.ScheduledAtLT(dayEnd),
+			entreservation.StatusNEQ("cancelled"),
+		).
+		All(r.Context())
+	if err != nil {
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	type slot struct {
+		Start    time.Time `json:"start"`
+		End      time.Time `json:"end"`
+		Duration int       `json:"duration_minutes"`
+	}
+	bookedSlots := map[uuid.UUID][]slot{}
+	for _, res := range reservations {
+		if res.TableID == nil {
+			continue
+		}
+		bookedSlots[*res.TableID] = append(bookedSlots[*res.TableID], slot{
+			Start:    res.ScheduledAt,
+			End:      res.ScheduledAt.Add(time.Duration(res.DurationMinutes) * time.Minute),
+			Duration: res.DurationMinutes,
+		})
+	}
+
+	type tableAvail struct {
+		ID          uuid.UUID `json:"id"`
+		Name        string    `json:"name"`
+		Capacity    int       `json:"capacity"`
+		TableType   string    `json:"table_type"`
+		Status      string    `json:"status"`
+		Tags        []string  `json:"tags"`
+		BookedSlots []slot    `json:"booked_slots"`
+	}
+	result := make([]tableAvail, 0, len(tables))
+	for _, t := range tables {
+		tags := t.Tags
+		if tags == nil {
+			tags = []string{}
+		}
+		bs := bookedSlots[t.ID]
+		if bs == nil {
+			bs = []slot{}
+		}
+		result = append(result, tableAvail{
+			ID:          t.ID,
+			Name:        t.Name,
+			Capacity:    t.Capacity,
+			TableType:   string(t.TableType),
+			Status:      t.Status,
+			Tags:        tags,
+			BookedSlots: bs,
+		})
+	}
+
+	jsonOK(w, map[string]any{"date": dateStr, "tables": result})
 }
