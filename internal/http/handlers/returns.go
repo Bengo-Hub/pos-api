@@ -201,8 +201,15 @@ func (h *ReturnHandler) ListReturns(w http.ResponseWriter, r *http.Request) {
 		Order(ent.Desc(posreturn.FieldCreatedAt)).
 		Limit(50)
 
-	if status := r.URL.Query().Get("status"); status != "" {
+	urlq := r.URL.Query()
+	if status := urlq.Get("status"); status != "" {
 		q = q.Where(posreturn.StatusEQ(posreturn.Status(status)))
+	}
+	// staff_id scopes to returns requested by a specific staff member (view_own roles).
+	if staffIDStr := urlq.Get("staff_id"); staffIDStr != "" {
+		if staffUID, err := uuid.Parse(staffIDStr); err == nil {
+			q = q.Where(posreturn.RequestedBy(staffUID))
+		}
 	}
 
 	returns, err := q.All(r.Context())

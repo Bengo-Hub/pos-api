@@ -82,6 +82,12 @@ func (h *POSOrderHandler) ListOrders(w http.ResponseWriter, r *http.Request) {
 	if status := q.Get("status"); status != "" {
 		filters = append(filters, posorder.Status(status))
 	}
+	// staff_id scopes the list to orders created by a specific staff member (view_own roles).
+	if staffIDStr := q.Get("staff_id"); staffIDStr != "" {
+		if staffUID, err := uuid.Parse(staffIDStr); err == nil {
+			filters = append(filters, posorder.UserID(staffUID))
+		}
+	}
 
 	orders, err := h.client.POSOrder.Query().
 		Where(filters...).

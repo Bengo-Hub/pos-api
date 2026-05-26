@@ -140,6 +140,9 @@ func runSeed(ctx context.Context, client *ent.Client, tenantID uuid.UUID, tc ten
 	}
 
 	if tc.seedStaff {
+		if err := cleanupExtraStaffMembers(ctx, client, tenantID); err != nil {
+			log.Printf("  ⚠️  cleanup extra staff: %v", err)
+		}
 		if err := seedStaffMembers(ctx, client, tenantID, hqOutletID); err != nil {
 			return fmt.Errorf("seed staff members: %w", err)
 		}
@@ -1038,6 +1041,50 @@ func seedStaffMembers(ctx context.Context, client *ent.Client, tenantID, outletI
 			log.Printf("  ✓ Staff seeded: %s (%s) [PIN=1234]", s.name, s.role)
 		}
 	}
+	return nil
+}
+
+// cleanupExtraStaffMembers removes staff members not in the canonical demo list.
+// This prevents E2E tests or manual inserts from accumulating phantom users.
+func cleanupExtraStaffMembers(ctx context.Context, client *ent.Client, tenantID uuid.UUID) error {
+	canonical := map[string]bool{
+		"Alice Manager":      true,
+		"Bob Cashier":        true,
+		"Carol Waiter":       true,
+		"David Kitchen":      true,
+		"Eve Bartender":      true,
+		"Frank Receptionist": true,
+		"Grace Pharmacist":   true,
+		"Hannah Stylist":     true,
+		"Ian Therapist":      true,
+		"Jane Technician":    true,
+	}
+
+	all, err := client.StaffMember.Query().
+		Where(entstaff.TenantID(tenantID)).
+		All(ctx)
+	if err != nil {
+		return fmt.Errorf("query staff: %w", err)
+	}
+
+	var toDelete []uuid.UUID
+	for _, s := range all {
+		if !canonical[s.Name] {
+			toDelete = append(toDelete, s.ID)
+		}
+	}
+
+	if len(toDelete) == 0 {
+		return nil
+	}
+
+	deleted, err := client.StaffMember.Delete().
+		Where(entstaff.IDIn(toDelete...)).
+		Exec(ctx)
+	if err != nil {
+		return fmt.Errorf("delete extra staff: %w", err)
+	}
+	log.Printf("  🗑  Removed %d non-canonical staff member(s)", deleted)
 	return nil
 }
 
