@@ -67,6 +67,7 @@ func New(
 	channels *handlers.ChannelHandler,
 	print *handlers.PrintHandler,
 	payroll *handlers.PayrollHandler,
+	staffAdmin *handlers.StaffHandler,
 	allowedOrigins []string,
 	redisClient *redis.Client,
 ) http.Handler {
@@ -117,6 +118,7 @@ func New(
 			if pinAuth != nil {
 				pub.Get("/{tenantID}/pos/staff", pinAuth.ListStaff)
 				pub.Post("/{tenantID}/pos/auth/pin", pinAuth.Login)
+				pub.Post("/{tenantID}/pos/auth/pin/identify", pinAuth.IdentifyByPIN)
 				pub.Get("/{tenantID}/pos/auth/pin/profile", pinAuth.StaffProfiles)
 			}
 			if publicOutlet != nil {
@@ -315,6 +317,15 @@ func New(
 					if pinAuth != nil {
 						pos.Post("/auth/pin/set", pinAuth.SetPIN)
 						pos.Get("/auth/me", pinAuth.AuthMe)
+					}
+
+					// Staff admin CRUD (requires STAFF_MANAGE permission — enforced client-side;
+					// server-side role boundary enforced in the handler itself).
+					if staffAdmin != nil {
+						pos.Get("/staff/admin", staffAdmin.ListStaffForAdmin)
+						pos.Post("/staff", staffAdmin.CreateStaff)
+						pos.Patch("/staff/{staffID}", staffAdmin.UpdateStaff)
+						pos.Post("/staff/{staffID}/deactivate", staffAdmin.DeactivateStaff)
 					}
 
 					// KDS — hospitality and quick_service only; outlet must have enable_kds=true

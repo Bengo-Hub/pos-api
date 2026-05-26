@@ -73551,6 +73551,7 @@ type StaffMemberMutation struct {
 	bank_account_number    *string
 	bank_name              *string
 	pin_hash               *string
+	pin_fast_hash          *string
 	pin_failed_attempts    *int
 	addpin_failed_attempts *int
 	pin_locked_until       *time.Time
@@ -74521,6 +74522,55 @@ func (m *StaffMemberMutation) ResetPinHash() {
 	delete(m.clearedFields, staffmember.FieldPinHash)
 }
 
+// SetPinFastHash sets the "pin_fast_hash" field.
+func (m *StaffMemberMutation) SetPinFastHash(s string) {
+	m.pin_fast_hash = &s
+}
+
+// PinFastHash returns the value of the "pin_fast_hash" field in the mutation.
+func (m *StaffMemberMutation) PinFastHash() (r string, exists bool) {
+	v := m.pin_fast_hash
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPinFastHash returns the old "pin_fast_hash" field's value of the StaffMember entity.
+// If the StaffMember object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffMemberMutation) OldPinFastHash(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPinFastHash is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPinFastHash requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPinFastHash: %w", err)
+	}
+	return oldValue.PinFastHash, nil
+}
+
+// ClearPinFastHash clears the value of the "pin_fast_hash" field.
+func (m *StaffMemberMutation) ClearPinFastHash() {
+	m.pin_fast_hash = nil
+	m.clearedFields[staffmember.FieldPinFastHash] = struct{}{}
+}
+
+// PinFastHashCleared returns if the "pin_fast_hash" field was cleared in this mutation.
+func (m *StaffMemberMutation) PinFastHashCleared() bool {
+	_, ok := m.clearedFields[staffmember.FieldPinFastHash]
+	return ok
+}
+
+// ResetPinFastHash resets all changes to the "pin_fast_hash" field.
+func (m *StaffMemberMutation) ResetPinFastHash() {
+	m.pin_fast_hash = nil
+	delete(m.clearedFields, staffmember.FieldPinFastHash)
+}
+
 // SetPinFailedAttempts sets the "pin_failed_attempts" field.
 func (m *StaffMemberMutation) SetPinFailedAttempts(i int) {
 	m.pin_failed_attempts = &i
@@ -74732,7 +74782,7 @@ func (m *StaffMemberMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *StaffMemberMutation) Fields() []string {
-	fields := make([]string, 0, 21)
+	fields := make([]string, 0, 22)
 	if m.tenant_id != nil {
 		fields = append(fields, staffmember.FieldTenantID)
 	}
@@ -74783,6 +74833,9 @@ func (m *StaffMemberMutation) Fields() []string {
 	}
 	if m.pin_hash != nil {
 		fields = append(fields, staffmember.FieldPinHash)
+	}
+	if m.pin_fast_hash != nil {
+		fields = append(fields, staffmember.FieldPinFastHash)
 	}
 	if m.pin_failed_attempts != nil {
 		fields = append(fields, staffmember.FieldPinFailedAttempts)
@@ -74838,6 +74891,8 @@ func (m *StaffMemberMutation) Field(name string) (ent.Value, bool) {
 		return m.BankName()
 	case staffmember.FieldPinHash:
 		return m.PinHash()
+	case staffmember.FieldPinFastHash:
+		return m.PinFastHash()
 	case staffmember.FieldPinFailedAttempts:
 		return m.PinFailedAttempts()
 	case staffmember.FieldPinLockedUntil:
@@ -74889,6 +74944,8 @@ func (m *StaffMemberMutation) OldField(ctx context.Context, name string) (ent.Va
 		return m.OldBankName(ctx)
 	case staffmember.FieldPinHash:
 		return m.OldPinHash(ctx)
+	case staffmember.FieldPinFastHash:
+		return m.OldPinFastHash(ctx)
 	case staffmember.FieldPinFailedAttempts:
 		return m.OldPinFailedAttempts(ctx)
 	case staffmember.FieldPinLockedUntil:
@@ -75024,6 +75081,13 @@ func (m *StaffMemberMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetPinHash(v)
+		return nil
+	case staffmember.FieldPinFastHash:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPinFastHash(v)
 		return nil
 	case staffmember.FieldPinFailedAttempts:
 		v, ok := value.(int)
@@ -75179,6 +75243,9 @@ func (m *StaffMemberMutation) ClearedFields() []string {
 	if m.FieldCleared(staffmember.FieldPinHash) {
 		fields = append(fields, staffmember.FieldPinHash)
 	}
+	if m.FieldCleared(staffmember.FieldPinFastHash) {
+		fields = append(fields, staffmember.FieldPinFastHash)
+	}
 	if m.FieldCleared(staffmember.FieldPinLockedUntil) {
 		fields = append(fields, staffmember.FieldPinLockedUntil)
 	}
@@ -75228,6 +75295,9 @@ func (m *StaffMemberMutation) ClearField(name string) error {
 		return nil
 	case staffmember.FieldPinHash:
 		m.ClearPinHash()
+		return nil
+	case staffmember.FieldPinFastHash:
+		m.ClearPinFastHash()
 		return nil
 	case staffmember.FieldPinLockedUntil:
 		m.ClearPinLockedUntil()
@@ -75290,6 +75360,9 @@ func (m *StaffMemberMutation) ResetField(name string) error {
 		return nil
 	case staffmember.FieldPinHash:
 		m.ResetPinHash()
+		return nil
+	case staffmember.FieldPinFastHash:
+		m.ResetPinFastHash()
 		return nil
 	case staffmember.FieldPinFailedAttempts:
 		m.ResetPinFailedAttempts()

@@ -352,6 +352,26 @@ func (_u *StaffMemberUpdate) ClearPinHash() *StaffMemberUpdate {
 	return _u
 }
 
+// SetPinFastHash sets the "pin_fast_hash" field.
+func (_u *StaffMemberUpdate) SetPinFastHash(v string) *StaffMemberUpdate {
+	_u.mutation.SetPinFastHash(v)
+	return _u
+}
+
+// SetNillablePinFastHash sets the "pin_fast_hash" field if the given value is not nil.
+func (_u *StaffMemberUpdate) SetNillablePinFastHash(v *string) *StaffMemberUpdate {
+	if v != nil {
+		_u.SetPinFastHash(*v)
+	}
+	return _u
+}
+
+// ClearPinFastHash clears the value of the "pin_fast_hash" field.
+func (_u *StaffMemberUpdate) ClearPinFastHash() *StaffMemberUpdate {
+	_u.mutation.ClearPinFastHash()
+	return _u
+}
+
 // SetPinFailedAttempts sets the "pin_failed_attempts" field.
 func (_u *StaffMemberUpdate) SetPinFailedAttempts(v int) *StaffMemberUpdate {
 	_u.mutation.ResetPinFailedAttempts()
@@ -567,6 +587,12 @@ func (_u *StaffMemberUpdate) sqlSave(ctx context.Context) (_node int, err error)
 	}
 	if _u.mutation.PinHashCleared() {
 		_spec.ClearField(staffmember.FieldPinHash, field.TypeString)
+	}
+	if value, ok := _u.mutation.PinFastHash(); ok {
+		_spec.SetField(staffmember.FieldPinFastHash, field.TypeString, value)
+	}
+	if _u.mutation.PinFastHashCleared() {
+		_spec.ClearField(staffmember.FieldPinFastHash, field.TypeString)
 	}
 	if value, ok := _u.mutation.PinFailedAttempts(); ok {
 		_spec.SetField(staffmember.FieldPinFailedAttempts, field.TypeInt, value)
@@ -925,6 +951,26 @@ func (_u *StaffMemberUpdateOne) ClearPinHash() *StaffMemberUpdateOne {
 	return _u
 }
 
+// SetPinFastHash sets the "pin_fast_hash" field.
+func (_u *StaffMemberUpdateOne) SetPinFastHash(v string) *StaffMemberUpdateOne {
+	_u.mutation.SetPinFastHash(v)
+	return _u
+}
+
+// SetNillablePinFastHash sets the "pin_fast_hash" field if the given value is not nil.
+func (_u *StaffMemberUpdateOne) SetNillablePinFastHash(v *string) *StaffMemberUpdateOne {
+	if v != nil {
+		_u.SetPinFastHash(*v)
+	}
+	return _u
+}
+
+// ClearPinFastHash clears the value of the "pin_fast_hash" field.
+func (_u *StaffMemberUpdateOne) ClearPinFastHash() *StaffMemberUpdateOne {
+	_u.mutation.ClearPinFastHash()
+	return _u
+}
+
 // SetPinFailedAttempts sets the "pin_failed_attempts" field.
 func (_u *StaffMemberUpdateOne) SetPinFailedAttempts(v int) *StaffMemberUpdateOne {
 	_u.mutation.ResetPinFailedAttempts()
@@ -1170,6 +1216,12 @@ func (_u *StaffMemberUpdateOne) sqlSave(ctx context.Context) (_node *StaffMember
 	}
 	if _u.mutation.PinHashCleared() {
 		_spec.ClearField(staffmember.FieldPinHash, field.TypeString)
+	}
+	if value, ok := _u.mutation.PinFastHash(); ok {
+		_spec.SetField(staffmember.FieldPinFastHash, field.TypeString, value)
+	}
+	if _u.mutation.PinFastHashCleared() {
+		_spec.ClearField(staffmember.FieldPinFastHash, field.TypeString)
 	}
 	if value, ok := _u.mutation.PinFailedAttempts(); ok {
 		_spec.SetField(staffmember.FieldPinFailedAttempts, field.TypeInt, value)

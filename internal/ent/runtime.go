@@ -2072,15 +2072,15 @@ func init() {
 	// staffmember.DefaultRole holds the default value on creation for the role field.
 	staffmember.DefaultRole = staffmemberDescRole.Default.(string)
 	// staffmemberDescPinFailedAttempts is the schema descriptor for pin_failed_attempts field.
-	staffmemberDescPinFailedAttempts := staffmemberFields[18].Descriptor()
+	staffmemberDescPinFailedAttempts := staffmemberFields[19].Descriptor()
 	// staffmember.DefaultPinFailedAttempts holds the default value on creation for the pin_failed_attempts field.
 	staffmember.DefaultPinFailedAttempts = staffmemberDescPinFailedAttempts.Default.(int)
 	// staffmemberDescCreatedAt is the schema descriptor for created_at field.
-	staffmemberDescCreatedAt := staffmemberFields[20].Descriptor()
+	staffmemberDescCreatedAt := staffmemberFields[21].Descriptor()
 	// staffmember.DefaultCreatedAt holds the default value on creation for the created_at field.
 	staffmember.DefaultCreatedAt = staffmemberDescCreatedAt.Default.(func() time.Time)
 	// staffmemberDescUpdatedAt is the schema descriptor for updated_at field.
-	staffmemberDescUpdatedAt := staffmemberFields[21].Descriptor()
+	staffmemberDescUpdatedAt := staffmemberFields[22].Descriptor()
 	// staffmember.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	staffmember.DefaultUpdatedAt = staffmemberDescUpdatedAt.Default.(func() time.Time)
 	// staffmember.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

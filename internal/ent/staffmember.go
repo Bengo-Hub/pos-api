@@ -53,6 +53,8 @@ type StaffMember struct {
 	BankName *string `json:"bank_name,omitempty"`
 	// PinHash holds the value of the "pin_hash" field.
 	PinHash *string `json:"-"`
+	// PinFastHash holds the value of the "pin_fast_hash" field.
+	PinFastHash *string `json:"-"`
 	// PinFailedAttempts holds the value of the "pin_failed_attempts" field.
 	PinFailedAttempts int `json:"pin_failed_attempts,omitempty"`
 	// PinLockedUntil holds the value of the "pin_locked_until" field.
@@ -77,7 +79,7 @@ func (*StaffMember) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullFloat64)
 		case staffmember.FieldPinFailedAttempts:
 			values[i] = new(sql.NullInt64)
-		case staffmember.FieldName, staffmember.FieldRole, staffmember.FieldEmploymentType, staffmember.FieldMpesaPhone, staffmember.FieldBankAccountNumber, staffmember.FieldBankName, staffmember.FieldPinHash:
+		case staffmember.FieldName, staffmember.FieldRole, staffmember.FieldEmploymentType, staffmember.FieldMpesaPhone, staffmember.FieldBankAccountNumber, staffmember.FieldBankName, staffmember.FieldPinHash, staffmember.FieldPinFastHash:
 			values[i] = new(sql.NullString)
 		case staffmember.FieldPinLockedUntil, staffmember.FieldCreatedAt, staffmember.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -218,6 +220,13 @@ func (_m *StaffMember) assignValues(columns []string, values []any) error {
 				_m.PinHash = new(string)
 				*_m.PinHash = value.String
 			}
+		case staffmember.FieldPinFastHash:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field pin_fast_hash", values[i])
+			} else if value.Valid {
+				_m.PinFastHash = new(string)
+				*_m.PinFastHash = value.String
+			}
 		case staffmember.FieldPinFailedAttempts:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
 				return fmt.Errorf("unexpected type %T for field pin_failed_attempts", values[i])
@@ -342,6 +351,8 @@ func (_m *StaffMember) String() string {
 	}
 	builder.WriteString(", ")
 	builder.WriteString("pin_hash=<sensitive>")
+	builder.WriteString(", ")
+	builder.WriteString("pin_fast_hash=<sensitive>")
 	builder.WriteString(", ")
 	builder.WriteString("pin_failed_attempts=")
 	builder.WriteString(fmt.Sprintf("%v", _m.PinFailedAttempts))

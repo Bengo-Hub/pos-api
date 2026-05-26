@@ -49,6 +49,8 @@ const (
 	FieldBankName = "bank_name"
 	// FieldPinHash holds the string denoting the pin_hash field in the database.
 	FieldPinHash = "pin_hash"
+	// FieldPinFastHash holds the string denoting the pin_fast_hash field in the database.
+	FieldPinFastHash = "pin_fast_hash"
 	// FieldPinFailedAttempts holds the string denoting the pin_failed_attempts field in the database.
 	FieldPinFailedAttempts = "pin_failed_attempts"
 	// FieldPinLockedUntil holds the string denoting the pin_locked_until field in the database.
@@ -81,6 +83,7 @@ var Columns = []string{
 	FieldBankAccountNumber,
 	FieldBankName,
 	FieldPinHash,
+	FieldPinFastHash,
 	FieldPinFailedAttempts,
 	FieldPinLockedUntil,
 	FieldCreatedAt,
@@ -225,6 +228,11 @@ func ByBankName(opts ...sql.OrderTermOption) OrderOption {
 // ByPinHash orders the results by the pin_hash field.
 func ByPinHash(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldPinHash, opts...).ToFunc()
+}
+
+// ByPinFastHash orders the results by the pin_fast_hash field.
+func ByPinFastHash(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPinFastHash, opts...).ToFunc()
 }
 
 // ByPinFailedAttempts orders the results by the pin_failed_attempts field.

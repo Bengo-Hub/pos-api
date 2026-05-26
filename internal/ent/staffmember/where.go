@@ -125,6 +125,11 @@ func PinHash(v string) predicate.StaffMember {
 	return predicate.StaffMember(sql.FieldEQ(FieldPinHash, v))
 }
 
+// PinFastHash applies equality check predicate on the "pin_fast_hash" field. It's identical to PinFastHashEQ.
+func PinFastHash(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldEQ(FieldPinFastHash, v))
+}
+
 // PinFailedAttempts applies equality check predicate on the "pin_failed_attempts" field. It's identical to PinFailedAttemptsEQ.
 func PinFailedAttempts(v int) predicate.StaffMember {
 	return predicate.StaffMember(sql.FieldEQ(FieldPinFailedAttempts, v))
@@ -953,6 +958,81 @@ func PinHashEqualFold(v string) predicate.StaffMember {
 // PinHashContainsFold applies the ContainsFold predicate on the "pin_hash" field.
 func PinHashContainsFold(v string) predicate.StaffMember {
 	return predicate.StaffMember(sql.FieldContainsFold(FieldPinHash, v))
+}
+
+// PinFastHashEQ applies the EQ predicate on the "pin_fast_hash" field.
+func PinFastHashEQ(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldEQ(FieldPinFastHash, v))
+}
+
+// PinFastHashNEQ applies the NEQ predicate on the "pin_fast_hash" field.
+func PinFastHashNEQ(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldNEQ(FieldPinFastHash, v))
+}
+
+// PinFastHashIn applies the In predicate on the "pin_fast_hash" field.
+func PinFastHashIn(vs ...string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldIn(FieldPinFastHash, vs...))
+}
+
+// PinFastHashNotIn applies the NotIn predicate on the "pin_fast_hash" field.
+func PinFastHashNotIn(vs ...string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldNotIn(FieldPinFastHash, vs...))
+}
+
+// PinFastHashGT applies the GT predicate on the "pin_fast_hash" field.
+func PinFastHashGT(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldGT(FieldPinFastHash, v))
+}
+
+// PinFastHashGTE applies the GTE predicate on the "pin_fast_hash" field.
+func PinFastHashGTE(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldGTE(FieldPinFastHash, v))
+}
+
+// PinFastHashLT applies the LT predicate on the "pin_fast_hash" field.
+func PinFastHashLT(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldLT(FieldPinFastHash, v))
+}
+
+// PinFastHashLTE applies the LTE predicate on the "pin_fast_hash" field.
+func PinFastHashLTE(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldLTE(FieldPinFastHash, v))
+}
+
+// PinFastHashContains applies the Contains predicate on the "pin_fast_hash" field.
+func PinFastHashContains(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldContains(FieldPinFastHash, v))
+}
+
+// PinFastHashHasPrefix applies the HasPrefix predicate on the "pin_fast_hash" field.
+func PinFastHashHasPrefix(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldHasPrefix(FieldPinFastHash, v))
+}
+
+// PinFastHashHasSuffix applies the HasSuffix predicate on the "pin_fast_hash" field.
+func PinFastHashHasSuffix(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldHasSuffix(FieldPinFastHash, v))
+}
+
+// PinFastHashIsNil applies the IsNil predicate on the "pin_fast_hash" field.
+func PinFastHashIsNil() predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldIsNull(FieldPinFastHash))
+}
+
+// PinFastHashNotNil applies the NotNil predicate on the "pin_fast_hash" field.
+func PinFastHashNotNil() predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldNotNull(FieldPinFastHash))
+}
+
+// PinFastHashEqualFold applies the EqualFold predicate on the "pin_fast_hash" field.
+func PinFastHashEqualFold(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldEqualFold(FieldPinFastHash, v))
+}
+
+// PinFastHashContainsFold applies the ContainsFold predicate on the "pin_fast_hash" field.
+func PinFastHashContainsFold(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldContainsFold(FieldPinFastHash, v))
 }
 
 // PinFailedAttemptsEQ applies the EQ predicate on the "pin_failed_attempts" field.

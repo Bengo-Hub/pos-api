@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"fmt"
 	"log"
@@ -978,29 +979,35 @@ func seedStaffMembers(ctx context.Context, client *ent.Client, tenantID, outletI
 	type staffDef struct {
 		name string
 		role string
+		pin  string
 	}
+	// Each demo staff has a unique PIN for role-switching demos.
+	// Display hint in PIN login: 1111=Admin, 2222=Cashier, 3333=Waiter, etc.
 	staff := []staffDef{
-		{"Alice Manager", "manager"},
-		{"Bob Cashier", "cashier"},
-		{"Carol Waiter", "waiter"},
-		{"David Kitchen", "kitchen"},
-		{"Eve Bartender", "bar"},
-		{"Frank Receptionist", "receptionist"},
-		{"Grace Pharmacist", "pharmacist"},
-		{"Hannah Stylist", "stylist"},
-		{"Ian Therapist", "therapist"},
-		{"Jane Technician", "technician"},
+		{"Alice Manager", "manager", "1111"},
+		{"Bob Cashier", "cashier", "2222"},
+		{"Carol Waiter", "waiter", "3333"},
+		{"David Kitchen", "kitchen", "4444"},
+		{"Eve Bartender", "bar", "5555"},
+		{"Frank Receptionist", "receptionist", "6666"},
+		{"Grace Pharmacist", "pharmacist", "7777"},
+		{"Hannah Stylist", "stylist", "8888"},
+		{"Ian Therapist", "therapist", "9999"},
+		{"Jane Technician", "technician", "0000"},
 	}
-
-	// All demo staff share PIN "1234" so the kiosk is immediately usable.
-	pinHashBytes, err := bcrypt.GenerateFromPassword([]byte("1234"), bcrypt.DefaultCost)
-	if err != nil {
-		return fmt.Errorf("generate demo pin hash: %w", err)
-	}
-	pinHash := string(pinHashBytes)
 
 	for _, s := range staff {
 		uid := uuid.NewSHA1(uuid.NameSpaceURL, []byte(fmt.Sprintf("bengobox:pos:staff:%s:%s", tenantID, s.name)))
+
+		pinHashBytes, err := bcrypt.GenerateFromPassword([]byte(s.pin), bcrypt.DefaultCost)
+		if err != nil {
+			return fmt.Errorf("generate pin hash for %s: %w", s.name, err)
+		}
+		pinHash := string(pinHashBytes)
+
+		// Compute fast hash for PIN-first login (scoped to tenant+outlet).
+		h := sha256.Sum256([]byte(tenantID.String() + ":" + outletID.String() + ":" + s.pin))
+		fastHash := fmt.Sprintf("%x", h)
 
 		existing, err := client.StaffMember.Query().
 			Where(entstaff.TenantID(tenantID), entstaff.UserID(uid)).
@@ -1011,16 +1018,17 @@ func seedStaffMembers(ctx context.Context, client *ent.Client, tenantID, outletI
 		}
 
 		if existing != nil {
-			// Update pin_hash on existing record so re-runs always set the demo PIN.
+			// Re-apply PINs on each seed run so demo always works.
 			_, err = client.StaffMember.UpdateOneID(existing.ID).
 				SetPinHash(pinHash).
+				SetPinFastHash(fastHash).
 				SetPinFailedAttempts(0).
 				ClearPinLockedUntil().
 				Save(ctx)
 			if err != nil {
 				log.Printf("  ⚠️  update pin for %s: %v", s.name, err)
 			} else {
-				log.Printf("  ✓ Staff PIN refreshed: %s (%s)", s.name, s.role)
+				log.Printf("  ✓ Staff PIN refreshed: %s (%s) [PIN=%s]", s.name, s.role, s.pin)
 			}
 			continue
 		}
@@ -1033,12 +1041,13 @@ func seedStaffMembers(ctx context.Context, client *ent.Client, tenantID, outletI
 			SetRole(s.role).
 			SetIsActive(true).
 			SetPinHash(pinHash).
+			SetPinFastHash(fastHash).
 			SetPinFailedAttempts(0).
 			Save(ctx)
 		if err != nil {
 			log.Printf("  ⚠️  seed staff %s: %v", s.name, err)
 		} else {
-			log.Printf("  ✓ Staff seeded: %s (%s) [PIN=1234]", s.name, s.role)
+			log.Printf("  ✓ Staff seeded: %s (%s) [PIN=%s]", s.name, s.role, s.pin)
 		}
 	}
 	return nil

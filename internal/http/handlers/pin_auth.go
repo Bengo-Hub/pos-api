@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -15,6 +16,12 @@ import (
 	entoutlet "github.com/bengobox/pos-service/internal/ent/outlet"
 	entstaff "github.com/bengobox/pos-service/internal/ent/staffmember"
 )
+
+// pinFastHash computes hex(SHA256(tenantID+":"+outletID+":"+pin)) for O(1) PIN lookup.
+func pinFastHash(tenantID, outletID uuid.UUID, pin string) string {
+	h := sha256.Sum256([]byte(tenantID.String() + ":" + outletID.String() + ":" + pin))
+	return fmt.Sprintf("%x", h)
+}
 
 // useCaseRoles maps a POS outlet use case to the staff roles that make sense
 // at that type of terminal. Only these roles appear in the PIN login staff grid
@@ -249,8 +256,11 @@ func (h *PINAuthHandler) SetPIN(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	fastHash := pinFastHash(tid, member.OutletID, input.PIN)
+
 	if err := h.client.StaffMember.UpdateOne(member).
 		SetPinHash(hashStr).
+		SetPinFastHash(fastHash).
 		SetPinFailedAttempts(0).
 		ClearPinLockedUntil().
 		Exec(r.Context()); err != nil {
@@ -330,6 +340,108 @@ func globalRoleToPOSRole(roles []string) string {
 		}
 	}
 	return "cashier"
+}
+
+// ── POST /{tenant}/pos/auth/pin/identify — PIN-first login (no user_id needed) ──
+// The frontend sends only the PIN + outlet_id; we resolve the staff identity via
+// pin_fast_hash index, then verify bcrypt before issuing a terminal JWT.
+
+type identifyByPINInput struct {
+	PIN      string `json:"pin"`
+	OutletID string `json:"outlet_id"`
+}
+
+func (h *PINAuthHandler) IdentifyByPIN(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+
+	var input identifyByPINInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil || input.PIN == "" || input.OutletID == "" {
+		jsonError(w, "pin and outlet_id are required", http.StatusBadRequest)
+		return
+	}
+
+	outletID, err := uuid.Parse(input.OutletID)
+	if err != nil {
+		jsonError(w, "invalid outlet_id", http.StatusBadRequest)
+		return
+	}
+
+	fastHash := pinFastHash(tid, outletID, input.PIN)
+
+	member, err := h.client.StaffMember.Query().
+		Where(entstaff.TenantID(tid), entstaff.OutletID(outletID), entstaff.PinFastHash(fastHash), entstaff.IsActive(true)).
+		Only(r.Context())
+	if err != nil {
+		// Return generic 401 to avoid enumeration
+		jsonError(w, "invalid credentials", http.StatusUnauthorized)
+		return
+	}
+
+	if member.PinHash == nil {
+		jsonError(w, "invalid credentials", http.StatusUnauthorized)
+		return
+	}
+
+	// Check lockout
+	if member.PinLockedUntil != nil && time.Now().Before(*member.PinLockedUntil) {
+		remaining := time.Until(*member.PinLockedUntil).Round(time.Second)
+		jsonError(w, fmt.Sprintf("PIN locked. Try again in %s", remaining), http.StatusTooManyRequests)
+		return
+	}
+
+	// Secondary bcrypt verify — guards against any SHA-256 collision (extremely unlikely but safe)
+	if err := bcrypt.CompareHashAndPassword([]byte(*member.PinHash), []byte(input.PIN)); err != nil {
+		attempts := member.PinFailedAttempts + 1
+		upd := h.client.StaffMember.UpdateOne(member).SetPinFailedAttempts(attempts)
+		if attempts >= maxFailedAttempts {
+			locked := time.Now().Add(lockoutDuration)
+			upd = upd.SetPinLockedUntil(locked)
+		}
+		_ = upd.Exec(r.Context())
+		jsonError(w, "invalid credentials", http.StatusUnauthorized)
+		return
+	}
+
+	// Reset failed attempts on success
+	_ = h.client.StaffMember.UpdateOne(member).
+		SetPinFailedAttempts(0).
+		ClearPinLockedUntil().
+		Exec(r.Context())
+
+	// Issue terminal JWT — same shape as Login
+	token, err := issueTerminalJWT(member, tid, outletID, h.jwtSecret, h.client, r.Context())
+	if err != nil {
+		h.log.Error("failed to issue terminal JWT", zap.Error(err))
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	outletUseCase := "hospitality"
+	isHQ := false
+	outlet, outletErr := h.client.Outlet.Get(r.Context(), outletID)
+	if outletErr == nil && outlet.UseCase != nil {
+		outletUseCase = *outlet.UseCase
+		isHQ = outlet.IsHq
+	}
+
+	jsonOK(w, map[string]any{
+		"access_token": token,
+		"token_type":   "Bearer",
+		"expires_in":   int((4 * time.Hour).Seconds()),
+		"user": map[string]any{
+			"user_id":         member.UserID.String(),
+			"name":            member.Name,
+			"role":            member.Role,
+			"tenant_id":       member.TenantID.String(),
+			"outlet_id":       outletID.String(),
+			"outlet_use_case": outletUseCase,
+			"is_hq_user":      isHQ,
+		},
+	})
 }
 
 // ── GET /{tenant}/pos/auth/pin/profile — return staff profiles for PIN selector ─

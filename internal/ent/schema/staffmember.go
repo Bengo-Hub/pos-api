@@ -45,6 +45,9 @@ func (StaffMember) Fields() []ent.Field {
 		// Terminal PIN login — bcrypt hash of the 4-6 digit PIN set by a manager.
 		// Null means PIN not configured; staff must use SSO until a PIN is set.
 		field.String("pin_hash").Optional().Nillable().Sensitive(),
+		// hex(SHA256(tenantID+":"+outletID+":"+pin)) — indexed for O(1) PIN-first lookup.
+		// Scoped to tenant+outlet so the same PIN digits can belong to different staff at different outlets.
+		field.String("pin_fast_hash").Optional().Nillable().Sensitive(),
 		// Brute-force protection: count of consecutive wrong PINs since last success.
 		field.Int("pin_failed_attempts").Default(0),
 		// When non-nil, PIN login is locked until this time (set after 5 failed attempts).
@@ -59,5 +62,6 @@ func (StaffMember) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("tenant_id", "outlet_id"),
 		index.Fields("tenant_id", "user_id").Unique(),
+		index.Fields("tenant_id", "outlet_id", "pin_fast_hash").Unique(),
 	}
 }

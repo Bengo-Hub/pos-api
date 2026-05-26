@@ -2421,6 +2421,7 @@ var (
 		{Name: "bank_account_number", Type: field.TypeString, Nullable: true},
 		{Name: "bank_name", Type: field.TypeString, Nullable: true},
 		{Name: "pin_hash", Type: field.TypeString, Nullable: true},
+		{Name: "pin_fast_hash", Type: field.TypeString, Nullable: true},
 		{Name: "pin_failed_attempts", Type: field.TypeInt, Default: 0},
 		{Name: "pin_locked_until", Type: field.TypeTime, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime},
@@ -2441,6 +2442,11 @@ var (
 				Name:    "staffmember_tenant_id_user_id",
 				Unique:  true,
 				Columns: []*schema.Column{StaffMembersColumns[1], StaffMembersColumns[3]},
+			},
+			{
+				Name:    "staffmember_tenant_id_outlet_id_pin_fast_hash",
+				Unique:  true,
+				Columns: []*schema.Column{StaffMembersColumns[1], StaffMembersColumns[2], StaffMembersColumns[18]},
 			},
 		},
 	}

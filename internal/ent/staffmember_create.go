@@ -214,6 +214,20 @@ func (_c *StaffMemberCreate) SetNillablePinHash(v *string) *StaffMemberCreate {
 	return _c
 }
 
+// SetPinFastHash sets the "pin_fast_hash" field.
+func (_c *StaffMemberCreate) SetPinFastHash(v string) *StaffMemberCreate {
+	_c.mutation.SetPinFastHash(v)
+	return _c
+}
+
+// SetNillablePinFastHash sets the "pin_fast_hash" field if the given value is not nil.
+func (_c *StaffMemberCreate) SetNillablePinFastHash(v *string) *StaffMemberCreate {
+	if v != nil {
+		_c.SetPinFastHash(*v)
+	}
+	return _c
+}
+
 // SetPinFailedAttempts sets the "pin_failed_attempts" field.
 func (_c *StaffMemberCreate) SetPinFailedAttempts(v int) *StaffMemberCreate {
 	_c.mutation.SetPinFailedAttempts(v)
@@ -491,6 +505,10 @@ func (_c *StaffMemberCreate) createSpec() (*StaffMember, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.PinHash(); ok {
 		_spec.SetField(staffmember.FieldPinHash, field.TypeString, value)
 		_node.PinHash = &value
+	}
+	if value, ok := _c.mutation.PinFastHash(); ok {
+		_spec.SetField(staffmember.FieldPinFastHash, field.TypeString, value)
+		_node.PinFastHash = &value
 	}
 	if value, ok := _c.mutation.PinFailedAttempts(); ok {
 		_spec.SetField(staffmember.FieldPinFailedAttempts, field.TypeInt, value)
@@ -851,6 +869,24 @@ func (u *StaffMemberUpsert) UpdatePinHash() *StaffMemberUpsert {
 // ClearPinHash clears the value of the "pin_hash" field.
 func (u *StaffMemberUpsert) ClearPinHash() *StaffMemberUpsert {
 	u.SetNull(staffmember.FieldPinHash)
+	return u
+}
+
+// SetPinFastHash sets the "pin_fast_hash" field.
+func (u *StaffMemberUpsert) SetPinFastHash(v string) *StaffMemberUpsert {
+	u.Set(staffmember.FieldPinFastHash, v)
+	return u
+}
+
+// UpdatePinFastHash sets the "pin_fast_hash" field to the value that was provided on create.
+func (u *StaffMemberUpsert) UpdatePinFastHash() *StaffMemberUpsert {
+	u.SetExcluded(staffmember.FieldPinFastHash)
+	return u
+}
+
+// ClearPinFastHash clears the value of the "pin_fast_hash" field.
+func (u *StaffMemberUpsert) ClearPinFastHash() *StaffMemberUpsert {
+	u.SetNull(staffmember.FieldPinFastHash)
 	return u
 }
 
@@ -1293,6 +1329,27 @@ func (u *StaffMemberUpsertOne) UpdatePinHash() *StaffMemberUpsertOne {
 func (u *StaffMemberUpsertOne) ClearPinHash() *StaffMemberUpsertOne {
 	return u.Update(func(s *StaffMemberUpsert) {
 		s.ClearPinHash()
+	})
+}
+
+// SetPinFastHash sets the "pin_fast_hash" field.
+func (u *StaffMemberUpsertOne) SetPinFastHash(v string) *StaffMemberUpsertOne {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.SetPinFastHash(v)
+	})
+}
+
+// UpdatePinFastHash sets the "pin_fast_hash" field to the value that was provided on create.
+func (u *StaffMemberUpsertOne) UpdatePinFastHash() *StaffMemberUpsertOne {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.UpdatePinFastHash()
+	})
+}
+
+// ClearPinFastHash clears the value of the "pin_fast_hash" field.
+func (u *StaffMemberUpsertOne) ClearPinFastHash() *StaffMemberUpsertOne {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.ClearPinFastHash()
 	})
 }
 
@@ -1910,6 +1967,27 @@ func (u *StaffMemberUpsertBulk) UpdatePinHash() *StaffMemberUpsertBulk {
 func (u *StaffMemberUpsertBulk) ClearPinHash() *StaffMemberUpsertBulk {
 	return u.Update(func(s *StaffMemberUpsert) {
 		s.ClearPinHash()
+	})
+}
+
+// SetPinFastHash sets the "pin_fast_hash" field.
+func (u *StaffMemberUpsertBulk) SetPinFastHash(v string) *StaffMemberUpsertBulk {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.SetPinFastHash(v)
+	})
+}
+
+// UpdatePinFastHash sets the "pin_fast_hash" field to the value that was provided on create.
+func (u *StaffMemberUpsertBulk) UpdatePinFastHash() *StaffMemberUpsertBulk {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.UpdatePinFastHash()
+	})
+}
+
+// ClearPinFastHash clears the value of the "pin_fast_hash" field.
+func (u *StaffMemberUpsertBulk) ClearPinFastHash() *StaffMemberUpsertBulk {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.ClearPinFastHash()
 	})
 }
 
