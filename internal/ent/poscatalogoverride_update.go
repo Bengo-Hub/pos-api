@@ -325,6 +325,26 @@ func (_u *POSCatalogOverrideUpdate) ClearDurationMinutes() *POSCatalogOverrideUp
 	return _u
 }
 
+// SetKdsStationID sets the "kds_station_id" field.
+func (_u *POSCatalogOverrideUpdate) SetKdsStationID(v uuid.UUID) *POSCatalogOverrideUpdate {
+	_u.mutation.SetKdsStationID(v)
+	return _u
+}
+
+// SetNillableKdsStationID sets the "kds_station_id" field if the given value is not nil.
+func (_u *POSCatalogOverrideUpdate) SetNillableKdsStationID(v *uuid.UUID) *POSCatalogOverrideUpdate {
+	if v != nil {
+		_u.SetKdsStationID(*v)
+	}
+	return _u
+}
+
+// ClearKdsStationID clears the value of the "kds_station_id" field.
+func (_u *POSCatalogOverrideUpdate) ClearKdsStationID() *POSCatalogOverrideUpdate {
+	_u.mutation.ClearKdsStationID()
+	return _u
+}
+
 // SetMetadata sets the "metadata" field.
 func (_u *POSCatalogOverrideUpdate) SetMetadata(v map[string]interface{}) *POSCatalogOverrideUpdate {
 	_u.mutation.SetMetadata(v)
@@ -477,6 +497,12 @@ func (_u *POSCatalogOverrideUpdate) sqlSave(ctx context.Context) (_node int, err
 	}
 	if _u.mutation.DurationMinutesCleared() {
 		_spec.ClearField(poscatalogoverride.FieldDurationMinutes, field.TypeInt)
+	}
+	if value, ok := _u.mutation.KdsStationID(); ok {
+		_spec.SetField(poscatalogoverride.FieldKdsStationID, field.TypeUUID, value)
+	}
+	if _u.mutation.KdsStationIDCleared() {
+		_spec.ClearField(poscatalogoverride.FieldKdsStationID, field.TypeUUID)
 	}
 	if value, ok := _u.mutation.Metadata(); ok {
 		_spec.SetField(poscatalogoverride.FieldMetadata, field.TypeJSON, value)
@@ -800,6 +826,26 @@ func (_u *POSCatalogOverrideUpdateOne) ClearDurationMinutes() *POSCatalogOverrid
 	return _u
 }
 
+// SetKdsStationID sets the "kds_station_id" field.
+func (_u *POSCatalogOverrideUpdateOne) SetKdsStationID(v uuid.UUID) *POSCatalogOverrideUpdateOne {
+	_u.mutation.SetKdsStationID(v)
+	return _u
+}
+
+// SetNillableKdsStationID sets the "kds_station_id" field if the given value is not nil.
+func (_u *POSCatalogOverrideUpdateOne) SetNillableKdsStationID(v *uuid.UUID) *POSCatalogOverrideUpdateOne {
+	if v != nil {
+		_u.SetKdsStationID(*v)
+	}
+	return _u
+}
+
+// ClearKdsStationID clears the value of the "kds_station_id" field.
+func (_u *POSCatalogOverrideUpdateOne) ClearKdsStationID() *POSCatalogOverrideUpdateOne {
+	_u.mutation.ClearKdsStationID()
+	return _u
+}
+
 // SetMetadata sets the "metadata" field.
 func (_u *POSCatalogOverrideUpdateOne) SetMetadata(v map[string]interface{}) *POSCatalogOverrideUpdateOne {
 	_u.mutation.SetMetadata(v)
@@ -982,6 +1028,12 @@ func (_u *POSCatalogOverrideUpdateOne) sqlSave(ctx context.Context) (_node *POSC
 	}
 	if _u.mutation.DurationMinutesCleared() {
 		_spec.ClearField(poscatalogoverride.FieldDurationMinutes, field.TypeInt)
+	}
+	if value, ok := _u.mutation.KdsStationID(); ok {
+		_spec.SetField(poscatalogoverride.FieldKdsStationID, field.TypeUUID, value)
+	}
+	if _u.mutation.KdsStationIDCleared() {
+		_spec.ClearField(poscatalogoverride.FieldKdsStationID, field.TypeUUID)
 	}
 	if value, ok := _u.mutation.Metadata(); ok {
 		_spec.SetField(poscatalogoverride.FieldMetadata, field.TypeJSON, value)

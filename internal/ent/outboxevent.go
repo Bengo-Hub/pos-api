@@ -27,8 +27,8 @@ type OutboxEvent struct {
 	AggregateID string `json:"aggregate_id,omitempty"`
 	// EventType holds the value of the "event_type" field.
 	EventType string `json:"event_type,omitempty"`
-	// Serialized event payload
-	Payload []uint8 `json:"payload,omitempty"`
+	// Serialized event payload — stored as raw JSON (not base64)
+	Payload json.RawMessage `json:"payload,omitempty"`
 	// PENDING | PUBLISHED | FAILED
 	Status string `json:"status,omitempty"`
 	// Attempts holds the value of the "attempts" field.

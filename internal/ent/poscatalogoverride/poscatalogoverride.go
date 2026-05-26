@@ -48,6 +48,8 @@ const (
 	FieldMinimumAge = "minimum_age"
 	// FieldDurationMinutes holds the string denoting the duration_minutes field in the database.
 	FieldDurationMinutes = "duration_minutes"
+	// FieldKdsStationID holds the string denoting the kds_station_id field in the database.
+	FieldKdsStationID = "kds_station_id"
 	// FieldMetadata holds the string denoting the metadata field in the database.
 	FieldMetadata = "metadata"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
@@ -78,6 +80,7 @@ var Columns = []string{
 	FieldIsControlledSubstance,
 	FieldMinimumAge,
 	FieldDurationMinutes,
+	FieldKdsStationID,
 	FieldMetadata,
 	FieldCreatedAt,
 	FieldUpdatedAt,
@@ -219,6 +222,11 @@ func ByMinimumAge(opts ...sql.OrderTermOption) OrderOption {
 // ByDurationMinutes orders the results by the duration_minutes field.
 func ByDurationMinutes(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldDurationMinutes, opts...).ToFunc()
+}
+
+// ByKdsStationID orders the results by the kds_station_id field.
+func ByKdsStationID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldKdsStationID, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.

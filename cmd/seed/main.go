@@ -14,8 +14,11 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"golang.org/x/crypto/bcrypt"
 
+	"strings"
+
 	"github.com/bengobox/pos-service/internal/config"
 	"github.com/bengobox/pos-service/internal/ent"
+	"github.com/bengobox/pos-service/internal/ent/kdsstation"
 	"github.com/bengobox/pos-service/internal/ent/outlet"
 	entoverride "github.com/bengobox/pos-service/internal/ent/poscatalogoverride"
 	"github.com/bengobox/pos-service/internal/ent/outletsetting"
@@ -130,6 +133,12 @@ func runSeed(ctx context.Context, client *ent.Client, tenantID uuid.UUID, tc ten
 
 	if err := seedCatalogItems(ctx, client, tenantID, tc.slug); err != nil {
 		return fmt.Errorf("seed catalog items: %w", err)
+	}
+
+	// Seed KDS stations for hospitality outlets and patch catalog overrides with routing.
+	// This runs after seedCatalogItems so all overrides exist before patching.
+	if err := seedKDSStations(ctx, client, tenantID, hqOutletID); err != nil {
+		log.Printf("  ⚠️  seed KDS stations: %v (non-fatal, stations can be configured via UI)", err)
 	}
 
 	if err := seedRBACPermissions(ctx, client); err != nil {
@@ -690,6 +699,116 @@ func seedCatalogItems(ctx context.Context, client *ent.Client, tenantID uuid.UUI
 		created++
 	}
 	log.Printf("  ✓ Catalog overrides: %d created, %d updated (%d total)", created, updated, len(overrides))
+	return nil
+}
+
+// seedKDSStations creates KDS stations for a hospitality outlet with proper station_type
+// and category_filter, then stamps kds_station_id on the relevant catalog overrides so
+// that tickets are routed to the correct station at order creation time.
+func seedKDSStations(ctx context.Context, client *ent.Client, tenantID, outletID uuid.UUID) error {
+	type stationDef struct {
+		name           string
+		stationType    kdsstation.StationType
+		categoryFilter []string
+		sortOrder      int
+		skuPrefixes    []string // catalog override SKU prefixes that belong to this station
+	}
+
+	stations := []stationDef{
+		{
+			name:        "Kitchen Main",
+			stationType: kdsstation.StationTypeKitchen,
+			categoryFilter: []string{
+				"sandwich", "salad", "curry", "grill", "pasta", "rice", "pizza",
+				"breakfast", "pancake", "avocado", "oatmeal", "croissant", "muffin",
+				"cake", "scone", "danish", "spring roll", "samosa", "waffle", "burger",
+			},
+			sortOrder:   1,
+			skuPrefixes: []string{"PST-", "SND-", "SAL-", "BTE-", "MIN-", "BRK-", "PIZ-", "QSR-BUR-", "QSR-CHK-", "QSR-FRI-", "QSR-PIZ-", "QSR-HOT-", "QSR-COM-"},
+		},
+		{
+			name:        "Bar Display",
+			stationType: kdsstation.StationTypeBar,
+			categoryFilter: []string{
+				"coffee", "latte", "espresso", "cappuccino", "americano", "mocha",
+				"macchiato", "tea", "juice", "frappe", "smoothie", "iced latte",
+				"hot chocolate", "cocktail", "beer", "wine", "spirit",
+			},
+			sortOrder:   2,
+			skuPrefixes: []string{"BEV-", "QSR-SOD-"},
+		},
+		{
+			name:           "Restaurant",
+			stationType:    kdsstation.StationTypeExpo,
+			categoryFilter: []string{},
+			sortOrder:      3,
+			skuPrefixes:    nil, // expo receives everything — no SKU assignment needed
+		},
+	}
+
+	// stationIDByPrefix maps SKU prefix → station UUID for catalog override patching.
+	stationIDByPrefix := make(map[string]uuid.UUID)
+
+	for _, def := range stations {
+		// Upsert KDS station (idempotent by name+outlet).
+		existing, _ := client.KDSStation.Query().
+			Where(kdsstation.TenantID(tenantID), kdsstation.OutletID(outletID), kdsstation.Name(def.name)).
+			Only(ctx)
+
+		var stationID uuid.UUID
+		if existing != nil {
+			_, _ = existing.Update().
+				SetStationType(def.stationType).
+				SetCategoryFilter(def.categoryFilter).
+				SetSortOrder(def.sortOrder).
+				SetIsActive(true).
+				Save(ctx)
+			stationID = existing.ID
+		} else {
+			st, err := client.KDSStation.Create().
+				SetTenantID(tenantID).
+				SetOutletID(outletID).
+				SetName(def.name).
+				SetStationType(def.stationType).
+				SetCategoryFilter(def.categoryFilter).
+				SetSortOrder(def.sortOrder).
+				Save(ctx)
+			if err != nil {
+				return fmt.Errorf("create KDS station %s: %w", def.name, err)
+			}
+			stationID = st.ID
+		}
+
+		for _, prefix := range def.skuPrefixes {
+			stationIDByPrefix[prefix] = stationID
+		}
+	}
+
+	// Patch catalog overrides with the resolved kds_station_id.
+	// Fetch all overrides for this outlet (and tenant-wide overrides).
+	allOverrides, err := client.POSCatalogOverride.Query().
+		Where(entoverride.TenantID(tenantID)).
+		All(ctx)
+	if err != nil {
+		return fmt.Errorf("query catalog overrides for KDS patching: %w", err)
+	}
+
+	patched := 0
+	for _, o := range allOverrides {
+		for prefix, stationID := range stationIDByPrefix {
+			if strings.HasPrefix(o.InventorySku, prefix) {
+				sid := stationID
+				if _, err := o.Update().SetKdsStationID(sid).Save(ctx); err != nil {
+					log.Printf("  ⚠️  patch KDS station on override %s: %v", o.InventorySku, err)
+				} else {
+					patched++
+				}
+				break
+			}
+		}
+	}
+
+	log.Printf("  ✓ KDS stations seeded (3 stations), %d catalog overrides patched with station routing", patched)
 	return nil
 }
 

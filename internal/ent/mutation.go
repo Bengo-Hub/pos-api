@@ -4,6 +4,7 @@ package ent
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sync"
@@ -20397,6 +20398,7 @@ type KDSStationMutation struct {
 	tenant_id             *uuid.UUID
 	outlet_id             *uuid.UUID
 	name                  *string
+	station_type          *kdsstation.StationType
 	category_filter       *[]string
 	appendcategory_filter []string
 	sort_order            *int
@@ -20623,6 +20625,42 @@ func (m *KDSStationMutation) OldName(ctx context.Context) (v string, err error) 
 // ResetName resets all changes to the "name" field.
 func (m *KDSStationMutation) ResetName() {
 	m.name = nil
+}
+
+// SetStationType sets the "station_type" field.
+func (m *KDSStationMutation) SetStationType(kt kdsstation.StationType) {
+	m.station_type = &kt
+}
+
+// StationType returns the value of the "station_type" field in the mutation.
+func (m *KDSStationMutation) StationType() (r kdsstation.StationType, exists bool) {
+	v := m.station_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStationType returns the old "station_type" field's value of the KDSStation entity.
+// If the KDSStation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KDSStationMutation) OldStationType(ctx context.Context) (v kdsstation.StationType, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStationType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStationType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStationType: %w", err)
+	}
+	return oldValue.StationType, nil
+}
+
+// ResetStationType resets all changes to the "station_type" field.
+func (m *KDSStationMutation) ResetStationType() {
+	m.station_type = nil
 }
 
 // SetCategoryFilter sets the "category_filter" field.
@@ -20942,7 +20980,7 @@ func (m *KDSStationMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *KDSStationMutation) Fields() []string {
-	fields := make([]string, 0, 8)
+	fields := make([]string, 0, 9)
 	if m.tenant_id != nil {
 		fields = append(fields, kdsstation.FieldTenantID)
 	}
@@ -20951,6 +20989,9 @@ func (m *KDSStationMutation) Fields() []string {
 	}
 	if m.name != nil {
 		fields = append(fields, kdsstation.FieldName)
+	}
+	if m.station_type != nil {
+		fields = append(fields, kdsstation.FieldStationType)
 	}
 	if m.category_filter != nil {
 		fields = append(fields, kdsstation.FieldCategoryFilter)
@@ -20981,6 +21022,8 @@ func (m *KDSStationMutation) Field(name string) (ent.Value, bool) {
 		return m.OutletID()
 	case kdsstation.FieldName:
 		return m.Name()
+	case kdsstation.FieldStationType:
+		return m.StationType()
 	case kdsstation.FieldCategoryFilter:
 		return m.CategoryFilter()
 	case kdsstation.FieldSortOrder:
@@ -21006,6 +21049,8 @@ func (m *KDSStationMutation) OldField(ctx context.Context, name string) (ent.Val
 		return m.OldOutletID(ctx)
 	case kdsstation.FieldName:
 		return m.OldName(ctx)
+	case kdsstation.FieldStationType:
+		return m.OldStationType(ctx)
 	case kdsstation.FieldCategoryFilter:
 		return m.OldCategoryFilter(ctx)
 	case kdsstation.FieldSortOrder:
@@ -21045,6 +21090,13 @@ func (m *KDSStationMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetName(v)
+		return nil
+	case kdsstation.FieldStationType:
+		v, ok := value.(kdsstation.StationType)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStationType(v)
 		return nil
 	case kdsstation.FieldCategoryFilter:
 		v, ok := value.([]string)
@@ -21162,6 +21214,9 @@ func (m *KDSStationMutation) ResetField(name string) error {
 		return nil
 	case kdsstation.FieldName:
 		m.ResetName()
+		return nil
+	case kdsstation.FieldStationType:
+		m.ResetStationType()
 		return nil
 	case kdsstation.FieldCategoryFilter:
 		m.ResetCategoryFilter()
@@ -30536,8 +30591,8 @@ type OutboxEventMutation struct {
 	aggregate_type  *string
 	aggregate_id    *string
 	event_type      *string
-	payload         *[]uint8
-	appendpayload   []uint8
+	payload         *json.RawMessage
+	appendpayload   json.RawMessage
 	status          *string
 	attempts        *int
 	addattempts     *int
@@ -30800,13 +30855,13 @@ func (m *OutboxEventMutation) ResetEventType() {
 }
 
 // SetPayload sets the "payload" field.
-func (m *OutboxEventMutation) SetPayload(u []uint8) {
-	m.payload = &u
+func (m *OutboxEventMutation) SetPayload(jm json.RawMessage) {
+	m.payload = &jm
 	m.appendpayload = nil
 }
 
 // Payload returns the value of the "payload" field in the mutation.
-func (m *OutboxEventMutation) Payload() (r []uint8, exists bool) {
+func (m *OutboxEventMutation) Payload() (r json.RawMessage, exists bool) {
 	v := m.payload
 	if v == nil {
 		return
@@ -30817,7 +30872,7 @@ func (m *OutboxEventMutation) Payload() (r []uint8, exists bool) {
 // OldPayload returns the old "payload" field's value of the OutboxEvent entity.
 // If the OutboxEvent object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *OutboxEventMutation) OldPayload(ctx context.Context) (v []uint8, err error) {
+func (m *OutboxEventMutation) OldPayload(ctx context.Context) (v json.RawMessage, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldPayload is only allowed on UpdateOne operations")
 	}
@@ -30831,13 +30886,13 @@ func (m *OutboxEventMutation) OldPayload(ctx context.Context) (v []uint8, err er
 	return oldValue.Payload, nil
 }
 
-// AppendPayload adds u to the "payload" field.
-func (m *OutboxEventMutation) AppendPayload(u []uint8) {
-	m.appendpayload = append(m.appendpayload, u...)
+// AppendPayload adds jm to the "payload" field.
+func (m *OutboxEventMutation) AppendPayload(jm json.RawMessage) {
+	m.appendpayload = append(m.appendpayload, jm...)
 }
 
 // AppendedPayload returns the list of values that were appended to the "payload" field in this mutation.
-func (m *OutboxEventMutation) AppendedPayload() ([]uint8, bool) {
+func (m *OutboxEventMutation) AppendedPayload() (json.RawMessage, bool) {
 	if len(m.appendpayload) == 0 {
 		return nil, false
 	}
@@ -31292,7 +31347,7 @@ func (m *OutboxEventMutation) SetField(name string, value ent.Value) error {
 		m.SetEventType(v)
 		return nil
 	case outboxevent.FieldPayload:
-		v, ok := value.([]uint8)
+		v, ok := value.(json.RawMessage)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
@@ -35633,6 +35688,7 @@ type POSCatalogOverrideMutation struct {
 	addminimum_age            *int
 	duration_minutes          *int
 	addduration_minutes       *int
+	kds_station_id            *uuid.UUID
 	metadata                  *map[string]interface{}
 	created_at                *time.Time
 	updated_at                *time.Time
@@ -36506,6 +36562,55 @@ func (m *POSCatalogOverrideMutation) ResetDurationMinutes() {
 	delete(m.clearedFields, poscatalogoverride.FieldDurationMinutes)
 }
 
+// SetKdsStationID sets the "kds_station_id" field.
+func (m *POSCatalogOverrideMutation) SetKdsStationID(u uuid.UUID) {
+	m.kds_station_id = &u
+}
+
+// KdsStationID returns the value of the "kds_station_id" field in the mutation.
+func (m *POSCatalogOverrideMutation) KdsStationID() (r uuid.UUID, exists bool) {
+	v := m.kds_station_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldKdsStationID returns the old "kds_station_id" field's value of the POSCatalogOverride entity.
+// If the POSCatalogOverride object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSCatalogOverrideMutation) OldKdsStationID(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldKdsStationID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldKdsStationID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldKdsStationID: %w", err)
+	}
+	return oldValue.KdsStationID, nil
+}
+
+// ClearKdsStationID clears the value of the "kds_station_id" field.
+func (m *POSCatalogOverrideMutation) ClearKdsStationID() {
+	m.kds_station_id = nil
+	m.clearedFields[poscatalogoverride.FieldKdsStationID] = struct{}{}
+}
+
+// KdsStationIDCleared returns if the "kds_station_id" field was cleared in this mutation.
+func (m *POSCatalogOverrideMutation) KdsStationIDCleared() bool {
+	_, ok := m.clearedFields[poscatalogoverride.FieldKdsStationID]
+	return ok
+}
+
+// ResetKdsStationID resets all changes to the "kds_station_id" field.
+func (m *POSCatalogOverrideMutation) ResetKdsStationID() {
+	m.kds_station_id = nil
+	delete(m.clearedFields, poscatalogoverride.FieldKdsStationID)
+}
+
 // SetMetadata sets the "metadata" field.
 func (m *POSCatalogOverrideMutation) SetMetadata(value map[string]interface{}) {
 	m.metadata = &value
@@ -36648,7 +36753,7 @@ func (m *POSCatalogOverrideMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *POSCatalogOverrideMutation) Fields() []string {
-	fields := make([]string, 0, 20)
+	fields := make([]string, 0, 21)
 	if m.tenant_id != nil {
 		fields = append(fields, poscatalogoverride.FieldTenantID)
 	}
@@ -36699,6 +36804,9 @@ func (m *POSCatalogOverrideMutation) Fields() []string {
 	}
 	if m.duration_minutes != nil {
 		fields = append(fields, poscatalogoverride.FieldDurationMinutes)
+	}
+	if m.kds_station_id != nil {
+		fields = append(fields, poscatalogoverride.FieldKdsStationID)
 	}
 	if m.metadata != nil {
 		fields = append(fields, poscatalogoverride.FieldMetadata)
@@ -36751,6 +36859,8 @@ func (m *POSCatalogOverrideMutation) Field(name string) (ent.Value, bool) {
 		return m.MinimumAge()
 	case poscatalogoverride.FieldDurationMinutes:
 		return m.DurationMinutes()
+	case poscatalogoverride.FieldKdsStationID:
+		return m.KdsStationID()
 	case poscatalogoverride.FieldMetadata:
 		return m.Metadata()
 	case poscatalogoverride.FieldCreatedAt:
@@ -36800,6 +36910,8 @@ func (m *POSCatalogOverrideMutation) OldField(ctx context.Context, name string) 
 		return m.OldMinimumAge(ctx)
 	case poscatalogoverride.FieldDurationMinutes:
 		return m.OldDurationMinutes(ctx)
+	case poscatalogoverride.FieldKdsStationID:
+		return m.OldKdsStationID(ctx)
 	case poscatalogoverride.FieldMetadata:
 		return m.OldMetadata(ctx)
 	case poscatalogoverride.FieldCreatedAt:
@@ -36934,6 +37046,13 @@ func (m *POSCatalogOverrideMutation) SetField(name string, value ent.Value) erro
 		}
 		m.SetDurationMinutes(v)
 		return nil
+	case poscatalogoverride.FieldKdsStationID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetKdsStationID(v)
+		return nil
 	case poscatalogoverride.FieldMetadata:
 		v, ok := value.(map[string]interface{})
 		if !ok {
@@ -37051,6 +37170,9 @@ func (m *POSCatalogOverrideMutation) ClearedFields() []string {
 	if m.FieldCleared(poscatalogoverride.FieldDurationMinutes) {
 		fields = append(fields, poscatalogoverride.FieldDurationMinutes)
 	}
+	if m.FieldCleared(poscatalogoverride.FieldKdsStationID) {
+		fields = append(fields, poscatalogoverride.FieldKdsStationID)
+	}
 	return fields
 }
 
@@ -37079,6 +37201,9 @@ func (m *POSCatalogOverrideMutation) ClearField(name string) error {
 		return nil
 	case poscatalogoverride.FieldDurationMinutes:
 		m.ClearDurationMinutes()
+		return nil
+	case poscatalogoverride.FieldKdsStationID:
+		m.ClearKdsStationID()
 		return nil
 	}
 	return fmt.Errorf("unknown POSCatalogOverride nullable field %s", name)
@@ -37138,6 +37263,9 @@ func (m *POSCatalogOverrideMutation) ResetField(name string) error {
 		return nil
 	case poscatalogoverride.FieldDurationMinutes:
 		m.ResetDurationMinutes()
+		return nil
+	case poscatalogoverride.FieldKdsStationID:
+		m.ResetKdsStationID()
 		return nil
 	case poscatalogoverride.FieldMetadata:
 		m.ResetMetadata()
@@ -42836,6 +42964,7 @@ type POSOrderLineMutation struct {
 	price_includes_tax *bool
 	course_number      *int
 	addcourse_number   *int
+	kds_station_id     *uuid.UUID
 	metadata           *map[string]interface{}
 	clearedFields      map[string]struct{}
 	_order             *uuid.UUID
@@ -43881,6 +44010,55 @@ func (m *POSOrderLineMutation) ResetCourseNumber() {
 	m.addcourse_number = nil
 }
 
+// SetKdsStationID sets the "kds_station_id" field.
+func (m *POSOrderLineMutation) SetKdsStationID(u uuid.UUID) {
+	m.kds_station_id = &u
+}
+
+// KdsStationID returns the value of the "kds_station_id" field in the mutation.
+func (m *POSOrderLineMutation) KdsStationID() (r uuid.UUID, exists bool) {
+	v := m.kds_station_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldKdsStationID returns the old "kds_station_id" field's value of the POSOrderLine entity.
+// If the POSOrderLine object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSOrderLineMutation) OldKdsStationID(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldKdsStationID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldKdsStationID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldKdsStationID: %w", err)
+	}
+	return oldValue.KdsStationID, nil
+}
+
+// ClearKdsStationID clears the value of the "kds_station_id" field.
+func (m *POSOrderLineMutation) ClearKdsStationID() {
+	m.kds_station_id = nil
+	m.clearedFields[posorderline.FieldKdsStationID] = struct{}{}
+}
+
+// KdsStationIDCleared returns if the "kds_station_id" field was cleared in this mutation.
+func (m *POSOrderLineMutation) KdsStationIDCleared() bool {
+	_, ok := m.clearedFields[posorderline.FieldKdsStationID]
+	return ok
+}
+
+// ResetKdsStationID resets all changes to the "kds_station_id" field.
+func (m *POSOrderLineMutation) ResetKdsStationID() {
+	m.kds_station_id = nil
+	delete(m.clearedFields, posorderline.FieldKdsStationID)
+}
+
 // SetMetadata sets the "metadata" field.
 func (m *POSOrderLineMutation) SetMetadata(value map[string]interface{}) {
 	m.metadata = &value
@@ -44032,7 +44210,7 @@ func (m *POSOrderLineMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *POSOrderLineMutation) Fields() []string {
-	fields := make([]string, 0, 19)
+	fields := make([]string, 0, 20)
 	if m._order != nil {
 		fields = append(fields, posorderline.FieldOrderID)
 	}
@@ -44087,6 +44265,9 @@ func (m *POSOrderLineMutation) Fields() []string {
 	if m.course_number != nil {
 		fields = append(fields, posorderline.FieldCourseNumber)
 	}
+	if m.kds_station_id != nil {
+		fields = append(fields, posorderline.FieldKdsStationID)
+	}
 	if m.metadata != nil {
 		fields = append(fields, posorderline.FieldMetadata)
 	}
@@ -44134,6 +44315,8 @@ func (m *POSOrderLineMutation) Field(name string) (ent.Value, bool) {
 		return m.PriceIncludesTax()
 	case posorderline.FieldCourseNumber:
 		return m.CourseNumber()
+	case posorderline.FieldKdsStationID:
+		return m.KdsStationID()
 	case posorderline.FieldMetadata:
 		return m.Metadata()
 	}
@@ -44181,6 +44364,8 @@ func (m *POSOrderLineMutation) OldField(ctx context.Context, name string) (ent.V
 		return m.OldPriceIncludesTax(ctx)
 	case posorderline.FieldCourseNumber:
 		return m.OldCourseNumber(ctx)
+	case posorderline.FieldKdsStationID:
+		return m.OldKdsStationID(ctx)
 	case posorderline.FieldMetadata:
 		return m.OldMetadata(ctx)
 	}
@@ -44317,6 +44502,13 @@ func (m *POSOrderLineMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetCourseNumber(v)
+		return nil
+	case posorderline.FieldKdsStationID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetKdsStationID(v)
 		return nil
 	case posorderline.FieldMetadata:
 		v, ok := value.(map[string]interface{})
@@ -44481,6 +44673,9 @@ func (m *POSOrderLineMutation) ClearedFields() []string {
 	if m.FieldCleared(posorderline.FieldTaxAmount) {
 		fields = append(fields, posorderline.FieldTaxAmount)
 	}
+	if m.FieldCleared(posorderline.FieldKdsStationID) {
+		fields = append(fields, posorderline.FieldKdsStationID)
+	}
 	return fields
 }
 
@@ -44521,6 +44716,9 @@ func (m *POSOrderLineMutation) ClearField(name string) error {
 		return nil
 	case posorderline.FieldTaxAmount:
 		m.ClearTaxAmount()
+		return nil
+	case posorderline.FieldKdsStationID:
+		m.ClearKdsStationID()
 		return nil
 	}
 	return fmt.Errorf("unknown POSOrderLine nullable field %s", name)
@@ -44583,6 +44781,9 @@ func (m *POSOrderLineMutation) ResetField(name string) error {
 		return nil
 	case posorderline.FieldCourseNumber:
 		m.ResetCourseNumber()
+		return nil
+	case posorderline.FieldKdsStationID:
+		m.ResetKdsStationID()
 		return nil
 	case posorderline.FieldMetadata:
 		m.ResetMetadata()

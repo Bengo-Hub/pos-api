@@ -73,6 +73,20 @@ func (_u *KDSStationUpdate) SetNillableName(v *string) *KDSStationUpdate {
 	return _u
 }
 
+// SetStationType sets the "station_type" field.
+func (_u *KDSStationUpdate) SetStationType(v kdsstation.StationType) *KDSStationUpdate {
+	_u.mutation.SetStationType(v)
+	return _u
+}
+
+// SetNillableStationType sets the "station_type" field if the given value is not nil.
+func (_u *KDSStationUpdate) SetNillableStationType(v *kdsstation.StationType) *KDSStationUpdate {
+	if v != nil {
+		_u.SetStationType(*v)
+	}
+	return _u
+}
+
 // SetCategoryFilter sets the "category_filter" field.
 func (_u *KDSStationUpdate) SetCategoryFilter(v []string) *KDSStationUpdate {
 	_u.mutation.SetCategoryFilter(v)
@@ -216,6 +230,11 @@ func (_u *KDSStationUpdate) check() error {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "KDSStation.name": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.StationType(); ok {
+		if err := kdsstation.StationTypeValidator(v); err != nil {
+			return &ValidationError{Name: "station_type", err: fmt.Errorf(`ent: validator failed for field "KDSStation.station_type": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -239,6 +258,9 @@ func (_u *KDSStationUpdate) sqlSave(ctx context.Context) (_node int, err error) 
 	}
 	if value, ok := _u.mutation.Name(); ok {
 		_spec.SetField(kdsstation.FieldName, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.StationType(); ok {
+		_spec.SetField(kdsstation.FieldStationType, field.TypeEnum, value)
 	}
 	if value, ok := _u.mutation.CategoryFilter(); ok {
 		_spec.SetField(kdsstation.FieldCategoryFilter, field.TypeJSON, value)
@@ -366,6 +388,20 @@ func (_u *KDSStationUpdateOne) SetName(v string) *KDSStationUpdateOne {
 func (_u *KDSStationUpdateOne) SetNillableName(v *string) *KDSStationUpdateOne {
 	if v != nil {
 		_u.SetName(*v)
+	}
+	return _u
+}
+
+// SetStationType sets the "station_type" field.
+func (_u *KDSStationUpdateOne) SetStationType(v kdsstation.StationType) *KDSStationUpdateOne {
+	_u.mutation.SetStationType(v)
+	return _u
+}
+
+// SetNillableStationType sets the "station_type" field if the given value is not nil.
+func (_u *KDSStationUpdateOne) SetNillableStationType(v *kdsstation.StationType) *KDSStationUpdateOne {
+	if v != nil {
+		_u.SetStationType(*v)
 	}
 	return _u
 }
@@ -526,6 +562,11 @@ func (_u *KDSStationUpdateOne) check() error {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "KDSStation.name": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.StationType(); ok {
+		if err := kdsstation.StationTypeValidator(v); err != nil {
+			return &ValidationError{Name: "station_type", err: fmt.Errorf(`ent: validator failed for field "KDSStation.station_type": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -566,6 +607,9 @@ func (_u *KDSStationUpdateOne) sqlSave(ctx context.Context) (_node *KDSStation, 
 	}
 	if value, ok := _u.mutation.Name(); ok {
 		_spec.SetField(kdsstation.FieldName, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.StationType(); ok {
+		_spec.SetField(kdsstation.FieldStationType, field.TypeEnum, value)
 	}
 	if value, ok := _u.mutation.CategoryFilter(); ok {
 		_spec.SetField(kdsstation.FieldCategoryFilter, field.TypeJSON, value)

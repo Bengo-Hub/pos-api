@@ -236,6 +236,26 @@ func NameContainsFold(v string) predicate.KDSStation {
 	return predicate.KDSStation(sql.FieldContainsFold(FieldName, v))
 }
 
+// StationTypeEQ applies the EQ predicate on the "station_type" field.
+func StationTypeEQ(v StationType) predicate.KDSStation {
+	return predicate.KDSStation(sql.FieldEQ(FieldStationType, v))
+}
+
+// StationTypeNEQ applies the NEQ predicate on the "station_type" field.
+func StationTypeNEQ(v StationType) predicate.KDSStation {
+	return predicate.KDSStation(sql.FieldNEQ(FieldStationType, v))
+}
+
+// StationTypeIn applies the In predicate on the "station_type" field.
+func StationTypeIn(vs ...StationType) predicate.KDSStation {
+	return predicate.KDSStation(sql.FieldIn(FieldStationType, vs...))
+}
+
+// StationTypeNotIn applies the NotIn predicate on the "station_type" field.
+func StationTypeNotIn(vs ...StationType) predicate.KDSStation {
+	return predicate.KDSStation(sql.FieldNotIn(FieldStationType, vs...))
+}
+
 // CategoryFilterIsNil applies the IsNil predicate on the "category_filter" field.
 func CategoryFilterIsNil() predicate.KDSStation {
 	return predicate.KDSStation(sql.FieldIsNull(FieldCategoryFilter))

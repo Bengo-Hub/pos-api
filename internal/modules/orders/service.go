@@ -6,6 +6,7 @@ package orders
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -17,6 +18,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/kdsstation"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
 	"github.com/bengobox/pos-service/internal/ent/posorderline"
+	entoverride "github.com/bengobox/pos-service/internal/ent/poscatalogoverride"
 	kdsmod "github.com/bengobox/pos-service/internal/modules/kds"
 	"github.com/bengobox/pos-service/internal/platform/events"
 )
@@ -253,6 +255,29 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent
 		return nil, fmt.Errorf("orders: create order: %w", err)
 	}
 
+	// Batch-resolve KDS station IDs from catalog overrides for all line SKUs.
+	// This is the primary routing mechanism: managers assign items to stations in POS settings.
+	skus := make([]string, 0, len(req.Lines))
+	for _, l := range req.Lines {
+		if l.SKU != "" {
+			skus = append(skus, l.SKU)
+		}
+	}
+	kdsOverrideBySKU := make(map[string]uuid.UUID)
+	if len(skus) > 0 {
+		overrides, _ := s.client.POSCatalogOverride.Query().
+			Where(
+				entoverride.TenantID(req.TenantID),
+				entoverride.InventorySkuIn(skus...),
+				entoverride.KdsStationIDNotNil(),
+			).All(ctx)
+		for _, o := range overrides {
+			if o.KdsStationID != nil {
+				kdsOverrideBySKU[o.InventorySku] = *o.KdsStationID
+			}
+		}
+	}
+
 	for _, line := range req.Lines {
 		lineTotal := decimal.NewFromFloat(line.TotalPrice)
 		if lineTotal.IsZero() {
@@ -302,6 +327,10 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent
 		}
 		if taxAmt > 0 {
 			lineCreate = lineCreate.SetTaxAmount(taxAmt)
+		}
+		// Stamp the KDS station on the line so routing in createKDSTicketsForOrder is O(1).
+		if stationID, ok := kdsOverrideBySKU[line.SKU]; ok {
+			lineCreate = lineCreate.SetKdsStationID(stationID)
 		}
 
 		_, err = lineCreate.Save(ctx)
@@ -393,7 +422,103 @@ func (s *Service) UpdateStatus(ctx context.Context, tenantID, orderID uuid.UUID,
 	return updated, nil
 }
 
-// createKDSTicketsForOrder creates KDS tickets for all active stations when a POS order opens.
+// parseTableRef extracts the table reference string from an order's metadata.
+func parseTableRef(order *ent.POSOrder) string {
+	if v, ok := order.Metadata["table_number"].(string); ok && v != "" {
+		return v
+	}
+	if v, ok := order.Metadata["table_name"].(string); ok && v != "" {
+		return v
+	}
+	return ""
+}
+
+// routeLinesToStations groups order lines into per-station item buckets.
+//
+// Routing priority (highest to lowest):
+//  1. line.KdsStationID — explicit station set at order creation from POSCatalogOverride
+//  2. Station category_filter — keyword match against the item name (fallback)
+//  3. Expo / "all" stations — receive every item as a secondary copy for the expediter
+//
+// A station with station_type="expo" or "all" always receives EVERY item.
+// Items with no explicit station and no matching category_filter go to expo/all stations;
+// if no such station exists they go to the first active station.
+func routeLinesToStations(lines []*ent.POSOrderLine, stations []*ent.KDSStation) map[uuid.UUID][]map[string]any {
+	stationItems := make(map[uuid.UUID][]map[string]any, len(stations))
+
+	// Identify expo/all stations upfront.
+	var expoIDs []uuid.UUID
+	for _, st := range stations {
+		if st.StationType == "expo" || st.StationType == "all" {
+			expoIDs = append(expoIDs, st.ID)
+		}
+	}
+
+	for _, l := range lines {
+		item := map[string]any{
+			"sku":      l.Sku,
+			"name":     l.Name,
+			"quantity": l.Quantity,
+		}
+
+		routed := false
+
+		// Priority 1: explicit station on the order line (set from catalog override).
+		if l.KdsStationID != nil {
+			stationItems[*l.KdsStationID] = append(stationItems[*l.KdsStationID], item)
+			routed = true
+		}
+
+		// Priority 2: category_filter keyword match on item name (case-insensitive).
+		if !routed {
+			nameLower := strings.ToLower(l.Name)
+			for _, st := range stations {
+				if st.StationType == "expo" || st.StationType == "all" {
+					continue // handled separately below
+				}
+				for _, cat := range st.CategoryFilter {
+					if strings.Contains(nameLower, strings.ToLower(cat)) {
+						stationItems[st.ID] = append(stationItems[st.ID], item)
+						routed = true
+						break
+					}
+				}
+				if routed {
+					break
+				}
+			}
+		}
+
+		// Priority 3: no match — use expo/all stations; if none, use first station.
+		if !routed {
+			if len(expoIDs) > 0 {
+				for _, eid := range expoIDs {
+					stationItems[eid] = append(stationItems[eid], item)
+				}
+				routed = true
+			} else if len(stations) > 0 {
+				stationItems[stations[0].ID] = append(stationItems[stations[0].ID], item)
+				routed = true
+			}
+		}
+
+		// Expo/all stations always receive a copy of every item (expediter view).
+		if routed {
+			for _, eid := range expoIDs {
+				if l.KdsStationID == nil || *l.KdsStationID != eid {
+					stationItems[eid] = append(stationItems[eid], item)
+				}
+			}
+		}
+	}
+
+	return stationItems
+}
+
+// createKDSTicketsForOrder creates per-station KDS tickets with only the items
+// relevant to each station. Items are routed via kds_station_id on the order line
+// (resolved from POSCatalogOverride at order creation) with a category_filter
+// keyword fallback. Expo/all stations receive every item as a secondary copy.
 func (s *Service) createKDSTicketsForOrder(ctx context.Context, tenantID uuid.UUID, order *ent.POSOrder) error {
 	stations, err := s.client.KDSStation.Query().
 		Where(kdsstation.TenantID(tenantID), kdsstation.OutletID(order.OutletID), kdsstation.IsActive(true)).
@@ -409,31 +534,14 @@ func (s *Service) createKDSTicketsForOrder(ctx context.Context, tenantID uuid.UU
 		return err
 	}
 
-	items := make([]map[string]any, 0, len(lines))
-	for _, l := range lines {
-		items = append(items, map[string]any{
-			"sku":      l.Sku,
-			"name":     l.Name,
-			"quantity": l.Quantity,
-		})
-	}
-
-	// Parse table_reference from order metadata (set by hospitality terminal when table is assigned).
-	tableRef := ""
-	if v, ok := order.Metadata["table_number"]; ok {
-		if s, ok := v.(string); ok {
-			tableRef = s
-		}
-	}
-	if tableRef == "" {
-		if v, ok := order.Metadata["table_name"]; ok {
-			if s, ok := v.(string); ok {
-				tableRef = s
-			}
-		}
-	}
+	stationItems := routeLinesToStations(lines, stations)
+	tableRef := parseTableRef(order)
 
 	for _, station := range stations {
+		items := stationItems[station.ID]
+		if len(items) == 0 {
+			continue // no items for this station — skip
+		}
 		exists, _ := s.client.KDSTicket.Query().
 			Where(kdsticket.OrderID(order.ID), kdsticket.StationID(station.ID)).
 			Exist(ctx)
@@ -476,7 +584,8 @@ func (s *Service) createKDSTicketsForOrder(ctx context.Context, tenantID uuid.UU
 	return nil
 }
 
-// FireCourseKDS creates KDS tickets for order lines with course_number == course.
+// FireCourseKDS creates KDS tickets for order lines with course_number == course,
+// routing each line to the correct station based on kds_station_id / category_filter.
 // The order must be queried with WithLines() before calling.
 func (s *Service) FireCourseKDS(ctx context.Context, tenantID uuid.UUID, order *ent.POSOrder, course int) error {
 	courseLines := make([]*ent.POSOrderLine, 0)
@@ -496,21 +605,14 @@ func (s *Service) FireCourseKDS(ctx context.Context, tenantID uuid.UUID, order *
 		return err
 	}
 
-	items := make([]map[string]any, 0, len(courseLines))
-	for _, l := range courseLines {
-		items = append(items, map[string]any{
-			"sku":      l.Sku,
-			"name":     l.Name,
-			"quantity": l.Quantity,
-		})
-	}
-
-	tableRef := ""
-	if v, ok := order.Metadata["table_number"].(string); ok {
-		tableRef = v
-	}
+	stationItems := routeLinesToStations(courseLines, stations)
+	tableRef := parseTableRef(order)
 
 	for _, station := range stations {
+		items := stationItems[station.ID]
+		if len(items) == 0 {
+			continue
+		}
 		ticket, err := s.client.KDSTicket.Create().
 			SetTenantID(tenantID).
 			SetStationID(station.ID).

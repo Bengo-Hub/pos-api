@@ -140,6 +140,11 @@ func DurationMinutes(v int) predicate.POSCatalogOverride {
 	return predicate.POSCatalogOverride(sql.FieldEQ(FieldDurationMinutes, v))
 }
 
+// KdsStationID applies equality check predicate on the "kds_station_id" field. It's identical to KdsStationIDEQ.
+func KdsStationID(v uuid.UUID) predicate.POSCatalogOverride {
+	return predicate.POSCatalogOverride(sql.FieldEQ(FieldKdsStationID, v))
+}
+
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.POSCatalogOverride {
 	return predicate.POSCatalogOverride(sql.FieldEQ(FieldCreatedAt, v))
@@ -768,6 +773,56 @@ func DurationMinutesIsNil() predicate.POSCatalogOverride {
 // DurationMinutesNotNil applies the NotNil predicate on the "duration_minutes" field.
 func DurationMinutesNotNil() predicate.POSCatalogOverride {
 	return predicate.POSCatalogOverride(sql.FieldNotNull(FieldDurationMinutes))
+}
+
+// KdsStationIDEQ applies the EQ predicate on the "kds_station_id" field.
+func KdsStationIDEQ(v uuid.UUID) predicate.POSCatalogOverride {
+	return predicate.POSCatalogOverride(sql.FieldEQ(FieldKdsStationID, v))
+}
+
+// KdsStationIDNEQ applies the NEQ predicate on the "kds_station_id" field.
+func KdsStationIDNEQ(v uuid.UUID) predicate.POSCatalogOverride {
+	return predicate.POSCatalogOverride(sql.FieldNEQ(FieldKdsStationID, v))
+}
+
+// KdsStationIDIn applies the In predicate on the "kds_station_id" field.
+func KdsStationIDIn(vs ...uuid.UUID) predicate.POSCatalogOverride {
+	return predicate.POSCatalogOverride(sql.FieldIn(FieldKdsStationID, vs...))
+}
+
+// KdsStationIDNotIn applies the NotIn predicate on the "kds_station_id" field.
+func KdsStationIDNotIn(vs ...uuid.UUID) predicate.POSCatalogOverride {
+	return predicate.POSCatalogOverride(sql.FieldNotIn(FieldKdsStationID, vs...))
+}
+
+// KdsStationIDGT applies the GT predicate on the "kds_station_id" field.
+func KdsStationIDGT(v uuid.UUID) predicate.POSCatalogOverride {
+	return predicate.POSCatalogOverride(sql.FieldGT(FieldKdsStationID, v))
+}
+
+// KdsStationIDGTE applies the GTE predicate on the "kds_station_id" field.
+func KdsStationIDGTE(v uuid.UUID) predicate.POSCatalogOverride {
+	return predicate.POSCatalogOverride(sql.FieldGTE(FieldKdsStationID, v))
+}
+
+// KdsStationIDLT applies the LT predicate on the "kds_station_id" field.
+func KdsStationIDLT(v uuid.UUID) predicate.POSCatalogOverride {
+	return predicate.POSCatalogOverride(sql.FieldLT(FieldKdsStationID, v))
+}
+
+// KdsStationIDLTE applies the LTE predicate on the "kds_station_id" field.
+func KdsStationIDLTE(v uuid.UUID) predicate.POSCatalogOverride {
+	return predicate.POSCatalogOverride(sql.FieldLTE(FieldKdsStationID, v))
+}
+
+// KdsStationIDIsNil applies the IsNil predicate on the "kds_station_id" field.
+func KdsStationIDIsNil() predicate.POSCatalogOverride {
+	return predicate.POSCatalogOverride(sql.FieldIsNull(FieldKdsStationID))
+}
+
+// KdsStationIDNotNil applies the NotNil predicate on the "kds_station_id" field.
+func KdsStationIDNotNil() predicate.POSCatalogOverride {
+	return predicate.POSCatalogOverride(sql.FieldNotNull(FieldKdsStationID))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.

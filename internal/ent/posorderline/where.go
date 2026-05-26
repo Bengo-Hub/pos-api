@@ -146,6 +146,11 @@ func CourseNumber(v int) predicate.POSOrderLine {
 	return predicate.POSOrderLine(sql.FieldEQ(FieldCourseNumber, v))
 }
 
+// KdsStationID applies equality check predicate on the "kds_station_id" field. It's identical to KdsStationIDEQ.
+func KdsStationID(v uuid.UUID) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldEQ(FieldKdsStationID, v))
+}
+
 // OrderIDEQ applies the EQ predicate on the "order_id" field.
 func OrderIDEQ(v uuid.UUID) predicate.POSOrderLine {
 	return predicate.POSOrderLine(sql.FieldEQ(FieldOrderID, v))
@@ -1054,6 +1059,56 @@ func CourseNumberLT(v int) predicate.POSOrderLine {
 // CourseNumberLTE applies the LTE predicate on the "course_number" field.
 func CourseNumberLTE(v int) predicate.POSOrderLine {
 	return predicate.POSOrderLine(sql.FieldLTE(FieldCourseNumber, v))
+}
+
+// KdsStationIDEQ applies the EQ predicate on the "kds_station_id" field.
+func KdsStationIDEQ(v uuid.UUID) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldEQ(FieldKdsStationID, v))
+}
+
+// KdsStationIDNEQ applies the NEQ predicate on the "kds_station_id" field.
+func KdsStationIDNEQ(v uuid.UUID) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldNEQ(FieldKdsStationID, v))
+}
+
+// KdsStationIDIn applies the In predicate on the "kds_station_id" field.
+func KdsStationIDIn(vs ...uuid.UUID) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldIn(FieldKdsStationID, vs...))
+}
+
+// KdsStationIDNotIn applies the NotIn predicate on the "kds_station_id" field.
+func KdsStationIDNotIn(vs ...uuid.UUID) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldNotIn(FieldKdsStationID, vs...))
+}
+
+// KdsStationIDGT applies the GT predicate on the "kds_station_id" field.
+func KdsStationIDGT(v uuid.UUID) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldGT(FieldKdsStationID, v))
+}
+
+// KdsStationIDGTE applies the GTE predicate on the "kds_station_id" field.
+func KdsStationIDGTE(v uuid.UUID) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldGTE(FieldKdsStationID, v))
+}
+
+// KdsStationIDLT applies the LT predicate on the "kds_station_id" field.
+func KdsStationIDLT(v uuid.UUID) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldLT(FieldKdsStationID, v))
+}
+
+// KdsStationIDLTE applies the LTE predicate on the "kds_station_id" field.
+func KdsStationIDLTE(v uuid.UUID) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldLTE(FieldKdsStationID, v))
+}
+
+// KdsStationIDIsNil applies the IsNil predicate on the "kds_station_id" field.
+func KdsStationIDIsNil() predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldIsNull(FieldKdsStationID))
+}
+
+// KdsStationIDNotNil applies the NotNil predicate on the "kds_station_id" field.
+func KdsStationIDNotNil() predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldNotNull(FieldKdsStationID))
 }
 
 // HasOrder applies the HasEdge predicate on the "order" edge.

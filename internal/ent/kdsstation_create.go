@@ -43,6 +43,20 @@ func (_c *KDSStationCreate) SetName(v string) *KDSStationCreate {
 	return _c
 }
 
+// SetStationType sets the "station_type" field.
+func (_c *KDSStationCreate) SetStationType(v kdsstation.StationType) *KDSStationCreate {
+	_c.mutation.SetStationType(v)
+	return _c
+}
+
+// SetNillableStationType sets the "station_type" field if the given value is not nil.
+func (_c *KDSStationCreate) SetNillableStationType(v *kdsstation.StationType) *KDSStationCreate {
+	if v != nil {
+		_c.SetStationType(*v)
+	}
+	return _c
+}
+
 // SetCategoryFilter sets the "category_filter" field.
 func (_c *KDSStationCreate) SetCategoryFilter(v []string) *KDSStationCreate {
 	_c.mutation.SetCategoryFilter(v)
@@ -169,6 +183,10 @@ func (_c *KDSStationCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *KDSStationCreate) defaults() {
+	if _, ok := _c.mutation.StationType(); !ok {
+		v := kdsstation.DefaultStationType
+		_c.mutation.SetStationType(v)
+	}
 	if _, ok := _c.mutation.SortOrder(); !ok {
 		v := kdsstation.DefaultSortOrder
 		_c.mutation.SetSortOrder(v)
@@ -205,6 +223,14 @@ func (_c *KDSStationCreate) check() error {
 	if v, ok := _c.mutation.Name(); ok {
 		if err := kdsstation.NameValidator(v); err != nil {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "KDSStation.name": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.StationType(); !ok {
+		return &ValidationError{Name: "station_type", err: errors.New(`ent: missing required field "KDSStation.station_type"`)}
+	}
+	if v, ok := _c.mutation.StationType(); ok {
+		if err := kdsstation.StationTypeValidator(v); err != nil {
+			return &ValidationError{Name: "station_type", err: fmt.Errorf(`ent: validator failed for field "KDSStation.station_type": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.SortOrder(); !ok {
@@ -266,6 +292,10 @@ func (_c *KDSStationCreate) createSpec() (*KDSStation, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Name(); ok {
 		_spec.SetField(kdsstation.FieldName, field.TypeString, value)
 		_node.Name = value
+	}
+	if value, ok := _c.mutation.StationType(); ok {
+		_spec.SetField(kdsstation.FieldStationType, field.TypeEnum, value)
+		_node.StationType = value
 	}
 	if value, ok := _c.mutation.CategoryFilter(); ok {
 		_spec.SetField(kdsstation.FieldCategoryFilter, field.TypeJSON, value)
@@ -388,6 +418,18 @@ func (u *KDSStationUpsert) SetName(v string) *KDSStationUpsert {
 // UpdateName sets the "name" field to the value that was provided on create.
 func (u *KDSStationUpsert) UpdateName() *KDSStationUpsert {
 	u.SetExcluded(kdsstation.FieldName)
+	return u
+}
+
+// SetStationType sets the "station_type" field.
+func (u *KDSStationUpsert) SetStationType(v kdsstation.StationType) *KDSStationUpsert {
+	u.Set(kdsstation.FieldStationType, v)
+	return u
+}
+
+// UpdateStationType sets the "station_type" field to the value that was provided on create.
+func (u *KDSStationUpsert) UpdateStationType() *KDSStationUpsert {
+	u.SetExcluded(kdsstation.FieldStationType)
 	return u
 }
 
@@ -541,6 +583,20 @@ func (u *KDSStationUpsertOne) SetName(v string) *KDSStationUpsertOne {
 func (u *KDSStationUpsertOne) UpdateName() *KDSStationUpsertOne {
 	return u.Update(func(s *KDSStationUpsert) {
 		s.UpdateName()
+	})
+}
+
+// SetStationType sets the "station_type" field.
+func (u *KDSStationUpsertOne) SetStationType(v kdsstation.StationType) *KDSStationUpsertOne {
+	return u.Update(func(s *KDSStationUpsert) {
+		s.SetStationType(v)
+	})
+}
+
+// UpdateStationType sets the "station_type" field to the value that was provided on create.
+func (u *KDSStationUpsertOne) UpdateStationType() *KDSStationUpsertOne {
+	return u.Update(func(s *KDSStationUpsert) {
+		s.UpdateStationType()
 	})
 }
 
@@ -871,6 +927,20 @@ func (u *KDSStationUpsertBulk) SetName(v string) *KDSStationUpsertBulk {
 func (u *KDSStationUpsertBulk) UpdateName() *KDSStationUpsertBulk {
 	return u.Update(func(s *KDSStationUpsert) {
 		s.UpdateName()
+	})
+}
+
+// SetStationType sets the "station_type" field.
+func (u *KDSStationUpsertBulk) SetStationType(v kdsstation.StationType) *KDSStationUpsertBulk {
+	return u.Update(func(s *KDSStationUpsert) {
+		s.SetStationType(v)
+	})
+}
+
+// UpdateStationType sets the "station_type" field to the value that was provided on create.
+func (u *KDSStationUpsertBulk) UpdateStationType() *KDSStationUpsertBulk {
+	return u.Update(func(s *KDSStationUpsert) {
+		s.UpdateStationType()
 	})
 }
 

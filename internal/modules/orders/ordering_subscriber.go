@@ -143,16 +143,6 @@ func (s *KDSOrderingSubscriber) handleStatusChanged(ctx context.Context, evt *or
 		return fmt.Errorf("query order lines: %w", err)
 	}
 
-	items := make([]map[string]any, 0, len(lines))
-	for _, l := range lines {
-		items = append(items, map[string]any{
-			"sku":        l.Sku,
-			"name":       l.Name,
-			"quantity":   l.Quantity,
-			"unit_price": l.UnitPrice,
-		})
-	}
-
 	// Find active KDS stations for the outlet
 	stations, err := s.client.KDSStation.Query().
 		Where(
@@ -171,18 +161,17 @@ func (s *KDSOrderingSubscriber) handleStatusChanged(ctx context.Context, evt *or
 		return nil
 	}
 
-	// Parse table reference from metadata for display on the KDS screen.
-	tableRef := ""
-	if v, ok := posOrder.Metadata["table_number"].(string); ok {
-		tableRef = v
-	}
-	if tableRef == "" {
-		if v, ok := posOrder.Metadata["table_name"].(string); ok {
-			tableRef = v
-		}
-	}
+	// Route lines to stations using the same algorithm as POS orders.
+	// Online orders may not have kds_station_id on lines (set to nil), so they
+	// fall through to category_filter keyword matching then expo/all stations.
+	stationItems := routeLinesToStations(lines, stations)
+	tableRef := parseTableRef(posOrder)
 
 	for _, station := range stations {
+		items := stationItems[station.ID]
+		if len(items) == 0 {
+			continue // no items for this station — skip
+		}
 		if err := s.upsertKDSTicket(ctx, tenantID, posOrder.OutletID, station.ID, posOrder.ID, orderNumber, newStatus, tableRef, items); err != nil {
 			s.logger.Error("kds: failed to upsert ticket",
 				zap.String("station_id", station.ID.String()),

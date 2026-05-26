@@ -3,6 +3,7 @@
 package kdsstation
 
 import (
+	"fmt"
 	"time"
 
 	"entgo.io/ent/dialect/sql"
@@ -21,6 +22,8 @@ const (
 	FieldOutletID = "outlet_id"
 	// FieldName holds the string denoting the name field in the database.
 	FieldName = "name"
+	// FieldStationType holds the string denoting the station_type field in the database.
+	FieldStationType = "station_type"
 	// FieldCategoryFilter holds the string denoting the category_filter field in the database.
 	FieldCategoryFilter = "category_filter"
 	// FieldSortOrder holds the string denoting the sort_order field in the database.
@@ -50,6 +53,7 @@ var Columns = []string{
 	FieldTenantID,
 	FieldOutletID,
 	FieldName,
+	FieldStationType,
 	FieldCategoryFilter,
 	FieldSortOrder,
 	FieldIsActive,
@@ -84,6 +88,35 @@ var (
 	DefaultID func() uuid.UUID
 )
 
+// StationType defines the type for the "station_type" enum field.
+type StationType string
+
+// StationTypeKitchen is the default value of the StationType enum.
+const DefaultStationType = StationTypeKitchen
+
+// StationType values.
+const (
+	StationTypeKitchen StationType = "kitchen"
+	StationTypeBar     StationType = "bar"
+	StationTypeCold    StationType = "cold"
+	StationTypeExpo    StationType = "expo"
+	StationTypeAll     StationType = "all"
+)
+
+func (st StationType) String() string {
+	return string(st)
+}
+
+// StationTypeValidator is a validator for the "station_type" field enum values. It is called by the builders before save.
+func StationTypeValidator(st StationType) error {
+	switch st {
+	case StationTypeKitchen, StationTypeBar, StationTypeCold, StationTypeExpo, StationTypeAll:
+		return nil
+	default:
+		return fmt.Errorf("kdsstation: invalid enum value for station_type field: %q", st)
+	}
+}
+
 // OrderOption defines the ordering options for the KDSStation queries.
 type OrderOption func(*sql.Selector)
 
@@ -105,6 +138,11 @@ func ByOutletID(opts ...sql.OrderTermOption) OrderOption {
 // ByName orders the results by the name field.
 func ByName(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldName, opts...).ToFunc()
+}
+
+// ByStationType orders the results by the station_type field.
+func ByStationType(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldStationType, opts...).ToFunc()
 }
 
 // BySortOrder orders the results by the sort_order field.

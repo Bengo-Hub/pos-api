@@ -1,6 +1,7 @@
 package schema
 
 import (
+	"encoding/json"
 	"time"
 
 	"entgo.io/ent"
@@ -28,8 +29,8 @@ func (OutboxEvent) Fields() []ent.Field {
 			NotEmpty(),
 		field.String("event_type").
 			NotEmpty(),
-		field.JSON("payload", []byte{}).
-			Comment("Serialized event payload"),
+		field.JSON("payload", json.RawMessage{}).
+			Comment("Serialized event payload — stored as raw JSON (not base64)"),
 		field.String("status").
 			Default("PENDING").
 			Comment("PENDING | PUBLISHED | FAILED"),

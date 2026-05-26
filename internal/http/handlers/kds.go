@@ -121,21 +121,30 @@ func (h *KDSHandler) getQueue(w http.ResponseWriter, r *http.Request, stationTyp
 		return
 	}
 
-	// Find stations matching the type (by name containing the type keyword)
+	// Resolve which station_types are relevant for this queue endpoint.
+	// "kitchen" queue → kitchen + expo/all stations (expo sees everything)
+	// "bar" queue → bar + expo/all stations
+	targetTypes := []entkdsstation.StationType{
+		entkdsstation.StationType(stationType),
+		entkdsstation.StationTypeExpo,
+		entkdsstation.StationTypeAll,
+	}
+
 	stations, err := h.client.KDSStation.Query().
-		Where(entkdsstation.TenantID(tid), entkdsstation.IsActive(true)).
+		Where(
+			entkdsstation.TenantID(tid),
+			entkdsstation.IsActive(true),
+			entkdsstation.StationTypeIn(targetTypes...),
+		).
 		All(r.Context())
 	if err != nil {
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 
-	var stationIDs []uuid.UUID
+	stationIDs := make([]uuid.UUID, 0, len(stations))
 	for _, s := range stations {
-		// Match stations by name containing the type keyword (kitchen/bar)
-		if containsCaseInsensitive(s.Name, stationType) {
-			stationIDs = append(stationIDs, s.ID)
-		}
+		stationIDs = append(stationIDs, s.ID)
 	}
 
 	activeStatuses := []entkdsticket.Status{
@@ -382,6 +391,7 @@ func (h *KDSHandler) CreateStation(w http.ResponseWriter, r *http.Request) {
 	var input struct {
 		OutletID       string   `json:"outlet_id"`
 		Name           string   `json:"name"`
+		StationType    string   `json:"station_type"` // kitchen | bar | cold | expo | all
 		CategoryFilter []string `json:"category_filter"`
 		SortOrder      int      `json:"sort_order"`
 	}
@@ -397,10 +407,16 @@ func (h *KDSHandler) CreateStation(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	stationType := entkdsstation.StationType(input.StationType)
+	if stationType == "" {
+		stationType = entkdsstation.StationTypeKitchen
+	}
+
 	station, err := h.client.KDSStation.Create().
 		SetTenantID(tid).
 		SetOutletID(outletID).
 		SetName(input.Name).
+		SetStationType(stationType).
 		SetCategoryFilter(input.CategoryFilter).
 		SetSortOrder(input.SortOrder).
 		Save(r.Context())
@@ -429,6 +445,7 @@ func (h *KDSHandler) UpdateStation(w http.ResponseWriter, r *http.Request) {
 
 	var input struct {
 		Name           string   `json:"name"`
+		StationType    string   `json:"station_type"`
 		CategoryFilter []string `json:"category_filter"`
 		SortOrder      int      `json:"sort_order"`
 		IsActive       *bool    `json:"is_active"`
@@ -449,6 +466,9 @@ func (h *KDSHandler) UpdateStation(w http.ResponseWriter, r *http.Request) {
 	upd := station.Update()
 	if input.Name != "" {
 		upd = upd.SetName(input.Name)
+	}
+	if input.StationType != "" {
+		upd = upd.SetStationType(entkdsstation.StationType(input.StationType))
 	}
 	if input.CategoryFilter != nil {
 		upd = upd.SetCategoryFilter(input.CategoryFilter)

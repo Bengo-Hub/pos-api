@@ -53,6 +53,8 @@ type POSCatalogOverride struct {
 	MinimumAge *int `json:"minimum_age,omitempty"`
 	// Service duration for salon/appointment flow
 	DurationMinutes *int `json:"duration_minutes,omitempty"`
+	// Explicit KDS station for this item; overrides category_filter matching
+	KdsStationID *uuid.UUID `json:"kds_station_id,omitempty"`
 	// Metadata holds the value of the "metadata" field.
 	Metadata map[string]interface{} `json:"metadata,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
@@ -67,7 +69,7 @@ func (*POSCatalogOverride) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case poscatalogoverride.FieldOutletID:
+		case poscatalogoverride.FieldOutletID, poscatalogoverride.FieldKdsStationID:
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		case poscatalogoverride.FieldMetadata:
 			values[i] = new([]byte)
@@ -210,6 +212,13 @@ func (_m *POSCatalogOverride) assignValues(columns []string, values []any) error
 				_m.DurationMinutes = new(int)
 				*_m.DurationMinutes = int(value.Int64)
 			}
+		case poscatalogoverride.FieldKdsStationID:
+			if value, ok := values[i].(*sql.NullScanner); !ok {
+				return fmt.Errorf("unexpected type %T for field kds_station_id", values[i])
+			} else if value.Valid {
+				_m.KdsStationID = new(uuid.UUID)
+				*_m.KdsStationID = *value.S.(*uuid.UUID)
+			}
 		case poscatalogoverride.FieldMetadata:
 			if value, ok := values[i].(*[]byte); !ok {
 				return fmt.Errorf("unexpected type %T for field metadata", values[i])
@@ -322,6 +331,11 @@ func (_m *POSCatalogOverride) String() string {
 	builder.WriteString(", ")
 	if v := _m.DurationMinutes; v != nil {
 		builder.WriteString("duration_minutes=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.KdsStationID; v != nil {
+		builder.WriteString("kds_station_id=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
 	builder.WriteString(", ")

@@ -4,6 +4,7 @@ package ent
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -87,13 +88,13 @@ func (_u *OutboxEventUpdate) SetNillableEventType(v *string) *OutboxEventUpdate 
 }
 
 // SetPayload sets the "payload" field.
-func (_u *OutboxEventUpdate) SetPayload(v []uint8) *OutboxEventUpdate {
+func (_u *OutboxEventUpdate) SetPayload(v json.RawMessage) *OutboxEventUpdate {
 	_u.mutation.SetPayload(v)
 	return _u
 }
 
 // AppendPayload appends value to the "payload" field.
-func (_u *OutboxEventUpdate) AppendPayload(v []uint8) *OutboxEventUpdate {
+func (_u *OutboxEventUpdate) AppendPayload(v json.RawMessage) *OutboxEventUpdate {
 	_u.mutation.AppendPayload(v)
 	return _u
 }
@@ -381,13 +382,13 @@ func (_u *OutboxEventUpdateOne) SetNillableEventType(v *string) *OutboxEventUpda
 }
 
 // SetPayload sets the "payload" field.
-func (_u *OutboxEventUpdateOne) SetPayload(v []uint8) *OutboxEventUpdateOne {
+func (_u *OutboxEventUpdateOne) SetPayload(v json.RawMessage) *OutboxEventUpdateOne {
 	_u.mutation.SetPayload(v)
 	return _u
 }
 
 // AppendPayload appends value to the "payload" field.
-func (_u *OutboxEventUpdateOne) AppendPayload(v []uint8) *OutboxEventUpdateOne {
+func (_u *OutboxEventUpdateOne) AppendPayload(v json.RawMessage) *OutboxEventUpdateOne {
 	_u.mutation.AppendPayload(v)
 	return _u
 }

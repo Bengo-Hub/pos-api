@@ -25,7 +25,9 @@ type KDSStation struct {
 	OutletID uuid.UUID `json:"outlet_id,omitempty"`
 	// Station name: Grill, Fryer, Bar, Cold Station
 	Name string `json:"name,omitempty"`
-	// Category codes this station handles
+	// Station type: kitchen=food prep, bar=drinks, cold=salads/cold, expo=expediter sees all, all=receives every item
+	StationType kdsstation.StationType `json:"station_type,omitempty"`
+	// Category codes this station handles (e.g. beverages, food, cocktails). Empty = use explicit kds_station_id on catalog override only.
 	CategoryFilter []string `json:"category_filter,omitempty"`
 	// SortOrder holds the value of the "sort_order" field.
 	SortOrder int `json:"sort_order,omitempty"`
@@ -70,7 +72,7 @@ func (*KDSStation) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullBool)
 		case kdsstation.FieldSortOrder:
 			values[i] = new(sql.NullInt64)
-		case kdsstation.FieldName:
+		case kdsstation.FieldName, kdsstation.FieldStationType:
 			values[i] = new(sql.NullString)
 		case kdsstation.FieldCreatedAt, kdsstation.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -114,6 +116,12 @@ func (_m *KDSStation) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field name", values[i])
 			} else if value.Valid {
 				_m.Name = value.String
+			}
+		case kdsstation.FieldStationType:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field station_type", values[i])
+			} else if value.Valid {
+				_m.StationType = kdsstation.StationType(value.String)
 			}
 		case kdsstation.FieldCategoryFilter:
 			if value, ok := values[i].(*[]byte); !ok {
@@ -196,6 +204,9 @@ func (_m *KDSStation) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("name=")
 	builder.WriteString(_m.Name)
+	builder.WriteString(", ")
+	builder.WriteString("station_type=")
+	builder.WriteString(fmt.Sprintf("%v", _m.StationType))
 	builder.WriteString(", ")
 	builder.WriteString("category_filter=")
 	builder.WriteString(fmt.Sprintf("%v", _m.CategoryFilter))

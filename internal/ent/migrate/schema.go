@@ -647,6 +647,7 @@ var (
 		{Name: "tenant_id", Type: field.TypeUUID},
 		{Name: "outlet_id", Type: field.TypeUUID},
 		{Name: "name", Type: field.TypeString},
+		{Name: "station_type", Type: field.TypeEnum, Enums: []string{"kitchen", "bar", "cold", "expo", "all"}, Default: "kitchen"},
 		{Name: "category_filter", Type: field.TypeJSON, Nullable: true},
 		{Name: "sort_order", Type: field.TypeInt, Default: 0},
 		{Name: "is_active", Type: field.TypeBool, Default: true},
@@ -1124,6 +1125,7 @@ var (
 		{Name: "is_controlled_substance", Type: field.TypeBool, Default: false},
 		{Name: "minimum_age", Type: field.TypeInt, Nullable: true},
 		{Name: "duration_minutes", Type: field.TypeInt, Nullable: true},
+		{Name: "kds_station_id", Type: field.TypeUUID, Nullable: true},
 		{Name: "metadata", Type: field.TypeJSON},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
@@ -1317,6 +1319,7 @@ var (
 		{Name: "tax_amount", Type: field.TypeFloat64, Nullable: true},
 		{Name: "price_includes_tax", Type: field.TypeBool, Default: false},
 		{Name: "course_number", Type: field.TypeInt, Default: 0},
+		{Name: "kds_station_id", Type: field.TypeUUID, Nullable: true},
 		{Name: "metadata", Type: field.TypeJSON},
 		{Name: "order_id", Type: field.TypeUUID},
 	}
@@ -1328,7 +1331,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "pos_order_lines_pos_orders_lines",
-				Columns:    []*schema.Column{PosOrderLinesColumns[19]},
+				Columns:    []*schema.Column{PosOrderLinesColumns[20]},
 				RefColumns: []*schema.Column{PosOrdersColumns[0]},
 				OnDelete:   schema.NoAction,
 			},

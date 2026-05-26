@@ -22,7 +22,13 @@ func (KDSStation) Fields() []ent.Field {
 		field.UUID("tenant_id", uuid.UUID{}),
 		field.UUID("outlet_id", uuid.UUID{}),
 		field.String("name").NotEmpty().Comment("Station name: Grill, Fryer, Bar, Cold Station"),
-		field.JSON("category_filter", []string{}).Optional().Comment("Category codes this station handles"),
+		field.Enum("station_type").
+			Values("kitchen", "bar", "cold", "expo", "all").
+			Default("kitchen").
+			Comment("Station type: kitchen=food prep, bar=drinks, cold=salads/cold, expo=expediter sees all, all=receives every item"),
+		field.JSON("category_filter", []string{}).
+			Optional().
+			Comment("Category codes this station handles (e.g. beverages, food, cocktails). Empty = use explicit kds_station_id on catalog override only."),
 		field.Int("sort_order").Default(0),
 		field.Bool("is_active").Default(true),
 		field.Time("created_at").Default(time.Now).Immutable(),

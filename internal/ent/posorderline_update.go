@@ -393,6 +393,26 @@ func (_u *POSOrderLineUpdate) AddCourseNumber(v int) *POSOrderLineUpdate {
 	return _u
 }
 
+// SetKdsStationID sets the "kds_station_id" field.
+func (_u *POSOrderLineUpdate) SetKdsStationID(v uuid.UUID) *POSOrderLineUpdate {
+	_u.mutation.SetKdsStationID(v)
+	return _u
+}
+
+// SetNillableKdsStationID sets the "kds_station_id" field if the given value is not nil.
+func (_u *POSOrderLineUpdate) SetNillableKdsStationID(v *uuid.UUID) *POSOrderLineUpdate {
+	if v != nil {
+		_u.SetKdsStationID(*v)
+	}
+	return _u
+}
+
+// ClearKdsStationID clears the value of the "kds_station_id" field.
+func (_u *POSOrderLineUpdate) ClearKdsStationID() *POSOrderLineUpdate {
+	_u.mutation.ClearKdsStationID()
+	return _u
+}
+
 // SetMetadata sets the "metadata" field.
 func (_u *POSOrderLineUpdate) SetMetadata(v map[string]interface{}) *POSOrderLineUpdate {
 	_u.mutation.SetMetadata(v)
@@ -609,6 +629,12 @@ func (_u *POSOrderLineUpdate) sqlSave(ctx context.Context) (_node int, err error
 	}
 	if value, ok := _u.mutation.AddedCourseNumber(); ok {
 		_spec.AddField(posorderline.FieldCourseNumber, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.KdsStationID(); ok {
+		_spec.SetField(posorderline.FieldKdsStationID, field.TypeUUID, value)
+	}
+	if _u.mutation.KdsStationIDCleared() {
+		_spec.ClearField(posorderline.FieldKdsStationID, field.TypeUUID)
 	}
 	if value, ok := _u.mutation.Metadata(); ok {
 		_spec.SetField(posorderline.FieldMetadata, field.TypeJSON, value)
@@ -1069,6 +1095,26 @@ func (_u *POSOrderLineUpdateOne) AddCourseNumber(v int) *POSOrderLineUpdateOne {
 	return _u
 }
 
+// SetKdsStationID sets the "kds_station_id" field.
+func (_u *POSOrderLineUpdateOne) SetKdsStationID(v uuid.UUID) *POSOrderLineUpdateOne {
+	_u.mutation.SetKdsStationID(v)
+	return _u
+}
+
+// SetNillableKdsStationID sets the "kds_station_id" field if the given value is not nil.
+func (_u *POSOrderLineUpdateOne) SetNillableKdsStationID(v *uuid.UUID) *POSOrderLineUpdateOne {
+	if v != nil {
+		_u.SetKdsStationID(*v)
+	}
+	return _u
+}
+
+// ClearKdsStationID clears the value of the "kds_station_id" field.
+func (_u *POSOrderLineUpdateOne) ClearKdsStationID() *POSOrderLineUpdateOne {
+	_u.mutation.ClearKdsStationID()
+	return _u
+}
+
 // SetMetadata sets the "metadata" field.
 func (_u *POSOrderLineUpdateOne) SetMetadata(v map[string]interface{}) *POSOrderLineUpdateOne {
 	_u.mutation.SetMetadata(v)
@@ -1315,6 +1361,12 @@ func (_u *POSOrderLineUpdateOne) sqlSave(ctx context.Context) (_node *POSOrderLi
 	}
 	if value, ok := _u.mutation.AddedCourseNumber(); ok {
 		_spec.AddField(posorderline.FieldCourseNumber, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.KdsStationID(); ok {
+		_spec.SetField(posorderline.FieldKdsStationID, field.TypeUUID, value)
+	}
+	if _u.mutation.KdsStationIDCleared() {
+		_spec.ClearField(posorderline.FieldKdsStationID, field.TypeUUID)
 	}
 	if value, ok := _u.mutation.Metadata(); ok {
 		_spec.SetField(posorderline.FieldMetadata, field.TypeJSON, value)

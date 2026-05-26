@@ -69,6 +69,12 @@ func (POSOrderLine) Fields() []ent.Field {
 		field.Int("course_number").
 			Default(0).
 			Comment("Course firing order: 0=immediate, 1=starter, 2=main, 3=dessert. KDS hides items with course_number > order.fired_courses."),
+		// KDS routing — resolved at order creation from POSCatalogOverride.kds_station_id.
+		// nil = unrouted (goes to expo/all stations or default station).
+		field.UUID("kds_station_id", uuid.UUID{}).
+			Optional().
+			Nillable().
+			Comment("KDS station this line is routed to; copied from POSCatalogOverride at order creation"),
 		field.JSON("metadata", map[string]any{}).
 			Default(map[string]any{}),
 	}

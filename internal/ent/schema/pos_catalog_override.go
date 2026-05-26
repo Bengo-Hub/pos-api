@@ -78,6 +78,13 @@ func (POSCatalogOverride) Fields() []ent.Field {
 			Nillable().
 			Comment("Service duration for salon/appointment flow"),
 
+		// KDS routing — managers assign which preparation station handles this item.
+		// Overrides category_filter matching. nil = use category_filter on KDSStation.
+		field.UUID("kds_station_id", uuid.UUID{}).
+			Optional().
+			Nillable().
+			Comment("Explicit KDS station for this item; overrides category_filter matching"),
+
 		field.JSON("metadata", map[string]any{}).
 			Default(map[string]any{}),
 		field.Time("created_at").

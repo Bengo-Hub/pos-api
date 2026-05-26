@@ -4,6 +4,7 @@ package ent
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -49,7 +50,7 @@ func (_c *OutboxEventCreate) SetEventType(v string) *OutboxEventCreate {
 }
 
 // SetPayload sets the "payload" field.
-func (_c *OutboxEventCreate) SetPayload(v []uint8) *OutboxEventCreate {
+func (_c *OutboxEventCreate) SetPayload(v json.RawMessage) *OutboxEventCreate {
 	_c.mutation.SetPayload(v)
 	return _c
 }
@@ -427,7 +428,7 @@ func (u *OutboxEventUpsert) UpdateEventType() *OutboxEventUpsert {
 }
 
 // SetPayload sets the "payload" field.
-func (u *OutboxEventUpsert) SetPayload(v []uint8) *OutboxEventUpsert {
+func (u *OutboxEventUpsert) SetPayload(v json.RawMessage) *OutboxEventUpsert {
 	u.Set(outboxevent.FieldPayload, v)
 	return u
 }
@@ -630,7 +631,7 @@ func (u *OutboxEventUpsertOne) UpdateEventType() *OutboxEventUpsertOne {
 }
 
 // SetPayload sets the "payload" field.
-func (u *OutboxEventUpsertOne) SetPayload(v []uint8) *OutboxEventUpsertOne {
+func (u *OutboxEventUpsertOne) SetPayload(v json.RawMessage) *OutboxEventUpsertOne {
 	return u.Update(func(s *OutboxEventUpsert) {
 		s.SetPayload(v)
 	})
@@ -1016,7 +1017,7 @@ func (u *OutboxEventUpsertBulk) UpdateEventType() *OutboxEventUpsertBulk {
 }
 
 // SetPayload sets the "payload" field.
-func (u *OutboxEventUpsertBulk) SetPayload(v []uint8) *OutboxEventUpsertBulk {
+func (u *OutboxEventUpsertBulk) SetPayload(v json.RawMessage) *OutboxEventUpsertBulk {
 	return u.Update(func(s *OutboxEventUpsert) {
 		s.SetPayload(v)
 	})

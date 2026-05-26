@@ -651,19 +651,19 @@ func init() {
 	// kdsstation.NameValidator is a validator for the "name" field. It is called by the builders before save.
 	kdsstation.NameValidator = kdsstationDescName.Validators[0].(func(string) error)
 	// kdsstationDescSortOrder is the schema descriptor for sort_order field.
-	kdsstationDescSortOrder := kdsstationFields[5].Descriptor()
+	kdsstationDescSortOrder := kdsstationFields[6].Descriptor()
 	// kdsstation.DefaultSortOrder holds the default value on creation for the sort_order field.
 	kdsstation.DefaultSortOrder = kdsstationDescSortOrder.Default.(int)
 	// kdsstationDescIsActive is the schema descriptor for is_active field.
-	kdsstationDescIsActive := kdsstationFields[6].Descriptor()
+	kdsstationDescIsActive := kdsstationFields[7].Descriptor()
 	// kdsstation.DefaultIsActive holds the default value on creation for the is_active field.
 	kdsstation.DefaultIsActive = kdsstationDescIsActive.Default.(bool)
 	// kdsstationDescCreatedAt is the schema descriptor for created_at field.
-	kdsstationDescCreatedAt := kdsstationFields[7].Descriptor()
+	kdsstationDescCreatedAt := kdsstationFields[8].Descriptor()
 	// kdsstation.DefaultCreatedAt holds the default value on creation for the created_at field.
 	kdsstation.DefaultCreatedAt = kdsstationDescCreatedAt.Default.(func() time.Time)
 	// kdsstationDescUpdatedAt is the schema descriptor for updated_at field.
-	kdsstationDescUpdatedAt := kdsstationFields[8].Descriptor()
+	kdsstationDescUpdatedAt := kdsstationFields[9].Descriptor()
 	// kdsstation.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	kdsstation.DefaultUpdatedAt = kdsstationDescUpdatedAt.Default.(func() time.Time)
 	// kdsstation.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -1111,15 +1111,15 @@ func init() {
 	// poscatalogoverride.DefaultIsControlledSubstance holds the default value on creation for the is_controlled_substance field.
 	poscatalogoverride.DefaultIsControlledSubstance = poscatalogoverrideDescIsControlledSubstance.Default.(bool)
 	// poscatalogoverrideDescMetadata is the schema descriptor for metadata field.
-	poscatalogoverrideDescMetadata := poscatalogoverrideFields[18].Descriptor()
+	poscatalogoverrideDescMetadata := poscatalogoverrideFields[19].Descriptor()
 	// poscatalogoverride.DefaultMetadata holds the default value on creation for the metadata field.
 	poscatalogoverride.DefaultMetadata = poscatalogoverrideDescMetadata.Default.(map[string]interface{})
 	// poscatalogoverrideDescCreatedAt is the schema descriptor for created_at field.
-	poscatalogoverrideDescCreatedAt := poscatalogoverrideFields[19].Descriptor()
+	poscatalogoverrideDescCreatedAt := poscatalogoverrideFields[20].Descriptor()
 	// poscatalogoverride.DefaultCreatedAt holds the default value on creation for the created_at field.
 	poscatalogoverride.DefaultCreatedAt = poscatalogoverrideDescCreatedAt.Default.(func() time.Time)
 	// poscatalogoverrideDescUpdatedAt is the schema descriptor for updated_at field.
-	poscatalogoverrideDescUpdatedAt := poscatalogoverrideFields[20].Descriptor()
+	poscatalogoverrideDescUpdatedAt := poscatalogoverrideFields[21].Descriptor()
 	// poscatalogoverride.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	poscatalogoverride.DefaultUpdatedAt = poscatalogoverrideDescUpdatedAt.Default.(func() time.Time)
 	// poscatalogoverride.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -1275,7 +1275,7 @@ func init() {
 	// posorderline.DefaultCourseNumber holds the default value on creation for the course_number field.
 	posorderline.DefaultCourseNumber = posorderlineDescCourseNumber.Default.(int)
 	// posorderlineDescMetadata is the schema descriptor for metadata field.
-	posorderlineDescMetadata := posorderlineFields[19].Descriptor()
+	posorderlineDescMetadata := posorderlineFields[20].Descriptor()
 	// posorderline.DefaultMetadata holds the default value on creation for the metadata field.
 	posorderline.DefaultMetadata = posorderlineDescMetadata.Default.(map[string]interface{})
 	// posorderlineDescID is the schema descriptor for id field.

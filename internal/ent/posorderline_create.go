@@ -222,6 +222,20 @@ func (_c *POSOrderLineCreate) SetNillableCourseNumber(v *int) *POSOrderLineCreat
 	return _c
 }
 
+// SetKdsStationID sets the "kds_station_id" field.
+func (_c *POSOrderLineCreate) SetKdsStationID(v uuid.UUID) *POSOrderLineCreate {
+	_c.mutation.SetKdsStationID(v)
+	return _c
+}
+
+// SetNillableKdsStationID sets the "kds_station_id" field if the given value is not nil.
+func (_c *POSOrderLineCreate) SetNillableKdsStationID(v *uuid.UUID) *POSOrderLineCreate {
+	if v != nil {
+		_c.SetKdsStationID(*v)
+	}
+	return _c
+}
+
 // SetMetadata sets the "metadata" field.
 func (_c *POSOrderLineCreate) SetMetadata(v map[string]interface{}) *POSOrderLineCreate {
 	_c.mutation.SetMetadata(v)
@@ -463,6 +477,10 @@ func (_c *POSOrderLineCreate) createSpec() (*POSOrderLine, *sqlgraph.CreateSpec)
 	if value, ok := _c.mutation.CourseNumber(); ok {
 		_spec.SetField(posorderline.FieldCourseNumber, field.TypeInt, value)
 		_node.CourseNumber = value
+	}
+	if value, ok := _c.mutation.KdsStationID(); ok {
+		_spec.SetField(posorderline.FieldKdsStationID, field.TypeUUID, value)
+		_node.KdsStationID = &value
 	}
 	if value, ok := _c.mutation.Metadata(); ok {
 		_spec.SetField(posorderline.FieldMetadata, field.TypeJSON, value)
@@ -868,6 +886,24 @@ func (u *POSOrderLineUpsert) UpdateCourseNumber() *POSOrderLineUpsert {
 // AddCourseNumber adds v to the "course_number" field.
 func (u *POSOrderLineUpsert) AddCourseNumber(v int) *POSOrderLineUpsert {
 	u.Add(posorderline.FieldCourseNumber, v)
+	return u
+}
+
+// SetKdsStationID sets the "kds_station_id" field.
+func (u *POSOrderLineUpsert) SetKdsStationID(v uuid.UUID) *POSOrderLineUpsert {
+	u.Set(posorderline.FieldKdsStationID, v)
+	return u
+}
+
+// UpdateKdsStationID sets the "kds_station_id" field to the value that was provided on create.
+func (u *POSOrderLineUpsert) UpdateKdsStationID() *POSOrderLineUpsert {
+	u.SetExcluded(posorderline.FieldKdsStationID)
+	return u
+}
+
+// ClearKdsStationID clears the value of the "kds_station_id" field.
+func (u *POSOrderLineUpsert) ClearKdsStationID() *POSOrderLineUpsert {
+	u.SetNull(posorderline.FieldKdsStationID)
 	return u
 }
 
@@ -1299,6 +1335,27 @@ func (u *POSOrderLineUpsertOne) AddCourseNumber(v int) *POSOrderLineUpsertOne {
 func (u *POSOrderLineUpsertOne) UpdateCourseNumber() *POSOrderLineUpsertOne {
 	return u.Update(func(s *POSOrderLineUpsert) {
 		s.UpdateCourseNumber()
+	})
+}
+
+// SetKdsStationID sets the "kds_station_id" field.
+func (u *POSOrderLineUpsertOne) SetKdsStationID(v uuid.UUID) *POSOrderLineUpsertOne {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.SetKdsStationID(v)
+	})
+}
+
+// UpdateKdsStationID sets the "kds_station_id" field to the value that was provided on create.
+func (u *POSOrderLineUpsertOne) UpdateKdsStationID() *POSOrderLineUpsertOne {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.UpdateKdsStationID()
+	})
+}
+
+// ClearKdsStationID clears the value of the "kds_station_id" field.
+func (u *POSOrderLineUpsertOne) ClearKdsStationID() *POSOrderLineUpsertOne {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.ClearKdsStationID()
 	})
 }
 
@@ -1899,6 +1956,27 @@ func (u *POSOrderLineUpsertBulk) AddCourseNumber(v int) *POSOrderLineUpsertBulk 
 func (u *POSOrderLineUpsertBulk) UpdateCourseNumber() *POSOrderLineUpsertBulk {
 	return u.Update(func(s *POSOrderLineUpsert) {
 		s.UpdateCourseNumber()
+	})
+}
+
+// SetKdsStationID sets the "kds_station_id" field.
+func (u *POSOrderLineUpsertBulk) SetKdsStationID(v uuid.UUID) *POSOrderLineUpsertBulk {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.SetKdsStationID(v)
+	})
+}
+
+// UpdateKdsStationID sets the "kds_station_id" field to the value that was provided on create.
+func (u *POSOrderLineUpsertBulk) UpdateKdsStationID() *POSOrderLineUpsertBulk {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.UpdateKdsStationID()
+	})
+}
+
+// ClearKdsStationID clears the value of the "kds_station_id" field.
+func (u *POSOrderLineUpsertBulk) ClearKdsStationID() *POSOrderLineUpsertBulk {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.ClearKdsStationID()
 	})
 }
 

@@ -49,6 +49,8 @@ const (
 	FieldPriceIncludesTax = "price_includes_tax"
 	// FieldCourseNumber holds the string denoting the course_number field in the database.
 	FieldCourseNumber = "course_number"
+	// FieldKdsStationID holds the string denoting the kds_station_id field in the database.
+	FieldKdsStationID = "kds_station_id"
 	// FieldMetadata holds the string denoting the metadata field in the database.
 	FieldMetadata = "metadata"
 	// EdgeOrder holds the string denoting the order edge name in mutations.
@@ -94,6 +96,7 @@ var Columns = []string{
 	FieldTaxAmount,
 	FieldPriceIncludesTax,
 	FieldCourseNumber,
+	FieldKdsStationID,
 	FieldMetadata,
 }
 
@@ -218,6 +221,11 @@ func ByPriceIncludesTax(opts ...sql.OrderTermOption) OrderOption {
 // ByCourseNumber orders the results by the course_number field.
 func ByCourseNumber(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCourseNumber, opts...).ToFunc()
+}
+
+// ByKdsStationID orders the results by the kds_station_id field.
+func ByKdsStationID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldKdsStationID, opts...).ToFunc()
 }
 
 // ByOrderField orders the results by order field.

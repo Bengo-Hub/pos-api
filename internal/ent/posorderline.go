@@ -56,6 +56,8 @@ type POSOrderLine struct {
 	PriceIncludesTax bool `json:"price_includes_tax,omitempty"`
 	// Course firing order: 0=immediate, 1=starter, 2=main, 3=dessert. KDS hides items with course_number > order.fired_courses.
 	CourseNumber int `json:"course_number,omitempty"`
+	// KDS station this line is routed to; copied from POSCatalogOverride at order creation
+	KdsStationID *uuid.UUID `json:"kds_station_id,omitempty"`
 	// Metadata holds the value of the "metadata" field.
 	Metadata map[string]interface{} `json:"metadata,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
@@ -100,6 +102,8 @@ func (*POSOrderLine) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case posorderline.FieldKdsStationID:
+			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		case posorderline.FieldMetadata:
 			values[i] = new([]byte)
 		case posorderline.FieldPriceIncludesTax:
@@ -249,6 +253,13 @@ func (_m *POSOrderLine) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.CourseNumber = int(value.Int64)
 			}
+		case posorderline.FieldKdsStationID:
+			if value, ok := values[i].(*sql.NullScanner); !ok {
+				return fmt.Errorf("unexpected type %T for field kds_station_id", values[i])
+			} else if value.Valid {
+				_m.KdsStationID = new(uuid.UUID)
+				*_m.KdsStationID = *value.S.(*uuid.UUID)
+			}
 		case posorderline.FieldMetadata:
 			if value, ok := values[i].(*[]byte); !ok {
 				return fmt.Errorf("unexpected type %T for field metadata", values[i])
@@ -368,6 +379,11 @@ func (_m *POSOrderLine) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("course_number=")
 	builder.WriteString(fmt.Sprintf("%v", _m.CourseNumber))
+	builder.WriteString(", ")
+	if v := _m.KdsStationID; v != nil {
+		builder.WriteString("kds_station_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("metadata=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Metadata))

@@ -246,6 +246,20 @@ func (_c *POSCatalogOverrideCreate) SetNillableDurationMinutes(v *int) *POSCatal
 	return _c
 }
 
+// SetKdsStationID sets the "kds_station_id" field.
+func (_c *POSCatalogOverrideCreate) SetKdsStationID(v uuid.UUID) *POSCatalogOverrideCreate {
+	_c.mutation.SetKdsStationID(v)
+	return _c
+}
+
+// SetNillableKdsStationID sets the "kds_station_id" field if the given value is not nil.
+func (_c *POSCatalogOverrideCreate) SetNillableKdsStationID(v *uuid.UUID) *POSCatalogOverrideCreate {
+	if v != nil {
+		_c.SetKdsStationID(*v)
+	}
+	return _c
+}
+
 // SetMetadata sets the "metadata" field.
 func (_c *POSCatalogOverrideCreate) SetMetadata(v map[string]interface{}) *POSCatalogOverrideCreate {
 	_c.mutation.SetMetadata(v)
@@ -542,6 +556,10 @@ func (_c *POSCatalogOverrideCreate) createSpec() (*POSCatalogOverride, *sqlgraph
 	if value, ok := _c.mutation.DurationMinutes(); ok {
 		_spec.SetField(poscatalogoverride.FieldDurationMinutes, field.TypeInt, value)
 		_node.DurationMinutes = &value
+	}
+	if value, ok := _c.mutation.KdsStationID(); ok {
+		_spec.SetField(poscatalogoverride.FieldKdsStationID, field.TypeUUID, value)
+		_node.KdsStationID = &value
 	}
 	if value, ok := _c.mutation.Metadata(); ok {
 		_spec.SetField(poscatalogoverride.FieldMetadata, field.TypeJSON, value)
@@ -862,6 +880,24 @@ func (u *POSCatalogOverrideUpsert) AddDurationMinutes(v int) *POSCatalogOverride
 // ClearDurationMinutes clears the value of the "duration_minutes" field.
 func (u *POSCatalogOverrideUpsert) ClearDurationMinutes() *POSCatalogOverrideUpsert {
 	u.SetNull(poscatalogoverride.FieldDurationMinutes)
+	return u
+}
+
+// SetKdsStationID sets the "kds_station_id" field.
+func (u *POSCatalogOverrideUpsert) SetKdsStationID(v uuid.UUID) *POSCatalogOverrideUpsert {
+	u.Set(poscatalogoverride.FieldKdsStationID, v)
+	return u
+}
+
+// UpdateKdsStationID sets the "kds_station_id" field to the value that was provided on create.
+func (u *POSCatalogOverrideUpsert) UpdateKdsStationID() *POSCatalogOverrideUpsert {
+	u.SetExcluded(poscatalogoverride.FieldKdsStationID)
+	return u
+}
+
+// ClearKdsStationID clears the value of the "kds_station_id" field.
+func (u *POSCatalogOverrideUpsert) ClearKdsStationID() *POSCatalogOverrideUpsert {
+	u.SetNull(poscatalogoverride.FieldKdsStationID)
 	return u
 }
 
@@ -1238,6 +1274,27 @@ func (u *POSCatalogOverrideUpsertOne) UpdateDurationMinutes() *POSCatalogOverrid
 func (u *POSCatalogOverrideUpsertOne) ClearDurationMinutes() *POSCatalogOverrideUpsertOne {
 	return u.Update(func(s *POSCatalogOverrideUpsert) {
 		s.ClearDurationMinutes()
+	})
+}
+
+// SetKdsStationID sets the "kds_station_id" field.
+func (u *POSCatalogOverrideUpsertOne) SetKdsStationID(v uuid.UUID) *POSCatalogOverrideUpsertOne {
+	return u.Update(func(s *POSCatalogOverrideUpsert) {
+		s.SetKdsStationID(v)
+	})
+}
+
+// UpdateKdsStationID sets the "kds_station_id" field to the value that was provided on create.
+func (u *POSCatalogOverrideUpsertOne) UpdateKdsStationID() *POSCatalogOverrideUpsertOne {
+	return u.Update(func(s *POSCatalogOverrideUpsert) {
+		s.UpdateKdsStationID()
+	})
+}
+
+// ClearKdsStationID clears the value of the "kds_station_id" field.
+func (u *POSCatalogOverrideUpsertOne) ClearKdsStationID() *POSCatalogOverrideUpsertOne {
+	return u.Update(func(s *POSCatalogOverrideUpsert) {
+		s.ClearKdsStationID()
 	})
 }
 
@@ -1785,6 +1842,27 @@ func (u *POSCatalogOverrideUpsertBulk) UpdateDurationMinutes() *POSCatalogOverri
 func (u *POSCatalogOverrideUpsertBulk) ClearDurationMinutes() *POSCatalogOverrideUpsertBulk {
 	return u.Update(func(s *POSCatalogOverrideUpsert) {
 		s.ClearDurationMinutes()
+	})
+}
+
+// SetKdsStationID sets the "kds_station_id" field.
+func (u *POSCatalogOverrideUpsertBulk) SetKdsStationID(v uuid.UUID) *POSCatalogOverrideUpsertBulk {
+	return u.Update(func(s *POSCatalogOverrideUpsert) {
+		s.SetKdsStationID(v)
+	})
+}
+
+// UpdateKdsStationID sets the "kds_station_id" field to the value that was provided on create.
+func (u *POSCatalogOverrideUpsertBulk) UpdateKdsStationID() *POSCatalogOverrideUpsertBulk {
+	return u.Update(func(s *POSCatalogOverrideUpsert) {
+		s.UpdateKdsStationID()
+	})
+}
+
+// ClearKdsStationID clears the value of the "kds_station_id" field.
+func (u *POSCatalogOverrideUpsertBulk) ClearKdsStationID() *POSCatalogOverrideUpsertBulk {
+	return u.Update(func(s *POSCatalogOverrideUpsert) {
+		s.ClearKdsStationID()
 	})
 }
 
