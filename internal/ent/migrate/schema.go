@@ -1189,6 +1189,9 @@ var (
 		{Name: "opened_at", Type: field.TypeTime},
 		{Name: "closed_at", Type: field.TypeTime, Nullable: true},
 		{Name: "float_amount", Type: field.TypeFloat64, Default: 0},
+		{Name: "closing_float", Type: field.TypeFloat64, Nullable: true},
+		{Name: "variance", Type: field.TypeFloat64, Nullable: true},
+		{Name: "notes", Type: field.TypeString, Nullable: true},
 		{Name: "metadata", Type: field.TypeJSON},
 		{Name: "device_id", Type: field.TypeUUID},
 	}
@@ -1200,7 +1203,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "pos_device_sessions_pos_devices_sessions",
-				Columns:    []*schema.Column{PosDeviceSessionsColumns[8]},
+				Columns:    []*schema.Column{PosDeviceSessionsColumns[11]},
 				RefColumns: []*schema.Column{PosDevicesColumns[0]},
 				OnDelete:   schema.NoAction,
 			},

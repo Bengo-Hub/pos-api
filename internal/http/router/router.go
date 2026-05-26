@@ -302,6 +302,7 @@ func New(
 						pos.Get("/devices", devices.ListDevices)
 						pos.Get("/devices/current/sessions/current", devices.GetCurrentSession)
 						pos.Get("/devices/current/sessions/current/summary", devices.GetSessionSummary)
+						pos.Get("/devices/current/sessions/history", devices.GetSessionHistory)
 						pos.Post("/devices/current/sessions/open", devices.OpenSession)
 						pos.Post("/devices/current/sessions/close", devices.CloseSession)
 					}

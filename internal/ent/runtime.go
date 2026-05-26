@@ -1168,7 +1168,7 @@ func init() {
 	// posdevicesession.DefaultFloatAmount holds the default value on creation for the float_amount field.
 	posdevicesession.DefaultFloatAmount = posdevicesessionDescFloatAmount.Default.(float64)
 	// posdevicesessionDescMetadata is the schema descriptor for metadata field.
-	posdevicesessionDescMetadata := posdevicesessionFields[8].Descriptor()
+	posdevicesessionDescMetadata := posdevicesessionFields[11].Descriptor()
 	// posdevicesession.DefaultMetadata holds the default value on creation for the metadata field.
 	posdevicesession.DefaultMetadata = posdevicesessionDescMetadata.Default.(map[string]interface{})
 	// posdevicesessionDescID is the schema descriptor for id field.

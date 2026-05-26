@@ -141,6 +141,80 @@ func (_u *POSDeviceSessionUpdate) AddFloatAmount(v float64) *POSDeviceSessionUpd
 	return _u
 }
 
+// SetClosingFloat sets the "closing_float" field.
+func (_u *POSDeviceSessionUpdate) SetClosingFloat(v float64) *POSDeviceSessionUpdate {
+	_u.mutation.ResetClosingFloat()
+	_u.mutation.SetClosingFloat(v)
+	return _u
+}
+
+// SetNillableClosingFloat sets the "closing_float" field if the given value is not nil.
+func (_u *POSDeviceSessionUpdate) SetNillableClosingFloat(v *float64) *POSDeviceSessionUpdate {
+	if v != nil {
+		_u.SetClosingFloat(*v)
+	}
+	return _u
+}
+
+// AddClosingFloat adds value to the "closing_float" field.
+func (_u *POSDeviceSessionUpdate) AddClosingFloat(v float64) *POSDeviceSessionUpdate {
+	_u.mutation.AddClosingFloat(v)
+	return _u
+}
+
+// ClearClosingFloat clears the value of the "closing_float" field.
+func (_u *POSDeviceSessionUpdate) ClearClosingFloat() *POSDeviceSessionUpdate {
+	_u.mutation.ClearClosingFloat()
+	return _u
+}
+
+// SetVariance sets the "variance" field.
+func (_u *POSDeviceSessionUpdate) SetVariance(v float64) *POSDeviceSessionUpdate {
+	_u.mutation.ResetVariance()
+	_u.mutation.SetVariance(v)
+	return _u
+}
+
+// SetNillableVariance sets the "variance" field if the given value is not nil.
+func (_u *POSDeviceSessionUpdate) SetNillableVariance(v *float64) *POSDeviceSessionUpdate {
+	if v != nil {
+		_u.SetVariance(*v)
+	}
+	return _u
+}
+
+// AddVariance adds value to the "variance" field.
+func (_u *POSDeviceSessionUpdate) AddVariance(v float64) *POSDeviceSessionUpdate {
+	_u.mutation.AddVariance(v)
+	return _u
+}
+
+// ClearVariance clears the value of the "variance" field.
+func (_u *POSDeviceSessionUpdate) ClearVariance() *POSDeviceSessionUpdate {
+	_u.mutation.ClearVariance()
+	return _u
+}
+
+// SetNotes sets the "notes" field.
+func (_u *POSDeviceSessionUpdate) SetNotes(v string) *POSDeviceSessionUpdate {
+	_u.mutation.SetNotes(v)
+	return _u
+}
+
+// SetNillableNotes sets the "notes" field if the given value is not nil.
+func (_u *POSDeviceSessionUpdate) SetNillableNotes(v *string) *POSDeviceSessionUpdate {
+	if v != nil {
+		_u.SetNotes(*v)
+	}
+	return _u
+}
+
+// ClearNotes clears the value of the "notes" field.
+func (_u *POSDeviceSessionUpdate) ClearNotes() *POSDeviceSessionUpdate {
+	_u.mutation.ClearNotes()
+	return _u
+}
+
 // SetMetadata sets the "metadata" field.
 func (_u *POSDeviceSessionUpdate) SetMetadata(v map[string]interface{}) *POSDeviceSessionUpdate {
 	_u.mutation.SetMetadata(v)
@@ -233,6 +307,30 @@ func (_u *POSDeviceSessionUpdate) sqlSave(ctx context.Context) (_node int, err e
 	}
 	if value, ok := _u.mutation.AddedFloatAmount(); ok {
 		_spec.AddField(posdevicesession.FieldFloatAmount, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.ClosingFloat(); ok {
+		_spec.SetField(posdevicesession.FieldClosingFloat, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedClosingFloat(); ok {
+		_spec.AddField(posdevicesession.FieldClosingFloat, field.TypeFloat64, value)
+	}
+	if _u.mutation.ClosingFloatCleared() {
+		_spec.ClearField(posdevicesession.FieldClosingFloat, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.Variance(); ok {
+		_spec.SetField(posdevicesession.FieldVariance, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedVariance(); ok {
+		_spec.AddField(posdevicesession.FieldVariance, field.TypeFloat64, value)
+	}
+	if _u.mutation.VarianceCleared() {
+		_spec.ClearField(posdevicesession.FieldVariance, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.Notes(); ok {
+		_spec.SetField(posdevicesession.FieldNotes, field.TypeString, value)
+	}
+	if _u.mutation.NotesCleared() {
+		_spec.ClearField(posdevicesession.FieldNotes, field.TypeString)
 	}
 	if value, ok := _u.mutation.Metadata(); ok {
 		_spec.SetField(posdevicesession.FieldMetadata, field.TypeJSON, value)
@@ -397,6 +495,80 @@ func (_u *POSDeviceSessionUpdateOne) AddFloatAmount(v float64) *POSDeviceSession
 	return _u
 }
 
+// SetClosingFloat sets the "closing_float" field.
+func (_u *POSDeviceSessionUpdateOne) SetClosingFloat(v float64) *POSDeviceSessionUpdateOne {
+	_u.mutation.ResetClosingFloat()
+	_u.mutation.SetClosingFloat(v)
+	return _u
+}
+
+// SetNillableClosingFloat sets the "closing_float" field if the given value is not nil.
+func (_u *POSDeviceSessionUpdateOne) SetNillableClosingFloat(v *float64) *POSDeviceSessionUpdateOne {
+	if v != nil {
+		_u.SetClosingFloat(*v)
+	}
+	return _u
+}
+
+// AddClosingFloat adds value to the "closing_float" field.
+func (_u *POSDeviceSessionUpdateOne) AddClosingFloat(v float64) *POSDeviceSessionUpdateOne {
+	_u.mutation.AddClosingFloat(v)
+	return _u
+}
+
+// ClearClosingFloat clears the value of the "closing_float" field.
+func (_u *POSDeviceSessionUpdateOne) ClearClosingFloat() *POSDeviceSessionUpdateOne {
+	_u.mutation.ClearClosingFloat()
+	return _u
+}
+
+// SetVariance sets the "variance" field.
+func (_u *POSDeviceSessionUpdateOne) SetVariance(v float64) *POSDeviceSessionUpdateOne {
+	_u.mutation.ResetVariance()
+	_u.mutation.SetVariance(v)
+	return _u
+}
+
+// SetNillableVariance sets the "variance" field if the given value is not nil.
+func (_u *POSDeviceSessionUpdateOne) SetNillableVariance(v *float64) *POSDeviceSessionUpdateOne {
+	if v != nil {
+		_u.SetVariance(*v)
+	}
+	return _u
+}
+
+// AddVariance adds value to the "variance" field.
+func (_u *POSDeviceSessionUpdateOne) AddVariance(v float64) *POSDeviceSessionUpdateOne {
+	_u.mutation.AddVariance(v)
+	return _u
+}
+
+// ClearVariance clears the value of the "variance" field.
+func (_u *POSDeviceSessionUpdateOne) ClearVariance() *POSDeviceSessionUpdateOne {
+	_u.mutation.ClearVariance()
+	return _u
+}
+
+// SetNotes sets the "notes" field.
+func (_u *POSDeviceSessionUpdateOne) SetNotes(v string) *POSDeviceSessionUpdateOne {
+	_u.mutation.SetNotes(v)
+	return _u
+}
+
+// SetNillableNotes sets the "notes" field if the given value is not nil.
+func (_u *POSDeviceSessionUpdateOne) SetNillableNotes(v *string) *POSDeviceSessionUpdateOne {
+	if v != nil {
+		_u.SetNotes(*v)
+	}
+	return _u
+}
+
+// ClearNotes clears the value of the "notes" field.
+func (_u *POSDeviceSessionUpdateOne) ClearNotes() *POSDeviceSessionUpdateOne {
+	_u.mutation.ClearNotes()
+	return _u
+}
+
 // SetMetadata sets the "metadata" field.
 func (_u *POSDeviceSessionUpdateOne) SetMetadata(v map[string]interface{}) *POSDeviceSessionUpdateOne {
 	_u.mutation.SetMetadata(v)
@@ -519,6 +691,30 @@ func (_u *POSDeviceSessionUpdateOne) sqlSave(ctx context.Context) (_node *POSDev
 	}
 	if value, ok := _u.mutation.AddedFloatAmount(); ok {
 		_spec.AddField(posdevicesession.FieldFloatAmount, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.ClosingFloat(); ok {
+		_spec.SetField(posdevicesession.FieldClosingFloat, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedClosingFloat(); ok {
+		_spec.AddField(posdevicesession.FieldClosingFloat, field.TypeFloat64, value)
+	}
+	if _u.mutation.ClosingFloatCleared() {
+		_spec.ClearField(posdevicesession.FieldClosingFloat, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.Variance(); ok {
+		_spec.SetField(posdevicesession.FieldVariance, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedVariance(); ok {
+		_spec.AddField(posdevicesession.FieldVariance, field.TypeFloat64, value)
+	}
+	if _u.mutation.VarianceCleared() {
+		_spec.ClearField(posdevicesession.FieldVariance, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.Notes(); ok {
+		_spec.SetField(posdevicesession.FieldNotes, field.TypeString, value)
+	}
+	if _u.mutation.NotesCleared() {
+		_spec.ClearField(posdevicesession.FieldNotes, field.TypeString)
 	}
 	if value, ok := _u.mutation.Metadata(); ok {
 		_spec.SetField(posdevicesession.FieldMetadata, field.TypeJSON, value)

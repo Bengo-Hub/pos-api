@@ -32,6 +32,14 @@ func (POSDeviceSession) Fields() []ent.Field {
 			Nillable(),
 		field.Float("float_amount").
 			Default(0),
+		field.Float("closing_float").
+			Optional().
+			Nillable(),
+		field.Float("variance").
+			Optional().
+			Nillable(),
+		field.String("notes").
+			Optional(),
 		field.JSON("metadata", map[string]any{}).
 			Default(map[string]any{}),
 	}

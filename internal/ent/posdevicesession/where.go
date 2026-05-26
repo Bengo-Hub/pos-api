@@ -91,6 +91,21 @@ func FloatAmount(v float64) predicate.POSDeviceSession {
 	return predicate.POSDeviceSession(sql.FieldEQ(FieldFloatAmount, v))
 }
 
+// ClosingFloat applies equality check predicate on the "closing_float" field. It's identical to ClosingFloatEQ.
+func ClosingFloat(v float64) predicate.POSDeviceSession {
+	return predicate.POSDeviceSession(sql.FieldEQ(FieldClosingFloat, v))
+}
+
+// Variance applies equality check predicate on the "variance" field. It's identical to VarianceEQ.
+func Variance(v float64) predicate.POSDeviceSession {
+	return predicate.POSDeviceSession(sql.FieldEQ(FieldVariance, v))
+}
+
+// Notes applies equality check predicate on the "notes" field. It's identical to NotesEQ.
+func Notes(v string) predicate.POSDeviceSession {
+	return predicate.POSDeviceSession(sql.FieldEQ(FieldNotes, v))
+}
+
 // TenantIDEQ applies the EQ predicate on the "tenant_id" field.
 func TenantIDEQ(v uuid.UUID) predicate.POSDeviceSession {
 	return predicate.POSDeviceSession(sql.FieldEQ(FieldTenantID, v))
@@ -384,6 +399,181 @@ func FloatAmountLT(v float64) predicate.POSDeviceSession {
 // FloatAmountLTE applies the LTE predicate on the "float_amount" field.
 func FloatAmountLTE(v float64) predicate.POSDeviceSession {
 	return predicate.POSDeviceSession(sql.FieldLTE(FieldFloatAmount, v))
+}
+
+// ClosingFloatEQ applies the EQ predicate on the "closing_float" field.
+func ClosingFloatEQ(v float64) predicate.POSDeviceSession {
+	return predicate.POSDeviceSession(sql.FieldEQ(FieldClosingFloat, v))
+}
+
+// ClosingFloatNEQ applies the NEQ predicate on the "closing_float" field.
+func ClosingFloatNEQ(v float64) predicate.POSDeviceSession {
+	return predicate.POSDeviceSession(sql.FieldNEQ(FieldClosingFloat, v))
+}
+
+// ClosingFloatIn applies the In predicate on the "closing_float" field.
+func ClosingFloatIn(vs ...float64) predicate.POSDeviceSession {
+	return predicate.POSDeviceSession(sql.FieldIn(FieldClosingFloat, vs...))
+}
+
+// ClosingFloatNotIn applies the NotIn predicate on the "closing_float" field.
+func ClosingFloatNotIn(vs ...float64) predicate.POSDeviceSession {
+	return predicate.POSDeviceSession(sql.FieldNotIn(FieldClosingFloat, vs...))
+}
+
+// ClosingFloatGT applies the GT predicate on the "closing_float" field.
+func ClosingFloatGT(v float64) predicate.POSDeviceSession {
+	return predicate.POSDeviceSession(sql.FieldGT(FieldClosingFloat, v))
+}
+
+// ClosingFloatGTE applies the GTE predicate on the "closing_float" field.
+func ClosingFloatGTE(v float64) predicate.POSDeviceSession {
+	return predicate.POSDeviceSession(sql.FieldGTE(FieldClosingFloat, v))
+}
+
+// ClosingFloatLT applies the LT predicate on the "closing_float" field.
+func ClosingFloatLT(v float64) predicate.POSDeviceSession {
+	return predicate.POSDeviceSession(sql.FieldLT(FieldClosingFloat, v))
+}
+
+// ClosingFloatLTE applies the LTE predicate on the "closing_float" field.
+func ClosingFloatLTE(v float64) predicate.POSDeviceSession {
+	return predicate.POSDeviceSession(sql.FieldLTE(FieldClosingFloat, v))
+}
+
+// ClosingFloatIsNil applies the IsNil predicate on the "closing_float" field.
+func ClosingFloatIsNil() predicate.POSDeviceSession {
+	return predicate.POSDeviceSession(sql.FieldIsNull(FieldClosingFloat))
+}
+
+// ClosingFloatNotNil applies the NotNil predicate on the "closing_float" field.
+func ClosingFloatNotNil() predicate.POSDeviceSession {
+	return predicate.POSDeviceSession(sql.FieldNotNull(FieldClosingFloat))
+}
+
+// VarianceEQ applies the EQ predicate on the "variance" field.
+func VarianceEQ(v float64) predicate.POSDeviceSession {
+	return predicate.POSDeviceSession(sql.FieldEQ(FieldVariance, v))
+}
+
+// VarianceNEQ applies the NEQ predicate on the "variance" field.
+func VarianceNEQ(v float64) predicate.POSDeviceSession {
+	return predicate.POSDeviceSession(sql.FieldNEQ(FieldVariance, v))
+}
+
+// VarianceIn applies the In predicate on the "variance" field.
+func VarianceIn(vs ...float64) predicate.POSDeviceSession {
+	return predicate.POSDeviceSession(sql.FieldIn(FieldVariance, vs...))
+}
+
+// VarianceNotIn applies the NotIn predicate on the "variance" field.
+func VarianceNotIn(vs ...float64) predicate.POSDeviceSession {
+	return predicate.POSDeviceSession(sql.FieldNotIn(FieldVariance, vs...))
+}
+
+// VarianceGT applies the GT predicate on the "variance" field.
+func VarianceGT(v float64) predicate.POSDeviceSession {
+	return predicate.POSDeviceSession(sql.FieldGT(FieldVariance, v))
+}
+
+// VarianceGTE applies the GTE predicate on the "variance" field.
+func VarianceGTE(v float64) predicate.POSDeviceSession {
+	return predicate.POSDeviceSession(sql.FieldGTE(FieldVariance, v))
+}
+
+// VarianceLT applies the LT predicate on the "variance" field.
+func VarianceLT(v float64) predicate.POSDeviceSession {
+	return predicate.POSDeviceSession(sql.FieldLT(FieldVariance, v))
+}
+
+// VarianceLTE applies the LTE predicate on the "variance" field.
+func VarianceLTE(v float64) predicate.POSDeviceSession {
+	return predicate.POSDeviceSession(sql.FieldLTE(FieldVariance, v))
+}
+
+// VarianceIsNil applies the IsNil predicate on the "variance" field.
+func VarianceIsNil() predicate.POSDeviceSession {
+	return predicate.POSDeviceSession(sql.FieldIsNull(FieldVariance))
+}
+
+// VarianceNotNil applies the NotNil predicate on the "variance" field.
+func VarianceNotNil() predicate.POSDeviceSession {
+	return predicate.POSDeviceSession(sql.FieldNotNull(FieldVariance))
+}
+
+// NotesEQ applies the EQ predicate on the "notes" field.
+func NotesEQ(v string) predicate.POSDeviceSession {
+	return predicate.POSDeviceSession(sql.FieldEQ(FieldNotes, v))
+}
+
+// NotesNEQ applies the NEQ predicate on the "notes" field.
+func NotesNEQ(v string) predicate.POSDeviceSession {
+	return predicate.POSDeviceSession(sql.FieldNEQ(FieldNotes, v))
+}
+
+// NotesIn applies the In predicate on the "notes" field.
+func NotesIn(vs ...string) predicate.POSDeviceSession {
+	return predicate.POSDeviceSession(sql.FieldIn(FieldNotes, vs...))
+}
+
+// NotesNotIn applies the NotIn predicate on the "notes" field.
+func NotesNotIn(vs ...string) predicate.POSDeviceSession {
+	return predicate.POSDeviceSession(sql.FieldNotIn(FieldNotes, vs...))
+}
+
+// NotesGT applies the GT predicate on the "notes" field.
+func NotesGT(v string) predicate.POSDeviceSession {
+	return predicate.POSDeviceSession(sql.FieldGT(FieldNotes, v))
+}
+
+// NotesGTE applies the GTE predicate on the "notes" field.
+func NotesGTE(v string) predicate.POSDeviceSession {
+	return predicate.POSDeviceSession(sql.FieldGTE(FieldNotes, v))
+}
+
+// NotesLT applies the LT predicate on the "notes" field.
+func NotesLT(v string) predicate.POSDeviceSession {
+	return predicate.POSDeviceSession(sql.FieldLT(FieldNotes, v))
+}
+
+// NotesLTE applies the LTE predicate on the "notes" field.
+func NotesLTE(v string) predicate.POSDeviceSession {
+	return predicate.POSDeviceSession(sql.FieldLTE(FieldNotes, v))
+}
+
+// NotesContains applies the Contains predicate on the "notes" field.
+func NotesContains(v string) predicate.POSDeviceSession {
+	return predicate.POSDeviceSession(sql.FieldContains(FieldNotes, v))
+}
+
+// NotesHasPrefix applies the HasPrefix predicate on the "notes" field.
+func NotesHasPrefix(v string) predicate.POSDeviceSession {
+	return predicate.POSDeviceSession(sql.FieldHasPrefix(FieldNotes, v))
+}
+
+// NotesHasSuffix applies the HasSuffix predicate on the "notes" field.
+func NotesHasSuffix(v string) predicate.POSDeviceSession {
+	return predicate.POSDeviceSession(sql.FieldHasSuffix(FieldNotes, v))
+}
+
+// NotesIsNil applies the IsNil predicate on the "notes" field.
+func NotesIsNil() predicate.POSDeviceSession {
+	return predicate.POSDeviceSession(sql.FieldIsNull(FieldNotes))
+}
+
+// NotesNotNil applies the NotNil predicate on the "notes" field.
+func NotesNotNil() predicate.POSDeviceSession {
+	return predicate.POSDeviceSession(sql.FieldNotNull(FieldNotes))
+}
+
+// NotesEqualFold applies the EqualFold predicate on the "notes" field.
+func NotesEqualFold(v string) predicate.POSDeviceSession {
+	return predicate.POSDeviceSession(sql.FieldEqualFold(FieldNotes, v))
+}
+
+// NotesContainsFold applies the ContainsFold predicate on the "notes" field.
+func NotesContainsFold(v string) predicate.POSDeviceSession {
+	return predicate.POSDeviceSession(sql.FieldContainsFold(FieldNotes, v))
 }
 
 // HasDevice applies the HasEdge predicate on the "device" edge.

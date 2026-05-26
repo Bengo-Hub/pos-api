@@ -38145,23 +38145,28 @@ func (m *POSDeviceMutation) ResetEdge(name string) error {
 // POSDeviceSessionMutation represents an operation that mutates the POSDeviceSession nodes in the graph.
 type POSDeviceSessionMutation struct {
 	config
-	op              Op
-	typ             string
-	id              *uuid.UUID
-	tenant_id       *uuid.UUID
-	user_id         *uuid.UUID
-	session_status  *string
-	opened_at       *time.Time
-	closed_at       *time.Time
-	float_amount    *float64
-	addfloat_amount *float64
-	metadata        *map[string]interface{}
-	clearedFields   map[string]struct{}
-	device          *uuid.UUID
-	cleareddevice   bool
-	done            bool
-	oldValue        func(context.Context) (*POSDeviceSession, error)
-	predicates      []predicate.POSDeviceSession
+	op               Op
+	typ              string
+	id               *uuid.UUID
+	tenant_id        *uuid.UUID
+	user_id          *uuid.UUID
+	session_status   *string
+	opened_at        *time.Time
+	closed_at        *time.Time
+	float_amount     *float64
+	addfloat_amount  *float64
+	closing_float    *float64
+	addclosing_float *float64
+	variance         *float64
+	addvariance      *float64
+	notes            *string
+	metadata         *map[string]interface{}
+	clearedFields    map[string]struct{}
+	device           *uuid.UUID
+	cleareddevice    bool
+	done             bool
+	oldValue         func(context.Context) (*POSDeviceSession, error)
+	predicates       []predicate.POSDeviceSession
 }
 
 var _ ent.Mutation = (*POSDeviceSessionMutation)(nil)
@@ -38553,6 +38558,195 @@ func (m *POSDeviceSessionMutation) ResetFloatAmount() {
 	m.addfloat_amount = nil
 }
 
+// SetClosingFloat sets the "closing_float" field.
+func (m *POSDeviceSessionMutation) SetClosingFloat(f float64) {
+	m.closing_float = &f
+	m.addclosing_float = nil
+}
+
+// ClosingFloat returns the value of the "closing_float" field in the mutation.
+func (m *POSDeviceSessionMutation) ClosingFloat() (r float64, exists bool) {
+	v := m.closing_float
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldClosingFloat returns the old "closing_float" field's value of the POSDeviceSession entity.
+// If the POSDeviceSession object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSDeviceSessionMutation) OldClosingFloat(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldClosingFloat is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldClosingFloat requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldClosingFloat: %w", err)
+	}
+	return oldValue.ClosingFloat, nil
+}
+
+// AddClosingFloat adds f to the "closing_float" field.
+func (m *POSDeviceSessionMutation) AddClosingFloat(f float64) {
+	if m.addclosing_float != nil {
+		*m.addclosing_float += f
+	} else {
+		m.addclosing_float = &f
+	}
+}
+
+// AddedClosingFloat returns the value that was added to the "closing_float" field in this mutation.
+func (m *POSDeviceSessionMutation) AddedClosingFloat() (r float64, exists bool) {
+	v := m.addclosing_float
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearClosingFloat clears the value of the "closing_float" field.
+func (m *POSDeviceSessionMutation) ClearClosingFloat() {
+	m.closing_float = nil
+	m.addclosing_float = nil
+	m.clearedFields[posdevicesession.FieldClosingFloat] = struct{}{}
+}
+
+// ClosingFloatCleared returns if the "closing_float" field was cleared in this mutation.
+func (m *POSDeviceSessionMutation) ClosingFloatCleared() bool {
+	_, ok := m.clearedFields[posdevicesession.FieldClosingFloat]
+	return ok
+}
+
+// ResetClosingFloat resets all changes to the "closing_float" field.
+func (m *POSDeviceSessionMutation) ResetClosingFloat() {
+	m.closing_float = nil
+	m.addclosing_float = nil
+	delete(m.clearedFields, posdevicesession.FieldClosingFloat)
+}
+
+// SetVariance sets the "variance" field.
+func (m *POSDeviceSessionMutation) SetVariance(f float64) {
+	m.variance = &f
+	m.addvariance = nil
+}
+
+// Variance returns the value of the "variance" field in the mutation.
+func (m *POSDeviceSessionMutation) Variance() (r float64, exists bool) {
+	v := m.variance
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldVariance returns the old "variance" field's value of the POSDeviceSession entity.
+// If the POSDeviceSession object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSDeviceSessionMutation) OldVariance(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldVariance is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldVariance requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldVariance: %w", err)
+	}
+	return oldValue.Variance, nil
+}
+
+// AddVariance adds f to the "variance" field.
+func (m *POSDeviceSessionMutation) AddVariance(f float64) {
+	if m.addvariance != nil {
+		*m.addvariance += f
+	} else {
+		m.addvariance = &f
+	}
+}
+
+// AddedVariance returns the value that was added to the "variance" field in this mutation.
+func (m *POSDeviceSessionMutation) AddedVariance() (r float64, exists bool) {
+	v := m.addvariance
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearVariance clears the value of the "variance" field.
+func (m *POSDeviceSessionMutation) ClearVariance() {
+	m.variance = nil
+	m.addvariance = nil
+	m.clearedFields[posdevicesession.FieldVariance] = struct{}{}
+}
+
+// VarianceCleared returns if the "variance" field was cleared in this mutation.
+func (m *POSDeviceSessionMutation) VarianceCleared() bool {
+	_, ok := m.clearedFields[posdevicesession.FieldVariance]
+	return ok
+}
+
+// ResetVariance resets all changes to the "variance" field.
+func (m *POSDeviceSessionMutation) ResetVariance() {
+	m.variance = nil
+	m.addvariance = nil
+	delete(m.clearedFields, posdevicesession.FieldVariance)
+}
+
+// SetNotes sets the "notes" field.
+func (m *POSDeviceSessionMutation) SetNotes(s string) {
+	m.notes = &s
+}
+
+// Notes returns the value of the "notes" field in the mutation.
+func (m *POSDeviceSessionMutation) Notes() (r string, exists bool) {
+	v := m.notes
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNotes returns the old "notes" field's value of the POSDeviceSession entity.
+// If the POSDeviceSession object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSDeviceSessionMutation) OldNotes(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNotes is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNotes requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNotes: %w", err)
+	}
+	return oldValue.Notes, nil
+}
+
+// ClearNotes clears the value of the "notes" field.
+func (m *POSDeviceSessionMutation) ClearNotes() {
+	m.notes = nil
+	m.clearedFields[posdevicesession.FieldNotes] = struct{}{}
+}
+
+// NotesCleared returns if the "notes" field was cleared in this mutation.
+func (m *POSDeviceSessionMutation) NotesCleared() bool {
+	_, ok := m.clearedFields[posdevicesession.FieldNotes]
+	return ok
+}
+
+// ResetNotes resets all changes to the "notes" field.
+func (m *POSDeviceSessionMutation) ResetNotes() {
+	m.notes = nil
+	delete(m.clearedFields, posdevicesession.FieldNotes)
+}
+
 // SetMetadata sets the "metadata" field.
 func (m *POSDeviceSessionMutation) SetMetadata(value map[string]interface{}) {
 	m.metadata = &value
@@ -38650,7 +38844,7 @@ func (m *POSDeviceSessionMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *POSDeviceSessionMutation) Fields() []string {
-	fields := make([]string, 0, 8)
+	fields := make([]string, 0, 11)
 	if m.tenant_id != nil {
 		fields = append(fields, posdevicesession.FieldTenantID)
 	}
@@ -38671,6 +38865,15 @@ func (m *POSDeviceSessionMutation) Fields() []string {
 	}
 	if m.float_amount != nil {
 		fields = append(fields, posdevicesession.FieldFloatAmount)
+	}
+	if m.closing_float != nil {
+		fields = append(fields, posdevicesession.FieldClosingFloat)
+	}
+	if m.variance != nil {
+		fields = append(fields, posdevicesession.FieldVariance)
+	}
+	if m.notes != nil {
+		fields = append(fields, posdevicesession.FieldNotes)
 	}
 	if m.metadata != nil {
 		fields = append(fields, posdevicesession.FieldMetadata)
@@ -38697,6 +38900,12 @@ func (m *POSDeviceSessionMutation) Field(name string) (ent.Value, bool) {
 		return m.ClosedAt()
 	case posdevicesession.FieldFloatAmount:
 		return m.FloatAmount()
+	case posdevicesession.FieldClosingFloat:
+		return m.ClosingFloat()
+	case posdevicesession.FieldVariance:
+		return m.Variance()
+	case posdevicesession.FieldNotes:
+		return m.Notes()
 	case posdevicesession.FieldMetadata:
 		return m.Metadata()
 	}
@@ -38722,6 +38931,12 @@ func (m *POSDeviceSessionMutation) OldField(ctx context.Context, name string) (e
 		return m.OldClosedAt(ctx)
 	case posdevicesession.FieldFloatAmount:
 		return m.OldFloatAmount(ctx)
+	case posdevicesession.FieldClosingFloat:
+		return m.OldClosingFloat(ctx)
+	case posdevicesession.FieldVariance:
+		return m.OldVariance(ctx)
+	case posdevicesession.FieldNotes:
+		return m.OldNotes(ctx)
 	case posdevicesession.FieldMetadata:
 		return m.OldMetadata(ctx)
 	}
@@ -38782,6 +38997,27 @@ func (m *POSDeviceSessionMutation) SetField(name string, value ent.Value) error 
 		}
 		m.SetFloatAmount(v)
 		return nil
+	case posdevicesession.FieldClosingFloat:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetClosingFloat(v)
+		return nil
+	case posdevicesession.FieldVariance:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetVariance(v)
+		return nil
+	case posdevicesession.FieldNotes:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNotes(v)
+		return nil
 	case posdevicesession.FieldMetadata:
 		v, ok := value.(map[string]interface{})
 		if !ok {
@@ -38800,6 +39036,12 @@ func (m *POSDeviceSessionMutation) AddedFields() []string {
 	if m.addfloat_amount != nil {
 		fields = append(fields, posdevicesession.FieldFloatAmount)
 	}
+	if m.addclosing_float != nil {
+		fields = append(fields, posdevicesession.FieldClosingFloat)
+	}
+	if m.addvariance != nil {
+		fields = append(fields, posdevicesession.FieldVariance)
+	}
 	return fields
 }
 
@@ -38810,6 +39052,10 @@ func (m *POSDeviceSessionMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
 	case posdevicesession.FieldFloatAmount:
 		return m.AddedFloatAmount()
+	case posdevicesession.FieldClosingFloat:
+		return m.AddedClosingFloat()
+	case posdevicesession.FieldVariance:
+		return m.AddedVariance()
 	}
 	return nil, false
 }
@@ -38826,6 +39072,20 @@ func (m *POSDeviceSessionMutation) AddField(name string, value ent.Value) error 
 		}
 		m.AddFloatAmount(v)
 		return nil
+	case posdevicesession.FieldClosingFloat:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddClosingFloat(v)
+		return nil
+	case posdevicesession.FieldVariance:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddVariance(v)
+		return nil
 	}
 	return fmt.Errorf("unknown POSDeviceSession numeric field %s", name)
 }
@@ -38836,6 +39096,15 @@ func (m *POSDeviceSessionMutation) ClearedFields() []string {
 	var fields []string
 	if m.FieldCleared(posdevicesession.FieldClosedAt) {
 		fields = append(fields, posdevicesession.FieldClosedAt)
+	}
+	if m.FieldCleared(posdevicesession.FieldClosingFloat) {
+		fields = append(fields, posdevicesession.FieldClosingFloat)
+	}
+	if m.FieldCleared(posdevicesession.FieldVariance) {
+		fields = append(fields, posdevicesession.FieldVariance)
+	}
+	if m.FieldCleared(posdevicesession.FieldNotes) {
+		fields = append(fields, posdevicesession.FieldNotes)
 	}
 	return fields
 }
@@ -38853,6 +39122,15 @@ func (m *POSDeviceSessionMutation) ClearField(name string) error {
 	switch name {
 	case posdevicesession.FieldClosedAt:
 		m.ClearClosedAt()
+		return nil
+	case posdevicesession.FieldClosingFloat:
+		m.ClearClosingFloat()
+		return nil
+	case posdevicesession.FieldVariance:
+		m.ClearVariance()
+		return nil
+	case posdevicesession.FieldNotes:
+		m.ClearNotes()
 		return nil
 	}
 	return fmt.Errorf("unknown POSDeviceSession nullable field %s", name)
@@ -38882,6 +39160,15 @@ func (m *POSDeviceSessionMutation) ResetField(name string) error {
 		return nil
 	case posdevicesession.FieldFloatAmount:
 		m.ResetFloatAmount()
+		return nil
+	case posdevicesession.FieldClosingFloat:
+		m.ResetClosingFloat()
+		return nil
+	case posdevicesession.FieldVariance:
+		m.ResetVariance()
+		return nil
+	case posdevicesession.FieldNotes:
+		m.ResetNotes()
 		return nil
 	case posdevicesession.FieldMetadata:
 		m.ResetMetadata()

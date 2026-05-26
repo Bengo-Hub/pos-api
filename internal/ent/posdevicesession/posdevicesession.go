@@ -29,6 +29,12 @@ const (
 	FieldClosedAt = "closed_at"
 	// FieldFloatAmount holds the string denoting the float_amount field in the database.
 	FieldFloatAmount = "float_amount"
+	// FieldClosingFloat holds the string denoting the closing_float field in the database.
+	FieldClosingFloat = "closing_float"
+	// FieldVariance holds the string denoting the variance field in the database.
+	FieldVariance = "variance"
+	// FieldNotes holds the string denoting the notes field in the database.
+	FieldNotes = "notes"
 	// FieldMetadata holds the string denoting the metadata field in the database.
 	FieldMetadata = "metadata"
 	// EdgeDevice holds the string denoting the device edge name in mutations.
@@ -54,6 +60,9 @@ var Columns = []string{
 	FieldOpenedAt,
 	FieldClosedAt,
 	FieldFloatAmount,
+	FieldClosingFloat,
+	FieldVariance,
+	FieldNotes,
 	FieldMetadata,
 }
 
@@ -121,6 +130,21 @@ func ByClosedAt(opts ...sql.OrderTermOption) OrderOption {
 // ByFloatAmount orders the results by the float_amount field.
 func ByFloatAmount(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldFloatAmount, opts...).ToFunc()
+}
+
+// ByClosingFloat orders the results by the closing_float field.
+func ByClosingFloat(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldClosingFloat, opts...).ToFunc()
+}
+
+// ByVariance orders the results by the variance field.
+func ByVariance(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldVariance, opts...).ToFunc()
+}
+
+// ByNotes orders the results by the notes field.
+func ByNotes(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldNotes, opts...).ToFunc()
 }
 
 // ByDeviceField orders the results by device field.

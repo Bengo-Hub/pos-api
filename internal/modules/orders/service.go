@@ -226,13 +226,21 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent
 		}
 	}()
 
+	// Hospitality order subtypes are opened immediately so the kitchen
+	// receives a KDS ticket as soon as the waiter places the order.
+	initialStatus := StatusDraft
+	isHospitalityOrder := subtype == "dine_in" || subtype == "takeaway" || subtype == "room_service" || subtype == "bar_tab"
+	if isHospitalityOrder {
+		initialStatus = StatusOpen
+	}
+
 	order, err := tx.POSOrder.Create().
 		SetTenantID(req.TenantID).
 		SetOutletID(req.OutletID).
 		SetDeviceID(req.DeviceID).
 		SetUserID(req.UserID).
 		SetOrderNumber(orderNumber).
-		SetStatus(StatusDraft).
+		SetStatus(initialStatus).
 		SetSubtotal(totals.Subtotal.InexactFloat64()).
 		SetTaxTotal(totals.TaxTotal.InexactFloat64()).
 		SetDiscountTotal(totals.DiscountTotal.InexactFloat64()).
@@ -325,6 +333,11 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent
 			"currency":     currency,
 			"item_count":   len(req.Lines),
 		})
+	}
+
+	// For hospitality orders that were auto-opened, create KDS tickets immediately.
+	if isHospitalityOrder {
+		_ = s.createKDSTicketsForOrder(ctx, req.TenantID, result)
 	}
 
 	return result, nil

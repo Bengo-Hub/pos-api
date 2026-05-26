@@ -14,6 +14,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/posdevice"
 	"github.com/bengobox/pos-service/internal/ent/posdevicesession"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
+	"github.com/bengobox/pos-service/internal/ent/tender"
 )
 
 // DeviceHandler handles device session (shift) endpoints.
@@ -214,10 +215,12 @@ func (h *DeviceHandler) resolveOrCreateDevice(r *http.Request, tid uuid.UUID, in
 
 type closeSessionInput struct {
 	ClosingFloat float64        `json:"closing_float"`
+	Notes        string         `json:"notes,omitempty"`
 	Metadata     map[string]any `json:"metadata,omitempty"`
 }
 
 // CloseSession handles POST /{tenantID}/pos/devices/current/sessions/close
+// Saves the closing float, calculates expected cash, and records variance.
 func (h *DeviceHandler) CloseSession(w http.ResponseWriter, r *http.Request) {
 	tid, err := parseTenantUUID(r)
 	if err != nil {
@@ -246,22 +249,106 @@ func (h *DeviceHandler) CloseSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Compute expected cash: opening float + total cash sales during this session.
+	expectedCash, err := h.computeExpectedCash(r, tid, session)
+	if err != nil {
+		h.log.Warn("CloseSession: could not compute expected cash", zap.Error(err))
+		expectedCash = session.FloatAmount
+	}
+
+	variance := input.ClosingFloat - expectedCash
+
 	now := time.Now()
-	updated, err := h.client.POSDeviceSession.UpdateOne(session).
+	update := h.client.POSDeviceSession.UpdateOne(session).
 		SetSessionStatus("closed").
 		SetClosedAt(now).
-		Save(r.Context())
+		SetClosingFloat(input.ClosingFloat).
+		SetVariance(variance)
+
+	if input.Notes != "" {
+		update = update.SetNotes(input.Notes)
+	}
+
+	updated, err := update.Save(r.Context())
 	if err != nil {
 		h.log.Error("close session failed", zap.Error(err))
 		jsonError(w, "failed to close session", http.StatusInternalServerError)
 		return
 	}
 
-	jsonOK(w, updated)
+	jsonOK(w, map[string]any{
+		"session":       updated,
+		"expected_cash": expectedCash,
+		"variance":      variance,
+	})
+}
+
+// computeExpectedCash calculates opening_float + total completed cash-tender payments
+// for orders during this session window on this device.
+func (h *DeviceHandler) computeExpectedCash(r *http.Request, tid uuid.UUID, session *ent.POSDeviceSession) (float64, error) {
+	ctx := r.Context()
+
+	// Get all completed orders for this device since session opened.
+	orders, err := h.client.POSOrder.Query().
+		Where(
+			posorder.TenantID(tid),
+			posorder.DeviceID(session.DeviceID),
+			posorder.StatusEQ("completed"),
+			posorder.CreatedAtGTE(session.OpenedAt),
+		).
+		WithPayments().
+		All(ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	// Load cash tenders for the tenant.
+	cashTenders, err := h.client.Tender.Query().
+		Where(tender.TenantID(tid), tender.TypeEQ("cash")).
+		All(ctx)
+	if err != nil {
+		return 0, err
+	}
+	cashTenderIDs := make(map[uuid.UUID]bool, len(cashTenders))
+	for _, t := range cashTenders {
+		cashTenderIDs[t.ID] = true
+	}
+
+	cashTotal := session.FloatAmount
+	for _, o := range orders {
+		for _, p := range o.Edges.Payments {
+			if p.Status == "completed" && cashTenderIDs[p.TenderID] {
+				cashTotal += p.Amount
+			}
+		}
+	}
+	return cashTotal, nil
+}
+
+// SessionSummaryResponse is the full live summary for an open shift.
+type SessionSummaryResponse struct {
+	SessionID      string             `json:"session_id"`
+	OpenedAt       time.Time          `json:"opened_at"`
+	OpeningFloat   float64            `json:"opening_float"`
+	OrderCount     int                `json:"order_count"`
+	TotalRevenue   float64            `json:"total_revenue"`
+	ExpectedCash   float64            `json:"expected_cash"`
+	RefundCount    int                `json:"refund_count"`
+	TotalRefunds   float64            `json:"total_refunds"`
+	VoidCount      int                `json:"void_count"`
+	TenderBreakdown []TenderBreakdown `json:"tender_breakdown"`
+}
+
+// TenderBreakdown is the revenue split by payment method.
+type TenderBreakdown struct {
+	TenderName string  `json:"tender_name"`
+	TenderType string  `json:"tender_type"`
+	Amount     float64 `json:"amount"`
+	Count      int     `json:"count"`
 }
 
 // GetSessionSummary handles GET /{tenantID}/pos/devices/current/sessions/current/summary
-// Returns aggregated sales stats for the active shift: order count and revenue.
+// Returns aggregated sales stats for the active shift with payment method breakdown.
 func (h *DeviceHandler) GetSessionSummary(w http.ResponseWriter, r *http.Request) {
 	tid, err := parseTenantUUID(r)
 	if err != nil {
@@ -285,14 +372,14 @@ func (h *DeviceHandler) GetSessionSummary(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// Query completed orders created on this device since the session opened.
+	// Query completed orders with their payments.
 	orders, err := h.client.POSOrder.Query().
 		Where(
 			posorder.TenantID(tid),
 			posorder.DeviceID(session.DeviceID),
-			posorder.StatusEQ("completed"),
 			posorder.CreatedAtGTE(session.OpenedAt),
 		).
+		WithPayments().
 		All(r.Context())
 	if err != nil {
 		h.log.Error("session summary: order query failed", zap.Error(err))
@@ -300,19 +387,167 @@ func (h *DeviceHandler) GetSessionSummary(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	var totalRevenue float64
-	for _, o := range orders {
-		totalRevenue += o.TotalAmount
+	// Load all tenders for tender type lookup.
+	tenders, err := h.client.Tender.Query().
+		Where(tender.TenantID(tid)).
+		All(r.Context())
+	if err != nil {
+		h.log.Warn("session summary: tender query failed", zap.Error(err))
+	}
+	tenderMap := make(map[uuid.UUID]*ent.Tender, len(tenders))
+	for _, t := range tenders {
+		tenderMap[t.ID] = t
 	}
 
-	jsonOK(w, map[string]any{
-		"session_id":     session.ID,
-		"opened_at":      session.OpenedAt,
-		"opening_float":  session.FloatAmount,
-		"order_count":    len(orders),
-		"total_revenue":  totalRevenue,
-		"expected_cash":  session.FloatAmount + totalRevenue,
+	var (
+		totalRevenue float64
+		voidCount    int
+		orderCount   int
+	)
+	// map: tender_id → {name, type, amount, count}
+	type tenderAccum struct {
+		name   string
+		tType  string
+		amount float64
+		count  int
+	}
+	tenderAccums := make(map[uuid.UUID]*tenderAccum)
+
+	for _, o := range orders {
+		switch o.Status {
+		case "completed":
+			orderCount++
+			totalRevenue += o.TotalAmount
+		case "voided":
+			voidCount++
+		}
+		for _, p := range o.Edges.Payments {
+			if p.Status != "completed" {
+				continue
+			}
+			acc := tenderAccums[p.TenderID]
+			if acc == nil {
+				name, tType := p.TenderID.String()[:8], "other"
+				if t, ok := tenderMap[p.TenderID]; ok {
+					name = t.Name
+					tType = t.Type
+				}
+				acc = &tenderAccum{name: name, tType: tType}
+				tenderAccums[p.TenderID] = acc
+			}
+			acc.amount += p.Amount
+			acc.count++
+		}
+	}
+
+	// Compute expected cash = float + all cash-tender payments.
+	cashExpected := session.FloatAmount
+	for tid2, acc := range tenderAccums {
+		if t, ok := tenderMap[tid2]; ok && t.Type == "cash" {
+			cashExpected += acc.amount
+		}
+	}
+
+	breakdown := make([]TenderBreakdown, 0, len(tenderAccums))
+	for _, acc := range tenderAccums {
+		breakdown = append(breakdown, TenderBreakdown{
+			TenderName: acc.name,
+			TenderType: acc.tType,
+			Amount:     acc.amount,
+			Count:      acc.count,
+		})
+	}
+
+	jsonOK(w, SessionSummaryResponse{
+		SessionID:       session.ID.String(),
+		OpenedAt:        session.OpenedAt,
+		OpeningFloat:    session.FloatAmount,
+		OrderCount:      orderCount,
+		TotalRevenue:    totalRevenue,
+		ExpectedCash:    cashExpected,
+		VoidCount:       voidCount,
+		TenderBreakdown: breakdown,
 	})
+}
+
+// GetSessionHistory handles GET /{tenantID}/pos/devices/current/sessions/history
+// Returns the last N closed sessions for the currently authenticated user.
+func (h *DeviceHandler) GetSessionHistory(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+
+	userID := currentUserID(r)
+
+	sessions, err := h.client.POSDeviceSession.Query().
+		Where(
+			posdevicesession.TenantID(tid),
+			posdevicesession.UserID(userID),
+		).
+		Order(ent.Desc(posdevicesession.FieldOpenedAt)).
+		Limit(20).
+		All(r.Context())
+	if err != nil {
+		h.log.Error("session history query failed", zap.Error(err))
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	// For each closed session, attach quick stats from orders.
+	type sessionRow struct {
+		ID           string   `json:"id"`
+		Status       string   `json:"status"`
+		OpenedAt     string   `json:"opened_at"`
+		ClosedAt     *string  `json:"closed_at,omitempty"`
+		OpeningFloat float64  `json:"opening_float"`
+		ClosingFloat *float64 `json:"closing_float,omitempty"`
+		Variance     *float64 `json:"variance,omitempty"`
+		Notes        string   `json:"notes,omitempty"`
+		OrderCount   int      `json:"order_count"`
+		TotalRevenue float64  `json:"total_revenue"`
+	}
+
+	rows := make([]sessionRow, 0, len(sessions))
+	for _, s := range sessions {
+		orders, _ := h.client.POSOrder.Query().
+			Where(
+				posorder.TenantID(tid),
+				posorder.DeviceID(s.DeviceID),
+				posorder.StatusEQ("completed"),
+				posorder.CreatedAtGTE(s.OpenedAt),
+			).
+			All(r.Context())
+
+		var rev float64
+		for _, o := range orders {
+			rev += o.TotalAmount
+		}
+
+		row := sessionRow{
+			ID:           s.ID.String(),
+			Status:       s.SessionStatus,
+			OpenedAt:     s.OpenedAt.Format(time.RFC3339),
+			OpeningFloat: s.FloatAmount,
+			Notes:        s.Notes,
+			OrderCount:   len(orders),
+			TotalRevenue: rev,
+		}
+		if s.ClosedAt != nil {
+			ts := s.ClosedAt.Format(time.RFC3339)
+			row.ClosedAt = &ts
+		}
+		if s.ClosingFloat != nil {
+			row.ClosingFloat = s.ClosingFloat
+		}
+		if s.Variance != nil {
+			row.Variance = s.Variance
+		}
+		rows = append(rows, row)
+	}
+
+	jsonOK(w, map[string]any{"data": rows, "total": len(rows)})
 }
 
 // currentUserID extracts the user UUID from JWT claims; falls back to nil UUID.
@@ -326,4 +561,11 @@ func currentUserID(r *http.Request) uuid.UUID {
 		return uuid.Nil
 	}
 	return id
+}
+
+// tenderTypeEQ is a helper used by computeExpectedCash to match cash tenders.
+func tenderTypeEQ(v string) func(*ent.TenderMutation) {
+	return func(m *ent.TenderMutation) {
+		m.SetType(v)
+	}
 }

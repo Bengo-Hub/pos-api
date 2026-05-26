@@ -34,6 +34,12 @@ type POSDeviceSession struct {
 	ClosedAt *time.Time `json:"closed_at,omitempty"`
 	// FloatAmount holds the value of the "float_amount" field.
 	FloatAmount float64 `json:"float_amount,omitempty"`
+	// ClosingFloat holds the value of the "closing_float" field.
+	ClosingFloat *float64 `json:"closing_float,omitempty"`
+	// Variance holds the value of the "variance" field.
+	Variance *float64 `json:"variance,omitempty"`
+	// Notes holds the value of the "notes" field.
+	Notes string `json:"notes,omitempty"`
 	// Metadata holds the value of the "metadata" field.
 	Metadata map[string]interface{} `json:"metadata,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
@@ -69,9 +75,9 @@ func (*POSDeviceSession) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case posdevicesession.FieldMetadata:
 			values[i] = new([]byte)
-		case posdevicesession.FieldFloatAmount:
+		case posdevicesession.FieldFloatAmount, posdevicesession.FieldClosingFloat, posdevicesession.FieldVariance:
 			values[i] = new(sql.NullFloat64)
-		case posdevicesession.FieldSessionStatus:
+		case posdevicesession.FieldSessionStatus, posdevicesession.FieldNotes:
 			values[i] = new(sql.NullString)
 		case posdevicesession.FieldOpenedAt, posdevicesession.FieldClosedAt:
 			values[i] = new(sql.NullTime)
@@ -140,6 +146,26 @@ func (_m *POSDeviceSession) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field float_amount", values[i])
 			} else if value.Valid {
 				_m.FloatAmount = value.Float64
+			}
+		case posdevicesession.FieldClosingFloat:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field closing_float", values[i])
+			} else if value.Valid {
+				_m.ClosingFloat = new(float64)
+				*_m.ClosingFloat = value.Float64
+			}
+		case posdevicesession.FieldVariance:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field variance", values[i])
+			} else if value.Valid {
+				_m.Variance = new(float64)
+				*_m.Variance = value.Float64
+			}
+		case posdevicesession.FieldNotes:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field notes", values[i])
+			} else if value.Valid {
+				_m.Notes = value.String
 			}
 		case posdevicesession.FieldMetadata:
 			if value, ok := values[i].(*[]byte); !ok {
@@ -212,6 +238,19 @@ func (_m *POSDeviceSession) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("float_amount=")
 	builder.WriteString(fmt.Sprintf("%v", _m.FloatAmount))
+	builder.WriteString(", ")
+	if v := _m.ClosingFloat; v != nil {
+		builder.WriteString("closing_float=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.Variance; v != nil {
+		builder.WriteString("variance=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("notes=")
+	builder.WriteString(_m.Notes)
 	builder.WriteString(", ")
 	builder.WriteString("metadata=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Metadata))

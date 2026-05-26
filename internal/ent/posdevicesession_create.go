@@ -99,6 +99,48 @@ func (_c *POSDeviceSessionCreate) SetNillableFloatAmount(v *float64) *POSDeviceS
 	return _c
 }
 
+// SetClosingFloat sets the "closing_float" field.
+func (_c *POSDeviceSessionCreate) SetClosingFloat(v float64) *POSDeviceSessionCreate {
+	_c.mutation.SetClosingFloat(v)
+	return _c
+}
+
+// SetNillableClosingFloat sets the "closing_float" field if the given value is not nil.
+func (_c *POSDeviceSessionCreate) SetNillableClosingFloat(v *float64) *POSDeviceSessionCreate {
+	if v != nil {
+		_c.SetClosingFloat(*v)
+	}
+	return _c
+}
+
+// SetVariance sets the "variance" field.
+func (_c *POSDeviceSessionCreate) SetVariance(v float64) *POSDeviceSessionCreate {
+	_c.mutation.SetVariance(v)
+	return _c
+}
+
+// SetNillableVariance sets the "variance" field if the given value is not nil.
+func (_c *POSDeviceSessionCreate) SetNillableVariance(v *float64) *POSDeviceSessionCreate {
+	if v != nil {
+		_c.SetVariance(*v)
+	}
+	return _c
+}
+
+// SetNotes sets the "notes" field.
+func (_c *POSDeviceSessionCreate) SetNotes(v string) *POSDeviceSessionCreate {
+	_c.mutation.SetNotes(v)
+	return _c
+}
+
+// SetNillableNotes sets the "notes" field if the given value is not nil.
+func (_c *POSDeviceSessionCreate) SetNillableNotes(v *string) *POSDeviceSessionCreate {
+	if v != nil {
+		_c.SetNotes(*v)
+	}
+	return _c
+}
+
 // SetMetadata sets the "metadata" field.
 func (_c *POSDeviceSessionCreate) SetMetadata(v map[string]interface{}) *POSDeviceSessionCreate {
 	_c.mutation.SetMetadata(v)
@@ -267,6 +309,18 @@ func (_c *POSDeviceSessionCreate) createSpec() (*POSDeviceSession, *sqlgraph.Cre
 		_spec.SetField(posdevicesession.FieldFloatAmount, field.TypeFloat64, value)
 		_node.FloatAmount = value
 	}
+	if value, ok := _c.mutation.ClosingFloat(); ok {
+		_spec.SetField(posdevicesession.FieldClosingFloat, field.TypeFloat64, value)
+		_node.ClosingFloat = &value
+	}
+	if value, ok := _c.mutation.Variance(); ok {
+		_spec.SetField(posdevicesession.FieldVariance, field.TypeFloat64, value)
+		_node.Variance = &value
+	}
+	if value, ok := _c.mutation.Notes(); ok {
+		_spec.SetField(posdevicesession.FieldNotes, field.TypeString, value)
+		_node.Notes = value
+	}
 	if value, ok := _c.mutation.Metadata(); ok {
 		_spec.SetField(posdevicesession.FieldMetadata, field.TypeJSON, value)
 		_node.Metadata = value
@@ -433,6 +487,72 @@ func (u *POSDeviceSessionUpsert) UpdateFloatAmount() *POSDeviceSessionUpsert {
 // AddFloatAmount adds v to the "float_amount" field.
 func (u *POSDeviceSessionUpsert) AddFloatAmount(v float64) *POSDeviceSessionUpsert {
 	u.Add(posdevicesession.FieldFloatAmount, v)
+	return u
+}
+
+// SetClosingFloat sets the "closing_float" field.
+func (u *POSDeviceSessionUpsert) SetClosingFloat(v float64) *POSDeviceSessionUpsert {
+	u.Set(posdevicesession.FieldClosingFloat, v)
+	return u
+}
+
+// UpdateClosingFloat sets the "closing_float" field to the value that was provided on create.
+func (u *POSDeviceSessionUpsert) UpdateClosingFloat() *POSDeviceSessionUpsert {
+	u.SetExcluded(posdevicesession.FieldClosingFloat)
+	return u
+}
+
+// AddClosingFloat adds v to the "closing_float" field.
+func (u *POSDeviceSessionUpsert) AddClosingFloat(v float64) *POSDeviceSessionUpsert {
+	u.Add(posdevicesession.FieldClosingFloat, v)
+	return u
+}
+
+// ClearClosingFloat clears the value of the "closing_float" field.
+func (u *POSDeviceSessionUpsert) ClearClosingFloat() *POSDeviceSessionUpsert {
+	u.SetNull(posdevicesession.FieldClosingFloat)
+	return u
+}
+
+// SetVariance sets the "variance" field.
+func (u *POSDeviceSessionUpsert) SetVariance(v float64) *POSDeviceSessionUpsert {
+	u.Set(posdevicesession.FieldVariance, v)
+	return u
+}
+
+// UpdateVariance sets the "variance" field to the value that was provided on create.
+func (u *POSDeviceSessionUpsert) UpdateVariance() *POSDeviceSessionUpsert {
+	u.SetExcluded(posdevicesession.FieldVariance)
+	return u
+}
+
+// AddVariance adds v to the "variance" field.
+func (u *POSDeviceSessionUpsert) AddVariance(v float64) *POSDeviceSessionUpsert {
+	u.Add(posdevicesession.FieldVariance, v)
+	return u
+}
+
+// ClearVariance clears the value of the "variance" field.
+func (u *POSDeviceSessionUpsert) ClearVariance() *POSDeviceSessionUpsert {
+	u.SetNull(posdevicesession.FieldVariance)
+	return u
+}
+
+// SetNotes sets the "notes" field.
+func (u *POSDeviceSessionUpsert) SetNotes(v string) *POSDeviceSessionUpsert {
+	u.Set(posdevicesession.FieldNotes, v)
+	return u
+}
+
+// UpdateNotes sets the "notes" field to the value that was provided on create.
+func (u *POSDeviceSessionUpsert) UpdateNotes() *POSDeviceSessionUpsert {
+	u.SetExcluded(posdevicesession.FieldNotes)
+	return u
+}
+
+// ClearNotes clears the value of the "notes" field.
+func (u *POSDeviceSessionUpsert) ClearNotes() *POSDeviceSessionUpsert {
+	u.SetNull(posdevicesession.FieldNotes)
 	return u
 }
 
@@ -605,6 +725,83 @@ func (u *POSDeviceSessionUpsertOne) AddFloatAmount(v float64) *POSDeviceSessionU
 func (u *POSDeviceSessionUpsertOne) UpdateFloatAmount() *POSDeviceSessionUpsertOne {
 	return u.Update(func(s *POSDeviceSessionUpsert) {
 		s.UpdateFloatAmount()
+	})
+}
+
+// SetClosingFloat sets the "closing_float" field.
+func (u *POSDeviceSessionUpsertOne) SetClosingFloat(v float64) *POSDeviceSessionUpsertOne {
+	return u.Update(func(s *POSDeviceSessionUpsert) {
+		s.SetClosingFloat(v)
+	})
+}
+
+// AddClosingFloat adds v to the "closing_float" field.
+func (u *POSDeviceSessionUpsertOne) AddClosingFloat(v float64) *POSDeviceSessionUpsertOne {
+	return u.Update(func(s *POSDeviceSessionUpsert) {
+		s.AddClosingFloat(v)
+	})
+}
+
+// UpdateClosingFloat sets the "closing_float" field to the value that was provided on create.
+func (u *POSDeviceSessionUpsertOne) UpdateClosingFloat() *POSDeviceSessionUpsertOne {
+	return u.Update(func(s *POSDeviceSessionUpsert) {
+		s.UpdateClosingFloat()
+	})
+}
+
+// ClearClosingFloat clears the value of the "closing_float" field.
+func (u *POSDeviceSessionUpsertOne) ClearClosingFloat() *POSDeviceSessionUpsertOne {
+	return u.Update(func(s *POSDeviceSessionUpsert) {
+		s.ClearClosingFloat()
+	})
+}
+
+// SetVariance sets the "variance" field.
+func (u *POSDeviceSessionUpsertOne) SetVariance(v float64) *POSDeviceSessionUpsertOne {
+	return u.Update(func(s *POSDeviceSessionUpsert) {
+		s.SetVariance(v)
+	})
+}
+
+// AddVariance adds v to the "variance" field.
+func (u *POSDeviceSessionUpsertOne) AddVariance(v float64) *POSDeviceSessionUpsertOne {
+	return u.Update(func(s *POSDeviceSessionUpsert) {
+		s.AddVariance(v)
+	})
+}
+
+// UpdateVariance sets the "variance" field to the value that was provided on create.
+func (u *POSDeviceSessionUpsertOne) UpdateVariance() *POSDeviceSessionUpsertOne {
+	return u.Update(func(s *POSDeviceSessionUpsert) {
+		s.UpdateVariance()
+	})
+}
+
+// ClearVariance clears the value of the "variance" field.
+func (u *POSDeviceSessionUpsertOne) ClearVariance() *POSDeviceSessionUpsertOne {
+	return u.Update(func(s *POSDeviceSessionUpsert) {
+		s.ClearVariance()
+	})
+}
+
+// SetNotes sets the "notes" field.
+func (u *POSDeviceSessionUpsertOne) SetNotes(v string) *POSDeviceSessionUpsertOne {
+	return u.Update(func(s *POSDeviceSessionUpsert) {
+		s.SetNotes(v)
+	})
+}
+
+// UpdateNotes sets the "notes" field to the value that was provided on create.
+func (u *POSDeviceSessionUpsertOne) UpdateNotes() *POSDeviceSessionUpsertOne {
+	return u.Update(func(s *POSDeviceSessionUpsert) {
+		s.UpdateNotes()
+	})
+}
+
+// ClearNotes clears the value of the "notes" field.
+func (u *POSDeviceSessionUpsertOne) ClearNotes() *POSDeviceSessionUpsertOne {
+	return u.Update(func(s *POSDeviceSessionUpsert) {
+		s.ClearNotes()
 	})
 }
 
@@ -946,6 +1143,83 @@ func (u *POSDeviceSessionUpsertBulk) AddFloatAmount(v float64) *POSDeviceSession
 func (u *POSDeviceSessionUpsertBulk) UpdateFloatAmount() *POSDeviceSessionUpsertBulk {
 	return u.Update(func(s *POSDeviceSessionUpsert) {
 		s.UpdateFloatAmount()
+	})
+}
+
+// SetClosingFloat sets the "closing_float" field.
+func (u *POSDeviceSessionUpsertBulk) SetClosingFloat(v float64) *POSDeviceSessionUpsertBulk {
+	return u.Update(func(s *POSDeviceSessionUpsert) {
+		s.SetClosingFloat(v)
+	})
+}
+
+// AddClosingFloat adds v to the "closing_float" field.
+func (u *POSDeviceSessionUpsertBulk) AddClosingFloat(v float64) *POSDeviceSessionUpsertBulk {
+	return u.Update(func(s *POSDeviceSessionUpsert) {
+		s.AddClosingFloat(v)
+	})
+}
+
+// UpdateClosingFloat sets the "closing_float" field to the value that was provided on create.
+func (u *POSDeviceSessionUpsertBulk) UpdateClosingFloat() *POSDeviceSessionUpsertBulk {
+	return u.Update(func(s *POSDeviceSessionUpsert) {
+		s.UpdateClosingFloat()
+	})
+}
+
+// ClearClosingFloat clears the value of the "closing_float" field.
+func (u *POSDeviceSessionUpsertBulk) ClearClosingFloat() *POSDeviceSessionUpsertBulk {
+	return u.Update(func(s *POSDeviceSessionUpsert) {
+		s.ClearClosingFloat()
+	})
+}
+
+// SetVariance sets the "variance" field.
+func (u *POSDeviceSessionUpsertBulk) SetVariance(v float64) *POSDeviceSessionUpsertBulk {
+	return u.Update(func(s *POSDeviceSessionUpsert) {
+		s.SetVariance(v)
+	})
+}
+
+// AddVariance adds v to the "variance" field.
+func (u *POSDeviceSessionUpsertBulk) AddVariance(v float64) *POSDeviceSessionUpsertBulk {
+	return u.Update(func(s *POSDeviceSessionUpsert) {
+		s.AddVariance(v)
+	})
+}
+
+// UpdateVariance sets the "variance" field to the value that was provided on create.
+func (u *POSDeviceSessionUpsertBulk) UpdateVariance() *POSDeviceSessionUpsertBulk {
+	return u.Update(func(s *POSDeviceSessionUpsert) {
+		s.UpdateVariance()
+	})
+}
+
+// ClearVariance clears the value of the "variance" field.
+func (u *POSDeviceSessionUpsertBulk) ClearVariance() *POSDeviceSessionUpsertBulk {
+	return u.Update(func(s *POSDeviceSessionUpsert) {
+		s.ClearVariance()
+	})
+}
+
+// SetNotes sets the "notes" field.
+func (u *POSDeviceSessionUpsertBulk) SetNotes(v string) *POSDeviceSessionUpsertBulk {
+	return u.Update(func(s *POSDeviceSessionUpsert) {
+		s.SetNotes(v)
+	})
+}
+
+// UpdateNotes sets the "notes" field to the value that was provided on create.
+func (u *POSDeviceSessionUpsertBulk) UpdateNotes() *POSDeviceSessionUpsertBulk {
+	return u.Update(func(s *POSDeviceSessionUpsert) {
+		s.UpdateNotes()
+	})
+}
+
+// ClearNotes clears the value of the "notes" field.
+func (u *POSDeviceSessionUpsertBulk) ClearNotes() *POSDeviceSessionUpsertBulk {
+	return u.Update(func(s *POSDeviceSessionUpsert) {
+		s.ClearNotes()
 	})
 }
 
