@@ -48,14 +48,26 @@ type CreateIntentRequest struct {
 	Metadata      map[string]any `json:"metadata,omitempty"`
 }
 
-// IntentResponse is the response from POST /api/v1/{tenant}/payments/intents.
+// IntentResponse is the response from POST /api/v1/s2s/{tenant}/payments/intents.
 // Amount is string because treasury serializes decimal.Decimal as a quoted JSON string.
+// IntentID is the primary field; ID is kept as fallback for non-S2S endpoints that return "id".
 type IntentResponse struct {
-	ID            string `json:"id"`
+	IntentID      string `json:"intent_id"` // primary: S2S create endpoint returns this
+	ID            string `json:"id"`        // fallback: other treasury endpoints return this
 	Status        string `json:"status"`
 	PaymentMethod string `json:"payment_method"`
 	Amount        string `json:"amount"`
 	Currency      string `json:"currency"`
+	InitiateURL   string `json:"initiate_url,omitempty"` // treasury-built public URL for payment initiation
+}
+
+// ResolvedID returns IntentID if non-empty, falling back to ID.
+// The S2S create endpoint returns "intent_id"; other endpoints return "id".
+func (r *IntentResponse) ResolvedID() string {
+	if r.IntentID != "" {
+		return r.IntentID
+	}
+	return r.ID
 }
 
 // InitiateRequest is the body for POST /api/v1/{tenant}/payments/intents/{id}/initiate.
@@ -101,11 +113,12 @@ func (c *Client) CreateRefund(ctx context.Context, tenantSlug string, req Refund
 	return doRequest[RefundResponse](ctx, c.httpClient, http.MethodPost, url, c.apiKey, req)
 }
 
-// CreateIntent calls POST /api/v1/{tenantSlug}/payments/intents on treasury-api.
+// CreateIntent calls POST /api/v1/s2s/{tenantSlug}/payments/intents on treasury-api.
+// The S2S path requires only X-API-Key (INTERNAL_SERVICE_KEY) — no JWT needed.
 // idempotencyKey (e.g. order UUID) is sent as Idempotency-Key header to prevent duplicate intents
 // on network retries; pass empty string to skip.
 func (c *Client) CreateIntent(ctx context.Context, tenantSlug, idempotencyKey string, req CreateIntentRequest) (*IntentResponse, error) {
-	url := fmt.Sprintf("%s/api/v1/%s/payments/intents", c.baseURL, tenantSlug)
+	url := fmt.Sprintf("%s/api/v1/s2s/%s/payments/intents", c.baseURL, tenantSlug)
 	extraHeaders := map[string]string{}
 	if idempotencyKey != "" {
 		extraHeaders["Idempotency-Key"] = idempotencyKey
@@ -113,10 +126,10 @@ func (c *Client) CreateIntent(ctx context.Context, tenantSlug, idempotencyKey st
 	return doRequestWithHeaders[IntentResponse](ctx, c.httpClient, http.MethodPost, url, c.apiKey, extraHeaders, req)
 }
 
-// InitiateIntent calls POST /api/v1/{tenantSlug}/payments/intents/{intentID}/initiate on treasury-api.
-// This is the handler behind the initiateUrl that treasury-ui invokes when the user picks a payment gateway.
+// InitiateIntent calls POST /api/v1/s2s/{tenantSlug}/payments/intents/{intentID}/initiate on treasury-api.
+// Used by the pos-api proxy endpoint — treasury's returned initiate_url should be preferred when available.
 func (c *Client) InitiateIntent(ctx context.Context, tenantSlug, intentID string, req InitiateRequest) (*InitiateResponse, error) {
-	url := fmt.Sprintf("%s/api/v1/%s/payments/intents/%s/initiate", c.baseURL, tenantSlug, intentID)
+	url := fmt.Sprintf("%s/api/v1/s2s/%s/payments/intents/%s/initiate", c.baseURL, tenantSlug, intentID)
 	return doRequest[InitiateResponse](ctx, c.httpClient, http.MethodPost, url, c.apiKey, req)
 }
 

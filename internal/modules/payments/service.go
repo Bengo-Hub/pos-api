@@ -152,13 +152,18 @@ func (s *Service) CreatePaymentIntent(ctx context.Context, req RecordPaymentRequ
 	}
 
 	result := &CreateIntentResult{
-		PaymentIntentID: intent.ID,
+		PaymentIntentID: intent.ResolvedID(),
 		IsCash:          cash,
 	}
 
 	if !cash {
-		// Digital: build the proxy initiateUrl that TreasuryPaymentModal will call
-		result.InitiateURL = fmt.Sprintf("%s/api/v1/%s/pos/payments/initiate", req.PublicBaseURL, req.TenantSlug)
+		// Prefer treasury's returned initiate_url (public, no auth required).
+		// Fall back to the pos-api proxy only when treasury doesn't return one.
+		if intent.InitiateURL != "" {
+			result.InitiateURL = intent.InitiateURL
+		} else {
+			result.InitiateURL = fmt.Sprintf("%s/api/v1/%s/pos/payments/initiate", req.PublicBaseURL, req.TenantSlug)
+		}
 
 		// Record local payment as pending — will be completed by treasury NATS subscriber
 		_, err = s.client.POSPayment.Create().
@@ -167,7 +172,7 @@ func (s *Service) CreatePaymentIntent(ctx context.Context, req RecordPaymentRequ
 			SetAmount(req.Amount).
 			SetCurrency(currency).
 			SetStatus(StatusPending).
-			SetNillableExternalReference(nilIfEmpty(intent.ID)).
+			SetNillableExternalReference(nilIfEmpty(intent.ResolvedID())).
 			Save(ctx)
 		if err != nil {
 			s.log.Warn("failed to record pending payment", zap.Error(err))
@@ -177,7 +182,7 @@ func (s *Service) CreatePaymentIntent(ctx context.Context, req RecordPaymentRequ
 
 	// Cash / manual: record as completed immediately.
 	// For manual payments use the cashier-entered ref; otherwise store the treasury intent ID.
-	cashRef := intent.ID
+	cashRef := intent.ResolvedID()
 	if req.ExternalRef != "" {
 		cashRef = req.ExternalRef
 	}
