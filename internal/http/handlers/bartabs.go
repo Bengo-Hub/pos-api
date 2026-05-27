@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/Bengo-Hub/pagination"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -75,14 +76,16 @@ func (h *BarTabHandler) ListBarTabs(w http.ResponseWriter, r *http.Request) {
 		query = query.Where(bartab.Status(status))
 	}
 
-	tabs, err := query.Order(ent.Desc(bartab.FieldCreatedAt)).All(r.Context())
+	p := pagination.Parse(r)
+	total, _ := query.Clone().Count(r.Context())
+	tabs, err := query.Order(ent.Desc(bartab.FieldCreatedAt)).Limit(p.Limit).Offset(p.Offset).All(r.Context())
 	if err != nil {
 		h.log.Error("list bar tabs failed", zap.Error(err))
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 
-	jsonOK(w, map[string]any{"data": tabs, "total": len(tabs)})
+	jsonOK(w, pagination.NewResponse(tabs, total, p))
 }
 
 // GetBarTab handles GET /{tenantID}/pos/bar-tabs/{id}

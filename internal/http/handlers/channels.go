@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/Bengo-Hub/pagination"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -51,13 +52,15 @@ func (h *ChannelHandler) ListChannels(w http.ResponseWriter, r *http.Request) {
 		q = q.Where(entchan.Status(st))
 	}
 
-	channels, err := q.All(r.Context())
+	p := pagination.Parse(r)
+	total, _ := q.Clone().Count(r.Context())
+	channels, err := q.Limit(p.Limit).Offset(p.Offset).All(r.Context())
 	if err != nil {
 		h.log.Error("list channels failed", zap.Error(err))
 		jsonError(w, "failed to list channels", http.StatusInternalServerError)
 		return
 	}
-	jsonOK(w, channels)
+	jsonOK(w, pagination.NewResponse(channels, total, p))
 }
 
 // CreateChannel handles POST /{tenantID}/pos/channels
@@ -207,17 +210,16 @@ func (h *ChannelHandler) ListSyncJobs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	jobs, err := h.db.ChannelSyncJob.Query().
-		Where(entjob.IntegrationID(cid)).
-		Order(ent.Desc(entjob.FieldCreatedAt)).
-		Limit(50).
-		All(r.Context())
+	p := pagination.Parse(r)
+	baseQ := h.db.ChannelSyncJob.Query().Where(entjob.IntegrationID(cid))
+	total, _ := baseQ.Clone().Count(r.Context())
+	jobs, err := baseQ.Order(ent.Desc(entjob.FieldCreatedAt)).Limit(p.Limit).Offset(p.Offset).All(r.Context())
 	if err != nil {
 		h.log.Error("list sync jobs failed", zap.Error(err))
 		jsonError(w, "failed to list sync jobs", http.StatusInternalServerError)
 		return
 	}
-	jsonOK(w, jobs)
+	jsonOK(w, pagination.NewResponse(jobs, total, p))
 }
 
 // TriggerSyncJob handles POST /{tenantID}/pos/channels/{channelID}/sync-jobs

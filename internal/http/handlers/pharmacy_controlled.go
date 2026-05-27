@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/Bengo-Hub/pagination"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -30,12 +31,14 @@ func (h *PharmacyHandler) ListControlledLogs(w http.ResponseWriter, r *http.Requ
 		}
 	}
 
-	logs, err := q.All(r.Context())
+	p := pagination.Parse(r)
+	total, _ := q.Clone().Count(r.Context())
+	logs, err := q.Limit(p.Limit).Offset(p.Offset).All(r.Context())
 	if err != nil {
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
 	}
-	jsonOK(w, map[string]any{"data": logs, "total": len(logs)})
+	jsonOK(w, pagination.NewResponse(logs, total, p))
 }
 
 type createControlledLogInput struct {

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/Bengo-Hub/pagination"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -163,15 +164,14 @@ func (h *DrawerHandler) ListDrawerHistory(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	drawers, err := h.client.CashDrawer.Query().
-		Where(cashdrawer.TenantID(tid)).
-		Order(ent.Desc(cashdrawer.FieldOpenedAt)).
-		Limit(50).
-		All(r.Context())
+	p := pagination.Parse(r)
+	baseQ := h.client.CashDrawer.Query().Where(cashdrawer.TenantID(tid))
+	total, _ := baseQ.Clone().Count(r.Context())
+	drawers, err := baseQ.Order(ent.Desc(cashdrawer.FieldOpenedAt)).Limit(p.Limit).Offset(p.Offset).All(r.Context())
 	if err != nil {
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 
-	jsonOK(w, map[string]any{"data": drawers, "total": len(drawers)})
+	jsonOK(w, pagination.NewResponse(drawers, total, p))
 }

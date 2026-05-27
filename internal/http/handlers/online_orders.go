@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"entgo.io/ent/dialect/sql"
+	"github.com/Bengo-Hub/pagination"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -46,21 +47,27 @@ func (h *OnlineOrderHandler) ListPickup(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	orders, err := h.db.POSOrder.Query().
-		Where(
-			posorder.TenantID(tid),
-			pickupSourceFilter(),
-			posorder.StatusNotIn("completed", "cancelled"),
-		).
-		Order(ent.Asc(posorder.FieldCreatedAt)).
-		All(r.Context())
+	filters := []predicate.POSOrder{
+		posorder.TenantID(tid),
+		pickupSourceFilter(),
+	}
+	if status := r.URL.Query().Get("status"); status != "" {
+		filters = append(filters, posorder.Status(status))
+	} else {
+		filters = append(filters, posorder.StatusNotIn("completed", "cancelled"))
+	}
+
+	p := pagination.Parse(r)
+	baseQ := h.db.POSOrder.Query().Where(filters...)
+	total, _ := baseQ.Clone().Count(r.Context())
+	orders, err := baseQ.Order(ent.Asc(posorder.FieldCreatedAt)).Limit(p.Limit).Offset(p.Offset).All(r.Context())
 	if err != nil {
 		h.log.Error("list pickup orders failed", zap.Error(err))
 		jsonError(w, "failed to list pickup orders", http.StatusInternalServerError)
 		return
 	}
 
-	jsonOK(w, orders)
+	jsonOK(w, pagination.NewResponse(orders, total, p))
 }
 
 // MarkReady handles POST /{tenantID}/pos/online-orders/{orderID}/ready

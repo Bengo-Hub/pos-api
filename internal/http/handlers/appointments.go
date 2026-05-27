@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/Bengo-Hub/pagination"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -76,13 +77,15 @@ func (h *AppointmentHandler) List(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	appts, err := q.Order(ent.Asc(entappt.FieldStartTime)).All(r.Context())
+	p := pagination.Parse(r)
+	total, _ := q.Clone().Count(r.Context())
+	appts, err := q.Order(ent.Asc(entappt.FieldStartTime)).Limit(p.Limit).Offset(p.Offset).All(r.Context())
 	if err != nil {
 		h.log.Error("list appointments failed", zap.Error(err))
 		jsonError(w, "failed to list appointments", http.StatusInternalServerError)
 		return
 	}
-	jsonOK(w, appts)
+	jsonOK(w, pagination.NewResponse(appts, total, p))
 }
 
 // Create handles POST /{tenantID}/pos/appointments

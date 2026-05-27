@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/Bengo-Hub/pagination"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -38,12 +39,14 @@ func (h *PackageHandler) ListPackages(w http.ResponseWriter, r *http.Request) {
 		q = q.Where(entpkg.IsActive(true))
 	}
 
-	pkgs, err := q.Order(ent.Asc(entpkg.FieldName)).All(r.Context())
+	p := pagination.Parse(r)
+	total, _ := q.Clone().Count(r.Context())
+	pkgs, err := q.Order(ent.Asc(entpkg.FieldName)).Limit(p.Limit).Offset(p.Offset).All(r.Context())
 	if err != nil {
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
 	}
-	jsonOK(w, map[string]any{"data": pkgs})
+	jsonOK(w, pagination.NewResponse(pkgs, total, p))
 }
 
 // CreatePackage handles POST /{tenantID}/pos/packages
@@ -124,12 +127,14 @@ func (h *PackageHandler) ListPurchases(w http.ResponseWriter, r *http.Request) {
 		q = q.Where(entpurch.Status(status))
 	}
 
-	purchases, err := q.Order(ent.Desc(entpurch.FieldCreatedAt)).All(r.Context())
+	p := pagination.Parse(r)
+	total, _ := q.Clone().Count(r.Context())
+	purchases, err := q.Order(ent.Desc(entpurch.FieldCreatedAt)).Limit(p.Limit).Offset(p.Offset).All(r.Context())
 	if err != nil {
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
 	}
-	jsonOK(w, map[string]any{"data": purchases, "total": len(purchases)})
+	jsonOK(w, pagination.NewResponse(purchases, total, p))
 }
 
 // SellPackage handles POST /{tenantID}/pos/packages/{packageID}/sell

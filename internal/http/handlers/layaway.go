@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/Bengo-Hub/pagination"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
@@ -113,14 +114,16 @@ func (h *LayawayHandler) List(w http.ResponseWriter, r *http.Request) {
 		q = q.Where(layawayplan.CustomerPhone(phone))
 	}
 
-	plans, err := q.Order(ent.Desc(layawayplan.FieldCreatedAt)).All(r.Context())
+	p := pagination.Parse(r)
+	total, _ := q.Clone().Count(r.Context())
+	plans, err := q.Order(ent.Desc(layawayplan.FieldCreatedAt)).Limit(p.Limit).Offset(p.Offset).All(r.Context())
 	if err != nil {
 		h.log.Error("list layaway plans failed", zap.Error(err))
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 
-	jsonOK(w, map[string]any{"data": plans})
+	jsonOK(w, pagination.NewResponse(plans, total, p))
 }
 
 // Get handles GET /{tenantID}/pos/layaways/{id}

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/Bengo-Hub/pagination"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
@@ -80,7 +81,9 @@ func (h *PINAuthHandler) ListStaff(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	members, err := q.All(r.Context())
+	p := pagination.Parse(r)
+	total, _ := q.Clone().Count(r.Context())
+	members, err := q.Limit(p.Limit).Offset(p.Offset).All(r.Context())
 	if err != nil {
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
@@ -101,7 +104,7 @@ func (h *PINAuthHandler) ListStaff(w http.ResponseWriter, r *http.Request) {
 			HasPIN: m.PinHash != nil,
 		})
 	}
-	jsonOK(w, map[string]any{"data": out, "total": len(out)})
+	jsonOK(w, pagination.NewResponse(out, total, p))
 }
 
 // ── POST /{tenant}/pos/auth/pin — validate PIN, return terminal JWT ────────────
@@ -467,7 +470,9 @@ func (h *PINAuthHandler) StaffProfiles(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	members, err := q.All(r.Context())
+	p := pagination.Parse(r)
+	total, _ := q.Clone().Count(r.Context())
+	members, err := q.Limit(p.Limit).Offset(p.Offset).All(r.Context())
 	if err != nil {
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
@@ -492,5 +497,5 @@ func (h *PINAuthHandler) StaffProfiles(w http.ResponseWriter, r *http.Request) {
 			HasPIN:   m.PinHash != nil,
 		})
 	}
-	jsonOK(w, map[string]any{"data": out})
+	jsonOK(w, pagination.NewResponse(out, total, p))
 }

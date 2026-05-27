@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/Bengo-Hub/pagination"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -59,15 +60,16 @@ func (h *QueueHandler) List(w http.ResponseWriter, r *http.Request) {
 		q = q.Where(entqueue.StatusIn(entqueue.StatusWaiting, entqueue.StatusInProgress))
 	}
 
-	entries, err := q.All(r.Context())
+	p := pagination.Parse(r)
+	total, _ := q.Clone().Count(r.Context())
+	entries, err := q.Limit(p.Limit).Offset(p.Offset).All(r.Context())
 	if err != nil {
 		h.log.Error("queue list", zap.Error(err))
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]any{"entries": entries, "total": len(entries)})
+	jsonOK(w, pagination.NewResponse(entries, total, p))
 }
 
 // Create adds a new walk-in entry to the queue.

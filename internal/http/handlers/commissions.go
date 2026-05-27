@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 
+	"github.com/Bengo-Hub/pagination"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -44,13 +45,15 @@ func (h *CommissionHandler) List(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	records, err := q.Order(ent.Desc(entcr.FieldCreatedAt)).All(r.Context())
+	p := pagination.Parse(r)
+	total, _ := q.Clone().Count(r.Context())
+	records, err := q.Order(ent.Desc(entcr.FieldCreatedAt)).Limit(p.Limit).Offset(p.Offset).All(r.Context())
 	if err != nil {
 		h.log.Error("list commissions failed", zap.Error(err))
 		jsonError(w, "failed to list commissions", http.StatusInternalServerError)
 		return
 	}
-	jsonOK(w, records)
+	jsonOK(w, pagination.NewResponse(records, total, p))
 }
 
 // Get handles GET /{tenantID}/pos/commissions/{id}

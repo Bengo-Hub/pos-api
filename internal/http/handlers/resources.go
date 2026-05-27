@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/Bengo-Hub/pagination"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -37,13 +38,15 @@ func (h *ResourceHandler) List(w http.ResponseWriter, r *http.Request) {
 		q = q.Where(entresource.StatusEQ(entresource.Status(s)))
 	}
 
-	resources, err := q.Order(ent.Asc(entresource.FieldName)).All(r.Context())
+	p := pagination.Parse(r)
+	total, _ := q.Clone().Count(r.Context())
+	resources, err := q.Order(ent.Asc(entresource.FieldName)).Limit(p.Limit).Offset(p.Offset).All(r.Context())
 	if err != nil {
 		h.log.Error("list resources failed", zap.Error(err))
 		jsonError(w, "failed to list resources", http.StatusInternalServerError)
 		return
 	}
-	jsonOK(w, map[string]any{"data": resources})
+	jsonOK(w, pagination.NewResponse(resources, total, p))
 }
 
 // Create handles POST /{tenantID}/pos/resources

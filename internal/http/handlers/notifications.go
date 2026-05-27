@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 
+	"github.com/Bengo-Hub/pagination"
 	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -51,29 +52,26 @@ func (h *NotificationsHandler) List(w http.ResponseWriter, r *http.Request) {
 
 	includeRead := r.URL.Query().Get("include_read") == "true"
 
-	q := h.client.PosNotification.Query().
+	baseQ := h.client.PosNotification.Query().
 		Where(
 			entnotif.TenantID(tid),
 			entnotif.UserID(userID),
-		).
-		Order(ent.Desc(entnotif.FieldCreatedAt)).
-		Limit(50)
+		)
 
 	if !includeRead {
-		q = q.Where(entnotif.IsRead(false))
+		baseQ = baseQ.Where(entnotif.IsRead(false))
 	}
 
-	notifications, err := q.All(r.Context())
+	p := pagination.Parse(r)
+	total, _ := baseQ.Clone().Count(r.Context())
+	notifications, err := baseQ.Order(ent.Desc(entnotif.FieldCreatedAt)).Limit(p.Limit).Offset(p.Offset).All(r.Context())
 	if err != nil {
 		h.log.Error("list notifications failed", zap.Error(err))
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 
-	jsonOK(w, map[string]any{
-		"data":  notifications,
-		"total": len(notifications),
-	})
+	jsonOK(w, pagination.NewResponse(notifications, total, p))
 }
 
 // MarkRead handles PATCH /{tenantID}/pos/notifications/{id}/read

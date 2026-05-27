@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/Bengo-Hub/pagination"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -30,17 +31,17 @@ func (h *TenderHandler) ListTenders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tenders, err := h.client.Tender.Query().
-		Where(tender.TenantID(tid)).
-		Order(ent.Asc(tender.FieldName)).
-		All(r.Context())
+	p := pagination.Parse(r)
+	baseQ := h.client.Tender.Query().Where(tender.TenantID(tid))
+	total, _ := baseQ.Clone().Count(r.Context())
+	tenders, err := baseQ.Order(ent.Asc(tender.FieldName)).Limit(p.Limit).Offset(p.Offset).All(r.Context())
 	if err != nil {
 		h.log.Error("list tenders failed", zap.Error(err))
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 
-	jsonOK(w, map[string]any{"data": tenders, "total": len(tenders)})
+	jsonOK(w, pagination.NewResponse(tenders, total, p))
 }
 
 type createTenderInput struct {

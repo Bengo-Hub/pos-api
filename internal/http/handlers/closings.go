@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/Bengo-Hub/pagination"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -198,19 +199,18 @@ func (h *DailyClosingHandler) ListDailyClosings(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	closings, err := h.client.DailyClosing.Query().
-		Where(
-			dailyclosing.TenantID(tid),
-			dailyclosing.OutletID(outletID),
-		).
-		Order(ent.Desc(dailyclosing.FieldBusinessDate)).
-		Limit(30).
-		All(r.Context())
+	p := pagination.Parse(r)
+	baseQ := h.client.DailyClosing.Query().Where(
+		dailyclosing.TenantID(tid),
+		dailyclosing.OutletID(outletID),
+	)
+	total, _ := baseQ.Clone().Count(r.Context())
+	closings, err := baseQ.Order(ent.Desc(dailyclosing.FieldBusinessDate)).Limit(p.Limit).Offset(p.Offset).All(r.Context())
 	if err != nil {
 		h.log.Error("list daily closings failed", zap.Error(err))
 		jsonError(w, "failed to list closings", http.StatusInternalServerError)
 		return
 	}
 
-	jsonOK(w, closings)
+	jsonOK(w, pagination.NewResponse(closings, total, p))
 }

@@ -8,6 +8,7 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/Bengo-Hub/pagination"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -188,16 +189,16 @@ func (h *TableHandler) ListTables(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	tables, err := query.
-		Order(ent.Asc(enttable.FieldName)).
-		All(r.Context())
+	p := pagination.Parse(r)
+	total, _ := query.Clone().Count(r.Context())
+	tables, err := query.Order(ent.Asc(enttable.FieldName)).Limit(p.Limit).Offset(p.Offset).All(r.Context())
 	if err != nil {
 		h.log.Error("list tables failed", zap.Error(err))
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 
-	jsonOK(w, map[string]any{"data": tables, "total": len(tables)})
+	jsonOK(w, pagination.NewResponse(tables, total, p))
 }
 
 type createTableInput struct {
@@ -959,12 +960,14 @@ func (h *TableHandler) ListReservations(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
-	reservations, err := q.All(r.Context())
+	p := pagination.Parse(r)
+	total, _ := q.Clone().Count(r.Context())
+	reservations, err := q.Limit(p.Limit).Offset(p.Offset).All(r.Context())
 	if err != nil {
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
 	}
-	jsonOK(w, map[string]any{"data": reservations, "total": len(reservations)})
+	jsonOK(w, pagination.NewResponse(reservations, total, p))
 }
 
 // GetReservation handles GET /{tenantID}/pos/reservations/{id}

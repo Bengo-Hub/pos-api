@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/Bengo-Hub/pagination"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -105,14 +106,15 @@ func (h *PayrollHandler) ListAdvances(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	advances, err := h.db.StaffAdvance.Query().
-		Where(entadv.TenantID(tid), entadv.StaffID(staffID)).
-		All(r.Context())
+	p := pagination.Parse(r)
+	baseQ := h.db.StaffAdvance.Query().Where(entadv.TenantID(tid), entadv.StaffID(staffID))
+	total, _ := baseQ.Clone().Count(r.Context())
+	advances, err := baseQ.Limit(p.Limit).Offset(p.Offset).All(r.Context())
 	if err != nil {
 		jsonError(w, "failed to list advances", http.StatusInternalServerError)
 		return
 	}
-	jsonOK(w, advances)
+	jsonOK(w, pagination.NewResponse(advances, total, p))
 }
 
 // GeneratePayroll handles POST /{tenantID}/pos/payroll/generate

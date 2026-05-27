@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/Bengo-Hub/pagination"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -42,12 +43,14 @@ func (h *ClientHandler) List(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	clients, err := q.Order(ent.Asc(entclient.FieldCreatedAt)).All(r.Context())
+	p := pagination.Parse(r)
+	total, _ := q.Clone().Count(r.Context())
+	clients, err := q.Order(ent.Asc(entclient.FieldCreatedAt)).Limit(p.Limit).Offset(p.Offset).All(r.Context())
 	if err != nil {
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
 	}
-	jsonOK(w, map[string]any{"data": clients, "total": len(clients)})
+	jsonOK(w, pagination.NewResponse(clients, total, p))
 }
 
 // CreateOrUpsert handles POST /{tenantID}/pos/clients

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/Bengo-Hub/pagination"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -30,13 +31,16 @@ func (h *LoyaltyHandler) ListPrograms(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
 		return
 	}
-	programs, err := h.db.LoyaltyProgram.Query().Where(entlp.TenantID(tid)).All(r.Context())
+	p := pagination.Parse(r)
+	baseQ := h.db.LoyaltyProgram.Query().Where(entlp.TenantID(tid))
+	total, _ := baseQ.Clone().Count(r.Context())
+	programs, err := baseQ.Limit(p.Limit).Offset(p.Offset).All(r.Context())
 	if err != nil {
 		h.log.Error("list loyalty programs failed", zap.Error(err))
 		jsonError(w, "failed to list programs", http.StatusInternalServerError)
 		return
 	}
-	jsonOK(w, programs)
+	jsonOK(w, pagination.NewResponse(programs, total, p))
 }
 
 // CreateProgram handles POST /{tenantID}/pos/loyalty/programs
@@ -153,13 +157,15 @@ func (h *LoyaltyHandler) ListAccounts(w http.ResponseWriter, r *http.Request) {
 	if phone := r.URL.Query().Get("phone"); phone != "" {
 		q = q.Where(entla.CustomerPhoneContainsFold(phone))
 	}
-	accounts, err := q.Order(ent.Desc(entla.FieldCreatedAt)).All(r.Context())
+	p := pagination.Parse(r)
+	total, _ := q.Clone().Count(r.Context())
+	accounts, err := q.Order(ent.Desc(entla.FieldCreatedAt)).Limit(p.Limit).Offset(p.Offset).All(r.Context())
 	if err != nil {
 		h.log.Error("list loyalty accounts failed", zap.Error(err))
 		jsonError(w, "failed to list accounts", http.StatusInternalServerError)
 		return
 	}
-	jsonOK(w, accounts)
+	jsonOK(w, pagination.NewResponse(accounts, total, p))
 }
 
 // CreateAccount handles POST /{tenantID}/pos/loyalty/accounts

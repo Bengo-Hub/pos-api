@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/Bengo-Hub/pagination"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -42,12 +43,14 @@ func (h *CommissionRuleHandler) List(w http.ResponseWriter, r *http.Request) {
 		q = q.Where(entcr.IsActive(true))
 	}
 
-	rules, err := q.All(r.Context())
+	p := pagination.Parse(r)
+	total, _ := q.Clone().Count(r.Context())
+	rules, err := q.Limit(p.Limit).Offset(p.Offset).All(r.Context())
 	if err != nil {
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
 	}
-	jsonOK(w, map[string]any{"data": rules, "total": len(rules)})
+	jsonOK(w, pagination.NewResponse(rules, total, p))
 }
 
 type createCommissionRuleInput struct {

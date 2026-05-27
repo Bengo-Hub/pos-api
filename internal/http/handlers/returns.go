@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Bengo-Hub/pagination"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -195,31 +196,28 @@ func (h *ReturnHandler) ListReturns(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	q := h.client.POSReturn.Query().
-		Where(posreturn.TenantID(tid)).
-		WithLines().
-		Order(ent.Desc(posreturn.FieldCreatedAt)).
-		Limit(50)
+	p := pagination.Parse(r)
+	baseQ := h.client.POSReturn.Query().Where(posreturn.TenantID(tid))
 
 	urlq := r.URL.Query()
 	if status := urlq.Get("status"); status != "" {
-		q = q.Where(posreturn.StatusEQ(posreturn.Status(status)))
+		baseQ = baseQ.Where(posreturn.StatusEQ(posreturn.Status(status)))
 	}
-	// staff_id scopes to returns requested by a specific staff member (view_own roles).
 	if staffIDStr := urlq.Get("staff_id"); staffIDStr != "" {
 		if staffUID, err := uuid.Parse(staffIDStr); err == nil {
-			q = q.Where(posreturn.RequestedBy(staffUID))
+			baseQ = baseQ.Where(posreturn.RequestedBy(staffUID))
 		}
 	}
 
-	returns, err := q.All(r.Context())
+	total, _ := baseQ.Clone().Count(r.Context())
+	returns, err := baseQ.WithLines().Order(ent.Desc(posreturn.FieldCreatedAt)).Limit(p.Limit).Offset(p.Offset).All(r.Context())
 	if err != nil {
 		h.log.Error("list returns failed", zap.Error(err))
 		jsonError(w, "failed to list returns", http.StatusInternalServerError)
 		return
 	}
 
-	jsonOK(w, returns)
+	jsonOK(w, pagination.NewResponse(returns, total, p))
 }
 
 // ApproveReturn handles PATCH /{tenantID}/pos/returns/{returnID}/approve

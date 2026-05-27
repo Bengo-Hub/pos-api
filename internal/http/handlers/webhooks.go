@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/Bengo-Hub/pagination"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -56,14 +57,16 @@ func (h *WebhookHandler) List(w http.ResponseWriter, r *http.Request) {
 		q = q.Where(entwh.EventType(et))
 	}
 
-	subs, err := q.All(r.Context())
+	p := pagination.Parse(r)
+	total, _ := q.Clone().Count(r.Context())
+	subs, err := q.Limit(p.Limit).Offset(p.Offset).All(r.Context())
 	if err != nil {
 		h.log.Error("webhooks list failed", zap.Error(err))
 		jsonError(w, "failed to list webhooks", http.StatusInternalServerError)
 		return
 	}
 
-	jsonOK(w, subs)
+	jsonOK(w, pagination.NewResponse(subs, total, p))
 }
 
 // Create handles POST /{tenantID}/pos/webhooks
@@ -224,16 +227,15 @@ func (h *WebhookHandler) ListDeliveries(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	deliveries, err := h.db.WebhookDelivery.Query().
-		Where(entwhd.SubscriptionID(wid)).
-		Order(ent.Desc(entwhd.FieldCreatedAt)).
-		Limit(50).
-		All(r.Context())
+	p := pagination.Parse(r)
+	baseQ := h.db.WebhookDelivery.Query().Where(entwhd.SubscriptionID(wid))
+	total, _ := baseQ.Clone().Count(r.Context())
+	deliveries, err := baseQ.Order(ent.Desc(entwhd.FieldCreatedAt)).Limit(p.Limit).Offset(p.Offset).All(r.Context())
 	if err != nil {
 		h.log.Error("webhook deliveries list failed", zap.Error(err))
 		jsonError(w, "failed to list deliveries", http.StatusInternalServerError)
 		return
 	}
 
-	jsonOK(w, deliveries)
+	jsonOK(w, pagination.NewResponse(deliveries, total, p))
 }

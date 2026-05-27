@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/Bengo-Hub/pagination"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
@@ -119,12 +120,14 @@ func (h *ScaleHandler) List(w http.ResponseWriter, r *http.Request) {
 		q = q.Where(weighingscalereading.SessionID(sessionID))
 	}
 
-	readings, err := q.Order(ent.Desc(weighingscalereading.FieldCreatedAt)).All(r.Context())
+	p := pagination.Parse(r)
+	total, _ := q.Clone().Count(r.Context())
+	readings, err := q.Order(ent.Desc(weighingscalereading.FieldCreatedAt)).Limit(p.Limit).Offset(p.Offset).All(r.Context())
 	if err != nil {
 		h.log.Error("list scale readings failed", zap.Error(err))
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 
-	jsonOK(w, map[string]any{"data": readings})
+	jsonOK(w, pagination.NewResponse(readings, total, p))
 }

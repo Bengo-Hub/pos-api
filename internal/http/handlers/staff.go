@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/Bengo-Hub/pagination"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -61,10 +62,10 @@ func (h *StaffHandler) ListStaffForAdmin(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	members, err := h.client.StaffMember.Query().
-		Where(entstaff.TenantID(tid)).
-		Order(ent.Asc(entstaff.FieldName)).
-		All(r.Context())
+	p := pagination.Parse(r)
+	baseQ := h.client.StaffMember.Query().Where(entstaff.TenantID(tid))
+	total, _ := baseQ.Clone().Count(r.Context())
+	members, err := baseQ.Order(ent.Asc(entstaff.FieldName)).Limit(p.Limit).Offset(p.Offset).All(r.Context())
 	if err != nil {
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
@@ -89,7 +90,7 @@ func (h *StaffHandler) ListStaffForAdmin(w http.ResponseWriter, r *http.Request)
 		}
 		out = append(out, item)
 	}
-	jsonOK(w, map[string]any{"data": out, "total": len(out)})
+	jsonOK(w, pagination.NewResponse(out, total, p))
 }
 
 // ── POST /{tenant}/pos/staff — create new staff member ───────────────────────

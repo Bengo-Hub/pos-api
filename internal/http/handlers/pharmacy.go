@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/Bengo-Hub/pagination"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
@@ -155,13 +156,15 @@ func (h *PharmacyHandler) ListPrescriptions(w http.ResponseWriter, r *http.Reque
 		q = q.Where(entpx.PatientNameContainsFold(name))
 	}
 
-	prescriptions, err := q.Order(ent.Desc(entpx.FieldCreatedAt)).All(r.Context())
+	p := pagination.Parse(r)
+	total, _ := q.Clone().Count(r.Context())
+	prescriptions, err := q.Order(ent.Desc(entpx.FieldCreatedAt)).Limit(p.Limit).Offset(p.Offset).All(r.Context())
 	if err != nil {
 		h.log.Error("list prescriptions failed", zap.Error(err))
 		jsonError(w, "failed to list prescriptions", http.StatusInternalServerError)
 		return
 	}
-	jsonOK(w, prescriptions)
+	jsonOK(w, pagination.NewResponse(prescriptions, total, p))
 }
 
 // GetPrescription handles GET /{tenantID}/pos/pharmacy/prescriptions/{id}
@@ -293,12 +296,22 @@ func (h *PharmacyHandler) ListPatients(w http.ResponseWriter, r *http.Request) {
 		countMap[key].VisitCount++
 	}
 
-	patients := make([]*patientRow, 0, len(countMap))
-	for _, p := range countMap {
-		patients = append(patients, p)
+	allPatients := make([]*patientRow, 0, len(countMap))
+	for _, row := range countMap {
+		allPatients = append(allPatients, row)
 	}
 
-	jsonOK(w, map[string]any{"data": patients, "total": len(patients)})
+	pg := pagination.Parse(r)
+	total := len(allPatients)
+	start := pg.Offset
+	if start > total {
+		start = total
+	}
+	end := start + pg.Limit
+	if end > total {
+		end = total
+	}
+	jsonOK(w, pagination.NewResponse(allPatients[start:end], total, pg))
 }
 
 // CreateInteractionCheck handles POST /{tenantID}/pos/pharmacy/interaction-checks

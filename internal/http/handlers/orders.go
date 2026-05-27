@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Bengo-Hub/pagination"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -89,19 +90,17 @@ func (h *POSOrderHandler) ListOrders(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	orders, err := h.client.POSOrder.Query().
-		Where(filters...).
-		WithLines().
-		WithPayments().
-		Order(ent.Desc(posorder.FieldCreatedAt)).
-		All(r.Context())
+	p := pagination.Parse(r)
+	baseQ := h.client.POSOrder.Query().Where(filters...)
+	total, _ := baseQ.Clone().Count(r.Context())
+	orderList, err := baseQ.WithLines().WithPayments().Order(ent.Desc(posorder.FieldCreatedAt)).Limit(p.Limit).Offset(p.Offset).All(r.Context())
 	if err != nil {
 		h.log.Error("list orders failed", zap.Error(err))
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 
-	jsonOK(w, map[string]interface{}{"orders": orders, "total": len(orders)})
+	jsonOK(w, pagination.NewResponse(orderList, total, p))
 }
 
 // GetOrder handles GET /{tenantID}/pos/orders/{orderID}

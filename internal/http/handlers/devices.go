@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/Bengo-Hub/pagination"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
@@ -36,11 +37,10 @@ func (h *DeviceHandler) ListDevices(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	devices, err := h.client.POSDevice.Query().
-		Where(posdevice.TenantID(tid)).
-		WithOutlet().
-		Order(ent.Desc(posdevice.FieldRegisteredAt)).
-		All(r.Context())
+	p := pagination.Parse(r)
+	baseQ := h.client.POSDevice.Query().Where(posdevice.TenantID(tid))
+	total, _ := baseQ.Clone().Count(r.Context())
+	devices, err := baseQ.WithOutlet().Order(ent.Desc(posdevice.FieldRegisteredAt)).Limit(p.Limit).Offset(p.Offset).All(r.Context())
 	if err != nil {
 		h.log.Error("list devices failed", zap.Error(err))
 		jsonError(w, "internal error", http.StatusInternalServerError)
@@ -76,7 +76,7 @@ func (h *DeviceHandler) ListDevices(w http.ResponseWriter, r *http.Request) {
 		result = append(result, dr)
 	}
 
-	jsonOK(w, map[string]any{"data": result, "total": len(result)})
+	jsonOK(w, pagination.NewResponse(result, total, p))
 }
 
 // GetCurrentSession handles GET /{tenantID}/pos/devices/current/sessions/current

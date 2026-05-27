@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/Bengo-Hub/pagination"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -35,30 +36,31 @@ func (h *BillSplitHandler) ListSplits(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	splits, err := h.client.BillSplit.Query().
-		Where(entbillsplit.TenantID(tid), entbillsplit.OrderID(orderID)).
-		All(r.Context())
+	p := pagination.Parse(r)
+	baseQ := h.client.BillSplit.Query().Where(entbillsplit.TenantID(tid), entbillsplit.OrderID(orderID))
+	count, _ := baseQ.Clone().Count(r.Context())
+	splits, err := baseQ.Limit(p.Limit).Offset(p.Offset).All(r.Context())
 	if err != nil {
 		h.log.Error("list splits failed", zap.Error(err))
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 
-	var total float64
+	var totalAmount float64
 	paid := 0.0
 	for _, s := range splits {
-		total += s.Amount
+		totalAmount += s.Amount
 		if s.Status == "paid" {
 			paid += s.Amount
 		}
 	}
 
+	resp := pagination.NewResponse(splits, count, p)
 	jsonOK(w, map[string]any{
-		"data":        splits,
-		"total":       len(splits),
-		"total_amount": total,
-		"paid_amount": paid,
-		"balance":     total - paid,
+		"data":         resp,
+		"total_amount": totalAmount,
+		"paid_amount":  paid,
+		"balance":      totalAmount - paid,
 	})
 }
 

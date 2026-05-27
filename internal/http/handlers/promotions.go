@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/Bengo-Hub/pagination"
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
@@ -41,14 +42,16 @@ func (h *PromotionHandler) ListPromotions(w http.ResponseWriter, r *http.Request
 		query = query.Where(promotion.Status("active"))
 	}
 
-	promos, err := query.Order(ent.Desc(promotion.FieldStartAt)).All(r.Context())
+	p := pagination.Parse(r)
+	total, _ := query.Clone().Count(r.Context())
+	promos, err := query.Order(ent.Desc(promotion.FieldStartAt)).Limit(p.Limit).Offset(p.Offset).All(r.Context())
 	if err != nil {
 		h.log.Error("list promotions failed", zap.Error(err))
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 
-	jsonOK(w, map[string]any{"data": promos, "total": len(promos)})
+	jsonOK(w, pagination.NewResponse(promos, total, p))
 }
 
 type createPromoInput struct {
