@@ -687,15 +687,11 @@ func (s *Service) AddOrderLines(ctx context.Context, tenantID, orderID uuid.UUID
 		return nil, fmt.Errorf("orders: reload: %w", err)
 	}
 
-	// Create KDS tickets for course_number=0 new lines (fire immediately).
-	immediateLines := make([]*ent.POSOrderLine, 0, len(newLines))
-	for _, l := range newLines {
-		if l.CourseNumber == 0 {
-			immediateLines = append(immediateLines, l)
-		}
-	}
-	if len(immediateLines) > 0 {
-		_ = s.createKDSTicketsForNewLines(ctx, tenantID, result, immediateLines)
+	// All lines added to an existing open order fire to KDS immediately.
+	// Course-number gating only applies to the initial order submission — once
+	// a waiter taps "Add to Bill" on a live order, the kitchen needs to know now.
+	if len(newLines) > 0 {
+		_ = s.createKDSTicketsForNewLines(ctx, tenantID, result, newLines)
 	}
 
 	return result, nil
