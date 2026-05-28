@@ -273,6 +273,10 @@ func (h *AuthEventHandler) handleUserPINSet(ctx context.Context, evt *sharedeven
 		if name == "" {
 			name = userIDStr[:8]
 		}
+		// Use role from event payload if available (auth-api includes roles in pin_set events).
+		if r := mapSSORoleToPOS(evt.Payload); r != "" {
+			role = r
+		}
 		homeOutlet, oErr := h.client.Outlet.Query().
 			Where(outlet.TenantID(tenantID), outlet.IsHq(true), outlet.StatusEQ("active"),
 				outlet.UseCaseNEQ("logistics"), outlet.UseCaseNEQ("warehouse")).
