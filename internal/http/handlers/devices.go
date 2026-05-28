@@ -327,16 +327,20 @@ func (h *DeviceHandler) computeExpectedCash(r *http.Request, tid uuid.UUID, sess
 
 // SessionSummaryResponse is the full live summary for an open shift.
 type SessionSummaryResponse struct {
-	SessionID      string             `json:"session_id"`
-	OpenedAt       time.Time          `json:"opened_at"`
-	OpeningFloat   float64            `json:"opening_float"`
-	OrderCount     int                `json:"order_count"`
-	TotalRevenue   float64            `json:"total_revenue"`
-	ExpectedCash   float64            `json:"expected_cash"`
-	RefundCount    int                `json:"refund_count"`
-	TotalRefunds   float64            `json:"total_refunds"`
-	VoidCount      int                `json:"void_count"`
+	SessionID       string            `json:"session_id"`
+	OpenedAt        time.Time         `json:"opened_at"`
+	OpeningFloat    float64           `json:"opening_float"`
+	OrderCount      int               `json:"order_count"`
+	TotalRevenue    float64           `json:"total_revenue"`
+	ExpectedCash    float64           `json:"expected_cash"`
+	RefundCount     int               `json:"refund_count"`
+	TotalRefunds    float64           `json:"total_refunds"`
+	VoidCount       int               `json:"void_count"`
 	TenderBreakdown []TenderBreakdown `json:"tender_breakdown"`
+	// Flattened convenience fields for frontend components.
+	CashInTotal float64 `json:"cash_in_total"`
+	CardTotal   float64 `json:"card_total"`
+	MpesaTotal  float64 `json:"mpesa_total"`
 }
 
 // TenderBreakdown is the revenue split by payment method.
@@ -442,20 +446,31 @@ func (h *DeviceHandler) GetSessionSummary(w http.ResponseWriter, r *http.Request
 
 	// Compute expected cash = float + all cash-tender payments.
 	cashExpected := session.FloatAmount
-	for tid2, acc := range tenderAccums {
-		if t, ok := tenderMap[tid2]; ok && t.Type == "cash" {
+	for tID2, acc := range tenderAccums {
+		if t, ok := tenderMap[tID2]; ok && t.Type == "cash" {
 			cashExpected += acc.amount
 		}
 	}
 
 	breakdown := make([]TenderBreakdown, 0, len(tenderAccums))
-	for _, acc := range tenderAccums {
+	var cashInTotal, cardTotal, mpesaTotal float64
+	for tID, acc := range tenderAccums {
 		breakdown = append(breakdown, TenderBreakdown{
 			TenderName: acc.name,
 			TenderType: acc.tType,
 			Amount:     acc.amount,
 			Count:      acc.count,
 		})
+		if t, ok := tenderMap[tID]; ok {
+			switch t.Type {
+			case "cash":
+				cashInTotal += acc.amount
+			case "card":
+				cardTotal += acc.amount
+			case "mpesa", "mobile_money":
+				mpesaTotal += acc.amount
+			}
+		}
 	}
 
 	jsonOK(w, SessionSummaryResponse{
@@ -467,6 +482,9 @@ func (h *DeviceHandler) GetSessionSummary(w http.ResponseWriter, r *http.Request
 		ExpectedCash:    cashExpected,
 		VoidCount:       voidCount,
 		TenderBreakdown: breakdown,
+		CashInTotal:     cashInTotal,
+		CardTotal:       cardTotal,
+		MpesaTotal:      mpesaTotal,
 	})
 }
 
@@ -511,14 +529,17 @@ func (h *DeviceHandler) GetSessionHistory(w http.ResponseWriter, r *http.Request
 
 	rows := make([]sessionRow, 0, len(sessions))
 	for _, s := range sessions {
-		orders, _ := h.client.POSOrder.Query().
+		orderQ := h.client.POSOrder.Query().
 			Where(
 				posorder.TenantID(tid),
-				posorder.DeviceID(s.DeviceID),
 				posorder.StatusEQ("completed"),
 				posorder.CreatedAtGTE(s.OpenedAt),
-			).
-			All(r.Context())
+			)
+		// For closed sessions, bound the upper time so orders from the next shift aren't counted.
+		if s.ClosedAt != nil {
+			orderQ = orderQ.Where(posorder.CreatedAtLTE(*s.ClosedAt))
+		}
+		orders, _ := orderQ.All(r.Context())
 
 		var rev float64
 		for _, o := range orders {

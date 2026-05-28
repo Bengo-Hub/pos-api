@@ -702,6 +702,43 @@ func parseTenantUUID(r *http.Request) (uuid.UUID, error) {
 	return uuid.Nil, fmt.Errorf("tenant context required")
 }
 
+// GetCatalogCategories handles GET /{tenantID}/pos/catalog/categories
+// Proxies to inventory-api /inventory/categories and returns category list.
+func (h *CatalogHandler) GetCatalogCategories(w http.ResponseWriter, r *http.Request) {
+	tenantSlug := ""
+	if claims, ok := authclient.ClaimsFromContext(r.Context()); ok {
+		tenantSlug = claims.GetTenantSlug()
+	}
+	if tenantSlug == "" {
+		tenantSlug = httpware.GetTenantSlug(r.Context())
+	}
+	if tenantSlug == "" {
+		tid, err := parseTenantUUID(r)
+		if err == nil {
+			if t, lookupErr := h.client.Tenant.Get(r.Context(), tid); lookupErr == nil {
+				tenantSlug = t.Slug
+			}
+		}
+	}
+	if tenantSlug == "" {
+		jsonError(w, "could not resolve tenant", http.StatusBadRequest)
+		return
+	}
+
+	url := fmt.Sprintf("%s/v1/%s/inventory/categories", inventoryURL(), tenantSlug)
+	body, err := doInventoryGET(r.Context(), url)
+	if err != nil {
+		h.log.Warn("catalog categories: inventory proxy failed", zap.Error(err))
+		// Return empty list rather than 404 so the UI degrades gracefully.
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"data":[]}`))
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_, _ = w.Write(body)
+}
+
 // parseOptionalUUID parses s as a UUID; on empty string or parse failure it falls
 // back to the X-Outlet-ID request header (for outlet_id fields), then returns uuid.Nil.
 func parseOptionalUUID(s string, r *http.Request) uuid.UUID {
