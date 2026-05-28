@@ -2,19 +2,16 @@ package main
 
 import (
 	"context"
-	"crypto/sha256"
 	"database/sql"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"entgo.io/ent/dialect"
 	entsql "entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
 	_ "github.com/jackc/pgx/v5/stdlib"
-	"golang.org/x/crypto/bcrypt"
-
-	"strings"
 
 	"github.com/bengobox/pos-service/internal/config"
 	"github.com/bengobox/pos-service/internal/ent"
@@ -25,17 +22,17 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/pospermission"
 	"github.com/bengobox/pos-service/internal/ent/posrolev2"
 	"github.com/bengobox/pos-service/internal/ent/section"
-	entstaff "github.com/bengobox/pos-service/internal/ent/staffmember"
 	enttable "github.com/bengobox/pos-service/internal/ent/table"
 	"github.com/bengobox/pos-service/internal/ent/tender"
 	"github.com/bengobox/pos-service/internal/modules/tenant"
 )
 
 // tenantSeedConfig controls what data is seeded for each tenant.
+// Staff members and PINs are NOT seeded here — they arrive via auth.user.* NATS events
+// published by auth-api (auth.user.created + auth.user.pin_set) so UUIDs stay aligned.
 type tenantSeedConfig struct {
-	slug        string // must match auth-api tenant slug
-	seedStaff   bool   // seed demo staff members (PINs)
-	seedTables  bool   // seed tables & sections (hospitality outlets only)
+	slug       string // must match auth-api tenant slug
+	seedTables bool   // seed tables & sections (hospitality outlets only)
 }
 
 func main() {
@@ -65,10 +62,8 @@ func main() {
 
 	// Tenants to seed — order matters: urban-loft first (real client), then demo.
 	tenantConfigs := []tenantSeedConfig{
-		// urban-loft: real hospitality client — BUSIA outlet only; no demo staff.
-		{slug: "urban-loft", seedStaff: false, seedTables: true},
-		// codevertex-demo: cross-platform demo tenant — 5 use-case outlets + demo staff.
-		{slug: "codevertex-demo", seedStaff: true, seedTables: true},
+		{slug: "urban-loft", seedTables: true},
+		{slug: "codevertex-demo", seedTables: true},
 	}
 
 	for _, tc := range tenantConfigs {
@@ -147,21 +142,6 @@ func runSeed(ctx context.Context, client *ent.Client, tenantID uuid.UUID, tc ten
 
 	if err := seedRBACRoles(ctx, client, tenantID); err != nil {
 		return fmt.Errorf("seed RBAC roles: %w", err)
-	}
-
-	if tc.seedStaff {
-		if err := cleanupExtraStaffMembers(ctx, client, tenantID, tc.slug); err != nil {
-			log.Printf("  ⚠️  cleanup extra staff: %v", err)
-		}
-		// Seed staff for EVERY outlet so PIN login works at each terminal type.
-		if defs, ok := outletsByTenantSlug[tc.slug]; ok {
-			for _, d := range defs {
-				oid := outletUUID(tc.slug, d.slug)
-				if err := seedStaffMembers(ctx, client, tenantID, oid, d.slug); err != nil {
-					log.Printf("  ⚠️  seed staff for outlet %s: %v", d.slug, err)
-				}
-			}
-		}
 	}
 
 	return nil
@@ -1097,153 +1077,6 @@ func seedRBACRoles(ctx context.Context, client *ent.Client, tenantID uuid.UUID) 
 		}
 	}
 	log.Printf("  ✓ RBAC roles seeded (%d roles with permission assignments)", len(roles))
-	return nil
-}
-
-// outletStaffDefs maps outlet slug → staff list for that terminal type.
-// PINs are shared across outlets where the role exists (same PIN, different outlet-scoped fast_hash).
-var outletStaffDefs = map[string][]struct{ name, role, pin string }{
-	"demo-hospitality": {
-		{"Alice Manager", "manager", "1111"},
-		{"Bob Cashier", "cashier", "2222"},
-		{"Carol Waiter", "waiter", "3333"},
-		{"David Kitchen", "kitchen", "4444"},
-		{"Eve Bartender", "bar", "5555"},
-		{"Frank Receptionist", "receptionist", "6666"},
-	},
-	"demo-pharmacy": {
-		{"Alice Manager", "manager", "1111"},
-		{"Bob Cashier", "cashier", "2222"},
-		{"Grace Pharmacist", "pharmacist", "7777"},
-	},
-	"demo-retail": {
-		{"Alice Manager", "manager", "1111"},
-		{"Bob Cashier", "cashier", "2222"},
-	},
-	"demo-quick": {
-		{"Alice Manager", "manager", "1111"},
-		{"Bob Cashier", "cashier", "2222"},
-		{"David Kitchen", "kitchen", "4444"},
-	},
-	"demo-services": {
-		{"Alice Manager", "manager", "1111"},
-		{"Bob Cashier", "cashier", "2222"},
-		{"Hannah Stylist", "stylist", "8888"},
-		{"Ian Therapist", "therapist", "9999"},
-	},
-	// urban-loft hospitality outlet
-	"busia": {
-		{"Alice Manager", "manager", "1111"},
-		{"Bob Cashier", "cashier", "2222"},
-		{"Carol Waiter", "waiter", "3333"},
-		{"David Kitchen", "kitchen", "4444"},
-		{"Eve Bartender", "bar", "5555"},
-		{"Frank Receptionist", "receptionist", "6666"},
-	},
-}
-
-func seedStaffMembers(ctx context.Context, client *ent.Client, tenantID, outletID uuid.UUID, outletSlug string) error {
-	staff, ok := outletStaffDefs[outletSlug]
-	if !ok {
-		log.Printf("  ℹ️  No staff defs for outlet %s — skipping", outletSlug)
-		return nil
-	}
-
-	for _, s := range staff {
-		// UUID includes outletSlug so each outlet gets a distinct StaffMember record.
-		uid := uuid.NewSHA1(uuid.NameSpaceURL, []byte(fmt.Sprintf("bengobox:pos:staff:%s:%s:%s", tenantID, outletSlug, s.name)))
-
-		pinHashBytes, err := bcrypt.GenerateFromPassword([]byte(s.pin), bcrypt.DefaultCost)
-		if err != nil {
-			return fmt.Errorf("generate pin hash for %s: %w", s.name, err)
-		}
-		pinHash := string(pinHashBytes)
-
-		// Compute fast hash for PIN-first login (scoped to tenant+outlet).
-		h := sha256.Sum256([]byte(tenantID.String() + ":" + outletID.String() + ":" + s.pin))
-		fastHash := fmt.Sprintf("%x", h)
-
-		existing, err := client.StaffMember.Query().
-			Where(entstaff.TenantID(tenantID), entstaff.UserID(uid)).
-			Only(ctx)
-		if err != nil && !ent.IsNotFound(err) {
-			log.Printf("  ⚠️  query staff %s: %v", s.name, err)
-			continue
-		}
-
-		if existing != nil {
-			// Re-apply PINs on each seed run so demo always works.
-			_, err = client.StaffMember.UpdateOneID(existing.ID).
-				SetPinHash(pinHash).
-				SetPinFastHash(fastHash).
-				SetPinFailedAttempts(0).
-				ClearPinLockedUntil().
-				Save(ctx)
-			if err != nil {
-				log.Printf("  ⚠️  update pin for %s: %v", s.name, err)
-			} else {
-				log.Printf("  ✓ Staff PIN refreshed: %s (%s) [PIN=%s]", s.name, s.role, s.pin)
-			}
-			continue
-		}
-
-		_, err = client.StaffMember.Create().
-			SetTenantID(tenantID).
-			SetOutletID(outletID).
-			SetUserID(uid).
-			SetName(s.name).
-			SetRole(s.role).
-			SetIsActive(true).
-			SetPinHash(pinHash).
-			SetPinFastHash(fastHash).
-			SetPinFailedAttempts(0).
-			Save(ctx)
-		if err != nil {
-			log.Printf("  ⚠️  seed staff %s: %v", s.name, err)
-		} else {
-			log.Printf("  ✓ Staff seeded: %s (%s) [PIN=%s]", s.name, s.role, s.pin)
-		}
-	}
-	return nil
-}
-
-// cleanupExtraStaffMembers removes staff members not in the canonical per-outlet seed list.
-// This prevents E2E tests or manual inserts from accumulating phantom users.
-func cleanupExtraStaffMembers(ctx context.Context, client *ent.Client, tenantID uuid.UUID, tenantSlug string) error {
-	// Build set of all expected user UUIDs across every outlet for this tenant.
-	canonicalIDs := map[uuid.UUID]bool{}
-	for _, d := range outletsByTenantSlug[tenantSlug] {
-		for _, s := range outletStaffDefs[d.slug] {
-			uid := uuid.NewSHA1(uuid.NameSpaceURL, []byte(fmt.Sprintf("bengobox:pos:staff:%s:%s:%s", tenantID, d.slug, s.name)))
-			canonicalIDs[uid] = true
-		}
-	}
-
-	all, err := client.StaffMember.Query().
-		Where(entstaff.TenantID(tenantID)).
-		All(ctx)
-	if err != nil {
-		return fmt.Errorf("query staff: %w", err)
-	}
-
-	var toDelete []uuid.UUID
-	for _, s := range all {
-		if !canonicalIDs[s.UserID] {
-			toDelete = append(toDelete, s.ID)
-		}
-	}
-
-	if len(toDelete) == 0 {
-		return nil
-	}
-
-	deleted, err := client.StaffMember.Delete().
-		Where(entstaff.IDIn(toDelete...)).
-		Exec(ctx)
-	if err != nil {
-		return fmt.Errorf("delete extra staff: %w", err)
-	}
-	log.Printf("  🗑  Removed %d non-canonical staff member(s)", deleted)
 	return nil
 }
 
