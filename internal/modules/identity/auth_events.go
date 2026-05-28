@@ -206,23 +206,29 @@ func (h *AuthEventHandler) handleUserUpdated(ctx context.Context, evt *sharedeve
 		return fmt.Errorf("update user from auth event: %w", err)
 	}
 
-	// Patch StaffMember name if it changed
+	// Patch StaffMember fields if the event carries them.
+	smUpdate := h.client.StaffMember.Update().
+		Where(staffmember.TenantID(u.TenantID), staffmember.UserID(authServiceUserID))
+	smChanged := false
 	if fullName != "" {
-		_ = h.client.StaffMember.Update().
-			Where(staffmember.TenantID(u.TenantID), staffmember.UserID(authServiceUserID)).
-			SetName(fullName).
-			Exec(ctx)
+		smUpdate = smUpdate.SetName(fullName)
+		smChanged = true
 	}
-
-	// Patch StaffMember outlet if outlet_id is present in event
+	// Update role if the event includes roles — ensures re-provisioning corrects stale role mappings.
+	if posRole := mapSSORoleToPOS(evt.Payload); posRole != "" {
+		smUpdate = smUpdate.SetRole(posRole)
+		smChanged = true
+	}
+	// Update outlet if provided.
 	outletIDStr, _ := evt.Payload["outlet_id"].(string)
 	if outletIDStr != "" {
 		if outletID, err := uuid.Parse(outletIDStr); err == nil {
-			_ = h.client.StaffMember.Update().
-				Where(staffmember.TenantID(u.TenantID), staffmember.UserID(authServiceUserID)).
-				SetOutletID(outletID).
-				Exec(ctx)
+			smUpdate = smUpdate.SetOutletID(outletID)
+			smChanged = true
 		}
+	}
+	if smChanged {
+		_ = smUpdate.Exec(ctx)
 	}
 
 	h.logger.Info("user updated from auth.user.updated event",
