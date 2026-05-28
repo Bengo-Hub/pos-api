@@ -257,9 +257,12 @@ func (h *AuthEventHandler) handleUserPINSet(ctx context.Context, evt *sharedeven
 		if !ent.IsNotFound(err) {
 			return fmt.Errorf("query StaffMember: %w", err)
 		}
-		// StaffMember doesn't exist — create it with HQ outlet as default
+		// StaffMember doesn't exist — create it so we can set the PIN.
+		// The pin_set event has no roles payload, so we can't use upsertStaffMember
+		// here (it would see no roles and skip creation). Create directly instead.
 		tenantID := evt.TenantID
 		name := ""
+		role := "cashier" // safe fallback
 		u, uErr := h.client.User.Query().
 			Where(user.AuthServiceUserIDEQ(authServiceUserID)).
 			Only(ctx)
@@ -270,7 +273,31 @@ func (h *AuthEventHandler) handleUserPINSet(ctx context.Context, evt *sharedeven
 		if name == "" {
 			name = userIDStr[:8]
 		}
-		h.upsertStaffMember(ctx, authServiceUserID, tenantID, name, evt)
+		homeOutlet, oErr := h.client.Outlet.Query().
+			Where(outlet.TenantID(tenantID), outlet.IsHq(true), outlet.StatusEQ("active"),
+				outlet.UseCaseNEQ("logistics"), outlet.UseCaseNEQ("warehouse")).
+			First(ctx)
+		if oErr != nil {
+			homeOutlet, oErr = h.client.Outlet.Query().
+				Where(outlet.TenantID(tenantID), outlet.StatusEQ("active"),
+					outlet.UseCaseNEQ("logistics"), outlet.UseCaseNEQ("warehouse")).
+				First(ctx)
+		}
+		if oErr != nil {
+			return fmt.Errorf("no active outlet found for tenant %s, cannot create StaffMember: %w", tenantID, oErr)
+		}
+		_, createErr := h.client.StaffMember.Create().
+			SetTenantID(tenantID).
+			SetOutletID(homeOutlet.ID).
+			SetUserID(authServiceUserID).
+			SetName(name).
+			SetRole(role).
+			SetIsActive(true).
+			SetPinFailedAttempts(0).
+			Save(ctx)
+		if createErr != nil {
+			return fmt.Errorf("create StaffMember for PIN set: %w", createErr)
+		}
 		// Now try again
 		existing, err = h.client.StaffMember.Query().
 			Where(staffmember.TenantID(tenantID), staffmember.UserID(authServiceUserID)).
@@ -368,7 +395,7 @@ func mapSSORoleToPOS(payload map[string]interface{}) string {
 			return "manager"
 		case "staff":
 			return "cashier"
-		case "cashier", "waiter", "receptionist", "kitchen", "bar", "pharmacist":
+		case "cashier", "waiter", "receptionist", "kitchen", "bar", "pharmacist", "stylist", "therapist":
 			return role
 		case "viewer":
 			return "" // viewer accesses POS via SSO only, no PIN login
