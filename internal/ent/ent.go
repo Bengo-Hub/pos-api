@@ -89,6 +89,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/servicequeueentry"
 	"github.com/bengobox/pos-service/internal/ent/staffadvance"
 	"github.com/bengobox/pos-service/internal/ent/staffmember"
+	"github.com/bengobox/pos-service/internal/ent/staffoutlet"
 	"github.com/bengobox/pos-service/internal/ent/staffpayroll"
 	"github.com/bengobox/pos-service/internal/ent/staffpayrollline"
 	"github.com/bengobox/pos-service/internal/ent/staffschedule"
@@ -243,6 +244,7 @@ func checkColumn(t, c string) error {
 			servicequeueentry.Table:        servicequeueentry.ValidColumn,
 			staffadvance.Table:             staffadvance.ValidColumn,
 			staffmember.Table:              staffmember.ValidColumn,
+			staffoutlet.Table:              staffoutlet.ValidColumn,
 			staffpayroll.Table:             staffpayroll.ValidColumn,
 			staffpayrollline.Table:         staffpayrollline.ValidColumn,
 			staffschedule.Table:            staffschedule.ValidColumn,

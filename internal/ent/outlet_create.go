@@ -16,6 +16,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/outlet"
 	"github.com/bengobox/pos-service/internal/ent/outletsetting"
 	"github.com/bengobox/pos-service/internal/ent/posdevice"
+	"github.com/bengobox/pos-service/internal/ent/staffoutlet"
 	"github.com/bengobox/pos-service/internal/ent/tenant"
 	"github.com/google/uuid"
 )
@@ -250,6 +251,21 @@ func (_c *OutletCreate) AddDailyClosings(v ...*DailyClosing) *OutletCreate {
 		ids[i] = v[i].ID
 	}
 	return _c.AddDailyClosingIDs(ids...)
+}
+
+// AddStaffOutletIDs adds the "staff_outlets" edge to the StaffOutlet entity by IDs.
+func (_c *OutletCreate) AddStaffOutletIDs(ids ...uuid.UUID) *OutletCreate {
+	_c.mutation.AddStaffOutletIDs(ids...)
+	return _c
+}
+
+// AddStaffOutlets adds the "staff_outlets" edges to the StaffOutlet entity.
+func (_c *OutletCreate) AddStaffOutlets(v ...*StaffOutlet) *OutletCreate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddStaffOutletIDs(ids...)
 }
 
 // Mutation returns the OutletMutation object of the builder.
@@ -513,6 +529,22 @@ func (_c *OutletCreate) createSpec() (*Outlet, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(dailyclosing.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.StaffOutletsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   outlet.StaffOutletsTable,
+			Columns: []string{outlet.StaffOutletsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(staffoutlet.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

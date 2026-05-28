@@ -13,6 +13,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/bengobox/pos-service/internal/ent/staffmember"
+	"github.com/bengobox/pos-service/internal/ent/staffoutlet"
 	"github.com/google/uuid"
 )
 
@@ -27,12 +28,6 @@ type StaffMemberCreate struct {
 // SetTenantID sets the "tenant_id" field.
 func (_c *StaffMemberCreate) SetTenantID(v uuid.UUID) *StaffMemberCreate {
 	_c.mutation.SetTenantID(v)
-	return _c
-}
-
-// SetOutletID sets the "outlet_id" field.
-func (_c *StaffMemberCreate) SetOutletID(v uuid.UUID) *StaffMemberCreate {
-	_c.mutation.SetOutletID(v)
 	return _c
 }
 
@@ -298,6 +293,21 @@ func (_c *StaffMemberCreate) SetNillableID(v *uuid.UUID) *StaffMemberCreate {
 	return _c
 }
 
+// AddOutletIDs adds the "outlets" edge to the StaffOutlet entity by IDs.
+func (_c *StaffMemberCreate) AddOutletIDs(ids ...uuid.UUID) *StaffMemberCreate {
+	_c.mutation.AddOutletIDs(ids...)
+	return _c
+}
+
+// AddOutlets adds the "outlets" edges to the StaffOutlet entity.
+func (_c *StaffMemberCreate) AddOutlets(v ...*StaffOutlet) *StaffMemberCreate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddOutletIDs(ids...)
+}
+
 // Mutation returns the StaffMemberMutation object of the builder.
 func (_c *StaffMemberCreate) Mutation() *StaffMemberMutation {
 	return _c.mutation
@@ -367,9 +377,6 @@ func (_c *StaffMemberCreate) defaults() {
 func (_c *StaffMemberCreate) check() error {
 	if _, ok := _c.mutation.TenantID(); !ok {
 		return &ValidationError{Name: "tenant_id", err: errors.New(`ent: missing required field "StaffMember.tenant_id"`)}
-	}
-	if _, ok := _c.mutation.OutletID(); !ok {
-		return &ValidationError{Name: "outlet_id", err: errors.New(`ent: missing required field "StaffMember.outlet_id"`)}
 	}
 	if _, ok := _c.mutation.UserID(); !ok {
 		return &ValidationError{Name: "user_id", err: errors.New(`ent: missing required field "StaffMember.user_id"`)}
@@ -441,10 +448,6 @@ func (_c *StaffMemberCreate) createSpec() (*StaffMember, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.TenantID(); ok {
 		_spec.SetField(staffmember.FieldTenantID, field.TypeUUID, value)
 		_node.TenantID = value
-	}
-	if value, ok := _c.mutation.OutletID(); ok {
-		_spec.SetField(staffmember.FieldOutletID, field.TypeUUID, value)
-		_node.OutletID = value
 	}
 	if value, ok := _c.mutation.UserID(); ok {
 		_spec.SetField(staffmember.FieldUserID, field.TypeUUID, value)
@@ -526,6 +529,22 @@ func (_c *StaffMemberCreate) createSpec() (*StaffMember, *sqlgraph.CreateSpec) {
 		_spec.SetField(staffmember.FieldUpdatedAt, field.TypeTime, value)
 		_node.UpdatedAt = value
 	}
+	if nodes := _c.mutation.OutletsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   staffmember.OutletsTable,
+			Columns: []string{staffmember.OutletsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(staffoutlet.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
 	return _node, _spec
 }
 
@@ -587,18 +606,6 @@ func (u *StaffMemberUpsert) SetTenantID(v uuid.UUID) *StaffMemberUpsert {
 // UpdateTenantID sets the "tenant_id" field to the value that was provided on create.
 func (u *StaffMemberUpsert) UpdateTenantID() *StaffMemberUpsert {
 	u.SetExcluded(staffmember.FieldTenantID)
-	return u
-}
-
-// SetOutletID sets the "outlet_id" field.
-func (u *StaffMemberUpsert) SetOutletID(v uuid.UUID) *StaffMemberUpsert {
-	u.Set(staffmember.FieldOutletID, v)
-	return u
-}
-
-// UpdateOutletID sets the "outlet_id" field to the value that was provided on create.
-func (u *StaffMemberUpsert) UpdateOutletID() *StaffMemberUpsert {
-	u.SetExcluded(staffmember.FieldOutletID)
 	return u
 }
 
@@ -1000,20 +1007,6 @@ func (u *StaffMemberUpsertOne) SetTenantID(v uuid.UUID) *StaffMemberUpsertOne {
 func (u *StaffMemberUpsertOne) UpdateTenantID() *StaffMemberUpsertOne {
 	return u.Update(func(s *StaffMemberUpsert) {
 		s.UpdateTenantID()
-	})
-}
-
-// SetOutletID sets the "outlet_id" field.
-func (u *StaffMemberUpsertOne) SetOutletID(v uuid.UUID) *StaffMemberUpsertOne {
-	return u.Update(func(s *StaffMemberUpsert) {
-		s.SetOutletID(v)
-	})
-}
-
-// UpdateOutletID sets the "outlet_id" field to the value that was provided on create.
-func (u *StaffMemberUpsertOne) UpdateOutletID() *StaffMemberUpsertOne {
-	return u.Update(func(s *StaffMemberUpsert) {
-		s.UpdateOutletID()
 	})
 }
 
@@ -1638,20 +1631,6 @@ func (u *StaffMemberUpsertBulk) SetTenantID(v uuid.UUID) *StaffMemberUpsertBulk 
 func (u *StaffMemberUpsertBulk) UpdateTenantID() *StaffMemberUpsertBulk {
 	return u.Update(func(s *StaffMemberUpsert) {
 		s.UpdateTenantID()
-	})
-}
-
-// SetOutletID sets the "outlet_id" field.
-func (u *StaffMemberUpsertBulk) SetOutletID(v uuid.UUID) *StaffMemberUpsertBulk {
-	return u.Update(func(s *StaffMemberUpsert) {
-		s.SetOutletID(v)
-	})
-}
-
-// UpdateOutletID sets the "outlet_id" field to the value that was provided on create.
-func (u *StaffMemberUpsertBulk) UpdateOutletID() *StaffMemberUpsertBulk {
-	return u.Update(func(s *StaffMemberUpsert) {
-		s.UpdateOutletID()
 	})
 }
 

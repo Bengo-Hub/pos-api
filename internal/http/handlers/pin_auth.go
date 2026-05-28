@@ -16,11 +16,13 @@ import (
 	"github.com/bengobox/pos-service/internal/ent"
 	entoutlet "github.com/bengobox/pos-service/internal/ent/outlet"
 	entstaff "github.com/bengobox/pos-service/internal/ent/staffmember"
+	entstaffoutlet "github.com/bengobox/pos-service/internal/ent/staffoutlet"
 )
 
-// pinFastHash computes hex(SHA256(tenantID+":"+outletID+":"+pin)) for O(1) PIN lookup.
-func pinFastHash(tenantID, outletID uuid.UUID, pin string) string {
-	h := sha256.Sum256([]byte(tenantID.String() + ":" + outletID.String() + ":" + pin))
+// pinFastHash computes hex(SHA256(tenantID+":"+userID+":"+pin)) for O(1) PIN lookup.
+// Scoped to tenant+user so a single PIN works across all outlets the user is assigned to.
+func pinFastHash(tenantID, userID uuid.UUID, pin string) string {
+	h := sha256.Sum256([]byte(tenantID.String() + ":" + userID.String() + ":" + pin))
 	return fmt.Sprintf("%x", h)
 }
 
@@ -176,11 +178,18 @@ func (h *PINAuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		Exec(r.Context())
 
 	// Determine session outlet: prefer the outlet the terminal selected (X-Outlet-ID),
-	// fall back to the StaffMember's home outlet.
-	sessionOutletID := member.OutletID
+	// fall back to the staff member's home StaffOutlet.
+	var sessionOutletID uuid.UUID
 	if xOID := r.Header.Get("X-Outlet-ID"); xOID != "" {
 		if parsed, err := uuid.Parse(xOID); err == nil {
 			sessionOutletID = parsed
+		}
+	}
+	if sessionOutletID == uuid.Nil {
+		if so, soErr := h.client.StaffOutlet.Query().
+			Where(entstaffoutlet.StaffMemberID(member.ID), entstaffoutlet.IsHomeOutlet(true)).
+			First(r.Context()); soErr == nil {
+			sessionOutletID = so.OutletID
 		}
 	}
 
@@ -259,7 +268,7 @@ func (h *PINAuthHandler) SetPIN(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fastHash := pinFastHash(tid, member.OutletID, input.PIN)
+	fastHash := pinFastHash(tid, member.UserID, input.PIN)
 
 	if err := h.client.StaffMember.UpdateOne(member).
 		SetPinHash(hashStr).
@@ -373,39 +382,34 @@ func (h *PINAuthHandler) IdentifyByPIN(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fastHash := pinFastHash(tid, outletID, input.PIN)
-
-	member, err := h.client.StaffMember.Query().
-		Where(entstaff.TenantID(tid), entstaff.OutletID(outletID), entstaff.PinFastHash(fastHash), entstaff.IsActive(true)).
-		Only(r.Context())
-	if err != nil {
-		if !ent.IsNotFound(err) {
-			h.log.Error("pin identify: db error", zap.Error(err))
-			jsonError(w, "internal error", http.StatusInternalServerError)
-			return
+	// Scan active staff assigned to the requested outlet and bcrypt-compare.
+	// PIN uniqueness is per-outlet, so we only compare staff at this outlet.
+	candidates, scanErr := h.client.StaffMember.Query().
+		Where(
+			entstaff.TenantID(tid),
+			entstaff.IsActive(true),
+			entstaff.PinHashNotNil(),
+			entstaff.HasOutletsWith(entstaffoutlet.OutletID(outletID)),
+		).
+		All(r.Context())
+	if scanErr != nil {
+		h.log.Error("pin identify: db error", zap.Error(scanErr))
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	var member *ent.StaffMember
+	for _, c := range candidates {
+		if bcrypt.CompareHashAndPassword([]byte(*c.PinHash), []byte(input.PIN)) == nil {
+			member = c
+			// Backfill pin_fast_hash (user-scoped) for the direct-auth endpoint.
+			fastHash := pinFastHash(tid, c.UserID, input.PIN)
+			_ = h.client.StaffMember.UpdateOne(c).SetPinFastHash(fastHash).Exec(r.Context())
+			break
 		}
-		// Fast-hash miss — staff provisioned via NATS event won't have pin_fast_hash set.
-		// Scan active staff in this outlet and bcrypt-compare as fallback.
-		candidates, scanErr := h.client.StaffMember.Query().
-			Where(entstaff.TenantID(tid), entstaff.OutletID(outletID), entstaff.IsActive(true), entstaff.PinHashNotNil()).
-			All(r.Context())
-		if scanErr != nil {
-			jsonError(w, "invalid credentials", http.StatusUnauthorized)
-			return
-		}
-		member = nil
-		for _, c := range candidates {
-			if bcrypt.CompareHashAndPassword([]byte(*c.PinHash), []byte(input.PIN)) == nil {
-				member = c
-				// Backfill pin_fast_hash so subsequent logins use the O(1) index path.
-				_ = h.client.StaffMember.UpdateOne(c).SetPinFastHash(fastHash).Exec(r.Context())
-				break
-			}
-		}
-		if member == nil {
-			jsonError(w, "invalid credentials", http.StatusUnauthorized)
-			return
-		}
+	}
+	if member == nil {
+		jsonError(w, "invalid credentials", http.StatusUnauthorized)
+		return
 	}
 
 	if member.PinHash == nil {
@@ -496,7 +500,9 @@ func (h *PINAuthHandler) StaffProfiles(w http.ResponseWriter, r *http.Request) {
 
 	p := pagination.Parse(r)
 	total, _ := q.Clone().Count(r.Context())
-	members, err := q.Limit(p.Limit).Offset(p.Offset).All(r.Context())
+	members, err := q.WithOutlets(func(soq *ent.StaffOutletQuery) {
+		soq.Where(entstaffoutlet.IsHomeOutlet(true)).Limit(1)
+	}).Limit(p.Limit).Offset(p.Offset).All(r.Context())
 	if err != nil {
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
@@ -512,12 +518,16 @@ func (h *PINAuthHandler) StaffProfiles(w http.ResponseWriter, r *http.Request) {
 	}
 	out := make([]profile, 0, len(members))
 	for _, m := range members {
+		homeOutletID := ""
+		if len(m.Edges.Outlets) > 0 {
+			homeOutletID = m.Edges.Outlets[0].OutletID.String()
+		}
 		out = append(out, profile{
 			UserID:   m.UserID.String(),
 			Name:     m.Name,
 			Role:     m.Role,
 			TenantID: m.TenantID.String(),
-			OutletID: m.OutletID.String(),
+			OutletID: homeOutletID,
 			HasPIN:   m.PinHash != nil,
 		})
 	}

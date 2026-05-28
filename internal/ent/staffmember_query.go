@@ -4,6 +4,7 @@ package ent
 
 import (
 	"context"
+	"database/sql/driver"
 	"fmt"
 	"math"
 
@@ -13,16 +14,18 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
 	"github.com/bengobox/pos-service/internal/ent/staffmember"
+	"github.com/bengobox/pos-service/internal/ent/staffoutlet"
 	"github.com/google/uuid"
 )
 
 // StaffMemberQuery is the builder for querying StaffMember entities.
 type StaffMemberQuery struct {
 	config
-	ctx        *QueryContext
-	order      []staffmember.OrderOption
-	inters     []Interceptor
-	predicates []predicate.StaffMember
+	ctx         *QueryContext
+	order       []staffmember.OrderOption
+	inters      []Interceptor
+	predicates  []predicate.StaffMember
+	withOutlets *StaffOutletQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -57,6 +60,28 @@ func (_q *StaffMemberQuery) Unique(unique bool) *StaffMemberQuery {
 func (_q *StaffMemberQuery) Order(o ...staffmember.OrderOption) *StaffMemberQuery {
 	_q.order = append(_q.order, o...)
 	return _q
+}
+
+// QueryOutlets chains the current query on the "outlets" edge.
+func (_q *StaffMemberQuery) QueryOutlets() *StaffOutletQuery {
+	query := (&StaffOutletClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(staffmember.Table, staffmember.FieldID, selector),
+			sqlgraph.To(staffoutlet.Table, staffoutlet.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, staffmember.OutletsTable, staffmember.OutletsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
 }
 
 // First returns the first StaffMember entity from the query.
@@ -246,15 +271,27 @@ func (_q *StaffMemberQuery) Clone() *StaffMemberQuery {
 		return nil
 	}
 	return &StaffMemberQuery{
-		config:     _q.config,
-		ctx:        _q.ctx.Clone(),
-		order:      append([]staffmember.OrderOption{}, _q.order...),
-		inters:     append([]Interceptor{}, _q.inters...),
-		predicates: append([]predicate.StaffMember{}, _q.predicates...),
+		config:      _q.config,
+		ctx:         _q.ctx.Clone(),
+		order:       append([]staffmember.OrderOption{}, _q.order...),
+		inters:      append([]Interceptor{}, _q.inters...),
+		predicates:  append([]predicate.StaffMember{}, _q.predicates...),
+		withOutlets: _q.withOutlets.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
 	}
+}
+
+// WithOutlets tells the query-builder to eager-load the nodes that are connected to
+// the "outlets" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *StaffMemberQuery) WithOutlets(opts ...func(*StaffOutletQuery)) *StaffMemberQuery {
+	query := (&StaffOutletClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withOutlets = query
+	return _q
 }
 
 // GroupBy is used to group vertices by one or more fields/columns.
@@ -333,8 +370,11 @@ func (_q *StaffMemberQuery) prepareQuery(ctx context.Context) error {
 
 func (_q *StaffMemberQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*StaffMember, error) {
 	var (
-		nodes = []*StaffMember{}
-		_spec = _q.querySpec()
+		nodes       = []*StaffMember{}
+		_spec       = _q.querySpec()
+		loadedTypes = [1]bool{
+			_q.withOutlets != nil,
+		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
 		return (*StaffMember).scanValues(nil, columns)
@@ -342,6 +382,7 @@ func (_q *StaffMemberQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*
 	_spec.Assign = func(columns []string, values []any) error {
 		node := &StaffMember{config: _q.config}
 		nodes = append(nodes, node)
+		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
 	}
 	for i := range hooks {
@@ -353,7 +394,45 @@ func (_q *StaffMemberQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*
 	if len(nodes) == 0 {
 		return nodes, nil
 	}
+	if query := _q.withOutlets; query != nil {
+		if err := _q.loadOutlets(ctx, query, nodes,
+			func(n *StaffMember) { n.Edges.Outlets = []*StaffOutlet{} },
+			func(n *StaffMember, e *StaffOutlet) { n.Edges.Outlets = append(n.Edges.Outlets, e) }); err != nil {
+			return nil, err
+		}
+	}
 	return nodes, nil
+}
+
+func (_q *StaffMemberQuery) loadOutlets(ctx context.Context, query *StaffOutletQuery, nodes []*StaffMember, init func(*StaffMember), assign func(*StaffMember, *StaffOutlet)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[uuid.UUID]*StaffMember)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(staffoutlet.FieldStaffMemberID)
+	}
+	query.Where(predicate.StaffOutlet(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(staffmember.OutletsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.StaffMemberID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "staff_member_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
 }
 
 func (_q *StaffMemberQuery) sqlCount(ctx context.Context) (int, error) {

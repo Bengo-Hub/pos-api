@@ -9,6 +9,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent"
 	entoutlet "github.com/bengobox/pos-service/internal/ent/outlet"
 	entstaff "github.com/bengobox/pos-service/internal/ent/staffmember"
+	entstaffoutlet "github.com/bengobox/pos-service/internal/ent/staffoutlet"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
@@ -132,7 +133,7 @@ func isStaffAssignedToOutlet(ctx context.Context, client *ent.Client, tenantID, 
 		Where(
 			entstaff.TenantID(tenantID),
 			entstaff.UserID(userID),
-			entstaff.OutletID(outletID),
+			entstaff.HasOutletsWith(entstaffoutlet.OutletID(outletID)),
 		).Exist(ctx)
 	return ok
 }

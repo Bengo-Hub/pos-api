@@ -21,8 +21,6 @@ type StaffMember struct {
 	ID uuid.UUID `json:"id,omitempty"`
 	// TenantID holds the value of the "tenant_id" field.
 	TenantID uuid.UUID `json:"tenant_id,omitempty"`
-	// OutletID holds the value of the "outlet_id" field.
-	OutletID uuid.UUID `json:"outlet_id,omitempty"`
 	// Auth-service user ID
 	UserID uuid.UUID `json:"user_id,omitempty"`
 	// Name holds the value of the "name" field.
@@ -35,7 +33,7 @@ type StaffMember struct {
 	CommissionRate *float64 `json:"commission_rate,omitempty"`
 	// IsActive holds the value of the "is_active" field.
 	IsActive bool `json:"is_active,omitempty"`
-	// POS role: admin|manager|cashier|waiter|kitchen|bar|receptionist
+	// POS role: admin (unrestricted)|manager (RBAC scoped)|cashier|waiter|kitchen|bar|receptionist|pharmacist|stylist|therapist
 	Role string `json:"role,omitempty"`
 	// EmploymentType holds the value of the "employment_type" field.
 	EmploymentType staffmember.EmploymentType `json:"employment_type,omitempty"`
@@ -62,8 +60,29 @@ type StaffMember struct {
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
-	UpdatedAt    time.Time `json:"updated_at,omitempty"`
+	UpdatedAt time.Time `json:"updated_at,omitempty"`
+	// Edges holds the relations/edges for other nodes in the graph.
+	// The values are being populated by the StaffMemberQuery when eager-loading is set.
+	Edges        StaffMemberEdges `json:"edges"`
 	selectValues sql.SelectValues
+}
+
+// StaffMemberEdges holds the relations/edges for other nodes in the graph.
+type StaffMemberEdges struct {
+	// Outlets holds the value of the outlets edge.
+	Outlets []*StaffOutlet `json:"outlets,omitempty"`
+	// loadedTypes holds the information for reporting if a
+	// type was loaded (or requested) in eager-loading or not.
+	loadedTypes [1]bool
+}
+
+// OutletsOrErr returns the Outlets value or an error if the edge
+// was not loaded in eager-loading.
+func (e StaffMemberEdges) OutletsOrErr() ([]*StaffOutlet, error) {
+	if e.loadedTypes[0] {
+		return e.Outlets, nil
+	}
+	return nil, &NotLoadedError{edge: "outlets"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -83,7 +102,7 @@ func (*StaffMember) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullString)
 		case staffmember.FieldPinLockedUntil, staffmember.FieldCreatedAt, staffmember.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
-		case staffmember.FieldID, staffmember.FieldTenantID, staffmember.FieldOutletID, staffmember.FieldUserID:
+		case staffmember.FieldID, staffmember.FieldTenantID, staffmember.FieldUserID:
 			values[i] = new(uuid.UUID)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -111,12 +130,6 @@ func (_m *StaffMember) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field tenant_id", values[i])
 			} else if value != nil {
 				_m.TenantID = *value
-			}
-		case staffmember.FieldOutletID:
-			if value, ok := values[i].(*uuid.UUID); !ok {
-				return fmt.Errorf("unexpected type %T for field outlet_id", values[i])
-			} else if value != nil {
-				_m.OutletID = *value
 			}
 		case staffmember.FieldUserID:
 			if value, ok := values[i].(*uuid.UUID); !ok {
@@ -265,6 +278,11 @@ func (_m *StaffMember) Value(name string) (ent.Value, error) {
 	return _m.selectValues.Get(name)
 }
 
+// QueryOutlets queries the "outlets" edge of the StaffMember entity.
+func (_m *StaffMember) QueryOutlets() *StaffOutletQuery {
+	return NewStaffMemberClient(_m.config).QueryOutlets(_m)
+}
+
 // Update returns a builder for updating this StaffMember.
 // Note that you need to call StaffMember.Unwrap() before calling this method if this StaffMember
 // was returned from a transaction, and the transaction was committed or rolled back.
@@ -290,9 +308,6 @@ func (_m *StaffMember) String() string {
 	builder.WriteString(fmt.Sprintf("id=%v, ", _m.ID))
 	builder.WriteString("tenant_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.TenantID))
-	builder.WriteString(", ")
-	builder.WriteString("outlet_id=")
-	builder.WriteString(fmt.Sprintf("%v", _m.OutletID))
 	builder.WriteString(", ")
 	builder.WriteString("user_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.UserID))

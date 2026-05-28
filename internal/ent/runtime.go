@@ -80,6 +80,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/servicequeueentry"
 	"github.com/bengobox/pos-service/internal/ent/staffadvance"
 	"github.com/bengobox/pos-service/internal/ent/staffmember"
+	"github.com/bengobox/pos-service/internal/ent/staffoutlet"
 	"github.com/bengobox/pos-service/internal/ent/staffpayroll"
 	"github.com/bengobox/pos-service/internal/ent/staffpayrollline"
 	"github.com/bengobox/pos-service/internal/ent/staffschedule"
@@ -2065,27 +2066,27 @@ func init() {
 	staffmemberFields := schema.StaffMember{}.Fields()
 	_ = staffmemberFields
 	// staffmemberDescName is the schema descriptor for name field.
-	staffmemberDescName := staffmemberFields[4].Descriptor()
+	staffmemberDescName := staffmemberFields[3].Descriptor()
 	// staffmember.NameValidator is a validator for the "name" field. It is called by the builders before save.
 	staffmember.NameValidator = staffmemberDescName.Validators[0].(func(string) error)
 	// staffmemberDescIsActive is the schema descriptor for is_active field.
-	staffmemberDescIsActive := staffmemberFields[8].Descriptor()
+	staffmemberDescIsActive := staffmemberFields[7].Descriptor()
 	// staffmember.DefaultIsActive holds the default value on creation for the is_active field.
 	staffmember.DefaultIsActive = staffmemberDescIsActive.Default.(bool)
 	// staffmemberDescRole is the schema descriptor for role field.
-	staffmemberDescRole := staffmemberFields[9].Descriptor()
+	staffmemberDescRole := staffmemberFields[8].Descriptor()
 	// staffmember.DefaultRole holds the default value on creation for the role field.
 	staffmember.DefaultRole = staffmemberDescRole.Default.(string)
 	// staffmemberDescPinFailedAttempts is the schema descriptor for pin_failed_attempts field.
-	staffmemberDescPinFailedAttempts := staffmemberFields[19].Descriptor()
+	staffmemberDescPinFailedAttempts := staffmemberFields[18].Descriptor()
 	// staffmember.DefaultPinFailedAttempts holds the default value on creation for the pin_failed_attempts field.
 	staffmember.DefaultPinFailedAttempts = staffmemberDescPinFailedAttempts.Default.(int)
 	// staffmemberDescCreatedAt is the schema descriptor for created_at field.
-	staffmemberDescCreatedAt := staffmemberFields[21].Descriptor()
+	staffmemberDescCreatedAt := staffmemberFields[20].Descriptor()
 	// staffmember.DefaultCreatedAt holds the default value on creation for the created_at field.
 	staffmember.DefaultCreatedAt = staffmemberDescCreatedAt.Default.(func() time.Time)
 	// staffmemberDescUpdatedAt is the schema descriptor for updated_at field.
-	staffmemberDescUpdatedAt := staffmemberFields[22].Descriptor()
+	staffmemberDescUpdatedAt := staffmemberFields[21].Descriptor()
 	// staffmember.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	staffmember.DefaultUpdatedAt = staffmemberDescUpdatedAt.Default.(func() time.Time)
 	// staffmember.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -2094,6 +2095,20 @@ func init() {
 	staffmemberDescID := staffmemberFields[0].Descriptor()
 	// staffmember.DefaultID holds the default value on creation for the id field.
 	staffmember.DefaultID = staffmemberDescID.Default.(func() uuid.UUID)
+	staffoutletFields := schema.StaffOutlet{}.Fields()
+	_ = staffoutletFields
+	// staffoutletDescIsHomeOutlet is the schema descriptor for is_home_outlet field.
+	staffoutletDescIsHomeOutlet := staffoutletFields[4].Descriptor()
+	// staffoutlet.DefaultIsHomeOutlet holds the default value on creation for the is_home_outlet field.
+	staffoutlet.DefaultIsHomeOutlet = staffoutletDescIsHomeOutlet.Default.(bool)
+	// staffoutletDescAssignedAt is the schema descriptor for assigned_at field.
+	staffoutletDescAssignedAt := staffoutletFields[5].Descriptor()
+	// staffoutlet.DefaultAssignedAt holds the default value on creation for the assigned_at field.
+	staffoutlet.DefaultAssignedAt = staffoutletDescAssignedAt.Default.(func() time.Time)
+	// staffoutletDescID is the schema descriptor for id field.
+	staffoutletDescID := staffoutletFields[0].Descriptor()
+	// staffoutlet.DefaultID holds the default value on creation for the id field.
+	staffoutlet.DefaultID = staffoutletDescID.Default.(func() uuid.UUID)
 	staffpayrollFields := schema.StaffPayroll{}.Fields()
 	_ = staffpayrollFields
 	// staffpayrollDescGrossAmount is the schema descriptor for gross_amount field.

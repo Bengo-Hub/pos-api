@@ -88,6 +88,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/servicequeueentry"
 	"github.com/bengobox/pos-service/internal/ent/staffadvance"
 	"github.com/bengobox/pos-service/internal/ent/staffmember"
+	"github.com/bengobox/pos-service/internal/ent/staffoutlet"
 	"github.com/bengobox/pos-service/internal/ent/staffpayroll"
 	"github.com/bengobox/pos-service/internal/ent/staffpayrollline"
 	"github.com/bengobox/pos-service/internal/ent/staffschedule"
@@ -195,6 +196,7 @@ const (
 	TypeServiceQueueEntry        = "ServiceQueueEntry"
 	TypeStaffAdvance             = "StaffAdvance"
 	TypeStaffMember              = "StaffMember"
+	TypeStaffOutlet              = "StaffOutlet"
 	TypeStaffPayroll             = "StaffPayroll"
 	TypeStaffPayrollLine         = "StaffPayrollLine"
 	TypeStaffSchedule            = "StaffSchedule"
@@ -31595,6 +31597,9 @@ type OutletMutation struct {
 	daily_closings        map[uuid.UUID]struct{}
 	removeddaily_closings map[uuid.UUID]struct{}
 	cleareddaily_closings bool
+	staff_outlets         map[uuid.UUID]struct{}
+	removedstaff_outlets  map[uuid.UUID]struct{}
+	clearedstaff_outlets  bool
 	done                  bool
 	oldValue              func(context.Context) (*Outlet, error)
 	predicates            []predicate.Outlet
@@ -32434,6 +32439,60 @@ func (m *OutletMutation) ResetDailyClosings() {
 	m.removeddaily_closings = nil
 }
 
+// AddStaffOutletIDs adds the "staff_outlets" edge to the StaffOutlet entity by ids.
+func (m *OutletMutation) AddStaffOutletIDs(ids ...uuid.UUID) {
+	if m.staff_outlets == nil {
+		m.staff_outlets = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		m.staff_outlets[ids[i]] = struct{}{}
+	}
+}
+
+// ClearStaffOutlets clears the "staff_outlets" edge to the StaffOutlet entity.
+func (m *OutletMutation) ClearStaffOutlets() {
+	m.clearedstaff_outlets = true
+}
+
+// StaffOutletsCleared reports if the "staff_outlets" edge to the StaffOutlet entity was cleared.
+func (m *OutletMutation) StaffOutletsCleared() bool {
+	return m.clearedstaff_outlets
+}
+
+// RemoveStaffOutletIDs removes the "staff_outlets" edge to the StaffOutlet entity by IDs.
+func (m *OutletMutation) RemoveStaffOutletIDs(ids ...uuid.UUID) {
+	if m.removedstaff_outlets == nil {
+		m.removedstaff_outlets = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		delete(m.staff_outlets, ids[i])
+		m.removedstaff_outlets[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedStaffOutlets returns the removed IDs of the "staff_outlets" edge to the StaffOutlet entity.
+func (m *OutletMutation) RemovedStaffOutletsIDs() (ids []uuid.UUID) {
+	for id := range m.removedstaff_outlets {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// StaffOutletsIDs returns the "staff_outlets" edge IDs in the mutation.
+func (m *OutletMutation) StaffOutletsIDs() (ids []uuid.UUID) {
+	for id := range m.staff_outlets {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetStaffOutlets resets all changes to the "staff_outlets" edge.
+func (m *OutletMutation) ResetStaffOutlets() {
+	m.staff_outlets = nil
+	m.clearedstaff_outlets = false
+	m.removedstaff_outlets = nil
+}
+
 // Where appends a list predicates to the OutletMutation builder.
 func (m *OutletMutation) Where(ps ...predicate.Outlet) {
 	m.predicates = append(m.predicates, ps...)
@@ -32815,7 +32874,7 @@ func (m *OutletMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *OutletMutation) AddedEdges() []string {
-	edges := make([]string, 0, 4)
+	edges := make([]string, 0, 5)
 	if m.tenant != nil {
 		edges = append(edges, outlet.EdgeTenant)
 	}
@@ -32827,6 +32886,9 @@ func (m *OutletMutation) AddedEdges() []string {
 	}
 	if m.daily_closings != nil {
 		edges = append(edges, outlet.EdgeDailyClosings)
+	}
+	if m.staff_outlets != nil {
+		edges = append(edges, outlet.EdgeStaffOutlets)
 	}
 	return edges
 }
@@ -32855,18 +32917,27 @@ func (m *OutletMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case outlet.EdgeStaffOutlets:
+		ids := make([]ent.Value, 0, len(m.staff_outlets))
+		for id := range m.staff_outlets {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *OutletMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 4)
+	edges := make([]string, 0, 5)
 	if m.removeddevices != nil {
 		edges = append(edges, outlet.EdgeDevices)
 	}
 	if m.removeddaily_closings != nil {
 		edges = append(edges, outlet.EdgeDailyClosings)
+	}
+	if m.removedstaff_outlets != nil {
+		edges = append(edges, outlet.EdgeStaffOutlets)
 	}
 	return edges
 }
@@ -32887,13 +32958,19 @@ func (m *OutletMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case outlet.EdgeStaffOutlets:
+		ids := make([]ent.Value, 0, len(m.removedstaff_outlets))
+		for id := range m.removedstaff_outlets {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *OutletMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 4)
+	edges := make([]string, 0, 5)
 	if m.clearedtenant {
 		edges = append(edges, outlet.EdgeTenant)
 	}
@@ -32905,6 +32982,9 @@ func (m *OutletMutation) ClearedEdges() []string {
 	}
 	if m.cleareddaily_closings {
 		edges = append(edges, outlet.EdgeDailyClosings)
+	}
+	if m.clearedstaff_outlets {
+		edges = append(edges, outlet.EdgeStaffOutlets)
 	}
 	return edges
 }
@@ -32921,6 +33001,8 @@ func (m *OutletMutation) EdgeCleared(name string) bool {
 		return m.cleareddevices
 	case outlet.EdgeDailyClosings:
 		return m.cleareddaily_closings
+	case outlet.EdgeStaffOutlets:
+		return m.clearedstaff_outlets
 	}
 	return false
 }
@@ -32954,6 +33036,9 @@ func (m *OutletMutation) ResetEdge(name string) error {
 		return nil
 	case outlet.EdgeDailyClosings:
 		m.ResetDailyClosings()
+		return nil
+	case outlet.EdgeStaffOutlets:
+		m.ResetStaffOutlets()
 		return nil
 	}
 	return fmt.Errorf("unknown Outlet edge %s", name)
@@ -73840,7 +73925,6 @@ type StaffMemberMutation struct {
 	typ                    string
 	id                     *uuid.UUID
 	tenant_id              *uuid.UUID
-	outlet_id              *uuid.UUID
 	user_id                *uuid.UUID
 	name                   *string
 	service_skus           *[]string
@@ -73868,6 +73952,9 @@ type StaffMemberMutation struct {
 	created_at             *time.Time
 	updated_at             *time.Time
 	clearedFields          map[string]struct{}
+	outlets                map[uuid.UUID]struct{}
+	removedoutlets         map[uuid.UUID]struct{}
+	clearedoutlets         bool
 	done                   bool
 	oldValue               func(context.Context) (*StaffMember, error)
 	predicates             []predicate.StaffMember
@@ -74011,42 +74098,6 @@ func (m *StaffMemberMutation) OldTenantID(ctx context.Context) (v uuid.UUID, err
 // ResetTenantID resets all changes to the "tenant_id" field.
 func (m *StaffMemberMutation) ResetTenantID() {
 	m.tenant_id = nil
-}
-
-// SetOutletID sets the "outlet_id" field.
-func (m *StaffMemberMutation) SetOutletID(u uuid.UUID) {
-	m.outlet_id = &u
-}
-
-// OutletID returns the value of the "outlet_id" field in the mutation.
-func (m *StaffMemberMutation) OutletID() (r uuid.UUID, exists bool) {
-	v := m.outlet_id
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldOutletID returns the old "outlet_id" field's value of the StaffMember entity.
-// If the StaffMember object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *StaffMemberMutation) OldOutletID(ctx context.Context) (v uuid.UUID, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldOutletID is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldOutletID requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldOutletID: %w", err)
-	}
-	return oldValue.OutletID, nil
-}
-
-// ResetOutletID resets all changes to the "outlet_id" field.
-func (m *StaffMemberMutation) ResetOutletID() {
-	m.outlet_id = nil
 }
 
 // SetUserID sets the "user_id" field.
@@ -75058,6 +75109,60 @@ func (m *StaffMemberMutation) ResetUpdatedAt() {
 	m.updated_at = nil
 }
 
+// AddOutletIDs adds the "outlets" edge to the StaffOutlet entity by ids.
+func (m *StaffMemberMutation) AddOutletIDs(ids ...uuid.UUID) {
+	if m.outlets == nil {
+		m.outlets = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		m.outlets[ids[i]] = struct{}{}
+	}
+}
+
+// ClearOutlets clears the "outlets" edge to the StaffOutlet entity.
+func (m *StaffMemberMutation) ClearOutlets() {
+	m.clearedoutlets = true
+}
+
+// OutletsCleared reports if the "outlets" edge to the StaffOutlet entity was cleared.
+func (m *StaffMemberMutation) OutletsCleared() bool {
+	return m.clearedoutlets
+}
+
+// RemoveOutletIDs removes the "outlets" edge to the StaffOutlet entity by IDs.
+func (m *StaffMemberMutation) RemoveOutletIDs(ids ...uuid.UUID) {
+	if m.removedoutlets == nil {
+		m.removedoutlets = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		delete(m.outlets, ids[i])
+		m.removedoutlets[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedOutlets returns the removed IDs of the "outlets" edge to the StaffOutlet entity.
+func (m *StaffMemberMutation) RemovedOutletsIDs() (ids []uuid.UUID) {
+	for id := range m.removedoutlets {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// OutletsIDs returns the "outlets" edge IDs in the mutation.
+func (m *StaffMemberMutation) OutletsIDs() (ids []uuid.UUID) {
+	for id := range m.outlets {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetOutlets resets all changes to the "outlets" edge.
+func (m *StaffMemberMutation) ResetOutlets() {
+	m.outlets = nil
+	m.clearedoutlets = false
+	m.removedoutlets = nil
+}
+
 // Where appends a list predicates to the StaffMemberMutation builder.
 func (m *StaffMemberMutation) Where(ps ...predicate.StaffMember) {
 	m.predicates = append(m.predicates, ps...)
@@ -75092,12 +75197,9 @@ func (m *StaffMemberMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *StaffMemberMutation) Fields() []string {
-	fields := make([]string, 0, 22)
+	fields := make([]string, 0, 21)
 	if m.tenant_id != nil {
 		fields = append(fields, staffmember.FieldTenantID)
-	}
-	if m.outlet_id != nil {
-		fields = append(fields, staffmember.FieldOutletID)
 	}
 	if m.user_id != nil {
 		fields = append(fields, staffmember.FieldUserID)
@@ -75169,8 +75271,6 @@ func (m *StaffMemberMutation) Field(name string) (ent.Value, bool) {
 	switch name {
 	case staffmember.FieldTenantID:
 		return m.TenantID()
-	case staffmember.FieldOutletID:
-		return m.OutletID()
 	case staffmember.FieldUserID:
 		return m.UserID()
 	case staffmember.FieldName:
@@ -75222,8 +75322,6 @@ func (m *StaffMemberMutation) OldField(ctx context.Context, name string) (ent.Va
 	switch name {
 	case staffmember.FieldTenantID:
 		return m.OldTenantID(ctx)
-	case staffmember.FieldOutletID:
-		return m.OldOutletID(ctx)
 	case staffmember.FieldUserID:
 		return m.OldUserID(ctx)
 	case staffmember.FieldName:
@@ -75279,13 +75377,6 @@ func (m *StaffMemberMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetTenantID(v)
-		return nil
-	case staffmember.FieldOutletID:
-		v, ok := value.(uuid.UUID)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetOutletID(v)
 		return nil
 	case staffmember.FieldUserID:
 		v, ok := value.(uuid.UUID)
@@ -75623,9 +75714,6 @@ func (m *StaffMemberMutation) ResetField(name string) error {
 	case staffmember.FieldTenantID:
 		m.ResetTenantID()
 		return nil
-	case staffmember.FieldOutletID:
-		m.ResetOutletID()
-		return nil
 	case staffmember.FieldUserID:
 		m.ResetUserID()
 		return nil
@@ -75692,50 +75780,734 @@ func (m *StaffMemberMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *StaffMemberMutation) AddedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
+	if m.outlets != nil {
+		edges = append(edges, staffmember.EdgeOutlets)
+	}
 	return edges
 }
 
 // AddedIDs returns all IDs (to other nodes) that were added for the given edge
 // name in this mutation.
 func (m *StaffMemberMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case staffmember.EdgeOutlets:
+		ids := make([]ent.Value, 0, len(m.outlets))
+		for id := range m.outlets {
+			ids = append(ids, id)
+		}
+		return ids
+	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *StaffMemberMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
+	if m.removedoutlets != nil {
+		edges = append(edges, staffmember.EdgeOutlets)
+	}
 	return edges
 }
 
 // RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
 // the given name in this mutation.
 func (m *StaffMemberMutation) RemovedIDs(name string) []ent.Value {
+	switch name {
+	case staffmember.EdgeOutlets:
+		ids := make([]ent.Value, 0, len(m.removedoutlets))
+		for id := range m.removedoutlets {
+			ids = append(ids, id)
+		}
+		return ids
+	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *StaffMemberMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
+	if m.clearedoutlets {
+		edges = append(edges, staffmember.EdgeOutlets)
+	}
 	return edges
 }
 
 // EdgeCleared returns a boolean which indicates if the edge with the given name
 // was cleared in this mutation.
 func (m *StaffMemberMutation) EdgeCleared(name string) bool {
+	switch name {
+	case staffmember.EdgeOutlets:
+		return m.clearedoutlets
+	}
 	return false
 }
 
 // ClearEdge clears the value of the edge with the given name. It returns an error
 // if that edge is not defined in the schema.
 func (m *StaffMemberMutation) ClearEdge(name string) error {
+	switch name {
+	}
 	return fmt.Errorf("unknown StaffMember unique edge %s", name)
 }
 
 // ResetEdge resets all changes to the edge with the given name in this mutation.
 // It returns an error if the edge is not defined in the schema.
 func (m *StaffMemberMutation) ResetEdge(name string) error {
+	switch name {
+	case staffmember.EdgeOutlets:
+		m.ResetOutlets()
+		return nil
+	}
 	return fmt.Errorf("unknown StaffMember edge %s", name)
+}
+
+// StaffOutletMutation represents an operation that mutates the StaffOutlet nodes in the graph.
+type StaffOutletMutation struct {
+	config
+	op                  Op
+	typ                 string
+	id                  *uuid.UUID
+	tenant_id           *uuid.UUID
+	is_home_outlet      *bool
+	assigned_at         *time.Time
+	clearedFields       map[string]struct{}
+	staff_member        *uuid.UUID
+	clearedstaff_member bool
+	outlet              *uuid.UUID
+	clearedoutlet       bool
+	done                bool
+	oldValue            func(context.Context) (*StaffOutlet, error)
+	predicates          []predicate.StaffOutlet
+}
+
+var _ ent.Mutation = (*StaffOutletMutation)(nil)
+
+// staffoutletOption allows management of the mutation configuration using functional options.
+type staffoutletOption func(*StaffOutletMutation)
+
+// newStaffOutletMutation creates new mutation for the StaffOutlet entity.
+func newStaffOutletMutation(c config, op Op, opts ...staffoutletOption) *StaffOutletMutation {
+	m := &StaffOutletMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeStaffOutlet,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withStaffOutletID sets the ID field of the mutation.
+func withStaffOutletID(id uuid.UUID) staffoutletOption {
+	return func(m *StaffOutletMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *StaffOutlet
+		)
+		m.oldValue = func(ctx context.Context) (*StaffOutlet, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().StaffOutlet.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withStaffOutlet sets the old StaffOutlet of the mutation.
+func withStaffOutlet(node *StaffOutlet) staffoutletOption {
+	return func(m *StaffOutletMutation) {
+		m.oldValue = func(context.Context) (*StaffOutlet, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m StaffOutletMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m StaffOutletMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of StaffOutlet entities.
+func (m *StaffOutletMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *StaffOutletMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *StaffOutletMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().StaffOutlet.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *StaffOutletMutation) SetTenantID(u uuid.UUID) {
+	m.tenant_id = &u
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *StaffOutletMutation) TenantID() (r uuid.UUID, exists bool) {
+	v := m.tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the StaffOutlet entity.
+// If the StaffOutlet object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffOutletMutation) OldTenantID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *StaffOutletMutation) ResetTenantID() {
+	m.tenant_id = nil
+}
+
+// SetStaffMemberID sets the "staff_member_id" field.
+func (m *StaffOutletMutation) SetStaffMemberID(u uuid.UUID) {
+	m.staff_member = &u
+}
+
+// StaffMemberID returns the value of the "staff_member_id" field in the mutation.
+func (m *StaffOutletMutation) StaffMemberID() (r uuid.UUID, exists bool) {
+	v := m.staff_member
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStaffMemberID returns the old "staff_member_id" field's value of the StaffOutlet entity.
+// If the StaffOutlet object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffOutletMutation) OldStaffMemberID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStaffMemberID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStaffMemberID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStaffMemberID: %w", err)
+	}
+	return oldValue.StaffMemberID, nil
+}
+
+// ResetStaffMemberID resets all changes to the "staff_member_id" field.
+func (m *StaffOutletMutation) ResetStaffMemberID() {
+	m.staff_member = nil
+}
+
+// SetOutletID sets the "outlet_id" field.
+func (m *StaffOutletMutation) SetOutletID(u uuid.UUID) {
+	m.outlet = &u
+}
+
+// OutletID returns the value of the "outlet_id" field in the mutation.
+func (m *StaffOutletMutation) OutletID() (r uuid.UUID, exists bool) {
+	v := m.outlet
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOutletID returns the old "outlet_id" field's value of the StaffOutlet entity.
+// If the StaffOutlet object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffOutletMutation) OldOutletID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOutletID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOutletID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOutletID: %w", err)
+	}
+	return oldValue.OutletID, nil
+}
+
+// ResetOutletID resets all changes to the "outlet_id" field.
+func (m *StaffOutletMutation) ResetOutletID() {
+	m.outlet = nil
+}
+
+// SetIsHomeOutlet sets the "is_home_outlet" field.
+func (m *StaffOutletMutation) SetIsHomeOutlet(b bool) {
+	m.is_home_outlet = &b
+}
+
+// IsHomeOutlet returns the value of the "is_home_outlet" field in the mutation.
+func (m *StaffOutletMutation) IsHomeOutlet() (r bool, exists bool) {
+	v := m.is_home_outlet
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIsHomeOutlet returns the old "is_home_outlet" field's value of the StaffOutlet entity.
+// If the StaffOutlet object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffOutletMutation) OldIsHomeOutlet(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIsHomeOutlet is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIsHomeOutlet requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIsHomeOutlet: %w", err)
+	}
+	return oldValue.IsHomeOutlet, nil
+}
+
+// ResetIsHomeOutlet resets all changes to the "is_home_outlet" field.
+func (m *StaffOutletMutation) ResetIsHomeOutlet() {
+	m.is_home_outlet = nil
+}
+
+// SetAssignedAt sets the "assigned_at" field.
+func (m *StaffOutletMutation) SetAssignedAt(t time.Time) {
+	m.assigned_at = &t
+}
+
+// AssignedAt returns the value of the "assigned_at" field in the mutation.
+func (m *StaffOutletMutation) AssignedAt() (r time.Time, exists bool) {
+	v := m.assigned_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAssignedAt returns the old "assigned_at" field's value of the StaffOutlet entity.
+// If the StaffOutlet object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffOutletMutation) OldAssignedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAssignedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAssignedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAssignedAt: %w", err)
+	}
+	return oldValue.AssignedAt, nil
+}
+
+// ResetAssignedAt resets all changes to the "assigned_at" field.
+func (m *StaffOutletMutation) ResetAssignedAt() {
+	m.assigned_at = nil
+}
+
+// ClearStaffMember clears the "staff_member" edge to the StaffMember entity.
+func (m *StaffOutletMutation) ClearStaffMember() {
+	m.clearedstaff_member = true
+	m.clearedFields[staffoutlet.FieldStaffMemberID] = struct{}{}
+}
+
+// StaffMemberCleared reports if the "staff_member" edge to the StaffMember entity was cleared.
+func (m *StaffOutletMutation) StaffMemberCleared() bool {
+	return m.clearedstaff_member
+}
+
+// StaffMemberIDs returns the "staff_member" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// StaffMemberID instead. It exists only for internal usage by the builders.
+func (m *StaffOutletMutation) StaffMemberIDs() (ids []uuid.UUID) {
+	if id := m.staff_member; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetStaffMember resets all changes to the "staff_member" edge.
+func (m *StaffOutletMutation) ResetStaffMember() {
+	m.staff_member = nil
+	m.clearedstaff_member = false
+}
+
+// ClearOutlet clears the "outlet" edge to the Outlet entity.
+func (m *StaffOutletMutation) ClearOutlet() {
+	m.clearedoutlet = true
+	m.clearedFields[staffoutlet.FieldOutletID] = struct{}{}
+}
+
+// OutletCleared reports if the "outlet" edge to the Outlet entity was cleared.
+func (m *StaffOutletMutation) OutletCleared() bool {
+	return m.clearedoutlet
+}
+
+// OutletIDs returns the "outlet" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// OutletID instead. It exists only for internal usage by the builders.
+func (m *StaffOutletMutation) OutletIDs() (ids []uuid.UUID) {
+	if id := m.outlet; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetOutlet resets all changes to the "outlet" edge.
+func (m *StaffOutletMutation) ResetOutlet() {
+	m.outlet = nil
+	m.clearedoutlet = false
+}
+
+// Where appends a list predicates to the StaffOutletMutation builder.
+func (m *StaffOutletMutation) Where(ps ...predicate.StaffOutlet) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the StaffOutletMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *StaffOutletMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.StaffOutlet, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *StaffOutletMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *StaffOutletMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (StaffOutlet).
+func (m *StaffOutletMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *StaffOutletMutation) Fields() []string {
+	fields := make([]string, 0, 5)
+	if m.tenant_id != nil {
+		fields = append(fields, staffoutlet.FieldTenantID)
+	}
+	if m.staff_member != nil {
+		fields = append(fields, staffoutlet.FieldStaffMemberID)
+	}
+	if m.outlet != nil {
+		fields = append(fields, staffoutlet.FieldOutletID)
+	}
+	if m.is_home_outlet != nil {
+		fields = append(fields, staffoutlet.FieldIsHomeOutlet)
+	}
+	if m.assigned_at != nil {
+		fields = append(fields, staffoutlet.FieldAssignedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *StaffOutletMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case staffoutlet.FieldTenantID:
+		return m.TenantID()
+	case staffoutlet.FieldStaffMemberID:
+		return m.StaffMemberID()
+	case staffoutlet.FieldOutletID:
+		return m.OutletID()
+	case staffoutlet.FieldIsHomeOutlet:
+		return m.IsHomeOutlet()
+	case staffoutlet.FieldAssignedAt:
+		return m.AssignedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *StaffOutletMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case staffoutlet.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case staffoutlet.FieldStaffMemberID:
+		return m.OldStaffMemberID(ctx)
+	case staffoutlet.FieldOutletID:
+		return m.OldOutletID(ctx)
+	case staffoutlet.FieldIsHomeOutlet:
+		return m.OldIsHomeOutlet(ctx)
+	case staffoutlet.FieldAssignedAt:
+		return m.OldAssignedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown StaffOutlet field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *StaffOutletMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case staffoutlet.FieldTenantID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case staffoutlet.FieldStaffMemberID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStaffMemberID(v)
+		return nil
+	case staffoutlet.FieldOutletID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOutletID(v)
+		return nil
+	case staffoutlet.FieldIsHomeOutlet:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIsHomeOutlet(v)
+		return nil
+	case staffoutlet.FieldAssignedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAssignedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown StaffOutlet field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *StaffOutletMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *StaffOutletMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *StaffOutletMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown StaffOutlet numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *StaffOutletMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *StaffOutletMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *StaffOutletMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown StaffOutlet nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *StaffOutletMutation) ResetField(name string) error {
+	switch name {
+	case staffoutlet.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case staffoutlet.FieldStaffMemberID:
+		m.ResetStaffMemberID()
+		return nil
+	case staffoutlet.FieldOutletID:
+		m.ResetOutletID()
+		return nil
+	case staffoutlet.FieldIsHomeOutlet:
+		m.ResetIsHomeOutlet()
+		return nil
+	case staffoutlet.FieldAssignedAt:
+		m.ResetAssignedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown StaffOutlet field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *StaffOutletMutation) AddedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.staff_member != nil {
+		edges = append(edges, staffoutlet.EdgeStaffMember)
+	}
+	if m.outlet != nil {
+		edges = append(edges, staffoutlet.EdgeOutlet)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *StaffOutletMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case staffoutlet.EdgeStaffMember:
+		if id := m.staff_member; id != nil {
+			return []ent.Value{*id}
+		}
+	case staffoutlet.EdgeOutlet:
+		if id := m.outlet; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *StaffOutletMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 2)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *StaffOutletMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *StaffOutletMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.clearedstaff_member {
+		edges = append(edges, staffoutlet.EdgeStaffMember)
+	}
+	if m.clearedoutlet {
+		edges = append(edges, staffoutlet.EdgeOutlet)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *StaffOutletMutation) EdgeCleared(name string) bool {
+	switch name {
+	case staffoutlet.EdgeStaffMember:
+		return m.clearedstaff_member
+	case staffoutlet.EdgeOutlet:
+		return m.clearedoutlet
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *StaffOutletMutation) ClearEdge(name string) error {
+	switch name {
+	case staffoutlet.EdgeStaffMember:
+		m.ClearStaffMember()
+		return nil
+	case staffoutlet.EdgeOutlet:
+		m.ClearOutlet()
+		return nil
+	}
+	return fmt.Errorf("unknown StaffOutlet unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *StaffOutletMutation) ResetEdge(name string) error {
+	switch name {
+	case staffoutlet.EdgeStaffMember:
+		m.ResetStaffMember()
+		return nil
+	case staffoutlet.EdgeOutlet:
+		m.ResetOutlet()
+		return nil
+	}
+	return fmt.Errorf("unknown StaffOutlet edge %s", name)
 }
 
 // StaffPayrollMutation represents an operation that mutates the StaffPayroll nodes in the graph.

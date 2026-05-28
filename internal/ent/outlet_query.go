@@ -17,6 +17,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/outletsetting"
 	"github.com/bengobox/pos-service/internal/ent/posdevice"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
+	"github.com/bengobox/pos-service/internal/ent/staffoutlet"
 	"github.com/bengobox/pos-service/internal/ent/tenant"
 	"github.com/google/uuid"
 )
@@ -32,6 +33,7 @@ type OutletQuery struct {
 	withSettings      *OutletSettingQuery
 	withDevices       *POSDeviceQuery
 	withDailyClosings *DailyClosingQuery
+	withStaffOutlets  *StaffOutletQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -149,6 +151,28 @@ func (_q *OutletQuery) QueryDailyClosings() *DailyClosingQuery {
 			sqlgraph.From(outlet.Table, outlet.FieldID, selector),
 			sqlgraph.To(dailyclosing.Table, dailyclosing.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, outlet.DailyClosingsTable, outlet.DailyClosingsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryStaffOutlets chains the current query on the "staff_outlets" edge.
+func (_q *OutletQuery) QueryStaffOutlets() *StaffOutletQuery {
+	query := (&StaffOutletClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(outlet.Table, outlet.FieldID, selector),
+			sqlgraph.To(staffoutlet.Table, staffoutlet.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, outlet.StaffOutletsTable, outlet.StaffOutletsColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -352,6 +376,7 @@ func (_q *OutletQuery) Clone() *OutletQuery {
 		withSettings:      _q.withSettings.Clone(),
 		withDevices:       _q.withDevices.Clone(),
 		withDailyClosings: _q.withDailyClosings.Clone(),
+		withStaffOutlets:  _q.withStaffOutlets.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -399,6 +424,17 @@ func (_q *OutletQuery) WithDailyClosings(opts ...func(*DailyClosingQuery)) *Outl
 		opt(query)
 	}
 	_q.withDailyClosings = query
+	return _q
+}
+
+// WithStaffOutlets tells the query-builder to eager-load the nodes that are connected to
+// the "staff_outlets" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *OutletQuery) WithStaffOutlets(opts ...func(*StaffOutletQuery)) *OutletQuery {
+	query := (&StaffOutletClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withStaffOutlets = query
 	return _q
 }
 
@@ -480,11 +516,12 @@ func (_q *OutletQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Outle
 	var (
 		nodes       = []*Outlet{}
 		_spec       = _q.querySpec()
-		loadedTypes = [4]bool{
+		loadedTypes = [5]bool{
 			_q.withTenant != nil,
 			_q.withSettings != nil,
 			_q.withDevices != nil,
 			_q.withDailyClosings != nil,
+			_q.withStaffOutlets != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -528,6 +565,13 @@ func (_q *OutletQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Outle
 		if err := _q.loadDailyClosings(ctx, query, nodes,
 			func(n *Outlet) { n.Edges.DailyClosings = []*DailyClosing{} },
 			func(n *Outlet, e *DailyClosing) { n.Edges.DailyClosings = append(n.Edges.DailyClosings, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withStaffOutlets; query != nil {
+		if err := _q.loadStaffOutlets(ctx, query, nodes,
+			func(n *Outlet) { n.Edges.StaffOutlets = []*StaffOutlet{} },
+			func(n *Outlet, e *StaffOutlet) { n.Edges.StaffOutlets = append(n.Edges.StaffOutlets, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -635,6 +679,36 @@ func (_q *OutletQuery) loadDailyClosings(ctx context.Context, query *DailyClosin
 	}
 	query.Where(predicate.DailyClosing(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(outlet.DailyClosingsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.OutletID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "outlet_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *OutletQuery) loadStaffOutlets(ctx context.Context, query *StaffOutletQuery, nodes []*Outlet, init func(*Outlet), assign func(*Outlet, *StaffOutlet)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[uuid.UUID]*Outlet)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(staffoutlet.FieldOutletID)
+	}
+	query.Where(predicate.StaffOutlet(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(outlet.StaffOutletsColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {

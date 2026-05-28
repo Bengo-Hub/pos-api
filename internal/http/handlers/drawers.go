@@ -10,8 +10,10 @@ import (
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
+	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/bengobox/pos-service/internal/ent"
 	"github.com/bengobox/pos-service/internal/ent/cashdrawer"
+	"github.com/bengobox/pos-service/internal/ent/posdevicesession"
 	"github.com/bengobox/pos-service/internal/platform/events"
 )
 
@@ -62,6 +64,28 @@ func (h *DrawerHandler) OpenDrawer(w http.ResponseWriter, r *http.Request) {
 		h.log.Error("open drawer failed", zap.Error(err))
 		jsonError(w, "failed to open drawer", http.StatusInternalServerError)
 		return
+	}
+
+	// Auto-create a POSDeviceSession (shift) for this device if none is open.
+	// This keeps the drawer and shift in sync without requiring a separate API call.
+	if deviceID != uuid.Nil {
+		openExists, _ := h.client.POSDeviceSession.Query().
+			Where(posdevicesession.TenantID(tid), posdevicesession.DeviceID(deviceID), posdevicesession.SessionStatus("open")).
+			Exist(r.Context())
+		if !openExists {
+			userID := uuid.Nil
+			if claims, ok := authclient.ClaimsFromContext(r.Context()); ok {
+				userID, _ = uuid.Parse(claims.Subject)
+			}
+			_, _ = h.client.POSDeviceSession.Create().
+				SetTenantID(tid).
+				SetDeviceID(deviceID).
+				SetUserID(userID).
+				SetSessionStatus("open").
+				SetFloatAmount(input.StartingCash).
+				SetOpenedAt(now).
+				Save(r.Context())
+		}
 	}
 
 	w.WriteHeader(http.StatusCreated)

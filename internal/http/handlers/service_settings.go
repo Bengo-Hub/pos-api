@@ -13,6 +13,7 @@ import (
 	entoutlet "github.com/bengobox/pos-service/internal/ent/outlet"
 	entoutletsetting "github.com/bengobox/pos-service/internal/ent/outletsetting"
 	entstaff "github.com/bengobox/pos-service/internal/ent/staffmember"
+	entstaffoutlet "github.com/bengobox/pos-service/internal/ent/staffoutlet"
 	outletmw "github.com/bengobox/pos-service/internal/http/middleware"
 )
 
@@ -475,7 +476,7 @@ func (h *ServiceSettingsHandler) SwitchOutlet(w http.ResponseWriter, r *http.Req
 				Where(
 					entstaff.TenantID(tid),
 					entstaff.UserID(userID),
-					entstaff.OutletID(outletID),
+					entstaff.HasOutletsWith(entstaffoutlet.OutletID(outletID)),
 				).Exist(ctx)
 			if !assigned {
 				jsonError(w, "you are not assigned to this outlet", http.StatusForbidden)

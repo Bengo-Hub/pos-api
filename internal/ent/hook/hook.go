@@ -933,6 +933,18 @@ func (f StaffMemberFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value,
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.StaffMemberMutation", m)
 }
 
+// The StaffOutletFunc type is an adapter to allow the use of ordinary
+// function as StaffOutlet mutator.
+type StaffOutletFunc func(context.Context, *ent.StaffOutletMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f StaffOutletFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.StaffOutletMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.StaffOutletMutation", m)
+}
+
 // The StaffPayrollFunc type is an adapter to allow the use of ordinary
 // function as StaffPayroll mutator.
 type StaffPayrollFunc func(context.Context, *ent.StaffPayrollMutation) (ent.Value, error)

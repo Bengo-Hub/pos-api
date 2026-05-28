@@ -16,6 +16,7 @@ import (
 	"github.com/bengobox/pos-service/internal/modules/tenant"
 )
 
+
 // Service handles identity-related operations using Ent.
 type Service struct {
 	client       *ent.Client
@@ -170,9 +171,8 @@ func (s *Service) ensureStaffMember(ctx context.Context, tenantID uuid.UUID, aut
 		}
 	}
 
-	_, err := s.client.StaffMember.Create().
+	created, err := s.client.StaffMember.Create().
 		SetTenantID(tenantID).
-		SetOutletID(outletID).
 		SetUserID(authUserID).
 		SetName(name).
 		SetRole(posRole).
@@ -182,6 +182,12 @@ func (s *Service) ensureStaffMember(ctx context.Context, tenantID uuid.UUID, aut
 		log.Printf("  [jit-provisioning] failed to create StaffMember for user %s: %v", authUserID, err)
 		return
 	}
+	_ = s.client.StaffOutlet.Create().
+		SetTenantID(tenantID).
+		SetStaffMemberID(created.ID).
+		SetOutletID(outletID).
+		SetIsHomeOutlet(true).
+		OnConflict().DoNothing().Exec(ctx)
 	log.Printf("  [jit-provisioning] created StaffMember (role=%s, outlet=%s) for user %s", posRole, outletID, authUserID)
 }
 

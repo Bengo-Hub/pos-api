@@ -14,6 +14,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
 	"github.com/bengobox/pos-service/internal/ent/staffmember"
+	"github.com/bengobox/pos-service/internal/ent/staffoutlet"
 	"github.com/google/uuid"
 )
 
@@ -40,20 +41,6 @@ func (_u *StaffMemberUpdate) SetTenantID(v uuid.UUID) *StaffMemberUpdate {
 func (_u *StaffMemberUpdate) SetNillableTenantID(v *uuid.UUID) *StaffMemberUpdate {
 	if v != nil {
 		_u.SetTenantID(*v)
-	}
-	return _u
-}
-
-// SetOutletID sets the "outlet_id" field.
-func (_u *StaffMemberUpdate) SetOutletID(v uuid.UUID) *StaffMemberUpdate {
-	_u.mutation.SetOutletID(v)
-	return _u
-}
-
-// SetNillableOutletID sets the "outlet_id" field if the given value is not nil.
-func (_u *StaffMemberUpdate) SetNillableOutletID(v *uuid.UUID) *StaffMemberUpdate {
-	if v != nil {
-		_u.SetOutletID(*v)
 	}
 	return _u
 }
@@ -419,9 +406,45 @@ func (_u *StaffMemberUpdate) SetUpdatedAt(v time.Time) *StaffMemberUpdate {
 	return _u
 }
 
+// AddOutletIDs adds the "outlets" edge to the StaffOutlet entity by IDs.
+func (_u *StaffMemberUpdate) AddOutletIDs(ids ...uuid.UUID) *StaffMemberUpdate {
+	_u.mutation.AddOutletIDs(ids...)
+	return _u
+}
+
+// AddOutlets adds the "outlets" edges to the StaffOutlet entity.
+func (_u *StaffMemberUpdate) AddOutlets(v ...*StaffOutlet) *StaffMemberUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddOutletIDs(ids...)
+}
+
 // Mutation returns the StaffMemberMutation object of the builder.
 func (_u *StaffMemberUpdate) Mutation() *StaffMemberMutation {
 	return _u.mutation
+}
+
+// ClearOutlets clears all "outlets" edges to the StaffOutlet entity.
+func (_u *StaffMemberUpdate) ClearOutlets() *StaffMemberUpdate {
+	_u.mutation.ClearOutlets()
+	return _u
+}
+
+// RemoveOutletIDs removes the "outlets" edge to StaffOutlet entities by IDs.
+func (_u *StaffMemberUpdate) RemoveOutletIDs(ids ...uuid.UUID) *StaffMemberUpdate {
+	_u.mutation.RemoveOutletIDs(ids...)
+	return _u
+}
+
+// RemoveOutlets removes "outlets" edges to StaffOutlet entities.
+func (_u *StaffMemberUpdate) RemoveOutlets(v ...*StaffOutlet) *StaffMemberUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveOutletIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -489,9 +512,6 @@ func (_u *StaffMemberUpdate) sqlSave(ctx context.Context) (_node int, err error)
 	}
 	if value, ok := _u.mutation.TenantID(); ok {
 		_spec.SetField(staffmember.FieldTenantID, field.TypeUUID, value)
-	}
-	if value, ok := _u.mutation.OutletID(); ok {
-		_spec.SetField(staffmember.FieldOutletID, field.TypeUUID, value)
 	}
 	if value, ok := _u.mutation.UserID(); ok {
 		_spec.SetField(staffmember.FieldUserID, field.TypeUUID, value)
@@ -609,6 +629,51 @@ func (_u *StaffMemberUpdate) sqlSave(ctx context.Context) (_node int, err error)
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(staffmember.FieldUpdatedAt, field.TypeTime, value)
 	}
+	if _u.mutation.OutletsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   staffmember.OutletsTable,
+			Columns: []string{staffmember.OutletsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(staffoutlet.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedOutletsIDs(); len(nodes) > 0 && !_u.mutation.OutletsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   staffmember.OutletsTable,
+			Columns: []string{staffmember.OutletsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(staffoutlet.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.OutletsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   staffmember.OutletsTable,
+			Columns: []string{staffmember.OutletsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(staffoutlet.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{staffmember.Label}
@@ -639,20 +704,6 @@ func (_u *StaffMemberUpdateOne) SetTenantID(v uuid.UUID) *StaffMemberUpdateOne {
 func (_u *StaffMemberUpdateOne) SetNillableTenantID(v *uuid.UUID) *StaffMemberUpdateOne {
 	if v != nil {
 		_u.SetTenantID(*v)
-	}
-	return _u
-}
-
-// SetOutletID sets the "outlet_id" field.
-func (_u *StaffMemberUpdateOne) SetOutletID(v uuid.UUID) *StaffMemberUpdateOne {
-	_u.mutation.SetOutletID(v)
-	return _u
-}
-
-// SetNillableOutletID sets the "outlet_id" field if the given value is not nil.
-func (_u *StaffMemberUpdateOne) SetNillableOutletID(v *uuid.UUID) *StaffMemberUpdateOne {
-	if v != nil {
-		_u.SetOutletID(*v)
 	}
 	return _u
 }
@@ -1018,9 +1069,45 @@ func (_u *StaffMemberUpdateOne) SetUpdatedAt(v time.Time) *StaffMemberUpdateOne 
 	return _u
 }
 
+// AddOutletIDs adds the "outlets" edge to the StaffOutlet entity by IDs.
+func (_u *StaffMemberUpdateOne) AddOutletIDs(ids ...uuid.UUID) *StaffMemberUpdateOne {
+	_u.mutation.AddOutletIDs(ids...)
+	return _u
+}
+
+// AddOutlets adds the "outlets" edges to the StaffOutlet entity.
+func (_u *StaffMemberUpdateOne) AddOutlets(v ...*StaffOutlet) *StaffMemberUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddOutletIDs(ids...)
+}
+
 // Mutation returns the StaffMemberMutation object of the builder.
 func (_u *StaffMemberUpdateOne) Mutation() *StaffMemberMutation {
 	return _u.mutation
+}
+
+// ClearOutlets clears all "outlets" edges to the StaffOutlet entity.
+func (_u *StaffMemberUpdateOne) ClearOutlets() *StaffMemberUpdateOne {
+	_u.mutation.ClearOutlets()
+	return _u
+}
+
+// RemoveOutletIDs removes the "outlets" edge to StaffOutlet entities by IDs.
+func (_u *StaffMemberUpdateOne) RemoveOutletIDs(ids ...uuid.UUID) *StaffMemberUpdateOne {
+	_u.mutation.RemoveOutletIDs(ids...)
+	return _u
+}
+
+// RemoveOutlets removes "outlets" edges to StaffOutlet entities.
+func (_u *StaffMemberUpdateOne) RemoveOutlets(v ...*StaffOutlet) *StaffMemberUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveOutletIDs(ids...)
 }
 
 // Where appends a list predicates to the StaffMemberUpdate builder.
@@ -1118,9 +1205,6 @@ func (_u *StaffMemberUpdateOne) sqlSave(ctx context.Context) (_node *StaffMember
 	}
 	if value, ok := _u.mutation.TenantID(); ok {
 		_spec.SetField(staffmember.FieldTenantID, field.TypeUUID, value)
-	}
-	if value, ok := _u.mutation.OutletID(); ok {
-		_spec.SetField(staffmember.FieldOutletID, field.TypeUUID, value)
 	}
 	if value, ok := _u.mutation.UserID(); ok {
 		_spec.SetField(staffmember.FieldUserID, field.TypeUUID, value)
@@ -1237,6 +1321,51 @@ func (_u *StaffMemberUpdateOne) sqlSave(ctx context.Context) (_node *StaffMember
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(staffmember.FieldUpdatedAt, field.TypeTime, value)
+	}
+	if _u.mutation.OutletsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   staffmember.OutletsTable,
+			Columns: []string{staffmember.OutletsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(staffoutlet.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedOutletsIDs(); len(nodes) > 0 && !_u.mutation.OutletsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   staffmember.OutletsTable,
+			Columns: []string{staffmember.OutletsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(staffoutlet.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.OutletsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   staffmember.OutletsTable,
+			Columns: []string{staffmember.OutletsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(staffoutlet.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	_node = &StaffMember{config: _u.config}
 	_spec.Assign = _node.assignValues

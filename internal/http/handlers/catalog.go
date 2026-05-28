@@ -144,6 +144,7 @@ func (h *CatalogHandler) ListCatalogItems(w http.ResponseWriter, r *http.Request
 
 	catFilter := r.URL.Query().Get("category")
 	searchFilter := strings.ToLower(r.URL.Query().Get("search"))
+	itemTypeFilter := strings.ToUpper(r.URL.Query().Get("item_type"))
 
 	tenantSlug := ""
 	if claims, ok := authclient.ClaimsFromContext(r.Context()); ok {
@@ -260,6 +261,18 @@ func (h *CatalogHandler) ListCatalogItems(w http.ResponseWriter, r *http.Request
 		}
 		if searchFilter != "" && !strings.Contains(strings.ToLower(item.Name), searchFilter) {
 			continue
+		}
+		if itemTypeFilter != "" {
+			matched := false
+			for _, t := range strings.Split(itemTypeFilter, ",") {
+				if strings.EqualFold(strings.TrimSpace(t), item.Type) {
+					matched = true
+					break
+				}
+			}
+			if !matched {
+				continue
+			}
 		}
 
 		o, hasOverride := overrideMap[item.SKU]

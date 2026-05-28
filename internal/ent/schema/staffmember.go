@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"entgo.io/ent"
+	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
 	"entgo.io/ent/schema/index"
 	"github.com/google/uuid"
@@ -19,7 +20,6 @@ func (StaffMember) Fields() []ent.Field {
 	return []ent.Field{
 		field.UUID("id", uuid.UUID{}).Default(uuid.New).Immutable(),
 		field.UUID("tenant_id", uuid.UUID{}),
-		field.UUID("outlet_id", uuid.UUID{}),
 		field.UUID("user_id", uuid.UUID{}).Comment("Auth-service user ID"),
 		field.String("name").NotEmpty(),
 		field.JSON("service_skus", []string{}).Optional().Comment("Service SKUs this staff can perform"),
@@ -57,11 +57,17 @@ func (StaffMember) Fields() []ent.Field {
 	}
 }
 
+// Edges of the StaffMember.
+func (StaffMember) Edges() []ent.Edge {
+	return []ent.Edge{
+		edge.To("outlets", StaffOutlet.Type),
+	}
+}
+
 // Indexes of the StaffMember.
 func (StaffMember) Indexes() []ent.Index {
 	return []ent.Index{
-		index.Fields("tenant_id", "outlet_id"),
 		index.Fields("tenant_id", "user_id").Unique(),
-		index.Fields("tenant_id", "outlet_id", "pin_fast_hash").Unique(),
+		index.Fields("tenant_id", "pin_fast_hash").Unique(),
 	}
 }

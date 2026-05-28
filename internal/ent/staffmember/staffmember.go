@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/google/uuid"
 )
 
@@ -17,8 +18,6 @@ const (
 	FieldID = "id"
 	// FieldTenantID holds the string denoting the tenant_id field in the database.
 	FieldTenantID = "tenant_id"
-	// FieldOutletID holds the string denoting the outlet_id field in the database.
-	FieldOutletID = "outlet_id"
 	// FieldUserID holds the string denoting the user_id field in the database.
 	FieldUserID = "user_id"
 	// FieldName holds the string denoting the name field in the database.
@@ -59,15 +58,23 @@ const (
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
 	FieldUpdatedAt = "updated_at"
+	// EdgeOutlets holds the string denoting the outlets edge name in mutations.
+	EdgeOutlets = "outlets"
 	// Table holds the table name of the staffmember in the database.
 	Table = "staff_members"
+	// OutletsTable is the table that holds the outlets relation/edge.
+	OutletsTable = "staff_outlets"
+	// OutletsInverseTable is the table name for the StaffOutlet entity.
+	// It exists in this package in order to avoid circular dependency with the "staffoutlet" package.
+	OutletsInverseTable = "staff_outlets"
+	// OutletsColumn is the table column denoting the outlets relation/edge.
+	OutletsColumn = "staff_member_id"
 )
 
 // Columns holds all SQL columns for staffmember fields.
 var Columns = []string{
 	FieldID,
 	FieldTenantID,
-	FieldOutletID,
 	FieldUserID,
 	FieldName,
 	FieldServiceSkus,
@@ -160,11 +167,6 @@ func ByTenantID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldTenantID, opts...).ToFunc()
 }
 
-// ByOutletID orders the results by the outlet_id field.
-func ByOutletID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldOutletID, opts...).ToFunc()
-}
-
 // ByUserID orders the results by the user_id field.
 func ByUserID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldUserID, opts...).ToFunc()
@@ -253,4 +255,25 @@ func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
 // ByUpdatedAt orders the results by the updated_at field.
 func ByUpdatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldUpdatedAt, opts...).ToFunc()
+}
+
+// ByOutletsCount orders the results by outlets count.
+func ByOutletsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newOutletsStep(), opts...)
+	}
+}
+
+// ByOutlets orders the results by outlets terms.
+func ByOutlets(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newOutletsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+func newOutletsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(OutletsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, OutletsTable, OutletsColumn),
+	)
 }

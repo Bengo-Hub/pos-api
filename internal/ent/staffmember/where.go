@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
 	"github.com/google/uuid"
 )
@@ -58,11 +59,6 @@ func IDLTE(id uuid.UUID) predicate.StaffMember {
 // TenantID applies equality check predicate on the "tenant_id" field. It's identical to TenantIDEQ.
 func TenantID(v uuid.UUID) predicate.StaffMember {
 	return predicate.StaffMember(sql.FieldEQ(FieldTenantID, v))
-}
-
-// OutletID applies equality check predicate on the "outlet_id" field. It's identical to OutletIDEQ.
-func OutletID(v uuid.UUID) predicate.StaffMember {
-	return predicate.StaffMember(sql.FieldEQ(FieldOutletID, v))
 }
 
 // UserID applies equality check predicate on the "user_id" field. It's identical to UserIDEQ.
@@ -188,46 +184,6 @@ func TenantIDLT(v uuid.UUID) predicate.StaffMember {
 // TenantIDLTE applies the LTE predicate on the "tenant_id" field.
 func TenantIDLTE(v uuid.UUID) predicate.StaffMember {
 	return predicate.StaffMember(sql.FieldLTE(FieldTenantID, v))
-}
-
-// OutletIDEQ applies the EQ predicate on the "outlet_id" field.
-func OutletIDEQ(v uuid.UUID) predicate.StaffMember {
-	return predicate.StaffMember(sql.FieldEQ(FieldOutletID, v))
-}
-
-// OutletIDNEQ applies the NEQ predicate on the "outlet_id" field.
-func OutletIDNEQ(v uuid.UUID) predicate.StaffMember {
-	return predicate.StaffMember(sql.FieldNEQ(FieldOutletID, v))
-}
-
-// OutletIDIn applies the In predicate on the "outlet_id" field.
-func OutletIDIn(vs ...uuid.UUID) predicate.StaffMember {
-	return predicate.StaffMember(sql.FieldIn(FieldOutletID, vs...))
-}
-
-// OutletIDNotIn applies the NotIn predicate on the "outlet_id" field.
-func OutletIDNotIn(vs ...uuid.UUID) predicate.StaffMember {
-	return predicate.StaffMember(sql.FieldNotIn(FieldOutletID, vs...))
-}
-
-// OutletIDGT applies the GT predicate on the "outlet_id" field.
-func OutletIDGT(v uuid.UUID) predicate.StaffMember {
-	return predicate.StaffMember(sql.FieldGT(FieldOutletID, v))
-}
-
-// OutletIDGTE applies the GTE predicate on the "outlet_id" field.
-func OutletIDGTE(v uuid.UUID) predicate.StaffMember {
-	return predicate.StaffMember(sql.FieldGTE(FieldOutletID, v))
-}
-
-// OutletIDLT applies the LT predicate on the "outlet_id" field.
-func OutletIDLT(v uuid.UUID) predicate.StaffMember {
-	return predicate.StaffMember(sql.FieldLT(FieldOutletID, v))
-}
-
-// OutletIDLTE applies the LTE predicate on the "outlet_id" field.
-func OutletIDLTE(v uuid.UUID) predicate.StaffMember {
-	return predicate.StaffMember(sql.FieldLTE(FieldOutletID, v))
 }
 
 // UserIDEQ applies the EQ predicate on the "user_id" field.
@@ -1203,6 +1159,29 @@ func UpdatedAtLT(v time.Time) predicate.StaffMember {
 // UpdatedAtLTE applies the LTE predicate on the "updated_at" field.
 func UpdatedAtLTE(v time.Time) predicate.StaffMember {
 	return predicate.StaffMember(sql.FieldLTE(FieldUpdatedAt, v))
+}
+
+// HasOutlets applies the HasEdge predicate on the "outlets" edge.
+func HasOutlets() predicate.StaffMember {
+	return predicate.StaffMember(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, OutletsTable, OutletsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasOutletsWith applies the HasEdge predicate on the "outlets" edge with a given conditions (other predicates).
+func HasOutletsWith(preds ...predicate.StaffOutlet) predicate.StaffMember {
+	return predicate.StaffMember(func(s *sql.Selector) {
+		step := newOutletsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
 }
 
 // And groups predicates with the AND operator between them.

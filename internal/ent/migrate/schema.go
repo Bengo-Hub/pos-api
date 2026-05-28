@@ -2409,7 +2409,6 @@ var (
 	StaffMembersColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
 		{Name: "tenant_id", Type: field.TypeUUID},
-		{Name: "outlet_id", Type: field.TypeUUID},
 		{Name: "user_id", Type: field.TypeUUID},
 		{Name: "name", Type: field.TypeString},
 		{Name: "service_skus", Type: field.TypeJSON, Nullable: true},
@@ -2438,19 +2437,55 @@ var (
 		PrimaryKey: []*schema.Column{StaffMembersColumns[0]},
 		Indexes: []*schema.Index{
 			{
-				Name:    "staffmember_tenant_id_outlet_id",
-				Unique:  false,
+				Name:    "staffmember_tenant_id_user_id",
+				Unique:  true,
 				Columns: []*schema.Column{StaffMembersColumns[1], StaffMembersColumns[2]},
 			},
 			{
-				Name:    "staffmember_tenant_id_user_id",
+				Name:    "staffmember_tenant_id_pin_fast_hash",
 				Unique:  true,
-				Columns: []*schema.Column{StaffMembersColumns[1], StaffMembersColumns[3]},
+				Columns: []*schema.Column{StaffMembersColumns[1], StaffMembersColumns[17]},
+			},
+		},
+	}
+	// StaffOutletsColumns holds the columns for the "staff_outlets" table.
+	StaffOutletsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "is_home_outlet", Type: field.TypeBool, Default: false},
+		{Name: "assigned_at", Type: field.TypeTime},
+		{Name: "outlet_id", Type: field.TypeUUID},
+		{Name: "staff_member_id", Type: field.TypeUUID},
+	}
+	// StaffOutletsTable holds the schema information for the "staff_outlets" table.
+	StaffOutletsTable = &schema.Table{
+		Name:       "staff_outlets",
+		Columns:    StaffOutletsColumns,
+		PrimaryKey: []*schema.Column{StaffOutletsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "staff_outlets_outlets_staff_outlets",
+				Columns:    []*schema.Column{StaffOutletsColumns[4]},
+				RefColumns: []*schema.Column{OutletsColumns[0]},
+				OnDelete:   schema.NoAction,
 			},
 			{
-				Name:    "staffmember_tenant_id_outlet_id_pin_fast_hash",
+				Symbol:     "staff_outlets_staff_members_outlets",
+				Columns:    []*schema.Column{StaffOutletsColumns[5]},
+				RefColumns: []*schema.Column{StaffMembersColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "staffoutlet_staff_member_id_outlet_id",
 				Unique:  true,
-				Columns: []*schema.Column{StaffMembersColumns[1], StaffMembersColumns[2], StaffMembersColumns[18]},
+				Columns: []*schema.Column{StaffOutletsColumns[5], StaffOutletsColumns[4]},
+			},
+			{
+				Name:    "staffoutlet_tenant_id_outlet_id",
+				Unique:  false,
+				Columns: []*schema.Column{StaffOutletsColumns[1], StaffOutletsColumns[4]},
 			},
 		},
 	}
@@ -3050,6 +3085,7 @@ var (
 		ServiceQueueEntriesTable,
 		StaffAdvancesTable,
 		StaffMembersTable,
+		StaffOutletsTable,
 		StaffPayrollsTable,
 		StaffPayrollLinesTable,
 		StaffSchedulesTable,
@@ -3098,6 +3134,8 @@ func init() {
 	RoomFolioItemsTable.ForeignKeys[0].RefTable = RoomsTable
 	RoomFolioItemsTable.ForeignKeys[1].RefTable = RoomGuestsTable
 	RoomGuestsTable.ForeignKeys[0].RefTable = RoomsTable
+	StaffOutletsTable.ForeignKeys[0].RefTable = OutletsTable
+	StaffOutletsTable.ForeignKeys[1].RefTable = StaffMembersTable
 	StaffPayrollLinesTable.ForeignKeys[0].RefTable = StaffPayrollsTable
 	TablesTable.ForeignKeys[0].RefTable = SectionsTable
 	TableAssignmentsTable.ForeignKeys[0].RefTable = TablesTable

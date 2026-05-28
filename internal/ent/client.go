@@ -93,6 +93,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/servicequeueentry"
 	"github.com/bengobox/pos-service/internal/ent/staffadvance"
 	"github.com/bengobox/pos-service/internal/ent/staffmember"
+	"github.com/bengobox/pos-service/internal/ent/staffoutlet"
 	"github.com/bengobox/pos-service/internal/ent/staffpayroll"
 	"github.com/bengobox/pos-service/internal/ent/staffpayrollline"
 	"github.com/bengobox/pos-service/internal/ent/staffschedule"
@@ -271,6 +272,8 @@ type Client struct {
 	StaffAdvance *StaffAdvanceClient
 	// StaffMember is the client for interacting with the StaffMember builders.
 	StaffMember *StaffMemberClient
+	// StaffOutlet is the client for interacting with the StaffOutlet builders.
+	StaffOutlet *StaffOutletClient
 	// StaffPayroll is the client for interacting with the StaffPayroll builders.
 	StaffPayroll *StaffPayrollClient
 	// StaffPayrollLine is the client for interacting with the StaffPayrollLine builders.
@@ -393,6 +396,7 @@ func (c *Client) init() {
 	c.ServiceQueueEntry = NewServiceQueueEntryClient(c.config)
 	c.StaffAdvance = NewStaffAdvanceClient(c.config)
 	c.StaffMember = NewStaffMemberClient(c.config)
+	c.StaffOutlet = NewStaffOutletClient(c.config)
 	c.StaffPayroll = NewStaffPayrollClient(c.config)
 	c.StaffPayrollLine = NewStaffPayrollLineClient(c.config)
 	c.StaffSchedule = NewStaffScheduleClient(c.config)
@@ -579,6 +583,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		ServiceQueueEntry:        NewServiceQueueEntryClient(cfg),
 		StaffAdvance:             NewStaffAdvanceClient(cfg),
 		StaffMember:              NewStaffMemberClient(cfg),
+		StaffOutlet:              NewStaffOutletClient(cfg),
 		StaffPayroll:             NewStaffPayrollClient(cfg),
 		StaffPayrollLine:         NewStaffPayrollLineClient(cfg),
 		StaffSchedule:            NewStaffScheduleClient(cfg),
@@ -692,6 +697,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		ServiceQueueEntry:        NewServiceQueueEntryClient(cfg),
 		StaffAdvance:             NewStaffAdvanceClient(cfg),
 		StaffMember:              NewStaffMemberClient(cfg),
+		StaffOutlet:              NewStaffOutletClient(cfg),
 		StaffPayroll:             NewStaffPayrollClient(cfg),
 		StaffPayrollLine:         NewStaffPayrollLineClient(cfg),
 		StaffSchedule:            NewStaffScheduleClient(cfg),
@@ -756,10 +762,10 @@ func (c *Client) Use(hooks ...Hook) {
 		c.RoomAmenityAssignment, c.RoomFolioItem, c.RoomGuest, c.Section,
 		c.SerialNumberLog, c.ServiceConfig, c.ServicePackage, c.ServicePackagePurchase,
 		c.ServicePackageRedemption, c.ServiceQueueEntry, c.StaffAdvance, c.StaffMember,
-		c.StaffPayroll, c.StaffPayrollLine, c.StaffSchedule, c.StockAlertSubscription,
-		c.StockConsumptionEvent, c.SyncFailure, c.Table, c.TableAssignment,
-		c.TableReservation, c.Tenant, c.TenantSyncEvent, c.Tender, c.User,
-		c.UserPOSRole, c.WebhookDelivery, c.WebhookSubscription,
+		c.StaffOutlet, c.StaffPayroll, c.StaffPayrollLine, c.StaffSchedule,
+		c.StockAlertSubscription, c.StockConsumptionEvent, c.SyncFailure, c.Table,
+		c.TableAssignment, c.TableReservation, c.Tenant, c.TenantSyncEvent, c.Tender,
+		c.User, c.UserPOSRole, c.WebhookDelivery, c.WebhookSubscription,
 		c.WeighingScaleReading,
 	} {
 		n.Use(hooks...)
@@ -788,10 +794,10 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.RoomAmenityAssignment, c.RoomFolioItem, c.RoomGuest, c.Section,
 		c.SerialNumberLog, c.ServiceConfig, c.ServicePackage, c.ServicePackagePurchase,
 		c.ServicePackageRedemption, c.ServiceQueueEntry, c.StaffAdvance, c.StaffMember,
-		c.StaffPayroll, c.StaffPayrollLine, c.StaffSchedule, c.StockAlertSubscription,
-		c.StockConsumptionEvent, c.SyncFailure, c.Table, c.TableAssignment,
-		c.TableReservation, c.Tenant, c.TenantSyncEvent, c.Tender, c.User,
-		c.UserPOSRole, c.WebhookDelivery, c.WebhookSubscription,
+		c.StaffOutlet, c.StaffPayroll, c.StaffPayrollLine, c.StaffSchedule,
+		c.StockAlertSubscription, c.StockConsumptionEvent, c.SyncFailure, c.Table,
+		c.TableAssignment, c.TableReservation, c.Tenant, c.TenantSyncEvent, c.Tender,
+		c.User, c.UserPOSRole, c.WebhookDelivery, c.WebhookSubscription,
 		c.WeighingScaleReading,
 	} {
 		n.Intercept(interceptors...)
@@ -955,6 +961,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.StaffAdvance.mutate(ctx, m)
 	case *StaffMemberMutation:
 		return c.StaffMember.mutate(ctx, m)
+	case *StaffOutletMutation:
+		return c.StaffOutlet.mutate(ctx, m)
 	case *StaffPayrollMutation:
 		return c.StaffPayroll.mutate(ctx, m)
 	case *StaffPayrollLineMutation:
@@ -6006,6 +6014,22 @@ func (c *OutletClient) QueryDailyClosings(_m *Outlet) *DailyClosingQuery {
 			sqlgraph.From(outlet.Table, outlet.FieldID, id),
 			sqlgraph.To(dailyclosing.Table, dailyclosing.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, outlet.DailyClosingsTable, outlet.DailyClosingsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryStaffOutlets queries the staff_outlets edge of a Outlet.
+func (c *OutletClient) QueryStaffOutlets(_m *Outlet) *StaffOutletQuery {
+	query := (&StaffOutletClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(outlet.Table, outlet.FieldID, id),
+			sqlgraph.To(staffoutlet.Table, staffoutlet.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, outlet.StaffOutletsTable, outlet.StaffOutletsColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -12074,6 +12098,22 @@ func (c *StaffMemberClient) GetX(ctx context.Context, id uuid.UUID) *StaffMember
 	return obj
 }
 
+// QueryOutlets queries the outlets edge of a StaffMember.
+func (c *StaffMemberClient) QueryOutlets(_m *StaffMember) *StaffOutletQuery {
+	query := (&StaffOutletClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(staffmember.Table, staffmember.FieldID, id),
+			sqlgraph.To(staffoutlet.Table, staffoutlet.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, staffmember.OutletsTable, staffmember.OutletsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *StaffMemberClient) Hooks() []Hook {
 	return c.hooks.StaffMember
@@ -12096,6 +12136,171 @@ func (c *StaffMemberClient) mutate(ctx context.Context, m *StaffMemberMutation) 
 		return (&StaffMemberDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown StaffMember mutation op: %q", m.Op())
+	}
+}
+
+// StaffOutletClient is a client for the StaffOutlet schema.
+type StaffOutletClient struct {
+	config
+}
+
+// NewStaffOutletClient returns a client for the StaffOutlet from the given config.
+func NewStaffOutletClient(c config) *StaffOutletClient {
+	return &StaffOutletClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `staffoutlet.Hooks(f(g(h())))`.
+func (c *StaffOutletClient) Use(hooks ...Hook) {
+	c.hooks.StaffOutlet = append(c.hooks.StaffOutlet, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `staffoutlet.Intercept(f(g(h())))`.
+func (c *StaffOutletClient) Intercept(interceptors ...Interceptor) {
+	c.inters.StaffOutlet = append(c.inters.StaffOutlet, interceptors...)
+}
+
+// Create returns a builder for creating a StaffOutlet entity.
+func (c *StaffOutletClient) Create() *StaffOutletCreate {
+	mutation := newStaffOutletMutation(c.config, OpCreate)
+	return &StaffOutletCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of StaffOutlet entities.
+func (c *StaffOutletClient) CreateBulk(builders ...*StaffOutletCreate) *StaffOutletCreateBulk {
+	return &StaffOutletCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *StaffOutletClient) MapCreateBulk(slice any, setFunc func(*StaffOutletCreate, int)) *StaffOutletCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &StaffOutletCreateBulk{err: fmt.Errorf("calling to StaffOutletClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*StaffOutletCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &StaffOutletCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for StaffOutlet.
+func (c *StaffOutletClient) Update() *StaffOutletUpdate {
+	mutation := newStaffOutletMutation(c.config, OpUpdate)
+	return &StaffOutletUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *StaffOutletClient) UpdateOne(_m *StaffOutlet) *StaffOutletUpdateOne {
+	mutation := newStaffOutletMutation(c.config, OpUpdateOne, withStaffOutlet(_m))
+	return &StaffOutletUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *StaffOutletClient) UpdateOneID(id uuid.UUID) *StaffOutletUpdateOne {
+	mutation := newStaffOutletMutation(c.config, OpUpdateOne, withStaffOutletID(id))
+	return &StaffOutletUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for StaffOutlet.
+func (c *StaffOutletClient) Delete() *StaffOutletDelete {
+	mutation := newStaffOutletMutation(c.config, OpDelete)
+	return &StaffOutletDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *StaffOutletClient) DeleteOne(_m *StaffOutlet) *StaffOutletDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *StaffOutletClient) DeleteOneID(id uuid.UUID) *StaffOutletDeleteOne {
+	builder := c.Delete().Where(staffoutlet.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &StaffOutletDeleteOne{builder}
+}
+
+// Query returns a query builder for StaffOutlet.
+func (c *StaffOutletClient) Query() *StaffOutletQuery {
+	return &StaffOutletQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeStaffOutlet},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a StaffOutlet entity by its id.
+func (c *StaffOutletClient) Get(ctx context.Context, id uuid.UUID) (*StaffOutlet, error) {
+	return c.Query().Where(staffoutlet.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *StaffOutletClient) GetX(ctx context.Context, id uuid.UUID) *StaffOutlet {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryStaffMember queries the staff_member edge of a StaffOutlet.
+func (c *StaffOutletClient) QueryStaffMember(_m *StaffOutlet) *StaffMemberQuery {
+	query := (&StaffMemberClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(staffoutlet.Table, staffoutlet.FieldID, id),
+			sqlgraph.To(staffmember.Table, staffmember.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, staffoutlet.StaffMemberTable, staffoutlet.StaffMemberColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryOutlet queries the outlet edge of a StaffOutlet.
+func (c *StaffOutletClient) QueryOutlet(_m *StaffOutlet) *OutletQuery {
+	query := (&OutletClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(staffoutlet.Table, staffoutlet.FieldID, id),
+			sqlgraph.To(outlet.Table, outlet.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, staffoutlet.OutletTable, staffoutlet.OutletColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *StaffOutletClient) Hooks() []Hook {
+	return c.hooks.StaffOutlet
+}
+
+// Interceptors returns the client interceptors.
+func (c *StaffOutletClient) Interceptors() []Interceptor {
+	return c.inters.StaffOutlet
+}
+
+func (c *StaffOutletClient) mutate(ctx context.Context, m *StaffOutletMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&StaffOutletCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&StaffOutletUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&StaffOutletUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&StaffOutletDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown StaffOutlet mutation op: %q", m.Op())
 	}
 }
 
@@ -14555,10 +14760,11 @@ type (
 		RoomAmenity, RoomAmenityAssignment, RoomFolioItem, RoomGuest, Section,
 		SerialNumberLog, ServiceConfig, ServicePackage, ServicePackagePurchase,
 		ServicePackageRedemption, ServiceQueueEntry, StaffAdvance, StaffMember,
-		StaffPayroll, StaffPayrollLine, StaffSchedule, StockAlertSubscription,
-		StockConsumptionEvent, SyncFailure, Table, TableAssignment, TableReservation,
-		Tenant, TenantSyncEvent, Tender, User, UserPOSRole, WebhookDelivery,
-		WebhookSubscription, WeighingScaleReading []ent.Hook
+		StaffOutlet, StaffPayroll, StaffPayrollLine, StaffSchedule,
+		StockAlertSubscription, StockConsumptionEvent, SyncFailure, Table,
+		TableAssignment, TableReservation, Tenant, TenantSyncEvent, Tender, User,
+		UserPOSRole, WebhookDelivery, WebhookSubscription,
+		WeighingScaleReading []ent.Hook
 	}
 	inters struct {
 		Appointment, BarTab, BarTabEvent, BillSplit, CashDrawer, CashDrawerEvent,
@@ -14577,9 +14783,10 @@ type (
 		RoomAmenity, RoomAmenityAssignment, RoomFolioItem, RoomGuest, Section,
 		SerialNumberLog, ServiceConfig, ServicePackage, ServicePackagePurchase,
 		ServicePackageRedemption, ServiceQueueEntry, StaffAdvance, StaffMember,
-		StaffPayroll, StaffPayrollLine, StaffSchedule, StockAlertSubscription,
-		StockConsumptionEvent, SyncFailure, Table, TableAssignment, TableReservation,
-		Tenant, TenantSyncEvent, Tender, User, UserPOSRole, WebhookDelivery,
-		WebhookSubscription, WeighingScaleReading []ent.Interceptor
+		StaffOutlet, StaffPayroll, StaffPayrollLine, StaffSchedule,
+		StockAlertSubscription, StockConsumptionEvent, SyncFailure, Table,
+		TableAssignment, TableReservation, Tenant, TenantSyncEvent, Tender, User,
+		UserPOSRole, WebhookDelivery, WebhookSubscription,
+		WeighingScaleReading []ent.Interceptor
 	}
 )

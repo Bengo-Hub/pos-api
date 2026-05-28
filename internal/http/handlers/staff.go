@@ -11,6 +11,7 @@ import (
 
 	"github.com/bengobox/pos-service/internal/ent"
 	entstaff "github.com/bengobox/pos-service/internal/ent/staffmember"
+	entstaffoutlet "github.com/bengobox/pos-service/internal/ent/staffoutlet"
 )
 
 // StaffHandler handles staff CRUD operations for the pos-ui admin/team panel.
@@ -65,7 +66,10 @@ func (h *StaffHandler) ListStaffForAdmin(w http.ResponseWriter, r *http.Request)
 	p := pagination.Parse(r)
 	baseQ := h.client.StaffMember.Query().Where(entstaff.TenantID(tid))
 	total, _ := baseQ.Clone().Count(r.Context())
-	members, err := baseQ.Order(ent.Asc(entstaff.FieldName)).Limit(p.Limit).Offset(p.Offset).All(r.Context())
+	members, err := baseQ.Order(ent.Asc(entstaff.FieldName)).
+		WithOutlets(func(soq *ent.StaffOutletQuery) {
+			soq.Where(entstaffoutlet.IsHomeOutlet(true)).Limit(1)
+		}).Limit(p.Limit).Offset(p.Offset).All(r.Context())
 	if err != nil {
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
@@ -73,10 +77,14 @@ func (h *StaffHandler) ListStaffForAdmin(w http.ResponseWriter, r *http.Request)
 
 	out := make([]staffAdminItem, 0, len(members))
 	for _, m := range members {
+		homeOutletID := ""
+		if len(m.Edges.Outlets) > 0 {
+			homeOutletID = m.Edges.Outlets[0].OutletID.String()
+		}
 		item := staffAdminItem{
 			ID:             m.ID.String(),
 			UserID:         m.UserID.String(),
-			OutletID:       m.OutletID.String(),
+			OutletID:       homeOutletID,
 			Name:           m.Name,
 			Role:           m.Role,
 			EmploymentType: string(m.EmploymentType),
@@ -145,7 +153,6 @@ func (h *StaffHandler) CreateStaff(w http.ResponseWriter, r *http.Request) {
 
 	q := h.client.StaffMember.Create().
 		SetTenantID(tid).
-		SetOutletID(outletID).
 		SetUserID(userID).
 		SetName(input.Name).
 		SetRole(input.Role).
@@ -171,6 +178,14 @@ func (h *StaffHandler) CreateStaff(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "failed to create staff member", http.StatusInternalServerError)
 		return
 	}
+
+	// Assign staff to outlet via join table.
+	_ = h.client.StaffOutlet.Create().
+		SetTenantID(tid).
+		SetStaffMemberID(member.ID).
+		SetOutletID(outletID).
+		SetIsHomeOutlet(true).
+		OnConflict().DoNothing().Exec(r.Context())
 
 	respondJSON(w, http.StatusCreated, map[string]any{"id": member.ID.String(), "name": member.Name})
 }
@@ -235,7 +250,13 @@ func (h *StaffHandler) UpdateStaff(w http.ResponseWriter, r *http.Request) {
 	}
 	if input.OutletID != nil {
 		if oid, err := uuid.Parse(*input.OutletID); err == nil {
-			upd = upd.SetOutletID(oid)
+			// Upsert StaffOutlet — add new outlet assignment if not already assigned.
+			_ = h.client.StaffOutlet.Create().
+				SetTenantID(tid).
+				SetStaffMemberID(member.ID).
+				SetOutletID(oid).
+				SetIsHomeOutlet(true).
+				OnConflict().DoNothing().Exec(r.Context())
 		}
 	}
 	if input.EmploymentType != nil {

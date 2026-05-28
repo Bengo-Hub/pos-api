@@ -51,6 +51,8 @@ const (
 	EdgeDevices = "devices"
 	// EdgeDailyClosings holds the string denoting the daily_closings edge name in mutations.
 	EdgeDailyClosings = "daily_closings"
+	// EdgeStaffOutlets holds the string denoting the staff_outlets edge name in mutations.
+	EdgeStaffOutlets = "staff_outlets"
 	// Table holds the table name of the outlet in the database.
 	Table = "outlets"
 	// TenantTable is the table that holds the tenant relation/edge.
@@ -81,6 +83,13 @@ const (
 	DailyClosingsInverseTable = "daily_closings"
 	// DailyClosingsColumn is the table column denoting the daily_closings relation/edge.
 	DailyClosingsColumn = "outlet_id"
+	// StaffOutletsTable is the table that holds the staff_outlets relation/edge.
+	StaffOutletsTable = "staff_outlets"
+	// StaffOutletsInverseTable is the table name for the StaffOutlet entity.
+	// It exists in this package in order to avoid circular dependency with the "staffoutlet" package.
+	StaffOutletsInverseTable = "staff_outlets"
+	// StaffOutletsColumn is the table column denoting the staff_outlets relation/edge.
+	StaffOutletsColumn = "outlet_id"
 )
 
 // Columns holds all SQL columns for outlet fields.
@@ -251,6 +260,20 @@ func ByDailyClosings(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newDailyClosingsStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
+
+// ByStaffOutletsCount orders the results by staff_outlets count.
+func ByStaffOutletsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newStaffOutletsStep(), opts...)
+	}
+}
+
+// ByStaffOutlets orders the results by staff_outlets terms.
+func ByStaffOutlets(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newStaffOutletsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newTenantStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -277,5 +300,12 @@ func newDailyClosingsStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(DailyClosingsInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, DailyClosingsTable, DailyClosingsColumn),
+	)
+}
+func newStaffOutletsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(StaffOutletsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, StaffOutletsTable, StaffOutletsColumn),
 	)
 }

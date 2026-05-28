@@ -166,6 +166,8 @@ type Tx struct {
 	StaffAdvance *StaffAdvanceClient
 	// StaffMember is the client for interacting with the StaffMember builders.
 	StaffMember *StaffMemberClient
+	// StaffOutlet is the client for interacting with the StaffOutlet builders.
+	StaffOutlet *StaffOutletClient
 	// StaffPayroll is the client for interacting with the StaffPayroll builders.
 	StaffPayroll *StaffPayrollClient
 	// StaffPayrollLine is the client for interacting with the StaffPayrollLine builders.
@@ -408,6 +410,7 @@ func (tx *Tx) init() {
 	tx.ServiceQueueEntry = NewServiceQueueEntryClient(tx.config)
 	tx.StaffAdvance = NewStaffAdvanceClient(tx.config)
 	tx.StaffMember = NewStaffMemberClient(tx.config)
+	tx.StaffOutlet = NewStaffOutletClient(tx.config)
 	tx.StaffPayroll = NewStaffPayrollClient(tx.config)
 	tx.StaffPayrollLine = NewStaffPayrollLineClient(tx.config)
 	tx.StaffSchedule = NewStaffScheduleClient(tx.config)

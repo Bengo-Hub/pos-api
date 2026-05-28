@@ -17,11 +17,11 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/user"
 )
 
-// staffPinFastHash computes hex(SHA256(tenantID+":"+outletID+":"+pin)).
-// Mirrors the identical helper in handlers/pin_auth.go — kept local to avoid
-// a cross-package dependency in the event subscriber.
-func staffPinFastHash(tenantID, outletID uuid.UUID, pin string) string {
-	h := sha256.Sum256([]byte(tenantID.String() + ":" + outletID.String() + ":" + pin))
+// staffPinFastHash computes hex(SHA256(tenantID+":"+userID+":"+pin)).
+// Mirrors the identical helper in handlers/pin_auth.go — user-scoped so one PIN works
+// across all outlets the user is assigned to.
+func staffPinFastHash(tenantID, userID uuid.UUID, pin string) string {
+	h := sha256.Sum256([]byte(tenantID.String() + ":" + userID.String() + ":" + pin))
 	return fmt.Sprintf("%x", h)
 }
 
@@ -253,16 +253,19 @@ func (h *AuthEventHandler) handleUserUpdated(ctx context.Context, evt *sharedeve
 		smUpdate = smUpdate.SetRole(posRole)
 		smChanged = true
 	}
-	// Update outlet if provided.
-	outletIDStr, _ := evt.Payload["outlet_id"].(string)
-	if outletIDStr != "" {
-		if outletID, err := uuid.Parse(outletIDStr); err == nil {
-			smUpdate = smUpdate.SetOutletID(outletID)
-			smChanged = true
-		}
-	}
 	if smChanged {
 		_ = smUpdate.Exec(ctx)
+	}
+
+	// Upsert StaffOutlet rows for each outlet in the event payload.
+	outletIDs := parseOutletIDs(evt.Payload)
+	if len(outletIDs) > 0 {
+		sm, smErr := h.client.StaffMember.Query().
+			Where(staffmember.TenantID(u.TenantID), staffmember.UserID(authServiceUserID)).
+			Only(ctx)
+		if smErr == nil {
+			h.upsertStaffOutlets(ctx, sm.ID, u.TenantID, outletIDs)
+		}
 	}
 
 	h.logger.Info("user updated from auth.user.updated event",
@@ -330,9 +333,8 @@ func (h *AuthEventHandler) handleUserPINSet(ctx context.Context, evt *sharedeven
 		if oErr != nil {
 			return fmt.Errorf("no active outlet found for tenant %s, cannot create StaffMember: %w", tenantID, oErr)
 		}
-		_, createErr := h.client.StaffMember.Create().
+		created, createErr := h.client.StaffMember.Create().
 			SetTenantID(tenantID).
-			SetOutletID(homeOutlet.ID).
 			SetUserID(authServiceUserID).
 			SetName(name).
 			SetRole(role).
@@ -342,6 +344,13 @@ func (h *AuthEventHandler) handleUserPINSet(ctx context.Context, evt *sharedeven
 		if createErr != nil {
 			return fmt.Errorf("create StaffMember for PIN set: %w", createErr)
 		}
+		// Assign home outlet via join table.
+		_ = h.client.StaffOutlet.Create().
+			SetTenantID(tenantID).
+			SetStaffMemberID(created.ID).
+			SetOutletID(homeOutlet.ID).
+			SetIsHomeOutlet(true).
+			OnConflict().DoNothing().Exec(ctx)
 		// Now try again
 		existing, err = h.client.StaffMember.Query().
 			Where(staffmember.TenantID(tenantID), staffmember.UserID(authServiceUserID)).
@@ -353,9 +362,9 @@ func (h *AuthEventHandler) handleUserPINSet(ctx context.Context, evt *sharedeven
 
 	upd := existing.Update().SetPinHash(pinHash)
 	// If the event includes the raw pin (sent by auth-api seed for internal NATS events),
-	// pre-compute and store pin_fast_hash so IdentifyByPIN can use the O(1) index path.
+	// pre-compute and store pin_fast_hash (user-scoped) for the direct-auth endpoint.
 	if rawPin, _ := evt.Payload["pin"].(string); rawPin != "" {
-		upd = upd.SetPinFastHash(staffPinFastHash(existing.TenantID, existing.OutletID, rawPin))
+		upd = upd.SetPinFastHash(staffPinFastHash(existing.TenantID, existing.UserID, rawPin))
 	}
 	if err := upd.Exec(ctx); err != nil {
 		return fmt.Errorf("update PIN hash: %w", err)
@@ -367,7 +376,7 @@ func (h *AuthEventHandler) handleUserPINSet(ctx context.Context, evt *sharedeven
 }
 
 // upsertStaffMember creates a StaffMember for the given user if one does not exist,
-// or updates name/role if they changed. This is idempotent.
+// or updates name/role if they changed, then upserts StaffOutlet rows. This is idempotent.
 func (h *AuthEventHandler) upsertStaffMember(ctx context.Context, userID, tenantID uuid.UUID, name string, evt *sharedevents.Event) {
 	posRole := mapSSORoleToPOS(evt.Payload)
 	if posRole == "" {
@@ -377,17 +386,24 @@ func (h *AuthEventHandler) upsertStaffMember(ctx context.Context, userID, tenant
 		return
 	}
 
-	// Find best outlet: prefer HQ, then any non-logistics active outlet.
-	homeOutlet, err := h.client.Outlet.Query().
-		Where(outlet.TenantID(tenantID), outlet.IsHq(true), outlet.StatusEQ("active"),
-			outlet.UseCaseNEQ("logistics"), outlet.UseCaseNEQ("warehouse")).
-		First(ctx)
-	if err != nil {
-		homeOutlet, err = h.client.Outlet.Query().
-			Where(outlet.TenantID(tenantID), outlet.StatusEQ("active"),
+	// Resolve outlet IDs from event payload (many-to-many).
+	outletIDs := parseOutletIDs(evt.Payload)
+
+	// Fallback: use HQ outlet if no outlet_ids in event.
+	if len(outletIDs) == 0 {
+		homeOutlet, err := h.client.Outlet.Query().
+			Where(outlet.TenantID(tenantID), outlet.IsHq(true), outlet.StatusEQ("active"),
 				outlet.UseCaseNEQ("logistics"), outlet.UseCaseNEQ("warehouse")).
 			First(ctx)
 		if err != nil {
+			homeOutlet, err = h.client.Outlet.Query().
+				Where(outlet.TenantID(tenantID), outlet.StatusEQ("active"),
+					outlet.UseCaseNEQ("logistics"), outlet.UseCaseNEQ("warehouse")).
+				First(ctx)
+		}
+		if err == nil {
+			outletIDs = []uuid.UUID{homeOutlet.ID}
+		} else {
 			h.logger.Warn("no active outlet found for tenant, cannot create StaffMember",
 				zap.String("tenant_id", tenantID.String()))
 			return
@@ -411,6 +427,7 @@ func (h *AuthEventHandler) upsertStaffMember(ctx context.Context, userID, tenant
 		if changed {
 			_ = upd.Exec(ctx)
 		}
+		h.upsertStaffOutlets(ctx, existing.ID, tenantID, outletIDs)
 		return
 	}
 	if !ent.IsNotFound(err) {
@@ -418,9 +435,8 @@ func (h *AuthEventHandler) upsertStaffMember(ctx context.Context, userID, tenant
 		return
 	}
 
-	_, err = h.client.StaffMember.Create().
+	created, err := h.client.StaffMember.Create().
 		SetTenantID(tenantID).
-		SetOutletID(homeOutlet.ID).
 		SetUserID(userID).
 		SetName(name).
 		SetRole(posRole).
@@ -429,6 +445,49 @@ func (h *AuthEventHandler) upsertStaffMember(ctx context.Context, userID, tenant
 		Save(ctx)
 	if err != nil {
 		h.logger.Warn("failed to create StaffMember from auth event", zap.Error(err))
+		return
+	}
+	h.upsertStaffOutlets(ctx, created.ID, tenantID, outletIDs)
+}
+
+// parseOutletIDs extracts outlet UUIDs from an event payload.
+// Reads the new outlet_ids array first, falls back to the legacy outlet_id string.
+func parseOutletIDs(payload map[string]interface{}) []uuid.UUID {
+	var ids []uuid.UUID
+	if raw, ok := payload["outlet_ids"].([]interface{}); ok {
+		for _, v := range raw {
+			if str, ok := v.(string); ok {
+				if id, err := uuid.Parse(str); err == nil {
+					ids = append(ids, id)
+				}
+			}
+		}
+	}
+	if len(ids) == 0 {
+		if str, ok := payload["outlet_id"].(string); ok && str != "" {
+			if id, err := uuid.Parse(str); err == nil {
+				ids = append(ids, id)
+			}
+		}
+	}
+	return ids
+}
+
+// upsertStaffOutlets creates StaffOutlet rows for each outletID (idempotent via ON CONFLICT DO NOTHING).
+func (h *AuthEventHandler) upsertStaffOutlets(ctx context.Context, staffMemberID, tenantID uuid.UUID, outletIDs []uuid.UUID) {
+	for i, outletID := range outletIDs {
+		err := h.client.StaffOutlet.Create().
+			SetTenantID(tenantID).
+			SetStaffMemberID(staffMemberID).
+			SetOutletID(outletID).
+			SetIsHomeOutlet(i == 0).
+			OnConflict().DoNothing().Exec(ctx)
+		if err != nil {
+			h.logger.Warn("failed to upsert StaffOutlet",
+				zap.String("staff_member_id", staffMemberID.String()),
+				zap.String("outlet_id", outletID.String()),
+				zap.Error(err))
+		}
 	}
 }
 

@@ -898,6 +898,29 @@ func HasDailyClosingsWith(preds ...predicate.DailyClosing) predicate.Outlet {
 	})
 }
 
+// HasStaffOutlets applies the HasEdge predicate on the "staff_outlets" edge.
+func HasStaffOutlets() predicate.Outlet {
+	return predicate.Outlet(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, StaffOutletsTable, StaffOutletsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasStaffOutletsWith applies the HasEdge predicate on the "staff_outlets" edge with a given conditions (other predicates).
+func HasStaffOutletsWith(preds ...predicate.StaffOutlet) predicate.Outlet {
+	return predicate.Outlet(func(s *sql.Selector) {
+		step := newStaffOutletsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // And groups predicates with the AND operator between them.
 func And(predicates ...predicate.Outlet) predicate.Outlet {
 	return predicate.Outlet(sql.AndPredicates(predicates...))

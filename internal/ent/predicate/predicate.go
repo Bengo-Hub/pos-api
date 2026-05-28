@@ -237,6 +237,9 @@ type StaffAdvance func(*sql.Selector)
 // StaffMember is the predicate function for staffmember builders.
 type StaffMember func(*sql.Selector)
 
+// StaffOutlet is the predicate function for staffoutlet builders.
+type StaffOutlet func(*sql.Selector)
+
 // StaffPayroll is the predicate function for staffpayroll builders.
 type StaffPayroll func(*sql.Selector)
 
