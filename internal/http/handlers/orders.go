@@ -81,7 +81,12 @@ func (h *POSOrderHandler) ListOrders(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	filters := []predicate.POSOrder{posorder.TenantID(tid)}
 	if status := q.Get("status"); status != "" {
-		filters = append(filters, posorder.Status(status))
+		statuses := strings.Split(status, ",")
+		if len(statuses) > 1 {
+			filters = append(filters, posorder.StatusIn(statuses...))
+		} else {
+			filters = append(filters, posorder.Status(statuses[0]))
+		}
 	}
 	// staff_id scopes the list to orders created by a specific staff member (view_own roles).
 	if staffIDStr := q.Get("staff_id"); staffIDStr != "" {

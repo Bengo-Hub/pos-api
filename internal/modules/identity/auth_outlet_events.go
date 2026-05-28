@@ -13,6 +13,16 @@ import (
 	"github.com/bengobox/pos-service/internal/ent"
 )
 
+// posAcceptedUseCases is the set of outlet use_cases that POS supports.
+// Outlets with other use_cases (logistics, warehouse, truload) are ACKed and skipped.
+var posAcceptedUseCases = map[string]bool{
+	"hospitality":  true,
+	"retail":       true,
+	"quick_service": true,
+	"pharmacy":     true,
+	"services":     true,
+}
+
 // authStream is the NATS JetStream stream name that auth-api publishes to.
 const authStream = "auth"
 
@@ -113,6 +123,14 @@ func (h *AuthOutletEventHandler) handleUpsert(ctx context.Context, evt *sharedev
 		status = "active"
 	}
 
+	// Skip outlets that don't apply to POS (logistics hubs, warehouses, weighbridges).
+	if useCase != "" && !posAcceptedUseCases[useCase] {
+		h.logger.Info("skipping outlet: use_case not applicable to pos-api",
+			zap.String("outlet_id", outletIDStr),
+			zap.String("use_case", useCase))
+		return nil
+	}
+
 	outletID, err := uuid.Parse(outletIDStr)
 	if err != nil {
 		return fmt.Errorf("invalid outlet_id %q: %w", outletIDStr, err)
@@ -167,6 +185,7 @@ func (h *AuthOutletEventHandler) handleUpsert(ctx context.Context, evt *sharedev
 }
 
 // handleArchive sets status = "archived" for the outlet.
+// If the outlet was never synced to POS (filtered by use_case), this is a no-op.
 func (h *AuthOutletEventHandler) handleArchive(ctx context.Context, evt *sharedevents.Event) error {
 	outletIDStr, _ := evt.Payload["outlet_id"].(string)
 	outletID, err := uuid.Parse(outletIDStr)
@@ -176,7 +195,7 @@ func (h *AuthOutletEventHandler) handleArchive(ctx context.Context, evt *sharede
 
 	if err := h.client.Outlet.UpdateOneID(outletID).SetStatus("archived").Exec(ctx); err != nil {
 		if ent.IsNotFound(err) {
-			return nil
+			return nil // outlet was never synced to POS — safe to ignore
 		}
 		return fmt.Errorf("archive outlet mirror: %w", err)
 	}
