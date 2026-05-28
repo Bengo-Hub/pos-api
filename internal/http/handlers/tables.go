@@ -170,10 +170,15 @@ func (h *TableHandler) UpdateSection(w http.ResponseWriter, r *http.Request) {
 }
 
 // ListTables handles GET /{tenantID}/pos/tables
-// tableRow is the API response shape for a single table, extending the Ent model with occupied_since.
+// tableRow is the API response shape for a single table, extending the Ent model with occupied_since
+// and live order info for occupied tables (order_id, order_number, order_total, covers).
 type tableRow struct {
 	*ent.Table
-	OccupiedSince *string `json:"occupied_since,omitempty"`
+	OccupiedSince *string  `json:"occupied_since,omitempty"`
+	OrderID       *string  `json:"order_id,omitempty"`
+	OrderNumber   *string  `json:"order_number,omitempty"`
+	OrderTotal    *float64 `json:"order_total,omitempty"`
+	Covers        *int     `json:"covers,omitempty"`
 }
 
 func (h *TableHandler) ListTables(w http.ResponseWriter, r *http.Request) {
@@ -208,12 +213,59 @@ func (h *TableHandler) ListTables(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Collect order IDs from active assignments so we can fetch order info in one query.
+	orderIDSet := make(map[uuid.UUID]struct{})
+	for _, t := range tables {
+		if t.Status == "occupied" && len(t.Edges.Assignments) > 0 {
+			asgn := t.Edges.Assignments[0]
+			if asgn.OrderID != nil {
+				orderIDSet[*asgn.OrderID] = struct{}{}
+			}
+		}
+	}
+	orderIDs := make([]uuid.UUID, 0, len(orderIDSet))
+	for id := range orderIDSet {
+		orderIDs = append(orderIDs, id)
+	}
+
+	type orderSummary struct {
+		OrderNumber string
+		TotalAmount float64
+		Covers      int
+	}
+	orderSummaries := make(map[uuid.UUID]orderSummary)
+	if len(orderIDs) > 0 {
+		orders, qErr := h.client.POSOrder.Query().
+			Where(entposorder.IDIn(orderIDs...)).
+			Select("id", "order_number", "total_amount", "covers_count").
+			All(r.Context())
+		if qErr == nil {
+			for _, o := range orders {
+				orderSummaries[o.ID] = orderSummary{
+					OrderNumber: o.OrderNumber,
+					TotalAmount: o.TotalAmount,
+					Covers:      o.CoversCount,
+				}
+			}
+		}
+	}
+
 	rows := make([]tableRow, len(tables))
 	for i, t := range tables {
 		row := tableRow{Table: t}
 		if t.Status == "occupied" && len(t.Edges.Assignments) > 0 {
-			ts := t.Edges.Assignments[0].AssignedAt.UTC().Format(time.RFC3339)
+			asgn := t.Edges.Assignments[0]
+			ts := asgn.AssignedAt.UTC().Format(time.RFC3339)
 			row.OccupiedSince = &ts
+			if asgn.OrderID != nil {
+				if s, ok := orderSummaries[*asgn.OrderID]; ok {
+					oidStr := asgn.OrderID.String()
+					row.OrderID = &oidStr
+					row.OrderNumber = &s.OrderNumber
+					row.OrderTotal = &s.TotalAmount
+					row.Covers = &s.Covers
+				}
+			}
 		}
 		rows[i] = row
 	}
@@ -610,6 +662,139 @@ func (h *TableHandler) MergeTables(w http.ResponseWriter, r *http.Request) {
 		"primary_order_id":  primaryAsgn.OrderID,
 		"merged_order_id":   secondaryAsgn.OrderID,
 		"lines_transferred": len(secondaryLines),
+	})
+}
+
+// UnmergeTables handles POST /{tenantID}/pos/tables/unmerge
+// Reverses a previous table merge by splitting the specified lines out of the primary
+// order into a new order and re-assigning the secondary table to that new order.
+func (h *TableHandler) UnmergeTables(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+
+	var input struct {
+		PrimaryTableID   uuid.UUID   `json:"primary_table_id"`
+		SecondaryTableID uuid.UUID   `json:"secondary_table_id"`
+		LineIDs          []uuid.UUID `json:"line_ids"` // lines to move back to the secondary table's new order
+	}
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		jsonError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	if input.PrimaryTableID == uuid.Nil || input.SecondaryTableID == uuid.Nil || len(input.LineIDs) == 0 {
+		jsonError(w, "primary_table_id, secondary_table_id, and line_ids are required", http.StatusBadRequest)
+		return
+	}
+
+	ctx := r.Context()
+
+	// Primary table must be occupied with an active order.
+	primaryAsgn, err := h.client.TableAssignment.Query().
+		Where(tableassignment.TableID(input.PrimaryTableID), tableassignment.ReleasedAtIsNil()).
+		First(ctx)
+	if err != nil || primaryAsgn.OrderID == nil {
+		jsonError(w, "no active order on primary table", http.StatusNotFound)
+		return
+	}
+
+	// Secondary table must be available (released at merge time).
+	secTable, err := h.client.Table.Query().
+		Where(enttable.ID(input.SecondaryTableID), enttable.TenantID(tid)).
+		Only(ctx)
+	if err != nil {
+		jsonError(w, "secondary table not found", http.StatusNotFound)
+		return
+	}
+	if secTable.Status != "available" {
+		jsonError(w, "secondary table is not available — cannot unmerge", http.StatusConflict)
+		return
+	}
+
+	// Load primary order and validate the requested lines belong to it.
+	primaryOrder, err := h.client.POSOrder.Query().
+		Where(entposorder.ID(*primaryAsgn.OrderID), entposorder.TenantID(tid)).
+		Only(ctx)
+	if err != nil {
+		jsonError(w, "primary order not found", http.StatusNotFound)
+		return
+	}
+
+	lines, err := h.client.POSOrderLine.Query().
+		Where(entposorderline.OrderID(*primaryAsgn.OrderID), entposorderline.IDIn(input.LineIDs...)).
+		All(ctx)
+	if err != nil || len(lines) != len(input.LineIDs) {
+		jsonError(w, "one or more line_ids not found on the primary order", http.StatusBadRequest)
+		return
+	}
+
+	// Calculate totals for the new (secondary) order.
+	var newSubtotal, newTaxTotal float64
+	for _, l := range lines {
+		newSubtotal += l.TotalPrice
+		if l.TaxAmount != nil {
+			newTaxTotal += *l.TaxAmount
+		}
+	}
+
+	// Create the new order for the secondary table.
+	newOrder, err := h.client.POSOrder.Create().
+		SetTenantID(tid).
+		SetOutletID(primaryOrder.OutletID).
+		SetDeviceID(primaryOrder.DeviceID).
+		SetUserID(primaryOrder.UserID).
+		SetOrderNumber(primaryOrder.OrderNumber + "-U").
+		SetStatus("open").
+		SetSubtotal(newSubtotal).
+		SetTaxTotal(newTaxTotal).
+		SetDiscountTotal(0).
+		SetTotalAmount(newSubtotal).
+		SetOrderSubtype(primaryOrder.OrderSubtype).
+		SetMetadata(map[string]any{
+			"unmerged_from": primaryAsgn.OrderID.String(),
+			"table_id":      input.SecondaryTableID.String(),
+			"table_name":    secTable.Name,
+		}).
+		Save(ctx)
+	if err != nil {
+		h.log.Error("unmerge tables: create order failed", zap.Error(err))
+		jsonError(w, "failed to create order for secondary table", http.StatusInternalServerError)
+		return
+	}
+
+	// Move lines from primary to new order.
+	for _, l := range lines {
+		l.Update().SetOrderID(newOrder.ID).Exec(ctx) //nolint
+	}
+
+	// Recalculate primary order totals.
+	remainingLines, _ := h.client.POSOrderLine.Query().Where(entposorderline.OrderID(*primaryAsgn.OrderID)).All(ctx)
+	var remSubtotal, remTaxTotal float64
+	for _, l := range remainingLines {
+		remSubtotal += l.TotalPrice
+		if l.TaxAmount != nil {
+			remTaxTotal += *l.TaxAmount
+		}
+	}
+	primaryOrder.Update().SetSubtotal(remSubtotal).SetTaxTotal(remTaxTotal).SetTotalAmount(remSubtotal).Exec(ctx) //nolint
+
+	// Assign the secondary table to the new order and mark it occupied.
+	now := time.Now()
+	h.client.TableAssignment.Create().
+		SetTableID(input.SecondaryTableID).
+		SetOrderID(newOrder.ID).
+		SetAssignedAt(now).
+		Exec(ctx) //nolint
+	h.client.Table.UpdateOneID(input.SecondaryTableID).SetStatus("occupied").Exec(ctx) //nolint
+
+	jsonOK(w, map[string]any{
+		"status":             "unmerged",
+		"new_order_id":       newOrder.ID,
+		"new_order_number":   newOrder.OrderNumber,
+		"secondary_table_id": input.SecondaryTableID,
+		"lines_moved":        len(lines),
 	})
 }
 

@@ -203,6 +203,7 @@ func New(
 						pos.Patch("/orders/{orderID}/status", orders.UpdateStatus)
 						pos.Patch("/orders/{orderID}/void", orders.VoidOrder)
 						pos.Post("/orders/{orderID}/fire-course", orders.FireCourse)
+						pos.Post("/orders/{orderID}/lines", orders.AddOrderLines)
 						pos.Post("/orders/{orderID}/lines/{lineID}/serials", orders.CaptureSerial)
 					}
 					if print != nil {
@@ -257,6 +258,7 @@ func New(
 							tbl.Post("/tables/{id}/release", tables.ReleaseTable)
 							tbl.Post("/tables/{id}/transfer", tables.TransferTable)
 							tbl.Post("/tables/merge", tables.MergeTables)
+							tbl.Post("/tables/unmerge", tables.UnmergeTables)
 							// Order split + service charge live here (use TableHandler, need nil guard)
 							tbl.Post("/orders/{orderID}/split", tables.SplitOrder)
 							tbl.Patch("/orders/{orderID}/service-charge", tables.SetServiceCharge)

@@ -577,6 +577,181 @@ func (s *Service) createKDSTicketsForOrder(ctx context.Context, tenantID uuid.UU
 	return nil
 }
 
+// AddOrderLines appends new lines to an existing open order, recalculates totals,
+// and creates KDS tickets for the new course_number=0 lines (always-fire items).
+func (s *Service) AddOrderLines(ctx context.Context, tenantID, orderID uuid.UUID, lines []OrderLineInput) (*ent.POSOrder, error) {
+	order, err := s.client.POSOrder.Query().
+		Where(posorder.ID(orderID), posorder.TenantID(tenantID)).
+		WithLines().
+		Only(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("orders: order not found: %w", err)
+	}
+	if order.Status != StatusOpen {
+		return nil, fmt.Errorf("orders: can only add lines to open orders, current status: %s", order.Status)
+	}
+
+	// Resolve KDS station IDs from catalog overrides for new line SKUs.
+	skus := make([]string, 0, len(lines))
+	for _, l := range lines {
+		if l.SKU != "" {
+			skus = append(skus, l.SKU)
+		}
+	}
+	kdsOverrideBySKU := make(map[string]uuid.UUID)
+	if len(skus) > 0 {
+		overrides, _ := s.client.POSCatalogOverride.Query().
+			Where(
+				entoverride.TenantID(tenantID),
+				entoverride.InventorySkuIn(skus...),
+				entoverride.KdsStationIDNotNil(),
+			).All(ctx)
+		for _, o := range overrides {
+			if o.KdsStationID != nil {
+				kdsOverrideBySKU[o.InventorySku] = *o.KdsStationID
+			}
+		}
+	}
+
+	newLines := make([]*ent.POSOrderLine, 0, len(lines))
+	tx, err := s.client.Tx(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("orders: begin tx: %w", err)
+	}
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback()
+		}
+	}()
+
+	for _, l := range lines {
+		lineTotal := decimal.NewFromFloat(l.TotalPrice)
+		if lineTotal.IsZero() {
+			lineTotal = decimal.NewFromFloat(l.UnitPrice).Mul(decimal.NewFromFloat(l.Quantity))
+		}
+		meta := l.Metadata
+		if meta == nil {
+			meta = map[string]any{}
+		}
+		lc := tx.POSOrderLine.Create().
+			SetOrderID(order.ID).
+			SetCatalogItemID(l.CatalogItemID).
+			SetSku(l.SKU).
+			SetName(l.Name).
+			SetQuantity(l.Quantity).
+			SetUnitPrice(l.UnitPrice).
+			SetTotalPrice(lineTotal.InexactFloat64()).
+			SetCourseNumber(l.CourseNumber).
+			SetMetadata(meta)
+		if stationID, ok := kdsOverrideBySKU[l.SKU]; ok {
+			lc = lc.SetKdsStationID(stationID)
+		}
+		saved, saveErr := lc.Save(ctx)
+		if saveErr != nil {
+			err = fmt.Errorf("orders: create line: %w", saveErr)
+			return nil, err
+		}
+		newLines = append(newLines, saved)
+	}
+
+	// Recalculate totals from all lines (existing + new).
+	allLines := append(order.Edges.Lines, newLines...)
+	var newSubtotal, newTaxTotal decimal.Decimal
+	for _, ol := range allLines {
+		newSubtotal = newSubtotal.Add(decimal.NewFromFloat(ol.TotalPrice))
+		if ol.TaxAmount != nil {
+			newTaxTotal = newTaxTotal.Add(decimal.NewFromFloat(*ol.TaxAmount))
+		}
+	}
+	newTotal := newSubtotal.Add(newTaxTotal)
+
+	_, err = tx.POSOrder.UpdateOneID(order.ID).
+		SetSubtotal(newSubtotal.InexactFloat64()).
+		SetTaxTotal(newTaxTotal.InexactFloat64()).
+		SetTotalAmount(newTotal.InexactFloat64()).
+		Save(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("orders: update totals: %w", err)
+	}
+
+	if err = tx.Commit(); err != nil {
+		return nil, fmt.Errorf("orders: commit: %w", err)
+	}
+
+	// Reload order with all lines.
+	result, err := s.client.POSOrder.Query().
+		Where(posorder.ID(order.ID)).
+		WithLines().
+		Only(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("orders: reload: %w", err)
+	}
+
+	// Create KDS tickets for course_number=0 new lines (fire immediately).
+	immediateLines := make([]*ent.POSOrderLine, 0, len(newLines))
+	for _, l := range newLines {
+		if l.CourseNumber == 0 {
+			immediateLines = append(immediateLines, l)
+		}
+	}
+	if len(immediateLines) > 0 {
+		_ = s.createKDSTicketsForNewLines(ctx, tenantID, result, immediateLines)
+	}
+
+	return result, nil
+}
+
+// createKDSTicketsForNewLines creates KDS tickets for a specific subset of lines
+// (used when adding items to an existing bill — always creates new tickets, never deduplicates).
+func (s *Service) createKDSTicketsForNewLines(ctx context.Context, tenantID uuid.UUID, order *ent.POSOrder, newLines []*ent.POSOrderLine) error {
+	stations, err := s.client.KDSStation.Query().
+		Where(kdsstation.TenantID(tenantID), kdsstation.OutletID(order.OutletID), kdsstation.IsActive(true)).
+		All(ctx)
+	if err != nil || len(stations) == 0 {
+		return nil
+	}
+
+	stationItems := routeLinesToStations(newLines, stations)
+	tableRef := parseTableRef(order)
+
+	for _, station := range stations {
+		items := stationItems[station.ID]
+		if len(items) == 0 {
+			continue
+		}
+		ticket, tErr := s.client.KDSTicket.Create().
+			SetTenantID(tenantID).
+			SetStationID(station.ID).
+			SetOrderID(order.ID).
+			SetOrderNumber(order.OrderNumber).
+			SetStatus(kdsticket.StatusPending).
+			SetItems(items).
+			SetTableReference(tableRef).
+			Save(ctx)
+		if tErr != nil {
+			s.log.Warn("kds: add-lines ticket creation failed",
+				zap.String("order_id", order.ID.String()),
+				zap.Error(tErr))
+			continue
+		}
+		if s.kdsHub != nil {
+			s.kdsHub.BroadcastToOutlet(tenantID, order.OutletID, kdsmod.Message{
+				Type: "ticket_created",
+				Payload: map[string]any{
+					"ticket_id":       ticket.ID,
+					"order_id":        order.ID,
+					"order_number":    order.OrderNumber,
+					"station_id":      station.ID,
+					"table_reference": tableRef,
+					"status":          string(kdsticket.StatusPending),
+					"items":           items,
+				},
+			})
+		}
+	}
+	return nil
+}
+
 // FireCourseKDS creates KDS tickets for order lines with course_number == course,
 // routing each line to the correct station based on kds_station_id / category_filter.
 // The order must be queried with WithLines() before calling.

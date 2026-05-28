@@ -366,6 +366,57 @@ func (h *POSOrderHandler) VoidOrder(w http.ResponseWriter, r *http.Request) {
 	jsonOK(w, updated)
 }
 
+// AddOrderLines handles POST /{tenantID}/pos/orders/{orderID}/lines
+// Appends new items to an existing open order and notifies KDS stations.
+func (h *POSOrderHandler) AddOrderLines(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+
+	orderID, err := uuid.Parse(chi.URLParam(r, "orderID"))
+	if err != nil {
+		jsonError(w, "invalid order_id", http.StatusBadRequest)
+		return
+	}
+
+	var input struct {
+		Lines []createOrderLineInput `json:"lines"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil || len(input.Lines) == 0 {
+		jsonError(w, "lines are required", http.StatusBadRequest)
+		return
+	}
+
+	lines := make([]orders.OrderLineInput, len(input.Lines))
+	for i, l := range input.Lines {
+		lines[i] = orders.OrderLineInput{
+			CatalogItemID: l.CatalogItemID,
+			SKU:           l.SKU,
+			Name:          l.Name,
+			Quantity:      l.Quantity,
+			UnitPrice:     l.UnitPrice,
+			TotalPrice:    l.TotalPrice,
+			CourseNumber:  l.CourseNumber,
+			Metadata:      l.Metadata,
+		}
+	}
+
+	result, err := h.orderSvc.AddOrderLines(r.Context(), tid, orderID, lines)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			jsonError(w, "order not found", http.StatusNotFound)
+			return
+		}
+		h.log.Error("add order lines failed", zap.Error(err))
+		jsonError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	jsonOK(w, result)
+}
+
 // CaptureSerial handles POST /{tenantID}/pos/orders/{orderID}/lines/{lineID}/serials
 // Captures a serial number for a tracked item on an order line.
 func (h *POSOrderHandler) CaptureSerial(w http.ResponseWriter, r *http.Request) {
