@@ -190,7 +190,7 @@ func New(ctx context.Context) (*App, error) {
 	catalogHandler.SetRedisClient(redisClient)
 	tableHandler := handlers.NewTableHandler(log, entClient)
 	tenderHandler := handlers.NewTenderHandler(log, entClient)
-	paymentHandler := handlers.NewPaymentHandler(log, paymentSvc, treasuryClient, cfg.Treasury.PublicBaseURL)
+	paymentHandler := handlers.NewPaymentHandler(log, paymentSvc, treasuryClient, cfg.Treasury.PublicBaseURL, entClient)
 	var drawerPublisher *events.Publisher
 	if pub := orderSvc.GetPublisher(); pub != nil {
 		drawerPublisher = pub

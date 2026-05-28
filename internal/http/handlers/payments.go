@@ -8,6 +8,9 @@ import (
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
+	authclient "github.com/Bengo-Hub/shared-auth-client"
+	"github.com/Bengo-Hub/httpware"
+	"github.com/bengobox/pos-service/internal/ent"
 	"github.com/bengobox/pos-service/internal/modules/payments"
 	"github.com/bengobox/pos-service/internal/modules/treasury"
 )
@@ -18,14 +21,16 @@ type PaymentHandler struct {
 	paymentSvc     *payments.Service
 	treasuryClient *treasury.Client
 	publicBaseURL  string
+	client         *ent.Client
 }
 
-func NewPaymentHandler(log *zap.Logger, paymentSvc *payments.Service, treasuryClient *treasury.Client, publicBaseURL string) *PaymentHandler {
+func NewPaymentHandler(log *zap.Logger, paymentSvc *payments.Service, treasuryClient *treasury.Client, publicBaseURL string, entClient *ent.Client) *PaymentHandler {
 	return &PaymentHandler{
 		log:            log,
 		paymentSvc:     paymentSvc,
 		treasuryClient: treasuryClient,
 		publicBaseURL:  publicBaseURL,
+		client:         entClient,
 	}
 }
 
@@ -175,9 +180,23 @@ func (h *PaymentHandler) RecordPayment(w http.ResponseWriter, r *http.Request) {
 // conditionally show only the payment methods the tenant has enabled.
 // Fails open: if treasury is unreachable all gateways are returned as enabled.
 func (h *PaymentHandler) GetGateways(w http.ResponseWriter, r *http.Request) {
-	tenantSlug := chi.URLParam(r, "tenantID")
+	// Resolve tenant slug: JWT claims → httpware context → local Tenant table (PIN JWT fallback).
+	tenantSlug := ""
+	if claims, ok := authclient.ClaimsFromContext(r.Context()); ok {
+		tenantSlug = claims.GetTenantSlug()
+	}
+	if tenantSlug == "" {
+		tenantSlug = httpware.GetTenantSlug(r.Context())
+	}
+	if tenantSlug == "" && h.client != nil {
+		if tid, parseErr := parseTenantUUID(r); parseErr == nil {
+			if t, lookupErr := h.client.Tenant.Get(r.Context(), tid); lookupErr == nil {
+				tenantSlug = t.Slug
+			}
+		}
+	}
 
-	if h.treasuryClient == nil {
+	if tenantSlug == "" || h.treasuryClient == nil {
 		jsonOK(w, map[string]any{"mpesa": true, "paystack": true, "wallet": true, "cod": true})
 		return
 	}
