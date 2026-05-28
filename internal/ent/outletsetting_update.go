@@ -591,6 +591,33 @@ func (_u *OutletSettingUpdate) ClearShiftMaxHours() *OutletSettingUpdate {
 	return _u
 }
 
+// SetTableMaxOccupationMinutes sets the "table_max_occupation_minutes" field.
+func (_u *OutletSettingUpdate) SetTableMaxOccupationMinutes(v int) *OutletSettingUpdate {
+	_u.mutation.ResetTableMaxOccupationMinutes()
+	_u.mutation.SetTableMaxOccupationMinutes(v)
+	return _u
+}
+
+// SetNillableTableMaxOccupationMinutes sets the "table_max_occupation_minutes" field if the given value is not nil.
+func (_u *OutletSettingUpdate) SetNillableTableMaxOccupationMinutes(v *int) *OutletSettingUpdate {
+	if v != nil {
+		_u.SetTableMaxOccupationMinutes(*v)
+	}
+	return _u
+}
+
+// AddTableMaxOccupationMinutes adds value to the "table_max_occupation_minutes" field.
+func (_u *OutletSettingUpdate) AddTableMaxOccupationMinutes(v int) *OutletSettingUpdate {
+	_u.mutation.AddTableMaxOccupationMinutes(v)
+	return _u
+}
+
+// ClearTableMaxOccupationMinutes clears the value of the "table_max_occupation_minutes" field.
+func (_u *OutletSettingUpdate) ClearTableMaxOccupationMinutes() *OutletSettingUpdate {
+	_u.mutation.ClearTableMaxOccupationMinutes()
+	return _u
+}
+
 // SetDefaultWarehouseID sets the "default_warehouse_id" field.
 func (_u *OutletSettingUpdate) SetDefaultWarehouseID(v uuid.UUID) *OutletSettingUpdate {
 	_u.mutation.SetDefaultWarehouseID(v)
@@ -870,6 +897,15 @@ func (_u *OutletSettingUpdate) sqlSave(ctx context.Context) (_node int, err erro
 	}
 	if _u.mutation.ShiftMaxHoursCleared() {
 		_spec.ClearField(outletsetting.FieldShiftMaxHours, field.TypeInt)
+	}
+	if value, ok := _u.mutation.TableMaxOccupationMinutes(); ok {
+		_spec.SetField(outletsetting.FieldTableMaxOccupationMinutes, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedTableMaxOccupationMinutes(); ok {
+		_spec.AddField(outletsetting.FieldTableMaxOccupationMinutes, field.TypeInt, value)
+	}
+	if _u.mutation.TableMaxOccupationMinutesCleared() {
+		_spec.ClearField(outletsetting.FieldTableMaxOccupationMinutes, field.TypeInt)
 	}
 	if value, ok := _u.mutation.DefaultWarehouseID(); ok {
 		_spec.SetField(outletsetting.FieldDefaultWarehouseID, field.TypeUUID, value)
@@ -1489,6 +1525,33 @@ func (_u *OutletSettingUpdateOne) ClearShiftMaxHours() *OutletSettingUpdateOne {
 	return _u
 }
 
+// SetTableMaxOccupationMinutes sets the "table_max_occupation_minutes" field.
+func (_u *OutletSettingUpdateOne) SetTableMaxOccupationMinutes(v int) *OutletSettingUpdateOne {
+	_u.mutation.ResetTableMaxOccupationMinutes()
+	_u.mutation.SetTableMaxOccupationMinutes(v)
+	return _u
+}
+
+// SetNillableTableMaxOccupationMinutes sets the "table_max_occupation_minutes" field if the given value is not nil.
+func (_u *OutletSettingUpdateOne) SetNillableTableMaxOccupationMinutes(v *int) *OutletSettingUpdateOne {
+	if v != nil {
+		_u.SetTableMaxOccupationMinutes(*v)
+	}
+	return _u
+}
+
+// AddTableMaxOccupationMinutes adds value to the "table_max_occupation_minutes" field.
+func (_u *OutletSettingUpdateOne) AddTableMaxOccupationMinutes(v int) *OutletSettingUpdateOne {
+	_u.mutation.AddTableMaxOccupationMinutes(v)
+	return _u
+}
+
+// ClearTableMaxOccupationMinutes clears the value of the "table_max_occupation_minutes" field.
+func (_u *OutletSettingUpdateOne) ClearTableMaxOccupationMinutes() *OutletSettingUpdateOne {
+	_u.mutation.ClearTableMaxOccupationMinutes()
+	return _u
+}
+
 // SetDefaultWarehouseID sets the "default_warehouse_id" field.
 func (_u *OutletSettingUpdateOne) SetDefaultWarehouseID(v uuid.UUID) *OutletSettingUpdateOne {
 	_u.mutation.SetDefaultWarehouseID(v)
@@ -1798,6 +1861,15 @@ func (_u *OutletSettingUpdateOne) sqlSave(ctx context.Context) (_node *OutletSet
 	}
 	if _u.mutation.ShiftMaxHoursCleared() {
 		_spec.ClearField(outletsetting.FieldShiftMaxHours, field.TypeInt)
+	}
+	if value, ok := _u.mutation.TableMaxOccupationMinutes(); ok {
+		_spec.SetField(outletsetting.FieldTableMaxOccupationMinutes, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedTableMaxOccupationMinutes(); ok {
+		_spec.AddField(outletsetting.FieldTableMaxOccupationMinutes, field.TypeInt, value)
+	}
+	if _u.mutation.TableMaxOccupationMinutesCleared() {
+		_spec.ClearField(outletsetting.FieldTableMaxOccupationMinutes, field.TypeInt)
 	}
 	if value, ok := _u.mutation.DefaultWarehouseID(); ok {
 		_spec.SetField(outletsetting.FieldDefaultWarehouseID, field.TypeUUID, value)

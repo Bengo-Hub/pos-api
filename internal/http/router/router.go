@@ -209,9 +209,10 @@ func New(
 						pos.Post("/orders/{orderID}/print", print.PrintReceipt)
 					}
 
-					// In-app notifications (waiter order-ready alerts)
+					// In-app notifications (waiter order-ready alerts + real-time WS stream)
 					if notifications != nil {
 						pos.Get("/notifications", notifications.List)
+						pos.Get("/notifications/stream", notifications.StreamNotifications)
 						pos.Post("/notifications/mark-all-read", notifications.MarkAllRead)
 						pos.Patch("/notifications/{id}/read", notifications.MarkRead)
 					}

@@ -8,19 +8,79 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
+	"nhooyr.io/websocket"
 
 	"github.com/bengobox/pos-service/internal/ent"
 	entnotif "github.com/bengobox/pos-service/internal/ent/posnotification"
+	notifmod "github.com/bengobox/pos-service/internal/modules/notifications"
 )
 
 // NotificationsHandler handles in-app notification endpoints for POS staff.
 type NotificationsHandler struct {
-	log    *zap.Logger
-	client *ent.Client
+	log      *zap.Logger
+	client   *ent.Client
+	notifHub *notifmod.Hub
 }
 
 func NewNotificationsHandler(log *zap.Logger, client *ent.Client) *NotificationsHandler {
-	return &NotificationsHandler{log: log, client: client}
+	return &NotificationsHandler{
+		log:      log,
+		client:   client,
+		notifHub: notifmod.NewHub(log),
+	}
+}
+
+// Hub returns the notification hub so KDSHandler can broadcast to it.
+func (h *NotificationsHandler) Hub() *notifmod.Hub {
+	return h.notifHub
+}
+
+// StreamNotifications handles GET /{tenantID}/pos/notifications/stream
+// POS terminals connect here on login to receive real-time push alerts
+// (order ready for payment, waiter called, etc.) with sound triggers.
+func (h *NotificationsHandler) StreamNotifications(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+
+	userID, ok := callerUserID(r)
+	if !ok {
+		// Fallback: allow ?user_id= for terminal JWTs that may not have Subject
+		if uidStr := r.URL.Query().Get("user_id"); uidStr != "" {
+			userID, err = uuid.Parse(uidStr)
+			if err != nil {
+				jsonError(w, "invalid user_id", http.StatusBadRequest)
+				return
+			}
+		} else {
+			jsonError(w, "unauthenticated", http.StatusUnauthorized)
+			return
+		}
+	}
+
+	conn, wsErr := websocket.Accept(w, r, &websocket.AcceptOptions{
+		InsecureSkipVerify: false,
+		OriginPatterns:     []string{"*"},
+	})
+	if wsErr != nil {
+		h.log.Warn("notifications: websocket upgrade failed", zap.Error(wsErr))
+		return
+	}
+	defer conn.Close(websocket.StatusNormalClosure, "")
+
+	h.log.Info("notifications: client connected",
+		zap.Stringer("tenant_id", tid),
+		zap.Stringer("user_id", userID),
+	)
+
+	h.notifHub.ServeWS(r.Context(), conn, tid, userID)
+
+	h.log.Debug("notifications: client disconnected",
+		zap.Stringer("tenant_id", tid),
+		zap.Stringer("user_id", userID),
+	)
 }
 
 func callerUserID(r *http.Request) (uuid.UUID, bool) {

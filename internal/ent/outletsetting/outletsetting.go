@@ -75,6 +75,8 @@ const (
 	FieldShiftAutoEndEnabled = "shift_auto_end_enabled"
 	// FieldShiftMaxHours holds the string denoting the shift_max_hours field in the database.
 	FieldShiftMaxHours = "shift_max_hours"
+	// FieldTableMaxOccupationMinutes holds the string denoting the table_max_occupation_minutes field in the database.
+	FieldTableMaxOccupationMinutes = "table_max_occupation_minutes"
 	// FieldDefaultWarehouseID holds the string denoting the default_warehouse_id field in the database.
 	FieldDefaultWarehouseID = "default_warehouse_id"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
@@ -125,6 +127,7 @@ var Columns = []string{
 	FieldShiftReportsEnabled,
 	FieldShiftAutoEndEnabled,
 	FieldShiftMaxHours,
+	FieldTableMaxOccupationMinutes,
 	FieldDefaultWarehouseID,
 	FieldUpdatedAt,
 }
@@ -180,6 +183,8 @@ var (
 	DefaultShiftAutoEndEnabled bool
 	// DefaultShiftMaxHours holds the default value on creation for the "shift_max_hours" field.
 	DefaultShiftMaxHours int
+	// DefaultTableMaxOccupationMinutes holds the default value on creation for the "table_max_occupation_minutes" field.
+	DefaultTableMaxOccupationMinutes int
 	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
 	DefaultUpdatedAt func() time.Time
 	// UpdateDefaultUpdatedAt holds the default value on update for the "updated_at" field.
@@ -314,6 +319,11 @@ func ByShiftAutoEndEnabled(opts ...sql.OrderTermOption) OrderOption {
 // ByShiftMaxHours orders the results by the shift_max_hours field.
 func ByShiftMaxHours(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldShiftMaxHours, opts...).ToFunc()
+}
+
+// ByTableMaxOccupationMinutes orders the results by the table_max_occupation_minutes field.
+func ByTableMaxOccupationMinutes(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTableMaxOccupationMinutes, opts...).ToFunc()
 }
 
 // ByDefaultWarehouseID orders the results by the default_warehouse_id field.

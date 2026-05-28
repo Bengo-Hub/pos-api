@@ -80,6 +80,8 @@ type OutletSetting struct {
 	ShiftAutoEndEnabled bool `json:"shift_auto_end_enabled,omitempty"`
 	// Maximum shift length in hours before auto-end (1–24, default 12)
 	ShiftMaxHours int `json:"shift_max_hours,omitempty"`
+	// Minutes before an occupied table is flagged for aging. 0 = disabled. Default 4 hours.
+	TableMaxOccupationMinutes int `json:"table_max_occupation_minutes,omitempty"`
 	// Inventory warehouse ID used for stock deduction on pos.sale.finalized events
 	DefaultWarehouseID *uuid.UUID `json:"default_warehouse_id,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
@@ -123,7 +125,7 @@ func (*OutletSetting) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullBool)
 		case outletsetting.FieldVatRate:
 			values[i] = new(sql.NullFloat64)
-		case outletsetting.FieldShiftMaxHours:
+		case outletsetting.FieldShiftMaxHours, outletsetting.FieldTableMaxOccupationMinutes:
 			values[i] = new(sql.NullInt64)
 		case outletsetting.FieldPinLoginMessage, outletsetting.FieldScreensaverURL, outletsetting.FieldDisplayMode, outletsetting.FieldDefaultView, outletsetting.FieldReceiptHeader, outletsetting.FieldReceiptFooter, outletsetting.FieldCurrency, outletsetting.FieldPrinterType, outletsetting.FieldPrinterIP, outletsetting.FieldPaperWidth:
 			values[i] = new(sql.NullString)
@@ -349,6 +351,12 @@ func (_m *OutletSetting) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.ShiftMaxHours = int(value.Int64)
 			}
+		case outletsetting.FieldTableMaxOccupationMinutes:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field table_max_occupation_minutes", values[i])
+			} else if value.Valid {
+				_m.TableMaxOccupationMinutes = int(value.Int64)
+			}
 		case outletsetting.FieldDefaultWarehouseID:
 			if value, ok := values[i].(*sql.NullScanner); !ok {
 				return fmt.Errorf("unexpected type %T for field default_warehouse_id", values[i])
@@ -502,6 +510,9 @@ func (_m *OutletSetting) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("shift_max_hours=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ShiftMaxHours))
+	builder.WriteString(", ")
+	builder.WriteString("table_max_occupation_minutes=")
+	builder.WriteString(fmt.Sprintf("%v", _m.TableMaxOccupationMinutes))
 	builder.WriteString(", ")
 	if v := _m.DefaultWarehouseID; v != nil {
 		builder.WriteString("default_warehouse_id=")

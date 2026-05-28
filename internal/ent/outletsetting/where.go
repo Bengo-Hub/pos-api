@@ -176,6 +176,11 @@ func ShiftMaxHours(v int) predicate.OutletSetting {
 	return predicate.OutletSetting(sql.FieldEQ(FieldShiftMaxHours, v))
 }
 
+// TableMaxOccupationMinutes applies equality check predicate on the "table_max_occupation_minutes" field. It's identical to TableMaxOccupationMinutesEQ.
+func TableMaxOccupationMinutes(v int) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldTableMaxOccupationMinutes, v))
+}
+
 // DefaultWarehouseID applies equality check predicate on the "default_warehouse_id" field. It's identical to DefaultWarehouseIDEQ.
 func DefaultWarehouseID(v uuid.UUID) predicate.OutletSetting {
 	return predicate.OutletSetting(sql.FieldEQ(FieldDefaultWarehouseID, v))
@@ -1324,6 +1329,56 @@ func ShiftMaxHoursIsNil() predicate.OutletSetting {
 // ShiftMaxHoursNotNil applies the NotNil predicate on the "shift_max_hours" field.
 func ShiftMaxHoursNotNil() predicate.OutletSetting {
 	return predicate.OutletSetting(sql.FieldNotNull(FieldShiftMaxHours))
+}
+
+// TableMaxOccupationMinutesEQ applies the EQ predicate on the "table_max_occupation_minutes" field.
+func TableMaxOccupationMinutesEQ(v int) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldTableMaxOccupationMinutes, v))
+}
+
+// TableMaxOccupationMinutesNEQ applies the NEQ predicate on the "table_max_occupation_minutes" field.
+func TableMaxOccupationMinutesNEQ(v int) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNEQ(FieldTableMaxOccupationMinutes, v))
+}
+
+// TableMaxOccupationMinutesIn applies the In predicate on the "table_max_occupation_minutes" field.
+func TableMaxOccupationMinutesIn(vs ...int) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIn(FieldTableMaxOccupationMinutes, vs...))
+}
+
+// TableMaxOccupationMinutesNotIn applies the NotIn predicate on the "table_max_occupation_minutes" field.
+func TableMaxOccupationMinutesNotIn(vs ...int) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotIn(FieldTableMaxOccupationMinutes, vs...))
+}
+
+// TableMaxOccupationMinutesGT applies the GT predicate on the "table_max_occupation_minutes" field.
+func TableMaxOccupationMinutesGT(v int) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGT(FieldTableMaxOccupationMinutes, v))
+}
+
+// TableMaxOccupationMinutesGTE applies the GTE predicate on the "table_max_occupation_minutes" field.
+func TableMaxOccupationMinutesGTE(v int) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGTE(FieldTableMaxOccupationMinutes, v))
+}
+
+// TableMaxOccupationMinutesLT applies the LT predicate on the "table_max_occupation_minutes" field.
+func TableMaxOccupationMinutesLT(v int) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLT(FieldTableMaxOccupationMinutes, v))
+}
+
+// TableMaxOccupationMinutesLTE applies the LTE predicate on the "table_max_occupation_minutes" field.
+func TableMaxOccupationMinutesLTE(v int) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLTE(FieldTableMaxOccupationMinutes, v))
+}
+
+// TableMaxOccupationMinutesIsNil applies the IsNil predicate on the "table_max_occupation_minutes" field.
+func TableMaxOccupationMinutesIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldTableMaxOccupationMinutes))
+}
+
+// TableMaxOccupationMinutesNotNil applies the NotNil predicate on the "table_max_occupation_minutes" field.
+func TableMaxOccupationMinutesNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldTableMaxOccupationMinutes))
 }
 
 // DefaultWarehouseIDEQ applies the EQ predicate on the "default_warehouse_id" field.

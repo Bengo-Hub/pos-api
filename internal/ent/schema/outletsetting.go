@@ -61,6 +61,10 @@ func (OutletSetting) Fields() []ent.Field {
 		// Shift duration enforcement
 		field.Bool("shift_auto_end_enabled").Default(false).Optional().Comment("Automatically end shift after shift_max_hours to prevent forgotten open sessions"),
 		field.Int("shift_max_hours").Default(12).Optional().Comment("Maximum shift length in hours before auto-end (1–24, default 12)"),
+		field.Int("table_max_occupation_minutes").
+			Default(240).
+			Optional().
+			Comment("Minutes before an occupied table is flagged for aging. 0 = disabled. Default 4 hours."),
 		field.UUID("default_warehouse_id", uuid.UUID{}).
 			Optional().
 			Nillable().

@@ -25,22 +25,24 @@ import (
 
 // OrderStatus defines valid order states.
 const (
-	StatusDraft      = "draft"
-	StatusOpen       = "open"
-	StatusCompleted  = "completed"
-	StatusCancelled  = "cancelled"
-	StatusRefunded   = "refunded"
-	StatusVoided     = "voided"
+	StatusDraft          = "draft"
+	StatusOpen           = "open"
+	StatusPendingPayment = "pending_payment" // all KDS tickets served; awaiting cashier payment
+	StatusCompleted      = "completed"
+	StatusCancelled      = "cancelled"
+	StatusRefunded       = "refunded"
+	StatusVoided         = "voided"
 )
 
 // validTransitions defines allowed status transitions.
 var validTransitions = map[string][]string{
-	StatusDraft:     {StatusOpen, StatusCancelled, StatusVoided},
-	StatusOpen:      {StatusCompleted, StatusCancelled, StatusVoided},
-	StatusCompleted: {StatusRefunded},
-	StatusCancelled: {},
-	StatusRefunded:  {},
-	StatusVoided:    {},
+	StatusDraft:          {StatusOpen, StatusCancelled, StatusVoided},
+	StatusOpen:           {StatusPendingPayment, StatusCompleted, StatusCancelled, StatusVoided},
+	StatusPendingPayment: {StatusCompleted, StatusCancelled, StatusVoided},
+	StatusCompleted:      {StatusRefunded},
+	StatusCancelled:      {},
+	StatusRefunded:       {},
+	StatusVoided:         {},
 }
 
 // CreateOrderRequest holds the input for creating a POS order.
@@ -489,25 +491,16 @@ func routeLinesToStations(lines []*ent.POSOrderLine, stations []*ent.KDSStation)
 			}
 		}
 
-		// Priority 3: no match — use expo/all stations; if none, use first station.
+		// Priority 3: no specific station matched — route to expo/all as the catch-all,
+		// or fall back to the first active station. Expo only receives items that are
+		// genuinely unresolved (no kitchen, bar, or other station matched them).
 		if !routed {
 			if len(expoIDs) > 0 {
 				for _, eid := range expoIDs {
 					stationItems[eid] = append(stationItems[eid], item)
 				}
-				routed = true
 			} else if len(stations) > 0 {
 				stationItems[stations[0].ID] = append(stationItems[stations[0].ID], item)
-				routed = true
-			}
-		}
-
-		// Expo/all stations always receive a copy of every item (expediter view).
-		if routed {
-			for _, eid := range expoIDs {
-				if l.KdsStationID == nil || *l.KdsStationID != eid {
-					stationItems[eid] = append(stationItems[eid], item)
-				}
 			}
 		}
 	}

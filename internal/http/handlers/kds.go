@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"time"
@@ -15,6 +16,8 @@ import (
 	entkdsticket "github.com/bengobox/pos-service/internal/ent/kdsticket"
 	entposorder "github.com/bengobox/pos-service/internal/ent/posorder"
 	kdsmod "github.com/bengobox/pos-service/internal/modules/kds"
+	notifmod "github.com/bengobox/pos-service/internal/modules/notifications"
+	ordersmod "github.com/bengobox/pos-service/internal/modules/orders"
 	"github.com/bengobox/pos-service/internal/platform/events"
 )
 
@@ -24,6 +27,7 @@ type KDSHandler struct {
 	client    *ent.Client
 	publisher *events.Publisher
 	hub       *kdsmod.Hub
+	notifHub  *notifmod.Hub
 }
 
 func NewKDSHandler(log *zap.Logger, client *ent.Client) *KDSHandler {
@@ -36,6 +40,11 @@ func NewKDSHandler(log *zap.Logger, client *ent.Client) *KDSHandler {
 
 func (h *KDSHandler) SetPublisher(p *events.Publisher) {
 	h.publisher = p
+}
+
+// SetNotifHub wires the shared notification hub (owned by NotificationsHandler).
+func (h *KDSHandler) SetNotifHub(hub *notifmod.Hub) {
+	h.notifHub = hub
 }
 
 // Hub returns the KDS WebSocket hub for broadcasting from NATS subscribers.
@@ -299,7 +308,61 @@ func (h *KDSHandler) transitionTicket(w http.ResponseWriter, r *http.Request, to
 		})
 	}
 
+	// When all tickets for this order are served, move the order to pending_payment.
+	if toStatus == entkdsticket.StatusServed {
+		h.syncOrderOnAllTicketsServed(r.Context(), tid, updated.OrderID, updated.OrderNumber)
+	}
+
 	jsonOK(w, updated)
+}
+
+// syncOrderOnAllTicketsServed checks whether every KDS ticket for the order has been
+// served/voided. If so, it transitions the parent POSOrder to pending_payment and
+// broadcasts a real-time alert to the waiter's POS terminal.
+func (h *KDSHandler) syncOrderOnAllTicketsServed(ctx context.Context, tid, orderID uuid.UUID, orderNumber string) {
+	remaining, err := h.client.KDSTicket.Query().
+		Where(
+			entkdsticket.TenantID(tid),
+			entkdsticket.OrderID(orderID),
+			entkdsticket.StatusIn(
+				entkdsticket.StatusPending,
+				entkdsticket.StatusInProgress,
+				entkdsticket.StatusReady,
+			),
+		).
+		Count(ctx)
+	if err != nil || remaining > 0 {
+		return
+	}
+
+	// All tickets done — look up the order to get the waiter's user_id.
+	order, err := h.client.POSOrder.Query().
+		Where(entposorder.ID(orderID), entposorder.TenantID(tid), entposorder.Status(ordersmod.StatusOpen)).
+		Only(ctx)
+	if err != nil {
+		return // already transitioned or not found
+	}
+
+	if _, err := h.client.POSOrder.UpdateOne(order).
+		SetStatus(ordersmod.StatusPendingPayment).
+		SetUpdatedAt(time.Now()).
+		Save(ctx); err != nil {
+		h.log.Warn("kds: failed to set order pending_payment", zap.Error(err), zap.String("order", orderNumber))
+		return
+	}
+
+	h.log.Info("kds: order moved to pending_payment", zap.String("order", orderNumber))
+
+	// Push real-time alert to the waiter's terminal.
+	if h.notifHub != nil {
+		h.notifHub.BroadcastToUser(tid, order.UserID, notifmod.Message{
+			Type: "order_ready_for_payment",
+			Payload: map[string]any{
+				"order_id":     orderID,
+				"order_number": orderNumber,
+			},
+		})
+	}
 }
 
 // CallWaiter handles POST /{tenantID}/pos/kds/tickets/{id}/call-waiter

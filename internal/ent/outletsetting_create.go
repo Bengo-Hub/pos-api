@@ -389,6 +389,20 @@ func (_c *OutletSettingCreate) SetNillableShiftMaxHours(v *int) *OutletSettingCr
 	return _c
 }
 
+// SetTableMaxOccupationMinutes sets the "table_max_occupation_minutes" field.
+func (_c *OutletSettingCreate) SetTableMaxOccupationMinutes(v int) *OutletSettingCreate {
+	_c.mutation.SetTableMaxOccupationMinutes(v)
+	return _c
+}
+
+// SetNillableTableMaxOccupationMinutes sets the "table_max_occupation_minutes" field if the given value is not nil.
+func (_c *OutletSettingCreate) SetNillableTableMaxOccupationMinutes(v *int) *OutletSettingCreate {
+	if v != nil {
+		_c.SetTableMaxOccupationMinutes(*v)
+	}
+	return _c
+}
+
 // SetDefaultWarehouseID sets the "default_warehouse_id" field.
 func (_c *OutletSettingCreate) SetDefaultWarehouseID(v uuid.UUID) *OutletSettingCreate {
 	_c.mutation.SetDefaultWarehouseID(v)
@@ -550,6 +564,10 @@ func (_c *OutletSettingCreate) defaults() {
 	if _, ok := _c.mutation.ShiftMaxHours(); !ok {
 		v := outletsetting.DefaultShiftMaxHours
 		_c.mutation.SetShiftMaxHours(v)
+	}
+	if _, ok := _c.mutation.TableMaxOccupationMinutes(); !ok {
+		v := outletsetting.DefaultTableMaxOccupationMinutes
+		_c.mutation.SetTableMaxOccupationMinutes(v)
 	}
 	if _, ok := _c.mutation.UpdatedAt(); !ok {
 		v := outletsetting.DefaultUpdatedAt()
@@ -726,6 +744,10 @@ func (_c *OutletSettingCreate) createSpec() (*OutletSetting, *sqlgraph.CreateSpe
 	if value, ok := _c.mutation.ShiftMaxHours(); ok {
 		_spec.SetField(outletsetting.FieldShiftMaxHours, field.TypeInt, value)
 		_node.ShiftMaxHours = value
+	}
+	if value, ok := _c.mutation.TableMaxOccupationMinutes(); ok {
+		_spec.SetField(outletsetting.FieldTableMaxOccupationMinutes, field.TypeInt, value)
+		_node.TableMaxOccupationMinutes = value
 	}
 	if value, ok := _c.mutation.DefaultWarehouseID(); ok {
 		_spec.SetField(outletsetting.FieldDefaultWarehouseID, field.TypeUUID, value)
@@ -1341,6 +1363,30 @@ func (u *OutletSettingUpsert) AddShiftMaxHours(v int) *OutletSettingUpsert {
 // ClearShiftMaxHours clears the value of the "shift_max_hours" field.
 func (u *OutletSettingUpsert) ClearShiftMaxHours() *OutletSettingUpsert {
 	u.SetNull(outletsetting.FieldShiftMaxHours)
+	return u
+}
+
+// SetTableMaxOccupationMinutes sets the "table_max_occupation_minutes" field.
+func (u *OutletSettingUpsert) SetTableMaxOccupationMinutes(v int) *OutletSettingUpsert {
+	u.Set(outletsetting.FieldTableMaxOccupationMinutes, v)
+	return u
+}
+
+// UpdateTableMaxOccupationMinutes sets the "table_max_occupation_minutes" field to the value that was provided on create.
+func (u *OutletSettingUpsert) UpdateTableMaxOccupationMinutes() *OutletSettingUpsert {
+	u.SetExcluded(outletsetting.FieldTableMaxOccupationMinutes)
+	return u
+}
+
+// AddTableMaxOccupationMinutes adds v to the "table_max_occupation_minutes" field.
+func (u *OutletSettingUpsert) AddTableMaxOccupationMinutes(v int) *OutletSettingUpsert {
+	u.Add(outletsetting.FieldTableMaxOccupationMinutes, v)
+	return u
+}
+
+// ClearTableMaxOccupationMinutes clears the value of the "table_max_occupation_minutes" field.
+func (u *OutletSettingUpsert) ClearTableMaxOccupationMinutes() *OutletSettingUpsert {
+	u.SetNull(outletsetting.FieldTableMaxOccupationMinutes)
 	return u
 }
 
@@ -2049,6 +2095,34 @@ func (u *OutletSettingUpsertOne) UpdateShiftMaxHours() *OutletSettingUpsertOne {
 func (u *OutletSettingUpsertOne) ClearShiftMaxHours() *OutletSettingUpsertOne {
 	return u.Update(func(s *OutletSettingUpsert) {
 		s.ClearShiftMaxHours()
+	})
+}
+
+// SetTableMaxOccupationMinutes sets the "table_max_occupation_minutes" field.
+func (u *OutletSettingUpsertOne) SetTableMaxOccupationMinutes(v int) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetTableMaxOccupationMinutes(v)
+	})
+}
+
+// AddTableMaxOccupationMinutes adds v to the "table_max_occupation_minutes" field.
+func (u *OutletSettingUpsertOne) AddTableMaxOccupationMinutes(v int) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.AddTableMaxOccupationMinutes(v)
+	})
+}
+
+// UpdateTableMaxOccupationMinutes sets the "table_max_occupation_minutes" field to the value that was provided on create.
+func (u *OutletSettingUpsertOne) UpdateTableMaxOccupationMinutes() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateTableMaxOccupationMinutes()
+	})
+}
+
+// ClearTableMaxOccupationMinutes clears the value of the "table_max_occupation_minutes" field.
+func (u *OutletSettingUpsertOne) ClearTableMaxOccupationMinutes() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearTableMaxOccupationMinutes()
 	})
 }
 
@@ -2929,6 +3003,34 @@ func (u *OutletSettingUpsertBulk) UpdateShiftMaxHours() *OutletSettingUpsertBulk
 func (u *OutletSettingUpsertBulk) ClearShiftMaxHours() *OutletSettingUpsertBulk {
 	return u.Update(func(s *OutletSettingUpsert) {
 		s.ClearShiftMaxHours()
+	})
+}
+
+// SetTableMaxOccupationMinutes sets the "table_max_occupation_minutes" field.
+func (u *OutletSettingUpsertBulk) SetTableMaxOccupationMinutes(v int) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetTableMaxOccupationMinutes(v)
+	})
+}
+
+// AddTableMaxOccupationMinutes adds v to the "table_max_occupation_minutes" field.
+func (u *OutletSettingUpsertBulk) AddTableMaxOccupationMinutes(v int) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.AddTableMaxOccupationMinutes(v)
+	})
+}
+
+// UpdateTableMaxOccupationMinutes sets the "table_max_occupation_minutes" field to the value that was provided on create.
+func (u *OutletSettingUpsertBulk) UpdateTableMaxOccupationMinutes() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateTableMaxOccupationMinutes()
+	})
+}
+
+// ClearTableMaxOccupationMinutes clears the value of the "table_max_occupation_minutes" field.
+func (u *OutletSettingUpsertBulk) ClearTableMaxOccupationMinutes() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearTableMaxOccupationMinutes()
 	})
 }
 

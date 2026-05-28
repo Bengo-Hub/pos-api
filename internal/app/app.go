@@ -211,6 +211,8 @@ func New(ctx context.Context) (*App, error) {
 	kdsHub := kdsHandler.Hub()
 	deviceHandler := handlers.NewDeviceHandler(log, entClient)
 	notificationsHandler := handlers.NewNotificationsHandler(log, entClient)
+	// Wire the shared notification hub so KDS can push real-time alerts to floor staff.
+	kdsHandler.SetNotifHub(notificationsHandler.Hub())
 	queueHandler := handlers.NewQueueHandler(log, entClient)
 
 	// Terminal PIN auth — TERMINAL_JWT_SECRET must be set in production.

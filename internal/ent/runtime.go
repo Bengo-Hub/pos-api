@@ -1054,8 +1054,12 @@ func init() {
 	outletsettingDescShiftMaxHours := outletsettingFields[30].Descriptor()
 	// outletsetting.DefaultShiftMaxHours holds the default value on creation for the shift_max_hours field.
 	outletsetting.DefaultShiftMaxHours = outletsettingDescShiftMaxHours.Default.(int)
+	// outletsettingDescTableMaxOccupationMinutes is the schema descriptor for table_max_occupation_minutes field.
+	outletsettingDescTableMaxOccupationMinutes := outletsettingFields[31].Descriptor()
+	// outletsetting.DefaultTableMaxOccupationMinutes holds the default value on creation for the table_max_occupation_minutes field.
+	outletsetting.DefaultTableMaxOccupationMinutes = outletsettingDescTableMaxOccupationMinutes.Default.(int)
 	// outletsettingDescUpdatedAt is the schema descriptor for updated_at field.
-	outletsettingDescUpdatedAt := outletsettingFields[32].Descriptor()
+	outletsettingDescUpdatedAt := outletsettingFields[33].Descriptor()
 	// outletsetting.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	outletsetting.DefaultUpdatedAt = outletsettingDescUpdatedAt.Default.(func() time.Time)
 	// outletsetting.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

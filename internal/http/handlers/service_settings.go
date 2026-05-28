@@ -56,6 +56,8 @@ type settingsResponse struct {
 	// shift settings
 	ShiftAutoEndEnabled bool `json:"shift_auto_end_enabled"`
 	ShiftMaxHours       int  `json:"shift_max_hours"`
+	// table settings
+	TableMaxOccupationMinutes int `json:"table_max_occupation_minutes"`
 	// printer profiles (multi-printer support)
 	PrinterProfiles []map[string]any `json:"printer_profiles"`
 	// terminal
@@ -91,9 +93,10 @@ func toSettingsResponse(outlet *ent.Outlet, s *ent.OutletSetting) settingsRespon
 		ReceiptHeader:      s.ReceiptHeader,
 		ReceiptFooter:      s.ReceiptFooter,
 		PrinterIP:          s.PrinterIP,
-		ShiftAutoEndEnabled: s.ShiftAutoEndEnabled,
-		ShiftMaxHours:       s.ShiftMaxHours,
-		PrinterProfiles:    s.PrinterProfiles,
+		ShiftAutoEndEnabled:       s.ShiftAutoEndEnabled,
+		ShiftMaxHours:             s.ShiftMaxHours,
+		TableMaxOccupationMinutes: s.TableMaxOccupationMinutes,
+		PrinterProfiles:           s.PrinterProfiles,
 		PINLoginMessage:     s.PinLoginMessage,
 		ScreensaverURL:      s.ScreensaverURL,
 		UpdatedAt:           s.UpdatedAt.Format("2006-01-02T15:04:05Z"),
@@ -550,12 +553,62 @@ func (h *ServiceSettingsHandler) PatchOutletConfig(w http.ResponseWriter, r *htt
 	jsonOK(w, toSettingsResponse(updated, setting))
 }
 
+// tableSettingsInput for PATCH /settings/tables
+type tableSettingsInput struct {
+	TableMaxOccupationMinutes *int `json:"table_max_occupation_minutes"`
+}
+
+// PatchTableSettings handles PATCH /{tenantID}/pos/settings/tables
+func (h *ServiceSettingsHandler) PatchTableSettings(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+	outlet, err := h.resolveOutlet(r, tid)
+	if err != nil {
+		jsonError(w, "outlet not found", http.StatusNotFound)
+		return
+	}
+
+	var input tableSettingsInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		jsonError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	setting, err := h.getOrCreateSetting(r, outlet.ID)
+	if err != nil {
+		h.log.Error("get settings for table patch", zap.Error(err))
+		jsonError(w, "failed to load settings", http.StatusInternalServerError)
+		return
+	}
+
+	upd := setting.Update()
+	if input.TableMaxOccupationMinutes != nil {
+		mins := *input.TableMaxOccupationMinutes
+		if mins < 0 {
+			mins = 0
+		}
+		upd = upd.SetTableMaxOccupationMinutes(mins)
+	}
+
+	updated, err := upd.Save(r.Context())
+	if err != nil {
+		h.log.Error("patch table settings", zap.Error(err))
+		jsonError(w, "failed to save table settings", http.StatusInternalServerError)
+		return
+	}
+	jsonOK(w, toSettingsResponse(outlet, updated))
+}
+
 // RegisterRoutes registers settings routes under the tenant router group.
 func (h *ServiceSettingsHandler) RegisterRoutes(r chi.Router) {
 	r.Get("/pos/settings", h.GetSettings)
 	r.Put("/pos/settings", h.PutSettings)
 	r.Patch("/pos/settings/modules", h.PatchModules)
 	r.Patch("/pos/settings/shifts", h.PatchShiftSettings)
+	r.Patch("/pos/settings/tables", h.PatchTableSettings)
 	r.Patch("/pos/settings/outlet", h.PatchOutletConfig)
 	r.Get("/pos/outlets/{outletID}/settings", h.GetSettings)
 	r.Put("/pos/outlets/{outletID}/settings", h.PutSettings)

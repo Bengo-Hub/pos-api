@@ -150,11 +150,17 @@ func runSeed(ctx context.Context, client *ent.Client, tenantID uuid.UUID, tc ten
 	}
 
 	if tc.seedStaff {
-		if err := cleanupExtraStaffMembers(ctx, client, tenantID); err != nil {
+		if err := cleanupExtraStaffMembers(ctx, client, tenantID, tc.slug); err != nil {
 			log.Printf("  ⚠️  cleanup extra staff: %v", err)
 		}
-		if err := seedStaffMembers(ctx, client, tenantID, hqOutletID); err != nil {
-			return fmt.Errorf("seed staff members: %w", err)
+		// Seed staff for EVERY outlet so PIN login works at each terminal type.
+		if defs, ok := outletsByTenantSlug[tc.slug]; ok {
+			for _, d := range defs {
+				oid := outletUUID(tc.slug, d.slug)
+				if err := seedStaffMembers(ctx, client, tenantID, oid, d.slug); err != nil {
+					log.Printf("  ⚠️  seed staff for outlet %s: %v", d.slug, err)
+				}
+			}
 		}
 	}
 
@@ -1094,29 +1100,58 @@ func seedRBACRoles(ctx context.Context, client *ent.Client, tenantID uuid.UUID) 
 	return nil
 }
 
-func seedStaffMembers(ctx context.Context, client *ent.Client, tenantID, outletID uuid.UUID) error {
-	type staffDef struct {
-		name string
-		role string
-		pin  string
-	}
-	// Each demo staff has a unique PIN for role-switching demos.
-	// Display hint in PIN login: 1111=Admin, 2222=Cashier, 3333=Waiter, etc.
-	staff := []staffDef{
+// outletStaffDefs maps outlet slug → staff list for that terminal type.
+// PINs are shared across outlets where the role exists (same PIN, different outlet-scoped fast_hash).
+var outletStaffDefs = map[string][]struct{ name, role, pin string }{
+	"demo-hospitality": {
 		{"Alice Manager", "manager", "1111"},
 		{"Bob Cashier", "cashier", "2222"},
 		{"Carol Waiter", "waiter", "3333"},
 		{"David Kitchen", "kitchen", "4444"},
 		{"Eve Bartender", "bar", "5555"},
 		{"Frank Receptionist", "receptionist", "6666"},
+	},
+	"demo-pharmacy": {
+		{"Alice Manager", "manager", "1111"},
+		{"Bob Cashier", "cashier", "2222"},
 		{"Grace Pharmacist", "pharmacist", "7777"},
+	},
+	"demo-retail": {
+		{"Alice Manager", "manager", "1111"},
+		{"Bob Cashier", "cashier", "2222"},
+	},
+	"demo-quick": {
+		{"Alice Manager", "manager", "1111"},
+		{"Bob Cashier", "cashier", "2222"},
+		{"David Kitchen", "kitchen", "4444"},
+	},
+	"demo-services": {
+		{"Alice Manager", "manager", "1111"},
+		{"Bob Cashier", "cashier", "2222"},
 		{"Hannah Stylist", "stylist", "8888"},
 		{"Ian Therapist", "therapist", "9999"},
-		{"Jane Technician", "technician", "0000"},
+	},
+	// urban-loft hospitality outlet
+	"busia": {
+		{"Alice Manager", "manager", "1111"},
+		{"Bob Cashier", "cashier", "2222"},
+		{"Carol Waiter", "waiter", "3333"},
+		{"David Kitchen", "kitchen", "4444"},
+		{"Eve Bartender", "bar", "5555"},
+		{"Frank Receptionist", "receptionist", "6666"},
+	},
+}
+
+func seedStaffMembers(ctx context.Context, client *ent.Client, tenantID, outletID uuid.UUID, outletSlug string) error {
+	staff, ok := outletStaffDefs[outletSlug]
+	if !ok {
+		log.Printf("  ℹ️  No staff defs for outlet %s — skipping", outletSlug)
+		return nil
 	}
 
 	for _, s := range staff {
-		uid := uuid.NewSHA1(uuid.NameSpaceURL, []byte(fmt.Sprintf("bengobox:pos:staff:%s:%s", tenantID, s.name)))
+		// UUID includes outletSlug so each outlet gets a distinct StaffMember record.
+		uid := uuid.NewSHA1(uuid.NameSpaceURL, []byte(fmt.Sprintf("bengobox:pos:staff:%s:%s:%s", tenantID, outletSlug, s.name)))
 
 		pinHashBytes, err := bcrypt.GenerateFromPassword([]byte(s.pin), bcrypt.DefaultCost)
 		if err != nil {
@@ -1172,20 +1207,16 @@ func seedStaffMembers(ctx context.Context, client *ent.Client, tenantID, outletI
 	return nil
 }
 
-// cleanupExtraStaffMembers removes staff members not in the canonical demo list.
+// cleanupExtraStaffMembers removes staff members not in the canonical per-outlet seed list.
 // This prevents E2E tests or manual inserts from accumulating phantom users.
-func cleanupExtraStaffMembers(ctx context.Context, client *ent.Client, tenantID uuid.UUID) error {
-	canonical := map[string]bool{
-		"Alice Manager":      true,
-		"Bob Cashier":        true,
-		"Carol Waiter":       true,
-		"David Kitchen":      true,
-		"Eve Bartender":      true,
-		"Frank Receptionist": true,
-		"Grace Pharmacist":   true,
-		"Hannah Stylist":     true,
-		"Ian Therapist":      true,
-		"Jane Technician":    true,
+func cleanupExtraStaffMembers(ctx context.Context, client *ent.Client, tenantID uuid.UUID, tenantSlug string) error {
+	// Build set of all expected user UUIDs across every outlet for this tenant.
+	canonicalIDs := map[uuid.UUID]bool{}
+	for _, d := range outletsByTenantSlug[tenantSlug] {
+		for _, s := range outletStaffDefs[d.slug] {
+			uid := uuid.NewSHA1(uuid.NameSpaceURL, []byte(fmt.Sprintf("bengobox:pos:staff:%s:%s:%s", tenantID, d.slug, s.name)))
+			canonicalIDs[uid] = true
+		}
 	}
 
 	all, err := client.StaffMember.Query().
@@ -1197,7 +1228,7 @@ func cleanupExtraStaffMembers(ctx context.Context, client *ent.Client, tenantID 
 
 	var toDelete []uuid.UUID
 	for _, s := range all {
-		if !canonical[s.Name] {
+		if !canonicalIDs[s.UserID] {
 			toDelete = append(toDelete, s.ID)
 		}
 	}

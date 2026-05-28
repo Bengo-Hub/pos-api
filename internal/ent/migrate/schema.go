@@ -1087,6 +1087,7 @@ var (
 		{Name: "shift_reports_enabled", Type: field.TypeBool, Nullable: true, Default: false},
 		{Name: "shift_auto_end_enabled", Type: field.TypeBool, Nullable: true, Default: false},
 		{Name: "shift_max_hours", Type: field.TypeInt, Nullable: true, Default: 12},
+		{Name: "table_max_occupation_minutes", Type: field.TypeInt, Nullable: true, Default: 240},
 		{Name: "default_warehouse_id", Type: field.TypeUUID, Nullable: true},
 		{Name: "updated_at", Type: field.TypeTime},
 		{Name: "outlet_id", Type: field.TypeUUID, Unique: true},
@@ -1099,7 +1100,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "outlet_settings_outlets_settings",
-				Columns:    []*schema.Column{OutletSettingsColumns[32]},
+				Columns:    []*schema.Column{OutletSettingsColumns[33]},
 				RefColumns: []*schema.Column{OutletsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},

@@ -170,6 +170,12 @@ func (h *TableHandler) UpdateSection(w http.ResponseWriter, r *http.Request) {
 }
 
 // ListTables handles GET /{tenantID}/pos/tables
+// tableRow is the API response shape for a single table, extending the Ent model with occupied_since.
+type tableRow struct {
+	*ent.Table
+	OccupiedSince *string `json:"occupied_since,omitempty"`
+}
+
 func (h *TableHandler) ListTables(w http.ResponseWriter, r *http.Request) {
 	tid, err := parseTenantUUID(r)
 	if err != nil {
@@ -177,7 +183,11 @@ func (h *TableHandler) ListTables(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	query := h.client.Table.Query().Where(enttable.TenantID(tid)).WithSection()
+	query := h.client.Table.Query().Where(enttable.TenantID(tid)).
+		WithSection().
+		WithAssignments(func(q *ent.TableAssignmentQuery) {
+			q.Where(tableassignment.ReleasedAtIsNil()).Limit(1)
+		})
 
 	if status := r.URL.Query().Get("status"); status != "" {
 		query = query.Where(enttable.Status(status))
@@ -198,7 +208,16 @@ func (h *TableHandler) ListTables(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	jsonOK(w, pagination.NewResponse(tables, total, p))
+	rows := make([]tableRow, len(tables))
+	for i, t := range tables {
+		row := tableRow{Table: t}
+		if t.Status == "occupied" && len(t.Edges.Assignments) > 0 {
+			ts := t.Edges.Assignments[0].AssignedAt.UTC().Format(time.RFC3339)
+			row.OccupiedSince = &ts
+		}
+		rows[i] = row
+	}
+	jsonOK(w, pagination.NewResponse(rows, total, p))
 }
 
 type createTableInput struct {

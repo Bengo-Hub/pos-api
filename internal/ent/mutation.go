@@ -32962,49 +32962,51 @@ func (m *OutletMutation) ResetEdge(name string) error {
 // OutletSettingMutation represents an operation that mutates the OutletSetting nodes in the graph.
 type OutletSettingMutation struct {
 	config
-	op                     Op
-	typ                    string
-	id                     *uuid.UUID
-	receipts_json          *map[string]interface{}
-	tax_config_json        *map[string]interface{}
-	service_charge_json    *map[string]interface{}
-	opening_hours_json     *map[string]interface{}
-	metadata               *map[string]interface{}
-	pin_login_message      *string
-	screensaver_url        *string
-	display_mode           *string
-	show_images            *bool
-	show_barcode_scanner   *bool
-	default_view           *string
-	enable_kds             *bool
-	enable_appointments    *bool
-	receipt_header         *string
-	receipt_footer         *string
-	currency               *string
-	vat_enabled            *bool
-	vat_rate               *float64
-	addvat_rate            *float64
-	printer_type           *string
-	printer_ip             *string
-	paper_width            *string
-	auto_print_order       *bool
-	auto_print_kitchen     *bool
-	printer_profiles       *[]map[string]interface{}
-	appendprinter_profiles []map[string]interface{}
-	hotel_module_enabled   *bool
-	layaway_enabled        *bool
-	shift_reports_enabled  *bool
-	shift_auto_end_enabled *bool
-	shift_max_hours        *int
-	addshift_max_hours     *int
-	default_warehouse_id   *uuid.UUID
-	updated_at             *time.Time
-	clearedFields          map[string]struct{}
-	outlet                 *uuid.UUID
-	clearedoutlet          bool
-	done                   bool
-	oldValue               func(context.Context) (*OutletSetting, error)
-	predicates             []predicate.OutletSetting
+	op                              Op
+	typ                             string
+	id                              *uuid.UUID
+	receipts_json                   *map[string]interface{}
+	tax_config_json                 *map[string]interface{}
+	service_charge_json             *map[string]interface{}
+	opening_hours_json              *map[string]interface{}
+	metadata                        *map[string]interface{}
+	pin_login_message               *string
+	screensaver_url                 *string
+	display_mode                    *string
+	show_images                     *bool
+	show_barcode_scanner            *bool
+	default_view                    *string
+	enable_kds                      *bool
+	enable_appointments             *bool
+	receipt_header                  *string
+	receipt_footer                  *string
+	currency                        *string
+	vat_enabled                     *bool
+	vat_rate                        *float64
+	addvat_rate                     *float64
+	printer_type                    *string
+	printer_ip                      *string
+	paper_width                     *string
+	auto_print_order                *bool
+	auto_print_kitchen              *bool
+	printer_profiles                *[]map[string]interface{}
+	appendprinter_profiles          []map[string]interface{}
+	hotel_module_enabled            *bool
+	layaway_enabled                 *bool
+	shift_reports_enabled           *bool
+	shift_auto_end_enabled          *bool
+	shift_max_hours                 *int
+	addshift_max_hours              *int
+	table_max_occupation_minutes    *int
+	addtable_max_occupation_minutes *int
+	default_warehouse_id            *uuid.UUID
+	updated_at                      *time.Time
+	clearedFields                   map[string]struct{}
+	outlet                          *uuid.UUID
+	clearedoutlet                   bool
+	done                            bool
+	oldValue                        func(context.Context) (*OutletSetting, error)
+	predicates                      []predicate.OutletSetting
 }
 
 var _ ent.Mutation = (*OutletSettingMutation)(nil)
@@ -34613,6 +34615,76 @@ func (m *OutletSettingMutation) ResetShiftMaxHours() {
 	delete(m.clearedFields, outletsetting.FieldShiftMaxHours)
 }
 
+// SetTableMaxOccupationMinutes sets the "table_max_occupation_minutes" field.
+func (m *OutletSettingMutation) SetTableMaxOccupationMinutes(i int) {
+	m.table_max_occupation_minutes = &i
+	m.addtable_max_occupation_minutes = nil
+}
+
+// TableMaxOccupationMinutes returns the value of the "table_max_occupation_minutes" field in the mutation.
+func (m *OutletSettingMutation) TableMaxOccupationMinutes() (r int, exists bool) {
+	v := m.table_max_occupation_minutes
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTableMaxOccupationMinutes returns the old "table_max_occupation_minutes" field's value of the OutletSetting entity.
+// If the OutletSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OutletSettingMutation) OldTableMaxOccupationMinutes(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTableMaxOccupationMinutes is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTableMaxOccupationMinutes requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTableMaxOccupationMinutes: %w", err)
+	}
+	return oldValue.TableMaxOccupationMinutes, nil
+}
+
+// AddTableMaxOccupationMinutes adds i to the "table_max_occupation_minutes" field.
+func (m *OutletSettingMutation) AddTableMaxOccupationMinutes(i int) {
+	if m.addtable_max_occupation_minutes != nil {
+		*m.addtable_max_occupation_minutes += i
+	} else {
+		m.addtable_max_occupation_minutes = &i
+	}
+}
+
+// AddedTableMaxOccupationMinutes returns the value that was added to the "table_max_occupation_minutes" field in this mutation.
+func (m *OutletSettingMutation) AddedTableMaxOccupationMinutes() (r int, exists bool) {
+	v := m.addtable_max_occupation_minutes
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearTableMaxOccupationMinutes clears the value of the "table_max_occupation_minutes" field.
+func (m *OutletSettingMutation) ClearTableMaxOccupationMinutes() {
+	m.table_max_occupation_minutes = nil
+	m.addtable_max_occupation_minutes = nil
+	m.clearedFields[outletsetting.FieldTableMaxOccupationMinutes] = struct{}{}
+}
+
+// TableMaxOccupationMinutesCleared returns if the "table_max_occupation_minutes" field was cleared in this mutation.
+func (m *OutletSettingMutation) TableMaxOccupationMinutesCleared() bool {
+	_, ok := m.clearedFields[outletsetting.FieldTableMaxOccupationMinutes]
+	return ok
+}
+
+// ResetTableMaxOccupationMinutes resets all changes to the "table_max_occupation_minutes" field.
+func (m *OutletSettingMutation) ResetTableMaxOccupationMinutes() {
+	m.table_max_occupation_minutes = nil
+	m.addtable_max_occupation_minutes = nil
+	delete(m.clearedFields, outletsetting.FieldTableMaxOccupationMinutes)
+}
+
 // SetDefaultWarehouseID sets the "default_warehouse_id" field.
 func (m *OutletSettingMutation) SetDefaultWarehouseID(u uuid.UUID) {
 	m.default_warehouse_id = &u
@@ -34759,7 +34831,7 @@ func (m *OutletSettingMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *OutletSettingMutation) Fields() []string {
-	fields := make([]string, 0, 32)
+	fields := make([]string, 0, 33)
 	if m.outlet != nil {
 		fields = append(fields, outletsetting.FieldOutletID)
 	}
@@ -34850,6 +34922,9 @@ func (m *OutletSettingMutation) Fields() []string {
 	if m.shift_max_hours != nil {
 		fields = append(fields, outletsetting.FieldShiftMaxHours)
 	}
+	if m.table_max_occupation_minutes != nil {
+		fields = append(fields, outletsetting.FieldTableMaxOccupationMinutes)
+	}
 	if m.default_warehouse_id != nil {
 		fields = append(fields, outletsetting.FieldDefaultWarehouseID)
 	}
@@ -34924,6 +34999,8 @@ func (m *OutletSettingMutation) Field(name string) (ent.Value, bool) {
 		return m.ShiftAutoEndEnabled()
 	case outletsetting.FieldShiftMaxHours:
 		return m.ShiftMaxHours()
+	case outletsetting.FieldTableMaxOccupationMinutes:
+		return m.TableMaxOccupationMinutes()
 	case outletsetting.FieldDefaultWarehouseID:
 		return m.DefaultWarehouseID()
 	case outletsetting.FieldUpdatedAt:
@@ -34997,6 +35074,8 @@ func (m *OutletSettingMutation) OldField(ctx context.Context, name string) (ent.
 		return m.OldShiftAutoEndEnabled(ctx)
 	case outletsetting.FieldShiftMaxHours:
 		return m.OldShiftMaxHours(ctx)
+	case outletsetting.FieldTableMaxOccupationMinutes:
+		return m.OldTableMaxOccupationMinutes(ctx)
 	case outletsetting.FieldDefaultWarehouseID:
 		return m.OldDefaultWarehouseID(ctx)
 	case outletsetting.FieldUpdatedAt:
@@ -35220,6 +35299,13 @@ func (m *OutletSettingMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetShiftMaxHours(v)
 		return nil
+	case outletsetting.FieldTableMaxOccupationMinutes:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTableMaxOccupationMinutes(v)
+		return nil
 	case outletsetting.FieldDefaultWarehouseID:
 		v, ok := value.(uuid.UUID)
 		if !ok {
@@ -35248,6 +35334,9 @@ func (m *OutletSettingMutation) AddedFields() []string {
 	if m.addshift_max_hours != nil {
 		fields = append(fields, outletsetting.FieldShiftMaxHours)
 	}
+	if m.addtable_max_occupation_minutes != nil {
+		fields = append(fields, outletsetting.FieldTableMaxOccupationMinutes)
+	}
 	return fields
 }
 
@@ -35260,6 +35349,8 @@ func (m *OutletSettingMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedVatRate()
 	case outletsetting.FieldShiftMaxHours:
 		return m.AddedShiftMaxHours()
+	case outletsetting.FieldTableMaxOccupationMinutes:
+		return m.AddedTableMaxOccupationMinutes()
 	}
 	return nil, false
 }
@@ -35282,6 +35373,13 @@ func (m *OutletSettingMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddShiftMaxHours(v)
+		return nil
+	case outletsetting.FieldTableMaxOccupationMinutes:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTableMaxOccupationMinutes(v)
 		return nil
 	}
 	return fmt.Errorf("unknown OutletSetting numeric field %s", name)
@@ -35374,6 +35472,9 @@ func (m *OutletSettingMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(outletsetting.FieldShiftMaxHours) {
 		fields = append(fields, outletsetting.FieldShiftMaxHours)
+	}
+	if m.FieldCleared(outletsetting.FieldTableMaxOccupationMinutes) {
+		fields = append(fields, outletsetting.FieldTableMaxOccupationMinutes)
 	}
 	if m.FieldCleared(outletsetting.FieldDefaultWarehouseID) {
 		fields = append(fields, outletsetting.FieldDefaultWarehouseID)
@@ -35476,6 +35577,9 @@ func (m *OutletSettingMutation) ClearField(name string) error {
 	case outletsetting.FieldShiftMaxHours:
 		m.ClearShiftMaxHours()
 		return nil
+	case outletsetting.FieldTableMaxOccupationMinutes:
+		m.ClearTableMaxOccupationMinutes()
+		return nil
 	case outletsetting.FieldDefaultWarehouseID:
 		m.ClearDefaultWarehouseID()
 		return nil
@@ -35576,6 +35680,9 @@ func (m *OutletSettingMutation) ResetField(name string) error {
 		return nil
 	case outletsetting.FieldShiftMaxHours:
 		m.ResetShiftMaxHours()
+		return nil
+	case outletsetting.FieldTableMaxOccupationMinutes:
+		m.ResetTableMaxOccupationMinutes()
 		return nil
 	case outletsetting.FieldDefaultWarehouseID:
 		m.ResetDefaultWarehouseID()
