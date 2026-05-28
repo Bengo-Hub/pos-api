@@ -2,6 +2,7 @@ package identity
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"time"
 
@@ -15,6 +16,14 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/staffmember"
 	"github.com/bengobox/pos-service/internal/ent/user"
 )
+
+// staffPinFastHash computes hex(SHA256(tenantID+":"+outletID+":"+pin)).
+// Mirrors the identical helper in handlers/pin_auth.go — kept local to avoid
+// a cross-package dependency in the event subscriber.
+func staffPinFastHash(tenantID, outletID uuid.UUID, pin string) string {
+	h := sha256.Sum256([]byte(tenantID.String() + ":" + outletID.String() + ":" + pin))
+	return fmt.Sprintf("%x", h)
+}
 
 // AuthEventHandler handles auth-service user events for proactive user sync.
 type AuthEventHandler struct {
@@ -342,7 +351,13 @@ func (h *AuthEventHandler) handleUserPINSet(ctx context.Context, evt *sharedeven
 		}
 	}
 
-	if err := existing.Update().SetPinHash(pinHash).Exec(ctx); err != nil {
+	upd := existing.Update().SetPinHash(pinHash)
+	// If the event includes the raw pin (sent by auth-api seed for internal NATS events),
+	// pre-compute and store pin_fast_hash so IdentifyByPIN can use the O(1) index path.
+	if rawPin, _ := evt.Payload["pin"].(string); rawPin != "" {
+		upd = upd.SetPinFastHash(staffPinFastHash(existing.TenantID, existing.OutletID, rawPin))
+	}
+	if err := upd.Exec(ctx); err != nil {
 		return fmt.Errorf("update PIN hash: %w", err)
 	}
 

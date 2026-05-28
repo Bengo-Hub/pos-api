@@ -379,9 +379,33 @@ func (h *PINAuthHandler) IdentifyByPIN(w http.ResponseWriter, r *http.Request) {
 		Where(entstaff.TenantID(tid), entstaff.OutletID(outletID), entstaff.PinFastHash(fastHash), entstaff.IsActive(true)).
 		Only(r.Context())
 	if err != nil {
-		// Return generic 401 to avoid enumeration
-		jsonError(w, "invalid credentials", http.StatusUnauthorized)
-		return
+		if !ent.IsNotFound(err) {
+			h.log.Error("pin identify: db error", zap.Error(err))
+			jsonError(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		// Fast-hash miss — staff provisioned via NATS event won't have pin_fast_hash set.
+		// Scan active staff in this outlet and bcrypt-compare as fallback.
+		candidates, scanErr := h.client.StaffMember.Query().
+			Where(entstaff.TenantID(tid), entstaff.OutletID(outletID), entstaff.IsActive(true), entstaff.PinHashNotNil()).
+			All(r.Context())
+		if scanErr != nil {
+			jsonError(w, "invalid credentials", http.StatusUnauthorized)
+			return
+		}
+		member = nil
+		for _, c := range candidates {
+			if bcrypt.CompareHashAndPassword([]byte(*c.PinHash), []byte(input.PIN)) == nil {
+				member = c
+				// Backfill pin_fast_hash so subsequent logins use the O(1) index path.
+				_ = h.client.StaffMember.UpdateOne(c).SetPinFastHash(fastHash).Exec(r.Context())
+				break
+			}
+		}
+		if member == nil {
+			jsonError(w, "invalid credentials", http.StatusUnauthorized)
+			return
+		}
 	}
 
 	if member.PinHash == nil {
@@ -396,7 +420,7 @@ func (h *PINAuthHandler) IdentifyByPIN(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Secondary bcrypt verify — guards against any SHA-256 collision (extremely unlikely but safe)
+	// Bcrypt verify (primary on fast-hash path, redundant but kept for defence-in-depth)
 	if err := bcrypt.CompareHashAndPassword([]byte(*member.PinHash), []byte(input.PIN)); err != nil {
 		attempts := member.PinFailedAttempts + 1
 		upd := h.client.StaffMember.UpdateOne(member).SetPinFailedAttempts(attempts)
