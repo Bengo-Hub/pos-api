@@ -27,7 +27,7 @@ func (StaffMember) Fields() []ent.Field {
 		field.Float("commission_rate").Optional().Nillable().Comment("Commission percentage on services"),
 		field.Bool("is_active").Default(true),
 		field.String("role").Default("cashier").
-			Comment("POS role: admin|manager|cashier|waiter|kitchen|bar|receptionist|pharmacist|stylist|therapist"),
+			Comment("POS role: admin (unrestricted)|manager (RBAC scoped)|cashier|waiter|kitchen|bar|receptionist|pharmacist|stylist|therapist"),
 		// Employment & compensation
 		field.Enum("employment_type").
 			Values("full_time", "part_time", "casual", "contractor").

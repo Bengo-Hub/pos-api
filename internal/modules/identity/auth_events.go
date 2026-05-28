@@ -394,9 +394,9 @@ func mapSSORoleToPOS(payload map[string]interface{}) string {
 		role, _ := r.(string)
 		switch role {
 		case "admin", "superuser":
-			return "manager"
+			return "admin" // unrestricted tenant/platform access
 		case "manager":
-			return "manager"
+			return "manager" // RBAC-scoped access, different from admin
 		case "staff":
 			return "cashier"
 		case "cashier", "waiter", "receptionist", "kitchen", "bar", "pharmacist", "stylist", "therapist":
