@@ -179,31 +179,56 @@ func (h *AuthEventHandler) handleUserUpdated(ctx context.Context, evt *sharedeve
 		return fmt.Errorf("invalid user_id %q: %w", userIDStr, err)
 	}
 
-	// Find existing user
+	// Find existing user — if absent, create it so the StaffMember name patch below can run.
 	u, err := h.client.User.Query().
 		Where(user.AuthServiceUserIDEQ(authServiceUserID)).
 		Only(ctx)
 	if err != nil {
-		if ent.IsNotFound(err) {
-			h.logger.Debug("user not found for update event, will be created on first login",
+		if !ent.IsNotFound(err) {
+			return fmt.Errorf("query user: %w", err)
+		}
+		// User row doesn't exist (e.g. after a DB reset). Resolve tenant then create it.
+		tenantID := evt.TenantID
+		tenantSlug, _ := evt.Payload["tenant_slug"].(string)
+		if tenantSlug != "" && h.tenantSyncer != nil {
+			if tid, syncErr := h.tenantSyncer.SyncTenant(ctx, tenantSlug); syncErr == nil {
+				tenantID = tid
+			}
+		}
+		if tenantID == uuid.Nil {
+			h.logger.Debug("user not found and no tenant_id in updated event, skipping",
 				zap.String("user_id", userIDStr))
 			return nil
 		}
-		return fmt.Errorf("query user: %w", err)
-	}
-
-	// Update user fields
-	update := h.client.User.UpdateOne(u)
-	if email != "" {
-		update = update.SetEmail(email)
-	}
-	if fullName != "" {
-		update = update.SetFullName(fullName)
-	}
-	update = update.SetSyncStatus("synced").SetSyncAt(time.Now())
-
-	if _, err := update.Save(ctx); err != nil {
-		return fmt.Errorf("update user from auth event: %w", err)
+		created, createErr := h.client.User.Create().
+			SetID(authServiceUserID).
+			SetAuthServiceUserID(authServiceUserID).
+			SetTenantID(tenantID).
+			SetEmail(email).
+			SetFullName(fullName).
+			SetStatus("active").
+			SetSyncStatus("synced").
+			SetSyncAt(time.Now()).
+			Save(ctx)
+		if createErr != nil {
+			return fmt.Errorf("create user from updated event: %w", createErr)
+		}
+		h.logger.Info("user created from auth.user.updated event (backfill)",
+			zap.String("user_id", userIDStr))
+		u = created
+	} else {
+		// Update user fields
+		update := h.client.User.UpdateOne(u)
+		if email != "" {
+			update = update.SetEmail(email)
+		}
+		if fullName != "" {
+			update = update.SetFullName(fullName)
+		}
+		update = update.SetSyncStatus("synced").SetSyncAt(time.Now())
+		if _, err := update.Save(ctx); err != nil {
+			return fmt.Errorf("update user from auth event: %w", err)
+		}
 	}
 
 	// Patch StaffMember fields if the event carries them.
