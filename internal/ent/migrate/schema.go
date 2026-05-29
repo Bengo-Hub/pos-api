@@ -1432,6 +1432,7 @@ var (
 		{Name: "return_type", Type: field.TypeEnum, Enums: []string{"refund", "exchange", "store_credit"}, Default: "refund"},
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending", "approved", "rejected", "completed"}, Default: "pending"},
 		{Name: "reason", Type: field.TypeString, Nullable: true},
+		{Name: "reason_code", Type: field.TypeEnum, Nullable: true, Enums: []string{"changed_mind", "defective", "damaged", "wrong_item", "expired", "other"}},
 		{Name: "refund_amount", Type: field.TypeFloat64, Default: 0},
 		{Name: "exchange_order_id", Type: field.TypeUUID, Nullable: true},
 		{Name: "requested_by", Type: field.TypeUUID},

@@ -134,6 +134,26 @@ func (_u *POSReturnUpdate) ClearReason() *POSReturnUpdate {
 	return _u
 }
 
+// SetReasonCode sets the "reason_code" field.
+func (_u *POSReturnUpdate) SetReasonCode(v posreturn.ReasonCode) *POSReturnUpdate {
+	_u.mutation.SetReasonCode(v)
+	return _u
+}
+
+// SetNillableReasonCode sets the "reason_code" field if the given value is not nil.
+func (_u *POSReturnUpdate) SetNillableReasonCode(v *posreturn.ReasonCode) *POSReturnUpdate {
+	if v != nil {
+		_u.SetReasonCode(*v)
+	}
+	return _u
+}
+
+// ClearReasonCode clears the value of the "reason_code" field.
+func (_u *POSReturnUpdate) ClearReasonCode() *POSReturnUpdate {
+	_u.mutation.ClearReasonCode()
+	return _u
+}
+
 // SetRefundAmount sets the "refund_amount" field.
 func (_u *POSReturnUpdate) SetRefundAmount(v float64) *POSReturnUpdate {
 	_u.mutation.ResetRefundAmount()
@@ -335,6 +355,11 @@ func (_u *POSReturnUpdate) check() error {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "POSReturn.status": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.ReasonCode(); ok {
+		if err := posreturn.ReasonCodeValidator(v); err != nil {
+			return &ValidationError{Name: "reason_code", err: fmt.Errorf(`ent: validator failed for field "POSReturn.reason_code": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -373,6 +398,12 @@ func (_u *POSReturnUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.ReasonCleared() {
 		_spec.ClearField(posreturn.FieldReason, field.TypeString)
+	}
+	if value, ok := _u.mutation.ReasonCode(); ok {
+		_spec.SetField(posreturn.FieldReasonCode, field.TypeEnum, value)
+	}
+	if _u.mutation.ReasonCodeCleared() {
+		_spec.ClearField(posreturn.FieldReasonCode, field.TypeEnum)
 	}
 	if value, ok := _u.mutation.RefundAmount(); ok {
 		_spec.SetField(posreturn.FieldRefundAmount, field.TypeFloat64, value)
@@ -573,6 +604,26 @@ func (_u *POSReturnUpdateOne) SetNillableReason(v *string) *POSReturnUpdateOne {
 // ClearReason clears the value of the "reason" field.
 func (_u *POSReturnUpdateOne) ClearReason() *POSReturnUpdateOne {
 	_u.mutation.ClearReason()
+	return _u
+}
+
+// SetReasonCode sets the "reason_code" field.
+func (_u *POSReturnUpdateOne) SetReasonCode(v posreturn.ReasonCode) *POSReturnUpdateOne {
+	_u.mutation.SetReasonCode(v)
+	return _u
+}
+
+// SetNillableReasonCode sets the "reason_code" field if the given value is not nil.
+func (_u *POSReturnUpdateOne) SetNillableReasonCode(v *posreturn.ReasonCode) *POSReturnUpdateOne {
+	if v != nil {
+		_u.SetReasonCode(*v)
+	}
+	return _u
+}
+
+// ClearReasonCode clears the value of the "reason_code" field.
+func (_u *POSReturnUpdateOne) ClearReasonCode() *POSReturnUpdateOne {
+	_u.mutation.ClearReasonCode()
 	return _u
 }
 
@@ -790,6 +841,11 @@ func (_u *POSReturnUpdateOne) check() error {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "POSReturn.status": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.ReasonCode(); ok {
+		if err := posreturn.ReasonCodeValidator(v); err != nil {
+			return &ValidationError{Name: "reason_code", err: fmt.Errorf(`ent: validator failed for field "POSReturn.reason_code": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -845,6 +901,12 @@ func (_u *POSReturnUpdateOne) sqlSave(ctx context.Context) (_node *POSReturn, er
 	}
 	if _u.mutation.ReasonCleared() {
 		_spec.ClearField(posreturn.FieldReason, field.TypeString)
+	}
+	if value, ok := _u.mutation.ReasonCode(); ok {
+		_spec.SetField(posreturn.FieldReasonCode, field.TypeEnum, value)
+	}
+	if _u.mutation.ReasonCodeCleared() {
+		_spec.ClearField(posreturn.FieldReasonCode, field.TypeEnum)
 	}
 	if value, ok := _u.mutation.RefundAmount(); ok {
 		_spec.SetField(posreturn.FieldRefundAmount, field.TypeFloat64, value)

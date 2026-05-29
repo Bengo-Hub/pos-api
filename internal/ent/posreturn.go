@@ -33,6 +33,8 @@ type POSReturn struct {
 	Status posreturn.Status `json:"status,omitempty"`
 	// Reason holds the value of the "reason" field.
 	Reason string `json:"reason,omitempty"`
+	// ReasonCode holds the value of the "reason_code" field.
+	ReasonCode *posreturn.ReasonCode `json:"reason_code,omitempty"`
 	// Monetary amount to refund; 0 for exchange/store_credit
 	RefundAmount float64 `json:"refund_amount,omitempty"`
 	// New order created for an exchange return
@@ -84,7 +86,7 @@ func (*POSReturn) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case posreturn.FieldRefundAmount:
 			values[i] = new(sql.NullFloat64)
-		case posreturn.FieldReturnNumber, posreturn.FieldReturnType, posreturn.FieldStatus, posreturn.FieldReason, posreturn.FieldTreasuryRefundRef:
+		case posreturn.FieldReturnNumber, posreturn.FieldReturnType, posreturn.FieldStatus, posreturn.FieldReason, posreturn.FieldReasonCode, posreturn.FieldTreasuryRefundRef:
 			values[i] = new(sql.NullString)
 		case posreturn.FieldCreatedAt, posreturn.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -152,6 +154,13 @@ func (_m *POSReturn) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field reason", values[i])
 			} else if value.Valid {
 				_m.Reason = value.String
+			}
+		case posreturn.FieldReasonCode:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field reason_code", values[i])
+			} else if value.Valid {
+				_m.ReasonCode = new(posreturn.ReasonCode)
+				*_m.ReasonCode = posreturn.ReasonCode(value.String)
 			}
 		case posreturn.FieldRefundAmount:
 			if value, ok := values[i].(*sql.NullFloat64); !ok {
@@ -267,6 +276,11 @@ func (_m *POSReturn) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("reason=")
 	builder.WriteString(_m.Reason)
+	builder.WriteString(", ")
+	if v := _m.ReasonCode; v != nil {
+		builder.WriteString("reason_code=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("refund_amount=")
 	builder.WriteString(fmt.Sprintf("%v", _m.RefundAmount))

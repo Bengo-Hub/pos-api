@@ -47711,6 +47711,7 @@ type POSReturnMutation struct {
 	return_type         *posreturn.ReturnType
 	status              *posreturn.Status
 	reason              *string
+	reason_code         *posreturn.ReasonCode
 	refund_amount       *float64
 	addrefund_amount    *float64
 	exchange_order_id   *uuid.UUID
@@ -48096,6 +48097,55 @@ func (m *POSReturnMutation) ReasonCleared() bool {
 func (m *POSReturnMutation) ResetReason() {
 	m.reason = nil
 	delete(m.clearedFields, posreturn.FieldReason)
+}
+
+// SetReasonCode sets the "reason_code" field.
+func (m *POSReturnMutation) SetReasonCode(pc posreturn.ReasonCode) {
+	m.reason_code = &pc
+}
+
+// ReasonCode returns the value of the "reason_code" field in the mutation.
+func (m *POSReturnMutation) ReasonCode() (r posreturn.ReasonCode, exists bool) {
+	v := m.reason_code
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReasonCode returns the old "reason_code" field's value of the POSReturn entity.
+// If the POSReturn object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSReturnMutation) OldReasonCode(ctx context.Context) (v *posreturn.ReasonCode, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReasonCode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReasonCode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReasonCode: %w", err)
+	}
+	return oldValue.ReasonCode, nil
+}
+
+// ClearReasonCode clears the value of the "reason_code" field.
+func (m *POSReturnMutation) ClearReasonCode() {
+	m.reason_code = nil
+	m.clearedFields[posreturn.FieldReasonCode] = struct{}{}
+}
+
+// ReasonCodeCleared returns if the "reason_code" field was cleared in this mutation.
+func (m *POSReturnMutation) ReasonCodeCleared() bool {
+	_, ok := m.clearedFields[posreturn.FieldReasonCode]
+	return ok
+}
+
+// ResetReasonCode resets all changes to the "reason_code" field.
+func (m *POSReturnMutation) ResetReasonCode() {
+	m.reason_code = nil
+	delete(m.clearedFields, posreturn.FieldReasonCode)
 }
 
 // SetRefundAmount sets the "refund_amount" field.
@@ -48533,7 +48583,7 @@ func (m *POSReturnMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *POSReturnMutation) Fields() []string {
-	fields := make([]string, 0, 15)
+	fields := make([]string, 0, 16)
 	if m.tenant_id != nil {
 		fields = append(fields, posreturn.FieldTenantID)
 	}
@@ -48554,6 +48604,9 @@ func (m *POSReturnMutation) Fields() []string {
 	}
 	if m.reason != nil {
 		fields = append(fields, posreturn.FieldReason)
+	}
+	if m.reason_code != nil {
+		fields = append(fields, posreturn.FieldReasonCode)
 	}
 	if m.refund_amount != nil {
 		fields = append(fields, posreturn.FieldRefundAmount)
@@ -48601,6 +48654,8 @@ func (m *POSReturnMutation) Field(name string) (ent.Value, bool) {
 		return m.Status()
 	case posreturn.FieldReason:
 		return m.Reason()
+	case posreturn.FieldReasonCode:
+		return m.ReasonCode()
 	case posreturn.FieldRefundAmount:
 		return m.RefundAmount()
 	case posreturn.FieldExchangeOrderID:
@@ -48640,6 +48695,8 @@ func (m *POSReturnMutation) OldField(ctx context.Context, name string) (ent.Valu
 		return m.OldStatus(ctx)
 	case posreturn.FieldReason:
 		return m.OldReason(ctx)
+	case posreturn.FieldReasonCode:
+		return m.OldReasonCode(ctx)
 	case posreturn.FieldRefundAmount:
 		return m.OldRefundAmount(ctx)
 	case posreturn.FieldExchangeOrderID:
@@ -48713,6 +48770,13 @@ func (m *POSReturnMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetReason(v)
+		return nil
+	case posreturn.FieldReasonCode:
+		v, ok := value.(posreturn.ReasonCode)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReasonCode(v)
 		return nil
 	case posreturn.FieldRefundAmount:
 		v, ok := value.(float64)
@@ -48818,6 +48882,9 @@ func (m *POSReturnMutation) ClearedFields() []string {
 	if m.FieldCleared(posreturn.FieldReason) {
 		fields = append(fields, posreturn.FieldReason)
 	}
+	if m.FieldCleared(posreturn.FieldReasonCode) {
+		fields = append(fields, posreturn.FieldReasonCode)
+	}
 	if m.FieldCleared(posreturn.FieldExchangeOrderID) {
 		fields = append(fields, posreturn.FieldExchangeOrderID)
 	}
@@ -48843,6 +48910,9 @@ func (m *POSReturnMutation) ClearField(name string) error {
 	switch name {
 	case posreturn.FieldReason:
 		m.ClearReason()
+		return nil
+	case posreturn.FieldReasonCode:
+		m.ClearReasonCode()
 		return nil
 	case posreturn.FieldExchangeOrderID:
 		m.ClearExchangeOrderID()
@@ -48881,6 +48951,9 @@ func (m *POSReturnMutation) ResetField(name string) error {
 		return nil
 	case posreturn.FieldReason:
 		m.ResetReason()
+		return nil
+	case posreturn.FieldReasonCode:
+		m.ResetReasonCode()
 		return nil
 	case posreturn.FieldRefundAmount:
 		m.ResetRefundAmount()

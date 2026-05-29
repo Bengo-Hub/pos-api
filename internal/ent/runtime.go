@@ -1352,19 +1352,19 @@ func init() {
 	// posreturn.ReturnNumberValidator is a validator for the "return_number" field. It is called by the builders before save.
 	posreturn.ReturnNumberValidator = posreturnDescReturnNumber.Validators[0].(func(string) error)
 	// posreturnDescRefundAmount is the schema descriptor for refund_amount field.
-	posreturnDescRefundAmount := posreturnFields[8].Descriptor()
+	posreturnDescRefundAmount := posreturnFields[9].Descriptor()
 	// posreturn.DefaultRefundAmount holds the default value on creation for the refund_amount field.
 	posreturn.DefaultRefundAmount = posreturnDescRefundAmount.Default.(float64)
 	// posreturnDescMetadata is the schema descriptor for metadata field.
-	posreturnDescMetadata := posreturnFields[13].Descriptor()
+	posreturnDescMetadata := posreturnFields[14].Descriptor()
 	// posreturn.DefaultMetadata holds the default value on creation for the metadata field.
 	posreturn.DefaultMetadata = posreturnDescMetadata.Default.(map[string]interface{})
 	// posreturnDescCreatedAt is the schema descriptor for created_at field.
-	posreturnDescCreatedAt := posreturnFields[14].Descriptor()
+	posreturnDescCreatedAt := posreturnFields[15].Descriptor()
 	// posreturn.DefaultCreatedAt holds the default value on creation for the created_at field.
 	posreturn.DefaultCreatedAt = posreturnDescCreatedAt.Default.(func() time.Time)
 	// posreturnDescUpdatedAt is the schema descriptor for updated_at field.
-	posreturnDescUpdatedAt := posreturnFields[15].Descriptor()
+	posreturnDescUpdatedAt := posreturnFields[16].Descriptor()
 	// posreturn.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	posreturn.DefaultUpdatedAt = posreturnDescUpdatedAt.Default.(func() time.Time)
 	// posreturn.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

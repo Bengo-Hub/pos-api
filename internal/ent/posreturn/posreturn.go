@@ -30,6 +30,8 @@ const (
 	FieldStatus = "status"
 	// FieldReason holds the string denoting the reason field in the database.
 	FieldReason = "reason"
+	// FieldReasonCode holds the string denoting the reason_code field in the database.
+	FieldReasonCode = "reason_code"
 	// FieldRefundAmount holds the string denoting the refund_amount field in the database.
 	FieldRefundAmount = "refund_amount"
 	// FieldExchangeOrderID holds the string denoting the exchange_order_id field in the database.
@@ -69,6 +71,7 @@ var Columns = []string{
 	FieldReturnType,
 	FieldStatus,
 	FieldReason,
+	FieldReasonCode,
 	FieldRefundAmount,
 	FieldExchangeOrderID,
 	FieldRequestedBy,
@@ -161,6 +164,33 @@ func StatusValidator(s Status) error {
 	}
 }
 
+// ReasonCode defines the type for the "reason_code" enum field.
+type ReasonCode string
+
+// ReasonCode values.
+const (
+	ReasonCodeChangedMind ReasonCode = "changed_mind"
+	ReasonCodeDefective   ReasonCode = "defective"
+	ReasonCodeDamaged     ReasonCode = "damaged"
+	ReasonCodeWrongItem   ReasonCode = "wrong_item"
+	ReasonCodeExpired     ReasonCode = "expired"
+	ReasonCodeOther       ReasonCode = "other"
+)
+
+func (rc ReasonCode) String() string {
+	return string(rc)
+}
+
+// ReasonCodeValidator is a validator for the "reason_code" field enum values. It is called by the builders before save.
+func ReasonCodeValidator(rc ReasonCode) error {
+	switch rc {
+	case ReasonCodeChangedMind, ReasonCodeDefective, ReasonCodeDamaged, ReasonCodeWrongItem, ReasonCodeExpired, ReasonCodeOther:
+		return nil
+	default:
+		return fmt.Errorf("posreturn: invalid enum value for reason_code field: %q", rc)
+	}
+}
+
 // OrderOption defines the ordering options for the POSReturn queries.
 type OrderOption func(*sql.Selector)
 
@@ -202,6 +232,11 @@ func ByStatus(opts ...sql.OrderTermOption) OrderOption {
 // ByReason orders the results by the reason field.
 func ByReason(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldReason, opts...).ToFunc()
+}
+
+// ByReasonCode orders the results by the reason_code field.
+func ByReasonCode(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldReasonCode, opts...).ToFunc()
 }
 
 // ByRefundAmount orders the results by the refund_amount field.

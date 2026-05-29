@@ -416,6 +416,36 @@ func ReasonContainsFold(v string) predicate.POSReturn {
 	return predicate.POSReturn(sql.FieldContainsFold(FieldReason, v))
 }
 
+// ReasonCodeEQ applies the EQ predicate on the "reason_code" field.
+func ReasonCodeEQ(v ReasonCode) predicate.POSReturn {
+	return predicate.POSReturn(sql.FieldEQ(FieldReasonCode, v))
+}
+
+// ReasonCodeNEQ applies the NEQ predicate on the "reason_code" field.
+func ReasonCodeNEQ(v ReasonCode) predicate.POSReturn {
+	return predicate.POSReturn(sql.FieldNEQ(FieldReasonCode, v))
+}
+
+// ReasonCodeIn applies the In predicate on the "reason_code" field.
+func ReasonCodeIn(vs ...ReasonCode) predicate.POSReturn {
+	return predicate.POSReturn(sql.FieldIn(FieldReasonCode, vs...))
+}
+
+// ReasonCodeNotIn applies the NotIn predicate on the "reason_code" field.
+func ReasonCodeNotIn(vs ...ReasonCode) predicate.POSReturn {
+	return predicate.POSReturn(sql.FieldNotIn(FieldReasonCode, vs...))
+}
+
+// ReasonCodeIsNil applies the IsNil predicate on the "reason_code" field.
+func ReasonCodeIsNil() predicate.POSReturn {
+	return predicate.POSReturn(sql.FieldIsNull(FieldReasonCode))
+}
+
+// ReasonCodeNotNil applies the NotNil predicate on the "reason_code" field.
+func ReasonCodeNotNil() predicate.POSReturn {
+	return predicate.POSReturn(sql.FieldNotNull(FieldReasonCode))
+}
+
 // RefundAmountEQ applies the EQ predicate on the "refund_amount" field.
 func RefundAmountEQ(v float64) predicate.POSReturn {
 	return predicate.POSReturn(sql.FieldEQ(FieldRefundAmount, v))

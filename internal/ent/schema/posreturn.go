@@ -35,6 +35,10 @@ func (POSReturn) Fields() []ent.Field {
 			Default("pending"),
 		field.String("reason").
 			Optional(),
+		field.Enum("reason_code").
+			Values("changed_mind", "defective", "damaged", "wrong_item", "expired", "other").
+			Optional().
+			Nillable(),
 		field.Float("refund_amount").
 			Default(0).
 			Comment("Monetary amount to refund; 0 for exchange/store_credit"),

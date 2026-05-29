@@ -91,6 +91,20 @@ func (_c *POSReturnCreate) SetNillableReason(v *string) *POSReturnCreate {
 	return _c
 }
 
+// SetReasonCode sets the "reason_code" field.
+func (_c *POSReturnCreate) SetReasonCode(v posreturn.ReasonCode) *POSReturnCreate {
+	_c.mutation.SetReasonCode(v)
+	return _c
+}
+
+// SetNillableReasonCode sets the "reason_code" field if the given value is not nil.
+func (_c *POSReturnCreate) SetNillableReasonCode(v *posreturn.ReasonCode) *POSReturnCreate {
+	if v != nil {
+		_c.SetReasonCode(*v)
+	}
+	return _c
+}
+
 // SetRefundAmount sets the "refund_amount" field.
 func (_c *POSReturnCreate) SetRefundAmount(v float64) *POSReturnCreate {
 	_c.mutation.SetRefundAmount(v)
@@ -316,6 +330,11 @@ func (_c *POSReturnCreate) check() error {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "POSReturn.status": %w`, err)}
 		}
 	}
+	if v, ok := _c.mutation.ReasonCode(); ok {
+		if err := posreturn.ReasonCodeValidator(v); err != nil {
+			return &ValidationError{Name: "reason_code", err: fmt.Errorf(`ent: validator failed for field "POSReturn.reason_code": %w`, err)}
+		}
+	}
 	if _, ok := _c.mutation.RefundAmount(); !ok {
 		return &ValidationError{Name: "refund_amount", err: errors.New(`ent: missing required field "POSReturn.refund_amount"`)}
 	}
@@ -394,6 +413,10 @@ func (_c *POSReturnCreate) createSpec() (*POSReturn, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Reason(); ok {
 		_spec.SetField(posreturn.FieldReason, field.TypeString, value)
 		_node.Reason = value
+	}
+	if value, ok := _c.mutation.ReasonCode(); ok {
+		_spec.SetField(posreturn.FieldReasonCode, field.TypeEnum, value)
+		_node.ReasonCode = &value
 	}
 	if value, ok := _c.mutation.RefundAmount(); ok {
 		_spec.SetField(posreturn.FieldRefundAmount, field.TypeFloat64, value)
@@ -582,6 +605,24 @@ func (u *POSReturnUpsert) UpdateReason() *POSReturnUpsert {
 // ClearReason clears the value of the "reason" field.
 func (u *POSReturnUpsert) ClearReason() *POSReturnUpsert {
 	u.SetNull(posreturn.FieldReason)
+	return u
+}
+
+// SetReasonCode sets the "reason_code" field.
+func (u *POSReturnUpsert) SetReasonCode(v posreturn.ReasonCode) *POSReturnUpsert {
+	u.Set(posreturn.FieldReasonCode, v)
+	return u
+}
+
+// UpdateReasonCode sets the "reason_code" field to the value that was provided on create.
+func (u *POSReturnUpsert) UpdateReasonCode() *POSReturnUpsert {
+	u.SetExcluded(posreturn.FieldReasonCode)
+	return u
+}
+
+// ClearReasonCode clears the value of the "reason_code" field.
+func (u *POSReturnUpsert) ClearReasonCode() *POSReturnUpsert {
+	u.SetNull(posreturn.FieldReasonCode)
 	return u
 }
 
@@ -846,6 +887,27 @@ func (u *POSReturnUpsertOne) UpdateReason() *POSReturnUpsertOne {
 func (u *POSReturnUpsertOne) ClearReason() *POSReturnUpsertOne {
 	return u.Update(func(s *POSReturnUpsert) {
 		s.ClearReason()
+	})
+}
+
+// SetReasonCode sets the "reason_code" field.
+func (u *POSReturnUpsertOne) SetReasonCode(v posreturn.ReasonCode) *POSReturnUpsertOne {
+	return u.Update(func(s *POSReturnUpsert) {
+		s.SetReasonCode(v)
+	})
+}
+
+// UpdateReasonCode sets the "reason_code" field to the value that was provided on create.
+func (u *POSReturnUpsertOne) UpdateReasonCode() *POSReturnUpsertOne {
+	return u.Update(func(s *POSReturnUpsert) {
+		s.UpdateReasonCode()
+	})
+}
+
+// ClearReasonCode clears the value of the "reason_code" field.
+func (u *POSReturnUpsertOne) ClearReasonCode() *POSReturnUpsertOne {
+	return u.Update(func(s *POSReturnUpsert) {
+		s.ClearReasonCode()
 	})
 }
 
@@ -1295,6 +1357,27 @@ func (u *POSReturnUpsertBulk) UpdateReason() *POSReturnUpsertBulk {
 func (u *POSReturnUpsertBulk) ClearReason() *POSReturnUpsertBulk {
 	return u.Update(func(s *POSReturnUpsert) {
 		s.ClearReason()
+	})
+}
+
+// SetReasonCode sets the "reason_code" field.
+func (u *POSReturnUpsertBulk) SetReasonCode(v posreturn.ReasonCode) *POSReturnUpsertBulk {
+	return u.Update(func(s *POSReturnUpsert) {
+		s.SetReasonCode(v)
+	})
+}
+
+// UpdateReasonCode sets the "reason_code" field to the value that was provided on create.
+func (u *POSReturnUpsertBulk) UpdateReasonCode() *POSReturnUpsertBulk {
+	return u.Update(func(s *POSReturnUpsert) {
+		s.UpdateReasonCode()
+	})
+}
+
+// ClearReasonCode clears the value of the "reason_code" field.
+func (u *POSReturnUpsertBulk) ClearReasonCode() *POSReturnUpsertBulk {
+	return u.Update(func(s *POSReturnUpsert) {
+		s.ClearReasonCode()
 	})
 }
 

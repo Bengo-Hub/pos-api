@@ -46,6 +46,7 @@ type createReturnInput struct {
 	OutletID   string            `json:"outlet_id"`
 	ReturnType string            `json:"return_type"` // refund | exchange | store_credit
 	Reason     string            `json:"reason"`
+	ReasonCode string            `json:"reason_code,omitempty"` // changed_mind | defective | damaged | wrong_item | expired | other
 	Lines      []returnLineInput `json:"lines"`
 }
 
@@ -139,6 +140,7 @@ func (h *ReturnHandler) CreateReturn(w http.ResponseWriter, r *http.Request) {
 		SetReturnType(posreturn.ReturnType(returnType)).
 		SetStatus(posreturn.StatusPending).
 		SetReason(input.Reason).
+		SetNillableReasonCode(reasonCodePtr(input.ReasonCode)).
 		SetRefundAmount(refundAmount).
 		SetRequestedBy(requestedBy).
 		Save(ctx)
@@ -342,4 +344,17 @@ func (h *ReturnHandler) ApproveReturn(w http.ResponseWriter, r *http.Request) {
 	}
 
 	jsonOK(w, updated)
+}
+
+// reasonCodePtr converts a reason_code string to a *posreturn.ReasonCode for SetNillableReasonCode.
+// Returns nil if the string is empty or not a valid enum value.
+func reasonCodePtr(s string) *posreturn.ReasonCode {
+	switch posreturn.ReasonCode(s) {
+	case posreturn.ReasonCodeChangedMind, posreturn.ReasonCodeDefective,
+		posreturn.ReasonCodeDamaged, posreturn.ReasonCodeWrongItem,
+		posreturn.ReasonCodeExpired, posreturn.ReasonCodeOther:
+		rc := posreturn.ReasonCode(s)
+		return &rc
+	}
+	return nil
 }
