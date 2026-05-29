@@ -55,6 +55,9 @@ func (h *LoyaltyHandler) ListPrograms(w http.ResponseWriter, r *http.Request) {
 
 // CreateProgram handles POST /{tenantID}/pos/loyalty/programs
 func (h *LoyaltyHandler) CreateProgram(w http.ResponseWriter, r *http.Request) {
+	if !requireConfigPermission(w, r, false) {
+		return
+	}
 	tid, err := parseTenantUUID(r)
 	if err != nil {
 		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
@@ -101,6 +104,9 @@ func (h *LoyaltyHandler) CreateProgram(w http.ResponseWriter, r *http.Request) {
 
 // UpdateProgram handles PUT /{tenantID}/pos/loyalty/programs/{programID}
 func (h *LoyaltyHandler) UpdateProgram(w http.ResponseWriter, r *http.Request) {
+	if !requireConfigPermission(w, r, false) {
+		return
+	}
 	tid, err := parseTenantUUID(r)
 	if err != nil {
 		jsonError(w, "invalid tenant_id", http.StatusBadRequest)

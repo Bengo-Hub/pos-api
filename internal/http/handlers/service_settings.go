@@ -23,6 +23,36 @@ type ServiceSettingsHandler struct {
 	db  *ent.Client
 }
 
+// requireConfigPermission checks that the caller holds pos.config.change (or pos.config.manage
+// when requireManage is true). Platform owners and superuser/admin roles bypass the check.
+// Returns true if the check passes; on failure it writes a 401/403 response and returns false.
+func requireConfigPermission(w http.ResponseWriter, r *http.Request, requireManage bool) bool {
+	claims, ok := authclient.ClaimsFromContext(r.Context())
+	if !ok || claims.Subject == "" {
+		jsonError(w, "unauthenticated", http.StatusUnauthorized)
+		return false
+	}
+	if claims.IsPlatformOwner {
+		return true
+	}
+	for _, role := range claims.Roles {
+		switch role {
+		case "superuser", "admin", "pos_admin", "super_admin":
+			return true
+		}
+	}
+	for _, p := range claims.Permissions {
+		if p == "pos.config.manage" {
+			return true
+		}
+		if !requireManage && p == "pos.config.change" {
+			return true
+		}
+	}
+	jsonError(w, "insufficient permissions — pos.config.change or pos.config.manage required", http.StatusForbidden)
+	return false
+}
+
 func NewServiceSettingsHandler(log *zap.Logger, db *ent.Client) *ServiceSettingsHandler {
 	return &ServiceSettingsHandler{log: log, db: db}
 }
@@ -220,6 +250,9 @@ type updateSettingsInput struct {
 
 // PutSettings handles PUT /{tenantID}/pos/settings and PUT /{tenantID}/pos/outlets/{outletID}/settings
 func (h *ServiceSettingsHandler) PutSettings(w http.ResponseWriter, r *http.Request) {
+	if !requireConfigPermission(w, r, false) {
+		return
+	}
 	tid, err := parseTenantUUID(r)
 	if err != nil {
 		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
@@ -319,8 +352,11 @@ type modulesInput struct {
 }
 
 // PatchModules handles PATCH /{tenantID}/pos/settings/modules
-// Requires pos.config.manage permission — enforced at router level via RBAC middleware.
+// Requires pos.config.manage — toggling modules is a high-impact action restricted to admins.
 func (h *ServiceSettingsHandler) PatchModules(w http.ResponseWriter, r *http.Request) {
+	if !requireConfigPermission(w, r, true) {
+		return
+	}
 	tid, err := parseTenantUUID(r)
 	if err != nil {
 		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
@@ -379,6 +415,9 @@ type shiftSettingsInput struct {
 
 // PatchShiftSettings handles PATCH /{tenantID}/pos/settings/shifts
 func (h *ServiceSettingsHandler) PatchShiftSettings(w http.ResponseWriter, r *http.Request) {
+	if !requireConfigPermission(w, r, false) {
+		return
+	}
 	tid, err := parseTenantUUID(r)
 	if err != nil {
 		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
@@ -522,8 +561,12 @@ type outletConfigInput struct {
 }
 
 // PatchOutletConfig handles PATCH /{tenantID}/pos/settings/outlet
-// Updates outlet-level configuration such as use_case.
+// Updates outlet-level configuration such as use_case. Requires pos.config.manage
+// because changing use_case reconfigures the entire outlet feature set.
 func (h *ServiceSettingsHandler) PatchOutletConfig(w http.ResponseWriter, r *http.Request) {
+	if !requireConfigPermission(w, r, true) {
+		return
+	}
 	tid, err := parseTenantUUID(r)
 	if err != nil {
 		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
@@ -568,6 +611,9 @@ type tableSettingsInput struct {
 
 // PatchTableSettings handles PATCH /{tenantID}/pos/settings/tables
 func (h *ServiceSettingsHandler) PatchTableSettings(w http.ResponseWriter, r *http.Request) {
+	if !requireConfigPermission(w, r, false) {
+		return
+	}
 	tid, err := parseTenantUUID(r)
 	if err != nil {
 		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
