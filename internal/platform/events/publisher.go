@@ -145,6 +145,12 @@ func (p *Publisher) PublishHotelFolioCharge(ctx context.Context, tenantID uuid.U
 	return p.publish(ctx, tenantID, "hotel.folio_charge", data)
 }
 
+// PublishLoyaltyPointsEarned publishes a pos.loyalty.points.earned event.
+// Consumed by notifications-service to send a WhatsApp/SMS "You earned X pts" message.
+func (p *Publisher) PublishLoyaltyPointsEarned(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {
+	return p.publish(ctx, tenantID, "loyalty.points.earned", data)
+}
+
 // PublishLoyaltyTierUpgraded publishes a pos.loyalty.tier_upgraded event when a customer reaches a new loyalty tier.
 // Consumed by marketflow-api to update the CRM contact's loyalty metadata.
 func (p *Publisher) PublishLoyaltyTierUpgraded(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {

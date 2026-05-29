@@ -242,6 +242,9 @@ func New(ctx context.Context) (*App, error) {
 
 	// Loyalty programs (Sprint 10)
 	loyaltyHandler := handlers.NewLoyaltyHandler(log, entClient, mfClient)
+	if pub := orderSvc.GetPublisher(); pub != nil {
+		loyaltyHandler.SetPublisher(pub)
+	}
 
 	// Reports & Analytics (Sprint 11)
 	reportsHandler := handlers.NewReportsHandler(log, entClient)

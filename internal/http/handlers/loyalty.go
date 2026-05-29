@@ -14,6 +14,7 @@ import (
 	entla "github.com/bengobox/pos-service/internal/ent/loyaltyaccount"
 	entlp "github.com/bengobox/pos-service/internal/ent/loyaltyprogram"
 	entlt "github.com/bengobox/pos-service/internal/ent/loyaltytransaction"
+	"github.com/bengobox/pos-service/internal/platform/events"
 	"github.com/bengobox/pos-service/internal/platform/marketflow"
 )
 
@@ -21,10 +22,16 @@ type LoyaltyHandler struct {
 	log        *zap.Logger
 	db         *ent.Client
 	marketflow *marketflow.Client
+	publisher  *events.Publisher
 }
 
 func NewLoyaltyHandler(log *zap.Logger, db *ent.Client, mf *marketflow.Client) *LoyaltyHandler {
 	return &LoyaltyHandler{log: log, db: db, marketflow: mf}
+}
+
+// SetPublisher wires the NATS event publisher (optional — if nil, events are skipped).
+func (h *LoyaltyHandler) SetPublisher(p *events.Publisher) {
+	h.publisher = p
 }
 
 // ListPrograms handles GET /{tenantID}/pos/loyalty/programs
@@ -317,6 +324,22 @@ func (h *LoyaltyHandler) Earn(w http.ResponseWriter, r *http.Request) {
 	tx, err := txCreator.Save(r.Context())
 	if err != nil {
 		h.log.Warn("earn: failed to create transaction record", zap.Error(err))
+	}
+	// Publish event for notifications-service (WhatsApp/SMS "You earned X pts" message).
+	if h.publisher != nil {
+		payload := map[string]any{
+			"account_id":     aid.String(),
+			"customer_phone": acc.CustomerPhone,
+			"customer_name":  acc.CustomerName,
+			"points_earned":  body.Points,
+			"balance_after":  newBalance,
+		}
+		if body.OrderID != nil {
+			payload["order_id"] = *body.OrderID
+		}
+		if pubErr := h.publisher.PublishLoyaltyPointsEarned(r.Context(), tid, payload); pubErr != nil {
+			h.log.Warn("earn: failed to publish loyalty.points.earned event", zap.Error(pubErr))
+		}
 	}
 	jsonOK(w, map[string]any{"balance": newBalance, "transaction": tx})
 }
