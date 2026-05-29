@@ -356,6 +356,16 @@ func New(ctx context.Context) (*App, error) {
 		}
 	}
 
+	// Subscribe to inventory.stock.low → re-publish as pos.alert.stock_low for notifications-service
+	if natsConn != nil {
+		if eventPub := orderSvc.GetPublisher(); eventPub != nil {
+			stockSub := events.NewStockSubscriber(eventPub, log)
+			if err := stockSub.Subscribe(natsConn); err != nil {
+				log.Warn("app: failed to subscribe to inventory.stock.low", zap.Error(err))
+			}
+		}
+	}
+
 	// Webhook dispatcher: fan-out pos.> NATS events to matching webhook subscriptions with HTTP delivery + backoff
 	if natsConn != nil {
 		webhookDispatcher := webhookspkg.NewDispatcher(entClient, log)
