@@ -389,6 +389,7 @@ func New(
 						pos.Get("/layaways/{id}", layaway.Get)
 						pos.Post("/layaways/{id}/payments", layaway.RecordPayment)
 						pos.Post("/layaways/{id}/cancel", layaway.Cancel)
+						pos.Post("/layaways/{id}/complete", layaway.Complete)
 					}
 
 					// Weighing scale readings

@@ -2,7 +2,9 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/Bengo-Hub/pagination"
 	"github.com/go-chi/chi/v5"
@@ -13,6 +15,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent"
 	"github.com/bengobox/pos-service/internal/ent/layawaypayment"
 	"github.com/bengobox/pos-service/internal/ent/layawayplan"
+	"github.com/bengobox/pos-service/internal/ent/posorder"
 )
 
 // LayawayHandler handles layaway plan and payment endpoints.
@@ -302,4 +305,116 @@ func (h *LayawayHandler) Cancel(w http.ResponseWriter, r *http.Request) {
 	}
 
 	jsonOK(w, updated)
+}
+
+// Complete handles POST /{tenantID}/pos/layaways/{id}/complete
+// Creates a POSOrder from the layaway plan and marks it completed.
+// Requires remaining_amount <= 0; idempotent if order_id already set.
+func (h *LayawayHandler) Complete(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+
+	planID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		jsonError(w, "invalid layaway plan id", http.StatusBadRequest)
+		return
+	}
+
+	ctx := r.Context()
+	plan, err := h.db.LayawayPlan.Query().
+		Where(layawayplan.ID(planID), layawayplan.TenantID(tid)).
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			jsonError(w, "layaway plan not found", http.StatusNotFound)
+			return
+		}
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	if plan.Status == "cancelled" || plan.Status == "forfeited" {
+		jsonError(w, "layaway plan is "+plan.Status, http.StatusConflict)
+		return
+	}
+
+	if plan.RemainingAmount.GreaterThan(decimal.Zero) {
+		jsonError(w, "layaway has outstanding balance", http.StatusConflict)
+		return
+	}
+
+	// Idempotent: if the order was already created, return it.
+	if plan.OrderID != nil {
+		jsonOK(w, map[string]any{"order_id": plan.OrderID})
+		return
+	}
+
+	// Get operator from request (optional — layaway completions may be system-triggered).
+	userID := uuid.Nil
+	if raw := r.Header.Get("X-User-ID"); raw != "" {
+		if uid, err := uuid.Parse(raw); err == nil {
+			userID = uid
+		}
+	}
+
+	orderNumber := fmt.Sprintf("LAY-%s-%d", planID.String()[:8], time.Now().UnixMilli())
+	totalFloat := plan.TotalAmount.InexactFloat64()
+
+	order, err := h.db.POSOrder.Create().
+		SetTenantID(tid).
+		SetOutletID(plan.OutletID).
+		SetDeviceID(uuid.Nil).
+		SetUserID(userID).
+		SetOrderNumber(orderNumber).
+		SetStatus("completed").
+		SetSubtotal(totalFloat).
+		SetTaxTotal(0).
+		SetDiscountTotal(0).
+		SetTotalAmount(totalFloat).
+		SetCurrency("KES").
+		SetOrderSubtype(posorder.OrderSubtypeRetail).
+		SetMetadata(map[string]any{"source": "layaway", "layaway_plan_id": planID.String()}).
+		SetNillableCustomerPhone(func() *string {
+			if plan.CustomerPhone != "" { return &plan.CustomerPhone }
+			return nil
+		}()).
+		SetNillableCustomerName(func() *string {
+			if plan.CustomerName != "" { return &plan.CustomerName }
+			return nil
+		}()).
+		Save(ctx)
+	if err != nil {
+		h.log.Error("create layaway order failed", zap.Error(err))
+		jsonError(w, "failed to create order: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Single line summarising the layaway.
+	_, err = h.db.POSOrderLine.Create().
+		SetOrderID(order.ID).
+		SetCatalogItemID(uuid.Nil).
+		SetSku("LAYAWAY").
+		SetName("Layaway: " + plan.CustomerName).
+		SetQuantity(1).
+		SetUnitPrice(totalFloat).
+		SetTotalPrice(totalFloat).
+		SetMetadata(map[string]any{}).
+		Save(ctx)
+	if err != nil {
+		h.log.Error("create layaway order line failed", zap.Error(err))
+	}
+
+	// Link order to plan and mark completed.
+	_, err = plan.Update().
+		SetOrderID(order.ID).
+		SetStatus("completed").
+		Save(ctx)
+	if err != nil {
+		h.log.Error("update layaway plan after completion failed", zap.Error(err))
+	}
+
+	jsonOK(w, map[string]any{"order_id": order.ID, "order_number": orderNumber})
 }
