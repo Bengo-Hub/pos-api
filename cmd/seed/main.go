@@ -15,6 +15,7 @@ import (
 	"github.com/bengobox/pos-service/internal/config"
 	"github.com/bengobox/pos-service/internal/ent"
 	"github.com/bengobox/pos-service/internal/ent/kdsstation"
+	"github.com/bengobox/pos-service/internal/ent/loyaltyprogram"
 	"github.com/bengobox/pos-service/internal/ent/outlet"
 	"github.com/bengobox/pos-service/internal/ent/outletsetting"
 	"github.com/bengobox/pos-service/internal/ent/pospermission"
@@ -135,6 +136,10 @@ func runSeed(ctx context.Context, client *ent.Client, tenantID uuid.UUID, tc ten
 
 	if err := seedRBACRoles(ctx, client, tenantID); err != nil {
 		return fmt.Errorf("seed RBAC roles: %w", err)
+	}
+
+	if err := seedLoyaltyProgram(ctx, client, tenantID); err != nil {
+		log.Printf("  ⚠️  seed loyalty program: %v (non-fatal)", err)
 	}
 
 	return nil
@@ -987,5 +992,37 @@ func seedServiceConfigs(ctx context.Context, client *ent.Client) error {
 		}
 	}
 	log.Printf("  ✓ Service configs seeded (%d platform-level entries)", len(configs))
+	return nil
+}
+
+func seedLoyaltyProgram(ctx context.Context, client *ent.Client, tenantID uuid.UUID) error {
+	exists, err := client.LoyaltyProgram.Query().
+		Where(loyaltyprogram.TenantID(tenantID), loyaltyprogram.IsActive(true)).
+		Exist(ctx)
+	if err != nil {
+		return fmt.Errorf("check loyalty program: %w", err)
+	}
+	if exists {
+		log.Printf("  ✓ Loyalty program already exists for tenant %s, skipping", tenantID)
+		return nil
+	}
+	_, err = client.LoyaltyProgram.Create().
+		SetTenantID(tenantID).
+		SetName("Rewards Program").
+		SetDescription("Earn 1 point per KSh 100. 100 pts = KSh 1 off").
+		SetEarnRate(0.01).
+		SetRedeemRate(0.01).
+		SetMinRedeemPoints(100).
+		SetIsActive(true).
+		SetTierThresholds(map[string]any{
+			"silver":   500,
+			"gold":     2000,
+			"platinum": 10000,
+		}).
+		Save(ctx)
+	if err != nil {
+		return fmt.Errorf("create loyalty program: %w", err)
+	}
+	log.Printf("  ✓ Default loyalty program seeded for tenant %s", tenantID)
 	return nil
 }

@@ -41,6 +41,7 @@ import (
 	"github.com/bengobox/pos-service/internal/platform/cache"
 	"github.com/bengobox/pos-service/internal/platform/database"
 	"github.com/bengobox/pos-service/internal/platform/events"
+	"github.com/bengobox/pos-service/internal/platform/marketflow"
 	"github.com/bengobox/pos-service/internal/platform/subscriptions"
 	webhookspkg "github.com/bengobox/pos-service/internal/platform/webhooks"
 	"github.com/bengobox/pos-service/internal/shared/logger"
@@ -161,6 +162,9 @@ func New(ctx context.Context) (*App, error) {
 		}
 	}
 
+	// MarketFlow CRM S2S client (async contact upsert on loyalty account creation)
+	mfClient := marketflow.NewClient(cfg.MarketFlow.ServiceURL, cfg.MarketFlow.APIKey, log)
+
 	// Treasury S2S client (thin proxy; pos-api delegates all payment processing to treasury-api)
 	treasuryClient := treasurymodule.NewClient(cfg.Treasury.ServiceURL, cfg.Treasury.InternalServiceKey, cfg.Treasury.RequestTimeout)
 
@@ -237,7 +241,7 @@ func New(ctx context.Context) (*App, error) {
 	payrollHandler := handlers.NewPayrollHandler(log, entClient, treasuryClient)
 
 	// Loyalty programs (Sprint 10)
-	loyaltyHandler := handlers.NewLoyaltyHandler(log, entClient)
+	loyaltyHandler := handlers.NewLoyaltyHandler(log, entClient, mfClient)
 
 	// Reports & Analytics (Sprint 11)
 	reportsHandler := handlers.NewReportsHandler(log, entClient)

@@ -21,6 +21,13 @@ type Config struct {
 	Auth          AuthConfig
 	Subscriptions SubscriptionsConfig
 	Treasury      TreasuryConfig
+	MarketFlow    MarketFlowConfig
+}
+
+// MarketFlowConfig holds configuration for the MarketFlow CRM S2S client.
+type MarketFlowConfig struct {
+	ServiceURL string `envconfig:"MARKETFLOW_API_URL"`
+	APIKey     string `envconfig:"INTERNAL_SERVICE_KEY"`
 }
 
 // SubscriptionsConfig holds configuration for the subscriptions enforcement client.

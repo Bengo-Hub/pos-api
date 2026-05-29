@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 
@@ -13,15 +14,17 @@ import (
 	entla "github.com/bengobox/pos-service/internal/ent/loyaltyaccount"
 	entlp "github.com/bengobox/pos-service/internal/ent/loyaltyprogram"
 	entlt "github.com/bengobox/pos-service/internal/ent/loyaltytransaction"
+	"github.com/bengobox/pos-service/internal/platform/marketflow"
 )
 
 type LoyaltyHandler struct {
-	log *zap.Logger
-	db  *ent.Client
+	log        *zap.Logger
+	db         *ent.Client
+	marketflow *marketflow.Client
 }
 
-func NewLoyaltyHandler(log *zap.Logger, db *ent.Client) *LoyaltyHandler {
-	return &LoyaltyHandler{log: log, db: db}
+func NewLoyaltyHandler(log *zap.Logger, db *ent.Client, mf *marketflow.Client) *LoyaltyHandler {
+	return &LoyaltyHandler{log: log, db: db, marketflow: mf}
 }
 
 // ListPrograms handles GET /{tenantID}/pos/loyalty/programs
@@ -198,9 +201,16 @@ func (h *LoyaltyHandler) CreateAccount(w http.ResponseWriter, r *http.Request) {
 			creator = creator.SetCustomerID(cid)
 		}
 	}
+	// Resolve program_id: use provided value or auto-select the tenant's active program.
 	if body.ProgramID != nil {
 		if pid, err := uuid.Parse(*body.ProgramID); err == nil {
 			creator = creator.SetProgramID(pid)
+		}
+	} else {
+		if prog, progErr := h.db.LoyaltyProgram.Query().
+			Where(entlp.TenantID(tid), entlp.IsActive(true)).
+			First(r.Context()); progErr == nil {
+			creator = creator.SetProgramID(prog.ID)
 		}
 	}
 	acc, err := creator.Save(r.Context())
@@ -208,6 +218,19 @@ func (h *LoyaltyHandler) CreateAccount(w http.ResponseWriter, r *http.Request) {
 		h.log.Error("create loyalty account failed", zap.Error(err))
 		jsonError(w, "failed to create account", http.StatusInternalServerError)
 		return
+	}
+	// Async: link to MarketFlow CRM so tier-upgrade events can find the contact.
+	if h.marketflow != nil && h.marketflow.Enabled() {
+		go func(accID uuid.UUID, tenantID uuid.UUID, phone, name string) {
+			crmID := h.marketflow.UpsertContactByPhone(context.Background(), tenantID, phone, name)
+			if crmID != uuid.Nil {
+				if err := h.db.LoyaltyAccount.UpdateOneID(accID).
+					SetCrmContactID(crmID).
+					Exec(context.Background()); err != nil {
+					h.log.Warn("loyalty: failed to write crm_contact_id", zap.Error(err))
+				}
+			}
+		}(acc.ID, tid, body.CustomerPhone, body.CustomerName)
 	}
 	jsonOK(w, acc)
 }
