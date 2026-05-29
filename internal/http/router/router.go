@@ -288,6 +288,7 @@ func New(
 						pos.Post("/orders/{orderID}/payments/intent", payments.CreatePaymentIntent)
 						pos.Post("/orders/{orderID}/payments", payments.RecordPayment)
 						pos.Get("/orders/{orderID}/payments", payments.ListOrderPayments)
+						pos.Get("/orders/{orderID}/payment-status/stream", payments.StreamPaymentStatus)
 						pos.Post("/payments/initiate", payments.ProxyInitiate)
 					}
 
