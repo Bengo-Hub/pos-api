@@ -182,6 +182,7 @@ const (
 	OrderSubtypeRoomService OrderSubtype = "room_service"
 	OrderSubtypeDelivery    OrderSubtype = "delivery"
 	OrderSubtypeBarTab      OrderSubtype = "bar_tab"
+	OrderSubtypeRetail      OrderSubtype = "retail"
 )
 
 func (os OrderSubtype) String() string {
@@ -191,7 +192,7 @@ func (os OrderSubtype) String() string {
 // OrderSubtypeValidator is a validator for the "order_subtype" field enum values. It is called by the builders before save.
 func OrderSubtypeValidator(os OrderSubtype) error {
 	switch os {
-	case OrderSubtypeDineIn, OrderSubtypeTakeaway, OrderSubtypeRoomService, OrderSubtypeDelivery, OrderSubtypeBarTab:
+	case OrderSubtypeDineIn, OrderSubtypeTakeaway, OrderSubtypeRoomService, OrderSubtypeDelivery, OrderSubtypeBarTab, OrderSubtypeRetail:
 		return nil
 	default:
 		return fmt.Errorf("posorder: invalid enum value for order_subtype field: %q", os)

@@ -38,7 +38,7 @@ func (POSOrder) Fields() []ent.Field {
 		field.String("currency").
 			Default("KES"),
 		field.Enum("order_subtype").
-			Values("dine_in", "takeaway", "room_service", "delivery", "bar_tab").
+			Values("dine_in", "takeaway", "room_service", "delivery", "bar_tab", "retail").
 			Default("dine_in"),
 		field.UUID("room_id", uuid.UUID{}).
 			Optional().

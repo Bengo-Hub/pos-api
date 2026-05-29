@@ -1248,7 +1248,7 @@ var (
 		{Name: "discount_total", Type: field.TypeFloat64, Default: 0},
 		{Name: "total_amount", Type: field.TypeFloat64},
 		{Name: "currency", Type: field.TypeString, Default: "KES"},
-		{Name: "order_subtype", Type: field.TypeEnum, Enums: []string{"dine_in", "takeaway", "room_service", "delivery", "bar_tab"}, Default: "dine_in"},
+		{Name: "order_subtype", Type: field.TypeEnum, Enums: []string{"dine_in", "takeaway", "room_service", "delivery", "bar_tab", "retail"}, Default: "dine_in"},
 		{Name: "room_id", Type: field.TypeUUID, Nullable: true},
 		{Name: "room_guest_id", Type: field.TypeUUID, Nullable: true},
 		{Name: "metadata", Type: field.TypeJSON},
