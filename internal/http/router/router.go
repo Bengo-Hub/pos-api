@@ -532,6 +532,8 @@ func New(
 						pos.Get("/reports/sales/by-category", reports.SalesByCategory)
 						pos.Get("/reports/stock-consumption", reports.StockConsumptionReport)
 						pos.Get("/reports/returns", reports.ReturnsSummary)
+						pos.Get("/reports/void-summary", reports.VoidSummary)
+						pos.Get("/reports/product-mix", reports.ProductMix)
 					}
 
 					// Webhook subscriptions & delivery log (Sprint 12)

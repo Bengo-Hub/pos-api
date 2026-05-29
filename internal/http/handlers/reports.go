@@ -352,7 +352,7 @@ func (h *ReportsHandler) TopItems(w http.ResponseWriter, r *http.Request) {
 }
 
 // SalesByStaff handles GET /{tenantID}/pos/reports/sales-by-staff
-// Groups completed orders by user_id and sums revenue.
+// Groups orders by user_id: completed revenue + void_count + discount_total + avg_order_value.
 func (h *ReportsHandler) SalesByStaff(w http.ResponseWriter, r *http.Request) {
 	tid, err := parseTenantUUID(r)
 	if err != nil {
@@ -362,39 +362,58 @@ func (h *ReportsHandler) SalesByStaff(w http.ResponseWriter, r *http.Request) {
 
 	from, to := parseDateRange(r)
 
-	orders, err := h.db.POSOrder.Query().
-		Where(
-			posorder.TenantID(tid),
-			posorder.StatusEQ("completed"),
-			posorder.CreatedAtGTE(from),
-			posorder.CreatedAtLTE(to),
-		).
+	completed, err := h.db.POSOrder.Query().
+		Where(posorder.TenantID(tid), posorder.StatusEQ("completed"),
+			posorder.CreatedAtGTE(from), posorder.CreatedAtLTE(to)).
 		All(r.Context())
 	if err != nil {
-		h.log.Error("sales by staff query failed", zap.Error(err))
+		h.log.Error("sales by staff (completed) query failed", zap.Error(err))
+		jsonError(w, "failed to generate sales-by-staff report", http.StatusInternalServerError)
+		return
+	}
+	voided, err := h.db.POSOrder.Query().
+		Where(posorder.TenantID(tid), posorder.StatusEQ("voided"),
+			posorder.CreatedAtGTE(from), posorder.CreatedAtLTE(to)).
+		All(r.Context())
+	if err != nil {
+		h.log.Error("sales by staff (voided) query failed", zap.Error(err))
 		jsonError(w, "failed to generate sales-by-staff report", http.StatusInternalServerError)
 		return
 	}
 
 	type staffBucket struct {
-		UserID     uuid.UUID `json:"user_id"`
-		OrderCount int       `json:"order_count"`
-		Revenue    float64   `json:"revenue"`
+		UserID        uuid.UUID `json:"user_id"`
+		OrderCount    int       `json:"order_count"`
+		Revenue       float64   `json:"revenue"`
+		DiscountTotal float64   `json:"discount_total"`
+		VoidCount     int       `json:"void_count"`
+		AvgOrderValue float64   `json:"avg_order_value"`
 	}
 	buckets := make(map[uuid.UUID]*staffBucket)
-	for _, o := range orders {
+	for _, o := range completed {
 		if _, ok := buckets[o.UserID]; !ok {
 			buckets[o.UserID] = &staffBucket{UserID: o.UserID}
 		}
 		buckets[o.UserID].OrderCount++
 		buckets[o.UserID].Revenue += o.TotalAmount
+		buckets[o.UserID].DiscountTotal += o.DiscountTotal
+	}
+	for _, o := range voided {
+		if _, ok := buckets[o.UserID]; !ok {
+			buckets[o.UserID] = &staffBucket{UserID: o.UserID}
+		}
+		buckets[o.UserID].VoidCount++
+	}
+	for _, b := range buckets {
+		if b.OrderCount > 0 {
+			b.AvgOrderValue = b.Revenue / float64(b.OrderCount)
+		}
 	}
 
 	rows := make([]*staffBucket, 0, len(buckets))
 	for _, b := range buckets {
 		rows = append(rows, b)
 	}
-	// sort by revenue descending
 	for i := 0; i < len(rows)-1; i++ {
 		for j := i + 1; j < len(rows); j++ {
 			if rows[j].Revenue > rows[i].Revenue {
@@ -632,7 +651,7 @@ func (h *ReportsHandler) CommissionReport(w http.ResponseWriter, r *http.Request
 }
 
 // TaxReport handles GET /{tenantID}/pos/reports/tax
-// Returns tax collected by date range for VAT/KRA returns.
+// Returns tax collected by date range grouped by KRA code + VAT rate (eTIMS-ready).
 func (h *ReportsHandler) TaxReport(w http.ResponseWriter, r *http.Request) {
 	tid, err := parseTenantUUID(r)
 	if err != nil {
@@ -641,9 +660,14 @@ func (h *ReportsHandler) TaxReport(w http.ResponseWriter, r *http.Request) {
 	}
 
 	from, to := parseDateRange(r)
-	orders, err := h.db.POSOrder.Query().
-		Where(posorder.TenantID(tid), posorder.StatusEQ("completed"),
-			posorder.CreatedAtGTE(from), posorder.CreatedAtLTE(to)).
+
+	lines, err := h.db.POSOrderLine.Query().
+		Where(posorderline.HasOrderWith(
+			posorder.TenantID(tid),
+			posorder.StatusEQ("completed"),
+			posorder.CreatedAtGTE(from),
+			posorder.CreatedAtLTE(to),
+		)).
 		All(r.Context())
 	if err != nil {
 		h.log.Error("tax report query failed", zap.Error(err))
@@ -651,18 +675,47 @@ func (h *ReportsHandler) TaxReport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	type taxBucket struct {
+		KRACode       string  `json:"kra_code"`
+		TaxRate       float64 `json:"tax_rate"`
+		TaxableAmount float64 `json:"taxable_amount"`
+		TaxAmount     float64 `json:"tax_amount"`
+	}
+	type bucketKey struct {
+		code string
+		rate float64
+	}
+	buckets := make(map[bucketKey]*taxBucket)
 	totalTaxable, totalTax := 0.0, 0.0
-	for _, o := range orders {
-		totalTaxable += o.Subtotal
-		totalTax += o.TaxTotal
+
+	for _, l := range lines {
+		rate := 0.0
+		if l.TaxRate != nil {
+			rate = *l.TaxRate
+		}
+		lineTotal := l.UnitPrice * float64(l.Quantity)
+		taxAmt := lineTotal * (rate / 100)
+		k := bucketKey{code: l.TaxKraCode, rate: rate}
+		if _, ok := buckets[k]; !ok {
+			buckets[k] = &taxBucket{KRACode: l.TaxKraCode, TaxRate: rate}
+		}
+		buckets[k].TaxableAmount += lineTotal
+		buckets[k].TaxAmount += taxAmt
+		totalTaxable += lineTotal
+		totalTax += taxAmt
+	}
+
+	breakdown := make([]*taxBucket, 0, len(buckets))
+	for _, b := range buckets {
+		breakdown = append(breakdown, b)
 	}
 
 	jsonOK(w, map[string]any{
-		"from":            from.Format("2006-01-02"),
-		"to":              to.Format("2006-01-02"),
+		"from":                from.Format("2006-01-02"),
+		"to":                  to.Format("2006-01-02"),
 		"total_taxable_sales": totalTaxable,
 		"total_tax_amount":    totalTax,
-		"order_count":         len(orders),
+		"breakdown":           breakdown,
 	})
 }
 
