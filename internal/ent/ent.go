@@ -39,6 +39,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/kdsticket"
 	"github.com/bengobox/pos-service/internal/ent/layawaypayment"
 	"github.com/bengobox/pos-service/internal/ent/layawayplan"
+	"github.com/bengobox/pos-service/internal/ent/leaverequest"
 	"github.com/bengobox/pos-service/internal/ent/licenseusagesnapshot"
 	"github.com/bengobox/pos-service/internal/ent/loyaltyaccount"
 	"github.com/bengobox/pos-service/internal/ent/loyaltyprogram"
@@ -87,12 +88,15 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/servicepackagepurchase"
 	"github.com/bengobox/pos-service/internal/ent/servicepackageredemption"
 	"github.com/bengobox/pos-service/internal/ent/servicequeueentry"
+	"github.com/bengobox/pos-service/internal/ent/shiftrotation"
+	"github.com/bengobox/pos-service/internal/ent/shiftrotationslot"
 	"github.com/bengobox/pos-service/internal/ent/staffadvance"
 	"github.com/bengobox/pos-service/internal/ent/staffmember"
 	"github.com/bengobox/pos-service/internal/ent/staffoutlet"
 	"github.com/bengobox/pos-service/internal/ent/staffpayroll"
 	"github.com/bengobox/pos-service/internal/ent/staffpayrollline"
 	"github.com/bengobox/pos-service/internal/ent/staffschedule"
+	"github.com/bengobox/pos-service/internal/ent/staffshiftoverride"
 	"github.com/bengobox/pos-service/internal/ent/stockalertsubscription"
 	"github.com/bengobox/pos-service/internal/ent/stockconsumptionevent"
 	"github.com/bengobox/pos-service/internal/ent/syncfailure"
@@ -194,6 +198,7 @@ func checkColumn(t, c string) error {
 			kdsticket.Table:                kdsticket.ValidColumn,
 			layawaypayment.Table:           layawaypayment.ValidColumn,
 			layawayplan.Table:              layawayplan.ValidColumn,
+			leaverequest.Table:             leaverequest.ValidColumn,
 			licenseusagesnapshot.Table:     licenseusagesnapshot.ValidColumn,
 			loyaltyaccount.Table:           loyaltyaccount.ValidColumn,
 			loyaltyprogram.Table:           loyaltyprogram.ValidColumn,
@@ -242,12 +247,15 @@ func checkColumn(t, c string) error {
 			servicepackagepurchase.Table:   servicepackagepurchase.ValidColumn,
 			servicepackageredemption.Table: servicepackageredemption.ValidColumn,
 			servicequeueentry.Table:        servicequeueentry.ValidColumn,
+			shiftrotation.Table:            shiftrotation.ValidColumn,
+			shiftrotationslot.Table:        shiftrotationslot.ValidColumn,
 			staffadvance.Table:             staffadvance.ValidColumn,
 			staffmember.Table:              staffmember.ValidColumn,
 			staffoutlet.Table:              staffoutlet.ValidColumn,
 			staffpayroll.Table:             staffpayroll.ValidColumn,
 			staffpayrollline.Table:         staffpayrollline.ValidColumn,
 			staffschedule.Table:            staffschedule.ValidColumn,
+			staffshiftoverride.Table:       staffshiftoverride.ValidColumn,
 			stockalertsubscription.Table:   stockalertsubscription.ValidColumn,
 			stockconsumptionevent.Table:    stockconsumptionevent.ValidColumn,
 			syncfailure.Table:              syncfailure.ValidColumn,

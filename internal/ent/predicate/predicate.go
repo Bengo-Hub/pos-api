@@ -87,6 +87,9 @@ type LayawayPayment func(*sql.Selector)
 // LayawayPlan is the predicate function for layawayplan builders.
 type LayawayPlan func(*sql.Selector)
 
+// LeaveRequest is the predicate function for leaverequest builders.
+type LeaveRequest func(*sql.Selector)
+
 // LicenseUsageSnapshot is the predicate function for licenseusagesnapshot builders.
 type LicenseUsageSnapshot func(*sql.Selector)
 
@@ -231,6 +234,12 @@ type ServicePackageRedemption func(*sql.Selector)
 // ServiceQueueEntry is the predicate function for servicequeueentry builders.
 type ServiceQueueEntry func(*sql.Selector)
 
+// ShiftRotation is the predicate function for shiftrotation builders.
+type ShiftRotation func(*sql.Selector)
+
+// ShiftRotationSlot is the predicate function for shiftrotationslot builders.
+type ShiftRotationSlot func(*sql.Selector)
+
 // StaffAdvance is the predicate function for staffadvance builders.
 type StaffAdvance func(*sql.Selector)
 
@@ -248,6 +257,9 @@ type StaffPayrollLine func(*sql.Selector)
 
 // StaffSchedule is the predicate function for staffschedule builders.
 type StaffSchedule func(*sql.Selector)
+
+// StaffShiftOverride is the predicate function for staffshiftoverride builders.
+type StaffShiftOverride func(*sql.Selector)
 
 // StockAlertSubscription is the predicate function for stockalertsubscription builders.
 type StockAlertSubscription func(*sql.Selector)

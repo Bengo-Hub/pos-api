@@ -1,4 +1,4 @@
-h1:3a9gdawMX4XXuxNPYUIah+RmSxpYVotdY2PZ0eL9vBU=
+h1:jj8P3BMzRoc4Zh6wIyy66ZLB0LQLxcOs4YwqWr7+tD0=
 20260324210314_initial_schema.sql h1:L7ICP+7BHePtjHfQRRY9yP85A6Q9SyiYsqSvGK7paxA=
 20260403120000_fix_outbox_events_schema.sql h1:VNlTFTGCLBkz4+UvvvqZf5y5tyS0FfS1AXy770Ybc8o=
 20260507090905_hotel_module.sql h1:PGKqdzMQaeFLALmRXUmGsXjha3Rt42EldWJceFVNGDo=
@@ -45,3 +45,4 @@ h1:3a9gdawMX4XXuxNPYUIah+RmSxpYVotdY2PZ0eL9vBU=
 20260529152343_add_customer_phone_and_outlet_to_loyalty.sql h1:UFtQt7ZCsQGCZ/16ykx2+yvmtUdDvEOSM5ymN9s4ck0=
 20260529161416_add_return_reason_code.sql h1:3IUYq4B+MDE8lgRBFkKEWK4qr16z0Beh8Rl81vYVPv8=
 20260529162333_add_return_window_to_outlet_settings.sql h1:JOkGnmCAVUft+KPEJRhElEEmrk51Q1NSLVaEKc1gz14=
+20260529185514_add_shift_overrides_leave_rotation.sql h1:gPO/NeTV1H6MrHxNwgaSZl2yp6r/YatqPkhgxQ+k1EI=

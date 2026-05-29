@@ -51,6 +51,9 @@ func New(
 	appointments *handlers.AppointmentHandler,
 	commissions *handlers.CommissionHandler,
 	staffSchedule *handlers.StaffScheduleHandler,
+	shiftOverrides *handlers.StaffShiftOverrideHandler,
+	leaveRequests *handlers.LeaveRequestHandler,
+	shiftRotations *handlers.ShiftRotationHandler,
 	loyalty *handlers.LoyaltyHandler,
 	reports *handlers.ReportsHandler,
 	webhooks *handlers.WebhookHandler,
@@ -461,10 +464,29 @@ func New(
 						})
 					}
 
-					// Staff schedules
+					// Staff schedules + overrides + leave
 					if staffSchedule != nil {
 						pos.Get("/staff/{staffID}/schedule", staffSchedule.ListSchedule)
 						pos.Put("/staff/{staffID}/schedule", staffSchedule.UpsertSchedule)
+					}
+					if shiftOverrides != nil {
+						pos.Get("/staff/overrides", shiftOverrides.ListAllOverrides)
+						pos.Get("/staff/{staffID}/overrides", shiftOverrides.ListStaffOverrides)
+						pos.Post("/staff/{staffID}/overrides", shiftOverrides.CreateOverride)
+						pos.Delete("/staff/{staffID}/overrides/{overrideID}", shiftOverrides.DeleteOverride)
+					}
+					if leaveRequests != nil {
+						pos.Get("/leave-requests", leaveRequests.ListLeaveRequests)
+						pos.Get("/staff/{staffID}/leave-requests", leaveRequests.ListStaffLeaveRequests)
+						pos.Post("/staff/{staffID}/leave-requests", leaveRequests.CreateLeaveRequest)
+						pos.Patch("/leave-requests/{leaveID}/status", leaveRequests.UpdateLeaveStatus)
+					}
+					if shiftRotations != nil {
+						pos.Get("/shift-rotations", shiftRotations.ListRotations)
+						pos.Post("/shift-rotations", shiftRotations.CreateRotation)
+						pos.Get("/shift-rotations/{rotationID}", shiftRotations.GetRotation)
+						pos.Patch("/shift-rotations/{rotationID}", shiftRotations.UpdateRotation)
+						pos.Put("/shift-rotations/{rotationID}/slots", shiftRotations.UpsertSlots)
 					}
 
 					// Payroll & advances

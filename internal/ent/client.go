@@ -43,6 +43,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/kdsticket"
 	"github.com/bengobox/pos-service/internal/ent/layawaypayment"
 	"github.com/bengobox/pos-service/internal/ent/layawayplan"
+	"github.com/bengobox/pos-service/internal/ent/leaverequest"
 	"github.com/bengobox/pos-service/internal/ent/licenseusagesnapshot"
 	"github.com/bengobox/pos-service/internal/ent/loyaltyaccount"
 	"github.com/bengobox/pos-service/internal/ent/loyaltyprogram"
@@ -91,12 +92,15 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/servicepackagepurchase"
 	"github.com/bengobox/pos-service/internal/ent/servicepackageredemption"
 	"github.com/bengobox/pos-service/internal/ent/servicequeueentry"
+	"github.com/bengobox/pos-service/internal/ent/shiftrotation"
+	"github.com/bengobox/pos-service/internal/ent/shiftrotationslot"
 	"github.com/bengobox/pos-service/internal/ent/staffadvance"
 	"github.com/bengobox/pos-service/internal/ent/staffmember"
 	"github.com/bengobox/pos-service/internal/ent/staffoutlet"
 	"github.com/bengobox/pos-service/internal/ent/staffpayroll"
 	"github.com/bengobox/pos-service/internal/ent/staffpayrollline"
 	"github.com/bengobox/pos-service/internal/ent/staffschedule"
+	"github.com/bengobox/pos-service/internal/ent/staffshiftoverride"
 	"github.com/bengobox/pos-service/internal/ent/stockalertsubscription"
 	"github.com/bengobox/pos-service/internal/ent/stockconsumptionevent"
 	"github.com/bengobox/pos-service/internal/ent/syncfailure"
@@ -172,6 +176,8 @@ type Client struct {
 	LayawayPayment *LayawayPaymentClient
 	// LayawayPlan is the client for interacting with the LayawayPlan builders.
 	LayawayPlan *LayawayPlanClient
+	// LeaveRequest is the client for interacting with the LeaveRequest builders.
+	LeaveRequest *LeaveRequestClient
 	// LicenseUsageSnapshot is the client for interacting with the LicenseUsageSnapshot builders.
 	LicenseUsageSnapshot *LicenseUsageSnapshotClient
 	// LoyaltyAccount is the client for interacting with the LoyaltyAccount builders.
@@ -268,6 +274,10 @@ type Client struct {
 	ServicePackageRedemption *ServicePackageRedemptionClient
 	// ServiceQueueEntry is the client for interacting with the ServiceQueueEntry builders.
 	ServiceQueueEntry *ServiceQueueEntryClient
+	// ShiftRotation is the client for interacting with the ShiftRotation builders.
+	ShiftRotation *ShiftRotationClient
+	// ShiftRotationSlot is the client for interacting with the ShiftRotationSlot builders.
+	ShiftRotationSlot *ShiftRotationSlotClient
 	// StaffAdvance is the client for interacting with the StaffAdvance builders.
 	StaffAdvance *StaffAdvanceClient
 	// StaffMember is the client for interacting with the StaffMember builders.
@@ -280,6 +290,8 @@ type Client struct {
 	StaffPayrollLine *StaffPayrollLineClient
 	// StaffSchedule is the client for interacting with the StaffSchedule builders.
 	StaffSchedule *StaffScheduleClient
+	// StaffShiftOverride is the client for interacting with the StaffShiftOverride builders.
+	StaffShiftOverride *StaffShiftOverrideClient
 	// StockAlertSubscription is the client for interacting with the StockAlertSubscription builders.
 	StockAlertSubscription *StockAlertSubscriptionClient
 	// StockConsumptionEvent is the client for interacting with the StockConsumptionEvent builders.
@@ -346,6 +358,7 @@ func (c *Client) init() {
 	c.KDSTicket = NewKDSTicketClient(c.config)
 	c.LayawayPayment = NewLayawayPaymentClient(c.config)
 	c.LayawayPlan = NewLayawayPlanClient(c.config)
+	c.LeaveRequest = NewLeaveRequestClient(c.config)
 	c.LicenseUsageSnapshot = NewLicenseUsageSnapshotClient(c.config)
 	c.LoyaltyAccount = NewLoyaltyAccountClient(c.config)
 	c.LoyaltyProgram = NewLoyaltyProgramClient(c.config)
@@ -394,12 +407,15 @@ func (c *Client) init() {
 	c.ServicePackagePurchase = NewServicePackagePurchaseClient(c.config)
 	c.ServicePackageRedemption = NewServicePackageRedemptionClient(c.config)
 	c.ServiceQueueEntry = NewServiceQueueEntryClient(c.config)
+	c.ShiftRotation = NewShiftRotationClient(c.config)
+	c.ShiftRotationSlot = NewShiftRotationSlotClient(c.config)
 	c.StaffAdvance = NewStaffAdvanceClient(c.config)
 	c.StaffMember = NewStaffMemberClient(c.config)
 	c.StaffOutlet = NewStaffOutletClient(c.config)
 	c.StaffPayroll = NewStaffPayrollClient(c.config)
 	c.StaffPayrollLine = NewStaffPayrollLineClient(c.config)
 	c.StaffSchedule = NewStaffScheduleClient(c.config)
+	c.StaffShiftOverride = NewStaffShiftOverrideClient(c.config)
 	c.StockAlertSubscription = NewStockAlertSubscriptionClient(c.config)
 	c.StockConsumptionEvent = NewStockConsumptionEventClient(c.config)
 	c.SyncFailure = NewSyncFailureClient(c.config)
@@ -533,6 +549,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		KDSTicket:                NewKDSTicketClient(cfg),
 		LayawayPayment:           NewLayawayPaymentClient(cfg),
 		LayawayPlan:              NewLayawayPlanClient(cfg),
+		LeaveRequest:             NewLeaveRequestClient(cfg),
 		LicenseUsageSnapshot:     NewLicenseUsageSnapshotClient(cfg),
 		LoyaltyAccount:           NewLoyaltyAccountClient(cfg),
 		LoyaltyProgram:           NewLoyaltyProgramClient(cfg),
@@ -581,12 +598,15 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		ServicePackagePurchase:   NewServicePackagePurchaseClient(cfg),
 		ServicePackageRedemption: NewServicePackageRedemptionClient(cfg),
 		ServiceQueueEntry:        NewServiceQueueEntryClient(cfg),
+		ShiftRotation:            NewShiftRotationClient(cfg),
+		ShiftRotationSlot:        NewShiftRotationSlotClient(cfg),
 		StaffAdvance:             NewStaffAdvanceClient(cfg),
 		StaffMember:              NewStaffMemberClient(cfg),
 		StaffOutlet:              NewStaffOutletClient(cfg),
 		StaffPayroll:             NewStaffPayrollClient(cfg),
 		StaffPayrollLine:         NewStaffPayrollLineClient(cfg),
 		StaffSchedule:            NewStaffScheduleClient(cfg),
+		StaffShiftOverride:       NewStaffShiftOverrideClient(cfg),
 		StockAlertSubscription:   NewStockAlertSubscriptionClient(cfg),
 		StockConsumptionEvent:    NewStockConsumptionEventClient(cfg),
 		SyncFailure:              NewSyncFailureClient(cfg),
@@ -647,6 +667,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		KDSTicket:                NewKDSTicketClient(cfg),
 		LayawayPayment:           NewLayawayPaymentClient(cfg),
 		LayawayPlan:              NewLayawayPlanClient(cfg),
+		LeaveRequest:             NewLeaveRequestClient(cfg),
 		LicenseUsageSnapshot:     NewLicenseUsageSnapshotClient(cfg),
 		LoyaltyAccount:           NewLoyaltyAccountClient(cfg),
 		LoyaltyProgram:           NewLoyaltyProgramClient(cfg),
@@ -695,12 +716,15 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		ServicePackagePurchase:   NewServicePackagePurchaseClient(cfg),
 		ServicePackageRedemption: NewServicePackageRedemptionClient(cfg),
 		ServiceQueueEntry:        NewServiceQueueEntryClient(cfg),
+		ShiftRotation:            NewShiftRotationClient(cfg),
+		ShiftRotationSlot:        NewShiftRotationSlotClient(cfg),
 		StaffAdvance:             NewStaffAdvanceClient(cfg),
 		StaffMember:              NewStaffMemberClient(cfg),
 		StaffOutlet:              NewStaffOutletClient(cfg),
 		StaffPayroll:             NewStaffPayrollClient(cfg),
 		StaffPayrollLine:         NewStaffPayrollLineClient(cfg),
 		StaffSchedule:            NewStaffScheduleClient(cfg),
+		StaffShiftOverride:       NewStaffShiftOverrideClient(cfg),
 		StockAlertSubscription:   NewStockAlertSubscriptionClient(cfg),
 		StockConsumptionEvent:    NewStockConsumptionEventClient(cfg),
 		SyncFailure:              NewSyncFailureClient(cfg),
@@ -750,23 +774,24 @@ func (c *Client) Use(hooks ...Hook) {
 		c.DrugInteractionCheck, c.Facility, c.FacilityBooking, c.FeatureOverride,
 		c.GiftCard, c.GiftCardTransaction, c.HousekeepingTask, c.IntegrationSetting,
 		c.InventorySnapshot, c.KDSStation, c.KDSSyncFailure, c.KDSTicket,
-		c.LayawayPayment, c.LayawayPlan, c.LicenseUsageSnapshot, c.LoyaltyAccount,
-		c.LoyaltyProgram, c.LoyaltyTransaction, c.Modifier, c.ModifierGroup,
-		c.OrderLink, c.OutboxEvent, c.Outlet, c.OutletSetting, c.POSCatalogOverride,
-		c.POSDevice, c.POSDeviceSession, c.POSLineModifier, c.POSOrder,
-		c.POSOrderEvent, c.POSOrderLine, c.POSPayment, c.POSPermission, c.POSRefund,
-		c.POSReturn, c.POSReturnLine, c.POSRole, c.POSRolePermission, c.POSRoleV2,
-		c.POSUserRoleAssignment, c.PosNotification, c.Prescription, c.PrescriptionLine,
-		c.PriceBook, c.PriceBookItem, c.Promotion, c.PromotionApplication,
-		c.PromotionRule, c.RateLimitConfig, c.Resource, c.Room, c.RoomAmenity,
-		c.RoomAmenityAssignment, c.RoomFolioItem, c.RoomGuest, c.Section,
-		c.SerialNumberLog, c.ServiceConfig, c.ServicePackage, c.ServicePackagePurchase,
-		c.ServicePackageRedemption, c.ServiceQueueEntry, c.StaffAdvance, c.StaffMember,
+		c.LayawayPayment, c.LayawayPlan, c.LeaveRequest, c.LicenseUsageSnapshot,
+		c.LoyaltyAccount, c.LoyaltyProgram, c.LoyaltyTransaction, c.Modifier,
+		c.ModifierGroup, c.OrderLink, c.OutboxEvent, c.Outlet, c.OutletSetting,
+		c.POSCatalogOverride, c.POSDevice, c.POSDeviceSession, c.POSLineModifier,
+		c.POSOrder, c.POSOrderEvent, c.POSOrderLine, c.POSPayment, c.POSPermission,
+		c.POSRefund, c.POSReturn, c.POSReturnLine, c.POSRole, c.POSRolePermission,
+		c.POSRoleV2, c.POSUserRoleAssignment, c.PosNotification, c.Prescription,
+		c.PrescriptionLine, c.PriceBook, c.PriceBookItem, c.Promotion,
+		c.PromotionApplication, c.PromotionRule, c.RateLimitConfig, c.Resource, c.Room,
+		c.RoomAmenity, c.RoomAmenityAssignment, c.RoomFolioItem, c.RoomGuest,
+		c.Section, c.SerialNumberLog, c.ServiceConfig, c.ServicePackage,
+		c.ServicePackagePurchase, c.ServicePackageRedemption, c.ServiceQueueEntry,
+		c.ShiftRotation, c.ShiftRotationSlot, c.StaffAdvance, c.StaffMember,
 		c.StaffOutlet, c.StaffPayroll, c.StaffPayrollLine, c.StaffSchedule,
-		c.StockAlertSubscription, c.StockConsumptionEvent, c.SyncFailure, c.Table,
-		c.TableAssignment, c.TableReservation, c.Tenant, c.TenantSyncEvent, c.Tender,
-		c.User, c.UserPOSRole, c.WebhookDelivery, c.WebhookSubscription,
-		c.WeighingScaleReading,
+		c.StaffShiftOverride, c.StockAlertSubscription, c.StockConsumptionEvent,
+		c.SyncFailure, c.Table, c.TableAssignment, c.TableReservation, c.Tenant,
+		c.TenantSyncEvent, c.Tender, c.User, c.UserPOSRole, c.WebhookDelivery,
+		c.WebhookSubscription, c.WeighingScaleReading,
 	} {
 		n.Use(hooks...)
 	}
@@ -782,23 +807,24 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.DrugInteractionCheck, c.Facility, c.FacilityBooking, c.FeatureOverride,
 		c.GiftCard, c.GiftCardTransaction, c.HousekeepingTask, c.IntegrationSetting,
 		c.InventorySnapshot, c.KDSStation, c.KDSSyncFailure, c.KDSTicket,
-		c.LayawayPayment, c.LayawayPlan, c.LicenseUsageSnapshot, c.LoyaltyAccount,
-		c.LoyaltyProgram, c.LoyaltyTransaction, c.Modifier, c.ModifierGroup,
-		c.OrderLink, c.OutboxEvent, c.Outlet, c.OutletSetting, c.POSCatalogOverride,
-		c.POSDevice, c.POSDeviceSession, c.POSLineModifier, c.POSOrder,
-		c.POSOrderEvent, c.POSOrderLine, c.POSPayment, c.POSPermission, c.POSRefund,
-		c.POSReturn, c.POSReturnLine, c.POSRole, c.POSRolePermission, c.POSRoleV2,
-		c.POSUserRoleAssignment, c.PosNotification, c.Prescription, c.PrescriptionLine,
-		c.PriceBook, c.PriceBookItem, c.Promotion, c.PromotionApplication,
-		c.PromotionRule, c.RateLimitConfig, c.Resource, c.Room, c.RoomAmenity,
-		c.RoomAmenityAssignment, c.RoomFolioItem, c.RoomGuest, c.Section,
-		c.SerialNumberLog, c.ServiceConfig, c.ServicePackage, c.ServicePackagePurchase,
-		c.ServicePackageRedemption, c.ServiceQueueEntry, c.StaffAdvance, c.StaffMember,
+		c.LayawayPayment, c.LayawayPlan, c.LeaveRequest, c.LicenseUsageSnapshot,
+		c.LoyaltyAccount, c.LoyaltyProgram, c.LoyaltyTransaction, c.Modifier,
+		c.ModifierGroup, c.OrderLink, c.OutboxEvent, c.Outlet, c.OutletSetting,
+		c.POSCatalogOverride, c.POSDevice, c.POSDeviceSession, c.POSLineModifier,
+		c.POSOrder, c.POSOrderEvent, c.POSOrderLine, c.POSPayment, c.POSPermission,
+		c.POSRefund, c.POSReturn, c.POSReturnLine, c.POSRole, c.POSRolePermission,
+		c.POSRoleV2, c.POSUserRoleAssignment, c.PosNotification, c.Prescription,
+		c.PrescriptionLine, c.PriceBook, c.PriceBookItem, c.Promotion,
+		c.PromotionApplication, c.PromotionRule, c.RateLimitConfig, c.Resource, c.Room,
+		c.RoomAmenity, c.RoomAmenityAssignment, c.RoomFolioItem, c.RoomGuest,
+		c.Section, c.SerialNumberLog, c.ServiceConfig, c.ServicePackage,
+		c.ServicePackagePurchase, c.ServicePackageRedemption, c.ServiceQueueEntry,
+		c.ShiftRotation, c.ShiftRotationSlot, c.StaffAdvance, c.StaffMember,
 		c.StaffOutlet, c.StaffPayroll, c.StaffPayrollLine, c.StaffSchedule,
-		c.StockAlertSubscription, c.StockConsumptionEvent, c.SyncFailure, c.Table,
-		c.TableAssignment, c.TableReservation, c.Tenant, c.TenantSyncEvent, c.Tender,
-		c.User, c.UserPOSRole, c.WebhookDelivery, c.WebhookSubscription,
-		c.WeighingScaleReading,
+		c.StaffShiftOverride, c.StockAlertSubscription, c.StockConsumptionEvent,
+		c.SyncFailure, c.Table, c.TableAssignment, c.TableReservation, c.Tenant,
+		c.TenantSyncEvent, c.Tender, c.User, c.UserPOSRole, c.WebhookDelivery,
+		c.WebhookSubscription, c.WeighingScaleReading,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -861,6 +887,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.LayawayPayment.mutate(ctx, m)
 	case *LayawayPlanMutation:
 		return c.LayawayPlan.mutate(ctx, m)
+	case *LeaveRequestMutation:
+		return c.LeaveRequest.mutate(ctx, m)
 	case *LicenseUsageSnapshotMutation:
 		return c.LicenseUsageSnapshot.mutate(ctx, m)
 	case *LoyaltyAccountMutation:
@@ -957,6 +985,10 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.ServicePackageRedemption.mutate(ctx, m)
 	case *ServiceQueueEntryMutation:
 		return c.ServiceQueueEntry.mutate(ctx, m)
+	case *ShiftRotationMutation:
+		return c.ShiftRotation.mutate(ctx, m)
+	case *ShiftRotationSlotMutation:
+		return c.ShiftRotationSlot.mutate(ctx, m)
 	case *StaffAdvanceMutation:
 		return c.StaffAdvance.mutate(ctx, m)
 	case *StaffMemberMutation:
@@ -969,6 +1001,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.StaffPayrollLine.mutate(ctx, m)
 	case *StaffScheduleMutation:
 		return c.StaffSchedule.mutate(ctx, m)
+	case *StaffShiftOverrideMutation:
+		return c.StaffShiftOverride.mutate(ctx, m)
 	case *StockAlertSubscriptionMutation:
 		return c.StockAlertSubscription.mutate(ctx, m)
 	case *StockConsumptionEventMutation:
@@ -4750,6 +4784,139 @@ func (c *LayawayPlanClient) mutate(ctx context.Context, m *LayawayPlanMutation) 
 		return (&LayawayPlanDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown LayawayPlan mutation op: %q", m.Op())
+	}
+}
+
+// LeaveRequestClient is a client for the LeaveRequest schema.
+type LeaveRequestClient struct {
+	config
+}
+
+// NewLeaveRequestClient returns a client for the LeaveRequest from the given config.
+func NewLeaveRequestClient(c config) *LeaveRequestClient {
+	return &LeaveRequestClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `leaverequest.Hooks(f(g(h())))`.
+func (c *LeaveRequestClient) Use(hooks ...Hook) {
+	c.hooks.LeaveRequest = append(c.hooks.LeaveRequest, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `leaverequest.Intercept(f(g(h())))`.
+func (c *LeaveRequestClient) Intercept(interceptors ...Interceptor) {
+	c.inters.LeaveRequest = append(c.inters.LeaveRequest, interceptors...)
+}
+
+// Create returns a builder for creating a LeaveRequest entity.
+func (c *LeaveRequestClient) Create() *LeaveRequestCreate {
+	mutation := newLeaveRequestMutation(c.config, OpCreate)
+	return &LeaveRequestCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of LeaveRequest entities.
+func (c *LeaveRequestClient) CreateBulk(builders ...*LeaveRequestCreate) *LeaveRequestCreateBulk {
+	return &LeaveRequestCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *LeaveRequestClient) MapCreateBulk(slice any, setFunc func(*LeaveRequestCreate, int)) *LeaveRequestCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &LeaveRequestCreateBulk{err: fmt.Errorf("calling to LeaveRequestClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*LeaveRequestCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &LeaveRequestCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for LeaveRequest.
+func (c *LeaveRequestClient) Update() *LeaveRequestUpdate {
+	mutation := newLeaveRequestMutation(c.config, OpUpdate)
+	return &LeaveRequestUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *LeaveRequestClient) UpdateOne(_m *LeaveRequest) *LeaveRequestUpdateOne {
+	mutation := newLeaveRequestMutation(c.config, OpUpdateOne, withLeaveRequest(_m))
+	return &LeaveRequestUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *LeaveRequestClient) UpdateOneID(id uuid.UUID) *LeaveRequestUpdateOne {
+	mutation := newLeaveRequestMutation(c.config, OpUpdateOne, withLeaveRequestID(id))
+	return &LeaveRequestUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for LeaveRequest.
+func (c *LeaveRequestClient) Delete() *LeaveRequestDelete {
+	mutation := newLeaveRequestMutation(c.config, OpDelete)
+	return &LeaveRequestDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *LeaveRequestClient) DeleteOne(_m *LeaveRequest) *LeaveRequestDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *LeaveRequestClient) DeleteOneID(id uuid.UUID) *LeaveRequestDeleteOne {
+	builder := c.Delete().Where(leaverequest.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &LeaveRequestDeleteOne{builder}
+}
+
+// Query returns a query builder for LeaveRequest.
+func (c *LeaveRequestClient) Query() *LeaveRequestQuery {
+	return &LeaveRequestQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeLeaveRequest},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a LeaveRequest entity by its id.
+func (c *LeaveRequestClient) Get(ctx context.Context, id uuid.UUID) (*LeaveRequest, error) {
+	return c.Query().Where(leaverequest.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *LeaveRequestClient) GetX(ctx context.Context, id uuid.UUID) *LeaveRequest {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *LeaveRequestClient) Hooks() []Hook {
+	return c.hooks.LeaveRequest
+}
+
+// Interceptors returns the client interceptors.
+func (c *LeaveRequestClient) Interceptors() []Interceptor {
+	return c.inters.LeaveRequest
+}
+
+func (c *LeaveRequestClient) mutate(ctx context.Context, m *LeaveRequestMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&LeaveRequestCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&LeaveRequestUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&LeaveRequestUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&LeaveRequestDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown LeaveRequest mutation op: %q", m.Op())
 	}
 }
 
@@ -11857,6 +12024,272 @@ func (c *ServiceQueueEntryClient) mutate(ctx context.Context, m *ServiceQueueEnt
 	}
 }
 
+// ShiftRotationClient is a client for the ShiftRotation schema.
+type ShiftRotationClient struct {
+	config
+}
+
+// NewShiftRotationClient returns a client for the ShiftRotation from the given config.
+func NewShiftRotationClient(c config) *ShiftRotationClient {
+	return &ShiftRotationClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `shiftrotation.Hooks(f(g(h())))`.
+func (c *ShiftRotationClient) Use(hooks ...Hook) {
+	c.hooks.ShiftRotation = append(c.hooks.ShiftRotation, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `shiftrotation.Intercept(f(g(h())))`.
+func (c *ShiftRotationClient) Intercept(interceptors ...Interceptor) {
+	c.inters.ShiftRotation = append(c.inters.ShiftRotation, interceptors...)
+}
+
+// Create returns a builder for creating a ShiftRotation entity.
+func (c *ShiftRotationClient) Create() *ShiftRotationCreate {
+	mutation := newShiftRotationMutation(c.config, OpCreate)
+	return &ShiftRotationCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of ShiftRotation entities.
+func (c *ShiftRotationClient) CreateBulk(builders ...*ShiftRotationCreate) *ShiftRotationCreateBulk {
+	return &ShiftRotationCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ShiftRotationClient) MapCreateBulk(slice any, setFunc func(*ShiftRotationCreate, int)) *ShiftRotationCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ShiftRotationCreateBulk{err: fmt.Errorf("calling to ShiftRotationClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ShiftRotationCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ShiftRotationCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for ShiftRotation.
+func (c *ShiftRotationClient) Update() *ShiftRotationUpdate {
+	mutation := newShiftRotationMutation(c.config, OpUpdate)
+	return &ShiftRotationUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ShiftRotationClient) UpdateOne(_m *ShiftRotation) *ShiftRotationUpdateOne {
+	mutation := newShiftRotationMutation(c.config, OpUpdateOne, withShiftRotation(_m))
+	return &ShiftRotationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ShiftRotationClient) UpdateOneID(id uuid.UUID) *ShiftRotationUpdateOne {
+	mutation := newShiftRotationMutation(c.config, OpUpdateOne, withShiftRotationID(id))
+	return &ShiftRotationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for ShiftRotation.
+func (c *ShiftRotationClient) Delete() *ShiftRotationDelete {
+	mutation := newShiftRotationMutation(c.config, OpDelete)
+	return &ShiftRotationDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ShiftRotationClient) DeleteOne(_m *ShiftRotation) *ShiftRotationDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ShiftRotationClient) DeleteOneID(id uuid.UUID) *ShiftRotationDeleteOne {
+	builder := c.Delete().Where(shiftrotation.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ShiftRotationDeleteOne{builder}
+}
+
+// Query returns a query builder for ShiftRotation.
+func (c *ShiftRotationClient) Query() *ShiftRotationQuery {
+	return &ShiftRotationQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeShiftRotation},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a ShiftRotation entity by its id.
+func (c *ShiftRotationClient) Get(ctx context.Context, id uuid.UUID) (*ShiftRotation, error) {
+	return c.Query().Where(shiftrotation.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ShiftRotationClient) GetX(ctx context.Context, id uuid.UUID) *ShiftRotation {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *ShiftRotationClient) Hooks() []Hook {
+	return c.hooks.ShiftRotation
+}
+
+// Interceptors returns the client interceptors.
+func (c *ShiftRotationClient) Interceptors() []Interceptor {
+	return c.inters.ShiftRotation
+}
+
+func (c *ShiftRotationClient) mutate(ctx context.Context, m *ShiftRotationMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ShiftRotationCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ShiftRotationUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ShiftRotationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ShiftRotationDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown ShiftRotation mutation op: %q", m.Op())
+	}
+}
+
+// ShiftRotationSlotClient is a client for the ShiftRotationSlot schema.
+type ShiftRotationSlotClient struct {
+	config
+}
+
+// NewShiftRotationSlotClient returns a client for the ShiftRotationSlot from the given config.
+func NewShiftRotationSlotClient(c config) *ShiftRotationSlotClient {
+	return &ShiftRotationSlotClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `shiftrotationslot.Hooks(f(g(h())))`.
+func (c *ShiftRotationSlotClient) Use(hooks ...Hook) {
+	c.hooks.ShiftRotationSlot = append(c.hooks.ShiftRotationSlot, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `shiftrotationslot.Intercept(f(g(h())))`.
+func (c *ShiftRotationSlotClient) Intercept(interceptors ...Interceptor) {
+	c.inters.ShiftRotationSlot = append(c.inters.ShiftRotationSlot, interceptors...)
+}
+
+// Create returns a builder for creating a ShiftRotationSlot entity.
+func (c *ShiftRotationSlotClient) Create() *ShiftRotationSlotCreate {
+	mutation := newShiftRotationSlotMutation(c.config, OpCreate)
+	return &ShiftRotationSlotCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of ShiftRotationSlot entities.
+func (c *ShiftRotationSlotClient) CreateBulk(builders ...*ShiftRotationSlotCreate) *ShiftRotationSlotCreateBulk {
+	return &ShiftRotationSlotCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ShiftRotationSlotClient) MapCreateBulk(slice any, setFunc func(*ShiftRotationSlotCreate, int)) *ShiftRotationSlotCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ShiftRotationSlotCreateBulk{err: fmt.Errorf("calling to ShiftRotationSlotClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ShiftRotationSlotCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ShiftRotationSlotCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for ShiftRotationSlot.
+func (c *ShiftRotationSlotClient) Update() *ShiftRotationSlotUpdate {
+	mutation := newShiftRotationSlotMutation(c.config, OpUpdate)
+	return &ShiftRotationSlotUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ShiftRotationSlotClient) UpdateOne(_m *ShiftRotationSlot) *ShiftRotationSlotUpdateOne {
+	mutation := newShiftRotationSlotMutation(c.config, OpUpdateOne, withShiftRotationSlot(_m))
+	return &ShiftRotationSlotUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ShiftRotationSlotClient) UpdateOneID(id uuid.UUID) *ShiftRotationSlotUpdateOne {
+	mutation := newShiftRotationSlotMutation(c.config, OpUpdateOne, withShiftRotationSlotID(id))
+	return &ShiftRotationSlotUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for ShiftRotationSlot.
+func (c *ShiftRotationSlotClient) Delete() *ShiftRotationSlotDelete {
+	mutation := newShiftRotationSlotMutation(c.config, OpDelete)
+	return &ShiftRotationSlotDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ShiftRotationSlotClient) DeleteOne(_m *ShiftRotationSlot) *ShiftRotationSlotDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ShiftRotationSlotClient) DeleteOneID(id uuid.UUID) *ShiftRotationSlotDeleteOne {
+	builder := c.Delete().Where(shiftrotationslot.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ShiftRotationSlotDeleteOne{builder}
+}
+
+// Query returns a query builder for ShiftRotationSlot.
+func (c *ShiftRotationSlotClient) Query() *ShiftRotationSlotQuery {
+	return &ShiftRotationSlotQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeShiftRotationSlot},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a ShiftRotationSlot entity by its id.
+func (c *ShiftRotationSlotClient) Get(ctx context.Context, id uuid.UUID) (*ShiftRotationSlot, error) {
+	return c.Query().Where(shiftrotationslot.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ShiftRotationSlotClient) GetX(ctx context.Context, id uuid.UUID) *ShiftRotationSlot {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *ShiftRotationSlotClient) Hooks() []Hook {
+	return c.hooks.ShiftRotationSlot
+}
+
+// Interceptors returns the client interceptors.
+func (c *ShiftRotationSlotClient) Interceptors() []Interceptor {
+	return c.inters.ShiftRotationSlot
+}
+
+func (c *ShiftRotationSlotClient) mutate(ctx context.Context, m *ShiftRotationSlotMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ShiftRotationSlotCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ShiftRotationSlotUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ShiftRotationSlotUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ShiftRotationSlotDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown ShiftRotationSlot mutation op: %q", m.Op())
+	}
+}
+
 // StaffAdvanceClient is a client for the StaffAdvance schema.
 type StaffAdvanceClient struct {
 	config
@@ -12732,6 +13165,139 @@ func (c *StaffScheduleClient) mutate(ctx context.Context, m *StaffScheduleMutati
 		return (&StaffScheduleDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown StaffSchedule mutation op: %q", m.Op())
+	}
+}
+
+// StaffShiftOverrideClient is a client for the StaffShiftOverride schema.
+type StaffShiftOverrideClient struct {
+	config
+}
+
+// NewStaffShiftOverrideClient returns a client for the StaffShiftOverride from the given config.
+func NewStaffShiftOverrideClient(c config) *StaffShiftOverrideClient {
+	return &StaffShiftOverrideClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `staffshiftoverride.Hooks(f(g(h())))`.
+func (c *StaffShiftOverrideClient) Use(hooks ...Hook) {
+	c.hooks.StaffShiftOverride = append(c.hooks.StaffShiftOverride, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `staffshiftoverride.Intercept(f(g(h())))`.
+func (c *StaffShiftOverrideClient) Intercept(interceptors ...Interceptor) {
+	c.inters.StaffShiftOverride = append(c.inters.StaffShiftOverride, interceptors...)
+}
+
+// Create returns a builder for creating a StaffShiftOverride entity.
+func (c *StaffShiftOverrideClient) Create() *StaffShiftOverrideCreate {
+	mutation := newStaffShiftOverrideMutation(c.config, OpCreate)
+	return &StaffShiftOverrideCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of StaffShiftOverride entities.
+func (c *StaffShiftOverrideClient) CreateBulk(builders ...*StaffShiftOverrideCreate) *StaffShiftOverrideCreateBulk {
+	return &StaffShiftOverrideCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *StaffShiftOverrideClient) MapCreateBulk(slice any, setFunc func(*StaffShiftOverrideCreate, int)) *StaffShiftOverrideCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &StaffShiftOverrideCreateBulk{err: fmt.Errorf("calling to StaffShiftOverrideClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*StaffShiftOverrideCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &StaffShiftOverrideCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for StaffShiftOverride.
+func (c *StaffShiftOverrideClient) Update() *StaffShiftOverrideUpdate {
+	mutation := newStaffShiftOverrideMutation(c.config, OpUpdate)
+	return &StaffShiftOverrideUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *StaffShiftOverrideClient) UpdateOne(_m *StaffShiftOverride) *StaffShiftOverrideUpdateOne {
+	mutation := newStaffShiftOverrideMutation(c.config, OpUpdateOne, withStaffShiftOverride(_m))
+	return &StaffShiftOverrideUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *StaffShiftOverrideClient) UpdateOneID(id uuid.UUID) *StaffShiftOverrideUpdateOne {
+	mutation := newStaffShiftOverrideMutation(c.config, OpUpdateOne, withStaffShiftOverrideID(id))
+	return &StaffShiftOverrideUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for StaffShiftOverride.
+func (c *StaffShiftOverrideClient) Delete() *StaffShiftOverrideDelete {
+	mutation := newStaffShiftOverrideMutation(c.config, OpDelete)
+	return &StaffShiftOverrideDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *StaffShiftOverrideClient) DeleteOne(_m *StaffShiftOverride) *StaffShiftOverrideDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *StaffShiftOverrideClient) DeleteOneID(id uuid.UUID) *StaffShiftOverrideDeleteOne {
+	builder := c.Delete().Where(staffshiftoverride.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &StaffShiftOverrideDeleteOne{builder}
+}
+
+// Query returns a query builder for StaffShiftOverride.
+func (c *StaffShiftOverrideClient) Query() *StaffShiftOverrideQuery {
+	return &StaffShiftOverrideQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeStaffShiftOverride},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a StaffShiftOverride entity by its id.
+func (c *StaffShiftOverrideClient) Get(ctx context.Context, id uuid.UUID) (*StaffShiftOverride, error) {
+	return c.Query().Where(staffshiftoverride.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *StaffShiftOverrideClient) GetX(ctx context.Context, id uuid.UUID) *StaffShiftOverride {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *StaffShiftOverrideClient) Hooks() []Hook {
+	return c.hooks.StaffShiftOverride
+}
+
+// Interceptors returns the client interceptors.
+func (c *StaffShiftOverrideClient) Interceptors() []Interceptor {
+	return c.inters.StaffShiftOverride
+}
+
+func (c *StaffShiftOverrideClient) mutate(ctx context.Context, m *StaffShiftOverrideMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&StaffShiftOverrideCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&StaffShiftOverrideUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&StaffShiftOverrideUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&StaffShiftOverrideDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown StaffShiftOverride mutation op: %q", m.Op())
 	}
 }
 
@@ -14749,22 +15315,22 @@ type (
 		CommissionRule, ControlledSubstanceLog, DailyClosing, DrugInteractionCheck,
 		Facility, FacilityBooking, FeatureOverride, GiftCard, GiftCardTransaction,
 		HousekeepingTask, IntegrationSetting, InventorySnapshot, KDSStation,
-		KDSSyncFailure, KDSTicket, LayawayPayment, LayawayPlan, LicenseUsageSnapshot,
-		LoyaltyAccount, LoyaltyProgram, LoyaltyTransaction, Modifier, ModifierGroup,
-		OrderLink, OutboxEvent, Outlet, OutletSetting, POSCatalogOverride, POSDevice,
-		POSDeviceSession, POSLineModifier, POSOrder, POSOrderEvent, POSOrderLine,
-		POSPayment, POSPermission, POSRefund, POSReturn, POSReturnLine, POSRole,
-		POSRolePermission, POSRoleV2, POSUserRoleAssignment, PosNotification,
-		Prescription, PrescriptionLine, PriceBook, PriceBookItem, Promotion,
-		PromotionApplication, PromotionRule, RateLimitConfig, Resource, Room,
-		RoomAmenity, RoomAmenityAssignment, RoomFolioItem, RoomGuest, Section,
+		KDSSyncFailure, KDSTicket, LayawayPayment, LayawayPlan, LeaveRequest,
+		LicenseUsageSnapshot, LoyaltyAccount, LoyaltyProgram, LoyaltyTransaction,
+		Modifier, ModifierGroup, OrderLink, OutboxEvent, Outlet, OutletSetting,
+		POSCatalogOverride, POSDevice, POSDeviceSession, POSLineModifier, POSOrder,
+		POSOrderEvent, POSOrderLine, POSPayment, POSPermission, POSRefund, POSReturn,
+		POSReturnLine, POSRole, POSRolePermission, POSRoleV2, POSUserRoleAssignment,
+		PosNotification, Prescription, PrescriptionLine, PriceBook, PriceBookItem,
+		Promotion, PromotionApplication, PromotionRule, RateLimitConfig, Resource,
+		Room, RoomAmenity, RoomAmenityAssignment, RoomFolioItem, RoomGuest, Section,
 		SerialNumberLog, ServiceConfig, ServicePackage, ServicePackagePurchase,
-		ServicePackageRedemption, ServiceQueueEntry, StaffAdvance, StaffMember,
-		StaffOutlet, StaffPayroll, StaffPayrollLine, StaffSchedule,
-		StockAlertSubscription, StockConsumptionEvent, SyncFailure, Table,
-		TableAssignment, TableReservation, Tenant, TenantSyncEvent, Tender, User,
-		UserPOSRole, WebhookDelivery, WebhookSubscription,
-		WeighingScaleReading []ent.Hook
+		ServicePackageRedemption, ServiceQueueEntry, ShiftRotation, ShiftRotationSlot,
+		StaffAdvance, StaffMember, StaffOutlet, StaffPayroll, StaffPayrollLine,
+		StaffSchedule, StaffShiftOverride, StockAlertSubscription,
+		StockConsumptionEvent, SyncFailure, Table, TableAssignment, TableReservation,
+		Tenant, TenantSyncEvent, Tender, User, UserPOSRole, WebhookDelivery,
+		WebhookSubscription, WeighingScaleReading []ent.Hook
 	}
 	inters struct {
 		Appointment, BarTab, BarTabEvent, BillSplit, CashDrawer, CashDrawerEvent,
@@ -14772,21 +15338,21 @@ type (
 		CommissionRule, ControlledSubstanceLog, DailyClosing, DrugInteractionCheck,
 		Facility, FacilityBooking, FeatureOverride, GiftCard, GiftCardTransaction,
 		HousekeepingTask, IntegrationSetting, InventorySnapshot, KDSStation,
-		KDSSyncFailure, KDSTicket, LayawayPayment, LayawayPlan, LicenseUsageSnapshot,
-		LoyaltyAccount, LoyaltyProgram, LoyaltyTransaction, Modifier, ModifierGroup,
-		OrderLink, OutboxEvent, Outlet, OutletSetting, POSCatalogOverride, POSDevice,
-		POSDeviceSession, POSLineModifier, POSOrder, POSOrderEvent, POSOrderLine,
-		POSPayment, POSPermission, POSRefund, POSReturn, POSReturnLine, POSRole,
-		POSRolePermission, POSRoleV2, POSUserRoleAssignment, PosNotification,
-		Prescription, PrescriptionLine, PriceBook, PriceBookItem, Promotion,
-		PromotionApplication, PromotionRule, RateLimitConfig, Resource, Room,
-		RoomAmenity, RoomAmenityAssignment, RoomFolioItem, RoomGuest, Section,
+		KDSSyncFailure, KDSTicket, LayawayPayment, LayawayPlan, LeaveRequest,
+		LicenseUsageSnapshot, LoyaltyAccount, LoyaltyProgram, LoyaltyTransaction,
+		Modifier, ModifierGroup, OrderLink, OutboxEvent, Outlet, OutletSetting,
+		POSCatalogOverride, POSDevice, POSDeviceSession, POSLineModifier, POSOrder,
+		POSOrderEvent, POSOrderLine, POSPayment, POSPermission, POSRefund, POSReturn,
+		POSReturnLine, POSRole, POSRolePermission, POSRoleV2, POSUserRoleAssignment,
+		PosNotification, Prescription, PrescriptionLine, PriceBook, PriceBookItem,
+		Promotion, PromotionApplication, PromotionRule, RateLimitConfig, Resource,
+		Room, RoomAmenity, RoomAmenityAssignment, RoomFolioItem, RoomGuest, Section,
 		SerialNumberLog, ServiceConfig, ServicePackage, ServicePackagePurchase,
-		ServicePackageRedemption, ServiceQueueEntry, StaffAdvance, StaffMember,
-		StaffOutlet, StaffPayroll, StaffPayrollLine, StaffSchedule,
-		StockAlertSubscription, StockConsumptionEvent, SyncFailure, Table,
-		TableAssignment, TableReservation, Tenant, TenantSyncEvent, Tender, User,
-		UserPOSRole, WebhookDelivery, WebhookSubscription,
-		WeighingScaleReading []ent.Interceptor
+		ServicePackageRedemption, ServiceQueueEntry, ShiftRotation, ShiftRotationSlot,
+		StaffAdvance, StaffMember, StaffOutlet, StaffPayroll, StaffPayrollLine,
+		StaffSchedule, StaffShiftOverride, StockAlertSubscription,
+		StockConsumptionEvent, SyncFailure, Table, TableAssignment, TableReservation,
+		Tenant, TenantSyncEvent, Tender, User, UserPOSRole, WebhookDelivery,
+		WebhookSubscription, WeighingScaleReading []ent.Interceptor
 	}
 )

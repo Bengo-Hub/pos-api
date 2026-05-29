@@ -818,6 +818,46 @@ var (
 			},
 		},
 	}
+	// LeaveRequestsColumns holds the columns for the "leave_requests" table.
+	LeaveRequestsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "outlet_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "staff_member_id", Type: field.TypeUUID},
+		{Name: "start_date", Type: field.TypeTime},
+		{Name: "end_date", Type: field.TypeTime},
+		{Name: "leave_type", Type: field.TypeEnum, Enums: []string{"annual", "sick", "unpaid", "maternity", "compassionate", "other"}},
+		{Name: "reason", Type: field.TypeString, Nullable: true},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending", "approved", "rejected"}, Default: "pending"},
+		{Name: "requested_by", Type: field.TypeUUID},
+		{Name: "approved_by", Type: field.TypeUUID, Nullable: true},
+		{Name: "rejection_reason", Type: field.TypeString, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// LeaveRequestsTable holds the schema information for the "leave_requests" table.
+	LeaveRequestsTable = &schema.Table{
+		Name:       "leave_requests",
+		Columns:    LeaveRequestsColumns,
+		PrimaryKey: []*schema.Column{LeaveRequestsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "leaverequest_tenant_id_staff_member_id",
+				Unique:  false,
+				Columns: []*schema.Column{LeaveRequestsColumns[1], LeaveRequestsColumns[3]},
+			},
+			{
+				Name:    "leaverequest_tenant_id",
+				Unique:  false,
+				Columns: []*schema.Column{LeaveRequestsColumns[1]},
+			},
+			{
+				Name:    "leaverequest_status",
+				Unique:  false,
+				Columns: []*schema.Column{LeaveRequestsColumns[8]},
+			},
+		},
+	}
 	// LicenseUsageSnapshotsColumns holds the columns for the "license_usage_snapshots" table.
 	LicenseUsageSnapshotsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -2377,6 +2417,71 @@ var (
 			},
 		},
 	}
+	// ShiftRotationsColumns holds the columns for the "shift_rotations" table.
+	ShiftRotationsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "outlet_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "name", Type: field.TypeString},
+		{Name: "cycle_days", Type: field.TypeInt, Default: 14},
+		{Name: "start_date", Type: field.TypeTime},
+		{Name: "is_active", Type: field.TypeBool, Default: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// ShiftRotationsTable holds the schema information for the "shift_rotations" table.
+	ShiftRotationsTable = &schema.Table{
+		Name:       "shift_rotations",
+		Columns:    ShiftRotationsColumns,
+		PrimaryKey: []*schema.Column{ShiftRotationsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "shiftrotation_tenant_id",
+				Unique:  false,
+				Columns: []*schema.Column{ShiftRotationsColumns[1]},
+			},
+			{
+				Name:    "shiftrotation_tenant_id_is_active",
+				Unique:  false,
+				Columns: []*schema.Column{ShiftRotationsColumns[1], ShiftRotationsColumns[6]},
+			},
+		},
+	}
+	// ShiftRotationSlotsColumns holds the columns for the "shift_rotation_slots" table.
+	ShiftRotationSlotsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "rotation_id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "staff_member_id", Type: field.TypeUUID},
+		{Name: "cycle_day", Type: field.TypeInt},
+		{Name: "start_time", Type: field.TypeString},
+		{Name: "end_time", Type: field.TypeString},
+		{Name: "is_off_day", Type: field.TypeBool, Default: false},
+		{Name: "created_at", Type: field.TypeTime},
+	}
+	// ShiftRotationSlotsTable holds the schema information for the "shift_rotation_slots" table.
+	ShiftRotationSlotsTable = &schema.Table{
+		Name:       "shift_rotation_slots",
+		Columns:    ShiftRotationSlotsColumns,
+		PrimaryKey: []*schema.Column{ShiftRotationSlotsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "shiftrotationslot_rotation_id",
+				Unique:  false,
+				Columns: []*schema.Column{ShiftRotationSlotsColumns[1]},
+			},
+			{
+				Name:    "shiftrotationslot_rotation_id_staff_member_id_cycle_day",
+				Unique:  true,
+				Columns: []*schema.Column{ShiftRotationSlotsColumns[1], ShiftRotationSlotsColumns[3], ShiftRotationSlotsColumns[4]},
+			},
+			{
+				Name:    "shiftrotationslot_tenant_id",
+				Unique:  false,
+				Columns: []*schema.Column{ShiftRotationSlotsColumns[2]},
+			},
+		},
+	}
 	// StaffAdvancesColumns holds the columns for the "staff_advances" table.
 	StaffAdvancesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -2598,6 +2703,51 @@ var (
 				Name:    "staffschedule_outlet_id",
 				Unique:  false,
 				Columns: []*schema.Column{StaffSchedulesColumns[2]},
+			},
+		},
+	}
+	// StaffShiftOverridesColumns holds the columns for the "staff_shift_overrides" table.
+	StaffShiftOverridesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "outlet_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "staff_member_id", Type: field.TypeUUID},
+		{Name: "date", Type: field.TypeTime},
+		{Name: "override_type", Type: field.TypeEnum, Enums: []string{"off_duty", "manual_shift", "half_day"}},
+		{Name: "start_time", Type: field.TypeString, Nullable: true},
+		{Name: "end_time", Type: field.TypeString, Nullable: true},
+		{Name: "reason", Type: field.TypeString, Nullable: true},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending", "approved", "rejected"}, Default: "approved"},
+		{Name: "created_by", Type: field.TypeUUID},
+		{Name: "approved_by", Type: field.TypeUUID, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// StaffShiftOverridesTable holds the schema information for the "staff_shift_overrides" table.
+	StaffShiftOverridesTable = &schema.Table{
+		Name:       "staff_shift_overrides",
+		Columns:    StaffShiftOverridesColumns,
+		PrimaryKey: []*schema.Column{StaffShiftOverridesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "staffshiftoverride_tenant_id_staff_member_id_date",
+				Unique:  true,
+				Columns: []*schema.Column{StaffShiftOverridesColumns[1], StaffShiftOverridesColumns[3], StaffShiftOverridesColumns[4]},
+			},
+			{
+				Name:    "staffshiftoverride_tenant_id",
+				Unique:  false,
+				Columns: []*schema.Column{StaffShiftOverridesColumns[1]},
+			},
+			{
+				Name:    "staffshiftoverride_staff_member_id",
+				Unique:  false,
+				Columns: []*schema.Column{StaffShiftOverridesColumns[3]},
+			},
+			{
+				Name:    "staffshiftoverride_date",
+				Unique:  false,
+				Columns: []*schema.Column{StaffShiftOverridesColumns[4]},
 			},
 		},
 	}
@@ -3040,6 +3190,7 @@ var (
 		KdsTicketsTable,
 		LayawayPaymentsTable,
 		LayawayPlansTable,
+		LeaveRequestsTable,
 		LicenseUsageSnapshotsTable,
 		LoyaltyAccountsTable,
 		LoyaltyProgramsTable,
@@ -3088,12 +3239,15 @@ var (
 		ServicePackagePurchasesTable,
 		ServicePackageRedemptionsTable,
 		ServiceQueueEntriesTable,
+		ShiftRotationsTable,
+		ShiftRotationSlotsTable,
 		StaffAdvancesTable,
 		StaffMembersTable,
 		StaffOutletsTable,
 		StaffPayrollsTable,
 		StaffPayrollLinesTable,
 		StaffSchedulesTable,
+		StaffShiftOverridesTable,
 		StockAlertSubscriptionsTable,
 		StockConsumptionEventsTable,
 		SyncFailuresTable,

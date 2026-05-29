@@ -31,6 +31,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/kdsticket"
 	"github.com/bengobox/pos-service/internal/ent/layawaypayment"
 	"github.com/bengobox/pos-service/internal/ent/layawayplan"
+	"github.com/bengobox/pos-service/internal/ent/leaverequest"
 	"github.com/bengobox/pos-service/internal/ent/loyaltyaccount"
 	"github.com/bengobox/pos-service/internal/ent/loyaltyprogram"
 	"github.com/bengobox/pos-service/internal/ent/loyaltytransaction"
@@ -78,12 +79,15 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/servicepackagepurchase"
 	"github.com/bengobox/pos-service/internal/ent/servicepackageredemption"
 	"github.com/bengobox/pos-service/internal/ent/servicequeueentry"
+	"github.com/bengobox/pos-service/internal/ent/shiftrotation"
+	"github.com/bengobox/pos-service/internal/ent/shiftrotationslot"
 	"github.com/bengobox/pos-service/internal/ent/staffadvance"
 	"github.com/bengobox/pos-service/internal/ent/staffmember"
 	"github.com/bengobox/pos-service/internal/ent/staffoutlet"
 	"github.com/bengobox/pos-service/internal/ent/staffpayroll"
 	"github.com/bengobox/pos-service/internal/ent/staffpayrollline"
 	"github.com/bengobox/pos-service/internal/ent/staffschedule"
+	"github.com/bengobox/pos-service/internal/ent/staffshiftoverride"
 	"github.com/bengobox/pos-service/internal/ent/stockalertsubscription"
 	"github.com/bengobox/pos-service/internal/ent/stockconsumptionevent"
 	"github.com/bengobox/pos-service/internal/ent/syncfailure"
@@ -751,6 +755,22 @@ func init() {
 	layawayplanDescID := layawayplanFields[0].Descriptor()
 	// layawayplan.DefaultID holds the default value on creation for the id field.
 	layawayplan.DefaultID = layawayplanDescID.Default.(func() uuid.UUID)
+	leaverequestFields := schema.LeaveRequest{}.Fields()
+	_ = leaverequestFields
+	// leaverequestDescCreatedAt is the schema descriptor for created_at field.
+	leaverequestDescCreatedAt := leaverequestFields[12].Descriptor()
+	// leaverequest.DefaultCreatedAt holds the default value on creation for the created_at field.
+	leaverequest.DefaultCreatedAt = leaverequestDescCreatedAt.Default.(func() time.Time)
+	// leaverequestDescUpdatedAt is the schema descriptor for updated_at field.
+	leaverequestDescUpdatedAt := leaverequestFields[13].Descriptor()
+	// leaverequest.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	leaverequest.DefaultUpdatedAt = leaverequestDescUpdatedAt.Default.(func() time.Time)
+	// leaverequest.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	leaverequest.UpdateDefaultUpdatedAt = leaverequestDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// leaverequestDescID is the schema descriptor for id field.
+	leaverequestDescID := leaverequestFields[0].Descriptor()
+	// leaverequest.DefaultID holds the default value on creation for the id field.
+	leaverequest.DefaultID = leaverequestDescID.Default.(func() uuid.UUID)
 	loyaltyaccountFields := schema.LoyaltyAccount{}.Fields()
 	_ = loyaltyaccountFields
 	// loyaltyaccountDescCustomerPhone is the schema descriptor for customer_phone field.
@@ -2043,6 +2063,48 @@ func init() {
 	servicequeueentryDescID := servicequeueentryFields[0].Descriptor()
 	// servicequeueentry.DefaultID holds the default value on creation for the id field.
 	servicequeueentry.DefaultID = servicequeueentryDescID.Default.(func() uuid.UUID)
+	shiftrotationFields := schema.ShiftRotation{}.Fields()
+	_ = shiftrotationFields
+	// shiftrotationDescName is the schema descriptor for name field.
+	shiftrotationDescName := shiftrotationFields[3].Descriptor()
+	// shiftrotation.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	shiftrotation.NameValidator = shiftrotationDescName.Validators[0].(func(string) error)
+	// shiftrotationDescCycleDays is the schema descriptor for cycle_days field.
+	shiftrotationDescCycleDays := shiftrotationFields[4].Descriptor()
+	// shiftrotation.DefaultCycleDays holds the default value on creation for the cycle_days field.
+	shiftrotation.DefaultCycleDays = shiftrotationDescCycleDays.Default.(int)
+	// shiftrotationDescIsActive is the schema descriptor for is_active field.
+	shiftrotationDescIsActive := shiftrotationFields[6].Descriptor()
+	// shiftrotation.DefaultIsActive holds the default value on creation for the is_active field.
+	shiftrotation.DefaultIsActive = shiftrotationDescIsActive.Default.(bool)
+	// shiftrotationDescCreatedAt is the schema descriptor for created_at field.
+	shiftrotationDescCreatedAt := shiftrotationFields[7].Descriptor()
+	// shiftrotation.DefaultCreatedAt holds the default value on creation for the created_at field.
+	shiftrotation.DefaultCreatedAt = shiftrotationDescCreatedAt.Default.(func() time.Time)
+	// shiftrotationDescUpdatedAt is the schema descriptor for updated_at field.
+	shiftrotationDescUpdatedAt := shiftrotationFields[8].Descriptor()
+	// shiftrotation.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	shiftrotation.DefaultUpdatedAt = shiftrotationDescUpdatedAt.Default.(func() time.Time)
+	// shiftrotation.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	shiftrotation.UpdateDefaultUpdatedAt = shiftrotationDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// shiftrotationDescID is the schema descriptor for id field.
+	shiftrotationDescID := shiftrotationFields[0].Descriptor()
+	// shiftrotation.DefaultID holds the default value on creation for the id field.
+	shiftrotation.DefaultID = shiftrotationDescID.Default.(func() uuid.UUID)
+	shiftrotationslotFields := schema.ShiftRotationSlot{}.Fields()
+	_ = shiftrotationslotFields
+	// shiftrotationslotDescIsOffDay is the schema descriptor for is_off_day field.
+	shiftrotationslotDescIsOffDay := shiftrotationslotFields[7].Descriptor()
+	// shiftrotationslot.DefaultIsOffDay holds the default value on creation for the is_off_day field.
+	shiftrotationslot.DefaultIsOffDay = shiftrotationslotDescIsOffDay.Default.(bool)
+	// shiftrotationslotDescCreatedAt is the schema descriptor for created_at field.
+	shiftrotationslotDescCreatedAt := shiftrotationslotFields[8].Descriptor()
+	// shiftrotationslot.DefaultCreatedAt holds the default value on creation for the created_at field.
+	shiftrotationslot.DefaultCreatedAt = shiftrotationslotDescCreatedAt.Default.(func() time.Time)
+	// shiftrotationslotDescID is the schema descriptor for id field.
+	shiftrotationslotDescID := shiftrotationslotFields[0].Descriptor()
+	// shiftrotationslot.DefaultID holds the default value on creation for the id field.
+	shiftrotationslot.DefaultID = shiftrotationslotDescID.Default.(func() uuid.UUID)
 	staffadvanceFields := schema.StaffAdvance{}.Fields()
 	_ = staffadvanceFields
 	// staffadvanceDescCurrency is the schema descriptor for currency field.
@@ -2165,6 +2227,22 @@ func init() {
 	staffscheduleDescID := staffscheduleFields[0].Descriptor()
 	// staffschedule.DefaultID holds the default value on creation for the id field.
 	staffschedule.DefaultID = staffscheduleDescID.Default.(func() uuid.UUID)
+	staffshiftoverrideFields := schema.StaffShiftOverride{}.Fields()
+	_ = staffshiftoverrideFields
+	// staffshiftoverrideDescCreatedAt is the schema descriptor for created_at field.
+	staffshiftoverrideDescCreatedAt := staffshiftoverrideFields[12].Descriptor()
+	// staffshiftoverride.DefaultCreatedAt holds the default value on creation for the created_at field.
+	staffshiftoverride.DefaultCreatedAt = staffshiftoverrideDescCreatedAt.Default.(func() time.Time)
+	// staffshiftoverrideDescUpdatedAt is the schema descriptor for updated_at field.
+	staffshiftoverrideDescUpdatedAt := staffshiftoverrideFields[13].Descriptor()
+	// staffshiftoverride.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	staffshiftoverride.DefaultUpdatedAt = staffshiftoverrideDescUpdatedAt.Default.(func() time.Time)
+	// staffshiftoverride.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	staffshiftoverride.UpdateDefaultUpdatedAt = staffshiftoverrideDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// staffshiftoverrideDescID is the schema descriptor for id field.
+	staffshiftoverrideDescID := staffshiftoverrideFields[0].Descriptor()
+	// staffshiftoverride.DefaultID holds the default value on creation for the id field.
+	staffshiftoverride.DefaultID = staffshiftoverrideDescID.Default.(func() uuid.UUID)
 	stockalertsubscriptionFields := schema.StockAlertSubscription{}.Fields()
 	_ = stockalertsubscriptionFields
 	// stockalertsubscriptionDescNotificationChannel is the schema descriptor for notification_channel field.

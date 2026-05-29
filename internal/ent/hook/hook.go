@@ -333,6 +333,18 @@ func (f LayawayPlanFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value,
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.LayawayPlanMutation", m)
 }
 
+// The LeaveRequestFunc type is an adapter to allow the use of ordinary
+// function as LeaveRequest mutator.
+type LeaveRequestFunc func(context.Context, *ent.LeaveRequestMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f LeaveRequestFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.LeaveRequestMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.LeaveRequestMutation", m)
+}
+
 // The LicenseUsageSnapshotFunc type is an adapter to allow the use of ordinary
 // function as LicenseUsageSnapshot mutator.
 type LicenseUsageSnapshotFunc func(context.Context, *ent.LicenseUsageSnapshotMutation) (ent.Value, error)
@@ -909,6 +921,30 @@ func (f ServiceQueueEntryFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ServiceQueueEntryMutation", m)
 }
 
+// The ShiftRotationFunc type is an adapter to allow the use of ordinary
+// function as ShiftRotation mutator.
+type ShiftRotationFunc func(context.Context, *ent.ShiftRotationMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ShiftRotationFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ShiftRotationMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ShiftRotationMutation", m)
+}
+
+// The ShiftRotationSlotFunc type is an adapter to allow the use of ordinary
+// function as ShiftRotationSlot mutator.
+type ShiftRotationSlotFunc func(context.Context, *ent.ShiftRotationSlotMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ShiftRotationSlotFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ShiftRotationSlotMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ShiftRotationSlotMutation", m)
+}
+
 // The StaffAdvanceFunc type is an adapter to allow the use of ordinary
 // function as StaffAdvance mutator.
 type StaffAdvanceFunc func(context.Context, *ent.StaffAdvanceMutation) (ent.Value, error)
@@ -979,6 +1015,18 @@ func (f StaffScheduleFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Valu
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.StaffScheduleMutation", m)
+}
+
+// The StaffShiftOverrideFunc type is an adapter to allow the use of ordinary
+// function as StaffShiftOverride mutator.
+type StaffShiftOverrideFunc func(context.Context, *ent.StaffShiftOverrideMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f StaffShiftOverrideFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.StaffShiftOverrideMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.StaffShiftOverrideMutation", m)
 }
 
 // The StockAlertSubscriptionFunc type is an adapter to allow the use of ordinary

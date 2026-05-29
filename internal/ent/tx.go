@@ -66,6 +66,8 @@ type Tx struct {
 	LayawayPayment *LayawayPaymentClient
 	// LayawayPlan is the client for interacting with the LayawayPlan builders.
 	LayawayPlan *LayawayPlanClient
+	// LeaveRequest is the client for interacting with the LeaveRequest builders.
+	LeaveRequest *LeaveRequestClient
 	// LicenseUsageSnapshot is the client for interacting with the LicenseUsageSnapshot builders.
 	LicenseUsageSnapshot *LicenseUsageSnapshotClient
 	// LoyaltyAccount is the client for interacting with the LoyaltyAccount builders.
@@ -162,6 +164,10 @@ type Tx struct {
 	ServicePackageRedemption *ServicePackageRedemptionClient
 	// ServiceQueueEntry is the client for interacting with the ServiceQueueEntry builders.
 	ServiceQueueEntry *ServiceQueueEntryClient
+	// ShiftRotation is the client for interacting with the ShiftRotation builders.
+	ShiftRotation *ShiftRotationClient
+	// ShiftRotationSlot is the client for interacting with the ShiftRotationSlot builders.
+	ShiftRotationSlot *ShiftRotationSlotClient
 	// StaffAdvance is the client for interacting with the StaffAdvance builders.
 	StaffAdvance *StaffAdvanceClient
 	// StaffMember is the client for interacting with the StaffMember builders.
@@ -174,6 +180,8 @@ type Tx struct {
 	StaffPayrollLine *StaffPayrollLineClient
 	// StaffSchedule is the client for interacting with the StaffSchedule builders.
 	StaffSchedule *StaffScheduleClient
+	// StaffShiftOverride is the client for interacting with the StaffShiftOverride builders.
+	StaffShiftOverride *StaffShiftOverrideClient
 	// StockAlertSubscription is the client for interacting with the StockAlertSubscription builders.
 	StockAlertSubscription *StockAlertSubscriptionClient
 	// StockConsumptionEvent is the client for interacting with the StockConsumptionEvent builders.
@@ -360,6 +368,7 @@ func (tx *Tx) init() {
 	tx.KDSTicket = NewKDSTicketClient(tx.config)
 	tx.LayawayPayment = NewLayawayPaymentClient(tx.config)
 	tx.LayawayPlan = NewLayawayPlanClient(tx.config)
+	tx.LeaveRequest = NewLeaveRequestClient(tx.config)
 	tx.LicenseUsageSnapshot = NewLicenseUsageSnapshotClient(tx.config)
 	tx.LoyaltyAccount = NewLoyaltyAccountClient(tx.config)
 	tx.LoyaltyProgram = NewLoyaltyProgramClient(tx.config)
@@ -408,12 +417,15 @@ func (tx *Tx) init() {
 	tx.ServicePackagePurchase = NewServicePackagePurchaseClient(tx.config)
 	tx.ServicePackageRedemption = NewServicePackageRedemptionClient(tx.config)
 	tx.ServiceQueueEntry = NewServiceQueueEntryClient(tx.config)
+	tx.ShiftRotation = NewShiftRotationClient(tx.config)
+	tx.ShiftRotationSlot = NewShiftRotationSlotClient(tx.config)
 	tx.StaffAdvance = NewStaffAdvanceClient(tx.config)
 	tx.StaffMember = NewStaffMemberClient(tx.config)
 	tx.StaffOutlet = NewStaffOutletClient(tx.config)
 	tx.StaffPayroll = NewStaffPayrollClient(tx.config)
 	tx.StaffPayrollLine = NewStaffPayrollLineClient(tx.config)
 	tx.StaffSchedule = NewStaffScheduleClient(tx.config)
+	tx.StaffShiftOverride = NewStaffShiftOverrideClient(tx.config)
 	tx.StockAlertSubscription = NewStockAlertSubscriptionClient(tx.config)
 	tx.StockConsumptionEvent = NewStockConsumptionEventClient(tx.config)
 	tx.SyncFailure = NewSyncFailureClient(tx.config)
