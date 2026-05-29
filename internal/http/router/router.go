@@ -68,6 +68,7 @@ func New(
 	print *handlers.PrintHandler,
 	payroll *handlers.PayrollHandler,
 	staffAdmin *handlers.StaffHandler,
+	purchaseOrders *handlers.PurchaseOrdersHandler,
 	allowedOrigins []string,
 	redisClient *redis.Client,
 ) http.Handler {
@@ -390,6 +391,13 @@ func New(
 						pos.Post("/layaways/{id}/payments", layaway.RecordPayment)
 						pos.Post("/layaways/{id}/cancel", layaway.Cancel)
 						pos.Post("/layaways/{id}/complete", layaway.Complete)
+					}
+
+					// Purchase orders proxy (inventory-api pass-through with tenant auth)
+					if purchaseOrders != nil {
+						pos.Get("/purchase-orders", purchaseOrders.List)
+						pos.Post("/purchase-orders", purchaseOrders.Create)
+						pos.Get("/purchase-orders/{id}", purchaseOrders.Get)
 					}
 
 					// Weighing scale readings

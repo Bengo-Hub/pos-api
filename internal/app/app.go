@@ -231,9 +231,10 @@ func New(ctx context.Context) (*App, error) {
 	pinAuthHandler := handlers.NewPINAuthHandler(log, entClient, terminalJWTSecret)
 	publicOutletHandler := handlers.NewPublicOutletHandler(log, entClient)
 
-	// Retail module: layaway plans & weighing scale
+	// Retail module: layaway plans, weighing scale, purchase orders proxy
 	layawayHandler := handlers.NewLayawayHandler(log, entClient)
 	scaleHandler := handlers.NewScaleHandler(log, entClient)
+	purchaseOrdersHandler := handlers.NewPurchaseOrdersHandler(log, entClient)
 
 	// Pharmacy + Service modules (Sprint 8/9)
 	pharmacyHandler := handlers.NewPharmacyHandler(log, entClient)
@@ -396,7 +397,7 @@ func New(ctx context.Context) (*App, error) {
 	channelHandler := handlers.NewChannelHandler(log, entClient)
 	printHandler := handlers.NewPrintHandler(log, entClient)
 	staffAdminHandler := handlers.NewStaffHandler(log.Named("staff-admin"), entClient)
-	chiRouter := router.New(log, healthHandler, authMiddleware, entClient, identitySvc, orderHandler, catalogHandler, tableHandler, tenderHandler, paymentHandler, drawerHandler, barTabHandler, promotionHandler, rbacHandler, hotelHandler, kdsHandler, deviceHandler, pinAuthHandler, publicOutletHandler, closingHandler, returnHandler, receiptHandler, layawayHandler, scaleHandler, pharmacyHandler, appointmentHandler, commissionHandler, staffScheduleHandler, loyaltyHandler, reportsHandler, webhookHandler, onlineOrderHandler, serviceConfigHandler, serviceSettingsHandler, notificationsHandler, queueHandler, billSplitHandler, resourceHandler, commissionRuleHandler, packageHandler, clientHandler, channelHandler, printHandler, payrollHandler, staffAdminHandler, cfg.HTTP.AllowedOrigins, redisClient)
+	chiRouter := router.New(log, healthHandler, authMiddleware, entClient, identitySvc, orderHandler, catalogHandler, tableHandler, tenderHandler, paymentHandler, drawerHandler, barTabHandler, promotionHandler, rbacHandler, hotelHandler, kdsHandler, deviceHandler, pinAuthHandler, publicOutletHandler, closingHandler, returnHandler, receiptHandler, layawayHandler, scaleHandler, pharmacyHandler, appointmentHandler, commissionHandler, staffScheduleHandler, loyaltyHandler, reportsHandler, webhookHandler, onlineOrderHandler, serviceConfigHandler, serviceSettingsHandler, notificationsHandler, queueHandler, billSplitHandler, resourceHandler, commissionRuleHandler, packageHandler, clientHandler, channelHandler, printHandler, payrollHandler, staffAdminHandler, purchaseOrdersHandler, cfg.HTTP.AllowedOrigins, redisClient)
 
 	httpServer := &http.Server{
 		Addr:              fmt.Sprintf("%s:%d", cfg.HTTP.Host, cfg.HTTP.Port),
