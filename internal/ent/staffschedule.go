@@ -20,7 +20,7 @@ type StaffSchedule struct {
 	// TenantID holds the value of the "tenant_id" field.
 	TenantID uuid.UUID `json:"tenant_id,omitempty"`
 	// OutletID holds the value of the "outlet_id" field.
-	OutletID uuid.UUID `json:"outlet_id,omitempty"`
+	OutletID *uuid.UUID `json:"outlet_id,omitempty"`
 	// StaffMemberID holds the value of the "staff_member_id" field.
 	StaffMemberID uuid.UUID `json:"staff_member_id,omitempty"`
 	// 0=Sunday … 6=Saturday
@@ -41,13 +41,15 @@ func (*StaffSchedule) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case staffschedule.FieldOutletID:
+			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		case staffschedule.FieldIsAvailable:
 			values[i] = new(sql.NullBool)
 		case staffschedule.FieldDayOfWeek:
 			values[i] = new(sql.NullInt64)
 		case staffschedule.FieldStartTime, staffschedule.FieldEndTime, staffschedule.FieldNotes:
 			values[i] = new(sql.NullString)
-		case staffschedule.FieldID, staffschedule.FieldTenantID, staffschedule.FieldOutletID, staffschedule.FieldStaffMemberID:
+		case staffschedule.FieldID, staffschedule.FieldTenantID, staffschedule.FieldStaffMemberID:
 			values[i] = new(uuid.UUID)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -77,10 +79,11 @@ func (_m *StaffSchedule) assignValues(columns []string, values []any) error {
 				_m.TenantID = *value
 			}
 		case staffschedule.FieldOutletID:
-			if value, ok := values[i].(*uuid.UUID); !ok {
+			if value, ok := values[i].(*sql.NullScanner); !ok {
 				return fmt.Errorf("unexpected type %T for field outlet_id", values[i])
-			} else if value != nil {
-				_m.OutletID = *value
+			} else if value.Valid {
+				_m.OutletID = new(uuid.UUID)
+				*_m.OutletID = *value.S.(*uuid.UUID)
 			}
 		case staffschedule.FieldStaffMemberID:
 			if value, ok := values[i].(*uuid.UUID); !ok {
@@ -157,8 +160,10 @@ func (_m *StaffSchedule) String() string {
 	builder.WriteString("tenant_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.TenantID))
 	builder.WriteString(", ")
-	builder.WriteString("outlet_id=")
-	builder.WriteString(fmt.Sprintf("%v", _m.OutletID))
+	if v := _m.OutletID; v != nil {
+		builder.WriteString("outlet_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("staff_member_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.StaffMemberID))

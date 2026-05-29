@@ -56,6 +56,12 @@ func (_u *StaffScheduleUpdate) SetNillableOutletID(v *uuid.UUID) *StaffScheduleU
 	return _u
 }
 
+// ClearOutletID clears the value of the "outlet_id" field.
+func (_u *StaffScheduleUpdate) ClearOutletID() *StaffScheduleUpdate {
+	_u.mutation.ClearOutletID()
+	return _u
+}
+
 // SetStaffMemberID sets the "staff_member_id" field.
 func (_u *StaffScheduleUpdate) SetStaffMemberID(v uuid.UUID) *StaffScheduleUpdate {
 	_u.mutation.SetStaffMemberID(v)
@@ -200,6 +206,9 @@ func (_u *StaffScheduleUpdate) sqlSave(ctx context.Context) (_node int, err erro
 	if value, ok := _u.mutation.OutletID(); ok {
 		_spec.SetField(staffschedule.FieldOutletID, field.TypeUUID, value)
 	}
+	if _u.mutation.OutletIDCleared() {
+		_spec.ClearField(staffschedule.FieldOutletID, field.TypeUUID)
+	}
 	if value, ok := _u.mutation.StaffMemberID(); ok {
 		_spec.SetField(staffschedule.FieldStaffMemberID, field.TypeUUID, value)
 	}
@@ -269,6 +278,12 @@ func (_u *StaffScheduleUpdateOne) SetNillableOutletID(v *uuid.UUID) *StaffSchedu
 	if v != nil {
 		_u.SetOutletID(*v)
 	}
+	return _u
+}
+
+// ClearOutletID clears the value of the "outlet_id" field.
+func (_u *StaffScheduleUpdateOne) ClearOutletID() *StaffScheduleUpdateOne {
+	_u.mutation.ClearOutletID()
 	return _u
 }
 
@@ -445,6 +460,9 @@ func (_u *StaffScheduleUpdateOne) sqlSave(ctx context.Context) (_node *StaffSche
 	}
 	if value, ok := _u.mutation.OutletID(); ok {
 		_spec.SetField(staffschedule.FieldOutletID, field.TypeUUID, value)
+	}
+	if _u.mutation.OutletIDCleared() {
+		_spec.ClearField(staffschedule.FieldOutletID, field.TypeUUID)
 	}
 	if value, ok := _u.mutation.StaffMemberID(); ok {
 		_spec.SetField(staffschedule.FieldStaffMemberID, field.TypeUUID, value)

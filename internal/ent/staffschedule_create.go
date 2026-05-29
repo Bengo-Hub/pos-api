@@ -35,6 +35,14 @@ func (_c *StaffScheduleCreate) SetOutletID(v uuid.UUID) *StaffScheduleCreate {
 	return _c
 }
 
+// SetNillableOutletID sets the "outlet_id" field if the given value is not nil.
+func (_c *StaffScheduleCreate) SetNillableOutletID(v *uuid.UUID) *StaffScheduleCreate {
+	if v != nil {
+		_c.SetOutletID(*v)
+	}
+	return _c
+}
+
 // SetStaffMemberID sets the "staff_member_id" field.
 func (_c *StaffScheduleCreate) SetStaffMemberID(v uuid.UUID) *StaffScheduleCreate {
 	_c.mutation.SetStaffMemberID(v)
@@ -151,9 +159,6 @@ func (_c *StaffScheduleCreate) check() error {
 	if _, ok := _c.mutation.TenantID(); !ok {
 		return &ValidationError{Name: "tenant_id", err: errors.New(`ent: missing required field "StaffSchedule.tenant_id"`)}
 	}
-	if _, ok := _c.mutation.OutletID(); !ok {
-		return &ValidationError{Name: "outlet_id", err: errors.New(`ent: missing required field "StaffSchedule.outlet_id"`)}
-	}
 	if _, ok := _c.mutation.StaffMemberID(); !ok {
 		return &ValidationError{Name: "staff_member_id", err: errors.New(`ent: missing required field "StaffSchedule.staff_member_id"`)}
 	}
@@ -211,7 +216,7 @@ func (_c *StaffScheduleCreate) createSpec() (*StaffSchedule, *sqlgraph.CreateSpe
 	}
 	if value, ok := _c.mutation.OutletID(); ok {
 		_spec.SetField(staffschedule.FieldOutletID, field.TypeUUID, value)
-		_node.OutletID = value
+		_node.OutletID = &value
 	}
 	if value, ok := _c.mutation.StaffMemberID(); ok {
 		_spec.SetField(staffschedule.FieldStaffMemberID, field.TypeUUID, value)
@@ -310,6 +315,12 @@ func (u *StaffScheduleUpsert) SetOutletID(v uuid.UUID) *StaffScheduleUpsert {
 // UpdateOutletID sets the "outlet_id" field to the value that was provided on create.
 func (u *StaffScheduleUpsert) UpdateOutletID() *StaffScheduleUpsert {
 	u.SetExcluded(staffschedule.FieldOutletID)
+	return u
+}
+
+// ClearOutletID clears the value of the "outlet_id" field.
+func (u *StaffScheduleUpsert) ClearOutletID() *StaffScheduleUpsert {
+	u.SetNull(staffschedule.FieldOutletID)
 	return u
 }
 
@@ -470,6 +481,13 @@ func (u *StaffScheduleUpsertOne) SetOutletID(v uuid.UUID) *StaffScheduleUpsertOn
 func (u *StaffScheduleUpsertOne) UpdateOutletID() *StaffScheduleUpsertOne {
 	return u.Update(func(s *StaffScheduleUpsert) {
 		s.UpdateOutletID()
+	})
+}
+
+// ClearOutletID clears the value of the "outlet_id" field.
+func (u *StaffScheduleUpsertOne) ClearOutletID() *StaffScheduleUpsertOne {
+	return u.Update(func(s *StaffScheduleUpsert) {
+		s.ClearOutletID()
 	})
 }
 
@@ -811,6 +829,13 @@ func (u *StaffScheduleUpsertBulk) SetOutletID(v uuid.UUID) *StaffScheduleUpsertB
 func (u *StaffScheduleUpsertBulk) UpdateOutletID() *StaffScheduleUpsertBulk {
 	return u.Update(func(s *StaffScheduleUpsert) {
 		s.UpdateOutletID()
+	})
+}
+
+// ClearOutletID clears the value of the "outlet_id" field.
+func (u *StaffScheduleUpsertBulk) ClearOutletID() *StaffScheduleUpsertBulk {
+	return u.Update(func(s *StaffScheduleUpsert) {
+		s.ClearOutletID()
 	})
 }
 

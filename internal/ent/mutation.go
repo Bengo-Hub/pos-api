@@ -81690,7 +81690,7 @@ func (m *StaffScheduleMutation) OutletID() (r uuid.UUID, exists bool) {
 // OldOutletID returns the old "outlet_id" field's value of the StaffSchedule entity.
 // If the StaffSchedule object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *StaffScheduleMutation) OldOutletID(ctx context.Context) (v uuid.UUID, err error) {
+func (m *StaffScheduleMutation) OldOutletID(ctx context.Context) (v *uuid.UUID, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldOutletID is only allowed on UpdateOne operations")
 	}
@@ -81704,9 +81704,22 @@ func (m *StaffScheduleMutation) OldOutletID(ctx context.Context) (v uuid.UUID, e
 	return oldValue.OutletID, nil
 }
 
+// ClearOutletID clears the value of the "outlet_id" field.
+func (m *StaffScheduleMutation) ClearOutletID() {
+	m.outlet_id = nil
+	m.clearedFields[staffschedule.FieldOutletID] = struct{}{}
+}
+
+// OutletIDCleared returns if the "outlet_id" field was cleared in this mutation.
+func (m *StaffScheduleMutation) OutletIDCleared() bool {
+	_, ok := m.clearedFields[staffschedule.FieldOutletID]
+	return ok
+}
+
 // ResetOutletID resets all changes to the "outlet_id" field.
 func (m *StaffScheduleMutation) ResetOutletID() {
 	m.outlet_id = nil
+	delete(m.clearedFields, staffschedule.FieldOutletID)
 }
 
 // SetStaffMemberID sets the "staff_member_id" field.
@@ -82176,6 +82189,9 @@ func (m *StaffScheduleMutation) AddField(name string, value ent.Value) error {
 // mutation.
 func (m *StaffScheduleMutation) ClearedFields() []string {
 	var fields []string
+	if m.FieldCleared(staffschedule.FieldOutletID) {
+		fields = append(fields, staffschedule.FieldOutletID)
+	}
 	if m.FieldCleared(staffschedule.FieldNotes) {
 		fields = append(fields, staffschedule.FieldNotes)
 	}
@@ -82193,6 +82209,9 @@ func (m *StaffScheduleMutation) FieldCleared(name string) bool {
 // error if the field is not defined in the schema.
 func (m *StaffScheduleMutation) ClearField(name string) error {
 	switch name {
+	case staffschedule.FieldOutletID:
+		m.ClearOutletID()
+		return nil
 	case staffschedule.FieldNotes:
 		m.ClearNotes()
 		return nil

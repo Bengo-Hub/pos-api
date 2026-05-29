@@ -59,6 +59,7 @@ type createOrderInput struct {
 	TableID        string                 `json:"table_id"`                 // hospitality dine-in table UUID
 	CustomerPhone  string                 `json:"customer_phone,omitempty"` // loyalty auto-earn
 	CustomerName   string                 `json:"customer_name,omitempty"`
+	DiscountAmount float64                `json:"discount_amount,omitempty"` // order-level discount (e.g. loyalty redemption)
 }
 
 // updateStatusInput is the body for PATCH /pos/orders/{id}/status.
@@ -253,18 +254,19 @@ func (h *POSOrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 	}
 
 	order, err := h.orderSvc.CreateOrder(r.Context(), orders.CreateOrderRequest{
-		TenantID:      tid,
-		OutletID:      outletID,
-		DeviceID:      deviceID,
-		UserID:        userID,
-		OrderNumber:   input.OrderNumber,
-		Currency:      input.Currency,
-		Lines:         lines,
-		Metadata:      input.Metadata,
-		OrderSubtype:  input.OrderSubtype,
-		TableID:       input.TableID,
-		CustomerPhone: input.CustomerPhone,
-		CustomerName:  input.CustomerName,
+		TenantID:       tid,
+		OutletID:       outletID,
+		DeviceID:       deviceID,
+		UserID:         userID,
+		OrderNumber:    input.OrderNumber,
+		Currency:       input.Currency,
+		Lines:          lines,
+		Metadata:       input.Metadata,
+		OrderSubtype:   input.OrderSubtype,
+		TableID:        input.TableID,
+		CustomerPhone:  input.CustomerPhone,
+		CustomerName:   input.CustomerName,
+		DiscountAmount: input.DiscountAmount,
 	})
 	if err != nil {
 		h.log.Error("create order failed", zap.Error(err))

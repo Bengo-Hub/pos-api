@@ -173,6 +173,16 @@ func OutletIDLTE(v uuid.UUID) predicate.StaffSchedule {
 	return predicate.StaffSchedule(sql.FieldLTE(FieldOutletID, v))
 }
 
+// OutletIDIsNil applies the IsNil predicate on the "outlet_id" field.
+func OutletIDIsNil() predicate.StaffSchedule {
+	return predicate.StaffSchedule(sql.FieldIsNull(FieldOutletID))
+}
+
+// OutletIDNotNil applies the NotNil predicate on the "outlet_id" field.
+func OutletIDNotNil() predicate.StaffSchedule {
+	return predicate.StaffSchedule(sql.FieldNotNull(FieldOutletID))
+}
+
 // StaffMemberIDEQ applies the EQ predicate on the "staff_member_id" field.
 func StaffMemberIDEQ(v uuid.UUID) predicate.StaffSchedule {
 	return predicate.StaffSchedule(sql.FieldEQ(FieldStaffMemberID, v))

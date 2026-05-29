@@ -48,19 +48,20 @@ var validTransitions = map[string][]string{
 
 // CreateOrderRequest holds the input for creating a POS order.
 type CreateOrderRequest struct {
-	TenantID     uuid.UUID
-	TenantSlug   string    // used for treasury S2S tax lookups
-	OutletID     uuid.UUID
-	DeviceID     uuid.UUID
-	UserID       uuid.UUID
-	OrderNumber  string
-	Currency     string
-	Lines        []OrderLineInput
-	Metadata     map[string]any
-	OrderSubtype  string // dine_in | takeaway | room_service | delivery | bar_tab | retail; defaults to "dine_in"
-	TableID       string // UUID of the table (hospitality dine-in); stored in metadata (no DB column yet)
-	CustomerPhone string // loyalty auto-earn — stored on order, forwarded in pos.sale.finalized
+	TenantID      uuid.UUID
+	TenantSlug    string    // used for treasury S2S tax lookups
+	OutletID      uuid.UUID
+	DeviceID      uuid.UUID
+	UserID        uuid.UUID
+	OrderNumber   string
+	Currency      string
+	Lines         []OrderLineInput
+	Metadata      map[string]any
+	OrderSubtype  string  // dine_in | takeaway | room_service | delivery | bar_tab | retail; defaults to "dine_in"
+	TableID       string  // UUID of the table (hospitality dine-in); stored in metadata (no DB column yet)
+	CustomerPhone string  // loyalty auto-earn — stored on order, forwarded in pos.sale.finalized
 	CustomerName  string
+	DiscountAmount float64 // order-level discount (e.g. loyalty redemption) applied before total_amount
 }
 
 // OrderLineInput represents a single line item in an order.
@@ -206,7 +207,7 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent
 		orderNumber = s.GenerateOrderNumber()
 	}
 
-	totals := s.CalculateTotals(req.Lines, decimal.Zero)
+	totals := s.CalculateTotals(req.Lines, decimal.NewFromFloat(req.DiscountAmount))
 
 	// Resolve order subtype, defaulting to dine_in.
 	subtype := req.OrderSubtype

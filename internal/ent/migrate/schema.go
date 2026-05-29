@@ -2675,7 +2675,7 @@ var (
 	StaffSchedulesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
 		{Name: "tenant_id", Type: field.TypeUUID},
-		{Name: "outlet_id", Type: field.TypeUUID},
+		{Name: "outlet_id", Type: field.TypeUUID, Nullable: true},
 		{Name: "staff_member_id", Type: field.TypeUUID},
 		{Name: "day_of_week", Type: field.TypeInt},
 		{Name: "start_time", Type: field.TypeString},

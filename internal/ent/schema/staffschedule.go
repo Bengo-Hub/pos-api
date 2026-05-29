@@ -16,7 +16,7 @@ func (StaffSchedule) Fields() []ent.Field {
 	return []ent.Field{
 		field.UUID("id", uuid.UUID{}).Default(uuid.New).Immutable(),
 		field.UUID("tenant_id", uuid.UUID{}),
-		field.UUID("outlet_id", uuid.UUID{}),
+		field.UUID("outlet_id", uuid.UUID{}).Optional().Nillable(),
 		field.UUID("staff_member_id", uuid.UUID{}),
 		field.Int("day_of_week").Comment("0=Sunday … 6=Saturday"),
 		field.String("start_time").Comment("HH:MM e.g. 08:00"),
