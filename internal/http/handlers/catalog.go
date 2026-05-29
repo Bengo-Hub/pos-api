@@ -37,19 +37,19 @@ func NewCatalogHandler(log *zap.Logger, client *ent.Client) *CatalogHandler {
 
 // inventoryProxyItem is the shape returned by inventory-api /items list.
 type inventoryProxyItem struct {
-	ID                      string  `json:"id"`
-	SKU                     string  `json:"sku"`
-	Name                    string  `json:"name"`
-	Description             string  `json:"description"`
-	Type                    string  `json:"type"`
-	IsActive                bool    `json:"is_active"`
-	ImageURL                string  `json:"image_url"`
-	CategoryName            string  `json:"category_name"`
-	Barcode                 string  `json:"barcode"`
-	RequiresAgeVerification bool    `json:"requires_age_verification"`
-	IsControlledSubstance   bool    `json:"is_controlled_substance"`
-	TrackSerialNumbers      bool    `json:"track_serial_numbers"`
-	DurationMinutes         int     `json:"duration_minutes"`
+	ID                      string `json:"id"`
+	SKU                     string `json:"sku"`
+	Name                    string `json:"name"`
+	Description             string `json:"description"`
+	Type                    string `json:"type"`
+	IsActive                bool   `json:"is_active"`
+	ImageURL                string `json:"image_url"`
+	CategoryName            string `json:"category_name"`
+	Barcode                 string `json:"barcode"`
+	RequiresAgeVerification bool   `json:"requires_age_verification"`
+	IsControlledSubstance   bool   `json:"is_controlled_substance"`
+	TrackSerialNumbers      bool   `json:"track_serial_numbers"`
+	DurationMinutes         int    `json:"duration_minutes"`
 }
 
 // inventoryBulkPrice is one entry from GET /inventory/items/pricing.
@@ -69,6 +69,52 @@ func inventoryURL() string {
 
 func serviceAPIKey() string {
 	return os.Getenv("INTERNAL_SERVICE_KEY")
+}
+
+// categoryAllowedForUseCase checks whether an item's category is appropriate for the outlet use case.
+// Uses case-insensitive substring matching so that minor category name variations don't break filtering.
+// Items with no category are always allowed.
+func categoryAllowedForUseCase(categoryName, useCase string) bool {
+	cat := strings.ToLower(strings.TrimSpace(categoryName))
+	if cat == "" || useCase == "" {
+		return true
+	}
+	isPharmacyCat := strings.Contains(cat, "pharmacy") || strings.Contains(cat, "chemist") || strings.Contains(cat, "drug") || strings.Contains(cat, "medicine") || strings.Contains(cat, "pharmaceutical")
+	isFoodCat := strings.Contains(cat, "breakfast") ||
+		strings.Contains(cat, "beverage") ||
+		strings.Contains(cat, "pastry") ||
+		strings.Contains(cat, "pastries") ||
+		strings.Contains(cat, "bakery") ||
+		strings.Contains(cat, "pizza") ||
+		strings.Contains(cat, "salad") ||
+		strings.Contains(cat, "sandwich") ||
+		strings.Contains(cat, "wrap") ||
+		strings.Contains(cat, "main course") ||
+		strings.Contains(cat, "light bite") ||
+		strings.Contains(cat, "dessert") ||
+		strings.Contains(cat, "hot beverage") ||
+		strings.Contains(cat, "cold beverage")
+	isServicesCat := strings.Contains(cat, "beauty") || strings.Contains(cat, "spa") ||
+		strings.Contains(cat, "event") || strings.Contains(cat, "experience") ||
+		strings.Contains(cat, "wellness")
+	isRetailCat := strings.Contains(cat, "retail")
+
+	switch strings.ToLower(useCase) {
+	case "retail":
+		// Retail outlets sell general merchandise — exclude pharmacy, food/restaurant, and services items
+		return !isPharmacyCat && !isFoodCat && !isServicesCat
+	case "pharmacy":
+		// Pharmacy outlets sell only pharmacy/health items
+		return isPharmacyCat
+	case "hospitality", "quick_service":
+		// Restaurant/QSR outlets sell food — exclude pharmacy and pure retail items
+		return !isPharmacyCat && !isRetailCat && !isServicesCat
+	case "services":
+		// Beauty/wellness outlets sell services — exclude pharmacy, food, and retail
+		return !isPharmacyCat && !isFoodCat && !isRetailCat
+	default:
+		return true
+	}
 }
 
 // useCaseItemTypes returns the comma-separated inventory item types valid for a given outlet use case.
@@ -249,17 +295,17 @@ func (h *CatalogHandler) ListCatalogItems(w http.ResponseWriter, r *http.Request
 
 	// Build SKU → best override map (outlet-scoped wins over tenant-wide)
 	type overrideEntry struct {
-		sellingPrice             *float64
-		taxStatus                string
-		isAvailable              bool
-		isFeatured               bool
-		displayOrder             int
-		requiresPrescription     bool
-		isReturnable             bool
-		requiresAgeVerification  bool
-		isControlledSubstance    bool
-		minimumAge               *int
-		durationMinutes          *int
+		sellingPrice            *float64
+		taxStatus               string
+		isAvailable             bool
+		isFeatured              bool
+		displayOrder            int
+		requiresPrescription    bool
+		isReturnable            bool
+		requiresAgeVerification bool
+		isControlledSubstance   bool
+		minimumAge              *int
+		durationMinutes         *int
 	}
 	overrideMap := make(map[string]overrideEntry)
 	for _, o := range overrides {
@@ -305,6 +351,11 @@ func (h *CatalogHandler) ListCatalogItems(w http.ResponseWriter, r *http.Request
 			if !matched {
 				continue
 			}
+		}
+
+		// Exclude items whose category doesn't belong to this outlet's use case.
+		if useCase != "" && !categoryAllowedForUseCase(item.CategoryName, useCase) {
+			continue
 		}
 
 		o, hasOverride := overrideMap[item.SKU]
