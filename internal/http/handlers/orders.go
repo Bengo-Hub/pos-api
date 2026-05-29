@@ -101,6 +101,9 @@ func (h *POSOrderHandler) ListOrders(w http.ResponseWriter, r *http.Request) {
 			filters = append(filters, posorder.UserID(staffUID))
 		}
 	}
+	if orderNum := q.Get("order_number"); orderNum != "" {
+		filters = append(filters, posorder.OrderNumberContainsFold(orderNum))
+	}
 
 	p := pagination.Parse(r)
 	baseQ := h.client.POSOrder.Query().Where(filters...)

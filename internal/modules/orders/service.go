@@ -36,7 +36,8 @@ const (
 
 // validTransitions defines allowed status transitions.
 var validTransitions = map[string][]string{
-	StatusDraft:          {StatusOpen, StatusCancelled, StatusVoided},
+	// draft → completed is required for retail orders that skip the "open" stage.
+	StatusDraft:          {StatusOpen, StatusPendingPayment, StatusCompleted, StatusCancelled, StatusVoided},
 	StatusOpen:           {StatusPendingPayment, StatusCompleted, StatusCancelled, StatusVoided},
 	StatusPendingPayment: {StatusCompleted, StatusCancelled, StatusVoided},
 	StatusCompleted:      {StatusRefunded},
