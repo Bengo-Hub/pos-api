@@ -79,6 +79,8 @@ const (
 	FieldTableMaxOccupationMinutes = "table_max_occupation_minutes"
 	// FieldDefaultWarehouseID holds the string denoting the default_warehouse_id field in the database.
 	FieldDefaultWarehouseID = "default_warehouse_id"
+	// FieldReturnWindowDays holds the string denoting the return_window_days field in the database.
+	FieldReturnWindowDays = "return_window_days"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
 	FieldUpdatedAt = "updated_at"
 	// EdgeOutlet holds the string denoting the outlet edge name in mutations.
@@ -129,6 +131,7 @@ var Columns = []string{
 	FieldShiftMaxHours,
 	FieldTableMaxOccupationMinutes,
 	FieldDefaultWarehouseID,
+	FieldReturnWindowDays,
 	FieldUpdatedAt,
 }
 
@@ -185,6 +188,8 @@ var (
 	DefaultShiftMaxHours int
 	// DefaultTableMaxOccupationMinutes holds the default value on creation for the "table_max_occupation_minutes" field.
 	DefaultTableMaxOccupationMinutes int
+	// DefaultReturnWindowDays holds the default value on creation for the "return_window_days" field.
+	DefaultReturnWindowDays int
 	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
 	DefaultUpdatedAt func() time.Time
 	// UpdateDefaultUpdatedAt holds the default value on update for the "updated_at" field.
@@ -329,6 +334,11 @@ func ByTableMaxOccupationMinutes(opts ...sql.OrderTermOption) OrderOption {
 // ByDefaultWarehouseID orders the results by the default_warehouse_id field.
 func ByDefaultWarehouseID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldDefaultWarehouseID, opts...).ToFunc()
+}
+
+// ByReturnWindowDays orders the results by the return_window_days field.
+func ByReturnWindowDays(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldReturnWindowDays, opts...).ToFunc()
 }
 
 // ByUpdatedAt orders the results by the updated_at field.

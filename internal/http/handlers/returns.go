@@ -13,7 +13,9 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/bengobox/pos-service/internal/ent"
+	entoutletsetting "github.com/bengobox/pos-service/internal/ent/outletsetting"
 	entoverride "github.com/bengobox/pos-service/internal/ent/poscatalogoverride"
+	entposorder "github.com/bengobox/pos-service/internal/ent/posorder"
 	"github.com/bengobox/pos-service/internal/ent/posreturn"
 	"github.com/bengobox/pos-service/internal/ent/posreturnline"
 	"github.com/bengobox/pos-service/internal/modules/treasury"
@@ -81,6 +83,30 @@ func (h *ReturnHandler) CreateReturn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	ctx := r.Context()
+
+	// Enforce return window: load the original order and check its age against outlet settings.
+	order, err := h.client.POSOrder.Query().
+		Where(entposorder.ID(orderID), entposorder.TenantID(tid)).
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			jsonError(w, "order not found", http.StatusNotFound)
+			return
+		}
+		jsonError(w, "failed to load order", http.StatusInternalServerError)
+		return
+	}
+	if outletSetting, settingErr := h.client.OutletSetting.Query().
+		Where(entoutletsetting.OutletID(order.OutletID)).
+		Only(ctx); settingErr == nil {
+		windowDays := outletSetting.ReturnWindowDays
+		if windowDays > 0 && time.Since(order.CreatedAt) > time.Duration(windowDays)*24*time.Hour {
+			jsonError(w, "return window has expired", http.StatusUnprocessableEntity)
+			return
+		}
+	}
+
 	// Block returns for non-returnable items (e.g. dispensed medications).
 	// Collect all SKUs from return lines, load catalog items, check is_returnable.
 	skus := make([]string, 0, len(input.Lines))
@@ -131,7 +157,6 @@ func (h *ReturnHandler) CreateReturn(w http.ResponseWriter, r *http.Request) {
 
 	returnOutletID := parseOptionalUUID(input.OutletID, r)
 
-	ctx := r.Context()
 	ret, err := h.client.POSReturn.Create().
 		SetTenantID(tid).
 		SetOutletID(returnOutletID).

@@ -638,6 +638,33 @@ func (_u *OutletSettingUpdate) ClearDefaultWarehouseID() *OutletSettingUpdate {
 	return _u
 }
 
+// SetReturnWindowDays sets the "return_window_days" field.
+func (_u *OutletSettingUpdate) SetReturnWindowDays(v int) *OutletSettingUpdate {
+	_u.mutation.ResetReturnWindowDays()
+	_u.mutation.SetReturnWindowDays(v)
+	return _u
+}
+
+// SetNillableReturnWindowDays sets the "return_window_days" field if the given value is not nil.
+func (_u *OutletSettingUpdate) SetNillableReturnWindowDays(v *int) *OutletSettingUpdate {
+	if v != nil {
+		_u.SetReturnWindowDays(*v)
+	}
+	return _u
+}
+
+// AddReturnWindowDays adds value to the "return_window_days" field.
+func (_u *OutletSettingUpdate) AddReturnWindowDays(v int) *OutletSettingUpdate {
+	_u.mutation.AddReturnWindowDays(v)
+	return _u
+}
+
+// ClearReturnWindowDays clears the value of the "return_window_days" field.
+func (_u *OutletSettingUpdate) ClearReturnWindowDays() *OutletSettingUpdate {
+	_u.mutation.ClearReturnWindowDays()
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *OutletSettingUpdate) SetUpdatedAt(v time.Time) *OutletSettingUpdate {
 	_u.mutation.SetUpdatedAt(v)
@@ -912,6 +939,15 @@ func (_u *OutletSettingUpdate) sqlSave(ctx context.Context) (_node int, err erro
 	}
 	if _u.mutation.DefaultWarehouseIDCleared() {
 		_spec.ClearField(outletsetting.FieldDefaultWarehouseID, field.TypeUUID)
+	}
+	if value, ok := _u.mutation.ReturnWindowDays(); ok {
+		_spec.SetField(outletsetting.FieldReturnWindowDays, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedReturnWindowDays(); ok {
+		_spec.AddField(outletsetting.FieldReturnWindowDays, field.TypeInt, value)
+	}
+	if _u.mutation.ReturnWindowDaysCleared() {
+		_spec.ClearField(outletsetting.FieldReturnWindowDays, field.TypeInt)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(outletsetting.FieldUpdatedAt, field.TypeTime, value)
@@ -1572,6 +1608,33 @@ func (_u *OutletSettingUpdateOne) ClearDefaultWarehouseID() *OutletSettingUpdate
 	return _u
 }
 
+// SetReturnWindowDays sets the "return_window_days" field.
+func (_u *OutletSettingUpdateOne) SetReturnWindowDays(v int) *OutletSettingUpdateOne {
+	_u.mutation.ResetReturnWindowDays()
+	_u.mutation.SetReturnWindowDays(v)
+	return _u
+}
+
+// SetNillableReturnWindowDays sets the "return_window_days" field if the given value is not nil.
+func (_u *OutletSettingUpdateOne) SetNillableReturnWindowDays(v *int) *OutletSettingUpdateOne {
+	if v != nil {
+		_u.SetReturnWindowDays(*v)
+	}
+	return _u
+}
+
+// AddReturnWindowDays adds value to the "return_window_days" field.
+func (_u *OutletSettingUpdateOne) AddReturnWindowDays(v int) *OutletSettingUpdateOne {
+	_u.mutation.AddReturnWindowDays(v)
+	return _u
+}
+
+// ClearReturnWindowDays clears the value of the "return_window_days" field.
+func (_u *OutletSettingUpdateOne) ClearReturnWindowDays() *OutletSettingUpdateOne {
+	_u.mutation.ClearReturnWindowDays()
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *OutletSettingUpdateOne) SetUpdatedAt(v time.Time) *OutletSettingUpdateOne {
 	_u.mutation.SetUpdatedAt(v)
@@ -1876,6 +1939,15 @@ func (_u *OutletSettingUpdateOne) sqlSave(ctx context.Context) (_node *OutletSet
 	}
 	if _u.mutation.DefaultWarehouseIDCleared() {
 		_spec.ClearField(outletsetting.FieldDefaultWarehouseID, field.TypeUUID)
+	}
+	if value, ok := _u.mutation.ReturnWindowDays(); ok {
+		_spec.SetField(outletsetting.FieldReturnWindowDays, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedReturnWindowDays(); ok {
+		_spec.AddField(outletsetting.FieldReturnWindowDays, field.TypeInt, value)
+	}
+	if _u.mutation.ReturnWindowDaysCleared() {
+		_spec.ClearField(outletsetting.FieldReturnWindowDays, field.TypeInt)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(outletsetting.FieldUpdatedAt, field.TypeTime, value)

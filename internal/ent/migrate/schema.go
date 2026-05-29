@@ -1090,6 +1090,7 @@ var (
 		{Name: "shift_max_hours", Type: field.TypeInt, Nullable: true, Default: 12},
 		{Name: "table_max_occupation_minutes", Type: field.TypeInt, Nullable: true, Default: 240},
 		{Name: "default_warehouse_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "return_window_days", Type: field.TypeInt, Nullable: true, Default: 30},
 		{Name: "updated_at", Type: field.TypeTime},
 		{Name: "outlet_id", Type: field.TypeUUID, Unique: true},
 	}
@@ -1101,7 +1102,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "outlet_settings_outlets_settings",
-				Columns:    []*schema.Column{OutletSettingsColumns[33]},
+				Columns:    []*schema.Column{OutletSettingsColumns[34]},
 				RefColumns: []*schema.Column{OutletsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},

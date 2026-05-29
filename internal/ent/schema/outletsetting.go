@@ -69,6 +69,10 @@ func (OutletSetting) Fields() []ent.Field {
 			Optional().
 			Nillable().
 			Comment("Inventory warehouse ID used for stock deduction on pos.sale.finalized events"),
+		field.Int("return_window_days").
+			Default(30).
+			Optional().
+			Comment("Max days after purchase to allow returns. 0 = no limit."),
 		field.Time("updated_at").
 			Default(time.Now).
 			UpdateDefault(time.Now),

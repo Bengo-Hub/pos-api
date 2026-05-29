@@ -59,6 +59,8 @@ type settingsResponse struct {
 	ShiftMaxHours       int  `json:"shift_max_hours"`
 	// table settings
 	TableMaxOccupationMinutes int `json:"table_max_occupation_minutes"`
+	// returns policy
+	ReturnWindowDays int `json:"return_window_days"`
 	// printer profiles (multi-printer support)
 	PrinterProfiles []map[string]any `json:"printer_profiles"`
 	// terminal
@@ -97,6 +99,7 @@ func toSettingsResponse(outlet *ent.Outlet, s *ent.OutletSetting) settingsRespon
 		ShiftAutoEndEnabled:       s.ShiftAutoEndEnabled,
 		ShiftMaxHours:             s.ShiftMaxHours,
 		TableMaxOccupationMinutes: s.TableMaxOccupationMinutes,
+		ReturnWindowDays:          s.ReturnWindowDays,
 		PrinterProfiles:           s.PrinterProfiles,
 		PINLoginMessage:     s.PinLoginMessage,
 		ScreensaverURL:      s.ScreensaverURL,
@@ -212,6 +215,7 @@ type updateSettingsInput struct {
 	PrinterProfiles    []map[string]any   `json:"printer_profiles"`
 	PINLoginMessage    *string            `json:"pin_login_message"`
 	ScreensaverURL     *string            `json:"screensaver_url"`
+	ReturnWindowDays   *int               `json:"return_window_days"`
 }
 
 // PutSettings handles PUT /{tenantID}/pos/settings and PUT /{tenantID}/pos/outlets/{outletID}/settings
@@ -291,6 +295,9 @@ func (h *ServiceSettingsHandler) PutSettings(w http.ResponseWriter, r *http.Requ
 	}
 	if input.ScreensaverURL != nil {
 		upd = upd.SetScreensaverURL(*input.ScreensaverURL)
+	}
+	if input.ReturnWindowDays != nil {
+		upd = upd.SetReturnWindowDays(*input.ReturnWindowDays)
 	}
 
 	updated, err := upd.Save(r.Context())

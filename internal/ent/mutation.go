@@ -33158,6 +33158,8 @@ type OutletSettingMutation struct {
 	table_max_occupation_minutes    *int
 	addtable_max_occupation_minutes *int
 	default_warehouse_id            *uuid.UUID
+	return_window_days              *int
+	addreturn_window_days           *int
 	updated_at                      *time.Time
 	clearedFields                   map[string]struct{}
 	outlet                          *uuid.UUID
@@ -34892,6 +34894,76 @@ func (m *OutletSettingMutation) ResetDefaultWarehouseID() {
 	delete(m.clearedFields, outletsetting.FieldDefaultWarehouseID)
 }
 
+// SetReturnWindowDays sets the "return_window_days" field.
+func (m *OutletSettingMutation) SetReturnWindowDays(i int) {
+	m.return_window_days = &i
+	m.addreturn_window_days = nil
+}
+
+// ReturnWindowDays returns the value of the "return_window_days" field in the mutation.
+func (m *OutletSettingMutation) ReturnWindowDays() (r int, exists bool) {
+	v := m.return_window_days
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReturnWindowDays returns the old "return_window_days" field's value of the OutletSetting entity.
+// If the OutletSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OutletSettingMutation) OldReturnWindowDays(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReturnWindowDays is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReturnWindowDays requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReturnWindowDays: %w", err)
+	}
+	return oldValue.ReturnWindowDays, nil
+}
+
+// AddReturnWindowDays adds i to the "return_window_days" field.
+func (m *OutletSettingMutation) AddReturnWindowDays(i int) {
+	if m.addreturn_window_days != nil {
+		*m.addreturn_window_days += i
+	} else {
+		m.addreturn_window_days = &i
+	}
+}
+
+// AddedReturnWindowDays returns the value that was added to the "return_window_days" field in this mutation.
+func (m *OutletSettingMutation) AddedReturnWindowDays() (r int, exists bool) {
+	v := m.addreturn_window_days
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearReturnWindowDays clears the value of the "return_window_days" field.
+func (m *OutletSettingMutation) ClearReturnWindowDays() {
+	m.return_window_days = nil
+	m.addreturn_window_days = nil
+	m.clearedFields[outletsetting.FieldReturnWindowDays] = struct{}{}
+}
+
+// ReturnWindowDaysCleared returns if the "return_window_days" field was cleared in this mutation.
+func (m *OutletSettingMutation) ReturnWindowDaysCleared() bool {
+	_, ok := m.clearedFields[outletsetting.FieldReturnWindowDays]
+	return ok
+}
+
+// ResetReturnWindowDays resets all changes to the "return_window_days" field.
+func (m *OutletSettingMutation) ResetReturnWindowDays() {
+	m.return_window_days = nil
+	m.addreturn_window_days = nil
+	delete(m.clearedFields, outletsetting.FieldReturnWindowDays)
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (m *OutletSettingMutation) SetUpdatedAt(t time.Time) {
 	m.updated_at = &t
@@ -34989,7 +35061,7 @@ func (m *OutletSettingMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *OutletSettingMutation) Fields() []string {
-	fields := make([]string, 0, 33)
+	fields := make([]string, 0, 34)
 	if m.outlet != nil {
 		fields = append(fields, outletsetting.FieldOutletID)
 	}
@@ -35086,6 +35158,9 @@ func (m *OutletSettingMutation) Fields() []string {
 	if m.default_warehouse_id != nil {
 		fields = append(fields, outletsetting.FieldDefaultWarehouseID)
 	}
+	if m.return_window_days != nil {
+		fields = append(fields, outletsetting.FieldReturnWindowDays)
+	}
 	if m.updated_at != nil {
 		fields = append(fields, outletsetting.FieldUpdatedAt)
 	}
@@ -35161,6 +35236,8 @@ func (m *OutletSettingMutation) Field(name string) (ent.Value, bool) {
 		return m.TableMaxOccupationMinutes()
 	case outletsetting.FieldDefaultWarehouseID:
 		return m.DefaultWarehouseID()
+	case outletsetting.FieldReturnWindowDays:
+		return m.ReturnWindowDays()
 	case outletsetting.FieldUpdatedAt:
 		return m.UpdatedAt()
 	}
@@ -35236,6 +35313,8 @@ func (m *OutletSettingMutation) OldField(ctx context.Context, name string) (ent.
 		return m.OldTableMaxOccupationMinutes(ctx)
 	case outletsetting.FieldDefaultWarehouseID:
 		return m.OldDefaultWarehouseID(ctx)
+	case outletsetting.FieldReturnWindowDays:
+		return m.OldReturnWindowDays(ctx)
 	case outletsetting.FieldUpdatedAt:
 		return m.OldUpdatedAt(ctx)
 	}
@@ -35471,6 +35550,13 @@ func (m *OutletSettingMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetDefaultWarehouseID(v)
 		return nil
+	case outletsetting.FieldReturnWindowDays:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReturnWindowDays(v)
+		return nil
 	case outletsetting.FieldUpdatedAt:
 		v, ok := value.(time.Time)
 		if !ok {
@@ -35495,6 +35581,9 @@ func (m *OutletSettingMutation) AddedFields() []string {
 	if m.addtable_max_occupation_minutes != nil {
 		fields = append(fields, outletsetting.FieldTableMaxOccupationMinutes)
 	}
+	if m.addreturn_window_days != nil {
+		fields = append(fields, outletsetting.FieldReturnWindowDays)
+	}
 	return fields
 }
 
@@ -35509,6 +35598,8 @@ func (m *OutletSettingMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedShiftMaxHours()
 	case outletsetting.FieldTableMaxOccupationMinutes:
 		return m.AddedTableMaxOccupationMinutes()
+	case outletsetting.FieldReturnWindowDays:
+		return m.AddedReturnWindowDays()
 	}
 	return nil, false
 }
@@ -35538,6 +35629,13 @@ func (m *OutletSettingMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddTableMaxOccupationMinutes(v)
+		return nil
+	case outletsetting.FieldReturnWindowDays:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddReturnWindowDays(v)
 		return nil
 	}
 	return fmt.Errorf("unknown OutletSetting numeric field %s", name)
@@ -35636,6 +35734,9 @@ func (m *OutletSettingMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(outletsetting.FieldDefaultWarehouseID) {
 		fields = append(fields, outletsetting.FieldDefaultWarehouseID)
+	}
+	if m.FieldCleared(outletsetting.FieldReturnWindowDays) {
+		fields = append(fields, outletsetting.FieldReturnWindowDays)
 	}
 	return fields
 }
@@ -35741,6 +35842,9 @@ func (m *OutletSettingMutation) ClearField(name string) error {
 	case outletsetting.FieldDefaultWarehouseID:
 		m.ClearDefaultWarehouseID()
 		return nil
+	case outletsetting.FieldReturnWindowDays:
+		m.ClearReturnWindowDays()
+		return nil
 	}
 	return fmt.Errorf("unknown OutletSetting nullable field %s", name)
 }
@@ -35844,6 +35948,9 @@ func (m *OutletSettingMutation) ResetField(name string) error {
 		return nil
 	case outletsetting.FieldDefaultWarehouseID:
 		m.ResetDefaultWarehouseID()
+		return nil
+	case outletsetting.FieldReturnWindowDays:
+		m.ResetReturnWindowDays()
 		return nil
 	case outletsetting.FieldUpdatedAt:
 		m.ResetUpdatedAt()

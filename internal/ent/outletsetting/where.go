@@ -186,6 +186,11 @@ func DefaultWarehouseID(v uuid.UUID) predicate.OutletSetting {
 	return predicate.OutletSetting(sql.FieldEQ(FieldDefaultWarehouseID, v))
 }
 
+// ReturnWindowDays applies equality check predicate on the "return_window_days" field. It's identical to ReturnWindowDaysEQ.
+func ReturnWindowDays(v int) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldReturnWindowDays, v))
+}
+
 // UpdatedAt applies equality check predicate on the "updated_at" field. It's identical to UpdatedAtEQ.
 func UpdatedAt(v time.Time) predicate.OutletSetting {
 	return predicate.OutletSetting(sql.FieldEQ(FieldUpdatedAt, v))
@@ -1429,6 +1434,56 @@ func DefaultWarehouseIDIsNil() predicate.OutletSetting {
 // DefaultWarehouseIDNotNil applies the NotNil predicate on the "default_warehouse_id" field.
 func DefaultWarehouseIDNotNil() predicate.OutletSetting {
 	return predicate.OutletSetting(sql.FieldNotNull(FieldDefaultWarehouseID))
+}
+
+// ReturnWindowDaysEQ applies the EQ predicate on the "return_window_days" field.
+func ReturnWindowDaysEQ(v int) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldReturnWindowDays, v))
+}
+
+// ReturnWindowDaysNEQ applies the NEQ predicate on the "return_window_days" field.
+func ReturnWindowDaysNEQ(v int) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNEQ(FieldReturnWindowDays, v))
+}
+
+// ReturnWindowDaysIn applies the In predicate on the "return_window_days" field.
+func ReturnWindowDaysIn(vs ...int) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIn(FieldReturnWindowDays, vs...))
+}
+
+// ReturnWindowDaysNotIn applies the NotIn predicate on the "return_window_days" field.
+func ReturnWindowDaysNotIn(vs ...int) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotIn(FieldReturnWindowDays, vs...))
+}
+
+// ReturnWindowDaysGT applies the GT predicate on the "return_window_days" field.
+func ReturnWindowDaysGT(v int) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGT(FieldReturnWindowDays, v))
+}
+
+// ReturnWindowDaysGTE applies the GTE predicate on the "return_window_days" field.
+func ReturnWindowDaysGTE(v int) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGTE(FieldReturnWindowDays, v))
+}
+
+// ReturnWindowDaysLT applies the LT predicate on the "return_window_days" field.
+func ReturnWindowDaysLT(v int) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLT(FieldReturnWindowDays, v))
+}
+
+// ReturnWindowDaysLTE applies the LTE predicate on the "return_window_days" field.
+func ReturnWindowDaysLTE(v int) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLTE(FieldReturnWindowDays, v))
+}
+
+// ReturnWindowDaysIsNil applies the IsNil predicate on the "return_window_days" field.
+func ReturnWindowDaysIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldReturnWindowDays))
+}
+
+// ReturnWindowDaysNotNil applies the NotNil predicate on the "return_window_days" field.
+func ReturnWindowDaysNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldReturnWindowDays))
 }
 
 // UpdatedAtEQ applies the EQ predicate on the "updated_at" field.

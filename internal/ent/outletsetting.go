@@ -84,6 +84,8 @@ type OutletSetting struct {
 	TableMaxOccupationMinutes int `json:"table_max_occupation_minutes,omitempty"`
 	// Inventory warehouse ID used for stock deduction on pos.sale.finalized events
 	DefaultWarehouseID *uuid.UUID `json:"default_warehouse_id,omitempty"`
+	// Max days after purchase to allow returns. 0 = no limit.
+	ReturnWindowDays int `json:"return_window_days,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
@@ -125,7 +127,7 @@ func (*OutletSetting) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullBool)
 		case outletsetting.FieldVatRate:
 			values[i] = new(sql.NullFloat64)
-		case outletsetting.FieldShiftMaxHours, outletsetting.FieldTableMaxOccupationMinutes:
+		case outletsetting.FieldShiftMaxHours, outletsetting.FieldTableMaxOccupationMinutes, outletsetting.FieldReturnWindowDays:
 			values[i] = new(sql.NullInt64)
 		case outletsetting.FieldPinLoginMessage, outletsetting.FieldScreensaverURL, outletsetting.FieldDisplayMode, outletsetting.FieldDefaultView, outletsetting.FieldReceiptHeader, outletsetting.FieldReceiptFooter, outletsetting.FieldCurrency, outletsetting.FieldPrinterType, outletsetting.FieldPrinterIP, outletsetting.FieldPaperWidth:
 			values[i] = new(sql.NullString)
@@ -364,6 +366,12 @@ func (_m *OutletSetting) assignValues(columns []string, values []any) error {
 				_m.DefaultWarehouseID = new(uuid.UUID)
 				*_m.DefaultWarehouseID = *value.S.(*uuid.UUID)
 			}
+		case outletsetting.FieldReturnWindowDays:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field return_window_days", values[i])
+			} else if value.Valid {
+				_m.ReturnWindowDays = int(value.Int64)
+			}
 		case outletsetting.FieldUpdatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field updated_at", values[i])
@@ -518,6 +526,9 @@ func (_m *OutletSetting) String() string {
 		builder.WriteString("default_warehouse_id=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
+	builder.WriteString(", ")
+	builder.WriteString("return_window_days=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ReturnWindowDays))
 	builder.WriteString(", ")
 	builder.WriteString("updated_at=")
 	builder.WriteString(_m.UpdatedAt.Format(time.ANSIC))

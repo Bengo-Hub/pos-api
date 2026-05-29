@@ -417,6 +417,20 @@ func (_c *OutletSettingCreate) SetNillableDefaultWarehouseID(v *uuid.UUID) *Outl
 	return _c
 }
 
+// SetReturnWindowDays sets the "return_window_days" field.
+func (_c *OutletSettingCreate) SetReturnWindowDays(v int) *OutletSettingCreate {
+	_c.mutation.SetReturnWindowDays(v)
+	return _c
+}
+
+// SetNillableReturnWindowDays sets the "return_window_days" field if the given value is not nil.
+func (_c *OutletSettingCreate) SetNillableReturnWindowDays(v *int) *OutletSettingCreate {
+	if v != nil {
+		_c.SetReturnWindowDays(*v)
+	}
+	return _c
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_c *OutletSettingCreate) SetUpdatedAt(v time.Time) *OutletSettingCreate {
 	_c.mutation.SetUpdatedAt(v)
@@ -568,6 +582,10 @@ func (_c *OutletSettingCreate) defaults() {
 	if _, ok := _c.mutation.TableMaxOccupationMinutes(); !ok {
 		v := outletsetting.DefaultTableMaxOccupationMinutes
 		_c.mutation.SetTableMaxOccupationMinutes(v)
+	}
+	if _, ok := _c.mutation.ReturnWindowDays(); !ok {
+		v := outletsetting.DefaultReturnWindowDays
+		_c.mutation.SetReturnWindowDays(v)
 	}
 	if _, ok := _c.mutation.UpdatedAt(); !ok {
 		v := outletsetting.DefaultUpdatedAt()
@@ -752,6 +770,10 @@ func (_c *OutletSettingCreate) createSpec() (*OutletSetting, *sqlgraph.CreateSpe
 	if value, ok := _c.mutation.DefaultWarehouseID(); ok {
 		_spec.SetField(outletsetting.FieldDefaultWarehouseID, field.TypeUUID, value)
 		_node.DefaultWarehouseID = &value
+	}
+	if value, ok := _c.mutation.ReturnWindowDays(); ok {
+		_spec.SetField(outletsetting.FieldReturnWindowDays, field.TypeInt, value)
+		_node.ReturnWindowDays = value
 	}
 	if value, ok := _c.mutation.UpdatedAt(); ok {
 		_spec.SetField(outletsetting.FieldUpdatedAt, field.TypeTime, value)
@@ -1405,6 +1427,30 @@ func (u *OutletSettingUpsert) UpdateDefaultWarehouseID() *OutletSettingUpsert {
 // ClearDefaultWarehouseID clears the value of the "default_warehouse_id" field.
 func (u *OutletSettingUpsert) ClearDefaultWarehouseID() *OutletSettingUpsert {
 	u.SetNull(outletsetting.FieldDefaultWarehouseID)
+	return u
+}
+
+// SetReturnWindowDays sets the "return_window_days" field.
+func (u *OutletSettingUpsert) SetReturnWindowDays(v int) *OutletSettingUpsert {
+	u.Set(outletsetting.FieldReturnWindowDays, v)
+	return u
+}
+
+// UpdateReturnWindowDays sets the "return_window_days" field to the value that was provided on create.
+func (u *OutletSettingUpsert) UpdateReturnWindowDays() *OutletSettingUpsert {
+	u.SetExcluded(outletsetting.FieldReturnWindowDays)
+	return u
+}
+
+// AddReturnWindowDays adds v to the "return_window_days" field.
+func (u *OutletSettingUpsert) AddReturnWindowDays(v int) *OutletSettingUpsert {
+	u.Add(outletsetting.FieldReturnWindowDays, v)
+	return u
+}
+
+// ClearReturnWindowDays clears the value of the "return_window_days" field.
+func (u *OutletSettingUpsert) ClearReturnWindowDays() *OutletSettingUpsert {
+	u.SetNull(outletsetting.FieldReturnWindowDays)
 	return u
 }
 
@@ -2144,6 +2190,34 @@ func (u *OutletSettingUpsertOne) UpdateDefaultWarehouseID() *OutletSettingUpsert
 func (u *OutletSettingUpsertOne) ClearDefaultWarehouseID() *OutletSettingUpsertOne {
 	return u.Update(func(s *OutletSettingUpsert) {
 		s.ClearDefaultWarehouseID()
+	})
+}
+
+// SetReturnWindowDays sets the "return_window_days" field.
+func (u *OutletSettingUpsertOne) SetReturnWindowDays(v int) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetReturnWindowDays(v)
+	})
+}
+
+// AddReturnWindowDays adds v to the "return_window_days" field.
+func (u *OutletSettingUpsertOne) AddReturnWindowDays(v int) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.AddReturnWindowDays(v)
+	})
+}
+
+// UpdateReturnWindowDays sets the "return_window_days" field to the value that was provided on create.
+func (u *OutletSettingUpsertOne) UpdateReturnWindowDays() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateReturnWindowDays()
+	})
+}
+
+// ClearReturnWindowDays clears the value of the "return_window_days" field.
+func (u *OutletSettingUpsertOne) ClearReturnWindowDays() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearReturnWindowDays()
 	})
 }
 
@@ -3052,6 +3126,34 @@ func (u *OutletSettingUpsertBulk) UpdateDefaultWarehouseID() *OutletSettingUpser
 func (u *OutletSettingUpsertBulk) ClearDefaultWarehouseID() *OutletSettingUpsertBulk {
 	return u.Update(func(s *OutletSettingUpsert) {
 		s.ClearDefaultWarehouseID()
+	})
+}
+
+// SetReturnWindowDays sets the "return_window_days" field.
+func (u *OutletSettingUpsertBulk) SetReturnWindowDays(v int) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetReturnWindowDays(v)
+	})
+}
+
+// AddReturnWindowDays adds v to the "return_window_days" field.
+func (u *OutletSettingUpsertBulk) AddReturnWindowDays(v int) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.AddReturnWindowDays(v)
+	})
+}
+
+// UpdateReturnWindowDays sets the "return_window_days" field to the value that was provided on create.
+func (u *OutletSettingUpsertBulk) UpdateReturnWindowDays() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateReturnWindowDays()
+	})
+}
+
+// ClearReturnWindowDays clears the value of the "return_window_days" field.
+func (u *OutletSettingUpsertBulk) ClearReturnWindowDays() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearReturnWindowDays()
 	})
 }
 
