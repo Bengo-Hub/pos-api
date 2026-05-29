@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"strings"
 	"time"
 
 	"entgo.io/ent/dialect"
@@ -17,7 +16,6 @@ import (
 	"github.com/bengobox/pos-service/internal/ent"
 	"github.com/bengobox/pos-service/internal/ent/kdsstation"
 	"github.com/bengobox/pos-service/internal/ent/outlet"
-	entoverride "github.com/bengobox/pos-service/internal/ent/poscatalogoverride"
 	"github.com/bengobox/pos-service/internal/ent/outletsetting"
 	"github.com/bengobox/pos-service/internal/ent/pospermission"
 	"github.com/bengobox/pos-service/internal/ent/posrolev2"
@@ -126,12 +124,7 @@ func runSeed(ctx context.Context, client *ent.Client, tenantID uuid.UUID, tc ten
 		}
 	}
 
-	if err := seedCatalogItems(ctx, client, tenantID, tc.slug); err != nil {
-		return fmt.Errorf("seed catalog items: %w", err)
-	}
-
-	// Seed KDS stations for hospitality outlets and patch catalog overrides with routing.
-	// This runs after seedCatalogItems so all overrides exist before patching.
+	// KDS stations define kitchen/bar/expo routing — they are outlet metadata, not catalog data.
 	if err := seedKDSStations(ctx, client, tenantID, hqOutletID); err != nil {
 		log.Printf("  ⚠️  seed KDS stations: %v (non-fatal, stations can be configured via UI)", err)
 	}
@@ -509,194 +502,6 @@ func seedTables(ctx context.Context, client *ent.Client, tenantID, outletID uuid
 	return nil
 }
 
-// seedCatalogItems seeds POSCatalogOverride entries with selling prices per SKU.
-// Inventory-api is the source of truth for item data (name, description, image).
-// This function only configures POS-specific overrides: price, tax, compliance flags.
-func seedCatalogItems(ctx context.Context, client *ent.Client, tenantID uuid.UUID, tenantSlug string) error {
-	type overrideDef struct {
-		sku                   string
-		price                 float64
-		outletSlug            string // empty = tenant-wide
-		taxStatus             string
-		isControlledSubstance bool
-		requiresPrescription  bool
-		isReturnable          bool
-		durationMinutes       int
-	}
-
-	hospSlug := "demo-hospitality"
-	if tenantSlug == "urban-loft" {
-		hospSlug = "busia"
-	}
-
-	overrides := []overrideDef{
-		// Hot beverages
-		{"BEV-ESP-001", 200, hospSlug, "taxable", false, false, true, 0},
-		{"BEV-ESP-002", 250, hospSlug, "taxable", false, false, true, 0},
-		{"BEV-LAT-001", 350, hospSlug, "taxable", false, false, true, 0},
-		{"BEV-CAP-001", 350, hospSlug, "taxable", false, false, true, 0},
-		{"BEV-AME-001", 300, hospSlug, "taxable", false, false, true, 0},
-		{"BEV-MOC-001", 380, hospSlug, "taxable", false, false, true, 0},
-		{"BEV-MAC-001", 320, hospSlug, "taxable", false, false, true, 0},
-		{"BEV-TEA-001", 150, hospSlug, "taxable", false, false, true, 0},
-		{"BEV-TEA-002", 180, hospSlug, "taxable", false, false, true, 0},
-		{"BEV-HOT-001", 280, hospSlug, "taxable", false, false, true, 0},
-		// Cold beverages
-		{"BEV-ICE-001", 380, hospSlug, "taxable", false, false, true, 0},
-		{"BEV-ICE-002", 350, hospSlug, "taxable", false, false, true, 0},
-		{"BEV-FRP-001", 420, hospSlug, "taxable", false, false, true, 0},
-		{"BEV-FRP-002", 420, hospSlug, "taxable", false, false, true, 0},
-		{"BEV-SMO-001", 450, hospSlug, "taxable", false, false, true, 0},
-		{"BEV-SMO-002", 450, hospSlug, "taxable", false, false, true, 0},
-		{"BEV-JCE-001", 300, hospSlug, "taxable", false, false, true, 0},
-		// Pastries
-		{"PST-CRO-001", 180, hospSlug, "taxable", false, false, true, 0},
-		{"PST-CRO-002", 220, hospSlug, "taxable", false, false, true, 0},
-		{"PST-MUF-001", 200, hospSlug, "taxable", false, false, true, 0},
-		{"PST-MUF-002", 200, hospSlug, "taxable", false, false, true, 0},
-		{"PST-CKE-001", 280, hospSlug, "taxable", false, false, true, 0},
-		{"PST-CKE-002", 300, hospSlug, "taxable", false, false, true, 0},
-		{"PST-CKE-003", 320, hospSlug, "taxable", false, false, true, 0},
-		{"PST-DAN-001", 160, hospSlug, "taxable", false, false, true, 0},
-		{"PST-SCO-001", 150, hospSlug, "taxable", false, false, true, 0},
-		// Sandwiches & salads
-		{"SND-CLB-001", 650, hospSlug, "taxable", false, false, true, 0},
-		{"SND-GRL-001", 700, hospSlug, "taxable", false, false, true, 0},
-		{"SND-VEG-001", 550, hospSlug, "taxable", false, false, true, 0},
-		{"SND-BLT-001", 600, hospSlug, "taxable", false, false, true, 0},
-		{"SND-TUN-001", 620, hospSlug, "taxable", false, false, true, 0},
-		{"SAL-CES-001", 750, hospSlug, "taxable", false, false, true, 0},
-		{"SAL-GRK-001", 700, hospSlug, "taxable", false, false, true, 0},
-		// Light bites & mains
-		{"BTE-SAM-001", 350, hospSlug, "taxable", false, false, true, 0},
-		{"BTE-SPR-001", 380, hospSlug, "taxable", false, false, true, 0},
-		{"MIN-GRL-001", 1800, hospSlug, "taxable", false, false, true, 0},
-		{"MIN-GRL-002", 1500, hospSlug, "taxable", false, false, true, 0},
-		{"MIN-CUR-001", 1200, hospSlug, "taxable", false, false, true, 0},
-		{"MIN-CUR-002", 1100, hospSlug, "taxable", false, false, true, 0},
-		{"MIN-SEA-001", 1400, hospSlug, "taxable", false, false, true, 0},
-		{"MIN-PAS-001", 1300, hospSlug, "taxable", false, false, true, 0},
-		{"MIN-RIC-001", 950, hospSlug, "taxable", false, false, true, 0},
-		// Breakfast & pizza
-		{"BRK-FUL-001", 1200, hospSlug, "taxable", false, false, true, 0},
-		{"BRK-PAN-001", 750, hospSlug, "taxable", false, false, true, 0},
-		{"BRK-AVT-001", 650, hospSlug, "taxable", false, false, true, 0},
-		{"BRK-OAT-001", 550, hospSlug, "taxable", false, false, true, 0},
-		{"PIZ-MAR-001", 1100, hospSlug, "taxable", false, false, true, 0},
-		{"PIZ-PEP-001", 1300, hospSlug, "taxable", false, false, true, 0},
-	}
-
-	if tenantSlug == "codevertex-demo" {
-		// Retail — SKUs match inventory seed_items_retail.go
-		overrides = append(overrides, []overrideDef{
-			{"RTL-SHP-001", 480, "demo-retail", "taxable", false, false, true, 0},
-			{"RTL-SHP-002", 480, "demo-retail", "taxable", false, false, true, 0},
-			{"RTL-BSP-001", 320, "demo-retail", "taxable", false, false, true, 0},
-			{"RTL-LOT-001", 410, "demo-retail", "taxable", false, false, true, 0},
-			{"RTL-SPF-001", 750, "demo-retail", "taxable", false, false, true, 0},
-			{"RTL-MSK-001", 199, "demo-retail", "taxable", false, false, true, 0},
-			{"RTL-DEO-001", 230, "demo-retail", "taxable", false, false, true, 0},
-			{"RTL-NAP-001", 320, "demo-retail", "taxable", false, false, true, 0},
-			{"RTL-ACC-001", 250, "demo-retail", "taxable", false, false, true, 0},
-			{"RTL-GFT-001", 1499, "demo-retail", "taxable", false, false, true, 0},
-		}...)
-		// QSR — reuse hospitality GOODS/RECIPE SKUs that inventory-api seeds for this tenant
-		overrides = append(overrides, []overrideDef{
-			{"BRK-FUL-001", 850, "demo-quick", "taxable", false, false, true, 0},
-			{"BRK-PAN-001", 550, "demo-quick", "taxable", false, false, true, 0},
-			{"BRK-AVT-001", 500, "demo-quick", "taxable", false, false, true, 0},
-			{"PIZ-MAR-001", 900, "demo-quick", "taxable", false, false, true, 0},
-			{"PIZ-PEP-001", 1100, "demo-quick", "taxable", false, false, true, 0},
-			{"SND-CLB-001", 600, "demo-quick", "taxable", false, false, true, 0},
-			{"BEV-ICE-001", 300, "demo-quick", "taxable", false, false, true, 0},
-		}...)
-		// Pharmacy — SKUs match inventory seed_items_pharmacy.go
-		overrides = append(overrides, []overrideDef{
-			{"PHM-ANL-001", 150, "demo-pharmacy", "taxable", false, false, true, 0},
-			{"PHM-ANL-002", 220, "demo-pharmacy", "taxable", false, false, true, 0},
-			{"PHM-ANT-001", 320, "demo-pharmacy", "taxable", false, false, false, 0},
-			{"PHM-VIT-001", 550, "demo-pharmacy", "taxable", false, false, true, 0},
-			{"PHM-VIT-002", 780, "demo-pharmacy", "taxable", false, false, true, 0},
-			{"PHM-ANT-002", 180, "demo-pharmacy", "taxable", false, false, true, 0},
-			{"PHM-CLD-001", 350, "demo-pharmacy", "taxable", false, false, true, 0},
-			{"PHM-SAL-001", 400, "demo-pharmacy", "taxable", false, false, true, 0},
-			{"PHM-SKN-001", 480, "demo-pharmacy", "taxable", false, false, true, 0},
-			{"PHM-EYE-001", 520, "demo-pharmacy", "taxable", false, false, true, 0},
-		}...)
-		// Services — SKUs match inventory seed_items_beauty.go
-		overrides = append(overrides, []overrideDef{
-			{"SVC-HAR-001", 1800, "demo-services", "taxable", false, false, false, 60},
-			{"SVC-HAR-002", 900, "demo-services", "taxable", false, false, false, 45},
-			{"SVC-HAR-003", 3000, "demo-services", "taxable", false, false, false, 90},
-			{"SVC-MAS-001", 4000, "demo-services", "taxable", false, false, false, 60},
-			{"SVC-MAS-002", 3200, "demo-services", "taxable", false, false, false, 45},
-			{"SVC-FCI-001", 2500, "demo-services", "taxable", false, false, false, 60},
-			{"SVC-MNI-001", 800, "demo-services", "taxable", false, false, false, 30},
-			{"SVC-PED-001", 1100, "demo-services", "taxable", false, false, false, 45},
-			{"SVC-EYB-001", 350, "demo-services", "taxable", false, false, false, 15},
-			{"SVC-WAX-001", 1500, "demo-services", "taxable", false, false, false, 45},
-		}...)
-	}
-
-	created := 0
-	updated := 0
-	for _, o := range overrides {
-		var oid *uuid.UUID
-		if o.outletSlug != "" {
-			id := outletUUID(tenantSlug, o.outletSlug)
-			oid = &id
-		}
-
-		price := o.price
-
-		existing, _ := client.POSCatalogOverride.Query().
-			Where(entoverride.TenantID(tenantID), entoverride.InventorySku(o.sku)).
-			First(ctx)
-
-		if existing != nil {
-			upd := existing.Update().
-				SetSellingPrice(price).
-				SetTaxStatus(o.taxStatus).
-				SetIsControlledSubstance(o.isControlledSubstance).
-				SetRequiresPrescription(o.requiresPrescription).
-				SetIsReturnable(o.isReturnable)
-			if oid != nil {
-				upd.SetOutletID(*oid)
-			}
-			if o.durationMinutes > 0 {
-				upd.SetDurationMinutes(o.durationMinutes)
-			}
-			if _, err := upd.Save(ctx); err != nil {
-				log.Printf("  ⚠️  update catalog override %s: %v", o.sku, err)
-			} else {
-				updated++
-			}
-			continue
-		}
-
-		creator := client.POSCatalogOverride.Create().
-			SetTenantID(tenantID).
-			SetInventorySku(o.sku).
-			SetSellingPrice(price).
-			SetTaxStatus(o.taxStatus).
-			SetIsControlledSubstance(o.isControlledSubstance).
-			SetRequiresPrescription(o.requiresPrescription).
-			SetIsReturnable(o.isReturnable)
-		if oid != nil {
-			creator.SetOutletID(*oid)
-		}
-		if o.durationMinutes > 0 {
-			creator.SetDurationMinutes(o.durationMinutes)
-		}
-		if _, err := creator.Save(ctx); err != nil {
-			return fmt.Errorf("create catalog override %s: %w", o.sku, err)
-		}
-		created++
-	}
-	log.Printf("  ✓ Catalog overrides: %d created, %d updated (%d total)", created, updated, len(overrides))
-	return nil
-}
-
 // seedKDSStations creates KDS stations for a hospitality outlet with proper station_type
 // and category_filter, then stamps kds_station_id on the relevant catalog overrides so
 // that tickets are routed to the correct station at order creation time.
@@ -706,7 +511,6 @@ func seedKDSStations(ctx context.Context, client *ent.Client, tenantID, outletID
 		stationType    kdsstation.StationType
 		categoryFilter []string
 		sortOrder      int
-		skuPrefixes    []string // catalog override SKU prefixes that belong to this station
 	}
 
 	stations := []stationDef{
@@ -718,8 +522,7 @@ func seedKDSStations(ctx context.Context, client *ent.Client, tenantID, outletID
 				"breakfast", "pancake", "avocado", "oatmeal", "croissant", "muffin",
 				"cake", "scone", "danish", "spring roll", "samosa", "waffle", "burger",
 			},
-			sortOrder:   1,
-			skuPrefixes: []string{"PST-", "SND-", "SAL-", "BTE-", "MIN-", "BRK-", "PIZ-", "QSR-BUR-", "QSR-CHK-", "QSR-FRI-", "QSR-PIZ-", "QSR-HOT-", "QSR-COM-"},
+			sortOrder: 1,
 		},
 		{
 			name:        "Bar Display",
@@ -729,20 +532,15 @@ func seedKDSStations(ctx context.Context, client *ent.Client, tenantID, outletID
 				"macchiato", "tea", "juice", "frappe", "smoothie", "iced latte",
 				"hot chocolate", "cocktail", "beer", "wine", "spirit",
 			},
-			sortOrder:   2,
-			skuPrefixes: []string{"BEV-", "QSR-SOD-"},
+			sortOrder: 2,
 		},
 		{
 			name:           "Restaurant",
 			stationType:    kdsstation.StationTypeExpo,
 			categoryFilter: []string{},
 			sortOrder:      3,
-			skuPrefixes:    nil, // expo receives everything — no SKU assignment needed
 		},
 	}
-
-	// stationIDByPrefix maps SKU prefix → station UUID for catalog override patching.
-	stationIDByPrefix := make(map[string]uuid.UUID)
 
 	for _, def := range stations {
 		// Upsert KDS station (idempotent by name+outlet).
@@ -773,37 +571,10 @@ func seedKDSStations(ctx context.Context, client *ent.Client, tenantID, outletID
 			}
 			stationID = st.ID
 		}
-
-		for _, prefix := range def.skuPrefixes {
-			stationIDByPrefix[prefix] = stationID
-		}
+		_ = stationID
 	}
 
-	// Patch catalog overrides with the resolved kds_station_id.
-	// Fetch all overrides for this outlet (and tenant-wide overrides).
-	allOverrides, err := client.POSCatalogOverride.Query().
-		Where(entoverride.TenantID(tenantID)).
-		All(ctx)
-	if err != nil {
-		return fmt.Errorf("query catalog overrides for KDS patching: %w", err)
-	}
-
-	patched := 0
-	for _, o := range allOverrides {
-		for prefix, stationID := range stationIDByPrefix {
-			if strings.HasPrefix(o.InventorySku, prefix) {
-				sid := stationID
-				if _, err := o.Update().SetKdsStationID(sid).Save(ctx); err != nil {
-					log.Printf("  ⚠️  patch KDS station on override %s: %v", o.InventorySku, err)
-				} else {
-					patched++
-				}
-				break
-			}
-		}
-	}
-
-	log.Printf("  ✓ KDS stations seeded (3 stations), %d catalog overrides patched with station routing", patched)
+	log.Printf("  ✓ KDS stations seeded (3 stations)")
 	return nil
 }
 
