@@ -378,6 +378,7 @@ func New(
 							pos.Post("/orders/{orderID}/splits/{splitID}/settle", billSplits.SettleSplit)
 						}
 						pos.Get("/returns", returns.ListReturns)
+						pos.Get("/returns/{returnID}", returns.GetReturn)
 						pos.Patch("/returns/{returnID}/approve", returns.ApproveReturn)
 					}
 

@@ -247,6 +247,37 @@ func (h *ReturnHandler) ListReturns(w http.ResponseWriter, r *http.Request) {
 	jsonOK(w, pagination.NewResponse(returns, total, p))
 }
 
+// GetReturn handles GET /{tenantID}/pos/returns/{returnID}
+func (h *ReturnHandler) GetReturn(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+
+	returnIDStr := chi.URLParam(r, "returnID")
+	returnID, err := uuid.Parse(returnIDStr)
+	if err != nil {
+		jsonError(w, "invalid return_id", http.StatusBadRequest)
+		return
+	}
+
+	ret, err := h.client.POSReturn.Query().
+		Where(posreturn.ID(returnID), posreturn.TenantID(tid)).
+		WithLines().
+		Only(r.Context())
+	if err != nil {
+		if ent.IsNotFound(err) {
+			jsonError(w, "return not found", http.StatusNotFound)
+			return
+		}
+		jsonError(w, "failed to get return", http.StatusInternalServerError)
+		return
+	}
+
+	jsonOK(w, ret)
+}
+
 // ApproveReturn handles PATCH /{tenantID}/pos/returns/{returnID}/approve
 func (h *ReturnHandler) ApproveReturn(w http.ResponseWriter, r *http.Request) {
 	tid, err := parseTenantUUID(r)
