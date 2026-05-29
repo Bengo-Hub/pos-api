@@ -50,6 +50,20 @@ func (_c *LoyaltyTransactionCreate) SetNillableOrderID(v *uuid.UUID) *LoyaltyTra
 	return _c
 }
 
+// SetOutletID sets the "outlet_id" field.
+func (_c *LoyaltyTransactionCreate) SetOutletID(v uuid.UUID) *LoyaltyTransactionCreate {
+	_c.mutation.SetOutletID(v)
+	return _c
+}
+
+// SetNillableOutletID sets the "outlet_id" field if the given value is not nil.
+func (_c *LoyaltyTransactionCreate) SetNillableOutletID(v *uuid.UUID) *LoyaltyTransactionCreate {
+	if v != nil {
+		_c.SetOutletID(*v)
+	}
+	return _c
+}
+
 // SetTypeField sets the "type_field" field.
 func (_c *LoyaltyTransactionCreate) SetTypeField(v string) *LoyaltyTransactionCreate {
 	_c.mutation.SetTypeField(v)
@@ -223,6 +237,10 @@ func (_c *LoyaltyTransactionCreate) createSpec() (*LoyaltyTransaction, *sqlgraph
 		_spec.SetField(loyaltytransaction.FieldOrderID, field.TypeUUID, value)
 		_node.OrderID = &value
 	}
+	if value, ok := _c.mutation.OutletID(); ok {
+		_spec.SetField(loyaltytransaction.FieldOutletID, field.TypeUUID, value)
+		_node.OutletID = &value
+	}
 	if value, ok := _c.mutation.TypeField(); ok {
 		_spec.SetField(loyaltytransaction.FieldTypeField, field.TypeString, value)
 		_node.TypeField = value
@@ -334,6 +352,24 @@ func (u *LoyaltyTransactionUpsert) UpdateOrderID() *LoyaltyTransactionUpsert {
 // ClearOrderID clears the value of the "order_id" field.
 func (u *LoyaltyTransactionUpsert) ClearOrderID() *LoyaltyTransactionUpsert {
 	u.SetNull(loyaltytransaction.FieldOrderID)
+	return u
+}
+
+// SetOutletID sets the "outlet_id" field.
+func (u *LoyaltyTransactionUpsert) SetOutletID(v uuid.UUID) *LoyaltyTransactionUpsert {
+	u.Set(loyaltytransaction.FieldOutletID, v)
+	return u
+}
+
+// UpdateOutletID sets the "outlet_id" field to the value that was provided on create.
+func (u *LoyaltyTransactionUpsert) UpdateOutletID() *LoyaltyTransactionUpsert {
+	u.SetExcluded(loyaltytransaction.FieldOutletID)
+	return u
+}
+
+// ClearOutletID clears the value of the "outlet_id" field.
+func (u *LoyaltyTransactionUpsert) ClearOutletID() *LoyaltyTransactionUpsert {
+	u.SetNull(loyaltytransaction.FieldOutletID)
 	return u
 }
 
@@ -500,6 +536,27 @@ func (u *LoyaltyTransactionUpsertOne) UpdateOrderID() *LoyaltyTransactionUpsertO
 func (u *LoyaltyTransactionUpsertOne) ClearOrderID() *LoyaltyTransactionUpsertOne {
 	return u.Update(func(s *LoyaltyTransactionUpsert) {
 		s.ClearOrderID()
+	})
+}
+
+// SetOutletID sets the "outlet_id" field.
+func (u *LoyaltyTransactionUpsertOne) SetOutletID(v uuid.UUID) *LoyaltyTransactionUpsertOne {
+	return u.Update(func(s *LoyaltyTransactionUpsert) {
+		s.SetOutletID(v)
+	})
+}
+
+// UpdateOutletID sets the "outlet_id" field to the value that was provided on create.
+func (u *LoyaltyTransactionUpsertOne) UpdateOutletID() *LoyaltyTransactionUpsertOne {
+	return u.Update(func(s *LoyaltyTransactionUpsert) {
+		s.UpdateOutletID()
+	})
+}
+
+// ClearOutletID clears the value of the "outlet_id" field.
+func (u *LoyaltyTransactionUpsertOne) ClearOutletID() *LoyaltyTransactionUpsertOne {
+	return u.Update(func(s *LoyaltyTransactionUpsert) {
+		s.ClearOutletID()
 	})
 }
 
@@ -844,6 +901,27 @@ func (u *LoyaltyTransactionUpsertBulk) UpdateOrderID() *LoyaltyTransactionUpsert
 func (u *LoyaltyTransactionUpsertBulk) ClearOrderID() *LoyaltyTransactionUpsertBulk {
 	return u.Update(func(s *LoyaltyTransactionUpsert) {
 		s.ClearOrderID()
+	})
+}
+
+// SetOutletID sets the "outlet_id" field.
+func (u *LoyaltyTransactionUpsertBulk) SetOutletID(v uuid.UUID) *LoyaltyTransactionUpsertBulk {
+	return u.Update(func(s *LoyaltyTransactionUpsert) {
+		s.SetOutletID(v)
+	})
+}
+
+// UpdateOutletID sets the "outlet_id" field to the value that was provided on create.
+func (u *LoyaltyTransactionUpsertBulk) UpdateOutletID() *LoyaltyTransactionUpsertBulk {
+	return u.Update(func(s *LoyaltyTransactionUpsert) {
+		s.UpdateOutletID()
+	})
+}
+
+// ClearOutletID clears the value of the "outlet_id" field.
+func (u *LoyaltyTransactionUpsertBulk) ClearOutletID() *LoyaltyTransactionUpsertBulk {
+	return u.Update(func(s *LoyaltyTransactionUpsert) {
+		s.ClearOutletID()
 	})
 }
 

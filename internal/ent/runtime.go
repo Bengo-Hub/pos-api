@@ -822,7 +822,7 @@ func init() {
 	loyaltytransactionFields := schema.LoyaltyTransaction{}.Fields()
 	_ = loyaltytransactionFields
 	// loyaltytransactionDescCreatedAt is the schema descriptor for created_at field.
-	loyaltytransactionDescCreatedAt := loyaltytransactionFields[8].Descriptor()
+	loyaltytransactionDescCreatedAt := loyaltytransactionFields[9].Descriptor()
 	// loyaltytransaction.DefaultCreatedAt holds the default value on creation for the created_at field.
 	loyaltytransaction.DefaultCreatedAt = loyaltytransactionDescCreatedAt.Default.(func() time.Time)
 	// loyaltytransactionDescID is the schema descriptor for id field.
@@ -1230,11 +1230,11 @@ func init() {
 	// posorder.DefaultFiredCourses holds the default value on creation for the fired_courses field.
 	posorder.DefaultFiredCourses = posorderDescFiredCourses.Default.(int)
 	// posorderDescCreatedAt is the schema descriptor for created_at field.
-	posorderDescCreatedAt := posorderFields[25].Descriptor()
+	posorderDescCreatedAt := posorderFields[27].Descriptor()
 	// posorder.DefaultCreatedAt holds the default value on creation for the created_at field.
 	posorder.DefaultCreatedAt = posorderDescCreatedAt.Default.(func() time.Time)
 	// posorderDescUpdatedAt is the schema descriptor for updated_at field.
-	posorderDescUpdatedAt := posorderFields[26].Descriptor()
+	posorderDescUpdatedAt := posorderFields[28].Descriptor()
 	// posorder.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	posorder.DefaultUpdatedAt = posorderDescUpdatedAt.Default.(func() time.Time)
 	// posorder.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

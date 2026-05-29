@@ -18,6 +18,7 @@ func (LoyaltyTransaction) Fields() []ent.Field {
 		field.UUID("tenant_id", uuid.UUID{}),
 		field.UUID("account_id", uuid.UUID{}),
 		field.UUID("order_id", uuid.UUID{}).Optional().Nillable(),
+		field.UUID("outlet_id", uuid.UUID{}).Optional().Nillable(),
 		field.String("type_field").Comment("earn, redeem, adjust, expire"),
 		field.Int("points").Comment("Positive for earn, negative for redeem/expire"),
 		field.Int("balance_after"),

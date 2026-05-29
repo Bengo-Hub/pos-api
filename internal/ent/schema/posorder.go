@@ -66,6 +66,9 @@ func (POSOrder) Fields() []ent.Field {
 		field.Int("fired_courses").
 			Default(0).
 			Comment("Highest course number sent to KDS. 0 = no courses fired (all course_number=0 items fire immediately)."),
+		// Loyalty: customer phone captured at checkout — used by auto-earn on pos.sale.finalized.
+		field.String("customer_phone").Optional().Nillable(),
+		field.String("customer_name").Optional().Nillable(),
 		// eTIMS fields — set by treasury.etims.invoice_transmitted NATS subscriber.
 		// treasury-api owns eTIMS submission; pos-api only stores the outcome for receipt generation.
 		field.String("etims_invoice_number").

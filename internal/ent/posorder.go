@@ -57,6 +57,10 @@ type POSOrder struct {
 	ServiceChargeAmount float64 `json:"service_charge_amount,omitempty"`
 	// Highest course number sent to KDS. 0 = no courses fired (all course_number=0 items fire immediately).
 	FiredCourses int `json:"fired_courses,omitempty"`
+	// CustomerPhone holds the value of the "customer_phone" field.
+	CustomerPhone *string `json:"customer_phone,omitempty"`
+	// CustomerName holds the value of the "customer_name" field.
+	CustomerName *string `json:"customer_name,omitempty"`
 	// EtimsInvoiceNumber holds the value of the "etims_invoice_number" field.
 	EtimsInvoiceNumber *string `json:"etims_invoice_number,omitempty"`
 	// EtimsQrCodeURL holds the value of the "etims_qr_code_url" field.
@@ -130,7 +134,7 @@ func (*POSOrder) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullFloat64)
 		case posorder.FieldCoversCount, posorder.FieldFiredCourses:
 			values[i] = new(sql.NullInt64)
-		case posorder.FieldOrderNumber, posorder.FieldStatus, posorder.FieldCurrency, posorder.FieldOrderSubtype, posorder.FieldEtimsInvoiceNumber, posorder.FieldEtimsQrCodeURL, posorder.FieldVoidedReason:
+		case posorder.FieldOrderNumber, posorder.FieldStatus, posorder.FieldCurrency, posorder.FieldOrderSubtype, posorder.FieldCustomerPhone, posorder.FieldCustomerName, posorder.FieldEtimsInvoiceNumber, posorder.FieldEtimsQrCodeURL, posorder.FieldVoidedReason:
 			values[i] = new(sql.NullString)
 		case posorder.FieldVoidedAt, posorder.FieldCreatedAt, posorder.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -274,6 +278,20 @@ func (_m *POSOrder) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field fired_courses", values[i])
 			} else if value.Valid {
 				_m.FiredCourses = int(value.Int64)
+			}
+		case posorder.FieldCustomerPhone:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field customer_phone", values[i])
+			} else if value.Valid {
+				_m.CustomerPhone = new(string)
+				*_m.CustomerPhone = value.String
+			}
+		case posorder.FieldCustomerName:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field customer_name", values[i])
+			} else if value.Valid {
+				_m.CustomerName = new(string)
+				*_m.CustomerName = value.String
 			}
 		case posorder.FieldEtimsInvoiceNumber:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -433,6 +451,16 @@ func (_m *POSOrder) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("fired_courses=")
 	builder.WriteString(fmt.Sprintf("%v", _m.FiredCourses))
+	builder.WriteString(", ")
+	if v := _m.CustomerPhone; v != nil {
+		builder.WriteString("customer_phone=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.CustomerName; v != nil {
+		builder.WriteString("customer_name=")
+		builder.WriteString(*v)
+	}
 	builder.WriteString(", ")
 	if v := _m.EtimsInvoiceNumber; v != nil {
 		builder.WriteString("etims_invoice_number=")

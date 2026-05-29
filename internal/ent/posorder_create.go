@@ -221,6 +221,34 @@ func (_c *POSOrderCreate) SetNillableFiredCourses(v *int) *POSOrderCreate {
 	return _c
 }
 
+// SetCustomerPhone sets the "customer_phone" field.
+func (_c *POSOrderCreate) SetCustomerPhone(v string) *POSOrderCreate {
+	_c.mutation.SetCustomerPhone(v)
+	return _c
+}
+
+// SetNillableCustomerPhone sets the "customer_phone" field if the given value is not nil.
+func (_c *POSOrderCreate) SetNillableCustomerPhone(v *string) *POSOrderCreate {
+	if v != nil {
+		_c.SetCustomerPhone(*v)
+	}
+	return _c
+}
+
+// SetCustomerName sets the "customer_name" field.
+func (_c *POSOrderCreate) SetCustomerName(v string) *POSOrderCreate {
+	_c.mutation.SetCustomerName(v)
+	return _c
+}
+
+// SetNillableCustomerName sets the "customer_name" field if the given value is not nil.
+func (_c *POSOrderCreate) SetNillableCustomerName(v *string) *POSOrderCreate {
+	if v != nil {
+		_c.SetCustomerName(*v)
+	}
+	return _c
+}
+
 // SetEtimsInvoiceNumber sets the "etims_invoice_number" field.
 func (_c *POSOrderCreate) SetEtimsInvoiceNumber(v string) *POSOrderCreate {
 	_c.mutation.SetEtimsInvoiceNumber(v)
@@ -644,6 +672,14 @@ func (_c *POSOrderCreate) createSpec() (*POSOrder, *sqlgraph.CreateSpec) {
 		_spec.SetField(posorder.FieldFiredCourses, field.TypeInt, value)
 		_node.FiredCourses = value
 	}
+	if value, ok := _c.mutation.CustomerPhone(); ok {
+		_spec.SetField(posorder.FieldCustomerPhone, field.TypeString, value)
+		_node.CustomerPhone = &value
+	}
+	if value, ok := _c.mutation.CustomerName(); ok {
+		_spec.SetField(posorder.FieldCustomerName, field.TypeString, value)
+		_node.CustomerName = &value
+	}
 	if value, ok := _c.mutation.EtimsInvoiceNumber(); ok {
 		_spec.SetField(posorder.FieldEtimsInvoiceNumber, field.TypeString, value)
 		_node.EtimsInvoiceNumber = &value
@@ -1057,6 +1093,42 @@ func (u *POSOrderUpsert) UpdateFiredCourses() *POSOrderUpsert {
 // AddFiredCourses adds v to the "fired_courses" field.
 func (u *POSOrderUpsert) AddFiredCourses(v int) *POSOrderUpsert {
 	u.Add(posorder.FieldFiredCourses, v)
+	return u
+}
+
+// SetCustomerPhone sets the "customer_phone" field.
+func (u *POSOrderUpsert) SetCustomerPhone(v string) *POSOrderUpsert {
+	u.Set(posorder.FieldCustomerPhone, v)
+	return u
+}
+
+// UpdateCustomerPhone sets the "customer_phone" field to the value that was provided on create.
+func (u *POSOrderUpsert) UpdateCustomerPhone() *POSOrderUpsert {
+	u.SetExcluded(posorder.FieldCustomerPhone)
+	return u
+}
+
+// ClearCustomerPhone clears the value of the "customer_phone" field.
+func (u *POSOrderUpsert) ClearCustomerPhone() *POSOrderUpsert {
+	u.SetNull(posorder.FieldCustomerPhone)
+	return u
+}
+
+// SetCustomerName sets the "customer_name" field.
+func (u *POSOrderUpsert) SetCustomerName(v string) *POSOrderUpsert {
+	u.Set(posorder.FieldCustomerName, v)
+	return u
+}
+
+// UpdateCustomerName sets the "customer_name" field to the value that was provided on create.
+func (u *POSOrderUpsert) UpdateCustomerName() *POSOrderUpsert {
+	u.SetExcluded(posorder.FieldCustomerName)
+	return u
+}
+
+// ClearCustomerName clears the value of the "customer_name" field.
+func (u *POSOrderUpsert) ClearCustomerName() *POSOrderUpsert {
+	u.SetNull(posorder.FieldCustomerName)
 	return u
 }
 
@@ -1546,6 +1618,48 @@ func (u *POSOrderUpsertOne) AddFiredCourses(v int) *POSOrderUpsertOne {
 func (u *POSOrderUpsertOne) UpdateFiredCourses() *POSOrderUpsertOne {
 	return u.Update(func(s *POSOrderUpsert) {
 		s.UpdateFiredCourses()
+	})
+}
+
+// SetCustomerPhone sets the "customer_phone" field.
+func (u *POSOrderUpsertOne) SetCustomerPhone(v string) *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetCustomerPhone(v)
+	})
+}
+
+// UpdateCustomerPhone sets the "customer_phone" field to the value that was provided on create.
+func (u *POSOrderUpsertOne) UpdateCustomerPhone() *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdateCustomerPhone()
+	})
+}
+
+// ClearCustomerPhone clears the value of the "customer_phone" field.
+func (u *POSOrderUpsertOne) ClearCustomerPhone() *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.ClearCustomerPhone()
+	})
+}
+
+// SetCustomerName sets the "customer_name" field.
+func (u *POSOrderUpsertOne) SetCustomerName(v string) *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetCustomerName(v)
+	})
+}
+
+// UpdateCustomerName sets the "customer_name" field to the value that was provided on create.
+func (u *POSOrderUpsertOne) UpdateCustomerName() *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdateCustomerName()
+	})
+}
+
+// ClearCustomerName clears the value of the "customer_name" field.
+func (u *POSOrderUpsertOne) ClearCustomerName() *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.ClearCustomerName()
 	})
 }
 
@@ -2219,6 +2333,48 @@ func (u *POSOrderUpsertBulk) AddFiredCourses(v int) *POSOrderUpsertBulk {
 func (u *POSOrderUpsertBulk) UpdateFiredCourses() *POSOrderUpsertBulk {
 	return u.Update(func(s *POSOrderUpsert) {
 		s.UpdateFiredCourses()
+	})
+}
+
+// SetCustomerPhone sets the "customer_phone" field.
+func (u *POSOrderUpsertBulk) SetCustomerPhone(v string) *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetCustomerPhone(v)
+	})
+}
+
+// UpdateCustomerPhone sets the "customer_phone" field to the value that was provided on create.
+func (u *POSOrderUpsertBulk) UpdateCustomerPhone() *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdateCustomerPhone()
+	})
+}
+
+// ClearCustomerPhone clears the value of the "customer_phone" field.
+func (u *POSOrderUpsertBulk) ClearCustomerPhone() *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.ClearCustomerPhone()
+	})
+}
+
+// SetCustomerName sets the "customer_name" field.
+func (u *POSOrderUpsertBulk) SetCustomerName(v string) *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetCustomerName(v)
+	})
+}
+
+// UpdateCustomerName sets the "customer_name" field to the value that was provided on create.
+func (u *POSOrderUpsertBulk) UpdateCustomerName() *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdateCustomerName()
+	})
+}
+
+// ClearCustomerName clears the value of the "customer_name" field.
+func (u *POSOrderUpsertBulk) ClearCustomerName() *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.ClearCustomerName()
 	})
 }
 

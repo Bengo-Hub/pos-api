@@ -56,8 +56,10 @@ type CreateOrderRequest struct {
 	Currency     string
 	Lines        []OrderLineInput
 	Metadata     map[string]any
-	OrderSubtype string    // dine_in | takeaway | room_service | delivery | bar_tab; defaults to "dine_in"
-	TableID      string    // UUID of the table (hospitality dine-in); stored in metadata (no DB column yet)
+	OrderSubtype  string // dine_in | takeaway | room_service | delivery | bar_tab | retail; defaults to "dine_in"
+	TableID       string // UUID of the table (hospitality dine-in); stored in metadata (no DB column yet)
+	CustomerPhone string // loyalty auto-earn — stored on order, forwarded in pos.sale.finalized
+	CustomerName  string
 }
 
 // OrderLineInput represents a single line item in an order.
@@ -238,7 +240,7 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent
 		initialStatus = StatusOpen
 	}
 
-	order, err := tx.POSOrder.Create().
+	orderBuilder := tx.POSOrder.Create().
 		SetTenantID(req.TenantID).
 		SetOutletID(req.OutletID).
 		SetDeviceID(req.DeviceID).
@@ -251,8 +253,14 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent
 		SetTotalAmount(totals.TotalAmount.InexactFloat64()).
 		SetCurrency(currency).
 		SetOrderSubtype(posorder.OrderSubtype(subtype)).
-		SetMetadata(meta).
-		Save(ctx)
+		SetMetadata(meta)
+	if req.CustomerPhone != "" {
+		orderBuilder = orderBuilder.SetCustomerPhone(req.CustomerPhone)
+	}
+	if req.CustomerName != "" {
+		orderBuilder = orderBuilder.SetCustomerName(req.CustomerName)
+	}
+	order, err := orderBuilder.Save(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("orders: create order: %w", err)
 	}

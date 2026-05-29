@@ -24,6 +24,8 @@ type LoyaltyTransaction struct {
 	AccountID uuid.UUID `json:"account_id,omitempty"`
 	// OrderID holds the value of the "order_id" field.
 	OrderID *uuid.UUID `json:"order_id,omitempty"`
+	// OutletID holds the value of the "outlet_id" field.
+	OutletID *uuid.UUID `json:"outlet_id,omitempty"`
 	// earn, redeem, adjust, expire
 	TypeField string `json:"type_field,omitempty"`
 	// Positive for earn, negative for redeem/expire
@@ -42,7 +44,7 @@ func (*LoyaltyTransaction) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case loyaltytransaction.FieldOrderID:
+		case loyaltytransaction.FieldOrderID, loyaltytransaction.FieldOutletID:
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		case loyaltytransaction.FieldPoints, loyaltytransaction.FieldBalanceAfter:
 			values[i] = new(sql.NullInt64)
@@ -91,6 +93,13 @@ func (_m *LoyaltyTransaction) assignValues(columns []string, values []any) error
 			} else if value.Valid {
 				_m.OrderID = new(uuid.UUID)
 				*_m.OrderID = *value.S.(*uuid.UUID)
+			}
+		case loyaltytransaction.FieldOutletID:
+			if value, ok := values[i].(*sql.NullScanner); !ok {
+				return fmt.Errorf("unexpected type %T for field outlet_id", values[i])
+			} else if value.Valid {
+				_m.OutletID = new(uuid.UUID)
+				*_m.OutletID = *value.S.(*uuid.UUID)
 			}
 		case loyaltytransaction.FieldTypeField:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -166,6 +175,11 @@ func (_m *LoyaltyTransaction) String() string {
 	builder.WriteString(", ")
 	if v := _m.OrderID; v != nil {
 		builder.WriteString("order_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.OutletID; v != nil {
+		builder.WriteString("outlet_id=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
 	builder.WriteString(", ")

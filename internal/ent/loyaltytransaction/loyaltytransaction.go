@@ -20,6 +20,8 @@ const (
 	FieldAccountID = "account_id"
 	// FieldOrderID holds the string denoting the order_id field in the database.
 	FieldOrderID = "order_id"
+	// FieldOutletID holds the string denoting the outlet_id field in the database.
+	FieldOutletID = "outlet_id"
 	// FieldTypeField holds the string denoting the type_field field in the database.
 	FieldTypeField = "type_field"
 	// FieldPoints holds the string denoting the points field in the database.
@@ -40,6 +42,7 @@ var Columns = []string{
 	FieldTenantID,
 	FieldAccountID,
 	FieldOrderID,
+	FieldOutletID,
 	FieldTypeField,
 	FieldPoints,
 	FieldBalanceAfter,
@@ -85,6 +88,11 @@ func ByAccountID(opts ...sql.OrderTermOption) OrderOption {
 // ByOrderID orders the results by the order_id field.
 func ByOrderID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldOrderID, opts...).ToFunc()
+}
+
+// ByOutletID orders the results by the outlet_id field.
+func ByOutletID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldOutletID, opts...).ToFunc()
 }
 
 // ByTypeField orders the results by the type_field field.

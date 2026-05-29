@@ -27637,6 +27637,7 @@ type LoyaltyTransactionMutation struct {
 	tenant_id        *uuid.UUID
 	account_id       *uuid.UUID
 	order_id         *uuid.UUID
+	outlet_id        *uuid.UUID
 	type_field       *string
 	points           *int
 	addpoints        *int
@@ -27873,6 +27874,55 @@ func (m *LoyaltyTransactionMutation) OrderIDCleared() bool {
 func (m *LoyaltyTransactionMutation) ResetOrderID() {
 	m.order_id = nil
 	delete(m.clearedFields, loyaltytransaction.FieldOrderID)
+}
+
+// SetOutletID sets the "outlet_id" field.
+func (m *LoyaltyTransactionMutation) SetOutletID(u uuid.UUID) {
+	m.outlet_id = &u
+}
+
+// OutletID returns the value of the "outlet_id" field in the mutation.
+func (m *LoyaltyTransactionMutation) OutletID() (r uuid.UUID, exists bool) {
+	v := m.outlet_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOutletID returns the old "outlet_id" field's value of the LoyaltyTransaction entity.
+// If the LoyaltyTransaction object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LoyaltyTransactionMutation) OldOutletID(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOutletID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOutletID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOutletID: %w", err)
+	}
+	return oldValue.OutletID, nil
+}
+
+// ClearOutletID clears the value of the "outlet_id" field.
+func (m *LoyaltyTransactionMutation) ClearOutletID() {
+	m.outlet_id = nil
+	m.clearedFields[loyaltytransaction.FieldOutletID] = struct{}{}
+}
+
+// OutletIDCleared returns if the "outlet_id" field was cleared in this mutation.
+func (m *LoyaltyTransactionMutation) OutletIDCleared() bool {
+	_, ok := m.clearedFields[loyaltytransaction.FieldOutletID]
+	return ok
+}
+
+// ResetOutletID resets all changes to the "outlet_id" field.
+func (m *LoyaltyTransactionMutation) ResetOutletID() {
+	m.outlet_id = nil
+	delete(m.clearedFields, loyaltytransaction.FieldOutletID)
 }
 
 // SetTypeField sets the "type_field" field.
@@ -28142,7 +28192,7 @@ func (m *LoyaltyTransactionMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *LoyaltyTransactionMutation) Fields() []string {
-	fields := make([]string, 0, 8)
+	fields := make([]string, 0, 9)
 	if m.tenant_id != nil {
 		fields = append(fields, loyaltytransaction.FieldTenantID)
 	}
@@ -28151,6 +28201,9 @@ func (m *LoyaltyTransactionMutation) Fields() []string {
 	}
 	if m.order_id != nil {
 		fields = append(fields, loyaltytransaction.FieldOrderID)
+	}
+	if m.outlet_id != nil {
+		fields = append(fields, loyaltytransaction.FieldOutletID)
 	}
 	if m.type_field != nil {
 		fields = append(fields, loyaltytransaction.FieldTypeField)
@@ -28181,6 +28234,8 @@ func (m *LoyaltyTransactionMutation) Field(name string) (ent.Value, bool) {
 		return m.AccountID()
 	case loyaltytransaction.FieldOrderID:
 		return m.OrderID()
+	case loyaltytransaction.FieldOutletID:
+		return m.OutletID()
 	case loyaltytransaction.FieldTypeField:
 		return m.TypeField()
 	case loyaltytransaction.FieldPoints:
@@ -28206,6 +28261,8 @@ func (m *LoyaltyTransactionMutation) OldField(ctx context.Context, name string) 
 		return m.OldAccountID(ctx)
 	case loyaltytransaction.FieldOrderID:
 		return m.OldOrderID(ctx)
+	case loyaltytransaction.FieldOutletID:
+		return m.OldOutletID(ctx)
 	case loyaltytransaction.FieldTypeField:
 		return m.OldTypeField(ctx)
 	case loyaltytransaction.FieldPoints:
@@ -28245,6 +28302,13 @@ func (m *LoyaltyTransactionMutation) SetField(name string, value ent.Value) erro
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetOrderID(v)
+		return nil
+	case loyaltytransaction.FieldOutletID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOutletID(v)
 		return nil
 	case loyaltytransaction.FieldTypeField:
 		v, ok := value.(string)
@@ -28341,6 +28405,9 @@ func (m *LoyaltyTransactionMutation) ClearedFields() []string {
 	if m.FieldCleared(loyaltytransaction.FieldOrderID) {
 		fields = append(fields, loyaltytransaction.FieldOrderID)
 	}
+	if m.FieldCleared(loyaltytransaction.FieldOutletID) {
+		fields = append(fields, loyaltytransaction.FieldOutletID)
+	}
 	if m.FieldCleared(loyaltytransaction.FieldNotes) {
 		fields = append(fields, loyaltytransaction.FieldNotes)
 	}
@@ -28361,6 +28428,9 @@ func (m *LoyaltyTransactionMutation) ClearField(name string) error {
 	case loyaltytransaction.FieldOrderID:
 		m.ClearOrderID()
 		return nil
+	case loyaltytransaction.FieldOutletID:
+		m.ClearOutletID()
+		return nil
 	case loyaltytransaction.FieldNotes:
 		m.ClearNotes()
 		return nil
@@ -28380,6 +28450,9 @@ func (m *LoyaltyTransactionMutation) ResetField(name string) error {
 		return nil
 	case loyaltytransaction.FieldOrderID:
 		m.ResetOrderID()
+		return nil
+	case loyaltytransaction.FieldOutletID:
+		m.ResetOutletID()
 		return nil
 	case loyaltytransaction.FieldTypeField:
 		m.ResetTypeField()
@@ -40190,6 +40263,8 @@ type POSOrderMutation struct {
 	addservice_charge_amount  *float64
 	fired_courses             *int
 	addfired_courses          *int
+	customer_phone            *string
+	customer_name             *string
 	etims_invoice_number      *string
 	etims_qr_code_url         *string
 	voided_reason             *string
@@ -41186,6 +41261,104 @@ func (m *POSOrderMutation) ResetFiredCourses() {
 	m.addfired_courses = nil
 }
 
+// SetCustomerPhone sets the "customer_phone" field.
+func (m *POSOrderMutation) SetCustomerPhone(s string) {
+	m.customer_phone = &s
+}
+
+// CustomerPhone returns the value of the "customer_phone" field in the mutation.
+func (m *POSOrderMutation) CustomerPhone() (r string, exists bool) {
+	v := m.customer_phone
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCustomerPhone returns the old "customer_phone" field's value of the POSOrder entity.
+// If the POSOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSOrderMutation) OldCustomerPhone(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCustomerPhone is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCustomerPhone requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCustomerPhone: %w", err)
+	}
+	return oldValue.CustomerPhone, nil
+}
+
+// ClearCustomerPhone clears the value of the "customer_phone" field.
+func (m *POSOrderMutation) ClearCustomerPhone() {
+	m.customer_phone = nil
+	m.clearedFields[posorder.FieldCustomerPhone] = struct{}{}
+}
+
+// CustomerPhoneCleared returns if the "customer_phone" field was cleared in this mutation.
+func (m *POSOrderMutation) CustomerPhoneCleared() bool {
+	_, ok := m.clearedFields[posorder.FieldCustomerPhone]
+	return ok
+}
+
+// ResetCustomerPhone resets all changes to the "customer_phone" field.
+func (m *POSOrderMutation) ResetCustomerPhone() {
+	m.customer_phone = nil
+	delete(m.clearedFields, posorder.FieldCustomerPhone)
+}
+
+// SetCustomerName sets the "customer_name" field.
+func (m *POSOrderMutation) SetCustomerName(s string) {
+	m.customer_name = &s
+}
+
+// CustomerName returns the value of the "customer_name" field in the mutation.
+func (m *POSOrderMutation) CustomerName() (r string, exists bool) {
+	v := m.customer_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCustomerName returns the old "customer_name" field's value of the POSOrder entity.
+// If the POSOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSOrderMutation) OldCustomerName(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCustomerName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCustomerName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCustomerName: %w", err)
+	}
+	return oldValue.CustomerName, nil
+}
+
+// ClearCustomerName clears the value of the "customer_name" field.
+func (m *POSOrderMutation) ClearCustomerName() {
+	m.customer_name = nil
+	m.clearedFields[posorder.FieldCustomerName] = struct{}{}
+}
+
+// CustomerNameCleared returns if the "customer_name" field was cleared in this mutation.
+func (m *POSOrderMutation) CustomerNameCleared() bool {
+	_, ok := m.clearedFields[posorder.FieldCustomerName]
+	return ok
+}
+
+// ResetCustomerName resets all changes to the "customer_name" field.
+func (m *POSOrderMutation) ResetCustomerName() {
+	m.customer_name = nil
+	delete(m.clearedFields, posorder.FieldCustomerName)
+}
+
 // SetEtimsInvoiceNumber sets the "etims_invoice_number" field.
 func (m *POSOrderMutation) SetEtimsInvoiceNumber(s string) {
 	m.etims_invoice_number = &s
@@ -41699,7 +41872,7 @@ func (m *POSOrderMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *POSOrderMutation) Fields() []string {
-	fields := make([]string, 0, 26)
+	fields := make([]string, 0, 28)
 	if m.tenant_id != nil {
 		fields = append(fields, posorder.FieldTenantID)
 	}
@@ -41756,6 +41929,12 @@ func (m *POSOrderMutation) Fields() []string {
 	}
 	if m.fired_courses != nil {
 		fields = append(fields, posorder.FieldFiredCourses)
+	}
+	if m.customer_phone != nil {
+		fields = append(fields, posorder.FieldCustomerPhone)
+	}
+	if m.customer_name != nil {
+		fields = append(fields, posorder.FieldCustomerName)
 	}
 	if m.etims_invoice_number != nil {
 		fields = append(fields, posorder.FieldEtimsInvoiceNumber)
@@ -41824,6 +42003,10 @@ func (m *POSOrderMutation) Field(name string) (ent.Value, bool) {
 		return m.ServiceChargeAmount()
 	case posorder.FieldFiredCourses:
 		return m.FiredCourses()
+	case posorder.FieldCustomerPhone:
+		return m.CustomerPhone()
+	case posorder.FieldCustomerName:
+		return m.CustomerName()
 	case posorder.FieldEtimsInvoiceNumber:
 		return m.EtimsInvoiceNumber()
 	case posorder.FieldEtimsQrCodeURL:
@@ -41885,6 +42068,10 @@ func (m *POSOrderMutation) OldField(ctx context.Context, name string) (ent.Value
 		return m.OldServiceChargeAmount(ctx)
 	case posorder.FieldFiredCourses:
 		return m.OldFiredCourses(ctx)
+	case posorder.FieldCustomerPhone:
+		return m.OldCustomerPhone(ctx)
+	case posorder.FieldCustomerName:
+		return m.OldCustomerName(ctx)
 	case posorder.FieldEtimsInvoiceNumber:
 		return m.OldEtimsInvoiceNumber(ctx)
 	case posorder.FieldEtimsQrCodeURL:
@@ -42040,6 +42227,20 @@ func (m *POSOrderMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetFiredCourses(v)
+		return nil
+	case posorder.FieldCustomerPhone:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCustomerPhone(v)
+		return nil
+	case posorder.FieldCustomerName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCustomerName(v)
 		return nil
 	case posorder.FieldEtimsInvoiceNumber:
 		v, ok := value.(string)
@@ -42225,6 +42426,12 @@ func (m *POSOrderMutation) ClearedFields() []string {
 	if m.FieldCleared(posorder.FieldRoomGuestID) {
 		fields = append(fields, posorder.FieldRoomGuestID)
 	}
+	if m.FieldCleared(posorder.FieldCustomerPhone) {
+		fields = append(fields, posorder.FieldCustomerPhone)
+	}
+	if m.FieldCleared(posorder.FieldCustomerName) {
+		fields = append(fields, posorder.FieldCustomerName)
+	}
 	if m.FieldCleared(posorder.FieldEtimsInvoiceNumber) {
 		fields = append(fields, posorder.FieldEtimsInvoiceNumber)
 	}
@@ -42259,6 +42466,12 @@ func (m *POSOrderMutation) ClearField(name string) error {
 		return nil
 	case posorder.FieldRoomGuestID:
 		m.ClearRoomGuestID()
+		return nil
+	case posorder.FieldCustomerPhone:
+		m.ClearCustomerPhone()
+		return nil
+	case posorder.FieldCustomerName:
+		m.ClearCustomerName()
 		return nil
 	case posorder.FieldEtimsInvoiceNumber:
 		m.ClearEtimsInvoiceNumber()
@@ -42339,6 +42552,12 @@ func (m *POSOrderMutation) ResetField(name string) error {
 		return nil
 	case posorder.FieldFiredCourses:
 		m.ResetFiredCourses()
+		return nil
+	case posorder.FieldCustomerPhone:
+		m.ResetCustomerPhone()
+		return nil
+	case posorder.FieldCustomerName:
+		m.ResetCustomerName()
 		return nil
 	case posorder.FieldEtimsInvoiceNumber:
 		m.ResetEtimsInvoiceNumber()

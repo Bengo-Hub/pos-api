@@ -76,6 +76,26 @@ func (_u *LoyaltyTransactionUpdate) ClearOrderID() *LoyaltyTransactionUpdate {
 	return _u
 }
 
+// SetOutletID sets the "outlet_id" field.
+func (_u *LoyaltyTransactionUpdate) SetOutletID(v uuid.UUID) *LoyaltyTransactionUpdate {
+	_u.mutation.SetOutletID(v)
+	return _u
+}
+
+// SetNillableOutletID sets the "outlet_id" field if the given value is not nil.
+func (_u *LoyaltyTransactionUpdate) SetNillableOutletID(v *uuid.UUID) *LoyaltyTransactionUpdate {
+	if v != nil {
+		_u.SetOutletID(*v)
+	}
+	return _u
+}
+
+// ClearOutletID clears the value of the "outlet_id" field.
+func (_u *LoyaltyTransactionUpdate) ClearOutletID() *LoyaltyTransactionUpdate {
+	_u.mutation.ClearOutletID()
+	return _u
+}
+
 // SetTypeField sets the "type_field" field.
 func (_u *LoyaltyTransactionUpdate) SetTypeField(v string) *LoyaltyTransactionUpdate {
 	_u.mutation.SetTypeField(v)
@@ -205,6 +225,12 @@ func (_u *LoyaltyTransactionUpdate) sqlSave(ctx context.Context) (_node int, err
 	if _u.mutation.OrderIDCleared() {
 		_spec.ClearField(loyaltytransaction.FieldOrderID, field.TypeUUID)
 	}
+	if value, ok := _u.mutation.OutletID(); ok {
+		_spec.SetField(loyaltytransaction.FieldOutletID, field.TypeUUID, value)
+	}
+	if _u.mutation.OutletIDCleared() {
+		_spec.ClearField(loyaltytransaction.FieldOutletID, field.TypeUUID)
+	}
 	if value, ok := _u.mutation.TypeField(); ok {
 		_spec.SetField(loyaltytransaction.FieldTypeField, field.TypeString, value)
 	}
@@ -291,6 +317,26 @@ func (_u *LoyaltyTransactionUpdateOne) SetNillableOrderID(v *uuid.UUID) *Loyalty
 // ClearOrderID clears the value of the "order_id" field.
 func (_u *LoyaltyTransactionUpdateOne) ClearOrderID() *LoyaltyTransactionUpdateOne {
 	_u.mutation.ClearOrderID()
+	return _u
+}
+
+// SetOutletID sets the "outlet_id" field.
+func (_u *LoyaltyTransactionUpdateOne) SetOutletID(v uuid.UUID) *LoyaltyTransactionUpdateOne {
+	_u.mutation.SetOutletID(v)
+	return _u
+}
+
+// SetNillableOutletID sets the "outlet_id" field if the given value is not nil.
+func (_u *LoyaltyTransactionUpdateOne) SetNillableOutletID(v *uuid.UUID) *LoyaltyTransactionUpdateOne {
+	if v != nil {
+		_u.SetOutletID(*v)
+	}
+	return _u
+}
+
+// ClearOutletID clears the value of the "outlet_id" field.
+func (_u *LoyaltyTransactionUpdateOne) ClearOutletID() *LoyaltyTransactionUpdateOne {
+	_u.mutation.ClearOutletID()
 	return _u
 }
 
@@ -452,6 +498,12 @@ func (_u *LoyaltyTransactionUpdateOne) sqlSave(ctx context.Context) (_node *Loya
 	}
 	if _u.mutation.OrderIDCleared() {
 		_spec.ClearField(loyaltytransaction.FieldOrderID, field.TypeUUID)
+	}
+	if value, ok := _u.mutation.OutletID(); ok {
+		_spec.SetField(loyaltytransaction.FieldOutletID, field.TypeUUID, value)
+	}
+	if _u.mutation.OutletIDCleared() {
+		_spec.ClearField(loyaltytransaction.FieldOutletID, field.TypeUUID)
 	}
 	if value, ok := _u.mutation.TypeField(); ok {
 		_spec.SetField(loyaltytransaction.FieldTypeField, field.TypeString, value)

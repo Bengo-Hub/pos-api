@@ -70,6 +70,11 @@ func OrderID(v uuid.UUID) predicate.LoyaltyTransaction {
 	return predicate.LoyaltyTransaction(sql.FieldEQ(FieldOrderID, v))
 }
 
+// OutletID applies equality check predicate on the "outlet_id" field. It's identical to OutletIDEQ.
+func OutletID(v uuid.UUID) predicate.LoyaltyTransaction {
+	return predicate.LoyaltyTransaction(sql.FieldEQ(FieldOutletID, v))
+}
+
 // TypeField applies equality check predicate on the "type_field" field. It's identical to TypeFieldEQ.
 func TypeField(v string) predicate.LoyaltyTransaction {
 	return predicate.LoyaltyTransaction(sql.FieldEQ(FieldTypeField, v))
@@ -223,6 +228,56 @@ func OrderIDIsNil() predicate.LoyaltyTransaction {
 // OrderIDNotNil applies the NotNil predicate on the "order_id" field.
 func OrderIDNotNil() predicate.LoyaltyTransaction {
 	return predicate.LoyaltyTransaction(sql.FieldNotNull(FieldOrderID))
+}
+
+// OutletIDEQ applies the EQ predicate on the "outlet_id" field.
+func OutletIDEQ(v uuid.UUID) predicate.LoyaltyTransaction {
+	return predicate.LoyaltyTransaction(sql.FieldEQ(FieldOutletID, v))
+}
+
+// OutletIDNEQ applies the NEQ predicate on the "outlet_id" field.
+func OutletIDNEQ(v uuid.UUID) predicate.LoyaltyTransaction {
+	return predicate.LoyaltyTransaction(sql.FieldNEQ(FieldOutletID, v))
+}
+
+// OutletIDIn applies the In predicate on the "outlet_id" field.
+func OutletIDIn(vs ...uuid.UUID) predicate.LoyaltyTransaction {
+	return predicate.LoyaltyTransaction(sql.FieldIn(FieldOutletID, vs...))
+}
+
+// OutletIDNotIn applies the NotIn predicate on the "outlet_id" field.
+func OutletIDNotIn(vs ...uuid.UUID) predicate.LoyaltyTransaction {
+	return predicate.LoyaltyTransaction(sql.FieldNotIn(FieldOutletID, vs...))
+}
+
+// OutletIDGT applies the GT predicate on the "outlet_id" field.
+func OutletIDGT(v uuid.UUID) predicate.LoyaltyTransaction {
+	return predicate.LoyaltyTransaction(sql.FieldGT(FieldOutletID, v))
+}
+
+// OutletIDGTE applies the GTE predicate on the "outlet_id" field.
+func OutletIDGTE(v uuid.UUID) predicate.LoyaltyTransaction {
+	return predicate.LoyaltyTransaction(sql.FieldGTE(FieldOutletID, v))
+}
+
+// OutletIDLT applies the LT predicate on the "outlet_id" field.
+func OutletIDLT(v uuid.UUID) predicate.LoyaltyTransaction {
+	return predicate.LoyaltyTransaction(sql.FieldLT(FieldOutletID, v))
+}
+
+// OutletIDLTE applies the LTE predicate on the "outlet_id" field.
+func OutletIDLTE(v uuid.UUID) predicate.LoyaltyTransaction {
+	return predicate.LoyaltyTransaction(sql.FieldLTE(FieldOutletID, v))
+}
+
+// OutletIDIsNil applies the IsNil predicate on the "outlet_id" field.
+func OutletIDIsNil() predicate.LoyaltyTransaction {
+	return predicate.LoyaltyTransaction(sql.FieldIsNull(FieldOutletID))
+}
+
+// OutletIDNotNil applies the NotNil predicate on the "outlet_id" field.
+func OutletIDNotNil() predicate.LoyaltyTransaction {
+	return predicate.LoyaltyTransaction(sql.FieldNotNull(FieldOutletID))
 }
 
 // TypeFieldEQ applies the EQ predicate on the "type_field" field.

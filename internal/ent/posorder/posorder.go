@@ -54,6 +54,10 @@ const (
 	FieldServiceChargeAmount = "service_charge_amount"
 	// FieldFiredCourses holds the string denoting the fired_courses field in the database.
 	FieldFiredCourses = "fired_courses"
+	// FieldCustomerPhone holds the string denoting the customer_phone field in the database.
+	FieldCustomerPhone = "customer_phone"
+	// FieldCustomerName holds the string denoting the customer_name field in the database.
+	FieldCustomerName = "customer_name"
 	// FieldEtimsInvoiceNumber holds the string denoting the etims_invoice_number field in the database.
 	FieldEtimsInvoiceNumber = "etims_invoice_number"
 	// FieldEtimsQrCodeURL holds the string denoting the etims_qr_code_url field in the database.
@@ -121,6 +125,8 @@ var Columns = []string{
 	FieldServiceChargePercent,
 	FieldServiceChargeAmount,
 	FieldFiredCourses,
+	FieldCustomerPhone,
+	FieldCustomerName,
 	FieldEtimsInvoiceNumber,
 	FieldEtimsQrCodeURL,
 	FieldVoidedReason,
@@ -295,6 +301,16 @@ func ByServiceChargeAmount(opts ...sql.OrderTermOption) OrderOption {
 // ByFiredCourses orders the results by the fired_courses field.
 func ByFiredCourses(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldFiredCourses, opts...).ToFunc()
+}
+
+// ByCustomerPhone orders the results by the customer_phone field.
+func ByCustomerPhone(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCustomerPhone, opts...).ToFunc()
+}
+
+// ByCustomerName orders the results by the customer_name field.
+func ByCustomerName(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCustomerName, opts...).ToFunc()
 }
 
 // ByEtimsInvoiceNumber orders the results by the etims_invoice_number field.

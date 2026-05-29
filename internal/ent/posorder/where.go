@@ -141,6 +141,16 @@ func FiredCourses(v int) predicate.POSOrder {
 	return predicate.POSOrder(sql.FieldEQ(FieldFiredCourses, v))
 }
 
+// CustomerPhone applies equality check predicate on the "customer_phone" field. It's identical to CustomerPhoneEQ.
+func CustomerPhone(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEQ(FieldCustomerPhone, v))
+}
+
+// CustomerName applies equality check predicate on the "customer_name" field. It's identical to CustomerNameEQ.
+func CustomerName(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEQ(FieldCustomerName, v))
+}
+
 // EtimsInvoiceNumber applies equality check predicate on the "etims_invoice_number" field. It's identical to EtimsInvoiceNumberEQ.
 func EtimsInvoiceNumber(v string) predicate.POSOrder {
 	return predicate.POSOrder(sql.FieldEQ(FieldEtimsInvoiceNumber, v))
@@ -969,6 +979,156 @@ func FiredCoursesLT(v int) predicate.POSOrder {
 // FiredCoursesLTE applies the LTE predicate on the "fired_courses" field.
 func FiredCoursesLTE(v int) predicate.POSOrder {
 	return predicate.POSOrder(sql.FieldLTE(FieldFiredCourses, v))
+}
+
+// CustomerPhoneEQ applies the EQ predicate on the "customer_phone" field.
+func CustomerPhoneEQ(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEQ(FieldCustomerPhone, v))
+}
+
+// CustomerPhoneNEQ applies the NEQ predicate on the "customer_phone" field.
+func CustomerPhoneNEQ(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNEQ(FieldCustomerPhone, v))
+}
+
+// CustomerPhoneIn applies the In predicate on the "customer_phone" field.
+func CustomerPhoneIn(vs ...string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldIn(FieldCustomerPhone, vs...))
+}
+
+// CustomerPhoneNotIn applies the NotIn predicate on the "customer_phone" field.
+func CustomerPhoneNotIn(vs ...string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNotIn(FieldCustomerPhone, vs...))
+}
+
+// CustomerPhoneGT applies the GT predicate on the "customer_phone" field.
+func CustomerPhoneGT(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldGT(FieldCustomerPhone, v))
+}
+
+// CustomerPhoneGTE applies the GTE predicate on the "customer_phone" field.
+func CustomerPhoneGTE(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldGTE(FieldCustomerPhone, v))
+}
+
+// CustomerPhoneLT applies the LT predicate on the "customer_phone" field.
+func CustomerPhoneLT(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldLT(FieldCustomerPhone, v))
+}
+
+// CustomerPhoneLTE applies the LTE predicate on the "customer_phone" field.
+func CustomerPhoneLTE(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldLTE(FieldCustomerPhone, v))
+}
+
+// CustomerPhoneContains applies the Contains predicate on the "customer_phone" field.
+func CustomerPhoneContains(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldContains(FieldCustomerPhone, v))
+}
+
+// CustomerPhoneHasPrefix applies the HasPrefix predicate on the "customer_phone" field.
+func CustomerPhoneHasPrefix(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldHasPrefix(FieldCustomerPhone, v))
+}
+
+// CustomerPhoneHasSuffix applies the HasSuffix predicate on the "customer_phone" field.
+func CustomerPhoneHasSuffix(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldHasSuffix(FieldCustomerPhone, v))
+}
+
+// CustomerPhoneIsNil applies the IsNil predicate on the "customer_phone" field.
+func CustomerPhoneIsNil() predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldIsNull(FieldCustomerPhone))
+}
+
+// CustomerPhoneNotNil applies the NotNil predicate on the "customer_phone" field.
+func CustomerPhoneNotNil() predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNotNull(FieldCustomerPhone))
+}
+
+// CustomerPhoneEqualFold applies the EqualFold predicate on the "customer_phone" field.
+func CustomerPhoneEqualFold(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEqualFold(FieldCustomerPhone, v))
+}
+
+// CustomerPhoneContainsFold applies the ContainsFold predicate on the "customer_phone" field.
+func CustomerPhoneContainsFold(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldContainsFold(FieldCustomerPhone, v))
+}
+
+// CustomerNameEQ applies the EQ predicate on the "customer_name" field.
+func CustomerNameEQ(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEQ(FieldCustomerName, v))
+}
+
+// CustomerNameNEQ applies the NEQ predicate on the "customer_name" field.
+func CustomerNameNEQ(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNEQ(FieldCustomerName, v))
+}
+
+// CustomerNameIn applies the In predicate on the "customer_name" field.
+func CustomerNameIn(vs ...string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldIn(FieldCustomerName, vs...))
+}
+
+// CustomerNameNotIn applies the NotIn predicate on the "customer_name" field.
+func CustomerNameNotIn(vs ...string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNotIn(FieldCustomerName, vs...))
+}
+
+// CustomerNameGT applies the GT predicate on the "customer_name" field.
+func CustomerNameGT(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldGT(FieldCustomerName, v))
+}
+
+// CustomerNameGTE applies the GTE predicate on the "customer_name" field.
+func CustomerNameGTE(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldGTE(FieldCustomerName, v))
+}
+
+// CustomerNameLT applies the LT predicate on the "customer_name" field.
+func CustomerNameLT(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldLT(FieldCustomerName, v))
+}
+
+// CustomerNameLTE applies the LTE predicate on the "customer_name" field.
+func CustomerNameLTE(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldLTE(FieldCustomerName, v))
+}
+
+// CustomerNameContains applies the Contains predicate on the "customer_name" field.
+func CustomerNameContains(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldContains(FieldCustomerName, v))
+}
+
+// CustomerNameHasPrefix applies the HasPrefix predicate on the "customer_name" field.
+func CustomerNameHasPrefix(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldHasPrefix(FieldCustomerName, v))
+}
+
+// CustomerNameHasSuffix applies the HasSuffix predicate on the "customer_name" field.
+func CustomerNameHasSuffix(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldHasSuffix(FieldCustomerName, v))
+}
+
+// CustomerNameIsNil applies the IsNil predicate on the "customer_name" field.
+func CustomerNameIsNil() predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldIsNull(FieldCustomerName))
+}
+
+// CustomerNameNotNil applies the NotNil predicate on the "customer_name" field.
+func CustomerNameNotNil() predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNotNull(FieldCustomerName))
+}
+
+// CustomerNameEqualFold applies the EqualFold predicate on the "customer_name" field.
+func CustomerNameEqualFold(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEqualFold(FieldCustomerName, v))
+}
+
+// CustomerNameContainsFold applies the ContainsFold predicate on the "customer_name" field.
+func CustomerNameContainsFold(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldContainsFold(FieldCustomerName, v))
 }
 
 // EtimsInvoiceNumberEQ applies the EQ predicate on the "etims_invoice_number" field.

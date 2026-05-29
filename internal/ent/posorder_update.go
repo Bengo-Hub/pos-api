@@ -358,6 +358,46 @@ func (_u *POSOrderUpdate) AddFiredCourses(v int) *POSOrderUpdate {
 	return _u
 }
 
+// SetCustomerPhone sets the "customer_phone" field.
+func (_u *POSOrderUpdate) SetCustomerPhone(v string) *POSOrderUpdate {
+	_u.mutation.SetCustomerPhone(v)
+	return _u
+}
+
+// SetNillableCustomerPhone sets the "customer_phone" field if the given value is not nil.
+func (_u *POSOrderUpdate) SetNillableCustomerPhone(v *string) *POSOrderUpdate {
+	if v != nil {
+		_u.SetCustomerPhone(*v)
+	}
+	return _u
+}
+
+// ClearCustomerPhone clears the value of the "customer_phone" field.
+func (_u *POSOrderUpdate) ClearCustomerPhone() *POSOrderUpdate {
+	_u.mutation.ClearCustomerPhone()
+	return _u
+}
+
+// SetCustomerName sets the "customer_name" field.
+func (_u *POSOrderUpdate) SetCustomerName(v string) *POSOrderUpdate {
+	_u.mutation.SetCustomerName(v)
+	return _u
+}
+
+// SetNillableCustomerName sets the "customer_name" field if the given value is not nil.
+func (_u *POSOrderUpdate) SetNillableCustomerName(v *string) *POSOrderUpdate {
+	if v != nil {
+		_u.SetCustomerName(*v)
+	}
+	return _u
+}
+
+// ClearCustomerName clears the value of the "customer_name" field.
+func (_u *POSOrderUpdate) ClearCustomerName() *POSOrderUpdate {
+	_u.mutation.ClearCustomerName()
+	return _u
+}
+
 // SetEtimsInvoiceNumber sets the "etims_invoice_number" field.
 func (_u *POSOrderUpdate) SetEtimsInvoiceNumber(v string) *POSOrderUpdate {
 	_u.mutation.SetEtimsInvoiceNumber(v)
@@ -726,6 +766,18 @@ func (_u *POSOrderUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.AddedFiredCourses(); ok {
 		_spec.AddField(posorder.FieldFiredCourses, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.CustomerPhone(); ok {
+		_spec.SetField(posorder.FieldCustomerPhone, field.TypeString, value)
+	}
+	if _u.mutation.CustomerPhoneCleared() {
+		_spec.ClearField(posorder.FieldCustomerPhone, field.TypeString)
+	}
+	if value, ok := _u.mutation.CustomerName(); ok {
+		_spec.SetField(posorder.FieldCustomerName, field.TypeString, value)
+	}
+	if _u.mutation.CustomerNameCleared() {
+		_spec.ClearField(posorder.FieldCustomerName, field.TypeString)
 	}
 	if value, ok := _u.mutation.EtimsInvoiceNumber(); ok {
 		_spec.SetField(posorder.FieldEtimsInvoiceNumber, field.TypeString, value)
@@ -1241,6 +1293,46 @@ func (_u *POSOrderUpdateOne) AddFiredCourses(v int) *POSOrderUpdateOne {
 	return _u
 }
 
+// SetCustomerPhone sets the "customer_phone" field.
+func (_u *POSOrderUpdateOne) SetCustomerPhone(v string) *POSOrderUpdateOne {
+	_u.mutation.SetCustomerPhone(v)
+	return _u
+}
+
+// SetNillableCustomerPhone sets the "customer_phone" field if the given value is not nil.
+func (_u *POSOrderUpdateOne) SetNillableCustomerPhone(v *string) *POSOrderUpdateOne {
+	if v != nil {
+		_u.SetCustomerPhone(*v)
+	}
+	return _u
+}
+
+// ClearCustomerPhone clears the value of the "customer_phone" field.
+func (_u *POSOrderUpdateOne) ClearCustomerPhone() *POSOrderUpdateOne {
+	_u.mutation.ClearCustomerPhone()
+	return _u
+}
+
+// SetCustomerName sets the "customer_name" field.
+func (_u *POSOrderUpdateOne) SetCustomerName(v string) *POSOrderUpdateOne {
+	_u.mutation.SetCustomerName(v)
+	return _u
+}
+
+// SetNillableCustomerName sets the "customer_name" field if the given value is not nil.
+func (_u *POSOrderUpdateOne) SetNillableCustomerName(v *string) *POSOrderUpdateOne {
+	if v != nil {
+		_u.SetCustomerName(*v)
+	}
+	return _u
+}
+
+// ClearCustomerName clears the value of the "customer_name" field.
+func (_u *POSOrderUpdateOne) ClearCustomerName() *POSOrderUpdateOne {
+	_u.mutation.ClearCustomerName()
+	return _u
+}
+
 // SetEtimsInvoiceNumber sets the "etims_invoice_number" field.
 func (_u *POSOrderUpdateOne) SetEtimsInvoiceNumber(v string) *POSOrderUpdateOne {
 	_u.mutation.SetEtimsInvoiceNumber(v)
@@ -1639,6 +1731,18 @@ func (_u *POSOrderUpdateOne) sqlSave(ctx context.Context) (_node *POSOrder, err 
 	}
 	if value, ok := _u.mutation.AddedFiredCourses(); ok {
 		_spec.AddField(posorder.FieldFiredCourses, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.CustomerPhone(); ok {
+		_spec.SetField(posorder.FieldCustomerPhone, field.TypeString, value)
+	}
+	if _u.mutation.CustomerPhoneCleared() {
+		_spec.ClearField(posorder.FieldCustomerPhone, field.TypeString)
+	}
+	if value, ok := _u.mutation.CustomerName(); ok {
+		_spec.SetField(posorder.FieldCustomerName, field.TypeString, value)
+	}
+	if _u.mutation.CustomerNameCleared() {
+		_spec.ClearField(posorder.FieldCustomerName, field.TypeString)
 	}
 	if value, ok := _u.mutation.EtimsInvoiceNumber(); ok {
 		_spec.SetField(posorder.FieldEtimsInvoiceNumber, field.TypeString, value)
