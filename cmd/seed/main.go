@@ -587,45 +587,54 @@ func seedCatalogItems(ctx context.Context, client *ent.Client, tenantID uuid.UUI
 	}
 
 	if tenantSlug == "codevertex-demo" {
-		// Retail
+		// Retail — SKUs match inventory seed_items_retail.go
 		overrides = append(overrides, []overrideDef{
-			{"RTL-MLK-001", 80, "demo-retail", "taxable", false, false, true, 0},
-			{"RTL-BRD-001", 60, "demo-retail", "taxable", false, false, true, 0},
-			{"RTL-RIC-001", 220, "demo-retail", "taxable", false, false, true, 0},
-			{"RTL-OIL-001", 180, "demo-retail", "taxable", false, false, true, 0},
-			{"RTL-SGR-001", 130, "demo-retail", "taxable", false, false, true, 0},
-			{"RTL-EGG-001", 380, "demo-retail", "taxable", false, false, true, 0},
-			{"RTL-DET-001", 150, "demo-retail", "taxable", false, false, true, 0},
+			{"RTL-SHP-001", 480, "demo-retail", "taxable", false, false, true, 0},
+			{"RTL-SHP-002", 480, "demo-retail", "taxable", false, false, true, 0},
+			{"RTL-BSP-001", 320, "demo-retail", "taxable", false, false, true, 0},
+			{"RTL-LOT-001", 410, "demo-retail", "taxable", false, false, true, 0},
+			{"RTL-SPF-001", 750, "demo-retail", "taxable", false, false, true, 0},
+			{"RTL-MSK-001", 199, "demo-retail", "taxable", false, false, true, 0},
+			{"RTL-DEO-001", 230, "demo-retail", "taxable", false, false, true, 0},
+			{"RTL-NAP-001", 320, "demo-retail", "taxable", false, false, true, 0},
+			{"RTL-ACC-001", 250, "demo-retail", "taxable", false, false, true, 0},
+			{"RTL-GFT-001", 1499, "demo-retail", "taxable", false, false, true, 0},
 		}...)
-		// QSR
+		// QSR — reuse hospitality GOODS/RECIPE SKUs that inventory-api seeds for this tenant
 		overrides = append(overrides, []overrideDef{
-			{"QSR-BUR-001", 650, "demo-quick", "taxable", false, false, true, 0},
-			{"QSR-CHK-001", 700, "demo-quick", "taxable", false, false, true, 0},
-			{"QSR-FRI-001", 250, "demo-quick", "taxable", false, false, true, 0},
-			{"QSR-SOD-001", 100, "demo-quick", "taxable", false, false, true, 0},
-			{"QSR-HOT-001", 300, "demo-quick", "taxable", false, false, true, 0},
-			{"QSR-PIZ-001", 350, "demo-quick", "taxable", false, false, true, 0},
-			{"QSR-COM-001", 850, "demo-quick", "taxable", false, false, true, 0},
+			{"BRK-FUL-001", 850, "demo-quick", "taxable", false, false, true, 0},
+			{"BRK-PAN-001", 550, "demo-quick", "taxable", false, false, true, 0},
+			{"BRK-AVT-001", 500, "demo-quick", "taxable", false, false, true, 0},
+			{"PIZ-MAR-001", 900, "demo-quick", "taxable", false, false, true, 0},
+			{"PIZ-PEP-001", 1100, "demo-quick", "taxable", false, false, true, 0},
+			{"SND-CLB-001", 600, "demo-quick", "taxable", false, false, true, 0},
+			{"BEV-ICE-001", 300, "demo-quick", "taxable", false, false, true, 0},
 		}...)
-		// Pharmacy — Amoxicillin is controlled (requires prescription, not returnable)
+		// Pharmacy — SKUs match inventory seed_items_pharmacy.go
 		overrides = append(overrides, []overrideDef{
-			{"PHM-PAR-001", 120, "demo-pharmacy", "taxable", false, false, true, 0},
-			{"PHM-IBU-001", 180, "demo-pharmacy", "taxable", false, false, true, 0},
-			{"PHM-ANT-001", 450, "demo-pharmacy", "taxable", true, true, false, 0},
-			{"PHM-VIT-001", 350, "demo-pharmacy", "taxable", false, false, true, 0},
-			{"PHM-ORS-001", 80, "demo-pharmacy", "taxable", false, false, true, 0},
-			{"PHM-MAS-001", 250, "demo-pharmacy", "taxable", false, false, true, 0},
-			{"PHM-CON-001", 500, "demo-pharmacy", "taxable", false, false, true, 15},
+			{"PHM-ANL-001", 150, "demo-pharmacy", "taxable", false, false, true, 0},
+			{"PHM-ANL-002", 220, "demo-pharmacy", "taxable", false, false, true, 0},
+			{"PHM-ANT-001", 320, "demo-pharmacy", "taxable", false, false, false, 0},
+			{"PHM-VIT-001", 550, "demo-pharmacy", "taxable", false, false, true, 0},
+			{"PHM-VIT-002", 780, "demo-pharmacy", "taxable", false, false, true, 0},
+			{"PHM-ANT-002", 180, "demo-pharmacy", "taxable", false, false, true, 0},
+			{"PHM-CLD-001", 350, "demo-pharmacy", "taxable", false, false, true, 0},
+			{"PHM-SAL-001", 400, "demo-pharmacy", "taxable", false, false, true, 0},
+			{"PHM-SKN-001", 480, "demo-pharmacy", "taxable", false, false, true, 0},
+			{"PHM-EYE-001", 520, "demo-pharmacy", "taxable", false, false, true, 0},
 		}...)
-		// Services
+		// Services — SKUs match inventory seed_items_beauty.go
 		overrides = append(overrides, []overrideDef{
-			{"SVC-HCT-001", 1500, "demo-services", "taxable", false, false, true, 60},
-			{"SVC-HCM-001", 800, "demo-services", "taxable", false, false, true, 30},
-			{"SVC-MAN-001", 700, "demo-services", "taxable", false, false, true, 45},
-			{"SVC-PED-001", 900, "demo-services", "taxable", false, false, true, 60},
-			{"SVC-FAC-001", 2500, "demo-services", "taxable", false, false, true, 60},
-			{"SVC-MSG-001", 3500, "demo-services", "taxable", false, false, true, 60},
-			{"SVC-EYB-001", 300, "demo-services", "taxable", false, false, true, 20},
+			{"SVC-HAR-001", 1800, "demo-services", "taxable", false, false, false, 60},
+			{"SVC-HAR-002", 900, "demo-services", "taxable", false, false, false, 45},
+			{"SVC-HAR-003", 3000, "demo-services", "taxable", false, false, false, 90},
+			{"SVC-MAS-001", 4000, "demo-services", "taxable", false, false, false, 60},
+			{"SVC-MAS-002", 3200, "demo-services", "taxable", false, false, false, 45},
+			{"SVC-FCI-001", 2500, "demo-services", "taxable", false, false, false, 60},
+			{"SVC-MNI-001", 800, "demo-services", "taxable", false, false, false, 30},
+			{"SVC-PED-001", 1100, "demo-services", "taxable", false, false, false, 45},
+			{"SVC-EYB-001", 350, "demo-services", "taxable", false, false, false, 15},
+			{"SVC-WAX-001", 1500, "demo-services", "taxable", false, false, false, 45},
 		}...)
 	}
 

@@ -46,10 +46,12 @@ type inventoryProxyItem struct {
 	ImageURL                string `json:"image_url"`
 	CategoryName            string `json:"category_name"`
 	Barcode                 string `json:"barcode"`
-	RequiresAgeVerification bool   `json:"requires_age_verification"`
-	IsControlledSubstance   bool   `json:"is_controlled_substance"`
-	TrackSerialNumbers      bool   `json:"track_serial_numbers"`
-	DurationMinutes         int    `json:"duration_minutes"`
+	RequiresAgeVerification bool     `json:"requires_age_verification"`
+	IsControlledSubstance   bool     `json:"is_controlled_substance"`
+	TrackSerialNumbers      bool     `json:"track_serial_numbers"`
+	DurationMinutes         int      `json:"duration_minutes"`
+	CostPrice               *float64 `json:"cost_price,omitempty"`
+	SuggestedPrice          *float64 `json:"suggested_price,omitempty"`
 }
 
 // inventoryBulkPrice is one entry from GET /inventory/items/pricing.
@@ -401,6 +403,15 @@ func (h *CatalogHandler) ListCatalogItems(w http.ResponseWriter, r *http.Request
 
 		if item.DurationMinutes > 0 && durationMinutes == nil {
 			durationMinutes = &item.DurationMinutes
+		}
+
+		// Last resort: use cost_price from inventory when no pricing tier or override provides a price.
+		if price == 0 {
+			if item.SuggestedPrice != nil && *item.SuggestedPrice > 0 {
+				price = *item.SuggestedPrice
+			} else if item.CostPrice != nil && *item.CostPrice > 0 {
+				price = *item.CostPrice
+			}
 		}
 
 		out = append(out, map[string]any{
