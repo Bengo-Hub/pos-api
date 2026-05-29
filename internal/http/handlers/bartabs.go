@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/Bengo-Hub/httpware"
 	"github.com/Bengo-Hub/pagination"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -70,7 +71,13 @@ func (h *BarTabHandler) ListBarTabs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	query := h.client.BarTab.Query().Where(bartab.TenantID(tid)).WithEvents()
+	query := h.client.BarTab.Query().Where(bartab.TenantID(tid))
+	if oidStr := httpware.GetOutletID(r.Context()); oidStr != "" {
+		if oid, parseErr := uuid.Parse(oidStr); parseErr == nil {
+			query = query.Where(bartab.OutletID(oid))
+		}
+	}
+	query = query.WithEvents()
 
 	if status := r.URL.Query().Get("status"); status != "" {
 		query = query.Where(bartab.Status(status))

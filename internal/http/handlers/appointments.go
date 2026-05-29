@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/Bengo-Hub/httpware"
 	"github.com/Bengo-Hub/pagination"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -54,6 +55,11 @@ func (h *AppointmentHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	q := h.db.Appointment.Query().Where(entappt.TenantID(tid))
+	if oidStr := httpware.GetOutletID(r.Context()); oidStr != "" {
+		if oid, parseErr := uuid.Parse(oidStr); parseErr == nil {
+			q = q.Where(entappt.OutletID(oid))
+		}
+	}
 
 	if s := r.URL.Query().Get("status"); s != "" {
 		q = q.Where(entappt.StatusEQ(entappt.Status(s)))

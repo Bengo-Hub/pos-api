@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/Bengo-Hub/httpware"
 	"github.com/Bengo-Hub/pagination"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -48,8 +49,12 @@ func (h *QueueHandler) List(w http.ResponseWriter, r *http.Request) {
 		Where(entqueue.TenantID(tid)).
 		Order(ent.Asc(entqueue.FieldCreatedAt))
 
-	if outletStr := r.URL.Query().Get("outlet_id"); outletStr != "" {
-		if oid, err := uuid.Parse(outletStr); err == nil {
+	outletFilter := httpware.GetOutletID(r.Context())
+	if outletFilter == "" {
+		outletFilter = r.URL.Query().Get("outlet_id")
+	}
+	if outletFilter != "" {
+		if oid, parseErr := uuid.Parse(outletFilter); parseErr == nil {
 			q = q.Where(entqueue.OutletID(oid))
 		}
 	}

@@ -8,6 +8,7 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/Bengo-Hub/httpware"
 	"github.com/Bengo-Hub/pagination"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -57,8 +58,13 @@ func (h *TableHandler) ListSections(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sections, err := h.client.Section.Query().
-		Where(entsection.TenantID(tid), entsection.IsActive(true)).
+	sectionQ := h.client.Section.Query().Where(entsection.TenantID(tid), entsection.IsActive(true))
+	if oidStr := httpware.GetOutletID(r.Context()); oidStr != "" {
+		if oid, parseErr := uuid.Parse(oidStr); parseErr == nil {
+			sectionQ = sectionQ.Where(entsection.OutletID(oid))
+		}
+	}
+	sections, err := sectionQ.
 		WithTables().
 		Order(ent.Asc(entsection.FieldSortOrder)).
 		All(r.Context())
@@ -1139,6 +1145,17 @@ func (h *TableHandler) ListReservations(w http.ResponseWriter, r *http.Request) 
 		Where(entreservation.TenantID(tid)).
 		Order(ent.Asc(entreservation.FieldScheduledAt))
 
+	// Outlet: context takes precedence over query param
+	reservationOutlet := httpware.GetOutletID(r.Context())
+	if reservationOutlet == "" {
+		reservationOutlet = r.URL.Query().Get("outlet_id")
+	}
+	if reservationOutlet != "" {
+		if oid, parseErr := uuid.Parse(reservationOutlet); parseErr == nil {
+			q = q.Where(entreservation.OutletID(oid))
+		}
+	}
+
 	if dateStr := r.URL.Query().Get("date"); dateStr != "" {
 		day, err := time.Parse("2006-01-02", dateStr)
 		if err == nil {
@@ -1152,11 +1169,6 @@ func (h *TableHandler) ListReservations(w http.ResponseWriter, r *http.Request) 
 	}
 	if status := r.URL.Query().Get("status"); status != "" {
 		q = q.Where(entreservation.StatusEQ(entreservation.Status(status)))
-	}
-	if outletStr := r.URL.Query().Get("outlet_id"); outletStr != "" {
-		if oid, err := uuid.Parse(outletStr); err == nil {
-			q = q.Where(entreservation.OutletID(oid))
-		}
 	}
 	if tableStr := r.URL.Query().Get("table_id"); tableStr != "" {
 		if tbid, err := uuid.Parse(tableStr); err == nil {

@@ -19,6 +19,7 @@ import (
 	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/bengobox/pos-service/internal/ent"
 	entoverride "github.com/bengobox/pos-service/internal/ent/poscatalogoverride"
+	"github.com/bengobox/pos-service/internal/http/middleware"
 )
 
 // CatalogHandler handles catalog item endpoints.
@@ -70,13 +71,33 @@ func serviceAPIKey() string {
 	return os.Getenv("INTERNAL_SERVICE_KEY")
 }
 
-func doInventoryGET(ctx context.Context, path string) ([]byte, error) {
+// useCaseItemTypes returns the comma-separated inventory item types valid for a given outlet use case.
+// This prevents cross-contamination (e.g. pharmacy GOODS appearing in retail).
+func useCaseItemTypes(useCase string) string {
+	switch strings.ToLower(useCase) {
+	case "retail":
+		return "GOODS,VOUCHER"
+	case "hospitality", "quick_service":
+		return "GOODS,RECIPE,SERVICE,INGREDIENT,VOUCHER"
+	case "pharmacy":
+		return "GOODS,VOUCHER"
+	case "services":
+		return "SERVICE,GOODS,VOUCHER"
+	default:
+		return "GOODS,RECIPE,SERVICE,VOUCHER"
+	}
+}
+
+func doInventoryGET(ctx context.Context, path string, outletID string) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, path, nil)
 	if err != nil {
 		return nil, err
 	}
 	if k := serviceAPIKey(); k != "" {
 		req.Header.Set("X-API-Key", k)
+	}
+	if outletID != "" {
+		req.Header.Set("X-Outlet-ID", outletID)
 	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -89,10 +110,11 @@ func doInventoryGET(ctx context.Context, path string) ([]byte, error) {
 	return io.ReadAll(resp.Body)
 }
 
-// fetchInventoryItems calls inventory-api and returns active sellable items.
-func fetchInventoryItems(ctx context.Context, tenantSlug string) ([]inventoryProxyItem, error) {
-	url := fmt.Sprintf("%s/v1/%s/inventory/items?type=GOODS,RECIPE,SERVICE,VOUCHER&status=active&limit=500", inventoryURL(), tenantSlug)
-	body, err := doInventoryGET(ctx, url)
+// fetchInventoryItems calls inventory-api and returns active sellable items scoped by outlet and use case.
+func fetchInventoryItems(ctx context.Context, tenantSlug, outletID, useCase string) ([]inventoryProxyItem, error) {
+	types := useCaseItemTypes(useCase)
+	url := fmt.Sprintf("%s/v1/%s/inventory/items?type=%s&status=active&limit=500", inventoryURL(), tenantSlug, types)
+	body, err := doInventoryGET(ctx, url, outletID)
 	if err != nil {
 		return nil, err
 	}
@@ -106,9 +128,9 @@ func fetchInventoryItems(ctx context.Context, tenantSlug string) ([]inventoryPro
 }
 
 // fetchInventoryPricing calls inventory-api for default-tier prices.
-func fetchInventoryPricing(ctx context.Context, tenantSlug string) (map[string]float64, error) {
+func fetchInventoryPricing(ctx context.Context, tenantSlug, outletID string) (map[string]float64, error) {
 	url := fmt.Sprintf("%s/v1/%s/inventory/items/pricing", inventoryURL(), tenantSlug)
-	body, err := doInventoryGET(ctx, url)
+	body, err := doInventoryGET(ctx, url, outletID)
 	if err != nil {
 		return nil, err
 	}
@@ -172,6 +194,16 @@ func (h *CatalogHandler) ListCatalogItems(w http.ResponseWriter, r *http.Request
 		}
 	}
 
+	// Resolve use case from outlet context for item type filtering.
+	useCase := ""
+	outletIDStr := ""
+	if oc := middleware.OutletFromContext(r.Context()); oc != nil {
+		useCase = oc.UseCase
+		outletIDStr = oc.ID.String()
+	} else if outletID != nil {
+		outletIDStr = outletID.String()
+	}
+
 	if tenantSlug == "" {
 		jsonError(w, "tenant slug required", http.StatusBadRequest)
 		return
@@ -190,11 +222,11 @@ func (h *CatalogHandler) ListCatalogItems(w http.ResponseWriter, r *http.Request
 	priceCh := make(chan priceResult, 1)
 
 	go func() {
-		items, err := fetchInventoryItems(r.Context(), tenantSlug)
+		items, err := fetchInventoryItems(r.Context(), tenantSlug, outletIDStr, useCase)
 		itemsCh <- itemsResult{items, err}
 	}()
 	go func() {
-		prices, err := fetchInventoryPricing(r.Context(), tenantSlug)
+		prices, err := fetchInventoryPricing(r.Context(), tenantSlug, outletIDStr)
 		priceCh <- priceResult{prices, err}
 	}()
 
@@ -386,7 +418,7 @@ func (h *CatalogHandler) GetCatalogItem(w http.ResponseWriter, r *http.Request) 
 	}
 
 	url := fmt.Sprintf("%s/v1/%s/inventory/items/%s", inventoryURL(), tenantSlug, itemID)
-	body, err := doInventoryGET(r.Context(), url)
+	body, err := doInventoryGET(r.Context(), url, "")
 	if err != nil {
 		jsonError(w, "item not found", http.StatusNotFound)
 		return
@@ -536,7 +568,7 @@ func (h *CatalogHandler) GetItemStock(w http.ResponseWriter, r *http.Request) {
 	tenantSlug := httpware.GetTenantSlug(r.Context())
 
 	url := fmt.Sprintf("%s/v1/%s/inventory/items/%s/stock", inventoryURL(), tenantSlug, itemID)
-	body, err := doInventoryGET(r.Context(), url)
+	body, err := doInventoryGET(r.Context(), url, "")
 	if err != nil {
 		h.log.Warn("inventory-api stock fetch failed", zap.Error(err), zap.String("item_id", itemID))
 		jsonOK(w, map[string]any{"item_id": itemID, "quantity_on_hand": 0, "error": "inventory unavailable"})
@@ -726,7 +758,7 @@ func (h *CatalogHandler) GetCatalogCategories(w http.ResponseWriter, r *http.Req
 	}
 
 	url := fmt.Sprintf("%s/v1/%s/inventory/categories", inventoryURL(), tenantSlug)
-	body, err := doInventoryGET(r.Context(), url)
+	body, err := doInventoryGET(r.Context(), url, "")
 	if err != nil {
 		h.log.Warn("catalog categories: inventory proxy failed", zap.Error(err))
 		// Return empty list rather than 404 so the UI degrades gracefully.

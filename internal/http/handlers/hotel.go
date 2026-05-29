@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/Bengo-Hub/httpware"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -47,6 +48,11 @@ func (h *HotelHandler) ListRooms(w http.ResponseWriter, r *http.Request) {
 	}
 
 	q := h.client.Room.Query().Where(entroom.TenantID(tid))
+	if oidStr := httpware.GetOutletID(r.Context()); oidStr != "" {
+		if oid, parseErr := uuid.Parse(oidStr); parseErr == nil {
+			q = q.Where(entroom.OutletID(oid))
+		}
+	}
 
 	if status := r.URL.Query().Get("status"); status != "" {
 		q = q.Where(entroom.StatusEQ(entroom.Status(status)))

@@ -70,7 +70,7 @@ func (h *CatalogHandler) BarcodeLookup(w http.ResponseWriter, r *http.Request) {
 
 	// Fetch from inventory-api by barcode
 	invURL := fmt.Sprintf("%s/v1/%s/inventory/items?barcode=%s&limit=1", inventoryURL(), tenantSlug, barcode)
-	body, err := doInventoryGET(r.Context(), invURL)
+	body, err := doInventoryGET(r.Context(), invURL, "")
 	if err != nil {
 		h.log.Warn("barcode lookup: inventory-api error", zap.String("barcode", barcode), zap.Error(err))
 		jsonError(w, "item not found", http.StatusNotFound)

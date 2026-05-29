@@ -80,6 +80,11 @@ func (h *POSOrderHandler) ListOrders(w http.ResponseWriter, r *http.Request) {
 
 	q := r.URL.Query()
 	filters := []predicate.POSOrder{posorder.TenantID(tid)}
+	if oidStr := httpware.GetOutletID(r.Context()); oidStr != "" {
+		if oid, parseErr := uuid.Parse(oidStr); parseErr == nil {
+			filters = append(filters, posorder.OutletID(oid))
+		}
+	}
 	if status := q.Get("status"); status != "" {
 		statuses := strings.Split(status, ",")
 		if len(statuses) > 1 {
@@ -127,8 +132,14 @@ func (h *POSOrderHandler) GetOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	whereArgs := []predicate.POSOrder{posorder.ID(orderID), posorder.TenantID(tid)}
+	if oidStr := httpware.GetOutletID(r.Context()); oidStr != "" {
+		if oid, parseErr := uuid.Parse(oidStr); parseErr == nil {
+			whereArgs = append(whereArgs, posorder.OutletID(oid))
+		}
+	}
 	order, err := h.client.POSOrder.Query().
-		Where(posorder.ID(orderID), posorder.TenantID(tid)).
+		Where(whereArgs...).
 		WithLines(func(q *ent.POSOrderLineQuery) { q.WithModifiers() }).
 		WithPayments().
 		WithEvents().

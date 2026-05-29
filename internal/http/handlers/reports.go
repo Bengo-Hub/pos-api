@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/Bengo-Hub/httpware"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -16,6 +17,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/posdevicesession"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
 	"github.com/bengobox/pos-service/internal/ent/posorderline"
+	"github.com/bengobox/pos-service/internal/ent/predicate"
 	"github.com/bengobox/pos-service/internal/ent/posrefund"
 	"github.com/bengobox/pos-service/internal/ent/posreturn"
 )
@@ -42,14 +44,21 @@ func (h *ReportsHandler) GetSummary(w http.ResponseWriter, r *http.Request) {
 	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
 	yesterdayStart := todayStart.AddDate(0, 0, -1)
 
+	var outletFilters []predicate.POSOrder
+	if oidStr := httpware.GetOutletID(r.Context()); oidStr != "" {
+		if oid, parseErr := uuid.Parse(oidStr); parseErr == nil {
+			outletFilters = []predicate.POSOrder{posorder.OutletID(oid)}
+		}
+	}
+
 	queryRevenue := func(from, to time.Time) (float64, int, error) {
-		orders, qErr := h.db.POSOrder.Query().
-			Where(
-				posorder.TenantID(tid),
-				posorder.StatusEQ("completed"),
-				posorder.CreatedAtGTE(from),
-				posorder.CreatedAtLT(to),
-			).All(r.Context())
+		preds := append([]predicate.POSOrder{
+			posorder.TenantID(tid),
+			posorder.StatusEQ("completed"),
+			posorder.CreatedAtGTE(from),
+			posorder.CreatedAtLT(to),
+		}, outletFilters...)
+		orders, qErr := h.db.POSOrder.Query().Where(preds...).All(r.Context())
 		if qErr != nil {
 			return 0, 0, qErr
 		}
