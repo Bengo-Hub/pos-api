@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 
@@ -11,17 +12,25 @@ import (
 
 	"github.com/bengobox/pos-service/internal/ent"
 	entclient "github.com/bengobox/pos-service/internal/ent/clientrecord"
+	entorder "github.com/bengobox/pos-service/internal/ent/posorder"
+	"github.com/bengobox/pos-service/internal/platform/marketflow"
 )
 
 // ClientHandler manages POS client records. Contact master data lives in MarketFlow CRM.
 // This handler stores only POS-specific data (notes, preferences) keyed by phone + crm_contact_id.
 type ClientHandler struct {
-	log *zap.Logger
-	db  *ent.Client
+	log        *zap.Logger
+	db         *ent.Client
+	marketflow *marketflow.Client
 }
 
 func NewClientHandler(log *zap.Logger, db *ent.Client) *ClientHandler {
 	return &ClientHandler{log: log, db: db}
+}
+
+// SetMarketFlowClient wires the MarketFlow CRM S2S client for contact auto-sync.
+func (h *ClientHandler) SetMarketFlowClient(mf *marketflow.Client) {
+	h.marketflow = mf
 }
 
 // List handles GET /{tenantID}/pos/clients?phone={phone}&crm_contact_id={id}
@@ -132,6 +141,17 @@ func (h *ClientHandler) CreateOrUpsert(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "failed to create client: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
+	// Async: link to MarketFlow CRM if crm_contact_id not already set.
+	if h.marketflow != nil && h.marketflow.Enabled() && client.CrmContactID == nil {
+		go func(id uuid.UUID, tenantID uuid.UUID, phone string) {
+			crmID := h.marketflow.UpsertContactByPhone(context.Background(), tenantID, phone, "")
+			if crmID != uuid.Nil {
+				if err := h.db.ClientRecord.UpdateOneID(id).SetCrmContactID(crmID).Exec(context.Background()); err != nil {
+					h.log.Warn("client: failed to write crm_contact_id", zap.Error(err))
+				}
+			}
+		}(client.ID, tid, client.Phone)
+	}
 	w.WriteHeader(http.StatusCreated)
 	jsonOK(w, client)
 }
@@ -220,4 +240,32 @@ func (h *ClientHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	jsonOK(w, updated)
+}
+
+// GetOrdersByPhone handles GET /{tenantID}/pos/clients/{phone}/orders?page=&limit=
+// Returns paginated purchase history for a customer identified by phone number.
+// Permission required: pos.clients.view
+func (h *ClientHandler) GetOrdersByPhone(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+	phone := chi.URLParam(r, "phone")
+	if phone == "" {
+		jsonError(w, "phone is required", http.StatusBadRequest)
+		return
+	}
+	p := pagination.Parse(r)
+	q := h.db.POSOrder.Query().
+		Where(entorder.TenantID(tid), entorder.CustomerPhone(phone)).
+		Order(ent.Desc(entorder.FieldCreatedAt))
+	total, _ := q.Clone().Count(r.Context())
+	orders, err := q.Limit(p.Limit).Offset(p.Offset).All(r.Context())
+	if err != nil {
+		h.log.Error("get orders by phone failed", zap.Error(err))
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	jsonOK(w, pagination.NewResponse(orders, total, p))
 }

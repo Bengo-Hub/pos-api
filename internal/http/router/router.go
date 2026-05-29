@@ -498,6 +498,7 @@ func New(
 						pos.Post("/clients", clients.CreateOrUpsert)
 						pos.Get("/clients/{clientID}", clients.Get)
 						pos.Patch("/clients/{clientID}", clients.Update)
+						pos.Get("/clients/{phone}/orders", clients.GetOrdersByPhone)
 					}
 
 					// Loyalty programs & accounts

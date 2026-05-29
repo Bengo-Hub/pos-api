@@ -376,6 +376,7 @@ func New(ctx context.Context) (*App, error) {
 	commissionRuleHandler := handlers.NewCommissionRuleHandler(log, entClient)
 	packageHandler := handlers.NewPackageHandler(log, entClient)
 	clientHandler := handlers.NewClientHandler(log, entClient)
+	clientHandler.SetMarketFlowClient(mfClient)
 	channelHandler := handlers.NewChannelHandler(log, entClient)
 	printHandler := handlers.NewPrintHandler(log, entClient)
 	staffAdminHandler := handlers.NewStaffHandler(log.Named("staff-admin"), entClient)
