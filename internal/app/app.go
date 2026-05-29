@@ -42,6 +42,7 @@ import (
 	"github.com/bengobox/pos-service/internal/platform/database"
 	"github.com/bengobox/pos-service/internal/platform/events"
 	"github.com/bengobox/pos-service/internal/platform/marketflow"
+	"github.com/bengobox/pos-service/internal/platform/scheduler"
 	"github.com/bengobox/pos-service/internal/platform/subscriptions"
 	webhookspkg "github.com/bengobox/pos-service/internal/platform/webhooks"
 	"github.com/bengobox/pos-service/internal/shared/logger"
@@ -56,9 +57,10 @@ type App struct {
 	cache           *redis.Client
 	events          *nats.Conn
 	outboxPublisher    *eventslib.Publisher
-	webhookWorker      *webhookmodule.DeliveryWorker
-	shiftAutoEndWorker *shiftsmodule.AutoEndWorker
-	kdsHub             *kdsmodule.Hub
+	webhookWorker            *webhookmodule.DeliveryWorker
+	shiftAutoEndWorker       *shiftsmodule.AutoEndWorker
+	kdsHub                   *kdsmodule.Hub
+	layawayReminderScheduler *scheduler.LayawayReminderScheduler
 }
 
 func New(ctx context.Context) (*App, error) {
@@ -365,6 +367,10 @@ func New(ctx context.Context) (*App, error) {
 
 	webhookWorker := webhookmodule.NewDeliveryWorker(entClient, log)
 	shiftAutoEndWorker := shiftsmodule.NewAutoEndWorker(entClient, log)
+	var layawayReminder *scheduler.LayawayReminderScheduler
+	if eventPub := orderSvc.GetPublisher(); eventPub != nil {
+		layawayReminder = scheduler.NewLayawayReminderScheduler(log, entClient, eventPub)
+	}
 
 	// Wire publisher into KDS handler for waiter notification event publishing
 	if pub := orderSvc.GetPublisher(); pub != nil {
@@ -399,10 +405,11 @@ func New(ctx context.Context) (*App, error) {
 		entClient:       entClient,
 		cache:           redisClient,
 		events:          natsConn,
-		outboxPublisher:    outboxPub,
-		webhookWorker:      webhookWorker,
-		shiftAutoEndWorker: shiftAutoEndWorker,
-		kdsHub:             kdsHub,
+		outboxPublisher:          outboxPub,
+		webhookWorker:            webhookWorker,
+		shiftAutoEndWorker:       shiftAutoEndWorker,
+		kdsHub:                   kdsHub,
+		layawayReminderScheduler: layawayReminder,
 	}, nil
 }
 
@@ -430,6 +437,11 @@ func (a *App) Run(ctx context.Context) error {
 
 	// Start KDS hub Redis pub/sub relay — no-op if Redis is not configured
 	go a.kdsHub.Start(ctx)
+
+	// Start layaway payment-due reminder scheduler — fires once at startup then every 24h
+	if a.layawayReminderScheduler != nil {
+		go a.layawayReminderScheduler.Start(ctx)
+	}
 
 	a.log.Info("pos service starting", zap.String("addr", a.httpServer.Addr))
 

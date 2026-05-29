@@ -156,3 +156,9 @@ func (p *Publisher) PublishLoyaltyPointsEarned(ctx context.Context, tenantID uui
 func (p *Publisher) PublishLoyaltyTierUpgraded(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {
 	return p.publish(ctx, tenantID, "loyalty.tier_upgraded", data)
 }
+
+// PublishLayawayPaymentDue publishes a pos.layaway.payment_due event.
+// Consumed by notifications-service to send a WhatsApp/SMS reminder to the customer.
+func (p *Publisher) PublishLayawayPaymentDue(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {
+	return p.publish(ctx, tenantID, "layaway.payment_due", data)
+}
