@@ -195,6 +195,9 @@ func New(ctx context.Context) (*App, error) {
 	catalogHandler := handlers.NewCatalogHandler(log, entClient)
 	catalogHandler.SetRedisClient(redisClient)
 	tableHandler := handlers.NewTableHandler(log, entClient)
+	if pub := orderSvc.GetPublisher(); pub != nil {
+		tableHandler.SetPublisher(pub)
+	}
 	tenderHandler := handlers.NewTenderHandler(log, entClient)
 	paymentHandler := handlers.NewPaymentHandler(log, paymentSvc, treasuryClient, cfg.Treasury.PublicBaseURL, entClient)
 	var drawerPublisher *events.Publisher
@@ -216,6 +219,9 @@ func New(ctx context.Context) (*App, error) {
 	kdsHandler.Hub().SetRedis(redisClient)
 	kdsHub := kdsHandler.Hub()
 	deviceHandler := handlers.NewDeviceHandler(log, entClient)
+	if pub := orderSvc.GetPublisher(); pub != nil {
+		deviceHandler.SetPublisher(pub)
+	}
 	notificationsHandler := handlers.NewNotificationsHandler(log, entClient)
 	// Wire the shared notification hub so KDS can push real-time alerts to floor staff.
 	kdsHandler.SetNotifHub(notificationsHandler.Hub())

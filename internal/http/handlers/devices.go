@@ -16,16 +16,23 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/posdevicesession"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
 	"github.com/bengobox/pos-service/internal/ent/tender"
+	"github.com/bengobox/pos-service/internal/platform/events"
 )
 
 // DeviceHandler handles device session (shift) endpoints.
 type DeviceHandler struct {
 	log    *zap.Logger
 	client *ent.Client
+	pub    *events.Publisher
 }
 
 func NewDeviceHandler(log *zap.Logger, client *ent.Client) *DeviceHandler {
 	return &DeviceHandler{log: log, client: client}
+}
+
+// SetPublisher injects the event publisher for usage tracking events.
+func (h *DeviceHandler) SetPublisher(pub *events.Publisher) {
+	h.pub = pub
 }
 
 // ListDevices handles GET /{tenantID}/pos/devices
@@ -209,6 +216,14 @@ func (h *DeviceHandler) resolveOrCreateDevice(r *http.Request, tid uuid.UUID, in
 		Save(ctx)
 	if err != nil {
 		return uuid.Nil, err
+	}
+
+	if h.pub != nil {
+		_ = h.pub.PublishDeviceRegistered(ctx, tid, map[string]any{
+			"device_id":   device.ID.String(),
+			"outlet_id":   outletID.String(),
+			"device_type": device.DeviceType,
+		})
 	}
 	return device.ID, nil
 }

@@ -162,3 +162,15 @@ func (p *Publisher) PublishLoyaltyTierUpgraded(ctx context.Context, tenantID uui
 func (p *Publisher) PublishLayawayPaymentDue(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {
 	return p.publish(ctx, tenantID, "layaway.payment_due", data)
 }
+
+// PublishDeviceRegistered publishes a pos.device.registered event.
+// Consumed by subscriptions-api to track max_devices plan limit usage.
+func (p *Publisher) PublishDeviceRegistered(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {
+	return p.publish(ctx, tenantID, "device.registered", data)
+}
+
+// PublishTableCreated publishes a pos.table.created event.
+// Consumed by subscriptions-api to track max_tables plan limit usage.
+func (p *Publisher) PublishTableCreated(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {
+	return p.publish(ctx, tenantID, "table.created", data)
+}

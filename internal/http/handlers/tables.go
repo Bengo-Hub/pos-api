@@ -15,12 +15,13 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/bengobox/pos-service/internal/ent"
+	entposorder "github.com/bengobox/pos-service/internal/ent/posorder"
+	entposorderline "github.com/bengobox/pos-service/internal/ent/posorderline"
 	entsection "github.com/bengobox/pos-service/internal/ent/section"
 	enttable "github.com/bengobox/pos-service/internal/ent/table"
 	"github.com/bengobox/pos-service/internal/ent/tableassignment"
-	entposorder "github.com/bengobox/pos-service/internal/ent/posorder"
-	entposorderline "github.com/bengobox/pos-service/internal/ent/posorderline"
 	entreservation "github.com/bengobox/pos-service/internal/ent/tablereservation"
+	"github.com/bengobox/pos-service/internal/platform/events"
 )
 
 // slugify turns a display name into a URL-safe slug.
@@ -44,10 +45,16 @@ func slugify(s string) string {
 type TableHandler struct {
 	log    *zap.Logger
 	client *ent.Client
+	pub    *events.Publisher
 }
 
 func NewTableHandler(log *zap.Logger, client *ent.Client) *TableHandler {
 	return &TableHandler{log: log, client: client}
+}
+
+// SetPublisher injects the event publisher for usage tracking events.
+func (h *TableHandler) SetPublisher(pub *events.Publisher) {
+	h.pub = pub
 }
 
 // ListSections handles GET /{tenantID}/pos/sections
@@ -334,6 +341,14 @@ func (h *TableHandler) CreateTable(w http.ResponseWriter, r *http.Request) {
 		h.log.Error("create table failed", zap.Error(err))
 		jsonError(w, "failed to create table", http.StatusInternalServerError)
 		return
+	}
+
+	if h.pub != nil {
+		_ = h.pub.PublishTableCreated(r.Context(), tid, map[string]any{
+			"table_id":   tbl.ID.String(),
+			"outlet_id":  tbl.OutletID.String(),
+			"table_name": tbl.Name,
+		})
 	}
 
 	w.WriteHeader(http.StatusCreated)
