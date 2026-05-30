@@ -59,9 +59,7 @@ func main() {
 
 	syncer := tenant.NewSyncer(client, cfg.Auth.ServiceURL, nil)
 
-	// Tenants to seed — order matters: urban-loft first (real client), then demo.
 	tenantConfigs := []tenantSeedConfig{
-		{slug: "urban-loft", seedTables: true},
 		{slug: "codevertex-demo", seedTables: true},
 	}
 
@@ -162,22 +160,6 @@ type outletDef struct {
 // outletsByTenantSlug defines the POS outlets per tenant.
 // Slugs MUST match auth-api outletsByTenant keys so deterministic UUIDs align.
 var outletsByTenantSlug = map[string][]outletDef{
-	"urban-loft": {
-		// Single hospitality HQ — hotel, bar, grill, cafe, accommodations.
-		{
-			slug:        "busia",
-			code:        "BUSIA",
-			name:        "Urban Loft Cafe Busia",
-			useCase:     "hospitality",
-			isHQ:        true,
-			pinMessage:  "Welcome to Urban Loft Cafe — Shift starts 7:00 AM",
-			displayMode: "card",
-			enableKDS:   true,
-			enableAppts: false,
-			enableHotel: true,
-			defaultView: "tables",
-		},
-	},
 	"codevertex-demo": {
 		{
 			slug:        "demo-hospitality",
