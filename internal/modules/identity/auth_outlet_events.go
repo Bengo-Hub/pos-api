@@ -139,10 +139,16 @@ func (h *AuthOutletEventHandler) handleUpsert(ctx context.Context, evt *sharedev
 		return fmt.Errorf("missing tenant_id in outlet event")
 	}
 
-	// Derive tenant_slug from local tenant lookup.
-	tenantSlug := ""
-	if t, tErr := h.client.Tenant.Get(ctx, evt.TenantID); tErr == nil {
-		tenantSlug = t.Slug
+	// Prefer tenant_slug from the event payload (included since auth-api v245b7a8+).
+	// Fall back to local tenant table lookup for older events in the stream.
+	tenantSlug, _ := evt.Payload["tenant_slug"].(string)
+	if tenantSlug == "" {
+		if t, tErr := h.client.Tenant.Get(ctx, evt.TenantID); tErr == nil {
+			tenantSlug = t.Slug
+		}
+	}
+	if tenantSlug == "" {
+		return fmt.Errorf("tenant_slug unavailable for outlet %s (tenant %s) — retry after tenant sync", outletIDStr, evt.TenantID)
 	}
 
 	existing, findErr := h.client.Outlet.Get(ctx, outletID)
