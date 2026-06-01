@@ -319,6 +319,104 @@ func (_c *OutletSettingCreate) SetPrinterProfiles(v []map[string]interface{}) *O
 	return _c
 }
 
+// SetMpesaPaybill sets the "mpesa_paybill" field.
+func (_c *OutletSettingCreate) SetMpesaPaybill(v string) *OutletSettingCreate {
+	_c.mutation.SetMpesaPaybill(v)
+	return _c
+}
+
+// SetNillableMpesaPaybill sets the "mpesa_paybill" field if the given value is not nil.
+func (_c *OutletSettingCreate) SetNillableMpesaPaybill(v *string) *OutletSettingCreate {
+	if v != nil {
+		_c.SetMpesaPaybill(*v)
+	}
+	return _c
+}
+
+// SetMpesaAccountReference sets the "mpesa_account_reference" field.
+func (_c *OutletSettingCreate) SetMpesaAccountReference(v string) *OutletSettingCreate {
+	_c.mutation.SetMpesaAccountReference(v)
+	return _c
+}
+
+// SetNillableMpesaAccountReference sets the "mpesa_account_reference" field if the given value is not nil.
+func (_c *OutletSettingCreate) SetNillableMpesaAccountReference(v *string) *OutletSettingCreate {
+	if v != nil {
+		_c.SetMpesaAccountReference(*v)
+	}
+	return _c
+}
+
+// SetAirtelMoneyNumber sets the "airtel_money_number" field.
+func (_c *OutletSettingCreate) SetAirtelMoneyNumber(v string) *OutletSettingCreate {
+	_c.mutation.SetAirtelMoneyNumber(v)
+	return _c
+}
+
+// SetNillableAirtelMoneyNumber sets the "airtel_money_number" field if the given value is not nil.
+func (_c *OutletSettingCreate) SetNillableAirtelMoneyNumber(v *string) *OutletSettingCreate {
+	if v != nil {
+		_c.SetAirtelMoneyNumber(*v)
+	}
+	return _c
+}
+
+// SetBankName sets the "bank_name" field.
+func (_c *OutletSettingCreate) SetBankName(v string) *OutletSettingCreate {
+	_c.mutation.SetBankName(v)
+	return _c
+}
+
+// SetNillableBankName sets the "bank_name" field if the given value is not nil.
+func (_c *OutletSettingCreate) SetNillableBankName(v *string) *OutletSettingCreate {
+	if v != nil {
+		_c.SetBankName(*v)
+	}
+	return _c
+}
+
+// SetBankAccountNumber sets the "bank_account_number" field.
+func (_c *OutletSettingCreate) SetBankAccountNumber(v string) *OutletSettingCreate {
+	_c.mutation.SetBankAccountNumber(v)
+	return _c
+}
+
+// SetNillableBankAccountNumber sets the "bank_account_number" field if the given value is not nil.
+func (_c *OutletSettingCreate) SetNillableBankAccountNumber(v *string) *OutletSettingCreate {
+	if v != nil {
+		_c.SetBankAccountNumber(*v)
+	}
+	return _c
+}
+
+// SetBankAccountName sets the "bank_account_name" field.
+func (_c *OutletSettingCreate) SetBankAccountName(v string) *OutletSettingCreate {
+	_c.mutation.SetBankAccountName(v)
+	return _c
+}
+
+// SetNillableBankAccountName sets the "bank_account_name" field if the given value is not nil.
+func (_c *OutletSettingCreate) SetNillableBankAccountName(v *string) *OutletSettingCreate {
+	if v != nil {
+		_c.SetBankAccountName(*v)
+	}
+	return _c
+}
+
+// SetShowPaymentInfoOnReceipt sets the "show_payment_info_on_receipt" field.
+func (_c *OutletSettingCreate) SetShowPaymentInfoOnReceipt(v bool) *OutletSettingCreate {
+	_c.mutation.SetShowPaymentInfoOnReceipt(v)
+	return _c
+}
+
+// SetNillableShowPaymentInfoOnReceipt sets the "show_payment_info_on_receipt" field if the given value is not nil.
+func (_c *OutletSettingCreate) SetNillableShowPaymentInfoOnReceipt(v *bool) *OutletSettingCreate {
+	if v != nil {
+		_c.SetShowPaymentInfoOnReceipt(*v)
+	}
+	return _c
+}
+
 // SetHotelModuleEnabled sets the "hotel_module_enabled" field.
 func (_c *OutletSettingCreate) SetHotelModuleEnabled(v bool) *OutletSettingCreate {
 	_c.mutation.SetHotelModuleEnabled(v)
@@ -559,6 +657,10 @@ func (_c *OutletSettingCreate) defaults() {
 		v := outletsetting.DefaultPrinterProfiles
 		_c.mutation.SetPrinterProfiles(v)
 	}
+	if _, ok := _c.mutation.ShowPaymentInfoOnReceipt(); !ok {
+		v := outletsetting.DefaultShowPaymentInfoOnReceipt
+		_c.mutation.SetShowPaymentInfoOnReceipt(v)
+	}
 	if _, ok := _c.mutation.HotelModuleEnabled(); !ok {
 		v := outletsetting.DefaultHotelModuleEnabled
 		_c.mutation.SetHotelModuleEnabled(v)
@@ -742,6 +844,34 @@ func (_c *OutletSettingCreate) createSpec() (*OutletSetting, *sqlgraph.CreateSpe
 	if value, ok := _c.mutation.PrinterProfiles(); ok {
 		_spec.SetField(outletsetting.FieldPrinterProfiles, field.TypeJSON, value)
 		_node.PrinterProfiles = value
+	}
+	if value, ok := _c.mutation.MpesaPaybill(); ok {
+		_spec.SetField(outletsetting.FieldMpesaPaybill, field.TypeString, value)
+		_node.MpesaPaybill = &value
+	}
+	if value, ok := _c.mutation.MpesaAccountReference(); ok {
+		_spec.SetField(outletsetting.FieldMpesaAccountReference, field.TypeString, value)
+		_node.MpesaAccountReference = &value
+	}
+	if value, ok := _c.mutation.AirtelMoneyNumber(); ok {
+		_spec.SetField(outletsetting.FieldAirtelMoneyNumber, field.TypeString, value)
+		_node.AirtelMoneyNumber = &value
+	}
+	if value, ok := _c.mutation.BankName(); ok {
+		_spec.SetField(outletsetting.FieldBankName, field.TypeString, value)
+		_node.BankName = &value
+	}
+	if value, ok := _c.mutation.BankAccountNumber(); ok {
+		_spec.SetField(outletsetting.FieldBankAccountNumber, field.TypeString, value)
+		_node.BankAccountNumber = &value
+	}
+	if value, ok := _c.mutation.BankAccountName(); ok {
+		_spec.SetField(outletsetting.FieldBankAccountName, field.TypeString, value)
+		_node.BankAccountName = &value
+	}
+	if value, ok := _c.mutation.ShowPaymentInfoOnReceipt(); ok {
+		_spec.SetField(outletsetting.FieldShowPaymentInfoOnReceipt, field.TypeBool, value)
+		_node.ShowPaymentInfoOnReceipt = value
 	}
 	if value, ok := _c.mutation.HotelModuleEnabled(); ok {
 		_spec.SetField(outletsetting.FieldHotelModuleEnabled, field.TypeBool, value)
@@ -1289,6 +1419,132 @@ func (u *OutletSettingUpsert) UpdatePrinterProfiles() *OutletSettingUpsert {
 // ClearPrinterProfiles clears the value of the "printer_profiles" field.
 func (u *OutletSettingUpsert) ClearPrinterProfiles() *OutletSettingUpsert {
 	u.SetNull(outletsetting.FieldPrinterProfiles)
+	return u
+}
+
+// SetMpesaPaybill sets the "mpesa_paybill" field.
+func (u *OutletSettingUpsert) SetMpesaPaybill(v string) *OutletSettingUpsert {
+	u.Set(outletsetting.FieldMpesaPaybill, v)
+	return u
+}
+
+// UpdateMpesaPaybill sets the "mpesa_paybill" field to the value that was provided on create.
+func (u *OutletSettingUpsert) UpdateMpesaPaybill() *OutletSettingUpsert {
+	u.SetExcluded(outletsetting.FieldMpesaPaybill)
+	return u
+}
+
+// ClearMpesaPaybill clears the value of the "mpesa_paybill" field.
+func (u *OutletSettingUpsert) ClearMpesaPaybill() *OutletSettingUpsert {
+	u.SetNull(outletsetting.FieldMpesaPaybill)
+	return u
+}
+
+// SetMpesaAccountReference sets the "mpesa_account_reference" field.
+func (u *OutletSettingUpsert) SetMpesaAccountReference(v string) *OutletSettingUpsert {
+	u.Set(outletsetting.FieldMpesaAccountReference, v)
+	return u
+}
+
+// UpdateMpesaAccountReference sets the "mpesa_account_reference" field to the value that was provided on create.
+func (u *OutletSettingUpsert) UpdateMpesaAccountReference() *OutletSettingUpsert {
+	u.SetExcluded(outletsetting.FieldMpesaAccountReference)
+	return u
+}
+
+// ClearMpesaAccountReference clears the value of the "mpesa_account_reference" field.
+func (u *OutletSettingUpsert) ClearMpesaAccountReference() *OutletSettingUpsert {
+	u.SetNull(outletsetting.FieldMpesaAccountReference)
+	return u
+}
+
+// SetAirtelMoneyNumber sets the "airtel_money_number" field.
+func (u *OutletSettingUpsert) SetAirtelMoneyNumber(v string) *OutletSettingUpsert {
+	u.Set(outletsetting.FieldAirtelMoneyNumber, v)
+	return u
+}
+
+// UpdateAirtelMoneyNumber sets the "airtel_money_number" field to the value that was provided on create.
+func (u *OutletSettingUpsert) UpdateAirtelMoneyNumber() *OutletSettingUpsert {
+	u.SetExcluded(outletsetting.FieldAirtelMoneyNumber)
+	return u
+}
+
+// ClearAirtelMoneyNumber clears the value of the "airtel_money_number" field.
+func (u *OutletSettingUpsert) ClearAirtelMoneyNumber() *OutletSettingUpsert {
+	u.SetNull(outletsetting.FieldAirtelMoneyNumber)
+	return u
+}
+
+// SetBankName sets the "bank_name" field.
+func (u *OutletSettingUpsert) SetBankName(v string) *OutletSettingUpsert {
+	u.Set(outletsetting.FieldBankName, v)
+	return u
+}
+
+// UpdateBankName sets the "bank_name" field to the value that was provided on create.
+func (u *OutletSettingUpsert) UpdateBankName() *OutletSettingUpsert {
+	u.SetExcluded(outletsetting.FieldBankName)
+	return u
+}
+
+// ClearBankName clears the value of the "bank_name" field.
+func (u *OutletSettingUpsert) ClearBankName() *OutletSettingUpsert {
+	u.SetNull(outletsetting.FieldBankName)
+	return u
+}
+
+// SetBankAccountNumber sets the "bank_account_number" field.
+func (u *OutletSettingUpsert) SetBankAccountNumber(v string) *OutletSettingUpsert {
+	u.Set(outletsetting.FieldBankAccountNumber, v)
+	return u
+}
+
+// UpdateBankAccountNumber sets the "bank_account_number" field to the value that was provided on create.
+func (u *OutletSettingUpsert) UpdateBankAccountNumber() *OutletSettingUpsert {
+	u.SetExcluded(outletsetting.FieldBankAccountNumber)
+	return u
+}
+
+// ClearBankAccountNumber clears the value of the "bank_account_number" field.
+func (u *OutletSettingUpsert) ClearBankAccountNumber() *OutletSettingUpsert {
+	u.SetNull(outletsetting.FieldBankAccountNumber)
+	return u
+}
+
+// SetBankAccountName sets the "bank_account_name" field.
+func (u *OutletSettingUpsert) SetBankAccountName(v string) *OutletSettingUpsert {
+	u.Set(outletsetting.FieldBankAccountName, v)
+	return u
+}
+
+// UpdateBankAccountName sets the "bank_account_name" field to the value that was provided on create.
+func (u *OutletSettingUpsert) UpdateBankAccountName() *OutletSettingUpsert {
+	u.SetExcluded(outletsetting.FieldBankAccountName)
+	return u
+}
+
+// ClearBankAccountName clears the value of the "bank_account_name" field.
+func (u *OutletSettingUpsert) ClearBankAccountName() *OutletSettingUpsert {
+	u.SetNull(outletsetting.FieldBankAccountName)
+	return u
+}
+
+// SetShowPaymentInfoOnReceipt sets the "show_payment_info_on_receipt" field.
+func (u *OutletSettingUpsert) SetShowPaymentInfoOnReceipt(v bool) *OutletSettingUpsert {
+	u.Set(outletsetting.FieldShowPaymentInfoOnReceipt, v)
+	return u
+}
+
+// UpdateShowPaymentInfoOnReceipt sets the "show_payment_info_on_receipt" field to the value that was provided on create.
+func (u *OutletSettingUpsert) UpdateShowPaymentInfoOnReceipt() *OutletSettingUpsert {
+	u.SetExcluded(outletsetting.FieldShowPaymentInfoOnReceipt)
+	return u
+}
+
+// ClearShowPaymentInfoOnReceipt clears the value of the "show_payment_info_on_receipt" field.
+func (u *OutletSettingUpsert) ClearShowPaymentInfoOnReceipt() *OutletSettingUpsert {
+	u.SetNull(outletsetting.FieldShowPaymentInfoOnReceipt)
 	return u
 }
 
@@ -2029,6 +2285,153 @@ func (u *OutletSettingUpsertOne) UpdatePrinterProfiles() *OutletSettingUpsertOne
 func (u *OutletSettingUpsertOne) ClearPrinterProfiles() *OutletSettingUpsertOne {
 	return u.Update(func(s *OutletSettingUpsert) {
 		s.ClearPrinterProfiles()
+	})
+}
+
+// SetMpesaPaybill sets the "mpesa_paybill" field.
+func (u *OutletSettingUpsertOne) SetMpesaPaybill(v string) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetMpesaPaybill(v)
+	})
+}
+
+// UpdateMpesaPaybill sets the "mpesa_paybill" field to the value that was provided on create.
+func (u *OutletSettingUpsertOne) UpdateMpesaPaybill() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateMpesaPaybill()
+	})
+}
+
+// ClearMpesaPaybill clears the value of the "mpesa_paybill" field.
+func (u *OutletSettingUpsertOne) ClearMpesaPaybill() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearMpesaPaybill()
+	})
+}
+
+// SetMpesaAccountReference sets the "mpesa_account_reference" field.
+func (u *OutletSettingUpsertOne) SetMpesaAccountReference(v string) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetMpesaAccountReference(v)
+	})
+}
+
+// UpdateMpesaAccountReference sets the "mpesa_account_reference" field to the value that was provided on create.
+func (u *OutletSettingUpsertOne) UpdateMpesaAccountReference() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateMpesaAccountReference()
+	})
+}
+
+// ClearMpesaAccountReference clears the value of the "mpesa_account_reference" field.
+func (u *OutletSettingUpsertOne) ClearMpesaAccountReference() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearMpesaAccountReference()
+	})
+}
+
+// SetAirtelMoneyNumber sets the "airtel_money_number" field.
+func (u *OutletSettingUpsertOne) SetAirtelMoneyNumber(v string) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetAirtelMoneyNumber(v)
+	})
+}
+
+// UpdateAirtelMoneyNumber sets the "airtel_money_number" field to the value that was provided on create.
+func (u *OutletSettingUpsertOne) UpdateAirtelMoneyNumber() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateAirtelMoneyNumber()
+	})
+}
+
+// ClearAirtelMoneyNumber clears the value of the "airtel_money_number" field.
+func (u *OutletSettingUpsertOne) ClearAirtelMoneyNumber() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearAirtelMoneyNumber()
+	})
+}
+
+// SetBankName sets the "bank_name" field.
+func (u *OutletSettingUpsertOne) SetBankName(v string) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetBankName(v)
+	})
+}
+
+// UpdateBankName sets the "bank_name" field to the value that was provided on create.
+func (u *OutletSettingUpsertOne) UpdateBankName() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateBankName()
+	})
+}
+
+// ClearBankName clears the value of the "bank_name" field.
+func (u *OutletSettingUpsertOne) ClearBankName() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearBankName()
+	})
+}
+
+// SetBankAccountNumber sets the "bank_account_number" field.
+func (u *OutletSettingUpsertOne) SetBankAccountNumber(v string) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetBankAccountNumber(v)
+	})
+}
+
+// UpdateBankAccountNumber sets the "bank_account_number" field to the value that was provided on create.
+func (u *OutletSettingUpsertOne) UpdateBankAccountNumber() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateBankAccountNumber()
+	})
+}
+
+// ClearBankAccountNumber clears the value of the "bank_account_number" field.
+func (u *OutletSettingUpsertOne) ClearBankAccountNumber() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearBankAccountNumber()
+	})
+}
+
+// SetBankAccountName sets the "bank_account_name" field.
+func (u *OutletSettingUpsertOne) SetBankAccountName(v string) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetBankAccountName(v)
+	})
+}
+
+// UpdateBankAccountName sets the "bank_account_name" field to the value that was provided on create.
+func (u *OutletSettingUpsertOne) UpdateBankAccountName() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateBankAccountName()
+	})
+}
+
+// ClearBankAccountName clears the value of the "bank_account_name" field.
+func (u *OutletSettingUpsertOne) ClearBankAccountName() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearBankAccountName()
+	})
+}
+
+// SetShowPaymentInfoOnReceipt sets the "show_payment_info_on_receipt" field.
+func (u *OutletSettingUpsertOne) SetShowPaymentInfoOnReceipt(v bool) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetShowPaymentInfoOnReceipt(v)
+	})
+}
+
+// UpdateShowPaymentInfoOnReceipt sets the "show_payment_info_on_receipt" field to the value that was provided on create.
+func (u *OutletSettingUpsertOne) UpdateShowPaymentInfoOnReceipt() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateShowPaymentInfoOnReceipt()
+	})
+}
+
+// ClearShowPaymentInfoOnReceipt clears the value of the "show_payment_info_on_receipt" field.
+func (u *OutletSettingUpsertOne) ClearShowPaymentInfoOnReceipt() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearShowPaymentInfoOnReceipt()
 	})
 }
 
@@ -2965,6 +3368,153 @@ func (u *OutletSettingUpsertBulk) UpdatePrinterProfiles() *OutletSettingUpsertBu
 func (u *OutletSettingUpsertBulk) ClearPrinterProfiles() *OutletSettingUpsertBulk {
 	return u.Update(func(s *OutletSettingUpsert) {
 		s.ClearPrinterProfiles()
+	})
+}
+
+// SetMpesaPaybill sets the "mpesa_paybill" field.
+func (u *OutletSettingUpsertBulk) SetMpesaPaybill(v string) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetMpesaPaybill(v)
+	})
+}
+
+// UpdateMpesaPaybill sets the "mpesa_paybill" field to the value that was provided on create.
+func (u *OutletSettingUpsertBulk) UpdateMpesaPaybill() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateMpesaPaybill()
+	})
+}
+
+// ClearMpesaPaybill clears the value of the "mpesa_paybill" field.
+func (u *OutletSettingUpsertBulk) ClearMpesaPaybill() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearMpesaPaybill()
+	})
+}
+
+// SetMpesaAccountReference sets the "mpesa_account_reference" field.
+func (u *OutletSettingUpsertBulk) SetMpesaAccountReference(v string) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetMpesaAccountReference(v)
+	})
+}
+
+// UpdateMpesaAccountReference sets the "mpesa_account_reference" field to the value that was provided on create.
+func (u *OutletSettingUpsertBulk) UpdateMpesaAccountReference() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateMpesaAccountReference()
+	})
+}
+
+// ClearMpesaAccountReference clears the value of the "mpesa_account_reference" field.
+func (u *OutletSettingUpsertBulk) ClearMpesaAccountReference() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearMpesaAccountReference()
+	})
+}
+
+// SetAirtelMoneyNumber sets the "airtel_money_number" field.
+func (u *OutletSettingUpsertBulk) SetAirtelMoneyNumber(v string) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetAirtelMoneyNumber(v)
+	})
+}
+
+// UpdateAirtelMoneyNumber sets the "airtel_money_number" field to the value that was provided on create.
+func (u *OutletSettingUpsertBulk) UpdateAirtelMoneyNumber() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateAirtelMoneyNumber()
+	})
+}
+
+// ClearAirtelMoneyNumber clears the value of the "airtel_money_number" field.
+func (u *OutletSettingUpsertBulk) ClearAirtelMoneyNumber() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearAirtelMoneyNumber()
+	})
+}
+
+// SetBankName sets the "bank_name" field.
+func (u *OutletSettingUpsertBulk) SetBankName(v string) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetBankName(v)
+	})
+}
+
+// UpdateBankName sets the "bank_name" field to the value that was provided on create.
+func (u *OutletSettingUpsertBulk) UpdateBankName() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateBankName()
+	})
+}
+
+// ClearBankName clears the value of the "bank_name" field.
+func (u *OutletSettingUpsertBulk) ClearBankName() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearBankName()
+	})
+}
+
+// SetBankAccountNumber sets the "bank_account_number" field.
+func (u *OutletSettingUpsertBulk) SetBankAccountNumber(v string) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetBankAccountNumber(v)
+	})
+}
+
+// UpdateBankAccountNumber sets the "bank_account_number" field to the value that was provided on create.
+func (u *OutletSettingUpsertBulk) UpdateBankAccountNumber() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateBankAccountNumber()
+	})
+}
+
+// ClearBankAccountNumber clears the value of the "bank_account_number" field.
+func (u *OutletSettingUpsertBulk) ClearBankAccountNumber() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearBankAccountNumber()
+	})
+}
+
+// SetBankAccountName sets the "bank_account_name" field.
+func (u *OutletSettingUpsertBulk) SetBankAccountName(v string) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetBankAccountName(v)
+	})
+}
+
+// UpdateBankAccountName sets the "bank_account_name" field to the value that was provided on create.
+func (u *OutletSettingUpsertBulk) UpdateBankAccountName() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateBankAccountName()
+	})
+}
+
+// ClearBankAccountName clears the value of the "bank_account_name" field.
+func (u *OutletSettingUpsertBulk) ClearBankAccountName() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearBankAccountName()
+	})
+}
+
+// SetShowPaymentInfoOnReceipt sets the "show_payment_info_on_receipt" field.
+func (u *OutletSettingUpsertBulk) SetShowPaymentInfoOnReceipt(v bool) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetShowPaymentInfoOnReceipt(v)
+	})
+}
+
+// UpdateShowPaymentInfoOnReceipt sets the "show_payment_info_on_receipt" field to the value that was provided on create.
+func (u *OutletSettingUpsertBulk) UpdateShowPaymentInfoOnReceipt() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateShowPaymentInfoOnReceipt()
+	})
+}
+
+// ClearShowPaymentInfoOnReceipt clears the value of the "show_payment_info_on_receipt" field.
+func (u *OutletSettingUpsertBulk) ClearShowPaymentInfoOnReceipt() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearShowPaymentInfoOnReceipt()
 	})
 }
 

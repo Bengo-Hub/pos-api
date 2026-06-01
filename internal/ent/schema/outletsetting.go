@@ -54,6 +54,14 @@ func (OutletSetting) Fields() []ent.Field {
 			Default([]map[string]any{}).
 			Optional().
 			Comment("Array of printer profile objects: [{id, label, printer_type, printer_ip, paper_width, auto_print, categories}]"),
+		// Payment display fields — shown on receipts when show_payment_info_on_receipt is true
+		field.String("mpesa_paybill").Optional().Nillable().Comment("M-PESA Paybill shortcode for customer payments, e.g. 522533"),
+		field.String("mpesa_account_reference").Optional().Nillable().Comment("Account reference shown in M-PESA payment prompt, e.g. 79319044"),
+		field.String("airtel_money_number").Optional().Nillable().Comment("Airtel Money merchant/paybill number for customer payments"),
+		field.String("bank_name").Optional().Nillable().Comment("Bank name for bank transfer payments, e.g. KCB"),
+		field.String("bank_account_number").Optional().Nillable().Comment("Bank account number for transfers"),
+		field.String("bank_account_name").Optional().Nillable().Comment("Bank account holder name, e.g. THE URBAN LOFT CAFE LIMITED"),
+		field.Bool("show_payment_info_on_receipt").Default(false).Optional().Comment("Include payment method section on printed receipts"),
 		// Module activation toggles — tenant admin controls which modules are active per outlet
 		field.Bool("hotel_module_enabled").Default(false).Optional().Comment("Hotel/room management module (hospitality use case)"),
 		field.Bool("layaway_enabled").Default(false).Optional().Comment("Layaway plan / instalment payment module"),

@@ -70,6 +70,20 @@ type OutletSetting struct {
 	AutoPrintKitchen bool `json:"auto_print_kitchen,omitempty"`
 	// Array of printer profile objects: [{id, label, printer_type, printer_ip, paper_width, auto_print, categories}]
 	PrinterProfiles []map[string]interface{} `json:"printer_profiles,omitempty"`
+	// M-PESA Paybill shortcode for customer payments, e.g. 522533
+	MpesaPaybill *string `json:"mpesa_paybill,omitempty"`
+	// Account reference shown in M-PESA payment prompt, e.g. 79319044
+	MpesaAccountReference *string `json:"mpesa_account_reference,omitempty"`
+	// Airtel Money merchant/paybill number for customer payments
+	AirtelMoneyNumber *string `json:"airtel_money_number,omitempty"`
+	// Bank name for bank transfer payments, e.g. KCB
+	BankName *string `json:"bank_name,omitempty"`
+	// Bank account number for transfers
+	BankAccountNumber *string `json:"bank_account_number,omitempty"`
+	// Bank account holder name, e.g. THE URBAN LOFT CAFE LIMITED
+	BankAccountName *string `json:"bank_account_name,omitempty"`
+	// Include payment method section on printed receipts
+	ShowPaymentInfoOnReceipt bool `json:"show_payment_info_on_receipt,omitempty"`
 	// Hotel/room management module (hospitality use case)
 	HotelModuleEnabled bool `json:"hotel_module_enabled,omitempty"`
 	// Layaway plan / instalment payment module
@@ -123,13 +137,13 @@ func (*OutletSetting) scanValues(columns []string) ([]any, error) {
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		case outletsetting.FieldReceiptsJSON, outletsetting.FieldTaxConfigJSON, outletsetting.FieldServiceChargeJSON, outletsetting.FieldOpeningHoursJSON, outletsetting.FieldMetadata, outletsetting.FieldPrinterProfiles:
 			values[i] = new([]byte)
-		case outletsetting.FieldShowImages, outletsetting.FieldShowBarcodeScanner, outletsetting.FieldEnableKds, outletsetting.FieldEnableAppointments, outletsetting.FieldVatEnabled, outletsetting.FieldAutoPrintOrder, outletsetting.FieldAutoPrintKitchen, outletsetting.FieldHotelModuleEnabled, outletsetting.FieldLayawayEnabled, outletsetting.FieldShiftReportsEnabled, outletsetting.FieldShiftAutoEndEnabled:
+		case outletsetting.FieldShowImages, outletsetting.FieldShowBarcodeScanner, outletsetting.FieldEnableKds, outletsetting.FieldEnableAppointments, outletsetting.FieldVatEnabled, outletsetting.FieldAutoPrintOrder, outletsetting.FieldAutoPrintKitchen, outletsetting.FieldShowPaymentInfoOnReceipt, outletsetting.FieldHotelModuleEnabled, outletsetting.FieldLayawayEnabled, outletsetting.FieldShiftReportsEnabled, outletsetting.FieldShiftAutoEndEnabled:
 			values[i] = new(sql.NullBool)
 		case outletsetting.FieldVatRate:
 			values[i] = new(sql.NullFloat64)
 		case outletsetting.FieldShiftMaxHours, outletsetting.FieldTableMaxOccupationMinutes, outletsetting.FieldReturnWindowDays:
 			values[i] = new(sql.NullInt64)
-		case outletsetting.FieldPinLoginMessage, outletsetting.FieldScreensaverURL, outletsetting.FieldDisplayMode, outletsetting.FieldDefaultView, outletsetting.FieldReceiptHeader, outletsetting.FieldReceiptFooter, outletsetting.FieldCurrency, outletsetting.FieldPrinterType, outletsetting.FieldPrinterIP, outletsetting.FieldPaperWidth:
+		case outletsetting.FieldPinLoginMessage, outletsetting.FieldScreensaverURL, outletsetting.FieldDisplayMode, outletsetting.FieldDefaultView, outletsetting.FieldReceiptHeader, outletsetting.FieldReceiptFooter, outletsetting.FieldCurrency, outletsetting.FieldPrinterType, outletsetting.FieldPrinterIP, outletsetting.FieldPaperWidth, outletsetting.FieldMpesaPaybill, outletsetting.FieldMpesaAccountReference, outletsetting.FieldAirtelMoneyNumber, outletsetting.FieldBankName, outletsetting.FieldBankAccountNumber, outletsetting.FieldBankAccountName:
 			values[i] = new(sql.NullString)
 		case outletsetting.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -323,6 +337,54 @@ func (_m *OutletSetting) assignValues(columns []string, values []any) error {
 					return fmt.Errorf("unmarshal field printer_profiles: %w", err)
 				}
 			}
+		case outletsetting.FieldMpesaPaybill:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field mpesa_paybill", values[i])
+			} else if value.Valid {
+				_m.MpesaPaybill = new(string)
+				*_m.MpesaPaybill = value.String
+			}
+		case outletsetting.FieldMpesaAccountReference:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field mpesa_account_reference", values[i])
+			} else if value.Valid {
+				_m.MpesaAccountReference = new(string)
+				*_m.MpesaAccountReference = value.String
+			}
+		case outletsetting.FieldAirtelMoneyNumber:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field airtel_money_number", values[i])
+			} else if value.Valid {
+				_m.AirtelMoneyNumber = new(string)
+				*_m.AirtelMoneyNumber = value.String
+			}
+		case outletsetting.FieldBankName:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field bank_name", values[i])
+			} else if value.Valid {
+				_m.BankName = new(string)
+				*_m.BankName = value.String
+			}
+		case outletsetting.FieldBankAccountNumber:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field bank_account_number", values[i])
+			} else if value.Valid {
+				_m.BankAccountNumber = new(string)
+				*_m.BankAccountNumber = value.String
+			}
+		case outletsetting.FieldBankAccountName:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field bank_account_name", values[i])
+			} else if value.Valid {
+				_m.BankAccountName = new(string)
+				*_m.BankAccountName = value.String
+			}
+		case outletsetting.FieldShowPaymentInfoOnReceipt:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field show_payment_info_on_receipt", values[i])
+			} else if value.Valid {
+				_m.ShowPaymentInfoOnReceipt = value.Bool
+			}
 		case outletsetting.FieldHotelModuleEnabled:
 			if value, ok := values[i].(*sql.NullBool); !ok {
 				return fmt.Errorf("unexpected type %T for field hotel_module_enabled", values[i])
@@ -503,6 +565,39 @@ func (_m *OutletSetting) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("printer_profiles=")
 	builder.WriteString(fmt.Sprintf("%v", _m.PrinterProfiles))
+	builder.WriteString(", ")
+	if v := _m.MpesaPaybill; v != nil {
+		builder.WriteString("mpesa_paybill=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.MpesaAccountReference; v != nil {
+		builder.WriteString("mpesa_account_reference=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.AirtelMoneyNumber; v != nil {
+		builder.WriteString("airtel_money_number=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.BankName; v != nil {
+		builder.WriteString("bank_name=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.BankAccountNumber; v != nil {
+		builder.WriteString("bank_account_number=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.BankAccountName; v != nil {
+		builder.WriteString("bank_account_name=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	builder.WriteString("show_payment_info_on_receipt=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ShowPaymentInfoOnReceipt))
 	builder.WriteString(", ")
 	builder.WriteString("hotel_module_enabled=")
 	builder.WriteString(fmt.Sprintf("%v", _m.HotelModuleEnabled))

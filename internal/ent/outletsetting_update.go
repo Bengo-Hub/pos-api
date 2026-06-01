@@ -484,6 +484,146 @@ func (_u *OutletSettingUpdate) ClearPrinterProfiles() *OutletSettingUpdate {
 	return _u
 }
 
+// SetMpesaPaybill sets the "mpesa_paybill" field.
+func (_u *OutletSettingUpdate) SetMpesaPaybill(v string) *OutletSettingUpdate {
+	_u.mutation.SetMpesaPaybill(v)
+	return _u
+}
+
+// SetNillableMpesaPaybill sets the "mpesa_paybill" field if the given value is not nil.
+func (_u *OutletSettingUpdate) SetNillableMpesaPaybill(v *string) *OutletSettingUpdate {
+	if v != nil {
+		_u.SetMpesaPaybill(*v)
+	}
+	return _u
+}
+
+// ClearMpesaPaybill clears the value of the "mpesa_paybill" field.
+func (_u *OutletSettingUpdate) ClearMpesaPaybill() *OutletSettingUpdate {
+	_u.mutation.ClearMpesaPaybill()
+	return _u
+}
+
+// SetMpesaAccountReference sets the "mpesa_account_reference" field.
+func (_u *OutletSettingUpdate) SetMpesaAccountReference(v string) *OutletSettingUpdate {
+	_u.mutation.SetMpesaAccountReference(v)
+	return _u
+}
+
+// SetNillableMpesaAccountReference sets the "mpesa_account_reference" field if the given value is not nil.
+func (_u *OutletSettingUpdate) SetNillableMpesaAccountReference(v *string) *OutletSettingUpdate {
+	if v != nil {
+		_u.SetMpesaAccountReference(*v)
+	}
+	return _u
+}
+
+// ClearMpesaAccountReference clears the value of the "mpesa_account_reference" field.
+func (_u *OutletSettingUpdate) ClearMpesaAccountReference() *OutletSettingUpdate {
+	_u.mutation.ClearMpesaAccountReference()
+	return _u
+}
+
+// SetAirtelMoneyNumber sets the "airtel_money_number" field.
+func (_u *OutletSettingUpdate) SetAirtelMoneyNumber(v string) *OutletSettingUpdate {
+	_u.mutation.SetAirtelMoneyNumber(v)
+	return _u
+}
+
+// SetNillableAirtelMoneyNumber sets the "airtel_money_number" field if the given value is not nil.
+func (_u *OutletSettingUpdate) SetNillableAirtelMoneyNumber(v *string) *OutletSettingUpdate {
+	if v != nil {
+		_u.SetAirtelMoneyNumber(*v)
+	}
+	return _u
+}
+
+// ClearAirtelMoneyNumber clears the value of the "airtel_money_number" field.
+func (_u *OutletSettingUpdate) ClearAirtelMoneyNumber() *OutletSettingUpdate {
+	_u.mutation.ClearAirtelMoneyNumber()
+	return _u
+}
+
+// SetBankName sets the "bank_name" field.
+func (_u *OutletSettingUpdate) SetBankName(v string) *OutletSettingUpdate {
+	_u.mutation.SetBankName(v)
+	return _u
+}
+
+// SetNillableBankName sets the "bank_name" field if the given value is not nil.
+func (_u *OutletSettingUpdate) SetNillableBankName(v *string) *OutletSettingUpdate {
+	if v != nil {
+		_u.SetBankName(*v)
+	}
+	return _u
+}
+
+// ClearBankName clears the value of the "bank_name" field.
+func (_u *OutletSettingUpdate) ClearBankName() *OutletSettingUpdate {
+	_u.mutation.ClearBankName()
+	return _u
+}
+
+// SetBankAccountNumber sets the "bank_account_number" field.
+func (_u *OutletSettingUpdate) SetBankAccountNumber(v string) *OutletSettingUpdate {
+	_u.mutation.SetBankAccountNumber(v)
+	return _u
+}
+
+// SetNillableBankAccountNumber sets the "bank_account_number" field if the given value is not nil.
+func (_u *OutletSettingUpdate) SetNillableBankAccountNumber(v *string) *OutletSettingUpdate {
+	if v != nil {
+		_u.SetBankAccountNumber(*v)
+	}
+	return _u
+}
+
+// ClearBankAccountNumber clears the value of the "bank_account_number" field.
+func (_u *OutletSettingUpdate) ClearBankAccountNumber() *OutletSettingUpdate {
+	_u.mutation.ClearBankAccountNumber()
+	return _u
+}
+
+// SetBankAccountName sets the "bank_account_name" field.
+func (_u *OutletSettingUpdate) SetBankAccountName(v string) *OutletSettingUpdate {
+	_u.mutation.SetBankAccountName(v)
+	return _u
+}
+
+// SetNillableBankAccountName sets the "bank_account_name" field if the given value is not nil.
+func (_u *OutletSettingUpdate) SetNillableBankAccountName(v *string) *OutletSettingUpdate {
+	if v != nil {
+		_u.SetBankAccountName(*v)
+	}
+	return _u
+}
+
+// ClearBankAccountName clears the value of the "bank_account_name" field.
+func (_u *OutletSettingUpdate) ClearBankAccountName() *OutletSettingUpdate {
+	_u.mutation.ClearBankAccountName()
+	return _u
+}
+
+// SetShowPaymentInfoOnReceipt sets the "show_payment_info_on_receipt" field.
+func (_u *OutletSettingUpdate) SetShowPaymentInfoOnReceipt(v bool) *OutletSettingUpdate {
+	_u.mutation.SetShowPaymentInfoOnReceipt(v)
+	return _u
+}
+
+// SetNillableShowPaymentInfoOnReceipt sets the "show_payment_info_on_receipt" field if the given value is not nil.
+func (_u *OutletSettingUpdate) SetNillableShowPaymentInfoOnReceipt(v *bool) *OutletSettingUpdate {
+	if v != nil {
+		_u.SetShowPaymentInfoOnReceipt(*v)
+	}
+	return _u
+}
+
+// ClearShowPaymentInfoOnReceipt clears the value of the "show_payment_info_on_receipt" field.
+func (_u *OutletSettingUpdate) ClearShowPaymentInfoOnReceipt() *OutletSettingUpdate {
+	_u.mutation.ClearShowPaymentInfoOnReceipt()
+	return _u
+}
+
 // SetHotelModuleEnabled sets the "hotel_module_enabled" field.
 func (_u *OutletSettingUpdate) SetHotelModuleEnabled(v bool) *OutletSettingUpdate {
 	_u.mutation.SetHotelModuleEnabled(v)
@@ -891,6 +1031,48 @@ func (_u *OutletSettingUpdate) sqlSave(ctx context.Context) (_node int, err erro
 	}
 	if _u.mutation.PrinterProfilesCleared() {
 		_spec.ClearField(outletsetting.FieldPrinterProfiles, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.MpesaPaybill(); ok {
+		_spec.SetField(outletsetting.FieldMpesaPaybill, field.TypeString, value)
+	}
+	if _u.mutation.MpesaPaybillCleared() {
+		_spec.ClearField(outletsetting.FieldMpesaPaybill, field.TypeString)
+	}
+	if value, ok := _u.mutation.MpesaAccountReference(); ok {
+		_spec.SetField(outletsetting.FieldMpesaAccountReference, field.TypeString, value)
+	}
+	if _u.mutation.MpesaAccountReferenceCleared() {
+		_spec.ClearField(outletsetting.FieldMpesaAccountReference, field.TypeString)
+	}
+	if value, ok := _u.mutation.AirtelMoneyNumber(); ok {
+		_spec.SetField(outletsetting.FieldAirtelMoneyNumber, field.TypeString, value)
+	}
+	if _u.mutation.AirtelMoneyNumberCleared() {
+		_spec.ClearField(outletsetting.FieldAirtelMoneyNumber, field.TypeString)
+	}
+	if value, ok := _u.mutation.BankName(); ok {
+		_spec.SetField(outletsetting.FieldBankName, field.TypeString, value)
+	}
+	if _u.mutation.BankNameCleared() {
+		_spec.ClearField(outletsetting.FieldBankName, field.TypeString)
+	}
+	if value, ok := _u.mutation.BankAccountNumber(); ok {
+		_spec.SetField(outletsetting.FieldBankAccountNumber, field.TypeString, value)
+	}
+	if _u.mutation.BankAccountNumberCleared() {
+		_spec.ClearField(outletsetting.FieldBankAccountNumber, field.TypeString)
+	}
+	if value, ok := _u.mutation.BankAccountName(); ok {
+		_spec.SetField(outletsetting.FieldBankAccountName, field.TypeString, value)
+	}
+	if _u.mutation.BankAccountNameCleared() {
+		_spec.ClearField(outletsetting.FieldBankAccountName, field.TypeString)
+	}
+	if value, ok := _u.mutation.ShowPaymentInfoOnReceipt(); ok {
+		_spec.SetField(outletsetting.FieldShowPaymentInfoOnReceipt, field.TypeBool, value)
+	}
+	if _u.mutation.ShowPaymentInfoOnReceiptCleared() {
+		_spec.ClearField(outletsetting.FieldShowPaymentInfoOnReceipt, field.TypeBool)
 	}
 	if value, ok := _u.mutation.HotelModuleEnabled(); ok {
 		_spec.SetField(outletsetting.FieldHotelModuleEnabled, field.TypeBool, value)
@@ -1454,6 +1636,146 @@ func (_u *OutletSettingUpdateOne) ClearPrinterProfiles() *OutletSettingUpdateOne
 	return _u
 }
 
+// SetMpesaPaybill sets the "mpesa_paybill" field.
+func (_u *OutletSettingUpdateOne) SetMpesaPaybill(v string) *OutletSettingUpdateOne {
+	_u.mutation.SetMpesaPaybill(v)
+	return _u
+}
+
+// SetNillableMpesaPaybill sets the "mpesa_paybill" field if the given value is not nil.
+func (_u *OutletSettingUpdateOne) SetNillableMpesaPaybill(v *string) *OutletSettingUpdateOne {
+	if v != nil {
+		_u.SetMpesaPaybill(*v)
+	}
+	return _u
+}
+
+// ClearMpesaPaybill clears the value of the "mpesa_paybill" field.
+func (_u *OutletSettingUpdateOne) ClearMpesaPaybill() *OutletSettingUpdateOne {
+	_u.mutation.ClearMpesaPaybill()
+	return _u
+}
+
+// SetMpesaAccountReference sets the "mpesa_account_reference" field.
+func (_u *OutletSettingUpdateOne) SetMpesaAccountReference(v string) *OutletSettingUpdateOne {
+	_u.mutation.SetMpesaAccountReference(v)
+	return _u
+}
+
+// SetNillableMpesaAccountReference sets the "mpesa_account_reference" field if the given value is not nil.
+func (_u *OutletSettingUpdateOne) SetNillableMpesaAccountReference(v *string) *OutletSettingUpdateOne {
+	if v != nil {
+		_u.SetMpesaAccountReference(*v)
+	}
+	return _u
+}
+
+// ClearMpesaAccountReference clears the value of the "mpesa_account_reference" field.
+func (_u *OutletSettingUpdateOne) ClearMpesaAccountReference() *OutletSettingUpdateOne {
+	_u.mutation.ClearMpesaAccountReference()
+	return _u
+}
+
+// SetAirtelMoneyNumber sets the "airtel_money_number" field.
+func (_u *OutletSettingUpdateOne) SetAirtelMoneyNumber(v string) *OutletSettingUpdateOne {
+	_u.mutation.SetAirtelMoneyNumber(v)
+	return _u
+}
+
+// SetNillableAirtelMoneyNumber sets the "airtel_money_number" field if the given value is not nil.
+func (_u *OutletSettingUpdateOne) SetNillableAirtelMoneyNumber(v *string) *OutletSettingUpdateOne {
+	if v != nil {
+		_u.SetAirtelMoneyNumber(*v)
+	}
+	return _u
+}
+
+// ClearAirtelMoneyNumber clears the value of the "airtel_money_number" field.
+func (_u *OutletSettingUpdateOne) ClearAirtelMoneyNumber() *OutletSettingUpdateOne {
+	_u.mutation.ClearAirtelMoneyNumber()
+	return _u
+}
+
+// SetBankName sets the "bank_name" field.
+func (_u *OutletSettingUpdateOne) SetBankName(v string) *OutletSettingUpdateOne {
+	_u.mutation.SetBankName(v)
+	return _u
+}
+
+// SetNillableBankName sets the "bank_name" field if the given value is not nil.
+func (_u *OutletSettingUpdateOne) SetNillableBankName(v *string) *OutletSettingUpdateOne {
+	if v != nil {
+		_u.SetBankName(*v)
+	}
+	return _u
+}
+
+// ClearBankName clears the value of the "bank_name" field.
+func (_u *OutletSettingUpdateOne) ClearBankName() *OutletSettingUpdateOne {
+	_u.mutation.ClearBankName()
+	return _u
+}
+
+// SetBankAccountNumber sets the "bank_account_number" field.
+func (_u *OutletSettingUpdateOne) SetBankAccountNumber(v string) *OutletSettingUpdateOne {
+	_u.mutation.SetBankAccountNumber(v)
+	return _u
+}
+
+// SetNillableBankAccountNumber sets the "bank_account_number" field if the given value is not nil.
+func (_u *OutletSettingUpdateOne) SetNillableBankAccountNumber(v *string) *OutletSettingUpdateOne {
+	if v != nil {
+		_u.SetBankAccountNumber(*v)
+	}
+	return _u
+}
+
+// ClearBankAccountNumber clears the value of the "bank_account_number" field.
+func (_u *OutletSettingUpdateOne) ClearBankAccountNumber() *OutletSettingUpdateOne {
+	_u.mutation.ClearBankAccountNumber()
+	return _u
+}
+
+// SetBankAccountName sets the "bank_account_name" field.
+func (_u *OutletSettingUpdateOne) SetBankAccountName(v string) *OutletSettingUpdateOne {
+	_u.mutation.SetBankAccountName(v)
+	return _u
+}
+
+// SetNillableBankAccountName sets the "bank_account_name" field if the given value is not nil.
+func (_u *OutletSettingUpdateOne) SetNillableBankAccountName(v *string) *OutletSettingUpdateOne {
+	if v != nil {
+		_u.SetBankAccountName(*v)
+	}
+	return _u
+}
+
+// ClearBankAccountName clears the value of the "bank_account_name" field.
+func (_u *OutletSettingUpdateOne) ClearBankAccountName() *OutletSettingUpdateOne {
+	_u.mutation.ClearBankAccountName()
+	return _u
+}
+
+// SetShowPaymentInfoOnReceipt sets the "show_payment_info_on_receipt" field.
+func (_u *OutletSettingUpdateOne) SetShowPaymentInfoOnReceipt(v bool) *OutletSettingUpdateOne {
+	_u.mutation.SetShowPaymentInfoOnReceipt(v)
+	return _u
+}
+
+// SetNillableShowPaymentInfoOnReceipt sets the "show_payment_info_on_receipt" field if the given value is not nil.
+func (_u *OutletSettingUpdateOne) SetNillableShowPaymentInfoOnReceipt(v *bool) *OutletSettingUpdateOne {
+	if v != nil {
+		_u.SetShowPaymentInfoOnReceipt(*v)
+	}
+	return _u
+}
+
+// ClearShowPaymentInfoOnReceipt clears the value of the "show_payment_info_on_receipt" field.
+func (_u *OutletSettingUpdateOne) ClearShowPaymentInfoOnReceipt() *OutletSettingUpdateOne {
+	_u.mutation.ClearShowPaymentInfoOnReceipt()
+	return _u
+}
+
 // SetHotelModuleEnabled sets the "hotel_module_enabled" field.
 func (_u *OutletSettingUpdateOne) SetHotelModuleEnabled(v bool) *OutletSettingUpdateOne {
 	_u.mutation.SetHotelModuleEnabled(v)
@@ -1891,6 +2213,48 @@ func (_u *OutletSettingUpdateOne) sqlSave(ctx context.Context) (_node *OutletSet
 	}
 	if _u.mutation.PrinterProfilesCleared() {
 		_spec.ClearField(outletsetting.FieldPrinterProfiles, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.MpesaPaybill(); ok {
+		_spec.SetField(outletsetting.FieldMpesaPaybill, field.TypeString, value)
+	}
+	if _u.mutation.MpesaPaybillCleared() {
+		_spec.ClearField(outletsetting.FieldMpesaPaybill, field.TypeString)
+	}
+	if value, ok := _u.mutation.MpesaAccountReference(); ok {
+		_spec.SetField(outletsetting.FieldMpesaAccountReference, field.TypeString, value)
+	}
+	if _u.mutation.MpesaAccountReferenceCleared() {
+		_spec.ClearField(outletsetting.FieldMpesaAccountReference, field.TypeString)
+	}
+	if value, ok := _u.mutation.AirtelMoneyNumber(); ok {
+		_spec.SetField(outletsetting.FieldAirtelMoneyNumber, field.TypeString, value)
+	}
+	if _u.mutation.AirtelMoneyNumberCleared() {
+		_spec.ClearField(outletsetting.FieldAirtelMoneyNumber, field.TypeString)
+	}
+	if value, ok := _u.mutation.BankName(); ok {
+		_spec.SetField(outletsetting.FieldBankName, field.TypeString, value)
+	}
+	if _u.mutation.BankNameCleared() {
+		_spec.ClearField(outletsetting.FieldBankName, field.TypeString)
+	}
+	if value, ok := _u.mutation.BankAccountNumber(); ok {
+		_spec.SetField(outletsetting.FieldBankAccountNumber, field.TypeString, value)
+	}
+	if _u.mutation.BankAccountNumberCleared() {
+		_spec.ClearField(outletsetting.FieldBankAccountNumber, field.TypeString)
+	}
+	if value, ok := _u.mutation.BankAccountName(); ok {
+		_spec.SetField(outletsetting.FieldBankAccountName, field.TypeString, value)
+	}
+	if _u.mutation.BankAccountNameCleared() {
+		_spec.ClearField(outletsetting.FieldBankAccountName, field.TypeString)
+	}
+	if value, ok := _u.mutation.ShowPaymentInfoOnReceipt(); ok {
+		_spec.SetField(outletsetting.FieldShowPaymentInfoOnReceipt, field.TypeBool, value)
+	}
+	if _u.mutation.ShowPaymentInfoOnReceiptCleared() {
+		_spec.ClearField(outletsetting.FieldShowPaymentInfoOnReceipt, field.TypeBool)
 	}
 	if value, ok := _u.mutation.HotelModuleEnabled(); ok {
 		_spec.SetField(outletsetting.FieldHotelModuleEnabled, field.TypeBool, value)

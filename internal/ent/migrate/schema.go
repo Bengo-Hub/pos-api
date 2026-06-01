@@ -1123,6 +1123,13 @@ var (
 		{Name: "auto_print_order", Type: field.TypeBool, Nullable: true, Default: false},
 		{Name: "auto_print_kitchen", Type: field.TypeBool, Nullable: true, Default: false},
 		{Name: "printer_profiles", Type: field.TypeJSON, Nullable: true},
+		{Name: "mpesa_paybill", Type: field.TypeString, Nullable: true},
+		{Name: "mpesa_account_reference", Type: field.TypeString, Nullable: true},
+		{Name: "airtel_money_number", Type: field.TypeString, Nullable: true},
+		{Name: "bank_name", Type: field.TypeString, Nullable: true},
+		{Name: "bank_account_number", Type: field.TypeString, Nullable: true},
+		{Name: "bank_account_name", Type: field.TypeString, Nullable: true},
+		{Name: "show_payment_info_on_receipt", Type: field.TypeBool, Nullable: true, Default: false},
 		{Name: "hotel_module_enabled", Type: field.TypeBool, Nullable: true, Default: false},
 		{Name: "layaway_enabled", Type: field.TypeBool, Nullable: true, Default: false},
 		{Name: "shift_reports_enabled", Type: field.TypeBool, Nullable: true, Default: false},
@@ -1142,7 +1149,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "outlet_settings_outlets_settings",
-				Columns:    []*schema.Column{OutletSettingsColumns[34]},
+				Columns:    []*schema.Column{OutletSettingsColumns[41]},
 				RefColumns: []*schema.Column{OutletsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},

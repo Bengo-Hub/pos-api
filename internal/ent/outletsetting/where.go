@@ -151,6 +151,41 @@ func AutoPrintKitchen(v bool) predicate.OutletSetting {
 	return predicate.OutletSetting(sql.FieldEQ(FieldAutoPrintKitchen, v))
 }
 
+// MpesaPaybill applies equality check predicate on the "mpesa_paybill" field. It's identical to MpesaPaybillEQ.
+func MpesaPaybill(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldMpesaPaybill, v))
+}
+
+// MpesaAccountReference applies equality check predicate on the "mpesa_account_reference" field. It's identical to MpesaAccountReferenceEQ.
+func MpesaAccountReference(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldMpesaAccountReference, v))
+}
+
+// AirtelMoneyNumber applies equality check predicate on the "airtel_money_number" field. It's identical to AirtelMoneyNumberEQ.
+func AirtelMoneyNumber(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldAirtelMoneyNumber, v))
+}
+
+// BankName applies equality check predicate on the "bank_name" field. It's identical to BankNameEQ.
+func BankName(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldBankName, v))
+}
+
+// BankAccountNumber applies equality check predicate on the "bank_account_number" field. It's identical to BankAccountNumberEQ.
+func BankAccountNumber(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldBankAccountNumber, v))
+}
+
+// BankAccountName applies equality check predicate on the "bank_account_name" field. It's identical to BankAccountNameEQ.
+func BankAccountName(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldBankAccountName, v))
+}
+
+// ShowPaymentInfoOnReceipt applies equality check predicate on the "show_payment_info_on_receipt" field. It's identical to ShowPaymentInfoOnReceiptEQ.
+func ShowPaymentInfoOnReceipt(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldShowPaymentInfoOnReceipt, v))
+}
+
 // HotelModuleEnabled applies equality check predicate on the "hotel_module_enabled" field. It's identical to HotelModuleEnabledEQ.
 func HotelModuleEnabled(v bool) predicate.OutletSetting {
 	return predicate.OutletSetting(sql.FieldEQ(FieldHotelModuleEnabled, v))
@@ -1204,6 +1239,476 @@ func PrinterProfilesIsNil() predicate.OutletSetting {
 // PrinterProfilesNotNil applies the NotNil predicate on the "printer_profiles" field.
 func PrinterProfilesNotNil() predicate.OutletSetting {
 	return predicate.OutletSetting(sql.FieldNotNull(FieldPrinterProfiles))
+}
+
+// MpesaPaybillEQ applies the EQ predicate on the "mpesa_paybill" field.
+func MpesaPaybillEQ(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldMpesaPaybill, v))
+}
+
+// MpesaPaybillNEQ applies the NEQ predicate on the "mpesa_paybill" field.
+func MpesaPaybillNEQ(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNEQ(FieldMpesaPaybill, v))
+}
+
+// MpesaPaybillIn applies the In predicate on the "mpesa_paybill" field.
+func MpesaPaybillIn(vs ...string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIn(FieldMpesaPaybill, vs...))
+}
+
+// MpesaPaybillNotIn applies the NotIn predicate on the "mpesa_paybill" field.
+func MpesaPaybillNotIn(vs ...string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotIn(FieldMpesaPaybill, vs...))
+}
+
+// MpesaPaybillGT applies the GT predicate on the "mpesa_paybill" field.
+func MpesaPaybillGT(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGT(FieldMpesaPaybill, v))
+}
+
+// MpesaPaybillGTE applies the GTE predicate on the "mpesa_paybill" field.
+func MpesaPaybillGTE(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGTE(FieldMpesaPaybill, v))
+}
+
+// MpesaPaybillLT applies the LT predicate on the "mpesa_paybill" field.
+func MpesaPaybillLT(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLT(FieldMpesaPaybill, v))
+}
+
+// MpesaPaybillLTE applies the LTE predicate on the "mpesa_paybill" field.
+func MpesaPaybillLTE(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLTE(FieldMpesaPaybill, v))
+}
+
+// MpesaPaybillContains applies the Contains predicate on the "mpesa_paybill" field.
+func MpesaPaybillContains(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldContains(FieldMpesaPaybill, v))
+}
+
+// MpesaPaybillHasPrefix applies the HasPrefix predicate on the "mpesa_paybill" field.
+func MpesaPaybillHasPrefix(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldHasPrefix(FieldMpesaPaybill, v))
+}
+
+// MpesaPaybillHasSuffix applies the HasSuffix predicate on the "mpesa_paybill" field.
+func MpesaPaybillHasSuffix(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldHasSuffix(FieldMpesaPaybill, v))
+}
+
+// MpesaPaybillIsNil applies the IsNil predicate on the "mpesa_paybill" field.
+func MpesaPaybillIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldMpesaPaybill))
+}
+
+// MpesaPaybillNotNil applies the NotNil predicate on the "mpesa_paybill" field.
+func MpesaPaybillNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldMpesaPaybill))
+}
+
+// MpesaPaybillEqualFold applies the EqualFold predicate on the "mpesa_paybill" field.
+func MpesaPaybillEqualFold(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEqualFold(FieldMpesaPaybill, v))
+}
+
+// MpesaPaybillContainsFold applies the ContainsFold predicate on the "mpesa_paybill" field.
+func MpesaPaybillContainsFold(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldContainsFold(FieldMpesaPaybill, v))
+}
+
+// MpesaAccountReferenceEQ applies the EQ predicate on the "mpesa_account_reference" field.
+func MpesaAccountReferenceEQ(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldMpesaAccountReference, v))
+}
+
+// MpesaAccountReferenceNEQ applies the NEQ predicate on the "mpesa_account_reference" field.
+func MpesaAccountReferenceNEQ(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNEQ(FieldMpesaAccountReference, v))
+}
+
+// MpesaAccountReferenceIn applies the In predicate on the "mpesa_account_reference" field.
+func MpesaAccountReferenceIn(vs ...string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIn(FieldMpesaAccountReference, vs...))
+}
+
+// MpesaAccountReferenceNotIn applies the NotIn predicate on the "mpesa_account_reference" field.
+func MpesaAccountReferenceNotIn(vs ...string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotIn(FieldMpesaAccountReference, vs...))
+}
+
+// MpesaAccountReferenceGT applies the GT predicate on the "mpesa_account_reference" field.
+func MpesaAccountReferenceGT(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGT(FieldMpesaAccountReference, v))
+}
+
+// MpesaAccountReferenceGTE applies the GTE predicate on the "mpesa_account_reference" field.
+func MpesaAccountReferenceGTE(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGTE(FieldMpesaAccountReference, v))
+}
+
+// MpesaAccountReferenceLT applies the LT predicate on the "mpesa_account_reference" field.
+func MpesaAccountReferenceLT(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLT(FieldMpesaAccountReference, v))
+}
+
+// MpesaAccountReferenceLTE applies the LTE predicate on the "mpesa_account_reference" field.
+func MpesaAccountReferenceLTE(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLTE(FieldMpesaAccountReference, v))
+}
+
+// MpesaAccountReferenceContains applies the Contains predicate on the "mpesa_account_reference" field.
+func MpesaAccountReferenceContains(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldContains(FieldMpesaAccountReference, v))
+}
+
+// MpesaAccountReferenceHasPrefix applies the HasPrefix predicate on the "mpesa_account_reference" field.
+func MpesaAccountReferenceHasPrefix(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldHasPrefix(FieldMpesaAccountReference, v))
+}
+
+// MpesaAccountReferenceHasSuffix applies the HasSuffix predicate on the "mpesa_account_reference" field.
+func MpesaAccountReferenceHasSuffix(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldHasSuffix(FieldMpesaAccountReference, v))
+}
+
+// MpesaAccountReferenceIsNil applies the IsNil predicate on the "mpesa_account_reference" field.
+func MpesaAccountReferenceIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldMpesaAccountReference))
+}
+
+// MpesaAccountReferenceNotNil applies the NotNil predicate on the "mpesa_account_reference" field.
+func MpesaAccountReferenceNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldMpesaAccountReference))
+}
+
+// MpesaAccountReferenceEqualFold applies the EqualFold predicate on the "mpesa_account_reference" field.
+func MpesaAccountReferenceEqualFold(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEqualFold(FieldMpesaAccountReference, v))
+}
+
+// MpesaAccountReferenceContainsFold applies the ContainsFold predicate on the "mpesa_account_reference" field.
+func MpesaAccountReferenceContainsFold(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldContainsFold(FieldMpesaAccountReference, v))
+}
+
+// AirtelMoneyNumberEQ applies the EQ predicate on the "airtel_money_number" field.
+func AirtelMoneyNumberEQ(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldAirtelMoneyNumber, v))
+}
+
+// AirtelMoneyNumberNEQ applies the NEQ predicate on the "airtel_money_number" field.
+func AirtelMoneyNumberNEQ(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNEQ(FieldAirtelMoneyNumber, v))
+}
+
+// AirtelMoneyNumberIn applies the In predicate on the "airtel_money_number" field.
+func AirtelMoneyNumberIn(vs ...string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIn(FieldAirtelMoneyNumber, vs...))
+}
+
+// AirtelMoneyNumberNotIn applies the NotIn predicate on the "airtel_money_number" field.
+func AirtelMoneyNumberNotIn(vs ...string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotIn(FieldAirtelMoneyNumber, vs...))
+}
+
+// AirtelMoneyNumberGT applies the GT predicate on the "airtel_money_number" field.
+func AirtelMoneyNumberGT(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGT(FieldAirtelMoneyNumber, v))
+}
+
+// AirtelMoneyNumberGTE applies the GTE predicate on the "airtel_money_number" field.
+func AirtelMoneyNumberGTE(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGTE(FieldAirtelMoneyNumber, v))
+}
+
+// AirtelMoneyNumberLT applies the LT predicate on the "airtel_money_number" field.
+func AirtelMoneyNumberLT(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLT(FieldAirtelMoneyNumber, v))
+}
+
+// AirtelMoneyNumberLTE applies the LTE predicate on the "airtel_money_number" field.
+func AirtelMoneyNumberLTE(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLTE(FieldAirtelMoneyNumber, v))
+}
+
+// AirtelMoneyNumberContains applies the Contains predicate on the "airtel_money_number" field.
+func AirtelMoneyNumberContains(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldContains(FieldAirtelMoneyNumber, v))
+}
+
+// AirtelMoneyNumberHasPrefix applies the HasPrefix predicate on the "airtel_money_number" field.
+func AirtelMoneyNumberHasPrefix(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldHasPrefix(FieldAirtelMoneyNumber, v))
+}
+
+// AirtelMoneyNumberHasSuffix applies the HasSuffix predicate on the "airtel_money_number" field.
+func AirtelMoneyNumberHasSuffix(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldHasSuffix(FieldAirtelMoneyNumber, v))
+}
+
+// AirtelMoneyNumberIsNil applies the IsNil predicate on the "airtel_money_number" field.
+func AirtelMoneyNumberIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldAirtelMoneyNumber))
+}
+
+// AirtelMoneyNumberNotNil applies the NotNil predicate on the "airtel_money_number" field.
+func AirtelMoneyNumberNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldAirtelMoneyNumber))
+}
+
+// AirtelMoneyNumberEqualFold applies the EqualFold predicate on the "airtel_money_number" field.
+func AirtelMoneyNumberEqualFold(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEqualFold(FieldAirtelMoneyNumber, v))
+}
+
+// AirtelMoneyNumberContainsFold applies the ContainsFold predicate on the "airtel_money_number" field.
+func AirtelMoneyNumberContainsFold(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldContainsFold(FieldAirtelMoneyNumber, v))
+}
+
+// BankNameEQ applies the EQ predicate on the "bank_name" field.
+func BankNameEQ(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldBankName, v))
+}
+
+// BankNameNEQ applies the NEQ predicate on the "bank_name" field.
+func BankNameNEQ(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNEQ(FieldBankName, v))
+}
+
+// BankNameIn applies the In predicate on the "bank_name" field.
+func BankNameIn(vs ...string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIn(FieldBankName, vs...))
+}
+
+// BankNameNotIn applies the NotIn predicate on the "bank_name" field.
+func BankNameNotIn(vs ...string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotIn(FieldBankName, vs...))
+}
+
+// BankNameGT applies the GT predicate on the "bank_name" field.
+func BankNameGT(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGT(FieldBankName, v))
+}
+
+// BankNameGTE applies the GTE predicate on the "bank_name" field.
+func BankNameGTE(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGTE(FieldBankName, v))
+}
+
+// BankNameLT applies the LT predicate on the "bank_name" field.
+func BankNameLT(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLT(FieldBankName, v))
+}
+
+// BankNameLTE applies the LTE predicate on the "bank_name" field.
+func BankNameLTE(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLTE(FieldBankName, v))
+}
+
+// BankNameContains applies the Contains predicate on the "bank_name" field.
+func BankNameContains(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldContains(FieldBankName, v))
+}
+
+// BankNameHasPrefix applies the HasPrefix predicate on the "bank_name" field.
+func BankNameHasPrefix(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldHasPrefix(FieldBankName, v))
+}
+
+// BankNameHasSuffix applies the HasSuffix predicate on the "bank_name" field.
+func BankNameHasSuffix(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldHasSuffix(FieldBankName, v))
+}
+
+// BankNameIsNil applies the IsNil predicate on the "bank_name" field.
+func BankNameIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldBankName))
+}
+
+// BankNameNotNil applies the NotNil predicate on the "bank_name" field.
+func BankNameNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldBankName))
+}
+
+// BankNameEqualFold applies the EqualFold predicate on the "bank_name" field.
+func BankNameEqualFold(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEqualFold(FieldBankName, v))
+}
+
+// BankNameContainsFold applies the ContainsFold predicate on the "bank_name" field.
+func BankNameContainsFold(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldContainsFold(FieldBankName, v))
+}
+
+// BankAccountNumberEQ applies the EQ predicate on the "bank_account_number" field.
+func BankAccountNumberEQ(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldBankAccountNumber, v))
+}
+
+// BankAccountNumberNEQ applies the NEQ predicate on the "bank_account_number" field.
+func BankAccountNumberNEQ(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNEQ(FieldBankAccountNumber, v))
+}
+
+// BankAccountNumberIn applies the In predicate on the "bank_account_number" field.
+func BankAccountNumberIn(vs ...string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIn(FieldBankAccountNumber, vs...))
+}
+
+// BankAccountNumberNotIn applies the NotIn predicate on the "bank_account_number" field.
+func BankAccountNumberNotIn(vs ...string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotIn(FieldBankAccountNumber, vs...))
+}
+
+// BankAccountNumberGT applies the GT predicate on the "bank_account_number" field.
+func BankAccountNumberGT(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGT(FieldBankAccountNumber, v))
+}
+
+// BankAccountNumberGTE applies the GTE predicate on the "bank_account_number" field.
+func BankAccountNumberGTE(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGTE(FieldBankAccountNumber, v))
+}
+
+// BankAccountNumberLT applies the LT predicate on the "bank_account_number" field.
+func BankAccountNumberLT(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLT(FieldBankAccountNumber, v))
+}
+
+// BankAccountNumberLTE applies the LTE predicate on the "bank_account_number" field.
+func BankAccountNumberLTE(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLTE(FieldBankAccountNumber, v))
+}
+
+// BankAccountNumberContains applies the Contains predicate on the "bank_account_number" field.
+func BankAccountNumberContains(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldContains(FieldBankAccountNumber, v))
+}
+
+// BankAccountNumberHasPrefix applies the HasPrefix predicate on the "bank_account_number" field.
+func BankAccountNumberHasPrefix(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldHasPrefix(FieldBankAccountNumber, v))
+}
+
+// BankAccountNumberHasSuffix applies the HasSuffix predicate on the "bank_account_number" field.
+func BankAccountNumberHasSuffix(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldHasSuffix(FieldBankAccountNumber, v))
+}
+
+// BankAccountNumberIsNil applies the IsNil predicate on the "bank_account_number" field.
+func BankAccountNumberIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldBankAccountNumber))
+}
+
+// BankAccountNumberNotNil applies the NotNil predicate on the "bank_account_number" field.
+func BankAccountNumberNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldBankAccountNumber))
+}
+
+// BankAccountNumberEqualFold applies the EqualFold predicate on the "bank_account_number" field.
+func BankAccountNumberEqualFold(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEqualFold(FieldBankAccountNumber, v))
+}
+
+// BankAccountNumberContainsFold applies the ContainsFold predicate on the "bank_account_number" field.
+func BankAccountNumberContainsFold(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldContainsFold(FieldBankAccountNumber, v))
+}
+
+// BankAccountNameEQ applies the EQ predicate on the "bank_account_name" field.
+func BankAccountNameEQ(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldBankAccountName, v))
+}
+
+// BankAccountNameNEQ applies the NEQ predicate on the "bank_account_name" field.
+func BankAccountNameNEQ(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNEQ(FieldBankAccountName, v))
+}
+
+// BankAccountNameIn applies the In predicate on the "bank_account_name" field.
+func BankAccountNameIn(vs ...string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIn(FieldBankAccountName, vs...))
+}
+
+// BankAccountNameNotIn applies the NotIn predicate on the "bank_account_name" field.
+func BankAccountNameNotIn(vs ...string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotIn(FieldBankAccountName, vs...))
+}
+
+// BankAccountNameGT applies the GT predicate on the "bank_account_name" field.
+func BankAccountNameGT(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGT(FieldBankAccountName, v))
+}
+
+// BankAccountNameGTE applies the GTE predicate on the "bank_account_name" field.
+func BankAccountNameGTE(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGTE(FieldBankAccountName, v))
+}
+
+// BankAccountNameLT applies the LT predicate on the "bank_account_name" field.
+func BankAccountNameLT(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLT(FieldBankAccountName, v))
+}
+
+// BankAccountNameLTE applies the LTE predicate on the "bank_account_name" field.
+func BankAccountNameLTE(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLTE(FieldBankAccountName, v))
+}
+
+// BankAccountNameContains applies the Contains predicate on the "bank_account_name" field.
+func BankAccountNameContains(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldContains(FieldBankAccountName, v))
+}
+
+// BankAccountNameHasPrefix applies the HasPrefix predicate on the "bank_account_name" field.
+func BankAccountNameHasPrefix(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldHasPrefix(FieldBankAccountName, v))
+}
+
+// BankAccountNameHasSuffix applies the HasSuffix predicate on the "bank_account_name" field.
+func BankAccountNameHasSuffix(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldHasSuffix(FieldBankAccountName, v))
+}
+
+// BankAccountNameIsNil applies the IsNil predicate on the "bank_account_name" field.
+func BankAccountNameIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldBankAccountName))
+}
+
+// BankAccountNameNotNil applies the NotNil predicate on the "bank_account_name" field.
+func BankAccountNameNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldBankAccountName))
+}
+
+// BankAccountNameEqualFold applies the EqualFold predicate on the "bank_account_name" field.
+func BankAccountNameEqualFold(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEqualFold(FieldBankAccountName, v))
+}
+
+// BankAccountNameContainsFold applies the ContainsFold predicate on the "bank_account_name" field.
+func BankAccountNameContainsFold(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldContainsFold(FieldBankAccountName, v))
+}
+
+// ShowPaymentInfoOnReceiptEQ applies the EQ predicate on the "show_payment_info_on_receipt" field.
+func ShowPaymentInfoOnReceiptEQ(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldShowPaymentInfoOnReceipt, v))
+}
+
+// ShowPaymentInfoOnReceiptNEQ applies the NEQ predicate on the "show_payment_info_on_receipt" field.
+func ShowPaymentInfoOnReceiptNEQ(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNEQ(FieldShowPaymentInfoOnReceipt, v))
+}
+
+// ShowPaymentInfoOnReceiptIsNil applies the IsNil predicate on the "show_payment_info_on_receipt" field.
+func ShowPaymentInfoOnReceiptIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldShowPaymentInfoOnReceipt))
+}
+
+// ShowPaymentInfoOnReceiptNotNil applies the NotNil predicate on the "show_payment_info_on_receipt" field.
+func ShowPaymentInfoOnReceiptNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldShowPaymentInfoOnReceipt))
 }
 
 // HotelModuleEnabledEQ applies the EQ predicate on the "hotel_module_enabled" field.

@@ -96,7 +96,15 @@ type settingsResponse struct {
 	// terminal
 	PINLoginMessage *string `json:"pin_login_message"`
 	ScreensaverURL  *string `json:"screensaver_url"`
-	UpdatedAt       string  `json:"updated_at"`
+	// payment display — shown on receipts when ShowPaymentInfoOnReceipt is true
+	MpesaPaybill             *string `json:"mpesa_paybill"`
+	MpesaAccountReference    *string `json:"mpesa_account_reference"`
+	AirtelMoneyNumber        *string `json:"airtel_money_number"`
+	BankName                 *string `json:"bank_name"`
+	BankAccountNumber        *string `json:"bank_account_number"`
+	BankAccountName          *string `json:"bank_account_name"`
+	ShowPaymentInfoOnReceipt bool    `json:"show_payment_info_on_receipt"`
+	UpdatedAt                string  `json:"updated_at"`
 }
 
 func toSettingsResponse(outlet *ent.Outlet, s *ent.OutletSetting) settingsResponse {
@@ -131,9 +139,16 @@ func toSettingsResponse(outlet *ent.Outlet, s *ent.OutletSetting) settingsRespon
 		TableMaxOccupationMinutes: s.TableMaxOccupationMinutes,
 		ReturnWindowDays:          s.ReturnWindowDays,
 		PrinterProfiles:           s.PrinterProfiles,
-		PINLoginMessage:     s.PinLoginMessage,
-		ScreensaverURL:      s.ScreensaverURL,
-		UpdatedAt:           s.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+		PINLoginMessage:          s.PinLoginMessage,
+		ScreensaverURL:           s.ScreensaverURL,
+		MpesaPaybill:             s.MpesaPaybill,
+		MpesaAccountReference:    s.MpesaAccountReference,
+		AirtelMoneyNumber:        s.AirtelMoneyNumber,
+		BankName:                 s.BankName,
+		BankAccountNumber:        s.BankAccountNumber,
+		BankAccountName:          s.BankAccountName,
+		ShowPaymentInfoOnReceipt: s.ShowPaymentInfoOnReceipt,
+		UpdatedAt:                s.UpdatedAt.Format("2006-01-02T15:04:05Z"),
 	}
 	return r
 }
@@ -246,6 +261,14 @@ type updateSettingsInput struct {
 	PINLoginMessage    *string            `json:"pin_login_message"`
 	ScreensaverURL     *string            `json:"screensaver_url"`
 	ReturnWindowDays   *int               `json:"return_window_days"`
+	// payment display fields
+	MpesaPaybill             *string `json:"mpesa_paybill"`
+	MpesaAccountReference    *string `json:"mpesa_account_reference"`
+	AirtelMoneyNumber        *string `json:"airtel_money_number"`
+	BankName                 *string `json:"bank_name"`
+	BankAccountNumber        *string `json:"bank_account_number"`
+	BankAccountName          *string `json:"bank_account_name"`
+	ShowPaymentInfoOnReceipt *bool   `json:"show_payment_info_on_receipt"`
 }
 
 // PutSettings handles PUT /{tenantID}/pos/settings and PUT /{tenantID}/pos/outlets/{outletID}/settings
@@ -331,6 +354,27 @@ func (h *ServiceSettingsHandler) PutSettings(w http.ResponseWriter, r *http.Requ
 	}
 	if input.ReturnWindowDays != nil {
 		upd = upd.SetReturnWindowDays(*input.ReturnWindowDays)
+	}
+	if input.MpesaPaybill != nil {
+		upd = upd.SetNillableMpesaPaybill(input.MpesaPaybill)
+	}
+	if input.MpesaAccountReference != nil {
+		upd = upd.SetNillableMpesaAccountReference(input.MpesaAccountReference)
+	}
+	if input.AirtelMoneyNumber != nil {
+		upd = upd.SetNillableAirtelMoneyNumber(input.AirtelMoneyNumber)
+	}
+	if input.BankName != nil {
+		upd = upd.SetNillableBankName(input.BankName)
+	}
+	if input.BankAccountNumber != nil {
+		upd = upd.SetNillableBankAccountNumber(input.BankAccountNumber)
+	}
+	if input.BankAccountName != nil {
+		upd = upd.SetNillableBankAccountName(input.BankAccountName)
+	}
+	if input.ShowPaymentInfoOnReceipt != nil {
+		upd = upd.SetShowPaymentInfoOnReceipt(*input.ShowPaymentInfoOnReceipt)
 	}
 
 	updated, err := upd.Save(r.Context())

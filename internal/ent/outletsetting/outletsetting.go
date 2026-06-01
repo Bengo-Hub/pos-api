@@ -65,6 +65,20 @@ const (
 	FieldAutoPrintKitchen = "auto_print_kitchen"
 	// FieldPrinterProfiles holds the string denoting the printer_profiles field in the database.
 	FieldPrinterProfiles = "printer_profiles"
+	// FieldMpesaPaybill holds the string denoting the mpesa_paybill field in the database.
+	FieldMpesaPaybill = "mpesa_paybill"
+	// FieldMpesaAccountReference holds the string denoting the mpesa_account_reference field in the database.
+	FieldMpesaAccountReference = "mpesa_account_reference"
+	// FieldAirtelMoneyNumber holds the string denoting the airtel_money_number field in the database.
+	FieldAirtelMoneyNumber = "airtel_money_number"
+	// FieldBankName holds the string denoting the bank_name field in the database.
+	FieldBankName = "bank_name"
+	// FieldBankAccountNumber holds the string denoting the bank_account_number field in the database.
+	FieldBankAccountNumber = "bank_account_number"
+	// FieldBankAccountName holds the string denoting the bank_account_name field in the database.
+	FieldBankAccountName = "bank_account_name"
+	// FieldShowPaymentInfoOnReceipt holds the string denoting the show_payment_info_on_receipt field in the database.
+	FieldShowPaymentInfoOnReceipt = "show_payment_info_on_receipt"
 	// FieldHotelModuleEnabled holds the string denoting the hotel_module_enabled field in the database.
 	FieldHotelModuleEnabled = "hotel_module_enabled"
 	// FieldLayawayEnabled holds the string denoting the layaway_enabled field in the database.
@@ -124,6 +138,13 @@ var Columns = []string{
 	FieldAutoPrintOrder,
 	FieldAutoPrintKitchen,
 	FieldPrinterProfiles,
+	FieldMpesaPaybill,
+	FieldMpesaAccountReference,
+	FieldAirtelMoneyNumber,
+	FieldBankName,
+	FieldBankAccountNumber,
+	FieldBankAccountName,
+	FieldShowPaymentInfoOnReceipt,
 	FieldHotelModuleEnabled,
 	FieldLayawayEnabled,
 	FieldShiftReportsEnabled,
@@ -176,6 +197,8 @@ var (
 	DefaultAutoPrintKitchen bool
 	// DefaultPrinterProfiles holds the default value on creation for the "printer_profiles" field.
 	DefaultPrinterProfiles []map[string]interface{}
+	// DefaultShowPaymentInfoOnReceipt holds the default value on creation for the "show_payment_info_on_receipt" field.
+	DefaultShowPaymentInfoOnReceipt bool
 	// DefaultHotelModuleEnabled holds the default value on creation for the "hotel_module_enabled" field.
 	DefaultHotelModuleEnabled bool
 	// DefaultLayawayEnabled holds the default value on creation for the "layaway_enabled" field.
@@ -299,6 +322,41 @@ func ByAutoPrintOrder(opts ...sql.OrderTermOption) OrderOption {
 // ByAutoPrintKitchen orders the results by the auto_print_kitchen field.
 func ByAutoPrintKitchen(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldAutoPrintKitchen, opts...).ToFunc()
+}
+
+// ByMpesaPaybill orders the results by the mpesa_paybill field.
+func ByMpesaPaybill(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldMpesaPaybill, opts...).ToFunc()
+}
+
+// ByMpesaAccountReference orders the results by the mpesa_account_reference field.
+func ByMpesaAccountReference(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldMpesaAccountReference, opts...).ToFunc()
+}
+
+// ByAirtelMoneyNumber orders the results by the airtel_money_number field.
+func ByAirtelMoneyNumber(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAirtelMoneyNumber, opts...).ToFunc()
+}
+
+// ByBankName orders the results by the bank_name field.
+func ByBankName(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBankName, opts...).ToFunc()
+}
+
+// ByBankAccountNumber orders the results by the bank_account_number field.
+func ByBankAccountNumber(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBankAccountNumber, opts...).ToFunc()
+}
+
+// ByBankAccountName orders the results by the bank_account_name field.
+func ByBankAccountName(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBankAccountName, opts...).ToFunc()
+}
+
+// ByShowPaymentInfoOnReceipt orders the results by the show_payment_info_on_receipt field.
+func ByShowPaymentInfoOnReceipt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldShowPaymentInfoOnReceipt, opts...).ToFunc()
 }
 
 // ByHotelModuleEnabled orders the results by the hotel_module_enabled field.
