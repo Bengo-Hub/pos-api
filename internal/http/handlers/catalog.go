@@ -423,6 +423,13 @@ func (h *CatalogHandler) ListCatalogItems(w http.ResponseWriter, r *http.Request
 			}
 		}
 
+		// Items with no price must not appear as available on the POS terminal —
+		// a staff member cannot ring up or sell an item at KES 0 by mistake.
+		// Items need a price set in inventory or a POS override before they can be sold.
+		if price == 0 {
+			isAvailable = false
+		}
+
 		out = append(out, map[string]any{
 			"id":                        item.ID,
 			"sku":                       item.SKU,
