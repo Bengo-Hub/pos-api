@@ -366,12 +366,23 @@ func (h *AuthEventHandler) handleUserPINSet(ctx context.Context, evt *sharedeven
 	if rawPin, _ := evt.Payload["pin"].(string); rawPin != "" {
 		upd = upd.SetPinFastHash(staffPinFastHash(existing.TenantID, existing.UserID, rawPin))
 	}
+	// Always update role from the event payload. This corrects stale role assignments
+	// (e.g. "cashier" set by old events that lacked a roles field) every time the PIN
+	// is re-set, so admins and managers are never stuck with a demoted role.
+	if posRole := mapSSORoleToPOS(evt.Payload); posRole != "" {
+		upd = upd.SetRole(posRole)
+	}
+	// Update name if provided (event now includes full_name from auth-api).
+	if fullName, _ := evt.Payload["full_name"].(string); fullName != "" && existing.Name != fullName {
+		upd = upd.SetName(fullName)
+	}
 	if err := upd.Exec(ctx); err != nil {
 		return fmt.Errorf("update PIN hash: %w", err)
 	}
 
 	h.logger.Info("staff PIN updated from auth.user.pin_set event",
-		zap.String("user_id", userIDStr))
+		zap.String("user_id", userIDStr),
+		zap.String("role", existing.Role))
 	return nil
 }
 
