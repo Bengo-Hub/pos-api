@@ -9,17 +9,27 @@ import (
 	"github.com/google/uuid"
 	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
+
+	"github.com/bengobox/pos-service/internal/ent"
+	entoverride "github.com/bengobox/pos-service/internal/ent/poscatalogoverride"
 )
 
-// StockSubscriber listens to inventory.stock.low events and re-publishes
-// them as pos.alert.stock_low so notifications-service can alert managers.
+// StockSubscriber listens to inventory stock events and:
+//   - inventory.stock.low  → re-publishes as pos.alert.stock_low for notifications-service
+//   - inventory.stock.out  → marks POSCatalogOverride.is_available = false (recipe ingredient depleted)
+//   - inventory.stock.in   → marks POSCatalogOverride.is_available = true  (ingredients restocked)
 type StockSubscriber struct {
 	publisher *Publisher
+	client    *ent.Client
 	log       *zap.Logger
 }
 
-func NewStockSubscriber(publisher *Publisher, log *zap.Logger) *StockSubscriber {
-	return &StockSubscriber{publisher: publisher, log: log.Named("pos.stock_subscriber")}
+func NewStockSubscriber(publisher *Publisher, client *ent.Client, log *zap.Logger) *StockSubscriber {
+	return &StockSubscriber{
+		publisher: publisher,
+		client:    client,
+		log:       log.Named("pos.stock_subscriber"),
+	}
 }
 
 func (s *StockSubscriber) Subscribe(nc *nats.Conn) error {
@@ -41,14 +51,14 @@ func (s *StockSubscriber) Subscribe(nc *nats.Conn) error {
 		}
 	}
 
-	handler := func(msg *nats.Msg) {
-		evt, err := sharedevents.FromJSON(msg.Data)
-		if err != nil {
-			s.log.Error("stock.low: unmarshal failed", zap.Error(err))
+	// inventory.stock.low → alert
+	_, err = js.Subscribe("inventory.stock.low", func(msg *nats.Msg) {
+		evt, parseErr := sharedevents.FromJSON(msg.Data)
+		if parseErr != nil {
+			s.log.Error("stock.low: unmarshal failed", zap.Error(parseErr))
 			_ = msg.Nak()
 			return
 		}
-
 		payload := evt.Payload
 		tenantIDStr, _ := payload["tenant_id"].(string)
 		tenantID, parseErr := uuid.Parse(tenantIDStr)
@@ -57,7 +67,6 @@ func (s *StockSubscriber) Subscribe(nc *nats.Conn) error {
 			_ = msg.Ack()
 			return
 		}
-
 		alertPayload := map[string]any{
 			"sku":           payload["sku"],
 			"item_name":     payload["item_name"],
@@ -72,19 +81,136 @@ func (s *StockSubscriber) Subscribe(nc *nats.Conn) error {
 			_ = msg.Nak()
 			return
 		}
-
 		s.log.Info("stock.low forwarded as pos.alert.stock_low",
 			zap.String("sku", fmt.Sprintf("%v", payload["sku"])),
 			zap.String("tenant_id", tenantIDStr),
 		)
 		_ = msg.Ack()
-	}
-
-	_, err = js.Subscribe("inventory.stock.low", handler,
+	},
 		nats.Durable("pos-inv-stock-low"),
 		nats.AckExplicit(),
 		nats.AckWait(30*time.Second),
 		nats.MaxDeliver(3),
 	)
-	return err
+	if err != nil {
+		return fmt.Errorf("pos stock subscriber: subscribe inventory.stock.low: %w", err)
+	}
+
+	// inventory.stock.out → mark POSCatalogOverride unavailable (recipe ingredient depleted)
+	_, err = js.Subscribe("inventory.stock.out", func(msg *nats.Msg) {
+		evt, parseErr := sharedevents.FromJSON(msg.Data)
+		if parseErr != nil {
+			s.log.Error("stock.out: unmarshal failed", zap.Error(parseErr))
+			_ = msg.Nak()
+			return
+		}
+		if err := s.handleStockOut(context.Background(), evt); err != nil {
+			s.log.Error("stock.out: handler failed", zap.Error(err))
+			_ = msg.Nak()
+			return
+		}
+		_ = msg.Ack()
+	},
+		nats.Durable("pos-inv-stock-out"),
+		nats.DeliverAll(),
+		nats.AckExplicit(),
+		nats.AckWait(30*time.Second),
+		nats.MaxDeliver(5),
+	)
+	if err != nil {
+		return fmt.Errorf("pos stock subscriber: subscribe inventory.stock.out: %w", err)
+	}
+
+	// inventory.stock.in → re-enable POSCatalogOverride when ingredients are restocked
+	_, err = js.Subscribe("inventory.stock.in", func(msg *nats.Msg) {
+		evt, parseErr := sharedevents.FromJSON(msg.Data)
+		if parseErr != nil {
+			s.log.Error("stock.in: unmarshal failed", zap.Error(parseErr))
+			_ = msg.Nak()
+			return
+		}
+		if err := s.handleStockIn(context.Background(), evt); err != nil {
+			s.log.Error("stock.in: handler failed", zap.Error(err))
+			_ = msg.Nak()
+			return
+		}
+		_ = msg.Ack()
+	},
+		nats.Durable("pos-inv-stock-in"),
+		nats.DeliverAll(),
+		nats.AckExplicit(),
+		nats.AckWait(30*time.Second),
+		nats.MaxDeliver(5),
+	)
+	if err != nil {
+		return fmt.Errorf("pos stock subscriber: subscribe inventory.stock.in: %w", err)
+	}
+
+	s.log.Info("pos stock event subscriptions active",
+		zap.Strings("subjects", []string{
+			"inventory.stock.low",
+			"inventory.stock.out",
+			"inventory.stock.in",
+		}))
+	return nil
+}
+
+// handleStockOut marks POSCatalogOverride.is_available = false for the depleted SKU.
+func (s *StockSubscriber) handleStockOut(ctx context.Context, evt *sharedevents.Event) error {
+	if s.client == nil {
+		return nil
+	}
+	tenantID := evt.TenantID
+	if tenantID == uuid.Nil {
+		return fmt.Errorf("stock.out: missing tenant_id")
+	}
+	sku, _ := evt.Payload["sku"].(string)
+	if sku == "" {
+		return fmt.Errorf("stock.out: missing sku")
+	}
+	count, err := s.client.POSCatalogOverride.Update().
+		Where(
+			entoverride.TenantID(tenantID),
+			entoverride.InventorySku(sku),
+		).
+		SetIsAvailable(false).
+		Save(ctx)
+	if err != nil {
+		return fmt.Errorf("stock.out: update override: %w", err)
+	}
+	s.log.Info("pos catalog: item marked unavailable (stock-out)",
+		zap.String("sku", sku),
+		zap.String("tenant_id", tenantID.String()),
+		zap.Int("overrides_updated", count))
+	return nil
+}
+
+// handleStockIn re-enables POSCatalogOverride.is_available when all ingredients are restocked.
+func (s *StockSubscriber) handleStockIn(ctx context.Context, evt *sharedevents.Event) error {
+	if s.client == nil {
+		return nil
+	}
+	tenantID := evt.TenantID
+	if tenantID == uuid.Nil {
+		return fmt.Errorf("stock.in: missing tenant_id")
+	}
+	sku, _ := evt.Payload["sku"].(string)
+	if sku == "" {
+		return fmt.Errorf("stock.in: missing sku")
+	}
+	count, err := s.client.POSCatalogOverride.Update().
+		Where(
+			entoverride.TenantID(tenantID),
+			entoverride.InventorySku(sku),
+		).
+		SetIsAvailable(true).
+		Save(ctx)
+	if err != nil {
+		return fmt.Errorf("stock.in: update override: %w", err)
+	}
+	s.log.Info("pos catalog: item re-enabled (ingredients restocked)",
+		zap.String("sku", sku),
+		zap.String("tenant_id", tenantID.String()),
+		zap.Int("overrides_updated", count))
+	return nil
 }
