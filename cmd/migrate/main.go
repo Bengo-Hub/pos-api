@@ -48,7 +48,10 @@ func main() {
 	client := ent.NewClient(ent.Driver(drv))
 	defer client.Close()
 
-	if err := client.Schema.Create(ctx, schema.WithDir(migrate.Dir)); err != nil {
+	if err := client.Schema.Create(ctx,
+		schema.WithDir(migrate.Dir),
+		schema.WithDropColumn(true),
+	); err != nil {
 		log.Fatalf("migrate: %v", err)
 	}
 	log.Println("migrations completed")
