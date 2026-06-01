@@ -2,9 +2,12 @@ package tenant
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	sharedcache "github.com/Bengo-Hub/cache"
@@ -13,6 +16,16 @@ import (
 	"github.com/bengobox/pos-service/internal/ent"
 	enttenant "github.com/bengobox/pos-service/internal/ent/tenant"
 )
+
+// posAcceptedUseCases mirrors the set in auth_outlet_events.go — only sync outlets
+// that the POS service actually uses.
+var posAcceptedUseCases = map[string]bool{
+	"hospitality":   true,
+	"retail":        true,
+	"quick_service": true,
+	"pharmacy":      true,
+	"services":      true,
+}
 
 // Syncer handles dynamic syncing of tenant data from auth-api using Ent ORM.
 // It uses the shared cache library to fetch tenant details from Redis first,
@@ -76,6 +89,89 @@ func (s *Syncer) SyncTenant(ctx context.Context, slug string) (uuid.UUID, error)
 
 	log.Printf("  [tenant-sync] synced %s (UUID %s) into pos-api DB via shared cache", slug, realID)
 	return realID, nil
+}
+
+// authOutletItem is the shape of one entry from GET /api/v1/tenants/{slug}/outlets.
+type authOutletItem struct {
+	ID      string `json:"id"`
+	Code    string `json:"code"`
+	Name    string `json:"name"`
+	UseCase string `json:"use_case"`
+	IsHQ    bool   `json:"is_hq"`
+	Status  string `json:"status"`
+}
+
+// SyncOutlets calls auth-api's public outlet list endpoint and upserts every
+// POS-applicable outlet into the local outlets table. It is called on demand
+// when handleUserPINSet finds no outlet for the tenant (e.g. on a fresh DB).
+func (s *Syncer) SyncOutlets(ctx context.Context, tenantID uuid.UUID, tenantSlug string) error {
+	authAPIURL := s.authURL
+	if envURL := os.Getenv("AUTH_API_URL"); envURL != "" {
+		authAPIURL = envURL
+	}
+
+	url := strings.TrimRight(authAPIURL, "/") + "/api/v1/tenants/" + tenantSlug + "/outlets"
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return fmt.Errorf("tenant.Syncer.SyncOutlets: build request: %w", err)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("tenant.Syncer.SyncOutlets: GET %s: %w", url, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("tenant.Syncer.SyncOutlets: auth-api returned HTTP %d for %s", resp.StatusCode, url)
+	}
+
+	var items []authOutletItem
+	if err := json.NewDecoder(resp.Body).Decode(&items); err != nil {
+		return fmt.Errorf("tenant.Syncer.SyncOutlets: decode response: %w", err)
+	}
+
+	synced := 0
+	for _, item := range items {
+		// Skip outlets that POS doesn't serve.
+		if item.UseCase != "" && !posAcceptedUseCases[item.UseCase] {
+			continue
+		}
+		if item.Status == "archived" {
+			continue
+		}
+
+		outletID, err := uuid.Parse(item.ID)
+		if err != nil {
+			continue
+		}
+
+		status := item.Status
+		if status == "" {
+			status = "active"
+		}
+
+		q := s.client.Outlet.Create().
+			SetID(outletID).
+			SetTenantID(tenantID).
+			SetTenantSlug(tenantSlug).
+			SetCode(item.Code).
+			SetName(item.Name).
+			SetIsHq(item.IsHQ).
+			SetStatus(status)
+		if item.UseCase != "" {
+			q = q.SetUseCase(item.UseCase)
+		}
+
+		if err := q.OnConflict().DoNothing().Exec(ctx); err != nil {
+			log.Printf("  [outlet-sync] upsert outlet %s (%s): %v", item.Code, outletID, err)
+			continue
+		}
+		synced++
+	}
+
+	log.Printf("  [outlet-sync] synced %d outlet(s) for tenant %s from auth-api", synced, tenantSlug)
+	return nil
 }
 
 // nillableStr returns a *string if non-empty, nil otherwise.

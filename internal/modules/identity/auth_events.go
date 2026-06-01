@@ -30,6 +30,7 @@ type AuthEventHandler struct {
 	client       *ent.Client
 	tenantSyncer interface {
 		SyncTenant(ctx context.Context, slug string) (uuid.UUID, error)
+		SyncOutlets(ctx context.Context, tenantID uuid.UUID, tenantSlug string) error
 	}
 	logger *zap.Logger
 }
@@ -301,25 +302,41 @@ func (h *AuthEventHandler) handleUserPINSet(ctx context.Context, evt *sharedeven
 			return fmt.Errorf("query StaffMember: %w", err)
 		}
 		// StaffMember doesn't exist — create it so we can set the PIN.
-		// The pin_set event has no roles payload, so we can't use upsertStaffMember
-		// here (it would see no roles and skip creation). Create directly instead.
 		tenantID := evt.TenantID
 		name := ""
 		role := "cashier" // safe fallback
+
+		// Use full_name and role from event payload (auth-api now includes both).
+		if fn, _ := evt.Payload["full_name"].(string); fn != "" {
+			name = fn
+		}
+		if r := mapSSORoleToPOS(evt.Payload); r != "" {
+			role = r
+		}
+
+		// Prefer tenant from local User record (most accurate tenantID).
 		u, uErr := h.client.User.Query().
 			Where(user.AuthServiceUserIDEQ(authServiceUserID)).
 			Only(ctx)
 		if uErr == nil {
-			name = u.FullName
+			if name == "" {
+				name = u.FullName
+			}
 			tenantID = u.TenantID
 		}
 		if name == "" {
 			name = userIDStr[:8]
 		}
-		// Use role from event payload if available (auth-api includes roles in pin_set events).
-		if r := mapSSORoleToPOS(evt.Payload); r != "" {
-			role = r
+
+		// Ensure tenant + outlets exist locally. The pin_set event now carries
+		// tenant_slug so we can bootstrap from auth-api if needed.
+		tenantSlug, _ := evt.Payload["tenant_slug"].(string)
+		if tenantSlug != "" && h.tenantSyncer != nil {
+			if syncedID, sErr := h.tenantSyncer.SyncTenant(ctx, tenantSlug); sErr == nil {
+				tenantID = syncedID
+			}
 		}
+
 		homeOutlet, oErr := h.client.Outlet.Query().
 			Where(outlet.TenantID(tenantID), outlet.IsHq(true), outlet.StatusEQ("active"),
 				outlet.UseCaseNEQ("logistics"), outlet.UseCaseNEQ("warehouse")).
@@ -329,6 +346,15 @@ func (h *AuthEventHandler) handleUserPINSet(ctx context.Context, evt *sharedeven
 				Where(outlet.TenantID(tenantID), outlet.StatusEQ("active"),
 					outlet.UseCaseNEQ("logistics"), outlet.UseCaseNEQ("warehouse")).
 				First(ctx)
+		}
+		// No outlet yet — try syncing from auth-api then retry once.
+		if oErr != nil && tenantSlug != "" && h.tenantSyncer != nil {
+			if syncErr := h.tenantSyncer.SyncOutlets(ctx, tenantID, tenantSlug); syncErr == nil {
+				homeOutlet, oErr = h.client.Outlet.Query().
+					Where(outlet.TenantID(tenantID), outlet.StatusEQ("active"),
+						outlet.UseCaseNEQ("logistics"), outlet.UseCaseNEQ("warehouse")).
+					First(ctx)
+			}
 		}
 		if oErr != nil {
 			return fmt.Errorf("no active outlet found for tenant %s, cannot create StaffMember: %w", tenantID, oErr)
