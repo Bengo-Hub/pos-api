@@ -299,7 +299,7 @@ func New(ctx context.Context) (*App, error) {
 	}
 
 	// Subscribe to auth.outlet.* NATS events — keeps local outlet mirror in sync
-	authOutletHandler := identity.NewAuthOutletEventHandler(entClient, log)
+	authOutletHandler := identity.NewAuthOutletEventHandler(entClient, tenantSyncer, log)
 	if natsConn != nil {
 		if err := authOutletHandler.SubscribeToOutletEvents(natsConn); err != nil {
 			log.Warn("app: failed to subscribe to auth outlet events", zap.Error(err))

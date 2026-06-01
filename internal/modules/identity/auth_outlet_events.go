@@ -30,13 +30,19 @@ const authStream = "auth"
 // local pos-api outlets table.
 type AuthOutletEventHandler struct {
 	client *ent.Client
+	tenantSyncer interface {
+		SyncTenant(ctx context.Context, slug string) (uuid.UUID, error)
+	}
 	logger *zap.Logger
 }
 
-func NewAuthOutletEventHandler(client *ent.Client, logger *zap.Logger) *AuthOutletEventHandler {
+func NewAuthOutletEventHandler(client *ent.Client, ts interface {
+	SyncTenant(ctx context.Context, slug string) (uuid.UUID, error)
+}, logger *zap.Logger) *AuthOutletEventHandler {
 	return &AuthOutletEventHandler{
-		client: client,
-		logger: logger.Named("identity.auth_outlet_events"),
+		client:       client,
+		tenantSyncer: ts,
+		logger:       logger.Named("identity.auth_outlet_events"),
 	}
 }
 
@@ -149,6 +155,18 @@ func (h *AuthOutletEventHandler) handleUpsert(ctx context.Context, evt *sharedev
 	}
 	if tenantSlug == "" {
 		return fmt.Errorf("tenant_slug unavailable for outlet %s (tenant %s) — retry after tenant sync", outletIDStr, evt.TenantID)
+	}
+
+	// Ensure the tenant row exists locally (outlets FK-references tenants).
+	// If missing, sync it from auth-api now so the outlet INSERT can succeed.
+	if _, tErr := h.client.Tenant.Get(ctx, evt.TenantID); tErr != nil {
+		if h.tenantSyncer != nil {
+			if _, syncErr := h.tenantSyncer.SyncTenant(ctx, tenantSlug); syncErr != nil {
+				return fmt.Errorf("tenant %q not in local DB and sync failed: %w", tenantSlug, syncErr)
+			}
+		} else {
+			return fmt.Errorf("tenant %q not in local DB and no syncer configured", tenantSlug)
+		}
 	}
 
 	existing, findErr := h.client.Outlet.Get(ctx, outletID)
