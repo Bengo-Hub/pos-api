@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"os"
 	"strconv"
@@ -421,6 +422,11 @@ func (h *CatalogHandler) ListCatalogItems(w http.ResponseWriter, r *http.Request
 			} else if item.CostPrice != nil && *item.CostPrice > 0 {
 				price = *item.CostPrice
 			}
+		}
+
+		// Round up to next whole number — no decimal prices on POS receipts or displays.
+		if price > 0 {
+			price = math.Ceil(price)
 		}
 
 		// Items with no price must not appear as available on the POS terminal —
