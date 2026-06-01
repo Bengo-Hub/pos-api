@@ -52,6 +52,15 @@ type inventoryProxyItem struct {
 	DurationMinutes         int      `json:"duration_minutes"`
 	CostPrice               *float64 `json:"cost_price,omitempty"`
 	SuggestedPrice          *float64 `json:"suggested_price,omitempty"`
+	// Recipe-costing fields (added 2026-06-01)
+	SellingPrice     *float64 `json:"selling_price,omitempty"`
+	FoodCostPct      *float64 `json:"food_cost_pct,omitempty"`
+	FoodCostStatus   string   `json:"status,omitempty"` // "OK - healthy" | "OK - above target FC%" | "LOSS"
+	// Supplier / EP-cost fields
+	PurchasePrice    *float64 `json:"purchase_price,omitempty"`
+	PurchasePackSize *float64 `json:"purchase_pack_size,omitempty"`
+	PurchaseUnit     string   `json:"purchase_unit,omitempty"`
+	YieldPct         *float64 `json:"yield_pct,omitempty"`
 }
 
 // inventoryBulkPrice is one entry from GET /inventory/items/pricing.
