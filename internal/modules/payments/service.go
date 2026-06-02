@@ -12,11 +12,11 @@ import (
 
 	"github.com/bengobox/pos-service/internal/ent"
 	entcommissionrule "github.com/bengobox/pos-service/internal/ent/commissionrule"
+	outletsettingpredicate "github.com/bengobox/pos-service/internal/ent/outletsetting"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
-	staffmemberent "github.com/bengobox/pos-service/internal/ent/staffmember"
 	"github.com/bengobox/pos-service/internal/ent/posorderline"
 	"github.com/bengobox/pos-service/internal/ent/pospayment"
-	outletsettingpredicate "github.com/bengobox/pos-service/internal/ent/outletsetting"
+	staffmemberent "github.com/bengobox/pos-service/internal/ent/staffmember"
 	"github.com/bengobox/pos-service/internal/modules/inventory"
 	"github.com/bengobox/pos-service/internal/modules/orders"
 	"github.com/bengobox/pos-service/internal/modules/treasury"
@@ -61,13 +61,13 @@ type CreateIntentResult struct {
 
 // Service provides payment business logic.
 type Service struct {
-	client           *ent.Client
-	orderSvc         *orders.Service
-	treasuryClient   *treasury.Client
-	inventoryClient  *inventory.Client
-	publisher        *events.Publisher
-	log              *zap.Logger
-	defaultCurrency  string
+	client          *ent.Client
+	orderSvc        *orders.Service
+	treasuryClient  *treasury.Client
+	inventoryClient *inventory.Client
+	publisher       *events.Publisher
+	log             *zap.Logger
+	defaultCurrency string
 }
 
 // NewService creates a new payment service.
@@ -341,9 +341,26 @@ func (s *Service) publishSaleFinalized(ctx context.Context, order *ent.POSOrder)
 
 	lines, err := s.client.POSOrderLine.Query().
 		Where(posorderline.OrderID(order.ID)).
+		WithModifiers().
 		All(ctx)
 	if err != nil {
 		s.log.Warn("sale.finalized: failed to load lines", zap.String("order_id", order.ID.String()), zap.Error(err))
+	}
+
+	// Resolve modifier -> inventory modifier-option id once, so the backflush payload
+	// can deduct modifier ingredient stock (previously dropped — modifier ingredients leaked).
+	modifierOptionByID := map[uuid.UUID]*uuid.UUID{}
+	for _, l := range lines {
+		for _, m := range l.Edges.Modifiers {
+			if _, seen := modifierOptionByID[m.ModifierID]; seen {
+				continue
+			}
+			if mod, mErr := s.client.Modifier.Get(ctx, m.ModifierID); mErr == nil {
+				modifierOptionByID[m.ModifierID] = mod.InventoryModifierOptionID
+			} else {
+				modifierOptionByID[m.ModifierID] = nil
+			}
+		}
 	}
 
 	// Resolve default warehouse from outlet setting for inventory backflush routing.
@@ -382,20 +399,41 @@ func (s *Service) publishSaleFinalized(ctx context.Context, order *ent.POSOrder)
 		if l.TaxAmount != nil {
 			item["tax_amount"] = *l.TaxAmount
 		}
+		// Attach modifiers so inventory can backflush their ingredient consumption.
+		if len(l.Edges.Modifiers) > 0 {
+			mods := make([]map[string]any, 0, len(l.Edges.Modifiers))
+			for _, m := range l.Edges.Modifiers {
+				mod := map[string]any{
+					"modifier_id": m.ModifierID.String(),
+					"name":        m.Name,
+					"quantity":    l.Quantity,
+				}
+				if optID := modifierOptionByID[m.ModifierID]; optID != nil {
+					mod["inventory_modifier_option_id"] = optID.String()
+				}
+				mods = append(mods, mod)
+			}
+			item["modifiers"] = mods
+		}
 		items = append(items, item)
 	}
 
 	data := map[string]any{
-		"order_id":       order.ID.String(),
-		"order_number":   order.OrderNumber,
-		"tenant_id":      order.TenantID.String(),
-		"tenant_slug":    outletSlug,
-		"outlet_id":      order.OutletID.String(),
-		"warehouse_id":   warehouseID,
-		"total_amount":   order.TotalAmount,
-		"currency":       order.Currency,
-		"items":          items,
-		"customer_phone": func() string { if order.CustomerPhone != nil { return *order.CustomerPhone }; return "" }(),
+		"order_id":     order.ID.String(),
+		"order_number": order.OrderNumber,
+		"tenant_id":    order.TenantID.String(),
+		"tenant_slug":  outletSlug,
+		"outlet_id":    order.OutletID.String(),
+		"warehouse_id": warehouseID,
+		"total_amount": order.TotalAmount,
+		"currency":     order.Currency,
+		"items":        items,
+		"customer_phone": func() string {
+			if order.CustomerPhone != nil {
+				return *order.CustomerPhone
+			}
+			return ""
+		}(),
 	}
 
 	if err := s.publisher.PublishSaleFinalized(ctx, order.TenantID, data); err != nil {

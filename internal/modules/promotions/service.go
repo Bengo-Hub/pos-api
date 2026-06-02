@@ -14,6 +14,7 @@ import (
 
 	"github.com/bengobox/pos-service/internal/ent"
 	"github.com/bengobox/pos-service/internal/ent/promotion"
+	"github.com/bengobox/pos-service/internal/ent/promotionrule"
 )
 
 // ApplyResult holds the result of applying a promotion to an order.
@@ -164,6 +165,51 @@ func (s *Service) ActiveHappyHours(ctx context.Context, tenantID uuid.UUID, outl
 		active = append(active, p)
 	}
 	return active, nil
+}
+
+// EvaluateHappyHourDiscount returns the best auto-apply happy-hour discount for an outlet
+// on the given subtotal at `now`. Used by the orders service at checkout (decoupled hook).
+func (s *Service) EvaluateHappyHourDiscount(ctx context.Context, tenantID, outletID uuid.UUID, subtotal decimal.Decimal) decimal.Decimal {
+	if subtotal.LessThanOrEqual(decimal.Zero) {
+		return decimal.Zero
+	}
+	var outletPtr *uuid.UUID
+	if outletID != uuid.Nil {
+		outletPtr = &outletID
+	}
+	active, err := s.ActiveHappyHours(ctx, tenantID, outletPtr, time.Now())
+	if err != nil || len(active) == 0 {
+		return decimal.Zero
+	}
+	best := decimal.Zero
+	for _, p := range active {
+		rule, rErr := s.client.PromotionRule.Query().
+			Where(promotionrule.PromotionID(p.ID)).First(ctx)
+		if rErr != nil || rule == nil {
+			continue
+		}
+		var d decimal.Decimal
+		switch rule.DiscountType {
+		case "percentage":
+			d = subtotal.Mul(decimal.NewFromFloat(rule.DiscountValue)).Div(decimal.NewFromInt(100))
+		case "fixed_amount":
+			d = decimal.NewFromFloat(rule.DiscountValue)
+		default:
+			continue
+		}
+		if rule.MaxDiscount != nil && *rule.MaxDiscount > 0 {
+			if cap := decimal.NewFromFloat(*rule.MaxDiscount); d.GreaterThan(cap) {
+				d = cap
+			}
+		}
+		if d.GreaterThan(best) {
+			best = d
+		}
+	}
+	if best.GreaterThan(subtotal) {
+		best = subtotal
+	}
+	return best.Round(2)
 }
 
 // isWithinSchedule reports whether `now` falls inside a promotion's date range,
