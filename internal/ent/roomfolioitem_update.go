@@ -135,6 +135,46 @@ func (_u *RoomFolioItemUpdate) SetNillableChargeType(v *roomfolioitem.ChargeType
 	return _u
 }
 
+// SetInventorySku sets the "inventory_sku" field.
+func (_u *RoomFolioItemUpdate) SetInventorySku(v string) *RoomFolioItemUpdate {
+	_u.mutation.SetInventorySku(v)
+	return _u
+}
+
+// SetNillableInventorySku sets the "inventory_sku" field if the given value is not nil.
+func (_u *RoomFolioItemUpdate) SetNillableInventorySku(v *string) *RoomFolioItemUpdate {
+	if v != nil {
+		_u.SetInventorySku(*v)
+	}
+	return _u
+}
+
+// ClearInventorySku clears the value of the "inventory_sku" field.
+func (_u *RoomFolioItemUpdate) ClearInventorySku() *RoomFolioItemUpdate {
+	_u.mutation.ClearInventorySku()
+	return _u
+}
+
+// SetInventoryBundleID sets the "inventory_bundle_id" field.
+func (_u *RoomFolioItemUpdate) SetInventoryBundleID(v uuid.UUID) *RoomFolioItemUpdate {
+	_u.mutation.SetInventoryBundleID(v)
+	return _u
+}
+
+// SetNillableInventoryBundleID sets the "inventory_bundle_id" field if the given value is not nil.
+func (_u *RoomFolioItemUpdate) SetNillableInventoryBundleID(v *uuid.UUID) *RoomFolioItemUpdate {
+	if v != nil {
+		_u.SetInventoryBundleID(*v)
+	}
+	return _u
+}
+
+// ClearInventoryBundleID clears the value of the "inventory_bundle_id" field.
+func (_u *RoomFolioItemUpdate) ClearInventoryBundleID() *RoomFolioItemUpdate {
+	_u.mutation.ClearInventoryBundleID()
+	return _u
+}
+
 // SetPosOrderID sets the "pos_order_id" field.
 func (_u *RoomFolioItemUpdate) SetPosOrderID(v uuid.UUID) *RoomFolioItemUpdate {
 	_u.mutation.SetPosOrderID(v)
@@ -290,6 +330,18 @@ func (_u *RoomFolioItemUpdate) sqlSave(ctx context.Context) (_node int, err erro
 	}
 	if value, ok := _u.mutation.ChargeType(); ok {
 		_spec.SetField(roomfolioitem.FieldChargeType, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.InventorySku(); ok {
+		_spec.SetField(roomfolioitem.FieldInventorySku, field.TypeString, value)
+	}
+	if _u.mutation.InventorySkuCleared() {
+		_spec.ClearField(roomfolioitem.FieldInventorySku, field.TypeString)
+	}
+	if value, ok := _u.mutation.InventoryBundleID(); ok {
+		_spec.SetField(roomfolioitem.FieldInventoryBundleID, field.TypeUUID, value)
+	}
+	if _u.mutation.InventoryBundleIDCleared() {
+		_spec.ClearField(roomfolioitem.FieldInventoryBundleID, field.TypeUUID)
 	}
 	if value, ok := _u.mutation.PosOrderID(); ok {
 		_spec.SetField(roomfolioitem.FieldPosOrderID, field.TypeUUID, value)
@@ -486,6 +538,46 @@ func (_u *RoomFolioItemUpdateOne) SetNillableChargeType(v *roomfolioitem.ChargeT
 	return _u
 }
 
+// SetInventorySku sets the "inventory_sku" field.
+func (_u *RoomFolioItemUpdateOne) SetInventorySku(v string) *RoomFolioItemUpdateOne {
+	_u.mutation.SetInventorySku(v)
+	return _u
+}
+
+// SetNillableInventorySku sets the "inventory_sku" field if the given value is not nil.
+func (_u *RoomFolioItemUpdateOne) SetNillableInventorySku(v *string) *RoomFolioItemUpdateOne {
+	if v != nil {
+		_u.SetInventorySku(*v)
+	}
+	return _u
+}
+
+// ClearInventorySku clears the value of the "inventory_sku" field.
+func (_u *RoomFolioItemUpdateOne) ClearInventorySku() *RoomFolioItemUpdateOne {
+	_u.mutation.ClearInventorySku()
+	return _u
+}
+
+// SetInventoryBundleID sets the "inventory_bundle_id" field.
+func (_u *RoomFolioItemUpdateOne) SetInventoryBundleID(v uuid.UUID) *RoomFolioItemUpdateOne {
+	_u.mutation.SetInventoryBundleID(v)
+	return _u
+}
+
+// SetNillableInventoryBundleID sets the "inventory_bundle_id" field if the given value is not nil.
+func (_u *RoomFolioItemUpdateOne) SetNillableInventoryBundleID(v *uuid.UUID) *RoomFolioItemUpdateOne {
+	if v != nil {
+		_u.SetInventoryBundleID(*v)
+	}
+	return _u
+}
+
+// ClearInventoryBundleID clears the value of the "inventory_bundle_id" field.
+func (_u *RoomFolioItemUpdateOne) ClearInventoryBundleID() *RoomFolioItemUpdateOne {
+	_u.mutation.ClearInventoryBundleID()
+	return _u
+}
+
 // SetPosOrderID sets the "pos_order_id" field.
 func (_u *RoomFolioItemUpdateOne) SetPosOrderID(v uuid.UUID) *RoomFolioItemUpdateOne {
 	_u.mutation.SetPosOrderID(v)
@@ -671,6 +763,18 @@ func (_u *RoomFolioItemUpdateOne) sqlSave(ctx context.Context) (_node *RoomFolio
 	}
 	if value, ok := _u.mutation.ChargeType(); ok {
 		_spec.SetField(roomfolioitem.FieldChargeType, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.InventorySku(); ok {
+		_spec.SetField(roomfolioitem.FieldInventorySku, field.TypeString, value)
+	}
+	if _u.mutation.InventorySkuCleared() {
+		_spec.ClearField(roomfolioitem.FieldInventorySku, field.TypeString)
+	}
+	if value, ok := _u.mutation.InventoryBundleID(); ok {
+		_spec.SetField(roomfolioitem.FieldInventoryBundleID, field.TypeUUID, value)
+	}
+	if _u.mutation.InventoryBundleIDCleared() {
+		_spec.ClearField(roomfolioitem.FieldInventoryBundleID, field.TypeUUID)
 	}
 	if value, ok := _u.mutation.PosOrderID(); ok {
 		_spec.SetField(roomfolioitem.FieldPosOrderID, field.TypeUUID, value)

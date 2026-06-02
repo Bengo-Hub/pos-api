@@ -13879,6 +13879,7 @@ type FacilityMutation struct {
 	facility_type       *facility.FacilityType
 	capacity            *int
 	addcapacity         *int
+	inventory_item_id   *uuid.UUID
 	rate_per_session    *float64
 	addrate_per_session *float64
 	currency            *string
@@ -14200,6 +14201,55 @@ func (m *FacilityMutation) AddedCapacity() (r int, exists bool) {
 func (m *FacilityMutation) ResetCapacity() {
 	m.capacity = nil
 	m.addcapacity = nil
+}
+
+// SetInventoryItemID sets the "inventory_item_id" field.
+func (m *FacilityMutation) SetInventoryItemID(u uuid.UUID) {
+	m.inventory_item_id = &u
+}
+
+// InventoryItemID returns the value of the "inventory_item_id" field in the mutation.
+func (m *FacilityMutation) InventoryItemID() (r uuid.UUID, exists bool) {
+	v := m.inventory_item_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldInventoryItemID returns the old "inventory_item_id" field's value of the Facility entity.
+// If the Facility object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *FacilityMutation) OldInventoryItemID(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldInventoryItemID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldInventoryItemID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldInventoryItemID: %w", err)
+	}
+	return oldValue.InventoryItemID, nil
+}
+
+// ClearInventoryItemID clears the value of the "inventory_item_id" field.
+func (m *FacilityMutation) ClearInventoryItemID() {
+	m.inventory_item_id = nil
+	m.clearedFields[facility.FieldInventoryItemID] = struct{}{}
+}
+
+// InventoryItemIDCleared returns if the "inventory_item_id" field was cleared in this mutation.
+func (m *FacilityMutation) InventoryItemIDCleared() bool {
+	_, ok := m.clearedFields[facility.FieldInventoryItemID]
+	return ok
+}
+
+// ResetInventoryItemID resets all changes to the "inventory_item_id" field.
+func (m *FacilityMutation) ResetInventoryItemID() {
+	m.inventory_item_id = nil
+	delete(m.clearedFields, facility.FieldInventoryItemID)
 }
 
 // SetRatePerSession sets the "rate_per_session" field.
@@ -14634,7 +14684,7 @@ func (m *FacilityMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *FacilityMutation) Fields() []string {
-	fields := make([]string, 0, 14)
+	fields := make([]string, 0, 15)
 	if m.tenant_id != nil {
 		fields = append(fields, facility.FieldTenantID)
 	}
@@ -14649,6 +14699,9 @@ func (m *FacilityMutation) Fields() []string {
 	}
 	if m.capacity != nil {
 		fields = append(fields, facility.FieldCapacity)
+	}
+	if m.inventory_item_id != nil {
+		fields = append(fields, facility.FieldInventoryItemID)
 	}
 	if m.rate_per_session != nil {
 		fields = append(fields, facility.FieldRatePerSession)
@@ -14695,6 +14748,8 @@ func (m *FacilityMutation) Field(name string) (ent.Value, bool) {
 		return m.FacilityType()
 	case facility.FieldCapacity:
 		return m.Capacity()
+	case facility.FieldInventoryItemID:
+		return m.InventoryItemID()
 	case facility.FieldRatePerSession:
 		return m.RatePerSession()
 	case facility.FieldCurrency:
@@ -14732,6 +14787,8 @@ func (m *FacilityMutation) OldField(ctx context.Context, name string) (ent.Value
 		return m.OldFacilityType(ctx)
 	case facility.FieldCapacity:
 		return m.OldCapacity(ctx)
+	case facility.FieldInventoryItemID:
+		return m.OldInventoryItemID(ctx)
 	case facility.FieldRatePerSession:
 		return m.OldRatePerSession(ctx)
 	case facility.FieldCurrency:
@@ -14793,6 +14850,13 @@ func (m *FacilityMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetCapacity(v)
+		return nil
+	case facility.FieldInventoryItemID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetInventoryItemID(v)
 		return nil
 	case facility.FieldRatePerSession:
 		v, ok := value.(float64)
@@ -14913,7 +14977,11 @@ func (m *FacilityMutation) AddField(name string, value ent.Value) error {
 // ClearedFields returns all nullable fields that were cleared during this
 // mutation.
 func (m *FacilityMutation) ClearedFields() []string {
-	return nil
+	var fields []string
+	if m.FieldCleared(facility.FieldInventoryItemID) {
+		fields = append(fields, facility.FieldInventoryItemID)
+	}
+	return fields
 }
 
 // FieldCleared returns a boolean indicating if a field with the given name was
@@ -14926,6 +14994,11 @@ func (m *FacilityMutation) FieldCleared(name string) bool {
 // ClearField clears the value of the field with the given name. It returns an
 // error if the field is not defined in the schema.
 func (m *FacilityMutation) ClearField(name string) error {
+	switch name {
+	case facility.FieldInventoryItemID:
+		m.ClearInventoryItemID()
+		return nil
+	}
 	return fmt.Errorf("unknown Facility nullable field %s", name)
 }
 
@@ -14947,6 +15020,9 @@ func (m *FacilityMutation) ResetField(name string) error {
 		return nil
 	case facility.FieldCapacity:
 		m.ResetCapacity()
+		return nil
+	case facility.FieldInventoryItemID:
+		m.ResetInventoryItemID()
 		return nil
 	case facility.FieldRatePerSession:
 		m.ResetRatePerSession()
@@ -37620,6 +37696,9 @@ type POSCatalogOverrideMutation struct {
 	tenant_id                 *uuid.UUID
 	outlet_id                 *uuid.UUID
 	inventory_sku             *string
+	inventory_item_id         *uuid.UUID
+	item_use_case             *string
+	is_bundle                 *bool
 	selling_price             *float64
 	addselling_price          *float64
 	currency                  *string
@@ -37871,6 +37950,140 @@ func (m *POSCatalogOverrideMutation) OldInventorySku(ctx context.Context) (v str
 // ResetInventorySku resets all changes to the "inventory_sku" field.
 func (m *POSCatalogOverrideMutation) ResetInventorySku() {
 	m.inventory_sku = nil
+}
+
+// SetInventoryItemID sets the "inventory_item_id" field.
+func (m *POSCatalogOverrideMutation) SetInventoryItemID(u uuid.UUID) {
+	m.inventory_item_id = &u
+}
+
+// InventoryItemID returns the value of the "inventory_item_id" field in the mutation.
+func (m *POSCatalogOverrideMutation) InventoryItemID() (r uuid.UUID, exists bool) {
+	v := m.inventory_item_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldInventoryItemID returns the old "inventory_item_id" field's value of the POSCatalogOverride entity.
+// If the POSCatalogOverride object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSCatalogOverrideMutation) OldInventoryItemID(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldInventoryItemID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldInventoryItemID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldInventoryItemID: %w", err)
+	}
+	return oldValue.InventoryItemID, nil
+}
+
+// ClearInventoryItemID clears the value of the "inventory_item_id" field.
+func (m *POSCatalogOverrideMutation) ClearInventoryItemID() {
+	m.inventory_item_id = nil
+	m.clearedFields[poscatalogoverride.FieldInventoryItemID] = struct{}{}
+}
+
+// InventoryItemIDCleared returns if the "inventory_item_id" field was cleared in this mutation.
+func (m *POSCatalogOverrideMutation) InventoryItemIDCleared() bool {
+	_, ok := m.clearedFields[poscatalogoverride.FieldInventoryItemID]
+	return ok
+}
+
+// ResetInventoryItemID resets all changes to the "inventory_item_id" field.
+func (m *POSCatalogOverrideMutation) ResetInventoryItemID() {
+	m.inventory_item_id = nil
+	delete(m.clearedFields, poscatalogoverride.FieldInventoryItemID)
+}
+
+// SetItemUseCase sets the "item_use_case" field.
+func (m *POSCatalogOverrideMutation) SetItemUseCase(s string) {
+	m.item_use_case = &s
+}
+
+// ItemUseCase returns the value of the "item_use_case" field in the mutation.
+func (m *POSCatalogOverrideMutation) ItemUseCase() (r string, exists bool) {
+	v := m.item_use_case
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldItemUseCase returns the old "item_use_case" field's value of the POSCatalogOverride entity.
+// If the POSCatalogOverride object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSCatalogOverrideMutation) OldItemUseCase(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldItemUseCase is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldItemUseCase requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldItemUseCase: %w", err)
+	}
+	return oldValue.ItemUseCase, nil
+}
+
+// ClearItemUseCase clears the value of the "item_use_case" field.
+func (m *POSCatalogOverrideMutation) ClearItemUseCase() {
+	m.item_use_case = nil
+	m.clearedFields[poscatalogoverride.FieldItemUseCase] = struct{}{}
+}
+
+// ItemUseCaseCleared returns if the "item_use_case" field was cleared in this mutation.
+func (m *POSCatalogOverrideMutation) ItemUseCaseCleared() bool {
+	_, ok := m.clearedFields[poscatalogoverride.FieldItemUseCase]
+	return ok
+}
+
+// ResetItemUseCase resets all changes to the "item_use_case" field.
+func (m *POSCatalogOverrideMutation) ResetItemUseCase() {
+	m.item_use_case = nil
+	delete(m.clearedFields, poscatalogoverride.FieldItemUseCase)
+}
+
+// SetIsBundle sets the "is_bundle" field.
+func (m *POSCatalogOverrideMutation) SetIsBundle(b bool) {
+	m.is_bundle = &b
+}
+
+// IsBundle returns the value of the "is_bundle" field in the mutation.
+func (m *POSCatalogOverrideMutation) IsBundle() (r bool, exists bool) {
+	v := m.is_bundle
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIsBundle returns the old "is_bundle" field's value of the POSCatalogOverride entity.
+// If the POSCatalogOverride object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSCatalogOverrideMutation) OldIsBundle(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIsBundle is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIsBundle requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIsBundle: %w", err)
+	}
+	return oldValue.IsBundle, nil
+}
+
+// ResetIsBundle resets all changes to the "is_bundle" field.
+func (m *POSCatalogOverrideMutation) ResetIsBundle() {
+	m.is_bundle = nil
 }
 
 // SetSellingPrice sets the "selling_price" field.
@@ -38703,7 +38916,7 @@ func (m *POSCatalogOverrideMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *POSCatalogOverrideMutation) Fields() []string {
-	fields := make([]string, 0, 21)
+	fields := make([]string, 0, 24)
 	if m.tenant_id != nil {
 		fields = append(fields, poscatalogoverride.FieldTenantID)
 	}
@@ -38712,6 +38925,15 @@ func (m *POSCatalogOverrideMutation) Fields() []string {
 	}
 	if m.inventory_sku != nil {
 		fields = append(fields, poscatalogoverride.FieldInventorySku)
+	}
+	if m.inventory_item_id != nil {
+		fields = append(fields, poscatalogoverride.FieldInventoryItemID)
+	}
+	if m.item_use_case != nil {
+		fields = append(fields, poscatalogoverride.FieldItemUseCase)
+	}
+	if m.is_bundle != nil {
+		fields = append(fields, poscatalogoverride.FieldIsBundle)
 	}
 	if m.selling_price != nil {
 		fields = append(fields, poscatalogoverride.FieldSellingPrice)
@@ -38781,6 +39003,12 @@ func (m *POSCatalogOverrideMutation) Field(name string) (ent.Value, bool) {
 		return m.OutletID()
 	case poscatalogoverride.FieldInventorySku:
 		return m.InventorySku()
+	case poscatalogoverride.FieldInventoryItemID:
+		return m.InventoryItemID()
+	case poscatalogoverride.FieldItemUseCase:
+		return m.ItemUseCase()
+	case poscatalogoverride.FieldIsBundle:
+		return m.IsBundle()
 	case poscatalogoverride.FieldSellingPrice:
 		return m.SellingPrice()
 	case poscatalogoverride.FieldCurrency:
@@ -38832,6 +39060,12 @@ func (m *POSCatalogOverrideMutation) OldField(ctx context.Context, name string) 
 		return m.OldOutletID(ctx)
 	case poscatalogoverride.FieldInventorySku:
 		return m.OldInventorySku(ctx)
+	case poscatalogoverride.FieldInventoryItemID:
+		return m.OldInventoryItemID(ctx)
+	case poscatalogoverride.FieldItemUseCase:
+		return m.OldItemUseCase(ctx)
+	case poscatalogoverride.FieldIsBundle:
+		return m.OldIsBundle(ctx)
 	case poscatalogoverride.FieldSellingPrice:
 		return m.OldSellingPrice(ctx)
 	case poscatalogoverride.FieldCurrency:
@@ -38897,6 +39131,27 @@ func (m *POSCatalogOverrideMutation) SetField(name string, value ent.Value) erro
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetInventorySku(v)
+		return nil
+	case poscatalogoverride.FieldInventoryItemID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetInventoryItemID(v)
+		return nil
+	case poscatalogoverride.FieldItemUseCase:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetItemUseCase(v)
+		return nil
+	case poscatalogoverride.FieldIsBundle:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIsBundle(v)
 		return nil
 	case poscatalogoverride.FieldSellingPrice:
 		v, ok := value.(float64)
@@ -39108,6 +39363,12 @@ func (m *POSCatalogOverrideMutation) ClearedFields() []string {
 	if m.FieldCleared(poscatalogoverride.FieldOutletID) {
 		fields = append(fields, poscatalogoverride.FieldOutletID)
 	}
+	if m.FieldCleared(poscatalogoverride.FieldInventoryItemID) {
+		fields = append(fields, poscatalogoverride.FieldInventoryItemID)
+	}
+	if m.FieldCleared(poscatalogoverride.FieldItemUseCase) {
+		fields = append(fields, poscatalogoverride.FieldItemUseCase)
+	}
 	if m.FieldCleared(poscatalogoverride.FieldSellingPrice) {
 		fields = append(fields, poscatalogoverride.FieldSellingPrice)
 	}
@@ -39140,6 +39401,12 @@ func (m *POSCatalogOverrideMutation) ClearField(name string) error {
 	case poscatalogoverride.FieldOutletID:
 		m.ClearOutletID()
 		return nil
+	case poscatalogoverride.FieldInventoryItemID:
+		m.ClearInventoryItemID()
+		return nil
+	case poscatalogoverride.FieldItemUseCase:
+		m.ClearItemUseCase()
+		return nil
 	case poscatalogoverride.FieldSellingPrice:
 		m.ClearSellingPrice()
 		return nil
@@ -39171,6 +39438,15 @@ func (m *POSCatalogOverrideMutation) ResetField(name string) error {
 		return nil
 	case poscatalogoverride.FieldInventorySku:
 		m.ResetInventorySku()
+		return nil
+	case poscatalogoverride.FieldInventoryItemID:
+		m.ResetInventoryItemID()
+		return nil
+	case poscatalogoverride.FieldItemUseCase:
+		m.ResetItemUseCase()
+		return nil
+	case poscatalogoverride.FieldIsBundle:
+		m.ResetIsBundle()
 		return nil
 	case poscatalogoverride.FieldSellingPrice:
 		m.ResetSellingPrice()
@@ -62687,6 +62963,7 @@ type RoomMutation struct {
 	room_type                  *room.RoomType
 	floor                      *int
 	addfloor                   *int
+	inventory_item_id          *uuid.UUID
 	rate_per_night             *float64
 	addrate_per_night          *float64
 	currency                   *string
@@ -63051,6 +63328,55 @@ func (m *RoomMutation) AddedFloor() (r int, exists bool) {
 func (m *RoomMutation) ResetFloor() {
 	m.floor = nil
 	m.addfloor = nil
+}
+
+// SetInventoryItemID sets the "inventory_item_id" field.
+func (m *RoomMutation) SetInventoryItemID(u uuid.UUID) {
+	m.inventory_item_id = &u
+}
+
+// InventoryItemID returns the value of the "inventory_item_id" field in the mutation.
+func (m *RoomMutation) InventoryItemID() (r uuid.UUID, exists bool) {
+	v := m.inventory_item_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldInventoryItemID returns the old "inventory_item_id" field's value of the Room entity.
+// If the Room object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoomMutation) OldInventoryItemID(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldInventoryItemID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldInventoryItemID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldInventoryItemID: %w", err)
+	}
+	return oldValue.InventoryItemID, nil
+}
+
+// ClearInventoryItemID clears the value of the "inventory_item_id" field.
+func (m *RoomMutation) ClearInventoryItemID() {
+	m.inventory_item_id = nil
+	m.clearedFields[room.FieldInventoryItemID] = struct{}{}
+}
+
+// InventoryItemIDCleared returns if the "inventory_item_id" field was cleared in this mutation.
+func (m *RoomMutation) InventoryItemIDCleared() bool {
+	_, ok := m.clearedFields[room.FieldInventoryItemID]
+	return ok
+}
+
+// ResetInventoryItemID resets all changes to the "inventory_item_id" field.
+func (m *RoomMutation) ResetInventoryItemID() {
+	m.inventory_item_id = nil
+	delete(m.clearedFields, room.FieldInventoryItemID)
 }
 
 // SetRatePerNight sets the "rate_per_night" field.
@@ -63575,7 +63901,7 @@ func (m *RoomMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *RoomMutation) Fields() []string {
-	fields := make([]string, 0, 13)
+	fields := make([]string, 0, 14)
 	if m.tenant_id != nil {
 		fields = append(fields, room.FieldTenantID)
 	}
@@ -63593,6 +63919,9 @@ func (m *RoomMutation) Fields() []string {
 	}
 	if m.floor != nil {
 		fields = append(fields, room.FieldFloor)
+	}
+	if m.inventory_item_id != nil {
+		fields = append(fields, room.FieldInventoryItemID)
 	}
 	if m.rate_per_night != nil {
 		fields = append(fields, room.FieldRatePerNight)
@@ -63635,6 +63964,8 @@ func (m *RoomMutation) Field(name string) (ent.Value, bool) {
 		return m.RoomType()
 	case room.FieldFloor:
 		return m.Floor()
+	case room.FieldInventoryItemID:
+		return m.InventoryItemID()
 	case room.FieldRatePerNight:
 		return m.RatePerNight()
 	case room.FieldCurrency:
@@ -63670,6 +64001,8 @@ func (m *RoomMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldRoomType(ctx)
 	case room.FieldFloor:
 		return m.OldFloor(ctx)
+	case room.FieldInventoryItemID:
+		return m.OldInventoryItemID(ctx)
 	case room.FieldRatePerNight:
 		return m.OldRatePerNight(ctx)
 	case room.FieldCurrency:
@@ -63734,6 +64067,13 @@ func (m *RoomMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetFloor(v)
+		return nil
+	case room.FieldInventoryItemID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetInventoryItemID(v)
 		return nil
 	case room.FieldRatePerNight:
 		v, ok := value.(float64)
@@ -63840,7 +64180,11 @@ func (m *RoomMutation) AddField(name string, value ent.Value) error {
 // ClearedFields returns all nullable fields that were cleared during this
 // mutation.
 func (m *RoomMutation) ClearedFields() []string {
-	return nil
+	var fields []string
+	if m.FieldCleared(room.FieldInventoryItemID) {
+		fields = append(fields, room.FieldInventoryItemID)
+	}
+	return fields
 }
 
 // FieldCleared returns a boolean indicating if a field with the given name was
@@ -63853,6 +64197,11 @@ func (m *RoomMutation) FieldCleared(name string) bool {
 // ClearField clears the value of the field with the given name. It returns an
 // error if the field is not defined in the schema.
 func (m *RoomMutation) ClearField(name string) error {
+	switch name {
+	case room.FieldInventoryItemID:
+		m.ClearInventoryItemID()
+		return nil
+	}
 	return fmt.Errorf("unknown Room nullable field %s", name)
 }
 
@@ -63877,6 +64226,9 @@ func (m *RoomMutation) ResetField(name string) error {
 		return nil
 	case room.FieldFloor:
 		m.ResetFloor()
+		return nil
+	case room.FieldInventoryItemID:
+		m.ResetInventoryItemID()
 		return nil
 	case room.FieldRatePerNight:
 		m.ResetRatePerNight()
@@ -64077,6 +64429,7 @@ type RoomAmenityMutation struct {
 	amenity_type       *roomamenity.AmenityType
 	description        *string
 	billing_mode       *roomamenity.BillingMode
+	inventory_item_id  *uuid.UUID
 	rate               *float64
 	addrate            *float64
 	currency           *string
@@ -64426,6 +64779,55 @@ func (m *RoomAmenityMutation) ResetBillingMode() {
 	m.billing_mode = nil
 }
 
+// SetInventoryItemID sets the "inventory_item_id" field.
+func (m *RoomAmenityMutation) SetInventoryItemID(u uuid.UUID) {
+	m.inventory_item_id = &u
+}
+
+// InventoryItemID returns the value of the "inventory_item_id" field in the mutation.
+func (m *RoomAmenityMutation) InventoryItemID() (r uuid.UUID, exists bool) {
+	v := m.inventory_item_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldInventoryItemID returns the old "inventory_item_id" field's value of the RoomAmenity entity.
+// If the RoomAmenity object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoomAmenityMutation) OldInventoryItemID(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldInventoryItemID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldInventoryItemID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldInventoryItemID: %w", err)
+	}
+	return oldValue.InventoryItemID, nil
+}
+
+// ClearInventoryItemID clears the value of the "inventory_item_id" field.
+func (m *RoomAmenityMutation) ClearInventoryItemID() {
+	m.inventory_item_id = nil
+	m.clearedFields[roomamenity.FieldInventoryItemID] = struct{}{}
+}
+
+// InventoryItemIDCleared returns if the "inventory_item_id" field was cleared in this mutation.
+func (m *RoomAmenityMutation) InventoryItemIDCleared() bool {
+	_, ok := m.clearedFields[roomamenity.FieldInventoryItemID]
+	return ok
+}
+
+// ResetInventoryItemID resets all changes to the "inventory_item_id" field.
+func (m *RoomAmenityMutation) ResetInventoryItemID() {
+	m.inventory_item_id = nil
+	delete(m.clearedFields, roomamenity.FieldInventoryItemID)
+}
+
 // SetRate sets the "rate" field.
 func (m *RoomAmenityMutation) SetRate(f float64) {
 	m.rate = &f
@@ -64750,7 +65152,7 @@ func (m *RoomAmenityMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *RoomAmenityMutation) Fields() []string {
-	fields := make([]string, 0, 12)
+	fields := make([]string, 0, 13)
 	if m.tenant_id != nil {
 		fields = append(fields, roomamenity.FieldTenantID)
 	}
@@ -64768,6 +65170,9 @@ func (m *RoomAmenityMutation) Fields() []string {
 	}
 	if m.billing_mode != nil {
 		fields = append(fields, roomamenity.FieldBillingMode)
+	}
+	if m.inventory_item_id != nil {
+		fields = append(fields, roomamenity.FieldInventoryItemID)
 	}
 	if m.rate != nil {
 		fields = append(fields, roomamenity.FieldRate)
@@ -64807,6 +65212,8 @@ func (m *RoomAmenityMutation) Field(name string) (ent.Value, bool) {
 		return m.Description()
 	case roomamenity.FieldBillingMode:
 		return m.BillingMode()
+	case roomamenity.FieldInventoryItemID:
+		return m.InventoryItemID()
 	case roomamenity.FieldRate:
 		return m.Rate()
 	case roomamenity.FieldCurrency:
@@ -64840,6 +65247,8 @@ func (m *RoomAmenityMutation) OldField(ctx context.Context, name string) (ent.Va
 		return m.OldDescription(ctx)
 	case roomamenity.FieldBillingMode:
 		return m.OldBillingMode(ctx)
+	case roomamenity.FieldInventoryItemID:
+		return m.OldInventoryItemID(ctx)
 	case roomamenity.FieldRate:
 		return m.OldRate(ctx)
 	case roomamenity.FieldCurrency:
@@ -64902,6 +65311,13 @@ func (m *RoomAmenityMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetBillingMode(v)
+		return nil
+	case roomamenity.FieldInventoryItemID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetInventoryItemID(v)
 		return nil
 	case roomamenity.FieldRate:
 		v, ok := value.(float64)
@@ -64993,6 +65409,9 @@ func (m *RoomAmenityMutation) ClearedFields() []string {
 	if m.FieldCleared(roomamenity.FieldDescription) {
 		fields = append(fields, roomamenity.FieldDescription)
 	}
+	if m.FieldCleared(roomamenity.FieldInventoryItemID) {
+		fields = append(fields, roomamenity.FieldInventoryItemID)
+	}
 	return fields
 }
 
@@ -65009,6 +65428,9 @@ func (m *RoomAmenityMutation) ClearField(name string) error {
 	switch name {
 	case roomamenity.FieldDescription:
 		m.ClearDescription()
+		return nil
+	case roomamenity.FieldInventoryItemID:
+		m.ClearInventoryItemID()
 		return nil
 	}
 	return fmt.Errorf("unknown RoomAmenity nullable field %s", name)
@@ -65035,6 +65457,9 @@ func (m *RoomAmenityMutation) ResetField(name string) error {
 		return nil
 	case roomamenity.FieldBillingMode:
 		m.ResetBillingMode()
+		return nil
+	case roomamenity.FieldInventoryItemID:
+		m.ResetInventoryItemID()
 		return nil
 	case roomamenity.FieldRate:
 		m.ResetRate()
@@ -65869,27 +66294,29 @@ func (m *RoomAmenityAssignmentMutation) ResetEdge(name string) error {
 // RoomFolioItemMutation represents an operation that mutates the RoomFolioItem nodes in the graph.
 type RoomFolioItemMutation struct {
 	config
-	op            Op
-	typ           string
-	id            *uuid.UUID
-	tenant_id     *uuid.UUID
-	description   *string
-	amount        *float64
-	addamount     *float64
-	currency      *string
-	charge_type   *roomfolioitem.ChargeType
-	pos_order_id  *uuid.UUID
-	created_by    *uuid.UUID
-	metadata      *map[string]interface{}
-	created_at    *time.Time
-	clearedFields map[string]struct{}
-	room          *uuid.UUID
-	clearedroom   bool
-	guest         *uuid.UUID
-	clearedguest  bool
-	done          bool
-	oldValue      func(context.Context) (*RoomFolioItem, error)
-	predicates    []predicate.RoomFolioItem
+	op                  Op
+	typ                 string
+	id                  *uuid.UUID
+	tenant_id           *uuid.UUID
+	description         *string
+	amount              *float64
+	addamount           *float64
+	currency            *string
+	charge_type         *roomfolioitem.ChargeType
+	inventory_sku       *string
+	inventory_bundle_id *uuid.UUID
+	pos_order_id        *uuid.UUID
+	created_by          *uuid.UUID
+	metadata            *map[string]interface{}
+	created_at          *time.Time
+	clearedFields       map[string]struct{}
+	room                *uuid.UUID
+	clearedroom         bool
+	guest               *uuid.UUID
+	clearedguest        bool
+	done                bool
+	oldValue            func(context.Context) (*RoomFolioItem, error)
+	predicates          []predicate.RoomFolioItem
 }
 
 var _ ent.Mutation = (*RoomFolioItemMutation)(nil)
@@ -66268,6 +66695,104 @@ func (m *RoomFolioItemMutation) ResetChargeType() {
 	m.charge_type = nil
 }
 
+// SetInventorySku sets the "inventory_sku" field.
+func (m *RoomFolioItemMutation) SetInventorySku(s string) {
+	m.inventory_sku = &s
+}
+
+// InventorySku returns the value of the "inventory_sku" field in the mutation.
+func (m *RoomFolioItemMutation) InventorySku() (r string, exists bool) {
+	v := m.inventory_sku
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldInventorySku returns the old "inventory_sku" field's value of the RoomFolioItem entity.
+// If the RoomFolioItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoomFolioItemMutation) OldInventorySku(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldInventorySku is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldInventorySku requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldInventorySku: %w", err)
+	}
+	return oldValue.InventorySku, nil
+}
+
+// ClearInventorySku clears the value of the "inventory_sku" field.
+func (m *RoomFolioItemMutation) ClearInventorySku() {
+	m.inventory_sku = nil
+	m.clearedFields[roomfolioitem.FieldInventorySku] = struct{}{}
+}
+
+// InventorySkuCleared returns if the "inventory_sku" field was cleared in this mutation.
+func (m *RoomFolioItemMutation) InventorySkuCleared() bool {
+	_, ok := m.clearedFields[roomfolioitem.FieldInventorySku]
+	return ok
+}
+
+// ResetInventorySku resets all changes to the "inventory_sku" field.
+func (m *RoomFolioItemMutation) ResetInventorySku() {
+	m.inventory_sku = nil
+	delete(m.clearedFields, roomfolioitem.FieldInventorySku)
+}
+
+// SetInventoryBundleID sets the "inventory_bundle_id" field.
+func (m *RoomFolioItemMutation) SetInventoryBundleID(u uuid.UUID) {
+	m.inventory_bundle_id = &u
+}
+
+// InventoryBundleID returns the value of the "inventory_bundle_id" field in the mutation.
+func (m *RoomFolioItemMutation) InventoryBundleID() (r uuid.UUID, exists bool) {
+	v := m.inventory_bundle_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldInventoryBundleID returns the old "inventory_bundle_id" field's value of the RoomFolioItem entity.
+// If the RoomFolioItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoomFolioItemMutation) OldInventoryBundleID(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldInventoryBundleID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldInventoryBundleID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldInventoryBundleID: %w", err)
+	}
+	return oldValue.InventoryBundleID, nil
+}
+
+// ClearInventoryBundleID clears the value of the "inventory_bundle_id" field.
+func (m *RoomFolioItemMutation) ClearInventoryBundleID() {
+	m.inventory_bundle_id = nil
+	m.clearedFields[roomfolioitem.FieldInventoryBundleID] = struct{}{}
+}
+
+// InventoryBundleIDCleared returns if the "inventory_bundle_id" field was cleared in this mutation.
+func (m *RoomFolioItemMutation) InventoryBundleIDCleared() bool {
+	_, ok := m.clearedFields[roomfolioitem.FieldInventoryBundleID]
+	return ok
+}
+
+// ResetInventoryBundleID resets all changes to the "inventory_bundle_id" field.
+func (m *RoomFolioItemMutation) ResetInventoryBundleID() {
+	m.inventory_bundle_id = nil
+	delete(m.clearedFields, roomfolioitem.FieldInventoryBundleID)
+}
+
 // SetPosOrderID sets the "pos_order_id" field.
 func (m *RoomFolioItemMutation) SetPosOrderID(u uuid.UUID) {
 	m.pos_order_id = &u
@@ -66526,7 +67051,7 @@ func (m *RoomFolioItemMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *RoomFolioItemMutation) Fields() []string {
-	fields := make([]string, 0, 11)
+	fields := make([]string, 0, 13)
 	if m.tenant_id != nil {
 		fields = append(fields, roomfolioitem.FieldTenantID)
 	}
@@ -66547,6 +67072,12 @@ func (m *RoomFolioItemMutation) Fields() []string {
 	}
 	if m.charge_type != nil {
 		fields = append(fields, roomfolioitem.FieldChargeType)
+	}
+	if m.inventory_sku != nil {
+		fields = append(fields, roomfolioitem.FieldInventorySku)
+	}
+	if m.inventory_bundle_id != nil {
+		fields = append(fields, roomfolioitem.FieldInventoryBundleID)
 	}
 	if m.pos_order_id != nil {
 		fields = append(fields, roomfolioitem.FieldPosOrderID)
@@ -66582,6 +67113,10 @@ func (m *RoomFolioItemMutation) Field(name string) (ent.Value, bool) {
 		return m.Currency()
 	case roomfolioitem.FieldChargeType:
 		return m.ChargeType()
+	case roomfolioitem.FieldInventorySku:
+		return m.InventorySku()
+	case roomfolioitem.FieldInventoryBundleID:
+		return m.InventoryBundleID()
 	case roomfolioitem.FieldPosOrderID:
 		return m.PosOrderID()
 	case roomfolioitem.FieldCreatedBy:
@@ -66613,6 +67148,10 @@ func (m *RoomFolioItemMutation) OldField(ctx context.Context, name string) (ent.
 		return m.OldCurrency(ctx)
 	case roomfolioitem.FieldChargeType:
 		return m.OldChargeType(ctx)
+	case roomfolioitem.FieldInventorySku:
+		return m.OldInventorySku(ctx)
+	case roomfolioitem.FieldInventoryBundleID:
+		return m.OldInventoryBundleID(ctx)
 	case roomfolioitem.FieldPosOrderID:
 		return m.OldPosOrderID(ctx)
 	case roomfolioitem.FieldCreatedBy:
@@ -66678,6 +67217,20 @@ func (m *RoomFolioItemMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetChargeType(v)
+		return nil
+	case roomfolioitem.FieldInventorySku:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetInventorySku(v)
+		return nil
+	case roomfolioitem.FieldInventoryBundleID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetInventoryBundleID(v)
 		return nil
 	case roomfolioitem.FieldPosOrderID:
 		v, ok := value.(uuid.UUID)
@@ -66752,6 +67305,12 @@ func (m *RoomFolioItemMutation) AddField(name string, value ent.Value) error {
 // mutation.
 func (m *RoomFolioItemMutation) ClearedFields() []string {
 	var fields []string
+	if m.FieldCleared(roomfolioitem.FieldInventorySku) {
+		fields = append(fields, roomfolioitem.FieldInventorySku)
+	}
+	if m.FieldCleared(roomfolioitem.FieldInventoryBundleID) {
+		fields = append(fields, roomfolioitem.FieldInventoryBundleID)
+	}
 	if m.FieldCleared(roomfolioitem.FieldPosOrderID) {
 		fields = append(fields, roomfolioitem.FieldPosOrderID)
 	}
@@ -66769,6 +67328,12 @@ func (m *RoomFolioItemMutation) FieldCleared(name string) bool {
 // error if the field is not defined in the schema.
 func (m *RoomFolioItemMutation) ClearField(name string) error {
 	switch name {
+	case roomfolioitem.FieldInventorySku:
+		m.ClearInventorySku()
+		return nil
+	case roomfolioitem.FieldInventoryBundleID:
+		m.ClearInventoryBundleID()
+		return nil
 	case roomfolioitem.FieldPosOrderID:
 		m.ClearPosOrderID()
 		return nil
@@ -66800,6 +67365,12 @@ func (m *RoomFolioItemMutation) ResetField(name string) error {
 		return nil
 	case roomfolioitem.FieldChargeType:
 		m.ResetChargeType()
+		return nil
+	case roomfolioitem.FieldInventorySku:
+		m.ResetInventorySku()
+		return nil
+	case roomfolioitem.FieldInventoryBundleID:
+		m.ResetInventoryBundleID()
 		return nil
 	case roomfolioitem.FieldPosOrderID:
 		m.ResetPosOrderID()

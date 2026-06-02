@@ -31,8 +31,13 @@ func (Facility) Fields() []ent.Field {
 		field.Int("capacity").
 			Default(0).
 			Min(0),
+		field.UUID("inventory_item_id", uuid.UUID{}).
+			Optional().
+			Nillable().
+			Comment("Ref to inventory-api SERVICE Item (use_case=HOSPITALITY_FACILITY/CONFERENCE) — authoritative facility & rate master"),
 		field.Float("rate_per_session").
-			Min(0),
+			Min(0).
+			Comment("DEPRECATED as authoritative: rate master lives in inventory-api ItemPricing. Synced/read-through snapshot; kept for transition"),
 		field.String("currency").
 			Default("KES"),
 		field.String("opening_time").

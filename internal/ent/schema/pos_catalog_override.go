@@ -30,6 +30,16 @@ func (POSCatalogOverride) Fields() []ent.Field {
 		field.String("inventory_sku").
 			NotEmpty().
 			Comment("SKU from inventory-api — join key"),
+		field.UUID("inventory_item_id", uuid.UUID{}).
+			Optional().
+			Nillable().
+			Comment("Stable inventory-api Item UUID (preferred over sku string for joins; survives SKU renames)"),
+		field.String("item_use_case").
+			Optional().
+			Comment("Synced from inventory item: RETAIL/FOOD_BEVERAGE/HOSPITALITY_ROOM/HOSPITALITY_FACILITY/CONFERENCE/SALON_SERVICE/AMENITY"),
+		field.Bool("is_bundle").
+			Default(false).
+			Comment("True when this catalog entry is an inventory Bundle (package), e.g. conference DDR/RDR"),
 
 		// POS pricing override — takes precedence over inventory-api pricing tiers
 		field.Float("selling_price").
@@ -102,5 +112,6 @@ func (POSCatalogOverride) Indexes() []ent.Index {
 		// Unique override per tenant+outlet+sku (outlet nil = tenant-wide)
 		index.Fields("tenant_id", "inventory_sku", "outlet_id"),
 		index.Fields("tenant_id", "outlet_id"),
+		index.Fields("tenant_id", "inventory_item_id"),
 	}
 }

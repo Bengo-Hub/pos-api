@@ -107,6 +107,26 @@ func (_u *FacilityUpdate) AddCapacity(v int) *FacilityUpdate {
 	return _u
 }
 
+// SetInventoryItemID sets the "inventory_item_id" field.
+func (_u *FacilityUpdate) SetInventoryItemID(v uuid.UUID) *FacilityUpdate {
+	_u.mutation.SetInventoryItemID(v)
+	return _u
+}
+
+// SetNillableInventoryItemID sets the "inventory_item_id" field if the given value is not nil.
+func (_u *FacilityUpdate) SetNillableInventoryItemID(v *uuid.UUID) *FacilityUpdate {
+	if v != nil {
+		_u.SetInventoryItemID(*v)
+	}
+	return _u
+}
+
+// ClearInventoryItemID clears the value of the "inventory_item_id" field.
+func (_u *FacilityUpdate) ClearInventoryItemID() *FacilityUpdate {
+	_u.mutation.ClearInventoryItemID()
+	return _u
+}
+
 // SetRatePerSession sets the "rate_per_session" field.
 func (_u *FacilityUpdate) SetRatePerSession(v float64) *FacilityUpdate {
 	_u.mutation.ResetRatePerSession()
@@ -347,6 +367,12 @@ func (_u *FacilityUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.AddedCapacity(); ok {
 		_spec.AddField(facility.FieldCapacity, field.TypeInt, value)
 	}
+	if value, ok := _u.mutation.InventoryItemID(); ok {
+		_spec.SetField(facility.FieldInventoryItemID, field.TypeUUID, value)
+	}
+	if _u.mutation.InventoryItemIDCleared() {
+		_spec.ClearField(facility.FieldInventoryItemID, field.TypeUUID)
+	}
 	if value, ok := _u.mutation.RatePerSession(); ok {
 		_spec.SetField(facility.FieldRatePerSession, field.TypeFloat64, value)
 	}
@@ -513,6 +539,26 @@ func (_u *FacilityUpdateOne) SetNillableCapacity(v *int) *FacilityUpdateOne {
 // AddCapacity adds value to the "capacity" field.
 func (_u *FacilityUpdateOne) AddCapacity(v int) *FacilityUpdateOne {
 	_u.mutation.AddCapacity(v)
+	return _u
+}
+
+// SetInventoryItemID sets the "inventory_item_id" field.
+func (_u *FacilityUpdateOne) SetInventoryItemID(v uuid.UUID) *FacilityUpdateOne {
+	_u.mutation.SetInventoryItemID(v)
+	return _u
+}
+
+// SetNillableInventoryItemID sets the "inventory_item_id" field if the given value is not nil.
+func (_u *FacilityUpdateOne) SetNillableInventoryItemID(v *uuid.UUID) *FacilityUpdateOne {
+	if v != nil {
+		_u.SetInventoryItemID(*v)
+	}
+	return _u
+}
+
+// ClearInventoryItemID clears the value of the "inventory_item_id" field.
+func (_u *FacilityUpdateOne) ClearInventoryItemID() *FacilityUpdateOne {
+	_u.mutation.ClearInventoryItemID()
 	return _u
 }
 
@@ -785,6 +831,12 @@ func (_u *FacilityUpdateOne) sqlSave(ctx context.Context) (_node *Facility, err 
 	}
 	if value, ok := _u.mutation.AddedCapacity(); ok {
 		_spec.AddField(facility.FieldCapacity, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.InventoryItemID(); ok {
+		_spec.SetField(facility.FieldInventoryItemID, field.TypeUUID, value)
+	}
+	if _u.mutation.InventoryItemIDCleared() {
+		_spec.ClearField(facility.FieldInventoryItemID, field.TypeUUID)
 	}
 	if value, ok := _u.mutation.RatePerSession(); ok {
 		_spec.SetField(facility.FieldRatePerSession, field.TypeFloat64, value)

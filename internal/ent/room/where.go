@@ -81,6 +81,11 @@ func Floor(v int) predicate.Room {
 	return predicate.Room(sql.FieldEQ(FieldFloor, v))
 }
 
+// InventoryItemID applies equality check predicate on the "inventory_item_id" field. It's identical to InventoryItemIDEQ.
+func InventoryItemID(v uuid.UUID) predicate.Room {
+	return predicate.Room(sql.FieldEQ(FieldInventoryItemID, v))
+}
+
 // RatePerNight applies equality check predicate on the "rate_per_night" field. It's identical to RatePerNightEQ.
 func RatePerNight(v float64) predicate.Room {
 	return predicate.Room(sql.FieldEQ(FieldRatePerNight, v))
@@ -374,6 +379,56 @@ func FloorLT(v int) predicate.Room {
 // FloorLTE applies the LTE predicate on the "floor" field.
 func FloorLTE(v int) predicate.Room {
 	return predicate.Room(sql.FieldLTE(FieldFloor, v))
+}
+
+// InventoryItemIDEQ applies the EQ predicate on the "inventory_item_id" field.
+func InventoryItemIDEQ(v uuid.UUID) predicate.Room {
+	return predicate.Room(sql.FieldEQ(FieldInventoryItemID, v))
+}
+
+// InventoryItemIDNEQ applies the NEQ predicate on the "inventory_item_id" field.
+func InventoryItemIDNEQ(v uuid.UUID) predicate.Room {
+	return predicate.Room(sql.FieldNEQ(FieldInventoryItemID, v))
+}
+
+// InventoryItemIDIn applies the In predicate on the "inventory_item_id" field.
+func InventoryItemIDIn(vs ...uuid.UUID) predicate.Room {
+	return predicate.Room(sql.FieldIn(FieldInventoryItemID, vs...))
+}
+
+// InventoryItemIDNotIn applies the NotIn predicate on the "inventory_item_id" field.
+func InventoryItemIDNotIn(vs ...uuid.UUID) predicate.Room {
+	return predicate.Room(sql.FieldNotIn(FieldInventoryItemID, vs...))
+}
+
+// InventoryItemIDGT applies the GT predicate on the "inventory_item_id" field.
+func InventoryItemIDGT(v uuid.UUID) predicate.Room {
+	return predicate.Room(sql.FieldGT(FieldInventoryItemID, v))
+}
+
+// InventoryItemIDGTE applies the GTE predicate on the "inventory_item_id" field.
+func InventoryItemIDGTE(v uuid.UUID) predicate.Room {
+	return predicate.Room(sql.FieldGTE(FieldInventoryItemID, v))
+}
+
+// InventoryItemIDLT applies the LT predicate on the "inventory_item_id" field.
+func InventoryItemIDLT(v uuid.UUID) predicate.Room {
+	return predicate.Room(sql.FieldLT(FieldInventoryItemID, v))
+}
+
+// InventoryItemIDLTE applies the LTE predicate on the "inventory_item_id" field.
+func InventoryItemIDLTE(v uuid.UUID) predicate.Room {
+	return predicate.Room(sql.FieldLTE(FieldInventoryItemID, v))
+}
+
+// InventoryItemIDIsNil applies the IsNil predicate on the "inventory_item_id" field.
+func InventoryItemIDIsNil() predicate.Room {
+	return predicate.Room(sql.FieldIsNull(FieldInventoryItemID))
+}
+
+// InventoryItemIDNotNil applies the NotNil predicate on the "inventory_item_id" field.
+func InventoryItemIDNotNil() predicate.Room {
+	return predicate.Room(sql.FieldNotNull(FieldInventoryItemID))
 }
 
 // RatePerNightEQ applies the EQ predicate on the "rate_per_night" field.

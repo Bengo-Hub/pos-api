@@ -26,6 +26,8 @@ const (
 	FieldFacilityType = "facility_type"
 	// FieldCapacity holds the string denoting the capacity field in the database.
 	FieldCapacity = "capacity"
+	// FieldInventoryItemID holds the string denoting the inventory_item_id field in the database.
+	FieldInventoryItemID = "inventory_item_id"
 	// FieldRatePerSession holds the string denoting the rate_per_session field in the database.
 	FieldRatePerSession = "rate_per_session"
 	// FieldCurrency holds the string denoting the currency field in the database.
@@ -65,6 +67,7 @@ var Columns = []string{
 	FieldName,
 	FieldFacilityType,
 	FieldCapacity,
+	FieldInventoryItemID,
 	FieldRatePerSession,
 	FieldCurrency,
 	FieldOpeningTime,
@@ -204,6 +207,11 @@ func ByFacilityType(opts ...sql.OrderTermOption) OrderOption {
 // ByCapacity orders the results by the capacity field.
 func ByCapacity(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCapacity, opts...).ToFunc()
+}
+
+// ByInventoryItemID orders the results by the inventory_item_id field.
+func ByInventoryItemID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldInventoryItemID, opts...).ToFunc()
 }
 
 // ByRatePerSession orders the results by the rate_per_session field.

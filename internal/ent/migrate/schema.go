@@ -438,6 +438,7 @@ var (
 		{Name: "name", Type: field.TypeString},
 		{Name: "facility_type", Type: field.TypeEnum, Enums: []string{"pool", "gym", "conference", "spa", "kids_area", "other"}, Default: "other"},
 		{Name: "capacity", Type: field.TypeInt, Default: 0},
+		{Name: "inventory_item_id", Type: field.TypeUUID, Nullable: true},
 		{Name: "rate_per_session", Type: field.TypeFloat64},
 		{Name: "currency", Type: field.TypeString, Default: "KES"},
 		{Name: "opening_time", Type: field.TypeString, Default: "06:00"},
@@ -462,7 +463,7 @@ var (
 			{
 				Name:    "facility_tenant_id_status",
 				Unique:  false,
-				Columns: []*schema.Column{FacilitiesColumns[1], FacilitiesColumns[10]},
+				Columns: []*schema.Column{FacilitiesColumns[1], FacilitiesColumns[11]},
 			},
 		},
 	}
@@ -1161,6 +1162,9 @@ var (
 		{Name: "tenant_id", Type: field.TypeUUID},
 		{Name: "outlet_id", Type: field.TypeUUID, Nullable: true},
 		{Name: "inventory_sku", Type: field.TypeString},
+		{Name: "inventory_item_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "item_use_case", Type: field.TypeString, Nullable: true},
+		{Name: "is_bundle", Type: field.TypeBool, Default: false},
 		{Name: "selling_price", Type: field.TypeFloat64, Nullable: true},
 		{Name: "currency", Type: field.TypeString, Default: "KES"},
 		{Name: "tax_status", Type: field.TypeString, Default: "taxable"},
@@ -1195,6 +1199,11 @@ var (
 				Name:    "poscatalogoverride_tenant_id_outlet_id",
 				Unique:  false,
 				Columns: []*schema.Column{PosCatalogOverridesColumns[1], PosCatalogOverridesColumns[2]},
+			},
+			{
+				Name:    "poscatalogoverride_tenant_id_inventory_item_id",
+				Unique:  false,
+				Columns: []*schema.Column{PosCatalogOverridesColumns[1], PosCatalogOverridesColumns[4]},
 			},
 		},
 	}
@@ -1983,6 +1992,7 @@ var (
 		{Name: "name", Type: field.TypeString},
 		{Name: "room_type", Type: field.TypeEnum, Enums: []string{"standard", "deluxe", "suite", "presidential", "other"}, Default: "standard"},
 		{Name: "floor", Type: field.TypeInt, Default: 1},
+		{Name: "inventory_item_id", Type: field.TypeUUID, Nullable: true},
 		{Name: "rate_per_night", Type: field.TypeFloat64},
 		{Name: "currency", Type: field.TypeString, Default: "KES"},
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"available", "occupied", "cleaning", "maintenance", "reserved", "checkout"}, Default: "available"},
@@ -2010,7 +2020,7 @@ var (
 			{
 				Name:    "room_tenant_id_status",
 				Unique:  false,
-				Columns: []*schema.Column{RoomsColumns[1], RoomsColumns[9]},
+				Columns: []*schema.Column{RoomsColumns[1], RoomsColumns[10]},
 			},
 		},
 	}
@@ -2023,6 +2033,7 @@ var (
 		{Name: "amenity_type", Type: field.TypeEnum, Enums: []string{"pool", "gym", "steam_room", "sauna", "wifi", "transport", "parking", "breakfast", "spa", "golf", "laundry", "minibar", "airport_transfer", "room_service_24h", "other"}, Default: "other"},
 		{Name: "description", Type: field.TypeString, Nullable: true},
 		{Name: "billing_mode", Type: field.TypeEnum, Enums: []string{"free", "per_session", "per_day", "per_night"}, Default: "free"},
+		{Name: "inventory_item_id", Type: field.TypeUUID, Nullable: true},
 		{Name: "rate", Type: field.TypeFloat64, Default: 0},
 		{Name: "currency", Type: field.TypeString, Default: "KES"},
 		{Name: "is_active", Type: field.TypeBool, Default: true},
@@ -2097,7 +2108,9 @@ var (
 		{Name: "description", Type: field.TypeString},
 		{Name: "amount", Type: field.TypeFloat64},
 		{Name: "currency", Type: field.TypeString, Default: "KES"},
-		{Name: "charge_type", Type: field.TypeEnum, Enums: []string{"room_charge", "food", "laundry", "minibar", "room_service", "amenity", "facility", "late_checkout", "damage", "other"}, Default: "other"},
+		{Name: "charge_type", Type: field.TypeEnum, Enums: []string{"room_charge", "food", "laundry", "minibar", "room_service", "amenity", "facility", "late_checkout", "damage", "package", "conference", "meal_voucher", "other"}, Default: "other"},
+		{Name: "inventory_sku", Type: field.TypeString, Nullable: true},
+		{Name: "inventory_bundle_id", Type: field.TypeUUID, Nullable: true},
 		{Name: "pos_order_id", Type: field.TypeUUID, Nullable: true},
 		{Name: "created_by", Type: field.TypeUUID},
 		{Name: "metadata", Type: field.TypeJSON},
@@ -2113,13 +2126,13 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "room_folio_items_rooms_folio_items",
-				Columns:    []*schema.Column{RoomFolioItemsColumns[10]},
+				Columns:    []*schema.Column{RoomFolioItemsColumns[12]},
 				RefColumns: []*schema.Column{RoomsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "room_folio_items_room_guests_folio_items",
-				Columns:    []*schema.Column{RoomFolioItemsColumns[11]},
+				Columns:    []*schema.Column{RoomFolioItemsColumns[13]},
 				RefColumns: []*schema.Column{RoomGuestsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -2128,12 +2141,12 @@ var (
 			{
 				Name:    "roomfolioitem_tenant_id_room_id",
 				Unique:  false,
-				Columns: []*schema.Column{RoomFolioItemsColumns[1], RoomFolioItemsColumns[10]},
+				Columns: []*schema.Column{RoomFolioItemsColumns[1], RoomFolioItemsColumns[12]},
 			},
 			{
 				Name:    "roomfolioitem_tenant_id_room_guest_id",
 				Unique:  false,
-				Columns: []*schema.Column{RoomFolioItemsColumns[1], RoomFolioItemsColumns[11]},
+				Columns: []*schema.Column{RoomFolioItemsColumns[1], RoomFolioItemsColumns[13]},
 			},
 		},
 	}

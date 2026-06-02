@@ -20,6 +20,12 @@ const (
 	FieldOutletID = "outlet_id"
 	// FieldInventorySku holds the string denoting the inventory_sku field in the database.
 	FieldInventorySku = "inventory_sku"
+	// FieldInventoryItemID holds the string denoting the inventory_item_id field in the database.
+	FieldInventoryItemID = "inventory_item_id"
+	// FieldItemUseCase holds the string denoting the item_use_case field in the database.
+	FieldItemUseCase = "item_use_case"
+	// FieldIsBundle holds the string denoting the is_bundle field in the database.
+	FieldIsBundle = "is_bundle"
 	// FieldSellingPrice holds the string denoting the selling_price field in the database.
 	FieldSellingPrice = "selling_price"
 	// FieldCurrency holds the string denoting the currency field in the database.
@@ -66,6 +72,9 @@ var Columns = []string{
 	FieldTenantID,
 	FieldOutletID,
 	FieldInventorySku,
+	FieldInventoryItemID,
+	FieldItemUseCase,
+	FieldIsBundle,
 	FieldSellingPrice,
 	FieldCurrency,
 	FieldTaxStatus,
@@ -99,6 +108,8 @@ func ValidColumn(column string) bool {
 var (
 	// InventorySkuValidator is a validator for the "inventory_sku" field. It is called by the builders before save.
 	InventorySkuValidator func(string) error
+	// DefaultIsBundle holds the default value on creation for the "is_bundle" field.
+	DefaultIsBundle bool
 	// DefaultCurrency holds the default value on creation for the "currency" field.
 	DefaultCurrency string
 	// DefaultTaxStatus holds the default value on creation for the "tax_status" field.
@@ -152,6 +163,21 @@ func ByOutletID(opts ...sql.OrderTermOption) OrderOption {
 // ByInventorySku orders the results by the inventory_sku field.
 func ByInventorySku(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldInventorySku, opts...).ToFunc()
+}
+
+// ByInventoryItemID orders the results by the inventory_item_id field.
+func ByInventoryItemID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldInventoryItemID, opts...).ToFunc()
+}
+
+// ByItemUseCase orders the results by the item_use_case field.
+func ByItemUseCase(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldItemUseCase, opts...).ToFunc()
+}
+
+// ByIsBundle orders the results by the is_bundle field.
+func ByIsBundle(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldIsBundle, opts...).ToFunc()
 }
 
 // BySellingPrice orders the results by the selling_price field.

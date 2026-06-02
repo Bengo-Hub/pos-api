@@ -120,6 +120,26 @@ func (_u *RoomAmenityUpdate) SetNillableBillingMode(v *roomamenity.BillingMode) 
 	return _u
 }
 
+// SetInventoryItemID sets the "inventory_item_id" field.
+func (_u *RoomAmenityUpdate) SetInventoryItemID(v uuid.UUID) *RoomAmenityUpdate {
+	_u.mutation.SetInventoryItemID(v)
+	return _u
+}
+
+// SetNillableInventoryItemID sets the "inventory_item_id" field if the given value is not nil.
+func (_u *RoomAmenityUpdate) SetNillableInventoryItemID(v *uuid.UUID) *RoomAmenityUpdate {
+	if v != nil {
+		_u.SetInventoryItemID(*v)
+	}
+	return _u
+}
+
+// ClearInventoryItemID clears the value of the "inventory_item_id" field.
+func (_u *RoomAmenityUpdate) ClearInventoryItemID() *RoomAmenityUpdate {
+	_u.mutation.ClearInventoryItemID()
+	return _u
+}
+
 // SetRate sets the "rate" field.
 func (_u *RoomAmenityUpdate) SetRate(v float64) *RoomAmenityUpdate {
 	_u.mutation.ResetRate()
@@ -316,6 +336,12 @@ func (_u *RoomAmenityUpdate) sqlSave(ctx context.Context) (_node int, err error)
 	if value, ok := _u.mutation.BillingMode(); ok {
 		_spec.SetField(roomamenity.FieldBillingMode, field.TypeEnum, value)
 	}
+	if value, ok := _u.mutation.InventoryItemID(); ok {
+		_spec.SetField(roomamenity.FieldInventoryItemID, field.TypeUUID, value)
+	}
+	if _u.mutation.InventoryItemIDCleared() {
+		_spec.ClearField(roomamenity.FieldInventoryItemID, field.TypeUUID)
+	}
 	if value, ok := _u.mutation.Rate(); ok {
 		_spec.SetField(roomamenity.FieldRate, field.TypeFloat64, value)
 	}
@@ -486,6 +512,26 @@ func (_u *RoomAmenityUpdateOne) SetNillableBillingMode(v *roomamenity.BillingMod
 	if v != nil {
 		_u.SetBillingMode(*v)
 	}
+	return _u
+}
+
+// SetInventoryItemID sets the "inventory_item_id" field.
+func (_u *RoomAmenityUpdateOne) SetInventoryItemID(v uuid.UUID) *RoomAmenityUpdateOne {
+	_u.mutation.SetInventoryItemID(v)
+	return _u
+}
+
+// SetNillableInventoryItemID sets the "inventory_item_id" field if the given value is not nil.
+func (_u *RoomAmenityUpdateOne) SetNillableInventoryItemID(v *uuid.UUID) *RoomAmenityUpdateOne {
+	if v != nil {
+		_u.SetInventoryItemID(*v)
+	}
+	return _u
+}
+
+// ClearInventoryItemID clears the value of the "inventory_item_id" field.
+func (_u *RoomAmenityUpdateOne) ClearInventoryItemID() *RoomAmenityUpdateOne {
+	_u.mutation.ClearInventoryItemID()
 	return _u
 }
 
@@ -714,6 +760,12 @@ func (_u *RoomAmenityUpdateOne) sqlSave(ctx context.Context) (_node *RoomAmenity
 	}
 	if value, ok := _u.mutation.BillingMode(); ok {
 		_spec.SetField(roomamenity.FieldBillingMode, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.InventoryItemID(); ok {
+		_spec.SetField(roomamenity.FieldInventoryItemID, field.TypeUUID, value)
+	}
+	if _u.mutation.InventoryItemIDCleared() {
+		_spec.ClearField(roomamenity.FieldInventoryItemID, field.TypeUUID)
 	}
 	if value, ok := _u.mutation.Rate(); ok {
 		_spec.SetField(roomamenity.FieldRate, field.TypeFloat64, value)

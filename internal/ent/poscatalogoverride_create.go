@@ -50,6 +50,48 @@ func (_c *POSCatalogOverrideCreate) SetInventorySku(v string) *POSCatalogOverrid
 	return _c
 }
 
+// SetInventoryItemID sets the "inventory_item_id" field.
+func (_c *POSCatalogOverrideCreate) SetInventoryItemID(v uuid.UUID) *POSCatalogOverrideCreate {
+	_c.mutation.SetInventoryItemID(v)
+	return _c
+}
+
+// SetNillableInventoryItemID sets the "inventory_item_id" field if the given value is not nil.
+func (_c *POSCatalogOverrideCreate) SetNillableInventoryItemID(v *uuid.UUID) *POSCatalogOverrideCreate {
+	if v != nil {
+		_c.SetInventoryItemID(*v)
+	}
+	return _c
+}
+
+// SetItemUseCase sets the "item_use_case" field.
+func (_c *POSCatalogOverrideCreate) SetItemUseCase(v string) *POSCatalogOverrideCreate {
+	_c.mutation.SetItemUseCase(v)
+	return _c
+}
+
+// SetNillableItemUseCase sets the "item_use_case" field if the given value is not nil.
+func (_c *POSCatalogOverrideCreate) SetNillableItemUseCase(v *string) *POSCatalogOverrideCreate {
+	if v != nil {
+		_c.SetItemUseCase(*v)
+	}
+	return _c
+}
+
+// SetIsBundle sets the "is_bundle" field.
+func (_c *POSCatalogOverrideCreate) SetIsBundle(v bool) *POSCatalogOverrideCreate {
+	_c.mutation.SetIsBundle(v)
+	return _c
+}
+
+// SetNillableIsBundle sets the "is_bundle" field if the given value is not nil.
+func (_c *POSCatalogOverrideCreate) SetNillableIsBundle(v *bool) *POSCatalogOverrideCreate {
+	if v != nil {
+		_c.SetIsBundle(*v)
+	}
+	return _c
+}
+
 // SetSellingPrice sets the "selling_price" field.
 func (_c *POSCatalogOverrideCreate) SetSellingPrice(v float64) *POSCatalogOverrideCreate {
 	_c.mutation.SetSellingPrice(v)
@@ -343,6 +385,10 @@ func (_c *POSCatalogOverrideCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *POSCatalogOverrideCreate) defaults() {
+	if _, ok := _c.mutation.IsBundle(); !ok {
+		v := poscatalogoverride.DefaultIsBundle
+		_c.mutation.SetIsBundle(v)
+	}
 	if _, ok := _c.mutation.Currency(); !ok {
 		v := poscatalogoverride.DefaultCurrency
 		_c.mutation.SetCurrency(v)
@@ -413,6 +459,9 @@ func (_c *POSCatalogOverrideCreate) check() error {
 		if err := poscatalogoverride.InventorySkuValidator(v); err != nil {
 			return &ValidationError{Name: "inventory_sku", err: fmt.Errorf(`ent: validator failed for field "POSCatalogOverride.inventory_sku": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.IsBundle(); !ok {
+		return &ValidationError{Name: "is_bundle", err: errors.New(`ent: missing required field "POSCatalogOverride.is_bundle"`)}
 	}
 	if _, ok := _c.mutation.Currency(); !ok {
 		return &ValidationError{Name: "currency", err: errors.New(`ent: missing required field "POSCatalogOverride.currency"`)}
@@ -500,6 +549,18 @@ func (_c *POSCatalogOverrideCreate) createSpec() (*POSCatalogOverride, *sqlgraph
 	if value, ok := _c.mutation.InventorySku(); ok {
 		_spec.SetField(poscatalogoverride.FieldInventorySku, field.TypeString, value)
 		_node.InventorySku = value
+	}
+	if value, ok := _c.mutation.InventoryItemID(); ok {
+		_spec.SetField(poscatalogoverride.FieldInventoryItemID, field.TypeUUID, value)
+		_node.InventoryItemID = &value
+	}
+	if value, ok := _c.mutation.ItemUseCase(); ok {
+		_spec.SetField(poscatalogoverride.FieldItemUseCase, field.TypeString, value)
+		_node.ItemUseCase = value
+	}
+	if value, ok := _c.mutation.IsBundle(); ok {
+		_spec.SetField(poscatalogoverride.FieldIsBundle, field.TypeBool, value)
+		_node.IsBundle = value
 	}
 	if value, ok := _c.mutation.SellingPrice(); ok {
 		_spec.SetField(poscatalogoverride.FieldSellingPrice, field.TypeFloat64, value)
@@ -664,6 +725,54 @@ func (u *POSCatalogOverrideUpsert) SetInventorySku(v string) *POSCatalogOverride
 // UpdateInventorySku sets the "inventory_sku" field to the value that was provided on create.
 func (u *POSCatalogOverrideUpsert) UpdateInventorySku() *POSCatalogOverrideUpsert {
 	u.SetExcluded(poscatalogoverride.FieldInventorySku)
+	return u
+}
+
+// SetInventoryItemID sets the "inventory_item_id" field.
+func (u *POSCatalogOverrideUpsert) SetInventoryItemID(v uuid.UUID) *POSCatalogOverrideUpsert {
+	u.Set(poscatalogoverride.FieldInventoryItemID, v)
+	return u
+}
+
+// UpdateInventoryItemID sets the "inventory_item_id" field to the value that was provided on create.
+func (u *POSCatalogOverrideUpsert) UpdateInventoryItemID() *POSCatalogOverrideUpsert {
+	u.SetExcluded(poscatalogoverride.FieldInventoryItemID)
+	return u
+}
+
+// ClearInventoryItemID clears the value of the "inventory_item_id" field.
+func (u *POSCatalogOverrideUpsert) ClearInventoryItemID() *POSCatalogOverrideUpsert {
+	u.SetNull(poscatalogoverride.FieldInventoryItemID)
+	return u
+}
+
+// SetItemUseCase sets the "item_use_case" field.
+func (u *POSCatalogOverrideUpsert) SetItemUseCase(v string) *POSCatalogOverrideUpsert {
+	u.Set(poscatalogoverride.FieldItemUseCase, v)
+	return u
+}
+
+// UpdateItemUseCase sets the "item_use_case" field to the value that was provided on create.
+func (u *POSCatalogOverrideUpsert) UpdateItemUseCase() *POSCatalogOverrideUpsert {
+	u.SetExcluded(poscatalogoverride.FieldItemUseCase)
+	return u
+}
+
+// ClearItemUseCase clears the value of the "item_use_case" field.
+func (u *POSCatalogOverrideUpsert) ClearItemUseCase() *POSCatalogOverrideUpsert {
+	u.SetNull(poscatalogoverride.FieldItemUseCase)
+	return u
+}
+
+// SetIsBundle sets the "is_bundle" field.
+func (u *POSCatalogOverrideUpsert) SetIsBundle(v bool) *POSCatalogOverrideUpsert {
+	u.Set(poscatalogoverride.FieldIsBundle, v)
+	return u
+}
+
+// UpdateIsBundle sets the "is_bundle" field to the value that was provided on create.
+func (u *POSCatalogOverrideUpsert) UpdateIsBundle() *POSCatalogOverrideUpsert {
+	u.SetExcluded(poscatalogoverride.FieldIsBundle)
 	return u
 }
 
@@ -1022,6 +1131,62 @@ func (u *POSCatalogOverrideUpsertOne) SetInventorySku(v string) *POSCatalogOverr
 func (u *POSCatalogOverrideUpsertOne) UpdateInventorySku() *POSCatalogOverrideUpsertOne {
 	return u.Update(func(s *POSCatalogOverrideUpsert) {
 		s.UpdateInventorySku()
+	})
+}
+
+// SetInventoryItemID sets the "inventory_item_id" field.
+func (u *POSCatalogOverrideUpsertOne) SetInventoryItemID(v uuid.UUID) *POSCatalogOverrideUpsertOne {
+	return u.Update(func(s *POSCatalogOverrideUpsert) {
+		s.SetInventoryItemID(v)
+	})
+}
+
+// UpdateInventoryItemID sets the "inventory_item_id" field to the value that was provided on create.
+func (u *POSCatalogOverrideUpsertOne) UpdateInventoryItemID() *POSCatalogOverrideUpsertOne {
+	return u.Update(func(s *POSCatalogOverrideUpsert) {
+		s.UpdateInventoryItemID()
+	})
+}
+
+// ClearInventoryItemID clears the value of the "inventory_item_id" field.
+func (u *POSCatalogOverrideUpsertOne) ClearInventoryItemID() *POSCatalogOverrideUpsertOne {
+	return u.Update(func(s *POSCatalogOverrideUpsert) {
+		s.ClearInventoryItemID()
+	})
+}
+
+// SetItemUseCase sets the "item_use_case" field.
+func (u *POSCatalogOverrideUpsertOne) SetItemUseCase(v string) *POSCatalogOverrideUpsertOne {
+	return u.Update(func(s *POSCatalogOverrideUpsert) {
+		s.SetItemUseCase(v)
+	})
+}
+
+// UpdateItemUseCase sets the "item_use_case" field to the value that was provided on create.
+func (u *POSCatalogOverrideUpsertOne) UpdateItemUseCase() *POSCatalogOverrideUpsertOne {
+	return u.Update(func(s *POSCatalogOverrideUpsert) {
+		s.UpdateItemUseCase()
+	})
+}
+
+// ClearItemUseCase clears the value of the "item_use_case" field.
+func (u *POSCatalogOverrideUpsertOne) ClearItemUseCase() *POSCatalogOverrideUpsertOne {
+	return u.Update(func(s *POSCatalogOverrideUpsert) {
+		s.ClearItemUseCase()
+	})
+}
+
+// SetIsBundle sets the "is_bundle" field.
+func (u *POSCatalogOverrideUpsertOne) SetIsBundle(v bool) *POSCatalogOverrideUpsertOne {
+	return u.Update(func(s *POSCatalogOverrideUpsert) {
+		s.SetIsBundle(v)
+	})
+}
+
+// UpdateIsBundle sets the "is_bundle" field to the value that was provided on create.
+func (u *POSCatalogOverrideUpsertOne) UpdateIsBundle() *POSCatalogOverrideUpsertOne {
+	return u.Update(func(s *POSCatalogOverrideUpsert) {
+		s.UpdateIsBundle()
 	})
 }
 
@@ -1590,6 +1755,62 @@ func (u *POSCatalogOverrideUpsertBulk) SetInventorySku(v string) *POSCatalogOver
 func (u *POSCatalogOverrideUpsertBulk) UpdateInventorySku() *POSCatalogOverrideUpsertBulk {
 	return u.Update(func(s *POSCatalogOverrideUpsert) {
 		s.UpdateInventorySku()
+	})
+}
+
+// SetInventoryItemID sets the "inventory_item_id" field.
+func (u *POSCatalogOverrideUpsertBulk) SetInventoryItemID(v uuid.UUID) *POSCatalogOverrideUpsertBulk {
+	return u.Update(func(s *POSCatalogOverrideUpsert) {
+		s.SetInventoryItemID(v)
+	})
+}
+
+// UpdateInventoryItemID sets the "inventory_item_id" field to the value that was provided on create.
+func (u *POSCatalogOverrideUpsertBulk) UpdateInventoryItemID() *POSCatalogOverrideUpsertBulk {
+	return u.Update(func(s *POSCatalogOverrideUpsert) {
+		s.UpdateInventoryItemID()
+	})
+}
+
+// ClearInventoryItemID clears the value of the "inventory_item_id" field.
+func (u *POSCatalogOverrideUpsertBulk) ClearInventoryItemID() *POSCatalogOverrideUpsertBulk {
+	return u.Update(func(s *POSCatalogOverrideUpsert) {
+		s.ClearInventoryItemID()
+	})
+}
+
+// SetItemUseCase sets the "item_use_case" field.
+func (u *POSCatalogOverrideUpsertBulk) SetItemUseCase(v string) *POSCatalogOverrideUpsertBulk {
+	return u.Update(func(s *POSCatalogOverrideUpsert) {
+		s.SetItemUseCase(v)
+	})
+}
+
+// UpdateItemUseCase sets the "item_use_case" field to the value that was provided on create.
+func (u *POSCatalogOverrideUpsertBulk) UpdateItemUseCase() *POSCatalogOverrideUpsertBulk {
+	return u.Update(func(s *POSCatalogOverrideUpsert) {
+		s.UpdateItemUseCase()
+	})
+}
+
+// ClearItemUseCase clears the value of the "item_use_case" field.
+func (u *POSCatalogOverrideUpsertBulk) ClearItemUseCase() *POSCatalogOverrideUpsertBulk {
+	return u.Update(func(s *POSCatalogOverrideUpsert) {
+		s.ClearItemUseCase()
+	})
+}
+
+// SetIsBundle sets the "is_bundle" field.
+func (u *POSCatalogOverrideUpsertBulk) SetIsBundle(v bool) *POSCatalogOverrideUpsertBulk {
+	return u.Update(func(s *POSCatalogOverrideUpsert) {
+		s.SetIsBundle(v)
+	})
+}
+
+// UpdateIsBundle sets the "is_bundle" field to the value that was provided on create.
+func (u *POSCatalogOverrideUpsertBulk) UpdateIsBundle() *POSCatalogOverrideUpsertBulk {
+	return u.Update(func(s *POSCatalogOverrideUpsert) {
+		s.UpdateIsBundle()
 	})
 }
 

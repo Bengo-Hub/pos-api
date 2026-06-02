@@ -76,6 +76,11 @@ func Description(v string) predicate.RoomAmenity {
 	return predicate.RoomAmenity(sql.FieldEQ(FieldDescription, v))
 }
 
+// InventoryItemID applies equality check predicate on the "inventory_item_id" field. It's identical to InventoryItemIDEQ.
+func InventoryItemID(v uuid.UUID) predicate.RoomAmenity {
+	return predicate.RoomAmenity(sql.FieldEQ(FieldInventoryItemID, v))
+}
+
 // Rate applies equality check predicate on the "rate" field. It's identical to RateEQ.
 func Rate(v float64) predicate.RoomAmenity {
 	return predicate.RoomAmenity(sql.FieldEQ(FieldRate, v))
@@ -359,6 +364,56 @@ func BillingModeIn(vs ...BillingMode) predicate.RoomAmenity {
 // BillingModeNotIn applies the NotIn predicate on the "billing_mode" field.
 func BillingModeNotIn(vs ...BillingMode) predicate.RoomAmenity {
 	return predicate.RoomAmenity(sql.FieldNotIn(FieldBillingMode, vs...))
+}
+
+// InventoryItemIDEQ applies the EQ predicate on the "inventory_item_id" field.
+func InventoryItemIDEQ(v uuid.UUID) predicate.RoomAmenity {
+	return predicate.RoomAmenity(sql.FieldEQ(FieldInventoryItemID, v))
+}
+
+// InventoryItemIDNEQ applies the NEQ predicate on the "inventory_item_id" field.
+func InventoryItemIDNEQ(v uuid.UUID) predicate.RoomAmenity {
+	return predicate.RoomAmenity(sql.FieldNEQ(FieldInventoryItemID, v))
+}
+
+// InventoryItemIDIn applies the In predicate on the "inventory_item_id" field.
+func InventoryItemIDIn(vs ...uuid.UUID) predicate.RoomAmenity {
+	return predicate.RoomAmenity(sql.FieldIn(FieldInventoryItemID, vs...))
+}
+
+// InventoryItemIDNotIn applies the NotIn predicate on the "inventory_item_id" field.
+func InventoryItemIDNotIn(vs ...uuid.UUID) predicate.RoomAmenity {
+	return predicate.RoomAmenity(sql.FieldNotIn(FieldInventoryItemID, vs...))
+}
+
+// InventoryItemIDGT applies the GT predicate on the "inventory_item_id" field.
+func InventoryItemIDGT(v uuid.UUID) predicate.RoomAmenity {
+	return predicate.RoomAmenity(sql.FieldGT(FieldInventoryItemID, v))
+}
+
+// InventoryItemIDGTE applies the GTE predicate on the "inventory_item_id" field.
+func InventoryItemIDGTE(v uuid.UUID) predicate.RoomAmenity {
+	return predicate.RoomAmenity(sql.FieldGTE(FieldInventoryItemID, v))
+}
+
+// InventoryItemIDLT applies the LT predicate on the "inventory_item_id" field.
+func InventoryItemIDLT(v uuid.UUID) predicate.RoomAmenity {
+	return predicate.RoomAmenity(sql.FieldLT(FieldInventoryItemID, v))
+}
+
+// InventoryItemIDLTE applies the LTE predicate on the "inventory_item_id" field.
+func InventoryItemIDLTE(v uuid.UUID) predicate.RoomAmenity {
+	return predicate.RoomAmenity(sql.FieldLTE(FieldInventoryItemID, v))
+}
+
+// InventoryItemIDIsNil applies the IsNil predicate on the "inventory_item_id" field.
+func InventoryItemIDIsNil() predicate.RoomAmenity {
+	return predicate.RoomAmenity(sql.FieldIsNull(FieldInventoryItemID))
+}
+
+// InventoryItemIDNotNil applies the NotNil predicate on the "inventory_item_id" field.
+func InventoryItemIDNotNil() predicate.RoomAmenity {
+	return predicate.RoomAmenity(sql.FieldNotNull(FieldInventoryItemID))
 }
 
 // RateEQ applies the EQ predicate on the "rate" field.

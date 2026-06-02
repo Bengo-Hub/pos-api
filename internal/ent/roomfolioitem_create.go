@@ -84,6 +84,34 @@ func (_c *RoomFolioItemCreate) SetNillableChargeType(v *roomfolioitem.ChargeType
 	return _c
 }
 
+// SetInventorySku sets the "inventory_sku" field.
+func (_c *RoomFolioItemCreate) SetInventorySku(v string) *RoomFolioItemCreate {
+	_c.mutation.SetInventorySku(v)
+	return _c
+}
+
+// SetNillableInventorySku sets the "inventory_sku" field if the given value is not nil.
+func (_c *RoomFolioItemCreate) SetNillableInventorySku(v *string) *RoomFolioItemCreate {
+	if v != nil {
+		_c.SetInventorySku(*v)
+	}
+	return _c
+}
+
+// SetInventoryBundleID sets the "inventory_bundle_id" field.
+func (_c *RoomFolioItemCreate) SetInventoryBundleID(v uuid.UUID) *RoomFolioItemCreate {
+	_c.mutation.SetInventoryBundleID(v)
+	return _c
+}
+
+// SetNillableInventoryBundleID sets the "inventory_bundle_id" field if the given value is not nil.
+func (_c *RoomFolioItemCreate) SetNillableInventoryBundleID(v *uuid.UUID) *RoomFolioItemCreate {
+	if v != nil {
+		_c.SetInventoryBundleID(*v)
+	}
+	return _c
+}
+
 // SetPosOrderID sets the "pos_order_id" field.
 func (_c *RoomFolioItemCreate) SetPosOrderID(v uuid.UUID) *RoomFolioItemCreate {
 	_c.mutation.SetPosOrderID(v)
@@ -320,6 +348,14 @@ func (_c *RoomFolioItemCreate) createSpec() (*RoomFolioItem, *sqlgraph.CreateSpe
 		_spec.SetField(roomfolioitem.FieldChargeType, field.TypeEnum, value)
 		_node.ChargeType = value
 	}
+	if value, ok := _c.mutation.InventorySku(); ok {
+		_spec.SetField(roomfolioitem.FieldInventorySku, field.TypeString, value)
+		_node.InventorySku = value
+	}
+	if value, ok := _c.mutation.InventoryBundleID(); ok {
+		_spec.SetField(roomfolioitem.FieldInventoryBundleID, field.TypeUUID, value)
+		_node.InventoryBundleID = &value
+	}
 	if value, ok := _c.mutation.PosOrderID(); ok {
 		_spec.SetField(roomfolioitem.FieldPosOrderID, field.TypeUUID, value)
 		_node.PosOrderID = &value
@@ -509,6 +545,42 @@ func (u *RoomFolioItemUpsert) SetChargeType(v roomfolioitem.ChargeType) *RoomFol
 // UpdateChargeType sets the "charge_type" field to the value that was provided on create.
 func (u *RoomFolioItemUpsert) UpdateChargeType() *RoomFolioItemUpsert {
 	u.SetExcluded(roomfolioitem.FieldChargeType)
+	return u
+}
+
+// SetInventorySku sets the "inventory_sku" field.
+func (u *RoomFolioItemUpsert) SetInventorySku(v string) *RoomFolioItemUpsert {
+	u.Set(roomfolioitem.FieldInventorySku, v)
+	return u
+}
+
+// UpdateInventorySku sets the "inventory_sku" field to the value that was provided on create.
+func (u *RoomFolioItemUpsert) UpdateInventorySku() *RoomFolioItemUpsert {
+	u.SetExcluded(roomfolioitem.FieldInventorySku)
+	return u
+}
+
+// ClearInventorySku clears the value of the "inventory_sku" field.
+func (u *RoomFolioItemUpsert) ClearInventorySku() *RoomFolioItemUpsert {
+	u.SetNull(roomfolioitem.FieldInventorySku)
+	return u
+}
+
+// SetInventoryBundleID sets the "inventory_bundle_id" field.
+func (u *RoomFolioItemUpsert) SetInventoryBundleID(v uuid.UUID) *RoomFolioItemUpsert {
+	u.Set(roomfolioitem.FieldInventoryBundleID, v)
+	return u
+}
+
+// UpdateInventoryBundleID sets the "inventory_bundle_id" field to the value that was provided on create.
+func (u *RoomFolioItemUpsert) UpdateInventoryBundleID() *RoomFolioItemUpsert {
+	u.SetExcluded(roomfolioitem.FieldInventoryBundleID)
+	return u
+}
+
+// ClearInventoryBundleID clears the value of the "inventory_bundle_id" field.
+func (u *RoomFolioItemUpsert) ClearInventoryBundleID() *RoomFolioItemUpsert {
+	u.SetNull(roomfolioitem.FieldInventoryBundleID)
 	return u
 }
 
@@ -707,6 +779,48 @@ func (u *RoomFolioItemUpsertOne) SetChargeType(v roomfolioitem.ChargeType) *Room
 func (u *RoomFolioItemUpsertOne) UpdateChargeType() *RoomFolioItemUpsertOne {
 	return u.Update(func(s *RoomFolioItemUpsert) {
 		s.UpdateChargeType()
+	})
+}
+
+// SetInventorySku sets the "inventory_sku" field.
+func (u *RoomFolioItemUpsertOne) SetInventorySku(v string) *RoomFolioItemUpsertOne {
+	return u.Update(func(s *RoomFolioItemUpsert) {
+		s.SetInventorySku(v)
+	})
+}
+
+// UpdateInventorySku sets the "inventory_sku" field to the value that was provided on create.
+func (u *RoomFolioItemUpsertOne) UpdateInventorySku() *RoomFolioItemUpsertOne {
+	return u.Update(func(s *RoomFolioItemUpsert) {
+		s.UpdateInventorySku()
+	})
+}
+
+// ClearInventorySku clears the value of the "inventory_sku" field.
+func (u *RoomFolioItemUpsertOne) ClearInventorySku() *RoomFolioItemUpsertOne {
+	return u.Update(func(s *RoomFolioItemUpsert) {
+		s.ClearInventorySku()
+	})
+}
+
+// SetInventoryBundleID sets the "inventory_bundle_id" field.
+func (u *RoomFolioItemUpsertOne) SetInventoryBundleID(v uuid.UUID) *RoomFolioItemUpsertOne {
+	return u.Update(func(s *RoomFolioItemUpsert) {
+		s.SetInventoryBundleID(v)
+	})
+}
+
+// UpdateInventoryBundleID sets the "inventory_bundle_id" field to the value that was provided on create.
+func (u *RoomFolioItemUpsertOne) UpdateInventoryBundleID() *RoomFolioItemUpsertOne {
+	return u.Update(func(s *RoomFolioItemUpsert) {
+		s.UpdateInventoryBundleID()
+	})
+}
+
+// ClearInventoryBundleID clears the value of the "inventory_bundle_id" field.
+func (u *RoomFolioItemUpsertOne) ClearInventoryBundleID() *RoomFolioItemUpsertOne {
+	return u.Update(func(s *RoomFolioItemUpsert) {
+		s.ClearInventoryBundleID()
 	})
 }
 
@@ -1079,6 +1193,48 @@ func (u *RoomFolioItemUpsertBulk) SetChargeType(v roomfolioitem.ChargeType) *Roo
 func (u *RoomFolioItemUpsertBulk) UpdateChargeType() *RoomFolioItemUpsertBulk {
 	return u.Update(func(s *RoomFolioItemUpsert) {
 		s.UpdateChargeType()
+	})
+}
+
+// SetInventorySku sets the "inventory_sku" field.
+func (u *RoomFolioItemUpsertBulk) SetInventorySku(v string) *RoomFolioItemUpsertBulk {
+	return u.Update(func(s *RoomFolioItemUpsert) {
+		s.SetInventorySku(v)
+	})
+}
+
+// UpdateInventorySku sets the "inventory_sku" field to the value that was provided on create.
+func (u *RoomFolioItemUpsertBulk) UpdateInventorySku() *RoomFolioItemUpsertBulk {
+	return u.Update(func(s *RoomFolioItemUpsert) {
+		s.UpdateInventorySku()
+	})
+}
+
+// ClearInventorySku clears the value of the "inventory_sku" field.
+func (u *RoomFolioItemUpsertBulk) ClearInventorySku() *RoomFolioItemUpsertBulk {
+	return u.Update(func(s *RoomFolioItemUpsert) {
+		s.ClearInventorySku()
+	})
+}
+
+// SetInventoryBundleID sets the "inventory_bundle_id" field.
+func (u *RoomFolioItemUpsertBulk) SetInventoryBundleID(v uuid.UUID) *RoomFolioItemUpsertBulk {
+	return u.Update(func(s *RoomFolioItemUpsert) {
+		s.SetInventoryBundleID(v)
+	})
+}
+
+// UpdateInventoryBundleID sets the "inventory_bundle_id" field to the value that was provided on create.
+func (u *RoomFolioItemUpsertBulk) UpdateInventoryBundleID() *RoomFolioItemUpsertBulk {
+	return u.Update(func(s *RoomFolioItemUpsert) {
+		s.UpdateInventoryBundleID()
+	})
+}
+
+// ClearInventoryBundleID clears the value of the "inventory_bundle_id" field.
+func (u *RoomFolioItemUpsertBulk) ClearInventoryBundleID() *RoomFolioItemUpsertBulk {
+	return u.Update(func(s *RoomFolioItemUpsert) {
+		s.ClearInventoryBundleID()
 	})
 }
 

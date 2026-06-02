@@ -28,6 +28,8 @@ const (
 	FieldDescription = "description"
 	// FieldBillingMode holds the string denoting the billing_mode field in the database.
 	FieldBillingMode = "billing_mode"
+	// FieldInventoryItemID holds the string denoting the inventory_item_id field in the database.
+	FieldInventoryItemID = "inventory_item_id"
 	// FieldRate holds the string denoting the rate field in the database.
 	FieldRate = "rate"
 	// FieldCurrency holds the string denoting the currency field in the database.
@@ -62,6 +64,7 @@ var Columns = []string{
 	FieldAmenityType,
 	FieldDescription,
 	FieldBillingMode,
+	FieldInventoryItemID,
 	FieldRate,
 	FieldCurrency,
 	FieldIsActive,
@@ -206,6 +209,11 @@ func ByDescription(opts ...sql.OrderTermOption) OrderOption {
 // ByBillingMode orders the results by the billing_mode field.
 func ByBillingMode(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldBillingMode, opts...).ToFunc()
+}
+
+// ByInventoryItemID orders the results by the inventory_item_id field.
+func ByInventoryItemID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldInventoryItemID, opts...).ToFunc()
 }
 
 // ByRate orders the results by the rate field.

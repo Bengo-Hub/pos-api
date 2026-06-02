@@ -31,7 +31,9 @@ type RoomAmenity struct {
 	Description string `json:"description,omitempty"`
 	// BillingMode holds the value of the "billing_mode" field.
 	BillingMode roomamenity.BillingMode `json:"billing_mode,omitempty"`
-	// Rate holds the value of the "rate" field.
+	// Ref to inventory-api SERVICE Item (use_case=AMENITY) — authoritative amenity & rate master
+	InventoryItemID *uuid.UUID `json:"inventory_item_id,omitempty"`
+	// DEPRECATED as authoritative: rate master lives in inventory-api ItemPricing. Synced/read-through snapshot; kept for transition
 	Rate float64 `json:"rate,omitempty"`
 	// Currency holds the value of the "currency" field.
 	Currency string `json:"currency,omitempty"`
@@ -72,6 +74,8 @@ func (*RoomAmenity) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case roomamenity.FieldInventoryItemID:
+			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		case roomamenity.FieldMetadata:
 			values[i] = new([]byte)
 		case roomamenity.FieldIsActive:
@@ -140,6 +144,13 @@ func (_m *RoomAmenity) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field billing_mode", values[i])
 			} else if value.Valid {
 				_m.BillingMode = roomamenity.BillingMode(value.String)
+			}
+		case roomamenity.FieldInventoryItemID:
+			if value, ok := values[i].(*sql.NullScanner); !ok {
+				return fmt.Errorf("unexpected type %T for field inventory_item_id", values[i])
+			} else if value.Valid {
+				_m.InventoryItemID = new(uuid.UUID)
+				*_m.InventoryItemID = *value.S.(*uuid.UUID)
 			}
 		case roomamenity.FieldRate:
 			if value, ok := values[i].(*sql.NullFloat64); !ok {
@@ -237,6 +248,11 @@ func (_m *RoomAmenity) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("billing_mode=")
 	builder.WriteString(fmt.Sprintf("%v", _m.BillingMode))
+	builder.WriteString(", ")
+	if v := _m.InventoryItemID; v != nil {
+		builder.WriteString("inventory_item_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("rate=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Rate))

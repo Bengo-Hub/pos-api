@@ -35,6 +35,10 @@ type RoomFolioItem struct {
 	Currency string `json:"currency,omitempty"`
 	// ChargeType holds the value of the "charge_type" field.
 	ChargeType roomfolioitem.ChargeType `json:"charge_type,omitempty"`
+	// inventory-api SKU when this charge corresponds to a catalog item — drives stock backflush
+	InventorySku string `json:"inventory_sku,omitempty"`
+	// inventory-api Bundle id when this charge is a package (conference/room rate plan)
+	InventoryBundleID *uuid.UUID `json:"inventory_bundle_id,omitempty"`
 	// Linked POS order if charge originated from an order
 	PosOrderID *uuid.UUID `json:"pos_order_id,omitempty"`
 	// user_id ref from auth-service
@@ -87,13 +91,13 @@ func (*RoomFolioItem) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case roomfolioitem.FieldPosOrderID:
+		case roomfolioitem.FieldInventoryBundleID, roomfolioitem.FieldPosOrderID:
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		case roomfolioitem.FieldMetadata:
 			values[i] = new([]byte)
 		case roomfolioitem.FieldAmount:
 			values[i] = new(sql.NullFloat64)
-		case roomfolioitem.FieldDescription, roomfolioitem.FieldCurrency, roomfolioitem.FieldChargeType:
+		case roomfolioitem.FieldDescription, roomfolioitem.FieldCurrency, roomfolioitem.FieldChargeType, roomfolioitem.FieldInventorySku:
 			values[i] = new(sql.NullString)
 		case roomfolioitem.FieldCreatedAt:
 			values[i] = new(sql.NullTime)
@@ -161,6 +165,19 @@ func (_m *RoomFolioItem) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field charge_type", values[i])
 			} else if value.Valid {
 				_m.ChargeType = roomfolioitem.ChargeType(value.String)
+			}
+		case roomfolioitem.FieldInventorySku:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field inventory_sku", values[i])
+			} else if value.Valid {
+				_m.InventorySku = value.String
+			}
+		case roomfolioitem.FieldInventoryBundleID:
+			if value, ok := values[i].(*sql.NullScanner); !ok {
+				return fmt.Errorf("unexpected type %T for field inventory_bundle_id", values[i])
+			} else if value.Valid {
+				_m.InventoryBundleID = new(uuid.UUID)
+				*_m.InventoryBundleID = *value.S.(*uuid.UUID)
 			}
 		case roomfolioitem.FieldPosOrderID:
 			if value, ok := values[i].(*sql.NullScanner); !ok {
@@ -255,6 +272,14 @@ func (_m *RoomFolioItem) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("charge_type=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ChargeType))
+	builder.WriteString(", ")
+	builder.WriteString("inventory_sku=")
+	builder.WriteString(_m.InventorySku)
+	builder.WriteString(", ")
+	if v := _m.InventoryBundleID; v != nil {
+		builder.WriteString("inventory_bundle_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteString(", ")
 	if v := _m.PosOrderID; v != nil {
 		builder.WriteString("pos_order_id=")

@@ -85,6 +85,20 @@ func (_c *RoomAmenityCreate) SetNillableBillingMode(v *roomamenity.BillingMode) 
 	return _c
 }
 
+// SetInventoryItemID sets the "inventory_item_id" field.
+func (_c *RoomAmenityCreate) SetInventoryItemID(v uuid.UUID) *RoomAmenityCreate {
+	_c.mutation.SetInventoryItemID(v)
+	return _c
+}
+
+// SetNillableInventoryItemID sets the "inventory_item_id" field if the given value is not nil.
+func (_c *RoomAmenityCreate) SetNillableInventoryItemID(v *uuid.UUID) *RoomAmenityCreate {
+	if v != nil {
+		_c.SetInventoryItemID(*v)
+	}
+	return _c
+}
+
 // SetRate sets the "rate" field.
 func (_c *RoomAmenityCreate) SetRate(v float64) *RoomAmenityCreate {
 	_c.mutation.SetRate(v)
@@ -378,6 +392,10 @@ func (_c *RoomAmenityCreate) createSpec() (*RoomAmenity, *sqlgraph.CreateSpec) {
 		_spec.SetField(roomamenity.FieldBillingMode, field.TypeEnum, value)
 		_node.BillingMode = value
 	}
+	if value, ok := _c.mutation.InventoryItemID(); ok {
+		_spec.SetField(roomamenity.FieldInventoryItemID, field.TypeUUID, value)
+		_node.InventoryItemID = &value
+	}
 	if value, ok := _c.mutation.Rate(); ok {
 		_spec.SetField(roomamenity.FieldRate, field.TypeFloat64, value)
 		_node.Rate = value
@@ -545,6 +563,24 @@ func (u *RoomAmenityUpsert) SetBillingMode(v roomamenity.BillingMode) *RoomAmeni
 // UpdateBillingMode sets the "billing_mode" field to the value that was provided on create.
 func (u *RoomAmenityUpsert) UpdateBillingMode() *RoomAmenityUpsert {
 	u.SetExcluded(roomamenity.FieldBillingMode)
+	return u
+}
+
+// SetInventoryItemID sets the "inventory_item_id" field.
+func (u *RoomAmenityUpsert) SetInventoryItemID(v uuid.UUID) *RoomAmenityUpsert {
+	u.Set(roomamenity.FieldInventoryItemID, v)
+	return u
+}
+
+// UpdateInventoryItemID sets the "inventory_item_id" field to the value that was provided on create.
+func (u *RoomAmenityUpsert) UpdateInventoryItemID() *RoomAmenityUpsert {
+	u.SetExcluded(roomamenity.FieldInventoryItemID)
+	return u
+}
+
+// ClearInventoryItemID clears the value of the "inventory_item_id" field.
+func (u *RoomAmenityUpsert) ClearInventoryItemID() *RoomAmenityUpsert {
+	u.SetNull(roomamenity.FieldInventoryItemID)
 	return u
 }
 
@@ -753,6 +789,27 @@ func (u *RoomAmenityUpsertOne) SetBillingMode(v roomamenity.BillingMode) *RoomAm
 func (u *RoomAmenityUpsertOne) UpdateBillingMode() *RoomAmenityUpsertOne {
 	return u.Update(func(s *RoomAmenityUpsert) {
 		s.UpdateBillingMode()
+	})
+}
+
+// SetInventoryItemID sets the "inventory_item_id" field.
+func (u *RoomAmenityUpsertOne) SetInventoryItemID(v uuid.UUID) *RoomAmenityUpsertOne {
+	return u.Update(func(s *RoomAmenityUpsert) {
+		s.SetInventoryItemID(v)
+	})
+}
+
+// UpdateInventoryItemID sets the "inventory_item_id" field to the value that was provided on create.
+func (u *RoomAmenityUpsertOne) UpdateInventoryItemID() *RoomAmenityUpsertOne {
+	return u.Update(func(s *RoomAmenityUpsert) {
+		s.UpdateInventoryItemID()
+	})
+}
+
+// ClearInventoryItemID clears the value of the "inventory_item_id" field.
+func (u *RoomAmenityUpsertOne) ClearInventoryItemID() *RoomAmenityUpsertOne {
+	return u.Update(func(s *RoomAmenityUpsert) {
+		s.ClearInventoryItemID()
 	})
 }
 
@@ -1139,6 +1196,27 @@ func (u *RoomAmenityUpsertBulk) SetBillingMode(v roomamenity.BillingMode) *RoomA
 func (u *RoomAmenityUpsertBulk) UpdateBillingMode() *RoomAmenityUpsertBulk {
 	return u.Update(func(s *RoomAmenityUpsert) {
 		s.UpdateBillingMode()
+	})
+}
+
+// SetInventoryItemID sets the "inventory_item_id" field.
+func (u *RoomAmenityUpsertBulk) SetInventoryItemID(v uuid.UUID) *RoomAmenityUpsertBulk {
+	return u.Update(func(s *RoomAmenityUpsert) {
+		s.SetInventoryItemID(v)
+	})
+}
+
+// UpdateInventoryItemID sets the "inventory_item_id" field to the value that was provided on create.
+func (u *RoomAmenityUpsertBulk) UpdateInventoryItemID() *RoomAmenityUpsertBulk {
+	return u.Update(func(s *RoomAmenityUpsert) {
+		s.UpdateInventoryItemID()
+	})
+}
+
+// ClearInventoryItemID clears the value of the "inventory_item_id" field.
+func (u *RoomAmenityUpsertBulk) ClearInventoryItemID() *RoomAmenityUpsertBulk {
+	return u.Update(func(s *RoomAmenityUpsert) {
+		s.ClearInventoryItemID()
 	})
 }
 

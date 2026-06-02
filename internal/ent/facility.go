@@ -29,7 +29,9 @@ type Facility struct {
 	FacilityType facility.FacilityType `json:"facility_type,omitempty"`
 	// Capacity holds the value of the "capacity" field.
 	Capacity int `json:"capacity,omitempty"`
-	// RatePerSession holds the value of the "rate_per_session" field.
+	// Ref to inventory-api SERVICE Item (use_case=HOSPITALITY_FACILITY/CONFERENCE) — authoritative facility & rate master
+	InventoryItemID *uuid.UUID `json:"inventory_item_id,omitempty"`
+	// DEPRECATED as authoritative: rate master lives in inventory-api ItemPricing. Synced/read-through snapshot; kept for transition
 	RatePerSession float64 `json:"rate_per_session,omitempty"`
 	// Currency holds the value of the "currency" field.
 	Currency string `json:"currency,omitempty"`
@@ -76,6 +78,8 @@ func (*Facility) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case facility.FieldInventoryItemID:
+			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		case facility.FieldMetadata:
 			values[i] = new([]byte)
 		case facility.FieldIsActive:
@@ -140,6 +144,13 @@ func (_m *Facility) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field capacity", values[i])
 			} else if value.Valid {
 				_m.Capacity = int(value.Int64)
+			}
+		case facility.FieldInventoryItemID:
+			if value, ok := values[i].(*sql.NullScanner); !ok {
+				return fmt.Errorf("unexpected type %T for field inventory_item_id", values[i])
+			} else if value.Valid {
+				_m.InventoryItemID = new(uuid.UUID)
+				*_m.InventoryItemID = *value.S.(*uuid.UUID)
 			}
 		case facility.FieldRatePerSession:
 			if value, ok := values[i].(*sql.NullFloat64); !ok {
@@ -252,6 +263,11 @@ func (_m *Facility) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("capacity=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Capacity))
+	builder.WriteString(", ")
+	if v := _m.InventoryItemID; v != nil {
+		builder.WriteString("inventory_item_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("rate_per_session=")
 	builder.WriteString(fmt.Sprintf("%v", _m.RatePerSession))

@@ -490,35 +490,35 @@ func init() {
 	// facility.CapacityValidator is a validator for the "capacity" field. It is called by the builders before save.
 	facility.CapacityValidator = facilityDescCapacity.Validators[0].(func(int) error)
 	// facilityDescRatePerSession is the schema descriptor for rate_per_session field.
-	facilityDescRatePerSession := facilityFields[6].Descriptor()
+	facilityDescRatePerSession := facilityFields[7].Descriptor()
 	// facility.RatePerSessionValidator is a validator for the "rate_per_session" field. It is called by the builders before save.
 	facility.RatePerSessionValidator = facilityDescRatePerSession.Validators[0].(func(float64) error)
 	// facilityDescCurrency is the schema descriptor for currency field.
-	facilityDescCurrency := facilityFields[7].Descriptor()
+	facilityDescCurrency := facilityFields[8].Descriptor()
 	// facility.DefaultCurrency holds the default value on creation for the currency field.
 	facility.DefaultCurrency = facilityDescCurrency.Default.(string)
 	// facilityDescOpeningTime is the schema descriptor for opening_time field.
-	facilityDescOpeningTime := facilityFields[8].Descriptor()
+	facilityDescOpeningTime := facilityFields[9].Descriptor()
 	// facility.DefaultOpeningTime holds the default value on creation for the opening_time field.
 	facility.DefaultOpeningTime = facilityDescOpeningTime.Default.(string)
 	// facilityDescClosingTime is the schema descriptor for closing_time field.
-	facilityDescClosingTime := facilityFields[9].Descriptor()
+	facilityDescClosingTime := facilityFields[10].Descriptor()
 	// facility.DefaultClosingTime holds the default value on creation for the closing_time field.
 	facility.DefaultClosingTime = facilityDescClosingTime.Default.(string)
 	// facilityDescIsActive is the schema descriptor for is_active field.
-	facilityDescIsActive := facilityFields[11].Descriptor()
+	facilityDescIsActive := facilityFields[12].Descriptor()
 	// facility.DefaultIsActive holds the default value on creation for the is_active field.
 	facility.DefaultIsActive = facilityDescIsActive.Default.(bool)
 	// facilityDescMetadata is the schema descriptor for metadata field.
-	facilityDescMetadata := facilityFields[12].Descriptor()
+	facilityDescMetadata := facilityFields[13].Descriptor()
 	// facility.DefaultMetadata holds the default value on creation for the metadata field.
 	facility.DefaultMetadata = facilityDescMetadata.Default.(map[string]interface{})
 	// facilityDescCreatedAt is the schema descriptor for created_at field.
-	facilityDescCreatedAt := facilityFields[13].Descriptor()
+	facilityDescCreatedAt := facilityFields[14].Descriptor()
 	// facility.DefaultCreatedAt holds the default value on creation for the created_at field.
 	facility.DefaultCreatedAt = facilityDescCreatedAt.Default.(func() time.Time)
 	// facilityDescUpdatedAt is the schema descriptor for updated_at field.
-	facilityDescUpdatedAt := facilityFields[14].Descriptor()
+	facilityDescUpdatedAt := facilityFields[15].Descriptor()
 	// facility.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	facility.DefaultUpdatedAt = facilityDescUpdatedAt.Default.(func() time.Time)
 	// facility.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -1103,56 +1103,60 @@ func init() {
 	poscatalogoverrideDescInventorySku := poscatalogoverrideFields[3].Descriptor()
 	// poscatalogoverride.InventorySkuValidator is a validator for the "inventory_sku" field. It is called by the builders before save.
 	poscatalogoverride.InventorySkuValidator = poscatalogoverrideDescInventorySku.Validators[0].(func(string) error)
+	// poscatalogoverrideDescIsBundle is the schema descriptor for is_bundle field.
+	poscatalogoverrideDescIsBundle := poscatalogoverrideFields[6].Descriptor()
+	// poscatalogoverride.DefaultIsBundle holds the default value on creation for the is_bundle field.
+	poscatalogoverride.DefaultIsBundle = poscatalogoverrideDescIsBundle.Default.(bool)
 	// poscatalogoverrideDescCurrency is the schema descriptor for currency field.
-	poscatalogoverrideDescCurrency := poscatalogoverrideFields[5].Descriptor()
+	poscatalogoverrideDescCurrency := poscatalogoverrideFields[8].Descriptor()
 	// poscatalogoverride.DefaultCurrency holds the default value on creation for the currency field.
 	poscatalogoverride.DefaultCurrency = poscatalogoverrideDescCurrency.Default.(string)
 	// poscatalogoverrideDescTaxStatus is the schema descriptor for tax_status field.
-	poscatalogoverrideDescTaxStatus := poscatalogoverrideFields[6].Descriptor()
+	poscatalogoverrideDescTaxStatus := poscatalogoverrideFields[9].Descriptor()
 	// poscatalogoverride.DefaultTaxStatus holds the default value on creation for the tax_status field.
 	poscatalogoverride.DefaultTaxStatus = poscatalogoverrideDescTaxStatus.Default.(string)
 	// poscatalogoverrideDescPriceIncludesTax is the schema descriptor for price_includes_tax field.
-	poscatalogoverrideDescPriceIncludesTax := poscatalogoverrideFields[8].Descriptor()
+	poscatalogoverrideDescPriceIncludesTax := poscatalogoverrideFields[11].Descriptor()
 	// poscatalogoverride.DefaultPriceIncludesTax holds the default value on creation for the price_includes_tax field.
 	poscatalogoverride.DefaultPriceIncludesTax = poscatalogoverrideDescPriceIncludesTax.Default.(bool)
 	// poscatalogoverrideDescIsAvailable is the schema descriptor for is_available field.
-	poscatalogoverrideDescIsAvailable := poscatalogoverrideFields[9].Descriptor()
+	poscatalogoverrideDescIsAvailable := poscatalogoverrideFields[12].Descriptor()
 	// poscatalogoverride.DefaultIsAvailable holds the default value on creation for the is_available field.
 	poscatalogoverride.DefaultIsAvailable = poscatalogoverrideDescIsAvailable.Default.(bool)
 	// poscatalogoverrideDescIsFeatured is the schema descriptor for is_featured field.
-	poscatalogoverrideDescIsFeatured := poscatalogoverrideFields[10].Descriptor()
+	poscatalogoverrideDescIsFeatured := poscatalogoverrideFields[13].Descriptor()
 	// poscatalogoverride.DefaultIsFeatured holds the default value on creation for the is_featured field.
 	poscatalogoverride.DefaultIsFeatured = poscatalogoverrideDescIsFeatured.Default.(bool)
 	// poscatalogoverrideDescDisplayOrder is the schema descriptor for display_order field.
-	poscatalogoverrideDescDisplayOrder := poscatalogoverrideFields[11].Descriptor()
+	poscatalogoverrideDescDisplayOrder := poscatalogoverrideFields[14].Descriptor()
 	// poscatalogoverride.DefaultDisplayOrder holds the default value on creation for the display_order field.
 	poscatalogoverride.DefaultDisplayOrder = poscatalogoverrideDescDisplayOrder.Default.(int)
 	// poscatalogoverrideDescRequiresPrescription is the schema descriptor for requires_prescription field.
-	poscatalogoverrideDescRequiresPrescription := poscatalogoverrideFields[12].Descriptor()
+	poscatalogoverrideDescRequiresPrescription := poscatalogoverrideFields[15].Descriptor()
 	// poscatalogoverride.DefaultRequiresPrescription holds the default value on creation for the requires_prescription field.
 	poscatalogoverride.DefaultRequiresPrescription = poscatalogoverrideDescRequiresPrescription.Default.(bool)
 	// poscatalogoverrideDescIsReturnable is the schema descriptor for is_returnable field.
-	poscatalogoverrideDescIsReturnable := poscatalogoverrideFields[13].Descriptor()
+	poscatalogoverrideDescIsReturnable := poscatalogoverrideFields[16].Descriptor()
 	// poscatalogoverride.DefaultIsReturnable holds the default value on creation for the is_returnable field.
 	poscatalogoverride.DefaultIsReturnable = poscatalogoverrideDescIsReturnable.Default.(bool)
 	// poscatalogoverrideDescRequiresAgeVerification is the schema descriptor for requires_age_verification field.
-	poscatalogoverrideDescRequiresAgeVerification := poscatalogoverrideFields[14].Descriptor()
+	poscatalogoverrideDescRequiresAgeVerification := poscatalogoverrideFields[17].Descriptor()
 	// poscatalogoverride.DefaultRequiresAgeVerification holds the default value on creation for the requires_age_verification field.
 	poscatalogoverride.DefaultRequiresAgeVerification = poscatalogoverrideDescRequiresAgeVerification.Default.(bool)
 	// poscatalogoverrideDescIsControlledSubstance is the schema descriptor for is_controlled_substance field.
-	poscatalogoverrideDescIsControlledSubstance := poscatalogoverrideFields[15].Descriptor()
+	poscatalogoverrideDescIsControlledSubstance := poscatalogoverrideFields[18].Descriptor()
 	// poscatalogoverride.DefaultIsControlledSubstance holds the default value on creation for the is_controlled_substance field.
 	poscatalogoverride.DefaultIsControlledSubstance = poscatalogoverrideDescIsControlledSubstance.Default.(bool)
 	// poscatalogoverrideDescMetadata is the schema descriptor for metadata field.
-	poscatalogoverrideDescMetadata := poscatalogoverrideFields[19].Descriptor()
+	poscatalogoverrideDescMetadata := poscatalogoverrideFields[22].Descriptor()
 	// poscatalogoverride.DefaultMetadata holds the default value on creation for the metadata field.
 	poscatalogoverride.DefaultMetadata = poscatalogoverrideDescMetadata.Default.(map[string]interface{})
 	// poscatalogoverrideDescCreatedAt is the schema descriptor for created_at field.
-	poscatalogoverrideDescCreatedAt := poscatalogoverrideFields[20].Descriptor()
+	poscatalogoverrideDescCreatedAt := poscatalogoverrideFields[23].Descriptor()
 	// poscatalogoverride.DefaultCreatedAt holds the default value on creation for the created_at field.
 	poscatalogoverride.DefaultCreatedAt = poscatalogoverrideDescCreatedAt.Default.(func() time.Time)
 	// poscatalogoverrideDescUpdatedAt is the schema descriptor for updated_at field.
-	poscatalogoverrideDescUpdatedAt := poscatalogoverrideFields[21].Descriptor()
+	poscatalogoverrideDescUpdatedAt := poscatalogoverrideFields[24].Descriptor()
 	// poscatalogoverride.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	poscatalogoverride.DefaultUpdatedAt = poscatalogoverrideDescUpdatedAt.Default.(func() time.Time)
 	// poscatalogoverride.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -1720,27 +1724,27 @@ func init() {
 	// room.DefaultFloor holds the default value on creation for the floor field.
 	room.DefaultFloor = roomDescFloor.Default.(int)
 	// roomDescRatePerNight is the schema descriptor for rate_per_night field.
-	roomDescRatePerNight := roomFields[7].Descriptor()
+	roomDescRatePerNight := roomFields[8].Descriptor()
 	// room.RatePerNightValidator is a validator for the "rate_per_night" field. It is called by the builders before save.
 	room.RatePerNightValidator = roomDescRatePerNight.Validators[0].(func(float64) error)
 	// roomDescCurrency is the schema descriptor for currency field.
-	roomDescCurrency := roomFields[8].Descriptor()
+	roomDescCurrency := roomFields[9].Descriptor()
 	// room.DefaultCurrency holds the default value on creation for the currency field.
 	room.DefaultCurrency = roomDescCurrency.Default.(string)
 	// roomDescIsActive is the schema descriptor for is_active field.
-	roomDescIsActive := roomFields[10].Descriptor()
+	roomDescIsActive := roomFields[11].Descriptor()
 	// room.DefaultIsActive holds the default value on creation for the is_active field.
 	room.DefaultIsActive = roomDescIsActive.Default.(bool)
 	// roomDescMetadata is the schema descriptor for metadata field.
-	roomDescMetadata := roomFields[11].Descriptor()
+	roomDescMetadata := roomFields[12].Descriptor()
 	// room.DefaultMetadata holds the default value on creation for the metadata field.
 	room.DefaultMetadata = roomDescMetadata.Default.(map[string]interface{})
 	// roomDescCreatedAt is the schema descriptor for created_at field.
-	roomDescCreatedAt := roomFields[12].Descriptor()
+	roomDescCreatedAt := roomFields[13].Descriptor()
 	// room.DefaultCreatedAt holds the default value on creation for the created_at field.
 	room.DefaultCreatedAt = roomDescCreatedAt.Default.(func() time.Time)
 	// roomDescUpdatedAt is the schema descriptor for updated_at field.
-	roomDescUpdatedAt := roomFields[13].Descriptor()
+	roomDescUpdatedAt := roomFields[14].Descriptor()
 	// room.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	room.DefaultUpdatedAt = roomDescUpdatedAt.Default.(func() time.Time)
 	// room.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -1756,29 +1760,29 @@ func init() {
 	// roomamenity.NameValidator is a validator for the "name" field. It is called by the builders before save.
 	roomamenity.NameValidator = roomamenityDescName.Validators[0].(func(string) error)
 	// roomamenityDescRate is the schema descriptor for rate field.
-	roomamenityDescRate := roomamenityFields[7].Descriptor()
+	roomamenityDescRate := roomamenityFields[8].Descriptor()
 	// roomamenity.DefaultRate holds the default value on creation for the rate field.
 	roomamenity.DefaultRate = roomamenityDescRate.Default.(float64)
 	// roomamenity.RateValidator is a validator for the "rate" field. It is called by the builders before save.
 	roomamenity.RateValidator = roomamenityDescRate.Validators[0].(func(float64) error)
 	// roomamenityDescCurrency is the schema descriptor for currency field.
-	roomamenityDescCurrency := roomamenityFields[8].Descriptor()
+	roomamenityDescCurrency := roomamenityFields[9].Descriptor()
 	// roomamenity.DefaultCurrency holds the default value on creation for the currency field.
 	roomamenity.DefaultCurrency = roomamenityDescCurrency.Default.(string)
 	// roomamenityDescIsActive is the schema descriptor for is_active field.
-	roomamenityDescIsActive := roomamenityFields[9].Descriptor()
+	roomamenityDescIsActive := roomamenityFields[10].Descriptor()
 	// roomamenity.DefaultIsActive holds the default value on creation for the is_active field.
 	roomamenity.DefaultIsActive = roomamenityDescIsActive.Default.(bool)
 	// roomamenityDescMetadata is the schema descriptor for metadata field.
-	roomamenityDescMetadata := roomamenityFields[10].Descriptor()
+	roomamenityDescMetadata := roomamenityFields[11].Descriptor()
 	// roomamenity.DefaultMetadata holds the default value on creation for the metadata field.
 	roomamenity.DefaultMetadata = roomamenityDescMetadata.Default.(map[string]interface{})
 	// roomamenityDescCreatedAt is the schema descriptor for created_at field.
-	roomamenityDescCreatedAt := roomamenityFields[11].Descriptor()
+	roomamenityDescCreatedAt := roomamenityFields[12].Descriptor()
 	// roomamenity.DefaultCreatedAt holds the default value on creation for the created_at field.
 	roomamenity.DefaultCreatedAt = roomamenityDescCreatedAt.Default.(func() time.Time)
 	// roomamenityDescUpdatedAt is the schema descriptor for updated_at field.
-	roomamenityDescUpdatedAt := roomamenityFields[12].Descriptor()
+	roomamenityDescUpdatedAt := roomamenityFields[13].Descriptor()
 	// roomamenity.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	roomamenity.DefaultUpdatedAt = roomamenityDescUpdatedAt.Default.(func() time.Time)
 	// roomamenity.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -1816,11 +1820,11 @@ func init() {
 	// roomfolioitem.DefaultCurrency holds the default value on creation for the currency field.
 	roomfolioitem.DefaultCurrency = roomfolioitemDescCurrency.Default.(string)
 	// roomfolioitemDescMetadata is the schema descriptor for metadata field.
-	roomfolioitemDescMetadata := roomfolioitemFields[10].Descriptor()
+	roomfolioitemDescMetadata := roomfolioitemFields[12].Descriptor()
 	// roomfolioitem.DefaultMetadata holds the default value on creation for the metadata field.
 	roomfolioitem.DefaultMetadata = roomfolioitemDescMetadata.Default.(map[string]interface{})
 	// roomfolioitemDescCreatedAt is the schema descriptor for created_at field.
-	roomfolioitemDescCreatedAt := roomfolioitemFields[11].Descriptor()
+	roomfolioitemDescCreatedAt := roomfolioitemFields[13].Descriptor()
 	// roomfolioitem.DefaultCreatedAt holds the default value on creation for the created_at field.
 	roomfolioitem.DefaultCreatedAt = roomfolioitemDescCreatedAt.Default.(func() time.Time)
 	// roomfolioitemDescID is the schema descriptor for id field.

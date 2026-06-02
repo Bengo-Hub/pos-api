@@ -86,6 +86,16 @@ func Currency(v string) predicate.RoomFolioItem {
 	return predicate.RoomFolioItem(sql.FieldEQ(FieldCurrency, v))
 }
 
+// InventorySku applies equality check predicate on the "inventory_sku" field. It's identical to InventorySkuEQ.
+func InventorySku(v string) predicate.RoomFolioItem {
+	return predicate.RoomFolioItem(sql.FieldEQ(FieldInventorySku, v))
+}
+
+// InventoryBundleID applies equality check predicate on the "inventory_bundle_id" field. It's identical to InventoryBundleIDEQ.
+func InventoryBundleID(v uuid.UUID) predicate.RoomFolioItem {
+	return predicate.RoomFolioItem(sql.FieldEQ(FieldInventoryBundleID, v))
+}
+
 // PosOrderID applies equality check predicate on the "pos_order_id" field. It's identical to PosOrderIDEQ.
 func PosOrderID(v uuid.UUID) predicate.RoomFolioItem {
 	return predicate.RoomFolioItem(sql.FieldEQ(FieldPosOrderID, v))
@@ -369,6 +379,131 @@ func ChargeTypeIn(vs ...ChargeType) predicate.RoomFolioItem {
 // ChargeTypeNotIn applies the NotIn predicate on the "charge_type" field.
 func ChargeTypeNotIn(vs ...ChargeType) predicate.RoomFolioItem {
 	return predicate.RoomFolioItem(sql.FieldNotIn(FieldChargeType, vs...))
+}
+
+// InventorySkuEQ applies the EQ predicate on the "inventory_sku" field.
+func InventorySkuEQ(v string) predicate.RoomFolioItem {
+	return predicate.RoomFolioItem(sql.FieldEQ(FieldInventorySku, v))
+}
+
+// InventorySkuNEQ applies the NEQ predicate on the "inventory_sku" field.
+func InventorySkuNEQ(v string) predicate.RoomFolioItem {
+	return predicate.RoomFolioItem(sql.FieldNEQ(FieldInventorySku, v))
+}
+
+// InventorySkuIn applies the In predicate on the "inventory_sku" field.
+func InventorySkuIn(vs ...string) predicate.RoomFolioItem {
+	return predicate.RoomFolioItem(sql.FieldIn(FieldInventorySku, vs...))
+}
+
+// InventorySkuNotIn applies the NotIn predicate on the "inventory_sku" field.
+func InventorySkuNotIn(vs ...string) predicate.RoomFolioItem {
+	return predicate.RoomFolioItem(sql.FieldNotIn(FieldInventorySku, vs...))
+}
+
+// InventorySkuGT applies the GT predicate on the "inventory_sku" field.
+func InventorySkuGT(v string) predicate.RoomFolioItem {
+	return predicate.RoomFolioItem(sql.FieldGT(FieldInventorySku, v))
+}
+
+// InventorySkuGTE applies the GTE predicate on the "inventory_sku" field.
+func InventorySkuGTE(v string) predicate.RoomFolioItem {
+	return predicate.RoomFolioItem(sql.FieldGTE(FieldInventorySku, v))
+}
+
+// InventorySkuLT applies the LT predicate on the "inventory_sku" field.
+func InventorySkuLT(v string) predicate.RoomFolioItem {
+	return predicate.RoomFolioItem(sql.FieldLT(FieldInventorySku, v))
+}
+
+// InventorySkuLTE applies the LTE predicate on the "inventory_sku" field.
+func InventorySkuLTE(v string) predicate.RoomFolioItem {
+	return predicate.RoomFolioItem(sql.FieldLTE(FieldInventorySku, v))
+}
+
+// InventorySkuContains applies the Contains predicate on the "inventory_sku" field.
+func InventorySkuContains(v string) predicate.RoomFolioItem {
+	return predicate.RoomFolioItem(sql.FieldContains(FieldInventorySku, v))
+}
+
+// InventorySkuHasPrefix applies the HasPrefix predicate on the "inventory_sku" field.
+func InventorySkuHasPrefix(v string) predicate.RoomFolioItem {
+	return predicate.RoomFolioItem(sql.FieldHasPrefix(FieldInventorySku, v))
+}
+
+// InventorySkuHasSuffix applies the HasSuffix predicate on the "inventory_sku" field.
+func InventorySkuHasSuffix(v string) predicate.RoomFolioItem {
+	return predicate.RoomFolioItem(sql.FieldHasSuffix(FieldInventorySku, v))
+}
+
+// InventorySkuIsNil applies the IsNil predicate on the "inventory_sku" field.
+func InventorySkuIsNil() predicate.RoomFolioItem {
+	return predicate.RoomFolioItem(sql.FieldIsNull(FieldInventorySku))
+}
+
+// InventorySkuNotNil applies the NotNil predicate on the "inventory_sku" field.
+func InventorySkuNotNil() predicate.RoomFolioItem {
+	return predicate.RoomFolioItem(sql.FieldNotNull(FieldInventorySku))
+}
+
+// InventorySkuEqualFold applies the EqualFold predicate on the "inventory_sku" field.
+func InventorySkuEqualFold(v string) predicate.RoomFolioItem {
+	return predicate.RoomFolioItem(sql.FieldEqualFold(FieldInventorySku, v))
+}
+
+// InventorySkuContainsFold applies the ContainsFold predicate on the "inventory_sku" field.
+func InventorySkuContainsFold(v string) predicate.RoomFolioItem {
+	return predicate.RoomFolioItem(sql.FieldContainsFold(FieldInventorySku, v))
+}
+
+// InventoryBundleIDEQ applies the EQ predicate on the "inventory_bundle_id" field.
+func InventoryBundleIDEQ(v uuid.UUID) predicate.RoomFolioItem {
+	return predicate.RoomFolioItem(sql.FieldEQ(FieldInventoryBundleID, v))
+}
+
+// InventoryBundleIDNEQ applies the NEQ predicate on the "inventory_bundle_id" field.
+func InventoryBundleIDNEQ(v uuid.UUID) predicate.RoomFolioItem {
+	return predicate.RoomFolioItem(sql.FieldNEQ(FieldInventoryBundleID, v))
+}
+
+// InventoryBundleIDIn applies the In predicate on the "inventory_bundle_id" field.
+func InventoryBundleIDIn(vs ...uuid.UUID) predicate.RoomFolioItem {
+	return predicate.RoomFolioItem(sql.FieldIn(FieldInventoryBundleID, vs...))
+}
+
+// InventoryBundleIDNotIn applies the NotIn predicate on the "inventory_bundle_id" field.
+func InventoryBundleIDNotIn(vs ...uuid.UUID) predicate.RoomFolioItem {
+	return predicate.RoomFolioItem(sql.FieldNotIn(FieldInventoryBundleID, vs...))
+}
+
+// InventoryBundleIDGT applies the GT predicate on the "inventory_bundle_id" field.
+func InventoryBundleIDGT(v uuid.UUID) predicate.RoomFolioItem {
+	return predicate.RoomFolioItem(sql.FieldGT(FieldInventoryBundleID, v))
+}
+
+// InventoryBundleIDGTE applies the GTE predicate on the "inventory_bundle_id" field.
+func InventoryBundleIDGTE(v uuid.UUID) predicate.RoomFolioItem {
+	return predicate.RoomFolioItem(sql.FieldGTE(FieldInventoryBundleID, v))
+}
+
+// InventoryBundleIDLT applies the LT predicate on the "inventory_bundle_id" field.
+func InventoryBundleIDLT(v uuid.UUID) predicate.RoomFolioItem {
+	return predicate.RoomFolioItem(sql.FieldLT(FieldInventoryBundleID, v))
+}
+
+// InventoryBundleIDLTE applies the LTE predicate on the "inventory_bundle_id" field.
+func InventoryBundleIDLTE(v uuid.UUID) predicate.RoomFolioItem {
+	return predicate.RoomFolioItem(sql.FieldLTE(FieldInventoryBundleID, v))
+}
+
+// InventoryBundleIDIsNil applies the IsNil predicate on the "inventory_bundle_id" field.
+func InventoryBundleIDIsNil() predicate.RoomFolioItem {
+	return predicate.RoomFolioItem(sql.FieldIsNull(FieldInventoryBundleID))
+}
+
+// InventoryBundleIDNotNil applies the NotNil predicate on the "inventory_bundle_id" field.
+func InventoryBundleIDNotNil() predicate.RoomFolioItem {
+	return predicate.RoomFolioItem(sql.FieldNotNull(FieldInventoryBundleID))
 }
 
 // PosOrderIDEQ applies the EQ predicate on the "pos_order_id" field.

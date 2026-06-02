@@ -71,6 +71,20 @@ func (_c *FacilityCreate) SetNillableCapacity(v *int) *FacilityCreate {
 	return _c
 }
 
+// SetInventoryItemID sets the "inventory_item_id" field.
+func (_c *FacilityCreate) SetInventoryItemID(v uuid.UUID) *FacilityCreate {
+	_c.mutation.SetInventoryItemID(v)
+	return _c
+}
+
+// SetNillableInventoryItemID sets the "inventory_item_id" field if the given value is not nil.
+func (_c *FacilityCreate) SetNillableInventoryItemID(v *uuid.UUID) *FacilityCreate {
+	if v != nil {
+		_c.SetInventoryItemID(*v)
+	}
+	return _c
+}
+
 // SetRatePerSession sets the "rate_per_session" field.
 func (_c *FacilityCreate) SetRatePerSession(v float64) *FacilityCreate {
 	_c.mutation.SetRatePerSession(v)
@@ -416,6 +430,10 @@ func (_c *FacilityCreate) createSpec() (*Facility, *sqlgraph.CreateSpec) {
 		_spec.SetField(facility.FieldCapacity, field.TypeInt, value)
 		_node.Capacity = value
 	}
+	if value, ok := _c.mutation.InventoryItemID(); ok {
+		_spec.SetField(facility.FieldInventoryItemID, field.TypeUUID, value)
+		_node.InventoryItemID = &value
+	}
 	if value, ok := _c.mutation.RatePerSession(); ok {
 		_spec.SetField(facility.FieldRatePerSession, field.TypeFloat64, value)
 		_node.RatePerSession = value
@@ -583,6 +601,24 @@ func (u *FacilityUpsert) UpdateCapacity() *FacilityUpsert {
 // AddCapacity adds v to the "capacity" field.
 func (u *FacilityUpsert) AddCapacity(v int) *FacilityUpsert {
 	u.Add(facility.FieldCapacity, v)
+	return u
+}
+
+// SetInventoryItemID sets the "inventory_item_id" field.
+func (u *FacilityUpsert) SetInventoryItemID(v uuid.UUID) *FacilityUpsert {
+	u.Set(facility.FieldInventoryItemID, v)
+	return u
+}
+
+// UpdateInventoryItemID sets the "inventory_item_id" field to the value that was provided on create.
+func (u *FacilityUpsert) UpdateInventoryItemID() *FacilityUpsert {
+	u.SetExcluded(facility.FieldInventoryItemID)
+	return u
+}
+
+// ClearInventoryItemID clears the value of the "inventory_item_id" field.
+func (u *FacilityUpsert) ClearInventoryItemID() *FacilityUpsert {
+	u.SetNull(facility.FieldInventoryItemID)
 	return u
 }
 
@@ -813,6 +849,27 @@ func (u *FacilityUpsertOne) AddCapacity(v int) *FacilityUpsertOne {
 func (u *FacilityUpsertOne) UpdateCapacity() *FacilityUpsertOne {
 	return u.Update(func(s *FacilityUpsert) {
 		s.UpdateCapacity()
+	})
+}
+
+// SetInventoryItemID sets the "inventory_item_id" field.
+func (u *FacilityUpsertOne) SetInventoryItemID(v uuid.UUID) *FacilityUpsertOne {
+	return u.Update(func(s *FacilityUpsert) {
+		s.SetInventoryItemID(v)
+	})
+}
+
+// UpdateInventoryItemID sets the "inventory_item_id" field to the value that was provided on create.
+func (u *FacilityUpsertOne) UpdateInventoryItemID() *FacilityUpsertOne {
+	return u.Update(func(s *FacilityUpsert) {
+		s.UpdateInventoryItemID()
+	})
+}
+
+// ClearInventoryItemID clears the value of the "inventory_item_id" field.
+func (u *FacilityUpsertOne) ClearInventoryItemID() *FacilityUpsertOne {
+	return u.Update(func(s *FacilityUpsert) {
+		s.ClearInventoryItemID()
 	})
 }
 
@@ -1227,6 +1284,27 @@ func (u *FacilityUpsertBulk) AddCapacity(v int) *FacilityUpsertBulk {
 func (u *FacilityUpsertBulk) UpdateCapacity() *FacilityUpsertBulk {
 	return u.Update(func(s *FacilityUpsert) {
 		s.UpdateCapacity()
+	})
+}
+
+// SetInventoryItemID sets the "inventory_item_id" field.
+func (u *FacilityUpsertBulk) SetInventoryItemID(v uuid.UUID) *FacilityUpsertBulk {
+	return u.Update(func(s *FacilityUpsert) {
+		s.SetInventoryItemID(v)
+	})
+}
+
+// UpdateInventoryItemID sets the "inventory_item_id" field to the value that was provided on create.
+func (u *FacilityUpsertBulk) UpdateInventoryItemID() *FacilityUpsertBulk {
+	return u.Update(func(s *FacilityUpsert) {
+		s.UpdateInventoryItemID()
+	})
+}
+
+// ClearInventoryItemID clears the value of the "inventory_item_id" field.
+func (u *FacilityUpsertBulk) ClearInventoryItemID() *FacilityUpsertBulk {
+	return u.Update(func(s *FacilityUpsert) {
+		s.ClearInventoryItemID()
 	})
 }
 

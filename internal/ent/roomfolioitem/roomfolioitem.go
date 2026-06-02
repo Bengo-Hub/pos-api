@@ -30,6 +30,10 @@ const (
 	FieldCurrency = "currency"
 	// FieldChargeType holds the string denoting the charge_type field in the database.
 	FieldChargeType = "charge_type"
+	// FieldInventorySku holds the string denoting the inventory_sku field in the database.
+	FieldInventorySku = "inventory_sku"
+	// FieldInventoryBundleID holds the string denoting the inventory_bundle_id field in the database.
+	FieldInventoryBundleID = "inventory_bundle_id"
 	// FieldPosOrderID holds the string denoting the pos_order_id field in the database.
 	FieldPosOrderID = "pos_order_id"
 	// FieldCreatedBy holds the string denoting the created_by field in the database.
@@ -70,6 +74,8 @@ var Columns = []string{
 	FieldAmount,
 	FieldCurrency,
 	FieldChargeType,
+	FieldInventorySku,
+	FieldInventoryBundleID,
 	FieldPosOrderID,
 	FieldCreatedBy,
 	FieldMetadata,
@@ -118,6 +124,9 @@ const (
 	ChargeTypeFacility     ChargeType = "facility"
 	ChargeTypeLateCheckout ChargeType = "late_checkout"
 	ChargeTypeDamage       ChargeType = "damage"
+	ChargeTypePackage      ChargeType = "package"
+	ChargeTypeConference   ChargeType = "conference"
+	ChargeTypeMealVoucher  ChargeType = "meal_voucher"
 	ChargeTypeOther        ChargeType = "other"
 )
 
@@ -128,7 +137,7 @@ func (ct ChargeType) String() string {
 // ChargeTypeValidator is a validator for the "charge_type" field enum values. It is called by the builders before save.
 func ChargeTypeValidator(ct ChargeType) error {
 	switch ct {
-	case ChargeTypeRoomCharge, ChargeTypeFood, ChargeTypeLaundry, ChargeTypeMinibar, ChargeTypeRoomService, ChargeTypeAmenity, ChargeTypeFacility, ChargeTypeLateCheckout, ChargeTypeDamage, ChargeTypeOther:
+	case ChargeTypeRoomCharge, ChargeTypeFood, ChargeTypeLaundry, ChargeTypeMinibar, ChargeTypeRoomService, ChargeTypeAmenity, ChargeTypeFacility, ChargeTypeLateCheckout, ChargeTypeDamage, ChargeTypePackage, ChargeTypeConference, ChargeTypeMealVoucher, ChargeTypeOther:
 		return nil
 	default:
 		return fmt.Errorf("roomfolioitem: invalid enum value for charge_type field: %q", ct)
@@ -176,6 +185,16 @@ func ByCurrency(opts ...sql.OrderTermOption) OrderOption {
 // ByChargeType orders the results by the charge_type field.
 func ByChargeType(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldChargeType, opts...).ToFunc()
+}
+
+// ByInventorySku orders the results by the inventory_sku field.
+func ByInventorySku(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldInventorySku, opts...).ToFunc()
+}
+
+// ByInventoryBundleID orders the results by the inventory_bundle_id field.
+func ByInventoryBundleID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldInventoryBundleID, opts...).ToFunc()
 }
 
 // ByPosOrderID orders the results by the pos_order_id field.
