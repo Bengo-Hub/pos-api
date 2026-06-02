@@ -17,8 +17,8 @@ import (
 	entroom "github.com/bengobox/pos-service/internal/ent/room"
 	entroomfolioitem "github.com/bengobox/pos-service/internal/ent/roomfolioitem"
 	entroomguest "github.com/bengobox/pos-service/internal/ent/roomguest"
-	"github.com/bengobox/pos-service/internal/platform/events"
 	treasury "github.com/bengobox/pos-service/internal/modules/treasury"
+	"github.com/bengobox/pos-service/internal/platform/events"
 )
 
 // HotelHandler handles hotel management endpoints (rooms, guests, folio, facilities, bookings).
@@ -200,11 +200,25 @@ func (h *HotelHandler) UpdateRoomStatus(w http.ResponseWriter, r *http.Request) 
 }
 
 type checkInInput struct {
-	GuestName string `json:"guest_name"`
-	Phone     string `json:"phone"`
-	IDNumber  string `json:"id_number"`
-	Nights    int    `json:"nights"`
-	CheckedBy string `json:"checked_in_by"`
+	GuestName           string     `json:"guest_name"`
+	FirstName           string     `json:"first_name"`
+	LastName            string     `json:"last_name"`
+	Email               string     `json:"email"`
+	Phone               string     `json:"phone"`
+	Nationality         string     `json:"nationality"`
+	IDType              string     `json:"id_type"`
+	IDNumber            string     `json:"id_number"`
+	IDDocumentURL       string     `json:"id_document_url"`
+	Adults              int        `json:"adults"`
+	Children            int        `json:"children"`
+	ChildAges           []int      `json:"child_ages"`
+	Nights              int        `json:"nights"`
+	ExpectedArrivalAt   *time.Time `json:"expected_arrival_at"`
+	ExpectedDepartureAt *time.Time `json:"expected_departure_at"`
+	Source              string     `json:"source"`
+	BookingID           string     `json:"booking_id"`
+	CRMContactID        string     `json:"crm_contact_id"`
+	CheckedBy           string     `json:"checked_in_by"`
 }
 
 // CheckIn handles POST /{tenantID}/hotel/rooms/{id}/check-in
@@ -253,7 +267,10 @@ func (h *HotelHandler) CheckIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	guest, err := tx.RoomGuest.Create().
+	if input.Adults < 1 {
+		input.Adults = 1
+	}
+	guestBuilder := tx.RoomGuest.Create().
 		SetTenantID(tid).
 		SetRoomID(roomID).
 		SetGuestName(input.GuestName).
@@ -265,7 +282,47 @@ func (h *HotelHandler) CheckIn(w http.ResponseWriter, r *http.Request) {
 		SetTotalRoomCharge(totalCharge).
 		SetCheckedInBy(checkedInBy).
 		SetCheckedInAt(now).
-		Save(r.Context())
+		SetAdults(input.Adults).
+		SetChildren(input.Children)
+	if input.FirstName != "" {
+		guestBuilder = guestBuilder.SetFirstName(input.FirstName)
+	}
+	if input.LastName != "" {
+		guestBuilder = guestBuilder.SetLastName(input.LastName)
+	}
+	if input.Email != "" {
+		guestBuilder = guestBuilder.SetEmail(input.Email)
+	}
+	if input.Nationality != "" {
+		guestBuilder = guestBuilder.SetNationality(input.Nationality)
+	}
+	if input.IDType != "" {
+		guestBuilder = guestBuilder.SetIDType(entroomguest.IDType(input.IDType))
+	}
+	if input.IDDocumentURL != "" {
+		guestBuilder = guestBuilder.SetIDDocumentURL(input.IDDocumentURL)
+	}
+	if len(input.ChildAges) > 0 {
+		guestBuilder = guestBuilder.SetChildAges(input.ChildAges)
+	}
+	if input.Source != "" {
+		guestBuilder = guestBuilder.SetSource(entroomguest.Source(input.Source))
+	}
+	if input.ExpectedArrivalAt != nil {
+		guestBuilder = guestBuilder.SetExpectedArrivalAt(*input.ExpectedArrivalAt)
+	}
+	if input.ExpectedDepartureAt != nil {
+		guestBuilder = guestBuilder.SetExpectedDepartureAt(*input.ExpectedDepartureAt)
+	} else {
+		guestBuilder = guestBuilder.SetExpectedDepartureAt(checkOutDate)
+	}
+	if bookingID, perr := uuid.Parse(input.BookingID); perr == nil {
+		guestBuilder = guestBuilder.SetBookingID(bookingID)
+	}
+	if crmID, perr := uuid.Parse(input.CRMContactID); perr == nil {
+		guestBuilder = guestBuilder.SetCrmContactID(crmID)
+	}
+	guest, err := guestBuilder.Save(r.Context())
 	if err != nil {
 		_ = tx.Rollback()
 		h.log.Error("create room guest failed", zap.Error(err))
@@ -907,9 +964,9 @@ func (h *HotelHandler) LateCheckout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	jsonOK(w, map[string]any{
-		"guest_id":              guest.ID,
+		"guest_id":               guest.ID,
 		"late_checkout_approved": true,
-		"surcharge_amount":      input.SurchargeAmount,
+		"surcharge_amount":       input.SurchargeAmount,
 	})
 }
 

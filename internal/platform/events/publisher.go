@@ -145,6 +145,27 @@ func (p *Publisher) PublishHotelFolioCharge(ctx context.Context, tenantID uuid.U
 	return p.publish(ctx, tenantID, "hotel.folio_charge", data)
 }
 
+// PublishHotelBookingCreated publishes hotel.booking.created for a multi-room/group booking.
+func (p *Publisher) PublishHotelBookingCreated(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {
+	return p.publish(ctx, tenantID, "hotel.booking.created", data)
+}
+
+// PublishConferenceEventBooked publishes conference.event.booked when a BEO/event booking is created.
+func (p *Publisher) PublishConferenceEventBooked(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {
+	return p.publish(ctx, tenantID, "conference.event.booked", data)
+}
+
+// PublishConferenceMealcardIssued publishes conference.mealcard.issued when delegate meal cards are generated.
+func (p *Publisher) PublishConferenceMealcardIssued(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {
+	return p.publish(ctx, tenantID, "conference.mealcard.issued", data)
+}
+
+// PublishConferenceMealcardRedeemed publishes conference.mealcard.redeemed when a meal voucher is redeemed
+// (consumed by inventory-api for meal-BOM backflush and notifications-api).
+func (p *Publisher) PublishConferenceMealcardRedeemed(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {
+	return p.publish(ctx, tenantID, "conference.mealcard.redeemed", data)
+}
+
 // PublishLoyaltyPointsEarned publishes a pos.loyalty.points.earned event.
 // Consumed by notifications-service to send a WhatsApp/SMS "You earned X pts" message.
 func (p *Publisher) PublishLoyaltyPointsEarned(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {

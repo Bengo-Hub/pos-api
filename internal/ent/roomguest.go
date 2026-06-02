@@ -11,6 +11,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/bengobox/pos-service/internal/ent/room"
+	"github.com/bengobox/pos-service/internal/ent/roombooking"
 	"github.com/bengobox/pos-service/internal/ent/roomguest"
 	"github.com/google/uuid"
 )
@@ -24,18 +25,46 @@ type RoomGuest struct {
 	TenantID uuid.UUID `json:"tenant_id,omitempty"`
 	// RoomID holds the value of the "room_id" field.
 	RoomID uuid.UUID `json:"room_id,omitempty"`
+	// FK to RoomBooking group header (multi-room booking); nil for standalone single-room check-ins
+	BookingID *uuid.UUID `json:"booking_id,omitempty"`
 	// GuestName holds the value of the "guest_name" field.
 	GuestName string `json:"guest_name,omitempty"`
+	// FirstName holds the value of the "first_name" field.
+	FirstName string `json:"first_name,omitempty"`
+	// LastName holds the value of the "last_name" field.
+	LastName string `json:"last_name,omitempty"`
+	// Guest email for confirmations/folio
+	Email string `json:"email,omitempty"`
 	// Phone holds the value of the "phone" field.
 	Phone string `json:"phone,omitempty"`
+	// Nationality holds the value of the "nationality" field.
+	Nationality string `json:"nationality,omitempty"`
+	// IDType holds the value of the "id_type" field.
+	IDType roomguest.IDType `json:"id_type,omitempty"`
 	// IDNumber holds the value of the "id_number" field.
 	IDNumber string `json:"id_number,omitempty"`
+	// Object-storage KEY for the scanned ID document (PII — never store the blob inline)
+	IDDocumentURL string `json:"id_document_url,omitempty"`
+	// Adults holds the value of the "adults" field.
+	Adults int `json:"adults,omitempty"`
+	// Children holds the value of the "children" field.
+	Children int `json:"children,omitempty"`
+	// Ages of accompanying children
+	ChildAges []int `json:"child_ages,omitempty"`
+	// Source holds the value of the "source" field.
+	Source roomguest.Source `json:"source,omitempty"`
+	// marketflow-api CRM contact ref — never duplicate contact master data here
+	CrmContactID *uuid.UUID `json:"crm_contact_id,omitempty"`
 	// CheckInDate holds the value of the "check_in_date" field.
 	CheckInDate time.Time `json:"check_in_date,omitempty"`
+	// Planned arrival datetime from the check-in calendar picker (distinct from audit checked_in_at)
+	ExpectedArrivalAt *time.Time `json:"expected_arrival_at,omitempty"`
 	// Nights holds the value of the "nights" field.
 	Nights int `json:"nights,omitempty"`
 	// CheckOutDate holds the value of the "check_out_date" field.
 	CheckOutDate time.Time `json:"check_out_date,omitempty"`
+	// Planned departure datetime from the check-out calendar picker
+	ExpectedDepartureAt *time.Time `json:"expected_departure_at,omitempty"`
 	// TotalRoomCharge holds the value of the "total_room_charge" field.
 	TotalRoomCharge float64 `json:"total_room_charge,omitempty"`
 	// Status holds the value of the "status" field.
@@ -68,11 +97,13 @@ type RoomGuest struct {
 type RoomGuestEdges struct {
 	// Room holds the value of the room edge.
 	Room *Room `json:"room,omitempty"`
+	// Booking holds the value of the booking edge.
+	Booking *RoomBooking `json:"booking,omitempty"`
 	// FolioItems holds the value of the folio_items edge.
 	FolioItems []*RoomFolioItem `json:"folio_items,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [2]bool
+	loadedTypes [3]bool
 }
 
 // RoomOrErr returns the Room value or an error if the edge
@@ -86,10 +117,21 @@ func (e RoomGuestEdges) RoomOrErr() (*Room, error) {
 	return nil, &NotLoadedError{edge: "room"}
 }
 
+// BookingOrErr returns the Booking value or an error if the edge
+// was not loaded in eager-loading, or loaded but was not found.
+func (e RoomGuestEdges) BookingOrErr() (*RoomBooking, error) {
+	if e.Booking != nil {
+		return e.Booking, nil
+	} else if e.loadedTypes[1] {
+		return nil, &NotFoundError{label: roombooking.Label}
+	}
+	return nil, &NotLoadedError{edge: "booking"}
+}
+
 // FolioItemsOrErr returns the FolioItems value or an error if the edge
 // was not loaded in eager-loading.
 func (e RoomGuestEdges) FolioItemsOrErr() ([]*RoomFolioItem, error) {
-	if e.loadedTypes[1] {
+	if e.loadedTypes[2] {
 		return e.FolioItems, nil
 	}
 	return nil, &NotLoadedError{edge: "folio_items"}
@@ -100,19 +142,19 @@ func (*RoomGuest) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case roomguest.FieldCheckedOutBy:
+		case roomguest.FieldBookingID, roomguest.FieldCrmContactID, roomguest.FieldCheckedOutBy:
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
-		case roomguest.FieldMetadata:
+		case roomguest.FieldChildAges, roomguest.FieldMetadata:
 			values[i] = new([]byte)
 		case roomguest.FieldLateCheckoutApproved:
 			values[i] = new(sql.NullBool)
 		case roomguest.FieldTotalRoomCharge, roomguest.FieldLateCheckoutSurcharge:
 			values[i] = new(sql.NullFloat64)
-		case roomguest.FieldNights:
+		case roomguest.FieldAdults, roomguest.FieldChildren, roomguest.FieldNights:
 			values[i] = new(sql.NullInt64)
-		case roomguest.FieldGuestName, roomguest.FieldPhone, roomguest.FieldIDNumber, roomguest.FieldStatus:
+		case roomguest.FieldGuestName, roomguest.FieldFirstName, roomguest.FieldLastName, roomguest.FieldEmail, roomguest.FieldPhone, roomguest.FieldNationality, roomguest.FieldIDType, roomguest.FieldIDNumber, roomguest.FieldIDDocumentURL, roomguest.FieldSource, roomguest.FieldStatus:
 			values[i] = new(sql.NullString)
-		case roomguest.FieldCheckInDate, roomguest.FieldCheckOutDate, roomguest.FieldCheckedInAt, roomguest.FieldCheckedOutAt, roomguest.FieldCreatedAt, roomguest.FieldUpdatedAt:
+		case roomguest.FieldCheckInDate, roomguest.FieldExpectedArrivalAt, roomguest.FieldCheckOutDate, roomguest.FieldExpectedDepartureAt, roomguest.FieldCheckedInAt, roomguest.FieldCheckedOutAt, roomguest.FieldCreatedAt, roomguest.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
 		case roomguest.FieldID, roomguest.FieldTenantID, roomguest.FieldRoomID, roomguest.FieldCheckedInBy:
 			values[i] = new(uuid.UUID)
@@ -149,11 +191,36 @@ func (_m *RoomGuest) assignValues(columns []string, values []any) error {
 			} else if value != nil {
 				_m.RoomID = *value
 			}
+		case roomguest.FieldBookingID:
+			if value, ok := values[i].(*sql.NullScanner); !ok {
+				return fmt.Errorf("unexpected type %T for field booking_id", values[i])
+			} else if value.Valid {
+				_m.BookingID = new(uuid.UUID)
+				*_m.BookingID = *value.S.(*uuid.UUID)
+			}
 		case roomguest.FieldGuestName:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field guest_name", values[i])
 			} else if value.Valid {
 				_m.GuestName = value.String
+			}
+		case roomguest.FieldFirstName:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field first_name", values[i])
+			} else if value.Valid {
+				_m.FirstName = value.String
+			}
+		case roomguest.FieldLastName:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field last_name", values[i])
+			} else if value.Valid {
+				_m.LastName = value.String
+			}
+		case roomguest.FieldEmail:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field email", values[i])
+			} else if value.Valid {
+				_m.Email = value.String
 			}
 		case roomguest.FieldPhone:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -161,17 +228,75 @@ func (_m *RoomGuest) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.Phone = value.String
 			}
+		case roomguest.FieldNationality:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field nationality", values[i])
+			} else if value.Valid {
+				_m.Nationality = value.String
+			}
+		case roomguest.FieldIDType:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field id_type", values[i])
+			} else if value.Valid {
+				_m.IDType = roomguest.IDType(value.String)
+			}
 		case roomguest.FieldIDNumber:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field id_number", values[i])
 			} else if value.Valid {
 				_m.IDNumber = value.String
 			}
+		case roomguest.FieldIDDocumentURL:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field id_document_url", values[i])
+			} else if value.Valid {
+				_m.IDDocumentURL = value.String
+			}
+		case roomguest.FieldAdults:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field adults", values[i])
+			} else if value.Valid {
+				_m.Adults = int(value.Int64)
+			}
+		case roomguest.FieldChildren:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field children", values[i])
+			} else if value.Valid {
+				_m.Children = int(value.Int64)
+			}
+		case roomguest.FieldChildAges:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field child_ages", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.ChildAges); err != nil {
+					return fmt.Errorf("unmarshal field child_ages: %w", err)
+				}
+			}
+		case roomguest.FieldSource:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field source", values[i])
+			} else if value.Valid {
+				_m.Source = roomguest.Source(value.String)
+			}
+		case roomguest.FieldCrmContactID:
+			if value, ok := values[i].(*sql.NullScanner); !ok {
+				return fmt.Errorf("unexpected type %T for field crm_contact_id", values[i])
+			} else if value.Valid {
+				_m.CrmContactID = new(uuid.UUID)
+				*_m.CrmContactID = *value.S.(*uuid.UUID)
+			}
 		case roomguest.FieldCheckInDate:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field check_in_date", values[i])
 			} else if value.Valid {
 				_m.CheckInDate = value.Time
+			}
+		case roomguest.FieldExpectedArrivalAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field expected_arrival_at", values[i])
+			} else if value.Valid {
+				_m.ExpectedArrivalAt = new(time.Time)
+				*_m.ExpectedArrivalAt = value.Time
 			}
 		case roomguest.FieldNights:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -184,6 +309,13 @@ func (_m *RoomGuest) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field check_out_date", values[i])
 			} else if value.Valid {
 				_m.CheckOutDate = value.Time
+			}
+		case roomguest.FieldExpectedDepartureAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field expected_departure_at", values[i])
+			} else if value.Valid {
+				_m.ExpectedDepartureAt = new(time.Time)
+				*_m.ExpectedDepartureAt = value.Time
 			}
 		case roomguest.FieldTotalRoomCharge:
 			if value, ok := values[i].(*sql.NullFloat64); !ok {
@@ -273,6 +405,11 @@ func (_m *RoomGuest) QueryRoom() *RoomQuery {
 	return NewRoomGuestClient(_m.config).QueryRoom(_m)
 }
 
+// QueryBooking queries the "booking" edge of the RoomGuest entity.
+func (_m *RoomGuest) QueryBooking() *RoomBookingQuery {
+	return NewRoomGuestClient(_m.config).QueryBooking(_m)
+}
+
 // QueryFolioItems queries the "folio_items" edge of the RoomGuest entity.
 func (_m *RoomGuest) QueryFolioItems() *RoomFolioItemQuery {
 	return NewRoomGuestClient(_m.config).QueryFolioItems(_m)
@@ -307,23 +444,73 @@ func (_m *RoomGuest) String() string {
 	builder.WriteString("room_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.RoomID))
 	builder.WriteString(", ")
+	if v := _m.BookingID; v != nil {
+		builder.WriteString("booking_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
 	builder.WriteString("guest_name=")
 	builder.WriteString(_m.GuestName)
+	builder.WriteString(", ")
+	builder.WriteString("first_name=")
+	builder.WriteString(_m.FirstName)
+	builder.WriteString(", ")
+	builder.WriteString("last_name=")
+	builder.WriteString(_m.LastName)
+	builder.WriteString(", ")
+	builder.WriteString("email=")
+	builder.WriteString(_m.Email)
 	builder.WriteString(", ")
 	builder.WriteString("phone=")
 	builder.WriteString(_m.Phone)
 	builder.WriteString(", ")
+	builder.WriteString("nationality=")
+	builder.WriteString(_m.Nationality)
+	builder.WriteString(", ")
+	builder.WriteString("id_type=")
+	builder.WriteString(fmt.Sprintf("%v", _m.IDType))
+	builder.WriteString(", ")
 	builder.WriteString("id_number=")
 	builder.WriteString(_m.IDNumber)
 	builder.WriteString(", ")
+	builder.WriteString("id_document_url=")
+	builder.WriteString(_m.IDDocumentURL)
+	builder.WriteString(", ")
+	builder.WriteString("adults=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Adults))
+	builder.WriteString(", ")
+	builder.WriteString("children=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Children))
+	builder.WriteString(", ")
+	builder.WriteString("child_ages=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ChildAges))
+	builder.WriteString(", ")
+	builder.WriteString("source=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Source))
+	builder.WriteString(", ")
+	if v := _m.CrmContactID; v != nil {
+		builder.WriteString("crm_contact_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
 	builder.WriteString("check_in_date=")
 	builder.WriteString(_m.CheckInDate.Format(time.ANSIC))
+	builder.WriteString(", ")
+	if v := _m.ExpectedArrivalAt; v != nil {
+		builder.WriteString("expected_arrival_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("nights=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Nights))
 	builder.WriteString(", ")
 	builder.WriteString("check_out_date=")
 	builder.WriteString(_m.CheckOutDate.Format(time.ANSIC))
+	builder.WriteString(", ")
+	if v := _m.ExpectedDepartureAt; v != nil {
+		builder.WriteString("expected_departure_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("total_room_charge=")
 	builder.WriteString(fmt.Sprintf("%v", _m.TotalRoomCharge))

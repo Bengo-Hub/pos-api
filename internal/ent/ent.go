@@ -79,6 +79,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/room"
 	"github.com/bengobox/pos-service/internal/ent/roomamenity"
 	"github.com/bengobox/pos-service/internal/ent/roomamenityassignment"
+	"github.com/bengobox/pos-service/internal/ent/roombooking"
 	"github.com/bengobox/pos-service/internal/ent/roomfolioitem"
 	"github.com/bengobox/pos-service/internal/ent/roomguest"
 	"github.com/bengobox/pos-service/internal/ent/section"
@@ -238,6 +239,7 @@ func checkColumn(t, c string) error {
 			room.Table:                     room.ValidColumn,
 			roomamenity.Table:              roomamenity.ValidColumn,
 			roomamenityassignment.Table:    roomamenityassignment.ValidColumn,
+			roombooking.Table:              roombooking.ValidColumn,
 			roomfolioitem.Table:            roomfolioitem.ValidColumn,
 			roomguest.Table:                roomguest.ValidColumn,
 			section.Table:                  section.ValidColumn,

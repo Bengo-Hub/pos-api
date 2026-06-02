@@ -20,18 +20,46 @@ const (
 	FieldTenantID = "tenant_id"
 	// FieldRoomID holds the string denoting the room_id field in the database.
 	FieldRoomID = "room_id"
+	// FieldBookingID holds the string denoting the booking_id field in the database.
+	FieldBookingID = "booking_id"
 	// FieldGuestName holds the string denoting the guest_name field in the database.
 	FieldGuestName = "guest_name"
+	// FieldFirstName holds the string denoting the first_name field in the database.
+	FieldFirstName = "first_name"
+	// FieldLastName holds the string denoting the last_name field in the database.
+	FieldLastName = "last_name"
+	// FieldEmail holds the string denoting the email field in the database.
+	FieldEmail = "email"
 	// FieldPhone holds the string denoting the phone field in the database.
 	FieldPhone = "phone"
+	// FieldNationality holds the string denoting the nationality field in the database.
+	FieldNationality = "nationality"
+	// FieldIDType holds the string denoting the id_type field in the database.
+	FieldIDType = "id_type"
 	// FieldIDNumber holds the string denoting the id_number field in the database.
 	FieldIDNumber = "id_number"
+	// FieldIDDocumentURL holds the string denoting the id_document_url field in the database.
+	FieldIDDocumentURL = "id_document_url"
+	// FieldAdults holds the string denoting the adults field in the database.
+	FieldAdults = "adults"
+	// FieldChildren holds the string denoting the children field in the database.
+	FieldChildren = "children"
+	// FieldChildAges holds the string denoting the child_ages field in the database.
+	FieldChildAges = "child_ages"
+	// FieldSource holds the string denoting the source field in the database.
+	FieldSource = "source"
+	// FieldCrmContactID holds the string denoting the crm_contact_id field in the database.
+	FieldCrmContactID = "crm_contact_id"
 	// FieldCheckInDate holds the string denoting the check_in_date field in the database.
 	FieldCheckInDate = "check_in_date"
+	// FieldExpectedArrivalAt holds the string denoting the expected_arrival_at field in the database.
+	FieldExpectedArrivalAt = "expected_arrival_at"
 	// FieldNights holds the string denoting the nights field in the database.
 	FieldNights = "nights"
 	// FieldCheckOutDate holds the string denoting the check_out_date field in the database.
 	FieldCheckOutDate = "check_out_date"
+	// FieldExpectedDepartureAt holds the string denoting the expected_departure_at field in the database.
+	FieldExpectedDepartureAt = "expected_departure_at"
 	// FieldTotalRoomCharge holds the string denoting the total_room_charge field in the database.
 	FieldTotalRoomCharge = "total_room_charge"
 	// FieldStatus holds the string denoting the status field in the database.
@@ -56,6 +84,8 @@ const (
 	FieldUpdatedAt = "updated_at"
 	// EdgeRoom holds the string denoting the room edge name in mutations.
 	EdgeRoom = "room"
+	// EdgeBooking holds the string denoting the booking edge name in mutations.
+	EdgeBooking = "booking"
 	// EdgeFolioItems holds the string denoting the folio_items edge name in mutations.
 	EdgeFolioItems = "folio_items"
 	// Table holds the table name of the roomguest in the database.
@@ -67,6 +97,13 @@ const (
 	RoomInverseTable = "rooms"
 	// RoomColumn is the table column denoting the room relation/edge.
 	RoomColumn = "room_id"
+	// BookingTable is the table that holds the booking relation/edge.
+	BookingTable = "room_guests"
+	// BookingInverseTable is the table name for the RoomBooking entity.
+	// It exists in this package in order to avoid circular dependency with the "roombooking" package.
+	BookingInverseTable = "room_bookings"
+	// BookingColumn is the table column denoting the booking relation/edge.
+	BookingColumn = "booking_id"
 	// FolioItemsTable is the table that holds the folio_items relation/edge.
 	FolioItemsTable = "room_folio_items"
 	// FolioItemsInverseTable is the table name for the RoomFolioItem entity.
@@ -81,12 +118,26 @@ var Columns = []string{
 	FieldID,
 	FieldTenantID,
 	FieldRoomID,
+	FieldBookingID,
 	FieldGuestName,
+	FieldFirstName,
+	FieldLastName,
+	FieldEmail,
 	FieldPhone,
+	FieldNationality,
+	FieldIDType,
 	FieldIDNumber,
+	FieldIDDocumentURL,
+	FieldAdults,
+	FieldChildren,
+	FieldChildAges,
+	FieldSource,
+	FieldCrmContactID,
 	FieldCheckInDate,
+	FieldExpectedArrivalAt,
 	FieldNights,
 	FieldCheckOutDate,
+	FieldExpectedDepartureAt,
 	FieldTotalRoomCharge,
 	FieldStatus,
 	FieldCheckedInBy,
@@ -117,6 +168,14 @@ var (
 	PhoneValidator func(string) error
 	// IDNumberValidator is a validator for the "id_number" field. It is called by the builders before save.
 	IDNumberValidator func(string) error
+	// DefaultAdults holds the default value on creation for the "adults" field.
+	DefaultAdults int
+	// AdultsValidator is a validator for the "adults" field. It is called by the builders before save.
+	AdultsValidator func(int) error
+	// DefaultChildren holds the default value on creation for the "children" field.
+	DefaultChildren int
+	// ChildrenValidator is a validator for the "children" field. It is called by the builders before save.
+	ChildrenValidator func(int) error
 	// NightsValidator is a validator for the "nights" field. It is called by the builders before save.
 	NightsValidator func(int) error
 	// TotalRoomChargeValidator is a validator for the "total_room_charge" field. It is called by the builders before save.
@@ -138,6 +197,61 @@ var (
 	// DefaultID holds the default value on creation for the "id" field.
 	DefaultID func() uuid.UUID
 )
+
+// IDType defines the type for the "id_type" enum field.
+type IDType string
+
+// IDTypeNationalID is the default value of the IDType enum.
+const DefaultIDType = IDTypeNationalID
+
+// IDType values.
+const (
+	IDTypeNationalID     IDType = "national_id"
+	IDTypePassport       IDType = "passport"
+	IDTypeDrivingLicence IDType = "driving_licence"
+	IDTypeOther          IDType = "other"
+)
+
+func (it IDType) String() string {
+	return string(it)
+}
+
+// IDTypeValidator is a validator for the "id_type" field enum values. It is called by the builders before save.
+func IDTypeValidator(it IDType) error {
+	switch it {
+	case IDTypeNationalID, IDTypePassport, IDTypeDrivingLicence, IDTypeOther:
+		return nil
+	default:
+		return fmt.Errorf("roomguest: invalid enum value for id_type field: %q", it)
+	}
+}
+
+// Source defines the type for the "source" enum field.
+type Source string
+
+// SourceStaff is the default value of the Source enum.
+const DefaultSource = SourceStaff
+
+// Source values.
+const (
+	SourceStaff  Source = "staff"
+	SourceOnline Source = "online"
+	SourceAPI    Source = "api"
+)
+
+func (s Source) String() string {
+	return string(s)
+}
+
+// SourceValidator is a validator for the "source" field enum values. It is called by the builders before save.
+func SourceValidator(s Source) error {
+	switch s {
+	case SourceStaff, SourceOnline, SourceAPI:
+		return nil
+	default:
+		return fmt.Errorf("roomguest: invalid enum value for source field: %q", s)
+	}
+}
 
 // Status defines the type for the "status" enum field.
 type Status string
@@ -183,9 +297,29 @@ func ByRoomID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldRoomID, opts...).ToFunc()
 }
 
+// ByBookingID orders the results by the booking_id field.
+func ByBookingID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBookingID, opts...).ToFunc()
+}
+
 // ByGuestName orders the results by the guest_name field.
 func ByGuestName(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldGuestName, opts...).ToFunc()
+}
+
+// ByFirstName orders the results by the first_name field.
+func ByFirstName(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldFirstName, opts...).ToFunc()
+}
+
+// ByLastName orders the results by the last_name field.
+func ByLastName(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLastName, opts...).ToFunc()
+}
+
+// ByEmail orders the results by the email field.
+func ByEmail(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldEmail, opts...).ToFunc()
 }
 
 // ByPhone orders the results by the phone field.
@@ -193,14 +327,54 @@ func ByPhone(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldPhone, opts...).ToFunc()
 }
 
+// ByNationality orders the results by the nationality field.
+func ByNationality(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldNationality, opts...).ToFunc()
+}
+
+// ByIDType orders the results by the id_type field.
+func ByIDType(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldIDType, opts...).ToFunc()
+}
+
 // ByIDNumber orders the results by the id_number field.
 func ByIDNumber(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldIDNumber, opts...).ToFunc()
 }
 
+// ByIDDocumentURL orders the results by the id_document_url field.
+func ByIDDocumentURL(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldIDDocumentURL, opts...).ToFunc()
+}
+
+// ByAdults orders the results by the adults field.
+func ByAdults(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAdults, opts...).ToFunc()
+}
+
+// ByChildren orders the results by the children field.
+func ByChildren(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldChildren, opts...).ToFunc()
+}
+
+// BySource orders the results by the source field.
+func BySource(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSource, opts...).ToFunc()
+}
+
+// ByCrmContactID orders the results by the crm_contact_id field.
+func ByCrmContactID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCrmContactID, opts...).ToFunc()
+}
+
 // ByCheckInDate orders the results by the check_in_date field.
 func ByCheckInDate(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCheckInDate, opts...).ToFunc()
+}
+
+// ByExpectedArrivalAt orders the results by the expected_arrival_at field.
+func ByExpectedArrivalAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldExpectedArrivalAt, opts...).ToFunc()
 }
 
 // ByNights orders the results by the nights field.
@@ -211,6 +385,11 @@ func ByNights(opts ...sql.OrderTermOption) OrderOption {
 // ByCheckOutDate orders the results by the check_out_date field.
 func ByCheckOutDate(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCheckOutDate, opts...).ToFunc()
+}
+
+// ByExpectedDepartureAt orders the results by the expected_departure_at field.
+func ByExpectedDepartureAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldExpectedDepartureAt, opts...).ToFunc()
 }
 
 // ByTotalRoomCharge orders the results by the total_room_charge field.
@@ -270,6 +449,13 @@ func ByRoomField(field string, opts ...sql.OrderTermOption) OrderOption {
 	}
 }
 
+// ByBookingField orders the results by booking field.
+func ByBookingField(field string, opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newBookingStep(), sql.OrderByField(field, opts...))
+	}
+}
+
 // ByFolioItemsCount orders the results by folio_items count.
 func ByFolioItemsCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -288,6 +474,13 @@ func newRoomStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(RoomInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.M2O, true, RoomTable, RoomColumn),
+	)
+}
+func newBookingStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(BookingInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.M2O, true, BookingTable, BookingColumn),
 	)
 }
 func newFolioItemsStep() *sqlgraph.Step {

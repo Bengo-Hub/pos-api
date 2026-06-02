@@ -10,9 +10,11 @@ import (
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"entgo.io/ent/dialect/sql/sqljson"
 	"entgo.io/ent/schema/field"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
 	"github.com/bengobox/pos-service/internal/ent/room"
+	"github.com/bengobox/pos-service/internal/ent/roombooking"
 	"github.com/bengobox/pos-service/internal/ent/roomfolioitem"
 	"github.com/bengobox/pos-service/internal/ent/roomguest"
 	"github.com/google/uuid"
@@ -59,6 +61,26 @@ func (_u *RoomGuestUpdate) SetNillableRoomID(v *uuid.UUID) *RoomGuestUpdate {
 	return _u
 }
 
+// SetBookingID sets the "booking_id" field.
+func (_u *RoomGuestUpdate) SetBookingID(v uuid.UUID) *RoomGuestUpdate {
+	_u.mutation.SetBookingID(v)
+	return _u
+}
+
+// SetNillableBookingID sets the "booking_id" field if the given value is not nil.
+func (_u *RoomGuestUpdate) SetNillableBookingID(v *uuid.UUID) *RoomGuestUpdate {
+	if v != nil {
+		_u.SetBookingID(*v)
+	}
+	return _u
+}
+
+// ClearBookingID clears the value of the "booking_id" field.
+func (_u *RoomGuestUpdate) ClearBookingID() *RoomGuestUpdate {
+	_u.mutation.ClearBookingID()
+	return _u
+}
+
 // SetGuestName sets the "guest_name" field.
 func (_u *RoomGuestUpdate) SetGuestName(v string) *RoomGuestUpdate {
 	_u.mutation.SetGuestName(v)
@@ -73,6 +95,66 @@ func (_u *RoomGuestUpdate) SetNillableGuestName(v *string) *RoomGuestUpdate {
 	return _u
 }
 
+// SetFirstName sets the "first_name" field.
+func (_u *RoomGuestUpdate) SetFirstName(v string) *RoomGuestUpdate {
+	_u.mutation.SetFirstName(v)
+	return _u
+}
+
+// SetNillableFirstName sets the "first_name" field if the given value is not nil.
+func (_u *RoomGuestUpdate) SetNillableFirstName(v *string) *RoomGuestUpdate {
+	if v != nil {
+		_u.SetFirstName(*v)
+	}
+	return _u
+}
+
+// ClearFirstName clears the value of the "first_name" field.
+func (_u *RoomGuestUpdate) ClearFirstName() *RoomGuestUpdate {
+	_u.mutation.ClearFirstName()
+	return _u
+}
+
+// SetLastName sets the "last_name" field.
+func (_u *RoomGuestUpdate) SetLastName(v string) *RoomGuestUpdate {
+	_u.mutation.SetLastName(v)
+	return _u
+}
+
+// SetNillableLastName sets the "last_name" field if the given value is not nil.
+func (_u *RoomGuestUpdate) SetNillableLastName(v *string) *RoomGuestUpdate {
+	if v != nil {
+		_u.SetLastName(*v)
+	}
+	return _u
+}
+
+// ClearLastName clears the value of the "last_name" field.
+func (_u *RoomGuestUpdate) ClearLastName() *RoomGuestUpdate {
+	_u.mutation.ClearLastName()
+	return _u
+}
+
+// SetEmail sets the "email" field.
+func (_u *RoomGuestUpdate) SetEmail(v string) *RoomGuestUpdate {
+	_u.mutation.SetEmail(v)
+	return _u
+}
+
+// SetNillableEmail sets the "email" field if the given value is not nil.
+func (_u *RoomGuestUpdate) SetNillableEmail(v *string) *RoomGuestUpdate {
+	if v != nil {
+		_u.SetEmail(*v)
+	}
+	return _u
+}
+
+// ClearEmail clears the value of the "email" field.
+func (_u *RoomGuestUpdate) ClearEmail() *RoomGuestUpdate {
+	_u.mutation.ClearEmail()
+	return _u
+}
+
 // SetPhone sets the "phone" field.
 func (_u *RoomGuestUpdate) SetPhone(v string) *RoomGuestUpdate {
 	_u.mutation.SetPhone(v)
@@ -83,6 +165,40 @@ func (_u *RoomGuestUpdate) SetPhone(v string) *RoomGuestUpdate {
 func (_u *RoomGuestUpdate) SetNillablePhone(v *string) *RoomGuestUpdate {
 	if v != nil {
 		_u.SetPhone(*v)
+	}
+	return _u
+}
+
+// SetNationality sets the "nationality" field.
+func (_u *RoomGuestUpdate) SetNationality(v string) *RoomGuestUpdate {
+	_u.mutation.SetNationality(v)
+	return _u
+}
+
+// SetNillableNationality sets the "nationality" field if the given value is not nil.
+func (_u *RoomGuestUpdate) SetNillableNationality(v *string) *RoomGuestUpdate {
+	if v != nil {
+		_u.SetNationality(*v)
+	}
+	return _u
+}
+
+// ClearNationality clears the value of the "nationality" field.
+func (_u *RoomGuestUpdate) ClearNationality() *RoomGuestUpdate {
+	_u.mutation.ClearNationality()
+	return _u
+}
+
+// SetIDType sets the "id_type" field.
+func (_u *RoomGuestUpdate) SetIDType(v roomguest.IDType) *RoomGuestUpdate {
+	_u.mutation.SetIDType(v)
+	return _u
+}
+
+// SetNillableIDType sets the "id_type" field if the given value is not nil.
+func (_u *RoomGuestUpdate) SetNillableIDType(v *roomguest.IDType) *RoomGuestUpdate {
+	if v != nil {
+		_u.SetIDType(*v)
 	}
 	return _u
 }
@@ -101,6 +217,120 @@ func (_u *RoomGuestUpdate) SetNillableIDNumber(v *string) *RoomGuestUpdate {
 	return _u
 }
 
+// SetIDDocumentURL sets the "id_document_url" field.
+func (_u *RoomGuestUpdate) SetIDDocumentURL(v string) *RoomGuestUpdate {
+	_u.mutation.SetIDDocumentURL(v)
+	return _u
+}
+
+// SetNillableIDDocumentURL sets the "id_document_url" field if the given value is not nil.
+func (_u *RoomGuestUpdate) SetNillableIDDocumentURL(v *string) *RoomGuestUpdate {
+	if v != nil {
+		_u.SetIDDocumentURL(*v)
+	}
+	return _u
+}
+
+// ClearIDDocumentURL clears the value of the "id_document_url" field.
+func (_u *RoomGuestUpdate) ClearIDDocumentURL() *RoomGuestUpdate {
+	_u.mutation.ClearIDDocumentURL()
+	return _u
+}
+
+// SetAdults sets the "adults" field.
+func (_u *RoomGuestUpdate) SetAdults(v int) *RoomGuestUpdate {
+	_u.mutation.ResetAdults()
+	_u.mutation.SetAdults(v)
+	return _u
+}
+
+// SetNillableAdults sets the "adults" field if the given value is not nil.
+func (_u *RoomGuestUpdate) SetNillableAdults(v *int) *RoomGuestUpdate {
+	if v != nil {
+		_u.SetAdults(*v)
+	}
+	return _u
+}
+
+// AddAdults adds value to the "adults" field.
+func (_u *RoomGuestUpdate) AddAdults(v int) *RoomGuestUpdate {
+	_u.mutation.AddAdults(v)
+	return _u
+}
+
+// SetChildren sets the "children" field.
+func (_u *RoomGuestUpdate) SetChildren(v int) *RoomGuestUpdate {
+	_u.mutation.ResetChildren()
+	_u.mutation.SetChildren(v)
+	return _u
+}
+
+// SetNillableChildren sets the "children" field if the given value is not nil.
+func (_u *RoomGuestUpdate) SetNillableChildren(v *int) *RoomGuestUpdate {
+	if v != nil {
+		_u.SetChildren(*v)
+	}
+	return _u
+}
+
+// AddChildren adds value to the "children" field.
+func (_u *RoomGuestUpdate) AddChildren(v int) *RoomGuestUpdate {
+	_u.mutation.AddChildren(v)
+	return _u
+}
+
+// SetChildAges sets the "child_ages" field.
+func (_u *RoomGuestUpdate) SetChildAges(v []int) *RoomGuestUpdate {
+	_u.mutation.SetChildAges(v)
+	return _u
+}
+
+// AppendChildAges appends value to the "child_ages" field.
+func (_u *RoomGuestUpdate) AppendChildAges(v []int) *RoomGuestUpdate {
+	_u.mutation.AppendChildAges(v)
+	return _u
+}
+
+// ClearChildAges clears the value of the "child_ages" field.
+func (_u *RoomGuestUpdate) ClearChildAges() *RoomGuestUpdate {
+	_u.mutation.ClearChildAges()
+	return _u
+}
+
+// SetSource sets the "source" field.
+func (_u *RoomGuestUpdate) SetSource(v roomguest.Source) *RoomGuestUpdate {
+	_u.mutation.SetSource(v)
+	return _u
+}
+
+// SetNillableSource sets the "source" field if the given value is not nil.
+func (_u *RoomGuestUpdate) SetNillableSource(v *roomguest.Source) *RoomGuestUpdate {
+	if v != nil {
+		_u.SetSource(*v)
+	}
+	return _u
+}
+
+// SetCrmContactID sets the "crm_contact_id" field.
+func (_u *RoomGuestUpdate) SetCrmContactID(v uuid.UUID) *RoomGuestUpdate {
+	_u.mutation.SetCrmContactID(v)
+	return _u
+}
+
+// SetNillableCrmContactID sets the "crm_contact_id" field if the given value is not nil.
+func (_u *RoomGuestUpdate) SetNillableCrmContactID(v *uuid.UUID) *RoomGuestUpdate {
+	if v != nil {
+		_u.SetCrmContactID(*v)
+	}
+	return _u
+}
+
+// ClearCrmContactID clears the value of the "crm_contact_id" field.
+func (_u *RoomGuestUpdate) ClearCrmContactID() *RoomGuestUpdate {
+	_u.mutation.ClearCrmContactID()
+	return _u
+}
+
 // SetCheckInDate sets the "check_in_date" field.
 func (_u *RoomGuestUpdate) SetCheckInDate(v time.Time) *RoomGuestUpdate {
 	_u.mutation.SetCheckInDate(v)
@@ -112,6 +342,26 @@ func (_u *RoomGuestUpdate) SetNillableCheckInDate(v *time.Time) *RoomGuestUpdate
 	if v != nil {
 		_u.SetCheckInDate(*v)
 	}
+	return _u
+}
+
+// SetExpectedArrivalAt sets the "expected_arrival_at" field.
+func (_u *RoomGuestUpdate) SetExpectedArrivalAt(v time.Time) *RoomGuestUpdate {
+	_u.mutation.SetExpectedArrivalAt(v)
+	return _u
+}
+
+// SetNillableExpectedArrivalAt sets the "expected_arrival_at" field if the given value is not nil.
+func (_u *RoomGuestUpdate) SetNillableExpectedArrivalAt(v *time.Time) *RoomGuestUpdate {
+	if v != nil {
+		_u.SetExpectedArrivalAt(*v)
+	}
+	return _u
+}
+
+// ClearExpectedArrivalAt clears the value of the "expected_arrival_at" field.
+func (_u *RoomGuestUpdate) ClearExpectedArrivalAt() *RoomGuestUpdate {
+	_u.mutation.ClearExpectedArrivalAt()
 	return _u
 }
 
@@ -147,6 +397,26 @@ func (_u *RoomGuestUpdate) SetNillableCheckOutDate(v *time.Time) *RoomGuestUpdat
 	if v != nil {
 		_u.SetCheckOutDate(*v)
 	}
+	return _u
+}
+
+// SetExpectedDepartureAt sets the "expected_departure_at" field.
+func (_u *RoomGuestUpdate) SetExpectedDepartureAt(v time.Time) *RoomGuestUpdate {
+	_u.mutation.SetExpectedDepartureAt(v)
+	return _u
+}
+
+// SetNillableExpectedDepartureAt sets the "expected_departure_at" field if the given value is not nil.
+func (_u *RoomGuestUpdate) SetNillableExpectedDepartureAt(v *time.Time) *RoomGuestUpdate {
+	if v != nil {
+		_u.SetExpectedDepartureAt(*v)
+	}
+	return _u
+}
+
+// ClearExpectedDepartureAt clears the value of the "expected_departure_at" field.
+func (_u *RoomGuestUpdate) ClearExpectedDepartureAt() *RoomGuestUpdate {
+	_u.mutation.ClearExpectedDepartureAt()
 	return _u
 }
 
@@ -305,6 +575,11 @@ func (_u *RoomGuestUpdate) SetRoom(v *Room) *RoomGuestUpdate {
 	return _u.SetRoomID(v.ID)
 }
 
+// SetBooking sets the "booking" edge to the RoomBooking entity.
+func (_u *RoomGuestUpdate) SetBooking(v *RoomBooking) *RoomGuestUpdate {
+	return _u.SetBookingID(v.ID)
+}
+
 // AddFolioItemIDs adds the "folio_items" edge to the RoomFolioItem entity by IDs.
 func (_u *RoomGuestUpdate) AddFolioItemIDs(ids ...uuid.UUID) *RoomGuestUpdate {
 	_u.mutation.AddFolioItemIDs(ids...)
@@ -328,6 +603,12 @@ func (_u *RoomGuestUpdate) Mutation() *RoomGuestMutation {
 // ClearRoom clears the "room" edge to the Room entity.
 func (_u *RoomGuestUpdate) ClearRoom() *RoomGuestUpdate {
 	_u.mutation.ClearRoom()
+	return _u
+}
+
+// ClearBooking clears the "booking" edge to the RoomBooking entity.
+func (_u *RoomGuestUpdate) ClearBooking() *RoomGuestUpdate {
+	_u.mutation.ClearBooking()
 	return _u
 }
 
@@ -400,9 +681,29 @@ func (_u *RoomGuestUpdate) check() error {
 			return &ValidationError{Name: "phone", err: fmt.Errorf(`ent: validator failed for field "RoomGuest.phone": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.IDType(); ok {
+		if err := roomguest.IDTypeValidator(v); err != nil {
+			return &ValidationError{Name: "id_type", err: fmt.Errorf(`ent: validator failed for field "RoomGuest.id_type": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.IDNumber(); ok {
 		if err := roomguest.IDNumberValidator(v); err != nil {
 			return &ValidationError{Name: "id_number", err: fmt.Errorf(`ent: validator failed for field "RoomGuest.id_number": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.Adults(); ok {
+		if err := roomguest.AdultsValidator(v); err != nil {
+			return &ValidationError{Name: "adults", err: fmt.Errorf(`ent: validator failed for field "RoomGuest.adults": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.Children(); ok {
+		if err := roomguest.ChildrenValidator(v); err != nil {
+			return &ValidationError{Name: "children", err: fmt.Errorf(`ent: validator failed for field "RoomGuest.children": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.Source(); ok {
+		if err := roomguest.SourceValidator(v); err != nil {
+			return &ValidationError{Name: "source", err: fmt.Errorf(`ent: validator failed for field "RoomGuest.source": %w`, err)}
 		}
 	}
 	if v, ok := _u.mutation.Nights(); ok {
@@ -444,14 +745,85 @@ func (_u *RoomGuestUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.GuestName(); ok {
 		_spec.SetField(roomguest.FieldGuestName, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.FirstName(); ok {
+		_spec.SetField(roomguest.FieldFirstName, field.TypeString, value)
+	}
+	if _u.mutation.FirstNameCleared() {
+		_spec.ClearField(roomguest.FieldFirstName, field.TypeString)
+	}
+	if value, ok := _u.mutation.LastName(); ok {
+		_spec.SetField(roomguest.FieldLastName, field.TypeString, value)
+	}
+	if _u.mutation.LastNameCleared() {
+		_spec.ClearField(roomguest.FieldLastName, field.TypeString)
+	}
+	if value, ok := _u.mutation.Email(); ok {
+		_spec.SetField(roomguest.FieldEmail, field.TypeString, value)
+	}
+	if _u.mutation.EmailCleared() {
+		_spec.ClearField(roomguest.FieldEmail, field.TypeString)
+	}
 	if value, ok := _u.mutation.Phone(); ok {
 		_spec.SetField(roomguest.FieldPhone, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Nationality(); ok {
+		_spec.SetField(roomguest.FieldNationality, field.TypeString, value)
+	}
+	if _u.mutation.NationalityCleared() {
+		_spec.ClearField(roomguest.FieldNationality, field.TypeString)
+	}
+	if value, ok := _u.mutation.IDType(); ok {
+		_spec.SetField(roomguest.FieldIDType, field.TypeEnum, value)
 	}
 	if value, ok := _u.mutation.IDNumber(); ok {
 		_spec.SetField(roomguest.FieldIDNumber, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.IDDocumentURL(); ok {
+		_spec.SetField(roomguest.FieldIDDocumentURL, field.TypeString, value)
+	}
+	if _u.mutation.IDDocumentURLCleared() {
+		_spec.ClearField(roomguest.FieldIDDocumentURL, field.TypeString)
+	}
+	if value, ok := _u.mutation.Adults(); ok {
+		_spec.SetField(roomguest.FieldAdults, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedAdults(); ok {
+		_spec.AddField(roomguest.FieldAdults, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.Children(); ok {
+		_spec.SetField(roomguest.FieldChildren, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedChildren(); ok {
+		_spec.AddField(roomguest.FieldChildren, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.ChildAges(); ok {
+		_spec.SetField(roomguest.FieldChildAges, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedChildAges(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, roomguest.FieldChildAges, value)
+		})
+	}
+	if _u.mutation.ChildAgesCleared() {
+		_spec.ClearField(roomguest.FieldChildAges, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.Source(); ok {
+		_spec.SetField(roomguest.FieldSource, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.CrmContactID(); ok {
+		_spec.SetField(roomguest.FieldCrmContactID, field.TypeUUID, value)
+	}
+	if _u.mutation.CrmContactIDCleared() {
+		_spec.ClearField(roomguest.FieldCrmContactID, field.TypeUUID)
+	}
 	if value, ok := _u.mutation.CheckInDate(); ok {
 		_spec.SetField(roomguest.FieldCheckInDate, field.TypeTime, value)
+	}
+	if value, ok := _u.mutation.ExpectedArrivalAt(); ok {
+		_spec.SetField(roomguest.FieldExpectedArrivalAt, field.TypeTime, value)
+	}
+	if _u.mutation.ExpectedArrivalAtCleared() {
+		_spec.ClearField(roomguest.FieldExpectedArrivalAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.Nights(); ok {
 		_spec.SetField(roomguest.FieldNights, field.TypeInt, value)
@@ -461,6 +833,12 @@ func (_u *RoomGuestUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.CheckOutDate(); ok {
 		_spec.SetField(roomguest.FieldCheckOutDate, field.TypeTime, value)
+	}
+	if value, ok := _u.mutation.ExpectedDepartureAt(); ok {
+		_spec.SetField(roomguest.FieldExpectedDepartureAt, field.TypeTime, value)
+	}
+	if _u.mutation.ExpectedDepartureAtCleared() {
+		_spec.ClearField(roomguest.FieldExpectedDepartureAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.TotalRoomCharge(); ok {
 		_spec.SetField(roomguest.FieldTotalRoomCharge, field.TypeFloat64, value)
@@ -526,6 +904,35 @@ func (_u *RoomGuestUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(room.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.BookingCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   roomguest.BookingTable,
+			Columns: []string{roomguest.BookingColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(roombooking.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.BookingIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   roomguest.BookingTable,
+			Columns: []string{roomguest.BookingColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(roombooking.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {
@@ -626,6 +1033,26 @@ func (_u *RoomGuestUpdateOne) SetNillableRoomID(v *uuid.UUID) *RoomGuestUpdateOn
 	return _u
 }
 
+// SetBookingID sets the "booking_id" field.
+func (_u *RoomGuestUpdateOne) SetBookingID(v uuid.UUID) *RoomGuestUpdateOne {
+	_u.mutation.SetBookingID(v)
+	return _u
+}
+
+// SetNillableBookingID sets the "booking_id" field if the given value is not nil.
+func (_u *RoomGuestUpdateOne) SetNillableBookingID(v *uuid.UUID) *RoomGuestUpdateOne {
+	if v != nil {
+		_u.SetBookingID(*v)
+	}
+	return _u
+}
+
+// ClearBookingID clears the value of the "booking_id" field.
+func (_u *RoomGuestUpdateOne) ClearBookingID() *RoomGuestUpdateOne {
+	_u.mutation.ClearBookingID()
+	return _u
+}
+
 // SetGuestName sets the "guest_name" field.
 func (_u *RoomGuestUpdateOne) SetGuestName(v string) *RoomGuestUpdateOne {
 	_u.mutation.SetGuestName(v)
@@ -640,6 +1067,66 @@ func (_u *RoomGuestUpdateOne) SetNillableGuestName(v *string) *RoomGuestUpdateOn
 	return _u
 }
 
+// SetFirstName sets the "first_name" field.
+func (_u *RoomGuestUpdateOne) SetFirstName(v string) *RoomGuestUpdateOne {
+	_u.mutation.SetFirstName(v)
+	return _u
+}
+
+// SetNillableFirstName sets the "first_name" field if the given value is not nil.
+func (_u *RoomGuestUpdateOne) SetNillableFirstName(v *string) *RoomGuestUpdateOne {
+	if v != nil {
+		_u.SetFirstName(*v)
+	}
+	return _u
+}
+
+// ClearFirstName clears the value of the "first_name" field.
+func (_u *RoomGuestUpdateOne) ClearFirstName() *RoomGuestUpdateOne {
+	_u.mutation.ClearFirstName()
+	return _u
+}
+
+// SetLastName sets the "last_name" field.
+func (_u *RoomGuestUpdateOne) SetLastName(v string) *RoomGuestUpdateOne {
+	_u.mutation.SetLastName(v)
+	return _u
+}
+
+// SetNillableLastName sets the "last_name" field if the given value is not nil.
+func (_u *RoomGuestUpdateOne) SetNillableLastName(v *string) *RoomGuestUpdateOne {
+	if v != nil {
+		_u.SetLastName(*v)
+	}
+	return _u
+}
+
+// ClearLastName clears the value of the "last_name" field.
+func (_u *RoomGuestUpdateOne) ClearLastName() *RoomGuestUpdateOne {
+	_u.mutation.ClearLastName()
+	return _u
+}
+
+// SetEmail sets the "email" field.
+func (_u *RoomGuestUpdateOne) SetEmail(v string) *RoomGuestUpdateOne {
+	_u.mutation.SetEmail(v)
+	return _u
+}
+
+// SetNillableEmail sets the "email" field if the given value is not nil.
+func (_u *RoomGuestUpdateOne) SetNillableEmail(v *string) *RoomGuestUpdateOne {
+	if v != nil {
+		_u.SetEmail(*v)
+	}
+	return _u
+}
+
+// ClearEmail clears the value of the "email" field.
+func (_u *RoomGuestUpdateOne) ClearEmail() *RoomGuestUpdateOne {
+	_u.mutation.ClearEmail()
+	return _u
+}
+
 // SetPhone sets the "phone" field.
 func (_u *RoomGuestUpdateOne) SetPhone(v string) *RoomGuestUpdateOne {
 	_u.mutation.SetPhone(v)
@@ -650,6 +1137,40 @@ func (_u *RoomGuestUpdateOne) SetPhone(v string) *RoomGuestUpdateOne {
 func (_u *RoomGuestUpdateOne) SetNillablePhone(v *string) *RoomGuestUpdateOne {
 	if v != nil {
 		_u.SetPhone(*v)
+	}
+	return _u
+}
+
+// SetNationality sets the "nationality" field.
+func (_u *RoomGuestUpdateOne) SetNationality(v string) *RoomGuestUpdateOne {
+	_u.mutation.SetNationality(v)
+	return _u
+}
+
+// SetNillableNationality sets the "nationality" field if the given value is not nil.
+func (_u *RoomGuestUpdateOne) SetNillableNationality(v *string) *RoomGuestUpdateOne {
+	if v != nil {
+		_u.SetNationality(*v)
+	}
+	return _u
+}
+
+// ClearNationality clears the value of the "nationality" field.
+func (_u *RoomGuestUpdateOne) ClearNationality() *RoomGuestUpdateOne {
+	_u.mutation.ClearNationality()
+	return _u
+}
+
+// SetIDType sets the "id_type" field.
+func (_u *RoomGuestUpdateOne) SetIDType(v roomguest.IDType) *RoomGuestUpdateOne {
+	_u.mutation.SetIDType(v)
+	return _u
+}
+
+// SetNillableIDType sets the "id_type" field if the given value is not nil.
+func (_u *RoomGuestUpdateOne) SetNillableIDType(v *roomguest.IDType) *RoomGuestUpdateOne {
+	if v != nil {
+		_u.SetIDType(*v)
 	}
 	return _u
 }
@@ -668,6 +1189,120 @@ func (_u *RoomGuestUpdateOne) SetNillableIDNumber(v *string) *RoomGuestUpdateOne
 	return _u
 }
 
+// SetIDDocumentURL sets the "id_document_url" field.
+func (_u *RoomGuestUpdateOne) SetIDDocumentURL(v string) *RoomGuestUpdateOne {
+	_u.mutation.SetIDDocumentURL(v)
+	return _u
+}
+
+// SetNillableIDDocumentURL sets the "id_document_url" field if the given value is not nil.
+func (_u *RoomGuestUpdateOne) SetNillableIDDocumentURL(v *string) *RoomGuestUpdateOne {
+	if v != nil {
+		_u.SetIDDocumentURL(*v)
+	}
+	return _u
+}
+
+// ClearIDDocumentURL clears the value of the "id_document_url" field.
+func (_u *RoomGuestUpdateOne) ClearIDDocumentURL() *RoomGuestUpdateOne {
+	_u.mutation.ClearIDDocumentURL()
+	return _u
+}
+
+// SetAdults sets the "adults" field.
+func (_u *RoomGuestUpdateOne) SetAdults(v int) *RoomGuestUpdateOne {
+	_u.mutation.ResetAdults()
+	_u.mutation.SetAdults(v)
+	return _u
+}
+
+// SetNillableAdults sets the "adults" field if the given value is not nil.
+func (_u *RoomGuestUpdateOne) SetNillableAdults(v *int) *RoomGuestUpdateOne {
+	if v != nil {
+		_u.SetAdults(*v)
+	}
+	return _u
+}
+
+// AddAdults adds value to the "adults" field.
+func (_u *RoomGuestUpdateOne) AddAdults(v int) *RoomGuestUpdateOne {
+	_u.mutation.AddAdults(v)
+	return _u
+}
+
+// SetChildren sets the "children" field.
+func (_u *RoomGuestUpdateOne) SetChildren(v int) *RoomGuestUpdateOne {
+	_u.mutation.ResetChildren()
+	_u.mutation.SetChildren(v)
+	return _u
+}
+
+// SetNillableChildren sets the "children" field if the given value is not nil.
+func (_u *RoomGuestUpdateOne) SetNillableChildren(v *int) *RoomGuestUpdateOne {
+	if v != nil {
+		_u.SetChildren(*v)
+	}
+	return _u
+}
+
+// AddChildren adds value to the "children" field.
+func (_u *RoomGuestUpdateOne) AddChildren(v int) *RoomGuestUpdateOne {
+	_u.mutation.AddChildren(v)
+	return _u
+}
+
+// SetChildAges sets the "child_ages" field.
+func (_u *RoomGuestUpdateOne) SetChildAges(v []int) *RoomGuestUpdateOne {
+	_u.mutation.SetChildAges(v)
+	return _u
+}
+
+// AppendChildAges appends value to the "child_ages" field.
+func (_u *RoomGuestUpdateOne) AppendChildAges(v []int) *RoomGuestUpdateOne {
+	_u.mutation.AppendChildAges(v)
+	return _u
+}
+
+// ClearChildAges clears the value of the "child_ages" field.
+func (_u *RoomGuestUpdateOne) ClearChildAges() *RoomGuestUpdateOne {
+	_u.mutation.ClearChildAges()
+	return _u
+}
+
+// SetSource sets the "source" field.
+func (_u *RoomGuestUpdateOne) SetSource(v roomguest.Source) *RoomGuestUpdateOne {
+	_u.mutation.SetSource(v)
+	return _u
+}
+
+// SetNillableSource sets the "source" field if the given value is not nil.
+func (_u *RoomGuestUpdateOne) SetNillableSource(v *roomguest.Source) *RoomGuestUpdateOne {
+	if v != nil {
+		_u.SetSource(*v)
+	}
+	return _u
+}
+
+// SetCrmContactID sets the "crm_contact_id" field.
+func (_u *RoomGuestUpdateOne) SetCrmContactID(v uuid.UUID) *RoomGuestUpdateOne {
+	_u.mutation.SetCrmContactID(v)
+	return _u
+}
+
+// SetNillableCrmContactID sets the "crm_contact_id" field if the given value is not nil.
+func (_u *RoomGuestUpdateOne) SetNillableCrmContactID(v *uuid.UUID) *RoomGuestUpdateOne {
+	if v != nil {
+		_u.SetCrmContactID(*v)
+	}
+	return _u
+}
+
+// ClearCrmContactID clears the value of the "crm_contact_id" field.
+func (_u *RoomGuestUpdateOne) ClearCrmContactID() *RoomGuestUpdateOne {
+	_u.mutation.ClearCrmContactID()
+	return _u
+}
+
 // SetCheckInDate sets the "check_in_date" field.
 func (_u *RoomGuestUpdateOne) SetCheckInDate(v time.Time) *RoomGuestUpdateOne {
 	_u.mutation.SetCheckInDate(v)
@@ -679,6 +1314,26 @@ func (_u *RoomGuestUpdateOne) SetNillableCheckInDate(v *time.Time) *RoomGuestUpd
 	if v != nil {
 		_u.SetCheckInDate(*v)
 	}
+	return _u
+}
+
+// SetExpectedArrivalAt sets the "expected_arrival_at" field.
+func (_u *RoomGuestUpdateOne) SetExpectedArrivalAt(v time.Time) *RoomGuestUpdateOne {
+	_u.mutation.SetExpectedArrivalAt(v)
+	return _u
+}
+
+// SetNillableExpectedArrivalAt sets the "expected_arrival_at" field if the given value is not nil.
+func (_u *RoomGuestUpdateOne) SetNillableExpectedArrivalAt(v *time.Time) *RoomGuestUpdateOne {
+	if v != nil {
+		_u.SetExpectedArrivalAt(*v)
+	}
+	return _u
+}
+
+// ClearExpectedArrivalAt clears the value of the "expected_arrival_at" field.
+func (_u *RoomGuestUpdateOne) ClearExpectedArrivalAt() *RoomGuestUpdateOne {
+	_u.mutation.ClearExpectedArrivalAt()
 	return _u
 }
 
@@ -714,6 +1369,26 @@ func (_u *RoomGuestUpdateOne) SetNillableCheckOutDate(v *time.Time) *RoomGuestUp
 	if v != nil {
 		_u.SetCheckOutDate(*v)
 	}
+	return _u
+}
+
+// SetExpectedDepartureAt sets the "expected_departure_at" field.
+func (_u *RoomGuestUpdateOne) SetExpectedDepartureAt(v time.Time) *RoomGuestUpdateOne {
+	_u.mutation.SetExpectedDepartureAt(v)
+	return _u
+}
+
+// SetNillableExpectedDepartureAt sets the "expected_departure_at" field if the given value is not nil.
+func (_u *RoomGuestUpdateOne) SetNillableExpectedDepartureAt(v *time.Time) *RoomGuestUpdateOne {
+	if v != nil {
+		_u.SetExpectedDepartureAt(*v)
+	}
+	return _u
+}
+
+// ClearExpectedDepartureAt clears the value of the "expected_departure_at" field.
+func (_u *RoomGuestUpdateOne) ClearExpectedDepartureAt() *RoomGuestUpdateOne {
+	_u.mutation.ClearExpectedDepartureAt()
 	return _u
 }
 
@@ -872,6 +1547,11 @@ func (_u *RoomGuestUpdateOne) SetRoom(v *Room) *RoomGuestUpdateOne {
 	return _u.SetRoomID(v.ID)
 }
 
+// SetBooking sets the "booking" edge to the RoomBooking entity.
+func (_u *RoomGuestUpdateOne) SetBooking(v *RoomBooking) *RoomGuestUpdateOne {
+	return _u.SetBookingID(v.ID)
+}
+
 // AddFolioItemIDs adds the "folio_items" edge to the RoomFolioItem entity by IDs.
 func (_u *RoomGuestUpdateOne) AddFolioItemIDs(ids ...uuid.UUID) *RoomGuestUpdateOne {
 	_u.mutation.AddFolioItemIDs(ids...)
@@ -895,6 +1575,12 @@ func (_u *RoomGuestUpdateOne) Mutation() *RoomGuestMutation {
 // ClearRoom clears the "room" edge to the Room entity.
 func (_u *RoomGuestUpdateOne) ClearRoom() *RoomGuestUpdateOne {
 	_u.mutation.ClearRoom()
+	return _u
+}
+
+// ClearBooking clears the "booking" edge to the RoomBooking entity.
+func (_u *RoomGuestUpdateOne) ClearBooking() *RoomGuestUpdateOne {
+	_u.mutation.ClearBooking()
 	return _u
 }
 
@@ -980,9 +1666,29 @@ func (_u *RoomGuestUpdateOne) check() error {
 			return &ValidationError{Name: "phone", err: fmt.Errorf(`ent: validator failed for field "RoomGuest.phone": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.IDType(); ok {
+		if err := roomguest.IDTypeValidator(v); err != nil {
+			return &ValidationError{Name: "id_type", err: fmt.Errorf(`ent: validator failed for field "RoomGuest.id_type": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.IDNumber(); ok {
 		if err := roomguest.IDNumberValidator(v); err != nil {
 			return &ValidationError{Name: "id_number", err: fmt.Errorf(`ent: validator failed for field "RoomGuest.id_number": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.Adults(); ok {
+		if err := roomguest.AdultsValidator(v); err != nil {
+			return &ValidationError{Name: "adults", err: fmt.Errorf(`ent: validator failed for field "RoomGuest.adults": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.Children(); ok {
+		if err := roomguest.ChildrenValidator(v); err != nil {
+			return &ValidationError{Name: "children", err: fmt.Errorf(`ent: validator failed for field "RoomGuest.children": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.Source(); ok {
+		if err := roomguest.SourceValidator(v); err != nil {
+			return &ValidationError{Name: "source", err: fmt.Errorf(`ent: validator failed for field "RoomGuest.source": %w`, err)}
 		}
 	}
 	if v, ok := _u.mutation.Nights(); ok {
@@ -1041,14 +1747,85 @@ func (_u *RoomGuestUpdateOne) sqlSave(ctx context.Context) (_node *RoomGuest, er
 	if value, ok := _u.mutation.GuestName(); ok {
 		_spec.SetField(roomguest.FieldGuestName, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.FirstName(); ok {
+		_spec.SetField(roomguest.FieldFirstName, field.TypeString, value)
+	}
+	if _u.mutation.FirstNameCleared() {
+		_spec.ClearField(roomguest.FieldFirstName, field.TypeString)
+	}
+	if value, ok := _u.mutation.LastName(); ok {
+		_spec.SetField(roomguest.FieldLastName, field.TypeString, value)
+	}
+	if _u.mutation.LastNameCleared() {
+		_spec.ClearField(roomguest.FieldLastName, field.TypeString)
+	}
+	if value, ok := _u.mutation.Email(); ok {
+		_spec.SetField(roomguest.FieldEmail, field.TypeString, value)
+	}
+	if _u.mutation.EmailCleared() {
+		_spec.ClearField(roomguest.FieldEmail, field.TypeString)
+	}
 	if value, ok := _u.mutation.Phone(); ok {
 		_spec.SetField(roomguest.FieldPhone, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Nationality(); ok {
+		_spec.SetField(roomguest.FieldNationality, field.TypeString, value)
+	}
+	if _u.mutation.NationalityCleared() {
+		_spec.ClearField(roomguest.FieldNationality, field.TypeString)
+	}
+	if value, ok := _u.mutation.IDType(); ok {
+		_spec.SetField(roomguest.FieldIDType, field.TypeEnum, value)
 	}
 	if value, ok := _u.mutation.IDNumber(); ok {
 		_spec.SetField(roomguest.FieldIDNumber, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.IDDocumentURL(); ok {
+		_spec.SetField(roomguest.FieldIDDocumentURL, field.TypeString, value)
+	}
+	if _u.mutation.IDDocumentURLCleared() {
+		_spec.ClearField(roomguest.FieldIDDocumentURL, field.TypeString)
+	}
+	if value, ok := _u.mutation.Adults(); ok {
+		_spec.SetField(roomguest.FieldAdults, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedAdults(); ok {
+		_spec.AddField(roomguest.FieldAdults, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.Children(); ok {
+		_spec.SetField(roomguest.FieldChildren, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedChildren(); ok {
+		_spec.AddField(roomguest.FieldChildren, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.ChildAges(); ok {
+		_spec.SetField(roomguest.FieldChildAges, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedChildAges(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, roomguest.FieldChildAges, value)
+		})
+	}
+	if _u.mutation.ChildAgesCleared() {
+		_spec.ClearField(roomguest.FieldChildAges, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.Source(); ok {
+		_spec.SetField(roomguest.FieldSource, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.CrmContactID(); ok {
+		_spec.SetField(roomguest.FieldCrmContactID, field.TypeUUID, value)
+	}
+	if _u.mutation.CrmContactIDCleared() {
+		_spec.ClearField(roomguest.FieldCrmContactID, field.TypeUUID)
+	}
 	if value, ok := _u.mutation.CheckInDate(); ok {
 		_spec.SetField(roomguest.FieldCheckInDate, field.TypeTime, value)
+	}
+	if value, ok := _u.mutation.ExpectedArrivalAt(); ok {
+		_spec.SetField(roomguest.FieldExpectedArrivalAt, field.TypeTime, value)
+	}
+	if _u.mutation.ExpectedArrivalAtCleared() {
+		_spec.ClearField(roomguest.FieldExpectedArrivalAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.Nights(); ok {
 		_spec.SetField(roomguest.FieldNights, field.TypeInt, value)
@@ -1058,6 +1835,12 @@ func (_u *RoomGuestUpdateOne) sqlSave(ctx context.Context) (_node *RoomGuest, er
 	}
 	if value, ok := _u.mutation.CheckOutDate(); ok {
 		_spec.SetField(roomguest.FieldCheckOutDate, field.TypeTime, value)
+	}
+	if value, ok := _u.mutation.ExpectedDepartureAt(); ok {
+		_spec.SetField(roomguest.FieldExpectedDepartureAt, field.TypeTime, value)
+	}
+	if _u.mutation.ExpectedDepartureAtCleared() {
+		_spec.ClearField(roomguest.FieldExpectedDepartureAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.TotalRoomCharge(); ok {
 		_spec.SetField(roomguest.FieldTotalRoomCharge, field.TypeFloat64, value)
@@ -1123,6 +1906,35 @@ func (_u *RoomGuestUpdateOne) sqlSave(ctx context.Context) (_node *RoomGuest, er
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(room.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.BookingCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   roomguest.BookingTable,
+			Columns: []string{roomguest.BookingColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(roombooking.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.BookingIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   roomguest.BookingTable,
+			Columns: []string{roomguest.BookingColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(roombooking.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

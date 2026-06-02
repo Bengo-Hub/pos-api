@@ -69,6 +69,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/room"
 	"github.com/bengobox/pos-service/internal/ent/roomamenity"
 	"github.com/bengobox/pos-service/internal/ent/roomamenityassignment"
+	"github.com/bengobox/pos-service/internal/ent/roombooking"
 	"github.com/bengobox/pos-service/internal/ent/roomfolioitem"
 	"github.com/bengobox/pos-service/internal/ent/roomguest"
 	"github.com/bengobox/pos-service/internal/ent/schema"
@@ -1805,6 +1806,40 @@ func init() {
 	roomamenityassignmentDescID := roomamenityassignmentFields[0].Descriptor()
 	// roomamenityassignment.DefaultID holds the default value on creation for the id field.
 	roomamenityassignment.DefaultID = roomamenityassignmentDescID.Default.(func() uuid.UUID)
+	roombookingFields := schema.RoomBooking{}.Fields()
+	_ = roombookingFields
+	// roombookingDescConfirmationNo is the schema descriptor for confirmation_no field.
+	roombookingDescConfirmationNo := roombookingFields[3].Descriptor()
+	// roombooking.ConfirmationNoValidator is a validator for the "confirmation_no" field. It is called by the builders before save.
+	roombooking.ConfirmationNoValidator = roombookingDescConfirmationNo.Validators[0].(func(string) error)
+	// roombookingDescLeadGuestName is the schema descriptor for lead_guest_name field.
+	roombookingDescLeadGuestName := roombookingFields[4].Descriptor()
+	// roombooking.LeadGuestNameValidator is a validator for the "lead_guest_name" field. It is called by the builders before save.
+	roombooking.LeadGuestNameValidator = roombookingDescLeadGuestName.Validators[0].(func(string) error)
+	// roombookingDescRoomsCount is the schema descriptor for rooms_count field.
+	roombookingDescRoomsCount := roombookingFields[7].Descriptor()
+	// roombooking.DefaultRoomsCount holds the default value on creation for the rooms_count field.
+	roombooking.DefaultRoomsCount = roombookingDescRoomsCount.Default.(int)
+	// roombooking.RoomsCountValidator is a validator for the "rooms_count" field. It is called by the builders before save.
+	roombooking.RoomsCountValidator = roombookingDescRoomsCount.Validators[0].(func(int) error)
+	// roombookingDescMetadata is the schema descriptor for metadata field.
+	roombookingDescMetadata := roombookingFields[16].Descriptor()
+	// roombooking.DefaultMetadata holds the default value on creation for the metadata field.
+	roombooking.DefaultMetadata = roombookingDescMetadata.Default.(map[string]interface{})
+	// roombookingDescCreatedAt is the schema descriptor for created_at field.
+	roombookingDescCreatedAt := roombookingFields[17].Descriptor()
+	// roombooking.DefaultCreatedAt holds the default value on creation for the created_at field.
+	roombooking.DefaultCreatedAt = roombookingDescCreatedAt.Default.(func() time.Time)
+	// roombookingDescUpdatedAt is the schema descriptor for updated_at field.
+	roombookingDescUpdatedAt := roombookingFields[18].Descriptor()
+	// roombooking.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	roombooking.DefaultUpdatedAt = roombookingDescUpdatedAt.Default.(func() time.Time)
+	// roombooking.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	roombooking.UpdateDefaultUpdatedAt = roombookingDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// roombookingDescID is the schema descriptor for id field.
+	roombookingDescID := roombookingFields[0].Descriptor()
+	// roombooking.DefaultID holds the default value on creation for the id field.
+	roombooking.DefaultID = roombookingDescID.Default.(func() uuid.UUID)
 	roomfolioitemFields := schema.RoomFolioItem{}.Fields()
 	_ = roomfolioitemFields
 	// roomfolioitemDescDescription is the schema descriptor for description field.
@@ -1834,47 +1869,59 @@ func init() {
 	roomguestFields := schema.RoomGuest{}.Fields()
 	_ = roomguestFields
 	// roomguestDescGuestName is the schema descriptor for guest_name field.
-	roomguestDescGuestName := roomguestFields[3].Descriptor()
+	roomguestDescGuestName := roomguestFields[4].Descriptor()
 	// roomguest.GuestNameValidator is a validator for the "guest_name" field. It is called by the builders before save.
 	roomguest.GuestNameValidator = roomguestDescGuestName.Validators[0].(func(string) error)
 	// roomguestDescPhone is the schema descriptor for phone field.
-	roomguestDescPhone := roomguestFields[4].Descriptor()
+	roomguestDescPhone := roomguestFields[8].Descriptor()
 	// roomguest.PhoneValidator is a validator for the "phone" field. It is called by the builders before save.
 	roomguest.PhoneValidator = roomguestDescPhone.Validators[0].(func(string) error)
 	// roomguestDescIDNumber is the schema descriptor for id_number field.
-	roomguestDescIDNumber := roomguestFields[5].Descriptor()
+	roomguestDescIDNumber := roomguestFields[11].Descriptor()
 	// roomguest.IDNumberValidator is a validator for the "id_number" field. It is called by the builders before save.
 	roomguest.IDNumberValidator = roomguestDescIDNumber.Validators[0].(func(string) error)
+	// roomguestDescAdults is the schema descriptor for adults field.
+	roomguestDescAdults := roomguestFields[13].Descriptor()
+	// roomguest.DefaultAdults holds the default value on creation for the adults field.
+	roomguest.DefaultAdults = roomguestDescAdults.Default.(int)
+	// roomguest.AdultsValidator is a validator for the "adults" field. It is called by the builders before save.
+	roomguest.AdultsValidator = roomguestDescAdults.Validators[0].(func(int) error)
+	// roomguestDescChildren is the schema descriptor for children field.
+	roomguestDescChildren := roomguestFields[14].Descriptor()
+	// roomguest.DefaultChildren holds the default value on creation for the children field.
+	roomguest.DefaultChildren = roomguestDescChildren.Default.(int)
+	// roomguest.ChildrenValidator is a validator for the "children" field. It is called by the builders before save.
+	roomguest.ChildrenValidator = roomguestDescChildren.Validators[0].(func(int) error)
 	// roomguestDescNights is the schema descriptor for nights field.
-	roomguestDescNights := roomguestFields[7].Descriptor()
+	roomguestDescNights := roomguestFields[20].Descriptor()
 	// roomguest.NightsValidator is a validator for the "nights" field. It is called by the builders before save.
 	roomguest.NightsValidator = roomguestDescNights.Validators[0].(func(int) error)
 	// roomguestDescTotalRoomCharge is the schema descriptor for total_room_charge field.
-	roomguestDescTotalRoomCharge := roomguestFields[9].Descriptor()
+	roomguestDescTotalRoomCharge := roomguestFields[23].Descriptor()
 	// roomguest.TotalRoomChargeValidator is a validator for the "total_room_charge" field. It is called by the builders before save.
 	roomguest.TotalRoomChargeValidator = roomguestDescTotalRoomCharge.Validators[0].(func(float64) error)
 	// roomguestDescCheckedInAt is the schema descriptor for checked_in_at field.
-	roomguestDescCheckedInAt := roomguestFields[13].Descriptor()
+	roomguestDescCheckedInAt := roomguestFields[27].Descriptor()
 	// roomguest.DefaultCheckedInAt holds the default value on creation for the checked_in_at field.
 	roomguest.DefaultCheckedInAt = roomguestDescCheckedInAt.Default.(func() time.Time)
 	// roomguestDescLateCheckoutApproved is the schema descriptor for late_checkout_approved field.
-	roomguestDescLateCheckoutApproved := roomguestFields[15].Descriptor()
+	roomguestDescLateCheckoutApproved := roomguestFields[29].Descriptor()
 	// roomguest.DefaultLateCheckoutApproved holds the default value on creation for the late_checkout_approved field.
 	roomguest.DefaultLateCheckoutApproved = roomguestDescLateCheckoutApproved.Default.(bool)
 	// roomguestDescLateCheckoutSurcharge is the schema descriptor for late_checkout_surcharge field.
-	roomguestDescLateCheckoutSurcharge := roomguestFields[16].Descriptor()
+	roomguestDescLateCheckoutSurcharge := roomguestFields[30].Descriptor()
 	// roomguest.DefaultLateCheckoutSurcharge holds the default value on creation for the late_checkout_surcharge field.
 	roomguest.DefaultLateCheckoutSurcharge = roomguestDescLateCheckoutSurcharge.Default.(float64)
 	// roomguestDescMetadata is the schema descriptor for metadata field.
-	roomguestDescMetadata := roomguestFields[17].Descriptor()
+	roomguestDescMetadata := roomguestFields[31].Descriptor()
 	// roomguest.DefaultMetadata holds the default value on creation for the metadata field.
 	roomguest.DefaultMetadata = roomguestDescMetadata.Default.(map[string]interface{})
 	// roomguestDescCreatedAt is the schema descriptor for created_at field.
-	roomguestDescCreatedAt := roomguestFields[18].Descriptor()
+	roomguestDescCreatedAt := roomguestFields[32].Descriptor()
 	// roomguest.DefaultCreatedAt holds the default value on creation for the created_at field.
 	roomguest.DefaultCreatedAt = roomguestDescCreatedAt.Default.(func() time.Time)
 	// roomguestDescUpdatedAt is the schema descriptor for updated_at field.
-	roomguestDescUpdatedAt := roomguestFields[19].Descriptor()
+	roomguestDescUpdatedAt := roomguestFields[33].Descriptor()
 	// roomguest.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	roomguest.DefaultUpdatedAt = roomguestDescUpdatedAt.Default.(func() time.Time)
 	// roomguest.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

@@ -13,6 +13,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/bengobox/pos-service/internal/ent/room"
+	"github.com/bengobox/pos-service/internal/ent/roombooking"
 	"github.com/bengobox/pos-service/internal/ent/roomfolioitem"
 	"github.com/bengobox/pos-service/internal/ent/roomguest"
 	"github.com/google/uuid"
@@ -38,9 +39,65 @@ func (_c *RoomGuestCreate) SetRoomID(v uuid.UUID) *RoomGuestCreate {
 	return _c
 }
 
+// SetBookingID sets the "booking_id" field.
+func (_c *RoomGuestCreate) SetBookingID(v uuid.UUID) *RoomGuestCreate {
+	_c.mutation.SetBookingID(v)
+	return _c
+}
+
+// SetNillableBookingID sets the "booking_id" field if the given value is not nil.
+func (_c *RoomGuestCreate) SetNillableBookingID(v *uuid.UUID) *RoomGuestCreate {
+	if v != nil {
+		_c.SetBookingID(*v)
+	}
+	return _c
+}
+
 // SetGuestName sets the "guest_name" field.
 func (_c *RoomGuestCreate) SetGuestName(v string) *RoomGuestCreate {
 	_c.mutation.SetGuestName(v)
+	return _c
+}
+
+// SetFirstName sets the "first_name" field.
+func (_c *RoomGuestCreate) SetFirstName(v string) *RoomGuestCreate {
+	_c.mutation.SetFirstName(v)
+	return _c
+}
+
+// SetNillableFirstName sets the "first_name" field if the given value is not nil.
+func (_c *RoomGuestCreate) SetNillableFirstName(v *string) *RoomGuestCreate {
+	if v != nil {
+		_c.SetFirstName(*v)
+	}
+	return _c
+}
+
+// SetLastName sets the "last_name" field.
+func (_c *RoomGuestCreate) SetLastName(v string) *RoomGuestCreate {
+	_c.mutation.SetLastName(v)
+	return _c
+}
+
+// SetNillableLastName sets the "last_name" field if the given value is not nil.
+func (_c *RoomGuestCreate) SetNillableLastName(v *string) *RoomGuestCreate {
+	if v != nil {
+		_c.SetLastName(*v)
+	}
+	return _c
+}
+
+// SetEmail sets the "email" field.
+func (_c *RoomGuestCreate) SetEmail(v string) *RoomGuestCreate {
+	_c.mutation.SetEmail(v)
+	return _c
+}
+
+// SetNillableEmail sets the "email" field if the given value is not nil.
+func (_c *RoomGuestCreate) SetNillableEmail(v *string) *RoomGuestCreate {
+	if v != nil {
+		_c.SetEmail(*v)
+	}
 	return _c
 }
 
@@ -50,15 +107,133 @@ func (_c *RoomGuestCreate) SetPhone(v string) *RoomGuestCreate {
 	return _c
 }
 
+// SetNationality sets the "nationality" field.
+func (_c *RoomGuestCreate) SetNationality(v string) *RoomGuestCreate {
+	_c.mutation.SetNationality(v)
+	return _c
+}
+
+// SetNillableNationality sets the "nationality" field if the given value is not nil.
+func (_c *RoomGuestCreate) SetNillableNationality(v *string) *RoomGuestCreate {
+	if v != nil {
+		_c.SetNationality(*v)
+	}
+	return _c
+}
+
+// SetIDType sets the "id_type" field.
+func (_c *RoomGuestCreate) SetIDType(v roomguest.IDType) *RoomGuestCreate {
+	_c.mutation.SetIDType(v)
+	return _c
+}
+
+// SetNillableIDType sets the "id_type" field if the given value is not nil.
+func (_c *RoomGuestCreate) SetNillableIDType(v *roomguest.IDType) *RoomGuestCreate {
+	if v != nil {
+		_c.SetIDType(*v)
+	}
+	return _c
+}
+
 // SetIDNumber sets the "id_number" field.
 func (_c *RoomGuestCreate) SetIDNumber(v string) *RoomGuestCreate {
 	_c.mutation.SetIDNumber(v)
 	return _c
 }
 
+// SetIDDocumentURL sets the "id_document_url" field.
+func (_c *RoomGuestCreate) SetIDDocumentURL(v string) *RoomGuestCreate {
+	_c.mutation.SetIDDocumentURL(v)
+	return _c
+}
+
+// SetNillableIDDocumentURL sets the "id_document_url" field if the given value is not nil.
+func (_c *RoomGuestCreate) SetNillableIDDocumentURL(v *string) *RoomGuestCreate {
+	if v != nil {
+		_c.SetIDDocumentURL(*v)
+	}
+	return _c
+}
+
+// SetAdults sets the "adults" field.
+func (_c *RoomGuestCreate) SetAdults(v int) *RoomGuestCreate {
+	_c.mutation.SetAdults(v)
+	return _c
+}
+
+// SetNillableAdults sets the "adults" field if the given value is not nil.
+func (_c *RoomGuestCreate) SetNillableAdults(v *int) *RoomGuestCreate {
+	if v != nil {
+		_c.SetAdults(*v)
+	}
+	return _c
+}
+
+// SetChildren sets the "children" field.
+func (_c *RoomGuestCreate) SetChildren(v int) *RoomGuestCreate {
+	_c.mutation.SetChildren(v)
+	return _c
+}
+
+// SetNillableChildren sets the "children" field if the given value is not nil.
+func (_c *RoomGuestCreate) SetNillableChildren(v *int) *RoomGuestCreate {
+	if v != nil {
+		_c.SetChildren(*v)
+	}
+	return _c
+}
+
+// SetChildAges sets the "child_ages" field.
+func (_c *RoomGuestCreate) SetChildAges(v []int) *RoomGuestCreate {
+	_c.mutation.SetChildAges(v)
+	return _c
+}
+
+// SetSource sets the "source" field.
+func (_c *RoomGuestCreate) SetSource(v roomguest.Source) *RoomGuestCreate {
+	_c.mutation.SetSource(v)
+	return _c
+}
+
+// SetNillableSource sets the "source" field if the given value is not nil.
+func (_c *RoomGuestCreate) SetNillableSource(v *roomguest.Source) *RoomGuestCreate {
+	if v != nil {
+		_c.SetSource(*v)
+	}
+	return _c
+}
+
+// SetCrmContactID sets the "crm_contact_id" field.
+func (_c *RoomGuestCreate) SetCrmContactID(v uuid.UUID) *RoomGuestCreate {
+	_c.mutation.SetCrmContactID(v)
+	return _c
+}
+
+// SetNillableCrmContactID sets the "crm_contact_id" field if the given value is not nil.
+func (_c *RoomGuestCreate) SetNillableCrmContactID(v *uuid.UUID) *RoomGuestCreate {
+	if v != nil {
+		_c.SetCrmContactID(*v)
+	}
+	return _c
+}
+
 // SetCheckInDate sets the "check_in_date" field.
 func (_c *RoomGuestCreate) SetCheckInDate(v time.Time) *RoomGuestCreate {
 	_c.mutation.SetCheckInDate(v)
+	return _c
+}
+
+// SetExpectedArrivalAt sets the "expected_arrival_at" field.
+func (_c *RoomGuestCreate) SetExpectedArrivalAt(v time.Time) *RoomGuestCreate {
+	_c.mutation.SetExpectedArrivalAt(v)
+	return _c
+}
+
+// SetNillableExpectedArrivalAt sets the "expected_arrival_at" field if the given value is not nil.
+func (_c *RoomGuestCreate) SetNillableExpectedArrivalAt(v *time.Time) *RoomGuestCreate {
+	if v != nil {
+		_c.SetExpectedArrivalAt(*v)
+	}
 	return _c
 }
 
@@ -71,6 +246,20 @@ func (_c *RoomGuestCreate) SetNights(v int) *RoomGuestCreate {
 // SetCheckOutDate sets the "check_out_date" field.
 func (_c *RoomGuestCreate) SetCheckOutDate(v time.Time) *RoomGuestCreate {
 	_c.mutation.SetCheckOutDate(v)
+	return _c
+}
+
+// SetExpectedDepartureAt sets the "expected_departure_at" field.
+func (_c *RoomGuestCreate) SetExpectedDepartureAt(v time.Time) *RoomGuestCreate {
+	_c.mutation.SetExpectedDepartureAt(v)
+	return _c
+}
+
+// SetNillableExpectedDepartureAt sets the "expected_departure_at" field if the given value is not nil.
+func (_c *RoomGuestCreate) SetNillableExpectedDepartureAt(v *time.Time) *RoomGuestCreate {
+	if v != nil {
+		_c.SetExpectedDepartureAt(*v)
+	}
 	return _c
 }
 
@@ -223,6 +412,11 @@ func (_c *RoomGuestCreate) SetRoom(v *Room) *RoomGuestCreate {
 	return _c.SetRoomID(v.ID)
 }
 
+// SetBooking sets the "booking" edge to the RoomBooking entity.
+func (_c *RoomGuestCreate) SetBooking(v *RoomBooking) *RoomGuestCreate {
+	return _c.SetBookingID(v.ID)
+}
+
 // AddFolioItemIDs adds the "folio_items" edge to the RoomFolioItem entity by IDs.
 func (_c *RoomGuestCreate) AddFolioItemIDs(ids ...uuid.UUID) *RoomGuestCreate {
 	_c.mutation.AddFolioItemIDs(ids...)
@@ -273,6 +467,22 @@ func (_c *RoomGuestCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *RoomGuestCreate) defaults() {
+	if _, ok := _c.mutation.IDType(); !ok {
+		v := roomguest.DefaultIDType
+		_c.mutation.SetIDType(v)
+	}
+	if _, ok := _c.mutation.Adults(); !ok {
+		v := roomguest.DefaultAdults
+		_c.mutation.SetAdults(v)
+	}
+	if _, ok := _c.mutation.Children(); !ok {
+		v := roomguest.DefaultChildren
+		_c.mutation.SetChildren(v)
+	}
+	if _, ok := _c.mutation.Source(); !ok {
+		v := roomguest.DefaultSource
+		_c.mutation.SetSource(v)
+	}
 	if _, ok := _c.mutation.Status(); !ok {
 		v := roomguest.DefaultStatus
 		_c.mutation.SetStatus(v)
@@ -331,12 +541,44 @@ func (_c *RoomGuestCreate) check() error {
 			return &ValidationError{Name: "phone", err: fmt.Errorf(`ent: validator failed for field "RoomGuest.phone": %w`, err)}
 		}
 	}
+	if _, ok := _c.mutation.IDType(); !ok {
+		return &ValidationError{Name: "id_type", err: errors.New(`ent: missing required field "RoomGuest.id_type"`)}
+	}
+	if v, ok := _c.mutation.IDType(); ok {
+		if err := roomguest.IDTypeValidator(v); err != nil {
+			return &ValidationError{Name: "id_type", err: fmt.Errorf(`ent: validator failed for field "RoomGuest.id_type": %w`, err)}
+		}
+	}
 	if _, ok := _c.mutation.IDNumber(); !ok {
 		return &ValidationError{Name: "id_number", err: errors.New(`ent: missing required field "RoomGuest.id_number"`)}
 	}
 	if v, ok := _c.mutation.IDNumber(); ok {
 		if err := roomguest.IDNumberValidator(v); err != nil {
 			return &ValidationError{Name: "id_number", err: fmt.Errorf(`ent: validator failed for field "RoomGuest.id_number": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.Adults(); !ok {
+		return &ValidationError{Name: "adults", err: errors.New(`ent: missing required field "RoomGuest.adults"`)}
+	}
+	if v, ok := _c.mutation.Adults(); ok {
+		if err := roomguest.AdultsValidator(v); err != nil {
+			return &ValidationError{Name: "adults", err: fmt.Errorf(`ent: validator failed for field "RoomGuest.adults": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.Children(); !ok {
+		return &ValidationError{Name: "children", err: errors.New(`ent: missing required field "RoomGuest.children"`)}
+	}
+	if v, ok := _c.mutation.Children(); ok {
+		if err := roomguest.ChildrenValidator(v); err != nil {
+			return &ValidationError{Name: "children", err: fmt.Errorf(`ent: validator failed for field "RoomGuest.children": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.Source(); !ok {
+		return &ValidationError{Name: "source", err: errors.New(`ent: missing required field "RoomGuest.source"`)}
+	}
+	if v, ok := _c.mutation.Source(); ok {
+		if err := roomguest.SourceValidator(v); err != nil {
+			return &ValidationError{Name: "source", err: fmt.Errorf(`ent: validator failed for field "RoomGuest.source": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.CheckInDate(); !ok {
@@ -437,17 +679,65 @@ func (_c *RoomGuestCreate) createSpec() (*RoomGuest, *sqlgraph.CreateSpec) {
 		_spec.SetField(roomguest.FieldGuestName, field.TypeString, value)
 		_node.GuestName = value
 	}
+	if value, ok := _c.mutation.FirstName(); ok {
+		_spec.SetField(roomguest.FieldFirstName, field.TypeString, value)
+		_node.FirstName = value
+	}
+	if value, ok := _c.mutation.LastName(); ok {
+		_spec.SetField(roomguest.FieldLastName, field.TypeString, value)
+		_node.LastName = value
+	}
+	if value, ok := _c.mutation.Email(); ok {
+		_spec.SetField(roomguest.FieldEmail, field.TypeString, value)
+		_node.Email = value
+	}
 	if value, ok := _c.mutation.Phone(); ok {
 		_spec.SetField(roomguest.FieldPhone, field.TypeString, value)
 		_node.Phone = value
+	}
+	if value, ok := _c.mutation.Nationality(); ok {
+		_spec.SetField(roomguest.FieldNationality, field.TypeString, value)
+		_node.Nationality = value
+	}
+	if value, ok := _c.mutation.IDType(); ok {
+		_spec.SetField(roomguest.FieldIDType, field.TypeEnum, value)
+		_node.IDType = value
 	}
 	if value, ok := _c.mutation.IDNumber(); ok {
 		_spec.SetField(roomguest.FieldIDNumber, field.TypeString, value)
 		_node.IDNumber = value
 	}
+	if value, ok := _c.mutation.IDDocumentURL(); ok {
+		_spec.SetField(roomguest.FieldIDDocumentURL, field.TypeString, value)
+		_node.IDDocumentURL = value
+	}
+	if value, ok := _c.mutation.Adults(); ok {
+		_spec.SetField(roomguest.FieldAdults, field.TypeInt, value)
+		_node.Adults = value
+	}
+	if value, ok := _c.mutation.Children(); ok {
+		_spec.SetField(roomguest.FieldChildren, field.TypeInt, value)
+		_node.Children = value
+	}
+	if value, ok := _c.mutation.ChildAges(); ok {
+		_spec.SetField(roomguest.FieldChildAges, field.TypeJSON, value)
+		_node.ChildAges = value
+	}
+	if value, ok := _c.mutation.Source(); ok {
+		_spec.SetField(roomguest.FieldSource, field.TypeEnum, value)
+		_node.Source = value
+	}
+	if value, ok := _c.mutation.CrmContactID(); ok {
+		_spec.SetField(roomguest.FieldCrmContactID, field.TypeUUID, value)
+		_node.CrmContactID = &value
+	}
 	if value, ok := _c.mutation.CheckInDate(); ok {
 		_spec.SetField(roomguest.FieldCheckInDate, field.TypeTime, value)
 		_node.CheckInDate = value
+	}
+	if value, ok := _c.mutation.ExpectedArrivalAt(); ok {
+		_spec.SetField(roomguest.FieldExpectedArrivalAt, field.TypeTime, value)
+		_node.ExpectedArrivalAt = &value
 	}
 	if value, ok := _c.mutation.Nights(); ok {
 		_spec.SetField(roomguest.FieldNights, field.TypeInt, value)
@@ -456,6 +746,10 @@ func (_c *RoomGuestCreate) createSpec() (*RoomGuest, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.CheckOutDate(); ok {
 		_spec.SetField(roomguest.FieldCheckOutDate, field.TypeTime, value)
 		_node.CheckOutDate = value
+	}
+	if value, ok := _c.mutation.ExpectedDepartureAt(); ok {
+		_spec.SetField(roomguest.FieldExpectedDepartureAt, field.TypeTime, value)
+		_node.ExpectedDepartureAt = &value
 	}
 	if value, ok := _c.mutation.TotalRoomCharge(); ok {
 		_spec.SetField(roomguest.FieldTotalRoomCharge, field.TypeFloat64, value)
@@ -516,6 +810,23 @@ func (_c *RoomGuestCreate) createSpec() (*RoomGuest, *sqlgraph.CreateSpec) {
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_node.RoomID = nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.BookingIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   roomguest.BookingTable,
+			Columns: []string{roomguest.BookingColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(roombooking.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_node.BookingID = &nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
 	if nodes := _c.mutation.FolioItemsIDs(); len(nodes) > 0 {
@@ -610,6 +921,24 @@ func (u *RoomGuestUpsert) UpdateRoomID() *RoomGuestUpsert {
 	return u
 }
 
+// SetBookingID sets the "booking_id" field.
+func (u *RoomGuestUpsert) SetBookingID(v uuid.UUID) *RoomGuestUpsert {
+	u.Set(roomguest.FieldBookingID, v)
+	return u
+}
+
+// UpdateBookingID sets the "booking_id" field to the value that was provided on create.
+func (u *RoomGuestUpsert) UpdateBookingID() *RoomGuestUpsert {
+	u.SetExcluded(roomguest.FieldBookingID)
+	return u
+}
+
+// ClearBookingID clears the value of the "booking_id" field.
+func (u *RoomGuestUpsert) ClearBookingID() *RoomGuestUpsert {
+	u.SetNull(roomguest.FieldBookingID)
+	return u
+}
+
 // SetGuestName sets the "guest_name" field.
 func (u *RoomGuestUpsert) SetGuestName(v string) *RoomGuestUpsert {
 	u.Set(roomguest.FieldGuestName, v)
@@ -619,6 +948,60 @@ func (u *RoomGuestUpsert) SetGuestName(v string) *RoomGuestUpsert {
 // UpdateGuestName sets the "guest_name" field to the value that was provided on create.
 func (u *RoomGuestUpsert) UpdateGuestName() *RoomGuestUpsert {
 	u.SetExcluded(roomguest.FieldGuestName)
+	return u
+}
+
+// SetFirstName sets the "first_name" field.
+func (u *RoomGuestUpsert) SetFirstName(v string) *RoomGuestUpsert {
+	u.Set(roomguest.FieldFirstName, v)
+	return u
+}
+
+// UpdateFirstName sets the "first_name" field to the value that was provided on create.
+func (u *RoomGuestUpsert) UpdateFirstName() *RoomGuestUpsert {
+	u.SetExcluded(roomguest.FieldFirstName)
+	return u
+}
+
+// ClearFirstName clears the value of the "first_name" field.
+func (u *RoomGuestUpsert) ClearFirstName() *RoomGuestUpsert {
+	u.SetNull(roomguest.FieldFirstName)
+	return u
+}
+
+// SetLastName sets the "last_name" field.
+func (u *RoomGuestUpsert) SetLastName(v string) *RoomGuestUpsert {
+	u.Set(roomguest.FieldLastName, v)
+	return u
+}
+
+// UpdateLastName sets the "last_name" field to the value that was provided on create.
+func (u *RoomGuestUpsert) UpdateLastName() *RoomGuestUpsert {
+	u.SetExcluded(roomguest.FieldLastName)
+	return u
+}
+
+// ClearLastName clears the value of the "last_name" field.
+func (u *RoomGuestUpsert) ClearLastName() *RoomGuestUpsert {
+	u.SetNull(roomguest.FieldLastName)
+	return u
+}
+
+// SetEmail sets the "email" field.
+func (u *RoomGuestUpsert) SetEmail(v string) *RoomGuestUpsert {
+	u.Set(roomguest.FieldEmail, v)
+	return u
+}
+
+// UpdateEmail sets the "email" field to the value that was provided on create.
+func (u *RoomGuestUpsert) UpdateEmail() *RoomGuestUpsert {
+	u.SetExcluded(roomguest.FieldEmail)
+	return u
+}
+
+// ClearEmail clears the value of the "email" field.
+func (u *RoomGuestUpsert) ClearEmail() *RoomGuestUpsert {
+	u.SetNull(roomguest.FieldEmail)
 	return u
 }
 
@@ -634,6 +1017,36 @@ func (u *RoomGuestUpsert) UpdatePhone() *RoomGuestUpsert {
 	return u
 }
 
+// SetNationality sets the "nationality" field.
+func (u *RoomGuestUpsert) SetNationality(v string) *RoomGuestUpsert {
+	u.Set(roomguest.FieldNationality, v)
+	return u
+}
+
+// UpdateNationality sets the "nationality" field to the value that was provided on create.
+func (u *RoomGuestUpsert) UpdateNationality() *RoomGuestUpsert {
+	u.SetExcluded(roomguest.FieldNationality)
+	return u
+}
+
+// ClearNationality clears the value of the "nationality" field.
+func (u *RoomGuestUpsert) ClearNationality() *RoomGuestUpsert {
+	u.SetNull(roomguest.FieldNationality)
+	return u
+}
+
+// SetIDType sets the "id_type" field.
+func (u *RoomGuestUpsert) SetIDType(v roomguest.IDType) *RoomGuestUpsert {
+	u.Set(roomguest.FieldIDType, v)
+	return u
+}
+
+// UpdateIDType sets the "id_type" field to the value that was provided on create.
+func (u *RoomGuestUpsert) UpdateIDType() *RoomGuestUpsert {
+	u.SetExcluded(roomguest.FieldIDType)
+	return u
+}
+
 // SetIDNumber sets the "id_number" field.
 func (u *RoomGuestUpsert) SetIDNumber(v string) *RoomGuestUpsert {
 	u.Set(roomguest.FieldIDNumber, v)
@@ -646,6 +1059,108 @@ func (u *RoomGuestUpsert) UpdateIDNumber() *RoomGuestUpsert {
 	return u
 }
 
+// SetIDDocumentURL sets the "id_document_url" field.
+func (u *RoomGuestUpsert) SetIDDocumentURL(v string) *RoomGuestUpsert {
+	u.Set(roomguest.FieldIDDocumentURL, v)
+	return u
+}
+
+// UpdateIDDocumentURL sets the "id_document_url" field to the value that was provided on create.
+func (u *RoomGuestUpsert) UpdateIDDocumentURL() *RoomGuestUpsert {
+	u.SetExcluded(roomguest.FieldIDDocumentURL)
+	return u
+}
+
+// ClearIDDocumentURL clears the value of the "id_document_url" field.
+func (u *RoomGuestUpsert) ClearIDDocumentURL() *RoomGuestUpsert {
+	u.SetNull(roomguest.FieldIDDocumentURL)
+	return u
+}
+
+// SetAdults sets the "adults" field.
+func (u *RoomGuestUpsert) SetAdults(v int) *RoomGuestUpsert {
+	u.Set(roomguest.FieldAdults, v)
+	return u
+}
+
+// UpdateAdults sets the "adults" field to the value that was provided on create.
+func (u *RoomGuestUpsert) UpdateAdults() *RoomGuestUpsert {
+	u.SetExcluded(roomguest.FieldAdults)
+	return u
+}
+
+// AddAdults adds v to the "adults" field.
+func (u *RoomGuestUpsert) AddAdults(v int) *RoomGuestUpsert {
+	u.Add(roomguest.FieldAdults, v)
+	return u
+}
+
+// SetChildren sets the "children" field.
+func (u *RoomGuestUpsert) SetChildren(v int) *RoomGuestUpsert {
+	u.Set(roomguest.FieldChildren, v)
+	return u
+}
+
+// UpdateChildren sets the "children" field to the value that was provided on create.
+func (u *RoomGuestUpsert) UpdateChildren() *RoomGuestUpsert {
+	u.SetExcluded(roomguest.FieldChildren)
+	return u
+}
+
+// AddChildren adds v to the "children" field.
+func (u *RoomGuestUpsert) AddChildren(v int) *RoomGuestUpsert {
+	u.Add(roomguest.FieldChildren, v)
+	return u
+}
+
+// SetChildAges sets the "child_ages" field.
+func (u *RoomGuestUpsert) SetChildAges(v []int) *RoomGuestUpsert {
+	u.Set(roomguest.FieldChildAges, v)
+	return u
+}
+
+// UpdateChildAges sets the "child_ages" field to the value that was provided on create.
+func (u *RoomGuestUpsert) UpdateChildAges() *RoomGuestUpsert {
+	u.SetExcluded(roomguest.FieldChildAges)
+	return u
+}
+
+// ClearChildAges clears the value of the "child_ages" field.
+func (u *RoomGuestUpsert) ClearChildAges() *RoomGuestUpsert {
+	u.SetNull(roomguest.FieldChildAges)
+	return u
+}
+
+// SetSource sets the "source" field.
+func (u *RoomGuestUpsert) SetSource(v roomguest.Source) *RoomGuestUpsert {
+	u.Set(roomguest.FieldSource, v)
+	return u
+}
+
+// UpdateSource sets the "source" field to the value that was provided on create.
+func (u *RoomGuestUpsert) UpdateSource() *RoomGuestUpsert {
+	u.SetExcluded(roomguest.FieldSource)
+	return u
+}
+
+// SetCrmContactID sets the "crm_contact_id" field.
+func (u *RoomGuestUpsert) SetCrmContactID(v uuid.UUID) *RoomGuestUpsert {
+	u.Set(roomguest.FieldCrmContactID, v)
+	return u
+}
+
+// UpdateCrmContactID sets the "crm_contact_id" field to the value that was provided on create.
+func (u *RoomGuestUpsert) UpdateCrmContactID() *RoomGuestUpsert {
+	u.SetExcluded(roomguest.FieldCrmContactID)
+	return u
+}
+
+// ClearCrmContactID clears the value of the "crm_contact_id" field.
+func (u *RoomGuestUpsert) ClearCrmContactID() *RoomGuestUpsert {
+	u.SetNull(roomguest.FieldCrmContactID)
+	return u
+}
+
 // SetCheckInDate sets the "check_in_date" field.
 func (u *RoomGuestUpsert) SetCheckInDate(v time.Time) *RoomGuestUpsert {
 	u.Set(roomguest.FieldCheckInDate, v)
@@ -655,6 +1170,24 @@ func (u *RoomGuestUpsert) SetCheckInDate(v time.Time) *RoomGuestUpsert {
 // UpdateCheckInDate sets the "check_in_date" field to the value that was provided on create.
 func (u *RoomGuestUpsert) UpdateCheckInDate() *RoomGuestUpsert {
 	u.SetExcluded(roomguest.FieldCheckInDate)
+	return u
+}
+
+// SetExpectedArrivalAt sets the "expected_arrival_at" field.
+func (u *RoomGuestUpsert) SetExpectedArrivalAt(v time.Time) *RoomGuestUpsert {
+	u.Set(roomguest.FieldExpectedArrivalAt, v)
+	return u
+}
+
+// UpdateExpectedArrivalAt sets the "expected_arrival_at" field to the value that was provided on create.
+func (u *RoomGuestUpsert) UpdateExpectedArrivalAt() *RoomGuestUpsert {
+	u.SetExcluded(roomguest.FieldExpectedArrivalAt)
+	return u
+}
+
+// ClearExpectedArrivalAt clears the value of the "expected_arrival_at" field.
+func (u *RoomGuestUpsert) ClearExpectedArrivalAt() *RoomGuestUpsert {
+	u.SetNull(roomguest.FieldExpectedArrivalAt)
 	return u
 }
 
@@ -685,6 +1218,24 @@ func (u *RoomGuestUpsert) SetCheckOutDate(v time.Time) *RoomGuestUpsert {
 // UpdateCheckOutDate sets the "check_out_date" field to the value that was provided on create.
 func (u *RoomGuestUpsert) UpdateCheckOutDate() *RoomGuestUpsert {
 	u.SetExcluded(roomguest.FieldCheckOutDate)
+	return u
+}
+
+// SetExpectedDepartureAt sets the "expected_departure_at" field.
+func (u *RoomGuestUpsert) SetExpectedDepartureAt(v time.Time) *RoomGuestUpsert {
+	u.Set(roomguest.FieldExpectedDepartureAt, v)
+	return u
+}
+
+// UpdateExpectedDepartureAt sets the "expected_departure_at" field to the value that was provided on create.
+func (u *RoomGuestUpsert) UpdateExpectedDepartureAt() *RoomGuestUpsert {
+	u.SetExcluded(roomguest.FieldExpectedDepartureAt)
+	return u
+}
+
+// ClearExpectedDepartureAt clears the value of the "expected_departure_at" field.
+func (u *RoomGuestUpsert) ClearExpectedDepartureAt() *RoomGuestUpsert {
+	u.SetNull(roomguest.FieldExpectedDepartureAt)
 	return u
 }
 
@@ -911,6 +1462,27 @@ func (u *RoomGuestUpsertOne) UpdateRoomID() *RoomGuestUpsertOne {
 	})
 }
 
+// SetBookingID sets the "booking_id" field.
+func (u *RoomGuestUpsertOne) SetBookingID(v uuid.UUID) *RoomGuestUpsertOne {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.SetBookingID(v)
+	})
+}
+
+// UpdateBookingID sets the "booking_id" field to the value that was provided on create.
+func (u *RoomGuestUpsertOne) UpdateBookingID() *RoomGuestUpsertOne {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.UpdateBookingID()
+	})
+}
+
+// ClearBookingID clears the value of the "booking_id" field.
+func (u *RoomGuestUpsertOne) ClearBookingID() *RoomGuestUpsertOne {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.ClearBookingID()
+	})
+}
+
 // SetGuestName sets the "guest_name" field.
 func (u *RoomGuestUpsertOne) SetGuestName(v string) *RoomGuestUpsertOne {
 	return u.Update(func(s *RoomGuestUpsert) {
@@ -922,6 +1494,69 @@ func (u *RoomGuestUpsertOne) SetGuestName(v string) *RoomGuestUpsertOne {
 func (u *RoomGuestUpsertOne) UpdateGuestName() *RoomGuestUpsertOne {
 	return u.Update(func(s *RoomGuestUpsert) {
 		s.UpdateGuestName()
+	})
+}
+
+// SetFirstName sets the "first_name" field.
+func (u *RoomGuestUpsertOne) SetFirstName(v string) *RoomGuestUpsertOne {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.SetFirstName(v)
+	})
+}
+
+// UpdateFirstName sets the "first_name" field to the value that was provided on create.
+func (u *RoomGuestUpsertOne) UpdateFirstName() *RoomGuestUpsertOne {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.UpdateFirstName()
+	})
+}
+
+// ClearFirstName clears the value of the "first_name" field.
+func (u *RoomGuestUpsertOne) ClearFirstName() *RoomGuestUpsertOne {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.ClearFirstName()
+	})
+}
+
+// SetLastName sets the "last_name" field.
+func (u *RoomGuestUpsertOne) SetLastName(v string) *RoomGuestUpsertOne {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.SetLastName(v)
+	})
+}
+
+// UpdateLastName sets the "last_name" field to the value that was provided on create.
+func (u *RoomGuestUpsertOne) UpdateLastName() *RoomGuestUpsertOne {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.UpdateLastName()
+	})
+}
+
+// ClearLastName clears the value of the "last_name" field.
+func (u *RoomGuestUpsertOne) ClearLastName() *RoomGuestUpsertOne {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.ClearLastName()
+	})
+}
+
+// SetEmail sets the "email" field.
+func (u *RoomGuestUpsertOne) SetEmail(v string) *RoomGuestUpsertOne {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.SetEmail(v)
+	})
+}
+
+// UpdateEmail sets the "email" field to the value that was provided on create.
+func (u *RoomGuestUpsertOne) UpdateEmail() *RoomGuestUpsertOne {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.UpdateEmail()
+	})
+}
+
+// ClearEmail clears the value of the "email" field.
+func (u *RoomGuestUpsertOne) ClearEmail() *RoomGuestUpsertOne {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.ClearEmail()
 	})
 }
 
@@ -939,6 +1574,41 @@ func (u *RoomGuestUpsertOne) UpdatePhone() *RoomGuestUpsertOne {
 	})
 }
 
+// SetNationality sets the "nationality" field.
+func (u *RoomGuestUpsertOne) SetNationality(v string) *RoomGuestUpsertOne {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.SetNationality(v)
+	})
+}
+
+// UpdateNationality sets the "nationality" field to the value that was provided on create.
+func (u *RoomGuestUpsertOne) UpdateNationality() *RoomGuestUpsertOne {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.UpdateNationality()
+	})
+}
+
+// ClearNationality clears the value of the "nationality" field.
+func (u *RoomGuestUpsertOne) ClearNationality() *RoomGuestUpsertOne {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.ClearNationality()
+	})
+}
+
+// SetIDType sets the "id_type" field.
+func (u *RoomGuestUpsertOne) SetIDType(v roomguest.IDType) *RoomGuestUpsertOne {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.SetIDType(v)
+	})
+}
+
+// UpdateIDType sets the "id_type" field to the value that was provided on create.
+func (u *RoomGuestUpsertOne) UpdateIDType() *RoomGuestUpsertOne {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.UpdateIDType()
+	})
+}
+
 // SetIDNumber sets the "id_number" field.
 func (u *RoomGuestUpsertOne) SetIDNumber(v string) *RoomGuestUpsertOne {
 	return u.Update(func(s *RoomGuestUpsert) {
@@ -953,6 +1623,125 @@ func (u *RoomGuestUpsertOne) UpdateIDNumber() *RoomGuestUpsertOne {
 	})
 }
 
+// SetIDDocumentURL sets the "id_document_url" field.
+func (u *RoomGuestUpsertOne) SetIDDocumentURL(v string) *RoomGuestUpsertOne {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.SetIDDocumentURL(v)
+	})
+}
+
+// UpdateIDDocumentURL sets the "id_document_url" field to the value that was provided on create.
+func (u *RoomGuestUpsertOne) UpdateIDDocumentURL() *RoomGuestUpsertOne {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.UpdateIDDocumentURL()
+	})
+}
+
+// ClearIDDocumentURL clears the value of the "id_document_url" field.
+func (u *RoomGuestUpsertOne) ClearIDDocumentURL() *RoomGuestUpsertOne {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.ClearIDDocumentURL()
+	})
+}
+
+// SetAdults sets the "adults" field.
+func (u *RoomGuestUpsertOne) SetAdults(v int) *RoomGuestUpsertOne {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.SetAdults(v)
+	})
+}
+
+// AddAdults adds v to the "adults" field.
+func (u *RoomGuestUpsertOne) AddAdults(v int) *RoomGuestUpsertOne {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.AddAdults(v)
+	})
+}
+
+// UpdateAdults sets the "adults" field to the value that was provided on create.
+func (u *RoomGuestUpsertOne) UpdateAdults() *RoomGuestUpsertOne {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.UpdateAdults()
+	})
+}
+
+// SetChildren sets the "children" field.
+func (u *RoomGuestUpsertOne) SetChildren(v int) *RoomGuestUpsertOne {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.SetChildren(v)
+	})
+}
+
+// AddChildren adds v to the "children" field.
+func (u *RoomGuestUpsertOne) AddChildren(v int) *RoomGuestUpsertOne {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.AddChildren(v)
+	})
+}
+
+// UpdateChildren sets the "children" field to the value that was provided on create.
+func (u *RoomGuestUpsertOne) UpdateChildren() *RoomGuestUpsertOne {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.UpdateChildren()
+	})
+}
+
+// SetChildAges sets the "child_ages" field.
+func (u *RoomGuestUpsertOne) SetChildAges(v []int) *RoomGuestUpsertOne {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.SetChildAges(v)
+	})
+}
+
+// UpdateChildAges sets the "child_ages" field to the value that was provided on create.
+func (u *RoomGuestUpsertOne) UpdateChildAges() *RoomGuestUpsertOne {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.UpdateChildAges()
+	})
+}
+
+// ClearChildAges clears the value of the "child_ages" field.
+func (u *RoomGuestUpsertOne) ClearChildAges() *RoomGuestUpsertOne {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.ClearChildAges()
+	})
+}
+
+// SetSource sets the "source" field.
+func (u *RoomGuestUpsertOne) SetSource(v roomguest.Source) *RoomGuestUpsertOne {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.SetSource(v)
+	})
+}
+
+// UpdateSource sets the "source" field to the value that was provided on create.
+func (u *RoomGuestUpsertOne) UpdateSource() *RoomGuestUpsertOne {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.UpdateSource()
+	})
+}
+
+// SetCrmContactID sets the "crm_contact_id" field.
+func (u *RoomGuestUpsertOne) SetCrmContactID(v uuid.UUID) *RoomGuestUpsertOne {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.SetCrmContactID(v)
+	})
+}
+
+// UpdateCrmContactID sets the "crm_contact_id" field to the value that was provided on create.
+func (u *RoomGuestUpsertOne) UpdateCrmContactID() *RoomGuestUpsertOne {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.UpdateCrmContactID()
+	})
+}
+
+// ClearCrmContactID clears the value of the "crm_contact_id" field.
+func (u *RoomGuestUpsertOne) ClearCrmContactID() *RoomGuestUpsertOne {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.ClearCrmContactID()
+	})
+}
+
 // SetCheckInDate sets the "check_in_date" field.
 func (u *RoomGuestUpsertOne) SetCheckInDate(v time.Time) *RoomGuestUpsertOne {
 	return u.Update(func(s *RoomGuestUpsert) {
@@ -964,6 +1753,27 @@ func (u *RoomGuestUpsertOne) SetCheckInDate(v time.Time) *RoomGuestUpsertOne {
 func (u *RoomGuestUpsertOne) UpdateCheckInDate() *RoomGuestUpsertOne {
 	return u.Update(func(s *RoomGuestUpsert) {
 		s.UpdateCheckInDate()
+	})
+}
+
+// SetExpectedArrivalAt sets the "expected_arrival_at" field.
+func (u *RoomGuestUpsertOne) SetExpectedArrivalAt(v time.Time) *RoomGuestUpsertOne {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.SetExpectedArrivalAt(v)
+	})
+}
+
+// UpdateExpectedArrivalAt sets the "expected_arrival_at" field to the value that was provided on create.
+func (u *RoomGuestUpsertOne) UpdateExpectedArrivalAt() *RoomGuestUpsertOne {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.UpdateExpectedArrivalAt()
+	})
+}
+
+// ClearExpectedArrivalAt clears the value of the "expected_arrival_at" field.
+func (u *RoomGuestUpsertOne) ClearExpectedArrivalAt() *RoomGuestUpsertOne {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.ClearExpectedArrivalAt()
 	})
 }
 
@@ -999,6 +1809,27 @@ func (u *RoomGuestUpsertOne) SetCheckOutDate(v time.Time) *RoomGuestUpsertOne {
 func (u *RoomGuestUpsertOne) UpdateCheckOutDate() *RoomGuestUpsertOne {
 	return u.Update(func(s *RoomGuestUpsert) {
 		s.UpdateCheckOutDate()
+	})
+}
+
+// SetExpectedDepartureAt sets the "expected_departure_at" field.
+func (u *RoomGuestUpsertOne) SetExpectedDepartureAt(v time.Time) *RoomGuestUpsertOne {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.SetExpectedDepartureAt(v)
+	})
+}
+
+// UpdateExpectedDepartureAt sets the "expected_departure_at" field to the value that was provided on create.
+func (u *RoomGuestUpsertOne) UpdateExpectedDepartureAt() *RoomGuestUpsertOne {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.UpdateExpectedDepartureAt()
+	})
+}
+
+// ClearExpectedDepartureAt clears the value of the "expected_departure_at" field.
+func (u *RoomGuestUpsertOne) ClearExpectedDepartureAt() *RoomGuestUpsertOne {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.ClearExpectedDepartureAt()
 	})
 }
 
@@ -1416,6 +2247,27 @@ func (u *RoomGuestUpsertBulk) UpdateRoomID() *RoomGuestUpsertBulk {
 	})
 }
 
+// SetBookingID sets the "booking_id" field.
+func (u *RoomGuestUpsertBulk) SetBookingID(v uuid.UUID) *RoomGuestUpsertBulk {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.SetBookingID(v)
+	})
+}
+
+// UpdateBookingID sets the "booking_id" field to the value that was provided on create.
+func (u *RoomGuestUpsertBulk) UpdateBookingID() *RoomGuestUpsertBulk {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.UpdateBookingID()
+	})
+}
+
+// ClearBookingID clears the value of the "booking_id" field.
+func (u *RoomGuestUpsertBulk) ClearBookingID() *RoomGuestUpsertBulk {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.ClearBookingID()
+	})
+}
+
 // SetGuestName sets the "guest_name" field.
 func (u *RoomGuestUpsertBulk) SetGuestName(v string) *RoomGuestUpsertBulk {
 	return u.Update(func(s *RoomGuestUpsert) {
@@ -1427,6 +2279,69 @@ func (u *RoomGuestUpsertBulk) SetGuestName(v string) *RoomGuestUpsertBulk {
 func (u *RoomGuestUpsertBulk) UpdateGuestName() *RoomGuestUpsertBulk {
 	return u.Update(func(s *RoomGuestUpsert) {
 		s.UpdateGuestName()
+	})
+}
+
+// SetFirstName sets the "first_name" field.
+func (u *RoomGuestUpsertBulk) SetFirstName(v string) *RoomGuestUpsertBulk {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.SetFirstName(v)
+	})
+}
+
+// UpdateFirstName sets the "first_name" field to the value that was provided on create.
+func (u *RoomGuestUpsertBulk) UpdateFirstName() *RoomGuestUpsertBulk {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.UpdateFirstName()
+	})
+}
+
+// ClearFirstName clears the value of the "first_name" field.
+func (u *RoomGuestUpsertBulk) ClearFirstName() *RoomGuestUpsertBulk {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.ClearFirstName()
+	})
+}
+
+// SetLastName sets the "last_name" field.
+func (u *RoomGuestUpsertBulk) SetLastName(v string) *RoomGuestUpsertBulk {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.SetLastName(v)
+	})
+}
+
+// UpdateLastName sets the "last_name" field to the value that was provided on create.
+func (u *RoomGuestUpsertBulk) UpdateLastName() *RoomGuestUpsertBulk {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.UpdateLastName()
+	})
+}
+
+// ClearLastName clears the value of the "last_name" field.
+func (u *RoomGuestUpsertBulk) ClearLastName() *RoomGuestUpsertBulk {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.ClearLastName()
+	})
+}
+
+// SetEmail sets the "email" field.
+func (u *RoomGuestUpsertBulk) SetEmail(v string) *RoomGuestUpsertBulk {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.SetEmail(v)
+	})
+}
+
+// UpdateEmail sets the "email" field to the value that was provided on create.
+func (u *RoomGuestUpsertBulk) UpdateEmail() *RoomGuestUpsertBulk {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.UpdateEmail()
+	})
+}
+
+// ClearEmail clears the value of the "email" field.
+func (u *RoomGuestUpsertBulk) ClearEmail() *RoomGuestUpsertBulk {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.ClearEmail()
 	})
 }
 
@@ -1444,6 +2359,41 @@ func (u *RoomGuestUpsertBulk) UpdatePhone() *RoomGuestUpsertBulk {
 	})
 }
 
+// SetNationality sets the "nationality" field.
+func (u *RoomGuestUpsertBulk) SetNationality(v string) *RoomGuestUpsertBulk {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.SetNationality(v)
+	})
+}
+
+// UpdateNationality sets the "nationality" field to the value that was provided on create.
+func (u *RoomGuestUpsertBulk) UpdateNationality() *RoomGuestUpsertBulk {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.UpdateNationality()
+	})
+}
+
+// ClearNationality clears the value of the "nationality" field.
+func (u *RoomGuestUpsertBulk) ClearNationality() *RoomGuestUpsertBulk {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.ClearNationality()
+	})
+}
+
+// SetIDType sets the "id_type" field.
+func (u *RoomGuestUpsertBulk) SetIDType(v roomguest.IDType) *RoomGuestUpsertBulk {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.SetIDType(v)
+	})
+}
+
+// UpdateIDType sets the "id_type" field to the value that was provided on create.
+func (u *RoomGuestUpsertBulk) UpdateIDType() *RoomGuestUpsertBulk {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.UpdateIDType()
+	})
+}
+
 // SetIDNumber sets the "id_number" field.
 func (u *RoomGuestUpsertBulk) SetIDNumber(v string) *RoomGuestUpsertBulk {
 	return u.Update(func(s *RoomGuestUpsert) {
@@ -1458,6 +2408,125 @@ func (u *RoomGuestUpsertBulk) UpdateIDNumber() *RoomGuestUpsertBulk {
 	})
 }
 
+// SetIDDocumentURL sets the "id_document_url" field.
+func (u *RoomGuestUpsertBulk) SetIDDocumentURL(v string) *RoomGuestUpsertBulk {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.SetIDDocumentURL(v)
+	})
+}
+
+// UpdateIDDocumentURL sets the "id_document_url" field to the value that was provided on create.
+func (u *RoomGuestUpsertBulk) UpdateIDDocumentURL() *RoomGuestUpsertBulk {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.UpdateIDDocumentURL()
+	})
+}
+
+// ClearIDDocumentURL clears the value of the "id_document_url" field.
+func (u *RoomGuestUpsertBulk) ClearIDDocumentURL() *RoomGuestUpsertBulk {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.ClearIDDocumentURL()
+	})
+}
+
+// SetAdults sets the "adults" field.
+func (u *RoomGuestUpsertBulk) SetAdults(v int) *RoomGuestUpsertBulk {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.SetAdults(v)
+	})
+}
+
+// AddAdults adds v to the "adults" field.
+func (u *RoomGuestUpsertBulk) AddAdults(v int) *RoomGuestUpsertBulk {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.AddAdults(v)
+	})
+}
+
+// UpdateAdults sets the "adults" field to the value that was provided on create.
+func (u *RoomGuestUpsertBulk) UpdateAdults() *RoomGuestUpsertBulk {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.UpdateAdults()
+	})
+}
+
+// SetChildren sets the "children" field.
+func (u *RoomGuestUpsertBulk) SetChildren(v int) *RoomGuestUpsertBulk {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.SetChildren(v)
+	})
+}
+
+// AddChildren adds v to the "children" field.
+func (u *RoomGuestUpsertBulk) AddChildren(v int) *RoomGuestUpsertBulk {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.AddChildren(v)
+	})
+}
+
+// UpdateChildren sets the "children" field to the value that was provided on create.
+func (u *RoomGuestUpsertBulk) UpdateChildren() *RoomGuestUpsertBulk {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.UpdateChildren()
+	})
+}
+
+// SetChildAges sets the "child_ages" field.
+func (u *RoomGuestUpsertBulk) SetChildAges(v []int) *RoomGuestUpsertBulk {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.SetChildAges(v)
+	})
+}
+
+// UpdateChildAges sets the "child_ages" field to the value that was provided on create.
+func (u *RoomGuestUpsertBulk) UpdateChildAges() *RoomGuestUpsertBulk {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.UpdateChildAges()
+	})
+}
+
+// ClearChildAges clears the value of the "child_ages" field.
+func (u *RoomGuestUpsertBulk) ClearChildAges() *RoomGuestUpsertBulk {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.ClearChildAges()
+	})
+}
+
+// SetSource sets the "source" field.
+func (u *RoomGuestUpsertBulk) SetSource(v roomguest.Source) *RoomGuestUpsertBulk {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.SetSource(v)
+	})
+}
+
+// UpdateSource sets the "source" field to the value that was provided on create.
+func (u *RoomGuestUpsertBulk) UpdateSource() *RoomGuestUpsertBulk {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.UpdateSource()
+	})
+}
+
+// SetCrmContactID sets the "crm_contact_id" field.
+func (u *RoomGuestUpsertBulk) SetCrmContactID(v uuid.UUID) *RoomGuestUpsertBulk {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.SetCrmContactID(v)
+	})
+}
+
+// UpdateCrmContactID sets the "crm_contact_id" field to the value that was provided on create.
+func (u *RoomGuestUpsertBulk) UpdateCrmContactID() *RoomGuestUpsertBulk {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.UpdateCrmContactID()
+	})
+}
+
+// ClearCrmContactID clears the value of the "crm_contact_id" field.
+func (u *RoomGuestUpsertBulk) ClearCrmContactID() *RoomGuestUpsertBulk {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.ClearCrmContactID()
+	})
+}
+
 // SetCheckInDate sets the "check_in_date" field.
 func (u *RoomGuestUpsertBulk) SetCheckInDate(v time.Time) *RoomGuestUpsertBulk {
 	return u.Update(func(s *RoomGuestUpsert) {
@@ -1469,6 +2538,27 @@ func (u *RoomGuestUpsertBulk) SetCheckInDate(v time.Time) *RoomGuestUpsertBulk {
 func (u *RoomGuestUpsertBulk) UpdateCheckInDate() *RoomGuestUpsertBulk {
 	return u.Update(func(s *RoomGuestUpsert) {
 		s.UpdateCheckInDate()
+	})
+}
+
+// SetExpectedArrivalAt sets the "expected_arrival_at" field.
+func (u *RoomGuestUpsertBulk) SetExpectedArrivalAt(v time.Time) *RoomGuestUpsertBulk {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.SetExpectedArrivalAt(v)
+	})
+}
+
+// UpdateExpectedArrivalAt sets the "expected_arrival_at" field to the value that was provided on create.
+func (u *RoomGuestUpsertBulk) UpdateExpectedArrivalAt() *RoomGuestUpsertBulk {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.UpdateExpectedArrivalAt()
+	})
+}
+
+// ClearExpectedArrivalAt clears the value of the "expected_arrival_at" field.
+func (u *RoomGuestUpsertBulk) ClearExpectedArrivalAt() *RoomGuestUpsertBulk {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.ClearExpectedArrivalAt()
 	})
 }
 
@@ -1504,6 +2594,27 @@ func (u *RoomGuestUpsertBulk) SetCheckOutDate(v time.Time) *RoomGuestUpsertBulk 
 func (u *RoomGuestUpsertBulk) UpdateCheckOutDate() *RoomGuestUpsertBulk {
 	return u.Update(func(s *RoomGuestUpsert) {
 		s.UpdateCheckOutDate()
+	})
+}
+
+// SetExpectedDepartureAt sets the "expected_departure_at" field.
+func (u *RoomGuestUpsertBulk) SetExpectedDepartureAt(v time.Time) *RoomGuestUpsertBulk {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.SetExpectedDepartureAt(v)
+	})
+}
+
+// UpdateExpectedDepartureAt sets the "expected_departure_at" field to the value that was provided on create.
+func (u *RoomGuestUpsertBulk) UpdateExpectedDepartureAt() *RoomGuestUpsertBulk {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.UpdateExpectedDepartureAt()
+	})
+}
+
+// ClearExpectedDepartureAt clears the value of the "expected_departure_at" field.
+func (u *RoomGuestUpsertBulk) ClearExpectedDepartureAt() *RoomGuestUpsertBulk {
+	return u.Update(func(s *RoomGuestUpsert) {
+		s.ClearExpectedDepartureAt()
 	})
 }
 

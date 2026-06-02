@@ -207,6 +207,9 @@ type RoomAmenity func(*sql.Selector)
 // RoomAmenityAssignment is the predicate function for roomamenityassignment builders.
 type RoomAmenityAssignment func(*sql.Selector)
 
+// RoomBooking is the predicate function for roombooking builders.
+type RoomBooking func(*sql.Selector)
+
 // RoomFolioItem is the predicate function for roomfolioitem builders.
 type RoomFolioItem func(*sql.Selector)
 

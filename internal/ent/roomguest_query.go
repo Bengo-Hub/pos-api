@@ -14,6 +14,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
 	"github.com/bengobox/pos-service/internal/ent/room"
+	"github.com/bengobox/pos-service/internal/ent/roombooking"
 	"github.com/bengobox/pos-service/internal/ent/roomfolioitem"
 	"github.com/bengobox/pos-service/internal/ent/roomguest"
 	"github.com/google/uuid"
@@ -27,6 +28,7 @@ type RoomGuestQuery struct {
 	inters         []Interceptor
 	predicates     []predicate.RoomGuest
 	withRoom       *RoomQuery
+	withBooking    *RoomBookingQuery
 	withFolioItems *RoomFolioItemQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
@@ -79,6 +81,28 @@ func (_q *RoomGuestQuery) QueryRoom() *RoomQuery {
 			sqlgraph.From(roomguest.Table, roomguest.FieldID, selector),
 			sqlgraph.To(room.Table, room.FieldID),
 			sqlgraph.Edge(sqlgraph.M2O, true, roomguest.RoomTable, roomguest.RoomColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryBooking chains the current query on the "booking" edge.
+func (_q *RoomGuestQuery) QueryBooking() *RoomBookingQuery {
+	query := (&RoomBookingClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(roomguest.Table, roomguest.FieldID, selector),
+			sqlgraph.To(roombooking.Table, roombooking.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, roomguest.BookingTable, roomguest.BookingColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -301,6 +325,7 @@ func (_q *RoomGuestQuery) Clone() *RoomGuestQuery {
 		inters:         append([]Interceptor{}, _q.inters...),
 		predicates:     append([]predicate.RoomGuest{}, _q.predicates...),
 		withRoom:       _q.withRoom.Clone(),
+		withBooking:    _q.withBooking.Clone(),
 		withFolioItems: _q.withFolioItems.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
@@ -316,6 +341,17 @@ func (_q *RoomGuestQuery) WithRoom(opts ...func(*RoomQuery)) *RoomGuestQuery {
 		opt(query)
 	}
 	_q.withRoom = query
+	return _q
+}
+
+// WithBooking tells the query-builder to eager-load the nodes that are connected to
+// the "booking" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *RoomGuestQuery) WithBooking(opts ...func(*RoomBookingQuery)) *RoomGuestQuery {
+	query := (&RoomBookingClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withBooking = query
 	return _q
 }
 
@@ -408,8 +444,9 @@ func (_q *RoomGuestQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Ro
 	var (
 		nodes       = []*RoomGuest{}
 		_spec       = _q.querySpec()
-		loadedTypes = [2]bool{
+		loadedTypes = [3]bool{
 			_q.withRoom != nil,
+			_q.withBooking != nil,
 			_q.withFolioItems != nil,
 		}
 	)
@@ -434,6 +471,12 @@ func (_q *RoomGuestQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Ro
 	if query := _q.withRoom; query != nil {
 		if err := _q.loadRoom(ctx, query, nodes, nil,
 			func(n *RoomGuest, e *Room) { n.Edges.Room = e }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withBooking; query != nil {
+		if err := _q.loadBooking(ctx, query, nodes, nil,
+			func(n *RoomGuest, e *RoomBooking) { n.Edges.Booking = e }); err != nil {
 			return nil, err
 		}
 	}
@@ -469,6 +512,38 @@ func (_q *RoomGuestQuery) loadRoom(ctx context.Context, query *RoomQuery, nodes 
 		nodes, ok := nodeids[n.ID]
 		if !ok {
 			return fmt.Errorf(`unexpected foreign-key "room_id" returned %v`, n.ID)
+		}
+		for i := range nodes {
+			assign(nodes[i], n)
+		}
+	}
+	return nil
+}
+func (_q *RoomGuestQuery) loadBooking(ctx context.Context, query *RoomBookingQuery, nodes []*RoomGuest, init func(*RoomGuest), assign func(*RoomGuest, *RoomBooking)) error {
+	ids := make([]uuid.UUID, 0, len(nodes))
+	nodeids := make(map[uuid.UUID][]*RoomGuest)
+	for i := range nodes {
+		if nodes[i].BookingID == nil {
+			continue
+		}
+		fk := *nodes[i].BookingID
+		if _, ok := nodeids[fk]; !ok {
+			ids = append(ids, fk)
+		}
+		nodeids[fk] = append(nodeids[fk], nodes[i])
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	query.Where(roombooking.IDIn(ids...))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		nodes, ok := nodeids[n.ID]
+		if !ok {
+			return fmt.Errorf(`unexpected foreign-key "booking_id" returned %v`, n.ID)
 		}
 		for i := range nodes {
 			assign(nodes[i], n)
@@ -534,6 +609,9 @@ func (_q *RoomGuestQuery) querySpec() *sqlgraph.QuerySpec {
 		}
 		if _q.withRoom != nil {
 			_spec.Node.AddColumnOnce(roomguest.FieldRoomID)
+		}
+		if _q.withBooking != nil {
+			_spec.Node.AddColumnOnce(roomguest.FieldBookingID)
 		}
 	}
 	if ps := _q.predicates; len(ps) > 0 {
