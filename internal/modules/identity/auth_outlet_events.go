@@ -84,7 +84,7 @@ func (h *AuthOutletEventHandler) SubscribeToOutletEvents(nc *nats.Conn) error {
 
 	for _, s := range subs {
 		s := s
-		if _, subErr := js.Subscribe(s.subject, func(msg *nats.Msg) {
+		_, subErr := jsSubscribeOrRebind(js, authStream, s.subject, s.durable, func(msg *nats.Msg) {
 			evt, err := sharedevents.FromJSON(msg.Data)
 			if err != nil {
 				h.logger.Error("failed to unmarshal outlet event",
@@ -101,13 +101,13 @@ func (h *AuthOutletEventHandler) SubscribeToOutletEvents(nc *nats.Conn) error {
 			}
 			_ = msg.Ack()
 		},
-			nats.Durable(s.durable),
 			nats.AckExplicit(),
 			nats.AckWait(30*time.Second),
 			nats.MaxDeliver(5),
 			nats.DeliverAll(),
-		); subErr != nil {
-			h.logger.Warn("auth outlet events: subscribe failed",
+		)
+		if subErr != nil {
+			h.logger.Error("auth outlet events: subscribe failed (will not retry)",
 				zap.String("subject", s.subject), zap.Error(subErr))
 		}
 	}
