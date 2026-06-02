@@ -3,6 +3,7 @@ package handlers
 import (
 	"bytes"
 	"fmt"
+	"html"
 	"net/http"
 	"time"
 
@@ -65,6 +66,12 @@ type receiptResponse struct {
 	EtimsInvoiceNumber string                 `json:"etims_invoice_number,omitempty"`
 	EtimsQRCodeURL     string                 `json:"etims_qr_code_url,omitempty"`
 	PaymentMethods     *receiptPaymentMethods `json:"payment_methods,omitempty"`
+	// Configurable receipt/printer settings sourced from the outlet's POS settings.
+	ReceiptHeader string  `json:"receipt_header,omitempty"`
+	ReceiptFooter string  `json:"receipt_footer,omitempty"`
+	VatEnabled    bool    `json:"vat_enabled"`
+	VatRate       float64 `json:"vat_rate,omitempty"`
+	PaperWidth    string  `json:"paper_width,omitempty"`
 }
 
 // GetReceipt handles GET /{tenantID}/pos/orders/{orderID}/receipt
@@ -155,38 +162,52 @@ func (h *ReceiptHandler) GetReceipt(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Populate payment display info when outlet has it configured.
+	// Pull the outlet's POS settings: receipt header/footer text, VAT rate, paper width, and
+	// (when enabled) the payment display info. These drive both the JSON receipt the pos-ui
+	// renders/prints and the server-side printable HTML.
 	if s, err := h.client.OutletSetting.Query().
 		Where(entoutletsetting.OutletID(order.OutletID)).
-		Only(ctx); err == nil && s.ShowPaymentInfoOnReceipt {
-		pm := &receiptPaymentMethods{}
-		filled := false
-		if s.MpesaPaybill != nil && *s.MpesaPaybill != "" {
-			pm.MpesaPaybill = *s.MpesaPaybill
-			filled = true
+		Only(ctx); err == nil {
+		if s.ReceiptHeader != nil {
+			receipt.ReceiptHeader = *s.ReceiptHeader
 		}
-		if s.MpesaAccountReference != nil && *s.MpesaAccountReference != "" {
-			pm.MpesaAccountRef = *s.MpesaAccountReference
-			filled = true
+		if s.ReceiptFooter != nil {
+			receipt.ReceiptFooter = *s.ReceiptFooter
 		}
-		if s.AirtelMoneyNumber != nil && *s.AirtelMoneyNumber != "" {
-			pm.AirtelMoneyNumber = *s.AirtelMoneyNumber
-			filled = true
-		}
-		if s.BankName != nil && *s.BankName != "" {
-			pm.BankName = *s.BankName
-			filled = true
-		}
-		if s.BankAccountNumber != nil && *s.BankAccountNumber != "" {
-			pm.BankAccountNumber = *s.BankAccountNumber
-			filled = true
-		}
-		if s.BankAccountName != nil && *s.BankAccountName != "" {
-			pm.BankAccountName = *s.BankAccountName
-			filled = true
-		}
-		if filled {
-			receipt.PaymentMethods = pm
+		receipt.VatEnabled = s.VatEnabled
+		receipt.VatRate = s.VatRate
+		receipt.PaperWidth = s.PaperWidth
+
+		if s.ShowPaymentInfoOnReceipt {
+			pm := &receiptPaymentMethods{}
+			filled := false
+			if s.MpesaPaybill != nil && *s.MpesaPaybill != "" {
+				pm.MpesaPaybill = *s.MpesaPaybill
+				filled = true
+			}
+			if s.MpesaAccountReference != nil && *s.MpesaAccountReference != "" {
+				pm.MpesaAccountRef = *s.MpesaAccountReference
+				filled = true
+			}
+			if s.AirtelMoneyNumber != nil && *s.AirtelMoneyNumber != "" {
+				pm.AirtelMoneyNumber = *s.AirtelMoneyNumber
+				filled = true
+			}
+			if s.BankName != nil && *s.BankName != "" {
+				pm.BankName = *s.BankName
+				filled = true
+			}
+			if s.BankAccountNumber != nil && *s.BankAccountNumber != "" {
+				pm.BankAccountNumber = *s.BankAccountNumber
+				filled = true
+			}
+			if s.BankAccountName != nil && *s.BankAccountName != "" {
+				pm.BankAccountName = *s.BankAccountName
+				filled = true
+			}
+			if filled {
+				receipt.PaymentMethods = pm
+			}
 		}
 	}
 
@@ -221,43 +242,60 @@ func (h *ReceiptHandler) GetReceiptPDF(w http.ResponseWriter, r *http.Request) {
 	h.GetReceipt(w, r)
 }
 
-// generateReceiptHTML generates a printable 80mm thermal-width HTML receipt.
-// Designed for window.print() and direct browser print-to-PDF.
+// generateReceiptHTML generates a printable thermal-width HTML receipt.
+// Designed for window.print() and direct browser print-to-PDF. Honours the outlet's configured
+// receipt header/footer text, VAT rate, and paper width (58mm | 80mm).
 func generateReceiptHTML(rec receiptResponse) []byte {
+	// Paper width drives the @page size and body width. Default 80mm.
+	pageWidth, bodyWidth := "80mm", "72mm"
+	if rec.PaperWidth == "58mm" {
+		pageWidth, bodyWidth = "58mm", "50mm"
+	}
+
 	var buf bytes.Buffer
 	buf.WriteString(`<!DOCTYPE html><html><head><meta charset="utf-8">`)
 	buf.WriteString(`<title>Receipt ` + rec.ReceiptNumber + `</title>`)
-	buf.WriteString(`<style>
-@page{size:80mm auto;margin:4mm}
+	buf.WriteString(fmt.Sprintf(`<style>
+@page{size:%s auto;margin:4mm}
 *{box-sizing:border-box}
-body{font-family:monospace;font-size:11px;width:72mm;margin:0 auto;padding:4px}
+body{font-family:monospace;font-size:11px;width:%s;margin:0 auto;padding:4px}
 h1{font-size:13px;text-align:center;margin:2px 0}
 .sub{font-size:10px;text-align:center;margin:1px 0;color:#444}
+.hdr{font-size:10px;text-align:center;margin:2px 0;white-space:pre-wrap}
+.ftr{font-size:10px;text-align:center;margin:2px 0;white-space:pre-wrap}
 .center{text-align:center}
 .line{display:flex;justify-content:space-between;margin:1px 0}
 .divider{border-top:1px dashed #000;margin:4px 0}
 .bold{font-weight:bold}
 .etims-qr{display:block;margin:4px auto;width:80px;height:80px}
 .etims-num{font-size:9px;text-align:center;word-break:break-all}
-@media print{body{width:100%}}
-</style></head><body>`)
+@media print{body{width:100%%}}
+</style></head><body>`, pageWidth, bodyWidth))
 	if rec.OutletName != "" {
-		buf.WriteString(fmt.Sprintf(`<h1>%s</h1>`, rec.OutletName))
+		buf.WriteString(fmt.Sprintf(`<h1>%s</h1>`, htmlEscape(rec.OutletName)))
 	} else {
 		buf.WriteString(`<h1>RECEIPT</h1>`)
 	}
 	if rec.OutletAddress != "" {
-		buf.WriteString(fmt.Sprintf(`<p class="sub">%s</p>`, rec.OutletAddress))
+		buf.WriteString(fmt.Sprintf(`<p class="sub">%s</p>`, htmlEscape(rec.OutletAddress)))
+	}
+	// Custom header text configured in POS settings (business name, address, slogan…).
+	if rec.ReceiptHeader != "" {
+		buf.WriteString(fmt.Sprintf(`<p class="hdr">%s</p>`, htmlEscape(rec.ReceiptHeader)))
 	}
 	buf.WriteString(fmt.Sprintf(`<p class="sub">%s</p>`, rec.IssuedAt.Format("02 Jan 2006  15:04")))
 	buf.WriteString(fmt.Sprintf(`<p class="sub">Receipt: %s</p>`, rec.ReceiptNumber))
 	buf.WriteString(`<div class="divider"></div>`)
 	for _, l := range rec.Lines {
-		buf.WriteString(fmt.Sprintf(`<div class="line"><span>%s x%.0f</span><span>%.2f</span></div>`, l.Name, l.Quantity, l.TotalPrice))
+		buf.WriteString(fmt.Sprintf(`<div class="line"><span>%s x%.0f</span><span>%.2f</span></div>`, htmlEscape(l.Name), l.Quantity, l.TotalPrice))
 	}
 	buf.WriteString(`<div class="divider"></div>`)
 	buf.WriteString(fmt.Sprintf(`<div class="line"><span>Subtotal</span><span>%.2f</span></div>`, rec.Subtotal))
-	buf.WriteString(fmt.Sprintf(`<div class="line"><span>Tax</span><span>%.2f</span></div>`, rec.TaxAmount))
+	taxLabel := "Tax"
+	if rec.VatEnabled && rec.VatRate > 0 {
+		taxLabel = fmt.Sprintf("VAT (%g%%)", rec.VatRate)
+	}
+	buf.WriteString(fmt.Sprintf(`<div class="line"><span>%s</span><span>%.2f</span></div>`, taxLabel, rec.TaxAmount))
 	if rec.DiscountAmount > 0 {
 		buf.WriteString(fmt.Sprintf(`<div class="line"><span>Discount</span><span>-%.2f</span></div>`, rec.DiscountAmount))
 	}
@@ -296,7 +334,16 @@ h1{font-size:13px;text-align:center;margin:2px 0}
 		}
 	}
 	buf.WriteString(`<div class="divider"></div>`)
-	buf.WriteString(`<p class="center" style="font-size:10px">Thank you for your business</p>`)
+	// Custom footer text configured in POS settings; fall back to a friendly default.
+	footer := rec.ReceiptFooter
+	if footer == "" {
+		footer = "Thank you for your business!"
+	}
+	buf.WriteString(fmt.Sprintf(`<p class="ftr">%s</p>`, htmlEscape(footer)))
 	buf.WriteString(`</body></html>`)
 	return buf.Bytes()
 }
+
+// htmlEscape escapes user-configured text (header/footer/item names) before embedding it in the
+// receipt HTML, preventing layout breakage or injection from settings values.
+func htmlEscape(s string) string { return html.EscapeString(s) }
