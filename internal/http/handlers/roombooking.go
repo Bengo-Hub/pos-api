@@ -147,6 +147,52 @@ func (h *HotelHandler) GetRoomBooking(w http.ResponseWriter, r *http.Request) {
 	jsonOK(w, booking)
 }
 
+// inventoryServiceItemDTO is the lightweight item shape returned to hotel forms for picking
+// the authoritative inventory master (room-type / facility / amenity).
+type inventoryServiceItemDTO struct {
+	ID    string `json:"id"`
+	SKU   string `json:"sku"`
+	Name  string `json:"name"`
+	Image string `json:"image_url,omitempty"`
+}
+
+// ListInventoryServiceItems handles GET /{tenantID}/hotel/inventory-service-items?use_case=...
+// Proxies inventory-api for SERVICE master items of a hospitality use_case so the room/facility/
+// amenity forms can link to the authoritative inventory item (and inherit its rate/pricing).
+func (h *HotelHandler) ListInventoryServiceItems(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+	useCase := r.URL.Query().Get("use_case")
+	if useCase == "" {
+		jsonError(w, "use_case is required", http.StatusBadRequest)
+		return
+	}
+	// Resolve tenant slug (inventory /v1/{tenant} accepts slug or UUID; prefer slug from context).
+	tenantSlug := httpware.GetTenantSlug(r.Context())
+	if tenantSlug == "" {
+		if t, lookupErr := h.client.Tenant.Get(r.Context(), tid); lookupErr == nil {
+			tenantSlug = t.Slug
+		}
+	}
+	if tenantSlug == "" {
+		tenantSlug = tid.String()
+	}
+	items, err := fetchInventoryServiceItems(r.Context(), tenantSlug, useCase)
+	if err != nil {
+		h.log.Error("list inventory service items failed", zap.Error(err))
+		jsonError(w, "failed to fetch inventory items", http.StatusBadGateway)
+		return
+	}
+	out := make([]inventoryServiceItemDTO, 0, len(items))
+	for _, it := range items {
+		out = append(out, inventoryServiceItemDTO{ID: it.ID, SKU: it.SKU, Name: it.Name, Image: it.ImageURL})
+	}
+	jsonOK(w, out)
+}
+
 // ListBookingGuests handles GET /{tenantID}/hotel/bookings/{id}/guests.
 func (h *HotelHandler) ListBookingGuests(w http.ResponseWriter, r *http.Request) {
 	tid, err := parseTenantUUID(r)

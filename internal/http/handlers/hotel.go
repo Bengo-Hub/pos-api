@@ -115,13 +115,14 @@ func (h *HotelHandler) GetRoom(w http.ResponseWriter, r *http.Request) {
 }
 
 type createRoomInput struct {
-	OutletID     string  `json:"outlet_id"`
-	RoomNumber   string  `json:"room_number"`
-	Name         string  `json:"name"`
-	RoomType     string  `json:"room_type"`
-	Floor        int     `json:"floor"`
-	RatePerNight float64 `json:"rate_per_night"`
-	Currency     string  `json:"currency"`
+	OutletID        string  `json:"outlet_id"`
+	RoomNumber      string  `json:"room_number"`
+	Name            string  `json:"name"`
+	RoomType        string  `json:"room_type"`
+	Floor           int     `json:"floor"`
+	RatePerNight    float64 `json:"rate_per_night"`
+	Currency        string  `json:"currency"`
+	InventoryItemID string  `json:"inventory_item_id"`
 }
 
 // CreateRoom handles POST /{tenantID}/hotel/rooms
@@ -148,7 +149,7 @@ func (h *HotelHandler) CreateRoom(w http.ResponseWriter, r *http.Request) {
 
 	roomOutletID := parseOptionalUUID(input.OutletID, r)
 
-	room, err := h.client.Room.Create().
+	roomCreate := h.client.Room.Create().
 		SetTenantID(tid).
 		SetOutletID(roomOutletID).
 		SetRoomNumber(input.RoomNumber).
@@ -156,8 +157,11 @@ func (h *HotelHandler) CreateRoom(w http.ResponseWriter, r *http.Request) {
 		SetRoomType(roomType).
 		SetFloor(input.Floor).
 		SetRatePerNight(input.RatePerNight).
-		SetCurrency(input.Currency).
-		Save(r.Context())
+		SetCurrency(input.Currency)
+	if invID, perr := uuid.Parse(input.InventoryItemID); perr == nil {
+		roomCreate = roomCreate.SetInventoryItemID(invID)
+	}
+	room, err := roomCreate.Save(r.Context())
 	if err != nil {
 		h.log.Error("create room failed", zap.Error(err))
 		jsonError(w, "failed to create room", http.StatusInternalServerError)
@@ -267,7 +271,17 @@ func (h *HotelHandler) CheckIn(w http.ResponseWriter, r *http.Request) {
 
 	now := time.Now()
 	checkOutDate := now.AddDate(0, 0, input.Nights)
-	totalCharge := room.RatePerNight * float64(input.Nights)
+	nightlyRate := room.RatePerNight
+	// Resolve the authoritative nightly rate from inventory-api when the room is linked to a
+	// room-type SERVICE item; fall back to the local (synced) rate snapshot otherwise.
+	if h.inventoryClient != nil && room.InventoryItemID != nil {
+		if price, ok, perr := h.inventoryClient.GetItemPrice(r.Context(), tid.String(), room.InventoryItemID.String(), 1); perr == nil && ok && price.UnitPrice > 0 {
+			nightlyRate = price.UnitPrice
+		} else if perr != nil {
+			h.log.Warn("check-in: inventory price lookup failed, using local rate", zap.Error(perr))
+		}
+	}
+	totalCharge := nightlyRate * float64(input.Nights)
 	checkedInBy, _ := uuid.Parse(input.CheckedBy)
 
 	tx, err := h.client.Tx(r.Context())
@@ -808,6 +822,20 @@ func (h *HotelHandler) BookFacility(w http.ResponseWriter, r *http.Request) {
 
 	facilityBookedBy, _ := uuid.Parse(input.BookedBy)
 
+	// Resolve the session amount when the caller didn't supply one: prefer the authoritative
+	// inventory price (when the facility is linked to a SERVICE item), else the local rate.
+	amount := input.Amount
+	if amount <= 0 {
+		if fac, fErr := h.client.Facility.Query().Where(entfacility.ID(facilityID), entfacility.TenantID(tid)).Only(r.Context()); fErr == nil {
+			amount = fac.RatePerSession
+			if h.inventoryClient != nil && fac.InventoryItemID != nil {
+				if price, ok, perr := h.inventoryClient.GetItemPrice(r.Context(), tid.String(), fac.InventoryItemID.String(), 1); perr == nil && ok && price.UnitPrice > 0 {
+					amount = price.UnitPrice
+				}
+			}
+		}
+	}
+
 	c := h.client.FacilityBooking.Create().
 		SetTenantID(tid).
 		SetFacilityID(facilityID).
@@ -817,7 +845,7 @@ func (h *HotelHandler) BookFacility(w http.ResponseWriter, r *http.Request) {
 		SetStartTime(input.StartTime).
 		SetEndTime(input.EndTime).
 		SetGuestsCount(input.GuestsCount).
-		SetAmount(input.Amount).
+		SetAmount(amount).
 		SetBookedBy(facilityBookedBy)
 
 	if input.RoomGuestID != nil {
