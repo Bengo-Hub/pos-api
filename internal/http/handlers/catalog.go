@@ -38,15 +38,15 @@ func NewCatalogHandler(log *zap.Logger, client *ent.Client) *CatalogHandler {
 
 // inventoryProxyItem is the shape returned by inventory-api /items list.
 type inventoryProxyItem struct {
-	ID                      string `json:"id"`
-	SKU                     string `json:"sku"`
-	Name                    string `json:"name"`
-	Description             string `json:"description"`
-	Type                    string `json:"type"`
-	IsActive                bool   `json:"is_active"`
-	ImageURL                string `json:"image_url"`
-	CategoryName            string `json:"category_name"`
-	Barcode                 string `json:"barcode"`
+	ID                      string   `json:"id"`
+	SKU                     string   `json:"sku"`
+	Name                    string   `json:"name"`
+	Description             string   `json:"description"`
+	Type                    string   `json:"type"`
+	IsActive                bool     `json:"is_active"`
+	ImageURL                string   `json:"image_url"`
+	CategoryName            string   `json:"category_name"`
+	Barcode                 string   `json:"barcode"`
 	RequiresAgeVerification bool     `json:"requires_age_verification"`
 	IsControlledSubstance   bool     `json:"is_controlled_substance"`
 	TrackSerialNumbers      bool     `json:"track_serial_numbers"`
@@ -54,9 +54,9 @@ type inventoryProxyItem struct {
 	CostPrice               *float64 `json:"cost_price,omitempty"`
 	SuggestedPrice          *float64 `json:"suggested_price,omitempty"`
 	// Recipe-costing fields (added 2026-06-01)
-	SellingPrice     *float64 `json:"selling_price,omitempty"`
-	FoodCostPct      *float64 `json:"food_cost_pct,omitempty"`
-	FoodCostStatus   string   `json:"status,omitempty"` // "OK - healthy" | "OK - above target FC%" | "LOSS"
+	SellingPrice   *float64 `json:"selling_price,omitempty"`
+	FoodCostPct    *float64 `json:"food_cost_pct,omitempty"`
+	FoodCostStatus string   `json:"status,omitempty"` // "OK - healthy" | "OK - above target FC%" | "LOSS"
 	// Supplier / EP-cost fields
 	PurchasePrice    *float64 `json:"purchase_price,omitempty"`
 	PurchasePackSize *float64 `json:"purchase_pack_size,omitempty"`
@@ -173,6 +173,24 @@ func fetchInventoryItems(ctx context.Context, tenantSlug, outletID, useCase stri
 	types := useCaseItemTypes(useCase)
 	url := fmt.Sprintf("%s/v1/%s/inventory/items?type=%s&status=active&limit=500", inventoryURL(), tenantSlug, types)
 	body, err := doInventoryGET(ctx, url, outletID)
+	if err != nil {
+		return nil, err
+	}
+	var wrapper struct {
+		Data []inventoryProxyItem `json:"data"`
+	}
+	if err := json.Unmarshal(body, &wrapper); err != nil {
+		return nil, err
+	}
+	return wrapper.Data, nil
+}
+
+// fetchInventoryServiceItems lists inventory items filtered by use_case (e.g. HOSPITALITY_ROOM,
+// HOSPITALITY_FACILITY, CONFERENCE, AMENITY) — used by hotel forms to pick the authoritative
+// inventory master item to link to a Room/Facility/Amenity.
+func fetchInventoryServiceItems(ctx context.Context, tenantSlug, useCase string) ([]inventoryProxyItem, error) {
+	url := fmt.Sprintf("%s/v1/%s/inventory/items?use_case=%s&status=active&limit=500", inventoryURL(), tenantSlug, useCase)
+	body, err := doInventoryGET(ctx, url, "")
 	if err != nil {
 		return nil, err
 	}

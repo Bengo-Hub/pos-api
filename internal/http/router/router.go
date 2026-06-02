@@ -610,6 +610,8 @@ func New(
 						h.Post("/rooms", hotel.CreateRoom)
 						h.Get("/rooms/{id}", hotel.GetRoom)
 						h.Patch("/rooms/{id}/status", hotel.UpdateRoomStatus)
+						// Inventory master picker (link rooms/facilities/amenities to inventory SERVICE items)
+						h.Get("/inventory-service-items", hotel.ListInventoryServiceItems)
 						// Multi-room / group bookings (RoomBooking header → many RoomGuest)
 						h.Post("/bookings", hotel.CreateRoomBooking)
 						h.Get("/bookings", hotel.ListRoomBookings)
