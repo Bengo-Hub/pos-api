@@ -60,6 +60,11 @@ func TenantID(v uuid.UUID) predicate.Promotion {
 	return predicate.Promotion(sql.FieldEQ(FieldTenantID, v))
 }
 
+// OutletID applies equality check predicate on the "outlet_id" field. It's identical to OutletIDEQ.
+func OutletID(v uuid.UUID) predicate.Promotion {
+	return predicate.Promotion(sql.FieldEQ(FieldOutletID, v))
+}
+
 // Name applies equality check predicate on the "name" field. It's identical to NameEQ.
 func Name(v string) predicate.Promotion {
 	return predicate.Promotion(sql.FieldEQ(FieldName, v))
@@ -73,6 +78,21 @@ func Description(v string) predicate.Promotion {
 // PromoCode applies equality check predicate on the "promo_code" field. It's identical to PromoCodeEQ.
 func PromoCode(v string) predicate.Promotion {
 	return predicate.Promotion(sql.FieldEQ(FieldPromoCode, v))
+}
+
+// WindowStart applies equality check predicate on the "window_start" field. It's identical to WindowStartEQ.
+func WindowStart(v string) predicate.Promotion {
+	return predicate.Promotion(sql.FieldEQ(FieldWindowStart, v))
+}
+
+// WindowEnd applies equality check predicate on the "window_end" field. It's identical to WindowEndEQ.
+func WindowEnd(v string) predicate.Promotion {
+	return predicate.Promotion(sql.FieldEQ(FieldWindowEnd, v))
+}
+
+// AutoApply applies equality check predicate on the "auto_apply" field. It's identical to AutoApplyEQ.
+func AutoApply(v bool) predicate.Promotion {
+	return predicate.Promotion(sql.FieldEQ(FieldAutoApply, v))
 }
 
 // Status applies equality check predicate on the "status" field. It's identical to StatusEQ.
@@ -128,6 +148,56 @@ func TenantIDLT(v uuid.UUID) predicate.Promotion {
 // TenantIDLTE applies the LTE predicate on the "tenant_id" field.
 func TenantIDLTE(v uuid.UUID) predicate.Promotion {
 	return predicate.Promotion(sql.FieldLTE(FieldTenantID, v))
+}
+
+// OutletIDEQ applies the EQ predicate on the "outlet_id" field.
+func OutletIDEQ(v uuid.UUID) predicate.Promotion {
+	return predicate.Promotion(sql.FieldEQ(FieldOutletID, v))
+}
+
+// OutletIDNEQ applies the NEQ predicate on the "outlet_id" field.
+func OutletIDNEQ(v uuid.UUID) predicate.Promotion {
+	return predicate.Promotion(sql.FieldNEQ(FieldOutletID, v))
+}
+
+// OutletIDIn applies the In predicate on the "outlet_id" field.
+func OutletIDIn(vs ...uuid.UUID) predicate.Promotion {
+	return predicate.Promotion(sql.FieldIn(FieldOutletID, vs...))
+}
+
+// OutletIDNotIn applies the NotIn predicate on the "outlet_id" field.
+func OutletIDNotIn(vs ...uuid.UUID) predicate.Promotion {
+	return predicate.Promotion(sql.FieldNotIn(FieldOutletID, vs...))
+}
+
+// OutletIDGT applies the GT predicate on the "outlet_id" field.
+func OutletIDGT(v uuid.UUID) predicate.Promotion {
+	return predicate.Promotion(sql.FieldGT(FieldOutletID, v))
+}
+
+// OutletIDGTE applies the GTE predicate on the "outlet_id" field.
+func OutletIDGTE(v uuid.UUID) predicate.Promotion {
+	return predicate.Promotion(sql.FieldGTE(FieldOutletID, v))
+}
+
+// OutletIDLT applies the LT predicate on the "outlet_id" field.
+func OutletIDLT(v uuid.UUID) predicate.Promotion {
+	return predicate.Promotion(sql.FieldLT(FieldOutletID, v))
+}
+
+// OutletIDLTE applies the LTE predicate on the "outlet_id" field.
+func OutletIDLTE(v uuid.UUID) predicate.Promotion {
+	return predicate.Promotion(sql.FieldLTE(FieldOutletID, v))
+}
+
+// OutletIDIsNil applies the IsNil predicate on the "outlet_id" field.
+func OutletIDIsNil() predicate.Promotion {
+	return predicate.Promotion(sql.FieldIsNull(FieldOutletID))
+}
+
+// OutletIDNotNil applies the NotNil predicate on the "outlet_id" field.
+func OutletIDNotNil() predicate.Promotion {
+	return predicate.Promotion(sql.FieldNotNull(FieldOutletID))
 }
 
 // NameEQ applies the EQ predicate on the "name" field.
@@ -343,6 +413,196 @@ func PromoCodeEqualFold(v string) predicate.Promotion {
 // PromoCodeContainsFold applies the ContainsFold predicate on the "promo_code" field.
 func PromoCodeContainsFold(v string) predicate.Promotion {
 	return predicate.Promotion(sql.FieldContainsFold(FieldPromoCode, v))
+}
+
+// PromoKindEQ applies the EQ predicate on the "promo_kind" field.
+func PromoKindEQ(v PromoKind) predicate.Promotion {
+	return predicate.Promotion(sql.FieldEQ(FieldPromoKind, v))
+}
+
+// PromoKindNEQ applies the NEQ predicate on the "promo_kind" field.
+func PromoKindNEQ(v PromoKind) predicate.Promotion {
+	return predicate.Promotion(sql.FieldNEQ(FieldPromoKind, v))
+}
+
+// PromoKindIn applies the In predicate on the "promo_kind" field.
+func PromoKindIn(vs ...PromoKind) predicate.Promotion {
+	return predicate.Promotion(sql.FieldIn(FieldPromoKind, vs...))
+}
+
+// PromoKindNotIn applies the NotIn predicate on the "promo_kind" field.
+func PromoKindNotIn(vs ...PromoKind) predicate.Promotion {
+	return predicate.Promotion(sql.FieldNotIn(FieldPromoKind, vs...))
+}
+
+// DaysOfWeekIsNil applies the IsNil predicate on the "days_of_week" field.
+func DaysOfWeekIsNil() predicate.Promotion {
+	return predicate.Promotion(sql.FieldIsNull(FieldDaysOfWeek))
+}
+
+// DaysOfWeekNotNil applies the NotNil predicate on the "days_of_week" field.
+func DaysOfWeekNotNil() predicate.Promotion {
+	return predicate.Promotion(sql.FieldNotNull(FieldDaysOfWeek))
+}
+
+// WindowStartEQ applies the EQ predicate on the "window_start" field.
+func WindowStartEQ(v string) predicate.Promotion {
+	return predicate.Promotion(sql.FieldEQ(FieldWindowStart, v))
+}
+
+// WindowStartNEQ applies the NEQ predicate on the "window_start" field.
+func WindowStartNEQ(v string) predicate.Promotion {
+	return predicate.Promotion(sql.FieldNEQ(FieldWindowStart, v))
+}
+
+// WindowStartIn applies the In predicate on the "window_start" field.
+func WindowStartIn(vs ...string) predicate.Promotion {
+	return predicate.Promotion(sql.FieldIn(FieldWindowStart, vs...))
+}
+
+// WindowStartNotIn applies the NotIn predicate on the "window_start" field.
+func WindowStartNotIn(vs ...string) predicate.Promotion {
+	return predicate.Promotion(sql.FieldNotIn(FieldWindowStart, vs...))
+}
+
+// WindowStartGT applies the GT predicate on the "window_start" field.
+func WindowStartGT(v string) predicate.Promotion {
+	return predicate.Promotion(sql.FieldGT(FieldWindowStart, v))
+}
+
+// WindowStartGTE applies the GTE predicate on the "window_start" field.
+func WindowStartGTE(v string) predicate.Promotion {
+	return predicate.Promotion(sql.FieldGTE(FieldWindowStart, v))
+}
+
+// WindowStartLT applies the LT predicate on the "window_start" field.
+func WindowStartLT(v string) predicate.Promotion {
+	return predicate.Promotion(sql.FieldLT(FieldWindowStart, v))
+}
+
+// WindowStartLTE applies the LTE predicate on the "window_start" field.
+func WindowStartLTE(v string) predicate.Promotion {
+	return predicate.Promotion(sql.FieldLTE(FieldWindowStart, v))
+}
+
+// WindowStartContains applies the Contains predicate on the "window_start" field.
+func WindowStartContains(v string) predicate.Promotion {
+	return predicate.Promotion(sql.FieldContains(FieldWindowStart, v))
+}
+
+// WindowStartHasPrefix applies the HasPrefix predicate on the "window_start" field.
+func WindowStartHasPrefix(v string) predicate.Promotion {
+	return predicate.Promotion(sql.FieldHasPrefix(FieldWindowStart, v))
+}
+
+// WindowStartHasSuffix applies the HasSuffix predicate on the "window_start" field.
+func WindowStartHasSuffix(v string) predicate.Promotion {
+	return predicate.Promotion(sql.FieldHasSuffix(FieldWindowStart, v))
+}
+
+// WindowStartIsNil applies the IsNil predicate on the "window_start" field.
+func WindowStartIsNil() predicate.Promotion {
+	return predicate.Promotion(sql.FieldIsNull(FieldWindowStart))
+}
+
+// WindowStartNotNil applies the NotNil predicate on the "window_start" field.
+func WindowStartNotNil() predicate.Promotion {
+	return predicate.Promotion(sql.FieldNotNull(FieldWindowStart))
+}
+
+// WindowStartEqualFold applies the EqualFold predicate on the "window_start" field.
+func WindowStartEqualFold(v string) predicate.Promotion {
+	return predicate.Promotion(sql.FieldEqualFold(FieldWindowStart, v))
+}
+
+// WindowStartContainsFold applies the ContainsFold predicate on the "window_start" field.
+func WindowStartContainsFold(v string) predicate.Promotion {
+	return predicate.Promotion(sql.FieldContainsFold(FieldWindowStart, v))
+}
+
+// WindowEndEQ applies the EQ predicate on the "window_end" field.
+func WindowEndEQ(v string) predicate.Promotion {
+	return predicate.Promotion(sql.FieldEQ(FieldWindowEnd, v))
+}
+
+// WindowEndNEQ applies the NEQ predicate on the "window_end" field.
+func WindowEndNEQ(v string) predicate.Promotion {
+	return predicate.Promotion(sql.FieldNEQ(FieldWindowEnd, v))
+}
+
+// WindowEndIn applies the In predicate on the "window_end" field.
+func WindowEndIn(vs ...string) predicate.Promotion {
+	return predicate.Promotion(sql.FieldIn(FieldWindowEnd, vs...))
+}
+
+// WindowEndNotIn applies the NotIn predicate on the "window_end" field.
+func WindowEndNotIn(vs ...string) predicate.Promotion {
+	return predicate.Promotion(sql.FieldNotIn(FieldWindowEnd, vs...))
+}
+
+// WindowEndGT applies the GT predicate on the "window_end" field.
+func WindowEndGT(v string) predicate.Promotion {
+	return predicate.Promotion(sql.FieldGT(FieldWindowEnd, v))
+}
+
+// WindowEndGTE applies the GTE predicate on the "window_end" field.
+func WindowEndGTE(v string) predicate.Promotion {
+	return predicate.Promotion(sql.FieldGTE(FieldWindowEnd, v))
+}
+
+// WindowEndLT applies the LT predicate on the "window_end" field.
+func WindowEndLT(v string) predicate.Promotion {
+	return predicate.Promotion(sql.FieldLT(FieldWindowEnd, v))
+}
+
+// WindowEndLTE applies the LTE predicate on the "window_end" field.
+func WindowEndLTE(v string) predicate.Promotion {
+	return predicate.Promotion(sql.FieldLTE(FieldWindowEnd, v))
+}
+
+// WindowEndContains applies the Contains predicate on the "window_end" field.
+func WindowEndContains(v string) predicate.Promotion {
+	return predicate.Promotion(sql.FieldContains(FieldWindowEnd, v))
+}
+
+// WindowEndHasPrefix applies the HasPrefix predicate on the "window_end" field.
+func WindowEndHasPrefix(v string) predicate.Promotion {
+	return predicate.Promotion(sql.FieldHasPrefix(FieldWindowEnd, v))
+}
+
+// WindowEndHasSuffix applies the HasSuffix predicate on the "window_end" field.
+func WindowEndHasSuffix(v string) predicate.Promotion {
+	return predicate.Promotion(sql.FieldHasSuffix(FieldWindowEnd, v))
+}
+
+// WindowEndIsNil applies the IsNil predicate on the "window_end" field.
+func WindowEndIsNil() predicate.Promotion {
+	return predicate.Promotion(sql.FieldIsNull(FieldWindowEnd))
+}
+
+// WindowEndNotNil applies the NotNil predicate on the "window_end" field.
+func WindowEndNotNil() predicate.Promotion {
+	return predicate.Promotion(sql.FieldNotNull(FieldWindowEnd))
+}
+
+// WindowEndEqualFold applies the EqualFold predicate on the "window_end" field.
+func WindowEndEqualFold(v string) predicate.Promotion {
+	return predicate.Promotion(sql.FieldEqualFold(FieldWindowEnd, v))
+}
+
+// WindowEndContainsFold applies the ContainsFold predicate on the "window_end" field.
+func WindowEndContainsFold(v string) predicate.Promotion {
+	return predicate.Promotion(sql.FieldContainsFold(FieldWindowEnd, v))
+}
+
+// AutoApplyEQ applies the EQ predicate on the "auto_apply" field.
+func AutoApplyEQ(v bool) predicate.Promotion {
+	return predicate.Promotion(sql.FieldEQ(FieldAutoApply, v))
+}
+
+// AutoApplyNEQ applies the NEQ predicate on the "auto_apply" field.
+func AutoApplyNEQ(v bool) predicate.Promotion {
+	return predicate.Promotion(sql.FieldNEQ(FieldAutoApply, v))
 }
 
 // StatusEQ applies the EQ predicate on the "status" field.

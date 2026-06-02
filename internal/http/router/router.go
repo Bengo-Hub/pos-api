@@ -320,6 +320,7 @@ func New(
 						pos.Get("/promotions", promotions.ListPromotions)
 						pos.Post("/promotions", promotions.CreatePromotion)
 						pos.Post("/promotions/apply", promotions.ApplyPromoCode)
+						pos.Get("/promotions/happy-hour/active", promotions.GetActiveHappyHours)
 					}
 
 					// Device sessions (shift open/close)

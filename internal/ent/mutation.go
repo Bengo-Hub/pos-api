@@ -59541,21 +59541,28 @@ func (m *PriceBookItemMutation) ResetEdge(name string) error {
 // PromotionMutation represents an operation that mutates the Promotion nodes in the graph.
 type PromotionMutation struct {
 	config
-	op            Op
-	typ           string
-	id            *uuid.UUID
-	tenant_id     *uuid.UUID
-	name          *string
-	description   *string
-	promo_code    *string
-	status        *string
-	start_at      *time.Time
-	end_at        *time.Time
-	metadata      *map[string]interface{}
-	clearedFields map[string]struct{}
-	done          bool
-	oldValue      func(context.Context) (*Promotion, error)
-	predicates    []predicate.Promotion
+	op                 Op
+	typ                string
+	id                 *uuid.UUID
+	tenant_id          *uuid.UUID
+	outlet_id          *uuid.UUID
+	name               *string
+	description        *string
+	promo_code         *string
+	promo_kind         *promotion.PromoKind
+	days_of_week       *[]int
+	appenddays_of_week []int
+	window_start       *string
+	window_end         *string
+	auto_apply         *bool
+	status             *string
+	start_at           *time.Time
+	end_at             *time.Time
+	metadata           *map[string]interface{}
+	clearedFields      map[string]struct{}
+	done               bool
+	oldValue           func(context.Context) (*Promotion, error)
+	predicates         []predicate.Promotion
 }
 
 var _ ent.Mutation = (*PromotionMutation)(nil)
@@ -59698,6 +59705,55 @@ func (m *PromotionMutation) ResetTenantID() {
 	m.tenant_id = nil
 }
 
+// SetOutletID sets the "outlet_id" field.
+func (m *PromotionMutation) SetOutletID(u uuid.UUID) {
+	m.outlet_id = &u
+}
+
+// OutletID returns the value of the "outlet_id" field in the mutation.
+func (m *PromotionMutation) OutletID() (r uuid.UUID, exists bool) {
+	v := m.outlet_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOutletID returns the old "outlet_id" field's value of the Promotion entity.
+// If the Promotion object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PromotionMutation) OldOutletID(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOutletID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOutletID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOutletID: %w", err)
+	}
+	return oldValue.OutletID, nil
+}
+
+// ClearOutletID clears the value of the "outlet_id" field.
+func (m *PromotionMutation) ClearOutletID() {
+	m.outlet_id = nil
+	m.clearedFields[promotion.FieldOutletID] = struct{}{}
+}
+
+// OutletIDCleared returns if the "outlet_id" field was cleared in this mutation.
+func (m *PromotionMutation) OutletIDCleared() bool {
+	_, ok := m.clearedFields[promotion.FieldOutletID]
+	return ok
+}
+
+// ResetOutletID resets all changes to the "outlet_id" field.
+func (m *PromotionMutation) ResetOutletID() {
+	m.outlet_id = nil
+	delete(m.clearedFields, promotion.FieldOutletID)
+}
+
 // SetName sets the "name" field.
 func (m *PromotionMutation) SetName(s string) {
 	m.name = &s
@@ -59830,6 +59886,241 @@ func (m *PromotionMutation) PromoCodeCleared() bool {
 func (m *PromotionMutation) ResetPromoCode() {
 	m.promo_code = nil
 	delete(m.clearedFields, promotion.FieldPromoCode)
+}
+
+// SetPromoKind sets the "promo_kind" field.
+func (m *PromotionMutation) SetPromoKind(pk promotion.PromoKind) {
+	m.promo_kind = &pk
+}
+
+// PromoKind returns the value of the "promo_kind" field in the mutation.
+func (m *PromotionMutation) PromoKind() (r promotion.PromoKind, exists bool) {
+	v := m.promo_kind
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPromoKind returns the old "promo_kind" field's value of the Promotion entity.
+// If the Promotion object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PromotionMutation) OldPromoKind(ctx context.Context) (v promotion.PromoKind, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPromoKind is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPromoKind requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPromoKind: %w", err)
+	}
+	return oldValue.PromoKind, nil
+}
+
+// ResetPromoKind resets all changes to the "promo_kind" field.
+func (m *PromotionMutation) ResetPromoKind() {
+	m.promo_kind = nil
+}
+
+// SetDaysOfWeek sets the "days_of_week" field.
+func (m *PromotionMutation) SetDaysOfWeek(i []int) {
+	m.days_of_week = &i
+	m.appenddays_of_week = nil
+}
+
+// DaysOfWeek returns the value of the "days_of_week" field in the mutation.
+func (m *PromotionMutation) DaysOfWeek() (r []int, exists bool) {
+	v := m.days_of_week
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDaysOfWeek returns the old "days_of_week" field's value of the Promotion entity.
+// If the Promotion object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PromotionMutation) OldDaysOfWeek(ctx context.Context) (v []int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDaysOfWeek is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDaysOfWeek requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDaysOfWeek: %w", err)
+	}
+	return oldValue.DaysOfWeek, nil
+}
+
+// AppendDaysOfWeek adds i to the "days_of_week" field.
+func (m *PromotionMutation) AppendDaysOfWeek(i []int) {
+	m.appenddays_of_week = append(m.appenddays_of_week, i...)
+}
+
+// AppendedDaysOfWeek returns the list of values that were appended to the "days_of_week" field in this mutation.
+func (m *PromotionMutation) AppendedDaysOfWeek() ([]int, bool) {
+	if len(m.appenddays_of_week) == 0 {
+		return nil, false
+	}
+	return m.appenddays_of_week, true
+}
+
+// ClearDaysOfWeek clears the value of the "days_of_week" field.
+func (m *PromotionMutation) ClearDaysOfWeek() {
+	m.days_of_week = nil
+	m.appenddays_of_week = nil
+	m.clearedFields[promotion.FieldDaysOfWeek] = struct{}{}
+}
+
+// DaysOfWeekCleared returns if the "days_of_week" field was cleared in this mutation.
+func (m *PromotionMutation) DaysOfWeekCleared() bool {
+	_, ok := m.clearedFields[promotion.FieldDaysOfWeek]
+	return ok
+}
+
+// ResetDaysOfWeek resets all changes to the "days_of_week" field.
+func (m *PromotionMutation) ResetDaysOfWeek() {
+	m.days_of_week = nil
+	m.appenddays_of_week = nil
+	delete(m.clearedFields, promotion.FieldDaysOfWeek)
+}
+
+// SetWindowStart sets the "window_start" field.
+func (m *PromotionMutation) SetWindowStart(s string) {
+	m.window_start = &s
+}
+
+// WindowStart returns the value of the "window_start" field in the mutation.
+func (m *PromotionMutation) WindowStart() (r string, exists bool) {
+	v := m.window_start
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldWindowStart returns the old "window_start" field's value of the Promotion entity.
+// If the Promotion object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PromotionMutation) OldWindowStart(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldWindowStart is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldWindowStart requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldWindowStart: %w", err)
+	}
+	return oldValue.WindowStart, nil
+}
+
+// ClearWindowStart clears the value of the "window_start" field.
+func (m *PromotionMutation) ClearWindowStart() {
+	m.window_start = nil
+	m.clearedFields[promotion.FieldWindowStart] = struct{}{}
+}
+
+// WindowStartCleared returns if the "window_start" field was cleared in this mutation.
+func (m *PromotionMutation) WindowStartCleared() bool {
+	_, ok := m.clearedFields[promotion.FieldWindowStart]
+	return ok
+}
+
+// ResetWindowStart resets all changes to the "window_start" field.
+func (m *PromotionMutation) ResetWindowStart() {
+	m.window_start = nil
+	delete(m.clearedFields, promotion.FieldWindowStart)
+}
+
+// SetWindowEnd sets the "window_end" field.
+func (m *PromotionMutation) SetWindowEnd(s string) {
+	m.window_end = &s
+}
+
+// WindowEnd returns the value of the "window_end" field in the mutation.
+func (m *PromotionMutation) WindowEnd() (r string, exists bool) {
+	v := m.window_end
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldWindowEnd returns the old "window_end" field's value of the Promotion entity.
+// If the Promotion object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PromotionMutation) OldWindowEnd(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldWindowEnd is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldWindowEnd requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldWindowEnd: %w", err)
+	}
+	return oldValue.WindowEnd, nil
+}
+
+// ClearWindowEnd clears the value of the "window_end" field.
+func (m *PromotionMutation) ClearWindowEnd() {
+	m.window_end = nil
+	m.clearedFields[promotion.FieldWindowEnd] = struct{}{}
+}
+
+// WindowEndCleared returns if the "window_end" field was cleared in this mutation.
+func (m *PromotionMutation) WindowEndCleared() bool {
+	_, ok := m.clearedFields[promotion.FieldWindowEnd]
+	return ok
+}
+
+// ResetWindowEnd resets all changes to the "window_end" field.
+func (m *PromotionMutation) ResetWindowEnd() {
+	m.window_end = nil
+	delete(m.clearedFields, promotion.FieldWindowEnd)
+}
+
+// SetAutoApply sets the "auto_apply" field.
+func (m *PromotionMutation) SetAutoApply(b bool) {
+	m.auto_apply = &b
+}
+
+// AutoApply returns the value of the "auto_apply" field in the mutation.
+func (m *PromotionMutation) AutoApply() (r bool, exists bool) {
+	v := m.auto_apply
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAutoApply returns the old "auto_apply" field's value of the Promotion entity.
+// If the Promotion object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PromotionMutation) OldAutoApply(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAutoApply is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAutoApply requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAutoApply: %w", err)
+	}
+	return oldValue.AutoApply, nil
+}
+
+// ResetAutoApply resets all changes to the "auto_apply" field.
+func (m *PromotionMutation) ResetAutoApply() {
+	m.auto_apply = nil
 }
 
 // SetStatus sets the "status" field.
@@ -60023,9 +60314,12 @@ func (m *PromotionMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *PromotionMutation) Fields() []string {
-	fields := make([]string, 0, 8)
+	fields := make([]string, 0, 14)
 	if m.tenant_id != nil {
 		fields = append(fields, promotion.FieldTenantID)
+	}
+	if m.outlet_id != nil {
+		fields = append(fields, promotion.FieldOutletID)
 	}
 	if m.name != nil {
 		fields = append(fields, promotion.FieldName)
@@ -60035,6 +60329,21 @@ func (m *PromotionMutation) Fields() []string {
 	}
 	if m.promo_code != nil {
 		fields = append(fields, promotion.FieldPromoCode)
+	}
+	if m.promo_kind != nil {
+		fields = append(fields, promotion.FieldPromoKind)
+	}
+	if m.days_of_week != nil {
+		fields = append(fields, promotion.FieldDaysOfWeek)
+	}
+	if m.window_start != nil {
+		fields = append(fields, promotion.FieldWindowStart)
+	}
+	if m.window_end != nil {
+		fields = append(fields, promotion.FieldWindowEnd)
+	}
+	if m.auto_apply != nil {
+		fields = append(fields, promotion.FieldAutoApply)
 	}
 	if m.status != nil {
 		fields = append(fields, promotion.FieldStatus)
@@ -60058,12 +60367,24 @@ func (m *PromotionMutation) Field(name string) (ent.Value, bool) {
 	switch name {
 	case promotion.FieldTenantID:
 		return m.TenantID()
+	case promotion.FieldOutletID:
+		return m.OutletID()
 	case promotion.FieldName:
 		return m.Name()
 	case promotion.FieldDescription:
 		return m.Description()
 	case promotion.FieldPromoCode:
 		return m.PromoCode()
+	case promotion.FieldPromoKind:
+		return m.PromoKind()
+	case promotion.FieldDaysOfWeek:
+		return m.DaysOfWeek()
+	case promotion.FieldWindowStart:
+		return m.WindowStart()
+	case promotion.FieldWindowEnd:
+		return m.WindowEnd()
+	case promotion.FieldAutoApply:
+		return m.AutoApply()
 	case promotion.FieldStatus:
 		return m.Status()
 	case promotion.FieldStartAt:
@@ -60083,12 +60404,24 @@ func (m *PromotionMutation) OldField(ctx context.Context, name string) (ent.Valu
 	switch name {
 	case promotion.FieldTenantID:
 		return m.OldTenantID(ctx)
+	case promotion.FieldOutletID:
+		return m.OldOutletID(ctx)
 	case promotion.FieldName:
 		return m.OldName(ctx)
 	case promotion.FieldDescription:
 		return m.OldDescription(ctx)
 	case promotion.FieldPromoCode:
 		return m.OldPromoCode(ctx)
+	case promotion.FieldPromoKind:
+		return m.OldPromoKind(ctx)
+	case promotion.FieldDaysOfWeek:
+		return m.OldDaysOfWeek(ctx)
+	case promotion.FieldWindowStart:
+		return m.OldWindowStart(ctx)
+	case promotion.FieldWindowEnd:
+		return m.OldWindowEnd(ctx)
+	case promotion.FieldAutoApply:
+		return m.OldAutoApply(ctx)
 	case promotion.FieldStatus:
 		return m.OldStatus(ctx)
 	case promotion.FieldStartAt:
@@ -60113,6 +60446,13 @@ func (m *PromotionMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetTenantID(v)
 		return nil
+	case promotion.FieldOutletID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOutletID(v)
+		return nil
 	case promotion.FieldName:
 		v, ok := value.(string)
 		if !ok {
@@ -60133,6 +60473,41 @@ func (m *PromotionMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetPromoCode(v)
+		return nil
+	case promotion.FieldPromoKind:
+		v, ok := value.(promotion.PromoKind)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPromoKind(v)
+		return nil
+	case promotion.FieldDaysOfWeek:
+		v, ok := value.([]int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDaysOfWeek(v)
+		return nil
+	case promotion.FieldWindowStart:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetWindowStart(v)
+		return nil
+	case promotion.FieldWindowEnd:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetWindowEnd(v)
+		return nil
+	case promotion.FieldAutoApply:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAutoApply(v)
 		return nil
 	case promotion.FieldStatus:
 		v, ok := value.(string)
@@ -60192,11 +60567,23 @@ func (m *PromotionMutation) AddField(name string, value ent.Value) error {
 // mutation.
 func (m *PromotionMutation) ClearedFields() []string {
 	var fields []string
+	if m.FieldCleared(promotion.FieldOutletID) {
+		fields = append(fields, promotion.FieldOutletID)
+	}
 	if m.FieldCleared(promotion.FieldDescription) {
 		fields = append(fields, promotion.FieldDescription)
 	}
 	if m.FieldCleared(promotion.FieldPromoCode) {
 		fields = append(fields, promotion.FieldPromoCode)
+	}
+	if m.FieldCleared(promotion.FieldDaysOfWeek) {
+		fields = append(fields, promotion.FieldDaysOfWeek)
+	}
+	if m.FieldCleared(promotion.FieldWindowStart) {
+		fields = append(fields, promotion.FieldWindowStart)
+	}
+	if m.FieldCleared(promotion.FieldWindowEnd) {
+		fields = append(fields, promotion.FieldWindowEnd)
 	}
 	if m.FieldCleared(promotion.FieldEndAt) {
 		fields = append(fields, promotion.FieldEndAt)
@@ -60215,11 +60602,23 @@ func (m *PromotionMutation) FieldCleared(name string) bool {
 // error if the field is not defined in the schema.
 func (m *PromotionMutation) ClearField(name string) error {
 	switch name {
+	case promotion.FieldOutletID:
+		m.ClearOutletID()
+		return nil
 	case promotion.FieldDescription:
 		m.ClearDescription()
 		return nil
 	case promotion.FieldPromoCode:
 		m.ClearPromoCode()
+		return nil
+	case promotion.FieldDaysOfWeek:
+		m.ClearDaysOfWeek()
+		return nil
+	case promotion.FieldWindowStart:
+		m.ClearWindowStart()
+		return nil
+	case promotion.FieldWindowEnd:
+		m.ClearWindowEnd()
 		return nil
 	case promotion.FieldEndAt:
 		m.ClearEndAt()
@@ -60235,6 +60634,9 @@ func (m *PromotionMutation) ResetField(name string) error {
 	case promotion.FieldTenantID:
 		m.ResetTenantID()
 		return nil
+	case promotion.FieldOutletID:
+		m.ResetOutletID()
+		return nil
 	case promotion.FieldName:
 		m.ResetName()
 		return nil
@@ -60243,6 +60645,21 @@ func (m *PromotionMutation) ResetField(name string) error {
 		return nil
 	case promotion.FieldPromoCode:
 		m.ResetPromoCode()
+		return nil
+	case promotion.FieldPromoKind:
+		m.ResetPromoKind()
+		return nil
+	case promotion.FieldDaysOfWeek:
+		m.ResetDaysOfWeek()
+		return nil
+	case promotion.FieldWindowStart:
+		m.ResetWindowStart()
+		return nil
+	case promotion.FieldWindowEnd:
+		m.ResetWindowEnd()
+		return nil
+	case promotion.FieldAutoApply:
+		m.ResetAutoApply()
 		return nil
 	case promotion.FieldStatus:
 		m.ResetStatus()
@@ -60841,16 +61258,24 @@ func (m *PromotionApplicationMutation) ResetEdge(name string) error {
 // PromotionRuleMutation represents an operation that mutates the PromotionRule nodes in the graph.
 type PromotionRuleMutation struct {
 	config
-	op            Op
-	typ           string
-	id            *uuid.UUID
-	promotion_id  *uuid.UUID
-	rule_type     *string
-	rule_config   *map[string]interface{}
-	clearedFields map[string]struct{}
-	done          bool
-	oldValue      func(context.Context) (*PromotionRule, error)
-	predicates    []predicate.PromotionRule
+	op                Op
+	typ               string
+	id                *uuid.UUID
+	promotion_id      *uuid.UUID
+	rule_type         *string
+	scope_type        *promotionrule.ScopeType
+	scope_ids         *[]string
+	appendscope_ids   []string
+	discount_type     *promotionrule.DiscountType
+	discount_value    *float64
+	adddiscount_value *float64
+	max_discount      *float64
+	addmax_discount   *float64
+	rule_config       *map[string]interface{}
+	clearedFields     map[string]struct{}
+	done              bool
+	oldValue          func(context.Context) (*PromotionRule, error)
+	predicates        []predicate.PromotionRule
 }
 
 var _ ent.Mutation = (*PromotionRuleMutation)(nil)
@@ -61029,6 +61454,269 @@ func (m *PromotionRuleMutation) ResetRuleType() {
 	m.rule_type = nil
 }
 
+// SetScopeType sets the "scope_type" field.
+func (m *PromotionRuleMutation) SetScopeType(pt promotionrule.ScopeType) {
+	m.scope_type = &pt
+}
+
+// ScopeType returns the value of the "scope_type" field in the mutation.
+func (m *PromotionRuleMutation) ScopeType() (r promotionrule.ScopeType, exists bool) {
+	v := m.scope_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldScopeType returns the old "scope_type" field's value of the PromotionRule entity.
+// If the PromotionRule object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PromotionRuleMutation) OldScopeType(ctx context.Context) (v promotionrule.ScopeType, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldScopeType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldScopeType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldScopeType: %w", err)
+	}
+	return oldValue.ScopeType, nil
+}
+
+// ResetScopeType resets all changes to the "scope_type" field.
+func (m *PromotionRuleMutation) ResetScopeType() {
+	m.scope_type = nil
+}
+
+// SetScopeIds sets the "scope_ids" field.
+func (m *PromotionRuleMutation) SetScopeIds(s []string) {
+	m.scope_ids = &s
+	m.appendscope_ids = nil
+}
+
+// ScopeIds returns the value of the "scope_ids" field in the mutation.
+func (m *PromotionRuleMutation) ScopeIds() (r []string, exists bool) {
+	v := m.scope_ids
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldScopeIds returns the old "scope_ids" field's value of the PromotionRule entity.
+// If the PromotionRule object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PromotionRuleMutation) OldScopeIds(ctx context.Context) (v []string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldScopeIds is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldScopeIds requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldScopeIds: %w", err)
+	}
+	return oldValue.ScopeIds, nil
+}
+
+// AppendScopeIds adds s to the "scope_ids" field.
+func (m *PromotionRuleMutation) AppendScopeIds(s []string) {
+	m.appendscope_ids = append(m.appendscope_ids, s...)
+}
+
+// AppendedScopeIds returns the list of values that were appended to the "scope_ids" field in this mutation.
+func (m *PromotionRuleMutation) AppendedScopeIds() ([]string, bool) {
+	if len(m.appendscope_ids) == 0 {
+		return nil, false
+	}
+	return m.appendscope_ids, true
+}
+
+// ClearScopeIds clears the value of the "scope_ids" field.
+func (m *PromotionRuleMutation) ClearScopeIds() {
+	m.scope_ids = nil
+	m.appendscope_ids = nil
+	m.clearedFields[promotionrule.FieldScopeIds] = struct{}{}
+}
+
+// ScopeIdsCleared returns if the "scope_ids" field was cleared in this mutation.
+func (m *PromotionRuleMutation) ScopeIdsCleared() bool {
+	_, ok := m.clearedFields[promotionrule.FieldScopeIds]
+	return ok
+}
+
+// ResetScopeIds resets all changes to the "scope_ids" field.
+func (m *PromotionRuleMutation) ResetScopeIds() {
+	m.scope_ids = nil
+	m.appendscope_ids = nil
+	delete(m.clearedFields, promotionrule.FieldScopeIds)
+}
+
+// SetDiscountType sets the "discount_type" field.
+func (m *PromotionRuleMutation) SetDiscountType(pt promotionrule.DiscountType) {
+	m.discount_type = &pt
+}
+
+// DiscountType returns the value of the "discount_type" field in the mutation.
+func (m *PromotionRuleMutation) DiscountType() (r promotionrule.DiscountType, exists bool) {
+	v := m.discount_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDiscountType returns the old "discount_type" field's value of the PromotionRule entity.
+// If the PromotionRule object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PromotionRuleMutation) OldDiscountType(ctx context.Context) (v promotionrule.DiscountType, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDiscountType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDiscountType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDiscountType: %w", err)
+	}
+	return oldValue.DiscountType, nil
+}
+
+// ResetDiscountType resets all changes to the "discount_type" field.
+func (m *PromotionRuleMutation) ResetDiscountType() {
+	m.discount_type = nil
+}
+
+// SetDiscountValue sets the "discount_value" field.
+func (m *PromotionRuleMutation) SetDiscountValue(f float64) {
+	m.discount_value = &f
+	m.adddiscount_value = nil
+}
+
+// DiscountValue returns the value of the "discount_value" field in the mutation.
+func (m *PromotionRuleMutation) DiscountValue() (r float64, exists bool) {
+	v := m.discount_value
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDiscountValue returns the old "discount_value" field's value of the PromotionRule entity.
+// If the PromotionRule object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PromotionRuleMutation) OldDiscountValue(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDiscountValue is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDiscountValue requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDiscountValue: %w", err)
+	}
+	return oldValue.DiscountValue, nil
+}
+
+// AddDiscountValue adds f to the "discount_value" field.
+func (m *PromotionRuleMutation) AddDiscountValue(f float64) {
+	if m.adddiscount_value != nil {
+		*m.adddiscount_value += f
+	} else {
+		m.adddiscount_value = &f
+	}
+}
+
+// AddedDiscountValue returns the value that was added to the "discount_value" field in this mutation.
+func (m *PromotionRuleMutation) AddedDiscountValue() (r float64, exists bool) {
+	v := m.adddiscount_value
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetDiscountValue resets all changes to the "discount_value" field.
+func (m *PromotionRuleMutation) ResetDiscountValue() {
+	m.discount_value = nil
+	m.adddiscount_value = nil
+}
+
+// SetMaxDiscount sets the "max_discount" field.
+func (m *PromotionRuleMutation) SetMaxDiscount(f float64) {
+	m.max_discount = &f
+	m.addmax_discount = nil
+}
+
+// MaxDiscount returns the value of the "max_discount" field in the mutation.
+func (m *PromotionRuleMutation) MaxDiscount() (r float64, exists bool) {
+	v := m.max_discount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMaxDiscount returns the old "max_discount" field's value of the PromotionRule entity.
+// If the PromotionRule object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PromotionRuleMutation) OldMaxDiscount(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMaxDiscount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMaxDiscount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMaxDiscount: %w", err)
+	}
+	return oldValue.MaxDiscount, nil
+}
+
+// AddMaxDiscount adds f to the "max_discount" field.
+func (m *PromotionRuleMutation) AddMaxDiscount(f float64) {
+	if m.addmax_discount != nil {
+		*m.addmax_discount += f
+	} else {
+		m.addmax_discount = &f
+	}
+}
+
+// AddedMaxDiscount returns the value that was added to the "max_discount" field in this mutation.
+func (m *PromotionRuleMutation) AddedMaxDiscount() (r float64, exists bool) {
+	v := m.addmax_discount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearMaxDiscount clears the value of the "max_discount" field.
+func (m *PromotionRuleMutation) ClearMaxDiscount() {
+	m.max_discount = nil
+	m.addmax_discount = nil
+	m.clearedFields[promotionrule.FieldMaxDiscount] = struct{}{}
+}
+
+// MaxDiscountCleared returns if the "max_discount" field was cleared in this mutation.
+func (m *PromotionRuleMutation) MaxDiscountCleared() bool {
+	_, ok := m.clearedFields[promotionrule.FieldMaxDiscount]
+	return ok
+}
+
+// ResetMaxDiscount resets all changes to the "max_discount" field.
+func (m *PromotionRuleMutation) ResetMaxDiscount() {
+	m.max_discount = nil
+	m.addmax_discount = nil
+	delete(m.clearedFields, promotionrule.FieldMaxDiscount)
+}
+
 // SetRuleConfig sets the "rule_config" field.
 func (m *PromotionRuleMutation) SetRuleConfig(value map[string]interface{}) {
 	m.rule_config = &value
@@ -61099,12 +61787,27 @@ func (m *PromotionRuleMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *PromotionRuleMutation) Fields() []string {
-	fields := make([]string, 0, 3)
+	fields := make([]string, 0, 8)
 	if m.promotion_id != nil {
 		fields = append(fields, promotionrule.FieldPromotionID)
 	}
 	if m.rule_type != nil {
 		fields = append(fields, promotionrule.FieldRuleType)
+	}
+	if m.scope_type != nil {
+		fields = append(fields, promotionrule.FieldScopeType)
+	}
+	if m.scope_ids != nil {
+		fields = append(fields, promotionrule.FieldScopeIds)
+	}
+	if m.discount_type != nil {
+		fields = append(fields, promotionrule.FieldDiscountType)
+	}
+	if m.discount_value != nil {
+		fields = append(fields, promotionrule.FieldDiscountValue)
+	}
+	if m.max_discount != nil {
+		fields = append(fields, promotionrule.FieldMaxDiscount)
 	}
 	if m.rule_config != nil {
 		fields = append(fields, promotionrule.FieldRuleConfig)
@@ -61121,6 +61824,16 @@ func (m *PromotionRuleMutation) Field(name string) (ent.Value, bool) {
 		return m.PromotionID()
 	case promotionrule.FieldRuleType:
 		return m.RuleType()
+	case promotionrule.FieldScopeType:
+		return m.ScopeType()
+	case promotionrule.FieldScopeIds:
+		return m.ScopeIds()
+	case promotionrule.FieldDiscountType:
+		return m.DiscountType()
+	case promotionrule.FieldDiscountValue:
+		return m.DiscountValue()
+	case promotionrule.FieldMaxDiscount:
+		return m.MaxDiscount()
 	case promotionrule.FieldRuleConfig:
 		return m.RuleConfig()
 	}
@@ -61136,6 +61849,16 @@ func (m *PromotionRuleMutation) OldField(ctx context.Context, name string) (ent.
 		return m.OldPromotionID(ctx)
 	case promotionrule.FieldRuleType:
 		return m.OldRuleType(ctx)
+	case promotionrule.FieldScopeType:
+		return m.OldScopeType(ctx)
+	case promotionrule.FieldScopeIds:
+		return m.OldScopeIds(ctx)
+	case promotionrule.FieldDiscountType:
+		return m.OldDiscountType(ctx)
+	case promotionrule.FieldDiscountValue:
+		return m.OldDiscountValue(ctx)
+	case promotionrule.FieldMaxDiscount:
+		return m.OldMaxDiscount(ctx)
 	case promotionrule.FieldRuleConfig:
 		return m.OldRuleConfig(ctx)
 	}
@@ -61161,6 +61884,41 @@ func (m *PromotionRuleMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetRuleType(v)
 		return nil
+	case promotionrule.FieldScopeType:
+		v, ok := value.(promotionrule.ScopeType)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetScopeType(v)
+		return nil
+	case promotionrule.FieldScopeIds:
+		v, ok := value.([]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetScopeIds(v)
+		return nil
+	case promotionrule.FieldDiscountType:
+		v, ok := value.(promotionrule.DiscountType)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDiscountType(v)
+		return nil
+	case promotionrule.FieldDiscountValue:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDiscountValue(v)
+		return nil
+	case promotionrule.FieldMaxDiscount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMaxDiscount(v)
+		return nil
 	case promotionrule.FieldRuleConfig:
 		v, ok := value.(map[string]interface{})
 		if !ok {
@@ -61175,13 +61933,26 @@ func (m *PromotionRuleMutation) SetField(name string, value ent.Value) error {
 // AddedFields returns all numeric fields that were incremented/decremented during
 // this mutation.
 func (m *PromotionRuleMutation) AddedFields() []string {
-	return nil
+	var fields []string
+	if m.adddiscount_value != nil {
+		fields = append(fields, promotionrule.FieldDiscountValue)
+	}
+	if m.addmax_discount != nil {
+		fields = append(fields, promotionrule.FieldMaxDiscount)
+	}
+	return fields
 }
 
 // AddedField returns the numeric value that was incremented/decremented on a field
 // with the given name. The second boolean return value indicates that this field
 // was not set, or was not defined in the schema.
 func (m *PromotionRuleMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case promotionrule.FieldDiscountValue:
+		return m.AddedDiscountValue()
+	case promotionrule.FieldMaxDiscount:
+		return m.AddedMaxDiscount()
+	}
 	return nil, false
 }
 
@@ -61190,6 +61961,20 @@ func (m *PromotionRuleMutation) AddedField(name string) (ent.Value, bool) {
 // type.
 func (m *PromotionRuleMutation) AddField(name string, value ent.Value) error {
 	switch name {
+	case promotionrule.FieldDiscountValue:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddDiscountValue(v)
+		return nil
+	case promotionrule.FieldMaxDiscount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddMaxDiscount(v)
+		return nil
 	}
 	return fmt.Errorf("unknown PromotionRule numeric field %s", name)
 }
@@ -61197,7 +61982,14 @@ func (m *PromotionRuleMutation) AddField(name string, value ent.Value) error {
 // ClearedFields returns all nullable fields that were cleared during this
 // mutation.
 func (m *PromotionRuleMutation) ClearedFields() []string {
-	return nil
+	var fields []string
+	if m.FieldCleared(promotionrule.FieldScopeIds) {
+		fields = append(fields, promotionrule.FieldScopeIds)
+	}
+	if m.FieldCleared(promotionrule.FieldMaxDiscount) {
+		fields = append(fields, promotionrule.FieldMaxDiscount)
+	}
+	return fields
 }
 
 // FieldCleared returns a boolean indicating if a field with the given name was
@@ -61210,6 +62002,14 @@ func (m *PromotionRuleMutation) FieldCleared(name string) bool {
 // ClearField clears the value of the field with the given name. It returns an
 // error if the field is not defined in the schema.
 func (m *PromotionRuleMutation) ClearField(name string) error {
+	switch name {
+	case promotionrule.FieldScopeIds:
+		m.ClearScopeIds()
+		return nil
+	case promotionrule.FieldMaxDiscount:
+		m.ClearMaxDiscount()
+		return nil
+	}
 	return fmt.Errorf("unknown PromotionRule nullable field %s", name)
 }
 
@@ -61222,6 +62022,21 @@ func (m *PromotionRuleMutation) ResetField(name string) error {
 		return nil
 	case promotionrule.FieldRuleType:
 		m.ResetRuleType()
+		return nil
+	case promotionrule.FieldScopeType:
+		m.ResetScopeType()
+		return nil
+	case promotionrule.FieldScopeIds:
+		m.ResetScopeIds()
+		return nil
+	case promotionrule.FieldDiscountType:
+		m.ResetDiscountType()
+		return nil
+	case promotionrule.FieldDiscountValue:
+		m.ResetDiscountValue()
+		return nil
+	case promotionrule.FieldMaxDiscount:
+		m.ResetMaxDiscount()
 		return nil
 	case promotionrule.FieldRuleConfig:
 		m.ResetRuleConfig()

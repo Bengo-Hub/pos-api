@@ -1870,9 +1870,15 @@ var (
 	PromotionsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
 		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "outlet_id", Type: field.TypeUUID, Nullable: true},
 		{Name: "name", Type: field.TypeString},
 		{Name: "description", Type: field.TypeString, Nullable: true},
 		{Name: "promo_code", Type: field.TypeString, Unique: true, Nullable: true},
+		{Name: "promo_kind", Type: field.TypeEnum, Enums: []string{"code", "happy_hour", "auto"}, Default: "code"},
+		{Name: "days_of_week", Type: field.TypeJSON, Nullable: true},
+		{Name: "window_start", Type: field.TypeString, Nullable: true},
+		{Name: "window_end", Type: field.TypeString, Nullable: true},
+		{Name: "auto_apply", Type: field.TypeBool, Default: false},
 		{Name: "status", Type: field.TypeString, Default: "active"},
 		{Name: "start_at", Type: field.TypeTime},
 		{Name: "end_at", Type: field.TypeTime, Nullable: true},
@@ -1903,6 +1909,11 @@ var (
 		{Name: "id", Type: field.TypeUUID},
 		{Name: "promotion_id", Type: field.TypeUUID},
 		{Name: "rule_type", Type: field.TypeString},
+		{Name: "scope_type", Type: field.TypeEnum, Enums: []string{"all", "category", "item"}, Default: "all"},
+		{Name: "scope_ids", Type: field.TypeJSON, Nullable: true},
+		{Name: "discount_type", Type: field.TypeEnum, Enums: []string{"percentage", "fixed_amount", "fixed_price"}, Default: "percentage"},
+		{Name: "discount_value", Type: field.TypeFloat64, Default: 0},
+		{Name: "max_discount", Type: field.TypeFloat64, Nullable: true},
 		{Name: "rule_config", Type: field.TypeJSON},
 	}
 	// PromotionRulesTable holds the schema information for the "promotion_rules" table.

@@ -1595,19 +1595,23 @@ func init() {
 	promotionFields := schema.Promotion{}.Fields()
 	_ = promotionFields
 	// promotionDescName is the schema descriptor for name field.
-	promotionDescName := promotionFields[2].Descriptor()
+	promotionDescName := promotionFields[3].Descriptor()
 	// promotion.NameValidator is a validator for the "name" field. It is called by the builders before save.
 	promotion.NameValidator = promotionDescName.Validators[0].(func(string) error)
+	// promotionDescAutoApply is the schema descriptor for auto_apply field.
+	promotionDescAutoApply := promotionFields[10].Descriptor()
+	// promotion.DefaultAutoApply holds the default value on creation for the auto_apply field.
+	promotion.DefaultAutoApply = promotionDescAutoApply.Default.(bool)
 	// promotionDescStatus is the schema descriptor for status field.
-	promotionDescStatus := promotionFields[5].Descriptor()
+	promotionDescStatus := promotionFields[11].Descriptor()
 	// promotion.DefaultStatus holds the default value on creation for the status field.
 	promotion.DefaultStatus = promotionDescStatus.Default.(string)
 	// promotionDescStartAt is the schema descriptor for start_at field.
-	promotionDescStartAt := promotionFields[6].Descriptor()
+	promotionDescStartAt := promotionFields[12].Descriptor()
 	// promotion.DefaultStartAt holds the default value on creation for the start_at field.
 	promotion.DefaultStartAt = promotionDescStartAt.Default.(func() time.Time)
 	// promotionDescMetadata is the schema descriptor for metadata field.
-	promotionDescMetadata := promotionFields[8].Descriptor()
+	promotionDescMetadata := promotionFields[14].Descriptor()
 	// promotion.DefaultMetadata holds the default value on creation for the metadata field.
 	promotion.DefaultMetadata = promotionDescMetadata.Default.(map[string]interface{})
 	// promotionDescID is the schema descriptor for id field.
@@ -1630,8 +1634,12 @@ func init() {
 	promotionruleDescRuleType := promotionruleFields[2].Descriptor()
 	// promotionrule.RuleTypeValidator is a validator for the "rule_type" field. It is called by the builders before save.
 	promotionrule.RuleTypeValidator = promotionruleDescRuleType.Validators[0].(func(string) error)
+	// promotionruleDescDiscountValue is the schema descriptor for discount_value field.
+	promotionruleDescDiscountValue := promotionruleFields[6].Descriptor()
+	// promotionrule.DefaultDiscountValue holds the default value on creation for the discount_value field.
+	promotionrule.DefaultDiscountValue = promotionruleDescDiscountValue.Default.(float64)
 	// promotionruleDescRuleConfig is the schema descriptor for rule_config field.
-	promotionruleDescRuleConfig := promotionruleFields[3].Descriptor()
+	promotionruleDescRuleConfig := promotionruleFields[8].Descriptor()
 	// promotionrule.DefaultRuleConfig holds the default value on creation for the rule_config field.
 	promotionrule.DefaultRuleConfig = promotionruleDescRuleConfig.Default.(map[string]interface{})
 	// promotionruleDescID is the schema descriptor for id field.

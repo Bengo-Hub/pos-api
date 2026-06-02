@@ -3,6 +3,7 @@
 package promotion
 
 import (
+	"fmt"
 	"time"
 
 	"entgo.io/ent/dialect/sql"
@@ -16,12 +17,24 @@ const (
 	FieldID = "id"
 	// FieldTenantID holds the string denoting the tenant_id field in the database.
 	FieldTenantID = "tenant_id"
+	// FieldOutletID holds the string denoting the outlet_id field in the database.
+	FieldOutletID = "outlet_id"
 	// FieldName holds the string denoting the name field in the database.
 	FieldName = "name"
 	// FieldDescription holds the string denoting the description field in the database.
 	FieldDescription = "description"
 	// FieldPromoCode holds the string denoting the promo_code field in the database.
 	FieldPromoCode = "promo_code"
+	// FieldPromoKind holds the string denoting the promo_kind field in the database.
+	FieldPromoKind = "promo_kind"
+	// FieldDaysOfWeek holds the string denoting the days_of_week field in the database.
+	FieldDaysOfWeek = "days_of_week"
+	// FieldWindowStart holds the string denoting the window_start field in the database.
+	FieldWindowStart = "window_start"
+	// FieldWindowEnd holds the string denoting the window_end field in the database.
+	FieldWindowEnd = "window_end"
+	// FieldAutoApply holds the string denoting the auto_apply field in the database.
+	FieldAutoApply = "auto_apply"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
 	// FieldStartAt holds the string denoting the start_at field in the database.
@@ -38,9 +51,15 @@ const (
 var Columns = []string{
 	FieldID,
 	FieldTenantID,
+	FieldOutletID,
 	FieldName,
 	FieldDescription,
 	FieldPromoCode,
+	FieldPromoKind,
+	FieldDaysOfWeek,
+	FieldWindowStart,
+	FieldWindowEnd,
+	FieldAutoApply,
 	FieldStatus,
 	FieldStartAt,
 	FieldEndAt,
@@ -60,6 +79,8 @@ func ValidColumn(column string) bool {
 var (
 	// NameValidator is a validator for the "name" field. It is called by the builders before save.
 	NameValidator func(string) error
+	// DefaultAutoApply holds the default value on creation for the "auto_apply" field.
+	DefaultAutoApply bool
 	// DefaultStatus holds the default value on creation for the "status" field.
 	DefaultStatus string
 	// DefaultStartAt holds the default value on creation for the "start_at" field.
@@ -69,6 +90,33 @@ var (
 	// DefaultID holds the default value on creation for the "id" field.
 	DefaultID func() uuid.UUID
 )
+
+// PromoKind defines the type for the "promo_kind" enum field.
+type PromoKind string
+
+// PromoKindCode is the default value of the PromoKind enum.
+const DefaultPromoKind = PromoKindCode
+
+// PromoKind values.
+const (
+	PromoKindCode      PromoKind = "code"
+	PromoKindHappyHour PromoKind = "happy_hour"
+	PromoKindAuto      PromoKind = "auto"
+)
+
+func (pk PromoKind) String() string {
+	return string(pk)
+}
+
+// PromoKindValidator is a validator for the "promo_kind" field enum values. It is called by the builders before save.
+func PromoKindValidator(pk PromoKind) error {
+	switch pk {
+	case PromoKindCode, PromoKindHappyHour, PromoKindAuto:
+		return nil
+	default:
+		return fmt.Errorf("promotion: invalid enum value for promo_kind field: %q", pk)
+	}
+}
 
 // OrderOption defines the ordering options for the Promotion queries.
 type OrderOption func(*sql.Selector)
@@ -81,6 +129,11 @@ func ByID(opts ...sql.OrderTermOption) OrderOption {
 // ByTenantID orders the results by the tenant_id field.
 func ByTenantID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldTenantID, opts...).ToFunc()
+}
+
+// ByOutletID orders the results by the outlet_id field.
+func ByOutletID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldOutletID, opts...).ToFunc()
 }
 
 // ByName orders the results by the name field.
@@ -96,6 +149,26 @@ func ByDescription(opts ...sql.OrderTermOption) OrderOption {
 // ByPromoCode orders the results by the promo_code field.
 func ByPromoCode(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldPromoCode, opts...).ToFunc()
+}
+
+// ByPromoKind orders the results by the promo_kind field.
+func ByPromoKind(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPromoKind, opts...).ToFunc()
+}
+
+// ByWindowStart orders the results by the window_start field.
+func ByWindowStart(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldWindowStart, opts...).ToFunc()
+}
+
+// ByWindowEnd orders the results by the window_end field.
+func ByWindowEnd(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldWindowEnd, opts...).ToFunc()
+}
+
+// ByAutoApply orders the results by the auto_apply field.
+func ByAutoApply(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAutoApply, opts...).ToFunc()
 }
 
 // ByStatus orders the results by the status field.

@@ -20,6 +20,10 @@ func (Promotion) Fields() []ent.Field {
 			Default(uuid.New).
 			Immutable(),
 		field.UUID("tenant_id", uuid.UUID{}),
+		field.UUID("outlet_id", uuid.UUID{}).
+			Optional().
+			Nillable().
+			Comment("Outlet scope; nil = applies to all outlets for this tenant"),
 		field.String("name").
 			NotEmpty(),
 		field.String("description").
@@ -28,6 +32,22 @@ func (Promotion) Fields() []ent.Field {
 			Unique().
 			Optional().
 			Nillable(),
+		field.Enum("promo_kind").
+			Values("code", "happy_hour", "auto").
+			Default("code").
+			Comment("code = manual promo code; happy_hour = time-windowed auto discount; auto = always-on auto discount"),
+		field.JSON("days_of_week", []int{}).
+			Optional().
+			Comment("Days the promo is active (0=Sun..6=Sat); empty = all days. Used by happy_hour"),
+		field.String("window_start").
+			Optional().
+			Comment("Daily activation start time HH:MM (happy_hour)"),
+		field.String("window_end").
+			Optional().
+			Comment("Daily activation end time HH:MM (happy_hour)"),
+		field.Bool("auto_apply").
+			Default(false).
+			Comment("Apply automatically at checkout without a code (happy_hour/auto)"),
 		field.String("status").
 			Default("active"),
 		field.Time("start_at").

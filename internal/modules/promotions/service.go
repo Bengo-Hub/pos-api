@@ -128,6 +128,76 @@ func (s *Service) calculateDiscount(promo *ent.Promotion, orderAmount decimal.De
 	return discount
 }
 
+// HappyHourMatch describes an active happy-hour promotion at a point in time.
+type HappyHourMatch struct {
+	PromoID   uuid.UUID  `json:"promo_id"`
+	Name      string     `json:"name"`
+	OutletID  *uuid.UUID `json:"outlet_id,omitempty"`
+	WindowEnd string     `json:"window_end,omitempty"`
+}
+
+// ActiveHappyHours returns auto-apply happy-hour promotions that are live at `now`
+// for the given outlet (nil outlet promos apply to all outlets). A promo is live when:
+//   - promo_kind = happy_hour, status = active, auto_apply = true
+//   - now is within [start_at, end_at] (date range, if set)
+//   - now's weekday is in days_of_week (or days_of_week empty = every day)
+//   - now's HH:MM is within [window_start, window_end]
+func (s *Service) ActiveHappyHours(ctx context.Context, tenantID uuid.UUID, outletID *uuid.UUID, now time.Time) ([]*ent.Promotion, error) {
+	q := s.client.Promotion.Query().Where(
+		promotion.TenantID(tenantID),
+		promotion.PromoKindEQ(promotion.PromoKindHappyHour),
+		promotion.StatusEQ("active"),
+		promotion.AutoApply(true),
+	)
+	promos, err := q.All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("promotions: query happy hours: %w", err)
+	}
+	var active []*ent.Promotion
+	for _, p := range promos {
+		if p.OutletID != nil && (outletID == nil || *p.OutletID != *outletID) {
+			continue
+		}
+		if !s.isWithinSchedule(p, now) {
+			continue
+		}
+		active = append(active, p)
+	}
+	return active, nil
+}
+
+// isWithinSchedule reports whether `now` falls inside a promotion's date range,
+// allowed weekdays, and daily time window.
+func (s *Service) isWithinSchedule(p *ent.Promotion, now time.Time) bool {
+	if !p.StartAt.IsZero() && now.Before(p.StartAt) {
+		return false
+	}
+	if p.EndAt != nil && now.After(*p.EndAt) {
+		return false
+	}
+	if len(p.DaysOfWeek) > 0 {
+		wd := int(now.Weekday())
+		found := false
+		for _, d := range p.DaysOfWeek {
+			if d == wd {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+	if p.WindowStart != "" && p.WindowEnd != "" {
+		cur := now.Format("15:04")
+		// Same-day window (e.g. 16:00–18:00). Overnight windows not supported here.
+		if cur < p.WindowStart || cur > p.WindowEnd {
+			return false
+		}
+	}
+	return true
+}
+
 // CreatePromotion creates a new promotion with proper defaults.
 func (s *Service) CreatePromotion(ctx context.Context, tenantID uuid.UUID, name, promoCode string, startAt, endAt *time.Time, metadata map[string]any) (*ent.Promotion, error) {
 	if promoCode == "" {

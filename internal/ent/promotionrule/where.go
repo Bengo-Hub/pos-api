@@ -63,6 +63,16 @@ func RuleType(v string) predicate.PromotionRule {
 	return predicate.PromotionRule(sql.FieldEQ(FieldRuleType, v))
 }
 
+// DiscountValue applies equality check predicate on the "discount_value" field. It's identical to DiscountValueEQ.
+func DiscountValue(v float64) predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldEQ(FieldDiscountValue, v))
+}
+
+// MaxDiscount applies equality check predicate on the "max_discount" field. It's identical to MaxDiscountEQ.
+func MaxDiscount(v float64) predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldEQ(FieldMaxDiscount, v))
+}
+
 // PromotionIDEQ applies the EQ predicate on the "promotion_id" field.
 func PromotionIDEQ(v uuid.UUID) predicate.PromotionRule {
 	return predicate.PromotionRule(sql.FieldEQ(FieldPromotionID, v))
@@ -166,6 +176,146 @@ func RuleTypeEqualFold(v string) predicate.PromotionRule {
 // RuleTypeContainsFold applies the ContainsFold predicate on the "rule_type" field.
 func RuleTypeContainsFold(v string) predicate.PromotionRule {
 	return predicate.PromotionRule(sql.FieldContainsFold(FieldRuleType, v))
+}
+
+// ScopeTypeEQ applies the EQ predicate on the "scope_type" field.
+func ScopeTypeEQ(v ScopeType) predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldEQ(FieldScopeType, v))
+}
+
+// ScopeTypeNEQ applies the NEQ predicate on the "scope_type" field.
+func ScopeTypeNEQ(v ScopeType) predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldNEQ(FieldScopeType, v))
+}
+
+// ScopeTypeIn applies the In predicate on the "scope_type" field.
+func ScopeTypeIn(vs ...ScopeType) predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldIn(FieldScopeType, vs...))
+}
+
+// ScopeTypeNotIn applies the NotIn predicate on the "scope_type" field.
+func ScopeTypeNotIn(vs ...ScopeType) predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldNotIn(FieldScopeType, vs...))
+}
+
+// ScopeIdsIsNil applies the IsNil predicate on the "scope_ids" field.
+func ScopeIdsIsNil() predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldIsNull(FieldScopeIds))
+}
+
+// ScopeIdsNotNil applies the NotNil predicate on the "scope_ids" field.
+func ScopeIdsNotNil() predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldNotNull(FieldScopeIds))
+}
+
+// DiscountTypeEQ applies the EQ predicate on the "discount_type" field.
+func DiscountTypeEQ(v DiscountType) predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldEQ(FieldDiscountType, v))
+}
+
+// DiscountTypeNEQ applies the NEQ predicate on the "discount_type" field.
+func DiscountTypeNEQ(v DiscountType) predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldNEQ(FieldDiscountType, v))
+}
+
+// DiscountTypeIn applies the In predicate on the "discount_type" field.
+func DiscountTypeIn(vs ...DiscountType) predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldIn(FieldDiscountType, vs...))
+}
+
+// DiscountTypeNotIn applies the NotIn predicate on the "discount_type" field.
+func DiscountTypeNotIn(vs ...DiscountType) predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldNotIn(FieldDiscountType, vs...))
+}
+
+// DiscountValueEQ applies the EQ predicate on the "discount_value" field.
+func DiscountValueEQ(v float64) predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldEQ(FieldDiscountValue, v))
+}
+
+// DiscountValueNEQ applies the NEQ predicate on the "discount_value" field.
+func DiscountValueNEQ(v float64) predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldNEQ(FieldDiscountValue, v))
+}
+
+// DiscountValueIn applies the In predicate on the "discount_value" field.
+func DiscountValueIn(vs ...float64) predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldIn(FieldDiscountValue, vs...))
+}
+
+// DiscountValueNotIn applies the NotIn predicate on the "discount_value" field.
+func DiscountValueNotIn(vs ...float64) predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldNotIn(FieldDiscountValue, vs...))
+}
+
+// DiscountValueGT applies the GT predicate on the "discount_value" field.
+func DiscountValueGT(v float64) predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldGT(FieldDiscountValue, v))
+}
+
+// DiscountValueGTE applies the GTE predicate on the "discount_value" field.
+func DiscountValueGTE(v float64) predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldGTE(FieldDiscountValue, v))
+}
+
+// DiscountValueLT applies the LT predicate on the "discount_value" field.
+func DiscountValueLT(v float64) predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldLT(FieldDiscountValue, v))
+}
+
+// DiscountValueLTE applies the LTE predicate on the "discount_value" field.
+func DiscountValueLTE(v float64) predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldLTE(FieldDiscountValue, v))
+}
+
+// MaxDiscountEQ applies the EQ predicate on the "max_discount" field.
+func MaxDiscountEQ(v float64) predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldEQ(FieldMaxDiscount, v))
+}
+
+// MaxDiscountNEQ applies the NEQ predicate on the "max_discount" field.
+func MaxDiscountNEQ(v float64) predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldNEQ(FieldMaxDiscount, v))
+}
+
+// MaxDiscountIn applies the In predicate on the "max_discount" field.
+func MaxDiscountIn(vs ...float64) predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldIn(FieldMaxDiscount, vs...))
+}
+
+// MaxDiscountNotIn applies the NotIn predicate on the "max_discount" field.
+func MaxDiscountNotIn(vs ...float64) predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldNotIn(FieldMaxDiscount, vs...))
+}
+
+// MaxDiscountGT applies the GT predicate on the "max_discount" field.
+func MaxDiscountGT(v float64) predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldGT(FieldMaxDiscount, v))
+}
+
+// MaxDiscountGTE applies the GTE predicate on the "max_discount" field.
+func MaxDiscountGTE(v float64) predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldGTE(FieldMaxDiscount, v))
+}
+
+// MaxDiscountLT applies the LT predicate on the "max_discount" field.
+func MaxDiscountLT(v float64) predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldLT(FieldMaxDiscount, v))
+}
+
+// MaxDiscountLTE applies the LTE predicate on the "max_discount" field.
+func MaxDiscountLTE(v float64) predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldLTE(FieldMaxDiscount, v))
+}
+
+// MaxDiscountIsNil applies the IsNil predicate on the "max_discount" field.
+func MaxDiscountIsNil() predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldIsNull(FieldMaxDiscount))
+}
+
+// MaxDiscountNotNil applies the NotNil predicate on the "max_discount" field.
+func MaxDiscountNotNil() predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldNotNull(FieldMaxDiscount))
 }
 
 // And groups predicates with the AND operator between them.

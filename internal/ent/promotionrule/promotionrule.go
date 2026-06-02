@@ -3,6 +3,8 @@
 package promotionrule
 
 import (
+	"fmt"
+
 	"entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
 )
@@ -16,6 +18,16 @@ const (
 	FieldPromotionID = "promotion_id"
 	// FieldRuleType holds the string denoting the rule_type field in the database.
 	FieldRuleType = "rule_type"
+	// FieldScopeType holds the string denoting the scope_type field in the database.
+	FieldScopeType = "scope_type"
+	// FieldScopeIds holds the string denoting the scope_ids field in the database.
+	FieldScopeIds = "scope_ids"
+	// FieldDiscountType holds the string denoting the discount_type field in the database.
+	FieldDiscountType = "discount_type"
+	// FieldDiscountValue holds the string denoting the discount_value field in the database.
+	FieldDiscountValue = "discount_value"
+	// FieldMaxDiscount holds the string denoting the max_discount field in the database.
+	FieldMaxDiscount = "max_discount"
 	// FieldRuleConfig holds the string denoting the rule_config field in the database.
 	FieldRuleConfig = "rule_config"
 	// Table holds the table name of the promotionrule in the database.
@@ -27,6 +39,11 @@ var Columns = []string{
 	FieldID,
 	FieldPromotionID,
 	FieldRuleType,
+	FieldScopeType,
+	FieldScopeIds,
+	FieldDiscountType,
+	FieldDiscountValue,
+	FieldMaxDiscount,
 	FieldRuleConfig,
 }
 
@@ -43,11 +60,67 @@ func ValidColumn(column string) bool {
 var (
 	// RuleTypeValidator is a validator for the "rule_type" field. It is called by the builders before save.
 	RuleTypeValidator func(string) error
+	// DefaultDiscountValue holds the default value on creation for the "discount_value" field.
+	DefaultDiscountValue float64
 	// DefaultRuleConfig holds the default value on creation for the "rule_config" field.
 	DefaultRuleConfig map[string]interface{}
 	// DefaultID holds the default value on creation for the "id" field.
 	DefaultID func() uuid.UUID
 )
+
+// ScopeType defines the type for the "scope_type" enum field.
+type ScopeType string
+
+// ScopeTypeAll is the default value of the ScopeType enum.
+const DefaultScopeType = ScopeTypeAll
+
+// ScopeType values.
+const (
+	ScopeTypeAll      ScopeType = "all"
+	ScopeTypeCategory ScopeType = "category"
+	ScopeTypeItem     ScopeType = "item"
+)
+
+func (st ScopeType) String() string {
+	return string(st)
+}
+
+// ScopeTypeValidator is a validator for the "scope_type" field enum values. It is called by the builders before save.
+func ScopeTypeValidator(st ScopeType) error {
+	switch st {
+	case ScopeTypeAll, ScopeTypeCategory, ScopeTypeItem:
+		return nil
+	default:
+		return fmt.Errorf("promotionrule: invalid enum value for scope_type field: %q", st)
+	}
+}
+
+// DiscountType defines the type for the "discount_type" enum field.
+type DiscountType string
+
+// DiscountTypePercentage is the default value of the DiscountType enum.
+const DefaultDiscountType = DiscountTypePercentage
+
+// DiscountType values.
+const (
+	DiscountTypePercentage  DiscountType = "percentage"
+	DiscountTypeFixedAmount DiscountType = "fixed_amount"
+	DiscountTypeFixedPrice  DiscountType = "fixed_price"
+)
+
+func (dt DiscountType) String() string {
+	return string(dt)
+}
+
+// DiscountTypeValidator is a validator for the "discount_type" field enum values. It is called by the builders before save.
+func DiscountTypeValidator(dt DiscountType) error {
+	switch dt {
+	case DiscountTypePercentage, DiscountTypeFixedAmount, DiscountTypeFixedPrice:
+		return nil
+	default:
+		return fmt.Errorf("promotionrule: invalid enum value for discount_type field: %q", dt)
+	}
+}
 
 // OrderOption defines the ordering options for the PromotionRule queries.
 type OrderOption func(*sql.Selector)
@@ -65,4 +138,24 @@ func ByPromotionID(opts ...sql.OrderTermOption) OrderOption {
 // ByRuleType orders the results by the rule_type field.
 func ByRuleType(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldRuleType, opts...).ToFunc()
+}
+
+// ByScopeType orders the results by the scope_type field.
+func ByScopeType(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldScopeType, opts...).ToFunc()
+}
+
+// ByDiscountType orders the results by the discount_type field.
+func ByDiscountType(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDiscountType, opts...).ToFunc()
+}
+
+// ByDiscountValue orders the results by the discount_value field.
+func ByDiscountValue(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDiscountValue, opts...).ToFunc()
+}
+
+// ByMaxDiscount orders the results by the max_discount field.
+func ByMaxDiscount(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldMaxDiscount, opts...).ToFunc()
 }

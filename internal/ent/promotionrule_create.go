@@ -35,6 +35,68 @@ func (_c *PromotionRuleCreate) SetRuleType(v string) *PromotionRuleCreate {
 	return _c
 }
 
+// SetScopeType sets the "scope_type" field.
+func (_c *PromotionRuleCreate) SetScopeType(v promotionrule.ScopeType) *PromotionRuleCreate {
+	_c.mutation.SetScopeType(v)
+	return _c
+}
+
+// SetNillableScopeType sets the "scope_type" field if the given value is not nil.
+func (_c *PromotionRuleCreate) SetNillableScopeType(v *promotionrule.ScopeType) *PromotionRuleCreate {
+	if v != nil {
+		_c.SetScopeType(*v)
+	}
+	return _c
+}
+
+// SetScopeIds sets the "scope_ids" field.
+func (_c *PromotionRuleCreate) SetScopeIds(v []string) *PromotionRuleCreate {
+	_c.mutation.SetScopeIds(v)
+	return _c
+}
+
+// SetDiscountType sets the "discount_type" field.
+func (_c *PromotionRuleCreate) SetDiscountType(v promotionrule.DiscountType) *PromotionRuleCreate {
+	_c.mutation.SetDiscountType(v)
+	return _c
+}
+
+// SetNillableDiscountType sets the "discount_type" field if the given value is not nil.
+func (_c *PromotionRuleCreate) SetNillableDiscountType(v *promotionrule.DiscountType) *PromotionRuleCreate {
+	if v != nil {
+		_c.SetDiscountType(*v)
+	}
+	return _c
+}
+
+// SetDiscountValue sets the "discount_value" field.
+func (_c *PromotionRuleCreate) SetDiscountValue(v float64) *PromotionRuleCreate {
+	_c.mutation.SetDiscountValue(v)
+	return _c
+}
+
+// SetNillableDiscountValue sets the "discount_value" field if the given value is not nil.
+func (_c *PromotionRuleCreate) SetNillableDiscountValue(v *float64) *PromotionRuleCreate {
+	if v != nil {
+		_c.SetDiscountValue(*v)
+	}
+	return _c
+}
+
+// SetMaxDiscount sets the "max_discount" field.
+func (_c *PromotionRuleCreate) SetMaxDiscount(v float64) *PromotionRuleCreate {
+	_c.mutation.SetMaxDiscount(v)
+	return _c
+}
+
+// SetNillableMaxDiscount sets the "max_discount" field if the given value is not nil.
+func (_c *PromotionRuleCreate) SetNillableMaxDiscount(v *float64) *PromotionRuleCreate {
+	if v != nil {
+		_c.SetMaxDiscount(*v)
+	}
+	return _c
+}
+
 // SetRuleConfig sets the "rule_config" field.
 func (_c *PromotionRuleCreate) SetRuleConfig(v map[string]interface{}) *PromotionRuleCreate {
 	_c.mutation.SetRuleConfig(v)
@@ -90,6 +152,18 @@ func (_c *PromotionRuleCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *PromotionRuleCreate) defaults() {
+	if _, ok := _c.mutation.ScopeType(); !ok {
+		v := promotionrule.DefaultScopeType
+		_c.mutation.SetScopeType(v)
+	}
+	if _, ok := _c.mutation.DiscountType(); !ok {
+		v := promotionrule.DefaultDiscountType
+		_c.mutation.SetDiscountType(v)
+	}
+	if _, ok := _c.mutation.DiscountValue(); !ok {
+		v := promotionrule.DefaultDiscountValue
+		_c.mutation.SetDiscountValue(v)
+	}
 	if _, ok := _c.mutation.RuleConfig(); !ok {
 		v := promotionrule.DefaultRuleConfig
 		_c.mutation.SetRuleConfig(v)
@@ -112,6 +186,25 @@ func (_c *PromotionRuleCreate) check() error {
 		if err := promotionrule.RuleTypeValidator(v); err != nil {
 			return &ValidationError{Name: "rule_type", err: fmt.Errorf(`ent: validator failed for field "PromotionRule.rule_type": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.ScopeType(); !ok {
+		return &ValidationError{Name: "scope_type", err: errors.New(`ent: missing required field "PromotionRule.scope_type"`)}
+	}
+	if v, ok := _c.mutation.ScopeType(); ok {
+		if err := promotionrule.ScopeTypeValidator(v); err != nil {
+			return &ValidationError{Name: "scope_type", err: fmt.Errorf(`ent: validator failed for field "PromotionRule.scope_type": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.DiscountType(); !ok {
+		return &ValidationError{Name: "discount_type", err: errors.New(`ent: missing required field "PromotionRule.discount_type"`)}
+	}
+	if v, ok := _c.mutation.DiscountType(); ok {
+		if err := promotionrule.DiscountTypeValidator(v); err != nil {
+			return &ValidationError{Name: "discount_type", err: fmt.Errorf(`ent: validator failed for field "PromotionRule.discount_type": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.DiscountValue(); !ok {
+		return &ValidationError{Name: "discount_value", err: errors.New(`ent: missing required field "PromotionRule.discount_value"`)}
 	}
 	if _, ok := _c.mutation.RuleConfig(); !ok {
 		return &ValidationError{Name: "rule_config", err: errors.New(`ent: missing required field "PromotionRule.rule_config"`)}
@@ -159,6 +252,26 @@ func (_c *PromotionRuleCreate) createSpec() (*PromotionRule, *sqlgraph.CreateSpe
 	if value, ok := _c.mutation.RuleType(); ok {
 		_spec.SetField(promotionrule.FieldRuleType, field.TypeString, value)
 		_node.RuleType = value
+	}
+	if value, ok := _c.mutation.ScopeType(); ok {
+		_spec.SetField(promotionrule.FieldScopeType, field.TypeEnum, value)
+		_node.ScopeType = value
+	}
+	if value, ok := _c.mutation.ScopeIds(); ok {
+		_spec.SetField(promotionrule.FieldScopeIds, field.TypeJSON, value)
+		_node.ScopeIds = value
+	}
+	if value, ok := _c.mutation.DiscountType(); ok {
+		_spec.SetField(promotionrule.FieldDiscountType, field.TypeEnum, value)
+		_node.DiscountType = value
+	}
+	if value, ok := _c.mutation.DiscountValue(); ok {
+		_spec.SetField(promotionrule.FieldDiscountValue, field.TypeFloat64, value)
+		_node.DiscountValue = value
+	}
+	if value, ok := _c.mutation.MaxDiscount(); ok {
+		_spec.SetField(promotionrule.FieldMaxDiscount, field.TypeFloat64, value)
+		_node.MaxDiscount = &value
 	}
 	if value, ok := _c.mutation.RuleConfig(); ok {
 		_spec.SetField(promotionrule.FieldRuleConfig, field.TypeJSON, value)
@@ -237,6 +350,90 @@ func (u *PromotionRuleUpsert) SetRuleType(v string) *PromotionRuleUpsert {
 // UpdateRuleType sets the "rule_type" field to the value that was provided on create.
 func (u *PromotionRuleUpsert) UpdateRuleType() *PromotionRuleUpsert {
 	u.SetExcluded(promotionrule.FieldRuleType)
+	return u
+}
+
+// SetScopeType sets the "scope_type" field.
+func (u *PromotionRuleUpsert) SetScopeType(v promotionrule.ScopeType) *PromotionRuleUpsert {
+	u.Set(promotionrule.FieldScopeType, v)
+	return u
+}
+
+// UpdateScopeType sets the "scope_type" field to the value that was provided on create.
+func (u *PromotionRuleUpsert) UpdateScopeType() *PromotionRuleUpsert {
+	u.SetExcluded(promotionrule.FieldScopeType)
+	return u
+}
+
+// SetScopeIds sets the "scope_ids" field.
+func (u *PromotionRuleUpsert) SetScopeIds(v []string) *PromotionRuleUpsert {
+	u.Set(promotionrule.FieldScopeIds, v)
+	return u
+}
+
+// UpdateScopeIds sets the "scope_ids" field to the value that was provided on create.
+func (u *PromotionRuleUpsert) UpdateScopeIds() *PromotionRuleUpsert {
+	u.SetExcluded(promotionrule.FieldScopeIds)
+	return u
+}
+
+// ClearScopeIds clears the value of the "scope_ids" field.
+func (u *PromotionRuleUpsert) ClearScopeIds() *PromotionRuleUpsert {
+	u.SetNull(promotionrule.FieldScopeIds)
+	return u
+}
+
+// SetDiscountType sets the "discount_type" field.
+func (u *PromotionRuleUpsert) SetDiscountType(v promotionrule.DiscountType) *PromotionRuleUpsert {
+	u.Set(promotionrule.FieldDiscountType, v)
+	return u
+}
+
+// UpdateDiscountType sets the "discount_type" field to the value that was provided on create.
+func (u *PromotionRuleUpsert) UpdateDiscountType() *PromotionRuleUpsert {
+	u.SetExcluded(promotionrule.FieldDiscountType)
+	return u
+}
+
+// SetDiscountValue sets the "discount_value" field.
+func (u *PromotionRuleUpsert) SetDiscountValue(v float64) *PromotionRuleUpsert {
+	u.Set(promotionrule.FieldDiscountValue, v)
+	return u
+}
+
+// UpdateDiscountValue sets the "discount_value" field to the value that was provided on create.
+func (u *PromotionRuleUpsert) UpdateDiscountValue() *PromotionRuleUpsert {
+	u.SetExcluded(promotionrule.FieldDiscountValue)
+	return u
+}
+
+// AddDiscountValue adds v to the "discount_value" field.
+func (u *PromotionRuleUpsert) AddDiscountValue(v float64) *PromotionRuleUpsert {
+	u.Add(promotionrule.FieldDiscountValue, v)
+	return u
+}
+
+// SetMaxDiscount sets the "max_discount" field.
+func (u *PromotionRuleUpsert) SetMaxDiscount(v float64) *PromotionRuleUpsert {
+	u.Set(promotionrule.FieldMaxDiscount, v)
+	return u
+}
+
+// UpdateMaxDiscount sets the "max_discount" field to the value that was provided on create.
+func (u *PromotionRuleUpsert) UpdateMaxDiscount() *PromotionRuleUpsert {
+	u.SetExcluded(promotionrule.FieldMaxDiscount)
+	return u
+}
+
+// AddMaxDiscount adds v to the "max_discount" field.
+func (u *PromotionRuleUpsert) AddMaxDiscount(v float64) *PromotionRuleUpsert {
+	u.Add(promotionrule.FieldMaxDiscount, v)
+	return u
+}
+
+// ClearMaxDiscount clears the value of the "max_discount" field.
+func (u *PromotionRuleUpsert) ClearMaxDiscount() *PromotionRuleUpsert {
+	u.SetNull(promotionrule.FieldMaxDiscount)
 	return u
 }
 
@@ -325,6 +522,104 @@ func (u *PromotionRuleUpsertOne) SetRuleType(v string) *PromotionRuleUpsertOne {
 func (u *PromotionRuleUpsertOne) UpdateRuleType() *PromotionRuleUpsertOne {
 	return u.Update(func(s *PromotionRuleUpsert) {
 		s.UpdateRuleType()
+	})
+}
+
+// SetScopeType sets the "scope_type" field.
+func (u *PromotionRuleUpsertOne) SetScopeType(v promotionrule.ScopeType) *PromotionRuleUpsertOne {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.SetScopeType(v)
+	})
+}
+
+// UpdateScopeType sets the "scope_type" field to the value that was provided on create.
+func (u *PromotionRuleUpsertOne) UpdateScopeType() *PromotionRuleUpsertOne {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.UpdateScopeType()
+	})
+}
+
+// SetScopeIds sets the "scope_ids" field.
+func (u *PromotionRuleUpsertOne) SetScopeIds(v []string) *PromotionRuleUpsertOne {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.SetScopeIds(v)
+	})
+}
+
+// UpdateScopeIds sets the "scope_ids" field to the value that was provided on create.
+func (u *PromotionRuleUpsertOne) UpdateScopeIds() *PromotionRuleUpsertOne {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.UpdateScopeIds()
+	})
+}
+
+// ClearScopeIds clears the value of the "scope_ids" field.
+func (u *PromotionRuleUpsertOne) ClearScopeIds() *PromotionRuleUpsertOne {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.ClearScopeIds()
+	})
+}
+
+// SetDiscountType sets the "discount_type" field.
+func (u *PromotionRuleUpsertOne) SetDiscountType(v promotionrule.DiscountType) *PromotionRuleUpsertOne {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.SetDiscountType(v)
+	})
+}
+
+// UpdateDiscountType sets the "discount_type" field to the value that was provided on create.
+func (u *PromotionRuleUpsertOne) UpdateDiscountType() *PromotionRuleUpsertOne {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.UpdateDiscountType()
+	})
+}
+
+// SetDiscountValue sets the "discount_value" field.
+func (u *PromotionRuleUpsertOne) SetDiscountValue(v float64) *PromotionRuleUpsertOne {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.SetDiscountValue(v)
+	})
+}
+
+// AddDiscountValue adds v to the "discount_value" field.
+func (u *PromotionRuleUpsertOne) AddDiscountValue(v float64) *PromotionRuleUpsertOne {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.AddDiscountValue(v)
+	})
+}
+
+// UpdateDiscountValue sets the "discount_value" field to the value that was provided on create.
+func (u *PromotionRuleUpsertOne) UpdateDiscountValue() *PromotionRuleUpsertOne {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.UpdateDiscountValue()
+	})
+}
+
+// SetMaxDiscount sets the "max_discount" field.
+func (u *PromotionRuleUpsertOne) SetMaxDiscount(v float64) *PromotionRuleUpsertOne {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.SetMaxDiscount(v)
+	})
+}
+
+// AddMaxDiscount adds v to the "max_discount" field.
+func (u *PromotionRuleUpsertOne) AddMaxDiscount(v float64) *PromotionRuleUpsertOne {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.AddMaxDiscount(v)
+	})
+}
+
+// UpdateMaxDiscount sets the "max_discount" field to the value that was provided on create.
+func (u *PromotionRuleUpsertOne) UpdateMaxDiscount() *PromotionRuleUpsertOne {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.UpdateMaxDiscount()
+	})
+}
+
+// ClearMaxDiscount clears the value of the "max_discount" field.
+func (u *PromotionRuleUpsertOne) ClearMaxDiscount() *PromotionRuleUpsertOne {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.ClearMaxDiscount()
 	})
 }
 
@@ -582,6 +877,104 @@ func (u *PromotionRuleUpsertBulk) SetRuleType(v string) *PromotionRuleUpsertBulk
 func (u *PromotionRuleUpsertBulk) UpdateRuleType() *PromotionRuleUpsertBulk {
 	return u.Update(func(s *PromotionRuleUpsert) {
 		s.UpdateRuleType()
+	})
+}
+
+// SetScopeType sets the "scope_type" field.
+func (u *PromotionRuleUpsertBulk) SetScopeType(v promotionrule.ScopeType) *PromotionRuleUpsertBulk {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.SetScopeType(v)
+	})
+}
+
+// UpdateScopeType sets the "scope_type" field to the value that was provided on create.
+func (u *PromotionRuleUpsertBulk) UpdateScopeType() *PromotionRuleUpsertBulk {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.UpdateScopeType()
+	})
+}
+
+// SetScopeIds sets the "scope_ids" field.
+func (u *PromotionRuleUpsertBulk) SetScopeIds(v []string) *PromotionRuleUpsertBulk {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.SetScopeIds(v)
+	})
+}
+
+// UpdateScopeIds sets the "scope_ids" field to the value that was provided on create.
+func (u *PromotionRuleUpsertBulk) UpdateScopeIds() *PromotionRuleUpsertBulk {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.UpdateScopeIds()
+	})
+}
+
+// ClearScopeIds clears the value of the "scope_ids" field.
+func (u *PromotionRuleUpsertBulk) ClearScopeIds() *PromotionRuleUpsertBulk {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.ClearScopeIds()
+	})
+}
+
+// SetDiscountType sets the "discount_type" field.
+func (u *PromotionRuleUpsertBulk) SetDiscountType(v promotionrule.DiscountType) *PromotionRuleUpsertBulk {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.SetDiscountType(v)
+	})
+}
+
+// UpdateDiscountType sets the "discount_type" field to the value that was provided on create.
+func (u *PromotionRuleUpsertBulk) UpdateDiscountType() *PromotionRuleUpsertBulk {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.UpdateDiscountType()
+	})
+}
+
+// SetDiscountValue sets the "discount_value" field.
+func (u *PromotionRuleUpsertBulk) SetDiscountValue(v float64) *PromotionRuleUpsertBulk {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.SetDiscountValue(v)
+	})
+}
+
+// AddDiscountValue adds v to the "discount_value" field.
+func (u *PromotionRuleUpsertBulk) AddDiscountValue(v float64) *PromotionRuleUpsertBulk {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.AddDiscountValue(v)
+	})
+}
+
+// UpdateDiscountValue sets the "discount_value" field to the value that was provided on create.
+func (u *PromotionRuleUpsertBulk) UpdateDiscountValue() *PromotionRuleUpsertBulk {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.UpdateDiscountValue()
+	})
+}
+
+// SetMaxDiscount sets the "max_discount" field.
+func (u *PromotionRuleUpsertBulk) SetMaxDiscount(v float64) *PromotionRuleUpsertBulk {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.SetMaxDiscount(v)
+	})
+}
+
+// AddMaxDiscount adds v to the "max_discount" field.
+func (u *PromotionRuleUpsertBulk) AddMaxDiscount(v float64) *PromotionRuleUpsertBulk {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.AddMaxDiscount(v)
+	})
+}
+
+// UpdateMaxDiscount sets the "max_discount" field to the value that was provided on create.
+func (u *PromotionRuleUpsertBulk) UpdateMaxDiscount() *PromotionRuleUpsertBulk {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.UpdateMaxDiscount()
+	})
+}
+
+// ClearMaxDiscount clears the value of the "max_discount" field.
+func (u *PromotionRuleUpsertBulk) ClearMaxDiscount() *PromotionRuleUpsertBulk {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.ClearMaxDiscount()
 	})
 }
 

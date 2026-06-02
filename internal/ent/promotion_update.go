@@ -10,6 +10,7 @@ import (
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"entgo.io/ent/dialect/sql/sqljson"
 	"entgo.io/ent/schema/field"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
 	"github.com/bengobox/pos-service/internal/ent/promotion"
@@ -40,6 +41,26 @@ func (_u *PromotionUpdate) SetNillableTenantID(v *uuid.UUID) *PromotionUpdate {
 	if v != nil {
 		_u.SetTenantID(*v)
 	}
+	return _u
+}
+
+// SetOutletID sets the "outlet_id" field.
+func (_u *PromotionUpdate) SetOutletID(v uuid.UUID) *PromotionUpdate {
+	_u.mutation.SetOutletID(v)
+	return _u
+}
+
+// SetNillableOutletID sets the "outlet_id" field if the given value is not nil.
+func (_u *PromotionUpdate) SetNillableOutletID(v *uuid.UUID) *PromotionUpdate {
+	if v != nil {
+		_u.SetOutletID(*v)
+	}
+	return _u
+}
+
+// ClearOutletID clears the value of the "outlet_id" field.
+func (_u *PromotionUpdate) ClearOutletID() *PromotionUpdate {
+	_u.mutation.ClearOutletID()
 	return _u
 }
 
@@ -94,6 +115,92 @@ func (_u *PromotionUpdate) SetNillablePromoCode(v *string) *PromotionUpdate {
 // ClearPromoCode clears the value of the "promo_code" field.
 func (_u *PromotionUpdate) ClearPromoCode() *PromotionUpdate {
 	_u.mutation.ClearPromoCode()
+	return _u
+}
+
+// SetPromoKind sets the "promo_kind" field.
+func (_u *PromotionUpdate) SetPromoKind(v promotion.PromoKind) *PromotionUpdate {
+	_u.mutation.SetPromoKind(v)
+	return _u
+}
+
+// SetNillablePromoKind sets the "promo_kind" field if the given value is not nil.
+func (_u *PromotionUpdate) SetNillablePromoKind(v *promotion.PromoKind) *PromotionUpdate {
+	if v != nil {
+		_u.SetPromoKind(*v)
+	}
+	return _u
+}
+
+// SetDaysOfWeek sets the "days_of_week" field.
+func (_u *PromotionUpdate) SetDaysOfWeek(v []int) *PromotionUpdate {
+	_u.mutation.SetDaysOfWeek(v)
+	return _u
+}
+
+// AppendDaysOfWeek appends value to the "days_of_week" field.
+func (_u *PromotionUpdate) AppendDaysOfWeek(v []int) *PromotionUpdate {
+	_u.mutation.AppendDaysOfWeek(v)
+	return _u
+}
+
+// ClearDaysOfWeek clears the value of the "days_of_week" field.
+func (_u *PromotionUpdate) ClearDaysOfWeek() *PromotionUpdate {
+	_u.mutation.ClearDaysOfWeek()
+	return _u
+}
+
+// SetWindowStart sets the "window_start" field.
+func (_u *PromotionUpdate) SetWindowStart(v string) *PromotionUpdate {
+	_u.mutation.SetWindowStart(v)
+	return _u
+}
+
+// SetNillableWindowStart sets the "window_start" field if the given value is not nil.
+func (_u *PromotionUpdate) SetNillableWindowStart(v *string) *PromotionUpdate {
+	if v != nil {
+		_u.SetWindowStart(*v)
+	}
+	return _u
+}
+
+// ClearWindowStart clears the value of the "window_start" field.
+func (_u *PromotionUpdate) ClearWindowStart() *PromotionUpdate {
+	_u.mutation.ClearWindowStart()
+	return _u
+}
+
+// SetWindowEnd sets the "window_end" field.
+func (_u *PromotionUpdate) SetWindowEnd(v string) *PromotionUpdate {
+	_u.mutation.SetWindowEnd(v)
+	return _u
+}
+
+// SetNillableWindowEnd sets the "window_end" field if the given value is not nil.
+func (_u *PromotionUpdate) SetNillableWindowEnd(v *string) *PromotionUpdate {
+	if v != nil {
+		_u.SetWindowEnd(*v)
+	}
+	return _u
+}
+
+// ClearWindowEnd clears the value of the "window_end" field.
+func (_u *PromotionUpdate) ClearWindowEnd() *PromotionUpdate {
+	_u.mutation.ClearWindowEnd()
+	return _u
+}
+
+// SetAutoApply sets the "auto_apply" field.
+func (_u *PromotionUpdate) SetAutoApply(v bool) *PromotionUpdate {
+	_u.mutation.SetAutoApply(v)
+	return _u
+}
+
+// SetNillableAutoApply sets the "auto_apply" field if the given value is not nil.
+func (_u *PromotionUpdate) SetNillableAutoApply(v *bool) *PromotionUpdate {
+	if v != nil {
+		_u.SetAutoApply(*v)
+	}
 	return _u
 }
 
@@ -190,6 +297,11 @@ func (_u *PromotionUpdate) check() error {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "Promotion.name": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.PromoKind(); ok {
+		if err := promotion.PromoKindValidator(v); err != nil {
+			return &ValidationError{Name: "promo_kind", err: fmt.Errorf(`ent: validator failed for field "Promotion.promo_kind": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -208,6 +320,12 @@ func (_u *PromotionUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.TenantID(); ok {
 		_spec.SetField(promotion.FieldTenantID, field.TypeUUID, value)
 	}
+	if value, ok := _u.mutation.OutletID(); ok {
+		_spec.SetField(promotion.FieldOutletID, field.TypeUUID, value)
+	}
+	if _u.mutation.OutletIDCleared() {
+		_spec.ClearField(promotion.FieldOutletID, field.TypeUUID)
+	}
 	if value, ok := _u.mutation.Name(); ok {
 		_spec.SetField(promotion.FieldName, field.TypeString, value)
 	}
@@ -222,6 +340,35 @@ func (_u *PromotionUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.PromoCodeCleared() {
 		_spec.ClearField(promotion.FieldPromoCode, field.TypeString)
+	}
+	if value, ok := _u.mutation.PromoKind(); ok {
+		_spec.SetField(promotion.FieldPromoKind, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.DaysOfWeek(); ok {
+		_spec.SetField(promotion.FieldDaysOfWeek, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedDaysOfWeek(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, promotion.FieldDaysOfWeek, value)
+		})
+	}
+	if _u.mutation.DaysOfWeekCleared() {
+		_spec.ClearField(promotion.FieldDaysOfWeek, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.WindowStart(); ok {
+		_spec.SetField(promotion.FieldWindowStart, field.TypeString, value)
+	}
+	if _u.mutation.WindowStartCleared() {
+		_spec.ClearField(promotion.FieldWindowStart, field.TypeString)
+	}
+	if value, ok := _u.mutation.WindowEnd(); ok {
+		_spec.SetField(promotion.FieldWindowEnd, field.TypeString, value)
+	}
+	if _u.mutation.WindowEndCleared() {
+		_spec.ClearField(promotion.FieldWindowEnd, field.TypeString)
+	}
+	if value, ok := _u.mutation.AutoApply(); ok {
+		_spec.SetField(promotion.FieldAutoApply, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(promotion.FieldStatus, field.TypeString, value)
@@ -269,6 +416,26 @@ func (_u *PromotionUpdateOne) SetNillableTenantID(v *uuid.UUID) *PromotionUpdate
 	if v != nil {
 		_u.SetTenantID(*v)
 	}
+	return _u
+}
+
+// SetOutletID sets the "outlet_id" field.
+func (_u *PromotionUpdateOne) SetOutletID(v uuid.UUID) *PromotionUpdateOne {
+	_u.mutation.SetOutletID(v)
+	return _u
+}
+
+// SetNillableOutletID sets the "outlet_id" field if the given value is not nil.
+func (_u *PromotionUpdateOne) SetNillableOutletID(v *uuid.UUID) *PromotionUpdateOne {
+	if v != nil {
+		_u.SetOutletID(*v)
+	}
+	return _u
+}
+
+// ClearOutletID clears the value of the "outlet_id" field.
+func (_u *PromotionUpdateOne) ClearOutletID() *PromotionUpdateOne {
+	_u.mutation.ClearOutletID()
 	return _u
 }
 
@@ -323,6 +490,92 @@ func (_u *PromotionUpdateOne) SetNillablePromoCode(v *string) *PromotionUpdateOn
 // ClearPromoCode clears the value of the "promo_code" field.
 func (_u *PromotionUpdateOne) ClearPromoCode() *PromotionUpdateOne {
 	_u.mutation.ClearPromoCode()
+	return _u
+}
+
+// SetPromoKind sets the "promo_kind" field.
+func (_u *PromotionUpdateOne) SetPromoKind(v promotion.PromoKind) *PromotionUpdateOne {
+	_u.mutation.SetPromoKind(v)
+	return _u
+}
+
+// SetNillablePromoKind sets the "promo_kind" field if the given value is not nil.
+func (_u *PromotionUpdateOne) SetNillablePromoKind(v *promotion.PromoKind) *PromotionUpdateOne {
+	if v != nil {
+		_u.SetPromoKind(*v)
+	}
+	return _u
+}
+
+// SetDaysOfWeek sets the "days_of_week" field.
+func (_u *PromotionUpdateOne) SetDaysOfWeek(v []int) *PromotionUpdateOne {
+	_u.mutation.SetDaysOfWeek(v)
+	return _u
+}
+
+// AppendDaysOfWeek appends value to the "days_of_week" field.
+func (_u *PromotionUpdateOne) AppendDaysOfWeek(v []int) *PromotionUpdateOne {
+	_u.mutation.AppendDaysOfWeek(v)
+	return _u
+}
+
+// ClearDaysOfWeek clears the value of the "days_of_week" field.
+func (_u *PromotionUpdateOne) ClearDaysOfWeek() *PromotionUpdateOne {
+	_u.mutation.ClearDaysOfWeek()
+	return _u
+}
+
+// SetWindowStart sets the "window_start" field.
+func (_u *PromotionUpdateOne) SetWindowStart(v string) *PromotionUpdateOne {
+	_u.mutation.SetWindowStart(v)
+	return _u
+}
+
+// SetNillableWindowStart sets the "window_start" field if the given value is not nil.
+func (_u *PromotionUpdateOne) SetNillableWindowStart(v *string) *PromotionUpdateOne {
+	if v != nil {
+		_u.SetWindowStart(*v)
+	}
+	return _u
+}
+
+// ClearWindowStart clears the value of the "window_start" field.
+func (_u *PromotionUpdateOne) ClearWindowStart() *PromotionUpdateOne {
+	_u.mutation.ClearWindowStart()
+	return _u
+}
+
+// SetWindowEnd sets the "window_end" field.
+func (_u *PromotionUpdateOne) SetWindowEnd(v string) *PromotionUpdateOne {
+	_u.mutation.SetWindowEnd(v)
+	return _u
+}
+
+// SetNillableWindowEnd sets the "window_end" field if the given value is not nil.
+func (_u *PromotionUpdateOne) SetNillableWindowEnd(v *string) *PromotionUpdateOne {
+	if v != nil {
+		_u.SetWindowEnd(*v)
+	}
+	return _u
+}
+
+// ClearWindowEnd clears the value of the "window_end" field.
+func (_u *PromotionUpdateOne) ClearWindowEnd() *PromotionUpdateOne {
+	_u.mutation.ClearWindowEnd()
+	return _u
+}
+
+// SetAutoApply sets the "auto_apply" field.
+func (_u *PromotionUpdateOne) SetAutoApply(v bool) *PromotionUpdateOne {
+	_u.mutation.SetAutoApply(v)
+	return _u
+}
+
+// SetNillableAutoApply sets the "auto_apply" field if the given value is not nil.
+func (_u *PromotionUpdateOne) SetNillableAutoApply(v *bool) *PromotionUpdateOne {
+	if v != nil {
+		_u.SetAutoApply(*v)
+	}
 	return _u
 }
 
@@ -432,6 +685,11 @@ func (_u *PromotionUpdateOne) check() error {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "Promotion.name": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.PromoKind(); ok {
+		if err := promotion.PromoKindValidator(v); err != nil {
+			return &ValidationError{Name: "promo_kind", err: fmt.Errorf(`ent: validator failed for field "Promotion.promo_kind": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -467,6 +725,12 @@ func (_u *PromotionUpdateOne) sqlSave(ctx context.Context) (_node *Promotion, er
 	if value, ok := _u.mutation.TenantID(); ok {
 		_spec.SetField(promotion.FieldTenantID, field.TypeUUID, value)
 	}
+	if value, ok := _u.mutation.OutletID(); ok {
+		_spec.SetField(promotion.FieldOutletID, field.TypeUUID, value)
+	}
+	if _u.mutation.OutletIDCleared() {
+		_spec.ClearField(promotion.FieldOutletID, field.TypeUUID)
+	}
 	if value, ok := _u.mutation.Name(); ok {
 		_spec.SetField(promotion.FieldName, field.TypeString, value)
 	}
@@ -481,6 +745,35 @@ func (_u *PromotionUpdateOne) sqlSave(ctx context.Context) (_node *Promotion, er
 	}
 	if _u.mutation.PromoCodeCleared() {
 		_spec.ClearField(promotion.FieldPromoCode, field.TypeString)
+	}
+	if value, ok := _u.mutation.PromoKind(); ok {
+		_spec.SetField(promotion.FieldPromoKind, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.DaysOfWeek(); ok {
+		_spec.SetField(promotion.FieldDaysOfWeek, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedDaysOfWeek(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, promotion.FieldDaysOfWeek, value)
+		})
+	}
+	if _u.mutation.DaysOfWeekCleared() {
+		_spec.ClearField(promotion.FieldDaysOfWeek, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.WindowStart(); ok {
+		_spec.SetField(promotion.FieldWindowStart, field.TypeString, value)
+	}
+	if _u.mutation.WindowStartCleared() {
+		_spec.ClearField(promotion.FieldWindowStart, field.TypeString)
+	}
+	if value, ok := _u.mutation.WindowEnd(); ok {
+		_spec.SetField(promotion.FieldWindowEnd, field.TypeString, value)
+	}
+	if _u.mutation.WindowEndCleared() {
+		_spec.ClearField(promotion.FieldWindowEnd, field.TypeString)
+	}
+	if value, ok := _u.mutation.AutoApply(); ok {
+		_spec.SetField(promotion.FieldAutoApply, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(promotion.FieldStatus, field.TypeString, value)
