@@ -197,13 +197,20 @@ func (h *HotelHandler) RedeemMealCard(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if h.publisher != nil {
-		_ = h.publisher.PublishConferenceMealcardRedeemed(r.Context(), tid, map[string]any{
+		// Include the inventory Bundle id + tenant so inventory-api can resolve the meal
+		// period's BundleComponent and backflush that meal's BOM on redemption.
+		payload := map[string]any{
 			"meal_entitlement_id": redeemed.ID,
+			"tenant_id":           tid.String(),
 			"event_booking_id":    redeemed.EventBookingID,
 			"meal_period":         redeemed.MealPeriod,
 			"pos_order_id":        posOrderID,
 			"redeemed_at":         now,
-		})
+		}
+		if ev, evErr := h.client.EventBooking.Get(r.Context(), redeemed.EventBookingID); evErr == nil && ev.InventoryBundleID != nil {
+			payload["inventory_bundle_id"] = ev.InventoryBundleID.String()
+		}
+		_ = h.publisher.PublishConferenceMealcardRedeemed(r.Context(), tid, payload)
 	}
 
 	jsonOK(w, redeemed)
