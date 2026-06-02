@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -17,16 +18,18 @@ import (
 	entroom "github.com/bengobox/pos-service/internal/ent/room"
 	entroomfolioitem "github.com/bengobox/pos-service/internal/ent/roomfolioitem"
 	entroomguest "github.com/bengobox/pos-service/internal/ent/roomguest"
+	"github.com/bengobox/pos-service/internal/modules/inventory"
 	treasury "github.com/bengobox/pos-service/internal/modules/treasury"
 	"github.com/bengobox/pos-service/internal/platform/events"
 )
 
 // HotelHandler handles hotel management endpoints (rooms, guests, folio, facilities, bookings).
 type HotelHandler struct {
-	log            *zap.Logger
-	client         *ent.Client
-	publisher      *events.Publisher
-	treasuryClient *treasury.Client
+	log             *zap.Logger
+	client          *ent.Client
+	publisher       *events.Publisher
+	treasuryClient  *treasury.Client
+	inventoryClient *inventory.Client
 }
 
 func NewHotelHandler(log *zap.Logger, client *ent.Client, publisher *events.Publisher) *HotelHandler {
@@ -35,6 +38,12 @@ func NewHotelHandler(log *zap.Logger, client *ent.Client, publisher *events.Publ
 
 func (h *HotelHandler) SetTreasuryClient(c *treasury.Client) {
 	h.treasuryClient = c
+}
+
+// SetInventoryClient injects the inventory S2S client so direct folio charges
+// (minibar/room-service consumables) can backflush stock.
+func (h *HotelHandler) SetInventoryClient(c *inventory.Client) {
+	h.inventoryClient = c
 }
 
 // --- Rooms ---
@@ -511,11 +520,14 @@ func (h *HotelHandler) CheckOut(w http.ResponseWriter, r *http.Request) {
 }
 
 type postFolioInput struct {
-	Description string     `json:"description"`
-	Amount      float64    `json:"amount"`
-	ChargeType  string     `json:"charge_type"`
-	POSOrderID  *uuid.UUID `json:"pos_order_id,omitempty"`
-	CreatedBy   string     `json:"created_by"`
+	Description       string     `json:"description"`
+	Amount            float64    `json:"amount"`
+	ChargeType        string     `json:"charge_type"`
+	POSOrderID        *uuid.UUID `json:"pos_order_id,omitempty"`
+	InventorySku      string     `json:"inventory_sku,omitempty"`
+	InventoryBundleID *uuid.UUID `json:"inventory_bundle_id,omitempty"`
+	Quantity          float64    `json:"quantity,omitempty"`
+	CreatedBy         string     `json:"created_by"`
 }
 
 // PostFolioCharge handles POST /{tenantID}/hotel/rooms/{id}/folio
@@ -564,12 +576,47 @@ func (h *HotelHandler) PostFolioCharge(w http.ResponseWriter, r *http.Request) {
 	if input.POSOrderID != nil {
 		c = c.SetPosOrderID(*input.POSOrderID)
 	}
+	if input.InventorySku != "" {
+		c = c.SetInventorySku(input.InventorySku)
+	}
+	if input.InventoryBundleID != nil {
+		c = c.SetInventoryBundleID(*input.InventoryBundleID)
+	}
 
 	item, err := c.Save(r.Context())
 	if err != nil {
 		h.log.Error("post folio charge failed", zap.Error(err))
 		jsonError(w, "failed to post charge", http.StatusInternalServerError)
 		return
+	}
+
+	// Backflush stock for a direct consumable folio charge (minibar/room-service/food)
+	// that did NOT originate from a POS order — order-sourced charges already backflush
+	// via pos.sale.finalized, so we skip those to avoid double deduction.
+	if h.inventoryClient != nil && input.InventorySku != "" && input.POSOrderID == nil {
+		qty := input.Quantity
+		if qty <= 0 {
+			qty = 1
+		}
+		go func(sku string, q float64) {
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			if cErr := h.inventoryClient.RecordConsumption(ctx, tid.String(), inventory.ConsumptionRequest{
+				OrderID: item.ID.String(),
+				Items:   []inventory.ConsumptionItem{{SKU: sku, Quantity: q}},
+			}); cErr != nil {
+				h.log.Warn("folio charge backflush failed", zap.String("sku", sku), zap.Error(cErr))
+				if h.publisher != nil {
+					_ = h.publisher.PublishInventoryConsumptionFailed(context.Background(), tid, map[string]any{
+						"folio_item_id": item.ID.String(),
+						"tenant_id":     tid.String(),
+						"sku":           sku,
+						"quantity":      q,
+						"error":         cErr.Error(),
+					})
+				}
+			}
+		}(input.InventorySku, qty)
 	}
 
 	if h.publisher != nil {

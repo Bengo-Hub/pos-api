@@ -217,6 +217,7 @@ func New(ctx context.Context) (*App, error) {
 	}
 	hotelHandler := handlers.NewHotelHandler(log, entClient, hotelEventPub)
 	hotelHandler.SetTreasuryClient(treasuryClient)
+	hotelHandler.SetInventoryClient(inventoryClient)
 	kdsHandler := handlers.NewKDSHandler(log, entClient)
 	kdsHandler.Hub().SetRedis(redisClient)
 	kdsHub := kdsHandler.Hub()

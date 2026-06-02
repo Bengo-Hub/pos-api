@@ -129,14 +129,6 @@ func (s *Service) calculateDiscount(promo *ent.Promotion, orderAmount decimal.De
 	return discount
 }
 
-// HappyHourMatch describes an active happy-hour promotion at a point in time.
-type HappyHourMatch struct {
-	PromoID   uuid.UUID  `json:"promo_id"`
-	Name      string     `json:"name"`
-	OutletID  *uuid.UUID `json:"outlet_id,omitempty"`
-	WindowEnd string     `json:"window_end,omitempty"`
-}
-
 // ActiveHappyHours returns auto-apply happy-hour promotions that are live at `now`
 // for the given outlet (nil outlet promos apply to all outlets). A promo is live when:
 //   - promo_kind = happy_hour, status = active, auto_apply = true
