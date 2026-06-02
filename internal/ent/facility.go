@@ -41,6 +41,12 @@ type Facility struct {
 	ClosingTime string `json:"closing_time,omitempty"`
 	// Status holds the value of the "status" field.
 	Status facility.Status `json:"status,omitempty"`
+	// Supported conference layouts: theatre/classroom/boardroom/u_shape/cabaret/banquet
+	SetupStyles []string `json:"setup_styles,omitempty"`
+	// True if the hall can be split into sub-rooms
+	Divisible bool `json:"divisible,omitempty"`
+	// Parent hall when this facility is a divisible sub-room
+	ParentFacilityID *uuid.UUID `json:"parent_facility_id,omitempty"`
 	// IsActive holds the value of the "is_active" field.
 	IsActive bool `json:"is_active,omitempty"`
 	// Metadata holds the value of the "metadata" field.
@@ -78,11 +84,11 @@ func (*Facility) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case facility.FieldInventoryItemID:
+		case facility.FieldInventoryItemID, facility.FieldParentFacilityID:
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
-		case facility.FieldMetadata:
+		case facility.FieldSetupStyles, facility.FieldMetadata:
 			values[i] = new([]byte)
-		case facility.FieldIsActive:
+		case facility.FieldDivisible, facility.FieldIsActive:
 			values[i] = new(sql.NullBool)
 		case facility.FieldRatePerSession:
 			values[i] = new(sql.NullFloat64)
@@ -181,6 +187,27 @@ func (_m *Facility) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field status", values[i])
 			} else if value.Valid {
 				_m.Status = facility.Status(value.String)
+			}
+		case facility.FieldSetupStyles:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field setup_styles", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.SetupStyles); err != nil {
+					return fmt.Errorf("unmarshal field setup_styles: %w", err)
+				}
+			}
+		case facility.FieldDivisible:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field divisible", values[i])
+			} else if value.Valid {
+				_m.Divisible = value.Bool
+			}
+		case facility.FieldParentFacilityID:
+			if value, ok := values[i].(*sql.NullScanner); !ok {
+				return fmt.Errorf("unexpected type %T for field parent_facility_id", values[i])
+			} else if value.Valid {
+				_m.ParentFacilityID = new(uuid.UUID)
+				*_m.ParentFacilityID = *value.S.(*uuid.UUID)
 			}
 		case facility.FieldIsActive:
 			if value, ok := values[i].(*sql.NullBool); !ok {
@@ -283,6 +310,17 @@ func (_m *Facility) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("status=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Status))
+	builder.WriteString(", ")
+	builder.WriteString("setup_styles=")
+	builder.WriteString(fmt.Sprintf("%v", _m.SetupStyles))
+	builder.WriteString(", ")
+	builder.WriteString("divisible=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Divisible))
+	builder.WriteString(", ")
+	if v := _m.ParentFacilityID; v != nil {
+		builder.WriteString("parent_facility_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("is_active=")
 	builder.WriteString(fmt.Sprintf("%v", _m.IsActive))

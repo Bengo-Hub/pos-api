@@ -430,6 +430,61 @@ var (
 			},
 		},
 	}
+	// EventBookingsColumns holds the columns for the "event_bookings" table.
+	EventBookingsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "outlet_id", Type: field.TypeUUID},
+		{Name: "facility_id", Type: field.TypeUUID},
+		{Name: "inventory_bundle_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "event_type", Type: field.TypeEnum, Enums: []string{"conference", "wedding", "party", "anniversary", "meeting", "other"}, Default: "conference"},
+		{Name: "title", Type: field.TypeString},
+		{Name: "client_name", Type: field.TypeString},
+		{Name: "contact_phone", Type: field.TypeString, Nullable: true},
+		{Name: "contact_email", Type: field.TypeString, Nullable: true},
+		{Name: "crm_contact_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "start_at", Type: field.TypeTime},
+		{Name: "end_at", Type: field.TypeTime},
+		{Name: "conference_days", Type: field.TypeInt, Default: 1},
+		{Name: "delegate_count", Type: field.TypeInt, Default: 0},
+		{Name: "expected_pax", Type: field.TypeInt, Default: 0},
+		{Name: "guaranteed_minimum_covers", Type: field.TypeInt, Default: 0},
+		{Name: "setup_style", Type: field.TypeString, Nullable: true},
+		{Name: "deposit_amount", Type: field.TypeFloat64, Default: 0},
+		{Name: "deposit_refundable", Type: field.TypeBool, Default: true},
+		{Name: "total_amount", Type: field.TypeFloat64, Default: 0},
+		{Name: "currency", Type: field.TypeString, Default: "KES"},
+		{Name: "special_requests", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "master_folio_room_guest_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"inquiry", "tentative", "confirmed", "in_progress", "completed", "cancelled"}, Default: "confirmed"},
+		{Name: "created_by", Type: field.TypeUUID},
+		{Name: "metadata", Type: field.TypeJSON},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// EventBookingsTable holds the schema information for the "event_bookings" table.
+	EventBookingsTable = &schema.Table{
+		Name:       "event_bookings",
+		Columns:    EventBookingsColumns,
+		PrimaryKey: []*schema.Column{EventBookingsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "eventbooking_tenant_id_outlet_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{EventBookingsColumns[1], EventBookingsColumns[2], EventBookingsColumns[24]},
+			},
+			{
+				Name:    "eventbooking_tenant_id_facility_id",
+				Unique:  false,
+				Columns: []*schema.Column{EventBookingsColumns[1], EventBookingsColumns[3]},
+			},
+			{
+				Name:    "eventbooking_tenant_id_start_at",
+				Unique:  false,
+				Columns: []*schema.Column{EventBookingsColumns[1], EventBookingsColumns[11]},
+			},
+		},
+	}
 	// FacilitiesColumns holds the columns for the "facilities" table.
 	FacilitiesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -444,6 +499,9 @@ var (
 		{Name: "opening_time", Type: field.TypeString, Default: "06:00"},
 		{Name: "closing_time", Type: field.TypeString, Default: "22:00"},
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"available", "occupied", "maintenance", "closed"}, Default: "available"},
+		{Name: "setup_styles", Type: field.TypeJSON, Nullable: true},
+		{Name: "divisible", Type: field.TypeBool, Default: false},
+		{Name: "parent_facility_id", Type: field.TypeUUID, Nullable: true},
 		{Name: "is_active", Type: field.TypeBool, Default: true},
 		{Name: "metadata", Type: field.TypeJSON},
 		{Name: "created_at", Type: field.TypeTime},
@@ -956,6 +1014,61 @@ var (
 				Name:    "loyaltytransaction_tenant_id_order_id",
 				Unique:  false,
 				Columns: []*schema.Column{LoyaltyTransactionsColumns[1], LoyaltyTransactionsColumns[3]},
+			},
+		},
+	}
+	// MealEntitlementsColumns holds the columns for the "meal_entitlements" table.
+	MealEntitlementsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "delegate_ref", Type: field.TypeString, Nullable: true},
+		{Name: "conference_day", Type: field.TypeTime},
+		{Name: "meal_period", Type: field.TypeEnum, Enums: []string{"breakfast", "am_break", "lunch", "pm_break", "dinner"}},
+		{Name: "code", Type: field.TypeString},
+		{Name: "valid_window_start", Type: field.TypeTime, Nullable: true},
+		{Name: "valid_window_end", Type: field.TypeTime, Nullable: true},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"issued", "redeemed", "expired", "void"}, Default: "issued"},
+		{Name: "redeemed_at", Type: field.TypeTime, Nullable: true},
+		{Name: "redeemed_outlet_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "redeemed_by", Type: field.TypeUUID, Nullable: true},
+		{Name: "pos_order_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "event_booking_id", Type: field.TypeUUID},
+	}
+	// MealEntitlementsTable holds the schema information for the "meal_entitlements" table.
+	MealEntitlementsTable = &schema.Table{
+		Name:       "meal_entitlements",
+		Columns:    MealEntitlementsColumns,
+		PrimaryKey: []*schema.Column{MealEntitlementsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "meal_entitlements_event_bookings_meal_entitlements",
+				Columns:    []*schema.Column{MealEntitlementsColumns[15]},
+				RefColumns: []*schema.Column{EventBookingsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "mealentitlement_tenant_id_code",
+				Unique:  true,
+				Columns: []*schema.Column{MealEntitlementsColumns[1], MealEntitlementsColumns[5]},
+			},
+			{
+				Name:    "mealentitlement_tenant_id_event_booking_id",
+				Unique:  false,
+				Columns: []*schema.Column{MealEntitlementsColumns[1], MealEntitlementsColumns[15]},
+			},
+			{
+				Name:    "mealentitlement_tenant_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{MealEntitlementsColumns[1], MealEntitlementsColumns[8]},
+			},
+			{
+				Name:    "mealentitlement_event_booking_id_conference_day_meal_period",
+				Unique:  false,
+				Columns: []*schema.Column{MealEntitlementsColumns[15], MealEntitlementsColumns[3], MealEntitlementsColumns[4]},
 			},
 		},
 	}
@@ -3273,6 +3386,7 @@ var (
 		ControlledSubstanceLogsTable,
 		DailyClosingsTable,
 		DrugInteractionChecksTable,
+		EventBookingsTable,
 		FacilitiesTable,
 		FacilityBookingsTable,
 		FeatureOverridesTable,
@@ -3291,6 +3405,7 @@ var (
 		LoyaltyAccountsTable,
 		LoyaltyProgramsTable,
 		LoyaltyTransactionsTable,
+		MealEntitlementsTable,
 		ModifiersTable,
 		ModifierGroupsTable,
 		OrderLinksTable,
@@ -3369,6 +3484,7 @@ func init() {
 	FacilityBookingsTable.ForeignKeys[0].RefTable = FacilitiesTable
 	HousekeepingTasksTable.ForeignKeys[0].RefTable = RoomsTable
 	KdsTicketsTable.ForeignKeys[0].RefTable = KdsStationsTable
+	MealEntitlementsTable.ForeignKeys[0].RefTable = EventBookingsTable
 	ModifiersTable.ForeignKeys[0].RefTable = ModifierGroupsTable
 	OutletsTable.ForeignKeys[0].RefTable = TenantsTable
 	OutletSettingsTable.ForeignKeys[0].RefTable = OutletsTable

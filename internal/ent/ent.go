@@ -26,6 +26,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/controlledsubstancelog"
 	"github.com/bengobox/pos-service/internal/ent/dailyclosing"
 	"github.com/bengobox/pos-service/internal/ent/druginteractioncheck"
+	"github.com/bengobox/pos-service/internal/ent/eventbooking"
 	"github.com/bengobox/pos-service/internal/ent/facility"
 	"github.com/bengobox/pos-service/internal/ent/facilitybooking"
 	"github.com/bengobox/pos-service/internal/ent/featureoverride"
@@ -44,6 +45,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/loyaltyaccount"
 	"github.com/bengobox/pos-service/internal/ent/loyaltyprogram"
 	"github.com/bengobox/pos-service/internal/ent/loyaltytransaction"
+	"github.com/bengobox/pos-service/internal/ent/mealentitlement"
 	"github.com/bengobox/pos-service/internal/ent/modifier"
 	"github.com/bengobox/pos-service/internal/ent/modifiergroup"
 	"github.com/bengobox/pos-service/internal/ent/orderlink"
@@ -186,6 +188,7 @@ func checkColumn(t, c string) error {
 			controlledsubstancelog.Table:   controlledsubstancelog.ValidColumn,
 			dailyclosing.Table:             dailyclosing.ValidColumn,
 			druginteractioncheck.Table:     druginteractioncheck.ValidColumn,
+			eventbooking.Table:             eventbooking.ValidColumn,
 			facility.Table:                 facility.ValidColumn,
 			facilitybooking.Table:          facilitybooking.ValidColumn,
 			featureoverride.Table:          featureoverride.ValidColumn,
@@ -204,6 +207,7 @@ func checkColumn(t, c string) error {
 			loyaltyaccount.Table:           loyaltyaccount.ValidColumn,
 			loyaltyprogram.Table:           loyaltyprogram.ValidColumn,
 			loyaltytransaction.Table:       loyaltytransaction.ValidColumn,
+			mealentitlement.Table:          mealentitlement.ValidColumn,
 			modifier.Table:                 modifier.ValidColumn,
 			modifiergroup.Table:            modifiergroup.ValidColumn,
 			orderlink.Table:                orderlink.ValidColumn,

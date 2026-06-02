@@ -615,6 +615,13 @@ func New(
 						h.Get("/bookings", hotel.ListRoomBookings)
 						h.Get("/bookings/{id}", hotel.GetRoomBooking)
 						h.Get("/bookings/{id}/guests", hotel.ListBookingGuests)
+						// Conference / events (BEO) + delegate meal cards
+						h.Post("/events", hotel.CreateEventBooking)
+						h.Get("/events", hotel.ListEventBookings)
+						h.Get("/events/{id}", hotel.GetEventBooking)
+						h.Get("/events/{id}/reconciliation", hotel.ReconcileEvent)
+						h.Post("/events/{id}/generate-mealcards", hotel.GenerateMealCards)
+						h.Post("/mealcards/{code}/redeem", hotel.RedeemMealCard)
 						h.Post("/rooms/{id}/check-in", hotel.CheckIn)
 						h.Post("/rooms/{id}/check-out", hotel.CheckOut)
 						h.Post("/rooms/{id}/folio", hotel.PostFolioCharge)

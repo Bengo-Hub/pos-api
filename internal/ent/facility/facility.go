@@ -38,6 +38,12 @@ const (
 	FieldClosingTime = "closing_time"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
+	// FieldSetupStyles holds the string denoting the setup_styles field in the database.
+	FieldSetupStyles = "setup_styles"
+	// FieldDivisible holds the string denoting the divisible field in the database.
+	FieldDivisible = "divisible"
+	// FieldParentFacilityID holds the string denoting the parent_facility_id field in the database.
+	FieldParentFacilityID = "parent_facility_id"
 	// FieldIsActive holds the string denoting the is_active field in the database.
 	FieldIsActive = "is_active"
 	// FieldMetadata holds the string denoting the metadata field in the database.
@@ -73,6 +79,9 @@ var Columns = []string{
 	FieldOpeningTime,
 	FieldClosingTime,
 	FieldStatus,
+	FieldSetupStyles,
+	FieldDivisible,
+	FieldParentFacilityID,
 	FieldIsActive,
 	FieldMetadata,
 	FieldCreatedAt,
@@ -104,6 +113,8 @@ var (
 	DefaultOpeningTime string
 	// DefaultClosingTime holds the default value on creation for the "closing_time" field.
 	DefaultClosingTime string
+	// DefaultDivisible holds the default value on creation for the "divisible" field.
+	DefaultDivisible bool
 	// DefaultIsActive holds the default value on creation for the "is_active" field.
 	DefaultIsActive bool
 	// DefaultMetadata holds the default value on creation for the "metadata" field.
@@ -237,6 +248,16 @@ func ByClosingTime(opts ...sql.OrderTermOption) OrderOption {
 // ByStatus orders the results by the status field.
 func ByStatus(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldStatus, opts...).ToFunc()
+}
+
+// ByDivisible orders the results by the divisible field.
+func ByDivisible(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDivisible, opts...).ToFunc()
+}
+
+// ByParentFacilityID orders the results by the parent_facility_id field.
+func ByParentFacilityID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldParentFacilityID, opts...).ToFunc()
 }
 
 // ByIsActive orders the results by the is_active field.

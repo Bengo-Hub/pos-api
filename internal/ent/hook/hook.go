@@ -177,6 +177,18 @@ func (f DrugInteractionCheckFunc) Mutate(ctx context.Context, m ent.Mutation) (e
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.DrugInteractionCheckMutation", m)
 }
 
+// The EventBookingFunc type is an adapter to allow the use of ordinary
+// function as EventBooking mutator.
+type EventBookingFunc func(context.Context, *ent.EventBookingMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f EventBookingFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.EventBookingMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EventBookingMutation", m)
+}
+
 // The FacilityFunc type is an adapter to allow the use of ordinary
 // function as Facility mutator.
 type FacilityFunc func(context.Context, *ent.FacilityMutation) (ent.Value, error)
@@ -391,6 +403,18 @@ func (f LoyaltyTransactionFunc) Mutate(ctx context.Context, m ent.Mutation) (ent
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.LoyaltyTransactionMutation", m)
+}
+
+// The MealEntitlementFunc type is an adapter to allow the use of ordinary
+// function as MealEntitlement mutator.
+type MealEntitlementFunc func(context.Context, *ent.MealEntitlementMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f MealEntitlementFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.MealEntitlementMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.MealEntitlementMutation", m)
 }
 
 // The ModifierFunc type is an adapter to allow the use of ordinary

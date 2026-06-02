@@ -19,6 +19,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/controlledsubstancelog"
 	"github.com/bengobox/pos-service/internal/ent/dailyclosing"
 	"github.com/bengobox/pos-service/internal/ent/druginteractioncheck"
+	"github.com/bengobox/pos-service/internal/ent/eventbooking"
 	"github.com/bengobox/pos-service/internal/ent/facility"
 	"github.com/bengobox/pos-service/internal/ent/facilitybooking"
 	"github.com/bengobox/pos-service/internal/ent/giftcard"
@@ -35,6 +36,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/loyaltyaccount"
 	"github.com/bengobox/pos-service/internal/ent/loyaltyprogram"
 	"github.com/bengobox/pos-service/internal/ent/loyaltytransaction"
+	"github.com/bengobox/pos-service/internal/ent/mealentitlement"
 	"github.com/bengobox/pos-service/internal/ent/modifier"
 	"github.com/bengobox/pos-service/internal/ent/modifiergroup"
 	"github.com/bengobox/pos-service/internal/ent/orderlink"
@@ -478,6 +480,78 @@ func init() {
 	druginteractioncheckDescID := druginteractioncheckFields[0].Descriptor()
 	// druginteractioncheck.DefaultID holds the default value on creation for the id field.
 	druginteractioncheck.DefaultID = druginteractioncheckDescID.Default.(func() uuid.UUID)
+	eventbookingFields := schema.EventBooking{}.Fields()
+	_ = eventbookingFields
+	// eventbookingDescTitle is the schema descriptor for title field.
+	eventbookingDescTitle := eventbookingFields[6].Descriptor()
+	// eventbooking.TitleValidator is a validator for the "title" field. It is called by the builders before save.
+	eventbooking.TitleValidator = eventbookingDescTitle.Validators[0].(func(string) error)
+	// eventbookingDescClientName is the schema descriptor for client_name field.
+	eventbookingDescClientName := eventbookingFields[7].Descriptor()
+	// eventbooking.ClientNameValidator is a validator for the "client_name" field. It is called by the builders before save.
+	eventbooking.ClientNameValidator = eventbookingDescClientName.Validators[0].(func(string) error)
+	// eventbookingDescConferenceDays is the schema descriptor for conference_days field.
+	eventbookingDescConferenceDays := eventbookingFields[13].Descriptor()
+	// eventbooking.DefaultConferenceDays holds the default value on creation for the conference_days field.
+	eventbooking.DefaultConferenceDays = eventbookingDescConferenceDays.Default.(int)
+	// eventbooking.ConferenceDaysValidator is a validator for the "conference_days" field. It is called by the builders before save.
+	eventbooking.ConferenceDaysValidator = eventbookingDescConferenceDays.Validators[0].(func(int) error)
+	// eventbookingDescDelegateCount is the schema descriptor for delegate_count field.
+	eventbookingDescDelegateCount := eventbookingFields[14].Descriptor()
+	// eventbooking.DefaultDelegateCount holds the default value on creation for the delegate_count field.
+	eventbooking.DefaultDelegateCount = eventbookingDescDelegateCount.Default.(int)
+	// eventbooking.DelegateCountValidator is a validator for the "delegate_count" field. It is called by the builders before save.
+	eventbooking.DelegateCountValidator = eventbookingDescDelegateCount.Validators[0].(func(int) error)
+	// eventbookingDescExpectedPax is the schema descriptor for expected_pax field.
+	eventbookingDescExpectedPax := eventbookingFields[15].Descriptor()
+	// eventbooking.DefaultExpectedPax holds the default value on creation for the expected_pax field.
+	eventbooking.DefaultExpectedPax = eventbookingDescExpectedPax.Default.(int)
+	// eventbooking.ExpectedPaxValidator is a validator for the "expected_pax" field. It is called by the builders before save.
+	eventbooking.ExpectedPaxValidator = eventbookingDescExpectedPax.Validators[0].(func(int) error)
+	// eventbookingDescGuaranteedMinimumCovers is the schema descriptor for guaranteed_minimum_covers field.
+	eventbookingDescGuaranteedMinimumCovers := eventbookingFields[16].Descriptor()
+	// eventbooking.DefaultGuaranteedMinimumCovers holds the default value on creation for the guaranteed_minimum_covers field.
+	eventbooking.DefaultGuaranteedMinimumCovers = eventbookingDescGuaranteedMinimumCovers.Default.(int)
+	// eventbooking.GuaranteedMinimumCoversValidator is a validator for the "guaranteed_minimum_covers" field. It is called by the builders before save.
+	eventbooking.GuaranteedMinimumCoversValidator = eventbookingDescGuaranteedMinimumCovers.Validators[0].(func(int) error)
+	// eventbookingDescDepositAmount is the schema descriptor for deposit_amount field.
+	eventbookingDescDepositAmount := eventbookingFields[18].Descriptor()
+	// eventbooking.DefaultDepositAmount holds the default value on creation for the deposit_amount field.
+	eventbooking.DefaultDepositAmount = eventbookingDescDepositAmount.Default.(float64)
+	// eventbooking.DepositAmountValidator is a validator for the "deposit_amount" field. It is called by the builders before save.
+	eventbooking.DepositAmountValidator = eventbookingDescDepositAmount.Validators[0].(func(float64) error)
+	// eventbookingDescDepositRefundable is the schema descriptor for deposit_refundable field.
+	eventbookingDescDepositRefundable := eventbookingFields[19].Descriptor()
+	// eventbooking.DefaultDepositRefundable holds the default value on creation for the deposit_refundable field.
+	eventbooking.DefaultDepositRefundable = eventbookingDescDepositRefundable.Default.(bool)
+	// eventbookingDescTotalAmount is the schema descriptor for total_amount field.
+	eventbookingDescTotalAmount := eventbookingFields[20].Descriptor()
+	// eventbooking.DefaultTotalAmount holds the default value on creation for the total_amount field.
+	eventbooking.DefaultTotalAmount = eventbookingDescTotalAmount.Default.(float64)
+	// eventbooking.TotalAmountValidator is a validator for the "total_amount" field. It is called by the builders before save.
+	eventbooking.TotalAmountValidator = eventbookingDescTotalAmount.Validators[0].(func(float64) error)
+	// eventbookingDescCurrency is the schema descriptor for currency field.
+	eventbookingDescCurrency := eventbookingFields[21].Descriptor()
+	// eventbooking.DefaultCurrency holds the default value on creation for the currency field.
+	eventbooking.DefaultCurrency = eventbookingDescCurrency.Default.(string)
+	// eventbookingDescMetadata is the schema descriptor for metadata field.
+	eventbookingDescMetadata := eventbookingFields[26].Descriptor()
+	// eventbooking.DefaultMetadata holds the default value on creation for the metadata field.
+	eventbooking.DefaultMetadata = eventbookingDescMetadata.Default.(map[string]interface{})
+	// eventbookingDescCreatedAt is the schema descriptor for created_at field.
+	eventbookingDescCreatedAt := eventbookingFields[27].Descriptor()
+	// eventbooking.DefaultCreatedAt holds the default value on creation for the created_at field.
+	eventbooking.DefaultCreatedAt = eventbookingDescCreatedAt.Default.(func() time.Time)
+	// eventbookingDescUpdatedAt is the schema descriptor for updated_at field.
+	eventbookingDescUpdatedAt := eventbookingFields[28].Descriptor()
+	// eventbooking.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	eventbooking.DefaultUpdatedAt = eventbookingDescUpdatedAt.Default.(func() time.Time)
+	// eventbooking.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	eventbooking.UpdateDefaultUpdatedAt = eventbookingDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// eventbookingDescID is the schema descriptor for id field.
+	eventbookingDescID := eventbookingFields[0].Descriptor()
+	// eventbooking.DefaultID holds the default value on creation for the id field.
+	eventbooking.DefaultID = eventbookingDescID.Default.(func() uuid.UUID)
 	facilityFields := schema.Facility{}.Fields()
 	_ = facilityFields
 	// facilityDescName is the schema descriptor for name field.
@@ -506,20 +580,24 @@ func init() {
 	facilityDescClosingTime := facilityFields[10].Descriptor()
 	// facility.DefaultClosingTime holds the default value on creation for the closing_time field.
 	facility.DefaultClosingTime = facilityDescClosingTime.Default.(string)
+	// facilityDescDivisible is the schema descriptor for divisible field.
+	facilityDescDivisible := facilityFields[13].Descriptor()
+	// facility.DefaultDivisible holds the default value on creation for the divisible field.
+	facility.DefaultDivisible = facilityDescDivisible.Default.(bool)
 	// facilityDescIsActive is the schema descriptor for is_active field.
-	facilityDescIsActive := facilityFields[12].Descriptor()
+	facilityDescIsActive := facilityFields[15].Descriptor()
 	// facility.DefaultIsActive holds the default value on creation for the is_active field.
 	facility.DefaultIsActive = facilityDescIsActive.Default.(bool)
 	// facilityDescMetadata is the schema descriptor for metadata field.
-	facilityDescMetadata := facilityFields[13].Descriptor()
+	facilityDescMetadata := facilityFields[16].Descriptor()
 	// facility.DefaultMetadata holds the default value on creation for the metadata field.
 	facility.DefaultMetadata = facilityDescMetadata.Default.(map[string]interface{})
 	// facilityDescCreatedAt is the schema descriptor for created_at field.
-	facilityDescCreatedAt := facilityFields[14].Descriptor()
+	facilityDescCreatedAt := facilityFields[17].Descriptor()
 	// facility.DefaultCreatedAt holds the default value on creation for the created_at field.
 	facility.DefaultCreatedAt = facilityDescCreatedAt.Default.(func() time.Time)
 	// facilityDescUpdatedAt is the schema descriptor for updated_at field.
-	facilityDescUpdatedAt := facilityFields[15].Descriptor()
+	facilityDescUpdatedAt := facilityFields[18].Descriptor()
 	// facility.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	facility.DefaultUpdatedAt = facilityDescUpdatedAt.Default.(func() time.Time)
 	// facility.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -850,6 +928,26 @@ func init() {
 	loyaltytransactionDescID := loyaltytransactionFields[0].Descriptor()
 	// loyaltytransaction.DefaultID holds the default value on creation for the id field.
 	loyaltytransaction.DefaultID = loyaltytransactionDescID.Default.(func() uuid.UUID)
+	mealentitlementFields := schema.MealEntitlement{}.Fields()
+	_ = mealentitlementFields
+	// mealentitlementDescCode is the schema descriptor for code field.
+	mealentitlementDescCode := mealentitlementFields[6].Descriptor()
+	// mealentitlement.CodeValidator is a validator for the "code" field. It is called by the builders before save.
+	mealentitlement.CodeValidator = mealentitlementDescCode.Validators[0].(func(string) error)
+	// mealentitlementDescCreatedAt is the schema descriptor for created_at field.
+	mealentitlementDescCreatedAt := mealentitlementFields[14].Descriptor()
+	// mealentitlement.DefaultCreatedAt holds the default value on creation for the created_at field.
+	mealentitlement.DefaultCreatedAt = mealentitlementDescCreatedAt.Default.(func() time.Time)
+	// mealentitlementDescUpdatedAt is the schema descriptor for updated_at field.
+	mealentitlementDescUpdatedAt := mealentitlementFields[15].Descriptor()
+	// mealentitlement.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	mealentitlement.DefaultUpdatedAt = mealentitlementDescUpdatedAt.Default.(func() time.Time)
+	// mealentitlement.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	mealentitlement.UpdateDefaultUpdatedAt = mealentitlementDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// mealentitlementDescID is the schema descriptor for id field.
+	mealentitlementDescID := mealentitlementFields[0].Descriptor()
+	// mealentitlement.DefaultID holds the default value on creation for the id field.
+	mealentitlement.DefaultID = mealentitlementDescID.Default.(func() uuid.UUID)
 	modifierFields := schema.Modifier{}.Fields()
 	_ = modifierFields
 	// modifierDescName is the schema descriptor for name field.

@@ -48,6 +48,9 @@ type DailyClosing func(*sql.Selector)
 // DrugInteractionCheck is the predicate function for druginteractioncheck builders.
 type DrugInteractionCheck func(*sql.Selector)
 
+// EventBooking is the predicate function for eventbooking builders.
+type EventBooking func(*sql.Selector)
+
 // Facility is the predicate function for facility builders.
 type Facility func(*sql.Selector)
 
@@ -101,6 +104,9 @@ type LoyaltyProgram func(*sql.Selector)
 
 // LoyaltyTransaction is the predicate function for loyaltytransaction builders.
 type LoyaltyTransaction func(*sql.Selector)
+
+// MealEntitlement is the predicate function for mealentitlement builders.
+type MealEntitlement func(*sql.Selector)
 
 // Modifier is the predicate function for modifier builders.
 type Modifier func(*sql.Selector)

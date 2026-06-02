@@ -10,6 +10,7 @@ import (
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"entgo.io/ent/dialect/sql/sqljson"
 	"entgo.io/ent/schema/field"
 	"github.com/bengobox/pos-service/internal/ent/facility"
 	"github.com/bengobox/pos-service/internal/ent/facilitybooking"
@@ -204,6 +205,58 @@ func (_u *FacilityUpdate) SetNillableStatus(v *facility.Status) *FacilityUpdate 
 	return _u
 }
 
+// SetSetupStyles sets the "setup_styles" field.
+func (_u *FacilityUpdate) SetSetupStyles(v []string) *FacilityUpdate {
+	_u.mutation.SetSetupStyles(v)
+	return _u
+}
+
+// AppendSetupStyles appends value to the "setup_styles" field.
+func (_u *FacilityUpdate) AppendSetupStyles(v []string) *FacilityUpdate {
+	_u.mutation.AppendSetupStyles(v)
+	return _u
+}
+
+// ClearSetupStyles clears the value of the "setup_styles" field.
+func (_u *FacilityUpdate) ClearSetupStyles() *FacilityUpdate {
+	_u.mutation.ClearSetupStyles()
+	return _u
+}
+
+// SetDivisible sets the "divisible" field.
+func (_u *FacilityUpdate) SetDivisible(v bool) *FacilityUpdate {
+	_u.mutation.SetDivisible(v)
+	return _u
+}
+
+// SetNillableDivisible sets the "divisible" field if the given value is not nil.
+func (_u *FacilityUpdate) SetNillableDivisible(v *bool) *FacilityUpdate {
+	if v != nil {
+		_u.SetDivisible(*v)
+	}
+	return _u
+}
+
+// SetParentFacilityID sets the "parent_facility_id" field.
+func (_u *FacilityUpdate) SetParentFacilityID(v uuid.UUID) *FacilityUpdate {
+	_u.mutation.SetParentFacilityID(v)
+	return _u
+}
+
+// SetNillableParentFacilityID sets the "parent_facility_id" field if the given value is not nil.
+func (_u *FacilityUpdate) SetNillableParentFacilityID(v *uuid.UUID) *FacilityUpdate {
+	if v != nil {
+		_u.SetParentFacilityID(*v)
+	}
+	return _u
+}
+
+// ClearParentFacilityID clears the value of the "parent_facility_id" field.
+func (_u *FacilityUpdate) ClearParentFacilityID() *FacilityUpdate {
+	_u.mutation.ClearParentFacilityID()
+	return _u
+}
+
 // SetIsActive sets the "is_active" field.
 func (_u *FacilityUpdate) SetIsActive(v bool) *FacilityUpdate {
 	_u.mutation.SetIsActive(v)
@@ -390,6 +443,26 @@ func (_u *FacilityUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(facility.FieldStatus, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.SetupStyles(); ok {
+		_spec.SetField(facility.FieldSetupStyles, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedSetupStyles(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, facility.FieldSetupStyles, value)
+		})
+	}
+	if _u.mutation.SetupStylesCleared() {
+		_spec.ClearField(facility.FieldSetupStyles, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.Divisible(); ok {
+		_spec.SetField(facility.FieldDivisible, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.ParentFacilityID(); ok {
+		_spec.SetField(facility.FieldParentFacilityID, field.TypeUUID, value)
+	}
+	if _u.mutation.ParentFacilityIDCleared() {
+		_spec.ClearField(facility.FieldParentFacilityID, field.TypeUUID)
 	}
 	if value, ok := _u.mutation.IsActive(); ok {
 		_spec.SetField(facility.FieldIsActive, field.TypeBool, value)
@@ -639,6 +712,58 @@ func (_u *FacilityUpdateOne) SetNillableStatus(v *facility.Status) *FacilityUpda
 	return _u
 }
 
+// SetSetupStyles sets the "setup_styles" field.
+func (_u *FacilityUpdateOne) SetSetupStyles(v []string) *FacilityUpdateOne {
+	_u.mutation.SetSetupStyles(v)
+	return _u
+}
+
+// AppendSetupStyles appends value to the "setup_styles" field.
+func (_u *FacilityUpdateOne) AppendSetupStyles(v []string) *FacilityUpdateOne {
+	_u.mutation.AppendSetupStyles(v)
+	return _u
+}
+
+// ClearSetupStyles clears the value of the "setup_styles" field.
+func (_u *FacilityUpdateOne) ClearSetupStyles() *FacilityUpdateOne {
+	_u.mutation.ClearSetupStyles()
+	return _u
+}
+
+// SetDivisible sets the "divisible" field.
+func (_u *FacilityUpdateOne) SetDivisible(v bool) *FacilityUpdateOne {
+	_u.mutation.SetDivisible(v)
+	return _u
+}
+
+// SetNillableDivisible sets the "divisible" field if the given value is not nil.
+func (_u *FacilityUpdateOne) SetNillableDivisible(v *bool) *FacilityUpdateOne {
+	if v != nil {
+		_u.SetDivisible(*v)
+	}
+	return _u
+}
+
+// SetParentFacilityID sets the "parent_facility_id" field.
+func (_u *FacilityUpdateOne) SetParentFacilityID(v uuid.UUID) *FacilityUpdateOne {
+	_u.mutation.SetParentFacilityID(v)
+	return _u
+}
+
+// SetNillableParentFacilityID sets the "parent_facility_id" field if the given value is not nil.
+func (_u *FacilityUpdateOne) SetNillableParentFacilityID(v *uuid.UUID) *FacilityUpdateOne {
+	if v != nil {
+		_u.SetParentFacilityID(*v)
+	}
+	return _u
+}
+
+// ClearParentFacilityID clears the value of the "parent_facility_id" field.
+func (_u *FacilityUpdateOne) ClearParentFacilityID() *FacilityUpdateOne {
+	_u.mutation.ClearParentFacilityID()
+	return _u
+}
+
 // SetIsActive sets the "is_active" field.
 func (_u *FacilityUpdateOne) SetIsActive(v bool) *FacilityUpdateOne {
 	_u.mutation.SetIsActive(v)
@@ -855,6 +980,26 @@ func (_u *FacilityUpdateOne) sqlSave(ctx context.Context) (_node *Facility, err 
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(facility.FieldStatus, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.SetupStyles(); ok {
+		_spec.SetField(facility.FieldSetupStyles, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedSetupStyles(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, facility.FieldSetupStyles, value)
+		})
+	}
+	if _u.mutation.SetupStylesCleared() {
+		_spec.ClearField(facility.FieldSetupStyles, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.Divisible(); ok {
+		_spec.SetField(facility.FieldDivisible, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.ParentFacilityID(); ok {
+		_spec.SetField(facility.FieldParentFacilityID, field.TypeUUID, value)
+	}
+	if _u.mutation.ParentFacilityIDCleared() {
+		_spec.ClearField(facility.FieldParentFacilityID, field.TypeUUID)
 	}
 	if value, ok := _u.mutation.IsActive(); ok {
 		_spec.SetField(facility.FieldIsActive, field.TypeBool, value)
