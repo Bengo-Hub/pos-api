@@ -30,16 +30,18 @@ func NewTreasurySubscriber(client *ent.Client, paymentSvc *Service, log *zap.Log
 }
 
 // treasuryPaymentEvent is the common envelope for treasury payment events.
+// It matches the shared-events (github.com/Bengo-Hub/shared-events) Event wire format:
+// the business fields live under "payload" and the kind under "event_type" — NOT "data"/"type".
 type treasuryPaymentEvent struct {
-	ID       string         `json:"id"`
-	Type     string         `json:"type"`
-	TenantID string         `json:"tenant_id"`
-	Data     map[string]any `json:"data"`
+	ID        string         `json:"id"`
+	EventType string         `json:"event_type"`
+	TenantID  string         `json:"tenant_id"`
+	Payload   map[string]any `json:"payload"`
 }
 
 // SubscribeToTreasuryEvents wires subscriptions to:
-//   - treasury.payment.success  → confirm pending payment + complete order
-//   - treasury.payment.failed   → mark pending payment as failed
+//   - treasury.payment.succeeded → confirm pending payment + complete order
+//   - treasury.payment.failed    → mark pending payment as failed
 //   - treasury.etims.invoice_transmitted → store eTIMS invoice number + QR URL on pos_order
 func (s *TreasurySubscriber) SubscribeToTreasuryEvents(nc *nats.Conn) error {
 	if nc == nil {
@@ -66,29 +68,34 @@ func (s *TreasurySubscriber) SubscribeToTreasuryEvents(nc *nats.Conn) error {
 }
 
 func (s *TreasurySubscriber) subscribePaymentSuccess(js nats.JetStreamContext) error {
-	_, err := js.QueueSubscribe("treasury.payment.success", "pos-treasury-payment-success", func(msg *nats.Msg) {
+	// Subject is "treasury.payment.succeeded" (shared-events builds {aggregate_type}.{event_type}
+	// = "treasury" + "payment.succeeded"). The durable is suffixed "-succeeded" because the previous
+	// consumer ("pos-treasury-payment-success") was bound to the wrong, never-published subject
+	// "treasury.payment.success"; a JetStream durable's filter subject is immutable, so we must use a
+	// new durable name to rebind. The orphaned consumer is removed during deploy.
+	_, err := js.QueueSubscribe("treasury.payment.succeeded", "pos-treasury-payment-succeeded", func(msg *nats.Msg) {
 		defer func() { _ = msg.Ack() }()
 
 		var evt treasuryPaymentEvent
 		if err := json.Unmarshal(msg.Data, &evt); err != nil {
-			s.log.Error("treasury.payment.success: unmarshal", zap.Error(err))
+			s.log.Error("treasury.payment.succeeded: unmarshal", zap.Error(err))
 			return
 		}
 
-		intentID, _ := evt.Data["payment_intent_id"].(string)
+		intentID, _ := evt.Payload["payment_intent_id"].(string)
 		if intentID == "" {
-			intentID, _ = evt.Data["intent_id"].(string)
+			intentID, _ = evt.Payload["intent_id"].(string)
 		}
 		if intentID == "" {
-			s.log.Warn("treasury.payment.success: missing intent id", zap.Any("data", evt.Data))
+			s.log.Warn("treasury.payment.succeeded: missing intent id", zap.Any("payload", evt.Payload))
 			return
 		}
 
 		tenantID, _ := uuid.Parse(evt.TenantID)
 		if err := s.paymentSvc.ConfirmPaymentByIntentID(context.Background(), tenantID, intentID); err != nil {
-			s.log.Error("treasury.payment.success: confirm payment", zap.String("intent", intentID), zap.Error(err))
+			s.log.Error("treasury.payment.succeeded: confirm payment", zap.String("intent", intentID), zap.Error(err))
 		}
-	}, nats.Durable("pos-treasury-payment-success"), nats.ManualAck())
+	}, nats.Durable("pos-treasury-payment-succeeded"), nats.ManualAck())
 	return err
 }
 
@@ -102,9 +109,9 @@ func (s *TreasurySubscriber) subscribePaymentFailed(js nats.JetStreamContext) er
 			return
 		}
 
-		intentID, _ := evt.Data["payment_intent_id"].(string)
+		intentID, _ := evt.Payload["payment_intent_id"].(string)
 		if intentID == "" {
-			intentID, _ = evt.Data["intent_id"].(string)
+			intentID, _ = evt.Payload["intent_id"].(string)
 		}
 		if intentID == "" {
 			return
@@ -126,7 +133,7 @@ type etimsEvent struct {
 		ReferenceType   string `json:"reference_type"`    // "pos_order"
 		InvoiceNumber   string `json:"invoice_number"`
 		QRCodeURL       string `json:"qr_code_url"`
-	} `json:"data"`
+	} `json:"payload"`
 }
 
 func (s *TreasurySubscriber) subscribeEtimsTransmitted(js nats.JetStreamContext) error {
