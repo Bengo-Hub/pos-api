@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -17,16 +18,18 @@ import (
 	entroom "github.com/bengobox/pos-service/internal/ent/room"
 	entroomfolioitem "github.com/bengobox/pos-service/internal/ent/roomfolioitem"
 	entroomguest "github.com/bengobox/pos-service/internal/ent/roomguest"
-	"github.com/bengobox/pos-service/internal/platform/events"
+	"github.com/bengobox/pos-service/internal/modules/inventory"
 	treasury "github.com/bengobox/pos-service/internal/modules/treasury"
+	"github.com/bengobox/pos-service/internal/platform/events"
 )
 
 // HotelHandler handles hotel management endpoints (rooms, guests, folio, facilities, bookings).
 type HotelHandler struct {
-	log            *zap.Logger
-	client         *ent.Client
-	publisher      *events.Publisher
-	treasuryClient *treasury.Client
+	log             *zap.Logger
+	client          *ent.Client
+	publisher       *events.Publisher
+	treasuryClient  *treasury.Client
+	inventoryClient *inventory.Client
 }
 
 func NewHotelHandler(log *zap.Logger, client *ent.Client, publisher *events.Publisher) *HotelHandler {
@@ -35,6 +38,12 @@ func NewHotelHandler(log *zap.Logger, client *ent.Client, publisher *events.Publ
 
 func (h *HotelHandler) SetTreasuryClient(c *treasury.Client) {
 	h.treasuryClient = c
+}
+
+// SetInventoryClient injects the inventory S2S client so direct folio charges
+// (minibar/room-service consumables) can backflush stock.
+func (h *HotelHandler) SetInventoryClient(c *inventory.Client) {
+	h.inventoryClient = c
 }
 
 // --- Rooms ---
@@ -200,11 +209,25 @@ func (h *HotelHandler) UpdateRoomStatus(w http.ResponseWriter, r *http.Request) 
 }
 
 type checkInInput struct {
-	GuestName string `json:"guest_name"`
-	Phone     string `json:"phone"`
-	IDNumber  string `json:"id_number"`
-	Nights    int    `json:"nights"`
-	CheckedBy string `json:"checked_in_by"`
+	GuestName           string     `json:"guest_name"`
+	FirstName           string     `json:"first_name"`
+	LastName            string     `json:"last_name"`
+	Email               string     `json:"email"`
+	Phone               string     `json:"phone"`
+	Nationality         string     `json:"nationality"`
+	IDType              string     `json:"id_type"`
+	IDNumber            string     `json:"id_number"`
+	IDDocumentURL       string     `json:"id_document_url"`
+	Adults              int        `json:"adults"`
+	Children            int        `json:"children"`
+	ChildAges           []int      `json:"child_ages"`
+	Nights              int        `json:"nights"`
+	ExpectedArrivalAt   *time.Time `json:"expected_arrival_at"`
+	ExpectedDepartureAt *time.Time `json:"expected_departure_at"`
+	Source              string     `json:"source"`
+	BookingID           string     `json:"booking_id"`
+	CRMContactID        string     `json:"crm_contact_id"`
+	CheckedBy           string     `json:"checked_in_by"`
 }
 
 // CheckIn handles POST /{tenantID}/hotel/rooms/{id}/check-in
@@ -253,7 +276,10 @@ func (h *HotelHandler) CheckIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	guest, err := tx.RoomGuest.Create().
+	if input.Adults < 1 {
+		input.Adults = 1
+	}
+	guestBuilder := tx.RoomGuest.Create().
 		SetTenantID(tid).
 		SetRoomID(roomID).
 		SetGuestName(input.GuestName).
@@ -265,7 +291,47 @@ func (h *HotelHandler) CheckIn(w http.ResponseWriter, r *http.Request) {
 		SetTotalRoomCharge(totalCharge).
 		SetCheckedInBy(checkedInBy).
 		SetCheckedInAt(now).
-		Save(r.Context())
+		SetAdults(input.Adults).
+		SetChildren(input.Children)
+	if input.FirstName != "" {
+		guestBuilder = guestBuilder.SetFirstName(input.FirstName)
+	}
+	if input.LastName != "" {
+		guestBuilder = guestBuilder.SetLastName(input.LastName)
+	}
+	if input.Email != "" {
+		guestBuilder = guestBuilder.SetEmail(input.Email)
+	}
+	if input.Nationality != "" {
+		guestBuilder = guestBuilder.SetNationality(input.Nationality)
+	}
+	if input.IDType != "" {
+		guestBuilder = guestBuilder.SetIDType(entroomguest.IDType(input.IDType))
+	}
+	if input.IDDocumentURL != "" {
+		guestBuilder = guestBuilder.SetIDDocumentURL(input.IDDocumentURL)
+	}
+	if len(input.ChildAges) > 0 {
+		guestBuilder = guestBuilder.SetChildAges(input.ChildAges)
+	}
+	if input.Source != "" {
+		guestBuilder = guestBuilder.SetSource(entroomguest.Source(input.Source))
+	}
+	if input.ExpectedArrivalAt != nil {
+		guestBuilder = guestBuilder.SetExpectedArrivalAt(*input.ExpectedArrivalAt)
+	}
+	if input.ExpectedDepartureAt != nil {
+		guestBuilder = guestBuilder.SetExpectedDepartureAt(*input.ExpectedDepartureAt)
+	} else {
+		guestBuilder = guestBuilder.SetExpectedDepartureAt(checkOutDate)
+	}
+	if bookingID, perr := uuid.Parse(input.BookingID); perr == nil {
+		guestBuilder = guestBuilder.SetBookingID(bookingID)
+	}
+	if crmID, perr := uuid.Parse(input.CRMContactID); perr == nil {
+		guestBuilder = guestBuilder.SetCrmContactID(crmID)
+	}
+	guest, err := guestBuilder.Save(r.Context())
 	if err != nil {
 		_ = tx.Rollback()
 		h.log.Error("create room guest failed", zap.Error(err))
@@ -454,11 +520,14 @@ func (h *HotelHandler) CheckOut(w http.ResponseWriter, r *http.Request) {
 }
 
 type postFolioInput struct {
-	Description string     `json:"description"`
-	Amount      float64    `json:"amount"`
-	ChargeType  string     `json:"charge_type"`
-	POSOrderID  *uuid.UUID `json:"pos_order_id,omitempty"`
-	CreatedBy   string     `json:"created_by"`
+	Description       string     `json:"description"`
+	Amount            float64    `json:"amount"`
+	ChargeType        string     `json:"charge_type"`
+	POSOrderID        *uuid.UUID `json:"pos_order_id,omitempty"`
+	InventorySku      string     `json:"inventory_sku,omitempty"`
+	InventoryBundleID *uuid.UUID `json:"inventory_bundle_id,omitempty"`
+	Quantity          float64    `json:"quantity,omitempty"`
+	CreatedBy         string     `json:"created_by"`
 }
 
 // PostFolioCharge handles POST /{tenantID}/hotel/rooms/{id}/folio
@@ -507,12 +576,47 @@ func (h *HotelHandler) PostFolioCharge(w http.ResponseWriter, r *http.Request) {
 	if input.POSOrderID != nil {
 		c = c.SetPosOrderID(*input.POSOrderID)
 	}
+	if input.InventorySku != "" {
+		c = c.SetInventorySku(input.InventorySku)
+	}
+	if input.InventoryBundleID != nil {
+		c = c.SetInventoryBundleID(*input.InventoryBundleID)
+	}
 
 	item, err := c.Save(r.Context())
 	if err != nil {
 		h.log.Error("post folio charge failed", zap.Error(err))
 		jsonError(w, "failed to post charge", http.StatusInternalServerError)
 		return
+	}
+
+	// Backflush stock for a direct consumable folio charge (minibar/room-service/food)
+	// that did NOT originate from a POS order — order-sourced charges already backflush
+	// via pos.sale.finalized, so we skip those to avoid double deduction.
+	if h.inventoryClient != nil && input.InventorySku != "" && input.POSOrderID == nil {
+		qty := input.Quantity
+		if qty <= 0 {
+			qty = 1
+		}
+		go func(sku string, q float64) {
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			if cErr := h.inventoryClient.RecordConsumption(ctx, tid.String(), inventory.ConsumptionRequest{
+				OrderID: item.ID.String(),
+				Items:   []inventory.ConsumptionItem{{SKU: sku, Quantity: q}},
+			}); cErr != nil {
+				h.log.Warn("folio charge backflush failed", zap.String("sku", sku), zap.Error(cErr))
+				if h.publisher != nil {
+					_ = h.publisher.PublishInventoryConsumptionFailed(context.Background(), tid, map[string]any{
+						"folio_item_id": item.ID.String(),
+						"tenant_id":     tid.String(),
+						"sku":           sku,
+						"quantity":      q,
+						"error":         cErr.Error(),
+					})
+				}
+			}
+		}(input.InventorySku, qty)
 	}
 
 	if h.publisher != nil {
@@ -907,9 +1011,9 @@ func (h *HotelHandler) LateCheckout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	jsonOK(w, map[string]any{
-		"guest_id":              guest.ID,
+		"guest_id":               guest.ID,
 		"late_checkout_approved": true,
-		"surcharge_amount":      input.SurchargeAmount,
+		"surcharge_amount":       input.SurchargeAmount,
 	})
 }
 

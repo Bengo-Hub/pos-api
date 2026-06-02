@@ -32,7 +32,12 @@ func (RoomAmenity) Fields() []ent.Field {
 		field.Enum("billing_mode").
 			Values("free", "per_session", "per_day", "per_night").
 			Default("free"),
-		field.Float("rate").Min(0).Default(0),
+		field.UUID("inventory_item_id", uuid.UUID{}).
+			Optional().
+			Nillable().
+			Comment("Ref to inventory-api SERVICE Item (use_case=AMENITY) — authoritative amenity & rate master"),
+		field.Float("rate").Min(0).Default(0).
+			Comment("DEPRECATED as authoritative: rate master lives in inventory-api ItemPricing. Synced/read-through snapshot; kept for transition"),
 		field.String("currency").Default("KES"),
 		field.Bool("is_active").Default(true),
 		field.JSON("metadata", map[string]any{}).Default(map[string]any{}),

@@ -77,6 +77,60 @@ func (_u *POSCatalogOverrideUpdate) SetNillableInventorySku(v *string) *POSCatal
 	return _u
 }
 
+// SetInventoryItemID sets the "inventory_item_id" field.
+func (_u *POSCatalogOverrideUpdate) SetInventoryItemID(v uuid.UUID) *POSCatalogOverrideUpdate {
+	_u.mutation.SetInventoryItemID(v)
+	return _u
+}
+
+// SetNillableInventoryItemID sets the "inventory_item_id" field if the given value is not nil.
+func (_u *POSCatalogOverrideUpdate) SetNillableInventoryItemID(v *uuid.UUID) *POSCatalogOverrideUpdate {
+	if v != nil {
+		_u.SetInventoryItemID(*v)
+	}
+	return _u
+}
+
+// ClearInventoryItemID clears the value of the "inventory_item_id" field.
+func (_u *POSCatalogOverrideUpdate) ClearInventoryItemID() *POSCatalogOverrideUpdate {
+	_u.mutation.ClearInventoryItemID()
+	return _u
+}
+
+// SetItemUseCase sets the "item_use_case" field.
+func (_u *POSCatalogOverrideUpdate) SetItemUseCase(v string) *POSCatalogOverrideUpdate {
+	_u.mutation.SetItemUseCase(v)
+	return _u
+}
+
+// SetNillableItemUseCase sets the "item_use_case" field if the given value is not nil.
+func (_u *POSCatalogOverrideUpdate) SetNillableItemUseCase(v *string) *POSCatalogOverrideUpdate {
+	if v != nil {
+		_u.SetItemUseCase(*v)
+	}
+	return _u
+}
+
+// ClearItemUseCase clears the value of the "item_use_case" field.
+func (_u *POSCatalogOverrideUpdate) ClearItemUseCase() *POSCatalogOverrideUpdate {
+	_u.mutation.ClearItemUseCase()
+	return _u
+}
+
+// SetIsBundle sets the "is_bundle" field.
+func (_u *POSCatalogOverrideUpdate) SetIsBundle(v bool) *POSCatalogOverrideUpdate {
+	_u.mutation.SetIsBundle(v)
+	return _u
+}
+
+// SetNillableIsBundle sets the "is_bundle" field if the given value is not nil.
+func (_u *POSCatalogOverrideUpdate) SetNillableIsBundle(v *bool) *POSCatalogOverrideUpdate {
+	if v != nil {
+		_u.SetIsBundle(*v)
+	}
+	return _u
+}
+
 // SetSellingPrice sets the "selling_price" field.
 func (_u *POSCatalogOverrideUpdate) SetSellingPrice(v float64) *POSCatalogOverrideUpdate {
 	_u.mutation.ResetSellingPrice()
@@ -432,6 +486,21 @@ func (_u *POSCatalogOverrideUpdate) sqlSave(ctx context.Context) (_node int, err
 	if value, ok := _u.mutation.InventorySku(); ok {
 		_spec.SetField(poscatalogoverride.FieldInventorySku, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.InventoryItemID(); ok {
+		_spec.SetField(poscatalogoverride.FieldInventoryItemID, field.TypeUUID, value)
+	}
+	if _u.mutation.InventoryItemIDCleared() {
+		_spec.ClearField(poscatalogoverride.FieldInventoryItemID, field.TypeUUID)
+	}
+	if value, ok := _u.mutation.ItemUseCase(); ok {
+		_spec.SetField(poscatalogoverride.FieldItemUseCase, field.TypeString, value)
+	}
+	if _u.mutation.ItemUseCaseCleared() {
+		_spec.ClearField(poscatalogoverride.FieldItemUseCase, field.TypeString)
+	}
+	if value, ok := _u.mutation.IsBundle(); ok {
+		_spec.SetField(poscatalogoverride.FieldIsBundle, field.TypeBool, value)
+	}
 	if value, ok := _u.mutation.SellingPrice(); ok {
 		_spec.SetField(poscatalogoverride.FieldSellingPrice, field.TypeFloat64, value)
 	}
@@ -574,6 +643,60 @@ func (_u *POSCatalogOverrideUpdateOne) SetInventorySku(v string) *POSCatalogOver
 func (_u *POSCatalogOverrideUpdateOne) SetNillableInventorySku(v *string) *POSCatalogOverrideUpdateOne {
 	if v != nil {
 		_u.SetInventorySku(*v)
+	}
+	return _u
+}
+
+// SetInventoryItemID sets the "inventory_item_id" field.
+func (_u *POSCatalogOverrideUpdateOne) SetInventoryItemID(v uuid.UUID) *POSCatalogOverrideUpdateOne {
+	_u.mutation.SetInventoryItemID(v)
+	return _u
+}
+
+// SetNillableInventoryItemID sets the "inventory_item_id" field if the given value is not nil.
+func (_u *POSCatalogOverrideUpdateOne) SetNillableInventoryItemID(v *uuid.UUID) *POSCatalogOverrideUpdateOne {
+	if v != nil {
+		_u.SetInventoryItemID(*v)
+	}
+	return _u
+}
+
+// ClearInventoryItemID clears the value of the "inventory_item_id" field.
+func (_u *POSCatalogOverrideUpdateOne) ClearInventoryItemID() *POSCatalogOverrideUpdateOne {
+	_u.mutation.ClearInventoryItemID()
+	return _u
+}
+
+// SetItemUseCase sets the "item_use_case" field.
+func (_u *POSCatalogOverrideUpdateOne) SetItemUseCase(v string) *POSCatalogOverrideUpdateOne {
+	_u.mutation.SetItemUseCase(v)
+	return _u
+}
+
+// SetNillableItemUseCase sets the "item_use_case" field if the given value is not nil.
+func (_u *POSCatalogOverrideUpdateOne) SetNillableItemUseCase(v *string) *POSCatalogOverrideUpdateOne {
+	if v != nil {
+		_u.SetItemUseCase(*v)
+	}
+	return _u
+}
+
+// ClearItemUseCase clears the value of the "item_use_case" field.
+func (_u *POSCatalogOverrideUpdateOne) ClearItemUseCase() *POSCatalogOverrideUpdateOne {
+	_u.mutation.ClearItemUseCase()
+	return _u
+}
+
+// SetIsBundle sets the "is_bundle" field.
+func (_u *POSCatalogOverrideUpdateOne) SetIsBundle(v bool) *POSCatalogOverrideUpdateOne {
+	_u.mutation.SetIsBundle(v)
+	return _u
+}
+
+// SetNillableIsBundle sets the "is_bundle" field if the given value is not nil.
+func (_u *POSCatalogOverrideUpdateOne) SetNillableIsBundle(v *bool) *POSCatalogOverrideUpdateOne {
+	if v != nil {
+		_u.SetIsBundle(*v)
 	}
 	return _u
 }
@@ -962,6 +1085,21 @@ func (_u *POSCatalogOverrideUpdateOne) sqlSave(ctx context.Context) (_node *POSC
 	}
 	if value, ok := _u.mutation.InventorySku(); ok {
 		_spec.SetField(poscatalogoverride.FieldInventorySku, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.InventoryItemID(); ok {
+		_spec.SetField(poscatalogoverride.FieldInventoryItemID, field.TypeUUID, value)
+	}
+	if _u.mutation.InventoryItemIDCleared() {
+		_spec.ClearField(poscatalogoverride.FieldInventoryItemID, field.TypeUUID)
+	}
+	if value, ok := _u.mutation.ItemUseCase(); ok {
+		_spec.SetField(poscatalogoverride.FieldItemUseCase, field.TypeString, value)
+	}
+	if _u.mutation.ItemUseCaseCleared() {
+		_spec.ClearField(poscatalogoverride.FieldItemUseCase, field.TypeString)
+	}
+	if value, ok := _u.mutation.IsBundle(); ok {
+		_spec.SetField(poscatalogoverride.FieldIsBundle, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.SellingPrice(); ok {
 		_spec.SetField(poscatalogoverride.FieldSellingPrice, field.TypeFloat64, value)

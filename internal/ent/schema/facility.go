@@ -31,8 +31,13 @@ func (Facility) Fields() []ent.Field {
 		field.Int("capacity").
 			Default(0).
 			Min(0),
+		field.UUID("inventory_item_id", uuid.UUID{}).
+			Optional().
+			Nillable().
+			Comment("Ref to inventory-api SERVICE Item (use_case=HOSPITALITY_FACILITY/CONFERENCE) — authoritative facility & rate master"),
 		field.Float("rate_per_session").
-			Min(0),
+			Min(0).
+			Comment("DEPRECATED as authoritative: rate master lives in inventory-api ItemPricing. Synced/read-through snapshot; kept for transition"),
 		field.String("currency").
 			Default("KES"),
 		field.String("opening_time").
@@ -44,6 +49,16 @@ func (Facility) Fields() []ent.Field {
 		field.Enum("status").
 			Values("available", "occupied", "maintenance", "closed").
 			Default("available"),
+		field.JSON("setup_styles", []string{}).
+			Optional().
+			Comment("Supported conference layouts: theatre/classroom/boardroom/u_shape/cabaret/banquet"),
+		field.Bool("divisible").
+			Default(false).
+			Comment("True if the hall can be split into sub-rooms"),
+		field.UUID("parent_facility_id", uuid.UUID{}).
+			Optional().
+			Nillable().
+			Comment("Parent hall when this facility is a divisible sub-room"),
 		field.Bool("is_active").
 			Default(true),
 		field.JSON("metadata", map[string]any{}).

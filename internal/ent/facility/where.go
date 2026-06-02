@@ -76,6 +76,11 @@ func Capacity(v int) predicate.Facility {
 	return predicate.Facility(sql.FieldEQ(FieldCapacity, v))
 }
 
+// InventoryItemID applies equality check predicate on the "inventory_item_id" field. It's identical to InventoryItemIDEQ.
+func InventoryItemID(v uuid.UUID) predicate.Facility {
+	return predicate.Facility(sql.FieldEQ(FieldInventoryItemID, v))
+}
+
 // RatePerSession applies equality check predicate on the "rate_per_session" field. It's identical to RatePerSessionEQ.
 func RatePerSession(v float64) predicate.Facility {
 	return predicate.Facility(sql.FieldEQ(FieldRatePerSession, v))
@@ -94,6 +99,16 @@ func OpeningTime(v string) predicate.Facility {
 // ClosingTime applies equality check predicate on the "closing_time" field. It's identical to ClosingTimeEQ.
 func ClosingTime(v string) predicate.Facility {
 	return predicate.Facility(sql.FieldEQ(FieldClosingTime, v))
+}
+
+// Divisible applies equality check predicate on the "divisible" field. It's identical to DivisibleEQ.
+func Divisible(v bool) predicate.Facility {
+	return predicate.Facility(sql.FieldEQ(FieldDivisible, v))
+}
+
+// ParentFacilityID applies equality check predicate on the "parent_facility_id" field. It's identical to ParentFacilityIDEQ.
+func ParentFacilityID(v uuid.UUID) predicate.Facility {
+	return predicate.Facility(sql.FieldEQ(FieldParentFacilityID, v))
 }
 
 // IsActive applies equality check predicate on the "is_active" field. It's identical to IsActiveEQ.
@@ -314,6 +329,56 @@ func CapacityLT(v int) predicate.Facility {
 // CapacityLTE applies the LTE predicate on the "capacity" field.
 func CapacityLTE(v int) predicate.Facility {
 	return predicate.Facility(sql.FieldLTE(FieldCapacity, v))
+}
+
+// InventoryItemIDEQ applies the EQ predicate on the "inventory_item_id" field.
+func InventoryItemIDEQ(v uuid.UUID) predicate.Facility {
+	return predicate.Facility(sql.FieldEQ(FieldInventoryItemID, v))
+}
+
+// InventoryItemIDNEQ applies the NEQ predicate on the "inventory_item_id" field.
+func InventoryItemIDNEQ(v uuid.UUID) predicate.Facility {
+	return predicate.Facility(sql.FieldNEQ(FieldInventoryItemID, v))
+}
+
+// InventoryItemIDIn applies the In predicate on the "inventory_item_id" field.
+func InventoryItemIDIn(vs ...uuid.UUID) predicate.Facility {
+	return predicate.Facility(sql.FieldIn(FieldInventoryItemID, vs...))
+}
+
+// InventoryItemIDNotIn applies the NotIn predicate on the "inventory_item_id" field.
+func InventoryItemIDNotIn(vs ...uuid.UUID) predicate.Facility {
+	return predicate.Facility(sql.FieldNotIn(FieldInventoryItemID, vs...))
+}
+
+// InventoryItemIDGT applies the GT predicate on the "inventory_item_id" field.
+func InventoryItemIDGT(v uuid.UUID) predicate.Facility {
+	return predicate.Facility(sql.FieldGT(FieldInventoryItemID, v))
+}
+
+// InventoryItemIDGTE applies the GTE predicate on the "inventory_item_id" field.
+func InventoryItemIDGTE(v uuid.UUID) predicate.Facility {
+	return predicate.Facility(sql.FieldGTE(FieldInventoryItemID, v))
+}
+
+// InventoryItemIDLT applies the LT predicate on the "inventory_item_id" field.
+func InventoryItemIDLT(v uuid.UUID) predicate.Facility {
+	return predicate.Facility(sql.FieldLT(FieldInventoryItemID, v))
+}
+
+// InventoryItemIDLTE applies the LTE predicate on the "inventory_item_id" field.
+func InventoryItemIDLTE(v uuid.UUID) predicate.Facility {
+	return predicate.Facility(sql.FieldLTE(FieldInventoryItemID, v))
+}
+
+// InventoryItemIDIsNil applies the IsNil predicate on the "inventory_item_id" field.
+func InventoryItemIDIsNil() predicate.Facility {
+	return predicate.Facility(sql.FieldIsNull(FieldInventoryItemID))
+}
+
+// InventoryItemIDNotNil applies the NotNil predicate on the "inventory_item_id" field.
+func InventoryItemIDNotNil() predicate.Facility {
+	return predicate.Facility(sql.FieldNotNull(FieldInventoryItemID))
 }
 
 // RatePerSessionEQ applies the EQ predicate on the "rate_per_session" field.
@@ -569,6 +634,76 @@ func StatusIn(vs ...Status) predicate.Facility {
 // StatusNotIn applies the NotIn predicate on the "status" field.
 func StatusNotIn(vs ...Status) predicate.Facility {
 	return predicate.Facility(sql.FieldNotIn(FieldStatus, vs...))
+}
+
+// SetupStylesIsNil applies the IsNil predicate on the "setup_styles" field.
+func SetupStylesIsNil() predicate.Facility {
+	return predicate.Facility(sql.FieldIsNull(FieldSetupStyles))
+}
+
+// SetupStylesNotNil applies the NotNil predicate on the "setup_styles" field.
+func SetupStylesNotNil() predicate.Facility {
+	return predicate.Facility(sql.FieldNotNull(FieldSetupStyles))
+}
+
+// DivisibleEQ applies the EQ predicate on the "divisible" field.
+func DivisibleEQ(v bool) predicate.Facility {
+	return predicate.Facility(sql.FieldEQ(FieldDivisible, v))
+}
+
+// DivisibleNEQ applies the NEQ predicate on the "divisible" field.
+func DivisibleNEQ(v bool) predicate.Facility {
+	return predicate.Facility(sql.FieldNEQ(FieldDivisible, v))
+}
+
+// ParentFacilityIDEQ applies the EQ predicate on the "parent_facility_id" field.
+func ParentFacilityIDEQ(v uuid.UUID) predicate.Facility {
+	return predicate.Facility(sql.FieldEQ(FieldParentFacilityID, v))
+}
+
+// ParentFacilityIDNEQ applies the NEQ predicate on the "parent_facility_id" field.
+func ParentFacilityIDNEQ(v uuid.UUID) predicate.Facility {
+	return predicate.Facility(sql.FieldNEQ(FieldParentFacilityID, v))
+}
+
+// ParentFacilityIDIn applies the In predicate on the "parent_facility_id" field.
+func ParentFacilityIDIn(vs ...uuid.UUID) predicate.Facility {
+	return predicate.Facility(sql.FieldIn(FieldParentFacilityID, vs...))
+}
+
+// ParentFacilityIDNotIn applies the NotIn predicate on the "parent_facility_id" field.
+func ParentFacilityIDNotIn(vs ...uuid.UUID) predicate.Facility {
+	return predicate.Facility(sql.FieldNotIn(FieldParentFacilityID, vs...))
+}
+
+// ParentFacilityIDGT applies the GT predicate on the "parent_facility_id" field.
+func ParentFacilityIDGT(v uuid.UUID) predicate.Facility {
+	return predicate.Facility(sql.FieldGT(FieldParentFacilityID, v))
+}
+
+// ParentFacilityIDGTE applies the GTE predicate on the "parent_facility_id" field.
+func ParentFacilityIDGTE(v uuid.UUID) predicate.Facility {
+	return predicate.Facility(sql.FieldGTE(FieldParentFacilityID, v))
+}
+
+// ParentFacilityIDLT applies the LT predicate on the "parent_facility_id" field.
+func ParentFacilityIDLT(v uuid.UUID) predicate.Facility {
+	return predicate.Facility(sql.FieldLT(FieldParentFacilityID, v))
+}
+
+// ParentFacilityIDLTE applies the LTE predicate on the "parent_facility_id" field.
+func ParentFacilityIDLTE(v uuid.UUID) predicate.Facility {
+	return predicate.Facility(sql.FieldLTE(FieldParentFacilityID, v))
+}
+
+// ParentFacilityIDIsNil applies the IsNil predicate on the "parent_facility_id" field.
+func ParentFacilityIDIsNil() predicate.Facility {
+	return predicate.Facility(sql.FieldIsNull(FieldParentFacilityID))
+}
+
+// ParentFacilityIDNotNil applies the NotNil predicate on the "parent_facility_id" field.
+func ParentFacilityIDNotNil() predicate.Facility {
+	return predicate.Facility(sql.FieldNotNull(FieldParentFacilityID))
 }
 
 // IsActiveEQ applies the EQ predicate on the "is_active" field.

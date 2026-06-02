@@ -21,12 +21,24 @@ type Promotion struct {
 	ID uuid.UUID `json:"id,omitempty"`
 	// TenantID holds the value of the "tenant_id" field.
 	TenantID uuid.UUID `json:"tenant_id,omitempty"`
+	// Outlet scope; nil = applies to all outlets for this tenant
+	OutletID *uuid.UUID `json:"outlet_id,omitempty"`
 	// Name holds the value of the "name" field.
 	Name string `json:"name,omitempty"`
 	// Description holds the value of the "description" field.
 	Description string `json:"description,omitempty"`
 	// PromoCode holds the value of the "promo_code" field.
 	PromoCode *string `json:"promo_code,omitempty"`
+	// code = manual promo code; happy_hour = time-windowed auto discount; auto = always-on auto discount
+	PromoKind promotion.PromoKind `json:"promo_kind,omitempty"`
+	// Days the promo is active (0=Sun..6=Sat); empty = all days. Used by happy_hour
+	DaysOfWeek []int `json:"days_of_week,omitempty"`
+	// Daily activation start time HH:MM (happy_hour)
+	WindowStart string `json:"window_start,omitempty"`
+	// Daily activation end time HH:MM (happy_hour)
+	WindowEnd string `json:"window_end,omitempty"`
+	// Apply automatically at checkout without a code (happy_hour/auto)
+	AutoApply bool `json:"auto_apply,omitempty"`
 	// Status holds the value of the "status" field.
 	Status string `json:"status,omitempty"`
 	// StartAt holds the value of the "start_at" field.
@@ -43,9 +55,13 @@ func (*Promotion) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case promotion.FieldMetadata:
+		case promotion.FieldOutletID:
+			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
+		case promotion.FieldDaysOfWeek, promotion.FieldMetadata:
 			values[i] = new([]byte)
-		case promotion.FieldName, promotion.FieldDescription, promotion.FieldPromoCode, promotion.FieldStatus:
+		case promotion.FieldAutoApply:
+			values[i] = new(sql.NullBool)
+		case promotion.FieldName, promotion.FieldDescription, promotion.FieldPromoCode, promotion.FieldPromoKind, promotion.FieldWindowStart, promotion.FieldWindowEnd, promotion.FieldStatus:
 			values[i] = new(sql.NullString)
 		case promotion.FieldStartAt, promotion.FieldEndAt:
 			values[i] = new(sql.NullTime)
@@ -78,6 +94,13 @@ func (_m *Promotion) assignValues(columns []string, values []any) error {
 			} else if value != nil {
 				_m.TenantID = *value
 			}
+		case promotion.FieldOutletID:
+			if value, ok := values[i].(*sql.NullScanner); !ok {
+				return fmt.Errorf("unexpected type %T for field outlet_id", values[i])
+			} else if value.Valid {
+				_m.OutletID = new(uuid.UUID)
+				*_m.OutletID = *value.S.(*uuid.UUID)
+			}
 		case promotion.FieldName:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field name", values[i])
@@ -96,6 +119,38 @@ func (_m *Promotion) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.PromoCode = new(string)
 				*_m.PromoCode = value.String
+			}
+		case promotion.FieldPromoKind:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field promo_kind", values[i])
+			} else if value.Valid {
+				_m.PromoKind = promotion.PromoKind(value.String)
+			}
+		case promotion.FieldDaysOfWeek:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field days_of_week", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.DaysOfWeek); err != nil {
+					return fmt.Errorf("unmarshal field days_of_week: %w", err)
+				}
+			}
+		case promotion.FieldWindowStart:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field window_start", values[i])
+			} else if value.Valid {
+				_m.WindowStart = value.String
+			}
+		case promotion.FieldWindowEnd:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field window_end", values[i])
+			} else if value.Valid {
+				_m.WindowEnd = value.String
+			}
+		case promotion.FieldAutoApply:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field auto_apply", values[i])
+			} else if value.Valid {
+				_m.AutoApply = value.Bool
 			}
 		case promotion.FieldStatus:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -163,6 +218,11 @@ func (_m *Promotion) String() string {
 	builder.WriteString("tenant_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.TenantID))
 	builder.WriteString(", ")
+	if v := _m.OutletID; v != nil {
+		builder.WriteString("outlet_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
 	builder.WriteString("name=")
 	builder.WriteString(_m.Name)
 	builder.WriteString(", ")
@@ -173,6 +233,21 @@ func (_m *Promotion) String() string {
 		builder.WriteString("promo_code=")
 		builder.WriteString(*v)
 	}
+	builder.WriteString(", ")
+	builder.WriteString("promo_kind=")
+	builder.WriteString(fmt.Sprintf("%v", _m.PromoKind))
+	builder.WriteString(", ")
+	builder.WriteString("days_of_week=")
+	builder.WriteString(fmt.Sprintf("%v", _m.DaysOfWeek))
+	builder.WriteString(", ")
+	builder.WriteString("window_start=")
+	builder.WriteString(_m.WindowStart)
+	builder.WriteString(", ")
+	builder.WriteString("window_end=")
+	builder.WriteString(_m.WindowEnd)
+	builder.WriteString(", ")
+	builder.WriteString("auto_apply=")
+	builder.WriteString(fmt.Sprintf("%v", _m.AutoApply))
 	builder.WriteString(", ")
 	builder.WriteString("status=")
 	builder.WriteString(_m.Status)

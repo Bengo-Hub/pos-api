@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/Bengo-Hub/httpware"
 	"github.com/Bengo-Hub/pagination"
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/bengobox/pos-service/internal/ent"
 	"github.com/bengobox/pos-service/internal/ent/promotion"
+	"github.com/bengobox/pos-service/internal/ent/promotionrule"
 	promotions "github.com/bengobox/pos-service/internal/modules/promotions"
 )
 
@@ -60,6 +62,19 @@ type createPromoInput struct {
 	StartAt    *time.Time `json:"startAt"`
 	EndAt      *time.Time `json:"endAt"`
 	UsageLimit int        `json:"usageLimit"`
+	// Happy-hour / auto-apply fields
+	PromoKind   string `json:"promo_kind"`   // code | happy_hour | auto
+	OutletID    string `json:"outlet_id"`    // optional outlet scope
+	DaysOfWeek  []int  `json:"days_of_week"` // 0=Sun..6=Sat
+	WindowStart string `json:"window_start"` // HH:MM
+	WindowEnd   string `json:"window_end"`   // HH:MM
+	AutoApply   bool   `json:"auto_apply"`
+	// Discount rule
+	ScopeType     string   `json:"scope_type"`    // all | category | item
+	ScopeIDs      []string `json:"scope_ids"`     // inventory category ids / skus
+	DiscountType  string   `json:"discount_type"` // percentage | fixed_amount | fixed_price
+	DiscountValue float64  `json:"discount_value"`
+	MaxDiscount   *float64 `json:"max_discount"`
 }
 
 // CreatePromotion handles POST /{tenantID}/pos/promotions
@@ -82,9 +97,25 @@ func (h *PromotionHandler) CreatePromotion(w http.ResponseWriter, r *http.Reques
 
 	builder := h.client.Promotion.Create().
 		SetTenantID(tid).
+		SetName(input.Name).
 		SetPromoCode(input.PromoCode).
+		SetAutoApply(input.AutoApply).
 		SetStatus("active")
-
+	if input.PromoKind != "" {
+		builder = builder.SetPromoKind(promotion.PromoKind(input.PromoKind))
+	}
+	if input.WindowStart != "" {
+		builder = builder.SetWindowStart(input.WindowStart)
+	}
+	if input.WindowEnd != "" {
+		builder = builder.SetWindowEnd(input.WindowEnd)
+	}
+	if len(input.DaysOfWeek) > 0 {
+		builder = builder.SetDaysOfWeek(input.DaysOfWeek)
+	}
+	if oid, perr := uuid.Parse(input.OutletID); perr == nil {
+		builder = builder.SetOutletID(oid)
+	}
 	if input.StartAt != nil {
 		builder.SetStartAt(*input.StartAt)
 	}
@@ -98,8 +129,55 @@ func (h *PromotionHandler) CreatePromotion(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	// Persist the discount rule when provided (scope + discount type/value/cap).
+	if input.DiscountValue > 0 || input.ScopeType != "" {
+		scopeType := input.ScopeType
+		if scopeType == "" {
+			scopeType = "all"
+		}
+		discountType := input.DiscountType
+		if discountType == "" {
+			discountType = "percentage"
+		}
+		rb := h.client.PromotionRule.Create().
+			SetPromotionID(promo.ID).
+			SetRuleType("discount").
+			SetScopeType(promotionrule.ScopeType(scopeType)).
+			SetScopeIds(input.ScopeIDs).
+			SetDiscountType(promotionrule.DiscountType(discountType)).
+			SetDiscountValue(input.DiscountValue)
+		if input.MaxDiscount != nil {
+			rb = rb.SetMaxDiscount(*input.MaxDiscount)
+		}
+		if _, rerr := rb.Save(r.Context()); rerr != nil {
+			h.log.Error("create promotion rule failed", zap.Error(rerr))
+		}
+	}
+
 	w.WriteHeader(http.StatusCreated)
 	jsonOK(w, promo)
+}
+
+// GetActiveHappyHours handles GET /{tenantID}/pos/promotions/happy-hour/active —
+// returns auto-apply happy-hour promotions live right now for the request's outlet.
+func (h *PromotionHandler) GetActiveHappyHours(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+	var outletID *uuid.UUID
+	if oidStr := httpware.GetOutletID(r.Context()); oidStr != "" {
+		if oid, perr := uuid.Parse(oidStr); perr == nil {
+			outletID = &oid
+		}
+	}
+	active, err := h.promoSvc.ActiveHappyHours(r.Context(), tid, outletID, time.Now())
+	if err != nil {
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	jsonOK(w, active)
 }
 
 // ApplyPromoCode handles POST /{tenantID}/pos/promotions/apply

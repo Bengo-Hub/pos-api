@@ -430,6 +430,61 @@ var (
 			},
 		},
 	}
+	// EventBookingsColumns holds the columns for the "event_bookings" table.
+	EventBookingsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "outlet_id", Type: field.TypeUUID},
+		{Name: "facility_id", Type: field.TypeUUID},
+		{Name: "inventory_bundle_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "event_type", Type: field.TypeEnum, Enums: []string{"conference", "wedding", "party", "anniversary", "meeting", "other"}, Default: "conference"},
+		{Name: "title", Type: field.TypeString},
+		{Name: "client_name", Type: field.TypeString},
+		{Name: "contact_phone", Type: field.TypeString, Nullable: true},
+		{Name: "contact_email", Type: field.TypeString, Nullable: true},
+		{Name: "crm_contact_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "start_at", Type: field.TypeTime},
+		{Name: "end_at", Type: field.TypeTime},
+		{Name: "conference_days", Type: field.TypeInt, Default: 1},
+		{Name: "delegate_count", Type: field.TypeInt, Default: 0},
+		{Name: "expected_pax", Type: field.TypeInt, Default: 0},
+		{Name: "guaranteed_minimum_covers", Type: field.TypeInt, Default: 0},
+		{Name: "setup_style", Type: field.TypeString, Nullable: true},
+		{Name: "deposit_amount", Type: field.TypeFloat64, Default: 0},
+		{Name: "deposit_refundable", Type: field.TypeBool, Default: true},
+		{Name: "total_amount", Type: field.TypeFloat64, Default: 0},
+		{Name: "currency", Type: field.TypeString, Default: "KES"},
+		{Name: "special_requests", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "master_folio_room_guest_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"inquiry", "tentative", "confirmed", "in_progress", "completed", "cancelled"}, Default: "confirmed"},
+		{Name: "created_by", Type: field.TypeUUID},
+		{Name: "metadata", Type: field.TypeJSON},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// EventBookingsTable holds the schema information for the "event_bookings" table.
+	EventBookingsTable = &schema.Table{
+		Name:       "event_bookings",
+		Columns:    EventBookingsColumns,
+		PrimaryKey: []*schema.Column{EventBookingsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "eventbooking_tenant_id_outlet_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{EventBookingsColumns[1], EventBookingsColumns[2], EventBookingsColumns[24]},
+			},
+			{
+				Name:    "eventbooking_tenant_id_facility_id",
+				Unique:  false,
+				Columns: []*schema.Column{EventBookingsColumns[1], EventBookingsColumns[3]},
+			},
+			{
+				Name:    "eventbooking_tenant_id_start_at",
+				Unique:  false,
+				Columns: []*schema.Column{EventBookingsColumns[1], EventBookingsColumns[11]},
+			},
+		},
+	}
 	// FacilitiesColumns holds the columns for the "facilities" table.
 	FacilitiesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -438,11 +493,15 @@ var (
 		{Name: "name", Type: field.TypeString},
 		{Name: "facility_type", Type: field.TypeEnum, Enums: []string{"pool", "gym", "conference", "spa", "kids_area", "other"}, Default: "other"},
 		{Name: "capacity", Type: field.TypeInt, Default: 0},
+		{Name: "inventory_item_id", Type: field.TypeUUID, Nullable: true},
 		{Name: "rate_per_session", Type: field.TypeFloat64},
 		{Name: "currency", Type: field.TypeString, Default: "KES"},
 		{Name: "opening_time", Type: field.TypeString, Default: "06:00"},
 		{Name: "closing_time", Type: field.TypeString, Default: "22:00"},
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"available", "occupied", "maintenance", "closed"}, Default: "available"},
+		{Name: "setup_styles", Type: field.TypeJSON, Nullable: true},
+		{Name: "divisible", Type: field.TypeBool, Default: false},
+		{Name: "parent_facility_id", Type: field.TypeUUID, Nullable: true},
 		{Name: "is_active", Type: field.TypeBool, Default: true},
 		{Name: "metadata", Type: field.TypeJSON},
 		{Name: "created_at", Type: field.TypeTime},
@@ -462,7 +521,7 @@ var (
 			{
 				Name:    "facility_tenant_id_status",
 				Unique:  false,
-				Columns: []*schema.Column{FacilitiesColumns[1], FacilitiesColumns[10]},
+				Columns: []*schema.Column{FacilitiesColumns[1], FacilitiesColumns[11]},
 			},
 		},
 	}
@@ -958,6 +1017,61 @@ var (
 			},
 		},
 	}
+	// MealEntitlementsColumns holds the columns for the "meal_entitlements" table.
+	MealEntitlementsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "delegate_ref", Type: field.TypeString, Nullable: true},
+		{Name: "conference_day", Type: field.TypeTime},
+		{Name: "meal_period", Type: field.TypeEnum, Enums: []string{"breakfast", "am_break", "lunch", "pm_break", "dinner"}},
+		{Name: "code", Type: field.TypeString},
+		{Name: "valid_window_start", Type: field.TypeTime, Nullable: true},
+		{Name: "valid_window_end", Type: field.TypeTime, Nullable: true},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"issued", "redeemed", "expired", "void"}, Default: "issued"},
+		{Name: "redeemed_at", Type: field.TypeTime, Nullable: true},
+		{Name: "redeemed_outlet_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "redeemed_by", Type: field.TypeUUID, Nullable: true},
+		{Name: "pos_order_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "event_booking_id", Type: field.TypeUUID},
+	}
+	// MealEntitlementsTable holds the schema information for the "meal_entitlements" table.
+	MealEntitlementsTable = &schema.Table{
+		Name:       "meal_entitlements",
+		Columns:    MealEntitlementsColumns,
+		PrimaryKey: []*schema.Column{MealEntitlementsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "meal_entitlements_event_bookings_meal_entitlements",
+				Columns:    []*schema.Column{MealEntitlementsColumns[15]},
+				RefColumns: []*schema.Column{EventBookingsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "mealentitlement_tenant_id_code",
+				Unique:  true,
+				Columns: []*schema.Column{MealEntitlementsColumns[1], MealEntitlementsColumns[5]},
+			},
+			{
+				Name:    "mealentitlement_tenant_id_event_booking_id",
+				Unique:  false,
+				Columns: []*schema.Column{MealEntitlementsColumns[1], MealEntitlementsColumns[15]},
+			},
+			{
+				Name:    "mealentitlement_tenant_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{MealEntitlementsColumns[1], MealEntitlementsColumns[8]},
+			},
+			{
+				Name:    "mealentitlement_event_booking_id_conference_day_meal_period",
+				Unique:  false,
+				Columns: []*schema.Column{MealEntitlementsColumns[15], MealEntitlementsColumns[3], MealEntitlementsColumns[4]},
+			},
+		},
+	}
 	// ModifiersColumns holds the columns for the "modifiers" table.
 	ModifiersColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -1161,6 +1275,9 @@ var (
 		{Name: "tenant_id", Type: field.TypeUUID},
 		{Name: "outlet_id", Type: field.TypeUUID, Nullable: true},
 		{Name: "inventory_sku", Type: field.TypeString},
+		{Name: "inventory_item_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "item_use_case", Type: field.TypeString, Nullable: true},
+		{Name: "is_bundle", Type: field.TypeBool, Default: false},
 		{Name: "selling_price", Type: field.TypeFloat64, Nullable: true},
 		{Name: "currency", Type: field.TypeString, Default: "KES"},
 		{Name: "tax_status", Type: field.TypeString, Default: "taxable"},
@@ -1195,6 +1312,11 @@ var (
 				Name:    "poscatalogoverride_tenant_id_outlet_id",
 				Unique:  false,
 				Columns: []*schema.Column{PosCatalogOverridesColumns[1], PosCatalogOverridesColumns[2]},
+			},
+			{
+				Name:    "poscatalogoverride_tenant_id_inventory_item_id",
+				Unique:  false,
+				Columns: []*schema.Column{PosCatalogOverridesColumns[1], PosCatalogOverridesColumns[4]},
 			},
 		},
 	}
@@ -1861,9 +1983,15 @@ var (
 	PromotionsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
 		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "outlet_id", Type: field.TypeUUID, Nullable: true},
 		{Name: "name", Type: field.TypeString},
 		{Name: "description", Type: field.TypeString, Nullable: true},
 		{Name: "promo_code", Type: field.TypeString, Unique: true, Nullable: true},
+		{Name: "promo_kind", Type: field.TypeEnum, Enums: []string{"code", "happy_hour", "auto"}, Default: "code"},
+		{Name: "days_of_week", Type: field.TypeJSON, Nullable: true},
+		{Name: "window_start", Type: field.TypeString, Nullable: true},
+		{Name: "window_end", Type: field.TypeString, Nullable: true},
+		{Name: "auto_apply", Type: field.TypeBool, Default: false},
 		{Name: "status", Type: field.TypeString, Default: "active"},
 		{Name: "start_at", Type: field.TypeTime},
 		{Name: "end_at", Type: field.TypeTime, Nullable: true},
@@ -1894,6 +2022,11 @@ var (
 		{Name: "id", Type: field.TypeUUID},
 		{Name: "promotion_id", Type: field.TypeUUID},
 		{Name: "rule_type", Type: field.TypeString},
+		{Name: "scope_type", Type: field.TypeEnum, Enums: []string{"all", "category", "item"}, Default: "all"},
+		{Name: "scope_ids", Type: field.TypeJSON, Nullable: true},
+		{Name: "discount_type", Type: field.TypeEnum, Enums: []string{"percentage", "fixed_amount", "fixed_price"}, Default: "percentage"},
+		{Name: "discount_value", Type: field.TypeFloat64, Default: 0},
+		{Name: "max_discount", Type: field.TypeFloat64, Nullable: true},
 		{Name: "rule_config", Type: field.TypeJSON},
 	}
 	// PromotionRulesTable holds the schema information for the "promotion_rules" table.
@@ -1983,6 +2116,7 @@ var (
 		{Name: "name", Type: field.TypeString},
 		{Name: "room_type", Type: field.TypeEnum, Enums: []string{"standard", "deluxe", "suite", "presidential", "other"}, Default: "standard"},
 		{Name: "floor", Type: field.TypeInt, Default: 1},
+		{Name: "inventory_item_id", Type: field.TypeUUID, Nullable: true},
 		{Name: "rate_per_night", Type: field.TypeFloat64},
 		{Name: "currency", Type: field.TypeString, Default: "KES"},
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"available", "occupied", "cleaning", "maintenance", "reserved", "checkout"}, Default: "available"},
@@ -2010,7 +2144,7 @@ var (
 			{
 				Name:    "room_tenant_id_status",
 				Unique:  false,
-				Columns: []*schema.Column{RoomsColumns[1], RoomsColumns[9]},
+				Columns: []*schema.Column{RoomsColumns[1], RoomsColumns[10]},
 			},
 		},
 	}
@@ -2023,6 +2157,7 @@ var (
 		{Name: "amenity_type", Type: field.TypeEnum, Enums: []string{"pool", "gym", "steam_room", "sauna", "wifi", "transport", "parking", "breakfast", "spa", "golf", "laundry", "minibar", "airport_transfer", "room_service_24h", "other"}, Default: "other"},
 		{Name: "description", Type: field.TypeString, Nullable: true},
 		{Name: "billing_mode", Type: field.TypeEnum, Enums: []string{"free", "per_session", "per_day", "per_night"}, Default: "free"},
+		{Name: "inventory_item_id", Type: field.TypeUUID, Nullable: true},
 		{Name: "rate", Type: field.TypeFloat64, Default: 0},
 		{Name: "currency", Type: field.TypeString, Default: "KES"},
 		{Name: "is_active", Type: field.TypeBool, Default: true},
@@ -2090,6 +2225,51 @@ var (
 			},
 		},
 	}
+	// RoomBookingsColumns holds the columns for the "room_bookings" table.
+	RoomBookingsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "outlet_id", Type: field.TypeUUID},
+		{Name: "confirmation_no", Type: field.TypeString},
+		{Name: "lead_guest_name", Type: field.TypeString},
+		{Name: "email", Type: field.TypeString, Nullable: true},
+		{Name: "phone", Type: field.TypeString, Nullable: true},
+		{Name: "rooms_count", Type: field.TypeInt, Default: 1},
+		{Name: "arrival_date", Type: field.TypeTime},
+		{Name: "departure_date", Type: field.TypeTime},
+		{Name: "inventory_rate_plan_bundle_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "market_segment", Type: field.TypeString, Nullable: true},
+		{Name: "source", Type: field.TypeEnum, Enums: []string{"staff", "online", "api"}, Default: "staff"},
+		{Name: "crm_contact_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"confirmed", "checked_in", "checked_out", "cancelled", "no_show"}, Default: "confirmed"},
+		{Name: "created_by", Type: field.TypeUUID},
+		{Name: "metadata", Type: field.TypeJSON},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// RoomBookingsTable holds the schema information for the "room_bookings" table.
+	RoomBookingsTable = &schema.Table{
+		Name:       "room_bookings",
+		Columns:    RoomBookingsColumns,
+		PrimaryKey: []*schema.Column{RoomBookingsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "roombooking_tenant_id_confirmation_no",
+				Unique:  true,
+				Columns: []*schema.Column{RoomBookingsColumns[1], RoomBookingsColumns[3]},
+			},
+			{
+				Name:    "roombooking_tenant_id_outlet_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{RoomBookingsColumns[1], RoomBookingsColumns[2], RoomBookingsColumns[14]},
+			},
+			{
+				Name:    "roombooking_tenant_id_arrival_date",
+				Unique:  false,
+				Columns: []*schema.Column{RoomBookingsColumns[1], RoomBookingsColumns[8]},
+			},
+		},
+	}
 	// RoomFolioItemsColumns holds the columns for the "room_folio_items" table.
 	RoomFolioItemsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -2097,7 +2277,9 @@ var (
 		{Name: "description", Type: field.TypeString},
 		{Name: "amount", Type: field.TypeFloat64},
 		{Name: "currency", Type: field.TypeString, Default: "KES"},
-		{Name: "charge_type", Type: field.TypeEnum, Enums: []string{"room_charge", "food", "laundry", "minibar", "room_service", "amenity", "facility", "late_checkout", "damage", "other"}, Default: "other"},
+		{Name: "charge_type", Type: field.TypeEnum, Enums: []string{"room_charge", "food", "laundry", "minibar", "room_service", "amenity", "facility", "late_checkout", "damage", "package", "conference", "meal_voucher", "other"}, Default: "other"},
+		{Name: "inventory_sku", Type: field.TypeString, Nullable: true},
+		{Name: "inventory_bundle_id", Type: field.TypeUUID, Nullable: true},
 		{Name: "pos_order_id", Type: field.TypeUUID, Nullable: true},
 		{Name: "created_by", Type: field.TypeUUID},
 		{Name: "metadata", Type: field.TypeJSON},
@@ -2113,13 +2295,13 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "room_folio_items_rooms_folio_items",
-				Columns:    []*schema.Column{RoomFolioItemsColumns[10]},
+				Columns:    []*schema.Column{RoomFolioItemsColumns[12]},
 				RefColumns: []*schema.Column{RoomsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "room_folio_items_room_guests_folio_items",
-				Columns:    []*schema.Column{RoomFolioItemsColumns[11]},
+				Columns:    []*schema.Column{RoomFolioItemsColumns[13]},
 				RefColumns: []*schema.Column{RoomGuestsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -2128,12 +2310,12 @@ var (
 			{
 				Name:    "roomfolioitem_tenant_id_room_id",
 				Unique:  false,
-				Columns: []*schema.Column{RoomFolioItemsColumns[1], RoomFolioItemsColumns[10]},
+				Columns: []*schema.Column{RoomFolioItemsColumns[1], RoomFolioItemsColumns[12]},
 			},
 			{
 				Name:    "roomfolioitem_tenant_id_room_guest_id",
 				Unique:  false,
-				Columns: []*schema.Column{RoomFolioItemsColumns[1], RoomFolioItemsColumns[11]},
+				Columns: []*schema.Column{RoomFolioItemsColumns[1], RoomFolioItemsColumns[13]},
 			},
 		},
 	}
@@ -2142,11 +2324,24 @@ var (
 		{Name: "id", Type: field.TypeUUID},
 		{Name: "tenant_id", Type: field.TypeUUID},
 		{Name: "guest_name", Type: field.TypeString},
+		{Name: "first_name", Type: field.TypeString, Nullable: true},
+		{Name: "last_name", Type: field.TypeString, Nullable: true},
+		{Name: "email", Type: field.TypeString, Nullable: true},
 		{Name: "phone", Type: field.TypeString},
+		{Name: "nationality", Type: field.TypeString, Nullable: true},
+		{Name: "id_type", Type: field.TypeEnum, Enums: []string{"national_id", "passport", "driving_licence", "other"}, Default: "national_id"},
 		{Name: "id_number", Type: field.TypeString},
+		{Name: "id_document_url", Type: field.TypeString, Nullable: true},
+		{Name: "adults", Type: field.TypeInt, Default: 1},
+		{Name: "children", Type: field.TypeInt, Default: 0},
+		{Name: "child_ages", Type: field.TypeJSON, Nullable: true},
+		{Name: "source", Type: field.TypeEnum, Enums: []string{"staff", "online", "api"}, Default: "staff"},
+		{Name: "crm_contact_id", Type: field.TypeUUID, Nullable: true},
 		{Name: "check_in_date", Type: field.TypeTime},
+		{Name: "expected_arrival_at", Type: field.TypeTime, Nullable: true},
 		{Name: "nights", Type: field.TypeInt},
 		{Name: "check_out_date", Type: field.TypeTime},
+		{Name: "expected_departure_at", Type: field.TypeTime, Nullable: true},
 		{Name: "total_room_charge", Type: field.TypeFloat64},
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"active", "checked_out"}, Default: "active"},
 		{Name: "checked_in_by", Type: field.TypeUUID},
@@ -2159,6 +2354,7 @@ var (
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
 		{Name: "room_id", Type: field.TypeUUID},
+		{Name: "booking_id", Type: field.TypeUUID, Nullable: true},
 	}
 	// RoomGuestsTable holds the schema information for the "room_guests" table.
 	RoomGuestsTable = &schema.Table{
@@ -2168,21 +2364,27 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "room_guests_rooms_guests",
-				Columns:    []*schema.Column{RoomGuestsColumns[19]},
+				Columns:    []*schema.Column{RoomGuestsColumns[32]},
 				RefColumns: []*schema.Column{RoomsColumns[0]},
 				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "room_guests_room_bookings_guests",
+				Columns:    []*schema.Column{RoomGuestsColumns[33]},
+				RefColumns: []*schema.Column{RoomBookingsColumns[0]},
+				OnDelete:   schema.SetNull,
 			},
 		},
 		Indexes: []*schema.Index{
 			{
 				Name:    "roomguest_tenant_id_room_id",
 				Unique:  false,
-				Columns: []*schema.Column{RoomGuestsColumns[1], RoomGuestsColumns[19]},
+				Columns: []*schema.Column{RoomGuestsColumns[1], RoomGuestsColumns[32]},
 			},
 			{
 				Name:    "roomguest_tenant_id_status",
 				Unique:  false,
-				Columns: []*schema.Column{RoomGuestsColumns[1], RoomGuestsColumns[9]},
+				Columns: []*schema.Column{RoomGuestsColumns[1], RoomGuestsColumns[22]},
 			},
 		},
 	}
@@ -3184,6 +3386,7 @@ var (
 		ControlledSubstanceLogsTable,
 		DailyClosingsTable,
 		DrugInteractionChecksTable,
+		EventBookingsTable,
 		FacilitiesTable,
 		FacilityBookingsTable,
 		FeatureOverridesTable,
@@ -3202,6 +3405,7 @@ var (
 		LoyaltyAccountsTable,
 		LoyaltyProgramsTable,
 		LoyaltyTransactionsTable,
+		MealEntitlementsTable,
 		ModifiersTable,
 		ModifierGroupsTable,
 		OrderLinksTable,
@@ -3237,6 +3441,7 @@ var (
 		RoomsTable,
 		RoomAmenitiesTable,
 		RoomAmenityAssignmentsTable,
+		RoomBookingsTable,
 		RoomFolioItemsTable,
 		RoomGuestsTable,
 		SectionsTable,
@@ -3279,6 +3484,7 @@ func init() {
 	FacilityBookingsTable.ForeignKeys[0].RefTable = FacilitiesTable
 	HousekeepingTasksTable.ForeignKeys[0].RefTable = RoomsTable
 	KdsTicketsTable.ForeignKeys[0].RefTable = KdsStationsTable
+	MealEntitlementsTable.ForeignKeys[0].RefTable = EventBookingsTable
 	ModifiersTable.ForeignKeys[0].RefTable = ModifierGroupsTable
 	OutletsTable.ForeignKeys[0].RefTable = TenantsTable
 	OutletSettingsTable.ForeignKeys[0].RefTable = OutletsTable
@@ -3300,6 +3506,7 @@ func init() {
 	RoomFolioItemsTable.ForeignKeys[0].RefTable = RoomsTable
 	RoomFolioItemsTable.ForeignKeys[1].RefTable = RoomGuestsTable
 	RoomGuestsTable.ForeignKeys[0].RefTable = RoomsTable
+	RoomGuestsTable.ForeignKeys[1].RefTable = RoomBookingsTable
 	StaffOutletsTable.ForeignKeys[0].RefTable = OutletsTable
 	StaffOutletsTable.ForeignKeys[1].RefTable = StaffMembersTable
 	StaffPayrollLinesTable.ForeignKeys[0].RefTable = StaffPayrollsTable

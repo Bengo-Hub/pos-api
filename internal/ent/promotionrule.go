@@ -22,6 +22,16 @@ type PromotionRule struct {
 	PromotionID uuid.UUID `json:"promotion_id,omitempty"`
 	// RuleType holds the value of the "rule_type" field.
 	RuleType string `json:"rule_type,omitempty"`
+	// Discount scope: all lines, specific inventory categories, or specific items/skus
+	ScopeType promotionrule.ScopeType `json:"scope_type,omitempty"`
+	// Inventory category ids or skus the discount applies to (when scope_type != all)
+	ScopeIds []string `json:"scope_ids,omitempty"`
+	// DiscountType holds the value of the "discount_type" field.
+	DiscountType promotionrule.DiscountType `json:"discount_type,omitempty"`
+	// DiscountValue holds the value of the "discount_value" field.
+	DiscountValue float64 `json:"discount_value,omitempty"`
+	// Cap on the computed discount amount
+	MaxDiscount *float64 `json:"max_discount,omitempty"`
 	// RuleConfig holds the value of the "rule_config" field.
 	RuleConfig   map[string]interface{} `json:"rule_config,omitempty"`
 	selectValues sql.SelectValues
@@ -32,9 +42,11 @@ func (*PromotionRule) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case promotionrule.FieldRuleConfig:
+		case promotionrule.FieldScopeIds, promotionrule.FieldRuleConfig:
 			values[i] = new([]byte)
-		case promotionrule.FieldRuleType:
+		case promotionrule.FieldDiscountValue, promotionrule.FieldMaxDiscount:
+			values[i] = new(sql.NullFloat64)
+		case promotionrule.FieldRuleType, promotionrule.FieldScopeType, promotionrule.FieldDiscountType:
 			values[i] = new(sql.NullString)
 		case promotionrule.FieldID, promotionrule.FieldPromotionID:
 			values[i] = new(uuid.UUID)
@@ -70,6 +82,39 @@ func (_m *PromotionRule) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field rule_type", values[i])
 			} else if value.Valid {
 				_m.RuleType = value.String
+			}
+		case promotionrule.FieldScopeType:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field scope_type", values[i])
+			} else if value.Valid {
+				_m.ScopeType = promotionrule.ScopeType(value.String)
+			}
+		case promotionrule.FieldScopeIds:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field scope_ids", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.ScopeIds); err != nil {
+					return fmt.Errorf("unmarshal field scope_ids: %w", err)
+				}
+			}
+		case promotionrule.FieldDiscountType:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field discount_type", values[i])
+			} else if value.Valid {
+				_m.DiscountType = promotionrule.DiscountType(value.String)
+			}
+		case promotionrule.FieldDiscountValue:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field discount_value", values[i])
+			} else if value.Valid {
+				_m.DiscountValue = value.Float64
+			}
+		case promotionrule.FieldMaxDiscount:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field max_discount", values[i])
+			} else if value.Valid {
+				_m.MaxDiscount = new(float64)
+				*_m.MaxDiscount = value.Float64
 			}
 		case promotionrule.FieldRuleConfig:
 			if value, ok := values[i].(*[]byte); !ok {
@@ -120,6 +165,23 @@ func (_m *PromotionRule) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("rule_type=")
 	builder.WriteString(_m.RuleType)
+	builder.WriteString(", ")
+	builder.WriteString("scope_type=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ScopeType))
+	builder.WriteString(", ")
+	builder.WriteString("scope_ids=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ScopeIds))
+	builder.WriteString(", ")
+	builder.WriteString("discount_type=")
+	builder.WriteString(fmt.Sprintf("%v", _m.DiscountType))
+	builder.WriteString(", ")
+	builder.WriteString("discount_value=")
+	builder.WriteString(fmt.Sprintf("%v", _m.DiscountValue))
+	builder.WriteString(", ")
+	if v := _m.MaxDiscount; v != nil {
+		builder.WriteString("max_discount=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("rule_config=")
 	builder.WriteString(fmt.Sprintf("%v", _m.RuleConfig))

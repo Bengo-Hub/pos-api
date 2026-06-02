@@ -80,6 +80,20 @@ func (_c *RoomCreate) SetNillableFloor(v *int) *RoomCreate {
 	return _c
 }
 
+// SetInventoryItemID sets the "inventory_item_id" field.
+func (_c *RoomCreate) SetInventoryItemID(v uuid.UUID) *RoomCreate {
+	_c.mutation.SetInventoryItemID(v)
+	return _c
+}
+
+// SetNillableInventoryItemID sets the "inventory_item_id" field if the given value is not nil.
+func (_c *RoomCreate) SetNillableInventoryItemID(v *uuid.UUID) *RoomCreate {
+	if v != nil {
+		_c.SetInventoryItemID(*v)
+	}
+	return _c
+}
+
 // SetRatePerNight sets the "rate_per_night" field.
 func (_c *RoomCreate) SetRatePerNight(v float64) *RoomCreate {
 	_c.mutation.SetRatePerNight(v)
@@ -435,6 +449,10 @@ func (_c *RoomCreate) createSpec() (*Room, *sqlgraph.CreateSpec) {
 		_spec.SetField(room.FieldFloor, field.TypeInt, value)
 		_node.Floor = value
 	}
+	if value, ok := _c.mutation.InventoryItemID(); ok {
+		_spec.SetField(room.FieldInventoryItemID, field.TypeUUID, value)
+		_node.InventoryItemID = &value
+	}
 	if value, ok := _c.mutation.RatePerNight(); ok {
 		_spec.SetField(room.FieldRatePerNight, field.TypeFloat64, value)
 		_node.RatePerNight = value
@@ -657,6 +675,24 @@ func (u *RoomUpsert) AddFloor(v int) *RoomUpsert {
 	return u
 }
 
+// SetInventoryItemID sets the "inventory_item_id" field.
+func (u *RoomUpsert) SetInventoryItemID(v uuid.UUID) *RoomUpsert {
+	u.Set(room.FieldInventoryItemID, v)
+	return u
+}
+
+// UpdateInventoryItemID sets the "inventory_item_id" field to the value that was provided on create.
+func (u *RoomUpsert) UpdateInventoryItemID() *RoomUpsert {
+	u.SetExcluded(room.FieldInventoryItemID)
+	return u
+}
+
+// ClearInventoryItemID clears the value of the "inventory_item_id" field.
+func (u *RoomUpsert) ClearInventoryItemID() *RoomUpsert {
+	u.SetNull(room.FieldInventoryItemID)
+	return u
+}
+
 // SetRatePerNight sets the "rate_per_night" field.
 func (u *RoomUpsert) SetRatePerNight(v float64) *RoomUpsert {
 	u.Set(room.FieldRatePerNight, v)
@@ -874,6 +910,27 @@ func (u *RoomUpsertOne) AddFloor(v int) *RoomUpsertOne {
 func (u *RoomUpsertOne) UpdateFloor() *RoomUpsertOne {
 	return u.Update(func(s *RoomUpsert) {
 		s.UpdateFloor()
+	})
+}
+
+// SetInventoryItemID sets the "inventory_item_id" field.
+func (u *RoomUpsertOne) SetInventoryItemID(v uuid.UUID) *RoomUpsertOne {
+	return u.Update(func(s *RoomUpsert) {
+		s.SetInventoryItemID(v)
+	})
+}
+
+// UpdateInventoryItemID sets the "inventory_item_id" field to the value that was provided on create.
+func (u *RoomUpsertOne) UpdateInventoryItemID() *RoomUpsertOne {
+	return u.Update(func(s *RoomUpsert) {
+		s.UpdateInventoryItemID()
+	})
+}
+
+// ClearInventoryItemID clears the value of the "inventory_item_id" field.
+func (u *RoomUpsertOne) ClearInventoryItemID() *RoomUpsertOne {
+	return u.Update(func(s *RoomUpsert) {
+		s.ClearInventoryItemID()
 	})
 }
 
@@ -1274,6 +1331,27 @@ func (u *RoomUpsertBulk) AddFloor(v int) *RoomUpsertBulk {
 func (u *RoomUpsertBulk) UpdateFloor() *RoomUpsertBulk {
 	return u.Update(func(s *RoomUpsert) {
 		s.UpdateFloor()
+	})
+}
+
+// SetInventoryItemID sets the "inventory_item_id" field.
+func (u *RoomUpsertBulk) SetInventoryItemID(v uuid.UUID) *RoomUpsertBulk {
+	return u.Update(func(s *RoomUpsert) {
+		s.SetInventoryItemID(v)
+	})
+}
+
+// UpdateInventoryItemID sets the "inventory_item_id" field to the value that was provided on create.
+func (u *RoomUpsertBulk) UpdateInventoryItemID() *RoomUpsertBulk {
+	return u.Update(func(s *RoomUpsert) {
+		s.UpdateInventoryItemID()
+	})
+}
+
+// ClearInventoryItemID clears the value of the "inventory_item_id" field.
+func (u *RoomUpsertBulk) ClearInventoryItemID() *RoomUpsertBulk {
+	return u.Update(func(s *RoomUpsert) {
+		s.ClearInventoryItemID()
 	})
 }
 

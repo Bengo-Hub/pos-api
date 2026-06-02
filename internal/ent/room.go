@@ -31,7 +31,9 @@ type Room struct {
 	RoomType room.RoomType `json:"room_type,omitempty"`
 	// Floor holds the value of the "floor" field.
 	Floor int `json:"floor,omitempty"`
-	// RatePerNight holds the value of the "rate_per_night" field.
+	// Ref to inventory-api SERVICE Item (use_case=HOSPITALITY_ROOM) — authoritative room-type & rate master
+	InventoryItemID *uuid.UUID `json:"inventory_item_id,omitempty"`
+	// DEPRECATED as authoritative: rate master lives in inventory-api ItemPricing. Synced/read-through snapshot for display; kept for transition
 	RatePerNight float64 `json:"rate_per_night,omitempty"`
 	// Currency holds the value of the "currency" field.
 	Currency string `json:"currency,omitempty"`
@@ -107,6 +109,8 @@ func (*Room) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case room.FieldInventoryItemID:
+			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		case room.FieldMetadata:
 			values[i] = new([]byte)
 		case room.FieldIsActive:
@@ -177,6 +181,13 @@ func (_m *Room) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field floor", values[i])
 			} else if value.Valid {
 				_m.Floor = int(value.Int64)
+			}
+		case room.FieldInventoryItemID:
+			if value, ok := values[i].(*sql.NullScanner); !ok {
+				return fmt.Errorf("unexpected type %T for field inventory_item_id", values[i])
+			} else if value.Valid {
+				_m.InventoryItemID = new(uuid.UUID)
+				*_m.InventoryItemID = *value.S.(*uuid.UUID)
 			}
 		case room.FieldRatePerNight:
 			if value, ok := values[i].(*sql.NullFloat64); !ok {
@@ -295,6 +306,11 @@ func (_m *Room) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("floor=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Floor))
+	builder.WriteString(", ")
+	if v := _m.InventoryItemID; v != nil {
+		builder.WriteString("inventory_item_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("rate_per_night=")
 	builder.WriteString(fmt.Sprintf("%v", _m.RatePerNight))

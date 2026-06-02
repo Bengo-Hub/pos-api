@@ -28,6 +28,8 @@ const (
 	FieldRoomType = "room_type"
 	// FieldFloor holds the string denoting the floor field in the database.
 	FieldFloor = "floor"
+	// FieldInventoryItemID holds the string denoting the inventory_item_id field in the database.
+	FieldInventoryItemID = "inventory_item_id"
 	// FieldRatePerNight holds the string denoting the rate_per_night field in the database.
 	FieldRatePerNight = "rate_per_night"
 	// FieldCurrency holds the string denoting the currency field in the database.
@@ -91,6 +93,7 @@ var Columns = []string{
 	FieldName,
 	FieldRoomType,
 	FieldFloor,
+	FieldInventoryItemID,
 	FieldRatePerNight,
 	FieldCurrency,
 	FieldStatus,
@@ -230,6 +233,11 @@ func ByRoomType(opts ...sql.OrderTermOption) OrderOption {
 // ByFloor orders the results by the floor field.
 func ByFloor(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldFloor, opts...).ToFunc()
+}
+
+// ByInventoryItemID orders the results by the inventory_item_id field.
+func ByInventoryItemID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldInventoryItemID, opts...).ToFunc()
 }
 
 // ByRatePerNight orders the results by the rate_per_night field.

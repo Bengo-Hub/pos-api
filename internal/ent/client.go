@@ -30,6 +30,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/controlledsubstancelog"
 	"github.com/bengobox/pos-service/internal/ent/dailyclosing"
 	"github.com/bengobox/pos-service/internal/ent/druginteractioncheck"
+	"github.com/bengobox/pos-service/internal/ent/eventbooking"
 	"github.com/bengobox/pos-service/internal/ent/facility"
 	"github.com/bengobox/pos-service/internal/ent/facilitybooking"
 	"github.com/bengobox/pos-service/internal/ent/featureoverride"
@@ -48,6 +49,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/loyaltyaccount"
 	"github.com/bengobox/pos-service/internal/ent/loyaltyprogram"
 	"github.com/bengobox/pos-service/internal/ent/loyaltytransaction"
+	"github.com/bengobox/pos-service/internal/ent/mealentitlement"
 	"github.com/bengobox/pos-service/internal/ent/modifier"
 	"github.com/bengobox/pos-service/internal/ent/modifiergroup"
 	"github.com/bengobox/pos-service/internal/ent/orderlink"
@@ -83,6 +85,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/room"
 	"github.com/bengobox/pos-service/internal/ent/roomamenity"
 	"github.com/bengobox/pos-service/internal/ent/roomamenityassignment"
+	"github.com/bengobox/pos-service/internal/ent/roombooking"
 	"github.com/bengobox/pos-service/internal/ent/roomfolioitem"
 	"github.com/bengobox/pos-service/internal/ent/roomguest"
 	"github.com/bengobox/pos-service/internal/ent/section"
@@ -150,6 +153,8 @@ type Client struct {
 	DailyClosing *DailyClosingClient
 	// DrugInteractionCheck is the client for interacting with the DrugInteractionCheck builders.
 	DrugInteractionCheck *DrugInteractionCheckClient
+	// EventBooking is the client for interacting with the EventBooking builders.
+	EventBooking *EventBookingClient
 	// Facility is the client for interacting with the Facility builders.
 	Facility *FacilityClient
 	// FacilityBooking is the client for interacting with the FacilityBooking builders.
@@ -186,6 +191,8 @@ type Client struct {
 	LoyaltyProgram *LoyaltyProgramClient
 	// LoyaltyTransaction is the client for interacting with the LoyaltyTransaction builders.
 	LoyaltyTransaction *LoyaltyTransactionClient
+	// MealEntitlement is the client for interacting with the MealEntitlement builders.
+	MealEntitlement *MealEntitlementClient
 	// Modifier is the client for interacting with the Modifier builders.
 	Modifier *ModifierClient
 	// ModifierGroup is the client for interacting with the ModifierGroup builders.
@@ -256,6 +263,8 @@ type Client struct {
 	RoomAmenity *RoomAmenityClient
 	// RoomAmenityAssignment is the client for interacting with the RoomAmenityAssignment builders.
 	RoomAmenityAssignment *RoomAmenityAssignmentClient
+	// RoomBooking is the client for interacting with the RoomBooking builders.
+	RoomBooking *RoomBookingClient
 	// RoomFolioItem is the client for interacting with the RoomFolioItem builders.
 	RoomFolioItem *RoomFolioItemClient
 	// RoomGuest is the client for interacting with the RoomGuest builders.
@@ -345,6 +354,7 @@ func (c *Client) init() {
 	c.ControlledSubstanceLog = NewControlledSubstanceLogClient(c.config)
 	c.DailyClosing = NewDailyClosingClient(c.config)
 	c.DrugInteractionCheck = NewDrugInteractionCheckClient(c.config)
+	c.EventBooking = NewEventBookingClient(c.config)
 	c.Facility = NewFacilityClient(c.config)
 	c.FacilityBooking = NewFacilityBookingClient(c.config)
 	c.FeatureOverride = NewFeatureOverrideClient(c.config)
@@ -363,6 +373,7 @@ func (c *Client) init() {
 	c.LoyaltyAccount = NewLoyaltyAccountClient(c.config)
 	c.LoyaltyProgram = NewLoyaltyProgramClient(c.config)
 	c.LoyaltyTransaction = NewLoyaltyTransactionClient(c.config)
+	c.MealEntitlement = NewMealEntitlementClient(c.config)
 	c.Modifier = NewModifierClient(c.config)
 	c.ModifierGroup = NewModifierGroupClient(c.config)
 	c.OrderLink = NewOrderLinkClient(c.config)
@@ -398,6 +409,7 @@ func (c *Client) init() {
 	c.Room = NewRoomClient(c.config)
 	c.RoomAmenity = NewRoomAmenityClient(c.config)
 	c.RoomAmenityAssignment = NewRoomAmenityAssignmentClient(c.config)
+	c.RoomBooking = NewRoomBookingClient(c.config)
 	c.RoomFolioItem = NewRoomFolioItemClient(c.config)
 	c.RoomGuest = NewRoomGuestClient(c.config)
 	c.Section = NewSectionClient(c.config)
@@ -536,6 +548,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		ControlledSubstanceLog:   NewControlledSubstanceLogClient(cfg),
 		DailyClosing:             NewDailyClosingClient(cfg),
 		DrugInteractionCheck:     NewDrugInteractionCheckClient(cfg),
+		EventBooking:             NewEventBookingClient(cfg),
 		Facility:                 NewFacilityClient(cfg),
 		FacilityBooking:          NewFacilityBookingClient(cfg),
 		FeatureOverride:          NewFeatureOverrideClient(cfg),
@@ -554,6 +567,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		LoyaltyAccount:           NewLoyaltyAccountClient(cfg),
 		LoyaltyProgram:           NewLoyaltyProgramClient(cfg),
 		LoyaltyTransaction:       NewLoyaltyTransactionClient(cfg),
+		MealEntitlement:          NewMealEntitlementClient(cfg),
 		Modifier:                 NewModifierClient(cfg),
 		ModifierGroup:            NewModifierGroupClient(cfg),
 		OrderLink:                NewOrderLinkClient(cfg),
@@ -589,6 +603,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		Room:                     NewRoomClient(cfg),
 		RoomAmenity:              NewRoomAmenityClient(cfg),
 		RoomAmenityAssignment:    NewRoomAmenityAssignmentClient(cfg),
+		RoomBooking:              NewRoomBookingClient(cfg),
 		RoomFolioItem:            NewRoomFolioItemClient(cfg),
 		RoomGuest:                NewRoomGuestClient(cfg),
 		Section:                  NewSectionClient(cfg),
@@ -654,6 +669,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		ControlledSubstanceLog:   NewControlledSubstanceLogClient(cfg),
 		DailyClosing:             NewDailyClosingClient(cfg),
 		DrugInteractionCheck:     NewDrugInteractionCheckClient(cfg),
+		EventBooking:             NewEventBookingClient(cfg),
 		Facility:                 NewFacilityClient(cfg),
 		FacilityBooking:          NewFacilityBookingClient(cfg),
 		FeatureOverride:          NewFeatureOverrideClient(cfg),
@@ -672,6 +688,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		LoyaltyAccount:           NewLoyaltyAccountClient(cfg),
 		LoyaltyProgram:           NewLoyaltyProgramClient(cfg),
 		LoyaltyTransaction:       NewLoyaltyTransactionClient(cfg),
+		MealEntitlement:          NewMealEntitlementClient(cfg),
 		Modifier:                 NewModifierClient(cfg),
 		ModifierGroup:            NewModifierGroupClient(cfg),
 		OrderLink:                NewOrderLinkClient(cfg),
@@ -707,6 +724,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		Room:                     NewRoomClient(cfg),
 		RoomAmenity:              NewRoomAmenityClient(cfg),
 		RoomAmenityAssignment:    NewRoomAmenityAssignmentClient(cfg),
+		RoomBooking:              NewRoomBookingClient(cfg),
 		RoomFolioItem:            NewRoomFolioItemClient(cfg),
 		RoomGuest:                NewRoomGuestClient(cfg),
 		Section:                  NewSectionClient(cfg),
@@ -771,19 +789,20 @@ func (c *Client) Use(hooks ...Hook) {
 		c.Appointment, c.BarTab, c.BarTabEvent, c.BillSplit, c.CashDrawer,
 		c.CashDrawerEvent, c.ChannelIntegration, c.ChannelSyncJob, c.ClientRecord,
 		c.CommissionRecord, c.CommissionRule, c.ControlledSubstanceLog, c.DailyClosing,
-		c.DrugInteractionCheck, c.Facility, c.FacilityBooking, c.FeatureOverride,
-		c.GiftCard, c.GiftCardTransaction, c.HousekeepingTask, c.IntegrationSetting,
-		c.InventorySnapshot, c.KDSStation, c.KDSSyncFailure, c.KDSTicket,
-		c.LayawayPayment, c.LayawayPlan, c.LeaveRequest, c.LicenseUsageSnapshot,
-		c.LoyaltyAccount, c.LoyaltyProgram, c.LoyaltyTransaction, c.Modifier,
-		c.ModifierGroup, c.OrderLink, c.OutboxEvent, c.Outlet, c.OutletSetting,
-		c.POSCatalogOverride, c.POSDevice, c.POSDeviceSession, c.POSLineModifier,
-		c.POSOrder, c.POSOrderEvent, c.POSOrderLine, c.POSPayment, c.POSPermission,
-		c.POSRefund, c.POSReturn, c.POSReturnLine, c.POSRole, c.POSRolePermission,
-		c.POSRoleV2, c.POSUserRoleAssignment, c.PosNotification, c.Prescription,
-		c.PrescriptionLine, c.PriceBook, c.PriceBookItem, c.Promotion,
-		c.PromotionApplication, c.PromotionRule, c.RateLimitConfig, c.Resource, c.Room,
-		c.RoomAmenity, c.RoomAmenityAssignment, c.RoomFolioItem, c.RoomGuest,
+		c.DrugInteractionCheck, c.EventBooking, c.Facility, c.FacilityBooking,
+		c.FeatureOverride, c.GiftCard, c.GiftCardTransaction, c.HousekeepingTask,
+		c.IntegrationSetting, c.InventorySnapshot, c.KDSStation, c.KDSSyncFailure,
+		c.KDSTicket, c.LayawayPayment, c.LayawayPlan, c.LeaveRequest,
+		c.LicenseUsageSnapshot, c.LoyaltyAccount, c.LoyaltyProgram,
+		c.LoyaltyTransaction, c.MealEntitlement, c.Modifier, c.ModifierGroup,
+		c.OrderLink, c.OutboxEvent, c.Outlet, c.OutletSetting, c.POSCatalogOverride,
+		c.POSDevice, c.POSDeviceSession, c.POSLineModifier, c.POSOrder,
+		c.POSOrderEvent, c.POSOrderLine, c.POSPayment, c.POSPermission, c.POSRefund,
+		c.POSReturn, c.POSReturnLine, c.POSRole, c.POSRolePermission, c.POSRoleV2,
+		c.POSUserRoleAssignment, c.PosNotification, c.Prescription, c.PrescriptionLine,
+		c.PriceBook, c.PriceBookItem, c.Promotion, c.PromotionApplication,
+		c.PromotionRule, c.RateLimitConfig, c.Resource, c.Room, c.RoomAmenity,
+		c.RoomAmenityAssignment, c.RoomBooking, c.RoomFolioItem, c.RoomGuest,
 		c.Section, c.SerialNumberLog, c.ServiceConfig, c.ServicePackage,
 		c.ServicePackagePurchase, c.ServicePackageRedemption, c.ServiceQueueEntry,
 		c.ShiftRotation, c.ShiftRotationSlot, c.StaffAdvance, c.StaffMember,
@@ -804,19 +823,20 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.Appointment, c.BarTab, c.BarTabEvent, c.BillSplit, c.CashDrawer,
 		c.CashDrawerEvent, c.ChannelIntegration, c.ChannelSyncJob, c.ClientRecord,
 		c.CommissionRecord, c.CommissionRule, c.ControlledSubstanceLog, c.DailyClosing,
-		c.DrugInteractionCheck, c.Facility, c.FacilityBooking, c.FeatureOverride,
-		c.GiftCard, c.GiftCardTransaction, c.HousekeepingTask, c.IntegrationSetting,
-		c.InventorySnapshot, c.KDSStation, c.KDSSyncFailure, c.KDSTicket,
-		c.LayawayPayment, c.LayawayPlan, c.LeaveRequest, c.LicenseUsageSnapshot,
-		c.LoyaltyAccount, c.LoyaltyProgram, c.LoyaltyTransaction, c.Modifier,
-		c.ModifierGroup, c.OrderLink, c.OutboxEvent, c.Outlet, c.OutletSetting,
-		c.POSCatalogOverride, c.POSDevice, c.POSDeviceSession, c.POSLineModifier,
-		c.POSOrder, c.POSOrderEvent, c.POSOrderLine, c.POSPayment, c.POSPermission,
-		c.POSRefund, c.POSReturn, c.POSReturnLine, c.POSRole, c.POSRolePermission,
-		c.POSRoleV2, c.POSUserRoleAssignment, c.PosNotification, c.Prescription,
-		c.PrescriptionLine, c.PriceBook, c.PriceBookItem, c.Promotion,
-		c.PromotionApplication, c.PromotionRule, c.RateLimitConfig, c.Resource, c.Room,
-		c.RoomAmenity, c.RoomAmenityAssignment, c.RoomFolioItem, c.RoomGuest,
+		c.DrugInteractionCheck, c.EventBooking, c.Facility, c.FacilityBooking,
+		c.FeatureOverride, c.GiftCard, c.GiftCardTransaction, c.HousekeepingTask,
+		c.IntegrationSetting, c.InventorySnapshot, c.KDSStation, c.KDSSyncFailure,
+		c.KDSTicket, c.LayawayPayment, c.LayawayPlan, c.LeaveRequest,
+		c.LicenseUsageSnapshot, c.LoyaltyAccount, c.LoyaltyProgram,
+		c.LoyaltyTransaction, c.MealEntitlement, c.Modifier, c.ModifierGroup,
+		c.OrderLink, c.OutboxEvent, c.Outlet, c.OutletSetting, c.POSCatalogOverride,
+		c.POSDevice, c.POSDeviceSession, c.POSLineModifier, c.POSOrder,
+		c.POSOrderEvent, c.POSOrderLine, c.POSPayment, c.POSPermission, c.POSRefund,
+		c.POSReturn, c.POSReturnLine, c.POSRole, c.POSRolePermission, c.POSRoleV2,
+		c.POSUserRoleAssignment, c.PosNotification, c.Prescription, c.PrescriptionLine,
+		c.PriceBook, c.PriceBookItem, c.Promotion, c.PromotionApplication,
+		c.PromotionRule, c.RateLimitConfig, c.Resource, c.Room, c.RoomAmenity,
+		c.RoomAmenityAssignment, c.RoomBooking, c.RoomFolioItem, c.RoomGuest,
 		c.Section, c.SerialNumberLog, c.ServiceConfig, c.ServicePackage,
 		c.ServicePackagePurchase, c.ServicePackageRedemption, c.ServiceQueueEntry,
 		c.ShiftRotation, c.ShiftRotationSlot, c.StaffAdvance, c.StaffMember,
@@ -861,6 +881,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.DailyClosing.mutate(ctx, m)
 	case *DrugInteractionCheckMutation:
 		return c.DrugInteractionCheck.mutate(ctx, m)
+	case *EventBookingMutation:
+		return c.EventBooking.mutate(ctx, m)
 	case *FacilityMutation:
 		return c.Facility.mutate(ctx, m)
 	case *FacilityBookingMutation:
@@ -897,6 +919,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.LoyaltyProgram.mutate(ctx, m)
 	case *LoyaltyTransactionMutation:
 		return c.LoyaltyTransaction.mutate(ctx, m)
+	case *MealEntitlementMutation:
+		return c.MealEntitlement.mutate(ctx, m)
 	case *ModifierMutation:
 		return c.Modifier.mutate(ctx, m)
 	case *ModifierGroupMutation:
@@ -967,6 +991,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.RoomAmenity.mutate(ctx, m)
 	case *RoomAmenityAssignmentMutation:
 		return c.RoomAmenityAssignment.mutate(ctx, m)
+	case *RoomBookingMutation:
+		return c.RoomBooking.mutate(ctx, m)
 	case *RoomFolioItemMutation:
 		return c.RoomFolioItem.mutate(ctx, m)
 	case *RoomGuestMutation:
@@ -2975,6 +3001,155 @@ func (c *DrugInteractionCheckClient) mutate(ctx context.Context, m *DrugInteract
 		return (&DrugInteractionCheckDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown DrugInteractionCheck mutation op: %q", m.Op())
+	}
+}
+
+// EventBookingClient is a client for the EventBooking schema.
+type EventBookingClient struct {
+	config
+}
+
+// NewEventBookingClient returns a client for the EventBooking from the given config.
+func NewEventBookingClient(c config) *EventBookingClient {
+	return &EventBookingClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `eventbooking.Hooks(f(g(h())))`.
+func (c *EventBookingClient) Use(hooks ...Hook) {
+	c.hooks.EventBooking = append(c.hooks.EventBooking, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `eventbooking.Intercept(f(g(h())))`.
+func (c *EventBookingClient) Intercept(interceptors ...Interceptor) {
+	c.inters.EventBooking = append(c.inters.EventBooking, interceptors...)
+}
+
+// Create returns a builder for creating a EventBooking entity.
+func (c *EventBookingClient) Create() *EventBookingCreate {
+	mutation := newEventBookingMutation(c.config, OpCreate)
+	return &EventBookingCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of EventBooking entities.
+func (c *EventBookingClient) CreateBulk(builders ...*EventBookingCreate) *EventBookingCreateBulk {
+	return &EventBookingCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *EventBookingClient) MapCreateBulk(slice any, setFunc func(*EventBookingCreate, int)) *EventBookingCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &EventBookingCreateBulk{err: fmt.Errorf("calling to EventBookingClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*EventBookingCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &EventBookingCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for EventBooking.
+func (c *EventBookingClient) Update() *EventBookingUpdate {
+	mutation := newEventBookingMutation(c.config, OpUpdate)
+	return &EventBookingUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *EventBookingClient) UpdateOne(_m *EventBooking) *EventBookingUpdateOne {
+	mutation := newEventBookingMutation(c.config, OpUpdateOne, withEventBooking(_m))
+	return &EventBookingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *EventBookingClient) UpdateOneID(id uuid.UUID) *EventBookingUpdateOne {
+	mutation := newEventBookingMutation(c.config, OpUpdateOne, withEventBookingID(id))
+	return &EventBookingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for EventBooking.
+func (c *EventBookingClient) Delete() *EventBookingDelete {
+	mutation := newEventBookingMutation(c.config, OpDelete)
+	return &EventBookingDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *EventBookingClient) DeleteOne(_m *EventBooking) *EventBookingDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *EventBookingClient) DeleteOneID(id uuid.UUID) *EventBookingDeleteOne {
+	builder := c.Delete().Where(eventbooking.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &EventBookingDeleteOne{builder}
+}
+
+// Query returns a query builder for EventBooking.
+func (c *EventBookingClient) Query() *EventBookingQuery {
+	return &EventBookingQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeEventBooking},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a EventBooking entity by its id.
+func (c *EventBookingClient) Get(ctx context.Context, id uuid.UUID) (*EventBooking, error) {
+	return c.Query().Where(eventbooking.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *EventBookingClient) GetX(ctx context.Context, id uuid.UUID) *EventBooking {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryMealEntitlements queries the meal_entitlements edge of a EventBooking.
+func (c *EventBookingClient) QueryMealEntitlements(_m *EventBooking) *MealEntitlementQuery {
+	query := (&MealEntitlementClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(eventbooking.Table, eventbooking.FieldID, id),
+			sqlgraph.To(mealentitlement.Table, mealentitlement.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, eventbooking.MealEntitlementsTable, eventbooking.MealEntitlementsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *EventBookingClient) Hooks() []Hook {
+	return c.hooks.EventBooking
+}
+
+// Interceptors returns the client interceptors.
+func (c *EventBookingClient) Interceptors() []Interceptor {
+	return c.inters.EventBooking
+}
+
+func (c *EventBookingClient) mutate(ctx context.Context, m *EventBookingMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&EventBookingCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&EventBookingUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&EventBookingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&EventBookingDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown EventBooking mutation op: %q", m.Op())
 	}
 }
 
@@ -5449,6 +5624,155 @@ func (c *LoyaltyTransactionClient) mutate(ctx context.Context, m *LoyaltyTransac
 		return (&LoyaltyTransactionDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown LoyaltyTransaction mutation op: %q", m.Op())
+	}
+}
+
+// MealEntitlementClient is a client for the MealEntitlement schema.
+type MealEntitlementClient struct {
+	config
+}
+
+// NewMealEntitlementClient returns a client for the MealEntitlement from the given config.
+func NewMealEntitlementClient(c config) *MealEntitlementClient {
+	return &MealEntitlementClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `mealentitlement.Hooks(f(g(h())))`.
+func (c *MealEntitlementClient) Use(hooks ...Hook) {
+	c.hooks.MealEntitlement = append(c.hooks.MealEntitlement, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `mealentitlement.Intercept(f(g(h())))`.
+func (c *MealEntitlementClient) Intercept(interceptors ...Interceptor) {
+	c.inters.MealEntitlement = append(c.inters.MealEntitlement, interceptors...)
+}
+
+// Create returns a builder for creating a MealEntitlement entity.
+func (c *MealEntitlementClient) Create() *MealEntitlementCreate {
+	mutation := newMealEntitlementMutation(c.config, OpCreate)
+	return &MealEntitlementCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of MealEntitlement entities.
+func (c *MealEntitlementClient) CreateBulk(builders ...*MealEntitlementCreate) *MealEntitlementCreateBulk {
+	return &MealEntitlementCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *MealEntitlementClient) MapCreateBulk(slice any, setFunc func(*MealEntitlementCreate, int)) *MealEntitlementCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &MealEntitlementCreateBulk{err: fmt.Errorf("calling to MealEntitlementClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*MealEntitlementCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &MealEntitlementCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for MealEntitlement.
+func (c *MealEntitlementClient) Update() *MealEntitlementUpdate {
+	mutation := newMealEntitlementMutation(c.config, OpUpdate)
+	return &MealEntitlementUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *MealEntitlementClient) UpdateOne(_m *MealEntitlement) *MealEntitlementUpdateOne {
+	mutation := newMealEntitlementMutation(c.config, OpUpdateOne, withMealEntitlement(_m))
+	return &MealEntitlementUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *MealEntitlementClient) UpdateOneID(id uuid.UUID) *MealEntitlementUpdateOne {
+	mutation := newMealEntitlementMutation(c.config, OpUpdateOne, withMealEntitlementID(id))
+	return &MealEntitlementUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for MealEntitlement.
+func (c *MealEntitlementClient) Delete() *MealEntitlementDelete {
+	mutation := newMealEntitlementMutation(c.config, OpDelete)
+	return &MealEntitlementDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *MealEntitlementClient) DeleteOne(_m *MealEntitlement) *MealEntitlementDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *MealEntitlementClient) DeleteOneID(id uuid.UUID) *MealEntitlementDeleteOne {
+	builder := c.Delete().Where(mealentitlement.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &MealEntitlementDeleteOne{builder}
+}
+
+// Query returns a query builder for MealEntitlement.
+func (c *MealEntitlementClient) Query() *MealEntitlementQuery {
+	return &MealEntitlementQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeMealEntitlement},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a MealEntitlement entity by its id.
+func (c *MealEntitlementClient) Get(ctx context.Context, id uuid.UUID) (*MealEntitlement, error) {
+	return c.Query().Where(mealentitlement.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *MealEntitlementClient) GetX(ctx context.Context, id uuid.UUID) *MealEntitlement {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryEventBooking queries the event_booking edge of a MealEntitlement.
+func (c *MealEntitlementClient) QueryEventBooking(_m *MealEntitlement) *EventBookingQuery {
+	query := (&EventBookingClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(mealentitlement.Table, mealentitlement.FieldID, id),
+			sqlgraph.To(eventbooking.Table, eventbooking.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, mealentitlement.EventBookingTable, mealentitlement.EventBookingColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *MealEntitlementClient) Hooks() []Hook {
+	return c.hooks.MealEntitlement
+}
+
+// Interceptors returns the client interceptors.
+func (c *MealEntitlementClient) Interceptors() []Interceptor {
+	return c.inters.MealEntitlement
+}
+
+func (c *MealEntitlementClient) mutate(ctx context.Context, m *MealEntitlementMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&MealEntitlementCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&MealEntitlementUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&MealEntitlementUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&MealEntitlementDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown MealEntitlement mutation op: %q", m.Op())
 	}
 }
 
@@ -10747,6 +11071,155 @@ func (c *RoomAmenityAssignmentClient) mutate(ctx context.Context, m *RoomAmenity
 	}
 }
 
+// RoomBookingClient is a client for the RoomBooking schema.
+type RoomBookingClient struct {
+	config
+}
+
+// NewRoomBookingClient returns a client for the RoomBooking from the given config.
+func NewRoomBookingClient(c config) *RoomBookingClient {
+	return &RoomBookingClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `roombooking.Hooks(f(g(h())))`.
+func (c *RoomBookingClient) Use(hooks ...Hook) {
+	c.hooks.RoomBooking = append(c.hooks.RoomBooking, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `roombooking.Intercept(f(g(h())))`.
+func (c *RoomBookingClient) Intercept(interceptors ...Interceptor) {
+	c.inters.RoomBooking = append(c.inters.RoomBooking, interceptors...)
+}
+
+// Create returns a builder for creating a RoomBooking entity.
+func (c *RoomBookingClient) Create() *RoomBookingCreate {
+	mutation := newRoomBookingMutation(c.config, OpCreate)
+	return &RoomBookingCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of RoomBooking entities.
+func (c *RoomBookingClient) CreateBulk(builders ...*RoomBookingCreate) *RoomBookingCreateBulk {
+	return &RoomBookingCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *RoomBookingClient) MapCreateBulk(slice any, setFunc func(*RoomBookingCreate, int)) *RoomBookingCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &RoomBookingCreateBulk{err: fmt.Errorf("calling to RoomBookingClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*RoomBookingCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &RoomBookingCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for RoomBooking.
+func (c *RoomBookingClient) Update() *RoomBookingUpdate {
+	mutation := newRoomBookingMutation(c.config, OpUpdate)
+	return &RoomBookingUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *RoomBookingClient) UpdateOne(_m *RoomBooking) *RoomBookingUpdateOne {
+	mutation := newRoomBookingMutation(c.config, OpUpdateOne, withRoomBooking(_m))
+	return &RoomBookingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *RoomBookingClient) UpdateOneID(id uuid.UUID) *RoomBookingUpdateOne {
+	mutation := newRoomBookingMutation(c.config, OpUpdateOne, withRoomBookingID(id))
+	return &RoomBookingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for RoomBooking.
+func (c *RoomBookingClient) Delete() *RoomBookingDelete {
+	mutation := newRoomBookingMutation(c.config, OpDelete)
+	return &RoomBookingDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *RoomBookingClient) DeleteOne(_m *RoomBooking) *RoomBookingDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *RoomBookingClient) DeleteOneID(id uuid.UUID) *RoomBookingDeleteOne {
+	builder := c.Delete().Where(roombooking.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &RoomBookingDeleteOne{builder}
+}
+
+// Query returns a query builder for RoomBooking.
+func (c *RoomBookingClient) Query() *RoomBookingQuery {
+	return &RoomBookingQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeRoomBooking},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a RoomBooking entity by its id.
+func (c *RoomBookingClient) Get(ctx context.Context, id uuid.UUID) (*RoomBooking, error) {
+	return c.Query().Where(roombooking.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *RoomBookingClient) GetX(ctx context.Context, id uuid.UUID) *RoomBooking {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryGuests queries the guests edge of a RoomBooking.
+func (c *RoomBookingClient) QueryGuests(_m *RoomBooking) *RoomGuestQuery {
+	query := (&RoomGuestClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(roombooking.Table, roombooking.FieldID, id),
+			sqlgraph.To(roomguest.Table, roomguest.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, roombooking.GuestsTable, roombooking.GuestsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *RoomBookingClient) Hooks() []Hook {
+	return c.hooks.RoomBooking
+}
+
+// Interceptors returns the client interceptors.
+func (c *RoomBookingClient) Interceptors() []Interceptor {
+	return c.inters.RoomBooking
+}
+
+func (c *RoomBookingClient) mutate(ctx context.Context, m *RoomBookingMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&RoomBookingCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&RoomBookingUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&RoomBookingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&RoomBookingDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown RoomBooking mutation op: %q", m.Op())
+	}
+}
+
 // RoomFolioItemClient is a client for the RoomFolioItem schema.
 type RoomFolioItemClient struct {
 	config
@@ -11029,6 +11502,22 @@ func (c *RoomGuestClient) QueryRoom(_m *RoomGuest) *RoomQuery {
 			sqlgraph.From(roomguest.Table, roomguest.FieldID, id),
 			sqlgraph.To(room.Table, room.FieldID),
 			sqlgraph.Edge(sqlgraph.M2O, true, roomguest.RoomTable, roomguest.RoomColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryBooking queries the booking edge of a RoomGuest.
+func (c *RoomGuestClient) QueryBooking(_m *RoomGuest) *RoomBookingQuery {
+	query := (&RoomBookingClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(roomguest.Table, roomguest.FieldID, id),
+			sqlgraph.To(roombooking.Table, roombooking.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, roomguest.BookingTable, roomguest.BookingColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -15313,46 +15802,50 @@ type (
 		Appointment, BarTab, BarTabEvent, BillSplit, CashDrawer, CashDrawerEvent,
 		ChannelIntegration, ChannelSyncJob, ClientRecord, CommissionRecord,
 		CommissionRule, ControlledSubstanceLog, DailyClosing, DrugInteractionCheck,
-		Facility, FacilityBooking, FeatureOverride, GiftCard, GiftCardTransaction,
-		HousekeepingTask, IntegrationSetting, InventorySnapshot, KDSStation,
-		KDSSyncFailure, KDSTicket, LayawayPayment, LayawayPlan, LeaveRequest,
-		LicenseUsageSnapshot, LoyaltyAccount, LoyaltyProgram, LoyaltyTransaction,
-		Modifier, ModifierGroup, OrderLink, OutboxEvent, Outlet, OutletSetting,
-		POSCatalogOverride, POSDevice, POSDeviceSession, POSLineModifier, POSOrder,
-		POSOrderEvent, POSOrderLine, POSPayment, POSPermission, POSRefund, POSReturn,
-		POSReturnLine, POSRole, POSRolePermission, POSRoleV2, POSUserRoleAssignment,
-		PosNotification, Prescription, PrescriptionLine, PriceBook, PriceBookItem,
-		Promotion, PromotionApplication, PromotionRule, RateLimitConfig, Resource,
-		Room, RoomAmenity, RoomAmenityAssignment, RoomFolioItem, RoomGuest, Section,
-		SerialNumberLog, ServiceConfig, ServicePackage, ServicePackagePurchase,
-		ServicePackageRedemption, ServiceQueueEntry, ShiftRotation, ShiftRotationSlot,
-		StaffAdvance, StaffMember, StaffOutlet, StaffPayroll, StaffPayrollLine,
-		StaffSchedule, StaffShiftOverride, StockAlertSubscription,
-		StockConsumptionEvent, SyncFailure, Table, TableAssignment, TableReservation,
-		Tenant, TenantSyncEvent, Tender, User, UserPOSRole, WebhookDelivery,
-		WebhookSubscription, WeighingScaleReading []ent.Hook
+		EventBooking, Facility, FacilityBooking, FeatureOverride, GiftCard,
+		GiftCardTransaction, HousekeepingTask, IntegrationSetting, InventorySnapshot,
+		KDSStation, KDSSyncFailure, KDSTicket, LayawayPayment, LayawayPlan,
+		LeaveRequest, LicenseUsageSnapshot, LoyaltyAccount, LoyaltyProgram,
+		LoyaltyTransaction, MealEntitlement, Modifier, ModifierGroup, OrderLink,
+		OutboxEvent, Outlet, OutletSetting, POSCatalogOverride, POSDevice,
+		POSDeviceSession, POSLineModifier, POSOrder, POSOrderEvent, POSOrderLine,
+		POSPayment, POSPermission, POSRefund, POSReturn, POSReturnLine, POSRole,
+		POSRolePermission, POSRoleV2, POSUserRoleAssignment, PosNotification,
+		Prescription, PrescriptionLine, PriceBook, PriceBookItem, Promotion,
+		PromotionApplication, PromotionRule, RateLimitConfig, Resource, Room,
+		RoomAmenity, RoomAmenityAssignment, RoomBooking, RoomFolioItem, RoomGuest,
+		Section, SerialNumberLog, ServiceConfig, ServicePackage,
+		ServicePackagePurchase, ServicePackageRedemption, ServiceQueueEntry,
+		ShiftRotation, ShiftRotationSlot, StaffAdvance, StaffMember, StaffOutlet,
+		StaffPayroll, StaffPayrollLine, StaffSchedule, StaffShiftOverride,
+		StockAlertSubscription, StockConsumptionEvent, SyncFailure, Table,
+		TableAssignment, TableReservation, Tenant, TenantSyncEvent, Tender, User,
+		UserPOSRole, WebhookDelivery, WebhookSubscription,
+		WeighingScaleReading []ent.Hook
 	}
 	inters struct {
 		Appointment, BarTab, BarTabEvent, BillSplit, CashDrawer, CashDrawerEvent,
 		ChannelIntegration, ChannelSyncJob, ClientRecord, CommissionRecord,
 		CommissionRule, ControlledSubstanceLog, DailyClosing, DrugInteractionCheck,
-		Facility, FacilityBooking, FeatureOverride, GiftCard, GiftCardTransaction,
-		HousekeepingTask, IntegrationSetting, InventorySnapshot, KDSStation,
-		KDSSyncFailure, KDSTicket, LayawayPayment, LayawayPlan, LeaveRequest,
-		LicenseUsageSnapshot, LoyaltyAccount, LoyaltyProgram, LoyaltyTransaction,
-		Modifier, ModifierGroup, OrderLink, OutboxEvent, Outlet, OutletSetting,
-		POSCatalogOverride, POSDevice, POSDeviceSession, POSLineModifier, POSOrder,
-		POSOrderEvent, POSOrderLine, POSPayment, POSPermission, POSRefund, POSReturn,
-		POSReturnLine, POSRole, POSRolePermission, POSRoleV2, POSUserRoleAssignment,
-		PosNotification, Prescription, PrescriptionLine, PriceBook, PriceBookItem,
-		Promotion, PromotionApplication, PromotionRule, RateLimitConfig, Resource,
-		Room, RoomAmenity, RoomAmenityAssignment, RoomFolioItem, RoomGuest, Section,
-		SerialNumberLog, ServiceConfig, ServicePackage, ServicePackagePurchase,
-		ServicePackageRedemption, ServiceQueueEntry, ShiftRotation, ShiftRotationSlot,
-		StaffAdvance, StaffMember, StaffOutlet, StaffPayroll, StaffPayrollLine,
-		StaffSchedule, StaffShiftOverride, StockAlertSubscription,
-		StockConsumptionEvent, SyncFailure, Table, TableAssignment, TableReservation,
-		Tenant, TenantSyncEvent, Tender, User, UserPOSRole, WebhookDelivery,
-		WebhookSubscription, WeighingScaleReading []ent.Interceptor
+		EventBooking, Facility, FacilityBooking, FeatureOverride, GiftCard,
+		GiftCardTransaction, HousekeepingTask, IntegrationSetting, InventorySnapshot,
+		KDSStation, KDSSyncFailure, KDSTicket, LayawayPayment, LayawayPlan,
+		LeaveRequest, LicenseUsageSnapshot, LoyaltyAccount, LoyaltyProgram,
+		LoyaltyTransaction, MealEntitlement, Modifier, ModifierGroup, OrderLink,
+		OutboxEvent, Outlet, OutletSetting, POSCatalogOverride, POSDevice,
+		POSDeviceSession, POSLineModifier, POSOrder, POSOrderEvent, POSOrderLine,
+		POSPayment, POSPermission, POSRefund, POSReturn, POSReturnLine, POSRole,
+		POSRolePermission, POSRoleV2, POSUserRoleAssignment, PosNotification,
+		Prescription, PrescriptionLine, PriceBook, PriceBookItem, Promotion,
+		PromotionApplication, PromotionRule, RateLimitConfig, Resource, Room,
+		RoomAmenity, RoomAmenityAssignment, RoomBooking, RoomFolioItem, RoomGuest,
+		Section, SerialNumberLog, ServiceConfig, ServicePackage,
+		ServicePackagePurchase, ServicePackageRedemption, ServiceQueueEntry,
+		ShiftRotation, ShiftRotationSlot, StaffAdvance, StaffMember, StaffOutlet,
+		StaffPayroll, StaffPayrollLine, StaffSchedule, StaffShiftOverride,
+		StockAlertSubscription, StockConsumptionEvent, SyncFailure, Table,
+		TableAssignment, TableReservation, Tenant, TenantSyncEvent, Tender, User,
+		UserPOSRole, WebhookDelivery, WebhookSubscription,
+		WeighingScaleReading []ent.Interceptor
 	}
 )

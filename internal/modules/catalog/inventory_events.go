@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
 
@@ -13,6 +14,34 @@ import (
 	"github.com/bengobox/pos-service/internal/ent"
 	entoverride "github.com/bengobox/pos-service/internal/ent/poscatalogoverride"
 )
+
+// uuidFromPayload parses a UUID from an event payload value (string after JSON round-trip).
+func uuidFromPayload(v any) *uuid.UUID {
+	switch t := v.(type) {
+	case string:
+		if id, err := uuid.Parse(t); err == nil {
+			return &id
+		}
+	case uuid.UUID:
+		return &t
+	}
+	return nil
+}
+
+// intPtrFromPayload extracts an *int from a JSON payload value (numbers decode as float64).
+func intPtrFromPayload(v any) *int {
+	switch t := v.(type) {
+	case float64:
+		i := int(t)
+		return &i
+	case int:
+		return &t
+	case int64:
+		i := int(t)
+		return &i
+	}
+	return nil
+}
 
 // InventoryEventHandler syncs POS-specific compliance flags from inventory events.
 // Item data (name, description, image) is always fetched fresh from inventory-api at request time.
@@ -57,8 +86,16 @@ func (h *InventoryEventHandler) SubscribeToInventoryEvents(nc *nats.Conn) error 
 			_ = msg.Nak()
 			return
 		}
-		if err := h.syncComplianceFlags(context.Background(), evt); err != nil {
-			h.logger.Error("catalog sync: compliance flag sync failed", zap.Error(err))
+		var handleErr error
+		switch evt.EventType {
+		case "bundle.created", "bundle.updated":
+			handleErr = h.syncBundle(context.Background(), evt)
+		default:
+			handleErr = h.syncCatalogItem(context.Background(), evt)
+		}
+		if handleErr != nil {
+			h.logger.Error("catalog sync: handler failed",
+				zap.String("event_type", evt.EventType), zap.Error(handleErr))
 			_ = msg.Nak()
 			return
 		}
@@ -72,6 +109,8 @@ func (h *InventoryEventHandler) SubscribeToInventoryEvents(nc *nats.Conn) error 
 	subs := []sub{
 		{"inventory.item.created", "pos-inv-item-created"},
 		{"inventory.item.updated", "pos-inv-item-updated"},
+		{"inventory.bundle.created", "pos-inv-bundle-created"},
+		{"inventory.bundle.updated", "pos-inv-bundle-updated"},
 	}
 	for _, s := range subs {
 		if _, err := js.Subscribe(s.subject, handler,
@@ -87,14 +126,15 @@ func (h *InventoryEventHandler) SubscribeToInventoryEvents(nc *nats.Conn) error 
 	}
 
 	h.logger.Info("inventory catalog sync subscriptions active",
-		zap.String("subjects", "inventory.item.created, inventory.item.updated"))
+		zap.String("subjects", "inventory.item.created/updated, inventory.bundle.created/updated"))
 	return nil
 }
 
-// syncComplianceFlags upserts POS-specific compliance fields on POSCatalogOverride
-// when an inventory item is created or updated. Does NOT store item name/description/image
-// since those are always fetched fresh from inventory-api at request time.
-func (h *InventoryEventHandler) syncComplianceFlags(ctx context.Context, evt *sharedevents.Event) error {
+// syncCatalogItem upserts the POSCatalogOverride projection for an inventory item.
+// Item name/description/image are always fetched fresh from inventory-api at request time;
+// this row stores POS-relevant flags + the synced reference data (use_case, tax, compliance)
+// so hospitality items (rooms/facilities/amenities/services) and others project into POS.
+func (h *InventoryEventHandler) syncCatalogItem(ctx context.Context, evt *sharedevents.Event) error {
 	sku, _ := evt.Payload["sku"].(string)
 	itemType, _ := evt.Payload["type"].(string)
 	if sku == "" {
@@ -106,35 +146,108 @@ func (h *InventoryEventHandler) syncComplianceFlags(ctx context.Context, evt *sh
 		return nil
 	}
 
-	requiresAgeVerification, _ := evt.Payload["requires_age_verification"].(bool)
-	isControlledSubstance, _ := evt.Payload["is_controlled_substance"].(bool)
-	isActive, _ := evt.Payload["is_active"].(bool)
-
 	if evt.TenantID.String() == "00000000-0000-0000-0000-000000000000" {
 		return nil
 	}
 	tenantID := evt.TenantID
 
-	// Only upsert compliance flags — don't create override rows for items that have no POS-specific config yet
+	requiresAgeVerification, _ := evt.Payload["requires_age_verification"].(bool)
+	isControlledSubstance, _ := evt.Payload["is_controlled_substance"].(bool)
+	isActive, _ := evt.Payload["is_active"].(bool)
+	useCase, _ := evt.Payload["use_case"].(string)
+	taxCodeID, _ := evt.Payload["tax_code_id"].(string)
+
+	itemID := uuidFromPayload(evt.Payload["id"])
+	durationMinutes := intPtrFromPayload(evt.Payload["duration_minutes"])
+
 	existing, _ := h.client.POSCatalogOverride.Query().
 		Where(entoverride.TenantID(tenantID), entoverride.InventorySku(sku)).
 		First(ctx)
 
 	if existing != nil {
-		// Patch compliance flags from inventory event
 		upd := existing.Update().
 			SetRequiresAgeVerification(requiresAgeVerification).
 			SetIsControlledSubstance(isControlledSubstance).
-			SetIsAvailable(isActive)
-		if _, err := upd.Save(ctx); err != nil {
-			return fmt.Errorf("update compliance flags for %s: %w", sku, err)
+			SetIsAvailable(isActive).
+			SetItemUseCase(useCase)
+		if itemID != nil {
+			upd = upd.SetInventoryItemID(*itemID)
 		}
-		h.logger.Debug("POS catalog compliance flags updated",
-			zap.String("sku", sku),
-			zap.Bool("controlled", isControlledSubstance),
-			zap.Bool("age_gate", requiresAgeVerification))
+		if taxCodeID != "" {
+			upd = upd.SetTaxCodeID(taxCodeID)
+		}
+		if durationMinutes != nil {
+			upd = upd.SetDurationMinutes(*durationMinutes)
+		}
+		if _, err := upd.Save(ctx); err != nil {
+			return fmt.Errorf("update catalog override for %s: %w", sku, err)
+		}
+		h.logger.Debug("POS catalog override updated", zap.String("sku", sku), zap.String("use_case", useCase))
+		return nil
 	}
-	// If no override exists yet, skip — it will be created when a price is set via admin
 
+	// Create the projection row so the item is sellable in POS without a manual price step.
+	// selling_price stays nil → POS falls back to inventory-api pricing tiers.
+	create := h.client.POSCatalogOverride.Create().
+		SetTenantID(tenantID).
+		SetInventorySku(sku).
+		SetItemUseCase(useCase).
+		SetRequiresAgeVerification(requiresAgeVerification).
+		SetIsControlledSubstance(isControlledSubstance).
+		SetIsAvailable(isActive)
+	if itemID != nil {
+		create = create.SetInventoryItemID(*itemID)
+	}
+	if taxCodeID != "" {
+		create = create.SetTaxCodeID(taxCodeID)
+	}
+	if durationMinutes != nil {
+		create = create.SetDurationMinutes(*durationMinutes)
+	}
+	if _, err := create.Save(ctx); err != nil {
+		return fmt.Errorf("create catalog override for %s: %w", sku, err)
+	}
+	h.logger.Debug("POS catalog override created", zap.String("sku", sku), zap.String("use_case", useCase))
+	return nil
+}
+
+// syncBundle marks the catalog projection of a bundle's parent item as a package
+// (conference DDR/RDR, room rate plan, service-session bundle).
+func (h *InventoryEventHandler) syncBundle(ctx context.Context, evt *sharedevents.Event) error {
+	if evt.TenantID.String() == "00000000-0000-0000-0000-000000000000" {
+		return nil
+	}
+	tenantID := evt.TenantID
+	sku, _ := evt.Payload["sku"].(string)
+	itemID := uuidFromPayload(evt.Payload["item_id"])
+	packageType, _ := evt.Payload["package_type"].(string)
+	isActive, _ := evt.Payload["is_active"].(bool)
+
+	q := h.client.POSCatalogOverride.Query().Where(entoverride.TenantID(tenantID))
+	switch {
+	case sku != "":
+		q = q.Where(entoverride.InventorySku(sku))
+	case itemID != nil:
+		q = q.Where(entoverride.InventoryItemID(*itemID))
+	default:
+		return nil
+	}
+	existing, _ := q.First(ctx)
+	if existing == nil {
+		// Parent item event not yet projected; nothing to flag. Item event will create the row.
+		h.logger.Debug("bundle sync: no catalog row yet", zap.String("sku", sku))
+		return nil
+	}
+	upd := existing.Update().SetIsBundle(true).SetIsAvailable(isActive)
+	md := existing.Metadata
+	if md == nil {
+		md = map[string]any{}
+	}
+	md["package_type"] = packageType
+	upd = upd.SetMetadata(md)
+	if _, err := upd.Save(ctx); err != nil {
+		return fmt.Errorf("flag bundle override: %w", err)
+	}
+	h.logger.Debug("POS catalog bundle flagged", zap.String("sku", sku), zap.String("package_type", packageType))
 	return nil
 }

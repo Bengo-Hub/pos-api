@@ -23,16 +23,59 @@ func (RoomGuest) Fields() []ent.Field {
 			Immutable(),
 		field.UUID("tenant_id", uuid.UUID{}),
 		field.UUID("room_id", uuid.UUID{}),
+		field.UUID("booking_id", uuid.UUID{}).
+			Optional().
+			Nillable().
+			Comment("FK to RoomBooking group header (multi-room booking); nil for standalone single-room check-ins"),
 		field.String("guest_name").
 			NotEmpty(),
+		field.String("first_name").
+			Optional(),
+		field.String("last_name").
+			Optional(),
+		field.String("email").
+			Optional().
+			Comment("Guest email for confirmations/folio"),
 		field.String("phone").
 			NotEmpty(),
+		field.String("nationality").
+			Optional(),
+		field.Enum("id_type").
+			Values("national_id", "passport", "driving_licence", "other").
+			Default("national_id"),
 		field.String("id_number").
 			NotEmpty(),
+		field.String("id_document_url").
+			Optional().
+			Comment("Object-storage KEY for the scanned ID document (PII — never store the blob inline)"),
+		field.Int("adults").
+			Default(1).
+			Min(1),
+		field.Int("children").
+			Default(0).
+			Min(0),
+		field.JSON("child_ages", []int{}).
+			Optional().
+			Comment("Ages of accompanying children"),
+		field.Enum("source").
+			Values("staff", "online", "api").
+			Default("staff"),
+		field.UUID("crm_contact_id", uuid.UUID{}).
+			Optional().
+			Nillable().
+			Comment("marketflow-api CRM contact ref — never duplicate contact master data here"),
 		field.Time("check_in_date"),
+		field.Time("expected_arrival_at").
+			Optional().
+			Nillable().
+			Comment("Planned arrival datetime from the check-in calendar picker (distinct from audit checked_in_at)"),
 		field.Int("nights").
 			Min(1),
 		field.Time("check_out_date"),
+		field.Time("expected_departure_at").
+			Optional().
+			Nillable().
+			Comment("Planned departure datetime from the check-out calendar picker"),
 		field.Float("total_room_charge").
 			Min(0),
 		field.Enum("status").
@@ -67,6 +110,7 @@ func (RoomGuest) Fields() []ent.Field {
 func (RoomGuest) Edges() []ent.Edge {
 	return []ent.Edge{
 		edge.From("room", Room.Type).Ref("guests").Field("room_id").Unique().Required(),
+		edge.From("booking", RoomBooking.Type).Ref("guests").Field("booking_id").Unique(),
 		edge.To("folio_items", RoomFolioItem.Type),
 	}
 }

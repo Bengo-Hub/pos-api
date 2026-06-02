@@ -9,6 +9,7 @@ import (
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"entgo.io/ent/dialect/sql/sqljson"
 	"entgo.io/ent/schema/field"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
 	"github.com/bengobox/pos-service/internal/ent/promotionrule"
@@ -53,6 +54,100 @@ func (_u *PromotionRuleUpdate) SetNillableRuleType(v *string) *PromotionRuleUpda
 	if v != nil {
 		_u.SetRuleType(*v)
 	}
+	return _u
+}
+
+// SetScopeType sets the "scope_type" field.
+func (_u *PromotionRuleUpdate) SetScopeType(v promotionrule.ScopeType) *PromotionRuleUpdate {
+	_u.mutation.SetScopeType(v)
+	return _u
+}
+
+// SetNillableScopeType sets the "scope_type" field if the given value is not nil.
+func (_u *PromotionRuleUpdate) SetNillableScopeType(v *promotionrule.ScopeType) *PromotionRuleUpdate {
+	if v != nil {
+		_u.SetScopeType(*v)
+	}
+	return _u
+}
+
+// SetScopeIds sets the "scope_ids" field.
+func (_u *PromotionRuleUpdate) SetScopeIds(v []string) *PromotionRuleUpdate {
+	_u.mutation.SetScopeIds(v)
+	return _u
+}
+
+// AppendScopeIds appends value to the "scope_ids" field.
+func (_u *PromotionRuleUpdate) AppendScopeIds(v []string) *PromotionRuleUpdate {
+	_u.mutation.AppendScopeIds(v)
+	return _u
+}
+
+// ClearScopeIds clears the value of the "scope_ids" field.
+func (_u *PromotionRuleUpdate) ClearScopeIds() *PromotionRuleUpdate {
+	_u.mutation.ClearScopeIds()
+	return _u
+}
+
+// SetDiscountType sets the "discount_type" field.
+func (_u *PromotionRuleUpdate) SetDiscountType(v promotionrule.DiscountType) *PromotionRuleUpdate {
+	_u.mutation.SetDiscountType(v)
+	return _u
+}
+
+// SetNillableDiscountType sets the "discount_type" field if the given value is not nil.
+func (_u *PromotionRuleUpdate) SetNillableDiscountType(v *promotionrule.DiscountType) *PromotionRuleUpdate {
+	if v != nil {
+		_u.SetDiscountType(*v)
+	}
+	return _u
+}
+
+// SetDiscountValue sets the "discount_value" field.
+func (_u *PromotionRuleUpdate) SetDiscountValue(v float64) *PromotionRuleUpdate {
+	_u.mutation.ResetDiscountValue()
+	_u.mutation.SetDiscountValue(v)
+	return _u
+}
+
+// SetNillableDiscountValue sets the "discount_value" field if the given value is not nil.
+func (_u *PromotionRuleUpdate) SetNillableDiscountValue(v *float64) *PromotionRuleUpdate {
+	if v != nil {
+		_u.SetDiscountValue(*v)
+	}
+	return _u
+}
+
+// AddDiscountValue adds value to the "discount_value" field.
+func (_u *PromotionRuleUpdate) AddDiscountValue(v float64) *PromotionRuleUpdate {
+	_u.mutation.AddDiscountValue(v)
+	return _u
+}
+
+// SetMaxDiscount sets the "max_discount" field.
+func (_u *PromotionRuleUpdate) SetMaxDiscount(v float64) *PromotionRuleUpdate {
+	_u.mutation.ResetMaxDiscount()
+	_u.mutation.SetMaxDiscount(v)
+	return _u
+}
+
+// SetNillableMaxDiscount sets the "max_discount" field if the given value is not nil.
+func (_u *PromotionRuleUpdate) SetNillableMaxDiscount(v *float64) *PromotionRuleUpdate {
+	if v != nil {
+		_u.SetMaxDiscount(*v)
+	}
+	return _u
+}
+
+// AddMaxDiscount adds value to the "max_discount" field.
+func (_u *PromotionRuleUpdate) AddMaxDiscount(v float64) *PromotionRuleUpdate {
+	_u.mutation.AddMaxDiscount(v)
+	return _u
+}
+
+// ClearMaxDiscount clears the value of the "max_discount" field.
+func (_u *PromotionRuleUpdate) ClearMaxDiscount() *PromotionRuleUpdate {
+	_u.mutation.ClearMaxDiscount()
 	return _u
 }
 
@@ -101,6 +196,16 @@ func (_u *PromotionRuleUpdate) check() error {
 			return &ValidationError{Name: "rule_type", err: fmt.Errorf(`ent: validator failed for field "PromotionRule.rule_type": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.ScopeType(); ok {
+		if err := promotionrule.ScopeTypeValidator(v); err != nil {
+			return &ValidationError{Name: "scope_type", err: fmt.Errorf(`ent: validator failed for field "PromotionRule.scope_type": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.DiscountType(); ok {
+		if err := promotionrule.DiscountTypeValidator(v); err != nil {
+			return &ValidationError{Name: "discount_type", err: fmt.Errorf(`ent: validator failed for field "PromotionRule.discount_type": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -121,6 +226,38 @@ func (_u *PromotionRuleUpdate) sqlSave(ctx context.Context) (_node int, err erro
 	}
 	if value, ok := _u.mutation.RuleType(); ok {
 		_spec.SetField(promotionrule.FieldRuleType, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.ScopeType(); ok {
+		_spec.SetField(promotionrule.FieldScopeType, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.ScopeIds(); ok {
+		_spec.SetField(promotionrule.FieldScopeIds, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedScopeIds(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, promotionrule.FieldScopeIds, value)
+		})
+	}
+	if _u.mutation.ScopeIdsCleared() {
+		_spec.ClearField(promotionrule.FieldScopeIds, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.DiscountType(); ok {
+		_spec.SetField(promotionrule.FieldDiscountType, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.DiscountValue(); ok {
+		_spec.SetField(promotionrule.FieldDiscountValue, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedDiscountValue(); ok {
+		_spec.AddField(promotionrule.FieldDiscountValue, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.MaxDiscount(); ok {
+		_spec.SetField(promotionrule.FieldMaxDiscount, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedMaxDiscount(); ok {
+		_spec.AddField(promotionrule.FieldMaxDiscount, field.TypeFloat64, value)
+	}
+	if _u.mutation.MaxDiscountCleared() {
+		_spec.ClearField(promotionrule.FieldMaxDiscount, field.TypeFloat64)
 	}
 	if value, ok := _u.mutation.RuleConfig(); ok {
 		_spec.SetField(promotionrule.FieldRuleConfig, field.TypeJSON, value)
@@ -170,6 +307,100 @@ func (_u *PromotionRuleUpdateOne) SetNillableRuleType(v *string) *PromotionRuleU
 	if v != nil {
 		_u.SetRuleType(*v)
 	}
+	return _u
+}
+
+// SetScopeType sets the "scope_type" field.
+func (_u *PromotionRuleUpdateOne) SetScopeType(v promotionrule.ScopeType) *PromotionRuleUpdateOne {
+	_u.mutation.SetScopeType(v)
+	return _u
+}
+
+// SetNillableScopeType sets the "scope_type" field if the given value is not nil.
+func (_u *PromotionRuleUpdateOne) SetNillableScopeType(v *promotionrule.ScopeType) *PromotionRuleUpdateOne {
+	if v != nil {
+		_u.SetScopeType(*v)
+	}
+	return _u
+}
+
+// SetScopeIds sets the "scope_ids" field.
+func (_u *PromotionRuleUpdateOne) SetScopeIds(v []string) *PromotionRuleUpdateOne {
+	_u.mutation.SetScopeIds(v)
+	return _u
+}
+
+// AppendScopeIds appends value to the "scope_ids" field.
+func (_u *PromotionRuleUpdateOne) AppendScopeIds(v []string) *PromotionRuleUpdateOne {
+	_u.mutation.AppendScopeIds(v)
+	return _u
+}
+
+// ClearScopeIds clears the value of the "scope_ids" field.
+func (_u *PromotionRuleUpdateOne) ClearScopeIds() *PromotionRuleUpdateOne {
+	_u.mutation.ClearScopeIds()
+	return _u
+}
+
+// SetDiscountType sets the "discount_type" field.
+func (_u *PromotionRuleUpdateOne) SetDiscountType(v promotionrule.DiscountType) *PromotionRuleUpdateOne {
+	_u.mutation.SetDiscountType(v)
+	return _u
+}
+
+// SetNillableDiscountType sets the "discount_type" field if the given value is not nil.
+func (_u *PromotionRuleUpdateOne) SetNillableDiscountType(v *promotionrule.DiscountType) *PromotionRuleUpdateOne {
+	if v != nil {
+		_u.SetDiscountType(*v)
+	}
+	return _u
+}
+
+// SetDiscountValue sets the "discount_value" field.
+func (_u *PromotionRuleUpdateOne) SetDiscountValue(v float64) *PromotionRuleUpdateOne {
+	_u.mutation.ResetDiscountValue()
+	_u.mutation.SetDiscountValue(v)
+	return _u
+}
+
+// SetNillableDiscountValue sets the "discount_value" field if the given value is not nil.
+func (_u *PromotionRuleUpdateOne) SetNillableDiscountValue(v *float64) *PromotionRuleUpdateOne {
+	if v != nil {
+		_u.SetDiscountValue(*v)
+	}
+	return _u
+}
+
+// AddDiscountValue adds value to the "discount_value" field.
+func (_u *PromotionRuleUpdateOne) AddDiscountValue(v float64) *PromotionRuleUpdateOne {
+	_u.mutation.AddDiscountValue(v)
+	return _u
+}
+
+// SetMaxDiscount sets the "max_discount" field.
+func (_u *PromotionRuleUpdateOne) SetMaxDiscount(v float64) *PromotionRuleUpdateOne {
+	_u.mutation.ResetMaxDiscount()
+	_u.mutation.SetMaxDiscount(v)
+	return _u
+}
+
+// SetNillableMaxDiscount sets the "max_discount" field if the given value is not nil.
+func (_u *PromotionRuleUpdateOne) SetNillableMaxDiscount(v *float64) *PromotionRuleUpdateOne {
+	if v != nil {
+		_u.SetMaxDiscount(*v)
+	}
+	return _u
+}
+
+// AddMaxDiscount adds value to the "max_discount" field.
+func (_u *PromotionRuleUpdateOne) AddMaxDiscount(v float64) *PromotionRuleUpdateOne {
+	_u.mutation.AddMaxDiscount(v)
+	return _u
+}
+
+// ClearMaxDiscount clears the value of the "max_discount" field.
+func (_u *PromotionRuleUpdateOne) ClearMaxDiscount() *PromotionRuleUpdateOne {
+	_u.mutation.ClearMaxDiscount()
 	return _u
 }
 
@@ -231,6 +462,16 @@ func (_u *PromotionRuleUpdateOne) check() error {
 			return &ValidationError{Name: "rule_type", err: fmt.Errorf(`ent: validator failed for field "PromotionRule.rule_type": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.ScopeType(); ok {
+		if err := promotionrule.ScopeTypeValidator(v); err != nil {
+			return &ValidationError{Name: "scope_type", err: fmt.Errorf(`ent: validator failed for field "PromotionRule.scope_type": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.DiscountType(); ok {
+		if err := promotionrule.DiscountTypeValidator(v); err != nil {
+			return &ValidationError{Name: "discount_type", err: fmt.Errorf(`ent: validator failed for field "PromotionRule.discount_type": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -268,6 +509,38 @@ func (_u *PromotionRuleUpdateOne) sqlSave(ctx context.Context) (_node *Promotion
 	}
 	if value, ok := _u.mutation.RuleType(); ok {
 		_spec.SetField(promotionrule.FieldRuleType, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.ScopeType(); ok {
+		_spec.SetField(promotionrule.FieldScopeType, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.ScopeIds(); ok {
+		_spec.SetField(promotionrule.FieldScopeIds, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedScopeIds(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, promotionrule.FieldScopeIds, value)
+		})
+	}
+	if _u.mutation.ScopeIdsCleared() {
+		_spec.ClearField(promotionrule.FieldScopeIds, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.DiscountType(); ok {
+		_spec.SetField(promotionrule.FieldDiscountType, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.DiscountValue(); ok {
+		_spec.SetField(promotionrule.FieldDiscountValue, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedDiscountValue(); ok {
+		_spec.AddField(promotionrule.FieldDiscountValue, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.MaxDiscount(); ok {
+		_spec.SetField(promotionrule.FieldMaxDiscount, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedMaxDiscount(); ok {
+		_spec.AddField(promotionrule.FieldMaxDiscount, field.TypeFloat64, value)
+	}
+	if _u.mutation.MaxDiscountCleared() {
+		_spec.ClearField(promotionrule.FieldMaxDiscount, field.TypeFloat64)
 	}
 	if value, ok := _u.mutation.RuleConfig(); ok {
 		_spec.SetField(promotionrule.FieldRuleConfig, field.TypeJSON, value)

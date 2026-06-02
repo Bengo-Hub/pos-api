@@ -26,18 +26,18 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/migrate"
 	handlers "github.com/bengobox/pos-service/internal/http/handlers"
 	router "github.com/bengobox/pos-service/internal/http/router"
+	catalogmodule "github.com/bengobox/pos-service/internal/modules/catalog"
 	"github.com/bengobox/pos-service/internal/modules/identity"
+	inventorymodule "github.com/bengobox/pos-service/internal/modules/inventory"
 	kdsmodule "github.com/bengobox/pos-service/internal/modules/kds"
 	ordermodule "github.com/bengobox/pos-service/internal/modules/orders"
 	paymentmodule "github.com/bengobox/pos-service/internal/modules/payments"
 	promommodule "github.com/bengobox/pos-service/internal/modules/promotions"
-	catalogmodule "github.com/bengobox/pos-service/internal/modules/catalog"
 	rbacmodule "github.com/bengobox/pos-service/internal/modules/rbac"
-	inventorymodule "github.com/bengobox/pos-service/internal/modules/inventory"
-	treasurymodule "github.com/bengobox/pos-service/internal/modules/treasury"
-	webhookmodule "github.com/bengobox/pos-service/internal/modules/webhooks"
 	shiftsmodule "github.com/bengobox/pos-service/internal/modules/shifts"
 	"github.com/bengobox/pos-service/internal/modules/tenant"
+	treasurymodule "github.com/bengobox/pos-service/internal/modules/treasury"
+	webhookmodule "github.com/bengobox/pos-service/internal/modules/webhooks"
 	"github.com/bengobox/pos-service/internal/platform/cache"
 	"github.com/bengobox/pos-service/internal/platform/database"
 	"github.com/bengobox/pos-service/internal/platform/events"
@@ -49,14 +49,14 @@ import (
 )
 
 type App struct {
-	cfg             *config.Config
-	log             *zap.Logger
-	httpServer      *http.Server
-	db              *pgxpool.Pool
-	entClient       *ent.Client
-	cache           *redis.Client
-	events          *nats.Conn
-	outboxPublisher    *eventslib.Publisher
+	cfg                      *config.Config
+	log                      *zap.Logger
+	httpServer               *http.Server
+	db                       *pgxpool.Pool
+	entClient                *ent.Client
+	cache                    *redis.Client
+	events                   *nats.Conn
+	outboxPublisher          *eventslib.Publisher
 	webhookWorker            *webhookmodule.DeliveryWorker
 	shiftAutoEndWorker       *shiftsmodule.AutoEndWorker
 	kdsHub                   *kdsmodule.Hub
@@ -189,6 +189,8 @@ func New(ctx context.Context) (*App, error) {
 		paymentSvc.SetPublisher(pub)
 	}
 	promoSvc := promommodule.NewService(entClient, log)
+	// Auto-apply happy-hour discounts at checkout (decoupled hook into the orders service).
+	orderSvc.SetHappyHourEvaluator(promoSvc.EvaluateHappyHourDiscount)
 
 	// Create HTTP handlers
 	orderHandler := handlers.NewPOSOrderHandler(log, entClient, orderSvc, subsClient)
@@ -215,6 +217,7 @@ func New(ctx context.Context) (*App, error) {
 	}
 	hotelHandler := handlers.NewHotelHandler(log, entClient, hotelEventPub)
 	hotelHandler.SetTreasuryClient(treasuryClient)
+	hotelHandler.SetInventoryClient(inventoryClient)
 	kdsHandler := handlers.NewKDSHandler(log, entClient)
 	kdsHandler.Hub().SetRedis(redisClient)
 	kdsHub := kdsHandler.Hub()
@@ -384,7 +387,6 @@ func New(ctx context.Context) (*App, error) {
 		}
 	}
 
-
 	webhookWorker := webhookmodule.NewDeliveryWorker(entClient, log)
 	shiftAutoEndWorker := shiftsmodule.NewAutoEndWorker(entClient, log)
 	var layawayReminder *scheduler.LayawayReminderScheduler
@@ -418,13 +420,13 @@ func New(ctx context.Context) (*App, error) {
 	}
 
 	return &App{
-		cfg:             cfg,
-		log:             log,
-		httpServer:      httpServer,
-		db:              dbPool,
-		entClient:       entClient,
-		cache:           redisClient,
-		events:          natsConn,
+		cfg:                      cfg,
+		log:                      log,
+		httpServer:               httpServer,
+		db:                       dbPool,
+		entClient:                entClient,
+		cache:                    redisClient,
+		events:                   natsConn,
 		outboxPublisher:          outboxPub,
 		webhookWorker:            webhookWorker,
 		shiftAutoEndWorker:       shiftAutoEndWorker,

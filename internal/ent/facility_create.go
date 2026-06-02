@@ -71,6 +71,20 @@ func (_c *FacilityCreate) SetNillableCapacity(v *int) *FacilityCreate {
 	return _c
 }
 
+// SetInventoryItemID sets the "inventory_item_id" field.
+func (_c *FacilityCreate) SetInventoryItemID(v uuid.UUID) *FacilityCreate {
+	_c.mutation.SetInventoryItemID(v)
+	return _c
+}
+
+// SetNillableInventoryItemID sets the "inventory_item_id" field if the given value is not nil.
+func (_c *FacilityCreate) SetNillableInventoryItemID(v *uuid.UUID) *FacilityCreate {
+	if v != nil {
+		_c.SetInventoryItemID(*v)
+	}
+	return _c
+}
+
 // SetRatePerSession sets the "rate_per_session" field.
 func (_c *FacilityCreate) SetRatePerSession(v float64) *FacilityCreate {
 	_c.mutation.SetRatePerSession(v)
@@ -129,6 +143,40 @@ func (_c *FacilityCreate) SetStatus(v facility.Status) *FacilityCreate {
 func (_c *FacilityCreate) SetNillableStatus(v *facility.Status) *FacilityCreate {
 	if v != nil {
 		_c.SetStatus(*v)
+	}
+	return _c
+}
+
+// SetSetupStyles sets the "setup_styles" field.
+func (_c *FacilityCreate) SetSetupStyles(v []string) *FacilityCreate {
+	_c.mutation.SetSetupStyles(v)
+	return _c
+}
+
+// SetDivisible sets the "divisible" field.
+func (_c *FacilityCreate) SetDivisible(v bool) *FacilityCreate {
+	_c.mutation.SetDivisible(v)
+	return _c
+}
+
+// SetNillableDivisible sets the "divisible" field if the given value is not nil.
+func (_c *FacilityCreate) SetNillableDivisible(v *bool) *FacilityCreate {
+	if v != nil {
+		_c.SetDivisible(*v)
+	}
+	return _c
+}
+
+// SetParentFacilityID sets the "parent_facility_id" field.
+func (_c *FacilityCreate) SetParentFacilityID(v uuid.UUID) *FacilityCreate {
+	_c.mutation.SetParentFacilityID(v)
+	return _c
+}
+
+// SetNillableParentFacilityID sets the "parent_facility_id" field if the given value is not nil.
+func (_c *FacilityCreate) SetNillableParentFacilityID(v *uuid.UUID) *FacilityCreate {
+	if v != nil {
+		_c.SetParentFacilityID(*v)
 	}
 	return _c
 }
@@ -269,6 +317,10 @@ func (_c *FacilityCreate) defaults() {
 		v := facility.DefaultStatus
 		_c.mutation.SetStatus(v)
 	}
+	if _, ok := _c.mutation.Divisible(); !ok {
+		v := facility.DefaultDivisible
+		_c.mutation.SetDivisible(v)
+	}
 	if _, ok := _c.mutation.IsActive(); !ok {
 		v := facility.DefaultIsActive
 		_c.mutation.SetIsActive(v)
@@ -348,6 +400,9 @@ func (_c *FacilityCreate) check() error {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "Facility.status": %w`, err)}
 		}
 	}
+	if _, ok := _c.mutation.Divisible(); !ok {
+		return &ValidationError{Name: "divisible", err: errors.New(`ent: missing required field "Facility.divisible"`)}
+	}
 	if _, ok := _c.mutation.IsActive(); !ok {
 		return &ValidationError{Name: "is_active", err: errors.New(`ent: missing required field "Facility.is_active"`)}
 	}
@@ -416,6 +471,10 @@ func (_c *FacilityCreate) createSpec() (*Facility, *sqlgraph.CreateSpec) {
 		_spec.SetField(facility.FieldCapacity, field.TypeInt, value)
 		_node.Capacity = value
 	}
+	if value, ok := _c.mutation.InventoryItemID(); ok {
+		_spec.SetField(facility.FieldInventoryItemID, field.TypeUUID, value)
+		_node.InventoryItemID = &value
+	}
 	if value, ok := _c.mutation.RatePerSession(); ok {
 		_spec.SetField(facility.FieldRatePerSession, field.TypeFloat64, value)
 		_node.RatePerSession = value
@@ -435,6 +494,18 @@ func (_c *FacilityCreate) createSpec() (*Facility, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Status(); ok {
 		_spec.SetField(facility.FieldStatus, field.TypeEnum, value)
 		_node.Status = value
+	}
+	if value, ok := _c.mutation.SetupStyles(); ok {
+		_spec.SetField(facility.FieldSetupStyles, field.TypeJSON, value)
+		_node.SetupStyles = value
+	}
+	if value, ok := _c.mutation.Divisible(); ok {
+		_spec.SetField(facility.FieldDivisible, field.TypeBool, value)
+		_node.Divisible = value
+	}
+	if value, ok := _c.mutation.ParentFacilityID(); ok {
+		_spec.SetField(facility.FieldParentFacilityID, field.TypeUUID, value)
+		_node.ParentFacilityID = &value
 	}
 	if value, ok := _c.mutation.IsActive(); ok {
 		_spec.SetField(facility.FieldIsActive, field.TypeBool, value)
@@ -586,6 +657,24 @@ func (u *FacilityUpsert) AddCapacity(v int) *FacilityUpsert {
 	return u
 }
 
+// SetInventoryItemID sets the "inventory_item_id" field.
+func (u *FacilityUpsert) SetInventoryItemID(v uuid.UUID) *FacilityUpsert {
+	u.Set(facility.FieldInventoryItemID, v)
+	return u
+}
+
+// UpdateInventoryItemID sets the "inventory_item_id" field to the value that was provided on create.
+func (u *FacilityUpsert) UpdateInventoryItemID() *FacilityUpsert {
+	u.SetExcluded(facility.FieldInventoryItemID)
+	return u
+}
+
+// ClearInventoryItemID clears the value of the "inventory_item_id" field.
+func (u *FacilityUpsert) ClearInventoryItemID() *FacilityUpsert {
+	u.SetNull(facility.FieldInventoryItemID)
+	return u
+}
+
 // SetRatePerSession sets the "rate_per_session" field.
 func (u *FacilityUpsert) SetRatePerSession(v float64) *FacilityUpsert {
 	u.Set(facility.FieldRatePerSession, v)
@@ -649,6 +738,54 @@ func (u *FacilityUpsert) SetStatus(v facility.Status) *FacilityUpsert {
 // UpdateStatus sets the "status" field to the value that was provided on create.
 func (u *FacilityUpsert) UpdateStatus() *FacilityUpsert {
 	u.SetExcluded(facility.FieldStatus)
+	return u
+}
+
+// SetSetupStyles sets the "setup_styles" field.
+func (u *FacilityUpsert) SetSetupStyles(v []string) *FacilityUpsert {
+	u.Set(facility.FieldSetupStyles, v)
+	return u
+}
+
+// UpdateSetupStyles sets the "setup_styles" field to the value that was provided on create.
+func (u *FacilityUpsert) UpdateSetupStyles() *FacilityUpsert {
+	u.SetExcluded(facility.FieldSetupStyles)
+	return u
+}
+
+// ClearSetupStyles clears the value of the "setup_styles" field.
+func (u *FacilityUpsert) ClearSetupStyles() *FacilityUpsert {
+	u.SetNull(facility.FieldSetupStyles)
+	return u
+}
+
+// SetDivisible sets the "divisible" field.
+func (u *FacilityUpsert) SetDivisible(v bool) *FacilityUpsert {
+	u.Set(facility.FieldDivisible, v)
+	return u
+}
+
+// UpdateDivisible sets the "divisible" field to the value that was provided on create.
+func (u *FacilityUpsert) UpdateDivisible() *FacilityUpsert {
+	u.SetExcluded(facility.FieldDivisible)
+	return u
+}
+
+// SetParentFacilityID sets the "parent_facility_id" field.
+func (u *FacilityUpsert) SetParentFacilityID(v uuid.UUID) *FacilityUpsert {
+	u.Set(facility.FieldParentFacilityID, v)
+	return u
+}
+
+// UpdateParentFacilityID sets the "parent_facility_id" field to the value that was provided on create.
+func (u *FacilityUpsert) UpdateParentFacilityID() *FacilityUpsert {
+	u.SetExcluded(facility.FieldParentFacilityID)
+	return u
+}
+
+// ClearParentFacilityID clears the value of the "parent_facility_id" field.
+func (u *FacilityUpsert) ClearParentFacilityID() *FacilityUpsert {
+	u.SetNull(facility.FieldParentFacilityID)
 	return u
 }
 
@@ -816,6 +953,27 @@ func (u *FacilityUpsertOne) UpdateCapacity() *FacilityUpsertOne {
 	})
 }
 
+// SetInventoryItemID sets the "inventory_item_id" field.
+func (u *FacilityUpsertOne) SetInventoryItemID(v uuid.UUID) *FacilityUpsertOne {
+	return u.Update(func(s *FacilityUpsert) {
+		s.SetInventoryItemID(v)
+	})
+}
+
+// UpdateInventoryItemID sets the "inventory_item_id" field to the value that was provided on create.
+func (u *FacilityUpsertOne) UpdateInventoryItemID() *FacilityUpsertOne {
+	return u.Update(func(s *FacilityUpsert) {
+		s.UpdateInventoryItemID()
+	})
+}
+
+// ClearInventoryItemID clears the value of the "inventory_item_id" field.
+func (u *FacilityUpsertOne) ClearInventoryItemID() *FacilityUpsertOne {
+	return u.Update(func(s *FacilityUpsert) {
+		s.ClearInventoryItemID()
+	})
+}
+
 // SetRatePerSession sets the "rate_per_session" field.
 func (u *FacilityUpsertOne) SetRatePerSession(v float64) *FacilityUpsertOne {
 	return u.Update(func(s *FacilityUpsert) {
@@ -890,6 +1048,62 @@ func (u *FacilityUpsertOne) SetStatus(v facility.Status) *FacilityUpsertOne {
 func (u *FacilityUpsertOne) UpdateStatus() *FacilityUpsertOne {
 	return u.Update(func(s *FacilityUpsert) {
 		s.UpdateStatus()
+	})
+}
+
+// SetSetupStyles sets the "setup_styles" field.
+func (u *FacilityUpsertOne) SetSetupStyles(v []string) *FacilityUpsertOne {
+	return u.Update(func(s *FacilityUpsert) {
+		s.SetSetupStyles(v)
+	})
+}
+
+// UpdateSetupStyles sets the "setup_styles" field to the value that was provided on create.
+func (u *FacilityUpsertOne) UpdateSetupStyles() *FacilityUpsertOne {
+	return u.Update(func(s *FacilityUpsert) {
+		s.UpdateSetupStyles()
+	})
+}
+
+// ClearSetupStyles clears the value of the "setup_styles" field.
+func (u *FacilityUpsertOne) ClearSetupStyles() *FacilityUpsertOne {
+	return u.Update(func(s *FacilityUpsert) {
+		s.ClearSetupStyles()
+	})
+}
+
+// SetDivisible sets the "divisible" field.
+func (u *FacilityUpsertOne) SetDivisible(v bool) *FacilityUpsertOne {
+	return u.Update(func(s *FacilityUpsert) {
+		s.SetDivisible(v)
+	})
+}
+
+// UpdateDivisible sets the "divisible" field to the value that was provided on create.
+func (u *FacilityUpsertOne) UpdateDivisible() *FacilityUpsertOne {
+	return u.Update(func(s *FacilityUpsert) {
+		s.UpdateDivisible()
+	})
+}
+
+// SetParentFacilityID sets the "parent_facility_id" field.
+func (u *FacilityUpsertOne) SetParentFacilityID(v uuid.UUID) *FacilityUpsertOne {
+	return u.Update(func(s *FacilityUpsert) {
+		s.SetParentFacilityID(v)
+	})
+}
+
+// UpdateParentFacilityID sets the "parent_facility_id" field to the value that was provided on create.
+func (u *FacilityUpsertOne) UpdateParentFacilityID() *FacilityUpsertOne {
+	return u.Update(func(s *FacilityUpsert) {
+		s.UpdateParentFacilityID()
+	})
+}
+
+// ClearParentFacilityID clears the value of the "parent_facility_id" field.
+func (u *FacilityUpsertOne) ClearParentFacilityID() *FacilityUpsertOne {
+	return u.Update(func(s *FacilityUpsert) {
+		s.ClearParentFacilityID()
 	})
 }
 
@@ -1230,6 +1444,27 @@ func (u *FacilityUpsertBulk) UpdateCapacity() *FacilityUpsertBulk {
 	})
 }
 
+// SetInventoryItemID sets the "inventory_item_id" field.
+func (u *FacilityUpsertBulk) SetInventoryItemID(v uuid.UUID) *FacilityUpsertBulk {
+	return u.Update(func(s *FacilityUpsert) {
+		s.SetInventoryItemID(v)
+	})
+}
+
+// UpdateInventoryItemID sets the "inventory_item_id" field to the value that was provided on create.
+func (u *FacilityUpsertBulk) UpdateInventoryItemID() *FacilityUpsertBulk {
+	return u.Update(func(s *FacilityUpsert) {
+		s.UpdateInventoryItemID()
+	})
+}
+
+// ClearInventoryItemID clears the value of the "inventory_item_id" field.
+func (u *FacilityUpsertBulk) ClearInventoryItemID() *FacilityUpsertBulk {
+	return u.Update(func(s *FacilityUpsert) {
+		s.ClearInventoryItemID()
+	})
+}
+
 // SetRatePerSession sets the "rate_per_session" field.
 func (u *FacilityUpsertBulk) SetRatePerSession(v float64) *FacilityUpsertBulk {
 	return u.Update(func(s *FacilityUpsert) {
@@ -1304,6 +1539,62 @@ func (u *FacilityUpsertBulk) SetStatus(v facility.Status) *FacilityUpsertBulk {
 func (u *FacilityUpsertBulk) UpdateStatus() *FacilityUpsertBulk {
 	return u.Update(func(s *FacilityUpsert) {
 		s.UpdateStatus()
+	})
+}
+
+// SetSetupStyles sets the "setup_styles" field.
+func (u *FacilityUpsertBulk) SetSetupStyles(v []string) *FacilityUpsertBulk {
+	return u.Update(func(s *FacilityUpsert) {
+		s.SetSetupStyles(v)
+	})
+}
+
+// UpdateSetupStyles sets the "setup_styles" field to the value that was provided on create.
+func (u *FacilityUpsertBulk) UpdateSetupStyles() *FacilityUpsertBulk {
+	return u.Update(func(s *FacilityUpsert) {
+		s.UpdateSetupStyles()
+	})
+}
+
+// ClearSetupStyles clears the value of the "setup_styles" field.
+func (u *FacilityUpsertBulk) ClearSetupStyles() *FacilityUpsertBulk {
+	return u.Update(func(s *FacilityUpsert) {
+		s.ClearSetupStyles()
+	})
+}
+
+// SetDivisible sets the "divisible" field.
+func (u *FacilityUpsertBulk) SetDivisible(v bool) *FacilityUpsertBulk {
+	return u.Update(func(s *FacilityUpsert) {
+		s.SetDivisible(v)
+	})
+}
+
+// UpdateDivisible sets the "divisible" field to the value that was provided on create.
+func (u *FacilityUpsertBulk) UpdateDivisible() *FacilityUpsertBulk {
+	return u.Update(func(s *FacilityUpsert) {
+		s.UpdateDivisible()
+	})
+}
+
+// SetParentFacilityID sets the "parent_facility_id" field.
+func (u *FacilityUpsertBulk) SetParentFacilityID(v uuid.UUID) *FacilityUpsertBulk {
+	return u.Update(func(s *FacilityUpsert) {
+		s.SetParentFacilityID(v)
+	})
+}
+
+// UpdateParentFacilityID sets the "parent_facility_id" field to the value that was provided on create.
+func (u *FacilityUpsertBulk) UpdateParentFacilityID() *FacilityUpsertBulk {
+	return u.Update(func(s *FacilityUpsert) {
+		s.UpdateParentFacilityID()
+	})
+}
+
+// ClearParentFacilityID clears the value of the "parent_facility_id" field.
+func (u *FacilityUpsertBulk) ClearParentFacilityID() *FacilityUpsertBulk {
+	return u.Update(func(s *FacilityUpsert) {
+		s.ClearParentFacilityID()
 	})
 }
 

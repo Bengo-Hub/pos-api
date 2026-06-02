@@ -70,6 +70,21 @@ func InventorySku(v string) predicate.POSCatalogOverride {
 	return predicate.POSCatalogOverride(sql.FieldEQ(FieldInventorySku, v))
 }
 
+// InventoryItemID applies equality check predicate on the "inventory_item_id" field. It's identical to InventoryItemIDEQ.
+func InventoryItemID(v uuid.UUID) predicate.POSCatalogOverride {
+	return predicate.POSCatalogOverride(sql.FieldEQ(FieldInventoryItemID, v))
+}
+
+// ItemUseCase applies equality check predicate on the "item_use_case" field. It's identical to ItemUseCaseEQ.
+func ItemUseCase(v string) predicate.POSCatalogOverride {
+	return predicate.POSCatalogOverride(sql.FieldEQ(FieldItemUseCase, v))
+}
+
+// IsBundle applies equality check predicate on the "is_bundle" field. It's identical to IsBundleEQ.
+func IsBundle(v bool) predicate.POSCatalogOverride {
+	return predicate.POSCatalogOverride(sql.FieldEQ(FieldIsBundle, v))
+}
+
 // SellingPrice applies equality check predicate on the "selling_price" field. It's identical to SellingPriceEQ.
 func SellingPrice(v float64) predicate.POSCatalogOverride {
 	return predicate.POSCatalogOverride(sql.FieldEQ(FieldSellingPrice, v))
@@ -308,6 +323,141 @@ func InventorySkuEqualFold(v string) predicate.POSCatalogOverride {
 // InventorySkuContainsFold applies the ContainsFold predicate on the "inventory_sku" field.
 func InventorySkuContainsFold(v string) predicate.POSCatalogOverride {
 	return predicate.POSCatalogOverride(sql.FieldContainsFold(FieldInventorySku, v))
+}
+
+// InventoryItemIDEQ applies the EQ predicate on the "inventory_item_id" field.
+func InventoryItemIDEQ(v uuid.UUID) predicate.POSCatalogOverride {
+	return predicate.POSCatalogOverride(sql.FieldEQ(FieldInventoryItemID, v))
+}
+
+// InventoryItemIDNEQ applies the NEQ predicate on the "inventory_item_id" field.
+func InventoryItemIDNEQ(v uuid.UUID) predicate.POSCatalogOverride {
+	return predicate.POSCatalogOverride(sql.FieldNEQ(FieldInventoryItemID, v))
+}
+
+// InventoryItemIDIn applies the In predicate on the "inventory_item_id" field.
+func InventoryItemIDIn(vs ...uuid.UUID) predicate.POSCatalogOverride {
+	return predicate.POSCatalogOverride(sql.FieldIn(FieldInventoryItemID, vs...))
+}
+
+// InventoryItemIDNotIn applies the NotIn predicate on the "inventory_item_id" field.
+func InventoryItemIDNotIn(vs ...uuid.UUID) predicate.POSCatalogOverride {
+	return predicate.POSCatalogOverride(sql.FieldNotIn(FieldInventoryItemID, vs...))
+}
+
+// InventoryItemIDGT applies the GT predicate on the "inventory_item_id" field.
+func InventoryItemIDGT(v uuid.UUID) predicate.POSCatalogOverride {
+	return predicate.POSCatalogOverride(sql.FieldGT(FieldInventoryItemID, v))
+}
+
+// InventoryItemIDGTE applies the GTE predicate on the "inventory_item_id" field.
+func InventoryItemIDGTE(v uuid.UUID) predicate.POSCatalogOverride {
+	return predicate.POSCatalogOverride(sql.FieldGTE(FieldInventoryItemID, v))
+}
+
+// InventoryItemIDLT applies the LT predicate on the "inventory_item_id" field.
+func InventoryItemIDLT(v uuid.UUID) predicate.POSCatalogOverride {
+	return predicate.POSCatalogOverride(sql.FieldLT(FieldInventoryItemID, v))
+}
+
+// InventoryItemIDLTE applies the LTE predicate on the "inventory_item_id" field.
+func InventoryItemIDLTE(v uuid.UUID) predicate.POSCatalogOverride {
+	return predicate.POSCatalogOverride(sql.FieldLTE(FieldInventoryItemID, v))
+}
+
+// InventoryItemIDIsNil applies the IsNil predicate on the "inventory_item_id" field.
+func InventoryItemIDIsNil() predicate.POSCatalogOverride {
+	return predicate.POSCatalogOverride(sql.FieldIsNull(FieldInventoryItemID))
+}
+
+// InventoryItemIDNotNil applies the NotNil predicate on the "inventory_item_id" field.
+func InventoryItemIDNotNil() predicate.POSCatalogOverride {
+	return predicate.POSCatalogOverride(sql.FieldNotNull(FieldInventoryItemID))
+}
+
+// ItemUseCaseEQ applies the EQ predicate on the "item_use_case" field.
+func ItemUseCaseEQ(v string) predicate.POSCatalogOverride {
+	return predicate.POSCatalogOverride(sql.FieldEQ(FieldItemUseCase, v))
+}
+
+// ItemUseCaseNEQ applies the NEQ predicate on the "item_use_case" field.
+func ItemUseCaseNEQ(v string) predicate.POSCatalogOverride {
+	return predicate.POSCatalogOverride(sql.FieldNEQ(FieldItemUseCase, v))
+}
+
+// ItemUseCaseIn applies the In predicate on the "item_use_case" field.
+func ItemUseCaseIn(vs ...string) predicate.POSCatalogOverride {
+	return predicate.POSCatalogOverride(sql.FieldIn(FieldItemUseCase, vs...))
+}
+
+// ItemUseCaseNotIn applies the NotIn predicate on the "item_use_case" field.
+func ItemUseCaseNotIn(vs ...string) predicate.POSCatalogOverride {
+	return predicate.POSCatalogOverride(sql.FieldNotIn(FieldItemUseCase, vs...))
+}
+
+// ItemUseCaseGT applies the GT predicate on the "item_use_case" field.
+func ItemUseCaseGT(v string) predicate.POSCatalogOverride {
+	return predicate.POSCatalogOverride(sql.FieldGT(FieldItemUseCase, v))
+}
+
+// ItemUseCaseGTE applies the GTE predicate on the "item_use_case" field.
+func ItemUseCaseGTE(v string) predicate.POSCatalogOverride {
+	return predicate.POSCatalogOverride(sql.FieldGTE(FieldItemUseCase, v))
+}
+
+// ItemUseCaseLT applies the LT predicate on the "item_use_case" field.
+func ItemUseCaseLT(v string) predicate.POSCatalogOverride {
+	return predicate.POSCatalogOverride(sql.FieldLT(FieldItemUseCase, v))
+}
+
+// ItemUseCaseLTE applies the LTE predicate on the "item_use_case" field.
+func ItemUseCaseLTE(v string) predicate.POSCatalogOverride {
+	return predicate.POSCatalogOverride(sql.FieldLTE(FieldItemUseCase, v))
+}
+
+// ItemUseCaseContains applies the Contains predicate on the "item_use_case" field.
+func ItemUseCaseContains(v string) predicate.POSCatalogOverride {
+	return predicate.POSCatalogOverride(sql.FieldContains(FieldItemUseCase, v))
+}
+
+// ItemUseCaseHasPrefix applies the HasPrefix predicate on the "item_use_case" field.
+func ItemUseCaseHasPrefix(v string) predicate.POSCatalogOverride {
+	return predicate.POSCatalogOverride(sql.FieldHasPrefix(FieldItemUseCase, v))
+}
+
+// ItemUseCaseHasSuffix applies the HasSuffix predicate on the "item_use_case" field.
+func ItemUseCaseHasSuffix(v string) predicate.POSCatalogOverride {
+	return predicate.POSCatalogOverride(sql.FieldHasSuffix(FieldItemUseCase, v))
+}
+
+// ItemUseCaseIsNil applies the IsNil predicate on the "item_use_case" field.
+func ItemUseCaseIsNil() predicate.POSCatalogOverride {
+	return predicate.POSCatalogOverride(sql.FieldIsNull(FieldItemUseCase))
+}
+
+// ItemUseCaseNotNil applies the NotNil predicate on the "item_use_case" field.
+func ItemUseCaseNotNil() predicate.POSCatalogOverride {
+	return predicate.POSCatalogOverride(sql.FieldNotNull(FieldItemUseCase))
+}
+
+// ItemUseCaseEqualFold applies the EqualFold predicate on the "item_use_case" field.
+func ItemUseCaseEqualFold(v string) predicate.POSCatalogOverride {
+	return predicate.POSCatalogOverride(sql.FieldEqualFold(FieldItemUseCase, v))
+}
+
+// ItemUseCaseContainsFold applies the ContainsFold predicate on the "item_use_case" field.
+func ItemUseCaseContainsFold(v string) predicate.POSCatalogOverride {
+	return predicate.POSCatalogOverride(sql.FieldContainsFold(FieldItemUseCase, v))
+}
+
+// IsBundleEQ applies the EQ predicate on the "is_bundle" field.
+func IsBundleEQ(v bool) predicate.POSCatalogOverride {
+	return predicate.POSCatalogOverride(sql.FieldEQ(FieldIsBundle, v))
+}
+
+// IsBundleNEQ applies the NEQ predicate on the "is_bundle" field.
+func IsBundleNEQ(v bool) predicate.POSCatalogOverride {
+	return predicate.POSCatalogOverride(sql.FieldNEQ(FieldIsBundle, v))
 }
 
 // SellingPriceEQ applies the EQ predicate on the "selling_price" field.

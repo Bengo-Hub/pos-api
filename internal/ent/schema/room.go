@@ -32,8 +32,13 @@ func (Room) Fields() []ent.Field {
 			Default("standard"),
 		field.Int("floor").
 			Default(1),
+		field.UUID("inventory_item_id", uuid.UUID{}).
+			Optional().
+			Nillable().
+			Comment("Ref to inventory-api SERVICE Item (use_case=HOSPITALITY_ROOM) — authoritative room-type & rate master"),
 		field.Float("rate_per_night").
-			Min(0),
+			Min(0).
+			Comment("DEPRECATED as authoritative: rate master lives in inventory-api ItemPricing. Synced/read-through snapshot for display; kept for transition"),
 		field.String("currency").
 			Default("KES"),
 		field.Enum("status").

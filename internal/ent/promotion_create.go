@@ -30,6 +30,20 @@ func (_c *PromotionCreate) SetTenantID(v uuid.UUID) *PromotionCreate {
 	return _c
 }
 
+// SetOutletID sets the "outlet_id" field.
+func (_c *PromotionCreate) SetOutletID(v uuid.UUID) *PromotionCreate {
+	_c.mutation.SetOutletID(v)
+	return _c
+}
+
+// SetNillableOutletID sets the "outlet_id" field if the given value is not nil.
+func (_c *PromotionCreate) SetNillableOutletID(v *uuid.UUID) *PromotionCreate {
+	if v != nil {
+		_c.SetOutletID(*v)
+	}
+	return _c
+}
+
 // SetName sets the "name" field.
 func (_c *PromotionCreate) SetName(v string) *PromotionCreate {
 	_c.mutation.SetName(v)
@@ -60,6 +74,68 @@ func (_c *PromotionCreate) SetPromoCode(v string) *PromotionCreate {
 func (_c *PromotionCreate) SetNillablePromoCode(v *string) *PromotionCreate {
 	if v != nil {
 		_c.SetPromoCode(*v)
+	}
+	return _c
+}
+
+// SetPromoKind sets the "promo_kind" field.
+func (_c *PromotionCreate) SetPromoKind(v promotion.PromoKind) *PromotionCreate {
+	_c.mutation.SetPromoKind(v)
+	return _c
+}
+
+// SetNillablePromoKind sets the "promo_kind" field if the given value is not nil.
+func (_c *PromotionCreate) SetNillablePromoKind(v *promotion.PromoKind) *PromotionCreate {
+	if v != nil {
+		_c.SetPromoKind(*v)
+	}
+	return _c
+}
+
+// SetDaysOfWeek sets the "days_of_week" field.
+func (_c *PromotionCreate) SetDaysOfWeek(v []int) *PromotionCreate {
+	_c.mutation.SetDaysOfWeek(v)
+	return _c
+}
+
+// SetWindowStart sets the "window_start" field.
+func (_c *PromotionCreate) SetWindowStart(v string) *PromotionCreate {
+	_c.mutation.SetWindowStart(v)
+	return _c
+}
+
+// SetNillableWindowStart sets the "window_start" field if the given value is not nil.
+func (_c *PromotionCreate) SetNillableWindowStart(v *string) *PromotionCreate {
+	if v != nil {
+		_c.SetWindowStart(*v)
+	}
+	return _c
+}
+
+// SetWindowEnd sets the "window_end" field.
+func (_c *PromotionCreate) SetWindowEnd(v string) *PromotionCreate {
+	_c.mutation.SetWindowEnd(v)
+	return _c
+}
+
+// SetNillableWindowEnd sets the "window_end" field if the given value is not nil.
+func (_c *PromotionCreate) SetNillableWindowEnd(v *string) *PromotionCreate {
+	if v != nil {
+		_c.SetWindowEnd(*v)
+	}
+	return _c
+}
+
+// SetAutoApply sets the "auto_apply" field.
+func (_c *PromotionCreate) SetAutoApply(v bool) *PromotionCreate {
+	_c.mutation.SetAutoApply(v)
+	return _c
+}
+
+// SetNillableAutoApply sets the "auto_apply" field if the given value is not nil.
+func (_c *PromotionCreate) SetNillableAutoApply(v *bool) *PromotionCreate {
+	if v != nil {
+		_c.SetAutoApply(*v)
 	}
 	return _c
 }
@@ -161,6 +237,14 @@ func (_c *PromotionCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *PromotionCreate) defaults() {
+	if _, ok := _c.mutation.PromoKind(); !ok {
+		v := promotion.DefaultPromoKind
+		_c.mutation.SetPromoKind(v)
+	}
+	if _, ok := _c.mutation.AutoApply(); !ok {
+		v := promotion.DefaultAutoApply
+		_c.mutation.SetAutoApply(v)
+	}
 	if _, ok := _c.mutation.Status(); !ok {
 		v := promotion.DefaultStatus
 		_c.mutation.SetStatus(v)
@@ -191,6 +275,17 @@ func (_c *PromotionCreate) check() error {
 		if err := promotion.NameValidator(v); err != nil {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "Promotion.name": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.PromoKind(); !ok {
+		return &ValidationError{Name: "promo_kind", err: errors.New(`ent: missing required field "Promotion.promo_kind"`)}
+	}
+	if v, ok := _c.mutation.PromoKind(); ok {
+		if err := promotion.PromoKindValidator(v); err != nil {
+			return &ValidationError{Name: "promo_kind", err: fmt.Errorf(`ent: validator failed for field "Promotion.promo_kind": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.AutoApply(); !ok {
+		return &ValidationError{Name: "auto_apply", err: errors.New(`ent: missing required field "Promotion.auto_apply"`)}
 	}
 	if _, ok := _c.mutation.Status(); !ok {
 		return &ValidationError{Name: "status", err: errors.New(`ent: missing required field "Promotion.status"`)}
@@ -241,6 +336,10 @@ func (_c *PromotionCreate) createSpec() (*Promotion, *sqlgraph.CreateSpec) {
 		_spec.SetField(promotion.FieldTenantID, field.TypeUUID, value)
 		_node.TenantID = value
 	}
+	if value, ok := _c.mutation.OutletID(); ok {
+		_spec.SetField(promotion.FieldOutletID, field.TypeUUID, value)
+		_node.OutletID = &value
+	}
 	if value, ok := _c.mutation.Name(); ok {
 		_spec.SetField(promotion.FieldName, field.TypeString, value)
 		_node.Name = value
@@ -252,6 +351,26 @@ func (_c *PromotionCreate) createSpec() (*Promotion, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.PromoCode(); ok {
 		_spec.SetField(promotion.FieldPromoCode, field.TypeString, value)
 		_node.PromoCode = &value
+	}
+	if value, ok := _c.mutation.PromoKind(); ok {
+		_spec.SetField(promotion.FieldPromoKind, field.TypeEnum, value)
+		_node.PromoKind = value
+	}
+	if value, ok := _c.mutation.DaysOfWeek(); ok {
+		_spec.SetField(promotion.FieldDaysOfWeek, field.TypeJSON, value)
+		_node.DaysOfWeek = value
+	}
+	if value, ok := _c.mutation.WindowStart(); ok {
+		_spec.SetField(promotion.FieldWindowStart, field.TypeString, value)
+		_node.WindowStart = value
+	}
+	if value, ok := _c.mutation.WindowEnd(); ok {
+		_spec.SetField(promotion.FieldWindowEnd, field.TypeString, value)
+		_node.WindowEnd = value
+	}
+	if value, ok := _c.mutation.AutoApply(); ok {
+		_spec.SetField(promotion.FieldAutoApply, field.TypeBool, value)
+		_node.AutoApply = value
 	}
 	if value, ok := _c.mutation.Status(); ok {
 		_spec.SetField(promotion.FieldStatus, field.TypeString, value)
@@ -333,6 +452,24 @@ func (u *PromotionUpsert) UpdateTenantID() *PromotionUpsert {
 	return u
 }
 
+// SetOutletID sets the "outlet_id" field.
+func (u *PromotionUpsert) SetOutletID(v uuid.UUID) *PromotionUpsert {
+	u.Set(promotion.FieldOutletID, v)
+	return u
+}
+
+// UpdateOutletID sets the "outlet_id" field to the value that was provided on create.
+func (u *PromotionUpsert) UpdateOutletID() *PromotionUpsert {
+	u.SetExcluded(promotion.FieldOutletID)
+	return u
+}
+
+// ClearOutletID clears the value of the "outlet_id" field.
+func (u *PromotionUpsert) ClearOutletID() *PromotionUpsert {
+	u.SetNull(promotion.FieldOutletID)
+	return u
+}
+
 // SetName sets the "name" field.
 func (u *PromotionUpsert) SetName(v string) *PromotionUpsert {
 	u.Set(promotion.FieldName, v)
@@ -378,6 +515,84 @@ func (u *PromotionUpsert) UpdatePromoCode() *PromotionUpsert {
 // ClearPromoCode clears the value of the "promo_code" field.
 func (u *PromotionUpsert) ClearPromoCode() *PromotionUpsert {
 	u.SetNull(promotion.FieldPromoCode)
+	return u
+}
+
+// SetPromoKind sets the "promo_kind" field.
+func (u *PromotionUpsert) SetPromoKind(v promotion.PromoKind) *PromotionUpsert {
+	u.Set(promotion.FieldPromoKind, v)
+	return u
+}
+
+// UpdatePromoKind sets the "promo_kind" field to the value that was provided on create.
+func (u *PromotionUpsert) UpdatePromoKind() *PromotionUpsert {
+	u.SetExcluded(promotion.FieldPromoKind)
+	return u
+}
+
+// SetDaysOfWeek sets the "days_of_week" field.
+func (u *PromotionUpsert) SetDaysOfWeek(v []int) *PromotionUpsert {
+	u.Set(promotion.FieldDaysOfWeek, v)
+	return u
+}
+
+// UpdateDaysOfWeek sets the "days_of_week" field to the value that was provided on create.
+func (u *PromotionUpsert) UpdateDaysOfWeek() *PromotionUpsert {
+	u.SetExcluded(promotion.FieldDaysOfWeek)
+	return u
+}
+
+// ClearDaysOfWeek clears the value of the "days_of_week" field.
+func (u *PromotionUpsert) ClearDaysOfWeek() *PromotionUpsert {
+	u.SetNull(promotion.FieldDaysOfWeek)
+	return u
+}
+
+// SetWindowStart sets the "window_start" field.
+func (u *PromotionUpsert) SetWindowStart(v string) *PromotionUpsert {
+	u.Set(promotion.FieldWindowStart, v)
+	return u
+}
+
+// UpdateWindowStart sets the "window_start" field to the value that was provided on create.
+func (u *PromotionUpsert) UpdateWindowStart() *PromotionUpsert {
+	u.SetExcluded(promotion.FieldWindowStart)
+	return u
+}
+
+// ClearWindowStart clears the value of the "window_start" field.
+func (u *PromotionUpsert) ClearWindowStart() *PromotionUpsert {
+	u.SetNull(promotion.FieldWindowStart)
+	return u
+}
+
+// SetWindowEnd sets the "window_end" field.
+func (u *PromotionUpsert) SetWindowEnd(v string) *PromotionUpsert {
+	u.Set(promotion.FieldWindowEnd, v)
+	return u
+}
+
+// UpdateWindowEnd sets the "window_end" field to the value that was provided on create.
+func (u *PromotionUpsert) UpdateWindowEnd() *PromotionUpsert {
+	u.SetExcluded(promotion.FieldWindowEnd)
+	return u
+}
+
+// ClearWindowEnd clears the value of the "window_end" field.
+func (u *PromotionUpsert) ClearWindowEnd() *PromotionUpsert {
+	u.SetNull(promotion.FieldWindowEnd)
+	return u
+}
+
+// SetAutoApply sets the "auto_apply" field.
+func (u *PromotionUpsert) SetAutoApply(v bool) *PromotionUpsert {
+	u.Set(promotion.FieldAutoApply, v)
+	return u
+}
+
+// UpdateAutoApply sets the "auto_apply" field to the value that was provided on create.
+func (u *PromotionUpsert) UpdateAutoApply() *PromotionUpsert {
+	u.SetExcluded(promotion.FieldAutoApply)
 	return u
 }
 
@@ -497,6 +712,27 @@ func (u *PromotionUpsertOne) UpdateTenantID() *PromotionUpsertOne {
 	})
 }
 
+// SetOutletID sets the "outlet_id" field.
+func (u *PromotionUpsertOne) SetOutletID(v uuid.UUID) *PromotionUpsertOne {
+	return u.Update(func(s *PromotionUpsert) {
+		s.SetOutletID(v)
+	})
+}
+
+// UpdateOutletID sets the "outlet_id" field to the value that was provided on create.
+func (u *PromotionUpsertOne) UpdateOutletID() *PromotionUpsertOne {
+	return u.Update(func(s *PromotionUpsert) {
+		s.UpdateOutletID()
+	})
+}
+
+// ClearOutletID clears the value of the "outlet_id" field.
+func (u *PromotionUpsertOne) ClearOutletID() *PromotionUpsertOne {
+	return u.Update(func(s *PromotionUpsert) {
+		s.ClearOutletID()
+	})
+}
+
 // SetName sets the "name" field.
 func (u *PromotionUpsertOne) SetName(v string) *PromotionUpsertOne {
 	return u.Update(func(s *PromotionUpsert) {
@@ -550,6 +786,97 @@ func (u *PromotionUpsertOne) UpdatePromoCode() *PromotionUpsertOne {
 func (u *PromotionUpsertOne) ClearPromoCode() *PromotionUpsertOne {
 	return u.Update(func(s *PromotionUpsert) {
 		s.ClearPromoCode()
+	})
+}
+
+// SetPromoKind sets the "promo_kind" field.
+func (u *PromotionUpsertOne) SetPromoKind(v promotion.PromoKind) *PromotionUpsertOne {
+	return u.Update(func(s *PromotionUpsert) {
+		s.SetPromoKind(v)
+	})
+}
+
+// UpdatePromoKind sets the "promo_kind" field to the value that was provided on create.
+func (u *PromotionUpsertOne) UpdatePromoKind() *PromotionUpsertOne {
+	return u.Update(func(s *PromotionUpsert) {
+		s.UpdatePromoKind()
+	})
+}
+
+// SetDaysOfWeek sets the "days_of_week" field.
+func (u *PromotionUpsertOne) SetDaysOfWeek(v []int) *PromotionUpsertOne {
+	return u.Update(func(s *PromotionUpsert) {
+		s.SetDaysOfWeek(v)
+	})
+}
+
+// UpdateDaysOfWeek sets the "days_of_week" field to the value that was provided on create.
+func (u *PromotionUpsertOne) UpdateDaysOfWeek() *PromotionUpsertOne {
+	return u.Update(func(s *PromotionUpsert) {
+		s.UpdateDaysOfWeek()
+	})
+}
+
+// ClearDaysOfWeek clears the value of the "days_of_week" field.
+func (u *PromotionUpsertOne) ClearDaysOfWeek() *PromotionUpsertOne {
+	return u.Update(func(s *PromotionUpsert) {
+		s.ClearDaysOfWeek()
+	})
+}
+
+// SetWindowStart sets the "window_start" field.
+func (u *PromotionUpsertOne) SetWindowStart(v string) *PromotionUpsertOne {
+	return u.Update(func(s *PromotionUpsert) {
+		s.SetWindowStart(v)
+	})
+}
+
+// UpdateWindowStart sets the "window_start" field to the value that was provided on create.
+func (u *PromotionUpsertOne) UpdateWindowStart() *PromotionUpsertOne {
+	return u.Update(func(s *PromotionUpsert) {
+		s.UpdateWindowStart()
+	})
+}
+
+// ClearWindowStart clears the value of the "window_start" field.
+func (u *PromotionUpsertOne) ClearWindowStart() *PromotionUpsertOne {
+	return u.Update(func(s *PromotionUpsert) {
+		s.ClearWindowStart()
+	})
+}
+
+// SetWindowEnd sets the "window_end" field.
+func (u *PromotionUpsertOne) SetWindowEnd(v string) *PromotionUpsertOne {
+	return u.Update(func(s *PromotionUpsert) {
+		s.SetWindowEnd(v)
+	})
+}
+
+// UpdateWindowEnd sets the "window_end" field to the value that was provided on create.
+func (u *PromotionUpsertOne) UpdateWindowEnd() *PromotionUpsertOne {
+	return u.Update(func(s *PromotionUpsert) {
+		s.UpdateWindowEnd()
+	})
+}
+
+// ClearWindowEnd clears the value of the "window_end" field.
+func (u *PromotionUpsertOne) ClearWindowEnd() *PromotionUpsertOne {
+	return u.Update(func(s *PromotionUpsert) {
+		s.ClearWindowEnd()
+	})
+}
+
+// SetAutoApply sets the "auto_apply" field.
+func (u *PromotionUpsertOne) SetAutoApply(v bool) *PromotionUpsertOne {
+	return u.Update(func(s *PromotionUpsert) {
+		s.SetAutoApply(v)
+	})
+}
+
+// UpdateAutoApply sets the "auto_apply" field to the value that was provided on create.
+func (u *PromotionUpsertOne) UpdateAutoApply() *PromotionUpsertOne {
+	return u.Update(func(s *PromotionUpsert) {
+		s.UpdateAutoApply()
 	})
 }
 
@@ -845,6 +1172,27 @@ func (u *PromotionUpsertBulk) UpdateTenantID() *PromotionUpsertBulk {
 	})
 }
 
+// SetOutletID sets the "outlet_id" field.
+func (u *PromotionUpsertBulk) SetOutletID(v uuid.UUID) *PromotionUpsertBulk {
+	return u.Update(func(s *PromotionUpsert) {
+		s.SetOutletID(v)
+	})
+}
+
+// UpdateOutletID sets the "outlet_id" field to the value that was provided on create.
+func (u *PromotionUpsertBulk) UpdateOutletID() *PromotionUpsertBulk {
+	return u.Update(func(s *PromotionUpsert) {
+		s.UpdateOutletID()
+	})
+}
+
+// ClearOutletID clears the value of the "outlet_id" field.
+func (u *PromotionUpsertBulk) ClearOutletID() *PromotionUpsertBulk {
+	return u.Update(func(s *PromotionUpsert) {
+		s.ClearOutletID()
+	})
+}
+
 // SetName sets the "name" field.
 func (u *PromotionUpsertBulk) SetName(v string) *PromotionUpsertBulk {
 	return u.Update(func(s *PromotionUpsert) {
@@ -898,6 +1246,97 @@ func (u *PromotionUpsertBulk) UpdatePromoCode() *PromotionUpsertBulk {
 func (u *PromotionUpsertBulk) ClearPromoCode() *PromotionUpsertBulk {
 	return u.Update(func(s *PromotionUpsert) {
 		s.ClearPromoCode()
+	})
+}
+
+// SetPromoKind sets the "promo_kind" field.
+func (u *PromotionUpsertBulk) SetPromoKind(v promotion.PromoKind) *PromotionUpsertBulk {
+	return u.Update(func(s *PromotionUpsert) {
+		s.SetPromoKind(v)
+	})
+}
+
+// UpdatePromoKind sets the "promo_kind" field to the value that was provided on create.
+func (u *PromotionUpsertBulk) UpdatePromoKind() *PromotionUpsertBulk {
+	return u.Update(func(s *PromotionUpsert) {
+		s.UpdatePromoKind()
+	})
+}
+
+// SetDaysOfWeek sets the "days_of_week" field.
+func (u *PromotionUpsertBulk) SetDaysOfWeek(v []int) *PromotionUpsertBulk {
+	return u.Update(func(s *PromotionUpsert) {
+		s.SetDaysOfWeek(v)
+	})
+}
+
+// UpdateDaysOfWeek sets the "days_of_week" field to the value that was provided on create.
+func (u *PromotionUpsertBulk) UpdateDaysOfWeek() *PromotionUpsertBulk {
+	return u.Update(func(s *PromotionUpsert) {
+		s.UpdateDaysOfWeek()
+	})
+}
+
+// ClearDaysOfWeek clears the value of the "days_of_week" field.
+func (u *PromotionUpsertBulk) ClearDaysOfWeek() *PromotionUpsertBulk {
+	return u.Update(func(s *PromotionUpsert) {
+		s.ClearDaysOfWeek()
+	})
+}
+
+// SetWindowStart sets the "window_start" field.
+func (u *PromotionUpsertBulk) SetWindowStart(v string) *PromotionUpsertBulk {
+	return u.Update(func(s *PromotionUpsert) {
+		s.SetWindowStart(v)
+	})
+}
+
+// UpdateWindowStart sets the "window_start" field to the value that was provided on create.
+func (u *PromotionUpsertBulk) UpdateWindowStart() *PromotionUpsertBulk {
+	return u.Update(func(s *PromotionUpsert) {
+		s.UpdateWindowStart()
+	})
+}
+
+// ClearWindowStart clears the value of the "window_start" field.
+func (u *PromotionUpsertBulk) ClearWindowStart() *PromotionUpsertBulk {
+	return u.Update(func(s *PromotionUpsert) {
+		s.ClearWindowStart()
+	})
+}
+
+// SetWindowEnd sets the "window_end" field.
+func (u *PromotionUpsertBulk) SetWindowEnd(v string) *PromotionUpsertBulk {
+	return u.Update(func(s *PromotionUpsert) {
+		s.SetWindowEnd(v)
+	})
+}
+
+// UpdateWindowEnd sets the "window_end" field to the value that was provided on create.
+func (u *PromotionUpsertBulk) UpdateWindowEnd() *PromotionUpsertBulk {
+	return u.Update(func(s *PromotionUpsert) {
+		s.UpdateWindowEnd()
+	})
+}
+
+// ClearWindowEnd clears the value of the "window_end" field.
+func (u *PromotionUpsertBulk) ClearWindowEnd() *PromotionUpsertBulk {
+	return u.Update(func(s *PromotionUpsert) {
+		s.ClearWindowEnd()
+	})
+}
+
+// SetAutoApply sets the "auto_apply" field.
+func (u *PromotionUpsertBulk) SetAutoApply(v bool) *PromotionUpsertBulk {
+	return u.Update(func(s *PromotionUpsert) {
+		s.SetAutoApply(v)
+	})
+}
+
+// UpdateAutoApply sets the "auto_apply" field to the value that was provided on create.
+func (u *PromotionUpsertBulk) UpdateAutoApply() *PromotionUpsertBulk {
+	return u.Update(func(s *PromotionUpsert) {
+		s.UpdateAutoApply()
 	})
 }
 

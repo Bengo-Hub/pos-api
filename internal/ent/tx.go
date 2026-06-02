@@ -40,6 +40,8 @@ type Tx struct {
 	DailyClosing *DailyClosingClient
 	// DrugInteractionCheck is the client for interacting with the DrugInteractionCheck builders.
 	DrugInteractionCheck *DrugInteractionCheckClient
+	// EventBooking is the client for interacting with the EventBooking builders.
+	EventBooking *EventBookingClient
 	// Facility is the client for interacting with the Facility builders.
 	Facility *FacilityClient
 	// FacilityBooking is the client for interacting with the FacilityBooking builders.
@@ -76,6 +78,8 @@ type Tx struct {
 	LoyaltyProgram *LoyaltyProgramClient
 	// LoyaltyTransaction is the client for interacting with the LoyaltyTransaction builders.
 	LoyaltyTransaction *LoyaltyTransactionClient
+	// MealEntitlement is the client for interacting with the MealEntitlement builders.
+	MealEntitlement *MealEntitlementClient
 	// Modifier is the client for interacting with the Modifier builders.
 	Modifier *ModifierClient
 	// ModifierGroup is the client for interacting with the ModifierGroup builders.
@@ -146,6 +150,8 @@ type Tx struct {
 	RoomAmenity *RoomAmenityClient
 	// RoomAmenityAssignment is the client for interacting with the RoomAmenityAssignment builders.
 	RoomAmenityAssignment *RoomAmenityAssignmentClient
+	// RoomBooking is the client for interacting with the RoomBooking builders.
+	RoomBooking *RoomBookingClient
 	// RoomFolioItem is the client for interacting with the RoomFolioItem builders.
 	RoomFolioItem *RoomFolioItemClient
 	// RoomGuest is the client for interacting with the RoomGuest builders.
@@ -355,6 +361,7 @@ func (tx *Tx) init() {
 	tx.ControlledSubstanceLog = NewControlledSubstanceLogClient(tx.config)
 	tx.DailyClosing = NewDailyClosingClient(tx.config)
 	tx.DrugInteractionCheck = NewDrugInteractionCheckClient(tx.config)
+	tx.EventBooking = NewEventBookingClient(tx.config)
 	tx.Facility = NewFacilityClient(tx.config)
 	tx.FacilityBooking = NewFacilityBookingClient(tx.config)
 	tx.FeatureOverride = NewFeatureOverrideClient(tx.config)
@@ -373,6 +380,7 @@ func (tx *Tx) init() {
 	tx.LoyaltyAccount = NewLoyaltyAccountClient(tx.config)
 	tx.LoyaltyProgram = NewLoyaltyProgramClient(tx.config)
 	tx.LoyaltyTransaction = NewLoyaltyTransactionClient(tx.config)
+	tx.MealEntitlement = NewMealEntitlementClient(tx.config)
 	tx.Modifier = NewModifierClient(tx.config)
 	tx.ModifierGroup = NewModifierGroupClient(tx.config)
 	tx.OrderLink = NewOrderLinkClient(tx.config)
@@ -408,6 +416,7 @@ func (tx *Tx) init() {
 	tx.Room = NewRoomClient(tx.config)
 	tx.RoomAmenity = NewRoomAmenityClient(tx.config)
 	tx.RoomAmenityAssignment = NewRoomAmenityAssignmentClient(tx.config)
+	tx.RoomBooking = NewRoomBookingClient(tx.config)
 	tx.RoomFolioItem = NewRoomFolioItemClient(tx.config)
 	tx.RoomGuest = NewRoomGuestClient(tx.config)
 	tx.Section = NewSectionClient(tx.config)

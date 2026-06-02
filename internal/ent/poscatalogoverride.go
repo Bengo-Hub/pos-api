@@ -25,6 +25,12 @@ type POSCatalogOverride struct {
 	OutletID *uuid.UUID `json:"outlet_id,omitempty"`
 	// SKU from inventory-api — join key
 	InventorySku string `json:"inventory_sku,omitempty"`
+	// Stable inventory-api Item UUID (preferred over sku string for joins; survives SKU renames)
+	InventoryItemID *uuid.UUID `json:"inventory_item_id,omitempty"`
+	// Synced from inventory item: RETAIL/FOOD_BEVERAGE/HOSPITALITY_ROOM/HOSPITALITY_FACILITY/CONFERENCE/SALON_SERVICE/AMENITY
+	ItemUseCase string `json:"item_use_case,omitempty"`
+	// True when this catalog entry is an inventory Bundle (package), e.g. conference DDR/RDR
+	IsBundle bool `json:"is_bundle,omitempty"`
 	// POS retail price override; nil = use inventory-api tier price
 	SellingPrice *float64 `json:"selling_price,omitempty"`
 	// Currency holds the value of the "currency" field.
@@ -69,17 +75,17 @@ func (*POSCatalogOverride) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case poscatalogoverride.FieldOutletID, poscatalogoverride.FieldKdsStationID:
+		case poscatalogoverride.FieldOutletID, poscatalogoverride.FieldInventoryItemID, poscatalogoverride.FieldKdsStationID:
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		case poscatalogoverride.FieldMetadata:
 			values[i] = new([]byte)
-		case poscatalogoverride.FieldPriceIncludesTax, poscatalogoverride.FieldIsAvailable, poscatalogoverride.FieldIsFeatured, poscatalogoverride.FieldRequiresPrescription, poscatalogoverride.FieldIsReturnable, poscatalogoverride.FieldRequiresAgeVerification, poscatalogoverride.FieldIsControlledSubstance:
+		case poscatalogoverride.FieldIsBundle, poscatalogoverride.FieldPriceIncludesTax, poscatalogoverride.FieldIsAvailable, poscatalogoverride.FieldIsFeatured, poscatalogoverride.FieldRequiresPrescription, poscatalogoverride.FieldIsReturnable, poscatalogoverride.FieldRequiresAgeVerification, poscatalogoverride.FieldIsControlledSubstance:
 			values[i] = new(sql.NullBool)
 		case poscatalogoverride.FieldSellingPrice:
 			values[i] = new(sql.NullFloat64)
 		case poscatalogoverride.FieldDisplayOrder, poscatalogoverride.FieldMinimumAge, poscatalogoverride.FieldDurationMinutes:
 			values[i] = new(sql.NullInt64)
-		case poscatalogoverride.FieldInventorySku, poscatalogoverride.FieldCurrency, poscatalogoverride.FieldTaxStatus, poscatalogoverride.FieldTaxCodeID:
+		case poscatalogoverride.FieldInventorySku, poscatalogoverride.FieldItemUseCase, poscatalogoverride.FieldCurrency, poscatalogoverride.FieldTaxStatus, poscatalogoverride.FieldTaxCodeID:
 			values[i] = new(sql.NullString)
 		case poscatalogoverride.FieldCreatedAt, poscatalogoverride.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -124,6 +130,25 @@ func (_m *POSCatalogOverride) assignValues(columns []string, values []any) error
 				return fmt.Errorf("unexpected type %T for field inventory_sku", values[i])
 			} else if value.Valid {
 				_m.InventorySku = value.String
+			}
+		case poscatalogoverride.FieldInventoryItemID:
+			if value, ok := values[i].(*sql.NullScanner); !ok {
+				return fmt.Errorf("unexpected type %T for field inventory_item_id", values[i])
+			} else if value.Valid {
+				_m.InventoryItemID = new(uuid.UUID)
+				*_m.InventoryItemID = *value.S.(*uuid.UUID)
+			}
+		case poscatalogoverride.FieldItemUseCase:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field item_use_case", values[i])
+			} else if value.Valid {
+				_m.ItemUseCase = value.String
+			}
+		case poscatalogoverride.FieldIsBundle:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field is_bundle", values[i])
+			} else if value.Valid {
+				_m.IsBundle = value.Bool
 			}
 		case poscatalogoverride.FieldSellingPrice:
 			if value, ok := values[i].(*sql.NullFloat64); !ok {
@@ -285,6 +310,17 @@ func (_m *POSCatalogOverride) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("inventory_sku=")
 	builder.WriteString(_m.InventorySku)
+	builder.WriteString(", ")
+	if v := _m.InventoryItemID; v != nil {
+		builder.WriteString("inventory_item_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("item_use_case=")
+	builder.WriteString(_m.ItemUseCase)
+	builder.WriteString(", ")
+	builder.WriteString("is_bundle=")
+	builder.WriteString(fmt.Sprintf("%v", _m.IsBundle))
 	builder.WriteString(", ")
 	if v := _m.SellingPrice; v != nil {
 		builder.WriteString("selling_price=")

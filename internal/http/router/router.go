@@ -13,13 +13,13 @@ import (
 	"github.com/go-chi/cors"
 	"go.uber.org/zap"
 
+	"github.com/Bengo-Hub/httpware"
+	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/bengobox/pos-service/internal/ent"
 	handlers "github.com/bengobox/pos-service/internal/http/handlers"
 	outletmw "github.com/bengobox/pos-service/internal/http/middleware"
 	"github.com/bengobox/pos-service/internal/modules/identity"
 	"github.com/bengobox/pos-service/internal/platform/subscriptions"
-	authclient "github.com/Bengo-Hub/shared-auth-client"
-	"github.com/Bengo-Hub/httpware"
 )
 
 func New(
@@ -320,6 +320,7 @@ func New(
 						pos.Get("/promotions", promotions.ListPromotions)
 						pos.Post("/promotions", promotions.CreatePromotion)
 						pos.Post("/promotions/apply", promotions.ApplyPromoCode)
+						pos.Get("/promotions/happy-hour/active", promotions.GetActiveHappyHours)
 					}
 
 					// Device sessions (shift open/close)
@@ -359,7 +360,7 @@ func New(
 							k.Get("/kds/stations", kds.ListStations)
 							k.Post("/kds/stations", kds.CreateStation)
 							k.Put("/kds/stations/{id}", kds.UpdateStation)
-						k.Delete("/kds/stations/{id}", kds.DeleteStation)
+							k.Delete("/kds/stations/{id}", kds.DeleteStation)
 							k.Get("/kds/stream", kds.StreamKDS)
 							k.Get("/kds/kitchen", kds.GetKitchenQueue)
 							k.Get("/kds/bar", kds.GetBarQueue)
@@ -609,6 +610,18 @@ func New(
 						h.Post("/rooms", hotel.CreateRoom)
 						h.Get("/rooms/{id}", hotel.GetRoom)
 						h.Patch("/rooms/{id}/status", hotel.UpdateRoomStatus)
+						// Multi-room / group bookings (RoomBooking header → many RoomGuest)
+						h.Post("/bookings", hotel.CreateRoomBooking)
+						h.Get("/bookings", hotel.ListRoomBookings)
+						h.Get("/bookings/{id}", hotel.GetRoomBooking)
+						h.Get("/bookings/{id}/guests", hotel.ListBookingGuests)
+						// Conference / events (BEO) + delegate meal cards
+						h.Post("/events", hotel.CreateEventBooking)
+						h.Get("/events", hotel.ListEventBookings)
+						h.Get("/events/{id}", hotel.GetEventBooking)
+						h.Get("/events/{id}/reconciliation", hotel.ReconcileEvent)
+						h.Post("/events/{id}/generate-mealcards", hotel.GenerateMealCards)
+						h.Post("/mealcards/{code}/redeem", hotel.RedeemMealCard)
 						h.Post("/rooms/{id}/check-in", hotel.CheckIn)
 						h.Post("/rooms/{id}/check-out", hotel.CheckOut)
 						h.Post("/rooms/{id}/folio", hotel.PostFolioCharge)
@@ -641,4 +654,3 @@ func New(
 
 	return r
 }
-

@@ -14,11 +14,11 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/bengobox/pos-service/internal/ent"
-	"github.com/bengobox/pos-service/internal/ent/kdsticket"
 	"github.com/bengobox/pos-service/internal/ent/kdsstation"
+	"github.com/bengobox/pos-service/internal/ent/kdsticket"
+	entoverride "github.com/bengobox/pos-service/internal/ent/poscatalogoverride"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
 	"github.com/bengobox/pos-service/internal/ent/posorderline"
-	entoverride "github.com/bengobox/pos-service/internal/ent/poscatalogoverride"
 	kdsmod "github.com/bengobox/pos-service/internal/modules/kds"
 	"github.com/bengobox/pos-service/internal/platform/events"
 )
@@ -48,19 +48,19 @@ var validTransitions = map[string][]string{
 
 // CreateOrderRequest holds the input for creating a POS order.
 type CreateOrderRequest struct {
-	TenantID      uuid.UUID
-	TenantSlug    string    // used for treasury S2S tax lookups
-	OutletID      uuid.UUID
-	DeviceID      uuid.UUID
-	UserID        uuid.UUID
-	OrderNumber   string
-	Currency      string
-	Lines         []OrderLineInput
-	Metadata      map[string]any
-	OrderSubtype  string  // dine_in | takeaway | room_service | delivery | bar_tab | retail; defaults to "dine_in"
-	TableID       string  // UUID of the table (hospitality dine-in); stored in metadata (no DB column yet)
-	CustomerPhone string  // loyalty auto-earn — stored on order, forwarded in pos.sale.finalized
-	CustomerName  string
+	TenantID       uuid.UUID
+	TenantSlug     string // used for treasury S2S tax lookups
+	OutletID       uuid.UUID
+	DeviceID       uuid.UUID
+	UserID         uuid.UUID
+	OrderNumber    string
+	Currency       string
+	Lines          []OrderLineInput
+	Metadata       map[string]any
+	OrderSubtype   string // dine_in | takeaway | room_service | delivery | bar_tab | retail; defaults to "dine_in"
+	TableID        string // UUID of the table (hospitality dine-in); stored in metadata (no DB column yet)
+	CustomerPhone  string // loyalty auto-earn — stored on order, forwarded in pos.sale.finalized
+	CustomerName   string
 	DiscountAmount float64 // order-level discount (e.g. loyalty redemption) applied before total_amount
 }
 
@@ -97,11 +97,19 @@ type Service struct {
 	publisher       *events.Publisher
 	taxResolver     *TaxResolver // resolves tax codes from treasury with Redis cache
 	kdsHub          *kdsmod.Hub
+	// happyHourFn evaluates an auto-apply happy-hour discount for (tenant, outlet) on a
+	// subtotal at the current time. Injected from the promotions service to keep packages decoupled.
+	happyHourFn func(ctx context.Context, tenantID, outletID uuid.UUID, subtotal decimal.Decimal) decimal.Decimal
 }
 
 // SetPublisher sets the event publisher for order lifecycle events.
 func (s *Service) SetPublisher(p *events.Publisher) {
 	s.publisher = p
+}
+
+// SetHappyHourEvaluator wires the auto-apply happy-hour discount evaluator (from promotions service).
+func (s *Service) SetHappyHourEvaluator(fn func(ctx context.Context, tenantID, outletID uuid.UUID, subtotal decimal.Decimal) decimal.Decimal) {
+	s.happyHourFn = fn
 }
 
 // SetTaxResolver attaches the treasury tax resolver for per-line tax computation.
@@ -207,7 +215,21 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent
 		orderNumber = s.GenerateOrderNumber()
 	}
 
-	totals := s.CalculateTotals(req.Lines, decimal.NewFromFloat(req.DiscountAmount))
+	discount := decimal.NewFromFloat(req.DiscountAmount)
+	// Auto-apply happy-hour discount (time-windowed) on top of any explicit discount.
+	if s.happyHourFn != nil {
+		subtotal := decimal.Zero
+		for _, l := range req.Lines {
+			subtotal = subtotal.Add(decimal.NewFromFloat(l.TotalPrice))
+		}
+		if hh := s.happyHourFn(ctx, req.TenantID, req.OutletID, subtotal); hh.IsPositive() {
+			discount = discount.Add(hh)
+			if meta := req.Metadata; meta != nil {
+				meta["happy_hour_discount"] = hh.InexactFloat64()
+			}
+		}
+	}
+	totals := s.CalculateTotals(req.Lines, discount)
 
 	// Resolve order subtype, defaulting to dine_in.
 	subtype := req.OrderSubtype

@@ -32,8 +32,16 @@ func (RoomFolioItem) Fields() []ent.Field {
 			Default("KES"),
 		field.Enum("charge_type").
 			Values("room_charge", "food", "laundry", "minibar", "room_service",
-				"amenity", "facility", "late_checkout", "damage", "other").
+				"amenity", "facility", "late_checkout", "damage",
+				"package", "conference", "meal_voucher", "other").
 			Default("other"),
+		field.String("inventory_sku").
+			Optional().
+			Comment("inventory-api SKU when this charge corresponds to a catalog item — drives stock backflush"),
+		field.UUID("inventory_bundle_id", uuid.UUID{}).
+			Optional().
+			Nillable().
+			Comment("inventory-api Bundle id when this charge is a package (conference/room rate plan)"),
 		field.UUID("pos_order_id", uuid.UUID{}).
 			Optional().
 			Nillable().
