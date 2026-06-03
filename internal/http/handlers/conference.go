@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -38,6 +39,44 @@ type eventBookingInput struct {
 	Currency                string    `json:"currency"`
 	SpecialRequests         string    `json:"special_requests"`
 	CreatedBy               string    `json:"created_by"`
+}
+
+// deriveConferenceTotal computes the authoritative event total from the linked inventory
+// Bundle's price_basis (capacity-aware by construction):
+//   - flat (HALL_HIRE)        → fixed venue charge; adding delegates within capacity costs nothing extra
+//   - per_delegate_per_day    → unit × max(delegates,min) × days; only meal/delegate charges scale
+//   - per_session             → unit × days
+// Returns ok=false when there's no bundle, inventory is unreachable, or no pricing — caller
+// then keeps the manually-entered total. Also returns the bundle's meal periods for validation.
+func (h *HotelHandler) deriveConferenceTotal(ctx context.Context, tenantID, bundleID string, delegates, days int) (total float64, basis string, mealPeriods []string, ok bool) {
+	if h.inventoryClient == nil || bundleID == "" {
+		return 0, "", nil, false
+	}
+	b, found, err := h.inventoryClient.GetBundle(ctx, tenantID, bundleID)
+	if err != nil || !found {
+		return 0, "", nil, false
+	}
+	mealPeriods = b.MealPeriods()
+	price, pok, perr := h.inventoryClient.GetItemPrice(ctx, tenantID, b.ItemID, 1)
+	if perr != nil || !pok {
+		return 0, b.PriceBasis, mealPeriods, false
+	}
+	if days < 1 {
+		days = 1
+	}
+	switch b.PriceBasis {
+	case "per_delegate_per_day":
+		d := delegates
+		if b.MinDelegates != nil && d < *b.MinDelegates {
+			d = *b.MinDelegates
+		}
+		total = price.UnitPrice * float64(d) * float64(days)
+	case "per_session":
+		total = price.UnitPrice * float64(days)
+	default: // flat — hall hire, fixed regardless of delegate count within capacity
+		total = price.UnitPrice
+	}
+	return total, b.PriceBasis, mealPeriods, true
 }
 
 // CreateEventBooking handles POST /{tenantID}/hotel/events — create a conference/event (BEO).
@@ -88,6 +127,16 @@ func (h *HotelHandler) CreateEventBooking(w http.ResponseWriter, r *http.Request
 	outletID, _ := uuid.Parse(httpware.GetOutletID(r.Context()))
 	createdBy, _ := uuid.Parse(in.CreatedBy)
 
+	// Derive the authoritative total from the linked inventory bundle when present
+	// (capacity-aware: flat hall-hire stays fixed; per-delegate packages scale with
+	// delegates × days). Falls back to the manually-entered total if no bundle/pricing.
+	priceMeta := map[string]any{}
+	if total, basis, _, ok := h.deriveConferenceTotal(r.Context(), tid.String(), in.InventoryBundleID, in.DelegateCount, in.ConferenceDays); ok {
+		in.TotalAmount = total
+		priceMeta["price_basis"] = basis
+		priceMeta["derived_total"] = total
+	}
+
 	b := h.client.EventBooking.Create().
 		SetTenantID(tid).
 		SetOutletID(outletID).
@@ -119,6 +168,9 @@ func (h *HotelHandler) CreateEventBooking(w http.ResponseWriter, r *http.Request
 	}
 	if crmID, perr := uuid.Parse(in.CRMContactID); perr == nil {
 		b = b.SetCrmContactID(crmID)
+	}
+	if len(priceMeta) > 0 {
+		b = b.SetMetadata(priceMeta)
 	}
 	event, err := b.Save(r.Context())
 	if err != nil {
@@ -179,8 +231,39 @@ func (h *HotelHandler) UpdateEventBooking(w http.ResponseWriter, r *http.Request
 		jsonError(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
+
+	current, err := h.client.EventBooking.Query().
+		Where(enteventbooking.ID(id), enteventbooking.TenantID(tid)).Only(r.Context())
+	if err != nil {
+		jsonError(w, "event not found", http.StatusNotFound)
+		return
+	}
+
 	upd := h.client.EventBooking.Update().
 		Where(enteventbooking.ID(id), enteventbooking.TenantID(tid))
+
+	// Re-derive the total from the linked bundle using the post-edit delegate/day counts
+	// (adding guests within capacity only scales meal/delegate charges; flat hall-hire is unchanged).
+	if current.InventoryBundleID != nil {
+		effDelegates := current.DelegateCount
+		if in.DelegateCount != nil {
+			effDelegates = *in.DelegateCount
+		}
+		effDays := current.ConferenceDays
+		if in.ConferenceDays != nil && *in.ConferenceDays >= 1 {
+			effDays = *in.ConferenceDays
+		}
+		if total, basis, _, ok := h.deriveConferenceTotal(r.Context(), tid.String(), current.InventoryBundleID.String(), effDelegates, effDays); ok {
+			upd = upd.SetTotalAmount(total)
+			meta := map[string]any{}
+			for k, v := range current.Metadata {
+				meta[k] = v
+			}
+			meta["price_basis"] = basis
+			meta["derived_total"] = total
+			upd = upd.SetMetadata(meta)
+		}
+	}
 	if in.Title != nil {
 		upd = upd.SetTitle(*in.Title)
 	}

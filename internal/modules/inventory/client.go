@@ -86,6 +86,70 @@ func (c *Client) GetItemPrice(ctx context.Context, tenantID, itemID string, quan
 	return &price, true, nil
 }
 
+// BundleComponent is one component of an inventory Bundle (e.g. a MEAL_PERIOD).
+type BundleComponent struct {
+	ComponentItemID string `json:"component_item_id"`
+	ComponentKind   string `json:"component_kind"`
+	MealPeriod      string `json:"meal_period"`
+	Quantity        int    `json:"quantity"`
+}
+
+// Bundle is the subset of an inventory-api Bundle needed to derive conference pricing
+// and validate delegate meal periods.
+type Bundle struct {
+	ID           string            `json:"id"`
+	ItemID       string            `json:"item_id"`
+	Name         string            `json:"name"`
+	PackageType  string            `json:"package_type"`
+	PriceBasis   string            `json:"price_basis"`
+	MinDelegates *int              `json:"min_delegates"`
+	Components   []BundleComponent `json:"components"`
+}
+
+// MealPeriods returns the distinct meal_period codes defined as MEAL_PERIOD components.
+func (b *Bundle) MealPeriods() []string {
+	seen := map[string]struct{}{}
+	var out []string
+	for _, c := range b.Components {
+		if c.ComponentKind == "MEAL_PERIOD" && c.MealPeriod != "" {
+			if _, ok := seen[c.MealPeriod]; !ok {
+				seen[c.MealPeriod] = struct{}{}
+				out = append(out, c.MealPeriod)
+			}
+		}
+	}
+	return out
+}
+
+// GetBundle fetches an inventory Bundle (package) with its components and price basis.
+// Returns ok=false on 404 so callers can fall back to a manual total.
+func (c *Client) GetBundle(ctx context.Context, tenantID, bundleID string) (*Bundle, bool, error) {
+	url := fmt.Sprintf("%s/v1/%s/inventory/bundles/%s", c.baseURL, tenantID, bundleID)
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, false, fmt.Errorf("inventory.Client.GetBundle: build request: %w", err)
+	}
+	httpReq.Header.Set("X-API-Key", c.apiKey)
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, false, fmt.Errorf("inventory.Client.GetBundle: http: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, false, nil
+	}
+	if resp.StatusCode >= 400 {
+		return nil, false, fmt.Errorf("inventory.Client.GetBundle: status %d", resp.StatusCode)
+	}
+	var b Bundle
+	if err := json.NewDecoder(resp.Body).Decode(&b); err != nil {
+		return nil, false, fmt.Errorf("inventory.Client.GetBundle: decode: %w", err)
+	}
+	return &b, true, nil
+}
+
 // RecordConsumption calls inventory-api to backflush stock for a completed POS order.
 // Non-fatal: callers should log and optionally publish a retry event on error.
 func (c *Client) RecordConsumption(ctx context.Context, tenantID string, req ConsumptionRequest) error {

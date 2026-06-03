@@ -41,7 +41,7 @@ func (h *HotelHandler) resolveBookingPolicy(r *http.Request, tid, outletID uuid.
 		return policy
 	}
 	setting, err := h.client.OutletSetting.Query().
-		Where(entoutletsetting.TenantID(tid), entoutletsetting.OutletID(outletID)).
+		Where(entoutletsetting.OutletID(outletID)).
 		Only(r.Context())
 	if err != nil || setting.Metadata == nil {
 		return policy

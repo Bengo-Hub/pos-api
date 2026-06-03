@@ -54,6 +54,30 @@ func (h *HotelHandler) GenerateMealCards(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	// Validate requested meal periods against the linked package's MEAL_PERIOD components,
+	// so delegates can only get cards for meals the package actually includes.
+	if event.InventoryBundleID != nil && h.inventoryClient != nil {
+		if bundle, found, _ := h.inventoryClient.GetBundle(r.Context(), tid.String(), event.InventoryBundleID.String()); found {
+			if allowed := bundle.MealPeriods(); len(allowed) > 0 {
+				allowedSet := make(map[string]bool, len(allowed))
+				for _, p := range allowed {
+					allowedSet[p] = true
+				}
+				filtered := make([]string, 0, len(in.MealPeriods))
+				for _, p := range in.MealPeriods {
+					if allowedSet[p] {
+						filtered = append(filtered, p)
+					}
+				}
+				if len(filtered) == 0 {
+					jsonError(w, "requested meal periods are not included in this event's package", http.StatusBadRequest)
+					return
+				}
+				in.MealPeriods = filtered
+			}
+		}
+	}
+
 	// Additive / idempotent generation (top-up): re-running this endpoint after more
 	// delegates join, a new meal period is added, or conference days are extended will
 	// only issue the MISSING cards — never duplicate existing ones. Per (day, period):
