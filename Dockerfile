@@ -2,12 +2,14 @@
 # Uses online tagged auth-client (go.mod replace => github.com/Bengo-Hub/auth-client v0.3.1).
 # Build from repo root: docker build -f pos-service/pos-api/Dockerfile -t pos-api:local .
 
-FROM golang:1.24-alpine AS builder
+FROM golang:1.26-alpine AS builder
 WORKDIR /src
 RUN apk add --no-cache git ca-certificates
 
 COPY go.mod go.sum ./
 
+# go.mod requires go >= 1.26; allow auto-toolchain as a fallback if the base image lags.
+ENV GOTOOLCHAIN=auto
 RUN go mod download
 
 COPY . .
