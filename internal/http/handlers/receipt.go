@@ -2,11 +2,13 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"html"
 	"net/http"
 	"time"
 
+	sharedcache "github.com/Bengo-Hub/cache"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -16,17 +18,52 @@ import (
 	entoutletsetting "github.com/bengobox/pos-service/internal/ent/outletsetting"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
 	"github.com/bengobox/pos-service/internal/ent/pospayment"
+	enttenant "github.com/bengobox/pos-service/internal/ent/tenant"
 )
 
 // ReceiptHandler handles receipt generation endpoints.
 type ReceiptHandler struct {
-	log    *zap.Logger
-	client *ent.Client
+	log     *zap.Logger
+	client  *ent.Client
+	cache   *sharedcache.Aside // tenant branding cache (auth-api source)
+	authURL string
 }
 
 // NewReceiptHandler creates a new ReceiptHandler.
-func NewReceiptHandler(log *zap.Logger, client *ent.Client) *ReceiptHandler {
-	return &ReceiptHandler{log: log, client: client}
+func NewReceiptHandler(log *zap.Logger, client *ent.Client, cache *sharedcache.Aside, authURL string) *ReceiptHandler {
+	return &ReceiptHandler{log: log, client: client, cache: cache, authURL: authURL}
+}
+
+// receiptBrand is the tenant branding applied to the receipt PDF.
+type receiptBrand struct {
+	CompanyName  string
+	LogoURL      string
+	PrimaryColor string
+}
+
+// branding fetches tenant branding (logo/name/primary-color) from the shared cache, mirroring the
+// documents module. Best-effort: returns a zero-value brand if anything is unavailable.
+func (h *ReceiptHandler) branding(ctx context.Context, tenantID uuid.UUID) receiptBrand {
+	var b receiptBrand
+	if h.cache == nil || h.authURL == "" {
+		return b
+	}
+	t, err := h.client.Tenant.Query().Where(enttenant.ID(tenantID)).Only(ctx)
+	if err != nil {
+		return b
+	}
+	b.CompanyName = t.Name
+	td, err := sharedcache.GetTenantDetails(ctx, h.cache, h.authURL, t.Slug, sharedcache.DefaultTenantTTL)
+	if err != nil {
+		return b
+	}
+	tb := sharedcache.GetTenantBranding(td)
+	if tb.Name != "" {
+		b.CompanyName = tb.Name
+	}
+	b.LogoURL = tb.LogoURL
+	b.PrimaryColor = tb.PrimaryColor
+	return b
 }
 
 // receiptLine is a single line item in the receipt.
@@ -232,7 +269,8 @@ func (h *ReceiptHandler) GetReceipt(w http.ResponseWriter, r *http.Request) {
 
 	format := r.URL.Query().Get("format")
 	if format == "pdf" {
-		pdfBytes, err := generateReceiptPDF(receipt)
+		brand := h.branding(r.Context(), tid)
+		pdfBytes, err := generateReceiptPDF(receipt, brand)
 		if err != nil {
 			h.log.Error("generate receipt pdf", zap.Error(err))
 			jsonError(w, "Failed to generate receipt PDF", http.StatusInternalServerError)

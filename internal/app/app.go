@@ -297,7 +297,7 @@ func New(ctx context.Context) (*App, error) {
 		returnEventPub = pub
 	}
 	returnHandler := handlers.NewReturnHandler(log, entClient, treasuryClient, returnEventPub)
-	receiptHandler := handlers.NewReceiptHandler(log, entClient)
+	receiptHandler := handlers.NewReceiptHandler(log, entClient, tenantCache, cfg.Auth.ServiceURL)
 
 	// Initialize RBAC
 	rbacRepo := rbacmodule.NewEntRepository(entClient)

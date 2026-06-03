@@ -3,14 +3,18 @@ package handlers
 import (
 	"bytes"
 	"fmt"
+	"io"
+	"net/http"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-pdf/fpdf"
 )
 
-// generateReceiptPDF renders an 80mm thermal-width PDF receipt from the receipt response.
-// Returns the PDF bytes, or an error if rendering fails. Mirrors the layout of generateReceiptHTML.
-func generateReceiptPDF(rec receiptResponse) ([]byte, error) {
+// generateReceiptPDF renders an 80mm thermal-width PDF receipt from the receipt response, applying
+// tenant branding (logo + primary colour). Mirrors the layout of generateReceiptHTML.
+func generateReceiptPDF(rec receiptResponse, brand receiptBrand) ([]byte, error) {
 	const pageW = 80.0 // 80mm thermal paper
 	const margin = 4.0
 	contentW := pageW - 2*margin
@@ -22,6 +26,8 @@ func generateReceiptPDF(rec receiptResponse) ([]byte, error) {
 	pdf.SetMargins(margin, 6, margin)
 	pdf.SetAutoPageBreak(true, 6)
 	pdf.AddPage()
+
+	br, bg, bb := receiptHexToRGB(brand.PrimaryColor) // brand colour (default ink if unset)
 
 	currency := rec.Currency
 	if currency == "" {
@@ -46,11 +52,22 @@ func generateReceiptPDF(rec receiptResponse) ([]byte, error) {
 		pdf.SetY(y + 1.2)
 	}
 
-	// Header
+	// Header — tenant logo (centered) + company name in brand colour
+	if logo, lt := fetchReceiptLogo(brand.LogoURL); logo != nil {
+		const logoW = 22.0
+		pdf.RegisterImageOptionsReader("brandlogo", fpdf.ImageOptions{ImageType: lt}, bytes.NewReader(logo))
+		pdf.ImageOptions("brandlogo", (pageW-logoW)/2, pdf.GetY(), logoW, 0, true, fpdf.ImageOptions{ImageType: lt}, 0, "")
+		pdf.Ln(1)
+	}
+	if brand.CompanyName != "" {
+		pdf.SetTextColor(br, bg, bb)
+		center(brand.CompanyName, "B", 12)
+		pdf.SetTextColor(0, 0, 0)
+	}
 	if rec.ReceiptHeader != "" {
 		center(rec.ReceiptHeader, "B", 9)
 	}
-	if rec.OutletName != "" {
+	if rec.OutletName != "" && rec.OutletName != brand.CompanyName {
 		center(rec.OutletName, "B", 11)
 	}
 	if rec.OutletAddress != "" {
@@ -138,4 +155,48 @@ func truncate(s string, n int) string {
 		return s[:n]
 	}
 	return s[:n-1] + "…"
+}
+
+// receiptHexToRGB parses "#RRGGBB" to RGB ints; returns the default ink colour on failure.
+func receiptHexToRGB(hex string) (int, int, int) {
+	hex = strings.TrimPrefix(strings.TrimSpace(hex), "#")
+	if len(hex) == 6 {
+		if r, err := strconv.ParseInt(hex[0:2], 16, 0); err == nil {
+			if g, err := strconv.ParseInt(hex[2:4], 16, 0); err == nil {
+				if b, err := strconv.ParseInt(hex[4:6], 16, 0); err == nil {
+					return int(r), int(g), int(b)
+				}
+			}
+		}
+	}
+	return 34, 48, 63 // default ink
+}
+
+// fetchReceiptLogo best-effort downloads a logo image (PNG/JPG); returns nil on any failure.
+func fetchReceiptLogo(url string) ([]byte, string) {
+	if url == "" {
+		return nil, ""
+	}
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Get(url) //nolint:noctx
+	if err != nil {
+		return nil, ""
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, ""
+	}
+	var buf bytes.Buffer
+	if _, err := buf.ReadFrom(&io.LimitedReader{R: resp.Body, N: 5 << 20}); err != nil {
+		return nil, ""
+	}
+	ct := resp.Header.Get("Content-Type")
+	switch {
+	case strings.Contains(ct, "png"):
+		return buf.Bytes(), "PNG"
+	case strings.Contains(ct, "jpeg"), strings.Contains(ct, "jpg"):
+		return buf.Bytes(), "JPG"
+	default:
+		return nil, ""
+	}
 }
