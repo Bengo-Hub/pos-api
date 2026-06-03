@@ -673,6 +673,9 @@ func seedRBACRoles(ctx context.Context, client *ent.Client, tenantID uuid.UUID) 
 				"pos.layaway.view", "pos.layaway.add",
 				"pos.loyalty.view", "pos.loyalty.add",
 				"pos.serial.view", "pos.serial.add",
+				// Hotel F&B: view rooms/events + redeem conference delegate meal cards at the till.
+				"pos.hotel.view", "pos.conference.view", "pos.conference.change",
+				"pos.promotions.view",
 			},
 		},
 		{
@@ -708,13 +711,18 @@ func seedRBACRoles(ctx context.Context, client *ent.Client, tenantID uuid.UUID) 
 		{
 			code:        "receptionist",
 			name:        "Receptionist",
-			description: "Manage hotel check-in/out and room service orders",
+			description: "Manage hotel check-in/out, bookings, conference meal cards, and room service orders",
 			permissions: []string{
 				"pos.orders.add", "pos.orders.view", "pos.orders.change_own",
 				"pos.catalog.view", "pos.payments.view",
 				"pos.tables.view",
 				"pos.sessions.add", "pos.sessions.view_own",
 				"pos.hotel.*",
+				// Front-desk conference handling: view events + generate/redeem delegate meal cards.
+				"pos.conference.view", "pos.conference.add", "pos.conference.change",
+				// See active happy-hour promotions applied at the desk.
+				"pos.promotions.view",
+				"pos.appointments.view", "pos.appointments.change",
 			},
 		},
 		{

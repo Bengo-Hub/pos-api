@@ -54,6 +54,12 @@ func (h *HotelHandler) GenerateMealCards(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	// Workflow gating: only issue cards for an active event (confirmed / in progress).
+	if event.Status != enteventbooking.StatusConfirmed && event.Status != enteventbooking.StatusInProgress {
+		jsonError(w, "meal cards can only be generated for a confirmed or in-progress event (current status: "+string(event.Status)+")", http.StatusConflict)
+		return
+	}
+
 	// Validate requested meal periods against the linked package's MEAL_PERIOD components,
 	// so delegates can only get cards for meals the package actually includes.
 	if event.InventoryBundleID != nil && h.inventoryClient != nil {
@@ -217,6 +223,11 @@ func (h *HotelHandler) RedeemMealCard(w http.ResponseWriter, r *http.Request) {
 	}
 	if card.Status != entmeal.StatusIssued {
 		jsonError(w, "meal card already "+string(card.Status), http.StatusConflict)
+		return
+	}
+	// Workflow gating: don't redeem against a cancelled event.
+	if ev, evErr := h.client.EventBooking.Get(r.Context(), card.EventBookingID); evErr == nil && ev.Status == enteventbooking.StatusCancelled {
+		jsonError(w, "cannot redeem — the event has been cancelled", http.StatusConflict)
 		return
 	}
 	now := time.Now()

@@ -958,16 +958,56 @@ func (h *HotelHandler) BookFacility(w http.ResponseWriter, r *http.Request) {
 
 	facilityBookedBy, _ := uuid.Parse(input.BookedBy)
 
+	// Load the facility once for both availability gating and pricing.
+	fac, fErr := h.client.Facility.Query().
+		Where(entfacility.ID(facilityID), entfacility.TenantID(tid)).Only(r.Context())
+	if fErr != nil {
+		jsonError(w, "facility not found", http.StatusNotFound)
+		return
+	}
+
+	// Availability gating: only an "available" facility can be booked. Maintenance/closed/occupied
+	// facilities are not bookable (the UI must reflect this status too).
+	if fac.Status != entfacility.StatusAvailable {
+		jsonError(w, fmt.Sprintf("facility is not available for booking (status: %s)", fac.Status), http.StatusConflict)
+		return
+	}
+
+	// Capacity gating: a session cannot exceed the hall capacity.
+	if fac.Capacity > 0 && input.GuestsCount > fac.Capacity {
+		jsonError(w, fmt.Sprintf("guests (%d) exceed the facility capacity (%d)", input.GuestsCount, fac.Capacity), http.StatusConflict)
+		return
+	}
+
+	// Double-booking gating: reject an overlapping confirmed booking on the same day.
+	if input.StartTime != "" && input.EndTime != "" {
+		dayStart := time.Date(input.SessionDate.Year(), input.SessionDate.Month(), input.SessionDate.Day(), 0, 0, 0, 0, input.SessionDate.Location())
+		dayEnd := dayStart.AddDate(0, 0, 1)
+		sameDay, _ := h.client.FacilityBooking.Query().
+			Where(
+				entfacilitybooking.FacilityID(facilityID),
+				entfacilitybooking.TenantID(tid),
+				entfacilitybooking.StatusEQ(entfacilitybooking.StatusConfirmed),
+				entfacilitybooking.SessionDateGTE(dayStart),
+				entfacilitybooking.SessionDateLT(dayEnd),
+			).All(r.Context())
+		for _, b := range sameDay {
+			// HH:MM strings compare lexicographically within a day; overlap = startA < endB && endA > startB.
+			if b.StartTime != "" && b.EndTime != "" && input.StartTime < b.EndTime && input.EndTime > b.StartTime {
+				jsonError(w, fmt.Sprintf("facility already booked for an overlapping time (%s–%s)", b.StartTime, b.EndTime), http.StatusConflict)
+				return
+			}
+		}
+	}
+
 	// Resolve the session amount when the caller didn't supply one: prefer the authoritative
 	// inventory price (when the facility is linked to a SERVICE item), else the local rate.
 	amount := input.Amount
 	if amount <= 0 {
-		if fac, fErr := h.client.Facility.Query().Where(entfacility.ID(facilityID), entfacility.TenantID(tid)).Only(r.Context()); fErr == nil {
-			amount = fac.RatePerSession
-			if h.inventoryClient != nil && fac.InventoryItemID != nil {
-				if price, ok, perr := h.inventoryClient.GetItemPrice(r.Context(), tid.String(), fac.InventoryItemID.String(), 1); perr == nil && ok && price.UnitPrice > 0 {
-					amount = price.UnitPrice
-				}
+		amount = fac.RatePerSession
+		if h.inventoryClient != nil && fac.InventoryItemID != nil {
+			if price, ok, perr := h.inventoryClient.GetItemPrice(r.Context(), tid.String(), fac.InventoryItemID.String(), 1); perr == nil && ok && price.UnitPrice > 0 {
+				amount = price.UnitPrice
 			}
 		}
 	}

@@ -615,20 +615,23 @@ func New(
 				if hotel != nil {
 					tenant.Route("/hotel", func(h chi.Router) {
 						h.Use(outletmw.RequireUseCase("hospitality"))
+						// Front-desk operational actions (check-in/out, folio, bookings, room status,
+						// facility booking, amenities, housekeeping) require hotel CHANGE; admin master
+						// data (create/edit/delete rooms & facilities) requires hotel MANAGE.
+						hotelChange := outletmw.RequireServicePermission(rbacSvc, "pos.hotel.change", "pos.hotel.manage")
+						hotelManage := outletmw.RequireServicePermission(rbacSvc, "pos.hotel.manage")
 						h.Get("/rooms", hotel.ListRooms)
-						h.With(outletmw.RequireServicePermission(rbacSvc, "pos.hotel.manage")).
-							Post("/rooms", hotel.CreateRoom)
+						h.With(hotelManage).Post("/rooms", hotel.CreateRoom)
 						h.Get("/rooms/{id}", hotel.GetRoom)
-						h.Patch("/rooms/{id}/status", hotel.UpdateRoomStatus)
+						h.With(hotelChange).Patch("/rooms/{id}/status", hotel.UpdateRoomStatus)
 						// Inventory master pickers (link rooms/facilities/amenities to inventory SERVICE items + packages)
 						h.Get("/inventory-service-items", hotel.ListInventoryServiceItems)
 						h.Get("/inventory-bundles", hotel.ListInventoryBundles)
 						// Multi-room / group bookings (RoomBooking header → many RoomGuest)
-						h.Post("/bookings", hotel.CreateRoomBooking)
+						h.With(hotelChange).Post("/bookings", hotel.CreateRoomBooking)
 						h.Get("/bookings", hotel.ListRoomBookings)
 						h.Get("/bookings/{id}", hotel.GetRoomBooking)
-						h.With(outletmw.RequireServicePermission(rbacSvc, "pos.hotel.manage")).
-							Patch("/bookings/{id}", hotel.UpdateRoomBooking)
+						h.With(hotelManage).Patch("/bookings/{id}", hotel.UpdateRoomBooking)
 						h.Get("/bookings/{id}/guests", hotel.ListBookingGuests)
 						// Conference / events (BEO) + delegate meal cards
 						h.With(outletmw.RequireServicePermission(rbacSvc, "pos.conference.add", "pos.conference.manage")).
@@ -642,35 +645,32 @@ func New(
 							Post("/events/{id}/generate-mealcards", hotel.GenerateMealCards)
 						h.With(outletmw.RequireServicePermission(rbacSvc, "pos.conference.change", "pos.conference.manage")).
 							Post("/mealcards/{code}/redeem", hotel.RedeemMealCard)
-						h.Post("/rooms/{id}/check-in", hotel.CheckIn)
-						h.Post("/rooms/{id}/check-out", hotel.CheckOut)
-						h.Post("/rooms/{id}/folio", hotel.PostFolioCharge)
+						h.With(hotelChange).Post("/rooms/{id}/check-in", hotel.CheckIn)
+						h.With(hotelChange).Post("/rooms/{id}/check-out", hotel.CheckOut)
+						h.With(hotelChange).Post("/rooms/{id}/folio", hotel.PostFolioCharge)
 						h.Get("/rooms/{id}/folio", hotel.GetRoomFolio)
 						h.Get("/facilities", hotel.ListFacilities)
-						h.With(outletmw.RequireServicePermission(rbacSvc, "pos.hotel.manage")).
-							Post("/facilities", hotel.CreateFacility)
+						h.With(hotelManage).Post("/facilities", hotel.CreateFacility)
 						h.Get("/facilities/{id}", hotel.GetFacility)
-						h.With(outletmw.RequireServicePermission(rbacSvc, "pos.hotel.manage")).
-							Patch("/facilities/{id}", hotel.UpdateFacility)
-						h.With(outletmw.RequireServicePermission(rbacSvc, "pos.hotel.manage")).
-							Delete("/facilities/{id}", hotel.DeleteFacility)
-						h.Post("/facilities/{id}/book", hotel.BookFacility)
-						h.Patch("/facilities/bookings/{bookingID}", hotel.UpdateBooking)
-						h.Post("/facilities/bookings/{bookingID}/complete", hotel.CompleteFacilityBooking)
+						h.With(hotelManage).Patch("/facilities/{id}", hotel.UpdateFacility)
+						h.With(hotelManage).Delete("/facilities/{id}", hotel.DeleteFacility)
+						h.With(hotelChange).Post("/facilities/{id}/book", hotel.BookFacility)
+						h.With(hotelChange).Patch("/facilities/bookings/{bookingID}", hotel.UpdateBooking)
+						h.With(hotelChange).Post("/facilities/bookings/{bookingID}/complete", hotel.CompleteFacilityBooking)
 						h.Get("/facilities/bookings", hotel.ListFacilityBookings)
 						// Amenity management
 						h.Get("/amenities", hotel.ListAmenities)
-						h.Post("/amenities", hotel.CreateAmenity)
+						h.With(hotelManage).Post("/amenities", hotel.CreateAmenity)
 						h.Get("/rooms/{id}/amenities", hotel.ListRoomAmenities)
-						h.Post("/rooms/{id}/amenities", hotel.AssignAmenityToRoom)
-						h.Post("/rooms/{id}/amenities/{amenityId}/charge", hotel.ChargeAmenityToGuest)
+						h.With(hotelChange).Post("/rooms/{id}/amenities", hotel.AssignAmenityToRoom)
+						h.With(hotelChange).Post("/rooms/{id}/amenities/{amenityId}/charge", hotel.ChargeAmenityToGuest)
 						// Late checkout and batch checkout
-						h.Post("/rooms/{id}/late-checkout", hotel.LateCheckout)
-						h.Post("/rooms/batch-checkout", hotel.BatchCheckout)
+						h.With(hotelChange).Post("/rooms/{id}/late-checkout", hotel.LateCheckout)
+						h.With(hotelChange).Post("/rooms/batch-checkout", hotel.BatchCheckout)
 						// Housekeeping
 						h.Get("/housekeeping", hotel.ListHousekeepingTasks)
-						h.Post("/housekeeping", hotel.CreateHousekeepingTask)
-						h.Patch("/housekeeping/{taskID}", hotel.UpdateHousekeepingTask)
+						h.With(hotelChange).Post("/housekeeping", hotel.CreateHousekeepingTask)
+						h.With(hotelChange).Patch("/housekeeping/{taskID}", hotel.UpdateHousekeepingTask)
 					})
 				}
 			})
