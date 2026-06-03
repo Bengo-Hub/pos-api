@@ -231,11 +231,23 @@ func (h *ReceiptHandler) GetReceipt(w http.ResponseWriter, r *http.Request) {
 	}
 
 	format := r.URL.Query().Get("format")
-	if format == "pdf" || format == "html" {
-		html := generateReceiptHTML(receipt)
+	if format == "pdf" {
+		pdfBytes, err := generateReceiptPDF(receipt)
+		if err != nil {
+			h.log.Error("generate receipt pdf", zap.Error(err))
+			jsonError(w, "Failed to generate receipt PDF", http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/pdf")
+		w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="receipt-%s.pdf"`, order.OrderNumber))
+		_, _ = w.Write(pdfBytes)
+		return
+	}
+	if format == "html" {
+		htmlOut := generateReceiptHTML(receipt)
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="receipt-%s.html"`, order.OrderNumber))
-		_, _ = w.Write(html)
+		w.Header().Set("Content-Disposition", fmt.Sprintf(`inline; filename="receipt-%s.html"`, order.OrderNumber))
+		_, _ = w.Write(htmlOut)
 		return
 	}
 
