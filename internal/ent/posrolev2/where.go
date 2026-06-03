@@ -131,6 +131,16 @@ func TenantIDLTE(v uuid.UUID) predicate.POSRoleV2 {
 	return predicate.POSRoleV2(sql.FieldLTE(FieldTenantID, v))
 }
 
+// TenantIDIsNil applies the IsNil predicate on the "tenant_id" field.
+func TenantIDIsNil() predicate.POSRoleV2 {
+	return predicate.POSRoleV2(sql.FieldIsNull(FieldTenantID))
+}
+
+// TenantIDNotNil applies the NotNil predicate on the "tenant_id" field.
+func TenantIDNotNil() predicate.POSRoleV2 {
+	return predicate.POSRoleV2(sql.FieldNotNull(FieldTenantID))
+}
+
 // RoleCodeEQ applies the EQ predicate on the "role_code" field.
 func RoleCodeEQ(v string) predicate.POSRoleV2 {
 	return predicate.POSRoleV2(sql.FieldEQ(FieldRoleCode, v))

@@ -138,20 +138,33 @@ func (h *PINAuthHandler) RequireAnyAuth(ssoAuth *authclient.AuthMiddleware) func
 	}
 }
 
-// resolveRolePermissions looks up the POSRoleV2 for the given tenantID and roleCode,
-// loads its permissions via eager-load, and returns the permission codes.
-// Returns an empty slice if the role is not found or an error occurs.
+// resolveRolePermissions looks up the POSRoleV2 for the given roleCode and returns its permission
+// codes. Roles are platform-wide (shared): it matches the shared global/system role (tenant_id NULL)
+// OR a tenant-specific custom role of the same code, preferring the tenant-specific override when both
+// exist. Returns an empty slice if the role is not found or an error occurs.
 func resolveRolePermissions(ctx context.Context, client *ent.Client, tenantID uuid.UUID, roleCode string) []string {
-	role, err := client.POSRoleV2.Query().
+	roles, err := client.POSRoleV2.Query().
 		Where(
-			posrolev2.TenantID(tenantID),
 			posrolev2.RoleCode(roleCode),
+			posrolev2.Or(
+				posrolev2.TenantID(tenantID),
+				posrolev2.TenantIDIsNil(),
+			),
 		).
 		WithPermissions().
-		Only(ctx)
-	if err != nil {
+		All(ctx)
+	if err != nil || len(roles) == 0 {
 		// Role not found or error — fall back to empty permissions
 		return []string{}
+	}
+
+	// Prefer the tenant-specific override; otherwise use the shared global role.
+	role := roles[0]
+	for _, r := range roles {
+		if r.TenantID != nil {
+			role = r
+			break
+		}
 	}
 
 	codes := make([]string, 0, len(role.Edges.Permissions))

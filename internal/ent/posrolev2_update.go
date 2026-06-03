@@ -46,6 +46,12 @@ func (_u *POSRoleV2Update) SetNillableTenantID(v *uuid.UUID) *POSRoleV2Update {
 	return _u
 }
 
+// ClearTenantID clears the value of the "tenant_id" field.
+func (_u *POSRoleV2Update) ClearTenantID() *POSRoleV2Update {
+	_u.mutation.ClearTenantID()
+	return _u
+}
+
 // SetRoleCode sets the "role_code" field.
 func (_u *POSRoleV2Update) SetRoleCode(v string) *POSRoleV2Update {
 	_u.mutation.SetRoleCode(v)
@@ -293,6 +299,9 @@ func (_u *POSRoleV2Update) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.TenantID(); ok {
 		_spec.SetField(posrolev2.FieldTenantID, field.TypeUUID, value)
 	}
+	if _u.mutation.TenantIDCleared() {
+		_spec.ClearField(posrolev2.FieldTenantID, field.TypeUUID)
+	}
 	if value, ok := _u.mutation.RoleCode(); ok {
 		_spec.SetField(posrolev2.FieldRoleCode, field.TypeString, value)
 	}
@@ -477,6 +486,12 @@ func (_u *POSRoleV2UpdateOne) SetNillableTenantID(v *uuid.UUID) *POSRoleV2Update
 	if v != nil {
 		_u.SetTenantID(*v)
 	}
+	return _u
+}
+
+// ClearTenantID clears the value of the "tenant_id" field.
+func (_u *POSRoleV2UpdateOne) ClearTenantID() *POSRoleV2UpdateOne {
+	_u.mutation.ClearTenantID()
 	return _u
 }
 
@@ -756,6 +771,9 @@ func (_u *POSRoleV2UpdateOne) sqlSave(ctx context.Context) (_node *POSRoleV2, er
 	}
 	if value, ok := _u.mutation.TenantID(); ok {
 		_spec.SetField(posrolev2.FieldTenantID, field.TypeUUID, value)
+	}
+	if _u.mutation.TenantIDCleared() {
+		_spec.ClearField(posrolev2.FieldTenantID, field.TypeUUID)
 	}
 	if value, ok := _u.mutation.RoleCode(); ok {
 		_spec.SetField(posrolev2.FieldRoleCode, field.TypeString, value)

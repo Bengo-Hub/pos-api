@@ -57072,7 +57072,7 @@ func (m *POSRoleV2Mutation) TenantID() (r uuid.UUID, exists bool) {
 // OldTenantID returns the old "tenant_id" field's value of the POSRoleV2 entity.
 // If the POSRoleV2 object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *POSRoleV2Mutation) OldTenantID(ctx context.Context) (v uuid.UUID, err error) {
+func (m *POSRoleV2Mutation) OldTenantID(ctx context.Context) (v *uuid.UUID, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
 	}
@@ -57086,9 +57086,22 @@ func (m *POSRoleV2Mutation) OldTenantID(ctx context.Context) (v uuid.UUID, err e
 	return oldValue.TenantID, nil
 }
 
+// ClearTenantID clears the value of the "tenant_id" field.
+func (m *POSRoleV2Mutation) ClearTenantID() {
+	m.tenant_id = nil
+	m.clearedFields[posrolev2.FieldTenantID] = struct{}{}
+}
+
+// TenantIDCleared returns if the "tenant_id" field was cleared in this mutation.
+func (m *POSRoleV2Mutation) TenantIDCleared() bool {
+	_, ok := m.clearedFields[posrolev2.FieldTenantID]
+	return ok
+}
+
 // ResetTenantID resets all changes to the "tenant_id" field.
 func (m *POSRoleV2Mutation) ResetTenantID() {
 	m.tenant_id = nil
+	delete(m.clearedFields, posrolev2.FieldTenantID)
 }
 
 // SetRoleCode sets the "role_code" field.
@@ -57671,6 +57684,9 @@ func (m *POSRoleV2Mutation) AddField(name string, value ent.Value) error {
 // mutation.
 func (m *POSRoleV2Mutation) ClearedFields() []string {
 	var fields []string
+	if m.FieldCleared(posrolev2.FieldTenantID) {
+		fields = append(fields, posrolev2.FieldTenantID)
+	}
 	if m.FieldCleared(posrolev2.FieldDescription) {
 		fields = append(fields, posrolev2.FieldDescription)
 	}
@@ -57688,6 +57704,9 @@ func (m *POSRoleV2Mutation) FieldCleared(name string) bool {
 // error if the field is not defined in the schema.
 func (m *POSRoleV2Mutation) ClearField(name string) error {
 	switch name {
+	case posrolev2.FieldTenantID:
+		m.ClearTenantID()
+		return nil
 	case posrolev2.FieldDescription:
 		m.ClearDescription()
 		return nil

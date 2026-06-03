@@ -23,7 +23,7 @@ type POSUser struct {
 // POSRoleV2 represents a POS service role.
 type POSRoleV2 struct {
 	ID           uuid.UUID  `json:"id"`
-	TenantID     uuid.UUID  `json:"tenant_id"`
+	TenantID     *uuid.UUID `json:"tenant_id,omitempty"` // nil = global/system role shared platform-wide
 	RoleCode     string     `json:"role_code"`
 	Name         string     `json:"name"`
 	Description  *string    `json:"description,omitempty"`

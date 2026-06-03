@@ -33,6 +33,14 @@ func (_c *POSRoleV2Create) SetTenantID(v uuid.UUID) *POSRoleV2Create {
 	return _c
 }
 
+// SetNillableTenantID sets the "tenant_id" field if the given value is not nil.
+func (_c *POSRoleV2Create) SetNillableTenantID(v *uuid.UUID) *POSRoleV2Create {
+	if v != nil {
+		_c.SetTenantID(*v)
+	}
+	return _c
+}
+
 // SetRoleCode sets the "role_code" field.
 func (_c *POSRoleV2Create) SetRoleCode(v string) *POSRoleV2Create {
 	_c.mutation.SetRoleCode(v)
@@ -215,9 +223,6 @@ func (_c *POSRoleV2Create) defaults() {
 
 // check runs all checks and user-defined validators on the builder.
 func (_c *POSRoleV2Create) check() error {
-	if _, ok := _c.mutation.TenantID(); !ok {
-		return &ValidationError{Name: "tenant_id", err: errors.New(`ent: missing required field "POSRoleV2.tenant_id"`)}
-	}
 	if _, ok := _c.mutation.RoleCode(); !ok {
 		return &ValidationError{Name: "role_code", err: errors.New(`ent: missing required field "POSRoleV2.role_code"`)}
 	}
@@ -281,7 +286,7 @@ func (_c *POSRoleV2Create) createSpec() (*POSRoleV2, *sqlgraph.CreateSpec) {
 	}
 	if value, ok := _c.mutation.TenantID(); ok {
 		_spec.SetField(posrolev2.FieldTenantID, field.TypeUUID, value)
-		_node.TenantID = value
+		_node.TenantID = &value
 	}
 	if value, ok := _c.mutation.RoleCode(); ok {
 		_spec.SetField(posrolev2.FieldRoleCode, field.TypeString, value)
@@ -419,6 +424,12 @@ func (u *POSRoleV2Upsert) UpdateTenantID() *POSRoleV2Upsert {
 	return u
 }
 
+// ClearTenantID clears the value of the "tenant_id" field.
+func (u *POSRoleV2Upsert) ClearTenantID() *POSRoleV2Upsert {
+	u.SetNull(posrolev2.FieldTenantID)
+	return u
+}
+
 // SetRoleCode sets the "role_code" field.
 func (u *POSRoleV2Upsert) SetRoleCode(v string) *POSRoleV2Upsert {
 	u.Set(posrolev2.FieldRoleCode, v)
@@ -547,6 +558,13 @@ func (u *POSRoleV2UpsertOne) SetTenantID(v uuid.UUID) *POSRoleV2UpsertOne {
 func (u *POSRoleV2UpsertOne) UpdateTenantID() *POSRoleV2UpsertOne {
 	return u.Update(func(s *POSRoleV2Upsert) {
 		s.UpdateTenantID()
+	})
+}
+
+// ClearTenantID clears the value of the "tenant_id" field.
+func (u *POSRoleV2UpsertOne) ClearTenantID() *POSRoleV2UpsertOne {
+	return u.Update(func(s *POSRoleV2Upsert) {
+		s.ClearTenantID()
 	})
 }
 
@@ -856,6 +874,13 @@ func (u *POSRoleV2UpsertBulk) SetTenantID(v uuid.UUID) *POSRoleV2UpsertBulk {
 func (u *POSRoleV2UpsertBulk) UpdateTenantID() *POSRoleV2UpsertBulk {
 	return u.Update(func(s *POSRoleV2Upsert) {
 		s.UpdateTenantID()
+	})
+}
+
+// ClearTenantID clears the value of the "tenant_id" field.
+func (u *POSRoleV2UpsertBulk) ClearTenantID() *POSRoleV2UpsertBulk {
+	return u.Update(func(s *POSRoleV2Upsert) {
+		s.ClearTenantID()
 	})
 }
 

@@ -1726,7 +1726,7 @@ var (
 	// PosRoleV2sColumns holds the columns for the "pos_role_v2s" table.
 	PosRoleV2sColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
-		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID, Nullable: true},
 		{Name: "role_code", Type: field.TypeString},
 		{Name: "name", Type: field.TypeString},
 		{Name: "description", Type: field.TypeString, Nullable: true, Size: 2147483647},
@@ -1749,6 +1749,11 @@ var (
 				Name:    "posrolev2_tenant_id_role_code",
 				Unique:  true,
 				Columns: []*schema.Column{PosRoleV2sColumns[1], PosRoleV2sColumns[2]},
+			},
+			{
+				Name:    "posrolev2_role_code",
+				Unique:  false,
+				Columns: []*schema.Column{PosRoleV2sColumns[2]},
 			},
 			{
 				Name:    "posrolev2_is_system_role",

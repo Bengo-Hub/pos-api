@@ -19,7 +19,9 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/outlet"
 	"github.com/bengobox/pos-service/internal/ent/outletsetting"
 	"github.com/bengobox/pos-service/internal/ent/pospermission"
+	"github.com/bengobox/pos-service/internal/ent/posrolepermission"
 	"github.com/bengobox/pos-service/internal/ent/posrolev2"
+	"github.com/bengobox/pos-service/internal/ent/posuserroleassignment"
 	"github.com/bengobox/pos-service/internal/ent/section"
 	enttable "github.com/bengobox/pos-service/internal/ent/table"
 	"github.com/bengobox/pos-service/internal/ent/tender"
@@ -76,6 +78,17 @@ func main() {
 		log.Printf("✅ Tenant %s seeded successfully", tc.slug)
 	}
 
+	// Platform-wide RBAC (roles + permissions are SHARED across all tenants — same role grants the
+	// same permissions everywhere). Seeded once, not per tenant. seedRBACRoles also reconciles
+	// permissions onto every role bearing a system code (global OR tenant-scoped) so no role is ever
+	// left without its required permissions, and consolidates redundant legacy per-tenant duplicates.
+	if err := seedRBACPermissions(ctx, client); err != nil {
+		log.Fatalf("seed RBAC permissions: %v", err)
+	}
+	if err := seedRBACRoles(ctx, client); err != nil {
+		log.Fatalf("seed RBAC roles: %v", err)
+	}
+
 	// Platform-wide configs (rate limits, service configs) — seeded once.
 	if err := seedRateLimitConfigs(ctx, client); err != nil {
 		log.Fatalf("seed rate limit configs: %v", err)
@@ -128,13 +141,8 @@ func runSeed(ctx context.Context, client *ent.Client, tenantID uuid.UUID, tc ten
 		log.Printf("  ⚠️  seed KDS stations: %v (non-fatal, stations can be configured via UI)", err)
 	}
 
-	if err := seedRBACPermissions(ctx, client); err != nil {
-		return fmt.Errorf("seed RBAC permissions: %w", err)
-	}
-
-	if err := seedRBACRoles(ctx, client, tenantID); err != nil {
-		return fmt.Errorf("seed RBAC roles: %w", err)
-	}
+	// NOTE: RBAC permissions + roles are PLATFORM-WIDE (shared across all tenants), so they are
+	// seeded once in main() — not per tenant. See feedback_shared_core_reference_data.
 
 	if err := seedLoyaltyProgram(ctx, client, tenantID); err != nil {
 		log.Printf("  ⚠️  seed loyalty program: %v (non-fatal)", err)
@@ -619,8 +627,12 @@ func seedRBACPermissions(ctx context.Context, client *ent.Client) error {
 	return nil
 }
 
-// seedRBACRoles creates system roles and assigns permissions.
-func seedRBACRoles(ctx context.Context, client *ent.Client, tenantID uuid.UUID) error {
+// seedRBACRoles creates the platform-wide system roles (shared across all tenants, tenant_id NULL)
+// and reconciles permissions. It guarantees that EVERY role bearing a system role_code — whether the
+// shared global role or a tenant-scoped copy/override — has the full set of required permissions, so a
+// seed run never leaves any role under-permissioned. It also consolidates redundant legacy per-tenant
+// system roles (duplicates created before roles were made global) that have no user assignments.
+func seedRBACRoles(ctx context.Context, client *ent.Client) error {
 	type roleDef struct {
 		code        string
 		name        string
@@ -818,44 +830,105 @@ func seedRBACRoles(ctx context.Context, client *ent.Client, tenantID uuid.UUID) 
 		permByCode[p.PermissionCode] = p.ID
 	}
 
+	// Set of valid system role codes — used to identify legacy per-tenant duplicates to consolidate.
+	systemCodes := make(map[string]bool, len(roles))
 	for _, rd := range roles {
-		roleID := uuid.NewSHA1(uuid.NameSpaceURL, []byte(fmt.Sprintf("bengobox:pos:role:%s:%s", tenantID, rd.code)))
+		systemCodes[rd.code] = true
+	}
+
+	for _, rd := range roles {
+		// Global system role — shared platform-wide (tenant_id NULL). Deterministic ID by code only.
+		globalRoleID := globalRoleUUID(rd.code)
 
 		exists, err := client.POSRoleV2.Query().
-			Where(posrolev2.ID(roleID)).
+			Where(posrolev2.ID(globalRoleID)).
 			Exist(ctx)
 		if err != nil {
 			return err
 		}
 		if !exists {
+			// Do NOT set tenant_id — leaving it NULL marks this as a global/system role.
 			_, err = client.POSRoleV2.Create().
-				SetID(roleID).
-				SetTenantID(tenantID).
+				SetID(globalRoleID).
 				SetRoleCode(rd.code).
 				SetName(rd.name).
 				SetDescription(rd.description).
 				SetIsSystemRole(true).
 				Save(ctx)
 			if err != nil {
-				return fmt.Errorf("create role %s: %w", rd.code, err)
+				return fmt.Errorf("create global role %s: %w", rd.code, err)
 			}
 		}
 
-		// Always sync permissions — adds missing ones, ignores duplicates.
+		// Reconcile permissions for EVERY role bearing this system code — the shared global role AND
+		// any tenant-scoped copy/override of it — so no role (global or tenant) is ever left without
+		// its required permissions. Idempotent: adds missing assignments, ignores duplicates.
 		permIDs := resolvePermissions(rd.permissions, permByCode)
-		for _, permID := range permIDs {
-			_, err = client.POSRolePermission.Create().
-				SetRoleID(roleID).
-				SetPermissionID(permID).
-				Save(ctx)
-			if err != nil {
-				// Ignore duplicates (unique constraint violation)
-				continue
+		matchingRoles, err := client.POSRoleV2.Query().
+			Where(posrolev2.RoleCode(rd.code)).
+			All(ctx)
+		if err != nil {
+			return fmt.Errorf("list roles for code %s: %w", rd.code, err)
+		}
+		for _, role := range matchingRoles {
+			for _, permID := range permIDs {
+				_, err = client.POSRolePermission.Create().
+					SetRoleID(role.ID).
+					SetPermissionID(permID).
+					Save(ctx)
+				if err != nil {
+					// Ignore duplicates (unique constraint violation)
+					continue
+				}
 			}
 		}
 	}
-	log.Printf("  ✓ RBAC roles seeded (%d roles with permission assignments)", len(roles))
+
+	// Consolidate redundant legacy per-tenant system roles. Before roles were made global, each tenant
+	// got its own copy of every system role. Now that a shared global role exists, delete the per-tenant
+	// copies that are safe to remove (no user assignments reference them) — the global role serves them.
+	// Tenant rows that still have assignments, or genuine custom roles (non-system codes), are kept.
+	legacy, err := client.POSRoleV2.Query().
+		Where(
+			posrolev2.IsSystemRole(true),
+			posrolev2.TenantIDNotNil(),
+		).
+		All(ctx)
+	if err != nil {
+		return fmt.Errorf("list legacy tenant system roles: %w", err)
+	}
+	consolidated := 0
+	for _, lr := range legacy {
+		if !systemCodes[lr.RoleCode] {
+			continue // unknown code — treat as a real custom role, keep it
+		}
+		assignCount, err := client.POSUserRoleAssignment.Query().
+			Where(posuserroleassignment.RoleID(lr.ID)).
+			Count(ctx)
+		if err != nil {
+			return fmt.Errorf("count assignments for legacy role %s: %w", lr.ID, err)
+		}
+		if assignCount > 0 {
+			continue // still referenced — leave it (its perms were reconciled above)
+		}
+		if _, err := client.POSRolePermission.Delete().
+			Where(posrolepermission.RoleID(lr.ID)).
+			Exec(ctx); err != nil {
+			return fmt.Errorf("delete perms for legacy role %s: %w", lr.ID, err)
+		}
+		if err := client.POSRoleV2.DeleteOneID(lr.ID).Exec(ctx); err != nil {
+			return fmt.Errorf("delete legacy role %s: %w", lr.ID, err)
+		}
+		consolidated++
+	}
+
+	log.Printf("  ✓ RBAC roles seeded: %d global system roles, permissions reconciled across all matching roles, %d legacy per-tenant duplicates consolidated", len(roles), consolidated)
 	return nil
+}
+
+// globalRoleUUID returns the deterministic ID for a shared, platform-wide (global) POS role.
+func globalRoleUUID(roleCode string) uuid.UUID {
+	return uuid.NewSHA1(uuid.NameSpaceURL, []byte(fmt.Sprintf("bengobox:pos:role:global:%s", roleCode)))
 }
 
 // resolvePermissions expands wildcard patterns into concrete permission IDs.

@@ -23,7 +23,9 @@ func (POSRoleV2) Fields() []ent.Field {
 			Default(uuid.New).
 			Immutable(),
 		field.UUID("tenant_id", uuid.UUID{}).
-			Comment("Tenant identifier"),
+			Optional().
+			Nillable().
+			Comment("Tenant identifier; NULL = global/system role shared platform-wide across all tenants. Non-NULL = tenant-specific custom role."),
 		field.String("role_code").
 			NotEmpty().
 			Comment("Role code: admin, manager, cashier, waiter, kitchen, bar, receptionist, viewer"),
@@ -56,7 +58,11 @@ func (POSRoleV2) Edges() []ent.Edge {
 func (POSRoleV2) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("tenant_id"),
+		// Unique per tenant for custom roles. Global system roles (tenant_id NULL) are kept
+		// unique by code via deterministic seed IDs + existence checks (same approach as ServiceConfig).
 		index.Fields("tenant_id", "role_code").Unique(),
+		// Fast lookup of a role by code regardless of tenant (global resolution path).
+		index.Fields("role_code"),
 		index.Fields("is_system_role"),
 	}
 }
