@@ -38,6 +38,29 @@ func (s *Service) HasPermission(ctx context.Context, tenantID uuid.UUID, userID 
 	return false, nil
 }
 
+// HasAnyPermission checks if a user holds at least one of the given permission codes.
+// Reads the user's permissions once, then tests membership — cheaper than calling
+// HasPermission per code. Returns false (not an error) when none match.
+func (s *Service) HasAnyPermission(ctx context.Context, tenantID uuid.UUID, userID uuid.UUID, permissionCodes ...string) (bool, error) {
+	if len(permissionCodes) == 0 {
+		return false, nil
+	}
+	permissions, err := s.repo.GetUserPermissions(ctx, tenantID, userID)
+	if err != nil {
+		return false, fmt.Errorf("get user permissions: %w", err)
+	}
+	want := make(map[string]struct{}, len(permissionCodes))
+	for _, code := range permissionCodes {
+		want[code] = struct{}{}
+	}
+	for _, perm := range permissions {
+		if _, ok := want[perm.PermissionCode]; ok {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 // HasRole checks if a user has a specific role.
 func (s *Service) HasRole(ctx context.Context, tenantID uuid.UUID, userID uuid.UUID, roleCode string) (bool, error) {
 	roles, err := s.repo.GetUserRoles(ctx, tenantID, userID)

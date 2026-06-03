@@ -19,6 +19,7 @@ import (
 	handlers "github.com/bengobox/pos-service/internal/http/handlers"
 	outletmw "github.com/bengobox/pos-service/internal/http/middleware"
 	"github.com/bengobox/pos-service/internal/modules/identity"
+	rbacmodule "github.com/bengobox/pos-service/internal/modules/rbac"
 	"github.com/bengobox/pos-service/internal/platform/subscriptions"
 )
 
@@ -37,6 +38,7 @@ func New(
 	barTabs *handlers.BarTabHandler,
 	promotions *handlers.PromotionHandler,
 	rbacHandler *handlers.RBACHandler,
+	rbacSvc *rbacmodule.Service,
 	hotel *handlers.HotelHandler,
 	kds *handlers.KDSHandler,
 	devices *handlers.DeviceHandler,
@@ -298,9 +300,11 @@ func New(
 
 					// Cash Drawers
 					if drawers != nil {
-						pos.Post("/drawers/open", drawers.OpenDrawer)
+						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.cash_drawers.add", "pos.cash_drawers.manage")).
+							Post("/drawers/open", drawers.OpenDrawer)
 						pos.Get("/drawers/current", drawers.GetCurrentDrawer)
-						pos.Post("/drawers/{id}/close", drawers.CloseDrawer)
+						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.cash_drawers.manage")).
+							Post("/drawers/{id}/close", drawers.CloseDrawer)
 						pos.Get("/drawers", drawers.ListDrawerHistory)
 					}
 
@@ -318,7 +322,10 @@ func New(
 					// Promotions
 					if promotions != nil {
 						pos.Get("/promotions", promotions.ListPromotions)
-						pos.Post("/promotions", promotions.CreatePromotion)
+						// Creating a promotion/happy-hour is administrative; applying a code at
+						// checkout is part of the cashier order flow and stays ungated.
+						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.promotions.add", "pos.promotions.manage")).
+							Post("/promotions", promotions.CreatePromotion)
 						pos.Post("/promotions/apply", promotions.ApplyPromoCode)
 						pos.Get("/promotions/happy-hour/active", promotions.GetActiveHappyHours)
 					}
@@ -431,16 +438,18 @@ func New(
 					if appointments != nil {
 						pos.Group(func(svc chi.Router) {
 							svc.Use(outletmw.RequireUseCase("services"))
+							apptChange := outletmw.RequireServicePermission(rbacSvc, "pos.appointments.change", "pos.appointments.manage")
 							svc.Get("/appointments", appointments.List)
-							svc.Post("/appointments", appointments.Create)
+							svc.With(outletmw.RequireServicePermission(rbacSvc, "pos.appointments.add", "pos.appointments.manage")).
+								Post("/appointments", appointments.Create)
 							svc.Get("/appointments/availability", appointments.Availability)
 							svc.Get("/appointments/{appointmentID}", appointments.Get)
-							svc.Put("/appointments/{appointmentID}", appointments.Update)
-							svc.Post("/appointments/{appointmentID}/check-in", appointments.CheckIn)
-							svc.Post("/appointments/{appointmentID}/start", appointments.Start)
-							svc.Post("/appointments/{appointmentID}/complete", appointments.Complete)
-							svc.Post("/appointments/{appointmentID}/cancel", appointments.Cancel)
-							svc.Post("/appointments/{appointmentID}/no-show", appointments.NoShow)
+							svc.With(apptChange).Put("/appointments/{appointmentID}", appointments.Update)
+							svc.With(apptChange).Post("/appointments/{appointmentID}/check-in", appointments.CheckIn)
+							svc.With(apptChange).Post("/appointments/{appointmentID}/start", appointments.Start)
+							svc.With(apptChange).Post("/appointments/{appointmentID}/complete", appointments.Complete)
+							svc.With(apptChange).Post("/appointments/{appointmentID}/cancel", appointments.Cancel)
+							svc.With(apptChange).Post("/appointments/{appointmentID}/no-show", appointments.NoShow)
 						})
 					}
 
@@ -607,7 +616,8 @@ func New(
 					tenant.Route("/hotel", func(h chi.Router) {
 						h.Use(outletmw.RequireUseCase("hospitality"))
 						h.Get("/rooms", hotel.ListRooms)
-						h.Post("/rooms", hotel.CreateRoom)
+						h.With(outletmw.RequireServicePermission(rbacSvc, "pos.hotel.manage")).
+							Post("/rooms", hotel.CreateRoom)
 						h.Get("/rooms/{id}", hotel.GetRoom)
 						h.Patch("/rooms/{id}/status", hotel.UpdateRoomStatus)
 						// Inventory master picker (link rooms/facilities/amenities to inventory SERVICE items)
@@ -618,12 +628,15 @@ func New(
 						h.Get("/bookings/{id}", hotel.GetRoomBooking)
 						h.Get("/bookings/{id}/guests", hotel.ListBookingGuests)
 						// Conference / events (BEO) + delegate meal cards
-						h.Post("/events", hotel.CreateEventBooking)
+						h.With(outletmw.RequireServicePermission(rbacSvc, "pos.conference.add", "pos.conference.manage")).
+							Post("/events", hotel.CreateEventBooking)
 						h.Get("/events", hotel.ListEventBookings)
 						h.Get("/events/{id}", hotel.GetEventBooking)
 						h.Get("/events/{id}/reconciliation", hotel.ReconcileEvent)
-						h.Post("/events/{id}/generate-mealcards", hotel.GenerateMealCards)
-						h.Post("/mealcards/{code}/redeem", hotel.RedeemMealCard)
+						h.With(outletmw.RequireServicePermission(rbacSvc, "pos.conference.manage")).
+							Post("/events/{id}/generate-mealcards", hotel.GenerateMealCards)
+						h.With(outletmw.RequireServicePermission(rbacSvc, "pos.conference.change", "pos.conference.manage")).
+							Post("/mealcards/{code}/redeem", hotel.RedeemMealCard)
 						h.Post("/rooms/{id}/check-in", hotel.CheckIn)
 						h.Post("/rooms/{id}/check-out", hotel.CheckOut)
 						h.Post("/rooms/{id}/folio", hotel.PostFolioCharge)
