@@ -142,6 +142,113 @@ func (h *HotelHandler) CreateEventBooking(w http.ResponseWriter, r *http.Request
 	jsonOK(w, event)
 }
 
+type updateEventBookingInput struct {
+	Title           *string    `json:"title"`
+	ClientName      *string    `json:"client_name"`
+	ContactPhone    *string    `json:"contact_phone"`
+	ContactEmail    *string    `json:"contact_email"`
+	EventType       *string    `json:"event_type"`
+	StartAt         *time.Time `json:"start_at"`
+	EndAt           *time.Time `json:"end_at"`
+	ConferenceDays  *int       `json:"conference_days"`
+	DelegateCount   *int       `json:"delegate_count"`
+	ExpectedPax     *int       `json:"expected_pax"`
+	SetupStyle      *string    `json:"setup_style"`
+	TotalAmount     *float64   `json:"total_amount"`
+	DepositAmount   *float64   `json:"deposit_amount"`
+	SpecialRequests *string    `json:"special_requests"`
+	Status          *string    `json:"status"`
+}
+
+// UpdateEventBooking handles PATCH /{tenantID}/hotel/events/{id} — amend a conference/event
+// (e.g. more delegates, extra day, reschedule, cancel). After increasing delegate_count or
+// conference_days, the caller re-runs generate-mealcards to top up the additional cards.
+func (h *HotelHandler) UpdateEventBooking(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		jsonError(w, "invalid event id", http.StatusBadRequest)
+		return
+	}
+	var in updateEventBookingInput
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		jsonError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	upd := h.client.EventBooking.Update().
+		Where(enteventbooking.ID(id), enteventbooking.TenantID(tid))
+	if in.Title != nil {
+		upd = upd.SetTitle(*in.Title)
+	}
+	if in.ClientName != nil {
+		upd = upd.SetClientName(*in.ClientName)
+	}
+	if in.ContactPhone != nil {
+		upd = upd.SetContactPhone(*in.ContactPhone)
+	}
+	if in.ContactEmail != nil {
+		upd = upd.SetContactEmail(*in.ContactEmail)
+	}
+	if in.EventType != nil && *in.EventType != "" {
+		upd = upd.SetEventType(enteventbooking.EventType(*in.EventType))
+	}
+	if in.StartAt != nil {
+		upd = upd.SetStartAt(*in.StartAt)
+	}
+	if in.EndAt != nil {
+		upd = upd.SetEndAt(*in.EndAt)
+	}
+	if in.ConferenceDays != nil && *in.ConferenceDays >= 1 {
+		upd = upd.SetConferenceDays(*in.ConferenceDays)
+	}
+	if in.DelegateCount != nil && *in.DelegateCount >= 0 {
+		upd = upd.SetDelegateCount(*in.DelegateCount)
+	}
+	if in.ExpectedPax != nil {
+		upd = upd.SetExpectedPax(*in.ExpectedPax)
+	}
+	if in.SetupStyle != nil {
+		upd = upd.SetSetupStyle(*in.SetupStyle)
+	}
+	if in.TotalAmount != nil {
+		upd = upd.SetTotalAmount(*in.TotalAmount)
+	}
+	if in.DepositAmount != nil {
+		upd = upd.SetDepositAmount(*in.DepositAmount)
+	}
+	if in.SpecialRequests != nil {
+		upd = upd.SetSpecialRequests(*in.SpecialRequests)
+	}
+	if in.Status != nil && *in.Status != "" {
+		upd = upd.SetStatus(enteventbooking.Status(*in.Status))
+	}
+	if _, err := upd.Save(r.Context()); err != nil {
+		h.log.Error("update event booking failed", zap.Error(err))
+		jsonError(w, "failed to update event", http.StatusInternalServerError)
+		return
+	}
+	event, err := h.client.EventBooking.Query().
+		Where(enteventbooking.ID(id), enteventbooking.TenantID(tid)).
+		WithMealEntitlements().Only(r.Context())
+	if err != nil {
+		jsonError(w, "event not found", http.StatusNotFound)
+		return
+	}
+	if h.publisher != nil {
+		_ = h.publisher.PublishEventBookingUpdated(r.Context(), tid, map[string]any{
+			"event_booking_id": event.ID,
+			"status":           string(event.Status),
+			"delegate_count":   event.DelegateCount,
+			"conference_days":  event.ConferenceDays,
+		})
+	}
+	jsonOK(w, event)
+}
+
 // ListEventBookings handles GET /{tenantID}/hotel/events.
 func (h *HotelHandler) ListEventBookings(w http.ResponseWriter, r *http.Request) {
 	tid, err := parseTenantUUID(r)

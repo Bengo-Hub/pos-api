@@ -627,12 +627,16 @@ func New(
 						h.Post("/bookings", hotel.CreateRoomBooking)
 						h.Get("/bookings", hotel.ListRoomBookings)
 						h.Get("/bookings/{id}", hotel.GetRoomBooking)
+						h.With(outletmw.RequireServicePermission(rbacSvc, "pos.hotel.manage")).
+							Patch("/bookings/{id}", hotel.UpdateRoomBooking)
 						h.Get("/bookings/{id}/guests", hotel.ListBookingGuests)
 						// Conference / events (BEO) + delegate meal cards
 						h.With(outletmw.RequireServicePermission(rbacSvc, "pos.conference.add", "pos.conference.manage")).
 							Post("/events", hotel.CreateEventBooking)
 						h.Get("/events", hotel.ListEventBookings)
 						h.Get("/events/{id}", hotel.GetEventBooking)
+						h.With(outletmw.RequireServicePermission(rbacSvc, "pos.conference.change", "pos.conference.manage")).
+							Patch("/events/{id}", hotel.UpdateEventBooking)
 						h.Get("/events/{id}/reconciliation", hotel.ReconcileEvent)
 						h.With(outletmw.RequireServicePermission(rbacSvc, "pos.conference.manage")).
 							Post("/events/{id}/generate-mealcards", hotel.GenerateMealCards)

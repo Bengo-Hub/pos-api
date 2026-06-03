@@ -54,27 +54,19 @@ func (h *HotelHandler) GenerateMealCards(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Idempotency guard: don't double-generate if cards already exist.
-	existing, _ := h.client.MealEntitlement.Query().
-		Where(entmeal.TenantID(tid), entmeal.EventBookingID(id)).
-		Count(r.Context())
-	if existing > 0 {
-		jsonError(w, "meal cards already generated for this event", http.StatusConflict)
+	// Additive / idempotent generation (top-up): re-running this endpoint after more
+	// delegates join, a new meal period is added, or conference days are extended will
+	// only issue the MISSING cards — never duplicate existing ones. Per (day, period):
+	//   - named delegate_refs → issue only for refs that don't yet have a card that slot
+	//   - anonymous           → issue (delegate_count - existing) additional slots
+	if event.ConferenceDays < 1 {
+		jsonError(w, "event has no conference_days", http.StatusBadRequest)
 		return
 	}
-
-	// Delegate list: named refs if provided, else anonymous slots up to delegate_count.
-	delegates := in.DelegateRefs
-	if len(delegates) == 0 {
-		n := event.DelegateCount
-		if n < 1 {
-			jsonError(w, "event has no delegate_count and no delegate_refs", http.StatusBadRequest)
-			return
-		}
-		delegates = make([]string, n)
-		for i := 0; i < n; i++ {
-			delegates[i] = fmt.Sprintf("Delegate %d", i+1)
-		}
+	useNamed := len(in.DelegateRefs) > 0
+	if !useNamed && event.DelegateCount < 1 {
+		jsonError(w, "event has no delegate_count and no delegate_refs", http.StatusBadRequest)
+		return
 	}
 
 	baseDay := time.Date(event.StartAt.Year(), event.StartAt.Month(), event.StartAt.Day(), 0, 0, 0, 0, event.StartAt.Location())
@@ -85,28 +77,69 @@ func (h *HotelHandler) GenerateMealCards(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	issueCard := func(delegate string, day time.Time, period string) error {
+		_, cErr := tx.MealEntitlement.Create().
+			SetTenantID(tid).
+			SetEventBookingID(id).
+			SetDelegateRef(delegate).
+			SetConferenceDay(day).
+			SetMealPeriod(entmeal.MealPeriod(period)).
+			SetCode("MC-" + uuid.NewString()[:10]).
+			SetValidWindowStart(day).
+			SetValidWindowEnd(day.AddDate(0, 0, 1)).
+			Save(r.Context())
+		return cErr
+	}
+
 	created := 0
 	for d := 0; d < event.ConferenceDays; d++ {
 		day := baseDay.AddDate(0, 0, d)
+		dayStart := day
+		dayEnd := day.AddDate(0, 0, 1)
 		for _, period := range in.MealPeriods {
-			for _, delegate := range delegates {
-				_, cErr := tx.MealEntitlement.Create().
-					SetTenantID(tid).
-					SetEventBookingID(id).
-					SetDelegateRef(delegate).
-					SetConferenceDay(day).
-					SetMealPeriod(entmeal.MealPeriod(period)).
-					SetCode("MC-" + uuid.NewString()[:10]).
-					SetValidWindowStart(day).
-					SetValidWindowEnd(day.AddDate(0, 0, 1)).
-					Save(r.Context())
-				if cErr != nil {
-					_ = tx.Rollback()
-					h.log.Error("generate meal card failed", zap.Error(cErr))
-					jsonError(w, "failed to generate meal cards", http.StatusInternalServerError)
-					return
+			// Existing cards already issued for this exact day + period.
+			existingCards, qErr := tx.MealEntitlement.Query().
+				Where(
+					entmeal.TenantID(tid),
+					entmeal.EventBookingID(id),
+					entmeal.MealPeriodEQ(entmeal.MealPeriod(period)),
+					entmeal.ConferenceDayGTE(dayStart),
+					entmeal.ConferenceDayLT(dayEnd),
+				).All(r.Context())
+			if qErr != nil {
+				_ = tx.Rollback()
+				jsonError(w, "internal error", http.StatusInternalServerError)
+				return
+			}
+
+			if useNamed {
+				have := make(map[string]struct{}, len(existingCards))
+				for _, c := range existingCards {
+					have[c.DelegateRef] = struct{}{}
 				}
-				created++
+				for _, ref := range in.DelegateRefs {
+					if _, ok := have[ref]; ok {
+						continue
+					}
+					if cErr := issueCard(ref, day, period); cErr != nil {
+						_ = tx.Rollback()
+						h.log.Error("generate meal card failed", zap.Error(cErr))
+						jsonError(w, "failed to generate meal cards", http.StatusInternalServerError)
+						return
+					}
+					created++
+				}
+			} else {
+				missing := event.DelegateCount - len(existingCards)
+				for i := 0; i < missing; i++ {
+					if cErr := issueCard(fmt.Sprintf("Delegate %d", len(existingCards)+i+1), day, period); cErr != nil {
+						_ = tx.Rollback()
+						h.log.Error("generate meal card failed", zap.Error(cErr))
+						jsonError(w, "failed to generate meal cards", http.StatusInternalServerError)
+						return
+					}
+					created++
+				}
 			}
 		}
 	}

@@ -201,3 +201,21 @@ func (p *Publisher) PublishTableCreated(ctx context.Context, tenantID uuid.UUID,
 func (p *Publisher) PublishRoomCreated(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {
 	return p.publish(ctx, tenantID, "room.created", data)
 }
+
+// PublishEventBookingUpdated publishes conference.event.updated when a BEO/event is amended
+// (reschedule, more delegates, extra day, cancel).
+func (p *Publisher) PublishEventBookingUpdated(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {
+	return p.publish(ctx, tenantID, "conference.event.updated", data)
+}
+
+// PublishRoomBookingUpdated publishes hotel.booking.updated when a group/individual booking
+// is amended (dates, rooms, guests). Treasury/notifications may react to amendment fees.
+func (p *Publisher) PublishRoomBookingUpdated(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {
+	return p.publish(ctx, tenantID, "hotel.booking.updated", data)
+}
+
+// PublishRoomBookingCancelled publishes hotel.booking.cancelled when a booking is cancelled
+// (carries any cancellation fee for treasury to invoice).
+func (p *Publisher) PublishRoomBookingCancelled(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {
+	return p.publish(ctx, tenantID, "hotel.booking.cancelled", data)
+}

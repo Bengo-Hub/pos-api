@@ -11,9 +11,71 @@ import (
 
 	"github.com/Bengo-Hub/httpware"
 	"github.com/bengobox/pos-service/internal/ent"
+	entoutletsetting "github.com/bengobox/pos-service/internal/ent/outletsetting"
 	entroombooking "github.com/bengobox/pos-service/internal/ent/roombooking"
 	entroomguest "github.com/bengobox/pos-service/internal/ent/roomguest"
 )
+
+// bookingPolicy is the tenant/outlet amendment & cancellation policy, stored in
+// OutletSetting.metadata["booking_policy"] (no dedicated schema → no migration).
+// Fees apply when an amendment/cancellation happens INSIDE the configured window
+// (i.e. fewer than N hours before arrival). Fees default to 0 (no penalty) until a
+// business configures them.
+type bookingPolicy struct {
+	FreeAmendmentWindowHours float64 `json:"free_amendment_window_hours"`
+	CancellationWindowHours  float64 `json:"cancellation_window_hours"`
+	AmendmentFee             float64 `json:"amendment_fee"`
+	CancellationFee          float64 `json:"cancellation_fee"`
+	Currency                 string  `json:"currency"`
+}
+
+func defaultBookingPolicy() bookingPolicy {
+	return bookingPolicy{FreeAmendmentWindowHours: 48, CancellationWindowHours: 72, Currency: "KES"}
+}
+
+// resolveBookingPolicy reads the outlet's booking policy from OutletSetting.metadata,
+// falling back to sensible defaults (free windows, zero fees) when unset.
+func (h *HotelHandler) resolveBookingPolicy(r *http.Request, tid, outletID uuid.UUID) bookingPolicy {
+	policy := defaultBookingPolicy()
+	if outletID == uuid.Nil {
+		return policy
+	}
+	setting, err := h.client.OutletSetting.Query().
+		Where(entoutletsetting.TenantID(tid), entoutletsetting.OutletID(outletID)).
+		Only(r.Context())
+	if err != nil || setting.Metadata == nil {
+		return policy
+	}
+	raw, ok := setting.Metadata["booking_policy"]
+	if !ok {
+		return policy
+	}
+	b, mErr := json.Marshal(raw)
+	if mErr != nil {
+		return policy
+	}
+	_ = json.Unmarshal(b, &policy) // best-effort; keep defaults for missing keys
+	if policy.Currency == "" {
+		policy.Currency = "KES"
+	}
+	return policy
+}
+
+// computeBookingFee returns the fee owed for an amendment/cancellation given the policy
+// and how far ahead of arrival the action happens. Cancellation when isCancel=true.
+func computeBookingFee(policy bookingPolicy, arrival, now time.Time, isCancel bool) float64 {
+	hoursAhead := arrival.Sub(now).Hours()
+	if isCancel {
+		if hoursAhead < policy.CancellationWindowHours {
+			return policy.CancellationFee
+		}
+		return 0
+	}
+	if hoursAhead < policy.FreeAmendmentWindowHours {
+		return policy.AmendmentFee
+	}
+	return 0
+}
 
 // roomBookingInput is the request body for creating a multi-room (group) booking header.
 type roomBookingInput struct {
@@ -104,6 +166,126 @@ func (h *HotelHandler) CreateRoomBooking(w http.ResponseWriter, r *http.Request)
 
 	w.WriteHeader(http.StatusCreated)
 	jsonOK(w, booking)
+}
+
+type updateRoomBookingInput struct {
+	LeadGuestName *string        `json:"lead_guest_name"`
+	Email         *string        `json:"email"`
+	Phone         *string        `json:"phone"`
+	RoomsCount    *int           `json:"rooms_count"`
+	ArrivalDate   *time.Time     `json:"arrival_date"`
+	DepartureDate *time.Time     `json:"departure_date"`
+	MarketSegment *string        `json:"market_segment"`
+	Status        *string        `json:"status"`
+	Metadata      map[string]any `json:"metadata"`
+}
+
+// UpdateRoomBooking handles PATCH /{tenantID}/hotel/bookings/{id} — amend or cancel a
+// group/individual booking. Applies the outlet's amendment/cancellation fee policy based on
+// how close to arrival the change is made, records the fee on the booking metadata, and
+// returns it as `applied_fee` so the UI can surface what the guest owes.
+func (h *HotelHandler) UpdateRoomBooking(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		jsonError(w, "invalid booking id", http.StatusBadRequest)
+		return
+	}
+	var in updateRoomBookingInput
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		jsonError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	existing, err := h.client.RoomBooking.Query().
+		Where(entroombooking.ID(id), entroombooking.TenantID(tid)).Only(r.Context())
+	if err != nil {
+		jsonError(w, "booking not found", http.StatusNotFound)
+		return
+	}
+
+	isCancel := in.Status != nil && *in.Status == "cancelled"
+	isAmendment := in.ArrivalDate != nil || in.DepartureDate != nil || in.RoomsCount != nil
+	policy := h.resolveBookingPolicy(r, tid, existing.OutletID)
+	appliedFee := 0.0
+	if isCancel {
+		appliedFee = computeBookingFee(policy, existing.ArrivalDate, time.Now(), true)
+	} else if isAmendment {
+		appliedFee = computeBookingFee(policy, existing.ArrivalDate, time.Now(), false)
+	}
+
+	upd := existing.Update()
+	if in.LeadGuestName != nil {
+		upd = upd.SetLeadGuestName(*in.LeadGuestName)
+	}
+	if in.Email != nil {
+		upd = upd.SetEmail(*in.Email)
+	}
+	if in.Phone != nil {
+		upd = upd.SetPhone(*in.Phone)
+	}
+	if in.RoomsCount != nil && *in.RoomsCount >= 1 {
+		upd = upd.SetRoomsCount(*in.RoomsCount)
+	}
+	if in.ArrivalDate != nil {
+		upd = upd.SetArrivalDate(*in.ArrivalDate)
+	}
+	if in.DepartureDate != nil {
+		upd = upd.SetDepartureDate(*in.DepartureDate)
+	}
+	if in.MarketSegment != nil {
+		upd = upd.SetMarketSegment(*in.MarketSegment)
+	}
+	if in.Status != nil && *in.Status != "" {
+		upd = upd.SetStatus(entroombooking.Status(*in.Status))
+	}
+
+	// Merge metadata: preserve existing, apply caller changes, then record any fee charged.
+	meta := map[string]any{}
+	for k, v := range existing.Metadata {
+		meta[k] = v
+	}
+	for k, v := range in.Metadata {
+		meta[k] = v
+	}
+	if appliedFee > 0 {
+		feeKey := "last_amendment_fee"
+		if isCancel {
+			feeKey = "cancellation_fee"
+		}
+		meta[feeKey] = appliedFee
+		meta["fee_currency"] = policy.Currency
+		meta["fee_charged_at"] = time.Now().Format(time.RFC3339)
+	}
+	upd = upd.SetMetadata(meta)
+
+	booking, err := upd.Save(r.Context())
+	if err != nil {
+		h.log.Error("update room booking failed", zap.Error(err))
+		jsonError(w, "failed to update booking", http.StatusInternalServerError)
+		return
+	}
+
+	if h.publisher != nil {
+		payload := map[string]any{
+			"booking_id":      booking.ID,
+			"confirmation_no": booking.ConfirmationNo,
+			"status":          string(booking.Status),
+			"applied_fee":     appliedFee,
+			"fee_currency":    policy.Currency,
+		}
+		if isCancel {
+			_ = h.publisher.PublishRoomBookingCancelled(r.Context(), tid, payload)
+		} else {
+			_ = h.publisher.PublishRoomBookingUpdated(r.Context(), tid, payload)
+		}
+	}
+
+	jsonOK(w, map[string]any{"booking": booking, "applied_fee": appliedFee, "fee_currency": policy.Currency})
 }
 
 // ListRoomBookings handles GET /{tenantID}/hotel/bookings.
