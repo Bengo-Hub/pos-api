@@ -700,6 +700,117 @@ func (h *ServiceSettingsHandler) PatchTableSettings(w http.ResponseWriter, r *ht
 	jsonOK(w, toSettingsResponse(outlet, updated))
 }
 
+// bookingPolicyInput is the editable amendment/cancellation policy (stored in
+// OutletSetting.metadata["booking_policy"]). Mirrors the shape pos-api enforces in
+// hotel booking amend/cancel (free windows + fees keyed off proximity to arrival).
+type bookingPolicyInput struct {
+	FreeAmendmentWindowHours *float64 `json:"free_amendment_window_hours"`
+	CancellationWindowHours  *float64 `json:"cancellation_window_hours"`
+	AmendmentFee             *float64 `json:"amendment_fee"`
+	CancellationFee          *float64 `json:"cancellation_fee"`
+	Currency                 *string  `json:"currency"`
+}
+
+func defaultPolicyMap() map[string]any {
+	return map[string]any{
+		"free_amendment_window_hours": 48.0,
+		"cancellation_window_hours":   72.0,
+		"amendment_fee":               0.0,
+		"cancellation_fee":            0.0,
+		"currency":                    "KES",
+	}
+}
+
+// GetBookingPolicy handles GET /{tenantID}/pos/settings/booking-policy.
+func (h *ServiceSettingsHandler) GetBookingPolicy(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+	outlet, err := h.resolveOutlet(r, tid)
+	if err != nil {
+		jsonError(w, "outlet not found", http.StatusNotFound)
+		return
+	}
+	setting, err := h.getOrCreateSetting(r, outlet.ID)
+	if err != nil {
+		jsonError(w, "failed to load settings", http.StatusInternalServerError)
+		return
+	}
+	policy := defaultPolicyMap()
+	if setting.Metadata != nil {
+		if bp, ok := setting.Metadata["booking_policy"].(map[string]any); ok {
+			for k, v := range bp {
+				policy[k] = v
+			}
+		}
+	}
+	jsonOK(w, policy)
+}
+
+// PatchBookingPolicy handles PATCH /{tenantID}/pos/settings/booking-policy —
+// merges the provided fields into OutletSetting.metadata["booking_policy"].
+func (h *ServiceSettingsHandler) PatchBookingPolicy(w http.ResponseWriter, r *http.Request) {
+	if !requireConfigPermission(w, r, true) {
+		return
+	}
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+	outlet, err := h.resolveOutlet(r, tid)
+	if err != nil {
+		jsonError(w, "outlet not found", http.StatusNotFound)
+		return
+	}
+	var in bookingPolicyInput
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		jsonError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	setting, err := h.getOrCreateSetting(r, outlet.ID)
+	if err != nil {
+		jsonError(w, "failed to load settings", http.StatusInternalServerError)
+		return
+	}
+
+	meta := map[string]any{}
+	for k, v := range setting.Metadata {
+		meta[k] = v
+	}
+	policy := defaultPolicyMap()
+	if existing, ok := meta["booking_policy"].(map[string]any); ok {
+		for k, v := range existing {
+			policy[k] = v
+		}
+	}
+	if in.FreeAmendmentWindowHours != nil {
+		policy["free_amendment_window_hours"] = *in.FreeAmendmentWindowHours
+	}
+	if in.CancellationWindowHours != nil {
+		policy["cancellation_window_hours"] = *in.CancellationWindowHours
+	}
+	if in.AmendmentFee != nil {
+		policy["amendment_fee"] = *in.AmendmentFee
+	}
+	if in.CancellationFee != nil {
+		policy["cancellation_fee"] = *in.CancellationFee
+	}
+	if in.Currency != nil && *in.Currency != "" {
+		policy["currency"] = *in.Currency
+	}
+	meta["booking_policy"] = policy
+
+	if _, err := setting.Update().SetMetadata(meta).Save(r.Context()); err != nil {
+		h.log.Error("patch booking policy", zap.Error(err))
+		jsonError(w, "failed to save booking policy", http.StatusInternalServerError)
+		return
+	}
+	jsonOK(w, policy)
+}
+
 // RegisterRoutes registers settings routes under the tenant router group.
 func (h *ServiceSettingsHandler) RegisterRoutes(r chi.Router) {
 	r.Get("/pos/settings", h.GetSettings)
@@ -708,6 +819,8 @@ func (h *ServiceSettingsHandler) RegisterRoutes(r chi.Router) {
 	r.Patch("/pos/settings/shifts", h.PatchShiftSettings)
 	r.Patch("/pos/settings/tables", h.PatchTableSettings)
 	r.Patch("/pos/settings/outlet", h.PatchOutletConfig)
+	r.Get("/pos/settings/booking-policy", h.GetBookingPolicy)
+	r.Patch("/pos/settings/booking-policy", h.PatchBookingPolicy)
 	r.Get("/pos/outlets/{outletID}/settings", h.GetSettings)
 	r.Put("/pos/outlets/{outletID}/settings", h.PutSettings)
 	// TruLoad-inspired outlet switch endpoint
