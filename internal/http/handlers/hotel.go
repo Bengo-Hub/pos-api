@@ -827,6 +827,100 @@ func (h *HotelHandler) CreateFacility(w http.ResponseWriter, r *http.Request) {
 	jsonOK(w, facility)
 }
 
+type updateFacilityInput struct {
+	Name           *string  `json:"name"`
+	FacilityType   *string  `json:"facility_type"`
+	Capacity       *int     `json:"capacity"`
+	RatePerSession *float64 `json:"rate_per_session"`
+	Currency       *string  `json:"currency"`
+	OpeningTime    *string  `json:"opening_time"`
+	ClosingTime    *string  `json:"closing_time"`
+	Status         *string  `json:"status"`
+}
+
+// UpdateFacility handles PATCH /{tenantID}/hotel/facilities/{id}
+func (h *HotelHandler) UpdateFacility(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		jsonError(w, "invalid facility id", http.StatusBadRequest)
+		return
+	}
+	var input updateFacilityInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		jsonError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	upd := h.client.Facility.Update().
+		Where(entfacility.ID(id), entfacility.TenantID(tid))
+	if input.Name != nil {
+		upd = upd.SetName(*input.Name)
+	}
+	if input.FacilityType != nil && *input.FacilityType != "" {
+		upd = upd.SetFacilityType(entfacility.FacilityType(*input.FacilityType))
+	}
+	if input.Capacity != nil {
+		upd = upd.SetCapacity(*input.Capacity)
+	}
+	if input.RatePerSession != nil {
+		upd = upd.SetRatePerSession(*input.RatePerSession)
+	}
+	if input.Currency != nil && *input.Currency != "" {
+		upd = upd.SetCurrency(*input.Currency)
+	}
+	if input.OpeningTime != nil {
+		upd = upd.SetOpeningTime(*input.OpeningTime)
+	}
+	if input.ClosingTime != nil {
+		upd = upd.SetClosingTime(*input.ClosingTime)
+	}
+	if input.Status != nil && *input.Status != "" {
+		upd = upd.SetStatus(entfacility.Status(*input.Status))
+	}
+	if _, err := upd.Save(r.Context()); err != nil {
+		h.log.Error("update facility failed", zap.Error(err))
+		jsonError(w, "failed to update facility", http.StatusInternalServerError)
+		return
+	}
+	facility, err := h.client.Facility.Query().
+		Where(entfacility.ID(id), entfacility.TenantID(tid)).Only(r.Context())
+	if err != nil {
+		jsonError(w, "facility not found", http.StatusNotFound)
+		return
+	}
+	jsonOK(w, facility)
+}
+
+// DeleteFacility handles DELETE /{tenantID}/hotel/facilities/{id}
+func (h *HotelHandler) DeleteFacility(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		jsonError(w, "invalid facility id", http.StatusBadRequest)
+		return
+	}
+	n, err := h.client.Facility.Delete().
+		Where(entfacility.ID(id), entfacility.TenantID(tid)).Exec(r.Context())
+	if err != nil {
+		h.log.Error("delete facility failed", zap.Error(err))
+		jsonError(w, "failed to delete facility", http.StatusInternalServerError)
+		return
+	}
+	if n == 0 {
+		jsonError(w, "facility not found", http.StatusNotFound)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 type bookFacilityInput struct {
 	GuestName   string     `json:"guest_name"`
 	Phone       string     `json:"phone"`

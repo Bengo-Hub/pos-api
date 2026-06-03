@@ -203,6 +203,33 @@ func fetchInventoryServiceItems(ctx context.Context, tenantSlug, useCase string)
 	return wrapper.Data, nil
 }
 
+// inventoryProxyBundle is the subset of an inventory-api Bundle the hotel forms need
+// to render a searchable picker (conference package selection).
+type inventoryProxyBundle struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	SKU         string `json:"sku"`
+	PackageType string `json:"package_type"`
+	Price       float64 `json:"price"`
+}
+
+// fetchInventoryBundles lists inventory-api Bundles (packages) so hotel/conference forms
+// can pick an authoritative package by name instead of pasting a raw UUID.
+func fetchInventoryBundles(ctx context.Context, tenantSlug string) ([]inventoryProxyBundle, error) {
+	url := fmt.Sprintf("%s/v1/%s/inventory/bundles?limit=500", inventoryURL(), tenantSlug)
+	body, err := doInventoryGET(ctx, url, "")
+	if err != nil {
+		return nil, err
+	}
+	var wrapper struct {
+		Data []inventoryProxyBundle `json:"data"`
+	}
+	if err := json.Unmarshal(body, &wrapper); err != nil {
+		return nil, err
+	}
+	return wrapper.Data, nil
+}
+
 // fetchInventoryPricing calls inventory-api for default-tier prices.
 func fetchInventoryPricing(ctx context.Context, tenantSlug, outletID string) (map[string]float64, error) {
 	url := fmt.Sprintf("%s/v1/%s/inventory/items/pricing", inventoryURL(), tenantSlug)

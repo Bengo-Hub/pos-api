@@ -24,11 +24,14 @@ type roomBookingInput struct {
 	RoomsCount                int       `json:"rooms_count"`
 	ArrivalDate               time.Time `json:"arrival_date"`
 	DepartureDate             time.Time `json:"departure_date"`
-	InventoryRatePlanBundleID string    `json:"inventory_rate_plan_bundle_id"`
-	MarketSegment             string    `json:"market_segment"`
-	Source                    string    `json:"source"`
-	CRMContactID              string    `json:"crm_contact_id"`
-	CreatedBy                 string    `json:"created_by"`
+	InventoryRatePlanBundleID string         `json:"inventory_rate_plan_bundle_id"`
+	MarketSegment             string         `json:"market_segment"`
+	Source                    string         `json:"source"`
+	CRMContactID              string         `json:"crm_contact_id"`
+	CreatedBy                 string         `json:"created_by"`
+	// Metadata carries flexible, non-relational booking details (booking_type,
+	// adults, children, notes, package_inclusions) — stored as-is on the booking.
+	Metadata map[string]any `json:"metadata"`
 }
 
 // CreateRoomBooking handles POST /{tenantID}/hotel/bookings — create a group/multi-room booking header.
@@ -77,6 +80,9 @@ func (h *HotelHandler) CreateRoomBooking(w http.ResponseWriter, r *http.Request)
 	}
 	if crmID, perr := uuid.Parse(input.CRMContactID); perr == nil {
 		b = b.SetCrmContactID(crmID)
+	}
+	if len(input.Metadata) > 0 {
+		b = b.SetMetadata(input.Metadata)
 	}
 	booking, err := b.Save(r.Context())
 	if err != nil {
@@ -189,6 +195,45 @@ func (h *HotelHandler) ListInventoryServiceItems(w http.ResponseWriter, r *http.
 	out := make([]inventoryServiceItemDTO, 0, len(items))
 	for _, it := range items {
 		out = append(out, inventoryServiceItemDTO{ID: it.ID, SKU: it.SKU, Name: it.Name, Image: it.ImageURL})
+	}
+	jsonOK(w, out)
+}
+
+// inventoryBundleDTO is the slimmed bundle returned to hotel forms for the package picker.
+type inventoryBundleDTO struct {
+	ID          string  `json:"id"`
+	Name        string  `json:"name"`
+	SKU         string  `json:"sku"`
+	PackageType string  `json:"package_type"`
+	Price       float64 `json:"price"`
+}
+
+// ListInventoryBundles handles GET /{tenantID}/hotel/inventory-bundles.
+// Proxies inventory-api Bundles so the conference/event form can pick a package by name.
+func (h *HotelHandler) ListInventoryBundles(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+	tenantSlug := httpware.GetTenantSlug(r.Context())
+	if tenantSlug == "" {
+		if t, lookupErr := h.client.Tenant.Get(r.Context(), tid); lookupErr == nil {
+			tenantSlug = t.Slug
+		}
+	}
+	if tenantSlug == "" {
+		tenantSlug = tid.String()
+	}
+	bundles, err := fetchInventoryBundles(r.Context(), tenantSlug)
+	if err != nil {
+		h.log.Error("list inventory bundles failed", zap.Error(err))
+		jsonError(w, "failed to fetch inventory bundles", http.StatusBadGateway)
+		return
+	}
+	out := make([]inventoryBundleDTO, 0, len(bundles))
+	for _, b := range bundles {
+		out = append(out, inventoryBundleDTO{ID: b.ID, Name: b.Name, SKU: b.SKU, PackageType: b.PackageType, Price: b.Price})
 	}
 	jsonOK(w, out)
 }

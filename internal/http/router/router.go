@@ -620,8 +620,9 @@ func New(
 							Post("/rooms", hotel.CreateRoom)
 						h.Get("/rooms/{id}", hotel.GetRoom)
 						h.Patch("/rooms/{id}/status", hotel.UpdateRoomStatus)
-						// Inventory master picker (link rooms/facilities/amenities to inventory SERVICE items)
+						// Inventory master pickers (link rooms/facilities/amenities to inventory SERVICE items + packages)
 						h.Get("/inventory-service-items", hotel.ListInventoryServiceItems)
+						h.Get("/inventory-bundles", hotel.ListInventoryBundles)
 						// Multi-room / group bookings (RoomBooking header → many RoomGuest)
 						h.Post("/bookings", hotel.CreateRoomBooking)
 						h.Get("/bookings", hotel.ListRoomBookings)
@@ -642,8 +643,13 @@ func New(
 						h.Post("/rooms/{id}/folio", hotel.PostFolioCharge)
 						h.Get("/rooms/{id}/folio", hotel.GetRoomFolio)
 						h.Get("/facilities", hotel.ListFacilities)
-						h.Post("/facilities", hotel.CreateFacility)
+						h.With(outletmw.RequireServicePermission(rbacSvc, "pos.hotel.manage")).
+							Post("/facilities", hotel.CreateFacility)
 						h.Get("/facilities/{id}", hotel.GetFacility)
+						h.With(outletmw.RequireServicePermission(rbacSvc, "pos.hotel.manage")).
+							Patch("/facilities/{id}", hotel.UpdateFacility)
+						h.With(outletmw.RequireServicePermission(rbacSvc, "pos.hotel.manage")).
+							Delete("/facilities/{id}", hotel.DeleteFacility)
 						h.Post("/facilities/{id}/book", hotel.BookFacility)
 						h.Patch("/facilities/bookings/{bookingID}", hotel.UpdateBooking)
 						h.Post("/facilities/bookings/{bookingID}/complete", hotel.CompleteFacilityBooking)
