@@ -1,6 +1,6 @@
 module github.com/bengobox/pos-service
 
-go 1.24.11
+go 1.26.0
 
 // Use online tagged release (same as ordering-backend) to avoid COPY shared in Docker
 replace github.com/Bengo-Hub/shared-auth-client => github.com/Bengo-Hub/auth-client v0.7.0
