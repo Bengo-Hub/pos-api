@@ -576,6 +576,8 @@ func seedRBACPermissions(ctx context.Context, client *ent.Client) error {
 		"kds", "retail", "layaway", "serial", "loyalty", "webhooks",
 		"integrations", "fiscal", "queue", "staff",
 		"commissions", "packages", "clients",
+		// Hospitality features: conference/events + delegate meal cards, promotions/happy-hour
+		"conference", "promotions",
 	}
 	actions := []string{
 		"add", "view", "view_own", "change", "change_own",
@@ -651,6 +653,7 @@ func seedRBACRoles(ctx context.Context, client *ent.Client, tenantID uuid.UUID) 
 				"pos.loyalty.*", "pos.webhooks.*", "pos.integrations.*", "pos.fiscal.*",
 				"pos.queue.*", "pos.staff.*", "pos.commissions.*",
 				"pos.packages.*", "pos.clients.*",
+				"pos.conference.*", "pos.promotions.*",
 			},
 		},
 		{
