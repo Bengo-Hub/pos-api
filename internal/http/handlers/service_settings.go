@@ -37,7 +37,7 @@ func requireConfigPermission(w http.ResponseWriter, r *http.Request, requireMana
 	}
 	for _, role := range claims.Roles {
 		switch role {
-		case "superuser", "admin", "pos_admin", "super_admin":
+		case "superuser", "admin", "pos_admin", "super_admin", "manager", "store_manager", "outlet_manager", "owner":
 			return true
 		}
 	}
@@ -45,7 +45,9 @@ func requireConfigPermission(w http.ResponseWriter, r *http.Request, requireMana
 		if p == "pos.config.manage" {
 			return true
 		}
-		if !requireManage && p == "pos.config.change" {
+		// config.change satisfies both view and manage-level config edits (settings/policy);
+		// managers/cashiers granted config.change can save settings.
+		if p == "pos.config.change" {
 			return true
 		}
 	}

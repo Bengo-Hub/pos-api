@@ -63,6 +63,9 @@ type receiptResponse struct {
 	TotalAmount        float64                `json:"total_amount"`
 	Currency           string                 `json:"currency"`
 	AmountPaid         float64                `json:"amount_paid"`
+	PaymentMethod      string                 `json:"payment_method"`
+	AmountTendered     float64                `json:"amount_tendered"`
+	ChangeDue          float64                `json:"change_due"`
 	EtimsInvoiceNumber string                 `json:"etims_invoice_number,omitempty"`
 	EtimsQRCodeURL     string                 `json:"etims_qr_code_url,omitempty"`
 	PaymentMethods     *receiptPaymentMethods `json:"payment_methods,omitempty"`
@@ -122,8 +125,21 @@ func (h *ReceiptHandler) GetReceipt(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var amountPaid float64
+	paymentMethod := "cash"
 	if len(order.Edges.Payments) > 0 {
-		amountPaid = order.Edges.Payments[0].Amount
+		p := order.Edges.Payments[0]
+		amountPaid = p.Amount
+		if t, terr := h.client.Tender.Get(ctx, p.TenderID); terr == nil {
+			if t.Type != "" {
+				paymentMethod = t.Type
+			} else if t.Name != "" {
+				paymentMethod = t.Name
+			}
+		}
+	}
+	changeDue := amountPaid - order.TotalAmount
+	if changeDue < 0 {
+		changeDue = 0
 	}
 
 	receipt := receiptResponse{
@@ -138,6 +154,9 @@ func (h *ReceiptHandler) GetReceipt(w http.ResponseWriter, r *http.Request) {
 		TotalAmount:    order.TotalAmount,
 		Currency:       order.Currency,
 		AmountPaid:     amountPaid,
+		PaymentMethod:  paymentMethod,
+		AmountTendered: amountPaid,
+		ChangeDue:      changeDue,
 	}
 
 	// Populate eTIMS fields if present on order (set by treasury.etims.invoice_transmitted subscriber).
