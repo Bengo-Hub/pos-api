@@ -69,3 +69,41 @@ func (c *Client) IsSubscriptionActive(ctx context.Context, tenantID, tenantSlug,
 	}
 	return sub.IsActive()
 }
+
+// planLimitsResponse is the partial shape of GET /api/v1/tenants/{id}/subscription
+// used to read the tenant's plan limits (keyed by max_* keys, e.g. "max_rooms").
+type planLimitsResponse struct {
+	Limits map[string]int `json:"limits"`
+}
+
+// GetLimit returns the numeric plan limit for the given limit key (e.g. "max_rooms",
+// "max_conference_events"). ok is false when the limit is unset, unlimited (<= 0),
+// or subscriptions-api is unreachable — callers MUST fail open (allow the action) in
+// that case so a subscriptions-api outage never blocks core operations.
+func (c *Client) GetLimit(ctx context.Context, tenantID, limitKey string) (limit int, ok bool) {
+	url := fmt.Sprintf("%s/api/v1/tenants/%s/subscription", c.cfg.ServiceURL, tenantID)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return 0, false
+	}
+	if c.cfg.APIKey != "" {
+		req.Header.Set("X-API-Key", c.cfg.APIKey)
+	}
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return 0, false
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return 0, false
+	}
+	var body planLimitsResponse
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		return 0, false
+	}
+	v, exists := body.Limits[limitKey]
+	if !exists || v <= 0 { // -1 / 0 / absent → unlimited or not enforced
+		return 0, false
+	}
+	return v, true
+}

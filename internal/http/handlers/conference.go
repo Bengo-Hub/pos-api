@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -66,6 +67,24 @@ func (h *HotelHandler) CreateEventBooking(w http.ResponseWriter, r *http.Request
 	if in.Currency == "" {
 		in.Currency = "KES"
 	}
+
+	// Enforce the max_conference_events plan limit (counted per calendar month, matching
+	// the monthly usage-tracking window). Fails open when unset/unlimited or subscriptions-api
+	// is unreachable.
+	if h.subsClient != nil {
+		if limit, ok := h.subsClient.GetLimit(r.Context(), tid.String(), "max_conference_events"); ok {
+			now := time.Now().UTC()
+			monthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
+			count, cerr := h.client.EventBooking.Query().
+				Where(enteventbooking.TenantID(tid), enteventbooking.CreatedAtGTE(monthStart)).
+				Count(r.Context())
+			if cerr == nil && count >= limit {
+				writeUsageLimitExceeded(w, fmt.Sprintf("Your plan allows %d conference events per month. Upgrade your subscription to book more.", limit), limit)
+				return
+			}
+		}
+	}
+
 	outletID, _ := uuid.Parse(httpware.GetOutletID(r.Context()))
 	createdBy, _ := uuid.Parse(in.CreatedBy)
 

@@ -195,3 +195,9 @@ func (p *Publisher) PublishDeviceRegistered(ctx context.Context, tenantID uuid.U
 func (p *Publisher) PublishTableCreated(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {
 	return p.publish(ctx, tenantID, "table.created", data)
 }
+
+// PublishRoomCreated publishes a pos.room.created event.
+// Consumed by subscriptions-api to track max_rooms plan limit usage.
+func (p *Publisher) PublishRoomCreated(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {
+	return p.publish(ctx, tenantID, "room.created", data)
+}

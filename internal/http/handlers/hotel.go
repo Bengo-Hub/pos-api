@@ -21,6 +21,7 @@ import (
 	"github.com/bengobox/pos-service/internal/modules/inventory"
 	treasury "github.com/bengobox/pos-service/internal/modules/treasury"
 	"github.com/bengobox/pos-service/internal/platform/events"
+	"github.com/bengobox/pos-service/internal/platform/subscriptions"
 )
 
 // HotelHandler handles hotel management endpoints (rooms, guests, folio, facilities, bookings).
@@ -30,6 +31,7 @@ type HotelHandler struct {
 	publisher       *events.Publisher
 	treasuryClient  *treasury.Client
 	inventoryClient *inventory.Client
+	subsClient      *subscriptions.Client
 }
 
 func NewHotelHandler(log *zap.Logger, client *ent.Client, publisher *events.Publisher) *HotelHandler {
@@ -38,6 +40,24 @@ func NewHotelHandler(log *zap.Logger, client *ent.Client, publisher *events.Publ
 
 func (h *HotelHandler) SetTreasuryClient(c *treasury.Client) {
 	h.treasuryClient = c
+}
+
+// SetSubscriptionsClient injects the subscriptions S2S client used to enforce
+// plan limits (max_rooms, max_conference_events) before creating billable resources.
+func (h *HotelHandler) SetSubscriptionsClient(c *subscriptions.Client) {
+	h.subsClient = c
+}
+
+// writeUsageLimitExceeded responds 403 with the structured code the frontend
+// error-handler recognises (usage_limit_exceeded → toast + upgrade prompt).
+func writeUsageLimitExceeded(w http.ResponseWriter, message string, limit int) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusForbidden)
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"error":   "usage_limit_exceeded",
+		"message": message,
+		"limit":   limit,
+	})
 }
 
 // SetInventoryClient injects the inventory S2S client so direct folio charges
@@ -139,6 +159,19 @@ func (h *HotelHandler) CreateRoom(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Enforce the max_rooms plan limit. pos-api owns Room records, so we count
+	// authoritatively here and compare against the plan limit. Fails open when
+	// the limit is unset/unlimited or subscriptions-api is unreachable.
+	if h.subsClient != nil {
+		if limit, ok := h.subsClient.GetLimit(r.Context(), tid.String(), "max_rooms"); ok {
+			count, cerr := h.client.Room.Query().Where(entroom.TenantID(tid)).Count(r.Context())
+			if cerr == nil && count >= limit {
+				writeUsageLimitExceeded(w, fmt.Sprintf("Your plan allows up to %d rooms. Upgrade your subscription to add more.", limit), limit)
+				return
+			}
+		}
+	}
+
 	if input.Currency == "" {
 		input.Currency = "KES"
 	}
@@ -166,6 +199,15 @@ func (h *HotelHandler) CreateRoom(w http.ResponseWriter, r *http.Request) {
 		h.log.Error("create room failed", zap.Error(err))
 		jsonError(w, "failed to create room", http.StatusInternalServerError)
 		return
+	}
+
+	// Track usage for the max_rooms plan limit (subscriptions-api consumes pos.room.created).
+	if h.publisher != nil {
+		_ = h.publisher.PublishRoomCreated(r.Context(), tid, map[string]any{
+			"room_id":     room.ID,
+			"room_number": room.RoomNumber,
+			"room_type":   string(room.RoomType),
+		})
 	}
 
 	w.WriteHeader(http.StatusCreated)
