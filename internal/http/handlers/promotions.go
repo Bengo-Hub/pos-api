@@ -75,6 +75,7 @@ type createPromoInput struct {
 	DiscountType  string   `json:"discount_type"` // percentage | fixed_amount | fixed_price
 	DiscountValue float64  `json:"discount_value"`
 	MaxDiscount   *float64 `json:"max_discount"`
+	MealPeriod    string   `json:"meal_period"` // optional: breakfast|am_break|lunch|pm_break|dinner (negotiated meal rate)
 }
 
 // CreatePromotion handles POST /{tenantID}/pos/promotions
@@ -148,6 +149,12 @@ func (h *PromotionHandler) CreatePromotion(w http.ResponseWriter, r *http.Reques
 			SetDiscountValue(input.DiscountValue)
 		if input.MaxDiscount != nil {
 			rb = rb.SetMaxDiscount(*input.MaxDiscount)
+		}
+		if input.MealPeriod != "" {
+			rb = rb.SetMealPeriod(promotionrule.MealPeriod(input.MealPeriod))
+		}
+		if input.ScopeType == "" && len(input.ScopeIDs) > 0 {
+			rb = rb.SetScopeType(promotionrule.ScopeTypeItem)
 		}
 		if _, rerr := rb.Save(r.Context()); rerr != nil {
 			h.log.Error("create promotion rule failed", zap.Error(rerr))

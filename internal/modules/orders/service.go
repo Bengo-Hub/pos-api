@@ -97,9 +97,13 @@ type Service struct {
 	publisher       *events.Publisher
 	taxResolver     *TaxResolver // resolves tax codes from treasury with Redis cache
 	kdsHub          *kdsmod.Hub
-	// happyHourFn evaluates an auto-apply happy-hour discount for (tenant, outlet) on a
-	// subtotal at the current time. Injected from the promotions service to keep packages decoupled.
-	happyHourFn func(ctx context.Context, tenantID, outletID uuid.UUID, subtotal decimal.Decimal) decimal.Decimal
+	// happyHourFn evaluates the best auto-apply (happy-hour / negotiated-meal) discount for
+	// (tenant, outlet) on the given lines at the current time, enforcing rule scope. Returns the
+	// winning promo id (uuid.Nil if none) and the discount amount. Injected from the promotions
+	// service to keep packages decoupled.
+	happyHourFn func(ctx context.Context, tenantID, outletID uuid.UUID, lines []OrderLineInput) (uuid.UUID, decimal.Decimal)
+	// recordPromoFn writes the PromotionApplication audit row once the order id is known.
+	recordPromoFn func(ctx context.Context, promoID, orderID uuid.UUID, amount decimal.Decimal)
 }
 
 // SetPublisher sets the event publisher for order lifecycle events.
@@ -107,9 +111,13 @@ func (s *Service) SetPublisher(p *events.Publisher) {
 	s.publisher = p
 }
 
-// SetHappyHourEvaluator wires the auto-apply happy-hour discount evaluator (from promotions service).
-func (s *Service) SetHappyHourEvaluator(fn func(ctx context.Context, tenantID, outletID uuid.UUID, subtotal decimal.Decimal) decimal.Decimal) {
+// SetHappyHourEvaluator wires the auto-apply discount evaluator + audit recorder (from promotions service).
+func (s *Service) SetHappyHourEvaluator(
+	fn func(ctx context.Context, tenantID, outletID uuid.UUID, lines []OrderLineInput) (uuid.UUID, decimal.Decimal),
+	record func(ctx context.Context, promoID, orderID uuid.UUID, amount decimal.Decimal),
+) {
 	s.happyHourFn = fn
+	s.recordPromoFn = record
 }
 
 // SetTaxResolver attaches the treasury tax resolver for per-line tax computation.
@@ -216,14 +224,15 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent
 	}
 
 	discount := decimal.NewFromFloat(req.DiscountAmount)
-	// Auto-apply happy-hour discount (time-windowed) on top of any explicit discount.
+	// Auto-apply the best happy-hour / negotiated-meal discount (scope-enforced) on top of any
+	// explicit discount. Capture the winning promo so we can write the audit row after save.
+	var appliedPromoID uuid.UUID
+	var appliedPromoAmount decimal.Decimal
 	if s.happyHourFn != nil {
-		subtotal := decimal.Zero
-		for _, l := range req.Lines {
-			subtotal = subtotal.Add(decimal.NewFromFloat(l.TotalPrice))
-		}
-		if hh := s.happyHourFn(ctx, req.TenantID, req.OutletID, subtotal); hh.IsPositive() {
+		if promoID, hh := s.happyHourFn(ctx, req.TenantID, req.OutletID, req.Lines); hh.IsPositive() {
 			discount = discount.Add(hh)
+			appliedPromoID = promoID
+			appliedPromoAmount = hh
 			if meta := req.Metadata; meta != nil {
 				meta["happy_hour_discount"] = hh.InexactFloat64()
 			}
@@ -375,6 +384,11 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent
 
 	if err = tx.Commit(); err != nil {
 		return nil, fmt.Errorf("orders: commit: %w", err)
+	}
+
+	// Audit the applied auto-discount (PromotionApplication) now that the order id exists.
+	if s.recordPromoFn != nil && appliedPromoID != uuid.Nil && appliedPromoAmount.IsPositive() {
+		s.recordPromoFn(ctx, appliedPromoID, order.ID, appliedPromoAmount)
 	}
 
 	// Re-query with edges loaded

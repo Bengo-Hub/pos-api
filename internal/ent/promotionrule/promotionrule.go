@@ -26,6 +26,8 @@ const (
 	FieldDiscountType = "discount_type"
 	// FieldDiscountValue holds the string denoting the discount_value field in the database.
 	FieldDiscountValue = "discount_value"
+	// FieldMealPeriod holds the string denoting the meal_period field in the database.
+	FieldMealPeriod = "meal_period"
 	// FieldMaxDiscount holds the string denoting the max_discount field in the database.
 	FieldMaxDiscount = "max_discount"
 	// FieldRuleConfig holds the string denoting the rule_config field in the database.
@@ -43,6 +45,7 @@ var Columns = []string{
 	FieldScopeIds,
 	FieldDiscountType,
 	FieldDiscountValue,
+	FieldMealPeriod,
 	FieldMaxDiscount,
 	FieldRuleConfig,
 }
@@ -122,6 +125,32 @@ func DiscountTypeValidator(dt DiscountType) error {
 	}
 }
 
+// MealPeriod defines the type for the "meal_period" enum field.
+type MealPeriod string
+
+// MealPeriod values.
+const (
+	MealPeriodBreakfast MealPeriod = "breakfast"
+	MealPeriodAmBreak   MealPeriod = "am_break"
+	MealPeriodLunch     MealPeriod = "lunch"
+	MealPeriodPmBreak   MealPeriod = "pm_break"
+	MealPeriodDinner    MealPeriod = "dinner"
+)
+
+func (mp MealPeriod) String() string {
+	return string(mp)
+}
+
+// MealPeriodValidator is a validator for the "meal_period" field enum values. It is called by the builders before save.
+func MealPeriodValidator(mp MealPeriod) error {
+	switch mp {
+	case MealPeriodBreakfast, MealPeriodAmBreak, MealPeriodLunch, MealPeriodPmBreak, MealPeriodDinner:
+		return nil
+	default:
+		return fmt.Errorf("promotionrule: invalid enum value for meal_period field: %q", mp)
+	}
+}
+
 // OrderOption defines the ordering options for the PromotionRule queries.
 type OrderOption func(*sql.Selector)
 
@@ -153,6 +182,11 @@ func ByDiscountType(opts ...sql.OrderTermOption) OrderOption {
 // ByDiscountValue orders the results by the discount_value field.
 func ByDiscountValue(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldDiscountValue, opts...).ToFunc()
+}
+
+// ByMealPeriod orders the results by the meal_period field.
+func ByMealPeriod(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldMealPeriod, opts...).ToFunc()
 }
 
 // ByMaxDiscount orders the results by the max_discount field.

@@ -12,7 +12,9 @@ import (
 	"entgo.io/ent/dialect"
 	entsql "entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/schema"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/shopspring/decimal"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/nats-io/nats.go"
 	"github.com/redis/go-redis/v9"
@@ -189,8 +191,19 @@ func New(ctx context.Context) (*App, error) {
 		paymentSvc.SetPublisher(pub)
 	}
 	promoSvc := promommodule.NewService(entClient, log)
-	// Auto-apply happy-hour discounts at checkout (decoupled hook into the orders service).
-	orderSvc.SetHappyHourEvaluator(promoSvc.EvaluateHappyHourDiscount)
+	// Auto-apply scope-enforced happy-hour / negotiated-meal discounts at checkout, and audit
+	// the applied promo (decoupled hooks into the orders service; app.go adapts the line types).
+	orderSvc.SetHappyHourEvaluator(
+		func(ctx context.Context, tenantID, outletID uuid.UUID, lines []ordermodule.OrderLineInput) (uuid.UUID, decimal.Decimal) {
+			dls := make([]promommodule.DiscountLine, 0, len(lines))
+			for _, l := range lines {
+				dls = append(dls, promommodule.DiscountLine{SKU: l.SKU, Total: decimal.NewFromFloat(l.TotalPrice)})
+			}
+			r := promoSvc.EvaluateAutoDiscount(ctx, tenantID, outletID, dls)
+			return r.PromoID, r.Discount
+		},
+		promoSvc.RecordApplication,
+	)
 
 	// Create HTTP handlers
 	orderHandler := handlers.NewPOSOrderHandler(log, entClient, orderSvc, subsClient)

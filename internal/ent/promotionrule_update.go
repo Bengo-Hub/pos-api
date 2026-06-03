@@ -124,6 +124,26 @@ func (_u *PromotionRuleUpdate) AddDiscountValue(v float64) *PromotionRuleUpdate 
 	return _u
 }
 
+// SetMealPeriod sets the "meal_period" field.
+func (_u *PromotionRuleUpdate) SetMealPeriod(v promotionrule.MealPeriod) *PromotionRuleUpdate {
+	_u.mutation.SetMealPeriod(v)
+	return _u
+}
+
+// SetNillableMealPeriod sets the "meal_period" field if the given value is not nil.
+func (_u *PromotionRuleUpdate) SetNillableMealPeriod(v *promotionrule.MealPeriod) *PromotionRuleUpdate {
+	if v != nil {
+		_u.SetMealPeriod(*v)
+	}
+	return _u
+}
+
+// ClearMealPeriod clears the value of the "meal_period" field.
+func (_u *PromotionRuleUpdate) ClearMealPeriod() *PromotionRuleUpdate {
+	_u.mutation.ClearMealPeriod()
+	return _u
+}
+
 // SetMaxDiscount sets the "max_discount" field.
 func (_u *PromotionRuleUpdate) SetMaxDiscount(v float64) *PromotionRuleUpdate {
 	_u.mutation.ResetMaxDiscount()
@@ -206,6 +226,11 @@ func (_u *PromotionRuleUpdate) check() error {
 			return &ValidationError{Name: "discount_type", err: fmt.Errorf(`ent: validator failed for field "PromotionRule.discount_type": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.MealPeriod(); ok {
+		if err := promotionrule.MealPeriodValidator(v); err != nil {
+			return &ValidationError{Name: "meal_period", err: fmt.Errorf(`ent: validator failed for field "PromotionRule.meal_period": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -249,6 +274,12 @@ func (_u *PromotionRuleUpdate) sqlSave(ctx context.Context) (_node int, err erro
 	}
 	if value, ok := _u.mutation.AddedDiscountValue(); ok {
 		_spec.AddField(promotionrule.FieldDiscountValue, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.MealPeriod(); ok {
+		_spec.SetField(promotionrule.FieldMealPeriod, field.TypeEnum, value)
+	}
+	if _u.mutation.MealPeriodCleared() {
+		_spec.ClearField(promotionrule.FieldMealPeriod, field.TypeEnum)
 	}
 	if value, ok := _u.mutation.MaxDiscount(); ok {
 		_spec.SetField(promotionrule.FieldMaxDiscount, field.TypeFloat64, value)
@@ -377,6 +408,26 @@ func (_u *PromotionRuleUpdateOne) AddDiscountValue(v float64) *PromotionRuleUpda
 	return _u
 }
 
+// SetMealPeriod sets the "meal_period" field.
+func (_u *PromotionRuleUpdateOne) SetMealPeriod(v promotionrule.MealPeriod) *PromotionRuleUpdateOne {
+	_u.mutation.SetMealPeriod(v)
+	return _u
+}
+
+// SetNillableMealPeriod sets the "meal_period" field if the given value is not nil.
+func (_u *PromotionRuleUpdateOne) SetNillableMealPeriod(v *promotionrule.MealPeriod) *PromotionRuleUpdateOne {
+	if v != nil {
+		_u.SetMealPeriod(*v)
+	}
+	return _u
+}
+
+// ClearMealPeriod clears the value of the "meal_period" field.
+func (_u *PromotionRuleUpdateOne) ClearMealPeriod() *PromotionRuleUpdateOne {
+	_u.mutation.ClearMealPeriod()
+	return _u
+}
+
 // SetMaxDiscount sets the "max_discount" field.
 func (_u *PromotionRuleUpdateOne) SetMaxDiscount(v float64) *PromotionRuleUpdateOne {
 	_u.mutation.ResetMaxDiscount()
@@ -472,6 +523,11 @@ func (_u *PromotionRuleUpdateOne) check() error {
 			return &ValidationError{Name: "discount_type", err: fmt.Errorf(`ent: validator failed for field "PromotionRule.discount_type": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.MealPeriod(); ok {
+		if err := promotionrule.MealPeriodValidator(v); err != nil {
+			return &ValidationError{Name: "meal_period", err: fmt.Errorf(`ent: validator failed for field "PromotionRule.meal_period": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -532,6 +588,12 @@ func (_u *PromotionRuleUpdateOne) sqlSave(ctx context.Context) (_node *Promotion
 	}
 	if value, ok := _u.mutation.AddedDiscountValue(); ok {
 		_spec.AddField(promotionrule.FieldDiscountValue, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.MealPeriod(); ok {
+		_spec.SetField(promotionrule.FieldMealPeriod, field.TypeEnum, value)
+	}
+	if _u.mutation.MealPeriodCleared() {
+		_spec.ClearField(promotionrule.FieldMealPeriod, field.TypeEnum)
 	}
 	if value, ok := _u.mutation.MaxDiscount(); ok {
 		_spec.SetField(promotionrule.FieldMaxDiscount, field.TypeFloat64, value)

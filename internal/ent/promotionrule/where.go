@@ -268,6 +268,36 @@ func DiscountValueLTE(v float64) predicate.PromotionRule {
 	return predicate.PromotionRule(sql.FieldLTE(FieldDiscountValue, v))
 }
 
+// MealPeriodEQ applies the EQ predicate on the "meal_period" field.
+func MealPeriodEQ(v MealPeriod) predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldEQ(FieldMealPeriod, v))
+}
+
+// MealPeriodNEQ applies the NEQ predicate on the "meal_period" field.
+func MealPeriodNEQ(v MealPeriod) predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldNEQ(FieldMealPeriod, v))
+}
+
+// MealPeriodIn applies the In predicate on the "meal_period" field.
+func MealPeriodIn(vs ...MealPeriod) predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldIn(FieldMealPeriod, vs...))
+}
+
+// MealPeriodNotIn applies the NotIn predicate on the "meal_period" field.
+func MealPeriodNotIn(vs ...MealPeriod) predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldNotIn(FieldMealPeriod, vs...))
+}
+
+// MealPeriodIsNil applies the IsNil predicate on the "meal_period" field.
+func MealPeriodIsNil() predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldIsNull(FieldMealPeriod))
+}
+
+// MealPeriodNotNil applies the NotNil predicate on the "meal_period" field.
+func MealPeriodNotNil() predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldNotNull(FieldMealPeriod))
+}
+
 // MaxDiscountEQ applies the EQ predicate on the "max_discount" field.
 func MaxDiscountEQ(v float64) predicate.PromotionRule {
 	return predicate.PromotionRule(sql.FieldEQ(FieldMaxDiscount, v))

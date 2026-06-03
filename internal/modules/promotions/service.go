@@ -204,6 +204,117 @@ func (s *Service) EvaluateHappyHourDiscount(ctx context.Context, tenantID, outle
 	return best.Round(2)
 }
 
+// DiscountLine is the minimal order-line info the evaluator needs to enforce scope.
+type DiscountLine struct {
+	SKU   string
+	Total decimal.Decimal
+}
+
+// AutoDiscountResult is the winning auto-apply discount for an order (best of all active promos).
+type AutoDiscountResult struct {
+	PromoID  uuid.UUID
+	Discount decimal.Decimal
+}
+
+// EvaluateAutoDiscount returns the best auto-apply (happy-hour / negotiated meal) discount for an
+// outlet at now, ENFORCING each rule's scope and discount type. This fixes the prior gaps:
+//   - scope_type=item → only lines whose SKU is in scope_ids are discounted (e.g. a lunch/beverages deal)
+//   - discount_type=fixed_price → the scoped lines are repriced to discount_value (negotiated meal price)
+//   - returns the promo id so the caller can write a PromotionApplication audit row
+//
+// scope_type=category is treated as "all" here (best-effort) since order lines don't carry category;
+// category targeting is handled upstream when lines are tagged. meal_period is informational metadata
+// used for reporting/targeting and does not change the math (the negotiated rate is the discount itself).
+func (s *Service) EvaluateAutoDiscount(ctx context.Context, tenantID, outletID uuid.UUID, lines []DiscountLine) AutoDiscountResult {
+	subtotal := decimal.Zero
+	for _, l := range lines {
+		subtotal = subtotal.Add(l.Total)
+	}
+	if subtotal.LessThanOrEqual(decimal.Zero) {
+		return AutoDiscountResult{}
+	}
+	var outletPtr *uuid.UUID
+	if outletID != uuid.Nil {
+		outletPtr = &outletID
+	}
+	active, err := s.ActiveHappyHours(ctx, tenantID, outletPtr, time.Now())
+	if err != nil || len(active) == 0 {
+		return AutoDiscountResult{}
+	}
+
+	best := AutoDiscountResult{}
+	for _, p := range active {
+		rule, rErr := s.client.PromotionRule.Query().Where(promotionrule.PromotionID(p.ID)).First(ctx)
+		if rErr != nil || rule == nil {
+			continue
+		}
+
+		// Determine the discountable base from the rule scope.
+		base := subtotal
+		if rule.ScopeType == promotionrule.ScopeTypeItem && len(rule.ScopeIds) > 0 {
+			inScope := map[string]struct{}{}
+			for _, id := range rule.ScopeIds {
+				inScope[id] = struct{}{}
+			}
+			base = decimal.Zero
+			for _, l := range lines {
+				if _, ok := inScope[l.SKU]; ok {
+					base = base.Add(l.Total)
+				}
+			}
+		}
+		if base.LessThanOrEqual(decimal.Zero) {
+			continue
+		}
+
+		var d decimal.Decimal
+		switch rule.DiscountType {
+		case "percentage":
+			d = base.Mul(decimal.NewFromFloat(rule.DiscountValue)).Div(decimal.NewFromInt(100))
+		case "fixed_amount":
+			d = decimal.NewFromFloat(rule.DiscountValue)
+		case "fixed_price":
+			// Reprice the scoped items to the negotiated price; discount = base - price (>= 0).
+			d = base.Sub(decimal.NewFromFloat(rule.DiscountValue))
+			if d.IsNegative() {
+				d = decimal.Zero
+			}
+		default:
+			continue
+		}
+		if rule.MaxDiscount != nil && *rule.MaxDiscount > 0 {
+			if cap := decimal.NewFromFloat(*rule.MaxDiscount); d.GreaterThan(cap) {
+				d = cap
+			}
+		}
+		if d.GreaterThan(base) {
+			d = base
+		}
+		if d.GreaterThan(best.Discount) {
+			best = AutoDiscountResult{PromoID: p.ID, Discount: d}
+		}
+	}
+	if best.Discount.GreaterThan(subtotal) {
+		best.Discount = subtotal
+	}
+	best.Discount = best.Discount.Round(2)
+	return best
+}
+
+// RecordApplication writes a PromotionApplication audit row linking a promo to the order it discounted.
+func (s *Service) RecordApplication(ctx context.Context, promoID, orderID uuid.UUID, amount decimal.Decimal) {
+	if promoID == uuid.Nil || amount.LessThanOrEqual(decimal.Zero) {
+		return
+	}
+	if _, err := s.client.PromotionApplication.Create().
+		SetPromotionID(promoID).
+		SetOrderID(orderID).
+		SetDiscountAmount(amount.InexactFloat64()).
+		Save(ctx); err != nil {
+		s.log.Warn("failed to record promotion application", zap.Error(err))
+	}
+}
+
 // isWithinSchedule reports whether `now` falls inside a promotion's date range,
 // allowed weekdays, and daily time window.
 func (s *Service) isWithinSchedule(p *ent.Promotion, now time.Time) bool {

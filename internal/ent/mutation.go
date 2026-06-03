@@ -64988,6 +64988,7 @@ type PromotionRuleMutation struct {
 	discount_type     *promotionrule.DiscountType
 	discount_value    *float64
 	adddiscount_value *float64
+	meal_period       *promotionrule.MealPeriod
 	max_discount      *float64
 	addmax_discount   *float64
 	rule_config       *map[string]interface{}
@@ -65366,6 +65367,55 @@ func (m *PromotionRuleMutation) ResetDiscountValue() {
 	m.adddiscount_value = nil
 }
 
+// SetMealPeriod sets the "meal_period" field.
+func (m *PromotionRuleMutation) SetMealPeriod(pp promotionrule.MealPeriod) {
+	m.meal_period = &pp
+}
+
+// MealPeriod returns the value of the "meal_period" field in the mutation.
+func (m *PromotionRuleMutation) MealPeriod() (r promotionrule.MealPeriod, exists bool) {
+	v := m.meal_period
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMealPeriod returns the old "meal_period" field's value of the PromotionRule entity.
+// If the PromotionRule object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PromotionRuleMutation) OldMealPeriod(ctx context.Context) (v *promotionrule.MealPeriod, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMealPeriod is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMealPeriod requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMealPeriod: %w", err)
+	}
+	return oldValue.MealPeriod, nil
+}
+
+// ClearMealPeriod clears the value of the "meal_period" field.
+func (m *PromotionRuleMutation) ClearMealPeriod() {
+	m.meal_period = nil
+	m.clearedFields[promotionrule.FieldMealPeriod] = struct{}{}
+}
+
+// MealPeriodCleared returns if the "meal_period" field was cleared in this mutation.
+func (m *PromotionRuleMutation) MealPeriodCleared() bool {
+	_, ok := m.clearedFields[promotionrule.FieldMealPeriod]
+	return ok
+}
+
+// ResetMealPeriod resets all changes to the "meal_period" field.
+func (m *PromotionRuleMutation) ResetMealPeriod() {
+	m.meal_period = nil
+	delete(m.clearedFields, promotionrule.FieldMealPeriod)
+}
+
 // SetMaxDiscount sets the "max_discount" field.
 func (m *PromotionRuleMutation) SetMaxDiscount(f float64) {
 	m.max_discount = &f
@@ -65506,7 +65556,7 @@ func (m *PromotionRuleMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *PromotionRuleMutation) Fields() []string {
-	fields := make([]string, 0, 8)
+	fields := make([]string, 0, 9)
 	if m.promotion_id != nil {
 		fields = append(fields, promotionrule.FieldPromotionID)
 	}
@@ -65524,6 +65574,9 @@ func (m *PromotionRuleMutation) Fields() []string {
 	}
 	if m.discount_value != nil {
 		fields = append(fields, promotionrule.FieldDiscountValue)
+	}
+	if m.meal_period != nil {
+		fields = append(fields, promotionrule.FieldMealPeriod)
 	}
 	if m.max_discount != nil {
 		fields = append(fields, promotionrule.FieldMaxDiscount)
@@ -65551,6 +65604,8 @@ func (m *PromotionRuleMutation) Field(name string) (ent.Value, bool) {
 		return m.DiscountType()
 	case promotionrule.FieldDiscountValue:
 		return m.DiscountValue()
+	case promotionrule.FieldMealPeriod:
+		return m.MealPeriod()
 	case promotionrule.FieldMaxDiscount:
 		return m.MaxDiscount()
 	case promotionrule.FieldRuleConfig:
@@ -65576,6 +65631,8 @@ func (m *PromotionRuleMutation) OldField(ctx context.Context, name string) (ent.
 		return m.OldDiscountType(ctx)
 	case promotionrule.FieldDiscountValue:
 		return m.OldDiscountValue(ctx)
+	case promotionrule.FieldMealPeriod:
+		return m.OldMealPeriod(ctx)
 	case promotionrule.FieldMaxDiscount:
 		return m.OldMaxDiscount(ctx)
 	case promotionrule.FieldRuleConfig:
@@ -65630,6 +65687,13 @@ func (m *PromotionRuleMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetDiscountValue(v)
+		return nil
+	case promotionrule.FieldMealPeriod:
+		v, ok := value.(promotionrule.MealPeriod)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMealPeriod(v)
 		return nil
 	case promotionrule.FieldMaxDiscount:
 		v, ok := value.(float64)
@@ -65705,6 +65769,9 @@ func (m *PromotionRuleMutation) ClearedFields() []string {
 	if m.FieldCleared(promotionrule.FieldScopeIds) {
 		fields = append(fields, promotionrule.FieldScopeIds)
 	}
+	if m.FieldCleared(promotionrule.FieldMealPeriod) {
+		fields = append(fields, promotionrule.FieldMealPeriod)
+	}
 	if m.FieldCleared(promotionrule.FieldMaxDiscount) {
 		fields = append(fields, promotionrule.FieldMaxDiscount)
 	}
@@ -65724,6 +65791,9 @@ func (m *PromotionRuleMutation) ClearField(name string) error {
 	switch name {
 	case promotionrule.FieldScopeIds:
 		m.ClearScopeIds()
+		return nil
+	case promotionrule.FieldMealPeriod:
+		m.ClearMealPeriod()
 		return nil
 	case promotionrule.FieldMaxDiscount:
 		m.ClearMaxDiscount()
@@ -65753,6 +65823,9 @@ func (m *PromotionRuleMutation) ResetField(name string) error {
 		return nil
 	case promotionrule.FieldDiscountValue:
 		m.ResetDiscountValue()
+		return nil
+	case promotionrule.FieldMealPeriod:
+		m.ResetMealPeriod()
 		return nil
 	case promotionrule.FieldMaxDiscount:
 		m.ResetMaxDiscount()

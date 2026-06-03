@@ -2026,6 +2026,7 @@ var (
 		{Name: "scope_ids", Type: field.TypeJSON, Nullable: true},
 		{Name: "discount_type", Type: field.TypeEnum, Enums: []string{"percentage", "fixed_amount", "fixed_price"}, Default: "percentage"},
 		{Name: "discount_value", Type: field.TypeFloat64, Default: 0},
+		{Name: "meal_period", Type: field.TypeEnum, Nullable: true, Enums: []string{"breakfast", "am_break", "lunch", "pm_break", "dinner"}},
 		{Name: "max_discount", Type: field.TypeFloat64, Nullable: true},
 		{Name: "rule_config", Type: field.TypeJSON},
 	}

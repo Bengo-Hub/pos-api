@@ -33,6 +33,11 @@ func (PromotionRule) Fields() []ent.Field {
 			Default("percentage"),
 		field.Float("discount_value").
 			Default(0),
+		field.Enum("meal_period").
+			Values("breakfast", "am_break", "lunch", "pm_break", "dinner").
+			Optional().
+			Nillable().
+			Comment("When set, the discount targets a specific meal period (negotiated lunch/dinner rate, etc.)"),
 		field.Float("max_discount").
 			Optional().
 			Nillable().

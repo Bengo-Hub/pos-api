@@ -83,6 +83,20 @@ func (_c *PromotionRuleCreate) SetNillableDiscountValue(v *float64) *PromotionRu
 	return _c
 }
 
+// SetMealPeriod sets the "meal_period" field.
+func (_c *PromotionRuleCreate) SetMealPeriod(v promotionrule.MealPeriod) *PromotionRuleCreate {
+	_c.mutation.SetMealPeriod(v)
+	return _c
+}
+
+// SetNillableMealPeriod sets the "meal_period" field if the given value is not nil.
+func (_c *PromotionRuleCreate) SetNillableMealPeriod(v *promotionrule.MealPeriod) *PromotionRuleCreate {
+	if v != nil {
+		_c.SetMealPeriod(*v)
+	}
+	return _c
+}
+
 // SetMaxDiscount sets the "max_discount" field.
 func (_c *PromotionRuleCreate) SetMaxDiscount(v float64) *PromotionRuleCreate {
 	_c.mutation.SetMaxDiscount(v)
@@ -206,6 +220,11 @@ func (_c *PromotionRuleCreate) check() error {
 	if _, ok := _c.mutation.DiscountValue(); !ok {
 		return &ValidationError{Name: "discount_value", err: errors.New(`ent: missing required field "PromotionRule.discount_value"`)}
 	}
+	if v, ok := _c.mutation.MealPeriod(); ok {
+		if err := promotionrule.MealPeriodValidator(v); err != nil {
+			return &ValidationError{Name: "meal_period", err: fmt.Errorf(`ent: validator failed for field "PromotionRule.meal_period": %w`, err)}
+		}
+	}
 	if _, ok := _c.mutation.RuleConfig(); !ok {
 		return &ValidationError{Name: "rule_config", err: errors.New(`ent: missing required field "PromotionRule.rule_config"`)}
 	}
@@ -268,6 +287,10 @@ func (_c *PromotionRuleCreate) createSpec() (*PromotionRule, *sqlgraph.CreateSpe
 	if value, ok := _c.mutation.DiscountValue(); ok {
 		_spec.SetField(promotionrule.FieldDiscountValue, field.TypeFloat64, value)
 		_node.DiscountValue = value
+	}
+	if value, ok := _c.mutation.MealPeriod(); ok {
+		_spec.SetField(promotionrule.FieldMealPeriod, field.TypeEnum, value)
+		_node.MealPeriod = &value
 	}
 	if value, ok := _c.mutation.MaxDiscount(); ok {
 		_spec.SetField(promotionrule.FieldMaxDiscount, field.TypeFloat64, value)
@@ -410,6 +433,24 @@ func (u *PromotionRuleUpsert) UpdateDiscountValue() *PromotionRuleUpsert {
 // AddDiscountValue adds v to the "discount_value" field.
 func (u *PromotionRuleUpsert) AddDiscountValue(v float64) *PromotionRuleUpsert {
 	u.Add(promotionrule.FieldDiscountValue, v)
+	return u
+}
+
+// SetMealPeriod sets the "meal_period" field.
+func (u *PromotionRuleUpsert) SetMealPeriod(v promotionrule.MealPeriod) *PromotionRuleUpsert {
+	u.Set(promotionrule.FieldMealPeriod, v)
+	return u
+}
+
+// UpdateMealPeriod sets the "meal_period" field to the value that was provided on create.
+func (u *PromotionRuleUpsert) UpdateMealPeriod() *PromotionRuleUpsert {
+	u.SetExcluded(promotionrule.FieldMealPeriod)
+	return u
+}
+
+// ClearMealPeriod clears the value of the "meal_period" field.
+func (u *PromotionRuleUpsert) ClearMealPeriod() *PromotionRuleUpsert {
+	u.SetNull(promotionrule.FieldMealPeriod)
 	return u
 }
 
@@ -592,6 +633,27 @@ func (u *PromotionRuleUpsertOne) AddDiscountValue(v float64) *PromotionRuleUpser
 func (u *PromotionRuleUpsertOne) UpdateDiscountValue() *PromotionRuleUpsertOne {
 	return u.Update(func(s *PromotionRuleUpsert) {
 		s.UpdateDiscountValue()
+	})
+}
+
+// SetMealPeriod sets the "meal_period" field.
+func (u *PromotionRuleUpsertOne) SetMealPeriod(v promotionrule.MealPeriod) *PromotionRuleUpsertOne {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.SetMealPeriod(v)
+	})
+}
+
+// UpdateMealPeriod sets the "meal_period" field to the value that was provided on create.
+func (u *PromotionRuleUpsertOne) UpdateMealPeriod() *PromotionRuleUpsertOne {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.UpdateMealPeriod()
+	})
+}
+
+// ClearMealPeriod clears the value of the "meal_period" field.
+func (u *PromotionRuleUpsertOne) ClearMealPeriod() *PromotionRuleUpsertOne {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.ClearMealPeriod()
 	})
 }
 
@@ -947,6 +1009,27 @@ func (u *PromotionRuleUpsertBulk) AddDiscountValue(v float64) *PromotionRuleUpse
 func (u *PromotionRuleUpsertBulk) UpdateDiscountValue() *PromotionRuleUpsertBulk {
 	return u.Update(func(s *PromotionRuleUpsert) {
 		s.UpdateDiscountValue()
+	})
+}
+
+// SetMealPeriod sets the "meal_period" field.
+func (u *PromotionRuleUpsertBulk) SetMealPeriod(v promotionrule.MealPeriod) *PromotionRuleUpsertBulk {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.SetMealPeriod(v)
+	})
+}
+
+// UpdateMealPeriod sets the "meal_period" field to the value that was provided on create.
+func (u *PromotionRuleUpsertBulk) UpdateMealPeriod() *PromotionRuleUpsertBulk {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.UpdateMealPeriod()
+	})
+}
+
+// ClearMealPeriod clears the value of the "meal_period" field.
+func (u *PromotionRuleUpsertBulk) ClearMealPeriod() *PromotionRuleUpsertBulk {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.ClearMealPeriod()
 	})
 }
 

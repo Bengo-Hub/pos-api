@@ -30,6 +30,8 @@ type PromotionRule struct {
 	DiscountType promotionrule.DiscountType `json:"discount_type,omitempty"`
 	// DiscountValue holds the value of the "discount_value" field.
 	DiscountValue float64 `json:"discount_value,omitempty"`
+	// When set, the discount targets a specific meal period (negotiated lunch/dinner rate, etc.)
+	MealPeriod *promotionrule.MealPeriod `json:"meal_period,omitempty"`
 	// Cap on the computed discount amount
 	MaxDiscount *float64 `json:"max_discount,omitempty"`
 	// RuleConfig holds the value of the "rule_config" field.
@@ -46,7 +48,7 @@ func (*PromotionRule) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case promotionrule.FieldDiscountValue, promotionrule.FieldMaxDiscount:
 			values[i] = new(sql.NullFloat64)
-		case promotionrule.FieldRuleType, promotionrule.FieldScopeType, promotionrule.FieldDiscountType:
+		case promotionrule.FieldRuleType, promotionrule.FieldScopeType, promotionrule.FieldDiscountType, promotionrule.FieldMealPeriod:
 			values[i] = new(sql.NullString)
 		case promotionrule.FieldID, promotionrule.FieldPromotionID:
 			values[i] = new(uuid.UUID)
@@ -108,6 +110,13 @@ func (_m *PromotionRule) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field discount_value", values[i])
 			} else if value.Valid {
 				_m.DiscountValue = value.Float64
+			}
+		case promotionrule.FieldMealPeriod:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field meal_period", values[i])
+			} else if value.Valid {
+				_m.MealPeriod = new(promotionrule.MealPeriod)
+				*_m.MealPeriod = promotionrule.MealPeriod(value.String)
 			}
 		case promotionrule.FieldMaxDiscount:
 			if value, ok := values[i].(*sql.NullFloat64); !ok {
@@ -177,6 +186,11 @@ func (_m *PromotionRule) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("discount_value=")
 	builder.WriteString(fmt.Sprintf("%v", _m.DiscountValue))
+	builder.WriteString(", ")
+	if v := _m.MealPeriod; v != nil {
+		builder.WriteString("meal_period=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteString(", ")
 	if v := _m.MaxDiscount; v != nil {
 		builder.WriteString("max_discount=")
