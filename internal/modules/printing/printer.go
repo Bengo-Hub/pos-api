@@ -3,6 +3,7 @@ package printing
 import (
 	"fmt"
 	"net"
+	"strconv"
 	"time"
 )
 
@@ -30,7 +31,7 @@ func NewNetworkPrinter(ip string) *NetworkPrinter {
 
 // Print dials the printer and writes the raw bytes.
 func (p *NetworkPrinter) Print(data []byte) error {
-	addr := fmt.Sprintf("%s:%d", p.IP, p.Port)
+	addr := net.JoinHostPort(p.IP, strconv.Itoa(p.Port))
 	conn, err := net.DialTimeout("tcp", addr, p.Timeout)
 	if err != nil {
 		return fmt.Errorf("printing: dial %s: %w", addr, err)

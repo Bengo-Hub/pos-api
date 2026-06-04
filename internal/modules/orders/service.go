@@ -307,16 +307,26 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent
 		}
 	}
 	kdsOverrideBySKU := make(map[string]uuid.UUID)
+	// taxBySKU lets us default a line's tax code from the local catalog projection (synced from
+	// inventory-api, which sources codes from treasury-api) when the client omits it — so VAT is
+	// always recorded for taxable items.
+	type lineTaxDefault struct {
+		code      string
+		inclusive bool
+	}
+	taxBySKU := make(map[string]lineTaxDefault)
 	if len(skus) > 0 {
 		overrides, _ := s.client.POSCatalogOverride.Query().
 			Where(
 				entoverride.TenantID(req.TenantID),
 				entoverride.InventorySkuIn(skus...),
-				entoverride.KdsStationIDNotNil(),
 			).All(ctx)
 		for _, o := range overrides {
 			if o.KdsStationID != nil {
 				kdsOverrideBySKU[o.InventorySku] = *o.KdsStationID
+			}
+			if o.TaxCodeID != "" {
+				taxBySKU[o.InventorySku] = lineTaxDefault{code: o.TaxCodeID, inclusive: o.PriceIncludesTax}
 			}
 		}
 	}
@@ -332,15 +342,24 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent
 		}
 
 		// Resolve tax for this line via treasury S2S (Redis-cached).
-		// Idempotency: if caller provided explicit TaxCodeID, use it;
-		// otherwise skip tax (treasury is the source of truth; not all items are taxable).
+		// Use the caller's explicit TaxCodeID, else default from the local catalog projection.
+		// treasury is the source of truth for rates; not all items are taxable.
 		var taxKraCode, taxCodeID string
 		var taxRate, taxAmt float64
 		priceIncludesTax := line.PriceIncludesTax
+		lineTaxCode := line.TaxCodeID
+		if lineTaxCode == "" {
+			if d, ok := taxBySKU[line.SKU]; ok {
+				lineTaxCode = d.code
+				if !priceIncludesTax {
+					priceIncludesTax = d.inclusive
+				}
+			}
+		}
 
-		if line.TaxStatus != "tax_exempt" && line.TaxStatus != "zero_rated" && s.taxResolver != nil && line.TaxCodeID != "" {
-			taxCodeID = line.TaxCodeID
-			if tc, resolveErr := s.taxResolver.Resolve(ctx, req.TenantSlug, line.TaxCodeID); resolveErr == nil && tc != nil {
+		if line.TaxStatus != "tax_exempt" && line.TaxStatus != "zero_rated" && s.taxResolver != nil && lineTaxCode != "" {
+			taxCodeID = lineTaxCode
+			if tc, resolveErr := s.taxResolver.Resolve(ctx, req.TenantSlug, lineTaxCode); resolveErr == nil && tc != nil {
 				taxRate = tc.Rate
 				taxKraCode = tc.KRACode
 				taxAmt, _ = ComputeLineTax(lineTotal.InexactFloat64(), taxRate, priceIncludesTax)

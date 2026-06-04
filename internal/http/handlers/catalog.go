@@ -62,6 +62,12 @@ type inventoryProxyItem struct {
 	PurchasePackSize *float64 `json:"purchase_pack_size,omitempty"`
 	PurchaseUnit     string   `json:"purchase_unit,omitempty"`
 	YieldPct         *float64 `json:"yield_pct,omitempty"`
+	// Tax — enriched by inventory-api from treasury-api (source of truth)
+	TaxCodeID    string   `json:"tax_code_id,omitempty"`
+	TaxInclusive bool     `json:"tax_inclusive,omitempty"`
+	TaxRate      *float64 `json:"tax_rate,omitempty"`
+	NetPrice     *float64 `json:"net_price,omitempty"`
+	TaxAmount    *float64 `json:"tax_amount,omitempty"`
 }
 
 // inventoryBulkPrice is one entry from GET /inventory/items/pricing.
@@ -460,6 +466,12 @@ func (h *CatalogHandler) ListCatalogItems(w http.ResponseWriter, r *http.Request
 			durationMinutes = &item.DurationMinutes
 		}
 
+		// Inventory-provided effective selling price (recipe price / default tier; enriched by
+		// inventory-api). This is the primary source for RECIPE menu items, which carry no cost_price.
+		if price == 0 && item.SellingPrice != nil && *item.SellingPrice > 0 {
+			price = *item.SellingPrice
+		}
+
 		// Last resort: use cost_price from inventory when no pricing tier or override provides a price.
 		if price == 0 {
 			if item.SuggestedPrice != nil && *item.SuggestedPrice > 0 {
@@ -496,6 +508,9 @@ func (h *CatalogHandler) ListCatalogItems(w http.ResponseWriter, r *http.Request
 			"barcode":                   item.Barcode,
 			"price":                     price,
 			"tax_status":                taxStatus,
+			"tax_code_id":               item.TaxCodeID,
+			"tax_inclusive":             item.TaxInclusive,
+			"tax_rate":                  item.TaxRate,
 			"requires_prescription":     requiresPrescription,
 			"is_returnable":             isReturnable,
 			"requires_age_verification": requiresAgeVerification,

@@ -12,6 +12,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/bengobox/pos-service/internal/ent"
+	entorderlink "github.com/bengobox/pos-service/internal/ent/orderlink"
 	"github.com/bengobox/pos-service/internal/platform/events"
 )
 
@@ -117,6 +118,15 @@ func (c *PickupConsumer) handleOrderForPickup(ctx context.Context, evt *OrderFor
 	orderIDStr, _ := data["order_id"].(string)
 	if orderIDStr == "" {
 		return fmt.Errorf("missing order_id in event data")
+	}
+
+	// Idempotency: skip if a POS order was already created for this online order — a redelivery
+	// after a lost Ack must not create a duplicate click-and-collect order.
+	if exists, _ := c.client.OrderLink.Query().
+		Where(entorderlink.ExternalOrderID(orderIDStr), entorderlink.ChannelSource("ordering_click_and_collect")).
+		Exist(ctx); exists {
+		c.logger.Info("pickup consumer: online order already linked, skipping duplicate", zap.String("external_order_id", orderIDStr))
+		return nil
 	}
 
 	orderNumber, _ := data["order_number"].(string)
