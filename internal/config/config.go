@@ -22,6 +22,25 @@ type Config struct {
 	Subscriptions SubscriptionsConfig
 	Treasury      TreasuryConfig
 	MarketFlow    MarketFlowConfig
+	Ordering      OrderingConfig
+	Logistics     LogisticsConfig
+}
+
+// OrderingConfig holds configuration for the ordering-backend S2S client.
+// ordering-backend owns customer orders + the rider-assignment flow; pos-api delegates
+// rider assignment for delivery online orders to its canonical admin endpoint.
+type OrderingConfig struct {
+	ServiceURL     string        `envconfig:"ORDERING_SERVICE_URL" default:"https://orderingapi.codevertexitsolutions.com"`
+	APIKey         string        `envconfig:"INTERNAL_SERVICE_KEY"`
+	RequestTimeout time.Duration `envconfig:"ORDERING_REQUEST_TIMEOUT" default:"15s"`
+}
+
+// LogisticsConfig holds configuration for the logistics-api S2S client.
+// logistics-api owns riders/fleet; pos-api only proxies the available-riders list (read-only).
+type LogisticsConfig struct {
+	ServiceURL     string        `envconfig:"LOGISTICS_SERVICE_URL" default:"https://logisticsapi.codevertexitsolutions.com"`
+	APIKey         string        `envconfig:"INTERNAL_SERVICE_KEY"`
+	RequestTimeout time.Duration `envconfig:"LOGISTICS_REQUEST_TIMEOUT" default:"15s"`
 }
 
 // MarketFlowConfig holds configuration for the MarketFlow CRM S2S client.

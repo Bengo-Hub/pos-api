@@ -602,6 +602,10 @@ func New(
 						pos.Get("/online-orders/pickup", onlineOrders.ListPickup)
 						pos.Post("/online-orders/{orderID}/ready", onlineOrders.MarkReady)
 						pos.Post("/online-orders/{orderID}/collected", onlineOrders.MarkCollected)
+						// WS-D delivery rider assignment: list fleet (proxy logistics) +
+						// assign rider (delegate to ordering-backend, which owns the order).
+						pos.Get("/online-orders/riders", onlineOrders.ListAvailableRiders)
+						pos.Post("/online-orders/{orderID}/assign-rider", onlineOrders.AssignRider)
 					}
 
 					// Daily closings (ERP reconciliation)

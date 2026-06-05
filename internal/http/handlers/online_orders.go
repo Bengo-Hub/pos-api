@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"time"
 
 	"entgo.io/ent/dialect/sql"
 	"github.com/Bengo-Hub/pagination"
@@ -10,20 +11,29 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/bengobox/pos-service/internal/ent"
+	entkdsticket "github.com/bengobox/pos-service/internal/ent/kdsticket"
+	entorderlink "github.com/bengobox/pos-service/internal/ent/orderlink"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
+	"github.com/bengobox/pos-service/internal/platform/events"
 )
 
-// OnlineOrderHandler handles click-and-collect / pickup order endpoints for the KDS.
+// OnlineOrderHandler handles click-and-collect / pickup order endpoints for the KDS,
+// plus the WS-D delivery rider-assignment proxy/delegation endpoints.
 type OnlineOrderHandler struct {
-	log *zap.Logger
-	db  *ent.Client
+	log       *zap.Logger
+	db        *ent.Client
+	publisher *events.Publisher
+	rider     *riderDeps // optional WS-D assign-rider dependencies (ordering client + logistics URL)
 }
 
 // NewOnlineOrderHandler creates a new OnlineOrderHandler.
 func NewOnlineOrderHandler(log *zap.Logger, db *ent.Client) *OnlineOrderHandler {
 	return &OnlineOrderHandler{log: log, db: db}
 }
+
+// SetPublisher wires the event publisher for online-order lifecycle events.
+func (h *OnlineOrderHandler) SetPublisher(p *events.Publisher) { h.publisher = p }
 
 // pickupSourceFilter returns a predicate that matches orders whose metadata.source
 // equals "click_and_collect" or "pickup" — the two values set by the pickup consumer.
@@ -40,6 +50,7 @@ func pickupSourceFilter() predicate.POSOrder {
 
 // ListPickup handles GET /{tenantID}/pos/online-orders/pickup
 // Returns all active pickup / click-and-collect orders (not completed or cancelled).
+// Supports optional ?status= and ?outlet_id= filters.
 func (h *OnlineOrderHandler) ListPickup(w http.ResponseWriter, r *http.Request) {
 	tid, err := parseTenantUUID(r)
 	if err != nil {
@@ -55,6 +66,12 @@ func (h *OnlineOrderHandler) ListPickup(w http.ResponseWriter, r *http.Request) 
 		filters = append(filters, posorder.Status(status))
 	} else {
 		filters = append(filters, posorder.StatusNotIn("completed", "cancelled"))
+	}
+	// Optional outlet scoping so a multi-outlet tenant's KDS only sees its own pickups.
+	if outletParam := r.URL.Query().Get("outlet_id"); outletParam != "" {
+		if outletID, perr := uuid.Parse(outletParam); perr == nil {
+			filters = append(filters, posorder.OutletID(outletID))
+		}
 	}
 
 	p := pagination.Parse(r)
@@ -113,7 +130,9 @@ func (h *OnlineOrderHandler) MarkReady(w http.ResponseWriter, r *http.Request) {
 }
 
 // MarkCollected handles POST /{tenantID}/pos/online-orders/{orderID}/collected
-// KDS marks the order as collected (completed) by the customer.
+// KDS marks the order as collected (completed) by the customer. This also serves any
+// outstanding KDS tickets for the order (so they leave the kitchen display) and
+// publishes pos.online_order.collected for ordering-backend to close the online order.
 func (h *OnlineOrderHandler) MarkCollected(w http.ResponseWriter, r *http.Request) {
 	tid, err := parseTenantUUID(r)
 	if err != nil {
@@ -151,6 +170,39 @@ func (h *OnlineOrderHandler) MarkCollected(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	// Serve any still-active KDS tickets so they drop off the kitchen display.
+	now := time.Now()
+	if _, terr := h.db.KDSTicket.Update().
+		Where(
+			entkdsticket.TenantID(tid),
+			entkdsticket.OrderID(oid),
+			entkdsticket.StatusIn(
+				entkdsticket.StatusPending,
+				entkdsticket.StatusInProgress,
+				entkdsticket.StatusReady,
+			),
+		).
+		SetStatus(entkdsticket.StatusServed).
+		SetCompletedAt(now).
+		Save(r.Context()); terr != nil {
+		h.log.Warn("mark-collected: failed to serve KDS tickets", zap.Error(terr), zap.Stringer("order_id", oid))
+	}
+
+	// Publish pos.online_order.collected so ordering-backend can close the online order.
+	if h.publisher != nil {
+		externalOrderID := ""
+		if link, lerr := h.db.OrderLink.Query().
+			Where(entorderlink.OrderID(oid)).
+			First(r.Context()); lerr == nil {
+			externalOrderID = link.ExternalOrderID
+		}
+		_ = h.publisher.PublishOnlineOrderCollected(r.Context(), tid, map[string]any{
+			"external_order_id": externalOrderID,
+			"order_number":      updated.OrderNumber,
+			"tenant_id":         tid.String(),
+			"source":            "click_and_collect",
+		})
+	}
+
 	jsonOK(w, updated)
 }
-

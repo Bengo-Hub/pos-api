@@ -120,9 +120,18 @@ func (p *Publisher) PublishKDSWaiterCalled(ctx context.Context, tenantID uuid.UU
 	return p.publish(ctx, tenantID, "kds.waiter.called", data)
 }
 
-// PublishKDSOrderReady publishes a pos.kds.order.ready event when a kitchen ticket is marked ready.
+// PublishKDSOrderReady publishes a pos.kds.order.ready event when ALL kitchen tickets
+// for an order are marked ready (order-level, not per-ticket). Carries external_order_id
+// + order_number so ordering-backend can notify the online customer.
 func (p *Publisher) PublishKDSOrderReady(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {
 	return p.publish(ctx, tenantID, "kds.order.ready", data)
+}
+
+// PublishOnlineOrderCollected publishes a pos.online_order.collected event when a
+// click-and-collect order is handed to the customer. Consumed by ordering-backend to
+// close out the online order lifecycle.
+func (p *Publisher) PublishOnlineOrderCollected(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {
+	return p.publish(ctx, tenantID, "online_order.collected", data)
 }
 
 // PublishERPSalePosted publishes a pos.erp.sale_posted event for external ERP / accounting system sync.

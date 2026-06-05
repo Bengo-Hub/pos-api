@@ -968,7 +968,10 @@ func (h *TableHandler) SetServiceCharge(w http.ResponseWriter, r *http.Request) 
 }
 
 // DeleteTable handles DELETE /{tenantID}/pos/tables/{id}
-// Soft-delete: marks the table inactive. Rejects if table is currently occupied.
+// Hard-delete with cleanup. Rejects if the table is currently occupied. Any table that
+// was ever seated has table_assignment rows; that FK is ON DELETE NO ACTION, so a bare
+// delete fails. We therefore clear dependent assignment + reservation rows first and then
+// delete the table, all within one transaction so a failure leaves nothing half-removed.
 func (h *TableHandler) DeleteTable(w http.ResponseWriter, r *http.Request) {
 	tid, err := parseTenantUUID(r)
 	if err != nil {
@@ -995,8 +998,41 @@ func (h *TableHandler) DeleteTable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.client.Table.DeleteOne(tbl).Exec(r.Context()); err != nil {
+	tx, err := h.client.Tx(r.Context())
+	if err != nil {
+		h.log.Error("delete table: begin tx failed", zap.Error(err))
+		jsonError(w, "delete failed", http.StatusInternalServerError)
+		return
+	}
+
+	// Clear historical assignments (the blocking FK) and any reservations for this table.
+	if _, err := tx.TableAssignment.Delete().
+		Where(tableassignment.TableID(tableID)).
+		Exec(r.Context()); err != nil {
+		_ = tx.Rollback()
+		h.log.Error("delete table: clear assignments failed", zap.Error(err))
+		jsonError(w, "delete failed", http.StatusInternalServerError)
+		return
+	}
+
+	if _, err := tx.TableReservation.Delete().
+		Where(entreservation.TableID(tableID)).
+		Exec(r.Context()); err != nil {
+		_ = tx.Rollback()
+		h.log.Error("delete table: clear reservations failed", zap.Error(err))
+		jsonError(w, "delete failed", http.StatusInternalServerError)
+		return
+	}
+
+	if err := tx.Table.DeleteOneID(tableID).Exec(r.Context()); err != nil {
+		_ = tx.Rollback()
 		h.log.Error("delete table failed", zap.Error(err))
+		jsonError(w, "delete failed", http.StatusInternalServerError)
+		return
+	}
+
+	if err := tx.Commit(); err != nil {
+		h.log.Error("delete table: commit failed", zap.Error(err))
 		jsonError(w, "delete failed", http.StatusInternalServerError)
 		return
 	}

@@ -44,6 +44,7 @@ import (
 	"github.com/bengobox/pos-service/internal/platform/database"
 	"github.com/bengobox/pos-service/internal/platform/events"
 	"github.com/bengobox/pos-service/internal/platform/marketflow"
+	orderingclient "github.com/bengobox/pos-service/internal/platform/ordering"
 	"github.com/bengobox/pos-service/internal/platform/scheduler"
 	"github.com/bengobox/pos-service/internal/platform/subscriptions"
 	webhookspkg "github.com/bengobox/pos-service/internal/platform/webhooks"
@@ -281,8 +282,18 @@ func New(ctx context.Context) (*App, error) {
 	// Webhook subscriptions (Sprint 12)
 	webhookHandler := handlers.NewWebhookHandler(log, entClient)
 
-	// Online ordering pickup status (Sprint 13)
+	// Ordering-backend S2S client — used to DELEGATE delivery rider assignment to the
+	// canonical admin endpoint (ordering-backend owns the order + rider-assignment flow).
+	orderingS2SClient := orderingclient.NewClient(cfg.Ordering.ServiceURL, cfg.Ordering.APIKey, cfg.Ordering.RequestTimeout, log)
+
+	// Online ordering pickup status + WS-D rider assignment (Sprint 13)
 	onlineOrderHandler := handlers.NewOnlineOrderHandler(log, entClient)
+	if pub := orderSvc.GetPublisher(); pub != nil {
+		onlineOrderHandler.SetPublisher(pub)
+	}
+	// Wire WS-D deps: ordering S2S client (assign-rider delegation) + logistics base URL/key
+	// (available-riders proxy). Both use the shared INTERNAL_SERVICE_KEY.
+	onlineOrderHandler.SetRiderDeps(orderingS2SClient, cfg.Logistics.ServiceURL, cfg.Logistics.APIKey)
 
 	// Platform admin: service configuration CRUD
 	serviceConfigHandler := handlers.NewServiceConfigHandler(entClient, log)
@@ -323,7 +334,22 @@ func New(ctx context.Context) (*App, error) {
 		}
 	}
 
-	// Subscribe to ordering click-and-collect events for POS kitchen orders
+	// Subscribe to ordering.order.confirmed — the SINGLE online-order ingestion path for
+	// BOTH pickup (click-and-collect) and delivery. Idempotent via OrderLink; creates the
+	// POSOrder + lines + OrderLink and routes KDS tickets to the correct stations.
+	confirmedConsumer := ordermodule.NewConfirmedOrderConsumer(entClient, orderSvc, log)
+	if natsConn != nil {
+		if eventPub := orderSvc.GetPublisher(); eventPub != nil {
+			confirmedConsumer.SetPublisher(eventPub)
+		}
+		if err := confirmedConsumer.SubscribeToConfirmedOrders(natsConn); err != nil {
+			log.Warn("app: failed to subscribe to ordering.order.confirmed events", zap.Error(err))
+		}
+	}
+
+	// Legacy ordering.order.for_pickup consumer — retained but now a no-op whenever an
+	// OrderLink already exists (the confirmed consumer is authoritative). Kept subscribed
+	// for backward compatibility with any still-publishing ordering-backend version.
 	pickupConsumer := ordermodule.NewPickupConsumer(entClient, orderSvc, log)
 	if natsConn != nil {
 		if eventPub := orderSvc.GetPublisher(); eventPub != nil {

@@ -14,6 +14,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent"
 	entkdsstation "github.com/bengobox/pos-service/internal/ent/kdsstation"
 	entkdsticket "github.com/bengobox/pos-service/internal/ent/kdsticket"
+	entorderlink "github.com/bengobox/pos-service/internal/ent/orderlink"
 	entposorder "github.com/bengobox/pos-service/internal/ent/posorder"
 	kdsmod "github.com/bengobox/pos-service/internal/modules/kds"
 	notifmod "github.com/bengobox/pos-service/internal/modules/notifications"
@@ -297,15 +298,11 @@ func (h *KDSHandler) transitionTicket(w http.ResponseWriter, r *http.Request, to
 		})
 	}
 
+	// Publish pos.kds.order.ready at the ORDER level — only once every KDS ticket
+	// for the order is ready (mirrors syncOrderOnAllTicketsServed). external_order_id
+	// is resolved via OrderLink so ordering-backend can notify the online customer.
 	if toStatus == entkdsticket.StatusReady && h.publisher != nil {
-		_ = h.publisher.PublishKDSOrderReady(r.Context(), tid, map[string]any{
-			"ticket_id":       updated.ID,
-			"order_id":        updated.OrderID,
-			"order_number":    updated.OrderNumber,
-			"station_id":      updated.StationID,
-			"table_reference": updated.TableReference,
-			"completed_at":    now,
-		})
+		h.publishOrderReadyIfAllReady(r.Context(), tid, updated.OrderID, updated.OrderNumber)
 	}
 
 	// When all tickets for this order are served, move the order to pending_payment.
@@ -363,6 +360,43 @@ func (h *KDSHandler) syncOrderOnAllTicketsServed(ctx context.Context, tid, order
 			},
 		})
 	}
+}
+
+// publishOrderReadyIfAllReady publishes pos.kds.order.ready ONCE, when every KDS
+// ticket for the order has reached "ready" (none still pending/in_progress). This is
+// the order-level "all stations done — order ready for the customer" signal, as opposed
+// to a per-ticket event. external_order_id is resolved via OrderLink (by order_id) so
+// ordering-backend can notify the online customer; it is omitted for POS-native orders
+// that have no online linkage.
+func (h *KDSHandler) publishOrderReadyIfAllReady(ctx context.Context, tid, orderID uuid.UUID, orderNumber string) {
+	// Any ticket still pending or in_progress means the order is not yet fully ready.
+	notReady, err := h.client.KDSTicket.Query().
+		Where(
+			entkdsticket.TenantID(tid),
+			entkdsticket.OrderID(orderID),
+			entkdsticket.StatusIn(
+				entkdsticket.StatusPending,
+				entkdsticket.StatusInProgress,
+			),
+		).
+		Count(ctx)
+	if err != nil || notReady > 0 {
+		return
+	}
+
+	// Resolve the external (online) order id, if this POS order originated online.
+	externalOrderID := ""
+	if link, lerr := h.client.OrderLink.Query().
+		Where(entorderlink.OrderID(orderID)).
+		First(ctx); lerr == nil {
+		externalOrderID = link.ExternalOrderID
+	}
+
+	_ = h.publisher.PublishKDSOrderReady(ctx, tid, map[string]any{
+		"order_id":          orderID,
+		"order_number":      orderNumber,
+		"external_order_id": externalOrderID,
+	})
 }
 
 // CallWaiter handles POST /{tenantID}/pos/kds/tickets/{id}/call-waiter

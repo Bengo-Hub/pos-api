@@ -8,6 +8,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/bengobox/pos-service/internal/ent"
 	entstaff "github.com/bengobox/pos-service/internal/ent/staffmember"
@@ -104,11 +105,12 @@ func (h *StaffHandler) ListStaffForAdmin(w http.ResponseWriter, r *http.Request)
 // ── POST /{tenant}/pos/staff — create new staff member ───────────────────────
 
 type createStaffInput struct {
-	UserID         string  `json:"user_id"`
+	UserID         string  `json:"user_id"` // optional — empty creates a local PIN-only staff member (no SSO account)
 	OutletID       string  `json:"outlet_id"`
 	Name           string  `json:"name"`
 	Role           string  `json:"role"`
 	EmploymentType string  `json:"employment_type"`
+	PIN            string  `json:"pin"` // optional 4-6 digit terminal PIN; set on the new member if provided
 	HourlyRate     *float64 `json:"hourly_rate"`
 	DailyRate      *float64 `json:"daily_rate"`
 	MonthlySalary  *float64 `json:"monthly_salary"`
@@ -140,10 +142,18 @@ func (h *StaffHandler) CreateStaff(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID, err := uuid.Parse(input.UserID)
-	if err != nil {
-		jsonError(w, "invalid user_id", http.StatusBadRequest)
-		return
+	// user_id is optional. When omitted we mint a stable UUID for a local PIN-only staff
+	// member (terminal login only, no SSO account); when present it links to an existing
+	// auth-service user.
+	var userID uuid.UUID
+	if input.UserID == "" {
+		userID = uuid.New()
+	} else {
+		userID, err = uuid.Parse(input.UserID)
+		if err != nil {
+			jsonError(w, "invalid user_id", http.StatusBadRequest)
+			return
+		}
 	}
 
 	empType := entstaff.EmploymentTypeFullTime
@@ -158,6 +168,20 @@ func (h *StaffHandler) CreateStaff(w http.ResponseWriter, r *http.Request) {
 		SetRole(input.Role).
 		SetEmploymentType(empType).
 		SetIsActive(true)
+
+	// Optional terminal PIN — lets the new member clock in immediately without an SSO login.
+	if input.PIN != "" {
+		if len(input.PIN) < 4 {
+			jsonError(w, "pin must be at least 4 digits", http.StatusBadRequest)
+			return
+		}
+		hash, hErr := bcrypt.GenerateFromPassword([]byte(input.PIN), bcrypt.DefaultCost)
+		if hErr != nil {
+			jsonError(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		q = q.SetPinHash(string(hash)).SetPinFastHash(pinFastHash(tid, userID, input.PIN))
+	}
 
 	if input.HourlyRate != nil {
 		q = q.SetHourlyRate(*input.HourlyRate)

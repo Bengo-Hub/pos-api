@@ -73,11 +73,165 @@ paths:
           description: Unauthorized
         '500':
           description: Internal server error
+  /v1/{tenantID}/pos/online-orders/pickup:
+    get:
+      tags:
+        - Online Orders
+      summary: List active pickup / click-and-collect online orders
+      description: >-
+        Returns active pickup / click-and-collect orders (not completed or cancelled)
+        for the KDS. Optionally filter by status and outlet_id.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: tenantID
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Tenant identifier
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter by exact order status (defaults to active orders)
+        - name: outlet_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: Restrict results to a single outlet
+      responses:
+        '200':
+          description: Paginated list of pickup orders
+        '401':
+          description: Unauthorized
+  /v1/{tenantID}/pos/online-orders/{orderID}/ready:
+    post:
+      tags:
+        - Online Orders
+      summary: Mark an online order ready for pickup
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: tenantID
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: orderID
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Updated order
+        '404':
+          description: Order not found
+  /v1/{tenantID}/pos/online-orders/{orderID}/collected:
+    post:
+      tags:
+        - Online Orders
+      summary: Mark an online order collected by the customer
+      description: >-
+        Completes the order, serves any outstanding KDS tickets (so they leave the
+        kitchen display), and publishes pos.online_order.collected for ordering-backend.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: tenantID
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: orderID
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Updated order
+        '404':
+          description: Order not found
+  /v1/{tenantID}/pos/online-orders/riders:
+    get:
+      tags:
+        - Online Orders
+      summary: List available delivery riders (WS-D)
+      description: >-
+        Proxies logistics-api GET /api/v1/{tenantSlug}/fleet/members?status=active.
+        Read-only; logistics-api owns the fleet.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: tenantID
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of active fleet members
+        '502':
+          description: Logistics service unavailable
+        '503':
+          description: Rider service not configured
+  /v1/{tenantID}/pos/online-orders/{orderID}/assign-rider:
+    post:
+      tags:
+        - Online Orders
+      summary: Assign a rider to a delivery online order (WS-D)
+      description: >-
+        Resolves the external order id via the OrderLink and DELEGATES to ordering-backend
+        PUT /api/v1/{tenantSlug}/admin/orders/{externalOrderID}/rider. pos-api never calls
+        logistics /tasks assign directly — ordering-backend owns the rider-assignment flow.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: tenantID
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: orderID
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - rider_id
+              properties:
+                rider_id:
+                  type: string
+      responses:
+        '200':
+          description: Rider assigned
+        '400':
+          description: Missing rider_id or order not linked to an online order
+        '404':
+          description: Order not found
+        '502':
+          description: Ordering-backend delegation failed
+        '503':
+          description: Ordering service not configured
 components:
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: JWT token from auth-service. Format: Bearer {token}
+      description: "JWT token from auth-service. Format: Bearer {token}"
 
