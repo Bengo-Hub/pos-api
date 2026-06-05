@@ -291,8 +291,12 @@ func New(
 					// Payments
 					if payments != nil {
 						pos.Get("/gateways", payments.GetGateways)
-						pos.Post("/orders/{orderID}/payments/intent", payments.CreatePaymentIntent)
-						pos.Post("/orders/{orderID}/payments", payments.RecordPayment)
+						// Recording a payment (cash/M-Pesa ref) or opening a payment intent is a
+						// money-movement action — gate on payments.add (cashier, waiter, manager+).
+						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.payments.add", "pos.payments.manage")).
+							Post("/orders/{orderID}/payments/intent", payments.CreatePaymentIntent)
+						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.payments.add", "pos.payments.manage")).
+							Post("/orders/{orderID}/payments", payments.RecordPayment)
 						pos.Get("/orders/{orderID}/payments", payments.ListOrderPayments)
 						pos.Get("/orders/{orderID}/payment-status/stream", payments.StreamPaymentStatus)
 						pos.Post("/payments/initiate", payments.ProxyInitiate)
@@ -387,7 +391,9 @@ func New(
 						if billSplits != nil {
 							pos.Get("/orders/{orderID}/splits", billSplits.ListSplits)
 							pos.Post("/orders/{orderID}/splits", billSplits.CreateSplits)
-							pos.Post("/orders/{orderID}/splits/{splitID}/settle", billSplits.SettleSplit)
+							// Settling a split records a payment — gate on payments.add like other tender flows.
+							pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.payments.add", "pos.payments.manage")).
+								Post("/orders/{orderID}/splits/{splitID}/settle", billSplits.SettleSplit)
 						}
 						pos.Get("/returns", returns.ListReturns)
 						pos.Get("/returns/{returnID}", returns.GetReturn)
@@ -600,12 +606,17 @@ func New(
 					// Online ordering pickup status — KDS click-and-collect (Sprint 13)
 					if onlineOrders != nil {
 						pos.Get("/online-orders/pickup", onlineOrders.ListPickup)
-						pos.Post("/online-orders/{orderID}/ready", onlineOrders.MarkReady)
-						pos.Post("/online-orders/{orderID}/collected", onlineOrders.MarkCollected)
+						// Pickup hand-off + delivery rider assignment mutate order state — gate on
+						// orders.change (waiter, manager+). Reads (pickup/rider lists) stay open.
+						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.orders.change", "pos.orders.manage")).
+							Post("/online-orders/{orderID}/ready", onlineOrders.MarkReady)
+						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.orders.change", "pos.orders.manage")).
+							Post("/online-orders/{orderID}/collected", onlineOrders.MarkCollected)
 						// WS-D delivery rider assignment: list fleet (proxy logistics) +
 						// assign rider (delegate to ordering-backend, which owns the order).
 						pos.Get("/online-orders/riders", onlineOrders.ListAvailableRiders)
-						pos.Post("/online-orders/{orderID}/assign-rider", onlineOrders.AssignRider)
+						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.orders.change", "pos.orders.manage")).
+							Post("/online-orders/{orderID}/assign-rider", onlineOrders.AssignRider)
 					}
 
 					// Daily closings (ERP reconciliation)

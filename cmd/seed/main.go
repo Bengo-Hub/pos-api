@@ -693,13 +693,22 @@ func seedRBACRoles(ctx context.Context, client *ent.Client) error {
 		{
 			code:        "waiter",
 			name:        "Waiter",
-			description: "Take orders and manage assigned tables",
+			description: "Take orders, manage tables, settle bills, and handle pickup/delivery hand-off",
 			permissions: []string{
-				"pos.orders.add", "pos.orders.view_own", "pos.orders.change_own",
+				// Orders: own table orders + change any (needed to act on unassigned
+				// online pickup/delivery orders that have no waiter staff_id).
+				"pos.orders.add", "pos.orders.view_own", "pos.orders.change", "pos.orders.change_own",
+				// Bill settlement: some businesses have waiters confirm/record payments
+				// (cash or mobile-money refs e.g. M-Pesa) directly at the table.
+				"pos.payments.add", "pos.payments.view_own",
 				"pos.catalog.view",
 				"pos.tables.view", "pos.tables.change_own",
 				"pos.modifiers.view",
 				"pos.sessions.add", "pos.sessions.view_own",
+				// Own cash float so recorded cash reconciles at shift close, like a cashier.
+				"pos.cash_drawers.add", "pos.cash_drawers.view_own", "pos.cash_drawers.change_own",
+				// Read-only KDS so waiters can see which tickets are ready to serve/hand off.
+				"pos.kds.view",
 			},
 		},
 		{
