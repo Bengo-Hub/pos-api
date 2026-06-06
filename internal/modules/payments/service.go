@@ -123,6 +123,17 @@ func (s *Service) CreatePaymentIntent(ctx context.Context, req RecordPaymentRequ
 		return nil, fmt.Errorf("payments: cannot pay %s order", order.Status)
 	}
 
+	// Never trust a non-positive client amount: settling a bill from a list
+	// (e.g. "Settle Bill" in My Bills) can pass amount=0 when the in-memory total
+	// is stale. Derive the charge from the order's outstanding balance so we never
+	// send a zero-amount intent to treasury (which 500s on it).
+	if req.Amount <= 0 {
+		req.Amount = s.outstandingBalance(ctx, order)
+	}
+	if req.Amount <= 0 {
+		return nil, fmt.Errorf("payments: order has no outstanding balance to charge")
+	}
+
 	currency := req.Currency
 	if currency == "" {
 		currency = s.defaultCurrency
@@ -265,6 +276,14 @@ func (s *Service) RecordPayment(ctx context.Context, req RecordPaymentRequest) (
 		return nil, fmt.Errorf("payments: cannot pay %s order", order.Status)
 	}
 
+	// Fall back to the order's outstanding balance when no positive amount is given.
+	if req.Amount <= 0 {
+		req.Amount = s.outstandingBalance(ctx, order)
+	}
+	if req.Amount <= 0 {
+		return nil, fmt.Errorf("payments: order has no outstanding balance to charge")
+	}
+
 	currency := req.Currency
 	if currency == "" {
 		currency = s.defaultCurrency
@@ -298,6 +317,24 @@ func (s *Service) ListOrderPayments(ctx context.Context, tenantID, orderID uuid.
 	return s.client.POSPayment.Query().
 		Where(pospayment.OrderID(orderID)).
 		All(ctx)
+}
+
+// outstandingBalance returns the order total minus all completed payments (>= 0).
+func (s *Service) outstandingBalance(ctx context.Context, order *ent.POSOrder) float64 {
+	payments, err := s.client.POSPayment.Query().
+		Where(pospayment.OrderID(order.ID), pospayment.Status(StatusCompleted)).
+		All(ctx)
+	if err != nil {
+		return order.TotalAmount
+	}
+	var paid float64
+	for _, p := range payments {
+		paid += p.Amount
+	}
+	if remaining := order.TotalAmount - paid; remaining > 0 {
+		return remaining
+	}
+	return 0
 }
 
 // completeOrderIfFullyPaid checks total payments and marks order completed when fully covered.
