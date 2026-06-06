@@ -119,6 +119,14 @@ func terminalToAuthClaims(tc *terminalClaims) *authclient.Claims {
 func (h *PINAuthHandler) RequireAnyAuth(ssoAuth *authclient.AuthMiddleware) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Browser WebSocket / EventSource clients cannot set the Authorization
+			// header, so streaming endpoints pass the token as ?access_token=.
+			// Promote it into the header so both auth paths below work unchanged.
+			if r.Header.Get("Authorization") == "" {
+				if qt := r.URL.Query().Get("access_token"); qt != "" {
+					r.Header.Set("Authorization", "Bearer "+qt)
+				}
+			}
 			authHeader := r.Header.Get("Authorization")
 			if strings.HasPrefix(authHeader, "Bearer ") {
 				tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
