@@ -17,6 +17,8 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/posorderline"
 	"github.com/bengobox/pos-service/internal/ent/pospayment"
 	staffmemberent "github.com/bengobox/pos-service/internal/ent/staffmember"
+	enttable "github.com/bengobox/pos-service/internal/ent/table"
+	"github.com/bengobox/pos-service/internal/ent/tableassignment"
 	"github.com/bengobox/pos-service/internal/modules/inventory"
 	"github.com/bengobox/pos-service/internal/modules/orders"
 	"github.com/bengobox/pos-service/internal/modules/treasury"
@@ -365,6 +367,34 @@ func (s *Service) completeOrderIfFullyPaid(ctx context.Context, order *ent.POSOr
 			}
 			s.publishSaleFinalized(ctx, updated)
 			s.calcCommissions(ctx, updated)
+			// Free the table once the bill is settled, regardless of which flow
+			// (waiter My Bills, cashier orders page, or async digital confirmation)
+			// closed it — mirrors the manual ReleaseTable endpoint.
+			s.releaseTableForOrder(ctx, order.ID)
+		}
+	}
+}
+
+// releaseTableForOrder frees any table occupied by this order: it closes the
+// active table assignment and sets the table back to available. No-op when the
+// order isn't tied to a table (takeaway, delivery, retail).
+func (s *Service) releaseTableForOrder(ctx context.Context, orderID uuid.UUID) {
+	asgns, err := s.client.TableAssignment.Query().
+		Where(tableassignment.OrderID(orderID), tableassignment.ReleasedAtIsNil()).
+		All(ctx)
+	if err != nil || len(asgns) == 0 {
+		return
+	}
+	now := time.Now()
+	for _, a := range asgns {
+		if _, uerr := s.client.TableAssignment.UpdateOne(a).SetReleasedAt(now).Save(ctx); uerr != nil {
+			s.log.Warn("release table: close assignment failed", zap.Error(uerr))
+		}
+		if _, uerr := s.client.Table.Update().
+			Where(enttable.ID(a.TableID)).
+			SetStatus("available").
+			Save(ctx); uerr != nil {
+			s.log.Warn("release table: set available failed", zap.Error(uerr))
 		}
 	}
 }
