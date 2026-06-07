@@ -1,0 +1,6 @@
+# Force LF for source, SQL migrations and checksum files to stop Windows CRLF drift that
+# breaks Atlas atlas.sum validation and creates spurious ent-codegen diffs. (2026-06-07)
+*.go   text eol=lf
+*.sql  text eol=lf
+*.sum  text eol=lf
+*.mod  text eol=lf
