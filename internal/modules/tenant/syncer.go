@@ -17,6 +17,10 @@ import (
 	enttenant "github.com/bengobox/pos-service/internal/ent/tenant"
 )
 
+// s2sHTTPClient is the shared HTTP client for service-to-service calls in this
+// package. It carries a timeout so upstream calls cannot hang indefinitely.
+var s2sHTTPClient = &http.Client{Timeout: 15 * time.Second}
+
 // posAcceptedUseCases mirrors the set in auth_outlet_events.go — only sync outlets
 // that the POS service actually uses.
 var posAcceptedUseCases = map[string]bool{
@@ -116,7 +120,7 @@ func (s *Syncer) SyncOutlets(ctx context.Context, tenantID uuid.UUID, tenantSlug
 		return fmt.Errorf("tenant.Syncer.SyncOutlets: build request: %w", err)
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := s2sHTTPClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("tenant.Syncer.SyncOutlets: GET %s: %w", url, err)
 	}
