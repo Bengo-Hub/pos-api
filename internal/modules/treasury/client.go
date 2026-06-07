@@ -113,6 +113,29 @@ func (c *Client) CreateRefund(ctx context.Context, tenantSlug string, req Refund
 	return doRequest[RefundResponse](ctx, c.httpClient, http.MethodPost, url, c.apiKey, req)
 }
 
+// CreditSaleRequest is the body for POST /api/v1/s2s/{tenant}/ar/credit-sale.
+type CreditSaleRequest struct {
+	CustomerIdentifier string  `json:"customer_identifier,omitempty"`
+	CustomerName       string  `json:"customer_name,omitempty"`
+	POSOrderID         string  `json:"pos_order_id,omitempty"`
+	Amount             float64 `json:"amount"`
+	Currency           string  `json:"currency"`
+}
+
+// CreditSaleResponse is the treasury customer-balance row returned after posting a credit sale.
+type CreditSaleResponse struct {
+	ID         string `json:"id"`
+	BalanceDue string `json:"balance_due"`
+	Currency   string `json:"currency"`
+}
+
+// RecordCreditSale posts a POS on-account ("credit sale") charge to the customer's AR balance in
+// treasury. Treasury enforces the customer's credit limit and returns an error if it would be exceeded.
+func (c *Client) RecordCreditSale(ctx context.Context, tenantSlug string, req CreditSaleRequest) (*CreditSaleResponse, error) {
+	url := fmt.Sprintf("%s/api/v1/s2s/%s/ar/credit-sale", c.baseURL, tenantSlug)
+	return doRequest[CreditSaleResponse](ctx, c.httpClient, http.MethodPost, url, c.apiKey, req)
+}
+
 // CreateIntent calls POST /api/v1/s2s/{tenantSlug}/payments/intents on treasury-api.
 // The S2S path requires only X-API-Key (INTERNAL_SERVICE_KEY) — no JWT needed.
 // idempotencyKey (e.g. order UUID) is sent as Idempotency-Key header to prevent duplicate intents
