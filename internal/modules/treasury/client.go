@@ -341,3 +341,26 @@ func (c *Client) RecordExpense(ctx context.Context, tenantSlug string, req Expen
 	url := fmt.Sprintf("%s/api/v1/s2s/%s/expenses", c.baseURL, tenantSlug)
 	return doRequest[ExpenseResponse](ctx, c.httpClient, http.MethodPost, url, c.apiKey, req)
 }
+// ListC2BCandidates queries unreconciled M-Pesa C2B inbox payments from treasury (raw passthrough of
+// the cashier's query params: shortCode, amount, billRef, since, status).
+func (c *Client) ListC2BCandidates(ctx context.Context, tenantSlug, rawQuery string) (json.RawMessage, error) {
+	url := fmt.Sprintf("%s/api/v1/s2s/%s/c2b/payments", c.baseURL, tenantSlug)
+	if rawQuery != "" {
+		url += "?" + rawQuery
+	}
+	resp, err := doRequest[json.RawMessage](ctx, c.httpClient, http.MethodGet, url, c.apiKey, nil)
+	if err != nil {
+		return nil, err
+	}
+	return *resp, nil
+}
+
+// ClaimC2BPayment atomically binds a C2B payment to a POS order in the treasury inbox.
+func (c *Client) ClaimC2BPayment(ctx context.Context, tenantSlug, transID, posOrderID string) (json.RawMessage, error) {
+	url := fmt.Sprintf("%s/api/v1/s2s/%s/c2b/payments/%s/claim", c.baseURL, tenantSlug, transID)
+	resp, err := doRequest[json.RawMessage](ctx, c.httpClient, http.MethodPost, url, c.apiKey, map[string]string{"pos_order_id": posOrderID})
+	if err != nil {
+		return nil, err
+	}
+	return *resp, nil
+}

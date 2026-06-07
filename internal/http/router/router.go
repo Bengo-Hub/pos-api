@@ -293,6 +293,8 @@ func New(
 					if payments != nil {
 						pos.Get("/gateways", payments.GetGateways)
 						pos.Post("/expenses", payments.RecordExpense)
+						pos.Get("/c2b/payments", payments.ListC2BCandidates)
+						pos.Post("/c2b/payments/{transID}/claim", payments.ClaimC2BPayment)
 						// Recording a payment (cash/M-Pesa ref) or opening a payment intent is a
 						// money-movement action — gate on payments.add (cashier, waiter, manager+).
 						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.payments.add", "pos.payments.manage")).
