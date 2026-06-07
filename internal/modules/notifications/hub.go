@@ -61,6 +61,11 @@ func (h *Hub) ServeWS(ctx context.Context, conn *websocket.Conn, tenantID, userI
 	defer func() {
 		h.mu.Lock()
 		delete(h.clients, c)
+		// Close send so the writer goroutine's `range c.send` returns instead of
+		// leaking forever after the client disconnects. Safe: the client is
+		// removed from the map under the same lock, so BroadcastToUser (which
+		// holds RLock) can no longer reach c to send on the closed channel.
+		close(c.send)
 		h.mu.Unlock()
 	}()
 
