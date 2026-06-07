@@ -56,7 +56,7 @@ func (h *OnlineOrderHandler) ListAvailableRiders(w http.ResponseWriter, r *http.
 		req.Header.Set("X-Outlet-ID", oid)
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := s2sHTTPClient.Do(req)
 	if err != nil {
 		h.log.Error("list-riders: upstream call failed", zap.Error(err), zap.String("upstream", upstream))
 		jsonError(w, "logistics unavailable", http.StatusBadGateway)

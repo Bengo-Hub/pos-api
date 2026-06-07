@@ -57,7 +57,7 @@ func (h *PurchaseOrdersHandler) proxyToInventory(w http.ResponseWriter, r *http.
 		req.Header.Set("Content-Type", ct)
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := s2sHTTPClient.Do(req)
 	if err != nil {
 		h.log.Error("purchase-orders proxy: upstream call failed", zap.Error(err), zap.String("upstream", upstream))
 		jsonError(w, "upstream unavailable", http.StatusBadGateway)

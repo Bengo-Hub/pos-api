@@ -10,6 +10,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -22,6 +23,10 @@ import (
 	entoverride "github.com/bengobox/pos-service/internal/ent/poscatalogoverride"
 	"github.com/bengobox/pos-service/internal/http/middleware"
 )
+
+// s2sHTTPClient is the shared HTTP client for service-to-service calls in this
+// package. It carries a timeout so upstream calls cannot hang indefinitely.
+var s2sHTTPClient = &http.Client{Timeout: 15 * time.Second}
 
 // CatalogHandler handles catalog item endpoints.
 // Item data is always sourced from inventory-api (name, description, image, category).
@@ -163,7 +168,7 @@ func doInventoryGET(ctx context.Context, path string, outletID string) ([]byte, 
 	if outletID != "" {
 		req.Header.Set("X-Outlet-ID", outletID)
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := s2sHTTPClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
