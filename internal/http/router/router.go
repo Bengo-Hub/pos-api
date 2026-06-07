@@ -205,6 +205,7 @@ func New(
 					if orders != nil {
 						pos.Get("/orders", orders.ListOrders)
 						pos.Post("/orders", orders.CreateOrder)
+						pos.Get("/orders/by-number/{orderNumber}", orders.GetOrderByNumber)
 						pos.Get("/orders/{orderID}", orders.GetOrder)
 						pos.Patch("/orders/{orderID}/status", orders.UpdateStatus)
 						pos.Patch("/orders/{orderID}/void", orders.VoidOrder)

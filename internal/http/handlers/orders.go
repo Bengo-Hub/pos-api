@@ -163,6 +163,51 @@ func (h *POSOrderHandler) GetOrder(w http.ResponseWriter, r *http.Request) {
 	jsonOK(w, order)
 }
 
+// GetOrderByNumber handles GET /{tenantID}/pos/orders/by-number/{orderNumber} — used by the POS
+// "Return by Invoice" flow to look up a prior sale by its order/invoice number.
+func (h *POSOrderHandler) GetOrderByNumber(w http.ResponseWriter, r *http.Request) {
+	tenantID := httpware.GetTenantID(r.Context())
+	if tenantID == "" {
+		jsonError(w, "tenant_id required", http.StatusBadRequest)
+		return
+	}
+	tid, err := uuid.Parse(tenantID)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+
+	orderNumber := chi.URLParam(r, "orderNumber")
+	if orderNumber == "" {
+		jsonError(w, "order_number required", http.StatusBadRequest)
+		return
+	}
+
+	whereArgs := []predicate.POSOrder{posorder.OrderNumber(orderNumber), posorder.TenantID(tid)}
+	if oidStr := httpware.GetOutletID(r.Context()); oidStr != "" {
+		if oid, parseErr := uuid.Parse(oidStr); parseErr == nil {
+			whereArgs = append(whereArgs, posorder.OutletID(oid))
+		}
+	}
+	order, err := h.client.POSOrder.Query().
+		Where(whereArgs...).
+		WithLines(func(q *ent.POSOrderLineQuery) { q.WithModifiers() }).
+		WithPayments().
+		WithEvents().
+		Only(r.Context())
+	if err != nil {
+		if ent.IsNotFound(err) {
+			jsonError(w, "order not found", http.StatusNotFound)
+			return
+		}
+		h.log.Error("get order by number failed", zap.Error(err))
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	jsonOK(w, order)
+}
+
 // CreateOrder handles POST /{tenantID}/pos/orders
 func (h *POSOrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 	tenantID := httpware.GetTenantID(r.Context())
