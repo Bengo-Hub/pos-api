@@ -303,3 +303,62 @@ func (h *PaymentHandler) RecordExpense(w http.ResponseWriter, r *http.Request) {
 	}
 	jsonOK(w, resp)
 }
+// ListC2BCandidates handles GET /{tenant}/pos/c2b/payments — proxies the treasury C2B inbox query so
+// the cashier can find an unreconciled till/paybill payment to bind to the open sale.
+func (h *PaymentHandler) ListC2BCandidates(w http.ResponseWriter, r *http.Request) {
+	tenantSlug := h.resolveTenantSlug(r)
+	if tenantSlug == "" || h.treasuryClient == nil {
+		jsonError(w, "tenant context required", http.StatusBadRequest)
+		return
+	}
+	resp, err := h.treasuryClient.ListC2BCandidates(r.Context(), tenantSlug, r.URL.RawQuery)
+	if err != nil {
+		h.log.Error("list c2b candidates failed", zap.Error(err))
+		jsonError(w, "failed to query c2b payments", http.StatusBadGateway)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_, _ = w.Write(resp)
+}
+
+// ClaimC2BPayment handles POST /{tenant}/pos/c2b/payments/{transID}/claim — binds a C2B payment to a sale.
+func (h *PaymentHandler) ClaimC2BPayment(w http.ResponseWriter, r *http.Request) {
+	tenantSlug := h.resolveTenantSlug(r)
+	if tenantSlug == "" || h.treasuryClient == nil {
+		jsonError(w, "tenant context required", http.StatusBadRequest)
+		return
+	}
+	transID := chi.URLParam(r, "transID")
+	var body struct {
+		POSOrderID string `json:"pos_order_id"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&body)
+	resp, err := h.treasuryClient.ClaimC2BPayment(r.Context(), tenantSlug, transID, body.POSOrderID)
+	if err != nil {
+		h.log.Error("claim c2b payment failed", zap.Error(err))
+		jsonError(w, "failed to claim c2b payment", http.StatusBadGateway)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_, _ = w.Write(resp)
+}
+
+// resolveTenantSlug resolves the tenant slug from JWT claims, httpware context, or the local Tenant
+// table (PIN JWT fallback) — the same precedence used by GetGateways/RecordExpense.
+func (h *PaymentHandler) resolveTenantSlug(r *http.Request) string {
+	tenantSlug := ""
+	if claims, ok := authclient.ClaimsFromContext(r.Context()); ok {
+		tenantSlug = claims.GetTenantSlug()
+	}
+	if tenantSlug == "" {
+		tenantSlug = httpware.GetTenantSlug(r.Context())
+	}
+	if tenantSlug == "" && h.client != nil {
+		if tid, parseErr := parseTenantUUID(r); parseErr == nil {
+			if t, lookupErr := h.client.Tenant.Get(r.Context(), tid); lookupErr == nil {
+				tenantSlug = t.Slug
+			}
+		}
+	}
+	return tenantSlug
+}
