@@ -330,7 +330,9 @@ func (h *PaymentHandler) ClaimC2BPayment(w http.ResponseWriter, r *http.Request)
 	}
 	transID := chi.URLParam(r, "transID")
 	var body struct {
-		POSOrderID string `json:"pos_order_id"`
+		POSOrderID string  `json:"pos_order_id"`
+		Amount     float64 `json:"amount"`
+		TenderID   string  `json:"tender_id"`
 	}
 	_ = json.NewDecoder(r.Body).Decode(&body)
 	resp, err := h.treasuryClient.ClaimC2BPayment(r.Context(), tenantSlug, transID, body.POSOrderID)
@@ -339,6 +341,28 @@ func (h *PaymentHandler) ClaimC2BPayment(w http.ResponseWriter, r *http.Request)
 		jsonError(w, "failed to claim c2b payment", http.StatusBadGateway)
 		return
 	}
+
+	// Settle the POS order with the claimed C2B amount: record a completed payment (reference =
+	// M-Pesa TransID) and close the order if it is now fully paid. Best-effort — the treasury bind
+	// already succeeded, so a settle error must not fail the claim.
+	if body.POSOrderID != "" && body.Amount > 0 && h.paymentSvc != nil {
+		if tid, terr := parseTenantUUID(r); terr == nil {
+			if orderID, oerr := uuid.Parse(body.POSOrderID); oerr == nil {
+				tenderID, _ := uuid.Parse(body.TenderID) // uuid.Nil when not supplied
+				if _, perr := h.paymentSvc.RecordPayment(r.Context(), payments.RecordPaymentRequest{
+					TenantID:  tid,
+					OrderID:   orderID,
+					TenderID:  tenderID,
+					Amount:    body.Amount,
+					Currency:  "KES",
+					Reference: transID,
+				}); perr != nil {
+					h.log.Error("c2b: settle order failed after claim", zap.String("trans_id", transID), zap.Error(perr))
+				}
+			}
+		}
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	_, _ = w.Write(resp)
 }
