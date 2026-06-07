@@ -313,3 +313,31 @@ func doRequestWithHeaders[T any](ctx context.Context, client *http.Client, metho
 	}
 	return &result, nil
 }
+
+// ExpenseRequest is the body for POST /api/v1/s2s/{tenant}/expenses (register "Add Expense").
+type ExpenseRequest struct {
+	CategoryID    string         `json:"category_id,omitempty"`
+	Description   string         `json:"description"`
+	Amount        float64        `json:"amount"`
+	TaxAmount     float64        `json:"tax_amount,omitempty"`
+	Currency      string         `json:"currency,omitempty"`
+	ExpenseDate   string         `json:"expense_date,omitempty"`
+	ReceiptURL    string         `json:"receipt_url,omitempty"`
+	OutletID      string         `json:"outlet_id,omitempty"`
+	SubmittedBy   string         `json:"submitted_by,omitempty"`
+	SourceService string         `json:"source_service,omitempty"`
+	Metadata      map[string]any `json:"metadata,omitempty"`
+}
+
+// ExpenseResponse is the created expense returned by treasury (subset).
+type ExpenseResponse struct {
+	ID            string `json:"id"`
+	ExpenseNumber string `json:"expense_number"`
+	Status        string `json:"status"`
+}
+
+// RecordExpense posts a register expense to treasury over S2S (X-API-Key).
+func (c *Client) RecordExpense(ctx context.Context, tenantSlug string, req ExpenseRequest) (*ExpenseResponse, error) {
+	url := fmt.Sprintf("%s/api/v1/s2s/%s/expenses", c.baseURL, tenantSlug)
+	return doRequest[ExpenseResponse](ctx, c.httpClient, http.MethodPost, url, c.apiKey, req)
+}
