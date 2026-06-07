@@ -13,6 +13,7 @@ import (
 
 	"github.com/bengobox/pos-service/internal/ent"
 	entoverride "github.com/bengobox/pos-service/internal/ent/poscatalogoverride"
+	platformevents "github.com/bengobox/pos-service/internal/platform/events"
 )
 
 // uuidFromPayload parses a UUID from an event payload value (string after JSON round-trip).
@@ -113,16 +114,15 @@ func (h *InventoryEventHandler) SubscribeToInventoryEvents(nc *nats.Conn) error 
 		{"inventory.bundle.updated", "pos-inv-bundle-updated"},
 	}
 	for _, s := range subs {
-		if _, err := js.Subscribe(s.subject, handler,
+		// Multi-layer rebind: settle buffer + retry-on-"already bound" so a
+		// restart never silently drops the inventory->POS catalog sync.
+		platformevents.SubscribeWithRebind(h.logger, js, s.subject, handler,
 			nats.Durable(s.durable),
 			nats.AckExplicit(),
 			nats.AckWait(30*time.Second),
 			nats.MaxDeliver(5),
 			nats.DeliverAll(),
-		); err != nil {
-			h.logger.Warn("pos catalog: subscribe failed",
-				zap.String("subject", s.subject), zap.Error(err))
-		}
+		)
 	}
 
 	h.logger.Info("inventory catalog sync subscriptions active",
