@@ -39,6 +39,10 @@ func isCashMethod(method string) bool {
 	return m == "cash" || m == "manual" || m == "room_charge"
 }
 
+// TenderOnAccount is the credit-sale ("sell on account") tender: no money is taken at the till;
+// the amount is posted to the customer's AR balance in treasury instead.
+const TenderOnAccount = "on_account"
+
 // RecordPaymentRequest holds input for recording a POS payment.
 type RecordPaymentRequest struct {
 	TenantID      uuid.UUID
@@ -141,6 +145,12 @@ func (s *Service) CreatePaymentIntent(ctx context.Context, req RecordPaymentRequ
 		currency = s.defaultCurrency
 	}
 
+	// Credit sale (sell on account): no payment is taken now. Post the amount to the customer's AR
+	// balance in treasury (which enforces the credit limit), then settle the order on account.
+	if strings.EqualFold(req.TenderMethod, TenderOnAccount) {
+		return s.recordCreditSale(ctx, order, req, currency)
+	}
+
 	cash := isCashMethod(req.TenderMethod)
 
 	paymentMethod := "pending"
@@ -213,6 +223,50 @@ func (s *Service) CreatePaymentIntent(ctx context.Context, req RecordPaymentRequ
 
 	s.completeOrderIfFullyPaid(ctx, order, req.Amount)
 	return result, nil
+}
+
+// recordCreditSale settles an order "on account" (credit sale). It posts the amount to the
+// customer's AR balance in treasury FIRST — treasury enforces the customer credit limit and
+// rejects over-limit sales — and only on success records a completed on-account payment and
+// completes the order (so goods never leave without the debt being recorded). Requires a customer.
+func (s *Service) recordCreditSale(ctx context.Context, order *ent.POSOrder, req RecordPaymentRequest, currency string) (*CreateIntentResult, error) {
+	if s.treasuryClient == nil {
+		return nil, fmt.Errorf("payments: treasury client not configured")
+	}
+	phone := ""
+	if order.CustomerPhone != nil {
+		phone = *order.CustomerPhone
+	}
+	name := ""
+	if order.CustomerName != nil {
+		name = *order.CustomerName
+	}
+	if strings.TrimSpace(phone) == "" && strings.TrimSpace(name) == "" {
+		return nil, fmt.Errorf("payments: credit sale requires a customer (phone or name)")
+	}
+
+	if _, err := s.treasuryClient.RecordCreditSale(ctx, req.TenantSlug, treasury.CreditSaleRequest{
+		CustomerIdentifier: phone,
+		CustomerName:       name,
+		POSOrderID:         order.ID.String(),
+		Amount:             req.Amount,
+		Currency:           currency,
+	}); err != nil {
+		return nil, fmt.Errorf("payments: credit sale rejected: %w", err)
+	}
+
+	if _, err := s.client.POSPayment.Create().
+		SetOrderID(req.OrderID).
+		SetTenderID(req.TenderID).
+		SetAmount(req.Amount).
+		SetCurrency(currency).
+		SetStatus(StatusCompleted).
+		Save(ctx); err != nil {
+		return nil, fmt.Errorf("payments: record on-account payment: %w", err)
+	}
+
+	s.completeOrderIfFullyPaid(ctx, order, req.Amount)
+	return &CreateIntentResult{IsCash: true}, nil
 }
 
 // ConfirmPaymentByIntentID is called by the treasury.payment.success NATS subscriber.
