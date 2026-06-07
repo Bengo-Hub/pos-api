@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -233,4 +234,72 @@ func (h *PaymentHandler) ListOrderPayments(w http.ResponseWriter, r *http.Reques
 	}
 
 	jsonOK(w, map[string]any{"data": list, "total": len(list)})
+}
+
+type recordExpenseInput struct {
+	CategoryID  string  `json:"category_id,omitempty"`
+	Description string  `json:"description"`
+	Amount      float64 `json:"amount"`
+	TaxAmount   float64 `json:"tax_amount,omitempty"`
+	Currency    string  `json:"currency,omitempty"`
+	ReceiptURL  string  `json:"receipt_url,omitempty"`
+}
+
+// RecordExpense handles POST /{tenant}/pos/expenses — records a petty-cash expense entered at the
+// register straight to treasury (the "Add Expense" flow), attributed to the cashier and outlet.
+// No money moves through the till; it is a finance record owned by treasury.
+func (h *PaymentHandler) RecordExpense(w http.ResponseWriter, r *http.Request) {
+	if h.treasuryClient == nil {
+		jsonError(w, "treasury client not configured", http.StatusInternalServerError)
+		return
+	}
+	var in recordExpenseInput
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		jsonError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	if in.Description == "" || in.Amount <= 0 {
+		jsonError(w, "description and a positive amount are required", http.StatusBadRequest)
+		return
+	}
+
+	tenantSlug := ""
+	submittedBy := ""
+	if claims, ok := authclient.ClaimsFromContext(r.Context()); ok {
+		tenantSlug = claims.GetTenantSlug()
+		submittedBy = claims.Subject
+	}
+	if tenantSlug == "" {
+		tenantSlug = httpware.GetTenantSlug(r.Context())
+	}
+	if tenantSlug == "" && h.client != nil {
+		if tid, parseErr := parseTenantUUID(r); parseErr == nil {
+			if t, lookupErr := h.client.Tenant.Get(r.Context(), tid); lookupErr == nil {
+				tenantSlug = t.Slug
+			}
+		}
+	}
+	if tenantSlug == "" {
+		jsonError(w, "tenant context required", http.StatusBadRequest)
+		return
+	}
+
+	resp, err := h.treasuryClient.RecordExpense(r.Context(), tenantSlug, treasury.ExpenseRequest{
+		CategoryID:    in.CategoryID,
+		Description:   in.Description,
+		Amount:        in.Amount,
+		TaxAmount:     in.TaxAmount,
+		Currency:      in.Currency,
+		ReceiptURL:    in.ReceiptURL,
+		ExpenseDate:   time.Now().UTC().Format(time.RFC3339),
+		OutletID:      httpware.GetOutletID(r.Context()),
+		SubmittedBy:   submittedBy,
+		SourceService: "pos",
+	})
+	if err != nil {
+		h.log.Error("record expense failed", zap.Error(err))
+		jsonError(w, "failed to record expense", http.StatusBadGateway)
+		return
+	}
+	jsonOK(w, resp)
 }
