@@ -2,6 +2,17 @@
 
 **Last updated:** 2026-05-21
 
+> **Retail-POS revamp note (2026-06-07):** several ❌ statuses below are **stale**. Verified against
+> code 2026-06-07: pos **loyalty auto-earn on `pos.sale.finalized` IS wired** (`SaleFinalizedSubscriber`),
+> inventory **publishes `inventory.purchase_order.received`**, and treasury **AR/AP aging endpoints
+> are live** (`/ar/aging`, `/ap/aging`). **Loyalty is now the pos-api source of truth** (keyed on
+> `crm_contact_id`; ordering-backend is a client). New retail surfaces (pricing profile, parked
+> sales, return-by-invoice, credit sale→AR, cheque/bank/advance/store-credit tenders, M-Pesa C2B
+> cashier reconciliation, add-expense-from-register) are scoped in the gap matrix. Authoritative
+> current state + roadmap: `/.claude/plans/_audit-parts/retail-pos-gap-matrix.md` and
+> `/.claude/plans/_audit-parts/retail-pos-audit-and-roadmap-2026-06-07.md`. Re-verify any specific ❌ line against
+> code before relying on it.
+
 ## Overview
 
 The POS service is the **source of truth for sales catalogs (menus)**. While `inventory-api` owns the physical item master, `pos-api` owns how those items are grouped, priced, and displayed for sale at an outlet.
