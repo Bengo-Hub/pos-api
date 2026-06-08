@@ -2,6 +2,7 @@ package router
 
 import (
 	"context"
+	"crypto/subtle"
 	"net/http"
 	"time"
 
@@ -76,6 +77,7 @@ func New(
 	purchaseOrders *handlers.PurchaseOrdersHandler,
 	allowedOrigins []string,
 	redisClient *redis.Client,
+	internalServiceKey string,
 ) http.Handler {
 	r := chi.NewRouter()
 
@@ -699,7 +701,41 @@ func New(
 				}
 			})
 		})
+
+		// ── Service-to-service (S2S) endpoints ──────────────────────────────────────
+		// Internal backend-to-backend routes, authenticated with the shared
+		// INTERNAL_SERVICE_KEY sent as the X-API-Key header (no user JWT). pos-api is the
+		// loyalty source-of-truth (balances keyed on tenant + customer_phone), so other
+		// services (e.g. ordering-backend) earn/redeem against these endpoints.
+		if loyalty != nil && internalServiceKey != "" {
+			api.Group(func(s2s chi.Router) {
+				s2s.Use(requireInternalServiceKey(internalServiceKey))
+				s2s.Route("/s2s/{tenant}", func(t chi.Router) {
+					t.Post("/loyalty/earn", loyalty.S2SEarn)
+					t.Post("/loyalty/redeem", loyalty.S2SRedeem)
+					t.Get("/loyalty/balance", loyalty.S2SBalance)
+				})
+			})
+		}
 	})
 
 	return r
+}
+
+// requireInternalServiceKey guards S2S routes by requiring the shared INTERNAL_SERVICE_KEY in the
+// X-API-Key header. The key is compared in constant time to avoid leaking it via timing.
+func requireInternalServiceKey(expected string) func(http.Handler) http.Handler {
+	expectedBytes := []byte(expected)
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			provided := r.Header.Get("X-API-Key")
+			if provided == "" || subtle.ConstantTimeCompare([]byte(provided), expectedBytes) != 1 {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusUnauthorized)
+				_, _ = w.Write([]byte(`{"error":"invalid or missing service key"}`))
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
 }

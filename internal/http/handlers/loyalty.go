@@ -307,51 +307,62 @@ func (h *LoyaltyHandler) Earn(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "points must be positive", http.StatusBadRequest)
 		return
 	}
-	newBalance := acc.PointsBalance + body.Points
-	_, err = h.db.LoyaltyAccount.UpdateOneID(aid).
-		SetPointsBalance(newBalance).
-		SetLifetimePoints(acc.LifetimePoints + body.Points).
-		Save(r.Context())
+	newBalance, tx, err := h.applyEarn(r.Context(), tid, acc, body.Points, body.OrderID, body.Notes)
 	if err != nil {
 		h.log.Error("earn points update failed", zap.Error(err))
 		jsonError(w, "failed to update account", http.StatusInternalServerError)
 		return
 	}
+	jsonOK(w, map[string]any{"balance": newBalance, "transaction": tx})
+}
+
+// applyEarn is the shared core for crediting loyalty points to an account: it updates the
+// points + lifetime balances, records an "earn" loyalty transaction, and publishes the
+// loyalty.points.earned event. It is reused by both the staff-facing Earn handler and the
+// S2S earn endpoint so the earn logic lives in exactly one place.
+func (h *LoyaltyHandler) applyEarn(ctx context.Context, tid uuid.UUID, acc *ent.LoyaltyAccount, points int, orderID *string, notes string) (int, *ent.LoyaltyTransaction, error) {
+	newBalance := acc.PointsBalance + points
+	if _, err := h.db.LoyaltyAccount.UpdateOneID(acc.ID).
+		SetPointsBalance(newBalance).
+		SetLifetimePoints(acc.LifetimePoints + points).
+		Save(ctx); err != nil {
+		return 0, nil, err
+	}
 	txCreator := h.db.LoyaltyTransaction.Create().
 		SetTenantID(tid).
-		SetAccountID(aid).
+		SetAccountID(acc.ID).
 		SetTypeField("earn").
-		SetPoints(body.Points).
+		SetPoints(points).
 		SetBalanceAfter(newBalance)
-	if body.OrderID != nil {
-		if oid, err := uuid.Parse(*body.OrderID); err == nil {
+	if orderID != nil {
+		if oid, err := uuid.Parse(*orderID); err == nil {
 			txCreator = txCreator.SetOrderID(oid)
 		}
 	}
-	if body.Notes != "" {
-		txCreator = txCreator.SetNotes(body.Notes)
+	if notes != "" {
+		txCreator = txCreator.SetNotes(notes)
 	}
-	tx, err := txCreator.Save(r.Context())
+	tx, err := txCreator.Save(ctx)
 	if err != nil {
 		h.log.Warn("earn: failed to create transaction record", zap.Error(err))
 	}
 	// Publish event for notifications-service (WhatsApp/SMS "You earned X pts" message).
 	if h.publisher != nil {
 		payload := map[string]any{
-			"account_id":     aid.String(),
+			"account_id":     acc.ID.String(),
 			"customer_phone": acc.CustomerPhone,
 			"customer_name":  acc.CustomerName,
-			"points_earned":  body.Points,
+			"points_earned":  points,
 			"balance_after":  newBalance,
 		}
-		if body.OrderID != nil {
-			payload["order_id"] = *body.OrderID
+		if orderID != nil {
+			payload["order_id"] = *orderID
 		}
-		if pubErr := h.publisher.PublishLoyaltyPointsEarned(r.Context(), tid, payload); pubErr != nil {
+		if pubErr := h.publisher.PublishLoyaltyPointsEarned(ctx, tid, payload); pubErr != nil {
 			h.log.Warn("earn: failed to publish loyalty.points.earned event", zap.Error(pubErr))
 		}
 	}
-	jsonOK(w, map[string]any{"balance": newBalance, "transaction": tx})
+	return newBalance, tx, nil
 }
 
 // Redeem handles POST /{tenantID}/pos/loyalty/accounts/{accountID}/redeem
@@ -388,34 +399,45 @@ func (h *LoyaltyHandler) Redeem(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "insufficient points balance", http.StatusUnprocessableEntity)
 		return
 	}
-	newBalance := acc.PointsBalance - body.Points
-	_, err = h.db.LoyaltyAccount.UpdateOneID(aid).
-		SetPointsBalance(newBalance).
-		Save(r.Context())
+	newBalance, tx, err := h.applyRedeem(r.Context(), tid, acc, body.Points, body.OrderID, body.Notes)
 	if err != nil {
 		h.log.Error("redeem points update failed", zap.Error(err))
 		jsonError(w, "failed to update account", http.StatusInternalServerError)
 		return
 	}
+	jsonOK(w, map[string]any{"balance": newBalance, "transaction": tx})
+}
+
+// applyRedeem is the shared core for debiting loyalty points from an account: it updates the
+// balance and records a "redeem" loyalty transaction. Callers MUST validate that the account
+// has a sufficient balance (acc.PointsBalance >= points) before calling. Reused by both the
+// staff-facing Redeem handler and the S2S redeem endpoint.
+func (h *LoyaltyHandler) applyRedeem(ctx context.Context, tid uuid.UUID, acc *ent.LoyaltyAccount, points int, orderID *string, notes string) (int, *ent.LoyaltyTransaction, error) {
+	newBalance := acc.PointsBalance - points
+	if _, err := h.db.LoyaltyAccount.UpdateOneID(acc.ID).
+		SetPointsBalance(newBalance).
+		Save(ctx); err != nil {
+		return 0, nil, err
+	}
 	txCreator := h.db.LoyaltyTransaction.Create().
 		SetTenantID(tid).
-		SetAccountID(aid).
+		SetAccountID(acc.ID).
 		SetTypeField("redeem").
-		SetPoints(-body.Points).
+		SetPoints(-points).
 		SetBalanceAfter(newBalance)
-	if body.OrderID != nil {
-		if oid, err := uuid.Parse(*body.OrderID); err == nil {
+	if orderID != nil {
+		if oid, err := uuid.Parse(*orderID); err == nil {
 			txCreator = txCreator.SetOrderID(oid)
 		}
 	}
-	if body.Notes != "" {
-		txCreator = txCreator.SetNotes(body.Notes)
+	if notes != "" {
+		txCreator = txCreator.SetNotes(notes)
 	}
-	tx, err := txCreator.Save(r.Context())
+	tx, err := txCreator.Save(ctx)
 	if err != nil {
 		h.log.Warn("redeem: failed to create transaction record", zap.Error(err))
 	}
-	jsonOK(w, map[string]any{"balance": newBalance, "transaction": tx})
+	return newBalance, tx, nil
 }
 
 const defaultReferralBonus = 100
