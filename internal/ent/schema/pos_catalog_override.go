@@ -36,7 +36,7 @@ func (POSCatalogOverride) Fields() []ent.Field {
 			Comment("Stable inventory-api Item UUID (preferred over sku string for joins; survives SKU renames)"),
 		field.String("item_use_case").
 			Optional().
-			Comment("Synced from inventory item: RETAIL/FOOD_BEVERAGE/HOSPITALITY_ROOM/HOSPITALITY_FACILITY/CONFERENCE/SALON_SERVICE/AMENITY"),
+			Comment("Synced from inventory item: RETAIL/PHARMACY/FOOD_BEVERAGE/HOSPITALITY_ROOM/HOSPITALITY_FACILITY/CONFERENCE/SALON_SERVICE/AMENITY"),
 		field.Bool("is_bundle").
 			Default(false).
 			Comment("True when this catalog entry is an inventory Bundle (package), e.g. conference DDR/RDR"),
