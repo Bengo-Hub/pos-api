@@ -27,7 +27,7 @@ type POSCatalogOverride struct {
 	InventorySku string `json:"inventory_sku,omitempty"`
 	// Stable inventory-api Item UUID (preferred over sku string for joins; survives SKU renames)
 	InventoryItemID *uuid.UUID `json:"inventory_item_id,omitempty"`
-	// Synced from inventory item: RETAIL/FOOD_BEVERAGE/HOSPITALITY_ROOM/HOSPITALITY_FACILITY/CONFERENCE/SALON_SERVICE/AMENITY
+	// Synced from inventory item: RETAIL/PHARMACY/FOOD_BEVERAGE/HOSPITALITY_ROOM/HOSPITALITY_FACILITY/CONFERENCE/SALON_SERVICE/AMENITY
 	ItemUseCase string `json:"item_use_case,omitempty"`
 	// True when this catalog entry is an inventory Bundle (package), e.g. conference DDR/RDR
 	IsBundle bool `json:"is_bundle,omitempty"`
