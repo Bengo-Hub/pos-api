@@ -298,6 +298,13 @@ func (h *HotelHandler) CheckIn(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "nights must be at least 1", http.StatusBadRequest)
 		return
 	}
+	// Guest ID is required (RoomGuest.id_number is NotEmpty at the schema level). Validate
+	// here so a missing/blank ID returns a clear 400 instead of leaking the ent validator
+	// failure as a 500.
+	if strings.TrimSpace(input.IDNumber) == "" {
+		jsonError(w, "id_number is required for check-in", http.StatusBadRequest)
+		return
+	}
 
 	room, err := h.client.Room.Query().
 		Where(entroom.ID(roomID), entroom.TenantID(tid)).
