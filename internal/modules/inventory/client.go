@@ -34,14 +34,18 @@ func NewClient(serviceURL, internalServiceKey string, timeout time.Duration) *Cl
 
 // ConsumptionItem represents one line item in a consumption request.
 type ConsumptionItem struct {
-	SKU      string  `json:"SKU"`
-	Quantity float64 `json:"Quantity"`
+	SKU      string  `json:"sku"`
+	Quantity float64 `json:"quantity"`
 }
 
 // ConsumptionRequest is the body for POST /v1/{tenant}/inventory/consumption.
+// Tags MUST be snake_case to match inventory-api's DTO. In particular order_id:
+// Go's case-insensitive JSON match rescued Items/SKU/Quantity, but "OrderID" never
+// matched "order_id" (the underscore differs), so inventory saw a nil order_id and
+// rejected every POS backflush with 400 MISSING_ORDER_ID — POS sales never deducted stock.
 type ConsumptionRequest struct {
-	OrderID string            `json:"OrderID"`
-	Items   []ConsumptionItem `json:"Items"`
+	OrderID string            `json:"order_id"`
+	Items   []ConsumptionItem `json:"items"`
 }
 
 // ItemPrice is the response from GET /v1/{tenant}/inventory/items/{itemID}/price.
