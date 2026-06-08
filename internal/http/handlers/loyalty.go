@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/Bengo-Hub/pagination"
 	"github.com/go-chi/chi/v5"
@@ -14,6 +15,7 @@ import (
 	entla "github.com/bengobox/pos-service/internal/ent/loyaltyaccount"
 	entlp "github.com/bengobox/pos-service/internal/ent/loyaltyprogram"
 	entlt "github.com/bengobox/pos-service/internal/ent/loyaltytransaction"
+	entref "github.com/bengobox/pos-service/internal/ent/referral"
 	"github.com/bengobox/pos-service/internal/platform/events"
 	"github.com/bengobox/pos-service/internal/platform/marketflow"
 )
@@ -412,4 +414,98 @@ func (h *LoyaltyHandler) Redeem(w http.ResponseWriter, r *http.Request) {
 		h.log.Warn("redeem: failed to create transaction record", zap.Error(err))
 	}
 	jsonOK(w, map[string]any{"balance": newBalance, "transaction": tx})
+}
+
+const defaultReferralBonus = 100
+
+// referralCode returns a short, shareable, unique-ish referral code.
+func referralCode() string {
+	return "REF-" + strings.ToUpper(uuid.New().String()[:8])
+}
+
+// CreateReferral handles POST /{tenantID}/pos/loyalty/accounts/{accountID}/referrals.
+// The account refers a friend by phone; the referrer earns bonus_points when the friend's first
+// qualifying sale finalizes (see SaleFinalizedSubscriber.autoClaimReferral).
+func (h *LoyaltyHandler) CreateReferral(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+	aid, err := uuid.Parse(chi.URLParam(r, "accountID"))
+	if err != nil {
+		jsonError(w, "invalid account_id", http.StatusBadRequest)
+		return
+	}
+	acc, err := h.db.LoyaltyAccount.Get(r.Context(), aid)
+	if err != nil || acc.TenantID != tid {
+		jsonError(w, "account not found", http.StatusNotFound)
+		return
+	}
+	var body struct {
+		ReferredPhone string `json:"referred_phone"`
+		BonusPoints   int    `json:"bonus_points"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		jsonError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	phone := strings.TrimSpace(body.ReferredPhone)
+	if phone == "" {
+		jsonError(w, "referred_phone is required", http.StatusBadRequest)
+		return
+	}
+	if phone == acc.CustomerPhone {
+		jsonError(w, "cannot refer your own number", http.StatusBadRequest)
+		return
+	}
+	bonus := body.BonusPoints
+	if bonus <= 0 {
+		bonus = defaultReferralBonus
+	}
+	// Idempotent: if a pending referral for this phone already exists, return it instead of duplicating.
+	if existing, e := h.db.Referral.Query().
+		Where(entref.TenantID(tid), entref.ReferredPhone(phone), entref.StatusEQ("pending")).
+		First(r.Context()); e == nil && existing != nil {
+		jsonOK(w, existing)
+		return
+	}
+	ref, err := h.db.Referral.Create().
+		SetTenantID(tid).
+		SetReferrerAccountID(aid).
+		SetReferredPhone(phone).
+		SetCode(referralCode()).
+		SetStatus("pending").
+		SetBonusPoints(bonus).
+		Save(r.Context())
+	if err != nil {
+		h.log.Error("create referral failed", zap.Error(err))
+		jsonError(w, "failed to create referral", http.StatusInternalServerError)
+		return
+	}
+	jsonOK(w, ref)
+}
+
+// ListReferrals handles GET /{tenantID}/pos/loyalty/accounts/{accountID}/referrals.
+func (h *LoyaltyHandler) ListReferrals(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+	aid, err := uuid.Parse(chi.URLParam(r, "accountID"))
+	if err != nil {
+		jsonError(w, "invalid account_id", http.StatusBadRequest)
+		return
+	}
+	refs, err := h.db.Referral.Query().
+		Where(entref.TenantID(tid), entref.ReferrerAccountID(aid)).
+		Order(ent.Desc(entref.FieldCreatedAt)).
+		All(r.Context())
+	if err != nil {
+		h.log.Error("list referrals failed", zap.Error(err))
+		jsonError(w, "failed to list referrals", http.StatusInternalServerError)
+		return
+	}
+	jsonOK(w, refs)
 }

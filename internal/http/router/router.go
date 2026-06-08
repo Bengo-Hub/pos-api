@@ -565,6 +565,8 @@ func New(
 						pos.Get("/loyalty/accounts/{accountID}", loyalty.GetAccount)
 						pos.Post("/loyalty/accounts/{accountID}/earn", loyalty.Earn)
 						pos.Post("/loyalty/accounts/{accountID}/redeem", loyalty.Redeem)
+						pos.Post("/loyalty/accounts/{accountID}/referrals", loyalty.CreateReferral)
+						pos.Get("/loyalty/accounts/{accountID}/referrals", loyalty.ListReferrals)
 					}
 
 					// Reports & Analytics

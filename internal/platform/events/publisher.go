@@ -187,6 +187,12 @@ func (p *Publisher) PublishLoyaltyTierUpgraded(ctx context.Context, tenantID uui
 	return p.publish(ctx, tenantID, "loyalty.tier_upgraded", data)
 }
 
+// PublishLoyaltyReferralEarned publishes a pos.loyalty.referral_earned event when a referred friend's
+// first qualifying sale credits the referrer bonus points. Consumed by notifications-service (thank-you SMS).
+func (p *Publisher) PublishLoyaltyReferralEarned(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {
+	return p.publish(ctx, tenantID, "loyalty.referral_earned", data)
+}
+
 // PublishLayawayPaymentDue publishes a pos.layaway.payment_due event.
 // Consumed by notifications-service to send a WhatsApp/SMS reminder to the customer.
 func (p *Publisher) PublishLayawayPaymentDue(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {

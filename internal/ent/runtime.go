@@ -67,6 +67,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/promotionapplication"
 	"github.com/bengobox/pos-service/internal/ent/promotionrule"
 	"github.com/bengobox/pos-service/internal/ent/ratelimitconfig"
+	"github.com/bengobox/pos-service/internal/ent/referral"
 	"github.com/bengobox/pos-service/internal/ent/resource"
 	"github.com/bengobox/pos-service/internal/ent/room"
 	"github.com/bengobox/pos-service/internal/ent/roomamenity"
@@ -1792,6 +1793,38 @@ func init() {
 	ratelimitconfigDescID := ratelimitconfigFields[0].Descriptor()
 	// ratelimitconfig.DefaultID holds the default value on creation for the id field.
 	ratelimitconfig.DefaultID = ratelimitconfigDescID.Default.(func() uuid.UUID)
+	referralFields := schema.Referral{}.Fields()
+	_ = referralFields
+	// referralDescReferredPhone is the schema descriptor for referred_phone field.
+	referralDescReferredPhone := referralFields[3].Descriptor()
+	// referral.ReferredPhoneValidator is a validator for the "referred_phone" field. It is called by the builders before save.
+	referral.ReferredPhoneValidator = referralDescReferredPhone.Validators[0].(func(string) error)
+	// referralDescCode is the schema descriptor for code field.
+	referralDescCode := referralFields[5].Descriptor()
+	// referral.CodeValidator is a validator for the "code" field. It is called by the builders before save.
+	referral.CodeValidator = referralDescCode.Validators[0].(func(string) error)
+	// referralDescStatus is the schema descriptor for status field.
+	referralDescStatus := referralFields[6].Descriptor()
+	// referral.DefaultStatus holds the default value on creation for the status field.
+	referral.DefaultStatus = referralDescStatus.Default.(string)
+	// referralDescBonusPoints is the schema descriptor for bonus_points field.
+	referralDescBonusPoints := referralFields[7].Descriptor()
+	// referral.DefaultBonusPoints holds the default value on creation for the bonus_points field.
+	referral.DefaultBonusPoints = referralDescBonusPoints.Default.(int)
+	// referralDescCreatedAt is the schema descriptor for created_at field.
+	referralDescCreatedAt := referralFields[9].Descriptor()
+	// referral.DefaultCreatedAt holds the default value on creation for the created_at field.
+	referral.DefaultCreatedAt = referralDescCreatedAt.Default.(func() time.Time)
+	// referralDescUpdatedAt is the schema descriptor for updated_at field.
+	referralDescUpdatedAt := referralFields[11].Descriptor()
+	// referral.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	referral.DefaultUpdatedAt = referralDescUpdatedAt.Default.(func() time.Time)
+	// referral.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	referral.UpdateDefaultUpdatedAt = referralDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// referralDescID is the schema descriptor for id field.
+	referralDescID := referralFields[0].Descriptor()
+	// referral.DefaultID holds the default value on creation for the id field.
+	referral.DefaultID = referralDescID.Default.(func() uuid.UUID)
 	resourceFields := schema.Resource{}.Fields()
 	_ = resourceFields
 	// resourceDescName is the schema descriptor for name field.
