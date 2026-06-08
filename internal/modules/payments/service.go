@@ -561,14 +561,12 @@ func (s *Service) publishSaleFinalized(ctx context.Context, order *ent.POSOrder)
 		s.log.Warn("failed to publish pos.sale.finalized", zap.String("order_id", order.ID.String()), zap.Error(err))
 	}
 
-	// Backflush inventory consumption asynchronously — non-blocking, publish retry event on failure.
-	// WithoutCancel preserves the request's tenant context (the S2S client resolves the tenant from
-	// it) while detaching from the request lifecycle; a bare context.Background() dropped the tenant
-	// and inventory then failed RecordConsumption with "no default warehouse for tenant" → stock was
-	// never deducted on a sale.
-	if s.inventoryClient != nil {
-		go s.backflushInventory(context.WithoutCancel(ctx), order, lines)
-	}
+	// Stock backflush for the sale is handled EXCLUSIVELY by inventory-api's
+	// pos.sale.finalized consumer (in-process, with BOM explosion) — see PublishSaleFinalized
+	// above. We deliberately do NOT also call RecordConsumption here. The two paths each
+	// deduct independently, so once the S2S client's request started succeeding (after the
+	// order_id JSON-tag fix) every sold item was consumed twice (two consumptions per order).
+	// backflushInventory is retained only for reference / non-sale direct backflush callers.
 }
 
 // backflushInventory calls inventory-api to deduct stock for each sold item.
