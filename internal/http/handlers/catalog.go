@@ -259,6 +259,58 @@ func fetchInventoryPricing(ctx context.Context, tenantSlug, outletID string) (ma
 	return m, nil
 }
 
+// ResolvePrice handles GET /{tenantID}/pos/catalog/pricing/resolve?item_id=&quantity=&profile=
+// Resolves an item's unit/total price for a pricing profile (tier code, e.g. RETAIL or WHOLESALE)
+// from inventory-api, so the register can re-price the cart when the cashier switches profile.
+// Falls back to the default tier when no profile is given. Returns inventory's price DTO verbatim.
+func (h *CatalogHandler) ResolvePrice(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+	itemID := strings.TrimSpace(r.URL.Query().Get("item_id"))
+	if itemID == "" {
+		jsonError(w, "item_id is required", http.StatusBadRequest)
+		return
+	}
+	quantity := 1
+	if q, e := strconv.Atoi(r.URL.Query().Get("quantity")); e == nil && q > 0 {
+		quantity = q
+	}
+	profile := strings.ToUpper(strings.TrimSpace(r.URL.Query().Get("profile")))
+
+	tenantSlug := ""
+	if claims, ok := authclient.ClaimsFromContext(r.Context()); ok {
+		tenantSlug = claims.GetTenantSlug()
+	}
+	if tenantSlug == "" {
+		tenantSlug = httpware.GetTenantSlug(r.Context())
+	}
+	if tenantSlug == "" {
+		if t, lookupErr := h.client.Tenant.Get(r.Context(), tid); lookupErr == nil {
+			tenantSlug = t.Slug
+		}
+	}
+	if tenantSlug == "" {
+		jsonError(w, "tenant context required", http.StatusBadRequest)
+		return
+	}
+
+	url := fmt.Sprintf("%s/v1/%s/inventory/items/%s/price?quantity=%d", inventoryURL(), tenantSlug, itemID, quantity)
+	if profile != "" {
+		url += "&tier=" + profile
+	}
+	body, err := doInventoryGET(r.Context(), url, httpware.GetOutletID(r.Context()))
+	if err != nil {
+		h.log.Warn("resolve price: inventory call failed", zap.String("item_id", itemID), zap.Error(err))
+		jsonError(w, "failed to resolve price", http.StatusBadGateway)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_, _ = w.Write(body)
+}
+
 // ListCatalogItems handles GET /{tenantID}/pos/catalog/items
 // Always proxies from inventory-api; merges with local POSCatalogOverride for pricing/availability.
 func (h *CatalogHandler) ListCatalogItems(w http.ResponseWriter, r *http.Request) {

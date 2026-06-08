@@ -102,7 +102,7 @@ func New(
 	r.Get("/v1/docs/*", handlers.SwaggerUI)
 
 	r.Route("/api/v1", func(api chi.Router) {
-		// ── Platform admin endpoints (platform owner JWT required) ────────────
+		// Ã¢â€â‚¬Ã¢â€â‚¬ Platform admin endpoints (platform owner JWT required) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 		if serviceConfig != nil && authMiddleware != nil {
 			api.Group(func(admin chi.Router) {
 				admin.Use(authMiddleware.RequireAuth)
@@ -110,7 +110,7 @@ func New(
 			})
 		}
 
-		// ── Public endpoints (no auth required) ───────────────────────────────
+		// Ã¢â€â‚¬Ã¢â€â‚¬ Public endpoints (no auth required) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 		// These routes are accessible before the staff member has authenticated.
 		// TenantV2 extracts tenant UUID directly from the URL path parameter.
 		api.Get("/openapi.json", handlers.OpenAPIJSON)
@@ -131,14 +131,14 @@ func New(
 				pub.Get("/{tenantID}/pos/outlets", publicOutlet.ListPublicOutlets)
 				pub.Get("/{tenantID}/pos/outlets/current", publicOutlet.GetCurrentOutlet)
 			}
-			// Public reservation endpoints — used by the embeddable booking widget
+			// Public reservation endpoints Ã¢â‚¬â€ used by the embeddable booking widget
 			if tables != nil {
 				pub.Get("/{tenantID}/pos/reservations/available", tables.GetAvailableSlots)
 				pub.Post("/{tenantID}/pos/reservations", tables.CreateReservation)
 			}
 		})
 
-		// ── Protected endpoints (auth required) ───────────────────────────────
+		// Ã¢â€â‚¬Ã¢â€â‚¬ Protected endpoints (auth required) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 		// RequireAnyAuth accepts both SSO JWTs and HMAC terminal JWTs from PIN login.
 		api.Group(func(prot chi.Router) {
 			if pinAuth != nil {
@@ -237,6 +237,7 @@ func New(
 						pos.Route("/catalog", func(cat chi.Router) {
 							cat.Get("/categories", catalog.GetCatalogCategories)
 							cat.Get("/items", catalog.ListCatalogItems)
+							cat.Get("/pricing/resolve", catalog.ResolvePrice)
 							cat.Post("/items", catalog.CreateCatalogItem)
 							// Price management endpoints (must come before /{id} routes)
 							cat.Patch("/items/prices", catalog.SetCatalogItemPrice)
@@ -249,7 +250,7 @@ func New(
 						})
 					}
 
-					// Sections & Tables — hospitality only
+					// Sections & Tables Ã¢â‚¬â€ hospitality only
 					if tables != nil {
 						pos.Group(func(tbl chi.Router) {
 							tbl.Use(outletmw.RequireUseCase("hospitality"))
@@ -296,7 +297,7 @@ func New(
 						pos.Get("/c2b/payments", payments.ListC2BCandidates)
 						pos.Post("/c2b/payments/{transID}/claim", payments.ClaimC2BPayment)
 						// Recording a payment (cash/M-Pesa ref) or opening a payment intent is a
-						// money-movement action — gate on payments.add (cashier, waiter, manager+).
+						// money-movement action Ã¢â‚¬â€ gate on payments.add (cashier, waiter, manager+).
 						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.payments.add", "pos.payments.manage")).
 							Post("/orders/{orderID}/payments/intent", payments.CreatePaymentIntent)
 						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.payments.add", "pos.payments.manage")).
@@ -316,7 +317,7 @@ func New(
 						pos.Get("/drawers", drawers.ListDrawerHistory)
 					}
 
-					// Bar Tabs — hospitality only
+					// Bar Tabs Ã¢â‚¬â€ hospitality only
 					if barTabs != nil {
 						pos.Group(func(bt chi.Router) {
 							bt.Use(outletmw.RequireUseCase("hospitality"))
@@ -349,7 +350,7 @@ func New(
 					}
 
 					// Terminal PIN auth (auth-protected endpoints)
-					// SetPIN requires a manager/admin SSO token — no subscription gate so admins
+					// SetPIN requires a manager/admin SSO token Ã¢â‚¬â€ no subscription gate so admins
 					// can always set staff PINs regardless of plan.
 					// AuthMe requires SSO token for Trinity Layer 3.
 					// ListStaff / Login / StaffProfiles are registered in the public group above.
@@ -358,7 +359,7 @@ func New(
 						pos.Get("/auth/me", pinAuth.AuthMe)
 					}
 
-					// Staff admin CRUD (requires STAFF_MANAGE permission — enforced client-side;
+					// Staff admin CRUD (requires STAFF_MANAGE permission Ã¢â‚¬â€ enforced client-side;
 					// server-side role boundary enforced in the handler itself).
 					if staffAdmin != nil {
 						pos.Get("/staff/admin", staffAdmin.ListStaffForAdmin)
@@ -367,7 +368,7 @@ func New(
 						pos.Post("/staff/{staffID}/deactivate", staffAdmin.DeactivateStaff)
 					}
 
-					// KDS — hospitality and quick_service only; outlet must have enable_kds=true
+					// KDS Ã¢â‚¬â€ hospitality and quick_service only; outlet must have enable_kds=true
 					if kds != nil {
 						pos.Group(func(k chi.Router) {
 							k.Use(outletmw.RequireUseCase("hospitality", "quick_service"))
@@ -395,7 +396,7 @@ func New(
 						if billSplits != nil {
 							pos.Get("/orders/{orderID}/splits", billSplits.ListSplits)
 							pos.Post("/orders/{orderID}/splits", billSplits.CreateSplits)
-							// Settling a split records a payment — gate on payments.add like other tender flows.
+							// Settling a split records a payment Ã¢â‚¬â€ gate on payments.add like other tender flows.
 							pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.payments.add", "pos.payments.manage")).
 								Post("/orders/{orderID}/splits/{splitID}/settle", billSplits.SettleSplit)
 						}
@@ -427,7 +428,7 @@ func New(
 						pos.Get("/scale/readings", scale.List)
 					}
 
-					// Pharmacy — pharmacy use_case only
+					// Pharmacy Ã¢â‚¬â€ pharmacy use_case only
 					if pharmacy != nil {
 						pos.Group(func(ph chi.Router) {
 							ph.Use(outletmw.RequireUseCase("pharmacy"))
@@ -444,7 +445,7 @@ func New(
 						})
 					}
 
-					// Appointments & staff schedules — services use_case
+					// Appointments & staff schedules Ã¢â‚¬â€ services use_case
 					if appointments != nil {
 						pos.Group(func(svc chi.Router) {
 							svc.Use(outletmw.RequireUseCase("services"))
@@ -463,7 +464,7 @@ func New(
 						})
 					}
 
-					// Walk-in queue — services use_case
+					// Walk-in queue Ã¢â‚¬â€ services use_case
 					if queue != nil {
 						pos.Group(func(svc chi.Router) {
 							svc.Use(outletmw.RequireUseCase("services"))
@@ -474,7 +475,7 @@ func New(
 						})
 					}
 
-					// Resources — services use_case (chairs, rooms, equipment)
+					// Resources Ã¢â‚¬â€ services use_case (chairs, rooms, equipment)
 					if resources != nil {
 						pos.Group(func(svc chi.Router) {
 							svc.Use(outletmw.RequireUseCase("services"))
@@ -597,7 +598,7 @@ func New(
 						pos.Get("/webhooks/{webhookID}/deliveries", webhooks.ListDeliveries)
 					}
 
-					// Delivery channel integrations (Uber Eats, Glovo, etc.) — Sprint 12
+					// Delivery channel integrations (Uber Eats, Glovo, etc.) Ã¢â‚¬â€ Sprint 12
 					if channels != nil {
 						pos.Get("/channels", channels.ListChannels)
 						pos.Post("/channels", channels.CreateChannel)
@@ -607,10 +608,10 @@ func New(
 						pos.Post("/channels/{channelID}/sync-jobs", channels.TriggerSyncJob)
 					}
 
-					// Online ordering pickup status — KDS click-and-collect (Sprint 13)
+					// Online ordering pickup status Ã¢â‚¬â€ KDS click-and-collect (Sprint 13)
 					if onlineOrders != nil {
 						pos.Get("/online-orders/pickup", onlineOrders.ListPickup)
-						// Pickup hand-off + delivery rider assignment mutate order state — gate on
+						// Pickup hand-off + delivery rider assignment mutate order state Ã¢â‚¬â€ gate on
 						// orders.change (waiter, manager+). Reads (pickup/rider lists) stay open.
 						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.orders.change", "pos.orders.manage")).
 							Post("/online-orders/{orderID}/ready", onlineOrders.MarkReady)
@@ -630,7 +631,7 @@ func New(
 					}
 				})
 
-				// Hotel module — hospitality only
+				// Hotel module Ã¢â‚¬â€ hospitality only
 				if hotel != nil {
 					tenant.Route("/hotel", func(h chi.Router) {
 						h.Use(outletmw.RequireUseCase("hospitality"))
@@ -646,7 +647,7 @@ func New(
 						// Inventory master pickers (link rooms/facilities/amenities to inventory SERVICE items + packages)
 						h.Get("/inventory-service-items", hotel.ListInventoryServiceItems)
 						h.Get("/inventory-bundles", hotel.ListInventoryBundles)
-						// Multi-room / group bookings (RoomBooking header → many RoomGuest)
+						// Multi-room / group bookings (RoomBooking header Ã¢â€ â€™ many RoomGuest)
 						h.With(hotelChange).Post("/bookings", hotel.CreateRoomBooking)
 						h.Get("/bookings", hotel.ListRoomBookings)
 						h.Get("/bookings/{id}", hotel.GetRoomBooking)
