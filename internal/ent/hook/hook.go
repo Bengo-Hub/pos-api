@@ -801,6 +801,42 @@ func (f ReferralFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, er
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ReferralMutation", m)
 }
 
+// The RepairJobFunc type is an adapter to allow the use of ordinary
+// function as RepairJob mutator.
+type RepairJobFunc func(context.Context, *ent.RepairJobMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f RepairJobFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.RepairJobMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.RepairJobMutation", m)
+}
+
+// The RepairJobEventFunc type is an adapter to allow the use of ordinary
+// function as RepairJobEvent mutator.
+type RepairJobEventFunc func(context.Context, *ent.RepairJobEventMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f RepairJobEventFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.RepairJobEventMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.RepairJobEventMutation", m)
+}
+
+// The RepairJobPartFunc type is an adapter to allow the use of ordinary
+// function as RepairJobPart mutator.
+type RepairJobPartFunc func(context.Context, *ent.RepairJobPartMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f RepairJobPartFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.RepairJobPartMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.RepairJobPartMutation", m)
+}
+
 // The ResourceFunc type is an adapter to allow the use of ordinary
 // function as Resource mutator.
 type ResourceFunc func(context.Context, *ent.ResourceMutation) (ent.Value, error)

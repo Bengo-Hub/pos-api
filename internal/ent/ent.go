@@ -78,6 +78,9 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/promotionrule"
 	"github.com/bengobox/pos-service/internal/ent/ratelimitconfig"
 	"github.com/bengobox/pos-service/internal/ent/referral"
+	"github.com/bengobox/pos-service/internal/ent/repairjob"
+	"github.com/bengobox/pos-service/internal/ent/repairjobevent"
+	"github.com/bengobox/pos-service/internal/ent/repairjobpart"
 	"github.com/bengobox/pos-service/internal/ent/resource"
 	"github.com/bengobox/pos-service/internal/ent/room"
 	"github.com/bengobox/pos-service/internal/ent/roomamenity"
@@ -241,6 +244,9 @@ func checkColumn(t, c string) error {
 			promotionrule.Table:            promotionrule.ValidColumn,
 			ratelimitconfig.Table:          ratelimitconfig.ValidColumn,
 			referral.Table:                 referral.ValidColumn,
+			repairjob.Table:                repairjob.ValidColumn,
+			repairjobevent.Table:           repairjobevent.ValidColumn,
+			repairjobpart.Table:            repairjobpart.ValidColumn,
 			resource.Table:                 resource.ValidColumn,
 			room.Table:                     room.ValidColumn,
 			roomamenity.Table:              roomamenity.ValidColumn,

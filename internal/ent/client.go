@@ -82,6 +82,9 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/promotionrule"
 	"github.com/bengobox/pos-service/internal/ent/ratelimitconfig"
 	"github.com/bengobox/pos-service/internal/ent/referral"
+	"github.com/bengobox/pos-service/internal/ent/repairjob"
+	"github.com/bengobox/pos-service/internal/ent/repairjobevent"
+	"github.com/bengobox/pos-service/internal/ent/repairjobpart"
 	"github.com/bengobox/pos-service/internal/ent/resource"
 	"github.com/bengobox/pos-service/internal/ent/room"
 	"github.com/bengobox/pos-service/internal/ent/roomamenity"
@@ -258,6 +261,12 @@ type Client struct {
 	RateLimitConfig *RateLimitConfigClient
 	// Referral is the client for interacting with the Referral builders.
 	Referral *ReferralClient
+	// RepairJob is the client for interacting with the RepairJob builders.
+	RepairJob *RepairJobClient
+	// RepairJobEvent is the client for interacting with the RepairJobEvent builders.
+	RepairJobEvent *RepairJobEventClient
+	// RepairJobPart is the client for interacting with the RepairJobPart builders.
+	RepairJobPart *RepairJobPartClient
 	// Resource is the client for interacting with the Resource builders.
 	Resource *ResourceClient
 	// Room is the client for interacting with the Room builders.
@@ -409,6 +418,9 @@ func (c *Client) init() {
 	c.PromotionRule = NewPromotionRuleClient(c.config)
 	c.RateLimitConfig = NewRateLimitConfigClient(c.config)
 	c.Referral = NewReferralClient(c.config)
+	c.RepairJob = NewRepairJobClient(c.config)
+	c.RepairJobEvent = NewRepairJobEventClient(c.config)
+	c.RepairJobPart = NewRepairJobPartClient(c.config)
 	c.Resource = NewResourceClient(c.config)
 	c.Room = NewRoomClient(c.config)
 	c.RoomAmenity = NewRoomAmenityClient(c.config)
@@ -604,6 +616,9 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		PromotionRule:            NewPromotionRuleClient(cfg),
 		RateLimitConfig:          NewRateLimitConfigClient(cfg),
 		Referral:                 NewReferralClient(cfg),
+		RepairJob:                NewRepairJobClient(cfg),
+		RepairJobEvent:           NewRepairJobEventClient(cfg),
+		RepairJobPart:            NewRepairJobPartClient(cfg),
 		Resource:                 NewResourceClient(cfg),
 		Room:                     NewRoomClient(cfg),
 		RoomAmenity:              NewRoomAmenityClient(cfg),
@@ -726,6 +741,9 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		PromotionRule:            NewPromotionRuleClient(cfg),
 		RateLimitConfig:          NewRateLimitConfigClient(cfg),
 		Referral:                 NewReferralClient(cfg),
+		RepairJob:                NewRepairJobClient(cfg),
+		RepairJobEvent:           NewRepairJobEventClient(cfg),
+		RepairJobPart:            NewRepairJobPartClient(cfg),
 		Resource:                 NewResourceClient(cfg),
 		Room:                     NewRoomClient(cfg),
 		RoomAmenity:              NewRoomAmenityClient(cfg),
@@ -807,16 +825,17 @@ func (c *Client) Use(hooks ...Hook) {
 		c.POSReturn, c.POSReturnLine, c.POSRole, c.POSRolePermission, c.POSRoleV2,
 		c.POSUserRoleAssignment, c.PosNotification, c.Prescription, c.PrescriptionLine,
 		c.PriceBook, c.PriceBookItem, c.Promotion, c.PromotionApplication,
-		c.PromotionRule, c.RateLimitConfig, c.Referral, c.Resource, c.Room,
-		c.RoomAmenity, c.RoomAmenityAssignment, c.RoomBooking, c.RoomFolioItem,
-		c.RoomGuest, c.Section, c.SerialNumberLog, c.ServiceConfig, c.ServicePackage,
-		c.ServicePackagePurchase, c.ServicePackageRedemption, c.ServiceQueueEntry,
-		c.ShiftRotation, c.ShiftRotationSlot, c.StaffAdvance, c.StaffMember,
-		c.StaffOutlet, c.StaffPayroll, c.StaffPayrollLine, c.StaffSchedule,
-		c.StaffShiftOverride, c.StockAlertSubscription, c.StockConsumptionEvent,
-		c.SyncFailure, c.Table, c.TableAssignment, c.TableReservation, c.Tenant,
-		c.TenantSyncEvent, c.Tender, c.User, c.UserPOSRole, c.WebhookDelivery,
-		c.WebhookSubscription, c.WeighingScaleReading,
+		c.PromotionRule, c.RateLimitConfig, c.Referral, c.RepairJob, c.RepairJobEvent,
+		c.RepairJobPart, c.Resource, c.Room, c.RoomAmenity, c.RoomAmenityAssignment,
+		c.RoomBooking, c.RoomFolioItem, c.RoomGuest, c.Section, c.SerialNumberLog,
+		c.ServiceConfig, c.ServicePackage, c.ServicePackagePurchase,
+		c.ServicePackageRedemption, c.ServiceQueueEntry, c.ShiftRotation,
+		c.ShiftRotationSlot, c.StaffAdvance, c.StaffMember, c.StaffOutlet,
+		c.StaffPayroll, c.StaffPayrollLine, c.StaffSchedule, c.StaffShiftOverride,
+		c.StockAlertSubscription, c.StockConsumptionEvent, c.SyncFailure, c.Table,
+		c.TableAssignment, c.TableReservation, c.Tenant, c.TenantSyncEvent, c.Tender,
+		c.User, c.UserPOSRole, c.WebhookDelivery, c.WebhookSubscription,
+		c.WeighingScaleReading,
 	} {
 		n.Use(hooks...)
 	}
@@ -841,16 +860,17 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.POSReturn, c.POSReturnLine, c.POSRole, c.POSRolePermission, c.POSRoleV2,
 		c.POSUserRoleAssignment, c.PosNotification, c.Prescription, c.PrescriptionLine,
 		c.PriceBook, c.PriceBookItem, c.Promotion, c.PromotionApplication,
-		c.PromotionRule, c.RateLimitConfig, c.Referral, c.Resource, c.Room,
-		c.RoomAmenity, c.RoomAmenityAssignment, c.RoomBooking, c.RoomFolioItem,
-		c.RoomGuest, c.Section, c.SerialNumberLog, c.ServiceConfig, c.ServicePackage,
-		c.ServicePackagePurchase, c.ServicePackageRedemption, c.ServiceQueueEntry,
-		c.ShiftRotation, c.ShiftRotationSlot, c.StaffAdvance, c.StaffMember,
-		c.StaffOutlet, c.StaffPayroll, c.StaffPayrollLine, c.StaffSchedule,
-		c.StaffShiftOverride, c.StockAlertSubscription, c.StockConsumptionEvent,
-		c.SyncFailure, c.Table, c.TableAssignment, c.TableReservation, c.Tenant,
-		c.TenantSyncEvent, c.Tender, c.User, c.UserPOSRole, c.WebhookDelivery,
-		c.WebhookSubscription, c.WeighingScaleReading,
+		c.PromotionRule, c.RateLimitConfig, c.Referral, c.RepairJob, c.RepairJobEvent,
+		c.RepairJobPart, c.Resource, c.Room, c.RoomAmenity, c.RoomAmenityAssignment,
+		c.RoomBooking, c.RoomFolioItem, c.RoomGuest, c.Section, c.SerialNumberLog,
+		c.ServiceConfig, c.ServicePackage, c.ServicePackagePurchase,
+		c.ServicePackageRedemption, c.ServiceQueueEntry, c.ShiftRotation,
+		c.ShiftRotationSlot, c.StaffAdvance, c.StaffMember, c.StaffOutlet,
+		c.StaffPayroll, c.StaffPayrollLine, c.StaffSchedule, c.StaffShiftOverride,
+		c.StockAlertSubscription, c.StockConsumptionEvent, c.SyncFailure, c.Table,
+		c.TableAssignment, c.TableReservation, c.Tenant, c.TenantSyncEvent, c.Tender,
+		c.User, c.UserPOSRole, c.WebhookDelivery, c.WebhookSubscription,
+		c.WeighingScaleReading,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -991,6 +1011,12 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.RateLimitConfig.mutate(ctx, m)
 	case *ReferralMutation:
 		return c.Referral.mutate(ctx, m)
+	case *RepairJobMutation:
+		return c.RepairJob.mutate(ctx, m)
+	case *RepairJobEventMutation:
+		return c.RepairJobEvent.mutate(ctx, m)
+	case *RepairJobPartMutation:
+		return c.RepairJobPart.mutate(ctx, m)
 	case *ResourceMutation:
 		return c.Resource.mutate(ctx, m)
 	case *RoomMutation:
@@ -10568,6 +10594,469 @@ func (c *ReferralClient) mutate(ctx context.Context, m *ReferralMutation) (Value
 	}
 }
 
+// RepairJobClient is a client for the RepairJob schema.
+type RepairJobClient struct {
+	config
+}
+
+// NewRepairJobClient returns a client for the RepairJob from the given config.
+func NewRepairJobClient(c config) *RepairJobClient {
+	return &RepairJobClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `repairjob.Hooks(f(g(h())))`.
+func (c *RepairJobClient) Use(hooks ...Hook) {
+	c.hooks.RepairJob = append(c.hooks.RepairJob, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `repairjob.Intercept(f(g(h())))`.
+func (c *RepairJobClient) Intercept(interceptors ...Interceptor) {
+	c.inters.RepairJob = append(c.inters.RepairJob, interceptors...)
+}
+
+// Create returns a builder for creating a RepairJob entity.
+func (c *RepairJobClient) Create() *RepairJobCreate {
+	mutation := newRepairJobMutation(c.config, OpCreate)
+	return &RepairJobCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of RepairJob entities.
+func (c *RepairJobClient) CreateBulk(builders ...*RepairJobCreate) *RepairJobCreateBulk {
+	return &RepairJobCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *RepairJobClient) MapCreateBulk(slice any, setFunc func(*RepairJobCreate, int)) *RepairJobCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &RepairJobCreateBulk{err: fmt.Errorf("calling to RepairJobClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*RepairJobCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &RepairJobCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for RepairJob.
+func (c *RepairJobClient) Update() *RepairJobUpdate {
+	mutation := newRepairJobMutation(c.config, OpUpdate)
+	return &RepairJobUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *RepairJobClient) UpdateOne(_m *RepairJob) *RepairJobUpdateOne {
+	mutation := newRepairJobMutation(c.config, OpUpdateOne, withRepairJob(_m))
+	return &RepairJobUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *RepairJobClient) UpdateOneID(id uuid.UUID) *RepairJobUpdateOne {
+	mutation := newRepairJobMutation(c.config, OpUpdateOne, withRepairJobID(id))
+	return &RepairJobUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for RepairJob.
+func (c *RepairJobClient) Delete() *RepairJobDelete {
+	mutation := newRepairJobMutation(c.config, OpDelete)
+	return &RepairJobDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *RepairJobClient) DeleteOne(_m *RepairJob) *RepairJobDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *RepairJobClient) DeleteOneID(id uuid.UUID) *RepairJobDeleteOne {
+	builder := c.Delete().Where(repairjob.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &RepairJobDeleteOne{builder}
+}
+
+// Query returns a query builder for RepairJob.
+func (c *RepairJobClient) Query() *RepairJobQuery {
+	return &RepairJobQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeRepairJob},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a RepairJob entity by its id.
+func (c *RepairJobClient) Get(ctx context.Context, id uuid.UUID) (*RepairJob, error) {
+	return c.Query().Where(repairjob.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *RepairJobClient) GetX(ctx context.Context, id uuid.UUID) *RepairJob {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryParts queries the parts edge of a RepairJob.
+func (c *RepairJobClient) QueryParts(_m *RepairJob) *RepairJobPartQuery {
+	query := (&RepairJobPartClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(repairjob.Table, repairjob.FieldID, id),
+			sqlgraph.To(repairjobpart.Table, repairjobpart.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, repairjob.PartsTable, repairjob.PartsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryEvents queries the events edge of a RepairJob.
+func (c *RepairJobClient) QueryEvents(_m *RepairJob) *RepairJobEventQuery {
+	query := (&RepairJobEventClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(repairjob.Table, repairjob.FieldID, id),
+			sqlgraph.To(repairjobevent.Table, repairjobevent.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, repairjob.EventsTable, repairjob.EventsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *RepairJobClient) Hooks() []Hook {
+	return c.hooks.RepairJob
+}
+
+// Interceptors returns the client interceptors.
+func (c *RepairJobClient) Interceptors() []Interceptor {
+	return c.inters.RepairJob
+}
+
+func (c *RepairJobClient) mutate(ctx context.Context, m *RepairJobMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&RepairJobCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&RepairJobUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&RepairJobUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&RepairJobDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown RepairJob mutation op: %q", m.Op())
+	}
+}
+
+// RepairJobEventClient is a client for the RepairJobEvent schema.
+type RepairJobEventClient struct {
+	config
+}
+
+// NewRepairJobEventClient returns a client for the RepairJobEvent from the given config.
+func NewRepairJobEventClient(c config) *RepairJobEventClient {
+	return &RepairJobEventClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `repairjobevent.Hooks(f(g(h())))`.
+func (c *RepairJobEventClient) Use(hooks ...Hook) {
+	c.hooks.RepairJobEvent = append(c.hooks.RepairJobEvent, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `repairjobevent.Intercept(f(g(h())))`.
+func (c *RepairJobEventClient) Intercept(interceptors ...Interceptor) {
+	c.inters.RepairJobEvent = append(c.inters.RepairJobEvent, interceptors...)
+}
+
+// Create returns a builder for creating a RepairJobEvent entity.
+func (c *RepairJobEventClient) Create() *RepairJobEventCreate {
+	mutation := newRepairJobEventMutation(c.config, OpCreate)
+	return &RepairJobEventCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of RepairJobEvent entities.
+func (c *RepairJobEventClient) CreateBulk(builders ...*RepairJobEventCreate) *RepairJobEventCreateBulk {
+	return &RepairJobEventCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *RepairJobEventClient) MapCreateBulk(slice any, setFunc func(*RepairJobEventCreate, int)) *RepairJobEventCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &RepairJobEventCreateBulk{err: fmt.Errorf("calling to RepairJobEventClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*RepairJobEventCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &RepairJobEventCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for RepairJobEvent.
+func (c *RepairJobEventClient) Update() *RepairJobEventUpdate {
+	mutation := newRepairJobEventMutation(c.config, OpUpdate)
+	return &RepairJobEventUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *RepairJobEventClient) UpdateOne(_m *RepairJobEvent) *RepairJobEventUpdateOne {
+	mutation := newRepairJobEventMutation(c.config, OpUpdateOne, withRepairJobEvent(_m))
+	return &RepairJobEventUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *RepairJobEventClient) UpdateOneID(id uuid.UUID) *RepairJobEventUpdateOne {
+	mutation := newRepairJobEventMutation(c.config, OpUpdateOne, withRepairJobEventID(id))
+	return &RepairJobEventUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for RepairJobEvent.
+func (c *RepairJobEventClient) Delete() *RepairJobEventDelete {
+	mutation := newRepairJobEventMutation(c.config, OpDelete)
+	return &RepairJobEventDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *RepairJobEventClient) DeleteOne(_m *RepairJobEvent) *RepairJobEventDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *RepairJobEventClient) DeleteOneID(id uuid.UUID) *RepairJobEventDeleteOne {
+	builder := c.Delete().Where(repairjobevent.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &RepairJobEventDeleteOne{builder}
+}
+
+// Query returns a query builder for RepairJobEvent.
+func (c *RepairJobEventClient) Query() *RepairJobEventQuery {
+	return &RepairJobEventQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeRepairJobEvent},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a RepairJobEvent entity by its id.
+func (c *RepairJobEventClient) Get(ctx context.Context, id uuid.UUID) (*RepairJobEvent, error) {
+	return c.Query().Where(repairjobevent.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *RepairJobEventClient) GetX(ctx context.Context, id uuid.UUID) *RepairJobEvent {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryRepairJob queries the repair_job edge of a RepairJobEvent.
+func (c *RepairJobEventClient) QueryRepairJob(_m *RepairJobEvent) *RepairJobQuery {
+	query := (&RepairJobClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(repairjobevent.Table, repairjobevent.FieldID, id),
+			sqlgraph.To(repairjob.Table, repairjob.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, repairjobevent.RepairJobTable, repairjobevent.RepairJobColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *RepairJobEventClient) Hooks() []Hook {
+	return c.hooks.RepairJobEvent
+}
+
+// Interceptors returns the client interceptors.
+func (c *RepairJobEventClient) Interceptors() []Interceptor {
+	return c.inters.RepairJobEvent
+}
+
+func (c *RepairJobEventClient) mutate(ctx context.Context, m *RepairJobEventMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&RepairJobEventCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&RepairJobEventUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&RepairJobEventUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&RepairJobEventDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown RepairJobEvent mutation op: %q", m.Op())
+	}
+}
+
+// RepairJobPartClient is a client for the RepairJobPart schema.
+type RepairJobPartClient struct {
+	config
+}
+
+// NewRepairJobPartClient returns a client for the RepairJobPart from the given config.
+func NewRepairJobPartClient(c config) *RepairJobPartClient {
+	return &RepairJobPartClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `repairjobpart.Hooks(f(g(h())))`.
+func (c *RepairJobPartClient) Use(hooks ...Hook) {
+	c.hooks.RepairJobPart = append(c.hooks.RepairJobPart, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `repairjobpart.Intercept(f(g(h())))`.
+func (c *RepairJobPartClient) Intercept(interceptors ...Interceptor) {
+	c.inters.RepairJobPart = append(c.inters.RepairJobPart, interceptors...)
+}
+
+// Create returns a builder for creating a RepairJobPart entity.
+func (c *RepairJobPartClient) Create() *RepairJobPartCreate {
+	mutation := newRepairJobPartMutation(c.config, OpCreate)
+	return &RepairJobPartCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of RepairJobPart entities.
+func (c *RepairJobPartClient) CreateBulk(builders ...*RepairJobPartCreate) *RepairJobPartCreateBulk {
+	return &RepairJobPartCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *RepairJobPartClient) MapCreateBulk(slice any, setFunc func(*RepairJobPartCreate, int)) *RepairJobPartCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &RepairJobPartCreateBulk{err: fmt.Errorf("calling to RepairJobPartClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*RepairJobPartCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &RepairJobPartCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for RepairJobPart.
+func (c *RepairJobPartClient) Update() *RepairJobPartUpdate {
+	mutation := newRepairJobPartMutation(c.config, OpUpdate)
+	return &RepairJobPartUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *RepairJobPartClient) UpdateOne(_m *RepairJobPart) *RepairJobPartUpdateOne {
+	mutation := newRepairJobPartMutation(c.config, OpUpdateOne, withRepairJobPart(_m))
+	return &RepairJobPartUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *RepairJobPartClient) UpdateOneID(id uuid.UUID) *RepairJobPartUpdateOne {
+	mutation := newRepairJobPartMutation(c.config, OpUpdateOne, withRepairJobPartID(id))
+	return &RepairJobPartUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for RepairJobPart.
+func (c *RepairJobPartClient) Delete() *RepairJobPartDelete {
+	mutation := newRepairJobPartMutation(c.config, OpDelete)
+	return &RepairJobPartDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *RepairJobPartClient) DeleteOne(_m *RepairJobPart) *RepairJobPartDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *RepairJobPartClient) DeleteOneID(id uuid.UUID) *RepairJobPartDeleteOne {
+	builder := c.Delete().Where(repairjobpart.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &RepairJobPartDeleteOne{builder}
+}
+
+// Query returns a query builder for RepairJobPart.
+func (c *RepairJobPartClient) Query() *RepairJobPartQuery {
+	return &RepairJobPartQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeRepairJobPart},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a RepairJobPart entity by its id.
+func (c *RepairJobPartClient) Get(ctx context.Context, id uuid.UUID) (*RepairJobPart, error) {
+	return c.Query().Where(repairjobpart.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *RepairJobPartClient) GetX(ctx context.Context, id uuid.UUID) *RepairJobPart {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryRepairJob queries the repair_job edge of a RepairJobPart.
+func (c *RepairJobPartClient) QueryRepairJob(_m *RepairJobPart) *RepairJobQuery {
+	query := (&RepairJobClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(repairjobpart.Table, repairjobpart.FieldID, id),
+			sqlgraph.To(repairjob.Table, repairjob.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, repairjobpart.RepairJobTable, repairjobpart.RepairJobColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *RepairJobPartClient) Hooks() []Hook {
+	return c.hooks.RepairJobPart
+}
+
+// Interceptors returns the client interceptors.
+func (c *RepairJobPartClient) Interceptors() []Interceptor {
+	return c.inters.RepairJobPart
+}
+
+func (c *RepairJobPartClient) mutate(ctx context.Context, m *RepairJobPartMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&RepairJobPartCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&RepairJobPartUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&RepairJobPartUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&RepairJobPartDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown RepairJobPart mutation op: %q", m.Op())
+	}
+}
+
 // ResourceClient is a client for the Resource schema.
 type ResourceClient struct {
 	config
@@ -15953,16 +16442,16 @@ type (
 		POSPayment, POSPermission, POSRefund, POSReturn, POSReturnLine, POSRole,
 		POSRolePermission, POSRoleV2, POSUserRoleAssignment, PosNotification,
 		Prescription, PrescriptionLine, PriceBook, PriceBookItem, Promotion,
-		PromotionApplication, PromotionRule, RateLimitConfig, Referral, Resource, Room,
-		RoomAmenity, RoomAmenityAssignment, RoomBooking, RoomFolioItem, RoomGuest,
-		Section, SerialNumberLog, ServiceConfig, ServicePackage,
-		ServicePackagePurchase, ServicePackageRedemption, ServiceQueueEntry,
-		ShiftRotation, ShiftRotationSlot, StaffAdvance, StaffMember, StaffOutlet,
-		StaffPayroll, StaffPayrollLine, StaffSchedule, StaffShiftOverride,
-		StockAlertSubscription, StockConsumptionEvent, SyncFailure, Table,
-		TableAssignment, TableReservation, Tenant, TenantSyncEvent, Tender, User,
-		UserPOSRole, WebhookDelivery, WebhookSubscription,
-		WeighingScaleReading []ent.Hook
+		PromotionApplication, PromotionRule, RateLimitConfig, Referral, RepairJob,
+		RepairJobEvent, RepairJobPart, Resource, Room, RoomAmenity,
+		RoomAmenityAssignment, RoomBooking, RoomFolioItem, RoomGuest, Section,
+		SerialNumberLog, ServiceConfig, ServicePackage, ServicePackagePurchase,
+		ServicePackageRedemption, ServiceQueueEntry, ShiftRotation, ShiftRotationSlot,
+		StaffAdvance, StaffMember, StaffOutlet, StaffPayroll, StaffPayrollLine,
+		StaffSchedule, StaffShiftOverride, StockAlertSubscription,
+		StockConsumptionEvent, SyncFailure, Table, TableAssignment, TableReservation,
+		Tenant, TenantSyncEvent, Tender, User, UserPOSRole, WebhookDelivery,
+		WebhookSubscription, WeighingScaleReading []ent.Hook
 	}
 	inters struct {
 		Appointment, BarTab, BarTabEvent, BillSplit, CashDrawer, CashDrawerEvent,
@@ -15978,15 +16467,15 @@ type (
 		POSPayment, POSPermission, POSRefund, POSReturn, POSReturnLine, POSRole,
 		POSRolePermission, POSRoleV2, POSUserRoleAssignment, PosNotification,
 		Prescription, PrescriptionLine, PriceBook, PriceBookItem, Promotion,
-		PromotionApplication, PromotionRule, RateLimitConfig, Referral, Resource, Room,
-		RoomAmenity, RoomAmenityAssignment, RoomBooking, RoomFolioItem, RoomGuest,
-		Section, SerialNumberLog, ServiceConfig, ServicePackage,
-		ServicePackagePurchase, ServicePackageRedemption, ServiceQueueEntry,
-		ShiftRotation, ShiftRotationSlot, StaffAdvance, StaffMember, StaffOutlet,
-		StaffPayroll, StaffPayrollLine, StaffSchedule, StaffShiftOverride,
-		StockAlertSubscription, StockConsumptionEvent, SyncFailure, Table,
-		TableAssignment, TableReservation, Tenant, TenantSyncEvent, Tender, User,
-		UserPOSRole, WebhookDelivery, WebhookSubscription,
-		WeighingScaleReading []ent.Interceptor
+		PromotionApplication, PromotionRule, RateLimitConfig, Referral, RepairJob,
+		RepairJobEvent, RepairJobPart, Resource, Room, RoomAmenity,
+		RoomAmenityAssignment, RoomBooking, RoomFolioItem, RoomGuest, Section,
+		SerialNumberLog, ServiceConfig, ServicePackage, ServicePackagePurchase,
+		ServicePackageRedemption, ServiceQueueEntry, ShiftRotation, ShiftRotationSlot,
+		StaffAdvance, StaffMember, StaffOutlet, StaffPayroll, StaffPayrollLine,
+		StaffSchedule, StaffShiftOverride, StockAlertSubscription,
+		StockConsumptionEvent, SyncFailure, Table, TableAssignment, TableReservation,
+		Tenant, TenantSyncEvent, Tender, User, UserPOSRole, WebhookDelivery,
+		WebhookSubscription, WeighingScaleReading []ent.Interceptor
 	}
 )

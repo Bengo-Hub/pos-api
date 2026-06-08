@@ -68,6 +68,9 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/promotionrule"
 	"github.com/bengobox/pos-service/internal/ent/ratelimitconfig"
 	"github.com/bengobox/pos-service/internal/ent/referral"
+	"github.com/bengobox/pos-service/internal/ent/repairjob"
+	"github.com/bengobox/pos-service/internal/ent/repairjobevent"
+	"github.com/bengobox/pos-service/internal/ent/repairjobpart"
 	"github.com/bengobox/pos-service/internal/ent/resource"
 	"github.com/bengobox/pos-service/internal/ent/room"
 	"github.com/bengobox/pos-service/internal/ent/roomamenity"
@@ -1825,6 +1828,50 @@ func init() {
 	referralDescID := referralFields[0].Descriptor()
 	// referral.DefaultID holds the default value on creation for the id field.
 	referral.DefaultID = referralDescID.Default.(func() uuid.UUID)
+	repairjobFields := schema.RepairJob{}.Fields()
+	_ = repairjobFields
+	// repairjobDescJobNumber is the schema descriptor for job_number field.
+	repairjobDescJobNumber := repairjobFields[3].Descriptor()
+	// repairjob.JobNumberValidator is a validator for the "job_number" field. It is called by the builders before save.
+	repairjob.JobNumberValidator = repairjobDescJobNumber.Validators[0].(func(string) error)
+	// repairjobDescCreatedAt is the schema descriptor for created_at field.
+	repairjobDescCreatedAt := repairjobFields[14].Descriptor()
+	// repairjob.DefaultCreatedAt holds the default value on creation for the created_at field.
+	repairjob.DefaultCreatedAt = repairjobDescCreatedAt.Default.(func() time.Time)
+	// repairjobDescUpdatedAt is the schema descriptor for updated_at field.
+	repairjobDescUpdatedAt := repairjobFields[15].Descriptor()
+	// repairjob.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	repairjob.DefaultUpdatedAt = repairjobDescUpdatedAt.Default.(func() time.Time)
+	// repairjob.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	repairjob.UpdateDefaultUpdatedAt = repairjobDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// repairjobDescID is the schema descriptor for id field.
+	repairjobDescID := repairjobFields[0].Descriptor()
+	// repairjob.DefaultID holds the default value on creation for the id field.
+	repairjob.DefaultID = repairjobDescID.Default.(func() uuid.UUID)
+	repairjobeventFields := schema.RepairJobEvent{}.Fields()
+	_ = repairjobeventFields
+	// repairjobeventDescEventType is the schema descriptor for event_type field.
+	repairjobeventDescEventType := repairjobeventFields[2].Descriptor()
+	// repairjobevent.EventTypeValidator is a validator for the "event_type" field. It is called by the builders before save.
+	repairjobevent.EventTypeValidator = repairjobeventDescEventType.Validators[0].(func(string) error)
+	// repairjobeventDescCreatedAt is the schema descriptor for created_at field.
+	repairjobeventDescCreatedAt := repairjobeventFields[5].Descriptor()
+	// repairjobevent.DefaultCreatedAt holds the default value on creation for the created_at field.
+	repairjobevent.DefaultCreatedAt = repairjobeventDescCreatedAt.Default.(func() time.Time)
+	// repairjobeventDescID is the schema descriptor for id field.
+	repairjobeventDescID := repairjobeventFields[0].Descriptor()
+	// repairjobevent.DefaultID holds the default value on creation for the id field.
+	repairjobevent.DefaultID = repairjobeventDescID.Default.(func() uuid.UUID)
+	repairjobpartFields := schema.RepairJobPart{}.Fields()
+	_ = repairjobpartFields
+	// repairjobpartDescQuantity is the schema descriptor for quantity field.
+	repairjobpartDescQuantity := repairjobpartFields[5].Descriptor()
+	// repairjobpart.DefaultQuantity holds the default value on creation for the quantity field.
+	repairjobpart.DefaultQuantity = repairjobpartDescQuantity.Default.(float64)
+	// repairjobpartDescID is the schema descriptor for id field.
+	repairjobpartDescID := repairjobpartFields[0].Descriptor()
+	// repairjobpart.DefaultID holds the default value on creation for the id field.
+	repairjobpart.DefaultID = repairjobpartDescID.Default.(func() uuid.UUID)
 	resourceFields := schema.Resource{}.Fields()
 	_ = resourceFields
 	// resourceDescName is the schema descriptor for name field.

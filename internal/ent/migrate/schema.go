@@ -2121,6 +2121,105 @@ var (
 			},
 		},
 	}
+	// RepairJobsColumns holds the columns for the "repair_jobs" table.
+	RepairJobsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "outlet_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "job_number", Type: field.TypeString},
+		{Name: "customer_phone", Type: field.TypeString, Nullable: true},
+		{Name: "customer_name", Type: field.TypeString, Nullable: true},
+		{Name: "device_description", Type: field.TypeString, Nullable: true},
+		{Name: "reported_issue", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"intake", "diagnosed", "awaiting_parts", "in_progress", "ready", "completed", "cancelled"}, Default: "intake"},
+		{Name: "diagnosis", Type: field.TypeString, Nullable: true},
+		{Name: "estimated_cost", Type: field.TypeFloat64},
+		{Name: "quoted_cost", Type: field.TypeFloat64, Nullable: true},
+		{Name: "assigned_staff_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "pos_order_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// RepairJobsTable holds the schema information for the "repair_jobs" table.
+	RepairJobsTable = &schema.Table{
+		Name:       "repair_jobs",
+		Columns:    RepairJobsColumns,
+		PrimaryKey: []*schema.Column{RepairJobsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "repairjob_tenant_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{RepairJobsColumns[1], RepairJobsColumns[8]},
+			},
+			{
+				Name:    "repairjob_tenant_id_job_number",
+				Unique:  true,
+				Columns: []*schema.Column{RepairJobsColumns[1], RepairJobsColumns[3]},
+			},
+		},
+	}
+	// RepairJobEventsColumns holds the columns for the "repair_job_events" table.
+	RepairJobEventsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "event_type", Type: field.TypeString},
+		{Name: "notes", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "actor_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "repair_job_id", Type: field.TypeUUID},
+	}
+	// RepairJobEventsTable holds the schema information for the "repair_job_events" table.
+	RepairJobEventsTable = &schema.Table{
+		Name:       "repair_job_events",
+		Columns:    RepairJobEventsColumns,
+		PrimaryKey: []*schema.Column{RepairJobEventsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "repair_job_events_repair_jobs_events",
+				Columns:    []*schema.Column{RepairJobEventsColumns[5]},
+				RefColumns: []*schema.Column{RepairJobsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "repairjobevent_repair_job_id",
+				Unique:  false,
+				Columns: []*schema.Column{RepairJobEventsColumns[5]},
+			},
+		},
+	}
+	// RepairJobPartsColumns holds the columns for the "repair_job_parts" table.
+	RepairJobPartsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "inventory_sku", Type: field.TypeString, Nullable: true},
+		{Name: "inventory_item_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "description", Type: field.TypeString, Nullable: true},
+		{Name: "quantity", Type: field.TypeFloat64, Default: 1},
+		{Name: "unit_cost", Type: field.TypeFloat64},
+		{Name: "line_total", Type: field.TypeFloat64},
+		{Name: "repair_job_id", Type: field.TypeUUID},
+	}
+	// RepairJobPartsTable holds the schema information for the "repair_job_parts" table.
+	RepairJobPartsTable = &schema.Table{
+		Name:       "repair_job_parts",
+		Columns:    RepairJobPartsColumns,
+		PrimaryKey: []*schema.Column{RepairJobPartsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "repair_job_parts_repair_jobs_parts",
+				Columns:    []*schema.Column{RepairJobPartsColumns[7]},
+				RefColumns: []*schema.Column{RepairJobsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "repairjobpart_repair_job_id",
+				Unique:  false,
+				Columns: []*schema.Column{RepairJobPartsColumns[7]},
+			},
+		},
+	}
 	// ResourcesColumns holds the columns for the "resources" table.
 	ResourcesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -3487,6 +3586,9 @@ var (
 		PromotionRulesTable,
 		RateLimitConfigsTable,
 		ReferralsTable,
+		RepairJobsTable,
+		RepairJobEventsTable,
+		RepairJobPartsTable,
 		ResourcesTable,
 		RoomsTable,
 		RoomAmenitiesTable,
@@ -3551,6 +3653,8 @@ func init() {
 	PosUserRoleAssignmentsTable.ForeignKeys[1].RefTable = UsersTable
 	PosUserRoleAssignmentsTable.ForeignKeys[2].RefTable = PosRoleV2sTable
 	PriceBookItemsTable.ForeignKeys[0].RefTable = PriceBooksTable
+	RepairJobEventsTable.ForeignKeys[0].RefTable = RepairJobsTable
+	RepairJobPartsTable.ForeignKeys[0].RefTable = RepairJobsTable
 	RoomAmenityAssignmentsTable.ForeignKeys[0].RefTable = RoomsTable
 	RoomAmenityAssignmentsTable.ForeignKeys[1].RefTable = RoomAmenitiesTable
 	RoomFolioItemsTable.ForeignKeys[0].RefTable = RoomsTable
