@@ -144,6 +144,12 @@ type Tx struct {
 	RateLimitConfig *RateLimitConfigClient
 	// Referral is the client for interacting with the Referral builders.
 	Referral *ReferralClient
+	// RepairJob is the client for interacting with the RepairJob builders.
+	RepairJob *RepairJobClient
+	// RepairJobEvent is the client for interacting with the RepairJobEvent builders.
+	RepairJobEvent *RepairJobEventClient
+	// RepairJobPart is the client for interacting with the RepairJobPart builders.
+	RepairJobPart *RepairJobPartClient
 	// Resource is the client for interacting with the Resource builders.
 	Resource *ResourceClient
 	// Room is the client for interacting with the Room builders.
@@ -415,6 +421,9 @@ func (tx *Tx) init() {
 	tx.PromotionRule = NewPromotionRuleClient(tx.config)
 	tx.RateLimitConfig = NewRateLimitConfigClient(tx.config)
 	tx.Referral = NewReferralClient(tx.config)
+	tx.RepairJob = NewRepairJobClient(tx.config)
+	tx.RepairJobEvent = NewRepairJobEventClient(tx.config)
+	tx.RepairJobPart = NewRepairJobPartClient(tx.config)
 	tx.Resource = NewResourceClient(tx.config)
 	tx.Room = NewRoomClient(tx.config)
 	tx.RoomAmenity = NewRoomAmenityClient(tx.config)

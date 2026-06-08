@@ -77,6 +77,9 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/promotionrule"
 	"github.com/bengobox/pos-service/internal/ent/ratelimitconfig"
 	"github.com/bengobox/pos-service/internal/ent/referral"
+	"github.com/bengobox/pos-service/internal/ent/repairjob"
+	"github.com/bengobox/pos-service/internal/ent/repairjobevent"
+	"github.com/bengobox/pos-service/internal/ent/repairjobpart"
 	"github.com/bengobox/pos-service/internal/ent/resource"
 	"github.com/bengobox/pos-service/internal/ent/room"
 	"github.com/bengobox/pos-service/internal/ent/roomamenity"
@@ -193,6 +196,9 @@ const (
 	TypePromotionRule            = "PromotionRule"
 	TypeRateLimitConfig          = "RateLimitConfig"
 	TypeReferral                 = "Referral"
+	TypeRepairJob                = "RepairJob"
+	TypeRepairJobEvent           = "RepairJobEvent"
+	TypeRepairJobPart            = "RepairJobPart"
 	TypeResource                 = "Resource"
 	TypeRoom                     = "Room"
 	TypeRoomAmenity              = "RoomAmenity"
@@ -67814,6 +67820,3029 @@ func (m *ReferralMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *ReferralMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown Referral edge %s", name)
+}
+
+// RepairJobMutation represents an operation that mutates the RepairJob nodes in the graph.
+type RepairJobMutation struct {
+	config
+	op                 Op
+	typ                string
+	id                 *uuid.UUID
+	tenant_id          *uuid.UUID
+	outlet_id          *uuid.UUID
+	job_number         *string
+	customer_phone     *string
+	customer_name      *string
+	device_description *string
+	reported_issue     *string
+	status             *repairjob.Status
+	diagnosis          *string
+	estimated_cost     *decimal.Decimal
+	addestimated_cost  *decimal.Decimal
+	quoted_cost        *decimal.Decimal
+	addquoted_cost     *decimal.Decimal
+	assigned_staff_id  *uuid.UUID
+	pos_order_id       *uuid.UUID
+	created_at         *time.Time
+	updated_at         *time.Time
+	clearedFields      map[string]struct{}
+	parts              map[uuid.UUID]struct{}
+	removedparts       map[uuid.UUID]struct{}
+	clearedparts       bool
+	events             map[uuid.UUID]struct{}
+	removedevents      map[uuid.UUID]struct{}
+	clearedevents      bool
+	done               bool
+	oldValue           func(context.Context) (*RepairJob, error)
+	predicates         []predicate.RepairJob
+}
+
+var _ ent.Mutation = (*RepairJobMutation)(nil)
+
+// repairjobOption allows management of the mutation configuration using functional options.
+type repairjobOption func(*RepairJobMutation)
+
+// newRepairJobMutation creates new mutation for the RepairJob entity.
+func newRepairJobMutation(c config, op Op, opts ...repairjobOption) *RepairJobMutation {
+	m := &RepairJobMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeRepairJob,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withRepairJobID sets the ID field of the mutation.
+func withRepairJobID(id uuid.UUID) repairjobOption {
+	return func(m *RepairJobMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *RepairJob
+		)
+		m.oldValue = func(ctx context.Context) (*RepairJob, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().RepairJob.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withRepairJob sets the old RepairJob of the mutation.
+func withRepairJob(node *RepairJob) repairjobOption {
+	return func(m *RepairJobMutation) {
+		m.oldValue = func(context.Context) (*RepairJob, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m RepairJobMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m RepairJobMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of RepairJob entities.
+func (m *RepairJobMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *RepairJobMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *RepairJobMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().RepairJob.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *RepairJobMutation) SetTenantID(u uuid.UUID) {
+	m.tenant_id = &u
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *RepairJobMutation) TenantID() (r uuid.UUID, exists bool) {
+	v := m.tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the RepairJob entity.
+// If the RepairJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RepairJobMutation) OldTenantID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *RepairJobMutation) ResetTenantID() {
+	m.tenant_id = nil
+}
+
+// SetOutletID sets the "outlet_id" field.
+func (m *RepairJobMutation) SetOutletID(u uuid.UUID) {
+	m.outlet_id = &u
+}
+
+// OutletID returns the value of the "outlet_id" field in the mutation.
+func (m *RepairJobMutation) OutletID() (r uuid.UUID, exists bool) {
+	v := m.outlet_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOutletID returns the old "outlet_id" field's value of the RepairJob entity.
+// If the RepairJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RepairJobMutation) OldOutletID(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOutletID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOutletID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOutletID: %w", err)
+	}
+	return oldValue.OutletID, nil
+}
+
+// ClearOutletID clears the value of the "outlet_id" field.
+func (m *RepairJobMutation) ClearOutletID() {
+	m.outlet_id = nil
+	m.clearedFields[repairjob.FieldOutletID] = struct{}{}
+}
+
+// OutletIDCleared returns if the "outlet_id" field was cleared in this mutation.
+func (m *RepairJobMutation) OutletIDCleared() bool {
+	_, ok := m.clearedFields[repairjob.FieldOutletID]
+	return ok
+}
+
+// ResetOutletID resets all changes to the "outlet_id" field.
+func (m *RepairJobMutation) ResetOutletID() {
+	m.outlet_id = nil
+	delete(m.clearedFields, repairjob.FieldOutletID)
+}
+
+// SetJobNumber sets the "job_number" field.
+func (m *RepairJobMutation) SetJobNumber(s string) {
+	m.job_number = &s
+}
+
+// JobNumber returns the value of the "job_number" field in the mutation.
+func (m *RepairJobMutation) JobNumber() (r string, exists bool) {
+	v := m.job_number
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldJobNumber returns the old "job_number" field's value of the RepairJob entity.
+// If the RepairJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RepairJobMutation) OldJobNumber(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldJobNumber is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldJobNumber requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldJobNumber: %w", err)
+	}
+	return oldValue.JobNumber, nil
+}
+
+// ResetJobNumber resets all changes to the "job_number" field.
+func (m *RepairJobMutation) ResetJobNumber() {
+	m.job_number = nil
+}
+
+// SetCustomerPhone sets the "customer_phone" field.
+func (m *RepairJobMutation) SetCustomerPhone(s string) {
+	m.customer_phone = &s
+}
+
+// CustomerPhone returns the value of the "customer_phone" field in the mutation.
+func (m *RepairJobMutation) CustomerPhone() (r string, exists bool) {
+	v := m.customer_phone
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCustomerPhone returns the old "customer_phone" field's value of the RepairJob entity.
+// If the RepairJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RepairJobMutation) OldCustomerPhone(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCustomerPhone is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCustomerPhone requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCustomerPhone: %w", err)
+	}
+	return oldValue.CustomerPhone, nil
+}
+
+// ClearCustomerPhone clears the value of the "customer_phone" field.
+func (m *RepairJobMutation) ClearCustomerPhone() {
+	m.customer_phone = nil
+	m.clearedFields[repairjob.FieldCustomerPhone] = struct{}{}
+}
+
+// CustomerPhoneCleared returns if the "customer_phone" field was cleared in this mutation.
+func (m *RepairJobMutation) CustomerPhoneCleared() bool {
+	_, ok := m.clearedFields[repairjob.FieldCustomerPhone]
+	return ok
+}
+
+// ResetCustomerPhone resets all changes to the "customer_phone" field.
+func (m *RepairJobMutation) ResetCustomerPhone() {
+	m.customer_phone = nil
+	delete(m.clearedFields, repairjob.FieldCustomerPhone)
+}
+
+// SetCustomerName sets the "customer_name" field.
+func (m *RepairJobMutation) SetCustomerName(s string) {
+	m.customer_name = &s
+}
+
+// CustomerName returns the value of the "customer_name" field in the mutation.
+func (m *RepairJobMutation) CustomerName() (r string, exists bool) {
+	v := m.customer_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCustomerName returns the old "customer_name" field's value of the RepairJob entity.
+// If the RepairJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RepairJobMutation) OldCustomerName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCustomerName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCustomerName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCustomerName: %w", err)
+	}
+	return oldValue.CustomerName, nil
+}
+
+// ClearCustomerName clears the value of the "customer_name" field.
+func (m *RepairJobMutation) ClearCustomerName() {
+	m.customer_name = nil
+	m.clearedFields[repairjob.FieldCustomerName] = struct{}{}
+}
+
+// CustomerNameCleared returns if the "customer_name" field was cleared in this mutation.
+func (m *RepairJobMutation) CustomerNameCleared() bool {
+	_, ok := m.clearedFields[repairjob.FieldCustomerName]
+	return ok
+}
+
+// ResetCustomerName resets all changes to the "customer_name" field.
+func (m *RepairJobMutation) ResetCustomerName() {
+	m.customer_name = nil
+	delete(m.clearedFields, repairjob.FieldCustomerName)
+}
+
+// SetDeviceDescription sets the "device_description" field.
+func (m *RepairJobMutation) SetDeviceDescription(s string) {
+	m.device_description = &s
+}
+
+// DeviceDescription returns the value of the "device_description" field in the mutation.
+func (m *RepairJobMutation) DeviceDescription() (r string, exists bool) {
+	v := m.device_description
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDeviceDescription returns the old "device_description" field's value of the RepairJob entity.
+// If the RepairJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RepairJobMutation) OldDeviceDescription(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDeviceDescription is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDeviceDescription requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDeviceDescription: %w", err)
+	}
+	return oldValue.DeviceDescription, nil
+}
+
+// ClearDeviceDescription clears the value of the "device_description" field.
+func (m *RepairJobMutation) ClearDeviceDescription() {
+	m.device_description = nil
+	m.clearedFields[repairjob.FieldDeviceDescription] = struct{}{}
+}
+
+// DeviceDescriptionCleared returns if the "device_description" field was cleared in this mutation.
+func (m *RepairJobMutation) DeviceDescriptionCleared() bool {
+	_, ok := m.clearedFields[repairjob.FieldDeviceDescription]
+	return ok
+}
+
+// ResetDeviceDescription resets all changes to the "device_description" field.
+func (m *RepairJobMutation) ResetDeviceDescription() {
+	m.device_description = nil
+	delete(m.clearedFields, repairjob.FieldDeviceDescription)
+}
+
+// SetReportedIssue sets the "reported_issue" field.
+func (m *RepairJobMutation) SetReportedIssue(s string) {
+	m.reported_issue = &s
+}
+
+// ReportedIssue returns the value of the "reported_issue" field in the mutation.
+func (m *RepairJobMutation) ReportedIssue() (r string, exists bool) {
+	v := m.reported_issue
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReportedIssue returns the old "reported_issue" field's value of the RepairJob entity.
+// If the RepairJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RepairJobMutation) OldReportedIssue(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReportedIssue is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReportedIssue requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReportedIssue: %w", err)
+	}
+	return oldValue.ReportedIssue, nil
+}
+
+// ClearReportedIssue clears the value of the "reported_issue" field.
+func (m *RepairJobMutation) ClearReportedIssue() {
+	m.reported_issue = nil
+	m.clearedFields[repairjob.FieldReportedIssue] = struct{}{}
+}
+
+// ReportedIssueCleared returns if the "reported_issue" field was cleared in this mutation.
+func (m *RepairJobMutation) ReportedIssueCleared() bool {
+	_, ok := m.clearedFields[repairjob.FieldReportedIssue]
+	return ok
+}
+
+// ResetReportedIssue resets all changes to the "reported_issue" field.
+func (m *RepairJobMutation) ResetReportedIssue() {
+	m.reported_issue = nil
+	delete(m.clearedFields, repairjob.FieldReportedIssue)
+}
+
+// SetStatus sets the "status" field.
+func (m *RepairJobMutation) SetStatus(r repairjob.Status) {
+	m.status = &r
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *RepairJobMutation) Status() (r repairjob.Status, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the RepairJob entity.
+// If the RepairJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RepairJobMutation) OldStatus(ctx context.Context) (v repairjob.Status, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *RepairJobMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetDiagnosis sets the "diagnosis" field.
+func (m *RepairJobMutation) SetDiagnosis(s string) {
+	m.diagnosis = &s
+}
+
+// Diagnosis returns the value of the "diagnosis" field in the mutation.
+func (m *RepairJobMutation) Diagnosis() (r string, exists bool) {
+	v := m.diagnosis
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDiagnosis returns the old "diagnosis" field's value of the RepairJob entity.
+// If the RepairJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RepairJobMutation) OldDiagnosis(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDiagnosis is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDiagnosis requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDiagnosis: %w", err)
+	}
+	return oldValue.Diagnosis, nil
+}
+
+// ClearDiagnosis clears the value of the "diagnosis" field.
+func (m *RepairJobMutation) ClearDiagnosis() {
+	m.diagnosis = nil
+	m.clearedFields[repairjob.FieldDiagnosis] = struct{}{}
+}
+
+// DiagnosisCleared returns if the "diagnosis" field was cleared in this mutation.
+func (m *RepairJobMutation) DiagnosisCleared() bool {
+	_, ok := m.clearedFields[repairjob.FieldDiagnosis]
+	return ok
+}
+
+// ResetDiagnosis resets all changes to the "diagnosis" field.
+func (m *RepairJobMutation) ResetDiagnosis() {
+	m.diagnosis = nil
+	delete(m.clearedFields, repairjob.FieldDiagnosis)
+}
+
+// SetEstimatedCost sets the "estimated_cost" field.
+func (m *RepairJobMutation) SetEstimatedCost(d decimal.Decimal) {
+	m.estimated_cost = &d
+	m.addestimated_cost = nil
+}
+
+// EstimatedCost returns the value of the "estimated_cost" field in the mutation.
+func (m *RepairJobMutation) EstimatedCost() (r decimal.Decimal, exists bool) {
+	v := m.estimated_cost
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEstimatedCost returns the old "estimated_cost" field's value of the RepairJob entity.
+// If the RepairJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RepairJobMutation) OldEstimatedCost(ctx context.Context) (v decimal.Decimal, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEstimatedCost is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEstimatedCost requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEstimatedCost: %w", err)
+	}
+	return oldValue.EstimatedCost, nil
+}
+
+// AddEstimatedCost adds d to the "estimated_cost" field.
+func (m *RepairJobMutation) AddEstimatedCost(d decimal.Decimal) {
+	if m.addestimated_cost != nil {
+		*m.addestimated_cost = m.addestimated_cost.Add(d)
+	} else {
+		m.addestimated_cost = &d
+	}
+}
+
+// AddedEstimatedCost returns the value that was added to the "estimated_cost" field in this mutation.
+func (m *RepairJobMutation) AddedEstimatedCost() (r decimal.Decimal, exists bool) {
+	v := m.addestimated_cost
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetEstimatedCost resets all changes to the "estimated_cost" field.
+func (m *RepairJobMutation) ResetEstimatedCost() {
+	m.estimated_cost = nil
+	m.addestimated_cost = nil
+}
+
+// SetQuotedCost sets the "quoted_cost" field.
+func (m *RepairJobMutation) SetQuotedCost(d decimal.Decimal) {
+	m.quoted_cost = &d
+	m.addquoted_cost = nil
+}
+
+// QuotedCost returns the value of the "quoted_cost" field in the mutation.
+func (m *RepairJobMutation) QuotedCost() (r decimal.Decimal, exists bool) {
+	v := m.quoted_cost
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldQuotedCost returns the old "quoted_cost" field's value of the RepairJob entity.
+// If the RepairJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RepairJobMutation) OldQuotedCost(ctx context.Context) (v *decimal.Decimal, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldQuotedCost is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldQuotedCost requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldQuotedCost: %w", err)
+	}
+	return oldValue.QuotedCost, nil
+}
+
+// AddQuotedCost adds d to the "quoted_cost" field.
+func (m *RepairJobMutation) AddQuotedCost(d decimal.Decimal) {
+	if m.addquoted_cost != nil {
+		*m.addquoted_cost = m.addquoted_cost.Add(d)
+	} else {
+		m.addquoted_cost = &d
+	}
+}
+
+// AddedQuotedCost returns the value that was added to the "quoted_cost" field in this mutation.
+func (m *RepairJobMutation) AddedQuotedCost() (r decimal.Decimal, exists bool) {
+	v := m.addquoted_cost
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearQuotedCost clears the value of the "quoted_cost" field.
+func (m *RepairJobMutation) ClearQuotedCost() {
+	m.quoted_cost = nil
+	m.addquoted_cost = nil
+	m.clearedFields[repairjob.FieldQuotedCost] = struct{}{}
+}
+
+// QuotedCostCleared returns if the "quoted_cost" field was cleared in this mutation.
+func (m *RepairJobMutation) QuotedCostCleared() bool {
+	_, ok := m.clearedFields[repairjob.FieldQuotedCost]
+	return ok
+}
+
+// ResetQuotedCost resets all changes to the "quoted_cost" field.
+func (m *RepairJobMutation) ResetQuotedCost() {
+	m.quoted_cost = nil
+	m.addquoted_cost = nil
+	delete(m.clearedFields, repairjob.FieldQuotedCost)
+}
+
+// SetAssignedStaffID sets the "assigned_staff_id" field.
+func (m *RepairJobMutation) SetAssignedStaffID(u uuid.UUID) {
+	m.assigned_staff_id = &u
+}
+
+// AssignedStaffID returns the value of the "assigned_staff_id" field in the mutation.
+func (m *RepairJobMutation) AssignedStaffID() (r uuid.UUID, exists bool) {
+	v := m.assigned_staff_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAssignedStaffID returns the old "assigned_staff_id" field's value of the RepairJob entity.
+// If the RepairJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RepairJobMutation) OldAssignedStaffID(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAssignedStaffID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAssignedStaffID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAssignedStaffID: %w", err)
+	}
+	return oldValue.AssignedStaffID, nil
+}
+
+// ClearAssignedStaffID clears the value of the "assigned_staff_id" field.
+func (m *RepairJobMutation) ClearAssignedStaffID() {
+	m.assigned_staff_id = nil
+	m.clearedFields[repairjob.FieldAssignedStaffID] = struct{}{}
+}
+
+// AssignedStaffIDCleared returns if the "assigned_staff_id" field was cleared in this mutation.
+func (m *RepairJobMutation) AssignedStaffIDCleared() bool {
+	_, ok := m.clearedFields[repairjob.FieldAssignedStaffID]
+	return ok
+}
+
+// ResetAssignedStaffID resets all changes to the "assigned_staff_id" field.
+func (m *RepairJobMutation) ResetAssignedStaffID() {
+	m.assigned_staff_id = nil
+	delete(m.clearedFields, repairjob.FieldAssignedStaffID)
+}
+
+// SetPosOrderID sets the "pos_order_id" field.
+func (m *RepairJobMutation) SetPosOrderID(u uuid.UUID) {
+	m.pos_order_id = &u
+}
+
+// PosOrderID returns the value of the "pos_order_id" field in the mutation.
+func (m *RepairJobMutation) PosOrderID() (r uuid.UUID, exists bool) {
+	v := m.pos_order_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPosOrderID returns the old "pos_order_id" field's value of the RepairJob entity.
+// If the RepairJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RepairJobMutation) OldPosOrderID(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPosOrderID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPosOrderID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPosOrderID: %w", err)
+	}
+	return oldValue.PosOrderID, nil
+}
+
+// ClearPosOrderID clears the value of the "pos_order_id" field.
+func (m *RepairJobMutation) ClearPosOrderID() {
+	m.pos_order_id = nil
+	m.clearedFields[repairjob.FieldPosOrderID] = struct{}{}
+}
+
+// PosOrderIDCleared returns if the "pos_order_id" field was cleared in this mutation.
+func (m *RepairJobMutation) PosOrderIDCleared() bool {
+	_, ok := m.clearedFields[repairjob.FieldPosOrderID]
+	return ok
+}
+
+// ResetPosOrderID resets all changes to the "pos_order_id" field.
+func (m *RepairJobMutation) ResetPosOrderID() {
+	m.pos_order_id = nil
+	delete(m.clearedFields, repairjob.FieldPosOrderID)
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *RepairJobMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *RepairJobMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the RepairJob entity.
+// If the RepairJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RepairJobMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *RepairJobMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *RepairJobMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *RepairJobMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the RepairJob entity.
+// If the RepairJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RepairJobMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *RepairJobMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// AddPartIDs adds the "parts" edge to the RepairJobPart entity by ids.
+func (m *RepairJobMutation) AddPartIDs(ids ...uuid.UUID) {
+	if m.parts == nil {
+		m.parts = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		m.parts[ids[i]] = struct{}{}
+	}
+}
+
+// ClearParts clears the "parts" edge to the RepairJobPart entity.
+func (m *RepairJobMutation) ClearParts() {
+	m.clearedparts = true
+}
+
+// PartsCleared reports if the "parts" edge to the RepairJobPart entity was cleared.
+func (m *RepairJobMutation) PartsCleared() bool {
+	return m.clearedparts
+}
+
+// RemovePartIDs removes the "parts" edge to the RepairJobPart entity by IDs.
+func (m *RepairJobMutation) RemovePartIDs(ids ...uuid.UUID) {
+	if m.removedparts == nil {
+		m.removedparts = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		delete(m.parts, ids[i])
+		m.removedparts[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedParts returns the removed IDs of the "parts" edge to the RepairJobPart entity.
+func (m *RepairJobMutation) RemovedPartsIDs() (ids []uuid.UUID) {
+	for id := range m.removedparts {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// PartsIDs returns the "parts" edge IDs in the mutation.
+func (m *RepairJobMutation) PartsIDs() (ids []uuid.UUID) {
+	for id := range m.parts {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetParts resets all changes to the "parts" edge.
+func (m *RepairJobMutation) ResetParts() {
+	m.parts = nil
+	m.clearedparts = false
+	m.removedparts = nil
+}
+
+// AddEventIDs adds the "events" edge to the RepairJobEvent entity by ids.
+func (m *RepairJobMutation) AddEventIDs(ids ...uuid.UUID) {
+	if m.events == nil {
+		m.events = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		m.events[ids[i]] = struct{}{}
+	}
+}
+
+// ClearEvents clears the "events" edge to the RepairJobEvent entity.
+func (m *RepairJobMutation) ClearEvents() {
+	m.clearedevents = true
+}
+
+// EventsCleared reports if the "events" edge to the RepairJobEvent entity was cleared.
+func (m *RepairJobMutation) EventsCleared() bool {
+	return m.clearedevents
+}
+
+// RemoveEventIDs removes the "events" edge to the RepairJobEvent entity by IDs.
+func (m *RepairJobMutation) RemoveEventIDs(ids ...uuid.UUID) {
+	if m.removedevents == nil {
+		m.removedevents = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		delete(m.events, ids[i])
+		m.removedevents[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedEvents returns the removed IDs of the "events" edge to the RepairJobEvent entity.
+func (m *RepairJobMutation) RemovedEventsIDs() (ids []uuid.UUID) {
+	for id := range m.removedevents {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// EventsIDs returns the "events" edge IDs in the mutation.
+func (m *RepairJobMutation) EventsIDs() (ids []uuid.UUID) {
+	for id := range m.events {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetEvents resets all changes to the "events" edge.
+func (m *RepairJobMutation) ResetEvents() {
+	m.events = nil
+	m.clearedevents = false
+	m.removedevents = nil
+}
+
+// Where appends a list predicates to the RepairJobMutation builder.
+func (m *RepairJobMutation) Where(ps ...predicate.RepairJob) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the RepairJobMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *RepairJobMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.RepairJob, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *RepairJobMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *RepairJobMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (RepairJob).
+func (m *RepairJobMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *RepairJobMutation) Fields() []string {
+	fields := make([]string, 0, 15)
+	if m.tenant_id != nil {
+		fields = append(fields, repairjob.FieldTenantID)
+	}
+	if m.outlet_id != nil {
+		fields = append(fields, repairjob.FieldOutletID)
+	}
+	if m.job_number != nil {
+		fields = append(fields, repairjob.FieldJobNumber)
+	}
+	if m.customer_phone != nil {
+		fields = append(fields, repairjob.FieldCustomerPhone)
+	}
+	if m.customer_name != nil {
+		fields = append(fields, repairjob.FieldCustomerName)
+	}
+	if m.device_description != nil {
+		fields = append(fields, repairjob.FieldDeviceDescription)
+	}
+	if m.reported_issue != nil {
+		fields = append(fields, repairjob.FieldReportedIssue)
+	}
+	if m.status != nil {
+		fields = append(fields, repairjob.FieldStatus)
+	}
+	if m.diagnosis != nil {
+		fields = append(fields, repairjob.FieldDiagnosis)
+	}
+	if m.estimated_cost != nil {
+		fields = append(fields, repairjob.FieldEstimatedCost)
+	}
+	if m.quoted_cost != nil {
+		fields = append(fields, repairjob.FieldQuotedCost)
+	}
+	if m.assigned_staff_id != nil {
+		fields = append(fields, repairjob.FieldAssignedStaffID)
+	}
+	if m.pos_order_id != nil {
+		fields = append(fields, repairjob.FieldPosOrderID)
+	}
+	if m.created_at != nil {
+		fields = append(fields, repairjob.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, repairjob.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *RepairJobMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case repairjob.FieldTenantID:
+		return m.TenantID()
+	case repairjob.FieldOutletID:
+		return m.OutletID()
+	case repairjob.FieldJobNumber:
+		return m.JobNumber()
+	case repairjob.FieldCustomerPhone:
+		return m.CustomerPhone()
+	case repairjob.FieldCustomerName:
+		return m.CustomerName()
+	case repairjob.FieldDeviceDescription:
+		return m.DeviceDescription()
+	case repairjob.FieldReportedIssue:
+		return m.ReportedIssue()
+	case repairjob.FieldStatus:
+		return m.Status()
+	case repairjob.FieldDiagnosis:
+		return m.Diagnosis()
+	case repairjob.FieldEstimatedCost:
+		return m.EstimatedCost()
+	case repairjob.FieldQuotedCost:
+		return m.QuotedCost()
+	case repairjob.FieldAssignedStaffID:
+		return m.AssignedStaffID()
+	case repairjob.FieldPosOrderID:
+		return m.PosOrderID()
+	case repairjob.FieldCreatedAt:
+		return m.CreatedAt()
+	case repairjob.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *RepairJobMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case repairjob.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case repairjob.FieldOutletID:
+		return m.OldOutletID(ctx)
+	case repairjob.FieldJobNumber:
+		return m.OldJobNumber(ctx)
+	case repairjob.FieldCustomerPhone:
+		return m.OldCustomerPhone(ctx)
+	case repairjob.FieldCustomerName:
+		return m.OldCustomerName(ctx)
+	case repairjob.FieldDeviceDescription:
+		return m.OldDeviceDescription(ctx)
+	case repairjob.FieldReportedIssue:
+		return m.OldReportedIssue(ctx)
+	case repairjob.FieldStatus:
+		return m.OldStatus(ctx)
+	case repairjob.FieldDiagnosis:
+		return m.OldDiagnosis(ctx)
+	case repairjob.FieldEstimatedCost:
+		return m.OldEstimatedCost(ctx)
+	case repairjob.FieldQuotedCost:
+		return m.OldQuotedCost(ctx)
+	case repairjob.FieldAssignedStaffID:
+		return m.OldAssignedStaffID(ctx)
+	case repairjob.FieldPosOrderID:
+		return m.OldPosOrderID(ctx)
+	case repairjob.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case repairjob.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown RepairJob field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *RepairJobMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case repairjob.FieldTenantID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case repairjob.FieldOutletID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOutletID(v)
+		return nil
+	case repairjob.FieldJobNumber:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetJobNumber(v)
+		return nil
+	case repairjob.FieldCustomerPhone:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCustomerPhone(v)
+		return nil
+	case repairjob.FieldCustomerName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCustomerName(v)
+		return nil
+	case repairjob.FieldDeviceDescription:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDeviceDescription(v)
+		return nil
+	case repairjob.FieldReportedIssue:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReportedIssue(v)
+		return nil
+	case repairjob.FieldStatus:
+		v, ok := value.(repairjob.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case repairjob.FieldDiagnosis:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDiagnosis(v)
+		return nil
+	case repairjob.FieldEstimatedCost:
+		v, ok := value.(decimal.Decimal)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEstimatedCost(v)
+		return nil
+	case repairjob.FieldQuotedCost:
+		v, ok := value.(decimal.Decimal)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetQuotedCost(v)
+		return nil
+	case repairjob.FieldAssignedStaffID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAssignedStaffID(v)
+		return nil
+	case repairjob.FieldPosOrderID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPosOrderID(v)
+		return nil
+	case repairjob.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case repairjob.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown RepairJob field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *RepairJobMutation) AddedFields() []string {
+	var fields []string
+	if m.addestimated_cost != nil {
+		fields = append(fields, repairjob.FieldEstimatedCost)
+	}
+	if m.addquoted_cost != nil {
+		fields = append(fields, repairjob.FieldQuotedCost)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *RepairJobMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case repairjob.FieldEstimatedCost:
+		return m.AddedEstimatedCost()
+	case repairjob.FieldQuotedCost:
+		return m.AddedQuotedCost()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *RepairJobMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case repairjob.FieldEstimatedCost:
+		v, ok := value.(decimal.Decimal)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddEstimatedCost(v)
+		return nil
+	case repairjob.FieldQuotedCost:
+		v, ok := value.(decimal.Decimal)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddQuotedCost(v)
+		return nil
+	}
+	return fmt.Errorf("unknown RepairJob numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *RepairJobMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(repairjob.FieldOutletID) {
+		fields = append(fields, repairjob.FieldOutletID)
+	}
+	if m.FieldCleared(repairjob.FieldCustomerPhone) {
+		fields = append(fields, repairjob.FieldCustomerPhone)
+	}
+	if m.FieldCleared(repairjob.FieldCustomerName) {
+		fields = append(fields, repairjob.FieldCustomerName)
+	}
+	if m.FieldCleared(repairjob.FieldDeviceDescription) {
+		fields = append(fields, repairjob.FieldDeviceDescription)
+	}
+	if m.FieldCleared(repairjob.FieldReportedIssue) {
+		fields = append(fields, repairjob.FieldReportedIssue)
+	}
+	if m.FieldCleared(repairjob.FieldDiagnosis) {
+		fields = append(fields, repairjob.FieldDiagnosis)
+	}
+	if m.FieldCleared(repairjob.FieldQuotedCost) {
+		fields = append(fields, repairjob.FieldQuotedCost)
+	}
+	if m.FieldCleared(repairjob.FieldAssignedStaffID) {
+		fields = append(fields, repairjob.FieldAssignedStaffID)
+	}
+	if m.FieldCleared(repairjob.FieldPosOrderID) {
+		fields = append(fields, repairjob.FieldPosOrderID)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *RepairJobMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *RepairJobMutation) ClearField(name string) error {
+	switch name {
+	case repairjob.FieldOutletID:
+		m.ClearOutletID()
+		return nil
+	case repairjob.FieldCustomerPhone:
+		m.ClearCustomerPhone()
+		return nil
+	case repairjob.FieldCustomerName:
+		m.ClearCustomerName()
+		return nil
+	case repairjob.FieldDeviceDescription:
+		m.ClearDeviceDescription()
+		return nil
+	case repairjob.FieldReportedIssue:
+		m.ClearReportedIssue()
+		return nil
+	case repairjob.FieldDiagnosis:
+		m.ClearDiagnosis()
+		return nil
+	case repairjob.FieldQuotedCost:
+		m.ClearQuotedCost()
+		return nil
+	case repairjob.FieldAssignedStaffID:
+		m.ClearAssignedStaffID()
+		return nil
+	case repairjob.FieldPosOrderID:
+		m.ClearPosOrderID()
+		return nil
+	}
+	return fmt.Errorf("unknown RepairJob nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *RepairJobMutation) ResetField(name string) error {
+	switch name {
+	case repairjob.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case repairjob.FieldOutletID:
+		m.ResetOutletID()
+		return nil
+	case repairjob.FieldJobNumber:
+		m.ResetJobNumber()
+		return nil
+	case repairjob.FieldCustomerPhone:
+		m.ResetCustomerPhone()
+		return nil
+	case repairjob.FieldCustomerName:
+		m.ResetCustomerName()
+		return nil
+	case repairjob.FieldDeviceDescription:
+		m.ResetDeviceDescription()
+		return nil
+	case repairjob.FieldReportedIssue:
+		m.ResetReportedIssue()
+		return nil
+	case repairjob.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case repairjob.FieldDiagnosis:
+		m.ResetDiagnosis()
+		return nil
+	case repairjob.FieldEstimatedCost:
+		m.ResetEstimatedCost()
+		return nil
+	case repairjob.FieldQuotedCost:
+		m.ResetQuotedCost()
+		return nil
+	case repairjob.FieldAssignedStaffID:
+		m.ResetAssignedStaffID()
+		return nil
+	case repairjob.FieldPosOrderID:
+		m.ResetPosOrderID()
+		return nil
+	case repairjob.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case repairjob.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown RepairJob field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *RepairJobMutation) AddedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.parts != nil {
+		edges = append(edges, repairjob.EdgeParts)
+	}
+	if m.events != nil {
+		edges = append(edges, repairjob.EdgeEvents)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *RepairJobMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case repairjob.EdgeParts:
+		ids := make([]ent.Value, 0, len(m.parts))
+		for id := range m.parts {
+			ids = append(ids, id)
+		}
+		return ids
+	case repairjob.EdgeEvents:
+		ids := make([]ent.Value, 0, len(m.events))
+		for id := range m.events {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *RepairJobMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.removedparts != nil {
+		edges = append(edges, repairjob.EdgeParts)
+	}
+	if m.removedevents != nil {
+		edges = append(edges, repairjob.EdgeEvents)
+	}
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *RepairJobMutation) RemovedIDs(name string) []ent.Value {
+	switch name {
+	case repairjob.EdgeParts:
+		ids := make([]ent.Value, 0, len(m.removedparts))
+		for id := range m.removedparts {
+			ids = append(ids, id)
+		}
+		return ids
+	case repairjob.EdgeEvents:
+		ids := make([]ent.Value, 0, len(m.removedevents))
+		for id := range m.removedevents {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *RepairJobMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.clearedparts {
+		edges = append(edges, repairjob.EdgeParts)
+	}
+	if m.clearedevents {
+		edges = append(edges, repairjob.EdgeEvents)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *RepairJobMutation) EdgeCleared(name string) bool {
+	switch name {
+	case repairjob.EdgeParts:
+		return m.clearedparts
+	case repairjob.EdgeEvents:
+		return m.clearedevents
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *RepairJobMutation) ClearEdge(name string) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown RepairJob unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *RepairJobMutation) ResetEdge(name string) error {
+	switch name {
+	case repairjob.EdgeParts:
+		m.ResetParts()
+		return nil
+	case repairjob.EdgeEvents:
+		m.ResetEvents()
+		return nil
+	}
+	return fmt.Errorf("unknown RepairJob edge %s", name)
+}
+
+// RepairJobEventMutation represents an operation that mutates the RepairJobEvent nodes in the graph.
+type RepairJobEventMutation struct {
+	config
+	op                Op
+	typ               string
+	id                *uuid.UUID
+	event_type        *string
+	notes             *string
+	actor_id          *uuid.UUID
+	created_at        *time.Time
+	clearedFields     map[string]struct{}
+	repair_job        *uuid.UUID
+	clearedrepair_job bool
+	done              bool
+	oldValue          func(context.Context) (*RepairJobEvent, error)
+	predicates        []predicate.RepairJobEvent
+}
+
+var _ ent.Mutation = (*RepairJobEventMutation)(nil)
+
+// repairjobeventOption allows management of the mutation configuration using functional options.
+type repairjobeventOption func(*RepairJobEventMutation)
+
+// newRepairJobEventMutation creates new mutation for the RepairJobEvent entity.
+func newRepairJobEventMutation(c config, op Op, opts ...repairjobeventOption) *RepairJobEventMutation {
+	m := &RepairJobEventMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeRepairJobEvent,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withRepairJobEventID sets the ID field of the mutation.
+func withRepairJobEventID(id uuid.UUID) repairjobeventOption {
+	return func(m *RepairJobEventMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *RepairJobEvent
+		)
+		m.oldValue = func(ctx context.Context) (*RepairJobEvent, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().RepairJobEvent.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withRepairJobEvent sets the old RepairJobEvent of the mutation.
+func withRepairJobEvent(node *RepairJobEvent) repairjobeventOption {
+	return func(m *RepairJobEventMutation) {
+		m.oldValue = func(context.Context) (*RepairJobEvent, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m RepairJobEventMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m RepairJobEventMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of RepairJobEvent entities.
+func (m *RepairJobEventMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *RepairJobEventMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *RepairJobEventMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().RepairJobEvent.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetRepairJobID sets the "repair_job_id" field.
+func (m *RepairJobEventMutation) SetRepairJobID(u uuid.UUID) {
+	m.repair_job = &u
+}
+
+// RepairJobID returns the value of the "repair_job_id" field in the mutation.
+func (m *RepairJobEventMutation) RepairJobID() (r uuid.UUID, exists bool) {
+	v := m.repair_job
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRepairJobID returns the old "repair_job_id" field's value of the RepairJobEvent entity.
+// If the RepairJobEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RepairJobEventMutation) OldRepairJobID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRepairJobID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRepairJobID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRepairJobID: %w", err)
+	}
+	return oldValue.RepairJobID, nil
+}
+
+// ResetRepairJobID resets all changes to the "repair_job_id" field.
+func (m *RepairJobEventMutation) ResetRepairJobID() {
+	m.repair_job = nil
+}
+
+// SetEventType sets the "event_type" field.
+func (m *RepairJobEventMutation) SetEventType(s string) {
+	m.event_type = &s
+}
+
+// EventType returns the value of the "event_type" field in the mutation.
+func (m *RepairJobEventMutation) EventType() (r string, exists bool) {
+	v := m.event_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEventType returns the old "event_type" field's value of the RepairJobEvent entity.
+// If the RepairJobEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RepairJobEventMutation) OldEventType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEventType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEventType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEventType: %w", err)
+	}
+	return oldValue.EventType, nil
+}
+
+// ResetEventType resets all changes to the "event_type" field.
+func (m *RepairJobEventMutation) ResetEventType() {
+	m.event_type = nil
+}
+
+// SetNotes sets the "notes" field.
+func (m *RepairJobEventMutation) SetNotes(s string) {
+	m.notes = &s
+}
+
+// Notes returns the value of the "notes" field in the mutation.
+func (m *RepairJobEventMutation) Notes() (r string, exists bool) {
+	v := m.notes
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNotes returns the old "notes" field's value of the RepairJobEvent entity.
+// If the RepairJobEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RepairJobEventMutation) OldNotes(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNotes is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNotes requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNotes: %w", err)
+	}
+	return oldValue.Notes, nil
+}
+
+// ClearNotes clears the value of the "notes" field.
+func (m *RepairJobEventMutation) ClearNotes() {
+	m.notes = nil
+	m.clearedFields[repairjobevent.FieldNotes] = struct{}{}
+}
+
+// NotesCleared returns if the "notes" field was cleared in this mutation.
+func (m *RepairJobEventMutation) NotesCleared() bool {
+	_, ok := m.clearedFields[repairjobevent.FieldNotes]
+	return ok
+}
+
+// ResetNotes resets all changes to the "notes" field.
+func (m *RepairJobEventMutation) ResetNotes() {
+	m.notes = nil
+	delete(m.clearedFields, repairjobevent.FieldNotes)
+}
+
+// SetActorID sets the "actor_id" field.
+func (m *RepairJobEventMutation) SetActorID(u uuid.UUID) {
+	m.actor_id = &u
+}
+
+// ActorID returns the value of the "actor_id" field in the mutation.
+func (m *RepairJobEventMutation) ActorID() (r uuid.UUID, exists bool) {
+	v := m.actor_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldActorID returns the old "actor_id" field's value of the RepairJobEvent entity.
+// If the RepairJobEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RepairJobEventMutation) OldActorID(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldActorID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldActorID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldActorID: %w", err)
+	}
+	return oldValue.ActorID, nil
+}
+
+// ClearActorID clears the value of the "actor_id" field.
+func (m *RepairJobEventMutation) ClearActorID() {
+	m.actor_id = nil
+	m.clearedFields[repairjobevent.FieldActorID] = struct{}{}
+}
+
+// ActorIDCleared returns if the "actor_id" field was cleared in this mutation.
+func (m *RepairJobEventMutation) ActorIDCleared() bool {
+	_, ok := m.clearedFields[repairjobevent.FieldActorID]
+	return ok
+}
+
+// ResetActorID resets all changes to the "actor_id" field.
+func (m *RepairJobEventMutation) ResetActorID() {
+	m.actor_id = nil
+	delete(m.clearedFields, repairjobevent.FieldActorID)
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *RepairJobEventMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *RepairJobEventMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the RepairJobEvent entity.
+// If the RepairJobEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RepairJobEventMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *RepairJobEventMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// ClearRepairJob clears the "repair_job" edge to the RepairJob entity.
+func (m *RepairJobEventMutation) ClearRepairJob() {
+	m.clearedrepair_job = true
+	m.clearedFields[repairjobevent.FieldRepairJobID] = struct{}{}
+}
+
+// RepairJobCleared reports if the "repair_job" edge to the RepairJob entity was cleared.
+func (m *RepairJobEventMutation) RepairJobCleared() bool {
+	return m.clearedrepair_job
+}
+
+// RepairJobIDs returns the "repair_job" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// RepairJobID instead. It exists only for internal usage by the builders.
+func (m *RepairJobEventMutation) RepairJobIDs() (ids []uuid.UUID) {
+	if id := m.repair_job; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetRepairJob resets all changes to the "repair_job" edge.
+func (m *RepairJobEventMutation) ResetRepairJob() {
+	m.repair_job = nil
+	m.clearedrepair_job = false
+}
+
+// Where appends a list predicates to the RepairJobEventMutation builder.
+func (m *RepairJobEventMutation) Where(ps ...predicate.RepairJobEvent) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the RepairJobEventMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *RepairJobEventMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.RepairJobEvent, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *RepairJobEventMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *RepairJobEventMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (RepairJobEvent).
+func (m *RepairJobEventMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *RepairJobEventMutation) Fields() []string {
+	fields := make([]string, 0, 5)
+	if m.repair_job != nil {
+		fields = append(fields, repairjobevent.FieldRepairJobID)
+	}
+	if m.event_type != nil {
+		fields = append(fields, repairjobevent.FieldEventType)
+	}
+	if m.notes != nil {
+		fields = append(fields, repairjobevent.FieldNotes)
+	}
+	if m.actor_id != nil {
+		fields = append(fields, repairjobevent.FieldActorID)
+	}
+	if m.created_at != nil {
+		fields = append(fields, repairjobevent.FieldCreatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *RepairJobEventMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case repairjobevent.FieldRepairJobID:
+		return m.RepairJobID()
+	case repairjobevent.FieldEventType:
+		return m.EventType()
+	case repairjobevent.FieldNotes:
+		return m.Notes()
+	case repairjobevent.FieldActorID:
+		return m.ActorID()
+	case repairjobevent.FieldCreatedAt:
+		return m.CreatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *RepairJobEventMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case repairjobevent.FieldRepairJobID:
+		return m.OldRepairJobID(ctx)
+	case repairjobevent.FieldEventType:
+		return m.OldEventType(ctx)
+	case repairjobevent.FieldNotes:
+		return m.OldNotes(ctx)
+	case repairjobevent.FieldActorID:
+		return m.OldActorID(ctx)
+	case repairjobevent.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown RepairJobEvent field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *RepairJobEventMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case repairjobevent.FieldRepairJobID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRepairJobID(v)
+		return nil
+	case repairjobevent.FieldEventType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEventType(v)
+		return nil
+	case repairjobevent.FieldNotes:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNotes(v)
+		return nil
+	case repairjobevent.FieldActorID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetActorID(v)
+		return nil
+	case repairjobevent.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown RepairJobEvent field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *RepairJobEventMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *RepairJobEventMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *RepairJobEventMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown RepairJobEvent numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *RepairJobEventMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(repairjobevent.FieldNotes) {
+		fields = append(fields, repairjobevent.FieldNotes)
+	}
+	if m.FieldCleared(repairjobevent.FieldActorID) {
+		fields = append(fields, repairjobevent.FieldActorID)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *RepairJobEventMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *RepairJobEventMutation) ClearField(name string) error {
+	switch name {
+	case repairjobevent.FieldNotes:
+		m.ClearNotes()
+		return nil
+	case repairjobevent.FieldActorID:
+		m.ClearActorID()
+		return nil
+	}
+	return fmt.Errorf("unknown RepairJobEvent nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *RepairJobEventMutation) ResetField(name string) error {
+	switch name {
+	case repairjobevent.FieldRepairJobID:
+		m.ResetRepairJobID()
+		return nil
+	case repairjobevent.FieldEventType:
+		m.ResetEventType()
+		return nil
+	case repairjobevent.FieldNotes:
+		m.ResetNotes()
+		return nil
+	case repairjobevent.FieldActorID:
+		m.ResetActorID()
+		return nil
+	case repairjobevent.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown RepairJobEvent field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *RepairJobEventMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.repair_job != nil {
+		edges = append(edges, repairjobevent.EdgeRepairJob)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *RepairJobEventMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case repairjobevent.EdgeRepairJob:
+		if id := m.repair_job; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *RepairJobEventMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *RepairJobEventMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *RepairJobEventMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.clearedrepair_job {
+		edges = append(edges, repairjobevent.EdgeRepairJob)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *RepairJobEventMutation) EdgeCleared(name string) bool {
+	switch name {
+	case repairjobevent.EdgeRepairJob:
+		return m.clearedrepair_job
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *RepairJobEventMutation) ClearEdge(name string) error {
+	switch name {
+	case repairjobevent.EdgeRepairJob:
+		m.ClearRepairJob()
+		return nil
+	}
+	return fmt.Errorf("unknown RepairJobEvent unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *RepairJobEventMutation) ResetEdge(name string) error {
+	switch name {
+	case repairjobevent.EdgeRepairJob:
+		m.ResetRepairJob()
+		return nil
+	}
+	return fmt.Errorf("unknown RepairJobEvent edge %s", name)
+}
+
+// RepairJobPartMutation represents an operation that mutates the RepairJobPart nodes in the graph.
+type RepairJobPartMutation struct {
+	config
+	op                Op
+	typ               string
+	id                *uuid.UUID
+	inventory_sku     *string
+	inventory_item_id *uuid.UUID
+	description       *string
+	quantity          *float64
+	addquantity       *float64
+	unit_cost         *decimal.Decimal
+	addunit_cost      *decimal.Decimal
+	line_total        *decimal.Decimal
+	addline_total     *decimal.Decimal
+	clearedFields     map[string]struct{}
+	repair_job        *uuid.UUID
+	clearedrepair_job bool
+	done              bool
+	oldValue          func(context.Context) (*RepairJobPart, error)
+	predicates        []predicate.RepairJobPart
+}
+
+var _ ent.Mutation = (*RepairJobPartMutation)(nil)
+
+// repairjobpartOption allows management of the mutation configuration using functional options.
+type repairjobpartOption func(*RepairJobPartMutation)
+
+// newRepairJobPartMutation creates new mutation for the RepairJobPart entity.
+func newRepairJobPartMutation(c config, op Op, opts ...repairjobpartOption) *RepairJobPartMutation {
+	m := &RepairJobPartMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeRepairJobPart,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withRepairJobPartID sets the ID field of the mutation.
+func withRepairJobPartID(id uuid.UUID) repairjobpartOption {
+	return func(m *RepairJobPartMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *RepairJobPart
+		)
+		m.oldValue = func(ctx context.Context) (*RepairJobPart, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().RepairJobPart.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withRepairJobPart sets the old RepairJobPart of the mutation.
+func withRepairJobPart(node *RepairJobPart) repairjobpartOption {
+	return func(m *RepairJobPartMutation) {
+		m.oldValue = func(context.Context) (*RepairJobPart, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m RepairJobPartMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m RepairJobPartMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of RepairJobPart entities.
+func (m *RepairJobPartMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *RepairJobPartMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *RepairJobPartMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().RepairJobPart.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetRepairJobID sets the "repair_job_id" field.
+func (m *RepairJobPartMutation) SetRepairJobID(u uuid.UUID) {
+	m.repair_job = &u
+}
+
+// RepairJobID returns the value of the "repair_job_id" field in the mutation.
+func (m *RepairJobPartMutation) RepairJobID() (r uuid.UUID, exists bool) {
+	v := m.repair_job
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRepairJobID returns the old "repair_job_id" field's value of the RepairJobPart entity.
+// If the RepairJobPart object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RepairJobPartMutation) OldRepairJobID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRepairJobID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRepairJobID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRepairJobID: %w", err)
+	}
+	return oldValue.RepairJobID, nil
+}
+
+// ResetRepairJobID resets all changes to the "repair_job_id" field.
+func (m *RepairJobPartMutation) ResetRepairJobID() {
+	m.repair_job = nil
+}
+
+// SetInventorySku sets the "inventory_sku" field.
+func (m *RepairJobPartMutation) SetInventorySku(s string) {
+	m.inventory_sku = &s
+}
+
+// InventorySku returns the value of the "inventory_sku" field in the mutation.
+func (m *RepairJobPartMutation) InventorySku() (r string, exists bool) {
+	v := m.inventory_sku
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldInventorySku returns the old "inventory_sku" field's value of the RepairJobPart entity.
+// If the RepairJobPart object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RepairJobPartMutation) OldInventorySku(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldInventorySku is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldInventorySku requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldInventorySku: %w", err)
+	}
+	return oldValue.InventorySku, nil
+}
+
+// ClearInventorySku clears the value of the "inventory_sku" field.
+func (m *RepairJobPartMutation) ClearInventorySku() {
+	m.inventory_sku = nil
+	m.clearedFields[repairjobpart.FieldInventorySku] = struct{}{}
+}
+
+// InventorySkuCleared returns if the "inventory_sku" field was cleared in this mutation.
+func (m *RepairJobPartMutation) InventorySkuCleared() bool {
+	_, ok := m.clearedFields[repairjobpart.FieldInventorySku]
+	return ok
+}
+
+// ResetInventorySku resets all changes to the "inventory_sku" field.
+func (m *RepairJobPartMutation) ResetInventorySku() {
+	m.inventory_sku = nil
+	delete(m.clearedFields, repairjobpart.FieldInventorySku)
+}
+
+// SetInventoryItemID sets the "inventory_item_id" field.
+func (m *RepairJobPartMutation) SetInventoryItemID(u uuid.UUID) {
+	m.inventory_item_id = &u
+}
+
+// InventoryItemID returns the value of the "inventory_item_id" field in the mutation.
+func (m *RepairJobPartMutation) InventoryItemID() (r uuid.UUID, exists bool) {
+	v := m.inventory_item_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldInventoryItemID returns the old "inventory_item_id" field's value of the RepairJobPart entity.
+// If the RepairJobPart object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RepairJobPartMutation) OldInventoryItemID(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldInventoryItemID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldInventoryItemID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldInventoryItemID: %w", err)
+	}
+	return oldValue.InventoryItemID, nil
+}
+
+// ClearInventoryItemID clears the value of the "inventory_item_id" field.
+func (m *RepairJobPartMutation) ClearInventoryItemID() {
+	m.inventory_item_id = nil
+	m.clearedFields[repairjobpart.FieldInventoryItemID] = struct{}{}
+}
+
+// InventoryItemIDCleared returns if the "inventory_item_id" field was cleared in this mutation.
+func (m *RepairJobPartMutation) InventoryItemIDCleared() bool {
+	_, ok := m.clearedFields[repairjobpart.FieldInventoryItemID]
+	return ok
+}
+
+// ResetInventoryItemID resets all changes to the "inventory_item_id" field.
+func (m *RepairJobPartMutation) ResetInventoryItemID() {
+	m.inventory_item_id = nil
+	delete(m.clearedFields, repairjobpart.FieldInventoryItemID)
+}
+
+// SetDescription sets the "description" field.
+func (m *RepairJobPartMutation) SetDescription(s string) {
+	m.description = &s
+}
+
+// Description returns the value of the "description" field in the mutation.
+func (m *RepairJobPartMutation) Description() (r string, exists bool) {
+	v := m.description
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDescription returns the old "description" field's value of the RepairJobPart entity.
+// If the RepairJobPart object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RepairJobPartMutation) OldDescription(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDescription is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDescription requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDescription: %w", err)
+	}
+	return oldValue.Description, nil
+}
+
+// ClearDescription clears the value of the "description" field.
+func (m *RepairJobPartMutation) ClearDescription() {
+	m.description = nil
+	m.clearedFields[repairjobpart.FieldDescription] = struct{}{}
+}
+
+// DescriptionCleared returns if the "description" field was cleared in this mutation.
+func (m *RepairJobPartMutation) DescriptionCleared() bool {
+	_, ok := m.clearedFields[repairjobpart.FieldDescription]
+	return ok
+}
+
+// ResetDescription resets all changes to the "description" field.
+func (m *RepairJobPartMutation) ResetDescription() {
+	m.description = nil
+	delete(m.clearedFields, repairjobpart.FieldDescription)
+}
+
+// SetQuantity sets the "quantity" field.
+func (m *RepairJobPartMutation) SetQuantity(f float64) {
+	m.quantity = &f
+	m.addquantity = nil
+}
+
+// Quantity returns the value of the "quantity" field in the mutation.
+func (m *RepairJobPartMutation) Quantity() (r float64, exists bool) {
+	v := m.quantity
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldQuantity returns the old "quantity" field's value of the RepairJobPart entity.
+// If the RepairJobPart object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RepairJobPartMutation) OldQuantity(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldQuantity is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldQuantity requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldQuantity: %w", err)
+	}
+	return oldValue.Quantity, nil
+}
+
+// AddQuantity adds f to the "quantity" field.
+func (m *RepairJobPartMutation) AddQuantity(f float64) {
+	if m.addquantity != nil {
+		*m.addquantity += f
+	} else {
+		m.addquantity = &f
+	}
+}
+
+// AddedQuantity returns the value that was added to the "quantity" field in this mutation.
+func (m *RepairJobPartMutation) AddedQuantity() (r float64, exists bool) {
+	v := m.addquantity
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetQuantity resets all changes to the "quantity" field.
+func (m *RepairJobPartMutation) ResetQuantity() {
+	m.quantity = nil
+	m.addquantity = nil
+}
+
+// SetUnitCost sets the "unit_cost" field.
+func (m *RepairJobPartMutation) SetUnitCost(d decimal.Decimal) {
+	m.unit_cost = &d
+	m.addunit_cost = nil
+}
+
+// UnitCost returns the value of the "unit_cost" field in the mutation.
+func (m *RepairJobPartMutation) UnitCost() (r decimal.Decimal, exists bool) {
+	v := m.unit_cost
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUnitCost returns the old "unit_cost" field's value of the RepairJobPart entity.
+// If the RepairJobPart object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RepairJobPartMutation) OldUnitCost(ctx context.Context) (v decimal.Decimal, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUnitCost is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUnitCost requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUnitCost: %w", err)
+	}
+	return oldValue.UnitCost, nil
+}
+
+// AddUnitCost adds d to the "unit_cost" field.
+func (m *RepairJobPartMutation) AddUnitCost(d decimal.Decimal) {
+	if m.addunit_cost != nil {
+		*m.addunit_cost = m.addunit_cost.Add(d)
+	} else {
+		m.addunit_cost = &d
+	}
+}
+
+// AddedUnitCost returns the value that was added to the "unit_cost" field in this mutation.
+func (m *RepairJobPartMutation) AddedUnitCost() (r decimal.Decimal, exists bool) {
+	v := m.addunit_cost
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetUnitCost resets all changes to the "unit_cost" field.
+func (m *RepairJobPartMutation) ResetUnitCost() {
+	m.unit_cost = nil
+	m.addunit_cost = nil
+}
+
+// SetLineTotal sets the "line_total" field.
+func (m *RepairJobPartMutation) SetLineTotal(d decimal.Decimal) {
+	m.line_total = &d
+	m.addline_total = nil
+}
+
+// LineTotal returns the value of the "line_total" field in the mutation.
+func (m *RepairJobPartMutation) LineTotal() (r decimal.Decimal, exists bool) {
+	v := m.line_total
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLineTotal returns the old "line_total" field's value of the RepairJobPart entity.
+// If the RepairJobPart object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RepairJobPartMutation) OldLineTotal(ctx context.Context) (v decimal.Decimal, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLineTotal is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLineTotal requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLineTotal: %w", err)
+	}
+	return oldValue.LineTotal, nil
+}
+
+// AddLineTotal adds d to the "line_total" field.
+func (m *RepairJobPartMutation) AddLineTotal(d decimal.Decimal) {
+	if m.addline_total != nil {
+		*m.addline_total = m.addline_total.Add(d)
+	} else {
+		m.addline_total = &d
+	}
+}
+
+// AddedLineTotal returns the value that was added to the "line_total" field in this mutation.
+func (m *RepairJobPartMutation) AddedLineTotal() (r decimal.Decimal, exists bool) {
+	v := m.addline_total
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetLineTotal resets all changes to the "line_total" field.
+func (m *RepairJobPartMutation) ResetLineTotal() {
+	m.line_total = nil
+	m.addline_total = nil
+}
+
+// ClearRepairJob clears the "repair_job" edge to the RepairJob entity.
+func (m *RepairJobPartMutation) ClearRepairJob() {
+	m.clearedrepair_job = true
+	m.clearedFields[repairjobpart.FieldRepairJobID] = struct{}{}
+}
+
+// RepairJobCleared reports if the "repair_job" edge to the RepairJob entity was cleared.
+func (m *RepairJobPartMutation) RepairJobCleared() bool {
+	return m.clearedrepair_job
+}
+
+// RepairJobIDs returns the "repair_job" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// RepairJobID instead. It exists only for internal usage by the builders.
+func (m *RepairJobPartMutation) RepairJobIDs() (ids []uuid.UUID) {
+	if id := m.repair_job; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetRepairJob resets all changes to the "repair_job" edge.
+func (m *RepairJobPartMutation) ResetRepairJob() {
+	m.repair_job = nil
+	m.clearedrepair_job = false
+}
+
+// Where appends a list predicates to the RepairJobPartMutation builder.
+func (m *RepairJobPartMutation) Where(ps ...predicate.RepairJobPart) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the RepairJobPartMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *RepairJobPartMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.RepairJobPart, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *RepairJobPartMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *RepairJobPartMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (RepairJobPart).
+func (m *RepairJobPartMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *RepairJobPartMutation) Fields() []string {
+	fields := make([]string, 0, 7)
+	if m.repair_job != nil {
+		fields = append(fields, repairjobpart.FieldRepairJobID)
+	}
+	if m.inventory_sku != nil {
+		fields = append(fields, repairjobpart.FieldInventorySku)
+	}
+	if m.inventory_item_id != nil {
+		fields = append(fields, repairjobpart.FieldInventoryItemID)
+	}
+	if m.description != nil {
+		fields = append(fields, repairjobpart.FieldDescription)
+	}
+	if m.quantity != nil {
+		fields = append(fields, repairjobpart.FieldQuantity)
+	}
+	if m.unit_cost != nil {
+		fields = append(fields, repairjobpart.FieldUnitCost)
+	}
+	if m.line_total != nil {
+		fields = append(fields, repairjobpart.FieldLineTotal)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *RepairJobPartMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case repairjobpart.FieldRepairJobID:
+		return m.RepairJobID()
+	case repairjobpart.FieldInventorySku:
+		return m.InventorySku()
+	case repairjobpart.FieldInventoryItemID:
+		return m.InventoryItemID()
+	case repairjobpart.FieldDescription:
+		return m.Description()
+	case repairjobpart.FieldQuantity:
+		return m.Quantity()
+	case repairjobpart.FieldUnitCost:
+		return m.UnitCost()
+	case repairjobpart.FieldLineTotal:
+		return m.LineTotal()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *RepairJobPartMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case repairjobpart.FieldRepairJobID:
+		return m.OldRepairJobID(ctx)
+	case repairjobpart.FieldInventorySku:
+		return m.OldInventorySku(ctx)
+	case repairjobpart.FieldInventoryItemID:
+		return m.OldInventoryItemID(ctx)
+	case repairjobpart.FieldDescription:
+		return m.OldDescription(ctx)
+	case repairjobpart.FieldQuantity:
+		return m.OldQuantity(ctx)
+	case repairjobpart.FieldUnitCost:
+		return m.OldUnitCost(ctx)
+	case repairjobpart.FieldLineTotal:
+		return m.OldLineTotal(ctx)
+	}
+	return nil, fmt.Errorf("unknown RepairJobPart field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *RepairJobPartMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case repairjobpart.FieldRepairJobID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRepairJobID(v)
+		return nil
+	case repairjobpart.FieldInventorySku:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetInventorySku(v)
+		return nil
+	case repairjobpart.FieldInventoryItemID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetInventoryItemID(v)
+		return nil
+	case repairjobpart.FieldDescription:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDescription(v)
+		return nil
+	case repairjobpart.FieldQuantity:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetQuantity(v)
+		return nil
+	case repairjobpart.FieldUnitCost:
+		v, ok := value.(decimal.Decimal)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUnitCost(v)
+		return nil
+	case repairjobpart.FieldLineTotal:
+		v, ok := value.(decimal.Decimal)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLineTotal(v)
+		return nil
+	}
+	return fmt.Errorf("unknown RepairJobPart field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *RepairJobPartMutation) AddedFields() []string {
+	var fields []string
+	if m.addquantity != nil {
+		fields = append(fields, repairjobpart.FieldQuantity)
+	}
+	if m.addunit_cost != nil {
+		fields = append(fields, repairjobpart.FieldUnitCost)
+	}
+	if m.addline_total != nil {
+		fields = append(fields, repairjobpart.FieldLineTotal)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *RepairJobPartMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case repairjobpart.FieldQuantity:
+		return m.AddedQuantity()
+	case repairjobpart.FieldUnitCost:
+		return m.AddedUnitCost()
+	case repairjobpart.FieldLineTotal:
+		return m.AddedLineTotal()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *RepairJobPartMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case repairjobpart.FieldQuantity:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddQuantity(v)
+		return nil
+	case repairjobpart.FieldUnitCost:
+		v, ok := value.(decimal.Decimal)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddUnitCost(v)
+		return nil
+	case repairjobpart.FieldLineTotal:
+		v, ok := value.(decimal.Decimal)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddLineTotal(v)
+		return nil
+	}
+	return fmt.Errorf("unknown RepairJobPart numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *RepairJobPartMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(repairjobpart.FieldInventorySku) {
+		fields = append(fields, repairjobpart.FieldInventorySku)
+	}
+	if m.FieldCleared(repairjobpart.FieldInventoryItemID) {
+		fields = append(fields, repairjobpart.FieldInventoryItemID)
+	}
+	if m.FieldCleared(repairjobpart.FieldDescription) {
+		fields = append(fields, repairjobpart.FieldDescription)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *RepairJobPartMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *RepairJobPartMutation) ClearField(name string) error {
+	switch name {
+	case repairjobpart.FieldInventorySku:
+		m.ClearInventorySku()
+		return nil
+	case repairjobpart.FieldInventoryItemID:
+		m.ClearInventoryItemID()
+		return nil
+	case repairjobpart.FieldDescription:
+		m.ClearDescription()
+		return nil
+	}
+	return fmt.Errorf("unknown RepairJobPart nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *RepairJobPartMutation) ResetField(name string) error {
+	switch name {
+	case repairjobpart.FieldRepairJobID:
+		m.ResetRepairJobID()
+		return nil
+	case repairjobpart.FieldInventorySku:
+		m.ResetInventorySku()
+		return nil
+	case repairjobpart.FieldInventoryItemID:
+		m.ResetInventoryItemID()
+		return nil
+	case repairjobpart.FieldDescription:
+		m.ResetDescription()
+		return nil
+	case repairjobpart.FieldQuantity:
+		m.ResetQuantity()
+		return nil
+	case repairjobpart.FieldUnitCost:
+		m.ResetUnitCost()
+		return nil
+	case repairjobpart.FieldLineTotal:
+		m.ResetLineTotal()
+		return nil
+	}
+	return fmt.Errorf("unknown RepairJobPart field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *RepairJobPartMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.repair_job != nil {
+		edges = append(edges, repairjobpart.EdgeRepairJob)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *RepairJobPartMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case repairjobpart.EdgeRepairJob:
+		if id := m.repair_job; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *RepairJobPartMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *RepairJobPartMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *RepairJobPartMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.clearedrepair_job {
+		edges = append(edges, repairjobpart.EdgeRepairJob)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *RepairJobPartMutation) EdgeCleared(name string) bool {
+	switch name {
+	case repairjobpart.EdgeRepairJob:
+		return m.clearedrepair_job
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *RepairJobPartMutation) ClearEdge(name string) error {
+	switch name {
+	case repairjobpart.EdgeRepairJob:
+		m.ClearRepairJob()
+		return nil
+	}
+	return fmt.Errorf("unknown RepairJobPart unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *RepairJobPartMutation) ResetEdge(name string) error {
+	switch name {
+	case repairjobpart.EdgeRepairJob:
+		m.ResetRepairJob()
+		return nil
+	}
+	return fmt.Errorf("unknown RepairJobPart edge %s", name)
 }
 
 // ResourceMutation represents an operation that mutates the Resource nodes in the graph.

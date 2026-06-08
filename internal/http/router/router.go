@@ -75,6 +75,7 @@ func New(
 	payroll *handlers.PayrollHandler,
 	staffAdmin *handlers.StaffHandler,
 	purchaseOrders *handlers.PurchaseOrdersHandler,
+	repairs *handlers.RepairHandler,
 	allowedOrigins []string,
 	redisClient *redis.Client,
 	internalServiceKey string,
@@ -634,6 +635,19 @@ func New(
 					if closings != nil {
 						pos.Post("/outlets/{outletID}/daily-close", closings.CloseDay)
 						pos.Get("/outlets/{outletID}/daily-closings", closings.ListDailyClosings)
+					}
+
+					// Repair / job-card module. Reads open to authenticated staff; mutations gated
+					// on pos.retail.add / pos.retail.manage (a retail/service-shop workflow).
+					if repairs != nil {
+						repairWrite := outletmw.RequireServicePermission(rbacSvc, "pos.retail.add", "pos.retail.manage")
+						pos.Get("/repairs", repairs.List)
+						pos.With(repairWrite).Post("/repairs", repairs.Create)
+						pos.Get("/repairs/{id}", repairs.Get)
+						pos.With(repairWrite).Patch("/repairs/{id}", repairs.Update)
+						pos.With(repairWrite).Post("/repairs/{id}/parts", repairs.AddPart)
+						pos.With(repairWrite).Delete("/repairs/{id}/parts/{partID}", repairs.RemovePart)
+						pos.With(repairWrite).Post("/repairs/{id}/settle", repairs.Settle)
 					}
 				})
 

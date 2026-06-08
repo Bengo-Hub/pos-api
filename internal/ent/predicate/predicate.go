@@ -204,6 +204,15 @@ type RateLimitConfig func(*sql.Selector)
 // Referral is the predicate function for referral builders.
 type Referral func(*sql.Selector)
 
+// RepairJob is the predicate function for repairjob builders.
+type RepairJob func(*sql.Selector)
+
+// RepairJobEvent is the predicate function for repairjobevent builders.
+type RepairJobEvent func(*sql.Selector)
+
+// RepairJobPart is the predicate function for repairjobpart builders.
+type RepairJobPart func(*sql.Selector)
+
 // Resource is the predicate function for resource builders.
 type Resource func(*sql.Selector)
 
