@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -16,6 +17,7 @@ import (
 	entlp "github.com/bengobox/pos-service/internal/ent/loyaltyprogram"
 	entlt "github.com/bengobox/pos-service/internal/ent/loyaltytransaction"
 	entref "github.com/bengobox/pos-service/internal/ent/referral"
+	enttender "github.com/bengobox/pos-service/internal/ent/tender"
 	"github.com/bengobox/pos-service/internal/platform/events"
 	"github.com/bengobox/pos-service/internal/platform/marketflow"
 )
@@ -508,4 +510,136 @@ func (h *LoyaltyHandler) ListReferrals(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	jsonOK(w, refs)
+}
+
+// ensureLoyaltyTender returns the tenant's "Loyalty Points" tender (type=loyalty), creating it on
+// first use so loyalty redemptions can be recorded as a POSPayment like any other tender.
+func (h *LoyaltyHandler) ensureLoyaltyTender(ctx context.Context, tid uuid.UUID) (*ent.Tender, error) {
+	if t, err := h.db.Tender.Query().
+		Where(enttender.TenantID(tid), enttender.Type("loyalty")).
+		First(ctx); err == nil && t != nil {
+		return t, nil
+	}
+	return h.db.Tender.Create().
+		SetTenantID(tid).
+		SetName("Loyalty Points").
+		SetType("loyalty").
+		SetIsActive(true).
+		Save(ctx)
+}
+
+// RedeemToOrder handles POST /{tenantID}/pos/loyalty/accounts/{accountID}/redeem-to-order.
+// "Pay with points": deducts points from the account and records a POSPayment on the tenant's
+// loyalty tender for the equivalent currency value (points × program.redeem_rate), so the order's
+// paid total increases like any other tender. Also records a redeem loyalty transaction.
+func (h *LoyaltyHandler) RedeemToOrder(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+	aid, err := uuid.Parse(chi.URLParam(r, "accountID"))
+	if err != nil {
+		jsonError(w, "invalid account_id", http.StatusBadRequest)
+		return
+	}
+	acc, err := h.db.LoyaltyAccount.Get(r.Context(), aid)
+	if err != nil || acc.TenantID != tid {
+		jsonError(w, "account not found", http.StatusNotFound)
+		return
+	}
+	var body struct {
+		OrderID string `json:"order_id"`
+		Points  int    `json:"points"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		jsonError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	orderID, err := uuid.Parse(body.OrderID)
+	if err != nil {
+		jsonError(w, "valid order_id is required", http.StatusBadRequest)
+		return
+	}
+	if body.Points <= 0 {
+		jsonError(w, "points must be positive", http.StatusBadRequest)
+		return
+	}
+	if acc.PointsBalance < body.Points {
+		jsonError(w, "insufficient points balance", http.StatusUnprocessableEntity)
+		return
+	}
+
+	// Resolve redeem_rate + min_redeem from the account's program (fallback: tenant's active program).
+	redeemRate, minRedeem := 0.01, 0
+	var prog *ent.LoyaltyProgram
+	if acc.ProgramID != nil {
+		prog, _ = h.db.LoyaltyProgram.Get(r.Context(), *acc.ProgramID)
+	}
+	if prog == nil {
+		prog, _ = h.db.LoyaltyProgram.Query().Where(entlp.TenantID(tid), entlp.IsActive(true)).First(r.Context())
+	}
+	if prog != nil {
+		if prog.RedeemRate > 0 {
+			redeemRate = prog.RedeemRate
+		}
+		minRedeem = prog.MinRedeemPoints
+	}
+	if minRedeem > 0 && body.Points < minRedeem {
+		jsonError(w, fmt.Sprintf("minimum redemption is %d points", minRedeem), http.StatusUnprocessableEntity)
+		return
+	}
+	amount := float64(body.Points) * redeemRate
+	if amount <= 0 {
+		jsonError(w, "redeemed amount must be positive", http.StatusUnprocessableEntity)
+		return
+	}
+
+	tender, err := h.ensureLoyaltyTender(r.Context(), tid)
+	if err != nil {
+		h.log.Error("redeem-to-order: ensure tender failed", zap.Error(err))
+		jsonError(w, "failed to resolve loyalty tender", http.StatusInternalServerError)
+		return
+	}
+
+	newBalance := acc.PointsBalance - body.Points
+	if _, err := h.db.LoyaltyAccount.UpdateOneID(aid).SetPointsBalance(newBalance).Save(r.Context()); err != nil {
+		h.log.Error("redeem-to-order: balance update failed", zap.Error(err))
+		jsonError(w, "failed to update account", http.StatusInternalServerError)
+		return
+	}
+	tx, err := h.db.LoyaltyTransaction.Create().
+		SetTenantID(tid).
+		SetAccountID(aid).
+		SetOrderID(orderID).
+		SetTypeField("redeem").
+		SetPoints(-body.Points).
+		SetBalanceAfter(newBalance).
+		SetNotes("Redeemed to order as tender").
+		Save(r.Context())
+	if err != nil {
+		h.log.Warn("redeem-to-order: failed to create loyalty transaction", zap.Error(err))
+	}
+
+	pay, err := h.db.POSPayment.Create().
+		SetOrderID(orderID).
+		SetTenderID(tender.ID).
+		SetAmount(amount).
+		SetStatus("completed").
+		SetPaymentData(map[string]any{"loyalty_account_id": aid.String(), "points_redeemed": body.Points}).
+		Save(r.Context())
+	if err != nil {
+		h.log.Error("redeem-to-order: failed to record loyalty payment", zap.Error(err))
+		jsonError(w, "failed to record loyalty payment", http.StatusInternalServerError)
+		return
+	}
+
+	jsonOK(w, map[string]any{
+		"balance":        newBalance,
+		"amount_applied": amount,
+		"currency":       "KES",
+		"tender_id":      tender.ID,
+		"payment":        pay,
+		"transaction":    tx,
+	})
 }
