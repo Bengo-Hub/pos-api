@@ -654,8 +654,12 @@ func (h *HotelHandler) PostFolioCharge(w http.ResponseWriter, r *http.Request) {
 		if qty <= 0 {
 			qty = 1
 		}
+		// WithoutCancel preserves the request's tenant context for the async S2S call (the inventory
+		// client resolves the tenant from ctx) while surviving the request's completion; a bare
+		// context.Background() dropped the tenant → inventory "no default warehouse for tenant".
+		bgCtx := context.WithoutCancel(r.Context())
 		go func(sku string, q float64) {
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			ctx, cancel := context.WithTimeout(bgCtx, 10*time.Second)
 			defer cancel()
 			if cErr := h.inventoryClient.RecordConsumption(ctx, tid.String(), inventory.ConsumptionRequest{
 				OrderID: item.ID.String(),

@@ -562,16 +562,20 @@ func (s *Service) publishSaleFinalized(ctx context.Context, order *ent.POSOrder)
 	}
 
 	// Backflush inventory consumption asynchronously — non-blocking, publish retry event on failure.
+	// WithoutCancel preserves the request's tenant context (the S2S client resolves the tenant from
+	// it) while detaching from the request lifecycle; a bare context.Background() dropped the tenant
+	// and inventory then failed RecordConsumption with "no default warehouse for tenant" → stock was
+	// never deducted on a sale.
 	if s.inventoryClient != nil {
-		go s.backflushInventory(order, lines)
+		go s.backflushInventory(context.WithoutCancel(ctx), order, lines)
 	}
 }
 
 // backflushInventory calls inventory-api to deduct stock for each sold item.
 // Runs in a goroutine to avoid blocking the payment flow.
 // Publishes pos.inventory.consumption.failed on error so a retry worker can re-attempt.
-func (s *Service) backflushInventory(order *ent.POSOrder, lines []*ent.POSOrderLine) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+func (s *Service) backflushInventory(parent context.Context, order *ent.POSOrder, lines []*ent.POSOrderLine) {
+	ctx, cancel := context.WithTimeout(parent, 10*time.Second)
 	defer cancel()
 
 	items := make([]inventory.ConsumptionItem, 0, len(lines))
