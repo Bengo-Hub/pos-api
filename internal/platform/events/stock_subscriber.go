@@ -154,22 +154,36 @@ func (s *StockSubscriber) Subscribe(nc *nats.Conn) error {
 // inventory pricing. Falls back to a sku-wide update when no outlet_id is present.
 func (s *StockSubscriber) setSkuAvailability(ctx context.Context, tenantID uuid.UUID, outletRaw, sku string, available bool) (int, error) {
 	if outletID, perr := uuid.Parse(outletRaw); outletRaw != "" && perr == nil {
-		if uerr := s.client.POSCatalogOverride.Create().
+		// The (tenant, outlet, sku) index on pos_catalog_overrides is NOT unique
+		// (outlet_id is nullable), so ON CONFLICT can't be used (42P10). Do an
+		// explicit find-or-create/update instead. selling_price stays nil → POS
+		// keeps falling back to inventory pricing.
+		existing, qerr := s.client.POSCatalogOverride.Query().
+			Where(
+				entoverride.TenantID(tenantID),
+				entoverride.OutletID(outletID),
+				entoverride.InventorySku(sku),
+			).
+			First(ctx)
+		if qerr == nil && existing != nil {
+			if _, uerr := existing.Update().
+				SetIsAvailable(available).
+				SetUpdatedAt(time.Now()).
+				Save(ctx); uerr != nil {
+				return 0, uerr
+			}
+			return 1, nil
+		}
+		if qerr != nil && !ent.IsNotFound(qerr) {
+			return 0, qerr
+		}
+		if _, cerr := s.client.POSCatalogOverride.Create().
 			SetTenantID(tenantID).
 			SetOutletID(outletID).
 			SetInventorySku(sku).
 			SetIsAvailable(available).
-			OnConflictColumns(
-				entoverride.FieldTenantID,
-				entoverride.FieldInventorySku,
-				entoverride.FieldOutletID,
-			).
-			Update(func(u *ent.POSCatalogOverrideUpsert) {
-				u.SetIsAvailable(available)
-				u.SetUpdatedAt(time.Now())
-			}).
-			Exec(ctx); uerr != nil {
-			return 0, uerr
+			Save(ctx); cerr != nil {
+			return 0, cerr
 		}
 		return 1, nil
 	}
