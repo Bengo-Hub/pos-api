@@ -146,6 +146,42 @@ func (s *StockSubscriber) Subscribe(nc *nats.Conn) error {
 	return nil
 }
 
+// setSkuAvailability toggles POS catalog availability for a SKU. When the event
+// carries an outlet_id it UPSERTS the (tenant, outlet, sku) override so a
+// default-available item with no override row is still toggled — the old
+// UPDATE-only path affected 0 rows for such items, leaving sold-out recipes
+// sellable at the till. selling_price stays nil, so POS keeps falling back to
+// inventory pricing. Falls back to a sku-wide update when no outlet_id is present.
+func (s *StockSubscriber) setSkuAvailability(ctx context.Context, tenantID uuid.UUID, outletRaw, sku string, available bool) (int, error) {
+	if outletID, perr := uuid.Parse(outletRaw); outletRaw != "" && perr == nil {
+		if uerr := s.client.POSCatalogOverride.Create().
+			SetTenantID(tenantID).
+			SetOutletID(outletID).
+			SetInventorySku(sku).
+			SetIsAvailable(available).
+			OnConflictColumns(
+				entoverride.FieldTenantID,
+				entoverride.FieldInventorySku,
+				entoverride.FieldOutletID,
+			).
+			Update(func(u *ent.POSCatalogOverrideUpsert) {
+				u.SetIsAvailable(available)
+				u.SetUpdatedAt(time.Now())
+			}).
+			Exec(ctx); uerr != nil {
+			return 0, uerr
+		}
+		return 1, nil
+	}
+	return s.client.POSCatalogOverride.Update().
+		Where(
+			entoverride.TenantID(tenantID),
+			entoverride.InventorySku(sku),
+		).
+		SetIsAvailable(available).
+		Save(ctx)
+}
+
 // handleStockOut marks POSCatalogOverride.is_available = false for the depleted SKU.
 func (s *StockSubscriber) handleStockOut(ctx context.Context, evt *sharedevents.Event) error {
 	if s.client == nil {
@@ -159,13 +195,8 @@ func (s *StockSubscriber) handleStockOut(ctx context.Context, evt *sharedevents.
 	if sku == "" {
 		return fmt.Errorf("stock.out: missing sku")
 	}
-	count, err := s.client.POSCatalogOverride.Update().
-		Where(
-			entoverride.TenantID(tenantID),
-			entoverride.InventorySku(sku),
-		).
-		SetIsAvailable(false).
-		Save(ctx)
+	outletRaw, _ := evt.Payload["outlet_id"].(string)
+	count, err := s.setSkuAvailability(ctx, tenantID, outletRaw, sku, false)
 	if err != nil {
 		return fmt.Errorf("stock.out: update override: %w", err)
 	}
@@ -189,13 +220,8 @@ func (s *StockSubscriber) handleStockIn(ctx context.Context, evt *sharedevents.E
 	if sku == "" {
 		return fmt.Errorf("stock.in: missing sku")
 	}
-	count, err := s.client.POSCatalogOverride.Update().
-		Where(
-			entoverride.TenantID(tenantID),
-			entoverride.InventorySku(sku),
-		).
-		SetIsAvailable(true).
-		Save(ctx)
+	outletRaw, _ := evt.Payload["outlet_id"].(string)
+	count, err := s.setSkuAvailability(ctx, tenantID, outletRaw, sku, true)
 	if err != nil {
 		return fmt.Errorf("stock.in: update override: %w", err)
 	}
