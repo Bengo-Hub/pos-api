@@ -2078,6 +2078,49 @@ var (
 			},
 		},
 	}
+	// ReferralsColumns holds the columns for the "referrals" table.
+	ReferralsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "referrer_account_id", Type: field.TypeUUID},
+		{Name: "referred_phone", Type: field.TypeString},
+		{Name: "referred_account_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "code", Type: field.TypeString},
+		{Name: "status", Type: field.TypeString, Default: "pending"},
+		{Name: "bonus_points", Type: field.TypeInt, Default: 0},
+		{Name: "earn_transaction_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "earned_at", Type: field.TypeTime, Nullable: true},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// ReferralsTable holds the schema information for the "referrals" table.
+	ReferralsTable = &schema.Table{
+		Name:       "referrals",
+		Columns:    ReferralsColumns,
+		PrimaryKey: []*schema.Column{ReferralsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "referral_tenant_id_code",
+				Unique:  true,
+				Columns: []*schema.Column{ReferralsColumns[1], ReferralsColumns[5]},
+			},
+			{
+				Name:    "referral_referrer_account_id",
+				Unique:  false,
+				Columns: []*schema.Column{ReferralsColumns[2]},
+			},
+			{
+				Name:    "referral_tenant_id_referred_phone",
+				Unique:  false,
+				Columns: []*schema.Column{ReferralsColumns[1], ReferralsColumns[3]},
+			},
+			{
+				Name:    "referral_status",
+				Unique:  false,
+				Columns: []*schema.Column{ReferralsColumns[6]},
+			},
+		},
+	}
 	// ResourcesColumns holds the columns for the "resources" table.
 	ResourcesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -3443,6 +3486,7 @@ var (
 		PromotionApplicationsTable,
 		PromotionRulesTable,
 		RateLimitConfigsTable,
+		ReferralsTable,
 		ResourcesTable,
 		RoomsTable,
 		RoomAmenitiesTable,

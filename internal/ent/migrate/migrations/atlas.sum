@@ -1,4 +1,4 @@
-h1:jImeDlaPHFrSqF68grDuH2TJ1pyKry0TtNfoTAQL+Qk=
+h1:WjszhfrGEKqLbhFpT1HwjEWOAEFuWeovsYYSuPJbxNo=
 20260324210314_initial_schema.sql h1:L7ICP+7BHePtjHfQRRY9yP85A6Q9SyiYsqSvGK7paxA=
 20260403120000_fix_outbox_events_schema.sql h1:VNlTFTGCLBkz4+UvvvqZf5y5tyS0FfS1AXy770Ybc8o=
 20260507090905_hotel_module.sql h1:PGKqdzMQaeFLALmRXUmGsXjha3Rt42EldWJceFVNGDo=
@@ -54,3 +54,4 @@ h1:jImeDlaPHFrSqF68grDuH2TJ1pyKry0TtNfoTAQL+Qk=
 20260602123620_pos_conference_eventbooking_mealcards.sql h1:0TF9XYF9z2lAxwuBToD2ALFtJDvNcFCxVog57xIGrKQ=
 20260603084641_pos_promotion_meal_period.sql h1:ILSRTWysFF9ZQpBglGe0z7yptDXDKmxxJ+y+/5k9hVE=
 20260603122931_pos_roles_global_nullable_tenant.sql h1:FqQ24a26SKNlQJ0AN3wyp62B4JnRXFcQNhNwx7jeaD0=
+20260608171954_add_referral.sql h1:2Ntkqhd2hGMmAS6Q/N01/m+MQyGidEqbOkDva8IXAyA=

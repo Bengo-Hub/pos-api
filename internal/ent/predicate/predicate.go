@@ -201,6 +201,9 @@ type PromotionRule func(*sql.Selector)
 // RateLimitConfig is the predicate function for ratelimitconfig builders.
 type RateLimitConfig func(*sql.Selector)
 
+// Referral is the predicate function for referral builders.
+type Referral func(*sql.Selector)
+
 // Resource is the predicate function for resource builders.
 type Resource func(*sql.Selector)
 

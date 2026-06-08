@@ -81,6 +81,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/promotionapplication"
 	"github.com/bengobox/pos-service/internal/ent/promotionrule"
 	"github.com/bengobox/pos-service/internal/ent/ratelimitconfig"
+	"github.com/bengobox/pos-service/internal/ent/referral"
 	"github.com/bengobox/pos-service/internal/ent/resource"
 	"github.com/bengobox/pos-service/internal/ent/room"
 	"github.com/bengobox/pos-service/internal/ent/roomamenity"
@@ -255,6 +256,8 @@ type Client struct {
 	PromotionRule *PromotionRuleClient
 	// RateLimitConfig is the client for interacting with the RateLimitConfig builders.
 	RateLimitConfig *RateLimitConfigClient
+	// Referral is the client for interacting with the Referral builders.
+	Referral *ReferralClient
 	// Resource is the client for interacting with the Resource builders.
 	Resource *ResourceClient
 	// Room is the client for interacting with the Room builders.
@@ -405,6 +408,7 @@ func (c *Client) init() {
 	c.PromotionApplication = NewPromotionApplicationClient(c.config)
 	c.PromotionRule = NewPromotionRuleClient(c.config)
 	c.RateLimitConfig = NewRateLimitConfigClient(c.config)
+	c.Referral = NewReferralClient(c.config)
 	c.Resource = NewResourceClient(c.config)
 	c.Room = NewRoomClient(c.config)
 	c.RoomAmenity = NewRoomAmenityClient(c.config)
@@ -599,6 +603,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		PromotionApplication:     NewPromotionApplicationClient(cfg),
 		PromotionRule:            NewPromotionRuleClient(cfg),
 		RateLimitConfig:          NewRateLimitConfigClient(cfg),
+		Referral:                 NewReferralClient(cfg),
 		Resource:                 NewResourceClient(cfg),
 		Room:                     NewRoomClient(cfg),
 		RoomAmenity:              NewRoomAmenityClient(cfg),
@@ -720,6 +725,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		PromotionApplication:     NewPromotionApplicationClient(cfg),
 		PromotionRule:            NewPromotionRuleClient(cfg),
 		RateLimitConfig:          NewRateLimitConfigClient(cfg),
+		Referral:                 NewReferralClient(cfg),
 		Resource:                 NewResourceClient(cfg),
 		Room:                     NewRoomClient(cfg),
 		RoomAmenity:              NewRoomAmenityClient(cfg),
@@ -801,9 +807,9 @@ func (c *Client) Use(hooks ...Hook) {
 		c.POSReturn, c.POSReturnLine, c.POSRole, c.POSRolePermission, c.POSRoleV2,
 		c.POSUserRoleAssignment, c.PosNotification, c.Prescription, c.PrescriptionLine,
 		c.PriceBook, c.PriceBookItem, c.Promotion, c.PromotionApplication,
-		c.PromotionRule, c.RateLimitConfig, c.Resource, c.Room, c.RoomAmenity,
-		c.RoomAmenityAssignment, c.RoomBooking, c.RoomFolioItem, c.RoomGuest,
-		c.Section, c.SerialNumberLog, c.ServiceConfig, c.ServicePackage,
+		c.PromotionRule, c.RateLimitConfig, c.Referral, c.Resource, c.Room,
+		c.RoomAmenity, c.RoomAmenityAssignment, c.RoomBooking, c.RoomFolioItem,
+		c.RoomGuest, c.Section, c.SerialNumberLog, c.ServiceConfig, c.ServicePackage,
 		c.ServicePackagePurchase, c.ServicePackageRedemption, c.ServiceQueueEntry,
 		c.ShiftRotation, c.ShiftRotationSlot, c.StaffAdvance, c.StaffMember,
 		c.StaffOutlet, c.StaffPayroll, c.StaffPayrollLine, c.StaffSchedule,
@@ -835,9 +841,9 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.POSReturn, c.POSReturnLine, c.POSRole, c.POSRolePermission, c.POSRoleV2,
 		c.POSUserRoleAssignment, c.PosNotification, c.Prescription, c.PrescriptionLine,
 		c.PriceBook, c.PriceBookItem, c.Promotion, c.PromotionApplication,
-		c.PromotionRule, c.RateLimitConfig, c.Resource, c.Room, c.RoomAmenity,
-		c.RoomAmenityAssignment, c.RoomBooking, c.RoomFolioItem, c.RoomGuest,
-		c.Section, c.SerialNumberLog, c.ServiceConfig, c.ServicePackage,
+		c.PromotionRule, c.RateLimitConfig, c.Referral, c.Resource, c.Room,
+		c.RoomAmenity, c.RoomAmenityAssignment, c.RoomBooking, c.RoomFolioItem,
+		c.RoomGuest, c.Section, c.SerialNumberLog, c.ServiceConfig, c.ServicePackage,
 		c.ServicePackagePurchase, c.ServicePackageRedemption, c.ServiceQueueEntry,
 		c.ShiftRotation, c.ShiftRotationSlot, c.StaffAdvance, c.StaffMember,
 		c.StaffOutlet, c.StaffPayroll, c.StaffPayrollLine, c.StaffSchedule,
@@ -983,6 +989,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.PromotionRule.mutate(ctx, m)
 	case *RateLimitConfigMutation:
 		return c.RateLimitConfig.mutate(ctx, m)
+	case *ReferralMutation:
+		return c.Referral.mutate(ctx, m)
 	case *ResourceMutation:
 		return c.Resource.mutate(ctx, m)
 	case *RoomMutation:
@@ -10427,6 +10435,139 @@ func (c *RateLimitConfigClient) mutate(ctx context.Context, m *RateLimitConfigMu
 	}
 }
 
+// ReferralClient is a client for the Referral schema.
+type ReferralClient struct {
+	config
+}
+
+// NewReferralClient returns a client for the Referral from the given config.
+func NewReferralClient(c config) *ReferralClient {
+	return &ReferralClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `referral.Hooks(f(g(h())))`.
+func (c *ReferralClient) Use(hooks ...Hook) {
+	c.hooks.Referral = append(c.hooks.Referral, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `referral.Intercept(f(g(h())))`.
+func (c *ReferralClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Referral = append(c.inters.Referral, interceptors...)
+}
+
+// Create returns a builder for creating a Referral entity.
+func (c *ReferralClient) Create() *ReferralCreate {
+	mutation := newReferralMutation(c.config, OpCreate)
+	return &ReferralCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Referral entities.
+func (c *ReferralClient) CreateBulk(builders ...*ReferralCreate) *ReferralCreateBulk {
+	return &ReferralCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ReferralClient) MapCreateBulk(slice any, setFunc func(*ReferralCreate, int)) *ReferralCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ReferralCreateBulk{err: fmt.Errorf("calling to ReferralClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ReferralCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ReferralCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Referral.
+func (c *ReferralClient) Update() *ReferralUpdate {
+	mutation := newReferralMutation(c.config, OpUpdate)
+	return &ReferralUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ReferralClient) UpdateOne(_m *Referral) *ReferralUpdateOne {
+	mutation := newReferralMutation(c.config, OpUpdateOne, withReferral(_m))
+	return &ReferralUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ReferralClient) UpdateOneID(id uuid.UUID) *ReferralUpdateOne {
+	mutation := newReferralMutation(c.config, OpUpdateOne, withReferralID(id))
+	return &ReferralUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Referral.
+func (c *ReferralClient) Delete() *ReferralDelete {
+	mutation := newReferralMutation(c.config, OpDelete)
+	return &ReferralDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ReferralClient) DeleteOne(_m *Referral) *ReferralDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ReferralClient) DeleteOneID(id uuid.UUID) *ReferralDeleteOne {
+	builder := c.Delete().Where(referral.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ReferralDeleteOne{builder}
+}
+
+// Query returns a query builder for Referral.
+func (c *ReferralClient) Query() *ReferralQuery {
+	return &ReferralQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeReferral},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a Referral entity by its id.
+func (c *ReferralClient) Get(ctx context.Context, id uuid.UUID) (*Referral, error) {
+	return c.Query().Where(referral.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ReferralClient) GetX(ctx context.Context, id uuid.UUID) *Referral {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *ReferralClient) Hooks() []Hook {
+	return c.hooks.Referral
+}
+
+// Interceptors returns the client interceptors.
+func (c *ReferralClient) Interceptors() []Interceptor {
+	return c.inters.Referral
+}
+
+func (c *ReferralClient) mutate(ctx context.Context, m *ReferralMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ReferralCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ReferralUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ReferralUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ReferralDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown Referral mutation op: %q", m.Op())
+	}
+}
+
 // ResourceClient is a client for the Resource schema.
 type ResourceClient struct {
 	config
@@ -15812,7 +15953,7 @@ type (
 		POSPayment, POSPermission, POSRefund, POSReturn, POSReturnLine, POSRole,
 		POSRolePermission, POSRoleV2, POSUserRoleAssignment, PosNotification,
 		Prescription, PrescriptionLine, PriceBook, PriceBookItem, Promotion,
-		PromotionApplication, PromotionRule, RateLimitConfig, Resource, Room,
+		PromotionApplication, PromotionRule, RateLimitConfig, Referral, Resource, Room,
 		RoomAmenity, RoomAmenityAssignment, RoomBooking, RoomFolioItem, RoomGuest,
 		Section, SerialNumberLog, ServiceConfig, ServicePackage,
 		ServicePackagePurchase, ServicePackageRedemption, ServiceQueueEntry,
@@ -15837,7 +15978,7 @@ type (
 		POSPayment, POSPermission, POSRefund, POSReturn, POSReturnLine, POSRole,
 		POSRolePermission, POSRoleV2, POSUserRoleAssignment, PosNotification,
 		Prescription, PrescriptionLine, PriceBook, PriceBookItem, Promotion,
-		PromotionApplication, PromotionRule, RateLimitConfig, Resource, Room,
+		PromotionApplication, PromotionRule, RateLimitConfig, Referral, Resource, Room,
 		RoomAmenity, RoomAmenityAssignment, RoomBooking, RoomFolioItem, RoomGuest,
 		Section, SerialNumberLog, ServiceConfig, ServicePackage,
 		ServicePackagePurchase, ServicePackageRedemption, ServiceQueueEntry,

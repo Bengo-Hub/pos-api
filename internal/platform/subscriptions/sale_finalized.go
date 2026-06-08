@@ -13,6 +13,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent"
 	entaccount "github.com/bengobox/pos-service/internal/ent/loyaltyaccount"
 	entprogram "github.com/bengobox/pos-service/internal/ent/loyaltyprogram"
+	entreferral "github.com/bengobox/pos-service/internal/ent/referral"
 	entcommrule "github.com/bengobox/pos-service/internal/ent/commissionrule"
 	"github.com/bengobox/pos-service/internal/platform/events"
 )
@@ -93,6 +94,7 @@ func (s *SaleFinalizedSubscriber) handle(msg *nats.Msg) {
 	defer cancel()
 
 	s.autoEarnLoyalty(ctx, tenantID, orderID, p)
+	s.autoClaimReferral(ctx, tenantID, orderID, p)
 	s.autoCreateCommissions(ctx, tenantID, orderID, p)
 	// ERP sale_posted: pass-through stub — no-op until an ERP system is integrated.
 	// When an ERP integration is ready, wire the ERP client call here and remove this comment.
@@ -180,6 +182,94 @@ func (s *SaleFinalizedSubscriber) autoEarnLoyalty(ctx context.Context, tenantID,
 			zap.String("new_tier", newTier),
 		)
 	}
+}
+
+// autoClaimReferral credits the referrer bonus points when a referred friend's sale finalizes.
+// It matches the buyer's phone against any PENDING referral's referred_phone, credits the referrer
+// loyalty account, records a "referral" transaction, marks the referral earned, and emits
+// loyalty.referral_earned. No-op when the buyer has no pending referral.
+func (s *SaleFinalizedSubscriber) autoClaimReferral(ctx context.Context, tenantID, orderID uuid.UUID, p saleFinalizedPayload) {
+	if p.CustomerPhone == "" {
+		return
+	}
+	ref, err := s.db.Referral.Query().
+		Where(
+			entreferral.TenantID(tenantID),
+			entreferral.ReferredPhone(p.CustomerPhone),
+			entreferral.StatusEQ("pending"),
+		).
+		First(ctx)
+	if err != nil || ref == nil {
+		return // no pending referral for this buyer
+	}
+
+	referrer, err := s.db.LoyaltyAccount.Get(ctx, ref.ReferrerAccountID)
+	if err != nil {
+		return
+	}
+
+	newBalance := referrer.PointsBalance + ref.BonusPoints
+	newLifetime := referrer.LifetimePoints + ref.BonusPoints
+	if ref.BonusPoints > 0 {
+		if _, err := s.db.LoyaltyAccount.UpdateOneID(referrer.ID).
+			SetPointsBalance(newBalance).
+			SetLifetimePoints(newLifetime).
+			Save(ctx); err != nil {
+			s.logger.Error("referral: failed to credit referrer", zap.Error(err))
+			return
+		}
+	}
+
+	var txnID *uuid.UUID
+	if ref.BonusPoints > 0 {
+		if txn, err := s.db.LoyaltyTransaction.Create().
+			SetTenantID(tenantID).
+			SetAccountID(referrer.ID).
+			SetOrderID(orderID).
+			SetTypeField("referral").
+			SetPoints(ref.BonusPoints).
+			SetBalanceAfter(newBalance).
+			SetNotes("Referral bonus: " + p.CustomerPhone).
+			Save(ctx); err == nil {
+			txnID = &txn.ID
+		}
+	}
+
+	upd := s.db.Referral.UpdateOneID(ref.ID).SetStatus("earned").SetEarnedAt(time.Now())
+	if txnID != nil {
+		upd = upd.SetEarnTransactionID(*txnID)
+	}
+	if referred, e := s.db.LoyaltyAccount.Query().
+		Where(entaccount.TenantID(tenantID), entaccount.CustomerPhone(p.CustomerPhone)).
+		Only(ctx); e == nil {
+		upd = upd.SetReferredAccountID(referred.ID)
+	}
+	if _, err := upd.Save(ctx); err != nil {
+		s.logger.Error("referral: failed to mark earned", zap.Error(err))
+		return
+	}
+
+	if s.publisher != nil {
+		crmContactID := ""
+		if referrer.CrmContactID != nil {
+			crmContactID = referrer.CrmContactID.String()
+		}
+		_ = s.publisher.PublishLoyaltyReferralEarned(ctx, tenantID, map[string]any{
+			"referral_id":      ref.ID.String(),
+			"referrer_account": referrer.ID.String(),
+			"referrer_phone":   referrer.CustomerPhone,
+			"referrer_name":    referrer.CustomerName,
+			"crm_contact_id":   crmContactID,
+			"referred_phone":   p.CustomerPhone,
+			"bonus_points":     ref.BonusPoints,
+			"balance_after":    newBalance,
+		})
+	}
+	s.logger.Info("referral earned",
+		zap.String("referrer", referrer.CustomerPhone),
+		zap.String("referred", p.CustomerPhone),
+		zap.Int("bonus", ref.BonusPoints),
+	)
 }
 
 // evaluateTier returns the highest tier name the customer qualifies for based on lifetime points.
