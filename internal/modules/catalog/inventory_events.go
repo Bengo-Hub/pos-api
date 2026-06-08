@@ -44,6 +44,21 @@ func intPtrFromPayload(v any) *int {
 	return nil
 }
 
+// floatPtrFromPayload extracts a *float64 from a JSON payload value (numbers decode as float64).
+func floatPtrFromPayload(v any) *float64 {
+	switch t := v.(type) {
+	case float64:
+		return &t
+	case float32:
+		f := float64(t)
+		return &f
+	case int:
+		f := float64(t)
+		return &f
+	}
+	return nil
+}
+
 // InventoryEventHandler syncs POS-specific compliance flags from inventory events.
 // Item data (name, description, image) is always fetched fresh from inventory-api at request time.
 // Only flags that POS needs to enforce locally (pharmacy, age-gate, etc.) are stored.
@@ -159,6 +174,9 @@ func (h *InventoryEventHandler) syncCatalogItem(ctx context.Context, evt *shared
 
 	itemID := uuidFromPayload(evt.Payload["id"])
 	durationMinutes := intPtrFromPayload(evt.Payload["duration_minutes"])
+	// Cache the inventory cost so POS-side profitability reports (Most-Profitable) can compute real
+	// margins without an S2S call. Stored in metadata.cost_price; selling_price stays the price override.
+	costPrice := floatPtrFromPayload(evt.Payload["cost_price"])
 
 	existing, _ := h.client.POSCatalogOverride.Query().
 		Where(entoverride.TenantID(tenantID), entoverride.InventorySku(sku)).
@@ -178,6 +196,14 @@ func (h *InventoryEventHandler) syncCatalogItem(ctx context.Context, evt *shared
 		}
 		if durationMinutes != nil {
 			upd = upd.SetDurationMinutes(*durationMinutes)
+		}
+		if costPrice != nil {
+			md := existing.Metadata
+			if md == nil {
+				md = map[string]any{}
+			}
+			md["cost_price"] = *costPrice
+			upd = upd.SetMetadata(md)
 		}
 		if _, err := upd.Save(ctx); err != nil {
 			return fmt.Errorf("update catalog override for %s: %w", sku, err)
@@ -203,6 +229,9 @@ func (h *InventoryEventHandler) syncCatalogItem(ctx context.Context, evt *shared
 	}
 	if durationMinutes != nil {
 		create = create.SetDurationMinutes(*durationMinutes)
+	}
+	if costPrice != nil {
+		create = create.SetMetadata(map[string]any{"cost_price": *costPrice})
 	}
 	if _, err := create.Save(ctx); err != nil {
 		return fmt.Errorf("create catalog override for %s: %w", sku, err)
