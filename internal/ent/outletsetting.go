@@ -76,6 +76,10 @@ type OutletSetting struct {
 	MpesaAccountReference *string `json:"mpesa_account_reference,omitempty"`
 	// Airtel Money merchant/paybill number for customer payments
 	AirtelMoneyNumber *string `json:"airtel_money_number,omitempty"`
+	// M-PESA Till (Buy Goods) number
+	MpesaTill *string `json:"mpesa_till,omitempty"`
+	// M-PESA Pochi la Biashara number
+	MpesaPochi *string `json:"mpesa_pochi,omitempty"`
 	// Bank name for bank transfer payments, e.g. KCB
 	BankName *string `json:"bank_name,omitempty"`
 	// Bank account number for transfers
@@ -143,7 +147,7 @@ func (*OutletSetting) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullFloat64)
 		case outletsetting.FieldShiftMaxHours, outletsetting.FieldTableMaxOccupationMinutes, outletsetting.FieldReturnWindowDays:
 			values[i] = new(sql.NullInt64)
-		case outletsetting.FieldPinLoginMessage, outletsetting.FieldScreensaverURL, outletsetting.FieldDisplayMode, outletsetting.FieldDefaultView, outletsetting.FieldReceiptHeader, outletsetting.FieldReceiptFooter, outletsetting.FieldCurrency, outletsetting.FieldPrinterType, outletsetting.FieldPrinterIP, outletsetting.FieldPaperWidth, outletsetting.FieldMpesaPaybill, outletsetting.FieldMpesaAccountReference, outletsetting.FieldAirtelMoneyNumber, outletsetting.FieldBankName, outletsetting.FieldBankAccountNumber, outletsetting.FieldBankAccountName:
+		case outletsetting.FieldPinLoginMessage, outletsetting.FieldScreensaverURL, outletsetting.FieldDisplayMode, outletsetting.FieldDefaultView, outletsetting.FieldReceiptHeader, outletsetting.FieldReceiptFooter, outletsetting.FieldCurrency, outletsetting.FieldPrinterType, outletsetting.FieldPrinterIP, outletsetting.FieldPaperWidth, outletsetting.FieldMpesaPaybill, outletsetting.FieldMpesaAccountReference, outletsetting.FieldAirtelMoneyNumber, outletsetting.FieldMpesaTill, outletsetting.FieldMpesaPochi, outletsetting.FieldBankName, outletsetting.FieldBankAccountNumber, outletsetting.FieldBankAccountName:
 			values[i] = new(sql.NullString)
 		case outletsetting.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -357,6 +361,20 @@ func (_m *OutletSetting) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.AirtelMoneyNumber = new(string)
 				*_m.AirtelMoneyNumber = value.String
+			}
+		case outletsetting.FieldMpesaTill:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field mpesa_till", values[i])
+			} else if value.Valid {
+				_m.MpesaTill = new(string)
+				*_m.MpesaTill = value.String
+			}
+		case outletsetting.FieldMpesaPochi:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field mpesa_pochi", values[i])
+			} else if value.Valid {
+				_m.MpesaPochi = new(string)
+				*_m.MpesaPochi = value.String
 			}
 		case outletsetting.FieldBankName:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -578,6 +596,16 @@ func (_m *OutletSetting) String() string {
 	builder.WriteString(", ")
 	if v := _m.AirtelMoneyNumber; v != nil {
 		builder.WriteString("airtel_money_number=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.MpesaTill; v != nil {
+		builder.WriteString("mpesa_till=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.MpesaPochi; v != nil {
+		builder.WriteString("mpesa_pochi=")
 		builder.WriteString(*v)
 	}
 	builder.WriteString(", ")

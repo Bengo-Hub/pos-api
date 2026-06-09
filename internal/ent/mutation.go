@@ -38024,6 +38024,8 @@ type OutletSettingMutation struct {
 	mpesa_paybill                   *string
 	mpesa_account_reference         *string
 	airtel_money_number             *string
+	mpesa_till                      *string
+	mpesa_pochi                     *string
 	bank_name                       *string
 	bank_account_number             *string
 	bank_account_name               *string
@@ -39535,6 +39537,104 @@ func (m *OutletSettingMutation) ResetAirtelMoneyNumber() {
 	delete(m.clearedFields, outletsetting.FieldAirtelMoneyNumber)
 }
 
+// SetMpesaTill sets the "mpesa_till" field.
+func (m *OutletSettingMutation) SetMpesaTill(s string) {
+	m.mpesa_till = &s
+}
+
+// MpesaTill returns the value of the "mpesa_till" field in the mutation.
+func (m *OutletSettingMutation) MpesaTill() (r string, exists bool) {
+	v := m.mpesa_till
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMpesaTill returns the old "mpesa_till" field's value of the OutletSetting entity.
+// If the OutletSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OutletSettingMutation) OldMpesaTill(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMpesaTill is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMpesaTill requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMpesaTill: %w", err)
+	}
+	return oldValue.MpesaTill, nil
+}
+
+// ClearMpesaTill clears the value of the "mpesa_till" field.
+func (m *OutletSettingMutation) ClearMpesaTill() {
+	m.mpesa_till = nil
+	m.clearedFields[outletsetting.FieldMpesaTill] = struct{}{}
+}
+
+// MpesaTillCleared returns if the "mpesa_till" field was cleared in this mutation.
+func (m *OutletSettingMutation) MpesaTillCleared() bool {
+	_, ok := m.clearedFields[outletsetting.FieldMpesaTill]
+	return ok
+}
+
+// ResetMpesaTill resets all changes to the "mpesa_till" field.
+func (m *OutletSettingMutation) ResetMpesaTill() {
+	m.mpesa_till = nil
+	delete(m.clearedFields, outletsetting.FieldMpesaTill)
+}
+
+// SetMpesaPochi sets the "mpesa_pochi" field.
+func (m *OutletSettingMutation) SetMpesaPochi(s string) {
+	m.mpesa_pochi = &s
+}
+
+// MpesaPochi returns the value of the "mpesa_pochi" field in the mutation.
+func (m *OutletSettingMutation) MpesaPochi() (r string, exists bool) {
+	v := m.mpesa_pochi
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMpesaPochi returns the old "mpesa_pochi" field's value of the OutletSetting entity.
+// If the OutletSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OutletSettingMutation) OldMpesaPochi(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMpesaPochi is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMpesaPochi requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMpesaPochi: %w", err)
+	}
+	return oldValue.MpesaPochi, nil
+}
+
+// ClearMpesaPochi clears the value of the "mpesa_pochi" field.
+func (m *OutletSettingMutation) ClearMpesaPochi() {
+	m.mpesa_pochi = nil
+	m.clearedFields[outletsetting.FieldMpesaPochi] = struct{}{}
+}
+
+// MpesaPochiCleared returns if the "mpesa_pochi" field was cleared in this mutation.
+func (m *OutletSettingMutation) MpesaPochiCleared() bool {
+	_, ok := m.clearedFields[outletsetting.FieldMpesaPochi]
+	return ok
+}
+
+// ResetMpesaPochi resets all changes to the "mpesa_pochi" field.
+func (m *OutletSettingMutation) ResetMpesaPochi() {
+	m.mpesa_pochi = nil
+	delete(m.clearedFields, outletsetting.FieldMpesaPochi)
+}
+
 // SetBankName sets the "bank_name" field.
 func (m *OutletSettingMutation) SetBankName(s string) {
 	m.bank_name = &s
@@ -40283,7 +40383,7 @@ func (m *OutletSettingMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *OutletSettingMutation) Fields() []string {
-	fields := make([]string, 0, 41)
+	fields := make([]string, 0, 43)
 	if m.outlet != nil {
 		fields = append(fields, outletsetting.FieldOutletID)
 	}
@@ -40367,6 +40467,12 @@ func (m *OutletSettingMutation) Fields() []string {
 	}
 	if m.airtel_money_number != nil {
 		fields = append(fields, outletsetting.FieldAirtelMoneyNumber)
+	}
+	if m.mpesa_till != nil {
+		fields = append(fields, outletsetting.FieldMpesaTill)
+	}
+	if m.mpesa_pochi != nil {
+		fields = append(fields, outletsetting.FieldMpesaPochi)
 	}
 	if m.bank_name != nil {
 		fields = append(fields, outletsetting.FieldBankName)
@@ -40471,6 +40577,10 @@ func (m *OutletSettingMutation) Field(name string) (ent.Value, bool) {
 		return m.MpesaAccountReference()
 	case outletsetting.FieldAirtelMoneyNumber:
 		return m.AirtelMoneyNumber()
+	case outletsetting.FieldMpesaTill:
+		return m.MpesaTill()
+	case outletsetting.FieldMpesaPochi:
+		return m.MpesaPochi()
 	case outletsetting.FieldBankName:
 		return m.BankName()
 	case outletsetting.FieldBankAccountNumber:
@@ -40562,6 +40672,10 @@ func (m *OutletSettingMutation) OldField(ctx context.Context, name string) (ent.
 		return m.OldMpesaAccountReference(ctx)
 	case outletsetting.FieldAirtelMoneyNumber:
 		return m.OldAirtelMoneyNumber(ctx)
+	case outletsetting.FieldMpesaTill:
+		return m.OldMpesaTill(ctx)
+	case outletsetting.FieldMpesaPochi:
+		return m.OldMpesaPochi(ctx)
 	case outletsetting.FieldBankName:
 		return m.OldBankName(ctx)
 	case outletsetting.FieldBankAccountNumber:
@@ -40792,6 +40906,20 @@ func (m *OutletSettingMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetAirtelMoneyNumber(v)
+		return nil
+	case outletsetting.FieldMpesaTill:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMpesaTill(v)
+		return nil
+	case outletsetting.FieldMpesaPochi:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMpesaPochi(v)
 		return nil
 	case outletsetting.FieldBankName:
 		v, ok := value.(string)
@@ -41043,6 +41171,12 @@ func (m *OutletSettingMutation) ClearedFields() []string {
 	if m.FieldCleared(outletsetting.FieldAirtelMoneyNumber) {
 		fields = append(fields, outletsetting.FieldAirtelMoneyNumber)
 	}
+	if m.FieldCleared(outletsetting.FieldMpesaTill) {
+		fields = append(fields, outletsetting.FieldMpesaTill)
+	}
+	if m.FieldCleared(outletsetting.FieldMpesaPochi) {
+		fields = append(fields, outletsetting.FieldMpesaPochi)
+	}
 	if m.FieldCleared(outletsetting.FieldBankName) {
 		fields = append(fields, outletsetting.FieldBankName)
 	}
@@ -41171,6 +41305,12 @@ func (m *OutletSettingMutation) ClearField(name string) error {
 	case outletsetting.FieldAirtelMoneyNumber:
 		m.ClearAirtelMoneyNumber()
 		return nil
+	case outletsetting.FieldMpesaTill:
+		m.ClearMpesaTill()
+		return nil
+	case outletsetting.FieldMpesaPochi:
+		m.ClearMpesaPochi()
+		return nil
 	case outletsetting.FieldBankName:
 		m.ClearBankName()
 		return nil
@@ -41298,6 +41438,12 @@ func (m *OutletSettingMutation) ResetField(name string) error {
 		return nil
 	case outletsetting.FieldAirtelMoneyNumber:
 		m.ResetAirtelMoneyNumber()
+		return nil
+	case outletsetting.FieldMpesaTill:
+		m.ResetMpesaTill()
+		return nil
+	case outletsetting.FieldMpesaPochi:
+		m.ResetMpesaPochi()
 		return nil
 	case outletsetting.FieldBankName:
 		m.ResetBankName()

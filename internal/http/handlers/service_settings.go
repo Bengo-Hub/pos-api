@@ -64,28 +64,28 @@ type settingsResponse struct {
 	OutletID string `json:"outlet_id"`
 	UseCase  string `json:"use_case"`
 	// display
-	DisplayMode       string `json:"display_mode"`
-	ShowImages        bool   `json:"show_images"`
-	ShowBarcodeScanner bool  `json:"show_barcode_scanner"`
-	DefaultView       string `json:"default_view"`
+	DisplayMode        string `json:"display_mode"`
+	ShowImages         bool   `json:"show_images"`
+	ShowBarcodeScanner bool   `json:"show_barcode_scanner"`
+	DefaultView        string `json:"default_view"`
 	// receipt
-	ReceiptHeader  *string `json:"receipt_header"`
-	ReceiptFooter  *string `json:"receipt_footer"`
-	Currency       string  `json:"currency"`
-	VATEnabled     bool    `json:"vat_enabled"`
-	VATRate        float64 `json:"vat_rate"`
+	ReceiptHeader *string `json:"receipt_header"`
+	ReceiptFooter *string `json:"receipt_footer"`
+	Currency      string  `json:"currency"`
+	VATEnabled    bool    `json:"vat_enabled"`
+	VATRate       float64 `json:"vat_rate"`
 	// printer
-	PrinterType       string  `json:"printer_type"`
-	PrinterIP         *string `json:"printer_ip"`
-	PaperWidth        string  `json:"paper_width"`
-	AutoPrintOrder    bool    `json:"auto_print_order"`
-	AutoPrintKitchen  bool    `json:"auto_print_kitchen"`
+	PrinterType      string  `json:"printer_type"`
+	PrinterIP        *string `json:"printer_ip"`
+	PaperWidth       string  `json:"paper_width"`
+	AutoPrintOrder   bool    `json:"auto_print_order"`
+	AutoPrintKitchen bool    `json:"auto_print_kitchen"`
 	// modules
-	EnableKDS             bool    `json:"enable_kds"`
-	EnableAppointments    bool    `json:"enable_appointments"`
-	HotelModuleEnabled    bool    `json:"hotel_module_enabled"`
-	LayawayEnabled        bool    `json:"layaway_enabled"`
-	ShiftReportsEnabled   bool    `json:"shift_reports_enabled"`
+	EnableKDS           bool `json:"enable_kds"`
+	EnableAppointments  bool `json:"enable_appointments"`
+	HotelModuleEnabled  bool `json:"hotel_module_enabled"`
+	LayawayEnabled      bool `json:"layaway_enabled"`
+	ShiftReportsEnabled bool `json:"shift_reports_enabled"`
 	// shift settings
 	ShiftAutoEndEnabled bool `json:"shift_auto_end_enabled"`
 	ShiftMaxHours       int  `json:"shift_max_hours"`
@@ -102,6 +102,8 @@ type settingsResponse struct {
 	MpesaPaybill             *string `json:"mpesa_paybill"`
 	MpesaAccountReference    *string `json:"mpesa_account_reference"`
 	AirtelMoneyNumber        *string `json:"airtel_money_number"`
+	MpesaTill                *string `json:"mpesa_till"`
+	MpesaPochi               *string `json:"mpesa_pochi"`
 	BankName                 *string `json:"bank_name"`
 	BankAccountNumber        *string `json:"bank_account_number"`
 	BankAccountName          *string `json:"bank_account_name"`
@@ -115,42 +117,44 @@ func toSettingsResponse(outlet *ent.Outlet, s *ent.OutletSetting) settingsRespon
 		useCase = *outlet.UseCase
 	}
 	r := settingsResponse{
-		OutletID:           outlet.ID.String(),
-		UseCase:            useCase,
-		DisplayMode:        s.DisplayMode,
-		ShowImages:         s.ShowImages,
-		ShowBarcodeScanner: s.ShowBarcodeScanner,
-		DefaultView:        s.DefaultView,
-		Currency:           s.Currency,
-		VATEnabled:         s.VatEnabled,
-		VATRate:            s.VatRate,
-		PrinterType:        s.PrinterType,
-		PaperWidth:         s.PaperWidth,
-		AutoPrintOrder:     s.AutoPrintOrder,
-		AutoPrintKitchen:   s.AutoPrintKitchen,
-		EnableKDS:          s.EnableKds,
-		EnableAppointments: s.EnableAppointments,
-		HotelModuleEnabled: s.HotelModuleEnabled,
-		LayawayEnabled:     s.LayawayEnabled,
-		ShiftReportsEnabled: s.ShiftReportsEnabled,
-		ReceiptHeader:      s.ReceiptHeader,
-		ReceiptFooter:      s.ReceiptFooter,
-		PrinterIP:          s.PrinterIP,
+		OutletID:                  outlet.ID.String(),
+		UseCase:                   useCase,
+		DisplayMode:               s.DisplayMode,
+		ShowImages:                s.ShowImages,
+		ShowBarcodeScanner:        s.ShowBarcodeScanner,
+		DefaultView:               s.DefaultView,
+		Currency:                  s.Currency,
+		VATEnabled:                s.VatEnabled,
+		VATRate:                   s.VatRate,
+		PrinterType:               s.PrinterType,
+		PaperWidth:                s.PaperWidth,
+		AutoPrintOrder:            s.AutoPrintOrder,
+		AutoPrintKitchen:          s.AutoPrintKitchen,
+		EnableKDS:                 s.EnableKds,
+		EnableAppointments:        s.EnableAppointments,
+		HotelModuleEnabled:        s.HotelModuleEnabled,
+		LayawayEnabled:            s.LayawayEnabled,
+		ShiftReportsEnabled:       s.ShiftReportsEnabled,
+		ReceiptHeader:             s.ReceiptHeader,
+		ReceiptFooter:             s.ReceiptFooter,
+		PrinterIP:                 s.PrinterIP,
 		ShiftAutoEndEnabled:       s.ShiftAutoEndEnabled,
 		ShiftMaxHours:             s.ShiftMaxHours,
 		TableMaxOccupationMinutes: s.TableMaxOccupationMinutes,
 		ReturnWindowDays:          s.ReturnWindowDays,
 		PrinterProfiles:           s.PrinterProfiles,
-		PINLoginMessage:          s.PinLoginMessage,
-		ScreensaverURL:           s.ScreensaverURL,
-		MpesaPaybill:             s.MpesaPaybill,
-		MpesaAccountReference:    s.MpesaAccountReference,
-		AirtelMoneyNumber:        s.AirtelMoneyNumber,
-		BankName:                 s.BankName,
-		BankAccountNumber:        s.BankAccountNumber,
-		BankAccountName:          s.BankAccountName,
-		ShowPaymentInfoOnReceipt: s.ShowPaymentInfoOnReceipt,
-		UpdatedAt:                s.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+		PINLoginMessage:           s.PinLoginMessage,
+		ScreensaverURL:            s.ScreensaverURL,
+		MpesaPaybill:              s.MpesaPaybill,
+		MpesaAccountReference:     s.MpesaAccountReference,
+		AirtelMoneyNumber:         s.AirtelMoneyNumber,
+		MpesaTill:                 s.MpesaTill,
+		MpesaPochi:                s.MpesaPochi,
+		BankName:                  s.BankName,
+		BankAccountNumber:         s.BankAccountNumber,
+		BankAccountName:           s.BankAccountName,
+		ShowPaymentInfoOnReceipt:  s.ShowPaymentInfoOnReceipt,
+		UpdatedAt:                 s.UpdatedAt.Format("2006-01-02T15:04:05Z"),
 	}
 	return r
 }
@@ -245,28 +249,30 @@ func (h *ServiceSettingsHandler) GetSettings(w http.ResponseWriter, r *http.Requ
 
 // updateSettingsInput covers all writable fields.
 type updateSettingsInput struct {
-	DisplayMode        *string  `json:"display_mode"`
-	ShowImages         *bool    `json:"show_images"`
-	ShowBarcodeScanner *bool    `json:"show_barcode_scanner"`
-	DefaultView        *string  `json:"default_view"`
-	ReceiptHeader      *string  `json:"receipt_header"`
-	ReceiptFooter      *string  `json:"receipt_footer"`
-	Currency           *string  `json:"currency"`
-	VATEnabled         *bool    `json:"vat_enabled"`
-	VATRate            *float64 `json:"vat_rate"`
-	PrinterType        *string  `json:"printer_type"`
-	PrinterIP          *string  `json:"printer_ip"`
-	PaperWidth         *string  `json:"paper_width"`
-	AutoPrintOrder     *bool              `json:"auto_print_order"`
-	AutoPrintKitchen   *bool              `json:"auto_print_kitchen"`
-	PrinterProfiles    []map[string]any   `json:"printer_profiles"`
-	PINLoginMessage    *string            `json:"pin_login_message"`
-	ScreensaverURL     *string            `json:"screensaver_url"`
-	ReturnWindowDays   *int               `json:"return_window_days"`
+	DisplayMode        *string          `json:"display_mode"`
+	ShowImages         *bool            `json:"show_images"`
+	ShowBarcodeScanner *bool            `json:"show_barcode_scanner"`
+	DefaultView        *string          `json:"default_view"`
+	ReceiptHeader      *string          `json:"receipt_header"`
+	ReceiptFooter      *string          `json:"receipt_footer"`
+	Currency           *string          `json:"currency"`
+	VATEnabled         *bool            `json:"vat_enabled"`
+	VATRate            *float64         `json:"vat_rate"`
+	PrinterType        *string          `json:"printer_type"`
+	PrinterIP          *string          `json:"printer_ip"`
+	PaperWidth         *string          `json:"paper_width"`
+	AutoPrintOrder     *bool            `json:"auto_print_order"`
+	AutoPrintKitchen   *bool            `json:"auto_print_kitchen"`
+	PrinterProfiles    []map[string]any `json:"printer_profiles"`
+	PINLoginMessage    *string          `json:"pin_login_message"`
+	ScreensaverURL     *string          `json:"screensaver_url"`
+	ReturnWindowDays   *int             `json:"return_window_days"`
 	// payment display fields
 	MpesaPaybill             *string `json:"mpesa_paybill"`
 	MpesaAccountReference    *string `json:"mpesa_account_reference"`
 	AirtelMoneyNumber        *string `json:"airtel_money_number"`
+	MpesaTill                *string `json:"mpesa_till"`
+	MpesaPochi               *string `json:"mpesa_pochi"`
 	BankName                 *string `json:"bank_name"`
 	BankAccountNumber        *string `json:"bank_account_number"`
 	BankAccountName          *string `json:"bank_account_name"`
@@ -365,6 +371,12 @@ func (h *ServiceSettingsHandler) PutSettings(w http.ResponseWriter, r *http.Requ
 	}
 	if input.AirtelMoneyNumber != nil {
 		upd = upd.SetNillableAirtelMoneyNumber(input.AirtelMoneyNumber)
+	}
+	if input.MpesaTill != nil {
+		upd = upd.SetNillableMpesaTill(input.MpesaTill)
+	}
+	if input.MpesaPochi != nil {
+		upd = upd.SetNillableMpesaPochi(input.MpesaPochi)
 	}
 	if input.BankName != nil {
 		upd = upd.SetNillableBankName(input.BankName)

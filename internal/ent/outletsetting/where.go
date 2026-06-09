@@ -166,6 +166,16 @@ func AirtelMoneyNumber(v string) predicate.OutletSetting {
 	return predicate.OutletSetting(sql.FieldEQ(FieldAirtelMoneyNumber, v))
 }
 
+// MpesaTill applies equality check predicate on the "mpesa_till" field. It's identical to MpesaTillEQ.
+func MpesaTill(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldMpesaTill, v))
+}
+
+// MpesaPochi applies equality check predicate on the "mpesa_pochi" field. It's identical to MpesaPochiEQ.
+func MpesaPochi(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldMpesaPochi, v))
+}
+
 // BankName applies equality check predicate on the "bank_name" field. It's identical to BankNameEQ.
 func BankName(v string) predicate.OutletSetting {
 	return predicate.OutletSetting(sql.FieldEQ(FieldBankName, v))
@@ -1464,6 +1474,156 @@ func AirtelMoneyNumberEqualFold(v string) predicate.OutletSetting {
 // AirtelMoneyNumberContainsFold applies the ContainsFold predicate on the "airtel_money_number" field.
 func AirtelMoneyNumberContainsFold(v string) predicate.OutletSetting {
 	return predicate.OutletSetting(sql.FieldContainsFold(FieldAirtelMoneyNumber, v))
+}
+
+// MpesaTillEQ applies the EQ predicate on the "mpesa_till" field.
+func MpesaTillEQ(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldMpesaTill, v))
+}
+
+// MpesaTillNEQ applies the NEQ predicate on the "mpesa_till" field.
+func MpesaTillNEQ(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNEQ(FieldMpesaTill, v))
+}
+
+// MpesaTillIn applies the In predicate on the "mpesa_till" field.
+func MpesaTillIn(vs ...string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIn(FieldMpesaTill, vs...))
+}
+
+// MpesaTillNotIn applies the NotIn predicate on the "mpesa_till" field.
+func MpesaTillNotIn(vs ...string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotIn(FieldMpesaTill, vs...))
+}
+
+// MpesaTillGT applies the GT predicate on the "mpesa_till" field.
+func MpesaTillGT(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGT(FieldMpesaTill, v))
+}
+
+// MpesaTillGTE applies the GTE predicate on the "mpesa_till" field.
+func MpesaTillGTE(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGTE(FieldMpesaTill, v))
+}
+
+// MpesaTillLT applies the LT predicate on the "mpesa_till" field.
+func MpesaTillLT(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLT(FieldMpesaTill, v))
+}
+
+// MpesaTillLTE applies the LTE predicate on the "mpesa_till" field.
+func MpesaTillLTE(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLTE(FieldMpesaTill, v))
+}
+
+// MpesaTillContains applies the Contains predicate on the "mpesa_till" field.
+func MpesaTillContains(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldContains(FieldMpesaTill, v))
+}
+
+// MpesaTillHasPrefix applies the HasPrefix predicate on the "mpesa_till" field.
+func MpesaTillHasPrefix(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldHasPrefix(FieldMpesaTill, v))
+}
+
+// MpesaTillHasSuffix applies the HasSuffix predicate on the "mpesa_till" field.
+func MpesaTillHasSuffix(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldHasSuffix(FieldMpesaTill, v))
+}
+
+// MpesaTillIsNil applies the IsNil predicate on the "mpesa_till" field.
+func MpesaTillIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldMpesaTill))
+}
+
+// MpesaTillNotNil applies the NotNil predicate on the "mpesa_till" field.
+func MpesaTillNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldMpesaTill))
+}
+
+// MpesaTillEqualFold applies the EqualFold predicate on the "mpesa_till" field.
+func MpesaTillEqualFold(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEqualFold(FieldMpesaTill, v))
+}
+
+// MpesaTillContainsFold applies the ContainsFold predicate on the "mpesa_till" field.
+func MpesaTillContainsFold(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldContainsFold(FieldMpesaTill, v))
+}
+
+// MpesaPochiEQ applies the EQ predicate on the "mpesa_pochi" field.
+func MpesaPochiEQ(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldMpesaPochi, v))
+}
+
+// MpesaPochiNEQ applies the NEQ predicate on the "mpesa_pochi" field.
+func MpesaPochiNEQ(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNEQ(FieldMpesaPochi, v))
+}
+
+// MpesaPochiIn applies the In predicate on the "mpesa_pochi" field.
+func MpesaPochiIn(vs ...string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIn(FieldMpesaPochi, vs...))
+}
+
+// MpesaPochiNotIn applies the NotIn predicate on the "mpesa_pochi" field.
+func MpesaPochiNotIn(vs ...string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotIn(FieldMpesaPochi, vs...))
+}
+
+// MpesaPochiGT applies the GT predicate on the "mpesa_pochi" field.
+func MpesaPochiGT(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGT(FieldMpesaPochi, v))
+}
+
+// MpesaPochiGTE applies the GTE predicate on the "mpesa_pochi" field.
+func MpesaPochiGTE(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGTE(FieldMpesaPochi, v))
+}
+
+// MpesaPochiLT applies the LT predicate on the "mpesa_pochi" field.
+func MpesaPochiLT(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLT(FieldMpesaPochi, v))
+}
+
+// MpesaPochiLTE applies the LTE predicate on the "mpesa_pochi" field.
+func MpesaPochiLTE(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLTE(FieldMpesaPochi, v))
+}
+
+// MpesaPochiContains applies the Contains predicate on the "mpesa_pochi" field.
+func MpesaPochiContains(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldContains(FieldMpesaPochi, v))
+}
+
+// MpesaPochiHasPrefix applies the HasPrefix predicate on the "mpesa_pochi" field.
+func MpesaPochiHasPrefix(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldHasPrefix(FieldMpesaPochi, v))
+}
+
+// MpesaPochiHasSuffix applies the HasSuffix predicate on the "mpesa_pochi" field.
+func MpesaPochiHasSuffix(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldHasSuffix(FieldMpesaPochi, v))
+}
+
+// MpesaPochiIsNil applies the IsNil predicate on the "mpesa_pochi" field.
+func MpesaPochiIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldMpesaPochi))
+}
+
+// MpesaPochiNotNil applies the NotNil predicate on the "mpesa_pochi" field.
+func MpesaPochiNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldMpesaPochi))
+}
+
+// MpesaPochiEqualFold applies the EqualFold predicate on the "mpesa_pochi" field.
+func MpesaPochiEqualFold(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEqualFold(FieldMpesaPochi, v))
+}
+
+// MpesaPochiContainsFold applies the ContainsFold predicate on the "mpesa_pochi" field.
+func MpesaPochiContainsFold(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldContainsFold(FieldMpesaPochi, v))
 }
 
 // BankNameEQ applies the EQ predicate on the "bank_name" field.

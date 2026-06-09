@@ -79,7 +79,8 @@ type receiptLine struct {
 type receiptPaymentMethods struct {
 	MpesaPaybill      string `json:"mpesa_paybill,omitempty"`
 	MpesaAccountRef   string `json:"mpesa_account_reference,omitempty"`
-	AirtelMoneyNumber string `json:"airtel_money_number,omitempty"`
+	MpesaTill         string `json:"mpesa_till,omitempty"`
+	MpesaPochi        string `json:"mpesa_pochi,omitempty"`
 	BankName          string `json:"bank_name,omitempty"`
 	BankAccountNumber string `json:"bank_account_number,omitempty"`
 	BankAccountName   string `json:"bank_account_name,omitempty"`
@@ -246,8 +247,12 @@ func (h *ReceiptHandler) GetReceipt(w http.ResponseWriter, r *http.Request) {
 				pm.MpesaAccountRef = *s.MpesaAccountReference
 				filled = true
 			}
-			if s.AirtelMoneyNumber != nil && *s.AirtelMoneyNumber != "" {
-				pm.AirtelMoneyNumber = *s.AirtelMoneyNumber
+			if s.MpesaTill != nil && *s.MpesaTill != "" {
+				pm.MpesaTill = *s.MpesaTill
+				filled = true
+			}
+			if s.MpesaPochi != nil && *s.MpesaPochi != "" {
+				pm.MpesaPochi = *s.MpesaPochi
 				filled = true
 			}
 			if s.BankName != nil && *s.BankName != "" {
@@ -394,8 +399,11 @@ h1{font-size:13px;text-align:center;margin:2px 0}
 		if pm.MpesaAccountRef != "" {
 			buf.WriteString(fmt.Sprintf(`<div class="line"><span>Account No.</span><span>%s</span></div>`, pm.MpesaAccountRef))
 		}
-		if pm.AirtelMoneyNumber != "" {
-			buf.WriteString(fmt.Sprintf(`<div class="line"><span>Airtel Money</span><span>%s</span></div>`, pm.AirtelMoneyNumber))
+		if pm.MpesaTill != "" {
+			buf.WriteString(fmt.Sprintf(`<div class="line"><span>M-PESA Till</span><span>%s</span></div>`, pm.MpesaTill))
+		}
+		if pm.MpesaPochi != "" {
+			buf.WriteString(fmt.Sprintf(`<div class="line"><span>M-PESA Pochi</span><span>%s</span></div>`, pm.MpesaPochi))
 		}
 		if pm.BankName != "" || pm.BankAccountNumber != "" {
 			label := pm.BankName
