@@ -35,16 +35,16 @@ func NewClient(serviceURL, internalServiceKey string, timeout time.Duration) *Cl
 
 // CreateIntentRequest is the body for POST /api/v1/{tenant}/payments/intents.
 type CreateIntentRequest struct {
-	SourceService string  `json:"source_service"` // always "pos"
-	ReferenceID   string  `json:"reference_id"`   // pos_order UUID
-	ReferenceType string  `json:"reference_type"` // "pos_order"
-	Amount        float64 `json:"amount"`
-	Currency      string  `json:"currency"`
-	PaymentMethod string  `json:"payment_method"` // "cash", "pending", etc.
-	Description   string  `json:"description,omitempty"`
-	CustomerEmail string  `json:"customer_email,omitempty"`
-	CustomerPhone string  `json:"customer_phone,omitempty"`
-	OutletID      string  `json:"outlet_id,omitempty"` // outlet context for per-outlet gateway config resolution
+	SourceService string         `json:"source_service"` // always "pos"
+	ReferenceID   string         `json:"reference_id"`   // pos_order UUID
+	ReferenceType string         `json:"reference_type"` // "pos_order"
+	Amount        float64        `json:"amount"`
+	Currency      string         `json:"currency"`
+	PaymentMethod string         `json:"payment_method"` // "cash", "pending", etc.
+	Description   string         `json:"description,omitempty"`
+	CustomerEmail string         `json:"customer_email,omitempty"`
+	CustomerPhone string         `json:"customer_phone,omitempty"`
+	OutletID      string         `json:"outlet_id,omitempty"` // outlet context for per-outlet gateway config resolution
 	Metadata      map[string]any `json:"metadata,omitempty"`
 }
 
@@ -80,10 +80,10 @@ type InitiateRequest struct {
 
 // InitiateResponse is the response from POST /api/v1/{tenant}/payments/intents/{id}/initiate.
 type InitiateResponse struct {
-	Status             string `json:"status"`
-	CheckoutRequestID  string `json:"checkout_request_id,omitempty"`
-	AuthorizationURL   string `json:"authorization_url,omitempty"`
-	Reference          string `json:"reference,omitempty"`
+	Status            string `json:"status"`
+	CheckoutRequestID string `json:"checkout_request_id,omitempty"`
+	AuthorizationURL  string `json:"authorization_url,omitempty"`
+	Reference         string `json:"reference,omitempty"`
 }
 
 // RefundRequest is the body for POST /api/v1/s2s/{tenant}/refunds
@@ -134,6 +134,43 @@ type CreditSaleResponse struct {
 func (c *Client) RecordCreditSale(ctx context.Context, tenantSlug string, req CreditSaleRequest) (*CreditSaleResponse, error) {
 	url := fmt.Sprintf("%s/api/v1/s2s/%s/ar/credit-sale", c.baseURL, tenantSlug)
 	return doRequest[CreditSaleResponse](ctx, c.httpClient, http.MethodPost, url, c.apiKey, req)
+}
+
+// QuotationLine is one line on an S2S quotation create. Quantity/UnitPrice go as JSON numbers;
+// treasury's decimal.Decimal fields parse them.
+type QuotationLine struct {
+	Description string  `json:"description"`
+	ItemSKU     string  `json:"item_sku,omitempty"`
+	Quantity    float64 `json:"quantity"`
+	UnitPrice   float64 `json:"unit_price"`
+}
+
+// CreateQuotationRequest is the body for POST /api/v1/s2s/{tenant}/quotations. Dates are ISO strings
+// (treasury parses them via its flexible date decoder).
+type CreateQuotationRequest struct {
+	CustomerName  string          `json:"customer_name,omitempty"`
+	CustomerPhone string          `json:"customer_phone,omitempty"`
+	CustomerEmail string          `json:"customer_email,omitempty"`
+	QuoteDate     string          `json:"quote_date"`
+	ValidUntil    string          `json:"valid_until"`
+	Currency      string          `json:"currency,omitempty"`
+	Notes         string          `json:"notes,omitempty"`
+	ReferenceType string          `json:"reference_type,omitempty"`
+	Lines         []QuotationLine `json:"lines"`
+}
+
+// QuotationResponse is the treasury quotation returned after creation.
+type QuotationResponse struct {
+	ID          string `json:"id"`
+	Status      string `json:"status"`
+	TotalAmount string `json:"total_amount"`
+}
+
+// CreateQuotation creates a treasury quotation from a pos cart over S2S. Treasury owns quotations;
+// pos persists nothing — it keeps only the returned id as a reference.
+func (c *Client) CreateQuotation(ctx context.Context, tenantSlug string, req CreateQuotationRequest) (*QuotationResponse, error) {
+	url := fmt.Sprintf("%s/api/v1/s2s/%s/quotations", c.baseURL, tenantSlug)
+	return doRequest[QuotationResponse](ctx, c.httpClient, http.MethodPost, url, c.apiKey, req)
 }
 
 // CreateIntent calls POST /api/v1/s2s/{tenantSlug}/payments/intents on treasury-api.
@@ -215,8 +252,8 @@ func (c *Client) GetPublicGateways(ctx context.Context, tenantSlug string) (*Pub
 
 // PayoutRequest is the body for POST /api/v1/{tenant}/payouts/disburse.
 type PayoutRequest struct {
-	EntityType   string  `json:"entity_type"`   // "staff"
-	EntityID     string  `json:"entity_id"`     // staff member user_id or UUID
+	EntityType   string  `json:"entity_type"` // "staff"
+	EntityID     string  `json:"entity_id"`   // staff member user_id or UUID
 	Amount       float64 `json:"amount"`
 	Currency     string  `json:"currency"`
 	Reference    string  `json:"reference"`
@@ -341,6 +378,7 @@ func (c *Client) RecordExpense(ctx context.Context, tenantSlug string, req Expen
 	url := fmt.Sprintf("%s/api/v1/s2s/%s/expenses", c.baseURL, tenantSlug)
 	return doRequest[ExpenseResponse](ctx, c.httpClient, http.MethodPost, url, c.apiKey, req)
 }
+
 // ListC2BCandidates queries unreconciled M-Pesa C2B inbox payments from treasury (raw passthrough of
 // the cashier's query params: shortCode, amount, billRef, since, status).
 func (c *Client) ListC2BCandidates(ctx context.Context, tenantSlug, rawQuery string) (json.RawMessage, error) {
