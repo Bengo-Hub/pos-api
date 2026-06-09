@@ -72,6 +72,8 @@ func (h *MenuHandler) branding(ctx context.Context, tenantID uuid.UUID) receiptB
 // menuGroup is one category section in the rendered menu.
 type menuGroup struct {
 	CategoryName string
+	Icon         string // emoji / text icon for the category heading
+	ImageURL     string // image icon (when the category icon resolves to an image URL)
 	Items        []catalogItemDTO
 }
 
@@ -134,6 +136,20 @@ func (h *MenuHandler) GetMenuHTML(w http.ResponseWriter, r *http.Request) {
 	}
 
 	groups := groupMenuItems(items)
+
+	// Enrich category headings with icons from inventory (best-effort; the menu still renders without).
+	if cats, catErr := h.catalog.fetchInventoryCategories(ctx, tenantSlug); catErr == nil {
+		iconByName := make(map[string]posCategory, len(cats))
+		for _, c := range cats {
+			iconByName[strings.ToLower(strings.TrimSpace(c.Name))] = mapInventoryCategory(c)
+		}
+		for i := range groups {
+			if pc, ok := iconByName[strings.ToLower(strings.TrimSpace(groups[i].CategoryName))]; ok {
+				groups[i].Icon = pc.Icon
+				groups[i].ImageURL = pc.ImageURL
+			}
+		}
+	}
 
 	// QR encodes the public menu URL = (PUBLIC_BASE_URL or request origin) + request path.
 	menuURL := publicMenuURL(r)

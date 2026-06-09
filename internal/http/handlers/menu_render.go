@@ -117,7 +117,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Ar
 .qrcard .url{font-size:11px;color:#6b7a90;word-break:break-all;margin-top:2px}
 .cat{margin:28px 0 10px}
 .cat h2{font-size:18px;font-weight:800;color:var(--brand);margin:0;padding:8px 12px;
-  background:var(--tint);border-radius:8px;border-left:4px solid var(--brand)}
+  background:var(--tint);border-radius:8px;border-left:4px solid var(--brand);display:flex;align-items:center;gap:8px}
+.cat-icon-img{width:22px;height:22px;object-fit:contain;border-radius:4px}
+.cat-icon{font-size:18px;line-height:1}
 .item{display:flex;gap:14px;padding:12px 4px;border-bottom:1px solid #eef1f5;page-break-inside:avoid}
 .item .thumb{width:72px;height:72px;flex:none;border-radius:10px;object-fit:cover;background:#f2f4f7}
 .item .body{flex:1;min-width:0}
@@ -158,7 +160,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Ar
 	}
 
 	for _, g := range groups {
-		buf.WriteString(`<section class="cat"><h2>` + htmlEscape(g.CategoryName) + `</h2></section>`)
+		buf.WriteString(`<section class="cat"><h2>` + menuCategoryIconHTML(g) + htmlEscape(g.CategoryName) + `</h2></section>`)
 		for _, it := range g.Items {
 			buf.WriteString(`<div class="item">`)
 			if it.ImageURL != "" {
@@ -180,6 +182,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Ar
 	buf.WriteString(`<p class="footer">Menu generated live — prices in KES.</p>`)
 	buf.WriteString(`</div></body></html>`)
 	return buf.Bytes()
+}
+
+// menuCategoryIconHTML renders a category's icon for its heading: <img> for an image-URL icon,
+// an inline span for an emoji/text icon, or empty when absent.
+func menuCategoryIconHTML(g menuGroup) string {
+	if u := strings.TrimSpace(g.ImageURL); u != "" {
+		return `<img class="cat-icon-img" src="` + htmlAttr(u) + `" alt="">`
+	}
+	if ic := strings.TrimSpace(g.Icon); ic != "" {
+		return `<span class="cat-icon">` + htmlEscape(ic) + `</span>`
+	}
+	return ""
 }
 
 // formatKES renders a price as a thousands-separated integer (prices are pre-rounded
