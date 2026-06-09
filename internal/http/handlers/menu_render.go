@@ -37,13 +37,20 @@ func publicMenuURL(r *http.Request) string {
 	return fmt.Sprintf("%s://%s%s", scheme, host, path)
 }
 
-// qrPNGDataURI encodes content as a QR PNG and returns a base64 data: URI suitable for
-// embedding directly in an <img src>. size is the PNG edge length in pixels.
-func qrPNGDataURI(content string, size int) (string, error) {
+// qrPNGBytes encodes content as a QR PNG and returns the raw PNG bytes. size is the PNG edge
+// length in pixels. Used by the PDF renderer (fpdf embeds raw bytes via an io.Reader); the HTML
+// renderer wraps these bytes in a data: URI via qrPNGDataURI.
+func qrPNGBytes(content string, size int) ([]byte, error) {
 	if size <= 0 {
 		size = 256
 	}
-	png, err := qrcode.Encode(content, qrcode.Medium, size)
+	return qrcode.Encode(content, qrcode.Medium, size)
+}
+
+// qrPNGDataURI encodes content as a QR PNG and returns a base64 data: URI suitable for
+// embedding directly in an <img src>. size is the PNG edge length in pixels.
+func qrPNGDataURI(content string, size int) (string, error) {
+	png, err := qrPNGBytes(content, size)
 	if err != nil {
 		return "", err
 	}

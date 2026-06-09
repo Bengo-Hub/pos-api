@@ -139,6 +139,8 @@ func New(
 			// in any browser). Regenerated on every request → always reflects the live catalog.
 			if menu != nil {
 				pub.Get("/{tenantID}/pos/outlets/{outletID}/menu.html", menu.GetMenuHTML)
+				// True-PDF variant (same tokenless data path) for DocPreview + sharing.
+				pub.Get("/{tenantID}/pos/outlets/{outletID}/menu.pdf", menu.GetMenuPDF)
 			}
 			// Public reservation endpoints Ã¢â‚¬â€ used by the embeddable booking widget
 			if tables != nil {
