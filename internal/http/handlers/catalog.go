@@ -58,6 +58,7 @@ type inventoryProxyItem struct {
 	DurationMinutes         int      `json:"duration_minutes"`
 	CostPrice               *float64 `json:"cost_price,omitempty"`
 	SuggestedPrice          *float64 `json:"suggested_price,omitempty"`
+	OnHand                  *float64 `json:"on_hand,omitempty"` // stock on hand from inventory balances (StockBadge)
 	// Recipe-costing fields (added 2026-06-01)
 	SellingPrice   *float64 `json:"selling_price,omitempty"`
 	FoodCostPct    *float64 `json:"food_cost_pct,omitempty"`
@@ -340,6 +341,7 @@ type catalogItemDTO struct {
 	TrackSerialNumbers      bool
 	MinimumAge              *int
 	DurationMinutes         *int
+	StockQuantity           *float64
 }
 
 // menuAssemblyFilters carries the optional list-time filters applied by ListCatalogItems.
@@ -568,6 +570,7 @@ func (h *CatalogHandler) assembleMenuItems(
 			TrackSerialNumbers:      item.TrackSerialNumbers,
 			MinimumAge:              minimumAge,
 			DurationMinutes:         durationMinutes,
+			StockQuantity:           item.OnHand,
 		})
 	}
 	return out, nil
@@ -601,6 +604,7 @@ func catalogItemToMap(item catalogItemDTO, outletID *uuid.UUID) map[string]any {
 		"track_serial_numbers":      item.TrackSerialNumbers,
 		"minimum_age":               item.MinimumAge,
 		"duration_minutes":          item.DurationMinutes,
+		"stock_quantity":            item.StockQuantity,
 		"outlet_id":                 outletID,
 	}
 }
