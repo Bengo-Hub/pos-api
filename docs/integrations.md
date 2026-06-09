@@ -43,6 +43,12 @@ The POS service is the **source of truth for sales catalogs (menus)**. While `in
 - pos-api does NOT call the KRA eTIMS API directly.
 - pos-api does NOT store the raw KRA API credentials (ETIMS_URL, ETIMS_CU_SERIAL, ETIMS_API_KEY).
 - pos-api does NOT own an EtimsInvoice entity — treasury-api owns that (table: `etims_invoices`).
+- pos-api does NOT own quotations or sales credit-notes either — treasury owns ALL financial documents
+  (invoices, quotations, proforma, sales credit-notes). A pos sales return that needs a VAT-reversal
+  credit note calls treasury S2S `POST /api/v1/s2s/{tenant}/invoices/{invoiceID}/create-credit-note`
+  (reuses `invoicing.CreateCreditNote`); a pos "Save as Quotation" calls a treasury quotation S2S create.
+  A standalone pos `CreditNote` entity was built once and DISCARDED — do not reintroduce it. pos-ui LINKS
+  to treasury-ui for these documents (never duplicates the pages); only the create-from-pos action lives here.
 
 **What pos-api does store:**
 - `pos_orders.etims_invoice_number` (nullable string) — populated after `treasury.etims.invoice_transmitted` is received.
