@@ -77,28 +77,38 @@ type menuGroup struct {
 	Items        []catalogItemDTO
 }
 
-// GetMenuHTML handles GET /{tenantID}/pos/outlets/{outletID}/menu.html
+// resolvedMenu is the fully-assembled menu data shared by the HTML and PDF handlers: the
+// branding, display names, category-grouped + icon-enriched items, and the QR target URL.
+// Both GetMenuHTML and GetMenuPDF build this via resolveMenu so the data path never diverges.
+type resolvedMenu struct {
+	brand      receiptBrand
+	tenantName string
+	outletName string
+	groups     []menuGroup
+	menuURL    string
+}
+
+// resolveMenu performs the SINGLE shared data path for both menu surfaces: parse tenant +
+// outlet path params, resolve the outlet, load branding, assemble the live catalog, group by
+// category, and enrich category icons. On a client/upstream error it writes the HTTP error
+// response itself and returns ok=false (the caller simply returns).
 //
-// It resolves the outlet (path param), tenant branding, assembles the active+available
-// catalog items via the shared CatalogHandler.assembleMenuItems, groups them by category,
-// generates a QR code that encodes the public menu URL, and renders the branded HTML.
-//
-// The QR target is the menu's own absolute URL (so scanning re-opens this page). When the
-// service sits behind a proxy, set PUBLIC_BASE_URL so the QR encodes the externally
-// reachable origin instead of the internal request host.
-func (h *MenuHandler) GetMenuHTML(w http.ResponseWriter, r *http.Request) {
+// Output formatting (HTML vs PDF) and QR encoding are intentionally NOT done here so each
+// handler controls its own content type and image representation.
+func (h *MenuHandler) resolveMenu(w http.ResponseWriter, r *http.Request) (resolvedMenu, bool) {
 	ctx := r.Context()
+	var rm resolvedMenu
 
 	tid, err := parseTenantUUID(r)
 	if err != nil {
 		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
-		return
+		return rm, false
 	}
 
 	outletID, err := uuid.Parse(chi.URLParam(r, "outletID"))
 	if err != nil {
 		jsonError(w, "invalid outlet_id", http.StatusBadRequest)
-		return
+		return rm, false
 	}
 
 	// Resolve outlet directly from the path (public group has no OutletContextMiddleware).
@@ -108,11 +118,11 @@ func (h *MenuHandler) GetMenuHTML(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if ent.IsNotFound(err) {
 			jsonError(w, "outlet not found", http.StatusNotFound)
-			return
+			return rm, false
 		}
 		h.log.Error("menu: outlet lookup failed", zap.Error(err))
 		jsonError(w, "internal error", http.StatusInternalServerError)
-		return
+		return rm, false
 	}
 
 	useCase := ""
@@ -121,21 +131,22 @@ func (h *MenuHandler) GetMenuHTML(w http.ResponseWriter, r *http.Request) {
 	}
 	tenantSlug := outlet.TenantSlug // Outlet carries tenant_slug directly — no claims needed.
 
-	brand := h.branding(ctx, tid)
-	tenantName := brand.CompanyName
-	if tenantName == "" {
-		tenantName = outlet.TenantSlug
+	rm.brand = h.branding(ctx, tid)
+	rm.tenantName = rm.brand.CompanyName
+	if rm.tenantName == "" {
+		rm.tenantName = outlet.TenantSlug
 	}
+	rm.outletName = outlet.Name
 
 	// Assemble the live catalog (active+available only). No list filters — the menu shows everything.
 	items, err := h.catalog.assembleMenuItems(ctx, tid, tenantSlug, &outletID, useCase, menuAssemblyFilters{})
 	if err != nil {
 		h.log.Error("menu: assemble items failed", zap.Error(err))
 		jsonError(w, "failed to build menu", http.StatusBadGateway)
-		return
+		return rm, false
 	}
 
-	groups := groupMenuItems(items)
+	rm.groups = groupMenuItems(items)
 
 	// Enrich category headings with icons from inventory (best-effort; the menu still renders without).
 	if cats, catErr := h.catalog.fetchInventoryCategories(ctx, tenantSlug); catErr == nil {
@@ -143,27 +154,74 @@ func (h *MenuHandler) GetMenuHTML(w http.ResponseWriter, r *http.Request) {
 		for _, c := range cats {
 			iconByName[strings.ToLower(strings.TrimSpace(c.Name))] = mapInventoryCategory(c)
 		}
-		for i := range groups {
-			if pc, ok := iconByName[strings.ToLower(strings.TrimSpace(groups[i].CategoryName))]; ok {
-				groups[i].Icon = pc.Icon
-				groups[i].ImageURL = pc.ImageURL
+		for i := range rm.groups {
+			if pc, ok := iconByName[strings.ToLower(strings.TrimSpace(rm.groups[i].CategoryName))]; ok {
+				rm.groups[i].Icon = pc.Icon
+				rm.groups[i].ImageURL = pc.ImageURL
 			}
 		}
 	}
 
 	// QR encodes the public menu URL = (PUBLIC_BASE_URL or request origin) + request path.
-	menuURL := publicMenuURL(r)
-	qrDataURI, qrErr := qrPNGDataURI(menuURL, 256)
+	// Note: this is the .html or .pdf path the client actually requested.
+	rm.menuURL = publicMenuURL(r)
+	return rm, true
+}
+
+// GetMenuHTML handles GET /{tenantID}/pos/outlets/{outletID}/menu.html
+//
+// It resolves the shared menu data (resolveMenu), generates a QR code that encodes the public
+// menu URL, and renders the branded HTML.
+//
+// The QR target is the menu's own absolute URL (so scanning re-opens this page). When the
+// service sits behind a proxy, set PUBLIC_BASE_URL so the QR encodes the externally
+// reachable origin instead of the internal request host.
+func (h *MenuHandler) GetMenuHTML(w http.ResponseWriter, r *http.Request) {
+	rm, ok := h.resolveMenu(w, r)
+	if !ok {
+		return
+	}
+
+	qrDataURI, qrErr := qrPNGDataURI(rm.menuURL, 256)
 	if qrErr != nil {
 		// Non-fatal: render the menu without a QR rather than failing the whole document.
 		h.log.Warn("menu: QR generation failed", zap.Error(qrErr))
 		qrDataURI = ""
 	}
 
-	htmlOut := generateMenuHTML(groups, brand, tenantName, outlet.Name, menuURL, qrDataURI)
+	htmlOut := generateMenuHTML(rm.groups, rm.brand, rm.tenantName, rm.outletName, rm.menuURL, qrDataURI)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Content-Disposition", `inline; filename="menu.html"`)
 	_, _ = w.Write(htmlOut)
+}
+
+// GetMenuPDF handles GET /{tenantID}/pos/outlets/{outletID}/menu.pdf
+//
+// Identical data path to GetMenuHTML (both call resolveMenu) — this handler differs only in
+// output: it generates the QR as raw PNG bytes and renders a true PDF via renderMenuPDF.
+func (h *MenuHandler) GetMenuPDF(w http.ResponseWriter, r *http.Request) {
+	rm, ok := h.resolveMenu(w, r)
+	if !ok {
+		return
+	}
+
+	qrPNG, qrErr := qrPNGBytes(rm.menuURL, 256)
+	if qrErr != nil {
+		// Non-fatal: render the menu without a QR rather than failing the whole document.
+		h.log.Warn("menu: QR generation failed", zap.Error(qrErr))
+		qrPNG = nil
+	}
+
+	pdfOut, err := renderMenuPDF(rm.groups, rm.brand, rm.tenantName, rm.outletName, rm.menuURL, qrPNG)
+	if err != nil {
+		h.log.Error("menu: pdf render failed", zap.Error(err))
+		jsonError(w, "failed to render menu pdf", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/pdf")
+	w.Header().Set("Content-Disposition", `inline; filename="menu.pdf"`)
+	_, _ = w.Write(pdfOut)
 }
 
 // groupMenuItems buckets active+available items by category, skipping anything not sellable.
