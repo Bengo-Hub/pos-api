@@ -48,6 +48,7 @@ func New(
 	closings *handlers.DailyClosingHandler,
 	returns *handlers.ReturnHandler,
 	receipt *handlers.ReceiptHandler,
+	menu *handlers.MenuHandler,
 	layaway *handlers.LayawayHandler,
 	scale *handlers.ScaleHandler,
 	pharmacy *handlers.PharmacyHandler,
@@ -133,6 +134,11 @@ func New(
 			if publicOutlet != nil {
 				pub.Get("/{tenantID}/pos/outlets", publicOutlet.ListPublicOutlets)
 				pub.Get("/{tenantID}/pos/outlets/current", publicOutlet.GetCurrentOutlet)
+			}
+			// Branded printable customer menu document (tokenless so the QR code target opens
+			// in any browser). Regenerated on every request → always reflects the live catalog.
+			if menu != nil {
+				pub.Get("/{tenantID}/pos/outlets/{outletID}/menu.html", menu.GetMenuHTML)
 			}
 			// Public reservation endpoints Ã¢â‚¬â€ used by the embeddable booking widget
 			if tables != nil {
