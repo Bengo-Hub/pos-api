@@ -1240,6 +1240,8 @@ var (
 		{Name: "mpesa_paybill", Type: field.TypeString, Nullable: true},
 		{Name: "mpesa_account_reference", Type: field.TypeString, Nullable: true},
 		{Name: "airtel_money_number", Type: field.TypeString, Nullable: true},
+		{Name: "mpesa_till", Type: field.TypeString, Nullable: true},
+		{Name: "mpesa_pochi", Type: field.TypeString, Nullable: true},
 		{Name: "bank_name", Type: field.TypeString, Nullable: true},
 		{Name: "bank_account_number", Type: field.TypeString, Nullable: true},
 		{Name: "bank_account_name", Type: field.TypeString, Nullable: true},
@@ -1263,7 +1265,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "outlet_settings_outlets_settings",
-				Columns:    []*schema.Column{OutletSettingsColumns[41]},
+				Columns:    []*schema.Column{OutletSettingsColumns[43]},
 				RefColumns: []*schema.Column{OutletsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},

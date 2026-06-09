@@ -361,6 +361,34 @@ func (_c *OutletSettingCreate) SetNillableAirtelMoneyNumber(v *string) *OutletSe
 	return _c
 }
 
+// SetMpesaTill sets the "mpesa_till" field.
+func (_c *OutletSettingCreate) SetMpesaTill(v string) *OutletSettingCreate {
+	_c.mutation.SetMpesaTill(v)
+	return _c
+}
+
+// SetNillableMpesaTill sets the "mpesa_till" field if the given value is not nil.
+func (_c *OutletSettingCreate) SetNillableMpesaTill(v *string) *OutletSettingCreate {
+	if v != nil {
+		_c.SetMpesaTill(*v)
+	}
+	return _c
+}
+
+// SetMpesaPochi sets the "mpesa_pochi" field.
+func (_c *OutletSettingCreate) SetMpesaPochi(v string) *OutletSettingCreate {
+	_c.mutation.SetMpesaPochi(v)
+	return _c
+}
+
+// SetNillableMpesaPochi sets the "mpesa_pochi" field if the given value is not nil.
+func (_c *OutletSettingCreate) SetNillableMpesaPochi(v *string) *OutletSettingCreate {
+	if v != nil {
+		_c.SetMpesaPochi(*v)
+	}
+	return _c
+}
+
 // SetBankName sets the "bank_name" field.
 func (_c *OutletSettingCreate) SetBankName(v string) *OutletSettingCreate {
 	_c.mutation.SetBankName(v)
@@ -856,6 +884,14 @@ func (_c *OutletSettingCreate) createSpec() (*OutletSetting, *sqlgraph.CreateSpe
 	if value, ok := _c.mutation.AirtelMoneyNumber(); ok {
 		_spec.SetField(outletsetting.FieldAirtelMoneyNumber, field.TypeString, value)
 		_node.AirtelMoneyNumber = &value
+	}
+	if value, ok := _c.mutation.MpesaTill(); ok {
+		_spec.SetField(outletsetting.FieldMpesaTill, field.TypeString, value)
+		_node.MpesaTill = &value
+	}
+	if value, ok := _c.mutation.MpesaPochi(); ok {
+		_spec.SetField(outletsetting.FieldMpesaPochi, field.TypeString, value)
+		_node.MpesaPochi = &value
 	}
 	if value, ok := _c.mutation.BankName(); ok {
 		_spec.SetField(outletsetting.FieldBankName, field.TypeString, value)
@@ -1473,6 +1509,42 @@ func (u *OutletSettingUpsert) UpdateAirtelMoneyNumber() *OutletSettingUpsert {
 // ClearAirtelMoneyNumber clears the value of the "airtel_money_number" field.
 func (u *OutletSettingUpsert) ClearAirtelMoneyNumber() *OutletSettingUpsert {
 	u.SetNull(outletsetting.FieldAirtelMoneyNumber)
+	return u
+}
+
+// SetMpesaTill sets the "mpesa_till" field.
+func (u *OutletSettingUpsert) SetMpesaTill(v string) *OutletSettingUpsert {
+	u.Set(outletsetting.FieldMpesaTill, v)
+	return u
+}
+
+// UpdateMpesaTill sets the "mpesa_till" field to the value that was provided on create.
+func (u *OutletSettingUpsert) UpdateMpesaTill() *OutletSettingUpsert {
+	u.SetExcluded(outletsetting.FieldMpesaTill)
+	return u
+}
+
+// ClearMpesaTill clears the value of the "mpesa_till" field.
+func (u *OutletSettingUpsert) ClearMpesaTill() *OutletSettingUpsert {
+	u.SetNull(outletsetting.FieldMpesaTill)
+	return u
+}
+
+// SetMpesaPochi sets the "mpesa_pochi" field.
+func (u *OutletSettingUpsert) SetMpesaPochi(v string) *OutletSettingUpsert {
+	u.Set(outletsetting.FieldMpesaPochi, v)
+	return u
+}
+
+// UpdateMpesaPochi sets the "mpesa_pochi" field to the value that was provided on create.
+func (u *OutletSettingUpsert) UpdateMpesaPochi() *OutletSettingUpsert {
+	u.SetExcluded(outletsetting.FieldMpesaPochi)
+	return u
+}
+
+// ClearMpesaPochi clears the value of the "mpesa_pochi" field.
+func (u *OutletSettingUpsert) ClearMpesaPochi() *OutletSettingUpsert {
+	u.SetNull(outletsetting.FieldMpesaPochi)
 	return u
 }
 
@@ -2348,6 +2420,48 @@ func (u *OutletSettingUpsertOne) UpdateAirtelMoneyNumber() *OutletSettingUpsertO
 func (u *OutletSettingUpsertOne) ClearAirtelMoneyNumber() *OutletSettingUpsertOne {
 	return u.Update(func(s *OutletSettingUpsert) {
 		s.ClearAirtelMoneyNumber()
+	})
+}
+
+// SetMpesaTill sets the "mpesa_till" field.
+func (u *OutletSettingUpsertOne) SetMpesaTill(v string) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetMpesaTill(v)
+	})
+}
+
+// UpdateMpesaTill sets the "mpesa_till" field to the value that was provided on create.
+func (u *OutletSettingUpsertOne) UpdateMpesaTill() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateMpesaTill()
+	})
+}
+
+// ClearMpesaTill clears the value of the "mpesa_till" field.
+func (u *OutletSettingUpsertOne) ClearMpesaTill() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearMpesaTill()
+	})
+}
+
+// SetMpesaPochi sets the "mpesa_pochi" field.
+func (u *OutletSettingUpsertOne) SetMpesaPochi(v string) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetMpesaPochi(v)
+	})
+}
+
+// UpdateMpesaPochi sets the "mpesa_pochi" field to the value that was provided on create.
+func (u *OutletSettingUpsertOne) UpdateMpesaPochi() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateMpesaPochi()
+	})
+}
+
+// ClearMpesaPochi clears the value of the "mpesa_pochi" field.
+func (u *OutletSettingUpsertOne) ClearMpesaPochi() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearMpesaPochi()
 	})
 }
 
@@ -3431,6 +3545,48 @@ func (u *OutletSettingUpsertBulk) UpdateAirtelMoneyNumber() *OutletSettingUpsert
 func (u *OutletSettingUpsertBulk) ClearAirtelMoneyNumber() *OutletSettingUpsertBulk {
 	return u.Update(func(s *OutletSettingUpsert) {
 		s.ClearAirtelMoneyNumber()
+	})
+}
+
+// SetMpesaTill sets the "mpesa_till" field.
+func (u *OutletSettingUpsertBulk) SetMpesaTill(v string) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetMpesaTill(v)
+	})
+}
+
+// UpdateMpesaTill sets the "mpesa_till" field to the value that was provided on create.
+func (u *OutletSettingUpsertBulk) UpdateMpesaTill() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateMpesaTill()
+	})
+}
+
+// ClearMpesaTill clears the value of the "mpesa_till" field.
+func (u *OutletSettingUpsertBulk) ClearMpesaTill() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearMpesaTill()
+	})
+}
+
+// SetMpesaPochi sets the "mpesa_pochi" field.
+func (u *OutletSettingUpsertBulk) SetMpesaPochi(v string) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetMpesaPochi(v)
+	})
+}
+
+// UpdateMpesaPochi sets the "mpesa_pochi" field to the value that was provided on create.
+func (u *OutletSettingUpsertBulk) UpdateMpesaPochi() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateMpesaPochi()
+	})
+}
+
+// ClearMpesaPochi clears the value of the "mpesa_pochi" field.
+func (u *OutletSettingUpsertBulk) ClearMpesaPochi() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearMpesaPochi()
 	})
 }
 

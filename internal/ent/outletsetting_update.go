@@ -544,6 +544,46 @@ func (_u *OutletSettingUpdate) ClearAirtelMoneyNumber() *OutletSettingUpdate {
 	return _u
 }
 
+// SetMpesaTill sets the "mpesa_till" field.
+func (_u *OutletSettingUpdate) SetMpesaTill(v string) *OutletSettingUpdate {
+	_u.mutation.SetMpesaTill(v)
+	return _u
+}
+
+// SetNillableMpesaTill sets the "mpesa_till" field if the given value is not nil.
+func (_u *OutletSettingUpdate) SetNillableMpesaTill(v *string) *OutletSettingUpdate {
+	if v != nil {
+		_u.SetMpesaTill(*v)
+	}
+	return _u
+}
+
+// ClearMpesaTill clears the value of the "mpesa_till" field.
+func (_u *OutletSettingUpdate) ClearMpesaTill() *OutletSettingUpdate {
+	_u.mutation.ClearMpesaTill()
+	return _u
+}
+
+// SetMpesaPochi sets the "mpesa_pochi" field.
+func (_u *OutletSettingUpdate) SetMpesaPochi(v string) *OutletSettingUpdate {
+	_u.mutation.SetMpesaPochi(v)
+	return _u
+}
+
+// SetNillableMpesaPochi sets the "mpesa_pochi" field if the given value is not nil.
+func (_u *OutletSettingUpdate) SetNillableMpesaPochi(v *string) *OutletSettingUpdate {
+	if v != nil {
+		_u.SetMpesaPochi(*v)
+	}
+	return _u
+}
+
+// ClearMpesaPochi clears the value of the "mpesa_pochi" field.
+func (_u *OutletSettingUpdate) ClearMpesaPochi() *OutletSettingUpdate {
+	_u.mutation.ClearMpesaPochi()
+	return _u
+}
+
 // SetBankName sets the "bank_name" field.
 func (_u *OutletSettingUpdate) SetBankName(v string) *OutletSettingUpdate {
 	_u.mutation.SetBankName(v)
@@ -1049,6 +1089,18 @@ func (_u *OutletSettingUpdate) sqlSave(ctx context.Context) (_node int, err erro
 	}
 	if _u.mutation.AirtelMoneyNumberCleared() {
 		_spec.ClearField(outletsetting.FieldAirtelMoneyNumber, field.TypeString)
+	}
+	if value, ok := _u.mutation.MpesaTill(); ok {
+		_spec.SetField(outletsetting.FieldMpesaTill, field.TypeString, value)
+	}
+	if _u.mutation.MpesaTillCleared() {
+		_spec.ClearField(outletsetting.FieldMpesaTill, field.TypeString)
+	}
+	if value, ok := _u.mutation.MpesaPochi(); ok {
+		_spec.SetField(outletsetting.FieldMpesaPochi, field.TypeString, value)
+	}
+	if _u.mutation.MpesaPochiCleared() {
+		_spec.ClearField(outletsetting.FieldMpesaPochi, field.TypeString)
 	}
 	if value, ok := _u.mutation.BankName(); ok {
 		_spec.SetField(outletsetting.FieldBankName, field.TypeString, value)
@@ -1696,6 +1748,46 @@ func (_u *OutletSettingUpdateOne) ClearAirtelMoneyNumber() *OutletSettingUpdateO
 	return _u
 }
 
+// SetMpesaTill sets the "mpesa_till" field.
+func (_u *OutletSettingUpdateOne) SetMpesaTill(v string) *OutletSettingUpdateOne {
+	_u.mutation.SetMpesaTill(v)
+	return _u
+}
+
+// SetNillableMpesaTill sets the "mpesa_till" field if the given value is not nil.
+func (_u *OutletSettingUpdateOne) SetNillableMpesaTill(v *string) *OutletSettingUpdateOne {
+	if v != nil {
+		_u.SetMpesaTill(*v)
+	}
+	return _u
+}
+
+// ClearMpesaTill clears the value of the "mpesa_till" field.
+func (_u *OutletSettingUpdateOne) ClearMpesaTill() *OutletSettingUpdateOne {
+	_u.mutation.ClearMpesaTill()
+	return _u
+}
+
+// SetMpesaPochi sets the "mpesa_pochi" field.
+func (_u *OutletSettingUpdateOne) SetMpesaPochi(v string) *OutletSettingUpdateOne {
+	_u.mutation.SetMpesaPochi(v)
+	return _u
+}
+
+// SetNillableMpesaPochi sets the "mpesa_pochi" field if the given value is not nil.
+func (_u *OutletSettingUpdateOne) SetNillableMpesaPochi(v *string) *OutletSettingUpdateOne {
+	if v != nil {
+		_u.SetMpesaPochi(*v)
+	}
+	return _u
+}
+
+// ClearMpesaPochi clears the value of the "mpesa_pochi" field.
+func (_u *OutletSettingUpdateOne) ClearMpesaPochi() *OutletSettingUpdateOne {
+	_u.mutation.ClearMpesaPochi()
+	return _u
+}
+
 // SetBankName sets the "bank_name" field.
 func (_u *OutletSettingUpdateOne) SetBankName(v string) *OutletSettingUpdateOne {
 	_u.mutation.SetBankName(v)
@@ -2231,6 +2323,18 @@ func (_u *OutletSettingUpdateOne) sqlSave(ctx context.Context) (_node *OutletSet
 	}
 	if _u.mutation.AirtelMoneyNumberCleared() {
 		_spec.ClearField(outletsetting.FieldAirtelMoneyNumber, field.TypeString)
+	}
+	if value, ok := _u.mutation.MpesaTill(); ok {
+		_spec.SetField(outletsetting.FieldMpesaTill, field.TypeString, value)
+	}
+	if _u.mutation.MpesaTillCleared() {
+		_spec.ClearField(outletsetting.FieldMpesaTill, field.TypeString)
+	}
+	if value, ok := _u.mutation.MpesaPochi(); ok {
+		_spec.SetField(outletsetting.FieldMpesaPochi, field.TypeString, value)
+	}
+	if _u.mutation.MpesaPochiCleared() {
+		_spec.ClearField(outletsetting.FieldMpesaPochi, field.TypeString)
 	}
 	if value, ok := _u.mutation.BankName(); ok {
 		_spec.SetField(outletsetting.FieldBankName, field.TypeString, value)

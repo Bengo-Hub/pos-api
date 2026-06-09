@@ -58,6 +58,9 @@ func (OutletSetting) Fields() []ent.Field {
 		field.String("mpesa_paybill").Optional().Nillable().Comment("M-PESA Paybill shortcode for customer payments, e.g. 522533"),
 		field.String("mpesa_account_reference").Optional().Nillable().Comment("Account reference shown in M-PESA payment prompt, e.g. 79319044"),
 		field.String("airtel_money_number").Optional().Nillable().Comment("Airtel Money merchant/paybill number for customer payments"),
+		// NOTE FOR INTEGRATOR: run go generate ./ent + atlas migrate diff for mpesa_till/mpesa_pochi
+		field.String("mpesa_till").Optional().Nillable().Comment("M-PESA Till (Buy Goods) number"),
+		field.String("mpesa_pochi").Optional().Nillable().Comment("M-PESA Pochi la Biashara number"),
 		field.String("bank_name").Optional().Nillable().Comment("Bank name for bank transfer payments, e.g. KCB"),
 		field.String("bank_account_number").Optional().Nillable().Comment("Bank account number for transfers"),
 		field.String("bank_account_name").Optional().Nillable().Comment("Bank account holder name, e.g. THE URBAN LOFT CAFE LIMITED"),
