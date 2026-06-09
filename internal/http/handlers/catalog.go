@@ -217,10 +217,10 @@ func fetchInventoryServiceItems(ctx context.Context, tenantSlug, useCase string)
 // inventoryProxyBundle is the subset of an inventory-api Bundle the hotel forms need
 // to render a searchable picker (conference package selection).
 type inventoryProxyBundle struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	SKU         string `json:"sku"`
-	PackageType string `json:"package_type"`
+	ID          string  `json:"id"`
+	Name        string  `json:"name"`
+	SKU         string  `json:"sku"`
+	PackageType string  `json:"package_type"`
 	Price       float64 `json:"price"`
 }
 
@@ -1042,9 +1042,54 @@ func parseTenantUUID(r *http.Request) (uuid.UUID, error) {
 	return uuid.Nil, fmt.Errorf("tenant context required")
 }
 
-// GetCatalogCategories handles GET /{tenantID}/pos/catalog/categories
-// Proxies to inventory-api /inventory/categories and returns category list.
-func (h *CatalogHandler) GetCatalogCategories(w http.ResponseWriter, r *http.Request) {
+// inventoryCategory is the raw inventory-api category shape.
+type inventoryCategory struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Code        string `json:"code"`
+	Description string `json:"description"`
+	Icon        string `json:"icon"`
+	IsActive    bool   `json:"is_active"`
+}
+
+// posCategory is the clean, typed shape pos-ui consumes. Icon carries an emoji / icon-class name;
+// ImageURL is set instead when the icon resolves to an image URL so the UI can choose <img> vs text.
+type posCategory struct {
+	Name     string `json:"name"`
+	Icon     string `json:"icon,omitempty"`
+	ImageURL string `json:"image_url,omitempty"`
+}
+
+// iconLooksLikeImageURL reports whether an inventory icon value should render as an <img>.
+func iconLooksLikeImageURL(icon string) bool {
+	s := strings.TrimSpace(strings.ToLower(icon))
+	if s == "" {
+		return false
+	}
+	if strings.HasPrefix(s, "http://") || strings.HasPrefix(s, "https://") || strings.HasPrefix(s, "/") {
+		return true
+	}
+	for _, ext := range []string{".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"} {
+		if strings.HasSuffix(s, ext) {
+			return true
+		}
+	}
+	return false
+}
+
+// mapInventoryCategory splits the polymorphic inventory icon into Icon (emoji/text) vs ImageURL.
+func mapInventoryCategory(c inventoryCategory) posCategory {
+	out := posCategory{Name: c.Name}
+	if iconLooksLikeImageURL(c.Icon) {
+		out.ImageURL = strings.TrimSpace(c.Icon)
+	} else {
+		out.Icon = strings.TrimSpace(c.Icon)
+	}
+	return out
+}
+
+// resolveTenantSlug derives the tenant slug from auth claims, httpware context, or a tenant lookup.
+func (h *CatalogHandler) resolveTenantSlug(r *http.Request) string {
 	tenantSlug := ""
 	if claims, ok := authclient.ClaimsFromContext(r.Context()); ok {
 		tenantSlug = claims.GetTenantSlug()
@@ -1060,23 +1105,55 @@ func (h *CatalogHandler) GetCatalogCategories(w http.ResponseWriter, r *http.Req
 			}
 		}
 	}
+	return tenantSlug
+}
+
+// fetchInventoryCategories proxies inventory-api categories and decodes them, tolerating both the
+// wrapped ({"data":[...]}) and bare-array response forms.
+func (h *CatalogHandler) fetchInventoryCategories(ctx context.Context, tenantSlug string) ([]inventoryCategory, error) {
+	url := fmt.Sprintf("%s/v1/%s/inventory/categories", inventoryURL(), tenantSlug)
+	body, err := doInventoryGET(ctx, url, "")
+	if err != nil {
+		return nil, err
+	}
+	var wrapper struct {
+		Data []inventoryCategory `json:"data"`
+	}
+	if err := json.Unmarshal(body, &wrapper); err == nil && wrapper.Data != nil {
+		return wrapper.Data, nil
+	}
+	var bare []inventoryCategory
+	if err := json.Unmarshal(body, &bare); err != nil {
+		return nil, fmt.Errorf("decode inventory categories: %w", err)
+	}
+	return bare, nil
+}
+
+// GetCatalogCategories handles GET /{tenantID}/pos/catalog/categories — proxies inventory categories
+// and returns a clean typed list {"data":[{name, icon, image_url?}]} (active only). Degrades to
+// {"data":[]} on proxy failure so the UI stays graceful.
+func (h *CatalogHandler) GetCatalogCategories(w http.ResponseWriter, r *http.Request) {
+	tenantSlug := h.resolveTenantSlug(r)
 	if tenantSlug == "" {
 		jsonError(w, "could not resolve tenant", http.StatusBadRequest)
 		return
 	}
 
-	url := fmt.Sprintf("%s/v1/%s/inventory/categories", inventoryURL(), tenantSlug)
-	body, err := doInventoryGET(r.Context(), url, "")
+	cats, err := h.fetchInventoryCategories(r.Context(), tenantSlug)
 	if err != nil {
 		h.log.Warn("catalog categories: inventory proxy failed", zap.Error(err))
-		// Return empty list rather than 404 so the UI degrades gracefully.
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{"data":[]}`))
+		jsonOK(w, map[string]any{"data": []posCategory{}})
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	_, _ = w.Write(body)
+
+	out := make([]posCategory, 0, len(cats))
+	for _, c := range cats {
+		if !c.IsActive {
+			continue
+		}
+		out = append(out, mapInventoryCategory(c))
+	}
+	jsonOK(w, map[string]any{"data": out})
 }
 
 // parseOptionalUUID parses s as a UUID; on empty string or parse failure it falls
