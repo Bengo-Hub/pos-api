@@ -173,6 +173,34 @@ func (c *Client) CreateQuotation(ctx context.Context, tenantSlug string, req Cre
 	return doRequest[QuotationResponse](ctx, c.httpClient, http.MethodPost, url, c.apiKey, req)
 }
 
+// InvoiceRef is the minimal treasury invoice returned by GetInvoiceByReference.
+type InvoiceRef struct {
+	ID            string `json:"id"`
+	InvoiceNumber string `json:"invoice_number"`
+	Status        string `json:"status"`
+}
+
+// GetInvoiceByReference finds a treasury invoice by its (reference_type, reference_id) tuple — used
+// to locate the original sale's tax invoice when a return needs a VAT-reversal credit note.
+func (c *Client) GetInvoiceByReference(ctx context.Context, tenantSlug, refType, refID string) (*InvoiceRef, error) {
+	url := fmt.Sprintf("%s/api/v1/s2s/%s/invoices/by-reference?reference_type=%s&reference_id=%s", c.baseURL, tenantSlug, refType, refID)
+	return doRequest[InvoiceRef](ctx, c.httpClient, http.MethodGet, url, c.apiKey, nil)
+}
+
+// CreditNoteResponse is the treasury credit note returned after creation.
+type CreditNoteResponse struct {
+	ID     string `json:"id"`
+	Number string `json:"invoice_number"`
+	Status string `json:"status"`
+}
+
+// CreateCreditNote issues a VAT-reversal sales credit note for an invoice (no body — treasury copies
+// the invoice lines and reverses VAT, CN- series). Used when a tax-invoiced sale is returned.
+func (c *Client) CreateCreditNote(ctx context.Context, tenantSlug, invoiceID string) (*CreditNoteResponse, error) {
+	url := fmt.Sprintf("%s/api/v1/s2s/%s/invoices/%s/create-credit-note", c.baseURL, tenantSlug, invoiceID)
+	return doRequest[CreditNoteResponse](ctx, c.httpClient, http.MethodPost, url, c.apiKey, nil)
+}
+
 // CreateIntent calls POST /api/v1/s2s/{tenantSlug}/payments/intents on treasury-api.
 // The S2S path requires only X-API-Key (INTERNAL_SERVICE_KEY) — no JWT needed.
 // idempotencyKey (e.g. order UUID) is sent as Idempotency-Key header to prevent duplicate intents
