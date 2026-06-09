@@ -112,6 +112,7 @@ type receiptResponse struct {
 	VatEnabled    bool    `json:"vat_enabled"`
 	VatRate       float64 `json:"vat_rate,omitempty"`
 	PaperWidth    string  `json:"paper_width,omitempty"`
+	ServedBy      string  `json:"served_by,omitempty"`
 }
 
 // GetReceipt handles GET /{tenantID}/pos/orders/{orderID}/receipt
@@ -268,6 +269,8 @@ func (h *ReceiptHandler) GetReceipt(w http.ResponseWriter, r *http.Request) {
 	}
 
 	format := r.URL.Query().Get("format")
+	// Served-by (waiter/cashier name) is passed by the client print action so the bill matches the receipt.
+	receipt.ServedBy = r.URL.Query().Get("served_by")
 	if format == "pdf" {
 		brand := h.branding(r.Context(), tid)
 		pdfBytes, err := generateReceiptPDF(receipt, brand)
@@ -327,9 +330,9 @@ func generateReceiptHTML(rec receiptResponse) []byte {
 	buf.WriteString(fmt.Sprintf(`<style>
 @page{size:%s auto;margin:4mm}
 *{box-sizing:border-box}
-body{font-family:monospace;font-size:11px;width:%s;margin:0 auto;padding:4px}
+body{font-family:'Courier New',Courier,monospace;font-size:12px;font-weight:bold;color:#000;width:%s;margin:0 auto;padding:4px}
 h1{font-size:13px;text-align:center;margin:2px 0}
-.sub{font-size:10px;text-align:center;margin:1px 0;color:#444}
+.sub{font-size:10px;text-align:center;margin:1px 0;color:#000}
 .hdr{font-size:10px;text-align:center;margin:2px 0;white-space:pre-wrap}
 .ftr{font-size:10px;text-align:center;margin:2px 0;white-space:pre-wrap}
 .center{text-align:center}
@@ -354,6 +357,9 @@ h1{font-size:13px;text-align:center;margin:2px 0}
 	}
 	buf.WriteString(fmt.Sprintf(`<p class="sub">%s</p>`, rec.IssuedAt.Format("02 Jan 2006  15:04")))
 	buf.WriteString(fmt.Sprintf(`<p class="sub">Receipt: %s</p>`, rec.ReceiptNumber))
+	if rec.ServedBy != "" {
+		buf.WriteString(fmt.Sprintf(`<p class="sub">Served by: %s</p>`, htmlEscape(rec.ServedBy)))
+	}
 	buf.WriteString(`<div class="divider"></div>`)
 	for _, l := range rec.Lines {
 		buf.WriteString(fmt.Sprintf(`<div class="line"><span>%s x%.0f</span><span>%.2f</span></div>`, htmlEscape(l.Name), l.Quantity, l.TotalPrice))
