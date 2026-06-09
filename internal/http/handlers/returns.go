@@ -364,6 +364,21 @@ func (h *ReturnHandler) ApproveReturn(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// eTIMS credit note: a returned, tax-invoiced sale needs a VAT-reversal credit note in treasury.
+	// Best-effort + non-fatal (like the refund above): find the original sale's invoice by reference,
+	// then issue the credit note. Treasury owns it; pos only logs the number for audit.
+	if newStatus == posreturn.StatusApproved && h.treasuryClient != nil &&
+		(ret.ReturnType == posreturn.ReturnTypeRefund || ret.ReturnType == posreturn.ReturnTypeStoreCredit) {
+		slug := chi.URLParam(r, "tenantID")
+		if inv, invErr := h.treasuryClient.GetInvoiceByReference(ctx, slug, "pos_order", ret.OrderID.String()); invErr == nil && inv != nil && inv.ID != "" {
+			if cn, cnErr := h.treasuryClient.CreateCreditNote(ctx, slug, inv.ID); cnErr != nil {
+				h.log.Warn("eTIMS credit-note creation failed (non-fatal)", zap.Error(cnErr), zap.String("return_id", returnID.String()))
+			} else {
+				h.log.Info("eTIMS credit-note issued for return", zap.String("return_id", returnID.String()), zap.String("credit_note", cn.Number))
+			}
+		}
+	}
+
 	updated, err := update.Save(ctx)
 	if err != nil {
 		h.log.Error("approve return failed", zap.Error(err))
