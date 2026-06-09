@@ -9,8 +9,8 @@ import (
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
-	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/Bengo-Hub/httpware"
+	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/bengobox/pos-service/internal/ent"
 	"github.com/bengobox/pos-service/internal/modules/payments"
 	"github.com/bengobox/pos-service/internal/modules/treasury"
@@ -127,6 +127,66 @@ func (h *PaymentHandler) ProxyInitiate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	jsonOK(w, resp)
+}
+
+// quotationFromCartInput is the pos-ui Add Sale "Save as Quotation" body.
+type quotationFromCartInput struct {
+	CustomerName  string `json:"customer_name"`
+	CustomerPhone string `json:"customer_phone"`
+	CustomerEmail string `json:"customer_email"`
+	Notes         string `json:"notes"`
+	Lines         []struct {
+		Name      string  `json:"name"`
+		SKU       string  `json:"sku"`
+		Quantity  float64 `json:"quantity"`
+		UnitPrice float64 `json:"unit_price"`
+	} `json:"lines"`
+}
+
+// CreateQuotationFromCart handles POST /{tenantID}/pos/quotations — forwards a pos cart to treasury
+// as a quotation (treasury owns quotations; pos persists nothing). pos-ui → pos-api → treasury S2S,
+// because the INTERNAL_SERVICE_KEY must never reach the browser.
+func (h *PaymentHandler) CreateQuotationFromCart(w http.ResponseWriter, r *http.Request) {
+	tenantSlug := chi.URLParam(r, "tenantID")
+
+	var input quotationFromCartInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		jsonError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	if len(input.Lines) == 0 {
+		jsonError(w, "at least one line is required", http.StatusBadRequest)
+		return
+	}
+	if h.treasuryClient == nil {
+		jsonError(w, "treasury client not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	lines := make([]treasury.QuotationLine, 0, len(input.Lines))
+	for _, l := range input.Lines {
+		lines = append(lines, treasury.QuotationLine{
+			Description: l.Name, ItemSKU: l.SKU, Quantity: l.Quantity, UnitPrice: l.UnitPrice,
+		})
+	}
+	now := time.Now()
+	resp, err := h.treasuryClient.CreateQuotation(r.Context(), tenantSlug, treasury.CreateQuotationRequest{
+		CustomerName:  input.CustomerName,
+		CustomerPhone: input.CustomerPhone,
+		CustomerEmail: input.CustomerEmail,
+		Notes:         input.Notes,
+		QuoteDate:     now.Format("2006-01-02"),
+		ValidUntil:    now.AddDate(0, 0, 30).Format("2006-01-02"),
+		Currency:      "KES",
+		ReferenceType: "pos_cart",
+		Lines:         lines,
+	})
+	if err != nil {
+		h.log.Error("create quotation proxy failed", zap.Error(err))
+		jsonError(w, err.Error(), http.StatusBadGateway)
+		return
+	}
 	jsonOK(w, resp)
 }
 
@@ -303,6 +363,7 @@ func (h *PaymentHandler) RecordExpense(w http.ResponseWriter, r *http.Request) {
 	}
 	jsonOK(w, resp)
 }
+
 // ListC2BCandidates handles GET /{tenant}/pos/c2b/payments — proxies the treasury C2B inbox query so
 // the cashier can find an unreconciled till/paybill payment to bind to the open sale.
 func (h *PaymentHandler) ListC2BCandidates(w http.ResponseWriter, r *http.Request) {

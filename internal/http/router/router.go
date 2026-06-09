@@ -308,6 +308,8 @@ func New(
 						pos.Get("/orders/{orderID}/payments", payments.ListOrderPayments)
 						pos.Get("/orders/{orderID}/payment-status/stream", payments.StreamPaymentStatus)
 						pos.Post("/payments/initiate", payments.ProxyInitiate)
+						// "Save as Quotation" forwards a pos cart to treasury (treasury owns quotations).
+						pos.Post("/quotations", payments.CreateQuotationFromCart)
 					}
 
 					// Cash Drawers
