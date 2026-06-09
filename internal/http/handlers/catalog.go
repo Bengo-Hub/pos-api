@@ -311,68 +311,63 @@ func (h *CatalogHandler) ResolvePrice(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(body)
 }
 
-// ListCatalogItems handles GET /{tenantID}/pos/catalog/items
-// Always proxies from inventory-api; merges with local POSCatalogOverride for pricing/availability.
-func (h *CatalogHandler) ListCatalogItems(w http.ResponseWriter, r *http.Request) {
-	tid, err := parseTenantUUID(r)
-	if err != nil {
-		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
-		return
-	}
+// catalogItemDTO is the fully-assembled, override-merged catalog item used by both
+// ListCatalogItems (JSON list) and the menu document renderer. It carries the
+// inventory-sourced display fields (name/description/image/category) plus the
+// POS-resolved selling price, availability and compliance flags.
+type catalogItemDTO struct {
+	ID                      string
+	SKU                     string
+	Name                    string
+	Description             string
+	CategoryName            string
+	ItemType                string
+	IsActive                bool
+	IsAvailable             bool
+	IsFeatured              bool
+	DisplayOrder            int
+	ImageURL                string
+	Barcode                 string
+	Price                   float64
+	TaxStatus               string
+	TaxCodeID               string
+	TaxInclusive            bool
+	TaxRate                 *float64
+	RequiresPrescription    bool
+	IsReturnable            bool
+	RequiresAgeVerification bool
+	IsControlledSubstance   bool
+	TrackSerialNumbers      bool
+	MinimumAge              *int
+	DurationMinutes         *int
+}
 
-	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
-	if limit <= 0 || limit > 500 {
-		limit = 200
-	}
-	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
-	if page < 1 {
-		page = 1
-	}
-	offset := (page - 1) * limit
+// menuAssemblyFilters carries the optional list-time filters applied by ListCatalogItems.
+// The menu document renderer leaves these empty (it wants the full active menu).
+type menuAssemblyFilters struct {
+	Category string // case-insensitive exact match on category name
+	Search   string // case-insensitive substring match on item name (already lower-cased)
+	ItemType string // comma-separated, case-insensitive match on item type (already upper-cased)
+}
 
-	catFilter := r.URL.Query().Get("category")
-	searchFilter := strings.ToLower(r.URL.Query().Get("search"))
-	itemTypeFilter := strings.ToUpper(r.URL.Query().Get("item_type"))
-
-	tenantSlug := ""
-	if claims, ok := authclient.ClaimsFromContext(r.Context()); ok {
-		tenantSlug = claims.GetTenantSlug()
-	}
-	if tenantSlug == "" {
-		tenantSlug = httpware.GetTenantSlug(r.Context())
-	}
-	// Terminal PIN JWTs don't embed tenant_slug — look it up from the local Tenant table.
-	if tenantSlug == "" {
-		if t, lookupErr := h.client.Tenant.Get(r.Context(), tid); lookupErr == nil {
-			tenantSlug = t.Slug
-		}
-	}
-
-	var outletID *uuid.UUID
-	if oidStr := httpware.GetOutletID(r.Context()); oidStr != "" {
-		if oid, parseErr := uuid.Parse(oidStr); parseErr == nil {
-			outletID = &oid
-		}
-	}
-	if outletIDStr := r.URL.Query().Get("outlet_id"); outletIDStr != "" && outletID == nil {
-		if oid, parseErr := uuid.Parse(outletIDStr); parseErr == nil {
-			outletID = &oid
-		}
-	}
-
-	// Resolve use case from outlet context for item type filtering.
-	useCase := ""
+// assembleMenuItems is the single source of truth for turning inventory-api items +
+// POS overrides into display-ready catalog items. It performs the inventory items +
+// pricing fetch, override merge, use-case category filtering, and price resolution.
+// Both ListCatalogItems and GetMenuHTML call this so the two surfaces never drift.
+//
+// tenantSlug/useCase/outletID are resolved by the caller (handlers differ in how they
+// obtain them — auth claims vs. path-derived outlet). outletID may be nil for tenant-wide.
+func (h *CatalogHandler) assembleMenuItems(
+	ctx context.Context,
+	tid uuid.UUID,
+	tenantSlug string,
+	outletID *uuid.UUID,
+	useCase string,
+	filters menuAssemblyFilters,
+) ([]catalogItemDTO, error) {
 	outletIDStr := ""
-	if oc := middleware.OutletFromContext(r.Context()); oc != nil {
-		useCase = oc.UseCase
-		outletIDStr = oc.ID.String()
-	} else if outletID != nil {
+	if outletID != nil {
 		outletIDStr = outletID.String()
-	}
-
-	if tenantSlug == "" {
-		jsonError(w, "tenant slug required", http.StatusBadRequest)
-		return
 	}
 
 	// Fetch items + pricing from inventory-api in parallel
@@ -388,20 +383,18 @@ func (h *CatalogHandler) ListCatalogItems(w http.ResponseWriter, r *http.Request
 	priceCh := make(chan priceResult, 1)
 
 	go func() {
-		items, err := fetchInventoryItems(r.Context(), tenantSlug, outletIDStr, useCase)
+		items, err := fetchInventoryItems(ctx, tenantSlug, outletIDStr, useCase)
 		itemsCh <- itemsResult{items, err}
 	}()
 	go func() {
-		prices, err := fetchInventoryPricing(r.Context(), tenantSlug, outletIDStr)
+		prices, err := fetchInventoryPricing(ctx, tenantSlug, outletIDStr)
 		priceCh <- priceResult{prices, err}
 	}()
 
 	ir := <-itemsCh
 	pr := <-priceCh
 	if ir.err != nil {
-		h.log.Error("inventory items fetch failed", zap.Error(ir.err))
-		jsonError(w, "failed to fetch catalog from inventory", http.StatusBadGateway)
-		return
+		return nil, ir.err
 	}
 	if pr.err != nil {
 		h.log.Warn("inventory pricing fetch failed — prices will be 0", zap.Error(pr.err))
@@ -411,7 +404,7 @@ func (h *CatalogHandler) ListCatalogItems(w http.ResponseWriter, r *http.Request
 	// Load all POS overrides for this tenant
 	overrides, _ := h.client.POSCatalogOverride.Query().
 		Where(entoverride.TenantID(tid)).
-		All(r.Context())
+		All(ctx)
 
 	// Build SKU → best override map (outlet-scoped wins over tenant-wide)
 	type overrideEntry struct {
@@ -451,18 +444,18 @@ func (h *CatalogHandler) ListCatalogItems(w http.ResponseWriter, r *http.Request
 		}
 	}
 
-	out := make([]map[string]any, 0, len(ir.items))
+	out := make([]catalogItemDTO, 0, len(ir.items))
 	for _, item := range ir.items {
 		// Apply filters
-		if catFilter != "" && !strings.EqualFold(item.CategoryName, catFilter) {
+		if filters.Category != "" && !strings.EqualFold(item.CategoryName, filters.Category) {
 			continue
 		}
-		if searchFilter != "" && !strings.Contains(strings.ToLower(item.Name), searchFilter) {
+		if filters.Search != "" && !strings.Contains(strings.ToLower(item.Name), filters.Search) {
 			continue
 		}
-		if itemTypeFilter != "" {
+		if filters.ItemType != "" {
 			matched := false
-			for _, t := range strings.Split(itemTypeFilter, ",") {
+			for _, t := range strings.Split(filters.ItemType, ",") {
 				if strings.EqualFold(strings.TrimSpace(t), item.Type) {
 					matched = true
 					break
@@ -550,33 +543,147 @@ func (h *CatalogHandler) ListCatalogItems(w http.ResponseWriter, r *http.Request
 			isAvailable = false
 		}
 
-		out = append(out, map[string]any{
-			"id":                        item.ID,
-			"sku":                       item.SKU,
-			"name":                      item.Name,
-			"description":               item.Description,
-			"category":                  item.CategoryName,
-			"item_type":                 item.Type,
-			"status":                    map[bool]string{true: "active", false: "inactive"}[item.IsActive],
-			"is_available":              isAvailable,
-			"is_featured":               isFeatured,
-			"display_order":             displayOrder,
-			"image_url":                 item.ImageURL,
-			"barcode":                   item.Barcode,
-			"price":                     price,
-			"tax_status":                taxStatus,
-			"tax_code_id":               item.TaxCodeID,
-			"tax_inclusive":             item.TaxInclusive,
-			"tax_rate":                  item.TaxRate,
-			"requires_prescription":     requiresPrescription,
-			"is_returnable":             isReturnable,
-			"requires_age_verification": requiresAgeVerification,
-			"is_controlled_substance":   isControlledSubstance,
-			"track_serial_numbers":      item.TrackSerialNumbers,
-			"minimum_age":               minimumAge,
-			"duration_minutes":          durationMinutes,
-			"outlet_id":                 outletID,
+		out = append(out, catalogItemDTO{
+			ID:                      item.ID,
+			SKU:                     item.SKU,
+			Name:                    item.Name,
+			Description:             item.Description,
+			CategoryName:            item.CategoryName,
+			ItemType:                item.Type,
+			IsActive:                item.IsActive,
+			IsAvailable:             isAvailable,
+			IsFeatured:              isFeatured,
+			DisplayOrder:            displayOrder,
+			ImageURL:                item.ImageURL,
+			Barcode:                 item.Barcode,
+			Price:                   price,
+			TaxStatus:               taxStatus,
+			TaxCodeID:               item.TaxCodeID,
+			TaxInclusive:            item.TaxInclusive,
+			TaxRate:                 item.TaxRate,
+			RequiresPrescription:    requiresPrescription,
+			IsReturnable:            isReturnable,
+			RequiresAgeVerification: requiresAgeVerification,
+			IsControlledSubstance:   isControlledSubstance,
+			TrackSerialNumbers:      item.TrackSerialNumbers,
+			MinimumAge:              minimumAge,
+			DurationMinutes:         durationMinutes,
 		})
+	}
+	return out, nil
+}
+
+// catalogItemToMap converts an assembled DTO into the JSON map shape ListCatalogItems
+// returns. Kept here so the wire format stays identical after the assembleMenuItems refactor.
+func catalogItemToMap(item catalogItemDTO, outletID *uuid.UUID) map[string]any {
+	return map[string]any{
+		"id":                        item.ID,
+		"sku":                       item.SKU,
+		"name":                      item.Name,
+		"description":               item.Description,
+		"category":                  item.CategoryName,
+		"item_type":                 item.ItemType,
+		"status":                    map[bool]string{true: "active", false: "inactive"}[item.IsActive],
+		"is_available":              item.IsAvailable,
+		"is_featured":               item.IsFeatured,
+		"display_order":             item.DisplayOrder,
+		"image_url":                 item.ImageURL,
+		"barcode":                   item.Barcode,
+		"price":                     item.Price,
+		"tax_status":                item.TaxStatus,
+		"tax_code_id":               item.TaxCodeID,
+		"tax_inclusive":             item.TaxInclusive,
+		"tax_rate":                  item.TaxRate,
+		"requires_prescription":     item.RequiresPrescription,
+		"is_returnable":             item.IsReturnable,
+		"requires_age_verification": item.RequiresAgeVerification,
+		"is_controlled_substance":   item.IsControlledSubstance,
+		"track_serial_numbers":      item.TrackSerialNumbers,
+		"minimum_age":               item.MinimumAge,
+		"duration_minutes":          item.DurationMinutes,
+		"outlet_id":                 outletID,
+	}
+}
+
+// ListCatalogItems handles GET /{tenantID}/pos/catalog/items
+// Always proxies from inventory-api; merges with local POSCatalogOverride for pricing/availability.
+func (h *CatalogHandler) ListCatalogItems(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	if limit <= 0 || limit > 500 {
+		limit = 200
+	}
+	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
+	if page < 1 {
+		page = 1
+	}
+	offset := (page - 1) * limit
+
+	catFilter := r.URL.Query().Get("category")
+	searchFilter := strings.ToLower(r.URL.Query().Get("search"))
+	itemTypeFilter := strings.ToUpper(r.URL.Query().Get("item_type"))
+
+	tenantSlug := ""
+	if claims, ok := authclient.ClaimsFromContext(r.Context()); ok {
+		tenantSlug = claims.GetTenantSlug()
+	}
+	if tenantSlug == "" {
+		tenantSlug = httpware.GetTenantSlug(r.Context())
+	}
+	// Terminal PIN JWTs don't embed tenant_slug — look it up from the local Tenant table.
+	if tenantSlug == "" {
+		if t, lookupErr := h.client.Tenant.Get(r.Context(), tid); lookupErr == nil {
+			tenantSlug = t.Slug
+		}
+	}
+
+	// outletID drives override precedence + the JSON outlet_id field (header/query derived).
+	var outletID *uuid.UUID
+	if oidStr := httpware.GetOutletID(r.Context()); oidStr != "" {
+		if oid, parseErr := uuid.Parse(oidStr); parseErr == nil {
+			outletID = &oid
+		}
+	}
+	if outletIDStr := r.URL.Query().Get("outlet_id"); outletIDStr != "" && outletID == nil {
+		if oid, parseErr := uuid.Parse(outletIDStr); parseErr == nil {
+			outletID = &oid
+		}
+	}
+
+	// Resolve use case from outlet context for item type filtering. scopeOutletID is the
+	// outlet used for the inventory scope header + override precedence (context wins).
+	useCase := ""
+	scopeOutletID := outletID
+	if oc := middleware.OutletFromContext(r.Context()); oc != nil {
+		useCase = oc.UseCase
+		ocID := oc.ID
+		scopeOutletID = &ocID
+	}
+
+	if tenantSlug == "" {
+		jsonError(w, "tenant slug required", http.StatusBadRequest)
+		return
+	}
+
+	items, err := h.assembleMenuItems(r.Context(), tid, tenantSlug, scopeOutletID, useCase, menuAssemblyFilters{
+		Category: catFilter,
+		Search:   searchFilter,
+		ItemType: itemTypeFilter,
+	})
+	if err != nil {
+		h.log.Error("inventory items fetch failed", zap.Error(err))
+		jsonError(w, "failed to fetch catalog from inventory", http.StatusBadGateway)
+		return
+	}
+
+	out := make([]map[string]any, 0, len(items))
+	for _, item := range items {
+		out = append(out, catalogItemToMap(item, outletID))
 	}
 
 	total := len(out)
