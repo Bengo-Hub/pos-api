@@ -706,8 +706,12 @@ func (s *Service) AddOrderLines(ctx context.Context, tenantID, orderID uuid.UUID
 	if err != nil {
 		return nil, fmt.Errorf("orders: order not found: %w", err)
 	}
-	if order.Status != StatusOpen {
-		return nil, fmt.Errorf("orders: can only add lines to open orders, current status: %s", order.Status)
+	// Allow adding to any unpaid, non-terminal order (draft / open / pending_payment) — "add to bill"
+	// works as long as the order isn't already settled or closed. A bill awaiting payment is re-opened
+	// when new items are added (there is now more to pay).
+	switch order.Status {
+	case StatusCompleted, StatusCancelled, StatusVoided, StatusRefunded:
+		return nil, fmt.Errorf("orders: cannot add items to a %s order", order.Status)
 	}
 
 	// Resolve KDS station IDs from catalog overrides for new line SKUs.
@@ -757,6 +761,7 @@ func (s *Service) AddOrderLines(ctx context.Context, tenantID, orderID uuid.UUID
 			SetCatalogItemID(l.CatalogItemID).
 			SetSku(l.SKU).
 			SetName(l.Name).
+			SetCategory(l.Category).
 			SetQuantity(l.Quantity).
 			SetUnitPrice(l.UnitPrice).
 			SetTotalPrice(lineTotal.InexactFloat64()).
@@ -784,12 +789,16 @@ func (s *Service) AddOrderLines(ctx context.Context, tenantID, orderID uuid.UUID
 	}
 	newTotal := newSubtotal.Add(newTaxTotal)
 
-	_, err = tx.POSOrder.UpdateOneID(order.ID).
+	upd := tx.POSOrder.UpdateOneID(order.ID).
 		SetSubtotal(newSubtotal.InexactFloat64()).
 		SetTaxTotal(newTaxTotal.InexactFloat64()).
-		SetTotalAmount(newTotal.InexactFloat64()).
-		Save(ctx)
-	if err != nil {
+		SetTotalAmount(newTotal.InexactFloat64())
+	// Adding items to a bill that was awaiting payment (or still a draft) re-opens it — there is now
+	// more to pay, so it must not stay in a pending/draft state.
+	if order.Status == StatusPendingPayment || order.Status == StatusDraft {
+		upd = upd.SetStatus(StatusOpen)
+	}
+	if _, err = upd.Save(ctx); err != nil {
 		return nil, fmt.Errorf("orders: update totals: %w", err)
 	}
 
