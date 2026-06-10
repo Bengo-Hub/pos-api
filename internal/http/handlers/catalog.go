@@ -128,11 +128,12 @@ func categoryAllowedForUseCase(categoryName, useCase string) bool {
 	isRetailCat := strings.Contains(cat, "retail")
 	// Component categories are building blocks (recipe inputs / modifier options), never standalone
 	// sellable on a POS terminal — keep them off every sellable use case so the catalog shows only
-	// finished items (menu dishes, drinks, packaged goods).
+	// finished items (menu dishes, drinks, packaged goods). NOTE: "Accompaniment" is intentionally
+	// NOT here — accompaniments (e.g. Ugali, rice, fries served as sides) are real sellable RECIPE
+	// menu items and must appear on the POS.
 	isComponentCat := strings.Contains(cat, "raw ingredient") || strings.Contains(cat, "raw material") ||
 		strings.Contains(cat, "ingredient") || strings.Contains(cat, "modifier") ||
-		strings.Contains(cat, "add-on") || strings.Contains(cat, "add on") ||
-		strings.Contains(cat, "accompaniment")
+		strings.Contains(cat, "add-on") || strings.Contains(cat, "add on")
 
 	switch strings.ToLower(useCase) {
 	case "retail":
