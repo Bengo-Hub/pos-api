@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
@@ -17,6 +18,7 @@ import (
 	entoutlet "github.com/bengobox/pos-service/internal/ent/outlet"
 	entstaff "github.com/bengobox/pos-service/internal/ent/staffmember"
 	entstaffoutlet "github.com/bengobox/pos-service/internal/ent/staffoutlet"
+	"github.com/bengobox/pos-service/internal/platform/subscriptions"
 )
 
 // pinFastHash computes hex(SHA256(tenantID+":"+userID+":"+pin)) for O(1) PIN lookup.
@@ -46,10 +48,37 @@ type PINAuthHandler struct {
 	// jwtSecret is the HMAC-SHA256 secret used to sign short-lived terminal JWTs.
 	// Loaded from env TERMINAL_JWT_SECRET; falls back to INTERNAL_SERVICE_KEY if absent.
 	jwtSecret []byte
+	// subsClient fetches the tenant's subscription so the terminal JWT carries the same
+	// entitlements as an SSO session (features/limits/status + demo/owner bypass flags).
+	subsClient *subscriptions.Client
 }
 
-func NewPINAuthHandler(log *zap.Logger, client *ent.Client, jwtSecret []byte) *PINAuthHandler {
-	return &PINAuthHandler{log: log, client: client, jwtSecret: jwtSecret}
+func NewPINAuthHandler(log *zap.Logger, client *ent.Client, jwtSecret []byte, subsClient *subscriptions.Client) *PINAuthHandler {
+	return &PINAuthHandler{log: log, client: client, jwtSecret: jwtSecret, subsClient: subsClient}
+}
+
+// resolveTerminalEntitlements builds the subscription snapshot + bypass flags embedded in
+// the terminal JWT. It derives demo / platform-owner from the local tenant slug (works even
+// if subscriptions-api is down) and fetches features/limits/status from subscriptions-api.
+func (h *PINAuthHandler) resolveTerminalEntitlements(ctx context.Context, tenantID uuid.UUID) terminalEntitlements {
+	te := terminalEntitlements{}
+	if t, err := h.client.Tenant.Get(ctx, tenantID); err == nil {
+		te.TenantSlug = t.Slug
+		te.IsPlatformOwner = t.Slug == "codevertex"
+		te.IsDemo = t.Slug == "codevertex-demo"
+	}
+	if h.subsClient != nil {
+		if e := h.subsClient.GetEntitlements(ctx, tenantID.String()); e != nil {
+			te.Features = e.Features
+			te.Limits = e.Limits
+			te.Status = e.Status
+			te.BillingMode = e.BillingMode
+			if e.IsDemoBypass {
+				te.IsDemo = true
+			}
+		}
+	}
+	return te
 }
 
 // maxFailedAttempts before lockout.
@@ -193,8 +222,12 @@ func (h *PINAuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Resolve subscription entitlements + bypass flags so the terminal JWT gates exactly
+	// like an SSO session (and exempts demo / platform-owner tenants).
+	subEnt := h.resolveTerminalEntitlements(r.Context(), tid)
+
 	// Issue a short-lived terminal JWT (4 hours)
-	token, err := issueTerminalJWT(member, tid, sessionOutletID, h.jwtSecret, h.client, r.Context())
+	token, err := issueTerminalJWT(member, tid, sessionOutletID, h.jwtSecret, h.client, r.Context(), subEnt)
 	if err != nil {
 		h.log.Error("failed to issue terminal JWT", zap.Error(err))
 		jsonError(w, "internal error", http.StatusInternalServerError)
@@ -220,9 +253,14 @@ func (h *PINAuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 			"name":            member.Name,
 			"role":            member.Role,
 			"tenant_id":       member.TenantID.String(),
+			"tenant_slug":     subEnt.TenantSlug,
 			"outlet_id":       sessionOutletID.String(),
 			"outlet_use_case": outletUseCase,
 			"is_hq_user":      isHQ,
+			// Surface the bypass flags so pos-ui's useSubscription exempts demo/platform
+			// PIN sessions (it derives isDemo/isPlatformOwner from the user object).
+			"is_demo":           subEnt.IsDemo,
+			"is_platform_owner": subEnt.IsPlatformOwner,
 		},
 	})
 }
@@ -443,8 +481,9 @@ func (h *PINAuthHandler) IdentifyByPIN(w http.ResponseWriter, r *http.Request) {
 		ClearPinLockedUntil().
 		Exec(r.Context())
 
-	// Issue terminal JWT — same shape as Login
-	token, err := issueTerminalJWT(member, tid, outletID, h.jwtSecret, h.client, r.Context())
+	// Issue terminal JWT — same shape as Login (carry subscription entitlements + bypass).
+	subEnt := h.resolveTerminalEntitlements(r.Context(), tid)
+	token, err := issueTerminalJWT(member, tid, outletID, h.jwtSecret, h.client, r.Context(), subEnt)
 	if err != nil {
 		h.log.Error("failed to issue terminal JWT", zap.Error(err))
 		jsonError(w, "internal error", http.StatusInternalServerError)

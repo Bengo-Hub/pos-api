@@ -252,7 +252,7 @@ func New(ctx context.Context) (*App, error) {
 		log.Warn("TERMINAL_JWT_SECRET is not set; falling back to INTERNAL_SERVICE_KEY for terminal JWT signing — set TERMINAL_JWT_SECRET in production")
 		terminalJWTSecret = []byte(cfg.Treasury.InternalServiceKey)
 	}
-	pinAuthHandler := handlers.NewPINAuthHandler(log, entClient, terminalJWTSecret)
+	pinAuthHandler := handlers.NewPINAuthHandler(log, entClient, terminalJWTSecret, subsClient)
 	publicOutletHandler := handlers.NewPublicOutletHandler(log, entClient)
 
 	// Retail module: layaway plans, weighing scale, purchase orders proxy
