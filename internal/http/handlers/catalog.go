@@ -275,6 +275,74 @@ func fetchInventoryPricing(ctx context.Context, tenantSlug, outletID string) (ma
 	return m, nil
 }
 
+// posPricingTier is the clean shape pos-ui consumes for the price-profile selector.
+type posPricingTier struct {
+	Code      string `json:"code"`
+	Name      string `json:"name"`
+	IsDefault bool   `json:"is_default"`
+	SortOrder int    `json:"sort_order"`
+}
+
+// GetPricingTiers handles GET /{tenantID}/pos/catalog/pricing/tiers — proxies the tenant's pricing
+// tiers from inventory-api (the source of truth: Retail, Wholesale, and any custom tiers like
+// "Loyal Clients") so the POS price-profile selector reflects real configured tiers instead of a
+// hard-coded Retail/Wholesale toggle. Returns active tiers only, sorted; degrades to {"data":[]}.
+func (h *CatalogHandler) GetPricingTiers(w http.ResponseWriter, r *http.Request) {
+	tenantSlug := h.resolveTenantSlug(r)
+	if tenantSlug == "" {
+		jsonError(w, "could not resolve tenant", http.StatusBadRequest)
+		return
+	}
+	url := fmt.Sprintf("%s/v1/%s/inventory/pricing-tiers", inventoryURL(), tenantSlug)
+	body, err := doInventoryGET(r.Context(), url, "")
+	if err != nil {
+		h.log.Warn("pricing tiers: inventory proxy failed", zap.Error(err))
+		jsonOK(w, map[string]any{"data": []posPricingTier{}})
+		return
+	}
+	// inventory returns a bare array of {id,name,code,is_default,is_active,sort_order}.
+	var raw []struct {
+		Name      string `json:"name"`
+		Code      string `json:"code"`
+		IsDefault bool   `json:"is_default"`
+		IsActive  bool   `json:"is_active"`
+		SortOrder int    `json:"sort_order"`
+	}
+	if err := json.Unmarshal(body, &raw); err != nil {
+		// Tolerate a wrapped {"data":[...]} response too.
+		var wrapper struct {
+			Data []struct {
+				Name      string `json:"name"`
+				Code      string `json:"code"`
+				IsDefault bool   `json:"is_default"`
+				IsActive  bool   `json:"is_active"`
+				SortOrder int    `json:"sort_order"`
+			} `json:"data"`
+		}
+		if werr := json.Unmarshal(body, &wrapper); werr != nil {
+			jsonOK(w, map[string]any{"data": []posPricingTier{}})
+			return
+		}
+		for _, t := range wrapper.Data {
+			raw = append(raw, struct {
+				Name      string `json:"name"`
+				Code      string `json:"code"`
+				IsDefault bool   `json:"is_default"`
+				IsActive  bool   `json:"is_active"`
+				SortOrder int    `json:"sort_order"`
+			}(t))
+		}
+	}
+	out := make([]posPricingTier, 0, len(raw))
+	for _, t := range raw {
+		if !t.IsActive || strings.TrimSpace(t.Code) == "" {
+			continue
+		}
+		out = append(out, posPricingTier{Code: t.Code, Name: t.Name, IsDefault: t.IsDefault, SortOrder: t.SortOrder})
+	}
+	jsonOK(w, map[string]any{"data": out})
+}
+
 // ResolvePrice handles GET /{tenantID}/pos/catalog/pricing/resolve?item_id=&quantity=&profile=
 // Resolves an item's unit/total price for a pricing profile (tier code, e.g. RETAIL or WHOLESALE)
 // from inventory-api, so the register can re-price the cart when the cashier switches profile.
