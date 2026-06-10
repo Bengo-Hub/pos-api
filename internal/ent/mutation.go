@@ -38023,6 +38023,14 @@ type OutletSettingMutation struct {
 	auto_print_kitchen              *bool
 	printer_profiles                *[]map[string]interface{}
 	appendprinter_profiles          []map[string]interface{}
+	cash_drawer_enabled             *bool
+	cash_drawer_printer             *string
+	cash_drawer_auto_open           *bool
+	cash_drawer_kick_code           *string
+	card_terminal_mode              *string
+	card_terminal_provider          *string
+	card_terminal_tid               *string
+	card_terminal_require_ref       *bool
 	mpesa_paybill                   *string
 	mpesa_account_reference         *string
 	airtel_money_number             *string
@@ -39392,6 +39400,398 @@ func (m *OutletSettingMutation) ResetPrinterProfiles() {
 	delete(m.clearedFields, outletsetting.FieldPrinterProfiles)
 }
 
+// SetCashDrawerEnabled sets the "cash_drawer_enabled" field.
+func (m *OutletSettingMutation) SetCashDrawerEnabled(b bool) {
+	m.cash_drawer_enabled = &b
+}
+
+// CashDrawerEnabled returns the value of the "cash_drawer_enabled" field in the mutation.
+func (m *OutletSettingMutation) CashDrawerEnabled() (r bool, exists bool) {
+	v := m.cash_drawer_enabled
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCashDrawerEnabled returns the old "cash_drawer_enabled" field's value of the OutletSetting entity.
+// If the OutletSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OutletSettingMutation) OldCashDrawerEnabled(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCashDrawerEnabled is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCashDrawerEnabled requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCashDrawerEnabled: %w", err)
+	}
+	return oldValue.CashDrawerEnabled, nil
+}
+
+// ClearCashDrawerEnabled clears the value of the "cash_drawer_enabled" field.
+func (m *OutletSettingMutation) ClearCashDrawerEnabled() {
+	m.cash_drawer_enabled = nil
+	m.clearedFields[outletsetting.FieldCashDrawerEnabled] = struct{}{}
+}
+
+// CashDrawerEnabledCleared returns if the "cash_drawer_enabled" field was cleared in this mutation.
+func (m *OutletSettingMutation) CashDrawerEnabledCleared() bool {
+	_, ok := m.clearedFields[outletsetting.FieldCashDrawerEnabled]
+	return ok
+}
+
+// ResetCashDrawerEnabled resets all changes to the "cash_drawer_enabled" field.
+func (m *OutletSettingMutation) ResetCashDrawerEnabled() {
+	m.cash_drawer_enabled = nil
+	delete(m.clearedFields, outletsetting.FieldCashDrawerEnabled)
+}
+
+// SetCashDrawerPrinter sets the "cash_drawer_printer" field.
+func (m *OutletSettingMutation) SetCashDrawerPrinter(s string) {
+	m.cash_drawer_printer = &s
+}
+
+// CashDrawerPrinter returns the value of the "cash_drawer_printer" field in the mutation.
+func (m *OutletSettingMutation) CashDrawerPrinter() (r string, exists bool) {
+	v := m.cash_drawer_printer
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCashDrawerPrinter returns the old "cash_drawer_printer" field's value of the OutletSetting entity.
+// If the OutletSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OutletSettingMutation) OldCashDrawerPrinter(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCashDrawerPrinter is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCashDrawerPrinter requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCashDrawerPrinter: %w", err)
+	}
+	return oldValue.CashDrawerPrinter, nil
+}
+
+// ClearCashDrawerPrinter clears the value of the "cash_drawer_printer" field.
+func (m *OutletSettingMutation) ClearCashDrawerPrinter() {
+	m.cash_drawer_printer = nil
+	m.clearedFields[outletsetting.FieldCashDrawerPrinter] = struct{}{}
+}
+
+// CashDrawerPrinterCleared returns if the "cash_drawer_printer" field was cleared in this mutation.
+func (m *OutletSettingMutation) CashDrawerPrinterCleared() bool {
+	_, ok := m.clearedFields[outletsetting.FieldCashDrawerPrinter]
+	return ok
+}
+
+// ResetCashDrawerPrinter resets all changes to the "cash_drawer_printer" field.
+func (m *OutletSettingMutation) ResetCashDrawerPrinter() {
+	m.cash_drawer_printer = nil
+	delete(m.clearedFields, outletsetting.FieldCashDrawerPrinter)
+}
+
+// SetCashDrawerAutoOpen sets the "cash_drawer_auto_open" field.
+func (m *OutletSettingMutation) SetCashDrawerAutoOpen(b bool) {
+	m.cash_drawer_auto_open = &b
+}
+
+// CashDrawerAutoOpen returns the value of the "cash_drawer_auto_open" field in the mutation.
+func (m *OutletSettingMutation) CashDrawerAutoOpen() (r bool, exists bool) {
+	v := m.cash_drawer_auto_open
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCashDrawerAutoOpen returns the old "cash_drawer_auto_open" field's value of the OutletSetting entity.
+// If the OutletSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OutletSettingMutation) OldCashDrawerAutoOpen(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCashDrawerAutoOpen is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCashDrawerAutoOpen requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCashDrawerAutoOpen: %w", err)
+	}
+	return oldValue.CashDrawerAutoOpen, nil
+}
+
+// ClearCashDrawerAutoOpen clears the value of the "cash_drawer_auto_open" field.
+func (m *OutletSettingMutation) ClearCashDrawerAutoOpen() {
+	m.cash_drawer_auto_open = nil
+	m.clearedFields[outletsetting.FieldCashDrawerAutoOpen] = struct{}{}
+}
+
+// CashDrawerAutoOpenCleared returns if the "cash_drawer_auto_open" field was cleared in this mutation.
+func (m *OutletSettingMutation) CashDrawerAutoOpenCleared() bool {
+	_, ok := m.clearedFields[outletsetting.FieldCashDrawerAutoOpen]
+	return ok
+}
+
+// ResetCashDrawerAutoOpen resets all changes to the "cash_drawer_auto_open" field.
+func (m *OutletSettingMutation) ResetCashDrawerAutoOpen() {
+	m.cash_drawer_auto_open = nil
+	delete(m.clearedFields, outletsetting.FieldCashDrawerAutoOpen)
+}
+
+// SetCashDrawerKickCode sets the "cash_drawer_kick_code" field.
+func (m *OutletSettingMutation) SetCashDrawerKickCode(s string) {
+	m.cash_drawer_kick_code = &s
+}
+
+// CashDrawerKickCode returns the value of the "cash_drawer_kick_code" field in the mutation.
+func (m *OutletSettingMutation) CashDrawerKickCode() (r string, exists bool) {
+	v := m.cash_drawer_kick_code
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCashDrawerKickCode returns the old "cash_drawer_kick_code" field's value of the OutletSetting entity.
+// If the OutletSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OutletSettingMutation) OldCashDrawerKickCode(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCashDrawerKickCode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCashDrawerKickCode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCashDrawerKickCode: %w", err)
+	}
+	return oldValue.CashDrawerKickCode, nil
+}
+
+// ClearCashDrawerKickCode clears the value of the "cash_drawer_kick_code" field.
+func (m *OutletSettingMutation) ClearCashDrawerKickCode() {
+	m.cash_drawer_kick_code = nil
+	m.clearedFields[outletsetting.FieldCashDrawerKickCode] = struct{}{}
+}
+
+// CashDrawerKickCodeCleared returns if the "cash_drawer_kick_code" field was cleared in this mutation.
+func (m *OutletSettingMutation) CashDrawerKickCodeCleared() bool {
+	_, ok := m.clearedFields[outletsetting.FieldCashDrawerKickCode]
+	return ok
+}
+
+// ResetCashDrawerKickCode resets all changes to the "cash_drawer_kick_code" field.
+func (m *OutletSettingMutation) ResetCashDrawerKickCode() {
+	m.cash_drawer_kick_code = nil
+	delete(m.clearedFields, outletsetting.FieldCashDrawerKickCode)
+}
+
+// SetCardTerminalMode sets the "card_terminal_mode" field.
+func (m *OutletSettingMutation) SetCardTerminalMode(s string) {
+	m.card_terminal_mode = &s
+}
+
+// CardTerminalMode returns the value of the "card_terminal_mode" field in the mutation.
+func (m *OutletSettingMutation) CardTerminalMode() (r string, exists bool) {
+	v := m.card_terminal_mode
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCardTerminalMode returns the old "card_terminal_mode" field's value of the OutletSetting entity.
+// If the OutletSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OutletSettingMutation) OldCardTerminalMode(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCardTerminalMode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCardTerminalMode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCardTerminalMode: %w", err)
+	}
+	return oldValue.CardTerminalMode, nil
+}
+
+// ClearCardTerminalMode clears the value of the "card_terminal_mode" field.
+func (m *OutletSettingMutation) ClearCardTerminalMode() {
+	m.card_terminal_mode = nil
+	m.clearedFields[outletsetting.FieldCardTerminalMode] = struct{}{}
+}
+
+// CardTerminalModeCleared returns if the "card_terminal_mode" field was cleared in this mutation.
+func (m *OutletSettingMutation) CardTerminalModeCleared() bool {
+	_, ok := m.clearedFields[outletsetting.FieldCardTerminalMode]
+	return ok
+}
+
+// ResetCardTerminalMode resets all changes to the "card_terminal_mode" field.
+func (m *OutletSettingMutation) ResetCardTerminalMode() {
+	m.card_terminal_mode = nil
+	delete(m.clearedFields, outletsetting.FieldCardTerminalMode)
+}
+
+// SetCardTerminalProvider sets the "card_terminal_provider" field.
+func (m *OutletSettingMutation) SetCardTerminalProvider(s string) {
+	m.card_terminal_provider = &s
+}
+
+// CardTerminalProvider returns the value of the "card_terminal_provider" field in the mutation.
+func (m *OutletSettingMutation) CardTerminalProvider() (r string, exists bool) {
+	v := m.card_terminal_provider
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCardTerminalProvider returns the old "card_terminal_provider" field's value of the OutletSetting entity.
+// If the OutletSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OutletSettingMutation) OldCardTerminalProvider(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCardTerminalProvider is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCardTerminalProvider requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCardTerminalProvider: %w", err)
+	}
+	return oldValue.CardTerminalProvider, nil
+}
+
+// ClearCardTerminalProvider clears the value of the "card_terminal_provider" field.
+func (m *OutletSettingMutation) ClearCardTerminalProvider() {
+	m.card_terminal_provider = nil
+	m.clearedFields[outletsetting.FieldCardTerminalProvider] = struct{}{}
+}
+
+// CardTerminalProviderCleared returns if the "card_terminal_provider" field was cleared in this mutation.
+func (m *OutletSettingMutation) CardTerminalProviderCleared() bool {
+	_, ok := m.clearedFields[outletsetting.FieldCardTerminalProvider]
+	return ok
+}
+
+// ResetCardTerminalProvider resets all changes to the "card_terminal_provider" field.
+func (m *OutletSettingMutation) ResetCardTerminalProvider() {
+	m.card_terminal_provider = nil
+	delete(m.clearedFields, outletsetting.FieldCardTerminalProvider)
+}
+
+// SetCardTerminalTid sets the "card_terminal_tid" field.
+func (m *OutletSettingMutation) SetCardTerminalTid(s string) {
+	m.card_terminal_tid = &s
+}
+
+// CardTerminalTid returns the value of the "card_terminal_tid" field in the mutation.
+func (m *OutletSettingMutation) CardTerminalTid() (r string, exists bool) {
+	v := m.card_terminal_tid
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCardTerminalTid returns the old "card_terminal_tid" field's value of the OutletSetting entity.
+// If the OutletSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OutletSettingMutation) OldCardTerminalTid(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCardTerminalTid is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCardTerminalTid requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCardTerminalTid: %w", err)
+	}
+	return oldValue.CardTerminalTid, nil
+}
+
+// ClearCardTerminalTid clears the value of the "card_terminal_tid" field.
+func (m *OutletSettingMutation) ClearCardTerminalTid() {
+	m.card_terminal_tid = nil
+	m.clearedFields[outletsetting.FieldCardTerminalTid] = struct{}{}
+}
+
+// CardTerminalTidCleared returns if the "card_terminal_tid" field was cleared in this mutation.
+func (m *OutletSettingMutation) CardTerminalTidCleared() bool {
+	_, ok := m.clearedFields[outletsetting.FieldCardTerminalTid]
+	return ok
+}
+
+// ResetCardTerminalTid resets all changes to the "card_terminal_tid" field.
+func (m *OutletSettingMutation) ResetCardTerminalTid() {
+	m.card_terminal_tid = nil
+	delete(m.clearedFields, outletsetting.FieldCardTerminalTid)
+}
+
+// SetCardTerminalRequireRef sets the "card_terminal_require_ref" field.
+func (m *OutletSettingMutation) SetCardTerminalRequireRef(b bool) {
+	m.card_terminal_require_ref = &b
+}
+
+// CardTerminalRequireRef returns the value of the "card_terminal_require_ref" field in the mutation.
+func (m *OutletSettingMutation) CardTerminalRequireRef() (r bool, exists bool) {
+	v := m.card_terminal_require_ref
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCardTerminalRequireRef returns the old "card_terminal_require_ref" field's value of the OutletSetting entity.
+// If the OutletSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OutletSettingMutation) OldCardTerminalRequireRef(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCardTerminalRequireRef is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCardTerminalRequireRef requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCardTerminalRequireRef: %w", err)
+	}
+	return oldValue.CardTerminalRequireRef, nil
+}
+
+// ClearCardTerminalRequireRef clears the value of the "card_terminal_require_ref" field.
+func (m *OutletSettingMutation) ClearCardTerminalRequireRef() {
+	m.card_terminal_require_ref = nil
+	m.clearedFields[outletsetting.FieldCardTerminalRequireRef] = struct{}{}
+}
+
+// CardTerminalRequireRefCleared returns if the "card_terminal_require_ref" field was cleared in this mutation.
+func (m *OutletSettingMutation) CardTerminalRequireRefCleared() bool {
+	_, ok := m.clearedFields[outletsetting.FieldCardTerminalRequireRef]
+	return ok
+}
+
+// ResetCardTerminalRequireRef resets all changes to the "card_terminal_require_ref" field.
+func (m *OutletSettingMutation) ResetCardTerminalRequireRef() {
+	m.card_terminal_require_ref = nil
+	delete(m.clearedFields, outletsetting.FieldCardTerminalRequireRef)
+}
+
 // SetMpesaPaybill sets the "mpesa_paybill" field.
 func (m *OutletSettingMutation) SetMpesaPaybill(s string) {
 	m.mpesa_paybill = &s
@@ -40385,7 +40785,7 @@ func (m *OutletSettingMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *OutletSettingMutation) Fields() []string {
-	fields := make([]string, 0, 43)
+	fields := make([]string, 0, 51)
 	if m.outlet != nil {
 		fields = append(fields, outletsetting.FieldOutletID)
 	}
@@ -40460,6 +40860,30 @@ func (m *OutletSettingMutation) Fields() []string {
 	}
 	if m.printer_profiles != nil {
 		fields = append(fields, outletsetting.FieldPrinterProfiles)
+	}
+	if m.cash_drawer_enabled != nil {
+		fields = append(fields, outletsetting.FieldCashDrawerEnabled)
+	}
+	if m.cash_drawer_printer != nil {
+		fields = append(fields, outletsetting.FieldCashDrawerPrinter)
+	}
+	if m.cash_drawer_auto_open != nil {
+		fields = append(fields, outletsetting.FieldCashDrawerAutoOpen)
+	}
+	if m.cash_drawer_kick_code != nil {
+		fields = append(fields, outletsetting.FieldCashDrawerKickCode)
+	}
+	if m.card_terminal_mode != nil {
+		fields = append(fields, outletsetting.FieldCardTerminalMode)
+	}
+	if m.card_terminal_provider != nil {
+		fields = append(fields, outletsetting.FieldCardTerminalProvider)
+	}
+	if m.card_terminal_tid != nil {
+		fields = append(fields, outletsetting.FieldCardTerminalTid)
+	}
+	if m.card_terminal_require_ref != nil {
+		fields = append(fields, outletsetting.FieldCardTerminalRequireRef)
 	}
 	if m.mpesa_paybill != nil {
 		fields = append(fields, outletsetting.FieldMpesaPaybill)
@@ -40573,6 +40997,22 @@ func (m *OutletSettingMutation) Field(name string) (ent.Value, bool) {
 		return m.AutoPrintKitchen()
 	case outletsetting.FieldPrinterProfiles:
 		return m.PrinterProfiles()
+	case outletsetting.FieldCashDrawerEnabled:
+		return m.CashDrawerEnabled()
+	case outletsetting.FieldCashDrawerPrinter:
+		return m.CashDrawerPrinter()
+	case outletsetting.FieldCashDrawerAutoOpen:
+		return m.CashDrawerAutoOpen()
+	case outletsetting.FieldCashDrawerKickCode:
+		return m.CashDrawerKickCode()
+	case outletsetting.FieldCardTerminalMode:
+		return m.CardTerminalMode()
+	case outletsetting.FieldCardTerminalProvider:
+		return m.CardTerminalProvider()
+	case outletsetting.FieldCardTerminalTid:
+		return m.CardTerminalTid()
+	case outletsetting.FieldCardTerminalRequireRef:
+		return m.CardTerminalRequireRef()
 	case outletsetting.FieldMpesaPaybill:
 		return m.MpesaPaybill()
 	case outletsetting.FieldMpesaAccountReference:
@@ -40668,6 +41108,22 @@ func (m *OutletSettingMutation) OldField(ctx context.Context, name string) (ent.
 		return m.OldAutoPrintKitchen(ctx)
 	case outletsetting.FieldPrinterProfiles:
 		return m.OldPrinterProfiles(ctx)
+	case outletsetting.FieldCashDrawerEnabled:
+		return m.OldCashDrawerEnabled(ctx)
+	case outletsetting.FieldCashDrawerPrinter:
+		return m.OldCashDrawerPrinter(ctx)
+	case outletsetting.FieldCashDrawerAutoOpen:
+		return m.OldCashDrawerAutoOpen(ctx)
+	case outletsetting.FieldCashDrawerKickCode:
+		return m.OldCashDrawerKickCode(ctx)
+	case outletsetting.FieldCardTerminalMode:
+		return m.OldCardTerminalMode(ctx)
+	case outletsetting.FieldCardTerminalProvider:
+		return m.OldCardTerminalProvider(ctx)
+	case outletsetting.FieldCardTerminalTid:
+		return m.OldCardTerminalTid(ctx)
+	case outletsetting.FieldCardTerminalRequireRef:
+		return m.OldCardTerminalRequireRef(ctx)
 	case outletsetting.FieldMpesaPaybill:
 		return m.OldMpesaPaybill(ctx)
 	case outletsetting.FieldMpesaAccountReference:
@@ -40887,6 +41343,62 @@ func (m *OutletSettingMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetPrinterProfiles(v)
+		return nil
+	case outletsetting.FieldCashDrawerEnabled:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCashDrawerEnabled(v)
+		return nil
+	case outletsetting.FieldCashDrawerPrinter:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCashDrawerPrinter(v)
+		return nil
+	case outletsetting.FieldCashDrawerAutoOpen:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCashDrawerAutoOpen(v)
+		return nil
+	case outletsetting.FieldCashDrawerKickCode:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCashDrawerKickCode(v)
+		return nil
+	case outletsetting.FieldCardTerminalMode:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCardTerminalMode(v)
+		return nil
+	case outletsetting.FieldCardTerminalProvider:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCardTerminalProvider(v)
+		return nil
+	case outletsetting.FieldCardTerminalTid:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCardTerminalTid(v)
+		return nil
+	case outletsetting.FieldCardTerminalRequireRef:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCardTerminalRequireRef(v)
 		return nil
 	case outletsetting.FieldMpesaPaybill:
 		v, ok := value.(string)
@@ -41164,6 +41676,30 @@ func (m *OutletSettingMutation) ClearedFields() []string {
 	if m.FieldCleared(outletsetting.FieldPrinterProfiles) {
 		fields = append(fields, outletsetting.FieldPrinterProfiles)
 	}
+	if m.FieldCleared(outletsetting.FieldCashDrawerEnabled) {
+		fields = append(fields, outletsetting.FieldCashDrawerEnabled)
+	}
+	if m.FieldCleared(outletsetting.FieldCashDrawerPrinter) {
+		fields = append(fields, outletsetting.FieldCashDrawerPrinter)
+	}
+	if m.FieldCleared(outletsetting.FieldCashDrawerAutoOpen) {
+		fields = append(fields, outletsetting.FieldCashDrawerAutoOpen)
+	}
+	if m.FieldCleared(outletsetting.FieldCashDrawerKickCode) {
+		fields = append(fields, outletsetting.FieldCashDrawerKickCode)
+	}
+	if m.FieldCleared(outletsetting.FieldCardTerminalMode) {
+		fields = append(fields, outletsetting.FieldCardTerminalMode)
+	}
+	if m.FieldCleared(outletsetting.FieldCardTerminalProvider) {
+		fields = append(fields, outletsetting.FieldCardTerminalProvider)
+	}
+	if m.FieldCleared(outletsetting.FieldCardTerminalTid) {
+		fields = append(fields, outletsetting.FieldCardTerminalTid)
+	}
+	if m.FieldCleared(outletsetting.FieldCardTerminalRequireRef) {
+		fields = append(fields, outletsetting.FieldCardTerminalRequireRef)
+	}
 	if m.FieldCleared(outletsetting.FieldMpesaPaybill) {
 		fields = append(fields, outletsetting.FieldMpesaPaybill)
 	}
@@ -41298,6 +41834,30 @@ func (m *OutletSettingMutation) ClearField(name string) error {
 	case outletsetting.FieldPrinterProfiles:
 		m.ClearPrinterProfiles()
 		return nil
+	case outletsetting.FieldCashDrawerEnabled:
+		m.ClearCashDrawerEnabled()
+		return nil
+	case outletsetting.FieldCashDrawerPrinter:
+		m.ClearCashDrawerPrinter()
+		return nil
+	case outletsetting.FieldCashDrawerAutoOpen:
+		m.ClearCashDrawerAutoOpen()
+		return nil
+	case outletsetting.FieldCashDrawerKickCode:
+		m.ClearCashDrawerKickCode()
+		return nil
+	case outletsetting.FieldCardTerminalMode:
+		m.ClearCardTerminalMode()
+		return nil
+	case outletsetting.FieldCardTerminalProvider:
+		m.ClearCardTerminalProvider()
+		return nil
+	case outletsetting.FieldCardTerminalTid:
+		m.ClearCardTerminalTid()
+		return nil
+	case outletsetting.FieldCardTerminalRequireRef:
+		m.ClearCardTerminalRequireRef()
+		return nil
 	case outletsetting.FieldMpesaPaybill:
 		m.ClearMpesaPaybill()
 		return nil
@@ -41431,6 +41991,30 @@ func (m *OutletSettingMutation) ResetField(name string) error {
 		return nil
 	case outletsetting.FieldPrinterProfiles:
 		m.ResetPrinterProfiles()
+		return nil
+	case outletsetting.FieldCashDrawerEnabled:
+		m.ResetCashDrawerEnabled()
+		return nil
+	case outletsetting.FieldCashDrawerPrinter:
+		m.ResetCashDrawerPrinter()
+		return nil
+	case outletsetting.FieldCashDrawerAutoOpen:
+		m.ResetCashDrawerAutoOpen()
+		return nil
+	case outletsetting.FieldCashDrawerKickCode:
+		m.ResetCashDrawerKickCode()
+		return nil
+	case outletsetting.FieldCardTerminalMode:
+		m.ResetCardTerminalMode()
+		return nil
+	case outletsetting.FieldCardTerminalProvider:
+		m.ResetCardTerminalProvider()
+		return nil
+	case outletsetting.FieldCardTerminalTid:
+		m.ResetCardTerminalTid()
+		return nil
+	case outletsetting.FieldCardTerminalRequireRef:
+		m.ResetCardTerminalRequireRef()
 		return nil
 	case outletsetting.FieldMpesaPaybill:
 		m.ResetMpesaPaybill()

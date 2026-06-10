@@ -319,6 +319,118 @@ func (_c *OutletSettingCreate) SetPrinterProfiles(v []map[string]interface{}) *O
 	return _c
 }
 
+// SetCashDrawerEnabled sets the "cash_drawer_enabled" field.
+func (_c *OutletSettingCreate) SetCashDrawerEnabled(v bool) *OutletSettingCreate {
+	_c.mutation.SetCashDrawerEnabled(v)
+	return _c
+}
+
+// SetNillableCashDrawerEnabled sets the "cash_drawer_enabled" field if the given value is not nil.
+func (_c *OutletSettingCreate) SetNillableCashDrawerEnabled(v *bool) *OutletSettingCreate {
+	if v != nil {
+		_c.SetCashDrawerEnabled(*v)
+	}
+	return _c
+}
+
+// SetCashDrawerPrinter sets the "cash_drawer_printer" field.
+func (_c *OutletSettingCreate) SetCashDrawerPrinter(v string) *OutletSettingCreate {
+	_c.mutation.SetCashDrawerPrinter(v)
+	return _c
+}
+
+// SetNillableCashDrawerPrinter sets the "cash_drawer_printer" field if the given value is not nil.
+func (_c *OutletSettingCreate) SetNillableCashDrawerPrinter(v *string) *OutletSettingCreate {
+	if v != nil {
+		_c.SetCashDrawerPrinter(*v)
+	}
+	return _c
+}
+
+// SetCashDrawerAutoOpen sets the "cash_drawer_auto_open" field.
+func (_c *OutletSettingCreate) SetCashDrawerAutoOpen(v bool) *OutletSettingCreate {
+	_c.mutation.SetCashDrawerAutoOpen(v)
+	return _c
+}
+
+// SetNillableCashDrawerAutoOpen sets the "cash_drawer_auto_open" field if the given value is not nil.
+func (_c *OutletSettingCreate) SetNillableCashDrawerAutoOpen(v *bool) *OutletSettingCreate {
+	if v != nil {
+		_c.SetCashDrawerAutoOpen(*v)
+	}
+	return _c
+}
+
+// SetCashDrawerKickCode sets the "cash_drawer_kick_code" field.
+func (_c *OutletSettingCreate) SetCashDrawerKickCode(v string) *OutletSettingCreate {
+	_c.mutation.SetCashDrawerKickCode(v)
+	return _c
+}
+
+// SetNillableCashDrawerKickCode sets the "cash_drawer_kick_code" field if the given value is not nil.
+func (_c *OutletSettingCreate) SetNillableCashDrawerKickCode(v *string) *OutletSettingCreate {
+	if v != nil {
+		_c.SetCashDrawerKickCode(*v)
+	}
+	return _c
+}
+
+// SetCardTerminalMode sets the "card_terminal_mode" field.
+func (_c *OutletSettingCreate) SetCardTerminalMode(v string) *OutletSettingCreate {
+	_c.mutation.SetCardTerminalMode(v)
+	return _c
+}
+
+// SetNillableCardTerminalMode sets the "card_terminal_mode" field if the given value is not nil.
+func (_c *OutletSettingCreate) SetNillableCardTerminalMode(v *string) *OutletSettingCreate {
+	if v != nil {
+		_c.SetCardTerminalMode(*v)
+	}
+	return _c
+}
+
+// SetCardTerminalProvider sets the "card_terminal_provider" field.
+func (_c *OutletSettingCreate) SetCardTerminalProvider(v string) *OutletSettingCreate {
+	_c.mutation.SetCardTerminalProvider(v)
+	return _c
+}
+
+// SetNillableCardTerminalProvider sets the "card_terminal_provider" field if the given value is not nil.
+func (_c *OutletSettingCreate) SetNillableCardTerminalProvider(v *string) *OutletSettingCreate {
+	if v != nil {
+		_c.SetCardTerminalProvider(*v)
+	}
+	return _c
+}
+
+// SetCardTerminalTid sets the "card_terminal_tid" field.
+func (_c *OutletSettingCreate) SetCardTerminalTid(v string) *OutletSettingCreate {
+	_c.mutation.SetCardTerminalTid(v)
+	return _c
+}
+
+// SetNillableCardTerminalTid sets the "card_terminal_tid" field if the given value is not nil.
+func (_c *OutletSettingCreate) SetNillableCardTerminalTid(v *string) *OutletSettingCreate {
+	if v != nil {
+		_c.SetCardTerminalTid(*v)
+	}
+	return _c
+}
+
+// SetCardTerminalRequireRef sets the "card_terminal_require_ref" field.
+func (_c *OutletSettingCreate) SetCardTerminalRequireRef(v bool) *OutletSettingCreate {
+	_c.mutation.SetCardTerminalRequireRef(v)
+	return _c
+}
+
+// SetNillableCardTerminalRequireRef sets the "card_terminal_require_ref" field if the given value is not nil.
+func (_c *OutletSettingCreate) SetNillableCardTerminalRequireRef(v *bool) *OutletSettingCreate {
+	if v != nil {
+		_c.SetCardTerminalRequireRef(*v)
+	}
+	return _c
+}
+
 // SetMpesaPaybill sets the "mpesa_paybill" field.
 func (_c *OutletSettingCreate) SetMpesaPaybill(v string) *OutletSettingCreate {
 	_c.mutation.SetMpesaPaybill(v)
@@ -685,6 +797,26 @@ func (_c *OutletSettingCreate) defaults() {
 		v := outletsetting.DefaultPrinterProfiles
 		_c.mutation.SetPrinterProfiles(v)
 	}
+	if _, ok := _c.mutation.CashDrawerEnabled(); !ok {
+		v := outletsetting.DefaultCashDrawerEnabled
+		_c.mutation.SetCashDrawerEnabled(v)
+	}
+	if _, ok := _c.mutation.CashDrawerAutoOpen(); !ok {
+		v := outletsetting.DefaultCashDrawerAutoOpen
+		_c.mutation.SetCashDrawerAutoOpen(v)
+	}
+	if _, ok := _c.mutation.CashDrawerKickCode(); !ok {
+		v := outletsetting.DefaultCashDrawerKickCode
+		_c.mutation.SetCashDrawerKickCode(v)
+	}
+	if _, ok := _c.mutation.CardTerminalMode(); !ok {
+		v := outletsetting.DefaultCardTerminalMode
+		_c.mutation.SetCardTerminalMode(v)
+	}
+	if _, ok := _c.mutation.CardTerminalRequireRef(); !ok {
+		v := outletsetting.DefaultCardTerminalRequireRef
+		_c.mutation.SetCardTerminalRequireRef(v)
+	}
 	if _, ok := _c.mutation.ShowPaymentInfoOnReceipt(); !ok {
 		v := outletsetting.DefaultShowPaymentInfoOnReceipt
 		_c.mutation.SetShowPaymentInfoOnReceipt(v)
@@ -872,6 +1004,38 @@ func (_c *OutletSettingCreate) createSpec() (*OutletSetting, *sqlgraph.CreateSpe
 	if value, ok := _c.mutation.PrinterProfiles(); ok {
 		_spec.SetField(outletsetting.FieldPrinterProfiles, field.TypeJSON, value)
 		_node.PrinterProfiles = value
+	}
+	if value, ok := _c.mutation.CashDrawerEnabled(); ok {
+		_spec.SetField(outletsetting.FieldCashDrawerEnabled, field.TypeBool, value)
+		_node.CashDrawerEnabled = value
+	}
+	if value, ok := _c.mutation.CashDrawerPrinter(); ok {
+		_spec.SetField(outletsetting.FieldCashDrawerPrinter, field.TypeString, value)
+		_node.CashDrawerPrinter = &value
+	}
+	if value, ok := _c.mutation.CashDrawerAutoOpen(); ok {
+		_spec.SetField(outletsetting.FieldCashDrawerAutoOpen, field.TypeBool, value)
+		_node.CashDrawerAutoOpen = value
+	}
+	if value, ok := _c.mutation.CashDrawerKickCode(); ok {
+		_spec.SetField(outletsetting.FieldCashDrawerKickCode, field.TypeString, value)
+		_node.CashDrawerKickCode = value
+	}
+	if value, ok := _c.mutation.CardTerminalMode(); ok {
+		_spec.SetField(outletsetting.FieldCardTerminalMode, field.TypeString, value)
+		_node.CardTerminalMode = value
+	}
+	if value, ok := _c.mutation.CardTerminalProvider(); ok {
+		_spec.SetField(outletsetting.FieldCardTerminalProvider, field.TypeString, value)
+		_node.CardTerminalProvider = &value
+	}
+	if value, ok := _c.mutation.CardTerminalTid(); ok {
+		_spec.SetField(outletsetting.FieldCardTerminalTid, field.TypeString, value)
+		_node.CardTerminalTid = &value
+	}
+	if value, ok := _c.mutation.CardTerminalRequireRef(); ok {
+		_spec.SetField(outletsetting.FieldCardTerminalRequireRef, field.TypeBool, value)
+		_node.CardTerminalRequireRef = value
 	}
 	if value, ok := _c.mutation.MpesaPaybill(); ok {
 		_spec.SetField(outletsetting.FieldMpesaPaybill, field.TypeString, value)
@@ -1455,6 +1619,150 @@ func (u *OutletSettingUpsert) UpdatePrinterProfiles() *OutletSettingUpsert {
 // ClearPrinterProfiles clears the value of the "printer_profiles" field.
 func (u *OutletSettingUpsert) ClearPrinterProfiles() *OutletSettingUpsert {
 	u.SetNull(outletsetting.FieldPrinterProfiles)
+	return u
+}
+
+// SetCashDrawerEnabled sets the "cash_drawer_enabled" field.
+func (u *OutletSettingUpsert) SetCashDrawerEnabled(v bool) *OutletSettingUpsert {
+	u.Set(outletsetting.FieldCashDrawerEnabled, v)
+	return u
+}
+
+// UpdateCashDrawerEnabled sets the "cash_drawer_enabled" field to the value that was provided on create.
+func (u *OutletSettingUpsert) UpdateCashDrawerEnabled() *OutletSettingUpsert {
+	u.SetExcluded(outletsetting.FieldCashDrawerEnabled)
+	return u
+}
+
+// ClearCashDrawerEnabled clears the value of the "cash_drawer_enabled" field.
+func (u *OutletSettingUpsert) ClearCashDrawerEnabled() *OutletSettingUpsert {
+	u.SetNull(outletsetting.FieldCashDrawerEnabled)
+	return u
+}
+
+// SetCashDrawerPrinter sets the "cash_drawer_printer" field.
+func (u *OutletSettingUpsert) SetCashDrawerPrinter(v string) *OutletSettingUpsert {
+	u.Set(outletsetting.FieldCashDrawerPrinter, v)
+	return u
+}
+
+// UpdateCashDrawerPrinter sets the "cash_drawer_printer" field to the value that was provided on create.
+func (u *OutletSettingUpsert) UpdateCashDrawerPrinter() *OutletSettingUpsert {
+	u.SetExcluded(outletsetting.FieldCashDrawerPrinter)
+	return u
+}
+
+// ClearCashDrawerPrinter clears the value of the "cash_drawer_printer" field.
+func (u *OutletSettingUpsert) ClearCashDrawerPrinter() *OutletSettingUpsert {
+	u.SetNull(outletsetting.FieldCashDrawerPrinter)
+	return u
+}
+
+// SetCashDrawerAutoOpen sets the "cash_drawer_auto_open" field.
+func (u *OutletSettingUpsert) SetCashDrawerAutoOpen(v bool) *OutletSettingUpsert {
+	u.Set(outletsetting.FieldCashDrawerAutoOpen, v)
+	return u
+}
+
+// UpdateCashDrawerAutoOpen sets the "cash_drawer_auto_open" field to the value that was provided on create.
+func (u *OutletSettingUpsert) UpdateCashDrawerAutoOpen() *OutletSettingUpsert {
+	u.SetExcluded(outletsetting.FieldCashDrawerAutoOpen)
+	return u
+}
+
+// ClearCashDrawerAutoOpen clears the value of the "cash_drawer_auto_open" field.
+func (u *OutletSettingUpsert) ClearCashDrawerAutoOpen() *OutletSettingUpsert {
+	u.SetNull(outletsetting.FieldCashDrawerAutoOpen)
+	return u
+}
+
+// SetCashDrawerKickCode sets the "cash_drawer_kick_code" field.
+func (u *OutletSettingUpsert) SetCashDrawerKickCode(v string) *OutletSettingUpsert {
+	u.Set(outletsetting.FieldCashDrawerKickCode, v)
+	return u
+}
+
+// UpdateCashDrawerKickCode sets the "cash_drawer_kick_code" field to the value that was provided on create.
+func (u *OutletSettingUpsert) UpdateCashDrawerKickCode() *OutletSettingUpsert {
+	u.SetExcluded(outletsetting.FieldCashDrawerKickCode)
+	return u
+}
+
+// ClearCashDrawerKickCode clears the value of the "cash_drawer_kick_code" field.
+func (u *OutletSettingUpsert) ClearCashDrawerKickCode() *OutletSettingUpsert {
+	u.SetNull(outletsetting.FieldCashDrawerKickCode)
+	return u
+}
+
+// SetCardTerminalMode sets the "card_terminal_mode" field.
+func (u *OutletSettingUpsert) SetCardTerminalMode(v string) *OutletSettingUpsert {
+	u.Set(outletsetting.FieldCardTerminalMode, v)
+	return u
+}
+
+// UpdateCardTerminalMode sets the "card_terminal_mode" field to the value that was provided on create.
+func (u *OutletSettingUpsert) UpdateCardTerminalMode() *OutletSettingUpsert {
+	u.SetExcluded(outletsetting.FieldCardTerminalMode)
+	return u
+}
+
+// ClearCardTerminalMode clears the value of the "card_terminal_mode" field.
+func (u *OutletSettingUpsert) ClearCardTerminalMode() *OutletSettingUpsert {
+	u.SetNull(outletsetting.FieldCardTerminalMode)
+	return u
+}
+
+// SetCardTerminalProvider sets the "card_terminal_provider" field.
+func (u *OutletSettingUpsert) SetCardTerminalProvider(v string) *OutletSettingUpsert {
+	u.Set(outletsetting.FieldCardTerminalProvider, v)
+	return u
+}
+
+// UpdateCardTerminalProvider sets the "card_terminal_provider" field to the value that was provided on create.
+func (u *OutletSettingUpsert) UpdateCardTerminalProvider() *OutletSettingUpsert {
+	u.SetExcluded(outletsetting.FieldCardTerminalProvider)
+	return u
+}
+
+// ClearCardTerminalProvider clears the value of the "card_terminal_provider" field.
+func (u *OutletSettingUpsert) ClearCardTerminalProvider() *OutletSettingUpsert {
+	u.SetNull(outletsetting.FieldCardTerminalProvider)
+	return u
+}
+
+// SetCardTerminalTid sets the "card_terminal_tid" field.
+func (u *OutletSettingUpsert) SetCardTerminalTid(v string) *OutletSettingUpsert {
+	u.Set(outletsetting.FieldCardTerminalTid, v)
+	return u
+}
+
+// UpdateCardTerminalTid sets the "card_terminal_tid" field to the value that was provided on create.
+func (u *OutletSettingUpsert) UpdateCardTerminalTid() *OutletSettingUpsert {
+	u.SetExcluded(outletsetting.FieldCardTerminalTid)
+	return u
+}
+
+// ClearCardTerminalTid clears the value of the "card_terminal_tid" field.
+func (u *OutletSettingUpsert) ClearCardTerminalTid() *OutletSettingUpsert {
+	u.SetNull(outletsetting.FieldCardTerminalTid)
+	return u
+}
+
+// SetCardTerminalRequireRef sets the "card_terminal_require_ref" field.
+func (u *OutletSettingUpsert) SetCardTerminalRequireRef(v bool) *OutletSettingUpsert {
+	u.Set(outletsetting.FieldCardTerminalRequireRef, v)
+	return u
+}
+
+// UpdateCardTerminalRequireRef sets the "card_terminal_require_ref" field to the value that was provided on create.
+func (u *OutletSettingUpsert) UpdateCardTerminalRequireRef() *OutletSettingUpsert {
+	u.SetExcluded(outletsetting.FieldCardTerminalRequireRef)
+	return u
+}
+
+// ClearCardTerminalRequireRef clears the value of the "card_terminal_require_ref" field.
+func (u *OutletSettingUpsert) ClearCardTerminalRequireRef() *OutletSettingUpsert {
+	u.SetNull(outletsetting.FieldCardTerminalRequireRef)
 	return u
 }
 
@@ -2357,6 +2665,174 @@ func (u *OutletSettingUpsertOne) UpdatePrinterProfiles() *OutletSettingUpsertOne
 func (u *OutletSettingUpsertOne) ClearPrinterProfiles() *OutletSettingUpsertOne {
 	return u.Update(func(s *OutletSettingUpsert) {
 		s.ClearPrinterProfiles()
+	})
+}
+
+// SetCashDrawerEnabled sets the "cash_drawer_enabled" field.
+func (u *OutletSettingUpsertOne) SetCashDrawerEnabled(v bool) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetCashDrawerEnabled(v)
+	})
+}
+
+// UpdateCashDrawerEnabled sets the "cash_drawer_enabled" field to the value that was provided on create.
+func (u *OutletSettingUpsertOne) UpdateCashDrawerEnabled() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateCashDrawerEnabled()
+	})
+}
+
+// ClearCashDrawerEnabled clears the value of the "cash_drawer_enabled" field.
+func (u *OutletSettingUpsertOne) ClearCashDrawerEnabled() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearCashDrawerEnabled()
+	})
+}
+
+// SetCashDrawerPrinter sets the "cash_drawer_printer" field.
+func (u *OutletSettingUpsertOne) SetCashDrawerPrinter(v string) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetCashDrawerPrinter(v)
+	})
+}
+
+// UpdateCashDrawerPrinter sets the "cash_drawer_printer" field to the value that was provided on create.
+func (u *OutletSettingUpsertOne) UpdateCashDrawerPrinter() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateCashDrawerPrinter()
+	})
+}
+
+// ClearCashDrawerPrinter clears the value of the "cash_drawer_printer" field.
+func (u *OutletSettingUpsertOne) ClearCashDrawerPrinter() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearCashDrawerPrinter()
+	})
+}
+
+// SetCashDrawerAutoOpen sets the "cash_drawer_auto_open" field.
+func (u *OutletSettingUpsertOne) SetCashDrawerAutoOpen(v bool) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetCashDrawerAutoOpen(v)
+	})
+}
+
+// UpdateCashDrawerAutoOpen sets the "cash_drawer_auto_open" field to the value that was provided on create.
+func (u *OutletSettingUpsertOne) UpdateCashDrawerAutoOpen() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateCashDrawerAutoOpen()
+	})
+}
+
+// ClearCashDrawerAutoOpen clears the value of the "cash_drawer_auto_open" field.
+func (u *OutletSettingUpsertOne) ClearCashDrawerAutoOpen() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearCashDrawerAutoOpen()
+	})
+}
+
+// SetCashDrawerKickCode sets the "cash_drawer_kick_code" field.
+func (u *OutletSettingUpsertOne) SetCashDrawerKickCode(v string) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetCashDrawerKickCode(v)
+	})
+}
+
+// UpdateCashDrawerKickCode sets the "cash_drawer_kick_code" field to the value that was provided on create.
+func (u *OutletSettingUpsertOne) UpdateCashDrawerKickCode() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateCashDrawerKickCode()
+	})
+}
+
+// ClearCashDrawerKickCode clears the value of the "cash_drawer_kick_code" field.
+func (u *OutletSettingUpsertOne) ClearCashDrawerKickCode() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearCashDrawerKickCode()
+	})
+}
+
+// SetCardTerminalMode sets the "card_terminal_mode" field.
+func (u *OutletSettingUpsertOne) SetCardTerminalMode(v string) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetCardTerminalMode(v)
+	})
+}
+
+// UpdateCardTerminalMode sets the "card_terminal_mode" field to the value that was provided on create.
+func (u *OutletSettingUpsertOne) UpdateCardTerminalMode() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateCardTerminalMode()
+	})
+}
+
+// ClearCardTerminalMode clears the value of the "card_terminal_mode" field.
+func (u *OutletSettingUpsertOne) ClearCardTerminalMode() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearCardTerminalMode()
+	})
+}
+
+// SetCardTerminalProvider sets the "card_terminal_provider" field.
+func (u *OutletSettingUpsertOne) SetCardTerminalProvider(v string) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetCardTerminalProvider(v)
+	})
+}
+
+// UpdateCardTerminalProvider sets the "card_terminal_provider" field to the value that was provided on create.
+func (u *OutletSettingUpsertOne) UpdateCardTerminalProvider() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateCardTerminalProvider()
+	})
+}
+
+// ClearCardTerminalProvider clears the value of the "card_terminal_provider" field.
+func (u *OutletSettingUpsertOne) ClearCardTerminalProvider() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearCardTerminalProvider()
+	})
+}
+
+// SetCardTerminalTid sets the "card_terminal_tid" field.
+func (u *OutletSettingUpsertOne) SetCardTerminalTid(v string) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetCardTerminalTid(v)
+	})
+}
+
+// UpdateCardTerminalTid sets the "card_terminal_tid" field to the value that was provided on create.
+func (u *OutletSettingUpsertOne) UpdateCardTerminalTid() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateCardTerminalTid()
+	})
+}
+
+// ClearCardTerminalTid clears the value of the "card_terminal_tid" field.
+func (u *OutletSettingUpsertOne) ClearCardTerminalTid() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearCardTerminalTid()
+	})
+}
+
+// SetCardTerminalRequireRef sets the "card_terminal_require_ref" field.
+func (u *OutletSettingUpsertOne) SetCardTerminalRequireRef(v bool) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetCardTerminalRequireRef(v)
+	})
+}
+
+// UpdateCardTerminalRequireRef sets the "card_terminal_require_ref" field to the value that was provided on create.
+func (u *OutletSettingUpsertOne) UpdateCardTerminalRequireRef() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateCardTerminalRequireRef()
+	})
+}
+
+// ClearCardTerminalRequireRef clears the value of the "card_terminal_require_ref" field.
+func (u *OutletSettingUpsertOne) ClearCardTerminalRequireRef() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearCardTerminalRequireRef()
 	})
 }
 
@@ -3482,6 +3958,174 @@ func (u *OutletSettingUpsertBulk) UpdatePrinterProfiles() *OutletSettingUpsertBu
 func (u *OutletSettingUpsertBulk) ClearPrinterProfiles() *OutletSettingUpsertBulk {
 	return u.Update(func(s *OutletSettingUpsert) {
 		s.ClearPrinterProfiles()
+	})
+}
+
+// SetCashDrawerEnabled sets the "cash_drawer_enabled" field.
+func (u *OutletSettingUpsertBulk) SetCashDrawerEnabled(v bool) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetCashDrawerEnabled(v)
+	})
+}
+
+// UpdateCashDrawerEnabled sets the "cash_drawer_enabled" field to the value that was provided on create.
+func (u *OutletSettingUpsertBulk) UpdateCashDrawerEnabled() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateCashDrawerEnabled()
+	})
+}
+
+// ClearCashDrawerEnabled clears the value of the "cash_drawer_enabled" field.
+func (u *OutletSettingUpsertBulk) ClearCashDrawerEnabled() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearCashDrawerEnabled()
+	})
+}
+
+// SetCashDrawerPrinter sets the "cash_drawer_printer" field.
+func (u *OutletSettingUpsertBulk) SetCashDrawerPrinter(v string) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetCashDrawerPrinter(v)
+	})
+}
+
+// UpdateCashDrawerPrinter sets the "cash_drawer_printer" field to the value that was provided on create.
+func (u *OutletSettingUpsertBulk) UpdateCashDrawerPrinter() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateCashDrawerPrinter()
+	})
+}
+
+// ClearCashDrawerPrinter clears the value of the "cash_drawer_printer" field.
+func (u *OutletSettingUpsertBulk) ClearCashDrawerPrinter() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearCashDrawerPrinter()
+	})
+}
+
+// SetCashDrawerAutoOpen sets the "cash_drawer_auto_open" field.
+func (u *OutletSettingUpsertBulk) SetCashDrawerAutoOpen(v bool) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetCashDrawerAutoOpen(v)
+	})
+}
+
+// UpdateCashDrawerAutoOpen sets the "cash_drawer_auto_open" field to the value that was provided on create.
+func (u *OutletSettingUpsertBulk) UpdateCashDrawerAutoOpen() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateCashDrawerAutoOpen()
+	})
+}
+
+// ClearCashDrawerAutoOpen clears the value of the "cash_drawer_auto_open" field.
+func (u *OutletSettingUpsertBulk) ClearCashDrawerAutoOpen() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearCashDrawerAutoOpen()
+	})
+}
+
+// SetCashDrawerKickCode sets the "cash_drawer_kick_code" field.
+func (u *OutletSettingUpsertBulk) SetCashDrawerKickCode(v string) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetCashDrawerKickCode(v)
+	})
+}
+
+// UpdateCashDrawerKickCode sets the "cash_drawer_kick_code" field to the value that was provided on create.
+func (u *OutletSettingUpsertBulk) UpdateCashDrawerKickCode() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateCashDrawerKickCode()
+	})
+}
+
+// ClearCashDrawerKickCode clears the value of the "cash_drawer_kick_code" field.
+func (u *OutletSettingUpsertBulk) ClearCashDrawerKickCode() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearCashDrawerKickCode()
+	})
+}
+
+// SetCardTerminalMode sets the "card_terminal_mode" field.
+func (u *OutletSettingUpsertBulk) SetCardTerminalMode(v string) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetCardTerminalMode(v)
+	})
+}
+
+// UpdateCardTerminalMode sets the "card_terminal_mode" field to the value that was provided on create.
+func (u *OutletSettingUpsertBulk) UpdateCardTerminalMode() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateCardTerminalMode()
+	})
+}
+
+// ClearCardTerminalMode clears the value of the "card_terminal_mode" field.
+func (u *OutletSettingUpsertBulk) ClearCardTerminalMode() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearCardTerminalMode()
+	})
+}
+
+// SetCardTerminalProvider sets the "card_terminal_provider" field.
+func (u *OutletSettingUpsertBulk) SetCardTerminalProvider(v string) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetCardTerminalProvider(v)
+	})
+}
+
+// UpdateCardTerminalProvider sets the "card_terminal_provider" field to the value that was provided on create.
+func (u *OutletSettingUpsertBulk) UpdateCardTerminalProvider() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateCardTerminalProvider()
+	})
+}
+
+// ClearCardTerminalProvider clears the value of the "card_terminal_provider" field.
+func (u *OutletSettingUpsertBulk) ClearCardTerminalProvider() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearCardTerminalProvider()
+	})
+}
+
+// SetCardTerminalTid sets the "card_terminal_tid" field.
+func (u *OutletSettingUpsertBulk) SetCardTerminalTid(v string) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetCardTerminalTid(v)
+	})
+}
+
+// UpdateCardTerminalTid sets the "card_terminal_tid" field to the value that was provided on create.
+func (u *OutletSettingUpsertBulk) UpdateCardTerminalTid() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateCardTerminalTid()
+	})
+}
+
+// ClearCardTerminalTid clears the value of the "card_terminal_tid" field.
+func (u *OutletSettingUpsertBulk) ClearCardTerminalTid() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearCardTerminalTid()
+	})
+}
+
+// SetCardTerminalRequireRef sets the "card_terminal_require_ref" field.
+func (u *OutletSettingUpsertBulk) SetCardTerminalRequireRef(v bool) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetCardTerminalRequireRef(v)
+	})
+}
+
+// UpdateCardTerminalRequireRef sets the "card_terminal_require_ref" field to the value that was provided on create.
+func (u *OutletSettingUpsertBulk) UpdateCardTerminalRequireRef() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateCardTerminalRequireRef()
+	})
+}
+
+// ClearCardTerminalRequireRef clears the value of the "card_terminal_require_ref" field.
+func (u *OutletSettingUpsertBulk) ClearCardTerminalRequireRef() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearCardTerminalRequireRef()
 	})
 }
 

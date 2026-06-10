@@ -65,6 +65,22 @@ const (
 	FieldAutoPrintKitchen = "auto_print_kitchen"
 	// FieldPrinterProfiles holds the string denoting the printer_profiles field in the database.
 	FieldPrinterProfiles = "printer_profiles"
+	// FieldCashDrawerEnabled holds the string denoting the cash_drawer_enabled field in the database.
+	FieldCashDrawerEnabled = "cash_drawer_enabled"
+	// FieldCashDrawerPrinter holds the string denoting the cash_drawer_printer field in the database.
+	FieldCashDrawerPrinter = "cash_drawer_printer"
+	// FieldCashDrawerAutoOpen holds the string denoting the cash_drawer_auto_open field in the database.
+	FieldCashDrawerAutoOpen = "cash_drawer_auto_open"
+	// FieldCashDrawerKickCode holds the string denoting the cash_drawer_kick_code field in the database.
+	FieldCashDrawerKickCode = "cash_drawer_kick_code"
+	// FieldCardTerminalMode holds the string denoting the card_terminal_mode field in the database.
+	FieldCardTerminalMode = "card_terminal_mode"
+	// FieldCardTerminalProvider holds the string denoting the card_terminal_provider field in the database.
+	FieldCardTerminalProvider = "card_terminal_provider"
+	// FieldCardTerminalTid holds the string denoting the card_terminal_tid field in the database.
+	FieldCardTerminalTid = "card_terminal_tid"
+	// FieldCardTerminalRequireRef holds the string denoting the card_terminal_require_ref field in the database.
+	FieldCardTerminalRequireRef = "card_terminal_require_ref"
 	// FieldMpesaPaybill holds the string denoting the mpesa_paybill field in the database.
 	FieldMpesaPaybill = "mpesa_paybill"
 	// FieldMpesaAccountReference holds the string denoting the mpesa_account_reference field in the database.
@@ -142,6 +158,14 @@ var Columns = []string{
 	FieldAutoPrintOrder,
 	FieldAutoPrintKitchen,
 	FieldPrinterProfiles,
+	FieldCashDrawerEnabled,
+	FieldCashDrawerPrinter,
+	FieldCashDrawerAutoOpen,
+	FieldCashDrawerKickCode,
+	FieldCardTerminalMode,
+	FieldCardTerminalProvider,
+	FieldCardTerminalTid,
+	FieldCardTerminalRequireRef,
 	FieldMpesaPaybill,
 	FieldMpesaAccountReference,
 	FieldAirtelMoneyNumber,
@@ -203,6 +227,16 @@ var (
 	DefaultAutoPrintKitchen bool
 	// DefaultPrinterProfiles holds the default value on creation for the "printer_profiles" field.
 	DefaultPrinterProfiles []map[string]interface{}
+	// DefaultCashDrawerEnabled holds the default value on creation for the "cash_drawer_enabled" field.
+	DefaultCashDrawerEnabled bool
+	// DefaultCashDrawerAutoOpen holds the default value on creation for the "cash_drawer_auto_open" field.
+	DefaultCashDrawerAutoOpen bool
+	// DefaultCashDrawerKickCode holds the default value on creation for the "cash_drawer_kick_code" field.
+	DefaultCashDrawerKickCode string
+	// DefaultCardTerminalMode holds the default value on creation for the "card_terminal_mode" field.
+	DefaultCardTerminalMode string
+	// DefaultCardTerminalRequireRef holds the default value on creation for the "card_terminal_require_ref" field.
+	DefaultCardTerminalRequireRef bool
 	// DefaultShowPaymentInfoOnReceipt holds the default value on creation for the "show_payment_info_on_receipt" field.
 	DefaultShowPaymentInfoOnReceipt bool
 	// DefaultHotelModuleEnabled holds the default value on creation for the "hotel_module_enabled" field.
@@ -328,6 +362,46 @@ func ByAutoPrintOrder(opts ...sql.OrderTermOption) OrderOption {
 // ByAutoPrintKitchen orders the results by the auto_print_kitchen field.
 func ByAutoPrintKitchen(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldAutoPrintKitchen, opts...).ToFunc()
+}
+
+// ByCashDrawerEnabled orders the results by the cash_drawer_enabled field.
+func ByCashDrawerEnabled(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCashDrawerEnabled, opts...).ToFunc()
+}
+
+// ByCashDrawerPrinter orders the results by the cash_drawer_printer field.
+func ByCashDrawerPrinter(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCashDrawerPrinter, opts...).ToFunc()
+}
+
+// ByCashDrawerAutoOpen orders the results by the cash_drawer_auto_open field.
+func ByCashDrawerAutoOpen(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCashDrawerAutoOpen, opts...).ToFunc()
+}
+
+// ByCashDrawerKickCode orders the results by the cash_drawer_kick_code field.
+func ByCashDrawerKickCode(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCashDrawerKickCode, opts...).ToFunc()
+}
+
+// ByCardTerminalMode orders the results by the card_terminal_mode field.
+func ByCardTerminalMode(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCardTerminalMode, opts...).ToFunc()
+}
+
+// ByCardTerminalProvider orders the results by the card_terminal_provider field.
+func ByCardTerminalProvider(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCardTerminalProvider, opts...).ToFunc()
+}
+
+// ByCardTerminalTid orders the results by the card_terminal_tid field.
+func ByCardTerminalTid(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCardTerminalTid, opts...).ToFunc()
+}
+
+// ByCardTerminalRequireRef orders the results by the card_terminal_require_ref field.
+func ByCardTerminalRequireRef(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCardTerminalRequireRef, opts...).ToFunc()
 }
 
 // ByMpesaPaybill orders the results by the mpesa_paybill field.

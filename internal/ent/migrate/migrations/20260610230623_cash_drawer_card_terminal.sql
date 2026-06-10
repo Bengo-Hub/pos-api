@@ -1,0 +1,2 @@
+-- Modify "outlet_settings" table
+ALTER TABLE "outlet_settings" ADD COLUMN "cash_drawer_enabled" boolean NULL DEFAULT false, ADD COLUMN "cash_drawer_printer" character varying NULL, ADD COLUMN "cash_drawer_auto_open" boolean NULL DEFAULT true, ADD COLUMN "cash_drawer_kick_code" character varying NULL DEFAULT 'default', ADD COLUMN "card_terminal_mode" character varying NULL DEFAULT 'manual', ADD COLUMN "card_terminal_provider" character varying NULL, ADD COLUMN "card_terminal_tid" character varying NULL, ADD COLUMN "card_terminal_require_ref" boolean NULL DEFAULT false;

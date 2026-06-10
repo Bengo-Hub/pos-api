@@ -95,6 +95,16 @@ type settingsResponse struct {
 	ReturnWindowDays int `json:"return_window_days"`
 	// printer profiles (multi-printer support)
 	PrinterProfiles []map[string]any `json:"printer_profiles"`
+	// cash drawer (ESC/POS drawer kick via assigned printer)
+	CashDrawerEnabled  bool    `json:"cash_drawer_enabled"`
+	CashDrawerPrinter  *string `json:"cash_drawer_printer"`
+	CashDrawerAutoOpen bool    `json:"cash_drawer_auto_open"`
+	CashDrawerKickCode string  `json:"cash_drawer_kick_code"`
+	// card terminal / PDQ
+	CardTerminalMode       string  `json:"card_terminal_mode"`
+	CardTerminalProvider   *string `json:"card_terminal_provider"`
+	CardTerminalTID        *string `json:"card_terminal_tid"`
+	CardTerminalRequireRef bool    `json:"card_terminal_require_ref"`
 	// terminal
 	PINLoginMessage *string `json:"pin_login_message"`
 	ScreensaverURL  *string `json:"screensaver_url"`
@@ -143,6 +153,14 @@ func toSettingsResponse(outlet *ent.Outlet, s *ent.OutletSetting) settingsRespon
 		TableMaxOccupationMinutes: s.TableMaxOccupationMinutes,
 		ReturnWindowDays:          s.ReturnWindowDays,
 		PrinterProfiles:           s.PrinterProfiles,
+		CashDrawerEnabled:         s.CashDrawerEnabled,
+		CashDrawerPrinter:         s.CashDrawerPrinter,
+		CashDrawerAutoOpen:        s.CashDrawerAutoOpen,
+		CashDrawerKickCode:        s.CashDrawerKickCode,
+		CardTerminalMode:          s.CardTerminalMode,
+		CardTerminalProvider:      s.CardTerminalProvider,
+		CardTerminalTID:           s.CardTerminalTid,
+		CardTerminalRequireRef:    s.CardTerminalRequireRef,
 		PINLoginMessage:           s.PinLoginMessage,
 		ScreensaverURL:            s.ScreensaverURL,
 		MpesaPaybill:              s.MpesaPaybill,
@@ -267,6 +285,16 @@ type updateSettingsInput struct {
 	PINLoginMessage    *string          `json:"pin_login_message"`
 	ScreensaverURL     *string          `json:"screensaver_url"`
 	ReturnWindowDays   *int             `json:"return_window_days"`
+	// cash drawer
+	CashDrawerEnabled  *bool   `json:"cash_drawer_enabled"`
+	CashDrawerPrinter  *string `json:"cash_drawer_printer"`
+	CashDrawerAutoOpen *bool   `json:"cash_drawer_auto_open"`
+	CashDrawerKickCode *string `json:"cash_drawer_kick_code"`
+	// card terminal / PDQ
+	CardTerminalMode       *string `json:"card_terminal_mode"`
+	CardTerminalProvider   *string `json:"card_terminal_provider"`
+	CardTerminalTID        *string `json:"card_terminal_tid"`
+	CardTerminalRequireRef *bool   `json:"card_terminal_require_ref"`
 	// payment display fields
 	MpesaPaybill             *string `json:"mpesa_paybill"`
 	MpesaAccountReference    *string `json:"mpesa_account_reference"`
@@ -362,6 +390,30 @@ func (h *ServiceSettingsHandler) PutSettings(w http.ResponseWriter, r *http.Requ
 	}
 	if input.ReturnWindowDays != nil {
 		upd = upd.SetReturnWindowDays(*input.ReturnWindowDays)
+	}
+	if input.CashDrawerEnabled != nil {
+		upd = upd.SetCashDrawerEnabled(*input.CashDrawerEnabled)
+	}
+	if input.CashDrawerPrinter != nil {
+		upd = upd.SetNillableCashDrawerPrinter(input.CashDrawerPrinter)
+	}
+	if input.CashDrawerAutoOpen != nil {
+		upd = upd.SetCashDrawerAutoOpen(*input.CashDrawerAutoOpen)
+	}
+	if input.CashDrawerKickCode != nil {
+		upd = upd.SetCashDrawerKickCode(*input.CashDrawerKickCode)
+	}
+	if input.CardTerminalMode != nil {
+		upd = upd.SetCardTerminalMode(*input.CardTerminalMode)
+	}
+	if input.CardTerminalProvider != nil {
+		upd = upd.SetNillableCardTerminalProvider(input.CardTerminalProvider)
+	}
+	if input.CardTerminalTID != nil {
+		upd = upd.SetNillableCardTerminalTid(input.CardTerminalTID)
+	}
+	if input.CardTerminalRequireRef != nil {
+		upd = upd.SetCardTerminalRequireRef(*input.CardTerminalRequireRef)
 	}
 	if input.MpesaPaybill != nil {
 		upd = upd.SetNillableMpesaPaybill(input.MpesaPaybill)

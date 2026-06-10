@@ -70,6 +70,22 @@ type OutletSetting struct {
 	AutoPrintKitchen bool `json:"auto_print_kitchen,omitempty"`
 	// Array of printer profile objects: [{id, label, printer_type, printer_ip, paper_width, auto_print, categories}]
 	PrinterProfiles []map[string]interface{} `json:"printer_profiles,omitempty"`
+	// Enable cash-drawer integration (ESC/POS drawer kick via the assigned printer)
+	CashDrawerEnabled bool `json:"cash_drawer_enabled,omitempty"`
+	// OS/QZ-Tray printer name the cash drawer is wired to (RJ11/12). Empty => use the Bill/customer station printer.
+	CashDrawerPrinter *string `json:"cash_drawer_printer,omitempty"`
+	// Automatically pop the drawer on cash & card settlement
+	CashDrawerAutoOpen bool `json:"cash_drawer_auto_open,omitempty"`
+	// ESC/POS drawer-kick pin variant: default (pin2) | pin5 | legacy
+	CashDrawerKickCode string `json:"cash_drawer_kick_code,omitempty"`
+	// Card-terminal mode: manual (standalone PDQ + approval ref) | integrated (push amount to terminal)
+	CardTerminalMode string `json:"card_terminal_mode,omitempty"`
+	// Integrated card-terminal provider key, e.g. pesapal, flutterwave (matches treasury platform gateway)
+	CardTerminalProvider *string `json:"card_terminal_provider,omitempty"`
+	// Terminal/serial identifier (TID) of the physical card terminal assigned to this outlet
+	CardTerminalTid *string `json:"card_terminal_tid,omitempty"`
+	// In manual mode, require the cashier to enter the PDQ approval/reference code before settling
+	CardTerminalRequireRef bool `json:"card_terminal_require_ref,omitempty"`
 	// M-PESA Paybill shortcode for customer payments, e.g. 522533
 	MpesaPaybill *string `json:"mpesa_paybill,omitempty"`
 	// Account reference shown in M-PESA payment prompt, e.g. 79319044
@@ -141,13 +157,13 @@ func (*OutletSetting) scanValues(columns []string) ([]any, error) {
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		case outletsetting.FieldReceiptsJSON, outletsetting.FieldTaxConfigJSON, outletsetting.FieldServiceChargeJSON, outletsetting.FieldOpeningHoursJSON, outletsetting.FieldMetadata, outletsetting.FieldPrinterProfiles:
 			values[i] = new([]byte)
-		case outletsetting.FieldShowImages, outletsetting.FieldShowBarcodeScanner, outletsetting.FieldEnableKds, outletsetting.FieldEnableAppointments, outletsetting.FieldVatEnabled, outletsetting.FieldAutoPrintOrder, outletsetting.FieldAutoPrintKitchen, outletsetting.FieldShowPaymentInfoOnReceipt, outletsetting.FieldHotelModuleEnabled, outletsetting.FieldLayawayEnabled, outletsetting.FieldShiftReportsEnabled, outletsetting.FieldShiftAutoEndEnabled:
+		case outletsetting.FieldShowImages, outletsetting.FieldShowBarcodeScanner, outletsetting.FieldEnableKds, outletsetting.FieldEnableAppointments, outletsetting.FieldVatEnabled, outletsetting.FieldAutoPrintOrder, outletsetting.FieldAutoPrintKitchen, outletsetting.FieldCashDrawerEnabled, outletsetting.FieldCashDrawerAutoOpen, outletsetting.FieldCardTerminalRequireRef, outletsetting.FieldShowPaymentInfoOnReceipt, outletsetting.FieldHotelModuleEnabled, outletsetting.FieldLayawayEnabled, outletsetting.FieldShiftReportsEnabled, outletsetting.FieldShiftAutoEndEnabled:
 			values[i] = new(sql.NullBool)
 		case outletsetting.FieldVatRate:
 			values[i] = new(sql.NullFloat64)
 		case outletsetting.FieldShiftMaxHours, outletsetting.FieldTableMaxOccupationMinutes, outletsetting.FieldReturnWindowDays:
 			values[i] = new(sql.NullInt64)
-		case outletsetting.FieldPinLoginMessage, outletsetting.FieldScreensaverURL, outletsetting.FieldDisplayMode, outletsetting.FieldDefaultView, outletsetting.FieldReceiptHeader, outletsetting.FieldReceiptFooter, outletsetting.FieldCurrency, outletsetting.FieldPrinterType, outletsetting.FieldPrinterIP, outletsetting.FieldPaperWidth, outletsetting.FieldMpesaPaybill, outletsetting.FieldMpesaAccountReference, outletsetting.FieldAirtelMoneyNumber, outletsetting.FieldMpesaTill, outletsetting.FieldMpesaPochi, outletsetting.FieldBankName, outletsetting.FieldBankAccountNumber, outletsetting.FieldBankAccountName:
+		case outletsetting.FieldPinLoginMessage, outletsetting.FieldScreensaverURL, outletsetting.FieldDisplayMode, outletsetting.FieldDefaultView, outletsetting.FieldReceiptHeader, outletsetting.FieldReceiptFooter, outletsetting.FieldCurrency, outletsetting.FieldPrinterType, outletsetting.FieldPrinterIP, outletsetting.FieldPaperWidth, outletsetting.FieldCashDrawerPrinter, outletsetting.FieldCashDrawerKickCode, outletsetting.FieldCardTerminalMode, outletsetting.FieldCardTerminalProvider, outletsetting.FieldCardTerminalTid, outletsetting.FieldMpesaPaybill, outletsetting.FieldMpesaAccountReference, outletsetting.FieldAirtelMoneyNumber, outletsetting.FieldMpesaTill, outletsetting.FieldMpesaPochi, outletsetting.FieldBankName, outletsetting.FieldBankAccountNumber, outletsetting.FieldBankAccountName:
 			values[i] = new(sql.NullString)
 		case outletsetting.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -340,6 +356,57 @@ func (_m *OutletSetting) assignValues(columns []string, values []any) error {
 				if err := json.Unmarshal(*value, &_m.PrinterProfiles); err != nil {
 					return fmt.Errorf("unmarshal field printer_profiles: %w", err)
 				}
+			}
+		case outletsetting.FieldCashDrawerEnabled:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field cash_drawer_enabled", values[i])
+			} else if value.Valid {
+				_m.CashDrawerEnabled = value.Bool
+			}
+		case outletsetting.FieldCashDrawerPrinter:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field cash_drawer_printer", values[i])
+			} else if value.Valid {
+				_m.CashDrawerPrinter = new(string)
+				*_m.CashDrawerPrinter = value.String
+			}
+		case outletsetting.FieldCashDrawerAutoOpen:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field cash_drawer_auto_open", values[i])
+			} else if value.Valid {
+				_m.CashDrawerAutoOpen = value.Bool
+			}
+		case outletsetting.FieldCashDrawerKickCode:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field cash_drawer_kick_code", values[i])
+			} else if value.Valid {
+				_m.CashDrawerKickCode = value.String
+			}
+		case outletsetting.FieldCardTerminalMode:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field card_terminal_mode", values[i])
+			} else if value.Valid {
+				_m.CardTerminalMode = value.String
+			}
+		case outletsetting.FieldCardTerminalProvider:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field card_terminal_provider", values[i])
+			} else if value.Valid {
+				_m.CardTerminalProvider = new(string)
+				*_m.CardTerminalProvider = value.String
+			}
+		case outletsetting.FieldCardTerminalTid:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field card_terminal_tid", values[i])
+			} else if value.Valid {
+				_m.CardTerminalTid = new(string)
+				*_m.CardTerminalTid = value.String
+			}
+		case outletsetting.FieldCardTerminalRequireRef:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field card_terminal_require_ref", values[i])
+			} else if value.Valid {
+				_m.CardTerminalRequireRef = value.Bool
 			}
 		case outletsetting.FieldMpesaPaybill:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -583,6 +650,36 @@ func (_m *OutletSetting) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("printer_profiles=")
 	builder.WriteString(fmt.Sprintf("%v", _m.PrinterProfiles))
+	builder.WriteString(", ")
+	builder.WriteString("cash_drawer_enabled=")
+	builder.WriteString(fmt.Sprintf("%v", _m.CashDrawerEnabled))
+	builder.WriteString(", ")
+	if v := _m.CashDrawerPrinter; v != nil {
+		builder.WriteString("cash_drawer_printer=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	builder.WriteString("cash_drawer_auto_open=")
+	builder.WriteString(fmt.Sprintf("%v", _m.CashDrawerAutoOpen))
+	builder.WriteString(", ")
+	builder.WriteString("cash_drawer_kick_code=")
+	builder.WriteString(_m.CashDrawerKickCode)
+	builder.WriteString(", ")
+	builder.WriteString("card_terminal_mode=")
+	builder.WriteString(_m.CardTerminalMode)
+	builder.WriteString(", ")
+	if v := _m.CardTerminalProvider; v != nil {
+		builder.WriteString("card_terminal_provider=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.CardTerminalTid; v != nil {
+		builder.WriteString("card_terminal_tid=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	builder.WriteString("card_terminal_require_ref=")
+	builder.WriteString(fmt.Sprintf("%v", _m.CardTerminalRequireRef))
 	builder.WriteString(", ")
 	if v := _m.MpesaPaybill; v != nil {
 		builder.WriteString("mpesa_paybill=")

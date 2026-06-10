@@ -54,6 +54,21 @@ func (OutletSetting) Fields() []ent.Field {
 			Default([]map[string]any{}).
 			Optional().
 			Comment("Array of printer profile objects: [{id, label, printer_type, printer_ip, paper_width, auto_print, categories}]"),
+		// Cash drawer — the drawer is wired to a receipt printer's RJ11/12 port and opened by an
+		// ESC/POS "drawer kick" pulse sent to that printer. The pos-ui sends the kick via the QZ Tray
+		// bridge (same channel as printing); these fields configure which printer + when it auto-opens.
+		field.Bool("cash_drawer_enabled").Default(false).Optional().Comment("Enable cash-drawer integration (ESC/POS drawer kick via the assigned printer)"),
+		field.String("cash_drawer_printer").Optional().Nillable().Comment("OS/QZ-Tray printer name the cash drawer is wired to (RJ11/12). Empty => use the Bill/customer station printer."),
+		field.Bool("cash_drawer_auto_open").Default(true).Optional().Comment("Automatically pop the drawer on cash & card settlement"),
+		field.String("cash_drawer_kick_code").Default("default").Optional().Comment("ESC/POS drawer-kick pin variant: default (pin2) | pin5 | legacy"),
+		// Card terminal / PDQ — manual standalone PDQ is the default (cashier runs the card, enters the
+		// approval ref). An integrated mode pushes the amount to a cloud/ECR terminal via a treasury
+		// gateway adapter; provider creds live at platform level (treasury GatewayConfig), the
+		// terminal identifier (TID/serial) is per-outlet here.
+		field.String("card_terminal_mode").Default("manual").Optional().Comment("Card-terminal mode: manual (standalone PDQ + approval ref) | integrated (push amount to terminal)"),
+		field.String("card_terminal_provider").Optional().Nillable().Comment("Integrated card-terminal provider key, e.g. pesapal, flutterwave (matches treasury platform gateway)"),
+		field.String("card_terminal_tid").Optional().Nillable().Comment("Terminal/serial identifier (TID) of the physical card terminal assigned to this outlet"),
+		field.Bool("card_terminal_require_ref").Default(false).Optional().Comment("In manual mode, require the cashier to enter the PDQ approval/reference code before settling"),
 		// Payment display fields — shown on receipts when show_payment_info_on_receipt is true
 		field.String("mpesa_paybill").Optional().Nillable().Comment("M-PESA Paybill shortcode for customer payments, e.g. 522533"),
 		field.String("mpesa_account_reference").Optional().Nillable().Comment("Account reference shown in M-PESA payment prompt, e.g. 79319044"),

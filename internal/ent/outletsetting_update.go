@@ -484,6 +484,166 @@ func (_u *OutletSettingUpdate) ClearPrinterProfiles() *OutletSettingUpdate {
 	return _u
 }
 
+// SetCashDrawerEnabled sets the "cash_drawer_enabled" field.
+func (_u *OutletSettingUpdate) SetCashDrawerEnabled(v bool) *OutletSettingUpdate {
+	_u.mutation.SetCashDrawerEnabled(v)
+	return _u
+}
+
+// SetNillableCashDrawerEnabled sets the "cash_drawer_enabled" field if the given value is not nil.
+func (_u *OutletSettingUpdate) SetNillableCashDrawerEnabled(v *bool) *OutletSettingUpdate {
+	if v != nil {
+		_u.SetCashDrawerEnabled(*v)
+	}
+	return _u
+}
+
+// ClearCashDrawerEnabled clears the value of the "cash_drawer_enabled" field.
+func (_u *OutletSettingUpdate) ClearCashDrawerEnabled() *OutletSettingUpdate {
+	_u.mutation.ClearCashDrawerEnabled()
+	return _u
+}
+
+// SetCashDrawerPrinter sets the "cash_drawer_printer" field.
+func (_u *OutletSettingUpdate) SetCashDrawerPrinter(v string) *OutletSettingUpdate {
+	_u.mutation.SetCashDrawerPrinter(v)
+	return _u
+}
+
+// SetNillableCashDrawerPrinter sets the "cash_drawer_printer" field if the given value is not nil.
+func (_u *OutletSettingUpdate) SetNillableCashDrawerPrinter(v *string) *OutletSettingUpdate {
+	if v != nil {
+		_u.SetCashDrawerPrinter(*v)
+	}
+	return _u
+}
+
+// ClearCashDrawerPrinter clears the value of the "cash_drawer_printer" field.
+func (_u *OutletSettingUpdate) ClearCashDrawerPrinter() *OutletSettingUpdate {
+	_u.mutation.ClearCashDrawerPrinter()
+	return _u
+}
+
+// SetCashDrawerAutoOpen sets the "cash_drawer_auto_open" field.
+func (_u *OutletSettingUpdate) SetCashDrawerAutoOpen(v bool) *OutletSettingUpdate {
+	_u.mutation.SetCashDrawerAutoOpen(v)
+	return _u
+}
+
+// SetNillableCashDrawerAutoOpen sets the "cash_drawer_auto_open" field if the given value is not nil.
+func (_u *OutletSettingUpdate) SetNillableCashDrawerAutoOpen(v *bool) *OutletSettingUpdate {
+	if v != nil {
+		_u.SetCashDrawerAutoOpen(*v)
+	}
+	return _u
+}
+
+// ClearCashDrawerAutoOpen clears the value of the "cash_drawer_auto_open" field.
+func (_u *OutletSettingUpdate) ClearCashDrawerAutoOpen() *OutletSettingUpdate {
+	_u.mutation.ClearCashDrawerAutoOpen()
+	return _u
+}
+
+// SetCashDrawerKickCode sets the "cash_drawer_kick_code" field.
+func (_u *OutletSettingUpdate) SetCashDrawerKickCode(v string) *OutletSettingUpdate {
+	_u.mutation.SetCashDrawerKickCode(v)
+	return _u
+}
+
+// SetNillableCashDrawerKickCode sets the "cash_drawer_kick_code" field if the given value is not nil.
+func (_u *OutletSettingUpdate) SetNillableCashDrawerKickCode(v *string) *OutletSettingUpdate {
+	if v != nil {
+		_u.SetCashDrawerKickCode(*v)
+	}
+	return _u
+}
+
+// ClearCashDrawerKickCode clears the value of the "cash_drawer_kick_code" field.
+func (_u *OutletSettingUpdate) ClearCashDrawerKickCode() *OutletSettingUpdate {
+	_u.mutation.ClearCashDrawerKickCode()
+	return _u
+}
+
+// SetCardTerminalMode sets the "card_terminal_mode" field.
+func (_u *OutletSettingUpdate) SetCardTerminalMode(v string) *OutletSettingUpdate {
+	_u.mutation.SetCardTerminalMode(v)
+	return _u
+}
+
+// SetNillableCardTerminalMode sets the "card_terminal_mode" field if the given value is not nil.
+func (_u *OutletSettingUpdate) SetNillableCardTerminalMode(v *string) *OutletSettingUpdate {
+	if v != nil {
+		_u.SetCardTerminalMode(*v)
+	}
+	return _u
+}
+
+// ClearCardTerminalMode clears the value of the "card_terminal_mode" field.
+func (_u *OutletSettingUpdate) ClearCardTerminalMode() *OutletSettingUpdate {
+	_u.mutation.ClearCardTerminalMode()
+	return _u
+}
+
+// SetCardTerminalProvider sets the "card_terminal_provider" field.
+func (_u *OutletSettingUpdate) SetCardTerminalProvider(v string) *OutletSettingUpdate {
+	_u.mutation.SetCardTerminalProvider(v)
+	return _u
+}
+
+// SetNillableCardTerminalProvider sets the "card_terminal_provider" field if the given value is not nil.
+func (_u *OutletSettingUpdate) SetNillableCardTerminalProvider(v *string) *OutletSettingUpdate {
+	if v != nil {
+		_u.SetCardTerminalProvider(*v)
+	}
+	return _u
+}
+
+// ClearCardTerminalProvider clears the value of the "card_terminal_provider" field.
+func (_u *OutletSettingUpdate) ClearCardTerminalProvider() *OutletSettingUpdate {
+	_u.mutation.ClearCardTerminalProvider()
+	return _u
+}
+
+// SetCardTerminalTid sets the "card_terminal_tid" field.
+func (_u *OutletSettingUpdate) SetCardTerminalTid(v string) *OutletSettingUpdate {
+	_u.mutation.SetCardTerminalTid(v)
+	return _u
+}
+
+// SetNillableCardTerminalTid sets the "card_terminal_tid" field if the given value is not nil.
+func (_u *OutletSettingUpdate) SetNillableCardTerminalTid(v *string) *OutletSettingUpdate {
+	if v != nil {
+		_u.SetCardTerminalTid(*v)
+	}
+	return _u
+}
+
+// ClearCardTerminalTid clears the value of the "card_terminal_tid" field.
+func (_u *OutletSettingUpdate) ClearCardTerminalTid() *OutletSettingUpdate {
+	_u.mutation.ClearCardTerminalTid()
+	return _u
+}
+
+// SetCardTerminalRequireRef sets the "card_terminal_require_ref" field.
+func (_u *OutletSettingUpdate) SetCardTerminalRequireRef(v bool) *OutletSettingUpdate {
+	_u.mutation.SetCardTerminalRequireRef(v)
+	return _u
+}
+
+// SetNillableCardTerminalRequireRef sets the "card_terminal_require_ref" field if the given value is not nil.
+func (_u *OutletSettingUpdate) SetNillableCardTerminalRequireRef(v *bool) *OutletSettingUpdate {
+	if v != nil {
+		_u.SetCardTerminalRequireRef(*v)
+	}
+	return _u
+}
+
+// ClearCardTerminalRequireRef clears the value of the "card_terminal_require_ref" field.
+func (_u *OutletSettingUpdate) ClearCardTerminalRequireRef() *OutletSettingUpdate {
+	_u.mutation.ClearCardTerminalRequireRef()
+	return _u
+}
+
 // SetMpesaPaybill sets the "mpesa_paybill" field.
 func (_u *OutletSettingUpdate) SetMpesaPaybill(v string) *OutletSettingUpdate {
 	_u.mutation.SetMpesaPaybill(v)
@@ -1071,6 +1231,54 @@ func (_u *OutletSettingUpdate) sqlSave(ctx context.Context) (_node int, err erro
 	}
 	if _u.mutation.PrinterProfilesCleared() {
 		_spec.ClearField(outletsetting.FieldPrinterProfiles, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.CashDrawerEnabled(); ok {
+		_spec.SetField(outletsetting.FieldCashDrawerEnabled, field.TypeBool, value)
+	}
+	if _u.mutation.CashDrawerEnabledCleared() {
+		_spec.ClearField(outletsetting.FieldCashDrawerEnabled, field.TypeBool)
+	}
+	if value, ok := _u.mutation.CashDrawerPrinter(); ok {
+		_spec.SetField(outletsetting.FieldCashDrawerPrinter, field.TypeString, value)
+	}
+	if _u.mutation.CashDrawerPrinterCleared() {
+		_spec.ClearField(outletsetting.FieldCashDrawerPrinter, field.TypeString)
+	}
+	if value, ok := _u.mutation.CashDrawerAutoOpen(); ok {
+		_spec.SetField(outletsetting.FieldCashDrawerAutoOpen, field.TypeBool, value)
+	}
+	if _u.mutation.CashDrawerAutoOpenCleared() {
+		_spec.ClearField(outletsetting.FieldCashDrawerAutoOpen, field.TypeBool)
+	}
+	if value, ok := _u.mutation.CashDrawerKickCode(); ok {
+		_spec.SetField(outletsetting.FieldCashDrawerKickCode, field.TypeString, value)
+	}
+	if _u.mutation.CashDrawerKickCodeCleared() {
+		_spec.ClearField(outletsetting.FieldCashDrawerKickCode, field.TypeString)
+	}
+	if value, ok := _u.mutation.CardTerminalMode(); ok {
+		_spec.SetField(outletsetting.FieldCardTerminalMode, field.TypeString, value)
+	}
+	if _u.mutation.CardTerminalModeCleared() {
+		_spec.ClearField(outletsetting.FieldCardTerminalMode, field.TypeString)
+	}
+	if value, ok := _u.mutation.CardTerminalProvider(); ok {
+		_spec.SetField(outletsetting.FieldCardTerminalProvider, field.TypeString, value)
+	}
+	if _u.mutation.CardTerminalProviderCleared() {
+		_spec.ClearField(outletsetting.FieldCardTerminalProvider, field.TypeString)
+	}
+	if value, ok := _u.mutation.CardTerminalTid(); ok {
+		_spec.SetField(outletsetting.FieldCardTerminalTid, field.TypeString, value)
+	}
+	if _u.mutation.CardTerminalTidCleared() {
+		_spec.ClearField(outletsetting.FieldCardTerminalTid, field.TypeString)
+	}
+	if value, ok := _u.mutation.CardTerminalRequireRef(); ok {
+		_spec.SetField(outletsetting.FieldCardTerminalRequireRef, field.TypeBool, value)
+	}
+	if _u.mutation.CardTerminalRequireRefCleared() {
+		_spec.ClearField(outletsetting.FieldCardTerminalRequireRef, field.TypeBool)
 	}
 	if value, ok := _u.mutation.MpesaPaybill(); ok {
 		_spec.SetField(outletsetting.FieldMpesaPaybill, field.TypeString, value)
@@ -1685,6 +1893,166 @@ func (_u *OutletSettingUpdateOne) AppendPrinterProfiles(v []map[string]interface
 // ClearPrinterProfiles clears the value of the "printer_profiles" field.
 func (_u *OutletSettingUpdateOne) ClearPrinterProfiles() *OutletSettingUpdateOne {
 	_u.mutation.ClearPrinterProfiles()
+	return _u
+}
+
+// SetCashDrawerEnabled sets the "cash_drawer_enabled" field.
+func (_u *OutletSettingUpdateOne) SetCashDrawerEnabled(v bool) *OutletSettingUpdateOne {
+	_u.mutation.SetCashDrawerEnabled(v)
+	return _u
+}
+
+// SetNillableCashDrawerEnabled sets the "cash_drawer_enabled" field if the given value is not nil.
+func (_u *OutletSettingUpdateOne) SetNillableCashDrawerEnabled(v *bool) *OutletSettingUpdateOne {
+	if v != nil {
+		_u.SetCashDrawerEnabled(*v)
+	}
+	return _u
+}
+
+// ClearCashDrawerEnabled clears the value of the "cash_drawer_enabled" field.
+func (_u *OutletSettingUpdateOne) ClearCashDrawerEnabled() *OutletSettingUpdateOne {
+	_u.mutation.ClearCashDrawerEnabled()
+	return _u
+}
+
+// SetCashDrawerPrinter sets the "cash_drawer_printer" field.
+func (_u *OutletSettingUpdateOne) SetCashDrawerPrinter(v string) *OutletSettingUpdateOne {
+	_u.mutation.SetCashDrawerPrinter(v)
+	return _u
+}
+
+// SetNillableCashDrawerPrinter sets the "cash_drawer_printer" field if the given value is not nil.
+func (_u *OutletSettingUpdateOne) SetNillableCashDrawerPrinter(v *string) *OutletSettingUpdateOne {
+	if v != nil {
+		_u.SetCashDrawerPrinter(*v)
+	}
+	return _u
+}
+
+// ClearCashDrawerPrinter clears the value of the "cash_drawer_printer" field.
+func (_u *OutletSettingUpdateOne) ClearCashDrawerPrinter() *OutletSettingUpdateOne {
+	_u.mutation.ClearCashDrawerPrinter()
+	return _u
+}
+
+// SetCashDrawerAutoOpen sets the "cash_drawer_auto_open" field.
+func (_u *OutletSettingUpdateOne) SetCashDrawerAutoOpen(v bool) *OutletSettingUpdateOne {
+	_u.mutation.SetCashDrawerAutoOpen(v)
+	return _u
+}
+
+// SetNillableCashDrawerAutoOpen sets the "cash_drawer_auto_open" field if the given value is not nil.
+func (_u *OutletSettingUpdateOne) SetNillableCashDrawerAutoOpen(v *bool) *OutletSettingUpdateOne {
+	if v != nil {
+		_u.SetCashDrawerAutoOpen(*v)
+	}
+	return _u
+}
+
+// ClearCashDrawerAutoOpen clears the value of the "cash_drawer_auto_open" field.
+func (_u *OutletSettingUpdateOne) ClearCashDrawerAutoOpen() *OutletSettingUpdateOne {
+	_u.mutation.ClearCashDrawerAutoOpen()
+	return _u
+}
+
+// SetCashDrawerKickCode sets the "cash_drawer_kick_code" field.
+func (_u *OutletSettingUpdateOne) SetCashDrawerKickCode(v string) *OutletSettingUpdateOne {
+	_u.mutation.SetCashDrawerKickCode(v)
+	return _u
+}
+
+// SetNillableCashDrawerKickCode sets the "cash_drawer_kick_code" field if the given value is not nil.
+func (_u *OutletSettingUpdateOne) SetNillableCashDrawerKickCode(v *string) *OutletSettingUpdateOne {
+	if v != nil {
+		_u.SetCashDrawerKickCode(*v)
+	}
+	return _u
+}
+
+// ClearCashDrawerKickCode clears the value of the "cash_drawer_kick_code" field.
+func (_u *OutletSettingUpdateOne) ClearCashDrawerKickCode() *OutletSettingUpdateOne {
+	_u.mutation.ClearCashDrawerKickCode()
+	return _u
+}
+
+// SetCardTerminalMode sets the "card_terminal_mode" field.
+func (_u *OutletSettingUpdateOne) SetCardTerminalMode(v string) *OutletSettingUpdateOne {
+	_u.mutation.SetCardTerminalMode(v)
+	return _u
+}
+
+// SetNillableCardTerminalMode sets the "card_terminal_mode" field if the given value is not nil.
+func (_u *OutletSettingUpdateOne) SetNillableCardTerminalMode(v *string) *OutletSettingUpdateOne {
+	if v != nil {
+		_u.SetCardTerminalMode(*v)
+	}
+	return _u
+}
+
+// ClearCardTerminalMode clears the value of the "card_terminal_mode" field.
+func (_u *OutletSettingUpdateOne) ClearCardTerminalMode() *OutletSettingUpdateOne {
+	_u.mutation.ClearCardTerminalMode()
+	return _u
+}
+
+// SetCardTerminalProvider sets the "card_terminal_provider" field.
+func (_u *OutletSettingUpdateOne) SetCardTerminalProvider(v string) *OutletSettingUpdateOne {
+	_u.mutation.SetCardTerminalProvider(v)
+	return _u
+}
+
+// SetNillableCardTerminalProvider sets the "card_terminal_provider" field if the given value is not nil.
+func (_u *OutletSettingUpdateOne) SetNillableCardTerminalProvider(v *string) *OutletSettingUpdateOne {
+	if v != nil {
+		_u.SetCardTerminalProvider(*v)
+	}
+	return _u
+}
+
+// ClearCardTerminalProvider clears the value of the "card_terminal_provider" field.
+func (_u *OutletSettingUpdateOne) ClearCardTerminalProvider() *OutletSettingUpdateOne {
+	_u.mutation.ClearCardTerminalProvider()
+	return _u
+}
+
+// SetCardTerminalTid sets the "card_terminal_tid" field.
+func (_u *OutletSettingUpdateOne) SetCardTerminalTid(v string) *OutletSettingUpdateOne {
+	_u.mutation.SetCardTerminalTid(v)
+	return _u
+}
+
+// SetNillableCardTerminalTid sets the "card_terminal_tid" field if the given value is not nil.
+func (_u *OutletSettingUpdateOne) SetNillableCardTerminalTid(v *string) *OutletSettingUpdateOne {
+	if v != nil {
+		_u.SetCardTerminalTid(*v)
+	}
+	return _u
+}
+
+// ClearCardTerminalTid clears the value of the "card_terminal_tid" field.
+func (_u *OutletSettingUpdateOne) ClearCardTerminalTid() *OutletSettingUpdateOne {
+	_u.mutation.ClearCardTerminalTid()
+	return _u
+}
+
+// SetCardTerminalRequireRef sets the "card_terminal_require_ref" field.
+func (_u *OutletSettingUpdateOne) SetCardTerminalRequireRef(v bool) *OutletSettingUpdateOne {
+	_u.mutation.SetCardTerminalRequireRef(v)
+	return _u
+}
+
+// SetNillableCardTerminalRequireRef sets the "card_terminal_require_ref" field if the given value is not nil.
+func (_u *OutletSettingUpdateOne) SetNillableCardTerminalRequireRef(v *bool) *OutletSettingUpdateOne {
+	if v != nil {
+		_u.SetCardTerminalRequireRef(*v)
+	}
+	return _u
+}
+
+// ClearCardTerminalRequireRef clears the value of the "card_terminal_require_ref" field.
+func (_u *OutletSettingUpdateOne) ClearCardTerminalRequireRef() *OutletSettingUpdateOne {
+	_u.mutation.ClearCardTerminalRequireRef()
 	return _u
 }
 
@@ -2305,6 +2673,54 @@ func (_u *OutletSettingUpdateOne) sqlSave(ctx context.Context) (_node *OutletSet
 	}
 	if _u.mutation.PrinterProfilesCleared() {
 		_spec.ClearField(outletsetting.FieldPrinterProfiles, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.CashDrawerEnabled(); ok {
+		_spec.SetField(outletsetting.FieldCashDrawerEnabled, field.TypeBool, value)
+	}
+	if _u.mutation.CashDrawerEnabledCleared() {
+		_spec.ClearField(outletsetting.FieldCashDrawerEnabled, field.TypeBool)
+	}
+	if value, ok := _u.mutation.CashDrawerPrinter(); ok {
+		_spec.SetField(outletsetting.FieldCashDrawerPrinter, field.TypeString, value)
+	}
+	if _u.mutation.CashDrawerPrinterCleared() {
+		_spec.ClearField(outletsetting.FieldCashDrawerPrinter, field.TypeString)
+	}
+	if value, ok := _u.mutation.CashDrawerAutoOpen(); ok {
+		_spec.SetField(outletsetting.FieldCashDrawerAutoOpen, field.TypeBool, value)
+	}
+	if _u.mutation.CashDrawerAutoOpenCleared() {
+		_spec.ClearField(outletsetting.FieldCashDrawerAutoOpen, field.TypeBool)
+	}
+	if value, ok := _u.mutation.CashDrawerKickCode(); ok {
+		_spec.SetField(outletsetting.FieldCashDrawerKickCode, field.TypeString, value)
+	}
+	if _u.mutation.CashDrawerKickCodeCleared() {
+		_spec.ClearField(outletsetting.FieldCashDrawerKickCode, field.TypeString)
+	}
+	if value, ok := _u.mutation.CardTerminalMode(); ok {
+		_spec.SetField(outletsetting.FieldCardTerminalMode, field.TypeString, value)
+	}
+	if _u.mutation.CardTerminalModeCleared() {
+		_spec.ClearField(outletsetting.FieldCardTerminalMode, field.TypeString)
+	}
+	if value, ok := _u.mutation.CardTerminalProvider(); ok {
+		_spec.SetField(outletsetting.FieldCardTerminalProvider, field.TypeString, value)
+	}
+	if _u.mutation.CardTerminalProviderCleared() {
+		_spec.ClearField(outletsetting.FieldCardTerminalProvider, field.TypeString)
+	}
+	if value, ok := _u.mutation.CardTerminalTid(); ok {
+		_spec.SetField(outletsetting.FieldCardTerminalTid, field.TypeString, value)
+	}
+	if _u.mutation.CardTerminalTidCleared() {
+		_spec.ClearField(outletsetting.FieldCardTerminalTid, field.TypeString)
+	}
+	if value, ok := _u.mutation.CardTerminalRequireRef(); ok {
+		_spec.SetField(outletsetting.FieldCardTerminalRequireRef, field.TypeBool, value)
+	}
+	if _u.mutation.CardTerminalRequireRefCleared() {
+		_spec.ClearField(outletsetting.FieldCardTerminalRequireRef, field.TypeBool)
 	}
 	if value, ok := _u.mutation.MpesaPaybill(); ok {
 		_spec.SetField(outletsetting.FieldMpesaPaybill, field.TypeString, value)
