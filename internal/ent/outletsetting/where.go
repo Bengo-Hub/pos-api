@@ -151,6 +151,46 @@ func AutoPrintKitchen(v bool) predicate.OutletSetting {
 	return predicate.OutletSetting(sql.FieldEQ(FieldAutoPrintKitchen, v))
 }
 
+// CashDrawerEnabled applies equality check predicate on the "cash_drawer_enabled" field. It's identical to CashDrawerEnabledEQ.
+func CashDrawerEnabled(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldCashDrawerEnabled, v))
+}
+
+// CashDrawerPrinter applies equality check predicate on the "cash_drawer_printer" field. It's identical to CashDrawerPrinterEQ.
+func CashDrawerPrinter(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldCashDrawerPrinter, v))
+}
+
+// CashDrawerAutoOpen applies equality check predicate on the "cash_drawer_auto_open" field. It's identical to CashDrawerAutoOpenEQ.
+func CashDrawerAutoOpen(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldCashDrawerAutoOpen, v))
+}
+
+// CashDrawerKickCode applies equality check predicate on the "cash_drawer_kick_code" field. It's identical to CashDrawerKickCodeEQ.
+func CashDrawerKickCode(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldCashDrawerKickCode, v))
+}
+
+// CardTerminalMode applies equality check predicate on the "card_terminal_mode" field. It's identical to CardTerminalModeEQ.
+func CardTerminalMode(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldCardTerminalMode, v))
+}
+
+// CardTerminalProvider applies equality check predicate on the "card_terminal_provider" field. It's identical to CardTerminalProviderEQ.
+func CardTerminalProvider(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldCardTerminalProvider, v))
+}
+
+// CardTerminalTid applies equality check predicate on the "card_terminal_tid" field. It's identical to CardTerminalTidEQ.
+func CardTerminalTid(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldCardTerminalTid, v))
+}
+
+// CardTerminalRequireRef applies equality check predicate on the "card_terminal_require_ref" field. It's identical to CardTerminalRequireRefEQ.
+func CardTerminalRequireRef(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldCardTerminalRequireRef, v))
+}
+
 // MpesaPaybill applies equality check predicate on the "mpesa_paybill" field. It's identical to MpesaPaybillEQ.
 func MpesaPaybill(v string) predicate.OutletSetting {
 	return predicate.OutletSetting(sql.FieldEQ(FieldMpesaPaybill, v))
@@ -1249,6 +1289,441 @@ func PrinterProfilesIsNil() predicate.OutletSetting {
 // PrinterProfilesNotNil applies the NotNil predicate on the "printer_profiles" field.
 func PrinterProfilesNotNil() predicate.OutletSetting {
 	return predicate.OutletSetting(sql.FieldNotNull(FieldPrinterProfiles))
+}
+
+// CashDrawerEnabledEQ applies the EQ predicate on the "cash_drawer_enabled" field.
+func CashDrawerEnabledEQ(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldCashDrawerEnabled, v))
+}
+
+// CashDrawerEnabledNEQ applies the NEQ predicate on the "cash_drawer_enabled" field.
+func CashDrawerEnabledNEQ(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNEQ(FieldCashDrawerEnabled, v))
+}
+
+// CashDrawerEnabledIsNil applies the IsNil predicate on the "cash_drawer_enabled" field.
+func CashDrawerEnabledIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldCashDrawerEnabled))
+}
+
+// CashDrawerEnabledNotNil applies the NotNil predicate on the "cash_drawer_enabled" field.
+func CashDrawerEnabledNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldCashDrawerEnabled))
+}
+
+// CashDrawerPrinterEQ applies the EQ predicate on the "cash_drawer_printer" field.
+func CashDrawerPrinterEQ(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldCashDrawerPrinter, v))
+}
+
+// CashDrawerPrinterNEQ applies the NEQ predicate on the "cash_drawer_printer" field.
+func CashDrawerPrinterNEQ(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNEQ(FieldCashDrawerPrinter, v))
+}
+
+// CashDrawerPrinterIn applies the In predicate on the "cash_drawer_printer" field.
+func CashDrawerPrinterIn(vs ...string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIn(FieldCashDrawerPrinter, vs...))
+}
+
+// CashDrawerPrinterNotIn applies the NotIn predicate on the "cash_drawer_printer" field.
+func CashDrawerPrinterNotIn(vs ...string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotIn(FieldCashDrawerPrinter, vs...))
+}
+
+// CashDrawerPrinterGT applies the GT predicate on the "cash_drawer_printer" field.
+func CashDrawerPrinterGT(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGT(FieldCashDrawerPrinter, v))
+}
+
+// CashDrawerPrinterGTE applies the GTE predicate on the "cash_drawer_printer" field.
+func CashDrawerPrinterGTE(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGTE(FieldCashDrawerPrinter, v))
+}
+
+// CashDrawerPrinterLT applies the LT predicate on the "cash_drawer_printer" field.
+func CashDrawerPrinterLT(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLT(FieldCashDrawerPrinter, v))
+}
+
+// CashDrawerPrinterLTE applies the LTE predicate on the "cash_drawer_printer" field.
+func CashDrawerPrinterLTE(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLTE(FieldCashDrawerPrinter, v))
+}
+
+// CashDrawerPrinterContains applies the Contains predicate on the "cash_drawer_printer" field.
+func CashDrawerPrinterContains(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldContains(FieldCashDrawerPrinter, v))
+}
+
+// CashDrawerPrinterHasPrefix applies the HasPrefix predicate on the "cash_drawer_printer" field.
+func CashDrawerPrinterHasPrefix(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldHasPrefix(FieldCashDrawerPrinter, v))
+}
+
+// CashDrawerPrinterHasSuffix applies the HasSuffix predicate on the "cash_drawer_printer" field.
+func CashDrawerPrinterHasSuffix(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldHasSuffix(FieldCashDrawerPrinter, v))
+}
+
+// CashDrawerPrinterIsNil applies the IsNil predicate on the "cash_drawer_printer" field.
+func CashDrawerPrinterIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldCashDrawerPrinter))
+}
+
+// CashDrawerPrinterNotNil applies the NotNil predicate on the "cash_drawer_printer" field.
+func CashDrawerPrinterNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldCashDrawerPrinter))
+}
+
+// CashDrawerPrinterEqualFold applies the EqualFold predicate on the "cash_drawer_printer" field.
+func CashDrawerPrinterEqualFold(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEqualFold(FieldCashDrawerPrinter, v))
+}
+
+// CashDrawerPrinterContainsFold applies the ContainsFold predicate on the "cash_drawer_printer" field.
+func CashDrawerPrinterContainsFold(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldContainsFold(FieldCashDrawerPrinter, v))
+}
+
+// CashDrawerAutoOpenEQ applies the EQ predicate on the "cash_drawer_auto_open" field.
+func CashDrawerAutoOpenEQ(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldCashDrawerAutoOpen, v))
+}
+
+// CashDrawerAutoOpenNEQ applies the NEQ predicate on the "cash_drawer_auto_open" field.
+func CashDrawerAutoOpenNEQ(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNEQ(FieldCashDrawerAutoOpen, v))
+}
+
+// CashDrawerAutoOpenIsNil applies the IsNil predicate on the "cash_drawer_auto_open" field.
+func CashDrawerAutoOpenIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldCashDrawerAutoOpen))
+}
+
+// CashDrawerAutoOpenNotNil applies the NotNil predicate on the "cash_drawer_auto_open" field.
+func CashDrawerAutoOpenNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldCashDrawerAutoOpen))
+}
+
+// CashDrawerKickCodeEQ applies the EQ predicate on the "cash_drawer_kick_code" field.
+func CashDrawerKickCodeEQ(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldCashDrawerKickCode, v))
+}
+
+// CashDrawerKickCodeNEQ applies the NEQ predicate on the "cash_drawer_kick_code" field.
+func CashDrawerKickCodeNEQ(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNEQ(FieldCashDrawerKickCode, v))
+}
+
+// CashDrawerKickCodeIn applies the In predicate on the "cash_drawer_kick_code" field.
+func CashDrawerKickCodeIn(vs ...string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIn(FieldCashDrawerKickCode, vs...))
+}
+
+// CashDrawerKickCodeNotIn applies the NotIn predicate on the "cash_drawer_kick_code" field.
+func CashDrawerKickCodeNotIn(vs ...string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotIn(FieldCashDrawerKickCode, vs...))
+}
+
+// CashDrawerKickCodeGT applies the GT predicate on the "cash_drawer_kick_code" field.
+func CashDrawerKickCodeGT(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGT(FieldCashDrawerKickCode, v))
+}
+
+// CashDrawerKickCodeGTE applies the GTE predicate on the "cash_drawer_kick_code" field.
+func CashDrawerKickCodeGTE(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGTE(FieldCashDrawerKickCode, v))
+}
+
+// CashDrawerKickCodeLT applies the LT predicate on the "cash_drawer_kick_code" field.
+func CashDrawerKickCodeLT(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLT(FieldCashDrawerKickCode, v))
+}
+
+// CashDrawerKickCodeLTE applies the LTE predicate on the "cash_drawer_kick_code" field.
+func CashDrawerKickCodeLTE(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLTE(FieldCashDrawerKickCode, v))
+}
+
+// CashDrawerKickCodeContains applies the Contains predicate on the "cash_drawer_kick_code" field.
+func CashDrawerKickCodeContains(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldContains(FieldCashDrawerKickCode, v))
+}
+
+// CashDrawerKickCodeHasPrefix applies the HasPrefix predicate on the "cash_drawer_kick_code" field.
+func CashDrawerKickCodeHasPrefix(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldHasPrefix(FieldCashDrawerKickCode, v))
+}
+
+// CashDrawerKickCodeHasSuffix applies the HasSuffix predicate on the "cash_drawer_kick_code" field.
+func CashDrawerKickCodeHasSuffix(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldHasSuffix(FieldCashDrawerKickCode, v))
+}
+
+// CashDrawerKickCodeIsNil applies the IsNil predicate on the "cash_drawer_kick_code" field.
+func CashDrawerKickCodeIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldCashDrawerKickCode))
+}
+
+// CashDrawerKickCodeNotNil applies the NotNil predicate on the "cash_drawer_kick_code" field.
+func CashDrawerKickCodeNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldCashDrawerKickCode))
+}
+
+// CashDrawerKickCodeEqualFold applies the EqualFold predicate on the "cash_drawer_kick_code" field.
+func CashDrawerKickCodeEqualFold(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEqualFold(FieldCashDrawerKickCode, v))
+}
+
+// CashDrawerKickCodeContainsFold applies the ContainsFold predicate on the "cash_drawer_kick_code" field.
+func CashDrawerKickCodeContainsFold(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldContainsFold(FieldCashDrawerKickCode, v))
+}
+
+// CardTerminalModeEQ applies the EQ predicate on the "card_terminal_mode" field.
+func CardTerminalModeEQ(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldCardTerminalMode, v))
+}
+
+// CardTerminalModeNEQ applies the NEQ predicate on the "card_terminal_mode" field.
+func CardTerminalModeNEQ(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNEQ(FieldCardTerminalMode, v))
+}
+
+// CardTerminalModeIn applies the In predicate on the "card_terminal_mode" field.
+func CardTerminalModeIn(vs ...string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIn(FieldCardTerminalMode, vs...))
+}
+
+// CardTerminalModeNotIn applies the NotIn predicate on the "card_terminal_mode" field.
+func CardTerminalModeNotIn(vs ...string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotIn(FieldCardTerminalMode, vs...))
+}
+
+// CardTerminalModeGT applies the GT predicate on the "card_terminal_mode" field.
+func CardTerminalModeGT(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGT(FieldCardTerminalMode, v))
+}
+
+// CardTerminalModeGTE applies the GTE predicate on the "card_terminal_mode" field.
+func CardTerminalModeGTE(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGTE(FieldCardTerminalMode, v))
+}
+
+// CardTerminalModeLT applies the LT predicate on the "card_terminal_mode" field.
+func CardTerminalModeLT(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLT(FieldCardTerminalMode, v))
+}
+
+// CardTerminalModeLTE applies the LTE predicate on the "card_terminal_mode" field.
+func CardTerminalModeLTE(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLTE(FieldCardTerminalMode, v))
+}
+
+// CardTerminalModeContains applies the Contains predicate on the "card_terminal_mode" field.
+func CardTerminalModeContains(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldContains(FieldCardTerminalMode, v))
+}
+
+// CardTerminalModeHasPrefix applies the HasPrefix predicate on the "card_terminal_mode" field.
+func CardTerminalModeHasPrefix(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldHasPrefix(FieldCardTerminalMode, v))
+}
+
+// CardTerminalModeHasSuffix applies the HasSuffix predicate on the "card_terminal_mode" field.
+func CardTerminalModeHasSuffix(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldHasSuffix(FieldCardTerminalMode, v))
+}
+
+// CardTerminalModeIsNil applies the IsNil predicate on the "card_terminal_mode" field.
+func CardTerminalModeIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldCardTerminalMode))
+}
+
+// CardTerminalModeNotNil applies the NotNil predicate on the "card_terminal_mode" field.
+func CardTerminalModeNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldCardTerminalMode))
+}
+
+// CardTerminalModeEqualFold applies the EqualFold predicate on the "card_terminal_mode" field.
+func CardTerminalModeEqualFold(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEqualFold(FieldCardTerminalMode, v))
+}
+
+// CardTerminalModeContainsFold applies the ContainsFold predicate on the "card_terminal_mode" field.
+func CardTerminalModeContainsFold(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldContainsFold(FieldCardTerminalMode, v))
+}
+
+// CardTerminalProviderEQ applies the EQ predicate on the "card_terminal_provider" field.
+func CardTerminalProviderEQ(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldCardTerminalProvider, v))
+}
+
+// CardTerminalProviderNEQ applies the NEQ predicate on the "card_terminal_provider" field.
+func CardTerminalProviderNEQ(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNEQ(FieldCardTerminalProvider, v))
+}
+
+// CardTerminalProviderIn applies the In predicate on the "card_terminal_provider" field.
+func CardTerminalProviderIn(vs ...string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIn(FieldCardTerminalProvider, vs...))
+}
+
+// CardTerminalProviderNotIn applies the NotIn predicate on the "card_terminal_provider" field.
+func CardTerminalProviderNotIn(vs ...string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotIn(FieldCardTerminalProvider, vs...))
+}
+
+// CardTerminalProviderGT applies the GT predicate on the "card_terminal_provider" field.
+func CardTerminalProviderGT(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGT(FieldCardTerminalProvider, v))
+}
+
+// CardTerminalProviderGTE applies the GTE predicate on the "card_terminal_provider" field.
+func CardTerminalProviderGTE(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGTE(FieldCardTerminalProvider, v))
+}
+
+// CardTerminalProviderLT applies the LT predicate on the "card_terminal_provider" field.
+func CardTerminalProviderLT(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLT(FieldCardTerminalProvider, v))
+}
+
+// CardTerminalProviderLTE applies the LTE predicate on the "card_terminal_provider" field.
+func CardTerminalProviderLTE(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLTE(FieldCardTerminalProvider, v))
+}
+
+// CardTerminalProviderContains applies the Contains predicate on the "card_terminal_provider" field.
+func CardTerminalProviderContains(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldContains(FieldCardTerminalProvider, v))
+}
+
+// CardTerminalProviderHasPrefix applies the HasPrefix predicate on the "card_terminal_provider" field.
+func CardTerminalProviderHasPrefix(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldHasPrefix(FieldCardTerminalProvider, v))
+}
+
+// CardTerminalProviderHasSuffix applies the HasSuffix predicate on the "card_terminal_provider" field.
+func CardTerminalProviderHasSuffix(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldHasSuffix(FieldCardTerminalProvider, v))
+}
+
+// CardTerminalProviderIsNil applies the IsNil predicate on the "card_terminal_provider" field.
+func CardTerminalProviderIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldCardTerminalProvider))
+}
+
+// CardTerminalProviderNotNil applies the NotNil predicate on the "card_terminal_provider" field.
+func CardTerminalProviderNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldCardTerminalProvider))
+}
+
+// CardTerminalProviderEqualFold applies the EqualFold predicate on the "card_terminal_provider" field.
+func CardTerminalProviderEqualFold(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEqualFold(FieldCardTerminalProvider, v))
+}
+
+// CardTerminalProviderContainsFold applies the ContainsFold predicate on the "card_terminal_provider" field.
+func CardTerminalProviderContainsFold(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldContainsFold(FieldCardTerminalProvider, v))
+}
+
+// CardTerminalTidEQ applies the EQ predicate on the "card_terminal_tid" field.
+func CardTerminalTidEQ(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldCardTerminalTid, v))
+}
+
+// CardTerminalTidNEQ applies the NEQ predicate on the "card_terminal_tid" field.
+func CardTerminalTidNEQ(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNEQ(FieldCardTerminalTid, v))
+}
+
+// CardTerminalTidIn applies the In predicate on the "card_terminal_tid" field.
+func CardTerminalTidIn(vs ...string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIn(FieldCardTerminalTid, vs...))
+}
+
+// CardTerminalTidNotIn applies the NotIn predicate on the "card_terminal_tid" field.
+func CardTerminalTidNotIn(vs ...string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotIn(FieldCardTerminalTid, vs...))
+}
+
+// CardTerminalTidGT applies the GT predicate on the "card_terminal_tid" field.
+func CardTerminalTidGT(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGT(FieldCardTerminalTid, v))
+}
+
+// CardTerminalTidGTE applies the GTE predicate on the "card_terminal_tid" field.
+func CardTerminalTidGTE(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGTE(FieldCardTerminalTid, v))
+}
+
+// CardTerminalTidLT applies the LT predicate on the "card_terminal_tid" field.
+func CardTerminalTidLT(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLT(FieldCardTerminalTid, v))
+}
+
+// CardTerminalTidLTE applies the LTE predicate on the "card_terminal_tid" field.
+func CardTerminalTidLTE(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLTE(FieldCardTerminalTid, v))
+}
+
+// CardTerminalTidContains applies the Contains predicate on the "card_terminal_tid" field.
+func CardTerminalTidContains(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldContains(FieldCardTerminalTid, v))
+}
+
+// CardTerminalTidHasPrefix applies the HasPrefix predicate on the "card_terminal_tid" field.
+func CardTerminalTidHasPrefix(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldHasPrefix(FieldCardTerminalTid, v))
+}
+
+// CardTerminalTidHasSuffix applies the HasSuffix predicate on the "card_terminal_tid" field.
+func CardTerminalTidHasSuffix(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldHasSuffix(FieldCardTerminalTid, v))
+}
+
+// CardTerminalTidIsNil applies the IsNil predicate on the "card_terminal_tid" field.
+func CardTerminalTidIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldCardTerminalTid))
+}
+
+// CardTerminalTidNotNil applies the NotNil predicate on the "card_terminal_tid" field.
+func CardTerminalTidNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldCardTerminalTid))
+}
+
+// CardTerminalTidEqualFold applies the EqualFold predicate on the "card_terminal_tid" field.
+func CardTerminalTidEqualFold(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEqualFold(FieldCardTerminalTid, v))
+}
+
+// CardTerminalTidContainsFold applies the ContainsFold predicate on the "card_terminal_tid" field.
+func CardTerminalTidContainsFold(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldContainsFold(FieldCardTerminalTid, v))
+}
+
+// CardTerminalRequireRefEQ applies the EQ predicate on the "card_terminal_require_ref" field.
+func CardTerminalRequireRefEQ(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldCardTerminalRequireRef, v))
+}
+
+// CardTerminalRequireRefNEQ applies the NEQ predicate on the "card_terminal_require_ref" field.
+func CardTerminalRequireRefNEQ(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNEQ(FieldCardTerminalRequireRef, v))
+}
+
+// CardTerminalRequireRefIsNil applies the IsNil predicate on the "card_terminal_require_ref" field.
+func CardTerminalRequireRefIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldCardTerminalRequireRef))
+}
+
+// CardTerminalRequireRefNotNil applies the NotNil predicate on the "card_terminal_require_ref" field.
+func CardTerminalRequireRefNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldCardTerminalRequireRef))
 }
 
 // MpesaPaybillEQ applies the EQ predicate on the "mpesa_paybill" field.

@@ -1237,6 +1237,14 @@ var (
 		{Name: "auto_print_order", Type: field.TypeBool, Nullable: true, Default: false},
 		{Name: "auto_print_kitchen", Type: field.TypeBool, Nullable: true, Default: false},
 		{Name: "printer_profiles", Type: field.TypeJSON, Nullable: true},
+		{Name: "cash_drawer_enabled", Type: field.TypeBool, Nullable: true, Default: false},
+		{Name: "cash_drawer_printer", Type: field.TypeString, Nullable: true},
+		{Name: "cash_drawer_auto_open", Type: field.TypeBool, Nullable: true, Default: true},
+		{Name: "cash_drawer_kick_code", Type: field.TypeString, Nullable: true, Default: "default"},
+		{Name: "card_terminal_mode", Type: field.TypeString, Nullable: true, Default: "manual"},
+		{Name: "card_terminal_provider", Type: field.TypeString, Nullable: true},
+		{Name: "card_terminal_tid", Type: field.TypeString, Nullable: true},
+		{Name: "card_terminal_require_ref", Type: field.TypeBool, Nullable: true, Default: false},
 		{Name: "mpesa_paybill", Type: field.TypeString, Nullable: true},
 		{Name: "mpesa_account_reference", Type: field.TypeString, Nullable: true},
 		{Name: "airtel_money_number", Type: field.TypeString, Nullable: true},
@@ -1265,7 +1273,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "outlet_settings_outlets_settings",
-				Columns:    []*schema.Column{OutletSettingsColumns[43]},
+				Columns:    []*schema.Column{OutletSettingsColumns[51]},
 				RefColumns: []*schema.Column{OutletsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
