@@ -254,6 +254,7 @@ func New(
 							cat.Get("/categories", catalog.GetCatalogCategories)
 							cat.Get("/items", catalog.ListCatalogItems)
 							cat.Get("/pricing/resolve", catalog.ResolvePrice)
+							cat.Get("/pricing/tiers", catalog.GetPricingTiers)
 							cat.Post("/items", catalog.CreateCatalogItem)
 							// Price management endpoints (must come before /{id} routes)
 							cat.Patch("/items/prices", catalog.SetCatalogItemPrice)
