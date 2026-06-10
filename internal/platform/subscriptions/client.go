@@ -77,6 +77,48 @@ type planLimitsResponse struct {
 	Limits map[string]int `json:"limits"`
 }
 
+// Entitlements is the subscription snapshot embedded into terminal (PIN) JWTs so that
+// PIN sessions carry the same feature/limit gating as SSO sessions. Demo bypass and
+// service-charge are surfaced so the gate can exempt them.
+type Entitlements struct {
+	Features     []string       `json:"features"`
+	Limits       map[string]int `json:"limits"`
+	Status       string         `json:"status"`
+	BillingMode  string         `json:"billing_mode"`
+	PlanCode     string         `json:"plan_code"`
+	IsDemoBypass bool           `json:"is_demo_bypass"`
+}
+
+// GetEntitlements fetches the tenant's full subscription snapshot (features, limits,
+// status, billing_mode) from the S2S endpoint. Returns nil on any error so callers can
+// fall back gracefully (a PIN session then relies on slug-based demo/owner detection).
+func (c *Client) GetEntitlements(ctx context.Context, tenantID string) *Entitlements {
+	if c.cfg.ServiceURL == "" {
+		return nil
+	}
+	url := fmt.Sprintf("%s/api/v1/tenants/%s/subscription", c.cfg.ServiceURL, tenantID)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil
+	}
+	if c.cfg.APIKey != "" {
+		req.Header.Set("X-API-Key", c.cfg.APIKey)
+	}
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return nil
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil
+	}
+	var e Entitlements
+	if err := json.NewDecoder(resp.Body).Decode(&e); err != nil {
+		return nil
+	}
+	return &e
+}
+
 // GetLimit returns the numeric plan limit for the given limit key (e.g. "max_rooms",
 // "max_conference_events"). ok is false when the limit is unset, unlimited (<= 0),
 // or subscriptions-api is unreachable — callers MUST fail open (allow the action) in

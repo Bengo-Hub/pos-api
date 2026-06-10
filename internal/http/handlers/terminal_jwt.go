@@ -16,17 +16,29 @@ import (
 )
 
 // terminalClaims are embedded in short-lived JWTs issued to POS terminals after PIN login.
-// Mirrors the SSO JWT shape so pos-ui can use the same claim parsing path.
+// Mirrors the SSO JWT shape so pos-ui can use the same claim parsing path AND so the
+// subscription gate (SubscriptionGate / RequireFeature / CheckStructuralLimit) sees the
+// same entitlements + bypass flags it would for an SSO session. Without these, every PIN
+// session was treated as having zero features (→ 403 on feature-gated routes) and demo /
+// platform-owner tenants were not exempted.
 type terminalClaims struct {
-	UserID         string   `json:"user_id"`
-	TenantID       string   `json:"tenant_id"`
-	OutletID       string   `json:"outlet_id"`
-	OutletCode     string   `json:"outlet_code"`
-	OutletUseCase  string   `json:"outlet_use_case"`
-	IsHQUser       bool     `json:"is_hq_user"`
-	Name           string   `json:"name"`
-	Role           string   `json:"role"`
-	Permissions    []string `json:"permissions"`
+	UserID        string   `json:"user_id"`
+	TenantID      string   `json:"tenant_id"`
+	TenantSlug    string   `json:"tenant_slug"`
+	OutletID      string   `json:"outlet_id"`
+	OutletCode    string   `json:"outlet_code"`
+	OutletUseCase string   `json:"outlet_use_case"`
+	IsHQUser      bool     `json:"is_hq_user"`
+	Name          string   `json:"name"`
+	Role          string   `json:"role"`
+	Permissions   []string `json:"permissions"`
+	// Subscription + bypass claims (mirror the shared authclient.Claims tags).
+	IsPlatformOwner      bool           `json:"is_platform_owner,omitempty"`
+	IsDemo               bool           `json:"is_demo,omitempty"`
+	BillingMode          string         `json:"billing_mode,omitempty"`
+	SubscriptionStatus   string         `json:"sub_status,omitempty"`
+	SubscriptionFeatures []string       `json:"subscription_features,omitempty"`
+	SubscriptionLimits   map[string]int `json:"sub_limits,omitempty"`
 	jwt.RegisteredClaims
 }
 
@@ -35,7 +47,20 @@ type terminalClaims struct {
 // and embeds outlet_use_case + is_hq_user so pos-ui can gate modules without an
 // extra API round-trip. sessionOutletID is the outlet the terminal selected at login
 // (may differ from member.OutletID which is the staff member's home outlet).
-func issueTerminalJWT(member *ent.StaffMember, tenantID uuid.UUID, sessionOutletID uuid.UUID, secret []byte, client *ent.Client, ctx context.Context) (string, error) {
+// terminalEntitlements carries the subscription snapshot + bypass flags resolved at PIN
+// login so issueTerminalJWT can embed them. It is built by the Login handler (which has the
+// subscriptions client); issueTerminalJWT stays decoupled from the HTTP layer.
+type terminalEntitlements struct {
+	TenantSlug      string
+	IsPlatformOwner bool
+	IsDemo          bool
+	BillingMode     string
+	Status          string
+	Features        []string
+	Limits          map[string]int
+}
+
+func issueTerminalJWT(member *ent.StaffMember, tenantID uuid.UUID, sessionOutletID uuid.UUID, secret []byte, client *ent.Client, ctx context.Context, ent2 terminalEntitlements) (string, error) {
 	permissions := resolveRolePermissions(ctx, client, tenantID, member.Role)
 
 	// Load outlet to include use_case and is_hq in terminal JWT claims
@@ -53,15 +78,22 @@ func issueTerminalJWT(member *ent.StaffMember, tenantID uuid.UUID, sessionOutlet
 
 	now := time.Now()
 	claims := terminalClaims{
-		UserID:        member.UserID.String(),
-		TenantID:      tenantID.String(),
-		OutletID:      sessionOutletID.String(),
-		OutletCode:    outletCode,
-		OutletUseCase: outletUseCase,
-		IsHQUser:      isHQ,
-		Name:          member.Name,
-		Role:          member.Role,
-		Permissions:   permissions,
+		UserID:               member.UserID.String(),
+		TenantID:             tenantID.String(),
+		TenantSlug:           ent2.TenantSlug,
+		OutletID:             sessionOutletID.String(),
+		OutletCode:           outletCode,
+		OutletUseCase:        outletUseCase,
+		IsHQUser:             isHQ,
+		Name:                 member.Name,
+		Role:                 member.Role,
+		Permissions:          permissions,
+		IsPlatformOwner:      ent2.IsPlatformOwner,
+		IsDemo:               ent2.IsDemo,
+		BillingMode:          ent2.BillingMode,
+		SubscriptionStatus:   ent2.Status,
+		SubscriptionFeatures: ent2.Features,
+		SubscriptionLimits:   ent2.Limits,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   member.UserID.String(),
 			Issuer:    "pos-terminal",
@@ -99,13 +131,22 @@ func validateTerminalJWT(tokenStr string, secret []byte) (*terminalClaims, error
 func terminalToAuthClaims(tc *terminalClaims) *authclient.Claims {
 	return &authclient.Claims{
 		TenantID:      tc.TenantID,
+		TenantSlug:    tc.TenantSlug,
 		OutletID:      tc.OutletID,
 		OutletCode:    tc.OutletCode,
 		OutletUseCase: tc.OutletUseCase,
 		IsHQUser:      tc.IsHQUser,
 		Roles:         []string{tc.Role},
 		Permissions:   tc.Permissions,
-		// SubscriptionStatus left empty → SubscriptionGate treats "" as ACTIVE/allowed
+		// Carry the subscription snapshot + bypass flags so RequireFeature /
+		// CheckStructuralLimit / SubscriptionGate treat a PIN session exactly like an SSO
+		// session (and exempt demo / platform-owner tenants).
+		IsPlatformOwner:      tc.IsPlatformOwner,
+		IsDemo:               tc.IsDemo,
+		BillingMode:          tc.BillingMode,
+		SubscriptionStatus:   tc.SubscriptionStatus,
+		SubscriptionFeatures: tc.SubscriptionFeatures,
+		SubscriptionLimits:   tc.SubscriptionLimits,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject: tc.Subject,
 			Issuer:  tc.Issuer,
