@@ -22,6 +22,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/tableassignment"
 	entreservation "github.com/bengobox/pos-service/internal/ent/tablereservation"
 	"github.com/bengobox/pos-service/internal/platform/events"
+	"github.com/bengobox/pos-service/internal/platform/subscriptions"
 )
 
 // slugify turns a display name into a URL-safe slug.
@@ -308,6 +309,13 @@ func (h *TableHandler) CreateTable(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		jsonError(w, "invalid request body", http.StatusBadRequest)
 		return
+	}
+
+	// Enforce the plan's max_tables structural cap (hard-block, no overage).
+	if count, cerr := h.client.Table.Query().Where(enttable.TenantID(tid)).Count(r.Context()); cerr == nil {
+		if !subscriptions.CheckStructuralLimit(w, r, "tables", subscriptions.LimitTables, count) {
+			return
+		}
 	}
 
 	tableOutletID := parseOptionalUUID(input.OutletID, r)

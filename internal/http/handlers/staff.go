@@ -13,6 +13,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent"
 	entstaff "github.com/bengobox/pos-service/internal/ent/staffmember"
 	entstaffoutlet "github.com/bengobox/pos-service/internal/ent/staffoutlet"
+	"github.com/bengobox/pos-service/internal/platform/subscriptions"
 )
 
 // StaffHandler handles staff CRUD operations for the pos-ui admin/team panel.
@@ -134,6 +135,23 @@ func (h *StaffHandler) CreateStaff(w http.ResponseWriter, r *http.Request) {
 	if managementProtectedRoles[input.Role] && requesterRole(r) == "manager" {
 		jsonError(w, "managers cannot create admin or manager-level staff", http.StatusForbidden)
 		return
+	}
+
+	// Enforce the plan's structural staff caps (hard-block, no overage): total head-count
+	// (max_staff) and, for cashier accounts, the cashier seat cap (max_cashiers).
+	if count, cerr := h.client.StaffMember.Query().Where(entstaff.TenantID(tid)).Count(r.Context()); cerr == nil {
+		if !subscriptions.CheckStructuralLimit(w, r, "staff", subscriptions.LimitStaff, count) {
+			return
+		}
+	}
+	if input.Role == "cashier" {
+		if count, cerr := h.client.StaffMember.Query().
+			Where(entstaff.TenantID(tid), entstaff.Role("cashier")).
+			Count(r.Context()); cerr == nil {
+			if !subscriptions.CheckStructuralLimit(w, r, "cashiers", subscriptions.LimitCashiers, count) {
+				return
+			}
+		}
 	}
 
 	outletID, err := uuid.Parse(input.OutletID)
