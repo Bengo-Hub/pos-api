@@ -1133,29 +1133,109 @@ func (h *CatalogHandler) fetchInventoryCategories(ctx context.Context, tenantSlu
 	return bare, nil
 }
 
-// GetCatalogCategories handles GET /{tenantID}/pos/catalog/categories — proxies inventory categories
-// and returns a clean typed list {"data":[{name, icon, image_url?}]} (active only). Degrades to
-// {"data":[]} on proxy failure so the UI stays graceful.
+// GetCatalogCategories handles GET /{tenantID}/pos/catalog/categories — returns a clean typed list
+// {"data":[{name, icon, image_url?}]} of categories that actually have ≥1 sellable item for THIS
+// outlet's use case. Previously it proxied every active inventory category unfiltered, so categories
+// with zero items for the outlet (e.g. pharmacy categories on a retail outlet, or empty bulk-import
+// categories) showed up and returned no items when tapped. We now intersect inventory categories
+// with the use-case-filtered item set so categories are always tied to items. Degrades to {"data":[]}
+// on proxy failure so the UI stays graceful.
 func (h *CatalogHandler) GetCatalogCategories(w http.ResponseWriter, r *http.Request) {
 	tenantSlug := h.resolveTenantSlug(r)
 	if tenantSlug == "" {
 		jsonError(w, "could not resolve tenant", http.StatusBadRequest)
 		return
 	}
-
-	cats, err := h.fetchInventoryCategories(r.Context(), tenantSlug)
+	tid, err := parseTenantUUID(r)
 	if err != nil {
-		h.log.Warn("catalog categories: inventory proxy failed", zap.Error(err))
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+
+	// Resolve outlet scope + use case the same way ListCatalogItems does (context wins, query fallback).
+	var scopeOutletID *uuid.UUID
+	useCase := ""
+	if oc := middleware.OutletFromContext(r.Context()); oc != nil {
+		ocID := oc.ID
+		scopeOutletID = &ocID
+		useCase = oc.UseCase
+	}
+	if scopeOutletID == nil {
+		if oidStr := httpware.GetOutletID(r.Context()); oidStr != "" {
+			if oid, perr := uuid.Parse(oidStr); perr == nil {
+				scopeOutletID = &oid
+			}
+		}
+	}
+	if scopeOutletID == nil {
+		if oidStr := r.URL.Query().Get("outlet_id"); oidStr != "" {
+			if oid, perr := uuid.Parse(oidStr); perr == nil {
+				scopeOutletID = &oid
+			}
+		}
+	}
+
+	// Build the set of category names that have at least one sellable item for this use case.
+	items, err := h.assembleMenuItems(r.Context(), tid, tenantSlug, scopeOutletID, useCase, menuAssemblyFilters{})
+	if err != nil {
+		h.log.Warn("catalog categories: item assembly failed", zap.Error(err))
+		jsonOK(w, map[string]any{"data": []posCategory{}})
+		return
+	}
+	withItems := make(map[string]bool, len(items))
+	for _, it := range items {
+		name := strings.TrimSpace(it.CategoryName)
+		if name != "" {
+			withItems[strings.ToLower(name)] = true
+		}
+	}
+	if len(withItems) == 0 {
 		jsonOK(w, map[string]any{"data": []posCategory{}})
 		return
 	}
 
+	// Fetch inventory categories for their icon/image metadata, then keep only those that have items.
+	cats, err := h.fetchInventoryCategories(r.Context(), tenantSlug)
+	if err != nil {
+		// Inventory category metadata unavailable — still return the category names we derived from
+		// items (without icons) so the UI filters work.
+		h.log.Warn("catalog categories: inventory proxy failed; deriving names from items", zap.Error(err))
+		out := make([]posCategory, 0, len(withItems))
+		seen := make(map[string]bool, len(items))
+		for _, it := range items {
+			name := strings.TrimSpace(it.CategoryName)
+			if name == "" || seen[strings.ToLower(name)] {
+				continue
+			}
+			seen[strings.ToLower(name)] = true
+			out = append(out, posCategory{Name: name})
+		}
+		jsonOK(w, map[string]any{"data": out})
+		return
+	}
+
 	out := make([]posCategory, 0, len(cats))
+	emitted := make(map[string]bool, len(cats))
 	for _, c := range cats {
 		if !c.IsActive {
 			continue
 		}
+		key := strings.ToLower(strings.TrimSpace(c.Name))
+		if !withItems[key] || emitted[key] {
+			continue
+		}
+		emitted[key] = true
 		out = append(out, mapInventoryCategory(c))
+	}
+	// Cover categories present on items but missing from the inventory category list (defensive).
+	for _, it := range items {
+		name := strings.TrimSpace(it.CategoryName)
+		key := strings.ToLower(name)
+		if name == "" || emitted[key] {
+			continue
+		}
+		emitted[key] = true
+		out = append(out, posCategory{Name: name})
 	}
 	jsonOK(w, map[string]any{"data": out})
 }

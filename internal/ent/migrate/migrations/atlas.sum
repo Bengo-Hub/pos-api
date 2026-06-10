@@ -1,4 +1,4 @@
-h1:eDVmumJBvK3jwN4ZxGjSqUNiG4NmlpLeqT1E4vXOnbg=
+h1:x7sicb+b5cfd42CygXxvEnrz3DDG2Uq0LIbYK9Y1f7Y=
 20260324210314_initial_schema.sql h1:L7ICP+7BHePtjHfQRRY9yP85A6Q9SyiYsqSvGK7paxA=
 20260403120000_fix_outbox_events_schema.sql h1:VNlTFTGCLBkz4+UvvvqZf5y5tyS0FfS1AXy770Ybc8o=
 20260507090905_hotel_module.sql h1:PGKqdzMQaeFLALmRXUmGsXjha3Rt42EldWJceFVNGDo=
@@ -57,3 +57,5 @@ h1:eDVmumJBvK3jwN4ZxGjSqUNiG4NmlpLeqT1E4vXOnbg=
 20260608171954_add_referral.sql h1:2Ntkqhd2hGMmAS6Q/N01/m+MQyGidEqbOkDva8IXAyA=
 20260608230418_add_repair_jobs.sql h1:hxI+IniE4++HJW2LJ7fip57xv7bre4d3QG07/Qwn9N8=
 20260609191725_add_mpesa_till_pochi.sql h1:DxWHoDbPIN/n2z60ARAnTfPxptzP+VNC67rhONAhkBo=
+20260610170456_add_order_line_category.sql h1:cY7iznz+u2jzKfbQm3ltXExc4v9oBFuUo3GnUc/3KUE=
+20260610173931_add_room_folio_payment.sql h1:078KJ4f+MUD5BkwbOvyTF0l8M7LPUI6H70MNMhL5OAA=

@@ -33,10 +33,28 @@ const (
 	StatusRefunded  = "refunded"
 )
 
-// isCashMethod returns true for tender types that settle immediately without treasury round-trip.
+// isCashMethod returns true for tender types that settle immediately without a treasury gateway
+// round-trip: cash, manual M-Pesa code entry, room charge, and external card-terminal/PDQ swipes
+// (the standalone machine has already approved the card, so there is no online gateway step).
 func isCashMethod(method string) bool {
-	m := strings.ToLower(method)
-	return m == "cash" || m == "manual" || m == "room_charge"
+	switch strings.ToLower(strings.TrimSpace(method)) {
+	case "cash", "manual", "room_charge", "card_manual", "pdq", "card_terminal":
+		return true
+	default:
+		return false
+	}
+}
+
+// treasuryMethodForImmediate maps an immediate-settle POS tender onto the payment_method treasury
+// records. Cash-equivalents (cash/manual M-Pesa code/room charge) are recorded as "cash"; external
+// card-terminal swipes are recorded as "card_manual" so treasury tags the provider correctly.
+func treasuryMethodForImmediate(method string) string {
+	switch strings.ToLower(strings.TrimSpace(method)) {
+	case "card_manual", "pdq", "card_terminal":
+		return "card_manual"
+	default:
+		return "cash"
+	}
 }
 
 // TenderOnAccount is the credit-sale ("sell on account") tender: no money is taken at the till;
@@ -155,7 +173,7 @@ func (s *Service) CreatePaymentIntent(ctx context.Context, req RecordPaymentRequ
 
 	paymentMethod := "pending"
 	if cash {
-		paymentMethod = "cash"
+		paymentMethod = treasuryMethodForImmediate(req.TenderMethod)
 	}
 
 	intentReq := treasury.CreateIntentRequest{
@@ -167,6 +185,11 @@ func (s *Service) CreatePaymentIntent(ctx context.Context, req RecordPaymentRequ
 		PaymentMethod: paymentMethod,
 		Description:   fmt.Sprintf("POS order %s", order.OrderNumber),
 		OutletID:      order.OutletID.String(),
+	}
+	// Carry the cashier-entered external reference (card terminal approval code / M-Pesa code) so
+	// treasury records it on the immediate-settle PaymentTransaction instead of a synthetic ref.
+	if cash && req.ExternalRef != "" {
+		intentReq.Metadata = map[string]any{"external_ref": req.ExternalRef}
 	}
 
 	intent, err := s.treasuryClient.CreateIntent(ctx, req.TenantSlug, req.OrderID.String(), intentReq)

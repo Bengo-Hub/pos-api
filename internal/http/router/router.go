@@ -711,6 +711,9 @@ func New(
 						h.With(hotelChange).Post("/rooms/{id}/check-out", hotel.CheckOut)
 						h.With(hotelChange).Post("/rooms/{id}/folio", hotel.PostFolioCharge)
 						h.Get("/rooms/{id}/folio", hotel.GetRoomFolio)
+						// Checkout/settlement: full bill summary + record folio payments (with history).
+						h.Get("/rooms/{id}/folio/summary", hotel.GetFolioSummary)
+						h.With(hotelChange).Post("/rooms/{id}/settle", hotel.SettleFolio)
 						h.Get("/facilities", hotel.ListFacilities)
 						h.With(hotelManage).Post("/facilities", hotel.CreateFacility)
 						h.Get("/facilities/{id}", hotel.GetFacility)

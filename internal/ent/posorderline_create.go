@@ -50,6 +50,20 @@ func (_c *POSOrderLineCreate) SetName(v string) *POSOrderLineCreate {
 	return _c
 }
 
+// SetCategory sets the "category" field.
+func (_c *POSOrderLineCreate) SetCategory(v string) *POSOrderLineCreate {
+	_c.mutation.SetCategory(v)
+	return _c
+}
+
+// SetNillableCategory sets the "category" field if the given value is not nil.
+func (_c *POSOrderLineCreate) SetNillableCategory(v *string) *POSOrderLineCreate {
+	if v != nil {
+		_c.SetCategory(*v)
+	}
+	return _c
+}
+
 // SetQuantity sets the "quantity" field.
 func (_c *POSOrderLineCreate) SetQuantity(v float64) *POSOrderLineCreate {
 	_c.mutation.SetQuantity(v)
@@ -422,6 +436,10 @@ func (_c *POSOrderLineCreate) createSpec() (*POSOrderLine, *sqlgraph.CreateSpec)
 		_spec.SetField(posorderline.FieldName, field.TypeString, value)
 		_node.Name = value
 	}
+	if value, ok := _c.mutation.Category(); ok {
+		_spec.SetField(posorderline.FieldCategory, field.TypeString, value)
+		_node.Category = value
+	}
 	if value, ok := _c.mutation.Quantity(); ok {
 		_spec.SetField(posorderline.FieldQuantity, field.TypeFloat64, value)
 		_node.Quantity = value
@@ -616,6 +634,24 @@ func (u *POSOrderLineUpsert) SetName(v string) *POSOrderLineUpsert {
 // UpdateName sets the "name" field to the value that was provided on create.
 func (u *POSOrderLineUpsert) UpdateName() *POSOrderLineUpsert {
 	u.SetExcluded(posorderline.FieldName)
+	return u
+}
+
+// SetCategory sets the "category" field.
+func (u *POSOrderLineUpsert) SetCategory(v string) *POSOrderLineUpsert {
+	u.Set(posorderline.FieldCategory, v)
+	return u
+}
+
+// UpdateCategory sets the "category" field to the value that was provided on create.
+func (u *POSOrderLineUpsert) UpdateCategory() *POSOrderLineUpsert {
+	u.SetExcluded(posorderline.FieldCategory)
+	return u
+}
+
+// ClearCategory clears the value of the "category" field.
+func (u *POSOrderLineUpsert) ClearCategory() *POSOrderLineUpsert {
+	u.SetNull(posorderline.FieldCategory)
 	return u
 }
 
@@ -1020,6 +1056,27 @@ func (u *POSOrderLineUpsertOne) SetName(v string) *POSOrderLineUpsertOne {
 func (u *POSOrderLineUpsertOne) UpdateName() *POSOrderLineUpsertOne {
 	return u.Update(func(s *POSOrderLineUpsert) {
 		s.UpdateName()
+	})
+}
+
+// SetCategory sets the "category" field.
+func (u *POSOrderLineUpsertOne) SetCategory(v string) *POSOrderLineUpsertOne {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.SetCategory(v)
+	})
+}
+
+// UpdateCategory sets the "category" field to the value that was provided on create.
+func (u *POSOrderLineUpsertOne) UpdateCategory() *POSOrderLineUpsertOne {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.UpdateCategory()
+	})
+}
+
+// ClearCategory clears the value of the "category" field.
+func (u *POSOrderLineUpsertOne) ClearCategory() *POSOrderLineUpsertOne {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.ClearCategory()
 	})
 }
 
@@ -1641,6 +1698,27 @@ func (u *POSOrderLineUpsertBulk) SetName(v string) *POSOrderLineUpsertBulk {
 func (u *POSOrderLineUpsertBulk) UpdateName() *POSOrderLineUpsertBulk {
 	return u.Update(func(s *POSOrderLineUpsert) {
 		s.UpdateName()
+	})
+}
+
+// SetCategory sets the "category" field.
+func (u *POSOrderLineUpsertBulk) SetCategory(v string) *POSOrderLineUpsertBulk {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.SetCategory(v)
+	})
+}
+
+// UpdateCategory sets the "category" field to the value that was provided on create.
+func (u *POSOrderLineUpsertBulk) UpdateCategory() *POSOrderLineUpsertBulk {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.UpdateCategory()
+	})
+}
+
+// ClearCategory clears the value of the "category" field.
+func (u *POSOrderLineUpsertBulk) ClearCategory() *POSOrderLineUpsertBulk {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.ClearCategory()
 	})
 }
 

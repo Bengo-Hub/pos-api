@@ -87,6 +87,26 @@ func (_u *POSOrderLineUpdate) SetNillableName(v *string) *POSOrderLineUpdate {
 	return _u
 }
 
+// SetCategory sets the "category" field.
+func (_u *POSOrderLineUpdate) SetCategory(v string) *POSOrderLineUpdate {
+	_u.mutation.SetCategory(v)
+	return _u
+}
+
+// SetNillableCategory sets the "category" field if the given value is not nil.
+func (_u *POSOrderLineUpdate) SetNillableCategory(v *string) *POSOrderLineUpdate {
+	if v != nil {
+		_u.SetCategory(*v)
+	}
+	return _u
+}
+
+// ClearCategory clears the value of the "category" field.
+func (_u *POSOrderLineUpdate) ClearCategory() *POSOrderLineUpdate {
+	_u.mutation.ClearCategory()
+	return _u
+}
+
 // SetQuantity sets the "quantity" field.
 func (_u *POSOrderLineUpdate) SetQuantity(v float64) *POSOrderLineUpdate {
 	_u.mutation.ResetQuantity()
@@ -537,6 +557,12 @@ func (_u *POSOrderLineUpdate) sqlSave(ctx context.Context) (_node int, err error
 	if value, ok := _u.mutation.Name(); ok {
 		_spec.SetField(posorderline.FieldName, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.Category(); ok {
+		_spec.SetField(posorderline.FieldCategory, field.TypeString, value)
+	}
+	if _u.mutation.CategoryCleared() {
+		_spec.ClearField(posorderline.FieldCategory, field.TypeString)
+	}
 	if value, ok := _u.mutation.Quantity(); ok {
 		_spec.SetField(posorderline.FieldQuantity, field.TypeFloat64, value)
 	}
@@ -786,6 +812,26 @@ func (_u *POSOrderLineUpdateOne) SetNillableName(v *string) *POSOrderLineUpdateO
 	if v != nil {
 		_u.SetName(*v)
 	}
+	return _u
+}
+
+// SetCategory sets the "category" field.
+func (_u *POSOrderLineUpdateOne) SetCategory(v string) *POSOrderLineUpdateOne {
+	_u.mutation.SetCategory(v)
+	return _u
+}
+
+// SetNillableCategory sets the "category" field if the given value is not nil.
+func (_u *POSOrderLineUpdateOne) SetNillableCategory(v *string) *POSOrderLineUpdateOne {
+	if v != nil {
+		_u.SetCategory(*v)
+	}
+	return _u
+}
+
+// ClearCategory clears the value of the "category" field.
+func (_u *POSOrderLineUpdateOne) ClearCategory() *POSOrderLineUpdateOne {
+	_u.mutation.ClearCategory()
 	return _u
 }
 
@@ -1268,6 +1314,12 @@ func (_u *POSOrderLineUpdateOne) sqlSave(ctx context.Context) (_node *POSOrderLi
 	}
 	if value, ok := _u.mutation.Name(); ok {
 		_spec.SetField(posorderline.FieldName, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Category(); ok {
+		_spec.SetField(posorderline.FieldCategory, field.TypeString, value)
+	}
+	if _u.mutation.CategoryCleared() {
+		_spec.ClearField(posorderline.FieldCategory, field.TypeString)
 	}
 	if value, ok := _u.mutation.Quantity(); ok {
 		_spec.SetField(posorderline.FieldQuantity, field.TypeFloat64, value)

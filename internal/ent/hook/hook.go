@@ -909,6 +909,18 @@ func (f RoomFolioItemFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Valu
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.RoomFolioItemMutation", m)
 }
 
+// The RoomFolioPaymentFunc type is an adapter to allow the use of ordinary
+// function as RoomFolioPayment mutator.
+type RoomFolioPaymentFunc func(context.Context, *ent.RoomFolioPaymentMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f RoomFolioPaymentFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.RoomFolioPaymentMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.RoomFolioPaymentMutation", m)
+}
+
 // The RoomGuestFunc type is an adapter to allow the use of ordinary
 // function as RoomGuest mutator.
 type RoomGuestFunc func(context.Context, *ent.RoomGuestMutation) (ent.Value, error)

@@ -1481,6 +1481,7 @@ var (
 		{Name: "catalog_item_id", Type: field.TypeUUID},
 		{Name: "sku", Type: field.TypeString},
 		{Name: "name", Type: field.TypeString},
+		{Name: "category", Type: field.TypeString, Nullable: true},
 		{Name: "quantity", Type: field.TypeFloat64},
 		{Name: "unit_price", Type: field.TypeFloat64},
 		{Name: "total_price", Type: field.TypeFloat64},
@@ -1507,7 +1508,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "pos_order_lines_pos_orders_lines",
-				Columns:    []*schema.Column{PosOrderLinesColumns[20]},
+				Columns:    []*schema.Column{PosOrderLinesColumns[21]},
 				RefColumns: []*schema.Column{PosOrdersColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -2466,6 +2467,40 @@ var (
 				Name:    "roomfolioitem_tenant_id_room_guest_id",
 				Unique:  false,
 				Columns: []*schema.Column{RoomFolioItemsColumns[1], RoomFolioItemsColumns[13]},
+			},
+		},
+	}
+	// RoomFolioPaymentsColumns holds the columns for the "room_folio_payments" table.
+	RoomFolioPaymentsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "room_id", Type: field.TypeUUID},
+		{Name: "room_guest_id", Type: field.TypeUUID},
+		{Name: "amount", Type: field.TypeFloat64},
+		{Name: "currency", Type: field.TypeString, Default: "KES"},
+		{Name: "method", Type: field.TypeString},
+		{Name: "reference", Type: field.TypeString, Nullable: true},
+		{Name: "treasury_intent_id", Type: field.TypeString, Nullable: true},
+		{Name: "status", Type: field.TypeString, Default: "completed"},
+		{Name: "recorded_by", Type: field.TypeUUID, Nullable: true},
+		{Name: "metadata", Type: field.TypeJSON},
+		{Name: "created_at", Type: field.TypeTime},
+	}
+	// RoomFolioPaymentsTable holds the schema information for the "room_folio_payments" table.
+	RoomFolioPaymentsTable = &schema.Table{
+		Name:       "room_folio_payments",
+		Columns:    RoomFolioPaymentsColumns,
+		PrimaryKey: []*schema.Column{RoomFolioPaymentsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "roomfoliopayment_tenant_id_room_guest_id",
+				Unique:  false,
+				Columns: []*schema.Column{RoomFolioPaymentsColumns[1], RoomFolioPaymentsColumns[3]},
+			},
+			{
+				Name:    "roomfoliopayment_tenant_id_room_id",
+				Unique:  false,
+				Columns: []*schema.Column{RoomFolioPaymentsColumns[1], RoomFolioPaymentsColumns[2]},
 			},
 		},
 	}
@@ -3597,6 +3632,7 @@ var (
 		RoomAmenityAssignmentsTable,
 		RoomBookingsTable,
 		RoomFolioItemsTable,
+		RoomFolioPaymentsTable,
 		RoomGuestsTable,
 		SectionsTable,
 		SerialNumberLogsTable,

@@ -24,6 +24,9 @@ func (POSOrderLine) Fields() []ent.Field {
 			NotEmpty(),
 		field.String("name").
 			NotEmpty(),
+		field.String("category").
+			Optional().
+			Comment("Item category name at sale time; used for KDS station routing (kitchen vs bar)"),
 		field.Float("quantity"),
 		field.Float("unit_price"),
 		field.Float("total_price"),

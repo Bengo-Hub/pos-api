@@ -77,6 +77,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/roomamenityassignment"
 	"github.com/bengobox/pos-service/internal/ent/roombooking"
 	"github.com/bengobox/pos-service/internal/ent/roomfolioitem"
+	"github.com/bengobox/pos-service/internal/ent/roomfoliopayment"
 	"github.com/bengobox/pos-service/internal/ent/roomguest"
 	"github.com/bengobox/pos-service/internal/ent/schema"
 	"github.com/bengobox/pos-service/internal/ent/section"
@@ -1407,15 +1408,15 @@ func init() {
 	// posorderline.NameValidator is a validator for the "name" field. It is called by the builders before save.
 	posorderline.NameValidator = posorderlineDescName.Validators[0].(func(string) error)
 	// posorderlineDescPriceIncludesTax is the schema descriptor for price_includes_tax field.
-	posorderlineDescPriceIncludesTax := posorderlineFields[17].Descriptor()
+	posorderlineDescPriceIncludesTax := posorderlineFields[18].Descriptor()
 	// posorderline.DefaultPriceIncludesTax holds the default value on creation for the price_includes_tax field.
 	posorderline.DefaultPriceIncludesTax = posorderlineDescPriceIncludesTax.Default.(bool)
 	// posorderlineDescCourseNumber is the schema descriptor for course_number field.
-	posorderlineDescCourseNumber := posorderlineFields[18].Descriptor()
+	posorderlineDescCourseNumber := posorderlineFields[19].Descriptor()
 	// posorderline.DefaultCourseNumber holds the default value on creation for the course_number field.
 	posorderline.DefaultCourseNumber = posorderlineDescCourseNumber.Default.(int)
 	// posorderlineDescMetadata is the schema descriptor for metadata field.
-	posorderlineDescMetadata := posorderlineFields[20].Descriptor()
+	posorderlineDescMetadata := posorderlineFields[21].Descriptor()
 	// posorderline.DefaultMetadata holds the default value on creation for the metadata field.
 	posorderline.DefaultMetadata = posorderlineDescMetadata.Default.(map[string]interface{})
 	// posorderlineDescID is the schema descriptor for id field.
@@ -2052,6 +2053,28 @@ func init() {
 	roomfolioitemDescID := roomfolioitemFields[0].Descriptor()
 	// roomfolioitem.DefaultID holds the default value on creation for the id field.
 	roomfolioitem.DefaultID = roomfolioitemDescID.Default.(func() uuid.UUID)
+	roomfoliopaymentFields := schema.RoomFolioPayment{}.Fields()
+	_ = roomfoliopaymentFields
+	// roomfoliopaymentDescCurrency is the schema descriptor for currency field.
+	roomfoliopaymentDescCurrency := roomfoliopaymentFields[5].Descriptor()
+	// roomfoliopayment.DefaultCurrency holds the default value on creation for the currency field.
+	roomfoliopayment.DefaultCurrency = roomfoliopaymentDescCurrency.Default.(string)
+	// roomfoliopaymentDescStatus is the schema descriptor for status field.
+	roomfoliopaymentDescStatus := roomfoliopaymentFields[9].Descriptor()
+	// roomfoliopayment.DefaultStatus holds the default value on creation for the status field.
+	roomfoliopayment.DefaultStatus = roomfoliopaymentDescStatus.Default.(string)
+	// roomfoliopaymentDescMetadata is the schema descriptor for metadata field.
+	roomfoliopaymentDescMetadata := roomfoliopaymentFields[11].Descriptor()
+	// roomfoliopayment.DefaultMetadata holds the default value on creation for the metadata field.
+	roomfoliopayment.DefaultMetadata = roomfoliopaymentDescMetadata.Default.(map[string]interface{})
+	// roomfoliopaymentDescCreatedAt is the schema descriptor for created_at field.
+	roomfoliopaymentDescCreatedAt := roomfoliopaymentFields[12].Descriptor()
+	// roomfoliopayment.DefaultCreatedAt holds the default value on creation for the created_at field.
+	roomfoliopayment.DefaultCreatedAt = roomfoliopaymentDescCreatedAt.Default.(func() time.Time)
+	// roomfoliopaymentDescID is the schema descriptor for id field.
+	roomfoliopaymentDescID := roomfoliopaymentFields[0].Descriptor()
+	// roomfoliopayment.DefaultID holds the default value on creation for the id field.
+	roomfoliopayment.DefaultID = roomfoliopaymentDescID.Default.(func() uuid.UUID)
 	roomguestFields := schema.RoomGuest{}.Fields()
 	_ = roomguestFields
 	// roomguestDescGuestName is the schema descriptor for guest_name field.
