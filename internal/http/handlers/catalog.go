@@ -120,41 +120,55 @@ func categoryAllowedForUseCase(categoryName, useCase string) bool {
 		strings.Contains(cat, "cold beverage")
 	isServicesCat := strings.Contains(cat, "beauty") || strings.Contains(cat, "spa") ||
 		strings.Contains(cat, "event") || strings.Contains(cat, "experience") ||
-		strings.Contains(cat, "wellness")
+		strings.Contains(cat, "wellness") || strings.Contains(cat, "conference") ||
+		strings.Contains(cat, "meeting") || strings.Contains(cat, "facility") ||
+		strings.Contains(cat, "amenity") || strings.Contains(cat, "salon") ||
+		strings.Contains(cat, "massage") || strings.Contains(cat, "room rate") ||
+		strings.Contains(cat, "room type")
 	isRetailCat := strings.Contains(cat, "retail")
+	// Component categories are building blocks (recipe inputs / modifier options), never standalone
+	// sellable on a POS terminal — keep them off every sellable use case so the catalog shows only
+	// finished items (menu dishes, drinks, packaged goods).
+	isComponentCat := strings.Contains(cat, "raw ingredient") || strings.Contains(cat, "raw material") ||
+		strings.Contains(cat, "ingredient") || strings.Contains(cat, "modifier") ||
+		strings.Contains(cat, "add-on") || strings.Contains(cat, "add on") ||
+		strings.Contains(cat, "accompaniment")
 
 	switch strings.ToLower(useCase) {
 	case "retail":
-		// Retail outlets sell general merchandise — exclude pharmacy, food/restaurant, and services items
-		return !isPharmacyCat && !isFoodCat && !isServicesCat
+		// Retail outlets sell general merchandise — exclude pharmacy, food/restaurant, services, components
+		return !isPharmacyCat && !isFoodCat && !isServicesCat && !isComponentCat
 	case "pharmacy":
 		// Pharmacy outlets sell only pharmacy/health items
 		return isPharmacyCat
 	case "hospitality", "quick_service":
-		// Restaurant/QSR outlets sell food — exclude pharmacy and pure retail items
-		return !isPharmacyCat && !isRetailCat && !isServicesCat
+		// Restaurant/QSR outlets sell FINISHED food/drink — exclude pharmacy, retail, services, components
+		return !isPharmacyCat && !isRetailCat && !isServicesCat && !isComponentCat
 	case "services":
-		// Beauty/wellness outlets sell services — exclude pharmacy, food, and retail
-		return !isPharmacyCat && !isFoodCat && !isRetailCat
+		// Beauty/wellness outlets sell services — exclude pharmacy, food, retail, components
+		return !isPharmacyCat && !isFoodCat && !isRetailCat && !isComponentCat
 	default:
 		return true
 	}
 }
 
 // useCaseItemTypes returns the comma-separated inventory item types valid for a given outlet use case.
-// This prevents cross-contamination (e.g. pharmacy GOODS appearing in retail).
+// This prevents cross-contamination (e.g. pharmacy GOODS appearing in retail) AND keeps non-sellable
+// component types off the POS terminal: restaurants/bars sell FINISHED items only — RECIPE (menu
+// dishes), GOODS (drinks/packaged) and VOUCHER — never raw INGREDIENT stock or SERVICE items (rooms/
+// conference/salon are handled by their own modules, not the food terminal).
 func useCaseItemTypes(useCase string) string {
 	switch strings.ToLower(useCase) {
 	case "retail":
 		return "GOODS,VOUCHER"
 	case "hospitality", "quick_service":
-		return "GOODS,RECIPE,SERVICE,INGREDIENT,VOUCHER"
+		return "GOODS,RECIPE,VOUCHER"
 	case "pharmacy":
 		return "GOODS,VOUCHER"
 	case "services":
 		return "SERVICE,GOODS,VOUCHER"
 	default:
-		return "GOODS,RECIPE,SERVICE,VOUCHER"
+		return "GOODS,RECIPE,VOUCHER"
 	}
 }
 
