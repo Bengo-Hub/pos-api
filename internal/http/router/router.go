@@ -243,6 +243,11 @@ func New(
 						pos.Get("/orders/{orderID}/receipt/pdf", receipt.GetReceiptPDF)
 					}
 
+					// QZ Tray printing bridge — serve the platform cert + sign print requests so the
+					// pos-ui can print silently to assigned printers. Stateless (env-driven key/cert).
+					pos.Get("/printing/qz/cert", handlers.QZCert)
+					pos.Post("/printing/qz/sign", handlers.QZSign)
+
 					// Catalog
 					if catalog != nil {
 						pos.Route("/catalog", func(cat chi.Router) {
