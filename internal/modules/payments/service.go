@@ -198,7 +198,11 @@ func (s *Service) CreatePaymentIntent(ctx context.Context, req RecordPaymentRequ
 			SetNillableExternalReference(nilIfEmpty(intent.ResolvedID())).
 			Save(ctx)
 		if err != nil {
-			s.log.Warn("failed to record pending payment", zap.Error(err))
+			// Must NOT swallow this: without the local pending POSPayment row, treasury's
+			// payment.succeeded callback can't match the intent back to an order (it looks the order up
+			// by this row's external_reference), leaving the order stuck unpaid. Fail loudly so the
+			// caller can retry — each retry creates a fresh intent, and the unconfirmed one expires.
+			return nil, fmt.Errorf("payments: record pending payment: %w", err)
 		}
 		return result, nil
 	}
