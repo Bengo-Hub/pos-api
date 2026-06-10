@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -17,7 +18,12 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/posorder"
 	"github.com/bengobox/pos-service/internal/ent/tender"
 	"github.com/bengobox/pos-service/internal/platform/events"
+	"github.com/bengobox/pos-service/internal/platform/subscriptions"
 )
+
+// errLimitWritten signals that a 402 limit-reached response was already written to the
+// ResponseWriter, so the caller must return without writing again.
+var errLimitWritten = errors.New("subscription limit response written")
 
 // DeviceHandler handles device session (shift) endpoints.
 type DeviceHandler struct {
@@ -137,8 +143,11 @@ func (h *DeviceHandler) OpenSession(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Resolve the device_id — must be a real POSDevice FK or session creation fails.
-	deviceID, err := h.resolveOrCreateDevice(r, tid, input.DeviceID)
+	deviceID, err := h.resolveOrCreateDevice(w, r, tid, input.DeviceID)
 	if err != nil {
+		if errors.Is(err, errLimitWritten) {
+			return // 402 device_limit_reached already written
+		}
 		h.log.Error("could not resolve device", zap.Error(err))
 		jsonError(w, "failed to resolve device", http.StatusInternalServerError)
 		return
@@ -171,7 +180,7 @@ func (h *DeviceHandler) OpenSession(w http.ResponseWriter, r *http.Request) {
 // resolveOrCreateDevice finds an existing POSDevice for the outlet (from JWT claims or
 // input.DeviceID), or creates a web_terminal device on first use.
 // The POSDeviceSession schema requires a valid device_id FK.
-func (h *DeviceHandler) resolveOrCreateDevice(r *http.Request, tid uuid.UUID, inputDeviceID *uuid.UUID) (uuid.UUID, error) {
+func (h *DeviceHandler) resolveOrCreateDevice(w http.ResponseWriter, r *http.Request, tid uuid.UUID, inputDeviceID *uuid.UUID) (uuid.UUID, error) {
 	ctx := r.Context()
 
 	// Caller-supplied device_id takes precedence when it's a real FK.
@@ -207,6 +216,14 @@ func (h *DeviceHandler) resolveOrCreateDevice(r *http.Request, tid uuid.UUID, in
 	}
 
 	// Create a web_terminal device for this outlet on first use.
+	// Enforce the plan's max_devices structural cap before provisioning a NEW device
+	// (existing-device reuse above is never blocked). Hard-block, no overage.
+	if count, cerr := h.client.POSDevice.Query().Where(posdevice.TenantID(tid)).Count(ctx); cerr == nil {
+		if !subscriptions.CheckDeviceLimit(w, r, count) {
+			return uuid.Nil, errLimitWritten
+		}
+	}
+
 	device, err = h.client.POSDevice.Create().
 		SetTenantID(tid).
 		SetOutletID(outletID).

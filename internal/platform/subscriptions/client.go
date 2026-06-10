@@ -1,6 +1,7 @@
 package subscriptions
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -106,4 +107,52 @@ func (c *Client) GetLimit(ctx context.Context, tenantID, limitKey string) (limit
 		return 0, false
 	}
 	return v, true
+}
+
+// UsageDecision is the outcome of reporting a metered usage event.
+type UsageDecision struct {
+	// Allowed is true when the event is within limit OR soft-capped (overage opted-in).
+	Allowed bool
+	// Status is the raw HTTP status from subscriptions-api (402 when hard-blocked).
+	Status int
+	// Body carries the structured limit-reached fields when Allowed is false.
+	Body map[string]any
+}
+
+// ReportUsage records a metered usage event (e.g. metric="orders", "transactions") and
+// returns the limit decision. subscriptions-api atomically increments the tenant's counter
+// and either allows the event (within limit or opted-in overage) or returns 402 with the
+// structured limit body. Fails OPEN (Allowed=true) on any network/parse error so a
+// subscriptions-api outage never blocks core POS operations. Tenant is resolved by
+// subscriptions-api from the X-Tenant-ID header under API-key auth.
+func (c *Client) ReportUsage(ctx context.Context, tenantID, metric, serviceName string, value float64) UsageDecision {
+	if c.cfg.ServiceURL == "" || c.cfg.APIKey == "" {
+		return UsageDecision{Allowed: true}
+	}
+	payload, _ := json.Marshal(map[string]any{
+		"metric_type":  metric,
+		"service_name": serviceName,
+		"value":        value,
+	})
+	url := fmt.Sprintf("%s/api/v1/usage/report", c.cfg.ServiceURL)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(payload))
+	if err != nil {
+		return UsageDecision{Allowed: true}
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-API-Key", c.cfg.APIKey)
+	req.Header.Set("X-Tenant-ID", tenantID)
+
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return UsageDecision{Allowed: true} // fail open
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusPaymentRequired || resp.StatusCode == http.StatusTooManyRequests {
+		var body map[string]any
+		_ = json.NewDecoder(resp.Body).Decode(&body)
+		return UsageDecision{Allowed: false, Status: resp.StatusCode, Body: body}
+	}
+	return UsageDecision{Allowed: true, Status: resp.StatusCode}
 }

@@ -265,6 +265,7 @@ func New(
 					if tables != nil {
 						pos.Group(func(tbl chi.Router) {
 							tbl.Use(outletmw.RequireUseCase("hospitality"))
+							tbl.Use(subscriptions.RequireFeature(subscriptions.FeatureTableManagement))
 							tbl.Get("/sections", tables.ListSections)
 							tbl.Post("/sections", tables.CreateSection)
 							tbl.Put("/sections/{id}", tables.UpdateSection)
@@ -386,6 +387,7 @@ func New(
 						pos.Group(func(k chi.Router) {
 							k.Use(outletmw.RequireUseCase("hospitality", "quick_service"))
 							k.Use(outletmw.RequireKDSEnabled(entClient))
+							k.Use(subscriptions.RequireFeature(subscriptions.FeatureKDS))
 							k.Get("/kds/stations", kds.ListStations)
 							k.Post("/kds/stations", kds.CreateStation)
 							k.Put("/kds/stations/{id}", kds.UpdateStation)
@@ -568,19 +570,23 @@ func New(
 						pos.Get("/clients/{phone}/orders", clients.GetOrdersByPhone)
 					}
 
-					// Loyalty programs & accounts
+					// Loyalty programs & accounts — gated on the loyalty_program feature
+					// (bundles include it from Starter; POS-device plans do not).
 					if loyalty != nil {
-						pos.Get("/loyalty/programs", loyalty.ListPrograms)
-						pos.Post("/loyalty/programs", loyalty.CreateProgram)
-						pos.Put("/loyalty/programs/{programID}", loyalty.UpdateProgram)
-						pos.Get("/loyalty/accounts", loyalty.ListAccounts)
-						pos.Post("/loyalty/accounts", loyalty.CreateAccount)
-						pos.Get("/loyalty/accounts/{accountID}", loyalty.GetAccount)
-						pos.Post("/loyalty/accounts/{accountID}/earn", loyalty.Earn)
-						pos.Post("/loyalty/accounts/{accountID}/redeem", loyalty.Redeem)
-						pos.Post("/loyalty/accounts/{accountID}/redeem-to-order", loyalty.RedeemToOrder)
-						pos.Post("/loyalty/accounts/{accountID}/referrals", loyalty.CreateReferral)
-						pos.Get("/loyalty/accounts/{accountID}/referrals", loyalty.ListReferrals)
+						pos.Group(func(ly chi.Router) {
+							ly.Use(subscriptions.RequireFeature(subscriptions.FeatureLoyalty))
+							ly.Get("/loyalty/programs", loyalty.ListPrograms)
+							ly.Post("/loyalty/programs", loyalty.CreateProgram)
+							ly.Put("/loyalty/programs/{programID}", loyalty.UpdateProgram)
+							ly.Get("/loyalty/accounts", loyalty.ListAccounts)
+							ly.Post("/loyalty/accounts", loyalty.CreateAccount)
+							ly.Get("/loyalty/accounts/{accountID}", loyalty.GetAccount)
+							ly.Post("/loyalty/accounts/{accountID}/earn", loyalty.Earn)
+							ly.Post("/loyalty/accounts/{accountID}/redeem", loyalty.Redeem)
+							ly.Post("/loyalty/accounts/{accountID}/redeem-to-order", loyalty.RedeemToOrder)
+							ly.Post("/loyalty/accounts/{accountID}/referrals", loyalty.CreateReferral)
+							ly.Get("/loyalty/accounts/{accountID}/referrals", loyalty.ListReferrals)
+						})
 					}
 
 					// Reports & Analytics
@@ -627,17 +633,18 @@ func New(
 
 					// Online ordering pickup status Ã¢â‚¬â€ KDS click-and-collect (Sprint 13)
 					if onlineOrders != nil {
+						onlineFeat := subscriptions.RequireFeature(subscriptions.FeatureOnlineOrdering)
 						pos.Get("/online-orders/pickup", onlineOrders.ListPickup)
 						// Pickup hand-off + delivery rider assignment mutate order state Ã¢â‚¬â€ gate on
 						// orders.change (waiter, manager+). Reads (pickup/rider lists) stay open.
-						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.orders.change", "pos.orders.manage")).
+						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.orders.change", "pos.orders.manage"), onlineFeat).
 							Post("/online-orders/{orderID}/ready", onlineOrders.MarkReady)
-						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.orders.change", "pos.orders.manage")).
+						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.orders.change", "pos.orders.manage"), onlineFeat).
 							Post("/online-orders/{orderID}/collected", onlineOrders.MarkCollected)
 						// WS-D delivery rider assignment: list fleet (proxy logistics) +
 						// assign rider (delegate to ordering-backend, which owns the order).
 						pos.Get("/online-orders/riders", onlineOrders.ListAvailableRiders)
-						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.orders.change", "pos.orders.manage")).
+						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.orders.change", "pos.orders.manage"), onlineFeat).
 							Post("/online-orders/{orderID}/assign-rider", onlineOrders.AssignRider)
 					}
 
@@ -665,6 +672,11 @@ func New(
 				if hotel != nil {
 					tenant.Route("/hotel", func(h chi.Router) {
 						h.Use(outletmw.RequireUseCase("hospitality"))
+						// Entire hotel vertical requires the hotel_module feature. Conference/event
+						// routes additionally require conference_events (a tenant can have hotel
+						// without conferences, e.g. Complete Professional).
+						h.Use(subscriptions.RequireFeature(subscriptions.FeatureHotelModule))
+						conferenceFeat := subscriptions.RequireFeature(subscriptions.FeatureConference)
 						// Front-desk operational actions (check-in/out, folio, bookings, room status,
 						// facility booking, amenities, housekeeping) require hotel CHANGE; admin master
 						// data (create/edit/delete rooms & facilities) requires hotel MANAGE.
@@ -683,17 +695,17 @@ func New(
 						h.Get("/bookings/{id}", hotel.GetRoomBooking)
 						h.With(hotelManage).Patch("/bookings/{id}", hotel.UpdateRoomBooking)
 						h.Get("/bookings/{id}/guests", hotel.ListBookingGuests)
-						// Conference / events (BEO) + delegate meal cards
-						h.With(outletmw.RequireServicePermission(rbacSvc, "pos.conference.add", "pos.conference.manage")).
+						// Conference / events (BEO) + delegate meal cards — require conference_events.
+						h.With(outletmw.RequireServicePermission(rbacSvc, "pos.conference.add", "pos.conference.manage"), conferenceFeat).
 							Post("/events", hotel.CreateEventBooking)
 						h.Get("/events", hotel.ListEventBookings)
 						h.Get("/events/{id}", hotel.GetEventBooking)
-						h.With(outletmw.RequireServicePermission(rbacSvc, "pos.conference.change", "pos.conference.manage")).
+						h.With(outletmw.RequireServicePermission(rbacSvc, "pos.conference.change", "pos.conference.manage"), conferenceFeat).
 							Patch("/events/{id}", hotel.UpdateEventBooking)
 						h.Get("/events/{id}/reconciliation", hotel.ReconcileEvent)
-						h.With(outletmw.RequireServicePermission(rbacSvc, "pos.conference.manage")).
+						h.With(outletmw.RequireServicePermission(rbacSvc, "pos.conference.manage"), conferenceFeat).
 							Post("/events/{id}/generate-mealcards", hotel.GenerateMealCards)
-						h.With(outletmw.RequireServicePermission(rbacSvc, "pos.conference.change", "pos.conference.manage")).
+						h.With(outletmw.RequireServicePermission(rbacSvc, "pos.conference.change", "pos.conference.manage"), conferenceFeat).
 							Post("/mealcards/{code}/redeem", hotel.RedeemMealCard)
 						h.With(hotelChange).Post("/rooms/{id}/check-in", hotel.CheckIn)
 						h.With(hotelChange).Post("/rooms/{id}/check-out", hotel.CheckOut)

@@ -232,6 +232,26 @@ func (h *POSOrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 			jsonError(w, "active subscription required", http.StatusPaymentRequired)
 			return
 		}
+
+		// Metered limit: count this sale against max_orders_per_day. Over limit with no
+		// overage opt-in → 402 with the structured limit body so pos-ui opens the extra-usage
+		// modal. Exempt tokens and infra errors fail open (ReportUsage returns Allowed=true).
+		exempt := false
+		if claims, ok := authclient.ClaimsFromContext(r.Context()); ok {
+			exempt = claims.IsGatingExempt()
+		}
+		if !exempt {
+			if dec := h.subsClient.ReportUsage(r.Context(), tenantID, subscriptions.MetricOrders, "pos-api", 1); !dec.Allowed {
+				status := dec.Status
+				if status == 0 {
+					status = http.StatusPaymentRequired
+				}
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(status)
+				_ = json.NewEncoder(w).Encode(dec.Body)
+				return
+			}
+		}
 	}
 
 	var input createOrderInput
