@@ -69,6 +69,7 @@ type OrderLineInput struct {
 	CatalogItemID    uuid.UUID
 	SKU              string
 	Name             string
+	Category         string // Item category name; drives KDS station routing (kitchen vs bar)
 	Quantity         float64
 	UnitPrice        float64
 	TotalPrice       float64
@@ -371,6 +372,7 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent
 			SetCatalogItemID(line.CatalogItemID).
 			SetSku(line.SKU).
 			SetName(line.Name).
+			SetCategory(line.Category).
 			SetQuantity(line.Quantity).
 			SetUnitPrice(line.UnitPrice).
 			SetTotalPrice(lineTotal.InexactFloat64()).
@@ -513,11 +515,16 @@ func parseTableRef(order *ent.POSOrder) string {
 func routeLinesToStations(lines []*ent.POSOrderLine, stations []*ent.KDSStation) map[uuid.UUID][]map[string]any {
 	stationItems := make(map[uuid.UUID][]map[string]any, len(stations))
 
-	// Identify expo/all stations upfront.
+	// Identify expo/all and the first kitchen station upfront.
 	var expoIDs []uuid.UUID
+	var kitchenID *uuid.UUID
 	for _, st := range stations {
 		if st.StationType == "expo" || st.StationType == "all" {
 			expoIDs = append(expoIDs, st.ID)
+		}
+		if st.StationType == "kitchen" && kitchenID == nil {
+			id := st.ID
+			kitchenID = &id
 		}
 	}
 
@@ -530,23 +537,46 @@ func routeLinesToStations(lines []*ent.POSOrderLine, stations []*ent.KDSStation)
 
 		routed := false
 
-		// Priority 1: explicit station on the order line (set from catalog override).
+		// Priority 1: explicit station on the order line (set from catalog override) — manager wins.
 		if l.KdsStationID != nil {
 			stationItems[*l.KdsStationID] = append(stationItems[*l.KdsStationID], item)
 			routed = true
 		}
 
-		// Priority 2: category_filter keyword match on item name (case-insensitive).
+		// Coffee & tea (and other hot beverages) are kitchen items, never bar — the bar prepares
+		// alcohol and cold drinks. Force these to the kitchen station when one exists, before the
+		// category_filter fallback can capture them for a "beverages" bar station.
+		isHot := isHotBeverage(l.Name, l.Category)
+		if !routed && isHot && kitchenID != nil {
+			stationItems[*kitchenID] = append(stationItems[*kitchenID], item)
+			routed = true
+		}
+
+		// Priority 2: category_filter keyword match on the item's CATEGORY first, then its NAME
+		// (case-insensitive). Bar stations are skipped for hot beverages so coffee/tea can't be
+		// dragged to the bar by a broad "beverage" filter.
 		if !routed {
-			nameLower := strings.ToLower(l.Name)
+			haystacks := []string{strings.ToLower(l.Category), strings.ToLower(l.Name)}
 			for _, st := range stations {
 				if st.StationType == "expo" || st.StationType == "all" {
 					continue // handled separately below
 				}
+				if isHot && st.StationType == "bar" {
+					continue
+				}
 				for _, cat := range st.CategoryFilter {
-					if strings.Contains(nameLower, strings.ToLower(cat)) {
-						stationItems[st.ID] = append(stationItems[st.ID], item)
-						routed = true
+					needle := strings.ToLower(strings.TrimSpace(cat))
+					if needle == "" {
+						continue
+					}
+					for _, h := range haystacks {
+						if h != "" && strings.Contains(h, needle) {
+							stationItems[st.ID] = append(stationItems[st.ID], item)
+							routed = true
+							break
+						}
+					}
+					if routed {
 						break
 					}
 				}
@@ -571,6 +601,30 @@ func routeLinesToStations(lines []*ent.POSOrderLine, stations []*ent.KDSStation)
 	}
 
 	return stationItems
+}
+
+// hotBeverageKeywords are matched (case-insensitive substring) against an item's name and category
+// to keep coffee/tea-type drinks on the kitchen station rather than the bar.
+var hotBeverageKeywords = []string{
+	"coffee", "tea", "espresso", "cappuccino", "latte", "americano", "macchiato",
+	"mocha", "hot chocolate", "chai", "flat white", "cortado", "affogato",
+	"hot beverage", "hot drink",
+}
+
+// isHotBeverage reports whether an item (by name or category) is a hot beverage that should be
+// prepared in the kitchen, not the bar.
+func isHotBeverage(name, category string) bool {
+	hay := strings.ToLower(name + " " + category)
+	for _, kw := range hotBeverageKeywords {
+		if strings.Contains(hay, kw) {
+			// Guard against false positives like "iced tea"/"iced coffee" which are bar/cold drinks.
+			if (kw == "coffee" || kw == "tea") && (strings.Contains(hay, "iced "+kw) || strings.Contains(hay, "ice "+kw)) {
+				continue
+			}
+			return true
+		}
+	}
+	return false
 }
 
 // createKDSTicketsForOrder creates per-station KDS tickets with only the items

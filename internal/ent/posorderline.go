@@ -28,6 +28,8 @@ type POSOrderLine struct {
 	Sku string `json:"sku,omitempty"`
 	// Name holds the value of the "name" field.
 	Name string `json:"name,omitempty"`
+	// Item category name at sale time; used for KDS station routing (kitchen vs bar)
+	Category string `json:"category,omitempty"`
 	// Quantity holds the value of the "quantity" field.
 	Quantity float64 `json:"quantity,omitempty"`
 	// UnitPrice holds the value of the "unit_price" field.
@@ -112,7 +114,7 @@ func (*POSOrderLine) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullFloat64)
 		case posorderline.FieldWeightGrams, posorderline.FieldCourseNumber:
 			values[i] = new(sql.NullInt64)
-		case posorderline.FieldSku, posorderline.FieldName, posorderline.FieldLotNumber, posorderline.FieldSerialNumber, posorderline.FieldTaxCodeID, posorderline.FieldTaxKraCode:
+		case posorderline.FieldSku, posorderline.FieldName, posorderline.FieldCategory, posorderline.FieldLotNumber, posorderline.FieldSerialNumber, posorderline.FieldTaxCodeID, posorderline.FieldTaxKraCode:
 			values[i] = new(sql.NullString)
 		case posorderline.FieldExpiryDate:
 			values[i] = new(sql.NullTime)
@@ -162,6 +164,12 @@ func (_m *POSOrderLine) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field name", values[i])
 			} else if value.Valid {
 				_m.Name = value.String
+			}
+		case posorderline.FieldCategory:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field category", values[i])
+			} else if value.Valid {
+				_m.Category = value.String
 			}
 		case posorderline.FieldQuantity:
 			if value, ok := values[i].(*sql.NullFloat64); !ok {
@@ -325,6 +333,9 @@ func (_m *POSOrderLine) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("name=")
 	builder.WriteString(_m.Name)
+	builder.WriteString(", ")
+	builder.WriteString("category=")
+	builder.WriteString(_m.Category)
 	builder.WriteString(", ")
 	builder.WriteString("quantity=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Quantity))

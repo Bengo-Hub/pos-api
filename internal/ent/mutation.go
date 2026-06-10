@@ -86,6 +86,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/roomamenityassignment"
 	"github.com/bengobox/pos-service/internal/ent/roombooking"
 	"github.com/bengobox/pos-service/internal/ent/roomfolioitem"
+	"github.com/bengobox/pos-service/internal/ent/roomfoliopayment"
 	"github.com/bengobox/pos-service/internal/ent/roomguest"
 	"github.com/bengobox/pos-service/internal/ent/section"
 	"github.com/bengobox/pos-service/internal/ent/serialnumberlog"
@@ -205,6 +206,7 @@ const (
 	TypeRoomAmenityAssignment    = "RoomAmenityAssignment"
 	TypeRoomBooking              = "RoomBooking"
 	TypeRoomFolioItem            = "RoomFolioItem"
+	TypeRoomFolioPayment         = "RoomFolioPayment"
 	TypeRoomGuest                = "RoomGuest"
 	TypeSection                  = "Section"
 	TypeSerialNumberLog          = "SerialNumberLog"
@@ -49189,6 +49191,7 @@ type POSOrderLineMutation struct {
 	catalog_item_id    *uuid.UUID
 	sku                *string
 	name               *string
+	category           *string
 	quantity           *float64
 	addquantity        *float64
 	unit_price         *float64
@@ -49470,6 +49473,55 @@ func (m *POSOrderLineMutation) OldName(ctx context.Context) (v string, err error
 // ResetName resets all changes to the "name" field.
 func (m *POSOrderLineMutation) ResetName() {
 	m.name = nil
+}
+
+// SetCategory sets the "category" field.
+func (m *POSOrderLineMutation) SetCategory(s string) {
+	m.category = &s
+}
+
+// Category returns the value of the "category" field in the mutation.
+func (m *POSOrderLineMutation) Category() (r string, exists bool) {
+	v := m.category
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCategory returns the old "category" field's value of the POSOrderLine entity.
+// If the POSOrderLine object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSOrderLineMutation) OldCategory(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCategory is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCategory requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCategory: %w", err)
+	}
+	return oldValue.Category, nil
+}
+
+// ClearCategory clears the value of the "category" field.
+func (m *POSOrderLineMutation) ClearCategory() {
+	m.category = nil
+	m.clearedFields[posorderline.FieldCategory] = struct{}{}
+}
+
+// CategoryCleared returns if the "category" field was cleared in this mutation.
+func (m *POSOrderLineMutation) CategoryCleared() bool {
+	_, ok := m.clearedFields[posorderline.FieldCategory]
+	return ok
+}
+
+// ResetCategory resets all changes to the "category" field.
+func (m *POSOrderLineMutation) ResetCategory() {
+	m.category = nil
+	delete(m.clearedFields, posorderline.FieldCategory)
 }
 
 // SetQuantity sets the "quantity" field.
@@ -50457,7 +50509,7 @@ func (m *POSOrderLineMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *POSOrderLineMutation) Fields() []string {
-	fields := make([]string, 0, 20)
+	fields := make([]string, 0, 21)
 	if m._order != nil {
 		fields = append(fields, posorderline.FieldOrderID)
 	}
@@ -50469,6 +50521,9 @@ func (m *POSOrderLineMutation) Fields() []string {
 	}
 	if m.name != nil {
 		fields = append(fields, posorderline.FieldName)
+	}
+	if m.category != nil {
+		fields = append(fields, posorderline.FieldCategory)
 	}
 	if m.quantity != nil {
 		fields = append(fields, posorderline.FieldQuantity)
@@ -50534,6 +50589,8 @@ func (m *POSOrderLineMutation) Field(name string) (ent.Value, bool) {
 		return m.Sku()
 	case posorderline.FieldName:
 		return m.Name()
+	case posorderline.FieldCategory:
+		return m.Category()
 	case posorderline.FieldQuantity:
 		return m.Quantity()
 	case posorderline.FieldUnitPrice:
@@ -50583,6 +50640,8 @@ func (m *POSOrderLineMutation) OldField(ctx context.Context, name string) (ent.V
 		return m.OldSku(ctx)
 	case posorderline.FieldName:
 		return m.OldName(ctx)
+	case posorderline.FieldCategory:
+		return m.OldCategory(ctx)
 	case posorderline.FieldQuantity:
 		return m.OldQuantity(ctx)
 	case posorderline.FieldUnitPrice:
@@ -50651,6 +50710,13 @@ func (m *POSOrderLineMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetName(v)
+		return nil
+	case posorderline.FieldCategory:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCategory(v)
 		return nil
 	case posorderline.FieldQuantity:
 		v, ok := value.(float64)
@@ -50893,6 +50959,9 @@ func (m *POSOrderLineMutation) AddField(name string, value ent.Value) error {
 // mutation.
 func (m *POSOrderLineMutation) ClearedFields() []string {
 	var fields []string
+	if m.FieldCleared(posorderline.FieldCategory) {
+		fields = append(fields, posorderline.FieldCategory)
+	}
 	if m.FieldCleared(posorderline.FieldWeightGrams) {
 		fields = append(fields, posorderline.FieldWeightGrams)
 	}
@@ -50937,6 +51006,9 @@ func (m *POSOrderLineMutation) FieldCleared(name string) bool {
 // error if the field is not defined in the schema.
 func (m *POSOrderLineMutation) ClearField(name string) error {
 	switch name {
+	case posorderline.FieldCategory:
+		m.ClearCategory()
+		return nil
 	case posorderline.FieldWeightGrams:
 		m.ClearWeightGrams()
 		return nil
@@ -50986,6 +51058,9 @@ func (m *POSOrderLineMutation) ResetField(name string) error {
 		return nil
 	case posorderline.FieldName:
 		m.ResetName()
+		return nil
+	case posorderline.FieldCategory:
+		m.ResetCategory()
 		return nil
 	case posorderline.FieldQuantity:
 		m.ResetQuantity()
@@ -77728,6 +77803,1028 @@ func (m *RoomFolioItemMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown RoomFolioItem edge %s", name)
+}
+
+// RoomFolioPaymentMutation represents an operation that mutates the RoomFolioPayment nodes in the graph.
+type RoomFolioPaymentMutation struct {
+	config
+	op                 Op
+	typ                string
+	id                 *uuid.UUID
+	tenant_id          *uuid.UUID
+	room_id            *uuid.UUID
+	room_guest_id      *uuid.UUID
+	amount             *float64
+	addamount          *float64
+	currency           *string
+	method             *string
+	reference          *string
+	treasury_intent_id *string
+	status             *string
+	recorded_by        *uuid.UUID
+	metadata           *map[string]interface{}
+	created_at         *time.Time
+	clearedFields      map[string]struct{}
+	done               bool
+	oldValue           func(context.Context) (*RoomFolioPayment, error)
+	predicates         []predicate.RoomFolioPayment
+}
+
+var _ ent.Mutation = (*RoomFolioPaymentMutation)(nil)
+
+// roomfoliopaymentOption allows management of the mutation configuration using functional options.
+type roomfoliopaymentOption func(*RoomFolioPaymentMutation)
+
+// newRoomFolioPaymentMutation creates new mutation for the RoomFolioPayment entity.
+func newRoomFolioPaymentMutation(c config, op Op, opts ...roomfoliopaymentOption) *RoomFolioPaymentMutation {
+	m := &RoomFolioPaymentMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeRoomFolioPayment,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withRoomFolioPaymentID sets the ID field of the mutation.
+func withRoomFolioPaymentID(id uuid.UUID) roomfoliopaymentOption {
+	return func(m *RoomFolioPaymentMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *RoomFolioPayment
+		)
+		m.oldValue = func(ctx context.Context) (*RoomFolioPayment, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().RoomFolioPayment.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withRoomFolioPayment sets the old RoomFolioPayment of the mutation.
+func withRoomFolioPayment(node *RoomFolioPayment) roomfoliopaymentOption {
+	return func(m *RoomFolioPaymentMutation) {
+		m.oldValue = func(context.Context) (*RoomFolioPayment, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m RoomFolioPaymentMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m RoomFolioPaymentMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of RoomFolioPayment entities.
+func (m *RoomFolioPaymentMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *RoomFolioPaymentMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *RoomFolioPaymentMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().RoomFolioPayment.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *RoomFolioPaymentMutation) SetTenantID(u uuid.UUID) {
+	m.tenant_id = &u
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *RoomFolioPaymentMutation) TenantID() (r uuid.UUID, exists bool) {
+	v := m.tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the RoomFolioPayment entity.
+// If the RoomFolioPayment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoomFolioPaymentMutation) OldTenantID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *RoomFolioPaymentMutation) ResetTenantID() {
+	m.tenant_id = nil
+}
+
+// SetRoomID sets the "room_id" field.
+func (m *RoomFolioPaymentMutation) SetRoomID(u uuid.UUID) {
+	m.room_id = &u
+}
+
+// RoomID returns the value of the "room_id" field in the mutation.
+func (m *RoomFolioPaymentMutation) RoomID() (r uuid.UUID, exists bool) {
+	v := m.room_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRoomID returns the old "room_id" field's value of the RoomFolioPayment entity.
+// If the RoomFolioPayment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoomFolioPaymentMutation) OldRoomID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRoomID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRoomID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRoomID: %w", err)
+	}
+	return oldValue.RoomID, nil
+}
+
+// ResetRoomID resets all changes to the "room_id" field.
+func (m *RoomFolioPaymentMutation) ResetRoomID() {
+	m.room_id = nil
+}
+
+// SetRoomGuestID sets the "room_guest_id" field.
+func (m *RoomFolioPaymentMutation) SetRoomGuestID(u uuid.UUID) {
+	m.room_guest_id = &u
+}
+
+// RoomGuestID returns the value of the "room_guest_id" field in the mutation.
+func (m *RoomFolioPaymentMutation) RoomGuestID() (r uuid.UUID, exists bool) {
+	v := m.room_guest_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRoomGuestID returns the old "room_guest_id" field's value of the RoomFolioPayment entity.
+// If the RoomFolioPayment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoomFolioPaymentMutation) OldRoomGuestID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRoomGuestID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRoomGuestID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRoomGuestID: %w", err)
+	}
+	return oldValue.RoomGuestID, nil
+}
+
+// ResetRoomGuestID resets all changes to the "room_guest_id" field.
+func (m *RoomFolioPaymentMutation) ResetRoomGuestID() {
+	m.room_guest_id = nil
+}
+
+// SetAmount sets the "amount" field.
+func (m *RoomFolioPaymentMutation) SetAmount(f float64) {
+	m.amount = &f
+	m.addamount = nil
+}
+
+// Amount returns the value of the "amount" field in the mutation.
+func (m *RoomFolioPaymentMutation) Amount() (r float64, exists bool) {
+	v := m.amount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAmount returns the old "amount" field's value of the RoomFolioPayment entity.
+// If the RoomFolioPayment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoomFolioPaymentMutation) OldAmount(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAmount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAmount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAmount: %w", err)
+	}
+	return oldValue.Amount, nil
+}
+
+// AddAmount adds f to the "amount" field.
+func (m *RoomFolioPaymentMutation) AddAmount(f float64) {
+	if m.addamount != nil {
+		*m.addamount += f
+	} else {
+		m.addamount = &f
+	}
+}
+
+// AddedAmount returns the value that was added to the "amount" field in this mutation.
+func (m *RoomFolioPaymentMutation) AddedAmount() (r float64, exists bool) {
+	v := m.addamount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAmount resets all changes to the "amount" field.
+func (m *RoomFolioPaymentMutation) ResetAmount() {
+	m.amount = nil
+	m.addamount = nil
+}
+
+// SetCurrency sets the "currency" field.
+func (m *RoomFolioPaymentMutation) SetCurrency(s string) {
+	m.currency = &s
+}
+
+// Currency returns the value of the "currency" field in the mutation.
+func (m *RoomFolioPaymentMutation) Currency() (r string, exists bool) {
+	v := m.currency
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCurrency returns the old "currency" field's value of the RoomFolioPayment entity.
+// If the RoomFolioPayment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoomFolioPaymentMutation) OldCurrency(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCurrency is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCurrency requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCurrency: %w", err)
+	}
+	return oldValue.Currency, nil
+}
+
+// ResetCurrency resets all changes to the "currency" field.
+func (m *RoomFolioPaymentMutation) ResetCurrency() {
+	m.currency = nil
+}
+
+// SetMethod sets the "method" field.
+func (m *RoomFolioPaymentMutation) SetMethod(s string) {
+	m.method = &s
+}
+
+// Method returns the value of the "method" field in the mutation.
+func (m *RoomFolioPaymentMutation) Method() (r string, exists bool) {
+	v := m.method
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMethod returns the old "method" field's value of the RoomFolioPayment entity.
+// If the RoomFolioPayment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoomFolioPaymentMutation) OldMethod(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMethod is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMethod requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMethod: %w", err)
+	}
+	return oldValue.Method, nil
+}
+
+// ResetMethod resets all changes to the "method" field.
+func (m *RoomFolioPaymentMutation) ResetMethod() {
+	m.method = nil
+}
+
+// SetReference sets the "reference" field.
+func (m *RoomFolioPaymentMutation) SetReference(s string) {
+	m.reference = &s
+}
+
+// Reference returns the value of the "reference" field in the mutation.
+func (m *RoomFolioPaymentMutation) Reference() (r string, exists bool) {
+	v := m.reference
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReference returns the old "reference" field's value of the RoomFolioPayment entity.
+// If the RoomFolioPayment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoomFolioPaymentMutation) OldReference(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReference is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReference requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReference: %w", err)
+	}
+	return oldValue.Reference, nil
+}
+
+// ClearReference clears the value of the "reference" field.
+func (m *RoomFolioPaymentMutation) ClearReference() {
+	m.reference = nil
+	m.clearedFields[roomfoliopayment.FieldReference] = struct{}{}
+}
+
+// ReferenceCleared returns if the "reference" field was cleared in this mutation.
+func (m *RoomFolioPaymentMutation) ReferenceCleared() bool {
+	_, ok := m.clearedFields[roomfoliopayment.FieldReference]
+	return ok
+}
+
+// ResetReference resets all changes to the "reference" field.
+func (m *RoomFolioPaymentMutation) ResetReference() {
+	m.reference = nil
+	delete(m.clearedFields, roomfoliopayment.FieldReference)
+}
+
+// SetTreasuryIntentID sets the "treasury_intent_id" field.
+func (m *RoomFolioPaymentMutation) SetTreasuryIntentID(s string) {
+	m.treasury_intent_id = &s
+}
+
+// TreasuryIntentID returns the value of the "treasury_intent_id" field in the mutation.
+func (m *RoomFolioPaymentMutation) TreasuryIntentID() (r string, exists bool) {
+	v := m.treasury_intent_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTreasuryIntentID returns the old "treasury_intent_id" field's value of the RoomFolioPayment entity.
+// If the RoomFolioPayment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoomFolioPaymentMutation) OldTreasuryIntentID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTreasuryIntentID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTreasuryIntentID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTreasuryIntentID: %w", err)
+	}
+	return oldValue.TreasuryIntentID, nil
+}
+
+// ClearTreasuryIntentID clears the value of the "treasury_intent_id" field.
+func (m *RoomFolioPaymentMutation) ClearTreasuryIntentID() {
+	m.treasury_intent_id = nil
+	m.clearedFields[roomfoliopayment.FieldTreasuryIntentID] = struct{}{}
+}
+
+// TreasuryIntentIDCleared returns if the "treasury_intent_id" field was cleared in this mutation.
+func (m *RoomFolioPaymentMutation) TreasuryIntentIDCleared() bool {
+	_, ok := m.clearedFields[roomfoliopayment.FieldTreasuryIntentID]
+	return ok
+}
+
+// ResetTreasuryIntentID resets all changes to the "treasury_intent_id" field.
+func (m *RoomFolioPaymentMutation) ResetTreasuryIntentID() {
+	m.treasury_intent_id = nil
+	delete(m.clearedFields, roomfoliopayment.FieldTreasuryIntentID)
+}
+
+// SetStatus sets the "status" field.
+func (m *RoomFolioPaymentMutation) SetStatus(s string) {
+	m.status = &s
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *RoomFolioPaymentMutation) Status() (r string, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the RoomFolioPayment entity.
+// If the RoomFolioPayment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoomFolioPaymentMutation) OldStatus(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *RoomFolioPaymentMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetRecordedBy sets the "recorded_by" field.
+func (m *RoomFolioPaymentMutation) SetRecordedBy(u uuid.UUID) {
+	m.recorded_by = &u
+}
+
+// RecordedBy returns the value of the "recorded_by" field in the mutation.
+func (m *RoomFolioPaymentMutation) RecordedBy() (r uuid.UUID, exists bool) {
+	v := m.recorded_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRecordedBy returns the old "recorded_by" field's value of the RoomFolioPayment entity.
+// If the RoomFolioPayment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoomFolioPaymentMutation) OldRecordedBy(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRecordedBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRecordedBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRecordedBy: %w", err)
+	}
+	return oldValue.RecordedBy, nil
+}
+
+// ClearRecordedBy clears the value of the "recorded_by" field.
+func (m *RoomFolioPaymentMutation) ClearRecordedBy() {
+	m.recorded_by = nil
+	m.clearedFields[roomfoliopayment.FieldRecordedBy] = struct{}{}
+}
+
+// RecordedByCleared returns if the "recorded_by" field was cleared in this mutation.
+func (m *RoomFolioPaymentMutation) RecordedByCleared() bool {
+	_, ok := m.clearedFields[roomfoliopayment.FieldRecordedBy]
+	return ok
+}
+
+// ResetRecordedBy resets all changes to the "recorded_by" field.
+func (m *RoomFolioPaymentMutation) ResetRecordedBy() {
+	m.recorded_by = nil
+	delete(m.clearedFields, roomfoliopayment.FieldRecordedBy)
+}
+
+// SetMetadata sets the "metadata" field.
+func (m *RoomFolioPaymentMutation) SetMetadata(value map[string]interface{}) {
+	m.metadata = &value
+}
+
+// Metadata returns the value of the "metadata" field in the mutation.
+func (m *RoomFolioPaymentMutation) Metadata() (r map[string]interface{}, exists bool) {
+	v := m.metadata
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMetadata returns the old "metadata" field's value of the RoomFolioPayment entity.
+// If the RoomFolioPayment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoomFolioPaymentMutation) OldMetadata(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMetadata is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMetadata requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMetadata: %w", err)
+	}
+	return oldValue.Metadata, nil
+}
+
+// ResetMetadata resets all changes to the "metadata" field.
+func (m *RoomFolioPaymentMutation) ResetMetadata() {
+	m.metadata = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *RoomFolioPaymentMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *RoomFolioPaymentMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the RoomFolioPayment entity.
+// If the RoomFolioPayment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoomFolioPaymentMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *RoomFolioPaymentMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// Where appends a list predicates to the RoomFolioPaymentMutation builder.
+func (m *RoomFolioPaymentMutation) Where(ps ...predicate.RoomFolioPayment) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the RoomFolioPaymentMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *RoomFolioPaymentMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.RoomFolioPayment, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *RoomFolioPaymentMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *RoomFolioPaymentMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (RoomFolioPayment).
+func (m *RoomFolioPaymentMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *RoomFolioPaymentMutation) Fields() []string {
+	fields := make([]string, 0, 12)
+	if m.tenant_id != nil {
+		fields = append(fields, roomfoliopayment.FieldTenantID)
+	}
+	if m.room_id != nil {
+		fields = append(fields, roomfoliopayment.FieldRoomID)
+	}
+	if m.room_guest_id != nil {
+		fields = append(fields, roomfoliopayment.FieldRoomGuestID)
+	}
+	if m.amount != nil {
+		fields = append(fields, roomfoliopayment.FieldAmount)
+	}
+	if m.currency != nil {
+		fields = append(fields, roomfoliopayment.FieldCurrency)
+	}
+	if m.method != nil {
+		fields = append(fields, roomfoliopayment.FieldMethod)
+	}
+	if m.reference != nil {
+		fields = append(fields, roomfoliopayment.FieldReference)
+	}
+	if m.treasury_intent_id != nil {
+		fields = append(fields, roomfoliopayment.FieldTreasuryIntentID)
+	}
+	if m.status != nil {
+		fields = append(fields, roomfoliopayment.FieldStatus)
+	}
+	if m.recorded_by != nil {
+		fields = append(fields, roomfoliopayment.FieldRecordedBy)
+	}
+	if m.metadata != nil {
+		fields = append(fields, roomfoliopayment.FieldMetadata)
+	}
+	if m.created_at != nil {
+		fields = append(fields, roomfoliopayment.FieldCreatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *RoomFolioPaymentMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case roomfoliopayment.FieldTenantID:
+		return m.TenantID()
+	case roomfoliopayment.FieldRoomID:
+		return m.RoomID()
+	case roomfoliopayment.FieldRoomGuestID:
+		return m.RoomGuestID()
+	case roomfoliopayment.FieldAmount:
+		return m.Amount()
+	case roomfoliopayment.FieldCurrency:
+		return m.Currency()
+	case roomfoliopayment.FieldMethod:
+		return m.Method()
+	case roomfoliopayment.FieldReference:
+		return m.Reference()
+	case roomfoliopayment.FieldTreasuryIntentID:
+		return m.TreasuryIntentID()
+	case roomfoliopayment.FieldStatus:
+		return m.Status()
+	case roomfoliopayment.FieldRecordedBy:
+		return m.RecordedBy()
+	case roomfoliopayment.FieldMetadata:
+		return m.Metadata()
+	case roomfoliopayment.FieldCreatedAt:
+		return m.CreatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *RoomFolioPaymentMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case roomfoliopayment.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case roomfoliopayment.FieldRoomID:
+		return m.OldRoomID(ctx)
+	case roomfoliopayment.FieldRoomGuestID:
+		return m.OldRoomGuestID(ctx)
+	case roomfoliopayment.FieldAmount:
+		return m.OldAmount(ctx)
+	case roomfoliopayment.FieldCurrency:
+		return m.OldCurrency(ctx)
+	case roomfoliopayment.FieldMethod:
+		return m.OldMethod(ctx)
+	case roomfoliopayment.FieldReference:
+		return m.OldReference(ctx)
+	case roomfoliopayment.FieldTreasuryIntentID:
+		return m.OldTreasuryIntentID(ctx)
+	case roomfoliopayment.FieldStatus:
+		return m.OldStatus(ctx)
+	case roomfoliopayment.FieldRecordedBy:
+		return m.OldRecordedBy(ctx)
+	case roomfoliopayment.FieldMetadata:
+		return m.OldMetadata(ctx)
+	case roomfoliopayment.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown RoomFolioPayment field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *RoomFolioPaymentMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case roomfoliopayment.FieldTenantID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case roomfoliopayment.FieldRoomID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRoomID(v)
+		return nil
+	case roomfoliopayment.FieldRoomGuestID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRoomGuestID(v)
+		return nil
+	case roomfoliopayment.FieldAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAmount(v)
+		return nil
+	case roomfoliopayment.FieldCurrency:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCurrency(v)
+		return nil
+	case roomfoliopayment.FieldMethod:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMethod(v)
+		return nil
+	case roomfoliopayment.FieldReference:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReference(v)
+		return nil
+	case roomfoliopayment.FieldTreasuryIntentID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTreasuryIntentID(v)
+		return nil
+	case roomfoliopayment.FieldStatus:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case roomfoliopayment.FieldRecordedBy:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRecordedBy(v)
+		return nil
+	case roomfoliopayment.FieldMetadata:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMetadata(v)
+		return nil
+	case roomfoliopayment.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown RoomFolioPayment field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *RoomFolioPaymentMutation) AddedFields() []string {
+	var fields []string
+	if m.addamount != nil {
+		fields = append(fields, roomfoliopayment.FieldAmount)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *RoomFolioPaymentMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case roomfoliopayment.FieldAmount:
+		return m.AddedAmount()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *RoomFolioPaymentMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case roomfoliopayment.FieldAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAmount(v)
+		return nil
+	}
+	return fmt.Errorf("unknown RoomFolioPayment numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *RoomFolioPaymentMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(roomfoliopayment.FieldReference) {
+		fields = append(fields, roomfoliopayment.FieldReference)
+	}
+	if m.FieldCleared(roomfoliopayment.FieldTreasuryIntentID) {
+		fields = append(fields, roomfoliopayment.FieldTreasuryIntentID)
+	}
+	if m.FieldCleared(roomfoliopayment.FieldRecordedBy) {
+		fields = append(fields, roomfoliopayment.FieldRecordedBy)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *RoomFolioPaymentMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *RoomFolioPaymentMutation) ClearField(name string) error {
+	switch name {
+	case roomfoliopayment.FieldReference:
+		m.ClearReference()
+		return nil
+	case roomfoliopayment.FieldTreasuryIntentID:
+		m.ClearTreasuryIntentID()
+		return nil
+	case roomfoliopayment.FieldRecordedBy:
+		m.ClearRecordedBy()
+		return nil
+	}
+	return fmt.Errorf("unknown RoomFolioPayment nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *RoomFolioPaymentMutation) ResetField(name string) error {
+	switch name {
+	case roomfoliopayment.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case roomfoliopayment.FieldRoomID:
+		m.ResetRoomID()
+		return nil
+	case roomfoliopayment.FieldRoomGuestID:
+		m.ResetRoomGuestID()
+		return nil
+	case roomfoliopayment.FieldAmount:
+		m.ResetAmount()
+		return nil
+	case roomfoliopayment.FieldCurrency:
+		m.ResetCurrency()
+		return nil
+	case roomfoliopayment.FieldMethod:
+		m.ResetMethod()
+		return nil
+	case roomfoliopayment.FieldReference:
+		m.ResetReference()
+		return nil
+	case roomfoliopayment.FieldTreasuryIntentID:
+		m.ResetTreasuryIntentID()
+		return nil
+	case roomfoliopayment.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case roomfoliopayment.FieldRecordedBy:
+		m.ResetRecordedBy()
+		return nil
+	case roomfoliopayment.FieldMetadata:
+		m.ResetMetadata()
+		return nil
+	case roomfoliopayment.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown RoomFolioPayment field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *RoomFolioPaymentMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *RoomFolioPaymentMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *RoomFolioPaymentMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *RoomFolioPaymentMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *RoomFolioPaymentMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *RoomFolioPaymentMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *RoomFolioPaymentMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown RoomFolioPayment unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *RoomFolioPaymentMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown RoomFolioPayment edge %s", name)
 }
 
 // RoomGuestMutation represents an operation that mutates the RoomGuest nodes in the graph.

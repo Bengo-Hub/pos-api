@@ -39,6 +39,7 @@ type createOrderLineInput struct {
 	CatalogItemID uuid.UUID              `json:"catalog_item_id"`
 	SKU           string                 `json:"sku"`
 	Name          string                 `json:"name"`
+	Category      string                 `json:"category,omitempty"` // item category name; drives KDS routing (kitchen vs bar)
 	Quantity      float64                `json:"quantity"`
 	UnitPrice     float64                `json:"unit_price"`
 	TotalPrice    float64                `json:"total_price"`
@@ -310,6 +311,7 @@ func (h *POSOrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 			CatalogItemID: l.CatalogItemID,
 			SKU:           l.SKU,
 			Name:          l.Name,
+			Category:      l.Category,
 			Quantity:      l.Quantity,
 			UnitPrice:     l.UnitPrice,
 			TotalPrice:    l.TotalPrice,
@@ -480,6 +482,7 @@ func (h *POSOrderHandler) AddOrderLines(w http.ResponseWriter, r *http.Request) 
 			CatalogItemID: l.CatalogItemID,
 			SKU:           l.SKU,
 			Name:          l.Name,
+			Category:      l.Category,
 			Quantity:      l.Quantity,
 			UnitPrice:     l.UnitPrice,
 			TotalPrice:    l.TotalPrice,

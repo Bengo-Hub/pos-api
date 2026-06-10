@@ -21,6 +21,8 @@ const (
 	FieldSku = "sku"
 	// FieldName holds the string denoting the name field in the database.
 	FieldName = "name"
+	// FieldCategory holds the string denoting the category field in the database.
+	FieldCategory = "category"
 	// FieldQuantity holds the string denoting the quantity field in the database.
 	FieldQuantity = "quantity"
 	// FieldUnitPrice holds the string denoting the unit_price field in the database.
@@ -82,6 +84,7 @@ var Columns = []string{
 	FieldCatalogItemID,
 	FieldSku,
 	FieldName,
+	FieldCategory,
 	FieldQuantity,
 	FieldUnitPrice,
 	FieldTotalPrice,
@@ -151,6 +154,11 @@ func BySku(opts ...sql.OrderTermOption) OrderOption {
 // ByName orders the results by the name field.
 func ByName(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldName, opts...).ToFunc()
+}
+
+// ByCategory orders the results by the category field.
+func ByCategory(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCategory, opts...).ToFunc()
 }
 
 // ByQuantity orders the results by the quantity field.

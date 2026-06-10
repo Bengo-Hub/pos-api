@@ -94,6 +94,10 @@ type receiptResponse struct {
 	OutletName         string                 `json:"outlet_name,omitempty"`
 	OutletAddress      string                 `json:"outlet_address,omitempty"`
 	IssuedAt           time.Time              `json:"issued_at"`
+	// Timezone is the outlet's IANA timezone (e.g. "Africa/Nairobi"). The frontend formats
+	// issued_at in this zone so the printed time matches the local wall-clock regardless of
+	// the device/browser timezone. Server-side HTML already renders issued_at in this zone.
+	Timezone           string                 `json:"timezone,omitempty"`
 	Lines              []receiptLine          `json:"lines"`
 	Subtotal           float64                `json:"subtotal"`
 	TaxAmount          float64                `json:"tax_amount"`
@@ -211,6 +215,7 @@ func (h *ReceiptHandler) GetReceipt(w http.ResponseWriter, r *http.Request) {
 		Where(entoutlet.ID(order.OutletID)).
 		Only(ctx); err == nil {
 		receipt.OutletName = outlet.Name
+		receipt.Timezone = outlet.Timezone
 		if addr := outlet.AddressJSON; addr != nil {
 			if street, ok := addr["street"].(string); ok && street != "" {
 				receipt.OutletAddress = street
@@ -319,6 +324,20 @@ func (h *ReceiptHandler) GetReceiptPDF(w http.ResponseWriter, r *http.Request) {
 	h.GetReceipt(w, r)
 }
 
+// formatReceiptTime renders the receipt timestamp in the outlet's local timezone.
+// order.CreatedAt is stored in UTC; without this conversion the printed time is offset by
+// the UTC delta (the "wrong time, correct date" bug). Falls back to Africa/Nairobi, then UTC.
+func formatReceiptTime(t time.Time, tz string) string {
+	if tz == "" {
+		tz = "Africa/Nairobi"
+	}
+	loc, err := time.LoadLocation(tz)
+	if err != nil {
+		loc = time.UTC
+	}
+	return t.In(loc).Format("02 Jan 2006  15:04")
+}
+
 // generateReceiptHTML generates a printable thermal-width HTML receipt.
 // Designed for window.print() and direct browser print-to-PDF. Honours the outlet's configured
 // receipt header/footer text, VAT rate, and paper width (58mm | 80mm).
@@ -360,7 +379,7 @@ h1{font-size:13px;text-align:center;margin:2px 0}
 	if rec.ReceiptHeader != "" {
 		buf.WriteString(fmt.Sprintf(`<p class="hdr">%s</p>`, htmlEscape(rec.ReceiptHeader)))
 	}
-	buf.WriteString(fmt.Sprintf(`<p class="sub">%s</p>`, rec.IssuedAt.Format("02 Jan 2006  15:04")))
+	buf.WriteString(fmt.Sprintf(`<p class="sub">%s</p>`, formatReceiptTime(rec.IssuedAt, rec.Timezone)))
 	buf.WriteString(fmt.Sprintf(`<p class="sub">Receipt: %s</p>`, rec.ReceiptNumber))
 	if rec.ServedBy != "" {
 		buf.WriteString(fmt.Sprintf(`<p class="sub">Served by: %s</p>`, htmlEscape(rec.ServedBy)))

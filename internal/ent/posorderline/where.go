@@ -76,6 +76,11 @@ func Name(v string) predicate.POSOrderLine {
 	return predicate.POSOrderLine(sql.FieldEQ(FieldName, v))
 }
 
+// Category applies equality check predicate on the "category" field. It's identical to CategoryEQ.
+func Category(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldEQ(FieldCategory, v))
+}
+
 // Quantity applies equality check predicate on the "quantity" field. It's identical to QuantityEQ.
 func Quantity(v float64) predicate.POSOrderLine {
 	return predicate.POSOrderLine(sql.FieldEQ(FieldQuantity, v))
@@ -339,6 +344,81 @@ func NameEqualFold(v string) predicate.POSOrderLine {
 // NameContainsFold applies the ContainsFold predicate on the "name" field.
 func NameContainsFold(v string) predicate.POSOrderLine {
 	return predicate.POSOrderLine(sql.FieldContainsFold(FieldName, v))
+}
+
+// CategoryEQ applies the EQ predicate on the "category" field.
+func CategoryEQ(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldEQ(FieldCategory, v))
+}
+
+// CategoryNEQ applies the NEQ predicate on the "category" field.
+func CategoryNEQ(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldNEQ(FieldCategory, v))
+}
+
+// CategoryIn applies the In predicate on the "category" field.
+func CategoryIn(vs ...string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldIn(FieldCategory, vs...))
+}
+
+// CategoryNotIn applies the NotIn predicate on the "category" field.
+func CategoryNotIn(vs ...string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldNotIn(FieldCategory, vs...))
+}
+
+// CategoryGT applies the GT predicate on the "category" field.
+func CategoryGT(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldGT(FieldCategory, v))
+}
+
+// CategoryGTE applies the GTE predicate on the "category" field.
+func CategoryGTE(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldGTE(FieldCategory, v))
+}
+
+// CategoryLT applies the LT predicate on the "category" field.
+func CategoryLT(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldLT(FieldCategory, v))
+}
+
+// CategoryLTE applies the LTE predicate on the "category" field.
+func CategoryLTE(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldLTE(FieldCategory, v))
+}
+
+// CategoryContains applies the Contains predicate on the "category" field.
+func CategoryContains(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldContains(FieldCategory, v))
+}
+
+// CategoryHasPrefix applies the HasPrefix predicate on the "category" field.
+func CategoryHasPrefix(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldHasPrefix(FieldCategory, v))
+}
+
+// CategoryHasSuffix applies the HasSuffix predicate on the "category" field.
+func CategoryHasSuffix(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldHasSuffix(FieldCategory, v))
+}
+
+// CategoryIsNil applies the IsNil predicate on the "category" field.
+func CategoryIsNil() predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldIsNull(FieldCategory))
+}
+
+// CategoryNotNil applies the NotNil predicate on the "category" field.
+func CategoryNotNil() predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldNotNull(FieldCategory))
+}
+
+// CategoryEqualFold applies the EqualFold predicate on the "category" field.
+func CategoryEqualFold(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldEqualFold(FieldCategory, v))
+}
+
+// CategoryContainsFold applies the ContainsFold predicate on the "category" field.
+func CategoryContainsFold(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldContainsFold(FieldCategory, v))
 }
 
 // QuantityEQ applies the EQ predicate on the "quantity" field.
