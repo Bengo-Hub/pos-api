@@ -41,27 +41,42 @@ func NewCatalogHandler(log *zap.Logger, client *ent.Client) *CatalogHandler {
 	return &CatalogHandler{log: log, client: client}
 }
 
+// inventoryProxyVariant is the shape of an item variation surfaced by inventory-api.
+type inventoryProxyVariant struct {
+	ID         string            `json:"id"`
+	SKU        string            `json:"sku"`
+	Name       string            `json:"name"`
+	Price      float64           `json:"price"`
+	Attributes map[string]string `json:"attributes,omitempty"`
+	Barcode    string            `json:"barcode,omitempty"`
+	IsActive   bool              `json:"is_active"`
+}
+
 // inventoryProxyItem is the shape returned by inventory-api /items list.
 type inventoryProxyItem struct {
-	ID                      string   `json:"id"`
-	SKU                     string   `json:"sku"`
-	Name                    string   `json:"name"`
-	Description             string   `json:"description"`
-	Type                    string   `json:"type"`
-	IsActive                bool     `json:"is_active"`
-	ImageURL                string   `json:"image_url"`
-	CategoryName            string   `json:"category_name"`
-	BrandID                 string   `json:"brand_id"`
-	BrandName               string   `json:"brand_name"`
-	BrandCode               string   `json:"brand_code"`
-	Barcode                 string   `json:"barcode"`
-	RequiresAgeVerification bool     `json:"requires_age_verification"`
-	IsControlledSubstance   bool     `json:"is_controlled_substance"`
-	TrackSerialNumbers      bool     `json:"track_serial_numbers"`
-	DurationMinutes         int      `json:"duration_minutes"`
-	CostPrice               *float64 `json:"cost_price,omitempty"`
-	SuggestedPrice          *float64 `json:"suggested_price,omitempty"`
-	OnHand                  *float64 `json:"on_hand,omitempty"` // stock on hand from inventory balances (StockBadge)
+	ID                      string                  `json:"id"`
+	SKU                     string                  `json:"sku"`
+	Name                    string                  `json:"name"`
+	Description             string                  `json:"description"`
+	Type                    string                  `json:"type"`
+	IsActive                bool                    `json:"is_active"`
+	ImageURL                string                  `json:"image_url"`
+	CategoryName            string                  `json:"category_name"`
+	BrandID                 string                  `json:"brand_id"`
+	BrandName               string                  `json:"brand_name"`
+	BrandCode               string                  `json:"brand_code"`
+	Manufacturer            string                  `json:"manufacturer"`
+	Model                   string                  `json:"model"`
+	HasVariants             bool                    `json:"has_variants"`
+	Variants                []inventoryProxyVariant `json:"variants,omitempty"`
+	Barcode                 string                  `json:"barcode"`
+	RequiresAgeVerification bool                    `json:"requires_age_verification"`
+	IsControlledSubstance   bool                    `json:"is_controlled_substance"`
+	TrackSerialNumbers      bool                    `json:"track_serial_numbers"`
+	DurationMinutes         int                     `json:"duration_minutes"`
+	CostPrice               *float64                `json:"cost_price,omitempty"`
+	SuggestedPrice          *float64                `json:"suggested_price,omitempty"`
+	OnHand                  *float64                `json:"on_hand,omitempty"` // stock on hand from inventory balances (StockBadge)
 	// Recipe-costing fields (added 2026-06-01)
 	SellingPrice   *float64 `json:"selling_price,omitempty"`
 	FoodCostPct    *float64 `json:"food_cost_pct,omitempty"`
@@ -201,7 +216,8 @@ func doInventoryGET(ctx context.Context, path string, outletID string) ([]byte, 
 // fetchInventoryItems calls inventory-api and returns active sellable items scoped by outlet and use case.
 func fetchInventoryItems(ctx context.Context, tenantSlug, outletID, useCase string) ([]inventoryProxyItem, error) {
 	types := useCaseItemTypes(useCase)
-	url := fmt.Sprintf("%s/v1/%s/inventory/items?type=%s&status=active&limit=500", inventoryURL(), tenantSlug, types)
+	// include=variants so the catalog item carries its sellable variations.
+	url := fmt.Sprintf("%s/v1/%s/inventory/items?type=%s&status=active&limit=500&include=variants", inventoryURL(), tenantSlug, types)
 	body, err := doInventoryGET(ctx, url, outletID)
 	if err != nil {
 		return nil, err
@@ -462,6 +478,10 @@ type catalogItemDTO struct {
 	CategoryName            string
 	BrandName               string
 	BrandCode               string
+	Manufacturer            string
+	Model                   string
+	HasVariants             bool
+	Variants                []inventoryProxyVariant
 	ItemType                string
 	IsActive                bool
 	IsAvailable             bool
@@ -693,6 +713,10 @@ func (h *CatalogHandler) assembleMenuItems(
 			CategoryName:            item.CategoryName,
 			BrandName:               item.BrandName,
 			BrandCode:               item.BrandCode,
+			Manufacturer:            item.Manufacturer,
+			Model:                   item.Model,
+			HasVariants:             item.HasVariants,
+			Variants:                item.Variants,
 			ItemType:                item.Type,
 			IsActive:                item.IsActive,
 			IsAvailable:             isAvailable,
@@ -729,6 +753,10 @@ func catalogItemToMap(item catalogItemDTO, outletID *uuid.UUID) map[string]any {
 		"category":                  item.CategoryName,
 		"brand":                     item.BrandName,
 		"brand_code":                item.BrandCode,
+		"manufacturer":              item.Manufacturer,
+		"model":                     item.Model,
+		"has_variants":              item.HasVariants,
+		"variants":                  item.Variants,
 		"item_type":                 item.ItemType,
 		"status":                    map[bool]string{true: "active", false: "inactive"}[item.IsActive],
 		"is_available":              item.IsAvailable,
