@@ -144,6 +144,18 @@ func categoryAllowedForUseCase(categoryName, useCase string) bool {
 		strings.Contains(cat, "massage") || strings.Contains(cat, "room rate") ||
 		strings.Contains(cat, "room type")
 	isRetailCat := strings.Contains(cat, "retail")
+	// General non-food retail MERCHANDISE (detergents, cleaning, household, electronics, apparel,
+	// cosmetics, stationery, etc.) — sold by retail outlets but NEVER on a restaurant/bar/services
+	// terminal. This is why supermarket items like "Detergents & Cleaning" were leaking onto the
+	// hospitality menu: they aren't food/pharmacy/services/component, so the old blocklist let them
+	// through. They belong to retail only.
+	isRetailMerchandiseCat := strings.Contains(cat, "detergent") || strings.Contains(cat, "cleaning") ||
+		strings.Contains(cat, "cleaner") || strings.Contains(cat, "household") || strings.Contains(cat, "home care") ||
+		strings.Contains(cat, "homeware") || strings.Contains(cat, "kitchenware") || strings.Contains(cat, "hardware") ||
+		strings.Contains(cat, "electronic") || strings.Contains(cat, "appliance") || strings.Contains(cat, "apparel") ||
+		strings.Contains(cat, "clothing") || strings.Contains(cat, "fashion") || strings.Contains(cat, "footwear") ||
+		strings.Contains(cat, "cosmetic") || strings.Contains(cat, "toiletr") || strings.Contains(cat, "stationery") ||
+		strings.Contains(cat, "personal care") || strings.Contains(cat, "furniture") || strings.Contains(cat, "grocery")
 	// Component categories are building blocks (recipe inputs / modifier options), never standalone
 	// sellable on a POS terminal — keep them off every sellable use case so the catalog shows only
 	// finished items (menu dishes, drinks, packaged goods). NOTE: "Accompaniment" is intentionally
@@ -161,11 +173,12 @@ func categoryAllowedForUseCase(categoryName, useCase string) bool {
 		// Pharmacy outlets sell only pharmacy/health items
 		return isPharmacyCat
 	case "hospitality", "quick_service":
-		// Restaurant/QSR outlets sell FINISHED food/drink — exclude pharmacy, retail, services, components
-		return !isPharmacyCat && !isRetailCat && !isServicesCat && !isComponentCat
+		// Restaurant/QSR outlets sell FINISHED food/drink — exclude pharmacy, retail, retail
+		// merchandise (detergents/cleaning/household/etc.), services and components.
+		return !isPharmacyCat && !isRetailCat && !isRetailMerchandiseCat && !isServicesCat && !isComponentCat
 	case "services":
-		// Beauty/wellness outlets sell services — exclude pharmacy, food, retail, components
-		return !isPharmacyCat && !isFoodCat && !isRetailCat && !isComponentCat
+		// Beauty/wellness outlets sell services — exclude pharmacy, food, retail merchandise, components
+		return !isPharmacyCat && !isFoodCat && !isRetailCat && !isRetailMerchandiseCat && !isComponentCat
 	default:
 		return true
 	}
