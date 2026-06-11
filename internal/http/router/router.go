@@ -252,6 +252,7 @@ func New(
 					if catalog != nil {
 						pos.Route("/catalog", func(cat chi.Router) {
 							cat.Get("/categories", catalog.GetCatalogCategories)
+							cat.Get("/brands", catalog.GetBrands)
 							cat.Get("/items", catalog.ListCatalogItems)
 							cat.Get("/pricing/resolve", catalog.ResolvePrice)
 							cat.Get("/pricing/tiers", catalog.GetPricingTiers)
