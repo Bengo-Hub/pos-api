@@ -313,6 +313,9 @@ func New(
 					if payments != nil {
 						pos.Get("/gateways", payments.GetGateways)
 						pos.Post("/expenses", payments.RecordExpense)
+						// Dropdown data for the Add-Expense form (proxied from treasury).
+						pos.Get("/expenses/categories", payments.ListExpenseCategories)
+						pos.Get("/expenses/accounts", payments.ListExpenseAccounts)
 						pos.Get("/c2b/payments", payments.ListC2BCandidates)
 						pos.Post("/c2b/payments/{transID}/claim", payments.ClaimC2BPayment)
 						// Recording a payment (cash/M-Pesa ref) or opening a payment intent is a

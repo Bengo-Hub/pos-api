@@ -297,12 +297,25 @@ func (h *PaymentHandler) ListOrderPayments(w http.ResponseWriter, r *http.Reques
 }
 
 type recordExpenseInput struct {
-	CategoryID  string  `json:"category_id,omitempty"`
-	Description string  `json:"description"`
-	Amount      float64 `json:"amount"`
-	TaxAmount   float64 `json:"tax_amount,omitempty"`
-	Currency    string  `json:"currency,omitempty"`
-	ReceiptURL  string  `json:"receipt_url,omitempty"`
+	CategoryID    string  `json:"category_id,omitempty"`
+	ReferenceNo   string  `json:"reference_no,omitempty"` // "Reference No" → treasury expense_number (autogen when empty)
+	Description   string  `json:"description"`            // "Expense note"
+	Amount        float64 `json:"amount"`                // "Total amount"
+	TaxAmount     float64 `json:"tax_amount,omitempty"`  // "Applicable Tax" (computed amount)
+	Currency      string  `json:"currency,omitempty"`
+	ReceiptURL    string  `json:"receipt_url,omitempty"`
+	ExpenseDate   string  `json:"expense_date,omitempty"` // "Date" (ISO date/datetime); defaults to today server-side
+	AccountID     string  `json:"account_id,omitempty"`   // "Payment Account" (chart-of-accounts UUID)
+	VendorID      string  `json:"vendor_id,omitempty"`    // "Expense for" (when a vendor is chosen)
+	CostCenterID  string  `json:"cost_center_id,omitempty"`
+	// PaymentMethod/PaidOn/PaymentNote/ExpenseFor are the GoDigital payment block + label fields.
+	// Treasury has no dedicated columns for them, so they are forwarded into the expense metadata.
+	PaymentMethod string  `json:"payment_method,omitempty"`
+	PaidOn        string  `json:"paid_on,omitempty"`
+	PaymentNote   string  `json:"payment_note,omitempty"`
+	PaymentAmount float64 `json:"payment_amount,omitempty"` // amount paid now (payment block); informational, stored in metadata
+	ExpenseFor    string  `json:"expense_for,omitempty"`    // free-text label when no vendor selected
+	TaxRate       float64 `json:"tax_rate,omitempty"`       // selected tax rate %, informational
 }
 
 // RecordExpense handles POST /{tenant}/pos/expenses — records a petty-cash expense entered at the
@@ -344,17 +357,58 @@ func (h *PaymentHandler) RecordExpense(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Collect the GoDigital payment-block + label fields that have no dedicated treasury column
+	// into metadata, so nothing the cashier enters is lost.
+	metadata := map[string]any{}
+	if in.PaymentMethod != "" {
+		metadata["payment_method"] = in.PaymentMethod
+	}
+	if in.PaidOn != "" {
+		metadata["paid_on"] = in.PaidOn
+	}
+	if in.PaymentNote != "" {
+		metadata["payment_note"] = in.PaymentNote
+	}
+	if in.PaymentAmount > 0 {
+		metadata["payment_amount"] = in.PaymentAmount
+	}
+	if in.ExpenseFor != "" {
+		metadata["expense_for"] = in.ExpenseFor
+	}
+	if in.TaxRate > 0 {
+		metadata["tax_rate"] = in.TaxRate
+	}
+	if len(metadata) == 0 {
+		metadata = nil
+	}
+
+	// "Date" — use the cashier-supplied date when present (accept either a plain date or a full
+	// timestamp); treasury defaults to today when omitted.
+	expenseDate := in.ExpenseDate
+	if expenseDate != "" {
+		if t, perr := time.Parse("2006-01-02", expenseDate); perr == nil {
+			expenseDate = t.UTC().Format(time.RFC3339)
+		}
+	} else {
+		expenseDate = time.Now().UTC().Format(time.RFC3339)
+	}
+
 	resp, err := h.treasuryClient.RecordExpense(r.Context(), tenantSlug, treasury.ExpenseRequest{
+		ExpenseNumber: in.ReferenceNo,
 		CategoryID:    in.CategoryID,
 		Description:   in.Description,
 		Amount:        in.Amount,
 		TaxAmount:     in.TaxAmount,
 		Currency:      in.Currency,
 		ReceiptURL:    in.ReceiptURL,
-		ExpenseDate:   time.Now().UTC().Format(time.RFC3339),
+		ExpenseDate:   expenseDate,
+		AccountID:     in.AccountID,
+		VendorID:      in.VendorID,
+		CostCenterID:  in.CostCenterID,
 		OutletID:      httpware.GetOutletID(r.Context()),
 		SubmittedBy:   submittedBy,
 		SourceService: "pos",
+		Metadata:      metadata,
 	})
 	if err != nil {
 		h.log.Error("record expense failed", zap.Error(err))
@@ -362,6 +416,42 @@ func (h *PaymentHandler) RecordExpense(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	jsonOK(w, resp)
+}
+
+// ListExpenseCategories handles GET /{tenant}/pos/expenses/categories — proxies treasury's expense
+// category list so the Add-Expense form can populate the "Expense Category" dropdown.
+func (h *PaymentHandler) ListExpenseCategories(w http.ResponseWriter, r *http.Request) {
+	tenantSlug := h.resolveTenantSlug(r)
+	if tenantSlug == "" || h.treasuryClient == nil {
+		jsonError(w, "tenant context required", http.StatusBadRequest)
+		return
+	}
+	resp, err := h.treasuryClient.ListExpenseCategories(r.Context(), tenantSlug)
+	if err != nil {
+		h.log.Error("list expense categories failed", zap.Error(err))
+		jsonError(w, "failed to load expense categories", http.StatusBadGateway)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_, _ = w.Write(resp)
+}
+
+// ListExpenseAccounts handles GET /{tenant}/pos/expenses/accounts — proxies treasury's chart of
+// accounts so the Add-Expense form can populate the "Payment Account" dropdown.
+func (h *PaymentHandler) ListExpenseAccounts(w http.ResponseWriter, r *http.Request) {
+	tenantSlug := h.resolveTenantSlug(r)
+	if tenantSlug == "" || h.treasuryClient == nil {
+		jsonError(w, "tenant context required", http.StatusBadRequest)
+		return
+	}
+	resp, err := h.treasuryClient.ListExpenseAccounts(r.Context(), tenantSlug)
+	if err != nil {
+		h.log.Error("list expense accounts failed", zap.Error(err))
+		jsonError(w, "failed to load payment accounts", http.StatusBadGateway)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_, _ = w.Write(resp)
 }
 
 // ListC2BCandidates handles GET /{tenant}/pos/c2b/payments — proxies the treasury C2B inbox query so

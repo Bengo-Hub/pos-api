@@ -415,6 +415,7 @@ func doRequestWithHeaders[T any](ctx context.Context, client *http.Client, metho
 
 // ExpenseRequest is the body for POST /api/v1/s2s/{tenant}/expenses (register "Add Expense").
 type ExpenseRequest struct {
+	ExpenseNumber string         `json:"expense_number,omitempty"` // "Reference No" (treasury autogenerates when empty)
 	CategoryID    string         `json:"category_id,omitempty"`
 	Description   string         `json:"description"`
 	Amount        float64        `json:"amount"`
@@ -422,10 +423,13 @@ type ExpenseRequest struct {
 	Currency      string         `json:"currency,omitempty"`
 	ExpenseDate   string         `json:"expense_date,omitempty"`
 	ReceiptURL    string         `json:"receipt_url,omitempty"`
+	VendorID      string         `json:"vendor_id,omitempty"`      // "Expense for", when a vendor is selected
+	AccountID     string         `json:"account_id,omitempty"`     // Payment Account (chart-of-accounts UUID)
+	CostCenterID  string         `json:"cost_center_id,omitempty"` // optional cost-center dimension
 	OutletID      string         `json:"outlet_id,omitempty"`
 	SubmittedBy   string         `json:"submitted_by,omitempty"`
 	SourceService string         `json:"source_service,omitempty"`
-	Metadata      map[string]any `json:"metadata,omitempty"`
+	Metadata      map[string]any `json:"metadata,omitempty"` // payment_method, paid_on, payment_note, expense_for, tax_rate
 }
 
 // ExpenseResponse is the created expense returned by treasury (subset).
@@ -439,6 +443,30 @@ type ExpenseResponse struct {
 func (c *Client) RecordExpense(ctx context.Context, tenantSlug string, req ExpenseRequest) (*ExpenseResponse, error) {
 	url := fmt.Sprintf("%s/api/v1/s2s/%s/expenses", c.baseURL, tenantSlug)
 	return doRequest[ExpenseResponse](ctx, c.httpClient, http.MethodPost, url, c.apiKey, req)
+}
+
+// ListExpenseCategories fetches the tenant's expense categories from treasury over S2S, to populate
+// the "Expense Category" dropdown on the POS Add-Expense form. Returns the raw treasury envelope
+// ({"categories":[...],"total":n}) for passthrough.
+func (c *Client) ListExpenseCategories(ctx context.Context, tenantSlug string) (json.RawMessage, error) {
+	url := fmt.Sprintf("%s/api/v1/s2s/%s/expense-categories", c.baseURL, tenantSlug)
+	resp, err := doRequest[json.RawMessage](ctx, c.httpClient, http.MethodGet, url, c.apiKey, nil)
+	if err != nil {
+		return nil, err
+	}
+	return *resp, nil
+}
+
+// ListExpenseAccounts fetches the tenant's chart of accounts from treasury over S2S, to populate
+// the "Payment Account" dropdown on the POS Add-Expense form. Returns the raw treasury envelope
+// ({"accounts":[...],"total":n}) for passthrough.
+func (c *Client) ListExpenseAccounts(ctx context.Context, tenantSlug string) (json.RawMessage, error) {
+	url := fmt.Sprintf("%s/api/v1/s2s/%s/accounts", c.baseURL, tenantSlug)
+	resp, err := doRequest[json.RawMessage](ctx, c.httpClient, http.MethodGet, url, c.apiKey, nil)
+	if err != nil {
+		return nil, err
+	}
+	return *resp, nil
 }
 
 // ListC2BCandidates queries unreconciled M-Pesa C2B inbox payments from treasury (raw passthrough of
