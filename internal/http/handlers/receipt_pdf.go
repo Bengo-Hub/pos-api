@@ -55,9 +55,14 @@ func generateReceiptPDF(rec receiptResponse, brand receiptBrand) ([]byte, error)
 	// Header — tenant logo (centered) + company name in brand colour
 	if logo, lt := fetchReceiptLogo(brand.LogoURL); logo != nil {
 		const logoW = 22.0
-		pdf.RegisterImageOptionsReader("brandlogo", fpdf.ImageOptions{ImageType: lt}, bytes.NewReader(logo))
-		pdf.ImageOptions("brandlogo", (pageW-logoW)/2, pdf.GetY(), logoW, 0, true, fpdf.ImageOptions{ImageType: lt}, 0, "")
-		pdf.Ln(1)
+		// Guard against a mislabeled/unsupported logo poisoning the whole receipt: only draw
+		// it if fpdf registered it cleanly, otherwise clear the error and skip the logo.
+		if info := pdf.RegisterImageOptionsReader("brandlogo", fpdf.ImageOptions{ImageType: lt}, bytes.NewReader(logo)); info != nil && info.Width() > 0 {
+			pdf.ImageOptions("brandlogo", (pageW-logoW)/2, pdf.GetY(), logoW, 0, true, fpdf.ImageOptions{ImageType: lt}, 0, "")
+			pdf.Ln(1)
+		} else {
+			pdf.ClearError()
+		}
 	}
 	if brand.CompanyName != "" {
 		pdf.SetTextColor(br, bg, bb)
@@ -190,8 +195,12 @@ func fetchReceiptLogo(url string) ([]byte, string) {
 	if _, err := buf.ReadFrom(&io.LimitedReader{R: resp.Body, N: 5 << 20}); err != nil {
 		return nil, ""
 	}
-	ct := resp.Header.Get("Content-Type")
-	switch {
+	// Determine the encoding from the ACTUAL BYTES, not the HTTP Content-Type / file
+	// extension. Logos are frequently mislabeled (e.g. a JPEG uploaded as "logo.png" and
+	// served with Content-Type: image/png). fpdf rejects a declared-type/real-bytes
+	// mismatch with "not a PNG buffer", which poisons the whole document and fails Output.
+	// http.DetectContentType sniffs the leading magic bytes, so the type always matches.
+	switch ct := http.DetectContentType(buf.Bytes()); {
 	case strings.Contains(ct, "png"):
 		return buf.Bytes(), "PNG"
 	case strings.Contains(ct, "jpeg"), strings.Contains(ct, "jpg"):
