@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -263,7 +264,7 @@ func (c *Client) ListTaxCodes(ctx context.Context, tenantSlug string) ([]TaxCode
 	return resp.TaxCodes, nil
 }
 
-// PublicGatewaysResponse is the response from GET /api/v1/pay/{tenant}/gateways.
+// PublicGatewaysResponse is the flat {mpesa,paystack,wallet,cod} shape the POS UI consumes.
 type PublicGatewaysResponse struct {
 	MPesa    bool `json:"mpesa"`
 	Paystack bool `json:"paystack"`
@@ -271,11 +272,44 @@ type PublicGatewaysResponse struct {
 	COD      bool `json:"cod"`
 }
 
-// GetPublicGateways fetches the active payment gateways for a tenant from the treasury public endpoint.
-// No auth required on treasury side — used by POS to show only enabled payment methods.
+// treasuryGatewaysWire is treasury's ACTUAL response shape for GET /api/v1/pay/{tenant}/gateways:
+// the active gateways come back as a STRING ARRAY ({"gateways":["paystack","mpesa","cod"]}). The flat
+// boolean fields are kept too so we still work if treasury ever switches to returning booleans.
+type treasuryGatewaysWire struct {
+	Gateways []string `json:"gateways"`
+	MPesa    bool     `json:"mpesa"`
+	Paystack bool     `json:"paystack"`
+	Wallet   bool     `json:"wallet"`
+	COD      bool     `json:"cod"`
+}
+
+// GetPublicGateways fetches the active payment gateways for a tenant from the treasury public endpoint
+// (no auth on treasury side) and maps them to the flat booleans the POS UI consumes.
+//
+// BUGFIX: treasury returns {"gateways":["paystack","mpesa","cod"]} (an array), NOT flat booleans.
+// Decoding that straight into PublicGatewaysResponse yielded all-false, which silently hid EVERY online
+// gateway (M-Pesa, Paystack/Card, Wallet) in the POS payment modal even when the tenant had enabled
+// them. We now decode the array (and tolerate the flat form) and derive the flags from it.
 func (c *Client) GetPublicGateways(ctx context.Context, tenantSlug string) (*PublicGatewaysResponse, error) {
 	url := fmt.Sprintf("%s/api/v1/pay/%s/gateways", c.baseURL, tenantSlug)
-	return doRequest[PublicGatewaysResponse](ctx, c.httpClient, http.MethodGet, url, c.apiKey, nil)
+	wire, err := doRequest[treasuryGatewaysWire](ctx, c.httpClient, http.MethodGet, url, c.apiKey, nil)
+	if err != nil {
+		return nil, err
+	}
+	out := &PublicGatewaysResponse{MPesa: wire.MPesa, Paystack: wire.Paystack, Wallet: wire.Wallet, COD: wire.COD}
+	for _, g := range wire.Gateways {
+		switch strings.ToLower(strings.TrimSpace(g)) {
+		case "mpesa", "mpesa_paybill", "mpesa_till":
+			out.MPesa = true
+		case "paystack", "card":
+			out.Paystack = true
+		case "wallet":
+			out.Wallet = true
+		case "cod":
+			out.COD = true
+		}
+	}
+	return out, nil
 }
 
 // PayoutRequest is the body for POST /api/v1/{tenant}/payouts/disburse.
