@@ -393,7 +393,8 @@ func (h *PaymentHandler) RecordExpense(w http.ResponseWriter, r *http.Request) {
 		expenseDate = time.Now().UTC().Format(time.RFC3339)
 	}
 
-	resp, err := h.treasuryClient.RecordExpense(r.Context(), tenantSlug, treasury.ExpenseRequest{
+	// Treasury S2S resolves {tenant} as a UUID — pass the URL tenant UUID, not the slug.
+	resp, err := h.treasuryClient.RecordExpense(r.Context(), chi.URLParam(r, "tenantID"), treasury.ExpenseRequest{
 		ExpenseNumber: in.ReferenceNo,
 		CategoryID:    in.CategoryID,
 		Description:   in.Description,
@@ -421,12 +422,14 @@ func (h *PaymentHandler) RecordExpense(w http.ResponseWriter, r *http.Request) {
 // ListExpenseCategories handles GET /{tenant}/pos/expenses/categories — proxies treasury's expense
 // category list so the Add-Expense form can populate the "Expense Category" dropdown.
 func (h *PaymentHandler) ListExpenseCategories(w http.ResponseWriter, r *http.Request) {
-	tenantSlug := h.resolveTenantSlug(r)
-	if tenantSlug == "" || h.treasuryClient == nil {
+	// Treasury's S2S /{tenant}/... routes resolve the tenant strictly as a UUID (no slug→UUID
+	// middleware on the s2s group) — passing the slug 400s. Pass the tenant UUID.
+	tid, terr := parseTenantUUID(r)
+	if terr != nil || h.treasuryClient == nil {
 		jsonError(w, "tenant context required", http.StatusBadRequest)
 		return
 	}
-	resp, err := h.treasuryClient.ListExpenseCategories(r.Context(), tenantSlug)
+	resp, err := h.treasuryClient.ListExpenseCategories(r.Context(), tid.String())
 	if err != nil {
 		h.log.Error("list expense categories failed", zap.Error(err))
 		jsonError(w, "failed to load expense categories", http.StatusBadGateway)
@@ -439,12 +442,12 @@ func (h *PaymentHandler) ListExpenseCategories(w http.ResponseWriter, r *http.Re
 // ListExpenseAccounts handles GET /{tenant}/pos/expenses/accounts — proxies treasury's chart of
 // accounts so the Add-Expense form can populate the "Payment Account" dropdown.
 func (h *PaymentHandler) ListExpenseAccounts(w http.ResponseWriter, r *http.Request) {
-	tenantSlug := h.resolveTenantSlug(r)
-	if tenantSlug == "" || h.treasuryClient == nil {
+	tid, terr := parseTenantUUID(r)
+	if terr != nil || h.treasuryClient == nil {
 		jsonError(w, "tenant context required", http.StatusBadRequest)
 		return
 	}
-	resp, err := h.treasuryClient.ListExpenseAccounts(r.Context(), tenantSlug)
+	resp, err := h.treasuryClient.ListExpenseAccounts(r.Context(), tid.String())
 	if err != nil {
 		h.log.Error("list expense accounts failed", zap.Error(err))
 		jsonError(w, "failed to load payment accounts", http.StatusBadGateway)
@@ -454,15 +457,38 @@ func (h *PaymentHandler) ListExpenseAccounts(w http.ResponseWriter, r *http.Requ
 	_, _ = w.Write(resp)
 }
 
-// ListC2BCandidates handles GET /{tenant}/pos/c2b/payments — proxies the treasury C2B inbox query so
-// the cashier can find an unreconciled till/paybill payment to bind to the open sale.
-func (h *PaymentHandler) ListC2BCandidates(w http.ResponseWriter, r *http.Request) {
-	tenantSlug := h.resolveTenantSlug(r)
-	if tenantSlug == "" || h.treasuryClient == nil {
+// ListTaxCodes handles GET /{tenant}/pos/tax-codes — proxies treasury's tax-code list so the POS
+// Settings → Tax tab can show the tenant's treasury-sourced tax codes/rates (the actual source of
+// truth for per-item tax). Treasury, not POS, owns these rates; the POS terminal applies each item's
+// own enriched tax_rate/tax_inclusive at checkout.
+func (h *PaymentHandler) ListTaxCodes(w http.ResponseWriter, r *http.Request) {
+	tid, terr := parseTenantUUID(r)
+	if terr != nil || h.treasuryClient == nil {
 		jsonError(w, "tenant context required", http.StatusBadRequest)
 		return
 	}
-	resp, err := h.treasuryClient.ListC2BCandidates(r.Context(), tenantSlug, r.URL.RawQuery)
+	codes, err := h.treasuryClient.ListTaxCodes(r.Context(), tid.String())
+	if err != nil {
+		h.log.Error("list tax codes failed", zap.Error(err))
+		jsonError(w, "failed to load tax codes", http.StatusBadGateway)
+		return
+	}
+	if codes == nil {
+		codes = []treasury.TaxCodeResponse{}
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{"tax_codes": codes, "total": len(codes)})
+}
+
+// ListC2BCandidates handles GET /{tenant}/pos/c2b/payments — proxies the treasury C2B inbox query so
+// the cashier can find an unreconciled till/paybill payment to bind to the open sale.
+func (h *PaymentHandler) ListC2BCandidates(w http.ResponseWriter, r *http.Request) {
+	tid, terr := parseTenantUUID(r)
+	if terr != nil || h.treasuryClient == nil {
+		jsonError(w, "tenant context required", http.StatusBadRequest)
+		return
+	}
+	resp, err := h.treasuryClient.ListC2BCandidates(r.Context(), tid.String(), r.URL.RawQuery)
 	if err != nil {
 		h.log.Error("list c2b candidates failed", zap.Error(err))
 		jsonError(w, "failed to query c2b payments", http.StatusBadGateway)
@@ -474,8 +500,8 @@ func (h *PaymentHandler) ListC2BCandidates(w http.ResponseWriter, r *http.Reques
 
 // ClaimC2BPayment handles POST /{tenant}/pos/c2b/payments/{transID}/claim — binds a C2B payment to a sale.
 func (h *PaymentHandler) ClaimC2BPayment(w http.ResponseWriter, r *http.Request) {
-	tenantSlug := h.resolveTenantSlug(r)
-	if tenantSlug == "" || h.treasuryClient == nil {
+	tid, terr := parseTenantUUID(r)
+	if terr != nil || h.treasuryClient == nil {
 		jsonError(w, "tenant context required", http.StatusBadRequest)
 		return
 	}
@@ -486,7 +512,7 @@ func (h *PaymentHandler) ClaimC2BPayment(w http.ResponseWriter, r *http.Request)
 		TenderID   string  `json:"tender_id"`
 	}
 	_ = json.NewDecoder(r.Body).Decode(&body)
-	resp, err := h.treasuryClient.ClaimC2BPayment(r.Context(), tenantSlug, transID, body.POSOrderID)
+	resp, err := h.treasuryClient.ClaimC2BPayment(r.Context(), tid.String(), transID, body.POSOrderID)
 	if err != nil {
 		h.log.Error("claim c2b payment failed", zap.Error(err))
 		jsonError(w, "failed to claim c2b payment", http.StatusBadGateway)

@@ -507,6 +507,8 @@ type catalogItemDTO struct {
 	TaxCodeID               string
 	TaxInclusive            bool
 	TaxRate                 *float64
+	NetPrice                *float64
+	TaxAmount               *float64
 	RequiresPrescription    bool
 	IsReturnable            bool
 	RequiresAgeVerification bool
@@ -742,6 +744,8 @@ func (h *CatalogHandler) assembleMenuItems(
 			TaxCodeID:               item.TaxCodeID,
 			TaxInclusive:            item.TaxInclusive,
 			TaxRate:                 item.TaxRate,
+			NetPrice:                item.NetPrice,
+			TaxAmount:               item.TaxAmount,
 			RequiresPrescription:    requiresPrescription,
 			IsReturnable:            isReturnable,
 			RequiresAgeVerification: requiresAgeVerification,
@@ -782,6 +786,8 @@ func catalogItemToMap(item catalogItemDTO, outletID *uuid.UUID) map[string]any {
 		"tax_code_id":               item.TaxCodeID,
 		"tax_inclusive":             item.TaxInclusive,
 		"tax_rate":                  item.TaxRate,
+		"net_price":                 item.NetPrice,
+		"tax_amount":                item.TaxAmount,
 		"requires_prescription":     item.RequiresPrescription,
 		"is_returnable":             item.IsReturnable,
 		"requires_age_verification": item.RequiresAgeVerification,
