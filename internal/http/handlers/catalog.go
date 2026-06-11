@@ -51,6 +51,9 @@ type inventoryProxyItem struct {
 	IsActive                bool     `json:"is_active"`
 	ImageURL                string   `json:"image_url"`
 	CategoryName            string   `json:"category_name"`
+	BrandID                 string   `json:"brand_id"`
+	BrandName               string   `json:"brand_name"`
+	BrandCode               string   `json:"brand_code"`
 	Barcode                 string   `json:"barcode"`
 	RequiresAgeVerification bool     `json:"requires_age_verification"`
 	IsControlledSubstance   bool     `json:"is_controlled_substance"`
@@ -343,6 +346,58 @@ func (h *CatalogHandler) GetPricingTiers(w http.ResponseWriter, r *http.Request)
 	jsonOK(w, map[string]any{"data": out})
 }
 
+// posBrand is the clean shape pos-ui consumes for the Brands tab.
+type posBrand struct {
+	Code      string `json:"code"`
+	Name      string `json:"name"`
+	LogoURL   string `json:"logo_url,omitempty"`
+	SortOrder int    `json:"sort_order"`
+}
+
+// GetBrands handles GET /{tenantID}/pos/catalog/brands — proxies the tenant's item brands from
+// inventory-api (the source of truth) so the POS catalog can offer a real Brands tab / filter
+// instead of nothing. Returns active brands only, sorted; degrades to {"data":[]} on proxy failure.
+func (h *CatalogHandler) GetBrands(w http.ResponseWriter, r *http.Request) {
+	tenantSlug := h.resolveTenantSlug(r)
+	if tenantSlug == "" {
+		jsonError(w, "could not resolve tenant", http.StatusBadRequest)
+		return
+	}
+	url := fmt.Sprintf("%s/v1/%s/inventory/brands", inventoryURL(), tenantSlug)
+	body, err := doInventoryGET(r.Context(), url, "")
+	if err != nil {
+		h.log.Warn("brands: inventory proxy failed", zap.Error(err))
+		jsonOK(w, map[string]any{"data": []posBrand{}})
+		return
+	}
+	// inventory returns a wrapped {"data":[{code,name,logo_url,is_active,sort_order}]}; tolerate a bare array too.
+	type rawBrand struct {
+		Name      string `json:"name"`
+		Code      string `json:"code"`
+		LogoURL   string `json:"logo_url"`
+		IsActive  bool   `json:"is_active"`
+		SortOrder int    `json:"sort_order"`
+	}
+	var raw []rawBrand
+	var wrapper struct {
+		Data []rawBrand `json:"data"`
+	}
+	if err := json.Unmarshal(body, &wrapper); err == nil && wrapper.Data != nil {
+		raw = wrapper.Data
+	} else if err := json.Unmarshal(body, &raw); err != nil {
+		jsonOK(w, map[string]any{"data": []posBrand{}})
+		return
+	}
+	out := make([]posBrand, 0, len(raw))
+	for _, b := range raw {
+		if !b.IsActive || strings.TrimSpace(b.Code) == "" {
+			continue
+		}
+		out = append(out, posBrand{Code: b.Code, Name: b.Name, LogoURL: b.LogoURL, SortOrder: b.SortOrder})
+	}
+	jsonOK(w, map[string]any{"data": out})
+}
+
 // ResolvePrice handles GET /{tenantID}/pos/catalog/pricing/resolve?item_id=&quantity=&profile=
 // Resolves an item's unit/total price for a pricing profile (tier code, e.g. RETAIL or WHOLESALE)
 // from inventory-api, so the register can re-price the cart when the cashier switches profile.
@@ -405,6 +460,8 @@ type catalogItemDTO struct {
 	Name                    string
 	Description             string
 	CategoryName            string
+	BrandName               string
+	BrandCode               string
 	ItemType                string
 	IsActive                bool
 	IsAvailable             bool
@@ -634,6 +691,8 @@ func (h *CatalogHandler) assembleMenuItems(
 			Name:                    item.Name,
 			Description:             item.Description,
 			CategoryName:            item.CategoryName,
+			BrandName:               item.BrandName,
+			BrandCode:               item.BrandCode,
 			ItemType:                item.Type,
 			IsActive:                item.IsActive,
 			IsAvailable:             isAvailable,
@@ -668,6 +727,8 @@ func catalogItemToMap(item catalogItemDTO, outletID *uuid.UUID) map[string]any {
 		"name":                      item.Name,
 		"description":               item.Description,
 		"category":                  item.CategoryName,
+		"brand":                     item.BrandName,
+		"brand_code":                item.BrandCode,
 		"item_type":                 item.ItemType,
 		"status":                    map[bool]string{true: "active", false: "inactive"}[item.IsActive],
 		"is_available":              item.IsAvailable,
