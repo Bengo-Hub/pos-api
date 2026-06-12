@@ -29,8 +29,9 @@ const menuThumbMaxPx = 256
 // over fresh TLS connections made a render take 40s+ (and intermittently hit the gateway
 // timeout) whenever a few downloads were slow. Prefetching concurrently bounds the wall-clock
 // to roughly ceil(N/workers) × per-image time. Kept modest so the peak working set (each worker
-// holds one downloaded + decoded image) stays well within the 512Mi pod limit.
-const menuPrefetchWorkers = 6
+// holds one downloaded + decoded image — a sub-2MB JPEG can decode to tens of MB) stays well
+// within the 512Mi pod limit; the soft Go memory limit (see cmd/api) is the backstop.
+const menuPrefetchWorkers = 4
 
 // menuImageFetcher embeds remote images into an fpdf document, best-effort and bounded.
 //
