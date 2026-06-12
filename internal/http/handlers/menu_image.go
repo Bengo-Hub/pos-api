@@ -64,6 +64,11 @@ func (f *menuImageFetcher) get(url string) *menuImage {
 	info := f.pdf.RegisterImageOptionsReader(name,
 		fpdf.ImageOptions{ImageType: typ}, bytes.NewReader(data))
 	if info == nil || info.Width() <= 0 || info.Height() <= 0 {
+		// A bad/unsupported image must never abort the whole document. fpdf records the
+		// failure in its internal error state, which turns every subsequent operation into
+		// a no-op and makes pdf.Output fail. Clear it so the caller can fall back to a
+		// placeholder and the rest of the menu still renders.
+		f.pdf.ClearError()
 		miss := &menuImage{ok: false}
 		f.cache[url] = miss
 		return miss
