@@ -28,12 +28,13 @@ func NewCacheSubscriber(redisClient *redis.Client, logger *zap.Logger) *CacheSub
 
 // Start subscribes to tenant.subscription.updated on the provided NATS connection.
 func (s *CacheSubscriber) Start(conn *nats.Conn) error {
-	sub, err := conn.Subscribe("tenant.subscription.updated", s.handle)
+	// QueueSubscribe so a single pod invalidates the cache per event across replicas.
+	sub, err := conn.QueueSubscribe("tenant.subscription.updated", "pos-subcache", s.handle)
 	if err != nil {
 		return err
 	}
 	s.sub = sub
-	s.logger.Info("subscribed to tenant.subscription.updated")
+	s.logger.Info("subscribed to tenant.subscription.updated (queue group pos-subcache)")
 	return nil
 }
 
