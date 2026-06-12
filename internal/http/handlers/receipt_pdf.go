@@ -23,6 +23,7 @@ func generateReceiptPDF(rec receiptResponse, brand receiptBrand) ([]byte, error)
 		UnitStr: "mm",
 		Size:    fpdf.SizeType{Wd: pageW, Ht: 297},
 	})
+	pdf.SetCompression(true) // zlib/FlateDecode the content streams
 	pdf.SetMargins(margin, 6, margin)
 	pdf.SetAutoPageBreak(true, 6)
 	pdf.AddPage()
@@ -177,13 +178,26 @@ func receiptHexToRGB(hex string) (int, int, int) {
 	return 34, 48, 63 // default ink
 }
 
-// fetchReceiptLogo best-effort downloads a logo image (PNG/JPG); returns nil on any failure.
+// brandImageHTTPClient is a shared, connection-pooling client for downloading branding/menu
+// images. A menu render fetches ~50 images; reusing keep-alive connections (instead of a fresh
+// client + TLS handshake per image) and a tighter timeout keeps the render fast and bounded.
+// It is safe for concurrent use (see menuImageFetcher.prefetch).
+var brandImageHTTPClient = &http.Client{
+	Timeout: 4 * time.Second,
+	Transport: &http.Transport{
+		MaxIdleConns:        64,
+		MaxIdleConnsPerHost: 32,
+		IdleConnTimeout:     30 * time.Second,
+		TLSHandshakeTimeout: 3 * time.Second,
+	},
+}
+
+// fetchReceiptLogo best-effort downloads a logo/menu image (PNG/JPG); returns nil on any failure.
 func fetchReceiptLogo(url string) ([]byte, string) {
 	if url == "" {
 		return nil, ""
 	}
-	client := &http.Client{Timeout: 5 * time.Second}
-	resp, err := client.Get(url) //nolint:noctx
+	resp, err := brandImageHTTPClient.Get(url) //nolint:noctx
 	if err != nil {
 		return nil, ""
 	}

@@ -24,19 +24,28 @@ import (
 // wire (20s WriteTimeout) and never finished downloading.
 const menuThumbMaxPx = 256
 
+// menuPrefetchWorkers bounds how many menu images are downloaded + processed concurrently.
+// A menu has ~50 images (logo, category icons, item thumbnails); fetching them one-at-a-time
+// over fresh TLS connections made a render take 40s+ (and intermittently hit the gateway
+// timeout) whenever a few downloads were slow. Prefetching concurrently bounds the wall-clock
+// to roughly ceil(N/workers) × per-image time.
+const menuPrefetchWorkers = 12
+
 // menuImageFetcher embeds remote images into an fpdf document, best-effort and bounded.
 //
-// Every fetched image is DECODED, downscaled to a thumbnail and re-encoded as a small baseline
-// JPEG before being registered with fpdf. This (1) keeps the document small enough to render +
-// stream within the request timeout, and (2) normalises every input (PNG/GIF/JPEG, and even a
-// JPEG mislabeled as image/png) into a format fpdf always accepts — so a single odd image can
-// never poison the document. Results are cached per source URL so a repeated icon/thumbnail is
-// fetched + processed only once.
+// Pipeline: every source image is DOWNLOADED, decoded, downscaled to a thumbnail and re-encoded
+// as a small baseline JPEG (the "processing" stage — pure CPU/network, fpdf-free and therefore
+// safe to run concurrently via prefetch), then REGISTERED with fpdf lazily in get() on the
+// single render goroutine (fpdf is not concurrency-safe). This (1) keeps the document small
+// enough to render + stream within the request timeout, (2) normalises every input (PNG/GIF/
+// JPEG, even a JPEG mislabeled as image/png) into a format fpdf always accepts, and (3) keeps a
+// full render fast by overlapping the many downloads.
 type menuImageFetcher struct {
-	pdf   *fpdf.Fpdf
-	seq   int
-	cache map[string]*menuImage // keyed by source URL
-	mu    sync.Mutex            // assembleMenuItems fetches in goroutines elsewhere; render is single-goroutine, but guard anyway
+	pdf       *fpdf.Fpdf
+	seq       int
+	cache     map[string]*menuImage // url -> registered result (filled in get())
+	processed map[string][]byte     // url -> thumbnail JPEG bytes (nil = failed); filled by prefetch/get
+	mu        sync.Mutex
 }
 
 // menuImage is a registered (or failed) image. ok=false means the fetch/decode/registration
@@ -50,12 +59,81 @@ type menuImage struct {
 }
 
 func newMenuImageFetcher(pdf *fpdf.Fpdf) *menuImageFetcher {
-	return &menuImageFetcher{pdf: pdf, cache: map[string]*menuImage{}}
+	return &menuImageFetcher{pdf: pdf, cache: map[string]*menuImage{}, processed: map[string][]byte{}}
 }
 
-// get downloads, decodes, downscales and registers the image at url, returning a cached result
-// on repeat calls. A zero-value (ok=false) result is returned — never an error — when the URL is
-// empty or anything about the fetch/decode/registration fails, so callers can simply check img.ok.
+// prefetch concurrently downloads + processes the given URLs into thumbnail JPEG bytes, ready
+// for get() to register instantly. It never touches fpdf, so it is safe to fan out. Call it once
+// before the render loop with every image URL the document will reference; get() still works for
+// any URL that was not prefetched (it processes synchronously as a fallback).
+func (f *menuImageFetcher) prefetch(urls []string) {
+	seen := make(map[string]struct{}, len(urls))
+	todo := make([]string, 0, len(urls))
+	f.mu.Lock()
+	for _, u := range urls {
+		if u == "" {
+			continue
+		}
+		if _, dup := seen[u]; dup {
+			continue
+		}
+		seen[u] = struct{}{}
+		if _, done := f.processed[u]; done {
+			continue
+		}
+		todo = append(todo, u)
+	}
+	f.mu.Unlock()
+	if len(todo) == 0 {
+		return
+	}
+
+	sem := make(chan struct{}, menuPrefetchWorkers)
+	var wg sync.WaitGroup
+	for _, u := range todo {
+		wg.Add(1)
+		sem <- struct{}{}
+		go func(u string) {
+			defer wg.Done()
+			defer func() { <-sem }()
+			b := processMenuImage(u)
+			f.mu.Lock()
+			f.processed[u] = b
+			f.mu.Unlock()
+		}(u)
+	}
+	wg.Wait()
+}
+
+// processMenuImage downloads url and returns a downscaled baseline-JPEG thumbnail, or nil on any
+// failure. Pure CPU/network — it never touches fpdf, so it is safe to call from many goroutines.
+func processMenuImage(url string) []byte {
+	if url == "" {
+		return nil
+	}
+	data, _ := fetchReceiptLogo(url)
+	if data == nil {
+		return nil
+	}
+	// Decode (auto-detects PNG/JPEG/GIF from the bytes), downscale, flatten transparency onto
+	// white (JPEG has no alpha) and re-encode as a small baseline JPEG.
+	src, _, err := image.Decode(bytes.NewReader(data))
+	if err != nil {
+		return nil
+	}
+	thumb := flattenOnWhite(downscaleImage(src, menuThumbMaxPx))
+	var jbuf bytes.Buffer
+	// Quality 75 keeps thumbnails visibly crisp at ~16mm while compressing each to ~5-15KB.
+	if err := jpeg.Encode(&jbuf, thumb, &jpeg.Options{Quality: 75}); err != nil {
+		return nil
+	}
+	return jbuf.Bytes()
+}
+
+// get returns the registered image for url, using the prefetched thumbnail when available and
+// processing synchronously otherwise. A zero-value (ok=false) result is returned — never an
+// error — when the URL is empty or anything failed, so callers can simply check img.ok.
+// Must be called on the render goroutine (it registers with the non-thread-safe fpdf).
 func (f *menuImageFetcher) get(url string) *menuImage {
 	if url == "" {
 		return &menuImage{ok: false}
@@ -72,28 +150,20 @@ func (f *menuImageFetcher) get(url string) *menuImage {
 		return m
 	}
 
-	// fetchReceiptLogo: shared best-effort HTTP GET (5s timeout, 5MB cap).
-	data, _ := fetchReceiptLogo(url)
-	if data == nil {
-		return miss()
+	jb, ok := f.processed[url]
+	if !ok {
+		// Not prefetched — process now (fallback path).
+		jb = processMenuImage(url)
+		f.processed[url] = jb
 	}
-
-	// Decode (auto-detects PNG/JPEG/GIF from the bytes), downscale to a thumbnail, flatten any
-	// transparency onto white (JPEG has no alpha) and re-encode as a small baseline JPEG.
-	src, _, err := image.Decode(bytes.NewReader(data))
-	if err != nil {
-		return miss()
-	}
-	thumb := flattenOnWhite(downscaleImage(src, menuThumbMaxPx))
-	var jbuf bytes.Buffer
-	if err := jpeg.Encode(&jbuf, thumb, &jpeg.Options{Quality: 82}); err != nil {
+	if jb == nil {
 		return miss()
 	}
 
 	f.seq++
 	name := fmt.Sprintf("menuimg_%d", f.seq)
 	info := f.pdf.RegisterImageOptionsReader(name,
-		fpdf.ImageOptions{ImageType: "JPG"}, bytes.NewReader(jbuf.Bytes()))
+		fpdf.ImageOptions{ImageType: "JPG"}, bytes.NewReader(jb))
 	if info == nil || info.Width() <= 0 || info.Height() <= 0 {
 		// Belt-and-braces: a registration failure records an error in fpdf's internal state,
 		// turning every later op into a no-op and failing Output. Clear it so the caller can
