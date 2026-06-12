@@ -126,17 +126,31 @@ func (f *menuImageFetcher) draw(img *menuImage, boxX, boxY, box float64) {
 }
 
 // downscaleImage shrinks src so its longest edge is at most maxDim px, preserving aspect ratio,
-// using a simple area-average (box) filter — good quality for downscaling and dependency-free.
+// using an area-average (box) filter — good quality for downscaling and dependency-free.
 // Images already within maxDim are returned unchanged.
+//
+// Performance: it converts the source to *image.RGBA ONCE (a single optimised draw) and then
+// reads the packed Pix byte slice directly. Sampling via image.Image.At() instead made a full
+// menu render take >2 minutes (per-pixel interface dispatch over millions of pixels under the
+// pod CPU limit), tripping the gateway timeout.
 func downscaleImage(src image.Image, maxDim int) image.Image {
 	b := src.Bounds()
 	sw, sh := b.Dx(), b.Dy()
 	if sw <= 0 || sh <= 0 {
 		return src
 	}
-	if sw <= maxDim && sh <= maxDim {
-		return src
+
+	// One fast conversion to a zero-origin RGBA so Pix can be indexed directly below.
+	rgba, ok := src.(*image.RGBA)
+	if !ok || rgba.Rect.Min != (image.Point{}) {
+		conv := image.NewRGBA(image.Rect(0, 0, sw, sh))
+		draw.Draw(conv, conv.Bounds(), src, b.Min, draw.Src)
+		rgba = conv
 	}
+	if sw <= maxDim && sh <= maxDim {
+		return rgba
+	}
+
 	tw, th := sw, sh
 	if sw >= sh {
 		tw = maxDim
@@ -151,39 +165,40 @@ func downscaleImage(src image.Image, maxDim int) image.Image {
 	if th < 1 {
 		th = 1
 	}
+
 	dst := image.NewRGBA(image.Rect(0, 0, tw, th))
 	for ty := 0; ty < th; ty++ {
-		sy0 := b.Min.Y + ty*sh/th
-		sy1 := b.Min.Y + (ty+1)*sh/th
+		sy0 := ty * sh / th
+		sy1 := (ty + 1) * sh / th
 		if sy1 <= sy0 {
 			sy1 = sy0 + 1
 		}
 		for tx := 0; tx < tw; tx++ {
-			sx0 := b.Min.X + tx*sw/tw
-			sx1 := b.Min.X + (tx+1)*sw/tw
+			sx0 := tx * sw / tw
+			sx1 := (tx + 1) * sw / tw
 			if sx1 <= sx0 {
 				sx1 = sx0 + 1
 			}
-			var rr, gg, bb, aa, n uint64
+			var rr, gg, bb, aa, n uint32
 			for yy := sy0; yy < sy1; yy++ {
+				row := yy * rgba.Stride
 				for xx := sx0; xx < sx1; xx++ {
-					cr, cg, cb, ca := src.At(xx, yy).RGBA() // 16-bit per channel
-					rr += uint64(cr)
-					gg += uint64(cg)
-					bb += uint64(cb)
-					aa += uint64(ca)
+					i := row + xx*4
+					rr += uint32(rgba.Pix[i])
+					gg += uint32(rgba.Pix[i+1])
+					bb += uint32(rgba.Pix[i+2])
+					aa += uint32(rgba.Pix[i+3])
 					n++
 				}
 			}
 			if n == 0 {
 				n = 1
 			}
-			dst.SetRGBA(tx, ty, color.RGBA{
-				R: uint8((rr / n) >> 8),
-				G: uint8((gg / n) >> 8),
-				B: uint8((bb / n) >> 8),
-				A: uint8((aa / n) >> 8),
-			})
+			di := dst.PixOffset(tx, ty)
+			dst.Pix[di] = uint8(rr / n)
+			dst.Pix[di+1] = uint8(gg / n)
+			dst.Pix[di+2] = uint8(bb / n)
+			dst.Pix[di+3] = uint8(aa / n)
 		}
 	}
 	return dst
