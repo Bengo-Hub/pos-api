@@ -3,20 +3,35 @@ package handlers
 import (
 	"bytes"
 	"fmt"
+	"image"
+	"image/color"
+	"image/draw"
+	"image/jpeg"
 	"sync"
+
+	// Register decoders so image.Decode recognises whatever the URL actually serves,
+	// independent of the HTTP Content-Type / file extension.
+	_ "image/gif"
+	_ "image/png"
 
 	"github.com/go-pdf/fpdf"
 )
 
+// menuThumbMaxPx is the longest-edge size (px) every embedded image is downscaled to before
+// it goes into the PDF. Item thumbnails render at ~16mm, category icons at ~6mm and the logo
+// at ~16mm, so a few hundred px is plenty even when the PDF is zoomed/printed. Embedding the
+// full-resolution source images instead produced ~30MB documents that were TRUNCATED on the
+// wire (20s WriteTimeout) and never finished downloading.
+const menuThumbMaxPx = 256
+
 // menuImageFetcher embeds remote images into an fpdf document, best-effort and bounded.
 //
-// It reuses fetchReceiptLogo (receipt_pdf.go) for the actual HTTP download + PNG/JPG
-// content-type sniffing, so there is a single image-fetch code path in this package.
-// Every fetched image is registered with fpdf under a stable, per-URL name and cached so
-// the same image URL (e.g. a repeated category icon) is downloaded + registered only once.
-//
-// Failures NEVER abort the document: a failed/unsupported image is recorded as a negative
-// cache entry and the caller draws a placeholder instead.
+// Every fetched image is DECODED, downscaled to a thumbnail and re-encoded as a small baseline
+// JPEG before being registered with fpdf. This (1) keeps the document small enough to render +
+// stream within the request timeout, and (2) normalises every input (PNG/GIF/JPEG, and even a
+// JPEG mislabeled as image/png) into a format fpdf always accepts — so a single odd image can
+// never poison the document. Results are cached per source URL so a repeated icon/thumbnail is
+// fetched + processed only once.
 type menuImageFetcher struct {
 	pdf   *fpdf.Fpdf
 	seq   int
@@ -24,12 +39,12 @@ type menuImageFetcher struct {
 	mu    sync.Mutex            // assembleMenuItems fetches in goroutines elsewhere; render is single-goroutine, but guard anyway
 }
 
-// menuImage is a registered (or failed) image. ok=false means the fetch/registration failed
-// and the caller should render a placeholder; name/w/h are then meaningless.
+// menuImage is a registered (or failed) image. ok=false means the fetch/decode/registration
+// failed and the caller should render a placeholder; name/w/h are then meaningless.
 type menuImage struct {
 	ok   bool
 	name string  // fpdf registered image name (use with pdf.ImageOptions)
-	typ  string  // "PNG" | "JPG"
+	typ  string  // always "JPG" after normalisation
 	w    float64 // intrinsic pixel width  (for aspect-ratio fit)
 	h    float64 // intrinsic pixel height
 }
@@ -38,9 +53,9 @@ func newMenuImageFetcher(pdf *fpdf.Fpdf) *menuImageFetcher {
 	return &menuImageFetcher{pdf: pdf, cache: map[string]*menuImage{}}
 }
 
-// get downloads, decodes and registers the image at url, returning a cached result on repeat
-// calls. A zero-value (ok=false) result is returned — never an error — when the URL is empty
-// or anything about the fetch/registration fails, so callers can simply check img.ok.
+// get downloads, decodes, downscales and registers the image at url, returning a cached result
+// on repeat calls. A zero-value (ok=false) result is returned — never an error — when the URL is
+// empty or anything about the fetch/decode/registration fails, so callers can simply check img.ok.
 func (f *menuImageFetcher) get(url string) *menuImage {
 	if url == "" {
 		return &menuImage{ok: false}
@@ -51,30 +66,43 @@ func (f *menuImageFetcher) get(url string) *menuImage {
 		return cached
 	}
 
-	// fetchReceiptLogo: shared best-effort HTTP GET (5s timeout, 5MB cap) + PNG/JPG sniff.
-	data, typ := fetchReceiptLogo(url)
-	if data == nil || typ == "" {
-		miss := &menuImage{ok: false}
-		f.cache[url] = miss
-		return miss
+	miss := func() *menuImage {
+		m := &menuImage{ok: false}
+		f.cache[url] = m
+		return m
+	}
+
+	// fetchReceiptLogo: shared best-effort HTTP GET (5s timeout, 5MB cap).
+	data, _ := fetchReceiptLogo(url)
+	if data == nil {
+		return miss()
+	}
+
+	// Decode (auto-detects PNG/JPEG/GIF from the bytes), downscale to a thumbnail, flatten any
+	// transparency onto white (JPEG has no alpha) and re-encode as a small baseline JPEG.
+	src, _, err := image.Decode(bytes.NewReader(data))
+	if err != nil {
+		return miss()
+	}
+	thumb := flattenOnWhite(downscaleImage(src, menuThumbMaxPx))
+	var jbuf bytes.Buffer
+	if err := jpeg.Encode(&jbuf, thumb, &jpeg.Options{Quality: 82}); err != nil {
+		return miss()
 	}
 
 	f.seq++
 	name := fmt.Sprintf("menuimg_%d", f.seq)
 	info := f.pdf.RegisterImageOptionsReader(name,
-		fpdf.ImageOptions{ImageType: typ}, bytes.NewReader(data))
+		fpdf.ImageOptions{ImageType: "JPG"}, bytes.NewReader(jbuf.Bytes()))
 	if info == nil || info.Width() <= 0 || info.Height() <= 0 {
-		// A bad/unsupported image must never abort the whole document. fpdf records the
-		// failure in its internal error state, which turns every subsequent operation into
-		// a no-op and makes pdf.Output fail. Clear it so the caller can fall back to a
-		// placeholder and the rest of the menu still renders.
+		// Belt-and-braces: a registration failure records an error in fpdf's internal state,
+		// turning every later op into a no-op and failing Output. Clear it so the caller can
+		// fall back to a placeholder and the rest of the menu still renders.
 		f.pdf.ClearError()
-		miss := &menuImage{ok: false}
-		f.cache[url] = miss
-		return miss
+		return miss()
 	}
 
-	img := &menuImage{ok: true, name: name, typ: typ, w: info.Width(), h: info.Height()}
+	img := &menuImage{ok: true, name: name, typ: "JPG", w: info.Width(), h: info.Height()}
 	f.cache[url] = img
 	return img
 }
@@ -95,4 +123,78 @@ func (f *menuImageFetcher) draw(img *menuImage, boxX, boxY, box float64) {
 	y := boxY + (box-h)/2
 	f.pdf.ImageOptions(img.name, x, y, w, h, false,
 		fpdf.ImageOptions{ImageType: img.typ}, 0, "")
+}
+
+// downscaleImage shrinks src so its longest edge is at most maxDim px, preserving aspect ratio,
+// using a simple area-average (box) filter — good quality for downscaling and dependency-free.
+// Images already within maxDim are returned unchanged.
+func downscaleImage(src image.Image, maxDim int) image.Image {
+	b := src.Bounds()
+	sw, sh := b.Dx(), b.Dy()
+	if sw <= 0 || sh <= 0 {
+		return src
+	}
+	if sw <= maxDim && sh <= maxDim {
+		return src
+	}
+	tw, th := sw, sh
+	if sw >= sh {
+		tw = maxDim
+		th = sh * maxDim / sw
+	} else {
+		th = maxDim
+		tw = sw * maxDim / sh
+	}
+	if tw < 1 {
+		tw = 1
+	}
+	if th < 1 {
+		th = 1
+	}
+	dst := image.NewRGBA(image.Rect(0, 0, tw, th))
+	for ty := 0; ty < th; ty++ {
+		sy0 := b.Min.Y + ty*sh/th
+		sy1 := b.Min.Y + (ty+1)*sh/th
+		if sy1 <= sy0 {
+			sy1 = sy0 + 1
+		}
+		for tx := 0; tx < tw; tx++ {
+			sx0 := b.Min.X + tx*sw/tw
+			sx1 := b.Min.X + (tx+1)*sw/tw
+			if sx1 <= sx0 {
+				sx1 = sx0 + 1
+			}
+			var rr, gg, bb, aa, n uint64
+			for yy := sy0; yy < sy1; yy++ {
+				for xx := sx0; xx < sx1; xx++ {
+					cr, cg, cb, ca := src.At(xx, yy).RGBA() // 16-bit per channel
+					rr += uint64(cr)
+					gg += uint64(cg)
+					bb += uint64(cb)
+					aa += uint64(ca)
+					n++
+				}
+			}
+			if n == 0 {
+				n = 1
+			}
+			dst.SetRGBA(tx, ty, color.RGBA{
+				R: uint8((rr / n) >> 8),
+				G: uint8((gg / n) >> 8),
+				B: uint8((bb / n) >> 8),
+				A: uint8((aa / n) >> 8),
+			})
+		}
+	}
+	return dst
+}
+
+// flattenOnWhite composites src over a white background, dropping any alpha channel — JPEG has
+// no transparency, so a transparent PNG (e.g. a logo) would otherwise encode with a black box.
+func flattenOnWhite(src image.Image) image.Image {
+	b := src.Bounds()
+	dst := image.NewRGBA(b)
+	draw.Draw(dst, b, image.NewUniform(color.White), image.Point{}, draw.Src)
+	draw.Draw(dst, b, src, b.Min, draw.Over)
+	return dst
 }
