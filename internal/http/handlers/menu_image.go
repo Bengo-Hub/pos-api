@@ -28,8 +28,9 @@ const menuThumbMaxPx = 256
 // A menu has ~50 images (logo, category icons, item thumbnails); fetching them one-at-a-time
 // over fresh TLS connections made a render take 40s+ (and intermittently hit the gateway
 // timeout) whenever a few downloads were slow. Prefetching concurrently bounds the wall-clock
-// to roughly ceil(N/workers) × per-image time.
-const menuPrefetchWorkers = 12
+// to roughly ceil(N/workers) × per-image time. Kept modest so the peak working set (each worker
+// holds one downloaded + decoded image) stays well within the 512Mi pod limit.
+const menuPrefetchWorkers = 6
 
 // menuImageFetcher embeds remote images into an fpdf document, best-effort and bounded.
 //
@@ -195,30 +196,22 @@ func (f *menuImageFetcher) draw(img *menuImage, boxX, boxY, box float64) {
 		fpdf.ImageOptions{ImageType: img.typ}, 0, "")
 }
 
-// downscaleImage shrinks src so its longest edge is at most maxDim px, preserving aspect ratio,
-// using an area-average (box) filter — good quality for downscaling and dependency-free.
+// downscaleImage shrinks src so its longest edge is at most maxDim px, preserving aspect ratio.
 // Images already within maxDim are returned unchanged.
 //
-// Performance: it converts the source to *image.RGBA ONCE (a single optimised draw) and then
-// reads the packed Pix byte slice directly. Sampling via image.Image.At() instead made a full
-// menu render take >2 minutes (per-pixel interface dispatch over millions of pixels under the
-// pod CPU limit), tripping the gateway timeout.
+// It samples directly from src (a few points averaged per destination pixel) and allocates ONLY
+// the small destination thumbnail — it deliberately does NOT materialise a full-resolution RGBA
+// copy of the source. Doing that (image.NewRGBA at source size) made 12 concurrent renders blow
+// the 512Mi pod limit and OOM-kill the process; a full per-pixel box average via At() instead was
+// far too slow. Bounded sparse sampling is both memory-light and fast enough for a ~16mm thumbnail.
 func downscaleImage(src image.Image, maxDim int) image.Image {
 	b := src.Bounds()
 	sw, sh := b.Dx(), b.Dy()
 	if sw <= 0 || sh <= 0 {
 		return src
 	}
-
-	// One fast conversion to a zero-origin RGBA so Pix can be indexed directly below.
-	rgba, ok := src.(*image.RGBA)
-	if !ok || rgba.Rect.Min != (image.Point{}) {
-		conv := image.NewRGBA(image.Rect(0, 0, sw, sh))
-		draw.Draw(conv, conv.Bounds(), src, b.Min, draw.Src)
-		rgba = conv
-	}
 	if sw <= maxDim && sh <= maxDim {
-		return rgba
+		return src
 	}
 
 	tw, th := sw, sh
@@ -236,28 +229,40 @@ func downscaleImage(src image.Image, maxDim int) image.Image {
 		th = 1
 	}
 
+	// At most maxSamples points per axis are averaged within each source box — enough
+	// anti-aliasing for a thumbnail while keeping the At() call count (and time) bounded.
+	const maxSamples = 3
 	dst := image.NewRGBA(image.Rect(0, 0, tw, th))
 	for ty := 0; ty < th; ty++ {
-		sy0 := ty * sh / th
-		sy1 := (ty + 1) * sh / th
-		if sy1 <= sy0 {
-			sy1 = sy0 + 1
+		by0 := b.Min.Y + ty*sh/th
+		by1 := b.Min.Y + (ty+1)*sh/th
+		if by1 <= by0 {
+			by1 = by0 + 1
+		}
+		ny := by1 - by0
+		if ny > maxSamples {
+			ny = maxSamples
 		}
 		for tx := 0; tx < tw; tx++ {
-			sx0 := tx * sw / tw
-			sx1 := (tx + 1) * sw / tw
-			if sx1 <= sx0 {
-				sx1 = sx0 + 1
+			bx0 := b.Min.X + tx*sw/tw
+			bx1 := b.Min.X + (tx+1)*sw/tw
+			if bx1 <= bx0 {
+				bx1 = bx0 + 1
+			}
+			nx := bx1 - bx0
+			if nx > maxSamples {
+				nx = maxSamples
 			}
 			var rr, gg, bb, aa, n uint32
-			for yy := sy0; yy < sy1; yy++ {
-				row := yy * rgba.Stride
-				for xx := sx0; xx < sx1; xx++ {
-					i := row + xx*4
-					rr += uint32(rgba.Pix[i])
-					gg += uint32(rgba.Pix[i+1])
-					bb += uint32(rgba.Pix[i+2])
-					aa += uint32(rgba.Pix[i+3])
+			for sj := 0; sj < ny; sj++ {
+				yy := by0 + (by1-by0)*sj/ny
+				for si := 0; si < nx; si++ {
+					xx := bx0 + (bx1-bx0)*si/nx
+					cr, cg, cb, ca := src.At(xx, yy).RGBA() // 16-bit per channel
+					rr += cr
+					gg += cg
+					bb += cb
+					aa += ca
 					n++
 				}
 			}
@@ -265,10 +270,10 @@ func downscaleImage(src image.Image, maxDim int) image.Image {
 				n = 1
 			}
 			di := dst.PixOffset(tx, ty)
-			dst.Pix[di] = uint8(rr / n)
-			dst.Pix[di+1] = uint8(gg / n)
-			dst.Pix[di+2] = uint8(bb / n)
-			dst.Pix[di+3] = uint8(aa / n)
+			dst.Pix[di] = uint8((rr / n) >> 8)
+			dst.Pix[di+1] = uint8((gg / n) >> 8)
+			dst.Pix[di+2] = uint8((bb / n) >> 8)
+			dst.Pix[di+3] = uint8((aa / n) >> 8)
 		}
 	}
 	return dst
