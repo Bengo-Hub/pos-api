@@ -36,11 +36,16 @@ func renderMenuPDF(groups []menuGroup, brand receiptBrand, tenantName, outletNam
 	pal := newMenuPDFPalette(brand.PrimaryColor)
 
 	pdf := fpdf.New("P", "mm", "A4", "")
+	pdf.SetCompression(true) // zlib/FlateDecode the page content streams (image streams stay JPEG)
 	pdf.SetMargins(margin, 14, margin)
 	pdf.SetAutoPageBreak(true, 14)
 	pdf.AddPage()
 
 	img := newMenuImageFetcher(pdf)
+	// Download + process every image the document references up front, concurrently. The render
+	// loop below then registers each from memory, so a slow image can't serialise the whole
+	// render into a 40s+ request that trips the gateway timeout.
+	img.prefetch(collectMenuImageURLs(brand, groups))
 
 	// ── Header band ───────────────────────────────────────────────────────────
 	const bandH = 26.0
@@ -102,6 +107,26 @@ func renderMenuPDF(groups []menuGroup, brand receiptBrand, tenantName, outletNam
 		return nil, fmt.Errorf("render menu pdf: %w", err)
 	}
 	return buf.Bytes(), nil
+}
+
+// collectMenuImageURLs returns every remote image URL the PDF will embed — the brand logo, each
+// category icon image, and each item thumbnail — so they can be prefetched concurrently.
+func collectMenuImageURLs(brand receiptBrand, groups []menuGroup) []string {
+	urls := make([]string, 0, len(groups)*8+1)
+	if u := strings.TrimSpace(brand.LogoURL); u != "" {
+		urls = append(urls, u)
+	}
+	for _, g := range groups {
+		if u := strings.TrimSpace(g.ImageURL); u != "" {
+			urls = append(urls, u)
+		}
+		for _, it := range g.Items {
+			if u := strings.TrimSpace(it.ImageURL); u != "" {
+				urls = append(urls, u)
+			}
+		}
+	}
+	return urls
 }
 
 // drawMenuQRCard renders the "Scan to view this menu" card: QR thumbnail (left), caption + URL.
