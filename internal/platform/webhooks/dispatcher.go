@@ -38,12 +38,14 @@ func NewDispatcher(db *ent.Client, logger *zap.Logger) *Dispatcher {
 }
 
 func (d *Dispatcher) Start(conn *nats.Conn) error {
-	sub, err := conn.Subscribe("pos.>", d.handle)
+	// QueueSubscribe (own group, separate from the loyalty consumer's group): with
+	// >1 replica only one pod fans each pos.* event out to webhooks — no double POSTs.
+	sub, err := conn.QueueSubscribe("pos.>", "pos-webhooks", d.handle)
 	if err != nil {
 		return err
 	}
 	d.sub = sub
-	d.logger.Info("webhook dispatcher subscribed to pos.>")
+	d.logger.Info("webhook dispatcher subscribed to pos.> (queue group pos-webhooks)")
 	return nil
 }
 

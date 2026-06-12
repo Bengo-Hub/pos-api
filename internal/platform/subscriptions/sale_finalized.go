@@ -38,12 +38,15 @@ func NewSaleFinalizedSubscriber(db *ent.Client, logger *zap.Logger, publisher *e
 }
 
 func (s *SaleFinalizedSubscriber) Start(conn *nats.Conn) error {
-	sub, err := conn.Subscribe("pos.sale.finalized", s.handle)
+	// QueueSubscribe (not Subscribe): with >1 pos-api replica only ONE pod in the
+	// "pos-sale-finalized" group handles each event, so loyalty earn / referral /
+	// commission side-effects run exactly once (this handler is not idempotent).
+	sub, err := conn.QueueSubscribe("pos.sale.finalized", "pos-sale-finalized", s.handle)
 	if err != nil {
 		return err
 	}
 	s.sub = sub
-	s.logger.Info("subscribed to pos.sale.finalized")
+	s.logger.Info("subscribed to pos.sale.finalized (queue group pos-sale-finalized)")
 	return nil
 }
 
