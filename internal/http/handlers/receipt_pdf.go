@@ -28,8 +28,6 @@ func generateReceiptPDF(rec receiptResponse, brand receiptBrand) ([]byte, error)
 	pdf.SetAutoPageBreak(true, 6)
 	pdf.AddPage()
 
-	br, bg, bb := receiptHexToRGB(brand.PrimaryColor) // brand colour (default ink if unset)
-
 	currency := rec.Currency
 	if currency == "" {
 		currency = "KES"
@@ -66,9 +64,9 @@ func generateReceiptPDF(rec receiptResponse, brand receiptBrand) ([]byte, error)
 		}
 	}
 	if brand.CompanyName != "" {
-		pdf.SetTextColor(br, bg, bb)
+		// Keep the company name black, not the brand colour — POS receipts print on thermal/non-colour
+		// printers where coloured text comes out faint.
 		center(brand.CompanyName, "B", 12)
-		pdf.SetTextColor(0, 0, 0)
 	}
 	if rec.ReceiptHeader != "" {
 		center(rec.ReceiptHeader, "B", 9)

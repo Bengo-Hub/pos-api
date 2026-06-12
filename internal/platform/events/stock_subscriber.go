@@ -52,7 +52,7 @@ func (s *StockSubscriber) Subscribe(nc *nats.Conn) error {
 	}
 
 	// inventory.stock.low → alert
-	SubscribeWithRebind(s.log, js, "inventory.stock.low", func(msg *nats.Msg) {
+	sharedevents.SubscribeWithRebind(s.log, js, "inventory.stock.low", func(msg *nats.Msg) {
 		evt, parseErr := sharedevents.FromJSON(msg.Data)
 		if parseErr != nil {
 			s.log.Error("stock.low: unmarshal failed", zap.Error(parseErr))
@@ -94,7 +94,7 @@ func (s *StockSubscriber) Subscribe(nc *nats.Conn) error {
 	)
 
 	// inventory.stock.out → mark POSCatalogOverride unavailable (recipe ingredient depleted)
-	SubscribeWithRebind(s.log, js, "inventory.stock.out", func(msg *nats.Msg) {
+	sharedevents.SubscribeWithRebind(s.log, js, "inventory.stock.out", func(msg *nats.Msg) {
 		evt, parseErr := sharedevents.FromJSON(msg.Data)
 		if parseErr != nil {
 			s.log.Error("stock.out: unmarshal failed", zap.Error(parseErr))
@@ -116,7 +116,7 @@ func (s *StockSubscriber) Subscribe(nc *nats.Conn) error {
 	)
 
 	// inventory.stock.in → re-enable POSCatalogOverride when ingredients are restocked
-	SubscribeWithRebind(s.log, js, "inventory.stock.in", func(msg *nats.Msg) {
+	sharedevents.SubscribeWithRebind(s.log, js, "inventory.stock.in", func(msg *nats.Msg) {
 		evt, parseErr := sharedevents.FromJSON(msg.Data)
 		if parseErr != nil {
 			s.log.Error("stock.in: unmarshal failed", zap.Error(parseErr))

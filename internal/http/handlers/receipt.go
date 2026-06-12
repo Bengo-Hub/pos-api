@@ -295,7 +295,10 @@ func (h *ReceiptHandler) GetReceipt(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if format == "html" {
-		htmlOut := generateReceiptHTML(receipt)
+		// Receipts print on thermal/non-colour printers, so we take only the tenant LOGO from branding
+		// and deliberately ignore the brand primary colour (coloured text prints faint). Black-on-white.
+		brand := h.branding(r.Context(), tid)
+		htmlOut := generateReceiptHTML(receipt, brand.LogoURL)
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Content-Disposition", fmt.Sprintf(`inline; filename="receipt-%s.html"`, order.OrderNumber))
 		_, _ = w.Write(htmlOut)
@@ -341,7 +344,7 @@ func formatReceiptTime(t time.Time, tz string) string {
 // generateReceiptHTML generates a printable thermal-width HTML receipt.
 // Designed for window.print() and direct browser print-to-PDF. Honours the outlet's configured
 // receipt header/footer text, VAT rate, and paper width (58mm | 80mm).
-func generateReceiptHTML(rec receiptResponse) []byte {
+func generateReceiptHTML(rec receiptResponse, logoURL string) []byte {
 	// Paper width drives the @page size and body width. Default 80mm.
 	pageWidth, bodyWidth := "80mm", "72mm"
 	if rec.PaperWidth == "58mm" {
@@ -351,10 +354,15 @@ func generateReceiptHTML(rec receiptResponse) []byte {
 	var buf bytes.Buffer
 	buf.WriteString(`<!DOCTYPE html><html><head><meta charset="utf-8">`)
 	buf.WriteString(`<title>Receipt ` + rec.ReceiptNumber + `</title>`)
+	// White sheet, pure-black bold ink, colours kept exact (no brand colour) — thermal/non-colour
+	// printers render gray/coloured text faint, so everything is black on white. The logo is the only
+	// image and is grayscaled so a colour logo still prints crisply.
 	buf.WriteString(fmt.Sprintf(`<style>
 @page{size:%s auto;margin:4mm}
 *{box-sizing:border-box}
-body{font-family:'Courier New',Courier,monospace;font-size:12px;font-weight:bold;color:#000;width:%s;margin:0 auto;padding:4px}
+body{font-family:'Courier New',Courier,'DejaVu Sans Mono',monospace;font-size:12px;font-weight:bold;color:#000;background:#fff;width:%s;margin:0 auto;padding:4px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body,body *{color:#000}
+.logo{display:block;margin:0 auto 4px;max-width:48mm;max-height:20mm;object-fit:contain;filter:grayscale(1) contrast(1.2)}
 h1{font-size:13px;text-align:center;margin:2px 0}
 .sub{font-size:10px;text-align:center;margin:1px 0;color:#000}
 .hdr{font-size:10px;text-align:center;margin:2px 0;white-space:pre-wrap}
@@ -367,6 +375,9 @@ h1{font-size:13px;text-align:center;margin:2px 0}
 .etims-num{font-size:9px;text-align:center;word-break:break-all}
 @media print{body{width:100%%}}
 </style></head><body>`, pageWidth, bodyWidth))
+	if logoURL != "" {
+		buf.WriteString(fmt.Sprintf(`<img class="logo" src="%s" alt="logo">`, htmlEscape(logoURL)))
+	}
 	if rec.OutletName != "" {
 		buf.WriteString(fmt.Sprintf(`<h1>%s</h1>`, htmlEscape(rec.OutletName)))
 	} else {
