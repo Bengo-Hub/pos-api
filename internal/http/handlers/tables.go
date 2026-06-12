@@ -346,6 +346,10 @@ func (h *TableHandler) CreateTable(w http.ResponseWriter, r *http.Request) {
 
 	tbl, err := builder.Save(r.Context())
 	if err != nil {
+		if ent.IsConstraintError(err) {
+			jsonError(w, "a table with that name already exists in this section", http.StatusConflict)
+			return
+		}
 		h.log.Error("create table failed", zap.Error(err))
 		jsonError(w, "failed to create table", http.StatusInternalServerError)
 		return
@@ -401,6 +405,23 @@ func (h *TableHandler) UpdateTable(w http.ResponseWriter, r *http.Request) {
 	if v, ok := input["status"].(string); ok {
 		updater.SetStatus(v)
 	}
+	// Allow moving a table between floor-plan sections. An empty/null sectionId
+	// clears the assignment (floating table).
+	if v, ok := input["sectionId"]; ok {
+		switch s := v.(type) {
+		case string:
+			if s == "" {
+				updater.ClearSectionID()
+			} else if secID, perr := uuid.Parse(s); perr == nil {
+				updater.SetSectionID(secID)
+			} else {
+				jsonError(w, "invalid sectionId", http.StatusBadRequest)
+				return
+			}
+		case nil:
+			updater.ClearSectionID()
+		}
+	}
 	if v, ok := input["xPosition"].(float64); ok {
 		updater.SetXPosition(v)
 	}
@@ -413,6 +434,11 @@ func (h *TableHandler) UpdateTable(w http.ResponseWriter, r *http.Request) {
 
 	updated, err := updater.Save(r.Context())
 	if err != nil {
+		if ent.IsConstraintError(err) {
+			jsonError(w, "a table with that name already exists in this section", http.StatusConflict)
+			return
+		}
+		h.log.Error("update table failed", zap.String("table_id", tableID.String()), zap.Error(err))
 		jsonError(w, "update failed", http.StatusInternalServerError)
 		return
 	}
@@ -1043,6 +1069,16 @@ func (h *TableHandler) DeleteTable(w http.ResponseWriter, r *http.Request) {
 		h.log.Error("delete table: commit failed", zap.Error(err))
 		jsonError(w, "delete failed", http.StatusInternalServerError)
 		return
+	}
+
+	// Emit table.deleted so subscriptions-api decrements max_tables usage,
+	// keeping the tenant's structural usage count in sync with reality.
+	if h.pub != nil {
+		_ = h.pub.PublishTableDeleted(r.Context(), tid, map[string]any{
+			"table_id":   tbl.ID.String(),
+			"outlet_id":  tbl.OutletID.String(),
+			"table_name": tbl.Name,
+		})
 	}
 
 	w.WriteHeader(http.StatusNoContent)

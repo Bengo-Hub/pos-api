@@ -211,6 +211,12 @@ func (p *Publisher) PublishTableCreated(ctx context.Context, tenantID uuid.UUID,
 	return p.publish(ctx, tenantID, "table.created", data)
 }
 
+// PublishTableDeleted publishes a pos.table.deleted event.
+// Consumed by subscriptions-api to decrement max_tables plan limit usage.
+func (p *Publisher) PublishTableDeleted(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {
+	return p.publish(ctx, tenantID, "table.deleted", data)
+}
+
 // PublishRoomCreated publishes a pos.room.created event.
 // Consumed by subscriptions-api to track max_rooms plan limit usage.
 func (p *Publisher) PublishRoomCreated(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {

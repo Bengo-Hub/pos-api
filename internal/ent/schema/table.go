@@ -74,6 +74,8 @@ func (Table) Edges() []ent.Edge {
 // Indexes of the Table.
 func (Table) Indexes() []ent.Index {
 	return []ent.Index{
-		index.Fields("tenant_id", "outlet_id", "name").Unique(),
+		// Table names are unique per section (floor-plan area), not per outlet —
+		// each section may legitimately have its own "1", "2", … numbering.
+		index.Fields("tenant_id", "outlet_id", "section_id", "name").Unique(),
 	}
 }
