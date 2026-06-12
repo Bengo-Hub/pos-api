@@ -7,6 +7,8 @@ import (
 	"image/color"
 	"image/draw"
 	"image/jpeg"
+	"os"
+	"strings"
 	"sync"
 
 	// Register decoders so image.Decode recognises whatever the URL actually serves,
@@ -30,8 +32,10 @@ const menuThumbMaxPx = 256
 // timeout) whenever a few downloads were slow. Prefetching concurrently bounds the wall-clock
 // to roughly ceil(N/workers) × per-image time. Kept modest so the peak working set (each worker
 // holds one downloaded + decoded image — a sub-2MB JPEG can decode to tens of MB) stays well
-// within the 512Mi pod limit; the soft Go memory limit (see cmd/api) is the backstop.
-const menuPrefetchWorkers = 4
+// within the 512Mi pod limit; the soft Go memory limit (see cmd/api) is the backstop. Fetches
+// now hit the fast in-cluster inventory service (internalInventoryImageURL), so a modest pool
+// keeps fetch+decode overlapped without over-committing the 500m CPU.
+const menuPrefetchWorkers = 6
 
 // menuImageFetcher embeds remote images into an fpdf document, best-effort and bounded.
 //
@@ -107,13 +111,29 @@ func (f *menuImageFetcher) prefetch(urls []string) {
 	wg.Wait()
 }
 
+// internalInventoryImageURL rewrites a PUBLIC inventory media URL (the host that item image_urls
+// use, e.g. https://inventoryapi.codevertexitsolutions.com/media/...) to the in-cluster inventory
+// service. A menu PDF downloads ~50 thumbnails; going through the public ingress (TLS, latency,
+// rate-limiting) made the cold render ~47s and intermittently dropped images to placeholders.
+// Non-inventory URLs (e.g. the auth-hosted logo) are returned unchanged.
+func internalInventoryImageURL(url string) string {
+	const knownPublic = "https://inventoryapi.codevertexitsolutions.com"
+	if pub := strings.TrimRight(os.Getenv("INVENTORY_SERVICE_URL"), "/"); pub != "" && strings.HasPrefix(url, pub) {
+		return inventoryURL() + url[len(pub):]
+	}
+	if strings.HasPrefix(url, knownPublic) {
+		return inventoryURL() + url[len(knownPublic):]
+	}
+	return url
+}
+
 // processMenuImage downloads url and returns a downscaled baseline-JPEG thumbnail, or nil on any
 // failure. Pure CPU/network — it never touches fpdf, so it is safe to call from many goroutines.
 func processMenuImage(url string) []byte {
 	if url == "" {
 		return nil
 	}
-	data, _ := fetchReceiptLogo(url)
+	data, _ := fetchReceiptLogo(internalInventoryImageURL(url))
 	if data == nil {
 		return nil
 	}
