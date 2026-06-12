@@ -3237,9 +3237,9 @@ var (
 		},
 		Indexes: []*schema.Index{
 			{
-				Name:    "table_tenant_id_outlet_id_name",
+				Name:    "table_tenant_id_outlet_id_section_id_name",
 				Unique:  true,
-				Columns: []*schema.Column{TablesColumns[1], TablesColumns[2], TablesColumns[3]},
+				Columns: []*schema.Column{TablesColumns[1], TablesColumns[2], TablesColumns[13], TablesColumns[3]},
 			},
 		},
 	}
