@@ -498,6 +498,9 @@ type catalogItemDTO struct {
 	ItemType                string
 	IsActive                bool
 	IsAvailable             bool
+	// IsComplimentary marks a no-charge accompaniment: price 0 but explicitly enabled, shown as
+	// "Free" and not charged, while its recipe/BOM stock is still deducted on sale.
+	IsComplimentary         bool
 	IsFeatured              bool
 	DisplayOrder            int
 	ImageURL                string
@@ -596,6 +599,7 @@ func (h *CatalogHandler) assembleMenuItems(
 		isControlledSubstance   bool
 		minimumAge              *int
 		durationMinutes         *int
+		complimentary           bool
 	}
 	overrideMap := make(map[string]overrideEntry)
 	for _, o := range overrides {
@@ -615,6 +619,7 @@ func (h *CatalogHandler) assembleMenuItems(
 				isControlledSubstance:   o.IsControlledSubstance,
 				minimumAge:              o.MinimumAge,
 				durationMinutes:         o.DurationMinutes,
+				complimentary:           metaBool(o.Metadata, "complimentary"),
 			}
 		} else {
 			_ = prev
@@ -654,6 +659,7 @@ func (h *CatalogHandler) assembleMenuItems(
 		price := 0.0
 		taxStatus := "taxable"
 		isAvailable := item.IsActive
+		isComplimentary := false
 		isFeatured := false
 		displayOrder := 0
 		requiresPrescription := false
@@ -713,11 +719,23 @@ func (h *CatalogHandler) assembleMenuItems(
 			price = math.Ceil(price)
 		}
 
-		// Items with no price must not appear as available on the POS terminal —
-		// a staff member cannot ring up or sell an item at KES 0 by mistake.
-		// Items need a price set in inventory or a POS override before they can be sold.
+		// Zero-price safety gate, with a deliberate exception for COMPLIMENTARY accompaniments.
+		// By default a no-price item must not appear sellable — staff must not ring up a KES 0 item by
+		// accident. BUT a price-0 item that an admin has EXPLICITLY enabled via a POS catalog override
+		// (o.isAvailable) is treated as a no-charge accompaniment: it stays available, is flagged so
+		// the UI/receipt show "Free", and is not charged — while its recipe/BOM stock is STILL deducted
+		// on sale (the inventory pos.sale.finalized consumer deducts by recipe/modifier SKU regardless
+		// of price). This lets outlets offer bundled sides (ugali, greens, a free side) that consume
+		// stock without billing the customer.
 		if price == 0 {
-			isAvailable = false
+			if hasOverride && o.complimentary {
+				// Explicitly configured no-charge accompaniment (override metadata.complimentary=true):
+				// show it, force KES 0, and flag it Free. Recipe/BOM stock is still deducted on sale.
+				isComplimentary = true
+				isAvailable = true
+			} else {
+				isAvailable = false
+			}
 		}
 
 		out = append(out, catalogItemDTO{
@@ -735,6 +753,7 @@ func (h *CatalogHandler) assembleMenuItems(
 			ItemType:                item.Type,
 			IsActive:                item.IsActive,
 			IsAvailable:             isAvailable,
+			IsComplimentary:         isComplimentary,
 			IsFeatured:              isFeatured,
 			DisplayOrder:            displayOrder,
 			ImageURL:                item.ImageURL,
@@ -759,6 +778,23 @@ func (h *CatalogHandler) assembleMenuItems(
 	return out, nil
 }
 
+// metaBool reads a boolean flag from a POSCatalogOverride.metadata map (tolerating bool or the
+// string "true"). Used for opt-in per-item flags (e.g. "complimentary") that live in the existing
+// metadata JSON column, so no schema migration is needed to add new toggles.
+func metaBool(m map[string]any, key string) bool {
+	if m == nil {
+		return false
+	}
+	switch v := m[key].(type) {
+	case bool:
+		return v
+	case string:
+		return strings.EqualFold(v, "true")
+	default:
+		return false
+	}
+}
+
 // catalogItemToMap converts an assembled DTO into the JSON map shape ListCatalogItems
 // returns. Kept here so the wire format stays identical after the assembleMenuItems refactor.
 func catalogItemToMap(item catalogItemDTO, outletID *uuid.UUID) map[string]any {
@@ -777,6 +813,7 @@ func catalogItemToMap(item catalogItemDTO, outletID *uuid.UUID) map[string]any {
 		"item_type":                 item.ItemType,
 		"status":                    map[bool]string{true: "active", false: "inactive"}[item.IsActive],
 		"is_available":              item.IsAvailable,
+		"is_complimentary":          item.IsComplimentary,
 		"is_featured":               item.IsFeatured,
 		"display_order":             item.DisplayOrder,
 		"image_url":                 item.ImageURL,
@@ -949,6 +986,10 @@ func (h *CatalogHandler) SetCatalogItemPrice(w http.ResponseWriter, r *http.Requ
 		SKU          string  `json:"sku"`
 		SellingPrice float64 `json:"selling_price"`
 		OutletID     string  `json:"outlet_id,omitempty"`
+		// Complimentary marks a no-charge accompaniment (price 0 shown as "Free", still deducts BOM
+		// stock). Stored in the override metadata so no schema migration is needed. When true the
+		// override is forced available so the free item is selectable on the terminal.
+		Complimentary *bool `json:"complimentary,omitempty"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil || input.SKU == "" {
 		jsonError(w, "sku and selling_price are required", http.StatusBadRequest)
@@ -971,6 +1012,17 @@ func (h *CatalogHandler) SetCatalogItemPrice(w http.ResponseWriter, r *http.Requ
 		if outletID != nil {
 			upd.SetOutletID(*outletID)
 		}
+		if input.Complimentary != nil {
+			meta := existing.Metadata
+			if meta == nil {
+				meta = map[string]any{}
+			}
+			meta["complimentary"] = *input.Complimentary
+			upd.SetMetadata(meta)
+			if *input.Complimentary {
+				upd.SetIsAvailable(true) // a no-charge item must be visible to be added free
+			}
+		}
 		updated, saveErr := upd.Save(r.Context())
 		if saveErr != nil {
 			jsonError(w, "update failed: "+saveErr.Error(), http.StatusInternalServerError)
@@ -986,6 +1038,12 @@ func (h *CatalogHandler) SetCatalogItemPrice(w http.ResponseWriter, r *http.Requ
 		SetSellingPrice(input.SellingPrice)
 	if outletID != nil {
 		creator.SetOutletID(*outletID)
+	}
+	if input.Complimentary != nil {
+		creator.SetMetadata(map[string]any{"complimentary": *input.Complimentary})
+		if *input.Complimentary {
+			creator.SetIsAvailable(true)
+		}
 	}
 	created, saveErr := creator.Save(r.Context())
 	if saveErr != nil {

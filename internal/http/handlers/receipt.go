@@ -397,7 +397,13 @@ h1{font-size:13px;text-align:center;margin:2px 0}
 	}
 	buf.WriteString(`<div class="divider"></div>`)
 	for _, l := range rec.Lines {
-		buf.WriteString(fmt.Sprintf(`<div class="line"><span>%s x%.0f</span><span>%.2f</span></div>`, htmlEscape(l.Name), l.Quantity, l.TotalPrice))
+		// A zero-charge line (complimentary accompaniment / bundled side) prints "FREE" rather than
+		// "0.00" so the bill clearly shows it was included at no charge.
+		amount := fmt.Sprintf("%.2f", l.TotalPrice)
+		if l.TotalPrice == 0 {
+			amount = "FREE"
+		}
+		buf.WriteString(fmt.Sprintf(`<div class="line"><span>%s x%.0f</span><span>%s</span></div>`, htmlEscape(l.Name), l.Quantity, amount))
 	}
 	buf.WriteString(`<div class="divider"></div>`)
 	buf.WriteString(fmt.Sprintf(`<div class="line"><span>Subtotal</span><span>%.2f</span></div>`, rec.Subtotal))
