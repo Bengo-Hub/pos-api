@@ -151,6 +151,13 @@ func New(
 				pub.Get("/{tenantID}/pos/reservations/available", tables.GetAvailableSlots)
 				pub.Post("/{tenantID}/pos/reservations", tables.CreateReservation)
 			}
+			// Payment-gateway init proxy. Called by the embedded treasury/Paystack payment UI (a
+			// cross-origin "Books" iframe) which does NOT carry the POS user's JWT — so it must be
+			// public. It only forwards the server-issued intent_id to treasury (treasury validates the
+			// intent), so the intent_id is the capability; requiring POS auth here 401s the handoff.
+			if payments != nil {
+				pub.Post("/{tenantID}/pos/payments/initiate", payments.ProxyInitiate)
+			}
 		})
 
 		// Ã¢â€â‚¬Ã¢â€â‚¬ Protected endpoints (auth required) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
@@ -339,7 +346,9 @@ func New(
 						// Cheap one-shot status check the pos-ui polls with bounded backoff (replaces the
 						// SSE stream's reconnect storm). Rate-limit-exempt; NATS subscriber owns truth.
 						pos.Get("/orders/{orderID}/payment-status", payments.GetPaymentStatus)
-						pos.Post("/payments/initiate", payments.ProxyInitiate)
+						// NOTE: POST /payments/initiate is registered in the PUBLIC group — the embedded
+						// cross-origin Paystack iframe calls it without the POS user's JWT (intent_id is
+						// the capability; treasury validates it). Keeping it here would 401 the handoff.
 						// "Save as Quotation" forwards a pos cart to treasury (treasury owns quotations).
 						pos.Post("/quotations", payments.CreateQuotationFromCart)
 					}
