@@ -166,6 +166,50 @@ func (h *LoyaltyHandler) UpdateProgram(w http.ResponseWriter, r *http.Request) {
 	jsonOK(w, updated)
 }
 
+// nationalSubscriberDigits strips non-digits and returns the last 9 digits — the Kenyan national
+// subscriber number (without the leading 0 trunk prefix or +254 country code). Used to match loyalty
+// phone searches regardless of how the number was entered/stored ("+254 792 548766" → "792548766").
+func nationalSubscriberDigits(s string) string {
+	var b strings.Builder
+	for _, r := range s {
+		if r >= '0' && r <= '9' {
+			b.WriteByte(byte(r))
+		}
+	}
+	d := b.String()
+	if len(d) > 9 {
+		return d[len(d)-9:]
+	}
+	return d
+}
+
+// loyaltyAccountMap is the explicit JSON shape for a loyalty account. ent tags every field
+// omitempty, which silently DROPS zero-valued points_balance / lifetime_points from the response
+// (a new account then arrives with no points field at all). This always includes them so the client
+// reliably reads the balance.
+func loyaltyAccountMap(acc *ent.LoyaltyAccount) map[string]any {
+	m := map[string]any{
+		"id":              acc.ID,
+		"tenant_id":       acc.TenantID,
+		"customer_phone":  acc.CustomerPhone,
+		"customer_name":   acc.CustomerName,
+		"points_balance":  acc.PointsBalance,
+		"lifetime_points": acc.LifetimePoints,
+		"created_at":      acc.CreatedAt,
+		"updated_at":      acc.UpdatedAt,
+	}
+	if acc.ProgramID != nil {
+		m["program_id"] = *acc.ProgramID
+	}
+	if acc.CrmContactID != nil {
+		m["crm_contact_id"] = *acc.CrmContactID
+	}
+	if acc.CustomerID != nil {
+		m["customer_id"] = *acc.CustomerID
+	}
+	return m
+}
+
 // ListAccounts handles GET /{tenantID}/pos/loyalty/accounts
 func (h *LoyaltyHandler) ListAccounts(w http.ResponseWriter, r *http.Request) {
 	tid, err := parseTenantUUID(r)
@@ -174,8 +218,15 @@ func (h *LoyaltyHandler) ListAccounts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	q := h.db.LoyaltyAccount.Query().Where(entla.TenantID(tid))
-	if phone := r.URL.Query().Get("phone"); phone != "" {
-		q = q.Where(entla.CustomerPhoneContainsFold(phone))
+	if phone := r.URL.Query().Get("phone"); strings.TrimSpace(phone) != "" {
+		// Match on the national subscriber number (last 9 digits) so the search is format-agnostic:
+		// "+254 792 548766", "254792548766" and "0792548766" all normalize to "792548766", a substring
+		// of every stored variant. Falls back to the raw input when it has no digits.
+		needle := nationalSubscriberDigits(phone)
+		if needle == "" {
+			needle = strings.TrimSpace(phone)
+		}
+		q = q.Where(entla.CustomerPhoneContainsFold(needle))
 	}
 	p := pagination.Parse(r)
 	total, _ := q.Clone().Count(r.Context())
@@ -185,7 +236,11 @@ func (h *LoyaltyHandler) ListAccounts(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "failed to list accounts", http.StatusInternalServerError)
 		return
 	}
-	jsonOK(w, pagination.NewResponse(accounts, total, p))
+	out := make([]map[string]any, 0, len(accounts))
+	for _, acc := range accounts {
+		out = append(out, loyaltyAccountMap(acc))
+	}
+	jsonOK(w, pagination.NewResponse(out, total, p))
 }
 
 // CreateAccount handles POST /{tenantID}/pos/loyalty/accounts
@@ -274,7 +329,7 @@ func (h *LoyaltyHandler) GetAccount(w http.ResponseWriter, r *http.Request) {
 		Order(ent.Desc(entlt.FieldCreatedAt)).
 		Limit(20).
 		All(r.Context())
-	jsonOK(w, map[string]any{"account": acc, "transactions": txns})
+	jsonOK(w, map[string]any{"account": loyaltyAccountMap(acc), "transactions": txns})
 }
 
 // Earn handles POST /{tenantID}/pos/loyalty/accounts/{accountID}/earn
