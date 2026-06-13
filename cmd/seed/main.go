@@ -827,6 +827,47 @@ func seedRBACRoles(ctx context.Context, client *ent.Client) error {
 				"pos.pharmacy.view", "pos.pharmacy.change",
 			},
 		},
+		{
+			code:        "barista",
+			name:        "Barista",
+			description: "Café coffee-bar staff: take orders, run the till, settle bills, and update drink prep on the bar display",
+			permissions: []string{
+				// Counter service: take and ring up own orders, like a cashier.
+				"pos.orders.add", "pos.orders.view", "pos.orders.view_own", "pos.orders.change_own",
+				"pos.payments.add", "pos.payments.view", "pos.payments.view_own",
+				"pos.catalog.view",
+				"pos.cash_drawers.add", "pos.cash_drawers.view_own", "pos.cash_drawers.change_own",
+				"pos.tables.view",
+				"pos.modifiers.view",
+				"pos.sessions.add", "pos.sessions.view_own",
+				// Bar/coffee display: see drink tickets and mark them prepared.
+				"pos.kds.view", "pos.kds.change",
+				"pos.loyalty.view", "pos.loyalty.add",
+				"pos.promotions.view",
+			},
+		},
+		{
+			code:        "accountant",
+			name:        "Accountant",
+			description: "Finance/back-office: reconcile sales, manage payments and refunds, close sessions and drawers, and run financial reports",
+			permissions: []string{
+				// Read sales + void erroneous orders during reconciliation.
+				"pos.orders.view", "pos.orders.void",
+				// Full payment lifecycle incl. refunds/adjustments.
+				"pos.payments.view", "pos.payments.add", "pos.payments.change", "pos.payments.manage",
+				"pos.catalog.view",
+				// Oversee/close any shift session and reconcile any cash drawer.
+				"pos.sessions.view", "pos.sessions.manage",
+				"pos.cash_drawers.view", "pos.cash_drawers.manage",
+				// Financial reporting + fiscal/tax compliance documents.
+				"pos.reports.*",
+				"pos.fiscal.*",
+				"pos.commissions.view",
+				"pos.gift_cards.view",
+				"pos.loyalty.view",
+				"pos.config.view",
+			},
+		},
 	}
 
 	// Load all permissions into a map for quick lookup

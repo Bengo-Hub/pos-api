@@ -32,8 +32,8 @@ func pinFastHash(tenantID, userID uuid.UUID, pin string) string {
 // at that type of terminal. Only these roles appear in the PIN login staff grid
 // when an outlet_id query param is provided.
 var useCaseRoles = map[string][]string{
-	"hospitality":   {"manager", "cashier", "waiter", "kitchen", "bar", "receptionist"},
-	"quick_service": {"manager", "cashier", "kitchen"},
+	"hospitality":   {"manager", "cashier", "waiter", "barista", "kitchen", "bar", "receptionist"},
+	"quick_service": {"manager", "cashier", "barista", "kitchen"},
 	"retail":        {"manager", "cashier"},
 	"pharmacy":      {"manager", "cashier", "receptionist", "pharmacist"},
 	"services":      {"manager", "cashier", "receptionist"},

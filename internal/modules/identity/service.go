@@ -237,8 +237,14 @@ func mapGlobalRoleToPOSRole(roles []string) string {
 			return "kitchen"
 		case "bar":
 			return "bar"
+		case "barista":
+			return "barista"
 		case "receptionist":
 			return "receptionist"
+		case "pharmacist":
+			return "pharmacist"
+		case "accountant":
+			return "accountant"
 		case "staff":
 			return "cashier"
 		}
