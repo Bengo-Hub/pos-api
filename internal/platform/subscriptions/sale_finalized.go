@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"math"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -110,8 +111,67 @@ func (s *SaleFinalizedSubscriber) handle(msg *nats.Msg) {
 	}
 }
 
+// phoneDigits strips every non-digit from a phone string.
+func phoneDigits(s string) string {
+	var b strings.Builder
+	for _, r := range s {
+		if r >= '0' && r <= '9' {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
+// nationalSubscriberDigits returns the last 9 digits of a phone (the Kenyan national
+// subscriber number) so "+254 743 793901", "0743793901" and "254743793901" all collapse
+// to the same key. Returns "" when fewer than 9 digits are present.
+func nationalSubscriberDigits(s string) string {
+	d := phoneDigits(s)
+	if len(d) < 9 {
+		return ""
+	}
+	return d[len(d)-9:]
+}
+
+// isWalkInPhone reports whether a phone is the anonymous walk-in sentinel (all zeros / blank).
+// Walk-in (customerless) sales must NEVER earn or redeem loyalty — only customers who supplied a
+// real number that maps to a registered account do. See recordCreditSale's walk-in fallback.
+func isWalkInPhone(phone string) bool {
+	d := phoneDigits(phone)
+	if d == "" {
+		return true
+	}
+	for _, c := range d {
+		if c != '0' {
+			return false
+		}
+	}
+	return true // all-zero sentinel (e.g. +000000000000)
+}
+
+// resolveLoyaltyAccount finds the tenant's loyalty account for a phone, tolerating format
+// differences. It tries an exact match first (fast path), then falls back to matching on the
+// 9-digit national subscriber number so an order stored as "+254 743 793901" still credits an
+// account stored as "0743793901". Returns nil (no error) when no account exists.
+func (s *SaleFinalizedSubscriber) resolveLoyaltyAccount(ctx context.Context, tenantID uuid.UUID, phone string) *ent.LoyaltyAccount {
+	if acc, err := s.db.LoyaltyAccount.Query().
+		Where(entaccount.TenantID(tenantID), entaccount.CustomerPhone(phone)).
+		First(ctx); err == nil && acc != nil {
+		return acc
+	}
+	if nat := nationalSubscriberDigits(phone); nat != "" {
+		if acc, err := s.db.LoyaltyAccount.Query().
+			Where(entaccount.TenantID(tenantID), entaccount.CustomerPhoneHasSuffix(nat)).
+			First(ctx); err == nil && acc != nil {
+			return acc
+		}
+	}
+	return nil
+}
+
 func (s *SaleFinalizedSubscriber) autoEarnLoyalty(ctx context.Context, tenantID, orderID uuid.UUID, p saleFinalizedPayload) {
-	if p.CustomerPhone == "" {
+	// Walk-in / anonymous sales (no phone, or the all-zero walk-in sentinel) never earn loyalty.
+	if p.CustomerPhone == "" || isWalkInPhone(p.CustomerPhone) {
 		return
 	}
 
@@ -127,10 +187,11 @@ func (s *SaleFinalizedSubscriber) autoEarnLoyalty(ctx context.Context, tenantID,
 		return
 	}
 
-	account, err := s.db.LoyaltyAccount.Query().
-		Where(entaccount.TenantID(tenantID), entaccount.CustomerPhone(p.CustomerPhone)).
-		Only(ctx)
-	if err != nil {
+	// Only customers who are REGISTERED for the loyalty program earn — resolve the existing account
+	// (format-tolerant). We deliberately do NOT auto-create an account here: a sale with an
+	// unrecognised phone simply earns nothing.
+	account := s.resolveLoyaltyAccount(ctx, tenantID, p.CustomerPhone)
+	if account == nil {
 		s.logger.Debug("sale.finalized: no loyalty account for phone, skipping earn",
 			zap.String("phone", p.CustomerPhone))
 		return
@@ -159,6 +220,18 @@ func (s *SaleFinalizedSubscriber) autoEarnLoyalty(ctx context.Context, tenantID,
 		Save(ctx)
 	if err != nil {
 		s.logger.Error("sale.finalized: failed to create loyalty transaction", zap.Error(err))
+	}
+
+	// Notify the customer they earned points (notifications-service → WhatsApp/SMS "You earned X pts").
+	if s.publisher != nil {
+		_ = s.publisher.PublishLoyaltyPointsEarned(ctx, tenantID, map[string]any{
+			"account_id":     account.ID.String(),
+			"customer_phone": account.CustomerPhone,
+			"customer_name":  account.CustomerName,
+			"points_earned":  pointsEarned,
+			"balance_after":  newBalance,
+			"order_id":       orderID.String(),
+		})
 	}
 
 	// Publish tier upgrade event if the customer crossed a tier threshold.
@@ -192,9 +265,10 @@ func (s *SaleFinalizedSubscriber) autoEarnLoyalty(ctx context.Context, tenantID,
 // loyalty account, records a "referral" transaction, marks the referral earned, and emits
 // loyalty.referral_earned. No-op when the buyer has no pending referral.
 func (s *SaleFinalizedSubscriber) autoClaimReferral(ctx context.Context, tenantID, orderID uuid.UUID, p saleFinalizedPayload) {
-	if p.CustomerPhone == "" {
+	if p.CustomerPhone == "" || isWalkInPhone(p.CustomerPhone) {
 		return
 	}
+	// Match the pending referral format-tolerantly: exact first, then by national subscriber number.
 	ref, err := s.db.Referral.Query().
 		Where(
 			entreferral.TenantID(tenantID),
@@ -202,6 +276,15 @@ func (s *SaleFinalizedSubscriber) autoClaimReferral(ctx context.Context, tenantI
 			entreferral.StatusEQ("pending"),
 		).
 		First(ctx)
+	if (err != nil || ref == nil) && nationalSubscriberDigits(p.CustomerPhone) != "" {
+		ref, err = s.db.Referral.Query().
+			Where(
+				entreferral.TenantID(tenantID),
+				entreferral.ReferredPhoneHasSuffix(nationalSubscriberDigits(p.CustomerPhone)),
+				entreferral.StatusEQ("pending"),
+			).
+			First(ctx)
+	}
 	if err != nil || ref == nil {
 		return // no pending referral for this buyer
 	}
@@ -242,9 +325,7 @@ func (s *SaleFinalizedSubscriber) autoClaimReferral(ctx context.Context, tenantI
 	if txnID != nil {
 		upd = upd.SetEarnTransactionID(*txnID)
 	}
-	if referred, e := s.db.LoyaltyAccount.Query().
-		Where(entaccount.TenantID(tenantID), entaccount.CustomerPhone(p.CustomerPhone)).
-		Only(ctx); e == nil {
+	if referred := s.resolveLoyaltyAccount(ctx, tenantID, p.CustomerPhone); referred != nil {
 		upd = upd.SetReferredAccountID(referred.ID)
 	}
 	if _, err := upd.Save(ctx); err != nil {
