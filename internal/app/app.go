@@ -188,6 +188,7 @@ func New(ctx context.Context) (*App, error) {
 	paymentSvc := paymentmodule.NewService(entClient, orderSvc, cfg.App.DefaultCurrency, log)
 	paymentSvc.SetTreasuryClient(treasuryClient)
 	paymentSvc.SetInventoryClient(inventoryClient)
+	paymentSvc.SetMarketFlowClient(mfClient)
 	if pub := orderSvc.GetPublisher(); pub != nil {
 		paymentSvc.SetPublisher(pub)
 	}

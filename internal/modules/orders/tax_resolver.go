@@ -75,7 +75,7 @@ func (r *TaxResolver) Resolve(ctx context.Context, tenantSlug, taxCodeID string)
 
 	info := &TaxCodeInfo{
 		Code:    tc.Code,
-		Rate:    tc.Rate,
+		Rate:    float64(tc.Rate),
 		KRACode: tc.KRACode,
 		TaxType: tc.TaxType,
 	}

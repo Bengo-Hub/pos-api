@@ -23,6 +23,15 @@ import (
 	"github.com/bengobox/pos-service/internal/modules/orders"
 	"github.com/bengobox/pos-service/internal/modules/treasury"
 	"github.com/bengobox/pos-service/internal/platform/events"
+	"github.com/bengobox/pos-service/internal/platform/marketflow"
+)
+
+// Shared "Walk-in" customer used to attribute transactions that need a customer but have none
+// (e.g. an on-account sale rung up without selecting a customer). marketflow CRM is the source of
+// truth; the contact is upserted there and treasury keys the AR balance on this identifier.
+const (
+	walkInPhone = "+000000000000"
+	walkInName  = "Walk-in Customer"
 )
 
 // PaymentStatus defines valid payment states.
@@ -90,6 +99,7 @@ type Service struct {
 	treasuryClient  *treasury.Client
 	inventoryClient *inventory.Client
 	publisher       *events.Publisher
+	marketflow      *marketflow.Client
 	log             *zap.Logger
 	defaultCurrency string
 }
@@ -120,6 +130,12 @@ func (s *Service) SetInventoryClient(c *inventory.Client) {
 // SetPublisher injects the event publisher for pos.sale.finalized and related events.
 func (s *Service) SetPublisher(p *events.Publisher) {
 	s.publisher = p
+}
+
+// SetMarketFlowClient injects the marketflow CRM client, used to resolve the shared "Walk-in"
+// customer when an on-account sale has no customer attached.
+func (s *Service) SetMarketFlowClient(c *marketflow.Client) {
+	s.marketflow = c
 }
 
 // CreatePaymentIntent creates a treasury payment intent and returns the intent ID + initiateUrl.
@@ -269,7 +285,14 @@ func (s *Service) recordCreditSale(ctx context.Context, order *ent.POSOrder, req
 		name = *order.CustomerName
 	}
 	if strings.TrimSpace(phone) == "" && strings.TrimSpace(name) == "" {
-		return nil, fmt.Errorf("payments: credit sale requires a customer (phone or name)")
+		// No customer on the order — attribute the credit to the tenant's shared "Walk-in" customer
+		// instead of failing. marketflow CRM owns the contact: best-effort upsert so the walk-in
+		// exists/links there; treasury keys the AR balance on the walk-in identifier regardless.
+		phone = walkInPhone
+		name = walkInName
+		if s.marketflow != nil && s.marketflow.Enabled() {
+			_ = s.marketflow.UpsertContactByPhone(ctx, req.TenantID, walkInPhone, walkInName)
+		}
 	}
 
 	if _, err := s.treasuryClient.RecordCreditSale(ctx, req.TenantSlug, treasury.CreditSaleRequest{
