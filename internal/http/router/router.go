@@ -247,6 +247,10 @@ func New(
 					// pos-ui can print silently to assigned printers. Stateless (env-driven key/cert).
 					pos.Get("/printing/qz/cert", handlers.QZCert)
 					pos.Post("/printing/qz/sign", handlers.QZSign)
+					// Server-side LAN printer discovery (mDNS/scan/SNMP). Env-gated — only useful for
+					// on-prem pos-api on the same network as the terminals; the pos-ui tries this first
+					// then falls back to the local QZ Tray / WebUSB / Bluetooth bridges.
+					pos.Get("/printing/discover", handlers.PrinterDiscover)
 
 					// Catalog
 					if catalog != nil {

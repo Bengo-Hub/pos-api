@@ -96,11 +96,36 @@ func renderMenuPDF(groups []menuGroup, brand receiptBrand, tenantName, outletNam
 		}
 	}
 
-	// Footer note.
-	pdf.Ln(6)
+	// ── Footer: live-prices note + Codevertex platform-owner marketing band ───────
+	// Pinned to the bottom of the last page — strategic marketing real-estate for the Codevertex
+	// POS suite / Power Suite on every menu a tenant shares or prints. Disable auto page-break so the
+	// bottom-anchored block never spills onto an extra blank page.
+	const footerH = 22.0
+	if pdf.GetY() > menuPageBottom()-footerH {
+		pdf.AddPage()
+	}
+	pdf.SetAutoPageBreak(false, 0)
+	pdf.SetY(menuPageBottom() - footerH)
+
 	pdf.SetFont("Helvetica", "I", 8)
 	pdf.SetTextColor(pal.muted.r, pal.muted.g, pal.muted.b)
-	pdf.CellFormat(contentW, 5, "Menu generated live — prices in KES.", "", 1, "C", false, 0, "")
+	pdf.CellFormat(contentW, 5, tr(pdf, "Menu generated live — prices in KES."), "", 1, "C", false, 0, "")
+
+	// Hairline divider, then the platform-owner marketing lines.
+	yDiv := pdf.GetY() + 1.5
+	pdf.SetDrawColor(pal.border.r, pal.border.g, pal.border.b)
+	pdf.SetLineWidth(0.3)
+	pdf.Line(leftX+contentW*0.30, yDiv, leftX+contentW*0.70, yDiv)
+	pdf.Ln(3.5)
+
+	pdf.SetFont("Helvetica", "B", 9)
+	pdf.SetTextColor(pal.navy.r, pal.navy.g, pal.navy.b)
+	pdf.CellFormat(contentW, 5, tr(pdf, "Powered by Codevertex POS — part of the Codevertex Power Suite"), "", 1, "C", false, 0, "")
+
+	pdf.SetFont("Helvetica", "", 7.5)
+	pdf.SetTextColor(pal.muted.r, pal.muted.g, pal.muted.b)
+	pdf.CellFormat(contentW, 4, tr(pdf, "ERP · POS · TruLoad · ISP Billing · Books · AI & Automation"), "", 1, "C", false, 0, "")
+	pdf.CellFormat(contentW, 4, tr(pdf, "www.codevertexitsolutions.com   ·   +254 742 201 368   ·   info@codevertexitsolutions.com"), "", 1, "C", false, 0, "")
 
 	var buf bytes.Buffer
 	if err := pdf.Output(&buf); err != nil {
