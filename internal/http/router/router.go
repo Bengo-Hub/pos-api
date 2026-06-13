@@ -85,20 +85,24 @@ func New(
 
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
+	// CORS must run BEFORE the rate limiter (and other early-exit middleware) so that even a 429 /
+	// 401 / timeout response still carries Access-Control-Allow-* headers — otherwise the browser
+	// masks the real status as an opaque CORS error. RealIP stays above so the limiter keys on the
+	// true client IP. go-chi/cors also short-circuits OPTIONS preflight here, before rate limiting.
+	r.Use(cors.Handler(cors.Options{
+		AllowedOrigins:   allowedOrigins,
+		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "Origin", "X-Request-ID", "X-Tenant-ID", "X-Tenant-Slug", "X-Outlet-ID", "X-API-Key"},
+		ExposedHeaders:   []string{"Link", "X-RateLimit-Limit", "X-RateLimit-Remaining", "X-RateLimit-Reset", "Retry-After"},
+		AllowCredentials: true,
+		MaxAge:           300,
+	}))
 	r.Use(httpware.RequestID)
 	r.Use(httpware.Logging(log))
 	r.Use(httpware.Recover(log))
 	r.Use(middleware.Timeout(30 * time.Second))
 	r.Use(middleware.RequestSize(10 << 20)) // 10 MB max body size
 	r.Use(outletmw.IPRateLimit(redisClient, outletmw.DefaultRateLimitConfig()))
-	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   allowedOrigins,
-		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "Origin", "X-Request-ID", "X-Tenant-ID", "X-Tenant-Slug", "X-Outlet-ID"},
-		ExposedHeaders:   []string{"Link", "X-RateLimit-Limit", "X-RateLimit-Remaining", "X-RateLimit-Reset", "Retry-After"},
-		AllowCredentials: true,
-		MaxAge:           300,
-	}))
 
 	r.Get("/healthz", health.Liveness)
 	r.Get("/readyz", health.Readiness)
@@ -332,6 +336,9 @@ func New(
 							Post("/orders/{orderID}/payments", payments.RecordPayment)
 						pos.Get("/orders/{orderID}/payments", payments.ListOrderPayments)
 						pos.Get("/orders/{orderID}/payment-status/stream", payments.StreamPaymentStatus)
+						// Cheap one-shot status check the pos-ui polls with bounded backoff (replaces the
+						// SSE stream's reconnect storm). Rate-limit-exempt; NATS subscriber owns truth.
+						pos.Get("/orders/{orderID}/payment-status", payments.GetPaymentStatus)
 						pos.Post("/payments/initiate", payments.ProxyInitiate)
 						// "Save as Quotation" forwards a pos cart to treasury (treasury owns quotations).
 						pos.Post("/quotations", payments.CreateQuotationFromCart)

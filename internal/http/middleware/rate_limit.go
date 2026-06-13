@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -35,6 +36,17 @@ func IPRateLimit(rc *redis.Client, cfg RateLimitConfig) func(http.Handler) http.
 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Exempt long-lived SSE streams and the lightweight payment-status poll from the per-IP
+			// counter: a stream holds one connection but the browser reconnects on the 30s request
+			// timeout, and a bounded payment poll fires a handful of times — counting either against
+			// the shared 100/60s budget starves normal POS traffic and 429-storms the very endpoint
+			// the cashier is waiting on. Confirmation correctness is owned by the treasury NATS
+			// subscriber, not these endpoints.
+			if p := r.URL.Path; strings.HasSuffix(p, "/stream") || strings.HasSuffix(p, "/payment-status") {
+				next.ServeHTTP(w, r)
+				return
+			}
+
 			ip := r.RemoteAddr
 			// Prefer the real IP set by middleware.RealIP (stored in RemoteAddr after httpware).
 			if forwarded := r.Header.Get("X-Real-IP"); forwarded != "" {
