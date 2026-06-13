@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -222,15 +223,34 @@ func (c *Client) InitiateIntent(ctx context.Context, tenantSlug, intentID string
 	return doRequest[InitiateResponse](ctx, c.httpClient, http.MethodPost, url, c.apiKey, req)
 }
 
+// flexFloat decodes a JSON number OR a numeric string. Treasury serializes decimal fields (e.g. a
+// tax rate) as strings ("16"/"16.00"), which broke the previous float64 field with
+// "cannot unmarshal string into ... float64". It re-marshals as a plain JSON number.
+type flexFloat float64
+
+func (f *flexFloat) UnmarshalJSON(b []byte) error {
+	s := strings.TrimSpace(strings.Trim(string(b), `"`))
+	if s == "" || s == "null" {
+		*f = 0
+		return nil
+	}
+	v, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		return err
+	}
+	*f = flexFloat(v)
+	return nil
+}
+
 // TaxCodeResponse is the response from GET /api/v1/s2s/{tenant}/taxes/{code}.
 type TaxCodeResponse struct {
-	ID        string  `json:"id"`
-	Code      string  `json:"code"`
-	Name      string  `json:"name"`
-	Rate      float64 `json:"rate"`
-	TaxType   string  `json:"tax_type"`
-	KRACode   string  `json:"kra_code"`
-	IsDefault bool    `json:"is_default"`
+	ID        string    `json:"id"`
+	Code      string    `json:"code"`
+	Name      string    `json:"name"`
+	Rate      flexFloat `json:"rate"`
+	TaxType   string    `json:"tax_type"`
+	KRACode   string    `json:"kra_code"`
+	IsDefault bool      `json:"is_default"`
 }
 
 // ListTaxCodesResponse wraps the list response from GET /api/v1/s2s/{tenant}/taxes.
