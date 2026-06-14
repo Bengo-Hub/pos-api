@@ -217,6 +217,48 @@ func (_c *DailyClosingCreate) SetNillableTotalMpesa(v *float64) *DailyClosingCre
 	return _c
 }
 
+// SetTotalPayIns sets the "total_pay_ins" field.
+func (_c *DailyClosingCreate) SetTotalPayIns(v float64) *DailyClosingCreate {
+	_c.mutation.SetTotalPayIns(v)
+	return _c
+}
+
+// SetNillableTotalPayIns sets the "total_pay_ins" field if the given value is not nil.
+func (_c *DailyClosingCreate) SetNillableTotalPayIns(v *float64) *DailyClosingCreate {
+	if v != nil {
+		_c.SetTotalPayIns(*v)
+	}
+	return _c
+}
+
+// SetTotalPayOuts sets the "total_pay_outs" field.
+func (_c *DailyClosingCreate) SetTotalPayOuts(v float64) *DailyClosingCreate {
+	_c.mutation.SetTotalPayOuts(v)
+	return _c
+}
+
+// SetNillableTotalPayOuts sets the "total_pay_outs" field if the given value is not nil.
+func (_c *DailyClosingCreate) SetNillableTotalPayOuts(v *float64) *DailyClosingCreate {
+	if v != nil {
+		_c.SetTotalPayOuts(*v)
+	}
+	return _c
+}
+
+// SetTotalCashDrops sets the "total_cash_drops" field.
+func (_c *DailyClosingCreate) SetTotalCashDrops(v float64) *DailyClosingCreate {
+	_c.mutation.SetTotalCashDrops(v)
+	return _c
+}
+
+// SetNillableTotalCashDrops sets the "total_cash_drops" field if the given value is not nil.
+func (_c *DailyClosingCreate) SetNillableTotalCashDrops(v *float64) *DailyClosingCreate {
+	if v != nil {
+		_c.SetTotalCashDrops(*v)
+	}
+	return _c
+}
+
 // SetTotalTax sets the "total_tax" field.
 func (_c *DailyClosingCreate) SetTotalTax(v float64) *DailyClosingCreate {
 	_c.mutation.SetTotalTax(v)
@@ -427,6 +469,18 @@ func (_c *DailyClosingCreate) defaults() {
 		v := dailyclosing.DefaultTotalMpesa
 		_c.mutation.SetTotalMpesa(v)
 	}
+	if _, ok := _c.mutation.TotalPayIns(); !ok {
+		v := dailyclosing.DefaultTotalPayIns
+		_c.mutation.SetTotalPayIns(v)
+	}
+	if _, ok := _c.mutation.TotalPayOuts(); !ok {
+		v := dailyclosing.DefaultTotalPayOuts
+		_c.mutation.SetTotalPayOuts(v)
+	}
+	if _, ok := _c.mutation.TotalCashDrops(); !ok {
+		v := dailyclosing.DefaultTotalCashDrops
+		_c.mutation.SetTotalCashDrops(v)
+	}
 	if _, ok := _c.mutation.TotalTax(); !ok {
 		v := dailyclosing.DefaultTotalTax
 		_c.mutation.SetTotalTax(v)
@@ -504,6 +558,15 @@ func (_c *DailyClosingCreate) check() error {
 	}
 	if _, ok := _c.mutation.TotalMpesa(); !ok {
 		return &ValidationError{Name: "total_mpesa", err: errors.New(`ent: missing required field "DailyClosing.total_mpesa"`)}
+	}
+	if _, ok := _c.mutation.TotalPayIns(); !ok {
+		return &ValidationError{Name: "total_pay_ins", err: errors.New(`ent: missing required field "DailyClosing.total_pay_ins"`)}
+	}
+	if _, ok := _c.mutation.TotalPayOuts(); !ok {
+		return &ValidationError{Name: "total_pay_outs", err: errors.New(`ent: missing required field "DailyClosing.total_pay_outs"`)}
+	}
+	if _, ok := _c.mutation.TotalCashDrops(); !ok {
+		return &ValidationError{Name: "total_cash_drops", err: errors.New(`ent: missing required field "DailyClosing.total_cash_drops"`)}
 	}
 	if _, ok := _c.mutation.TotalTax(); !ok {
 		return &ValidationError{Name: "total_tax", err: errors.New(`ent: missing required field "DailyClosing.total_tax"`)}
@@ -624,6 +687,18 @@ func (_c *DailyClosingCreate) createSpec() (*DailyClosing, *sqlgraph.CreateSpec)
 	if value, ok := _c.mutation.TotalMpesa(); ok {
 		_spec.SetField(dailyclosing.FieldTotalMpesa, field.TypeFloat64, value)
 		_node.TotalMpesa = value
+	}
+	if value, ok := _c.mutation.TotalPayIns(); ok {
+		_spec.SetField(dailyclosing.FieldTotalPayIns, field.TypeFloat64, value)
+		_node.TotalPayIns = value
+	}
+	if value, ok := _c.mutation.TotalPayOuts(); ok {
+		_spec.SetField(dailyclosing.FieldTotalPayOuts, field.TypeFloat64, value)
+		_node.TotalPayOuts = value
+	}
+	if value, ok := _c.mutation.TotalCashDrops(); ok {
+		_spec.SetField(dailyclosing.FieldTotalCashDrops, field.TypeFloat64, value)
+		_node.TotalCashDrops = value
 	}
 	if value, ok := _c.mutation.TotalTax(); ok {
 		_spec.SetField(dailyclosing.FieldTotalTax, field.TypeFloat64, value)
@@ -981,6 +1056,60 @@ func (u *DailyClosingUpsert) UpdateTotalMpesa() *DailyClosingUpsert {
 // AddTotalMpesa adds v to the "total_mpesa" field.
 func (u *DailyClosingUpsert) AddTotalMpesa(v float64) *DailyClosingUpsert {
 	u.Add(dailyclosing.FieldTotalMpesa, v)
+	return u
+}
+
+// SetTotalPayIns sets the "total_pay_ins" field.
+func (u *DailyClosingUpsert) SetTotalPayIns(v float64) *DailyClosingUpsert {
+	u.Set(dailyclosing.FieldTotalPayIns, v)
+	return u
+}
+
+// UpdateTotalPayIns sets the "total_pay_ins" field to the value that was provided on create.
+func (u *DailyClosingUpsert) UpdateTotalPayIns() *DailyClosingUpsert {
+	u.SetExcluded(dailyclosing.FieldTotalPayIns)
+	return u
+}
+
+// AddTotalPayIns adds v to the "total_pay_ins" field.
+func (u *DailyClosingUpsert) AddTotalPayIns(v float64) *DailyClosingUpsert {
+	u.Add(dailyclosing.FieldTotalPayIns, v)
+	return u
+}
+
+// SetTotalPayOuts sets the "total_pay_outs" field.
+func (u *DailyClosingUpsert) SetTotalPayOuts(v float64) *DailyClosingUpsert {
+	u.Set(dailyclosing.FieldTotalPayOuts, v)
+	return u
+}
+
+// UpdateTotalPayOuts sets the "total_pay_outs" field to the value that was provided on create.
+func (u *DailyClosingUpsert) UpdateTotalPayOuts() *DailyClosingUpsert {
+	u.SetExcluded(dailyclosing.FieldTotalPayOuts)
+	return u
+}
+
+// AddTotalPayOuts adds v to the "total_pay_outs" field.
+func (u *DailyClosingUpsert) AddTotalPayOuts(v float64) *DailyClosingUpsert {
+	u.Add(dailyclosing.FieldTotalPayOuts, v)
+	return u
+}
+
+// SetTotalCashDrops sets the "total_cash_drops" field.
+func (u *DailyClosingUpsert) SetTotalCashDrops(v float64) *DailyClosingUpsert {
+	u.Set(dailyclosing.FieldTotalCashDrops, v)
+	return u
+}
+
+// UpdateTotalCashDrops sets the "total_cash_drops" field to the value that was provided on create.
+func (u *DailyClosingUpsert) UpdateTotalCashDrops() *DailyClosingUpsert {
+	u.SetExcluded(dailyclosing.FieldTotalCashDrops)
+	return u
+}
+
+// AddTotalCashDrops adds v to the "total_cash_drops" field.
+func (u *DailyClosingUpsert) AddTotalCashDrops(v float64) *DailyClosingUpsert {
+	u.Add(dailyclosing.FieldTotalCashDrops, v)
 	return u
 }
 
@@ -1453,6 +1582,69 @@ func (u *DailyClosingUpsertOne) AddTotalMpesa(v float64) *DailyClosingUpsertOne 
 func (u *DailyClosingUpsertOne) UpdateTotalMpesa() *DailyClosingUpsertOne {
 	return u.Update(func(s *DailyClosingUpsert) {
 		s.UpdateTotalMpesa()
+	})
+}
+
+// SetTotalPayIns sets the "total_pay_ins" field.
+func (u *DailyClosingUpsertOne) SetTotalPayIns(v float64) *DailyClosingUpsertOne {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.SetTotalPayIns(v)
+	})
+}
+
+// AddTotalPayIns adds v to the "total_pay_ins" field.
+func (u *DailyClosingUpsertOne) AddTotalPayIns(v float64) *DailyClosingUpsertOne {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.AddTotalPayIns(v)
+	})
+}
+
+// UpdateTotalPayIns sets the "total_pay_ins" field to the value that was provided on create.
+func (u *DailyClosingUpsertOne) UpdateTotalPayIns() *DailyClosingUpsertOne {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.UpdateTotalPayIns()
+	})
+}
+
+// SetTotalPayOuts sets the "total_pay_outs" field.
+func (u *DailyClosingUpsertOne) SetTotalPayOuts(v float64) *DailyClosingUpsertOne {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.SetTotalPayOuts(v)
+	})
+}
+
+// AddTotalPayOuts adds v to the "total_pay_outs" field.
+func (u *DailyClosingUpsertOne) AddTotalPayOuts(v float64) *DailyClosingUpsertOne {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.AddTotalPayOuts(v)
+	})
+}
+
+// UpdateTotalPayOuts sets the "total_pay_outs" field to the value that was provided on create.
+func (u *DailyClosingUpsertOne) UpdateTotalPayOuts() *DailyClosingUpsertOne {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.UpdateTotalPayOuts()
+	})
+}
+
+// SetTotalCashDrops sets the "total_cash_drops" field.
+func (u *DailyClosingUpsertOne) SetTotalCashDrops(v float64) *DailyClosingUpsertOne {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.SetTotalCashDrops(v)
+	})
+}
+
+// AddTotalCashDrops adds v to the "total_cash_drops" field.
+func (u *DailyClosingUpsertOne) AddTotalCashDrops(v float64) *DailyClosingUpsertOne {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.AddTotalCashDrops(v)
+	})
+}
+
+// UpdateTotalCashDrops sets the "total_cash_drops" field to the value that was provided on create.
+func (u *DailyClosingUpsertOne) UpdateTotalCashDrops() *DailyClosingUpsertOne {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.UpdateTotalCashDrops()
 	})
 }
 
@@ -2112,6 +2304,69 @@ func (u *DailyClosingUpsertBulk) AddTotalMpesa(v float64) *DailyClosingUpsertBul
 func (u *DailyClosingUpsertBulk) UpdateTotalMpesa() *DailyClosingUpsertBulk {
 	return u.Update(func(s *DailyClosingUpsert) {
 		s.UpdateTotalMpesa()
+	})
+}
+
+// SetTotalPayIns sets the "total_pay_ins" field.
+func (u *DailyClosingUpsertBulk) SetTotalPayIns(v float64) *DailyClosingUpsertBulk {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.SetTotalPayIns(v)
+	})
+}
+
+// AddTotalPayIns adds v to the "total_pay_ins" field.
+func (u *DailyClosingUpsertBulk) AddTotalPayIns(v float64) *DailyClosingUpsertBulk {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.AddTotalPayIns(v)
+	})
+}
+
+// UpdateTotalPayIns sets the "total_pay_ins" field to the value that was provided on create.
+func (u *DailyClosingUpsertBulk) UpdateTotalPayIns() *DailyClosingUpsertBulk {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.UpdateTotalPayIns()
+	})
+}
+
+// SetTotalPayOuts sets the "total_pay_outs" field.
+func (u *DailyClosingUpsertBulk) SetTotalPayOuts(v float64) *DailyClosingUpsertBulk {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.SetTotalPayOuts(v)
+	})
+}
+
+// AddTotalPayOuts adds v to the "total_pay_outs" field.
+func (u *DailyClosingUpsertBulk) AddTotalPayOuts(v float64) *DailyClosingUpsertBulk {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.AddTotalPayOuts(v)
+	})
+}
+
+// UpdateTotalPayOuts sets the "total_pay_outs" field to the value that was provided on create.
+func (u *DailyClosingUpsertBulk) UpdateTotalPayOuts() *DailyClosingUpsertBulk {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.UpdateTotalPayOuts()
+	})
+}
+
+// SetTotalCashDrops sets the "total_cash_drops" field.
+func (u *DailyClosingUpsertBulk) SetTotalCashDrops(v float64) *DailyClosingUpsertBulk {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.SetTotalCashDrops(v)
+	})
+}
+
+// AddTotalCashDrops adds v to the "total_cash_drops" field.
+func (u *DailyClosingUpsertBulk) AddTotalCashDrops(v float64) *DailyClosingUpsertBulk {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.AddTotalCashDrops(v)
+	})
+}
+
+// UpdateTotalCashDrops sets the "total_cash_drops" field to the value that was provided on create.
+func (u *DailyClosingUpsertBulk) UpdateTotalCashDrops() *DailyClosingUpsertBulk {
+	return u.Update(func(s *DailyClosingUpsert) {
+		s.UpdateTotalCashDrops()
 	})
 }
 

@@ -12079,6 +12079,12 @@ type DailyClosingMutation struct {
 	addtotal_card                *float64
 	total_mpesa                  *float64
 	addtotal_mpesa               *float64
+	total_pay_ins                *float64
+	addtotal_pay_ins             *float64
+	total_pay_outs               *float64
+	addtotal_pay_outs            *float64
+	total_cash_drops             *float64
+	addtotal_cash_drops          *float64
 	total_tax                    *float64
 	addtotal_tax                 *float64
 	total_loyalty_redemptions    *float64
@@ -13001,6 +13007,174 @@ func (m *DailyClosingMutation) ResetTotalMpesa() {
 	m.addtotal_mpesa = nil
 }
 
+// SetTotalPayIns sets the "total_pay_ins" field.
+func (m *DailyClosingMutation) SetTotalPayIns(f float64) {
+	m.total_pay_ins = &f
+	m.addtotal_pay_ins = nil
+}
+
+// TotalPayIns returns the value of the "total_pay_ins" field in the mutation.
+func (m *DailyClosingMutation) TotalPayIns() (r float64, exists bool) {
+	v := m.total_pay_ins
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTotalPayIns returns the old "total_pay_ins" field's value of the DailyClosing entity.
+// If the DailyClosing object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DailyClosingMutation) OldTotalPayIns(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTotalPayIns is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTotalPayIns requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTotalPayIns: %w", err)
+	}
+	return oldValue.TotalPayIns, nil
+}
+
+// AddTotalPayIns adds f to the "total_pay_ins" field.
+func (m *DailyClosingMutation) AddTotalPayIns(f float64) {
+	if m.addtotal_pay_ins != nil {
+		*m.addtotal_pay_ins += f
+	} else {
+		m.addtotal_pay_ins = &f
+	}
+}
+
+// AddedTotalPayIns returns the value that was added to the "total_pay_ins" field in this mutation.
+func (m *DailyClosingMutation) AddedTotalPayIns() (r float64, exists bool) {
+	v := m.addtotal_pay_ins
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetTotalPayIns resets all changes to the "total_pay_ins" field.
+func (m *DailyClosingMutation) ResetTotalPayIns() {
+	m.total_pay_ins = nil
+	m.addtotal_pay_ins = nil
+}
+
+// SetTotalPayOuts sets the "total_pay_outs" field.
+func (m *DailyClosingMutation) SetTotalPayOuts(f float64) {
+	m.total_pay_outs = &f
+	m.addtotal_pay_outs = nil
+}
+
+// TotalPayOuts returns the value of the "total_pay_outs" field in the mutation.
+func (m *DailyClosingMutation) TotalPayOuts() (r float64, exists bool) {
+	v := m.total_pay_outs
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTotalPayOuts returns the old "total_pay_outs" field's value of the DailyClosing entity.
+// If the DailyClosing object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DailyClosingMutation) OldTotalPayOuts(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTotalPayOuts is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTotalPayOuts requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTotalPayOuts: %w", err)
+	}
+	return oldValue.TotalPayOuts, nil
+}
+
+// AddTotalPayOuts adds f to the "total_pay_outs" field.
+func (m *DailyClosingMutation) AddTotalPayOuts(f float64) {
+	if m.addtotal_pay_outs != nil {
+		*m.addtotal_pay_outs += f
+	} else {
+		m.addtotal_pay_outs = &f
+	}
+}
+
+// AddedTotalPayOuts returns the value that was added to the "total_pay_outs" field in this mutation.
+func (m *DailyClosingMutation) AddedTotalPayOuts() (r float64, exists bool) {
+	v := m.addtotal_pay_outs
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetTotalPayOuts resets all changes to the "total_pay_outs" field.
+func (m *DailyClosingMutation) ResetTotalPayOuts() {
+	m.total_pay_outs = nil
+	m.addtotal_pay_outs = nil
+}
+
+// SetTotalCashDrops sets the "total_cash_drops" field.
+func (m *DailyClosingMutation) SetTotalCashDrops(f float64) {
+	m.total_cash_drops = &f
+	m.addtotal_cash_drops = nil
+}
+
+// TotalCashDrops returns the value of the "total_cash_drops" field in the mutation.
+func (m *DailyClosingMutation) TotalCashDrops() (r float64, exists bool) {
+	v := m.total_cash_drops
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTotalCashDrops returns the old "total_cash_drops" field's value of the DailyClosing entity.
+// If the DailyClosing object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DailyClosingMutation) OldTotalCashDrops(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTotalCashDrops is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTotalCashDrops requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTotalCashDrops: %w", err)
+	}
+	return oldValue.TotalCashDrops, nil
+}
+
+// AddTotalCashDrops adds f to the "total_cash_drops" field.
+func (m *DailyClosingMutation) AddTotalCashDrops(f float64) {
+	if m.addtotal_cash_drops != nil {
+		*m.addtotal_cash_drops += f
+	} else {
+		m.addtotal_cash_drops = &f
+	}
+}
+
+// AddedTotalCashDrops returns the value that was added to the "total_cash_drops" field in this mutation.
+func (m *DailyClosingMutation) AddedTotalCashDrops() (r float64, exists bool) {
+	v := m.addtotal_cash_drops
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetTotalCashDrops resets all changes to the "total_cash_drops" field.
+func (m *DailyClosingMutation) ResetTotalCashDrops() {
+	m.total_cash_drops = nil
+	m.addtotal_cash_drops = nil
+}
+
 // SetTotalTax sets the "total_tax" field.
 func (m *DailyClosingMutation) SetTotalTax(f float64) {
 	m.total_tax = &f
@@ -13463,7 +13637,7 @@ func (m *DailyClosingMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *DailyClosingMutation) Fields() []string {
-	fields := make([]string, 0, 24)
+	fields := make([]string, 0, 27)
 	if m.tenant_id != nil {
 		fields = append(fields, dailyclosing.FieldTenantID)
 	}
@@ -13511,6 +13685,15 @@ func (m *DailyClosingMutation) Fields() []string {
 	}
 	if m.total_mpesa != nil {
 		fields = append(fields, dailyclosing.FieldTotalMpesa)
+	}
+	if m.total_pay_ins != nil {
+		fields = append(fields, dailyclosing.FieldTotalPayIns)
+	}
+	if m.total_pay_outs != nil {
+		fields = append(fields, dailyclosing.FieldTotalPayOuts)
+	}
+	if m.total_cash_drops != nil {
+		fields = append(fields, dailyclosing.FieldTotalCashDrops)
 	}
 	if m.total_tax != nil {
 		fields = append(fields, dailyclosing.FieldTotalTax)
@@ -13576,6 +13759,12 @@ func (m *DailyClosingMutation) Field(name string) (ent.Value, bool) {
 		return m.TotalCard()
 	case dailyclosing.FieldTotalMpesa:
 		return m.TotalMpesa()
+	case dailyclosing.FieldTotalPayIns:
+		return m.TotalPayIns()
+	case dailyclosing.FieldTotalPayOuts:
+		return m.TotalPayOuts()
+	case dailyclosing.FieldTotalCashDrops:
+		return m.TotalCashDrops()
 	case dailyclosing.FieldTotalTax:
 		return m.TotalTax()
 	case dailyclosing.FieldTotalLoyaltyRedemptions:
@@ -13633,6 +13822,12 @@ func (m *DailyClosingMutation) OldField(ctx context.Context, name string) (ent.V
 		return m.OldTotalCard(ctx)
 	case dailyclosing.FieldTotalMpesa:
 		return m.OldTotalMpesa(ctx)
+	case dailyclosing.FieldTotalPayIns:
+		return m.OldTotalPayIns(ctx)
+	case dailyclosing.FieldTotalPayOuts:
+		return m.OldTotalPayOuts(ctx)
+	case dailyclosing.FieldTotalCashDrops:
+		return m.OldTotalCashDrops(ctx)
 	case dailyclosing.FieldTotalTax:
 		return m.OldTotalTax(ctx)
 	case dailyclosing.FieldTotalLoyaltyRedemptions:
@@ -13770,6 +13965,27 @@ func (m *DailyClosingMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetTotalMpesa(v)
 		return nil
+	case dailyclosing.FieldTotalPayIns:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTotalPayIns(v)
+		return nil
+	case dailyclosing.FieldTotalPayOuts:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTotalPayOuts(v)
+		return nil
+	case dailyclosing.FieldTotalCashDrops:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTotalCashDrops(v)
+		return nil
 	case dailyclosing.FieldTotalTax:
 		v, ok := value.(float64)
 		if !ok {
@@ -13861,6 +14077,15 @@ func (m *DailyClosingMutation) AddedFields() []string {
 	if m.addtotal_mpesa != nil {
 		fields = append(fields, dailyclosing.FieldTotalMpesa)
 	}
+	if m.addtotal_pay_ins != nil {
+		fields = append(fields, dailyclosing.FieldTotalPayIns)
+	}
+	if m.addtotal_pay_outs != nil {
+		fields = append(fields, dailyclosing.FieldTotalPayOuts)
+	}
+	if m.addtotal_cash_drops != nil {
+		fields = append(fields, dailyclosing.FieldTotalCashDrops)
+	}
 	if m.addtotal_tax != nil {
 		fields = append(fields, dailyclosing.FieldTotalTax)
 	}
@@ -13902,6 +14127,12 @@ func (m *DailyClosingMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedTotalCard()
 	case dailyclosing.FieldTotalMpesa:
 		return m.AddedTotalMpesa()
+	case dailyclosing.FieldTotalPayIns:
+		return m.AddedTotalPayIns()
+	case dailyclosing.FieldTotalPayOuts:
+		return m.AddedTotalPayOuts()
+	case dailyclosing.FieldTotalCashDrops:
+		return m.AddedTotalCashDrops()
 	case dailyclosing.FieldTotalTax:
 		return m.AddedTotalTax()
 	case dailyclosing.FieldTotalLoyaltyRedemptions:
@@ -13983,6 +14214,27 @@ func (m *DailyClosingMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddTotalMpesa(v)
+		return nil
+	case dailyclosing.FieldTotalPayIns:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTotalPayIns(v)
+		return nil
+	case dailyclosing.FieldTotalPayOuts:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTotalPayOuts(v)
+		return nil
+	case dailyclosing.FieldTotalCashDrops:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTotalCashDrops(v)
 		return nil
 	case dailyclosing.FieldTotalTax:
 		v, ok := value.(float64)
@@ -14114,6 +14366,15 @@ func (m *DailyClosingMutation) ResetField(name string) error {
 		return nil
 	case dailyclosing.FieldTotalMpesa:
 		m.ResetTotalMpesa()
+		return nil
+	case dailyclosing.FieldTotalPayIns:
+		m.ResetTotalPayIns()
+		return nil
+	case dailyclosing.FieldTotalPayOuts:
+		m.ResetTotalPayOuts()
+		return nil
+	case dailyclosing.FieldTotalCashDrops:
+		m.ResetTotalCashDrops()
 		return nil
 	case dailyclosing.FieldTotalTax:
 		m.ResetTotalTax()

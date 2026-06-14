@@ -188,6 +188,9 @@ func (h *DailyClosingHandler) CloseDay(w http.ResponseWriter, r *http.Request) {
 		SetCashExpected(cashExpected).
 		SetCashActual(input.CashActual).
 		SetVariance(variance).
+		SetTotalPayIns(payIns).
+		SetTotalPayOuts(payOuts).
+		SetTotalCashDrops(cashDrops).
 		SetStatus("closed").
 		SetDrawerIds(drawerIDs)
 

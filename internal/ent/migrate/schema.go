@@ -403,6 +403,9 @@ var (
 		{Name: "drawer_ids", Type: field.TypeJSON},
 		{Name: "total_card", Type: field.TypeFloat64, Default: 0},
 		{Name: "total_mpesa", Type: field.TypeFloat64, Default: 0},
+		{Name: "total_pay_ins", Type: field.TypeFloat64, Default: 0},
+		{Name: "total_pay_outs", Type: field.TypeFloat64, Default: 0},
+		{Name: "total_cash_drops", Type: field.TypeFloat64, Default: 0},
 		{Name: "total_tax", Type: field.TypeFloat64, Default: 0},
 		{Name: "total_loyalty_redemptions", Type: field.TypeFloat64, Default: 0},
 		{Name: "total_room_charge", Type: field.TypeFloat64, Default: 0},
@@ -421,7 +424,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "daily_closings_outlets_daily_closings",
-				Columns:    []*schema.Column{DailyClosingsColumns[24]},
+				Columns:    []*schema.Column{DailyClosingsColumns[27]},
 				RefColumns: []*schema.Column{OutletsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -430,7 +433,7 @@ var (
 			{
 				Name:    "dailyclosing_tenant_id_outlet_id_business_date",
 				Unique:  true,
-				Columns: []*schema.Column{DailyClosingsColumns[1], DailyClosingsColumns[24], DailyClosingsColumns[2]},
+				Columns: []*schema.Column{DailyClosingsColumns[1], DailyClosingsColumns[27], DailyClosingsColumns[2]},
 			},
 		},
 	}

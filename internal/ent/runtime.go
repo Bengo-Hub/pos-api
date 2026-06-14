@@ -448,32 +448,44 @@ func init() {
 	dailyclosingDescTotalMpesa := dailyclosingFields[16].Descriptor()
 	// dailyclosing.DefaultTotalMpesa holds the default value on creation for the total_mpesa field.
 	dailyclosing.DefaultTotalMpesa = dailyclosingDescTotalMpesa.Default.(float64)
+	// dailyclosingDescTotalPayIns is the schema descriptor for total_pay_ins field.
+	dailyclosingDescTotalPayIns := dailyclosingFields[17].Descriptor()
+	// dailyclosing.DefaultTotalPayIns holds the default value on creation for the total_pay_ins field.
+	dailyclosing.DefaultTotalPayIns = dailyclosingDescTotalPayIns.Default.(float64)
+	// dailyclosingDescTotalPayOuts is the schema descriptor for total_pay_outs field.
+	dailyclosingDescTotalPayOuts := dailyclosingFields[18].Descriptor()
+	// dailyclosing.DefaultTotalPayOuts holds the default value on creation for the total_pay_outs field.
+	dailyclosing.DefaultTotalPayOuts = dailyclosingDescTotalPayOuts.Default.(float64)
+	// dailyclosingDescTotalCashDrops is the schema descriptor for total_cash_drops field.
+	dailyclosingDescTotalCashDrops := dailyclosingFields[19].Descriptor()
+	// dailyclosing.DefaultTotalCashDrops holds the default value on creation for the total_cash_drops field.
+	dailyclosing.DefaultTotalCashDrops = dailyclosingDescTotalCashDrops.Default.(float64)
 	// dailyclosingDescTotalTax is the schema descriptor for total_tax field.
-	dailyclosingDescTotalTax := dailyclosingFields[17].Descriptor()
+	dailyclosingDescTotalTax := dailyclosingFields[20].Descriptor()
 	// dailyclosing.DefaultTotalTax holds the default value on creation for the total_tax field.
 	dailyclosing.DefaultTotalTax = dailyclosingDescTotalTax.Default.(float64)
 	// dailyclosingDescTotalLoyaltyRedemptions is the schema descriptor for total_loyalty_redemptions field.
-	dailyclosingDescTotalLoyaltyRedemptions := dailyclosingFields[18].Descriptor()
+	dailyclosingDescTotalLoyaltyRedemptions := dailyclosingFields[21].Descriptor()
 	// dailyclosing.DefaultTotalLoyaltyRedemptions holds the default value on creation for the total_loyalty_redemptions field.
 	dailyclosing.DefaultTotalLoyaltyRedemptions = dailyclosingDescTotalLoyaltyRedemptions.Default.(float64)
 	// dailyclosingDescTotalRoomCharge is the schema descriptor for total_room_charge field.
-	dailyclosingDescTotalRoomCharge := dailyclosingFields[19].Descriptor()
+	dailyclosingDescTotalRoomCharge := dailyclosingFields[22].Descriptor()
 	// dailyclosing.DefaultTotalRoomCharge holds the default value on creation for the total_room_charge field.
 	dailyclosing.DefaultTotalRoomCharge = dailyclosingDescTotalRoomCharge.Default.(float64)
 	// dailyclosingDescTotalOrders is the schema descriptor for total_orders field.
-	dailyclosingDescTotalOrders := dailyclosingFields[20].Descriptor()
+	dailyclosingDescTotalOrders := dailyclosingFields[23].Descriptor()
 	// dailyclosing.DefaultTotalOrders holds the default value on creation for the total_orders field.
 	dailyclosing.DefaultTotalOrders = dailyclosingDescTotalOrders.Default.(int)
 	// dailyclosingDescTotalItemsSold is the schema descriptor for total_items_sold field.
-	dailyclosingDescTotalItemsSold := dailyclosingFields[21].Descriptor()
+	dailyclosingDescTotalItemsSold := dailyclosingFields[24].Descriptor()
 	// dailyclosing.DefaultTotalItemsSold holds the default value on creation for the total_items_sold field.
 	dailyclosing.DefaultTotalItemsSold = dailyclosingDescTotalItemsSold.Default.(int)
 	// dailyclosingDescCreatedAt is the schema descriptor for created_at field.
-	dailyclosingDescCreatedAt := dailyclosingFields[23].Descriptor()
+	dailyclosingDescCreatedAt := dailyclosingFields[26].Descriptor()
 	// dailyclosing.DefaultCreatedAt holds the default value on creation for the created_at field.
 	dailyclosing.DefaultCreatedAt = dailyclosingDescCreatedAt.Default.(func() time.Time)
 	// dailyclosingDescUpdatedAt is the schema descriptor for updated_at field.
-	dailyclosingDescUpdatedAt := dailyclosingFields[24].Descriptor()
+	dailyclosingDescUpdatedAt := dailyclosingFields[27].Descriptor()
 	// dailyclosing.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	dailyclosing.DefaultUpdatedAt = dailyclosingDescUpdatedAt.Default.(func() time.Time)
 	// dailyclosing.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

@@ -56,6 +56,10 @@ func (DailyClosing) Fields() []ent.Field {
 		// Tender breakdown (added Sprint 11)
 		field.Float("total_card").Default(0),
 		field.Float("total_mpesa").Default(0),
+		// Logged cash-drawer movements folded into cash_expected (loss-prevention).
+		field.Float("total_pay_ins").Default(0),
+		field.Float("total_pay_outs").Default(0),
+		field.Float("total_cash_drops").Default(0),
 		field.Float("total_tax").Default(0),
 		field.Float("total_loyalty_redemptions").Default(0),
 		field.Float("total_room_charge").Default(0),

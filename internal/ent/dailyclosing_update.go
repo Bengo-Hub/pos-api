@@ -328,6 +328,69 @@ func (_u *DailyClosingUpdate) AddTotalMpesa(v float64) *DailyClosingUpdate {
 	return _u
 }
 
+// SetTotalPayIns sets the "total_pay_ins" field.
+func (_u *DailyClosingUpdate) SetTotalPayIns(v float64) *DailyClosingUpdate {
+	_u.mutation.ResetTotalPayIns()
+	_u.mutation.SetTotalPayIns(v)
+	return _u
+}
+
+// SetNillableTotalPayIns sets the "total_pay_ins" field if the given value is not nil.
+func (_u *DailyClosingUpdate) SetNillableTotalPayIns(v *float64) *DailyClosingUpdate {
+	if v != nil {
+		_u.SetTotalPayIns(*v)
+	}
+	return _u
+}
+
+// AddTotalPayIns adds value to the "total_pay_ins" field.
+func (_u *DailyClosingUpdate) AddTotalPayIns(v float64) *DailyClosingUpdate {
+	_u.mutation.AddTotalPayIns(v)
+	return _u
+}
+
+// SetTotalPayOuts sets the "total_pay_outs" field.
+func (_u *DailyClosingUpdate) SetTotalPayOuts(v float64) *DailyClosingUpdate {
+	_u.mutation.ResetTotalPayOuts()
+	_u.mutation.SetTotalPayOuts(v)
+	return _u
+}
+
+// SetNillableTotalPayOuts sets the "total_pay_outs" field if the given value is not nil.
+func (_u *DailyClosingUpdate) SetNillableTotalPayOuts(v *float64) *DailyClosingUpdate {
+	if v != nil {
+		_u.SetTotalPayOuts(*v)
+	}
+	return _u
+}
+
+// AddTotalPayOuts adds value to the "total_pay_outs" field.
+func (_u *DailyClosingUpdate) AddTotalPayOuts(v float64) *DailyClosingUpdate {
+	_u.mutation.AddTotalPayOuts(v)
+	return _u
+}
+
+// SetTotalCashDrops sets the "total_cash_drops" field.
+func (_u *DailyClosingUpdate) SetTotalCashDrops(v float64) *DailyClosingUpdate {
+	_u.mutation.ResetTotalCashDrops()
+	_u.mutation.SetTotalCashDrops(v)
+	return _u
+}
+
+// SetNillableTotalCashDrops sets the "total_cash_drops" field if the given value is not nil.
+func (_u *DailyClosingUpdate) SetNillableTotalCashDrops(v *float64) *DailyClosingUpdate {
+	if v != nil {
+		_u.SetTotalCashDrops(*v)
+	}
+	return _u
+}
+
+// AddTotalCashDrops adds value to the "total_cash_drops" field.
+func (_u *DailyClosingUpdate) AddTotalCashDrops(v float64) *DailyClosingUpdate {
+	_u.mutation.AddTotalCashDrops(v)
+	return _u
+}
+
 // SetTotalTax sets the "total_tax" field.
 func (_u *DailyClosingUpdate) SetTotalTax(v float64) *DailyClosingUpdate {
 	_u.mutation.ResetTotalTax()
@@ -613,6 +676,24 @@ func (_u *DailyClosingUpdate) sqlSave(ctx context.Context) (_node int, err error
 	}
 	if value, ok := _u.mutation.AddedTotalMpesa(); ok {
 		_spec.AddField(dailyclosing.FieldTotalMpesa, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.TotalPayIns(); ok {
+		_spec.SetField(dailyclosing.FieldTotalPayIns, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedTotalPayIns(); ok {
+		_spec.AddField(dailyclosing.FieldTotalPayIns, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.TotalPayOuts(); ok {
+		_spec.SetField(dailyclosing.FieldTotalPayOuts, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedTotalPayOuts(); ok {
+		_spec.AddField(dailyclosing.FieldTotalPayOuts, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.TotalCashDrops(); ok {
+		_spec.SetField(dailyclosing.FieldTotalCashDrops, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedTotalCashDrops(); ok {
+		_spec.AddField(dailyclosing.FieldTotalCashDrops, field.TypeFloat64, value)
 	}
 	if value, ok := _u.mutation.TotalTax(); ok {
 		_spec.SetField(dailyclosing.FieldTotalTax, field.TypeFloat64, value)
@@ -999,6 +1080,69 @@ func (_u *DailyClosingUpdateOne) AddTotalMpesa(v float64) *DailyClosingUpdateOne
 	return _u
 }
 
+// SetTotalPayIns sets the "total_pay_ins" field.
+func (_u *DailyClosingUpdateOne) SetTotalPayIns(v float64) *DailyClosingUpdateOne {
+	_u.mutation.ResetTotalPayIns()
+	_u.mutation.SetTotalPayIns(v)
+	return _u
+}
+
+// SetNillableTotalPayIns sets the "total_pay_ins" field if the given value is not nil.
+func (_u *DailyClosingUpdateOne) SetNillableTotalPayIns(v *float64) *DailyClosingUpdateOne {
+	if v != nil {
+		_u.SetTotalPayIns(*v)
+	}
+	return _u
+}
+
+// AddTotalPayIns adds value to the "total_pay_ins" field.
+func (_u *DailyClosingUpdateOne) AddTotalPayIns(v float64) *DailyClosingUpdateOne {
+	_u.mutation.AddTotalPayIns(v)
+	return _u
+}
+
+// SetTotalPayOuts sets the "total_pay_outs" field.
+func (_u *DailyClosingUpdateOne) SetTotalPayOuts(v float64) *DailyClosingUpdateOne {
+	_u.mutation.ResetTotalPayOuts()
+	_u.mutation.SetTotalPayOuts(v)
+	return _u
+}
+
+// SetNillableTotalPayOuts sets the "total_pay_outs" field if the given value is not nil.
+func (_u *DailyClosingUpdateOne) SetNillableTotalPayOuts(v *float64) *DailyClosingUpdateOne {
+	if v != nil {
+		_u.SetTotalPayOuts(*v)
+	}
+	return _u
+}
+
+// AddTotalPayOuts adds value to the "total_pay_outs" field.
+func (_u *DailyClosingUpdateOne) AddTotalPayOuts(v float64) *DailyClosingUpdateOne {
+	_u.mutation.AddTotalPayOuts(v)
+	return _u
+}
+
+// SetTotalCashDrops sets the "total_cash_drops" field.
+func (_u *DailyClosingUpdateOne) SetTotalCashDrops(v float64) *DailyClosingUpdateOne {
+	_u.mutation.ResetTotalCashDrops()
+	_u.mutation.SetTotalCashDrops(v)
+	return _u
+}
+
+// SetNillableTotalCashDrops sets the "total_cash_drops" field if the given value is not nil.
+func (_u *DailyClosingUpdateOne) SetNillableTotalCashDrops(v *float64) *DailyClosingUpdateOne {
+	if v != nil {
+		_u.SetTotalCashDrops(*v)
+	}
+	return _u
+}
+
+// AddTotalCashDrops adds value to the "total_cash_drops" field.
+func (_u *DailyClosingUpdateOne) AddTotalCashDrops(v float64) *DailyClosingUpdateOne {
+	_u.mutation.AddTotalCashDrops(v)
+	return _u
+}
+
 // SetTotalTax sets the "total_tax" field.
 func (_u *DailyClosingUpdateOne) SetTotalTax(v float64) *DailyClosingUpdateOne {
 	_u.mutation.ResetTotalTax()
@@ -1314,6 +1458,24 @@ func (_u *DailyClosingUpdateOne) sqlSave(ctx context.Context) (_node *DailyClosi
 	}
 	if value, ok := _u.mutation.AddedTotalMpesa(); ok {
 		_spec.AddField(dailyclosing.FieldTotalMpesa, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.TotalPayIns(); ok {
+		_spec.SetField(dailyclosing.FieldTotalPayIns, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedTotalPayIns(); ok {
+		_spec.AddField(dailyclosing.FieldTotalPayIns, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.TotalPayOuts(); ok {
+		_spec.SetField(dailyclosing.FieldTotalPayOuts, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedTotalPayOuts(); ok {
+		_spec.AddField(dailyclosing.FieldTotalPayOuts, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.TotalCashDrops(); ok {
+		_spec.SetField(dailyclosing.FieldTotalCashDrops, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedTotalCashDrops(); ok {
+		_spec.AddField(dailyclosing.FieldTotalCashDrops, field.TypeFloat64, value)
 	}
 	if value, ok := _u.mutation.TotalTax(); ok {
 		_spec.SetField(dailyclosing.FieldTotalTax, field.TypeFloat64, value)

@@ -47,6 +47,12 @@ const (
 	FieldTotalCard = "total_card"
 	// FieldTotalMpesa holds the string denoting the total_mpesa field in the database.
 	FieldTotalMpesa = "total_mpesa"
+	// FieldTotalPayIns holds the string denoting the total_pay_ins field in the database.
+	FieldTotalPayIns = "total_pay_ins"
+	// FieldTotalPayOuts holds the string denoting the total_pay_outs field in the database.
+	FieldTotalPayOuts = "total_pay_outs"
+	// FieldTotalCashDrops holds the string denoting the total_cash_drops field in the database.
+	FieldTotalCashDrops = "total_cash_drops"
 	// FieldTotalTax holds the string denoting the total_tax field in the database.
 	FieldTotalTax = "total_tax"
 	// FieldTotalLoyaltyRedemptions holds the string denoting the total_loyalty_redemptions field in the database.
@@ -95,6 +101,9 @@ var Columns = []string{
 	FieldDrawerIds,
 	FieldTotalCard,
 	FieldTotalMpesa,
+	FieldTotalPayIns,
+	FieldTotalPayOuts,
+	FieldTotalCashDrops,
 	FieldTotalTax,
 	FieldTotalLoyaltyRedemptions,
 	FieldTotalRoomCharge,
@@ -138,6 +147,12 @@ var (
 	DefaultTotalCard float64
 	// DefaultTotalMpesa holds the default value on creation for the "total_mpesa" field.
 	DefaultTotalMpesa float64
+	// DefaultTotalPayIns holds the default value on creation for the "total_pay_ins" field.
+	DefaultTotalPayIns float64
+	// DefaultTotalPayOuts holds the default value on creation for the "total_pay_outs" field.
+	DefaultTotalPayOuts float64
+	// DefaultTotalCashDrops holds the default value on creation for the "total_cash_drops" field.
+	DefaultTotalCashDrops float64
 	// DefaultTotalTax holds the default value on creation for the "total_tax" field.
 	DefaultTotalTax float64
 	// DefaultTotalLoyaltyRedemptions holds the default value on creation for the "total_loyalty_redemptions" field.
@@ -239,6 +254,21 @@ func ByTotalCard(opts ...sql.OrderTermOption) OrderOption {
 // ByTotalMpesa orders the results by the total_mpesa field.
 func ByTotalMpesa(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldTotalMpesa, opts...).ToFunc()
+}
+
+// ByTotalPayIns orders the results by the total_pay_ins field.
+func ByTotalPayIns(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTotalPayIns, opts...).ToFunc()
+}
+
+// ByTotalPayOuts orders the results by the total_pay_outs field.
+func ByTotalPayOuts(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTotalPayOuts, opts...).ToFunc()
+}
+
+// ByTotalCashDrops orders the results by the total_cash_drops field.
+func ByTotalCashDrops(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTotalCashDrops, opts...).ToFunc()
 }
 
 // ByTotalTax orders the results by the total_tax field.

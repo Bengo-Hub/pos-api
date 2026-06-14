@@ -52,6 +52,12 @@ type DailyClosing struct {
 	TotalCard float64 `json:"total_card,omitempty"`
 	// TotalMpesa holds the value of the "total_mpesa" field.
 	TotalMpesa float64 `json:"total_mpesa,omitempty"`
+	// TotalPayIns holds the value of the "total_pay_ins" field.
+	TotalPayIns float64 `json:"total_pay_ins,omitempty"`
+	// TotalPayOuts holds the value of the "total_pay_outs" field.
+	TotalPayOuts float64 `json:"total_pay_outs,omitempty"`
+	// TotalCashDrops holds the value of the "total_cash_drops" field.
+	TotalCashDrops float64 `json:"total_cash_drops,omitempty"`
 	// TotalTax holds the value of the "total_tax" field.
 	TotalTax float64 `json:"total_tax,omitempty"`
 	// TotalLoyaltyRedemptions holds the value of the "total_loyalty_redemptions" field.
@@ -103,7 +109,7 @@ func (*DailyClosing) scanValues(columns []string) ([]any, error) {
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		case dailyclosing.FieldDrawerIds:
 			values[i] = new([]byte)
-		case dailyclosing.FieldTotalSales, dailyclosing.FieldTotalRefunds, dailyclosing.FieldTotalDiscounts, dailyclosing.FieldTotalVoids, dailyclosing.FieldCashExpected, dailyclosing.FieldCashActual, dailyclosing.FieldVariance, dailyclosing.FieldTotalCard, dailyclosing.FieldTotalMpesa, dailyclosing.FieldTotalTax, dailyclosing.FieldTotalLoyaltyRedemptions, dailyclosing.FieldTotalRoomCharge:
+		case dailyclosing.FieldTotalSales, dailyclosing.FieldTotalRefunds, dailyclosing.FieldTotalDiscounts, dailyclosing.FieldTotalVoids, dailyclosing.FieldCashExpected, dailyclosing.FieldCashActual, dailyclosing.FieldVariance, dailyclosing.FieldTotalCard, dailyclosing.FieldTotalMpesa, dailyclosing.FieldTotalPayIns, dailyclosing.FieldTotalPayOuts, dailyclosing.FieldTotalCashDrops, dailyclosing.FieldTotalTax, dailyclosing.FieldTotalLoyaltyRedemptions, dailyclosing.FieldTotalRoomCharge:
 			values[i] = new(sql.NullFloat64)
 		case dailyclosing.FieldTotalOrders, dailyclosing.FieldTotalItemsSold:
 			values[i] = new(sql.NullInt64)
@@ -232,6 +238,24 @@ func (_m *DailyClosing) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field total_mpesa", values[i])
 			} else if value.Valid {
 				_m.TotalMpesa = value.Float64
+			}
+		case dailyclosing.FieldTotalPayIns:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field total_pay_ins", values[i])
+			} else if value.Valid {
+				_m.TotalPayIns = value.Float64
+			}
+		case dailyclosing.FieldTotalPayOuts:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field total_pay_outs", values[i])
+			} else if value.Valid {
+				_m.TotalPayOuts = value.Float64
+			}
+		case dailyclosing.FieldTotalCashDrops:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field total_cash_drops", values[i])
+			} else if value.Valid {
+				_m.TotalCashDrops = value.Float64
 			}
 		case dailyclosing.FieldTotalTax:
 			if value, ok := values[i].(*sql.NullFloat64); !ok {
@@ -372,6 +396,15 @@ func (_m *DailyClosing) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("total_mpesa=")
 	builder.WriteString(fmt.Sprintf("%v", _m.TotalMpesa))
+	builder.WriteString(", ")
+	builder.WriteString("total_pay_ins=")
+	builder.WriteString(fmt.Sprintf("%v", _m.TotalPayIns))
+	builder.WriteString(", ")
+	builder.WriteString("total_pay_outs=")
+	builder.WriteString(fmt.Sprintf("%v", _m.TotalPayOuts))
+	builder.WriteString(", ")
+	builder.WriteString("total_cash_drops=")
+	builder.WriteString(fmt.Sprintf("%v", _m.TotalCashDrops))
 	builder.WriteString(", ")
 	builder.WriteString("total_tax=")
 	builder.WriteString(fmt.Sprintf("%v", _m.TotalTax))
