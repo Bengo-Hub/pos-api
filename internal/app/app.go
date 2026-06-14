@@ -227,6 +227,7 @@ func New(ctx context.Context) (*App, error) {
 		drawerPublisher = pub
 	}
 	drawerHandler := handlers.NewDrawerHandler(log, entClient, drawerPublisher)
+	drawerHandler.SetAuditService(auditSvc)
 	barTabHandler := handlers.NewBarTabHandler(log, entClient)
 	promotionHandler := handlers.NewPromotionHandler(log, entClient, promoSvc)
 

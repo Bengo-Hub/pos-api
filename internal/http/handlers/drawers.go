@@ -11,6 +11,7 @@ import (
 	"go.uber.org/zap"
 
 	authclient "github.com/Bengo-Hub/shared-auth-client"
+	"github.com/bengobox/pos-service/internal/audit"
 	"github.com/bengobox/pos-service/internal/ent"
 	"github.com/bengobox/pos-service/internal/ent/cashdrawer"
 	"github.com/bengobox/pos-service/internal/ent/posdevicesession"
@@ -22,11 +23,15 @@ type DrawerHandler struct {
 	log       *zap.Logger
 	client    *ent.Client
 	publisher *events.Publisher
+	auditSvc  *audit.Service
 }
 
 func NewDrawerHandler(log *zap.Logger, client *ent.Client, publisher *events.Publisher) *DrawerHandler {
 	return &DrawerHandler{log: log, client: client, publisher: publisher}
 }
+
+// SetAuditService wires the centralized audit trail for cash-drawer movements.
+func (h *DrawerHandler) SetAuditService(a *audit.Service) { h.auditSvc = a }
 
 type openDrawerInput struct {
 	OutletID     string  `json:"outletId"`

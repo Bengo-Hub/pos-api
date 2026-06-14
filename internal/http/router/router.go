@@ -361,6 +361,9 @@ func New(
 						pos.Get("/drawers/current", drawers.GetCurrentDrawer)
 						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.cash_drawers.manage")).
 							Post("/drawers/{id}/close", drawers.CloseDrawer)
+						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.cash_drawers.add", "pos.cash_drawers.manage")).
+							Post("/drawers/{id}/movement", drawers.RecordMovement)
+						pos.Get("/drawers/{id}/events", drawers.ListDrawerEvents)
 						pos.Get("/drawers", drawers.ListDrawerHistory)
 					}
 
