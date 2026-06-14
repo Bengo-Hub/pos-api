@@ -93,6 +93,8 @@ type settingsResponse struct {
 	TableMaxOccupationMinutes int `json:"table_max_occupation_minutes"`
 	// returns policy
 	ReturnWindowDays int `json:"return_window_days"`
+	// discount control
+	MaxDiscountPercent float64 `json:"max_discount_percent"`
 	// printer profiles (multi-printer support)
 	PrinterProfiles []map[string]any `json:"printer_profiles"`
 	// cash drawer (ESC/POS drawer kick via assigned printer)
@@ -152,6 +154,7 @@ func toSettingsResponse(outlet *ent.Outlet, s *ent.OutletSetting) settingsRespon
 		ShiftMaxHours:             s.ShiftMaxHours,
 		TableMaxOccupationMinutes: s.TableMaxOccupationMinutes,
 		ReturnWindowDays:          s.ReturnWindowDays,
+		MaxDiscountPercent:        s.MaxDiscountPercent,
 		PrinterProfiles:           s.PrinterProfiles,
 		CashDrawerEnabled:         s.CashDrawerEnabled,
 		CashDrawerPrinter:         s.CashDrawerPrinter,
@@ -285,6 +288,7 @@ type updateSettingsInput struct {
 	PINLoginMessage    *string          `json:"pin_login_message"`
 	ScreensaverURL     *string          `json:"screensaver_url"`
 	ReturnWindowDays   *int             `json:"return_window_days"`
+	MaxDiscountPercent *float64         `json:"max_discount_percent"`
 	// cash drawer
 	CashDrawerEnabled  *bool   `json:"cash_drawer_enabled"`
 	CashDrawerPrinter  *string `json:"cash_drawer_printer"`
@@ -357,6 +361,9 @@ func (h *ServiceSettingsHandler) PutSettings(w http.ResponseWriter, r *http.Requ
 	}
 	if input.Currency != nil {
 		upd = upd.SetCurrency(*input.Currency)
+	}
+	if input.MaxDiscountPercent != nil {
+		upd = upd.SetMaxDiscountPercent(*input.MaxDiscountPercent)
 	}
 	if input.VATEnabled != nil {
 		upd = upd.SetVatEnabled(*input.VATEnabled)
