@@ -12,6 +12,7 @@ import (
 
 	"github.com/bengobox/pos-service/internal/ent"
 	"github.com/bengobox/pos-service/internal/ent/cashdrawer"
+	"github.com/bengobox/pos-service/internal/ent/cashdrawerevent"
 	"github.com/bengobox/pos-service/internal/ent/dailyclosing"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
 	"github.com/bengobox/pos-service/internal/ent/posrefund"
@@ -141,7 +142,30 @@ func (h *DailyClosingHandler) CloseDay(w http.ResponseWriter, r *http.Request) {
 		totalRefunds += ref.Amount
 	}
 
-	cashExpected := startingCash + cashSales - totalRefunds
+	// Aggregate logged cash-drawer movements for the day's drawers so an
+	// unrecorded pay-out can't hide as "variance": pay-ins add to expected
+	// cash; pay-outs and safe drops reduce it.
+	var payIns, payOuts, cashDrops float64
+	if len(drawerIDs) > 0 {
+		events, evErr := h.client.CashDrawerEvent.Query().
+			Where(cashdrawerevent.DrawerIDIn(drawerIDs...)).
+			All(ctx)
+		if evErr != nil {
+			h.log.Warn("drawer events query failed", zap.Error(evErr))
+		}
+		for _, ev := range events {
+			switch ev.EventType {
+			case "pay_in":
+				payIns += ev.Amount
+			case "pay_out":
+				payOuts += ev.Amount
+			case "cash_drop":
+				cashDrops += ev.Amount
+			}
+		}
+	}
+
+	cashExpected := startingCash + cashSales - totalRefunds + payIns - payOuts - cashDrops
 	variance := input.CashActual - cashExpected
 
 	// Get requesting user from claims.
@@ -181,7 +205,20 @@ func (h *DailyClosingHandler) CloseDay(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	jsonOK(w, closing)
+	jsonOK(w, map[string]any{
+		"closing": closing,
+		"breakdown": map[string]float64{
+			"starting_cash": startingCash,
+			"cash_sales":    cashSales,
+			"refunds":       totalRefunds,
+			"pay_ins":       payIns,
+			"pay_outs":      payOuts,
+			"cash_drops":    cashDrops,
+			"cash_expected": cashExpected,
+			"cash_actual":   input.CashActual,
+			"variance":      variance,
+		},
+	})
 }
 
 // ListDailyClosings handles GET /{tenantID}/pos/outlets/{outletID}/daily-closings

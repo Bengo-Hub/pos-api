@@ -14,6 +14,7 @@ import (
 	"github.com/bengobox/pos-service/internal/audit"
 	"github.com/bengobox/pos-service/internal/ent"
 	"github.com/bengobox/pos-service/internal/ent/cashdrawer"
+	"github.com/bengobox/pos-service/internal/ent/cashdrawerevent"
 	"github.com/bengobox/pos-service/internal/ent/posdevicesession"
 	"github.com/bengobox/pos-service/internal/platform/events"
 )
@@ -153,6 +154,25 @@ func (h *DrawerHandler) CloseDrawer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Fold this drawer's logged movements into the expected cash so the variance
+	// reflects pay-ins/outs and safe drops (an unrecorded pay-out shows as a shortfall).
+	var payIns, payOuts, cashDrops float64
+	if events, evErr := h.client.CashDrawerEvent.Query().
+		Where(cashdrawerevent.DrawerID(drawerID)).All(r.Context()); evErr == nil {
+		for _, ev := range events {
+			switch ev.EventType {
+			case "pay_in":
+				payIns += ev.Amount
+			case "pay_out":
+				payOuts += ev.Amount
+			case "cash_drop":
+				cashDrops += ev.Amount
+			}
+		}
+	}
+	expectedCash := drawer.StartingCash + payIns - payOuts - cashDrops
+	variance := input.EndingCash - expectedCash
+
 	now := time.Now()
 	updated, err := drawer.Update().
 		SetEndingCash(input.EndingCash).
@@ -172,7 +192,8 @@ func (h *DrawerHandler) CloseDrawer(w http.ResponseWriter, r *http.Request) {
 				"outlet_id":     updated.OutletID.String(),
 				"starting_cash": updated.StartingCash,
 				"ending_cash":   input.EndingCash,
-				"variance":      input.EndingCash - updated.StartingCash,
+				"expected_cash": expectedCash,
+				"variance":      variance,
 				"opened_at":     updated.OpenedAt.Format(time.RFC3339),
 				"closed_at":     now.Format(time.RFC3339),
 			}
@@ -182,7 +203,18 @@ func (h *DrawerHandler) CloseDrawer(w http.ResponseWriter, r *http.Request) {
 		}()
 	}
 
-	jsonOK(w, updated)
+	jsonOK(w, map[string]any{
+		"drawer": updated,
+		"breakdown": map[string]float64{
+			"starting_cash": drawer.StartingCash,
+			"pay_ins":       payIns,
+			"pay_outs":      payOuts,
+			"cash_drops":    cashDrops,
+			"expected_cash": expectedCash,
+			"ending_cash":   input.EndingCash,
+			"variance":      variance,
+		},
+	})
 }
 
 // ListDrawerHistory handles GET /{tenantID}/pos/drawers
