@@ -346,10 +346,24 @@ func (h *POSOrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Manual-discount gate: a discount above the outlet's max_discount_percent
-	// requires a manager step-up (unless the caller is already a manager/admin).
-	// Over-limit discounts are recorded as order.discount_override.
-	if input.DiscountAmount > 0 {
+	// Resolve the outlet's discount/override limit + whether the caller may bypass
+	// it (managers/admins), used by both the discount and price-override gates.
+	maxPct := 100.0
+	if outletID != uuid.Nil {
+		if s, sErr := h.client.OutletSetting.Query().Where(outletsetting.OutletID(outletID)).Only(r.Context()); sErr == nil {
+			maxPct = s.MaxDiscountPercent
+		}
+	}
+	callerIsManager := overrideRoles[requesterRole(r)]
+	if !callerIsManager {
+		if claims, ok := authclient.ClaimsFromContext(r.Context()); ok && claims != nil {
+			callerIsManager = claims.IsPlatformOwner || hasOverrideRole(claims.Roles)
+		}
+	}
+
+	// Manual-discount gate: a discount above max_discount_percent requires a
+	// manager step-up; over-limit discounts are recorded as order.discount_override.
+	if input.DiscountAmount > 0 && !callerIsManager {
 		var subtotal float64
 		for _, l := range input.Lines {
 			subtotal += l.TotalPrice
@@ -358,41 +372,74 @@ func (h *POSOrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 		if subtotal > 0 {
 			discountPct = input.DiscountAmount / subtotal * 100
 		}
-		maxPct := 100.0
-		if outletID != uuid.Nil {
-			if s, sErr := h.client.OutletSetting.Query().Where(outletsetting.OutletID(outletID)).Only(r.Context()); sErr == nil {
-				maxPct = s.MaxDiscountPercent
-			}
-		}
-		callerIsManager := overrideRoles[requesterRole(r)]
-		if !callerIsManager {
-			if claims, ok := authclient.ClaimsFromContext(r.Context()); ok && claims != nil {
-				callerIsManager = claims.IsPlatformOwner || hasOverrideRole(claims.Roles)
-			}
-		}
-		if discountPct > maxPct+0.001 && !callerIsManager {
+		if discountPct > maxPct+0.001 {
 			approverID, valid := uuid.Nil, false
 			if input.ApprovalToken != "" && len(h.terminalSecret) > 0 {
 				approverID, valid = verifyApprovalToken(input.ApprovalToken, "order.discount_override", h.terminalSecret)
 			}
 			if !valid {
-				jsonError(w, "manager approval required: discount exceeds the allowed limit", http.StatusUnprocessableEntity)
+				respondJSON(w, http.StatusUnprocessableEntity, map[string]any{
+					"error": "manager approval required: discount exceeds the allowed limit",
+					"approval_required": true, "action": "order.discount_override",
+				})
 				return
 			}
 			if h.auditSvc != nil {
 				oid := outletID
 				amt := input.DiscountAmount
 				h.auditSvc.Record(r.Context(), audit.Entry{
-					TenantID:    tid,
-					OutletID:    &oid,
-					ActorUserID: userID,
-					ApproverID:  &approverID,
-					Action:      "order.discount_override",
-					EntityType:  "pos_order",
-					Reason:      input.DiscountReason,
-					Amount:      &amt,
-					After:       map[string]any{"discount_percent": discountPct, "max_percent": maxPct},
+					TenantID: tid, OutletID: &oid, ActorUserID: userID, ApproverID: &approverID,
+					Action: "order.discount_override", EntityType: "pos_order", Reason: input.DiscountReason, Amount: &amt,
+					After: map[string]any{"discount_percent": discountPct, "max_percent": maxPct},
 				})
+			}
+		}
+	}
+
+	// Per-line price-override gate: a line whose unit_price is marked down from its
+	// catalog price (metadata.original_price) by more than max_discount_percent
+	// requires a manager step-up, recorded as price.override. Markups are allowed.
+	if !callerIsManager {
+		needApproval := false
+		type ovLine struct {
+			sku        string
+			orig, unit float64
+			dev        float64
+		}
+		var overrides []ovLine
+		for _, l := range input.Lines {
+			orig := readFloatMeta(l.Metadata, "original_price")
+			if !metaBool(l.Metadata, "price_override") || orig <= 0 || l.UnitPrice >= orig {
+				continue
+			}
+			dev := (orig - l.UnitPrice) / orig * 100
+			overrides = append(overrides, ovLine{sku: l.SKU, orig: orig, unit: l.UnitPrice, dev: dev})
+			if dev > maxPct+0.001 {
+				needApproval = true
+			}
+		}
+		if needApproval {
+			approverID, valid := uuid.Nil, false
+			if input.ApprovalToken != "" && len(h.terminalSecret) > 0 {
+				approverID, valid = verifyApprovalToken(input.ApprovalToken, "price.override", h.terminalSecret)
+			}
+			if !valid {
+				respondJSON(w, http.StatusUnprocessableEntity, map[string]any{
+					"error": "manager approval required: a line price markdown exceeds the allowed limit",
+					"approval_required": true, "action": "price.override",
+				})
+				return
+			}
+			if h.auditSvc != nil {
+				oid := outletID
+				for _, o := range overrides {
+					amt := o.orig - o.unit
+					h.auditSvc.Record(r.Context(), audit.Entry{
+						TenantID: tid, OutletID: &oid, ActorUserID: userID, ApproverID: &approverID,
+						Action: "price.override", EntityType: "pos_order_line", EntityID: o.sku, Amount: &amt,
+						After: map[string]any{"original_price": o.orig, "new_price": o.unit, "deviation_percent": o.dev, "max_percent": maxPct},
+					})
+				}
 			}
 		}
 	}

@@ -798,6 +798,29 @@ func metaBool(m map[string]any, key string) bool {
 	}
 }
 
+// readFloatMeta reads a numeric value from a metadata map, tolerating float64,
+// int, json.Number, and numeric-string encodings.
+func readFloatMeta(m map[string]any, key string) float64 {
+	if m == nil {
+		return 0
+	}
+	switch v := m[key].(type) {
+	case float64:
+		return v
+	case float32:
+		return float64(v)
+	case int:
+		return float64(v)
+	case int64:
+		return float64(v)
+	case string:
+		f, _ := strconv.ParseFloat(v, 64)
+		return f
+	default:
+		return 0
+	}
+}
+
 // isAccompanimentCategory reports whether a catalog category is an "accompaniment"/side category.
 // Items in such a category that carry no price are by definition no-charge sides (ugali, greens, a
 // free side) — they are surfaced as COMPLIMENTARY (Free) automatically, without needing a per-item
