@@ -459,6 +459,7 @@ func New(
 						pos.Get("/layaways/{id}", layaway.Get)
 						pos.Post("/layaways/{id}/payments", layaway.RecordPayment)
 						pos.Post("/layaways/{id}/cancel", layaway.Cancel)
+						pos.Post("/layaways/{id}/forfeit", layaway.Forfeit)
 						pos.Post("/layaways/{id}/complete", layaway.Complete)
 					}
 
