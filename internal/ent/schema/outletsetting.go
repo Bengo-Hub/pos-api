@@ -43,6 +43,7 @@ func (OutletSetting) Fields() []ent.Field {
 		field.String("receipt_header").Optional().Nillable().Comment("Custom header text printed on receipts"),
 		field.String("receipt_footer").Optional().Nillable().Comment("Custom footer text (e.g. return policy) printed on receipts"),
 		field.String("currency").Default("KES").Optional().Comment("ISO 4217 currency code for this outlet"),
+		field.Float("max_discount_percent").Default(100).Optional().Comment("Max order discount % a cashier may apply without manager approval; above this requires a step-up (100 = no limit)"),
 		field.Bool("vat_enabled").Default(true).Optional().Comment("Whether to apply VAT on orders"),
 		field.Float("vat_rate").Default(16.0).Optional().Comment("VAT percentage rate, e.g. 16.0 for 16%"),
 		field.String("printer_type").Default("thermal").Optional().Comment("thermal | network | bluetooth | none"),

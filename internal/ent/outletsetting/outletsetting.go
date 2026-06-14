@@ -49,6 +49,8 @@ const (
 	FieldReceiptFooter = "receipt_footer"
 	// FieldCurrency holds the string denoting the currency field in the database.
 	FieldCurrency = "currency"
+	// FieldMaxDiscountPercent holds the string denoting the max_discount_percent field in the database.
+	FieldMaxDiscountPercent = "max_discount_percent"
 	// FieldVatEnabled holds the string denoting the vat_enabled field in the database.
 	FieldVatEnabled = "vat_enabled"
 	// FieldVatRate holds the string denoting the vat_rate field in the database.
@@ -150,6 +152,7 @@ var Columns = []string{
 	FieldReceiptHeader,
 	FieldReceiptFooter,
 	FieldCurrency,
+	FieldMaxDiscountPercent,
 	FieldVatEnabled,
 	FieldVatRate,
 	FieldPrinterType,
@@ -213,6 +216,8 @@ var (
 	DefaultEnableAppointments bool
 	// DefaultCurrency holds the default value on creation for the "currency" field.
 	DefaultCurrency string
+	// DefaultMaxDiscountPercent holds the default value on creation for the "max_discount_percent" field.
+	DefaultMaxDiscountPercent float64
 	// DefaultVatEnabled holds the default value on creation for the "vat_enabled" field.
 	DefaultVatEnabled bool
 	// DefaultVatRate holds the default value on creation for the "vat_rate" field.
@@ -327,6 +332,11 @@ func ByReceiptFooter(opts ...sql.OrderTermOption) OrderOption {
 // ByCurrency orders the results by the currency field.
 func ByCurrency(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCurrency, opts...).ToFunc()
+}
+
+// ByMaxDiscountPercent orders the results by the max_discount_percent field.
+func ByMaxDiscountPercent(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldMaxDiscountPercent, opts...).ToFunc()
 }
 
 // ByVatEnabled orders the results by the vat_enabled field.

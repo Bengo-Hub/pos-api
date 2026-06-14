@@ -15,6 +15,7 @@ import (
 	"github.com/Bengo-Hub/httpware"
 	"github.com/bengobox/pos-service/internal/audit"
 	"github.com/bengobox/pos-service/internal/ent"
+	"github.com/bengobox/pos-service/internal/ent/outletsetting"
 	entoverride "github.com/bengobox/pos-service/internal/ent/poscatalogoverride"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
 	"github.com/bengobox/pos-service/internal/ent/posorderline"
@@ -71,7 +72,9 @@ type createOrderInput struct {
 	TableID        string                 `json:"table_id"`                 // hospitality dine-in table UUID
 	CustomerPhone  string                 `json:"customer_phone,omitempty"` // loyalty auto-earn
 	CustomerName   string                 `json:"customer_name,omitempty"`
-	DiscountAmount float64                `json:"discount_amount,omitempty"` // order-level discount (e.g. loyalty redemption)
+	DiscountAmount float64                `json:"discount_amount,omitempty"`  // order-level discount (e.g. loyalty redemption)
+	DiscountReason string                 `json:"discount_reason,omitempty"`  // free-text reason for a manual discount
+	ApprovalToken  string                 `json:"approval_token,omitempty"`   // manager step-up token for an over-limit discount
 }
 
 // updateStatusInput is the body for PATCH /pos/orders/{id}/status.
@@ -340,6 +343,57 @@ func (h *POSOrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 	if outletID == uuid.Nil {
 		if hv := r.Header.Get("X-Outlet-ID"); hv != "" {
 			outletID, _ = uuid.Parse(hv)
+		}
+	}
+
+	// Manual-discount gate: a discount above the outlet's max_discount_percent
+	// requires a manager step-up (unless the caller is already a manager/admin).
+	// Over-limit discounts are recorded as order.discount_override.
+	if input.DiscountAmount > 0 {
+		var subtotal float64
+		for _, l := range input.Lines {
+			subtotal += l.TotalPrice
+		}
+		discountPct := 0.0
+		if subtotal > 0 {
+			discountPct = input.DiscountAmount / subtotal * 100
+		}
+		maxPct := 100.0
+		if outletID != uuid.Nil {
+			if s, sErr := h.client.OutletSetting.Query().Where(outletsetting.OutletID(outletID)).Only(r.Context()); sErr == nil {
+				maxPct = s.MaxDiscountPercent
+			}
+		}
+		callerIsManager := overrideRoles[requesterRole(r)]
+		if !callerIsManager {
+			if claims, ok := authclient.ClaimsFromContext(r.Context()); ok && claims != nil {
+				callerIsManager = claims.IsPlatformOwner || hasOverrideRole(claims.Roles)
+			}
+		}
+		if discountPct > maxPct+0.001 && !callerIsManager {
+			approverID, valid := uuid.Nil, false
+			if input.ApprovalToken != "" && len(h.terminalSecret) > 0 {
+				approverID, valid = verifyApprovalToken(input.ApprovalToken, "order.discount_override", h.terminalSecret)
+			}
+			if !valid {
+				jsonError(w, "manager approval required: discount exceeds the allowed limit", http.StatusUnprocessableEntity)
+				return
+			}
+			if h.auditSvc != nil {
+				oid := outletID
+				amt := input.DiscountAmount
+				h.auditSvc.Record(r.Context(), audit.Entry{
+					TenantID:    tid,
+					OutletID:    &oid,
+					ActorUserID: userID,
+					ApproverID:  &approverID,
+					Action:      "order.discount_override",
+					EntityType:  "pos_order",
+					Reason:      input.DiscountReason,
+					Amount:      &amt,
+					After:       map[string]any{"discount_percent": discountPct, "max_percent": maxPct},
+				})
+			}
 		}
 	}
 

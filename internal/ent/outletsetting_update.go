@@ -319,6 +319,33 @@ func (_u *OutletSettingUpdate) ClearCurrency() *OutletSettingUpdate {
 	return _u
 }
 
+// SetMaxDiscountPercent sets the "max_discount_percent" field.
+func (_u *OutletSettingUpdate) SetMaxDiscountPercent(v float64) *OutletSettingUpdate {
+	_u.mutation.ResetMaxDiscountPercent()
+	_u.mutation.SetMaxDiscountPercent(v)
+	return _u
+}
+
+// SetNillableMaxDiscountPercent sets the "max_discount_percent" field if the given value is not nil.
+func (_u *OutletSettingUpdate) SetNillableMaxDiscountPercent(v *float64) *OutletSettingUpdate {
+	if v != nil {
+		_u.SetMaxDiscountPercent(*v)
+	}
+	return _u
+}
+
+// AddMaxDiscountPercent adds value to the "max_discount_percent" field.
+func (_u *OutletSettingUpdate) AddMaxDiscountPercent(v float64) *OutletSettingUpdate {
+	_u.mutation.AddMaxDiscountPercent(v)
+	return _u
+}
+
+// ClearMaxDiscountPercent clears the value of the "max_discount_percent" field.
+func (_u *OutletSettingUpdate) ClearMaxDiscountPercent() *OutletSettingUpdate {
+	_u.mutation.ClearMaxDiscountPercent()
+	return _u
+}
+
 // SetVatEnabled sets the "vat_enabled" field.
 func (_u *OutletSettingUpdate) SetVatEnabled(v bool) *OutletSettingUpdate {
 	_u.mutation.SetVatEnabled(v)
@@ -1176,6 +1203,15 @@ func (_u *OutletSettingUpdate) sqlSave(ctx context.Context) (_node int, err erro
 	if _u.mutation.CurrencyCleared() {
 		_spec.ClearField(outletsetting.FieldCurrency, field.TypeString)
 	}
+	if value, ok := _u.mutation.MaxDiscountPercent(); ok {
+		_spec.SetField(outletsetting.FieldMaxDiscountPercent, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedMaxDiscountPercent(); ok {
+		_spec.AddField(outletsetting.FieldMaxDiscountPercent, field.TypeFloat64, value)
+	}
+	if _u.mutation.MaxDiscountPercentCleared() {
+		_spec.ClearField(outletsetting.FieldMaxDiscountPercent, field.TypeFloat64)
+	}
 	if value, ok := _u.mutation.VatEnabled(); ok {
 		_spec.SetField(outletsetting.FieldVatEnabled, field.TypeBool, value)
 	}
@@ -1728,6 +1764,33 @@ func (_u *OutletSettingUpdateOne) SetNillableCurrency(v *string) *OutletSettingU
 // ClearCurrency clears the value of the "currency" field.
 func (_u *OutletSettingUpdateOne) ClearCurrency() *OutletSettingUpdateOne {
 	_u.mutation.ClearCurrency()
+	return _u
+}
+
+// SetMaxDiscountPercent sets the "max_discount_percent" field.
+func (_u *OutletSettingUpdateOne) SetMaxDiscountPercent(v float64) *OutletSettingUpdateOne {
+	_u.mutation.ResetMaxDiscountPercent()
+	_u.mutation.SetMaxDiscountPercent(v)
+	return _u
+}
+
+// SetNillableMaxDiscountPercent sets the "max_discount_percent" field if the given value is not nil.
+func (_u *OutletSettingUpdateOne) SetNillableMaxDiscountPercent(v *float64) *OutletSettingUpdateOne {
+	if v != nil {
+		_u.SetMaxDiscountPercent(*v)
+	}
+	return _u
+}
+
+// AddMaxDiscountPercent adds value to the "max_discount_percent" field.
+func (_u *OutletSettingUpdateOne) AddMaxDiscountPercent(v float64) *OutletSettingUpdateOne {
+	_u.mutation.AddMaxDiscountPercent(v)
+	return _u
+}
+
+// ClearMaxDiscountPercent clears the value of the "max_discount_percent" field.
+func (_u *OutletSettingUpdateOne) ClearMaxDiscountPercent() *OutletSettingUpdateOne {
+	_u.mutation.ClearMaxDiscountPercent()
 	return _u
 }
 
@@ -2617,6 +2680,15 @@ func (_u *OutletSettingUpdateOne) sqlSave(ctx context.Context) (_node *OutletSet
 	}
 	if _u.mutation.CurrencyCleared() {
 		_spec.ClearField(outletsetting.FieldCurrency, field.TypeString)
+	}
+	if value, ok := _u.mutation.MaxDiscountPercent(); ok {
+		_spec.SetField(outletsetting.FieldMaxDiscountPercent, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedMaxDiscountPercent(); ok {
+		_spec.AddField(outletsetting.FieldMaxDiscountPercent, field.TypeFloat64, value)
+	}
+	if _u.mutation.MaxDiscountPercentCleared() {
+		_spec.ClearField(outletsetting.FieldMaxDiscountPercent, field.TypeFloat64)
 	}
 	if value, ok := _u.mutation.VatEnabled(); ok {
 		_spec.SetField(outletsetting.FieldVatEnabled, field.TypeBool, value)

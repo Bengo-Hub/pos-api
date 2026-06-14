@@ -1158,88 +1158,92 @@ func init() {
 	outletsettingDescCurrency := outletsettingFields[17].Descriptor()
 	// outletsetting.DefaultCurrency holds the default value on creation for the currency field.
 	outletsetting.DefaultCurrency = outletsettingDescCurrency.Default.(string)
+	// outletsettingDescMaxDiscountPercent is the schema descriptor for max_discount_percent field.
+	outletsettingDescMaxDiscountPercent := outletsettingFields[18].Descriptor()
+	// outletsetting.DefaultMaxDiscountPercent holds the default value on creation for the max_discount_percent field.
+	outletsetting.DefaultMaxDiscountPercent = outletsettingDescMaxDiscountPercent.Default.(float64)
 	// outletsettingDescVatEnabled is the schema descriptor for vat_enabled field.
-	outletsettingDescVatEnabled := outletsettingFields[18].Descriptor()
+	outletsettingDescVatEnabled := outletsettingFields[19].Descriptor()
 	// outletsetting.DefaultVatEnabled holds the default value on creation for the vat_enabled field.
 	outletsetting.DefaultVatEnabled = outletsettingDescVatEnabled.Default.(bool)
 	// outletsettingDescVatRate is the schema descriptor for vat_rate field.
-	outletsettingDescVatRate := outletsettingFields[19].Descriptor()
+	outletsettingDescVatRate := outletsettingFields[20].Descriptor()
 	// outletsetting.DefaultVatRate holds the default value on creation for the vat_rate field.
 	outletsetting.DefaultVatRate = outletsettingDescVatRate.Default.(float64)
 	// outletsettingDescPrinterType is the schema descriptor for printer_type field.
-	outletsettingDescPrinterType := outletsettingFields[20].Descriptor()
+	outletsettingDescPrinterType := outletsettingFields[21].Descriptor()
 	// outletsetting.DefaultPrinterType holds the default value on creation for the printer_type field.
 	outletsetting.DefaultPrinterType = outletsettingDescPrinterType.Default.(string)
 	// outletsettingDescPaperWidth is the schema descriptor for paper_width field.
-	outletsettingDescPaperWidth := outletsettingFields[22].Descriptor()
+	outletsettingDescPaperWidth := outletsettingFields[23].Descriptor()
 	// outletsetting.DefaultPaperWidth holds the default value on creation for the paper_width field.
 	outletsetting.DefaultPaperWidth = outletsettingDescPaperWidth.Default.(string)
 	// outletsettingDescAutoPrintOrder is the schema descriptor for auto_print_order field.
-	outletsettingDescAutoPrintOrder := outletsettingFields[23].Descriptor()
+	outletsettingDescAutoPrintOrder := outletsettingFields[24].Descriptor()
 	// outletsetting.DefaultAutoPrintOrder holds the default value on creation for the auto_print_order field.
 	outletsetting.DefaultAutoPrintOrder = outletsettingDescAutoPrintOrder.Default.(bool)
 	// outletsettingDescAutoPrintKitchen is the schema descriptor for auto_print_kitchen field.
-	outletsettingDescAutoPrintKitchen := outletsettingFields[24].Descriptor()
+	outletsettingDescAutoPrintKitchen := outletsettingFields[25].Descriptor()
 	// outletsetting.DefaultAutoPrintKitchen holds the default value on creation for the auto_print_kitchen field.
 	outletsetting.DefaultAutoPrintKitchen = outletsettingDescAutoPrintKitchen.Default.(bool)
 	// outletsettingDescPrinterProfiles is the schema descriptor for printer_profiles field.
-	outletsettingDescPrinterProfiles := outletsettingFields[25].Descriptor()
+	outletsettingDescPrinterProfiles := outletsettingFields[26].Descriptor()
 	// outletsetting.DefaultPrinterProfiles holds the default value on creation for the printer_profiles field.
 	outletsetting.DefaultPrinterProfiles = outletsettingDescPrinterProfiles.Default.([]map[string]interface{})
 	// outletsettingDescCashDrawerEnabled is the schema descriptor for cash_drawer_enabled field.
-	outletsettingDescCashDrawerEnabled := outletsettingFields[26].Descriptor()
+	outletsettingDescCashDrawerEnabled := outletsettingFields[27].Descriptor()
 	// outletsetting.DefaultCashDrawerEnabled holds the default value on creation for the cash_drawer_enabled field.
 	outletsetting.DefaultCashDrawerEnabled = outletsettingDescCashDrawerEnabled.Default.(bool)
 	// outletsettingDescCashDrawerAutoOpen is the schema descriptor for cash_drawer_auto_open field.
-	outletsettingDescCashDrawerAutoOpen := outletsettingFields[28].Descriptor()
+	outletsettingDescCashDrawerAutoOpen := outletsettingFields[29].Descriptor()
 	// outletsetting.DefaultCashDrawerAutoOpen holds the default value on creation for the cash_drawer_auto_open field.
 	outletsetting.DefaultCashDrawerAutoOpen = outletsettingDescCashDrawerAutoOpen.Default.(bool)
 	// outletsettingDescCashDrawerKickCode is the schema descriptor for cash_drawer_kick_code field.
-	outletsettingDescCashDrawerKickCode := outletsettingFields[29].Descriptor()
+	outletsettingDescCashDrawerKickCode := outletsettingFields[30].Descriptor()
 	// outletsetting.DefaultCashDrawerKickCode holds the default value on creation for the cash_drawer_kick_code field.
 	outletsetting.DefaultCashDrawerKickCode = outletsettingDescCashDrawerKickCode.Default.(string)
 	// outletsettingDescCardTerminalMode is the schema descriptor for card_terminal_mode field.
-	outletsettingDescCardTerminalMode := outletsettingFields[30].Descriptor()
+	outletsettingDescCardTerminalMode := outletsettingFields[31].Descriptor()
 	// outletsetting.DefaultCardTerminalMode holds the default value on creation for the card_terminal_mode field.
 	outletsetting.DefaultCardTerminalMode = outletsettingDescCardTerminalMode.Default.(string)
 	// outletsettingDescCardTerminalRequireRef is the schema descriptor for card_terminal_require_ref field.
-	outletsettingDescCardTerminalRequireRef := outletsettingFields[33].Descriptor()
+	outletsettingDescCardTerminalRequireRef := outletsettingFields[34].Descriptor()
 	// outletsetting.DefaultCardTerminalRequireRef holds the default value on creation for the card_terminal_require_ref field.
 	outletsetting.DefaultCardTerminalRequireRef = outletsettingDescCardTerminalRequireRef.Default.(bool)
 	// outletsettingDescShowPaymentInfoOnReceipt is the schema descriptor for show_payment_info_on_receipt field.
-	outletsettingDescShowPaymentInfoOnReceipt := outletsettingFields[42].Descriptor()
+	outletsettingDescShowPaymentInfoOnReceipt := outletsettingFields[43].Descriptor()
 	// outletsetting.DefaultShowPaymentInfoOnReceipt holds the default value on creation for the show_payment_info_on_receipt field.
 	outletsetting.DefaultShowPaymentInfoOnReceipt = outletsettingDescShowPaymentInfoOnReceipt.Default.(bool)
 	// outletsettingDescHotelModuleEnabled is the schema descriptor for hotel_module_enabled field.
-	outletsettingDescHotelModuleEnabled := outletsettingFields[43].Descriptor()
+	outletsettingDescHotelModuleEnabled := outletsettingFields[44].Descriptor()
 	// outletsetting.DefaultHotelModuleEnabled holds the default value on creation for the hotel_module_enabled field.
 	outletsetting.DefaultHotelModuleEnabled = outletsettingDescHotelModuleEnabled.Default.(bool)
 	// outletsettingDescLayawayEnabled is the schema descriptor for layaway_enabled field.
-	outletsettingDescLayawayEnabled := outletsettingFields[44].Descriptor()
+	outletsettingDescLayawayEnabled := outletsettingFields[45].Descriptor()
 	// outletsetting.DefaultLayawayEnabled holds the default value on creation for the layaway_enabled field.
 	outletsetting.DefaultLayawayEnabled = outletsettingDescLayawayEnabled.Default.(bool)
 	// outletsettingDescShiftReportsEnabled is the schema descriptor for shift_reports_enabled field.
-	outletsettingDescShiftReportsEnabled := outletsettingFields[45].Descriptor()
+	outletsettingDescShiftReportsEnabled := outletsettingFields[46].Descriptor()
 	// outletsetting.DefaultShiftReportsEnabled holds the default value on creation for the shift_reports_enabled field.
 	outletsetting.DefaultShiftReportsEnabled = outletsettingDescShiftReportsEnabled.Default.(bool)
 	// outletsettingDescShiftAutoEndEnabled is the schema descriptor for shift_auto_end_enabled field.
-	outletsettingDescShiftAutoEndEnabled := outletsettingFields[46].Descriptor()
+	outletsettingDescShiftAutoEndEnabled := outletsettingFields[47].Descriptor()
 	// outletsetting.DefaultShiftAutoEndEnabled holds the default value on creation for the shift_auto_end_enabled field.
 	outletsetting.DefaultShiftAutoEndEnabled = outletsettingDescShiftAutoEndEnabled.Default.(bool)
 	// outletsettingDescShiftMaxHours is the schema descriptor for shift_max_hours field.
-	outletsettingDescShiftMaxHours := outletsettingFields[47].Descriptor()
+	outletsettingDescShiftMaxHours := outletsettingFields[48].Descriptor()
 	// outletsetting.DefaultShiftMaxHours holds the default value on creation for the shift_max_hours field.
 	outletsetting.DefaultShiftMaxHours = outletsettingDescShiftMaxHours.Default.(int)
 	// outletsettingDescTableMaxOccupationMinutes is the schema descriptor for table_max_occupation_minutes field.
-	outletsettingDescTableMaxOccupationMinutes := outletsettingFields[48].Descriptor()
+	outletsettingDescTableMaxOccupationMinutes := outletsettingFields[49].Descriptor()
 	// outletsetting.DefaultTableMaxOccupationMinutes holds the default value on creation for the table_max_occupation_minutes field.
 	outletsetting.DefaultTableMaxOccupationMinutes = outletsettingDescTableMaxOccupationMinutes.Default.(int)
 	// outletsettingDescReturnWindowDays is the schema descriptor for return_window_days field.
-	outletsettingDescReturnWindowDays := outletsettingFields[50].Descriptor()
+	outletsettingDescReturnWindowDays := outletsettingFields[51].Descriptor()
 	// outletsetting.DefaultReturnWindowDays holds the default value on creation for the return_window_days field.
 	outletsetting.DefaultReturnWindowDays = outletsettingDescReturnWindowDays.Default.(int)
 	// outletsettingDescUpdatedAt is the schema descriptor for updated_at field.
-	outletsettingDescUpdatedAt := outletsettingFields[51].Descriptor()
+	outletsettingDescUpdatedAt := outletsettingFields[52].Descriptor()
 	// outletsetting.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	outletsetting.DefaultUpdatedAt = outletsettingDescUpdatedAt.Default.(func() time.Time)
 	// outletsetting.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

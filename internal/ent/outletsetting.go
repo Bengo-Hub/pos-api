@@ -54,6 +54,8 @@ type OutletSetting struct {
 	ReceiptFooter *string `json:"receipt_footer,omitempty"`
 	// ISO 4217 currency code for this outlet
 	Currency string `json:"currency,omitempty"`
+	// Max order discount % a cashier may apply without manager approval; above this requires a step-up (100 = no limit)
+	MaxDiscountPercent float64 `json:"max_discount_percent,omitempty"`
 	// Whether to apply VAT on orders
 	VatEnabled bool `json:"vat_enabled,omitempty"`
 	// VAT percentage rate, e.g. 16.0 for 16%
@@ -159,7 +161,7 @@ func (*OutletSetting) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case outletsetting.FieldShowImages, outletsetting.FieldShowBarcodeScanner, outletsetting.FieldEnableKds, outletsetting.FieldEnableAppointments, outletsetting.FieldVatEnabled, outletsetting.FieldAutoPrintOrder, outletsetting.FieldAutoPrintKitchen, outletsetting.FieldCashDrawerEnabled, outletsetting.FieldCashDrawerAutoOpen, outletsetting.FieldCardTerminalRequireRef, outletsetting.FieldShowPaymentInfoOnReceipt, outletsetting.FieldHotelModuleEnabled, outletsetting.FieldLayawayEnabled, outletsetting.FieldShiftReportsEnabled, outletsetting.FieldShiftAutoEndEnabled:
 			values[i] = new(sql.NullBool)
-		case outletsetting.FieldVatRate:
+		case outletsetting.FieldMaxDiscountPercent, outletsetting.FieldVatRate:
 			values[i] = new(sql.NullFloat64)
 		case outletsetting.FieldShiftMaxHours, outletsetting.FieldTableMaxOccupationMinutes, outletsetting.FieldReturnWindowDays:
 			values[i] = new(sql.NullInt64)
@@ -305,6 +307,12 @@ func (_m *OutletSetting) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field currency", values[i])
 			} else if value.Valid {
 				_m.Currency = value.String
+			}
+		case outletsetting.FieldMaxDiscountPercent:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field max_discount_percent", values[i])
+			} else if value.Valid {
+				_m.MaxDiscountPercent = value.Float64
 			}
 		case outletsetting.FieldVatEnabled:
 			if value, ok := values[i].(*sql.NullBool); !ok {
@@ -624,6 +632,9 @@ func (_m *OutletSetting) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("currency=")
 	builder.WriteString(_m.Currency)
+	builder.WriteString(", ")
+	builder.WriteString("max_discount_percent=")
+	builder.WriteString(fmt.Sprintf("%v", _m.MaxDiscountPercent))
 	builder.WriteString(", ")
 	builder.WriteString("vat_enabled=")
 	builder.WriteString(fmt.Sprintf("%v", _m.VatEnabled))

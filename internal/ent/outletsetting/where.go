@@ -116,6 +116,11 @@ func Currency(v string) predicate.OutletSetting {
 	return predicate.OutletSetting(sql.FieldEQ(FieldCurrency, v))
 }
 
+// MaxDiscountPercent applies equality check predicate on the "max_discount_percent" field. It's identical to MaxDiscountPercentEQ.
+func MaxDiscountPercent(v float64) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldMaxDiscountPercent, v))
+}
+
 // VatEnabled applies equality check predicate on the "vat_enabled" field. It's identical to VatEnabledEQ.
 func VatEnabled(v bool) predicate.OutletSetting {
 	return predicate.OutletSetting(sql.FieldEQ(FieldVatEnabled, v))
@@ -944,6 +949,56 @@ func CurrencyEqualFold(v string) predicate.OutletSetting {
 // CurrencyContainsFold applies the ContainsFold predicate on the "currency" field.
 func CurrencyContainsFold(v string) predicate.OutletSetting {
 	return predicate.OutletSetting(sql.FieldContainsFold(FieldCurrency, v))
+}
+
+// MaxDiscountPercentEQ applies the EQ predicate on the "max_discount_percent" field.
+func MaxDiscountPercentEQ(v float64) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldMaxDiscountPercent, v))
+}
+
+// MaxDiscountPercentNEQ applies the NEQ predicate on the "max_discount_percent" field.
+func MaxDiscountPercentNEQ(v float64) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNEQ(FieldMaxDiscountPercent, v))
+}
+
+// MaxDiscountPercentIn applies the In predicate on the "max_discount_percent" field.
+func MaxDiscountPercentIn(vs ...float64) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIn(FieldMaxDiscountPercent, vs...))
+}
+
+// MaxDiscountPercentNotIn applies the NotIn predicate on the "max_discount_percent" field.
+func MaxDiscountPercentNotIn(vs ...float64) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotIn(FieldMaxDiscountPercent, vs...))
+}
+
+// MaxDiscountPercentGT applies the GT predicate on the "max_discount_percent" field.
+func MaxDiscountPercentGT(v float64) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGT(FieldMaxDiscountPercent, v))
+}
+
+// MaxDiscountPercentGTE applies the GTE predicate on the "max_discount_percent" field.
+func MaxDiscountPercentGTE(v float64) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGTE(FieldMaxDiscountPercent, v))
+}
+
+// MaxDiscountPercentLT applies the LT predicate on the "max_discount_percent" field.
+func MaxDiscountPercentLT(v float64) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLT(FieldMaxDiscountPercent, v))
+}
+
+// MaxDiscountPercentLTE applies the LTE predicate on the "max_discount_percent" field.
+func MaxDiscountPercentLTE(v float64) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLTE(FieldMaxDiscountPercent, v))
+}
+
+// MaxDiscountPercentIsNil applies the IsNil predicate on the "max_discount_percent" field.
+func MaxDiscountPercentIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldMaxDiscountPercent))
+}
+
+// MaxDiscountPercentNotNil applies the NotNil predicate on the "max_discount_percent" field.
+func MaxDiscountPercentNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldMaxDiscountPercent))
 }
 
 // VatEnabledEQ applies the EQ predicate on the "vat_enabled" field.

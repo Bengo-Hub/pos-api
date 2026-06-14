@@ -215,6 +215,20 @@ func (_c *OutletSettingCreate) SetNillableCurrency(v *string) *OutletSettingCrea
 	return _c
 }
 
+// SetMaxDiscountPercent sets the "max_discount_percent" field.
+func (_c *OutletSettingCreate) SetMaxDiscountPercent(v float64) *OutletSettingCreate {
+	_c.mutation.SetMaxDiscountPercent(v)
+	return _c
+}
+
+// SetNillableMaxDiscountPercent sets the "max_discount_percent" field if the given value is not nil.
+func (_c *OutletSettingCreate) SetNillableMaxDiscountPercent(v *float64) *OutletSettingCreate {
+	if v != nil {
+		_c.SetMaxDiscountPercent(*v)
+	}
+	return _c
+}
+
 // SetVatEnabled sets the "vat_enabled" field.
 func (_c *OutletSettingCreate) SetVatEnabled(v bool) *OutletSettingCreate {
 	_c.mutation.SetVatEnabled(v)
@@ -769,6 +783,10 @@ func (_c *OutletSettingCreate) defaults() {
 		v := outletsetting.DefaultCurrency
 		_c.mutation.SetCurrency(v)
 	}
+	if _, ok := _c.mutation.MaxDiscountPercent(); !ok {
+		v := outletsetting.DefaultMaxDiscountPercent
+		_c.mutation.SetMaxDiscountPercent(v)
+	}
 	if _, ok := _c.mutation.VatEnabled(); !ok {
 		v := outletsetting.DefaultVatEnabled
 		_c.mutation.SetVatEnabled(v)
@@ -972,6 +990,10 @@ func (_c *OutletSettingCreate) createSpec() (*OutletSetting, *sqlgraph.CreateSpe
 	if value, ok := _c.mutation.Currency(); ok {
 		_spec.SetField(outletsetting.FieldCurrency, field.TypeString, value)
 		_node.Currency = value
+	}
+	if value, ok := _c.mutation.MaxDiscountPercent(); ok {
+		_spec.SetField(outletsetting.FieldMaxDiscountPercent, field.TypeFloat64, value)
+		_node.MaxDiscountPercent = value
 	}
 	if value, ok := _c.mutation.VatEnabled(); ok {
 		_spec.SetField(outletsetting.FieldVatEnabled, field.TypeBool, value)
@@ -1469,6 +1491,30 @@ func (u *OutletSettingUpsert) UpdateCurrency() *OutletSettingUpsert {
 // ClearCurrency clears the value of the "currency" field.
 func (u *OutletSettingUpsert) ClearCurrency() *OutletSettingUpsert {
 	u.SetNull(outletsetting.FieldCurrency)
+	return u
+}
+
+// SetMaxDiscountPercent sets the "max_discount_percent" field.
+func (u *OutletSettingUpsert) SetMaxDiscountPercent(v float64) *OutletSettingUpsert {
+	u.Set(outletsetting.FieldMaxDiscountPercent, v)
+	return u
+}
+
+// UpdateMaxDiscountPercent sets the "max_discount_percent" field to the value that was provided on create.
+func (u *OutletSettingUpsert) UpdateMaxDiscountPercent() *OutletSettingUpsert {
+	u.SetExcluded(outletsetting.FieldMaxDiscountPercent)
+	return u
+}
+
+// AddMaxDiscountPercent adds v to the "max_discount_percent" field.
+func (u *OutletSettingUpsert) AddMaxDiscountPercent(v float64) *OutletSettingUpsert {
+	u.Add(outletsetting.FieldMaxDiscountPercent, v)
+	return u
+}
+
+// ClearMaxDiscountPercent clears the value of the "max_discount_percent" field.
+func (u *OutletSettingUpsert) ClearMaxDiscountPercent() *OutletSettingUpsert {
+	u.SetNull(outletsetting.FieldMaxDiscountPercent)
 	return u
 }
 
@@ -2490,6 +2536,34 @@ func (u *OutletSettingUpsertOne) UpdateCurrency() *OutletSettingUpsertOne {
 func (u *OutletSettingUpsertOne) ClearCurrency() *OutletSettingUpsertOne {
 	return u.Update(func(s *OutletSettingUpsert) {
 		s.ClearCurrency()
+	})
+}
+
+// SetMaxDiscountPercent sets the "max_discount_percent" field.
+func (u *OutletSettingUpsertOne) SetMaxDiscountPercent(v float64) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetMaxDiscountPercent(v)
+	})
+}
+
+// AddMaxDiscountPercent adds v to the "max_discount_percent" field.
+func (u *OutletSettingUpsertOne) AddMaxDiscountPercent(v float64) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.AddMaxDiscountPercent(v)
+	})
+}
+
+// UpdateMaxDiscountPercent sets the "max_discount_percent" field to the value that was provided on create.
+func (u *OutletSettingUpsertOne) UpdateMaxDiscountPercent() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateMaxDiscountPercent()
+	})
+}
+
+// ClearMaxDiscountPercent clears the value of the "max_discount_percent" field.
+func (u *OutletSettingUpsertOne) ClearMaxDiscountPercent() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearMaxDiscountPercent()
 	})
 }
 
@@ -3783,6 +3857,34 @@ func (u *OutletSettingUpsertBulk) UpdateCurrency() *OutletSettingUpsertBulk {
 func (u *OutletSettingUpsertBulk) ClearCurrency() *OutletSettingUpsertBulk {
 	return u.Update(func(s *OutletSettingUpsert) {
 		s.ClearCurrency()
+	})
+}
+
+// SetMaxDiscountPercent sets the "max_discount_percent" field.
+func (u *OutletSettingUpsertBulk) SetMaxDiscountPercent(v float64) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetMaxDiscountPercent(v)
+	})
+}
+
+// AddMaxDiscountPercent adds v to the "max_discount_percent" field.
+func (u *OutletSettingUpsertBulk) AddMaxDiscountPercent(v float64) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.AddMaxDiscountPercent(v)
+	})
+}
+
+// UpdateMaxDiscountPercent sets the "max_discount_percent" field to the value that was provided on create.
+func (u *OutletSettingUpsertBulk) UpdateMaxDiscountPercent() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateMaxDiscountPercent()
+	})
+}
+
+// ClearMaxDiscountPercent clears the value of the "max_discount_percent" field.
+func (u *OutletSettingUpsertBulk) ClearMaxDiscountPercent() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearMaxDiscountPercent()
 	})
 }
 

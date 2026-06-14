@@ -39467,6 +39467,8 @@ type OutletSettingMutation struct {
 	receipt_header                  *string
 	receipt_footer                  *string
 	currency                        *string
+	max_discount_percent            *float64
+	addmax_discount_percent         *float64
 	vat_enabled                     *bool
 	vat_rate                        *float64
 	addvat_rate                     *float64
@@ -40423,6 +40425,76 @@ func (m *OutletSettingMutation) CurrencyCleared() bool {
 func (m *OutletSettingMutation) ResetCurrency() {
 	m.currency = nil
 	delete(m.clearedFields, outletsetting.FieldCurrency)
+}
+
+// SetMaxDiscountPercent sets the "max_discount_percent" field.
+func (m *OutletSettingMutation) SetMaxDiscountPercent(f float64) {
+	m.max_discount_percent = &f
+	m.addmax_discount_percent = nil
+}
+
+// MaxDiscountPercent returns the value of the "max_discount_percent" field in the mutation.
+func (m *OutletSettingMutation) MaxDiscountPercent() (r float64, exists bool) {
+	v := m.max_discount_percent
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMaxDiscountPercent returns the old "max_discount_percent" field's value of the OutletSetting entity.
+// If the OutletSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OutletSettingMutation) OldMaxDiscountPercent(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMaxDiscountPercent is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMaxDiscountPercent requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMaxDiscountPercent: %w", err)
+	}
+	return oldValue.MaxDiscountPercent, nil
+}
+
+// AddMaxDiscountPercent adds f to the "max_discount_percent" field.
+func (m *OutletSettingMutation) AddMaxDiscountPercent(f float64) {
+	if m.addmax_discount_percent != nil {
+		*m.addmax_discount_percent += f
+	} else {
+		m.addmax_discount_percent = &f
+	}
+}
+
+// AddedMaxDiscountPercent returns the value that was added to the "max_discount_percent" field in this mutation.
+func (m *OutletSettingMutation) AddedMaxDiscountPercent() (r float64, exists bool) {
+	v := m.addmax_discount_percent
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearMaxDiscountPercent clears the value of the "max_discount_percent" field.
+func (m *OutletSettingMutation) ClearMaxDiscountPercent() {
+	m.max_discount_percent = nil
+	m.addmax_discount_percent = nil
+	m.clearedFields[outletsetting.FieldMaxDiscountPercent] = struct{}{}
+}
+
+// MaxDiscountPercentCleared returns if the "max_discount_percent" field was cleared in this mutation.
+func (m *OutletSettingMutation) MaxDiscountPercentCleared() bool {
+	_, ok := m.clearedFields[outletsetting.FieldMaxDiscountPercent]
+	return ok
+}
+
+// ResetMaxDiscountPercent resets all changes to the "max_discount_percent" field.
+func (m *OutletSettingMutation) ResetMaxDiscountPercent() {
+	m.max_discount_percent = nil
+	m.addmax_discount_percent = nil
+	delete(m.clearedFields, outletsetting.FieldMaxDiscountPercent)
 }
 
 // SetVatEnabled sets the "vat_enabled" field.
@@ -42239,7 +42311,7 @@ func (m *OutletSettingMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *OutletSettingMutation) Fields() []string {
-	fields := make([]string, 0, 51)
+	fields := make([]string, 0, 52)
 	if m.outlet != nil {
 		fields = append(fields, outletsetting.FieldOutletID)
 	}
@@ -42290,6 +42362,9 @@ func (m *OutletSettingMutation) Fields() []string {
 	}
 	if m.currency != nil {
 		fields = append(fields, outletsetting.FieldCurrency)
+	}
+	if m.max_discount_percent != nil {
+		fields = append(fields, outletsetting.FieldMaxDiscountPercent)
 	}
 	if m.vat_enabled != nil {
 		fields = append(fields, outletsetting.FieldVatEnabled)
@@ -42435,6 +42510,8 @@ func (m *OutletSettingMutation) Field(name string) (ent.Value, bool) {
 		return m.ReceiptFooter()
 	case outletsetting.FieldCurrency:
 		return m.Currency()
+	case outletsetting.FieldMaxDiscountPercent:
+		return m.MaxDiscountPercent()
 	case outletsetting.FieldVatEnabled:
 		return m.VatEnabled()
 	case outletsetting.FieldVatRate:
@@ -42546,6 +42623,8 @@ func (m *OutletSettingMutation) OldField(ctx context.Context, name string) (ent.
 		return m.OldReceiptFooter(ctx)
 	case outletsetting.FieldCurrency:
 		return m.OldCurrency(ctx)
+	case outletsetting.FieldMaxDiscountPercent:
+		return m.OldMaxDiscountPercent(ctx)
 	case outletsetting.FieldVatEnabled:
 		return m.OldVatEnabled(ctx)
 	case outletsetting.FieldVatRate:
@@ -42741,6 +42820,13 @@ func (m *OutletSettingMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetCurrency(v)
+		return nil
+	case outletsetting.FieldMaxDiscountPercent:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMaxDiscountPercent(v)
 		return nil
 	case outletsetting.FieldVatEnabled:
 		v, ok := value.(bool)
@@ -42988,6 +43074,9 @@ func (m *OutletSettingMutation) SetField(name string, value ent.Value) error {
 // this mutation.
 func (m *OutletSettingMutation) AddedFields() []string {
 	var fields []string
+	if m.addmax_discount_percent != nil {
+		fields = append(fields, outletsetting.FieldMaxDiscountPercent)
+	}
 	if m.addvat_rate != nil {
 		fields = append(fields, outletsetting.FieldVatRate)
 	}
@@ -43008,6 +43097,8 @@ func (m *OutletSettingMutation) AddedFields() []string {
 // was not set, or was not defined in the schema.
 func (m *OutletSettingMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
+	case outletsetting.FieldMaxDiscountPercent:
+		return m.AddedMaxDiscountPercent()
 	case outletsetting.FieldVatRate:
 		return m.AddedVatRate()
 	case outletsetting.FieldShiftMaxHours:
@@ -43025,6 +43116,13 @@ func (m *OutletSettingMutation) AddedField(name string) (ent.Value, bool) {
 // type.
 func (m *OutletSettingMutation) AddField(name string, value ent.Value) error {
 	switch name {
+	case outletsetting.FieldMaxDiscountPercent:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddMaxDiscountPercent(v)
+		return nil
 	case outletsetting.FieldVatRate:
 		v, ok := value.(float64)
 		if !ok {
@@ -43105,6 +43203,9 @@ func (m *OutletSettingMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(outletsetting.FieldCurrency) {
 		fields = append(fields, outletsetting.FieldCurrency)
+	}
+	if m.FieldCleared(outletsetting.FieldMaxDiscountPercent) {
+		fields = append(fields, outletsetting.FieldMaxDiscountPercent)
 	}
 	if m.FieldCleared(outletsetting.FieldVatEnabled) {
 		fields = append(fields, outletsetting.FieldVatEnabled)
@@ -43264,6 +43365,9 @@ func (m *OutletSettingMutation) ClearField(name string) error {
 	case outletsetting.FieldCurrency:
 		m.ClearCurrency()
 		return nil
+	case outletsetting.FieldMaxDiscountPercent:
+		m.ClearMaxDiscountPercent()
+		return nil
 	case outletsetting.FieldVatEnabled:
 		m.ClearVatEnabled()
 		return nil
@@ -43421,6 +43525,9 @@ func (m *OutletSettingMutation) ResetField(name string) error {
 		return nil
 	case outletsetting.FieldCurrency:
 		m.ResetCurrency()
+		return nil
+	case outletsetting.FieldMaxDiscountPercent:
+		m.ResetMaxDiscountPercent()
 		return nil
 	case outletsetting.FieldVatEnabled:
 		m.ResetVatEnabled()
