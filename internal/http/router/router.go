@@ -134,6 +134,7 @@ func New(
 				pub.Post("/{tenantID}/pos/auth/pin", pinAuth.Login)
 				pub.Post("/{tenantID}/pos/auth/pin/identify", pinAuth.IdentifyByPIN)
 				pub.Post("/{tenantID}/pos/auth/pin/step-up", pinAuth.StepUp)
+				pub.Post("/{tenantID}/pos/auth/pin/step-up-card", pinAuth.StepUpByCard)
 				pub.Get("/{tenantID}/pos/auth/pin/profile", pinAuth.StaffProfiles)
 			}
 			if publicOutlet != nil {
@@ -407,6 +408,7 @@ func New(
 					// ListStaff / Login / StaffProfiles are registered in the public group above.
 					if pinAuth != nil {
 						pos.Post("/auth/pin/set", pinAuth.SetPIN)
+						pos.Post("/staff/{userID}/card-token", pinAuth.IssueStaffCardToken)
 						pos.Get("/auth/me", pinAuth.AuthMe)
 					}
 

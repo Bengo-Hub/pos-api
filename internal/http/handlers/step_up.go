@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"time"
 
+	authclient "github.com/Bengo-Hub/shared-auth-client"
+	"github.com/go-chi/chi/v5"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -159,4 +161,172 @@ func (h *PINAuthHandler) StepUp(w http.ResponseWriter, r *http.Request) {
 		"approver_name":  member.Name,
 		"expires_in":     120,
 	})
+}
+
+// cardClaims is embedded in a long-lived signed "manager card" token. The token
+// is encoded into a QR on a printed staff card; scanning it authorizes a
+// step-up without typing the PIN (anti-shoulder-surfing). The PIN is never
+// placed on the card — only this signed staff reference.
+type cardClaims struct {
+	StaffUser string `json:"staff_user_id"`
+	Purpose   string `json:"purpose"`
+	jwt.RegisteredClaims
+}
+
+func issueCardToken(staffUserID, tenantID uuid.UUID, secret []byte) (string, error) {
+	now := time.Now()
+	claims := cardClaims{
+		StaffUser: staffUserID.String(),
+		Purpose:   "manager-card",
+		RegisteredClaims: jwt.RegisteredClaims{
+			Issuer:    "pos-card",
+			Subject:   tenantID.String(),
+			IssuedAt:  jwt.NewNumericDate(now),
+			ExpiresAt: jwt.NewNumericDate(now.Add(365 * 24 * time.Hour)),
+			ID:        uuid.New().String(),
+		},
+	}
+	return jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString(secret)
+}
+
+func verifyCardToken(tokenStr string, secret []byte) (staffUserID uuid.UUID, ok bool) {
+	if tokenStr == "" {
+		return uuid.Nil, false
+	}
+	claims := &cardClaims{}
+	token, err := jwt.ParseWithClaims(tokenStr, claims, func(t *jwt.Token) (interface{}, error) {
+		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method")
+		}
+		return secret, nil
+	})
+	if err != nil || !token.Valid || claims.Purpose != "manager-card" {
+		return uuid.Nil, false
+	}
+	id, parseErr := uuid.Parse(claims.StaffUser)
+	if parseErr != nil {
+		return uuid.Nil, false
+	}
+	return id, true
+}
+
+// IssueStaffCardToken handles POST /{tenantID}/pos/staff/{userID}/card-token.
+// Admin/manager only — mints the signed token embedded in a staff member's
+// printable QR card.
+func (h *PINAuthHandler) IssueStaffCardToken(w http.ResponseWriter, r *http.Request) {
+	if !adminOverrideRoles[requesterRole(r)] {
+		if claims, ok := authclient.ClaimsFromContext(r.Context()); !ok || claims == nil || (!claims.IsPlatformOwner && !hasOverrideRole(claims.Roles)) {
+			jsonError(w, "insufficient permissions", http.StatusForbidden)
+			return
+		}
+	}
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+	staffUserID, err := uuid.Parse(chi.URLParam(r, "userID"))
+	if err != nil {
+		jsonError(w, "invalid user id", http.StatusBadRequest)
+		return
+	}
+	member, err := h.client.StaffMember.Query().
+		Where(entstaff.TenantID(tid), entstaff.UserID(staffUserID)).
+		Only(r.Context())
+	if err != nil {
+		jsonError(w, "staff member not found", http.StatusNotFound)
+		return
+	}
+	token, err := issueCardToken(staffUserID, tid, h.jwtSecret)
+	if err != nil {
+		h.log.Error("issue card token failed", zap.Error(err))
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	jsonOK(w, map[string]any{
+		"card_token":  token,
+		"staff_name":  member.Name,
+		"staff_role":  member.Role,
+		"can_approve": overrideRoles[member.Role],
+	})
+}
+
+type stepUpCardInput struct {
+	Action    string `json:"action"`
+	CardToken string `json:"card_token"`
+	OutletID  string `json:"outlet_id"`
+}
+
+// StepUpByCard handles POST /{tenantID}/pos/auth/pin/step-up-card.
+// Authorizes a single sensitive action by scanning a manager's QR staff card
+// instead of typing a PIN.
+func (h *PINAuthHandler) StepUpByCard(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+	var input stepUpCardInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil || input.Action == "" || input.CardToken == "" || input.OutletID == "" {
+		jsonError(w, "action, card_token and outlet_id are required", http.StatusBadRequest)
+		return
+	}
+	outletID, err := uuid.Parse(input.OutletID)
+	if err != nil {
+		jsonError(w, "invalid outlet_id", http.StatusBadRequest)
+		return
+	}
+	staffUserID, ok := verifyCardToken(input.CardToken, h.jwtSecret)
+	if !ok {
+		jsonError(w, "invalid or expired card", http.StatusUnauthorized)
+		return
+	}
+	member, err := h.client.StaffMember.Query().
+		Where(
+			entstaff.TenantID(tid),
+			entstaff.UserID(staffUserID),
+			entstaff.IsActive(true),
+			entstaff.HasOutletsWith(entstaffoutlet.OutletID(outletID)),
+		).
+		Only(r.Context())
+	if err != nil {
+		jsonError(w, "card not authorized for this outlet", http.StatusForbidden)
+		return
+	}
+	if !overrideRoles[member.Role] {
+		jsonError(w, "this card is not authorized to approve", http.StatusForbidden)
+		return
+	}
+	token, err := issueApprovalToken(input.Action, member.UserID, member.ID, outletID, h.jwtSecret)
+	if err != nil {
+		h.log.Error("step-up-card: token issue failed", zap.Error(err))
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	if h.auditSvc != nil {
+		oid := outletID
+		staffID := member.ID
+		h.auditSvc.Record(r.Context(), audit.Entry{
+			TenantID:     tid,
+			OutletID:     &oid,
+			ActorUserID:  member.UserID,
+			ActorStaffID: &staffID,
+			ApproverID:   &member.UserID,
+			Action:       "auth.step_up_card",
+			EntityType:   "approval",
+			EntityID:     input.Action,
+			Reason:       "manager card approval for " + input.Action,
+		})
+	}
+	jsonOK(w, map[string]any{"approval_token": token, "approver_name": member.Name, "expires_in": 120})
+}
+
+// hasOverrideRole reports whether any of the roles is an admin/manager override role.
+func hasOverrideRole(roles []string) bool {
+	for _, role := range roles {
+		if adminOverrideRoles[role] {
+			return true
+		}
+	}
+	return false
 }
