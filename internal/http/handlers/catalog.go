@@ -728,9 +728,12 @@ func (h *CatalogHandler) assembleMenuItems(
 		// of price). This lets outlets offer bundled sides (ugali, greens, a free side) that consume
 		// stock without billing the customer.
 		if price == 0 {
-			if hasOverride && o.complimentary {
-				// Explicitly configured no-charge accompaniment (override metadata.complimentary=true):
-				// show it, force KES 0, and flag it Free. Recipe/BOM stock is still deducted on sale.
+			// A price-0 item is treated as a no-charge accompaniment (shown, forced KES 0, flagged Free,
+			// BOM still deducted) when EITHER an admin explicitly enabled it via the override
+			// (metadata.complimentary=true) OR it lives in an "Accompaniment"/side category — those are
+			// free sides by definition (e.g. ugali), so they surface without per-item flagging. Any other
+			// price-0 item stays hidden so staff can't accidentally ring up a KES 0 sale.
+			if (hasOverride && o.complimentary) || isAccompanimentCategory(item.CategoryName) {
 				isComplimentary = true
 				isAvailable = true
 			} else {
@@ -793,6 +796,16 @@ func metaBool(m map[string]any, key string) bool {
 	default:
 		return false
 	}
+}
+
+// isAccompanimentCategory reports whether a catalog category is an "accompaniment"/side category.
+// Items in such a category that carry no price are by definition no-charge sides (ugali, greens, a
+// free side) — they are surfaced as COMPLIMENTARY (Free) automatically, without needing a per-item
+// override flag, so outlets don't have to flag every free side by hand. BOM/recipe stock is still
+// deducted on sale regardless of price (the inventory pos.sale.finalized consumer deducts by SKU).
+func isAccompanimentCategory(cat string) bool {
+	c := strings.ToLower(strings.TrimSpace(cat))
+	return strings.Contains(c, "accompaniment") || strings.Contains(c, "side dish") || strings.Contains(c, "sides")
 }
 
 // catalogItemToMap converts an assembled DTO into the JSON map shape ListCatalogItems
