@@ -307,6 +307,46 @@ func (h *LayawayHandler) Cancel(w http.ResponseWriter, r *http.Request) {
 	jsonOK(w, updated)
 }
 
+// Forfeit handles POST /{tenantID}/pos/layaways/{id}/forfeit
+// Marks an unfinished layaway as forfeited (customer abandoned it). Per policy the deposit/payments
+// already made are retained; the goods are released back to stock manually. Distinct from cancel
+// (a clean cancellation/refund) — forfeited is the "lapsed plan" terminal state.
+func (h *LayawayHandler) Forfeit(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+	planID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		jsonError(w, "invalid layaway plan id", http.StatusBadRequest)
+		return
+	}
+	plan, err := h.db.LayawayPlan.Query().
+		Where(layawayplan.ID(planID), layawayplan.TenantID(tid)).
+		Only(r.Context())
+	if err != nil {
+		if ent.IsNotFound(err) {
+			jsonError(w, "layaway plan not found", http.StatusNotFound)
+			return
+		}
+		h.log.Error("get layaway plan failed", zap.Error(err))
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	if plan.Status == "completed" || plan.Status == "cancelled" || plan.Status == "forfeited" {
+		jsonError(w, "layaway plan is "+plan.Status, http.StatusBadRequest)
+		return
+	}
+	updated, err := plan.Update().SetStatus("forfeited").Save(r.Context())
+	if err != nil {
+		h.log.Error("forfeit layaway plan failed", zap.Error(err))
+		jsonError(w, "failed to forfeit plan: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	jsonOK(w, updated)
+}
+
 // Complete handles POST /{tenantID}/pos/layaways/{id}/complete
 // Creates a POSOrder from the layaway plan and marks it completed.
 // Requires remaining_amount <= 0; idempotent if order_id already set.
