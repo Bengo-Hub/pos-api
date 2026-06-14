@@ -55,6 +55,14 @@ const (
 	FieldKdsStationID = "kds_station_id"
 	// FieldMetadata holds the string denoting the metadata field in the database.
 	FieldMetadata = "metadata"
+	// FieldVoidedQty holds the string denoting the voided_qty field in the database.
+	FieldVoidedQty = "voided_qty"
+	// FieldVoidedReason holds the string denoting the voided_reason field in the database.
+	FieldVoidedReason = "voided_reason"
+	// FieldVoidedBy holds the string denoting the voided_by field in the database.
+	FieldVoidedBy = "voided_by"
+	// FieldVoidedAt holds the string denoting the voided_at field in the database.
+	FieldVoidedAt = "voided_at"
 	// EdgeOrder holds the string denoting the order edge name in mutations.
 	EdgeOrder = "order"
 	// EdgeModifiers holds the string denoting the modifiers edge name in mutations.
@@ -101,6 +109,10 @@ var Columns = []string{
 	FieldCourseNumber,
 	FieldKdsStationID,
 	FieldMetadata,
+	FieldVoidedQty,
+	FieldVoidedReason,
+	FieldVoidedBy,
+	FieldVoidedAt,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -234,6 +246,26 @@ func ByCourseNumber(opts ...sql.OrderTermOption) OrderOption {
 // ByKdsStationID orders the results by the kds_station_id field.
 func ByKdsStationID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldKdsStationID, opts...).ToFunc()
+}
+
+// ByVoidedQty orders the results by the voided_qty field.
+func ByVoidedQty(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldVoidedQty, opts...).ToFunc()
+}
+
+// ByVoidedReason orders the results by the voided_reason field.
+func ByVoidedReason(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldVoidedReason, opts...).ToFunc()
+}
+
+// ByVoidedBy orders the results by the voided_by field.
+func ByVoidedBy(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldVoidedBy, opts...).ToFunc()
+}
+
+// ByVoidedAt orders the results by the voided_at field.
+func ByVoidedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldVoidedAt, opts...).ToFunc()
 }
 
 // ByOrderField orders the results by order field.

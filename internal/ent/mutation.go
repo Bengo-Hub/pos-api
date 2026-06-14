@@ -50993,6 +50993,11 @@ type POSOrderLineMutation struct {
 	addcourse_number   *int
 	kds_station_id     *uuid.UUID
 	metadata           *map[string]interface{}
+	voided_qty         *float64
+	addvoided_qty      *float64
+	voided_reason      *string
+	voided_by          *uuid.UUID
+	voided_at          *time.Time
 	clearedFields      map[string]struct{}
 	_order             *uuid.UUID
 	cleared_order      bool
@@ -52171,6 +52176,223 @@ func (m *POSOrderLineMutation) ResetMetadata() {
 	m.metadata = nil
 }
 
+// SetVoidedQty sets the "voided_qty" field.
+func (m *POSOrderLineMutation) SetVoidedQty(f float64) {
+	m.voided_qty = &f
+	m.addvoided_qty = nil
+}
+
+// VoidedQty returns the value of the "voided_qty" field in the mutation.
+func (m *POSOrderLineMutation) VoidedQty() (r float64, exists bool) {
+	v := m.voided_qty
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldVoidedQty returns the old "voided_qty" field's value of the POSOrderLine entity.
+// If the POSOrderLine object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSOrderLineMutation) OldVoidedQty(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldVoidedQty is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldVoidedQty requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldVoidedQty: %w", err)
+	}
+	return oldValue.VoidedQty, nil
+}
+
+// AddVoidedQty adds f to the "voided_qty" field.
+func (m *POSOrderLineMutation) AddVoidedQty(f float64) {
+	if m.addvoided_qty != nil {
+		*m.addvoided_qty += f
+	} else {
+		m.addvoided_qty = &f
+	}
+}
+
+// AddedVoidedQty returns the value that was added to the "voided_qty" field in this mutation.
+func (m *POSOrderLineMutation) AddedVoidedQty() (r float64, exists bool) {
+	v := m.addvoided_qty
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearVoidedQty clears the value of the "voided_qty" field.
+func (m *POSOrderLineMutation) ClearVoidedQty() {
+	m.voided_qty = nil
+	m.addvoided_qty = nil
+	m.clearedFields[posorderline.FieldVoidedQty] = struct{}{}
+}
+
+// VoidedQtyCleared returns if the "voided_qty" field was cleared in this mutation.
+func (m *POSOrderLineMutation) VoidedQtyCleared() bool {
+	_, ok := m.clearedFields[posorderline.FieldVoidedQty]
+	return ok
+}
+
+// ResetVoidedQty resets all changes to the "voided_qty" field.
+func (m *POSOrderLineMutation) ResetVoidedQty() {
+	m.voided_qty = nil
+	m.addvoided_qty = nil
+	delete(m.clearedFields, posorderline.FieldVoidedQty)
+}
+
+// SetVoidedReason sets the "voided_reason" field.
+func (m *POSOrderLineMutation) SetVoidedReason(s string) {
+	m.voided_reason = &s
+}
+
+// VoidedReason returns the value of the "voided_reason" field in the mutation.
+func (m *POSOrderLineMutation) VoidedReason() (r string, exists bool) {
+	v := m.voided_reason
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldVoidedReason returns the old "voided_reason" field's value of the POSOrderLine entity.
+// If the POSOrderLine object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSOrderLineMutation) OldVoidedReason(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldVoidedReason is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldVoidedReason requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldVoidedReason: %w", err)
+	}
+	return oldValue.VoidedReason, nil
+}
+
+// ClearVoidedReason clears the value of the "voided_reason" field.
+func (m *POSOrderLineMutation) ClearVoidedReason() {
+	m.voided_reason = nil
+	m.clearedFields[posorderline.FieldVoidedReason] = struct{}{}
+}
+
+// VoidedReasonCleared returns if the "voided_reason" field was cleared in this mutation.
+func (m *POSOrderLineMutation) VoidedReasonCleared() bool {
+	_, ok := m.clearedFields[posorderline.FieldVoidedReason]
+	return ok
+}
+
+// ResetVoidedReason resets all changes to the "voided_reason" field.
+func (m *POSOrderLineMutation) ResetVoidedReason() {
+	m.voided_reason = nil
+	delete(m.clearedFields, posorderline.FieldVoidedReason)
+}
+
+// SetVoidedBy sets the "voided_by" field.
+func (m *POSOrderLineMutation) SetVoidedBy(u uuid.UUID) {
+	m.voided_by = &u
+}
+
+// VoidedBy returns the value of the "voided_by" field in the mutation.
+func (m *POSOrderLineMutation) VoidedBy() (r uuid.UUID, exists bool) {
+	v := m.voided_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldVoidedBy returns the old "voided_by" field's value of the POSOrderLine entity.
+// If the POSOrderLine object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSOrderLineMutation) OldVoidedBy(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldVoidedBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldVoidedBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldVoidedBy: %w", err)
+	}
+	return oldValue.VoidedBy, nil
+}
+
+// ClearVoidedBy clears the value of the "voided_by" field.
+func (m *POSOrderLineMutation) ClearVoidedBy() {
+	m.voided_by = nil
+	m.clearedFields[posorderline.FieldVoidedBy] = struct{}{}
+}
+
+// VoidedByCleared returns if the "voided_by" field was cleared in this mutation.
+func (m *POSOrderLineMutation) VoidedByCleared() bool {
+	_, ok := m.clearedFields[posorderline.FieldVoidedBy]
+	return ok
+}
+
+// ResetVoidedBy resets all changes to the "voided_by" field.
+func (m *POSOrderLineMutation) ResetVoidedBy() {
+	m.voided_by = nil
+	delete(m.clearedFields, posorderline.FieldVoidedBy)
+}
+
+// SetVoidedAt sets the "voided_at" field.
+func (m *POSOrderLineMutation) SetVoidedAt(t time.Time) {
+	m.voided_at = &t
+}
+
+// VoidedAt returns the value of the "voided_at" field in the mutation.
+func (m *POSOrderLineMutation) VoidedAt() (r time.Time, exists bool) {
+	v := m.voided_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldVoidedAt returns the old "voided_at" field's value of the POSOrderLine entity.
+// If the POSOrderLine object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSOrderLineMutation) OldVoidedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldVoidedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldVoidedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldVoidedAt: %w", err)
+	}
+	return oldValue.VoidedAt, nil
+}
+
+// ClearVoidedAt clears the value of the "voided_at" field.
+func (m *POSOrderLineMutation) ClearVoidedAt() {
+	m.voided_at = nil
+	m.clearedFields[posorderline.FieldVoidedAt] = struct{}{}
+}
+
+// VoidedAtCleared returns if the "voided_at" field was cleared in this mutation.
+func (m *POSOrderLineMutation) VoidedAtCleared() bool {
+	_, ok := m.clearedFields[posorderline.FieldVoidedAt]
+	return ok
+}
+
+// ResetVoidedAt resets all changes to the "voided_at" field.
+func (m *POSOrderLineMutation) ResetVoidedAt() {
+	m.voided_at = nil
+	delete(m.clearedFields, posorderline.FieldVoidedAt)
+}
+
 // ClearOrder clears the "order" edge to the POSOrder entity.
 func (m *POSOrderLineMutation) ClearOrder() {
 	m.cleared_order = true
@@ -52286,7 +52508,7 @@ func (m *POSOrderLineMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *POSOrderLineMutation) Fields() []string {
-	fields := make([]string, 0, 21)
+	fields := make([]string, 0, 25)
 	if m._order != nil {
 		fields = append(fields, posorderline.FieldOrderID)
 	}
@@ -52350,6 +52572,18 @@ func (m *POSOrderLineMutation) Fields() []string {
 	if m.metadata != nil {
 		fields = append(fields, posorderline.FieldMetadata)
 	}
+	if m.voided_qty != nil {
+		fields = append(fields, posorderline.FieldVoidedQty)
+	}
+	if m.voided_reason != nil {
+		fields = append(fields, posorderline.FieldVoidedReason)
+	}
+	if m.voided_by != nil {
+		fields = append(fields, posorderline.FieldVoidedBy)
+	}
+	if m.voided_at != nil {
+		fields = append(fields, posorderline.FieldVoidedAt)
+	}
 	return fields
 }
 
@@ -52400,6 +52634,14 @@ func (m *POSOrderLineMutation) Field(name string) (ent.Value, bool) {
 		return m.KdsStationID()
 	case posorderline.FieldMetadata:
 		return m.Metadata()
+	case posorderline.FieldVoidedQty:
+		return m.VoidedQty()
+	case posorderline.FieldVoidedReason:
+		return m.VoidedReason()
+	case posorderline.FieldVoidedBy:
+		return m.VoidedBy()
+	case posorderline.FieldVoidedAt:
+		return m.VoidedAt()
 	}
 	return nil, false
 }
@@ -52451,6 +52693,14 @@ func (m *POSOrderLineMutation) OldField(ctx context.Context, name string) (ent.V
 		return m.OldKdsStationID(ctx)
 	case posorderline.FieldMetadata:
 		return m.OldMetadata(ctx)
+	case posorderline.FieldVoidedQty:
+		return m.OldVoidedQty(ctx)
+	case posorderline.FieldVoidedReason:
+		return m.OldVoidedReason(ctx)
+	case posorderline.FieldVoidedBy:
+		return m.OldVoidedBy(ctx)
+	case posorderline.FieldVoidedAt:
+		return m.OldVoidedAt(ctx)
 	}
 	return nil, fmt.Errorf("unknown POSOrderLine field %s", name)
 }
@@ -52607,6 +52857,34 @@ func (m *POSOrderLineMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetMetadata(v)
 		return nil
+	case posorderline.FieldVoidedQty:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetVoidedQty(v)
+		return nil
+	case posorderline.FieldVoidedReason:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetVoidedReason(v)
+		return nil
+	case posorderline.FieldVoidedBy:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetVoidedBy(v)
+		return nil
+	case posorderline.FieldVoidedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetVoidedAt(v)
+		return nil
 	}
 	return fmt.Errorf("unknown POSOrderLine field %s", name)
 }
@@ -52639,6 +52917,9 @@ func (m *POSOrderLineMutation) AddedFields() []string {
 	if m.addcourse_number != nil {
 		fields = append(fields, posorderline.FieldCourseNumber)
 	}
+	if m.addvoided_qty != nil {
+		fields = append(fields, posorderline.FieldVoidedQty)
+	}
 	return fields
 }
 
@@ -52663,6 +52944,8 @@ func (m *POSOrderLineMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedTaxAmount()
 	case posorderline.FieldCourseNumber:
 		return m.AddedCourseNumber()
+	case posorderline.FieldVoidedQty:
+		return m.AddedVoidedQty()
 	}
 	return nil, false
 }
@@ -52728,6 +53011,13 @@ func (m *POSOrderLineMutation) AddField(name string, value ent.Value) error {
 		}
 		m.AddCourseNumber(v)
 		return nil
+	case posorderline.FieldVoidedQty:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddVoidedQty(v)
+		return nil
 	}
 	return fmt.Errorf("unknown POSOrderLine numeric field %s", name)
 }
@@ -52768,6 +53058,18 @@ func (m *POSOrderLineMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(posorderline.FieldKdsStationID) {
 		fields = append(fields, posorderline.FieldKdsStationID)
+	}
+	if m.FieldCleared(posorderline.FieldVoidedQty) {
+		fields = append(fields, posorderline.FieldVoidedQty)
+	}
+	if m.FieldCleared(posorderline.FieldVoidedReason) {
+		fields = append(fields, posorderline.FieldVoidedReason)
+	}
+	if m.FieldCleared(posorderline.FieldVoidedBy) {
+		fields = append(fields, posorderline.FieldVoidedBy)
+	}
+	if m.FieldCleared(posorderline.FieldVoidedAt) {
+		fields = append(fields, posorderline.FieldVoidedAt)
 	}
 	return fields
 }
@@ -52815,6 +53117,18 @@ func (m *POSOrderLineMutation) ClearField(name string) error {
 		return nil
 	case posorderline.FieldKdsStationID:
 		m.ClearKdsStationID()
+		return nil
+	case posorderline.FieldVoidedQty:
+		m.ClearVoidedQty()
+		return nil
+	case posorderline.FieldVoidedReason:
+		m.ClearVoidedReason()
+		return nil
+	case posorderline.FieldVoidedBy:
+		m.ClearVoidedBy()
+		return nil
+	case posorderline.FieldVoidedAt:
+		m.ClearVoidedAt()
 		return nil
 	}
 	return fmt.Errorf("unknown POSOrderLine nullable field %s", name)
@@ -52886,6 +53200,18 @@ func (m *POSOrderLineMutation) ResetField(name string) error {
 		return nil
 	case posorderline.FieldMetadata:
 		m.ResetMetadata()
+		return nil
+	case posorderline.FieldVoidedQty:
+		m.ResetVoidedQty()
+		return nil
+	case posorderline.FieldVoidedReason:
+		m.ResetVoidedReason()
+		return nil
+	case posorderline.FieldVoidedBy:
+		m.ResetVoidedBy()
+		return nil
+	case posorderline.FieldVoidedAt:
+		m.ResetVoidedAt()
 		return nil
 	}
 	return fmt.Errorf("unknown POSOrderLine field %s", name)

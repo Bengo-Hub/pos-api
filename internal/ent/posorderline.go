@@ -62,6 +62,14 @@ type POSOrderLine struct {
 	KdsStationID *uuid.UUID `json:"kds_station_id,omitempty"`
 	// Metadata holds the value of the "metadata" field.
 	Metadata map[string]interface{} `json:"metadata,omitempty"`
+	// Quantity voided from this line (full or partial)
+	VoidedQty *float64 `json:"voided_qty,omitempty"`
+	// VoidedReason holds the value of the "voided_reason" field.
+	VoidedReason *string `json:"voided_reason,omitempty"`
+	// VoidedBy holds the value of the "voided_by" field.
+	VoidedBy *uuid.UUID `json:"voided_by,omitempty"`
+	// VoidedAt holds the value of the "voided_at" field.
+	VoidedAt *time.Time `json:"voided_at,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the POSOrderLineQuery when eager-loading is set.
 	Edges        POSOrderLineEdges `json:"edges"`
@@ -104,19 +112,19 @@ func (*POSOrderLine) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case posorderline.FieldKdsStationID:
+		case posorderline.FieldKdsStationID, posorderline.FieldVoidedBy:
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		case posorderline.FieldMetadata:
 			values[i] = new([]byte)
 		case posorderline.FieldPriceIncludesTax:
 			values[i] = new(sql.NullBool)
-		case posorderline.FieldQuantity, posorderline.FieldUnitPrice, posorderline.FieldTotalPrice, posorderline.FieldPartialUnits, posorderline.FieldTaxRate, posorderline.FieldTaxAmount:
+		case posorderline.FieldQuantity, posorderline.FieldUnitPrice, posorderline.FieldTotalPrice, posorderline.FieldPartialUnits, posorderline.FieldTaxRate, posorderline.FieldTaxAmount, posorderline.FieldVoidedQty:
 			values[i] = new(sql.NullFloat64)
 		case posorderline.FieldWeightGrams, posorderline.FieldCourseNumber:
 			values[i] = new(sql.NullInt64)
-		case posorderline.FieldSku, posorderline.FieldName, posorderline.FieldCategory, posorderline.FieldLotNumber, posorderline.FieldSerialNumber, posorderline.FieldTaxCodeID, posorderline.FieldTaxKraCode:
+		case posorderline.FieldSku, posorderline.FieldName, posorderline.FieldCategory, posorderline.FieldLotNumber, posorderline.FieldSerialNumber, posorderline.FieldTaxCodeID, posorderline.FieldTaxKraCode, posorderline.FieldVoidedReason:
 			values[i] = new(sql.NullString)
-		case posorderline.FieldExpiryDate:
+		case posorderline.FieldExpiryDate, posorderline.FieldVoidedAt:
 			values[i] = new(sql.NullTime)
 		case posorderline.FieldID, posorderline.FieldOrderID, posorderline.FieldCatalogItemID:
 			values[i] = new(uuid.UUID)
@@ -276,6 +284,34 @@ func (_m *POSOrderLine) assignValues(columns []string, values []any) error {
 					return fmt.Errorf("unmarshal field metadata: %w", err)
 				}
 			}
+		case posorderline.FieldVoidedQty:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field voided_qty", values[i])
+			} else if value.Valid {
+				_m.VoidedQty = new(float64)
+				*_m.VoidedQty = value.Float64
+			}
+		case posorderline.FieldVoidedReason:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field voided_reason", values[i])
+			} else if value.Valid {
+				_m.VoidedReason = new(string)
+				*_m.VoidedReason = value.String
+			}
+		case posorderline.FieldVoidedBy:
+			if value, ok := values[i].(*sql.NullScanner); !ok {
+				return fmt.Errorf("unexpected type %T for field voided_by", values[i])
+			} else if value.Valid {
+				_m.VoidedBy = new(uuid.UUID)
+				*_m.VoidedBy = *value.S.(*uuid.UUID)
+			}
+		case posorderline.FieldVoidedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field voided_at", values[i])
+			} else if value.Valid {
+				_m.VoidedAt = new(time.Time)
+				*_m.VoidedAt = value.Time
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -398,6 +434,26 @@ func (_m *POSOrderLine) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("metadata=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Metadata))
+	builder.WriteString(", ")
+	if v := _m.VoidedQty; v != nil {
+		builder.WriteString("voided_qty=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.VoidedReason; v != nil {
+		builder.WriteString("voided_reason=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.VoidedBy; v != nil {
+		builder.WriteString("voided_by=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.VoidedAt; v != nil {
+		builder.WriteString("voided_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
 	builder.WriteByte(')')
 	return builder.String()
 }

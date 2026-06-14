@@ -80,6 +80,23 @@ func (POSOrderLine) Fields() []ent.Field {
 			Comment("KDS station this line is routed to; copied from POSCatalogOverride at order creation"),
 		field.JSON("metadata", map[string]any{}).
 			Default(map[string]any{}),
+		// Void fields — set when a line is removed from a sent/persisted order
+		// (anti-sweethearting). Pre-send cart edits are client-only; once a line
+		// is server-persisted, removing it soft-voids the line (kept for audit)
+		// rather than hard-deleting it.
+		field.Float("voided_qty").
+			Optional().
+			Nillable().
+			Comment("Quantity voided from this line (full or partial)"),
+		field.String("voided_reason").
+			Optional().
+			Nillable(),
+		field.UUID("voided_by", uuid.UUID{}).
+			Optional().
+			Nillable(),
+		field.Time("voided_at").
+			Optional().
+			Nillable(),
 	}
 }
 

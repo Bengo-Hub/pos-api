@@ -256,6 +256,62 @@ func (_c *POSOrderLineCreate) SetMetadata(v map[string]interface{}) *POSOrderLin
 	return _c
 }
 
+// SetVoidedQty sets the "voided_qty" field.
+func (_c *POSOrderLineCreate) SetVoidedQty(v float64) *POSOrderLineCreate {
+	_c.mutation.SetVoidedQty(v)
+	return _c
+}
+
+// SetNillableVoidedQty sets the "voided_qty" field if the given value is not nil.
+func (_c *POSOrderLineCreate) SetNillableVoidedQty(v *float64) *POSOrderLineCreate {
+	if v != nil {
+		_c.SetVoidedQty(*v)
+	}
+	return _c
+}
+
+// SetVoidedReason sets the "voided_reason" field.
+func (_c *POSOrderLineCreate) SetVoidedReason(v string) *POSOrderLineCreate {
+	_c.mutation.SetVoidedReason(v)
+	return _c
+}
+
+// SetNillableVoidedReason sets the "voided_reason" field if the given value is not nil.
+func (_c *POSOrderLineCreate) SetNillableVoidedReason(v *string) *POSOrderLineCreate {
+	if v != nil {
+		_c.SetVoidedReason(*v)
+	}
+	return _c
+}
+
+// SetVoidedBy sets the "voided_by" field.
+func (_c *POSOrderLineCreate) SetVoidedBy(v uuid.UUID) *POSOrderLineCreate {
+	_c.mutation.SetVoidedBy(v)
+	return _c
+}
+
+// SetNillableVoidedBy sets the "voided_by" field if the given value is not nil.
+func (_c *POSOrderLineCreate) SetNillableVoidedBy(v *uuid.UUID) *POSOrderLineCreate {
+	if v != nil {
+		_c.SetVoidedBy(*v)
+	}
+	return _c
+}
+
+// SetVoidedAt sets the "voided_at" field.
+func (_c *POSOrderLineCreate) SetVoidedAt(v time.Time) *POSOrderLineCreate {
+	_c.mutation.SetVoidedAt(v)
+	return _c
+}
+
+// SetNillableVoidedAt sets the "voided_at" field if the given value is not nil.
+func (_c *POSOrderLineCreate) SetNillableVoidedAt(v *time.Time) *POSOrderLineCreate {
+	if v != nil {
+		_c.SetVoidedAt(*v)
+	}
+	return _c
+}
+
 // SetID sets the "id" field.
 func (_c *POSOrderLineCreate) SetID(v uuid.UUID) *POSOrderLineCreate {
 	_c.mutation.SetID(v)
@@ -503,6 +559,22 @@ func (_c *POSOrderLineCreate) createSpec() (*POSOrderLine, *sqlgraph.CreateSpec)
 	if value, ok := _c.mutation.Metadata(); ok {
 		_spec.SetField(posorderline.FieldMetadata, field.TypeJSON, value)
 		_node.Metadata = value
+	}
+	if value, ok := _c.mutation.VoidedQty(); ok {
+		_spec.SetField(posorderline.FieldVoidedQty, field.TypeFloat64, value)
+		_node.VoidedQty = &value
+	}
+	if value, ok := _c.mutation.VoidedReason(); ok {
+		_spec.SetField(posorderline.FieldVoidedReason, field.TypeString, value)
+		_node.VoidedReason = &value
+	}
+	if value, ok := _c.mutation.VoidedBy(); ok {
+		_spec.SetField(posorderline.FieldVoidedBy, field.TypeUUID, value)
+		_node.VoidedBy = &value
+	}
+	if value, ok := _c.mutation.VoidedAt(); ok {
+		_spec.SetField(posorderline.FieldVoidedAt, field.TypeTime, value)
+		_node.VoidedAt = &value
 	}
 	if nodes := _c.mutation.OrderIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
@@ -952,6 +1024,84 @@ func (u *POSOrderLineUpsert) SetMetadata(v map[string]interface{}) *POSOrderLine
 // UpdateMetadata sets the "metadata" field to the value that was provided on create.
 func (u *POSOrderLineUpsert) UpdateMetadata() *POSOrderLineUpsert {
 	u.SetExcluded(posorderline.FieldMetadata)
+	return u
+}
+
+// SetVoidedQty sets the "voided_qty" field.
+func (u *POSOrderLineUpsert) SetVoidedQty(v float64) *POSOrderLineUpsert {
+	u.Set(posorderline.FieldVoidedQty, v)
+	return u
+}
+
+// UpdateVoidedQty sets the "voided_qty" field to the value that was provided on create.
+func (u *POSOrderLineUpsert) UpdateVoidedQty() *POSOrderLineUpsert {
+	u.SetExcluded(posorderline.FieldVoidedQty)
+	return u
+}
+
+// AddVoidedQty adds v to the "voided_qty" field.
+func (u *POSOrderLineUpsert) AddVoidedQty(v float64) *POSOrderLineUpsert {
+	u.Add(posorderline.FieldVoidedQty, v)
+	return u
+}
+
+// ClearVoidedQty clears the value of the "voided_qty" field.
+func (u *POSOrderLineUpsert) ClearVoidedQty() *POSOrderLineUpsert {
+	u.SetNull(posorderline.FieldVoidedQty)
+	return u
+}
+
+// SetVoidedReason sets the "voided_reason" field.
+func (u *POSOrderLineUpsert) SetVoidedReason(v string) *POSOrderLineUpsert {
+	u.Set(posorderline.FieldVoidedReason, v)
+	return u
+}
+
+// UpdateVoidedReason sets the "voided_reason" field to the value that was provided on create.
+func (u *POSOrderLineUpsert) UpdateVoidedReason() *POSOrderLineUpsert {
+	u.SetExcluded(posorderline.FieldVoidedReason)
+	return u
+}
+
+// ClearVoidedReason clears the value of the "voided_reason" field.
+func (u *POSOrderLineUpsert) ClearVoidedReason() *POSOrderLineUpsert {
+	u.SetNull(posorderline.FieldVoidedReason)
+	return u
+}
+
+// SetVoidedBy sets the "voided_by" field.
+func (u *POSOrderLineUpsert) SetVoidedBy(v uuid.UUID) *POSOrderLineUpsert {
+	u.Set(posorderline.FieldVoidedBy, v)
+	return u
+}
+
+// UpdateVoidedBy sets the "voided_by" field to the value that was provided on create.
+func (u *POSOrderLineUpsert) UpdateVoidedBy() *POSOrderLineUpsert {
+	u.SetExcluded(posorderline.FieldVoidedBy)
+	return u
+}
+
+// ClearVoidedBy clears the value of the "voided_by" field.
+func (u *POSOrderLineUpsert) ClearVoidedBy() *POSOrderLineUpsert {
+	u.SetNull(posorderline.FieldVoidedBy)
+	return u
+}
+
+// SetVoidedAt sets the "voided_at" field.
+func (u *POSOrderLineUpsert) SetVoidedAt(v time.Time) *POSOrderLineUpsert {
+	u.Set(posorderline.FieldVoidedAt, v)
+	return u
+}
+
+// UpdateVoidedAt sets the "voided_at" field to the value that was provided on create.
+func (u *POSOrderLineUpsert) UpdateVoidedAt() *POSOrderLineUpsert {
+	u.SetExcluded(posorderline.FieldVoidedAt)
+	return u
+}
+
+// ClearVoidedAt clears the value of the "voided_at" field.
+func (u *POSOrderLineUpsert) ClearVoidedAt() *POSOrderLineUpsert {
+	u.SetNull(posorderline.FieldVoidedAt)
 	return u
 }
 
@@ -1427,6 +1577,97 @@ func (u *POSOrderLineUpsertOne) SetMetadata(v map[string]interface{}) *POSOrderL
 func (u *POSOrderLineUpsertOne) UpdateMetadata() *POSOrderLineUpsertOne {
 	return u.Update(func(s *POSOrderLineUpsert) {
 		s.UpdateMetadata()
+	})
+}
+
+// SetVoidedQty sets the "voided_qty" field.
+func (u *POSOrderLineUpsertOne) SetVoidedQty(v float64) *POSOrderLineUpsertOne {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.SetVoidedQty(v)
+	})
+}
+
+// AddVoidedQty adds v to the "voided_qty" field.
+func (u *POSOrderLineUpsertOne) AddVoidedQty(v float64) *POSOrderLineUpsertOne {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.AddVoidedQty(v)
+	})
+}
+
+// UpdateVoidedQty sets the "voided_qty" field to the value that was provided on create.
+func (u *POSOrderLineUpsertOne) UpdateVoidedQty() *POSOrderLineUpsertOne {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.UpdateVoidedQty()
+	})
+}
+
+// ClearVoidedQty clears the value of the "voided_qty" field.
+func (u *POSOrderLineUpsertOne) ClearVoidedQty() *POSOrderLineUpsertOne {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.ClearVoidedQty()
+	})
+}
+
+// SetVoidedReason sets the "voided_reason" field.
+func (u *POSOrderLineUpsertOne) SetVoidedReason(v string) *POSOrderLineUpsertOne {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.SetVoidedReason(v)
+	})
+}
+
+// UpdateVoidedReason sets the "voided_reason" field to the value that was provided on create.
+func (u *POSOrderLineUpsertOne) UpdateVoidedReason() *POSOrderLineUpsertOne {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.UpdateVoidedReason()
+	})
+}
+
+// ClearVoidedReason clears the value of the "voided_reason" field.
+func (u *POSOrderLineUpsertOne) ClearVoidedReason() *POSOrderLineUpsertOne {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.ClearVoidedReason()
+	})
+}
+
+// SetVoidedBy sets the "voided_by" field.
+func (u *POSOrderLineUpsertOne) SetVoidedBy(v uuid.UUID) *POSOrderLineUpsertOne {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.SetVoidedBy(v)
+	})
+}
+
+// UpdateVoidedBy sets the "voided_by" field to the value that was provided on create.
+func (u *POSOrderLineUpsertOne) UpdateVoidedBy() *POSOrderLineUpsertOne {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.UpdateVoidedBy()
+	})
+}
+
+// ClearVoidedBy clears the value of the "voided_by" field.
+func (u *POSOrderLineUpsertOne) ClearVoidedBy() *POSOrderLineUpsertOne {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.ClearVoidedBy()
+	})
+}
+
+// SetVoidedAt sets the "voided_at" field.
+func (u *POSOrderLineUpsertOne) SetVoidedAt(v time.Time) *POSOrderLineUpsertOne {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.SetVoidedAt(v)
+	})
+}
+
+// UpdateVoidedAt sets the "voided_at" field to the value that was provided on create.
+func (u *POSOrderLineUpsertOne) UpdateVoidedAt() *POSOrderLineUpsertOne {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.UpdateVoidedAt()
+	})
+}
+
+// ClearVoidedAt clears the value of the "voided_at" field.
+func (u *POSOrderLineUpsertOne) ClearVoidedAt() *POSOrderLineUpsertOne {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.ClearVoidedAt()
 	})
 }
 
@@ -2069,6 +2310,97 @@ func (u *POSOrderLineUpsertBulk) SetMetadata(v map[string]interface{}) *POSOrder
 func (u *POSOrderLineUpsertBulk) UpdateMetadata() *POSOrderLineUpsertBulk {
 	return u.Update(func(s *POSOrderLineUpsert) {
 		s.UpdateMetadata()
+	})
+}
+
+// SetVoidedQty sets the "voided_qty" field.
+func (u *POSOrderLineUpsertBulk) SetVoidedQty(v float64) *POSOrderLineUpsertBulk {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.SetVoidedQty(v)
+	})
+}
+
+// AddVoidedQty adds v to the "voided_qty" field.
+func (u *POSOrderLineUpsertBulk) AddVoidedQty(v float64) *POSOrderLineUpsertBulk {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.AddVoidedQty(v)
+	})
+}
+
+// UpdateVoidedQty sets the "voided_qty" field to the value that was provided on create.
+func (u *POSOrderLineUpsertBulk) UpdateVoidedQty() *POSOrderLineUpsertBulk {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.UpdateVoidedQty()
+	})
+}
+
+// ClearVoidedQty clears the value of the "voided_qty" field.
+func (u *POSOrderLineUpsertBulk) ClearVoidedQty() *POSOrderLineUpsertBulk {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.ClearVoidedQty()
+	})
+}
+
+// SetVoidedReason sets the "voided_reason" field.
+func (u *POSOrderLineUpsertBulk) SetVoidedReason(v string) *POSOrderLineUpsertBulk {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.SetVoidedReason(v)
+	})
+}
+
+// UpdateVoidedReason sets the "voided_reason" field to the value that was provided on create.
+func (u *POSOrderLineUpsertBulk) UpdateVoidedReason() *POSOrderLineUpsertBulk {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.UpdateVoidedReason()
+	})
+}
+
+// ClearVoidedReason clears the value of the "voided_reason" field.
+func (u *POSOrderLineUpsertBulk) ClearVoidedReason() *POSOrderLineUpsertBulk {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.ClearVoidedReason()
+	})
+}
+
+// SetVoidedBy sets the "voided_by" field.
+func (u *POSOrderLineUpsertBulk) SetVoidedBy(v uuid.UUID) *POSOrderLineUpsertBulk {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.SetVoidedBy(v)
+	})
+}
+
+// UpdateVoidedBy sets the "voided_by" field to the value that was provided on create.
+func (u *POSOrderLineUpsertBulk) UpdateVoidedBy() *POSOrderLineUpsertBulk {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.UpdateVoidedBy()
+	})
+}
+
+// ClearVoidedBy clears the value of the "voided_by" field.
+func (u *POSOrderLineUpsertBulk) ClearVoidedBy() *POSOrderLineUpsertBulk {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.ClearVoidedBy()
+	})
+}
+
+// SetVoidedAt sets the "voided_at" field.
+func (u *POSOrderLineUpsertBulk) SetVoidedAt(v time.Time) *POSOrderLineUpsertBulk {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.SetVoidedAt(v)
+	})
+}
+
+// UpdateVoidedAt sets the "voided_at" field to the value that was provided on create.
+func (u *POSOrderLineUpsertBulk) UpdateVoidedAt() *POSOrderLineUpsertBulk {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.UpdateVoidedAt()
+	})
+}
+
+// ClearVoidedAt clears the value of the "voided_at" field.
+func (u *POSOrderLineUpsertBulk) ClearVoidedAt() *POSOrderLineUpsertBulk {
+	return u.Update(func(s *POSOrderLineUpsert) {
+		s.ClearVoidedAt()
 	})
 }
 

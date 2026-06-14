@@ -1546,6 +1546,10 @@ var (
 		{Name: "course_number", Type: field.TypeInt, Default: 0},
 		{Name: "kds_station_id", Type: field.TypeUUID, Nullable: true},
 		{Name: "metadata", Type: field.TypeJSON},
+		{Name: "voided_qty", Type: field.TypeFloat64, Nullable: true},
+		{Name: "voided_reason", Type: field.TypeString, Nullable: true},
+		{Name: "voided_by", Type: field.TypeUUID, Nullable: true},
+		{Name: "voided_at", Type: field.TypeTime, Nullable: true},
 		{Name: "order_id", Type: field.TypeUUID},
 	}
 	// PosOrderLinesTable holds the schema information for the "pos_order_lines" table.
@@ -1556,7 +1560,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "pos_order_lines_pos_orders_lines",
-				Columns:    []*schema.Column{PosOrderLinesColumns[21]},
+				Columns:    []*schema.Column{PosOrderLinesColumns[25]},
 				RefColumns: []*schema.Column{PosOrdersColumns[0]},
 				OnDelete:   schema.NoAction,
 			},

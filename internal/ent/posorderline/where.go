@@ -156,6 +156,26 @@ func KdsStationID(v uuid.UUID) predicate.POSOrderLine {
 	return predicate.POSOrderLine(sql.FieldEQ(FieldKdsStationID, v))
 }
 
+// VoidedQty applies equality check predicate on the "voided_qty" field. It's identical to VoidedQtyEQ.
+func VoidedQty(v float64) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldEQ(FieldVoidedQty, v))
+}
+
+// VoidedReason applies equality check predicate on the "voided_reason" field. It's identical to VoidedReasonEQ.
+func VoidedReason(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldEQ(FieldVoidedReason, v))
+}
+
+// VoidedBy applies equality check predicate on the "voided_by" field. It's identical to VoidedByEQ.
+func VoidedBy(v uuid.UUID) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldEQ(FieldVoidedBy, v))
+}
+
+// VoidedAt applies equality check predicate on the "voided_at" field. It's identical to VoidedAtEQ.
+func VoidedAt(v time.Time) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldEQ(FieldVoidedAt, v))
+}
+
 // OrderIDEQ applies the EQ predicate on the "order_id" field.
 func OrderIDEQ(v uuid.UUID) predicate.POSOrderLine {
 	return predicate.POSOrderLine(sql.FieldEQ(FieldOrderID, v))
@@ -1189,6 +1209,231 @@ func KdsStationIDIsNil() predicate.POSOrderLine {
 // KdsStationIDNotNil applies the NotNil predicate on the "kds_station_id" field.
 func KdsStationIDNotNil() predicate.POSOrderLine {
 	return predicate.POSOrderLine(sql.FieldNotNull(FieldKdsStationID))
+}
+
+// VoidedQtyEQ applies the EQ predicate on the "voided_qty" field.
+func VoidedQtyEQ(v float64) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldEQ(FieldVoidedQty, v))
+}
+
+// VoidedQtyNEQ applies the NEQ predicate on the "voided_qty" field.
+func VoidedQtyNEQ(v float64) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldNEQ(FieldVoidedQty, v))
+}
+
+// VoidedQtyIn applies the In predicate on the "voided_qty" field.
+func VoidedQtyIn(vs ...float64) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldIn(FieldVoidedQty, vs...))
+}
+
+// VoidedQtyNotIn applies the NotIn predicate on the "voided_qty" field.
+func VoidedQtyNotIn(vs ...float64) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldNotIn(FieldVoidedQty, vs...))
+}
+
+// VoidedQtyGT applies the GT predicate on the "voided_qty" field.
+func VoidedQtyGT(v float64) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldGT(FieldVoidedQty, v))
+}
+
+// VoidedQtyGTE applies the GTE predicate on the "voided_qty" field.
+func VoidedQtyGTE(v float64) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldGTE(FieldVoidedQty, v))
+}
+
+// VoidedQtyLT applies the LT predicate on the "voided_qty" field.
+func VoidedQtyLT(v float64) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldLT(FieldVoidedQty, v))
+}
+
+// VoidedQtyLTE applies the LTE predicate on the "voided_qty" field.
+func VoidedQtyLTE(v float64) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldLTE(FieldVoidedQty, v))
+}
+
+// VoidedQtyIsNil applies the IsNil predicate on the "voided_qty" field.
+func VoidedQtyIsNil() predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldIsNull(FieldVoidedQty))
+}
+
+// VoidedQtyNotNil applies the NotNil predicate on the "voided_qty" field.
+func VoidedQtyNotNil() predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldNotNull(FieldVoidedQty))
+}
+
+// VoidedReasonEQ applies the EQ predicate on the "voided_reason" field.
+func VoidedReasonEQ(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldEQ(FieldVoidedReason, v))
+}
+
+// VoidedReasonNEQ applies the NEQ predicate on the "voided_reason" field.
+func VoidedReasonNEQ(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldNEQ(FieldVoidedReason, v))
+}
+
+// VoidedReasonIn applies the In predicate on the "voided_reason" field.
+func VoidedReasonIn(vs ...string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldIn(FieldVoidedReason, vs...))
+}
+
+// VoidedReasonNotIn applies the NotIn predicate on the "voided_reason" field.
+func VoidedReasonNotIn(vs ...string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldNotIn(FieldVoidedReason, vs...))
+}
+
+// VoidedReasonGT applies the GT predicate on the "voided_reason" field.
+func VoidedReasonGT(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldGT(FieldVoidedReason, v))
+}
+
+// VoidedReasonGTE applies the GTE predicate on the "voided_reason" field.
+func VoidedReasonGTE(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldGTE(FieldVoidedReason, v))
+}
+
+// VoidedReasonLT applies the LT predicate on the "voided_reason" field.
+func VoidedReasonLT(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldLT(FieldVoidedReason, v))
+}
+
+// VoidedReasonLTE applies the LTE predicate on the "voided_reason" field.
+func VoidedReasonLTE(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldLTE(FieldVoidedReason, v))
+}
+
+// VoidedReasonContains applies the Contains predicate on the "voided_reason" field.
+func VoidedReasonContains(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldContains(FieldVoidedReason, v))
+}
+
+// VoidedReasonHasPrefix applies the HasPrefix predicate on the "voided_reason" field.
+func VoidedReasonHasPrefix(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldHasPrefix(FieldVoidedReason, v))
+}
+
+// VoidedReasonHasSuffix applies the HasSuffix predicate on the "voided_reason" field.
+func VoidedReasonHasSuffix(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldHasSuffix(FieldVoidedReason, v))
+}
+
+// VoidedReasonIsNil applies the IsNil predicate on the "voided_reason" field.
+func VoidedReasonIsNil() predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldIsNull(FieldVoidedReason))
+}
+
+// VoidedReasonNotNil applies the NotNil predicate on the "voided_reason" field.
+func VoidedReasonNotNil() predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldNotNull(FieldVoidedReason))
+}
+
+// VoidedReasonEqualFold applies the EqualFold predicate on the "voided_reason" field.
+func VoidedReasonEqualFold(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldEqualFold(FieldVoidedReason, v))
+}
+
+// VoidedReasonContainsFold applies the ContainsFold predicate on the "voided_reason" field.
+func VoidedReasonContainsFold(v string) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldContainsFold(FieldVoidedReason, v))
+}
+
+// VoidedByEQ applies the EQ predicate on the "voided_by" field.
+func VoidedByEQ(v uuid.UUID) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldEQ(FieldVoidedBy, v))
+}
+
+// VoidedByNEQ applies the NEQ predicate on the "voided_by" field.
+func VoidedByNEQ(v uuid.UUID) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldNEQ(FieldVoidedBy, v))
+}
+
+// VoidedByIn applies the In predicate on the "voided_by" field.
+func VoidedByIn(vs ...uuid.UUID) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldIn(FieldVoidedBy, vs...))
+}
+
+// VoidedByNotIn applies the NotIn predicate on the "voided_by" field.
+func VoidedByNotIn(vs ...uuid.UUID) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldNotIn(FieldVoidedBy, vs...))
+}
+
+// VoidedByGT applies the GT predicate on the "voided_by" field.
+func VoidedByGT(v uuid.UUID) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldGT(FieldVoidedBy, v))
+}
+
+// VoidedByGTE applies the GTE predicate on the "voided_by" field.
+func VoidedByGTE(v uuid.UUID) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldGTE(FieldVoidedBy, v))
+}
+
+// VoidedByLT applies the LT predicate on the "voided_by" field.
+func VoidedByLT(v uuid.UUID) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldLT(FieldVoidedBy, v))
+}
+
+// VoidedByLTE applies the LTE predicate on the "voided_by" field.
+func VoidedByLTE(v uuid.UUID) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldLTE(FieldVoidedBy, v))
+}
+
+// VoidedByIsNil applies the IsNil predicate on the "voided_by" field.
+func VoidedByIsNil() predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldIsNull(FieldVoidedBy))
+}
+
+// VoidedByNotNil applies the NotNil predicate on the "voided_by" field.
+func VoidedByNotNil() predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldNotNull(FieldVoidedBy))
+}
+
+// VoidedAtEQ applies the EQ predicate on the "voided_at" field.
+func VoidedAtEQ(v time.Time) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldEQ(FieldVoidedAt, v))
+}
+
+// VoidedAtNEQ applies the NEQ predicate on the "voided_at" field.
+func VoidedAtNEQ(v time.Time) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldNEQ(FieldVoidedAt, v))
+}
+
+// VoidedAtIn applies the In predicate on the "voided_at" field.
+func VoidedAtIn(vs ...time.Time) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldIn(FieldVoidedAt, vs...))
+}
+
+// VoidedAtNotIn applies the NotIn predicate on the "voided_at" field.
+func VoidedAtNotIn(vs ...time.Time) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldNotIn(FieldVoidedAt, vs...))
+}
+
+// VoidedAtGT applies the GT predicate on the "voided_at" field.
+func VoidedAtGT(v time.Time) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldGT(FieldVoidedAt, v))
+}
+
+// VoidedAtGTE applies the GTE predicate on the "voided_at" field.
+func VoidedAtGTE(v time.Time) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldGTE(FieldVoidedAt, v))
+}
+
+// VoidedAtLT applies the LT predicate on the "voided_at" field.
+func VoidedAtLT(v time.Time) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldLT(FieldVoidedAt, v))
+}
+
+// VoidedAtLTE applies the LTE predicate on the "voided_at" field.
+func VoidedAtLTE(v time.Time) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldLTE(FieldVoidedAt, v))
+}
+
+// VoidedAtIsNil applies the IsNil predicate on the "voided_at" field.
+func VoidedAtIsNil() predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldIsNull(FieldVoidedAt))
+}
+
+// VoidedAtNotNil applies the NotNil predicate on the "voided_at" field.
+func VoidedAtNotNil() predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldNotNull(FieldVoidedAt))
 }
 
 // HasOrder applies the HasEdge predicate on the "order" edge.

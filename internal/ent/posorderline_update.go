@@ -439,6 +439,93 @@ func (_u *POSOrderLineUpdate) SetMetadata(v map[string]interface{}) *POSOrderLin
 	return _u
 }
 
+// SetVoidedQty sets the "voided_qty" field.
+func (_u *POSOrderLineUpdate) SetVoidedQty(v float64) *POSOrderLineUpdate {
+	_u.mutation.ResetVoidedQty()
+	_u.mutation.SetVoidedQty(v)
+	return _u
+}
+
+// SetNillableVoidedQty sets the "voided_qty" field if the given value is not nil.
+func (_u *POSOrderLineUpdate) SetNillableVoidedQty(v *float64) *POSOrderLineUpdate {
+	if v != nil {
+		_u.SetVoidedQty(*v)
+	}
+	return _u
+}
+
+// AddVoidedQty adds value to the "voided_qty" field.
+func (_u *POSOrderLineUpdate) AddVoidedQty(v float64) *POSOrderLineUpdate {
+	_u.mutation.AddVoidedQty(v)
+	return _u
+}
+
+// ClearVoidedQty clears the value of the "voided_qty" field.
+func (_u *POSOrderLineUpdate) ClearVoidedQty() *POSOrderLineUpdate {
+	_u.mutation.ClearVoidedQty()
+	return _u
+}
+
+// SetVoidedReason sets the "voided_reason" field.
+func (_u *POSOrderLineUpdate) SetVoidedReason(v string) *POSOrderLineUpdate {
+	_u.mutation.SetVoidedReason(v)
+	return _u
+}
+
+// SetNillableVoidedReason sets the "voided_reason" field if the given value is not nil.
+func (_u *POSOrderLineUpdate) SetNillableVoidedReason(v *string) *POSOrderLineUpdate {
+	if v != nil {
+		_u.SetVoidedReason(*v)
+	}
+	return _u
+}
+
+// ClearVoidedReason clears the value of the "voided_reason" field.
+func (_u *POSOrderLineUpdate) ClearVoidedReason() *POSOrderLineUpdate {
+	_u.mutation.ClearVoidedReason()
+	return _u
+}
+
+// SetVoidedBy sets the "voided_by" field.
+func (_u *POSOrderLineUpdate) SetVoidedBy(v uuid.UUID) *POSOrderLineUpdate {
+	_u.mutation.SetVoidedBy(v)
+	return _u
+}
+
+// SetNillableVoidedBy sets the "voided_by" field if the given value is not nil.
+func (_u *POSOrderLineUpdate) SetNillableVoidedBy(v *uuid.UUID) *POSOrderLineUpdate {
+	if v != nil {
+		_u.SetVoidedBy(*v)
+	}
+	return _u
+}
+
+// ClearVoidedBy clears the value of the "voided_by" field.
+func (_u *POSOrderLineUpdate) ClearVoidedBy() *POSOrderLineUpdate {
+	_u.mutation.ClearVoidedBy()
+	return _u
+}
+
+// SetVoidedAt sets the "voided_at" field.
+func (_u *POSOrderLineUpdate) SetVoidedAt(v time.Time) *POSOrderLineUpdate {
+	_u.mutation.SetVoidedAt(v)
+	return _u
+}
+
+// SetNillableVoidedAt sets the "voided_at" field if the given value is not nil.
+func (_u *POSOrderLineUpdate) SetNillableVoidedAt(v *time.Time) *POSOrderLineUpdate {
+	if v != nil {
+		_u.SetVoidedAt(*v)
+	}
+	return _u
+}
+
+// ClearVoidedAt clears the value of the "voided_at" field.
+func (_u *POSOrderLineUpdate) ClearVoidedAt() *POSOrderLineUpdate {
+	_u.mutation.ClearVoidedAt()
+	return _u
+}
+
 // SetOrder sets the "order" edge to the POSOrder entity.
 func (_u *POSOrderLineUpdate) SetOrder(v *POSOrder) *POSOrderLineUpdate {
 	return _u.SetOrderID(v.ID)
@@ -664,6 +751,33 @@ func (_u *POSOrderLineUpdate) sqlSave(ctx context.Context) (_node int, err error
 	}
 	if value, ok := _u.mutation.Metadata(); ok {
 		_spec.SetField(posorderline.FieldMetadata, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.VoidedQty(); ok {
+		_spec.SetField(posorderline.FieldVoidedQty, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedVoidedQty(); ok {
+		_spec.AddField(posorderline.FieldVoidedQty, field.TypeFloat64, value)
+	}
+	if _u.mutation.VoidedQtyCleared() {
+		_spec.ClearField(posorderline.FieldVoidedQty, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.VoidedReason(); ok {
+		_spec.SetField(posorderline.FieldVoidedReason, field.TypeString, value)
+	}
+	if _u.mutation.VoidedReasonCleared() {
+		_spec.ClearField(posorderline.FieldVoidedReason, field.TypeString)
+	}
+	if value, ok := _u.mutation.VoidedBy(); ok {
+		_spec.SetField(posorderline.FieldVoidedBy, field.TypeUUID, value)
+	}
+	if _u.mutation.VoidedByCleared() {
+		_spec.ClearField(posorderline.FieldVoidedBy, field.TypeUUID)
+	}
+	if value, ok := _u.mutation.VoidedAt(); ok {
+		_spec.SetField(posorderline.FieldVoidedAt, field.TypeTime, value)
+	}
+	if _u.mutation.VoidedAtCleared() {
+		_spec.ClearField(posorderline.FieldVoidedAt, field.TypeTime)
 	}
 	if _u.mutation.OrderCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -1167,6 +1281,93 @@ func (_u *POSOrderLineUpdateOne) SetMetadata(v map[string]interface{}) *POSOrder
 	return _u
 }
 
+// SetVoidedQty sets the "voided_qty" field.
+func (_u *POSOrderLineUpdateOne) SetVoidedQty(v float64) *POSOrderLineUpdateOne {
+	_u.mutation.ResetVoidedQty()
+	_u.mutation.SetVoidedQty(v)
+	return _u
+}
+
+// SetNillableVoidedQty sets the "voided_qty" field if the given value is not nil.
+func (_u *POSOrderLineUpdateOne) SetNillableVoidedQty(v *float64) *POSOrderLineUpdateOne {
+	if v != nil {
+		_u.SetVoidedQty(*v)
+	}
+	return _u
+}
+
+// AddVoidedQty adds value to the "voided_qty" field.
+func (_u *POSOrderLineUpdateOne) AddVoidedQty(v float64) *POSOrderLineUpdateOne {
+	_u.mutation.AddVoidedQty(v)
+	return _u
+}
+
+// ClearVoidedQty clears the value of the "voided_qty" field.
+func (_u *POSOrderLineUpdateOne) ClearVoidedQty() *POSOrderLineUpdateOne {
+	_u.mutation.ClearVoidedQty()
+	return _u
+}
+
+// SetVoidedReason sets the "voided_reason" field.
+func (_u *POSOrderLineUpdateOne) SetVoidedReason(v string) *POSOrderLineUpdateOne {
+	_u.mutation.SetVoidedReason(v)
+	return _u
+}
+
+// SetNillableVoidedReason sets the "voided_reason" field if the given value is not nil.
+func (_u *POSOrderLineUpdateOne) SetNillableVoidedReason(v *string) *POSOrderLineUpdateOne {
+	if v != nil {
+		_u.SetVoidedReason(*v)
+	}
+	return _u
+}
+
+// ClearVoidedReason clears the value of the "voided_reason" field.
+func (_u *POSOrderLineUpdateOne) ClearVoidedReason() *POSOrderLineUpdateOne {
+	_u.mutation.ClearVoidedReason()
+	return _u
+}
+
+// SetVoidedBy sets the "voided_by" field.
+func (_u *POSOrderLineUpdateOne) SetVoidedBy(v uuid.UUID) *POSOrderLineUpdateOne {
+	_u.mutation.SetVoidedBy(v)
+	return _u
+}
+
+// SetNillableVoidedBy sets the "voided_by" field if the given value is not nil.
+func (_u *POSOrderLineUpdateOne) SetNillableVoidedBy(v *uuid.UUID) *POSOrderLineUpdateOne {
+	if v != nil {
+		_u.SetVoidedBy(*v)
+	}
+	return _u
+}
+
+// ClearVoidedBy clears the value of the "voided_by" field.
+func (_u *POSOrderLineUpdateOne) ClearVoidedBy() *POSOrderLineUpdateOne {
+	_u.mutation.ClearVoidedBy()
+	return _u
+}
+
+// SetVoidedAt sets the "voided_at" field.
+func (_u *POSOrderLineUpdateOne) SetVoidedAt(v time.Time) *POSOrderLineUpdateOne {
+	_u.mutation.SetVoidedAt(v)
+	return _u
+}
+
+// SetNillableVoidedAt sets the "voided_at" field if the given value is not nil.
+func (_u *POSOrderLineUpdateOne) SetNillableVoidedAt(v *time.Time) *POSOrderLineUpdateOne {
+	if v != nil {
+		_u.SetVoidedAt(*v)
+	}
+	return _u
+}
+
+// ClearVoidedAt clears the value of the "voided_at" field.
+func (_u *POSOrderLineUpdateOne) ClearVoidedAt() *POSOrderLineUpdateOne {
+	_u.mutation.ClearVoidedAt()
+	return _u
+}
+
 // SetOrder sets the "order" edge to the POSOrder entity.
 func (_u *POSOrderLineUpdateOne) SetOrder(v *POSOrder) *POSOrderLineUpdateOne {
 	return _u.SetOrderID(v.ID)
@@ -1422,6 +1623,33 @@ func (_u *POSOrderLineUpdateOne) sqlSave(ctx context.Context) (_node *POSOrderLi
 	}
 	if value, ok := _u.mutation.Metadata(); ok {
 		_spec.SetField(posorderline.FieldMetadata, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.VoidedQty(); ok {
+		_spec.SetField(posorderline.FieldVoidedQty, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedVoidedQty(); ok {
+		_spec.AddField(posorderline.FieldVoidedQty, field.TypeFloat64, value)
+	}
+	if _u.mutation.VoidedQtyCleared() {
+		_spec.ClearField(posorderline.FieldVoidedQty, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.VoidedReason(); ok {
+		_spec.SetField(posorderline.FieldVoidedReason, field.TypeString, value)
+	}
+	if _u.mutation.VoidedReasonCleared() {
+		_spec.ClearField(posorderline.FieldVoidedReason, field.TypeString)
+	}
+	if value, ok := _u.mutation.VoidedBy(); ok {
+		_spec.SetField(posorderline.FieldVoidedBy, field.TypeUUID, value)
+	}
+	if _u.mutation.VoidedByCleared() {
+		_spec.ClearField(posorderline.FieldVoidedBy, field.TypeUUID)
+	}
+	if value, ok := _u.mutation.VoidedAt(); ok {
+		_spec.SetField(posorderline.FieldVoidedAt, field.TypeTime, value)
+	}
+	if _u.mutation.VoidedAtCleared() {
+		_spec.ClearField(posorderline.FieldVoidedAt, field.TypeTime)
 	}
 	if _u.mutation.OrderCleared() {
 		edge := &sqlgraph.EdgeSpec{
