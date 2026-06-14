@@ -66,6 +66,7 @@ type createOrderInput struct {
 	Lines          []createOrderLineInput `json:"lines"`
 	Metadata       map[string]interface{} `json:"metadata"`
 	PrescriptionID *string                `json:"prescription_id,omitempty"`
+	AgeVerified    bool                   `json:"age_verified,omitempty"`   // cashier confirmed customer age for age-restricted items
 	OrderSubtype   string                 `json:"order_subtype"`            // dine_in | takeaway | room_service | delivery | bar_tab | retail
 	TableID        string                 `json:"table_id"`                 // hospitality dine-in table UUID
 	CustomerPhone  string                 `json:"customer_phone,omitempty"` // loyalty auto-earn
@@ -298,6 +299,34 @@ func (h *POSOrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 					blocked = append(blocked, o.InventorySku)
 				}
 				jsonError(w, "prescription required for: "+strings.Join(blocked, ", "), http.StatusUnprocessableEntity)
+				return
+			}
+		}
+	}
+
+	// Age-restricted items: block unless the cashier has confirmed the customer's
+	// age. Enforced server-side (defence in depth — the client age prompt can be
+	// bypassed).
+	if !input.AgeVerified {
+		skus := make([]string, 0, len(input.Lines))
+		for _, l := range input.Lines {
+			if l.SKU != "" {
+				skus = append(skus, l.SKU)
+			}
+		}
+		if len(skus) > 0 {
+			ageOverrides, _ := h.client.POSCatalogOverride.Query().
+				Where(
+					entoverride.TenantID(tid),
+					entoverride.InventorySkuIn(skus...),
+					entoverride.MinimumAgeGT(0),
+				).All(r.Context())
+			if len(ageOverrides) > 0 {
+				blocked := make([]string, 0, len(ageOverrides))
+				for _, o := range ageOverrides {
+					blocked = append(blocked, o.InventorySku)
+				}
+				jsonError(w, "age verification required for: "+strings.Join(blocked, ", "), http.StatusUnprocessableEntity)
 				return
 			}
 		}
