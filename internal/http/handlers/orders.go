@@ -13,6 +13,7 @@ import (
 
 	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/Bengo-Hub/httpware"
+	"github.com/bengobox/pos-service/internal/audit"
 	"github.com/bengobox/pos-service/internal/ent"
 	entoverride "github.com/bengobox/pos-service/internal/ent/poscatalogoverride"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
@@ -28,11 +29,20 @@ type POSOrderHandler struct {
 	client     *ent.Client
 	orderSvc   *orders.Service
 	subsClient *subscriptions.Client
+	auditSvc   *audit.Service
+	// terminalSecret verifies manager-PIN step-up approval tokens for sensitive actions.
+	terminalSecret []byte
 }
 
 func NewPOSOrderHandler(log *zap.Logger, client *ent.Client, orderSvc *orders.Service, subsClient *subscriptions.Client) *POSOrderHandler {
 	return &POSOrderHandler{log: log, client: client, orderSvc: orderSvc, subsClient: subsClient}
 }
+
+// SetAuditService wires the centralized audit trail for void/line-removal events.
+func (h *POSOrderHandler) SetAuditService(a *audit.Service) { h.auditSvc = a }
+
+// SetTerminalSecret wires the HMAC secret used to verify manager step-up tokens.
+func (h *POSOrderHandler) SetTerminalSecret(s []byte) { h.terminalSecret = s }
 
 // createOrderLineInput is a single line in the order create request body.
 type createOrderLineInput struct {
@@ -405,7 +415,8 @@ func (h *POSOrderHandler) VoidOrder(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var input struct {
-		Reason string `json:"reason"`
+		Reason        string `json:"reason"`
+		ApprovalToken string `json:"approval_token"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil || input.Reason == "" {
 		jsonError(w, "reason is required", http.StatusBadRequest)
@@ -418,6 +429,17 @@ func (h *POSOrderHandler) VoidOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	callerID, _ := uuid.Parse(claims.Subject)
+
+	// Capture a manager step-up approver when supplied (manager-PIN dialog flow).
+	var approverID *uuid.UUID
+	if input.ApprovalToken != "" && len(h.terminalSecret) > 0 {
+		if aid, valid := verifyApprovalToken(input.ApprovalToken, "order.void", h.terminalSecret); valid {
+			approverID = &aid
+		} else {
+			jsonError(w, "invalid or expired approval", http.StatusForbidden)
+			return
+		}
+	}
 
 	order, err := h.client.POSOrder.Query().
 		Where(posorder.ID(orderID), posorder.TenantID(tid)).
@@ -450,6 +472,24 @@ func (h *POSOrderHandler) VoidOrder(w http.ResponseWriter, r *http.Request) {
 		zap.Stringer("voided_by", callerID),
 		zap.String("reason", input.Reason),
 	)
+
+	if h.auditSvc != nil {
+		oid := order.OutletID
+		amt := order.TotalAmount
+		h.auditSvc.Record(r.Context(), audit.Entry{
+			TenantID:    tid,
+			OutletID:    &oid,
+			ActorUserID: callerID,
+			ApproverID:  approverID,
+			Action:      "order.void",
+			EntityType:  "pos_order",
+			EntityID:    orderID.String(),
+			Reason:      input.Reason,
+			Amount:      &amt,
+			Before:      map[string]any{"status": order.Status, "order_number": order.OrderNumber},
+			After:       map[string]any{"status": "voided"},
+		})
+	}
 	jsonOK(w, updated)
 }
 

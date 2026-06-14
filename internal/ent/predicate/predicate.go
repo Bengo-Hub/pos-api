@@ -9,6 +9,9 @@ import (
 // Appointment is the predicate function for appointment builders.
 type Appointment func(*sql.Selector)
 
+// AuditLog is the predicate function for auditlog builders.
+type AuditLog func(*sql.Selector)
+
 // BarTab is the predicate function for bartab builders.
 type BarTab func(*sql.Selector)
 

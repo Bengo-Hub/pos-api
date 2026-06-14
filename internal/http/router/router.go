@@ -133,6 +133,7 @@ func New(
 				pub.Get("/{tenantID}/pos/staff", pinAuth.ListStaff)
 				pub.Post("/{tenantID}/pos/auth/pin", pinAuth.Login)
 				pub.Post("/{tenantID}/pos/auth/pin/identify", pinAuth.IdentifyByPIN)
+				pub.Post("/{tenantID}/pos/auth/pin/step-up", pinAuth.StepUp)
 				pub.Get("/{tenantID}/pos/auth/pin/profile", pinAuth.StaffProfiles)
 			}
 			if publicOutlet != nil {
@@ -625,6 +626,8 @@ func New(
 					// Reports & Analytics
 					if reports != nil {
 						pos.Get("/reports/summary", reports.GetSummary)
+						pos.Get("/reports/audit-logs", reports.ListAuditLogs)
+						pos.Get("/reports/exceptions", reports.Exceptions)
 						pos.Get("/reports/sales-summary", reports.SalesSummary)
 						pos.Get("/reports/refund-summary", reports.RefundSummary)
 						pos.Get("/reports/daily-breakdown", reports.DailyBreakdown)

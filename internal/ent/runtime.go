@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/bengobox/pos-service/internal/ent/appointment"
+	"github.com/bengobox/pos-service/internal/ent/auditlog"
 	"github.com/bengobox/pos-service/internal/ent/bartab"
 	"github.com/bengobox/pos-service/internal/ent/bartabevent"
 	"github.com/bengobox/pos-service/internal/ent/billsplit"
@@ -137,6 +138,20 @@ func init() {
 	appointmentDescID := appointmentFields[0].Descriptor()
 	// appointment.DefaultID holds the default value on creation for the id field.
 	appointment.DefaultID = appointmentDescID.Default.(func() uuid.UUID)
+	auditlogFields := schema.AuditLog{}.Fields()
+	_ = auditlogFields
+	// auditlogDescAction is the schema descriptor for action field.
+	auditlogDescAction := auditlogFields[6].Descriptor()
+	// auditlog.ActionValidator is a validator for the "action" field. It is called by the builders before save.
+	auditlog.ActionValidator = auditlogDescAction.Validators[0].(func(string) error)
+	// auditlogDescCreatedAt is the schema descriptor for created_at field.
+	auditlogDescCreatedAt := auditlogFields[13].Descriptor()
+	// auditlog.DefaultCreatedAt holds the default value on creation for the created_at field.
+	auditlog.DefaultCreatedAt = auditlogDescCreatedAt.Default.(func() time.Time)
+	// auditlogDescID is the schema descriptor for id field.
+	auditlogDescID := auditlogFields[0].Descriptor()
+	// auditlog.DefaultID holds the default value on creation for the id field.
+	auditlog.DefaultID = auditlogDescID.Default.(func() uuid.UUID)
 	bartabFields := schema.BarTab{}.Fields()
 	_ = bartabFields
 	// bartabDescTabName is the schema descriptor for tab_name field.

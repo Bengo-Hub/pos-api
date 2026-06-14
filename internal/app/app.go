@@ -23,6 +23,7 @@ import (
 	sharedcache "github.com/Bengo-Hub/cache"
 	authclient "github.com/Bengo-Hub/shared-auth-client"
 	eventslib "github.com/Bengo-Hub/shared-events"
+	"github.com/bengobox/pos-service/internal/audit"
 	"github.com/bengobox/pos-service/internal/config"
 	"github.com/bengobox/pos-service/internal/ent"
 	"github.com/bengobox/pos-service/internal/ent/migrate"
@@ -207,8 +208,12 @@ func New(ctx context.Context) (*App, error) {
 		promoSvc.RecordApplication,
 	)
 
+	// Centralized audit trail for sensitive/fraud-relevant actions.
+	auditSvc := audit.NewService(entClient, log)
+
 	// Create HTTP handlers
 	orderHandler := handlers.NewPOSOrderHandler(log, entClient, orderSvc, subsClient)
+	orderHandler.SetAuditService(auditSvc)
 	catalogHandler := handlers.NewCatalogHandler(log, entClient)
 	catalogHandler.SetRedisClient(redisClient)
 	tableHandler := handlers.NewTableHandler(log, entClient)
@@ -254,6 +259,9 @@ func New(ctx context.Context) (*App, error) {
 		terminalJWTSecret = []byte(cfg.Treasury.InternalServiceKey)
 	}
 	pinAuthHandler := handlers.NewPINAuthHandler(log, entClient, terminalJWTSecret, subsClient)
+	pinAuthHandler.SetAuditService(auditSvc)
+	// Order handler verifies manager step-up approval tokens with the same secret.
+	orderHandler.SetTerminalSecret(terminalJWTSecret)
 	publicOutletHandler := handlers.NewPublicOutletHandler(log, entClient)
 
 	// Retail module: layaway plans, weighing scale, purchase orders proxy

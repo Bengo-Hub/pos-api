@@ -14,6 +14,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	authclient "github.com/Bengo-Hub/shared-auth-client"
+	"github.com/bengobox/pos-service/internal/audit"
 	"github.com/bengobox/pos-service/internal/ent"
 	entoutlet "github.com/bengobox/pos-service/internal/ent/outlet"
 	entstaff "github.com/bengobox/pos-service/internal/ent/staffmember"
@@ -51,10 +52,16 @@ type PINAuthHandler struct {
 	// subsClient fetches the tenant's subscription so the terminal JWT carries the same
 	// entitlements as an SSO session (features/limits/status + demo/owner bypass flags).
 	subsClient *subscriptions.Client
+	auditSvc   *audit.Service
 }
 
 func NewPINAuthHandler(log *zap.Logger, client *ent.Client, jwtSecret []byte, subsClient *subscriptions.Client) *PINAuthHandler {
 	return &PINAuthHandler{log: log, client: client, jwtSecret: jwtSecret, subsClient: subsClient}
+}
+
+// SetAuditService wires the centralized audit trail (manager step-up events).
+func (h *PINAuthHandler) SetAuditService(a *audit.Service) {
+	h.auditSvc = a
 }
 
 // resolveTerminalEntitlements builds the subscription snapshot + bypass flags embedded in

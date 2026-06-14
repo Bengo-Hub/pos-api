@@ -51,6 +51,46 @@ var (
 			},
 		},
 	}
+	// AuditLogsColumns holds the columns for the "audit_logs" table.
+	AuditLogsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "outlet_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "actor_user_id", Type: field.TypeUUID},
+		{Name: "actor_staff_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "approver_user_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "action", Type: field.TypeString},
+		{Name: "entity_type", Type: field.TypeString, Nullable: true},
+		{Name: "entity_id", Type: field.TypeString, Nullable: true},
+		{Name: "reason", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "before_json", Type: field.TypeJSON, Nullable: true},
+		{Name: "after_json", Type: field.TypeJSON, Nullable: true},
+		{Name: "amount", Type: field.TypeFloat64, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+	}
+	// AuditLogsTable holds the schema information for the "audit_logs" table.
+	AuditLogsTable = &schema.Table{
+		Name:       "audit_logs",
+		Columns:    AuditLogsColumns,
+		PrimaryKey: []*schema.Column{AuditLogsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "auditlog_tenant_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{AuditLogsColumns[1], AuditLogsColumns[13]},
+			},
+			{
+				Name:    "auditlog_tenant_id_outlet_id_action",
+				Unique:  false,
+				Columns: []*schema.Column{AuditLogsColumns[1], AuditLogsColumns[2], AuditLogsColumns[6]},
+			},
+			{
+				Name:    "auditlog_tenant_id_actor_user_id",
+				Unique:  false,
+				Columns: []*schema.Column{AuditLogsColumns[1], AuditLogsColumns[3]},
+			},
+		},
+	}
 	// BarTabsColumns holds the columns for the "bar_tabs" table.
 	BarTabsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -3566,6 +3606,7 @@ var (
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		AppointmentsTable,
+		AuditLogsTable,
 		BarTabsTable,
 		BarTabEventsTable,
 		BillSplitsTable,
