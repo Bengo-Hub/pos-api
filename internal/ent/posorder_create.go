@@ -277,6 +277,20 @@ func (_c *POSOrderCreate) SetNillableEtimsQrCodeURL(v *string) *POSOrderCreate {
 	return _c
 }
 
+// SetReprintCount sets the "reprint_count" field.
+func (_c *POSOrderCreate) SetReprintCount(v int) *POSOrderCreate {
+	_c.mutation.SetReprintCount(v)
+	return _c
+}
+
+// SetNillableReprintCount sets the "reprint_count" field if the given value is not nil.
+func (_c *POSOrderCreate) SetNillableReprintCount(v *int) *POSOrderCreate {
+	if v != nil {
+		_c.SetReprintCount(*v)
+	}
+	return _c
+}
+
 // SetVoidedReason sets the "voided_reason" field.
 func (_c *POSOrderCreate) SetVoidedReason(v string) *POSOrderCreate {
 	_c.mutation.SetVoidedReason(v)
@@ -477,6 +491,10 @@ func (_c *POSOrderCreate) defaults() {
 		v := posorder.DefaultFiredCourses
 		_c.mutation.SetFiredCourses(v)
 	}
+	if _, ok := _c.mutation.ReprintCount(); !ok {
+		v := posorder.DefaultReprintCount
+		_c.mutation.SetReprintCount(v)
+	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		v := posorder.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
@@ -553,6 +571,9 @@ func (_c *POSOrderCreate) check() error {
 	}
 	if _, ok := _c.mutation.FiredCourses(); !ok {
 		return &ValidationError{Name: "fired_courses", err: errors.New(`ent: missing required field "POSOrder.fired_courses"`)}
+	}
+	if _, ok := _c.mutation.ReprintCount(); !ok {
+		return &ValidationError{Name: "reprint_count", err: errors.New(`ent: missing required field "POSOrder.reprint_count"`)}
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "POSOrder.created_at"`)}
@@ -687,6 +708,10 @@ func (_c *POSOrderCreate) createSpec() (*POSOrder, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.EtimsQrCodeURL(); ok {
 		_spec.SetField(posorder.FieldEtimsQrCodeURL, field.TypeString, value)
 		_node.EtimsQrCodeURL = &value
+	}
+	if value, ok := _c.mutation.ReprintCount(); ok {
+		_spec.SetField(posorder.FieldReprintCount, field.TypeInt, value)
+		_node.ReprintCount = value
 	}
 	if value, ok := _c.mutation.VoidedReason(); ok {
 		_spec.SetField(posorder.FieldVoidedReason, field.TypeString, value)
@@ -1165,6 +1190,24 @@ func (u *POSOrderUpsert) UpdateEtimsQrCodeURL() *POSOrderUpsert {
 // ClearEtimsQrCodeURL clears the value of the "etims_qr_code_url" field.
 func (u *POSOrderUpsert) ClearEtimsQrCodeURL() *POSOrderUpsert {
 	u.SetNull(posorder.FieldEtimsQrCodeURL)
+	return u
+}
+
+// SetReprintCount sets the "reprint_count" field.
+func (u *POSOrderUpsert) SetReprintCount(v int) *POSOrderUpsert {
+	u.Set(posorder.FieldReprintCount, v)
+	return u
+}
+
+// UpdateReprintCount sets the "reprint_count" field to the value that was provided on create.
+func (u *POSOrderUpsert) UpdateReprintCount() *POSOrderUpsert {
+	u.SetExcluded(posorder.FieldReprintCount)
+	return u
+}
+
+// AddReprintCount adds v to the "reprint_count" field.
+func (u *POSOrderUpsert) AddReprintCount(v int) *POSOrderUpsert {
+	u.Add(posorder.FieldReprintCount, v)
 	return u
 }
 
@@ -1702,6 +1745,27 @@ func (u *POSOrderUpsertOne) UpdateEtimsQrCodeURL() *POSOrderUpsertOne {
 func (u *POSOrderUpsertOne) ClearEtimsQrCodeURL() *POSOrderUpsertOne {
 	return u.Update(func(s *POSOrderUpsert) {
 		s.ClearEtimsQrCodeURL()
+	})
+}
+
+// SetReprintCount sets the "reprint_count" field.
+func (u *POSOrderUpsertOne) SetReprintCount(v int) *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetReprintCount(v)
+	})
+}
+
+// AddReprintCount adds v to the "reprint_count" field.
+func (u *POSOrderUpsertOne) AddReprintCount(v int) *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.AddReprintCount(v)
+	})
+}
+
+// UpdateReprintCount sets the "reprint_count" field to the value that was provided on create.
+func (u *POSOrderUpsertOne) UpdateReprintCount() *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdateReprintCount()
 	})
 }
 
@@ -2417,6 +2481,27 @@ func (u *POSOrderUpsertBulk) UpdateEtimsQrCodeURL() *POSOrderUpsertBulk {
 func (u *POSOrderUpsertBulk) ClearEtimsQrCodeURL() *POSOrderUpsertBulk {
 	return u.Update(func(s *POSOrderUpsert) {
 		s.ClearEtimsQrCodeURL()
+	})
+}
+
+// SetReprintCount sets the "reprint_count" field.
+func (u *POSOrderUpsertBulk) SetReprintCount(v int) *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetReprintCount(v)
+	})
+}
+
+// AddReprintCount adds v to the "reprint_count" field.
+func (u *POSOrderUpsertBulk) AddReprintCount(v int) *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.AddReprintCount(v)
+	})
+}
+
+// UpdateReprintCount sets the "reprint_count" field to the value that was provided on create.
+func (u *POSOrderUpsertBulk) UpdateReprintCount() *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdateReprintCount()
 	})
 }
 

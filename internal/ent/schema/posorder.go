@@ -77,6 +77,11 @@ func (POSOrder) Fields() []ent.Field {
 		field.String("etims_qr_code_url").
 			Optional().
 			Nillable(),
+		// Receipt reprint tracking — incremented on each explicit reprint so
+		// duplicate receipts (a cash-skimming vector) are flagged + audited.
+		field.Int("reprint_count").
+			Default(0).
+			Comment("Number of times the receipt has been explicitly reprinted"),
 		// Void fields — set when Admin/Manager voids an order.
 		field.String("voided_reason").
 			Optional().

@@ -255,6 +255,7 @@ func New(
 						pos.Get("/orders/{orderID}/receipt", receipt.GetReceipt)
 						pos.Get("/orders/{orderID}/receipt/html", receipt.GetReceiptHTML)
 						pos.Get("/orders/{orderID}/receipt/pdf", receipt.GetReceiptPDF)
+						pos.Post("/orders/{orderID}/receipt/reprint", receipt.ReprintReceipt)
 					}
 
 					// QZ Tray printing bridge — serve the platform cert + sign print requests so the

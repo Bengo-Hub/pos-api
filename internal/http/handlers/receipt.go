@@ -9,10 +9,12 @@ import (
 	"time"
 
 	sharedcache "github.com/Bengo-Hub/cache"
+	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
+	"github.com/bengobox/pos-service/internal/audit"
 	"github.com/bengobox/pos-service/internal/ent"
 	entoutlet "github.com/bengobox/pos-service/internal/ent/outlet"
 	entoutletsetting "github.com/bengobox/pos-service/internal/ent/outletsetting"
@@ -23,15 +25,64 @@ import (
 
 // ReceiptHandler handles receipt generation endpoints.
 type ReceiptHandler struct {
-	log     *zap.Logger
-	client  *ent.Client
-	cache   *sharedcache.Aside // tenant branding cache (auth-api source)
-	authURL string
+	log      *zap.Logger
+	client   *ent.Client
+	cache    *sharedcache.Aside // tenant branding cache (auth-api source)
+	authURL  string
+	auditSvc *audit.Service
 }
 
 // NewReceiptHandler creates a new ReceiptHandler.
 func NewReceiptHandler(log *zap.Logger, client *ent.Client, cache *sharedcache.Aside, authURL string) *ReceiptHandler {
 	return &ReceiptHandler{log: log, client: client, cache: cache, authURL: authURL}
+}
+
+// SetAuditService wires the centralized audit trail for receipt reprints.
+func (h *ReceiptHandler) SetAuditService(a *audit.Service) { h.auditSvc = a }
+
+// ReprintReceipt handles POST /{tenantID}/pos/orders/{orderID}/receipt/reprint.
+// Increments the order's reprint counter and records a receipt.reprint audit
+// entry (duplicate receipts are a cash-skimming vector). Returns the new count.
+func (h *ReceiptHandler) ReprintReceipt(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+	orderID, err := uuid.Parse(chi.URLParam(r, "orderID"))
+	if err != nil {
+		jsonError(w, "invalid order id", http.StatusBadRequest)
+		return
+	}
+	order, err := h.client.POSOrder.Query().
+		Where(posorder.ID(orderID), posorder.TenantID(tid)).
+		Only(r.Context())
+	if err != nil {
+		jsonError(w, "order not found", http.StatusNotFound)
+		return
+	}
+	updated, err := order.Update().AddReprintCount(1).Save(r.Context())
+	if err != nil {
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	if h.auditSvc != nil {
+		var actor uuid.UUID
+		if claims, ok := authclient.ClaimsFromContext(r.Context()); ok {
+			actor, _ = uuid.Parse(claims.Subject)
+		}
+		oid := order.OutletID
+		h.auditSvc.Record(r.Context(), audit.Entry{
+			TenantID:    tid,
+			OutletID:    &oid,
+			ActorUserID: actor,
+			Action:      "receipt.reprint",
+			EntityType:  "pos_order",
+			EntityID:    orderID.String(),
+			After:       map[string]any{"reprint_count": updated.ReprintCount, "order_number": order.OrderNumber},
+		})
+	}
+	jsonOK(w, map[string]any{"reprint_count": updated.ReprintCount, "is_duplicate": updated.ReprintCount > 0})
 }
 
 // receiptBrand is the tenant branding applied to the receipt PDF.

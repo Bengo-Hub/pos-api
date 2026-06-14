@@ -62,6 +62,8 @@ const (
 	FieldEtimsInvoiceNumber = "etims_invoice_number"
 	// FieldEtimsQrCodeURL holds the string denoting the etims_qr_code_url field in the database.
 	FieldEtimsQrCodeURL = "etims_qr_code_url"
+	// FieldReprintCount holds the string denoting the reprint_count field in the database.
+	FieldReprintCount = "reprint_count"
 	// FieldVoidedReason holds the string denoting the voided_reason field in the database.
 	FieldVoidedReason = "voided_reason"
 	// FieldVoidedBy holds the string denoting the voided_by field in the database.
@@ -129,6 +131,7 @@ var Columns = []string{
 	FieldCustomerName,
 	FieldEtimsInvoiceNumber,
 	FieldEtimsQrCodeURL,
+	FieldReprintCount,
 	FieldVoidedReason,
 	FieldVoidedBy,
 	FieldVoidedAt,
@@ -165,6 +168,8 @@ var (
 	DefaultServiceChargeAmount float64
 	// DefaultFiredCourses holds the default value on creation for the "fired_courses" field.
 	DefaultFiredCourses int
+	// DefaultReprintCount holds the default value on creation for the "reprint_count" field.
+	DefaultReprintCount int
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
@@ -321,6 +326,11 @@ func ByEtimsInvoiceNumber(opts ...sql.OrderTermOption) OrderOption {
 // ByEtimsQrCodeURL orders the results by the etims_qr_code_url field.
 func ByEtimsQrCodeURL(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldEtimsQrCodeURL, opts...).ToFunc()
+}
+
+// ByReprintCount orders the results by the reprint_count field.
+func ByReprintCount(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldReprintCount, opts...).ToFunc()
 }
 
 // ByVoidedReason orders the results by the voided_reason field.

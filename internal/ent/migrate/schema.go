@@ -1481,6 +1481,7 @@ var (
 		{Name: "customer_name", Type: field.TypeString, Nullable: true},
 		{Name: "etims_invoice_number", Type: field.TypeString, Nullable: true},
 		{Name: "etims_qr_code_url", Type: field.TypeString, Nullable: true},
+		{Name: "reprint_count", Type: field.TypeInt, Default: 0},
 		{Name: "voided_reason", Type: field.TypeString, Nullable: true},
 		{Name: "voided_by", Type: field.TypeUUID, Nullable: true},
 		{Name: "voided_at", Type: field.TypeTime, Nullable: true},

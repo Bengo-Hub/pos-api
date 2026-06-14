@@ -161,6 +161,11 @@ func EtimsQrCodeURL(v string) predicate.POSOrder {
 	return predicate.POSOrder(sql.FieldEQ(FieldEtimsQrCodeURL, v))
 }
 
+// ReprintCount applies equality check predicate on the "reprint_count" field. It's identical to ReprintCountEQ.
+func ReprintCount(v int) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEQ(FieldReprintCount, v))
+}
+
 // VoidedReason applies equality check predicate on the "voided_reason" field. It's identical to VoidedReasonEQ.
 func VoidedReason(v string) predicate.POSOrder {
 	return predicate.POSOrder(sql.FieldEQ(FieldVoidedReason, v))
@@ -1279,6 +1284,46 @@ func EtimsQrCodeURLEqualFold(v string) predicate.POSOrder {
 // EtimsQrCodeURLContainsFold applies the ContainsFold predicate on the "etims_qr_code_url" field.
 func EtimsQrCodeURLContainsFold(v string) predicate.POSOrder {
 	return predicate.POSOrder(sql.FieldContainsFold(FieldEtimsQrCodeURL, v))
+}
+
+// ReprintCountEQ applies the EQ predicate on the "reprint_count" field.
+func ReprintCountEQ(v int) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEQ(FieldReprintCount, v))
+}
+
+// ReprintCountNEQ applies the NEQ predicate on the "reprint_count" field.
+func ReprintCountNEQ(v int) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNEQ(FieldReprintCount, v))
+}
+
+// ReprintCountIn applies the In predicate on the "reprint_count" field.
+func ReprintCountIn(vs ...int) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldIn(FieldReprintCount, vs...))
+}
+
+// ReprintCountNotIn applies the NotIn predicate on the "reprint_count" field.
+func ReprintCountNotIn(vs ...int) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNotIn(FieldReprintCount, vs...))
+}
+
+// ReprintCountGT applies the GT predicate on the "reprint_count" field.
+func ReprintCountGT(v int) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldGT(FieldReprintCount, v))
+}
+
+// ReprintCountGTE applies the GTE predicate on the "reprint_count" field.
+func ReprintCountGTE(v int) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldGTE(FieldReprintCount, v))
+}
+
+// ReprintCountLT applies the LT predicate on the "reprint_count" field.
+func ReprintCountLT(v int) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldLT(FieldReprintCount, v))
+}
+
+// ReprintCountLTE applies the LTE predicate on the "reprint_count" field.
+func ReprintCountLTE(v int) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldLTE(FieldReprintCount, v))
 }
 
 // VoidedReasonEQ applies the EQ predicate on the "voided_reason" field.

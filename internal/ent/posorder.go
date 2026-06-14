@@ -65,6 +65,8 @@ type POSOrder struct {
 	EtimsInvoiceNumber *string `json:"etims_invoice_number,omitempty"`
 	// EtimsQrCodeURL holds the value of the "etims_qr_code_url" field.
 	EtimsQrCodeURL *string `json:"etims_qr_code_url,omitempty"`
+	// Number of times the receipt has been explicitly reprinted
+	ReprintCount int `json:"reprint_count,omitempty"`
 	// VoidedReason holds the value of the "voided_reason" field.
 	VoidedReason *string `json:"voided_reason,omitempty"`
 	// VoidedBy holds the value of the "voided_by" field.
@@ -132,7 +134,7 @@ func (*POSOrder) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case posorder.FieldSubtotal, posorder.FieldTaxTotal, posorder.FieldDiscountTotal, posorder.FieldTotalAmount, posorder.FieldServiceChargePercent, posorder.FieldServiceChargeAmount:
 			values[i] = new(sql.NullFloat64)
-		case posorder.FieldCoversCount, posorder.FieldFiredCourses:
+		case posorder.FieldCoversCount, posorder.FieldFiredCourses, posorder.FieldReprintCount:
 			values[i] = new(sql.NullInt64)
 		case posorder.FieldOrderNumber, posorder.FieldStatus, posorder.FieldCurrency, posorder.FieldOrderSubtype, posorder.FieldCustomerPhone, posorder.FieldCustomerName, posorder.FieldEtimsInvoiceNumber, posorder.FieldEtimsQrCodeURL, posorder.FieldVoidedReason:
 			values[i] = new(sql.NullString)
@@ -307,6 +309,12 @@ func (_m *POSOrder) assignValues(columns []string, values []any) error {
 				_m.EtimsQrCodeURL = new(string)
 				*_m.EtimsQrCodeURL = value.String
 			}
+		case posorder.FieldReprintCount:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field reprint_count", values[i])
+			} else if value.Valid {
+				_m.ReprintCount = int(value.Int64)
+			}
 		case posorder.FieldVoidedReason:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field voided_reason", values[i])
@@ -471,6 +479,9 @@ func (_m *POSOrder) String() string {
 		builder.WriteString("etims_qr_code_url=")
 		builder.WriteString(*v)
 	}
+	builder.WriteString(", ")
+	builder.WriteString("reprint_count=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ReprintCount))
 	builder.WriteString(", ")
 	if v := _m.VoidedReason; v != nil {
 		builder.WriteString("voided_reason=")

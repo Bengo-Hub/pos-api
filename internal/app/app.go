@@ -319,6 +319,7 @@ func New(ctx context.Context) (*App, error) {
 	}
 	returnHandler := handlers.NewReturnHandler(log, entClient, treasuryClient, returnEventPub)
 	receiptHandler := handlers.NewReceiptHandler(log, entClient, tenantCache, cfg.Auth.ServiceURL)
+	receiptHandler.SetAuditService(auditSvc)
 	// Branded, printable customer menu document (public/tokenless — QR target). Reuses the
 	// catalog assembly + tenant branding cache, mirroring ReceiptHandler wiring.
 	menuHandler := handlers.NewMenuHandler(log, entClient, tenantCache, cfg.Auth.ServiceURL, catalogHandler)

@@ -108,6 +108,7 @@ func (h *ReportsHandler) Exceptions(w http.ResponseWriter, r *http.Request) {
 		"order.void": true, "order.line_remove": true, "order.line_qty_decrease": true,
 		"order.discount_override": true, "price.override": true, "return.refund": true,
 		"drawer.no_sale": true, "drawer.pay_out": true, "drawer.cash_drop": true,
+		"receipt.reprint": true,
 	}
 	rows, err := q.All(r.Context())
 	if err != nil {

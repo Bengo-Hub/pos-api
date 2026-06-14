@@ -438,6 +438,27 @@ func (_u *POSOrderUpdate) ClearEtimsQrCodeURL() *POSOrderUpdate {
 	return _u
 }
 
+// SetReprintCount sets the "reprint_count" field.
+func (_u *POSOrderUpdate) SetReprintCount(v int) *POSOrderUpdate {
+	_u.mutation.ResetReprintCount()
+	_u.mutation.SetReprintCount(v)
+	return _u
+}
+
+// SetNillableReprintCount sets the "reprint_count" field if the given value is not nil.
+func (_u *POSOrderUpdate) SetNillableReprintCount(v *int) *POSOrderUpdate {
+	if v != nil {
+		_u.SetReprintCount(*v)
+	}
+	return _u
+}
+
+// AddReprintCount adds value to the "reprint_count" field.
+func (_u *POSOrderUpdate) AddReprintCount(v int) *POSOrderUpdate {
+	_u.mutation.AddReprintCount(v)
+	return _u
+}
+
 // SetVoidedReason sets the "voided_reason" field.
 func (_u *POSOrderUpdate) SetVoidedReason(v string) *POSOrderUpdate {
 	_u.mutation.SetVoidedReason(v)
@@ -790,6 +811,12 @@ func (_u *POSOrderUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.EtimsQrCodeURLCleared() {
 		_spec.ClearField(posorder.FieldEtimsQrCodeURL, field.TypeString)
+	}
+	if value, ok := _u.mutation.ReprintCount(); ok {
+		_spec.SetField(posorder.FieldReprintCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedReprintCount(); ok {
+		_spec.AddField(posorder.FieldReprintCount, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.VoidedReason(); ok {
 		_spec.SetField(posorder.FieldVoidedReason, field.TypeString, value)
@@ -1373,6 +1400,27 @@ func (_u *POSOrderUpdateOne) ClearEtimsQrCodeURL() *POSOrderUpdateOne {
 	return _u
 }
 
+// SetReprintCount sets the "reprint_count" field.
+func (_u *POSOrderUpdateOne) SetReprintCount(v int) *POSOrderUpdateOne {
+	_u.mutation.ResetReprintCount()
+	_u.mutation.SetReprintCount(v)
+	return _u
+}
+
+// SetNillableReprintCount sets the "reprint_count" field if the given value is not nil.
+func (_u *POSOrderUpdateOne) SetNillableReprintCount(v *int) *POSOrderUpdateOne {
+	if v != nil {
+		_u.SetReprintCount(*v)
+	}
+	return _u
+}
+
+// AddReprintCount adds value to the "reprint_count" field.
+func (_u *POSOrderUpdateOne) AddReprintCount(v int) *POSOrderUpdateOne {
+	_u.mutation.AddReprintCount(v)
+	return _u
+}
+
 // SetVoidedReason sets the "voided_reason" field.
 func (_u *POSOrderUpdateOne) SetVoidedReason(v string) *POSOrderUpdateOne {
 	_u.mutation.SetVoidedReason(v)
@@ -1755,6 +1803,12 @@ func (_u *POSOrderUpdateOne) sqlSave(ctx context.Context) (_node *POSOrder, err 
 	}
 	if _u.mutation.EtimsQrCodeURLCleared() {
 		_spec.ClearField(posorder.FieldEtimsQrCodeURL, field.TypeString)
+	}
+	if value, ok := _u.mutation.ReprintCount(); ok {
+		_spec.SetField(posorder.FieldReprintCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedReprintCount(); ok {
+		_spec.AddField(posorder.FieldReprintCount, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.VoidedReason(); ok {
 		_spec.SetField(posorder.FieldVoidedReason, field.TypeString, value)

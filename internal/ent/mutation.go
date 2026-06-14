@@ -47882,6 +47882,8 @@ type POSOrderMutation struct {
 	customer_name             *string
 	etims_invoice_number      *string
 	etims_qr_code_url         *string
+	reprint_count             *int
+	addreprint_count          *int
 	voided_reason             *string
 	voided_by                 *uuid.UUID
 	voided_at                 *time.Time
@@ -49072,6 +49074,62 @@ func (m *POSOrderMutation) ResetEtimsQrCodeURL() {
 	delete(m.clearedFields, posorder.FieldEtimsQrCodeURL)
 }
 
+// SetReprintCount sets the "reprint_count" field.
+func (m *POSOrderMutation) SetReprintCount(i int) {
+	m.reprint_count = &i
+	m.addreprint_count = nil
+}
+
+// ReprintCount returns the value of the "reprint_count" field in the mutation.
+func (m *POSOrderMutation) ReprintCount() (r int, exists bool) {
+	v := m.reprint_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReprintCount returns the old "reprint_count" field's value of the POSOrder entity.
+// If the POSOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSOrderMutation) OldReprintCount(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReprintCount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReprintCount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReprintCount: %w", err)
+	}
+	return oldValue.ReprintCount, nil
+}
+
+// AddReprintCount adds i to the "reprint_count" field.
+func (m *POSOrderMutation) AddReprintCount(i int) {
+	if m.addreprint_count != nil {
+		*m.addreprint_count += i
+	} else {
+		m.addreprint_count = &i
+	}
+}
+
+// AddedReprintCount returns the value that was added to the "reprint_count" field in this mutation.
+func (m *POSOrderMutation) AddedReprintCount() (r int, exists bool) {
+	v := m.addreprint_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetReprintCount resets all changes to the "reprint_count" field.
+func (m *POSOrderMutation) ResetReprintCount() {
+	m.reprint_count = nil
+	m.addreprint_count = nil
+}
+
 // SetVoidedReason sets the "voided_reason" field.
 func (m *POSOrderMutation) SetVoidedReason(s string) {
 	m.voided_reason = &s
@@ -49487,7 +49545,7 @@ func (m *POSOrderMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *POSOrderMutation) Fields() []string {
-	fields := make([]string, 0, 28)
+	fields := make([]string, 0, 29)
 	if m.tenant_id != nil {
 		fields = append(fields, posorder.FieldTenantID)
 	}
@@ -49556,6 +49614,9 @@ func (m *POSOrderMutation) Fields() []string {
 	}
 	if m.etims_qr_code_url != nil {
 		fields = append(fields, posorder.FieldEtimsQrCodeURL)
+	}
+	if m.reprint_count != nil {
+		fields = append(fields, posorder.FieldReprintCount)
 	}
 	if m.voided_reason != nil {
 		fields = append(fields, posorder.FieldVoidedReason)
@@ -49626,6 +49687,8 @@ func (m *POSOrderMutation) Field(name string) (ent.Value, bool) {
 		return m.EtimsInvoiceNumber()
 	case posorder.FieldEtimsQrCodeURL:
 		return m.EtimsQrCodeURL()
+	case posorder.FieldReprintCount:
+		return m.ReprintCount()
 	case posorder.FieldVoidedReason:
 		return m.VoidedReason()
 	case posorder.FieldVoidedBy:
@@ -49691,6 +49754,8 @@ func (m *POSOrderMutation) OldField(ctx context.Context, name string) (ent.Value
 		return m.OldEtimsInvoiceNumber(ctx)
 	case posorder.FieldEtimsQrCodeURL:
 		return m.OldEtimsQrCodeURL(ctx)
+	case posorder.FieldReprintCount:
+		return m.OldReprintCount(ctx)
 	case posorder.FieldVoidedReason:
 		return m.OldVoidedReason(ctx)
 	case posorder.FieldVoidedBy:
@@ -49871,6 +49936,13 @@ func (m *POSOrderMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetEtimsQrCodeURL(v)
 		return nil
+	case posorder.FieldReprintCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReprintCount(v)
+		return nil
 	case posorder.FieldVoidedReason:
 		v, ok := value.(string)
 		if !ok {
@@ -49938,6 +50010,9 @@ func (m *POSOrderMutation) AddedFields() []string {
 	if m.addfired_courses != nil {
 		fields = append(fields, posorder.FieldFiredCourses)
 	}
+	if m.addreprint_count != nil {
+		fields = append(fields, posorder.FieldReprintCount)
+	}
 	return fields
 }
 
@@ -49962,6 +50037,8 @@ func (m *POSOrderMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedServiceChargeAmount()
 	case posorder.FieldFiredCourses:
 		return m.AddedFiredCourses()
+	case posorder.FieldReprintCount:
+		return m.AddedReprintCount()
 	}
 	return nil, false
 }
@@ -50026,6 +50103,13 @@ func (m *POSOrderMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddFiredCourses(v)
+		return nil
+	case posorder.FieldReprintCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddReprintCount(v)
 		return nil
 	}
 	return fmt.Errorf("unknown POSOrder numeric field %s", name)
@@ -50179,6 +50263,9 @@ func (m *POSOrderMutation) ResetField(name string) error {
 		return nil
 	case posorder.FieldEtimsQrCodeURL:
 		m.ResetEtimsQrCodeURL()
+		return nil
+	case posorder.FieldReprintCount:
+		m.ResetReprintCount()
 		return nil
 	case posorder.FieldVoidedReason:
 		m.ResetVoidedReason()
