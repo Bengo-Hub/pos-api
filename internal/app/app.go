@@ -318,6 +318,7 @@ func New(ctx context.Context) (*App, error) {
 		returnEventPub = pub
 	}
 	returnHandler := handlers.NewReturnHandler(log, entClient, treasuryClient, returnEventPub)
+	returnHandler.SetAuditService(auditSvc)
 	receiptHandler := handlers.NewReceiptHandler(log, entClient, tenantCache, cfg.Auth.ServiceURL)
 	receiptHandler.SetAuditService(auditSvc)
 	// Branded, printable customer menu document (public/tokenless — QR target). Reuses the

@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
+	"github.com/bengobox/pos-service/internal/audit"
 	"github.com/bengobox/pos-service/internal/ent"
 	entoutletsetting "github.com/bengobox/pos-service/internal/ent/outletsetting"
 	entoverride "github.com/bengobox/pos-service/internal/ent/poscatalogoverride"
@@ -28,11 +29,15 @@ type ReturnHandler struct {
 	client         *ent.Client
 	treasuryClient *treasury.Client
 	publisher      *events.Publisher
+	auditSvc       *audit.Service
 }
 
 func NewReturnHandler(log *zap.Logger, client *ent.Client, treasuryClient *treasury.Client, publisher *events.Publisher) *ReturnHandler {
 	return &ReturnHandler{log: log, client: client, treasuryClient: treasuryClient, publisher: publisher}
 }
+
+// SetAuditService wires the centralized audit trail for refunds/returns.
+func (h *ReturnHandler) SetAuditService(a *audit.Service) { h.auditSvc = a }
 
 type returnLineInput struct {
 	OrderLineID uuid.UUID `json:"order_line_id"`
@@ -190,6 +195,24 @@ func (h *ReturnHandler) CreateReturn(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			h.log.Error("create return line failed", zap.Error(err))
 		}
+	}
+
+	// Record the refund in the central audit trail (a key return-fraud signal —
+	// surfaces in the per-cashier exception report).
+	if h.auditSvc != nil {
+		amt := refundAmount
+		oid := returnOutletID
+		h.auditSvc.Record(ctx, audit.Entry{
+			TenantID:    tid,
+			OutletID:    &oid,
+			ActorUserID: requestedBy,
+			Action:      "return.refund",
+			EntityType:  "pos_return",
+			EntityID:    ret.ID.String(),
+			Reason:      input.Reason,
+			Amount:      &amt,
+			After:       map[string]any{"return_type": returnType, "order_id": orderID.String(), "return_number": returnNumber},
+		})
 	}
 
 	// Publish return.initiated event (audit trail, non-blocking).
