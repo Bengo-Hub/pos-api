@@ -57,6 +57,34 @@ func (_c *POSOrderCreate) SetOrderNumber(v string) *POSOrderCreate {
 	return _c
 }
 
+// SetClientReference sets the "client_reference" field.
+func (_c *POSOrderCreate) SetClientReference(v string) *POSOrderCreate {
+	_c.mutation.SetClientReference(v)
+	return _c
+}
+
+// SetNillableClientReference sets the "client_reference" field if the given value is not nil.
+func (_c *POSOrderCreate) SetNillableClientReference(v *string) *POSOrderCreate {
+	if v != nil {
+		_c.SetClientReference(*v)
+	}
+	return _c
+}
+
+// SetOfflineCreatedAt sets the "offline_created_at" field.
+func (_c *POSOrderCreate) SetOfflineCreatedAt(v time.Time) *POSOrderCreate {
+	_c.mutation.SetOfflineCreatedAt(v)
+	return _c
+}
+
+// SetNillableOfflineCreatedAt sets the "offline_created_at" field if the given value is not nil.
+func (_c *POSOrderCreate) SetNillableOfflineCreatedAt(v *time.Time) *POSOrderCreate {
+	if v != nil {
+		_c.SetOfflineCreatedAt(*v)
+	}
+	return _c
+}
+
 // SetStatus sets the "status" field.
 func (_c *POSOrderCreate) SetStatus(v string) *POSOrderCreate {
 	_c.mutation.SetStatus(v)
@@ -637,6 +665,14 @@ func (_c *POSOrderCreate) createSpec() (*POSOrder, *sqlgraph.CreateSpec) {
 		_spec.SetField(posorder.FieldOrderNumber, field.TypeString, value)
 		_node.OrderNumber = value
 	}
+	if value, ok := _c.mutation.ClientReference(); ok {
+		_spec.SetField(posorder.FieldClientReference, field.TypeString, value)
+		_node.ClientReference = &value
+	}
+	if value, ok := _c.mutation.OfflineCreatedAt(); ok {
+		_spec.SetField(posorder.FieldOfflineCreatedAt, field.TypeTime, value)
+		_node.OfflineCreatedAt = &value
+	}
 	if value, ok := _c.mutation.Status(); ok {
 		_spec.SetField(posorder.FieldStatus, field.TypeString, value)
 		_node.Status = value
@@ -890,6 +926,42 @@ func (u *POSOrderUpsert) SetOrderNumber(v string) *POSOrderUpsert {
 // UpdateOrderNumber sets the "order_number" field to the value that was provided on create.
 func (u *POSOrderUpsert) UpdateOrderNumber() *POSOrderUpsert {
 	u.SetExcluded(posorder.FieldOrderNumber)
+	return u
+}
+
+// SetClientReference sets the "client_reference" field.
+func (u *POSOrderUpsert) SetClientReference(v string) *POSOrderUpsert {
+	u.Set(posorder.FieldClientReference, v)
+	return u
+}
+
+// UpdateClientReference sets the "client_reference" field to the value that was provided on create.
+func (u *POSOrderUpsert) UpdateClientReference() *POSOrderUpsert {
+	u.SetExcluded(posorder.FieldClientReference)
+	return u
+}
+
+// ClearClientReference clears the value of the "client_reference" field.
+func (u *POSOrderUpsert) ClearClientReference() *POSOrderUpsert {
+	u.SetNull(posorder.FieldClientReference)
+	return u
+}
+
+// SetOfflineCreatedAt sets the "offline_created_at" field.
+func (u *POSOrderUpsert) SetOfflineCreatedAt(v time.Time) *POSOrderUpsert {
+	u.Set(posorder.FieldOfflineCreatedAt, v)
+	return u
+}
+
+// UpdateOfflineCreatedAt sets the "offline_created_at" field to the value that was provided on create.
+func (u *POSOrderUpsert) UpdateOfflineCreatedAt() *POSOrderUpsert {
+	u.SetExcluded(posorder.FieldOfflineCreatedAt)
+	return u
+}
+
+// ClearOfflineCreatedAt clears the value of the "offline_created_at" field.
+func (u *POSOrderUpsert) ClearOfflineCreatedAt() *POSOrderUpsert {
+	u.SetNull(posorder.FieldOfflineCreatedAt)
 	return u
 }
 
@@ -1395,6 +1467,48 @@ func (u *POSOrderUpsertOne) SetOrderNumber(v string) *POSOrderUpsertOne {
 func (u *POSOrderUpsertOne) UpdateOrderNumber() *POSOrderUpsertOne {
 	return u.Update(func(s *POSOrderUpsert) {
 		s.UpdateOrderNumber()
+	})
+}
+
+// SetClientReference sets the "client_reference" field.
+func (u *POSOrderUpsertOne) SetClientReference(v string) *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetClientReference(v)
+	})
+}
+
+// UpdateClientReference sets the "client_reference" field to the value that was provided on create.
+func (u *POSOrderUpsertOne) UpdateClientReference() *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdateClientReference()
+	})
+}
+
+// ClearClientReference clears the value of the "client_reference" field.
+func (u *POSOrderUpsertOne) ClearClientReference() *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.ClearClientReference()
+	})
+}
+
+// SetOfflineCreatedAt sets the "offline_created_at" field.
+func (u *POSOrderUpsertOne) SetOfflineCreatedAt(v time.Time) *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetOfflineCreatedAt(v)
+	})
+}
+
+// UpdateOfflineCreatedAt sets the "offline_created_at" field to the value that was provided on create.
+func (u *POSOrderUpsertOne) UpdateOfflineCreatedAt() *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdateOfflineCreatedAt()
+	})
+}
+
+// ClearOfflineCreatedAt clears the value of the "offline_created_at" field.
+func (u *POSOrderUpsertOne) ClearOfflineCreatedAt() *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.ClearOfflineCreatedAt()
 	})
 }
 
@@ -2131,6 +2245,48 @@ func (u *POSOrderUpsertBulk) SetOrderNumber(v string) *POSOrderUpsertBulk {
 func (u *POSOrderUpsertBulk) UpdateOrderNumber() *POSOrderUpsertBulk {
 	return u.Update(func(s *POSOrderUpsert) {
 		s.UpdateOrderNumber()
+	})
+}
+
+// SetClientReference sets the "client_reference" field.
+func (u *POSOrderUpsertBulk) SetClientReference(v string) *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetClientReference(v)
+	})
+}
+
+// UpdateClientReference sets the "client_reference" field to the value that was provided on create.
+func (u *POSOrderUpsertBulk) UpdateClientReference() *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdateClientReference()
+	})
+}
+
+// ClearClientReference clears the value of the "client_reference" field.
+func (u *POSOrderUpsertBulk) ClearClientReference() *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.ClearClientReference()
+	})
+}
+
+// SetOfflineCreatedAt sets the "offline_created_at" field.
+func (u *POSOrderUpsertBulk) SetOfflineCreatedAt(v time.Time) *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetOfflineCreatedAt(v)
+	})
+}
+
+// UpdateOfflineCreatedAt sets the "offline_created_at" field to the value that was provided on create.
+func (u *POSOrderUpsertBulk) UpdateOfflineCreatedAt() *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdateOfflineCreatedAt()
+	})
+}
+
+// ClearOfflineCreatedAt clears the value of the "offline_created_at" field.
+func (u *POSOrderUpsertBulk) ClearOfflineCreatedAt() *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.ClearOfflineCreatedAt()
 	})
 }
 

@@ -7,6 +7,7 @@ import (
 
 	"github.com/bengobox/pos-service/internal/ent/appointment"
 	"github.com/bengobox/pos-service/internal/ent/auditlog"
+	"github.com/bengobox/pos-service/internal/ent/backup"
 	"github.com/bengobox/pos-service/internal/ent/bartab"
 	"github.com/bengobox/pos-service/internal/ent/bartabevent"
 	"github.com/bengobox/pos-service/internal/ent/billsplit"
@@ -26,6 +27,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/giftcard"
 	"github.com/bengobox/pos-service/internal/ent/giftcardtransaction"
 	"github.com/bengobox/pos-service/internal/ent/housekeepingtask"
+	"github.com/bengobox/pos-service/internal/ent/idempotencykey"
 	"github.com/bengobox/pos-service/internal/ent/integrationsetting"
 	"github.com/bengobox/pos-service/internal/ent/inventorysnapshot"
 	"github.com/bengobox/pos-service/internal/ent/kdsstation"
@@ -152,6 +154,32 @@ func init() {
 	auditlogDescID := auditlogFields[0].Descriptor()
 	// auditlog.DefaultID holds the default value on creation for the id field.
 	auditlog.DefaultID = auditlogDescID.Default.(func() uuid.UUID)
+	backupFields := schema.Backup{}.Fields()
+	_ = backupFields
+	// backupDescName is the schema descriptor for name field.
+	backupDescName := backupFields[2].Descriptor()
+	// backup.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	backup.NameValidator = backupDescName.Validators[0].(func(string) error)
+	// backupDescPath is the schema descriptor for path field.
+	backupDescPath := backupFields[3].Descriptor()
+	// backup.PathValidator is a validator for the "path" field. It is called by the builders before save.
+	backup.PathValidator = backupDescPath.Validators[0].(func(string) error)
+	// backupDescSizeBytes is the schema descriptor for size_bytes field.
+	backupDescSizeBytes := backupFields[4].Descriptor()
+	// backup.DefaultSizeBytes holds the default value on creation for the size_bytes field.
+	backup.DefaultSizeBytes = backupDescSizeBytes.Default.(int64)
+	// backupDescStatus is the schema descriptor for status field.
+	backupDescStatus := backupFields[5].Descriptor()
+	// backup.DefaultStatus holds the default value on creation for the status field.
+	backup.DefaultStatus = backupDescStatus.Default.(string)
+	// backupDescCreatedAt is the schema descriptor for created_at field.
+	backupDescCreatedAt := backupFields[6].Descriptor()
+	// backup.DefaultCreatedAt holds the default value on creation for the created_at field.
+	backup.DefaultCreatedAt = backupDescCreatedAt.Default.(func() time.Time)
+	// backupDescID is the schema descriptor for id field.
+	backupDescID := backupFields[0].Descriptor()
+	// backup.DefaultID holds the default value on creation for the id field.
+	backup.DefaultID = backupDescID.Default.(func() uuid.UUID)
 	bartabFields := schema.BarTab{}.Fields()
 	_ = bartabFields
 	// bartabDescTabName is the schema descriptor for tab_name field.
@@ -730,6 +758,32 @@ func init() {
 	housekeepingtaskDescID := housekeepingtaskFields[0].Descriptor()
 	// housekeepingtask.DefaultID holds the default value on creation for the id field.
 	housekeepingtask.DefaultID = housekeepingtaskDescID.Default.(func() uuid.UUID)
+	idempotencykeyFields := schema.IdempotencyKey{}.Fields()
+	_ = idempotencykeyFields
+	// idempotencykeyDescKey is the schema descriptor for key field.
+	idempotencykeyDescKey := idempotencykeyFields[2].Descriptor()
+	// idempotencykey.KeyValidator is a validator for the "key" field. It is called by the builders before save.
+	idempotencykey.KeyValidator = idempotencykeyDescKey.Validators[0].(func(string) error)
+	// idempotencykeyDescEndpoint is the schema descriptor for endpoint field.
+	idempotencykeyDescEndpoint := idempotencykeyFields[3].Descriptor()
+	// idempotencykey.DefaultEndpoint holds the default value on creation for the endpoint field.
+	idempotencykey.DefaultEndpoint = idempotencykeyDescEndpoint.Default.(string)
+	// idempotencykeyDescStatus is the schema descriptor for status field.
+	idempotencykeyDescStatus := idempotencykeyFields[4].Descriptor()
+	// idempotencykey.DefaultStatus holds the default value on creation for the status field.
+	idempotencykey.DefaultStatus = idempotencykeyDescStatus.Default.(string)
+	// idempotencykeyDescResponseCode is the schema descriptor for response_code field.
+	idempotencykeyDescResponseCode := idempotencykeyFields[5].Descriptor()
+	// idempotencykey.DefaultResponseCode holds the default value on creation for the response_code field.
+	idempotencykey.DefaultResponseCode = idempotencykeyDescResponseCode.Default.(int)
+	// idempotencykeyDescCreatedAt is the schema descriptor for created_at field.
+	idempotencykeyDescCreatedAt := idempotencykeyFields[7].Descriptor()
+	// idempotencykey.DefaultCreatedAt holds the default value on creation for the created_at field.
+	idempotencykey.DefaultCreatedAt = idempotencykeyDescCreatedAt.Default.(func() time.Time)
+	// idempotencykeyDescID is the schema descriptor for id field.
+	idempotencykeyDescID := idempotencykeyFields[0].Descriptor()
+	// idempotencykey.DefaultID holds the default value on creation for the id field.
+	idempotencykey.DefaultID = idempotencykeyDescID.Default.(func() uuid.UUID)
 	integrationsettingFields := schema.IntegrationSetting{}.Fields()
 	_ = integrationsettingFields
 	// integrationsettingDescProviderName is the schema descriptor for provider_name field.
@@ -1385,47 +1439,47 @@ func init() {
 	// posorder.OrderNumberValidator is a validator for the "order_number" field. It is called by the builders before save.
 	posorder.OrderNumberValidator = posorderDescOrderNumber.Validators[0].(func(string) error)
 	// posorderDescStatus is the schema descriptor for status field.
-	posorderDescStatus := posorderFields[6].Descriptor()
+	posorderDescStatus := posorderFields[8].Descriptor()
 	// posorder.DefaultStatus holds the default value on creation for the status field.
 	posorder.DefaultStatus = posorderDescStatus.Default.(string)
 	// posorderDescDiscountTotal is the schema descriptor for discount_total field.
-	posorderDescDiscountTotal := posorderFields[9].Descriptor()
+	posorderDescDiscountTotal := posorderFields[11].Descriptor()
 	// posorder.DefaultDiscountTotal holds the default value on creation for the discount_total field.
 	posorder.DefaultDiscountTotal = posorderDescDiscountTotal.Default.(float64)
 	// posorderDescCurrency is the schema descriptor for currency field.
-	posorderDescCurrency := posorderFields[11].Descriptor()
+	posorderDescCurrency := posorderFields[13].Descriptor()
 	// posorder.DefaultCurrency holds the default value on creation for the currency field.
 	posorder.DefaultCurrency = posorderDescCurrency.Default.(string)
 	// posorderDescMetadata is the schema descriptor for metadata field.
-	posorderDescMetadata := posorderFields[15].Descriptor()
+	posorderDescMetadata := posorderFields[17].Descriptor()
 	// posorder.DefaultMetadata holds the default value on creation for the metadata field.
 	posorder.DefaultMetadata = posorderDescMetadata.Default.(map[string]interface{})
 	// posorderDescCoversCount is the schema descriptor for covers_count field.
-	posorderDescCoversCount := posorderFields[16].Descriptor()
+	posorderDescCoversCount := posorderFields[18].Descriptor()
 	// posorder.DefaultCoversCount holds the default value on creation for the covers_count field.
 	posorder.DefaultCoversCount = posorderDescCoversCount.Default.(int)
 	// posorderDescServiceChargePercent is the schema descriptor for service_charge_percent field.
-	posorderDescServiceChargePercent := posorderFields[17].Descriptor()
+	posorderDescServiceChargePercent := posorderFields[19].Descriptor()
 	// posorder.DefaultServiceChargePercent holds the default value on creation for the service_charge_percent field.
 	posorder.DefaultServiceChargePercent = posorderDescServiceChargePercent.Default.(float64)
 	// posorderDescServiceChargeAmount is the schema descriptor for service_charge_amount field.
-	posorderDescServiceChargeAmount := posorderFields[18].Descriptor()
+	posorderDescServiceChargeAmount := posorderFields[20].Descriptor()
 	// posorder.DefaultServiceChargeAmount holds the default value on creation for the service_charge_amount field.
 	posorder.DefaultServiceChargeAmount = posorderDescServiceChargeAmount.Default.(float64)
 	// posorderDescFiredCourses is the schema descriptor for fired_courses field.
-	posorderDescFiredCourses := posorderFields[19].Descriptor()
+	posorderDescFiredCourses := posorderFields[21].Descriptor()
 	// posorder.DefaultFiredCourses holds the default value on creation for the fired_courses field.
 	posorder.DefaultFiredCourses = posorderDescFiredCourses.Default.(int)
 	// posorderDescReprintCount is the schema descriptor for reprint_count field.
-	posorderDescReprintCount := posorderFields[24].Descriptor()
+	posorderDescReprintCount := posorderFields[26].Descriptor()
 	// posorder.DefaultReprintCount holds the default value on creation for the reprint_count field.
 	posorder.DefaultReprintCount = posorderDescReprintCount.Default.(int)
 	// posorderDescCreatedAt is the schema descriptor for created_at field.
-	posorderDescCreatedAt := posorderFields[28].Descriptor()
+	posorderDescCreatedAt := posorderFields[30].Descriptor()
 	// posorder.DefaultCreatedAt holds the default value on creation for the created_at field.
 	posorder.DefaultCreatedAt = posorderDescCreatedAt.Default.(func() time.Time)
 	// posorderDescUpdatedAt is the schema descriptor for updated_at field.
-	posorderDescUpdatedAt := posorderFields[29].Descriptor()
+	posorderDescUpdatedAt := posorderFields[31].Descriptor()
 	// posorder.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	posorder.DefaultUpdatedAt = posorderDescUpdatedAt.Default.(func() time.Time)
 	// posorder.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

@@ -16,6 +16,8 @@ type Tx struct {
 	Appointment *AppointmentClient
 	// AuditLog is the client for interacting with the AuditLog builders.
 	AuditLog *AuditLogClient
+	// Backup is the client for interacting with the Backup builders.
+	Backup *BackupClient
 	// BarTab is the client for interacting with the BarTab builders.
 	BarTab *BarTabClient
 	// BarTabEvent is the client for interacting with the BarTabEvent builders.
@@ -56,6 +58,8 @@ type Tx struct {
 	GiftCardTransaction *GiftCardTransactionClient
 	// HousekeepingTask is the client for interacting with the HousekeepingTask builders.
 	HousekeepingTask *HousekeepingTaskClient
+	// IdempotencyKey is the client for interacting with the IdempotencyKey builders.
+	IdempotencyKey *IdempotencyKeyClient
 	// IntegrationSetting is the client for interacting with the IntegrationSetting builders.
 	IntegrationSetting *IntegrationSettingClient
 	// InventorySnapshot is the client for interacting with the InventorySnapshot builders.
@@ -361,6 +365,7 @@ func (tx *Tx) Client() *Client {
 func (tx *Tx) init() {
 	tx.Appointment = NewAppointmentClient(tx.config)
 	tx.AuditLog = NewAuditLogClient(tx.config)
+	tx.Backup = NewBackupClient(tx.config)
 	tx.BarTab = NewBarTabClient(tx.config)
 	tx.BarTabEvent = NewBarTabEventClient(tx.config)
 	tx.BillSplit = NewBillSplitClient(tx.config)
@@ -381,6 +386,7 @@ func (tx *Tx) init() {
 	tx.GiftCard = NewGiftCardClient(tx.config)
 	tx.GiftCardTransaction = NewGiftCardTransactionClient(tx.config)
 	tx.HousekeepingTask = NewHousekeepingTaskClient(tx.config)
+	tx.IdempotencyKey = NewIdempotencyKeyClient(tx.config)
 	tx.IntegrationSetting = NewIntegrationSettingClient(tx.config)
 	tx.InventorySnapshot = NewInventorySnapshotClient(tx.config)
 	tx.KDSStation = NewKDSStationClient(tx.config)

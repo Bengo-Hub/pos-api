@@ -26,6 +26,10 @@ const (
 	FieldUserID = "user_id"
 	// FieldOrderNumber holds the string denoting the order_number field in the database.
 	FieldOrderNumber = "order_number"
+	// FieldClientReference holds the string denoting the client_reference field in the database.
+	FieldClientReference = "client_reference"
+	// FieldOfflineCreatedAt holds the string denoting the offline_created_at field in the database.
+	FieldOfflineCreatedAt = "offline_created_at"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
 	// FieldSubtotal holds the string denoting the subtotal field in the database.
@@ -113,6 +117,8 @@ var Columns = []string{
 	FieldDeviceID,
 	FieldUserID,
 	FieldOrderNumber,
+	FieldClientReference,
+	FieldOfflineCreatedAt,
 	FieldStatus,
 	FieldSubtotal,
 	FieldTaxTotal,
@@ -241,6 +247,16 @@ func ByUserID(opts ...sql.OrderTermOption) OrderOption {
 // ByOrderNumber orders the results by the order_number field.
 func ByOrderNumber(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldOrderNumber, opts...).ToFunc()
+}
+
+// ByClientReference orders the results by the client_reference field.
+func ByClientReference(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldClientReference, opts...).ToFunc()
+}
+
+// ByOfflineCreatedAt orders the results by the offline_created_at field.
+func ByOfflineCreatedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldOfflineCreatedAt, opts...).ToFunc()
 }
 
 // ByStatus orders the results by the status field.

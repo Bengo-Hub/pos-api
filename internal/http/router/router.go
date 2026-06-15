@@ -80,6 +80,7 @@ func New(
 	allowedOrigins []string,
 	redisClient *redis.Client,
 	internalServiceKey string,
+	backups *handlers.BackupHandler,
 ) http.Handler {
 	r := chi.NewRouter()
 
@@ -224,7 +225,21 @@ func New(
 					serviceSettings.RegisterRoutes(tenant)
 				}
 
+				// Tenant-scoped backups (this tenant's data only) — config/admin-gated.
+				if backups != nil {
+					tenant.Group(func(bg chi.Router) {
+						bg.Use(outletmw.RequireServicePermission(rbacSvc, "pos.config.change", "pos.config.manage"))
+						backups.RegisterRoutes(bg)
+					})
+				}
+
 				tenant.Route("/pos", func(pos chi.Router) {
+					// Replay-safety for the offline-sync worker: a request carrying an
+					// Idempotency-Key (the offline local_id) is executed once and its response
+					// stored, so reconnect retries never duplicate sales/payments/voids/returns.
+					// No-op for normal online traffic, which sends no key.
+					pos.Use(outletmw.Idempotency(entClient))
+
 					// Orders
 					if orders != nil {
 						pos.Get("/orders", orders.ListOrders)

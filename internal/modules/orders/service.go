@@ -5,6 +5,8 @@ package orders
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"strings"
 	"time"
@@ -54,7 +56,12 @@ type CreateOrderRequest struct {
 	DeviceID       uuid.UUID
 	UserID         uuid.UUID
 	OrderNumber    string
-	Currency       string
+	// ClientReference is the offline device's local id (uuid). When set, CreateOrder is
+	// get-or-create on it, making replayed offline sales idempotent.
+	ClientReference string
+	// OfflineCreatedAt is the device-clock time the sale was rung up (offline). Optional.
+	OfflineCreatedAt *time.Time
+	Currency         string
 	Lines          []OrderLineInput
 	Metadata       map[string]any
 	OrderSubtype   string // dine_in | takeaway | room_service | delivery | bar_tab | retail; defaults to "dine_in"
@@ -208,20 +215,50 @@ func (s *Service) GenerateOrderNumber() string {
 	return fmt.Sprintf("%s-%d", s.orderPrefix, time.Now().UnixMilli())
 }
 
+// deterministicOrderNumber derives a stable, collision-free order number from an offline
+// client reference, so the same offline sale always maps to the same order number on
+// every sync attempt (and two sales rung up in the same millisecond never collide).
+func (s *Service) deterministicOrderNumber(clientRef string) string {
+	sum := sha256.Sum256([]byte(clientRef))
+	return fmt.Sprintf("%s-%s", s.orderPrefix, strings.ToUpper(hex.EncodeToString(sum[:6])))
+}
+
 // DefaultCurrency returns the configured default currency.
 func (s *Service) DefaultCurrency() string {
 	return s.defaultCurrency
 }
 
 // CreateOrder creates a new POS order with proper tax/discount calculation.
+//
+// Idempotency: when req.ClientReference is set (an offline-created sale), this is
+// get-or-create. If an order already exists for (tenant_id, client_reference) we return
+// it unchanged BEFORE any side effects (lines, commit, order.created event, stock
+// deduction), so a replayed sync never duplicates the order, double-deducts stock, or
+// double-publishes. The unique (tenant_id, client_reference) index is the final backstop.
 func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent.POSOrder, error) {
+	if req.ClientReference != "" {
+		if existing, qerr := s.client.POSOrder.Query().
+			Where(posorder.TenantID(req.TenantID), posorder.ClientReference(req.ClientReference)).
+			WithLines().
+			Only(ctx); qerr == nil && existing != nil {
+			return existing, nil
+		}
+	}
+
 	currency := req.Currency
 	if currency == "" {
 		currency = s.defaultCurrency
 	}
 	orderNumber := req.OrderNumber
 	if orderNumber == "" {
-		orderNumber = s.GenerateOrderNumber()
+		// For offline sales derive a deterministic, collision-free number from the client
+		// reference so two sales rung up in the same millisecond can't share a number
+		// (GenerateOrderNumber is time-based). Online sales keep the time-based number.
+		if req.ClientReference != "" {
+			orderNumber = s.deterministicOrderNumber(req.ClientReference)
+		} else {
+			orderNumber = s.GenerateOrderNumber()
+		}
 	}
 
 	discount := decimal.NewFromFloat(req.DiscountAmount)
@@ -294,8 +331,25 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent
 	if req.CustomerName != "" {
 		orderBuilder = orderBuilder.SetCustomerName(req.CustomerName)
 	}
+	if req.ClientReference != "" {
+		orderBuilder = orderBuilder.SetClientReference(req.ClientReference)
+	}
+	if req.OfflineCreatedAt != nil {
+		orderBuilder = orderBuilder.SetOfflineCreatedAt(*req.OfflineCreatedAt)
+	}
 	order, err := orderBuilder.Save(ctx)
 	if err != nil {
+		// Lost a race against a concurrent replay of the same offline sale: the unique
+		// (tenant_id, client_reference) index rejected the duplicate. Return the winner.
+		if req.ClientReference != "" && ent.IsConstraintError(err) {
+			_ = tx.Rollback()
+			if existing, qerr := s.client.POSOrder.Query().
+				Where(posorder.TenantID(req.TenantID), posorder.ClientReference(req.ClientReference)).
+				WithLines().
+				Only(ctx); qerr == nil && existing != nil {
+				return existing, nil
+			}
+		}
 		return nil, fmt.Errorf("orders: create order: %w", err)
 	}
 

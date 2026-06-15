@@ -91,6 +91,34 @@ var (
 			},
 		},
 	}
+	// BackupsColumns holds the columns for the "backups" table.
+	BackupsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "name", Type: field.TypeString},
+		{Name: "path", Type: field.TypeString},
+		{Name: "size_bytes", Type: field.TypeInt64, Default: 0},
+		{Name: "status", Type: field.TypeString, Default: "completed"},
+		{Name: "created_at", Type: field.TypeTime},
+	}
+	// BackupsTable holds the schema information for the "backups" table.
+	BackupsTable = &schema.Table{
+		Name:       "backups",
+		Columns:    BackupsColumns,
+		PrimaryKey: []*schema.Column{BackupsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "backup_tenant_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{BackupsColumns[1], BackupsColumns[6]},
+			},
+			{
+				Name:    "backup_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{BackupsColumns[6]},
+			},
+		},
+	}
 	// BarTabsColumns holds the columns for the "bar_tabs" table.
 	BarTabsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -702,6 +730,36 @@ var (
 				Name:    "housekeepingtask_tenant_id_assigned_to",
 				Unique:  false,
 				Columns: []*schema.Column{HousekeepingTasksColumns[1], HousekeepingTasksColumns[6]},
+			},
+		},
+	}
+	// IdempotencyKeysColumns holds the columns for the "idempotency_keys" table.
+	IdempotencyKeysColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "key", Type: field.TypeString},
+		{Name: "endpoint", Type: field.TypeString, Default: ""},
+		{Name: "status", Type: field.TypeString, Default: "in_flight"},
+		{Name: "response_code", Type: field.TypeInt, Default: 0},
+		{Name: "response_body", Type: field.TypeBytes, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "expires_at", Type: field.TypeTime},
+	}
+	// IdempotencyKeysTable holds the schema information for the "idempotency_keys" table.
+	IdempotencyKeysTable = &schema.Table{
+		Name:       "idempotency_keys",
+		Columns:    IdempotencyKeysColumns,
+		PrimaryKey: []*schema.Column{IdempotencyKeysColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "idempotencykey_tenant_id_key",
+				Unique:  true,
+				Columns: []*schema.Column{IdempotencyKeysColumns[1], IdempotencyKeysColumns[2]},
+			},
+			{
+				Name:    "idempotencykey_expires_at",
+				Unique:  false,
+				Columns: []*schema.Column{IdempotencyKeysColumns[8]},
 			},
 		},
 	}
@@ -1467,6 +1525,8 @@ var (
 		{Name: "device_id", Type: field.TypeUUID},
 		{Name: "user_id", Type: field.TypeUUID},
 		{Name: "order_number", Type: field.TypeString, Unique: true},
+		{Name: "client_reference", Type: field.TypeString, Nullable: true},
+		{Name: "offline_created_at", Type: field.TypeTime, Nullable: true},
 		{Name: "status", Type: field.TypeString, Default: "draft"},
 		{Name: "subtotal", Type: field.TypeFloat64},
 		{Name: "tax_total", Type: field.TypeFloat64},
@@ -1502,6 +1562,11 @@ var (
 				Name:    "posorder_tenant_id_order_number",
 				Unique:  true,
 				Columns: []*schema.Column{PosOrdersColumns[1], PosOrdersColumns[5]},
+			},
+			{
+				Name:    "posorder_tenant_id_client_reference",
+				Unique:  true,
+				Columns: []*schema.Column{PosOrdersColumns[1], PosOrdersColumns[6]},
 			},
 		},
 	}
@@ -3616,6 +3681,7 @@ var (
 	Tables = []*schema.Table{
 		AppointmentsTable,
 		AuditLogsTable,
+		BackupsTable,
 		BarTabsTable,
 		BarTabEventsTable,
 		BillSplitsTable,
@@ -3636,6 +3702,7 @@ var (
 		GiftCardsTable,
 		GiftCardTransactionsTable,
 		HousekeepingTasksTable,
+		IdempotencyKeysTable,
 		IntegrationSettingsTable,
 		InventorySnapshotsTable,
 		KdsStationsTable,

@@ -28,6 +28,19 @@ func (POSOrder) Fields() []ent.Field {
 		field.String("order_number").
 			NotEmpty().
 			Unique(),
+		// client_reference is the offline client's locally-generated id (uuid). It is the
+		// idempotency anchor for offline-created sales: CreateOrder is get-or-create on
+		// (tenant_id, client_reference), so a replayed sync returns the existing order
+		// instead of creating a duplicate (and re-deducting stock / re-publishing events).
+		field.String("client_reference").
+			Optional().
+			Nillable(),
+		// offline_created_at is when the sale was actually rung up on the device (the client
+		// clock), distinct from created_at (server ingestion time). Used for receipts/reports
+		// so offline sales show the real transaction time.
+		field.Time("offline_created_at").
+			Optional().
+			Nillable(),
 		field.String("status").
 			Default("draft"),
 		field.Float("subtotal"),
@@ -114,5 +127,8 @@ func (POSOrder) Edges() []ent.Edge {
 func (POSOrder) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("tenant_id", "order_number").Unique(),
+		// Backstop dedup for offline sales: even if the idempotency-key cache is evicted,
+		// a replayed offline order with the same client_reference cannot be inserted twice.
+		index.Fields("tenant_id", "client_reference").Unique(),
 	}
 }

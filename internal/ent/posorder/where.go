@@ -81,6 +81,16 @@ func OrderNumber(v string) predicate.POSOrder {
 	return predicate.POSOrder(sql.FieldEQ(FieldOrderNumber, v))
 }
 
+// ClientReference applies equality check predicate on the "client_reference" field. It's identical to ClientReferenceEQ.
+func ClientReference(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEQ(FieldClientReference, v))
+}
+
+// OfflineCreatedAt applies equality check predicate on the "offline_created_at" field. It's identical to OfflineCreatedAtEQ.
+func OfflineCreatedAt(v time.Time) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEQ(FieldOfflineCreatedAt, v))
+}
+
 // Status applies equality check predicate on the "status" field. It's identical to StatusEQ.
 func Status(v string) predicate.POSOrder {
 	return predicate.POSOrder(sql.FieldEQ(FieldStatus, v))
@@ -414,6 +424,131 @@ func OrderNumberEqualFold(v string) predicate.POSOrder {
 // OrderNumberContainsFold applies the ContainsFold predicate on the "order_number" field.
 func OrderNumberContainsFold(v string) predicate.POSOrder {
 	return predicate.POSOrder(sql.FieldContainsFold(FieldOrderNumber, v))
+}
+
+// ClientReferenceEQ applies the EQ predicate on the "client_reference" field.
+func ClientReferenceEQ(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEQ(FieldClientReference, v))
+}
+
+// ClientReferenceNEQ applies the NEQ predicate on the "client_reference" field.
+func ClientReferenceNEQ(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNEQ(FieldClientReference, v))
+}
+
+// ClientReferenceIn applies the In predicate on the "client_reference" field.
+func ClientReferenceIn(vs ...string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldIn(FieldClientReference, vs...))
+}
+
+// ClientReferenceNotIn applies the NotIn predicate on the "client_reference" field.
+func ClientReferenceNotIn(vs ...string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNotIn(FieldClientReference, vs...))
+}
+
+// ClientReferenceGT applies the GT predicate on the "client_reference" field.
+func ClientReferenceGT(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldGT(FieldClientReference, v))
+}
+
+// ClientReferenceGTE applies the GTE predicate on the "client_reference" field.
+func ClientReferenceGTE(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldGTE(FieldClientReference, v))
+}
+
+// ClientReferenceLT applies the LT predicate on the "client_reference" field.
+func ClientReferenceLT(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldLT(FieldClientReference, v))
+}
+
+// ClientReferenceLTE applies the LTE predicate on the "client_reference" field.
+func ClientReferenceLTE(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldLTE(FieldClientReference, v))
+}
+
+// ClientReferenceContains applies the Contains predicate on the "client_reference" field.
+func ClientReferenceContains(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldContains(FieldClientReference, v))
+}
+
+// ClientReferenceHasPrefix applies the HasPrefix predicate on the "client_reference" field.
+func ClientReferenceHasPrefix(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldHasPrefix(FieldClientReference, v))
+}
+
+// ClientReferenceHasSuffix applies the HasSuffix predicate on the "client_reference" field.
+func ClientReferenceHasSuffix(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldHasSuffix(FieldClientReference, v))
+}
+
+// ClientReferenceIsNil applies the IsNil predicate on the "client_reference" field.
+func ClientReferenceIsNil() predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldIsNull(FieldClientReference))
+}
+
+// ClientReferenceNotNil applies the NotNil predicate on the "client_reference" field.
+func ClientReferenceNotNil() predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNotNull(FieldClientReference))
+}
+
+// ClientReferenceEqualFold applies the EqualFold predicate on the "client_reference" field.
+func ClientReferenceEqualFold(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEqualFold(FieldClientReference, v))
+}
+
+// ClientReferenceContainsFold applies the ContainsFold predicate on the "client_reference" field.
+func ClientReferenceContainsFold(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldContainsFold(FieldClientReference, v))
+}
+
+// OfflineCreatedAtEQ applies the EQ predicate on the "offline_created_at" field.
+func OfflineCreatedAtEQ(v time.Time) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEQ(FieldOfflineCreatedAt, v))
+}
+
+// OfflineCreatedAtNEQ applies the NEQ predicate on the "offline_created_at" field.
+func OfflineCreatedAtNEQ(v time.Time) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNEQ(FieldOfflineCreatedAt, v))
+}
+
+// OfflineCreatedAtIn applies the In predicate on the "offline_created_at" field.
+func OfflineCreatedAtIn(vs ...time.Time) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldIn(FieldOfflineCreatedAt, vs...))
+}
+
+// OfflineCreatedAtNotIn applies the NotIn predicate on the "offline_created_at" field.
+func OfflineCreatedAtNotIn(vs ...time.Time) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNotIn(FieldOfflineCreatedAt, vs...))
+}
+
+// OfflineCreatedAtGT applies the GT predicate on the "offline_created_at" field.
+func OfflineCreatedAtGT(v time.Time) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldGT(FieldOfflineCreatedAt, v))
+}
+
+// OfflineCreatedAtGTE applies the GTE predicate on the "offline_created_at" field.
+func OfflineCreatedAtGTE(v time.Time) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldGTE(FieldOfflineCreatedAt, v))
+}
+
+// OfflineCreatedAtLT applies the LT predicate on the "offline_created_at" field.
+func OfflineCreatedAtLT(v time.Time) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldLT(FieldOfflineCreatedAt, v))
+}
+
+// OfflineCreatedAtLTE applies the LTE predicate on the "offline_created_at" field.
+func OfflineCreatedAtLTE(v time.Time) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldLTE(FieldOfflineCreatedAt, v))
+}
+
+// OfflineCreatedAtIsNil applies the IsNil predicate on the "offline_created_at" field.
+func OfflineCreatedAtIsNil() predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldIsNull(FieldOfflineCreatedAt))
+}
+
+// OfflineCreatedAtNotNil applies the NotNil predicate on the "offline_created_at" field.
+func OfflineCreatedAtNotNil() predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNotNull(FieldOfflineCreatedAt))
 }
 
 // StatusEQ applies the EQ predicate on the "status" field.

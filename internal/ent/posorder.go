@@ -29,6 +29,10 @@ type POSOrder struct {
 	UserID uuid.UUID `json:"user_id,omitempty"`
 	// OrderNumber holds the value of the "order_number" field.
 	OrderNumber string `json:"order_number,omitempty"`
+	// ClientReference holds the value of the "client_reference" field.
+	ClientReference *string `json:"client_reference,omitempty"`
+	// OfflineCreatedAt holds the value of the "offline_created_at" field.
+	OfflineCreatedAt *time.Time `json:"offline_created_at,omitempty"`
 	// Status holds the value of the "status" field.
 	Status string `json:"status,omitempty"`
 	// Subtotal holds the value of the "subtotal" field.
@@ -136,9 +140,9 @@ func (*POSOrder) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullFloat64)
 		case posorder.FieldCoversCount, posorder.FieldFiredCourses, posorder.FieldReprintCount:
 			values[i] = new(sql.NullInt64)
-		case posorder.FieldOrderNumber, posorder.FieldStatus, posorder.FieldCurrency, posorder.FieldOrderSubtype, posorder.FieldCustomerPhone, posorder.FieldCustomerName, posorder.FieldEtimsInvoiceNumber, posorder.FieldEtimsQrCodeURL, posorder.FieldVoidedReason:
+		case posorder.FieldOrderNumber, posorder.FieldClientReference, posorder.FieldStatus, posorder.FieldCurrency, posorder.FieldOrderSubtype, posorder.FieldCustomerPhone, posorder.FieldCustomerName, posorder.FieldEtimsInvoiceNumber, posorder.FieldEtimsQrCodeURL, posorder.FieldVoidedReason:
 			values[i] = new(sql.NullString)
-		case posorder.FieldVoidedAt, posorder.FieldCreatedAt, posorder.FieldUpdatedAt:
+		case posorder.FieldOfflineCreatedAt, posorder.FieldVoidedAt, posorder.FieldCreatedAt, posorder.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
 		case posorder.FieldID, posorder.FieldTenantID, posorder.FieldOutletID, posorder.FieldDeviceID, posorder.FieldUserID:
 			values[i] = new(uuid.UUID)
@@ -192,6 +196,20 @@ func (_m *POSOrder) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field order_number", values[i])
 			} else if value.Valid {
 				_m.OrderNumber = value.String
+			}
+		case posorder.FieldClientReference:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field client_reference", values[i])
+			} else if value.Valid {
+				_m.ClientReference = new(string)
+				*_m.ClientReference = value.String
+			}
+		case posorder.FieldOfflineCreatedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field offline_created_at", values[i])
+			} else if value.Valid {
+				_m.OfflineCreatedAt = new(time.Time)
+				*_m.OfflineCreatedAt = value.Time
 			}
 		case posorder.FieldStatus:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -413,6 +431,16 @@ func (_m *POSOrder) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("order_number=")
 	builder.WriteString(_m.OrderNumber)
+	builder.WriteString(", ")
+	if v := _m.ClientReference; v != nil {
+		builder.WriteString("client_reference=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.OfflineCreatedAt; v != nil {
+		builder.WriteString("offline_created_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("status=")
 	builder.WriteString(_m.Status)

@@ -63,6 +63,8 @@ type createOrderInput struct {
 	OutletID       string                 `json:"outlet_id"`
 	DeviceID       string                 `json:"device_id"`
 	OrderNumber    string                 `json:"order_number"`
+	ClientReference string                `json:"client_reference,omitempty"` // offline local_id — idempotency anchor
+	OfflineCreatedAt *time.Time           `json:"offline_created_at,omitempty"` // device-clock time the sale was rung up offline
 	Currency       string                 `json:"currency"`
 	Lines          []createOrderLineInput `json:"lines"`
 	Metadata       map[string]interface{} `json:"metadata"`
@@ -464,9 +466,11 @@ func (h *POSOrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 		TenantID:       tid,
 		OutletID:       outletID,
 		DeviceID:       deviceID,
-		UserID:         userID,
-		OrderNumber:    input.OrderNumber,
-		Currency:       input.Currency,
+		UserID:           userID,
+		OrderNumber:      input.OrderNumber,
+		ClientReference:  input.ClientReference,
+		OfflineCreatedAt: input.OfflineCreatedAt,
+		Currency:         input.Currency,
 		Lines:          lines,
 		Metadata:       input.Metadata,
 		OrderSubtype:   input.OrderSubtype,

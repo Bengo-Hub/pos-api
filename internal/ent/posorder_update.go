@@ -102,6 +102,46 @@ func (_u *POSOrderUpdate) SetNillableOrderNumber(v *string) *POSOrderUpdate {
 	return _u
 }
 
+// SetClientReference sets the "client_reference" field.
+func (_u *POSOrderUpdate) SetClientReference(v string) *POSOrderUpdate {
+	_u.mutation.SetClientReference(v)
+	return _u
+}
+
+// SetNillableClientReference sets the "client_reference" field if the given value is not nil.
+func (_u *POSOrderUpdate) SetNillableClientReference(v *string) *POSOrderUpdate {
+	if v != nil {
+		_u.SetClientReference(*v)
+	}
+	return _u
+}
+
+// ClearClientReference clears the value of the "client_reference" field.
+func (_u *POSOrderUpdate) ClearClientReference() *POSOrderUpdate {
+	_u.mutation.ClearClientReference()
+	return _u
+}
+
+// SetOfflineCreatedAt sets the "offline_created_at" field.
+func (_u *POSOrderUpdate) SetOfflineCreatedAt(v time.Time) *POSOrderUpdate {
+	_u.mutation.SetOfflineCreatedAt(v)
+	return _u
+}
+
+// SetNillableOfflineCreatedAt sets the "offline_created_at" field if the given value is not nil.
+func (_u *POSOrderUpdate) SetNillableOfflineCreatedAt(v *time.Time) *POSOrderUpdate {
+	if v != nil {
+		_u.SetOfflineCreatedAt(*v)
+	}
+	return _u
+}
+
+// ClearOfflineCreatedAt clears the value of the "offline_created_at" field.
+func (_u *POSOrderUpdate) ClearOfflineCreatedAt() *POSOrderUpdate {
+	_u.mutation.ClearOfflineCreatedAt()
+	return _u
+}
+
 // SetStatus sets the "status" field.
 func (_u *POSOrderUpdate) SetStatus(v string) *POSOrderUpdate {
 	_u.mutation.SetStatus(v)
@@ -716,6 +756,18 @@ func (_u *POSOrderUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.OrderNumber(); ok {
 		_spec.SetField(posorder.FieldOrderNumber, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.ClientReference(); ok {
+		_spec.SetField(posorder.FieldClientReference, field.TypeString, value)
+	}
+	if _u.mutation.ClientReferenceCleared() {
+		_spec.ClearField(posorder.FieldClientReference, field.TypeString)
+	}
+	if value, ok := _u.mutation.OfflineCreatedAt(); ok {
+		_spec.SetField(posorder.FieldOfflineCreatedAt, field.TypeTime, value)
+	}
+	if _u.mutation.OfflineCreatedAtCleared() {
+		_spec.ClearField(posorder.FieldOfflineCreatedAt, field.TypeTime)
+	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(posorder.FieldStatus, field.TypeString, value)
 	}
@@ -1061,6 +1113,46 @@ func (_u *POSOrderUpdateOne) SetNillableOrderNumber(v *string) *POSOrderUpdateOn
 	if v != nil {
 		_u.SetOrderNumber(*v)
 	}
+	return _u
+}
+
+// SetClientReference sets the "client_reference" field.
+func (_u *POSOrderUpdateOne) SetClientReference(v string) *POSOrderUpdateOne {
+	_u.mutation.SetClientReference(v)
+	return _u
+}
+
+// SetNillableClientReference sets the "client_reference" field if the given value is not nil.
+func (_u *POSOrderUpdateOne) SetNillableClientReference(v *string) *POSOrderUpdateOne {
+	if v != nil {
+		_u.SetClientReference(*v)
+	}
+	return _u
+}
+
+// ClearClientReference clears the value of the "client_reference" field.
+func (_u *POSOrderUpdateOne) ClearClientReference() *POSOrderUpdateOne {
+	_u.mutation.ClearClientReference()
+	return _u
+}
+
+// SetOfflineCreatedAt sets the "offline_created_at" field.
+func (_u *POSOrderUpdateOne) SetOfflineCreatedAt(v time.Time) *POSOrderUpdateOne {
+	_u.mutation.SetOfflineCreatedAt(v)
+	return _u
+}
+
+// SetNillableOfflineCreatedAt sets the "offline_created_at" field if the given value is not nil.
+func (_u *POSOrderUpdateOne) SetNillableOfflineCreatedAt(v *time.Time) *POSOrderUpdateOne {
+	if v != nil {
+		_u.SetOfflineCreatedAt(*v)
+	}
+	return _u
+}
+
+// ClearOfflineCreatedAt clears the value of the "offline_created_at" field.
+func (_u *POSOrderUpdateOne) ClearOfflineCreatedAt() *POSOrderUpdateOne {
+	_u.mutation.ClearOfflineCreatedAt()
 	return _u
 }
 
@@ -1707,6 +1799,18 @@ func (_u *POSOrderUpdateOne) sqlSave(ctx context.Context) (_node *POSOrder, err 
 	}
 	if value, ok := _u.mutation.OrderNumber(); ok {
 		_spec.SetField(posorder.FieldOrderNumber, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.ClientReference(); ok {
+		_spec.SetField(posorder.FieldClientReference, field.TypeString, value)
+	}
+	if _u.mutation.ClientReferenceCleared() {
+		_spec.ClearField(posorder.FieldClientReference, field.TypeString)
+	}
+	if value, ok := _u.mutation.OfflineCreatedAt(); ok {
+		_spec.SetField(posorder.FieldOfflineCreatedAt, field.TypeTime, value)
+	}
+	if _u.mutation.OfflineCreatedAtCleared() {
+		_spec.ClearField(posorder.FieldOfflineCreatedAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(posorder.FieldStatus, field.TypeString, value)
