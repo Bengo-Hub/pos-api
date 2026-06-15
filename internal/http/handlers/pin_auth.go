@@ -505,6 +505,15 @@ func (h *PINAuthHandler) IdentifyByPIN(w http.ResponseWriter, r *http.Request) {
 		isHQ = outlet.IsHq
 	}
 
+	// pin_hash is returned ONLY here, to the device the staff member just authenticated on,
+	// so it can be cached for offline PIN re-login. It is never exposed by the public staff
+	// list (/auth/pin/profile). A 4-digit PIN's bcrypt hash is brute-forceable, so this trades
+	// a little secrecy for offline capability — acceptable since exposure is limited to users
+	// who have physically signed in on this terminal.
+	pinHash := ""
+	if member.PinHash != nil {
+		pinHash = *member.PinHash
+	}
 	jsonOK(w, map[string]any{
 		"access_token": token,
 		"token_type":   "Bearer",
@@ -517,6 +526,7 @@ func (h *PINAuthHandler) IdentifyByPIN(w http.ResponseWriter, r *http.Request) {
 			"outlet_id":       outletID.String(),
 			"outlet_use_case": outletUseCase,
 			"is_hq_user":      isHQ,
+			"pin_hash":        pinHash,
 		},
 	})
 }
