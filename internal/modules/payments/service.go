@@ -589,6 +589,38 @@ func (s *Service) publishSaleFinalized(ctx context.Context, order *ent.POSOrder)
 		items = append(items, item)
 	}
 
+	// Determine the SELLING SCHEME from the order's tenders so treasury routes the ledger correctly.
+	// A credit ("on account") sale has ALREADY posted the amount to the customer's AR balance in
+	// treasury (recordCreditSale); treasury's sale.finalized subscriber must therefore NOT also post
+	// a cash receipt for it (that double-counted credit sales as cash). We surface the scheme, the
+	// on-account amount, and a per-tender breakdown for accurate GL posting.
+	sellingScheme := "cash"
+	onAccountAmount := 0.0
+	tenderBreakdown := make([]map[string]any, 0)
+	if pays, perr := s.client.POSPayment.Query().Where(pospayment.OrderID(order.ID)).All(ctx); perr == nil {
+		for _, p := range pays {
+			tType := ""
+			if t, tErr := s.client.Tender.Get(ctx, p.TenderID); tErr == nil {
+				tType = t.Type
+			}
+			tenderBreakdown = append(tenderBreakdown, map[string]any{
+				"type":   tType,
+				"amount": p.Amount,
+				"status": p.Status,
+			})
+			if strings.EqualFold(tType, TenderOnAccount) && p.Status == StatusCompleted {
+				onAccountAmount += p.Amount
+			}
+		}
+	}
+	if onAccountAmount > 0 {
+		if onAccountAmount >= order.TotalAmount-0.01 {
+			sellingScheme = "credit" // fully on account
+		} else {
+			sellingScheme = "mixed" // part cash / part on account
+		}
+	}
+
 	data := map[string]any{
 		"order_id":     order.ID.String(),
 		"order_number": order.OrderNumber,
@@ -599,6 +631,10 @@ func (s *Service) publishSaleFinalized(ctx context.Context, order *ent.POSOrder)
 		"total_amount": order.TotalAmount,
 		"currency":     order.Currency,
 		"items":        items,
+		// Selling scheme + tender breakdown for treasury GL routing (cash receipt vs AR).
+		"selling_scheme":    sellingScheme,
+		"on_account_amount": onAccountAmount,
+		"tenders":           tenderBreakdown,
 		"customer_phone": func() string {
 			if order.CustomerPhone != nil {
 				return *order.CustomerPhone
