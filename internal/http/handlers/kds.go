@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/Bengo-Hub/httpware"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -100,6 +101,11 @@ func (h *KDSHandler) ListStations(w http.ResponseWriter, r *http.Request) {
 
 	// ?all=true returns inactive stations too (used by the settings UI for management)
 	q := h.client.KDSStation.Query().Where(entkdsstation.TenantID(tid))
+	if oidStr := httpware.GetOutletID(r.Context()); oidStr != "" {
+		if oid, parseErr := uuid.Parse(oidStr); parseErr == nil {
+			q = q.Where(entkdsstation.OutletID(oid))
+		}
+	}
 	if r.URL.Query().Get("all") != "true" {
 		q = q.Where(entkdsstation.IsActive(true))
 	}
@@ -140,13 +146,20 @@ func (h *KDSHandler) getQueue(w http.ResponseWriter, r *http.Request, stationTyp
 		entkdsstation.StationTypeAll,
 	}
 
-	stations, err := h.client.KDSStation.Query().
+	stationQuery := h.client.KDSStation.Query().
 		Where(
 			entkdsstation.TenantID(tid),
 			entkdsstation.IsActive(true),
 			entkdsstation.StationTypeIn(targetTypes...),
-		).
-		All(r.Context())
+		)
+	// Scope to the active outlet so e.g. a quick-service KDS never sees a hospitality
+	// outlet's stations/tickets. Outlet comes from the X-Outlet-ID header.
+	if oidStr := httpware.GetOutletID(r.Context()); oidStr != "" {
+		if oid, parseErr := uuid.Parse(oidStr); parseErr == nil {
+			stationQuery = stationQuery.Where(entkdsstation.OutletID(oid))
+		}
+	}
+	stations, err := stationQuery.All(r.Context())
 	if err != nil {
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
@@ -155,6 +168,13 @@ func (h *KDSHandler) getQueue(w http.ResponseWriter, r *http.Request, stationTyp
 	stationIDs := make([]uuid.UUID, 0, len(stations))
 	for _, s := range stations {
 		stationIDs = append(stationIDs, s.ID)
+	}
+
+	// No stations for this outlet/queue → no tickets. Returning early avoids leaking
+	// every tenant ticket when the station filter would otherwise be omitted.
+	if len(stationIDs) == 0 {
+		jsonOK(w, map[string]any{"data": []any{}, "total": 0})
+		return
 	}
 
 	activeStatuses := []entkdsticket.Status{
@@ -167,13 +187,10 @@ func (h *KDSHandler) getQueue(w http.ResponseWriter, r *http.Request, stationTyp
 		Where(
 			entkdsticket.TenantID(tid),
 			entkdsticket.StatusIn(activeStatuses...),
+			entkdsticket.StationIDIn(stationIDs...),
 		).
 		WithStation().
 		Order(ent.Asc(entkdsticket.FieldPriority), ent.Asc(entkdsticket.FieldReceivedAt))
-
-	if len(stationIDs) > 0 {
-		q = q.Where(entkdsticket.StationIDIn(stationIDs...))
-	}
 
 	tickets, err := q.All(r.Context())
 	if err != nil {
@@ -197,6 +214,14 @@ func (h *KDSHandler) ListTickets(w http.ResponseWriter, r *http.Request) {
 		Where(entkdsticket.TenantID(tid)).
 		WithStation().
 		Order(ent.Asc(entkdsticket.FieldPriority), ent.Asc(entkdsticket.FieldReceivedAt))
+
+	// Scope to the active outlet via the ticket's station (tickets have no outlet_id of
+	// their own). Prevents one outlet's KDS from listing another outlet's tickets.
+	if oidStr := httpware.GetOutletID(r.Context()); oidStr != "" {
+		if oid, parseErr := uuid.Parse(oidStr); parseErr == nil {
+			q = q.Where(entkdsticket.HasStationWith(entkdsstation.OutletID(oid)))
+		}
+	}
 
 	if stationParam := r.URL.Query().Get("station_id"); stationParam != "" {
 		if stationID, err := uuid.Parse(stationParam); err == nil {
@@ -264,6 +289,17 @@ func (h *KDSHandler) transitionTicket(w http.ResponseWriter, r *http.Request, to
 	if err != nil {
 		jsonError(w, "ticket not found", http.StatusNotFound)
 		return
+	}
+
+	// Reject mutations on tickets that belong to a different outlet than the caller's
+	// active outlet — no cross-outlet ticket processing.
+	if oidStr := httpware.GetOutletID(r.Context()); oidStr != "" {
+		if oid, parseErr := uuid.Parse(oidStr); parseErr == nil {
+			if ticket.Edges.Station == nil || ticket.Edges.Station.OutletID != oid {
+				jsonError(w, "ticket not found", http.StatusNotFound)
+				return
+			}
+		}
 	}
 
 	now := time.Now()

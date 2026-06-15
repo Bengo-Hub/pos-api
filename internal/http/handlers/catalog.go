@@ -95,11 +95,13 @@ type inventoryProxyItem struct {
 }
 
 // inventoryBulkPrice is one entry from GET /inventory/items/pricing.
+// Price/TierCode = default tier; Prices = every active tier keyed by code (RETAIL, WHOLESALE…).
 type inventoryBulkPrice struct {
-	ItemID   string  `json:"item_id"`
-	Price    float64 `json:"price"`
-	Currency string  `json:"currency"`
-	TierCode string  `json:"tier_code"`
+	ItemID   string             `json:"item_id"`
+	Price    float64            `json:"price"`
+	Currency string             `json:"currency"`
+	TierCode string             `json:"tier_code"`
+	Prices   map[string]float64 `json:"prices"`
 }
 
 func inventoryURL() string {
@@ -289,22 +291,28 @@ func fetchInventoryBundles(ctx context.Context, tenantSlug string) ([]inventoryP
 	return wrapper.Data, nil
 }
 
-// fetchInventoryPricing calls inventory-api for default-tier prices.
-func fetchInventoryPricing(ctx context.Context, tenantSlug, outletID string) (map[string]float64, error) {
+// fetchInventoryPricing calls inventory-api for prices. It returns the default-tier price per
+// item (byID) AND the full per-tier price map per item (tiersByID[itemID][tierCode]) so the POS
+// terminal can switch pricing profiles (Retail/Wholesale/…) without a per-item round-trip.
+func fetchInventoryPricing(ctx context.Context, tenantSlug, outletID string) (map[string]float64, map[string]map[string]float64, error) {
 	url := fmt.Sprintf("%s/v1/%s/inventory/items/pricing", inventoryURL(), tenantSlug)
 	body, err := doInventoryGET(ctx, url, outletID)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	var prices []inventoryBulkPrice
 	if err := json.Unmarshal(body, &prices); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	m := make(map[string]float64, len(prices))
+	tiers := make(map[string]map[string]float64, len(prices))
 	for _, p := range prices {
 		m[p.ItemID] = p.Price
+		if len(p.Prices) > 0 {
+			tiers[p.ItemID] = p.Prices
+		}
 	}
-	return m, nil
+	return m, tiers, nil
 }
 
 // posPricingTier is the clean shape pos-ui consumes for the price-profile selector.
@@ -506,6 +514,10 @@ type catalogItemDTO struct {
 	ImageURL                string
 	Barcode                 string
 	Price                   float64
+	// Prices carries the per-pricing-profile price keyed by tier code (e.g. {"RETAIL":320,
+	// "WHOLESALE":290}) so the terminal can switch profiles without re-fetching. Default-profile
+	// price stays in Price (override-merged).
+	Prices                  map[string]float64
 	TaxStatus               string
 	TaxCodeID               string
 	TaxInclusive            bool
@@ -557,6 +569,7 @@ func (h *CatalogHandler) assembleMenuItems(
 	}
 	type priceResult struct {
 		prices map[string]float64
+		tiers  map[string]map[string]float64
 		err    error
 	}
 	itemsCh := make(chan itemsResult, 1)
@@ -567,8 +580,8 @@ func (h *CatalogHandler) assembleMenuItems(
 		itemsCh <- itemsResult{items, err}
 	}()
 	go func() {
-		prices, err := fetchInventoryPricing(ctx, tenantSlug, outletIDStr)
-		priceCh <- priceResult{prices, err}
+		prices, tiers, err := fetchInventoryPricing(ctx, tenantSlug, outletIDStr)
+		priceCh <- priceResult{prices, tiers, err}
 	}()
 
 	ir := <-itemsCh
@@ -580,6 +593,7 @@ func (h *CatalogHandler) assembleMenuItems(
 		h.log.Warn("inventory pricing fetch failed — prices will be 0", zap.Error(pr.err))
 	}
 	invPriceByID := pr.prices
+	invTierPricesByID := pr.tiers // itemID → {tierCode: price}
 
 	// Load all POS overrides for this tenant
 	overrides, _ := h.client.POSCatalogOverride.Query().
@@ -741,6 +755,21 @@ func (h *CatalogHandler) assembleMenuItems(
 			}
 		}
 
+		// Per-profile prices (rounded to whole units like the default price). The selected default
+		// tier code is mapped onto the override-merged `price` so the active profile always matches
+		// what's displayed; other tiers come straight from inventory.
+		var tierPrices map[string]float64
+		if raw := invTierPricesByID[item.ID]; len(raw) > 0 {
+			tierPrices = make(map[string]float64, len(raw))
+			for code, p := range raw {
+				if p > 0 {
+					tierPrices[code] = math.Ceil(p)
+				} else {
+					tierPrices[code] = 0
+				}
+			}
+		}
+
 		out = append(out, catalogItemDTO{
 			ID:                      item.ID,
 			SKU:                     item.SKU,
@@ -855,6 +884,7 @@ func catalogItemToMap(item catalogItemDTO, outletID *uuid.UUID) map[string]any {
 		"image_url":                 item.ImageURL,
 		"barcode":                   item.Barcode,
 		"price":                     item.Price,
+		"prices":                    item.Prices,
 		"tax_status":                item.TaxStatus,
 		"tax_code_id":               item.TaxCodeID,
 		"tax_inclusive":             item.TaxInclusive,
