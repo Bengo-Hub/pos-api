@@ -106,7 +106,18 @@ func Idempotency(client *ent.Client) func(http.Handler) http.Handler {
 
 			// First execution — capture the response.
 			cw := &captureWriter{ResponseWriter: w, status: http.StatusOK}
+			completed := false
+			// If the handler panics (recovered upstream), drop the in_flight row so the client's
+			// retry isn't 409'd forever — the panic surfaces as a retryable 5xx.
+			defer func() {
+				if !completed {
+					_, _ = client.IdempotencyKey.Delete().
+						Where(idempotencykey.TenantID(tid), idempotencykey.Key(key)).
+						Exec(ctx)
+				}
+			}()
 			next.ServeHTTP(cw, r)
+			completed = true
 
 			// Cache 2xx and client-error 4xx (terminal — replaying won't change the outcome),
 			// but never 5xx: a transient server error must be retryable by the client.
