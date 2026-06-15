@@ -782,6 +782,9 @@ type bookingPolicyInput struct {
 	AmendmentFee             *float64 `json:"amendment_fee"`
 	CancellationFee          *float64 `json:"cancellation_fee"`
 	Currency                 *string  `json:"currency"`
+	// PaymentTiming controls when the room charge is taken: settle_at_checkout | pay_upfront |
+	// per_day_split. Folio extras are ALWAYS settled at checkout regardless.
+	PaymentTiming *string `json:"payment_timing"`
 }
 
 func defaultPolicyMap() map[string]any {
@@ -791,6 +794,8 @@ func defaultPolicyMap() map[string]any {
 		"amendment_fee":               0.0,
 		"cancellation_fee":            0.0,
 		"currency":                    "KES",
+		// Default to the long-standing behaviour: room is settled together with extras at checkout.
+		"payment_timing": "settle_at_checkout",
 	}
 }
 
@@ -873,6 +878,12 @@ func (h *ServiceSettingsHandler) PatchBookingPolicy(w http.ResponseWriter, r *ht
 	}
 	if in.Currency != nil && *in.Currency != "" {
 		policy["currency"] = *in.Currency
+	}
+	if in.PaymentTiming != nil {
+		switch *in.PaymentTiming {
+		case "settle_at_checkout", "pay_upfront", "per_day_split":
+			policy["payment_timing"] = *in.PaymentTiming
+		}
 	}
 	meta["booking_policy"] = policy
 

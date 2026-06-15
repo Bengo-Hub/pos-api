@@ -482,17 +482,29 @@ func (h *HotelHandler) CheckOut(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Sum all folio charges
-	items, err := h.client.RoomFolioItem.Query().
-		Where(entroomfolioitem.TenantID(tid), entroomfolioitem.RoomGuestID(guest.ID)).
-		All(r.Context())
-	if err != nil {
+	// GATED CHECKOUT: the bill (room nights + every folio extra, minus payments already taken) must
+	// be fully cleared before a guest can be checked out. Folio extras are therefore always settled
+	// at checkout even when the room itself was paid in full at check-in. The receptionist clears the
+	// balance via POST /rooms/{id}/settle (which can auto-checkout) before this endpoint succeeds.
+	summary, serr := h.loadFolioSummary(r, tid, roomID)
+	if serr != nil {
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
 	}
-	var totalFolio float64
-	for _, item := range items {
-		totalFolio += item.Amount
+	totalFolio := 0.0
+	if summary != nil {
+		totalFolio = summary.ChargesTotal
+		if summary.Balance > 0.009 {
+			respondJSON(w, http.StatusConflict, map[string]any{
+				"error":       "outstanding_balance",
+				"message":     "Settle the outstanding bill before checking the guest out.",
+				"balance":     summary.Balance,
+				"charges_total": summary.ChargesTotal,
+				"paid_total":  summary.PaidTotal,
+				"currency":    summary.Currency,
+			})
+			return
+		}
 	}
 
 	now := time.Now()
@@ -550,37 +562,13 @@ func (h *HotelHandler) CheckOut(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	resp := map[string]any{
+	// Balance is already cleared (gated above), so no payment intent is created here — settlement
+	// happens via POST /rooms/{id}/settle before checkout.
+	jsonOK(w, map[string]any{
 		"guest":       guest,
 		"total_folio": totalFolio,
 		"status":      "checked_out",
-	}
-
-	// Create treasury payment intent for the folio total so pos-ui can present the payment modal.
-	if h.treasuryClient != nil && totalFolio > 0 {
-		tenantSlug := chi.URLParam(r, "tenantID")
-		intent, err := h.treasuryClient.CreateIntent(r.Context(), tenantSlug, guest.ID.String(), treasury.CreateIntentRequest{
-			SourceService: "pos",
-			ReferenceID:   guest.ID.String(),
-			ReferenceType: "hotel_folio",
-			Amount:        totalFolio,
-			Currency:      "KES",
-			PaymentMethod: "pending",
-			Description:   fmt.Sprintf("Hotel folio checkout - %s", guest.GuestName),
-			Metadata: map[string]any{
-				"room_id":  roomID,
-				"guest_id": guest.ID,
-			},
-		})
-		if err != nil {
-			h.log.Warn("failed to create treasury intent for hotel folio", zap.Error(err))
-		} else {
-			resp["intent_id"] = intent.ID
-			resp["intent_status"] = intent.Status
-		}
-	}
-
-	jsonOK(w, resp)
+	})
 }
 
 type postFolioInput struct {

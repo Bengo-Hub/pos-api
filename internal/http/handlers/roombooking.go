@@ -27,10 +27,13 @@ type bookingPolicy struct {
 	AmendmentFee             float64 `json:"amendment_fee"`
 	CancellationFee          float64 `json:"cancellation_fee"`
 	Currency                 string  `json:"currency"`
+	// PaymentTiming: settle_at_checkout (default) | pay_upfront | per_day_split. Controls when the
+	// room charge is taken. Folio extras are always settled at checkout regardless of this value.
+	PaymentTiming string `json:"payment_timing"`
 }
 
 func defaultBookingPolicy() bookingPolicy {
-	return bookingPolicy{FreeAmendmentWindowHours: 48, CancellationWindowHours: 72, Currency: "KES"}
+	return bookingPolicy{FreeAmendmentWindowHours: 48, CancellationWindowHours: 72, Currency: "KES", PaymentTiming: "settle_at_checkout"}
 }
 
 // resolveBookingPolicy reads the outlet's booking policy from OutletSetting.metadata,
