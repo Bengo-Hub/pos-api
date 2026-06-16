@@ -15,6 +15,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/appointment"
 	"github.com/bengobox/pos-service/internal/ent/auditlog"
 	"github.com/bengobox/pos-service/internal/ent/backup"
+	"github.com/bengobox/pos-service/internal/ent/backupsetting"
 	"github.com/bengobox/pos-service/internal/ent/bartab"
 	"github.com/bengobox/pos-service/internal/ent/bartabevent"
 	"github.com/bengobox/pos-service/internal/ent/billsplit"
@@ -137,6 +138,7 @@ const (
 	TypeAppointment              = "Appointment"
 	TypeAuditLog                 = "AuditLog"
 	TypeBackup                   = "Backup"
+	TypeBackupSetting            = "BackupSetting"
 	TypeBarTab                   = "BarTab"
 	TypeBarTabEvent              = "BarTabEvent"
 	TypeBillSplit                = "BillSplit"
@@ -3351,6 +3353,677 @@ func (m *BackupMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *BackupMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown Backup edge %s", name)
+}
+
+// BackupSettingMutation represents an operation that mutates the BackupSetting nodes in the graph.
+type BackupSettingMutation struct {
+	config
+	op                Op
+	typ               string
+	id                *uuid.UUID
+	tenant_id         *uuid.UUID
+	auto_enabled      *bool
+	schedule_hour     *int
+	addschedule_hour  *int
+	retention_days    *int
+	addretention_days *int
+	created_at        *time.Time
+	updated_at        *time.Time
+	clearedFields     map[string]struct{}
+	done              bool
+	oldValue          func(context.Context) (*BackupSetting, error)
+	predicates        []predicate.BackupSetting
+}
+
+var _ ent.Mutation = (*BackupSettingMutation)(nil)
+
+// backupsettingOption allows management of the mutation configuration using functional options.
+type backupsettingOption func(*BackupSettingMutation)
+
+// newBackupSettingMutation creates new mutation for the BackupSetting entity.
+func newBackupSettingMutation(c config, op Op, opts ...backupsettingOption) *BackupSettingMutation {
+	m := &BackupSettingMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeBackupSetting,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withBackupSettingID sets the ID field of the mutation.
+func withBackupSettingID(id uuid.UUID) backupsettingOption {
+	return func(m *BackupSettingMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *BackupSetting
+		)
+		m.oldValue = func(ctx context.Context) (*BackupSetting, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().BackupSetting.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withBackupSetting sets the old BackupSetting of the mutation.
+func withBackupSetting(node *BackupSetting) backupsettingOption {
+	return func(m *BackupSettingMutation) {
+		m.oldValue = func(context.Context) (*BackupSetting, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m BackupSettingMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m BackupSettingMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of BackupSetting entities.
+func (m *BackupSettingMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *BackupSettingMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *BackupSettingMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().BackupSetting.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *BackupSettingMutation) SetTenantID(u uuid.UUID) {
+	m.tenant_id = &u
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *BackupSettingMutation) TenantID() (r uuid.UUID, exists bool) {
+	v := m.tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the BackupSetting entity.
+// If the BackupSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BackupSettingMutation) OldTenantID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *BackupSettingMutation) ResetTenantID() {
+	m.tenant_id = nil
+}
+
+// SetAutoEnabled sets the "auto_enabled" field.
+func (m *BackupSettingMutation) SetAutoEnabled(b bool) {
+	m.auto_enabled = &b
+}
+
+// AutoEnabled returns the value of the "auto_enabled" field in the mutation.
+func (m *BackupSettingMutation) AutoEnabled() (r bool, exists bool) {
+	v := m.auto_enabled
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAutoEnabled returns the old "auto_enabled" field's value of the BackupSetting entity.
+// If the BackupSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BackupSettingMutation) OldAutoEnabled(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAutoEnabled is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAutoEnabled requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAutoEnabled: %w", err)
+	}
+	return oldValue.AutoEnabled, nil
+}
+
+// ResetAutoEnabled resets all changes to the "auto_enabled" field.
+func (m *BackupSettingMutation) ResetAutoEnabled() {
+	m.auto_enabled = nil
+}
+
+// SetScheduleHour sets the "schedule_hour" field.
+func (m *BackupSettingMutation) SetScheduleHour(i int) {
+	m.schedule_hour = &i
+	m.addschedule_hour = nil
+}
+
+// ScheduleHour returns the value of the "schedule_hour" field in the mutation.
+func (m *BackupSettingMutation) ScheduleHour() (r int, exists bool) {
+	v := m.schedule_hour
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldScheduleHour returns the old "schedule_hour" field's value of the BackupSetting entity.
+// If the BackupSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BackupSettingMutation) OldScheduleHour(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldScheduleHour is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldScheduleHour requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldScheduleHour: %w", err)
+	}
+	return oldValue.ScheduleHour, nil
+}
+
+// AddScheduleHour adds i to the "schedule_hour" field.
+func (m *BackupSettingMutation) AddScheduleHour(i int) {
+	if m.addschedule_hour != nil {
+		*m.addschedule_hour += i
+	} else {
+		m.addschedule_hour = &i
+	}
+}
+
+// AddedScheduleHour returns the value that was added to the "schedule_hour" field in this mutation.
+func (m *BackupSettingMutation) AddedScheduleHour() (r int, exists bool) {
+	v := m.addschedule_hour
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetScheduleHour resets all changes to the "schedule_hour" field.
+func (m *BackupSettingMutation) ResetScheduleHour() {
+	m.schedule_hour = nil
+	m.addschedule_hour = nil
+}
+
+// SetRetentionDays sets the "retention_days" field.
+func (m *BackupSettingMutation) SetRetentionDays(i int) {
+	m.retention_days = &i
+	m.addretention_days = nil
+}
+
+// RetentionDays returns the value of the "retention_days" field in the mutation.
+func (m *BackupSettingMutation) RetentionDays() (r int, exists bool) {
+	v := m.retention_days
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRetentionDays returns the old "retention_days" field's value of the BackupSetting entity.
+// If the BackupSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BackupSettingMutation) OldRetentionDays(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRetentionDays is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRetentionDays requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRetentionDays: %w", err)
+	}
+	return oldValue.RetentionDays, nil
+}
+
+// AddRetentionDays adds i to the "retention_days" field.
+func (m *BackupSettingMutation) AddRetentionDays(i int) {
+	if m.addretention_days != nil {
+		*m.addretention_days += i
+	} else {
+		m.addretention_days = &i
+	}
+}
+
+// AddedRetentionDays returns the value that was added to the "retention_days" field in this mutation.
+func (m *BackupSettingMutation) AddedRetentionDays() (r int, exists bool) {
+	v := m.addretention_days
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetRetentionDays resets all changes to the "retention_days" field.
+func (m *BackupSettingMutation) ResetRetentionDays() {
+	m.retention_days = nil
+	m.addretention_days = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *BackupSettingMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *BackupSettingMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the BackupSetting entity.
+// If the BackupSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BackupSettingMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *BackupSettingMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *BackupSettingMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *BackupSettingMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the BackupSetting entity.
+// If the BackupSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BackupSettingMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *BackupSettingMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the BackupSettingMutation builder.
+func (m *BackupSettingMutation) Where(ps ...predicate.BackupSetting) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the BackupSettingMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *BackupSettingMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.BackupSetting, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *BackupSettingMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *BackupSettingMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (BackupSetting).
+func (m *BackupSettingMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *BackupSettingMutation) Fields() []string {
+	fields := make([]string, 0, 6)
+	if m.tenant_id != nil {
+		fields = append(fields, backupsetting.FieldTenantID)
+	}
+	if m.auto_enabled != nil {
+		fields = append(fields, backupsetting.FieldAutoEnabled)
+	}
+	if m.schedule_hour != nil {
+		fields = append(fields, backupsetting.FieldScheduleHour)
+	}
+	if m.retention_days != nil {
+		fields = append(fields, backupsetting.FieldRetentionDays)
+	}
+	if m.created_at != nil {
+		fields = append(fields, backupsetting.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, backupsetting.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *BackupSettingMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case backupsetting.FieldTenantID:
+		return m.TenantID()
+	case backupsetting.FieldAutoEnabled:
+		return m.AutoEnabled()
+	case backupsetting.FieldScheduleHour:
+		return m.ScheduleHour()
+	case backupsetting.FieldRetentionDays:
+		return m.RetentionDays()
+	case backupsetting.FieldCreatedAt:
+		return m.CreatedAt()
+	case backupsetting.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *BackupSettingMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case backupsetting.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case backupsetting.FieldAutoEnabled:
+		return m.OldAutoEnabled(ctx)
+	case backupsetting.FieldScheduleHour:
+		return m.OldScheduleHour(ctx)
+	case backupsetting.FieldRetentionDays:
+		return m.OldRetentionDays(ctx)
+	case backupsetting.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case backupsetting.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown BackupSetting field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *BackupSettingMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case backupsetting.FieldTenantID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case backupsetting.FieldAutoEnabled:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAutoEnabled(v)
+		return nil
+	case backupsetting.FieldScheduleHour:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetScheduleHour(v)
+		return nil
+	case backupsetting.FieldRetentionDays:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRetentionDays(v)
+		return nil
+	case backupsetting.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case backupsetting.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown BackupSetting field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *BackupSettingMutation) AddedFields() []string {
+	var fields []string
+	if m.addschedule_hour != nil {
+		fields = append(fields, backupsetting.FieldScheduleHour)
+	}
+	if m.addretention_days != nil {
+		fields = append(fields, backupsetting.FieldRetentionDays)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *BackupSettingMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case backupsetting.FieldScheduleHour:
+		return m.AddedScheduleHour()
+	case backupsetting.FieldRetentionDays:
+		return m.AddedRetentionDays()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *BackupSettingMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case backupsetting.FieldScheduleHour:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddScheduleHour(v)
+		return nil
+	case backupsetting.FieldRetentionDays:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRetentionDays(v)
+		return nil
+	}
+	return fmt.Errorf("unknown BackupSetting numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *BackupSettingMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *BackupSettingMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *BackupSettingMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown BackupSetting nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *BackupSettingMutation) ResetField(name string) error {
+	switch name {
+	case backupsetting.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case backupsetting.FieldAutoEnabled:
+		m.ResetAutoEnabled()
+		return nil
+	case backupsetting.FieldScheduleHour:
+		m.ResetScheduleHour()
+		return nil
+	case backupsetting.FieldRetentionDays:
+		m.ResetRetentionDays()
+		return nil
+	case backupsetting.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case backupsetting.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown BackupSetting field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *BackupSettingMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *BackupSettingMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *BackupSettingMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *BackupSettingMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *BackupSettingMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *BackupSettingMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *BackupSettingMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown BackupSetting unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *BackupSettingMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown BackupSetting edge %s", name)
 }
 
 // BarTabMutation represents an operation that mutates the BarTab nodes in the graph.

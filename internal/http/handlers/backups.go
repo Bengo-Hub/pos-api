@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -37,7 +38,46 @@ func (h *BackupHandler) RegisterRoutes(r chi.Router) {
 		br.Post("/churn", h.Churn)
 		br.Get("/{name}/download", h.Download)
 		br.Delete("/{name}", h.Delete)
+		br.Get("/settings", h.GetSettings)
+		br.Put("/settings", h.UpdateSettings)
 	})
+}
+
+// GetSettings returns the tenant's auto-backup settings (defaults when not yet activated).
+func (h *BackupHandler) GetSettings(w http.ResponseWriter, r *http.Request) {
+	tenantID, err := parseTenantUUID(r)
+	if err != nil {
+		respondJSON(w, http.StatusBadRequest, map[string]string{"error": "tenant context required"})
+		return
+	}
+	settings, err := h.svc.GetSettings(r.Context(), tenantID)
+	if err != nil {
+		h.log.Error("get backup settings", zap.Error(err))
+		respondJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to load backup settings"})
+		return
+	}
+	respondJSON(w, http.StatusOK, settings)
+}
+
+// UpdateSettings persists the tenant's auto-backup settings (opt-in activation).
+func (h *BackupHandler) UpdateSettings(w http.ResponseWriter, r *http.Request) {
+	tenantID, err := parseTenantUUID(r)
+	if err != nil {
+		respondJSON(w, http.StatusBadRequest, map[string]string{"error": "tenant context required"})
+		return
+	}
+	var input backup.Settings
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		respondJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+		return
+	}
+	settings, err := h.svc.UpsertSettings(r.Context(), tenantID, input)
+	if err != nil {
+		h.log.Error("update backup settings", zap.Error(err))
+		respondJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to save backup settings"})
+		return
+	}
+	respondJSON(w, http.StatusOK, settings)
 }
 
 func (h *BackupHandler) List(w http.ResponseWriter, r *http.Request) {

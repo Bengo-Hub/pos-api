@@ -8,6 +8,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/appointment"
 	"github.com/bengobox/pos-service/internal/ent/auditlog"
 	"github.com/bengobox/pos-service/internal/ent/backup"
+	"github.com/bengobox/pos-service/internal/ent/backupsetting"
 	"github.com/bengobox/pos-service/internal/ent/bartab"
 	"github.com/bengobox/pos-service/internal/ent/bartabevent"
 	"github.com/bengobox/pos-service/internal/ent/billsplit"
@@ -180,6 +181,34 @@ func init() {
 	backupDescID := backupFields[0].Descriptor()
 	// backup.DefaultID holds the default value on creation for the id field.
 	backup.DefaultID = backupDescID.Default.(func() uuid.UUID)
+	backupsettingFields := schema.BackupSetting{}.Fields()
+	_ = backupsettingFields
+	// backupsettingDescAutoEnabled is the schema descriptor for auto_enabled field.
+	backupsettingDescAutoEnabled := backupsettingFields[2].Descriptor()
+	// backupsetting.DefaultAutoEnabled holds the default value on creation for the auto_enabled field.
+	backupsetting.DefaultAutoEnabled = backupsettingDescAutoEnabled.Default.(bool)
+	// backupsettingDescScheduleHour is the schema descriptor for schedule_hour field.
+	backupsettingDescScheduleHour := backupsettingFields[3].Descriptor()
+	// backupsetting.DefaultScheduleHour holds the default value on creation for the schedule_hour field.
+	backupsetting.DefaultScheduleHour = backupsettingDescScheduleHour.Default.(int)
+	// backupsettingDescRetentionDays is the schema descriptor for retention_days field.
+	backupsettingDescRetentionDays := backupsettingFields[4].Descriptor()
+	// backupsetting.DefaultRetentionDays holds the default value on creation for the retention_days field.
+	backupsetting.DefaultRetentionDays = backupsettingDescRetentionDays.Default.(int)
+	// backupsettingDescCreatedAt is the schema descriptor for created_at field.
+	backupsettingDescCreatedAt := backupsettingFields[5].Descriptor()
+	// backupsetting.DefaultCreatedAt holds the default value on creation for the created_at field.
+	backupsetting.DefaultCreatedAt = backupsettingDescCreatedAt.Default.(func() time.Time)
+	// backupsettingDescUpdatedAt is the schema descriptor for updated_at field.
+	backupsettingDescUpdatedAt := backupsettingFields[6].Descriptor()
+	// backupsetting.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	backupsetting.DefaultUpdatedAt = backupsettingDescUpdatedAt.Default.(func() time.Time)
+	// backupsetting.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	backupsetting.UpdateDefaultUpdatedAt = backupsettingDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// backupsettingDescID is the schema descriptor for id field.
+	backupsettingDescID := backupsettingFields[0].Descriptor()
+	// backupsetting.DefaultID holds the default value on creation for the id field.
+	backupsetting.DefaultID = backupsettingDescID.Default.(func() uuid.UUID)
 	bartabFields := schema.BarTab{}.Fields()
 	_ = bartabFields
 	// bartabDescTabName is the schema descriptor for tab_name field.

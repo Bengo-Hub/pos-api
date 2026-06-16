@@ -19,6 +19,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/appointment"
 	"github.com/bengobox/pos-service/internal/ent/auditlog"
 	"github.com/bengobox/pos-service/internal/ent/backup"
+	"github.com/bengobox/pos-service/internal/ent/backupsetting"
 	"github.com/bengobox/pos-service/internal/ent/bartab"
 	"github.com/bengobox/pos-service/internal/ent/bartabevent"
 	"github.com/bengobox/pos-service/internal/ent/billsplit"
@@ -139,6 +140,8 @@ type Client struct {
 	AuditLog *AuditLogClient
 	// Backup is the client for interacting with the Backup builders.
 	Backup *BackupClient
+	// BackupSetting is the client for interacting with the BackupSetting builders.
+	BackupSetting *BackupSettingClient
 	// BarTab is the client for interacting with the BarTab builders.
 	BarTab *BarTabClient
 	// BarTabEvent is the client for interacting with the BarTabEvent builders.
@@ -367,6 +370,7 @@ func (c *Client) init() {
 	c.Appointment = NewAppointmentClient(c.config)
 	c.AuditLog = NewAuditLogClient(c.config)
 	c.Backup = NewBackupClient(c.config)
+	c.BackupSetting = NewBackupSettingClient(c.config)
 	c.BarTab = NewBarTabClient(c.config)
 	c.BarTabEvent = NewBarTabEventClient(c.config)
 	c.BillSplit = NewBillSplitClient(c.config)
@@ -569,6 +573,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		Appointment:              NewAppointmentClient(cfg),
 		AuditLog:                 NewAuditLogClient(cfg),
 		Backup:                   NewBackupClient(cfg),
+		BackupSetting:            NewBackupSettingClient(cfg),
 		BarTab:                   NewBarTabClient(cfg),
 		BarTabEvent:              NewBarTabEventClient(cfg),
 		BillSplit:                NewBillSplitClient(cfg),
@@ -698,6 +703,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		Appointment:              NewAppointmentClient(cfg),
 		AuditLog:                 NewAuditLogClient(cfg),
 		Backup:                   NewBackupClient(cfg),
+		BackupSetting:            NewBackupSettingClient(cfg),
 		BarTab:                   NewBarTabClient(cfg),
 		BarTabEvent:              NewBarTabEventClient(cfg),
 		BillSplit:                NewBillSplitClient(cfg),
@@ -834,32 +840,32 @@ func (c *Client) Close() error {
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
-		c.Appointment, c.AuditLog, c.Backup, c.BarTab, c.BarTabEvent, c.BillSplit,
-		c.CashDrawer, c.CashDrawerEvent, c.ChannelIntegration, c.ChannelSyncJob,
-		c.ClientRecord, c.CommissionRecord, c.CommissionRule, c.ControlledSubstanceLog,
-		c.DailyClosing, c.DrugInteractionCheck, c.EventBooking, c.Facility,
-		c.FacilityBooking, c.FeatureOverride, c.GiftCard, c.GiftCardTransaction,
-		c.HousekeepingTask, c.IdempotencyKey, c.IntegrationSetting,
-		c.InventorySnapshot, c.KDSStation, c.KDSSyncFailure, c.KDSTicket,
-		c.LayawayPayment, c.LayawayPlan, c.LeaveRequest, c.LicenseUsageSnapshot,
-		c.LoyaltyAccount, c.LoyaltyProgram, c.LoyaltyTransaction, c.MealEntitlement,
-		c.Modifier, c.ModifierGroup, c.OrderLink, c.OutboxEvent, c.Outlet,
-		c.OutletSetting, c.POSCatalogOverride, c.POSDevice, c.POSDeviceSession,
-		c.POSLineModifier, c.POSOrder, c.POSOrderEvent, c.POSOrderLine, c.POSPayment,
-		c.POSPermission, c.POSRefund, c.POSReturn, c.POSReturnLine, c.POSRole,
-		c.POSRolePermission, c.POSRoleV2, c.POSUserRoleAssignment, c.PosNotification,
-		c.Prescription, c.PrescriptionLine, c.PriceBook, c.PriceBookItem, c.Promotion,
-		c.PromotionApplication, c.PromotionRule, c.RateLimitConfig, c.Referral,
-		c.RepairJob, c.RepairJobEvent, c.RepairJobPart, c.Resource, c.Room,
-		c.RoomAmenity, c.RoomAmenityAssignment, c.RoomBooking, c.RoomFolioItem,
-		c.RoomFolioPayment, c.RoomGuest, c.Section, c.SerialNumberLog, c.ServiceConfig,
-		c.ServicePackage, c.ServicePackagePurchase, c.ServicePackageRedemption,
-		c.ServiceQueueEntry, c.ShiftRotation, c.ShiftRotationSlot, c.StaffAdvance,
-		c.StaffMember, c.StaffOutlet, c.StaffPayroll, c.StaffPayrollLine,
-		c.StaffSchedule, c.StaffShiftOverride, c.StockAlertSubscription,
-		c.StockConsumptionEvent, c.SyncFailure, c.Table, c.TableAssignment,
-		c.TableReservation, c.Tenant, c.TenantSyncEvent, c.Tender, c.User,
-		c.UserPOSRole, c.WebhookDelivery, c.WebhookSubscription,
+		c.Appointment, c.AuditLog, c.Backup, c.BackupSetting, c.BarTab, c.BarTabEvent,
+		c.BillSplit, c.CashDrawer, c.CashDrawerEvent, c.ChannelIntegration,
+		c.ChannelSyncJob, c.ClientRecord, c.CommissionRecord, c.CommissionRule,
+		c.ControlledSubstanceLog, c.DailyClosing, c.DrugInteractionCheck,
+		c.EventBooking, c.Facility, c.FacilityBooking, c.FeatureOverride, c.GiftCard,
+		c.GiftCardTransaction, c.HousekeepingTask, c.IdempotencyKey,
+		c.IntegrationSetting, c.InventorySnapshot, c.KDSStation, c.KDSSyncFailure,
+		c.KDSTicket, c.LayawayPayment, c.LayawayPlan, c.LeaveRequest,
+		c.LicenseUsageSnapshot, c.LoyaltyAccount, c.LoyaltyProgram,
+		c.LoyaltyTransaction, c.MealEntitlement, c.Modifier, c.ModifierGroup,
+		c.OrderLink, c.OutboxEvent, c.Outlet, c.OutletSetting, c.POSCatalogOverride,
+		c.POSDevice, c.POSDeviceSession, c.POSLineModifier, c.POSOrder,
+		c.POSOrderEvent, c.POSOrderLine, c.POSPayment, c.POSPermission, c.POSRefund,
+		c.POSReturn, c.POSReturnLine, c.POSRole, c.POSRolePermission, c.POSRoleV2,
+		c.POSUserRoleAssignment, c.PosNotification, c.Prescription, c.PrescriptionLine,
+		c.PriceBook, c.PriceBookItem, c.Promotion, c.PromotionApplication,
+		c.PromotionRule, c.RateLimitConfig, c.Referral, c.RepairJob, c.RepairJobEvent,
+		c.RepairJobPart, c.Resource, c.Room, c.RoomAmenity, c.RoomAmenityAssignment,
+		c.RoomBooking, c.RoomFolioItem, c.RoomFolioPayment, c.RoomGuest, c.Section,
+		c.SerialNumberLog, c.ServiceConfig, c.ServicePackage, c.ServicePackagePurchase,
+		c.ServicePackageRedemption, c.ServiceQueueEntry, c.ShiftRotation,
+		c.ShiftRotationSlot, c.StaffAdvance, c.StaffMember, c.StaffOutlet,
+		c.StaffPayroll, c.StaffPayrollLine, c.StaffSchedule, c.StaffShiftOverride,
+		c.StockAlertSubscription, c.StockConsumptionEvent, c.SyncFailure, c.Table,
+		c.TableAssignment, c.TableReservation, c.Tenant, c.TenantSyncEvent, c.Tender,
+		c.User, c.UserPOSRole, c.WebhookDelivery, c.WebhookSubscription,
 		c.WeighingScaleReading,
 	} {
 		n.Use(hooks...)
@@ -870,32 +876,32 @@ func (c *Client) Use(hooks ...Hook) {
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
-		c.Appointment, c.AuditLog, c.Backup, c.BarTab, c.BarTabEvent, c.BillSplit,
-		c.CashDrawer, c.CashDrawerEvent, c.ChannelIntegration, c.ChannelSyncJob,
-		c.ClientRecord, c.CommissionRecord, c.CommissionRule, c.ControlledSubstanceLog,
-		c.DailyClosing, c.DrugInteractionCheck, c.EventBooking, c.Facility,
-		c.FacilityBooking, c.FeatureOverride, c.GiftCard, c.GiftCardTransaction,
-		c.HousekeepingTask, c.IdempotencyKey, c.IntegrationSetting,
-		c.InventorySnapshot, c.KDSStation, c.KDSSyncFailure, c.KDSTicket,
-		c.LayawayPayment, c.LayawayPlan, c.LeaveRequest, c.LicenseUsageSnapshot,
-		c.LoyaltyAccount, c.LoyaltyProgram, c.LoyaltyTransaction, c.MealEntitlement,
-		c.Modifier, c.ModifierGroup, c.OrderLink, c.OutboxEvent, c.Outlet,
-		c.OutletSetting, c.POSCatalogOverride, c.POSDevice, c.POSDeviceSession,
-		c.POSLineModifier, c.POSOrder, c.POSOrderEvent, c.POSOrderLine, c.POSPayment,
-		c.POSPermission, c.POSRefund, c.POSReturn, c.POSReturnLine, c.POSRole,
-		c.POSRolePermission, c.POSRoleV2, c.POSUserRoleAssignment, c.PosNotification,
-		c.Prescription, c.PrescriptionLine, c.PriceBook, c.PriceBookItem, c.Promotion,
-		c.PromotionApplication, c.PromotionRule, c.RateLimitConfig, c.Referral,
-		c.RepairJob, c.RepairJobEvent, c.RepairJobPart, c.Resource, c.Room,
-		c.RoomAmenity, c.RoomAmenityAssignment, c.RoomBooking, c.RoomFolioItem,
-		c.RoomFolioPayment, c.RoomGuest, c.Section, c.SerialNumberLog, c.ServiceConfig,
-		c.ServicePackage, c.ServicePackagePurchase, c.ServicePackageRedemption,
-		c.ServiceQueueEntry, c.ShiftRotation, c.ShiftRotationSlot, c.StaffAdvance,
-		c.StaffMember, c.StaffOutlet, c.StaffPayroll, c.StaffPayrollLine,
-		c.StaffSchedule, c.StaffShiftOverride, c.StockAlertSubscription,
-		c.StockConsumptionEvent, c.SyncFailure, c.Table, c.TableAssignment,
-		c.TableReservation, c.Tenant, c.TenantSyncEvent, c.Tender, c.User,
-		c.UserPOSRole, c.WebhookDelivery, c.WebhookSubscription,
+		c.Appointment, c.AuditLog, c.Backup, c.BackupSetting, c.BarTab, c.BarTabEvent,
+		c.BillSplit, c.CashDrawer, c.CashDrawerEvent, c.ChannelIntegration,
+		c.ChannelSyncJob, c.ClientRecord, c.CommissionRecord, c.CommissionRule,
+		c.ControlledSubstanceLog, c.DailyClosing, c.DrugInteractionCheck,
+		c.EventBooking, c.Facility, c.FacilityBooking, c.FeatureOverride, c.GiftCard,
+		c.GiftCardTransaction, c.HousekeepingTask, c.IdempotencyKey,
+		c.IntegrationSetting, c.InventorySnapshot, c.KDSStation, c.KDSSyncFailure,
+		c.KDSTicket, c.LayawayPayment, c.LayawayPlan, c.LeaveRequest,
+		c.LicenseUsageSnapshot, c.LoyaltyAccount, c.LoyaltyProgram,
+		c.LoyaltyTransaction, c.MealEntitlement, c.Modifier, c.ModifierGroup,
+		c.OrderLink, c.OutboxEvent, c.Outlet, c.OutletSetting, c.POSCatalogOverride,
+		c.POSDevice, c.POSDeviceSession, c.POSLineModifier, c.POSOrder,
+		c.POSOrderEvent, c.POSOrderLine, c.POSPayment, c.POSPermission, c.POSRefund,
+		c.POSReturn, c.POSReturnLine, c.POSRole, c.POSRolePermission, c.POSRoleV2,
+		c.POSUserRoleAssignment, c.PosNotification, c.Prescription, c.PrescriptionLine,
+		c.PriceBook, c.PriceBookItem, c.Promotion, c.PromotionApplication,
+		c.PromotionRule, c.RateLimitConfig, c.Referral, c.RepairJob, c.RepairJobEvent,
+		c.RepairJobPart, c.Resource, c.Room, c.RoomAmenity, c.RoomAmenityAssignment,
+		c.RoomBooking, c.RoomFolioItem, c.RoomFolioPayment, c.RoomGuest, c.Section,
+		c.SerialNumberLog, c.ServiceConfig, c.ServicePackage, c.ServicePackagePurchase,
+		c.ServicePackageRedemption, c.ServiceQueueEntry, c.ShiftRotation,
+		c.ShiftRotationSlot, c.StaffAdvance, c.StaffMember, c.StaffOutlet,
+		c.StaffPayroll, c.StaffPayrollLine, c.StaffSchedule, c.StaffShiftOverride,
+		c.StockAlertSubscription, c.StockConsumptionEvent, c.SyncFailure, c.Table,
+		c.TableAssignment, c.TableReservation, c.Tenant, c.TenantSyncEvent, c.Tender,
+		c.User, c.UserPOSRole, c.WebhookDelivery, c.WebhookSubscription,
 		c.WeighingScaleReading,
 	} {
 		n.Intercept(interceptors...)
@@ -911,6 +917,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.AuditLog.mutate(ctx, m)
 	case *BackupMutation:
 		return c.Backup.mutate(ctx, m)
+	case *BackupSettingMutation:
+		return c.BackupSetting.mutate(ctx, m)
 	case *BarTabMutation:
 		return c.BarTab.mutate(ctx, m)
 	case *BarTabEventMutation:
@@ -1526,6 +1534,139 @@ func (c *BackupClient) mutate(ctx context.Context, m *BackupMutation) (Value, er
 		return (&BackupDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown Backup mutation op: %q", m.Op())
+	}
+}
+
+// BackupSettingClient is a client for the BackupSetting schema.
+type BackupSettingClient struct {
+	config
+}
+
+// NewBackupSettingClient returns a client for the BackupSetting from the given config.
+func NewBackupSettingClient(c config) *BackupSettingClient {
+	return &BackupSettingClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `backupsetting.Hooks(f(g(h())))`.
+func (c *BackupSettingClient) Use(hooks ...Hook) {
+	c.hooks.BackupSetting = append(c.hooks.BackupSetting, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `backupsetting.Intercept(f(g(h())))`.
+func (c *BackupSettingClient) Intercept(interceptors ...Interceptor) {
+	c.inters.BackupSetting = append(c.inters.BackupSetting, interceptors...)
+}
+
+// Create returns a builder for creating a BackupSetting entity.
+func (c *BackupSettingClient) Create() *BackupSettingCreate {
+	mutation := newBackupSettingMutation(c.config, OpCreate)
+	return &BackupSettingCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of BackupSetting entities.
+func (c *BackupSettingClient) CreateBulk(builders ...*BackupSettingCreate) *BackupSettingCreateBulk {
+	return &BackupSettingCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *BackupSettingClient) MapCreateBulk(slice any, setFunc func(*BackupSettingCreate, int)) *BackupSettingCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &BackupSettingCreateBulk{err: fmt.Errorf("calling to BackupSettingClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*BackupSettingCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &BackupSettingCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for BackupSetting.
+func (c *BackupSettingClient) Update() *BackupSettingUpdate {
+	mutation := newBackupSettingMutation(c.config, OpUpdate)
+	return &BackupSettingUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *BackupSettingClient) UpdateOne(_m *BackupSetting) *BackupSettingUpdateOne {
+	mutation := newBackupSettingMutation(c.config, OpUpdateOne, withBackupSetting(_m))
+	return &BackupSettingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *BackupSettingClient) UpdateOneID(id uuid.UUID) *BackupSettingUpdateOne {
+	mutation := newBackupSettingMutation(c.config, OpUpdateOne, withBackupSettingID(id))
+	return &BackupSettingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for BackupSetting.
+func (c *BackupSettingClient) Delete() *BackupSettingDelete {
+	mutation := newBackupSettingMutation(c.config, OpDelete)
+	return &BackupSettingDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *BackupSettingClient) DeleteOne(_m *BackupSetting) *BackupSettingDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *BackupSettingClient) DeleteOneID(id uuid.UUID) *BackupSettingDeleteOne {
+	builder := c.Delete().Where(backupsetting.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &BackupSettingDeleteOne{builder}
+}
+
+// Query returns a query builder for BackupSetting.
+func (c *BackupSettingClient) Query() *BackupSettingQuery {
+	return &BackupSettingQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeBackupSetting},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a BackupSetting entity by its id.
+func (c *BackupSettingClient) Get(ctx context.Context, id uuid.UUID) (*BackupSetting, error) {
+	return c.Query().Where(backupsetting.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *BackupSettingClient) GetX(ctx context.Context, id uuid.UUID) *BackupSetting {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *BackupSettingClient) Hooks() []Hook {
+	return c.hooks.BackupSetting
+}
+
+// Interceptors returns the client interceptors.
+func (c *BackupSettingClient) Interceptors() []Interceptor {
+	return c.inters.BackupSetting
+}
+
+func (c *BackupSettingClient) mutate(ctx context.Context, m *BackupSettingMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&BackupSettingCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&BackupSettingUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&BackupSettingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&BackupSettingDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown BackupSetting mutation op: %q", m.Op())
 	}
 }
 
@@ -16995,8 +17136,8 @@ func (c *WeighingScaleReadingClient) mutate(ctx context.Context, m *WeighingScal
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		Appointment, AuditLog, Backup, BarTab, BarTabEvent, BillSplit, CashDrawer,
-		CashDrawerEvent, ChannelIntegration, ChannelSyncJob, ClientRecord,
+		Appointment, AuditLog, Backup, BackupSetting, BarTab, BarTabEvent, BillSplit,
+		CashDrawer, CashDrawerEvent, ChannelIntegration, ChannelSyncJob, ClientRecord,
 		CommissionRecord, CommissionRule, ControlledSubstanceLog, DailyClosing,
 		DrugInteractionCheck, EventBooking, Facility, FacilityBooking, FeatureOverride,
 		GiftCard, GiftCardTransaction, HousekeepingTask, IdempotencyKey,
@@ -17021,8 +17162,8 @@ type (
 		WeighingScaleReading []ent.Hook
 	}
 	inters struct {
-		Appointment, AuditLog, Backup, BarTab, BarTabEvent, BillSplit, CashDrawer,
-		CashDrawerEvent, ChannelIntegration, ChannelSyncJob, ClientRecord,
+		Appointment, AuditLog, Backup, BackupSetting, BarTab, BarTabEvent, BillSplit,
+		CashDrawer, CashDrawerEvent, ChannelIntegration, ChannelSyncJob, ClientRecord,
 		CommissionRecord, CommissionRule, ControlledSubstanceLog, DailyClosing,
 		DrugInteractionCheck, EventBooking, Facility, FacilityBooking, FeatureOverride,
 		GiftCard, GiftCardTransaction, HousekeepingTask, IdempotencyKey,
