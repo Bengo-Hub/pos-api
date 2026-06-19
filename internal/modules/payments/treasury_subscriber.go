@@ -18,6 +18,8 @@ type TreasurySubscriber struct {
 	client     *ent.Client
 	paymentSvc *Service
 	log        *zap.Logger
+	// hasFeature gates treasury→POS data sync by subscription entitlement. Nil → fail open.
+	hasFeature func(ctx context.Context, tenantID, feature string) bool
 }
 
 // NewTreasurySubscriber creates a subscriber for treasury-api events.
@@ -27,6 +29,20 @@ func NewTreasurySubscriber(client *ent.Client, paymentSvc *Service, log *zap.Log
 		paymentSvc: paymentSvc,
 		log:        log.Named("pos.treasury_subscriber"),
 	}
+}
+
+// SetFeatureGate wires the subscription entitlement check used to gate treasury sync.
+func (s *TreasurySubscriber) SetFeatureGate(fn func(ctx context.Context, tenantID, feature string) bool) {
+	s.hasFeature = fn
+}
+
+// entitled reports whether tenant may receive synced treasury data. Fails open when no
+// gate is wired or tenantID is unparseable (never block a real payment on a parse miss).
+func (s *TreasurySubscriber) entitled(ctx context.Context, tenantID, feature string) bool {
+	if s.hasFeature == nil || tenantID == "" {
+		return true
+	}
+	return s.hasFeature(ctx, tenantID, feature)
 }
 
 // treasuryPaymentEvent is the common envelope for treasury payment events.
@@ -91,6 +107,11 @@ func (s *TreasurySubscriber) subscribePaymentSuccess(js nats.JetStreamContext) e
 			return
 		}
 
+		if !s.entitled(context.Background(), evt.TenantID, "basic_treasury_access") {
+			s.log.Debug("treasury.payment.succeeded: tenant lacks basic_treasury_access — skipping POS sync",
+				zap.String("tenant_id", evt.TenantID))
+			return
+		}
 		tenantID, _ := uuid.Parse(evt.TenantID)
 		if err := s.paymentSvc.ConfirmPaymentByIntentID(context.Background(), tenantID, intentID); err != nil {
 			s.log.Error("treasury.payment.succeeded: confirm payment", zap.String("intent", intentID), zap.Error(err))
@@ -117,6 +138,9 @@ func (s *TreasurySubscriber) subscribePaymentFailed(js nats.JetStreamContext) er
 			return
 		}
 
+		if !s.entitled(context.Background(), evt.TenantID, "basic_treasury_access") {
+			return
+		}
 		if err := s.paymentSvc.FailPaymentByIntentID(context.Background(), intentID); err != nil {
 			s.log.Error("treasury.payment.failed: mark failed", zap.String("intent", intentID), zap.Error(err))
 		}
@@ -147,6 +171,12 @@ func (s *TreasurySubscriber) subscribeEtimsTransmitted(js nats.JetStreamContext)
 		}
 
 		if evt.Data.ReferenceType != "pos_order" {
+			return
+		}
+
+		if !s.entitled(context.Background(), evt.TenantID, "etims_integration") {
+			s.log.Debug("treasury.etims.invoice_transmitted: tenant lacks etims_integration — skipping POS sync",
+				zap.String("tenant_id", evt.TenantID))
 			return
 		}
 

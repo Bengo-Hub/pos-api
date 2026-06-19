@@ -22,6 +22,10 @@ type StockSubscriber struct {
 	publisher *Publisher
 	client    *ent.Client
 	log       *zap.Logger
+	// hasFeature gates cross-service data sync by subscription entitlement. When set,
+	// stock availability is only synced into the POS catalog for tenants entitled to
+	// basic_inventory_access. Nil → no gating (fail open). Set via SetFeatureGate.
+	hasFeature func(ctx context.Context, tenantID, feature string) bool
 }
 
 func NewStockSubscriber(publisher *Publisher, client *ent.Client, log *zap.Logger) *StockSubscriber {
@@ -30,6 +34,20 @@ func NewStockSubscriber(publisher *Publisher, client *ent.Client, log *zap.Logge
 		client:    client,
 		log:       log.Named("pos.stock_subscriber"),
 	}
+}
+
+// SetFeatureGate wires the subscription entitlement check used to gate stock sync.
+func (s *StockSubscriber) SetFeatureGate(fn func(ctx context.Context, tenantID, feature string) bool) {
+	s.hasFeature = fn
+}
+
+// entitled reports whether the tenant may receive synced inventory data into the POS
+// catalog. Fails open when no gate is wired.
+func (s *StockSubscriber) entitled(ctx context.Context, tenantID uuid.UUID) bool {
+	if s.hasFeature == nil {
+		return true
+	}
+	return s.hasFeature(ctx, tenantID.String(), "basic_inventory_access")
 }
 
 func (s *StockSubscriber) Subscribe(nc *nats.Conn) error {
@@ -209,6 +227,11 @@ func (s *StockSubscriber) handleStockOut(ctx context.Context, evt *sharedevents.
 	if sku == "" {
 		return fmt.Errorf("stock.out: missing sku")
 	}
+	if !s.entitled(ctx, tenantID) {
+		s.log.Debug("stock.out: tenant lacks basic_inventory_access — skipping POS catalog sync",
+			zap.String("tenant_id", tenantID.String()))
+		return nil
+	}
 	outletRaw, _ := evt.Payload["outlet_id"].(string)
 	count, err := s.setSkuAvailability(ctx, tenantID, outletRaw, sku, false)
 	if err != nil {
@@ -233,6 +256,11 @@ func (s *StockSubscriber) handleStockIn(ctx context.Context, evt *sharedevents.E
 	sku, _ := evt.Payload["sku"].(string)
 	if sku == "" {
 		return fmt.Errorf("stock.in: missing sku")
+	}
+	if !s.entitled(ctx, tenantID) {
+		s.log.Debug("stock.in: tenant lacks basic_inventory_access — skipping POS catalog sync",
+			zap.String("tenant_id", tenantID.String()))
+		return nil
 	}
 	outletRaw, _ := evt.Payload["outlet_id"].(string)
 	count, err := s.setSkuAvailability(ctx, tenantID, outletRaw, sku, true)

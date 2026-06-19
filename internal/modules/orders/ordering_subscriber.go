@@ -33,10 +33,18 @@ type KDSOrderingSubscriber struct {
 	logger    *zap.Logger
 	publisher *events.Publisher
 	kdsHub    *kdsmod.Hub
+	// hasFeature gates KDS-ticket sync by subscription entitlement. When set, KDS
+	// tickets are only created for tenants entitled to the kds feature. Nil → fail open.
+	hasFeature func(ctx context.Context, tenantID, feature string) bool
 }
 
 // SetKDSHub wires the WebSocket hub so new KDS tickets broadcast immediately.
 func (s *KDSOrderingSubscriber) SetKDSHub(h *kdsmod.Hub) { s.kdsHub = h }
+
+// SetFeatureGate wires the subscription entitlement check used to gate KDS sync.
+func (s *KDSOrderingSubscriber) SetFeatureGate(fn func(ctx context.Context, tenantID, feature string) bool) {
+	s.hasFeature = fn
+}
 
 // NewKDSOrderingSubscriber creates a new KDS subscriber for ordering service events.
 func NewKDSOrderingSubscriber(client *ent.Client, logger *zap.Logger) *KDSOrderingSubscriber {
@@ -115,6 +123,14 @@ func (s *KDSOrderingSubscriber) handleStatusChanged(ctx context.Context, evt *or
 	tenantID, err := uuid.Parse(tenantIDStr)
 	if err != nil {
 		return fmt.Errorf("invalid tenant_id: %w", err)
+	}
+
+	// Gate KDS-ticket sync by entitlement: only tenants on a plan that includes the
+	// kds feature get tickets written into their POS schema. Fails open if no gate wired.
+	if s.hasFeature != nil && !s.hasFeature(ctx, tenantID.String(), "kds") {
+		s.logger.Debug("kds: tenant not entitled to kds — skipping ticket sync",
+			zap.String("tenant_id", tenantID.String()))
+		return nil
 	}
 
 	// Look up the POS order linked to this external ordering order

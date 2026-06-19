@@ -243,8 +243,14 @@ func (h *PaymentHandler) RecordPayment(w http.ResponseWriter, r *http.Request) {
 func (h *PaymentHandler) GetGateways(w http.ResponseWriter, r *http.Request) {
 	// Resolve tenant slug: JWT claims → httpware context → local Tenant table (PIN JWT fallback).
 	tenantSlug := ""
+	// payg (pay-as-you-go / service_charge billing): the platform earns only a per-sale
+	// commission, which can ONLY be netted on platform-routed online rails. Cash/offline
+	// (wallet, COD, on-account) would let the commission leak, so they are hidden for PAYG
+	// tenants — they see online methods (M-Pesa, Paystack/Card) only.
+	payg := false
 	if claims, ok := authclient.ClaimsFromContext(r.Context()); ok {
 		tenantSlug = claims.GetTenantSlug()
+		payg = claims.BillingMode == "service_charge"
 	}
 	if tenantSlug == "" {
 		tenantSlug = httpware.GetTenantSlug(r.Context())
@@ -257,16 +263,26 @@ func (h *PaymentHandler) GetGateways(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Online-only default for PAYG; full set otherwise. Used both on the no-treasury
+	// path and the fail-open path so PAYG restriction holds even when treasury is down.
+	openDefault := map[string]any{"mpesa": true, "paystack": true, "wallet": !payg, "cod": !payg}
+
 	if tenantSlug == "" || h.treasuryClient == nil {
-		jsonOK(w, map[string]any{"mpesa": true, "paystack": true, "wallet": true, "cod": true})
+		jsonOK(w, openDefault)
 		return
 	}
 
 	gateways, err := h.treasuryClient.GetPublicGateways(r.Context(), tenantSlug)
 	if err != nil {
 		h.log.Warn("get public gateways failed — failing open", zap.String("tenant", tenantSlug), zap.Error(err))
-		jsonOK(w, map[string]any{"mpesa": true, "paystack": true, "wallet": true, "cod": true})
+		jsonOK(w, openDefault)
 		return
+	}
+
+	if payg {
+		// Strip offline / on-account rails the platform can't auto-charge.
+		gateways.Wallet = false
+		gateways.COD = false
 	}
 
 	jsonOK(w, gateways)

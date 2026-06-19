@@ -381,8 +381,16 @@ func New(ctx context.Context) (*App, error) {
 	orderSvc.SetKDSHub(kdsHandler.Hub())
 
 	// Subscribe to ordering.order.status.changed to create/update KDS tickets (Sprint 13)
+	// consumerFeatureGate restricts cross-service data sync (KDS, stock availability,
+	// treasury/eTIMS) to tenants entitled to the corresponding feature, mirroring the
+	// HTTP-layer gating contract. Cached per tenant; fails open on subscriptions-api outage.
+	consumerFeatureGate := func(ctx context.Context, tenantID, feature string) bool {
+		return subsClient.ConsumerHasFeature(ctx, tenantID, feature)
+	}
+
 	kdsOrderingSubscriber := ordermodule.NewKDSOrderingSubscriber(entClient, log)
 	kdsOrderingSubscriber.SetKDSHub(kdsHandler.Hub())
+	kdsOrderingSubscriber.SetFeatureGate(consumerFeatureGate)
 	if natsConn != nil {
 		if eventPub := orderSvc.GetPublisher(); eventPub != nil {
 			kdsOrderingSubscriber.SetPublisher(eventPub)
@@ -394,6 +402,7 @@ func New(ctx context.Context) (*App, error) {
 
 	// Subscribe to treasury events: payment.success/failed → complete/fail local payment; etims → store invoice data
 	treasurySubscriber := paymentmodule.NewTreasurySubscriber(entClient, paymentSvc, log)
+	treasurySubscriber.SetFeatureGate(consumerFeatureGate)
 	if natsConn != nil {
 		if err := treasurySubscriber.SubscribeToTreasuryEvents(natsConn); err != nil {
 			log.Warn("app: failed to subscribe to treasury events", zap.Error(err))
@@ -429,6 +438,7 @@ func New(ctx context.Context) (*App, error) {
 	if natsConn != nil {
 		if eventPub := orderSvc.GetPublisher(); eventPub != nil {
 			stockSub := events.NewStockSubscriber(eventPub, entClient, log)
+			stockSub.SetFeatureGate(consumerFeatureGate)
 			if err := stockSub.Subscribe(natsConn); err != nil {
 				log.Warn("app: failed to subscribe to inventory.stock.low", zap.Error(err))
 			}
