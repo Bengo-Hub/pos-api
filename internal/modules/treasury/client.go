@@ -284,6 +284,20 @@ func (c *Client) ListTaxCodes(ctx context.Context, tenantSlug string) ([]TaxCode
 	return resp.TaxCodes, nil
 }
 
+// TaxProfileResponse is the VAT-active switch from GET /api/v1/s2s/{tenant}/tax-profile.
+type TaxProfileResponse struct {
+	VATActive      bool   `json:"vat_active"`
+	VATRegistered  bool   `json:"vat_registered"`
+	EtimsActivated bool   `json:"etims_activated"`
+	KraPin         string `json:"kra_pin"`
+}
+
+// GetTaxProfile fetches the tenant's VAT-active switch from treasury-api S2S.
+func (c *Client) GetTaxProfile(ctx context.Context, tenantSlug string) (*TaxProfileResponse, error) {
+	url := fmt.Sprintf("%s/api/v1/s2s/%s/tax-profile", c.baseURL, tenantSlug)
+	return doRequest[TaxProfileResponse](ctx, c.httpClient, http.MethodGet, url, c.apiKey, nil)
+}
+
 // PublicGatewaysResponse is the flat {mpesa,paystack,wallet,cod} shape the POS UI consumes.
 type PublicGatewaysResponse struct {
 	MPesa    bool `json:"mpesa"`

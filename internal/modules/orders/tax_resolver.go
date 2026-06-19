@@ -42,11 +42,29 @@ func NewTaxResolver(treasuryClient *treasury.Client, redisClient *redis.Client, 
 
 // Resolve returns the TaxCodeInfo for a given code string (e.g. "VAT-16").
 // Returns nil, nil when the code is not found in treasury — callers should treat as tax-exempt.
+// VAT is suppressed (rate→0, KRA code E=zero-rated) when the business is not VAT-active
+// (not VAT-registered) — a non-registered business must not charge VAT to its customers.
 func (r *TaxResolver) Resolve(ctx context.Context, tenantSlug, taxCodeID string) (*TaxCodeInfo, error) {
 	if r.treasury == nil || taxCodeID == "" {
 		return nil, nil
 	}
 
+	info, err := r.resolveCode(ctx, tenantSlug, taxCodeID)
+	if err != nil || info == nil {
+		return info, err
+	}
+	// Gate VAT on the tenant's registration status. Non-VAT taxes (excise etc.) pass through.
+	if info.TaxType == "vat" && info.Rate > 0 && !r.vatActive(ctx, tenantSlug) {
+		gated := *info
+		gated.Rate = 0
+		gated.KRACode = "E" // zero-rated
+		return &gated, nil
+	}
+	return info, nil
+}
+
+// resolveCode fetches/caches a single TaxCode definition (rate/KRA code) from treasury.
+func (r *TaxResolver) resolveCode(ctx context.Context, tenantSlug, taxCodeID string) (*TaxCodeInfo, error) {
 	cacheKey := fmt.Sprintf("pos:tax:%s:%s", tenantSlug, taxCodeID)
 
 	// Check Redis cache first
@@ -88,6 +106,29 @@ func (r *TaxResolver) Resolve(ctx context.Context, tenantSlug, taxCodeID string)
 	}
 
 	return info, nil
+}
+
+// vatActive reports whether the tenant should charge VAT (defaults TRUE on any error so we
+// never silently stop a registered business from charging). Cached briefly in Redis.
+func (r *TaxResolver) vatActive(ctx context.Context, tenantSlug string) bool {
+	cacheKey := fmt.Sprintf("pos:vatactive:%s", tenantSlug)
+	if r.redis != nil {
+		if v, err := r.redis.Get(ctx, cacheKey).Result(); err == nil {
+			return v == "1"
+		}
+	}
+	profile, err := r.treasury.GetTaxProfile(ctx, tenantSlug)
+	if err != nil || profile == nil {
+		return true // permissive fallback — charge VAT per existing config
+	}
+	if r.redis != nil {
+		val := "0"
+		if profile.VATActive {
+			val = "1"
+		}
+		_ = r.redis.Set(ctx, cacheKey, val, taxCodeCacheTTL).Err()
+	}
+	return profile.VATActive
 }
 
 // ComputeLineTax calculates the tax_amount for a single order line.
