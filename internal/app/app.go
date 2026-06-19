@@ -467,8 +467,15 @@ func New(ctx context.Context) (*App, error) {
 	// Repair / job-card module (device repair lifecycle: intake -> ... -> settled via POS)
 	repairHandler := handlers.NewRepairHandler(log, entClient)
 
+	// Pluggable backup destination (OneDrive/GDrive/S3/WebDAV/SFTP/SMB) — encrypted
+	// at rest with a SECRET_KEY-derived key. The handler owns the destination Store;
+	// its Uploader is attached to the backup service so every PVC backup is
+	// additionally mirrored best-effort (the PVC copy remains the durable primary).
+	backupDestHandler := handlers.NewBackupDestinationHandler(entClient, log)
+
 	// Tenant-scoped backups + daily 02:00 auto-backup scheduler + retention churn.
-	backupSvc := backupmod.NewService(sqlDB, entClient, cfg.Backup.Dir, log)
+	backupSvc := backupmod.NewService(sqlDB, entClient, cfg.Backup.Dir, log).
+		WithMirrorer(backupDestHandler.Uploader())
 	backupHandler := handlers.NewBackupHandler(log, backupSvc, cfg.Backup.RetentionDays)
 	backupmod.NewScheduler(backupSvc, backupmod.SchedulerConfig{
 		Enabled:       cfg.Backup.ScheduleEnabled,
@@ -476,7 +483,7 @@ func New(ctx context.Context) (*App, error) {
 		RetentionDays: cfg.Backup.RetentionDays,
 	}, log).Start(ctx)
 
-	chiRouter := router.New(log, healthHandler, authMiddleware, entClient, identitySvc, orderHandler, catalogHandler, tableHandler, tenderHandler, paymentHandler, drawerHandler, barTabHandler, promotionHandler, rbacHandler, rbacSvc, hotelHandler, kdsHandler, deviceHandler, pinAuthHandler, publicOutletHandler, closingHandler, returnHandler, receiptHandler, menuHandler, layawayHandler, scaleHandler, pharmacyHandler, appointmentHandler, commissionHandler, staffScheduleHandler, shiftOverrideHandler, leaveRequestHandler, shiftRotationHandler, loyaltyHandler, reportsHandler, webhookHandler, onlineOrderHandler, serviceConfigHandler, serviceSettingsHandler, notificationsHandler, queueHandler, billSplitHandler, resourceHandler, commissionRuleHandler, packageHandler, clientHandler, channelHandler, printHandler, payrollHandler, staffAdminHandler, purchaseOrdersHandler, repairHandler, cfg.HTTP.AllowedOrigins, redisClient, cfg.Treasury.InternalServiceKey, backupHandler)
+	chiRouter := router.New(log, healthHandler, authMiddleware, entClient, identitySvc, orderHandler, catalogHandler, tableHandler, tenderHandler, paymentHandler, drawerHandler, barTabHandler, promotionHandler, rbacHandler, rbacSvc, hotelHandler, kdsHandler, deviceHandler, pinAuthHandler, publicOutletHandler, closingHandler, returnHandler, receiptHandler, menuHandler, layawayHandler, scaleHandler, pharmacyHandler, appointmentHandler, commissionHandler, staffScheduleHandler, shiftOverrideHandler, leaveRequestHandler, shiftRotationHandler, loyaltyHandler, reportsHandler, webhookHandler, onlineOrderHandler, serviceConfigHandler, serviceSettingsHandler, notificationsHandler, queueHandler, billSplitHandler, resourceHandler, commissionRuleHandler, packageHandler, clientHandler, channelHandler, printHandler, payrollHandler, staffAdminHandler, purchaseOrdersHandler, repairHandler, cfg.HTTP.AllowedOrigins, redisClient, cfg.Treasury.InternalServiceKey, backupHandler, backupDestHandler)
 
 	httpServer := &http.Server{
 		Addr:              fmt.Sprintf("%s:%d", cfg.HTTP.Host, cfg.HTTP.Port),

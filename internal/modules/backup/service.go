@@ -25,17 +25,34 @@ import (
 	entbackup "github.com/bengobox/pos-service/internal/ent/backup"
 )
 
+// Mirrorer mirrors a freshly-written local backup file to a remote destination,
+// best-effort. It is satisfied by *destination.Uploader. Kept as an interface so
+// the backup module stays decoupled from the destination implementation (and so
+// this module can be replicated without forcing the remote-mirror dependency).
+type Mirrorer interface {
+	Mirror(ctx context.Context, tenantID uuid.UUID, localFilePath, objectName string) error
+}
+
 // Service generates + serves tenant-scoped backups, tracked in the `backups` ent table.
 type Service struct {
-	db   *sql.DB
-	orm  *ent.Client
-	root string
-	log  *zap.Logger
+	db       *sql.DB
+	orm      *ent.Client
+	root     string
+	log      *zap.Logger
+	mirrorer Mirrorer // optional remote-destination mirror (nil = PVC-only)
 }
 
 // NewService wires the backup service. root is the directory backups are written under.
 func NewService(db *sql.DB, orm *ent.Client, root string, log *zap.Logger) *Service {
 	return &Service{db: db, orm: orm, root: filepath.Join(root, "backups"), log: log.Named("backup.Service")}
+}
+
+// WithMirrorer attaches a remote-destination mirror. When set, every successfully
+// written local (PVC) backup is additionally mirrored best-effort. The PVC copy
+// remains the durable primary store regardless of mirror outcome.
+func (s *Service) WithMirrorer(m Mirrorer) *Service {
+	s.mirrorer = m
+	return s
 }
 
 // Info describes one stored backup artifact (DB row + file).
@@ -123,6 +140,15 @@ func (s *Service) Generate(ctx context.Context, tenantID uuid.UUID) (Info, error
 	st, _ := f.Stat()
 	size := sizeOf(st)
 	_ = f.Close()
+
+	// Best-effort remote mirror AFTER the local (PVC) file is finalized. The PVC
+	// copy is the durable primary + fallback; a mirror failure never fails the
+	// backup (the Mirrorer logs a WARN and returns nil). Runs on BOTH the
+	// scheduled and on-demand paths since both go through Generate. Credentials
+	// are owned by the Mirrorer and never touched here.
+	if s.mirrorer != nil {
+		_ = s.mirrorer.Mirror(ctx, tenantID, path, name)
+	}
 
 	row, err := s.orm.Backup.Create().
 		SetTenantID(tenantID).

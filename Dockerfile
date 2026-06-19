@@ -20,7 +20,9 @@ RUN CGO_ENABLED=0 go build -o /out/pos-api ./cmd/api && \
     CGO_ENABLED=0 go build -o /out/pos-seed ./cmd/seed
 
 FROM alpine:3.20
-RUN apk add --no-cache ca-certificates tzdata && \
+# ca-certificates: TLS trust for HTTPS remotes (S3/OneDrive/GDrive/WebDAV).
+# rclone: powers pluggable backup-destination mirroring off the local PVC.
+RUN apk add --no-cache ca-certificates tzdata rclone && \
     addgroup -S app && adduser -S app -G app
 WORKDIR /app
 COPY --from=builder /out/pos-api /usr/local/bin/pos-api

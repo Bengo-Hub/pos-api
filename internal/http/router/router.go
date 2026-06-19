@@ -81,6 +81,7 @@ func New(
 	redisClient *redis.Client,
 	internalServiceKey string,
 	backups *handlers.BackupHandler,
+	backupDest *handlers.BackupDestinationHandler,
 ) http.Handler {
 	r := chi.NewRouter()
 
@@ -116,6 +117,15 @@ func New(
 			api.Group(func(admin chi.Router) {
 				admin.Use(authMiddleware.RequireAuth)
 				serviceConfig.RegisterAdminRoutes(admin)
+
+				// Platform-default backup destination (OneDrive/GDrive/S3/WebDAV/
+				// SFTP/SMB) — platform-owner only. Secret params encrypted at rest.
+				if backupDest != nil {
+					admin.Group(func(platform chi.Router) {
+						platform.Use(requirePlatformOwner)
+						backupDest.RegisterPlatformRoutes(platform)
+					})
+				}
 			})
 		}
 
@@ -230,6 +240,15 @@ func New(
 					tenant.Group(func(bg chi.Router) {
 						bg.Use(outletmw.RequireServicePermission(rbacSvc, "pos.config.change", "pos.config.manage"))
 						backups.RegisterRoutes(bg)
+					})
+				}
+
+				// Per-tenant backup-destination override (mirrors backups off the
+				// PVC) — same config permission gate as the tenant backups routes.
+				if backupDest != nil {
+					tenant.Group(func(dg chi.Router) {
+						dg.Use(outletmw.RequireServicePermission(rbacSvc, "pos.config.change", "pos.config.manage"))
+						backupDest.RegisterRoutes(dg)
 					})
 				}
 
@@ -835,4 +854,27 @@ func requireInternalServiceKey(expected string) func(http.Handler) http.Handler 
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+// requirePlatformOwner gates a route to platform-owner principals only. It is used
+// for the platform-default (tenant_id NULL) backup-destination management routes,
+// which configure the off-PVC mirror for ALL tenants and so must never be reachable
+// by an ordinary tenant user. Returns 401 when unauthenticated, 403 otherwise.
+func requirePlatformOwner(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		claims, ok := authclient.ClaimsFromContext(r.Context())
+		if !ok || claims == nil || claims.Subject == "" {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusUnauthorized)
+			_, _ = w.Write([]byte(`{"error":"unauthorized"}`))
+			return
+		}
+		if !claims.IsPlatformOwner && !claims.IsSuperuser() {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = w.Write([]byte(`{"error":"platform owner required"}`))
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
