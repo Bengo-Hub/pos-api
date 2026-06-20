@@ -409,6 +409,15 @@ func New(ctx context.Context) (*App, error) {
 		}
 	}
 
+	// Invalidate cached treasury tax rates immediately when treasury changes a tax code,
+	// instead of waiting for the 10-minute Redis TTL owned by the TaxResolver.
+	taxSubscriber := ordermodule.NewTaxSubscriber(entClient, taxResolver, log)
+	if natsConn != nil {
+		if err := taxSubscriber.SubscribeToTaxEvents(natsConn); err != nil {
+			log.Warn("app: failed to subscribe to treasury tax events", zap.Error(err))
+		}
+	}
+
 	// Subscribe to inventory events for catalog projection sync + initial sync
 	inventoryEventHandler := catalogmodule.NewInventoryEventHandler(entClient, log)
 	if natsConn != nil {

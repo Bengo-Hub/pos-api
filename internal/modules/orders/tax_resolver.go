@@ -131,6 +131,78 @@ func (r *TaxResolver) vatActive(ctx context.Context, tenantSlug string) bool {
 	return profile.VATActive
 }
 
+// InvalidateTenant deletes all cached tax data for a single tenant slug: every
+// per-code rate (pos:tax:{slug}:*) plus the VAT-active switch (pos:vatactive:{slug}).
+// Safe to call when Redis is not configured (no-op).
+func (r *TaxResolver) InvalidateTenant(ctx context.Context, tenantSlug string) {
+	if r.redis == nil || tenantSlug == "" {
+		return
+	}
+	r.deleteByPattern(ctx, fmt.Sprintf("pos:tax:%s:*", tenantSlug))
+	if err := r.redis.Del(ctx, fmt.Sprintf("pos:vatactive:%s", tenantSlug)).Err(); err != nil {
+		r.log.Debug("tax resolver: failed to delete vatactive key", zap.String("tenant", tenantSlug), zap.Error(err))
+	}
+	r.log.Info("tax resolver: invalidated cached tax for tenant", zap.String("tenant", tenantSlug))
+}
+
+// InvalidateCode invalidates the cached rate for a single tax code under one tenant
+// (pos:tax:{slug}:{code}) and the tenant VAT-active switch (a VAT-code change may flip
+// the effective rate). Safe to call when Redis is not configured (no-op).
+func (r *TaxResolver) InvalidateCode(ctx context.Context, tenantSlug, code string) {
+	if r.redis == nil || tenantSlug == "" {
+		return
+	}
+	if code != "" {
+		key := fmt.Sprintf("pos:tax:%s:%s", tenantSlug, code)
+		if err := r.redis.Del(ctx, key).Err(); err != nil {
+			r.log.Debug("tax resolver: failed to delete tax key", zap.String("key", key), zap.Error(err))
+		}
+	}
+	if err := r.redis.Del(ctx, fmt.Sprintf("pos:vatactive:%s", tenantSlug)).Err(); err != nil {
+		r.log.Debug("tax resolver: failed to delete vatactive key", zap.String("tenant", tenantSlug), zap.Error(err))
+	}
+	r.log.Info("tax resolver: invalidated cached tax code",
+		zap.String("tenant", tenantSlug), zap.String("code", code))
+}
+
+// InvalidateCodeAllTenants is the fallback path when the event's tenant UUID cannot be
+// mapped to a slug. It SCANs for pos:tax:*:{code} across every tenant and deletes the
+// matches, then flushes all per-tenant VAT-active switches (pos:vatactive:*) since a
+// code change may affect the effective VAT rate. Safe when Redis is nil (no-op).
+func (r *TaxResolver) InvalidateCodeAllTenants(ctx context.Context, code string) {
+	if r.redis == nil || code == "" {
+		return
+	}
+	r.deleteByPattern(ctx, fmt.Sprintf("pos:tax:*:%s", code))
+	r.deleteByPattern(ctx, "pos:vatactive:*")
+	r.log.Info("tax resolver: invalidated cached tax code across all tenants (no slug resolved)",
+		zap.String("code", code))
+}
+
+// deleteByPattern SCANs Redis for keys matching pattern and deletes them in batches.
+func (r *TaxResolver) deleteByPattern(ctx context.Context, pattern string) {
+	if r.redis == nil {
+		return
+	}
+	var cursor uint64
+	for {
+		keys, next, err := r.redis.Scan(ctx, cursor, pattern, 256).Result()
+		if err != nil {
+			r.log.Debug("tax resolver: SCAN failed", zap.String("pattern", pattern), zap.Error(err))
+			return
+		}
+		if len(keys) > 0 {
+			if derr := r.redis.Del(ctx, keys...).Err(); derr != nil {
+				r.log.Debug("tax resolver: DEL failed", zap.String("pattern", pattern), zap.Error(derr))
+			}
+		}
+		cursor = next
+		if cursor == 0 {
+			break
+		}
+	}
+}
+
 // ComputeLineTax calculates the tax_amount for a single order line.
 // If priceIncludesTax=true (inclusive): tax is back-calculated from the total.
 // If priceIncludesTax=false (exclusive): tax is added on top of the total.
