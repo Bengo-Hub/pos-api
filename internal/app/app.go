@@ -454,6 +454,16 @@ func New(ctx context.Context) (*App, error) {
 		}
 	}
 
+	// Subscribe to tenant.purge → IRREVERSIBLY delete all of a tenant's pos-api data when the
+	// platform owner confirms a dormancy purge (subscriptions-api emits aggregate_type="tenant",
+	// event_type="purge"). Guarded: only a confirmed dormancy purge with a valid tenant_id runs.
+	if natsConn != nil {
+		tenantPurgeSub := events.NewTenantPurgeSubscriber(sqlDB, log)
+		if err := tenantPurgeSub.Subscribe(natsConn); err != nil {
+			log.Warn("app: failed to subscribe to tenant.purge events", zap.Error(err))
+		}
+	}
+
 	// Webhook dispatcher: fan-out pos.> NATS events to matching webhook subscriptions with HTTP delivery + backoff
 	if natsConn != nil {
 		webhookDispatcher := webhookspkg.NewDispatcher(entClient, log)
