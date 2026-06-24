@@ -446,6 +446,50 @@ func (h *POSOrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Min/Max selling-price hard guardrail: a line priced outside the item's configured
+	// [min,max] band (carried on the catalog item, echoed by the till in line metadata as
+	// min_price / max_price) is blocked unless a manager approves it (price.override). This is
+	// absolute — independent of the discount-percent gate above — and covers both under-min
+	// markdowns and over-max markups. Managers bypass (override authority).
+	if !callerIsManager {
+		type bandLine struct {
+			sku              string
+			price, min, max  float64
+		}
+		var outOfBand []bandLine
+		for _, l := range input.Lines {
+			min := readFloatMeta(l.Metadata, "min_price")
+			max := readFloatMeta(l.Metadata, "max_price")
+			if (min > 0 && l.UnitPrice < min) || (max > 0 && l.UnitPrice > max) {
+				outOfBand = append(outOfBand, bandLine{sku: l.SKU, price: l.UnitPrice, min: min, max: max})
+			}
+		}
+		if len(outOfBand) > 0 {
+			approverID, valid := uuid.Nil, false
+			if input.ApprovalToken != "" && len(h.terminalSecret) > 0 {
+				approverID, valid = verifyApprovalToken(input.ApprovalToken, "price.override", h.terminalSecret)
+			}
+			if !valid {
+				respondJSON(w, http.StatusUnprocessableEntity, map[string]any{
+					"error":             "manager approval required: a line price is outside the allowed min/max",
+					"approval_required": true, "action": "price.override",
+				})
+				return
+			}
+			if h.auditSvc != nil {
+				oid := outletID
+				for _, o := range outOfBand {
+					price := o.price
+					h.auditSvc.Record(r.Context(), audit.Entry{
+						TenantID: tid, OutletID: &oid, ActorUserID: userID, ApproverID: &approverID,
+						Action: "price.override", EntityType: "pos_order_line", EntityID: o.sku, Reason: "out_of_band", Amount: &price,
+						After: map[string]any{"unit_price": o.price, "min_price": o.min, "max_price": o.max},
+					})
+				}
+			}
+		}
+	}
+
 	// Convert handler input to service request
 	lines := make([]orders.OrderLineInput, len(input.Lines))
 	for i, l := range input.Lines {

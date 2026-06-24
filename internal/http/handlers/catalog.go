@@ -76,7 +76,9 @@ type inventoryProxyItem struct {
 	DurationMinutes         int                     `json:"duration_minutes"`
 	CostPrice               *float64                `json:"cost_price,omitempty"`
 	SuggestedPrice          *float64                `json:"suggested_price,omitempty"`
-	OnHand                  *float64                `json:"on_hand,omitempty"` // stock on hand from inventory balances (StockBadge)
+	MinSellingPrice         *float64                `json:"min_selling_price,omitempty"` // hard floor enforced at sale
+	MaxSellingPrice         *float64                `json:"max_selling_price,omitempty"` // hard ceiling enforced at sale
+	OnHand                  *float64                `json:"on_hand,omitempty"`           // stock on hand from inventory balances (StockBadge)
 	// Recipe-costing fields (added 2026-06-01)
 	SellingPrice   *float64 `json:"selling_price,omitempty"`
 	FoodCostPct    *float64 `json:"food_cost_pct,omitempty"`
@@ -532,6 +534,10 @@ type catalogItemDTO struct {
 	MinimumAge              *int
 	DurationMinutes         *int
 	StockQuantity           *float64
+	// Selling-price guardrails sourced from inventory — the terminal enforces the band and
+	// pos-api hard-blocks out-of-band sale prices (manager override required).
+	MinSellingPrice         *float64
+	MaxSellingPrice         *float64
 }
 
 // menuAssemblyFilters carries the optional list-time filters applied by ListCatalogItems.
@@ -805,6 +811,8 @@ func (h *CatalogHandler) assembleMenuItems(
 			MinimumAge:              minimumAge,
 			DurationMinutes:         durationMinutes,
 			StockQuantity:           item.OnHand,
+			MinSellingPrice:         item.MinSellingPrice,
+			MaxSellingPrice:         item.MaxSellingPrice,
 		})
 	}
 	return out, nil
@@ -899,6 +907,8 @@ func catalogItemToMap(item catalogItemDTO, outletID *uuid.UUID) map[string]any {
 		"minimum_age":               item.MinimumAge,
 		"duration_minutes":          item.DurationMinutes,
 		"stock_quantity":            item.StockQuantity,
+		"min_selling_price":         item.MinSellingPrice,
+		"max_selling_price":         item.MaxSellingPrice,
 		"outlet_id":                 outletID,
 	}
 }

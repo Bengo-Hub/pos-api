@@ -570,6 +570,11 @@ func (s *Service) publishSaleFinalized(ctx context.Context, order *ent.POSOrder)
 		if l.TaxAmount != nil {
 			item["tax_amount"] = *l.TaxAmount
 		}
+		// Attach captured serial(s) so inventory flips the specific sold unit(s) to "sold" in its
+		// per-unit serial registry (serial-tracked items: electronics, equipment).
+		if l.SerialNumber != nil && *l.SerialNumber != "" {
+			item["serials"] = []string{*l.SerialNumber}
+		}
 		// Attach modifiers so inventory can backflush their ingredient consumption.
 		if len(l.Edges.Modifiers) > 0 {
 			mods := make([]map[string]any, 0, len(l.Edges.Modifiers))
