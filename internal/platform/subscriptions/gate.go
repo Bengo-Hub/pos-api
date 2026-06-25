@@ -15,7 +15,8 @@ const (
 )
 
 // exempt reports whether the request's token bypasses all subscription gating
-// (platform owners, superusers, demo tenants/users, and service-charge tenants).
+// (platform owners, explicitly subscription-exempt tenants, demo tenants, and
+// service-charge tenants). Tenant superusers are NOT exempt (auth-client v0.10.0 / SEC-3).
 // Delegates to the shared claims helper so every gate path stays consistent.
 func exempt(r *http.Request) bool {
 	claims, ok := authclient.ClaimsFromContext(r.Context())

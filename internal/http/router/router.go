@@ -869,7 +869,10 @@ func requirePlatformOwner(next http.Handler) http.Handler {
 			_, _ = w.Write([]byte(`{"error":"unauthorized"}`))
 			return
 		}
-		if !claims.IsPlatformOwner && !claims.IsSuperuser() {
+		// SEC-3 (auth-client v0.10.0): a tenant superuser is NOT a platform owner and must
+		// never reach platform-default (tenant_id NULL) management, which configures the
+		// off-PVC mirror for ALL tenants. Mirror the shared RequirePlatformOwner contract.
+		if !claims.IsPlatformOwner {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusForbidden)
 			_, _ = w.Write([]byte(`{"error":"platform owner required"}`))
