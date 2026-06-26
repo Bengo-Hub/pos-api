@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -33,6 +34,38 @@ func NewClient(serviceURL, internalServiceKey string, timeout time.Duration) *Cl
 			Timeout: timeout,
 		},
 	}
+}
+
+// ListBanks proxies the treasury S2S Paystack bank list for a country (raw JSON passthrough).
+func (c *Client) ListBanks(ctx context.Context, tenantSlug, country string) (json.RawMessage, error) {
+	if country == "" {
+		country = "kenya"
+	}
+	return c.getRaw(ctx, fmt.Sprintf("%s/api/v1/s2s/%s/gateways/banks/%s", c.baseURL, tenantSlug, country))
+}
+
+// ResolveAccount proxies the treasury S2S Paystack account name-enquiry (raw JSON passthrough).
+func (c *Client) ResolveAccount(ctx context.Context, tenantSlug, accountNumber, bankCode string) (json.RawMessage, error) {
+	return c.getRaw(ctx, fmt.Sprintf("%s/api/v1/s2s/%s/gateways/resolve-account?account_number=%s&bank_code=%s",
+		c.baseURL, tenantSlug, url.QueryEscape(accountNumber), url.QueryEscape(bankCode)))
+}
+
+func (c *Client) getRaw(ctx context.Context, fullURL string) (json.RawMessage, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fullURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("X-API-Key", c.apiKey)
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("treasury: %s status %d", fullURL, resp.StatusCode)
+	}
+	return json.RawMessage(body), nil
 }
 
 // CreateIntentRequest is the body for POST /api/v1/{tenant}/payments/intents.

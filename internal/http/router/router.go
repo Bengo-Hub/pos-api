@@ -381,6 +381,10 @@ func New(
 							Post("/orders/{orderID}/payments", payments.RecordPayment)
 						pos.Get("/orders/{orderID}/payments", payments.ListOrderPayments)
 						pos.Get("/orders/{orderID}/payment-status/stream", payments.StreamPaymentStatus)
+						// Bank list + account verification (proxied to treasury S2S Paystack) for the
+						// receipt payment-display bank settings.
+						pos.Get("/banks/{country}", payments.ListBanks)
+						pos.Get("/banks/resolve", payments.ResolveBankAccount)
 						// Cheap one-shot status check the pos-ui polls with bounded backoff (replaces the
 						// SSE stream's reconnect storm). Rate-limit-exempt; NATS subscriber owns truth.
 						pos.Get("/orders/{orderID}/payment-status", payments.GetPaymentStatus)

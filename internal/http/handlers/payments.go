@@ -313,17 +313,17 @@ func (h *PaymentHandler) ListOrderPayments(w http.ResponseWriter, r *http.Reques
 }
 
 type recordExpenseInput struct {
-	CategoryID    string  `json:"category_id,omitempty"`
-	ReferenceNo   string  `json:"reference_no,omitempty"` // "Reference No" → treasury expense_number (autogen when empty)
-	Description   string  `json:"description"`            // "Expense note"
-	Amount        float64 `json:"amount"`                // "Total amount"
-	TaxAmount     float64 `json:"tax_amount,omitempty"`  // "Applicable Tax" (computed amount)
-	Currency      string  `json:"currency,omitempty"`
-	ReceiptURL    string  `json:"receipt_url,omitempty"`
-	ExpenseDate   string  `json:"expense_date,omitempty"` // "Date" (ISO date/datetime); defaults to today server-side
-	AccountID     string  `json:"account_id,omitempty"`   // "Payment Account" (chart-of-accounts UUID)
-	VendorID      string  `json:"vendor_id,omitempty"`    // "Expense for" (when a vendor is chosen)
-	CostCenterID  string  `json:"cost_center_id,omitempty"`
+	CategoryID   string  `json:"category_id,omitempty"`
+	ReferenceNo  string  `json:"reference_no,omitempty"` // "Reference No" → treasury expense_number (autogen when empty)
+	Description  string  `json:"description"`            // "Expense note"
+	Amount       float64 `json:"amount"`                 // "Total amount"
+	TaxAmount    float64 `json:"tax_amount,omitempty"`   // "Applicable Tax" (computed amount)
+	Currency     string  `json:"currency,omitempty"`
+	ReceiptURL   string  `json:"receipt_url,omitempty"`
+	ExpenseDate  string  `json:"expense_date,omitempty"` // "Date" (ISO date/datetime); defaults to today server-side
+	AccountID    string  `json:"account_id,omitempty"`   // "Payment Account" (chart-of-accounts UUID)
+	VendorID     string  `json:"vendor_id,omitempty"`    // "Expense for" (when a vendor is chosen)
+	CostCenterID string  `json:"cost_center_id,omitempty"`
 	// PaymentMethod/PaidOn/PaymentNote/ExpenseFor are the GoDigital payment block + label fields.
 	// Treasury has no dedicated columns for them, so they are forwarded into the expense metadata.
 	PaymentMethod string  `json:"payment_method,omitempty"`
@@ -578,4 +578,37 @@ func (h *PaymentHandler) resolveTenantSlug(r *http.Request) string {
 		}
 	}
 	return tenantSlug
+}
+
+// ListBanks proxies the Paystack bank list for a country via treasury S2S so the receipt
+// payment-display bank can be verified before saving (accurate "how to pay" on receipts).
+func (h *PaymentHandler) ListBanks(w http.ResponseWriter, r *http.Request) {
+	if h.treasuryClient == nil {
+		http.Error(w, `{"error":"bank verification not configured"}`, http.StatusServiceUnavailable)
+		return
+	}
+	tenantSlug := chi.URLParam(r, "tenantID")
+	raw, err := h.treasuryClient.ListBanks(r.Context(), tenantSlug, chi.URLParam(r, "country"))
+	if err != nil {
+		http.Error(w, `{"error":"failed to load banks"}`, http.StatusBadGateway)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_, _ = w.Write(raw)
+}
+
+// ResolveBankAccount proxies Paystack account name-enquiry via treasury S2S.
+func (h *PaymentHandler) ResolveBankAccount(w http.ResponseWriter, r *http.Request) {
+	if h.treasuryClient == nil {
+		http.Error(w, `{"error":"bank verification not configured"}`, http.StatusServiceUnavailable)
+		return
+	}
+	tenantSlug := chi.URLParam(r, "tenantID")
+	raw, err := h.treasuryClient.ResolveAccount(r.Context(), tenantSlug, r.URL.Query().Get("account_number"), r.URL.Query().Get("bank_code"))
+	if err != nil {
+		http.Error(w, `{"error":"failed to verify account"}`, http.StatusBadGateway)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_, _ = w.Write(raw)
 }
