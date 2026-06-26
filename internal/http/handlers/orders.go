@@ -632,6 +632,15 @@ func (h *POSOrderHandler) VoidOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// A finalized sale has already been posted to the ledger and transmitted to KRA eTIMS
+	// (pos.sale.finalized). Voiding it here would only flip the status — leaving the GL entry
+	// and the eTIMS receipt un-reversed. Such sales must be reversed via a return/refund, which
+	// posts the ledger reversal AND transmits an eTIMS credit note (rcptTyCd=R).
+	if order.Status == "completed" || order.Status == "paid" || order.Status == "closed" {
+		jsonError(w, "a finalized sale cannot be voided — issue a refund/return instead so the ledger and KRA eTIMS are properly reversed", http.StatusConflict)
+		return
+	}
+
 	now := time.Now()
 	updated, err := order.Update().
 		SetStatus("voided").
