@@ -18,14 +18,14 @@ import (
 )
 
 // ConfirmedOrderEvent is the envelope for ordering.order.confirmed.
-// ordering-backend publishes its native {id,type,tenantId,data} envelope (NOT the
-// shared-events event_type/payload envelope), so it is decoded exactly like
-// orderingStatusChangedEvent / OrderForPickupEvent.
+// ordering-backend now publishes the fleet-uniform shared-events envelope
+// (event_type/tenant_id/payload), decoded exactly like orderingStatusChangedEvent /
+// OrderForPickupEvent.
 type ConfirmedOrderEvent struct {
 	ID       string                 `json:"id"`
-	Type     string                 `json:"type"`
-	TenantID string                 `json:"tenantId"`
-	Data     map[string]interface{} `json:"data"`
+	Type     string                 `json:"event_type"`
+	TenantID string                 `json:"tenant_id"`
+	Data     map[string]interface{} `json:"payload"`
 }
 
 // confirmedItemData holds a single line item from the confirmed-order payload.

@@ -17,11 +17,13 @@ import (
 )
 
 // OrderForPickupEvent represents the ordering.order.for_pickup event payload.
+// ordering-backend now publishes the fleet-uniform shared-events envelope
+// (event_type/tenant_id/payload).
 type OrderForPickupEvent struct {
 	ID       string                 `json:"id"`
-	Type     string                 `json:"type"`
-	TenantID string                 `json:"tenantId"`
-	Data     map[string]interface{} `json:"data"`
+	Type     string                 `json:"event_type"`
+	TenantID string                 `json:"tenant_id"`
+	Data     map[string]interface{} `json:"payload"`
 }
 
 // PickupItemData holds parsed item data from the pickup event.

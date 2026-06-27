@@ -20,11 +20,13 @@ import (
 )
 
 // orderingStatusChangedEvent is the envelope for ordering.order.status.changed.
+// ordering-backend now publishes the fleet-uniform shared-events envelope
+// (event_type/tenant_id/payload), so the wrapper decodes those field names.
 type orderingStatusChangedEvent struct {
 	ID       string                 `json:"id"`
-	Type     string                 `json:"type"`
-	TenantID string                 `json:"tenantId"`
-	Data     map[string]interface{} `json:"data"`
+	Type     string                 `json:"event_type"`
+	TenantID string                 `json:"tenant_id"`
+	Data     map[string]interface{} `json:"payload"`
 }
 
 // KDSOrderingSubscriber subscribes to ordering.order.status.changed to create KDS tickets.
