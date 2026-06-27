@@ -2,6 +2,8 @@ package shifts
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -85,11 +87,25 @@ func (w *AutoEndWorker) runOnce(ctx context.Context) error {
 			continue
 		}
 		for _, sess := range openSessions {
-			t := now
-			_, err := w.client.POSDeviceSession.UpdateOneID(sess.ID).
-				SetSessionStatus("closed").
-				SetClosedAt(t).
-				Save(ctx)
+			// Reconcile + close via the SINGLE shared close path (same code the
+			// manual CloseSession handler uses). expected_cash is recorded so the
+			// auto-closed shift is reconciled, not just flagged. The conditional
+			// update inside CloseSession is HA race-safe across replicas.
+			expectedCash, _ := ComputeExpectedCash(ctx, w.client, sess.TenantID, sess)
+			_, _, err := CloseSession(ctx, w.client, sess, CloseOptions{
+				ClosingFloat: nil,
+				Auto:         true,
+				Notes:        fmt.Sprintf("Auto-closed: open longer than %dh", maxHours),
+				Metadata: map[string]any{
+					"auto_closed":   true,
+					"expected_cash": expectedCash,
+					"max_hours":     maxHours,
+				},
+			})
+			if errors.Is(err, ErrSessionAlreadyClosed) {
+				// Another replica already closed it — skip silently.
+				continue
+			}
 			if err != nil {
 				w.log.Error("auto-close session failed", zap.String("session", sess.ID.String()), zap.Error(err))
 				continue
@@ -97,6 +113,7 @@ func (w *AutoEndWorker) runOnce(ctx context.Context) error {
 			w.log.Info("auto-ended shift session",
 				zap.String("session_id", sess.ID.String()),
 				zap.Duration("age", now.Sub(sess.OpenedAt)),
+				zap.Float64("expected_cash", expectedCash),
 			)
 		}
 	}

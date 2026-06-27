@@ -17,6 +17,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/posdevicesession"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
 	"github.com/bengobox/pos-service/internal/ent/tender"
+	"github.com/bengobox/pos-service/internal/modules/shifts"
 	"github.com/bengobox/pos-service/internal/platform/events"
 	"github.com/bengobox/pos-service/internal/platform/subscriptions"
 )
@@ -281,80 +282,31 @@ func (h *DeviceHandler) CloseSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Compute expected cash: opening float + total cash sales during this session.
-	expectedCash, err := h.computeExpectedCash(r, tid, session)
+	// Close via the SINGLE shared close path (same code the auto-end worker uses).
+	// The conditional update inside shifts.CloseSession is HA race-safe.
+	closingFloat := input.ClosingFloat
+	updated, expectedCash, err := shifts.CloseSession(r.Context(), h.client, session, shifts.CloseOptions{
+		ClosingFloat: &closingFloat,
+		Notes:        input.Notes,
+		Metadata:     input.Metadata,
+		Auto:         false,
+	})
 	if err != nil {
-		h.log.Warn("CloseSession: could not compute expected cash", zap.Error(err))
-		expectedCash = session.FloatAmount
-	}
-
-	variance := input.ClosingFloat - expectedCash
-
-	now := time.Now()
-	update := h.client.POSDeviceSession.UpdateOne(session).
-		SetSessionStatus("closed").
-		SetClosedAt(now).
-		SetClosingFloat(input.ClosingFloat).
-		SetVariance(variance)
-
-	if input.Notes != "" {
-		update = update.SetNotes(input.Notes)
-	}
-
-	updated, err := update.Save(r.Context())
-	if err != nil {
+		if errors.Is(err, shifts.ErrSessionAlreadyClosed) {
+			jsonError(w, "no open session found", http.StatusNotFound)
+			return
+		}
 		h.log.Error("close session failed", zap.Error(err))
 		jsonError(w, "failed to close session", http.StatusInternalServerError)
 		return
 	}
 
+	variance := closingFloat - expectedCash
 	jsonOK(w, map[string]any{
 		"session":       updated,
 		"expected_cash": expectedCash,
 		"variance":      variance,
 	})
-}
-
-// computeExpectedCash calculates opening_float + total completed cash-tender payments
-// for orders during this session window on this device.
-func (h *DeviceHandler) computeExpectedCash(r *http.Request, tid uuid.UUID, session *ent.POSDeviceSession) (float64, error) {
-	ctx := r.Context()
-
-	// Get all completed orders for this device since session opened.
-	orders, err := h.client.POSOrder.Query().
-		Where(
-			posorder.TenantID(tid),
-			posorder.DeviceID(session.DeviceID),
-			posorder.StatusEQ("completed"),
-			posorder.CreatedAtGTE(session.OpenedAt),
-		).
-		WithPayments().
-		All(ctx)
-	if err != nil {
-		return 0, err
-	}
-
-	// Load cash tenders for the tenant.
-	cashTenders, err := h.client.Tender.Query().
-		Where(tender.TenantID(tid), tender.TypeEQ("cash")).
-		All(ctx)
-	if err != nil {
-		return 0, err
-	}
-	cashTenderIDs := make(map[uuid.UUID]bool, len(cashTenders))
-	for _, t := range cashTenders {
-		cashTenderIDs[t.ID] = true
-	}
-
-	cashTotal := session.FloatAmount
-	for _, o := range orders {
-		for _, p := range o.Edges.Payments {
-			if p.Status == "completed" && cashTenderIDs[p.TenderID] {
-				cashTotal += p.Amount
-			}
-		}
-	}
-	return cashTotal, nil
 }
 
 // SessionSummaryResponse is the full live summary for an open shift.
@@ -555,6 +507,7 @@ func (h *DeviceHandler) GetSessionHistory(w http.ResponseWriter, r *http.Request
 		ClosingFloat *float64 `json:"closing_float,omitempty"`
 		Variance     *float64 `json:"variance,omitempty"`
 		Notes        string   `json:"notes,omitempty"`
+		AutoClosed   bool     `json:"auto_closed"`
 		OrderCount   int      `json:"order_count"`
 		TotalRevenue float64  `json:"total_revenue"`
 	}
@@ -578,12 +531,18 @@ func (h *DeviceHandler) GetSessionHistory(w http.ResponseWriter, r *http.Request
 			rev += o.TotalAmount
 		}
 
+		autoClosed := false
+		if v, ok := s.Metadata["auto_closed"].(bool); ok {
+			autoClosed = v
+		}
+
 		row := sessionRow{
 			ID:           s.ID.String(),
 			Status:       s.SessionStatus,
 			OpenedAt:     s.OpenedAt.Format(time.RFC3339),
 			OpeningFloat: s.FloatAmount,
 			Notes:        s.Notes,
+			AutoClosed:   autoClosed,
 			OrderCount:   len(orders),
 			TotalRevenue: rev,
 		}
