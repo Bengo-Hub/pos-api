@@ -1,8 +1,11 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -11,6 +14,51 @@ import (
 	"github.com/bengobox/pos-service/internal/ent"
 	"github.com/bengobox/pos-service/internal/ent/serviceconfig"
 )
+
+// ConfigKeyScreensaverIdleTimeoutSeconds is the service_config key holding the
+// POS terminal screensaver idle-timeout (in seconds). A row with tenant_id IS NULL
+// is the platform default; a row with tenant_id set is a tenant override.
+const ConfigKeyScreensaverIdleTimeoutSeconds = "pos.screensaver_idle_timeout_seconds"
+
+// resolveScreensaverTimeoutSeconds resolves the screensaver idle-timeout for a
+// tenant. It prefers the tenant override (tenant_id == tenantID) over the
+// platform default (tenant_id IS NULL). It returns 0 when no valid config exists
+// (callers should then apply their own app default).
+func resolveScreensaverTimeoutSeconds(ctx context.Context, client *ent.Client, tenantID uuid.UUID) int {
+	rows, err := client.ServiceConfig.Query().
+		Where(
+			serviceconfig.ConfigKey(ConfigKeyScreensaverIdleTimeoutSeconds),
+			serviceconfig.Or(
+				serviceconfig.TenantID(tenantID),
+				serviceconfig.TenantIDIsNil(),
+			),
+		).
+		All(ctx)
+	if err != nil || len(rows) == 0 {
+		return 0
+	}
+
+	var platformValue string
+	var tenantValue string
+	for _, row := range rows {
+		if row.TenantID != nil && *row.TenantID == tenantID {
+			tenantValue = row.ConfigValue
+		} else if row.TenantID == nil {
+			platformValue = row.ConfigValue
+		}
+	}
+
+	chosen := platformValue
+	if tenantValue != "" {
+		chosen = tenantValue
+	}
+
+	v, err := strconv.Atoi(strings.TrimSpace(chosen))
+	if err != nil || v <= 0 {
+		return 0
+	}
+	return v
+}
 
 // ServiceConfigHandler handles platform-level service configuration CRUD.
 type ServiceConfigHandler struct {

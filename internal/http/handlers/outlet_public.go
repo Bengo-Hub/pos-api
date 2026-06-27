@@ -31,8 +31,9 @@ type outletPublicItem struct {
 }
 
 type outletSettingsPublic struct {
-	PinLoginMessage string `json:"pin_login_message,omitempty"`
-	ScreensaverURL  string `json:"screensaver_url,omitempty"`
+	PinLoginMessage           string `json:"pin_login_message,omitempty"`
+	ScreensaverURL            string `json:"screensaver_url,omitempty"`
+	ScreensaverTimeoutSeconds int    `json:"screensaver_timeout_seconds,omitempty"`
 }
 
 // ListPublicOutlets returns all active outlets for a tenant (public, no auth).
@@ -84,6 +85,9 @@ func (h *PublicOutletHandler) GetCurrentOutlet(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	// Resolve the screensaver idle-timeout (tenant override → platform default).
+	timeout := resolveScreensaverTimeoutSeconds(r.Context(), h.client, tid)
+
 	if oid := r.URL.Query().Get("outlet_id"); oid != "" {
 		if outletUUID, err := uuid.Parse(oid); err == nil {
 			o, err := h.client.Outlet.Query().
@@ -91,7 +95,7 @@ func (h *PublicOutletHandler) GetCurrentOutlet(w http.ResponseWriter, r *http.Re
 				WithSettings().
 				Only(r.Context())
 			if err == nil {
-				jsonOK(w, map[string]any{"data": toOutletPublicItem(o)})
+				jsonOK(w, map[string]any{"data": withScreensaverTimeout(toOutletPublicItem(o), timeout)})
 				return
 			}
 		}
@@ -113,7 +117,21 @@ func (h *PublicOutletHandler) GetCurrentOutlet(w http.ResponseWriter, r *http.Re
 		}
 	}
 
-	jsonOK(w, map[string]any{"data": toOutletPublicItem(o)})
+	jsonOK(w, map[string]any{"data": withScreensaverTimeout(toOutletPublicItem(o), timeout)})
+}
+
+// withScreensaverTimeout ensures the screensaver idle-timeout is present on the
+// outlet's public settings, creating the settings object when the outlet has no
+// OutletSetting row so the value is still returned to the kiosk.
+func withScreensaverTimeout(item outletPublicItem, timeoutSeconds int) outletPublicItem {
+	if timeoutSeconds <= 0 {
+		return item
+	}
+	if item.Settings == nil {
+		item.Settings = &outletSettingsPublic{}
+	}
+	item.Settings.ScreensaverTimeoutSeconds = timeoutSeconds
+	return item
 }
 
 func toOutletPublicItem(o *ent.Outlet) outletPublicItem {
