@@ -430,14 +430,20 @@ func New(
 						pos.Get("/promotions/happy-hour/active", promotions.GetActiveHappyHours)
 					}
 
-					// Device sessions (shift open/close)
+					// Device sessions (shift open/close = clock-in / clock-out).
+					// Opening/closing a register session is a staff action gated on
+					// pos.sessions.add (managers/finance also satisfy via pos.sessions.manage),
+					// mirroring the cash-drawer open/close gating above. GET reads stay
+					// auth-only so every signed-in staffer can see their own shift status.
 					if devices != nil {
 						pos.Get("/devices", devices.ListDevices)
 						pos.Get("/devices/current/sessions/current", devices.GetCurrentSession)
 						pos.Get("/devices/current/sessions/current/summary", devices.GetSessionSummary)
 						pos.Get("/devices/current/sessions/history", devices.GetSessionHistory)
-						pos.Post("/devices/current/sessions/open", devices.OpenSession)
-						pos.Post("/devices/current/sessions/close", devices.CloseSession)
+						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.sessions.add", "pos.sessions.manage")).
+							Post("/devices/current/sessions/open", devices.OpenSession)
+						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.sessions.add", "pos.sessions.manage")).
+							Post("/devices/current/sessions/close", devices.CloseSession)
 					}
 
 					// Terminal PIN auth (auth-protected endpoints)
