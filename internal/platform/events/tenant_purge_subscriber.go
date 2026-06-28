@@ -216,7 +216,7 @@ func (s *TenantPurgeSubscriber) Subscribe(nc *nats.Conn) error {
 		}
 	}
 
-	sharedevents.SubscribeWithRebind(s.log, js, "tenant.purge", func(msg *nats.Msg) {
+	sharedevents.SubscribeQueueWithRebind(s.log, js, "tenant", "tenant.purge", "pos-tenant-purge", func(msg *nats.Msg) {
 		s.handle(msg)
 	},
 		nats.Durable("pos-tenant-purge"),

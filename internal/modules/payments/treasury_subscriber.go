@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	sharedevents "github.com/Bengo-Hub/shared-events"
 	"github.com/google/uuid"
 	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
@@ -89,7 +90,7 @@ func (s *TreasurySubscriber) subscribePaymentSuccess(js nats.JetStreamContext) e
 	// consumer ("pos-treasury-payment-success") was bound to the wrong, never-published subject
 	// "treasury.payment.success"; a JetStream durable's filter subject is immutable, so we must use a
 	// new durable name to rebind. The orphaned consumer is removed during deploy.
-	_, err := js.QueueSubscribe("treasury.payment.succeeded", "pos-treasury-payment-succeeded", func(msg *nats.Msg) {
+	sharedevents.SubscribeQueueWithRebind(s.log, js, "treasury", "treasury.payment.succeeded", "pos-treasury-payment-succeeded", func(msg *nats.Msg) {
 		defer func() { _ = msg.Ack() }()
 
 		var evt treasuryPaymentEvent
@@ -117,11 +118,11 @@ func (s *TreasurySubscriber) subscribePaymentSuccess(js nats.JetStreamContext) e
 			s.log.Error("treasury.payment.succeeded: confirm payment", zap.String("intent", intentID), zap.Error(err))
 		}
 	}, nats.Durable("pos-treasury-payment-succeeded"), nats.ManualAck())
-	return err
+	return nil
 }
 
 func (s *TreasurySubscriber) subscribePaymentFailed(js nats.JetStreamContext) error {
-	_, err := js.QueueSubscribe("treasury.payment.failed", "pos-treasury-payment-failed", func(msg *nats.Msg) {
+	sharedevents.SubscribeQueueWithRebind(s.log, js, "treasury", "treasury.payment.failed", "pos-treasury-payment-failed", func(msg *nats.Msg) {
 		defer func() { _ = msg.Ack() }()
 
 		var evt treasuryPaymentEvent
@@ -145,7 +146,7 @@ func (s *TreasurySubscriber) subscribePaymentFailed(js nats.JetStreamContext) er
 			s.log.Error("treasury.payment.failed: mark failed", zap.String("intent", intentID), zap.Error(err))
 		}
 	}, nats.Durable("pos-treasury-payment-failed"), nats.ManualAck())
-	return err
+	return nil
 }
 
 // etimsEvent is the payload for treasury.etims.invoice_transmitted.
@@ -161,7 +162,7 @@ type etimsEvent struct {
 }
 
 func (s *TreasurySubscriber) subscribeEtimsTransmitted(js nats.JetStreamContext) error {
-	_, err := js.QueueSubscribe("treasury.etims.invoice_transmitted", "pos-etims-invoice", func(msg *nats.Msg) {
+	sharedevents.SubscribeQueueWithRebind(s.log, js, "treasury", "treasury.etims.invoice_transmitted", "pos-etims-invoice", func(msg *nats.Msg) {
 		defer func() { _ = msg.Ack() }()
 
 		var evt etimsEvent
@@ -198,6 +199,6 @@ func (s *TreasurySubscriber) subscribeEtimsTransmitted(js nats.JetStreamContext)
 				zap.String("order_id", orderID.String()), zap.Error(err))
 		}
 	}, nats.Durable("pos-etims-invoice"), nats.ManualAck())
-	return err
+	return nil
 }
 

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	sharedevents "github.com/Bengo-Hub/shared-events"
 	"github.com/google/uuid"
 	"github.com/nats-io/nats.go"
 	"github.com/shopspring/decimal"
@@ -67,7 +68,7 @@ func (c *PickupConsumer) SubscribeToPickupOrders(nc *nats.Conn) error {
 		return fmt.Errorf("pickup consumer: jetstream init: %w", err)
 	}
 
-	_, err = js.Subscribe("ordering.order.for_pickup", func(msg *nats.Msg) {
+	sharedevents.SubscribeQueueWithRebind(c.logger, js, "ordering", "ordering.order.for_pickup", "pos-pickup-orders", func(msg *nats.Msg) {
 		var evt OrderForPickupEvent
 		if err := json.Unmarshal(msg.Data, &evt); err != nil {
 			c.logger.Error("pickup consumer: failed to unmarshal event", zap.Error(err))
@@ -96,9 +97,6 @@ func (c *PickupConsumer) SubscribeToPickupOrders(nc *nats.Conn) error {
 		nats.AckWait(30*time.Second),
 		nats.MaxDeliver(5),
 	)
-	if err != nil {
-		return fmt.Errorf("pickup consumer: subscribe: %w", err)
-	}
 
 	c.logger.Info("pickup consumer started", zap.String("subject", "ordering.order.for_pickup"))
 	return nil

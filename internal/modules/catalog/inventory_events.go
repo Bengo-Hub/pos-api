@@ -130,7 +130,7 @@ func (h *InventoryEventHandler) SubscribeToInventoryEvents(nc *nats.Conn) error 
 	for _, s := range subs {
 		// Multi-layer rebind: settle buffer + retry-on-"already bound" so a
 		// restart never silently drops the inventory->POS catalog sync.
-		sharedevents.SubscribeWithRebind(h.logger, js, s.subject, handler,
+		sharedevents.SubscribeQueueWithRebind(h.logger, js, "inventory", s.subject, s.durable, handler,
 			nats.Durable(s.durable),
 			nats.AckExplicit(),
 			nats.AckWait(30*time.Second),

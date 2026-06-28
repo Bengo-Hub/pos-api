@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	sharedevents "github.com/Bengo-Hub/shared-events"
 	"github.com/google/uuid"
 	"github.com/nats-io/nats.go"
 	"github.com/shopspring/decimal"
@@ -71,7 +72,7 @@ func (c *ConfirmedOrderConsumer) SubscribeToConfirmedOrders(nc *nats.Conn) error
 		return fmt.Errorf("confirmed consumer: jetstream init: %w", err)
 	}
 
-	_, err = js.Subscribe("ordering.order.confirmed", func(msg *nats.Msg) {
+	sharedevents.SubscribeQueueWithRebind(c.logger, js, "ordering", "ordering.order.confirmed", "pos-confirmed-orders", func(msg *nats.Msg) {
 		var evt ConfirmedOrderEvent
 		if err := json.Unmarshal(msg.Data, &evt); err != nil {
 			c.logger.Error("confirmed consumer: failed to unmarshal event", zap.Error(err))
@@ -96,9 +97,6 @@ func (c *ConfirmedOrderConsumer) SubscribeToConfirmedOrders(nc *nats.Conn) error
 		nats.AckWait(30*time.Second),
 		nats.MaxDeliver(5),
 	)
-	if err != nil {
-		return fmt.Errorf("confirmed consumer: subscribe: %w", err)
-	}
 
 	c.logger.Info("confirmed consumer started", zap.String("subject", "ordering.order.confirmed"))
 	return nil

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	sharedevents "github.com/Bengo-Hub/shared-events"
 	"github.com/google/uuid"
 	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
@@ -66,7 +67,7 @@ func (s *TaxSubscriber) SubscribeToTaxEvents(nc *nats.Conn) error {
 	// Subject is "treasury.tax.code_updated" (shared-events builds {aggregate_type}.{event_type}
 	// = "treasury" + "tax.code_updated"). Durable + queue group so a single pod handles each
 	// event across replicas.
-	_, err = js.QueueSubscribe("treasury.tax.code_updated", "pos-treasury-tax-updated", func(msg *nats.Msg) {
+	sharedevents.SubscribeQueueWithRebind(s.log, js, "treasury", "treasury.tax.code_updated", "pos-treasury-tax-updated", func(msg *nats.Msg) {
 		// Always ack — invalidation is best-effort; a no-op or a transient miss must not
 		// redeliver forever (the 10-minute TTL is the backstop).
 		defer func() { _ = msg.Ack() }()
@@ -107,9 +108,6 @@ func (s *TaxSubscriber) SubscribeToTaxEvents(nc *nats.Conn) error {
 			zap.String("tenant_id", tenantID), zap.String("code", code))
 		s.resolver.InvalidateCodeAllTenants(ctx, code)
 	}, nats.Durable("pos-treasury-tax-updated"), nats.ManualAck())
-	if err != nil {
-		return fmt.Errorf("tax subscriber: subscribe treasury.tax.code_updated: %w", err)
-	}
 
 	s.log.Info("tax event subscription registered (treasury.tax.code_updated)")
 	return nil

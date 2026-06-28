@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"fmt"
-	"strings"
 	"time"
 
 	sharedevents "github.com/Bengo-Hub/shared-events"
@@ -45,25 +44,6 @@ func NewAuthEventHandler(client *ent.Client, svc *Service, logger *zap.Logger) *
 	}
 }
 
-// jsSubscribeOrRebind tries js.Subscribe; if the consumer is already bound to a stale
-// connection (common after a pod restart before the old connection times out), it deletes
-// the consumer by its durable name and retries once so the new pod takes over cleanly.
-func jsSubscribeOrRebind(js nats.JetStreamContext, stream, subject, durable string, handler nats.MsgHandler, opts ...nats.SubOpt) (*nats.Subscription, error) {
-	allOpts := append(opts, nats.Durable(durable))
-	sub, err := js.Subscribe(subject, handler, allOpts...)
-	if err == nil {
-		return sub, nil
-	}
-	// "consumer is already bound to a subscription" — stale push binding from the
-	// previous pod. Delete the consumer so NATS releases the bind, then retry once.
-	if strings.Contains(err.Error(), "already bound") || strings.Contains(err.Error(), "consumer is already") {
-		_ = js.DeleteConsumer(stream, durable)
-		time.Sleep(300 * time.Millisecond)
-		sub, err = js.Subscribe(subject, handler, allOpts...)
-	}
-	return sub, err
-}
-
 // SubscribeToAuthEvents subscribes to auth-service user events via JetStream with durable consumers.
 func (h *AuthEventHandler) SubscribeToAuthEvents(nc *nats.Conn) error {
 	if nc == nil {
@@ -102,7 +82,7 @@ func (h *AuthEventHandler) SubscribeToAuthEvents(nc *nats.Conn) error {
 
 	for _, s := range subs {
 		s := s
-		_, subErr := jsSubscribeOrRebind(js, authStream, s.subject, s.durable, func(msg *nats.Msg) {
+		sharedevents.SubscribeQueueWithRebind(h.logger, js, "auth", s.subject, s.durable, func(msg *nats.Msg) {
 			evt, err := sharedevents.FromJSON(msg.Data)
 			if err != nil {
 				h.logger.Error("failed to unmarshal auth user event",
@@ -119,15 +99,12 @@ func (h *AuthEventHandler) SubscribeToAuthEvents(nc *nats.Conn) error {
 			}
 			_ = msg.Ack()
 		},
+			nats.Durable(s.durable),
 			nats.AckExplicit(),
 			nats.AckWait(30*time.Second),
 			nats.MaxDeliver(5),
 			nats.DeliverAll(),
 		)
-		if subErr != nil {
-			h.logger.Error("auth user events: subscribe failed (will not retry)",
-				zap.String("subject", s.subject), zap.Error(subErr))
-		}
 	}
 
 	h.logger.Info("auth event subscriptions active",

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	sharedevents "github.com/Bengo-Hub/shared-events"
 	"github.com/google/uuid"
 	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
@@ -72,7 +73,7 @@ func (s *KDSOrderingSubscriber) SubscribeToOrderingEvents(nc *nats.Conn) error {
 		return fmt.Errorf("kds ordering subscriber: jetstream init: %w", err)
 	}
 
-	_, err = js.Subscribe("ordering.order.status.changed", func(msg *nats.Msg) {
+	sharedevents.SubscribeQueueWithRebind(s.logger, js, "ordering", "ordering.order.status.changed", "pos-kds-order-events", func(msg *nats.Msg) {
 		var evt orderingStatusChangedEvent
 		if err := json.Unmarshal(msg.Data, &evt); err != nil {
 			s.logger.Error("kds: failed to unmarshal ordering status event", zap.Error(err))
@@ -105,9 +106,6 @@ func (s *KDSOrderingSubscriber) SubscribeToOrderingEvents(nc *nats.Conn) error {
 		nats.AckWait(30*time.Second),
 		nats.MaxDeliver(5),
 	)
-	if err != nil {
-		return fmt.Errorf("kds ordering subscriber: subscribe: %w", err)
-	}
 
 	s.logger.Info("kds ordering subscriber started", zap.String("subject", "ordering.order.status.changed"))
 	return nil
