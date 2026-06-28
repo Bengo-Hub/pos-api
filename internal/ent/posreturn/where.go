@@ -626,6 +626,36 @@ func ApprovedByNotNil() predicate.POSReturn {
 	return predicate.POSReturn(sql.FieldNotNull(FieldApprovedBy))
 }
 
+// RefundChannelEQ applies the EQ predicate on the "refund_channel" field.
+func RefundChannelEQ(v RefundChannel) predicate.POSReturn {
+	return predicate.POSReturn(sql.FieldEQ(FieldRefundChannel, v))
+}
+
+// RefundChannelNEQ applies the NEQ predicate on the "refund_channel" field.
+func RefundChannelNEQ(v RefundChannel) predicate.POSReturn {
+	return predicate.POSReturn(sql.FieldNEQ(FieldRefundChannel, v))
+}
+
+// RefundChannelIn applies the In predicate on the "refund_channel" field.
+func RefundChannelIn(vs ...RefundChannel) predicate.POSReturn {
+	return predicate.POSReturn(sql.FieldIn(FieldRefundChannel, vs...))
+}
+
+// RefundChannelNotIn applies the NotIn predicate on the "refund_channel" field.
+func RefundChannelNotIn(vs ...RefundChannel) predicate.POSReturn {
+	return predicate.POSReturn(sql.FieldNotIn(FieldRefundChannel, vs...))
+}
+
+// RefundChannelIsNil applies the IsNil predicate on the "refund_channel" field.
+func RefundChannelIsNil() predicate.POSReturn {
+	return predicate.POSReturn(sql.FieldIsNull(FieldRefundChannel))
+}
+
+// RefundChannelNotNil applies the NotNil predicate on the "refund_channel" field.
+func RefundChannelNotNil() predicate.POSReturn {
+	return predicate.POSReturn(sql.FieldNotNull(FieldRefundChannel))
+}
+
 // TreasuryRefundRefEQ applies the EQ predicate on the "treasury_refund_ref" field.
 func TreasuryRefundRefEQ(v string) predicate.POSReturn {
 	return predicate.POSReturn(sql.FieldEQ(FieldTreasuryRefundRef, v))

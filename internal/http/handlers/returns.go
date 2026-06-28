@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -14,9 +15,11 @@ import (
 
 	"github.com/bengobox/pos-service/internal/audit"
 	"github.com/bengobox/pos-service/internal/ent"
+	entla "github.com/bengobox/pos-service/internal/ent/loyaltyaccount"
 	entoutletsetting "github.com/bengobox/pos-service/internal/ent/outletsetting"
 	entoverride "github.com/bengobox/pos-service/internal/ent/poscatalogoverride"
 	entposorder "github.com/bengobox/pos-service/internal/ent/posorder"
+	entposorderline "github.com/bengobox/pos-service/internal/ent/posorderline"
 	"github.com/bengobox/pos-service/internal/ent/posreturn"
 	"github.com/bengobox/pos-service/internal/ent/posreturnline"
 	"github.com/bengobox/pos-service/internal/modules/treasury"
@@ -50,16 +53,21 @@ type returnLineInput struct {
 }
 
 type createReturnInput struct {
-	OutletID   string            `json:"outlet_id"`
-	ReturnType string            `json:"return_type"` // refund | exchange | store_credit
-	Reason     string            `json:"reason"`
-	ReasonCode string            `json:"reason_code,omitempty"` // changed_mind | defective | damaged | wrong_item | expired | other
-	Lines      []returnLineInput `json:"lines"`
+	OutletID      string            `json:"outlet_id"`
+	ReturnType    string            `json:"return_type"` // refund | exchange | store_credit
+	Reason        string            `json:"reason"`
+	ReasonCode    string            `json:"reason_code,omitempty"`    // changed_mind | defective | damaged | wrong_item | expired | other
+	RefundChannel string            `json:"refund_channel,omitempty"` // cash | mpesa | bank | cheque | store_credit | offset_invoice
+	Lines         []returnLineInput `json:"lines"`
 }
 
 type approveReturnInput struct {
 	Action string `json:"action"` // approve | reject
 	Notes  string `json:"notes"`
+	// RefundChannel lets the approver pick/override the settlement method at approval time
+	// (cash | mpesa | bank | cheque | store_credit | offset_invoice). When empty, the channel
+	// chosen at return-create time is used.
+	RefundChannel string `json:"refund_channel,omitempty"`
 }
 
 // CreateReturn handles POST /{tenantID}/pos/orders/{orderID}/returns
@@ -171,6 +179,7 @@ func (h *ReturnHandler) CreateReturn(w http.ResponseWriter, r *http.Request) {
 		SetStatus(posreturn.StatusPending).
 		SetReason(input.Reason).
 		SetNillableReasonCode(reasonCodePtr(input.ReasonCode)).
+		SetNillableRefundChannel(refundChannelPtr(input.RefundChannel)).
 		SetRefundAmount(refundAmount).
 		SetRequestedBy(requestedBy).
 		Save(ctx)
@@ -366,20 +375,55 @@ func (h *ReturnHandler) ApproveReturn(w http.ResponseWriter, r *http.Request) {
 		update = update.SetApprovedBy(*approverID)
 	}
 
+	// Resolve the settlement channel: an explicit override on approval wins, otherwise the channel
+	// chosen at return-create time (persisted on the return) is used. Persist any override now so the
+	// returns list / treasury both reflect the cashier's chosen method.
+	refundChannel := ""
+	if ret.RefundChannel != nil {
+		refundChannel = string(*ret.RefundChannel)
+	}
+	if rc := refundChannelPtr(input.RefundChannel); rc != nil {
+		refundChannel = string(*rc)
+		update = update.SetNillableRefundChannel(rc)
+	}
+
 	// If approving a refund-type return, call treasury-api and store reference.
 	var treasuryRefundRef string
 	if newStatus == posreturn.StatusApproved && ret.ReturnType == posreturn.ReturnTypeRefund && h.treasuryClient != nil {
 		tenantSlug := chi.URLParam(r, "tenantID")
-		refundResp, refundErr := h.treasuryClient.CreateRefund(ctx, tenantSlug, treasury.RefundRequest{
+
+		// Sum the returned lines' VAT and COGS so treasury can reverse the exact tax + cost-of-goods.
+		// tax_amount is prorated from the original order line's tax by returned quantity; cost is the
+		// inventory-synced cost_price (the same POSCatalogOverride.metadata["cost_price"] source used
+		// for the sale.finalized COGS posting) × returned quantity. Missing data => 0 (never blocks).
+		taxAmount := h.resolveReturnTax(ctx, ret.OrderID, lines)
+		costAmount := h.resolveReturnCost(ctx, tid, lines)
+
+		// Original buyer's CRM contact + name (for the treasury refund's customer linkage). The order
+		// stores the name; the CRM contact lives on the matched loyalty account (by customer_phone).
+		crmContactID, customerName := h.resolveReturnCustomer(ctx, tid, ret.OrderID)
+
+		refundResp, refundErr := h.treasuryClient.CreateRefund(ctx, tenantSlug, returnID.String(), treasury.RefundRequest{
 			SourceService: "pos",
 			ReferenceID:   returnID.String(),
 			ReferenceType: "pos_return",
 			Amount:        ret.RefundAmount,
+			TaxAmount:     taxAmount,
+			Cost:          costAmount,
 			Currency:      "KES",
 			Reason:        ret.Reason,
+			RefundChannel: refundChannel,
+			CrmContactID:  crmContactID,
+			CustomerName:  customerName,
 		})
 		if refundErr != nil {
-			h.log.Error("treasury refund call failed", zap.Error(refundErr), zap.String("return_id", returnID.String()))
+			h.log.Error("treasury refund call failed (non-fatal; refund can be retried)",
+				zap.Error(refundErr),
+				zap.String("return_id", returnID.String()),
+				zap.String("refund_channel", refundChannel),
+				zap.Float64("amount", ret.RefundAmount),
+				zap.Float64("tax_amount", taxAmount),
+				zap.Float64("cost", costAmount))
 			// Non-fatal: still approve the return record; refund can be retried
 		} else {
 			treasuryRefundRef = refundResp.ID
@@ -438,6 +482,131 @@ func (h *ReturnHandler) ApproveReturn(w http.ResponseWriter, r *http.Request) {
 	}
 
 	jsonOK(w, updated)
+}
+
+// refundChannelPtr converts a refund_channel string to a *posreturn.RefundChannel for the Nillable
+// setter. Returns nil for empty/invalid input so an unset channel stays NULL.
+func refundChannelPtr(s string) *posreturn.RefundChannel {
+	switch posreturn.RefundChannel(s) {
+	case posreturn.RefundChannelCash, posreturn.RefundChannelMpesa,
+		posreturn.RefundChannelBank, posreturn.RefundChannelCheque,
+		posreturn.RefundChannelStoreCredit, posreturn.RefundChannelOffsetInvoice:
+		rc := posreturn.RefundChannel(s)
+		return &rc
+	}
+	return nil
+}
+
+// resolveReturnTax sums the VAT to reverse for the returned lines. The return line stores no tax, so
+// we prorate the original POSOrderLine's tax_amount by the returned quantity (tax × returnedQty/lineQty).
+// Lines without a matching priced order line or with no tax contribute 0. Errors => 0 (never blocks).
+func (h *ReturnHandler) resolveReturnTax(ctx context.Context, orderID uuid.UUID, lines []*ent.POSReturnLine) float64 {
+	if len(lines) == 0 {
+		return 0
+	}
+	ids := make([]uuid.UUID, 0, len(lines))
+	for _, l := range lines {
+		if l.OrderLineID != uuid.Nil {
+			ids = append(ids, l.OrderLineID)
+		}
+	}
+	if len(ids) == 0 {
+		return 0
+	}
+	orderLines, err := h.client.POSOrderLine.Query().
+		Where(entposorderline.OrderID(orderID), entposorderline.IDIn(ids...)).
+		All(ctx)
+	if err != nil {
+		h.log.Warn("return refund: failed to resolve line tax (defaulting to 0)", zap.Error(err))
+		return 0
+	}
+	byID := make(map[uuid.UUID]*ent.POSOrderLine, len(orderLines))
+	for _, ol := range orderLines {
+		byID[ol.ID] = ol
+	}
+	var total float64
+	for _, l := range lines {
+		ol, ok := byID[l.OrderLineID]
+		if !ok || ol.TaxAmount == nil || *ol.TaxAmount == 0 || ol.Quantity <= 0 {
+			continue
+		}
+		ratio := l.Quantity / ol.Quantity
+		if ratio > 1 {
+			ratio = 1
+		}
+		total += *ol.TaxAmount * ratio
+	}
+	return total
+}
+
+// resolveReturnCost sums the COGS of the returned goods so treasury can reverse Cost-of-Goods-Sold and
+// trigger the restock reversal. It uses the same authoritative cost source as the sale.finalized COGS
+// posting: POSCatalogOverride.metadata["cost_price"] keyed by (tenant, inventory_sku). Missing cost => 0.
+func (h *ReturnHandler) resolveReturnCost(ctx context.Context, tenantID uuid.UUID, lines []*ent.POSReturnLine) float64 {
+	if len(lines) == 0 {
+		return 0
+	}
+	skus := make([]string, 0, len(lines))
+	seen := make(map[string]struct{}, len(lines))
+	for _, l := range lines {
+		if l.Sku == "" {
+			continue
+		}
+		if _, ok := seen[l.Sku]; ok {
+			continue
+		}
+		seen[l.Sku] = struct{}{}
+		skus = append(skus, l.Sku)
+	}
+	if len(skus) == 0 {
+		return 0
+	}
+	overrides, err := h.client.POSCatalogOverride.Query().
+		Where(entoverride.TenantID(tenantID), entoverride.InventorySkuIn(skus...)).
+		All(ctx)
+	if err != nil {
+		h.log.Warn("return refund: failed to resolve item costs (defaulting to 0)", zap.Error(err))
+		return 0
+	}
+	costBySKU := make(map[string]float64, len(overrides))
+	for _, ov := range overrides {
+		if ov.Metadata == nil {
+			continue
+		}
+		switch v := ov.Metadata["cost_price"].(type) {
+		case float64:
+			costBySKU[ov.InventorySku] = v
+		case int:
+			costBySKU[ov.InventorySku] = float64(v)
+		}
+	}
+	var total float64
+	for _, l := range lines {
+		total += costBySKU[l.Sku] * l.Quantity
+	}
+	return total
+}
+
+// resolveReturnCustomer returns the original buyer's CRM contact id (from the matched loyalty account)
+// and name (from the order) for the treasury refund. Both are best-effort; empty when unavailable.
+func (h *ReturnHandler) resolveReturnCustomer(ctx context.Context, tenantID, orderID uuid.UUID) (crmContactID, customerName string) {
+	order, err := h.client.POSOrder.Query().
+		Where(entposorder.ID(orderID), entposorder.TenantID(tenantID)).
+		Only(ctx)
+	if err != nil {
+		return "", ""
+	}
+	if order.CustomerName != nil {
+		customerName = *order.CustomerName
+	}
+	if order.CustomerPhone != nil && *order.CustomerPhone != "" {
+		if acc, accErr := h.client.LoyaltyAccount.Query().
+			Where(entla.TenantID(tenantID), entla.CustomerPhone(*order.CustomerPhone)).
+			First(ctx); accErr == nil && acc != nil && acc.CrmContactID != nil {
+			crmContactID = acc.CrmContactID.String()
+		}
+	}
+	return crmContactID, customerName
 }
 
 // reasonCodePtr converts a reason_code string to a *posreturn.ReasonCode for SetNillableReasonCode.

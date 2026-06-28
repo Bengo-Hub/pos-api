@@ -153,6 +153,20 @@ func (_c *POSReturnCreate) SetNillableApprovedBy(v *uuid.UUID) *POSReturnCreate 
 	return _c
 }
 
+// SetRefundChannel sets the "refund_channel" field.
+func (_c *POSReturnCreate) SetRefundChannel(v posreturn.RefundChannel) *POSReturnCreate {
+	_c.mutation.SetRefundChannel(v)
+	return _c
+}
+
+// SetNillableRefundChannel sets the "refund_channel" field if the given value is not nil.
+func (_c *POSReturnCreate) SetNillableRefundChannel(v *posreturn.RefundChannel) *POSReturnCreate {
+	if v != nil {
+		_c.SetRefundChannel(*v)
+	}
+	return _c
+}
+
 // SetTreasuryRefundRef sets the "treasury_refund_ref" field.
 func (_c *POSReturnCreate) SetTreasuryRefundRef(v string) *POSReturnCreate {
 	_c.mutation.SetTreasuryRefundRef(v)
@@ -341,6 +355,11 @@ func (_c *POSReturnCreate) check() error {
 	if _, ok := _c.mutation.RequestedBy(); !ok {
 		return &ValidationError{Name: "requested_by", err: errors.New(`ent: missing required field "POSReturn.requested_by"`)}
 	}
+	if v, ok := _c.mutation.RefundChannel(); ok {
+		if err := posreturn.RefundChannelValidator(v); err != nil {
+			return &ValidationError{Name: "refund_channel", err: fmt.Errorf(`ent: validator failed for field "POSReturn.refund_channel": %w`, err)}
+		}
+	}
 	if _, ok := _c.mutation.Metadata(); !ok {
 		return &ValidationError{Name: "metadata", err: errors.New(`ent: missing required field "POSReturn.metadata"`)}
 	}
@@ -433,6 +452,10 @@ func (_c *POSReturnCreate) createSpec() (*POSReturn, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.ApprovedBy(); ok {
 		_spec.SetField(posreturn.FieldApprovedBy, field.TypeUUID, value)
 		_node.ApprovedBy = &value
+	}
+	if value, ok := _c.mutation.RefundChannel(); ok {
+		_spec.SetField(posreturn.FieldRefundChannel, field.TypeEnum, value)
+		_node.RefundChannel = &value
 	}
 	if value, ok := _c.mutation.TreasuryRefundRef(); ok {
 		_spec.SetField(posreturn.FieldTreasuryRefundRef, field.TypeString, value)
@@ -689,6 +712,24 @@ func (u *POSReturnUpsert) UpdateApprovedBy() *POSReturnUpsert {
 // ClearApprovedBy clears the value of the "approved_by" field.
 func (u *POSReturnUpsert) ClearApprovedBy() *POSReturnUpsert {
 	u.SetNull(posreturn.FieldApprovedBy)
+	return u
+}
+
+// SetRefundChannel sets the "refund_channel" field.
+func (u *POSReturnUpsert) SetRefundChannel(v posreturn.RefundChannel) *POSReturnUpsert {
+	u.Set(posreturn.FieldRefundChannel, v)
+	return u
+}
+
+// UpdateRefundChannel sets the "refund_channel" field to the value that was provided on create.
+func (u *POSReturnUpsert) UpdateRefundChannel() *POSReturnUpsert {
+	u.SetExcluded(posreturn.FieldRefundChannel)
+	return u
+}
+
+// ClearRefundChannel clears the value of the "refund_channel" field.
+func (u *POSReturnUpsert) ClearRefundChannel() *POSReturnUpsert {
+	u.SetNull(posreturn.FieldRefundChannel)
 	return u
 }
 
@@ -985,6 +1026,27 @@ func (u *POSReturnUpsertOne) UpdateApprovedBy() *POSReturnUpsertOne {
 func (u *POSReturnUpsertOne) ClearApprovedBy() *POSReturnUpsertOne {
 	return u.Update(func(s *POSReturnUpsert) {
 		s.ClearApprovedBy()
+	})
+}
+
+// SetRefundChannel sets the "refund_channel" field.
+func (u *POSReturnUpsertOne) SetRefundChannel(v posreturn.RefundChannel) *POSReturnUpsertOne {
+	return u.Update(func(s *POSReturnUpsert) {
+		s.SetRefundChannel(v)
+	})
+}
+
+// UpdateRefundChannel sets the "refund_channel" field to the value that was provided on create.
+func (u *POSReturnUpsertOne) UpdateRefundChannel() *POSReturnUpsertOne {
+	return u.Update(func(s *POSReturnUpsert) {
+		s.UpdateRefundChannel()
+	})
+}
+
+// ClearRefundChannel clears the value of the "refund_channel" field.
+func (u *POSReturnUpsertOne) ClearRefundChannel() *POSReturnUpsertOne {
+	return u.Update(func(s *POSReturnUpsert) {
+		s.ClearRefundChannel()
 	})
 }
 
@@ -1455,6 +1517,27 @@ func (u *POSReturnUpsertBulk) UpdateApprovedBy() *POSReturnUpsertBulk {
 func (u *POSReturnUpsertBulk) ClearApprovedBy() *POSReturnUpsertBulk {
 	return u.Update(func(s *POSReturnUpsert) {
 		s.ClearApprovedBy()
+	})
+}
+
+// SetRefundChannel sets the "refund_channel" field.
+func (u *POSReturnUpsertBulk) SetRefundChannel(v posreturn.RefundChannel) *POSReturnUpsertBulk {
+	return u.Update(func(s *POSReturnUpsert) {
+		s.SetRefundChannel(v)
+	})
+}
+
+// UpdateRefundChannel sets the "refund_channel" field to the value that was provided on create.
+func (u *POSReturnUpsertBulk) UpdateRefundChannel() *POSReturnUpsertBulk {
+	return u.Update(func(s *POSReturnUpsert) {
+		s.UpdateRefundChannel()
+	})
+}
+
+// ClearRefundChannel clears the value of the "refund_channel" field.
+func (u *POSReturnUpsertBulk) ClearRefundChannel() *POSReturnUpsertBulk {
+	return u.Update(func(s *POSReturnUpsert) {
+		s.ClearRefundChannel()
 	})
 }
 

@@ -121,15 +121,23 @@ type InitiateResponse struct {
 	Reference         string `json:"reference,omitempty"`
 }
 
-// RefundRequest is the body for POST /api/v1/s2s/{tenant}/refunds
+// RefundRequest is the body for POST /api/v1/s2s/{tenant}/refunds.
+// Treasury reverses revenue+VAT, credits the chosen channel account, reverses COGS, and is
+// idempotent on the return id (reference_id). The tax_amount/cost fields let treasury reverse the
+// exact VAT and Cost-of-Goods-Sold posted at sale time (cost triggers the restock/COGS reversal).
 type RefundRequest struct {
 	SourceService    string  `json:"source_service"`               // "pos"
 	ReferenceID      string  `json:"reference_id"`                 // pos_return UUID
 	ReferenceType    string  `json:"reference_type"`               // "pos_return"
 	OriginalIntentID string  `json:"original_intent_id,omitempty"` // original payment intent if known
 	Amount           float64 `json:"amount"`
+	TaxAmount        float64 `json:"tax_amount,omitempty"`     // VAT portion of the refunded lines (reversed)
+	Cost             float64 `json:"cost,omitempty"`           // COGS of returned goods → triggers restock/COGS reversal
 	Currency         string  `json:"currency"`
 	Reason           string  `json:"reason"`
+	RefundChannel    string  `json:"refund_channel,omitempty"` // cash|mpesa|bank|cheque|store_credit|offset_invoice
+	CrmContactID     string  `json:"crm_contact_id,omitempty"` // CRM contact of the original buyer, when known
+	CustomerName     string  `json:"customer_name,omitempty"`
 	CustomerEmail    string  `json:"customer_email,omitempty"`
 }
 
@@ -143,9 +151,15 @@ type RefundResponse struct {
 }
 
 // CreateRefund calls POST /api/v1/s2s/{tenantSlug}/refunds on treasury-api.
-func (c *Client) CreateRefund(ctx context.Context, tenantSlug string, req RefundRequest) (*RefundResponse, error) {
+// idempotencyKey (the pos_return id) is sent as the Idempotency-Key header so a network retry
+// can't double-refund; treasury is also idempotent on reference_id. Pass "" to skip the header.
+func (c *Client) CreateRefund(ctx context.Context, tenantSlug, idempotencyKey string, req RefundRequest) (*RefundResponse, error) {
 	url := fmt.Sprintf("%s/api/v1/s2s/%s/refunds", c.baseURL, tenantSlug)
-	return doRequest[RefundResponse](ctx, c.httpClient, http.MethodPost, url, c.apiKey, req)
+	extraHeaders := map[string]string{}
+	if idempotencyKey != "" {
+		extraHeaders["Idempotency-Key"] = idempotencyKey
+	}
+	return doRequestWithHeaders[RefundResponse](ctx, c.httpClient, http.MethodPost, url, c.apiKey, extraHeaders, req)
 }
 
 // CreditSaleRequest is the body for POST /api/v1/s2s/{tenant}/ar/credit-sale.

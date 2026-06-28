@@ -229,6 +229,26 @@ func (_u *POSReturnUpdate) ClearApprovedBy() *POSReturnUpdate {
 	return _u
 }
 
+// SetRefundChannel sets the "refund_channel" field.
+func (_u *POSReturnUpdate) SetRefundChannel(v posreturn.RefundChannel) *POSReturnUpdate {
+	_u.mutation.SetRefundChannel(v)
+	return _u
+}
+
+// SetNillableRefundChannel sets the "refund_channel" field if the given value is not nil.
+func (_u *POSReturnUpdate) SetNillableRefundChannel(v *posreturn.RefundChannel) *POSReturnUpdate {
+	if v != nil {
+		_u.SetRefundChannel(*v)
+	}
+	return _u
+}
+
+// ClearRefundChannel clears the value of the "refund_channel" field.
+func (_u *POSReturnUpdate) ClearRefundChannel() *POSReturnUpdate {
+	_u.mutation.ClearRefundChannel()
+	return _u
+}
+
 // SetTreasuryRefundRef sets the "treasury_refund_ref" field.
 func (_u *POSReturnUpdate) SetTreasuryRefundRef(v string) *POSReturnUpdate {
 	_u.mutation.SetTreasuryRefundRef(v)
@@ -360,6 +380,11 @@ func (_u *POSReturnUpdate) check() error {
 			return &ValidationError{Name: "reason_code", err: fmt.Errorf(`ent: validator failed for field "POSReturn.reason_code": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.RefundChannel(); ok {
+		if err := posreturn.RefundChannelValidator(v); err != nil {
+			return &ValidationError{Name: "refund_channel", err: fmt.Errorf(`ent: validator failed for field "POSReturn.refund_channel": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -425,6 +450,12 @@ func (_u *POSReturnUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.ApprovedByCleared() {
 		_spec.ClearField(posreturn.FieldApprovedBy, field.TypeUUID)
+	}
+	if value, ok := _u.mutation.RefundChannel(); ok {
+		_spec.SetField(posreturn.FieldRefundChannel, field.TypeEnum, value)
+	}
+	if _u.mutation.RefundChannelCleared() {
+		_spec.ClearField(posreturn.FieldRefundChannel, field.TypeEnum)
 	}
 	if value, ok := _u.mutation.TreasuryRefundRef(); ok {
 		_spec.SetField(posreturn.FieldTreasuryRefundRef, field.TypeString, value)
@@ -702,6 +733,26 @@ func (_u *POSReturnUpdateOne) ClearApprovedBy() *POSReturnUpdateOne {
 	return _u
 }
 
+// SetRefundChannel sets the "refund_channel" field.
+func (_u *POSReturnUpdateOne) SetRefundChannel(v posreturn.RefundChannel) *POSReturnUpdateOne {
+	_u.mutation.SetRefundChannel(v)
+	return _u
+}
+
+// SetNillableRefundChannel sets the "refund_channel" field if the given value is not nil.
+func (_u *POSReturnUpdateOne) SetNillableRefundChannel(v *posreturn.RefundChannel) *POSReturnUpdateOne {
+	if v != nil {
+		_u.SetRefundChannel(*v)
+	}
+	return _u
+}
+
+// ClearRefundChannel clears the value of the "refund_channel" field.
+func (_u *POSReturnUpdateOne) ClearRefundChannel() *POSReturnUpdateOne {
+	_u.mutation.ClearRefundChannel()
+	return _u
+}
+
 // SetTreasuryRefundRef sets the "treasury_refund_ref" field.
 func (_u *POSReturnUpdateOne) SetTreasuryRefundRef(v string) *POSReturnUpdateOne {
 	_u.mutation.SetTreasuryRefundRef(v)
@@ -846,6 +897,11 @@ func (_u *POSReturnUpdateOne) check() error {
 			return &ValidationError{Name: "reason_code", err: fmt.Errorf(`ent: validator failed for field "POSReturn.reason_code": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.RefundChannel(); ok {
+		if err := posreturn.RefundChannelValidator(v); err != nil {
+			return &ValidationError{Name: "refund_channel", err: fmt.Errorf(`ent: validator failed for field "POSReturn.refund_channel": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -928,6 +984,12 @@ func (_u *POSReturnUpdateOne) sqlSave(ctx context.Context) (_node *POSReturn, er
 	}
 	if _u.mutation.ApprovedByCleared() {
 		_spec.ClearField(posreturn.FieldApprovedBy, field.TypeUUID)
+	}
+	if value, ok := _u.mutation.RefundChannel(); ok {
+		_spec.SetField(posreturn.FieldRefundChannel, field.TypeEnum, value)
+	}
+	if _u.mutation.RefundChannelCleared() {
+		_spec.ClearField(posreturn.FieldRefundChannel, field.TypeEnum)
 	}
 	if value, ok := _u.mutation.TreasuryRefundRef(); ok {
 		_spec.SetField(posreturn.FieldTreasuryRefundRef, field.TypeString, value)
