@@ -13,6 +13,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent"
 	entcommissionrule "github.com/bengobox/pos-service/internal/ent/commissionrule"
 	outletsettingpredicate "github.com/bengobox/pos-service/internal/ent/outletsetting"
+	entcatalogoverride "github.com/bengobox/pos-service/internal/ent/poscatalogoverride"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
 	"github.com/bengobox/pos-service/internal/ent/posorderline"
 	"github.com/bengobox/pos-service/internal/ent/pospayment"
@@ -546,8 +547,19 @@ func (s *Service) publishSaleFinalized(ctx context.Context, order *ent.POSOrder)
 		}
 	}
 
+	// Resolve per-unit item COST so treasury can post per-sale Cost of Goods Sold
+	// (DR 5400 / CR 1500). pos-api stores no cost on the order line; the authoritative
+	// per-unit cost is the inventory-synced value cached on POSCatalogOverride.metadata["cost_price"]
+	// (keyed by tenant + inventory_sku, see catalog/inventory_events.go and reports_profitability.go).
+	// Resolved here as a SKU->cost map in one query. Missing cost => 0 (never blocks the sale).
+	costBySKU := s.resolveLineCosts(ctx, order.TenantID, lines)
+
 	items := make([]map[string]any, 0, len(lines))
+	costTotal := 0.0
 	for _, l := range lines {
+		costAmount := costBySKU[l.Sku] // per-unit cost; 0 when not available
+		lineCost := costAmount * l.Quantity
+		costTotal += lineCost
 		item := map[string]any{
 			"sku":                l.Sku,
 			"name":               l.Name,
@@ -556,6 +568,9 @@ func (s *Service) publishSaleFinalized(ctx context.Context, order *ent.POSOrder)
 			"total_price":        l.TotalPrice,
 			"uom_code":           "",
 			"price_includes_tax": l.PriceIncludesTax,
+			// COGS support (additive): per-unit cost and line cost (cost x qty). 0 when unknown.
+			"cost_amount": costAmount,
+			"line_cost":   lineCost,
 		}
 		// Include pre-computed tax breakdown if available — treasury uses this verbatim for eTIMS.
 		if l.TaxCodeID != "" {
@@ -636,6 +651,9 @@ func (s *Service) publishSaleFinalized(ctx context.Context, order *ent.POSOrder)
 		"total_amount": order.TotalAmount,
 		"currency":     order.Currency,
 		"items":        items,
+		// Sum of per-line cost (cost_amount x quantity) for the whole sale; used by treasury
+		// to post Cost of Goods Sold (DR 5400 / CR 1500). 0 when no item carries a known cost.
+		"cost_total": costTotal,
 		// Selling scheme + tender breakdown for treasury GL routing (cash receipt vs AR).
 		"selling_scheme":    sellingScheme,
 		"on_account_amount": onAccountAmount,
@@ -658,6 +676,57 @@ func (s *Service) publishSaleFinalized(ctx context.Context, order *ent.POSOrder)
 	// deduct independently, so once the S2S client's request started succeeding (after the
 	// order_id JSON-tag fix) every sold item was consumed twice (two consumptions per order).
 	// backflushInventory is retained only for reference / non-sale direct backflush callers.
+}
+
+// resolveLineCosts returns a SKU -> per-unit cost map for the sold lines, used to enrich the
+// pos.sale.finalized payload with COGS figures. The authoritative per-unit cost in pos-api is the
+// inventory-synced value cached on POSCatalogOverride.metadata["cost_price"] (keyed by
+// tenant + inventory_sku; see catalog/inventory_events.go). SKUs with no cached cost are simply
+// absent from the map, so the caller reads 0 — a missing cost must never block the sale.
+func (s *Service) resolveLineCosts(ctx context.Context, tenantID uuid.UUID, lines []*ent.POSOrderLine) map[string]float64 {
+	costs := make(map[string]float64)
+	if len(lines) == 0 {
+		return costs
+	}
+	skus := make([]string, 0, len(lines))
+	seen := make(map[string]struct{}, len(lines))
+	for _, l := range lines {
+		if l.Sku == "" {
+			continue
+		}
+		if _, ok := seen[l.Sku]; ok {
+			continue
+		}
+		seen[l.Sku] = struct{}{}
+		skus = append(skus, l.Sku)
+	}
+	if len(skus) == 0 {
+		return costs
+	}
+
+	overrides, err := s.client.POSCatalogOverride.Query().
+		Where(
+			entcatalogoverride.TenantID(tenantID),
+			entcatalogoverride.InventorySkuIn(skus...),
+		).
+		All(ctx)
+	if err != nil {
+		s.log.Warn("sale.finalized: failed to resolve item costs (defaulting to 0)",
+			zap.String("tenant_id", tenantID.String()), zap.Error(err))
+		return costs
+	}
+	for _, ov := range overrides {
+		if ov.Metadata == nil {
+			continue
+		}
+		switch v := ov.Metadata["cost_price"].(type) {
+		case float64:
+			costs[ov.InventorySku] = v
+		case int:
+			costs[ov.InventorySku] = float64(v)
+		}
+	}
+	return costs
 }
 
 // backflushInventory calls inventory-api to deduct stock for each sold item.
