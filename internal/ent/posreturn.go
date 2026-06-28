@@ -43,6 +43,8 @@ type POSReturn struct {
 	RequestedBy uuid.UUID `json:"requested_by,omitempty"`
 	// Manager who approved/rejected
 	ApprovedBy *uuid.UUID `json:"approved_by,omitempty"`
+	// How the refund is settled to the customer; passed to treasury as refund_channel and surfaced as the returns-list refund_method column
+	RefundChannel *posreturn.RefundChannel `json:"refund_channel,omitempty"`
 	// Payment processor refund reference from treasury-api
 	TreasuryRefundRef *string `json:"treasury_refund_ref,omitempty"`
 	// Metadata holds the value of the "metadata" field.
@@ -86,7 +88,7 @@ func (*POSReturn) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case posreturn.FieldRefundAmount:
 			values[i] = new(sql.NullFloat64)
-		case posreturn.FieldReturnNumber, posreturn.FieldReturnType, posreturn.FieldStatus, posreturn.FieldReason, posreturn.FieldReasonCode, posreturn.FieldTreasuryRefundRef:
+		case posreturn.FieldReturnNumber, posreturn.FieldReturnType, posreturn.FieldStatus, posreturn.FieldReason, posreturn.FieldReasonCode, posreturn.FieldRefundChannel, posreturn.FieldTreasuryRefundRef:
 			values[i] = new(sql.NullString)
 		case posreturn.FieldCreatedAt, posreturn.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -187,6 +189,13 @@ func (_m *POSReturn) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.ApprovedBy = new(uuid.UUID)
 				*_m.ApprovedBy = *value.S.(*uuid.UUID)
+			}
+		case posreturn.FieldRefundChannel:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field refund_channel", values[i])
+			} else if value.Valid {
+				_m.RefundChannel = new(posreturn.RefundChannel)
+				*_m.RefundChannel = posreturn.RefundChannel(value.String)
 			}
 		case posreturn.FieldTreasuryRefundRef:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -295,6 +304,11 @@ func (_m *POSReturn) String() string {
 	builder.WriteString(", ")
 	if v := _m.ApprovedBy; v != nil {
 		builder.WriteString("approved_by=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.RefundChannel; v != nil {
+		builder.WriteString("refund_channel=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
 	builder.WriteString(", ")

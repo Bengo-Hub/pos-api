@@ -58415,6 +58415,7 @@ type POSReturnMutation struct {
 	exchange_order_id   *uuid.UUID
 	requested_by        *uuid.UUID
 	approved_by         *uuid.UUID
+	refund_channel      *posreturn.RefundChannel
 	treasury_refund_ref *string
 	metadata            *map[string]interface{}
 	created_at          *time.Time
@@ -59036,6 +59037,55 @@ func (m *POSReturnMutation) ResetApprovedBy() {
 	delete(m.clearedFields, posreturn.FieldApprovedBy)
 }
 
+// SetRefundChannel sets the "refund_channel" field.
+func (m *POSReturnMutation) SetRefundChannel(pc posreturn.RefundChannel) {
+	m.refund_channel = &pc
+}
+
+// RefundChannel returns the value of the "refund_channel" field in the mutation.
+func (m *POSReturnMutation) RefundChannel() (r posreturn.RefundChannel, exists bool) {
+	v := m.refund_channel
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRefundChannel returns the old "refund_channel" field's value of the POSReturn entity.
+// If the POSReturn object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSReturnMutation) OldRefundChannel(ctx context.Context) (v *posreturn.RefundChannel, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRefundChannel is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRefundChannel requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRefundChannel: %w", err)
+	}
+	return oldValue.RefundChannel, nil
+}
+
+// ClearRefundChannel clears the value of the "refund_channel" field.
+func (m *POSReturnMutation) ClearRefundChannel() {
+	m.refund_channel = nil
+	m.clearedFields[posreturn.FieldRefundChannel] = struct{}{}
+}
+
+// RefundChannelCleared returns if the "refund_channel" field was cleared in this mutation.
+func (m *POSReturnMutation) RefundChannelCleared() bool {
+	_, ok := m.clearedFields[posreturn.FieldRefundChannel]
+	return ok
+}
+
+// ResetRefundChannel resets all changes to the "refund_channel" field.
+func (m *POSReturnMutation) ResetRefundChannel() {
+	m.refund_channel = nil
+	delete(m.clearedFields, posreturn.FieldRefundChannel)
+}
+
 // SetTreasuryRefundRef sets the "treasury_refund_ref" field.
 func (m *POSReturnMutation) SetTreasuryRefundRef(s string) {
 	m.treasury_refund_ref = &s
@@ -59281,7 +59331,7 @@ func (m *POSReturnMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *POSReturnMutation) Fields() []string {
-	fields := make([]string, 0, 16)
+	fields := make([]string, 0, 17)
 	if m.tenant_id != nil {
 		fields = append(fields, posreturn.FieldTenantID)
 	}
@@ -59317,6 +59367,9 @@ func (m *POSReturnMutation) Fields() []string {
 	}
 	if m.approved_by != nil {
 		fields = append(fields, posreturn.FieldApprovedBy)
+	}
+	if m.refund_channel != nil {
+		fields = append(fields, posreturn.FieldRefundChannel)
 	}
 	if m.treasury_refund_ref != nil {
 		fields = append(fields, posreturn.FieldTreasuryRefundRef)
@@ -59362,6 +59415,8 @@ func (m *POSReturnMutation) Field(name string) (ent.Value, bool) {
 		return m.RequestedBy()
 	case posreturn.FieldApprovedBy:
 		return m.ApprovedBy()
+	case posreturn.FieldRefundChannel:
+		return m.RefundChannel()
 	case posreturn.FieldTreasuryRefundRef:
 		return m.TreasuryRefundRef()
 	case posreturn.FieldMetadata:
@@ -59403,6 +59458,8 @@ func (m *POSReturnMutation) OldField(ctx context.Context, name string) (ent.Valu
 		return m.OldRequestedBy(ctx)
 	case posreturn.FieldApprovedBy:
 		return m.OldApprovedBy(ctx)
+	case posreturn.FieldRefundChannel:
+		return m.OldRefundChannel(ctx)
 	case posreturn.FieldTreasuryRefundRef:
 		return m.OldTreasuryRefundRef(ctx)
 	case posreturn.FieldMetadata:
@@ -59504,6 +59561,13 @@ func (m *POSReturnMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetApprovedBy(v)
 		return nil
+	case posreturn.FieldRefundChannel:
+		v, ok := value.(posreturn.RefundChannel)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRefundChannel(v)
+		return nil
 	case posreturn.FieldTreasuryRefundRef:
 		v, ok := value.(string)
 		if !ok {
@@ -59589,6 +59653,9 @@ func (m *POSReturnMutation) ClearedFields() []string {
 	if m.FieldCleared(posreturn.FieldApprovedBy) {
 		fields = append(fields, posreturn.FieldApprovedBy)
 	}
+	if m.FieldCleared(posreturn.FieldRefundChannel) {
+		fields = append(fields, posreturn.FieldRefundChannel)
+	}
 	if m.FieldCleared(posreturn.FieldTreasuryRefundRef) {
 		fields = append(fields, posreturn.FieldTreasuryRefundRef)
 	}
@@ -59617,6 +59684,9 @@ func (m *POSReturnMutation) ClearField(name string) error {
 		return nil
 	case posreturn.FieldApprovedBy:
 		m.ClearApprovedBy()
+		return nil
+	case posreturn.FieldRefundChannel:
+		m.ClearRefundChannel()
 		return nil
 	case posreturn.FieldTreasuryRefundRef:
 		m.ClearTreasuryRefundRef()
@@ -59664,6 +59734,9 @@ func (m *POSReturnMutation) ResetField(name string) error {
 		return nil
 	case posreturn.FieldApprovedBy:
 		m.ResetApprovedBy()
+		return nil
+	case posreturn.FieldRefundChannel:
+		m.ResetRefundChannel()
 		return nil
 	case posreturn.FieldTreasuryRefundRef:
 		m.ResetTreasuryRefundRef()

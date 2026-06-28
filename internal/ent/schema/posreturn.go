@@ -52,6 +52,11 @@ func (POSReturn) Fields() []ent.Field {
 			Optional().
 			Nillable().
 			Comment("Manager who approved/rejected"),
+		field.Enum("refund_channel").
+			Values("cash", "mpesa", "bank", "cheque", "store_credit", "offset_invoice").
+			Optional().
+			Nillable().
+			Comment("How the refund is settled to the customer; passed to treasury as refund_channel and surfaced as the returns-list refund_method column"),
 		field.String("treasury_refund_ref").
 			Optional().
 			Nillable().

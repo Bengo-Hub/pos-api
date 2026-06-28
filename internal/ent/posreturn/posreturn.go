@@ -40,6 +40,8 @@ const (
 	FieldRequestedBy = "requested_by"
 	// FieldApprovedBy holds the string denoting the approved_by field in the database.
 	FieldApprovedBy = "approved_by"
+	// FieldRefundChannel holds the string denoting the refund_channel field in the database.
+	FieldRefundChannel = "refund_channel"
 	// FieldTreasuryRefundRef holds the string denoting the treasury_refund_ref field in the database.
 	FieldTreasuryRefundRef = "treasury_refund_ref"
 	// FieldMetadata holds the string denoting the metadata field in the database.
@@ -76,6 +78,7 @@ var Columns = []string{
 	FieldExchangeOrderID,
 	FieldRequestedBy,
 	FieldApprovedBy,
+	FieldRefundChannel,
 	FieldTreasuryRefundRef,
 	FieldMetadata,
 	FieldCreatedAt,
@@ -191,6 +194,33 @@ func ReasonCodeValidator(rc ReasonCode) error {
 	}
 }
 
+// RefundChannel defines the type for the "refund_channel" enum field.
+type RefundChannel string
+
+// RefundChannel values.
+const (
+	RefundChannelCash          RefundChannel = "cash"
+	RefundChannelMpesa         RefundChannel = "mpesa"
+	RefundChannelBank          RefundChannel = "bank"
+	RefundChannelCheque        RefundChannel = "cheque"
+	RefundChannelStoreCredit   RefundChannel = "store_credit"
+	RefundChannelOffsetInvoice RefundChannel = "offset_invoice"
+)
+
+func (rc RefundChannel) String() string {
+	return string(rc)
+}
+
+// RefundChannelValidator is a validator for the "refund_channel" field enum values. It is called by the builders before save.
+func RefundChannelValidator(rc RefundChannel) error {
+	switch rc {
+	case RefundChannelCash, RefundChannelMpesa, RefundChannelBank, RefundChannelCheque, RefundChannelStoreCredit, RefundChannelOffsetInvoice:
+		return nil
+	default:
+		return fmt.Errorf("posreturn: invalid enum value for refund_channel field: %q", rc)
+	}
+}
+
 // OrderOption defines the ordering options for the POSReturn queries.
 type OrderOption func(*sql.Selector)
 
@@ -257,6 +287,11 @@ func ByRequestedBy(opts ...sql.OrderTermOption) OrderOption {
 // ByApprovedBy orders the results by the approved_by field.
 func ByApprovedBy(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldApprovedBy, opts...).ToFunc()
+}
+
+// ByRefundChannel orders the results by the refund_channel field.
+func ByRefundChannel(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRefundChannel, opts...).ToFunc()
 }
 
 // ByTreasuryRefundRef orders the results by the treasury_refund_ref field.

@@ -1748,6 +1748,7 @@ var (
 		{Name: "exchange_order_id", Type: field.TypeUUID, Nullable: true},
 		{Name: "requested_by", Type: field.TypeUUID},
 		{Name: "approved_by", Type: field.TypeUUID, Nullable: true},
+		{Name: "refund_channel", Type: field.TypeEnum, Nullable: true, Enums: []string{"cash", "mpesa", "bank", "cheque", "store_credit", "offset_invoice"}},
 		{Name: "treasury_refund_ref", Type: field.TypeString, Nullable: true},
 		{Name: "metadata", Type: field.TypeJSON},
 		{Name: "created_at", Type: field.TypeTime},
