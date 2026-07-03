@@ -303,10 +303,12 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent
 		}
 	}()
 
-	// Hospitality order subtypes are opened immediately so the kitchen
-	// receives a KDS ticket as soon as the waiter places the order.
+	// Kitchen-routed subtypes are opened immediately so the kitchen receives a KDS ticket as
+	// soon as the order is placed. This includes DELIVERY and TAKEAWAY: both need the kitchen to
+	// prepare the food (delivery is then dispatched to a rider, takeaway is packed for pickup).
+	// Only "retail" (non-prepared goods) stays a draft until paid.
 	initialStatus := StatusDraft
-	isHospitalityOrder := subtype == "dine_in" || subtype == "takeaway" || subtype == "room_service" || subtype == "bar_tab"
+	isHospitalityOrder := subtype == "dine_in" || subtype == "takeaway" || subtype == "room_service" || subtype == "bar_tab" || subtype == "delivery"
 	if isHospitalityOrder {
 		initialStatus = StatusOpen
 	}
