@@ -17,6 +17,7 @@ import (
 	entroomfolioitem "github.com/bengobox/pos-service/internal/ent/roomfolioitem"
 	entroomguest "github.com/bengobox/pos-service/internal/ent/roomguest"
 	treasury "github.com/bengobox/pos-service/internal/modules/treasury"
+	"github.com/bengobox/pos-service/internal/payref"
 )
 
 // folioPaymentDTO is a payment row in the folio summary / history.
@@ -234,16 +235,18 @@ func (h *HotelHandler) SettleFolio(w http.ResponseWriter, r *http.Request) {
 	// Capture in treasury (immediate-settle for cash/card; pending intent for online gateways).
 	var intentID, initiateURL string
 	if h.treasuryClient != nil {
+		// A folio can be settled in several charges, so each needs a UNIQUE reference — use a fresh id
+		// with the service-identifiable POS-{slug}-{hex} prefix (guest/room linkage stays in metadata).
 		intentReq := treasury.CreateIntentRequest{
 			SourceService: "pos",
-			ReferenceID:   fmt.Sprintf("%s:%d", guest.ID.String(), time.Now().UnixNano()),
+			ReferenceID:   payref.Build("POS", tenantSlug, uuid.Nil, uuid.New()),
 			ReferenceType: "hotel_folio",
 			Amount:        input.Amount,
 			Currency:      "KES",
 			PaymentMethod: immediateOrPending(immediate, treasuryMethodForHotel(input.Method)),
 			Description:   fmt.Sprintf("Hotel folio payment - %s", guest.GuestName),
 			OutletID:      "",
-			Metadata: map[string]any{"room_id": roomID.String(), "guest_id": guest.ID.String(), "method": input.Method},
+			Metadata: map[string]any{"service": "pos", "room_id": roomID.String(), "guest_id": guest.ID.String(), "entity_id": guest.ID.String(), "method": input.Method},
 		}
 		if input.Reference != "" {
 			intentReq.Metadata["external_ref"] = input.Reference

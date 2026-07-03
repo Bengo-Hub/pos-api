@@ -23,6 +23,7 @@ import (
 	"github.com/bengobox/pos-service/internal/modules/inventory"
 	"github.com/bengobox/pos-service/internal/modules/orders"
 	"github.com/bengobox/pos-service/internal/modules/treasury"
+	"github.com/bengobox/pos-service/internal/payref"
 	"github.com/bengobox/pos-service/internal/platform/events"
 	"github.com/bengobox/pos-service/internal/platform/marketflow"
 )
@@ -195,18 +196,21 @@ func (s *Service) CreatePaymentIntent(ctx context.Context, req RecordPaymentRequ
 
 	intentReq := treasury.CreateIntentRequest{
 		SourceService: "pos",
-		ReferenceID:   req.OrderID.String(),
+		ReferenceID:   payref.Build("POS", req.TenantSlug, req.TenantID, req.OrderID),
 		ReferenceType: "pos_order",
 		Amount:        req.Amount,
 		Currency:      currency,
 		PaymentMethod: paymentMethod,
 		Description:   fmt.Sprintf("POS order %s", order.OrderNumber),
 		OutletID:      order.OutletID.String(),
+		// entity_id lets consumers recover the order UUID now that reference_id is a prefixed,
+		// service-identifiable string rather than the bare order UUID.
+		Metadata: map[string]any{"service": "pos", "entity_id": req.OrderID.String()},
 	}
 	// Carry the cashier-entered external reference (card terminal approval code / M-Pesa code) so
 	// treasury records it on the immediate-settle PaymentTransaction instead of a synthetic ref.
 	if cash && req.ExternalRef != "" {
-		intentReq.Metadata = map[string]any{"external_ref": req.ExternalRef}
+		intentReq.Metadata["external_ref"] = req.ExternalRef
 	}
 
 	intent, err := s.treasuryClient.CreateIntent(ctx, req.TenantSlug, req.OrderID.String(), intentReq)
