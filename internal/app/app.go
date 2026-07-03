@@ -45,6 +45,7 @@ import (
 	"github.com/bengobox/pos-service/internal/platform/cache"
 	"github.com/bengobox/pos-service/internal/platform/database"
 	"github.com/bengobox/pos-service/internal/platform/events"
+	logisticsclient "github.com/bengobox/pos-service/internal/platform/logistics"
 	"github.com/bengobox/pos-service/internal/platform/marketflow"
 	orderingclient "github.com/bengobox/pos-service/internal/platform/ordering"
 	"github.com/bengobox/pos-service/internal/platform/scheduler"
@@ -302,9 +303,11 @@ func New(ctx context.Context) (*App, error) {
 	if pub := orderSvc.GetPublisher(); pub != nil {
 		onlineOrderHandler.SetPublisher(pub)
 	}
-	// Wire WS-D deps: ordering S2S client (assign-rider delegation) + logistics base URL/key
-	// (available-riders proxy). Both use the shared INTERNAL_SERVICE_KEY.
-	onlineOrderHandler.SetRiderDeps(orderingS2SClient, cfg.Logistics.ServiceURL, cfg.Logistics.APIKey)
+	// Wire WS-D deps: ordering S2S client (assign-rider delegation for ONLINE orders) + logistics
+	// base URL/key (available-riders proxy) + logistics dispatch client (direct create-task/assign
+	// for POS-NATIVE delivery orders). All use the shared INTERNAL_SERVICE_KEY.
+	logisticsDispatch := logisticsclient.NewClient(cfg.Logistics.ServiceURL, cfg.Logistics.APIKey, cfg.Logistics.RequestTimeout)
+	onlineOrderHandler.SetRiderDeps(orderingS2SClient, logisticsDispatch, cfg.Logistics.ServiceURL, cfg.Logistics.APIKey)
 
 	// Platform admin: service configuration CRUD
 	serviceConfigHandler := handlers.NewServiceConfigHandler(entClient, log)

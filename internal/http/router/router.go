@@ -731,6 +731,8 @@ func New(
 					if onlineOrders != nil {
 						onlineFeat := subscriptions.RequireFeature(subscriptions.FeatureOnlineOrdering)
 						pos.Get("/online-orders/pickup", onlineOrders.ListPickup)
+						// POS-native delivery dispatch queue (order_subtype=delivery) — read-only list.
+						pos.Get("/online-orders/dispatch", onlineOrders.ListDeliveryDispatch)
 						// Pickup hand-off + delivery rider assignment mutate order state Ã¢â‚¬â€ gate on
 						// orders.change (waiter, manager+). Reads (pickup/rider lists) stay open.
 						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.orders.change", "pos.orders.manage"), onlineFeat).
