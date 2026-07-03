@@ -1,10 +1,12 @@
 package handlers
 
 import (
+	"context"
 	"encoding/csv"
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/Bengo-Hub/httpware"
@@ -20,6 +22,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/predicate"
 	"github.com/bengobox/pos-service/internal/ent/posrefund"
 	"github.com/bengobox/pos-service/internal/ent/posreturn"
+	entuser "github.com/bengobox/pos-service/internal/ent/user"
 )
 
 type ReportsHandler struct {
@@ -245,40 +248,111 @@ func (h *ReportsHandler) DailyBreakdown(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// Granularity drill-down: day | week | month | quarter | semiannual | year.
+	// "bi_quarter"/"biannual" are accepted aliases for the 6-month (semiannual) bucket.
+	gran := normalizeGranularity(r.URL.Query().Get("granularity"))
+
 	type dayBucket struct {
 		Revenue    float64
 		OrderCount int
 	}
 	buckets := make(map[string]*dayBucket)
 	for _, o := range orders {
-		day := o.CreatedAt.UTC().Format("2006-01-02")
-		if _, ok := buckets[day]; !ok {
-			buckets[day] = &dayBucket{}
+		key := granularityBucketStart(o.CreatedAt.UTC(), gran).Format("2006-01-02")
+		if _, ok := buckets[key]; !ok {
+			buckets[key] = &dayBucket{}
 		}
-		buckets[day].Revenue += o.TotalAmount
-		buckets[day].OrderCount++
+		buckets[key].Revenue += o.TotalAmount
+		buckets[key].OrderCount++
 	}
 
 	type dayRow struct {
-		Date       string  `json:"date"`
-		Revenue    float64 `json:"revenue"`
-		OrderCount int     `json:"order_count"`
+		Date        string  `json:"date"`
+		Granularity string  `json:"granularity"`
+		Revenue     float64 `json:"revenue"`
+		OrderCount  int     `json:"order_count"`
 	}
 	var rows []dayRow
-	cur := from
-	for !cur.After(to) {
-		day := cur.UTC().Format("2006-01-02")
-		b := buckets[day]
-		row := dayRow{Date: day}
+	// Walk the range one bucket at a time so gaps render as zero-revenue points.
+	cur := granularityBucketStart(from.UTC(), gran)
+	end := to.UTC()
+	for !cur.After(end) {
+		key := cur.Format("2006-01-02")
+		b := buckets[key]
+		row := dayRow{Date: key, Granularity: gran}
 		if b != nil {
 			row.Revenue = b.Revenue
 			row.OrderCount = b.OrderCount
 		}
 		rows = append(rows, row)
-		cur = cur.AddDate(0, 0, 1)
+		cur = granularityNext(cur, gran)
 	}
 
 	jsonOK(w, rows)
+}
+
+// normalizeGranularity maps the granularity query param onto a canonical bucket name,
+// defaulting to "day". Accepts common aliases (weekly, monthly, bi_quarter, biannual…).
+func normalizeGranularity(raw string) string {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "week", "weekly":
+		return "week"
+	case "month", "monthly":
+		return "month"
+	case "quarter", "quarterly":
+		return "quarter"
+	case "semiannual", "semi_annual", "semi-annual", "biannual", "bi_annual", "bi_quarter", "bi-quarter", "biquarter", "half_year", "halfyear":
+		return "semiannual"
+	case "year", "yearly", "annual", "annually":
+		return "year"
+	default:
+		return "day"
+	}
+}
+
+// granularityBucketStart returns the start of the bucket that t falls into for a granularity.
+func granularityBucketStart(t time.Time, gran string) time.Time {
+	y, m, d := t.Date()
+	loc := t.Location()
+	switch gran {
+	case "week":
+		// ISO-ish week starting Monday.
+		offset := (int(t.Weekday()) + 6) % 7 // Monday=0
+		return time.Date(y, m, d, 0, 0, 0, 0, loc).AddDate(0, 0, -offset)
+	case "month":
+		return time.Date(y, m, 1, 0, 0, 0, 0, loc)
+	case "quarter":
+		qStartMonth := time.Month((int(m)-1)/3*3 + 1)
+		return time.Date(y, qStartMonth, 1, 0, 0, 0, 0, loc)
+	case "semiannual":
+		hStartMonth := time.Month(1)
+		if int(m) > 6 {
+			hStartMonth = time.Month(7)
+		}
+		return time.Date(y, hStartMonth, 1, 0, 0, 0, 0, loc)
+	case "year":
+		return time.Date(y, 1, 1, 0, 0, 0, 0, loc)
+	default: // day
+		return time.Date(y, m, d, 0, 0, 0, 0, loc)
+	}
+}
+
+// granularityNext advances a bucket-start time to the next bucket-start for a granularity.
+func granularityNext(t time.Time, gran string) time.Time {
+	switch gran {
+	case "week":
+		return t.AddDate(0, 0, 7)
+	case "month":
+		return t.AddDate(0, 1, 0)
+	case "quarter":
+		return t.AddDate(0, 3, 0)
+	case "semiannual":
+		return t.AddDate(0, 6, 0)
+	case "year":
+		return t.AddDate(1, 0, 0)
+	default:
+		return t.AddDate(0, 0, 1)
+	}
 }
 
 // TopItems handles GET /{tenantID}/pos/reports/top-items
@@ -351,6 +425,63 @@ func (h *ReportsHandler) TopItems(w http.ResponseWriter, r *http.Request) {
 	jsonOK(w, rows)
 }
 
+// S2SSalesBySKU handles GET /api/v1/s2s/{tenant}/pos/sales/by-sku?from=&to=
+// It returns POS units sold per SKU for completed orders in the range. Other services (e.g.
+// inventory-api menu-engineering / variance) merge this with their own sales sources so POS-driven
+// sales are counted, not just ordering-service orders. Authenticated by the internal service key.
+func (h *ReportsHandler) S2SSalesBySKU(w http.ResponseWriter, r *http.Request) {
+	tid, err := uuid.Parse(chi.URLParam(r, "tenant"))
+	if err != nil {
+		jsonError(w, "invalid tenant", http.StatusBadRequest)
+		return
+	}
+	from, to := parseDateRange(r)
+
+	orders, err := h.db.POSOrder.Query().
+		Where(
+			posorder.TenantID(tid),
+			posorder.StatusEQ("completed"),
+			posorder.CreatedAtGTE(from),
+			posorder.CreatedAtLTE(to),
+		).
+		WithLines().
+		All(r.Context())
+	if err != nil {
+		h.log.Error("s2s sales-by-sku query failed", zap.Error(err))
+		jsonError(w, "failed to aggregate sales", http.StatusInternalServerError)
+		return
+	}
+
+	type skuRow struct {
+		SKU          string  `json:"sku"`
+		Name         string  `json:"name"`
+		QuantitySold float64 `json:"quantity_sold"`
+		Revenue      float64 `json:"revenue"`
+	}
+	buckets := make(map[string]*skuRow)
+	for _, o := range orders {
+		for _, l := range o.Edges.Lines {
+			if l.Sku == "" {
+				continue
+			}
+			if _, ok := buckets[l.Sku]; !ok {
+				buckets[l.Sku] = &skuRow{SKU: l.Sku, Name: l.Name}
+			}
+			buckets[l.Sku].QuantitySold += l.Quantity
+			buckets[l.Sku].Revenue += l.TotalPrice
+		}
+	}
+	rows := make([]*skuRow, 0, len(buckets))
+	for _, b := range buckets {
+		rows = append(rows, b)
+	}
+	jsonOK(w, map[string]any{
+		"from": from.Format("2006-01-02"),
+		"to":   to.Format("2006-01-02"),
+		"data": rows,
+	})
+}
+
 // SalesByStaff handles GET /{tenantID}/pos/reports/sales-by-staff
 // Groups orders by user_id: completed revenue + void_count + discount_total + avg_order_value.
 func (h *ReportsHandler) SalesByStaff(w http.ResponseWriter, r *http.Request) {
@@ -383,6 +514,7 @@ func (h *ReportsHandler) SalesByStaff(w http.ResponseWriter, r *http.Request) {
 
 	type staffBucket struct {
 		UserID        uuid.UUID `json:"user_id"`
+		StaffName     string    `json:"staff_name"`
 		OrderCount    int       `json:"order_count"`
 		Revenue       float64   `json:"revenue"`
 		DiscountTotal float64   `json:"discount_total"`
@@ -410,6 +542,20 @@ func (h *ReportsHandler) SalesByStaff(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Enrich each row with the staff member's name so the UI shows a human name, not a UUID.
+	ids := make([]uuid.UUID, 0, len(buckets))
+	for id := range buckets {
+		ids = append(ids, id)
+	}
+	names := h.resolveStaffNames(r.Context(), tid, ids)
+	for id, b := range buckets {
+		if n := names[id]; n != "" {
+			b.StaffName = n
+		} else {
+			b.StaffName = "Unknown"
+		}
+	}
+
 	rows := make([]*staffBucket, 0, len(buckets))
 	for _, b := range buckets {
 		rows = append(rows, b)
@@ -423,6 +569,39 @@ func (h *ReportsHandler) SalesByStaff(w http.ResponseWriter, r *http.Request) {
 	}
 
 	jsonOK(w, rows)
+}
+
+// resolveStaffNames maps POS order user_ids to human staff names. Order.user_id is the auth
+// service user id (JWT subject); the local User projection carries full_name keyed by BOTH
+// its own id and auth_service_user_id, so match on either. Returns id → name (best effort;
+// missing ids are simply absent from the map).
+func (h *ReportsHandler) resolveStaffNames(ctx context.Context, tid uuid.UUID, ids []uuid.UUID) map[uuid.UUID]string {
+	out := make(map[uuid.UUID]string, len(ids))
+	if len(ids) == 0 {
+		return out
+	}
+	users, err := h.db.User.Query().
+		Where(
+			entuser.TenantID(tid),
+			entuser.Or(entuser.IDIn(ids...), entuser.AuthServiceUserIDIn(ids...)),
+		).
+		All(ctx)
+	if err != nil {
+		h.log.Warn("resolve staff names failed", zap.Error(err))
+		return out
+	}
+	for _, u := range users {
+		name := strings.TrimSpace(u.FullName)
+		if name == "" {
+			name = strings.TrimSpace(u.Email)
+		}
+		if name == "" {
+			continue
+		}
+		out[u.ID] = name
+		out[u.AuthServiceUserID] = name
+	}
+	return out
 }
 
 // ExportDailyReport handles GET /{tenantID}/pos/reports/export
@@ -485,8 +664,8 @@ func (h *ReportsHandler) ExportDailyReport(w http.ResponseWriter, r *http.Reques
 	}
 
 	filename := fmt.Sprintf("sales-%s-%s.csv", from.Format("2006-01-02"), to.Format("2006-01-02"))
-	w.Header().Set("Content-Type", "text/csv")
-	w.Header().Set("Content-Disposition", "attachment; filename="+filename)
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", filename))
 
 	cw := csv.NewWriter(w)
 	_ = cw.Write([]string{"Date", "Orders", "Net Sales (KES)", "VAT (KES)", "Gross Revenue (KES)"})

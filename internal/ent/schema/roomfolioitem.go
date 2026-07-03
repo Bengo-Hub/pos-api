@@ -33,7 +33,7 @@ func (RoomFolioItem) Fields() []ent.Field {
 		field.Enum("charge_type").
 			Values("room_charge", "food", "laundry", "minibar", "room_service",
 				"amenity", "facility", "late_checkout", "damage",
-				"package", "conference", "meal_voucher", "other").
+				"package", "conference", "meal_voucher", "restaurant", "other").
 			Default("other"),
 		field.String("inventory_sku").
 			Optional().

@@ -38,6 +38,7 @@ func (h *ReportsHandler) VoidSummary(w http.ResponseWriter, r *http.Request) {
 
 	type voidBucket struct {
 		VoidedBy    uuid.UUID      `json:"voided_by"`
+		StaffName   string         `json:"staff_name"`
 		VoidCount   int            `json:"void_count"`
 		TotalAmount float64        `json:"total_voided_amount"`
 		Reasons     map[string]int `json:"reasons"`
@@ -60,6 +61,22 @@ func (h *ReportsHandler) VoidSummary(w http.ResponseWriter, r *http.Request) {
 			reason = *o.VoidedReason
 		}
 		buckets[staffID].Reasons[reason]++
+	}
+
+	// Enrich with staff names so the UI shows names, not UUIDs.
+	ids := make([]uuid.UUID, 0, len(buckets))
+	for id := range buckets {
+		ids = append(ids, id)
+	}
+	names := h.resolveStaffNames(r.Context(), tid, ids)
+	for id, b := range buckets {
+		if id == unattributed {
+			b.StaffName = "Unattributed"
+		} else if n := names[id]; n != "" {
+			b.StaffName = n
+		} else {
+			b.StaffName = "Unknown"
+		}
 	}
 
 	rows := make([]*voidBucket, 0, len(buckets))

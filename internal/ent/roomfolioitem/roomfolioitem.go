@@ -127,6 +127,7 @@ const (
 	ChargeTypePackage      ChargeType = "package"
 	ChargeTypeConference   ChargeType = "conference"
 	ChargeTypeMealVoucher  ChargeType = "meal_voucher"
+	ChargeTypeRestaurant   ChargeType = "restaurant"
 	ChargeTypeOther        ChargeType = "other"
 )
 
@@ -137,7 +138,7 @@ func (ct ChargeType) String() string {
 // ChargeTypeValidator is a validator for the "charge_type" field enum values. It is called by the builders before save.
 func ChargeTypeValidator(ct ChargeType) error {
 	switch ct {
-	case ChargeTypeRoomCharge, ChargeTypeFood, ChargeTypeLaundry, ChargeTypeMinibar, ChargeTypeRoomService, ChargeTypeAmenity, ChargeTypeFacility, ChargeTypeLateCheckout, ChargeTypeDamage, ChargeTypePackage, ChargeTypeConference, ChargeTypeMealVoucher, ChargeTypeOther:
+	case ChargeTypeRoomCharge, ChargeTypeFood, ChargeTypeLaundry, ChargeTypeMinibar, ChargeTypeRoomService, ChargeTypeAmenity, ChargeTypeFacility, ChargeTypeLateCheckout, ChargeTypeDamage, ChargeTypePackage, ChargeTypeConference, ChargeTypeMealVoucher, ChargeTypeRestaurant, ChargeTypeOther:
 		return nil
 	default:
 		return fmt.Errorf("roomfolioitem: invalid enum value for charge_type field: %q", ct)

@@ -620,18 +620,24 @@ func New(
 						pos.Post("/payroll/{payrollID}/disburse", payroll.DisbursePayroll)
 					}
 
-					// Commissions (records)
-					if commissions != nil {
-						pos.Get("/commissions", commissions.List)
-						pos.Get("/commissions/{commissionID}", commissions.Get)
-					}
-
-					// Commission rules & payout
-					if commissionRules != nil {
-						pos.Get("/commissions/rules", commissionRules.List)
-						pos.Post("/commissions/rules", commissionRules.Create)
-						pos.Patch("/commissions/rules/{ruleID}", commissionRules.Update)
-						pos.Post("/commissions/payout", commissionRules.Payout)
+					// Commissions (records + rules & payout). Commissions are a retail/services
+					// concept (salespeople, therapists) — NOT hospitality/QSR/pharmacy. Gate the
+					// whole surface by use case so cross-use-case data never mixes (matches the
+					// pos-ui module map which only lists commissions for retail/services).
+					if commissions != nil || commissionRules != nil {
+						pos.Group(func(cm chi.Router) {
+							cm.Use(outletmw.RequireUseCase("retail", "services"))
+							if commissions != nil {
+								cm.Get("/commissions", commissions.List)
+								cm.Get("/commissions/{commissionID}", commissions.Get)
+							}
+							if commissionRules != nil {
+								cm.Get("/commissions/rules", commissionRules.List)
+								cm.Post("/commissions/rules", commissionRules.Create)
+								cm.Patch("/commissions/rules/{ruleID}", commissionRules.Update)
+								cm.Post("/commissions/payout", commissionRules.Payout)
+							}
+						})
 					}
 
 					// Service packages
@@ -659,6 +665,9 @@ func New(
 					// (bundles include it from Starter; POS-device plans do not).
 					if loyalty != nil {
 						pos.Group(func(ly chi.Router) {
+							// Loyalty is a retail/services concept — not hospitality/QSR/pharmacy.
+							// Gate by use case (matches the pos-ui module map) in addition to the plan feature.
+							ly.Use(outletmw.RequireUseCase("retail", "services"))
 							ly.Use(subscriptions.RequireFeature(subscriptions.FeatureLoyalty))
 							ly.Get("/loyalty/programs", loyalty.ListPrograms)
 							ly.Post("/loyalty/programs", loyalty.CreateProgram)
@@ -833,13 +842,20 @@ func New(
 		// INTERNAL_SERVICE_KEY sent as the X-API-Key header (no user JWT). pos-api is the
 		// loyalty source-of-truth (balances keyed on tenant + customer_phone), so other
 		// services (e.g. ordering-backend) earn/redeem against these endpoints.
-		if loyalty != nil && internalServiceKey != "" {
+		if internalServiceKey != "" && (loyalty != nil || reports != nil) {
 			api.Group(func(s2s chi.Router) {
 				s2s.Use(requireInternalServiceKey(internalServiceKey))
 				s2s.Route("/s2s/{tenant}", func(t chi.Router) {
-					t.Post("/loyalty/earn", loyalty.S2SEarn)
-					t.Post("/loyalty/redeem", loyalty.S2SRedeem)
-					t.Get("/loyalty/balance", loyalty.S2SBalance)
+					if loyalty != nil {
+						t.Post("/loyalty/earn", loyalty.S2SEarn)
+						t.Post("/loyalty/redeem", loyalty.S2SRedeem)
+						t.Get("/loyalty/balance", loyalty.S2SBalance)
+					}
+					if reports != nil {
+						// POS units sold per SKU — consumed by inventory-api menu-engineering/variance
+						// so POS sales are counted, not only ordering-service orders.
+						t.Get("/pos/sales/by-sku", reports.S2SSalesBySKU)
+					}
 				})
 			})
 		}

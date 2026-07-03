@@ -2567,7 +2567,7 @@ var (
 		{Name: "description", Type: field.TypeString},
 		{Name: "amount", Type: field.TypeFloat64},
 		{Name: "currency", Type: field.TypeString, Default: "KES"},
-		{Name: "charge_type", Type: field.TypeEnum, Enums: []string{"room_charge", "food", "laundry", "minibar", "room_service", "amenity", "facility", "late_checkout", "damage", "package", "conference", "meal_voucher", "other"}, Default: "other"},
+		{Name: "charge_type", Type: field.TypeEnum, Enums: []string{"room_charge", "food", "laundry", "minibar", "room_service", "amenity", "facility", "late_checkout", "damage", "package", "conference", "meal_voucher", "restaurant", "other"}, Default: "other"},
 		{Name: "inventory_sku", Type: field.TypeString, Nullable: true},
 		{Name: "inventory_bundle_id", Type: field.TypeUUID, Nullable: true},
 		{Name: "pos_order_id", Type: field.TypeUUID, Nullable: true},

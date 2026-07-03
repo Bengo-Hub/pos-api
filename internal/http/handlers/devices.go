@@ -246,6 +246,30 @@ func (h *DeviceHandler) resolveOrCreateDevice(w http.ResponseWriter, r *http.Req
 	return device.ID, nil
 }
 
+// resolveCurrentDeviceID resolves the CURRENT terminal's device_id from JWT claims WITHOUT
+// creating one (unlike resolveOrCreateDevice). Returns (id, true) when a web_terminal device
+// exists for the caller's outlet; (uuid.Nil, false) otherwise. Used to close a device-scoped
+// shift regardless of which user opened it.
+func (h *DeviceHandler) resolveCurrentDeviceID(r *http.Request, tid uuid.UUID) (uuid.UUID, bool) {
+	ctx := r.Context()
+	var outletID uuid.UUID
+	if claims, ok := authclient.ClaimsFromContext(ctx); ok && claims.OutletID != "" {
+		if id, err := uuid.Parse(claims.OutletID); err == nil {
+			outletID = id
+		}
+	}
+	if outletID == uuid.Nil {
+		return uuid.Nil, false
+	}
+	device, err := h.client.POSDevice.Query().
+		Where(posdevice.TenantID(tid), posdevice.OutletID(outletID), posdevice.DeviceType("web_terminal")).
+		First(ctx)
+	if err != nil {
+		return uuid.Nil, false
+	}
+	return device.ID, true
+}
+
 type closeSessionInput struct {
 	ClosingFloat float64        `json:"closing_float"`
 	Notes        string         `json:"notes,omitempty"`
@@ -269,6 +293,11 @@ func (h *DeviceHandler) CloseSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Find the open session to close. Prefer the caller's own open session, but fall back to
+	// the CURRENT terminal's open session (any user) so a manager can end the shift on their
+	// device even when a cashier opened it — the "/devices/current/sessions/close" contract is
+	// device-scoped. Without this fallback a manager closing another user's shift got a spurious
+	// 404 "no open session found".
 	session, err := h.client.POSDeviceSession.Query().
 		Where(
 			posdevicesession.TenantID(tid),
@@ -277,6 +306,18 @@ func (h *DeviceHandler) CloseSession(w http.ResponseWriter, r *http.Request) {
 		).
 		Order(ent.Desc(posdevicesession.FieldOpenedAt)).
 		First(r.Context())
+	if ent.IsNotFound(err) {
+		if deviceID, ok := h.resolveCurrentDeviceID(r, tid); ok {
+			session, err = h.client.POSDeviceSession.Query().
+				Where(
+					posdevicesession.TenantID(tid),
+					posdevicesession.DeviceID(deviceID),
+					posdevicesession.SessionStatus("open"),
+				).
+				Order(ent.Desc(posdevicesession.FieldOpenedAt)).
+				First(r.Context())
+		}
+	}
 	if err != nil {
 		jsonError(w, "no open session found", http.StatusNotFound)
 		return

@@ -610,10 +610,11 @@ func (h *HotelHandler) PostFolioCharge(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	chargeType := entroomfolioitem.ChargeType(input.ChargeType)
-	if input.ChargeType == "" {
-		chargeType = entroomfolioitem.ChargeTypeOther
-	}
+	// Coerce the charge_type to a known enum value. The UI posts free-form types such as
+	// "restaurant" (a POS bill charged to the room) that are NOT in the enum — binding them
+	// straight through made Ent's enum validation fail and returned a 500 "failed to post
+	// charge". Unknown types now fall back to "other" so a charge is never silently rejected.
+	chargeType := normalizeFolioChargeType(input.ChargeType)
 	folioCreatedBy, _ := uuid.Parse(input.CreatedBy)
 
 	c := h.client.RoomFolioItem.Create().
@@ -922,9 +923,12 @@ func (h *HotelHandler) DeleteFacility(w http.ResponseWriter, r *http.Request) {
 }
 
 type bookFacilityInput struct {
-	GuestName   string     `json:"guest_name"`
-	Phone       string     `json:"phone"`
-	SessionDate time.Time  `json:"session_date"`
+	GuestName string `json:"guest_name"`
+	Phone     string `json:"phone"`
+	// SessionDate is a calendar date sent as "2006-01-02" (the UI's <input type="date">).
+	// It is a string (not time.Time) because a bare date is NOT valid RFC3339 and would fail
+	// JSON binding into a time.Time — the cause of the "invalid request body" 400 on booking.
+	SessionDate string     `json:"session_date"`
 	StartTime   string     `json:"start_time"`
 	EndTime     string     `json:"end_time"`
 	GuestsCount int        `json:"guests_count"`
@@ -956,6 +960,31 @@ func (h *HotelHandler) BookFacility(w http.ResponseWriter, r *http.Request) {
 		input.GuestsCount = 1
 	}
 
+	// Parse the calendar date (accept a bare "2006-01-02" or a full RFC3339 timestamp).
+	sessionDate, derr := parseFlexibleDate(input.SessionDate)
+	if derr != nil {
+		jsonError(w, "session_date is required (YYYY-MM-DD)", http.StatusBadRequest)
+		return
+	}
+
+	// start_time/end_time are optional, but if one is supplied the other must be too
+	// (and both must be HH:MM) so double-booking detection has a well-formed window.
+	input.StartTime = strings.TrimSpace(input.StartTime)
+	input.EndTime = strings.TrimSpace(input.EndTime)
+	if (input.StartTime == "") != (input.EndTime == "") {
+		jsonError(w, "start_time and end_time must be provided together (HH:MM)", http.StatusBadRequest)
+		return
+	}
+	for _, hm := range []string{input.StartTime, input.EndTime} {
+		if hm == "" {
+			continue
+		}
+		if _, perr := time.Parse("15:04", hm); perr != nil {
+			jsonError(w, "start_time and end_time must be in HH:MM format", http.StatusBadRequest)
+			return
+		}
+	}
+
 	facilityBookedBy, _ := uuid.Parse(input.BookedBy)
 
 	// Load the facility once for both availability gating and pricing.
@@ -981,7 +1010,7 @@ func (h *HotelHandler) BookFacility(w http.ResponseWriter, r *http.Request) {
 
 	// Double-booking gating: reject an overlapping confirmed booking on the same day.
 	if input.StartTime != "" && input.EndTime != "" {
-		dayStart := time.Date(input.SessionDate.Year(), input.SessionDate.Month(), input.SessionDate.Day(), 0, 0, 0, 0, input.SessionDate.Location())
+		dayStart := time.Date(sessionDate.Year(), sessionDate.Month(), sessionDate.Day(), 0, 0, 0, 0, sessionDate.Location())
 		dayEnd := dayStart.AddDate(0, 0, 1)
 		sameDay, _ := h.client.FacilityBooking.Query().
 			Where(
@@ -1017,7 +1046,7 @@ func (h *HotelHandler) BookFacility(w http.ResponseWriter, r *http.Request) {
 		SetFacilityID(facilityID).
 		SetGuestName(input.GuestName).
 		SetPhone(input.Phone).
-		SetSessionDate(input.SessionDate).
+		SetSessionDate(sessionDate).
 		SetStartTime(input.StartTime).
 		SetEndTime(input.EndTime).
 		SetGuestsCount(input.GuestsCount).
@@ -1299,4 +1328,38 @@ func (h *HotelHandler) BatchCheckout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	jsonOK(w, map[string]any{"results": results, "processed": len(results)})
+}
+
+// parseFlexibleDate accepts a bare calendar date ("2006-01-02", what an <input type="date">
+// posts) or a full RFC3339 timestamp, returning the parsed time. A bare date is NOT valid
+// RFC3339, so binding it into a time.Time field fails — callers parse the raw string instead.
+func parseFlexibleDate(s string) (time.Time, error) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return time.Time{}, fmt.Errorf("empty date")
+	}
+	for _, layout := range []string{"2006-01-02", time.RFC3339, "2006-01-02T15:04:05"} {
+		if t, err := time.Parse(layout, s); err == nil {
+			return t, nil
+		}
+	}
+	return time.Time{}, fmt.Errorf("unrecognized date %q", s)
+}
+
+// validFolioChargeTypes is the set of charge_type enum values accepted by the RoomFolioItem
+// schema. Keep in sync with internal/ent/schema/roomfolioitem.go.
+var validFolioChargeTypes = map[string]struct{}{
+	"room_charge": {}, "food": {}, "laundry": {}, "minibar": {}, "room_service": {},
+	"amenity": {}, "facility": {}, "late_checkout": {}, "damage": {}, "package": {},
+	"conference": {}, "meal_voucher": {}, "restaurant": {}, "other": {},
+}
+
+// normalizeFolioChargeType maps a caller-supplied charge_type onto a valid enum value,
+// defaulting unknown/empty values to "other" so an unexpected type never 500s the charge.
+func normalizeFolioChargeType(raw string) entroomfolioitem.ChargeType {
+	v := strings.ToLower(strings.TrimSpace(raw))
+	if _, ok := validFolioChargeTypes[v]; ok {
+		return entroomfolioitem.ChargeType(v)
+	}
+	return entroomfolioitem.ChargeTypeOther
 }
