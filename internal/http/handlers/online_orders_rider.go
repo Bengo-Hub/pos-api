@@ -249,6 +249,7 @@ func (h *OnlineOrderHandler) ListDeliveryDispatch(w http.ResponseWriter, r *http
 		posorder.TenantID(tid),
 		posorder.OrderSubtypeEQ(posorder.OrderSubtypeDelivery),
 		posorder.StatusNotIn("cancelled", "voided"),
+		notCollectedFilter(), // drop delivered/collected orders to History
 	)
 	if outletID := r.Header.Get("X-Outlet-ID"); outletID != "" {
 		if oid, perr := uuid.Parse(outletID); perr == nil {

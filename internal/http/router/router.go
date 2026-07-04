@@ -744,6 +744,8 @@ func New(
 					if onlineOrders != nil {
 						onlineFeat := subscriptions.RequireFeature(subscriptions.FeatureOnlineOrdering)
 						pos.Get("/online-orders/pickup", onlineOrders.ListPickup)
+						// Collection history (collected + uncollected) for pickup/takeaway/delivery.
+						pos.Get("/online-orders/history", onlineOrders.ListPickupHistory)
 						// POS-native delivery dispatch queue (order_subtype=delivery) — read-only list.
 						pos.Get("/online-orders/dispatch", onlineOrders.ListDeliveryDispatch)
 						// Pickup hand-off + delivery rider assignment mutate order state Ã¢â‚¬â€ gate on

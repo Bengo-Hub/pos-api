@@ -48,6 +48,17 @@ func pickupSourceFilter() predicate.POSOrder {
 	})
 }
 
+// notCollectedFilter matches orders NOT yet marked collected (metadata.collected is absent/false).
+func notCollectedFilter() predicate.POSOrder {
+	return predicate.POSOrder(func(s *sql.Selector) {
+		s.Where(sql.P(func(b *sql.Builder) {
+			b.WriteString("(")
+			b.WriteString(s.C("metadata"))
+			b.WriteString("->>'collected' IS DISTINCT FROM 'true')")
+		}))
+	})
+}
+
 // ListPickup handles GET /{tenantID}/pos/online-orders/pickup
 // Returns all active pickup / click-and-collect orders (not completed or cancelled).
 // Supports optional ?status= and ?outlet_id= filters.
@@ -71,7 +82,9 @@ func (h *OnlineOrderHandler) ListPickup(w http.ResponseWriter, r *http.Request) 
 	if status := r.URL.Query().Get("status"); status != "" {
 		filters = append(filters, posorder.Status(status))
 	} else {
-		filters = append(filters, posorder.StatusNotIn("completed", "cancelled"))
+		// Active queue = not cancelled/voided AND not yet collected. A paid (completed) order stays
+		// here as "Ready for collection" until it's marked collected — then it moves to History.
+		filters = append(filters, posorder.StatusNotIn("cancelled", "voided"), notCollectedFilter())
 	}
 	// Optional outlet scoping so a multi-outlet tenant's KDS only sees its own pickups.
 	if outletParam := r.URL.Query().Get("outlet_id"); outletParam != "" {
@@ -91,6 +104,63 @@ func (h *OnlineOrderHandler) ListPickup(w http.ResponseWriter, r *http.Request) 
 	}
 
 	jsonOK(w, pagination.NewResponse(orders, total, p))
+}
+
+// ListPickupHistory handles GET /{tenantID}/pos/online-orders/history
+// Returns the collection RECORDS for pickup / takeaway / delivery orders: those already collected
+// (metadata.collected=true) and those that were never collected (cancelled/voided). Powers the
+// History tab. Supports ?outcome=collected|uncollected and ?outlet_id=.
+func (h *OnlineOrderHandler) ListPickupHistory(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+
+	filters := []predicate.POSOrder{
+		posorder.TenantID(tid),
+		posorder.Or(
+			pickupSourceFilter(),
+			posorder.OrderSubtypeEQ(posorder.OrderSubtypeTakeaway),
+			posorder.OrderSubtypeEQ(posorder.OrderSubtypeDelivery),
+		),
+	}
+	switch r.URL.Query().Get("outcome") {
+	case "uncollected":
+		filters = append(filters, posorder.StatusIn("cancelled", "voided"))
+	case "collected":
+		filters = append(filters, collectedFilter())
+	default:
+		// Both: collected OR cancelled/voided.
+		filters = append(filters, posorder.Or(collectedFilter(), posorder.StatusIn("cancelled", "voided")))
+	}
+	if outletParam := r.URL.Query().Get("outlet_id"); outletParam != "" {
+		if outletID, perr := uuid.Parse(outletParam); perr == nil {
+			filters = append(filters, posorder.OutletID(outletID))
+		}
+	}
+
+	p := pagination.Parse(r)
+	baseQ := h.db.POSOrder.Query().Where(filters...)
+	total, _ := baseQ.Clone().Count(r.Context())
+	orders, err := baseQ.Order(ent.Desc(posorder.FieldCreatedAt)).Limit(p.Limit).Offset(p.Offset).All(r.Context())
+	if err != nil {
+		h.log.Error("list pickup history failed", zap.Error(err))
+		jsonError(w, "failed to list history", http.StatusInternalServerError)
+		return
+	}
+	jsonOK(w, pagination.NewResponse(orders, total, p))
+}
+
+// collectedFilter matches orders marked collected (metadata.collected=true).
+func collectedFilter() predicate.POSOrder {
+	return predicate.POSOrder(func(s *sql.Selector) {
+		s.Where(sql.P(func(b *sql.Builder) {
+			b.WriteString("(")
+			b.WriteString(s.C("metadata"))
+			b.WriteString("->>'collected' = 'true')")
+		}))
+	})
 }
 
 // MarkReady handles POST /{tenantID}/pos/online-orders/{orderID}/ready
@@ -167,8 +237,18 @@ func (h *OnlineOrderHandler) MarkCollected(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	// Stamp a collected flag in metadata (the pickup queue keeps paid-but-uncollected orders in a
+	// "Ready for collection" state; collected ones move to History). Also mark the sale completed —
+	// by the time it's collected it has been paid.
+	meta := order.Metadata
+	if meta == nil {
+		meta = map[string]any{}
+	}
+	meta["collected"] = true
+	meta["collected_at"] = time.Now().Format(time.RFC3339)
 	updated, err := h.db.POSOrder.UpdateOneID(oid).
 		SetStatus("completed").
+		SetMetadata(meta).
 		Save(r.Context())
 	if err != nil {
 		h.log.Error("mark order collected failed", zap.Error(err))
