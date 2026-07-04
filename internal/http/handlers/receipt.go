@@ -228,6 +228,22 @@ func (h *ReceiptHandler) GetReceipt(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Safety: if a split's stored line ids match NONE of the order's lines (e.g. a caller stored
+	// catalog ids instead of order-line ids), fall back to the full order rather than a blank bill.
+	if splitLineSet != nil {
+		matched := false
+		for _, l := range order.Edges.Lines {
+			if splitLineSet[l.ID.String()] {
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			splitLineSet = nil
+			splitLabel = ""
+		}
+	}
+
 	lines := make([]receiptLine, 0, len(order.Edges.Lines))
 	var subtotal float64
 	for _, l := range order.Edges.Lines {
