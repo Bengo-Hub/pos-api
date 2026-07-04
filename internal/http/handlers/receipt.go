@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"html"
 	"net/http"
+	"strings"
 	"time"
 
 	sharedcache "github.com/Bengo-Hub/cache"
@@ -145,6 +146,9 @@ type receiptResponse struct {
 	OutletID           uuid.UUID              `json:"outlet_id"`
 	OutletName         string                 `json:"outlet_name,omitempty"`
 	OutletAddress      string                 `json:"outlet_address,omitempty"`
+	// BillTo is the customer shown on the receipt: the guest/payer name for M-Pesa / card / online
+	// payments (where a real customer is identified), or "Walk-in customer" for cash.
+	BillTo             string                 `json:"bill_to,omitempty"`
 	IssuedAt           time.Time              `json:"issued_at"`
 	// Timezone is the outlet's IANA timezone (e.g. "Africa/Nairobi"). The frontend formats
 	// issued_at in this zone so the printed time matches the local wall-clock regardless of
@@ -209,6 +213,7 @@ func (h *ReceiptHandler) GetReceipt(w http.ResponseWriter, r *http.Request) {
 	// Optional split-by-item receipt: ?split_id=<billsplit> filters the receipt to only the
 	// order lines assigned to that split, so each payer gets their own itemised bill.
 	var splitLineSet map[string]bool
+	var splitLabel string
 	if splitParam := r.URL.Query().Get("split_id"); splitParam != "" {
 		if splitID, perr := uuid.Parse(splitParam); perr == nil {
 			if split, serr := h.client.BillSplit.Query().
@@ -218,6 +223,7 @@ func (h *ReceiptHandler) GetReceipt(w http.ResponseWriter, r *http.Request) {
 				for _, id := range split.OrderLineIds {
 					splitLineSet[id] = true
 				}
+				splitLabel = split.SplitLabel
 			}
 		}
 	}
@@ -256,7 +262,19 @@ func (h *ReceiptHandler) GetReceipt(w http.ResponseWriter, r *http.Request) {
 		changeDue = 0
 	}
 
+	// Bill-to name: cash sales are anonymous walk-ins; M-Pesa / card / mobile-money / online
+	// payments identify a real customer, so show the captured guest/payer name.
+	billTo := "Walk-in customer"
+	if !isCashMethod(paymentMethod) {
+		if order.CustomerName != nil && *order.CustomerName != "" {
+			billTo = *order.CustomerName
+		} else if order.CustomerPhone != nil && *order.CustomerPhone != "" {
+			billTo = *order.CustomerPhone
+		}
+	}
+
 	receipt := receiptResponse{
+		BillTo:         billTo,
 		ReceiptNumber:  fmt.Sprintf("RCT-%s", order.OrderNumber),
 		OrderNumber:    order.OrderNumber,
 		OutletID:       order.OutletID,
@@ -283,6 +301,9 @@ func (h *ReceiptHandler) GetReceipt(w http.ResponseWriter, r *http.Request) {
 		receipt.AmountPaid = 0
 		receipt.AmountTendered = 0
 		receipt.ChangeDue = 0
+		if splitLabel != "" {
+			receipt.BillTo = splitLabel // e.g. "Guest 1" — this guest's own bill
+		}
 	}
 
 	// Populate eTIMS fields if present on order (set by treasury.etims.invoice_transmitted subscriber).
@@ -391,6 +412,13 @@ func (h *ReceiptHandler) GetReceipt(w http.ResponseWriter, r *http.Request) {
 	jsonOK(w, receipt)
 }
 
+// isCashMethod reports whether a payment method is an anonymous cash tender (no identified
+// customer). Everything else — M-Pesa, card, mobile money, bank, online — identifies a payer.
+func isCashMethod(method string) bool {
+	m := strings.ToLower(strings.TrimSpace(method))
+	return m == "" || m == "cash" || m == "cash_on_delivery" || m == "cod"
+}
+
 // GetReceiptHTML handles GET /{tenantID}/pos/orders/{orderID}/receipt/html
 func (h *ReceiptHandler) GetReceiptHTML(w http.ResponseWriter, r *http.Request) {
 	// Delegate to GetReceipt with format=html
@@ -475,6 +503,9 @@ h1{font-size:13px;text-align:center;margin:2px 0}
 	}
 	buf.WriteString(fmt.Sprintf(`<p class="sub">%s</p>`, formatReceiptTime(rec.IssuedAt, rec.Timezone)))
 	buf.WriteString(fmt.Sprintf(`<p class="sub">Receipt: %s</p>`, rec.ReceiptNumber))
+	if rec.BillTo != "" {
+		buf.WriteString(fmt.Sprintf(`<p class="sub">Customer: %s</p>`, htmlEscape(rec.BillTo)))
+	}
 	if rec.ServedBy != "" {
 		buf.WriteString(fmt.Sprintf(`<p class="sub">Served by: %s</p>`, htmlEscape(rec.ServedBy)))
 	}
