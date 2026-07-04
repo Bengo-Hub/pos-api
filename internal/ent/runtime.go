@@ -27,6 +27,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/facilitybooking"
 	"github.com/bengobox/pos-service/internal/ent/giftcard"
 	"github.com/bengobox/pos-service/internal/ent/giftcardtransaction"
+	"github.com/bengobox/pos-service/internal/ent/helditem"
 	"github.com/bengobox/pos-service/internal/ent/housekeepingtask"
 	"github.com/bengobox/pos-service/internal/ent/idempotencykey"
 	"github.com/bengobox/pos-service/internal/ent/integrationsetting"
@@ -263,11 +264,11 @@ func init() {
 	// billsplit.SplitLabelValidator is a validator for the "split_label" field. It is called by the builders before save.
 	billsplit.SplitLabelValidator = billsplitDescSplitLabel.Validators[0].(func(string) error)
 	// billsplitDescCurrency is the schema descriptor for currency field.
-	billsplitDescCurrency := billsplitFields[5].Descriptor()
+	billsplitDescCurrency := billsplitFields[6].Descriptor()
 	// billsplit.DefaultCurrency holds the default value on creation for the currency field.
 	billsplit.DefaultCurrency = billsplitDescCurrency.Default.(string)
 	// billsplitDescStatus is the schema descriptor for status field.
-	billsplitDescStatus := billsplitFields[6].Descriptor()
+	billsplitDescStatus := billsplitFields[7].Descriptor()
 	// billsplit.DefaultStatus holds the default value on creation for the status field.
 	billsplit.DefaultStatus = billsplitDescStatus.Default.(string)
 	// billsplitDescID is the schema descriptor for id field.
@@ -772,6 +773,32 @@ func init() {
 	giftcardtransactionDescID := giftcardtransactionFields[0].Descriptor()
 	// giftcardtransaction.DefaultID holds the default value on creation for the id field.
 	giftcardtransaction.DefaultID = giftcardtransactionDescID.Default.(func() uuid.UUID)
+	helditemFields := schema.HeldItem{}.Fields()
+	_ = helditemFields
+	// helditemDescName is the schema descriptor for name field.
+	helditemDescName := helditemFields[7].Descriptor()
+	// helditem.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	helditem.NameValidator = helditemDescName.Validators[0].(func(string) error)
+	// helditemDescQuantity is the schema descriptor for quantity field.
+	helditemDescQuantity := helditemFields[8].Descriptor()
+	// helditem.DefaultQuantity holds the default value on creation for the quantity field.
+	helditem.DefaultQuantity = helditemDescQuantity.Default.(float64)
+	// helditemDescUnitPrice is the schema descriptor for unit_price field.
+	helditemDescUnitPrice := helditemFields[9].Descriptor()
+	// helditem.DefaultUnitPrice holds the default value on creation for the unit_price field.
+	helditem.DefaultUnitPrice = helditemDescUnitPrice.Default.(float64)
+	// helditemDescStatus is the schema descriptor for status field.
+	helditemDescStatus := helditemFields[11].Descriptor()
+	// helditem.DefaultStatus holds the default value on creation for the status field.
+	helditem.DefaultStatus = helditemDescStatus.Default.(string)
+	// helditemDescCreatedAt is the schema descriptor for created_at field.
+	helditemDescCreatedAt := helditemFields[17].Descriptor()
+	// helditem.DefaultCreatedAt holds the default value on creation for the created_at field.
+	helditem.DefaultCreatedAt = helditemDescCreatedAt.Default.(func() time.Time)
+	// helditemDescID is the schema descriptor for id field.
+	helditemDescID := helditemFields[0].Descriptor()
+	// helditem.DefaultID holds the default value on creation for the id field.
+	helditem.DefaultID = helditemDescID.Default.(func() uuid.UUID)
 	housekeepingtaskFields := schema.HousekeepingTask{}.Fields()
 	_ = housekeepingtaskFields
 	// housekeepingtaskDescCreatedAt is the schema descriptor for created_at field.
@@ -897,11 +924,11 @@ func init() {
 	// kdsticket.OrderNumberValidator is a validator for the "order_number" field. It is called by the builders before save.
 	kdsticket.OrderNumberValidator = kdsticketDescOrderNumber.Validators[0].(func(string) error)
 	// kdsticketDescReceivedAt is the schema descriptor for received_at field.
-	kdsticketDescReceivedAt := kdsticketFields[8].Descriptor()
+	kdsticketDescReceivedAt := kdsticketFields[9].Descriptor()
 	// kdsticket.DefaultReceivedAt holds the default value on creation for the received_at field.
 	kdsticket.DefaultReceivedAt = kdsticketDescReceivedAt.Default.(func() time.Time)
 	// kdsticketDescPriority is the schema descriptor for priority field.
-	kdsticketDescPriority := kdsticketFields[11].Descriptor()
+	kdsticketDescPriority := kdsticketFields[12].Descriptor()
 	// kdsticket.DefaultPriority holds the default value on creation for the priority field.
 	kdsticket.DefaultPriority = kdsticketDescPriority.Default.(int)
 	// kdsticketDescID is the schema descriptor for id field.

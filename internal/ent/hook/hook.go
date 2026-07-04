@@ -285,6 +285,18 @@ func (f GiftCardTransactionFunc) Mutate(ctx context.Context, m ent.Mutation) (en
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.GiftCardTransactionMutation", m)
 }
 
+// The HeldItemFunc type is an adapter to allow the use of ordinary
+// function as HeldItem mutator.
+type HeldItemFunc func(context.Context, *ent.HeldItemMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f HeldItemFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.HeldItemMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.HeldItemMutation", m)
+}
+
 // The HousekeepingTaskFunc type is an adapter to allow the use of ordinary
 // function as HousekeepingTask mutator.
 type HousekeepingTaskFunc func(context.Context, *ent.HousekeepingTaskMutation) (ent.Value, error)

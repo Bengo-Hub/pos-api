@@ -14,6 +14,7 @@ import (
 	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/bengobox/pos-service/internal/ent"
 	"github.com/bengobox/pos-service/internal/ent/posdevice"
+	enthelditem "github.com/bengobox/pos-service/internal/ent/helditem"
 	"github.com/bengobox/pos-service/internal/ent/posdevicesession"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
 	"github.com/bengobox/pos-service/internal/ent/tender"
@@ -320,6 +321,31 @@ func (h *DeviceHandler) CloseSession(w http.ResponseWriter, r *http.Request) {
 	}
 	if err != nil {
 		jsonError(w, "no open session found", http.StatusNotFound)
+		return
+	}
+
+	// Shift-close guard: a waiter must resolve (claim or void) every item they SET ASIDE this
+	// shift before closing — otherwise a made-but-unpaid item silently disappears. Block the
+	// close and return the outstanding held items so the UI can prompt.
+	heldOpen, _ := h.client.HeldItem.Query().
+		Where(
+			enthelditem.TenantID(tid),
+			enthelditem.StatusEQ("held"),
+			enthelditem.Or(
+				enthelditem.ShiftSessionID(session.ID),
+				enthelditem.HeldByUserID(session.UserID),
+			),
+		).
+		All(r.Context())
+	if len(heldOpen) > 0 {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusConflict)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"error":       "you have set-aside items that must be claimed or voided before closing your shift",
+			"code":        "held_items_outstanding",
+			"held_items":  heldOpen,
+			"held_count":  len(heldOpen),
+		})
 		return
 	}
 

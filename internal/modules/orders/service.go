@@ -733,6 +733,7 @@ func (s *Service) createKDSTicketsForOrder(ctx context.Context, tenantID uuid.UU
 			SetOrderID(order.ID).
 			SetOrderNumber(order.OrderNumber).
 			SetStatus(kdsticket.StatusPending).
+			SetOrderSubtype(string(order.OrderSubtype)).
 			SetItems(items)
 		if tableRef != "" {
 			cc = cc.SetTableReference(tableRef)
@@ -916,6 +917,7 @@ func (s *Service) createKDSTicketsForNewLines(ctx context.Context, tenantID uuid
 			SetOrderID(order.ID).
 			SetOrderNumber(order.OrderNumber).
 			SetStatus(kdsticket.StatusPending).
+			SetOrderSubtype(string(order.OrderSubtype)).
 			SetItems(items).
 			SetTableReference(tableRef).
 			Save(ctx)
@@ -978,6 +980,7 @@ func (s *Service) FireCourseKDS(ctx context.Context, tenantID uuid.UUID, order *
 			SetOrderID(order.ID).
 			SetOrderNumber(order.OrderNumber).
 			SetStatus(kdsticket.StatusPending).
+			SetOrderSubtype(string(order.OrderSubtype)).
 			SetItems(items).
 			SetTableReference(tableRef).
 			Save(ctx)

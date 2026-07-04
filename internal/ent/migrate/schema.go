@@ -182,6 +182,7 @@ var (
 		{Name: "order_id", Type: field.TypeUUID},
 		{Name: "split_label", Type: field.TypeString, Size: 100},
 		{Name: "amount", Type: field.TypeFloat64},
+		{Name: "order_line_ids", Type: field.TypeJSON, Nullable: true},
 		{Name: "currency", Type: field.TypeString, Default: "KES"},
 		{Name: "status", Type: field.TypeString, Default: "pending"},
 		{Name: "payment_method", Type: field.TypeString, Nullable: true},
@@ -202,7 +203,7 @@ var (
 			{
 				Name:    "billsplit_tenant_id_status",
 				Unique:  false,
-				Columns: []*schema.Column{BillSplitsColumns[1], BillSplitsColumns[6]},
+				Columns: []*schema.Column{BillSplitsColumns[1], BillSplitsColumns[7]},
 			},
 		},
 	}
@@ -702,6 +703,45 @@ var (
 		Columns:    GiftCardTransactionsColumns,
 		PrimaryKey: []*schema.Column{GiftCardTransactionsColumns[0]},
 	}
+	// HeldItemsColumns holds the columns for the "held_items" table.
+	HeldItemsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "outlet_id", Type: field.TypeUUID},
+		{Name: "source_order_id", Type: field.TypeUUID},
+		{Name: "source_line_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "catalog_item_id", Type: field.TypeString, Nullable: true},
+		{Name: "sku", Type: field.TypeString, Nullable: true},
+		{Name: "name", Type: field.TypeString},
+		{Name: "quantity", Type: field.TypeFloat64, Default: 1},
+		{Name: "unit_price", Type: field.TypeFloat64, Default: 0},
+		{Name: "reason", Type: field.TypeString, Nullable: true},
+		{Name: "status", Type: field.TypeString, Default: "held"},
+		{Name: "held_by_user_id", Type: field.TypeUUID},
+		{Name: "shift_session_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "claimed_order_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "resolved_by_user_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "resolved_at", Type: field.TypeTime, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+	}
+	// HeldItemsTable holds the schema information for the "held_items" table.
+	HeldItemsTable = &schema.Table{
+		Name:       "held_items",
+		Columns:    HeldItemsColumns,
+		PrimaryKey: []*schema.Column{HeldItemsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "helditem_tenant_id_outlet_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{HeldItemsColumns[1], HeldItemsColumns[2], HeldItemsColumns[11]},
+			},
+			{
+				Name:    "helditem_tenant_id_shift_session_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{HeldItemsColumns[1], HeldItemsColumns[13], HeldItemsColumns[11]},
+			},
+		},
+	}
 	// HousekeepingTasksColumns holds the columns for the "housekeeping_tasks" table.
 	HousekeepingTasksColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -884,6 +924,7 @@ var (
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending", "in_progress", "ready", "served", "voided"}, Default: "pending"},
 		{Name: "items", Type: field.TypeJSON},
 		{Name: "table_reference", Type: field.TypeString, Nullable: true},
+		{Name: "order_subtype", Type: field.TypeString, Nullable: true},
 		{Name: "received_at", Type: field.TypeTime},
 		{Name: "started_at", Type: field.TypeTime, Nullable: true},
 		{Name: "completed_at", Type: field.TypeTime, Nullable: true},
@@ -898,7 +939,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "kds_tickets_kds_stations_tickets",
-				Columns:    []*schema.Column{KdsTicketsColumns[11]},
+				Columns:    []*schema.Column{KdsTicketsColumns[12]},
 				RefColumns: []*schema.Column{KdsStationsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -907,7 +948,7 @@ var (
 			{
 				Name:    "kdsticket_tenant_id_station_id_status",
 				Unique:  false,
-				Columns: []*schema.Column{KdsTicketsColumns[1], KdsTicketsColumns[11], KdsTicketsColumns[4]},
+				Columns: []*schema.Column{KdsTicketsColumns[1], KdsTicketsColumns[12], KdsTicketsColumns[4]},
 			},
 			{
 				Name:    "kdsticket_order_id",
@@ -3747,6 +3788,7 @@ var (
 		FeatureOverridesTable,
 		GiftCardsTable,
 		GiftCardTransactionsTable,
+		HeldItemsTable,
 		HousekeepingTasksTable,
 		IdempotencyKeysTable,
 		IntegrationSettingsTable,

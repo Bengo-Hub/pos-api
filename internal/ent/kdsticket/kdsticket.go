@@ -30,6 +30,8 @@ const (
 	FieldItems = "items"
 	// FieldTableReference holds the string denoting the table_reference field in the database.
 	FieldTableReference = "table_reference"
+	// FieldOrderSubtype holds the string denoting the order_subtype field in the database.
+	FieldOrderSubtype = "order_subtype"
 	// FieldReceivedAt holds the string denoting the received_at field in the database.
 	FieldReceivedAt = "received_at"
 	// FieldStartedAt holds the string denoting the started_at field in the database.
@@ -61,6 +63,7 @@ var Columns = []string{
 	FieldStatus,
 	FieldItems,
 	FieldTableReference,
+	FieldOrderSubtype,
 	FieldReceivedAt,
 	FieldStartedAt,
 	FieldCompletedAt,
@@ -153,6 +156,11 @@ func ByStatus(opts ...sql.OrderTermOption) OrderOption {
 // ByTableReference orders the results by the table_reference field.
 func ByTableReference(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldTableReference, opts...).ToFunc()
+}
+
+// ByOrderSubtype orders the results by the order_subtype field.
+func ByOrderSubtype(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldOrderSubtype, opts...).ToFunc()
 }
 
 // ByReceivedAt orders the results by the received_at field.

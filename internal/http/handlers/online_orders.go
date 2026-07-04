@@ -60,7 +60,13 @@ func (h *OnlineOrderHandler) ListPickup(w http.ResponseWriter, r *http.Request) 
 
 	filters := []predicate.POSOrder{
 		posorder.TenantID(tid),
-		pickupSourceFilter(),
+		// Online click-and-collect/pickup orders (metadata.source) PLUS POS-native TAKEAWAY orders
+		// placed at the terminal — both are collected at the counter once the kitchen is done, so
+		// they share the pickup queue.
+		posorder.Or(
+			pickupSourceFilter(),
+			posorder.OrderSubtypeEQ(posorder.OrderSubtypeTakeaway),
+		),
 	}
 	if status := r.URL.Query().Get("status"); status != "" {
 		filters = append(filters, posorder.Status(status))

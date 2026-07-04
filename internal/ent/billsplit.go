@@ -3,6 +3,7 @@
 package ent
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -25,6 +26,8 @@ type BillSplit struct {
 	SplitLabel string `json:"split_label,omitempty"`
 	// Amount assigned to this split
 	Amount float64 `json:"amount,omitempty"`
+	// POSOrderLine ids assigned to this split (split-by-item) — drives the per-split receipt.
+	OrderLineIds []string `json:"order_line_ids,omitempty"`
 	// Currency holds the value of the "currency" field.
 	Currency string `json:"currency,omitempty"`
 	// pending | paid | voided
@@ -45,6 +48,8 @@ func (*BillSplit) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case billsplit.FieldPaymentID:
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
+		case billsplit.FieldOrderLineIds:
+			values[i] = new([]byte)
 		case billsplit.FieldAmount:
 			values[i] = new(sql.NullFloat64)
 		case billsplit.FieldSplitLabel, billsplit.FieldCurrency, billsplit.FieldStatus, billsplit.FieldPaymentMethod, billsplit.FieldExternalRef:
@@ -95,6 +100,14 @@ func (_m *BillSplit) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field amount", values[i])
 			} else if value.Valid {
 				_m.Amount = value.Float64
+			}
+		case billsplit.FieldOrderLineIds:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field order_line_ids", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.OrderLineIds); err != nil {
+					return fmt.Errorf("unmarshal field order_line_ids: %w", err)
+				}
 			}
 		case billsplit.FieldCurrency:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -174,6 +187,9 @@ func (_m *BillSplit) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("amount=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Amount))
+	builder.WriteString(", ")
+	builder.WriteString("order_line_ids=")
+	builder.WriteString(fmt.Sprintf("%v", _m.OrderLineIds))
 	builder.WriteString(", ")
 	builder.WriteString("currency=")
 	builder.WriteString(_m.Currency)

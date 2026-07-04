@@ -75,6 +75,9 @@ type GiftCard func(*sql.Selector)
 // GiftCardTransaction is the predicate function for giftcardtransaction builders.
 type GiftCardTransaction func(*sql.Selector)
 
+// HeldItem is the predicate function for helditem builders.
+type HeldItem func(*sql.Selector)
+
 // HousekeepingTask is the predicate function for housekeepingtask builders.
 type HousekeepingTask func(*sql.Selector)
 

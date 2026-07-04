@@ -34,6 +34,8 @@ type KDSTicket struct {
 	Items []map[string]interface{} `json:"items,omitempty"`
 	// Table number or name from the originating order, parsed at ticket creation
 	TableReference string `json:"table_reference,omitempty"`
+	// dine_in | takeaway | delivery | room_service | bar_tab — drives the KDS order-type filter
+	OrderSubtype string `json:"order_subtype,omitempty"`
 	// ReceivedAt holds the value of the "received_at" field.
 	ReceivedAt time.Time `json:"received_at,omitempty"`
 	// StartedAt holds the value of the "started_at" field.
@@ -77,7 +79,7 @@ func (*KDSTicket) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case kdsticket.FieldPriority:
 			values[i] = new(sql.NullInt64)
-		case kdsticket.FieldOrderNumber, kdsticket.FieldStatus, kdsticket.FieldTableReference:
+		case kdsticket.FieldOrderNumber, kdsticket.FieldStatus, kdsticket.FieldTableReference, kdsticket.FieldOrderSubtype:
 			values[i] = new(sql.NullString)
 		case kdsticket.FieldReceivedAt, kdsticket.FieldStartedAt, kdsticket.FieldCompletedAt:
 			values[i] = new(sql.NullTime)
@@ -147,6 +149,12 @@ func (_m *KDSTicket) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field table_reference", values[i])
 			} else if value.Valid {
 				_m.TableReference = value.String
+			}
+		case kdsticket.FieldOrderSubtype:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field order_subtype", values[i])
+			} else if value.Valid {
+				_m.OrderSubtype = value.String
 			}
 		case kdsticket.FieldReceivedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -235,6 +243,9 @@ func (_m *KDSTicket) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("table_reference=")
 	builder.WriteString(_m.TableReference)
+	builder.WriteString(", ")
+	builder.WriteString("order_subtype=")
+	builder.WriteString(_m.OrderSubtype)
 	builder.WriteString(", ")
 	builder.WriteString("received_at=")
 	builder.WriteString(_m.ReceivedAt.Format(time.ANSIC))

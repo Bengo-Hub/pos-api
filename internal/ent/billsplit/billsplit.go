@@ -20,6 +20,8 @@ const (
 	FieldSplitLabel = "split_label"
 	// FieldAmount holds the string denoting the amount field in the database.
 	FieldAmount = "amount"
+	// FieldOrderLineIds holds the string denoting the order_line_ids field in the database.
+	FieldOrderLineIds = "order_line_ids"
 	// FieldCurrency holds the string denoting the currency field in the database.
 	FieldCurrency = "currency"
 	// FieldStatus holds the string denoting the status field in the database.
@@ -41,6 +43,7 @@ var Columns = []string{
 	FieldOrderID,
 	FieldSplitLabel,
 	FieldAmount,
+	FieldOrderLineIds,
 	FieldCurrency,
 	FieldStatus,
 	FieldPaymentMethod,

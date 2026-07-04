@@ -680,6 +680,10 @@ func seedRBACRoles(ctx context.Context, client *ent.Client) error {
 			description: "Process orders, payments, and manage cash drawer",
 			permissions: []string{
 				"pos.orders.add", "pos.orders.view", "pos.orders.view_own", "pos.orders.change_own",
+				// Void is granted so the cashier can INITIATE a void; they are not a manager
+				// override role, so the void still requires manager approval (scan card / PIN /
+				// one-time code) before it lands. Without this the void button is hidden for them.
+				"pos.orders.void",
 				"pos.payments.add", "pos.payments.view", "pos.payments.view_own",
 				"pos.catalog.view",
 				"pos.cash_drawers.add", "pos.cash_drawers.view_own", "pos.cash_drawers.change_own",
@@ -704,6 +708,9 @@ func seedRBACRoles(ctx context.Context, client *ent.Client) error {
 				// Orders: own table orders + change any (needed to act on unassigned
 				// online pickup/delivery orders that have no waiter staff_id).
 				"pos.orders.add", "pos.orders.view_own", "pos.orders.change", "pos.orders.change_own",
+				// Void is granted so the waiter can INITIATE a void; not a manager override role,
+				// so it still requires manager approval (card / PIN / one-time code) to land.
+				"pos.orders.void",
 				// Bill settlement: some businesses have waiters confirm/record payments
 				// (cash or mobile-money refs e.g. M-Pesa) directly at the table.
 				"pos.payments.add", "pos.payments.view_own",

@@ -81,6 +81,11 @@ func TableReference(v string) predicate.KDSTicket {
 	return predicate.KDSTicket(sql.FieldEQ(FieldTableReference, v))
 }
 
+// OrderSubtype applies equality check predicate on the "order_subtype" field. It's identical to OrderSubtypeEQ.
+func OrderSubtype(v string) predicate.KDSTicket {
+	return predicate.KDSTicket(sql.FieldEQ(FieldOrderSubtype, v))
+}
+
 // ReceivedAt applies equality check predicate on the "received_at" field. It's identical to ReceivedAtEQ.
 func ReceivedAt(v time.Time) predicate.KDSTicket {
 	return predicate.KDSTicket(sql.FieldEQ(FieldReceivedAt, v))
@@ -359,6 +364,81 @@ func TableReferenceEqualFold(v string) predicate.KDSTicket {
 // TableReferenceContainsFold applies the ContainsFold predicate on the "table_reference" field.
 func TableReferenceContainsFold(v string) predicate.KDSTicket {
 	return predicate.KDSTicket(sql.FieldContainsFold(FieldTableReference, v))
+}
+
+// OrderSubtypeEQ applies the EQ predicate on the "order_subtype" field.
+func OrderSubtypeEQ(v string) predicate.KDSTicket {
+	return predicate.KDSTicket(sql.FieldEQ(FieldOrderSubtype, v))
+}
+
+// OrderSubtypeNEQ applies the NEQ predicate on the "order_subtype" field.
+func OrderSubtypeNEQ(v string) predicate.KDSTicket {
+	return predicate.KDSTicket(sql.FieldNEQ(FieldOrderSubtype, v))
+}
+
+// OrderSubtypeIn applies the In predicate on the "order_subtype" field.
+func OrderSubtypeIn(vs ...string) predicate.KDSTicket {
+	return predicate.KDSTicket(sql.FieldIn(FieldOrderSubtype, vs...))
+}
+
+// OrderSubtypeNotIn applies the NotIn predicate on the "order_subtype" field.
+func OrderSubtypeNotIn(vs ...string) predicate.KDSTicket {
+	return predicate.KDSTicket(sql.FieldNotIn(FieldOrderSubtype, vs...))
+}
+
+// OrderSubtypeGT applies the GT predicate on the "order_subtype" field.
+func OrderSubtypeGT(v string) predicate.KDSTicket {
+	return predicate.KDSTicket(sql.FieldGT(FieldOrderSubtype, v))
+}
+
+// OrderSubtypeGTE applies the GTE predicate on the "order_subtype" field.
+func OrderSubtypeGTE(v string) predicate.KDSTicket {
+	return predicate.KDSTicket(sql.FieldGTE(FieldOrderSubtype, v))
+}
+
+// OrderSubtypeLT applies the LT predicate on the "order_subtype" field.
+func OrderSubtypeLT(v string) predicate.KDSTicket {
+	return predicate.KDSTicket(sql.FieldLT(FieldOrderSubtype, v))
+}
+
+// OrderSubtypeLTE applies the LTE predicate on the "order_subtype" field.
+func OrderSubtypeLTE(v string) predicate.KDSTicket {
+	return predicate.KDSTicket(sql.FieldLTE(FieldOrderSubtype, v))
+}
+
+// OrderSubtypeContains applies the Contains predicate on the "order_subtype" field.
+func OrderSubtypeContains(v string) predicate.KDSTicket {
+	return predicate.KDSTicket(sql.FieldContains(FieldOrderSubtype, v))
+}
+
+// OrderSubtypeHasPrefix applies the HasPrefix predicate on the "order_subtype" field.
+func OrderSubtypeHasPrefix(v string) predicate.KDSTicket {
+	return predicate.KDSTicket(sql.FieldHasPrefix(FieldOrderSubtype, v))
+}
+
+// OrderSubtypeHasSuffix applies the HasSuffix predicate on the "order_subtype" field.
+func OrderSubtypeHasSuffix(v string) predicate.KDSTicket {
+	return predicate.KDSTicket(sql.FieldHasSuffix(FieldOrderSubtype, v))
+}
+
+// OrderSubtypeIsNil applies the IsNil predicate on the "order_subtype" field.
+func OrderSubtypeIsNil() predicate.KDSTicket {
+	return predicate.KDSTicket(sql.FieldIsNull(FieldOrderSubtype))
+}
+
+// OrderSubtypeNotNil applies the NotNil predicate on the "order_subtype" field.
+func OrderSubtypeNotNil() predicate.KDSTicket {
+	return predicate.KDSTicket(sql.FieldNotNull(FieldOrderSubtype))
+}
+
+// OrderSubtypeEqualFold applies the EqualFold predicate on the "order_subtype" field.
+func OrderSubtypeEqualFold(v string) predicate.KDSTicket {
+	return predicate.KDSTicket(sql.FieldEqualFold(FieldOrderSubtype, v))
+}
+
+// OrderSubtypeContainsFold applies the ContainsFold predicate on the "order_subtype" field.
+func OrderSubtypeContainsFold(v string) predicate.KDSTicket {
+	return predicate.KDSTicket(sql.FieldContainsFold(FieldOrderSubtype, v))
 }
 
 // ReceivedAtEQ applies the EQ predicate on the "received_at" field.

@@ -283,6 +283,16 @@ func AmountLTE(v float64) predicate.BillSplit {
 	return predicate.BillSplit(sql.FieldLTE(FieldAmount, v))
 }
 
+// OrderLineIdsIsNil applies the IsNil predicate on the "order_line_ids" field.
+func OrderLineIdsIsNil() predicate.BillSplit {
+	return predicate.BillSplit(sql.FieldIsNull(FieldOrderLineIds))
+}
+
+// OrderLineIdsNotNil applies the NotNil predicate on the "order_line_ids" field.
+func OrderLineIdsNotNil() predicate.BillSplit {
+	return predicate.BillSplit(sql.FieldNotNull(FieldOrderLineIds))
+}
+
 // CurrencyEQ applies the EQ predicate on the "currency" field.
 func CurrencyEQ(v string) predicate.BillSplit {
 	return predicate.BillSplit(sql.FieldEQ(FieldCurrency, v))

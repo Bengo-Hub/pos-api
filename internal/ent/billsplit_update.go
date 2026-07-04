@@ -9,6 +9,7 @@ import (
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"entgo.io/ent/dialect/sql/sqljson"
 	"entgo.io/ent/schema/field"
 	"github.com/bengobox/pos-service/internal/ent/billsplit"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
@@ -88,6 +89,24 @@ func (_u *BillSplitUpdate) SetNillableAmount(v *float64) *BillSplitUpdate {
 // AddAmount adds value to the "amount" field.
 func (_u *BillSplitUpdate) AddAmount(v float64) *BillSplitUpdate {
 	_u.mutation.AddAmount(v)
+	return _u
+}
+
+// SetOrderLineIds sets the "order_line_ids" field.
+func (_u *BillSplitUpdate) SetOrderLineIds(v []string) *BillSplitUpdate {
+	_u.mutation.SetOrderLineIds(v)
+	return _u
+}
+
+// AppendOrderLineIds appends value to the "order_line_ids" field.
+func (_u *BillSplitUpdate) AppendOrderLineIds(v []string) *BillSplitUpdate {
+	_u.mutation.AppendOrderLineIds(v)
+	return _u
+}
+
+// ClearOrderLineIds clears the value of the "order_line_ids" field.
+func (_u *BillSplitUpdate) ClearOrderLineIds() *BillSplitUpdate {
+	_u.mutation.ClearOrderLineIds()
 	return _u
 }
 
@@ -248,6 +267,17 @@ func (_u *BillSplitUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.AddedAmount(); ok {
 		_spec.AddField(billsplit.FieldAmount, field.TypeFloat64, value)
 	}
+	if value, ok := _u.mutation.OrderLineIds(); ok {
+		_spec.SetField(billsplit.FieldOrderLineIds, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedOrderLineIds(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, billsplit.FieldOrderLineIds, value)
+		})
+	}
+	if _u.mutation.OrderLineIdsCleared() {
+		_spec.ClearField(billsplit.FieldOrderLineIds, field.TypeJSON)
+	}
 	if value, ok := _u.mutation.Currency(); ok {
 		_spec.SetField(billsplit.FieldCurrency, field.TypeString, value)
 	}
@@ -352,6 +382,24 @@ func (_u *BillSplitUpdateOne) SetNillableAmount(v *float64) *BillSplitUpdateOne 
 // AddAmount adds value to the "amount" field.
 func (_u *BillSplitUpdateOne) AddAmount(v float64) *BillSplitUpdateOne {
 	_u.mutation.AddAmount(v)
+	return _u
+}
+
+// SetOrderLineIds sets the "order_line_ids" field.
+func (_u *BillSplitUpdateOne) SetOrderLineIds(v []string) *BillSplitUpdateOne {
+	_u.mutation.SetOrderLineIds(v)
+	return _u
+}
+
+// AppendOrderLineIds appends value to the "order_line_ids" field.
+func (_u *BillSplitUpdateOne) AppendOrderLineIds(v []string) *BillSplitUpdateOne {
+	_u.mutation.AppendOrderLineIds(v)
+	return _u
+}
+
+// ClearOrderLineIds clears the value of the "order_line_ids" field.
+func (_u *BillSplitUpdateOne) ClearOrderLineIds() *BillSplitUpdateOne {
+	_u.mutation.ClearOrderLineIds()
 	return _u
 }
 
@@ -541,6 +589,17 @@ func (_u *BillSplitUpdateOne) sqlSave(ctx context.Context) (_node *BillSplit, er
 	}
 	if value, ok := _u.mutation.AddedAmount(); ok {
 		_spec.AddField(billsplit.FieldAmount, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.OrderLineIds(); ok {
+		_spec.SetField(billsplit.FieldOrderLineIds, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedOrderLineIds(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, billsplit.FieldOrderLineIds, value)
+		})
+	}
+	if _u.mutation.OrderLineIdsCleared() {
+		_spec.ClearField(billsplit.FieldOrderLineIds, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.Currency(); ok {
 		_spec.SetField(billsplit.FieldCurrency, field.TypeString, value)

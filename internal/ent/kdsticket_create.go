@@ -83,6 +83,20 @@ func (_c *KDSTicketCreate) SetNillableTableReference(v *string) *KDSTicketCreate
 	return _c
 }
 
+// SetOrderSubtype sets the "order_subtype" field.
+func (_c *KDSTicketCreate) SetOrderSubtype(v string) *KDSTicketCreate {
+	_c.mutation.SetOrderSubtype(v)
+	return _c
+}
+
+// SetNillableOrderSubtype sets the "order_subtype" field if the given value is not nil.
+func (_c *KDSTicketCreate) SetNillableOrderSubtype(v *string) *KDSTicketCreate {
+	if v != nil {
+		_c.SetOrderSubtype(*v)
+	}
+	return _c
+}
+
 // SetReceivedAt sets the "received_at" field.
 func (_c *KDSTicketCreate) SetReceivedAt(v time.Time) *KDSTicketCreate {
 	_c.mutation.SetReceivedAt(v)
@@ -310,6 +324,10 @@ func (_c *KDSTicketCreate) createSpec() (*KDSTicket, *sqlgraph.CreateSpec) {
 		_spec.SetField(kdsticket.FieldTableReference, field.TypeString, value)
 		_node.TableReference = value
 	}
+	if value, ok := _c.mutation.OrderSubtype(); ok {
+		_spec.SetField(kdsticket.FieldOrderSubtype, field.TypeString, value)
+		_node.OrderSubtype = value
+	}
 	if value, ok := _c.mutation.ReceivedAt(); ok {
 		_spec.SetField(kdsticket.FieldReceivedAt, field.TypeTime, value)
 		_node.ReceivedAt = value
@@ -482,6 +500,24 @@ func (u *KDSTicketUpsert) UpdateTableReference() *KDSTicketUpsert {
 // ClearTableReference clears the value of the "table_reference" field.
 func (u *KDSTicketUpsert) ClearTableReference() *KDSTicketUpsert {
 	u.SetNull(kdsticket.FieldTableReference)
+	return u
+}
+
+// SetOrderSubtype sets the "order_subtype" field.
+func (u *KDSTicketUpsert) SetOrderSubtype(v string) *KDSTicketUpsert {
+	u.Set(kdsticket.FieldOrderSubtype, v)
+	return u
+}
+
+// UpdateOrderSubtype sets the "order_subtype" field to the value that was provided on create.
+func (u *KDSTicketUpsert) UpdateOrderSubtype() *KDSTicketUpsert {
+	u.SetExcluded(kdsticket.FieldOrderSubtype)
+	return u
+}
+
+// ClearOrderSubtype clears the value of the "order_subtype" field.
+func (u *KDSTicketUpsert) ClearOrderSubtype() *KDSTicketUpsert {
+	u.SetNull(kdsticket.FieldOrderSubtype)
 	return u
 }
 
@@ -701,6 +737,27 @@ func (u *KDSTicketUpsertOne) UpdateTableReference() *KDSTicketUpsertOne {
 func (u *KDSTicketUpsertOne) ClearTableReference() *KDSTicketUpsertOne {
 	return u.Update(func(s *KDSTicketUpsert) {
 		s.ClearTableReference()
+	})
+}
+
+// SetOrderSubtype sets the "order_subtype" field.
+func (u *KDSTicketUpsertOne) SetOrderSubtype(v string) *KDSTicketUpsertOne {
+	return u.Update(func(s *KDSTicketUpsert) {
+		s.SetOrderSubtype(v)
+	})
+}
+
+// UpdateOrderSubtype sets the "order_subtype" field to the value that was provided on create.
+func (u *KDSTicketUpsertOne) UpdateOrderSubtype() *KDSTicketUpsertOne {
+	return u.Update(func(s *KDSTicketUpsert) {
+		s.UpdateOrderSubtype()
+	})
+}
+
+// ClearOrderSubtype clears the value of the "order_subtype" field.
+func (u *KDSTicketUpsertOne) ClearOrderSubtype() *KDSTicketUpsertOne {
+	return u.Update(func(s *KDSTicketUpsert) {
+		s.ClearOrderSubtype()
 	})
 }
 
@@ -1098,6 +1155,27 @@ func (u *KDSTicketUpsertBulk) UpdateTableReference() *KDSTicketUpsertBulk {
 func (u *KDSTicketUpsertBulk) ClearTableReference() *KDSTicketUpsertBulk {
 	return u.Update(func(s *KDSTicketUpsert) {
 		s.ClearTableReference()
+	})
+}
+
+// SetOrderSubtype sets the "order_subtype" field.
+func (u *KDSTicketUpsertBulk) SetOrderSubtype(v string) *KDSTicketUpsertBulk {
+	return u.Update(func(s *KDSTicketUpsert) {
+		s.SetOrderSubtype(v)
+	})
+}
+
+// UpdateOrderSubtype sets the "order_subtype" field to the value that was provided on create.
+func (u *KDSTicketUpsertBulk) UpdateOrderSubtype() *KDSTicketUpsertBulk {
+	return u.Update(func(s *KDSTicketUpsert) {
+		s.UpdateOrderSubtype()
+	})
+}
+
+// ClearOrderSubtype clears the value of the "order_subtype" field.
+func (u *KDSTicketUpsertBulk) ClearOrderSubtype() *KDSTicketUpsertBulk {
+	return u.Update(func(s *KDSTicketUpsert) {
+		s.ClearOrderSubtype()
 	})
 }
 

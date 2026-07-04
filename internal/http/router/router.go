@@ -273,6 +273,12 @@ func New(
 						pos.Post("/orders/{orderID}/fire-course", orders.FireCourse)
 						pos.Post("/orders/{orderID}/lines", orders.AddOrderLines)
 						pos.Post("/orders/{orderID}/lines/{lineID}/void", orders.VoidOrderLine)
+						// Upsell / set-aside: hold a wrongly-ordered (already-made) item for resale
+						// instead of voiding it. No manager approval; must be cleared before shift close.
+						pos.Post("/orders/{orderID}/lines/{lineID}/set-aside", orders.SetAsideLine)
+						pos.Get("/held-items", orders.ListHeldItems)
+						pos.Post("/held-items/{id}/claim", orders.ClaimHeldItem)
+						pos.Post("/held-items/{id}/void", orders.VoidHeldItem)
 						pos.Post("/orders/{orderID}/lines/{lineID}/serials", orders.CaptureSerial)
 					}
 					if print != nil {

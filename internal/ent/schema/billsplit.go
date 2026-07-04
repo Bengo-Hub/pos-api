@@ -22,6 +22,9 @@ func (BillSplit) Fields() []ent.Field {
 			Comment("e.g. 'Person 1', 'Table A', 'Card ending 4242'"),
 		field.Float("amount").
 			Comment("Amount assigned to this split"),
+		field.JSON("order_line_ids", []string{}).
+			Optional().
+			Comment("POSOrderLine ids assigned to this split (split-by-item) — drives the per-split receipt."),
 		field.String("currency").Default("KES"),
 		field.String("status").
 			Default("pending").

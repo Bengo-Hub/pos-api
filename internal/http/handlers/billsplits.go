@@ -66,8 +66,11 @@ func (h *BillSplitHandler) ListSplits(w http.ResponseWriter, r *http.Request) {
 
 type createSplitInput struct {
 	Splits []struct {
-		Label  string  `json:"label"`
+		Label string  `json:"label"`
 		Amount float64 `json:"amount"`
+		// OrderLineIDs are the POSOrderLine ids assigned to this split (split-by-item). Optional
+		// for equal/amount splits; required to print a per-split, item-level receipt.
+		OrderLineIDs []string `json:"order_line_ids,omitempty"`
 	} `json:"splits"`
 }
 
@@ -102,11 +105,15 @@ func (h *BillSplitHandler) CreateSplits(w http.ResponseWriter, r *http.Request) 
 
 	creates := make([]*ent.BillSplitCreate, 0, len(input.Splits))
 	for _, s := range input.Splits {
-		creates = append(creates, h.client.BillSplit.Create().
+		c := h.client.BillSplit.Create().
 			SetTenantID(tid).
 			SetOrderID(orderID).
 			SetSplitLabel(s.Label).
-			SetAmount(s.Amount))
+			SetAmount(s.Amount)
+		if len(s.OrderLineIDs) > 0 {
+			c = c.SetOrderLineIds(s.OrderLineIDs)
+		}
+		creates = append(creates, c)
 	}
 
 	splits, err := h.client.BillSplit.CreateBulk(creates...).Save(r.Context())

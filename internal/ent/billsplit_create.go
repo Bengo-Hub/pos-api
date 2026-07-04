@@ -47,6 +47,12 @@ func (_c *BillSplitCreate) SetAmount(v float64) *BillSplitCreate {
 	return _c
 }
 
+// SetOrderLineIds sets the "order_line_ids" field.
+func (_c *BillSplitCreate) SetOrderLineIds(v []string) *BillSplitCreate {
+	_c.mutation.SetOrderLineIds(v)
+	return _c
+}
+
 // SetCurrency sets the "currency" field.
 func (_c *BillSplitCreate) SetCurrency(v string) *BillSplitCreate {
 	_c.mutation.SetCurrency(v)
@@ -257,6 +263,10 @@ func (_c *BillSplitCreate) createSpec() (*BillSplit, *sqlgraph.CreateSpec) {
 		_spec.SetField(billsplit.FieldAmount, field.TypeFloat64, value)
 		_node.Amount = value
 	}
+	if value, ok := _c.mutation.OrderLineIds(); ok {
+		_spec.SetField(billsplit.FieldOrderLineIds, field.TypeJSON, value)
+		_node.OrderLineIds = value
+	}
 	if value, ok := _c.mutation.Currency(); ok {
 		_spec.SetField(billsplit.FieldCurrency, field.TypeString, value)
 		_node.Currency = value
@@ -380,6 +390,24 @@ func (u *BillSplitUpsert) UpdateAmount() *BillSplitUpsert {
 // AddAmount adds v to the "amount" field.
 func (u *BillSplitUpsert) AddAmount(v float64) *BillSplitUpsert {
 	u.Add(billsplit.FieldAmount, v)
+	return u
+}
+
+// SetOrderLineIds sets the "order_line_ids" field.
+func (u *BillSplitUpsert) SetOrderLineIds(v []string) *BillSplitUpsert {
+	u.Set(billsplit.FieldOrderLineIds, v)
+	return u
+}
+
+// UpdateOrderLineIds sets the "order_line_ids" field to the value that was provided on create.
+func (u *BillSplitUpsert) UpdateOrderLineIds() *BillSplitUpsert {
+	u.SetExcluded(billsplit.FieldOrderLineIds)
+	return u
+}
+
+// ClearOrderLineIds clears the value of the "order_line_ids" field.
+func (u *BillSplitUpsert) ClearOrderLineIds() *BillSplitUpsert {
+	u.SetNull(billsplit.FieldOrderLineIds)
 	return u
 }
 
@@ -569,6 +597,27 @@ func (u *BillSplitUpsertOne) AddAmount(v float64) *BillSplitUpsertOne {
 func (u *BillSplitUpsertOne) UpdateAmount() *BillSplitUpsertOne {
 	return u.Update(func(s *BillSplitUpsert) {
 		s.UpdateAmount()
+	})
+}
+
+// SetOrderLineIds sets the "order_line_ids" field.
+func (u *BillSplitUpsertOne) SetOrderLineIds(v []string) *BillSplitUpsertOne {
+	return u.Update(func(s *BillSplitUpsert) {
+		s.SetOrderLineIds(v)
+	})
+}
+
+// UpdateOrderLineIds sets the "order_line_ids" field to the value that was provided on create.
+func (u *BillSplitUpsertOne) UpdateOrderLineIds() *BillSplitUpsertOne {
+	return u.Update(func(s *BillSplitUpsert) {
+		s.UpdateOrderLineIds()
+	})
+}
+
+// ClearOrderLineIds clears the value of the "order_line_ids" field.
+func (u *BillSplitUpsertOne) ClearOrderLineIds() *BillSplitUpsertOne {
+	return u.Update(func(s *BillSplitUpsert) {
+		s.ClearOrderLineIds()
 	})
 }
 
@@ -938,6 +987,27 @@ func (u *BillSplitUpsertBulk) AddAmount(v float64) *BillSplitUpsertBulk {
 func (u *BillSplitUpsertBulk) UpdateAmount() *BillSplitUpsertBulk {
 	return u.Update(func(s *BillSplitUpsert) {
 		s.UpdateAmount()
+	})
+}
+
+// SetOrderLineIds sets the "order_line_ids" field.
+func (u *BillSplitUpsertBulk) SetOrderLineIds(v []string) *BillSplitUpsertBulk {
+	return u.Update(func(s *BillSplitUpsert) {
+		s.SetOrderLineIds(v)
+	})
+}
+
+// UpdateOrderLineIds sets the "order_line_ids" field to the value that was provided on create.
+func (u *BillSplitUpsertBulk) UpdateOrderLineIds() *BillSplitUpsertBulk {
+	return u.Update(func(s *BillSplitUpsert) {
+		s.UpdateOrderLineIds()
+	})
+}
+
+// ClearOrderLineIds clears the value of the "order_line_ids" field.
+func (u *BillSplitUpsertBulk) ClearOrderLineIds() *BillSplitUpsertBulk {
+	return u.Update(func(s *BillSplitUpsert) {
+		s.ClearOrderLineIds()
 	})
 }
 

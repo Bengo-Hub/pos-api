@@ -35,6 +35,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/featureoverride"
 	"github.com/bengobox/pos-service/internal/ent/giftcard"
 	"github.com/bengobox/pos-service/internal/ent/giftcardtransaction"
+	"github.com/bengobox/pos-service/internal/ent/helditem"
 	"github.com/bengobox/pos-service/internal/ent/housekeepingtask"
 	"github.com/bengobox/pos-service/internal/ent/idempotencykey"
 	"github.com/bengobox/pos-service/internal/ent/integrationsetting"
@@ -207,6 +208,7 @@ func checkColumn(t, c string) error {
 			featureoverride.Table:          featureoverride.ValidColumn,
 			giftcard.Table:                 giftcard.ValidColumn,
 			giftcardtransaction.Table:      giftcardtransaction.ValidColumn,
+			helditem.Table:                 helditem.ValidColumn,
 			housekeepingtask.Table:         housekeepingtask.ValidColumn,
 			idempotencykey.Table:           idempotencykey.ValidColumn,
 			integrationsetting.Table:       integrationsetting.ValidColumn,

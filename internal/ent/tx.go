@@ -58,6 +58,8 @@ type Tx struct {
 	GiftCard *GiftCardClient
 	// GiftCardTransaction is the client for interacting with the GiftCardTransaction builders.
 	GiftCardTransaction *GiftCardTransactionClient
+	// HeldItem is the client for interacting with the HeldItem builders.
+	HeldItem *HeldItemClient
 	// HousekeepingTask is the client for interacting with the HousekeepingTask builders.
 	HousekeepingTask *HousekeepingTaskClient
 	// IdempotencyKey is the client for interacting with the IdempotencyKey builders.
@@ -390,6 +392,7 @@ func (tx *Tx) init() {
 	tx.FeatureOverride = NewFeatureOverrideClient(tx.config)
 	tx.GiftCard = NewGiftCardClient(tx.config)
 	tx.GiftCardTransaction = NewGiftCardTransactionClient(tx.config)
+	tx.HeldItem = NewHeldItemClient(tx.config)
 	tx.HousekeepingTask = NewHousekeepingTaskClient(tx.config)
 	tx.IdempotencyKey = NewIdempotencyKeyClient(tx.config)
 	tx.IntegrationSetting = NewIntegrationSettingClient(tx.config)

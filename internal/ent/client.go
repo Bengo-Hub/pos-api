@@ -39,6 +39,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/featureoverride"
 	"github.com/bengobox/pos-service/internal/ent/giftcard"
 	"github.com/bengobox/pos-service/internal/ent/giftcardtransaction"
+	"github.com/bengobox/pos-service/internal/ent/helditem"
 	"github.com/bengobox/pos-service/internal/ent/housekeepingtask"
 	"github.com/bengobox/pos-service/internal/ent/idempotencykey"
 	"github.com/bengobox/pos-service/internal/ent/integrationsetting"
@@ -181,6 +182,8 @@ type Client struct {
 	GiftCard *GiftCardClient
 	// GiftCardTransaction is the client for interacting with the GiftCardTransaction builders.
 	GiftCardTransaction *GiftCardTransactionClient
+	// HeldItem is the client for interacting with the HeldItem builders.
+	HeldItem *HeldItemClient
 	// HousekeepingTask is the client for interacting with the HousekeepingTask builders.
 	HousekeepingTask *HousekeepingTaskClient
 	// IdempotencyKey is the client for interacting with the IdempotencyKey builders.
@@ -393,6 +396,7 @@ func (c *Client) init() {
 	c.FeatureOverride = NewFeatureOverrideClient(c.config)
 	c.GiftCard = NewGiftCardClient(c.config)
 	c.GiftCardTransaction = NewGiftCardTransactionClient(c.config)
+	c.HeldItem = NewHeldItemClient(c.config)
 	c.HousekeepingTask = NewHousekeepingTaskClient(c.config)
 	c.IdempotencyKey = NewIdempotencyKeyClient(c.config)
 	c.IntegrationSetting = NewIntegrationSettingClient(c.config)
@@ -597,6 +601,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		FeatureOverride:          NewFeatureOverrideClient(cfg),
 		GiftCard:                 NewGiftCardClient(cfg),
 		GiftCardTransaction:      NewGiftCardTransactionClient(cfg),
+		HeldItem:                 NewHeldItemClient(cfg),
 		HousekeepingTask:         NewHousekeepingTaskClient(cfg),
 		IdempotencyKey:           NewIdempotencyKeyClient(cfg),
 		IntegrationSetting:       NewIntegrationSettingClient(cfg),
@@ -728,6 +733,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		FeatureOverride:          NewFeatureOverrideClient(cfg),
 		GiftCard:                 NewGiftCardClient(cfg),
 		GiftCardTransaction:      NewGiftCardTransactionClient(cfg),
+		HeldItem:                 NewHeldItemClient(cfg),
 		HousekeepingTask:         NewHousekeepingTaskClient(cfg),
 		IdempotencyKey:           NewIdempotencyKeyClient(cfg),
 		IntegrationSetting:       NewIntegrationSettingClient(cfg),
@@ -851,7 +857,7 @@ func (c *Client) Use(hooks ...Hook) {
 		c.ChannelSyncJob, c.ClientRecord, c.CommissionRecord, c.CommissionRule,
 		c.ControlledSubstanceLog, c.DailyClosing, c.DrugInteractionCheck,
 		c.EventBooking, c.Facility, c.FacilityBooking, c.FeatureOverride, c.GiftCard,
-		c.GiftCardTransaction, c.HousekeepingTask, c.IdempotencyKey,
+		c.GiftCardTransaction, c.HeldItem, c.HousekeepingTask, c.IdempotencyKey,
 		c.IntegrationSetting, c.InventorySnapshot, c.KDSStation, c.KDSSyncFailure,
 		c.KDSTicket, c.LayawayPayment, c.LayawayPlan, c.LeaveRequest,
 		c.LicenseUsageSnapshot, c.LoyaltyAccount, c.LoyaltyProgram,
@@ -888,7 +894,7 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.ChannelSyncJob, c.ClientRecord, c.CommissionRecord, c.CommissionRule,
 		c.ControlledSubstanceLog, c.DailyClosing, c.DrugInteractionCheck,
 		c.EventBooking, c.Facility, c.FacilityBooking, c.FeatureOverride, c.GiftCard,
-		c.GiftCardTransaction, c.HousekeepingTask, c.IdempotencyKey,
+		c.GiftCardTransaction, c.HeldItem, c.HousekeepingTask, c.IdempotencyKey,
 		c.IntegrationSetting, c.InventorySnapshot, c.KDSStation, c.KDSSyncFailure,
 		c.KDSTicket, c.LayawayPayment, c.LayawayPlan, c.LeaveRequest,
 		c.LicenseUsageSnapshot, c.LoyaltyAccount, c.LoyaltyProgram,
@@ -965,6 +971,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.GiftCard.mutate(ctx, m)
 	case *GiftCardTransactionMutation:
 		return c.GiftCardTransaction.mutate(ctx, m)
+	case *HeldItemMutation:
+		return c.HeldItem.mutate(ctx, m)
 	case *HousekeepingTaskMutation:
 		return c.HousekeepingTask.mutate(ctx, m)
 	case *IdempotencyKeyMutation:
@@ -4332,6 +4340,139 @@ func (c *GiftCardTransactionClient) mutate(ctx context.Context, m *GiftCardTrans
 		return (&GiftCardTransactionDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown GiftCardTransaction mutation op: %q", m.Op())
+	}
+}
+
+// HeldItemClient is a client for the HeldItem schema.
+type HeldItemClient struct {
+	config
+}
+
+// NewHeldItemClient returns a client for the HeldItem from the given config.
+func NewHeldItemClient(c config) *HeldItemClient {
+	return &HeldItemClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `helditem.Hooks(f(g(h())))`.
+func (c *HeldItemClient) Use(hooks ...Hook) {
+	c.hooks.HeldItem = append(c.hooks.HeldItem, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `helditem.Intercept(f(g(h())))`.
+func (c *HeldItemClient) Intercept(interceptors ...Interceptor) {
+	c.inters.HeldItem = append(c.inters.HeldItem, interceptors...)
+}
+
+// Create returns a builder for creating a HeldItem entity.
+func (c *HeldItemClient) Create() *HeldItemCreate {
+	mutation := newHeldItemMutation(c.config, OpCreate)
+	return &HeldItemCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of HeldItem entities.
+func (c *HeldItemClient) CreateBulk(builders ...*HeldItemCreate) *HeldItemCreateBulk {
+	return &HeldItemCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *HeldItemClient) MapCreateBulk(slice any, setFunc func(*HeldItemCreate, int)) *HeldItemCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &HeldItemCreateBulk{err: fmt.Errorf("calling to HeldItemClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*HeldItemCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &HeldItemCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for HeldItem.
+func (c *HeldItemClient) Update() *HeldItemUpdate {
+	mutation := newHeldItemMutation(c.config, OpUpdate)
+	return &HeldItemUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *HeldItemClient) UpdateOne(_m *HeldItem) *HeldItemUpdateOne {
+	mutation := newHeldItemMutation(c.config, OpUpdateOne, withHeldItem(_m))
+	return &HeldItemUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *HeldItemClient) UpdateOneID(id uuid.UUID) *HeldItemUpdateOne {
+	mutation := newHeldItemMutation(c.config, OpUpdateOne, withHeldItemID(id))
+	return &HeldItemUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for HeldItem.
+func (c *HeldItemClient) Delete() *HeldItemDelete {
+	mutation := newHeldItemMutation(c.config, OpDelete)
+	return &HeldItemDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *HeldItemClient) DeleteOne(_m *HeldItem) *HeldItemDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *HeldItemClient) DeleteOneID(id uuid.UUID) *HeldItemDeleteOne {
+	builder := c.Delete().Where(helditem.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &HeldItemDeleteOne{builder}
+}
+
+// Query returns a query builder for HeldItem.
+func (c *HeldItemClient) Query() *HeldItemQuery {
+	return &HeldItemQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeHeldItem},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a HeldItem entity by its id.
+func (c *HeldItemClient) Get(ctx context.Context, id uuid.UUID) (*HeldItem, error) {
+	return c.Query().Where(helditem.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *HeldItemClient) GetX(ctx context.Context, id uuid.UUID) *HeldItem {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *HeldItemClient) Hooks() []Hook {
+	return c.hooks.HeldItem
+}
+
+// Interceptors returns the client interceptors.
+func (c *HeldItemClient) Interceptors() []Interceptor {
+	return c.inters.HeldItem
+}
+
+func (c *HeldItemClient) mutate(ctx context.Context, m *HeldItemMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&HeldItemCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&HeldItemUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&HeldItemUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&HeldItemDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown HeldItem mutation op: %q", m.Op())
 	}
 }
 
@@ -17283,7 +17424,7 @@ type (
 		CashDrawer, CashDrawerEvent, ChannelIntegration, ChannelSyncJob, ClientRecord,
 		CommissionRecord, CommissionRule, ControlledSubstanceLog, DailyClosing,
 		DrugInteractionCheck, EventBooking, Facility, FacilityBooking, FeatureOverride,
-		GiftCard, GiftCardTransaction, HousekeepingTask, IdempotencyKey,
+		GiftCard, GiftCardTransaction, HeldItem, HousekeepingTask, IdempotencyKey,
 		IntegrationSetting, InventorySnapshot, KDSStation, KDSSyncFailure, KDSTicket,
 		LayawayPayment, LayawayPlan, LeaveRequest, LicenseUsageSnapshot,
 		LoyaltyAccount, LoyaltyProgram, LoyaltyTransaction, MealEntitlement, Modifier,
@@ -17309,7 +17450,7 @@ type (
 		CashDrawer, CashDrawerEvent, ChannelIntegration, ChannelSyncJob, ClientRecord,
 		CommissionRecord, CommissionRule, ControlledSubstanceLog, DailyClosing,
 		DrugInteractionCheck, EventBooking, Facility, FacilityBooking, FeatureOverride,
-		GiftCard, GiftCardTransaction, HousekeepingTask, IdempotencyKey,
+		GiftCard, GiftCardTransaction, HeldItem, HousekeepingTask, IdempotencyKey,
 		IntegrationSetting, InventorySnapshot, KDSStation, KDSSyncFailure, KDSTicket,
 		LayawayPayment, LayawayPlan, LeaveRequest, LicenseUsageSnapshot,
 		LoyaltyAccount, LoyaltyProgram, LoyaltyTransaction, MealEntitlement, Modifier,

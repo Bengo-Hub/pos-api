@@ -26,6 +26,7 @@ func (KDSTicket) Fields() []ent.Field {
 		field.Enum("status").Values("pending", "in_progress", "ready", "served", "voided").Default("pending"),
 		field.JSON("items", []map[string]any{}).Comment("Line items for this station"),
 		field.String("table_reference").Optional().Comment("Table number or name from the originating order, parsed at ticket creation"),
+		field.String("order_subtype").Optional().Comment("dine_in | takeaway | delivery | room_service | bar_tab — drives the KDS order-type filter"),
 		field.Time("received_at").Default(time.Now),
 		field.Time("started_at").Optional().Nillable(),
 		field.Time("completed_at").Optional().Nillable(),

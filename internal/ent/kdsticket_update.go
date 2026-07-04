@@ -133,6 +133,26 @@ func (_u *KDSTicketUpdate) ClearTableReference() *KDSTicketUpdate {
 	return _u
 }
 
+// SetOrderSubtype sets the "order_subtype" field.
+func (_u *KDSTicketUpdate) SetOrderSubtype(v string) *KDSTicketUpdate {
+	_u.mutation.SetOrderSubtype(v)
+	return _u
+}
+
+// SetNillableOrderSubtype sets the "order_subtype" field if the given value is not nil.
+func (_u *KDSTicketUpdate) SetNillableOrderSubtype(v *string) *KDSTicketUpdate {
+	if v != nil {
+		_u.SetOrderSubtype(*v)
+	}
+	return _u
+}
+
+// ClearOrderSubtype clears the value of the "order_subtype" field.
+func (_u *KDSTicketUpdate) ClearOrderSubtype() *KDSTicketUpdate {
+	_u.mutation.ClearOrderSubtype()
+	return _u
+}
+
 // SetReceivedAt sets the "received_at" field.
 func (_u *KDSTicketUpdate) SetReceivedAt(v time.Time) *KDSTicketUpdate {
 	_u.mutation.SetReceivedAt(v)
@@ -307,6 +327,12 @@ func (_u *KDSTicketUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if _u.mutation.TableReferenceCleared() {
 		_spec.ClearField(kdsticket.FieldTableReference, field.TypeString)
 	}
+	if value, ok := _u.mutation.OrderSubtype(); ok {
+		_spec.SetField(kdsticket.FieldOrderSubtype, field.TypeString, value)
+	}
+	if _u.mutation.OrderSubtypeCleared() {
+		_spec.ClearField(kdsticket.FieldOrderSubtype, field.TypeString)
+	}
 	if value, ok := _u.mutation.ReceivedAt(); ok {
 		_spec.SetField(kdsticket.FieldReceivedAt, field.TypeTime, value)
 	}
@@ -476,6 +502,26 @@ func (_u *KDSTicketUpdateOne) SetNillableTableReference(v *string) *KDSTicketUpd
 // ClearTableReference clears the value of the "table_reference" field.
 func (_u *KDSTicketUpdateOne) ClearTableReference() *KDSTicketUpdateOne {
 	_u.mutation.ClearTableReference()
+	return _u
+}
+
+// SetOrderSubtype sets the "order_subtype" field.
+func (_u *KDSTicketUpdateOne) SetOrderSubtype(v string) *KDSTicketUpdateOne {
+	_u.mutation.SetOrderSubtype(v)
+	return _u
+}
+
+// SetNillableOrderSubtype sets the "order_subtype" field if the given value is not nil.
+func (_u *KDSTicketUpdateOne) SetNillableOrderSubtype(v *string) *KDSTicketUpdateOne {
+	if v != nil {
+		_u.SetOrderSubtype(*v)
+	}
+	return _u
+}
+
+// ClearOrderSubtype clears the value of the "order_subtype" field.
+func (_u *KDSTicketUpdateOne) ClearOrderSubtype() *KDSTicketUpdateOne {
+	_u.mutation.ClearOrderSubtype()
 	return _u
 }
 
@@ -682,6 +728,12 @@ func (_u *KDSTicketUpdateOne) sqlSave(ctx context.Context) (_node *KDSTicket, er
 	}
 	if _u.mutation.TableReferenceCleared() {
 		_spec.ClearField(kdsticket.FieldTableReference, field.TypeString)
+	}
+	if value, ok := _u.mutation.OrderSubtype(); ok {
+		_spec.SetField(kdsticket.FieldOrderSubtype, field.TypeString, value)
+	}
+	if _u.mutation.OrderSubtypeCleared() {
+		_spec.ClearField(kdsticket.FieldOrderSubtype, field.TypeString)
 	}
 	if value, ok := _u.mutation.ReceivedAt(); ok {
 		_spec.SetField(kdsticket.FieldReceivedAt, field.TypeTime, value)

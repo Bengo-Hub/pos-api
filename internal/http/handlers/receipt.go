@@ -18,6 +18,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent"
 	entoutlet "github.com/bengobox/pos-service/internal/ent/outlet"
 	entoutletsetting "github.com/bengobox/pos-service/internal/ent/outletsetting"
+	entbillsplit "github.com/bengobox/pos-service/internal/ent/billsplit"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
 	"github.com/bengobox/pos-service/internal/ent/pospayment"
 	enttenant "github.com/bengobox/pos-service/internal/ent/tenant"
@@ -205,9 +206,28 @@ func (h *ReceiptHandler) GetReceipt(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Optional split-by-item receipt: ?split_id=<billsplit> filters the receipt to only the
+	// order lines assigned to that split, so each payer gets their own itemised bill.
+	var splitLineSet map[string]bool
+	if splitParam := r.URL.Query().Get("split_id"); splitParam != "" {
+		if splitID, perr := uuid.Parse(splitParam); perr == nil {
+			if split, serr := h.client.BillSplit.Query().
+				Where(entbillsplit.ID(splitID), entbillsplit.TenantID(tid), entbillsplit.OrderID(orderID)).
+				Only(ctx); serr == nil && len(split.OrderLineIds) > 0 {
+				splitLineSet = make(map[string]bool, len(split.OrderLineIds))
+				for _, id := range split.OrderLineIds {
+					splitLineSet[id] = true
+				}
+			}
+		}
+	}
+
 	lines := make([]receiptLine, 0, len(order.Edges.Lines))
 	var subtotal float64
 	for _, l := range order.Edges.Lines {
+		if splitLineSet != nil && !splitLineSet[l.ID.String()] {
+			continue // only this split's items
+		}
 		lines = append(lines, receiptLine{
 			SKU:        l.Sku,
 			Name:       l.Name,
@@ -251,6 +271,18 @@ func (h *ReceiptHandler) GetReceipt(w http.ResponseWriter, r *http.Request) {
 		PaymentMethod:  paymentMethod,
 		AmountTendered: amountPaid,
 		ChangeDue:      changeDue,
+	}
+
+	// For a split-by-item receipt the totals reflect ONLY this split's items (prices are
+	// VAT-inclusive, so the split total is the sum of its line totals). Order-level tax/discount/
+	// paid don't apply to an individual split.
+	if splitLineSet != nil {
+		receipt.TaxAmount = 0
+		receipt.DiscountAmount = 0
+		receipt.TotalAmount = subtotal
+		receipt.AmountPaid = 0
+		receipt.AmountTendered = 0
+		receipt.ChangeDue = 0
 	}
 
 	// Populate eTIMS fields if present on order (set by treasury.etims.invoice_transmitted subscriber).
