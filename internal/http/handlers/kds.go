@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/Bengo-Hub/httpware"
@@ -610,6 +611,19 @@ func (h *KDSHandler) CreateStation(w http.ResponseWriter, r *http.Request) {
 		stationType = entkdsstation.StationTypeKitchen
 	}
 
+	// A category may be routed to exactly one station. Reject any filter already claimed
+	// by another station in this outlet so tickets never fan out to duplicate destinations.
+	conflicts, err := h.conflictingCategories(r.Context(), tid, outletID, input.CategoryFilter, uuid.Nil)
+	if err != nil {
+		h.log.Error("check category conflicts failed", zap.Error(err))
+		jsonError(w, "failed to validate categories", http.StatusInternalServerError)
+		return
+	}
+	if len(conflicts) > 0 {
+		jsonError(w, "categories already assigned to another station: "+strings.Join(conflicts, ", "), http.StatusConflict)
+		return
+	}
+
 	station, err := h.client.KDSStation.Create().
 		SetTenantID(tid).
 		SetOutletID(outletID).
@@ -659,6 +673,19 @@ func (h *KDSHandler) UpdateStation(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		jsonError(w, "station not found", http.StatusNotFound)
 		return
+	}
+
+	if input.CategoryFilter != nil {
+		conflicts, cErr := h.conflictingCategories(r.Context(), tid, station.OutletID, input.CategoryFilter, stationID)
+		if cErr != nil {
+			h.log.Error("check category conflicts failed", zap.Error(cErr))
+			jsonError(w, "failed to validate categories", http.StatusInternalServerError)
+			return
+		}
+		if len(conflicts) > 0 {
+			jsonError(w, "categories already assigned to another station: "+strings.Join(conflicts, ", "), http.StatusConflict)
+			return
+		}
 	}
 
 	upd := station.Update()
@@ -715,30 +742,48 @@ func (h *KDSHandler) DeleteStation(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func containsCaseInsensitive(s, substr string) bool {
-	if len(s) < len(substr) {
-		return false
+// conflictingCategories returns the categories in `wanted` that are already claimed by another
+// station in the same outlet (case-insensitive). excludeID is skipped so a station never conflicts
+// with itself on update. This enforces the invariant that each category routes to exactly one
+// station, keeping ticket routing unambiguous.
+func (h *KDSHandler) conflictingCategories(ctx context.Context, tid, outletID uuid.UUID, wanted []string, excludeID uuid.UUID) ([]string, error) {
+	if len(wanted) == 0 {
+		return nil, nil
 	}
-	sLower := make([]byte, len(s))
-	subLower := make([]byte, len(substr))
-	for i := range s {
-		c := s[i]
-		if c >= 'A' && c <= 'Z' {
-			c += 32
+
+	q := h.client.KDSStation.Query().
+		Where(entkdsstation.TenantID(tid), entkdsstation.OutletID(outletID))
+	if excludeID != uuid.Nil {
+		q = q.Where(entkdsstation.IDNEQ(excludeID))
+	}
+	others, err := q.All(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	taken := make(map[string]struct{})
+	for _, st := range others {
+		for _, c := range st.CategoryFilter {
+			if k := strings.ToLower(strings.TrimSpace(c)); k != "" {
+				taken[k] = struct{}{}
+			}
 		}
-		sLower[i] = c
 	}
-	for i := range substr {
-		c := substr[i]
-		if c >= 'A' && c <= 'Z' {
-			c += 32
+
+	var conflicts []string
+	seen := make(map[string]struct{})
+	for _, c := range wanted {
+		k := strings.ToLower(strings.TrimSpace(c))
+		if k == "" {
+			continue
 		}
-		subLower[i] = c
-	}
-	for i := 0; i <= len(sLower)-len(subLower); i++ {
-		if string(sLower[i:i+len(subLower)]) == string(subLower) {
-			return true
+		if _, dup := seen[k]; dup {
+			continue
+		}
+		if _, ok := taken[k]; ok {
+			conflicts = append(conflicts, strings.TrimSpace(c))
+			seen[k] = struct{}{}
 		}
 	}
-	return false
+	return conflicts, nil
 }

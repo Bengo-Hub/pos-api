@@ -563,7 +563,8 @@ func parseTableRef(order *ent.POSOrder) string {
 //
 // Routing priority (highest to lowest):
 //  1. line.KdsStationID — explicit station set at order creation from POSCatalogOverride
-//  2. Station category_filter — keyword match against the item name (fallback)
+//  2. Station category_filter — strict exact match of the item's category (name substring only
+//     when the item has no category)
 //  3. Expo / "all" stations — receive every item as a secondary copy for the expediter
 //
 // A station with station_type="expo" or "all" always receives EVERY item.
@@ -609,11 +610,16 @@ func routeLinesToStations(lines []*ent.POSOrderLine, stations []*ent.KDSStation)
 			routed = true
 		}
 
-		// Priority 2: category_filter keyword match on the item's CATEGORY first, then its NAME
-		// (case-insensitive). Bar stations are skipped for hot beverages so coffee/tea can't be
-		// dragged to the bar by a broad "beverage" filter.
+		// Priority 2: strict category_filter match. The item's CATEGORY (stamped from the live
+		// inventory catalog at sale time) must EXACTLY equal one of the station's category filters
+		// (case-insensitive, trimmed). Because each category is claimed by exactly one station
+		// (enforced on station create/update), this routes every ticket to a single, correct
+		// destination. Only when the line carries no category (legacy/uncategorized item) do we
+		// fall back to a substring match on the item name. Bar stations are skipped for hot
+		// beverages so coffee/tea can't be dragged to the bar by a "beverages" filter.
 		if !routed {
-			haystacks := []string{strings.ToLower(l.Category), strings.ToLower(l.Name)}
+			itemCat := strings.ToLower(strings.TrimSpace(l.Category))
+			itemName := strings.ToLower(l.Name)
 			for _, st := range stations {
 				if st.StationType == "expo" || st.StationType == "all" {
 					continue // handled separately below
@@ -626,14 +632,11 @@ func routeLinesToStations(lines []*ent.POSOrderLine, stations []*ent.KDSStation)
 					if needle == "" {
 						continue
 					}
-					for _, h := range haystacks {
-						if h != "" && strings.Contains(h, needle) {
-							stationItems[st.ID] = append(stationItems[st.ID], item)
-							routed = true
-							break
-						}
-					}
-					if routed {
+					matched := itemCat != "" && itemCat == needle ||
+						itemCat == "" && strings.Contains(itemName, needle)
+					if matched {
+						stationItems[st.ID] = append(stationItems[st.ID], item)
+						routed = true
 						break
 					}
 				}
