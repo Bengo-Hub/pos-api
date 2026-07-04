@@ -485,6 +485,10 @@ func New(
 							k.Post("/kds/tickets/{id}/serve", kds.ServeTicket)
 							k.Post("/kds/tickets/{id}/void", kds.VoidTicket)
 							k.Post("/kds/tickets/{id}/call-waiter", kds.CallWaiter)
+							// Bulk-clear the board (serve all active tickets) — manager-only. Lets a
+							// single terminal clear a cluttered board (stale never-bumped tickets).
+							k.With(outletmw.RequireServicePermission(rbacSvc, "pos.orders.manage")).
+								Post("/kds/tickets/clear", kds.ClearTickets)
 						})
 					}
 

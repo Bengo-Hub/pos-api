@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 
@@ -107,7 +108,10 @@ func (c *Client) post(ctx context.Context, url string, body any, out any) error 
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("logistics returned HTTP %d", resp.StatusCode)
+		// Include a snippet of the body — a bare status code hides whether it's a route/auth/
+		// validation failure (e.g. a 404 from a shadowed route vs a real not-found).
+		snippet, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
+		return fmt.Errorf("logistics %s %s returned HTTP %d: %s", req.Method, url, resp.StatusCode, string(snippet))
 	}
 	if out != nil {
 		if err := json.NewDecoder(resp.Body).Decode(out); err != nil {

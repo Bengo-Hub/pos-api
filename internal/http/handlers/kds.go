@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/Bengo-Hub/httpware"
@@ -192,6 +193,13 @@ func (h *KDSHandler) getQueue(w http.ResponseWriter, r *http.Request, stationTyp
 		WithStation().
 		Order(ent.Asc(entkdsticket.FieldPriority), ent.Asc(entkdsticket.FieldReceivedAt))
 
+	// Only show recent tickets so a board never fills up with stale ones that were never bumped
+	// (e.g. a printer-only kitchen with no device to serve them). Window is configurable via
+	// ?since_hours (default 24; 0 = no limit).
+	if cutoff, ok := kdsRecentCutoff(r); ok {
+		q = q.Where(entkdsticket.ReceivedAtGTE(cutoff))
+	}
+
 	tickets, err := q.All(r.Context())
 	if err != nil {
 		h.log.Error("get queue failed", zap.Error(err))
@@ -199,6 +207,22 @@ func (h *KDSHandler) getQueue(w http.ResponseWriter, r *http.Request, stationTyp
 		return
 	}
 	jsonOK(w, map[string]any{"data": tickets, "total": len(tickets)})
+}
+
+// kdsRecentCutoff returns the received-at cutoff for the KDS board. Defaults to the last 24h so
+// stale tickets don't accumulate forever; ?since_hours=N overrides it, and ?since_hours=0 disables
+// the window (show all). Returns (cutoff, apply).
+func kdsRecentCutoff(r *http.Request) (time.Time, bool) {
+	hours := 24
+	if v := r.URL.Query().Get("since_hours"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			hours = n
+		}
+	}
+	if hours <= 0 {
+		return time.Time{}, false
+	}
+	return time.Now().Add(-time.Duration(hours) * time.Hour), true
 }
 
 // ListTickets handles GET /{tenantID}/pos/kds/tickets
@@ -239,6 +263,10 @@ func (h *KDSHandler) ListTickets(w http.ResponseWriter, r *http.Request) {
 			entkdsticket.StatusInProgress,
 			entkdsticket.StatusReady,
 		))
+		// ...and only recent ones, so stale never-bumped tickets don't pile up (see kdsRecentCutoff).
+		if cutoff, ok := kdsRecentCutoff(r); ok {
+			q = q.Where(entkdsticket.ReceivedAtGTE(cutoff))
+		}
 	}
 
 	tickets, err := q.All(r.Context())
@@ -268,6 +296,43 @@ func (h *KDSHandler) ServeTicket(w http.ResponseWriter, r *http.Request) {
 // VoidTicket handles POST /{tenantID}/pos/kds/tickets/{id}/void
 func (h *KDSHandler) VoidTicket(w http.ResponseWriter, r *http.Request) {
 	h.transitionTicket(w, r, entkdsticket.StatusVoided)
+}
+
+// ClearTickets handles POST /{tenantID}/pos/kds/tickets/clear
+// Bulk-serves all active tickets for the current outlet (optionally only those older than
+// ?older_than_hours=N). Lets a manager clear a cluttered board from a single terminal in one tap —
+// essential for printer-only kitchens that have no device to bump tickets individually.
+func (h *KDSHandler) ClearTickets(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+
+	upd := h.client.KDSTicket.Update().
+		Where(
+			entkdsticket.TenantID(tid),
+			entkdsticket.StatusIn(entkdsticket.StatusPending, entkdsticket.StatusInProgress, entkdsticket.StatusReady),
+		)
+	// Scope to the active outlet via the ticket's station.
+	if oidStr := httpware.GetOutletID(r.Context()); oidStr != "" {
+		if oid, perr := uuid.Parse(oidStr); perr == nil {
+			upd = upd.Where(entkdsticket.HasStationWith(entkdsstation.OutletID(oid)))
+		}
+	}
+	if v := r.URL.Query().Get("older_than_hours"); v != "" {
+		if n, perr := strconv.Atoi(v); perr == nil && n > 0 {
+			upd = upd.Where(entkdsticket.ReceivedAtLT(time.Now().Add(-time.Duration(n) * time.Hour)))
+		}
+	}
+
+	n, err := upd.SetStatus(entkdsticket.StatusServed).SetCompletedAt(time.Now()).Save(r.Context())
+	if err != nil {
+		h.log.Error("clear kds tickets failed", zap.Error(err))
+		jsonError(w, "failed to clear tickets", http.StatusInternalServerError)
+		return
+	}
+	jsonOK(w, map[string]any{"cleared": n})
 }
 
 func (h *KDSHandler) transitionTicket(w http.ResponseWriter, r *http.Request, toStatus entkdsticket.Status) {

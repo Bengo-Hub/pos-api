@@ -18,6 +18,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent"
 	"github.com/bengobox/pos-service/internal/ent/kdsstation"
 	"github.com/bengobox/pos-service/internal/ent/kdsticket"
+	entoutletsetting "github.com/bengobox/pos-service/internal/ent/outletsetting"
 	entoverride "github.com/bengobox/pos-service/internal/ent/poscatalogoverride"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
 	"github.com/bengobox/pos-service/internal/ent/posorderline"
@@ -688,6 +689,16 @@ func isHotBeverage(name, category string) bool {
 // (resolved from POSCatalogOverride at order creation) with a category_filter
 // keyword fallback. Expo/all stations receive every item as a secondary copy.
 func (s *Service) createKDSTicketsForOrder(ctx context.Context, tenantID uuid.UUID, order *ent.POSOrder) error {
+	// Printer-only kitchen: when the outlet has NO Kitchen Display System (enable_kds=false), do
+	// not create persistent KDS tickets. There's no screen/device to bump them, so they would pile
+	// up forever — the classic single-terminal + kitchen-printer setup. The kitchen works off the
+	// printed chit (auto_print_kitchen) and the order is served/settled from the POS terminal.
+	// (A missing settings row keeps the previous behaviour — create tickets.)
+	if setting, sErr := s.client.OutletSetting.Query().
+		Where(entoutletsetting.OutletID(order.OutletID)).Only(ctx); sErr == nil && !setting.EnableKds {
+		return nil
+	}
+
 	stations, err := s.client.KDSStation.Query().
 		Where(kdsstation.TenantID(tenantID), kdsstation.OutletID(order.OutletID), kdsstation.IsActive(true)).
 		All(ctx)
