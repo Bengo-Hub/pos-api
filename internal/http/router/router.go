@@ -503,7 +503,9 @@ func New(
 
 					// Returns
 					if returns != nil {
-						pos.Post("/orders/{orderID}/returns", returns.CreateReturn)
+						// Initiate a return — a cashier action.
+						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.orders.change_own", "pos.orders.change", "pos.orders.manage")).
+							Post("/orders/{orderID}/returns", returns.CreateReturn)
 						// Bill splitting
 						if billSplits != nil {
 							pos.Get("/orders/{orderID}/splits", billSplits.ListSplits)
@@ -514,7 +516,12 @@ func New(
 						}
 						pos.Get("/returns", returns.ListReturns)
 						pos.Get("/returns/{returnID}", returns.GetReturn)
-						pos.Patch("/returns/{returnID}/approve", returns.ApproveReturn)
+						// Approval / rejection is a manager decision.
+						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.orders.manage")).
+							Patch("/returns/{returnID}/approve", returns.ApproveReturn)
+						// Completion (money-out + inventory restock) is done at the till by a cashier/manager.
+						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.orders.change_own", "pos.orders.change", "pos.orders.manage")).
+							Post("/returns/{returnID}/complete", returns.CompleteReturn)
 					}
 
 					// Layaway plans & payments

@@ -70,6 +70,68 @@ type approveReturnInput struct {
 	RefundChannel string `json:"refund_channel,omitempty"`
 }
 
+// completeReturnInput is the body for the complete-approved-return step. Both fields are optional:
+// notes are recorded for audit; refund_channel overrides the settlement method one last time.
+type completeReturnInput struct {
+	Notes         string `json:"notes,omitempty"`
+	RefundChannel string `json:"refund_channel,omitempty"`
+}
+
+// returnResponse decorates a POSReturn with the original order's human-readable number so the UI
+// never has to render the raw order UUID ("Original Order"). Embedding the *ent.POSReturn promotes
+// all of its JSON fields (incl. the `edges.lines`), and adds `order_number` alongside them.
+type returnResponse struct {
+	*ent.POSReturn
+	OrderNumber string `json:"order_number,omitempty"`
+}
+
+// orderNumberFor resolves the display order number for a single order id (best-effort; "" on miss).
+func (h *ReturnHandler) orderNumberFor(ctx context.Context, tid, orderID uuid.UUID) string {
+	if orderID == uuid.Nil {
+		return ""
+	}
+	o, err := h.client.POSOrder.Query().
+		Where(entposorder.ID(orderID), entposorder.TenantID(tid)).
+		Select(entposorder.FieldOrderNumber).
+		Only(ctx)
+	if err != nil || o == nil {
+		return ""
+	}
+	return o.OrderNumber
+}
+
+// withOrderNumber wraps one return in a returnResponse carrying its original order number.
+func (h *ReturnHandler) withOrderNumber(ctx context.Context, tid uuid.UUID, ret *ent.POSReturn) returnResponse {
+	return returnResponse{POSReturn: ret, OrderNumber: h.orderNumberFor(ctx, tid, ret.OrderID)}
+}
+
+// withOrderNumbers wraps a slice of returns, batch-loading the order numbers in one query.
+func (h *ReturnHandler) withOrderNumbers(ctx context.Context, tid uuid.UUID, returns []*ent.POSReturn) []returnResponse {
+	ids := make([]uuid.UUID, 0, len(returns))
+	for _, ret := range returns {
+		if ret.OrderID != uuid.Nil {
+			ids = append(ids, ret.OrderID)
+		}
+	}
+	numByID := make(map[uuid.UUID]string, len(ids))
+	if len(ids) > 0 {
+		orders, err := h.client.POSOrder.Query().
+			Where(entposorder.TenantID(tid), entposorder.IDIn(ids...)).
+			Select(entposorder.FieldID, entposorder.FieldOrderNumber).
+			All(ctx)
+		if err == nil {
+			for _, o := range orders {
+				numByID[o.ID] = o.OrderNumber
+			}
+		}
+	}
+	out := make([]returnResponse, 0, len(returns))
+	for _, ret := range returns {
+		out = append(out, returnResponse{POSReturn: ret, OrderNumber: numByID[ret.OrderID]})
+	}
+	return out
+}
+
 // CreateReturn handles POST /{tenantID}/pos/orders/{orderID}/returns
 func (h *ReturnHandler) CreateReturn(w http.ResponseWriter, r *http.Request) {
 	tid, err := parseTenantUUID(r)
@@ -159,8 +221,9 @@ func (h *ReturnHandler) CreateReturn(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Generate return number.
-	returnNumber := fmt.Sprintf("RET-%s-%d", tid.String()[:8], time.Now().UnixMilli())
+	// Generate return number. Human-readable, order-number style (RET-<epoch-ms>) — never
+	// embed the tenant UUID prefix, which read as a raw id on the returns UI.
+	returnNumber := fmt.Sprintf("RET-%d", time.Now().UnixMilli())
 
 	// Compute refund amount.
 	var refundAmount float64
@@ -244,7 +307,7 @@ func (h *ReturnHandler) CreateReturn(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	_ = json.NewEncoder(w).Encode(ret)
+	_ = json.NewEncoder(w).Encode(returnResponse{POSReturn: ret, OrderNumber: h.orderNumberFor(ctx, tid, orderID)})
 }
 
 // ListReturns handles GET /{tenantID}/pos/returns
@@ -276,7 +339,7 @@ func (h *ReturnHandler) ListReturns(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	jsonOK(w, pagination.NewResponse(returns, total, p))
+	jsonOK(w, pagination.NewResponse(h.withOrderNumbers(r.Context(), tid, returns), total, p))
 }
 
 // GetReturn handles GET /{tenantID}/pos/returns/{returnID}
@@ -307,7 +370,7 @@ func (h *ReturnHandler) GetReturn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	jsonOK(w, ret)
+	jsonOK(w, h.withOrderNumber(r.Context(), tid, ret))
 }
 
 // ApproveReturn handles PATCH /{tenantID}/pos/returns/{returnID}/approve
@@ -360,11 +423,11 @@ func (h *ReturnHandler) ApproveReturn(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Load return lines for event payload + refund.
-	lines, _ := h.client.POSReturnLine.Query().
-		Where(posreturnline.ReturnID(returnID)).
-		All(ctx)
-
+	// Approval is a DECISION step only (manager authorises or rejects). The money movement
+	// (treasury refund, eTIMS credit note, inventory restock) happens later at CompleteReturn,
+	// when the goods are physically taken back and the refund is handed over. This gives a clean
+	// three-stage lifecycle — request (cashier) → approve (manager) → complete (till) — so the
+	// Completed tab is populated by real fulfilment, not by the approval itself.
 	newStatus := posreturn.StatusApproved
 	if input.Action == "reject" {
 		newStatus = posreturn.StatusRejected
@@ -375,9 +438,114 @@ func (h *ReturnHandler) ApproveReturn(w http.ResponseWriter, r *http.Request) {
 		update = update.SetApprovedBy(*approverID)
 	}
 
-	// Resolve the settlement channel: an explicit override on approval wins, otherwise the channel
-	// chosen at return-create time (persisted on the return) is used. Persist any override now so the
-	// returns list / treasury both reflect the cashier's chosen method.
+	// Persist the approver's settlement-channel choice (an override at approval time wins over the
+	// channel chosen at create time) so the completion step and treasury both use the right method.
+	if rc := refundChannelPtr(input.RefundChannel); rc != nil {
+		update = update.SetNillableRefundChannel(rc)
+	}
+
+	// Record the approver's decision notes on the return metadata for the audit trail.
+	if strings.TrimSpace(input.Notes) != "" {
+		md := cloneReturnMetadata(ret.Metadata)
+		if newStatus == posreturn.StatusRejected {
+			md["rejection_notes"] = input.Notes
+		} else {
+			md["approval_notes"] = input.Notes
+		}
+		update = update.SetMetadata(md)
+	}
+
+	updated, err := update.Save(ctx)
+	if err != nil {
+		h.log.Error("approve return failed", zap.Error(err))
+		jsonError(w, "failed to update return", http.StatusInternalServerError)
+		return
+	}
+
+	// Audit the approve/reject decision (per-cashier exception report + return-fraud signals).
+	if h.auditSvc != nil {
+		action := "return.approved"
+		if newStatus == posreturn.StatusRejected {
+			action = "return.rejected"
+		}
+		oid := ret.OutletID
+		actor := uuid.Nil
+		if approverID != nil {
+			actor = *approverID
+		}
+		h.auditSvc.Record(ctx, audit.Entry{
+			TenantID:    tid,
+			OutletID:    &oid,
+			ActorUserID: actor,
+			Action:      action,
+			EntityType:  "pos_return",
+			EntityID:    returnID.String(),
+			Reason:      input.Notes,
+			After:       map[string]any{"status": string(newStatus), "return_number": ret.ReturnNumber},
+		})
+	}
+
+	jsonOK(w, h.withOrderNumber(ctx, tid, updated))
+}
+
+// CompleteReturn handles POST /{tenantID}/pos/returns/{returnID}/complete — the final fulfilment
+// step. Only an APPROVED return can be completed; it settles the money (treasury refund + eTIMS
+// credit note) and publishes return.completed/exchange.completed (inventory restock + treasury
+// settlement), then marks the return completed so it lands in the Completed tab.
+func (h *ReturnHandler) CompleteReturn(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+
+	returnIDStr := chi.URLParam(r, "returnID")
+	returnID, err := uuid.Parse(returnIDStr)
+	if err != nil {
+		jsonError(w, "invalid return_id", http.StatusBadRequest)
+		return
+	}
+
+	var input completeReturnInput
+	// Body is optional (notes / channel override); ignore a decode error on an empty body.
+	_ = json.NewDecoder(r.Body).Decode(&input)
+
+	ctx := r.Context()
+	ret, err := h.client.POSReturn.Get(ctx, returnID)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			jsonError(w, "return not found", http.StatusNotFound)
+			return
+		}
+		jsonError(w, "failed to get return", http.StatusInternalServerError)
+		return
+	}
+	if ret.TenantID != tid {
+		jsonError(w, "not found", http.StatusNotFound)
+		return
+	}
+	if ret.Status != posreturn.StatusApproved {
+		jsonError(w, "only an approved return can be completed", http.StatusConflict)
+		return
+	}
+
+	// Who is completing the return (the till/cashier handing over the refund).
+	var completedBy *uuid.UUID
+	if userIDStr := r.Header.Get("X-User-ID"); userIDStr != "" {
+		if uid, uidErr := uuid.Parse(userIDStr); uidErr == nil {
+			completedBy = &uid
+		}
+	}
+
+	// Load return lines for the refund tax/cost + restock event payload.
+	lines, _ := h.client.POSReturnLine.Query().
+		Where(posreturnline.ReturnID(returnID)).
+		All(ctx)
+
+	update := h.client.POSReturn.UpdateOne(ret).SetStatus(posreturn.StatusCompleted)
+
+	// Resolve the settlement channel: an explicit override at completion wins, otherwise the channel
+	// persisted on the return (from create/approve) is used.
 	refundChannel := ""
 	if ret.RefundChannel != nil {
 		refundChannel = string(*ret.RefundChannel)
@@ -387,9 +555,9 @@ func (h *ReturnHandler) ApproveReturn(w http.ResponseWriter, r *http.Request) {
 		update = update.SetNillableRefundChannel(rc)
 	}
 
-	// If approving a refund-type return, call treasury-api and store reference.
+	// Money movement: for a refund-type return, call treasury-api and store the reference.
 	var treasuryRefundRef string
-	if newStatus == posreturn.StatusApproved && ret.ReturnType == posreturn.ReturnTypeRefund && h.treasuryClient != nil {
+	if ret.ReturnType == posreturn.ReturnTypeRefund && h.treasuryClient != nil {
 		tenantSlug := chi.URLParam(r, "tenantID")
 
 		// Sum the returned lines' VAT and COGS so treasury can reverse the exact tax + cost-of-goods.
@@ -424,7 +592,7 @@ func (h *ReturnHandler) ApproveReturn(w http.ResponseWriter, r *http.Request) {
 				zap.Float64("amount", ret.RefundAmount),
 				zap.Float64("tax_amount", taxAmount),
 				zap.Float64("cost", costAmount))
-			// Non-fatal: still approve the return record; refund can be retried
+			// Non-fatal: still complete the return record; refund can be retried
 		} else {
 			treasuryRefundRef = refundResp.ID
 			update = update.SetTreasuryRefundRef(treasuryRefundRef)
@@ -432,9 +600,9 @@ func (h *ReturnHandler) ApproveReturn(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// eTIMS credit note: a returned, tax-invoiced sale needs a VAT-reversal credit note in treasury.
-	// Best-effort + non-fatal (like the refund above): find the original sale's invoice by reference,
-	// then issue the credit note. Treasury owns it; pos only logs the number for audit.
-	if newStatus == posreturn.StatusApproved && h.treasuryClient != nil &&
+	// Best-effort + non-fatal: find the original sale's invoice by reference, then issue the credit
+	// note. Treasury owns it; pos only logs the number for audit.
+	if h.treasuryClient != nil &&
 		(ret.ReturnType == posreturn.ReturnTypeRefund || ret.ReturnType == posreturn.ReturnTypeStoreCredit) {
 		slug := chi.URLParam(r, "tenantID")
 		if inv, invErr := h.treasuryClient.GetInvoiceByReference(ctx, slug, "pos_order", ret.OrderID.String()); invErr == nil && inv != nil && inv.ID != "" {
@@ -446,24 +614,52 @@ func (h *ReturnHandler) ApproveReturn(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Record completer + notes on metadata for the audit trail (who physically fulfilled the return).
+	md := cloneReturnMetadata(ret.Metadata)
+	md["completed_at"] = time.Now().UTC().Format(time.RFC3339)
+	if completedBy != nil {
+		md["completed_by"] = completedBy.String()
+	}
+	if strings.TrimSpace(input.Notes) != "" {
+		md["completion_notes"] = input.Notes
+	}
+	update = update.SetMetadata(md)
+
 	updated, err := update.Save(ctx)
 	if err != nil {
-		h.log.Error("approve return failed", zap.Error(err))
-		jsonError(w, "failed to update return", http.StatusInternalServerError)
+		h.log.Error("complete return failed", zap.Error(err))
+		jsonError(w, "failed to complete return", http.StatusInternalServerError)
 		return
 	}
 
-	// Publish event for inventory restock + treasury settlement.
-	if h.publisher != nil && newStatus == posreturn.StatusApproved {
+	// Audit the completion (money-out event — a key return-fraud signal).
+	if h.auditSvc != nil {
+		amt := ret.RefundAmount
+		oid := ret.OutletID
+		actor := uuid.Nil
+		if completedBy != nil {
+			actor = *completedBy
+		}
+		h.auditSvc.Record(ctx, audit.Entry{
+			TenantID:    tid,
+			OutletID:    &oid,
+			ActorUserID: actor,
+			Action:      "return.completed",
+			EntityType:  "pos_return",
+			EntityID:    returnID.String(),
+			Reason:      ret.Reason,
+			Amount:      &amt,
+			After:       map[string]any{"return_number": ret.ReturnNumber, "refund_channel": refundChannel, "treasury_refund_ref": treasuryRefundRef},
+		})
+	}
+
+	// Publish the completion event for inventory restock + treasury settlement.
+	if h.publisher != nil {
 		linesSummary := make([]map[string]any, 0, len(lines))
 		for _, l := range lines {
 			linesSummary = append(linesSummary, map[string]any{
 				"sku": l.Sku, "name": l.Name, "quantity": l.Quantity, "unit_price": l.UnitPrice,
 			})
-		}
-		eventType := "return.completed"
-		if ret.ReturnType == posreturn.ReturnTypeExchange {
-			eventType = "exchange.completed"
 		}
 		eventData := map[string]any{
 			"return_id":           returnID,
@@ -474,14 +670,24 @@ func (h *ReturnHandler) ApproveReturn(w http.ResponseWriter, r *http.Request) {
 			"treasury_refund_ref": treasuryRefundRef,
 			"lines":               linesSummary,
 		}
-		if eventType == "exchange.completed" {
+		if ret.ReturnType == posreturn.ReturnTypeExchange {
 			_ = h.publisher.PublishExchangeCompleted(ctx, tid, eventData)
 		} else {
 			_ = h.publisher.PublishReturnCompleted(ctx, tid, eventData)
 		}
 	}
 
-	jsonOK(w, updated)
+	jsonOK(w, h.withOrderNumber(ctx, tid, updated))
+}
+
+// cloneReturnMetadata returns a shallow copy of a return's metadata map so callers can add keys
+// without mutating the loaded entity's map in place.
+func cloneReturnMetadata(src map[string]any) map[string]any {
+	dst := make(map[string]any, len(src)+2)
+	for k, v := range src {
+		dst[k] = v
+	}
+	return dst
 }
 
 // refundChannelPtr converts a refund_channel string to a *posreturn.RefundChannel for the Nillable
