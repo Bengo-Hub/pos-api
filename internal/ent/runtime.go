@@ -44,6 +44,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/modifier"
 	"github.com/bengobox/pos-service/internal/ent/modifiergroup"
 	"github.com/bengobox/pos-service/internal/ent/orderlink"
+	"github.com/bengobox/pos-service/internal/ent/ordervoidcode"
 	"github.com/bengobox/pos-service/internal/ent/outboxevent"
 	"github.com/bengobox/pos-service/internal/ent/outlet"
 	"github.com/bengobox/pos-service/internal/ent/outletsetting"
@@ -1133,6 +1134,20 @@ func init() {
 	orderlinkDescID := orderlinkFields[0].Descriptor()
 	// orderlink.DefaultID holds the default value on creation for the id field.
 	orderlink.DefaultID = orderlinkDescID.Default.(func() uuid.UUID)
+	ordervoidcodeFields := schema.OrderVoidCode{}.Fields()
+	_ = ordervoidcodeFields
+	// ordervoidcodeDescAction is the schema descriptor for action field.
+	ordervoidcodeDescAction := ordervoidcodeFields[4].Descriptor()
+	// ordervoidcode.DefaultAction holds the default value on creation for the action field.
+	ordervoidcode.DefaultAction = ordervoidcodeDescAction.Default.(string)
+	// ordervoidcodeDescCreatedAt is the schema descriptor for created_at field.
+	ordervoidcodeDescCreatedAt := ordervoidcodeFields[11].Descriptor()
+	// ordervoidcode.DefaultCreatedAt holds the default value on creation for the created_at field.
+	ordervoidcode.DefaultCreatedAt = ordervoidcodeDescCreatedAt.Default.(func() time.Time)
+	// ordervoidcodeDescID is the schema descriptor for id field.
+	ordervoidcodeDescID := ordervoidcodeFields[0].Descriptor()
+	// ordervoidcode.DefaultID holds the default value on creation for the id field.
+	ordervoidcode.DefaultID = ordervoidcodeDescID.Default.(func() uuid.UUID)
 	outboxeventFields := schema.OutboxEvent{}.Fields()
 	_ = outboxeventFields
 	// outboxeventDescAggregateType is the schema descriptor for aggregate_type field.

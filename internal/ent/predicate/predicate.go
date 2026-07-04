@@ -129,6 +129,9 @@ type ModifierGroup func(*sql.Selector)
 // OrderLink is the predicate function for orderlink builders.
 type OrderLink func(*sql.Selector)
 
+// OrderVoidCode is the predicate function for ordervoidcode builders.
+type OrderVoidCode func(*sql.Selector)
+
 // OutboxEvent is the predicate function for outboxevent builders.
 type OutboxEvent func(*sql.Selector)
 

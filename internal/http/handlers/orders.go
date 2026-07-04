@@ -595,6 +595,9 @@ func (h *POSOrderHandler) VoidOrder(w http.ResponseWriter, r *http.Request) {
 	var input struct {
 		Reason        string `json:"reason"`
 		ApprovalToken string `json:"approval_token"`
+		// VoidCode is the one-time, order-scoped code a manager generated and shared with the
+		// cashier (the "manager not around" flow) — an alternative to the live PIN/card step-up.
+		VoidCode string `json:"void_code"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil || input.Reason == "" {
 		jsonError(w, "reason is required", http.StatusBadRequest)
@@ -608,13 +611,22 @@ func (h *POSOrderHandler) VoidOrder(w http.ResponseWriter, r *http.Request) {
 	}
 	callerID, _ := uuid.Parse(claims.Subject)
 
-	// Capture a manager step-up approver when supplied (manager-PIN dialog flow).
+	// Capture the manager approver. Two ways:
+	//  1) a live step-up approval token (manager scanned a card / typed a PIN at the terminal), or
+	//  2) a one-time void code the manager generated remotely and shared with the cashier.
 	var approverID *uuid.UUID
 	if input.ApprovalToken != "" && len(h.terminalSecret) > 0 {
 		if aid, valid := verifyApprovalToken(input.ApprovalToken, "order.void", h.terminalSecret); valid {
 			approverID = &aid
 		} else {
 			jsonError(w, "invalid or expired approval", http.StatusForbidden)
+			return
+		}
+	} else if input.VoidCode != "" {
+		if aid, valid := h.redeemVoidCode(r.Context(), tid, orderID, input.VoidCode); valid {
+			approverID = &aid
+		} else {
+			jsonError(w, "invalid or expired void code", http.StatusForbidden)
 			return
 		}
 	}

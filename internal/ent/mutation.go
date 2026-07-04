@@ -51,6 +51,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/modifier"
 	"github.com/bengobox/pos-service/internal/ent/modifiergroup"
 	"github.com/bengobox/pos-service/internal/ent/orderlink"
+	"github.com/bengobox/pos-service/internal/ent/ordervoidcode"
 	"github.com/bengobox/pos-service/internal/ent/outboxevent"
 	"github.com/bengobox/pos-service/internal/ent/outlet"
 	"github.com/bengobox/pos-service/internal/ent/outletsetting"
@@ -176,6 +177,7 @@ const (
 	TypeModifier                 = "Modifier"
 	TypeModifierGroup            = "ModifierGroup"
 	TypeOrderLink                = "OrderLink"
+	TypeOrderVoidCode            = "OrderVoidCode"
 	TypeOutboxEvent              = "OutboxEvent"
 	TypeOutlet                   = "Outlet"
 	TypeOutletSetting            = "OutletSetting"
@@ -39065,6 +39067,957 @@ func (m *OrderLinkMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *OrderLinkMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown OrderLink edge %s", name)
+}
+
+// OrderVoidCodeMutation represents an operation that mutates the OrderVoidCode nodes in the graph.
+type OrderVoidCodeMutation struct {
+	config
+	op               Op
+	typ              string
+	id               *uuid.UUID
+	tenant_id        *uuid.UUID
+	outlet_id        *uuid.UUID
+	order_id         *uuid.UUID
+	action           *string
+	code_hash        *string
+	approver_user_id *uuid.UUID
+	approver_name    *string
+	reason           *string
+	expires_at       *time.Time
+	used_at          *time.Time
+	created_at       *time.Time
+	clearedFields    map[string]struct{}
+	done             bool
+	oldValue         func(context.Context) (*OrderVoidCode, error)
+	predicates       []predicate.OrderVoidCode
+}
+
+var _ ent.Mutation = (*OrderVoidCodeMutation)(nil)
+
+// ordervoidcodeOption allows management of the mutation configuration using functional options.
+type ordervoidcodeOption func(*OrderVoidCodeMutation)
+
+// newOrderVoidCodeMutation creates new mutation for the OrderVoidCode entity.
+func newOrderVoidCodeMutation(c config, op Op, opts ...ordervoidcodeOption) *OrderVoidCodeMutation {
+	m := &OrderVoidCodeMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeOrderVoidCode,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withOrderVoidCodeID sets the ID field of the mutation.
+func withOrderVoidCodeID(id uuid.UUID) ordervoidcodeOption {
+	return func(m *OrderVoidCodeMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *OrderVoidCode
+		)
+		m.oldValue = func(ctx context.Context) (*OrderVoidCode, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().OrderVoidCode.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withOrderVoidCode sets the old OrderVoidCode of the mutation.
+func withOrderVoidCode(node *OrderVoidCode) ordervoidcodeOption {
+	return func(m *OrderVoidCodeMutation) {
+		m.oldValue = func(context.Context) (*OrderVoidCode, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m OrderVoidCodeMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m OrderVoidCodeMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of OrderVoidCode entities.
+func (m *OrderVoidCodeMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *OrderVoidCodeMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *OrderVoidCodeMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().OrderVoidCode.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *OrderVoidCodeMutation) SetTenantID(u uuid.UUID) {
+	m.tenant_id = &u
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *OrderVoidCodeMutation) TenantID() (r uuid.UUID, exists bool) {
+	v := m.tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the OrderVoidCode entity.
+// If the OrderVoidCode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OrderVoidCodeMutation) OldTenantID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *OrderVoidCodeMutation) ResetTenantID() {
+	m.tenant_id = nil
+}
+
+// SetOutletID sets the "outlet_id" field.
+func (m *OrderVoidCodeMutation) SetOutletID(u uuid.UUID) {
+	m.outlet_id = &u
+}
+
+// OutletID returns the value of the "outlet_id" field in the mutation.
+func (m *OrderVoidCodeMutation) OutletID() (r uuid.UUID, exists bool) {
+	v := m.outlet_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOutletID returns the old "outlet_id" field's value of the OrderVoidCode entity.
+// If the OrderVoidCode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OrderVoidCodeMutation) OldOutletID(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOutletID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOutletID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOutletID: %w", err)
+	}
+	return oldValue.OutletID, nil
+}
+
+// ClearOutletID clears the value of the "outlet_id" field.
+func (m *OrderVoidCodeMutation) ClearOutletID() {
+	m.outlet_id = nil
+	m.clearedFields[ordervoidcode.FieldOutletID] = struct{}{}
+}
+
+// OutletIDCleared returns if the "outlet_id" field was cleared in this mutation.
+func (m *OrderVoidCodeMutation) OutletIDCleared() bool {
+	_, ok := m.clearedFields[ordervoidcode.FieldOutletID]
+	return ok
+}
+
+// ResetOutletID resets all changes to the "outlet_id" field.
+func (m *OrderVoidCodeMutation) ResetOutletID() {
+	m.outlet_id = nil
+	delete(m.clearedFields, ordervoidcode.FieldOutletID)
+}
+
+// SetOrderID sets the "order_id" field.
+func (m *OrderVoidCodeMutation) SetOrderID(u uuid.UUID) {
+	m.order_id = &u
+}
+
+// OrderID returns the value of the "order_id" field in the mutation.
+func (m *OrderVoidCodeMutation) OrderID() (r uuid.UUID, exists bool) {
+	v := m.order_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOrderID returns the old "order_id" field's value of the OrderVoidCode entity.
+// If the OrderVoidCode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OrderVoidCodeMutation) OldOrderID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOrderID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOrderID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOrderID: %w", err)
+	}
+	return oldValue.OrderID, nil
+}
+
+// ResetOrderID resets all changes to the "order_id" field.
+func (m *OrderVoidCodeMutation) ResetOrderID() {
+	m.order_id = nil
+}
+
+// SetAction sets the "action" field.
+func (m *OrderVoidCodeMutation) SetAction(s string) {
+	m.action = &s
+}
+
+// Action returns the value of the "action" field in the mutation.
+func (m *OrderVoidCodeMutation) Action() (r string, exists bool) {
+	v := m.action
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAction returns the old "action" field's value of the OrderVoidCode entity.
+// If the OrderVoidCode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OrderVoidCodeMutation) OldAction(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAction is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAction requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAction: %w", err)
+	}
+	return oldValue.Action, nil
+}
+
+// ResetAction resets all changes to the "action" field.
+func (m *OrderVoidCodeMutation) ResetAction() {
+	m.action = nil
+}
+
+// SetCodeHash sets the "code_hash" field.
+func (m *OrderVoidCodeMutation) SetCodeHash(s string) {
+	m.code_hash = &s
+}
+
+// CodeHash returns the value of the "code_hash" field in the mutation.
+func (m *OrderVoidCodeMutation) CodeHash() (r string, exists bool) {
+	v := m.code_hash
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCodeHash returns the old "code_hash" field's value of the OrderVoidCode entity.
+// If the OrderVoidCode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OrderVoidCodeMutation) OldCodeHash(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCodeHash is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCodeHash requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCodeHash: %w", err)
+	}
+	return oldValue.CodeHash, nil
+}
+
+// ResetCodeHash resets all changes to the "code_hash" field.
+func (m *OrderVoidCodeMutation) ResetCodeHash() {
+	m.code_hash = nil
+}
+
+// SetApproverUserID sets the "approver_user_id" field.
+func (m *OrderVoidCodeMutation) SetApproverUserID(u uuid.UUID) {
+	m.approver_user_id = &u
+}
+
+// ApproverUserID returns the value of the "approver_user_id" field in the mutation.
+func (m *OrderVoidCodeMutation) ApproverUserID() (r uuid.UUID, exists bool) {
+	v := m.approver_user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldApproverUserID returns the old "approver_user_id" field's value of the OrderVoidCode entity.
+// If the OrderVoidCode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OrderVoidCodeMutation) OldApproverUserID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldApproverUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldApproverUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldApproverUserID: %w", err)
+	}
+	return oldValue.ApproverUserID, nil
+}
+
+// ResetApproverUserID resets all changes to the "approver_user_id" field.
+func (m *OrderVoidCodeMutation) ResetApproverUserID() {
+	m.approver_user_id = nil
+}
+
+// SetApproverName sets the "approver_name" field.
+func (m *OrderVoidCodeMutation) SetApproverName(s string) {
+	m.approver_name = &s
+}
+
+// ApproverName returns the value of the "approver_name" field in the mutation.
+func (m *OrderVoidCodeMutation) ApproverName() (r string, exists bool) {
+	v := m.approver_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldApproverName returns the old "approver_name" field's value of the OrderVoidCode entity.
+// If the OrderVoidCode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OrderVoidCodeMutation) OldApproverName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldApproverName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldApproverName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldApproverName: %w", err)
+	}
+	return oldValue.ApproverName, nil
+}
+
+// ClearApproverName clears the value of the "approver_name" field.
+func (m *OrderVoidCodeMutation) ClearApproverName() {
+	m.approver_name = nil
+	m.clearedFields[ordervoidcode.FieldApproverName] = struct{}{}
+}
+
+// ApproverNameCleared returns if the "approver_name" field was cleared in this mutation.
+func (m *OrderVoidCodeMutation) ApproverNameCleared() bool {
+	_, ok := m.clearedFields[ordervoidcode.FieldApproverName]
+	return ok
+}
+
+// ResetApproverName resets all changes to the "approver_name" field.
+func (m *OrderVoidCodeMutation) ResetApproverName() {
+	m.approver_name = nil
+	delete(m.clearedFields, ordervoidcode.FieldApproverName)
+}
+
+// SetReason sets the "reason" field.
+func (m *OrderVoidCodeMutation) SetReason(s string) {
+	m.reason = &s
+}
+
+// Reason returns the value of the "reason" field in the mutation.
+func (m *OrderVoidCodeMutation) Reason() (r string, exists bool) {
+	v := m.reason
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReason returns the old "reason" field's value of the OrderVoidCode entity.
+// If the OrderVoidCode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OrderVoidCodeMutation) OldReason(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReason is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReason requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReason: %w", err)
+	}
+	return oldValue.Reason, nil
+}
+
+// ClearReason clears the value of the "reason" field.
+func (m *OrderVoidCodeMutation) ClearReason() {
+	m.reason = nil
+	m.clearedFields[ordervoidcode.FieldReason] = struct{}{}
+}
+
+// ReasonCleared returns if the "reason" field was cleared in this mutation.
+func (m *OrderVoidCodeMutation) ReasonCleared() bool {
+	_, ok := m.clearedFields[ordervoidcode.FieldReason]
+	return ok
+}
+
+// ResetReason resets all changes to the "reason" field.
+func (m *OrderVoidCodeMutation) ResetReason() {
+	m.reason = nil
+	delete(m.clearedFields, ordervoidcode.FieldReason)
+}
+
+// SetExpiresAt sets the "expires_at" field.
+func (m *OrderVoidCodeMutation) SetExpiresAt(t time.Time) {
+	m.expires_at = &t
+}
+
+// ExpiresAt returns the value of the "expires_at" field in the mutation.
+func (m *OrderVoidCodeMutation) ExpiresAt() (r time.Time, exists bool) {
+	v := m.expires_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExpiresAt returns the old "expires_at" field's value of the OrderVoidCode entity.
+// If the OrderVoidCode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OrderVoidCodeMutation) OldExpiresAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExpiresAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExpiresAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExpiresAt: %w", err)
+	}
+	return oldValue.ExpiresAt, nil
+}
+
+// ResetExpiresAt resets all changes to the "expires_at" field.
+func (m *OrderVoidCodeMutation) ResetExpiresAt() {
+	m.expires_at = nil
+}
+
+// SetUsedAt sets the "used_at" field.
+func (m *OrderVoidCodeMutation) SetUsedAt(t time.Time) {
+	m.used_at = &t
+}
+
+// UsedAt returns the value of the "used_at" field in the mutation.
+func (m *OrderVoidCodeMutation) UsedAt() (r time.Time, exists bool) {
+	v := m.used_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUsedAt returns the old "used_at" field's value of the OrderVoidCode entity.
+// If the OrderVoidCode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OrderVoidCodeMutation) OldUsedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUsedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUsedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUsedAt: %w", err)
+	}
+	return oldValue.UsedAt, nil
+}
+
+// ClearUsedAt clears the value of the "used_at" field.
+func (m *OrderVoidCodeMutation) ClearUsedAt() {
+	m.used_at = nil
+	m.clearedFields[ordervoidcode.FieldUsedAt] = struct{}{}
+}
+
+// UsedAtCleared returns if the "used_at" field was cleared in this mutation.
+func (m *OrderVoidCodeMutation) UsedAtCleared() bool {
+	_, ok := m.clearedFields[ordervoidcode.FieldUsedAt]
+	return ok
+}
+
+// ResetUsedAt resets all changes to the "used_at" field.
+func (m *OrderVoidCodeMutation) ResetUsedAt() {
+	m.used_at = nil
+	delete(m.clearedFields, ordervoidcode.FieldUsedAt)
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *OrderVoidCodeMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *OrderVoidCodeMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the OrderVoidCode entity.
+// If the OrderVoidCode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OrderVoidCodeMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *OrderVoidCodeMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// Where appends a list predicates to the OrderVoidCodeMutation builder.
+func (m *OrderVoidCodeMutation) Where(ps ...predicate.OrderVoidCode) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the OrderVoidCodeMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *OrderVoidCodeMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.OrderVoidCode, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *OrderVoidCodeMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *OrderVoidCodeMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (OrderVoidCode).
+func (m *OrderVoidCodeMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *OrderVoidCodeMutation) Fields() []string {
+	fields := make([]string, 0, 11)
+	if m.tenant_id != nil {
+		fields = append(fields, ordervoidcode.FieldTenantID)
+	}
+	if m.outlet_id != nil {
+		fields = append(fields, ordervoidcode.FieldOutletID)
+	}
+	if m.order_id != nil {
+		fields = append(fields, ordervoidcode.FieldOrderID)
+	}
+	if m.action != nil {
+		fields = append(fields, ordervoidcode.FieldAction)
+	}
+	if m.code_hash != nil {
+		fields = append(fields, ordervoidcode.FieldCodeHash)
+	}
+	if m.approver_user_id != nil {
+		fields = append(fields, ordervoidcode.FieldApproverUserID)
+	}
+	if m.approver_name != nil {
+		fields = append(fields, ordervoidcode.FieldApproverName)
+	}
+	if m.reason != nil {
+		fields = append(fields, ordervoidcode.FieldReason)
+	}
+	if m.expires_at != nil {
+		fields = append(fields, ordervoidcode.FieldExpiresAt)
+	}
+	if m.used_at != nil {
+		fields = append(fields, ordervoidcode.FieldUsedAt)
+	}
+	if m.created_at != nil {
+		fields = append(fields, ordervoidcode.FieldCreatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *OrderVoidCodeMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case ordervoidcode.FieldTenantID:
+		return m.TenantID()
+	case ordervoidcode.FieldOutletID:
+		return m.OutletID()
+	case ordervoidcode.FieldOrderID:
+		return m.OrderID()
+	case ordervoidcode.FieldAction:
+		return m.Action()
+	case ordervoidcode.FieldCodeHash:
+		return m.CodeHash()
+	case ordervoidcode.FieldApproverUserID:
+		return m.ApproverUserID()
+	case ordervoidcode.FieldApproverName:
+		return m.ApproverName()
+	case ordervoidcode.FieldReason:
+		return m.Reason()
+	case ordervoidcode.FieldExpiresAt:
+		return m.ExpiresAt()
+	case ordervoidcode.FieldUsedAt:
+		return m.UsedAt()
+	case ordervoidcode.FieldCreatedAt:
+		return m.CreatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *OrderVoidCodeMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case ordervoidcode.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case ordervoidcode.FieldOutletID:
+		return m.OldOutletID(ctx)
+	case ordervoidcode.FieldOrderID:
+		return m.OldOrderID(ctx)
+	case ordervoidcode.FieldAction:
+		return m.OldAction(ctx)
+	case ordervoidcode.FieldCodeHash:
+		return m.OldCodeHash(ctx)
+	case ordervoidcode.FieldApproverUserID:
+		return m.OldApproverUserID(ctx)
+	case ordervoidcode.FieldApproverName:
+		return m.OldApproverName(ctx)
+	case ordervoidcode.FieldReason:
+		return m.OldReason(ctx)
+	case ordervoidcode.FieldExpiresAt:
+		return m.OldExpiresAt(ctx)
+	case ordervoidcode.FieldUsedAt:
+		return m.OldUsedAt(ctx)
+	case ordervoidcode.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown OrderVoidCode field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *OrderVoidCodeMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case ordervoidcode.FieldTenantID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case ordervoidcode.FieldOutletID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOutletID(v)
+		return nil
+	case ordervoidcode.FieldOrderID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOrderID(v)
+		return nil
+	case ordervoidcode.FieldAction:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAction(v)
+		return nil
+	case ordervoidcode.FieldCodeHash:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCodeHash(v)
+		return nil
+	case ordervoidcode.FieldApproverUserID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetApproverUserID(v)
+		return nil
+	case ordervoidcode.FieldApproverName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetApproverName(v)
+		return nil
+	case ordervoidcode.FieldReason:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReason(v)
+		return nil
+	case ordervoidcode.FieldExpiresAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExpiresAt(v)
+		return nil
+	case ordervoidcode.FieldUsedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUsedAt(v)
+		return nil
+	case ordervoidcode.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown OrderVoidCode field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *OrderVoidCodeMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *OrderVoidCodeMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *OrderVoidCodeMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown OrderVoidCode numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *OrderVoidCodeMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(ordervoidcode.FieldOutletID) {
+		fields = append(fields, ordervoidcode.FieldOutletID)
+	}
+	if m.FieldCleared(ordervoidcode.FieldApproverName) {
+		fields = append(fields, ordervoidcode.FieldApproverName)
+	}
+	if m.FieldCleared(ordervoidcode.FieldReason) {
+		fields = append(fields, ordervoidcode.FieldReason)
+	}
+	if m.FieldCleared(ordervoidcode.FieldUsedAt) {
+		fields = append(fields, ordervoidcode.FieldUsedAt)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *OrderVoidCodeMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *OrderVoidCodeMutation) ClearField(name string) error {
+	switch name {
+	case ordervoidcode.FieldOutletID:
+		m.ClearOutletID()
+		return nil
+	case ordervoidcode.FieldApproverName:
+		m.ClearApproverName()
+		return nil
+	case ordervoidcode.FieldReason:
+		m.ClearReason()
+		return nil
+	case ordervoidcode.FieldUsedAt:
+		m.ClearUsedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown OrderVoidCode nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *OrderVoidCodeMutation) ResetField(name string) error {
+	switch name {
+	case ordervoidcode.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case ordervoidcode.FieldOutletID:
+		m.ResetOutletID()
+		return nil
+	case ordervoidcode.FieldOrderID:
+		m.ResetOrderID()
+		return nil
+	case ordervoidcode.FieldAction:
+		m.ResetAction()
+		return nil
+	case ordervoidcode.FieldCodeHash:
+		m.ResetCodeHash()
+		return nil
+	case ordervoidcode.FieldApproverUserID:
+		m.ResetApproverUserID()
+		return nil
+	case ordervoidcode.FieldApproverName:
+		m.ResetApproverName()
+		return nil
+	case ordervoidcode.FieldReason:
+		m.ResetReason()
+		return nil
+	case ordervoidcode.FieldExpiresAt:
+		m.ResetExpiresAt()
+		return nil
+	case ordervoidcode.FieldUsedAt:
+		m.ResetUsedAt()
+		return nil
+	case ordervoidcode.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown OrderVoidCode field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *OrderVoidCodeMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *OrderVoidCodeMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *OrderVoidCodeMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *OrderVoidCodeMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *OrderVoidCodeMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *OrderVoidCodeMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *OrderVoidCodeMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown OrderVoidCode unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *OrderVoidCodeMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown OrderVoidCode edge %s", name)
 }
 
 // OutboxEventMutation represents an operation that mutates the OutboxEvent nodes in the graph.

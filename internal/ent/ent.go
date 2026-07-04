@@ -53,6 +53,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/modifier"
 	"github.com/bengobox/pos-service/internal/ent/modifiergroup"
 	"github.com/bengobox/pos-service/internal/ent/orderlink"
+	"github.com/bengobox/pos-service/internal/ent/ordervoidcode"
 	"github.com/bengobox/pos-service/internal/ent/outboxevent"
 	"github.com/bengobox/pos-service/internal/ent/outlet"
 	"github.com/bengobox/pos-service/internal/ent/outletsetting"
@@ -224,6 +225,7 @@ func checkColumn(t, c string) error {
 			modifier.Table:                 modifier.ValidColumn,
 			modifiergroup.Table:            modifiergroup.ValidColumn,
 			orderlink.Table:                orderlink.ValidColumn,
+			ordervoidcode.Table:            ordervoidcode.ValidColumn,
 			outboxevent.Table:              outboxevent.ValidColumn,
 			outlet.Table:                   outlet.ValidColumn,
 			outletsetting.Table:            outletsetting.ValidColumn,

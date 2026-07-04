@@ -1245,6 +1245,34 @@ var (
 		Columns:    OrderLinksColumns,
 		PrimaryKey: []*schema.Column{OrderLinksColumns[0]},
 	}
+	// OrderVoidCodesColumns holds the columns for the "order_void_codes" table.
+	OrderVoidCodesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "outlet_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "order_id", Type: field.TypeUUID},
+		{Name: "action", Type: field.TypeString, Default: "order.void"},
+		{Name: "code_hash", Type: field.TypeString},
+		{Name: "approver_user_id", Type: field.TypeUUID},
+		{Name: "approver_name", Type: field.TypeString, Nullable: true},
+		{Name: "reason", Type: field.TypeString, Nullable: true},
+		{Name: "expires_at", Type: field.TypeTime},
+		{Name: "used_at", Type: field.TypeTime, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+	}
+	// OrderVoidCodesTable holds the schema information for the "order_void_codes" table.
+	OrderVoidCodesTable = &schema.Table{
+		Name:       "order_void_codes",
+		Columns:    OrderVoidCodesColumns,
+		PrimaryKey: []*schema.Column{OrderVoidCodesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "ordervoidcode_tenant_id_order_id_action",
+				Unique:  false,
+				Columns: []*schema.Column{OrderVoidCodesColumns[1], OrderVoidCodesColumns[3], OrderVoidCodesColumns[4]},
+			},
+		},
+	}
 	// OutboxEventsColumns holds the columns for the "outbox_events" table.
 	OutboxEventsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -3737,6 +3765,7 @@ var (
 		ModifiersTable,
 		ModifierGroupsTable,
 		OrderLinksTable,
+		OrderVoidCodesTable,
 		OutboxEventsTable,
 		OutletsTable,
 		OutletSettingsTable,

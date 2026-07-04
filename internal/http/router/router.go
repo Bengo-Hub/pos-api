@@ -267,6 +267,9 @@ func New(
 						pos.Get("/orders/{orderID}", orders.GetOrder)
 						pos.Patch("/orders/{orderID}/status", orders.UpdateStatus)
 						pos.Patch("/orders/{orderID}/void", orders.VoidOrder)
+						// Manager generates a one-time code (shareable) to authorize voiding this
+						// order when they're not at the terminal. Manager-only (handler re-checks role).
+						pos.Post("/orders/{orderID}/void-code", orders.GenerateVoidCode)
 						pos.Post("/orders/{orderID}/fire-course", orders.FireCourse)
 						pos.Post("/orders/{orderID}/lines", orders.AddOrderLines)
 						pos.Post("/orders/{orderID}/lines/{lineID}/void", orders.VoidOrderLine)

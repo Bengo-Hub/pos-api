@@ -94,6 +94,8 @@ type Tx struct {
 	ModifierGroup *ModifierGroupClient
 	// OrderLink is the client for interacting with the OrderLink builders.
 	OrderLink *OrderLinkClient
+	// OrderVoidCode is the client for interacting with the OrderVoidCode builders.
+	OrderVoidCode *OrderVoidCodeClient
 	// OutboxEvent is the client for interacting with the OutboxEvent builders.
 	OutboxEvent *OutboxEventClient
 	// Outlet is the client for interacting with the Outlet builders.
@@ -406,6 +408,7 @@ func (tx *Tx) init() {
 	tx.Modifier = NewModifierClient(tx.config)
 	tx.ModifierGroup = NewModifierGroupClient(tx.config)
 	tx.OrderLink = NewOrderLinkClient(tx.config)
+	tx.OrderVoidCode = NewOrderVoidCodeClient(tx.config)
 	tx.OutboxEvent = NewOutboxEventClient(tx.config)
 	tx.Outlet = NewOutletClient(tx.config)
 	tx.OutletSetting = NewOutletSettingClient(tx.config)

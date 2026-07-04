@@ -501,6 +501,18 @@ func (f OrderLinkFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, e
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.OrderLinkMutation", m)
 }
 
+// The OrderVoidCodeFunc type is an adapter to allow the use of ordinary
+// function as OrderVoidCode mutator.
+type OrderVoidCodeFunc func(context.Context, *ent.OrderVoidCodeMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f OrderVoidCodeFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.OrderVoidCodeMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.OrderVoidCodeMutation", m)
+}
+
 // The OutboxEventFunc type is an adapter to allow the use of ordinary
 // function as OutboxEvent mutator.
 type OutboxEventFunc func(context.Context, *ent.OutboxEventMutation) (ent.Value, error)

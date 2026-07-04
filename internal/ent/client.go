@@ -57,6 +57,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/modifier"
 	"github.com/bengobox/pos-service/internal/ent/modifiergroup"
 	"github.com/bengobox/pos-service/internal/ent/orderlink"
+	"github.com/bengobox/pos-service/internal/ent/ordervoidcode"
 	"github.com/bengobox/pos-service/internal/ent/outboxevent"
 	"github.com/bengobox/pos-service/internal/ent/outlet"
 	"github.com/bengobox/pos-service/internal/ent/outletsetting"
@@ -216,6 +217,8 @@ type Client struct {
 	ModifierGroup *ModifierGroupClient
 	// OrderLink is the client for interacting with the OrderLink builders.
 	OrderLink *OrderLinkClient
+	// OrderVoidCode is the client for interacting with the OrderVoidCode builders.
+	OrderVoidCode *OrderVoidCodeClient
 	// OutboxEvent is the client for interacting with the OutboxEvent builders.
 	OutboxEvent *OutboxEventClient
 	// Outlet is the client for interacting with the Outlet builders.
@@ -408,6 +411,7 @@ func (c *Client) init() {
 	c.Modifier = NewModifierClient(c.config)
 	c.ModifierGroup = NewModifierGroupClient(c.config)
 	c.OrderLink = NewOrderLinkClient(c.config)
+	c.OrderVoidCode = NewOrderVoidCodeClient(c.config)
 	c.OutboxEvent = NewOutboxEventClient(c.config)
 	c.Outlet = NewOutletClient(c.config)
 	c.OutletSetting = NewOutletSettingClient(c.config)
@@ -611,6 +615,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		Modifier:                 NewModifierClient(cfg),
 		ModifierGroup:            NewModifierGroupClient(cfg),
 		OrderLink:                NewOrderLinkClient(cfg),
+		OrderVoidCode:            NewOrderVoidCodeClient(cfg),
 		OutboxEvent:              NewOutboxEventClient(cfg),
 		Outlet:                   NewOutletClient(cfg),
 		OutletSetting:            NewOutletSettingClient(cfg),
@@ -741,6 +746,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		Modifier:                 NewModifierClient(cfg),
 		ModifierGroup:            NewModifierGroupClient(cfg),
 		OrderLink:                NewOrderLinkClient(cfg),
+		OrderVoidCode:            NewOrderVoidCodeClient(cfg),
 		OutboxEvent:              NewOutboxEventClient(cfg),
 		Outlet:                   NewOutletClient(cfg),
 		OutletSetting:            NewOutletSettingClient(cfg),
@@ -850,22 +856,23 @@ func (c *Client) Use(hooks ...Hook) {
 		c.KDSTicket, c.LayawayPayment, c.LayawayPlan, c.LeaveRequest,
 		c.LicenseUsageSnapshot, c.LoyaltyAccount, c.LoyaltyProgram,
 		c.LoyaltyTransaction, c.MealEntitlement, c.Modifier, c.ModifierGroup,
-		c.OrderLink, c.OutboxEvent, c.Outlet, c.OutletSetting, c.POSCatalogOverride,
-		c.POSDevice, c.POSDeviceSession, c.POSLineModifier, c.POSOrder,
-		c.POSOrderEvent, c.POSOrderLine, c.POSPayment, c.POSPermission, c.POSRefund,
-		c.POSReturn, c.POSReturnLine, c.POSRole, c.POSRolePermission, c.POSRoleV2,
-		c.POSUserRoleAssignment, c.PosNotification, c.Prescription, c.PrescriptionLine,
-		c.PriceBook, c.PriceBookItem, c.Promotion, c.PromotionApplication,
-		c.PromotionRule, c.RateLimitConfig, c.Referral, c.RepairJob, c.RepairJobEvent,
-		c.RepairJobPart, c.Resource, c.Room, c.RoomAmenity, c.RoomAmenityAssignment,
-		c.RoomBooking, c.RoomFolioItem, c.RoomFolioPayment, c.RoomGuest, c.Section,
-		c.SerialNumberLog, c.ServiceConfig, c.ServicePackage, c.ServicePackagePurchase,
-		c.ServicePackageRedemption, c.ServiceQueueEntry, c.ShiftRotation,
-		c.ShiftRotationSlot, c.StaffAdvance, c.StaffMember, c.StaffOutlet,
-		c.StaffPayroll, c.StaffPayrollLine, c.StaffSchedule, c.StaffShiftOverride,
-		c.StockAlertSubscription, c.StockConsumptionEvent, c.SyncFailure, c.Table,
-		c.TableAssignment, c.TableReservation, c.Tenant, c.TenantSyncEvent, c.Tender,
-		c.User, c.UserPOSRole, c.WebhookDelivery, c.WebhookSubscription,
+		c.OrderLink, c.OrderVoidCode, c.OutboxEvent, c.Outlet, c.OutletSetting,
+		c.POSCatalogOverride, c.POSDevice, c.POSDeviceSession, c.POSLineModifier,
+		c.POSOrder, c.POSOrderEvent, c.POSOrderLine, c.POSPayment, c.POSPermission,
+		c.POSRefund, c.POSReturn, c.POSReturnLine, c.POSRole, c.POSRolePermission,
+		c.POSRoleV2, c.POSUserRoleAssignment, c.PosNotification, c.Prescription,
+		c.PrescriptionLine, c.PriceBook, c.PriceBookItem, c.Promotion,
+		c.PromotionApplication, c.PromotionRule, c.RateLimitConfig, c.Referral,
+		c.RepairJob, c.RepairJobEvent, c.RepairJobPart, c.Resource, c.Room,
+		c.RoomAmenity, c.RoomAmenityAssignment, c.RoomBooking, c.RoomFolioItem,
+		c.RoomFolioPayment, c.RoomGuest, c.Section, c.SerialNumberLog, c.ServiceConfig,
+		c.ServicePackage, c.ServicePackagePurchase, c.ServicePackageRedemption,
+		c.ServiceQueueEntry, c.ShiftRotation, c.ShiftRotationSlot, c.StaffAdvance,
+		c.StaffMember, c.StaffOutlet, c.StaffPayroll, c.StaffPayrollLine,
+		c.StaffSchedule, c.StaffShiftOverride, c.StockAlertSubscription,
+		c.StockConsumptionEvent, c.SyncFailure, c.Table, c.TableAssignment,
+		c.TableReservation, c.Tenant, c.TenantSyncEvent, c.Tender, c.User,
+		c.UserPOSRole, c.WebhookDelivery, c.WebhookSubscription,
 		c.WeighingScaleReading,
 	} {
 		n.Use(hooks...)
@@ -886,22 +893,23 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.KDSTicket, c.LayawayPayment, c.LayawayPlan, c.LeaveRequest,
 		c.LicenseUsageSnapshot, c.LoyaltyAccount, c.LoyaltyProgram,
 		c.LoyaltyTransaction, c.MealEntitlement, c.Modifier, c.ModifierGroup,
-		c.OrderLink, c.OutboxEvent, c.Outlet, c.OutletSetting, c.POSCatalogOverride,
-		c.POSDevice, c.POSDeviceSession, c.POSLineModifier, c.POSOrder,
-		c.POSOrderEvent, c.POSOrderLine, c.POSPayment, c.POSPermission, c.POSRefund,
-		c.POSReturn, c.POSReturnLine, c.POSRole, c.POSRolePermission, c.POSRoleV2,
-		c.POSUserRoleAssignment, c.PosNotification, c.Prescription, c.PrescriptionLine,
-		c.PriceBook, c.PriceBookItem, c.Promotion, c.PromotionApplication,
-		c.PromotionRule, c.RateLimitConfig, c.Referral, c.RepairJob, c.RepairJobEvent,
-		c.RepairJobPart, c.Resource, c.Room, c.RoomAmenity, c.RoomAmenityAssignment,
-		c.RoomBooking, c.RoomFolioItem, c.RoomFolioPayment, c.RoomGuest, c.Section,
-		c.SerialNumberLog, c.ServiceConfig, c.ServicePackage, c.ServicePackagePurchase,
-		c.ServicePackageRedemption, c.ServiceQueueEntry, c.ShiftRotation,
-		c.ShiftRotationSlot, c.StaffAdvance, c.StaffMember, c.StaffOutlet,
-		c.StaffPayroll, c.StaffPayrollLine, c.StaffSchedule, c.StaffShiftOverride,
-		c.StockAlertSubscription, c.StockConsumptionEvent, c.SyncFailure, c.Table,
-		c.TableAssignment, c.TableReservation, c.Tenant, c.TenantSyncEvent, c.Tender,
-		c.User, c.UserPOSRole, c.WebhookDelivery, c.WebhookSubscription,
+		c.OrderLink, c.OrderVoidCode, c.OutboxEvent, c.Outlet, c.OutletSetting,
+		c.POSCatalogOverride, c.POSDevice, c.POSDeviceSession, c.POSLineModifier,
+		c.POSOrder, c.POSOrderEvent, c.POSOrderLine, c.POSPayment, c.POSPermission,
+		c.POSRefund, c.POSReturn, c.POSReturnLine, c.POSRole, c.POSRolePermission,
+		c.POSRoleV2, c.POSUserRoleAssignment, c.PosNotification, c.Prescription,
+		c.PrescriptionLine, c.PriceBook, c.PriceBookItem, c.Promotion,
+		c.PromotionApplication, c.PromotionRule, c.RateLimitConfig, c.Referral,
+		c.RepairJob, c.RepairJobEvent, c.RepairJobPart, c.Resource, c.Room,
+		c.RoomAmenity, c.RoomAmenityAssignment, c.RoomBooking, c.RoomFolioItem,
+		c.RoomFolioPayment, c.RoomGuest, c.Section, c.SerialNumberLog, c.ServiceConfig,
+		c.ServicePackage, c.ServicePackagePurchase, c.ServicePackageRedemption,
+		c.ServiceQueueEntry, c.ShiftRotation, c.ShiftRotationSlot, c.StaffAdvance,
+		c.StaffMember, c.StaffOutlet, c.StaffPayroll, c.StaffPayrollLine,
+		c.StaffSchedule, c.StaffShiftOverride, c.StockAlertSubscription,
+		c.StockConsumptionEvent, c.SyncFailure, c.Table, c.TableAssignment,
+		c.TableReservation, c.Tenant, c.TenantSyncEvent, c.Tender, c.User,
+		c.UserPOSRole, c.WebhookDelivery, c.WebhookSubscription,
 		c.WeighingScaleReading,
 	} {
 		n.Intercept(interceptors...)
@@ -993,6 +1001,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.ModifierGroup.mutate(ctx, m)
 	case *OrderLinkMutation:
 		return c.OrderLink.mutate(ctx, m)
+	case *OrderVoidCodeMutation:
+		return c.OrderVoidCode.mutate(ctx, m)
 	case *OutboxEventMutation:
 		return c.OutboxEvent.mutate(ctx, m)
 	case *OutletMutation:
@@ -6812,6 +6822,139 @@ func (c *OrderLinkClient) mutate(ctx context.Context, m *OrderLinkMutation) (Val
 		return (&OrderLinkDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown OrderLink mutation op: %q", m.Op())
+	}
+}
+
+// OrderVoidCodeClient is a client for the OrderVoidCode schema.
+type OrderVoidCodeClient struct {
+	config
+}
+
+// NewOrderVoidCodeClient returns a client for the OrderVoidCode from the given config.
+func NewOrderVoidCodeClient(c config) *OrderVoidCodeClient {
+	return &OrderVoidCodeClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `ordervoidcode.Hooks(f(g(h())))`.
+func (c *OrderVoidCodeClient) Use(hooks ...Hook) {
+	c.hooks.OrderVoidCode = append(c.hooks.OrderVoidCode, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `ordervoidcode.Intercept(f(g(h())))`.
+func (c *OrderVoidCodeClient) Intercept(interceptors ...Interceptor) {
+	c.inters.OrderVoidCode = append(c.inters.OrderVoidCode, interceptors...)
+}
+
+// Create returns a builder for creating a OrderVoidCode entity.
+func (c *OrderVoidCodeClient) Create() *OrderVoidCodeCreate {
+	mutation := newOrderVoidCodeMutation(c.config, OpCreate)
+	return &OrderVoidCodeCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of OrderVoidCode entities.
+func (c *OrderVoidCodeClient) CreateBulk(builders ...*OrderVoidCodeCreate) *OrderVoidCodeCreateBulk {
+	return &OrderVoidCodeCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *OrderVoidCodeClient) MapCreateBulk(slice any, setFunc func(*OrderVoidCodeCreate, int)) *OrderVoidCodeCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &OrderVoidCodeCreateBulk{err: fmt.Errorf("calling to OrderVoidCodeClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*OrderVoidCodeCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &OrderVoidCodeCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for OrderVoidCode.
+func (c *OrderVoidCodeClient) Update() *OrderVoidCodeUpdate {
+	mutation := newOrderVoidCodeMutation(c.config, OpUpdate)
+	return &OrderVoidCodeUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *OrderVoidCodeClient) UpdateOne(_m *OrderVoidCode) *OrderVoidCodeUpdateOne {
+	mutation := newOrderVoidCodeMutation(c.config, OpUpdateOne, withOrderVoidCode(_m))
+	return &OrderVoidCodeUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *OrderVoidCodeClient) UpdateOneID(id uuid.UUID) *OrderVoidCodeUpdateOne {
+	mutation := newOrderVoidCodeMutation(c.config, OpUpdateOne, withOrderVoidCodeID(id))
+	return &OrderVoidCodeUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for OrderVoidCode.
+func (c *OrderVoidCodeClient) Delete() *OrderVoidCodeDelete {
+	mutation := newOrderVoidCodeMutation(c.config, OpDelete)
+	return &OrderVoidCodeDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *OrderVoidCodeClient) DeleteOne(_m *OrderVoidCode) *OrderVoidCodeDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *OrderVoidCodeClient) DeleteOneID(id uuid.UUID) *OrderVoidCodeDeleteOne {
+	builder := c.Delete().Where(ordervoidcode.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &OrderVoidCodeDeleteOne{builder}
+}
+
+// Query returns a query builder for OrderVoidCode.
+func (c *OrderVoidCodeClient) Query() *OrderVoidCodeQuery {
+	return &OrderVoidCodeQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeOrderVoidCode},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a OrderVoidCode entity by its id.
+func (c *OrderVoidCodeClient) Get(ctx context.Context, id uuid.UUID) (*OrderVoidCode, error) {
+	return c.Query().Where(ordervoidcode.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *OrderVoidCodeClient) GetX(ctx context.Context, id uuid.UUID) *OrderVoidCode {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *OrderVoidCodeClient) Hooks() []Hook {
+	return c.hooks.OrderVoidCode
+}
+
+// Interceptors returns the client interceptors.
+func (c *OrderVoidCodeClient) Interceptors() []Interceptor {
+	return c.inters.OrderVoidCode
+}
+
+func (c *OrderVoidCodeClient) mutate(ctx context.Context, m *OrderVoidCodeMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&OrderVoidCodeCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&OrderVoidCodeUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&OrderVoidCodeUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&OrderVoidCodeDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown OrderVoidCode mutation op: %q", m.Op())
 	}
 }
 
@@ -17144,7 +17287,7 @@ type (
 		IntegrationSetting, InventorySnapshot, KDSStation, KDSSyncFailure, KDSTicket,
 		LayawayPayment, LayawayPlan, LeaveRequest, LicenseUsageSnapshot,
 		LoyaltyAccount, LoyaltyProgram, LoyaltyTransaction, MealEntitlement, Modifier,
-		ModifierGroup, OrderLink, OutboxEvent, Outlet, OutletSetting,
+		ModifierGroup, OrderLink, OrderVoidCode, OutboxEvent, Outlet, OutletSetting,
 		POSCatalogOverride, POSDevice, POSDeviceSession, POSLineModifier, POSOrder,
 		POSOrderEvent, POSOrderLine, POSPayment, POSPermission, POSRefund, POSReturn,
 		POSReturnLine, POSRole, POSRolePermission, POSRoleV2, POSUserRoleAssignment,
@@ -17170,7 +17313,7 @@ type (
 		IntegrationSetting, InventorySnapshot, KDSStation, KDSSyncFailure, KDSTicket,
 		LayawayPayment, LayawayPlan, LeaveRequest, LicenseUsageSnapshot,
 		LoyaltyAccount, LoyaltyProgram, LoyaltyTransaction, MealEntitlement, Modifier,
-		ModifierGroup, OrderLink, OutboxEvent, Outlet, OutletSetting,
+		ModifierGroup, OrderLink, OrderVoidCode, OutboxEvent, Outlet, OutletSetting,
 		POSCatalogOverride, POSDevice, POSDeviceSession, POSLineModifier, POSOrder,
 		POSOrderEvent, POSOrderLine, POSPayment, POSPermission, POSRefund, POSReturn,
 		POSReturnLine, POSRole, POSRolePermission, POSRoleV2, POSUserRoleAssignment,
