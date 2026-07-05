@@ -78,6 +78,14 @@ func (p *Publisher) PublishSaleFinalized(ctx context.Context, tenantID uuid.UUID
 	return p.publish(ctx, tenantID, "sale.finalized", data)
 }
 
+// PublishSaleNotificationRequested publishes pos.sale.notification_requested — an explicit
+// request (the All-Sales "New Sale Notification" action) to (re)send the customer their sale
+// receipt/invoice. Consumed by notifications-service. Distinct from sale.finalized so it does
+// NOT re-trigger ledger/COGS posting in treasury.
+func (p *Publisher) PublishSaleNotificationRequested(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {
+	return p.publish(ctx, tenantID, "sale.notification_requested", data)
+}
+
 // PublishDrawerClosed publishes a pos.drawer.closed event consumed by treasury-api for cash position ledger.
 func (p *Publisher) PublishDrawerClosed(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {
 	return p.publish(ctx, tenantID, "drawer.closed", data)

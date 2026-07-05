@@ -157,6 +157,28 @@ func (h *LayawayHandler) Create(w http.ResponseWriter, r *http.Request) {
 	jsonOK(w, plan)
 }
 
+// ListStaffCredit handles GET /{tenantID}/pos/staff-credit — the staff fund-from-salary links
+// (admin/reconcile view). Optional ?status=active|settled|cancelled.
+func (h *LayawayHandler) ListStaffCredit(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+	if h.staffCredit == nil {
+		jsonOK(w, pagination.NewResponse([]any{}, 0, pagination.Parse(r)))
+		return
+	}
+	p := pagination.Parse(r)
+	rows, total, err := h.staffCredit.List(r.Context(), tid, r.URL.Query().Get("status"), p.Limit, p.Offset)
+	if err != nil {
+		h.log.Error("list staff-credit links failed", zap.Error(err))
+		jsonError(w, "failed to list staff credit", http.StatusInternalServerError)
+		return
+	}
+	jsonOK(w, pagination.NewResponse(rows, total, p))
+}
+
 // List handles GET /{tenantID}/pos/layaways
 // Optional query params: ?status= and ?customer_phone=
 func (h *LayawayHandler) List(w http.ResponseWriter, r *http.Request) {

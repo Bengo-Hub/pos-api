@@ -1617,6 +1617,7 @@ var (
 		{Name: "client_reference", Type: field.TypeString, Nullable: true},
 		{Name: "offline_created_at", Type: field.TypeTime, Nullable: true},
 		{Name: "status", Type: field.TypeString, Default: "draft"},
+		{Name: "source", Type: field.TypeString, Default: "pos_terminal"},
 		{Name: "subtotal", Type: field.TypeFloat64},
 		{Name: "tax_total", Type: field.TypeFloat64},
 		{Name: "discount_total", Type: field.TypeFloat64, Default: 0},
@@ -1656,6 +1657,11 @@ var (
 				Name:    "posorder_tenant_id_client_reference",
 				Unique:  true,
 				Columns: []*schema.Column{PosOrdersColumns[1], PosOrdersColumns[6]},
+			},
+			{
+				Name:    "posorder_tenant_id_source",
+				Unique:  false,
+				Columns: []*schema.Column{PosOrdersColumns[1], PosOrdersColumns[9]},
 			},
 		},
 	}
@@ -3139,6 +3145,7 @@ var (
 		{Name: "mpesa_phone", Type: field.TypeString, Nullable: true},
 		{Name: "bank_account_number", Type: field.TypeString, Nullable: true},
 		{Name: "bank_name", Type: field.TypeString, Nullable: true},
+		{Name: "erp_employee_number", Type: field.TypeString, Nullable: true},
 		{Name: "pin_hash", Type: field.TypeString, Nullable: true},
 		{Name: "pin_fast_hash", Type: field.TypeString, Nullable: true},
 		{Name: "pin_failed_attempts", Type: field.TypeInt, Default: 0},
@@ -3160,7 +3167,7 @@ var (
 			{
 				Name:    "staffmember_tenant_id_pin_fast_hash",
 				Unique:  true,
-				Columns: []*schema.Column{StaffMembersColumns[1], StaffMembersColumns[17]},
+				Columns: []*schema.Column{StaffMembersColumns[1], StaffMembersColumns[18]},
 			},
 		},
 	}

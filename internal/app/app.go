@@ -274,6 +274,7 @@ func New(ctx context.Context) (*App, error) {
 	// Staff fund-from-salary (premium): pos→erp S2S client + provisioner/settler.
 	erpClient := erp.NewClient(cfg.ERP.ServiceURL, cfg.ERP.APIKey, cfg.ERP.RequestTimeout, log)
 	staffCreditSvc := staffcredit.NewService(entClient, erpClient, eventPub, subsClient, log)
+	paymentSvc.SetStaffCredit(staffCreditSvc) // staff credit sales route the debt to ERP payroll
 	layawayHandler := handlers.NewLayawayHandler(log, entClient).WithStaffCredit(staffCreditSvc)
 	scaleHandler := handlers.NewScaleHandler(log, entClient)
 	purchaseOrdersHandler := handlers.NewPurchaseOrdersHandler(log, entClient)
@@ -296,6 +297,12 @@ func New(ctx context.Context) (*App, error) {
 
 	// Reports & Analytics (Sprint 11)
 	reportsHandler := handlers.NewReportsHandler(log, entClient)
+	// Wire the inventory S2S client so register-details can group products sold by brand.
+	reportsHandler.SetInventoryClient(inventoryClient)
+
+	// Branded, printable report documents (PDF/CSV) — reuses the report ent queries + tenant
+	// branding cache, mirroring ReceiptHandler wiring.
+	reportPDFHandler := handlers.NewReportPDFHandler(log, entClient, tenantCache, cfg.Auth.ServiceURL)
 
 	// Webhook subscriptions (Sprint 12)
 	webhookHandler := handlers.NewWebhookHandler(log, entClient)
@@ -339,6 +346,11 @@ func New(ctx context.Context) (*App, error) {
 	rbacRepo := rbacmodule.NewEntRepository(entClient)
 	rbacSvc := rbacmodule.NewService(rbacRepo, log)
 	rbacHandler := handlers.NewRBACHandler(log, rbacSvc, rbacRepo)
+	// Credit sale (sell on account) is gated in-handler on pos.orders.manage (same as approving sale
+	// returns) because the tender is in the request body, not the route.
+	paymentHandler.SetRBAC(rbacSvc)
+	// Cost price is only serialized to callers with pos.catalog.view_cost (manager/admin).
+	catalogHandler.SetRBAC(rbacSvc)
 
 	// Wire RBAC service into identity for JIT role assignment from JWT claims
 	identitySvc.SetRBACService(rbacSvc)
@@ -530,7 +542,7 @@ func New(ctx context.Context) (*App, error) {
 		RetentionDays: cfg.Backup.RetentionDays,
 	}, log).Start(ctx)
 
-	chiRouter := router.New(log, healthHandler, authMiddleware, entClient, identitySvc, orderHandler, catalogHandler, tableHandler, tenderHandler, paymentHandler, drawerHandler, barTabHandler, promotionHandler, rbacHandler, rbacSvc, hotelHandler, kdsHandler, deviceHandler, pinAuthHandler, publicOutletHandler, closingHandler, returnHandler, receiptHandler, menuHandler, layawayHandler, scaleHandler, pharmacyHandler, appointmentHandler, commissionHandler, staffScheduleHandler, shiftOverrideHandler, leaveRequestHandler, shiftRotationHandler, loyaltyHandler, reportsHandler, webhookHandler, onlineOrderHandler, serviceConfigHandler, serviceSettingsHandler, notificationsHandler, queueHandler, billSplitHandler, resourceHandler, commissionRuleHandler, packageHandler, clientHandler, channelHandler, printHandler, payrollHandler, staffAdminHandler, purchaseOrdersHandler, repairHandler, cfg.HTTP.AllowedOrigins, redisClient, cfg.Treasury.InternalServiceKey, backupHandler, backupDestHandler)
+	chiRouter := router.New(log, healthHandler, authMiddleware, entClient, identitySvc, orderHandler, catalogHandler, tableHandler, tenderHandler, paymentHandler, drawerHandler, barTabHandler, promotionHandler, rbacHandler, rbacSvc, hotelHandler, kdsHandler, deviceHandler, pinAuthHandler, publicOutletHandler, closingHandler, returnHandler, receiptHandler, menuHandler, layawayHandler, scaleHandler, pharmacyHandler, appointmentHandler, commissionHandler, staffScheduleHandler, shiftOverrideHandler, leaveRequestHandler, shiftRotationHandler, loyaltyHandler, reportsHandler, reportPDFHandler, webhookHandler, onlineOrderHandler, serviceConfigHandler, serviceSettingsHandler, notificationsHandler, queueHandler, billSplitHandler, resourceHandler, commissionRuleHandler, packageHandler, clientHandler, channelHandler, printHandler, payrollHandler, staffAdminHandler, purchaseOrdersHandler, repairHandler, cfg.HTTP.AllowedOrigins, redisClient, cfg.Treasury.InternalServiceKey, backupHandler, backupDestHandler)
 
 	httpServer := &http.Server{
 		Addr:              fmt.Sprintf("%s:%d", cfg.HTTP.Host, cfg.HTTP.Port),

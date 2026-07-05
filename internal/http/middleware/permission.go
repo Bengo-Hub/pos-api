@@ -37,31 +37,10 @@ func RequireServicePermission(rbac permissionChecker, permissions ...string) fun
 				writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
 				return
 			}
-
-			// Superuser / platform owner bypass.
-			if claims.IsSuperuser() || claims.IsPlatformOwner {
+			if HasServicePermission(r, rbac, permissions...) {
 				next.ServeHTTP(w, r)
 				return
 			}
-
-			// JWT-level canonical permissions.
-			if claims.HasAnyPermission(permissions...) {
-				next.ServeHTTP(w, r)
-				return
-			}
-
-			// Local RBAC DB fallback (tenant-scoped).
-			if rbac != nil {
-				tenantID, terr := uuid.Parse(claims.TenantID)
-				userID, uerr := uuid.Parse(claims.Subject)
-				if terr == nil && uerr == nil && tenantID != uuid.Nil && userID != uuid.Nil {
-					if has, err := rbac.HasAnyPermission(r.Context(), tenantID, userID, permissions...); err == nil && has {
-						next.ServeHTTP(w, r)
-						return
-					}
-				}
-			}
-
 			writeJSON(w, http.StatusForbidden, map[string]any{
 				"error":    "permission_denied",
 				"message":  "you do not have permission to perform this action",
@@ -70,6 +49,37 @@ func RequireServicePermission(rbac permissionChecker, permissions ...string) fun
 		})
 	}
 }
+
+// HasServicePermission runs the same resolution as RequireServicePermission but returns a bool,
+// for in-handler checks where the required permission depends on the request BODY (e.g. a credit-sale
+// tender shares a route with cash tenders, so the route middleware can't distinguish it). Order:
+// superuser/platform-owner bypass → JWT canonical permissions → local RBAC DB fallback.
+func HasServicePermission(r *http.Request, rbac permissionChecker, permissions ...string) bool {
+	claims, ok := authclient.ClaimsFromContext(r.Context())
+	if !ok || claims == nil || claims.Subject == "" {
+		return false
+	}
+	if claims.IsSuperuser() || claims.IsPlatformOwner {
+		return true
+	}
+	if claims.HasAnyPermission(permissions...) {
+		return true
+	}
+	if rbac != nil {
+		tenantID, terr := uuid.Parse(claims.TenantID)
+		userID, uerr := uuid.Parse(claims.Subject)
+		if terr == nil && uerr == nil && tenantID != uuid.Nil && userID != uuid.Nil {
+			if has, err := rbac.HasAnyPermission(r.Context(), tenantID, userID, permissions...); err == nil && has {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// PermissionChecker is the exported alias of the rbac subset used for in-handler permission checks
+// (so handlers can hold a reference without importing the rbac module directly).
+type PermissionChecker = permissionChecker
 
 func writeJSON(w http.ResponseWriter, status int, body any) {
 	w.Header().Set("Content-Type", "application/json")

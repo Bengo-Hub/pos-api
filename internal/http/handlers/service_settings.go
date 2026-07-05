@@ -89,8 +89,12 @@ type settingsResponse struct {
 	ShiftReportsEnabled bool `json:"shift_reports_enabled"`
 	// sidebar visibility — outlet admins hide whole modules (by moduleKey) or individual sidebar
 	// items (by href) to declutter the app to only the screens they use. Stored in metadata.
-	DisabledModules []string `json:"disabled_modules"`
-	HiddenItems     []string `json:"hidden_items"`
+	// The flat lists apply to ALL roles (tenant-wide); the *ByRole maps hide additionally for a
+	// specific role code only. Platform-owner/superuser users are exempt from both (enforced in the UI).
+	DisabledModules       []string            `json:"disabled_modules"`
+	HiddenItems           []string            `json:"hidden_items"`
+	DisabledModulesByRole map[string][]string `json:"disabled_modules_by_role"`
+	HiddenItemsByRole     map[string][]string `json:"hidden_items_by_role"`
 	// shift settings
 	ShiftAutoEndEnabled bool `json:"shift_auto_end_enabled"`
 	ShiftMaxHours       int  `json:"shift_max_hours"`
@@ -182,6 +186,8 @@ func toSettingsResponse(outlet *ent.Outlet, s *ent.OutletSetting) settingsRespon
 		ShowPaymentInfoOnReceipt:  s.ShowPaymentInfoOnReceipt,
 		DisabledModules:           metaStringSlice(s.Metadata, "disabled_modules"),
 		HiddenItems:               metaStringSlice(s.Metadata, "hidden_items"),
+		DisabledModulesByRole:     metaStringSliceMap(s.Metadata, "disabled_modules_by_role"),
+		HiddenItemsByRole:         metaStringSliceMap(s.Metadata, "hidden_items_by_role"),
 		UpdatedAt:                 s.UpdatedAt.Format("2006-01-02T15:04:05Z"),
 	}
 	return r
@@ -212,6 +218,42 @@ func metaStringSlice(meta map[string]any, key string) []string {
 	return out
 }
 
+// metaStringSliceMap reads a map[roleCode][]string stored in the freeform metadata JSON (used by the
+// per-role sidebar-hiding lists). Handles the map[string]any shape after a DB/JSON round-trip as well
+// as the in-memory map[string][]string. Always returns a non-nil map so the API emits {} not null.
+func metaStringSliceMap(meta map[string]any, key string) map[string][]string {
+	out := map[string][]string{}
+	if meta == nil {
+		return out
+	}
+	switch raw := meta[key].(type) {
+	case map[string][]string:
+		for role, list := range raw {
+			if vals := dedupeStrings(list); len(vals) > 0 {
+				out[role] = vals
+			}
+		}
+	case map[string]any:
+		for role, v := range raw {
+			list := []string{}
+			switch vv := v.(type) {
+			case []string:
+				list = vv
+			case []any:
+				for _, e := range vv {
+					if s, ok := e.(string); ok {
+						list = append(list, s)
+					}
+				}
+			}
+			if vals := dedupeStrings(list); len(vals) > 0 {
+				out[role] = vals
+			}
+		}
+	}
+	return out
+}
+
 // dedupeStrings trims, drops empties, and removes duplicates while preserving first-seen order.
 func dedupeStrings(in []string) []string {
 	seen := map[string]struct{}{}
@@ -226,6 +268,22 @@ func dedupeStrings(in []string) []string {
 		}
 		seen[s] = struct{}{}
 		out = append(out, s)
+	}
+	return out
+}
+
+// dedupeStringSliceMap dedupes each role's list and drops roles left with no entries, so the stored
+// per-role hiding map stays clean (no empty buckets, no duplicate hrefs).
+func dedupeStringSliceMap(in map[string][]string) map[string][]string {
+	out := map[string][]string{}
+	for role, list := range in {
+		role = strings.TrimSpace(role)
+		if role == "" {
+			continue
+		}
+		if vals := dedupeStrings(list); len(vals) > 0 {
+			out[role] = vals
+		}
 	}
 	return out
 }
@@ -518,8 +576,12 @@ type modulesInput struct {
 	ShiftReportsEnabled *bool `json:"shift_reports_enabled"`
 	// Sidebar visibility (whole-module by moduleKey / individual sidebar item by href). A nil
 	// pointer leaves the stored list untouched; a non-nil (possibly empty) list replaces it.
-	DisabledModules *[]string `json:"disabled_modules"`
-	HiddenItems     *[]string `json:"hidden_items"`
+	// The flat lists apply tenant-wide; the *ByRole maps (role code → hrefs/module keys) hide
+	// additionally for a specific role only. A nil map pointer leaves the stored map untouched.
+	DisabledModules       *[]string             `json:"disabled_modules"`
+	HiddenItems           *[]string             `json:"hidden_items"`
+	DisabledModulesByRole *map[string][]string  `json:"disabled_modules_by_role"`
+	HiddenItemsByRole     *map[string][]string  `json:"hidden_items_by_role"`
 }
 
 // PatchModules handles PATCH /{tenantID}/pos/settings/modules
@@ -571,7 +633,8 @@ func (h *ServiceSettingsHandler) PatchModules(w http.ResponseWriter, r *http.Req
 
 	// Sidebar visibility lists live in the freeform metadata (no schema migration). Merge into a
 	// copy of the existing metadata so other keys (e.g. booking_policy) are preserved.
-	if input.DisabledModules != nil || input.HiddenItems != nil {
+	if input.DisabledModules != nil || input.HiddenItems != nil ||
+		input.DisabledModulesByRole != nil || input.HiddenItemsByRole != nil {
 		meta := map[string]any{}
 		for k, v := range setting.Metadata {
 			meta[k] = v
@@ -581,6 +644,12 @@ func (h *ServiceSettingsHandler) PatchModules(w http.ResponseWriter, r *http.Req
 		}
 		if input.HiddenItems != nil {
 			meta["hidden_items"] = dedupeStrings(*input.HiddenItems)
+		}
+		if input.DisabledModulesByRole != nil {
+			meta["disabled_modules_by_role"] = dedupeStringSliceMap(*input.DisabledModulesByRole)
+		}
+		if input.HiddenItemsByRole != nil {
+			meta["hidden_items_by_role"] = dedupeStringSliceMap(*input.HiddenItemsByRole)
 		}
 		upd = upd.SetMetadata(meta)
 	}

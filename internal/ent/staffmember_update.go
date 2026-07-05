@@ -319,6 +319,26 @@ func (_u *StaffMemberUpdate) ClearBankName() *StaffMemberUpdate {
 	return _u
 }
 
+// SetErpEmployeeNumber sets the "erp_employee_number" field.
+func (_u *StaffMemberUpdate) SetErpEmployeeNumber(v string) *StaffMemberUpdate {
+	_u.mutation.SetErpEmployeeNumber(v)
+	return _u
+}
+
+// SetNillableErpEmployeeNumber sets the "erp_employee_number" field if the given value is not nil.
+func (_u *StaffMemberUpdate) SetNillableErpEmployeeNumber(v *string) *StaffMemberUpdate {
+	if v != nil {
+		_u.SetErpEmployeeNumber(*v)
+	}
+	return _u
+}
+
+// ClearErpEmployeeNumber clears the value of the "erp_employee_number" field.
+func (_u *StaffMemberUpdate) ClearErpEmployeeNumber() *StaffMemberUpdate {
+	_u.mutation.ClearErpEmployeeNumber()
+	return _u
+}
+
 // SetPinHash sets the "pin_hash" field.
 func (_u *StaffMemberUpdate) SetPinHash(v string) *StaffMemberUpdate {
 	_u.mutation.SetPinHash(v)
@@ -601,6 +621,12 @@ func (_u *StaffMemberUpdate) sqlSave(ctx context.Context) (_node int, err error)
 	}
 	if _u.mutation.BankNameCleared() {
 		_spec.ClearField(staffmember.FieldBankName, field.TypeString)
+	}
+	if value, ok := _u.mutation.ErpEmployeeNumber(); ok {
+		_spec.SetField(staffmember.FieldErpEmployeeNumber, field.TypeString, value)
+	}
+	if _u.mutation.ErpEmployeeNumberCleared() {
+		_spec.ClearField(staffmember.FieldErpEmployeeNumber, field.TypeString)
 	}
 	if value, ok := _u.mutation.PinHash(); ok {
 		_spec.SetField(staffmember.FieldPinHash, field.TypeString, value)
@@ -982,6 +1008,26 @@ func (_u *StaffMemberUpdateOne) ClearBankName() *StaffMemberUpdateOne {
 	return _u
 }
 
+// SetErpEmployeeNumber sets the "erp_employee_number" field.
+func (_u *StaffMemberUpdateOne) SetErpEmployeeNumber(v string) *StaffMemberUpdateOne {
+	_u.mutation.SetErpEmployeeNumber(v)
+	return _u
+}
+
+// SetNillableErpEmployeeNumber sets the "erp_employee_number" field if the given value is not nil.
+func (_u *StaffMemberUpdateOne) SetNillableErpEmployeeNumber(v *string) *StaffMemberUpdateOne {
+	if v != nil {
+		_u.SetErpEmployeeNumber(*v)
+	}
+	return _u
+}
+
+// ClearErpEmployeeNumber clears the value of the "erp_employee_number" field.
+func (_u *StaffMemberUpdateOne) ClearErpEmployeeNumber() *StaffMemberUpdateOne {
+	_u.mutation.ClearErpEmployeeNumber()
+	return _u
+}
+
 // SetPinHash sets the "pin_hash" field.
 func (_u *StaffMemberUpdateOne) SetPinHash(v string) *StaffMemberUpdateOne {
 	_u.mutation.SetPinHash(v)
@@ -1294,6 +1340,12 @@ func (_u *StaffMemberUpdateOne) sqlSave(ctx context.Context) (_node *StaffMember
 	}
 	if _u.mutation.BankNameCleared() {
 		_spec.ClearField(staffmember.FieldBankName, field.TypeString)
+	}
+	if value, ok := _u.mutation.ErpEmployeeNumber(); ok {
+		_spec.SetField(staffmember.FieldErpEmployeeNumber, field.TypeString, value)
+	}
+	if _u.mutation.ErpEmployeeNumberCleared() {
+		_spec.ClearField(staffmember.FieldErpEmployeeNumber, field.TypeString)
 	}
 	if value, ok := _u.mutation.PinHash(); ok {
 		_spec.SetField(staffmember.FieldPinHash, field.TypeString, value)

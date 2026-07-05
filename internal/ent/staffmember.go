@@ -49,6 +49,8 @@ type StaffMember struct {
 	BankAccountNumber *string `json:"bank_account_number,omitempty"`
 	// BankName holds the value of the "bank_name" field.
 	BankName *string `json:"bank_name,omitempty"`
+	// Employee number synced from erp-api
+	ErpEmployeeNumber *string `json:"erp_employee_number,omitempty"`
 	// PinHash holds the value of the "pin_hash" field.
 	PinHash *string `json:"-"`
 	// PinFastHash holds the value of the "pin_fast_hash" field.
@@ -98,7 +100,7 @@ func (*StaffMember) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullFloat64)
 		case staffmember.FieldPinFailedAttempts:
 			values[i] = new(sql.NullInt64)
-		case staffmember.FieldName, staffmember.FieldRole, staffmember.FieldEmploymentType, staffmember.FieldMpesaPhone, staffmember.FieldBankAccountNumber, staffmember.FieldBankName, staffmember.FieldPinHash, staffmember.FieldPinFastHash:
+		case staffmember.FieldName, staffmember.FieldRole, staffmember.FieldEmploymentType, staffmember.FieldMpesaPhone, staffmember.FieldBankAccountNumber, staffmember.FieldBankName, staffmember.FieldErpEmployeeNumber, staffmember.FieldPinHash, staffmember.FieldPinFastHash:
 			values[i] = new(sql.NullString)
 		case staffmember.FieldPinLockedUntil, staffmember.FieldCreatedAt, staffmember.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -225,6 +227,13 @@ func (_m *StaffMember) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.BankName = new(string)
 				*_m.BankName = value.String
+			}
+		case staffmember.FieldErpEmployeeNumber:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field erp_employee_number", values[i])
+			} else if value.Valid {
+				_m.ErpEmployeeNumber = new(string)
+				*_m.ErpEmployeeNumber = value.String
 			}
 		case staffmember.FieldPinHash:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -362,6 +371,11 @@ func (_m *StaffMember) String() string {
 	builder.WriteString(", ")
 	if v := _m.BankName; v != nil {
 		builder.WriteString("bank_name=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.ErpEmployeeNumber; v != nil {
+		builder.WriteString("erp_employee_number=")
 		builder.WriteString(*v)
 	}
 	builder.WriteString(", ")

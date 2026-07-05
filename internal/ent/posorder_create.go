@@ -99,6 +99,20 @@ func (_c *POSOrderCreate) SetNillableStatus(v *string) *POSOrderCreate {
 	return _c
 }
 
+// SetSource sets the "source" field.
+func (_c *POSOrderCreate) SetSource(v string) *POSOrderCreate {
+	_c.mutation.SetSource(v)
+	return _c
+}
+
+// SetNillableSource sets the "source" field if the given value is not nil.
+func (_c *POSOrderCreate) SetNillableSource(v *string) *POSOrderCreate {
+	if v != nil {
+		_c.SetSource(*v)
+	}
+	return _c
+}
+
 // SetSubtotal sets the "subtotal" field.
 func (_c *POSOrderCreate) SetSubtotal(v float64) *POSOrderCreate {
 	_c.mutation.SetSubtotal(v)
@@ -487,6 +501,10 @@ func (_c *POSOrderCreate) defaults() {
 		v := posorder.DefaultStatus
 		_c.mutation.SetStatus(v)
 	}
+	if _, ok := _c.mutation.Source(); !ok {
+		v := posorder.DefaultSource
+		_c.mutation.SetSource(v)
+	}
 	if _, ok := _c.mutation.DiscountTotal(); !ok {
 		v := posorder.DefaultDiscountTotal
 		_c.mutation.SetDiscountTotal(v)
@@ -561,6 +579,9 @@ func (_c *POSOrderCreate) check() error {
 	}
 	if _, ok := _c.mutation.Status(); !ok {
 		return &ValidationError{Name: "status", err: errors.New(`ent: missing required field "POSOrder.status"`)}
+	}
+	if _, ok := _c.mutation.Source(); !ok {
+		return &ValidationError{Name: "source", err: errors.New(`ent: missing required field "POSOrder.source"`)}
 	}
 	if _, ok := _c.mutation.Subtotal(); !ok {
 		return &ValidationError{Name: "subtotal", err: errors.New(`ent: missing required field "POSOrder.subtotal"`)}
@@ -676,6 +697,10 @@ func (_c *POSOrderCreate) createSpec() (*POSOrder, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Status(); ok {
 		_spec.SetField(posorder.FieldStatus, field.TypeString, value)
 		_node.Status = value
+	}
+	if value, ok := _c.mutation.Source(); ok {
+		_spec.SetField(posorder.FieldSource, field.TypeString, value)
+		_node.Source = value
 	}
 	if value, ok := _c.mutation.Subtotal(); ok {
 		_spec.SetField(posorder.FieldSubtotal, field.TypeFloat64, value)
@@ -974,6 +999,18 @@ func (u *POSOrderUpsert) SetStatus(v string) *POSOrderUpsert {
 // UpdateStatus sets the "status" field to the value that was provided on create.
 func (u *POSOrderUpsert) UpdateStatus() *POSOrderUpsert {
 	u.SetExcluded(posorder.FieldStatus)
+	return u
+}
+
+// SetSource sets the "source" field.
+func (u *POSOrderUpsert) SetSource(v string) *POSOrderUpsert {
+	u.Set(posorder.FieldSource, v)
+	return u
+}
+
+// UpdateSource sets the "source" field to the value that was provided on create.
+func (u *POSOrderUpsert) UpdateSource() *POSOrderUpsert {
+	u.SetExcluded(posorder.FieldSource)
 	return u
 }
 
@@ -1523,6 +1560,20 @@ func (u *POSOrderUpsertOne) SetStatus(v string) *POSOrderUpsertOne {
 func (u *POSOrderUpsertOne) UpdateStatus() *POSOrderUpsertOne {
 	return u.Update(func(s *POSOrderUpsert) {
 		s.UpdateStatus()
+	})
+}
+
+// SetSource sets the "source" field.
+func (u *POSOrderUpsertOne) SetSource(v string) *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetSource(v)
+	})
+}
+
+// UpdateSource sets the "source" field to the value that was provided on create.
+func (u *POSOrderUpsertOne) UpdateSource() *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdateSource()
 	})
 }
 
@@ -2301,6 +2352,20 @@ func (u *POSOrderUpsertBulk) SetStatus(v string) *POSOrderUpsertBulk {
 func (u *POSOrderUpsertBulk) UpdateStatus() *POSOrderUpsertBulk {
 	return u.Update(func(s *POSOrderUpsert) {
 		s.UpdateStatus()
+	})
+}
+
+// SetSource sets the "source" field.
+func (u *POSOrderUpsertBulk) SetSource(v string) *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetSource(v)
+	})
+}
+
+// UpdateSource sets the "source" field to the value that was provided on create.
+func (u *POSOrderUpsertBulk) UpdateSource() *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdateSource()
 	})
 }
 

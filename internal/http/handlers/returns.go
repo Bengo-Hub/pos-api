@@ -555,10 +555,17 @@ func (h *ReturnHandler) CompleteReturn(w http.ResponseWriter, r *http.Request) {
 		update = update.SetNillableRefundChannel(rc)
 	}
 
-	// Money movement: for a refund-type return, call treasury-api and store the reference.
+	// Money movement: settle in treasury for BOTH a cash/mpesa/bank refund AND a store-credit return.
+	// A store-credit return has no channel of its own, so force the store_credit channel — treasury
+	// then reverses revenue+VAT AND credits the customer's AR account, so a KES 800 store-credit return
+	// against a KES 2000 credit sale nets to KES 1200 owed (previously store-credit returns skipped
+	// this call entirely, posting only a GL journal and never reducing the customer balance).
 	var treasuryRefundRef string
-	if ret.ReturnType == posreturn.ReturnTypeRefund && h.treasuryClient != nil {
+	if (ret.ReturnType == posreturn.ReturnTypeRefund || ret.ReturnType == posreturn.ReturnTypeStoreCredit) && h.treasuryClient != nil {
 		tenantSlug := chi.URLParam(r, "tenantID")
+		if ret.ReturnType == posreturn.ReturnTypeStoreCredit {
+			refundChannel = "store_credit"
+		}
 
 		// Sum the returned lines' VAT and COGS so treasury can reverse the exact tax + cost-of-goods.
 		// tax_amount is prorated from the original order line's tax by returned quantity; cost is the
@@ -570,19 +577,23 @@ func (h *ReturnHandler) CompleteReturn(w http.ResponseWriter, r *http.Request) {
 		// Original buyer's CRM contact + name (for the treasury refund's customer linkage). The order
 		// stores the name; the CRM contact lives on the matched loyalty account (by customer_phone).
 		crmContactID, customerName := h.resolveReturnCustomer(ctx, tid, ret.OrderID)
+		// Also forward the buyer's phone as the identifier fallback so a store-credit return still nets
+		// against a legacy phone-keyed credit-sale row when no CRM contact was linked.
+		customerIdentifier := h.resolveReturnCustomerPhone(ctx, tid, ret.OrderID)
 
 		refundResp, refundErr := h.treasuryClient.CreateRefund(ctx, tenantSlug, returnID.String(), treasury.RefundRequest{
-			SourceService: "pos",
-			ReferenceID:   returnID.String(),
-			ReferenceType: "pos_return",
-			Amount:        ret.RefundAmount,
-			TaxAmount:     taxAmount,
-			Cost:          costAmount,
-			Currency:      "KES",
-			Reason:        ret.Reason,
-			RefundChannel: refundChannel,
-			CrmContactID:  crmContactID,
-			CustomerName:  customerName,
+			SourceService:      "pos",
+			ReferenceID:        returnID.String(),
+			ReferenceType:      "pos_return",
+			Amount:             ret.RefundAmount,
+			TaxAmount:          taxAmount,
+			Cost:               costAmount,
+			Currency:           "KES",
+			Reason:             ret.Reason,
+			RefundChannel:      refundChannel,
+			CrmContactID:       crmContactID,
+			CustomerIdentifier: customerIdentifier,
+			CustomerName:       customerName,
 		})
 		if refundErr != nil {
 			h.log.Error("treasury refund call failed (non-fatal; refund can be retried)",
@@ -813,6 +824,18 @@ func (h *ReturnHandler) resolveReturnCustomer(ctx context.Context, tenantID, ord
 		}
 	}
 	return crmContactID, customerName
+}
+
+// resolveReturnCustomerPhone returns the original buyer's phone (the treasury AR identifier fallback),
+// or "" when the order carried no customer phone. Best-effort.
+func (h *ReturnHandler) resolveReturnCustomerPhone(ctx context.Context, tenantID, orderID uuid.UUID) string {
+	order, err := h.client.POSOrder.Query().
+		Where(entposorder.ID(orderID), entposorder.TenantID(tenantID)).
+		Only(ctx)
+	if err != nil || order.CustomerPhone == nil {
+		return ""
+	}
+	return *order.CustomerPhone
 }
 
 // reasonCodePtr converts a reason_code string to a *posreturn.ReasonCode for SetNillableReasonCode.

@@ -53104,6 +53104,7 @@ type POSOrderMutation struct {
 	client_reference          *string
 	offline_created_at        *time.Time
 	status                    *string
+	source                    *string
 	subtotal                  *float64
 	addsubtotal               *float64
 	tax_total                 *float64
@@ -53567,6 +53568,42 @@ func (m *POSOrderMutation) OldStatus(ctx context.Context) (v string, err error) 
 // ResetStatus resets all changes to the "status" field.
 func (m *POSOrderMutation) ResetStatus() {
 	m.status = nil
+}
+
+// SetSource sets the "source" field.
+func (m *POSOrderMutation) SetSource(s string) {
+	m.source = &s
+}
+
+// Source returns the value of the "source" field in the mutation.
+func (m *POSOrderMutation) Source() (r string, exists bool) {
+	v := m.source
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSource returns the old "source" field's value of the POSOrder entity.
+// If the POSOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSOrderMutation) OldSource(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSource is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSource requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSource: %w", err)
+	}
+	return oldValue.Source, nil
+}
+
+// ResetSource resets all changes to the "source" field.
+func (m *POSOrderMutation) ResetSource() {
+	m.source = nil
 }
 
 // SetSubtotal sets the "subtotal" field.
@@ -54890,7 +54927,7 @@ func (m *POSOrderMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *POSOrderMutation) Fields() []string {
-	fields := make([]string, 0, 31)
+	fields := make([]string, 0, 32)
 	if m.tenant_id != nil {
 		fields = append(fields, posorder.FieldTenantID)
 	}
@@ -54914,6 +54951,9 @@ func (m *POSOrderMutation) Fields() []string {
 	}
 	if m.status != nil {
 		fields = append(fields, posorder.FieldStatus)
+	}
+	if m.source != nil {
+		fields = append(fields, posorder.FieldSource)
 	}
 	if m.subtotal != nil {
 		fields = append(fields, posorder.FieldSubtotal)
@@ -55008,6 +55048,8 @@ func (m *POSOrderMutation) Field(name string) (ent.Value, bool) {
 		return m.OfflineCreatedAt()
 	case posorder.FieldStatus:
 		return m.Status()
+	case posorder.FieldSource:
+		return m.Source()
 	case posorder.FieldSubtotal:
 		return m.Subtotal()
 	case posorder.FieldTaxTotal:
@@ -55079,6 +55121,8 @@ func (m *POSOrderMutation) OldField(ctx context.Context, name string) (ent.Value
 		return m.OldOfflineCreatedAt(ctx)
 	case posorder.FieldStatus:
 		return m.OldStatus(ctx)
+	case posorder.FieldSource:
+		return m.OldSource(ctx)
 	case posorder.FieldSubtotal:
 		return m.OldSubtotal(ctx)
 	case posorder.FieldTaxTotal:
@@ -55189,6 +55233,13 @@ func (m *POSOrderMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetStatus(v)
+		return nil
+	case posorder.FieldSource:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSource(v)
 		return nil
 	case posorder.FieldSubtotal:
 		v, ok := value.(float64)
@@ -55603,6 +55654,9 @@ func (m *POSOrderMutation) ResetField(name string) error {
 		return nil
 	case posorder.FieldStatus:
 		m.ResetStatus()
+		return nil
+	case posorder.FieldSource:
+		m.ResetSource()
 		return nil
 	case posorder.FieldSubtotal:
 		m.ResetSubtotal()
@@ -98082,6 +98136,7 @@ type StaffMemberMutation struct {
 	mpesa_phone            *string
 	bank_account_number    *string
 	bank_name              *string
+	erp_employee_number    *string
 	pin_hash               *string
 	pin_fast_hash          *string
 	pin_failed_attempts    *int
@@ -98972,6 +99027,55 @@ func (m *StaffMemberMutation) ResetBankName() {
 	delete(m.clearedFields, staffmember.FieldBankName)
 }
 
+// SetErpEmployeeNumber sets the "erp_employee_number" field.
+func (m *StaffMemberMutation) SetErpEmployeeNumber(s string) {
+	m.erp_employee_number = &s
+}
+
+// ErpEmployeeNumber returns the value of the "erp_employee_number" field in the mutation.
+func (m *StaffMemberMutation) ErpEmployeeNumber() (r string, exists bool) {
+	v := m.erp_employee_number
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldErpEmployeeNumber returns the old "erp_employee_number" field's value of the StaffMember entity.
+// If the StaffMember object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffMemberMutation) OldErpEmployeeNumber(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldErpEmployeeNumber is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldErpEmployeeNumber requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldErpEmployeeNumber: %w", err)
+	}
+	return oldValue.ErpEmployeeNumber, nil
+}
+
+// ClearErpEmployeeNumber clears the value of the "erp_employee_number" field.
+func (m *StaffMemberMutation) ClearErpEmployeeNumber() {
+	m.erp_employee_number = nil
+	m.clearedFields[staffmember.FieldErpEmployeeNumber] = struct{}{}
+}
+
+// ErpEmployeeNumberCleared returns if the "erp_employee_number" field was cleared in this mutation.
+func (m *StaffMemberMutation) ErpEmployeeNumberCleared() bool {
+	_, ok := m.clearedFields[staffmember.FieldErpEmployeeNumber]
+	return ok
+}
+
+// ResetErpEmployeeNumber resets all changes to the "erp_employee_number" field.
+func (m *StaffMemberMutation) ResetErpEmployeeNumber() {
+	m.erp_employee_number = nil
+	delete(m.clearedFields, staffmember.FieldErpEmployeeNumber)
+}
+
 // SetPinHash sets the "pin_hash" field.
 func (m *StaffMemberMutation) SetPinHash(s string) {
 	m.pin_hash = &s
@@ -99335,7 +99439,7 @@ func (m *StaffMemberMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *StaffMemberMutation) Fields() []string {
-	fields := make([]string, 0, 21)
+	fields := make([]string, 0, 22)
 	if m.tenant_id != nil {
 		fields = append(fields, staffmember.FieldTenantID)
 	}
@@ -99380,6 +99484,9 @@ func (m *StaffMemberMutation) Fields() []string {
 	}
 	if m.bank_name != nil {
 		fields = append(fields, staffmember.FieldBankName)
+	}
+	if m.erp_employee_number != nil {
+		fields = append(fields, staffmember.FieldErpEmployeeNumber)
 	}
 	if m.pin_hash != nil {
 		fields = append(fields, staffmember.FieldPinHash)
@@ -99437,6 +99544,8 @@ func (m *StaffMemberMutation) Field(name string) (ent.Value, bool) {
 		return m.BankAccountNumber()
 	case staffmember.FieldBankName:
 		return m.BankName()
+	case staffmember.FieldErpEmployeeNumber:
+		return m.ErpEmployeeNumber()
 	case staffmember.FieldPinHash:
 		return m.PinHash()
 	case staffmember.FieldPinFastHash:
@@ -99488,6 +99597,8 @@ func (m *StaffMemberMutation) OldField(ctx context.Context, name string) (ent.Va
 		return m.OldBankAccountNumber(ctx)
 	case staffmember.FieldBankName:
 		return m.OldBankName(ctx)
+	case staffmember.FieldErpEmployeeNumber:
+		return m.OldErpEmployeeNumber(ctx)
 	case staffmember.FieldPinHash:
 		return m.OldPinHash(ctx)
 	case staffmember.FieldPinFastHash:
@@ -99613,6 +99724,13 @@ func (m *StaffMemberMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetBankName(v)
+		return nil
+	case staffmember.FieldErpEmployeeNumber:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetErpEmployeeNumber(v)
 		return nil
 	case staffmember.FieldPinHash:
 		v, ok := value.(string)
@@ -99779,6 +99897,9 @@ func (m *StaffMemberMutation) ClearedFields() []string {
 	if m.FieldCleared(staffmember.FieldBankName) {
 		fields = append(fields, staffmember.FieldBankName)
 	}
+	if m.FieldCleared(staffmember.FieldErpEmployeeNumber) {
+		fields = append(fields, staffmember.FieldErpEmployeeNumber)
+	}
 	if m.FieldCleared(staffmember.FieldPinHash) {
 		fields = append(fields, staffmember.FieldPinHash)
 	}
@@ -99831,6 +99952,9 @@ func (m *StaffMemberMutation) ClearField(name string) error {
 		return nil
 	case staffmember.FieldBankName:
 		m.ClearBankName()
+		return nil
+	case staffmember.FieldErpEmployeeNumber:
+		m.ClearErpEmployeeNumber()
 		return nil
 	case staffmember.FieldPinHash:
 		m.ClearPinHash()
@@ -99893,6 +100017,9 @@ func (m *StaffMemberMutation) ResetField(name string) error {
 		return nil
 	case staffmember.FieldBankName:
 		m.ResetBankName()
+		return nil
+	case staffmember.FieldErpEmployeeNumber:
+		m.ResetErpEmployeeNumber()
 		return nil
 	case staffmember.FieldPinHash:
 		m.ResetPinHash()

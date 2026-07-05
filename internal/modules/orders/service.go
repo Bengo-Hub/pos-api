@@ -70,6 +70,9 @@ type CreateOrderRequest struct {
 	CustomerPhone  string // loyalty auto-earn — stored on order, forwarded in pos.sale.finalized
 	CustomerName   string
 	DiscountAmount float64 // order-level discount (e.g. loyalty redemption) applied before total_amount
+	// Source marks where the sale originated: "pos_terminal" (default) or "back_office"
+	// (the back-office Add Sale flow). Drives the All-Sales Sources filter + POS-only list.
+	Source string
 }
 
 // OrderLineInput represents a single line item in an order.
@@ -314,6 +317,12 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent
 		initialStatus = StatusOpen
 	}
 
+	// source defaults to pos_terminal; the back-office Add Sale flow passes "back_office".
+	source := req.Source
+	if source == "" {
+		source = "pos_terminal"
+	}
+
 	orderBuilder := tx.POSOrder.Create().
 		SetTenantID(req.TenantID).
 		SetOutletID(req.OutletID).
@@ -321,6 +330,7 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent
 		SetUserID(req.UserID).
 		SetOrderNumber(orderNumber).
 		SetStatus(initialStatus).
+		SetSource(source).
 		SetSubtotal(totals.Subtotal.InexactFloat64()).
 		SetTaxTotal(totals.TaxTotal.InexactFloat64()).
 		SetDiscountTotal(totals.DiscountTotal.InexactFloat64()).
@@ -546,6 +556,60 @@ func (s *Service) UpdateStatus(ctx context.Context, tenantID, orderID uuid.UUID,
 	}
 
 	return updated, nil
+}
+
+// RequestSaleNotification publishes pos.sale.notification_requested for an order — the
+// All-Sales "New Sale Notification" action. notifications-service consumes it and sends the
+// customer their receipt/invoice (SMS/email/WhatsApp). It does NOT re-post to the ledger.
+// overridePhone/overrideEmail let the cashier redirect the notification if the order has none.
+func (s *Service) RequestSaleNotification(ctx context.Context, tenantID, orderID uuid.UUID, overridePhone, overrideEmail string) (*ent.POSOrder, error) {
+	order, err := s.client.POSOrder.Query().
+		Where(posorder.ID(orderID), posorder.TenantID(tenantID)).
+		WithLines().
+		Only(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("orders: not found: %w", err)
+	}
+
+	phone := overridePhone
+	if phone == "" && order.CustomerPhone != nil {
+		phone = *order.CustomerPhone
+	}
+	name := ""
+	if order.CustomerName != nil {
+		name = *order.CustomerName
+	}
+	items := make([]map[string]any, 0, len(order.Edges.Lines))
+	for _, l := range order.Edges.Lines {
+		items = append(items, map[string]any{
+			"name": l.Name, "quantity": l.Quantity, "total_price": l.TotalPrice,
+		})
+	}
+
+	if s.publisher != nil {
+		_ = s.publisher.PublishSaleNotificationRequested(ctx, tenantID, map[string]any{
+			"order_id":       orderID.String(),
+			"order_number":   order.OrderNumber,
+			"tenant_id":      tenantID.String(),
+			"outlet_id":      order.OutletID.String(),
+			"customer_name":  name,
+			"customer_phone": phone,
+			"customer_email": overrideEmail,
+			"total_amount":   order.TotalAmount,
+			"currency":       order.Currency,
+			"items":          items,
+			"etims_invoice_number": derefStr(order.EtimsInvoiceNumber),
+		})
+	}
+	return order, nil
+}
+
+// derefStr returns the pointed-to string or "" for a nil pointer.
+func derefStr(p *string) string {
+	if p == nil {
+		return ""
+	}
+	return *p
 }
 
 // parseTableRef extracts the table reference string from an order's metadata.

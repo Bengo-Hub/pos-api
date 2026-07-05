@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -12,6 +13,7 @@ import (
 	"github.com/Bengo-Hub/httpware"
 	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/bengobox/pos-service/internal/ent"
+	outletmw "github.com/bengobox/pos-service/internal/http/middleware"
 	"github.com/bengobox/pos-service/internal/modules/payments"
 	"github.com/bengobox/pos-service/internal/modules/treasury"
 )
@@ -23,7 +25,12 @@ type PaymentHandler struct {
 	treasuryClient *treasury.Client
 	publicBaseURL  string
 	client         *ent.Client
+	rbac           outletmw.PermissionChecker
 }
+
+// SetRBAC wires the RBAC checker used for in-handler permission checks whose required permission
+// depends on the request body (the credit-sale tender shares a route with cash tenders).
+func (h *PaymentHandler) SetRBAC(rbac outletmw.PermissionChecker) { h.rbac = rbac }
 
 func NewPaymentHandler(log *zap.Logger, paymentSvc *payments.Service, treasuryClient *treasury.Client, publicBaseURL string, entClient *ent.Client) *PaymentHandler {
 	return &PaymentHandler{
@@ -64,6 +71,16 @@ func (h *PaymentHandler) CreatePaymentIntent(w http.ResponseWriter, r *http.Requ
 	var input createIntentInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		jsonError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// A credit sale (sell on account) is a manager/back-office decision — the SAME permission that
+	// approves sale returns (pos.orders.manage). It shares this route with cash/card tenders, so the
+	// route middleware can't distinguish it; enforce here on the tender in the body. Cashiers keep
+	// their pos.payments.add for ordinary tenders but cannot ring a sale onto a customer's account.
+	if strings.EqualFold(input.TenderMethod, payments.TenderOnAccount) &&
+		!outletmw.HasServicePermission(r, h.rbac, "pos.orders.manage") {
+		jsonError(w, "credit sale requires manager approval permission (pos.orders.manage)", http.StatusForbidden)
 		return
 	}
 
@@ -170,8 +187,18 @@ func (h *PaymentHandler) CreateQuotationFromCart(w http.ResponseWriter, r *http.
 			Description: l.Name, ItemSKU: l.SKU, Quantity: l.Quantity, UnitPrice: l.UnitPrice,
 		})
 	}
+	// Link the quotation to the SELECTED customer's CRM contact (resolved from the loyalty account by
+	// phone — same canonical key credit sales use), so quotations show against the right customer in
+	// treasury. Best-effort: an empty id just leaves the quotation keyed by name/phone as before.
+	crmContactID := ""
+	if input.CustomerPhone != "" {
+		if tid, terr := parseTenantUUID(r); terr == nil {
+			crmContactID = h.paymentSvc.ResolveCrmContactID(r.Context(), tid, input.CustomerPhone)
+		}
+	}
 	now := time.Now()
 	resp, err := h.treasuryClient.CreateQuotation(r.Context(), tenantSlug, treasury.CreateQuotationRequest{
+		CrmContactID:  crmContactID,
 		CustomerName:  input.CustomerName,
 		CustomerPhone: input.CustomerPhone,
 		CustomerEmail: input.CustomerEmail,
@@ -188,6 +215,27 @@ func (h *PaymentHandler) CreateQuotationFromCart(w http.ResponseWriter, r *http.
 		return
 	}
 	jsonOK(w, resp)
+}
+
+// ListQuotationsProxy handles GET /{tenantID}/pos/quotations — proxies the treasury S2S
+// quotation list so the POS "Quotation" transactions tab can page through quotations without
+// the INTERNAL_SERVICE_KEY ever reaching the browser. Query params (status/from/to/limit/page)
+// pass through verbatim.
+func (h *PaymentHandler) ListQuotationsProxy(w http.ResponseWriter, r *http.Request) {
+	tenantSlug := chi.URLParam(r, "tenantID")
+	if h.treasuryClient == nil {
+		jsonError(w, "treasury client not configured", http.StatusServiceUnavailable)
+		return
+	}
+	raw, err := h.treasuryClient.ListQuotations(r.Context(), tenantSlug, r.URL.RawQuery)
+	if err != nil {
+		h.log.Error("list quotations proxy failed", zap.Error(err))
+		jsonError(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(raw)
 }
 
 type recordPaymentInput struct {

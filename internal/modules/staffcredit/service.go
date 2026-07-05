@@ -162,6 +162,40 @@ func (s *Service) Provision(ctx context.Context, tenantID uuid.UUID, in Provisio
 	return link, nil
 }
 
+// List returns a tenant's staff-credit links (optionally filtered by status), newest first.
+func (s *Service) List(ctx context.Context, tenantID uuid.UUID, status string, limit, offset int) ([]*ent.StaffPurchaseLink, int, error) {
+	q := s.db.StaffPurchaseLink.Query().Where(staffpurchaselink.TenantID(tenantID))
+	if status != "" {
+		q = q.Where(staffpurchaselink.StatusEQ(staffpurchaselink.Status(status)))
+	}
+	total, err := q.Clone().Count(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+	rows, err := q.Order(ent.Desc(staffpurchaselink.FieldCreatedAt)).Limit(limit).Offset(offset).All(ctx)
+	return rows, total, err
+}
+
+// SyncEmployeeInfo applies an erp.employee.upserted event: it patches the local StaffMember (by
+// auth user id) with the HR employee number — the reverse staff↔employee sync. Best-effort: a
+// staff member that doesn't exist locally yet is skipped (the auth.user projection creates it).
+func (s *Service) SyncEmployeeInfo(ctx context.Context, tenantID, userID uuid.UUID, employeeNumber, name string) error {
+	if userID == uuid.Nil || employeeNumber == "" {
+		return nil
+	}
+	n, err := s.db.StaffMember.Update().
+		Where(staffmember.TenantID(tenantID), staffmember.UserID(userID)).
+		SetErpEmployeeNumber(employeeNumber).
+		Save(ctx)
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		s.log.Debug("erp.employee.upserted: no local StaffMember yet", zap.String("user_id", userID.String()))
+	}
+	return nil
+}
+
 // Settle applies an erp.staff_purchase.recovered / recovery_reversed event. It sets the link's
 // cumulative amount_settled to erp's reported total (self-healing regardless of order) and adjusts
 // the linked layaway balance by the delta (positive for recovery, negative for reversal). Idempotent

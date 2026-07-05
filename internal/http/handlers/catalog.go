@@ -35,11 +35,16 @@ type CatalogHandler struct {
 	log    *zap.Logger
 	client *ent.Client
 	redis  *redis.Client
+	rbac   middleware.PermissionChecker
 }
 
 func NewCatalogHandler(log *zap.Logger, client *ent.Client) *CatalogHandler {
 	return &CatalogHandler{log: log, client: client}
 }
+
+// SetRBAC wires the RBAC checker used to gate cost-price exposure. Cost price (supplier cost) is only
+// serialized to callers holding pos.catalog.view_cost (manager/admin) — never to cashier terminals.
+func (h *CatalogHandler) SetRBAC(rbac middleware.PermissionChecker) { h.rbac = rbac }
 
 // inventoryProxyVariant is the shape of an item variation surfaced by inventory-api.
 type inventoryProxyVariant struct {
@@ -538,6 +543,10 @@ type catalogItemDTO struct {
 	// pos-api hard-blocks out-of-band sale prices (manager override required).
 	MinSellingPrice         *float64
 	MaxSellingPrice         *float64
+	// CostPrice is the supplier/purchase cost from inventory. It is SENSITIVE — only serialized to
+	// callers with pos.catalog.view_cost (manager/admin) so the cart can show cost + margin; never
+	// exposed on a cashier terminal or the public menu document.
+	CostPrice               *float64
 }
 
 // menuAssemblyFilters carries the optional list-time filters applied by ListCatalogItems.
@@ -813,6 +822,9 @@ func (h *CatalogHandler) assembleMenuItems(
 			StockQuantity:           item.OnHand,
 			MinSellingPrice:         item.MinSellingPrice,
 			MaxSellingPrice:         item.MaxSellingPrice,
+			// Supplier cost (for the manager-only cart cost/margin columns). Prefer the explicit
+			// cost_price; fall back to purchase_price when cost isn't set on the item.
+			CostPrice:               firstNonNilFloat(item.CostPrice, item.PurchasePrice),
 		})
 	}
 	return out, nil
@@ -870,7 +882,28 @@ func isAccompanimentCategory(cat string) bool {
 
 // catalogItemToMap converts an assembled DTO into the JSON map shape ListCatalogItems
 // returns. Kept here so the wire format stays identical after the assembleMenuItems refactor.
-func catalogItemToMap(item catalogItemDTO, outletID *uuid.UUID) map[string]any {
+// firstNonNilFloat returns the first non-nil *float64 (used to pick cost_price, else purchase_price).
+func firstNonNilFloat(vals ...*float64) *float64 {
+	for _, v := range vals {
+		if v != nil {
+			return v
+		}
+	}
+	return nil
+}
+
+// catalogItemToMap converts an assembled DTO into the JSON map shape ListCatalogItems returns.
+// showCost controls whether the SENSITIVE cost_price is emitted (only for pos.catalog.view_cost
+// callers) — otherwise the key is omitted entirely so cost never reaches an unauthorized browser.
+func catalogItemToMap(item catalogItemDTO, outletID *uuid.UUID, showCost bool) map[string]any {
+	m := catalogItemToMapBase(item, outletID)
+	if showCost && item.CostPrice != nil {
+		m["cost_price"] = *item.CostPrice
+	}
+	return m
+}
+
+func catalogItemToMapBase(item catalogItemDTO, outletID *uuid.UUID) map[string]any {
 	return map[string]any{
 		"id":                        item.ID,
 		"sku":                       item.SKU,
@@ -989,9 +1022,14 @@ func (h *CatalogHandler) ListCatalogItems(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	// Cost price is a manager-only field — expose it only to callers with pos.catalog.view_cost, or
+	// the manager/admin permission pos.orders.manage (which is always seeded to those roles, so cost
+	// works for managers today even before a dedicated view_cost grant exists). A cashier terminal
+	// never receives supplier costs, even if the client tried to render them.
+	showCost := middleware.HasServicePermission(r, h.rbac, "pos.catalog.view_cost", "pos.orders.manage")
 	out := make([]map[string]any, 0, len(items))
 	for _, item := range items {
-		out = append(out, catalogItemToMap(item, outletID))
+		out = append(out, catalogItemToMap(item, outletID, showCost))
 	}
 
 	total := len(out)

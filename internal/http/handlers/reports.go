@@ -26,8 +26,21 @@ import (
 )
 
 type ReportsHandler struct {
-	log *zap.Logger
-	db  *ent.Client
+	log       *zap.Logger
+	db        *ent.Client
+	inventory brandResolver
+}
+
+// brandResolver resolves sku → brand name (satisfied by the inventory S2S client). Kept as a
+// narrow interface so reports don't depend on the whole inventory client and it can be nil.
+type brandResolver interface {
+	GetBrandsBySKU(ctx context.Context, tenantID string, skus []string) (map[string]string, error)
+}
+
+// SetInventoryClient wires the inventory S2S client used to resolve brands for the
+// register-details "products sold by brand" section.
+func (h *ReportsHandler) SetInventoryClient(inv brandResolver) {
+	h.inventory = inv
 }
 
 func NewReportsHandler(log *zap.Logger, db *ent.Client) *ReportsHandler {

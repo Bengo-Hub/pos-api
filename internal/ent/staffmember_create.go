@@ -195,6 +195,20 @@ func (_c *StaffMemberCreate) SetNillableBankName(v *string) *StaffMemberCreate {
 	return _c
 }
 
+// SetErpEmployeeNumber sets the "erp_employee_number" field.
+func (_c *StaffMemberCreate) SetErpEmployeeNumber(v string) *StaffMemberCreate {
+	_c.mutation.SetErpEmployeeNumber(v)
+	return _c
+}
+
+// SetNillableErpEmployeeNumber sets the "erp_employee_number" field if the given value is not nil.
+func (_c *StaffMemberCreate) SetNillableErpEmployeeNumber(v *string) *StaffMemberCreate {
+	if v != nil {
+		_c.SetErpEmployeeNumber(*v)
+	}
+	return _c
+}
+
 // SetPinHash sets the "pin_hash" field.
 func (_c *StaffMemberCreate) SetPinHash(v string) *StaffMemberCreate {
 	_c.mutation.SetPinHash(v)
@@ -504,6 +518,10 @@ func (_c *StaffMemberCreate) createSpec() (*StaffMember, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.BankName(); ok {
 		_spec.SetField(staffmember.FieldBankName, field.TypeString, value)
 		_node.BankName = &value
+	}
+	if value, ok := _c.mutation.ErpEmployeeNumber(); ok {
+		_spec.SetField(staffmember.FieldErpEmployeeNumber, field.TypeString, value)
+		_node.ErpEmployeeNumber = &value
 	}
 	if value, ok := _c.mutation.PinHash(); ok {
 		_spec.SetField(staffmember.FieldPinHash, field.TypeString, value)
@@ -858,6 +876,24 @@ func (u *StaffMemberUpsert) UpdateBankName() *StaffMemberUpsert {
 // ClearBankName clears the value of the "bank_name" field.
 func (u *StaffMemberUpsert) ClearBankName() *StaffMemberUpsert {
 	u.SetNull(staffmember.FieldBankName)
+	return u
+}
+
+// SetErpEmployeeNumber sets the "erp_employee_number" field.
+func (u *StaffMemberUpsert) SetErpEmployeeNumber(v string) *StaffMemberUpsert {
+	u.Set(staffmember.FieldErpEmployeeNumber, v)
+	return u
+}
+
+// UpdateErpEmployeeNumber sets the "erp_employee_number" field to the value that was provided on create.
+func (u *StaffMemberUpsert) UpdateErpEmployeeNumber() *StaffMemberUpsert {
+	u.SetExcluded(staffmember.FieldErpEmployeeNumber)
+	return u
+}
+
+// ClearErpEmployeeNumber clears the value of the "erp_employee_number" field.
+func (u *StaffMemberUpsert) ClearErpEmployeeNumber() *StaffMemberUpsert {
+	u.SetNull(staffmember.FieldErpEmployeeNumber)
 	return u
 }
 
@@ -1301,6 +1337,27 @@ func (u *StaffMemberUpsertOne) UpdateBankName() *StaffMemberUpsertOne {
 func (u *StaffMemberUpsertOne) ClearBankName() *StaffMemberUpsertOne {
 	return u.Update(func(s *StaffMemberUpsert) {
 		s.ClearBankName()
+	})
+}
+
+// SetErpEmployeeNumber sets the "erp_employee_number" field.
+func (u *StaffMemberUpsertOne) SetErpEmployeeNumber(v string) *StaffMemberUpsertOne {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.SetErpEmployeeNumber(v)
+	})
+}
+
+// UpdateErpEmployeeNumber sets the "erp_employee_number" field to the value that was provided on create.
+func (u *StaffMemberUpsertOne) UpdateErpEmployeeNumber() *StaffMemberUpsertOne {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.UpdateErpEmployeeNumber()
+	})
+}
+
+// ClearErpEmployeeNumber clears the value of the "erp_employee_number" field.
+func (u *StaffMemberUpsertOne) ClearErpEmployeeNumber() *StaffMemberUpsertOne {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.ClearErpEmployeeNumber()
 	})
 }
 
@@ -1925,6 +1982,27 @@ func (u *StaffMemberUpsertBulk) UpdateBankName() *StaffMemberUpsertBulk {
 func (u *StaffMemberUpsertBulk) ClearBankName() *StaffMemberUpsertBulk {
 	return u.Update(func(s *StaffMemberUpsert) {
 		s.ClearBankName()
+	})
+}
+
+// SetErpEmployeeNumber sets the "erp_employee_number" field.
+func (u *StaffMemberUpsertBulk) SetErpEmployeeNumber(v string) *StaffMemberUpsertBulk {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.SetErpEmployeeNumber(v)
+	})
+}
+
+// UpdateErpEmployeeNumber sets the "erp_employee_number" field to the value that was provided on create.
+func (u *StaffMemberUpsertBulk) UpdateErpEmployeeNumber() *StaffMemberUpsertBulk {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.UpdateErpEmployeeNumber()
+	})
+}
+
+// ClearErpEmployeeNumber clears the value of the "erp_employee_number" field.
+func (u *StaffMemberUpsertBulk) ClearErpEmployeeNumber() *StaffMemberUpsertBulk {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.ClearErpEmployeeNumber()
 	})
 }
 

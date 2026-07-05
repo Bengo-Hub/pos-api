@@ -35,6 +35,8 @@ type POSOrder struct {
 	OfflineCreatedAt *time.Time `json:"offline_created_at,omitempty"`
 	// Status holds the value of the "status" field.
 	Status string `json:"status,omitempty"`
+	// Origin of the sale: "pos_terminal" or "back_office"
+	Source string `json:"source,omitempty"`
 	// Subtotal holds the value of the "subtotal" field.
 	Subtotal float64 `json:"subtotal,omitempty"`
 	// TaxTotal holds the value of the "tax_total" field.
@@ -140,7 +142,7 @@ func (*POSOrder) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullFloat64)
 		case posorder.FieldCoversCount, posorder.FieldFiredCourses, posorder.FieldReprintCount:
 			values[i] = new(sql.NullInt64)
-		case posorder.FieldOrderNumber, posorder.FieldClientReference, posorder.FieldStatus, posorder.FieldCurrency, posorder.FieldOrderSubtype, posorder.FieldCustomerPhone, posorder.FieldCustomerName, posorder.FieldEtimsInvoiceNumber, posorder.FieldEtimsQrCodeURL, posorder.FieldVoidedReason:
+		case posorder.FieldOrderNumber, posorder.FieldClientReference, posorder.FieldStatus, posorder.FieldSource, posorder.FieldCurrency, posorder.FieldOrderSubtype, posorder.FieldCustomerPhone, posorder.FieldCustomerName, posorder.FieldEtimsInvoiceNumber, posorder.FieldEtimsQrCodeURL, posorder.FieldVoidedReason:
 			values[i] = new(sql.NullString)
 		case posorder.FieldOfflineCreatedAt, posorder.FieldVoidedAt, posorder.FieldCreatedAt, posorder.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -216,6 +218,12 @@ func (_m *POSOrder) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field status", values[i])
 			} else if value.Valid {
 				_m.Status = value.String
+			}
+		case posorder.FieldSource:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field source", values[i])
+			} else if value.Valid {
+				_m.Source = value.String
 			}
 		case posorder.FieldSubtotal:
 			if value, ok := values[i].(*sql.NullFloat64); !ok {
@@ -444,6 +452,9 @@ func (_m *POSOrder) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("status=")
 	builder.WriteString(_m.Status)
+	builder.WriteString(", ")
+	builder.WriteString("source=")
+	builder.WriteString(_m.Source)
 	builder.WriteString(", ")
 	builder.WriteString("subtotal=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Subtotal))

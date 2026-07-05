@@ -8,6 +8,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
+	"strings"
 	"time"
 )
 
@@ -56,6 +58,46 @@ type ItemPrice struct {
 	Quantity   int     `json:"quantity"`
 	TotalPrice float64 `json:"total_price"`
 	TierName   string  `json:"tier_name"`
+}
+
+// brandsBySKUResponse is the inventory-api reply for GET /inventory/brands/by-sku.
+type brandsBySKUResponse struct {
+	Data map[string]string `json:"data"`
+}
+
+// GetBrandsBySKU resolves brand names for a set of SKUs (sku → brand name). SKUs with no
+// brand are omitted from the map. Used by the register-details "products sold by brand"
+// section; callers treat missing SKUs as "Unbranded". Best-effort: returns an empty map
+// (not an error) when inventory is unreachable so the report still renders.
+func (c *Client) GetBrandsBySKU(ctx context.Context, tenantID string, skus []string) (map[string]string, error) {
+	out := map[string]string{}
+	if c == nil || c.baseURL == "" || len(skus) == 0 {
+		return out, nil
+	}
+	reqURL := fmt.Sprintf("%s/v1/%s/inventory/brands/by-sku?skus=%s",
+		c.baseURL, tenantID, url.QueryEscape(strings.Join(skus, ",")))
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
+	if err != nil {
+		return out, fmt.Errorf("inventory.Client.GetBrandsBySKU: build request: %w", err)
+	}
+	httpReq.Header.Set("X-API-Key", c.apiKey)
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return out, fmt.Errorf("inventory.Client.GetBrandsBySKU: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return out, fmt.Errorf("inventory.Client.GetBrandsBySKU: status %d", resp.StatusCode)
+	}
+	var parsed brandsBySKUResponse
+	if err := json.NewDecoder(resp.Body).Decode(&parsed); err != nil {
+		return out, fmt.Errorf("inventory.Client.GetBrandsBySKU: decode: %w", err)
+	}
+	if parsed.Data != nil {
+		return parsed.Data, nil
+	}
+	return out, nil
 }
 
 // GetItemPrice fetches the authoritative unit/total price for an inventory item (default tier)

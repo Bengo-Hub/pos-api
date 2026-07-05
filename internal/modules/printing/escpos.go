@@ -150,6 +150,56 @@ func BuildReceipt(d ReceiptData) []byte {
 	return buf.Bytes()
 }
 
+// BuildTestTicket renders a short ESC/POS diagnostic ticket used by the printer-setup
+// "Test print" button. It carries no order — just enough to confirm the printer is wired,
+// cutting correctly and reachable — so it can be dispatched silently (via the local agent or
+// QZ) without opening the browser print dialog.
+func BuildTestTicket(stationLabel, paper string, when time.Time) []byte {
+	if when.IsZero() {
+		when = time.Now()
+	}
+	var buf bytes.Buffer
+	write := func(b []byte) { buf.Write(b) }
+	writeln := func(s string) { buf.WriteString(s); buf.Write(escLF) }
+	separator := func() { writeln(strings.Repeat("-", 32)) }
+
+	write(escInit)
+	write(escCenter)
+	write(escBold)
+	writeln("*** PRINTER TEST ***")
+	write(escBoldOff)
+	write(escLeft)
+	separator()
+	if stationLabel != "" {
+		writeln(formatLine("Station", trimField(stationLabel, 22)))
+	}
+	if paper != "" {
+		writeln(formatLine("Paper", paper))
+	}
+	writeln(formatLine("Time", when.Format("02 Jan 2006 15:04")))
+	separator()
+	write(escCenter)
+	writeln("If you can read this, the")
+	writeln("printer is connected and")
+	writeln("printing correctly.")
+	write(escLeft)
+
+	buf.Write(escLF)
+	buf.Write(escLF)
+	buf.Write(escLF)
+	buf.Write(escCut)
+	return buf.Bytes()
+}
+
+// trimField clamps a label to n runes so it never overflows the 32-char line.
+func trimField(s string, n int) string {
+	r := []rune(s)
+	if len(r) <= n {
+		return s
+	}
+	return string(r[:n])
+}
+
 // formatLine returns a 32-char wide label+value line with right-aligned value.
 func formatLine(label, value string) string {
 	gap := 32 - len(label) - len(value)

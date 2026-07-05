@@ -60,6 +60,7 @@ func New(
 	shiftRotations *handlers.ShiftRotationHandler,
 	loyalty *handlers.LoyaltyHandler,
 	reports *handlers.ReportsHandler,
+	reportPDF *handlers.ReportPDFHandler,
 	webhooks *handlers.WebhookHandler,
 	onlineOrders *handlers.OnlineOrderHandler,
 	serviceConfig *handlers.ServiceConfigHandler,
@@ -270,6 +271,10 @@ func New(
 						pos.Get("/orders/by-number/{orderNumber}", orders.GetOrderByNumber)
 						pos.Get("/orders/{orderID}", orders.GetOrder)
 						pos.Patch("/orders/{orderID}/status", orders.UpdateStatus)
+						// All-Sales "Edit Shipping": update shipping status/address/charges (metadata).
+						pos.Patch("/orders/{orderID}/shipping", orders.UpdateShipping)
+						// All-Sales "New Sale Notification": (re)send the customer their receipt/invoice.
+						pos.Post("/orders/{orderID}/notify", orders.NotifySale)
 						pos.Patch("/orders/{orderID}/void", orders.VoidOrder)
 						// Manager generates a one-time code (shareable) to authorize voiding this
 						// order when they're not at the terminal. Manager-only (handler re-checks role).
@@ -313,6 +318,10 @@ func New(
 					// on-prem pos-api on the same network as the terminals; the pos-ui tries this first
 					// then falls back to the local QZ Tray / WebUSB / Bluetooth bridges.
 					pos.Get("/printing/discover", handlers.PrinterDiscover)
+					// Build a diagnostic test ticket (ESC/POS hex) for the printer-setup "Test print"
+					// button, so a network printer prints silently via the local agent/QZ rather than
+					// opening the browser print dialog. Stateless — no order required.
+					pos.Post("/printing/test-ticket", handlers.TestTicket)
 
 					// Catalog
 					if catalog != nil {
@@ -405,7 +414,12 @@ func New(
 						// cross-origin Paystack iframe calls it without the POS user's JWT (intent_id is
 						// the capability; treasury validates it). Keeping it here would 401 the handoff.
 						// "Save as Quotation" forwards a pos cart to treasury (treasury owns quotations).
-						pos.Post("/quotations", payments.CreateQuotationFromCart)
+						// Quotations are a manager/back-office action (same permission as approving sale
+						// returns) — an ordinary cashier must not raise them.
+						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.orders.manage")).
+							Post("/quotations", payments.CreateQuotationFromCart)
+						// Quotation transactions tab — proxies the treasury quotation list.
+						pos.Get("/quotations", payments.ListQuotationsProxy)
 					}
 
 					// Cash Drawers
@@ -532,6 +546,8 @@ func New(
 					if layaway != nil {
 						pos.Post("/layaways", layaway.Create)
 						pos.Get("/layaways", layaway.List)
+						// Staff fund-from-salary links (admin/reconcile view).
+						pos.Get("/staff-credit", layaway.ListStaffCredit)
 						pos.Get("/layaways/{id}", layaway.Get)
 						pos.Post("/layaways/{id}/payments", layaway.RecordPayment)
 						pos.Post("/layaways/{id}/cancel", layaway.Cancel)
@@ -716,6 +732,7 @@ func New(
 						pos.Get("/reports/refund-summary", reports.RefundSummary)
 						pos.Get("/reports/daily-breakdown", reports.DailyBreakdown)
 						pos.Get("/reports/top-items", reports.TopItems)
+						pos.Get("/reports/register-details", reports.RegisterDetails)
 						pos.Get("/reports/sales-by-staff", reports.SalesByStaff)
 						pos.Get("/reports/export", reports.ExportDailyReport)
 						// Sprint 11: additional report endpoints
@@ -730,6 +747,18 @@ func New(
 						pos.Get("/reports/void-summary", reports.VoidSummary)
 						pos.Get("/reports/product-mix", reports.ProductMix)
 						pos.Get("/reports/most-profitable", reports.MostProfitableItems)
+					}
+
+					// Branded report documents (PDF/CSV via ?format=) — reset summary, item-type,
+					// daily sales, shift X, staff, tax and profitability reports.
+					if reportPDF != nil {
+						pos.Get("/reports/reset-summary", reportPDF.ResetSummary)
+						pos.Get("/reports/sales-by-item-type", reportPDF.SalesByItemType)
+						pos.Get("/reports/daily-sales", reportPDF.DailySales)
+						pos.Get("/reports/shift/{sessionID}", reportPDF.ShiftReportPDF)
+						pos.Get("/reports/staff", reportPDF.SalesByStaffPDF)
+						pos.Get("/reports/tax-document", reportPDF.TaxReportPDF)
+						pos.Get("/reports/most-profitable-document", reportPDF.MostProfitablePDF)
 					}
 
 					// Webhook subscriptions & delivery log (Sprint 12)

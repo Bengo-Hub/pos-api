@@ -50,6 +50,16 @@ func (c *Client) ResolveAccount(ctx context.Context, tenantSlug, accountNumber, 
 		c.baseURL, tenantSlug, url.QueryEscape(accountNumber), url.QueryEscape(bankCode)))
 }
 
+// ListQuotations proxies the treasury S2S quotation list (raw JSON passthrough) for the POS
+// "Quotation" transactions tab. Supports status/from/to/limit/page query params.
+func (c *Client) ListQuotations(ctx context.Context, tenantSlug, rawQuery string) (json.RawMessage, error) {
+	u := fmt.Sprintf("%s/api/v1/s2s/%s/quotations", c.baseURL, tenantSlug)
+	if rawQuery != "" {
+		u += "?" + rawQuery
+	}
+	return c.getRaw(ctx, u)
+}
+
 func (c *Client) getRaw(ctx context.Context, fullURL string) (json.RawMessage, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fullURL, nil)
 	if err != nil {
@@ -135,10 +145,11 @@ type RefundRequest struct {
 	Cost             float64 `json:"cost,omitempty"`           // COGS of returned goods → triggers restock/COGS reversal
 	Currency         string  `json:"currency"`
 	Reason           string  `json:"reason"`
-	RefundChannel    string  `json:"refund_channel,omitempty"` // cash|mpesa|bank|cheque|store_credit|offset_invoice
-	CrmContactID     string  `json:"crm_contact_id,omitempty"` // CRM contact of the original buyer, when known
-	CustomerName     string  `json:"customer_name,omitempty"`
-	CustomerEmail    string  `json:"customer_email,omitempty"`
+	RefundChannel      string `json:"refund_channel,omitempty"`      // cash|mpesa|bank|cheque|store_credit|offset_invoice
+	CrmContactID       string `json:"crm_contact_id,omitempty"`      // CRM contact of the original buyer, when known
+	CustomerIdentifier string `json:"customer_identifier,omitempty"` // phone fallback so store-credit nets a phone-keyed AR row
+	CustomerName       string `json:"customer_name,omitempty"`
+	CustomerEmail      string `json:"customer_email,omitempty"`
 }
 
 // RefundResponse is the response from POST /api/v1/s2s/{tenant}/refunds
@@ -164,6 +175,10 @@ func (c *Client) CreateRefund(ctx context.Context, tenantSlug, idempotencyKey st
 
 // CreditSaleRequest is the body for POST /api/v1/s2s/{tenant}/ar/credit-sale.
 type CreditSaleRequest struct {
+	// CrmContactID is the canonical AR key (the marketflow CRM contact of the selected customer).
+	// customer_identifier (phone) is a fallback so treasury can resolve/backfill a legacy phone-keyed
+	// row; sending both makes the credit sale, its returns and its opening balance net on ONE row.
+	CrmContactID       string  `json:"crm_contact_id,omitempty"`
 	CustomerIdentifier string  `json:"customer_identifier,omitempty"`
 	CustomerName       string  `json:"customer_name,omitempty"`
 	POSOrderID         string  `json:"pos_order_id,omitempty"`
@@ -197,6 +212,7 @@ type QuotationLine struct {
 // CreateQuotationRequest is the body for POST /api/v1/s2s/{tenant}/quotations. Dates are ISO strings
 // (treasury parses them via its flexible date decoder).
 type CreateQuotationRequest struct {
+	CrmContactID  string          `json:"crm_customer_id,omitempty"` // treasury field: link the quotation to the selected CRM customer
 	CustomerName  string          `json:"customer_name,omitempty"`
 	CustomerPhone string          `json:"customer_phone,omitempty"`
 	CustomerEmail string          `json:"customer_email,omitempty"`

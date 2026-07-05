@@ -46,6 +46,8 @@ const (
 	FieldBankAccountNumber = "bank_account_number"
 	// FieldBankName holds the string denoting the bank_name field in the database.
 	FieldBankName = "bank_name"
+	// FieldErpEmployeeNumber holds the string denoting the erp_employee_number field in the database.
+	FieldErpEmployeeNumber = "erp_employee_number"
 	// FieldPinHash holds the string denoting the pin_hash field in the database.
 	FieldPinHash = "pin_hash"
 	// FieldPinFastHash holds the string denoting the pin_fast_hash field in the database.
@@ -89,6 +91,7 @@ var Columns = []string{
 	FieldMpesaPhone,
 	FieldBankAccountNumber,
 	FieldBankName,
+	FieldErpEmployeeNumber,
 	FieldPinHash,
 	FieldPinFastHash,
 	FieldPinFailedAttempts,
@@ -225,6 +228,11 @@ func ByBankAccountNumber(opts ...sql.OrderTermOption) OrderOption {
 // ByBankName orders the results by the bank_name field.
 func ByBankName(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldBankName, opts...).ToFunc()
+}
+
+// ByErpEmployeeNumber orders the results by the erp_employee_number field.
+func ByErpEmployeeNumber(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldErpEmployeeNumber, opts...).ToFunc()
 }
 
 // ByPinHash orders the results by the pin_hash field.

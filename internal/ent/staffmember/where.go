@@ -116,6 +116,11 @@ func BankName(v string) predicate.StaffMember {
 	return predicate.StaffMember(sql.FieldEQ(FieldBankName, v))
 }
 
+// ErpEmployeeNumber applies equality check predicate on the "erp_employee_number" field. It's identical to ErpEmployeeNumberEQ.
+func ErpEmployeeNumber(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldEQ(FieldErpEmployeeNumber, v))
+}
+
 // PinHash applies equality check predicate on the "pin_hash" field. It's identical to PinHashEQ.
 func PinHash(v string) predicate.StaffMember {
 	return predicate.StaffMember(sql.FieldEQ(FieldPinHash, v))
@@ -839,6 +844,81 @@ func BankNameEqualFold(v string) predicate.StaffMember {
 // BankNameContainsFold applies the ContainsFold predicate on the "bank_name" field.
 func BankNameContainsFold(v string) predicate.StaffMember {
 	return predicate.StaffMember(sql.FieldContainsFold(FieldBankName, v))
+}
+
+// ErpEmployeeNumberEQ applies the EQ predicate on the "erp_employee_number" field.
+func ErpEmployeeNumberEQ(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldEQ(FieldErpEmployeeNumber, v))
+}
+
+// ErpEmployeeNumberNEQ applies the NEQ predicate on the "erp_employee_number" field.
+func ErpEmployeeNumberNEQ(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldNEQ(FieldErpEmployeeNumber, v))
+}
+
+// ErpEmployeeNumberIn applies the In predicate on the "erp_employee_number" field.
+func ErpEmployeeNumberIn(vs ...string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldIn(FieldErpEmployeeNumber, vs...))
+}
+
+// ErpEmployeeNumberNotIn applies the NotIn predicate on the "erp_employee_number" field.
+func ErpEmployeeNumberNotIn(vs ...string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldNotIn(FieldErpEmployeeNumber, vs...))
+}
+
+// ErpEmployeeNumberGT applies the GT predicate on the "erp_employee_number" field.
+func ErpEmployeeNumberGT(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldGT(FieldErpEmployeeNumber, v))
+}
+
+// ErpEmployeeNumberGTE applies the GTE predicate on the "erp_employee_number" field.
+func ErpEmployeeNumberGTE(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldGTE(FieldErpEmployeeNumber, v))
+}
+
+// ErpEmployeeNumberLT applies the LT predicate on the "erp_employee_number" field.
+func ErpEmployeeNumberLT(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldLT(FieldErpEmployeeNumber, v))
+}
+
+// ErpEmployeeNumberLTE applies the LTE predicate on the "erp_employee_number" field.
+func ErpEmployeeNumberLTE(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldLTE(FieldErpEmployeeNumber, v))
+}
+
+// ErpEmployeeNumberContains applies the Contains predicate on the "erp_employee_number" field.
+func ErpEmployeeNumberContains(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldContains(FieldErpEmployeeNumber, v))
+}
+
+// ErpEmployeeNumberHasPrefix applies the HasPrefix predicate on the "erp_employee_number" field.
+func ErpEmployeeNumberHasPrefix(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldHasPrefix(FieldErpEmployeeNumber, v))
+}
+
+// ErpEmployeeNumberHasSuffix applies the HasSuffix predicate on the "erp_employee_number" field.
+func ErpEmployeeNumberHasSuffix(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldHasSuffix(FieldErpEmployeeNumber, v))
+}
+
+// ErpEmployeeNumberIsNil applies the IsNil predicate on the "erp_employee_number" field.
+func ErpEmployeeNumberIsNil() predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldIsNull(FieldErpEmployeeNumber))
+}
+
+// ErpEmployeeNumberNotNil applies the NotNil predicate on the "erp_employee_number" field.
+func ErpEmployeeNumberNotNil() predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldNotNull(FieldErpEmployeeNumber))
+}
+
+// ErpEmployeeNumberEqualFold applies the EqualFold predicate on the "erp_employee_number" field.
+func ErpEmployeeNumberEqualFold(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldEqualFold(FieldErpEmployeeNumber, v))
+}
+
+// ErpEmployeeNumberContainsFold applies the ContainsFold predicate on the "erp_employee_number" field.
+func ErpEmployeeNumberContainsFold(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldContainsFold(FieldErpEmployeeNumber, v))
 }
 
 // PinHashEQ applies the EQ predicate on the "pin_hash" field.

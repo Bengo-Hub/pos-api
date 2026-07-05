@@ -156,6 +156,20 @@ func (_u *POSOrderUpdate) SetNillableStatus(v *string) *POSOrderUpdate {
 	return _u
 }
 
+// SetSource sets the "source" field.
+func (_u *POSOrderUpdate) SetSource(v string) *POSOrderUpdate {
+	_u.mutation.SetSource(v)
+	return _u
+}
+
+// SetNillableSource sets the "source" field if the given value is not nil.
+func (_u *POSOrderUpdate) SetNillableSource(v *string) *POSOrderUpdate {
+	if v != nil {
+		_u.SetSource(*v)
+	}
+	return _u
+}
+
 // SetSubtotal sets the "subtotal" field.
 func (_u *POSOrderUpdate) SetSubtotal(v float64) *POSOrderUpdate {
 	_u.mutation.ResetSubtotal()
@@ -771,6 +785,9 @@ func (_u *POSOrderUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(posorder.FieldStatus, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.Source(); ok {
+		_spec.SetField(posorder.FieldSource, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.Subtotal(); ok {
 		_spec.SetField(posorder.FieldSubtotal, field.TypeFloat64, value)
 	}
@@ -1166,6 +1183,20 @@ func (_u *POSOrderUpdateOne) SetStatus(v string) *POSOrderUpdateOne {
 func (_u *POSOrderUpdateOne) SetNillableStatus(v *string) *POSOrderUpdateOne {
 	if v != nil {
 		_u.SetStatus(*v)
+	}
+	return _u
+}
+
+// SetSource sets the "source" field.
+func (_u *POSOrderUpdateOne) SetSource(v string) *POSOrderUpdateOne {
+	_u.mutation.SetSource(v)
+	return _u
+}
+
+// SetNillableSource sets the "source" field if the given value is not nil.
+func (_u *POSOrderUpdateOne) SetNillableSource(v *string) *POSOrderUpdateOne {
+	if v != nil {
+		_u.SetSource(*v)
 	}
 	return _u
 }
@@ -1814,6 +1845,9 @@ func (_u *POSOrderUpdateOne) sqlSave(ctx context.Context) (_node *POSOrder, err 
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(posorder.FieldStatus, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Source(); ok {
+		_spec.SetField(posorder.FieldSource, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Subtotal(); ok {
 		_spec.SetField(posorder.FieldSubtotal, field.TypeFloat64, value)

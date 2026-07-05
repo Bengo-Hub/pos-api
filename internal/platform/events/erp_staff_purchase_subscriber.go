@@ -51,8 +51,36 @@ func (s *ERPStaffPurchaseSubscriber) Subscribe(nc *nats.Conn) error {
 		s.handle(msg, "reversed")
 	}, nats.Durable("pos-erp-staff-purchase-reversed"), nats.AckWait(30*time.Second), nats.MaxDeliver(5))
 
-	s.log.Info("subscribed to erp staff-purchase settlement events")
+	// Reverse staff↔employee sync: patch the local StaffMember with the HR employee number.
+	sharedevents.SubscribeQueueWithRebind(s.log, js, "erp", "erp.employee.upserted", "pos-erp-employee-upserted", func(msg *nats.Msg) {
+		s.handleEmployeeUpserted(msg)
+	}, nats.Durable("pos-erp-employee-upserted"), nats.AckWait(30*time.Second), nats.MaxDeliver(5))
+
+	s.log.Info("subscribed to erp staff-purchase settlement + employee-upserted events")
 	return nil
+}
+
+func (s *ERPStaffPurchaseSubscriber) handleEmployeeUpserted(msg *nats.Msg) {
+	evt, err := sharedevents.FromJSON(msg.Data)
+	if err != nil {
+		_ = msg.Ack()
+		return
+	}
+	tenantID := evt.TenantID
+	userIDStr, _ := evt.Payload["auth_user_id"].(string)
+	userID, uerr := uuid.Parse(userIDStr)
+	empNo, _ := evt.Payload["employee_number"].(string)
+	name, _ := evt.Payload["name"].(string)
+	if tenantID == uuid.Nil || uerr != nil {
+		_ = msg.Ack()
+		return
+	}
+	if err := s.svc.SyncEmployeeInfo(context.Background(), tenantID, userID, empNo, name); err != nil {
+		s.log.Warn("employee-upserted sync failed (will retry)", zap.Error(err))
+		_ = msg.Nak()
+		return
+	}
+	_ = msg.Ack()
 }
 
 func (s *ERPStaffPurchaseSubscriber) handle(msg *nats.Msg, kind string) {

@@ -42,6 +42,10 @@ func (StaffMember) Fields() []ent.Field {
 			Comment("M-Pesa phone (254...) for salary disbursement"),
 		field.String("bank_account_number").Optional().Nillable(),
 		field.String("bank_name").Optional().Nillable(),
+		// HR employee number projected from erp-api (erp.employee.upserted) — the reverse
+		// staff↔employee sync so POS shows the payroll number for staff funded from salary.
+		field.String("erp_employee_number").Optional().Nillable().
+			Comment("Employee number synced from erp-api"),
 		// Terminal PIN login — bcrypt hash of the 4-6 digit PIN set by a manager.
 		// Null means PIN not configured; staff must use SSO until a PIN is set.
 		field.String("pin_hash").Optional().Nillable().Sensitive(),

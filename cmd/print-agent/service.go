@@ -18,11 +18,12 @@ type program struct {
 	srv     *http.Server
 }
 
-// newServer builds the loopback HTTP server exposing /health, /discover and /print.
+// newServer builds the loopback HTTP server exposing /health, /discover, /ping and /print.
 func (p *program) newServer() *http.Server {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", withCORS(handleHealth))
 	mux.HandleFunc("/discover", withCORS(handleDiscover(p.snmp, p.timeout)))
+	mux.HandleFunc("/ping", withCORS(handlePing))
 	mux.HandleFunc("/print", withCORS(handlePrint))
 	return &http.Server{
 		Addr:              p.addr,

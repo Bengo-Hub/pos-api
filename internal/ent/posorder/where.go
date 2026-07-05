@@ -96,6 +96,11 @@ func Status(v string) predicate.POSOrder {
 	return predicate.POSOrder(sql.FieldEQ(FieldStatus, v))
 }
 
+// Source applies equality check predicate on the "source" field. It's identical to SourceEQ.
+func Source(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEQ(FieldSource, v))
+}
+
 // Subtotal applies equality check predicate on the "subtotal" field. It's identical to SubtotalEQ.
 func Subtotal(v float64) predicate.POSOrder {
 	return predicate.POSOrder(sql.FieldEQ(FieldSubtotal, v))
@@ -614,6 +619,71 @@ func StatusEqualFold(v string) predicate.POSOrder {
 // StatusContainsFold applies the ContainsFold predicate on the "status" field.
 func StatusContainsFold(v string) predicate.POSOrder {
 	return predicate.POSOrder(sql.FieldContainsFold(FieldStatus, v))
+}
+
+// SourceEQ applies the EQ predicate on the "source" field.
+func SourceEQ(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEQ(FieldSource, v))
+}
+
+// SourceNEQ applies the NEQ predicate on the "source" field.
+func SourceNEQ(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNEQ(FieldSource, v))
+}
+
+// SourceIn applies the In predicate on the "source" field.
+func SourceIn(vs ...string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldIn(FieldSource, vs...))
+}
+
+// SourceNotIn applies the NotIn predicate on the "source" field.
+func SourceNotIn(vs ...string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNotIn(FieldSource, vs...))
+}
+
+// SourceGT applies the GT predicate on the "source" field.
+func SourceGT(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldGT(FieldSource, v))
+}
+
+// SourceGTE applies the GTE predicate on the "source" field.
+func SourceGTE(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldGTE(FieldSource, v))
+}
+
+// SourceLT applies the LT predicate on the "source" field.
+func SourceLT(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldLT(FieldSource, v))
+}
+
+// SourceLTE applies the LTE predicate on the "source" field.
+func SourceLTE(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldLTE(FieldSource, v))
+}
+
+// SourceContains applies the Contains predicate on the "source" field.
+func SourceContains(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldContains(FieldSource, v))
+}
+
+// SourceHasPrefix applies the HasPrefix predicate on the "source" field.
+func SourceHasPrefix(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldHasPrefix(FieldSource, v))
+}
+
+// SourceHasSuffix applies the HasSuffix predicate on the "source" field.
+func SourceHasSuffix(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldHasSuffix(FieldSource, v))
+}
+
+// SourceEqualFold applies the EqualFold predicate on the "source" field.
+func SourceEqualFold(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEqualFold(FieldSource, v))
+}
+
+// SourceContainsFold applies the ContainsFold predicate on the "source" field.
+func SourceContainsFold(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldContainsFold(FieldSource, v))
 }
 
 // SubtotalEQ applies the EQ predicate on the "subtotal" field.

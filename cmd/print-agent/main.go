@@ -31,7 +31,7 @@ import (
 	"github.com/bengobox/pos-service/internal/modules/printing/discovery"
 )
 
-const version = "1.0.1"
+const version = "1.1.0"
 
 func main() {
 	var (
@@ -159,6 +159,53 @@ func handleDiscover(defaultSNMP bool, timeout time.Duration) http.HandlerFunc {
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"printers": out})
 	}
+}
+
+// handlePing checks whether a raw (JetDirect/9100) network printer is reachable — a TCP connect to
+// ip:port with a short timeout, then close. This backs the "Ping printer" button in printer setup so
+// the operator can confirm a network printer is on the LAN before assigning/printing to it. It writes
+// no data to the printer.
+//
+//	GET  /ping?ip=192.168.8.108&port=9100
+//	POST /ping   {"ip":"192.168.8.108","port":9100}
+func handlePing(w http.ResponseWriter, r *http.Request) {
+	ip := strings.TrimSpace(r.URL.Query().Get("ip"))
+	port := 0
+	if v := strings.TrimSpace(r.URL.Query().Get("port")); v != "" {
+		port, _ = strconv.Atoi(v)
+	}
+	// Also accept a JSON body (POST) so the client can use either shape.
+	if r.Method == http.MethodPost && r.Body != nil {
+		var body struct {
+			IP   string `json:"ip"`
+			Port int    `json:"port"`
+		}
+		if json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<16)).Decode(&body) == nil {
+			if body.IP != "" {
+				ip = strings.TrimSpace(body.IP)
+			}
+			if body.Port != 0 {
+				port = body.Port
+			}
+		}
+	}
+	if net.ParseIP(ip) == nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "invalid ip"})
+		return
+	}
+	if port <= 0 || port > 65535 {
+		port = 9100
+	}
+
+	start := time.Now()
+	addr := net.JoinHostPort(ip, strconv.Itoa(port))
+	conn, err := net.DialTimeout("tcp", addr, 2*time.Second)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"ok": false, "ip": ip, "port": port, "error": err.Error()})
+		return
+	}
+	_ = conn.Close()
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "ip": ip, "port": port, "ms": time.Since(start).Milliseconds()})
 }
 
 type printRequest struct {

@@ -1,11 +1,14 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strings"
 	"time"
 
+	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqljson"
 	"github.com/Bengo-Hub/pagination"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -17,9 +20,11 @@ import (
 	"github.com/bengobox/pos-service/internal/ent"
 	"github.com/bengobox/pos-service/internal/ent/outletsetting"
 	entoverride "github.com/bengobox/pos-service/internal/ent/poscatalogoverride"
+	"github.com/bengobox/pos-service/internal/ent/pospayment"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
 	"github.com/bengobox/pos-service/internal/ent/posorderline"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
+	"github.com/bengobox/pos-service/internal/ent/tender"
 	"github.com/bengobox/pos-service/internal/modules/orders"
 	"github.com/bengobox/pos-service/internal/platform/subscriptions"
 )
@@ -77,6 +82,7 @@ type createOrderInput struct {
 	DiscountAmount float64                `json:"discount_amount,omitempty"`  // order-level discount (e.g. loyalty redemption)
 	DiscountReason string                 `json:"discount_reason,omitempty"`  // free-text reason for a manual discount
 	ApprovalToken  string                 `json:"approval_token,omitempty"`   // manager step-up token for an over-limit discount
+	Source         string                 `json:"source,omitempty"`           // "pos_terminal" (default) | "back_office" (Add Sale flow)
 }
 
 // updateStatusInput is the body for PATCH /pos/orders/{id}/status.
@@ -100,11 +106,21 @@ func (h *POSOrderHandler) ListOrders(w http.ResponseWriter, r *http.Request) {
 
 	q := r.URL.Query()
 	filters := []predicate.POSOrder{posorder.TenantID(tid)}
-	if oidStr := httpware.GetOutletID(r.Context()); oidStr != "" {
+
+	// Business Location: an explicit ?outlet_id= query param wins (the All-Sales location
+	// filter). "all" (admins) lists every outlet. Absent → scope to the header outlet context.
+	if outletParam := q.Get("outlet_id"); outletParam != "" {
+		if !strings.EqualFold(outletParam, "all") {
+			if oid, parseErr := uuid.Parse(outletParam); parseErr == nil {
+				filters = append(filters, posorder.OutletID(oid))
+			}
+		}
+	} else if oidStr := httpware.GetOutletID(r.Context()); oidStr != "" {
 		if oid, parseErr := uuid.Parse(oidStr); parseErr == nil {
 			filters = append(filters, posorder.OutletID(oid))
 		}
 	}
+
 	if status := q.Get("status"); status != "" {
 		statuses := strings.Split(status, ",")
 		if len(statuses) > 1 {
@@ -113,14 +129,70 @@ func (h *POSOrderHandler) ListOrders(w http.ResponseWriter, r *http.Request) {
 			filters = append(filters, posorder.Status(statuses[0]))
 		}
 	}
-	// staff_id scopes the list to orders created by a specific staff member (view_own roles).
-	if staffIDStr := q.Get("staff_id"); staffIDStr != "" {
-		if staffUID, err := uuid.Parse(staffIDStr); err == nil {
+	// staff_id / user_id scope the list to orders created by a specific staff member.
+	staffFilter := q.Get("staff_id")
+	if staffFilter == "" {
+		staffFilter = q.Get("user_id")
+	}
+	if staffFilter != "" {
+		if staffUID, err := uuid.Parse(staffFilter); err == nil {
 			filters = append(filters, posorder.UserID(staffUID))
 		}
 	}
 	if orderNum := q.Get("order_number"); orderNum != "" {
 		filters = append(filters, posorder.OrderNumberContainsFold(orderNum))
+	}
+	// Sources: pos_terminal vs back_office.
+	if src := q.Get("source"); src != "" && !strings.EqualFold(src, "all") {
+		filters = append(filters, posorder.Source(src))
+	}
+	// Date range on created_at (accepts RFC3339 or YYYY-MM-DD).
+	if from := parseDateParam(q.Get("from"), false); from != nil {
+		filters = append(filters, posorder.CreatedAtGTE(*from))
+	}
+	if to := parseDateParam(q.Get("to"), true); to != nil {
+		filters = append(filters, posorder.CreatedAtLTE(*to))
+	}
+	// Customer: match phone or name (contains, case-insensitive).
+	if cust := strings.TrimSpace(q.Get("customer")); cust != "" {
+		filters = append(filters, posorder.Or(
+			posorder.CustomerPhoneContainsFold(cust),
+			posorder.CustomerNameContainsFold(cust),
+		))
+	}
+	// Payment status → status-group mapping (this POS settles fully on completion).
+	switch strings.ToLower(q.Get("payment_status")) {
+	case "paid":
+		filters = append(filters, posorder.Status("completed"))
+	case "due", "unpaid":
+		filters = append(filters, posorder.StatusIn("open", "pending_payment", "draft"))
+	case "partial":
+		filters = append(filters, posorder.And(posorder.HasPayments(), posorder.StatusNotIn("completed", "cancelled", "voided")))
+	}
+	// Payment method → resolve tenders of that type for the tenant, then match orders that
+	// have a payment on one of them.
+	if pm := strings.TrimSpace(q.Get("payment_method")); pm != "" && !strings.EqualFold(pm, "all") {
+		tenderIDs, _ := h.client.Tender.Query().
+			Where(tender.TenantID(tid), tender.TypeEQ(pm)).
+			IDs(r.Context())
+		if len(tenderIDs) > 0 {
+			filters = append(filters, posorder.HasPaymentsWith(pospayment.TenderIDIn(tenderIDs...)))
+		} else {
+			// No matching tender → no orders can match this method.
+			filters = append(filters, posorder.IDEQ(uuid.Nil))
+		}
+	}
+	// Shipping status — stored in metadata.shipping_status (set by Edit Shipping).
+	if ship := strings.TrimSpace(q.Get("shipping_status")); ship != "" && !strings.EqualFold(ship, "all") {
+		filters = append(filters, predicate.POSOrder(func(s *sql.Selector) {
+			s.Where(sqljson.ValueEQ(posorder.FieldMetadata, ship, sqljson.Path("shipping_status")))
+		}))
+	}
+	// Subscriptions-only: orders flagged as subscription sales in metadata.
+	if strings.EqualFold(q.Get("subscriptions"), "true") || q.Get("subscriptions") == "1" {
+		filters = append(filters, predicate.POSOrder(func(s *sql.Selector) {
+			s.Where(sqljson.ValueEQ(posorder.FieldMetadata, true, sqljson.Path("is_subscription")))
+		}))
 	}
 
 	p := pagination.Parse(r)
@@ -133,7 +205,118 @@ func (h *POSOrderHandler) ListOrders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	jsonOK(w, pagination.NewResponse(orderList, total, p))
+	items := h.enrichOrderList(r.Context(), tid, orderList)
+	jsonOK(w, pagination.NewResponse(items, total, p))
+}
+
+// orderListItem wraps a POSOrder with the derived columns the All-Sales table needs
+// (payment status/method, paid vs due, item count). The embedded *ent.POSOrder promotes
+// all original fields + edges, so existing consumers (terminal, drafts) are unaffected.
+type orderListItem struct {
+	*ent.POSOrder
+	ItemCount     int     `json:"item_count"`
+	TotalPaid     float64 `json:"total_paid"`
+	AmountDue     float64 `json:"amount_due"`
+	PaymentStatus string  `json:"payment_status"` // paid | partial | due | refunded | voided | cancelled
+	PaymentMethod string  `json:"payment_method"` // dominant tender type, or "multiple"
+}
+
+// enrichOrderList computes the derived display columns for a page of orders, resolving
+// payment-method labels via a single batched Tender lookup (id → type).
+func (h *POSOrderHandler) enrichOrderList(ctx context.Context, tenantID uuid.UUID, list []*ent.POSOrder) []orderListItem {
+	// Collect every tender_id referenced by this page's payments, then resolve types once.
+	tenderIDSet := map[uuid.UUID]struct{}{}
+	for _, o := range list {
+		for _, pay := range o.Edges.Payments {
+			tenderIDSet[pay.TenderID] = struct{}{}
+		}
+	}
+	tenderType := map[uuid.UUID]string{}
+	if len(tenderIDSet) > 0 {
+		ids := make([]uuid.UUID, 0, len(tenderIDSet))
+		for id := range tenderIDSet {
+			ids = append(ids, id)
+		}
+		if tenders, err := h.client.Tender.Query().Where(tender.IDIn(ids...)).All(ctx); err == nil {
+			for _, t := range tenders {
+				tenderType[t.ID] = t.Type
+			}
+		}
+	}
+
+	items := make([]orderListItem, 0, len(list))
+	for _, o := range list {
+		paid := 0.0
+		methods := map[string]struct{}{}
+		for _, pay := range o.Edges.Payments {
+			if pay.Status == "completed" {
+				paid += pay.Amount
+			}
+			if t, ok := tenderType[pay.TenderID]; ok && t != "" {
+				methods[t] = struct{}{}
+			}
+		}
+		due := o.TotalAmount - paid
+		if due < 0 {
+			due = 0
+		}
+		items = append(items, orderListItem{
+			POSOrder:      o,
+			ItemCount:     len(o.Edges.Lines),
+			TotalPaid:     paid,
+			AmountDue:     due,
+			PaymentStatus: derivePaymentStatus(o.Status, o.TotalAmount, paid),
+			PaymentMethod: dominantMethod(methods),
+		})
+	}
+	return items
+}
+
+// derivePaymentStatus maps an order's status + paid amount to a display payment status.
+func derivePaymentStatus(status string, total, paid float64) string {
+	switch status {
+	case "refunded", "voided", "cancelled":
+		return status
+	}
+	if status == "completed" || (total > 0 && paid+0.01 >= total) {
+		return "paid"
+	}
+	if paid > 0 {
+		return "partial"
+	}
+	return "due"
+}
+
+// dominantMethod returns the single tender type used, "multiple" if several, "" if none.
+func dominantMethod(methods map[string]struct{}) string {
+	switch len(methods) {
+	case 0:
+		return ""
+	case 1:
+		for m := range methods {
+			return m
+		}
+	}
+	return "multiple"
+}
+
+// parseDateParam parses a from/to query value as RFC3339 or YYYY-MM-DD. When endOfDay is
+// true and a date-only value is given, it snaps to the end of that day (inclusive range).
+func parseDateParam(v string, endOfDay bool) *time.Time {
+	v = strings.TrimSpace(v)
+	if v == "" {
+		return nil
+	}
+	if t, err := time.Parse(time.RFC3339, v); err == nil {
+		return &t
+	}
+	if t, err := time.Parse("2006-01-02", v); err == nil {
+		if endOfDay {
+			t = t.Add(24*time.Hour - time.Nanosecond)
+		}
+		return &t
+	}
+	return nil
 }
 
 // GetOrder handles GET /{tenantID}/pos/orders/{orderID}
@@ -522,6 +705,7 @@ func (h *POSOrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 		CustomerPhone:  input.CustomerPhone,
 		CustomerName:   input.CustomerName,
 		DiscountAmount: input.DiscountAmount,
+		Source:         input.Source,
 	})
 	if err != nil {
 		h.log.Error("create order failed", zap.Error(err))
@@ -532,6 +716,116 @@ func (h *POSOrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	_ = json.NewEncoder(w).Encode(order)
+}
+
+// shippingInput is the body for PATCH /pos/orders/{orderID}/shipping (Edit Shipping action).
+type shippingInput struct {
+	ShippingStatus  string   `json:"shipping_status,omitempty"`  // ordered|packed|shipped|delivered|cancelled
+	ShippingAddress string   `json:"shipping_address,omitempty"`
+	ShippingAmount  *float64 `json:"shipping_amount,omitempty"`
+	TrackingNumber  string   `json:"tracking_number,omitempty"`
+	DeliveryPerson  string   `json:"delivery_person,omitempty"`
+	DeliveryPhone   string   `json:"delivery_phone,omitempty"`
+}
+
+// UpdateShipping handles PATCH /{tenantID}/pos/orders/{orderID}/shipping — the All-Sales
+// "Edit Shipping" action. Shipping details live in the order metadata (no dedicated columns);
+// the All-Sales "Shipping Status" filter reads metadata.shipping_status. For delivery orders
+// the frontend separately dispatches to logistics via the existing assign-rider flow.
+func (h *POSOrderHandler) UpdateShipping(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+	orderID, err := uuid.Parse(chi.URLParam(r, "orderID"))
+	if err != nil {
+		jsonError(w, "invalid order_id", http.StatusBadRequest)
+		return
+	}
+	var input shippingInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		jsonError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	order, err := h.client.POSOrder.Query().
+		Where(posorder.ID(orderID), posorder.TenantID(tid)).
+		Only(r.Context())
+	if err != nil {
+		if ent.IsNotFound(err) {
+			jsonError(w, "order not found", http.StatusNotFound)
+			return
+		}
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	meta := order.Metadata
+	if meta == nil {
+		meta = map[string]any{}
+	}
+	if input.ShippingStatus != "" {
+		meta["shipping_status"] = input.ShippingStatus
+	}
+	if input.ShippingAddress != "" {
+		meta["shipping_address"] = input.ShippingAddress
+	}
+	if input.ShippingAmount != nil {
+		meta["shipping_amount"] = *input.ShippingAmount
+	}
+	if input.TrackingNumber != "" {
+		meta["tracking_number"] = input.TrackingNumber
+	}
+	if input.DeliveryPerson != "" {
+		meta["delivery_person"] = input.DeliveryPerson
+	}
+	if input.DeliveryPhone != "" {
+		meta["delivery_phone"] = input.DeliveryPhone
+	}
+
+	updated, err := h.client.POSOrder.UpdateOneID(orderID).SetMetadata(meta).Save(r.Context())
+	if err != nil {
+		h.log.Error("update shipping failed", zap.Error(err))
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	jsonOK(w, updated)
+}
+
+// notifySaleInput optionally redirects the sale notification to a specific phone/email.
+type notifySaleInput struct {
+	Phone string `json:"phone,omitempty"`
+	Email string `json:"email,omitempty"`
+}
+
+// NotifySale handles POST /{tenantID}/pos/orders/{orderID}/notify — the All-Sales
+// "New Sale Notification" action. Publishes pos.sale.notification_requested for
+// notifications-service to deliver the receipt/invoice to the customer.
+func (h *POSOrderHandler) NotifySale(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+	orderID, err := uuid.Parse(chi.URLParam(r, "orderID"))
+	if err != nil {
+		jsonError(w, "invalid order_id", http.StatusBadRequest)
+		return
+	}
+	var input notifySaleInput
+	_ = json.NewDecoder(r.Body).Decode(&input) // body optional
+
+	if _, err := h.orderSvc.RequestSaleNotification(r.Context(), tid, orderID, input.Phone, input.Email); err != nil {
+		if ent.IsNotFound(err) {
+			jsonError(w, "order not found", http.StatusNotFound)
+			return
+		}
+		h.log.Error("notify sale failed", zap.Error(err))
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	jsonOK(w, map[string]any{"status": "queued"})
 }
 
 // UpdateStatus handles PATCH /{tenantID}/pos/orders/{orderID}/status

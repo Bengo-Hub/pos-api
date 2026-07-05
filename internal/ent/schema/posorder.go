@@ -43,6 +43,12 @@ func (POSOrder) Fields() []ent.Field {
 			Nillable(),
 		field.String("status").
 			Default("draft"),
+		// source distinguishes where the sale originated: "pos_terminal" (rung up on the POS
+		// terminal) vs "back_office" (entered via the back-office "Add Sale" flow). Drives the
+		// All-Sales "Sources" filter and the separate POS-only sales list.
+		field.String("source").
+			Default("pos_terminal").
+			Comment(`Origin of the sale: "pos_terminal" or "back_office"`),
 		field.Float("subtotal"),
 		field.Float("tax_total"),
 		field.Float("discount_total").
@@ -130,5 +136,7 @@ func (POSOrder) Indexes() []ent.Index {
 		// Backstop dedup for offline sales: even if the idempotency-key cache is evicted,
 		// a replayed offline order with the same client_reference cannot be inserted twice.
 		index.Fields("tenant_id", "client_reference").Unique(),
+		// Speeds up the All-Sales "Sources" filter + the POS-only sales list.
+		index.Fields("tenant_id", "source"),
 	}
 }

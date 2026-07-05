@@ -32,6 +32,8 @@ const (
 	FieldOfflineCreatedAt = "offline_created_at"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
+	// FieldSource holds the string denoting the source field in the database.
+	FieldSource = "source"
 	// FieldSubtotal holds the string denoting the subtotal field in the database.
 	FieldSubtotal = "subtotal"
 	// FieldTaxTotal holds the string denoting the tax_total field in the database.
@@ -120,6 +122,7 @@ var Columns = []string{
 	FieldClientReference,
 	FieldOfflineCreatedAt,
 	FieldStatus,
+	FieldSource,
 	FieldSubtotal,
 	FieldTaxTotal,
 	FieldDiscountTotal,
@@ -160,6 +163,8 @@ var (
 	OrderNumberValidator func(string) error
 	// DefaultStatus holds the default value on creation for the "status" field.
 	DefaultStatus string
+	// DefaultSource holds the default value on creation for the "source" field.
+	DefaultSource string
 	// DefaultDiscountTotal holds the default value on creation for the "discount_total" field.
 	DefaultDiscountTotal float64
 	// DefaultCurrency holds the default value on creation for the "currency" field.
@@ -262,6 +267,11 @@ func ByOfflineCreatedAt(opts ...sql.OrderTermOption) OrderOption {
 // ByStatus orders the results by the status field.
 func ByStatus(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldStatus, opts...).ToFunc()
+}
+
+// BySource orders the results by the source field.
+func BySource(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSource, opts...).ToFunc()
 }
 
 // BySubtotal orders the results by the subtotal field.

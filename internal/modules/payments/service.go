@@ -8,10 +8,12 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 
 	"github.com/bengobox/pos-service/internal/ent"
 	entcommissionrule "github.com/bengobox/pos-service/internal/ent/commissionrule"
+	entloyalty "github.com/bengobox/pos-service/internal/ent/loyaltyaccount"
 	outletsettingpredicate "github.com/bengobox/pos-service/internal/ent/outletsetting"
 	entcatalogoverride "github.com/bengobox/pos-service/internal/ent/poscatalogoverride"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
@@ -22,6 +24,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/tableassignment"
 	"github.com/bengobox/pos-service/internal/modules/inventory"
 	"github.com/bengobox/pos-service/internal/modules/orders"
+	"github.com/bengobox/pos-service/internal/modules/staffcredit"
 	"github.com/bengobox/pos-service/internal/modules/treasury"
 	"github.com/bengobox/pos-service/internal/payref"
 	"github.com/bengobox/pos-service/internal/platform/events"
@@ -102,6 +105,7 @@ type Service struct {
 	inventoryClient *inventory.Client
 	publisher       *events.Publisher
 	marketflow      *marketflow.Client
+	staffCredit     *staffcredit.Service
 	log             *zap.Logger
 	defaultCurrency string
 }
@@ -132,6 +136,12 @@ func (s *Service) SetInventoryClient(c *inventory.Client) {
 // SetPublisher injects the event publisher for pos.sale.finalized and related events.
 func (s *Service) SetPublisher(p *events.Publisher) {
 	s.publisher = p
+}
+
+// SetStaffCredit injects the staff fund-from-salary provisioner so a staff credit sale routes the
+// debt to ERP payroll instead of customer AR. Optional; nil = staff credit sales fall back to AR.
+func (s *Service) SetStaffCredit(sc *staffcredit.Service) {
+	s.staffCredit = sc
 }
 
 // SetMarketFlowClient injects the marketflow CRM client, used to resolve the shared "Walk-in"
@@ -278,6 +288,38 @@ func (s *Service) CreatePaymentIntent(ctx context.Context, req RecordPaymentRequ
 // rejects over-limit sales — and only on success records a completed on-account payment and
 // completes the order (so goods never leave without the debt being recorded). Requires a customer.
 func (s *Service) recordCreditSale(ctx context.Context, order *ent.POSOrder, req RecordPaymentRequest, currency string) (*CreateIntentResult, error) {
+	// Staff fund-from-salary: when the order metadata flags a staff-funded credit sale, route the
+	// debt to ERP payroll (a StaffPurchaseDeduction) instead of customer AR. Still records the
+	// on-account payment + completes the order so goods never leave without the debt recorded.
+	if staffID, months, ok := staffCreditFromOrder(order); ok && s.staffCredit != nil && s.staffCredit.Entitled(ctx, req.TenantID) {
+		if months < 1 {
+			months = 1
+		}
+		principal := decimal.NewFromFloat(req.Amount)
+		install := principal.Div(decimal.NewFromInt(int64(months)))
+		orderID := order.ID
+		outletID := order.OutletID
+		if _, perr := s.staffCredit.Provision(ctx, req.TenantID, staffcredit.ProvisionInput{
+			OutletID:          &outletID,
+			StaffMemberID:     staffID,
+			Origin:            "credit_sale",
+			POSOrderID:        &orderID,
+			Principal:         principal,
+			InstallmentAmount: install,
+			InstallmentsTotal: months,
+		}); perr != nil {
+			s.log.Warn("staff-credit provision failed (credit sale)", zap.Error(perr))
+		} else {
+			if _, err := s.client.POSPayment.Create().
+				SetOrderID(req.OrderID).SetTenderID(req.TenderID).SetAmount(req.Amount).
+				SetCurrency(currency).SetStatus(StatusCompleted).Save(ctx); err != nil {
+				return nil, fmt.Errorf("payments: record staff on-account payment: %w", err)
+			}
+			s.completeOrderIfFullyPaid(ctx, order, req.Amount)
+			return &CreateIntentResult{IsCash: true}, nil
+		}
+	}
+
 	if s.treasuryClient == nil {
 		return nil, fmt.Errorf("payments: treasury client not configured")
 	}
@@ -289,18 +331,19 @@ func (s *Service) recordCreditSale(ctx context.Context, order *ent.POSOrder, req
 	if order.CustomerName != nil {
 		name = *order.CustomerName
 	}
+	// A credit sale MUST be booked against a real customer account — never the shared "Walk-in" ghost
+	// (it commingles unrelated debts onto one row that can never be collected or reconciled). Reject
+	// when no customer was selected; the pos-ui also hides Credit Sale until a customer is chosen.
 	if strings.TrimSpace(phone) == "" && strings.TrimSpace(name) == "" {
-		// No customer on the order — attribute the credit to the tenant's shared "Walk-in" customer
-		// instead of failing. marketflow CRM owns the contact: best-effort upsert so the walk-in
-		// exists/links there; treasury keys the AR balance on the walk-in identifier regardless.
-		phone = walkInPhone
-		name = walkInName
-		if s.marketflow != nil && s.marketflow.Enabled() {
-			_ = s.marketflow.UpsertContactByPhone(ctx, req.TenantID, walkInPhone, walkInName)
-		}
+		return nil, fmt.Errorf("payments: credit sale requires a selected customer")
 	}
+	// Resolve the canonical AR key — the selected customer's marketflow CRM contact (the SAME source
+	// the return path uses), via the loyalty account for this phone. Sending both the CRM id and the
+	// phone lets treasury net the credit sale, its returns and its opening balance on ONE customer row.
+	crmContactID := s.ResolveCrmContactID(ctx, req.TenantID, phone)
 
 	if _, err := s.treasuryClient.RecordCreditSale(ctx, req.TenantSlug, treasury.CreditSaleRequest{
+		CrmContactID:       crmContactID,
 		CustomerIdentifier: phone,
 		CustomerName:       name,
 		POSOrderID:         order.ID.String(),
@@ -322,6 +365,46 @@ func (s *Service) recordCreditSale(ctx context.Context, order *ent.POSOrder, req
 
 	s.completeOrderIfFullyPaid(ctx, order, req.Amount)
 	return &CreateIntentResult{IsCash: true}, nil
+}
+
+// ResolveCrmContactID returns the marketflow CRM contact id for a customer phone (via the loyalty
+// account), or "" when none is linked. This is the canonical treasury AR key — the same resolution
+// the return path uses — so a credit sale, its returns and its opening balance all land on one row.
+func (s *Service) ResolveCrmContactID(ctx context.Context, tenantID uuid.UUID, phone string) string {
+	if strings.TrimSpace(phone) == "" {
+		return ""
+	}
+	acc, err := s.client.LoyaltyAccount.Query().
+		Where(entloyalty.TenantID(tenantID), entloyalty.CustomerPhone(phone)).
+		First(ctx)
+	if err != nil || acc == nil || acc.CrmContactID == nil {
+		return ""
+	}
+	return acc.CrmContactID.String()
+}
+
+// staffCreditFromOrder extracts the staff fund-from-salary intent from an order's metadata
+// (fund_from_salary + staff_member_id [+ installment_months]), set by the credit-sale UI.
+func staffCreditFromOrder(order *ent.POSOrder) (staffID uuid.UUID, months int, ok bool) {
+	if order == nil || order.Metadata == nil {
+		return uuid.Nil, 0, false
+	}
+	fund, _ := order.Metadata["fund_from_salary"].(bool)
+	sid, _ := order.Metadata["staff_member_id"].(string)
+	if !fund || sid == "" {
+		return uuid.Nil, 0, false
+	}
+	id, err := uuid.Parse(sid)
+	if err != nil {
+		return uuid.Nil, 0, false
+	}
+	switch v := order.Metadata["installment_months"].(type) {
+	case float64:
+		months = int(v)
+	case int:
+		months = v
+	}
+	return id, months, true
 }
 
 // ConfirmPaymentByIntentID is called by the treasury.payment.success NATS subscriber.
