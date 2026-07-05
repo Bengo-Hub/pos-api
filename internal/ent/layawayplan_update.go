@@ -78,6 +78,74 @@ func (_u *LayawayPlanUpdate) ClearOrderID() *LayawayPlanUpdate {
 	return _u
 }
 
+// SetPartyType sets the "party_type" field.
+func (_u *LayawayPlanUpdate) SetPartyType(v layawayplan.PartyType) *LayawayPlanUpdate {
+	_u.mutation.SetPartyType(v)
+	return _u
+}
+
+// SetNillablePartyType sets the "party_type" field if the given value is not nil.
+func (_u *LayawayPlanUpdate) SetNillablePartyType(v *layawayplan.PartyType) *LayawayPlanUpdate {
+	if v != nil {
+		_u.SetPartyType(*v)
+	}
+	return _u
+}
+
+// SetStaffMemberID sets the "staff_member_id" field.
+func (_u *LayawayPlanUpdate) SetStaffMemberID(v uuid.UUID) *LayawayPlanUpdate {
+	_u.mutation.SetStaffMemberID(v)
+	return _u
+}
+
+// SetNillableStaffMemberID sets the "staff_member_id" field if the given value is not nil.
+func (_u *LayawayPlanUpdate) SetNillableStaffMemberID(v *uuid.UUID) *LayawayPlanUpdate {
+	if v != nil {
+		_u.SetStaffMemberID(*v)
+	}
+	return _u
+}
+
+// ClearStaffMemberID clears the value of the "staff_member_id" field.
+func (_u *LayawayPlanUpdate) ClearStaffMemberID() *LayawayPlanUpdate {
+	_u.mutation.ClearStaffMemberID()
+	return _u
+}
+
+// SetLoyaltyAccountID sets the "loyalty_account_id" field.
+func (_u *LayawayPlanUpdate) SetLoyaltyAccountID(v uuid.UUID) *LayawayPlanUpdate {
+	_u.mutation.SetLoyaltyAccountID(v)
+	return _u
+}
+
+// SetNillableLoyaltyAccountID sets the "loyalty_account_id" field if the given value is not nil.
+func (_u *LayawayPlanUpdate) SetNillableLoyaltyAccountID(v *uuid.UUID) *LayawayPlanUpdate {
+	if v != nil {
+		_u.SetLoyaltyAccountID(*v)
+	}
+	return _u
+}
+
+// ClearLoyaltyAccountID clears the value of the "loyalty_account_id" field.
+func (_u *LayawayPlanUpdate) ClearLoyaltyAccountID() *LayawayPlanUpdate {
+	_u.mutation.ClearLoyaltyAccountID()
+	return _u
+}
+
+// SetFundFromSalary sets the "fund_from_salary" field.
+func (_u *LayawayPlanUpdate) SetFundFromSalary(v bool) *LayawayPlanUpdate {
+	_u.mutation.SetFundFromSalary(v)
+	return _u
+}
+
+// SetNillableFundFromSalary sets the "fund_from_salary" field if the given value is not nil.
+func (_u *LayawayPlanUpdate) SetNillableFundFromSalary(v *bool) *LayawayPlanUpdate {
+	if v != nil {
+		_u.SetFundFromSalary(*v)
+	}
+	return _u
+}
+
 // SetCustomerName sets the "customer_name" field.
 func (_u *LayawayPlanUpdate) SetCustomerName(v string) *LayawayPlanUpdate {
 	_u.mutation.SetCustomerName(v)
@@ -319,6 +387,11 @@ func (_u *LayawayPlanUpdate) defaults() {
 
 // check runs all checks and user-defined validators on the builder.
 func (_u *LayawayPlanUpdate) check() error {
+	if v, ok := _u.mutation.PartyType(); ok {
+		if err := layawayplan.PartyTypeValidator(v); err != nil {
+			return &ValidationError{Name: "party_type", err: fmt.Errorf(`ent: validator failed for field "LayawayPlan.party_type": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.CustomerName(); ok {
 		if err := layawayplan.CustomerNameValidator(v); err != nil {
 			return &ValidationError{Name: "customer_name", err: fmt.Errorf(`ent: validator failed for field "LayawayPlan.customer_name": %w`, err)}
@@ -350,6 +423,24 @@ func (_u *LayawayPlanUpdate) sqlSave(ctx context.Context) (_node int, err error)
 	}
 	if _u.mutation.OrderIDCleared() {
 		_spec.ClearField(layawayplan.FieldOrderID, field.TypeUUID)
+	}
+	if value, ok := _u.mutation.PartyType(); ok {
+		_spec.SetField(layawayplan.FieldPartyType, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.StaffMemberID(); ok {
+		_spec.SetField(layawayplan.FieldStaffMemberID, field.TypeUUID, value)
+	}
+	if _u.mutation.StaffMemberIDCleared() {
+		_spec.ClearField(layawayplan.FieldStaffMemberID, field.TypeUUID)
+	}
+	if value, ok := _u.mutation.LoyaltyAccountID(); ok {
+		_spec.SetField(layawayplan.FieldLoyaltyAccountID, field.TypeUUID, value)
+	}
+	if _u.mutation.LoyaltyAccountIDCleared() {
+		_spec.ClearField(layawayplan.FieldLoyaltyAccountID, field.TypeUUID)
+	}
+	if value, ok := _u.mutation.FundFromSalary(); ok {
+		_spec.SetField(layawayplan.FieldFundFromSalary, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.CustomerName(); ok {
 		_spec.SetField(layawayplan.FieldCustomerName, field.TypeString, value)
@@ -473,6 +564,74 @@ func (_u *LayawayPlanUpdateOne) SetNillableOrderID(v *uuid.UUID) *LayawayPlanUpd
 // ClearOrderID clears the value of the "order_id" field.
 func (_u *LayawayPlanUpdateOne) ClearOrderID() *LayawayPlanUpdateOne {
 	_u.mutation.ClearOrderID()
+	return _u
+}
+
+// SetPartyType sets the "party_type" field.
+func (_u *LayawayPlanUpdateOne) SetPartyType(v layawayplan.PartyType) *LayawayPlanUpdateOne {
+	_u.mutation.SetPartyType(v)
+	return _u
+}
+
+// SetNillablePartyType sets the "party_type" field if the given value is not nil.
+func (_u *LayawayPlanUpdateOne) SetNillablePartyType(v *layawayplan.PartyType) *LayawayPlanUpdateOne {
+	if v != nil {
+		_u.SetPartyType(*v)
+	}
+	return _u
+}
+
+// SetStaffMemberID sets the "staff_member_id" field.
+func (_u *LayawayPlanUpdateOne) SetStaffMemberID(v uuid.UUID) *LayawayPlanUpdateOne {
+	_u.mutation.SetStaffMemberID(v)
+	return _u
+}
+
+// SetNillableStaffMemberID sets the "staff_member_id" field if the given value is not nil.
+func (_u *LayawayPlanUpdateOne) SetNillableStaffMemberID(v *uuid.UUID) *LayawayPlanUpdateOne {
+	if v != nil {
+		_u.SetStaffMemberID(*v)
+	}
+	return _u
+}
+
+// ClearStaffMemberID clears the value of the "staff_member_id" field.
+func (_u *LayawayPlanUpdateOne) ClearStaffMemberID() *LayawayPlanUpdateOne {
+	_u.mutation.ClearStaffMemberID()
+	return _u
+}
+
+// SetLoyaltyAccountID sets the "loyalty_account_id" field.
+func (_u *LayawayPlanUpdateOne) SetLoyaltyAccountID(v uuid.UUID) *LayawayPlanUpdateOne {
+	_u.mutation.SetLoyaltyAccountID(v)
+	return _u
+}
+
+// SetNillableLoyaltyAccountID sets the "loyalty_account_id" field if the given value is not nil.
+func (_u *LayawayPlanUpdateOne) SetNillableLoyaltyAccountID(v *uuid.UUID) *LayawayPlanUpdateOne {
+	if v != nil {
+		_u.SetLoyaltyAccountID(*v)
+	}
+	return _u
+}
+
+// ClearLoyaltyAccountID clears the value of the "loyalty_account_id" field.
+func (_u *LayawayPlanUpdateOne) ClearLoyaltyAccountID() *LayawayPlanUpdateOne {
+	_u.mutation.ClearLoyaltyAccountID()
+	return _u
+}
+
+// SetFundFromSalary sets the "fund_from_salary" field.
+func (_u *LayawayPlanUpdateOne) SetFundFromSalary(v bool) *LayawayPlanUpdateOne {
+	_u.mutation.SetFundFromSalary(v)
+	return _u
+}
+
+// SetNillableFundFromSalary sets the "fund_from_salary" field if the given value is not nil.
+func (_u *LayawayPlanUpdateOne) SetNillableFundFromSalary(v *bool) *LayawayPlanUpdateOne {
+	if v != nil {
+		_u.SetFundFromSalary(*v)
+	}
 	return _u
 }
 
@@ -730,6 +889,11 @@ func (_u *LayawayPlanUpdateOne) defaults() {
 
 // check runs all checks and user-defined validators on the builder.
 func (_u *LayawayPlanUpdateOne) check() error {
+	if v, ok := _u.mutation.PartyType(); ok {
+		if err := layawayplan.PartyTypeValidator(v); err != nil {
+			return &ValidationError{Name: "party_type", err: fmt.Errorf(`ent: validator failed for field "LayawayPlan.party_type": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.CustomerName(); ok {
 		if err := layawayplan.CustomerNameValidator(v); err != nil {
 			return &ValidationError{Name: "customer_name", err: fmt.Errorf(`ent: validator failed for field "LayawayPlan.customer_name": %w`, err)}
@@ -778,6 +942,24 @@ func (_u *LayawayPlanUpdateOne) sqlSave(ctx context.Context) (_node *LayawayPlan
 	}
 	if _u.mutation.OrderIDCleared() {
 		_spec.ClearField(layawayplan.FieldOrderID, field.TypeUUID)
+	}
+	if value, ok := _u.mutation.PartyType(); ok {
+		_spec.SetField(layawayplan.FieldPartyType, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.StaffMemberID(); ok {
+		_spec.SetField(layawayplan.FieldStaffMemberID, field.TypeUUID, value)
+	}
+	if _u.mutation.StaffMemberIDCleared() {
+		_spec.ClearField(layawayplan.FieldStaffMemberID, field.TypeUUID)
+	}
+	if value, ok := _u.mutation.LoyaltyAccountID(); ok {
+		_spec.SetField(layawayplan.FieldLoyaltyAccountID, field.TypeUUID, value)
+	}
+	if _u.mutation.LoyaltyAccountIDCleared() {
+		_spec.ClearField(layawayplan.FieldLoyaltyAccountID, field.TypeUUID)
+	}
+	if value, ok := _u.mutation.FundFromSalary(); ok {
+		_spec.SetField(layawayplan.FieldFundFromSalary, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.CustomerName(); ok {
 		_spec.SetField(layawayplan.FieldCustomerName, field.TypeString, value)

@@ -51,6 +51,62 @@ func (_c *LayawayPlanCreate) SetNillableOrderID(v *uuid.UUID) *LayawayPlanCreate
 	return _c
 }
 
+// SetPartyType sets the "party_type" field.
+func (_c *LayawayPlanCreate) SetPartyType(v layawayplan.PartyType) *LayawayPlanCreate {
+	_c.mutation.SetPartyType(v)
+	return _c
+}
+
+// SetNillablePartyType sets the "party_type" field if the given value is not nil.
+func (_c *LayawayPlanCreate) SetNillablePartyType(v *layawayplan.PartyType) *LayawayPlanCreate {
+	if v != nil {
+		_c.SetPartyType(*v)
+	}
+	return _c
+}
+
+// SetStaffMemberID sets the "staff_member_id" field.
+func (_c *LayawayPlanCreate) SetStaffMemberID(v uuid.UUID) *LayawayPlanCreate {
+	_c.mutation.SetStaffMemberID(v)
+	return _c
+}
+
+// SetNillableStaffMemberID sets the "staff_member_id" field if the given value is not nil.
+func (_c *LayawayPlanCreate) SetNillableStaffMemberID(v *uuid.UUID) *LayawayPlanCreate {
+	if v != nil {
+		_c.SetStaffMemberID(*v)
+	}
+	return _c
+}
+
+// SetLoyaltyAccountID sets the "loyalty_account_id" field.
+func (_c *LayawayPlanCreate) SetLoyaltyAccountID(v uuid.UUID) *LayawayPlanCreate {
+	_c.mutation.SetLoyaltyAccountID(v)
+	return _c
+}
+
+// SetNillableLoyaltyAccountID sets the "loyalty_account_id" field if the given value is not nil.
+func (_c *LayawayPlanCreate) SetNillableLoyaltyAccountID(v *uuid.UUID) *LayawayPlanCreate {
+	if v != nil {
+		_c.SetLoyaltyAccountID(*v)
+	}
+	return _c
+}
+
+// SetFundFromSalary sets the "fund_from_salary" field.
+func (_c *LayawayPlanCreate) SetFundFromSalary(v bool) *LayawayPlanCreate {
+	_c.mutation.SetFundFromSalary(v)
+	return _c
+}
+
+// SetNillableFundFromSalary sets the "fund_from_salary" field if the given value is not nil.
+func (_c *LayawayPlanCreate) SetNillableFundFromSalary(v *bool) *LayawayPlanCreate {
+	if v != nil {
+		_c.SetFundFromSalary(*v)
+	}
+	return _c
+}
+
 // SetCustomerName sets the "customer_name" field.
 func (_c *LayawayPlanCreate) SetCustomerName(v string) *LayawayPlanCreate {
 	_c.mutation.SetCustomerName(v)
@@ -228,6 +284,14 @@ func (_c *LayawayPlanCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *LayawayPlanCreate) defaults() {
+	if _, ok := _c.mutation.PartyType(); !ok {
+		v := layawayplan.DefaultPartyType
+		_c.mutation.SetPartyType(v)
+	}
+	if _, ok := _c.mutation.FundFromSalary(); !ok {
+		v := layawayplan.DefaultFundFromSalary
+		_c.mutation.SetFundFromSalary(v)
+	}
 	if _, ok := _c.mutation.Status(); !ok {
 		v := layawayplan.DefaultStatus
 		_c.mutation.SetStatus(v)
@@ -253,6 +317,17 @@ func (_c *LayawayPlanCreate) check() error {
 	}
 	if _, ok := _c.mutation.OutletID(); !ok {
 		return &ValidationError{Name: "outlet_id", err: errors.New(`ent: missing required field "LayawayPlan.outlet_id"`)}
+	}
+	if _, ok := _c.mutation.PartyType(); !ok {
+		return &ValidationError{Name: "party_type", err: errors.New(`ent: missing required field "LayawayPlan.party_type"`)}
+	}
+	if v, ok := _c.mutation.PartyType(); ok {
+		if err := layawayplan.PartyTypeValidator(v); err != nil {
+			return &ValidationError{Name: "party_type", err: fmt.Errorf(`ent: validator failed for field "LayawayPlan.party_type": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.FundFromSalary(); !ok {
+		return &ValidationError{Name: "fund_from_salary", err: errors.New(`ent: missing required field "LayawayPlan.fund_from_salary"`)}
 	}
 	if _, ok := _c.mutation.CustomerName(); !ok {
 		return &ValidationError{Name: "customer_name", err: errors.New(`ent: missing required field "LayawayPlan.customer_name"`)}
@@ -330,6 +405,22 @@ func (_c *LayawayPlanCreate) createSpec() (*LayawayPlan, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.OrderID(); ok {
 		_spec.SetField(layawayplan.FieldOrderID, field.TypeUUID, value)
 		_node.OrderID = &value
+	}
+	if value, ok := _c.mutation.PartyType(); ok {
+		_spec.SetField(layawayplan.FieldPartyType, field.TypeEnum, value)
+		_node.PartyType = value
+	}
+	if value, ok := _c.mutation.StaffMemberID(); ok {
+		_spec.SetField(layawayplan.FieldStaffMemberID, field.TypeUUID, value)
+		_node.StaffMemberID = &value
+	}
+	if value, ok := _c.mutation.LoyaltyAccountID(); ok {
+		_spec.SetField(layawayplan.FieldLoyaltyAccountID, field.TypeUUID, value)
+		_node.LoyaltyAccountID = &value
+	}
+	if value, ok := _c.mutation.FundFromSalary(); ok {
+		_spec.SetField(layawayplan.FieldFundFromSalary, field.TypeBool, value)
+		_node.FundFromSalary = value
 	}
 	if value, ok := _c.mutation.CustomerName(); ok {
 		_spec.SetField(layawayplan.FieldCustomerName, field.TypeString, value)
@@ -470,6 +561,66 @@ func (u *LayawayPlanUpsert) UpdateOrderID() *LayawayPlanUpsert {
 // ClearOrderID clears the value of the "order_id" field.
 func (u *LayawayPlanUpsert) ClearOrderID() *LayawayPlanUpsert {
 	u.SetNull(layawayplan.FieldOrderID)
+	return u
+}
+
+// SetPartyType sets the "party_type" field.
+func (u *LayawayPlanUpsert) SetPartyType(v layawayplan.PartyType) *LayawayPlanUpsert {
+	u.Set(layawayplan.FieldPartyType, v)
+	return u
+}
+
+// UpdatePartyType sets the "party_type" field to the value that was provided on create.
+func (u *LayawayPlanUpsert) UpdatePartyType() *LayawayPlanUpsert {
+	u.SetExcluded(layawayplan.FieldPartyType)
+	return u
+}
+
+// SetStaffMemberID sets the "staff_member_id" field.
+func (u *LayawayPlanUpsert) SetStaffMemberID(v uuid.UUID) *LayawayPlanUpsert {
+	u.Set(layawayplan.FieldStaffMemberID, v)
+	return u
+}
+
+// UpdateStaffMemberID sets the "staff_member_id" field to the value that was provided on create.
+func (u *LayawayPlanUpsert) UpdateStaffMemberID() *LayawayPlanUpsert {
+	u.SetExcluded(layawayplan.FieldStaffMemberID)
+	return u
+}
+
+// ClearStaffMemberID clears the value of the "staff_member_id" field.
+func (u *LayawayPlanUpsert) ClearStaffMemberID() *LayawayPlanUpsert {
+	u.SetNull(layawayplan.FieldStaffMemberID)
+	return u
+}
+
+// SetLoyaltyAccountID sets the "loyalty_account_id" field.
+func (u *LayawayPlanUpsert) SetLoyaltyAccountID(v uuid.UUID) *LayawayPlanUpsert {
+	u.Set(layawayplan.FieldLoyaltyAccountID, v)
+	return u
+}
+
+// UpdateLoyaltyAccountID sets the "loyalty_account_id" field to the value that was provided on create.
+func (u *LayawayPlanUpsert) UpdateLoyaltyAccountID() *LayawayPlanUpsert {
+	u.SetExcluded(layawayplan.FieldLoyaltyAccountID)
+	return u
+}
+
+// ClearLoyaltyAccountID clears the value of the "loyalty_account_id" field.
+func (u *LayawayPlanUpsert) ClearLoyaltyAccountID() *LayawayPlanUpsert {
+	u.SetNull(layawayplan.FieldLoyaltyAccountID)
+	return u
+}
+
+// SetFundFromSalary sets the "fund_from_salary" field.
+func (u *LayawayPlanUpsert) SetFundFromSalary(v bool) *LayawayPlanUpsert {
+	u.Set(layawayplan.FieldFundFromSalary, v)
+	return u
+}
+
+// UpdateFundFromSalary sets the "fund_from_salary" field to the value that was provided on create.
+func (u *LayawayPlanUpsert) UpdateFundFromSalary() *LayawayPlanUpsert {
+	u.SetExcluded(layawayplan.FieldFundFromSalary)
 	return u
 }
 
@@ -750,6 +901,76 @@ func (u *LayawayPlanUpsertOne) UpdateOrderID() *LayawayPlanUpsertOne {
 func (u *LayawayPlanUpsertOne) ClearOrderID() *LayawayPlanUpsertOne {
 	return u.Update(func(s *LayawayPlanUpsert) {
 		s.ClearOrderID()
+	})
+}
+
+// SetPartyType sets the "party_type" field.
+func (u *LayawayPlanUpsertOne) SetPartyType(v layawayplan.PartyType) *LayawayPlanUpsertOne {
+	return u.Update(func(s *LayawayPlanUpsert) {
+		s.SetPartyType(v)
+	})
+}
+
+// UpdatePartyType sets the "party_type" field to the value that was provided on create.
+func (u *LayawayPlanUpsertOne) UpdatePartyType() *LayawayPlanUpsertOne {
+	return u.Update(func(s *LayawayPlanUpsert) {
+		s.UpdatePartyType()
+	})
+}
+
+// SetStaffMemberID sets the "staff_member_id" field.
+func (u *LayawayPlanUpsertOne) SetStaffMemberID(v uuid.UUID) *LayawayPlanUpsertOne {
+	return u.Update(func(s *LayawayPlanUpsert) {
+		s.SetStaffMemberID(v)
+	})
+}
+
+// UpdateStaffMemberID sets the "staff_member_id" field to the value that was provided on create.
+func (u *LayawayPlanUpsertOne) UpdateStaffMemberID() *LayawayPlanUpsertOne {
+	return u.Update(func(s *LayawayPlanUpsert) {
+		s.UpdateStaffMemberID()
+	})
+}
+
+// ClearStaffMemberID clears the value of the "staff_member_id" field.
+func (u *LayawayPlanUpsertOne) ClearStaffMemberID() *LayawayPlanUpsertOne {
+	return u.Update(func(s *LayawayPlanUpsert) {
+		s.ClearStaffMemberID()
+	})
+}
+
+// SetLoyaltyAccountID sets the "loyalty_account_id" field.
+func (u *LayawayPlanUpsertOne) SetLoyaltyAccountID(v uuid.UUID) *LayawayPlanUpsertOne {
+	return u.Update(func(s *LayawayPlanUpsert) {
+		s.SetLoyaltyAccountID(v)
+	})
+}
+
+// UpdateLoyaltyAccountID sets the "loyalty_account_id" field to the value that was provided on create.
+func (u *LayawayPlanUpsertOne) UpdateLoyaltyAccountID() *LayawayPlanUpsertOne {
+	return u.Update(func(s *LayawayPlanUpsert) {
+		s.UpdateLoyaltyAccountID()
+	})
+}
+
+// ClearLoyaltyAccountID clears the value of the "loyalty_account_id" field.
+func (u *LayawayPlanUpsertOne) ClearLoyaltyAccountID() *LayawayPlanUpsertOne {
+	return u.Update(func(s *LayawayPlanUpsert) {
+		s.ClearLoyaltyAccountID()
+	})
+}
+
+// SetFundFromSalary sets the "fund_from_salary" field.
+func (u *LayawayPlanUpsertOne) SetFundFromSalary(v bool) *LayawayPlanUpsertOne {
+	return u.Update(func(s *LayawayPlanUpsert) {
+		s.SetFundFromSalary(v)
+	})
+}
+
+// UpdateFundFromSalary sets the "fund_from_salary" field to the value that was provided on create.
+func (u *LayawayPlanUpsertOne) UpdateFundFromSalary() *LayawayPlanUpsertOne {
+	return u.Update(func(s *LayawayPlanUpsert) {
+		s.UpdateFundFromSalary()
 	})
 }
 
@@ -1227,6 +1448,76 @@ func (u *LayawayPlanUpsertBulk) UpdateOrderID() *LayawayPlanUpsertBulk {
 func (u *LayawayPlanUpsertBulk) ClearOrderID() *LayawayPlanUpsertBulk {
 	return u.Update(func(s *LayawayPlanUpsert) {
 		s.ClearOrderID()
+	})
+}
+
+// SetPartyType sets the "party_type" field.
+func (u *LayawayPlanUpsertBulk) SetPartyType(v layawayplan.PartyType) *LayawayPlanUpsertBulk {
+	return u.Update(func(s *LayawayPlanUpsert) {
+		s.SetPartyType(v)
+	})
+}
+
+// UpdatePartyType sets the "party_type" field to the value that was provided on create.
+func (u *LayawayPlanUpsertBulk) UpdatePartyType() *LayawayPlanUpsertBulk {
+	return u.Update(func(s *LayawayPlanUpsert) {
+		s.UpdatePartyType()
+	})
+}
+
+// SetStaffMemberID sets the "staff_member_id" field.
+func (u *LayawayPlanUpsertBulk) SetStaffMemberID(v uuid.UUID) *LayawayPlanUpsertBulk {
+	return u.Update(func(s *LayawayPlanUpsert) {
+		s.SetStaffMemberID(v)
+	})
+}
+
+// UpdateStaffMemberID sets the "staff_member_id" field to the value that was provided on create.
+func (u *LayawayPlanUpsertBulk) UpdateStaffMemberID() *LayawayPlanUpsertBulk {
+	return u.Update(func(s *LayawayPlanUpsert) {
+		s.UpdateStaffMemberID()
+	})
+}
+
+// ClearStaffMemberID clears the value of the "staff_member_id" field.
+func (u *LayawayPlanUpsertBulk) ClearStaffMemberID() *LayawayPlanUpsertBulk {
+	return u.Update(func(s *LayawayPlanUpsert) {
+		s.ClearStaffMemberID()
+	})
+}
+
+// SetLoyaltyAccountID sets the "loyalty_account_id" field.
+func (u *LayawayPlanUpsertBulk) SetLoyaltyAccountID(v uuid.UUID) *LayawayPlanUpsertBulk {
+	return u.Update(func(s *LayawayPlanUpsert) {
+		s.SetLoyaltyAccountID(v)
+	})
+}
+
+// UpdateLoyaltyAccountID sets the "loyalty_account_id" field to the value that was provided on create.
+func (u *LayawayPlanUpsertBulk) UpdateLoyaltyAccountID() *LayawayPlanUpsertBulk {
+	return u.Update(func(s *LayawayPlanUpsert) {
+		s.UpdateLoyaltyAccountID()
+	})
+}
+
+// ClearLoyaltyAccountID clears the value of the "loyalty_account_id" field.
+func (u *LayawayPlanUpsertBulk) ClearLoyaltyAccountID() *LayawayPlanUpsertBulk {
+	return u.Update(func(s *LayawayPlanUpsert) {
+		s.ClearLoyaltyAccountID()
+	})
+}
+
+// SetFundFromSalary sets the "fund_from_salary" field.
+func (u *LayawayPlanUpsertBulk) SetFundFromSalary(v bool) *LayawayPlanUpsertBulk {
+	return u.Update(func(s *LayawayPlanUpsert) {
+		s.SetFundFromSalary(v)
+	})
+}
+
+// UpdateFundFromSalary sets the "fund_from_salary" field to the value that was provided on create.
+func (u *LayawayPlanUpsertBulk) UpdateFundFromSalary() *LayawayPlanUpsertBulk {
+	return u.Update(func(s *LayawayPlanUpsert) {
+		s.UpdateFundFromSalary()
 	})
 }
 

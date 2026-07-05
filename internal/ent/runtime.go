@@ -100,6 +100,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/staffoutlet"
 	"github.com/bengobox/pos-service/internal/ent/staffpayroll"
 	"github.com/bengobox/pos-service/internal/ent/staffpayrollline"
+	"github.com/bengobox/pos-service/internal/ent/staffpurchaselink"
 	"github.com/bengobox/pos-service/internal/ent/staffschedule"
 	"github.com/bengobox/pos-service/internal/ent/staffshiftoverride"
 	"github.com/bengobox/pos-service/internal/ent/stockalertsubscription"
@@ -955,20 +956,24 @@ func init() {
 	layawaypayment.DefaultID = layawaypaymentDescID.Default.(func() uuid.UUID)
 	layawayplanFields := schema.LayawayPlan{}.Fields()
 	_ = layawayplanFields
+	// layawayplanDescFundFromSalary is the schema descriptor for fund_from_salary field.
+	layawayplanDescFundFromSalary := layawayplanFields[7].Descriptor()
+	// layawayplan.DefaultFundFromSalary holds the default value on creation for the fund_from_salary field.
+	layawayplan.DefaultFundFromSalary = layawayplanDescFundFromSalary.Default.(bool)
 	// layawayplanDescCustomerName is the schema descriptor for customer_name field.
-	layawayplanDescCustomerName := layawayplanFields[4].Descriptor()
+	layawayplanDescCustomerName := layawayplanFields[8].Descriptor()
 	// layawayplan.CustomerNameValidator is a validator for the "customer_name" field. It is called by the builders before save.
 	layawayplan.CustomerNameValidator = layawayplanDescCustomerName.Validators[0].(func(string) error)
 	// layawayplanDescStatus is the schema descriptor for status field.
-	layawayplanDescStatus := layawayplanFields[11].Descriptor()
+	layawayplanDescStatus := layawayplanFields[15].Descriptor()
 	// layawayplan.DefaultStatus holds the default value on creation for the status field.
 	layawayplan.DefaultStatus = layawayplanDescStatus.Default.(string)
 	// layawayplanDescCreatedAt is the schema descriptor for created_at field.
-	layawayplanDescCreatedAt := layawayplanFields[14].Descriptor()
+	layawayplanDescCreatedAt := layawayplanFields[18].Descriptor()
 	// layawayplan.DefaultCreatedAt holds the default value on creation for the created_at field.
 	layawayplan.DefaultCreatedAt = layawayplanDescCreatedAt.Default.(func() time.Time)
 	// layawayplanDescUpdatedAt is the schema descriptor for updated_at field.
-	layawayplanDescUpdatedAt := layawayplanFields[15].Descriptor()
+	layawayplanDescUpdatedAt := layawayplanFields[19].Descriptor()
 	// layawayplan.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	layawayplan.DefaultUpdatedAt = layawayplanDescUpdatedAt.Default.(func() time.Time)
 	// layawayplan.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -2661,6 +2666,26 @@ func init() {
 	staffpayrolllineDescID := staffpayrolllineFields[0].Descriptor()
 	// staffpayrollline.DefaultID holds the default value on creation for the id field.
 	staffpayrollline.DefaultID = staffpayrolllineDescID.Default.(func() uuid.UUID)
+	staffpurchaselinkFields := schema.StaffPurchaseLink{}.Fields()
+	_ = staffpurchaselinkFields
+	// staffpurchaselinkDescSourceKey is the schema descriptor for source_key field.
+	staffpurchaselinkDescSourceKey := staffpurchaselinkFields[8].Descriptor()
+	// staffpurchaselink.SourceKeyValidator is a validator for the "source_key" field. It is called by the builders before save.
+	staffpurchaselink.SourceKeyValidator = staffpurchaselinkDescSourceKey.Validators[0].(func(string) error)
+	// staffpurchaselinkDescCreatedAt is the schema descriptor for created_at field.
+	staffpurchaselinkDescCreatedAt := staffpurchaselinkFields[16].Descriptor()
+	// staffpurchaselink.DefaultCreatedAt holds the default value on creation for the created_at field.
+	staffpurchaselink.DefaultCreatedAt = staffpurchaselinkDescCreatedAt.Default.(func() time.Time)
+	// staffpurchaselinkDescUpdatedAt is the schema descriptor for updated_at field.
+	staffpurchaselinkDescUpdatedAt := staffpurchaselinkFields[17].Descriptor()
+	// staffpurchaselink.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	staffpurchaselink.DefaultUpdatedAt = staffpurchaselinkDescUpdatedAt.Default.(func() time.Time)
+	// staffpurchaselink.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	staffpurchaselink.UpdateDefaultUpdatedAt = staffpurchaselinkDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// staffpurchaselinkDescID is the schema descriptor for id field.
+	staffpurchaselinkDescID := staffpurchaselinkFields[0].Descriptor()
+	// staffpurchaselink.DefaultID holds the default value on creation for the id field.
+	staffpurchaselink.DefaultID = staffpurchaselinkDescID.Default.(func() uuid.UUID)
 	staffscheduleFields := schema.StaffSchedule{}.Fields()
 	_ = staffscheduleFields
 	// staffscheduleDescIsAvailable is the schema descriptor for is_available field.

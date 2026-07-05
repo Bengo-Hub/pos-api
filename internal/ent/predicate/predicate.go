@@ -297,6 +297,9 @@ type StaffPayroll func(*sql.Selector)
 // StaffPayrollLine is the predicate function for staffpayrollline builders.
 type StaffPayrollLine func(*sql.Selector)
 
+// StaffPurchaseLink is the predicate function for staffpurchaselink builders.
+type StaffPurchaseLink func(*sql.Selector)
+
 // StaffSchedule is the predicate function for staffschedule builders.
 type StaffSchedule func(*sql.Selector)
 

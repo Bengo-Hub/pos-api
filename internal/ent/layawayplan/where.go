@@ -71,6 +71,21 @@ func OrderID(v uuid.UUID) predicate.LayawayPlan {
 	return predicate.LayawayPlan(sql.FieldEQ(FieldOrderID, v))
 }
 
+// StaffMemberID applies equality check predicate on the "staff_member_id" field. It's identical to StaffMemberIDEQ.
+func StaffMemberID(v uuid.UUID) predicate.LayawayPlan {
+	return predicate.LayawayPlan(sql.FieldEQ(FieldStaffMemberID, v))
+}
+
+// LoyaltyAccountID applies equality check predicate on the "loyalty_account_id" field. It's identical to LoyaltyAccountIDEQ.
+func LoyaltyAccountID(v uuid.UUID) predicate.LayawayPlan {
+	return predicate.LayawayPlan(sql.FieldEQ(FieldLoyaltyAccountID, v))
+}
+
+// FundFromSalary applies equality check predicate on the "fund_from_salary" field. It's identical to FundFromSalaryEQ.
+func FundFromSalary(v bool) predicate.LayawayPlan {
+	return predicate.LayawayPlan(sql.FieldEQ(FieldFundFromSalary, v))
+}
+
 // CustomerName applies equality check predicate on the "customer_name" field. It's identical to CustomerNameEQ.
 func CustomerName(v string) predicate.LayawayPlan {
 	return predicate.LayawayPlan(sql.FieldEQ(FieldCustomerName, v))
@@ -259,6 +274,136 @@ func OrderIDIsNil() predicate.LayawayPlan {
 // OrderIDNotNil applies the NotNil predicate on the "order_id" field.
 func OrderIDNotNil() predicate.LayawayPlan {
 	return predicate.LayawayPlan(sql.FieldNotNull(FieldOrderID))
+}
+
+// PartyTypeEQ applies the EQ predicate on the "party_type" field.
+func PartyTypeEQ(v PartyType) predicate.LayawayPlan {
+	return predicate.LayawayPlan(sql.FieldEQ(FieldPartyType, v))
+}
+
+// PartyTypeNEQ applies the NEQ predicate on the "party_type" field.
+func PartyTypeNEQ(v PartyType) predicate.LayawayPlan {
+	return predicate.LayawayPlan(sql.FieldNEQ(FieldPartyType, v))
+}
+
+// PartyTypeIn applies the In predicate on the "party_type" field.
+func PartyTypeIn(vs ...PartyType) predicate.LayawayPlan {
+	return predicate.LayawayPlan(sql.FieldIn(FieldPartyType, vs...))
+}
+
+// PartyTypeNotIn applies the NotIn predicate on the "party_type" field.
+func PartyTypeNotIn(vs ...PartyType) predicate.LayawayPlan {
+	return predicate.LayawayPlan(sql.FieldNotIn(FieldPartyType, vs...))
+}
+
+// StaffMemberIDEQ applies the EQ predicate on the "staff_member_id" field.
+func StaffMemberIDEQ(v uuid.UUID) predicate.LayawayPlan {
+	return predicate.LayawayPlan(sql.FieldEQ(FieldStaffMemberID, v))
+}
+
+// StaffMemberIDNEQ applies the NEQ predicate on the "staff_member_id" field.
+func StaffMemberIDNEQ(v uuid.UUID) predicate.LayawayPlan {
+	return predicate.LayawayPlan(sql.FieldNEQ(FieldStaffMemberID, v))
+}
+
+// StaffMemberIDIn applies the In predicate on the "staff_member_id" field.
+func StaffMemberIDIn(vs ...uuid.UUID) predicate.LayawayPlan {
+	return predicate.LayawayPlan(sql.FieldIn(FieldStaffMemberID, vs...))
+}
+
+// StaffMemberIDNotIn applies the NotIn predicate on the "staff_member_id" field.
+func StaffMemberIDNotIn(vs ...uuid.UUID) predicate.LayawayPlan {
+	return predicate.LayawayPlan(sql.FieldNotIn(FieldStaffMemberID, vs...))
+}
+
+// StaffMemberIDGT applies the GT predicate on the "staff_member_id" field.
+func StaffMemberIDGT(v uuid.UUID) predicate.LayawayPlan {
+	return predicate.LayawayPlan(sql.FieldGT(FieldStaffMemberID, v))
+}
+
+// StaffMemberIDGTE applies the GTE predicate on the "staff_member_id" field.
+func StaffMemberIDGTE(v uuid.UUID) predicate.LayawayPlan {
+	return predicate.LayawayPlan(sql.FieldGTE(FieldStaffMemberID, v))
+}
+
+// StaffMemberIDLT applies the LT predicate on the "staff_member_id" field.
+func StaffMemberIDLT(v uuid.UUID) predicate.LayawayPlan {
+	return predicate.LayawayPlan(sql.FieldLT(FieldStaffMemberID, v))
+}
+
+// StaffMemberIDLTE applies the LTE predicate on the "staff_member_id" field.
+func StaffMemberIDLTE(v uuid.UUID) predicate.LayawayPlan {
+	return predicate.LayawayPlan(sql.FieldLTE(FieldStaffMemberID, v))
+}
+
+// StaffMemberIDIsNil applies the IsNil predicate on the "staff_member_id" field.
+func StaffMemberIDIsNil() predicate.LayawayPlan {
+	return predicate.LayawayPlan(sql.FieldIsNull(FieldStaffMemberID))
+}
+
+// StaffMemberIDNotNil applies the NotNil predicate on the "staff_member_id" field.
+func StaffMemberIDNotNil() predicate.LayawayPlan {
+	return predicate.LayawayPlan(sql.FieldNotNull(FieldStaffMemberID))
+}
+
+// LoyaltyAccountIDEQ applies the EQ predicate on the "loyalty_account_id" field.
+func LoyaltyAccountIDEQ(v uuid.UUID) predicate.LayawayPlan {
+	return predicate.LayawayPlan(sql.FieldEQ(FieldLoyaltyAccountID, v))
+}
+
+// LoyaltyAccountIDNEQ applies the NEQ predicate on the "loyalty_account_id" field.
+func LoyaltyAccountIDNEQ(v uuid.UUID) predicate.LayawayPlan {
+	return predicate.LayawayPlan(sql.FieldNEQ(FieldLoyaltyAccountID, v))
+}
+
+// LoyaltyAccountIDIn applies the In predicate on the "loyalty_account_id" field.
+func LoyaltyAccountIDIn(vs ...uuid.UUID) predicate.LayawayPlan {
+	return predicate.LayawayPlan(sql.FieldIn(FieldLoyaltyAccountID, vs...))
+}
+
+// LoyaltyAccountIDNotIn applies the NotIn predicate on the "loyalty_account_id" field.
+func LoyaltyAccountIDNotIn(vs ...uuid.UUID) predicate.LayawayPlan {
+	return predicate.LayawayPlan(sql.FieldNotIn(FieldLoyaltyAccountID, vs...))
+}
+
+// LoyaltyAccountIDGT applies the GT predicate on the "loyalty_account_id" field.
+func LoyaltyAccountIDGT(v uuid.UUID) predicate.LayawayPlan {
+	return predicate.LayawayPlan(sql.FieldGT(FieldLoyaltyAccountID, v))
+}
+
+// LoyaltyAccountIDGTE applies the GTE predicate on the "loyalty_account_id" field.
+func LoyaltyAccountIDGTE(v uuid.UUID) predicate.LayawayPlan {
+	return predicate.LayawayPlan(sql.FieldGTE(FieldLoyaltyAccountID, v))
+}
+
+// LoyaltyAccountIDLT applies the LT predicate on the "loyalty_account_id" field.
+func LoyaltyAccountIDLT(v uuid.UUID) predicate.LayawayPlan {
+	return predicate.LayawayPlan(sql.FieldLT(FieldLoyaltyAccountID, v))
+}
+
+// LoyaltyAccountIDLTE applies the LTE predicate on the "loyalty_account_id" field.
+func LoyaltyAccountIDLTE(v uuid.UUID) predicate.LayawayPlan {
+	return predicate.LayawayPlan(sql.FieldLTE(FieldLoyaltyAccountID, v))
+}
+
+// LoyaltyAccountIDIsNil applies the IsNil predicate on the "loyalty_account_id" field.
+func LoyaltyAccountIDIsNil() predicate.LayawayPlan {
+	return predicate.LayawayPlan(sql.FieldIsNull(FieldLoyaltyAccountID))
+}
+
+// LoyaltyAccountIDNotNil applies the NotNil predicate on the "loyalty_account_id" field.
+func LoyaltyAccountIDNotNil() predicate.LayawayPlan {
+	return predicate.LayawayPlan(sql.FieldNotNull(FieldLoyaltyAccountID))
+}
+
+// FundFromSalaryEQ applies the EQ predicate on the "fund_from_salary" field.
+func FundFromSalaryEQ(v bool) predicate.LayawayPlan {
+	return predicate.LayawayPlan(sql.FieldEQ(FieldFundFromSalary, v))
+}
+
+// FundFromSalaryNEQ applies the NEQ predicate on the "fund_from_salary" field.
+func FundFromSalaryNEQ(v bool) predicate.LayawayPlan {
+	return predicate.LayawayPlan(sql.FieldNEQ(FieldFundFromSalary, v))
 }
 
 // CustomerNameEQ applies the EQ predicate on the "customer_name" field.

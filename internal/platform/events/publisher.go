@@ -99,6 +99,13 @@ func (p *Publisher) PublishReturnInitiated(ctx context.Context, tenantID uuid.UU
 	return p.publish(ctx, tenantID, "return.initiated", data)
 }
 
+// PublishStaffPurchaseCreated publishes pos.staff_purchase.created — a staff bought goods on
+// credit/layaway funded from salary. Treasury books the employee receivable (Dr Staff Receivable /
+// Cr Revenue); the recovery clears it when ERP payroll deducts it.
+func (p *Publisher) PublishStaffPurchaseCreated(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {
+	return p.publish(ctx, tenantID, "staff_purchase.created", data)
+}
+
 // PublishReturnCompleted publishes a pos.return.completed event.
 // Consumed by inventory-api to restock items and treasury-api to process refund.
 func (p *Publisher) PublishReturnCompleted(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {

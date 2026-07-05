@@ -1173,6 +1173,18 @@ func (f StaffPayrollLineFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.V
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.StaffPayrollLineMutation", m)
 }
 
+// The StaffPurchaseLinkFunc type is an adapter to allow the use of ordinary
+// function as StaffPurchaseLink mutator.
+type StaffPurchaseLinkFunc func(context.Context, *ent.StaffPurchaseLinkMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f StaffPurchaseLinkFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.StaffPurchaseLinkMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.StaffPurchaseLinkMutation", m)
+}
+
 // The StaffScheduleFunc type is an adapter to allow the use of ordinary
 // function as StaffSchedule mutator.
 type StaffScheduleFunc func(context.Context, *ent.StaffScheduleMutation) (ent.Value, error)

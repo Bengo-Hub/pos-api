@@ -24,6 +24,7 @@ type Config struct {
 	MarketFlow    MarketFlowConfig
 	Ordering      OrderingConfig
 	Logistics     LogisticsConfig
+	ERP           ERPConfig
 	Backup        BackupConfig
 }
 
@@ -51,6 +52,14 @@ type LogisticsConfig struct {
 	ServiceURL     string        `envconfig:"LOGISTICS_SERVICE_URL" default:"https://logisticsapi.codevertexitsolutions.com"`
 	APIKey         string        `envconfig:"INTERNAL_SERVICE_KEY"`
 	RequestTimeout time.Duration `envconfig:"LOGISTICS_REQUEST_TIMEOUT" default:"15s"`
+}
+
+// ERPConfig holds configuration for the erp-api S2S client (staff fund-from-salary credit).
+// erp-api owns HR/payroll; pos-api pushes a staff purchase to become a payroll recoverable.
+type ERPConfig struct {
+	ServiceURL     string        `envconfig:"ERP_SERVICE_URL" default:"https://erpapi.codevertexitsolutions.com"`
+	APIKey         string        `envconfig:"INTERNAL_SERVICE_KEY"`
+	RequestTimeout time.Duration `envconfig:"ERP_REQUEST_TIMEOUT" default:"15s"`
 }
 
 // MarketFlowConfig holds configuration for the MarketFlow CRM S2S client.

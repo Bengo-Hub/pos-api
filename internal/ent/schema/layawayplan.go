@@ -19,6 +19,15 @@ func (LayawayPlan) Fields() []ent.Field {
 		field.UUID("tenant_id", uuid.UUID{}),
 		field.UUID("outlet_id", uuid.UUID{}),
 		field.UUID("order_id", uuid.UUID{}).Optional().Nillable().Comment("Linked POS order"),
+		// Party: an existing customer (loyalty account) OR a staff member. Free-text customer
+		// fields are kept as a display snapshot regardless of party type.
+		field.Enum("party_type").Values("customer", "staff").Default("customer"),
+		field.UUID("staff_member_id", uuid.UUID{}).Optional().Nillable().
+			Comment("Set when party_type=staff (FK to StaffMember)"),
+		field.UUID("loyalty_account_id", uuid.UUID{}).Optional().Nillable().
+			Comment("Set when the customer was picked from a loyalty account"),
+		field.Bool("fund_from_salary").Default(false).
+			Comment("Staff layaway funded via ERP payroll deduction (premium)"),
 		field.String("customer_name").NotEmpty(),
 		field.String("customer_phone").Optional(),
 		field.String("customer_email").Optional(),

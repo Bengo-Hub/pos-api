@@ -108,6 +108,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/staffoutlet"
 	"github.com/bengobox/pos-service/internal/ent/staffpayroll"
 	"github.com/bengobox/pos-service/internal/ent/staffpayrollline"
+	"github.com/bengobox/pos-service/internal/ent/staffpurchaselink"
 	"github.com/bengobox/pos-service/internal/ent/staffschedule"
 	"github.com/bengobox/pos-service/internal/ent/staffshiftoverride"
 	"github.com/bengobox/pos-service/internal/ent/stockalertsubscription"
@@ -234,6 +235,7 @@ const (
 	TypeStaffOutlet              = "StaffOutlet"
 	TypeStaffPayroll             = "StaffPayroll"
 	TypeStaffPayrollLine         = "StaffPayrollLine"
+	TypeStaffPurchaseLink        = "StaffPurchaseLink"
 	TypeStaffSchedule            = "StaffSchedule"
 	TypeStaffShiftOverride       = "StaffShiftOverride"
 	TypeStockAlertSubscription   = "StockAlertSubscription"
@@ -31805,6 +31807,10 @@ type LayawayPlanMutation struct {
 	tenant_id           *uuid.UUID
 	outlet_id           *uuid.UUID
 	order_id            *uuid.UUID
+	party_type          *layawayplan.PartyType
+	staff_member_id     *uuid.UUID
+	loyalty_account_id  *uuid.UUID
+	fund_from_salary    *bool
 	customer_name       *string
 	customer_phone      *string
 	customer_email      *string
@@ -32050,6 +32056,176 @@ func (m *LayawayPlanMutation) OrderIDCleared() bool {
 func (m *LayawayPlanMutation) ResetOrderID() {
 	m.order_id = nil
 	delete(m.clearedFields, layawayplan.FieldOrderID)
+}
+
+// SetPartyType sets the "party_type" field.
+func (m *LayawayPlanMutation) SetPartyType(lt layawayplan.PartyType) {
+	m.party_type = &lt
+}
+
+// PartyType returns the value of the "party_type" field in the mutation.
+func (m *LayawayPlanMutation) PartyType() (r layawayplan.PartyType, exists bool) {
+	v := m.party_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPartyType returns the old "party_type" field's value of the LayawayPlan entity.
+// If the LayawayPlan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LayawayPlanMutation) OldPartyType(ctx context.Context) (v layawayplan.PartyType, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPartyType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPartyType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPartyType: %w", err)
+	}
+	return oldValue.PartyType, nil
+}
+
+// ResetPartyType resets all changes to the "party_type" field.
+func (m *LayawayPlanMutation) ResetPartyType() {
+	m.party_type = nil
+}
+
+// SetStaffMemberID sets the "staff_member_id" field.
+func (m *LayawayPlanMutation) SetStaffMemberID(u uuid.UUID) {
+	m.staff_member_id = &u
+}
+
+// StaffMemberID returns the value of the "staff_member_id" field in the mutation.
+func (m *LayawayPlanMutation) StaffMemberID() (r uuid.UUID, exists bool) {
+	v := m.staff_member_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStaffMemberID returns the old "staff_member_id" field's value of the LayawayPlan entity.
+// If the LayawayPlan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LayawayPlanMutation) OldStaffMemberID(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStaffMemberID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStaffMemberID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStaffMemberID: %w", err)
+	}
+	return oldValue.StaffMemberID, nil
+}
+
+// ClearStaffMemberID clears the value of the "staff_member_id" field.
+func (m *LayawayPlanMutation) ClearStaffMemberID() {
+	m.staff_member_id = nil
+	m.clearedFields[layawayplan.FieldStaffMemberID] = struct{}{}
+}
+
+// StaffMemberIDCleared returns if the "staff_member_id" field was cleared in this mutation.
+func (m *LayawayPlanMutation) StaffMemberIDCleared() bool {
+	_, ok := m.clearedFields[layawayplan.FieldStaffMemberID]
+	return ok
+}
+
+// ResetStaffMemberID resets all changes to the "staff_member_id" field.
+func (m *LayawayPlanMutation) ResetStaffMemberID() {
+	m.staff_member_id = nil
+	delete(m.clearedFields, layawayplan.FieldStaffMemberID)
+}
+
+// SetLoyaltyAccountID sets the "loyalty_account_id" field.
+func (m *LayawayPlanMutation) SetLoyaltyAccountID(u uuid.UUID) {
+	m.loyalty_account_id = &u
+}
+
+// LoyaltyAccountID returns the value of the "loyalty_account_id" field in the mutation.
+func (m *LayawayPlanMutation) LoyaltyAccountID() (r uuid.UUID, exists bool) {
+	v := m.loyalty_account_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLoyaltyAccountID returns the old "loyalty_account_id" field's value of the LayawayPlan entity.
+// If the LayawayPlan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LayawayPlanMutation) OldLoyaltyAccountID(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLoyaltyAccountID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLoyaltyAccountID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLoyaltyAccountID: %w", err)
+	}
+	return oldValue.LoyaltyAccountID, nil
+}
+
+// ClearLoyaltyAccountID clears the value of the "loyalty_account_id" field.
+func (m *LayawayPlanMutation) ClearLoyaltyAccountID() {
+	m.loyalty_account_id = nil
+	m.clearedFields[layawayplan.FieldLoyaltyAccountID] = struct{}{}
+}
+
+// LoyaltyAccountIDCleared returns if the "loyalty_account_id" field was cleared in this mutation.
+func (m *LayawayPlanMutation) LoyaltyAccountIDCleared() bool {
+	_, ok := m.clearedFields[layawayplan.FieldLoyaltyAccountID]
+	return ok
+}
+
+// ResetLoyaltyAccountID resets all changes to the "loyalty_account_id" field.
+func (m *LayawayPlanMutation) ResetLoyaltyAccountID() {
+	m.loyalty_account_id = nil
+	delete(m.clearedFields, layawayplan.FieldLoyaltyAccountID)
+}
+
+// SetFundFromSalary sets the "fund_from_salary" field.
+func (m *LayawayPlanMutation) SetFundFromSalary(b bool) {
+	m.fund_from_salary = &b
+}
+
+// FundFromSalary returns the value of the "fund_from_salary" field in the mutation.
+func (m *LayawayPlanMutation) FundFromSalary() (r bool, exists bool) {
+	v := m.fund_from_salary
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFundFromSalary returns the old "fund_from_salary" field's value of the LayawayPlan entity.
+// If the LayawayPlan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LayawayPlanMutation) OldFundFromSalary(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFundFromSalary is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFundFromSalary requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFundFromSalary: %w", err)
+	}
+	return oldValue.FundFromSalary, nil
+}
+
+// ResetFundFromSalary resets all changes to the "fund_from_salary" field.
+func (m *LayawayPlanMutation) ResetFundFromSalary() {
+	m.fund_from_salary = nil
 }
 
 // SetCustomerName sets the "customer_name" field.
@@ -32650,7 +32826,7 @@ func (m *LayawayPlanMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *LayawayPlanMutation) Fields() []string {
-	fields := make([]string, 0, 15)
+	fields := make([]string, 0, 19)
 	if m.tenant_id != nil {
 		fields = append(fields, layawayplan.FieldTenantID)
 	}
@@ -32659,6 +32835,18 @@ func (m *LayawayPlanMutation) Fields() []string {
 	}
 	if m.order_id != nil {
 		fields = append(fields, layawayplan.FieldOrderID)
+	}
+	if m.party_type != nil {
+		fields = append(fields, layawayplan.FieldPartyType)
+	}
+	if m.staff_member_id != nil {
+		fields = append(fields, layawayplan.FieldStaffMemberID)
+	}
+	if m.loyalty_account_id != nil {
+		fields = append(fields, layawayplan.FieldLoyaltyAccountID)
+	}
+	if m.fund_from_salary != nil {
+		fields = append(fields, layawayplan.FieldFundFromSalary)
 	}
 	if m.customer_name != nil {
 		fields = append(fields, layawayplan.FieldCustomerName)
@@ -32710,6 +32898,14 @@ func (m *LayawayPlanMutation) Field(name string) (ent.Value, bool) {
 		return m.OutletID()
 	case layawayplan.FieldOrderID:
 		return m.OrderID()
+	case layawayplan.FieldPartyType:
+		return m.PartyType()
+	case layawayplan.FieldStaffMemberID:
+		return m.StaffMemberID()
+	case layawayplan.FieldLoyaltyAccountID:
+		return m.LoyaltyAccountID()
+	case layawayplan.FieldFundFromSalary:
+		return m.FundFromSalary()
 	case layawayplan.FieldCustomerName:
 		return m.CustomerName()
 	case layawayplan.FieldCustomerPhone:
@@ -32749,6 +32945,14 @@ func (m *LayawayPlanMutation) OldField(ctx context.Context, name string) (ent.Va
 		return m.OldOutletID(ctx)
 	case layawayplan.FieldOrderID:
 		return m.OldOrderID(ctx)
+	case layawayplan.FieldPartyType:
+		return m.OldPartyType(ctx)
+	case layawayplan.FieldStaffMemberID:
+		return m.OldStaffMemberID(ctx)
+	case layawayplan.FieldLoyaltyAccountID:
+		return m.OldLoyaltyAccountID(ctx)
+	case layawayplan.FieldFundFromSalary:
+		return m.OldFundFromSalary(ctx)
 	case layawayplan.FieldCustomerName:
 		return m.OldCustomerName(ctx)
 	case layawayplan.FieldCustomerPhone:
@@ -32802,6 +33006,34 @@ func (m *LayawayPlanMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetOrderID(v)
+		return nil
+	case layawayplan.FieldPartyType:
+		v, ok := value.(layawayplan.PartyType)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPartyType(v)
+		return nil
+	case layawayplan.FieldStaffMemberID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStaffMemberID(v)
+		return nil
+	case layawayplan.FieldLoyaltyAccountID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLoyaltyAccountID(v)
+		return nil
+	case layawayplan.FieldFundFromSalary:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFundFromSalary(v)
 		return nil
 	case layawayplan.FieldCustomerName:
 		v, ok := value.(string)
@@ -32971,6 +33203,12 @@ func (m *LayawayPlanMutation) ClearedFields() []string {
 	if m.FieldCleared(layawayplan.FieldOrderID) {
 		fields = append(fields, layawayplan.FieldOrderID)
 	}
+	if m.FieldCleared(layawayplan.FieldStaffMemberID) {
+		fields = append(fields, layawayplan.FieldStaffMemberID)
+	}
+	if m.FieldCleared(layawayplan.FieldLoyaltyAccountID) {
+		fields = append(fields, layawayplan.FieldLoyaltyAccountID)
+	}
 	if m.FieldCleared(layawayplan.FieldCustomerPhone) {
 		fields = append(fields, layawayplan.FieldCustomerPhone)
 	}
@@ -33000,6 +33238,12 @@ func (m *LayawayPlanMutation) ClearField(name string) error {
 	case layawayplan.FieldOrderID:
 		m.ClearOrderID()
 		return nil
+	case layawayplan.FieldStaffMemberID:
+		m.ClearStaffMemberID()
+		return nil
+	case layawayplan.FieldLoyaltyAccountID:
+		m.ClearLoyaltyAccountID()
+		return nil
 	case layawayplan.FieldCustomerPhone:
 		m.ClearCustomerPhone()
 		return nil
@@ -33028,6 +33272,18 @@ func (m *LayawayPlanMutation) ResetField(name string) error {
 		return nil
 	case layawayplan.FieldOrderID:
 		m.ResetOrderID()
+		return nil
+	case layawayplan.FieldPartyType:
+		m.ResetPartyType()
+		return nil
+	case layawayplan.FieldStaffMemberID:
+		m.ResetStaffMemberID()
+		return nil
+	case layawayplan.FieldLoyaltyAccountID:
+		m.ResetLoyaltyAccountID()
+		return nil
+	case layawayplan.FieldFundFromSalary:
+		m.ResetFundFromSalary()
 		return nil
 	case layawayplan.FieldCustomerName:
 		m.ResetCustomerName()
@@ -102412,6 +102668,1402 @@ func (m *StaffPayrollLineMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown StaffPayrollLine edge %s", name)
+}
+
+// StaffPurchaseLinkMutation represents an operation that mutates the StaffPurchaseLink nodes in the graph.
+type StaffPurchaseLinkMutation struct {
+	config
+	op                Op
+	typ               string
+	id                *uuid.UUID
+	tenant_id         *uuid.UUID
+	outlet_id         *uuid.UUID
+	staff_member_id   *uuid.UUID
+	user_id           *uuid.UUID
+	origin            *staffpurchaselink.Origin
+	layaway_plan_id   *uuid.UUID
+	pos_order_id      *uuid.UUID
+	source_key        *string
+	erp_purchase_id   *uuid.UUID
+	principal         *decimal.Decimal
+	addprincipal      *decimal.Decimal
+	amount_settled    *decimal.Decimal
+	addamount_settled *decimal.Decimal
+	outstanding       *decimal.Decimal
+	addoutstanding    *decimal.Decimal
+	sync_status       *staffpurchaselink.SyncStatus
+	status            *staffpurchaselink.Status
+	sync_error        *string
+	created_at        *time.Time
+	updated_at        *time.Time
+	clearedFields     map[string]struct{}
+	done              bool
+	oldValue          func(context.Context) (*StaffPurchaseLink, error)
+	predicates        []predicate.StaffPurchaseLink
+}
+
+var _ ent.Mutation = (*StaffPurchaseLinkMutation)(nil)
+
+// staffpurchaselinkOption allows management of the mutation configuration using functional options.
+type staffpurchaselinkOption func(*StaffPurchaseLinkMutation)
+
+// newStaffPurchaseLinkMutation creates new mutation for the StaffPurchaseLink entity.
+func newStaffPurchaseLinkMutation(c config, op Op, opts ...staffpurchaselinkOption) *StaffPurchaseLinkMutation {
+	m := &StaffPurchaseLinkMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeStaffPurchaseLink,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withStaffPurchaseLinkID sets the ID field of the mutation.
+func withStaffPurchaseLinkID(id uuid.UUID) staffpurchaselinkOption {
+	return func(m *StaffPurchaseLinkMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *StaffPurchaseLink
+		)
+		m.oldValue = func(ctx context.Context) (*StaffPurchaseLink, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().StaffPurchaseLink.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withStaffPurchaseLink sets the old StaffPurchaseLink of the mutation.
+func withStaffPurchaseLink(node *StaffPurchaseLink) staffpurchaselinkOption {
+	return func(m *StaffPurchaseLinkMutation) {
+		m.oldValue = func(context.Context) (*StaffPurchaseLink, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m StaffPurchaseLinkMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m StaffPurchaseLinkMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of StaffPurchaseLink entities.
+func (m *StaffPurchaseLinkMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *StaffPurchaseLinkMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *StaffPurchaseLinkMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().StaffPurchaseLink.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *StaffPurchaseLinkMutation) SetTenantID(u uuid.UUID) {
+	m.tenant_id = &u
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *StaffPurchaseLinkMutation) TenantID() (r uuid.UUID, exists bool) {
+	v := m.tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the StaffPurchaseLink entity.
+// If the StaffPurchaseLink object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffPurchaseLinkMutation) OldTenantID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *StaffPurchaseLinkMutation) ResetTenantID() {
+	m.tenant_id = nil
+}
+
+// SetOutletID sets the "outlet_id" field.
+func (m *StaffPurchaseLinkMutation) SetOutletID(u uuid.UUID) {
+	m.outlet_id = &u
+}
+
+// OutletID returns the value of the "outlet_id" field in the mutation.
+func (m *StaffPurchaseLinkMutation) OutletID() (r uuid.UUID, exists bool) {
+	v := m.outlet_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOutletID returns the old "outlet_id" field's value of the StaffPurchaseLink entity.
+// If the StaffPurchaseLink object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffPurchaseLinkMutation) OldOutletID(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOutletID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOutletID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOutletID: %w", err)
+	}
+	return oldValue.OutletID, nil
+}
+
+// ClearOutletID clears the value of the "outlet_id" field.
+func (m *StaffPurchaseLinkMutation) ClearOutletID() {
+	m.outlet_id = nil
+	m.clearedFields[staffpurchaselink.FieldOutletID] = struct{}{}
+}
+
+// OutletIDCleared returns if the "outlet_id" field was cleared in this mutation.
+func (m *StaffPurchaseLinkMutation) OutletIDCleared() bool {
+	_, ok := m.clearedFields[staffpurchaselink.FieldOutletID]
+	return ok
+}
+
+// ResetOutletID resets all changes to the "outlet_id" field.
+func (m *StaffPurchaseLinkMutation) ResetOutletID() {
+	m.outlet_id = nil
+	delete(m.clearedFields, staffpurchaselink.FieldOutletID)
+}
+
+// SetStaffMemberID sets the "staff_member_id" field.
+func (m *StaffPurchaseLinkMutation) SetStaffMemberID(u uuid.UUID) {
+	m.staff_member_id = &u
+}
+
+// StaffMemberID returns the value of the "staff_member_id" field in the mutation.
+func (m *StaffPurchaseLinkMutation) StaffMemberID() (r uuid.UUID, exists bool) {
+	v := m.staff_member_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStaffMemberID returns the old "staff_member_id" field's value of the StaffPurchaseLink entity.
+// If the StaffPurchaseLink object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffPurchaseLinkMutation) OldStaffMemberID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStaffMemberID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStaffMemberID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStaffMemberID: %w", err)
+	}
+	return oldValue.StaffMemberID, nil
+}
+
+// ResetStaffMemberID resets all changes to the "staff_member_id" field.
+func (m *StaffPurchaseLinkMutation) ResetStaffMemberID() {
+	m.staff_member_id = nil
+}
+
+// SetUserID sets the "user_id" field.
+func (m *StaffPurchaseLinkMutation) SetUserID(u uuid.UUID) {
+	m.user_id = &u
+}
+
+// UserID returns the value of the "user_id" field in the mutation.
+func (m *StaffPurchaseLinkMutation) UserID() (r uuid.UUID, exists bool) {
+	v := m.user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserID returns the old "user_id" field's value of the StaffPurchaseLink entity.
+// If the StaffPurchaseLink object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffPurchaseLinkMutation) OldUserID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserID: %w", err)
+	}
+	return oldValue.UserID, nil
+}
+
+// ResetUserID resets all changes to the "user_id" field.
+func (m *StaffPurchaseLinkMutation) ResetUserID() {
+	m.user_id = nil
+}
+
+// SetOrigin sets the "origin" field.
+func (m *StaffPurchaseLinkMutation) SetOrigin(s staffpurchaselink.Origin) {
+	m.origin = &s
+}
+
+// Origin returns the value of the "origin" field in the mutation.
+func (m *StaffPurchaseLinkMutation) Origin() (r staffpurchaselink.Origin, exists bool) {
+	v := m.origin
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOrigin returns the old "origin" field's value of the StaffPurchaseLink entity.
+// If the StaffPurchaseLink object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffPurchaseLinkMutation) OldOrigin(ctx context.Context) (v staffpurchaselink.Origin, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOrigin is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOrigin requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOrigin: %w", err)
+	}
+	return oldValue.Origin, nil
+}
+
+// ResetOrigin resets all changes to the "origin" field.
+func (m *StaffPurchaseLinkMutation) ResetOrigin() {
+	m.origin = nil
+}
+
+// SetLayawayPlanID sets the "layaway_plan_id" field.
+func (m *StaffPurchaseLinkMutation) SetLayawayPlanID(u uuid.UUID) {
+	m.layaway_plan_id = &u
+}
+
+// LayawayPlanID returns the value of the "layaway_plan_id" field in the mutation.
+func (m *StaffPurchaseLinkMutation) LayawayPlanID() (r uuid.UUID, exists bool) {
+	v := m.layaway_plan_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLayawayPlanID returns the old "layaway_plan_id" field's value of the StaffPurchaseLink entity.
+// If the StaffPurchaseLink object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffPurchaseLinkMutation) OldLayawayPlanID(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLayawayPlanID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLayawayPlanID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLayawayPlanID: %w", err)
+	}
+	return oldValue.LayawayPlanID, nil
+}
+
+// ClearLayawayPlanID clears the value of the "layaway_plan_id" field.
+func (m *StaffPurchaseLinkMutation) ClearLayawayPlanID() {
+	m.layaway_plan_id = nil
+	m.clearedFields[staffpurchaselink.FieldLayawayPlanID] = struct{}{}
+}
+
+// LayawayPlanIDCleared returns if the "layaway_plan_id" field was cleared in this mutation.
+func (m *StaffPurchaseLinkMutation) LayawayPlanIDCleared() bool {
+	_, ok := m.clearedFields[staffpurchaselink.FieldLayawayPlanID]
+	return ok
+}
+
+// ResetLayawayPlanID resets all changes to the "layaway_plan_id" field.
+func (m *StaffPurchaseLinkMutation) ResetLayawayPlanID() {
+	m.layaway_plan_id = nil
+	delete(m.clearedFields, staffpurchaselink.FieldLayawayPlanID)
+}
+
+// SetPosOrderID sets the "pos_order_id" field.
+func (m *StaffPurchaseLinkMutation) SetPosOrderID(u uuid.UUID) {
+	m.pos_order_id = &u
+}
+
+// PosOrderID returns the value of the "pos_order_id" field in the mutation.
+func (m *StaffPurchaseLinkMutation) PosOrderID() (r uuid.UUID, exists bool) {
+	v := m.pos_order_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPosOrderID returns the old "pos_order_id" field's value of the StaffPurchaseLink entity.
+// If the StaffPurchaseLink object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffPurchaseLinkMutation) OldPosOrderID(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPosOrderID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPosOrderID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPosOrderID: %w", err)
+	}
+	return oldValue.PosOrderID, nil
+}
+
+// ClearPosOrderID clears the value of the "pos_order_id" field.
+func (m *StaffPurchaseLinkMutation) ClearPosOrderID() {
+	m.pos_order_id = nil
+	m.clearedFields[staffpurchaselink.FieldPosOrderID] = struct{}{}
+}
+
+// PosOrderIDCleared returns if the "pos_order_id" field was cleared in this mutation.
+func (m *StaffPurchaseLinkMutation) PosOrderIDCleared() bool {
+	_, ok := m.clearedFields[staffpurchaselink.FieldPosOrderID]
+	return ok
+}
+
+// ResetPosOrderID resets all changes to the "pos_order_id" field.
+func (m *StaffPurchaseLinkMutation) ResetPosOrderID() {
+	m.pos_order_id = nil
+	delete(m.clearedFields, staffpurchaselink.FieldPosOrderID)
+}
+
+// SetSourceKey sets the "source_key" field.
+func (m *StaffPurchaseLinkMutation) SetSourceKey(s string) {
+	m.source_key = &s
+}
+
+// SourceKey returns the value of the "source_key" field in the mutation.
+func (m *StaffPurchaseLinkMutation) SourceKey() (r string, exists bool) {
+	v := m.source_key
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSourceKey returns the old "source_key" field's value of the StaffPurchaseLink entity.
+// If the StaffPurchaseLink object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffPurchaseLinkMutation) OldSourceKey(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSourceKey is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSourceKey requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSourceKey: %w", err)
+	}
+	return oldValue.SourceKey, nil
+}
+
+// ResetSourceKey resets all changes to the "source_key" field.
+func (m *StaffPurchaseLinkMutation) ResetSourceKey() {
+	m.source_key = nil
+}
+
+// SetErpPurchaseID sets the "erp_purchase_id" field.
+func (m *StaffPurchaseLinkMutation) SetErpPurchaseID(u uuid.UUID) {
+	m.erp_purchase_id = &u
+}
+
+// ErpPurchaseID returns the value of the "erp_purchase_id" field in the mutation.
+func (m *StaffPurchaseLinkMutation) ErpPurchaseID() (r uuid.UUID, exists bool) {
+	v := m.erp_purchase_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldErpPurchaseID returns the old "erp_purchase_id" field's value of the StaffPurchaseLink entity.
+// If the StaffPurchaseLink object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffPurchaseLinkMutation) OldErpPurchaseID(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldErpPurchaseID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldErpPurchaseID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldErpPurchaseID: %w", err)
+	}
+	return oldValue.ErpPurchaseID, nil
+}
+
+// ClearErpPurchaseID clears the value of the "erp_purchase_id" field.
+func (m *StaffPurchaseLinkMutation) ClearErpPurchaseID() {
+	m.erp_purchase_id = nil
+	m.clearedFields[staffpurchaselink.FieldErpPurchaseID] = struct{}{}
+}
+
+// ErpPurchaseIDCleared returns if the "erp_purchase_id" field was cleared in this mutation.
+func (m *StaffPurchaseLinkMutation) ErpPurchaseIDCleared() bool {
+	_, ok := m.clearedFields[staffpurchaselink.FieldErpPurchaseID]
+	return ok
+}
+
+// ResetErpPurchaseID resets all changes to the "erp_purchase_id" field.
+func (m *StaffPurchaseLinkMutation) ResetErpPurchaseID() {
+	m.erp_purchase_id = nil
+	delete(m.clearedFields, staffpurchaselink.FieldErpPurchaseID)
+}
+
+// SetPrincipal sets the "principal" field.
+func (m *StaffPurchaseLinkMutation) SetPrincipal(d decimal.Decimal) {
+	m.principal = &d
+	m.addprincipal = nil
+}
+
+// Principal returns the value of the "principal" field in the mutation.
+func (m *StaffPurchaseLinkMutation) Principal() (r decimal.Decimal, exists bool) {
+	v := m.principal
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPrincipal returns the old "principal" field's value of the StaffPurchaseLink entity.
+// If the StaffPurchaseLink object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffPurchaseLinkMutation) OldPrincipal(ctx context.Context) (v decimal.Decimal, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPrincipal is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPrincipal requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPrincipal: %w", err)
+	}
+	return oldValue.Principal, nil
+}
+
+// AddPrincipal adds d to the "principal" field.
+func (m *StaffPurchaseLinkMutation) AddPrincipal(d decimal.Decimal) {
+	if m.addprincipal != nil {
+		*m.addprincipal = m.addprincipal.Add(d)
+	} else {
+		m.addprincipal = &d
+	}
+}
+
+// AddedPrincipal returns the value that was added to the "principal" field in this mutation.
+func (m *StaffPurchaseLinkMutation) AddedPrincipal() (r decimal.Decimal, exists bool) {
+	v := m.addprincipal
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetPrincipal resets all changes to the "principal" field.
+func (m *StaffPurchaseLinkMutation) ResetPrincipal() {
+	m.principal = nil
+	m.addprincipal = nil
+}
+
+// SetAmountSettled sets the "amount_settled" field.
+func (m *StaffPurchaseLinkMutation) SetAmountSettled(d decimal.Decimal) {
+	m.amount_settled = &d
+	m.addamount_settled = nil
+}
+
+// AmountSettled returns the value of the "amount_settled" field in the mutation.
+func (m *StaffPurchaseLinkMutation) AmountSettled() (r decimal.Decimal, exists bool) {
+	v := m.amount_settled
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAmountSettled returns the old "amount_settled" field's value of the StaffPurchaseLink entity.
+// If the StaffPurchaseLink object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffPurchaseLinkMutation) OldAmountSettled(ctx context.Context) (v decimal.Decimal, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAmountSettled is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAmountSettled requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAmountSettled: %w", err)
+	}
+	return oldValue.AmountSettled, nil
+}
+
+// AddAmountSettled adds d to the "amount_settled" field.
+func (m *StaffPurchaseLinkMutation) AddAmountSettled(d decimal.Decimal) {
+	if m.addamount_settled != nil {
+		*m.addamount_settled = m.addamount_settled.Add(d)
+	} else {
+		m.addamount_settled = &d
+	}
+}
+
+// AddedAmountSettled returns the value that was added to the "amount_settled" field in this mutation.
+func (m *StaffPurchaseLinkMutation) AddedAmountSettled() (r decimal.Decimal, exists bool) {
+	v := m.addamount_settled
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAmountSettled resets all changes to the "amount_settled" field.
+func (m *StaffPurchaseLinkMutation) ResetAmountSettled() {
+	m.amount_settled = nil
+	m.addamount_settled = nil
+}
+
+// SetOutstanding sets the "outstanding" field.
+func (m *StaffPurchaseLinkMutation) SetOutstanding(d decimal.Decimal) {
+	m.outstanding = &d
+	m.addoutstanding = nil
+}
+
+// Outstanding returns the value of the "outstanding" field in the mutation.
+func (m *StaffPurchaseLinkMutation) Outstanding() (r decimal.Decimal, exists bool) {
+	v := m.outstanding
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOutstanding returns the old "outstanding" field's value of the StaffPurchaseLink entity.
+// If the StaffPurchaseLink object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffPurchaseLinkMutation) OldOutstanding(ctx context.Context) (v decimal.Decimal, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOutstanding is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOutstanding requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOutstanding: %w", err)
+	}
+	return oldValue.Outstanding, nil
+}
+
+// AddOutstanding adds d to the "outstanding" field.
+func (m *StaffPurchaseLinkMutation) AddOutstanding(d decimal.Decimal) {
+	if m.addoutstanding != nil {
+		*m.addoutstanding = m.addoutstanding.Add(d)
+	} else {
+		m.addoutstanding = &d
+	}
+}
+
+// AddedOutstanding returns the value that was added to the "outstanding" field in this mutation.
+func (m *StaffPurchaseLinkMutation) AddedOutstanding() (r decimal.Decimal, exists bool) {
+	v := m.addoutstanding
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetOutstanding resets all changes to the "outstanding" field.
+func (m *StaffPurchaseLinkMutation) ResetOutstanding() {
+	m.outstanding = nil
+	m.addoutstanding = nil
+}
+
+// SetSyncStatus sets the "sync_status" field.
+func (m *StaffPurchaseLinkMutation) SetSyncStatus(ss staffpurchaselink.SyncStatus) {
+	m.sync_status = &ss
+}
+
+// SyncStatus returns the value of the "sync_status" field in the mutation.
+func (m *StaffPurchaseLinkMutation) SyncStatus() (r staffpurchaselink.SyncStatus, exists bool) {
+	v := m.sync_status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSyncStatus returns the old "sync_status" field's value of the StaffPurchaseLink entity.
+// If the StaffPurchaseLink object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffPurchaseLinkMutation) OldSyncStatus(ctx context.Context) (v staffpurchaselink.SyncStatus, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSyncStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSyncStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSyncStatus: %w", err)
+	}
+	return oldValue.SyncStatus, nil
+}
+
+// ResetSyncStatus resets all changes to the "sync_status" field.
+func (m *StaffPurchaseLinkMutation) ResetSyncStatus() {
+	m.sync_status = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *StaffPurchaseLinkMutation) SetStatus(s staffpurchaselink.Status) {
+	m.status = &s
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *StaffPurchaseLinkMutation) Status() (r staffpurchaselink.Status, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the StaffPurchaseLink entity.
+// If the StaffPurchaseLink object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffPurchaseLinkMutation) OldStatus(ctx context.Context) (v staffpurchaselink.Status, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *StaffPurchaseLinkMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetSyncError sets the "sync_error" field.
+func (m *StaffPurchaseLinkMutation) SetSyncError(s string) {
+	m.sync_error = &s
+}
+
+// SyncError returns the value of the "sync_error" field in the mutation.
+func (m *StaffPurchaseLinkMutation) SyncError() (r string, exists bool) {
+	v := m.sync_error
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSyncError returns the old "sync_error" field's value of the StaffPurchaseLink entity.
+// If the StaffPurchaseLink object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffPurchaseLinkMutation) OldSyncError(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSyncError is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSyncError requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSyncError: %w", err)
+	}
+	return oldValue.SyncError, nil
+}
+
+// ClearSyncError clears the value of the "sync_error" field.
+func (m *StaffPurchaseLinkMutation) ClearSyncError() {
+	m.sync_error = nil
+	m.clearedFields[staffpurchaselink.FieldSyncError] = struct{}{}
+}
+
+// SyncErrorCleared returns if the "sync_error" field was cleared in this mutation.
+func (m *StaffPurchaseLinkMutation) SyncErrorCleared() bool {
+	_, ok := m.clearedFields[staffpurchaselink.FieldSyncError]
+	return ok
+}
+
+// ResetSyncError resets all changes to the "sync_error" field.
+func (m *StaffPurchaseLinkMutation) ResetSyncError() {
+	m.sync_error = nil
+	delete(m.clearedFields, staffpurchaselink.FieldSyncError)
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *StaffPurchaseLinkMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *StaffPurchaseLinkMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the StaffPurchaseLink entity.
+// If the StaffPurchaseLink object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffPurchaseLinkMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *StaffPurchaseLinkMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *StaffPurchaseLinkMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *StaffPurchaseLinkMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the StaffPurchaseLink entity.
+// If the StaffPurchaseLink object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StaffPurchaseLinkMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *StaffPurchaseLinkMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the StaffPurchaseLinkMutation builder.
+func (m *StaffPurchaseLinkMutation) Where(ps ...predicate.StaffPurchaseLink) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the StaffPurchaseLinkMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *StaffPurchaseLinkMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.StaffPurchaseLink, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *StaffPurchaseLinkMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *StaffPurchaseLinkMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (StaffPurchaseLink).
+func (m *StaffPurchaseLinkMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *StaffPurchaseLinkMutation) Fields() []string {
+	fields := make([]string, 0, 17)
+	if m.tenant_id != nil {
+		fields = append(fields, staffpurchaselink.FieldTenantID)
+	}
+	if m.outlet_id != nil {
+		fields = append(fields, staffpurchaselink.FieldOutletID)
+	}
+	if m.staff_member_id != nil {
+		fields = append(fields, staffpurchaselink.FieldStaffMemberID)
+	}
+	if m.user_id != nil {
+		fields = append(fields, staffpurchaselink.FieldUserID)
+	}
+	if m.origin != nil {
+		fields = append(fields, staffpurchaselink.FieldOrigin)
+	}
+	if m.layaway_plan_id != nil {
+		fields = append(fields, staffpurchaselink.FieldLayawayPlanID)
+	}
+	if m.pos_order_id != nil {
+		fields = append(fields, staffpurchaselink.FieldPosOrderID)
+	}
+	if m.source_key != nil {
+		fields = append(fields, staffpurchaselink.FieldSourceKey)
+	}
+	if m.erp_purchase_id != nil {
+		fields = append(fields, staffpurchaselink.FieldErpPurchaseID)
+	}
+	if m.principal != nil {
+		fields = append(fields, staffpurchaselink.FieldPrincipal)
+	}
+	if m.amount_settled != nil {
+		fields = append(fields, staffpurchaselink.FieldAmountSettled)
+	}
+	if m.outstanding != nil {
+		fields = append(fields, staffpurchaselink.FieldOutstanding)
+	}
+	if m.sync_status != nil {
+		fields = append(fields, staffpurchaselink.FieldSyncStatus)
+	}
+	if m.status != nil {
+		fields = append(fields, staffpurchaselink.FieldStatus)
+	}
+	if m.sync_error != nil {
+		fields = append(fields, staffpurchaselink.FieldSyncError)
+	}
+	if m.created_at != nil {
+		fields = append(fields, staffpurchaselink.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, staffpurchaselink.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *StaffPurchaseLinkMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case staffpurchaselink.FieldTenantID:
+		return m.TenantID()
+	case staffpurchaselink.FieldOutletID:
+		return m.OutletID()
+	case staffpurchaselink.FieldStaffMemberID:
+		return m.StaffMemberID()
+	case staffpurchaselink.FieldUserID:
+		return m.UserID()
+	case staffpurchaselink.FieldOrigin:
+		return m.Origin()
+	case staffpurchaselink.FieldLayawayPlanID:
+		return m.LayawayPlanID()
+	case staffpurchaselink.FieldPosOrderID:
+		return m.PosOrderID()
+	case staffpurchaselink.FieldSourceKey:
+		return m.SourceKey()
+	case staffpurchaselink.FieldErpPurchaseID:
+		return m.ErpPurchaseID()
+	case staffpurchaselink.FieldPrincipal:
+		return m.Principal()
+	case staffpurchaselink.FieldAmountSettled:
+		return m.AmountSettled()
+	case staffpurchaselink.FieldOutstanding:
+		return m.Outstanding()
+	case staffpurchaselink.FieldSyncStatus:
+		return m.SyncStatus()
+	case staffpurchaselink.FieldStatus:
+		return m.Status()
+	case staffpurchaselink.FieldSyncError:
+		return m.SyncError()
+	case staffpurchaselink.FieldCreatedAt:
+		return m.CreatedAt()
+	case staffpurchaselink.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *StaffPurchaseLinkMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case staffpurchaselink.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case staffpurchaselink.FieldOutletID:
+		return m.OldOutletID(ctx)
+	case staffpurchaselink.FieldStaffMemberID:
+		return m.OldStaffMemberID(ctx)
+	case staffpurchaselink.FieldUserID:
+		return m.OldUserID(ctx)
+	case staffpurchaselink.FieldOrigin:
+		return m.OldOrigin(ctx)
+	case staffpurchaselink.FieldLayawayPlanID:
+		return m.OldLayawayPlanID(ctx)
+	case staffpurchaselink.FieldPosOrderID:
+		return m.OldPosOrderID(ctx)
+	case staffpurchaselink.FieldSourceKey:
+		return m.OldSourceKey(ctx)
+	case staffpurchaselink.FieldErpPurchaseID:
+		return m.OldErpPurchaseID(ctx)
+	case staffpurchaselink.FieldPrincipal:
+		return m.OldPrincipal(ctx)
+	case staffpurchaselink.FieldAmountSettled:
+		return m.OldAmountSettled(ctx)
+	case staffpurchaselink.FieldOutstanding:
+		return m.OldOutstanding(ctx)
+	case staffpurchaselink.FieldSyncStatus:
+		return m.OldSyncStatus(ctx)
+	case staffpurchaselink.FieldStatus:
+		return m.OldStatus(ctx)
+	case staffpurchaselink.FieldSyncError:
+		return m.OldSyncError(ctx)
+	case staffpurchaselink.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case staffpurchaselink.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown StaffPurchaseLink field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *StaffPurchaseLinkMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case staffpurchaselink.FieldTenantID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case staffpurchaselink.FieldOutletID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOutletID(v)
+		return nil
+	case staffpurchaselink.FieldStaffMemberID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStaffMemberID(v)
+		return nil
+	case staffpurchaselink.FieldUserID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserID(v)
+		return nil
+	case staffpurchaselink.FieldOrigin:
+		v, ok := value.(staffpurchaselink.Origin)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOrigin(v)
+		return nil
+	case staffpurchaselink.FieldLayawayPlanID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLayawayPlanID(v)
+		return nil
+	case staffpurchaselink.FieldPosOrderID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPosOrderID(v)
+		return nil
+	case staffpurchaselink.FieldSourceKey:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSourceKey(v)
+		return nil
+	case staffpurchaselink.FieldErpPurchaseID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetErpPurchaseID(v)
+		return nil
+	case staffpurchaselink.FieldPrincipal:
+		v, ok := value.(decimal.Decimal)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPrincipal(v)
+		return nil
+	case staffpurchaselink.FieldAmountSettled:
+		v, ok := value.(decimal.Decimal)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAmountSettled(v)
+		return nil
+	case staffpurchaselink.FieldOutstanding:
+		v, ok := value.(decimal.Decimal)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOutstanding(v)
+		return nil
+	case staffpurchaselink.FieldSyncStatus:
+		v, ok := value.(staffpurchaselink.SyncStatus)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSyncStatus(v)
+		return nil
+	case staffpurchaselink.FieldStatus:
+		v, ok := value.(staffpurchaselink.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case staffpurchaselink.FieldSyncError:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSyncError(v)
+		return nil
+	case staffpurchaselink.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case staffpurchaselink.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown StaffPurchaseLink field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *StaffPurchaseLinkMutation) AddedFields() []string {
+	var fields []string
+	if m.addprincipal != nil {
+		fields = append(fields, staffpurchaselink.FieldPrincipal)
+	}
+	if m.addamount_settled != nil {
+		fields = append(fields, staffpurchaselink.FieldAmountSettled)
+	}
+	if m.addoutstanding != nil {
+		fields = append(fields, staffpurchaselink.FieldOutstanding)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *StaffPurchaseLinkMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case staffpurchaselink.FieldPrincipal:
+		return m.AddedPrincipal()
+	case staffpurchaselink.FieldAmountSettled:
+		return m.AddedAmountSettled()
+	case staffpurchaselink.FieldOutstanding:
+		return m.AddedOutstanding()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *StaffPurchaseLinkMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case staffpurchaselink.FieldPrincipal:
+		v, ok := value.(decimal.Decimal)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddPrincipal(v)
+		return nil
+	case staffpurchaselink.FieldAmountSettled:
+		v, ok := value.(decimal.Decimal)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAmountSettled(v)
+		return nil
+	case staffpurchaselink.FieldOutstanding:
+		v, ok := value.(decimal.Decimal)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddOutstanding(v)
+		return nil
+	}
+	return fmt.Errorf("unknown StaffPurchaseLink numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *StaffPurchaseLinkMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(staffpurchaselink.FieldOutletID) {
+		fields = append(fields, staffpurchaselink.FieldOutletID)
+	}
+	if m.FieldCleared(staffpurchaselink.FieldLayawayPlanID) {
+		fields = append(fields, staffpurchaselink.FieldLayawayPlanID)
+	}
+	if m.FieldCleared(staffpurchaselink.FieldPosOrderID) {
+		fields = append(fields, staffpurchaselink.FieldPosOrderID)
+	}
+	if m.FieldCleared(staffpurchaselink.FieldErpPurchaseID) {
+		fields = append(fields, staffpurchaselink.FieldErpPurchaseID)
+	}
+	if m.FieldCleared(staffpurchaselink.FieldSyncError) {
+		fields = append(fields, staffpurchaselink.FieldSyncError)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *StaffPurchaseLinkMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *StaffPurchaseLinkMutation) ClearField(name string) error {
+	switch name {
+	case staffpurchaselink.FieldOutletID:
+		m.ClearOutletID()
+		return nil
+	case staffpurchaselink.FieldLayawayPlanID:
+		m.ClearLayawayPlanID()
+		return nil
+	case staffpurchaselink.FieldPosOrderID:
+		m.ClearPosOrderID()
+		return nil
+	case staffpurchaselink.FieldErpPurchaseID:
+		m.ClearErpPurchaseID()
+		return nil
+	case staffpurchaselink.FieldSyncError:
+		m.ClearSyncError()
+		return nil
+	}
+	return fmt.Errorf("unknown StaffPurchaseLink nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *StaffPurchaseLinkMutation) ResetField(name string) error {
+	switch name {
+	case staffpurchaselink.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case staffpurchaselink.FieldOutletID:
+		m.ResetOutletID()
+		return nil
+	case staffpurchaselink.FieldStaffMemberID:
+		m.ResetStaffMemberID()
+		return nil
+	case staffpurchaselink.FieldUserID:
+		m.ResetUserID()
+		return nil
+	case staffpurchaselink.FieldOrigin:
+		m.ResetOrigin()
+		return nil
+	case staffpurchaselink.FieldLayawayPlanID:
+		m.ResetLayawayPlanID()
+		return nil
+	case staffpurchaselink.FieldPosOrderID:
+		m.ResetPosOrderID()
+		return nil
+	case staffpurchaselink.FieldSourceKey:
+		m.ResetSourceKey()
+		return nil
+	case staffpurchaselink.FieldErpPurchaseID:
+		m.ResetErpPurchaseID()
+		return nil
+	case staffpurchaselink.FieldPrincipal:
+		m.ResetPrincipal()
+		return nil
+	case staffpurchaselink.FieldAmountSettled:
+		m.ResetAmountSettled()
+		return nil
+	case staffpurchaselink.FieldOutstanding:
+		m.ResetOutstanding()
+		return nil
+	case staffpurchaselink.FieldSyncStatus:
+		m.ResetSyncStatus()
+		return nil
+	case staffpurchaselink.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case staffpurchaselink.FieldSyncError:
+		m.ResetSyncError()
+		return nil
+	case staffpurchaselink.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case staffpurchaselink.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown StaffPurchaseLink field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *StaffPurchaseLinkMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *StaffPurchaseLinkMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *StaffPurchaseLinkMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *StaffPurchaseLinkMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *StaffPurchaseLinkMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *StaffPurchaseLinkMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *StaffPurchaseLinkMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown StaffPurchaseLink unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *StaffPurchaseLinkMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown StaffPurchaseLink edge %s", name)
 }
 
 // StaffScheduleMutation represents an operation that mutates the StaffSchedule nodes in the graph.

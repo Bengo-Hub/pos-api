@@ -109,6 +109,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/staffoutlet"
 	"github.com/bengobox/pos-service/internal/ent/staffpayroll"
 	"github.com/bengobox/pos-service/internal/ent/staffpayrollline"
+	"github.com/bengobox/pos-service/internal/ent/staffpurchaselink"
 	"github.com/bengobox/pos-service/internal/ent/staffschedule"
 	"github.com/bengobox/pos-service/internal/ent/staffshiftoverride"
 	"github.com/bengobox/pos-service/internal/ent/stockalertsubscription"
@@ -282,6 +283,7 @@ func checkColumn(t, c string) error {
 			staffoutlet.Table:              staffoutlet.ValidColumn,
 			staffpayroll.Table:             staffpayroll.ValidColumn,
 			staffpayrollline.Table:         staffpayrollline.ValidColumn,
+			staffpurchaselink.Table:        staffpurchaselink.ValidColumn,
 			staffschedule.Table:            staffschedule.ValidColumn,
 			staffshiftoverride.Table:       staffshiftoverride.ValidColumn,
 			stockalertsubscription.Table:   stockalertsubscription.ValidColumn,

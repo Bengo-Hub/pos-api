@@ -113,6 +113,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/staffoutlet"
 	"github.com/bengobox/pos-service/internal/ent/staffpayroll"
 	"github.com/bengobox/pos-service/internal/ent/staffpayrollline"
+	"github.com/bengobox/pos-service/internal/ent/staffpurchaselink"
 	"github.com/bengobox/pos-service/internal/ent/staffschedule"
 	"github.com/bengobox/pos-service/internal/ent/staffshiftoverride"
 	"github.com/bengobox/pos-service/internal/ent/stockalertsubscription"
@@ -330,6 +331,8 @@ type Client struct {
 	StaffPayroll *StaffPayrollClient
 	// StaffPayrollLine is the client for interacting with the StaffPayrollLine builders.
 	StaffPayrollLine *StaffPayrollLineClient
+	// StaffPurchaseLink is the client for interacting with the StaffPurchaseLink builders.
+	StaffPurchaseLink *StaffPurchaseLinkClient
 	// StaffSchedule is the client for interacting with the StaffSchedule builders.
 	StaffSchedule *StaffScheduleClient
 	// StaffShiftOverride is the client for interacting with the StaffShiftOverride builders.
@@ -470,6 +473,7 @@ func (c *Client) init() {
 	c.StaffOutlet = NewStaffOutletClient(c.config)
 	c.StaffPayroll = NewStaffPayrollClient(c.config)
 	c.StaffPayrollLine = NewStaffPayrollLineClient(c.config)
+	c.StaffPurchaseLink = NewStaffPurchaseLinkClient(c.config)
 	c.StaffSchedule = NewStaffScheduleClient(c.config)
 	c.StaffShiftOverride = NewStaffShiftOverrideClient(c.config)
 	c.StockAlertSubscription = NewStockAlertSubscriptionClient(c.config)
@@ -675,6 +679,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		StaffOutlet:              NewStaffOutletClient(cfg),
 		StaffPayroll:             NewStaffPayrollClient(cfg),
 		StaffPayrollLine:         NewStaffPayrollLineClient(cfg),
+		StaffPurchaseLink:        NewStaffPurchaseLinkClient(cfg),
 		StaffSchedule:            NewStaffScheduleClient(cfg),
 		StaffShiftOverride:       NewStaffShiftOverrideClient(cfg),
 		StockAlertSubscription:   NewStockAlertSubscriptionClient(cfg),
@@ -807,6 +812,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		StaffOutlet:              NewStaffOutletClient(cfg),
 		StaffPayroll:             NewStaffPayrollClient(cfg),
 		StaffPayrollLine:         NewStaffPayrollLineClient(cfg),
+		StaffPurchaseLink:        NewStaffPurchaseLinkClient(cfg),
 		StaffSchedule:            NewStaffScheduleClient(cfg),
 		StaffShiftOverride:       NewStaffShiftOverrideClient(cfg),
 		StockAlertSubscription:   NewStockAlertSubscriptionClient(cfg),
@@ -875,10 +881,10 @@ func (c *Client) Use(hooks ...Hook) {
 		c.ServicePackage, c.ServicePackagePurchase, c.ServicePackageRedemption,
 		c.ServiceQueueEntry, c.ShiftRotation, c.ShiftRotationSlot, c.StaffAdvance,
 		c.StaffMember, c.StaffOutlet, c.StaffPayroll, c.StaffPayrollLine,
-		c.StaffSchedule, c.StaffShiftOverride, c.StockAlertSubscription,
-		c.StockConsumptionEvent, c.SyncFailure, c.Table, c.TableAssignment,
-		c.TableReservation, c.Tenant, c.TenantSyncEvent, c.Tender, c.User,
-		c.UserPOSRole, c.WebhookDelivery, c.WebhookSubscription,
+		c.StaffPurchaseLink, c.StaffSchedule, c.StaffShiftOverride,
+		c.StockAlertSubscription, c.StockConsumptionEvent, c.SyncFailure, c.Table,
+		c.TableAssignment, c.TableReservation, c.Tenant, c.TenantSyncEvent, c.Tender,
+		c.User, c.UserPOSRole, c.WebhookDelivery, c.WebhookSubscription,
 		c.WeighingScaleReading,
 	} {
 		n.Use(hooks...)
@@ -912,10 +918,10 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.ServicePackage, c.ServicePackagePurchase, c.ServicePackageRedemption,
 		c.ServiceQueueEntry, c.ShiftRotation, c.ShiftRotationSlot, c.StaffAdvance,
 		c.StaffMember, c.StaffOutlet, c.StaffPayroll, c.StaffPayrollLine,
-		c.StaffSchedule, c.StaffShiftOverride, c.StockAlertSubscription,
-		c.StockConsumptionEvent, c.SyncFailure, c.Table, c.TableAssignment,
-		c.TableReservation, c.Tenant, c.TenantSyncEvent, c.Tender, c.User,
-		c.UserPOSRole, c.WebhookDelivery, c.WebhookSubscription,
+		c.StaffPurchaseLink, c.StaffSchedule, c.StaffShiftOverride,
+		c.StockAlertSubscription, c.StockConsumptionEvent, c.SyncFailure, c.Table,
+		c.TableAssignment, c.TableReservation, c.Tenant, c.TenantSyncEvent, c.Tender,
+		c.User, c.UserPOSRole, c.WebhookDelivery, c.WebhookSubscription,
 		c.WeighingScaleReading,
 	} {
 		n.Intercept(interceptors...)
@@ -1119,6 +1125,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.StaffPayroll.mutate(ctx, m)
 	case *StaffPayrollLineMutation:
 		return c.StaffPayrollLine.mutate(ctx, m)
+	case *StaffPurchaseLinkMutation:
+		return c.StaffPurchaseLink.mutate(ctx, m)
 	case *StaffScheduleMutation:
 		return c.StaffSchedule.mutate(ctx, m)
 	case *StaffShiftOverrideMutation:
@@ -15145,6 +15153,139 @@ func (c *StaffPayrollLineClient) mutate(ctx context.Context, m *StaffPayrollLine
 	}
 }
 
+// StaffPurchaseLinkClient is a client for the StaffPurchaseLink schema.
+type StaffPurchaseLinkClient struct {
+	config
+}
+
+// NewStaffPurchaseLinkClient returns a client for the StaffPurchaseLink from the given config.
+func NewStaffPurchaseLinkClient(c config) *StaffPurchaseLinkClient {
+	return &StaffPurchaseLinkClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `staffpurchaselink.Hooks(f(g(h())))`.
+func (c *StaffPurchaseLinkClient) Use(hooks ...Hook) {
+	c.hooks.StaffPurchaseLink = append(c.hooks.StaffPurchaseLink, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `staffpurchaselink.Intercept(f(g(h())))`.
+func (c *StaffPurchaseLinkClient) Intercept(interceptors ...Interceptor) {
+	c.inters.StaffPurchaseLink = append(c.inters.StaffPurchaseLink, interceptors...)
+}
+
+// Create returns a builder for creating a StaffPurchaseLink entity.
+func (c *StaffPurchaseLinkClient) Create() *StaffPurchaseLinkCreate {
+	mutation := newStaffPurchaseLinkMutation(c.config, OpCreate)
+	return &StaffPurchaseLinkCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of StaffPurchaseLink entities.
+func (c *StaffPurchaseLinkClient) CreateBulk(builders ...*StaffPurchaseLinkCreate) *StaffPurchaseLinkCreateBulk {
+	return &StaffPurchaseLinkCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *StaffPurchaseLinkClient) MapCreateBulk(slice any, setFunc func(*StaffPurchaseLinkCreate, int)) *StaffPurchaseLinkCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &StaffPurchaseLinkCreateBulk{err: fmt.Errorf("calling to StaffPurchaseLinkClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*StaffPurchaseLinkCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &StaffPurchaseLinkCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for StaffPurchaseLink.
+func (c *StaffPurchaseLinkClient) Update() *StaffPurchaseLinkUpdate {
+	mutation := newStaffPurchaseLinkMutation(c.config, OpUpdate)
+	return &StaffPurchaseLinkUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *StaffPurchaseLinkClient) UpdateOne(_m *StaffPurchaseLink) *StaffPurchaseLinkUpdateOne {
+	mutation := newStaffPurchaseLinkMutation(c.config, OpUpdateOne, withStaffPurchaseLink(_m))
+	return &StaffPurchaseLinkUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *StaffPurchaseLinkClient) UpdateOneID(id uuid.UUID) *StaffPurchaseLinkUpdateOne {
+	mutation := newStaffPurchaseLinkMutation(c.config, OpUpdateOne, withStaffPurchaseLinkID(id))
+	return &StaffPurchaseLinkUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for StaffPurchaseLink.
+func (c *StaffPurchaseLinkClient) Delete() *StaffPurchaseLinkDelete {
+	mutation := newStaffPurchaseLinkMutation(c.config, OpDelete)
+	return &StaffPurchaseLinkDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *StaffPurchaseLinkClient) DeleteOne(_m *StaffPurchaseLink) *StaffPurchaseLinkDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *StaffPurchaseLinkClient) DeleteOneID(id uuid.UUID) *StaffPurchaseLinkDeleteOne {
+	builder := c.Delete().Where(staffpurchaselink.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &StaffPurchaseLinkDeleteOne{builder}
+}
+
+// Query returns a query builder for StaffPurchaseLink.
+func (c *StaffPurchaseLinkClient) Query() *StaffPurchaseLinkQuery {
+	return &StaffPurchaseLinkQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeStaffPurchaseLink},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a StaffPurchaseLink entity by its id.
+func (c *StaffPurchaseLinkClient) Get(ctx context.Context, id uuid.UUID) (*StaffPurchaseLink, error) {
+	return c.Query().Where(staffpurchaselink.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *StaffPurchaseLinkClient) GetX(ctx context.Context, id uuid.UUID) *StaffPurchaseLink {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *StaffPurchaseLinkClient) Hooks() []Hook {
+	return c.hooks.StaffPurchaseLink
+}
+
+// Interceptors returns the client interceptors.
+func (c *StaffPurchaseLinkClient) Interceptors() []Interceptor {
+	return c.inters.StaffPurchaseLink
+}
+
+func (c *StaffPurchaseLinkClient) mutate(ctx context.Context, m *StaffPurchaseLinkMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&StaffPurchaseLinkCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&StaffPurchaseLinkUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&StaffPurchaseLinkUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&StaffPurchaseLinkDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown StaffPurchaseLink mutation op: %q", m.Op())
+	}
+}
+
 // StaffScheduleClient is a client for the StaffSchedule schema.
 type StaffScheduleClient struct {
 	config
@@ -17439,10 +17580,10 @@ type (
 		Section, SerialNumberLog, ServiceConfig, ServicePackage,
 		ServicePackagePurchase, ServicePackageRedemption, ServiceQueueEntry,
 		ShiftRotation, ShiftRotationSlot, StaffAdvance, StaffMember, StaffOutlet,
-		StaffPayroll, StaffPayrollLine, StaffSchedule, StaffShiftOverride,
-		StockAlertSubscription, StockConsumptionEvent, SyncFailure, Table,
-		TableAssignment, TableReservation, Tenant, TenantSyncEvent, Tender, User,
-		UserPOSRole, WebhookDelivery, WebhookSubscription,
+		StaffPayroll, StaffPayrollLine, StaffPurchaseLink, StaffSchedule,
+		StaffShiftOverride, StockAlertSubscription, StockConsumptionEvent, SyncFailure,
+		Table, TableAssignment, TableReservation, Tenant, TenantSyncEvent, Tender,
+		User, UserPOSRole, WebhookDelivery, WebhookSubscription,
 		WeighingScaleReading []ent.Hook
 	}
 	inters struct {
@@ -17465,10 +17606,10 @@ type (
 		Section, SerialNumberLog, ServiceConfig, ServicePackage,
 		ServicePackagePurchase, ServicePackageRedemption, ServiceQueueEntry,
 		ShiftRotation, ShiftRotationSlot, StaffAdvance, StaffMember, StaffOutlet,
-		StaffPayroll, StaffPayrollLine, StaffSchedule, StaffShiftOverride,
-		StockAlertSubscription, StockConsumptionEvent, SyncFailure, Table,
-		TableAssignment, TableReservation, Tenant, TenantSyncEvent, Tender, User,
-		UserPOSRole, WebhookDelivery, WebhookSubscription,
+		StaffPayroll, StaffPayrollLine, StaffPurchaseLink, StaffSchedule,
+		StaffShiftOverride, StockAlertSubscription, StockConsumptionEvent, SyncFailure,
+		Table, TableAssignment, TableReservation, Tenant, TenantSyncEvent, Tender,
+		User, UserPOSRole, WebhookDelivery, WebhookSubscription,
 		WeighingScaleReading []ent.Interceptor
 	}
 )

@@ -16,16 +16,25 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/layawaypayment"
 	"github.com/bengobox/pos-service/internal/ent/layawayplan"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
+	"github.com/bengobox/pos-service/internal/modules/staffcredit"
 )
 
 // LayawayHandler handles layaway plan and payment endpoints.
 type LayawayHandler struct {
-	log *zap.Logger
-	db  *ent.Client
+	log         *zap.Logger
+	db          *ent.Client
+	staffCredit *staffcredit.Service
 }
 
 func NewLayawayHandler(log *zap.Logger, db *ent.Client) *LayawayHandler {
 	return &LayawayHandler{log: log, db: db}
+}
+
+// WithStaffCredit wires the staff fund-from-salary provisioner (premium). Optional; nil = staff
+// layaways are recorded but never pushed to ERP payroll.
+func (h *LayawayHandler) WithStaffCredit(s *staffcredit.Service) *LayawayHandler {
+	h.staffCredit = s
+	return h
 }
 
 type createLayawayInput struct {
@@ -37,6 +46,12 @@ type createLayawayInput struct {
 	DepositAmount decimal.Decimal `json:"deposit_amount"`
 	Notes         string          `json:"notes"`
 	DueDate       *string         `json:"due_date"`
+	// Party selection: an existing customer (default) or a staff member funded from salary.
+	PartyType         string `json:"party_type"`         // customer | staff
+	StaffMemberID     string `json:"staff_member_id"`    // required when party_type=staff
+	LoyaltyAccountID  string `json:"loyalty_account_id"` // optional (customer picked from loyalty)
+	FundFromSalary    bool   `json:"fund_from_salary"`   // staff: recover via ERP payroll deduction
+	InstallmentMonths int    `json:"installment_months"` // staff: number of payroll periods to spread over
 }
 
 // Create handles POST /{tenantID}/pos/layaways
@@ -88,11 +103,54 @@ func (h *LayawayHandler) Create(w http.ResponseWriter, r *http.Request) {
 		c.SetNotes(input.Notes)
 	}
 
+	// Party: staff (funded from salary) vs customer (default). Staff id + loyalty id are snapshots.
+	isStaff := input.PartyType == "staff" && input.StaffMemberID != ""
+	var staffMemberID uuid.UUID
+	if isStaff {
+		if smID, perr := uuid.Parse(input.StaffMemberID); perr == nil {
+			staffMemberID = smID
+			c.SetPartyType("staff").SetStaffMemberID(smID).SetFundFromSalary(input.FundFromSalary)
+		} else {
+			isStaff = false
+		}
+	}
+	if input.LoyaltyAccountID != "" {
+		if laID, perr := uuid.Parse(input.LoyaltyAccountID); perr == nil {
+			c.SetLoyaltyAccountID(laID)
+		}
+	}
+
 	plan, err := c.Save(r.Context())
 	if err != nil {
 		h.log.Error("create layaway plan failed", zap.Error(err))
 		jsonError(w, "failed to create layaway plan: "+err.Error(), http.StatusInternalServerError)
 		return
+	}
+
+	// Staff fund-from-salary: push to ERP as a payroll recoverable (premium; best-effort).
+	if isStaff && input.FundFromSalary && h.staffCredit != nil {
+		if !h.staffCredit.Entitled(r.Context(), tid) {
+			jsonError(w, "staff fund-from-salary requires a higher subscription tier", http.StatusForbidden)
+			return
+		}
+		months := input.InstallmentMonths
+		if months < 1 {
+			months = 1
+		}
+		installment := remaining.Div(decimal.NewFromInt(int64(months)))
+		planID := plan.ID
+		outletCopy := outletID
+		if _, perr := h.staffCredit.Provision(r.Context(), tid, staffcredit.ProvisionInput{
+			OutletID:          &outletCopy,
+			StaffMemberID:     staffMemberID,
+			Origin:            "layaway",
+			LayawayPlanID:     &planID,
+			Principal:         remaining,
+			InstallmentAmount: installment,
+			InstallmentsTotal: months,
+		}); perr != nil {
+			h.log.Warn("staff-credit provision failed (layaway saved)", zap.Error(perr))
+		}
 	}
 
 	w.WriteHeader(http.StatusCreated)
@@ -418,11 +476,15 @@ func (h *LayawayHandler) Complete(w http.ResponseWriter, r *http.Request) {
 		SetOrderSubtype(posorder.OrderSubtypeRetail).
 		SetMetadata(map[string]any{"source": "layaway", "layaway_plan_id": planID.String()}).
 		SetNillableCustomerPhone(func() *string {
-			if plan.CustomerPhone != "" { return &plan.CustomerPhone }
+			if plan.CustomerPhone != "" {
+				return &plan.CustomerPhone
+			}
 			return nil
 		}()).
 		SetNillableCustomerName(func() *string {
-			if plan.CustomerName != "" { return &plan.CustomerName }
+			if plan.CustomerName != "" {
+				return &plan.CustomerName
+			}
 			return nil
 		}()).
 		Save(ctx)

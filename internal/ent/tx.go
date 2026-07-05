@@ -206,6 +206,8 @@ type Tx struct {
 	StaffPayroll *StaffPayrollClient
 	// StaffPayrollLine is the client for interacting with the StaffPayrollLine builders.
 	StaffPayrollLine *StaffPayrollLineClient
+	// StaffPurchaseLink is the client for interacting with the StaffPurchaseLink builders.
+	StaffPurchaseLink *StaffPurchaseLinkClient
 	// StaffSchedule is the client for interacting with the StaffSchedule builders.
 	StaffSchedule *StaffScheduleClient
 	// StaffShiftOverride is the client for interacting with the StaffShiftOverride builders.
@@ -466,6 +468,7 @@ func (tx *Tx) init() {
 	tx.StaffOutlet = NewStaffOutletClient(tx.config)
 	tx.StaffPayroll = NewStaffPayrollClient(tx.config)
 	tx.StaffPayrollLine = NewStaffPayrollLineClient(tx.config)
+	tx.StaffPurchaseLink = NewStaffPurchaseLinkClient(tx.config)
 	tx.StaffSchedule = NewStaffScheduleClient(tx.config)
 	tx.StaffShiftOverride = NewStaffShiftOverrideClient(tx.config)
 	tx.StockAlertSubscription = NewStockAlertSubscriptionClient(tx.config)

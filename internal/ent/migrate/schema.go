@@ -994,6 +994,10 @@ var (
 		{Name: "tenant_id", Type: field.TypeUUID},
 		{Name: "outlet_id", Type: field.TypeUUID},
 		{Name: "order_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "party_type", Type: field.TypeEnum, Enums: []string{"customer", "staff"}, Default: "customer"},
+		{Name: "staff_member_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "loyalty_account_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "fund_from_salary", Type: field.TypeBool, Default: false},
 		{Name: "customer_name", Type: field.TypeString},
 		{Name: "customer_phone", Type: field.TypeString, Nullable: true},
 		{Name: "customer_email", Type: field.TypeString, Nullable: true},
@@ -1026,7 +1030,7 @@ var (
 			{
 				Name:    "layawayplan_status",
 				Unique:  false,
-				Columns: []*schema.Column{LayawayPlansColumns[11]},
+				Columns: []*schema.Column{LayawayPlansColumns[15]},
 			},
 			{
 				Name:    "layawayplan_order_id",
@@ -3273,6 +3277,50 @@ var (
 			},
 		},
 	}
+	// StaffPurchaseLinksColumns holds the columns for the "staff_purchase_links" table.
+	StaffPurchaseLinksColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "outlet_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "staff_member_id", Type: field.TypeUUID},
+		{Name: "user_id", Type: field.TypeUUID},
+		{Name: "origin", Type: field.TypeEnum, Enums: []string{"layaway", "credit_sale"}},
+		{Name: "layaway_plan_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "pos_order_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "source_key", Type: field.TypeString},
+		{Name: "erp_purchase_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "principal", Type: field.TypeFloat64},
+		{Name: "amount_settled", Type: field.TypeFloat64},
+		{Name: "outstanding", Type: field.TypeFloat64},
+		{Name: "sync_status", Type: field.TypeEnum, Enums: []string{"pending", "synced", "failed"}, Default: "pending"},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"active", "settled", "cancelled"}, Default: "active"},
+		{Name: "sync_error", Type: field.TypeString, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// StaffPurchaseLinksTable holds the schema information for the "staff_purchase_links" table.
+	StaffPurchaseLinksTable = &schema.Table{
+		Name:       "staff_purchase_links",
+		Columns:    StaffPurchaseLinksColumns,
+		PrimaryKey: []*schema.Column{StaffPurchaseLinksColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "staffpurchaselink_tenant_id",
+				Unique:  false,
+				Columns: []*schema.Column{StaffPurchaseLinksColumns[1]},
+			},
+			{
+				Name:    "staffpurchaselink_tenant_id_staff_member_id",
+				Unique:  false,
+				Columns: []*schema.Column{StaffPurchaseLinksColumns[1], StaffPurchaseLinksColumns[3]},
+			},
+			{
+				Name:    "staffpurchaselink_tenant_id_source_key",
+				Unique:  true,
+				Columns: []*schema.Column{StaffPurchaseLinksColumns[1], StaffPurchaseLinksColumns[8]},
+			},
+		},
+	}
 	// StaffSchedulesColumns holds the columns for the "staff_schedules" table.
 	StaffSchedulesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -3862,6 +3910,7 @@ var (
 		StaffOutletsTable,
 		StaffPayrollsTable,
 		StaffPayrollLinesTable,
+		StaffPurchaseLinksTable,
 		StaffSchedulesTable,
 		StaffShiftOverridesTable,
 		StockAlertSubscriptionsTable,

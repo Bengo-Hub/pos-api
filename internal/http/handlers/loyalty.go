@@ -228,6 +228,11 @@ func (h *LoyaltyHandler) ListAccounts(w http.ResponseWriter, r *http.Request) {
 		}
 		q = q.Where(entla.CustomerPhoneContainsFold(needle))
 	}
+	// Name search (case-insensitive substring) so the customer picker can look up by name, not
+	// only phone — previously the `name` param was silently ignored.
+	if name := r.URL.Query().Get("name"); strings.TrimSpace(name) != "" {
+		q = q.Where(entla.CustomerNameContainsFold(strings.TrimSpace(name)))
+	}
 	p := pagination.Parse(r)
 	total, _ := q.Clone().Count(r.Context())
 	accounts, err := q.Order(ent.Desc(entla.FieldCreatedAt)).Limit(p.Limit).Offset(p.Offset).All(r.Context())

@@ -25,6 +25,14 @@ type LayawayPlan struct {
 	OutletID uuid.UUID `json:"outlet_id,omitempty"`
 	// Linked POS order
 	OrderID *uuid.UUID `json:"order_id,omitempty"`
+	// PartyType holds the value of the "party_type" field.
+	PartyType layawayplan.PartyType `json:"party_type,omitempty"`
+	// Set when party_type=staff (FK to StaffMember)
+	StaffMemberID *uuid.UUID `json:"staff_member_id,omitempty"`
+	// Set when the customer was picked from a loyalty account
+	LoyaltyAccountID *uuid.UUID `json:"loyalty_account_id,omitempty"`
+	// Staff layaway funded via ERP payroll deduction (premium)
+	FundFromSalary bool `json:"fund_from_salary,omitempty"`
 	// CustomerName holds the value of the "customer_name" field.
 	CustomerName string `json:"customer_name,omitempty"`
 	// CustomerPhone holds the value of the "customer_phone" field.
@@ -57,11 +65,13 @@ func (*LayawayPlan) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case layawayplan.FieldOrderID:
+		case layawayplan.FieldOrderID, layawayplan.FieldStaffMemberID, layawayplan.FieldLoyaltyAccountID:
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		case layawayplan.FieldTotalAmount, layawayplan.FieldDepositAmount, layawayplan.FieldPaidAmount, layawayplan.FieldRemainingAmount:
 			values[i] = new(decimal.Decimal)
-		case layawayplan.FieldCustomerName, layawayplan.FieldCustomerPhone, layawayplan.FieldCustomerEmail, layawayplan.FieldStatus, layawayplan.FieldNotes:
+		case layawayplan.FieldFundFromSalary:
+			values[i] = new(sql.NullBool)
+		case layawayplan.FieldPartyType, layawayplan.FieldCustomerName, layawayplan.FieldCustomerPhone, layawayplan.FieldCustomerEmail, layawayplan.FieldStatus, layawayplan.FieldNotes:
 			values[i] = new(sql.NullString)
 		case layawayplan.FieldDueDate, layawayplan.FieldCreatedAt, layawayplan.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -106,6 +116,32 @@ func (_m *LayawayPlan) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.OrderID = new(uuid.UUID)
 				*_m.OrderID = *value.S.(*uuid.UUID)
+			}
+		case layawayplan.FieldPartyType:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field party_type", values[i])
+			} else if value.Valid {
+				_m.PartyType = layawayplan.PartyType(value.String)
+			}
+		case layawayplan.FieldStaffMemberID:
+			if value, ok := values[i].(*sql.NullScanner); !ok {
+				return fmt.Errorf("unexpected type %T for field staff_member_id", values[i])
+			} else if value.Valid {
+				_m.StaffMemberID = new(uuid.UUID)
+				*_m.StaffMemberID = *value.S.(*uuid.UUID)
+			}
+		case layawayplan.FieldLoyaltyAccountID:
+			if value, ok := values[i].(*sql.NullScanner); !ok {
+				return fmt.Errorf("unexpected type %T for field loyalty_account_id", values[i])
+			} else if value.Valid {
+				_m.LoyaltyAccountID = new(uuid.UUID)
+				*_m.LoyaltyAccountID = *value.S.(*uuid.UUID)
+			}
+		case layawayplan.FieldFundFromSalary:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field fund_from_salary", values[i])
+			} else if value.Valid {
+				_m.FundFromSalary = value.Bool
 			}
 		case layawayplan.FieldCustomerName:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -226,6 +262,22 @@ func (_m *LayawayPlan) String() string {
 		builder.WriteString("order_id=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
+	builder.WriteString(", ")
+	builder.WriteString("party_type=")
+	builder.WriteString(fmt.Sprintf("%v", _m.PartyType))
+	builder.WriteString(", ")
+	if v := _m.StaffMemberID; v != nil {
+		builder.WriteString("staff_member_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.LoyaltyAccountID; v != nil {
+		builder.WriteString("loyalty_account_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("fund_from_salary=")
+	builder.WriteString(fmt.Sprintf("%v", _m.FundFromSalary))
 	builder.WriteString(", ")
 	builder.WriteString("customer_name=")
 	builder.WriteString(_m.CustomerName)

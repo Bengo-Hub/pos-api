@@ -3,6 +3,7 @@
 package layawayplan
 
 import (
+	"fmt"
 	"time"
 
 	"entgo.io/ent/dialect/sql"
@@ -20,6 +21,14 @@ const (
 	FieldOutletID = "outlet_id"
 	// FieldOrderID holds the string denoting the order_id field in the database.
 	FieldOrderID = "order_id"
+	// FieldPartyType holds the string denoting the party_type field in the database.
+	FieldPartyType = "party_type"
+	// FieldStaffMemberID holds the string denoting the staff_member_id field in the database.
+	FieldStaffMemberID = "staff_member_id"
+	// FieldLoyaltyAccountID holds the string denoting the loyalty_account_id field in the database.
+	FieldLoyaltyAccountID = "loyalty_account_id"
+	// FieldFundFromSalary holds the string denoting the fund_from_salary field in the database.
+	FieldFundFromSalary = "fund_from_salary"
 	// FieldCustomerName holds the string denoting the customer_name field in the database.
 	FieldCustomerName = "customer_name"
 	// FieldCustomerPhone holds the string denoting the customer_phone field in the database.
@@ -54,6 +63,10 @@ var Columns = []string{
 	FieldTenantID,
 	FieldOutletID,
 	FieldOrderID,
+	FieldPartyType,
+	FieldStaffMemberID,
+	FieldLoyaltyAccountID,
+	FieldFundFromSalary,
 	FieldCustomerName,
 	FieldCustomerPhone,
 	FieldCustomerEmail,
@@ -79,6 +92,8 @@ func ValidColumn(column string) bool {
 }
 
 var (
+	// DefaultFundFromSalary holds the default value on creation for the "fund_from_salary" field.
+	DefaultFundFromSalary bool
 	// CustomerNameValidator is a validator for the "customer_name" field. It is called by the builders before save.
 	CustomerNameValidator func(string) error
 	// DefaultStatus holds the default value on creation for the "status" field.
@@ -92,6 +107,32 @@ var (
 	// DefaultID holds the default value on creation for the "id" field.
 	DefaultID func() uuid.UUID
 )
+
+// PartyType defines the type for the "party_type" enum field.
+type PartyType string
+
+// PartyTypeCustomer is the default value of the PartyType enum.
+const DefaultPartyType = PartyTypeCustomer
+
+// PartyType values.
+const (
+	PartyTypeCustomer PartyType = "customer"
+	PartyTypeStaff    PartyType = "staff"
+)
+
+func (pt PartyType) String() string {
+	return string(pt)
+}
+
+// PartyTypeValidator is a validator for the "party_type" field enum values. It is called by the builders before save.
+func PartyTypeValidator(pt PartyType) error {
+	switch pt {
+	case PartyTypeCustomer, PartyTypeStaff:
+		return nil
+	default:
+		return fmt.Errorf("layawayplan: invalid enum value for party_type field: %q", pt)
+	}
+}
 
 // OrderOption defines the ordering options for the LayawayPlan queries.
 type OrderOption func(*sql.Selector)
@@ -114,6 +155,26 @@ func ByOutletID(opts ...sql.OrderTermOption) OrderOption {
 // ByOrderID orders the results by the order_id field.
 func ByOrderID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldOrderID, opts...).ToFunc()
+}
+
+// ByPartyType orders the results by the party_type field.
+func ByPartyType(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPartyType, opts...).ToFunc()
+}
+
+// ByStaffMemberID orders the results by the staff_member_id field.
+func ByStaffMemberID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldStaffMemberID, opts...).ToFunc()
+}
+
+// ByLoyaltyAccountID orders the results by the loyalty_account_id field.
+func ByLoyaltyAccountID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLoyaltyAccountID, opts...).ToFunc()
+}
+
+// ByFundFromSalary orders the results by the fund_from_salary field.
+func ByFundFromSalary(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldFundFromSalary, opts...).ToFunc()
 }
 
 // ByCustomerName orders the results by the customer_name field.

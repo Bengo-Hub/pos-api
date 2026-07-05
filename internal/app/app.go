@@ -14,10 +14,10 @@ import (
 	"entgo.io/ent/dialect/sql/schema"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/shopspring/decimal"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/nats-io/nats.go"
 	"github.com/redis/go-redis/v9"
+	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 
 	sharedcache "github.com/Bengo-Hub/cache"
@@ -29,8 +29,8 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/migrate"
 	handlers "github.com/bengobox/pos-service/internal/http/handlers"
 	router "github.com/bengobox/pos-service/internal/http/router"
-	catalogmodule "github.com/bengobox/pos-service/internal/modules/catalog"
 	backupmod "github.com/bengobox/pos-service/internal/modules/backup"
+	catalogmodule "github.com/bengobox/pos-service/internal/modules/catalog"
 	"github.com/bengobox/pos-service/internal/modules/identity"
 	inventorymodule "github.com/bengobox/pos-service/internal/modules/inventory"
 	kdsmodule "github.com/bengobox/pos-service/internal/modules/kds"
@@ -39,11 +39,13 @@ import (
 	promommodule "github.com/bengobox/pos-service/internal/modules/promotions"
 	rbacmodule "github.com/bengobox/pos-service/internal/modules/rbac"
 	shiftsmodule "github.com/bengobox/pos-service/internal/modules/shifts"
+	"github.com/bengobox/pos-service/internal/modules/staffcredit"
 	"github.com/bengobox/pos-service/internal/modules/tenant"
 	treasurymodule "github.com/bengobox/pos-service/internal/modules/treasury"
 	webhookmodule "github.com/bengobox/pos-service/internal/modules/webhooks"
 	"github.com/bengobox/pos-service/internal/platform/cache"
 	"github.com/bengobox/pos-service/internal/platform/database"
+	"github.com/bengobox/pos-service/internal/platform/erp"
 	"github.com/bengobox/pos-service/internal/platform/events"
 	logisticsclient "github.com/bengobox/pos-service/internal/platform/logistics"
 	"github.com/bengobox/pos-service/internal/platform/marketflow"
@@ -156,8 +158,9 @@ func New(ctx context.Context) (*App, error) {
 
 	// Wire event publisher for POS order lifecycle events (shared-events outbox pattern)
 	var outboxPub *eventslib.Publisher
+	var eventPub *events.Publisher
 	if natsConn != nil {
-		eventPub := events.NewPublisher(sqlDB, log)
+		eventPub = events.NewPublisher(sqlDB, log)
 		orderSvc.SetPublisher(eventPub)
 
 		// Start background outbox publisher
@@ -268,7 +271,10 @@ func New(ctx context.Context) (*App, error) {
 	publicOutletHandler := handlers.NewPublicOutletHandler(log, entClient)
 
 	// Retail module: layaway plans, weighing scale, purchase orders proxy
-	layawayHandler := handlers.NewLayawayHandler(log, entClient)
+	// Staff fund-from-salary (premium): pos→erp S2S client + provisioner/settler.
+	erpClient := erp.NewClient(cfg.ERP.ServiceURL, cfg.ERP.APIKey, cfg.ERP.RequestTimeout, log)
+	staffCreditSvc := staffcredit.NewService(entClient, erpClient, eventPub, subsClient, log)
+	layawayHandler := handlers.NewLayawayHandler(log, entClient).WithStaffCredit(staffCreditSvc)
 	scaleHandler := handlers.NewScaleHandler(log, entClient)
 	purchaseOrdersHandler := handlers.NewPurchaseOrdersHandler(log, entClient)
 
@@ -454,6 +460,15 @@ func New(ctx context.Context) (*App, error) {
 			if err := stockSub.Subscribe(natsConn); err != nil {
 				log.Warn("app: failed to subscribe to inventory.stock.low", zap.Error(err))
 			}
+		}
+	}
+
+	// Subscribe to erp.staff_purchase.recovered/reversed → pay down the staff layaway/credit as ERP
+	// payroll recovers the debt (staff fund-from-salary settlement loop).
+	if natsConn != nil {
+		erpStaffSub := events.NewERPStaffPurchaseSubscriber(staffCreditSvc, log)
+		if err := erpStaffSub.Subscribe(natsConn); err != nil {
+			log.Warn("app: failed to subscribe to erp staff-purchase settlement events", zap.Error(err))
 		}
 	}
 
