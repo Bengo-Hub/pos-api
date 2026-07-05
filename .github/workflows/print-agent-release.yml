@@ -1,0 +1,72 @@
+name: Print Agent Release
+
+# Builds the Windows Print Agent installer (CodevertexPrintAgentSetup.exe) and publishes it as a
+# GitHub Release asset. The POS Settings "Download Print Agent" button (and the pos-api download
+# redirect) point at the latest release of this tag family.
+#
+# Trigger: push a tag like `print-agent-v1.0.1`, or run manually (workflow_dispatch).
+
+on:
+  push:
+    tags:
+      - 'print-agent-v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Agent version (e.g. 1.0.1)'
+        required: false
+        default: '1.0.1'
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows-installer:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.0'
+          cache: true
+
+      - name: Resolve version
+        id: ver
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            V="${GITHUB_REF_NAME#print-agent-v}"
+          else
+            V="${{ github.event.inputs.version }}"
+          fi
+          echo "version=${V:-1.0.1}" >> "$GITHUB_OUTPUT"
+
+      - name: Build print-agent.exe (windows/amd64)
+        shell: bash
+        env:
+          GOOS: windows
+          GOARCH: amd64
+          CGO_ENABLED: '0'
+        run: go build -trimpath -ldflags "-s -w" -o build/print-agent/print-agent.exe ./cmd/print-agent
+
+      - name: Compile Inno Setup installer
+        shell: cmd
+        env:
+          AGENT_VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          "%ProgramFiles(x86)%\Inno Setup 6\ISCC.exe" build\print-agent\installer.iss
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CodevertexPrintAgentSetup
+          path: build/print-agent/Output/CodevertexPrintAgentSetup.exe
+
+      - name: Publish to GitHub Release
+        if: github.event_name == 'push'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/print-agent/Output/CodevertexPrintAgentSetup.exe
+          name: Print Agent v${{ steps.ver.outputs.version }}
+          tag_name: ${{ github.ref_name }}

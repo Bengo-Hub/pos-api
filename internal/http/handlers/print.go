@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"net/http"
 
@@ -29,6 +30,10 @@ type printReceiptInput struct {
 	PrinterID string `json:"printer_id"` // matches PrinterProfile.ID; empty = customer default
 	Type      string `json:"type"`       // "customer" | "kitchen_ticket" | "waiter_copy" | "void"
 	Reason    string `json:"reason"`     // void reason (optional)
+	// BuildOnly returns the raw ESC/POS bytes (as hex) WITHOUT trying to dispatch. The cloud pos-api
+	// cannot reach a LAN printer, so the browser relays these bytes to the on-terminal Local Print
+	// Agent, which sends them to the network printer by IP:port.
+	BuildOnly bool `json:"build_only"`
 }
 
 // PrintReceipt handles POST /{tenantID}/pos/orders/{orderID}/print
@@ -146,6 +151,14 @@ func (h *PrintHandler) PrintReceipt(w http.ResponseWriter, r *http.Request) {
 		TotalAmount:   order.TotalAmount,
 		Currency:      "KES",
 		VoidReason:    input.Reason,
+	}
+
+	// Build-only: return the ESC/POS bytes (hex) for the browser to relay to the Local Print Agent.
+	// This is how a network printer prints from a cloud deployment (the server can't reach the LAN).
+	if input.BuildOnly {
+		raw := printing.BuildReceipt(data)
+		jsonOK(w, map[string]any{"method": "escpos", "escpos_hex": hex.EncodeToString(raw)})
+		return
 	}
 
 	profile := printing.FindProfileByID(profiles, printerID)

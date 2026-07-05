@@ -134,6 +134,10 @@ func New(
 		// TenantV2 extracts tenant UUID directly from the URL path parameter.
 		api.Get("/openapi.json", handlers.OpenAPIJSON)
 
+		// Public download for the Local Print Agent installer (no auth, no tenant — a generic,
+		// credential-free binary). 302-redirects to the GitHub release asset.
+		api.Get("/pos/print-agent/download", handlers.PrintAgentDownload)
+
 		api.Group(func(pub chi.Router) {
 			pub.Use(httpware.TenantV2(httpware.TenantConfig{
 				URLParamFunc: chi.URLParam,

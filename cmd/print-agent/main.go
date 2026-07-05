@@ -26,10 +26,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/kardianos/service"
+
 	"github.com/bengobox/pos-service/internal/modules/printing/discovery"
 )
 
-const version = "1.0.0"
+const version = "1.0.1"
 
 func main() {
 	var (
@@ -39,24 +41,63 @@ func main() {
 	)
 	flag.Parse()
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("/health", withCORS(handleHealth))
-	mux.HandleFunc("/discover", withCORS(handleDiscover(*defaultSNMP, *timeout)))
-	mux.HandleFunc("/print", withCORS(handlePrint))
+	prg := &program{addr: *addr, snmp: *defaultSNMP, timeout: *timeout}
 
-	srv := &http.Server{
-		Addr:              *addr,
-		Handler:           mux,
-		ReadHeaderTimeout: 5 * time.Second,
+	// Run as a background service (Windows service / systemd / launchd). When Windows starts the
+	// service it invokes the exe with the "run" argument (see svcConfig.Arguments).
+	svcConfig := &service.Config{
+		Name:        "CodevertexPrintAgent",
+		DisplayName: "Codevertex POS Print Agent",
+		Description: "Local bridge so the Codevertex POS can discover and print to LAN/receipt printers.",
+		Arguments:   []string{"run"},
 	}
-	log.Printf("pos print-agent %s listening on http://%s", version, *addr)
-	if err := srv.ListenAndServe(); err != nil {
-		log.Fatalf("print-agent: %v", err)
+	svc, err := service.New(prg, svcConfig)
+	if err != nil {
+		log.Fatalf("print-agent: service init: %v", err)
+	}
+
+	// Subcommand: install | uninstall | start | stop | restart | status | run (default).
+	if cmd := flag.Arg(0); cmd != "" && cmd != "run" {
+		if cmd == "status" {
+			st, sErr := svc.Status()
+			if sErr != nil {
+				log.Fatalf("print-agent: status: %v", sErr)
+			}
+			log.Printf("print-agent service status: %s", statusText(st))
+			return
+		}
+		if ctlErr := service.Control(svc, cmd); ctlErr != nil {
+			log.Fatalf("print-agent: %s failed: %v", cmd, ctlErr)
+		}
+		log.Printf("print-agent: %s ok", cmd)
+		return
+	}
+
+	// Default (and the service entrypoint): run under the service manager, or in the foreground when
+	// launched interactively (service.Interactive()).
+	if err := svc.Run(); err != nil {
+		log.Fatalf("print-agent: run: %v", err)
+	}
+}
+
+func statusText(s service.Status) string {
+	switch s {
+	case service.StatusRunning:
+		return "running"
+	case service.StatusStopped:
+		return "stopped"
+	default:
+		return "unknown"
 	}
 }
 
 // withCORS reflects the request Origin and answers preflight, so the HTTPS POS page can call the
 // loopback agent. The API exposes only LAN printer discovery and a raw-print relay — no credentials.
+//
+// CRITICAL: an HTTPS page (public network) calling http://127.0.0.1 (loopback = "local" network) is
+// subject to Chrome's Private Network Access. The preflight carries Access-Control-Request-Private-
+// Network: true and the response MUST answer Access-Control-Allow-Private-Network: true or Chrome
+// blocks the request — which is exactly why a running agent reads as "not detected". We always send it.
 func withCORS(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		origin := r.Header.Get("Origin")
@@ -67,6 +108,8 @@ func withCORS(next http.HandlerFunc) http.HandlerFunc {
 		w.Header().Set("Vary", "Origin")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		// Private Network Access: grant the loopback call from the HTTPS PWA.
+		w.Header().Set("Access-Control-Allow-Private-Network", "true")
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
 			return
