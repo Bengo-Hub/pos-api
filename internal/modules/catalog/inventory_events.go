@@ -95,6 +95,17 @@ func (h *InventoryEventHandler) SubscribeToInventoryEvents(nc *nats.Conn) error 
 	}
 
 	handler := func(msg *nats.Msg) {
+		// A panic inside a NATS subscriber goroutine crashes the whole pod. Recover here so a
+		// single poison event (or an unexpected nil) is logged + terminated instead of taking
+		// the service down. Term() (not Nak) drops the message so it is NOT redelivered into a
+		// crash loop.
+		defer func() {
+			if rec := recover(); rec != nil {
+				h.logger.Error("catalog sync: handler panicked — dropping event",
+					zap.Any("panic", rec), zap.ByteString("data", msg.Data))
+				_ = msg.Term()
+			}
+		}()
 		evt, err := sharedevents.FromJSON(msg.Data)
 		if err != nil {
 			h.logger.Error("catalog sync: unmarshal event failed", zap.Error(err))
