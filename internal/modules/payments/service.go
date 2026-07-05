@@ -337,6 +337,12 @@ func (s *Service) recordCreditSale(ctx context.Context, order *ent.POSOrder, req
 	if strings.TrimSpace(phone) == "" && strings.TrimSpace(name) == "" {
 		return nil, fmt.Errorf("payments: credit sale requires a selected customer")
 	}
+	// A STAFF credit sale that falls through to AR (fund-from-salary off or not entitled) has no
+	// customer phone — key the treasury debtor on the staff member id so each staff member gets a
+	// distinct, reconcilable AR row instead of an empty identifier.
+	if staffID, _, isStaff := staffCreditFromOrderParty(order); isStaff && strings.TrimSpace(phone) == "" {
+		phone = "staff:" + staffID.String()
+	}
 	// Resolve the canonical AR key — the selected customer's marketflow CRM contact (the SAME source
 	// the return path uses), via the loyalty account for this phone. Sending both the CRM id and the
 	// phone lets treasury net the credit sale, its returns and its opening balance on ONE customer row.
@@ -383,19 +389,30 @@ func (s *Service) ResolveCrmContactID(ctx context.Context, tenantID uuid.UUID, p
 	return acc.CrmContactID.String()
 }
 
-// staffCreditFromOrder extracts the staff fund-from-salary intent from an order's metadata
-// (fund_from_salary + staff_member_id [+ installment_months]), set by the credit-sale UI.
-func staffCreditFromOrder(order *ent.POSOrder) (staffID uuid.UUID, months int, ok bool) {
+// staffCreditFromOrderParty extracts the staff BILL-TO party from an order's metadata
+// (party_type=staff + staff_member_id), regardless of the fund-from-salary flag. Used to key the
+// treasury AR debtor when a staff credit sale falls through to AR.
+func staffCreditFromOrderParty(order *ent.POSOrder) (staffID uuid.UUID, fund bool, ok bool) {
 	if order == nil || order.Metadata == nil {
-		return uuid.Nil, 0, false
+		return uuid.Nil, false, false
 	}
-	fund, _ := order.Metadata["fund_from_salary"].(bool)
 	sid, _ := order.Metadata["staff_member_id"].(string)
-	if !fund || sid == "" {
-		return uuid.Nil, 0, false
+	if sid == "" {
+		return uuid.Nil, false, false
 	}
 	id, err := uuid.Parse(sid)
 	if err != nil {
+		return uuid.Nil, false, false
+	}
+	fund, _ = order.Metadata["fund_from_salary"].(bool)
+	return id, fund, true
+}
+
+// staffCreditFromOrder extracts the staff fund-from-salary intent from an order's metadata
+// (fund_from_salary + staff_member_id [+ installment_months]), set by the credit-sale UI.
+func staffCreditFromOrder(order *ent.POSOrder) (staffID uuid.UUID, months int, ok bool) {
+	id, fund, ok := staffCreditFromOrderParty(order)
+	if !ok || !fund {
 		return uuid.Nil, 0, false
 	}
 	switch v := order.Metadata["installment_months"].(type) {
