@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -86,6 +87,10 @@ type settingsResponse struct {
 	HotelModuleEnabled  bool `json:"hotel_module_enabled"`
 	LayawayEnabled      bool `json:"layaway_enabled"`
 	ShiftReportsEnabled bool `json:"shift_reports_enabled"`
+	// sidebar visibility — outlet admins hide whole modules (by moduleKey) or individual sidebar
+	// items (by href) to declutter the app to only the screens they use. Stored in metadata.
+	DisabledModules []string `json:"disabled_modules"`
+	HiddenItems     []string `json:"hidden_items"`
 	// shift settings
 	ShiftAutoEndEnabled bool `json:"shift_auto_end_enabled"`
 	ShiftMaxHours       int  `json:"shift_max_hours"`
@@ -175,9 +180,54 @@ func toSettingsResponse(outlet *ent.Outlet, s *ent.OutletSetting) settingsRespon
 		BankAccountNumber:         s.BankAccountNumber,
 		BankAccountName:           s.BankAccountName,
 		ShowPaymentInfoOnReceipt:  s.ShowPaymentInfoOnReceipt,
+		DisabledModules:           metaStringSlice(s.Metadata, "disabled_modules"),
+		HiddenItems:               metaStringSlice(s.Metadata, "hidden_items"),
 		UpdatedAt:                 s.UpdatedAt.Format("2006-01-02T15:04:05Z"),
 	}
 	return r
+}
+
+// metaStringSlice reads a string list stored in the freeform metadata JSON. It handles both shapes:
+// []any (after a DB/JSON round-trip) and []string (the in-memory value right after SetMetadata).
+// Always returns a non-nil slice so the API emits [] not null.
+func metaStringSlice(meta map[string]any, key string) []string {
+	out := []string{}
+	if meta == nil {
+		return out
+	}
+	switch raw := meta[key].(type) {
+	case []string:
+		for _, s := range raw {
+			if s != "" {
+				out = append(out, s)
+			}
+		}
+	case []any:
+		for _, v := range raw {
+			if s, ok := v.(string); ok && s != "" {
+				out = append(out, s)
+			}
+		}
+	}
+	return out
+}
+
+// dedupeStrings trims, drops empties, and removes duplicates while preserving first-seen order.
+func dedupeStrings(in []string) []string {
+	seen := map[string]struct{}{}
+	out := []string{}
+	for _, s := range in {
+		s = strings.TrimSpace(s)
+		if s == "" {
+			continue
+		}
+		if _, dup := seen[s]; dup {
+			continue
+		}
+		seen[s] = struct{}{}
+		out = append(out, s)
+	}
+	return out
 }
 
 // getOrCreateSetting fetches the OutletSetting for outletID or creates a default one.
@@ -466,6 +516,10 @@ type modulesInput struct {
 	HotelModuleEnabled  *bool `json:"hotel_module_enabled"`
 	LayawayEnabled      *bool `json:"layaway_enabled"`
 	ShiftReportsEnabled *bool `json:"shift_reports_enabled"`
+	// Sidebar visibility (whole-module by moduleKey / individual sidebar item by href). A nil
+	// pointer leaves the stored list untouched; a non-nil (possibly empty) list replaces it.
+	DisabledModules *[]string `json:"disabled_modules"`
+	HiddenItems     *[]string `json:"hidden_items"`
 }
 
 // PatchModules handles PATCH /{tenantID}/pos/settings/modules
@@ -513,6 +567,22 @@ func (h *ServiceSettingsHandler) PatchModules(w http.ResponseWriter, r *http.Req
 	}
 	if input.ShiftReportsEnabled != nil {
 		upd = upd.SetShiftReportsEnabled(*input.ShiftReportsEnabled)
+	}
+
+	// Sidebar visibility lists live in the freeform metadata (no schema migration). Merge into a
+	// copy of the existing metadata so other keys (e.g. booking_policy) are preserved.
+	if input.DisabledModules != nil || input.HiddenItems != nil {
+		meta := map[string]any{}
+		for k, v := range setting.Metadata {
+			meta[k] = v
+		}
+		if input.DisabledModules != nil {
+			meta["disabled_modules"] = dedupeStrings(*input.DisabledModules)
+		}
+		if input.HiddenItems != nil {
+			meta["hidden_items"] = dedupeStrings(*input.HiddenItems)
+		}
+		upd = upd.SetMetadata(meta)
 	}
 
 	updated, err := upd.Save(r.Context())
