@@ -22,6 +22,7 @@ import (
 	entposorderline "github.com/bengobox/pos-service/internal/ent/posorderline"
 	"github.com/bengobox/pos-service/internal/ent/posreturn"
 	"github.com/bengobox/pos-service/internal/ent/posreturnline"
+	"github.com/bengobox/pos-service/internal/modules/orders"
 	"github.com/bengobox/pos-service/internal/modules/treasury"
 	"github.com/bengobox/pos-service/internal/platform/events"
 )
@@ -33,6 +34,8 @@ type ReturnHandler struct {
 	treasuryClient *treasury.Client
 	publisher      *events.Publisher
 	auditSvc       *audit.Service
+	// orderSvc creates exchange replacement orders through the normal sale pipeline.
+	orderSvc *orders.Service
 }
 
 func NewReturnHandler(log *zap.Logger, client *ent.Client, treasuryClient *treasury.Client, publisher *events.Publisher) *ReturnHandler {
@@ -44,12 +47,15 @@ func (h *ReturnHandler) SetAuditService(a *audit.Service) { h.auditSvc = a }
 
 type returnLineInput struct {
 	OrderLineID uuid.UUID `json:"order_line_id"`
-	SKU         string    `json:"sku"`
-	Name        string    `json:"name"`
-	Quantity    float64   `json:"quantity"`
-	UnitPrice   float64   `json:"unit_price"`
-	TotalPrice  float64   `json:"total_price"`
-	Reason      string    `json:"reason"`
+	// CatalogItemID identifies a replacement item on an EXCHANGE (exchange_lines) — return
+	// lines reference the original order line instead.
+	CatalogItemID uuid.UUID `json:"catalog_item_id,omitempty"`
+	SKU           string    `json:"sku"`
+	Name          string    `json:"name"`
+	Quantity      float64   `json:"quantity"`
+	UnitPrice     float64   `json:"unit_price"`
+	TotalPrice    float64   `json:"total_price"`
+	Reason        string    `json:"reason"`
 }
 
 type createReturnInput struct {
@@ -70,11 +76,13 @@ type approveReturnInput struct {
 	RefundChannel string `json:"refund_channel,omitempty"`
 }
 
-// completeReturnInput is the body for the complete-approved-return step. Both fields are optional:
+// completeReturnInput is the body for the complete-approved-return step. All fields are
+// optional except that an EXCHANGE return requires exchange_lines (the replacement items):
 // notes are recorded for audit; refund_channel overrides the settlement method one last time.
 type completeReturnInput struct {
-	Notes         string `json:"notes,omitempty"`
-	RefundChannel string `json:"refund_channel,omitempty"`
+	Notes         string            `json:"notes,omitempty"`
+	RefundChannel string            `json:"refund_channel,omitempty"`
+	ExchangeLines []returnLineInput `json:"exchange_lines,omitempty"`
 }
 
 // returnResponse decorates a POSReturn with the original order's human-readable number so the UI
@@ -213,6 +221,16 @@ func (h *ReturnHandler) CreateReturn(w http.ResponseWriter, r *http.Request) {
 		returnType = "refund"
 	}
 
+	// Refund-method policy: the WHY (reason) and the original settlement constrain the HOW.
+	// Defective/damaged/expired/wrong-item returns can't be parked as store credit; a return
+	// against an unpaid on-account (credit) sale must offset the customer's balance, never
+	// pay out cash the business never received.
+	onAccount := h.orderSettledOnAccount(ctx, tid, orderID)
+	if perr := validateRefundChannel(reasonCodePtr(input.ReasonCode), posreturn.ReturnType(returnType), input.RefundChannel, onAccount); perr != nil {
+		jsonError(w, perr.Error(), http.StatusUnprocessableEntity)
+		return
+	}
+
 	// Get requesting user.
 	requestedBy := uuid.Nil
 	if userIDStr := r.Header.Get("X-User-ID"); userIDStr != "" {
@@ -245,6 +263,9 @@ func (h *ReturnHandler) CreateReturn(w http.ResponseWriter, r *http.Request) {
 		SetNillableRefundChannel(refundChannelPtr(input.RefundChannel)).
 		SetRefundAmount(refundAmount).
 		SetRequestedBy(requestedBy).
+		// Persist the on-account marker so approve/complete (and the UI) apply the same
+		// channel policy without re-deriving it from the payment rows.
+		SetMetadata(map[string]any{"on_account_sale": onAccount}).
 		Save(ctx)
 	if err != nil {
 		h.log.Error("create return failed", zap.Error(err))
@@ -440,7 +461,13 @@ func (h *ReturnHandler) ApproveReturn(w http.ResponseWriter, r *http.Request) {
 
 	// Persist the approver's settlement-channel choice (an override at approval time wins over the
 	// channel chosen at create time) so the completion step and treasury both use the right method.
+	// The override must still satisfy the reason/settlement policy.
 	if rc := refundChannelPtr(input.RefundChannel); rc != nil {
+		onAccount := h.orderSettledOnAccount(ctx, tid, ret.OrderID)
+		if perr := validateRefundChannel(ret.ReasonCode, ret.ReturnType, string(*rc), onAccount); perr != nil {
+			jsonError(w, perr.Error(), http.StatusUnprocessableEntity)
+			return
+		}
 		update = update.SetNillableRefundChannel(rc)
 	}
 
@@ -544,8 +571,10 @@ func (h *ReturnHandler) CompleteReturn(w http.ResponseWriter, r *http.Request) {
 
 	update := h.client.POSReturn.UpdateOne(ret).SetStatus(posreturn.StatusCompleted)
 
-	// Resolve the settlement channel: an explicit override at completion wins, otherwise the channel
-	// persisted on the return (from create/approve) is used.
+	// Resolve the settlement channel: an explicit override at completion wins, otherwise the
+	// channel persisted on the return (from create/approve), otherwise the policy default —
+	// on-account (credit) sales offset the customer's AR balance instead of paying out money.
+	onAccount := h.orderSettledOnAccount(ctx, tid, ret.OrderID)
 	refundChannel := ""
 	if ret.RefundChannel != nil {
 		refundChannel = string(*ret.RefundChannel)
@@ -554,14 +583,45 @@ func (h *ReturnHandler) CompleteReturn(w http.ResponseWriter, r *http.Request) {
 		refundChannel = string(*rc)
 		update = update.SetNillableRefundChannel(rc)
 	}
+	if refundChannel == "" {
+		refundChannel = defaultRefundChannel(ret.ReturnType, onAccount)
+		if rc := refundChannelPtr(refundChannel); rc != nil {
+			update = update.SetNillableRefundChannel(rc)
+		}
+	}
+	if perr := validateRefundChannel(ret.ReasonCode, ret.ReturnType, refundChannel, onAccount); perr != nil {
+		jsonError(w, perr.Error(), http.StatusUnprocessableEntity)
+		return
+	}
 
-	// Money movement: settle in treasury for BOTH a cash/mpesa/bank refund AND a store-credit return.
-	// A store-credit return has no channel of its own, so force the store_credit channel — treasury
-	// then reverses revenue+VAT AND credits the customer's AR account, so a KES 800 store-credit return
-	// against a KES 2000 credit sale nets to KES 1200 owed (previously store-credit returns skipped
-	// this call entirely, posting only a GL journal and never reducing the customer balance).
+	// Exchange fulfilment: create the replacement order and net the price difference —
+	// dearer replacement → the delta is collected as a normal payment on the new order;
+	// cheaper → the leftover is refunded through the (policy-validated) channel below.
+	exchange, exErr := h.fulfilExchange(ctx, r, tid, ret, lines, input)
+	if exErr != nil {
+		jsonError(w, exErr.Error(), http.StatusUnprocessableEntity)
+		return
+	}
+	if exchange != nil {
+		update = update.SetExchangeOrderID(exchange.OrderID)
+	}
+
+	// Money movement: settle in treasury for a cash/mpesa/bank refund, a store-credit return,
+	// an offset_invoice (credit-sale) return — and the LEFTOVER of an exchange whose
+	// replacement is cheaper than the returned goods. A store-credit return has no channel of
+	// its own, so force the store_credit channel — treasury then reverses revenue+VAT AND
+	// credits the customer's AR account, so a KES 800 store-credit return against a KES 2000
+	// credit sale nets to KES 1200 owed. For an exchange the replacement order's
+	// exchange-credit discount already nets the revenue, so only the leftover moves money.
+	settleAmount := ret.RefundAmount
+	if ret.ReturnType == posreturn.ReturnTypeExchange {
+		settleAmount = 0
+		if exchange != nil {
+			settleAmount = exchange.Leftover
+		}
+	}
 	var treasuryRefundRef string
-	if (ret.ReturnType == posreturn.ReturnTypeRefund || ret.ReturnType == posreturn.ReturnTypeStoreCredit) && h.treasuryClient != nil {
+	if settleAmount > 0.009 && h.treasuryClient != nil {
 		tenantSlug := chi.URLParam(r, "tenantID")
 		if ret.ReturnType == posreturn.ReturnTypeStoreCredit {
 			refundChannel = "store_credit"
@@ -573,6 +633,13 @@ func (h *ReturnHandler) CompleteReturn(w http.ResponseWriter, r *http.Request) {
 		// for the sale.finalized COGS posting) × returned quantity. Missing data => 0 (never blocks).
 		taxAmount := h.resolveReturnTax(ctx, ret.OrderID, lines)
 		costAmount := h.resolveReturnCost(ctx, tid, lines)
+		if ret.ReturnType == posreturn.ReturnTypeExchange && ret.RefundAmount > 0 {
+			// Only the leftover portion of an exchange moves money — prorate its VAT and skip
+			// the COGS reversal (restock is handled by the exchange.completed event; the
+			// replacement order posts its own COGS).
+			taxAmount = taxAmount * (settleAmount / ret.RefundAmount)
+			costAmount = 0
+		}
 
 		// Original buyer's CRM contact + name (for the treasury refund's customer linkage). The order
 		// stores the name; the CRM contact lives on the matched loyalty account (by customer_phone).
@@ -585,7 +652,7 @@ func (h *ReturnHandler) CompleteReturn(w http.ResponseWriter, r *http.Request) {
 			SourceService:      "pos",
 			ReferenceID:        returnID.String(),
 			ReferenceType:      "pos_return",
-			Amount:             ret.RefundAmount,
+			Amount:             settleAmount,
 			TaxAmount:          taxAmount,
 			Cost:               costAmount,
 			Currency:           "KES",
@@ -600,7 +667,7 @@ func (h *ReturnHandler) CompleteReturn(w http.ResponseWriter, r *http.Request) {
 				zap.Error(refundErr),
 				zap.String("return_id", returnID.String()),
 				zap.String("refund_channel", refundChannel),
-				zap.Float64("amount", ret.RefundAmount),
+				zap.Float64("amount", settleAmount),
 				zap.Float64("tax_amount", taxAmount),
 				zap.Float64("cost", costAmount))
 			// Non-fatal: still complete the return record; refund can be retried
@@ -682,13 +749,23 @@ func (h *ReturnHandler) CompleteReturn(w http.ResponseWriter, r *http.Request) {
 			"lines":               linesSummary,
 		}
 		if ret.ReturnType == posreturn.ReturnTypeExchange {
+			if exchange != nil {
+				eventData["exchange_order_id"] = exchange.OrderID
+				eventData["exchange_credit"] = exchange.ExchangeCredit
+				eventData["amount_payable"] = exchange.AmountPayable
+			}
 			_ = h.publisher.PublishExchangeCompleted(ctx, tid, eventData)
 		} else {
 			_ = h.publisher.PublishReturnCompleted(ctx, tid, eventData)
 		}
 	}
 
-	jsonOK(w, h.withOrderNumber(ctx, tid, updated))
+	// Surface the exchange split (replacement order + top-up payable / leftover refunded) so
+	// the till can immediately open the payment flow for a dearer replacement.
+	jsonOK(w, struct {
+		returnResponse
+		Exchange *exchangeResult `json:"exchange,omitempty"`
+	}{h.withOrderNumber(ctx, tid, updated), exchange})
 }
 
 // cloneReturnMetadata returns a shallow copy of a return's metadata map so callers can add keys
