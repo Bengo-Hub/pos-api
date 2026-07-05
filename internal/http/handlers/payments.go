@@ -350,7 +350,9 @@ func (h *PaymentHandler) ListOrderPayments(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	list, err := h.paymentSvc.ListOrderPayments(r.Context(), tid, orderID)
+	// Detailed rows: tender name/type, note, and a voidable flag for the View Payments
+	// modal actions (raw rows only carry tender_id + a JSON blob).
+	list, err := h.paymentSvc.ListOrderPaymentsDetailed(r.Context(), tid, orderID)
 	if err != nil {
 		h.log.Error("list payments failed", zap.Error(err))
 		jsonError(w, "internal error", http.StatusInternalServerError)

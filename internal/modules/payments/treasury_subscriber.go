@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 
 	sharedevents "github.com/Bengo-Hub/shared-events"
 	"github.com/google/uuid"
@@ -114,11 +115,32 @@ func (s *TreasurySubscriber) subscribePaymentSuccess(js nats.JetStreamContext) e
 			return
 		}
 		tenantID, _ := uuid.Parse(evt.TenantID)
-		if err := s.paymentSvc.ConfirmPaymentByIntentID(context.Background(), tenantID, intentID); err != nil {
+		// Pass the amount treasury ACTUALLY settled (payload "amount", stringified decimal)
+		// so the local pending row is corrected if the captured amount differs from the
+		// intent's opening amount — a payment can only count what was really collected.
+		settled := parseEventAmount(evt.Payload["amount"])
+		if err := s.paymentSvc.ConfirmPaymentByIntentID(context.Background(), tenantID, intentID, settled); err != nil {
 			s.log.Error("treasury.payment.succeeded: confirm payment", zap.String("intent", intentID), zap.Error(err))
 		}
 	}, nats.Durable("pos-treasury-payment-succeeded"), nats.ManualAck())
 	return nil
+}
+
+// parseEventAmount coerces an event payload amount (stringified decimal from treasury, or a
+// raw JSON number) to float64; 0 means "unknown — keep the locally recorded amount".
+func parseEventAmount(v any) float64 {
+	switch t := v.(type) {
+	case string:
+		f, err := strconv.ParseFloat(t, 64)
+		if err != nil {
+			return 0
+		}
+		return f
+	case float64:
+		return t
+	default:
+		return 0
+	}
 }
 
 func (s *TreasurySubscriber) subscribePaymentFailed(js nats.JetStreamContext) error {

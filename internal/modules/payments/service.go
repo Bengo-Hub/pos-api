@@ -424,10 +424,13 @@ func staffCreditFromOrder(order *ent.POSOrder) (staffID uuid.UUID, months int, o
 	return id, months, true
 }
 
-// ConfirmPaymentByIntentID is called by the treasury.payment.success NATS subscriber.
+// ConfirmPaymentByIntentID is called by the treasury.payment.succeeded NATS subscriber.
 // It finds the pending local payment for the given treasury intent ID and marks it completed,
-// then completes the order if fully paid.
-func (s *Service) ConfirmPaymentByIntentID(ctx context.Context, tenantID uuid.UUID, intentID string) error {
+// then completes the order if fully paid. settledAmount is the amount treasury ACTUALLY
+// captured (0 = unknown): when it differs from the pending row's opening amount, the row is
+// corrected so paid_total only ever counts money that was really collected — an intent
+// opened for the full total but partially captured must not flip the order to paid.
+func (s *Service) ConfirmPaymentByIntentID(ctx context.Context, tenantID uuid.UUID, intentID string, settledAmount float64) error {
 	payments, err := s.client.POSPayment.Query().
 		Where(pospayment.ExternalReference(intentID)).
 		WithOrder().
@@ -440,10 +443,23 @@ func (s *Service) ConfirmPaymentByIntentID(ctx context.Context, tenantID uuid.UU
 		if p.Status == StatusCompleted {
 			continue
 		}
-		_, err := s.client.POSPayment.UpdateOne(p).
-			SetStatus(StatusCompleted).
-			Save(ctx)
-		if err != nil {
+		upd := s.client.POSPayment.UpdateOne(p).SetStatus(StatusCompleted)
+		if settledAmount > 0 && settledAmount != p.Amount {
+			s.log.Warn("treasury settled amount differs from pending payment — correcting local row",
+				zap.String("payment_id", p.ID.String()),
+				zap.Float64("pending_amount", p.Amount),
+				zap.Float64("settled_amount", settledAmount))
+			upd = upd.SetAmount(settledAmount)
+		}
+		// Mark the row gateway-settled so it can never be edited/voided at the till —
+		// reversing gateway money must go through the refund flow.
+		data := p.PaymentData
+		if data == nil {
+			data = map[string]any{}
+		}
+		data["settled_via"] = "treasury_gateway"
+		upd = upd.SetPaymentData(data)
+		if _, err := upd.Save(ctx); err != nil {
 			return fmt.Errorf("payments: confirm payment %s: %w", p.ID, err)
 		}
 		if p.Edges.Order != nil {

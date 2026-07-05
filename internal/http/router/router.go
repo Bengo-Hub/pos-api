@@ -408,6 +408,17 @@ func New(
 						pos.With(outletmw.RequireServicePermission(rbacSvc,
 							"pos.payments.view", "pos.payments.view_own", "pos.payments.manage")).
 							Get("/orders/{orderID}/payments", payments.ListOrderPayments)
+						// View-Payments modal actions — manager-only. Edit touches descriptive
+						// fields only (never the amount); delete is a soft VOID (paid_total
+						// recompute + treasury reversal); notify sends the customer a
+						// payment-received confirmation.
+						paymentsManage := outletmw.RequireServicePermission(rbacSvc, "pos.payments.manage")
+						pos.With(paymentsManage).
+							Patch("/orders/{orderID}/payments/{paymentID}", payments.UpdateOrderPayment)
+						pos.With(paymentsManage).
+							Delete("/orders/{orderID}/payments/{paymentID}", payments.VoidOrderPayment)
+						pos.With(paymentsManage).
+							Post("/orders/{orderID}/payments/{paymentID}/notify", payments.NotifyOrderPayment)
 						pos.Get("/orders/{orderID}/payment-status/stream", payments.StreamPaymentStatus)
 						// Bank list + account verification (proxied to treasury S2S Paystack) for the
 						// receipt payment-display bank settings.

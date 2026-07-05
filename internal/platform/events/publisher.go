@@ -86,6 +86,14 @@ func (p *Publisher) PublishSaleNotificationRequested(ctx context.Context, tenant
 	return p.publish(ctx, tenantID, "sale.notification_requested", data)
 }
 
+// PublishPaymentReceivedNotification publishes pos.payment.received_notification — an
+// explicit request (the View-Payments "Send Payment Received Notification" action) to send
+// the customer a confirmation for ONE payment. Consumed by notifications-service; distinct
+// from sale.notification_requested, which re-sends the full receipt/invoice.
+func (p *Publisher) PublishPaymentReceivedNotification(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {
+	return p.publish(ctx, tenantID, "payment.received_notification", data)
+}
+
 // PublishDrawerClosed publishes a pos.drawer.closed event consumed by treasury-api for cash position ledger.
 func (p *Publisher) PublishDrawerClosed(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {
 	return p.publish(ctx, tenantID, "drawer.closed", data)
