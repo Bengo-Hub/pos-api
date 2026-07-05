@@ -1,0 +1,184 @@
+// Command print-agent is a tiny local companion the POS operator runs ON the terminal (like QZ Tray).
+//
+// Because it runs on the terminal it can do what a browser and a cloud pos-api cannot:
+//   - scan the terminal's own LAN for receipt/network printers (mDNS + TCP 9100/631/515 + optional SNMP), and
+//   - send raw ESC/POS bytes straight to a network printer by IP:port (e.g. a cash-drawer kick).
+//
+// It serves a minimal HTTP API on loopback (127.0.0.1:9330 by default). Loopback is a "potentially
+// trustworthy" secure context, so the HTTPS POS web app may call it (Chrome/Edge/Firefox). Every
+// response is CORS-open (reflecting the request Origin) since the API is read-only discovery plus a
+// raw-print relay bound to loopback.
+//
+//	go run ./cmd/print-agent                 # bind 127.0.0.1:9330
+//	go run ./cmd/print-agent -addr :9330     # bind all interfaces (kiosk on a trusted LAN)
+//	go run ./cmd/print-agent -snmp           # SNMP-name bare 9100 printers during discovery
+package main
+
+import (
+	"context"
+	"encoding/hex"
+	"encoding/json"
+	"flag"
+	"log"
+	"net"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/bengobox/pos-service/internal/modules/printing/discovery"
+)
+
+const version = "1.0.0"
+
+func main() {
+	var (
+		addr        = flag.String("addr", "127.0.0.1:9330", "listen address (loopback by default)")
+		defaultSNMP = flag.Bool("snmp", false, "SNMP-probe sysName for bare 9100 printers by default")
+		timeout     = flag.Duration("timeout", 4*time.Second, "per-scan timeout")
+	)
+	flag.Parse()
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/health", withCORS(handleHealth))
+	mux.HandleFunc("/discover", withCORS(handleDiscover(*defaultSNMP, *timeout)))
+	mux.HandleFunc("/print", withCORS(handlePrint))
+
+	srv := &http.Server{
+		Addr:              *addr,
+		Handler:           mux,
+		ReadHeaderTimeout: 5 * time.Second,
+	}
+	log.Printf("pos print-agent %s listening on http://%s", version, *addr)
+	if err := srv.ListenAndServe(); err != nil {
+		log.Fatalf("print-agent: %v", err)
+	}
+}
+
+// withCORS reflects the request Origin and answers preflight, so the HTTPS POS page can call the
+// loopback agent. The API exposes only LAN printer discovery and a raw-print relay — no credentials.
+func withCORS(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		origin := r.Header.Get("Origin")
+		if origin == "" {
+			origin = "*"
+		}
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+		w.Header().Set("Vary", "Origin")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		next(w, r)
+	}
+}
+
+func writeJSON(w http.ResponseWriter, status int, v any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(v)
+}
+
+func handleHealth(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "version": version, "agent": "pos-print-agent"})
+}
+
+// handleDiscover scans the terminal's LAN and returns the printers found.
+// Query params: ?cidr=192.168.0.0/24[,...]  ?snmp=true
+func handleDiscover(defaultSNMP bool, timeout time.Duration) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		snmp := defaultSNMP
+		if v := strings.TrimSpace(r.URL.Query().Get("snmp")); v != "" {
+			snmp = strings.EqualFold(v, "true")
+		}
+		var cidrs []string
+		if c := strings.TrimSpace(r.URL.Query().Get("cidr")); c != "" {
+			for _, p := range strings.Split(c, ",") {
+				if p = strings.TrimSpace(p); p != "" {
+					cidrs = append(cidrs, p)
+				}
+			}
+		}
+
+		ctx, cancel := context.WithTimeout(r.Context(), timeout+6*time.Second)
+		defer cancel()
+
+		printers, err := discovery.Discover(ctx, discovery.Options{CIDRs: cidrs, Timeout: timeout, SNMP: snmp})
+		if err != nil {
+			writeJSON(w, http.StatusOK, map[string]any{"printers": []any{}, "note": "discovery error: " + err.Error()})
+			return
+		}
+		out := make([]map[string]any, 0, len(printers))
+		for _, p := range printers {
+			out = append(out, map[string]any{"name": p.Name, "ip": p.IP, "port": p.Port, "source": p.Source, "model": p.Model})
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"printers": out})
+	}
+}
+
+type printRequest struct {
+	IP     string `json:"ip"`
+	Port   int    `json:"port"`
+	Format string `json:"format"` // "rawhex" (hex string) | "raw"/"text" (utf-8)
+	Data   string `json:"data"`
+}
+
+// handlePrint relays raw ESC/POS bytes to a network printer by IP:port (default 9100). Used for the
+// cash-drawer kick and plain-text tickets when there is no QZ Tray bridge on the terminal.
+func handlePrint(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]any{"ok": false, "error": "POST only"})
+		return
+	}
+	var req printRequest
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "invalid body"})
+		return
+	}
+	if net.ParseIP(strings.TrimSpace(req.IP)) == nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "invalid ip"})
+		return
+	}
+	port := req.Port
+	if port <= 0 || port > 65535 {
+		port = 9100
+	}
+
+	var payload []byte
+	switch strings.ToLower(req.Format) {
+	case "rawhex", "hex":
+		b, err := hex.DecodeString(strings.ReplaceAll(req.Data, " ", ""))
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "bad hex data"})
+			return
+		}
+		payload = b
+	default: // raw / text
+		payload = []byte(req.Data)
+	}
+	if len(payload) == 0 {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "empty data"})
+		return
+	}
+
+	if err := sendRaw(req.IP, port, payload); err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+// sendRaw opens a short-lived TCP connection to a raw (JetDirect/9100) printer and writes the bytes.
+func sendRaw(ip string, port int, data []byte) error {
+	addr := net.JoinHostPort(ip, strconv.Itoa(port))
+	conn, err := net.DialTimeout("tcp", addr, 4*time.Second)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	_ = conn.SetWriteDeadline(time.Now().Add(6 * time.Second))
+	_, err = conn.Write(data)
+	return err
+}
