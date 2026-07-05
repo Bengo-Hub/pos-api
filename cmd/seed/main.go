@@ -679,7 +679,10 @@ func seedRBACRoles(ctx context.Context, client *ent.Client) error {
 			name:        "Cashier",
 			description: "Process orders, payments, and manage cash drawer",
 			permissions: []string{
-				"pos.orders.add", "pos.orders.view", "pos.orders.view_own", "pos.orders.change_own",
+				// view_own (NOT view): cashiers see only their OWN sales/drafts server-side
+				// (REQ-007 — "My Sales"). Shared ACTIVE bills stay visible via the orders
+				// handler's open-order carve-out so till hand-offs keep working.
+				"pos.orders.add", "pos.orders.view_own", "pos.orders.change_own",
 				// Void is granted so the cashier can INITIATE a void; they are not a manager
 				// override role, so the void still requires manager approval (scan card / PIN /
 				// one-time code) before it lands. Without this the void button is hidden for them.
@@ -942,6 +945,20 @@ func seedRBACRoles(ctx context.Context, client *ent.Client) error {
 				if err != nil {
 					// Ignore duplicates (unique constraint violation)
 					continue
+				}
+			}
+			// Exact reconcile for the shared GLOBAL system role: revoke grants that were
+			// REMOVED from the definition (e.g. cashier lost pos.orders.view for REQ-007
+			// per-cashier scoping). Tenant-scoped copies stay add-only — they may carry
+			// deliberate per-tenant customizations we must not strip.
+			if role.TenantID == nil && len(permIDs) > 0 {
+				if _, derr := client.POSRolePermission.Delete().
+					Where(
+						posrolepermission.RoleID(role.ID),
+						posrolepermission.PermissionIDNotIn(permIDs...),
+					).
+					Exec(ctx); derr != nil {
+					return fmt.Errorf("reconcile (revoke) perms for global role %s: %w", rd.code, derr)
 				}
 			}
 		}

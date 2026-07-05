@@ -351,6 +351,8 @@ func New(ctx context.Context) (*App, error) {
 	paymentHandler.SetRBAC(rbacSvc)
 	// Cost price is only serialized to callers with pos.catalog.view_cost (manager/admin).
 	catalogHandler.SetRBAC(rbacSvc)
+	// Per-cashier sales visibility (pos.orders.view_own) needs the RBAC fallback on order reads.
+	orderHandler.SetRBAC(rbacSvc)
 
 	// Wire RBAC service into identity for JIT role assignment from JWT claims
 	identitySvc.SetRBACService(rbacSvc)

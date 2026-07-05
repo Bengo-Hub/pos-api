@@ -7,6 +7,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -36,6 +37,16 @@ const (
 	StatusRefunded       = "refunded"
 	StatusVoided         = "voided"
 )
+
+// ErrInvalidOrderSubtype is returned when an order create carries an order_subtype outside
+// the schema enum. Handlers map it to a 400 (it used to surface as an opaque 500).
+var ErrInvalidOrderSubtype = errors.New("invalid order_subtype")
+
+// validOrderSubtypes mirrors the posorder.OrderSubtype enum values. "draft" is deliberately
+// absent — it is an order STATUS, not a subtype (legacy clients send it from Save as Draft).
+var validOrderSubtypes = map[string]struct{}{
+	"dine_in": {}, "takeaway": {}, "room_service": {}, "delivery": {}, "bar_tab": {}, "retail": {},
+}
 
 // validTransitions defines allowed status transitions.
 var validTransitions = map[string][]string{
@@ -282,10 +293,20 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent
 	}
 	totals := s.CalculateTotals(req.Lines, discount)
 
-	// Resolve order subtype, defaulting to dine_in.
-	subtype := req.OrderSubtype
-	if subtype == "" {
+	// Resolve order subtype, defaulting to dine_in. "draft" is a status, not a subtype —
+	// the Save-as-Draft flows send it here, so normalize it to retail (retail orders start
+	// in draft status anyway, see initialStatus below). Anything else outside the enum is a
+	// client error, surfaced as ErrInvalidOrderSubtype instead of a 500 from Ent validation.
+	subtype := strings.ToLower(strings.TrimSpace(req.OrderSubtype))
+	switch {
+	case subtype == "":
 		subtype = "dine_in"
+	case subtype == "draft":
+		subtype = "retail"
+	default:
+		if _, ok := validOrderSubtypes[subtype]; !ok {
+			return nil, fmt.Errorf("%w: %q", ErrInvalidOrderSubtype, req.OrderSubtype)
+		}
 	}
 
 	// Carry table_id in metadata (no dedicated DB column yet).

@@ -1,4 +1,4 @@
-h1:iBVFY0ZqlyOFDMCnBQuAM/kw9odu6Scj+yzJoiR2Yp0=
+h1:8fR4QlBxV+mKCUTINmTtXZOpLtw8wcl4jTxzqZZlHTU=
 20260324210314_initial_schema.sql h1:L7ICP+7BHePtjHfQRRY9yP85A6Q9SyiYsqSvGK7paxA=
 20260403120000_fix_outbox_events_schema.sql h1:VNlTFTGCLBkz4+UvvvqZf5y5tyS0FfS1AXy770Ybc8o=
 20260507090905_hotel_module.sql h1:PGKqdzMQaeFLALmRXUmGsXjha3Rt42EldWJceFVNGDo=
@@ -69,3 +69,4 @@ h1:iBVFY0ZqlyOFDMCnBQuAM/kw9odu6Scj+yzJoiR2Yp0=
 20260705010000_add_staff_purchase_link_and_layaway_party.sql h1:cc2BmUjrR9ozXxfPeGDhOJ4Roe5PW3YVeXazdy32BXk=
 20260705020000_add_staff_member_erp_employee_number.sql h1:pRCc0r8jRVCX9oP2lzUV7+6lF9MBKOJoE6gWkgAiqWo=
 20260705120000_add_pos_order_source.sql h1:i0oHHtcxp9CuxtEaUKMyd1eFSsfQOIwclF+y2ewzN9c=
+20260705211512_add_posorder_paid_total.sql h1:kVvctFkC2LgF9ChEvi5xGE0rwUTgsp91c6a6Nm0IRjY=

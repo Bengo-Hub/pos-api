@@ -16,6 +16,7 @@ import (
 	entla "github.com/bengobox/pos-service/internal/ent/loyaltyaccount"
 	entlp "github.com/bengobox/pos-service/internal/ent/loyaltyprogram"
 	entlt "github.com/bengobox/pos-service/internal/ent/loyaltytransaction"
+	entpospayment "github.com/bengobox/pos-service/internal/ent/pospayment"
 	entref "github.com/bengobox/pos-service/internal/ent/referral"
 	enttender "github.com/bengobox/pos-service/internal/ent/tender"
 	"github.com/bengobox/pos-service/internal/platform/events"
@@ -714,6 +715,14 @@ func (h *LoyaltyHandler) RedeemToOrder(w http.ResponseWriter, r *http.Request) {
 		h.log.Error("redeem-to-order: failed to record loyalty payment", zap.Error(err))
 		jsonError(w, "failed to record loyalty payment", http.StatusInternalServerError)
 		return
+	}
+	// Keep the order's stored paid_total (payment-status source of truth) in sync — this
+	// handler records a completed payment outside the payments service's recompute path.
+	if paid, aggErr := h.db.POSPayment.Query().
+		Where(entpospayment.OrderID(orderID), entpospayment.Status("completed")).
+		Aggregate(ent.Sum(entpospayment.FieldAmount)).
+		Float64(r.Context()); aggErr == nil {
+		_ = h.db.POSOrder.UpdateOneID(orderID).SetPaidTotal(paid).Exec(r.Context())
 	}
 
 	jsonOK(w, map[string]any{

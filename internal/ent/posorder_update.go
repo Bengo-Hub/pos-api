@@ -254,6 +254,27 @@ func (_u *POSOrderUpdate) AddTotalAmount(v float64) *POSOrderUpdate {
 	return _u
 }
 
+// SetPaidTotal sets the "paid_total" field.
+func (_u *POSOrderUpdate) SetPaidTotal(v float64) *POSOrderUpdate {
+	_u.mutation.ResetPaidTotal()
+	_u.mutation.SetPaidTotal(v)
+	return _u
+}
+
+// SetNillablePaidTotal sets the "paid_total" field if the given value is not nil.
+func (_u *POSOrderUpdate) SetNillablePaidTotal(v *float64) *POSOrderUpdate {
+	if v != nil {
+		_u.SetPaidTotal(*v)
+	}
+	return _u
+}
+
+// AddPaidTotal adds value to the "paid_total" field.
+func (_u *POSOrderUpdate) AddPaidTotal(v float64) *POSOrderUpdate {
+	_u.mutation.AddPaidTotal(v)
+	return _u
+}
+
 // SetCurrency sets the "currency" field.
 func (_u *POSOrderUpdate) SetCurrency(v string) *POSOrderUpdate {
 	_u.mutation.SetCurrency(v)
@@ -812,6 +833,12 @@ func (_u *POSOrderUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.AddedTotalAmount(); ok {
 		_spec.AddField(posorder.FieldTotalAmount, field.TypeFloat64, value)
 	}
+	if value, ok := _u.mutation.PaidTotal(); ok {
+		_spec.SetField(posorder.FieldPaidTotal, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedPaidTotal(); ok {
+		_spec.AddField(posorder.FieldPaidTotal, field.TypeFloat64, value)
+	}
 	if value, ok := _u.mutation.Currency(); ok {
 		_spec.SetField(posorder.FieldCurrency, field.TypeString, value)
 	}
@@ -1282,6 +1309,27 @@ func (_u *POSOrderUpdateOne) SetNillableTotalAmount(v *float64) *POSOrderUpdateO
 // AddTotalAmount adds value to the "total_amount" field.
 func (_u *POSOrderUpdateOne) AddTotalAmount(v float64) *POSOrderUpdateOne {
 	_u.mutation.AddTotalAmount(v)
+	return _u
+}
+
+// SetPaidTotal sets the "paid_total" field.
+func (_u *POSOrderUpdateOne) SetPaidTotal(v float64) *POSOrderUpdateOne {
+	_u.mutation.ResetPaidTotal()
+	_u.mutation.SetPaidTotal(v)
+	return _u
+}
+
+// SetNillablePaidTotal sets the "paid_total" field if the given value is not nil.
+func (_u *POSOrderUpdateOne) SetNillablePaidTotal(v *float64) *POSOrderUpdateOne {
+	if v != nil {
+		_u.SetPaidTotal(*v)
+	}
+	return _u
+}
+
+// AddPaidTotal adds value to the "paid_total" field.
+func (_u *POSOrderUpdateOne) AddPaidTotal(v float64) *POSOrderUpdateOne {
+	_u.mutation.AddPaidTotal(v)
 	return _u
 }
 
@@ -1872,6 +1920,12 @@ func (_u *POSOrderUpdateOne) sqlSave(ctx context.Context) (_node *POSOrder, err 
 	}
 	if value, ok := _u.mutation.AddedTotalAmount(); ok {
 		_spec.AddField(posorder.FieldTotalAmount, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.PaidTotal(); ok {
+		_spec.SetField(posorder.FieldPaidTotal, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedPaidTotal(); ok {
+		_spec.AddField(posorder.FieldPaidTotal, field.TypeFloat64, value)
 	}
 	if value, ok := _u.mutation.Currency(); ok {
 		_spec.SetField(posorder.FieldCurrency, field.TypeString, value)

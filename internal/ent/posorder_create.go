@@ -145,6 +145,20 @@ func (_c *POSOrderCreate) SetTotalAmount(v float64) *POSOrderCreate {
 	return _c
 }
 
+// SetPaidTotal sets the "paid_total" field.
+func (_c *POSOrderCreate) SetPaidTotal(v float64) *POSOrderCreate {
+	_c.mutation.SetPaidTotal(v)
+	return _c
+}
+
+// SetNillablePaidTotal sets the "paid_total" field if the given value is not nil.
+func (_c *POSOrderCreate) SetNillablePaidTotal(v *float64) *POSOrderCreate {
+	if v != nil {
+		_c.SetPaidTotal(*v)
+	}
+	return _c
+}
+
 // SetCurrency sets the "currency" field.
 func (_c *POSOrderCreate) SetCurrency(v string) *POSOrderCreate {
 	_c.mutation.SetCurrency(v)
@@ -509,6 +523,10 @@ func (_c *POSOrderCreate) defaults() {
 		v := posorder.DefaultDiscountTotal
 		_c.mutation.SetDiscountTotal(v)
 	}
+	if _, ok := _c.mutation.PaidTotal(); !ok {
+		v := posorder.DefaultPaidTotal
+		_c.mutation.SetPaidTotal(v)
+	}
 	if _, ok := _c.mutation.Currency(); !ok {
 		v := posorder.DefaultCurrency
 		_c.mutation.SetCurrency(v)
@@ -594,6 +612,9 @@ func (_c *POSOrderCreate) check() error {
 	}
 	if _, ok := _c.mutation.TotalAmount(); !ok {
 		return &ValidationError{Name: "total_amount", err: errors.New(`ent: missing required field "POSOrder.total_amount"`)}
+	}
+	if _, ok := _c.mutation.PaidTotal(); !ok {
+		return &ValidationError{Name: "paid_total", err: errors.New(`ent: missing required field "POSOrder.paid_total"`)}
 	}
 	if _, ok := _c.mutation.Currency(); !ok {
 		return &ValidationError{Name: "currency", err: errors.New(`ent: missing required field "POSOrder.currency"`)}
@@ -717,6 +738,10 @@ func (_c *POSOrderCreate) createSpec() (*POSOrder, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.TotalAmount(); ok {
 		_spec.SetField(posorder.FieldTotalAmount, field.TypeFloat64, value)
 		_node.TotalAmount = value
+	}
+	if value, ok := _c.mutation.PaidTotal(); ok {
+		_spec.SetField(posorder.FieldPaidTotal, field.TypeFloat64, value)
+		_node.PaidTotal = value
 	}
 	if value, ok := _c.mutation.Currency(); ok {
 		_spec.SetField(posorder.FieldCurrency, field.TypeString, value)
@@ -1083,6 +1108,24 @@ func (u *POSOrderUpsert) UpdateTotalAmount() *POSOrderUpsert {
 // AddTotalAmount adds v to the "total_amount" field.
 func (u *POSOrderUpsert) AddTotalAmount(v float64) *POSOrderUpsert {
 	u.Add(posorder.FieldTotalAmount, v)
+	return u
+}
+
+// SetPaidTotal sets the "paid_total" field.
+func (u *POSOrderUpsert) SetPaidTotal(v float64) *POSOrderUpsert {
+	u.Set(posorder.FieldPaidTotal, v)
+	return u
+}
+
+// UpdatePaidTotal sets the "paid_total" field to the value that was provided on create.
+func (u *POSOrderUpsert) UpdatePaidTotal() *POSOrderUpsert {
+	u.SetExcluded(posorder.FieldPaidTotal)
+	return u
+}
+
+// AddPaidTotal adds v to the "paid_total" field.
+func (u *POSOrderUpsert) AddPaidTotal(v float64) *POSOrderUpsert {
+	u.Add(posorder.FieldPaidTotal, v)
 	return u
 }
 
@@ -1658,6 +1701,27 @@ func (u *POSOrderUpsertOne) AddTotalAmount(v float64) *POSOrderUpsertOne {
 func (u *POSOrderUpsertOne) UpdateTotalAmount() *POSOrderUpsertOne {
 	return u.Update(func(s *POSOrderUpsert) {
 		s.UpdateTotalAmount()
+	})
+}
+
+// SetPaidTotal sets the "paid_total" field.
+func (u *POSOrderUpsertOne) SetPaidTotal(v float64) *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetPaidTotal(v)
+	})
+}
+
+// AddPaidTotal adds v to the "paid_total" field.
+func (u *POSOrderUpsertOne) AddPaidTotal(v float64) *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.AddPaidTotal(v)
+	})
+}
+
+// UpdatePaidTotal sets the "paid_total" field to the value that was provided on create.
+func (u *POSOrderUpsertOne) UpdatePaidTotal() *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdatePaidTotal()
 	})
 }
 
@@ -2450,6 +2514,27 @@ func (u *POSOrderUpsertBulk) AddTotalAmount(v float64) *POSOrderUpsertBulk {
 func (u *POSOrderUpsertBulk) UpdateTotalAmount() *POSOrderUpsertBulk {
 	return u.Update(func(s *POSOrderUpsert) {
 		s.UpdateTotalAmount()
+	})
+}
+
+// SetPaidTotal sets the "paid_total" field.
+func (u *POSOrderUpsertBulk) SetPaidTotal(v float64) *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetPaidTotal(v)
+	})
+}
+
+// AddPaidTotal adds v to the "paid_total" field.
+func (u *POSOrderUpsertBulk) AddPaidTotal(v float64) *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.AddPaidTotal(v)
+	})
+}
+
+// UpdatePaidTotal sets the "paid_total" field to the value that was provided on create.
+func (u *POSOrderUpsertBulk) UpdatePaidTotal() *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdatePaidTotal()
 	})
 }
 

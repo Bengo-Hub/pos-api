@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
 	"time"
@@ -25,6 +26,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/posorderline"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
 	"github.com/bengobox/pos-service/internal/ent/tender"
+	outletmw "github.com/bengobox/pos-service/internal/http/middleware"
 	"github.com/bengobox/pos-service/internal/modules/orders"
 	"github.com/bengobox/pos-service/internal/platform/subscriptions"
 )
@@ -36,6 +38,8 @@ type POSOrderHandler struct {
 	orderSvc   *orders.Service
 	subsClient *subscriptions.Client
 	auditSvc   *audit.Service
+	// rbac backs the per-cashier visibility scoping (pos.orders.view_own) on order reads.
+	rbac outletmw.PermissionChecker
 	// terminalSecret verifies manager-PIN step-up approval tokens for sensitive actions.
 	terminalSecret []byte
 }
@@ -46,6 +50,32 @@ func NewPOSOrderHandler(log *zap.Logger, client *ent.Client, orderSvc *orders.Se
 
 // SetAuditService wires the centralized audit trail for void/line-removal events.
 func (h *POSOrderHandler) SetAuditService(a *audit.Service) { h.auditSvc = a }
+
+// SetRBAC wires the local RBAC fallback used by the per-cashier visibility scoping.
+func (h *POSOrderHandler) SetRBAC(rbac outletmw.PermissionChecker) { h.rbac = rbac }
+
+// ownOrdersPredicate returns the visibility predicate for principals limited to their OWN
+// sales (REQ-007): users holding pos.orders.view_own but none of view/change/manage see
+// only orders they created, plus shared ACTIVE orders (open / pending_payment) so till
+// hand-offs — a cashier settling a waiter's open bill — keep working. Full-view principals
+// (and superusers/platform owners, via HasServicePermission's bypass) get no restriction.
+func (h *POSOrderHandler) ownOrdersPredicate(r *http.Request) (predicate.POSOrder, bool) {
+	if outletmw.HasServicePermission(r, h.rbac, "pos.orders.view", "pos.orders.change", "pos.orders.manage") {
+		return nil, false
+	}
+	claims, ok := authclient.ClaimsFromContext(r.Context())
+	if !ok || claims == nil || claims.Subject == "" {
+		return nil, false
+	}
+	uid, err := uuid.Parse(claims.Subject)
+	if err != nil || uid == uuid.Nil {
+		return nil, false
+	}
+	return posorder.Or(
+		posorder.UserID(uid),
+		posorder.StatusIn(orders.StatusOpen, orders.StatusPendingPayment),
+	), true
+}
 
 // SetTerminalSecret wires the HMAC secret used to verify manager step-up tokens.
 func (h *POSOrderHandler) SetTerminalSecret(s []byte) { h.terminalSecret = s }
@@ -107,6 +137,12 @@ func (h *POSOrderHandler) ListOrders(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	filters := []predicate.POSOrder{posorder.TenantID(tid)}
 
+	// Per-cashier scoping (REQ-007): view_own-only principals see their own orders (+ shared
+	// active bills). Enforced server-side so direct API calls can't bypass the "My Sales" view.
+	if ownPred, scoped := h.ownOrdersPredicate(r); scoped {
+		filters = append(filters, ownPred)
+	}
+
 	// Business Location: an explicit ?outlet_id= query param wins (the All-Sales location
 	// filter). "all" (admins) lists every outlet. Absent → scope to the header outlet context.
 	if outletParam := q.Get("outlet_id"); outletParam != "" {
@@ -160,14 +196,31 @@ func (h *POSOrderHandler) ListOrders(w http.ResponseWriter, r *http.Request) {
 			posorder.CustomerNameContainsFold(cust),
 		))
 	}
-	// Payment status → status-group mapping (this POS settles fully on completion).
+	// Payment status — driven by the stored paid_total column (sum of completed payments,
+	// maintained by the payments service) so the filter provably agrees with the per-row
+	// badge from derivePaymentStatus: paid = settled in full, partial = 0 < paid < total,
+	// due = nothing paid yet. Terminal statuses (refunded/voided/cancelled) show as their
+	// own badge and are excluded from all three buckets.
 	switch strings.ToLower(q.Get("payment_status")) {
 	case "paid":
-		filters = append(filters, posorder.Status("completed"))
-	case "due", "unpaid":
-		filters = append(filters, posorder.StatusIn("open", "pending_payment", "draft"))
+		filters = append(filters, posorder.Or(
+			posorder.Status("completed"),
+			posorder.And(
+				posorder.StatusNotIn("refunded", "voided", "cancelled"),
+				paidCoversTotal(),
+			),
+		))
 	case "partial":
-		filters = append(filters, posorder.And(posorder.HasPayments(), posorder.StatusNotIn("completed", "cancelled", "voided")))
+		filters = append(filters, posorder.And(
+			posorder.StatusNotIn("completed", "refunded", "voided", "cancelled"),
+			posorder.PaidTotalGT(0),
+			paidBelowTotal(),
+		))
+	case "due", "unpaid":
+		filters = append(filters, posorder.And(
+			posorder.StatusNotIn("completed", "refunded", "voided", "cancelled"),
+			posorder.PaidTotalLTE(0),
+		))
 	}
 	// Payment method → resolve tenders of that type for the tenant, then match orders that
 	// have a payment on one of them.
@@ -246,12 +299,11 @@ func (h *POSOrderHandler) enrichOrderList(ctx context.Context, tenantID uuid.UUI
 
 	items := make([]orderListItem, 0, len(list))
 	for _, o := range list {
-		paid := 0.0
+		// paid_total is the stored sum of completed payments — the same value the
+		// payment-status filter queries against, so badge and filter always agree.
+		paid := o.PaidTotal
 		methods := map[string]struct{}{}
 		for _, pay := range o.Edges.Payments {
-			if pay.Status == "completed" {
-				paid += pay.Amount
-			}
 			if t, ok := tenderType[pay.TenderID]; ok && t != "" {
 				methods[t] = struct{}{}
 			}
@@ -270,6 +322,25 @@ func (h *POSOrderHandler) enrichOrderList(ctx context.Context, tenantID uuid.UUI
 		})
 	}
 	return items
+}
+
+// paidCoversTotal matches orders whose stored paid_total settles the full total_amount
+// (with the same 1-cent tolerance derivePaymentStatus uses). Zero-total orders are
+// excluded — they display as "due", never "paid".
+func paidCoversTotal() predicate.POSOrder {
+	return predicate.POSOrder(func(s *sql.Selector) {
+		s.Where(sql.And(
+			sql.GT(s.C(posorder.FieldTotalAmount), 0),
+			sql.ExprP(s.C(posorder.FieldPaidTotal)+" + 0.01 >= "+s.C(posorder.FieldTotalAmount)),
+		))
+	})
+}
+
+// paidBelowTotal matches orders whose stored paid_total does NOT settle total_amount.
+func paidBelowTotal() predicate.POSOrder {
+	return predicate.POSOrder(func(s *sql.Selector) {
+		s.Where(sql.ExprP(s.C(posorder.FieldPaidTotal) + " + 0.01 < " + s.C(posorder.FieldTotalAmount)))
+	})
 }
 
 // derivePaymentStatus maps an order's status + paid amount to a display payment status.
@@ -338,11 +409,13 @@ func (h *POSOrderHandler) GetOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Tenant (+ own-visibility) is the security boundary for a single-order read. The outlet
+	// context is deliberately NOT applied here: the All-Sales list spans outlets
+	// (outlet_id=all), and scoping this read to the caller's header/HQ outlet made every
+	// cross-outlet row 404 when opened (Sell Details / Return-by-Invoice defect).
 	whereArgs := []predicate.POSOrder{posorder.ID(orderID), posorder.TenantID(tid)}
-	if oidStr := httpware.GetOutletID(r.Context()); oidStr != "" {
-		if oid, parseErr := uuid.Parse(oidStr); parseErr == nil {
-			whereArgs = append(whereArgs, posorder.OutletID(oid))
-		}
+	if ownPred, scoped := h.ownOrdersPredicate(r); scoped {
+		whereArgs = append(whereArgs, ownPred)
 	}
 	order, err := h.client.POSOrder.Query().
 		Where(whereArgs...).
@@ -383,12 +456,11 @@ func (h *POSOrderHandler) GetOrderByNumber(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	// Tenant-scoped only — no outlet predicate (a receipt from any outlet must resolve; see
+	// GetOrder) and no view_own narrowing: Return-by-Invoice legitimately looks up sales rung
+	// up by OTHER cashiers (a customer returns goods to whoever is at the till). Knowing the
+	// exact receipt number is the lookup credential here.
 	whereArgs := []predicate.POSOrder{posorder.OrderNumber(orderNumber), posorder.TenantID(tid)}
-	if oidStr := httpware.GetOutletID(r.Context()); oidStr != "" {
-		if oid, parseErr := uuid.Parse(oidStr); parseErr == nil {
-			whereArgs = append(whereArgs, posorder.OutletID(oid))
-		}
-	}
 	order, err := h.client.POSOrder.Query().
 		Where(whereArgs...).
 		WithLines(func(q *ent.POSOrderLineQuery) { q.WithModifiers() }).
@@ -708,6 +780,10 @@ func (h *POSOrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 		Source:         input.Source,
 	})
 	if err != nil {
+		if errors.Is(err, orders.ErrInvalidOrderSubtype) {
+			jsonError(w, "invalid order_subtype: must be one of dine_in, takeaway, room_service, delivery, bar_tab, retail", http.StatusBadRequest)
+			return
+		}
 		h.log.Error("create order failed", zap.Error(err))
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return

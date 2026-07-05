@@ -42,6 +42,8 @@ const (
 	FieldDiscountTotal = "discount_total"
 	// FieldTotalAmount holds the string denoting the total_amount field in the database.
 	FieldTotalAmount = "total_amount"
+	// FieldPaidTotal holds the string denoting the paid_total field in the database.
+	FieldPaidTotal = "paid_total"
 	// FieldCurrency holds the string denoting the currency field in the database.
 	FieldCurrency = "currency"
 	// FieldOrderSubtype holds the string denoting the order_subtype field in the database.
@@ -127,6 +129,7 @@ var Columns = []string{
 	FieldTaxTotal,
 	FieldDiscountTotal,
 	FieldTotalAmount,
+	FieldPaidTotal,
 	FieldCurrency,
 	FieldOrderSubtype,
 	FieldRoomID,
@@ -167,6 +170,8 @@ var (
 	DefaultSource string
 	// DefaultDiscountTotal holds the default value on creation for the "discount_total" field.
 	DefaultDiscountTotal float64
+	// DefaultPaidTotal holds the default value on creation for the "paid_total" field.
+	DefaultPaidTotal float64
 	// DefaultCurrency holds the default value on creation for the "currency" field.
 	DefaultCurrency string
 	// DefaultMetadata holds the default value on creation for the "metadata" field.
@@ -292,6 +297,11 @@ func ByDiscountTotal(opts ...sql.OrderTermOption) OrderOption {
 // ByTotalAmount orders the results by the total_amount field.
 func ByTotalAmount(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldTotalAmount, opts...).ToFunc()
+}
+
+// ByPaidTotal orders the results by the paid_total field.
+func ByPaidTotal(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPaidTotal, opts...).ToFunc()
 }
 
 // ByCurrency orders the results by the currency field.

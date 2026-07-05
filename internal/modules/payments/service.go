@@ -279,7 +279,7 @@ func (s *Service) CreatePaymentIntent(ctx context.Context, req RecordPaymentRequ
 		return nil, fmt.Errorf("payments: record cash payment: %w", err)
 	}
 
-	s.completeOrderIfFullyPaid(ctx, order, req.Amount)
+	s.completeOrderIfFullyPaid(ctx, order)
 	return result, nil
 }
 
@@ -315,7 +315,7 @@ func (s *Service) recordCreditSale(ctx context.Context, order *ent.POSOrder, req
 				SetCurrency(currency).SetStatus(StatusCompleted).Save(ctx); err != nil {
 				return nil, fmt.Errorf("payments: record staff on-account payment: %w", err)
 			}
-			s.completeOrderIfFullyPaid(ctx, order, req.Amount)
+			s.completeOrderIfFullyPaid(ctx, order)
 			return &CreateIntentResult{IsCash: true}, nil
 		}
 	}
@@ -369,7 +369,7 @@ func (s *Service) recordCreditSale(ctx context.Context, order *ent.POSOrder, req
 		return nil, fmt.Errorf("payments: record on-account payment: %w", err)
 	}
 
-	s.completeOrderIfFullyPaid(ctx, order, req.Amount)
+	s.completeOrderIfFullyPaid(ctx, order)
 	return &CreateIntentResult{IsCash: true}, nil
 }
 
@@ -447,7 +447,7 @@ func (s *Service) ConfirmPaymentByIntentID(ctx context.Context, tenantID uuid.UU
 			return fmt.Errorf("payments: confirm payment %s: %w", p.ID, err)
 		}
 		if p.Edges.Order != nil {
-			s.completeOrderIfFullyPaid(ctx, p.Edges.Order, 0)
+			s.completeOrderIfFullyPaid(ctx, p.Edges.Order)
 		}
 	}
 	return nil
@@ -512,7 +512,7 @@ func (s *Service) RecordPayment(ctx context.Context, req RecordPaymentRequest) (
 		return nil, fmt.Errorf("payments: record failed: %w", err)
 	}
 
-	s.completeOrderIfFullyPaid(ctx, order, req.Amount)
+	s.completeOrderIfFullyPaid(ctx, order)
 	return payment, nil
 }
 
@@ -548,22 +548,46 @@ func (s *Service) outstandingBalance(ctx context.Context, order *ent.POSOrder) f
 	return 0
 }
 
-// completeOrderIfFullyPaid checks total payments and marks order completed when fully covered.
-func (s *Service) completeOrderIfFullyPaid(ctx context.Context, order *ent.POSOrder, additionalAmount float64) {
-	payments, err := s.client.POSPayment.Query().
-		Where(pospayment.OrderID(order.ID), pospayment.Status(StatusCompleted)).
-		All(ctx)
+// RecomputePaidTotal recalculates an order's paid_total from its COMPLETED payments and
+// persists it on the order. It is the single write path for paid_total — called after every
+// payment mutation (record, confirm, void/edit) — so the payment-status filter, the row
+// badge, and completeOrderIfFullyPaid all read one consistent value. Returns the new sum.
+func (s *Service) RecomputePaidTotal(ctx context.Context, orderID uuid.UUID) (float64, error) {
+	var agg []struct {
+		Sum float64 `json:"sum"`
+	}
+	err := s.client.POSPayment.Query().
+		Where(pospayment.OrderID(orderID), pospayment.Status(StatusCompleted)).
+		Aggregate(ent.Sum(pospayment.FieldAmount)).
+		Scan(ctx, &agg)
 	if err != nil {
+		return 0, fmt.Errorf("payments: sum completed payments: %w", err)
+	}
+	paid := 0.0
+	if len(agg) > 0 {
+		paid = agg[0].Sum
+	}
+	if err := s.client.POSOrder.UpdateOneID(orderID).SetPaidTotal(paid).Exec(ctx); err != nil {
+		return paid, fmt.Errorf("payments: store paid_total: %w", err)
+	}
+	return paid, nil
+}
+
+// completeOrderIfFullyPaid recomputes the order's paid_total and marks the order completed
+// when its completed payments cover the total.
+//
+// NOTE: this used to take an additionalAmount that was ADDED ON TOP of the queried sum —
+// but every caller had already persisted the payment row before calling, so the amount was
+// double-counted and any partial payment >= half the total wrongly completed the order
+// (root cause of "PAID badge with a positive Sell Due" / broken Partial filtering).
+func (s *Service) completeOrderIfFullyPaid(ctx context.Context, order *ent.POSOrder) {
+	totalPaid, err := s.RecomputePaidTotal(ctx, order.ID)
+	if err != nil {
+		s.log.Warn("recompute paid_total failed", zap.String("order_id", order.ID.String()), zap.Error(err))
 		return
 	}
 
-	var totalPaid float64
-	for _, p := range payments {
-		totalPaid += p.Amount
-	}
-	totalPaid += additionalAmount
-
-	if totalPaid >= order.TotalAmount {
+	if totalPaid+0.01 >= order.TotalAmount {
 		if err := s.orderSvc.ValidateStatusTransition(order.Status, orders.StatusCompleted); err == nil {
 			updated, updateErr := s.client.POSOrder.UpdateOne(order).
 				SetStatus(orders.StatusCompleted).

@@ -53113,6 +53113,8 @@ type POSOrderMutation struct {
 	adddiscount_total         *float64
 	total_amount              *float64
 	addtotal_amount           *float64
+	paid_total                *float64
+	addpaid_total             *float64
 	currency                  *string
 	order_subtype             *posorder.OrderSubtype
 	room_id                   *uuid.UUID
@@ -53828,6 +53830,62 @@ func (m *POSOrderMutation) AddedTotalAmount() (r float64, exists bool) {
 func (m *POSOrderMutation) ResetTotalAmount() {
 	m.total_amount = nil
 	m.addtotal_amount = nil
+}
+
+// SetPaidTotal sets the "paid_total" field.
+func (m *POSOrderMutation) SetPaidTotal(f float64) {
+	m.paid_total = &f
+	m.addpaid_total = nil
+}
+
+// PaidTotal returns the value of the "paid_total" field in the mutation.
+func (m *POSOrderMutation) PaidTotal() (r float64, exists bool) {
+	v := m.paid_total
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPaidTotal returns the old "paid_total" field's value of the POSOrder entity.
+// If the POSOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSOrderMutation) OldPaidTotal(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPaidTotal is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPaidTotal requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPaidTotal: %w", err)
+	}
+	return oldValue.PaidTotal, nil
+}
+
+// AddPaidTotal adds f to the "paid_total" field.
+func (m *POSOrderMutation) AddPaidTotal(f float64) {
+	if m.addpaid_total != nil {
+		*m.addpaid_total += f
+	} else {
+		m.addpaid_total = &f
+	}
+}
+
+// AddedPaidTotal returns the value that was added to the "paid_total" field in this mutation.
+func (m *POSOrderMutation) AddedPaidTotal() (r float64, exists bool) {
+	v := m.addpaid_total
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetPaidTotal resets all changes to the "paid_total" field.
+func (m *POSOrderMutation) ResetPaidTotal() {
+	m.paid_total = nil
+	m.addpaid_total = nil
 }
 
 // SetCurrency sets the "currency" field.
@@ -54927,7 +54985,7 @@ func (m *POSOrderMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *POSOrderMutation) Fields() []string {
-	fields := make([]string, 0, 32)
+	fields := make([]string, 0, 33)
 	if m.tenant_id != nil {
 		fields = append(fields, posorder.FieldTenantID)
 	}
@@ -54966,6 +55024,9 @@ func (m *POSOrderMutation) Fields() []string {
 	}
 	if m.total_amount != nil {
 		fields = append(fields, posorder.FieldTotalAmount)
+	}
+	if m.paid_total != nil {
+		fields = append(fields, posorder.FieldPaidTotal)
 	}
 	if m.currency != nil {
 		fields = append(fields, posorder.FieldCurrency)
@@ -55058,6 +55119,8 @@ func (m *POSOrderMutation) Field(name string) (ent.Value, bool) {
 		return m.DiscountTotal()
 	case posorder.FieldTotalAmount:
 		return m.TotalAmount()
+	case posorder.FieldPaidTotal:
+		return m.PaidTotal()
 	case posorder.FieldCurrency:
 		return m.Currency()
 	case posorder.FieldOrderSubtype:
@@ -55131,6 +55194,8 @@ func (m *POSOrderMutation) OldField(ctx context.Context, name string) (ent.Value
 		return m.OldDiscountTotal(ctx)
 	case posorder.FieldTotalAmount:
 		return m.OldTotalAmount(ctx)
+	case posorder.FieldPaidTotal:
+		return m.OldPaidTotal(ctx)
 	case posorder.FieldCurrency:
 		return m.OldCurrency(ctx)
 	case posorder.FieldOrderSubtype:
@@ -55268,6 +55333,13 @@ func (m *POSOrderMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetTotalAmount(v)
+		return nil
+	case posorder.FieldPaidTotal:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPaidTotal(v)
 		return nil
 	case posorder.FieldCurrency:
 		v, ok := value.(string)
@@ -55422,6 +55494,9 @@ func (m *POSOrderMutation) AddedFields() []string {
 	if m.addtotal_amount != nil {
 		fields = append(fields, posorder.FieldTotalAmount)
 	}
+	if m.addpaid_total != nil {
+		fields = append(fields, posorder.FieldPaidTotal)
+	}
 	if m.addcovers_count != nil {
 		fields = append(fields, posorder.FieldCoversCount)
 	}
@@ -55453,6 +55528,8 @@ func (m *POSOrderMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedDiscountTotal()
 	case posorder.FieldTotalAmount:
 		return m.AddedTotalAmount()
+	case posorder.FieldPaidTotal:
+		return m.AddedPaidTotal()
 	case posorder.FieldCoversCount:
 		return m.AddedCoversCount()
 	case posorder.FieldServiceChargePercent:
@@ -55499,6 +55576,13 @@ func (m *POSOrderMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddTotalAmount(v)
+		return nil
+	case posorder.FieldPaidTotal:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddPaidTotal(v)
 		return nil
 	case posorder.FieldCoversCount:
 		v, ok := value.(int)
@@ -55669,6 +55753,9 @@ func (m *POSOrderMutation) ResetField(name string) error {
 		return nil
 	case posorder.FieldTotalAmount:
 		m.ResetTotalAmount()
+		return nil
+	case posorder.FieldPaidTotal:
+		m.ResetPaidTotal()
 		return nil
 	case posorder.FieldCurrency:
 		m.ResetCurrency()

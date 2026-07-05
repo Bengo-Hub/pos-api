@@ -54,6 +54,12 @@ func (POSOrder) Fields() []ent.Field {
 		field.Float("discount_total").
 			Default(0),
 		field.Float("total_amount"),
+		// Sum of this order's COMPLETED payments, maintained by the payments service
+		// (recomputed from pos_payments on every payment mutation). Single source of
+		// truth for the paid/partial/due payment-status filter AND the row badge, so
+		// the two can never disagree.
+		field.Float("paid_total").
+			Default(0),
 		field.String("currency").
 			Default("KES"),
 		field.Enum("order_subtype").

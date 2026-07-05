@@ -266,10 +266,14 @@ func New(
 
 					// Orders
 					if orders != nil {
-						pos.Get("/orders", orders.ListOrders)
+						// Reads require an orders permission; the handlers additionally narrow
+						// view_own-only principals (cashiers) to their OWN sales (REQ-007).
+						orderRead := outletmw.RequireServicePermission(rbacSvc,
+							"pos.orders.view", "pos.orders.view_own", "pos.orders.change", "pos.orders.manage")
+						pos.With(orderRead).Get("/orders", orders.ListOrders)
 						pos.Post("/orders", orders.CreateOrder)
-						pos.Get("/orders/by-number/{orderNumber}", orders.GetOrderByNumber)
-						pos.Get("/orders/{orderID}", orders.GetOrder)
+						pos.With(orderRead).Get("/orders/by-number/{orderNumber}", orders.GetOrderByNumber)
+						pos.With(orderRead).Get("/orders/{orderID}", orders.GetOrder)
 						pos.Patch("/orders/{orderID}/status", orders.UpdateStatus)
 						// All-Sales "Edit Shipping": update shipping status/address/charges (metadata).
 						pos.Patch("/orders/{orderID}/shipping", orders.UpdateShipping)
@@ -401,7 +405,9 @@ func New(
 							Post("/orders/{orderID}/payments/intent", payments.CreatePaymentIntent)
 						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.payments.add", "pos.payments.manage")).
 							Post("/orders/{orderID}/payments", payments.RecordPayment)
-						pos.Get("/orders/{orderID}/payments", payments.ListOrderPayments)
+						pos.With(outletmw.RequireServicePermission(rbacSvc,
+							"pos.payments.view", "pos.payments.view_own", "pos.payments.manage")).
+							Get("/orders/{orderID}/payments", payments.ListOrderPayments)
 						pos.Get("/orders/{orderID}/payment-status/stream", payments.StreamPaymentStatus)
 						// Bank list + account verification (proxied to treasury S2S Paystack) for the
 						// receipt payment-display bank settings.

@@ -121,6 +121,11 @@ func TotalAmount(v float64) predicate.POSOrder {
 	return predicate.POSOrder(sql.FieldEQ(FieldTotalAmount, v))
 }
 
+// PaidTotal applies equality check predicate on the "paid_total" field. It's identical to PaidTotalEQ.
+func PaidTotal(v float64) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEQ(FieldPaidTotal, v))
+}
+
 // Currency applies equality check predicate on the "currency" field. It's identical to CurrencyEQ.
 func Currency(v string) predicate.POSOrder {
 	return predicate.POSOrder(sql.FieldEQ(FieldCurrency, v))
@@ -844,6 +849,46 @@ func TotalAmountLT(v float64) predicate.POSOrder {
 // TotalAmountLTE applies the LTE predicate on the "total_amount" field.
 func TotalAmountLTE(v float64) predicate.POSOrder {
 	return predicate.POSOrder(sql.FieldLTE(FieldTotalAmount, v))
+}
+
+// PaidTotalEQ applies the EQ predicate on the "paid_total" field.
+func PaidTotalEQ(v float64) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEQ(FieldPaidTotal, v))
+}
+
+// PaidTotalNEQ applies the NEQ predicate on the "paid_total" field.
+func PaidTotalNEQ(v float64) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNEQ(FieldPaidTotal, v))
+}
+
+// PaidTotalIn applies the In predicate on the "paid_total" field.
+func PaidTotalIn(vs ...float64) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldIn(FieldPaidTotal, vs...))
+}
+
+// PaidTotalNotIn applies the NotIn predicate on the "paid_total" field.
+func PaidTotalNotIn(vs ...float64) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNotIn(FieldPaidTotal, vs...))
+}
+
+// PaidTotalGT applies the GT predicate on the "paid_total" field.
+func PaidTotalGT(v float64) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldGT(FieldPaidTotal, v))
+}
+
+// PaidTotalGTE applies the GTE predicate on the "paid_total" field.
+func PaidTotalGTE(v float64) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldGTE(FieldPaidTotal, v))
+}
+
+// PaidTotalLT applies the LT predicate on the "paid_total" field.
+func PaidTotalLT(v float64) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldLT(FieldPaidTotal, v))
+}
+
+// PaidTotalLTE applies the LTE predicate on the "paid_total" field.
+func PaidTotalLTE(v float64) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldLTE(FieldPaidTotal, v))
 }
 
 // CurrencyEQ applies the EQ predicate on the "currency" field.
