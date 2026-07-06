@@ -147,7 +147,11 @@ func categoryAllowedForUseCase(categoryName, useCase string) bool {
 		strings.Contains(cat, "light bite") ||
 		strings.Contains(cat, "dessert") ||
 		strings.Contains(cat, "hot beverage") ||
-		strings.Contains(cat, "cold beverage")
+		strings.Contains(cat, "cold beverage") ||
+		// Accompaniments/sides (ugali, greens, fries) are FOOD menu items — they belong to
+		// hospitality/QSR terminals only. Without this they slipped the retail exclusion
+		// (nothing above matched "accompaniment") and free ACC items leaked onto retail tills.
+		isAccompanimentCategory(cat)
 	isServicesCat := strings.Contains(cat, "beauty") || strings.Contains(cat, "spa") ||
 		strings.Contains(cat, "event") || strings.Contains(cat, "experience") ||
 		strings.Contains(cat, "wellness") || strings.Contains(cat, "conference") ||
