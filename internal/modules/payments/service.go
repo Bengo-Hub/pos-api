@@ -368,7 +368,7 @@ func (s *Service) recordCreditSale(ctx context.Context, order *ent.POSOrder, req
 	// phone lets treasury net the credit sale, its returns and its opening balance on ONE customer row.
 	crmContactID := s.ResolveCrmContactID(ctx, req.TenantID, phone)
 
-	if _, err := s.treasuryClient.RecordCreditSale(ctx, req.TenantSlug, treasury.CreditSaleRequest{
+	creditResp, err := s.treasuryClient.RecordCreditSale(ctx, req.TenantSlug, treasury.CreditSaleRequest{
 		CrmContactID:       crmContactID,
 		CustomerIdentifier: phone,
 		CustomerName:       name,
@@ -377,8 +377,23 @@ func (s *Service) recordCreditSale(ctx context.Context, order *ent.POSOrder, req
 		Amount:             req.Amount,
 		Currency:           currency,
 		UserID:             order.UserID.String(),
-	}); err != nil {
+	})
+	if err != nil {
 		return nil, fmt.Errorf("payments: credit sale rejected: %w", err)
+	}
+	// Mark the order as an on-account sale and stamp when the credit falls due (from the
+	// customer's payment period) so the All-Sales "Overdue" filter/badge can surface late
+	// credit sales. Best-effort: a metadata write failure never fails the sale.
+	meta := order.Metadata
+	if meta == nil {
+		meta = map[string]any{}
+	}
+	meta["on_account"] = true
+	if creditResp != nil && creditResp.CreditPeriodDays != nil && *creditResp.CreditPeriodDays > 0 {
+		meta["payment_due_date"] = time.Now().AddDate(0, 0, *creditResp.CreditPeriodDays).Format(time.RFC3339)
+	}
+	if merr := s.client.POSOrder.UpdateOneID(order.ID).SetMetadata(meta).Exec(ctx); merr != nil {
+		s.log.Warn("payments: failed to stamp on-account metadata", zap.Error(merr))
 	}
 
 	if _, err := s.client.POSPayment.Create().

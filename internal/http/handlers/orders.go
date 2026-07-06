@@ -207,8 +207,10 @@ func (h *POSOrderHandler) ListOrders(w http.ResponseWriter, r *http.Request) {
 	// Payment status — driven by the stored paid_total column (sum of completed payments,
 	// maintained by the payments service) so the filter provably agrees with the per-row
 	// badge from derivePaymentStatus: paid = settled in full, partial = 0 < paid < total,
-	// due = nothing paid yet. Terminal statuses (refunded/voided/cancelled) show as their
-	// own badge and are excluded from all three buckets.
+	// due = nothing paid yet. Terminal statuses (refunded/voided/cancelled) are filterable
+	// too, and "overdue" surfaces sales past their metadata.payment_due_date — either still
+	// owing at the till, or on-account credit sales (stamped by recordCreditSale from the
+	// customer's payment period) whose settlement lives in treasury AR.
 	switch strings.ToLower(q.Get("payment_status")) {
 	case "paid":
 		filters = append(filters, posorder.Or(
@@ -229,6 +231,14 @@ func (h *POSOrderHandler) ListOrders(w http.ResponseWriter, r *http.Request) {
 			posorder.StatusNotIn("completed", "refunded", "voided", "cancelled"),
 			posorder.PaidTotalLTE(0),
 		))
+	case "overdue":
+		filters = append(filters, posorder.And(
+			posorder.StatusNotIn("refunded", "voided", "cancelled"),
+			pastPaymentDueDate(),
+			posorder.Or(paidBelowTotal(), onAccountOrder()),
+		))
+	case "refunded", "voided", "cancelled":
+		filters = append(filters, posorder.Status(strings.ToLower(q.Get("payment_status"))))
 	}
 	// Payment method → resolve tenders of that type for the tenant, then match orders that
 	// have a payment on one of them.
@@ -278,7 +288,7 @@ type orderListItem struct {
 	ItemCount     int     `json:"item_count"`
 	TotalPaid     float64 `json:"total_paid"`
 	AmountDue     float64 `json:"amount_due"`
-	PaymentStatus string  `json:"payment_status"` // paid | partial | due | refunded | voided | cancelled
+	PaymentStatus string  `json:"payment_status"` // paid | partial | due | overdue | refunded | voided | cancelled
 	PaymentMethod string  `json:"payment_method"` // dominant tender type, or "multiple"
 }
 
@@ -320,12 +330,23 @@ func (h *POSOrderHandler) enrichOrderList(ctx context.Context, tenantID uuid.UUI
 		if due < 0 {
 			due = 0
 		}
+		// Badge mirrors the "overdue" filter: a still-owing sale OR an on-account credit sale
+		// past its stamped payment_due_date reads "overdue" instead of due/partial/paid.
+		ps := derivePaymentStatus(o.Status, o.TotalAmount, paid)
+		if isOrderOverdue(o.Metadata) {
+			switch {
+			case ps == "due" || ps == "partial":
+				ps = "overdue"
+			case ps == "paid" && isOnAccount(o.Metadata):
+				ps = "overdue"
+			}
+		}
 		items = append(items, orderListItem{
 			POSOrder:      o,
 			ItemCount:     len(o.Edges.Lines),
 			TotalPaid:     paid,
 			AmountDue:     due,
-			PaymentStatus: derivePaymentStatus(o.Status, o.TotalAmount, paid),
+			PaymentStatus: ps,
 			PaymentMethod: dominantMethod(methods),
 		})
 	}
@@ -349,6 +370,41 @@ func paidBelowTotal() predicate.POSOrder {
 	return predicate.POSOrder(func(s *sql.Selector) {
 		s.Where(sql.ExprP(s.C(posorder.FieldPaidTotal) + " + 0.01 < " + s.C(posorder.FieldTotalAmount)))
 	})
+}
+
+// pastPaymentDueDate matches orders whose metadata.payment_due_date (RFC3339, stamped on
+// credit sales from the customer's payment period) is in the past. RFC3339 strings compare
+// lexicographically, so a plain string comparison is chronologically correct; orders without
+// a due date never match.
+func pastPaymentDueDate() predicate.POSOrder {
+	now := time.Now().Format(time.RFC3339)
+	return predicate.POSOrder(func(s *sql.Selector) {
+		s.Where(sqljson.ValueLT(posorder.FieldMetadata, now, sqljson.Path("payment_due_date")))
+	})
+}
+
+// onAccountOrder matches credit sales settled on account (metadata.on_account, stamped by
+// recordCreditSale) — at the till they read "paid", but their money is a treasury AR debt.
+func onAccountOrder() predicate.POSOrder {
+	return predicate.POSOrder(func(s *sql.Selector) {
+		s.Where(sqljson.ValueEQ(posorder.FieldMetadata, true, sqljson.Path("on_account")))
+	})
+}
+
+// isOrderOverdue reports whether an order is past its stamped payment_due_date. Used to
+// upgrade the display payment status to "overdue" for still-owing or on-account sales.
+func isOrderOverdue(meta map[string]any) bool {
+	raw, ok := meta["payment_due_date"].(string)
+	if !ok || raw == "" {
+		return false
+	}
+	due, err := time.Parse(time.RFC3339, raw)
+	return err == nil && due.Before(time.Now())
+}
+
+func isOnAccount(meta map[string]any) bool {
+	v, ok := meta["on_account"].(bool)
+	return ok && v
 }
 
 // derivePaymentStatus maps an order's status + paid amount to a display payment status.

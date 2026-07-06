@@ -200,6 +200,9 @@ type CreditSaleResponse struct {
 	ID         string `json:"id"`
 	BalanceDue string `json:"balance_due"`
 	Currency   string `json:"currency"`
+	// CreditPeriodDays is the customer's configured payment period — pos-api uses it to stamp
+	// the order's payment_due_date so the All-Sales "Overdue" filter can find late credit sales.
+	CreditPeriodDays *int `json:"credit_period_days,omitempty"`
 }
 
 // RecordCreditSale posts a POS on-account ("credit sale") charge to the customer's AR balance in
