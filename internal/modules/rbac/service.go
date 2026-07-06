@@ -38,6 +38,57 @@ func (s *Service) HasPermission(ctx context.Context, tenantID uuid.UUID, userID 
 	return false, nil
 }
 
+// MapGlobalRolesToServiceRole maps SSO/global JWT roles onto the canonical POS service
+// role — the SAME mapping /auth/me and the terminal JWT use, exported here so the
+// permission middleware resolves identically (an SSO admin whose JWT carries no pos.*
+// codes and who has no per-user assignment rows still lands on the POS "admin" role).
+func MapGlobalRolesToServiceRole(roles []string) string {
+	order := []struct{ from, to string }{
+		{"superuser", "admin"}, {"super_admin", "admin"}, {"pos_admin", "admin"},
+		{"admin", "admin"},
+		{"manager", "manager"}, {"store_manager", "manager"}, {"outlet_manager", "manager"},
+		{"cashier", "cashier"}, {"waiter", "waiter"}, {"kitchen", "kitchen"},
+		{"bar", "bar"}, {"receptionist", "receptionist"},
+		{"staff", "cashier"}, {"member", "cashier"}, {"viewer", "cashier"},
+	}
+	for _, m := range order {
+		for _, r := range roles {
+			if r == m.from {
+				return m.to
+			}
+		}
+	}
+	return "cashier"
+}
+
+// HasAnyPermissionViaGlobalRoles resolves permissions the way /auth/me does — from the
+// POS service role mapped off the caller's GLOBAL JWT roles — for SSO principals that
+// have no POSUserRoleAssignment rows. Third leg of the middleware resolution:
+// JWT canonical perms → per-user assignments → role-mapped service role.
+func (s *Service) HasAnyPermissionViaGlobalRoles(ctx context.Context, tenantID uuid.UUID, globalRoles []string, permissionCodes ...string) (bool, error) {
+	if len(permissionCodes) == 0 || len(globalRoles) == 0 {
+		return false, nil
+	}
+	role, err := s.repo.GetRoleByCode(ctx, tenantID, MapGlobalRolesToServiceRole(globalRoles))
+	if err != nil || role == nil {
+		return false, nil // role not seeded — deny, never error the request
+	}
+	perms, err := s.repo.GetRolePermissions(ctx, role.ID)
+	if err != nil {
+		return false, fmt.Errorf("get role permissions: %w", err)
+	}
+	want := make(map[string]struct{}, len(permissionCodes))
+	for _, code := range permissionCodes {
+		want[code] = struct{}{}
+	}
+	for _, perm := range perms {
+		if _, ok := want[perm.PermissionCode]; ok {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 // HasAnyPermission checks if a user holds at least one of the given permission codes.
 // Reads the user's permissions once, then tests membership — cheaper than calling
 // HasPermission per code. Returns false (not an error) when none match.

@@ -19,6 +19,7 @@ import (
 	entoutlet "github.com/bengobox/pos-service/internal/ent/outlet"
 	entstaff "github.com/bengobox/pos-service/internal/ent/staffmember"
 	entstaffoutlet "github.com/bengobox/pos-service/internal/ent/staffoutlet"
+	"github.com/bengobox/pos-service/internal/modules/rbac"
 	"github.com/bengobox/pos-service/internal/platform/subscriptions"
 )
 
@@ -361,7 +362,7 @@ func (h *PINAuthHandler) AuthMe(w http.ResponseWriter, r *http.Request) {
 		posRole = member.Role
 		displayName = member.Name
 	} else {
-		posRole = globalRoleToPOSRole(claims.Roles)
+		posRole = rbac.MapGlobalRolesToServiceRole(claims.Roles)
 		displayName = claims.Email
 	}
 
@@ -379,25 +380,8 @@ func (h *PINAuthHandler) AuthMe(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// globalRoleToPOSRole maps the first matching global SSO role to a canonical POS role.
-func globalRoleToPOSRole(roles []string) string {
-	order := []struct{ from, to string }{
-		{"superuser", "admin"}, {"super_admin", "admin"}, {"pos_admin", "admin"},
-		{"admin", "admin"},
-		{"manager", "manager"}, {"store_manager", "manager"}, {"outlet_manager", "manager"},
-		{"cashier", "cashier"}, {"waiter", "waiter"}, {"kitchen", "kitchen"},
-		{"bar", "bar"}, {"receptionist", "receptionist"},
-		{"staff", "cashier"}, {"member", "cashier"}, {"viewer", "cashier"},
-	}
-	for _, m := range order {
-		for _, r := range roles {
-			if r == m.from {
-				return m.to
-			}
-		}
-	}
-	return "cashier"
-}
+// Global→POS role mapping lives in rbac.MapGlobalRolesToServiceRole so /auth/me and the
+// permission middleware's role-mapped fallback always resolve identically.
 
 // ── POST /{tenant}/pos/auth/pin/identify — PIN-first login (no user_id needed) ──
 // The frontend sends only the PIN + outlet_id; we resolve the staff identity via

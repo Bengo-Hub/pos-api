@@ -15,6 +15,10 @@ import (
 // an import cycle and keeps the middleware decoupled).
 type permissionChecker interface {
 	HasAnyPermission(ctx context.Context, tenantID, userID uuid.UUID, permissionCodes ...string) (bool, error)
+	// HasAnyPermissionViaGlobalRoles resolves through the POS service role mapped off the
+	// caller's GLOBAL JWT roles (the /auth/me resolution) — SSO principals often have no
+	// per-user assignment rows and no pos.* codes in their JWT.
+	HasAnyPermissionViaGlobalRoles(ctx context.Context, tenantID uuid.UUID, globalRoles []string, permissionCodes ...string) (bool, error)
 }
 
 // RequireServicePermission returns middleware that allows the request only when the
@@ -70,6 +74,14 @@ func HasServicePermission(r *http.Request, rbac permissionChecker, permissions .
 		userID, uerr := uuid.Parse(claims.Subject)
 		if terr == nil && uerr == nil && tenantID != uuid.Nil && userID != uuid.Nil {
 			if has, err := rbac.HasAnyPermission(r.Context(), tenantID, userID, permissions...); err == nil && has {
+				return true
+			}
+		}
+		// SSO principals frequently have neither pos.* codes in the JWT nor per-user
+		// assignment rows — resolve through the role-mapped POS service role, exactly
+		// like /auth/me does (an SSO "admin" lands on the POS admin role's grants).
+		if terr == nil && tenantID != uuid.Nil && len(claims.Roles) > 0 {
+			if has, err := rbac.HasAnyPermissionViaGlobalRoles(r.Context(), tenantID, claims.Roles, permissions...); err == nil && has {
 				return true
 			}
 		}
