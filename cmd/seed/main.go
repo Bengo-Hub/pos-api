@@ -629,7 +629,37 @@ func seedRBACPermissions(ctx context.Context, client *ent.Client) error {
 			count++
 		}
 	}
-	log.Printf("  ✓ RBAC permissions seeded (%d new, %d modules x %d actions)", count, len(modules), len(actions))
+	// Extra one-off permissions outside the module×action matrix. pos.catalog.view_cost
+	// gates the SENSITIVE supplier-cost column (REQ-006): the manager role's pos.catalog.*
+	// wildcard picks it up on the next role reconcile, admin has "*"; cashiers never get it.
+	extras := []struct{ code, name, module, action string }{
+		{"pos.catalog.view_cost", "POS catalog view cost price", "catalog", "view_cost"},
+	}
+	for _, ex := range extras {
+		exists, err := client.POSPermission.Query().
+			Where(pospermission.PermissionCode(ex.code)).
+			Exist(ctx)
+		if err != nil {
+			return err
+		}
+		if exists {
+			continue
+		}
+		id := uuid.NewSHA1(uuid.NameSpaceURL, []byte(fmt.Sprintf("bengobox:pos:permission:%s", ex.code)))
+		if _, err := client.POSPermission.Create().
+			SetID(id).
+			SetPermissionCode(ex.code).
+			SetName(ex.name).
+			SetModule(ex.module).
+			SetAction(ex.action).
+			SetResource(ex.module).
+			Save(ctx); err != nil {
+			return fmt.Errorf("create permission %s: %w", ex.code, err)
+		}
+		count++
+	}
+
+	log.Printf("  ✓ RBAC permissions seeded (%d new, %d modules x %d actions + extras)", count, len(modules), len(actions))
 	return nil
 }
 
