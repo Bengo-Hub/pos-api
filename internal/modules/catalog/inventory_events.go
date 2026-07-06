@@ -187,6 +187,9 @@ func (h *InventoryEventHandler) syncCatalogItem(ctx context.Context, evt *shared
 	// Cache the inventory cost so POS-side profitability reports (Most-Profitable) can compute real
 	// margins without an S2S call. Stored in metadata.cost_price; selling_price stays the price override.
 	costPrice := floatPtrFromPayload(evt.Payload["cost_price"])
+	// Cache the item's stock unit so pos.sale.finalized can carry a real uom_code
+	// (inventory converts non-stock-unit sale quantities before deducting).
+	unitName, _ := evt.Payload["unit_name"].(string)
 
 	existing, _ := h.client.POSCatalogOverride.Query().
 		Where(entoverride.TenantID(tenantID), entoverride.InventorySku(sku)).
@@ -207,12 +210,17 @@ func (h *InventoryEventHandler) syncCatalogItem(ctx context.Context, evt *shared
 		if durationMinutes != nil {
 			upd = upd.SetDurationMinutes(*durationMinutes)
 		}
-		if costPrice != nil {
+		if costPrice != nil || unitName != "" {
 			md := existing.Metadata
 			if md == nil {
 				md = map[string]any{}
 			}
-			md["cost_price"] = *costPrice
+			if costPrice != nil {
+				md["cost_price"] = *costPrice
+			}
+			if unitName != "" {
+				md["uom"] = unitName
+			}
 			upd = upd.SetMetadata(md)
 		}
 		if _, err := upd.Save(ctx); err != nil {
@@ -240,8 +248,15 @@ func (h *InventoryEventHandler) syncCatalogItem(ctx context.Context, evt *shared
 	if durationMinutes != nil {
 		create = create.SetDurationMinutes(*durationMinutes)
 	}
-	if costPrice != nil {
-		create = create.SetMetadata(map[string]any{"cost_price": *costPrice})
+	if costPrice != nil || unitName != "" {
+		md := map[string]any{}
+		if costPrice != nil {
+			md["cost_price"] = *costPrice
+		}
+		if unitName != "" {
+			md["uom"] = unitName
+		}
+		create = create.SetMetadata(md)
 	}
 	if _, err := create.Save(ctx); err != nil {
 		return fmt.Errorf("create catalog override for %s: %w", sku, err)

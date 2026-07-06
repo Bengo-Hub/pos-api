@@ -705,7 +705,7 @@ func (s *Service) publishSaleFinalized(ctx context.Context, order *ent.POSOrder)
 	// per-unit cost is the inventory-synced value cached on POSCatalogOverride.metadata["cost_price"]
 	// (keyed by tenant + inventory_sku, see catalog/inventory_events.go and reports_profitability.go).
 	// Resolved here as a SKU->cost map in one query. Missing cost => 0 (never blocks the sale).
-	costBySKU := s.resolveLineCosts(ctx, order.TenantID, lines)
+	costBySKU, uomBySKU := s.resolveLineCosts(ctx, order.TenantID, lines)
 
 	items := make([]map[string]any, 0, len(lines))
 	costTotal := 0.0
@@ -714,12 +714,15 @@ func (s *Service) publishSaleFinalized(ctx context.Context, order *ent.POSOrder)
 		lineCost := costAmount * l.Quantity
 		costTotal += lineCost
 		item := map[string]any{
-			"sku":                l.Sku,
-			"name":               l.Name,
-			"quantity":           l.Quantity,
-			"unit_price":         l.UnitPrice,
-			"total_price":        l.TotalPrice,
-			"uom_code":           "",
+			"sku":         l.Sku,
+			"name":        l.Name,
+			"quantity":    l.Quantity,
+			"unit_price":  l.UnitPrice,
+			"total_price": l.TotalPrice,
+			// The item's inventory stock unit (synced via catalog events); "" when unknown.
+			// inventory-api converts non-stock-unit quantities (incl. the bottle
+			// content-per-unit bridge) before deducting.
+			"uom_code":           uomBySKU[l.Sku],
 			"price_includes_tax": l.PriceIncludesTax,
 			// COGS support (additive): per-unit cost and line cost (cost x qty). 0 when unknown.
 			"cost_amount": costAmount,
@@ -831,15 +834,17 @@ func (s *Service) publishSaleFinalized(ctx context.Context, order *ent.POSOrder)
 	// backflushInventory is retained only for reference / non-sale direct backflush callers.
 }
 
-// resolveLineCosts returns a SKU -> per-unit cost map for the sold lines, used to enrich the
-// pos.sale.finalized payload with COGS figures. The authoritative per-unit cost in pos-api is the
-// inventory-synced value cached on POSCatalogOverride.metadata["cost_price"] (keyed by
-// tenant + inventory_sku; see catalog/inventory_events.go). SKUs with no cached cost are simply
-// absent from the map, so the caller reads 0 — a missing cost must never block the sale.
-func (s *Service) resolveLineCosts(ctx context.Context, tenantID uuid.UUID, lines []*ent.POSOrderLine) map[string]float64 {
+// resolveLineCosts returns SKU -> per-unit cost and SKU -> stock-unit (uom) maps for the
+// sold lines, used to enrich the pos.sale.finalized payload with COGS figures and a real
+// uom_code. Both are the inventory-synced values cached on POSCatalogOverride.metadata
+// ("cost_price"/"uom", keyed by tenant + inventory_sku; see catalog/inventory_events.go).
+// SKUs with no cached value are simply absent from the maps, so the caller reads 0/"" —
+// a missing cost or unit must never block the sale.
+func (s *Service) resolveLineCosts(ctx context.Context, tenantID uuid.UUID, lines []*ent.POSOrderLine) (map[string]float64, map[string]string) {
 	costs := make(map[string]float64)
+	uoms := make(map[string]string)
 	if len(lines) == 0 {
-		return costs
+		return costs, uoms
 	}
 	skus := make([]string, 0, len(lines))
 	seen := make(map[string]struct{}, len(lines))
@@ -854,7 +859,7 @@ func (s *Service) resolveLineCosts(ctx context.Context, tenantID uuid.UUID, line
 		skus = append(skus, l.Sku)
 	}
 	if len(skus) == 0 {
-		return costs
+		return costs, uoms
 	}
 
 	overrides, err := s.client.POSCatalogOverride.Query().
@@ -866,7 +871,7 @@ func (s *Service) resolveLineCosts(ctx context.Context, tenantID uuid.UUID, line
 	if err != nil {
 		s.log.Warn("sale.finalized: failed to resolve item costs (defaulting to 0)",
 			zap.String("tenant_id", tenantID.String()), zap.Error(err))
-		return costs
+		return costs, uoms
 	}
 	for _, ov := range overrides {
 		if ov.Metadata == nil {
@@ -878,8 +883,11 @@ func (s *Service) resolveLineCosts(ctx context.Context, tenantID uuid.UUID, line
 		case int:
 			costs[ov.InventorySku] = float64(v)
 		}
+		if u, ok := ov.Metadata["uom"].(string); ok && u != "" {
+			uoms[ov.InventorySku] = u
+		}
 	}
-	return costs
+	return costs, uoms
 }
 
 // backflushInventory calls inventory-api to deduct stock for each sold item.
