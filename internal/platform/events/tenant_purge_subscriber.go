@@ -94,12 +94,16 @@ var purgePlan = []purgeStep{
 	child("bar_tab_events", "bar_tab_id", "bar_tabs"),
 	child("cash_drawer_events", "drawer_id", "cash_drawers"),
 	child("table_assignments", "table_id", "tables"),
+	child("webhook_deliveries", "subscription_id", "webhook_subscriptions"),
 	child("outlet_settings", "outlet_id", "outlets"),
 	child("user_pos_roles", "user_id", "users"),
 
 	// ---- tenant-scoped tables (carry tenant_id directly) ----
 	// order: tables referenced by the children above come after those children;
 	// tables that only reference outlets/tenants come before outlets/tenants.
+	direct("held_items"),
+	direct("order_void_codes"),
+	direct("staff_purchase_links"),
 	direct("pos_orders"),
 	direct("pos_returns"),
 	direct("prescriptions"),
@@ -182,6 +186,11 @@ var purgePlan = []purgeStep{
 	// rbac (tenant-scoped role assignments + custom roles; global permissions untouched)
 	direct("pos_user_role_assignments"),
 	direct("pos_roles"),
+	direct("pos_role_v2s"),
+	// per-tenant service config + background printing
+	direct("service_configs"),
+	direct("print_jobs"),
+	direct("print_agents"),
 	// devices & sessions
 	direct("pos_device_sessions"),
 	direct("pos_devices"),

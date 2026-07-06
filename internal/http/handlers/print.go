@@ -73,17 +73,6 @@ func (h *PrintHandler) PrintReceipt(w http.ResponseWriter, r *http.Request) {
 		Where(entposorderline.OrderID(orderID)).
 		All(r.Context())
 
-	// Build receipt items
-	items := make([]printing.ReceiptItem, 0, len(lines))
-	for _, l := range lines {
-		items = append(items, printing.ReceiptItem{
-			Name:     l.Name,
-			Quantity: l.Quantity,
-			Price:    l.UnitPrice,
-			Total:    l.TotalPrice,
-		})
-	}
-
 	// Load outlet settings for printer profile and receipt config
 	outletSetting, _ := h.client.OutletSetting.Query().
 		Where(entoutletsetting.OutletID(order.OutletID)).
@@ -91,25 +80,7 @@ func (h *PrintHandler) PrintReceipt(w http.ResponseWriter, r *http.Request) {
 
 	var profiles []printing.PrinterProfile
 	if outletSetting != nil {
-		for _, raw := range outletSetting.PrinterProfiles {
-			p := printing.PrinterProfile{}
-			if v, ok := raw["id"].(string); ok {
-				p.ID = v
-			}
-			if v, ok := raw["label"].(string); ok {
-				p.Label = v
-			}
-			if v, ok := raw["printer_type"].(string); ok {
-				p.PrinterType = v
-			}
-			if v, ok := raw["printer_ip"].(string); ok {
-				p.PrinterIP = v
-			}
-			if v, ok := raw["paper_width"].(string); ok {
-				p.PaperWidth = v
-			}
-			profiles = append(profiles, p)
-		}
+		profiles = printing.ProfilesFromRaw(outletSetting.PrinterProfiles)
 	}
 
 	// Resolve printer profile
@@ -118,40 +89,7 @@ func (h *PrintHandler) PrintReceipt(w http.ResponseWriter, r *http.Request) {
 		printerID = "customer"
 	}
 
-	var header, footer string
-	if outletSetting != nil {
-		if outletSetting.ReceiptHeader != nil {
-			header = *outletSetting.ReceiptHeader
-		}
-		if outletSetting.ReceiptFooter != nil {
-			footer = *outletSetting.ReceiptFooter
-		}
-	}
-
-	tableRef := ""
-	if v, ok := order.Metadata["table_number"].(string); ok {
-		tableRef = v
-	}
-	if tableRef == "" {
-		if v, ok := order.Metadata["table_name"].(string); ok {
-			tableRef = v
-		}
-	}
-
-	data := printing.ReceiptData{
-		Type:          input.Type,
-		OrderNumber:   order.OrderNumber,
-		TableRef:      tableRef,
-		Header:        header,
-		Footer:        footer,
-		Items:         items,
-		Subtotal:      order.Subtotal,
-		TaxTotal:      order.TaxTotal,
-		DiscountTotal: order.DiscountTotal,
-		TotalAmount:   order.TotalAmount,
-		Currency:      "KES",
-		VoidReason:    input.Reason,
-	}
+	data := printing.OrderReceiptData(order, lines, outletSetting, input.Type, "", input.Reason)
 
 	// Build-only: return the ESC/POS bytes (hex) for the browser to relay to the Local Print Agent.
 	// This is how a network printer prints from a cloud deployment (the server can't reach the LAN).

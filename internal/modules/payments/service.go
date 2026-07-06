@@ -24,6 +24,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/tableassignment"
 	"github.com/bengobox/pos-service/internal/modules/inventory"
 	"github.com/bengobox/pos-service/internal/modules/orders"
+	"github.com/bengobox/pos-service/internal/modules/printing"
 	"github.com/bengobox/pos-service/internal/modules/staffcredit"
 	"github.com/bengobox/pos-service/internal/modules/treasury"
 	"github.com/bengobox/pos-service/internal/payref"
@@ -108,6 +109,8 @@ type Service struct {
 	staffCredit     *staffcredit.Service
 	log             *zap.Logger
 	defaultCurrency string
+	// printQueue enqueues the final customer receipt for the on-site Local Print Agent.
+	printQueue *printing.Queue
 }
 
 // NewService creates a new payment service.
@@ -148,6 +151,11 @@ func (s *Service) SetStaffCredit(sc *staffcredit.Service) {
 // customer when an on-account sale has no customer attached.
 func (s *Service) SetMarketFlowClient(c *marketflow.Client) {
 	s.marketflow = c
+}
+
+// SetPrintQueue wires the background print-job queue (final receipt on full payment).
+func (s *Service) SetPrintQueue(q *printing.Queue) {
+	s.printQueue = q
 }
 
 // CreatePaymentIntent creates a treasury payment intent and returns the intent ID + initiateUrl.
@@ -624,6 +632,7 @@ func (s *Service) completeOrderIfFullyPaid(ctx context.Context, order *ent.POSOr
 				return
 			}
 			s.publishSaleFinalized(ctx, updated)
+			s.enqueueReceiptPrint(ctx, updated)
 			s.calcCommissions(ctx, updated)
 			// Free the table once the bill is settled, regardless of which flow
 			// (waiter My Bills, cashier orders page, or async digital confirmation)

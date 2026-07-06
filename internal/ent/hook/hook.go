@@ -813,6 +813,30 @@ func (f PriceBookItemFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Valu
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.PriceBookItemMutation", m)
 }
 
+// The PrintAgentFunc type is an adapter to allow the use of ordinary
+// function as PrintAgent mutator.
+type PrintAgentFunc func(context.Context, *ent.PrintAgentMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f PrintAgentFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.PrintAgentMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.PrintAgentMutation", m)
+}
+
+// The PrintJobFunc type is an adapter to allow the use of ordinary
+// function as PrintJob mutator.
+type PrintJobFunc func(context.Context, *ent.PrintJobMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f PrintJobFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.PrintJobMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.PrintJobMutation", m)
+}
+
 // The PromotionFunc type is an adapter to allow the use of ordinary
 // function as Promotion mutator.
 type PromotionFunc func(context.Context, *ent.PromotionMutation) (ent.Value, error)

@@ -1,9 +1,11 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -13,9 +15,11 @@ import (
 	"github.com/bengobox/pos-service/internal/ent"
 	entoutlet "github.com/bengobox/pos-service/internal/ent/outlet"
 	entoutletsetting "github.com/bengobox/pos-service/internal/ent/outletsetting"
+	entprintagent "github.com/bengobox/pos-service/internal/ent/printagent"
 	entstaff "github.com/bengobox/pos-service/internal/ent/staffmember"
 	entstaffoutlet "github.com/bengobox/pos-service/internal/ent/staffoutlet"
 	outletmw "github.com/bengobox/pos-service/internal/http/middleware"
+	"github.com/bengobox/pos-service/internal/modules/printing"
 )
 
 // ServiceSettingsHandler manages tenant/outlet POS configuration.
@@ -129,7 +133,10 @@ type settingsResponse struct {
 	BankAccountNumber        *string `json:"bank_account_number"`
 	BankAccountName          *string `json:"bank_account_name"`
 	ShowPaymentInfoOnReceipt bool    `json:"show_payment_info_on_receipt"`
-	UpdatedAt                string  `json:"updated_at"`
+	// print_agent_online: a paired Local Print Agent polled recently — the till should rely on
+	// server-side background print jobs instead of its client-side transports.
+	PrintAgentOnline bool   `json:"print_agent_online"`
+	UpdatedAt        string `json:"updated_at"`
 }
 
 func toSettingsResponse(outlet *ent.Outlet, s *ent.OutletSetting) settingsResponse {
@@ -373,7 +380,23 @@ func (h *ServiceSettingsHandler) GetSettings(w http.ResponseWriter, r *http.Requ
 		jsonError(w, "failed to load settings", http.StatusInternalServerError)
 		return
 	}
-	jsonOK(w, toSettingsResponse(outlet, setting))
+	resp := toSettingsResponse(outlet, setting)
+	resp.PrintAgentOnline = h.printAgentOnline(r.Context(), tid, outlet.ID)
+	jsonOK(w, resp)
+}
+
+// printAgentOnline reports whether a paired, non-revoked Local Print Agent for the outlet polled
+// within the liveness window (same rule as printing.Queue.AgentOnline).
+func (h *ServiceSettingsHandler) printAgentOnline(ctx context.Context, tenantID, outletID uuid.UUID) bool {
+	ok, err := h.db.PrintAgent.Query().
+		Where(
+			entprintagent.TenantID(tenantID),
+			entprintagent.OutletID(outletID),
+			entprintagent.Revoked(false),
+			entprintagent.LastSeenAtGTE(time.Now().Add(-printing.AgentOnlineWindow)),
+		).
+		Exist(ctx)
+	return err == nil && ok
 }
 
 // updateSettingsInput covers all writable fields.

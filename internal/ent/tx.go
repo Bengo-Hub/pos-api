@@ -146,6 +146,10 @@ type Tx struct {
 	PriceBook *PriceBookClient
 	// PriceBookItem is the client for interacting with the PriceBookItem builders.
 	PriceBookItem *PriceBookItemClient
+	// PrintAgent is the client for interacting with the PrintAgent builders.
+	PrintAgent *PrintAgentClient
+	// PrintJob is the client for interacting with the PrintJob builders.
+	PrintJob *PrintJobClient
 	// Promotion is the client for interacting with the Promotion builders.
 	Promotion *PromotionClient
 	// PromotionApplication is the client for interacting with the PromotionApplication builders.
@@ -438,6 +442,8 @@ func (tx *Tx) init() {
 	tx.PrescriptionLine = NewPrescriptionLineClient(tx.config)
 	tx.PriceBook = NewPriceBookClient(tx.config)
 	tx.PriceBookItem = NewPriceBookItemClient(tx.config)
+	tx.PrintAgent = NewPrintAgentClient(tx.config)
+	tx.PrintJob = NewPrintJobClient(tx.config)
 	tx.Promotion = NewPromotionClient(tx.config)
 	tx.PromotionApplication = NewPromotionApplicationClient(tx.config)
 	tx.PromotionRule = NewPromotionRuleClient(tx.config)

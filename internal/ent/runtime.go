@@ -69,6 +69,8 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/prescriptionline"
 	"github.com/bengobox/pos-service/internal/ent/pricebook"
 	"github.com/bengobox/pos-service/internal/ent/pricebookitem"
+	"github.com/bengobox/pos-service/internal/ent/printagent"
+	"github.com/bengobox/pos-service/internal/ent/printjob"
 	"github.com/bengobox/pos-service/internal/ent/promotion"
 	"github.com/bengobox/pos-service/internal/ent/promotionapplication"
 	"github.com/bengobox/pos-service/internal/ent/promotionrule"
@@ -1888,6 +1890,56 @@ func init() {
 	pricebookitemDescID := pricebookitemFields[0].Descriptor()
 	// pricebookitem.DefaultID holds the default value on creation for the id field.
 	pricebookitem.DefaultID = pricebookitemDescID.Default.(func() uuid.UUID)
+	printagentFields := schema.PrintAgent{}.Fields()
+	_ = printagentFields
+	// printagentDescName is the schema descriptor for name field.
+	printagentDescName := printagentFields[3].Descriptor()
+	// printagent.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	printagent.NameValidator = printagentDescName.Validators[0].(func(string) error)
+	// printagentDescKeyHash is the schema descriptor for key_hash field.
+	printagentDescKeyHash := printagentFields[4].Descriptor()
+	// printagent.KeyHashValidator is a validator for the "key_hash" field. It is called by the builders before save.
+	printagent.KeyHashValidator = printagentDescKeyHash.Validators[0].(func(string) error)
+	// printagentDescRevoked is the schema descriptor for revoked field.
+	printagentDescRevoked := printagentFields[7].Descriptor()
+	// printagent.DefaultRevoked holds the default value on creation for the revoked field.
+	printagent.DefaultRevoked = printagentDescRevoked.Default.(bool)
+	// printagentDescCreatedAt is the schema descriptor for created_at field.
+	printagentDescCreatedAt := printagentFields[8].Descriptor()
+	// printagent.DefaultCreatedAt holds the default value on creation for the created_at field.
+	printagent.DefaultCreatedAt = printagentDescCreatedAt.Default.(func() time.Time)
+	// printagentDescID is the schema descriptor for id field.
+	printagentDescID := printagentFields[0].Descriptor()
+	// printagent.DefaultID holds the default value on creation for the id field.
+	printagent.DefaultID = printagentDescID.Default.(func() uuid.UUID)
+	printjobFields := schema.PrintJob{}.Fields()
+	_ = printjobFields
+	// printjobDescPrinterPort is the schema descriptor for printer_port field.
+	printjobDescPrinterPort := printjobFields[8].Descriptor()
+	// printjob.DefaultPrinterPort holds the default value on creation for the printer_port field.
+	printjob.DefaultPrinterPort = printjobDescPrinterPort.Default.(int)
+	// printjobDescStatus is the schema descriptor for status field.
+	printjobDescStatus := printjobFields[12].Descriptor()
+	// printjob.DefaultStatus holds the default value on creation for the status field.
+	printjob.DefaultStatus = printjobDescStatus.Default.(string)
+	// printjobDescAttempts is the schema descriptor for attempts field.
+	printjobDescAttempts := printjobFields[13].Descriptor()
+	// printjob.DefaultAttempts holds the default value on creation for the attempts field.
+	printjob.DefaultAttempts = printjobDescAttempts.Default.(int)
+	// printjobDescCreatedAt is the schema descriptor for created_at field.
+	printjobDescCreatedAt := printjobFields[18].Descriptor()
+	// printjob.DefaultCreatedAt holds the default value on creation for the created_at field.
+	printjob.DefaultCreatedAt = printjobDescCreatedAt.Default.(func() time.Time)
+	// printjobDescUpdatedAt is the schema descriptor for updated_at field.
+	printjobDescUpdatedAt := printjobFields[19].Descriptor()
+	// printjob.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	printjob.DefaultUpdatedAt = printjobDescUpdatedAt.Default.(func() time.Time)
+	// printjob.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	printjob.UpdateDefaultUpdatedAt = printjobDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// printjobDescID is the schema descriptor for id field.
+	printjobDescID := printjobFields[0].Descriptor()
+	// printjob.DefaultID holds the default value on creation for the id field.
+	printjob.DefaultID = printjobDescID.Default.(func() uuid.UUID)
 	promotionFields := schema.Promotion{}.Fields()
 	_ = promotionFields
 	// promotionDescName is the schema descriptor for name field.

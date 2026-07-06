@@ -78,6 +78,8 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/prescriptionline"
 	"github.com/bengobox/pos-service/internal/ent/pricebook"
 	"github.com/bengobox/pos-service/internal/ent/pricebookitem"
+	"github.com/bengobox/pos-service/internal/ent/printagent"
+	"github.com/bengobox/pos-service/internal/ent/printjob"
 	"github.com/bengobox/pos-service/internal/ent/promotion"
 	"github.com/bengobox/pos-service/internal/ent/promotionapplication"
 	"github.com/bengobox/pos-service/internal/ent/promotionrule"
@@ -205,6 +207,8 @@ const (
 	TypePrescriptionLine         = "PrescriptionLine"
 	TypePriceBook                = "PriceBook"
 	TypePriceBookItem            = "PriceBookItem"
+	TypePrintAgent               = "PrintAgent"
+	TypePrintJob                 = "PrintJob"
 	TypePromotion                = "Promotion"
 	TypePromotionApplication     = "PromotionApplication"
 	TypePromotionRule            = "PromotionRule"
@@ -71298,6 +71302,2323 @@ func (m *PriceBookItemMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown PriceBookItem edge %s", name)
+}
+
+// PrintAgentMutation represents an operation that mutates the PrintAgent nodes in the graph.
+type PrintAgentMutation struct {
+	config
+	op            Op
+	typ           string
+	id            *uuid.UUID
+	tenant_id     *uuid.UUID
+	outlet_id     *uuid.UUID
+	name          *string
+	key_hash      *string
+	last_seen_at  *time.Time
+	version       *string
+	revoked       *bool
+	created_at    *time.Time
+	clearedFields map[string]struct{}
+	done          bool
+	oldValue      func(context.Context) (*PrintAgent, error)
+	predicates    []predicate.PrintAgent
+}
+
+var _ ent.Mutation = (*PrintAgentMutation)(nil)
+
+// printagentOption allows management of the mutation configuration using functional options.
+type printagentOption func(*PrintAgentMutation)
+
+// newPrintAgentMutation creates new mutation for the PrintAgent entity.
+func newPrintAgentMutation(c config, op Op, opts ...printagentOption) *PrintAgentMutation {
+	m := &PrintAgentMutation{
+		config:        c,
+		op:            op,
+		typ:           TypePrintAgent,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withPrintAgentID sets the ID field of the mutation.
+func withPrintAgentID(id uuid.UUID) printagentOption {
+	return func(m *PrintAgentMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *PrintAgent
+		)
+		m.oldValue = func(ctx context.Context) (*PrintAgent, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().PrintAgent.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withPrintAgent sets the old PrintAgent of the mutation.
+func withPrintAgent(node *PrintAgent) printagentOption {
+	return func(m *PrintAgentMutation) {
+		m.oldValue = func(context.Context) (*PrintAgent, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m PrintAgentMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m PrintAgentMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of PrintAgent entities.
+func (m *PrintAgentMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *PrintAgentMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *PrintAgentMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().PrintAgent.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *PrintAgentMutation) SetTenantID(u uuid.UUID) {
+	m.tenant_id = &u
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *PrintAgentMutation) TenantID() (r uuid.UUID, exists bool) {
+	v := m.tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the PrintAgent entity.
+// If the PrintAgent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PrintAgentMutation) OldTenantID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *PrintAgentMutation) ResetTenantID() {
+	m.tenant_id = nil
+}
+
+// SetOutletID sets the "outlet_id" field.
+func (m *PrintAgentMutation) SetOutletID(u uuid.UUID) {
+	m.outlet_id = &u
+}
+
+// OutletID returns the value of the "outlet_id" field in the mutation.
+func (m *PrintAgentMutation) OutletID() (r uuid.UUID, exists bool) {
+	v := m.outlet_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOutletID returns the old "outlet_id" field's value of the PrintAgent entity.
+// If the PrintAgent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PrintAgentMutation) OldOutletID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOutletID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOutletID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOutletID: %w", err)
+	}
+	return oldValue.OutletID, nil
+}
+
+// ResetOutletID resets all changes to the "outlet_id" field.
+func (m *PrintAgentMutation) ResetOutletID() {
+	m.outlet_id = nil
+}
+
+// SetName sets the "name" field.
+func (m *PrintAgentMutation) SetName(s string) {
+	m.name = &s
+}
+
+// Name returns the value of the "name" field in the mutation.
+func (m *PrintAgentMutation) Name() (r string, exists bool) {
+	v := m.name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldName returns the old "name" field's value of the PrintAgent entity.
+// If the PrintAgent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PrintAgentMutation) OldName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldName: %w", err)
+	}
+	return oldValue.Name, nil
+}
+
+// ResetName resets all changes to the "name" field.
+func (m *PrintAgentMutation) ResetName() {
+	m.name = nil
+}
+
+// SetKeyHash sets the "key_hash" field.
+func (m *PrintAgentMutation) SetKeyHash(s string) {
+	m.key_hash = &s
+}
+
+// KeyHash returns the value of the "key_hash" field in the mutation.
+func (m *PrintAgentMutation) KeyHash() (r string, exists bool) {
+	v := m.key_hash
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldKeyHash returns the old "key_hash" field's value of the PrintAgent entity.
+// If the PrintAgent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PrintAgentMutation) OldKeyHash(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldKeyHash is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldKeyHash requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldKeyHash: %w", err)
+	}
+	return oldValue.KeyHash, nil
+}
+
+// ResetKeyHash resets all changes to the "key_hash" field.
+func (m *PrintAgentMutation) ResetKeyHash() {
+	m.key_hash = nil
+}
+
+// SetLastSeenAt sets the "last_seen_at" field.
+func (m *PrintAgentMutation) SetLastSeenAt(t time.Time) {
+	m.last_seen_at = &t
+}
+
+// LastSeenAt returns the value of the "last_seen_at" field in the mutation.
+func (m *PrintAgentMutation) LastSeenAt() (r time.Time, exists bool) {
+	v := m.last_seen_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastSeenAt returns the old "last_seen_at" field's value of the PrintAgent entity.
+// If the PrintAgent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PrintAgentMutation) OldLastSeenAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastSeenAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastSeenAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastSeenAt: %w", err)
+	}
+	return oldValue.LastSeenAt, nil
+}
+
+// ClearLastSeenAt clears the value of the "last_seen_at" field.
+func (m *PrintAgentMutation) ClearLastSeenAt() {
+	m.last_seen_at = nil
+	m.clearedFields[printagent.FieldLastSeenAt] = struct{}{}
+}
+
+// LastSeenAtCleared returns if the "last_seen_at" field was cleared in this mutation.
+func (m *PrintAgentMutation) LastSeenAtCleared() bool {
+	_, ok := m.clearedFields[printagent.FieldLastSeenAt]
+	return ok
+}
+
+// ResetLastSeenAt resets all changes to the "last_seen_at" field.
+func (m *PrintAgentMutation) ResetLastSeenAt() {
+	m.last_seen_at = nil
+	delete(m.clearedFields, printagent.FieldLastSeenAt)
+}
+
+// SetVersion sets the "version" field.
+func (m *PrintAgentMutation) SetVersion(s string) {
+	m.version = &s
+}
+
+// Version returns the value of the "version" field in the mutation.
+func (m *PrintAgentMutation) Version() (r string, exists bool) {
+	v := m.version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldVersion returns the old "version" field's value of the PrintAgent entity.
+// If the PrintAgent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PrintAgentMutation) OldVersion(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldVersion is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldVersion requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldVersion: %w", err)
+	}
+	return oldValue.Version, nil
+}
+
+// ClearVersion clears the value of the "version" field.
+func (m *PrintAgentMutation) ClearVersion() {
+	m.version = nil
+	m.clearedFields[printagent.FieldVersion] = struct{}{}
+}
+
+// VersionCleared returns if the "version" field was cleared in this mutation.
+func (m *PrintAgentMutation) VersionCleared() bool {
+	_, ok := m.clearedFields[printagent.FieldVersion]
+	return ok
+}
+
+// ResetVersion resets all changes to the "version" field.
+func (m *PrintAgentMutation) ResetVersion() {
+	m.version = nil
+	delete(m.clearedFields, printagent.FieldVersion)
+}
+
+// SetRevoked sets the "revoked" field.
+func (m *PrintAgentMutation) SetRevoked(b bool) {
+	m.revoked = &b
+}
+
+// Revoked returns the value of the "revoked" field in the mutation.
+func (m *PrintAgentMutation) Revoked() (r bool, exists bool) {
+	v := m.revoked
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRevoked returns the old "revoked" field's value of the PrintAgent entity.
+// If the PrintAgent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PrintAgentMutation) OldRevoked(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRevoked is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRevoked requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRevoked: %w", err)
+	}
+	return oldValue.Revoked, nil
+}
+
+// ResetRevoked resets all changes to the "revoked" field.
+func (m *PrintAgentMutation) ResetRevoked() {
+	m.revoked = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *PrintAgentMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *PrintAgentMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the PrintAgent entity.
+// If the PrintAgent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PrintAgentMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *PrintAgentMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// Where appends a list predicates to the PrintAgentMutation builder.
+func (m *PrintAgentMutation) Where(ps ...predicate.PrintAgent) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the PrintAgentMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *PrintAgentMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.PrintAgent, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *PrintAgentMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *PrintAgentMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (PrintAgent).
+func (m *PrintAgentMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *PrintAgentMutation) Fields() []string {
+	fields := make([]string, 0, 8)
+	if m.tenant_id != nil {
+		fields = append(fields, printagent.FieldTenantID)
+	}
+	if m.outlet_id != nil {
+		fields = append(fields, printagent.FieldOutletID)
+	}
+	if m.name != nil {
+		fields = append(fields, printagent.FieldName)
+	}
+	if m.key_hash != nil {
+		fields = append(fields, printagent.FieldKeyHash)
+	}
+	if m.last_seen_at != nil {
+		fields = append(fields, printagent.FieldLastSeenAt)
+	}
+	if m.version != nil {
+		fields = append(fields, printagent.FieldVersion)
+	}
+	if m.revoked != nil {
+		fields = append(fields, printagent.FieldRevoked)
+	}
+	if m.created_at != nil {
+		fields = append(fields, printagent.FieldCreatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *PrintAgentMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case printagent.FieldTenantID:
+		return m.TenantID()
+	case printagent.FieldOutletID:
+		return m.OutletID()
+	case printagent.FieldName:
+		return m.Name()
+	case printagent.FieldKeyHash:
+		return m.KeyHash()
+	case printagent.FieldLastSeenAt:
+		return m.LastSeenAt()
+	case printagent.FieldVersion:
+		return m.Version()
+	case printagent.FieldRevoked:
+		return m.Revoked()
+	case printagent.FieldCreatedAt:
+		return m.CreatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *PrintAgentMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case printagent.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case printagent.FieldOutletID:
+		return m.OldOutletID(ctx)
+	case printagent.FieldName:
+		return m.OldName(ctx)
+	case printagent.FieldKeyHash:
+		return m.OldKeyHash(ctx)
+	case printagent.FieldLastSeenAt:
+		return m.OldLastSeenAt(ctx)
+	case printagent.FieldVersion:
+		return m.OldVersion(ctx)
+	case printagent.FieldRevoked:
+		return m.OldRevoked(ctx)
+	case printagent.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown PrintAgent field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *PrintAgentMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case printagent.FieldTenantID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case printagent.FieldOutletID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOutletID(v)
+		return nil
+	case printagent.FieldName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetName(v)
+		return nil
+	case printagent.FieldKeyHash:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetKeyHash(v)
+		return nil
+	case printagent.FieldLastSeenAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastSeenAt(v)
+		return nil
+	case printagent.FieldVersion:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetVersion(v)
+		return nil
+	case printagent.FieldRevoked:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRevoked(v)
+		return nil
+	case printagent.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown PrintAgent field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *PrintAgentMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *PrintAgentMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *PrintAgentMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown PrintAgent numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *PrintAgentMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(printagent.FieldLastSeenAt) {
+		fields = append(fields, printagent.FieldLastSeenAt)
+	}
+	if m.FieldCleared(printagent.FieldVersion) {
+		fields = append(fields, printagent.FieldVersion)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *PrintAgentMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *PrintAgentMutation) ClearField(name string) error {
+	switch name {
+	case printagent.FieldLastSeenAt:
+		m.ClearLastSeenAt()
+		return nil
+	case printagent.FieldVersion:
+		m.ClearVersion()
+		return nil
+	}
+	return fmt.Errorf("unknown PrintAgent nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *PrintAgentMutation) ResetField(name string) error {
+	switch name {
+	case printagent.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case printagent.FieldOutletID:
+		m.ResetOutletID()
+		return nil
+	case printagent.FieldName:
+		m.ResetName()
+		return nil
+	case printagent.FieldKeyHash:
+		m.ResetKeyHash()
+		return nil
+	case printagent.FieldLastSeenAt:
+		m.ResetLastSeenAt()
+		return nil
+	case printagent.FieldVersion:
+		m.ResetVersion()
+		return nil
+	case printagent.FieldRevoked:
+		m.ResetRevoked()
+		return nil
+	case printagent.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown PrintAgent field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *PrintAgentMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *PrintAgentMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *PrintAgentMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *PrintAgentMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *PrintAgentMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *PrintAgentMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *PrintAgentMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown PrintAgent unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *PrintAgentMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown PrintAgent edge %s", name)
+}
+
+// PrintJobMutation represents an operation that mutates the PrintJob nodes in the graph.
+type PrintJobMutation struct {
+	config
+	op               Op
+	typ              string
+	id               *uuid.UUID
+	tenant_id        *uuid.UUID
+	outlet_id        *uuid.UUID
+	order_id         *uuid.UUID
+	job_type         *string
+	profile_id       *string
+	printer_type     *string
+	printer_ip       *string
+	printer_port     *int
+	addprinter_port  *int
+	printer_name     *string
+	paper            *string
+	payload_hex      *string
+	status           *string
+	attempts         *int
+	addattempts      *int
+	claimed_by       *string
+	claim_expires_at *time.Time
+	dedupe_key       *string
+	last_error       *string
+	created_at       *time.Time
+	updated_at       *time.Time
+	clearedFields    map[string]struct{}
+	done             bool
+	oldValue         func(context.Context) (*PrintJob, error)
+	predicates       []predicate.PrintJob
+}
+
+var _ ent.Mutation = (*PrintJobMutation)(nil)
+
+// printjobOption allows management of the mutation configuration using functional options.
+type printjobOption func(*PrintJobMutation)
+
+// newPrintJobMutation creates new mutation for the PrintJob entity.
+func newPrintJobMutation(c config, op Op, opts ...printjobOption) *PrintJobMutation {
+	m := &PrintJobMutation{
+		config:        c,
+		op:            op,
+		typ:           TypePrintJob,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withPrintJobID sets the ID field of the mutation.
+func withPrintJobID(id uuid.UUID) printjobOption {
+	return func(m *PrintJobMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *PrintJob
+		)
+		m.oldValue = func(ctx context.Context) (*PrintJob, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().PrintJob.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withPrintJob sets the old PrintJob of the mutation.
+func withPrintJob(node *PrintJob) printjobOption {
+	return func(m *PrintJobMutation) {
+		m.oldValue = func(context.Context) (*PrintJob, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m PrintJobMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m PrintJobMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of PrintJob entities.
+func (m *PrintJobMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *PrintJobMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *PrintJobMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().PrintJob.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *PrintJobMutation) SetTenantID(u uuid.UUID) {
+	m.tenant_id = &u
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *PrintJobMutation) TenantID() (r uuid.UUID, exists bool) {
+	v := m.tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the PrintJob entity.
+// If the PrintJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PrintJobMutation) OldTenantID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *PrintJobMutation) ResetTenantID() {
+	m.tenant_id = nil
+}
+
+// SetOutletID sets the "outlet_id" field.
+func (m *PrintJobMutation) SetOutletID(u uuid.UUID) {
+	m.outlet_id = &u
+}
+
+// OutletID returns the value of the "outlet_id" field in the mutation.
+func (m *PrintJobMutation) OutletID() (r uuid.UUID, exists bool) {
+	v := m.outlet_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOutletID returns the old "outlet_id" field's value of the PrintJob entity.
+// If the PrintJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PrintJobMutation) OldOutletID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOutletID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOutletID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOutletID: %w", err)
+	}
+	return oldValue.OutletID, nil
+}
+
+// ResetOutletID resets all changes to the "outlet_id" field.
+func (m *PrintJobMutation) ResetOutletID() {
+	m.outlet_id = nil
+}
+
+// SetOrderID sets the "order_id" field.
+func (m *PrintJobMutation) SetOrderID(u uuid.UUID) {
+	m.order_id = &u
+}
+
+// OrderID returns the value of the "order_id" field in the mutation.
+func (m *PrintJobMutation) OrderID() (r uuid.UUID, exists bool) {
+	v := m.order_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOrderID returns the old "order_id" field's value of the PrintJob entity.
+// If the PrintJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PrintJobMutation) OldOrderID(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOrderID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOrderID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOrderID: %w", err)
+	}
+	return oldValue.OrderID, nil
+}
+
+// ClearOrderID clears the value of the "order_id" field.
+func (m *PrintJobMutation) ClearOrderID() {
+	m.order_id = nil
+	m.clearedFields[printjob.FieldOrderID] = struct{}{}
+}
+
+// OrderIDCleared returns if the "order_id" field was cleared in this mutation.
+func (m *PrintJobMutation) OrderIDCleared() bool {
+	_, ok := m.clearedFields[printjob.FieldOrderID]
+	return ok
+}
+
+// ResetOrderID resets all changes to the "order_id" field.
+func (m *PrintJobMutation) ResetOrderID() {
+	m.order_id = nil
+	delete(m.clearedFields, printjob.FieldOrderID)
+}
+
+// SetJobType sets the "job_type" field.
+func (m *PrintJobMutation) SetJobType(s string) {
+	m.job_type = &s
+}
+
+// JobType returns the value of the "job_type" field in the mutation.
+func (m *PrintJobMutation) JobType() (r string, exists bool) {
+	v := m.job_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldJobType returns the old "job_type" field's value of the PrintJob entity.
+// If the PrintJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PrintJobMutation) OldJobType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldJobType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldJobType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldJobType: %w", err)
+	}
+	return oldValue.JobType, nil
+}
+
+// ResetJobType resets all changes to the "job_type" field.
+func (m *PrintJobMutation) ResetJobType() {
+	m.job_type = nil
+}
+
+// SetProfileID sets the "profile_id" field.
+func (m *PrintJobMutation) SetProfileID(s string) {
+	m.profile_id = &s
+}
+
+// ProfileID returns the value of the "profile_id" field in the mutation.
+func (m *PrintJobMutation) ProfileID() (r string, exists bool) {
+	v := m.profile_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProfileID returns the old "profile_id" field's value of the PrintJob entity.
+// If the PrintJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PrintJobMutation) OldProfileID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProfileID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProfileID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProfileID: %w", err)
+	}
+	return oldValue.ProfileID, nil
+}
+
+// ClearProfileID clears the value of the "profile_id" field.
+func (m *PrintJobMutation) ClearProfileID() {
+	m.profile_id = nil
+	m.clearedFields[printjob.FieldProfileID] = struct{}{}
+}
+
+// ProfileIDCleared returns if the "profile_id" field was cleared in this mutation.
+func (m *PrintJobMutation) ProfileIDCleared() bool {
+	_, ok := m.clearedFields[printjob.FieldProfileID]
+	return ok
+}
+
+// ResetProfileID resets all changes to the "profile_id" field.
+func (m *PrintJobMutation) ResetProfileID() {
+	m.profile_id = nil
+	delete(m.clearedFields, printjob.FieldProfileID)
+}
+
+// SetPrinterType sets the "printer_type" field.
+func (m *PrintJobMutation) SetPrinterType(s string) {
+	m.printer_type = &s
+}
+
+// PrinterType returns the value of the "printer_type" field in the mutation.
+func (m *PrintJobMutation) PrinterType() (r string, exists bool) {
+	v := m.printer_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPrinterType returns the old "printer_type" field's value of the PrintJob entity.
+// If the PrintJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PrintJobMutation) OldPrinterType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPrinterType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPrinterType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPrinterType: %w", err)
+	}
+	return oldValue.PrinterType, nil
+}
+
+// ClearPrinterType clears the value of the "printer_type" field.
+func (m *PrintJobMutation) ClearPrinterType() {
+	m.printer_type = nil
+	m.clearedFields[printjob.FieldPrinterType] = struct{}{}
+}
+
+// PrinterTypeCleared returns if the "printer_type" field was cleared in this mutation.
+func (m *PrintJobMutation) PrinterTypeCleared() bool {
+	_, ok := m.clearedFields[printjob.FieldPrinterType]
+	return ok
+}
+
+// ResetPrinterType resets all changes to the "printer_type" field.
+func (m *PrintJobMutation) ResetPrinterType() {
+	m.printer_type = nil
+	delete(m.clearedFields, printjob.FieldPrinterType)
+}
+
+// SetPrinterIP sets the "printer_ip" field.
+func (m *PrintJobMutation) SetPrinterIP(s string) {
+	m.printer_ip = &s
+}
+
+// PrinterIP returns the value of the "printer_ip" field in the mutation.
+func (m *PrintJobMutation) PrinterIP() (r string, exists bool) {
+	v := m.printer_ip
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPrinterIP returns the old "printer_ip" field's value of the PrintJob entity.
+// If the PrintJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PrintJobMutation) OldPrinterIP(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPrinterIP is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPrinterIP requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPrinterIP: %w", err)
+	}
+	return oldValue.PrinterIP, nil
+}
+
+// ClearPrinterIP clears the value of the "printer_ip" field.
+func (m *PrintJobMutation) ClearPrinterIP() {
+	m.printer_ip = nil
+	m.clearedFields[printjob.FieldPrinterIP] = struct{}{}
+}
+
+// PrinterIPCleared returns if the "printer_ip" field was cleared in this mutation.
+func (m *PrintJobMutation) PrinterIPCleared() bool {
+	_, ok := m.clearedFields[printjob.FieldPrinterIP]
+	return ok
+}
+
+// ResetPrinterIP resets all changes to the "printer_ip" field.
+func (m *PrintJobMutation) ResetPrinterIP() {
+	m.printer_ip = nil
+	delete(m.clearedFields, printjob.FieldPrinterIP)
+}
+
+// SetPrinterPort sets the "printer_port" field.
+func (m *PrintJobMutation) SetPrinterPort(i int) {
+	m.printer_port = &i
+	m.addprinter_port = nil
+}
+
+// PrinterPort returns the value of the "printer_port" field in the mutation.
+func (m *PrintJobMutation) PrinterPort() (r int, exists bool) {
+	v := m.printer_port
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPrinterPort returns the old "printer_port" field's value of the PrintJob entity.
+// If the PrintJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PrintJobMutation) OldPrinterPort(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPrinterPort is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPrinterPort requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPrinterPort: %w", err)
+	}
+	return oldValue.PrinterPort, nil
+}
+
+// AddPrinterPort adds i to the "printer_port" field.
+func (m *PrintJobMutation) AddPrinterPort(i int) {
+	if m.addprinter_port != nil {
+		*m.addprinter_port += i
+	} else {
+		m.addprinter_port = &i
+	}
+}
+
+// AddedPrinterPort returns the value that was added to the "printer_port" field in this mutation.
+func (m *PrintJobMutation) AddedPrinterPort() (r int, exists bool) {
+	v := m.addprinter_port
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetPrinterPort resets all changes to the "printer_port" field.
+func (m *PrintJobMutation) ResetPrinterPort() {
+	m.printer_port = nil
+	m.addprinter_port = nil
+}
+
+// SetPrinterName sets the "printer_name" field.
+func (m *PrintJobMutation) SetPrinterName(s string) {
+	m.printer_name = &s
+}
+
+// PrinterName returns the value of the "printer_name" field in the mutation.
+func (m *PrintJobMutation) PrinterName() (r string, exists bool) {
+	v := m.printer_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPrinterName returns the old "printer_name" field's value of the PrintJob entity.
+// If the PrintJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PrintJobMutation) OldPrinterName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPrinterName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPrinterName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPrinterName: %w", err)
+	}
+	return oldValue.PrinterName, nil
+}
+
+// ClearPrinterName clears the value of the "printer_name" field.
+func (m *PrintJobMutation) ClearPrinterName() {
+	m.printer_name = nil
+	m.clearedFields[printjob.FieldPrinterName] = struct{}{}
+}
+
+// PrinterNameCleared returns if the "printer_name" field was cleared in this mutation.
+func (m *PrintJobMutation) PrinterNameCleared() bool {
+	_, ok := m.clearedFields[printjob.FieldPrinterName]
+	return ok
+}
+
+// ResetPrinterName resets all changes to the "printer_name" field.
+func (m *PrintJobMutation) ResetPrinterName() {
+	m.printer_name = nil
+	delete(m.clearedFields, printjob.FieldPrinterName)
+}
+
+// SetPaper sets the "paper" field.
+func (m *PrintJobMutation) SetPaper(s string) {
+	m.paper = &s
+}
+
+// Paper returns the value of the "paper" field in the mutation.
+func (m *PrintJobMutation) Paper() (r string, exists bool) {
+	v := m.paper
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPaper returns the old "paper" field's value of the PrintJob entity.
+// If the PrintJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PrintJobMutation) OldPaper(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPaper is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPaper requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPaper: %w", err)
+	}
+	return oldValue.Paper, nil
+}
+
+// ClearPaper clears the value of the "paper" field.
+func (m *PrintJobMutation) ClearPaper() {
+	m.paper = nil
+	m.clearedFields[printjob.FieldPaper] = struct{}{}
+}
+
+// PaperCleared returns if the "paper" field was cleared in this mutation.
+func (m *PrintJobMutation) PaperCleared() bool {
+	_, ok := m.clearedFields[printjob.FieldPaper]
+	return ok
+}
+
+// ResetPaper resets all changes to the "paper" field.
+func (m *PrintJobMutation) ResetPaper() {
+	m.paper = nil
+	delete(m.clearedFields, printjob.FieldPaper)
+}
+
+// SetPayloadHex sets the "payload_hex" field.
+func (m *PrintJobMutation) SetPayloadHex(s string) {
+	m.payload_hex = &s
+}
+
+// PayloadHex returns the value of the "payload_hex" field in the mutation.
+func (m *PrintJobMutation) PayloadHex() (r string, exists bool) {
+	v := m.payload_hex
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPayloadHex returns the old "payload_hex" field's value of the PrintJob entity.
+// If the PrintJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PrintJobMutation) OldPayloadHex(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPayloadHex is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPayloadHex requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPayloadHex: %w", err)
+	}
+	return oldValue.PayloadHex, nil
+}
+
+// ResetPayloadHex resets all changes to the "payload_hex" field.
+func (m *PrintJobMutation) ResetPayloadHex() {
+	m.payload_hex = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *PrintJobMutation) SetStatus(s string) {
+	m.status = &s
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *PrintJobMutation) Status() (r string, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the PrintJob entity.
+// If the PrintJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PrintJobMutation) OldStatus(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *PrintJobMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetAttempts sets the "attempts" field.
+func (m *PrintJobMutation) SetAttempts(i int) {
+	m.attempts = &i
+	m.addattempts = nil
+}
+
+// Attempts returns the value of the "attempts" field in the mutation.
+func (m *PrintJobMutation) Attempts() (r int, exists bool) {
+	v := m.attempts
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAttempts returns the old "attempts" field's value of the PrintJob entity.
+// If the PrintJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PrintJobMutation) OldAttempts(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAttempts is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAttempts requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAttempts: %w", err)
+	}
+	return oldValue.Attempts, nil
+}
+
+// AddAttempts adds i to the "attempts" field.
+func (m *PrintJobMutation) AddAttempts(i int) {
+	if m.addattempts != nil {
+		*m.addattempts += i
+	} else {
+		m.addattempts = &i
+	}
+}
+
+// AddedAttempts returns the value that was added to the "attempts" field in this mutation.
+func (m *PrintJobMutation) AddedAttempts() (r int, exists bool) {
+	v := m.addattempts
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAttempts resets all changes to the "attempts" field.
+func (m *PrintJobMutation) ResetAttempts() {
+	m.attempts = nil
+	m.addattempts = nil
+}
+
+// SetClaimedBy sets the "claimed_by" field.
+func (m *PrintJobMutation) SetClaimedBy(s string) {
+	m.claimed_by = &s
+}
+
+// ClaimedBy returns the value of the "claimed_by" field in the mutation.
+func (m *PrintJobMutation) ClaimedBy() (r string, exists bool) {
+	v := m.claimed_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldClaimedBy returns the old "claimed_by" field's value of the PrintJob entity.
+// If the PrintJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PrintJobMutation) OldClaimedBy(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldClaimedBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldClaimedBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldClaimedBy: %w", err)
+	}
+	return oldValue.ClaimedBy, nil
+}
+
+// ClearClaimedBy clears the value of the "claimed_by" field.
+func (m *PrintJobMutation) ClearClaimedBy() {
+	m.claimed_by = nil
+	m.clearedFields[printjob.FieldClaimedBy] = struct{}{}
+}
+
+// ClaimedByCleared returns if the "claimed_by" field was cleared in this mutation.
+func (m *PrintJobMutation) ClaimedByCleared() bool {
+	_, ok := m.clearedFields[printjob.FieldClaimedBy]
+	return ok
+}
+
+// ResetClaimedBy resets all changes to the "claimed_by" field.
+func (m *PrintJobMutation) ResetClaimedBy() {
+	m.claimed_by = nil
+	delete(m.clearedFields, printjob.FieldClaimedBy)
+}
+
+// SetClaimExpiresAt sets the "claim_expires_at" field.
+func (m *PrintJobMutation) SetClaimExpiresAt(t time.Time) {
+	m.claim_expires_at = &t
+}
+
+// ClaimExpiresAt returns the value of the "claim_expires_at" field in the mutation.
+func (m *PrintJobMutation) ClaimExpiresAt() (r time.Time, exists bool) {
+	v := m.claim_expires_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldClaimExpiresAt returns the old "claim_expires_at" field's value of the PrintJob entity.
+// If the PrintJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PrintJobMutation) OldClaimExpiresAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldClaimExpiresAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldClaimExpiresAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldClaimExpiresAt: %w", err)
+	}
+	return oldValue.ClaimExpiresAt, nil
+}
+
+// ClearClaimExpiresAt clears the value of the "claim_expires_at" field.
+func (m *PrintJobMutation) ClearClaimExpiresAt() {
+	m.claim_expires_at = nil
+	m.clearedFields[printjob.FieldClaimExpiresAt] = struct{}{}
+}
+
+// ClaimExpiresAtCleared returns if the "claim_expires_at" field was cleared in this mutation.
+func (m *PrintJobMutation) ClaimExpiresAtCleared() bool {
+	_, ok := m.clearedFields[printjob.FieldClaimExpiresAt]
+	return ok
+}
+
+// ResetClaimExpiresAt resets all changes to the "claim_expires_at" field.
+func (m *PrintJobMutation) ResetClaimExpiresAt() {
+	m.claim_expires_at = nil
+	delete(m.clearedFields, printjob.FieldClaimExpiresAt)
+}
+
+// SetDedupeKey sets the "dedupe_key" field.
+func (m *PrintJobMutation) SetDedupeKey(s string) {
+	m.dedupe_key = &s
+}
+
+// DedupeKey returns the value of the "dedupe_key" field in the mutation.
+func (m *PrintJobMutation) DedupeKey() (r string, exists bool) {
+	v := m.dedupe_key
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDedupeKey returns the old "dedupe_key" field's value of the PrintJob entity.
+// If the PrintJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PrintJobMutation) OldDedupeKey(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDedupeKey is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDedupeKey requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDedupeKey: %w", err)
+	}
+	return oldValue.DedupeKey, nil
+}
+
+// ClearDedupeKey clears the value of the "dedupe_key" field.
+func (m *PrintJobMutation) ClearDedupeKey() {
+	m.dedupe_key = nil
+	m.clearedFields[printjob.FieldDedupeKey] = struct{}{}
+}
+
+// DedupeKeyCleared returns if the "dedupe_key" field was cleared in this mutation.
+func (m *PrintJobMutation) DedupeKeyCleared() bool {
+	_, ok := m.clearedFields[printjob.FieldDedupeKey]
+	return ok
+}
+
+// ResetDedupeKey resets all changes to the "dedupe_key" field.
+func (m *PrintJobMutation) ResetDedupeKey() {
+	m.dedupe_key = nil
+	delete(m.clearedFields, printjob.FieldDedupeKey)
+}
+
+// SetLastError sets the "last_error" field.
+func (m *PrintJobMutation) SetLastError(s string) {
+	m.last_error = &s
+}
+
+// LastError returns the value of the "last_error" field in the mutation.
+func (m *PrintJobMutation) LastError() (r string, exists bool) {
+	v := m.last_error
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastError returns the old "last_error" field's value of the PrintJob entity.
+// If the PrintJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PrintJobMutation) OldLastError(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastError is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastError requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastError: %w", err)
+	}
+	return oldValue.LastError, nil
+}
+
+// ClearLastError clears the value of the "last_error" field.
+func (m *PrintJobMutation) ClearLastError() {
+	m.last_error = nil
+	m.clearedFields[printjob.FieldLastError] = struct{}{}
+}
+
+// LastErrorCleared returns if the "last_error" field was cleared in this mutation.
+func (m *PrintJobMutation) LastErrorCleared() bool {
+	_, ok := m.clearedFields[printjob.FieldLastError]
+	return ok
+}
+
+// ResetLastError resets all changes to the "last_error" field.
+func (m *PrintJobMutation) ResetLastError() {
+	m.last_error = nil
+	delete(m.clearedFields, printjob.FieldLastError)
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *PrintJobMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *PrintJobMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the PrintJob entity.
+// If the PrintJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PrintJobMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *PrintJobMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *PrintJobMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *PrintJobMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the PrintJob entity.
+// If the PrintJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PrintJobMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *PrintJobMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the PrintJobMutation builder.
+func (m *PrintJobMutation) Where(ps ...predicate.PrintJob) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the PrintJobMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *PrintJobMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.PrintJob, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *PrintJobMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *PrintJobMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (PrintJob).
+func (m *PrintJobMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *PrintJobMutation) Fields() []string {
+	fields := make([]string, 0, 19)
+	if m.tenant_id != nil {
+		fields = append(fields, printjob.FieldTenantID)
+	}
+	if m.outlet_id != nil {
+		fields = append(fields, printjob.FieldOutletID)
+	}
+	if m.order_id != nil {
+		fields = append(fields, printjob.FieldOrderID)
+	}
+	if m.job_type != nil {
+		fields = append(fields, printjob.FieldJobType)
+	}
+	if m.profile_id != nil {
+		fields = append(fields, printjob.FieldProfileID)
+	}
+	if m.printer_type != nil {
+		fields = append(fields, printjob.FieldPrinterType)
+	}
+	if m.printer_ip != nil {
+		fields = append(fields, printjob.FieldPrinterIP)
+	}
+	if m.printer_port != nil {
+		fields = append(fields, printjob.FieldPrinterPort)
+	}
+	if m.printer_name != nil {
+		fields = append(fields, printjob.FieldPrinterName)
+	}
+	if m.paper != nil {
+		fields = append(fields, printjob.FieldPaper)
+	}
+	if m.payload_hex != nil {
+		fields = append(fields, printjob.FieldPayloadHex)
+	}
+	if m.status != nil {
+		fields = append(fields, printjob.FieldStatus)
+	}
+	if m.attempts != nil {
+		fields = append(fields, printjob.FieldAttempts)
+	}
+	if m.claimed_by != nil {
+		fields = append(fields, printjob.FieldClaimedBy)
+	}
+	if m.claim_expires_at != nil {
+		fields = append(fields, printjob.FieldClaimExpiresAt)
+	}
+	if m.dedupe_key != nil {
+		fields = append(fields, printjob.FieldDedupeKey)
+	}
+	if m.last_error != nil {
+		fields = append(fields, printjob.FieldLastError)
+	}
+	if m.created_at != nil {
+		fields = append(fields, printjob.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, printjob.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *PrintJobMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case printjob.FieldTenantID:
+		return m.TenantID()
+	case printjob.FieldOutletID:
+		return m.OutletID()
+	case printjob.FieldOrderID:
+		return m.OrderID()
+	case printjob.FieldJobType:
+		return m.JobType()
+	case printjob.FieldProfileID:
+		return m.ProfileID()
+	case printjob.FieldPrinterType:
+		return m.PrinterType()
+	case printjob.FieldPrinterIP:
+		return m.PrinterIP()
+	case printjob.FieldPrinterPort:
+		return m.PrinterPort()
+	case printjob.FieldPrinterName:
+		return m.PrinterName()
+	case printjob.FieldPaper:
+		return m.Paper()
+	case printjob.FieldPayloadHex:
+		return m.PayloadHex()
+	case printjob.FieldStatus:
+		return m.Status()
+	case printjob.FieldAttempts:
+		return m.Attempts()
+	case printjob.FieldClaimedBy:
+		return m.ClaimedBy()
+	case printjob.FieldClaimExpiresAt:
+		return m.ClaimExpiresAt()
+	case printjob.FieldDedupeKey:
+		return m.DedupeKey()
+	case printjob.FieldLastError:
+		return m.LastError()
+	case printjob.FieldCreatedAt:
+		return m.CreatedAt()
+	case printjob.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *PrintJobMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case printjob.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case printjob.FieldOutletID:
+		return m.OldOutletID(ctx)
+	case printjob.FieldOrderID:
+		return m.OldOrderID(ctx)
+	case printjob.FieldJobType:
+		return m.OldJobType(ctx)
+	case printjob.FieldProfileID:
+		return m.OldProfileID(ctx)
+	case printjob.FieldPrinterType:
+		return m.OldPrinterType(ctx)
+	case printjob.FieldPrinterIP:
+		return m.OldPrinterIP(ctx)
+	case printjob.FieldPrinterPort:
+		return m.OldPrinterPort(ctx)
+	case printjob.FieldPrinterName:
+		return m.OldPrinterName(ctx)
+	case printjob.FieldPaper:
+		return m.OldPaper(ctx)
+	case printjob.FieldPayloadHex:
+		return m.OldPayloadHex(ctx)
+	case printjob.FieldStatus:
+		return m.OldStatus(ctx)
+	case printjob.FieldAttempts:
+		return m.OldAttempts(ctx)
+	case printjob.FieldClaimedBy:
+		return m.OldClaimedBy(ctx)
+	case printjob.FieldClaimExpiresAt:
+		return m.OldClaimExpiresAt(ctx)
+	case printjob.FieldDedupeKey:
+		return m.OldDedupeKey(ctx)
+	case printjob.FieldLastError:
+		return m.OldLastError(ctx)
+	case printjob.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case printjob.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown PrintJob field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *PrintJobMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case printjob.FieldTenantID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case printjob.FieldOutletID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOutletID(v)
+		return nil
+	case printjob.FieldOrderID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOrderID(v)
+		return nil
+	case printjob.FieldJobType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetJobType(v)
+		return nil
+	case printjob.FieldProfileID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProfileID(v)
+		return nil
+	case printjob.FieldPrinterType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPrinterType(v)
+		return nil
+	case printjob.FieldPrinterIP:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPrinterIP(v)
+		return nil
+	case printjob.FieldPrinterPort:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPrinterPort(v)
+		return nil
+	case printjob.FieldPrinterName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPrinterName(v)
+		return nil
+	case printjob.FieldPaper:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPaper(v)
+		return nil
+	case printjob.FieldPayloadHex:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPayloadHex(v)
+		return nil
+	case printjob.FieldStatus:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case printjob.FieldAttempts:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAttempts(v)
+		return nil
+	case printjob.FieldClaimedBy:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetClaimedBy(v)
+		return nil
+	case printjob.FieldClaimExpiresAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetClaimExpiresAt(v)
+		return nil
+	case printjob.FieldDedupeKey:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDedupeKey(v)
+		return nil
+	case printjob.FieldLastError:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastError(v)
+		return nil
+	case printjob.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case printjob.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown PrintJob field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *PrintJobMutation) AddedFields() []string {
+	var fields []string
+	if m.addprinter_port != nil {
+		fields = append(fields, printjob.FieldPrinterPort)
+	}
+	if m.addattempts != nil {
+		fields = append(fields, printjob.FieldAttempts)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *PrintJobMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case printjob.FieldPrinterPort:
+		return m.AddedPrinterPort()
+	case printjob.FieldAttempts:
+		return m.AddedAttempts()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *PrintJobMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case printjob.FieldPrinterPort:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddPrinterPort(v)
+		return nil
+	case printjob.FieldAttempts:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAttempts(v)
+		return nil
+	}
+	return fmt.Errorf("unknown PrintJob numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *PrintJobMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(printjob.FieldOrderID) {
+		fields = append(fields, printjob.FieldOrderID)
+	}
+	if m.FieldCleared(printjob.FieldProfileID) {
+		fields = append(fields, printjob.FieldProfileID)
+	}
+	if m.FieldCleared(printjob.FieldPrinterType) {
+		fields = append(fields, printjob.FieldPrinterType)
+	}
+	if m.FieldCleared(printjob.FieldPrinterIP) {
+		fields = append(fields, printjob.FieldPrinterIP)
+	}
+	if m.FieldCleared(printjob.FieldPrinterName) {
+		fields = append(fields, printjob.FieldPrinterName)
+	}
+	if m.FieldCleared(printjob.FieldPaper) {
+		fields = append(fields, printjob.FieldPaper)
+	}
+	if m.FieldCleared(printjob.FieldClaimedBy) {
+		fields = append(fields, printjob.FieldClaimedBy)
+	}
+	if m.FieldCleared(printjob.FieldClaimExpiresAt) {
+		fields = append(fields, printjob.FieldClaimExpiresAt)
+	}
+	if m.FieldCleared(printjob.FieldDedupeKey) {
+		fields = append(fields, printjob.FieldDedupeKey)
+	}
+	if m.FieldCleared(printjob.FieldLastError) {
+		fields = append(fields, printjob.FieldLastError)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *PrintJobMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *PrintJobMutation) ClearField(name string) error {
+	switch name {
+	case printjob.FieldOrderID:
+		m.ClearOrderID()
+		return nil
+	case printjob.FieldProfileID:
+		m.ClearProfileID()
+		return nil
+	case printjob.FieldPrinterType:
+		m.ClearPrinterType()
+		return nil
+	case printjob.FieldPrinterIP:
+		m.ClearPrinterIP()
+		return nil
+	case printjob.FieldPrinterName:
+		m.ClearPrinterName()
+		return nil
+	case printjob.FieldPaper:
+		m.ClearPaper()
+		return nil
+	case printjob.FieldClaimedBy:
+		m.ClearClaimedBy()
+		return nil
+	case printjob.FieldClaimExpiresAt:
+		m.ClearClaimExpiresAt()
+		return nil
+	case printjob.FieldDedupeKey:
+		m.ClearDedupeKey()
+		return nil
+	case printjob.FieldLastError:
+		m.ClearLastError()
+		return nil
+	}
+	return fmt.Errorf("unknown PrintJob nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *PrintJobMutation) ResetField(name string) error {
+	switch name {
+	case printjob.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case printjob.FieldOutletID:
+		m.ResetOutletID()
+		return nil
+	case printjob.FieldOrderID:
+		m.ResetOrderID()
+		return nil
+	case printjob.FieldJobType:
+		m.ResetJobType()
+		return nil
+	case printjob.FieldProfileID:
+		m.ResetProfileID()
+		return nil
+	case printjob.FieldPrinterType:
+		m.ResetPrinterType()
+		return nil
+	case printjob.FieldPrinterIP:
+		m.ResetPrinterIP()
+		return nil
+	case printjob.FieldPrinterPort:
+		m.ResetPrinterPort()
+		return nil
+	case printjob.FieldPrinterName:
+		m.ResetPrinterName()
+		return nil
+	case printjob.FieldPaper:
+		m.ResetPaper()
+		return nil
+	case printjob.FieldPayloadHex:
+		m.ResetPayloadHex()
+		return nil
+	case printjob.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case printjob.FieldAttempts:
+		m.ResetAttempts()
+		return nil
+	case printjob.FieldClaimedBy:
+		m.ResetClaimedBy()
+		return nil
+	case printjob.FieldClaimExpiresAt:
+		m.ResetClaimExpiresAt()
+		return nil
+	case printjob.FieldDedupeKey:
+		m.ResetDedupeKey()
+		return nil
+	case printjob.FieldLastError:
+		m.ResetLastError()
+		return nil
+	case printjob.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case printjob.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown PrintJob field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *PrintJobMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *PrintJobMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *PrintJobMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *PrintJobMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *PrintJobMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *PrintJobMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *PrintJobMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown PrintJob unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *PrintJobMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown PrintJob edge %s", name)
 }
 
 // PromotionMutation represents an operation that mutates the Promotion nodes in the graph.

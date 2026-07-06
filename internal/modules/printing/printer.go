@@ -9,13 +9,18 @@ import (
 
 // PrinterProfile mirrors the printer_profiles JSON array stored in OutletSetting.
 type PrinterProfile struct {
-	ID          string   `json:"id"`
+	ID          string   `json:"id"` // "customer" | "waiter" | a KDS station UUID
 	Label       string   `json:"label"`
-	PrinterType string   `json:"printer_type"` // "network" | "thermal" | "bluetooth" | "browser" | "none"
+	PrinterType string   `json:"printer_type"` // "network" | "usb" | "os" | "bluetooth" | "thermal" | "browser" | "none"
 	PrinterIP   string   `json:"printer_ip"`
-	PaperWidth  string   `json:"paper_width"` // "58mm" | "80mm"
+	PrinterPort int      `json:"printer_port"` // raw-socket port, default 9100
+	PrinterName string   `json:"printer_name"` // OS spooler name for usb/os/bluetooth targets
+	PaperSize   string   `json:"paper_size"`   // "58mm" | "76mm" | "80mm" | "A6" | "A5" | "A4" | "Letter"
+	PaperWidth  string   `json:"paper_width"`  // legacy field, same values as paper_size
 	AutoPrint   bool     `json:"auto_print"`
 	Categories  []string `json:"categories"` // empty = all categories
+	StationID   string   `json:"station_id"`
+	StationType string   `json:"station_type"` // kitchen | bar | expo | all
 }
 
 // NetworkPrinter sends raw ESC/POS bytes to a network printer via TCP on port 9100.

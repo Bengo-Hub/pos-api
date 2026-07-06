@@ -83,6 +83,8 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/prescriptionline"
 	"github.com/bengobox/pos-service/internal/ent/pricebook"
 	"github.com/bengobox/pos-service/internal/ent/pricebookitem"
+	"github.com/bengobox/pos-service/internal/ent/printagent"
+	"github.com/bengobox/pos-service/internal/ent/printjob"
 	"github.com/bengobox/pos-service/internal/ent/promotion"
 	"github.com/bengobox/pos-service/internal/ent/promotionapplication"
 	"github.com/bengobox/pos-service/internal/ent/promotionrule"
@@ -271,6 +273,10 @@ type Client struct {
 	PriceBook *PriceBookClient
 	// PriceBookItem is the client for interacting with the PriceBookItem builders.
 	PriceBookItem *PriceBookItemClient
+	// PrintAgent is the client for interacting with the PrintAgent builders.
+	PrintAgent *PrintAgentClient
+	// PrintJob is the client for interacting with the PrintJob builders.
+	PrintJob *PrintJobClient
 	// Promotion is the client for interacting with the Promotion builders.
 	Promotion *PromotionClient
 	// PromotionApplication is the client for interacting with the PromotionApplication builders.
@@ -443,6 +449,8 @@ func (c *Client) init() {
 	c.PrescriptionLine = NewPrescriptionLineClient(c.config)
 	c.PriceBook = NewPriceBookClient(c.config)
 	c.PriceBookItem = NewPriceBookItemClient(c.config)
+	c.PrintAgent = NewPrintAgentClient(c.config)
+	c.PrintJob = NewPrintJobClient(c.config)
 	c.Promotion = NewPromotionClient(c.config)
 	c.PromotionApplication = NewPromotionApplicationClient(c.config)
 	c.PromotionRule = NewPromotionRuleClient(c.config)
@@ -649,6 +657,8 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		PrescriptionLine:         NewPrescriptionLineClient(cfg),
 		PriceBook:                NewPriceBookClient(cfg),
 		PriceBookItem:            NewPriceBookItemClient(cfg),
+		PrintAgent:               NewPrintAgentClient(cfg),
+		PrintJob:                 NewPrintJobClient(cfg),
 		Promotion:                NewPromotionClient(cfg),
 		PromotionApplication:     NewPromotionApplicationClient(cfg),
 		PromotionRule:            NewPromotionRuleClient(cfg),
@@ -782,6 +792,8 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		PrescriptionLine:         NewPrescriptionLineClient(cfg),
 		PriceBook:                NewPriceBookClient(cfg),
 		PriceBookItem:            NewPriceBookItemClient(cfg),
+		PrintAgent:               NewPrintAgentClient(cfg),
+		PrintJob:                 NewPrintJobClient(cfg),
 		Promotion:                NewPromotionClient(cfg),
 		PromotionApplication:     NewPromotionApplicationClient(cfg),
 		PromotionRule:            NewPromotionRuleClient(cfg),
@@ -873,9 +885,9 @@ func (c *Client) Use(hooks ...Hook) {
 		c.POSOrder, c.POSOrderEvent, c.POSOrderLine, c.POSPayment, c.POSPermission,
 		c.POSRefund, c.POSReturn, c.POSReturnLine, c.POSRole, c.POSRolePermission,
 		c.POSRoleV2, c.POSUserRoleAssignment, c.PosNotification, c.Prescription,
-		c.PrescriptionLine, c.PriceBook, c.PriceBookItem, c.Promotion,
-		c.PromotionApplication, c.PromotionRule, c.RateLimitConfig, c.Referral,
-		c.RepairJob, c.RepairJobEvent, c.RepairJobPart, c.Resource, c.Room,
+		c.PrescriptionLine, c.PriceBook, c.PriceBookItem, c.PrintAgent, c.PrintJob,
+		c.Promotion, c.PromotionApplication, c.PromotionRule, c.RateLimitConfig,
+		c.Referral, c.RepairJob, c.RepairJobEvent, c.RepairJobPart, c.Resource, c.Room,
 		c.RoomAmenity, c.RoomAmenityAssignment, c.RoomBooking, c.RoomFolioItem,
 		c.RoomFolioPayment, c.RoomGuest, c.Section, c.SerialNumberLog, c.ServiceConfig,
 		c.ServicePackage, c.ServicePackagePurchase, c.ServicePackageRedemption,
@@ -910,9 +922,9 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.POSOrder, c.POSOrderEvent, c.POSOrderLine, c.POSPayment, c.POSPermission,
 		c.POSRefund, c.POSReturn, c.POSReturnLine, c.POSRole, c.POSRolePermission,
 		c.POSRoleV2, c.POSUserRoleAssignment, c.PosNotification, c.Prescription,
-		c.PrescriptionLine, c.PriceBook, c.PriceBookItem, c.Promotion,
-		c.PromotionApplication, c.PromotionRule, c.RateLimitConfig, c.Referral,
-		c.RepairJob, c.RepairJobEvent, c.RepairJobPart, c.Resource, c.Room,
+		c.PrescriptionLine, c.PriceBook, c.PriceBookItem, c.PrintAgent, c.PrintJob,
+		c.Promotion, c.PromotionApplication, c.PromotionRule, c.RateLimitConfig,
+		c.Referral, c.RepairJob, c.RepairJobEvent, c.RepairJobPart, c.Resource, c.Room,
 		c.RoomAmenity, c.RoomAmenityAssignment, c.RoomBooking, c.RoomFolioItem,
 		c.RoomFolioPayment, c.RoomGuest, c.Section, c.SerialNumberLog, c.ServiceConfig,
 		c.ServicePackage, c.ServicePackagePurchase, c.ServicePackageRedemption,
@@ -1065,6 +1077,10 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.PriceBook.mutate(ctx, m)
 	case *PriceBookItemMutation:
 		return c.PriceBookItem.mutate(ctx, m)
+	case *PrintAgentMutation:
+		return c.PrintAgent.mutate(ctx, m)
+	case *PrintJobMutation:
+		return c.PrintJob.mutate(ctx, m)
 	case *PromotionMutation:
 		return c.Promotion.mutate(ctx, m)
 	case *PromotionApplicationMutation:
@@ -10795,6 +10811,272 @@ func (c *PriceBookItemClient) mutate(ctx context.Context, m *PriceBookItemMutati
 	}
 }
 
+// PrintAgentClient is a client for the PrintAgent schema.
+type PrintAgentClient struct {
+	config
+}
+
+// NewPrintAgentClient returns a client for the PrintAgent from the given config.
+func NewPrintAgentClient(c config) *PrintAgentClient {
+	return &PrintAgentClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `printagent.Hooks(f(g(h())))`.
+func (c *PrintAgentClient) Use(hooks ...Hook) {
+	c.hooks.PrintAgent = append(c.hooks.PrintAgent, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `printagent.Intercept(f(g(h())))`.
+func (c *PrintAgentClient) Intercept(interceptors ...Interceptor) {
+	c.inters.PrintAgent = append(c.inters.PrintAgent, interceptors...)
+}
+
+// Create returns a builder for creating a PrintAgent entity.
+func (c *PrintAgentClient) Create() *PrintAgentCreate {
+	mutation := newPrintAgentMutation(c.config, OpCreate)
+	return &PrintAgentCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of PrintAgent entities.
+func (c *PrintAgentClient) CreateBulk(builders ...*PrintAgentCreate) *PrintAgentCreateBulk {
+	return &PrintAgentCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *PrintAgentClient) MapCreateBulk(slice any, setFunc func(*PrintAgentCreate, int)) *PrintAgentCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &PrintAgentCreateBulk{err: fmt.Errorf("calling to PrintAgentClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*PrintAgentCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &PrintAgentCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for PrintAgent.
+func (c *PrintAgentClient) Update() *PrintAgentUpdate {
+	mutation := newPrintAgentMutation(c.config, OpUpdate)
+	return &PrintAgentUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *PrintAgentClient) UpdateOne(_m *PrintAgent) *PrintAgentUpdateOne {
+	mutation := newPrintAgentMutation(c.config, OpUpdateOne, withPrintAgent(_m))
+	return &PrintAgentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *PrintAgentClient) UpdateOneID(id uuid.UUID) *PrintAgentUpdateOne {
+	mutation := newPrintAgentMutation(c.config, OpUpdateOne, withPrintAgentID(id))
+	return &PrintAgentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for PrintAgent.
+func (c *PrintAgentClient) Delete() *PrintAgentDelete {
+	mutation := newPrintAgentMutation(c.config, OpDelete)
+	return &PrintAgentDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *PrintAgentClient) DeleteOne(_m *PrintAgent) *PrintAgentDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *PrintAgentClient) DeleteOneID(id uuid.UUID) *PrintAgentDeleteOne {
+	builder := c.Delete().Where(printagent.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &PrintAgentDeleteOne{builder}
+}
+
+// Query returns a query builder for PrintAgent.
+func (c *PrintAgentClient) Query() *PrintAgentQuery {
+	return &PrintAgentQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypePrintAgent},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a PrintAgent entity by its id.
+func (c *PrintAgentClient) Get(ctx context.Context, id uuid.UUID) (*PrintAgent, error) {
+	return c.Query().Where(printagent.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *PrintAgentClient) GetX(ctx context.Context, id uuid.UUID) *PrintAgent {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *PrintAgentClient) Hooks() []Hook {
+	return c.hooks.PrintAgent
+}
+
+// Interceptors returns the client interceptors.
+func (c *PrintAgentClient) Interceptors() []Interceptor {
+	return c.inters.PrintAgent
+}
+
+func (c *PrintAgentClient) mutate(ctx context.Context, m *PrintAgentMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&PrintAgentCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&PrintAgentUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&PrintAgentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&PrintAgentDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown PrintAgent mutation op: %q", m.Op())
+	}
+}
+
+// PrintJobClient is a client for the PrintJob schema.
+type PrintJobClient struct {
+	config
+}
+
+// NewPrintJobClient returns a client for the PrintJob from the given config.
+func NewPrintJobClient(c config) *PrintJobClient {
+	return &PrintJobClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `printjob.Hooks(f(g(h())))`.
+func (c *PrintJobClient) Use(hooks ...Hook) {
+	c.hooks.PrintJob = append(c.hooks.PrintJob, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `printjob.Intercept(f(g(h())))`.
+func (c *PrintJobClient) Intercept(interceptors ...Interceptor) {
+	c.inters.PrintJob = append(c.inters.PrintJob, interceptors...)
+}
+
+// Create returns a builder for creating a PrintJob entity.
+func (c *PrintJobClient) Create() *PrintJobCreate {
+	mutation := newPrintJobMutation(c.config, OpCreate)
+	return &PrintJobCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of PrintJob entities.
+func (c *PrintJobClient) CreateBulk(builders ...*PrintJobCreate) *PrintJobCreateBulk {
+	return &PrintJobCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *PrintJobClient) MapCreateBulk(slice any, setFunc func(*PrintJobCreate, int)) *PrintJobCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &PrintJobCreateBulk{err: fmt.Errorf("calling to PrintJobClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*PrintJobCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &PrintJobCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for PrintJob.
+func (c *PrintJobClient) Update() *PrintJobUpdate {
+	mutation := newPrintJobMutation(c.config, OpUpdate)
+	return &PrintJobUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *PrintJobClient) UpdateOne(_m *PrintJob) *PrintJobUpdateOne {
+	mutation := newPrintJobMutation(c.config, OpUpdateOne, withPrintJob(_m))
+	return &PrintJobUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *PrintJobClient) UpdateOneID(id uuid.UUID) *PrintJobUpdateOne {
+	mutation := newPrintJobMutation(c.config, OpUpdateOne, withPrintJobID(id))
+	return &PrintJobUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for PrintJob.
+func (c *PrintJobClient) Delete() *PrintJobDelete {
+	mutation := newPrintJobMutation(c.config, OpDelete)
+	return &PrintJobDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *PrintJobClient) DeleteOne(_m *PrintJob) *PrintJobDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *PrintJobClient) DeleteOneID(id uuid.UUID) *PrintJobDeleteOne {
+	builder := c.Delete().Where(printjob.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &PrintJobDeleteOne{builder}
+}
+
+// Query returns a query builder for PrintJob.
+func (c *PrintJobClient) Query() *PrintJobQuery {
+	return &PrintJobQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypePrintJob},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a PrintJob entity by its id.
+func (c *PrintJobClient) Get(ctx context.Context, id uuid.UUID) (*PrintJob, error) {
+	return c.Query().Where(printjob.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *PrintJobClient) GetX(ctx context.Context, id uuid.UUID) *PrintJob {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *PrintJobClient) Hooks() []Hook {
+	return c.hooks.PrintJob
+}
+
+// Interceptors returns the client interceptors.
+func (c *PrintJobClient) Interceptors() []Interceptor {
+	return c.inters.PrintJob
+}
+
+func (c *PrintJobClient) mutate(ctx context.Context, m *PrintJobMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&PrintJobCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&PrintJobUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&PrintJobUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&PrintJobDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown PrintJob mutation op: %q", m.Op())
+	}
+}
+
 // PromotionClient is a client for the Promotion schema.
 type PromotionClient struct {
 	config
@@ -17574,13 +17856,13 @@ type (
 		POSOrderEvent, POSOrderLine, POSPayment, POSPermission, POSRefund, POSReturn,
 		POSReturnLine, POSRole, POSRolePermission, POSRoleV2, POSUserRoleAssignment,
 		PosNotification, Prescription, PrescriptionLine, PriceBook, PriceBookItem,
-		Promotion, PromotionApplication, PromotionRule, RateLimitConfig, Referral,
-		RepairJob, RepairJobEvent, RepairJobPart, Resource, Room, RoomAmenity,
-		RoomAmenityAssignment, RoomBooking, RoomFolioItem, RoomFolioPayment, RoomGuest,
-		Section, SerialNumberLog, ServiceConfig, ServicePackage,
-		ServicePackagePurchase, ServicePackageRedemption, ServiceQueueEntry,
-		ShiftRotation, ShiftRotationSlot, StaffAdvance, StaffMember, StaffOutlet,
-		StaffPayroll, StaffPayrollLine, StaffPurchaseLink, StaffSchedule,
+		PrintAgent, PrintJob, Promotion, PromotionApplication, PromotionRule,
+		RateLimitConfig, Referral, RepairJob, RepairJobEvent, RepairJobPart, Resource,
+		Room, RoomAmenity, RoomAmenityAssignment, RoomBooking, RoomFolioItem,
+		RoomFolioPayment, RoomGuest, Section, SerialNumberLog, ServiceConfig,
+		ServicePackage, ServicePackagePurchase, ServicePackageRedemption,
+		ServiceQueueEntry, ShiftRotation, ShiftRotationSlot, StaffAdvance, StaffMember,
+		StaffOutlet, StaffPayroll, StaffPayrollLine, StaffPurchaseLink, StaffSchedule,
 		StaffShiftOverride, StockAlertSubscription, StockConsumptionEvent, SyncFailure,
 		Table, TableAssignment, TableReservation, Tenant, TenantSyncEvent, Tender,
 		User, UserPOSRole, WebhookDelivery, WebhookSubscription,
@@ -17600,13 +17882,13 @@ type (
 		POSOrderEvent, POSOrderLine, POSPayment, POSPermission, POSRefund, POSReturn,
 		POSReturnLine, POSRole, POSRolePermission, POSRoleV2, POSUserRoleAssignment,
 		PosNotification, Prescription, PrescriptionLine, PriceBook, PriceBookItem,
-		Promotion, PromotionApplication, PromotionRule, RateLimitConfig, Referral,
-		RepairJob, RepairJobEvent, RepairJobPart, Resource, Room, RoomAmenity,
-		RoomAmenityAssignment, RoomBooking, RoomFolioItem, RoomFolioPayment, RoomGuest,
-		Section, SerialNumberLog, ServiceConfig, ServicePackage,
-		ServicePackagePurchase, ServicePackageRedemption, ServiceQueueEntry,
-		ShiftRotation, ShiftRotationSlot, StaffAdvance, StaffMember, StaffOutlet,
-		StaffPayroll, StaffPayrollLine, StaffPurchaseLink, StaffSchedule,
+		PrintAgent, PrintJob, Promotion, PromotionApplication, PromotionRule,
+		RateLimitConfig, Referral, RepairJob, RepairJobEvent, RepairJobPart, Resource,
+		Room, RoomAmenity, RoomAmenityAssignment, RoomBooking, RoomFolioItem,
+		RoomFolioPayment, RoomGuest, Section, SerialNumberLog, ServiceConfig,
+		ServicePackage, ServicePackagePurchase, ServicePackageRedemption,
+		ServiceQueueEntry, ShiftRotation, ShiftRotationSlot, StaffAdvance, StaffMember,
+		StaffOutlet, StaffPayroll, StaffPayrollLine, StaffPurchaseLink, StaffSchedule,
 		StaffShiftOverride, StockAlertSubscription, StockConsumptionEvent, SyncFailure,
 		Table, TableAssignment, TableReservation, Tenant, TenantSyncEvent, Tender,
 		User, UserPOSRole, WebhookDelivery, WebhookSubscription,

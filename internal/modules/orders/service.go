@@ -24,6 +24,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/posorder"
 	"github.com/bengobox/pos-service/internal/ent/posorderline"
 	kdsmod "github.com/bengobox/pos-service/internal/modules/kds"
+	"github.com/bengobox/pos-service/internal/modules/printing"
 	"github.com/bengobox/pos-service/internal/platform/events"
 )
 
@@ -150,11 +151,18 @@ type Service struct {
 	happyHourFn func(ctx context.Context, tenantID, outletID uuid.UUID, lines []OrderLineInput) (uuid.UUID, decimal.Decimal)
 	// recordPromoFn writes the PromotionApplication audit row once the order id is known.
 	recordPromoFn func(ctx context.Context, promoID, orderID uuid.UUID, amount decimal.Decimal)
+	// printQueue enqueues background print jobs for the on-site Local Print Agent (AccuPOS model).
+	printQueue *printing.Queue
 }
 
 // SetPublisher sets the event publisher for order lifecycle events.
 func (s *Service) SetPublisher(p *events.Publisher) {
 	s.publisher = p
+}
+
+// SetPrintQueue wires the background print-job queue (kitchen/bar tickets + customer bill).
+func (s *Service) SetPrintQueue(q *printing.Queue) {
+	s.printQueue = q
 }
 
 // SetHappyHourEvaluator wires the auto-apply discount evaluator + audit recorder (from promotions service).
@@ -683,6 +691,9 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent
 	// For hospitality orders that were auto-opened, create KDS tickets immediately.
 	if isHospitalityOrder {
 		_ = s.createKDSTicketsForOrder(ctx, req.TenantID, result)
+		// Background printing (AccuPOS model): enqueue kitchen/bar tickets + customer bill for the
+		// outlet's Local Print Agent so the till never blocks on (or re-does) printing.
+		s.enqueueAutoPrintJobs(ctx, req.TenantID, result)
 	}
 
 	return result, nil

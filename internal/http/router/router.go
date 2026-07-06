@@ -74,6 +74,8 @@ func New(
 	clients *handlers.ClientHandler,
 	channels *handlers.ChannelHandler,
 	print *handlers.PrintHandler,
+	printJobs *handlers.PrintJobsHandler,
+	printAgentAPI *handlers.PrintAgentAPIHandler,
 	payroll *handlers.PayrollHandler,
 	staffAdmin *handlers.StaffHandler,
 	purchaseOrders *handlers.PurchaseOrdersHandler,
@@ -138,6 +140,14 @@ func New(
 		// Public download for the Local Print Agent installer (no auth, no tenant — a generic,
 		// credential-free binary). 302-redirects to the GitHub release asset.
 		api.Get("/pos/print-agent/download", handlers.PrintAgentDownload)
+
+		// Local Print Agent job polling (AccuPOS-style spooler). The agent lives on the shop LAN
+		// and polls OUT; auth is its pairing key (X-Agent-Key), not a user JWT — hence outside the
+		// tenant JWT group. Long-poll claim + ack.
+		if printAgentAPI != nil {
+			api.Get("/pos/printing/agent/jobs", printAgentAPI.NextJob)
+			api.Post("/pos/printing/agent/jobs/{jobID}/ack", printAgentAPI.AckJob)
+		}
 
 		api.Group(func(pub chi.Router) {
 			pub.Use(httpware.TenantV2(httpware.TenantConfig{
@@ -326,6 +336,15 @@ func New(
 					// button, so a network printer prints silently via the local agent/QZ rather than
 					// opening the browser print dialog. Stateless — no order required.
 					pos.Post("/printing/test-ticket", handlers.TestTicket)
+
+					// Background print queue (AccuPOS model): explicit job enqueue for Print
+					// Bill/Receipt/Test-print buttons + Local Print Agent pairing/status.
+					if printJobs != nil {
+						pos.Post("/printing/jobs", printJobs.EnqueueJob)
+						pos.Get("/printing/agents", printJobs.ListAgents)
+						pos.Post("/printing/agents", printJobs.PairAgent)
+						pos.Delete("/printing/agents/{agentID}", printJobs.RevokeAgent)
+					}
 
 					// Catalog
 					if catalog != nil {

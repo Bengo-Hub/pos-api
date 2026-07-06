@@ -31,7 +31,7 @@ import (
 	"github.com/bengobox/pos-service/internal/modules/printing/discovery"
 )
 
-const version = "1.1.0"
+const version = "1.2.0"
 
 func main() {
 	var (
@@ -211,12 +211,15 @@ func handlePing(w http.ResponseWriter, r *http.Request) {
 type printRequest struct {
 	IP     string `json:"ip"`
 	Port   int    `json:"port"`
+	Name   string `json:"name"`   // locally-installed printer name (Windows spooler / CUPS) — USB printers
 	Format string `json:"format"` // "rawhex" (hex string) | "raw"/"text" (utf-8)
 	Data   string `json:"data"`
 }
 
-// handlePrint relays raw ESC/POS bytes to a network printer by IP:port (default 9100). Used for the
-// cash-drawer kick and plain-text tickets when there is no QZ Tray bridge on the terminal.
+// handlePrint relays raw ESC/POS bytes to a printer: a network printer by IP:port (default 9100),
+// or — when "name" is given instead — a locally-installed (USB) printer via the OS spooler. Used
+// for receipts/tickets/cash-drawer kicks when there is no QZ Tray bridge on the terminal, so USB
+// printing never has to fall back to the browser print dialog.
 func handlePrint(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		writeJSON(w, http.StatusMethodNotAllowed, map[string]any{"ok": false, "error": "POST only"})
@@ -227,8 +230,10 @@ func handlePrint(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "invalid body"})
 		return
 	}
-	if net.ParseIP(strings.TrimSpace(req.IP)) == nil {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "invalid ip"})
+	req.Name = strings.TrimSpace(req.Name)
+	hasIP := net.ParseIP(strings.TrimSpace(req.IP)) != nil
+	if !hasIP && req.Name == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "ip or name required"})
 		return
 	}
 	port := req.Port
@@ -253,7 +258,13 @@ func handlePrint(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := sendRaw(req.IP, port, payload); err != nil {
+	var err error
+	if hasIP {
+		err = sendRaw(req.IP, port, payload)
+	} else {
+		err = printLocal(req.Name, payload)
+	}
+	if err != nil {
 		writeJSON(w, http.StatusBadGateway, map[string]any{"ok": false, "error": err.Error()})
 		return
 	}

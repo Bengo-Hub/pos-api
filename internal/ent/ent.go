@@ -79,6 +79,8 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/prescriptionline"
 	"github.com/bengobox/pos-service/internal/ent/pricebook"
 	"github.com/bengobox/pos-service/internal/ent/pricebookitem"
+	"github.com/bengobox/pos-service/internal/ent/printagent"
+	"github.com/bengobox/pos-service/internal/ent/printjob"
 	"github.com/bengobox/pos-service/internal/ent/promotion"
 	"github.com/bengobox/pos-service/internal/ent/promotionapplication"
 	"github.com/bengobox/pos-service/internal/ent/promotionrule"
@@ -253,6 +255,8 @@ func checkColumn(t, c string) error {
 			prescriptionline.Table:         prescriptionline.ValidColumn,
 			pricebook.Table:                pricebook.ValidColumn,
 			pricebookitem.Table:            pricebookitem.ValidColumn,
+			printagent.Table:               printagent.ValidColumn,
+			printjob.Table:                 printjob.ValidColumn,
 			promotion.Table:                promotion.ValidColumn,
 			promotionapplication.Table:     promotionapplication.ValidColumn,
 			promotionrule.Table:            promotionrule.ValidColumn,

@@ -207,6 +207,12 @@ type PriceBook func(*sql.Selector)
 // PriceBookItem is the predicate function for pricebookitem builders.
 type PriceBookItem func(*sql.Selector)
 
+// PrintAgent is the predicate function for printagent builders.
+type PrintAgent func(*sql.Selector)
+
+// PrintJob is the predicate function for printjob builders.
+type PrintJob func(*sql.Selector)
+
 // Promotion is the predicate function for promotion builders.
 type Promotion func(*sql.Selector)
 

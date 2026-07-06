@@ -36,6 +36,7 @@ import (
 	kdsmodule "github.com/bengobox/pos-service/internal/modules/kds"
 	ordermodule "github.com/bengobox/pos-service/internal/modules/orders"
 	paymentmodule "github.com/bengobox/pos-service/internal/modules/payments"
+	"github.com/bengobox/pos-service/internal/modules/printing"
 	promommodule "github.com/bengobox/pos-service/internal/modules/promotions"
 	rbacmodule "github.com/bengobox/pos-service/internal/modules/rbac"
 	shiftsmodule "github.com/bengobox/pos-service/internal/modules/shifts"
@@ -526,6 +527,15 @@ func New(ctx context.Context) (*App, error) {
 	clientHandler.SetMarketFlowClient(mfClient)
 	channelHandler := handlers.NewChannelHandler(log, entClient)
 	printHandler := handlers.NewPrintHandler(log, entClient)
+
+	// Background print queue (AccuPOS model): orders/payments enqueue kitchen/bar/bill/receipt
+	// jobs; the on-site Local Print Agent polls, claims and prints them. Postgres row locks
+	// (FOR UPDATE SKIP LOCKED) keep claims multi-replica-safe.
+	printQueue := printing.NewQueue(entClient, log.Named("print-queue"), true)
+	orderSvc.SetPrintQueue(printQueue)
+	paymentSvc.SetPrintQueue(printQueue)
+	printJobsHandler := handlers.NewPrintJobsHandler(log.Named("print-jobs"), entClient, printQueue)
+	printAgentAPIHandler := handlers.NewPrintAgentAPIHandler(log.Named("print-agent-api"), printQueue)
 	staffAdminHandler := handlers.NewStaffHandler(log.Named("staff-admin"), entClient)
 	// Repair / job-card module (device repair lifecycle: intake -> ... -> settled via POS)
 	repairHandler := handlers.NewRepairHandler(log, entClient)
@@ -546,7 +556,7 @@ func New(ctx context.Context) (*App, error) {
 		RetentionDays: cfg.Backup.RetentionDays,
 	}, log).Start(ctx)
 
-	chiRouter := router.New(log, healthHandler, authMiddleware, entClient, identitySvc, orderHandler, catalogHandler, tableHandler, tenderHandler, paymentHandler, drawerHandler, barTabHandler, promotionHandler, rbacHandler, rbacSvc, hotelHandler, kdsHandler, deviceHandler, pinAuthHandler, publicOutletHandler, closingHandler, returnHandler, receiptHandler, menuHandler, layawayHandler, scaleHandler, pharmacyHandler, appointmentHandler, commissionHandler, staffScheduleHandler, shiftOverrideHandler, leaveRequestHandler, shiftRotationHandler, loyaltyHandler, reportsHandler, reportPDFHandler, webhookHandler, onlineOrderHandler, serviceConfigHandler, serviceSettingsHandler, notificationsHandler, queueHandler, billSplitHandler, resourceHandler, commissionRuleHandler, packageHandler, clientHandler, channelHandler, printHandler, payrollHandler, staffAdminHandler, purchaseOrdersHandler, repairHandler, cfg.HTTP.AllowedOrigins, redisClient, cfg.Treasury.InternalServiceKey, backupHandler, backupDestHandler)
+	chiRouter := router.New(log, healthHandler, authMiddleware, entClient, identitySvc, orderHandler, catalogHandler, tableHandler, tenderHandler, paymentHandler, drawerHandler, barTabHandler, promotionHandler, rbacHandler, rbacSvc, hotelHandler, kdsHandler, deviceHandler, pinAuthHandler, publicOutletHandler, closingHandler, returnHandler, receiptHandler, menuHandler, layawayHandler, scaleHandler, pharmacyHandler, appointmentHandler, commissionHandler, staffScheduleHandler, shiftOverrideHandler, leaveRequestHandler, shiftRotationHandler, loyaltyHandler, reportsHandler, reportPDFHandler, webhookHandler, onlineOrderHandler, serviceConfigHandler, serviceSettingsHandler, notificationsHandler, queueHandler, billSplitHandler, resourceHandler, commissionRuleHandler, packageHandler, clientHandler, channelHandler, printHandler, printJobsHandler, printAgentAPIHandler, payrollHandler, staffAdminHandler, purchaseOrdersHandler, repairHandler, cfg.HTTP.AllowedOrigins, redisClient, cfg.Treasury.InternalServiceKey, backupHandler, backupDestHandler)
 
 	httpServer := &http.Server{
 		Addr:              fmt.Sprintf("%s:%d", cfg.HTTP.Host, cfg.HTTP.Port),

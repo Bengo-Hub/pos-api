@@ -2206,6 +2206,77 @@ var (
 			},
 		},
 	}
+	// PrintAgentsColumns holds the columns for the "print_agents" table.
+	PrintAgentsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "outlet_id", Type: field.TypeUUID},
+		{Name: "name", Type: field.TypeString},
+		{Name: "key_hash", Type: field.TypeString, Unique: true},
+		{Name: "last_seen_at", Type: field.TypeTime, Nullable: true},
+		{Name: "version", Type: field.TypeString, Nullable: true},
+		{Name: "revoked", Type: field.TypeBool, Default: false},
+		{Name: "created_at", Type: field.TypeTime},
+	}
+	// PrintAgentsTable holds the schema information for the "print_agents" table.
+	PrintAgentsTable = &schema.Table{
+		Name:       "print_agents",
+		Columns:    PrintAgentsColumns,
+		PrimaryKey: []*schema.Column{PrintAgentsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "printagent_tenant_id_outlet_id",
+				Unique:  false,
+				Columns: []*schema.Column{PrintAgentsColumns[1], PrintAgentsColumns[2]},
+			},
+		},
+	}
+	// PrintJobsColumns holds the columns for the "print_jobs" table.
+	PrintJobsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "outlet_id", Type: field.TypeUUID},
+		{Name: "order_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "job_type", Type: field.TypeString},
+		{Name: "profile_id", Type: field.TypeString, Nullable: true},
+		{Name: "printer_type", Type: field.TypeString, Nullable: true},
+		{Name: "printer_ip", Type: field.TypeString, Nullable: true},
+		{Name: "printer_port", Type: field.TypeInt, Default: 9100},
+		{Name: "printer_name", Type: field.TypeString, Nullable: true},
+		{Name: "paper", Type: field.TypeString, Nullable: true},
+		{Name: "payload_hex", Type: field.TypeString, Size: 2147483647},
+		{Name: "status", Type: field.TypeString, Default: "queued"},
+		{Name: "attempts", Type: field.TypeInt, Default: 0},
+		{Name: "claimed_by", Type: field.TypeString, Nullable: true},
+		{Name: "claim_expires_at", Type: field.TypeTime, Nullable: true},
+		{Name: "dedupe_key", Type: field.TypeString, Nullable: true},
+		{Name: "last_error", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// PrintJobsTable holds the schema information for the "print_jobs" table.
+	PrintJobsTable = &schema.Table{
+		Name:       "print_jobs",
+		Columns:    PrintJobsColumns,
+		PrimaryKey: []*schema.Column{PrintJobsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "printjob_tenant_id_outlet_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{PrintJobsColumns[1], PrintJobsColumns[2], PrintJobsColumns[12]},
+			},
+			{
+				Name:    "printjob_tenant_id_dedupe_key",
+				Unique:  true,
+				Columns: []*schema.Column{PrintJobsColumns[1], PrintJobsColumns[16]},
+			},
+			{
+				Name:    "printjob_status_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{PrintJobsColumns[12], PrintJobsColumns[18]},
+			},
+		},
+	}
 	// PromotionsColumns holds the columns for the "promotions" table.
 	PromotionsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -3888,6 +3959,8 @@ var (
 		PrescriptionLinesTable,
 		PriceBooksTable,
 		PriceBookItemsTable,
+		PrintAgentsTable,
+		PrintJobsTable,
 		PromotionsTable,
 		PromotionApplicationsTable,
 		PromotionRulesTable,
