@@ -22,13 +22,15 @@ func (s *Service) enqueueReceiptPrint(ctx context.Context, order *ent.POSOrder) 
 		return
 	}
 
+	// Cheapest gate first (one index-backed EXISTS) — most outlets have no paired agent.
+	if !s.printQueue.AgentOnline(ctx, order.TenantID, order.OutletID) {
+		return
+	}
+
 	setting, err := s.client.OutletSetting.Query().
 		Where(outletsettingpredicate.OutletID(order.OutletID)).
 		Only(ctx)
 	if err != nil || setting == nil || !setting.AutoPrintOrder {
-		return
-	}
-	if !s.printQueue.AgentOnline(ctx, order.TenantID, order.OutletID) {
 		return
 	}
 

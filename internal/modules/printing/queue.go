@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	entsql "entgo.io/ent/dialect/sql"
@@ -15,6 +16,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent"
 	entprintagent "github.com/bengobox/pos-service/internal/ent/printagent"
 	entprintjob "github.com/bengobox/pos-service/internal/ent/printjob"
+	"github.com/bengobox/pos-service/internal/ent/predicate"
 )
 
 const (
@@ -27,6 +29,10 @@ const (
 	MaxAttempts = 3
 	// AgentOnlineWindow: an agent is "online" when it polled within this window.
 	AgentOnlineWindow = 90 * time.Second
+	// sweepInterval rate-limits the status-hygiene sweeps: correctness does NOT depend on them
+	// (the claim predicate already reclaims expired leases and skips over-TTL jobs), so running
+	// them at most once per interval per process keeps idle polling nearly write-free.
+	sweepInterval = 15 * time.Second
 )
 
 // Queue is the server-side background print-job queue (AccuPOS remote-printing model): enqueue
@@ -37,6 +43,8 @@ type Queue struct {
 	// postgres enables FOR UPDATE SKIP LOCKED claims (multi-replica safety). The sqlite test
 	// driver doesn't support row locks, so tests construct the queue with postgres=false.
 	postgres bool
+	// lastSweepNs gates the hygiene sweeps (unix nanos of the last run in this process).
+	lastSweepNs atomic.Int64
 }
 
 // NewQueue builds the print queue service.
@@ -182,6 +190,7 @@ func (q *Queue) touchAgent(ctx context.Context, agent *ent.PrintAgent, version s
 // lease. Returns nil when no job became available within wait.
 func (q *Queue) ClaimNext(ctx context.Context, agent *ent.PrintAgent, wait time.Duration, version string) (*ent.PrintJob, error) {
 	q.touchAgent(ctx, agent, version)
+	q.maybeSweep(ctx)
 	deadline := time.Now().Add(wait)
 	for {
 		job, err := q.claimOnce(ctx, agent)
@@ -202,11 +211,35 @@ func (q *Queue) ClaimNext(ctx context.Context, agent *ent.PrintAgent, wait time.
 	}
 }
 
-// claimOnce atomically claims one job inside a transaction. Sweeps expired leases/stale jobs first.
-func (q *Queue) claimOnce(ctx context.Context, agent *ent.PrintAgent) (*ent.PrintJob, error) {
-	now := time.Now()
+// claimable is the single source of truth for "this job may be handed to the agent now":
+// queued OR a claimed job whose lease expired (dead agent — reclaim instantly, no sweep needed),
+// under the attempt cap and within the TTL window (over-TTL jobs are never dispatched even if the
+// hygiene sweep hasn't flipped their status yet).
+func claimable(agent *ent.PrintAgent, now time.Time) []predicate.PrintJob {
+	return []predicate.PrintJob{
+		entprintjob.TenantID(agent.TenantID),
+		entprintjob.OutletID(agent.OutletID),
+		entprintjob.AttemptsLT(MaxAttempts),
+		entprintjob.CreatedAtGTE(now.Add(-JobTTL)),
+		entprintjob.Or(
+			entprintjob.StatusEQ("queued"),
+			entprintjob.And(
+				entprintjob.StatusEQ("claimed"),
+				entprintjob.ClaimExpiresAtLT(now),
+			),
+		),
+	}
+}
 
-	// Inline sweeps (cheap, index-backed): requeue dead-agent leases, expire stale jobs.
+// maybeSweep flips over-TTL queued jobs to "expired" and expired leases back to "queued" so the
+// stored statuses stay accurate for reporting. Pure hygiene — the claim path is already correct
+// without it — so it runs at most once per sweepInterval per process (atomic CAS gate).
+func (q *Queue) maybeSweep(ctx context.Context) {
+	now := time.Now()
+	last := q.lastSweepNs.Load()
+	if now.UnixNano()-last < sweepInterval.Nanoseconds() || !q.lastSweepNs.CompareAndSwap(last, now.UnixNano()) {
+		return
+	}
 	_, _ = q.client.PrintJob.Update().
 		Where(
 			entprintjob.StatusEQ("claimed"),
@@ -223,6 +256,23 @@ func (q *Queue) claimOnce(ctx context.Context, agent *ent.PrintAgent) (*ent.Prin
 		).
 		SetStatus("expired").
 		Save(ctx)
+}
+
+// claimOnce atomically claims one job. The idle path (the overwhelmingly common case for a
+// long-polling agent) is a single index-backed EXISTS — no transaction, no locks, no writes;
+// the locking claim transaction opens only when a claimable job actually exists.
+func (q *Queue) claimOnce(ctx context.Context, agent *ent.PrintAgent) (*ent.PrintJob, error) {
+	now := time.Now()
+
+	exists, err := q.client.PrintJob.Query().
+		Where(claimable(agent, now)...).
+		Exist(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("printing: claim probe: %w", err)
+	}
+	if !exists {
+		return nil, nil
+	}
 
 	tx, err := q.client.Tx(ctx)
 	if err != nil {
@@ -231,12 +281,7 @@ func (q *Queue) claimOnce(ctx context.Context, agent *ent.PrintAgent) (*ent.Prin
 	defer func() { _ = tx.Rollback() }()
 
 	query := tx.PrintJob.Query().
-		Where(
-			entprintjob.TenantID(agent.TenantID),
-			entprintjob.OutletID(agent.OutletID),
-			entprintjob.StatusEQ("queued"),
-			entprintjob.AttemptsLT(MaxAttempts),
-		).
+		Where(claimable(agent, now)...).
 		Order(ent.Asc(entprintjob.FieldCreatedAt)).
 		Limit(1)
 	if q.postgres {
@@ -245,7 +290,7 @@ func (q *Queue) claimOnce(ctx context.Context, agent *ent.PrintAgent) (*ent.Prin
 	job, err := query.First(ctx)
 	if err != nil {
 		if ent.IsNotFound(err) {
-			return nil, nil
+			return nil, nil // raced another replica between probe and claim
 		}
 		return nil, fmt.Errorf("printing: claim query: %w", err)
 	}

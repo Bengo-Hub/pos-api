@@ -25,8 +25,17 @@ Printing has two cooperating layers:
   `OutletSetting.printer_profiles`), `ResolveBillProfile` (customer → waiter → any real),
   `ProfileForStation`, `HasRealPrinter` (mirrors pos-ui `printer-stations.ts`).
 - `internal/modules/printing/queue.go` — `Queue`: `Enqueue` (dedupe key per (tenant, key)),
-  `ClaimNext` (long-poll; Postgres `FOR UPDATE SKIP LOCKED`; lease `claim_expires_at` 60s; job TTL
-  15 min; ≤3 attempts), `Ack`, `AgentOnline` (agent polled within 90s).
+  `ClaimNext` (long-poll; lease `claim_expires_at` 60s; job TTL 15 min; ≤3 attempts), `Ack`,
+  `AgentOnline` (agent polled within 90s).
+
+  **Performance contract (idle polling must be near-free):** the 1s in-poll loop's common case is
+  a single index-backed `EXISTS` — no transaction, no locks, no writes. The locking claim
+  transaction (Postgres `FOR UPDATE SKIP LOCKED`) opens only when the probe found a claimable job.
+  The `claimable` predicate is the correctness source of truth: `queued OR (claimed AND lease
+  expired)` (dead-agent jobs reclaim instantly, no sweep dependency) within the TTL window and
+  attempt cap. Status sweeps (expired-lease → queued, over-TTL → expired) are pure hygiene for
+  reporting and run at most once per 15s per process (atomic CAS gate). Enqueue points check
+  `AgentOnline` FIRST, so unpaired outlets pay exactly one `EXISTS` per order/payment.
 - Ent entities: `PrintJob` (`print_jobs`), `PrintAgent` (`print_agents`, SHA-256 `key_hash`).
   Migration `20260706183709_add_print_jobs_and_agents.sql`. Both are in the tenant purge plan.
 

@@ -29,6 +29,12 @@ func (s *Service) enqueueAutoPrintJobs(ctx context.Context, tenantID uuid.UUID, 
 		return
 	}
 
+	// Cheapest gate first: most outlets have no paired agent, so the common case costs exactly
+	// one index-backed EXISTS per order — settings/lines/stations load only when spooling is on.
+	if !s.printQueue.AgentOnline(ctx, tenantID, order.OutletID) {
+		return
+	}
+
 	setting, err := s.client.OutletSetting.Query().
 		Where(entoutletsetting.OutletID(order.OutletID)).
 		Only(ctx)
@@ -36,9 +42,6 @@ func (s *Service) enqueueAutoPrintJobs(ctx context.Context, tenantID uuid.UUID, 
 		return
 	}
 	if !setting.AutoPrintKitchen && !setting.AutoPrintOrder {
-		return
-	}
-	if !s.printQueue.AgentOnline(ctx, tenantID, order.OutletID) {
 		return
 	}
 
