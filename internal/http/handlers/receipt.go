@@ -158,6 +158,8 @@ type receiptResponse struct {
 	Subtotal           float64                `json:"subtotal"`
 	TaxAmount          float64                `json:"tax_amount"`
 	DiscountAmount     float64                `json:"discount_amount"`
+	ChargesTotal       float64                `json:"charges_total,omitempty"`
+	RoundOff           float64                `json:"round_off,omitempty"`
 	TotalAmount        float64                `json:"total_amount"`
 	Currency           string                 `json:"currency"`
 	AmountPaid         float64                `json:"amount_paid"`
@@ -299,6 +301,8 @@ func (h *ReceiptHandler) GetReceipt(w http.ResponseWriter, r *http.Request) {
 		Subtotal:       subtotal,
 		TaxAmount:      order.TaxTotal,
 		DiscountAmount: order.DiscountTotal,
+		ChargesTotal:   order.ChargesTotal,
+		RoundOff:       order.RoundOff,
 		TotalAmount:    order.TotalAmount,
 		Currency:       order.Currency,
 		AmountPaid:     amountPaid,
@@ -313,6 +317,8 @@ func (h *ReceiptHandler) GetReceipt(w http.ResponseWriter, r *http.Request) {
 	if splitLineSet != nil {
 		receipt.TaxAmount = 0
 		receipt.DiscountAmount = 0
+		receipt.ChargesTotal = 0
+		receipt.RoundOff = 0
 		receipt.TotalAmount = subtotal
 		receipt.AmountPaid = 0
 		receipt.AmountTendered = 0

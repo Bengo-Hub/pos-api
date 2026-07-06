@@ -22,6 +22,8 @@ const (
 	FieldCustomerPhone = "customer_phone"
 	// FieldCustomerName holds the string denoting the customer_name field in the database.
 	FieldCustomerName = "customer_name"
+	// FieldCustomerEmail holds the string denoting the customer_email field in the database.
+	FieldCustomerEmail = "customer_email"
 	// FieldPointsBalance holds the string denoting the points_balance field in the database.
 	FieldPointsBalance = "points_balance"
 	// FieldLifetimePoints holds the string denoting the lifetime_points field in the database.
@@ -45,6 +47,7 @@ var Columns = []string{
 	FieldCustomerID,
 	FieldCustomerPhone,
 	FieldCustomerName,
+	FieldCustomerEmail,
 	FieldPointsBalance,
 	FieldLifetimePoints,
 	FieldProgramID,
@@ -108,6 +111,11 @@ func ByCustomerPhone(opts ...sql.OrderTermOption) OrderOption {
 // ByCustomerName orders the results by the customer_name field.
 func ByCustomerName(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCustomerName, opts...).ToFunc()
+}
+
+// ByCustomerEmail orders the results by the customer_email field.
+func ByCustomerEmail(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCustomerEmail, opts...).ToFunc()
 }
 
 // ByPointsBalance orders the results by the points_balance field.

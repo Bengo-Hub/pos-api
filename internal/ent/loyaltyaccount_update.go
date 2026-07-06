@@ -91,6 +91,26 @@ func (_u *LoyaltyAccountUpdate) SetNillableCustomerName(v *string) *LoyaltyAccou
 	return _u
 }
 
+// SetCustomerEmail sets the "customer_email" field.
+func (_u *LoyaltyAccountUpdate) SetCustomerEmail(v string) *LoyaltyAccountUpdate {
+	_u.mutation.SetCustomerEmail(v)
+	return _u
+}
+
+// SetNillableCustomerEmail sets the "customer_email" field if the given value is not nil.
+func (_u *LoyaltyAccountUpdate) SetNillableCustomerEmail(v *string) *LoyaltyAccountUpdate {
+	if v != nil {
+		_u.SetCustomerEmail(*v)
+	}
+	return _u
+}
+
+// ClearCustomerEmail clears the value of the "customer_email" field.
+func (_u *LoyaltyAccountUpdate) ClearCustomerEmail() *LoyaltyAccountUpdate {
+	_u.mutation.ClearCustomerEmail()
+	return _u
+}
+
 // SetPointsBalance sets the "points_balance" field.
 func (_u *LoyaltyAccountUpdate) SetPointsBalance(v int) *LoyaltyAccountUpdate {
 	_u.mutation.ResetPointsBalance()
@@ -262,6 +282,12 @@ func (_u *LoyaltyAccountUpdate) sqlSave(ctx context.Context) (_node int, err err
 	if value, ok := _u.mutation.CustomerName(); ok {
 		_spec.SetField(loyaltyaccount.FieldCustomerName, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.CustomerEmail(); ok {
+		_spec.SetField(loyaltyaccount.FieldCustomerEmail, field.TypeString, value)
+	}
+	if _u.mutation.CustomerEmailCleared() {
+		_spec.ClearField(loyaltyaccount.FieldCustomerEmail, field.TypeString)
+	}
 	if value, ok := _u.mutation.PointsBalance(); ok {
 		_spec.SetField(loyaltyaccount.FieldPointsBalance, field.TypeInt, value)
 	}
@@ -368,6 +394,26 @@ func (_u *LoyaltyAccountUpdateOne) SetNillableCustomerName(v *string) *LoyaltyAc
 	if v != nil {
 		_u.SetCustomerName(*v)
 	}
+	return _u
+}
+
+// SetCustomerEmail sets the "customer_email" field.
+func (_u *LoyaltyAccountUpdateOne) SetCustomerEmail(v string) *LoyaltyAccountUpdateOne {
+	_u.mutation.SetCustomerEmail(v)
+	return _u
+}
+
+// SetNillableCustomerEmail sets the "customer_email" field if the given value is not nil.
+func (_u *LoyaltyAccountUpdateOne) SetNillableCustomerEmail(v *string) *LoyaltyAccountUpdateOne {
+	if v != nil {
+		_u.SetCustomerEmail(*v)
+	}
+	return _u
+}
+
+// ClearCustomerEmail clears the value of the "customer_email" field.
+func (_u *LoyaltyAccountUpdateOne) ClearCustomerEmail() *LoyaltyAccountUpdateOne {
+	_u.mutation.ClearCustomerEmail()
 	return _u
 }
 
@@ -571,6 +617,12 @@ func (_u *LoyaltyAccountUpdateOne) sqlSave(ctx context.Context) (_node *LoyaltyA
 	}
 	if value, ok := _u.mutation.CustomerName(); ok {
 		_spec.SetField(loyaltyaccount.FieldCustomerName, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.CustomerEmail(); ok {
+		_spec.SetField(loyaltyaccount.FieldCustomerEmail, field.TypeString, value)
+	}
+	if _u.mutation.CustomerEmailCleared() {
+		_spec.ClearField(loyaltyaccount.FieldCustomerEmail, field.TypeString)
 	}
 	if value, ok := _u.mutation.PointsBalance(); ok {
 		_spec.SetField(loyaltyaccount.FieldPointsBalance, field.TypeInt, value)

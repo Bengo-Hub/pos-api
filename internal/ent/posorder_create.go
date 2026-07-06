@@ -145,6 +145,34 @@ func (_c *POSOrderCreate) SetTotalAmount(v float64) *POSOrderCreate {
 	return _c
 }
 
+// SetChargesTotal sets the "charges_total" field.
+func (_c *POSOrderCreate) SetChargesTotal(v float64) *POSOrderCreate {
+	_c.mutation.SetChargesTotal(v)
+	return _c
+}
+
+// SetNillableChargesTotal sets the "charges_total" field if the given value is not nil.
+func (_c *POSOrderCreate) SetNillableChargesTotal(v *float64) *POSOrderCreate {
+	if v != nil {
+		_c.SetChargesTotal(*v)
+	}
+	return _c
+}
+
+// SetRoundOff sets the "round_off" field.
+func (_c *POSOrderCreate) SetRoundOff(v float64) *POSOrderCreate {
+	_c.mutation.SetRoundOff(v)
+	return _c
+}
+
+// SetNillableRoundOff sets the "round_off" field if the given value is not nil.
+func (_c *POSOrderCreate) SetNillableRoundOff(v *float64) *POSOrderCreate {
+	if v != nil {
+		_c.SetRoundOff(*v)
+	}
+	return _c
+}
+
 // SetPaidTotal sets the "paid_total" field.
 func (_c *POSOrderCreate) SetPaidTotal(v float64) *POSOrderCreate {
 	_c.mutation.SetPaidTotal(v)
@@ -523,6 +551,14 @@ func (_c *POSOrderCreate) defaults() {
 		v := posorder.DefaultDiscountTotal
 		_c.mutation.SetDiscountTotal(v)
 	}
+	if _, ok := _c.mutation.ChargesTotal(); !ok {
+		v := posorder.DefaultChargesTotal
+		_c.mutation.SetChargesTotal(v)
+	}
+	if _, ok := _c.mutation.RoundOff(); !ok {
+		v := posorder.DefaultRoundOff
+		_c.mutation.SetRoundOff(v)
+	}
 	if _, ok := _c.mutation.PaidTotal(); !ok {
 		v := posorder.DefaultPaidTotal
 		_c.mutation.SetPaidTotal(v)
@@ -612,6 +648,12 @@ func (_c *POSOrderCreate) check() error {
 	}
 	if _, ok := _c.mutation.TotalAmount(); !ok {
 		return &ValidationError{Name: "total_amount", err: errors.New(`ent: missing required field "POSOrder.total_amount"`)}
+	}
+	if _, ok := _c.mutation.ChargesTotal(); !ok {
+		return &ValidationError{Name: "charges_total", err: errors.New(`ent: missing required field "POSOrder.charges_total"`)}
+	}
+	if _, ok := _c.mutation.RoundOff(); !ok {
+		return &ValidationError{Name: "round_off", err: errors.New(`ent: missing required field "POSOrder.round_off"`)}
 	}
 	if _, ok := _c.mutation.PaidTotal(); !ok {
 		return &ValidationError{Name: "paid_total", err: errors.New(`ent: missing required field "POSOrder.paid_total"`)}
@@ -738,6 +780,14 @@ func (_c *POSOrderCreate) createSpec() (*POSOrder, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.TotalAmount(); ok {
 		_spec.SetField(posorder.FieldTotalAmount, field.TypeFloat64, value)
 		_node.TotalAmount = value
+	}
+	if value, ok := _c.mutation.ChargesTotal(); ok {
+		_spec.SetField(posorder.FieldChargesTotal, field.TypeFloat64, value)
+		_node.ChargesTotal = value
+	}
+	if value, ok := _c.mutation.RoundOff(); ok {
+		_spec.SetField(posorder.FieldRoundOff, field.TypeFloat64, value)
+		_node.RoundOff = value
 	}
 	if value, ok := _c.mutation.PaidTotal(); ok {
 		_spec.SetField(posorder.FieldPaidTotal, field.TypeFloat64, value)
@@ -1108,6 +1158,42 @@ func (u *POSOrderUpsert) UpdateTotalAmount() *POSOrderUpsert {
 // AddTotalAmount adds v to the "total_amount" field.
 func (u *POSOrderUpsert) AddTotalAmount(v float64) *POSOrderUpsert {
 	u.Add(posorder.FieldTotalAmount, v)
+	return u
+}
+
+// SetChargesTotal sets the "charges_total" field.
+func (u *POSOrderUpsert) SetChargesTotal(v float64) *POSOrderUpsert {
+	u.Set(posorder.FieldChargesTotal, v)
+	return u
+}
+
+// UpdateChargesTotal sets the "charges_total" field to the value that was provided on create.
+func (u *POSOrderUpsert) UpdateChargesTotal() *POSOrderUpsert {
+	u.SetExcluded(posorder.FieldChargesTotal)
+	return u
+}
+
+// AddChargesTotal adds v to the "charges_total" field.
+func (u *POSOrderUpsert) AddChargesTotal(v float64) *POSOrderUpsert {
+	u.Add(posorder.FieldChargesTotal, v)
+	return u
+}
+
+// SetRoundOff sets the "round_off" field.
+func (u *POSOrderUpsert) SetRoundOff(v float64) *POSOrderUpsert {
+	u.Set(posorder.FieldRoundOff, v)
+	return u
+}
+
+// UpdateRoundOff sets the "round_off" field to the value that was provided on create.
+func (u *POSOrderUpsert) UpdateRoundOff() *POSOrderUpsert {
+	u.SetExcluded(posorder.FieldRoundOff)
+	return u
+}
+
+// AddRoundOff adds v to the "round_off" field.
+func (u *POSOrderUpsert) AddRoundOff(v float64) *POSOrderUpsert {
+	u.Add(posorder.FieldRoundOff, v)
 	return u
 }
 
@@ -1701,6 +1787,48 @@ func (u *POSOrderUpsertOne) AddTotalAmount(v float64) *POSOrderUpsertOne {
 func (u *POSOrderUpsertOne) UpdateTotalAmount() *POSOrderUpsertOne {
 	return u.Update(func(s *POSOrderUpsert) {
 		s.UpdateTotalAmount()
+	})
+}
+
+// SetChargesTotal sets the "charges_total" field.
+func (u *POSOrderUpsertOne) SetChargesTotal(v float64) *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetChargesTotal(v)
+	})
+}
+
+// AddChargesTotal adds v to the "charges_total" field.
+func (u *POSOrderUpsertOne) AddChargesTotal(v float64) *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.AddChargesTotal(v)
+	})
+}
+
+// UpdateChargesTotal sets the "charges_total" field to the value that was provided on create.
+func (u *POSOrderUpsertOne) UpdateChargesTotal() *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdateChargesTotal()
+	})
+}
+
+// SetRoundOff sets the "round_off" field.
+func (u *POSOrderUpsertOne) SetRoundOff(v float64) *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetRoundOff(v)
+	})
+}
+
+// AddRoundOff adds v to the "round_off" field.
+func (u *POSOrderUpsertOne) AddRoundOff(v float64) *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.AddRoundOff(v)
+	})
+}
+
+// UpdateRoundOff sets the "round_off" field to the value that was provided on create.
+func (u *POSOrderUpsertOne) UpdateRoundOff() *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdateRoundOff()
 	})
 }
 
@@ -2514,6 +2642,48 @@ func (u *POSOrderUpsertBulk) AddTotalAmount(v float64) *POSOrderUpsertBulk {
 func (u *POSOrderUpsertBulk) UpdateTotalAmount() *POSOrderUpsertBulk {
 	return u.Update(func(s *POSOrderUpsert) {
 		s.UpdateTotalAmount()
+	})
+}
+
+// SetChargesTotal sets the "charges_total" field.
+func (u *POSOrderUpsertBulk) SetChargesTotal(v float64) *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetChargesTotal(v)
+	})
+}
+
+// AddChargesTotal adds v to the "charges_total" field.
+func (u *POSOrderUpsertBulk) AddChargesTotal(v float64) *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.AddChargesTotal(v)
+	})
+}
+
+// UpdateChargesTotal sets the "charges_total" field to the value that was provided on create.
+func (u *POSOrderUpsertBulk) UpdateChargesTotal() *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdateChargesTotal()
+	})
+}
+
+// SetRoundOff sets the "round_off" field.
+func (u *POSOrderUpsertBulk) SetRoundOff(v float64) *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetRoundOff(v)
+	})
+}
+
+// AddRoundOff adds v to the "round_off" field.
+func (u *POSOrderUpsertBulk) AddRoundOff(v float64) *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.AddRoundOff(v)
+	})
+}
+
+// UpdateRoundOff sets the "round_off" field to the value that was provided on create.
+func (u *POSOrderUpsertBulk) UpdateRoundOff() *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdateRoundOff()
 	})
 }
 

@@ -209,6 +209,40 @@ func (c *Client) RecordCreditSale(ctx context.Context, tenantSlug string, req Cr
 	return doRequest[CreditSaleResponse](ctx, c.httpClient, http.MethodPost, url, c.apiKey, req)
 }
 
+// CreditTermsResponse is a treasury customer-balance row scoped to what the POS credit card
+// needs: balance due + configured credit limit / payment period. Decimal fields arrive as
+// quoted strings (treasury serializes decimal.Decimal that way).
+type CreditTermsResponse struct {
+	CrmContactID     string `json:"crm_contact_id,omitempty"`
+	CustomerName     string `json:"customer_name,omitempty"`
+	BalanceDue       string `json:"balance_due"`
+	CreditLimit      string `json:"credit_limit,omitempty"`
+	CreditPeriodDays *int   `json:"credit_period_days,omitempty"`
+	Currency         string `json:"currency"`
+}
+
+// GetCreditTerms fetches a customer's AR balance + credit terms from treasury over S2S.
+// contactIDOrIdentifier is the CRM contact UUID (preferred) or the phone identifier.
+func (c *Client) GetCreditTerms(ctx context.Context, tenantSlug, contactIDOrIdentifier string) (*CreditTermsResponse, error) {
+	u := fmt.Sprintf("%s/api/v1/s2s/%s/ar/customers/%s/credit-terms", c.baseURL, tenantSlug, url.PathEscape(contactIDOrIdentifier))
+	return doRequest[CreditTermsResponse](ctx, c.httpClient, http.MethodGet, u, c.apiKey, nil)
+}
+
+// SetCreditTermsRequest is the body for PATCH /ar/customers/{id}/credit-terms. Zero values
+// clear the respective term; nil leaves it unchanged.
+type SetCreditTermsRequest struct {
+	CustomerIdentifier string   `json:"customer_identifier,omitempty"`
+	CustomerName       string   `json:"customer_name,omitempty"`
+	CreditLimit        *float64 `json:"credit_limit,omitempty"`
+	CreditPeriodDays   *int     `json:"credit_period_days,omitempty"`
+}
+
+// SetCreditTerms sets a customer's credit limit / payment period in treasury over S2S.
+func (c *Client) SetCreditTerms(ctx context.Context, tenantSlug, contactIDOrIdentifier string, req SetCreditTermsRequest) (*CreditTermsResponse, error) {
+	u := fmt.Sprintf("%s/api/v1/s2s/%s/ar/customers/%s/credit-terms", c.baseURL, tenantSlug, url.PathEscape(contactIDOrIdentifier))
+	return doRequest[CreditTermsResponse](ctx, c.httpClient, http.MethodPatch, u, c.apiKey, req)
+}
+
 // QuotationLine is one line on an S2S quotation create. Quantity/UnitPrice go as JSON numbers;
 // treasury's decimal.Decimal fields parse them.
 type QuotationLine struct {

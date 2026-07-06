@@ -56,6 +56,20 @@ func (_c *LoyaltyAccountCreate) SetCustomerName(v string) *LoyaltyAccountCreate 
 	return _c
 }
 
+// SetCustomerEmail sets the "customer_email" field.
+func (_c *LoyaltyAccountCreate) SetCustomerEmail(v string) *LoyaltyAccountCreate {
+	_c.mutation.SetCustomerEmail(v)
+	return _c
+}
+
+// SetNillableCustomerEmail sets the "customer_email" field if the given value is not nil.
+func (_c *LoyaltyAccountCreate) SetNillableCustomerEmail(v *string) *LoyaltyAccountCreate {
+	if v != nil {
+		_c.SetCustomerEmail(*v)
+	}
+	return _c
+}
+
 // SetPointsBalance sets the "points_balance" field.
 func (_c *LoyaltyAccountCreate) SetPointsBalance(v int) *LoyaltyAccountCreate {
 	_c.mutation.SetPointsBalance(v)
@@ -296,6 +310,10 @@ func (_c *LoyaltyAccountCreate) createSpec() (*LoyaltyAccount, *sqlgraph.CreateS
 		_spec.SetField(loyaltyaccount.FieldCustomerName, field.TypeString, value)
 		_node.CustomerName = value
 	}
+	if value, ok := _c.mutation.CustomerEmail(); ok {
+		_spec.SetField(loyaltyaccount.FieldCustomerEmail, field.TypeString, value)
+		_node.CustomerEmail = value
+	}
 	if value, ok := _c.mutation.PointsBalance(); ok {
 		_spec.SetField(loyaltyaccount.FieldPointsBalance, field.TypeInt, value)
 		_node.PointsBalance = value
@@ -423,6 +441,24 @@ func (u *LoyaltyAccountUpsert) SetCustomerName(v string) *LoyaltyAccountUpsert {
 // UpdateCustomerName sets the "customer_name" field to the value that was provided on create.
 func (u *LoyaltyAccountUpsert) UpdateCustomerName() *LoyaltyAccountUpsert {
 	u.SetExcluded(loyaltyaccount.FieldCustomerName)
+	return u
+}
+
+// SetCustomerEmail sets the "customer_email" field.
+func (u *LoyaltyAccountUpsert) SetCustomerEmail(v string) *LoyaltyAccountUpsert {
+	u.Set(loyaltyaccount.FieldCustomerEmail, v)
+	return u
+}
+
+// UpdateCustomerEmail sets the "customer_email" field to the value that was provided on create.
+func (u *LoyaltyAccountUpsert) UpdateCustomerEmail() *LoyaltyAccountUpsert {
+	u.SetExcluded(loyaltyaccount.FieldCustomerEmail)
+	return u
+}
+
+// ClearCustomerEmail clears the value of the "customer_email" field.
+func (u *LoyaltyAccountUpsert) ClearCustomerEmail() *LoyaltyAccountUpsert {
+	u.SetNull(loyaltyaccount.FieldCustomerEmail)
 	return u
 }
 
@@ -621,6 +657,27 @@ func (u *LoyaltyAccountUpsertOne) SetCustomerName(v string) *LoyaltyAccountUpser
 func (u *LoyaltyAccountUpsertOne) UpdateCustomerName() *LoyaltyAccountUpsertOne {
 	return u.Update(func(s *LoyaltyAccountUpsert) {
 		s.UpdateCustomerName()
+	})
+}
+
+// SetCustomerEmail sets the "customer_email" field.
+func (u *LoyaltyAccountUpsertOne) SetCustomerEmail(v string) *LoyaltyAccountUpsertOne {
+	return u.Update(func(s *LoyaltyAccountUpsert) {
+		s.SetCustomerEmail(v)
+	})
+}
+
+// UpdateCustomerEmail sets the "customer_email" field to the value that was provided on create.
+func (u *LoyaltyAccountUpsertOne) UpdateCustomerEmail() *LoyaltyAccountUpsertOne {
+	return u.Update(func(s *LoyaltyAccountUpsert) {
+		s.UpdateCustomerEmail()
+	})
+}
+
+// ClearCustomerEmail clears the value of the "customer_email" field.
+func (u *LoyaltyAccountUpsertOne) ClearCustomerEmail() *LoyaltyAccountUpsertOne {
+	return u.Update(func(s *LoyaltyAccountUpsert) {
+		s.ClearCustomerEmail()
 	})
 }
 
@@ -1000,6 +1057,27 @@ func (u *LoyaltyAccountUpsertBulk) SetCustomerName(v string) *LoyaltyAccountUpse
 func (u *LoyaltyAccountUpsertBulk) UpdateCustomerName() *LoyaltyAccountUpsertBulk {
 	return u.Update(func(s *LoyaltyAccountUpsert) {
 		s.UpdateCustomerName()
+	})
+}
+
+// SetCustomerEmail sets the "customer_email" field.
+func (u *LoyaltyAccountUpsertBulk) SetCustomerEmail(v string) *LoyaltyAccountUpsertBulk {
+	return u.Update(func(s *LoyaltyAccountUpsert) {
+		s.SetCustomerEmail(v)
+	})
+}
+
+// UpdateCustomerEmail sets the "customer_email" field to the value that was provided on create.
+func (u *LoyaltyAccountUpsertBulk) UpdateCustomerEmail() *LoyaltyAccountUpsertBulk {
+	return u.Update(func(s *LoyaltyAccountUpsert) {
+		s.UpdateCustomerEmail()
+	})
+}
+
+// ClearCustomerEmail clears the value of the "customer_email" field.
+func (u *LoyaltyAccountUpsertBulk) ClearCustomerEmail() *LoyaltyAccountUpsertBulk {
+	return u.Update(func(s *LoyaltyAccountUpsert) {
+		s.ClearCustomerEmail()
 	})
 }
 

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/Bengo-Hub/pagination"
@@ -75,11 +76,25 @@ func (h *LayawayHandler) Create(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "total_amount is required", http.StatusBadRequest)
 		return
 	}
+	// A customer layaway must reference a REAL picked/created customer (loyalty account —
+	// which is CRM-synced on creation), never a free-typed walk-in (QA reqs 3 + 7). Staff
+	// layaways are keyed on staff_member_id instead.
+	if input.PartyType != "staff" && input.LoyaltyAccountID == "" {
+		jsonError(w, "select an existing customer or add a new one — walk-in layaways are not allowed", http.StatusBadRequest)
+		return
+	}
 
+	// Outlet: body wins; fall back to the X-Outlet-ID header (the logged-in user's outlet
+	// context pos-ui always sends) so the form can default to the user's own branch.
 	outletID, err := uuid.Parse(input.OutletID)
 	if err != nil {
-		jsonError(w, "invalid outlet_id", http.StatusBadRequest)
-		return
+		if hv := r.Header.Get("X-Outlet-ID"); hv != "" {
+			outletID, err = uuid.Parse(hv)
+		}
+		if err != nil {
+			jsonError(w, "invalid outlet_id", http.StatusBadRequest)
+			return
+		}
 	}
 
 	remaining := input.TotalAmount.Sub(input.DepositAmount)
@@ -180,7 +195,7 @@ func (h *LayawayHandler) ListStaffCredit(w http.ResponseWriter, r *http.Request)
 }
 
 // List handles GET /{tenantID}/pos/layaways
-// Optional query params: ?status= and ?customer_phone=
+// Optional query params: ?status=, ?customer_phone= and ?outlet_id= (branch filter; "all" = every outlet)
 func (h *LayawayHandler) List(w http.ResponseWriter, r *http.Request) {
 	tid, err := parseTenantUUID(r)
 	if err != nil {
@@ -195,6 +210,11 @@ func (h *LayawayHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 	if phone := r.URL.Query().Get("customer_phone"); phone != "" {
 		q = q.Where(layawayplan.CustomerPhone(phone))
+	}
+	if outlet := r.URL.Query().Get("outlet_id"); outlet != "" && !strings.EqualFold(outlet, "all") {
+		if oid, perr := uuid.Parse(outlet); perr == nil {
+			q = q.Where(layawayplan.OutletID(oid))
+		}
 	}
 
 	p := pagination.Parse(r)

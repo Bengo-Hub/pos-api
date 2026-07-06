@@ -117,7 +117,9 @@ type createOrderInput struct {
 	CustomerName   string                 `json:"customer_name,omitempty"`
 	DiscountAmount float64                `json:"discount_amount,omitempty"`  // order-level discount (e.g. loyalty redemption)
 	DiscountReason string                 `json:"discount_reason,omitempty"`  // free-text reason for a manual discount
-	ApprovalToken  string                 `json:"approval_token,omitempty"`   // manager step-up token for an over-limit discount
+	OrderTaxAmount float64                `json:"order_tax_amount,omitempty"` // manager quick-edit: order-level tax added on top of per-line tax
+	Charges        map[string]float64     `json:"charges,omitempty"`          // manager quick-edit: additional costs (packaging/service/shipping)
+	ApprovalToken  string                 `json:"approval_token,omitempty"`   // manager step-up token for an over-limit discount / order adjustment
 	Source         string                 `json:"source,omitempty"`           // "pos_terminal" (default) | "back_office" (Add Sale flow)
 }
 
@@ -659,6 +661,38 @@ func (h *POSOrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Order-adjustment gate: order-level tax edits and additional charges (packaging/service/
+	// shipping) are a manager/admin quick-edit. Non-managers need a manager step-up token
+	// (order.adjustment), mirroring the discount gate; adjustments are audited.
+	chargesSum := 0.0
+	for _, v := range input.Charges {
+		if v > 0 {
+			chargesSum += v
+		}
+	}
+	if (input.OrderTaxAmount > 0 || chargesSum > 0) && !callerIsManager {
+		approverID, valid := uuid.Nil, false
+		if input.ApprovalToken != "" && len(h.terminalSecret) > 0 {
+			approverID, valid = verifyApprovalToken(input.ApprovalToken, "order.adjustment", h.terminalSecret)
+		}
+		if !valid {
+			respondJSON(w, http.StatusUnprocessableEntity, map[string]any{
+				"error":             "manager approval required: order tax / additional charges are a manager adjustment",
+				"approval_required": true, "action": "order.adjustment",
+			})
+			return
+		}
+		if h.auditSvc != nil {
+			oid := outletID
+			amt := input.OrderTaxAmount + chargesSum
+			h.auditSvc.Record(r.Context(), audit.Entry{
+				TenantID: tid, OutletID: &oid, ActorUserID: userID, ApproverID: &approverID,
+				Action: "order.adjustment", EntityType: "pos_order", Amount: &amt,
+				After: map[string]any{"order_tax_amount": input.OrderTaxAmount, "charges": input.Charges},
+			})
+		}
+	}
+
 	// Per-line price-override gate: a line whose unit_price is marked down from its
 	// catalog price (metadata.original_price) by more than max_discount_percent
 	// requires a manager step-up, recorded as price.override. Markups are allowed.
@@ -787,6 +821,8 @@ func (h *POSOrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 		CustomerPhone:  input.CustomerPhone,
 		CustomerName:   input.CustomerName,
 		DiscountAmount: input.DiscountAmount,
+		OrderTaxAmount: input.OrderTaxAmount,
+		Charges:        input.Charges,
 		Source:         input.Source,
 	})
 	if err != nil {

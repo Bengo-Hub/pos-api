@@ -345,16 +345,23 @@ func (s *Service) recordCreditSale(ctx context.Context, order *ent.POSOrder, req
 		name = *order.CustomerName
 	}
 	// A credit sale MUST be booked against a real customer account — never the shared "Walk-in" ghost
-	// (it commingles unrelated debts onto one row that can never be collected or reconciled). Reject
-	// when no customer was selected; the pos-ui also hides Credit Sale until a customer is chosen.
-	if strings.TrimSpace(phone) == "" && strings.TrimSpace(name) == "" {
-		return nil, fmt.Errorf("payments: credit sale requires a selected customer")
-	}
+	// (it commingles unrelated debts onto one row that can never be collected or reconciled).
 	// A STAFF credit sale that falls through to AR (fund-from-salary off or not entitled) has no
 	// customer phone — key the treasury debtor on the staff member id so each staff member gets a
 	// distinct, reconcilable AR row instead of an empty identifier.
-	if staffID, _, isStaff := staffCreditFromOrderParty(order); isStaff && strings.TrimSpace(phone) == "" {
+	staffID, _, isStaff := staffCreditFromOrderParty(order)
+	if isStaff && strings.TrimSpace(phone) == "" {
 		phone = "staff:" + staffID.String()
+	}
+	// Non-staff: require a PHONE (the AR/CRM key) — a bare or "Walk-in Customer" name can't be
+	// collected or netted against returns/payments. The pos-ui blocks this too; this is the
+	// server-side backstop for direct API calls.
+	if !isStaff {
+		trimmedName := strings.TrimSpace(name)
+		if strings.TrimSpace(phone) == "" ||
+			strings.EqualFold(trimmedName, "walk-in customer") || strings.EqualFold(trimmedName, "walk in customer") {
+			return nil, fmt.Errorf("payments: credit sale requires a selected customer with a phone number")
+		}
 	}
 	// Resolve the canonical AR key — the selected customer's marketflow CRM contact (the SAME source
 	// the return path uses), via the loyalty account for this phone. Sending both the CRM id and the

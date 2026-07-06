@@ -19,6 +19,7 @@ func (LoyaltyAccount) Fields() []ent.Field {
 		field.UUID("customer_id", uuid.UUID{}).Optional().Nillable(),
 		field.String("customer_phone").NotEmpty(),
 		field.String("customer_name").NotEmpty(),
+		field.String("customer_email").Optional().Comment("Optional email for customer search; contact master stays in MarketFlow CRM"),
 		field.Int("points_balance").Default(0),
 		field.Int("lifetime_points").Default(0),
 		field.UUID("program_id", uuid.UUID{}).Optional().Nillable(),

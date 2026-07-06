@@ -54,6 +54,16 @@ func (POSOrder) Fields() []ent.Field {
 		field.Float("discount_total").
 			Default(0),
 		field.Float("total_amount"),
+		// Additional order-level costs (packaging/service/shipping) that increase total_amount;
+		// per-charge breakdown lives in metadata.charges.
+		field.Float("charges_total").
+			Default(0).
+			Comment("Sum of additional charges (packaging, service, shipping) included in total_amount"),
+		// Ceiling round-off so totals are always whole currency units:
+		// total_amount = subtotal + tax_total - discount_total + charges_total + round_off.
+		field.Float("round_off").
+			Default(0).
+			Comment("Amount added to round total_amount up to the next whole number (0 <= round_off < 1)"),
 		// Sum of this order's COMPLETED payments, maintained by the payments service
 		// (recomputed from pos_payments on every payment mutation). Single source of
 		// truth for the paid/partial/due payment-status filter AND the row badge, so

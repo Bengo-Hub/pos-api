@@ -75,6 +75,11 @@ func CustomerName(v string) predicate.LoyaltyAccount {
 	return predicate.LoyaltyAccount(sql.FieldEQ(FieldCustomerName, v))
 }
 
+// CustomerEmail applies equality check predicate on the "customer_email" field. It's identical to CustomerEmailEQ.
+func CustomerEmail(v string) predicate.LoyaltyAccount {
+	return predicate.LoyaltyAccount(sql.FieldEQ(FieldCustomerEmail, v))
+}
+
 // PointsBalance applies equality check predicate on the "points_balance" field. It's identical to PointsBalanceEQ.
 func PointsBalance(v int) predicate.LoyaltyAccount {
 	return predicate.LoyaltyAccount(sql.FieldEQ(FieldPointsBalance, v))
@@ -323,6 +328,81 @@ func CustomerNameEqualFold(v string) predicate.LoyaltyAccount {
 // CustomerNameContainsFold applies the ContainsFold predicate on the "customer_name" field.
 func CustomerNameContainsFold(v string) predicate.LoyaltyAccount {
 	return predicate.LoyaltyAccount(sql.FieldContainsFold(FieldCustomerName, v))
+}
+
+// CustomerEmailEQ applies the EQ predicate on the "customer_email" field.
+func CustomerEmailEQ(v string) predicate.LoyaltyAccount {
+	return predicate.LoyaltyAccount(sql.FieldEQ(FieldCustomerEmail, v))
+}
+
+// CustomerEmailNEQ applies the NEQ predicate on the "customer_email" field.
+func CustomerEmailNEQ(v string) predicate.LoyaltyAccount {
+	return predicate.LoyaltyAccount(sql.FieldNEQ(FieldCustomerEmail, v))
+}
+
+// CustomerEmailIn applies the In predicate on the "customer_email" field.
+func CustomerEmailIn(vs ...string) predicate.LoyaltyAccount {
+	return predicate.LoyaltyAccount(sql.FieldIn(FieldCustomerEmail, vs...))
+}
+
+// CustomerEmailNotIn applies the NotIn predicate on the "customer_email" field.
+func CustomerEmailNotIn(vs ...string) predicate.LoyaltyAccount {
+	return predicate.LoyaltyAccount(sql.FieldNotIn(FieldCustomerEmail, vs...))
+}
+
+// CustomerEmailGT applies the GT predicate on the "customer_email" field.
+func CustomerEmailGT(v string) predicate.LoyaltyAccount {
+	return predicate.LoyaltyAccount(sql.FieldGT(FieldCustomerEmail, v))
+}
+
+// CustomerEmailGTE applies the GTE predicate on the "customer_email" field.
+func CustomerEmailGTE(v string) predicate.LoyaltyAccount {
+	return predicate.LoyaltyAccount(sql.FieldGTE(FieldCustomerEmail, v))
+}
+
+// CustomerEmailLT applies the LT predicate on the "customer_email" field.
+func CustomerEmailLT(v string) predicate.LoyaltyAccount {
+	return predicate.LoyaltyAccount(sql.FieldLT(FieldCustomerEmail, v))
+}
+
+// CustomerEmailLTE applies the LTE predicate on the "customer_email" field.
+func CustomerEmailLTE(v string) predicate.LoyaltyAccount {
+	return predicate.LoyaltyAccount(sql.FieldLTE(FieldCustomerEmail, v))
+}
+
+// CustomerEmailContains applies the Contains predicate on the "customer_email" field.
+func CustomerEmailContains(v string) predicate.LoyaltyAccount {
+	return predicate.LoyaltyAccount(sql.FieldContains(FieldCustomerEmail, v))
+}
+
+// CustomerEmailHasPrefix applies the HasPrefix predicate on the "customer_email" field.
+func CustomerEmailHasPrefix(v string) predicate.LoyaltyAccount {
+	return predicate.LoyaltyAccount(sql.FieldHasPrefix(FieldCustomerEmail, v))
+}
+
+// CustomerEmailHasSuffix applies the HasSuffix predicate on the "customer_email" field.
+func CustomerEmailHasSuffix(v string) predicate.LoyaltyAccount {
+	return predicate.LoyaltyAccount(sql.FieldHasSuffix(FieldCustomerEmail, v))
+}
+
+// CustomerEmailIsNil applies the IsNil predicate on the "customer_email" field.
+func CustomerEmailIsNil() predicate.LoyaltyAccount {
+	return predicate.LoyaltyAccount(sql.FieldIsNull(FieldCustomerEmail))
+}
+
+// CustomerEmailNotNil applies the NotNil predicate on the "customer_email" field.
+func CustomerEmailNotNil() predicate.LoyaltyAccount {
+	return predicate.LoyaltyAccount(sql.FieldNotNull(FieldCustomerEmail))
+}
+
+// CustomerEmailEqualFold applies the EqualFold predicate on the "customer_email" field.
+func CustomerEmailEqualFold(v string) predicate.LoyaltyAccount {
+	return predicate.LoyaltyAccount(sql.FieldEqualFold(FieldCustomerEmail, v))
+}
+
+// CustomerEmailContainsFold applies the ContainsFold predicate on the "customer_email" field.
+func CustomerEmailContainsFold(v string) predicate.LoyaltyAccount {
+	return predicate.LoyaltyAccount(sql.FieldContainsFold(FieldCustomerEmail, v))
 }
 
 // PointsBalanceEQ applies the EQ predicate on the "points_balance" field.

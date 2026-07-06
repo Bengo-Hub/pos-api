@@ -194,6 +194,7 @@ func loyaltyAccountMap(acc *ent.LoyaltyAccount) map[string]any {
 		"tenant_id":       acc.TenantID,
 		"customer_phone":  acc.CustomerPhone,
 		"customer_name":   acc.CustomerName,
+		"customer_email":  acc.CustomerEmail,
 		"points_balance":  acc.PointsBalance,
 		"lifetime_points": acc.LifetimePoints,
 		"created_at":      acc.CreatedAt,
@@ -234,6 +235,10 @@ func (h *LoyaltyHandler) ListAccounts(w http.ResponseWriter, r *http.Request) {
 	if name := r.URL.Query().Get("name"); strings.TrimSpace(name) != "" {
 		q = q.Where(entla.CustomerNameContainsFold(strings.TrimSpace(name)))
 	}
+	// Email search (case-insensitive substring) — QA req 2: customer lookup by name, phone OR email.
+	if email := r.URL.Query().Get("email"); strings.TrimSpace(email) != "" {
+		q = q.Where(entla.CustomerEmailContainsFold(strings.TrimSpace(email)))
+	}
 	p := pagination.Parse(r)
 	total, _ := q.Clone().Count(r.Context())
 	accounts, err := q.Order(ent.Desc(entla.FieldCreatedAt)).Limit(p.Limit).Offset(p.Offset).All(r.Context())
@@ -259,6 +264,7 @@ func (h *LoyaltyHandler) CreateAccount(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		CustomerPhone string  `json:"customer_phone"`
 		CustomerName  string  `json:"customer_name"`
+		CustomerEmail string  `json:"customer_email"`
 		CustomerID    *string `json:"customer_id"`
 		ProgramID     *string `json:"program_id"`
 	}
@@ -274,6 +280,9 @@ func (h *LoyaltyHandler) CreateAccount(w http.ResponseWriter, r *http.Request) {
 		SetTenantID(tid).
 		SetCustomerPhone(body.CustomerPhone).
 		SetCustomerName(body.CustomerName)
+	if e := strings.TrimSpace(body.CustomerEmail); e != "" {
+		creator = creator.SetCustomerEmail(e)
+	}
 	if body.CustomerID != nil {
 		if cid, err := uuid.Parse(*body.CustomerID); err == nil {
 			creator = creator.SetCustomerID(cid)
@@ -299,8 +308,8 @@ func (h *LoyaltyHandler) CreateAccount(w http.ResponseWriter, r *http.Request) {
 	}
 	// Async: link to MarketFlow CRM so tier-upgrade events can find the contact.
 	if h.marketflow != nil && h.marketflow.Enabled() {
-		go func(accID uuid.UUID, tenantID uuid.UUID, phone, name string) {
-			crmID := h.marketflow.UpsertContactByPhone(context.Background(), tenantID, phone, name)
+		go func(accID uuid.UUID, tenantID uuid.UUID, phone, email, name string) {
+			crmID := h.marketflow.UpsertContact(context.Background(), tenantID, phone, email, name)
 			if crmID != uuid.Nil {
 				if err := h.db.LoyaltyAccount.UpdateOneID(accID).
 					SetCrmContactID(crmID).
@@ -308,7 +317,7 @@ func (h *LoyaltyHandler) CreateAccount(w http.ResponseWriter, r *http.Request) {
 					h.log.Warn("loyalty: failed to write crm_contact_id", zap.Error(err))
 				}
 			}
-		}(acc.ID, tid, body.CustomerPhone, body.CustomerName)
+		}(acc.ID, tid, body.CustomerPhone, strings.TrimSpace(body.CustomerEmail), body.CustomerName)
 	}
 	jsonOK(w, acc)
 }

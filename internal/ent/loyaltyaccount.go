@@ -26,6 +26,8 @@ type LoyaltyAccount struct {
 	CustomerPhone string `json:"customer_phone,omitempty"`
 	// CustomerName holds the value of the "customer_name" field.
 	CustomerName string `json:"customer_name,omitempty"`
+	// Optional email for customer search; contact master stays in MarketFlow CRM
+	CustomerEmail string `json:"customer_email,omitempty"`
 	// PointsBalance holds the value of the "points_balance" field.
 	PointsBalance int `json:"points_balance,omitempty"`
 	// LifetimePoints holds the value of the "lifetime_points" field.
@@ -50,7 +52,7 @@ func (*LoyaltyAccount) scanValues(columns []string) ([]any, error) {
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		case loyaltyaccount.FieldPointsBalance, loyaltyaccount.FieldLifetimePoints:
 			values[i] = new(sql.NullInt64)
-		case loyaltyaccount.FieldCustomerPhone, loyaltyaccount.FieldCustomerName:
+		case loyaltyaccount.FieldCustomerPhone, loyaltyaccount.FieldCustomerName, loyaltyaccount.FieldCustomerEmail:
 			values[i] = new(sql.NullString)
 		case loyaltyaccount.FieldCreatedAt, loyaltyaccount.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -101,6 +103,12 @@ func (_m *LoyaltyAccount) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field customer_name", values[i])
 			} else if value.Valid {
 				_m.CustomerName = value.String
+			}
+		case loyaltyaccount.FieldCustomerEmail:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field customer_email", values[i])
+			} else if value.Valid {
+				_m.CustomerEmail = value.String
 			}
 		case loyaltyaccount.FieldPointsBalance:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -189,6 +197,9 @@ func (_m *LoyaltyAccount) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("customer_name=")
 	builder.WriteString(_m.CustomerName)
+	builder.WriteString(", ")
+	builder.WriteString("customer_email=")
+	builder.WriteString(_m.CustomerEmail)
 	builder.WriteString(", ")
 	builder.WriteString("points_balance=")
 	builder.WriteString(fmt.Sprintf("%v", _m.PointsBalance))

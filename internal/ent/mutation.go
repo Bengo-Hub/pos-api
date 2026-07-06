@@ -34710,6 +34710,7 @@ type LoyaltyAccountMutation struct {
 	customer_id        *uuid.UUID
 	customer_phone     *string
 	customer_name      *string
+	customer_email     *string
 	points_balance     *int
 	addpoints_balance  *int
 	lifetime_points    *int
@@ -34983,6 +34984,55 @@ func (m *LoyaltyAccountMutation) OldCustomerName(ctx context.Context) (v string,
 // ResetCustomerName resets all changes to the "customer_name" field.
 func (m *LoyaltyAccountMutation) ResetCustomerName() {
 	m.customer_name = nil
+}
+
+// SetCustomerEmail sets the "customer_email" field.
+func (m *LoyaltyAccountMutation) SetCustomerEmail(s string) {
+	m.customer_email = &s
+}
+
+// CustomerEmail returns the value of the "customer_email" field in the mutation.
+func (m *LoyaltyAccountMutation) CustomerEmail() (r string, exists bool) {
+	v := m.customer_email
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCustomerEmail returns the old "customer_email" field's value of the LoyaltyAccount entity.
+// If the LoyaltyAccount object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LoyaltyAccountMutation) OldCustomerEmail(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCustomerEmail is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCustomerEmail requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCustomerEmail: %w", err)
+	}
+	return oldValue.CustomerEmail, nil
+}
+
+// ClearCustomerEmail clears the value of the "customer_email" field.
+func (m *LoyaltyAccountMutation) ClearCustomerEmail() {
+	m.customer_email = nil
+	m.clearedFields[loyaltyaccount.FieldCustomerEmail] = struct{}{}
+}
+
+// CustomerEmailCleared returns if the "customer_email" field was cleared in this mutation.
+func (m *LoyaltyAccountMutation) CustomerEmailCleared() bool {
+	_, ok := m.clearedFields[loyaltyaccount.FieldCustomerEmail]
+	return ok
+}
+
+// ResetCustomerEmail resets all changes to the "customer_email" field.
+func (m *LoyaltyAccountMutation) ResetCustomerEmail() {
+	m.customer_email = nil
+	delete(m.clearedFields, loyaltyaccount.FieldCustomerEmail)
 }
 
 // SetPointsBalance sets the "points_balance" field.
@@ -35301,7 +35351,7 @@ func (m *LoyaltyAccountMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *LoyaltyAccountMutation) Fields() []string {
-	fields := make([]string, 0, 10)
+	fields := make([]string, 0, 11)
 	if m.tenant_id != nil {
 		fields = append(fields, loyaltyaccount.FieldTenantID)
 	}
@@ -35313,6 +35363,9 @@ func (m *LoyaltyAccountMutation) Fields() []string {
 	}
 	if m.customer_name != nil {
 		fields = append(fields, loyaltyaccount.FieldCustomerName)
+	}
+	if m.customer_email != nil {
+		fields = append(fields, loyaltyaccount.FieldCustomerEmail)
 	}
 	if m.points_balance != nil {
 		fields = append(fields, loyaltyaccount.FieldPointsBalance)
@@ -35348,6 +35401,8 @@ func (m *LoyaltyAccountMutation) Field(name string) (ent.Value, bool) {
 		return m.CustomerPhone()
 	case loyaltyaccount.FieldCustomerName:
 		return m.CustomerName()
+	case loyaltyaccount.FieldCustomerEmail:
+		return m.CustomerEmail()
 	case loyaltyaccount.FieldPointsBalance:
 		return m.PointsBalance()
 	case loyaltyaccount.FieldLifetimePoints:
@@ -35377,6 +35432,8 @@ func (m *LoyaltyAccountMutation) OldField(ctx context.Context, name string) (ent
 		return m.OldCustomerPhone(ctx)
 	case loyaltyaccount.FieldCustomerName:
 		return m.OldCustomerName(ctx)
+	case loyaltyaccount.FieldCustomerEmail:
+		return m.OldCustomerEmail(ctx)
 	case loyaltyaccount.FieldPointsBalance:
 		return m.OldPointsBalance(ctx)
 	case loyaltyaccount.FieldLifetimePoints:
@@ -35425,6 +35482,13 @@ func (m *LoyaltyAccountMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetCustomerName(v)
+		return nil
+	case loyaltyaccount.FieldCustomerEmail:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCustomerEmail(v)
 		return nil
 	case loyaltyaccount.FieldPointsBalance:
 		v, ok := value.(int)
@@ -35528,6 +35592,9 @@ func (m *LoyaltyAccountMutation) ClearedFields() []string {
 	if m.FieldCleared(loyaltyaccount.FieldCustomerID) {
 		fields = append(fields, loyaltyaccount.FieldCustomerID)
 	}
+	if m.FieldCleared(loyaltyaccount.FieldCustomerEmail) {
+		fields = append(fields, loyaltyaccount.FieldCustomerEmail)
+	}
 	if m.FieldCleared(loyaltyaccount.FieldProgramID) {
 		fields = append(fields, loyaltyaccount.FieldProgramID)
 	}
@@ -35550,6 +35617,9 @@ func (m *LoyaltyAccountMutation) ClearField(name string) error {
 	switch name {
 	case loyaltyaccount.FieldCustomerID:
 		m.ClearCustomerID()
+		return nil
+	case loyaltyaccount.FieldCustomerEmail:
+		m.ClearCustomerEmail()
 		return nil
 	case loyaltyaccount.FieldProgramID:
 		m.ClearProgramID()
@@ -35576,6 +35646,9 @@ func (m *LoyaltyAccountMutation) ResetField(name string) error {
 		return nil
 	case loyaltyaccount.FieldCustomerName:
 		m.ResetCustomerName()
+		return nil
+	case loyaltyaccount.FieldCustomerEmail:
+		m.ResetCustomerEmail()
 		return nil
 	case loyaltyaccount.FieldPointsBalance:
 		m.ResetPointsBalance()
@@ -53117,6 +53190,10 @@ type POSOrderMutation struct {
 	adddiscount_total         *float64
 	total_amount              *float64
 	addtotal_amount           *float64
+	charges_total             *float64
+	addcharges_total          *float64
+	round_off                 *float64
+	addround_off              *float64
 	paid_total                *float64
 	addpaid_total             *float64
 	currency                  *string
@@ -53834,6 +53911,118 @@ func (m *POSOrderMutation) AddedTotalAmount() (r float64, exists bool) {
 func (m *POSOrderMutation) ResetTotalAmount() {
 	m.total_amount = nil
 	m.addtotal_amount = nil
+}
+
+// SetChargesTotal sets the "charges_total" field.
+func (m *POSOrderMutation) SetChargesTotal(f float64) {
+	m.charges_total = &f
+	m.addcharges_total = nil
+}
+
+// ChargesTotal returns the value of the "charges_total" field in the mutation.
+func (m *POSOrderMutation) ChargesTotal() (r float64, exists bool) {
+	v := m.charges_total
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldChargesTotal returns the old "charges_total" field's value of the POSOrder entity.
+// If the POSOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSOrderMutation) OldChargesTotal(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldChargesTotal is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldChargesTotal requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldChargesTotal: %w", err)
+	}
+	return oldValue.ChargesTotal, nil
+}
+
+// AddChargesTotal adds f to the "charges_total" field.
+func (m *POSOrderMutation) AddChargesTotal(f float64) {
+	if m.addcharges_total != nil {
+		*m.addcharges_total += f
+	} else {
+		m.addcharges_total = &f
+	}
+}
+
+// AddedChargesTotal returns the value that was added to the "charges_total" field in this mutation.
+func (m *POSOrderMutation) AddedChargesTotal() (r float64, exists bool) {
+	v := m.addcharges_total
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetChargesTotal resets all changes to the "charges_total" field.
+func (m *POSOrderMutation) ResetChargesTotal() {
+	m.charges_total = nil
+	m.addcharges_total = nil
+}
+
+// SetRoundOff sets the "round_off" field.
+func (m *POSOrderMutation) SetRoundOff(f float64) {
+	m.round_off = &f
+	m.addround_off = nil
+}
+
+// RoundOff returns the value of the "round_off" field in the mutation.
+func (m *POSOrderMutation) RoundOff() (r float64, exists bool) {
+	v := m.round_off
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRoundOff returns the old "round_off" field's value of the POSOrder entity.
+// If the POSOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSOrderMutation) OldRoundOff(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRoundOff is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRoundOff requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRoundOff: %w", err)
+	}
+	return oldValue.RoundOff, nil
+}
+
+// AddRoundOff adds f to the "round_off" field.
+func (m *POSOrderMutation) AddRoundOff(f float64) {
+	if m.addround_off != nil {
+		*m.addround_off += f
+	} else {
+		m.addround_off = &f
+	}
+}
+
+// AddedRoundOff returns the value that was added to the "round_off" field in this mutation.
+func (m *POSOrderMutation) AddedRoundOff() (r float64, exists bool) {
+	v := m.addround_off
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetRoundOff resets all changes to the "round_off" field.
+func (m *POSOrderMutation) ResetRoundOff() {
+	m.round_off = nil
+	m.addround_off = nil
 }
 
 // SetPaidTotal sets the "paid_total" field.
@@ -54989,7 +55178,7 @@ func (m *POSOrderMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *POSOrderMutation) Fields() []string {
-	fields := make([]string, 0, 33)
+	fields := make([]string, 0, 35)
 	if m.tenant_id != nil {
 		fields = append(fields, posorder.FieldTenantID)
 	}
@@ -55028,6 +55217,12 @@ func (m *POSOrderMutation) Fields() []string {
 	}
 	if m.total_amount != nil {
 		fields = append(fields, posorder.FieldTotalAmount)
+	}
+	if m.charges_total != nil {
+		fields = append(fields, posorder.FieldChargesTotal)
+	}
+	if m.round_off != nil {
+		fields = append(fields, posorder.FieldRoundOff)
 	}
 	if m.paid_total != nil {
 		fields = append(fields, posorder.FieldPaidTotal)
@@ -55123,6 +55318,10 @@ func (m *POSOrderMutation) Field(name string) (ent.Value, bool) {
 		return m.DiscountTotal()
 	case posorder.FieldTotalAmount:
 		return m.TotalAmount()
+	case posorder.FieldChargesTotal:
+		return m.ChargesTotal()
+	case posorder.FieldRoundOff:
+		return m.RoundOff()
 	case posorder.FieldPaidTotal:
 		return m.PaidTotal()
 	case posorder.FieldCurrency:
@@ -55198,6 +55397,10 @@ func (m *POSOrderMutation) OldField(ctx context.Context, name string) (ent.Value
 		return m.OldDiscountTotal(ctx)
 	case posorder.FieldTotalAmount:
 		return m.OldTotalAmount(ctx)
+	case posorder.FieldChargesTotal:
+		return m.OldChargesTotal(ctx)
+	case posorder.FieldRoundOff:
+		return m.OldRoundOff(ctx)
 	case posorder.FieldPaidTotal:
 		return m.OldPaidTotal(ctx)
 	case posorder.FieldCurrency:
@@ -55337,6 +55540,20 @@ func (m *POSOrderMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetTotalAmount(v)
+		return nil
+	case posorder.FieldChargesTotal:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetChargesTotal(v)
+		return nil
+	case posorder.FieldRoundOff:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRoundOff(v)
 		return nil
 	case posorder.FieldPaidTotal:
 		v, ok := value.(float64)
@@ -55498,6 +55715,12 @@ func (m *POSOrderMutation) AddedFields() []string {
 	if m.addtotal_amount != nil {
 		fields = append(fields, posorder.FieldTotalAmount)
 	}
+	if m.addcharges_total != nil {
+		fields = append(fields, posorder.FieldChargesTotal)
+	}
+	if m.addround_off != nil {
+		fields = append(fields, posorder.FieldRoundOff)
+	}
 	if m.addpaid_total != nil {
 		fields = append(fields, posorder.FieldPaidTotal)
 	}
@@ -55532,6 +55755,10 @@ func (m *POSOrderMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedDiscountTotal()
 	case posorder.FieldTotalAmount:
 		return m.AddedTotalAmount()
+	case posorder.FieldChargesTotal:
+		return m.AddedChargesTotal()
+	case posorder.FieldRoundOff:
+		return m.AddedRoundOff()
 	case posorder.FieldPaidTotal:
 		return m.AddedPaidTotal()
 	case posorder.FieldCoversCount:
@@ -55580,6 +55807,20 @@ func (m *POSOrderMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddTotalAmount(v)
+		return nil
+	case posorder.FieldChargesTotal:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddChargesTotal(v)
+		return nil
+	case posorder.FieldRoundOff:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRoundOff(v)
 		return nil
 	case posorder.FieldPaidTotal:
 		v, ok := value.(float64)
@@ -55757,6 +55998,12 @@ func (m *POSOrderMutation) ResetField(name string) error {
 		return nil
 	case posorder.FieldTotalAmount:
 		m.ResetTotalAmount()
+		return nil
+	case posorder.FieldChargesTotal:
+		m.ResetChargesTotal()
+		return nil
+	case posorder.FieldRoundOff:
+		m.ResetRoundOff()
 		return nil
 	case posorder.FieldPaidTotal:
 		m.ResetPaidTotal()

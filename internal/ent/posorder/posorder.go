@@ -42,6 +42,10 @@ const (
 	FieldDiscountTotal = "discount_total"
 	// FieldTotalAmount holds the string denoting the total_amount field in the database.
 	FieldTotalAmount = "total_amount"
+	// FieldChargesTotal holds the string denoting the charges_total field in the database.
+	FieldChargesTotal = "charges_total"
+	// FieldRoundOff holds the string denoting the round_off field in the database.
+	FieldRoundOff = "round_off"
 	// FieldPaidTotal holds the string denoting the paid_total field in the database.
 	FieldPaidTotal = "paid_total"
 	// FieldCurrency holds the string denoting the currency field in the database.
@@ -129,6 +133,8 @@ var Columns = []string{
 	FieldTaxTotal,
 	FieldDiscountTotal,
 	FieldTotalAmount,
+	FieldChargesTotal,
+	FieldRoundOff,
 	FieldPaidTotal,
 	FieldCurrency,
 	FieldOrderSubtype,
@@ -170,6 +176,10 @@ var (
 	DefaultSource string
 	// DefaultDiscountTotal holds the default value on creation for the "discount_total" field.
 	DefaultDiscountTotal float64
+	// DefaultChargesTotal holds the default value on creation for the "charges_total" field.
+	DefaultChargesTotal float64
+	// DefaultRoundOff holds the default value on creation for the "round_off" field.
+	DefaultRoundOff float64
 	// DefaultPaidTotal holds the default value on creation for the "paid_total" field.
 	DefaultPaidTotal float64
 	// DefaultCurrency holds the default value on creation for the "currency" field.
@@ -297,6 +307,16 @@ func ByDiscountTotal(opts ...sql.OrderTermOption) OrderOption {
 // ByTotalAmount orders the results by the total_amount field.
 func ByTotalAmount(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldTotalAmount, opts...).ToFunc()
+}
+
+// ByChargesTotal orders the results by the charges_total field.
+func ByChargesTotal(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldChargesTotal, opts...).ToFunc()
+}
+
+// ByRoundOff orders the results by the round_off field.
+func ByRoundOff(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRoundOff, opts...).ToFunc()
 }
 
 // ByPaidTotal orders the results by the paid_total field.

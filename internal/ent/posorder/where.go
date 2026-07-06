@@ -121,6 +121,16 @@ func TotalAmount(v float64) predicate.POSOrder {
 	return predicate.POSOrder(sql.FieldEQ(FieldTotalAmount, v))
 }
 
+// ChargesTotal applies equality check predicate on the "charges_total" field. It's identical to ChargesTotalEQ.
+func ChargesTotal(v float64) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEQ(FieldChargesTotal, v))
+}
+
+// RoundOff applies equality check predicate on the "round_off" field. It's identical to RoundOffEQ.
+func RoundOff(v float64) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEQ(FieldRoundOff, v))
+}
+
 // PaidTotal applies equality check predicate on the "paid_total" field. It's identical to PaidTotalEQ.
 func PaidTotal(v float64) predicate.POSOrder {
 	return predicate.POSOrder(sql.FieldEQ(FieldPaidTotal, v))
@@ -849,6 +859,86 @@ func TotalAmountLT(v float64) predicate.POSOrder {
 // TotalAmountLTE applies the LTE predicate on the "total_amount" field.
 func TotalAmountLTE(v float64) predicate.POSOrder {
 	return predicate.POSOrder(sql.FieldLTE(FieldTotalAmount, v))
+}
+
+// ChargesTotalEQ applies the EQ predicate on the "charges_total" field.
+func ChargesTotalEQ(v float64) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEQ(FieldChargesTotal, v))
+}
+
+// ChargesTotalNEQ applies the NEQ predicate on the "charges_total" field.
+func ChargesTotalNEQ(v float64) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNEQ(FieldChargesTotal, v))
+}
+
+// ChargesTotalIn applies the In predicate on the "charges_total" field.
+func ChargesTotalIn(vs ...float64) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldIn(FieldChargesTotal, vs...))
+}
+
+// ChargesTotalNotIn applies the NotIn predicate on the "charges_total" field.
+func ChargesTotalNotIn(vs ...float64) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNotIn(FieldChargesTotal, vs...))
+}
+
+// ChargesTotalGT applies the GT predicate on the "charges_total" field.
+func ChargesTotalGT(v float64) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldGT(FieldChargesTotal, v))
+}
+
+// ChargesTotalGTE applies the GTE predicate on the "charges_total" field.
+func ChargesTotalGTE(v float64) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldGTE(FieldChargesTotal, v))
+}
+
+// ChargesTotalLT applies the LT predicate on the "charges_total" field.
+func ChargesTotalLT(v float64) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldLT(FieldChargesTotal, v))
+}
+
+// ChargesTotalLTE applies the LTE predicate on the "charges_total" field.
+func ChargesTotalLTE(v float64) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldLTE(FieldChargesTotal, v))
+}
+
+// RoundOffEQ applies the EQ predicate on the "round_off" field.
+func RoundOffEQ(v float64) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEQ(FieldRoundOff, v))
+}
+
+// RoundOffNEQ applies the NEQ predicate on the "round_off" field.
+func RoundOffNEQ(v float64) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNEQ(FieldRoundOff, v))
+}
+
+// RoundOffIn applies the In predicate on the "round_off" field.
+func RoundOffIn(vs ...float64) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldIn(FieldRoundOff, vs...))
+}
+
+// RoundOffNotIn applies the NotIn predicate on the "round_off" field.
+func RoundOffNotIn(vs ...float64) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNotIn(FieldRoundOff, vs...))
+}
+
+// RoundOffGT applies the GT predicate on the "round_off" field.
+func RoundOffGT(v float64) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldGT(FieldRoundOff, v))
+}
+
+// RoundOffGTE applies the GTE predicate on the "round_off" field.
+func RoundOffGTE(v float64) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldGTE(FieldRoundOff, v))
+}
+
+// RoundOffLT applies the LT predicate on the "round_off" field.
+func RoundOffLT(v float64) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldLT(FieldRoundOff, v))
+}
+
+// RoundOffLTE applies the LTE predicate on the "round_off" field.
+func RoundOffLTE(v float64) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldLTE(FieldRoundOff, v))
 }
 
 // PaidTotalEQ applies the EQ predicate on the "paid_total" field.

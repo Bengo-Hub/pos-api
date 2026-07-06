@@ -40,6 +40,7 @@ func (c *Client) Enabled() bool {
 type upsertContactRequest struct {
 	TenantID  string `json:"tenant_id"`
 	Phone     string `json:"phone"`
+	Email     string `json:"email,omitempty"`
 	FirstName string `json:"first_name"`
 	LastName  string `json:"last_name"`
 }
@@ -51,6 +52,12 @@ type upsertContactResponse struct {
 // UpsertContactByPhone creates or returns an existing MarketFlow contact for the given phone.
 // Returns uuid.Nil on any error or if the client is disabled — callers should handle gracefully.
 func (c *Client) UpsertContactByPhone(ctx context.Context, tenantID uuid.UUID, phone, fullName string) uuid.UUID {
+	return c.UpsertContact(ctx, tenantID, phone, "", fullName)
+}
+
+// UpsertContact creates or returns an existing MarketFlow contact keyed by phone/email (the CRM
+// dedups on either). Email is optional; MarketFlow remains the customer PII source of truth.
+func (c *Client) UpsertContact(ctx context.Context, tenantID uuid.UUID, phone, email, fullName string) uuid.UUID {
 	if !c.Enabled() {
 		return uuid.Nil
 	}
@@ -59,6 +66,7 @@ func (c *Client) UpsertContactByPhone(ctx context.Context, tenantID uuid.UUID, p
 	payload, _ := json.Marshal(upsertContactRequest{
 		TenantID:  tenantID.String(),
 		Phone:     phone,
+		Email:     email,
 		FirstName: firstName,
 		LastName:  lastName,
 	})

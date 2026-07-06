@@ -176,6 +176,14 @@ func (h *PaymentHandler) CreateQuotationFromCart(w http.ResponseWriter, r *http.
 		jsonError(w, "at least one line is required", http.StatusBadRequest)
 		return
 	}
+	// Quotations must be for a real customer (QA req 3: no walk-in). Phone is required — it is
+	// the CRM link key that lets treasury attribute the quotation to the right customer.
+	name := strings.TrimSpace(input.CustomerName)
+	if name == "" || strings.EqualFold(name, "walk-in customer") || strings.EqualFold(name, "walk in customer") ||
+		strings.TrimSpace(input.CustomerPhone) == "" {
+		jsonError(w, "a customer with a phone number is required for quotations", http.StatusBadRequest)
+		return
+	}
 	if h.treasuryClient == nil {
 		jsonError(w, "treasury client not configured", http.StatusServiceUnavailable)
 		return

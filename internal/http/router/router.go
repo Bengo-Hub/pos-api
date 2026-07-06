@@ -579,17 +579,24 @@ func New(
 							Post("/returns/{returnID}/complete", returns.CompleteReturn)
 					}
 
-					// Layaway plans & payments
+					// Layaway plans & payments. Gated with the SAME order/payment permission codes
+					// every seeded role already carries (no new codes → no prod seeder run):
+					// create/read for till roles, money + terminal transitions for managers.
 					if layaway != nil {
-						pos.Post("/layaways", layaway.Create)
-						pos.Get("/layaways", layaway.List)
+						layawayRead := outletmw.RequireServicePermission(rbacSvc,
+							"pos.orders.view", "pos.orders.view_own", "pos.orders.manage")
+						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.orders.add", "pos.orders.manage")).
+							Post("/layaways", layaway.Create)
+						pos.With(layawayRead).Get("/layaways", layaway.List)
 						// Staff fund-from-salary links (admin/reconcile view).
-						pos.Get("/staff-credit", layaway.ListStaffCredit)
-						pos.Get("/layaways/{id}", layaway.Get)
-						pos.Post("/layaways/{id}/payments", layaway.RecordPayment)
-						pos.Post("/layaways/{id}/cancel", layaway.Cancel)
-						pos.Post("/layaways/{id}/forfeit", layaway.Forfeit)
-						pos.Post("/layaways/{id}/complete", layaway.Complete)
+						pos.With(layawayRead).Get("/staff-credit", layaway.ListStaffCredit)
+						pos.With(layawayRead).Get("/layaways/{id}", layaway.Get)
+						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.payments.add", "pos.payments.manage")).
+							Post("/layaways/{id}/payments", layaway.RecordPayment)
+						layawayManage := outletmw.RequireServicePermission(rbacSvc, "pos.orders.manage")
+						pos.With(layawayManage).Post("/layaways/{id}/cancel", layaway.Cancel)
+						pos.With(layawayManage).Post("/layaways/{id}/forfeit", layaway.Forfeit)
+						pos.With(layawayManage).Post("/layaways/{id}/complete", layaway.Complete)
 					}
 
 					// Purchase orders proxy (inventory-api pass-through with tenant auth)
@@ -736,6 +743,11 @@ func New(
 						pos.Get("/clients/{clientID}", clients.Get)
 						pos.Patch("/clients/{clientID}", clients.Update)
 						pos.Get("/clients/{phone}/orders", clients.GetOrdersByPhone)
+						// Credit terms (treasury AR proxy): balance + limit + payment period.
+						// Setting terms = manager action (same permission that approves credit sales).
+						pos.Get("/clients/{accountID}/credit", clients.GetCredit)
+						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.orders.manage")).
+							Put("/clients/{accountID}/credit", clients.SetCredit)
 					}
 
 					// Loyalty programs & accounts — gated on the loyalty_program feature

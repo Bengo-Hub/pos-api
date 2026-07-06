@@ -254,6 +254,48 @@ func (_u *POSOrderUpdate) AddTotalAmount(v float64) *POSOrderUpdate {
 	return _u
 }
 
+// SetChargesTotal sets the "charges_total" field.
+func (_u *POSOrderUpdate) SetChargesTotal(v float64) *POSOrderUpdate {
+	_u.mutation.ResetChargesTotal()
+	_u.mutation.SetChargesTotal(v)
+	return _u
+}
+
+// SetNillableChargesTotal sets the "charges_total" field if the given value is not nil.
+func (_u *POSOrderUpdate) SetNillableChargesTotal(v *float64) *POSOrderUpdate {
+	if v != nil {
+		_u.SetChargesTotal(*v)
+	}
+	return _u
+}
+
+// AddChargesTotal adds value to the "charges_total" field.
+func (_u *POSOrderUpdate) AddChargesTotal(v float64) *POSOrderUpdate {
+	_u.mutation.AddChargesTotal(v)
+	return _u
+}
+
+// SetRoundOff sets the "round_off" field.
+func (_u *POSOrderUpdate) SetRoundOff(v float64) *POSOrderUpdate {
+	_u.mutation.ResetRoundOff()
+	_u.mutation.SetRoundOff(v)
+	return _u
+}
+
+// SetNillableRoundOff sets the "round_off" field if the given value is not nil.
+func (_u *POSOrderUpdate) SetNillableRoundOff(v *float64) *POSOrderUpdate {
+	if v != nil {
+		_u.SetRoundOff(*v)
+	}
+	return _u
+}
+
+// AddRoundOff adds value to the "round_off" field.
+func (_u *POSOrderUpdate) AddRoundOff(v float64) *POSOrderUpdate {
+	_u.mutation.AddRoundOff(v)
+	return _u
+}
+
 // SetPaidTotal sets the "paid_total" field.
 func (_u *POSOrderUpdate) SetPaidTotal(v float64) *POSOrderUpdate {
 	_u.mutation.ResetPaidTotal()
@@ -833,6 +875,18 @@ func (_u *POSOrderUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.AddedTotalAmount(); ok {
 		_spec.AddField(posorder.FieldTotalAmount, field.TypeFloat64, value)
 	}
+	if value, ok := _u.mutation.ChargesTotal(); ok {
+		_spec.SetField(posorder.FieldChargesTotal, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedChargesTotal(); ok {
+		_spec.AddField(posorder.FieldChargesTotal, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.RoundOff(); ok {
+		_spec.SetField(posorder.FieldRoundOff, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedRoundOff(); ok {
+		_spec.AddField(posorder.FieldRoundOff, field.TypeFloat64, value)
+	}
 	if value, ok := _u.mutation.PaidTotal(); ok {
 		_spec.SetField(posorder.FieldPaidTotal, field.TypeFloat64, value)
 	}
@@ -1309,6 +1363,48 @@ func (_u *POSOrderUpdateOne) SetNillableTotalAmount(v *float64) *POSOrderUpdateO
 // AddTotalAmount adds value to the "total_amount" field.
 func (_u *POSOrderUpdateOne) AddTotalAmount(v float64) *POSOrderUpdateOne {
 	_u.mutation.AddTotalAmount(v)
+	return _u
+}
+
+// SetChargesTotal sets the "charges_total" field.
+func (_u *POSOrderUpdateOne) SetChargesTotal(v float64) *POSOrderUpdateOne {
+	_u.mutation.ResetChargesTotal()
+	_u.mutation.SetChargesTotal(v)
+	return _u
+}
+
+// SetNillableChargesTotal sets the "charges_total" field if the given value is not nil.
+func (_u *POSOrderUpdateOne) SetNillableChargesTotal(v *float64) *POSOrderUpdateOne {
+	if v != nil {
+		_u.SetChargesTotal(*v)
+	}
+	return _u
+}
+
+// AddChargesTotal adds value to the "charges_total" field.
+func (_u *POSOrderUpdateOne) AddChargesTotal(v float64) *POSOrderUpdateOne {
+	_u.mutation.AddChargesTotal(v)
+	return _u
+}
+
+// SetRoundOff sets the "round_off" field.
+func (_u *POSOrderUpdateOne) SetRoundOff(v float64) *POSOrderUpdateOne {
+	_u.mutation.ResetRoundOff()
+	_u.mutation.SetRoundOff(v)
+	return _u
+}
+
+// SetNillableRoundOff sets the "round_off" field if the given value is not nil.
+func (_u *POSOrderUpdateOne) SetNillableRoundOff(v *float64) *POSOrderUpdateOne {
+	if v != nil {
+		_u.SetRoundOff(*v)
+	}
+	return _u
+}
+
+// AddRoundOff adds value to the "round_off" field.
+func (_u *POSOrderUpdateOne) AddRoundOff(v float64) *POSOrderUpdateOne {
+	_u.mutation.AddRoundOff(v)
 	return _u
 }
 
@@ -1920,6 +2016,18 @@ func (_u *POSOrderUpdateOne) sqlSave(ctx context.Context) (_node *POSOrder, err 
 	}
 	if value, ok := _u.mutation.AddedTotalAmount(); ok {
 		_spec.AddField(posorder.FieldTotalAmount, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.ChargesTotal(); ok {
+		_spec.SetField(posorder.FieldChargesTotal, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedChargesTotal(); ok {
+		_spec.AddField(posorder.FieldChargesTotal, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.RoundOff(); ok {
+		_spec.SetField(posorder.FieldRoundOff, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedRoundOff(); ok {
+		_spec.AddField(posorder.FieldRoundOff, field.TypeFloat64, value)
 	}
 	if value, ok := _u.mutation.PaidTotal(); ok {
 		_spec.SetField(posorder.FieldPaidTotal, field.TypeFloat64, value)

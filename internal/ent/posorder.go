@@ -45,6 +45,10 @@ type POSOrder struct {
 	DiscountTotal float64 `json:"discount_total,omitempty"`
 	// TotalAmount holds the value of the "total_amount" field.
 	TotalAmount float64 `json:"total_amount,omitempty"`
+	// Sum of additional charges (packaging, service, shipping) included in total_amount
+	ChargesTotal float64 `json:"charges_total,omitempty"`
+	// Amount added to round total_amount up to the next whole number (0 <= round_off < 1)
+	RoundOff float64 `json:"round_off,omitempty"`
 	// PaidTotal holds the value of the "paid_total" field.
 	PaidTotal float64 `json:"paid_total,omitempty"`
 	// Currency holds the value of the "currency" field.
@@ -140,7 +144,7 @@ func (*POSOrder) scanValues(columns []string) ([]any, error) {
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		case posorder.FieldMetadata:
 			values[i] = new([]byte)
-		case posorder.FieldSubtotal, posorder.FieldTaxTotal, posorder.FieldDiscountTotal, posorder.FieldTotalAmount, posorder.FieldPaidTotal, posorder.FieldServiceChargePercent, posorder.FieldServiceChargeAmount:
+		case posorder.FieldSubtotal, posorder.FieldTaxTotal, posorder.FieldDiscountTotal, posorder.FieldTotalAmount, posorder.FieldChargesTotal, posorder.FieldRoundOff, posorder.FieldPaidTotal, posorder.FieldServiceChargePercent, posorder.FieldServiceChargeAmount:
 			values[i] = new(sql.NullFloat64)
 		case posorder.FieldCoversCount, posorder.FieldFiredCourses, posorder.FieldReprintCount:
 			values[i] = new(sql.NullInt64)
@@ -250,6 +254,18 @@ func (_m *POSOrder) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field total_amount", values[i])
 			} else if value.Valid {
 				_m.TotalAmount = value.Float64
+			}
+		case posorder.FieldChargesTotal:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field charges_total", values[i])
+			} else if value.Valid {
+				_m.ChargesTotal = value.Float64
+			}
+		case posorder.FieldRoundOff:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field round_off", values[i])
+			} else if value.Valid {
+				_m.RoundOff = value.Float64
 			}
 		case posorder.FieldPaidTotal:
 			if value, ok := values[i].(*sql.NullFloat64); !ok {
@@ -475,6 +491,12 @@ func (_m *POSOrder) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("total_amount=")
 	builder.WriteString(fmt.Sprintf("%v", _m.TotalAmount))
+	builder.WriteString(", ")
+	builder.WriteString("charges_total=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ChargesTotal))
+	builder.WriteString(", ")
+	builder.WriteString("round_off=")
+	builder.WriteString(fmt.Sprintf("%v", _m.RoundOff))
 	builder.WriteString(", ")
 	builder.WriteString("paid_total=")
 	builder.WriteString(fmt.Sprintf("%v", _m.PaidTotal))

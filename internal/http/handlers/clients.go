@@ -13,6 +13,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent"
 	entclient "github.com/bengobox/pos-service/internal/ent/clientrecord"
 	entorder "github.com/bengobox/pos-service/internal/ent/posorder"
+	"github.com/bengobox/pos-service/internal/modules/treasury"
 	"github.com/bengobox/pos-service/internal/platform/marketflow"
 )
 
@@ -22,6 +23,7 @@ type ClientHandler struct {
 	log        *zap.Logger
 	db         *ent.Client
 	marketflow *marketflow.Client
+	treasury   *treasury.Client // credit-terms proxy (clients_credit.go)
 }
 
 func NewClientHandler(log *zap.Logger, db *ent.Client) *ClientHandler {

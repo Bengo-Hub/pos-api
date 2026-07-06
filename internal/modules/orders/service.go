@@ -104,6 +104,13 @@ type CreateOrderRequest struct {
 	CustomerPhone  string // loyalty auto-earn — stored on order, forwarded in pos.sale.finalized
 	CustomerName   string
 	DiscountAmount float64 // order-level discount (e.g. loyalty redemption) applied before total_amount
+	// OrderTaxAmount is a manager/admin order-level tax adjustment ADDED on top of the per-line
+	// tax (quick-edit "Edit Order Tax"). Folds into tax_total; the edit is recorded in
+	// metadata.order_tax for receipts/audit.
+	OrderTaxAmount float64
+	// Charges are additional order-level costs (keys: packaging, service, shipping) that
+	// increase total_amount. Sum lands in charges_total; breakdown in metadata.charges.
+	Charges map[string]float64
 	// Source marks where the sale originated: "pos_terminal" (default) or "back_office"
 	// (the back-office Add Sale flow). Drives the All-Sales Sources filter + POS-only list.
 	Source string
@@ -126,12 +133,62 @@ type OrderLineInput struct {
 	Metadata         map[string]any // modifiers, notes, serial numbers, etc.
 }
 
-// OrderTotals holds calculated totals for an order.
+// OrderTotals holds calculated totals for an order. The identity
+// TotalAmount = Subtotal + TaxTotal - DiscountTotal + ChargesTotal + RoundOff always holds,
+// with TotalAmount a whole number (ceiling round-off, QA: "no decimal points on totals").
 type OrderTotals struct {
 	Subtotal      decimal.Decimal
 	TaxTotal      decimal.Decimal
 	DiscountTotal decimal.Decimal
+	ChargesTotal  decimal.Decimal
+	RoundOff      decimal.Decimal
 	TotalAmount   decimal.Decimal
+}
+
+// finalizeTotals is the single choke point that turns raw components into the stored totals:
+// it clamps the discount, adds order-level tax + charges, and rounds the payable UP to the
+// next whole number with the difference recorded as RoundOff — mirroring the till's
+// applyRoundOff (pos-ui src/lib/pos/cart-tax.ts) so server total == till total.
+func finalizeTotals(subtotal, taxTotal, discount, chargesTotal, orderTax decimal.Decimal) OrderTotals {
+	if discount.IsNegative() {
+		discount = decimal.Zero
+	}
+	if chargesTotal.IsNegative() {
+		chargesTotal = decimal.Zero
+	}
+	if orderTax.IsPositive() {
+		taxTotal = taxTotal.Add(orderTax)
+	}
+	subtotal = subtotal.Round(2)
+	taxTotal = taxTotal.Round(2)
+	discount = discount.Round(2)
+	chargesTotal = chargesTotal.Round(2)
+
+	raw := subtotal.Add(taxTotal).Sub(discount).Add(chargesTotal)
+	if raw.IsNegative() {
+		raw = decimal.Zero
+	}
+	total := raw.Ceil()
+	return OrderTotals{
+		Subtotal:      subtotal,
+		TaxTotal:      taxTotal,
+		DiscountTotal: discount,
+		ChargesTotal:  chargesTotal,
+		RoundOff:      total.Sub(raw).Round(2),
+		TotalAmount:   total,
+	}
+}
+
+// sumCharges totals an order-level charges map (packaging/service/shipping), ignoring
+// non-positive entries.
+func sumCharges(charges map[string]float64) decimal.Decimal {
+	sum := decimal.Zero
+	for _, v := range charges {
+		if v > 0 {
+			sum = sum.Add(decimal.NewFromFloat(v))
+		}
+	}
+	return sum
 }
 
 // Service provides order business logic.
@@ -367,8 +424,9 @@ func (s *Service) outletFallbackTaxRate(ctx context.Context, outletID uuid.UUID)
 // till's cart math exactly (pos-ui src/lib/pos/cart-tax.ts): subtotal is the gross rung-up
 // amount; TaxTotal is only the tax ADDED on top (exclusive lines + flat fallback for lines with
 // no tax info); inclusive lines contribute their embedded tax to the per-line record but never
-// inflate the total. total = subtotal + added tax − discount.
-func (s *Service) calculateTotalsWithTaxes(lines []OrderLineInput, taxes []resolvedLineTax, fallbackRate, discountAmount decimal.Decimal) OrderTotals {
+// inflate the total. Order-level tax edits and additional charges land on top, and the payable
+// is ceiled via finalizeTotals: total = subtotal + added tax − discount + charges + round_off.
+func (s *Service) calculateTotalsWithTaxes(lines []OrderLineInput, taxes []resolvedLineTax, fallbackRate, discountAmount, chargesTotal, orderTax decimal.Decimal) OrderTotals {
 	subtotal := decimal.Zero
 	addedTax := decimal.Zero
 
@@ -392,19 +450,7 @@ func (s *Service) calculateTotalsWithTaxes(lines []OrderLineInput, taxes []resol
 		}
 	}
 
-	if discountAmount.IsNegative() {
-		discountAmount = decimal.Zero
-	}
-	totalAmount := subtotal.Add(addedTax).Sub(discountAmount)
-	if totalAmount.IsNegative() {
-		totalAmount = decimal.Zero
-	}
-	return OrderTotals{
-		Subtotal:      subtotal.Round(2),
-		TaxTotal:      addedTax.Round(2),
-		DiscountTotal: discountAmount.Round(2),
-		TotalAmount:   totalAmount.Round(2),
-	}
+	return finalizeTotals(subtotal, addedTax, discountAmount, chargesTotal, orderTax)
 }
 
 // GenerateOrderNumber creates a unique order number.
@@ -488,7 +534,8 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent
 	// never disagree — the historical flat-16%-on-top header math made every sale under a
 	// tax-inclusive tenant "partially paid" by exactly the phantom tax.
 	lineTaxes := s.resolveLineTaxes(ctx, req.TenantID, req.TenantSlug, req.Lines)
-	totals := s.calculateTotalsWithTaxes(req.Lines, lineTaxes, s.outletFallbackTaxRate(ctx, req.OutletID), discount)
+	orderTax := decimal.NewFromFloat(req.OrderTaxAmount)
+	totals := s.calculateTotalsWithTaxes(req.Lines, lineTaxes, s.outletFallbackTaxRate(ctx, req.OutletID), discount, sumCharges(req.Charges), orderTax)
 
 	// Resolve order subtype, defaulting to dine_in. "draft" is a status, not a subtype —
 	// the Save-as-Draft flows send it here, so normalize it to retail (retail orders start
@@ -513,6 +560,20 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent
 	}
 	if req.TableID != "" {
 		meta["table_id"] = req.TableID
+	}
+	// Order-level adjustments audit trail: per-charge breakdown + the manual order-tax edit
+	// (the amounts themselves are inside charges_total / tax_total).
+	if totals.ChargesTotal.IsPositive() && req.Charges != nil {
+		charges := map[string]any{}
+		for k, v := range req.Charges {
+			if v > 0 {
+				charges[k] = v
+			}
+		}
+		meta["charges"] = charges
+	}
+	if orderTax.IsPositive() {
+		meta["order_tax"] = map[string]any{"amount": orderTax.InexactFloat64()}
 	}
 
 	tx, err := s.client.Tx(ctx)
@@ -552,6 +613,8 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent
 		SetSubtotal(totals.Subtotal.InexactFloat64()).
 		SetTaxTotal(totals.TaxTotal.InexactFloat64()).
 		SetDiscountTotal(totals.DiscountTotal.InexactFloat64()).
+		SetChargesTotal(totals.ChargesTotal.InexactFloat64()).
+		SetRoundOff(totals.RoundOff.InexactFloat64()).
 		SetTotalAmount(totals.TotalAmount.InexactFloat64()).
 		SetCurrency(currency).
 		SetOrderSubtype(posorder.OrderSubtype(subtype)).
@@ -1124,7 +1187,9 @@ func (s *Service) AddOrderLines(ctx context.Context, tenantID uuid.UUID, tenantS
 
 	// Recalculate totals from all lines (existing + new). Only tax on EXCLUSIVE lines is added
 	// on top — an inclusive line's tax_amount is already inside its total_price, and adding it
-	// again would inflate the payable above what the till charged.
+	// again would inflate the payable above what the till charged. The order's stored discount,
+	// charges and manual order-tax edit are carried through finalizeTotals so the ceiling
+	// identity (total = subtotal + tax − discount + charges + round_off) keeps holding.
 	allLines := append(order.Edges.Lines, newLines...)
 	var newSubtotal, newTaxTotal decimal.Decimal
 	for _, ol := range allLines {
@@ -1133,12 +1198,19 @@ func (s *Service) AddOrderLines(ctx context.Context, tenantID uuid.UUID, tenantS
 			newTaxTotal = newTaxTotal.Add(decimal.NewFromFloat(*ol.TaxAmount))
 		}
 	}
-	newTotal := newSubtotal.Add(newTaxTotal)
+	orderTax := decimal.Zero
+	if ot, ok := order.Metadata["order_tax"].(map[string]any); ok {
+		if amt, ok := ot["amount"].(float64); ok && amt > 0 {
+			orderTax = decimal.NewFromFloat(amt)
+		}
+	}
+	totals := finalizeTotals(newSubtotal, newTaxTotal, decimal.NewFromFloat(order.DiscountTotal), decimal.NewFromFloat(order.ChargesTotal), orderTax)
 
 	upd := tx.POSOrder.UpdateOneID(order.ID).
-		SetSubtotal(newSubtotal.InexactFloat64()).
-		SetTaxTotal(newTaxTotal.InexactFloat64()).
-		SetTotalAmount(newTotal.InexactFloat64())
+		SetSubtotal(totals.Subtotal.InexactFloat64()).
+		SetTaxTotal(totals.TaxTotal.InexactFloat64()).
+		SetRoundOff(totals.RoundOff.InexactFloat64()).
+		SetTotalAmount(totals.TotalAmount.InexactFloat64())
 	// Adding items to a bill that was awaiting payment (or still a draft) re-opens it — there is now
 	// more to pay, so it must not stay in a pending/draft state.
 	if order.Status == StatusPendingPayment || order.Status == StatusDraft {

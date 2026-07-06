@@ -525,6 +525,7 @@ func New(ctx context.Context) (*App, error) {
 	packageHandler := handlers.NewPackageHandler(log, entClient)
 	clientHandler := handlers.NewClientHandler(log, entClient)
 	clientHandler.SetMarketFlowClient(mfClient)
+	clientHandler.SetTreasuryClient(treasuryClient)
 	channelHandler := handlers.NewChannelHandler(log, entClient)
 	printHandler := handlers.NewPrintHandler(log, entClient)
 
