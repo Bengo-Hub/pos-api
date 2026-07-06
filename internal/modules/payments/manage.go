@@ -51,7 +51,7 @@ type UpdatePaymentInput struct {
 // M-Pesa STK, Paystack) and structural tenders (on_account AR, loyalty points) have
 // cross-service state and must go through the refund / returns flows instead.
 var manualTenderTypes = map[string]bool{
-	"cash": true, "card_manual": true, "pdq": true, "card_terminal": true,
+	"cash": true, "manual": true, "card_manual": true, "pdq": true, "card_terminal": true,
 	"cheque": true, "bank_transfer": true,
 }
 
