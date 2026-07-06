@@ -136,9 +136,12 @@ type InitiateResponse struct {
 // idempotent on the return id (reference_id). The tax_amount/cost fields let treasury reverse the
 // exact VAT and Cost-of-Goods-Sold posted at sale time (cost triggers the restock/COGS reversal).
 type RefundRequest struct {
-	SourceService    string  `json:"source_service"`               // "pos"
-	ReferenceID      string  `json:"reference_id"`                 // pos_return UUID
-	ReferenceType    string  `json:"reference_type"`               // "pos_return"
+	SourceService string `json:"source_service"` // "pos"
+	ReferenceID   string `json:"reference_id"`   // pos_return UUID
+	ReferenceType string `json:"reference_type"` // "pos_return"
+	// Reference is the human return number (RET-…) treasury shows on customer statements
+	// instead of the raw return UUID.
+	Reference        string  `json:"reference,omitempty"`
 	OriginalIntentID string  `json:"original_intent_id,omitempty"` // original payment intent if known
 	Amount           float64 `json:"amount"`
 	TaxAmount        float64 `json:"tax_amount,omitempty"`     // VAT portion of the refunded lines (reversed)
@@ -178,12 +181,18 @@ type CreditSaleRequest struct {
 	// CrmContactID is the canonical AR key (the marketflow CRM contact of the selected customer).
 	// customer_identifier (phone) is a fallback so treasury can resolve/backfill a legacy phone-keyed
 	// row; sending both makes the credit sale, its returns and its opening balance net on ONE row.
-	CrmContactID       string  `json:"crm_contact_id,omitempty"`
-	CustomerIdentifier string  `json:"customer_identifier,omitempty"`
-	CustomerName       string  `json:"customer_name,omitempty"`
-	POSOrderID         string  `json:"pos_order_id,omitempty"`
-	Amount             float64 `json:"amount"`
-	Currency           string  `json:"currency"`
+	CrmContactID       string `json:"crm_contact_id,omitempty"`
+	CustomerIdentifier string `json:"customer_identifier,omitempty"`
+	CustomerName       string `json:"customer_name,omitempty"`
+	POSOrderID         string `json:"pos_order_id,omitempty"`
+	// Reference is the human invoice number (POS-…) treasury shows on customer statements
+	// instead of the raw order UUID.
+	Reference string  `json:"reference,omitempty"`
+	Amount    float64 `json:"amount"`
+	Currency  string  `json:"currency"`
+	// UserID is the cashier/manager (global auth-service user id) who rang the sale — treasury
+	// records them as the journal entry's creator ("Recorded By").
+	UserID string `json:"user_id,omitempty"`
 }
 
 // CreditSaleResponse is the treasury customer-balance row returned after posting a credit sale.

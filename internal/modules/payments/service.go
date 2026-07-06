@@ -249,6 +249,7 @@ func (s *Service) CreatePaymentIntent(ctx context.Context, req RecordPaymentRequ
 			SetAmount(req.Amount).
 			SetCurrency(currency).
 			SetStatus(StatusPending).
+			SetPaymentData(map[string]any{"method": req.TenderMethod}).
 			SetNillableExternalReference(nilIfEmpty(intent.ResolvedID())).
 			Save(ctx)
 		if err != nil {
@@ -273,6 +274,7 @@ func (s *Service) CreatePaymentIntent(ctx context.Context, req RecordPaymentRequ
 		SetAmount(req.Amount).
 		SetCurrency(currency).
 		SetStatus(StatusCompleted).
+		SetPaymentData(map[string]any{"method": req.TenderMethod}).
 		SetNillableExternalReference(nilIfEmpty(cashRef)).
 		Save(ctx)
 	if err != nil {
@@ -312,7 +314,10 @@ func (s *Service) recordCreditSale(ctx context.Context, order *ent.POSOrder, req
 		} else {
 			if _, err := s.client.POSPayment.Create().
 				SetOrderID(req.OrderID).SetTenderID(req.TenderID).SetAmount(req.Amount).
-				SetCurrency(currency).SetStatus(StatusCompleted).Save(ctx); err != nil {
+				SetCurrency(currency).SetStatus(StatusCompleted).
+				SetPaymentData(map[string]any{"method": TenderOnAccount, "fund_from_salary": true}).
+				SetNillableExternalReference(nilIfEmpty(order.OrderNumber)).
+				Save(ctx); err != nil {
 				return nil, fmt.Errorf("payments: record staff on-account payment: %w", err)
 			}
 			s.completeOrderIfFullyPaid(ctx, order)
@@ -353,8 +358,10 @@ func (s *Service) recordCreditSale(ctx context.Context, order *ent.POSOrder, req
 		CustomerIdentifier: phone,
 		CustomerName:       name,
 		POSOrderID:         order.ID.String(),
+		Reference:          order.OrderNumber,
 		Amount:             req.Amount,
 		Currency:           currency,
+		UserID:             order.UserID.String(),
 	}); err != nil {
 		return nil, fmt.Errorf("payments: credit sale rejected: %w", err)
 	}
@@ -365,6 +372,8 @@ func (s *Service) recordCreditSale(ctx context.Context, order *ent.POSOrder, req
 		SetAmount(req.Amount).
 		SetCurrency(currency).
 		SetStatus(StatusCompleted).
+		SetPaymentData(map[string]any{"method": TenderOnAccount}).
+		SetNillableExternalReference(nilIfEmpty(order.OrderNumber)).
 		Save(ctx); err != nil {
 		return nil, fmt.Errorf("payments: record on-account payment: %w", err)
 	}

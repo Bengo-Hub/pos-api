@@ -78,6 +78,9 @@ type inventoryProxyItem struct {
 	RequiresAgeVerification bool                    `json:"requires_age_verification"`
 	IsControlledSubstance   bool                    `json:"is_controlled_substance"`
 	TrackSerialNumbers      bool                    `json:"track_serial_numbers"`
+	// NonBillable: never charged at the till even when a selling price exists (free
+	// accompaniments like ugali, supplies like tissue/packaging); stock still deducts.
+	NonBillable             *bool                   `json:"non_billable,omitempty"`
 	DurationMinutes         int                     `json:"duration_minutes"`
 	CostPrice               *float64                `json:"cost_price,omitempty"`
 	SuggestedPrice          *float64                `json:"suggested_price,omitempty"`
@@ -239,7 +242,9 @@ func doInventoryGET(ctx context.Context, path string, outletID string) ([]byte, 
 func fetchInventoryItems(ctx context.Context, tenantSlug, outletID, useCase string) ([]inventoryProxyItem, error) {
 	types := useCaseItemTypes(useCase)
 	// include=variants so the catalog item carries its sellable variations.
-	url := fmt.Sprintf("%s/v1/%s/inventory/items?type=%s&status=active&limit=500&include=variants", inventoryURL(), tenantSlug, types)
+	// include_non_billable widens the type filter so free accompaniments / supplies
+	// (tissue, packaging) reach the terminal regardless of item type.
+	url := fmt.Sprintf("%s/v1/%s/inventory/items?type=%s&status=active&limit=500&include=variants&include_non_billable=1", inventoryURL(), tenantSlug, types)
 	body, err := doInventoryGET(ctx, url, outletID)
 	if err != nil {
 		return nil, err
@@ -547,6 +552,9 @@ type catalogItemDTO struct {
 	// callers with pos.catalog.view_cost (manager/admin) so the cart can show cost + margin; never
 	// exposed on a cashier terminal or the public menu document.
 	CostPrice               *float64
+	// NonBillable mirrors inventory Item.non_billable: rung up at a forced KES 0
+	// (IsComplimentary is also set) — free accompaniments and supplies.
+	NonBillable             bool
 }
 
 // menuAssemblyFilters carries the optional list-time filters applied by ListCatalogItems.
@@ -748,6 +756,19 @@ func (h *CatalogHandler) assembleMenuItems(
 			price = math.Ceil(price)
 		}
 
+		// NON-BILLABLE (inventory Item.non_billable): never charged at the till, even when a
+		// selling price exists — free accompaniments (ugali) and consumable supplies (tissue,
+		// packaging). Price is FORCED to 0, the item stays available and is flagged Free, and
+		// the min/max selling-price guardrails are cleared so the zero price can't trip the
+		// out-of-band block. Stock still deducts on sale.
+		nonBillable := item.NonBillable != nil && *item.NonBillable
+		if nonBillable {
+			price = 0
+			isComplimentary = true
+			item.MinSellingPrice = nil
+			item.MaxSellingPrice = nil
+		}
+
 		// Zero-price safety gate, with a deliberate exception for COMPLIMENTARY accompaniments.
 		// By default a no-price item must not appear sellable — staff must not ring up a KES 0 item by
 		// accident. BUT a price-0 item that an admin has EXPLICITLY enabled via a POS catalog override
@@ -762,7 +783,7 @@ func (h *CatalogHandler) assembleMenuItems(
 			// (metadata.complimentary=true) OR it lives in an "Accompaniment"/side category — those are
 			// free sides by definition (e.g. ugali), so they surface without per-item flagging. Any other
 			// price-0 item stays hidden so staff can't accidentally ring up a KES 0 sale.
-			if (hasOverride && o.complimentary) || isAccompanimentCategory(item.CategoryName) {
+			if nonBillable || (hasOverride && o.complimentary) || isAccompanimentCategory(item.CategoryName) {
 				isComplimentary = true
 				isAvailable = true
 			} else {
@@ -825,6 +846,7 @@ func (h *CatalogHandler) assembleMenuItems(
 			// Supplier cost (for the manager-only cart cost/margin columns). Prefer the explicit
 			// cost_price; fall back to purchase_price when cost isn't set on the item.
 			CostPrice:               firstNonNilFloat(item.CostPrice, item.PurchasePrice),
+			NonBillable:             nonBillable,
 		})
 	}
 	return out, nil
@@ -920,6 +942,7 @@ func catalogItemToMapBase(item catalogItemDTO, outletID *uuid.UUID) map[string]a
 		"status":                    map[bool]string{true: "active", false: "inactive"}[item.IsActive],
 		"is_available":              item.IsAvailable,
 		"is_complimentary":          item.IsComplimentary,
+		"non_billable":              item.NonBillable,
 		"is_featured":               item.IsFeatured,
 		"display_order":             item.DisplayOrder,
 		"image_url":                 item.ImageURL,

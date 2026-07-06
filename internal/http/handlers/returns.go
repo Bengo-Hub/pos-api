@@ -56,6 +56,11 @@ type returnLineInput struct {
 	UnitPrice     float64   `json:"unit_price"`
 	TotalPrice    float64   `json:"total_price"`
 	Reason        string    `json:"reason"`
+	// Per-line tax for EXCHANGE replacement lines (as priced in the catalog), so the
+	// replacement order's payable equals the delta the cashier quoted.
+	TaxCodeID        string   `json:"tax_code_id,omitempty"`
+	PriceIncludesTax bool     `json:"price_includes_tax,omitempty"`
+	TaxRate          *float64 `json:"tax_rate,omitempty"`
 }
 
 type createReturnInput struct {
@@ -91,6 +96,10 @@ type completeReturnInput struct {
 type returnResponse struct {
 	*ent.POSReturn
 	OrderNumber string `json:"order_number,omitempty"`
+	// Customer of the ORIGINAL order — so the Returns list/detail can show and link the
+	// customer instead of an em-dash.
+	CustomerName  string `json:"customer_name,omitempty"`
+	CustomerPhone string `json:"customer_phone,omitempty"`
 }
 
 // orderNumberFor resolves the display order number for a single order id (best-effort; "" on miss).
@@ -108,9 +117,28 @@ func (h *ReturnHandler) orderNumberFor(ctx context.Context, tid, orderID uuid.UU
 	return o.OrderNumber
 }
 
-// withOrderNumber wraps one return in a returnResponse carrying its original order number.
+// withOrderNumber wraps one return in a returnResponse carrying its original order number
+// and the original buyer.
 func (h *ReturnHandler) withOrderNumber(ctx context.Context, tid uuid.UUID, ret *ent.POSReturn) returnResponse {
-	return returnResponse{POSReturn: ret, OrderNumber: h.orderNumberFor(ctx, tid, ret.OrderID)}
+	resp := returnResponse{POSReturn: ret}
+	if ret.OrderID == uuid.Nil {
+		return resp
+	}
+	o, err := h.client.POSOrder.Query().
+		Where(entposorder.ID(ret.OrderID), entposorder.TenantID(tid)).
+		Select(entposorder.FieldOrderNumber, entposorder.FieldCustomerName, entposorder.FieldCustomerPhone).
+		Only(ctx)
+	if err != nil || o == nil {
+		return resp
+	}
+	resp.OrderNumber = o.OrderNumber
+	if o.CustomerName != nil {
+		resp.CustomerName = *o.CustomerName
+	}
+	if o.CustomerPhone != nil {
+		resp.CustomerPhone = *o.CustomerPhone
+	}
+	return resp
 }
 
 // withOrderNumbers wraps a slice of returns, batch-loading the order numbers in one query.
@@ -121,21 +149,32 @@ func (h *ReturnHandler) withOrderNumbers(ctx context.Context, tid uuid.UUID, ret
 			ids = append(ids, ret.OrderID)
 		}
 	}
-	numByID := make(map[uuid.UUID]string, len(ids))
+	type orderInfo struct {
+		number, custName, custPhone string
+	}
+	infoByID := make(map[uuid.UUID]orderInfo, len(ids))
 	if len(ids) > 0 {
 		orders, err := h.client.POSOrder.Query().
 			Where(entposorder.TenantID(tid), entposorder.IDIn(ids...)).
-			Select(entposorder.FieldID, entposorder.FieldOrderNumber).
+			Select(entposorder.FieldID, entposorder.FieldOrderNumber, entposorder.FieldCustomerName, entposorder.FieldCustomerPhone).
 			All(ctx)
 		if err == nil {
 			for _, o := range orders {
-				numByID[o.ID] = o.OrderNumber
+				info := orderInfo{number: o.OrderNumber}
+				if o.CustomerName != nil {
+					info.custName = *o.CustomerName
+				}
+				if o.CustomerPhone != nil {
+					info.custPhone = *o.CustomerPhone
+				}
+				infoByID[o.ID] = info
 			}
 		}
 	}
 	out := make([]returnResponse, 0, len(returns))
 	for _, ret := range returns {
-		out = append(out, returnResponse{POSReturn: ret, OrderNumber: numByID[ret.OrderID]})
+		info := infoByID[ret.OrderID]
+		out = append(out, returnResponse{POSReturn: ret, OrderNumber: info.number, CustomerName: info.custName, CustomerPhone: info.custPhone})
 	}
 	return out
 }
@@ -652,6 +691,7 @@ func (h *ReturnHandler) CompleteReturn(w http.ResponseWriter, r *http.Request) {
 			SourceService:      "pos",
 			ReferenceID:        returnID.String(),
 			ReferenceType:      "pos_return",
+			Reference:          ret.ReturnNumber,
 			Amount:             settleAmount,
 			TaxAmount:          taxAmount,
 			Cost:               costAmount,

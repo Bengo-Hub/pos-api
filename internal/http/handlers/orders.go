@@ -91,6 +91,12 @@ type createOrderLineInput struct {
 	TotalPrice    float64                `json:"total_price"`
 	CourseNumber  int                    `json:"course_number"` // 0=fire immediately, 1=Starter, 2=Main, 3=Dessert
 	Metadata      map[string]interface{} `json:"metadata"`
+	// Per-line tax exactly as the till charged it (treasury-enriched catalog), so the server's
+	// payable equals what the customer actually paid at the till.
+	TaxStatus        string   `json:"tax_status,omitempty"`
+	TaxCodeID        string   `json:"tax_code_id,omitempty"`
+	PriceIncludesTax bool     `json:"price_includes_tax,omitempty"`
+	TaxRate          *float64 `json:"tax_rate,omitempty"`
 }
 
 // createOrderInput is the body for POST /pos/orders.
@@ -749,15 +755,19 @@ func (h *POSOrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 	lines := make([]orders.OrderLineInput, len(input.Lines))
 	for i, l := range input.Lines {
 		lines[i] = orders.OrderLineInput{
-			CatalogItemID: l.CatalogItemID,
-			SKU:           l.SKU,
-			Name:          l.Name,
-			Category:      l.Category,
-			Quantity:      l.Quantity,
-			UnitPrice:     l.UnitPrice,
-			TotalPrice:    l.TotalPrice,
-			CourseNumber:  l.CourseNumber,
-			Metadata:      l.Metadata,
+			CatalogItemID:    l.CatalogItemID,
+			SKU:              l.SKU,
+			Name:             l.Name,
+			Category:         l.Category,
+			Quantity:         l.Quantity,
+			UnitPrice:        l.UnitPrice,
+			TotalPrice:       l.TotalPrice,
+			CourseNumber:     l.CourseNumber,
+			Metadata:         l.Metadata,
+			TaxStatus:        l.TaxStatus,
+			TaxCodeID:        l.TaxCodeID,
+			PriceIncludesTax: l.PriceIncludesTax,
+			TaxRate:          l.TaxRate,
 		}
 	}
 
@@ -1088,19 +1098,27 @@ func (h *POSOrderHandler) AddOrderLines(w http.ResponseWriter, r *http.Request) 
 	lines := make([]orders.OrderLineInput, len(input.Lines))
 	for i, l := range input.Lines {
 		lines[i] = orders.OrderLineInput{
-			CatalogItemID: l.CatalogItemID,
-			SKU:           l.SKU,
-			Name:          l.Name,
-			Category:      l.Category,
-			Quantity:      l.Quantity,
-			UnitPrice:     l.UnitPrice,
-			TotalPrice:    l.TotalPrice,
-			CourseNumber:  l.CourseNumber,
-			Metadata:      l.Metadata,
+			CatalogItemID:    l.CatalogItemID,
+			SKU:              l.SKU,
+			Name:             l.Name,
+			Category:         l.Category,
+			Quantity:         l.Quantity,
+			UnitPrice:        l.UnitPrice,
+			TotalPrice:       l.TotalPrice,
+			CourseNumber:     l.CourseNumber,
+			Metadata:         l.Metadata,
+			TaxStatus:        l.TaxStatus,
+			TaxCodeID:        l.TaxCodeID,
+			PriceIncludesTax: l.PriceIncludesTax,
+			TaxRate:          l.TaxRate,
 		}
 	}
 
-	result, err := h.orderSvc.AddOrderLines(r.Context(), tid, orderID, lines)
+	tenantSlug := ""
+	if claims, ok := authclient.ClaimsFromContext(r.Context()); ok {
+		tenantSlug = claims.GetTenantSlug()
+	}
+	result, err := h.orderSvc.AddOrderLines(r.Context(), tid, tenantSlug, orderID, lines)
 	if err != nil {
 		if ent.IsNotFound(err) {
 			jsonError(w, "order not found", http.StatusNotFound)

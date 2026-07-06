@@ -68,12 +68,15 @@ func (h *ReturnHandler) fulfilExchange(ctx context.Context, r *http.Request, tid
 		}
 		replacementTotal += total
 		orderLines = append(orderLines, orders.OrderLineInput{
-			CatalogItemID: l.CatalogItemID,
-			SKU:           l.SKU,
-			Name:          l.Name,
-			Quantity:      l.Quantity,
-			UnitPrice:     l.UnitPrice,
-			TotalPrice:    total,
+			CatalogItemID:    l.CatalogItemID,
+			SKU:              l.SKU,
+			Name:             l.Name,
+			Quantity:         l.Quantity,
+			UnitPrice:        l.UnitPrice,
+			TotalPrice:       total,
+			TaxCodeID:        l.TaxCodeID,
+			PriceIncludesTax: l.PriceIncludesTax,
+			TaxRate:          l.TaxRate,
 		})
 	}
 

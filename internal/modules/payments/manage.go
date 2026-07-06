@@ -92,6 +92,11 @@ func (s *Service) ListOrderPaymentsDetailed(ctx context.Context, tenantID, order
 		}
 		if p.PaymentData != nil {
 			d.Note, _ = p.PaymentData["note"].(string)
+			// The default (nil-UUID) tender has no Tender row — fall back to the method
+			// recorded at capture time so on-account / M-Pesa rows never render as blank/Cash.
+			if d.TenderType == "" {
+				d.TenderType, _ = p.PaymentData["method"].(string)
+			}
 		}
 		d.Voidable = p.Status == StatusCompleted && paymentIsManageable(p, d.TenderType)
 		out = append(out, d)
