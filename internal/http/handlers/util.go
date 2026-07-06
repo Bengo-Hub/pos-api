@@ -22,3 +22,9 @@ func jsonOK(w http.ResponseWriter, v interface{}) {
 func jsonError(w http.ResponseWriter, msg string, code int) {
 	respondJSON(w, code, map[string]string{"error": msg})
 }
+
+// jsonErrorWithCode writes a JSON error response carrying a machine-readable `code` the UI can
+// branch on (e.g. "approval_required" → open the manager step-up dialog).
+func jsonErrorWithCode(w http.ResponseWriter, msg, errCode string, status int) {
+	respondJSON(w, status, map[string]string{"error": msg, "code": errCode})
+}

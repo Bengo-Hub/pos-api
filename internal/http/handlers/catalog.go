@@ -238,42 +238,68 @@ func doInventoryGET(ctx context.Context, path string, outletID string) ([]byte, 
 	return io.ReadAll(resp.Body)
 }
 
-// fetchInventoryItems calls inventory-api and returns active sellable items scoped by outlet and use case.
+// inventoryPageSize matches inventory-api's shared pagination.MaxLimit. Any larger requested
+// limit is silently clamped server-side, so paging must use exactly this size.
+const inventoryPageSize = 100
+
+// fetchAllInventoryItemPages pages through an inventory-api items listing until every row is
+// retrieved. inventory-api clamps ANY requested limit to its shared pagination cap (100), so a
+// single large-limit request silently truncates the catalog — e.g. urban-loft's 269 sellable
+// items came back as the first 100 only and most of the menu vanished from the terminal.
+// baseURL must NOT carry limit/page params; they are appended per page here.
+func fetchAllInventoryItemPages(ctx context.Context, baseURL, outletID string) ([]inventoryProxyItem, error) {
+	sep := "?"
+	if strings.Contains(baseURL, "?") {
+		sep = "&"
+	}
+	items := make([]inventoryProxyItem, 0, 2*inventoryPageSize)
+	// Hard page ceiling as a runaway guard (5k items); real catalogs stop on total/short-page.
+	for page := 1; page <= 50; page++ {
+		url := fmt.Sprintf("%s%slimit=%d&page=%d", baseURL, sep, inventoryPageSize, page)
+		body, err := doInventoryGET(ctx, url, outletID)
+		if err != nil {
+			// Never silently serve a truncated catalog: a mid-loop failure is a failure.
+			return nil, err
+		}
+		var wrapper struct {
+			Data    []inventoryProxyItem `json:"data"`
+			Total   int                  `json:"total"`
+			HasMore *bool                `json:"hasMore"`
+		}
+		if err := json.Unmarshal(body, &wrapper); err != nil {
+			return nil, err
+		}
+		items = append(items, wrapper.Data...)
+		if len(wrapper.Data) < inventoryPageSize {
+			break
+		}
+		if wrapper.HasMore != nil && !*wrapper.HasMore {
+			break
+		}
+		if wrapper.Total > 0 && len(items) >= wrapper.Total {
+			break
+		}
+	}
+	return items, nil
+}
+
+// fetchInventoryItems calls inventory-api and returns ALL active sellable items scoped by outlet
+// and use case, paging past inventory-api's 100-row pagination cap.
 func fetchInventoryItems(ctx context.Context, tenantSlug, outletID, useCase string) ([]inventoryProxyItem, error) {
 	types := useCaseItemTypes(useCase)
 	// include=variants so the catalog item carries its sellable variations.
 	// include_non_billable widens the type filter so free accompaniments / supplies
 	// (tissue, packaging) reach the terminal regardless of item type.
-	url := fmt.Sprintf("%s/v1/%s/inventory/items?type=%s&status=active&limit=500&include=variants&include_non_billable=1", inventoryURL(), tenantSlug, types)
-	body, err := doInventoryGET(ctx, url, outletID)
-	if err != nil {
-		return nil, err
-	}
-	var wrapper struct {
-		Data []inventoryProxyItem `json:"data"`
-	}
-	if err := json.Unmarshal(body, &wrapper); err != nil {
-		return nil, err
-	}
-	return wrapper.Data, nil
+	url := fmt.Sprintf("%s/v1/%s/inventory/items?type=%s&status=active&include=variants&include_non_billable=1", inventoryURL(), tenantSlug, types)
+	return fetchAllInventoryItemPages(ctx, url, outletID)
 }
 
 // fetchInventoryServiceItems lists inventory items filtered by use_case (e.g. HOSPITALITY_ROOM,
 // HOSPITALITY_FACILITY, CONFERENCE, AMENITY) — used by hotel forms to pick the authoritative
-// inventory master item to link to a Room/Facility/Amenity.
+// inventory master item to link to a Room/Facility/Amenity. Pages past the 100-row cap.
 func fetchInventoryServiceItems(ctx context.Context, tenantSlug, useCase string) ([]inventoryProxyItem, error) {
-	url := fmt.Sprintf("%s/v1/%s/inventory/items?use_case=%s&status=active&limit=500", inventoryURL(), tenantSlug, useCase)
-	body, err := doInventoryGET(ctx, url, "")
-	if err != nil {
-		return nil, err
-	}
-	var wrapper struct {
-		Data []inventoryProxyItem `json:"data"`
-	}
-	if err := json.Unmarshal(body, &wrapper); err != nil {
-		return nil, err
-	}
-	return wrapper.Data, nil
+	url := fmt.Sprintf("%s/v1/%s/inventory/items?use_case=%s&status=active", inventoryURL(), tenantSlug, useCase)
+	return fetchAllInventoryItemPages(ctx, url, "")
 }
 
 // inventoryProxyBundle is the subset of an inventory-api Bundle the hotel forms need
@@ -287,20 +313,36 @@ type inventoryProxyBundle struct {
 }
 
 // fetchInventoryBundles lists inventory-api Bundles (packages) so hotel/conference forms
-// can pick an authoritative package by name instead of pasting a raw UUID.
+// can pick an authoritative package by name instead of pasting a raw UUID. Pages past the
+// shared 100-row pagination cap like the item fetches.
 func fetchInventoryBundles(ctx context.Context, tenantSlug string) ([]inventoryProxyBundle, error) {
-	url := fmt.Sprintf("%s/v1/%s/inventory/bundles?limit=500", inventoryURL(), tenantSlug)
-	body, err := doInventoryGET(ctx, url, "")
-	if err != nil {
-		return nil, err
+	bundles := make([]inventoryProxyBundle, 0, inventoryPageSize)
+	for page := 1; page <= 50; page++ {
+		url := fmt.Sprintf("%s/v1/%s/inventory/bundles?limit=%d&page=%d", inventoryURL(), tenantSlug, inventoryPageSize, page)
+		body, err := doInventoryGET(ctx, url, "")
+		if err != nil {
+			return nil, err
+		}
+		var wrapper struct {
+			Data    []inventoryProxyBundle `json:"data"`
+			Total   int                    `json:"total"`
+			HasMore *bool                  `json:"hasMore"`
+		}
+		if err := json.Unmarshal(body, &wrapper); err != nil {
+			return nil, err
+		}
+		bundles = append(bundles, wrapper.Data...)
+		if len(wrapper.Data) < inventoryPageSize {
+			break
+		}
+		if wrapper.HasMore != nil && !*wrapper.HasMore {
+			break
+		}
+		if wrapper.Total > 0 && len(bundles) >= wrapper.Total {
+			break
+		}
 	}
-	var wrapper struct {
-		Data []inventoryProxyBundle `json:"data"`
-	}
-	if err := json.Unmarshal(body, &wrapper); err != nil {
-		return nil, err
-	}
-	return wrapper.Data, nil
+	return bundles, nil
 }
 
 // fetchInventoryPricing calls inventory-api for prices. It returns the default-tier price per
@@ -967,6 +1009,40 @@ func catalogItemToMapBase(item catalogItemDTO, outletID *uuid.UUID) map[string]a
 		"max_selling_price":         item.MaxSellingPrice,
 		"outlet_id":                 outletID,
 	}
+}
+
+// GetCatalogVersion handles GET /{tenantID}/pos/catalog/version — a very cheap freshness
+// fingerprint the terminal polls to know when its locally-cached catalog is stale.
+//
+// The fingerprint is derived from the tenant's POSCatalogOverride projection (row count +
+// max updated_at). The inventory.item.created/updated NATS consumer upserts an override row
+// for every inventory change, so any new/edited inventory item bumps this version within
+// seconds — the terminal then background-refreshes its full catalog (and IndexedDB cache)
+// without the cashier refreshing or re-logging in. Two aggregates over an indexed tenant_id
+// column: safe to poll frequently (also rate-limit-exempt like /payment-status).
+func (h *CatalogHandler) GetCatalogVersion(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+	var agg []struct {
+		Count int       `json:"count"`
+		Max   time.Time `json:"max"`
+	}
+	err = h.client.POSCatalogOverride.Query().
+		Where(entoverride.TenantID(tid)).
+		Aggregate(ent.Count(), ent.Max(entoverride.FieldUpdatedAt)).
+		Scan(r.Context(), &agg)
+	if err != nil || len(agg) == 0 {
+		// Degrade to a constant version — pollers just see "no change" rather than an error loop.
+		jsonOK(w, map[string]any{"version": "0-0", "count": 0})
+		return
+	}
+	jsonOK(w, map[string]any{
+		"version": fmt.Sprintf("%d-%d", agg[0].Count, agg[0].Max.UTC().UnixMilli()),
+		"count":   agg[0].Count,
+	})
 }
 
 // ListCatalogItems handles GET /{tenantID}/pos/catalog/items

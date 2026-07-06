@@ -14,6 +14,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/cashdrawer"
 	"github.com/bengobox/pos-service/internal/ent/cashdrawerevent"
 	"github.com/bengobox/pos-service/internal/ent/dailyclosing"
+	enthelditem "github.com/bengobox/pos-service/internal/ent/helditem"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
 	"github.com/bengobox/pos-service/internal/ent/posrefund"
 )
@@ -208,8 +209,23 @@ func (h *DailyClosingHandler) CloseDay(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Non-blocking warning: set-aside (parked) items still unclaimed at day close. Shift close is
+	// the hard gate (each waiter must claim or manager-void theirs); this count surfaces whatever
+	// slipped through — e.g. a shift left open — so the manager resolves it, not silently loses it.
+	outstandingHeld, hErr := h.client.HeldItem.Query().
+		Where(
+			enthelditem.TenantID(tid),
+			enthelditem.OutletID(outletID),
+			enthelditem.StatusEQ("held"),
+		).
+		Count(ctx)
+	if hErr != nil {
+		h.log.Warn("daily close: held items count failed", zap.Error(hErr))
+	}
+
 	jsonOK(w, map[string]any{
-		"closing": closing,
+		"closing":                closing,
+		"outstanding_held_items": outstandingHeld,
 		"breakdown": map[string]float64{
 			"starting_cash": startingCash,
 			"cash_sales":    cashSales,

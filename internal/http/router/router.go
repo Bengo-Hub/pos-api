@@ -330,6 +330,7 @@ func New(
 					// Catalog
 					if catalog != nil {
 						pos.Route("/catalog", func(cat chi.Router) {
+							cat.Get("/version", catalog.GetCatalogVersion)
 							cat.Get("/categories", catalog.GetCatalogCategories)
 							cat.Get("/brands", catalog.GetBrands)
 							cat.Get("/items", catalog.ListCatalogItems)

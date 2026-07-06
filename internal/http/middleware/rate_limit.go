@@ -42,7 +42,9 @@ func IPRateLimit(rc *redis.Client, cfg RateLimitConfig) func(http.Handler) http.
 			// the shared 100/60s budget starves normal POS traffic and 429-storms the very endpoint
 			// the cashier is waiting on. Confirmation correctness is owned by the treasury NATS
 			// subscriber, not these endpoints.
-			if p := r.URL.Path; strings.HasSuffix(p, "/stream") || strings.HasSuffix(p, "/payment-status") {
+			// /catalog/version is the terminal's tiny catalog-freshness poll (two aggregates on an
+			// indexed column, fired every ~45s per terminal) — same starvation math as payment-status.
+			if p := r.URL.Path; strings.HasSuffix(p, "/stream") || strings.HasSuffix(p, "/payment-status") || strings.HasSuffix(p, "/catalog/version") {
 				next.ServeHTTP(w, r)
 				return
 			}
