@@ -7,6 +7,7 @@ import (
 
 	"github.com/bengobox/pos-service/internal/ent/posorder"
 	"github.com/bengobox/pos-service/internal/ent/posorderline"
+	"github.com/bengobox/pos-service/internal/ent/predicate"
 	"github.com/google/uuid"
 )
 
@@ -22,14 +23,17 @@ func (h *ReportsHandler) VoidSummary(w http.ResponseWriter, r *http.Request) {
 
 	from, to := parseDateRange(r)
 
-	orders, err := h.db.POSOrder.Query().
+	q := h.db.POSOrder.Query().
 		Where(
 			posorder.TenantID(tid),
 			posorder.StatusEQ("voided"),
 			posorder.CreatedAtGTE(from),
 			posorder.CreatedAtLTE(to),
-		).
-		All(r.Context())
+		)
+	if outletFilter := parseOutletFilter(r); outletFilter != uuid.Nil {
+		q = q.Where(posorder.OutletID(outletFilter))
+	}
+	orders, err := q.All(r.Context())
 	if err != nil {
 		h.log.Error("void-summary query failed", zap.Error(err))
 		jsonError(w, "internal error", http.StatusInternalServerError)
@@ -110,13 +114,18 @@ func (h *ReportsHandler) ProductMix(w http.ResponseWriter, r *http.Request) {
 
 	from, to := parseDateRange(r)
 
+	orderPredicates := []predicate.POSOrder{
+		posorder.TenantID(tid),
+		posorder.StatusEQ("completed"),
+		posorder.CreatedAtGTE(from),
+		posorder.CreatedAtLTE(to),
+	}
+	if outletFilter := parseOutletFilter(r); outletFilter != uuid.Nil {
+		orderPredicates = append(orderPredicates, posorder.OutletID(outletFilter))
+	}
+
 	lines, err := h.db.POSOrderLine.Query().
-		Where(posorderline.HasOrderWith(
-			posorder.TenantID(tid),
-			posorder.StatusEQ("completed"),
-			posorder.CreatedAtGTE(from),
-			posorder.CreatedAtLTE(to),
-		)).
+		Where(posorderline.HasOrderWith(orderPredicates...)).
 		WithOrder().
 		All(r.Context())
 	if err != nil {

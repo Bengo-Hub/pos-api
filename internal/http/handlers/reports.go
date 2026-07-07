@@ -505,20 +505,26 @@ func (h *ReportsHandler) SalesByStaff(w http.ResponseWriter, r *http.Request) {
 	}
 
 	from, to := parseDateRange(r)
+	outletFilter := parseOutletFilter(r)
 
-	completed, err := h.db.POSOrder.Query().
+	completedQ := h.db.POSOrder.Query().
 		Where(posorder.TenantID(tid), posorder.StatusEQ("completed"),
-			posorder.CreatedAtGTE(from), posorder.CreatedAtLTE(to)).
-		All(r.Context())
+			posorder.CreatedAtGTE(from), posorder.CreatedAtLTE(to))
+	voidedQ := h.db.POSOrder.Query().
+		Where(posorder.TenantID(tid), posorder.StatusEQ("voided"),
+			posorder.CreatedAtGTE(from), posorder.CreatedAtLTE(to))
+	if outletFilter != uuid.Nil {
+		completedQ = completedQ.Where(posorder.OutletID(outletFilter))
+		voidedQ = voidedQ.Where(posorder.OutletID(outletFilter))
+	}
+
+	completed, err := completedQ.All(r.Context())
 	if err != nil {
 		h.log.Error("sales by staff (completed) query failed", zap.Error(err))
 		jsonError(w, "failed to generate sales-by-staff report", http.StatusInternalServerError)
 		return
 	}
-	voided, err := h.db.POSOrder.Query().
-		Where(posorder.TenantID(tid), posorder.StatusEQ("voided"),
-			posorder.CreatedAtGTE(from), posorder.CreatedAtLTE(to)).
-		All(r.Context())
+	voided, err := voidedQ.All(r.Context())
 	if err != nil {
 		h.log.Error("sales by staff (voided) query failed", zap.Error(err))
 		jsonError(w, "failed to generate sales-by-staff report", http.StatusInternalServerError)
@@ -933,10 +939,13 @@ func (h *ReportsHandler) SalesByHour(w http.ResponseWriter, r *http.Request) {
 	dayStart := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.UTC)
 	dayEnd := dayStart.Add(24 * time.Hour)
 
-	orders, err := h.db.POSOrder.Query().
+	q := h.db.POSOrder.Query().
 		Where(posorder.TenantID(tid), posorder.StatusEQ("completed"),
-			posorder.CreatedAtGTE(dayStart), posorder.CreatedAtLT(dayEnd)).
-		All(r.Context())
+			posorder.CreatedAtGTE(dayStart), posorder.CreatedAtLT(dayEnd))
+	if outletFilter := parseOutletFilter(r); outletFilter != uuid.Nil {
+		q = q.Where(posorder.OutletID(outletFilter))
+	}
+	orders, err := q.All(r.Context())
 	if err != nil {
 		h.log.Error("by-hour query failed", zap.Error(err))
 		jsonError(w, "internal error", http.StatusInternalServerError)
@@ -973,23 +982,27 @@ func (h *ReportsHandler) SalesByCategory(w http.ResponseWriter, r *http.Request)
 	from, to := parseDateRange(r)
 
 	// POSOrderLine has no tenant_id/created_at — filter through completed orders.
-	orders, err := h.db.POSOrder.Query().
+	q := h.db.POSOrder.Query().
 		Where(posorder.TenantID(tid),
 			posorder.StatusEQ("completed"),
 			posorder.CreatedAtGTE(from),
-			posorder.CreatedAtLTE(to)).
-		WithLines().
-		All(r.Context())
+			posorder.CreatedAtLTE(to))
+	if outletFilter := parseOutletFilter(r); outletFilter != uuid.Nil {
+		q = q.Where(posorder.OutletID(outletFilter))
+	}
+	orders, err := q.WithLines().All(r.Context())
 	if err != nil {
 		h.log.Error("by-category query failed", zap.Error(err))
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 
+	// JSON tags match the pos-ui CategoryRow type (category_name/quantity_sold) — a prior
+	// mismatch (category/quantity) meant this endpoint's rows never rendered in the UI table.
 	type catBucket struct {
-		Category string  `json:"category"`
+		Category string  `json:"category_name"`
 		Revenue  float64 `json:"revenue"`
-		Quantity float64 `json:"quantity"`
+		Quantity float64 `json:"quantity_sold"`
 	}
 	byCategory := make(map[string]*catBucket)
 	for _, o := range orders {
@@ -1137,4 +1150,15 @@ func parseDateRange(r *http.Request) (from, to time.Time) {
 		}
 	}
 	return
+}
+
+// parseOutletFilter reads the optional ?outlet_id= query param shared by the analytics report
+// endpoints. Returns uuid.Nil when absent/invalid, meaning "all outlets" (no filter applied).
+func parseOutletFilter(r *http.Request) uuid.UUID {
+	if s := r.URL.Query().Get("outlet_id"); s != "" {
+		if oid, err := uuid.Parse(s); err == nil {
+			return oid
+		}
+	}
+	return uuid.Nil
 }
