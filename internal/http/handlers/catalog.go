@@ -208,7 +208,10 @@ func categoryAllowedForUseCase(categoryName, useCase string) bool {
 func useCaseItemTypes(useCase string) string {
 	switch strings.ToLower(useCase) {
 	case "retail":
-		return "GOODS,VOUCHER"
+		// RECIPE included: manufactured finished products (e.g. own-brand detergents made in
+		// the production facility) are RECIPE-typed but sold at retail. Food/menu RECIPEs are
+		// still kept off retail tills by the category gate (categoryAllowedForUseCase).
+		return "GOODS,RECIPE,VOUCHER"
 	case "hospitality", "quick_service":
 		return "GOODS,RECIPE,VOUCHER"
 	case "pharmacy":
