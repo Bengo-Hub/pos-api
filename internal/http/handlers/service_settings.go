@@ -311,10 +311,16 @@ func (h *ServiceSettingsHandler) getOrCreateSetting(r *http.Request, outletID uu
 	if !ent.IsNotFound(err) {
 		return nil, err
 	}
-	// auto-create default settings
-	return h.db.OutletSetting.Create().
-		SetOutletID(outletID).
-		Save(ctx)
+	// auto-create default settings. KDS is core operations for hospitality/quick_service outlets
+	// (kitchen/bar ticket routing) — default it on so a fresh outlet doesn't need a manual toggle
+	// before the KDS Stations screen becomes usable.
+	create := h.db.OutletSetting.Create().SetOutletID(outletID)
+	if outlet, oErr := h.db.Outlet.Get(ctx, outletID); oErr == nil {
+		if uc := outlet.UseCase; uc != nil && (*uc == "hospitality" || *uc == "quick_service") {
+			create = create.SetEnableKds(true)
+		}
+	}
+	return create.Save(ctx)
 }
 
 // resolveOutlet returns the outlet for the request. Resolution order:
