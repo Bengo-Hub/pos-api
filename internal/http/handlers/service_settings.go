@@ -123,6 +123,9 @@ type settingsResponse struct {
 	// terminal
 	PINLoginMessage *string `json:"pin_login_message"`
 	ScreensaverURL  *string `json:"screensaver_url"`
+	// Up to 3 admin-managed screensaver media URLs (relative /media/... paths, stored in
+	// metadata; files managed via the /settings/screensavers endpoints).
+	ScreensaverURLs []string `json:"screensaver_urls"`
 	// payment display — shown on receipts when ShowPaymentInfoOnReceipt is true
 	MpesaPaybill             *string `json:"mpesa_paybill"`
 	MpesaAccountReference    *string `json:"mpesa_account_reference"`
@@ -182,6 +185,7 @@ func toSettingsResponse(outlet *ent.Outlet, s *ent.OutletSetting) settingsRespon
 		CardTerminalRequireRef:    s.CardTerminalRequireRef,
 		PINLoginMessage:           s.PinLoginMessage,
 		ScreensaverURL:            s.ScreensaverURL,
+		ScreensaverURLs:           metaStringSlice(s.Metadata, "screensaver_urls"),
 		MpesaPaybill:              s.MpesaPaybill,
 		MpesaAccountReference:     s.MpesaAccountReference,
 		AirtelMoneyNumber:         s.AirtelMoneyNumber,

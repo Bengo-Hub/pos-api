@@ -31,9 +31,10 @@ type outletPublicItem struct {
 }
 
 type outletSettingsPublic struct {
-	PinLoginMessage           string `json:"pin_login_message,omitempty"`
-	ScreensaverURL            string `json:"screensaver_url,omitempty"`
-	ScreensaverTimeoutSeconds int    `json:"screensaver_timeout_seconds,omitempty"`
+	PinLoginMessage           string   `json:"pin_login_message,omitempty"`
+	ScreensaverURL            string   `json:"screensaver_url,omitempty"`
+	ScreensaverURLs           []string `json:"screensaver_urls,omitempty"`
+	ScreensaverTimeoutSeconds int      `json:"screensaver_timeout_seconds,omitempty"`
 }
 
 // ListPublicOutlets returns all active outlets for a tenant (public, no auth).
@@ -155,7 +156,8 @@ func toOutletPublicItem(o *ent.Outlet) outletPublicItem {
 		if s.ScreensaverURL != nil {
 			settings.ScreensaverURL = *s.ScreensaverURL
 		}
-		if settings.PinLoginMessage != "" || settings.ScreensaverURL != "" {
+		settings.ScreensaverURLs = metaStringSlice(s.Metadata, "screensaver_urls")
+		if settings.PinLoginMessage != "" || settings.ScreensaverURL != "" || len(settings.ScreensaverURLs) > 0 {
 			item.Settings = settings
 		}
 	}

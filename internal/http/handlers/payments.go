@@ -48,6 +48,11 @@ type createIntentInput struct {
 	Amount       float64   `json:"amount"`
 	Currency     string    `json:"currency"`
 	ExternalRef  string    `json:"externalRef,omitempty"` // cashier-entered ref for manual/paybill payments
+	// Credit-sale (on_account) extras captured by the credit-sale details modal:
+	// explicit due date (RFC3339 or YYYY-MM-DD; wins over the customer's treasury credit
+	// period, which wins over the +30-day default) and free-text notes.
+	PaymentDueDate string `json:"paymentDueDate,omitempty"`
+	CreditNotes    string `json:"creditNotes,omitempty"`
 }
 
 // CreatePaymentIntent handles POST /{tenantID}/pos/orders/{orderID}/payments/intent
@@ -74,26 +79,39 @@ func (h *PaymentHandler) CreatePaymentIntent(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	// A credit sale (sell on account) is a manager/back-office decision — the SAME permission that
-	// approves sale returns (pos.orders.manage). It shares this route with cash/card tenders, so the
-	// route middleware can't distinguish it; enforce here on the tender in the body. Cashiers keep
-	// their pos.payments.add for ordinary tenders but cannot ring a sale onto a customer's account.
-	if strings.EqualFold(input.TenderMethod, payments.TenderOnAccount) &&
-		!outletmw.HasServicePermission(r, h.rbac, "pos.orders.manage") {
-		jsonError(w, "credit sale requires manager approval permission (pos.orders.manage)", http.StatusForbidden)
-		return
+	// Credit sales (sell on account) are available to CASHIERS too (product decision
+	// 2026-07-07): the route's pos.payments.add gate covers it, and the real guardrails are
+	// server-side regardless of role — a credit sale requires a selected customer with a
+	// phone, and treasury enforces the customer's credit limit before the debt is booked.
+	// The credit-sale details modal captures the due date (default +30 days) and notes.
+
+	// Parse the optional explicit due date (RFC3339 or YYYY-MM-DD).
+	var dueDate *time.Time
+	if raw := strings.TrimSpace(input.PaymentDueDate); raw != "" {
+		if t, perr := time.Parse(time.RFC3339, raw); perr == nil {
+			dueDate = &t
+		} else if t, perr := time.Parse("2006-01-02", raw); perr == nil {
+			// End of the local business day, so a sale isn't "overdue" on its due date's morning.
+			eod := t.Add(23*time.Hour + 59*time.Minute)
+			dueDate = &eod
+		} else {
+			jsonError(w, "invalid paymentDueDate — use YYYY-MM-DD", http.StatusBadRequest)
+			return
+		}
 	}
 
 	result, err := h.paymentSvc.CreatePaymentIntent(r.Context(), payments.RecordPaymentRequest{
-		TenantID:      tid,
-		TenantSlug:    tenantSlug,
-		OrderID:       orderID,
-		TenderID:      input.TenderID,
-		TenderMethod:  input.TenderMethod,
-		Amount:        input.Amount,
-		Currency:      input.Currency,
-		ExternalRef:   input.ExternalRef,
-		PublicBaseURL: h.publicBaseURL,
+		TenantID:       tid,
+		TenantSlug:     tenantSlug,
+		OrderID:        orderID,
+		TenderID:       input.TenderID,
+		TenderMethod:   input.TenderMethod,
+		Amount:         input.Amount,
+		Currency:       input.Currency,
+		ExternalRef:    input.ExternalRef,
+		PublicBaseURL:  h.publicBaseURL,
+		PaymentDueDate: dueDate,
+		CreditNotes:    strings.TrimSpace(input.CreditNotes),
 	})
 	if err != nil {
 		h.log.Error("create payment intent failed", zap.Error(err))

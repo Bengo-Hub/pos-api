@@ -89,6 +89,11 @@ type RecordPaymentRequest struct {
 	ExternalRef   string // cashier-entered ref for manual/paybill payments (stored on local payment)
 	IntentID      string // treasury payment_intent_id (set for digital payments)
 	PublicBaseURL string // used to construct initiateUrl for digital payments
+	// Credit-sale (on_account) extras from the credit-sale details modal: an explicit due
+	// date (wins over the customer's treasury credit period, which wins over +30 days) and
+	// free-text notes stamped into order metadata.
+	PaymentDueDate *time.Time
+	CreditNotes    string
 }
 
 // CreateIntentResult is returned to the caller when a digital payment intent is created.
@@ -381,16 +386,26 @@ func (s *Service) recordCreditSale(ctx context.Context, order *ent.POSOrder, req
 	if err != nil {
 		return nil, fmt.Errorf("payments: credit sale rejected: %w", err)
 	}
-	// Mark the order as an on-account sale and stamp when the credit falls due (from the
-	// customer's payment period) so the All-Sales "Overdue" filter/badge can surface late
-	// credit sales. Best-effort: a metadata write failure never fails the sale.
+	// Mark the order as an on-account sale and stamp when the credit falls due, so the
+	// All-Sales "Overdue" filter/badge can surface late credit sales. Precedence: the
+	// cashier's explicit due date (credit-sale details modal) → the customer's treasury
+	// payment period → a 30-day default (every credit sale MUST fall due eventually).
+	// Best-effort: a metadata write failure never fails the sale.
 	meta := order.Metadata
 	if meta == nil {
 		meta = map[string]any{}
 	}
 	meta["on_account"] = true
-	if creditResp != nil && creditResp.CreditPeriodDays != nil && *creditResp.CreditPeriodDays > 0 {
+	switch {
+	case req.PaymentDueDate != nil:
+		meta["payment_due_date"] = req.PaymentDueDate.Format(time.RFC3339)
+	case creditResp != nil && creditResp.CreditPeriodDays != nil && *creditResp.CreditPeriodDays > 0:
 		meta["payment_due_date"] = time.Now().AddDate(0, 0, *creditResp.CreditPeriodDays).Format(time.RFC3339)
+	default:
+		meta["payment_due_date"] = time.Now().AddDate(0, 0, 30).Format(time.RFC3339)
+	}
+	if req.CreditNotes != "" {
+		meta["credit_notes"] = req.CreditNotes
 	}
 	if merr := s.client.POSOrder.UpdateOneID(order.ID).SetMetadata(meta).Exec(ctx); merr != nil {
 		s.log.Warn("payments: failed to stamp on-account metadata", zap.Error(merr))

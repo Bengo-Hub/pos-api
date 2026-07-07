@@ -85,6 +85,8 @@ func New(
 	internalServiceKey string,
 	backups *handlers.BackupHandler,
 	backupDest *handlers.BackupDestinationHandler,
+	screensaverMedia *handlers.ScreensaverMediaHandler,
+	mediaRoot string,
 ) http.Handler {
 	r := chi.NewRouter()
 
@@ -113,6 +115,12 @@ func New(
 	r.Get("/readyz", health.Readiness)
 	r.Get("/metrics", health.Metrics)
 	r.Get("/v1/docs/*", handlers.SwaggerUI)
+
+	// Public read-only media (managed screensavers). Files are admin-uploaded display
+	// assets rendered on the pre-auth PIN screen, so no auth; traversal-guarded.
+	if mediaRoot != "" {
+		r.Get("/media/*", handlers.ServeMedia(mediaRoot))
+	}
 
 	r.Route("/api/v1", func(api chi.Router) {
 		// Ã¢â€â‚¬Ã¢â€â‚¬ Platform admin endpoints (platform owner JWT required) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
@@ -273,6 +281,12 @@ func New(
 					// stored, so reconnect retries never duplicate sales/payments/voids/returns.
 					// No-op for normal online traffic, which sends no key.
 					pos.Use(outletmw.Idempotency(entClient))
+
+					// Managed screensaver media (Settings → Display) — list/upload/delete.
+					// Permission enforced inside the handlers (pos.config.change/manage).
+					if screensaverMedia != nil {
+						screensaverMedia.RegisterRoutes(pos)
+					}
 
 					// Orders
 					if orders != nil {
