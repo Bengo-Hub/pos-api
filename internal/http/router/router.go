@@ -805,6 +805,7 @@ func New(
 						pos.Get("/reports/tax", reports.TaxReport)
 						pos.Get("/reports/sales/by-hour", reports.SalesByHour)
 						pos.Get("/reports/sales/by-category", reports.SalesByCategory)
+						pos.Get("/reports/sales/by-kds-station", reports.SalesByKDSStation)
 						pos.Get("/reports/stock-consumption", reports.StockConsumptionReport)
 						pos.Get("/reports/returns", reports.ReturnsSummary)
 						pos.Get("/reports/void-summary", reports.VoidSummary)
@@ -817,6 +818,7 @@ func New(
 					if reportPDF != nil {
 						pos.Get("/reports/reset-summary", reportPDF.ResetSummary)
 						pos.Get("/reports/sales-by-item-type", reportPDF.SalesByItemType)
+						pos.Get("/reports/sales-by-kds-station-document", reportPDF.SalesByKDSStationDoc)
 						pos.Get("/reports/daily-sales", reportPDF.DailySales)
 						pos.Get("/reports/shift/{sessionID}", reportPDF.ShiftReportPDF)
 						pos.Get("/reports/staff", reportPDF.SalesByStaffPDF)

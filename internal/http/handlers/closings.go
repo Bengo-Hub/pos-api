@@ -223,9 +223,18 @@ func (h *DailyClosingHandler) CloseDay(w http.ResponseWriter, r *http.Request) {
 		h.log.Warn("daily close: held items count failed", zap.Error(hErr))
 	}
 
+	// Per-KDS-station breakdown (bar vs kitchen orders/revenue) so the manager closing the day
+	// can see each station's contribution alongside the cash reconciliation, not just a single
+	// outlet-wide total.
+	stationBreakdown, sbErr := computeKDSStationBreakdown(ctx, h.client, tid, &outletID, startOfDay, endOfDay)
+	if sbErr != nil {
+		h.log.Warn("daily close: kds station breakdown failed", zap.Error(sbErr))
+	}
+
 	jsonOK(w, map[string]any{
 		"closing":                closing,
 		"outstanding_held_items": outstandingHeld,
+		"station_breakdown":      stationBreakdown,
 		"breakdown": map[string]float64{
 			"starting_cash": startingCash,
 			"cash_sales":    cashSales,

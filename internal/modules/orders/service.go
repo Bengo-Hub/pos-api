@@ -668,6 +668,12 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent
 			}
 		}
 	}
+	// Every line is stamped with its resolved station (not just override-derived ones) so
+	// sales-by-station reporting and the daily-close breakdown can aggregate directly off
+	// pos_order_lines without recomputing routing after the fact.
+	kdsStations, _ := s.client.KDSStation.Query().
+		Where(kdsstation.TenantID(req.TenantID), kdsstation.OutletID(order.OutletID), kdsstation.IsActive(true)).
+		All(ctx)
 
 	for li, line := range req.Lines {
 		lineTotal := decimal.NewFromFloat(line.TotalPrice)
@@ -710,9 +716,14 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent
 		if taxAmt > 0 {
 			lineCreate = lineCreate.SetTaxAmount(taxAmt)
 		}
-		// Stamp the KDS station on the line so routing in createKDSTicketsForOrder is O(1).
+		// Stamp the KDS station on the line so routing in createKDSTicketsForOrder is O(1) and
+		// sales-by-station reports have a station for every line, not just override-derived ones.
+		var overrideID *uuid.UUID
 		if stationID, ok := kdsOverrideBySKU[line.SKU]; ok {
-			lineCreate = lineCreate.SetKdsStationID(stationID)
+			overrideID = &stationID
+		}
+		if stationID := ResolveStationForLineOrFallback(line.Name, line.Category, overrideID, kdsStations); stationID != nil {
+			lineCreate = lineCreate.SetKdsStationID(*stationID)
 		}
 
 		_, err = lineCreate.Save(ctx)
@@ -891,16 +902,11 @@ func parseTableRef(order *ent.POSOrder) string {
 func routeLinesToStations(lines []*ent.POSOrderLine, stations []*ent.KDSStation) map[uuid.UUID][]map[string]any {
 	stationItems := make(map[uuid.UUID][]map[string]any, len(stations))
 
-	// Identify expo/all and the first kitchen station upfront.
+	// Identify expo/all upfront — they only fan out unresolved items (priority 3 below).
 	var expoIDs []uuid.UUID
-	var kitchenID *uuid.UUID
 	for _, st := range stations {
 		if st.StationType == "expo" || st.StationType == "all" {
 			expoIDs = append(expoIDs, st.ID)
-		}
-		if st.StationType == "kitchen" && kitchenID == nil {
-			id := st.ID
-			kitchenID = &id
 		}
 	}
 
@@ -911,74 +917,109 @@ func routeLinesToStations(lines []*ent.POSOrderLine, stations []*ent.KDSStation)
 			"quantity": l.Quantity,
 		}
 
-		routed := false
-
-		// Priority 1: explicit station on the order line (set from catalog override) — manager wins.
-		if l.KdsStationID != nil {
-			stationItems[*l.KdsStationID] = append(stationItems[*l.KdsStationID], item)
-			routed = true
-		}
-
-		// Coffee & tea (and other hot beverages) are kitchen items, never bar — the bar prepares
-		// alcohol and cold drinks. Force these to the kitchen station when one exists, before the
-		// category_filter fallback can capture them for a "beverages" bar station.
-		isHot := isHotBeverage(l.Name, l.Category)
-		if !routed && isHot && kitchenID != nil {
-			stationItems[*kitchenID] = append(stationItems[*kitchenID], item)
-			routed = true
-		}
-
-		// Priority 2: strict category_filter match. The item's CATEGORY (stamped from the live
-		// inventory catalog at sale time) must EXACTLY equal one of the station's category filters
-		// (case-insensitive, trimmed). Because each category is claimed by exactly one station
-		// (enforced on station create/update), this routes every ticket to a single, correct
-		// destination. Only when the line carries no category (legacy/uncategorized item) do we
-		// fall back to a substring match on the item name. Bar stations are skipped for hot
-		// beverages so coffee/tea can't be dragged to the bar by a "beverages" filter.
-		if !routed {
-			itemCat := strings.ToLower(strings.TrimSpace(l.Category))
-			itemName := strings.ToLower(l.Name)
-			for _, st := range stations {
-				if st.StationType == "expo" || st.StationType == "all" {
-					continue // handled separately below
-				}
-				if isHot && st.StationType == "bar" {
-					continue
-				}
-				for _, cat := range st.CategoryFilter {
-					needle := strings.ToLower(strings.TrimSpace(cat))
-					if needle == "" {
-						continue
-					}
-					matched := itemCat != "" && itemCat == needle ||
-						itemCat == "" && strings.Contains(itemName, needle)
-					if matched {
-						stationItems[st.ID] = append(stationItems[st.ID], item)
-						routed = true
-						break
-					}
-				}
-				if routed {
-					break
-				}
-			}
+		// Priorities 1–2 (explicit override, hot-beverage guard, category_filter match) live in
+		// resolveStationForLine — the SAME function used to stamp kds_station_id on the line at
+		// order-create time, so ticket routing and the persisted line never drift apart.
+		if target := resolveStationForLine(l.Name, l.Category, l.KdsStationID, stations); target != nil {
+			stationItems[*target] = append(stationItems[*target], item)
+			continue
 		}
 
 		// Priority 3: no specific station matched — route to expo/all as the catch-all,
 		// or fall back to the first active station. Expo only receives items that are
 		// genuinely unresolved (no kitchen, bar, or other station matched them).
-		if !routed {
-			if len(expoIDs) > 0 {
-				for _, eid := range expoIDs {
-					stationItems[eid] = append(stationItems[eid], item)
-				}
-			} else if len(stations) > 0 {
-				stationItems[stations[0].ID] = append(stationItems[stations[0].ID], item)
+		if len(expoIDs) > 0 {
+			for _, eid := range expoIDs {
+				stationItems[eid] = append(stationItems[eid], item)
 			}
+		} else if len(stations) > 0 {
+			stationItems[stations[0].ID] = append(stationItems[stations[0].ID], item)
 		}
 	}
 
 	return stationItems
+}
+
+// resolveStationForLine returns the single station a line's ticket is PRIMARILY filed under —
+// priorities 1–2 of routeLinesToStations (explicit override → hot-beverage-to-kitchen guard →
+// category_filter match) — or nil when none match. It deliberately excludes the expo/all
+// catch-all fan-out: that's a secondary-copy concern for ticket printing, not a single "owning"
+// station, so callers that need exactly one station (line persistence, reporting) use
+// ResolveStationForLineOrFallback instead.
+func resolveStationForLine(name, category string, overrideStationID *uuid.UUID, stations []*ent.KDSStation) *uuid.UUID {
+	// Priority 1: explicit station on the order line (set from catalog override) — manager wins.
+	if overrideStationID != nil {
+		return overrideStationID
+	}
+
+	// Coffee & tea (and other hot beverages) are kitchen items, never bar — the bar prepares
+	// alcohol and cold drinks. Force these to the kitchen station when one exists, before the
+	// category_filter fallback can capture them for a "beverages" bar station.
+	var kitchenID *uuid.UUID
+	for _, st := range stations {
+		if st.StationType == "kitchen" {
+			id := st.ID
+			kitchenID = &id
+			break
+		}
+	}
+	isHot := isHotBeverage(name, category)
+	if isHot && kitchenID != nil {
+		return kitchenID
+	}
+
+	// Priority 2: strict category_filter match. The item's CATEGORY (stamped from the live
+	// inventory catalog at sale time) must EXACTLY equal one of the station's category filters
+	// (case-insensitive, trimmed). Because each category is claimed by exactly one station
+	// (enforced on station create/update), this routes every ticket to a single, correct
+	// destination. Only when the line carries no category (legacy/uncategorized item) do we
+	// fall back to a substring match on the item name. Bar stations are skipped for hot
+	// beverages so coffee/tea can't be dragged to the bar by a "beverages" filter.
+	itemCat := strings.ToLower(strings.TrimSpace(category))
+	itemName := strings.ToLower(name)
+	for _, st := range stations {
+		if st.StationType == "expo" || st.StationType == "all" {
+			continue // handled by the caller's catch-all fan-out
+		}
+		if isHot && st.StationType == "bar" {
+			continue
+		}
+		for _, cat := range st.CategoryFilter {
+			needle := strings.ToLower(strings.TrimSpace(cat))
+			if needle == "" {
+				continue
+			}
+			matched := itemCat != "" && itemCat == needle ||
+				itemCat == "" && strings.Contains(itemName, needle)
+			if matched {
+				id := st.ID
+				return &id
+			}
+		}
+	}
+	return nil
+}
+
+// ResolveStationForLineOrFallback is resolveStationForLine plus the SAME priority-3 fallback
+// routeLinesToStations applies (first expo/all station, else the first active station) collapsed
+// to a single value — used wherever a line needs exactly ONE owning station (persisting
+// kds_station_id on create, revenue-by-station reporting), as opposed to routeLinesToStations'
+// ticket fan-out where expo/all receive a secondary COPY of every unresolved item.
+func ResolveStationForLineOrFallback(name, category string, overrideStationID *uuid.UUID, stations []*ent.KDSStation) *uuid.UUID {
+	if target := resolveStationForLine(name, category, overrideStationID, stations); target != nil {
+		return target
+	}
+	for _, st := range stations {
+		if st.StationType == "expo" || st.StationType == "all" {
+			id := st.ID
+			return &id
+		}
+	}
+	if len(stations) > 0 {
+		id := stations[0].ID
+		return &id
+	}
+	return nil
 }
 
 // hotBeverageKeywords are matched (case-insensitive substring) against an item's name and category
@@ -1124,6 +1165,11 @@ func (s *Service) AddOrderLines(ctx context.Context, tenantID uuid.UUID, tenantS
 			}
 		}
 	}
+	// Every line is stamped with its resolved station (see CreateOrder) so reporting never
+	// depends on re-deriving routing for add-to-bill lines after the fact.
+	kdsStations, _ := s.client.KDSStation.Query().
+		Where(kdsstation.TenantID(tenantID), kdsstation.OutletID(order.OutletID), kdsstation.IsActive(true)).
+		All(ctx)
 
 	// Resolve tax for the new lines the same way CreateOrder does, so add-to-bill lines carry
 	// their VAT and the recomputed header stays consistent with the till.
@@ -1174,8 +1220,12 @@ func (s *Service) AddOrderLines(ctx context.Context, tenantID uuid.UUID, tenantS
 		if lt.Amount > 0 {
 			lc = lc.SetTaxAmount(lt.Amount)
 		}
+		var overrideID *uuid.UUID
 		if stationID, ok := kdsOverrideBySKU[l.SKU]; ok {
-			lc = lc.SetKdsStationID(stationID)
+			overrideID = &stationID
+		}
+		if stationID := ResolveStationForLineOrFallback(l.Name, l.Category, overrideID, kdsStations); stationID != nil {
+			lc = lc.SetKdsStationID(*stationID)
 		}
 		saved, saveErr := lc.Save(ctx)
 		if saveErr != nil {
