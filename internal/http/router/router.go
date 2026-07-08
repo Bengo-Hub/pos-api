@@ -310,6 +310,10 @@ func New(
 						pos.Post("/orders/{orderID}/fire-course", orders.FireCourse)
 						pos.Post("/orders/{orderID}/lines", orders.AddOrderLines)
 						pos.Post("/orders/{orderID}/lines/{lineID}/void", orders.VoidOrderLine)
+						// Manager/admin corrective tool: directly edit a persisted line's price/qty
+						// instead of requiring a raw database fix for stale-priced sales.
+						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.orders.manage")).
+							Patch("/orders/{orderID}/lines/{lineID}", orders.EditOrderLine)
 						// Upsell / set-aside: hold a wrongly-ordered (already-made) item for resale
 						// instead of voiding it. No manager approval; must be cleared before shift close.
 						pos.Post("/orders/{orderID}/lines/{lineID}/set-aside", orders.SetAsideLine)

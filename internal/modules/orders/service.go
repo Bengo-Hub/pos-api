@@ -1293,6 +1293,161 @@ func (s *Service) AddOrderLines(ctx context.Context, tenantID uuid.UUID, tenantS
 	return result, nil
 }
 
+// EditOrderLineInput holds the admin-editable fields for a single order line correction.
+// Nil fields are left unchanged.
+type EditOrderLineInput struct {
+	UnitPrice *float64
+	Quantity  *float64
+}
+
+// EditOrderLineResult carries the pre-edit snapshot alongside the updated rows so the
+// caller (HTTP handler) can write a complete before/after audit entry.
+type EditOrderLineResult struct {
+	Order       *ent.POSOrder
+	Line        *ent.POSOrderLine
+	BeforePrice float64
+	BeforeQty   float64
+	BeforeTotal float64
+}
+
+// EditOrderLine directly corrects a persisted line's unit price and/or quantity — the
+// manager/admin tool for fixing a line that was rung up wrong (e.g. a stale cached
+// price), without voiding and re-adding it. Recomputes the order's headline totals the
+// same way AddOrderLines does (finalizeTotals), so the ceiling/round-off identity keeps
+// holding. Unlike VoidOrderLine's ad-hoc subtract, this path also keeps the line's own
+// tax_amount consistent with its (possibly changed) price, at its existing tax_rate.
+func (s *Service) EditOrderLine(ctx context.Context, tenantID, orderID, lineID uuid.UUID, input EditOrderLineInput) (*EditOrderLineResult, error) {
+	order, err := s.client.POSOrder.Query().
+		Where(posorder.ID(orderID), posorder.TenantID(tenantID)).
+		WithLines().
+		Only(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("orders: order not found: %w", err)
+	}
+	switch order.Status {
+	case StatusCompleted, StatusCancelled, StatusVoided, StatusRefunded:
+		return nil, fmt.Errorf("orders: cannot edit lines on a %s order", order.Status)
+	}
+
+	var target *ent.POSOrderLine
+	for _, l := range order.Edges.Lines {
+		if l.ID == lineID {
+			target = l
+			break
+		}
+	}
+	if target == nil {
+		return nil, fmt.Errorf("orders: line not found")
+	}
+	if target.VoidedQty != nil {
+		return nil, fmt.Errorf("orders: cannot edit a voided line")
+	}
+
+	beforePrice, beforeQty, beforeTotal := target.UnitPrice, target.Quantity, target.TotalPrice
+
+	newUnitPrice := target.UnitPrice
+	if input.UnitPrice != nil {
+		if *input.UnitPrice < 0 {
+			return nil, fmt.Errorf("orders: unit_price cannot be negative")
+		}
+		newUnitPrice = *input.UnitPrice
+	}
+	newQty := target.Quantity
+	if input.Quantity != nil {
+		if *input.Quantity <= 0 {
+			return nil, fmt.Errorf("orders: quantity must be positive")
+		}
+		newQty = *input.Quantity
+	}
+	newTotal := decimal.NewFromFloat(newUnitPrice).Mul(decimal.NewFromFloat(newQty))
+
+	// Re-derive tax from the line's existing rate against the NEW total, rather than
+	// carrying the stale absolute tax_amount forward — mirrors how CreateOrder/
+	// AddOrderLines compute tax_amount from rate × total in the first place.
+	newTaxAmount := target.TaxAmount
+	if target.TaxRate != nil && *target.TaxRate > 0 {
+		rate := decimal.NewFromFloat(*target.TaxRate).Div(decimal.NewFromInt(100))
+		amt := newTotal.Mul(rate)
+		if target.PriceIncludesTax {
+			amt = newTotal.Sub(newTotal.Div(decimal.NewFromInt(1).Add(rate)))
+		}
+		v := amt.InexactFloat64()
+		newTaxAmount = &v
+	}
+
+	tx, err := s.client.Tx(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("orders: begin tx: %w", err)
+	}
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback()
+		}
+	}()
+
+	lineUpd := tx.POSOrderLine.UpdateOneID(lineID).
+		SetUnitPrice(newUnitPrice).
+		SetQuantity(newQty).
+		SetTotalPrice(newTotal.InexactFloat64())
+	if newTaxAmount != nil {
+		lineUpd = lineUpd.SetTaxAmount(*newTaxAmount)
+	}
+	updatedLine, saveErr := lineUpd.Save(ctx)
+	if saveErr != nil {
+		err = fmt.Errorf("orders: update line: %w", saveErr)
+		return nil, err
+	}
+
+	// Recompute totals off ALL non-voided lines (the edited line's fresh values substituted
+	// in). Voided lines are deliberately excluded here — their own total_price is left
+	// untouched by VoidOrderLine (which only adjusts the order headline directly), so
+	// summing them back in would silently un-void them the next time totals are rebuilt.
+	var newSubtotal, newTaxTotal decimal.Decimal
+	for _, l := range order.Edges.Lines {
+		if l.VoidedQty != nil {
+			continue
+		}
+		lp, ta, inclusive := l.TotalPrice, l.TaxAmount, l.PriceIncludesTax
+		if l.ID == lineID {
+			lp, ta, inclusive = updatedLine.TotalPrice, updatedLine.TaxAmount, updatedLine.PriceIncludesTax
+		}
+		newSubtotal = newSubtotal.Add(decimal.NewFromFloat(lp))
+		if ta != nil && !inclusive {
+			newTaxTotal = newTaxTotal.Add(decimal.NewFromFloat(*ta))
+		}
+	}
+	orderTax := decimal.Zero
+	if ot, ok := order.Metadata["order_tax"].(map[string]any); ok {
+		if amt, ok := ot["amount"].(float64); ok && amt > 0 {
+			orderTax = decimal.NewFromFloat(amt)
+		}
+	}
+	totals := finalizeTotals(newSubtotal, newTaxTotal, decimal.NewFromFloat(order.DiscountTotal), decimal.NewFromFloat(order.ChargesTotal), orderTax)
+
+	updatedOrder, saveErr := tx.POSOrder.UpdateOneID(order.ID).
+		SetSubtotal(totals.Subtotal.InexactFloat64()).
+		SetTaxTotal(totals.TaxTotal.InexactFloat64()).
+		SetRoundOff(totals.RoundOff.InexactFloat64()).
+		SetTotalAmount(totals.TotalAmount.InexactFloat64()).
+		Save(ctx)
+	if saveErr != nil {
+		err = fmt.Errorf("orders: update totals: %w", saveErr)
+		return nil, err
+	}
+
+	if err = tx.Commit(); err != nil {
+		return nil, fmt.Errorf("orders: commit: %w", err)
+	}
+
+	return &EditOrderLineResult{
+		Order:       updatedOrder,
+		Line:        updatedLine,
+		BeforePrice: beforePrice,
+		BeforeQty:   beforeQty,
+		BeforeTotal: beforeTotal,
+	}, nil
+}
+
 // createKDSTicketsForNewLines creates KDS tickets for a specific subset of lines
 // (used when adding items to an existing bill — always creates new tickets, never deduplicates).
 func (s *Service) createKDSTicketsForNewLines(ctx context.Context, tenantID uuid.UUID, order *ent.POSOrder, newLines []*ent.POSOrderLine) error {
