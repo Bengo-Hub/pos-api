@@ -32,7 +32,7 @@ var SwaggerInfo = &swag.Spec{
 	BasePath:         "/api/v1",
 	Schemes:          []string{"http", "https"},
 	Title:            "POS Service API",
-	Description:      "HTTP API for the BengoBox POS service. Provides point-of-sale operations, order management, and cash drawer management.",
+	Description:      "HTTP API for the Codevertex POS service. Provides point-of-sale operations, order management, and cash drawer management.",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

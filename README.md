@@ -1,6 +1,6 @@
 # POS Service
 
-The POS Service delivers a configurable, multi-tenant point-of-sale backend for cafés/bars, retail outlets, kitchens, kiosks, and ecommerce counters within the BengoBox ecosystem, built on the shared `tenant_slug` and outlet registry used by ordering-backend, inventory, logistics, treasury, and auth services.
+The POS Service delivers a configurable, multi-tenant point-of-sale backend for cafés/bars, retail outlets, kitchens, kiosks, and ecommerce counters within the Codevertex ecosystem, built on the shared `tenant_slug` and outlet registry used by ordering-backend, inventory, logistics, treasury, and auth services.
 
 ## Core Capabilities
 

@@ -9,7 +9,7 @@
 
 ## Context
 
-When a customer places a dine-in or pickup order through the BengoBox ordering app (or a third-party channel like Uber Eats), the order flows through ordering-backend. The kitchen has no visibility of this order in the KDS until a waiter manually enters it in the POS terminal — an unacceptable gap for hospitality businesses.
+When a customer places a dine-in or pickup order through the Codevertex ordering app (or a third-party channel like Uber Eats), the order flows through ordering-backend. The kitchen has no visibility of this order in the KDS until a waiter manually enters it in the POS terminal — an unacceptable gap for hospitality businesses.
 
 This sprint wires the NATS event bridge so that when ordering-backend transitions an order to `confirmed` or `preparing`, pos-api automatically creates KDS tickets, routing line items to the correct kitchen station (kitchen, bar, grill) exactly as a manually-entered POS order would.
 

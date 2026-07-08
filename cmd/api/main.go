@@ -51,7 +51,7 @@ func cgroupMemLimitBytes() int64 {
 
 // @title POS Service API
 // @version 0.1.0
-// @description HTTP API for the BengoBox POS service. Provides point-of-sale operations, order management, and cash drawer management.
+// @description HTTP API for the Codevertex POS service. Provides point-of-sale operations, order management, and cash drawer management.
 // @BasePath /api/v1
 // @schemes http https
 // @securityDefinitions.apikey bearerAuth

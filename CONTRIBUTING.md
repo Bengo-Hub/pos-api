@@ -6,7 +6,7 @@ Thanks for helping build the POS Service! Follow this guide to get started.
 
 - Go 1.22+, make, Docker.
 - PostgreSQL & Redis (use forthcoming `docker-compose.yml` for local dev).
-- Familiarity with BengoBox platform services (inventory, treasury, auth, logistics).
+- Familiarity with Codevertex platform services (inventory, treasury, auth, logistics).
 
 ## Setup
 

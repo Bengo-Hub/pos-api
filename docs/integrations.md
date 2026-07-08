@@ -24,7 +24,7 @@ The POS service is the **source of truth for sales catalogs (menus)**. While `in
 **Decision (2026-05-09):** KRA eTIMS fiscal submission is owned by **treasury-api**, not pos-api.
 
 **Rationale:**
-- treasury-api already owns all invoicing, tax calculation, and payment settlement for the BengoBox platform.
+- treasury-api already owns all invoicing, tax calculation, and payment settlement for the Codevertex platform.
 - eTIMS is a tax-invoice signing and transmission obligation — it belongs alongside the invoicing ledger, not the POS transaction recorder.
 - pos-api is a **thin client** for non-cash payments: it creates a payment intent in treasury-api, then reacts to the result. eTIMS follows the same pattern — pos-api passes invoice data to treasury-api, which handles signing, KRA transmission, and QR code generation.
 - This avoids duplicating KRA API credentials and the OSCU/VSCU device serial across two services.
@@ -371,4 +371,4 @@ NOTIFICATIONS_SERVICE_URL=https://notificationsapi.codevertexitsolutions.com
 ORDERING_SERVICE_URL=https://orderingapi.codevertexitsolutions.com
 ```
 
-**S2S Auth Standard**: All BengoBox internal services use a single `INTERNAL_SERVICE_KEY` env var. The same key value is sent as `X-API-Key` header on every S2S call regardless of the target service. Each receiving service validates it against its own `INTERNAL_SERVICE_KEY`. There are no per-service API keys.
+**S2S Auth Standard**: All Codevertex internal services use a single `INTERNAL_SERVICE_KEY` env var. The same key value is sent as `X-API-Key` header on every S2S call regardless of the target service. Each receiving service validates it against its own `INTERNAL_SERVICE_KEY`. There are no per-service API keys.

@@ -1,10 +1,10 @@
 openapi: 3.0.0
 info:
   title: POS Service API
-  description: HTTP API for the BengoBox POS service. Provides point-of-sale operations, order management, and cash drawer management.
+  description: HTTP API for the Codevertex POS service. Provides point-of-sale operations, order management, and cash drawer management.
   version: 0.1.0
   contact:
-    name: BengoBox Support
+    name: Codevertex Support
 servers:
   - url: https://pos.codevertex.local
     description: Local development server (HTTPS)

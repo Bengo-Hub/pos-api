@@ -1,4 +1,4 @@
-# BengoBox POS — Use Case & Workflow Reference
+# Codevertex POS — Use Case & Workflow Reference
 
 **Last updated:** 2026-05-21  
 **Scope:** pos-api, pos-ui, cafe-website integration  

@@ -1,7 +1,7 @@
 basePath: /api/v1
 info:
   contact: {}
-  description: HTTP API for the BengoBox POS service. Provides point-of-sale operations,
+  description: HTTP API for the Codevertex POS service. Provides point-of-sale operations,
     order management, and cash drawer management.
   title: POS Service API
   version: 0.1.0

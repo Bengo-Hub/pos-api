@@ -57,7 +57,7 @@ func sampleReport() *Report {
 				},
 			},
 		},
-		Footer: "Powered by BengoBox POS",
+		Footer: "Powered by Codevertex POS",
 	}
 }
 

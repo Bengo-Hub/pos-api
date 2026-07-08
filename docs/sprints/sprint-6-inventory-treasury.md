@@ -134,7 +134,7 @@ NOTIFICATIONS_SERVICE_URL=https://notificationsapi.codevertexitsolutions.com
 ORDERING_SERVICE_URL=https://orderingapi.codevertexitsolutions.com
 ```
 
-**S2S Auth Standard**: All BengoBox services use a single `INTERNAL_SERVICE_KEY` env var. The same key value is sent as `X-API-Key` header to every internal service. Do not create per-service key env vars (e.g., no `TREASURY_API_KEY` or `INVENTORY_API_KEY` — they all use `INTERNAL_SERVICE_KEY`).
+**S2S Auth Standard**: All Codevertex services use a single `INTERNAL_SERVICE_KEY` env var. The same key value is sent as `X-API-Key` header to every internal service. Do not create per-service key env vars (e.g., no `TREASURY_API_KEY` or `INVENTORY_API_KEY` — they all use `INTERNAL_SERVICE_KEY`).
 
 ---
 

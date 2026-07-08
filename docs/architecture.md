@@ -6,7 +6,7 @@
 
 ## Design Philosophy
 
-The POS service is the **transactional backbone** of BengoBox — a multi-tenant, multi-vertical point-of-sale platform built for the Kenyan market. It follows a **Core + Vertical Modules** architecture: a shared transactional core (orders, payments, RBAC, devices, KDS) with pluggable vertical-specific modules (hotel, retail, pharmacy, service).
+The POS service is the **transactional backbone** of Codevertex — a multi-tenant, multi-vertical point-of-sale platform built for the Kenyan market. It follows a **Core + Vertical Modules** architecture: a shared transactional core (orders, payments, RBAC, devices, KDS) with pluggable vertical-specific modules (hotel, retail, pharmacy, service).
 
 The service adapts UI and business workflows based on the `use_case` configured per Outlet, which can override the Tenant default.
 

@@ -56,7 +56,7 @@ External integrations serve two purposes:
 - [ ] Supports: generic journal entry CSV, Xero direct API (via XERO_CLIENT_ID/SECRET env), QuickBooks (future)
 - [ ] `GET /{tenant}/pos/integrations/accounting/sync-log` — history of syncs
 
-### ERP Integration (BengoBox ERP)
+### ERP Integration (Codevertex ERP)
 - [x] On `pos.sale.finalized`: publishes `erp.sale.posted` stub event to NATS with order summary — **pass-through until ERP integration is ready; no-op consumer on ERP side for now**
 - [ ] ERP-api subscribes and creates sales invoices automatically — pending ERP-api implementation
 - [ ] On `pos.drawer.closed`: publish cash position event to `erp.events` for ledger entry
