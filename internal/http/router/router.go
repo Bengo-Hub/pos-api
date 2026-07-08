@@ -824,6 +824,11 @@ func New(
 						pos.Get("/reports/staff", reportPDF.SalesByStaffPDF)
 						pos.Get("/reports/tax-document", reportPDF.TaxReportPDF)
 						pos.Get("/reports/most-profitable-document", reportPDF.MostProfitablePDF)
+						// Analytics-page reports (cards + table + bar chart; ?format=pdf|csv).
+						pos.Get("/reports/sales-by-hour-document", reportPDF.SalesByHourDoc)
+						pos.Get("/reports/sales-by-category-document", reportPDF.SalesByCategoryDoc)
+						pos.Get("/reports/product-mix-document", reportPDF.ProductMixDoc)
+						pos.Get("/reports/void-summary-document", reportPDF.VoidSummaryDoc)
 					}
 
 					// Webhook subscriptions & delivery log (Sprint 12)

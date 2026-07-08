@@ -872,28 +872,48 @@ func (h *ReportPDFHandler) SalesByStaffPDF(w http.ResponseWriter, r *http.Reques
 		totAvg = totRevenue / float64(totOrders)
 	}
 
+	// Chart: revenue by server. Capped at the top 12 so the bar labels stay readable — the
+	// full breakdown (including everyone else) is still in the table above.
+	chartList := list
+	if len(chartList) > 12 {
+		chartList = chartList[:12]
+	}
+	bars := make([]docs.Bar, 0, len(chartList))
+	for _, s := range chartList {
+		bars = append(bars, docs.Bar{Label: s.name, Value: s.bucket.revenue})
+	}
+
 	report := h.newReport(ctx, tid, oid, "Sales by Staff", "", from, to, true)
-	report.Sections = []docs.Section{{
-		Kind:  docs.SectionTable,
-		Title: "Servers",
-		Columns: []docs.Column{
-			{Header: "Server", Weight: 2.2},
-			{Header: "Orders", Weight: 1, Align: "R"},
-			{Header: "Net Sales", Weight: 1.4, Money: true},
-			{Header: "Discounts", Weight: 1.4, Money: true},
-			{Header: "Voids", Weight: 1, Align: "R"},
-			{Header: "Avg Ticket", Weight: 1.4, Money: true},
+	report.Cards = []docs.Card{
+		{Label: "Total Revenue", Value: "KES " + fmtAmount(totRevenue)},
+		{Label: "Orders", Value: strconv.Itoa(totOrders)},
+		{Label: "Avg Ticket", Value: "KES " + fmtAmount(totAvg)},
+		{Label: "Voids", Value: strconv.Itoa(totVoids)},
+	}
+	report.Sections = []docs.Section{
+		{
+			Kind:  docs.SectionTable,
+			Title: "Servers",
+			Columns: []docs.Column{
+				{Header: "Server", Weight: 2.2},
+				{Header: "Orders", Weight: 1, Align: "R"},
+				{Header: "Net Sales", Weight: 1.4, Money: true},
+				{Header: "Discounts", Weight: 1.4, Money: true},
+				{Header: "Voids", Weight: 1, Align: "R"},
+				{Header: "Avg Ticket", Weight: 1.4, Money: true},
+			},
+			Rows: rows,
+			Total: []docs.Cell{
+				docs.BoldText("Total"),
+				docs.BoldText(strconv.Itoa(totOrders)),
+				docs.BoldText(fmtAmount(totRevenue)),
+				docs.BoldText(fmtAmount(totDiscount)),
+				docs.BoldText(strconv.Itoa(totVoids)),
+				docs.BoldText(fmtAmount(totAvg)),
+			},
 		},
-		Rows: rows,
-		Total: []docs.Cell{
-			docs.BoldText("Total"),
-			docs.BoldText(strconv.Itoa(totOrders)),
-			docs.BoldText(fmtAmount(totRevenue)),
-			docs.BoldText(fmtAmount(totDiscount)),
-			docs.BoldText(strconv.Itoa(totVoids)),
-			docs.BoldText(fmtAmount(totAvg)),
-		},
-	}}
+		{Kind: docs.SectionChart, Title: "Revenue by Server", ValueUnit: "KES", Bars: bars},
+	}
 	h.write(w, r, report, "sales-by-staff")
 }
 
