@@ -955,6 +955,7 @@ func (s *Service) publishSaleFinalized(ctx context.Context, order *ent.POSOrder)
 		// complimentary expense). complimentary_reason feeds the treasury journal description.
 		"selling_scheme":       sellingScheme,
 		"on_account_amount":    onAccountAmount,
+		"complimentary_amount": complimentaryAmount,
 		"complimentary_reason": complimentaryReason,
 		"tenders":              tenderBreakdown,
 		"customer_phone": func() string {
