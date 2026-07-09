@@ -604,6 +604,12 @@ type catalogItemDTO struct {
 	// NonBillable mirrors inventory Item.non_billable: rung up at a forced KES 0
 	// (IsComplimentary is also set) — free accompaniments and supplies.
 	NonBillable             bool
+	// InventoryPrice and POSOverridePrice are the RAW inputs to the Price merge above
+	// (nil when that source had no value for this item), exposed so the sync-monitor
+	// price-reconcile tab can show inventory vs. POS-DB-override vs. the merged result
+	// side by side instead of only ever seeing the final Price.
+	InventoryPrice   *float64
+	POSOverridePrice *float64
 }
 
 // menuAssemblyFilters carries the optional list-time filters applied by ListCatalogItems.
@@ -755,11 +761,16 @@ func (h *CatalogHandler) assembleMenuItems(
 		var minimumAge *int
 		var durationMinutes *int
 
+		var inventoryPrice *float64
+		var posOverridePrice *float64
 		if invPrice, ok := invPriceByID[item.ID]; ok {
 			price = invPrice
+			ip := invPrice
+			inventoryPrice = &ip
 		}
 
 		if hasOverride {
+			posOverridePrice = o.sellingPrice
 			if o.sellingPrice != nil && *o.sellingPrice > 0 {
 				price = *o.sellingPrice
 			}
@@ -896,6 +907,8 @@ func (h *CatalogHandler) assembleMenuItems(
 			// cost_price; fall back to purchase_price when cost isn't set on the item.
 			CostPrice:               firstNonNilFloat(item.CostPrice, item.PurchasePrice),
 			NonBillable:             nonBillable,
+			InventoryPrice:          inventoryPrice,
+			POSOverridePrice:        posOverridePrice,
 		})
 	}
 	return out, nil
@@ -1014,6 +1027,10 @@ func catalogItemToMapBase(item catalogItemDTO, outletID *uuid.UUID) map[string]a
 		"stock_quantity":            item.StockQuantity,
 		"min_selling_price":         item.MinSellingPrice,
 		"max_selling_price":         item.MaxSellingPrice,
+		// Raw inputs to the price merge above — powers the sync-monitor price-reconcile tab's
+		// inventory-vs-POS-DB-override-vs-merged compare. Nil when that source had no value.
+		"inventory_price":           item.InventoryPrice,
+		"pos_override_price":        item.POSOverridePrice,
 		"outlet_id":                 outletID,
 	}
 }

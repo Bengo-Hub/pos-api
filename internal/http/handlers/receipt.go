@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"html"
 	"net/http"
-	"strings"
 	"time"
 
 	sharedcache "github.com/Bengo-Hub/cache"
@@ -17,12 +16,13 @@ import (
 
 	"github.com/bengobox/pos-service/internal/audit"
 	"github.com/bengobox/pos-service/internal/ent"
+	entbillsplit "github.com/bengobox/pos-service/internal/ent/billsplit"
 	entoutlet "github.com/bengobox/pos-service/internal/ent/outlet"
 	entoutletsetting "github.com/bengobox/pos-service/internal/ent/outletsetting"
-	entbillsplit "github.com/bengobox/pos-service/internal/ent/billsplit"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
 	"github.com/bengobox/pos-service/internal/ent/pospayment"
 	enttenant "github.com/bengobox/pos-service/internal/ent/tenant"
+	"github.com/bengobox/pos-service/internal/modules/printing"
 )
 
 // ReceiptHandler handles receipt generation endpoints.
@@ -141,15 +141,15 @@ type receiptPaymentMethods struct {
 
 // receiptResponse is the full receipt payload.
 type receiptResponse struct {
-	ReceiptNumber      string                 `json:"receipt_number"`
-	OrderNumber        string                 `json:"order_number"`
-	OutletID           uuid.UUID              `json:"outlet_id"`
-	OutletName         string                 `json:"outlet_name,omitempty"`
-	OutletAddress      string                 `json:"outlet_address,omitempty"`
+	ReceiptNumber string    `json:"receipt_number"`
+	OrderNumber   string    `json:"order_number"`
+	OutletID      uuid.UUID `json:"outlet_id"`
+	OutletName    string    `json:"outlet_name,omitempty"`
+	OutletAddress string    `json:"outlet_address,omitempty"`
 	// BillTo is the customer shown on the receipt: the guest/payer name for M-Pesa / card / online
 	// payments (where a real customer is identified), or "Walk-in customer" for cash.
-	BillTo             string                 `json:"bill_to,omitempty"`
-	IssuedAt           time.Time              `json:"issued_at"`
+	BillTo   string    `json:"bill_to,omitempty"`
+	IssuedAt time.Time `json:"issued_at"`
 	// Timezone is the outlet's IANA timezone (e.g. "Africa/Nairobi"). The frontend formats
 	// issued_at in this zone so the printed time matches the local wall-clock regardless of
 	// the device/browser timezone. Server-side HTML already renders issued_at in this zone.
@@ -176,6 +176,59 @@ type receiptResponse struct {
 	VatRate       float64 `json:"vat_rate,omitempty"`
 	PaperWidth    string  `json:"paper_width,omitempty"`
 	ServedBy      string  `json:"served_by,omitempty"`
+}
+
+// newReceiptResponse maps the canonical printing.ReceiptView onto the JSON receipt payload — the
+// single conversion point so the JSON API, the HTML endpoint, and the PDF endpoint always agree
+// with the ESC/POS thermal receipt (which is built from the same ReceiptView).
+func newReceiptResponse(v printing.ReceiptView) receiptResponse {
+	lines := make([]receiptLine, 0, len(v.Lines))
+	for _, l := range v.Lines {
+		lines = append(lines, receiptLine{SKU: l.SKU, Name: l.Name, Quantity: l.Quantity, UnitPrice: l.UnitPrice, TotalPrice: l.TotalPrice})
+	}
+	var pm *receiptPaymentMethods
+	if v.PaymentMethods.HasAny() {
+		pm = &receiptPaymentMethods{
+			MpesaPaybill:      v.PaymentMethods.MpesaPaybill,
+			MpesaAccountRef:   v.PaymentMethods.MpesaAccountRef,
+			MpesaTill:         v.PaymentMethods.MpesaTill,
+			MpesaPochi:        v.PaymentMethods.MpesaPochi,
+			BankName:          v.PaymentMethods.BankName,
+			BankAccountNumber: v.PaymentMethods.BankAccountNumber,
+			BankAccountName:   v.PaymentMethods.BankAccountName,
+		}
+	}
+	return receiptResponse{
+		ReceiptNumber:      v.ReceiptNumber,
+		OrderNumber:        v.OrderNumber,
+		OutletID:           v.OutletID,
+		OutletName:         v.OutletName,
+		OutletAddress:      v.OutletAddress,
+		BillTo:             v.BillTo,
+		IssuedAt:           v.IssuedAt,
+		Timezone:           v.Timezone,
+		Lines:              lines,
+		Subtotal:           v.Subtotal,
+		TaxAmount:          v.TaxAmount,
+		DiscountAmount:     v.DiscountAmount,
+		ChargesTotal:       v.ChargesTotal,
+		RoundOff:           v.RoundOff,
+		TotalAmount:        v.TotalAmount,
+		Currency:           v.Currency,
+		AmountPaid:         v.AmountPaid,
+		PaymentMethod:      v.PaymentMethod,
+		AmountTendered:     v.AmountTendered,
+		ChangeDue:          v.ChangeDue,
+		EtimsInvoiceNumber: v.EtimsInvoiceNumber,
+		EtimsQRCodeURL:     v.EtimsQRCodeURL,
+		PaymentMethods:     pm,
+		ReceiptHeader:      v.ReceiptHeader,
+		ReceiptFooter:      v.ReceiptFooter,
+		VatEnabled:         v.VatEnabled,
+		VatRate:            v.VatRate,
+		PaperWidth:         v.PaperWidth,
+		ServedBy:           v.ServedBy,
+	}
 }
 
 // GetReceipt handles GET /{tenantID}/pos/orders/{orderID}/receipt
@@ -246,22 +299,6 @@ func (h *ReceiptHandler) GetReceipt(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	lines := make([]receiptLine, 0, len(order.Edges.Lines))
-	var subtotal float64
-	for _, l := range order.Edges.Lines {
-		if splitLineSet != nil && !splitLineSet[l.ID.String()] {
-			continue // only this split's items
-		}
-		lines = append(lines, receiptLine{
-			SKU:        l.Sku,
-			Name:       l.Name,
-			Quantity:   l.Quantity,
-			UnitPrice:  l.UnitPrice,
-			TotalPrice: l.TotalPrice,
-		})
-		subtotal += l.TotalPrice
-	}
-
 	var amountPaid float64
 	paymentMethod := "cash"
 	if len(order.Edges.Payments) > 0 {
@@ -280,133 +317,25 @@ func (h *ReceiptHandler) GetReceipt(w http.ResponseWriter, r *http.Request) {
 		changeDue = 0
 	}
 
-	// Bill-to name: cash sales are anonymous walk-ins; M-Pesa / card / mobile-money / online
-	// payments identify a real customer, so show the captured guest/payer name.
-	billTo := "Walk-in customer"
-	if !isCashMethod(paymentMethod) {
-		if order.CustomerName != nil && *order.CustomerName != "" {
-			billTo = *order.CustomerName
-		} else if order.CustomerPhone != nil && *order.CustomerPhone != "" {
-			billTo = *order.CustomerPhone
-		}
-	}
+	// Outlet + POS settings drive header/footer/VAT/paper-width/payment-display on every
+	// receipt surface — loaded once here and handed to the shared BuildReceiptView.
+	outlet, _ := h.client.Outlet.Query().Where(entoutlet.ID(order.OutletID)).Only(ctx)
+	setting, _ := h.client.OutletSetting.Query().Where(entoutletsetting.OutletID(order.OutletID)).Only(ctx)
 
-	receipt := receiptResponse{
-		BillTo:         billTo,
-		ReceiptNumber:  fmt.Sprintf("RCT-%s", order.OrderNumber),
-		OrderNumber:    order.OrderNumber,
-		OutletID:       order.OutletID,
-		IssuedAt:       order.CreatedAt,
-		Lines:          lines,
-		Subtotal:       subtotal,
-		TaxAmount:      order.TaxTotal,
-		DiscountAmount: order.DiscountTotal,
-		ChargesTotal:   order.ChargesTotal,
-		RoundOff:       order.RoundOff,
-		TotalAmount:    order.TotalAmount,
-		Currency:       order.Currency,
-		AmountPaid:     amountPaid,
+	view := printing.BuildReceiptView(order, order.Edges.Lines, outlet, setting, printing.ReceiptViewOpts{
+		Type:           "customer",
 		PaymentMethod:  paymentMethod,
+		AmountPaid:     amountPaid,
 		AmountTendered: amountPaid,
 		ChangeDue:      changeDue,
-	}
+		ServedBy:       r.URL.Query().Get("served_by"),
+		SplitLineIDs:   splitLineSet,
+		SplitLabel:     splitLabel,
+	})
 
-	// For a split-by-item receipt the totals reflect ONLY this split's items (prices are
-	// VAT-inclusive, so the split total is the sum of its line totals). Order-level tax/discount/
-	// paid don't apply to an individual split.
-	if splitLineSet != nil {
-		receipt.TaxAmount = 0
-		receipt.DiscountAmount = 0
-		receipt.ChargesTotal = 0
-		receipt.RoundOff = 0
-		receipt.TotalAmount = subtotal
-		receipt.AmountPaid = 0
-		receipt.AmountTendered = 0
-		receipt.ChangeDue = 0
-		if splitLabel != "" {
-			receipt.BillTo = splitLabel // e.g. "Guest 1" — this guest's own bill
-		}
-	}
-
-	// Populate eTIMS fields if present on order (set by treasury.etims.invoice_transmitted subscriber).
-	if order.EtimsInvoiceNumber != nil {
-		receipt.EtimsInvoiceNumber = *order.EtimsInvoiceNumber
-	}
-	if order.EtimsQrCodeURL != nil {
-		receipt.EtimsQRCodeURL = *order.EtimsQrCodeURL
-	}
-
-	// Enrich with outlet info
-	if outlet, err := h.client.Outlet.Query().
-		Where(entoutlet.ID(order.OutletID)).
-		Only(ctx); err == nil {
-		receipt.OutletName = outlet.Name
-		receipt.Timezone = outlet.Timezone
-		if addr := outlet.AddressJSON; addr != nil {
-			if street, ok := addr["street"].(string); ok && street != "" {
-				receipt.OutletAddress = street
-			} else if city, ok := addr["city"].(string); ok {
-				receipt.OutletAddress = city
-			}
-		}
-	}
-
-	// Pull the outlet's POS settings: receipt header/footer text, VAT rate, paper width, and
-	// (when enabled) the payment display info. These drive both the JSON receipt the pos-ui
-	// renders/prints and the server-side printable HTML.
-	if s, err := h.client.OutletSetting.Query().
-		Where(entoutletsetting.OutletID(order.OutletID)).
-		Only(ctx); err == nil {
-		if s.ReceiptHeader != nil {
-			receipt.ReceiptHeader = *s.ReceiptHeader
-		}
-		if s.ReceiptFooter != nil {
-			receipt.ReceiptFooter = *s.ReceiptFooter
-		}
-		receipt.VatEnabled = s.VatEnabled
-		receipt.VatRate = s.VatRate
-		receipt.PaperWidth = s.PaperWidth
-
-		if s.ShowPaymentInfoOnReceipt {
-			pm := &receiptPaymentMethods{}
-			filled := false
-			if s.MpesaPaybill != nil && *s.MpesaPaybill != "" {
-				pm.MpesaPaybill = *s.MpesaPaybill
-				filled = true
-			}
-			if s.MpesaAccountReference != nil && *s.MpesaAccountReference != "" {
-				pm.MpesaAccountRef = *s.MpesaAccountReference
-				filled = true
-			}
-			if s.MpesaTill != nil && *s.MpesaTill != "" {
-				pm.MpesaTill = *s.MpesaTill
-				filled = true
-			}
-			if s.MpesaPochi != nil && *s.MpesaPochi != "" {
-				pm.MpesaPochi = *s.MpesaPochi
-				filled = true
-			}
-			if s.BankName != nil && *s.BankName != "" {
-				pm.BankName = *s.BankName
-				filled = true
-			}
-			if s.BankAccountNumber != nil && *s.BankAccountNumber != "" {
-				pm.BankAccountNumber = *s.BankAccountNumber
-				filled = true
-			}
-			if s.BankAccountName != nil && *s.BankAccountName != "" {
-				pm.BankAccountName = *s.BankAccountName
-				filled = true
-			}
-			if filled {
-				receipt.PaymentMethods = pm
-			}
-		}
-	}
+	receipt := newReceiptResponse(view)
 
 	format := r.URL.Query().Get("format")
-	// Served-by (waiter/cashier name) is passed by the client print action so the bill matches the receipt.
-	receipt.ServedBy = r.URL.Query().Get("served_by")
 	if format == "pdf" {
 		brand := h.branding(r.Context(), tid)
 		pdfBytes, err := generateReceiptPDF(receipt, brand)
@@ -432,13 +361,6 @@ func (h *ReceiptHandler) GetReceipt(w http.ResponseWriter, r *http.Request) {
 	}
 
 	jsonOK(w, receipt)
-}
-
-// isCashMethod reports whether a payment method is an anonymous cash tender (no identified
-// customer). Everything else — M-Pesa, card, mobile money, bank, online — identifies a payer.
-func isCashMethod(method string) bool {
-	m := strings.ToLower(strings.TrimSpace(method))
-	return m == "" || m == "cash" || m == "cash_on_delivery" || m == "cod"
 }
 
 // GetReceiptHTML handles GET /{tenantID}/pos/orders/{orderID}/receipt/html
@@ -551,8 +473,20 @@ h1{font-size:13px;text-align:center;margin:2px 0}
 	if rec.DiscountAmount > 0 {
 		buf.WriteString(fmt.Sprintf(`<div class="line"><span>Discount</span><span>-%.2f</span></div>`, rec.DiscountAmount))
 	}
+	if rec.ChargesTotal > 0 {
+		buf.WriteString(fmt.Sprintf(`<div class="line"><span>Charges</span><span>%.2f</span></div>`, rec.ChargesTotal))
+	}
+	if rec.RoundOff > 0 {
+		buf.WriteString(fmt.Sprintf(`<div class="line"><span>Round Off</span><span>%.2f</span></div>`, rec.RoundOff))
+	}
 	buf.WriteString(fmt.Sprintf(`<div class="line bold"><span>TOTAL</span><span>%.2f %s</span></div>`, rec.TotalAmount, rec.Currency))
 	buf.WriteString(fmt.Sprintf(`<div class="line"><span>Paid</span><span>%.2f</span></div>`, rec.AmountPaid))
+	if rec.AmountTendered > 0 {
+		buf.WriteString(fmt.Sprintf(`<div class="line"><span>Tendered</span><span>%.2f</span></div>`, rec.AmountTendered))
+	}
+	if rec.ChangeDue > 0 {
+		buf.WriteString(fmt.Sprintf(`<div class="line"><span>Change</span><span>%.2f</span></div>`, rec.ChangeDue))
+	}
 	if rec.EtimsInvoiceNumber != "" || rec.EtimsQRCodeURL != "" {
 		buf.WriteString(`<div class="divider"></div>`)
 		if rec.EtimsQRCodeURL != "" {

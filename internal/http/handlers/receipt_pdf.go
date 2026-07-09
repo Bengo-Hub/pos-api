@@ -84,6 +84,12 @@ func generateReceiptPDF(rec receiptResponse, brand receiptBrand) ([]byte, error)
 	line("Receipt:", rec.ReceiptNumber, "", 8)
 	line("Order:", rec.OrderNumber, "", 8)
 	line("Date:", rec.IssuedAt.Format("2006-01-02 15:04"), "", 8)
+	if rec.BillTo != "" {
+		line("Customer:", rec.BillTo, "", 8)
+	}
+	if rec.ServedBy != "" {
+		line("Served by:", rec.ServedBy, "", 8)
+	}
 	hr()
 
 	// Line items
@@ -115,6 +121,12 @@ func generateReceiptPDF(rec receiptResponse, brand receiptBrand) ([]byte, error)
 		}
 		line(taxLabel, money(rec.TaxAmount), "", 8)
 	}
+	if rec.ChargesTotal > 0 {
+		line("Charges", money(rec.ChargesTotal), "", 8)
+	}
+	if rec.RoundOff > 0 {
+		line("Round Off", money(rec.RoundOff), "", 8)
+	}
 	line("TOTAL", money(rec.TotalAmount), "B", 10)
 	hr()
 
@@ -136,6 +148,34 @@ func generateReceiptPDF(rec receiptResponse, brand receiptBrand) ([]byte, error)
 	if rec.EtimsInvoiceNumber != "" {
 		hr()
 		line("eTIMS Inv", rec.EtimsInvoiceNumber, "", 7)
+	}
+
+	// Payment display ("HOW TO PAY") — M-Pesa/bank details, same block as the HTML/ESC-POS receipts.
+	if pm := rec.PaymentMethods; pm != nil {
+		hr()
+		center("HOW TO PAY", "B", 8)
+		if pm.MpesaPaybill != "" {
+			line("M-PESA Paybill", pm.MpesaPaybill, "", 8)
+		}
+		if pm.MpesaAccountRef != "" {
+			line("Account No.", pm.MpesaAccountRef, "", 8)
+		}
+		if pm.MpesaTill != "" {
+			line("M-PESA Till", pm.MpesaTill, "", 8)
+		}
+		if pm.MpesaPochi != "" {
+			line("M-PESA Pochi", pm.MpesaPochi, "", 8)
+		}
+		if pm.BankName != "" || pm.BankAccountNumber != "" {
+			label := pm.BankName
+			if label == "" {
+				label = "Bank"
+			}
+			line(label, pm.BankAccountNumber, "", 8)
+		}
+		if pm.BankAccountName != "" {
+			center(pm.BankAccountName, "", 7)
+		}
 	}
 
 	// Footer

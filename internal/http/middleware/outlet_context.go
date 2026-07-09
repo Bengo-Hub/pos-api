@@ -35,9 +35,10 @@ func OutletFromContext(ctx context.Context) *OutletContext {
 // OutletContextMiddleware resolves the active outlet for the request and injects
 // it into the context. Resolution order mirrors TruLoad's TenantContext middleware:
 //
-//  1. X-Outlet-ID header  — explicit override (HQ user / frontend-selected outlet)
-//  2. StaffMember.outlet_id — for terminal sessions (PIN login)
-//  3. Tenant's HQ outlet   — fallback when no outlet can be determined
+//  1. X-Outlet-ID header    — explicit override (HQ user / frontend-selected outlet)
+//  2. JWT claim's outlet_id — terminal sessions (PIN login) whose token already carries
+//     the outlet they logged into
+//  3. Tenant's HQ outlet    — fallback when no outlet can be determined
 //
 // For non-HQ users: if X-Outlet-ID doesn't match the user's assigned outlet → 403.
 func OutletContextMiddleware(client *ent.Client, log *zap.Logger) func(http.Handler) http.Handler {
@@ -91,6 +92,24 @@ func OutletContextMiddleware(client *ent.Client, log *zap.Logger) func(http.Hand
 					}
 				}
 				resolved = outletToCtx(o)
+			}
+
+			// ── Fallback: the caller's own assigned outlet from their JWT claim ───
+			// Chiefly terminal (PIN login) sessions, whose claim already carries the outlet
+			// they logged into. Trusted as-is (no isHQUser/isStaffAssignedToOutlet check) —
+			// it's the outlet the token issuer assigned to this exact user at login, not a
+			// caller-supplied override.
+			if resolved == nil && hasClaims {
+				if raw := claims.GetOutletID(); raw != "" {
+					if id, err := uuid.Parse(raw); err == nil {
+						o, err := client.Outlet.Query().
+							Where(entoutlet.ID(id), entoutlet.TenantID(tenantID)).
+							Only(ctx)
+						if err == nil {
+							resolved = outletToCtx(o)
+						}
+					}
+				}
 			}
 
 			// ── Fallback: HQ outlet for this tenant ───────────────────────────

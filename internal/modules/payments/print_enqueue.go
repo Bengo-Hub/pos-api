@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/bengobox/pos-service/internal/ent"
+	entoutlet "github.com/bengobox/pos-service/internal/ent/outlet"
 	outletsettingpredicate "github.com/bengobox/pos-service/internal/ent/outletsetting"
 	"github.com/bengobox/pos-service/internal/ent/posorderline"
 	"github.com/bengobox/pos-service/internal/ent/pospayment"
@@ -63,8 +64,10 @@ func (s *Service) enqueueReceiptPrint(ctx context.Context, order *ent.POSOrder) 
 		}
 	}
 
+	outlet, _ := s.client.Outlet.Query().Where(entoutlet.ID(order.OutletID)).Only(ctx)
+	servedBy := printing.ServedByFromContext(ctx)
 	payload := printing.BuildReceipt(printing.OrderReceiptData(
-		order, lines, setting, "customer", strings.Join(methods, " + "), ""))
+		order, lines, outlet, setting, "customer", strings.Join(methods, " + "), servedBy, ""))
 	_, err = s.printQueue.Enqueue(ctx, printing.EnqueueInput{
 		TenantID:  order.TenantID,
 		OutletID:  order.OutletID,

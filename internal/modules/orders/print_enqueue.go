@@ -9,6 +9,7 @@ import (
 
 	"github.com/bengobox/pos-service/internal/ent"
 	"github.com/bengobox/pos-service/internal/ent/kdsstation"
+	entoutlet "github.com/bengobox/pos-service/internal/ent/outlet"
 	entoutletsetting "github.com/bengobox/pos-service/internal/ent/outletsetting"
 	"github.com/bengobox/pos-service/internal/ent/posorderline"
 	"github.com/bengobox/pos-service/internal/modules/printing"
@@ -87,7 +88,9 @@ func (s *Service) enqueueAutoPrintJobs(ctx context.Context, tenantID uuid.UUID, 
 	// Customer bill (dine-in pro-forma) — owned here so the till can log the waiter out instantly.
 	if setting.AutoPrintOrder {
 		if profile := printing.ResolveBillProfile(profiles); profile != nil {
-			payload := printing.BuildReceipt(printing.OrderReceiptData(order, lines, setting, "customer", "", ""))
+			outlet, _ := s.client.Outlet.Query().Where(entoutlet.ID(order.OutletID)).Only(ctx)
+			servedBy := printing.ServedByFromContext(ctx)
+			payload := printing.BuildReceipt(printing.OrderReceiptData(order, lines, outlet, setting, "customer", "", servedBy, ""))
 			s.enqueueJob(ctx, tenantID, order, "bill", profile, payload,
 				fmt.Sprintf("%s:bill:%s", order.ID, profile.ID))
 		}

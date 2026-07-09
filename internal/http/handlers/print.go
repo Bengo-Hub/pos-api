@@ -10,6 +10,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/bengobox/pos-service/internal/ent"
+	entoutlet "github.com/bengobox/pos-service/internal/ent/outlet"
 	entoutletsetting "github.com/bengobox/pos-service/internal/ent/outletsetting"
 	entposorder "github.com/bengobox/pos-service/internal/ent/posorder"
 	entposorderline "github.com/bengobox/pos-service/internal/ent/posorderline"
@@ -89,7 +90,9 @@ func (h *PrintHandler) PrintReceipt(w http.ResponseWriter, r *http.Request) {
 		printerID = "customer"
 	}
 
-	data := printing.OrderReceiptData(order, lines, outletSetting, input.Type, "", input.Reason)
+	outlet, _ := h.client.Outlet.Query().Where(entoutlet.ID(order.OutletID)).Only(r.Context())
+	servedBy := printing.ServedByFromContext(r.Context())
+	data := printing.OrderReceiptData(order, lines, outlet, outletSetting, input.Type, "", servedBy, input.Reason)
 
 	// Build-only: return the ESC/POS bytes (hex) for the browser to relay to the Local Print Agent.
 	// This is how a network printer prints from a cloud deployment (the server can't reach the LAN).

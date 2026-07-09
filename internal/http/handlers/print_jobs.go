@@ -11,6 +11,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/bengobox/pos-service/internal/ent"
+	entoutlet "github.com/bengobox/pos-service/internal/ent/outlet"
 	entoutletsetting "github.com/bengobox/pos-service/internal/ent/outletsetting"
 	entposorder "github.com/bengobox/pos-service/internal/ent/posorder"
 	entposorderline "github.com/bengobox/pos-service/internal/ent/posorderline"
@@ -33,8 +34,8 @@ func NewPrintJobsHandler(log *zap.Logger, client *ent.Client, queue *printing.Qu
 type enqueueJobInput struct {
 	JobType       string `json:"job_type"` // bill | receipt | test | drawer
 	OrderID       string `json:"order_id"`
-	OutletID      string `json:"outlet_id"`   // required for test/drawer (no order to derive it from)
-	ProfileID     string `json:"profile_id"`  // explicit target; empty = resolved bill printer
+	OutletID      string `json:"outlet_id"`  // required for test/drawer (no order to derive it from)
+	ProfileID     string `json:"profile_id"` // explicit target; empty = resolved bill printer
 	PaymentMethod string `json:"payment_method"`
 	Station       string `json:"station"` // label shown on a test ticket
 }
@@ -125,7 +126,9 @@ func (h *PrintJobsHandler) EnqueueJob(w http.ResponseWriter, r *http.Request) {
 		lines, _ := h.client.POSOrderLine.Query().
 			Where(entposorderline.OrderID(order.ID)).
 			All(ctx)
-		payload = printing.BuildReceipt(printing.OrderReceiptData(order, lines, setting, "customer", in.PaymentMethod, ""))
+		outlet, _ := h.client.Outlet.Query().Where(entoutlet.ID(outletID)).Only(ctx)
+		servedBy := printing.ServedByFromContext(ctx)
+		payload = printing.BuildReceipt(printing.OrderReceiptData(order, lines, outlet, setting, "customer", in.PaymentMethod, servedBy, ""))
 		orderID = &order.ID
 	case "test":
 		label := in.Station

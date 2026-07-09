@@ -21,22 +21,31 @@ var (
 
 // ReceiptData holds all data needed to render a receipt.
 type ReceiptData struct {
-	Type          string // "customer", "kitchen_ticket", "waiter_copy", "void"
-	OutletName    string
-	OrderNumber   string
-	CashierName   string
-	TableRef      string
-	DateTime      time.Time
-	Header        string // custom header text from OutletSetting
-	Footer        string // custom footer text from OutletSetting
-	Items         []ReceiptItem
-	Subtotal      float64
-	TaxTotal      float64
-	DiscountTotal float64
-	TotalAmount   float64
-	PaymentMethod string
-	Currency      string
-	VoidReason    string
+	Type               string // "customer", "kitchen_ticket", "waiter_copy", "void"
+	OutletName         string
+	OutletAddress      string
+	OrderNumber        string
+	BillTo             string
+	ServedBy           string
+	TableRef           string
+	DateTime           time.Time
+	Header             string // custom header text from OutletSetting
+	Footer             string // custom footer text from OutletSetting
+	Items              []ReceiptItem
+	Subtotal           float64
+	TaxTotal           float64
+	VatRate            float64 // percentage, e.g. 16 — 0 means "unknown", falls back to the plain "Tax" label
+	DiscountTotal      float64
+	ChargesTotal       float64
+	RoundOff           float64
+	TotalAmount        float64
+	PaymentMethod      string
+	AmountTendered     float64
+	ChangeDue          float64
+	Currency           string
+	EtimsInvoiceNumber string
+	PaymentMethods     *ReceiptPaymentMethods // "HOW TO PAY" block (M-Pesa/bank), customer receipts only
+	VoidReason         string
 }
 
 // ReceiptItem is a single line on the receipt.
@@ -48,7 +57,11 @@ type ReceiptItem struct {
 	Notes    string
 }
 
-// BuildReceipt renders an ESC/POS byte buffer for the given receipt type.
+// BuildReceipt renders an ESC/POS byte buffer for the given receipt type. Section order mirrors
+// generateReceiptHTML / the JSON receipt view: outlet name+address → custom header → order meta
+// (order#, bill-to, served-by, table, time) → items → subtotal/VAT(rate)/discount/charges/
+// round-off → TOTAL → tendered/change → eTIMS CU# → HOW TO PAY → footer. Keep these three renderers
+// (HTML, JSON, ESC/POS) in sync — they all read from the same printing.ReceiptView.
 func BuildReceipt(d ReceiptData) []byte {
 	var buf bytes.Buffer
 
@@ -60,32 +73,52 @@ func BuildReceipt(d ReceiptData) []byte {
 	write(escCenter)
 	write(escBold)
 
+	if d.OutletName != "" {
+		writeln(d.OutletName)
+	} else {
+		writeln("RECEIPT")
+	}
+	write(escBoldOff)
+	if d.OutletAddress != "" {
+		writeln(d.OutletAddress)
+	}
 	if d.Header != "" {
 		writeln(d.Header)
-	} else {
-		writeln(d.OutletName)
 	}
-
-	write(escBoldOff)
 	write(escLeft)
 
 	switch d.Type {
 	case "kitchen_ticket":
+		write(escCenter)
+		write(escBold)
 		writeln("** KITCHEN **")
+		write(escBoldOff)
+		write(escLeft)
 	case "waiter_copy":
+		write(escCenter)
+		write(escBold)
 		writeln("** WAITER COPY **")
+		write(escBoldOff)
+		write(escLeft)
 	case "void":
+		write(escCenter)
+		write(escBold)
 		writeln("** VOID RECEIPT **")
+		write(escBoldOff)
+		write(escLeft)
 	}
 
 	separator()
 	writeln(fmt.Sprintf("Order:   #%s", d.OrderNumber))
+	if (d.Type == "customer" || d.Type == "void") && d.BillTo != "" {
+		writeln(fmt.Sprintf("Customer: %s", d.BillTo))
+	}
 	if d.TableRef != "" {
 		writeln(fmt.Sprintf("Table:   %s", d.TableRef))
 	}
 	writeln(fmt.Sprintf("Time:    %s", d.DateTime.Format("02 Jan 2006 15:04")))
-	if d.CashierName != "" && d.Type != "kitchen_ticket" {
-		writeln(fmt.Sprintf("Server:  %s", d.CashierName))
+	if d.ServedBy != "" && d.Type != "kitchen_ticket" {
+		writeln(fmt.Sprintf("Server:  %s", d.ServedBy))
 	}
 	separator()
 
@@ -115,12 +148,22 @@ func BuildReceipt(d ReceiptData) []byte {
 	// Totals section (customer receipts only)
 	if d.Type == "customer" || d.Type == "void" {
 		separator()
+		taxLabel := "Tax"
+		if d.VatRate > 0 {
+			taxLabel = fmt.Sprintf("VAT (%g%%)", d.VatRate)
+		}
 		if d.TaxTotal > 0 {
 			writeln(formatLine("Subtotal", fmt.Sprintf("%s %.2f", d.Currency, d.Subtotal)))
-			writeln(formatLine("Tax", fmt.Sprintf("%s %.2f", d.Currency, d.TaxTotal)))
+			writeln(formatLine(taxLabel, fmt.Sprintf("%s %.2f", d.Currency, d.TaxTotal)))
 		}
 		if d.DiscountTotal > 0 {
 			writeln(formatLine("Discount", fmt.Sprintf("-%s %.2f", d.Currency, d.DiscountTotal)))
+		}
+		if d.ChargesTotal > 0 {
+			writeln(formatLine("Charges", fmt.Sprintf("%s %.2f", d.Currency, d.ChargesTotal)))
+		}
+		if d.RoundOff > 0 {
+			writeln(formatLine("Round Off", fmt.Sprintf("%s %.2f", d.Currency, d.RoundOff)))
 		}
 		write(escBold)
 		writeln(formatLine("TOTAL", fmt.Sprintf("%s %.2f", d.Currency, d.TotalAmount)))
@@ -128,11 +171,59 @@ func BuildReceipt(d ReceiptData) []byte {
 		if d.PaymentMethod != "" {
 			writeln(formatLine("Payment", d.PaymentMethod))
 		}
+		if d.AmountTendered > 0 {
+			writeln(formatLine("Tendered", fmt.Sprintf("%s %.2f", d.Currency, d.AmountTendered)))
+		}
+		if d.ChangeDue > 0 {
+			writeln(formatLine("Change", fmt.Sprintf("%s %.2f", d.Currency, d.ChangeDue)))
+		}
 	}
 
 	if d.Type == "void" && d.VoidReason != "" {
 		separator()
 		writeln("Reason: " + d.VoidReason)
+	}
+
+	if d.Type == "customer" && d.EtimsInvoiceNumber != "" {
+		separator()
+		write(escCenter)
+		writeln("KRA eTIMS Invoice")
+		writeln("CU#: " + d.EtimsInvoiceNumber)
+		write(escLeft)
+	}
+
+	if d.Type == "customer" && d.PaymentMethods.HasAny() {
+		separator()
+		write(escCenter)
+		write(escBold)
+		writeln("HOW TO PAY")
+		write(escBoldOff)
+		write(escLeft)
+		pm := d.PaymentMethods
+		if pm.MpesaPaybill != "" {
+			writeln(formatLine("M-PESA Paybill", pm.MpesaPaybill))
+		}
+		if pm.MpesaAccountRef != "" {
+			writeln(formatLine("Account No.", pm.MpesaAccountRef))
+		}
+		if pm.MpesaTill != "" {
+			writeln(formatLine("M-PESA Till", pm.MpesaTill))
+		}
+		if pm.MpesaPochi != "" {
+			writeln(formatLine("M-PESA Pochi", pm.MpesaPochi))
+		}
+		if pm.BankAccountNumber != "" {
+			label := pm.BankName
+			if label == "" {
+				label = "Bank"
+			}
+			writeln(formatLine(label, pm.BankAccountNumber))
+		}
+		if pm.BankAccountName != "" {
+			write(escCenter)
+			writeln(pm.BankAccountName)
+			write(escLeft)
+		}
 	}
 
 	if d.Footer != "" && d.Type == "customer" {
