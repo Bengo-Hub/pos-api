@@ -393,7 +393,12 @@ func New(
 					if tables != nil {
 						pos.Group(func(tbl chi.Router) {
 							tbl.Use(outletmw.RequireUseCase("hospitality"))
-							tbl.Use(subscriptions.RequireFeature(subscriptions.FeatureTableManagement))
+							// NOT gated on subscriptions.RequireFeature(FeatureTableManagement): every hospitality
+							// plan tier already includes "table_management" (subscriptions-api cmd/seed/
+							// plans_pos_lines.go), so the gate was pure redundant surface for a JWT/plan-sync
+							// failure to break core checkout actions on — notably SplitOrder/SetServiceCharge
+							// below, which have nothing to do with the "Table & Floor Management" add-on the
+							// code represents. RequireUseCase("hospitality") above is the real gate here.
 							tbl.Get("/sections", tables.ListSections)
 							tbl.Post("/sections", tables.CreateSection)
 							tbl.Put("/sections/{id}", tables.UpdateSection)
