@@ -703,6 +703,27 @@ func (s *Service) RecomputePaidTotal(ctx context.Context, orderID uuid.UUID) (fl
 	return paid, nil
 }
 
+// RecheckCompletion re-evaluates a single order's payment-completion status through the exact
+// same path a normal payment submission uses (RecomputePaidTotal + completeOrderIfFullyPaid —
+// which, if satisfied, transitions status, publishes pos.sale.finalized for treasury GL/inventory
+// backflush/eTIMS, enqueues the receipt, calculates commissions, and releases the table).
+//
+// This exists as a manual recovery tool for orders whose totals were corrected out-of-band (e.g. a
+// direct DB fix for a stuck order) after the completion check had already failed once against a
+// wrong total — normal payment submission never re-checks a $0-outstanding order, so nothing else
+// re-triggers this. Not wired to any public route; call only via the S2S recheck-completion
+// endpoint (internal ops tool, INTERNAL_SERVICE_KEY-gated).
+func (s *Service) RecheckCompletion(ctx context.Context, tenantID, orderID uuid.UUID) error {
+	order, err := s.client.POSOrder.Query().
+		Where(posorder.ID(orderID), posorder.TenantID(tenantID)).
+		Only(ctx)
+	if err != nil {
+		return fmt.Errorf("payments: order not found: %w", err)
+	}
+	s.completeOrderIfFullyPaid(ctx, order)
+	return nil
+}
+
 // completeOrderIfFullyPaid recomputes the order's paid_total and marks the order completed
 // when its completed payments cover the total.
 //

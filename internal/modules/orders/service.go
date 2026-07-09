@@ -85,25 +85,25 @@ var validTransitions = map[string][]string{
 
 // CreateOrderRequest holds the input for creating a POS order.
 type CreateOrderRequest struct {
-	TenantID       uuid.UUID
-	TenantSlug     string // used for treasury S2S tax lookups
-	OutletID       uuid.UUID
-	DeviceID       uuid.UUID
-	UserID         uuid.UUID
-	OrderNumber    string
+	TenantID    uuid.UUID
+	TenantSlug  string // used for treasury S2S tax lookups
+	OutletID    uuid.UUID
+	DeviceID    uuid.UUID
+	UserID      uuid.UUID
+	OrderNumber string
 	// ClientReference is the offline device's local id (uuid). When set, CreateOrder is
 	// get-or-create on it, making replayed offline sales idempotent.
 	ClientReference string
 	// OfflineCreatedAt is the device-clock time the sale was rung up (offline). Optional.
 	OfflineCreatedAt *time.Time
 	Currency         string
-	Lines          []OrderLineInput
-	Metadata       map[string]any
-	OrderSubtype   string // dine_in | takeaway | room_service | delivery | bar_tab | retail; defaults to "dine_in"
-	TableID        string // UUID of the table (hospitality dine-in); stored in metadata (no DB column yet)
-	CustomerPhone  string // loyalty auto-earn — stored on order, forwarded in pos.sale.finalized
-	CustomerName   string
-	DiscountAmount float64 // order-level discount (e.g. loyalty redemption) applied before total_amount
+	Lines            []OrderLineInput
+	Metadata         map[string]any
+	OrderSubtype     string // dine_in | takeaway | room_service | delivery | bar_tab | retail; defaults to "dine_in"
+	TableID          string // UUID of the table (hospitality dine-in); stored in metadata (no DB column yet)
+	CustomerPhone    string // loyalty auto-earn — stored on order, forwarded in pos.sale.finalized
+	CustomerName     string
+	DiscountAmount   float64 // order-level discount (e.g. loyalty redemption) applied before total_amount
 	// OrderTaxAmount is a manager/admin order-level tax adjustment ADDED on top of the per-line
 	// tax (quick-edit "Edit Order Tax"). Folds into tax_total; the edit is recorded in
 	// metadata.order_tax for receipts/audit.
@@ -853,16 +853,16 @@ func (s *Service) RequestSaleNotification(ctx context.Context, tenantID, orderID
 
 	if s.publisher != nil {
 		_ = s.publisher.PublishSaleNotificationRequested(ctx, tenantID, map[string]any{
-			"order_id":       orderID.String(),
-			"order_number":   order.OrderNumber,
-			"tenant_id":      tenantID.String(),
-			"outlet_id":      order.OutletID.String(),
-			"customer_name":  name,
-			"customer_phone": phone,
-			"customer_email": overrideEmail,
-			"total_amount":   order.TotalAmount,
-			"currency":       order.Currency,
-			"items":          items,
+			"order_id":             orderID.String(),
+			"order_number":         order.OrderNumber,
+			"tenant_id":            tenantID.String(),
+			"outlet_id":            order.OutletID.String(),
+			"customer_name":        name,
+			"customer_phone":       phone,
+			"customer_email":       overrideEmail,
+			"total_amount":         order.TotalAmount,
+			"currency":             order.Currency,
+			"items":                items,
 			"etims_invoice_number": derefStr(order.EtimsInvoiceNumber),
 		})
 	}
@@ -1240,12 +1240,31 @@ func (s *Service) AddOrderLines(ctx context.Context, tenantID uuid.UUID, tenantS
 	// again would inflate the payable above what the till charged. The order's stored discount,
 	// charges and manual order-tax edit are carried through finalizeTotals so the ceiling
 	// identity (total = subtotal + tax − discount + charges + round_off) keeps holding.
+	//
+	// order.Edges.Lines (loaded via WithLines()) includes SOFT-VOIDED lines (VoidOrderLine /
+	// SetAsideLine keep them for audit rather than deleting) — each of THOSE handlers correctly
+	// decrements the order's totals by the voided value at the time of voiding, but this recompute
+	// previously summed every line's FULL total_price regardless of voided_qty, silently restoring
+	// the already-deducted voided value back into the order total on the next "Add to Bill" call.
+	// That left the order permanently overstated relative to its actual payable lines, which
+	// completeOrderIfFullyPaid could then never reach (confirmed live 2026-07-09: order
+	// POS-2B2633CDA87A stuck at total_amount=2150 with only 1700 of active, collectible line
+	// value — exactly the value of one soft-voided line). Scale each line by its still-active
+	// fraction (1.0 when never voided, 0.0 when fully voided, partial otherwise) so a voided
+	// line contributes nothing here, matching what the void handlers already assume.
 	allLines := append(order.Edges.Lines, newLines...)
 	var newSubtotal, newTaxTotal decimal.Decimal
 	for _, ol := range allLines {
-		newSubtotal = newSubtotal.Add(decimal.NewFromFloat(ol.TotalPrice))
+		activeFraction := 1.0
+		if ol.VoidedQty != nil && ol.Quantity > 0 {
+			activeFraction = (ol.Quantity - *ol.VoidedQty) / ol.Quantity
+			if activeFraction < 0 {
+				activeFraction = 0
+			}
+		}
+		newSubtotal = newSubtotal.Add(decimal.NewFromFloat(ol.TotalPrice * activeFraction))
 		if ol.TaxAmount != nil && !ol.PriceIncludesTax {
-			newTaxTotal = newTaxTotal.Add(decimal.NewFromFloat(*ol.TaxAmount))
+			newTaxTotal = newTaxTotal.Add(decimal.NewFromFloat(*ol.TaxAmount * activeFraction))
 		}
 	}
 	orderTax := decimal.Zero

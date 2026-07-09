@@ -982,7 +982,7 @@ func New(
 		// INTERNAL_SERVICE_KEY sent as the X-API-Key header (no user JWT). pos-api is the
 		// loyalty source-of-truth (balances keyed on tenant + customer_phone), so other
 		// services (e.g. ordering-backend) earn/redeem against these endpoints.
-		if internalServiceKey != "" && (loyalty != nil || reports != nil) {
+		if internalServiceKey != "" && (loyalty != nil || reports != nil || payments != nil) {
 			api.Group(func(s2s chi.Router) {
 				s2s.Use(requireInternalServiceKey(internalServiceKey))
 				s2s.Route("/s2s/{tenant}", func(t chi.Router) {
@@ -995,6 +995,10 @@ func New(
 						// POS units sold per SKU — consumed by inventory-api menu-engineering/variance
 						// so POS sales are counted, not only ordering-service orders.
 						t.Get("/pos/sales/by-sku", reports.S2SSalesBySKU)
+					}
+					if payments != nil {
+						// Manual ops recovery tool — see S2SRecheckOrderCompletion's doc comment.
+						t.Post("/orders/{orderNumber}/recheck-completion", payments.S2SRecheckOrderCompletion)
 					}
 				})
 			})

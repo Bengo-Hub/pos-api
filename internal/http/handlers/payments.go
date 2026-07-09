@@ -762,3 +762,44 @@ func (h *PaymentHandler) ResolveBankAccount(w http.ResponseWriter, r *http.Reque
 	w.Header().Set("Content-Type", "application/json")
 	_, _ = w.Write(raw)
 }
+
+// S2SRecheckOrderCompletion handles POST /api/v1/s2s/{tenant}/orders/{orderNumber}/recheck-completion.
+// Internal ops recovery tool (INTERNAL_SERVICE_KEY-gated, see router.go's S2S group): re-evaluates
+// whether an order's completed payments now cover its total and, if so, drives it through the
+// real completion path (status transition, pos.sale.finalized publish for treasury GL/inventory
+// backflush/eTIMS, receipt enqueue, commissions, table release) — the same thing a normal payment
+// submission does. Needed when an order's total was corrected out-of-band (e.g. a data fix for a
+// stuck order) after the completion check already failed once against a wrong total, since nothing
+// else re-triggers it for an order that's already at $0 outstanding.
+func (h *PaymentHandler) S2SRecheckOrderCompletion(w http.ResponseWriter, r *http.Request) {
+	tid, err := uuid.Parse(chi.URLParam(r, "tenant"))
+	if err != nil {
+		jsonError(w, "invalid tenant", http.StatusBadRequest)
+		return
+	}
+	orderNumber := chi.URLParam(r, "orderNumber")
+	order, err := h.client.POSOrder.Query().
+		Where(posorder.TenantID(tid), posorder.OrderNumber(orderNumber)).
+		Only(r.Context())
+	if err != nil {
+		jsonError(w, "order not found", http.StatusNotFound)
+		return
+	}
+	if err := h.paymentSvc.RecheckCompletion(r.Context(), tid, order.ID); err != nil {
+		h.log.Error("s2s recheck-completion failed", zap.Error(err))
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	updated, err := h.client.POSOrder.Get(r.Context(), order.ID)
+	if err != nil {
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	jsonOK(w, map[string]any{
+		"order_id":     updated.ID,
+		"order_number": updated.OrderNumber,
+		"status":       updated.Status,
+		"paid_total":   updated.PaidTotal,
+		"total_amount": updated.TotalAmount,
+	})
+}
