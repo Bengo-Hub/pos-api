@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/Bengo-Hub/httpware"
@@ -14,33 +15,34 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/posrefund"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
 	"github.com/bengobox/pos-service/internal/ent/tender"
+	"github.com/bengobox/pos-service/internal/modules/payments"
 )
 
 // registerDetailsResponse is the detailed register/period report powering the POS
 // "Register Details" modal — a payment-method breakdown, sales/refund/payment/credit
 // totals, the list of products sold, and products grouped by brand.
 type registerDetailsResponse struct {
-	From         time.Time             `json:"from"`
-	To           time.Time             `json:"to"`
-	PaymentMethods []paymentMethodRow  `json:"payment_methods"`
-	TotalSales   float64               `json:"total_sales"`
-	TotalRefund  float64               `json:"total_refund"`
-	RefundByMethod []paymentMethodRow  `json:"refund_by_method"`
-	TotalPayment float64               `json:"total_payment"`
-	CreditSales  float64               `json:"credit_sales"`
-	TotalExpense float64               `json:"total_expense"`
-	OrderTax     float64               `json:"order_tax"`
-	ShippingTotal float64              `json:"shipping_total"`
-	GrandTotal   float64               `json:"grand_total"`
-	OrderCount   int                   `json:"order_count"`
-	RefundCount  int                   `json:"refund_count"`
-	ProductsSold []productSoldRow      `json:"products_sold"`
+	From            time.Time          `json:"from"`
+	To              time.Time          `json:"to"`
+	PaymentMethods  []paymentMethodRow `json:"payment_methods"`
+	TotalSales      float64            `json:"total_sales"`
+	TotalRefund     float64            `json:"total_refund"`
+	RefundByMethod  []paymentMethodRow `json:"refund_by_method"`
+	TotalPayment    float64            `json:"total_payment"`
+	CreditSales     float64            `json:"credit_sales"`
+	TotalExpense    float64            `json:"total_expense"`
+	OrderTax        float64            `json:"order_tax"`
+	ShippingTotal   float64            `json:"shipping_total"`
+	GrandTotal      float64            `json:"grand_total"`
+	OrderCount      int                `json:"order_count"`
+	RefundCount     int                `json:"refund_count"`
+	ProductsSold    []productSoldRow   `json:"products_sold"`
 	ProductsByBrand []brandSoldRow     `json:"products_by_brand"`
 }
 
 type paymentMethodRow struct {
-	Method      string  `json:"method"`       // canonical tender type (cash, cheque, card, bank_transfer, ...)
-	SellAmount  float64 `json:"sell_amount"`
+	Method        string  `json:"method"` // canonical tender type (cash, cheque, card, bank_transfer, ...)
+	SellAmount    float64 `json:"sell_amount"`
 	ExpenseAmount float64 `json:"expense_amount"`
 }
 
@@ -131,7 +133,16 @@ func (h *ReportsHandler) RegisterDetails(w http.ResponseWriter, r *http.Request)
 				continue
 			}
 			paid += p.Amount
-			method := tenderType[p.TenderID]
+			// Complimentary sales don't rely on the Tender catalog row's Type (the terminal
+			// reuses one generic tenderId across every tender button) — PaymentData["method"]
+			// is what recordComplimentarySale reliably stamps, so it gets its own bucket instead
+			// of falling into "other".
+			method := ""
+			if m, _ := p.PaymentData["method"].(string); strings.EqualFold(m, payments.TenderComplimentary) {
+				method = payments.TenderComplimentary
+			} else {
+				method = tenderType[p.TenderID]
+			}
 			if method == "" {
 				method = "other"
 			}

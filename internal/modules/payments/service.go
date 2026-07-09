@@ -76,6 +76,14 @@ func treasuryMethodForImmediate(method string) string {
 // the amount is posted to the customer's AR balance in treasury instead.
 const TenderOnAccount = "on_account"
 
+// TenderComplimentary is the "no-charge" tender: no money is taken and no debt is created —
+// the bill is closed as a complimentary/goodwill gesture (staff meals, director's order,
+// goodwill for a visiting team). Requires a mandatory reason and manager approval, enforced by
+// the HTTP handler layer (see handlers/payments.go CreatePaymentIntent). Inventory still
+// deducts (BOM backflush is price-agnostic); treasury posts the retail value to a
+// Complimentary & Goodwill Expense account instead of Cash, so the cost stays visible on the P&L.
+const TenderComplimentary = "complimentary"
+
 // RecordPaymentRequest holds input for recording a POS payment.
 type RecordPaymentRequest struct {
 	TenantID      uuid.UUID
@@ -94,6 +102,11 @@ type RecordPaymentRequest struct {
 	// free-text notes stamped into order metadata.
 	PaymentDueDate *time.Time
 	CreditNotes    string
+	// Complimentary (no-charge) extras — enforced (reason required, approval verified) by the
+	// HTTP handler layer before RecordPaymentRequest is built; ApprovedByUserID is the manager
+	// who authorized it (via PIN/card step-up or a one-time approval code).
+	ComplimentaryReason string
+	ApprovedByUserID    *uuid.UUID
 }
 
 // CreateIntentResult is returned to the caller when a digital payment intent is created.
@@ -208,6 +221,12 @@ func (s *Service) CreatePaymentIntent(ctx context.Context, req RecordPaymentRequ
 	// balance in treasury (which enforces the credit limit), then settle the order on account.
 	if strings.EqualFold(req.TenderMethod, TenderOnAccount) {
 		return s.recordCreditSale(ctx, order, req, currency)
+	}
+
+	// Complimentary (no-charge): close the bill without collecting cash or creating a debt.
+	// Reason + manager approval are already enforced by the HTTP handler before this is called.
+	if strings.EqualFold(req.TenderMethod, TenderComplimentary) {
+		return s.recordComplimentarySale(ctx, order, req, currency)
 	}
 
 	cash := isCashMethod(req.TenderMethod)
@@ -421,6 +440,47 @@ func (s *Service) recordCreditSale(ctx context.Context, order *ent.POSOrder, req
 		SetNillableExternalReference(nilIfEmpty(order.OrderNumber)).
 		Save(ctx); err != nil {
 		return nil, fmt.Errorf("payments: record on-account payment: %w", err)
+	}
+
+	s.completeOrderIfFullyPaid(ctx, order)
+	return &CreateIntentResult{IsCash: true}, nil
+}
+
+// recordComplimentarySale closes a bill as "complimentary" (no-charge): no money is taken and no
+// debt is created — unlike recordCreditSale, this never touches treasury AR/credit-limit checks.
+// A reason is mandatory (the HTTP handler already enforces this alongside manager approval; this
+// is the defense-in-depth backstop for direct API callers). Records a completed payment for the
+// FULL order amount (not zero) so completeOrderIfFullyPaid closes the order normally and the
+// pos.sale.finalized event carries a non-zero total_amount — treasury's zero-amount guard would
+// otherwise also skip the still-required COGS/inventory-relief posting.
+func (s *Service) recordComplimentarySale(ctx context.Context, order *ent.POSOrder, req RecordPaymentRequest, currency string) (*CreateIntentResult, error) {
+	if strings.TrimSpace(req.ComplimentaryReason) == "" {
+		return nil, fmt.Errorf("payments: complimentary sale requires a reason")
+	}
+
+	meta := order.Metadata
+	if meta == nil {
+		meta = map[string]any{}
+	}
+	meta["complimentary"] = true
+	meta["complimentary_reason"] = req.ComplimentaryReason
+	if req.ApprovedByUserID != nil {
+		meta["complimentary_approved_by"] = req.ApprovedByUserID.String()
+	}
+	if merr := s.client.POSOrder.UpdateOneID(order.ID).SetMetadata(meta).Exec(ctx); merr != nil {
+		s.log.Warn("payments: failed to stamp complimentary metadata", zap.Error(merr))
+	}
+
+	if _, err := s.client.POSPayment.Create().
+		SetOrderID(req.OrderID).
+		SetTenderID(req.TenderID).
+		SetAmount(req.Amount).
+		SetCurrency(currency).
+		SetStatus(StatusCompleted).
+		SetPaymentData(map[string]any{"method": TenderComplimentary, "reason": req.ComplimentaryReason}).
+		SetNillableExternalReference(nilIfEmpty(order.OrderNumber)).
+		Save(ctx); err != nil {
+		return nil, fmt.Errorf("payments: record complimentary payment: %w", err)
 	}
 
 	s.completeOrderIfFullyPaid(ctx, order)
@@ -818,6 +878,8 @@ func (s *Service) publishSaleFinalized(ctx context.Context, order *ent.POSOrder)
 	// on-account amount, and a per-tender breakdown for accurate GL posting.
 	sellingScheme := "cash"
 	onAccountAmount := 0.0
+	complimentaryAmount := 0.0
+	complimentaryReason := ""
 	tenderBreakdown := make([]map[string]any, 0)
 	if pays, perr := s.client.POSPayment.Query().Where(pospayment.OrderID(order.ID)).All(ctx); perr == nil {
 		for _, p := range pays {
@@ -825,6 +887,11 @@ func (s *Service) publishSaleFinalized(ctx context.Context, order *ent.POSOrder)
 			if t, tErr := s.client.Tender.Get(ctx, p.TenderID); tErr == nil {
 				tType = t.Type
 			}
+			// The complimentary tender doesn't rely on the Tender catalog row's Type (the same
+			// generic tenderId is reused across cash/manual/card/on_account/etc. from the POS
+			// terminal) — recordComplimentarySale always stamps PaymentData["method"] reliably,
+			// so read that back instead for this specific detection.
+			method, _ := p.PaymentData["method"].(string)
 			tenderBreakdown = append(tenderBreakdown, map[string]any{
 				"type":   tType,
 				"amount": p.Amount,
@@ -833,14 +900,21 @@ func (s *Service) publishSaleFinalized(ctx context.Context, order *ent.POSOrder)
 			if strings.EqualFold(tType, TenderOnAccount) && p.Status == StatusCompleted {
 				onAccountAmount += p.Amount
 			}
+			if strings.EqualFold(method, TenderComplimentary) && p.Status == StatusCompleted {
+				complimentaryAmount += p.Amount
+				if reason, ok := p.PaymentData["reason"].(string); ok && reason != "" {
+					complimentaryReason = reason
+				}
+			}
 		}
 	}
-	if onAccountAmount > 0 {
-		if onAccountAmount >= order.TotalAmount-0.01 {
-			sellingScheme = "credit" // fully on account
-		} else {
-			sellingScheme = "mixed" // part cash / part on account
-		}
+	switch {
+	case complimentaryAmount > 0 && complimentaryAmount >= order.TotalAmount-0.01:
+		sellingScheme = "complimentary" // fully comped, no charge
+	case onAccountAmount > 0 && onAccountAmount >= order.TotalAmount-0.01:
+		sellingScheme = "credit" // fully on account
+	case onAccountAmount > 0 || complimentaryAmount > 0:
+		sellingScheme = "mixed" // part cash / part on account / part complimentary
 	}
 
 	data := map[string]any{
@@ -856,10 +930,12 @@ func (s *Service) publishSaleFinalized(ctx context.Context, order *ent.POSOrder)
 		// Sum of per-line cost (cost_amount x quantity) for the whole sale; used by treasury
 		// to post Cost of Goods Sold (DR 5400 / CR 1500). 0 when no item carries a known cost.
 		"cost_total": costTotal,
-		// Selling scheme + tender breakdown for treasury GL routing (cash receipt vs AR).
-		"selling_scheme":    sellingScheme,
-		"on_account_amount": onAccountAmount,
-		"tenders":           tenderBreakdown,
+		// Selling scheme + tender breakdown for treasury GL routing (cash receipt vs AR vs
+		// complimentary expense). complimentary_reason feeds the treasury journal description.
+		"selling_scheme":       sellingScheme,
+		"on_account_amount":    onAccountAmount,
+		"complimentary_reason": complimentaryReason,
+		"tenders":              tenderBreakdown,
 		"customer_phone": func() string {
 			if order.CustomerPhone != nil {
 				return *order.CustomerPhone

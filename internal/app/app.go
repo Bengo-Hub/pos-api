@@ -269,6 +269,10 @@ func New(ctx context.Context) (*App, error) {
 	pinAuthHandler.SetAuditService(auditSvc)
 	// Order handler verifies manager step-up approval tokens with the same secret.
 	orderHandler.SetTerminalSecret(terminalJWTSecret)
+	// Payment handler verifies manager approval (step-up token or one-time code) for the
+	// Complimentary/no-charge tender, and audits who approved it.
+	paymentHandler.SetTerminalSecret(terminalJWTSecret)
+	paymentHandler.SetAuditService(auditSvc)
 	publicOutletHandler := handlers.NewPublicOutletHandler(log, entClient)
 
 	// Retail module: layaway plans, weighing scale, purchase orders proxy

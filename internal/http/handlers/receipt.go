@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"html"
 	"net/http"
+	"strings"
 	"time"
 
 	sharedcache "github.com/Bengo-Hub/cache"
@@ -22,6 +23,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/posorder"
 	"github.com/bengobox/pos-service/internal/ent/pospayment"
 	enttenant "github.com/bengobox/pos-service/internal/ent/tenant"
+	"github.com/bengobox/pos-service/internal/modules/payments"
 	"github.com/bengobox/pos-service/internal/modules/printing"
 )
 
@@ -304,7 +306,15 @@ func (h *ReceiptHandler) GetReceipt(w http.ResponseWriter, r *http.Request) {
 	if len(order.Edges.Payments) > 0 {
 		p := order.Edges.Payments[0]
 		amountPaid = p.Amount
-		if t, terr := h.client.Tender.Get(ctx, p.TenderID); terr == nil {
+		// Complimentary sales always stamp PaymentData["method"] reliably (unlike the Tender
+		// catalog row, which the terminal reuses generically across every tender type) — check
+		// it first so the receipt clearly discloses "no cash collected" and why.
+		if method, _ := p.PaymentData["method"].(string); strings.EqualFold(method, payments.TenderComplimentary) {
+			paymentMethod = "COMPLIMENTARY — NOT CHARGED"
+			if reason, _ := p.PaymentData["reason"].(string); reason != "" {
+				paymentMethod = fmt.Sprintf("COMPLIMENTARY — NOT CHARGED (%s)", reason)
+			}
+		} else if t, terr := h.client.Tender.Get(ctx, p.TenderID); terr == nil {
 			if t.Type != "" {
 				paymentMethod = t.Type
 			} else if t.Name != "" {

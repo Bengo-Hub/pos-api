@@ -141,18 +141,18 @@ type RefundRequest struct {
 	ReferenceType string `json:"reference_type"` // "pos_return"
 	// Reference is the human return number (RET-…) treasury shows on customer statements
 	// instead of the raw return UUID.
-	Reference        string  `json:"reference,omitempty"`
-	OriginalIntentID string  `json:"original_intent_id,omitempty"` // original payment intent if known
-	Amount           float64 `json:"amount"`
-	TaxAmount        float64 `json:"tax_amount,omitempty"`     // VAT portion of the refunded lines (reversed)
-	Cost             float64 `json:"cost,omitempty"`           // COGS of returned goods → triggers restock/COGS reversal
-	Currency         string  `json:"currency"`
-	Reason           string  `json:"reason"`
-	RefundChannel      string `json:"refund_channel,omitempty"`      // cash|mpesa|bank|cheque|store_credit|offset_invoice
-	CrmContactID       string `json:"crm_contact_id,omitempty"`      // CRM contact of the original buyer, when known
-	CustomerIdentifier string `json:"customer_identifier,omitempty"` // phone fallback so store-credit nets a phone-keyed AR row
-	CustomerName       string `json:"customer_name,omitempty"`
-	CustomerEmail      string `json:"customer_email,omitempty"`
+	Reference          string  `json:"reference,omitempty"`
+	OriginalIntentID   string  `json:"original_intent_id,omitempty"` // original payment intent if known
+	Amount             float64 `json:"amount"`
+	TaxAmount          float64 `json:"tax_amount,omitempty"` // VAT portion of the refunded lines (reversed)
+	Cost               float64 `json:"cost,omitempty"`       // COGS of returned goods → triggers restock/COGS reversal
+	Currency           string  `json:"currency"`
+	Reason             string  `json:"reason"`
+	RefundChannel      string  `json:"refund_channel,omitempty"`      // cash|mpesa|bank|cheque|store_credit|offset_invoice
+	CrmContactID       string  `json:"crm_contact_id,omitempty"`      // CRM contact of the original buyer, when known
+	CustomerIdentifier string  `json:"customer_identifier,omitempty"` // phone fallback so store-credit nets a phone-keyed AR row
+	CustomerName       string  `json:"customer_name,omitempty"`
+	CustomerEmail      string  `json:"customer_email,omitempty"`
 }
 
 // RefundResponse is the response from POST /api/v1/s2s/{tenant}/refunds
@@ -407,23 +407,25 @@ func (c *Client) GetTaxProfile(ctx context.Context, tenantSlug string) (*TaxProf
 	return doRequest[TaxProfileResponse](ctx, c.httpClient, http.MethodGet, url, c.apiKey, nil)
 }
 
-// PublicGatewaysResponse is the flat {mpesa,paystack,wallet,cod} shape the POS UI consumes.
+// PublicGatewaysResponse is the flat {mpesa,paystack,wallet,cod,complimentary} shape the POS UI consumes.
 type PublicGatewaysResponse struct {
-	MPesa    bool `json:"mpesa"`
-	Paystack bool `json:"paystack"`
-	Wallet   bool `json:"wallet"`
-	COD      bool `json:"cod"`
+	MPesa         bool `json:"mpesa"`
+	Paystack      bool `json:"paystack"`
+	Wallet        bool `json:"wallet"`
+	COD           bool `json:"cod"`
+	Complimentary bool `json:"complimentary"`
 }
 
 // treasuryGatewaysWire is treasury's ACTUAL response shape for GET /api/v1/pay/{tenant}/gateways:
 // the active gateways come back as a STRING ARRAY ({"gateways":["paystack","mpesa","cod"]}). The flat
 // boolean fields are kept too so we still work if treasury ever switches to returning booleans.
 type treasuryGatewaysWire struct {
-	Gateways []string `json:"gateways"`
-	MPesa    bool     `json:"mpesa"`
-	Paystack bool     `json:"paystack"`
-	Wallet   bool     `json:"wallet"`
-	COD      bool     `json:"cod"`
+	Gateways      []string `json:"gateways"`
+	MPesa         bool     `json:"mpesa"`
+	Paystack      bool     `json:"paystack"`
+	Wallet        bool     `json:"wallet"`
+	COD           bool     `json:"cod"`
+	Complimentary bool     `json:"complimentary"`
 }
 
 // GetPublicGateways fetches the active payment gateways for a tenant from the treasury public endpoint
@@ -439,7 +441,7 @@ func (c *Client) GetPublicGateways(ctx context.Context, tenantSlug string) (*Pub
 	if err != nil {
 		return nil, err
 	}
-	out := &PublicGatewaysResponse{MPesa: wire.MPesa, Paystack: wire.Paystack, Wallet: wire.Wallet, COD: wire.COD}
+	out := &PublicGatewaysResponse{MPesa: wire.MPesa, Paystack: wire.Paystack, Wallet: wire.Wallet, COD: wire.COD, Complimentary: wire.Complimentary}
 	for _, g := range wire.Gateways {
 		switch strings.ToLower(strings.TrimSpace(g)) {
 		case "mpesa", "mpesa_paybill", "mpesa_till":
@@ -450,6 +452,8 @@ func (c *Client) GetPublicGateways(ctx context.Context, tenantSlug string) (*Pub
 			out.Wallet = true
 		case "cod":
 			out.COD = true
+		case "complimentary":
+			out.Complimentary = true
 		}
 	}
 	return out, nil

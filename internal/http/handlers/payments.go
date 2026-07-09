@@ -12,7 +12,9 @@ import (
 
 	"github.com/Bengo-Hub/httpware"
 	authclient "github.com/Bengo-Hub/shared-auth-client"
+	"github.com/bengobox/pos-service/internal/audit"
 	"github.com/bengobox/pos-service/internal/ent"
+	"github.com/bengobox/pos-service/internal/ent/posorder"
 	outletmw "github.com/bengobox/pos-service/internal/http/middleware"
 	"github.com/bengobox/pos-service/internal/modules/payments"
 	"github.com/bengobox/pos-service/internal/modules/treasury"
@@ -26,11 +28,23 @@ type PaymentHandler struct {
 	publicBaseURL  string
 	client         *ent.Client
 	rbac           outletmw.PermissionChecker
+	// auditSvc + terminalSecret authorize the Complimentary/no-charge tender: a manager approval
+	// (live PIN/card step-up token, or a one-time code) is mandatory, mirroring VoidOrder's
+	// mechanism (see orders.go). Optional; when nil, complimentary is rejected outright.
+	auditSvc       *audit.Service
+	terminalSecret []byte
 }
 
 // SetRBAC wires the RBAC checker used for in-handler permission checks whose required permission
 // depends on the request body (the credit-sale tender shares a route with cash tenders).
 func (h *PaymentHandler) SetRBAC(rbac outletmw.PermissionChecker) { h.rbac = rbac }
+
+// SetAuditService wires the audit log used to record who approved a complimentary sale.
+func (h *PaymentHandler) SetAuditService(a *audit.Service) { h.auditSvc = a }
+
+// SetTerminalSecret wires the HMAC secret used to verify step-up approval tokens
+// (see step_up.go verifyApprovalToken) for the Complimentary/no-charge tender.
+func (h *PaymentHandler) SetTerminalSecret(s []byte) { h.terminalSecret = s }
 
 func NewPaymentHandler(log *zap.Logger, paymentSvc *payments.Service, treasuryClient *treasury.Client, publicBaseURL string, entClient *ent.Client) *PaymentHandler {
 	return &PaymentHandler{
@@ -53,6 +67,12 @@ type createIntentInput struct {
 	// period, which wins over the +30-day default) and free-text notes.
 	PaymentDueDate string `json:"paymentDueDate,omitempty"`
 	CreditNotes    string `json:"creditNotes,omitempty"`
+	// Complimentary (no-charge) extras: a mandatory reason, plus ONE of a live manager
+	// PIN/card step-up token or a manager-generated one-time code — mirrors Void's dual
+	// approval path (see step_up.go / order_void_code.go).
+	Reason        string `json:"reason,omitempty"`
+	ApprovalToken string `json:"approvalToken,omitempty"`
+	ApprovalCode  string `json:"approvalCode,omitempty"`
 }
 
 // CreatePaymentIntent handles POST /{tenantID}/pos/orders/{orderID}/payments/intent
@@ -100,7 +120,7 @@ func (h *PaymentHandler) CreatePaymentIntent(w http.ResponseWriter, r *http.Requ
 		}
 	}
 
-	result, err := h.paymentSvc.CreatePaymentIntent(r.Context(), payments.RecordPaymentRequest{
+	req := payments.RecordPaymentRequest{
 		TenantID:       tid,
 		TenantSlug:     tenantSlug,
 		OrderID:        orderID,
@@ -112,7 +132,58 @@ func (h *PaymentHandler) CreatePaymentIntent(w http.ResponseWriter, r *http.Requ
 		PublicBaseURL:  h.publicBaseURL,
 		PaymentDueDate: dueDate,
 		CreditNotes:    strings.TrimSpace(input.CreditNotes),
-	})
+	}
+
+	// Complimentary (no-charge): mandatory reason + mandatory manager approval (live PIN/card
+	// step-up token, or a one-time code a manager generated remotely) — mirrors VoidOrder's dual
+	// approval path. Enforced here, in the HTTP layer, same as VoidOrder does it in orders.go.
+	if strings.EqualFold(input.TenderMethod, payments.TenderComplimentary) {
+		reason := strings.TrimSpace(input.Reason)
+		if reason == "" {
+			jsonError(w, "a reason is required for a complimentary sale", http.StatusBadRequest)
+			return
+		}
+
+		var approverID uuid.UUID
+		var approved bool
+		if input.ApprovalToken != "" && len(h.terminalSecret) > 0 {
+			approverID, approved = verifyApprovalToken(input.ApprovalToken, "order.complimentary", h.terminalSecret)
+		} else if input.ApprovalCode != "" {
+			approverID, approved = redeemOrderApprovalCode(r.Context(), h.client, h.log, tid, orderID, "order.complimentary", input.ApprovalCode)
+		}
+		if !approved {
+			jsonError(w, "manager approval is required for a complimentary sale", http.StatusForbidden)
+			return
+		}
+
+		req.ComplimentaryReason = reason
+		req.ApprovedByUserID = &approverID
+
+		if h.auditSvc != nil {
+			var outletID *uuid.UUID
+			var amount *float64
+			if order, oerr := h.client.POSOrder.Query().
+				Where(posorder.ID(orderID), posorder.TenantID(tid)).Only(r.Context()); oerr == nil {
+				oid := order.OutletID
+				outletID = &oid
+				amt := order.TotalAmount
+				amount = &amt
+			}
+			h.auditSvc.Record(r.Context(), audit.Entry{
+				TenantID:    tid,
+				OutletID:    outletID,
+				ActorUserID: approverID,
+				ApproverID:  &approverID,
+				Action:      "order.complimentary",
+				EntityType:  "pos_order",
+				EntityID:    orderID.String(),
+				Reason:      reason,
+				Amount:      amount,
+			})
+		}
+	}
+
+	result, err := h.paymentSvc.CreatePaymentIntent(r.Context(), req)
 	if err != nil {
 		h.log.Error("create payment intent failed", zap.Error(err))
 		jsonError(w, err.Error(), http.StatusBadRequest)
@@ -339,7 +410,10 @@ func (h *PaymentHandler) GetGateways(w http.ResponseWriter, r *http.Request) {
 
 	// Online-only default for PAYG; full set otherwise. Used both on the no-treasury
 	// path and the fail-open path so PAYG restriction holds even when treasury is down.
-	openDefault := map[string]any{"mpesa": true, "paystack": true, "wallet": !payg, "cod": !payg}
+	// "complimentary" deliberately fails CLOSED (unlike the others) — it's an opt-in tender
+	// that must be explicitly enabled per tenant in treasury; it must never silently appear
+	// just because treasury is unreachable.
+	openDefault := map[string]any{"mpesa": true, "paystack": true, "wallet": !payg, "cod": !payg, "complimentary": false}
 
 	if tenantSlug == "" || h.treasuryClient == nil {
 		jsonOK(w, openDefault)
