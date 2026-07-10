@@ -830,8 +830,12 @@ func New(
 						pos.Get("/reports/shifts/{sessionID}", reports.ShiftReport)
 						pos.Get("/reports/commissions", reports.CommissionReport)
 						pos.Get("/reports/tax", reports.TaxReport)
-						pos.Get("/reports/sales/by-hour", reports.SalesByHour)
-						pos.Get("/reports/sales/by-category", reports.SalesByCategory)
+						// Hyphenated (matching every other report route + the pos-ui hooks, which
+						// have always requested these two exact paths) — NOT the nested
+						// "/sales/by-hour" form these two used to register under, which the
+						// frontend never called and 404'd unconditionally.
+						pos.Get("/reports/sales-by-hour", reports.SalesByHour)
+						pos.Get("/reports/sales-by-category", reports.SalesByCategory)
 						pos.Get("/reports/sales/by-kds-station", reports.SalesByKDSStation)
 						pos.Get("/reports/stock-consumption", reports.StockConsumptionReport)
 						pos.Get("/reports/returns", reports.ReturnsSummary)

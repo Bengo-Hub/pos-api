@@ -918,7 +918,7 @@ func (h *ReportsHandler) TaxReport(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// SalesByHour handles GET /{tenantID}/pos/reports/sales/by-hour?date=YYYY-MM-DD
+// SalesByHour handles GET /{tenantID}/pos/reports/sales-by-hour?date=YYYY-MM-DD
 // Returns hourly sales breakdown for a single day.
 func (h *ReportsHandler) SalesByHour(w http.ResponseWriter, r *http.Request) {
 	tid, err := parseTenantUUID(r)
@@ -971,7 +971,7 @@ func (h *ReportsHandler) SalesByHour(w http.ResponseWriter, r *http.Request) {
 	jsonOK(w, map[string]any{"date": dateStr, "hours": buckets})
 }
 
-// SalesByCategory handles GET /{tenantID}/pos/reports/sales/by-category
+// SalesByCategory handles GET /{tenantID}/pos/reports/sales-by-category
 // Returns revenue and order count grouped by catalog item category.
 func (h *ReportsHandler) SalesByCategory(w http.ResponseWriter, r *http.Request) {
 	tid, err := parseTenantUUID(r)
