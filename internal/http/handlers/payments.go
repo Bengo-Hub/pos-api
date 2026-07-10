@@ -2,7 +2,9 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -621,6 +623,50 @@ func (h *PaymentHandler) ListExpenseAccounts(w http.ResponseWriter, r *http.Requ
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_, _ = w.Write(resp)
+}
+
+// PreviewExpenseNumber handles GET /{tenant}/pos/expenses/next-number — proxies treasury's
+// document-sequence preview so the Add-Expense form's "Reference No" field can show a live
+// placeholder, matching treasury-ui's own document forms.
+func (h *PaymentHandler) PreviewExpenseNumber(w http.ResponseWriter, r *http.Request) {
+	tid, terr := parseTenantUUID(r)
+	if terr != nil || h.treasuryClient == nil {
+		jsonError(w, "tenant context required", http.StatusBadRequest)
+		return
+	}
+	resp, err := h.treasuryClient.PreviewNextExpenseNumber(r.Context(), tid.String())
+	if err != nil {
+		h.log.Error("preview expense number failed", zap.Error(err))
+		jsonError(w, "failed to preview expense number", http.StatusBadGateway)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_, _ = w.Write(resp)
+}
+
+// ListExpenseSuppliers handles GET /{tenant}/pos/expenses/suppliers — proxies inventory-api's
+// supplier master (the same list Purchase Orders/vendors draw from) so the Add-Expense form's
+// "Expense for" field can offer a rich search-select of known suppliers/vendors, in addition to
+// free-typing a name. GET is unauthenticated on inventory-api (open for reads — see inventory-api
+// router.go), so this never blocks the form even if inventory-api's RBAC would otherwise apply.
+func (h *PaymentHandler) ListExpenseSuppliers(w http.ResponseWriter, r *http.Request) {
+	tenantSlug := resolveTenantSlug(r, h.client)
+	if tenantSlug == "" {
+		jsonError(w, "tenant context required", http.StatusBadRequest)
+		return
+	}
+	reqURL := fmt.Sprintf("%s/v1/%s/inventory/suppliers", inventoryURL(), tenantSlug)
+	if search := r.URL.Query().Get("search"); search != "" {
+		reqURL += "?search=" + url.QueryEscape(search)
+	}
+	body, err := doInventoryGET(r.Context(), reqURL, "")
+	if err != nil {
+		h.log.Error("list expense suppliers failed", zap.Error(err))
+		jsonError(w, "failed to load suppliers", http.StatusBadGateway)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_, _ = w.Write(body)
 }
 
 // ListTaxCodes handles GET /{tenant}/pos/tax-codes — proxies treasury's tax-code list so the POS

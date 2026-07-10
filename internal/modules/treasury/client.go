@@ -616,6 +616,20 @@ func (c *Client) ListExpenseAccounts(ctx context.Context, tenantSlug string) (js
 	return *resp, nil
 }
 
+// PreviewNextExpenseNumber fetches a live "next number" preview (e.g. "EXP-260710-000123") from
+// treasury's document-sequence service, to show as a placeholder on the POS Add-Expense form's
+// "Reference No" field — the same server-authoritative sequence treasury-ui's own document forms
+// preview. Display-only: never sent as the actual number (pos-api leaves reference_no empty when
+// the cashier doesn't override it, letting treasury assign the real number atomically on create).
+func (c *Client) PreviewNextExpenseNumber(ctx context.Context, tenantSlug string) (json.RawMessage, error) {
+	url := fmt.Sprintf("%s/api/v1/s2s/%s/document-sequences/expense/preview", c.baseURL, tenantSlug)
+	resp, err := doRequest[json.RawMessage](ctx, c.httpClient, http.MethodGet, url, c.apiKey, nil)
+	if err != nil {
+		return nil, err
+	}
+	return *resp, nil
+}
+
 // ListC2BCandidates queries unreconciled M-Pesa C2B inbox payments from treasury (raw passthrough of
 // the cashier's query params: shortCode, amount, billRef, since, status).
 func (c *Client) ListC2BCandidates(ctx context.Context, tenantSlug, rawQuery string) (json.RawMessage, error) {

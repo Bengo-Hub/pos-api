@@ -450,6 +450,10 @@ func New(
 						// Dropdown data for the Add-Expense form (proxied from treasury).
 						pos.Get("/expenses/categories", payments.ListExpenseCategories)
 						pos.Get("/expenses/accounts", payments.ListExpenseAccounts)
+						// Supplier/vendor search-select for the "Expense for" field (proxied from inventory-api).
+						pos.Get("/expenses/suppliers", payments.ListExpenseSuppliers)
+						// Live "Reference No" preview from treasury's document-sequence service.
+						pos.Get("/expenses/next-number", payments.PreviewExpenseNumber)
 						// Treasury-sourced tax codes/rates for the Settings → Tax tab (read-only).
 						pos.Get("/tax-codes", payments.ListTaxCodes)
 						pos.Get("/c2b/payments", payments.ListC2BCandidates)
