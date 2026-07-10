@@ -1467,6 +1467,66 @@ func (s *Service) EditOrderLine(ctx context.Context, tenantID, orderID, lineID u
 	}, nil
 }
 
+// EffectiveOrderDate returns the calendar day an order counts toward in reports: the
+// admin-set business_date override when present, else created_at (server ingestion
+// time). Report/list queries that need to honor a moved sale should filter on this
+// precedence rather than raw created_at — see dateRangePredicate in the handlers
+// package for the equivalent SQL-level predicate.
+func EffectiveOrderDate(o *ent.POSOrder) time.Time {
+	if o.BusinessDate != nil {
+		return *o.BusinessDate
+	}
+	return o.CreatedAt
+}
+
+// MoveOrderDateResult carries the pre-move snapshot so the caller can write a
+// complete before/after audit entry.
+type MoveOrderDateResult struct {
+	Order      *ent.POSOrder
+	BeforeDate time.Time
+	AfterDate  time.Time
+}
+
+// MoveOrderDate sets (or clears, when newDate is zero) the admin override of which
+// calendar day an order counts toward in reports — the tool for correcting a sale
+// that was rung up/settled late (e.g. blocked by a missing recipe, or synced from an
+// offline device the next day) so it reports under the day it actually happened
+// instead of the day it landed in the system. Deliberately does NOT touch created_at
+// (immutable server-ingestion audit timestamp), amounts, payments, or stock — moving
+// the reporting date carries none of the reconciliation risk EditOrderLine's
+// completed-order guard exists for, so it is allowed on any order status. Every move
+// is logged on the order itself (date_moved_by/at/reason) in addition to the central
+// audit trail the caller writes.
+func (s *Service) MoveOrderDate(ctx context.Context, tenantID, orderID, actorID uuid.UUID, newDate time.Time, reason string) (*MoveOrderDateResult, error) {
+	order, err := s.client.POSOrder.Query().
+		Where(posorder.ID(orderID), posorder.TenantID(tenantID)).
+		Only(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("orders: order not found: %w", err)
+	}
+	if reason == "" {
+		return nil, fmt.Errorf("orders: reason is required")
+	}
+	before := EffectiveOrderDate(order)
+
+	now := time.Now().UTC()
+	updated, err := s.client.POSOrder.UpdateOneID(orderID).
+		SetBusinessDate(newDate).
+		SetDateMovedReason(reason).
+		SetDateMovedBy(actorID).
+		SetDateMovedAt(now).
+		Save(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("orders: move date: %w", err)
+	}
+
+	return &MoveOrderDateResult{
+		Order:      updated,
+		BeforeDate: before,
+		AfterDate:  newDate,
+	}, nil
+}
+
 // createKDSTicketsForNewLines creates KDS tickets for a specific subset of lines
 // (used when adding items to an existing bill — always creates new tickets, never deduplicates).
 func (s *Service) createKDSTicketsForNewLines(ctx context.Context, tenantID uuid.UUID, order *ent.POSOrder, newLines []*ent.POSOrderLine) error {

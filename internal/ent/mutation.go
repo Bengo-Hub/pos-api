@@ -53218,6 +53218,10 @@ type POSOrderMutation struct {
 	voided_reason             *string
 	voided_by                 *uuid.UUID
 	voided_at                 *time.Time
+	business_date             *time.Time
+	date_moved_reason         *string
+	date_moved_by             *uuid.UUID
+	date_moved_at             *time.Time
 	created_at                *time.Time
 	updated_at                *time.Time
 	clearedFields             map[string]struct{}
@@ -54910,6 +54914,202 @@ func (m *POSOrderMutation) ResetVoidedAt() {
 	delete(m.clearedFields, posorder.FieldVoidedAt)
 }
 
+// SetBusinessDate sets the "business_date" field.
+func (m *POSOrderMutation) SetBusinessDate(t time.Time) {
+	m.business_date = &t
+}
+
+// BusinessDate returns the value of the "business_date" field in the mutation.
+func (m *POSOrderMutation) BusinessDate() (r time.Time, exists bool) {
+	v := m.business_date
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBusinessDate returns the old "business_date" field's value of the POSOrder entity.
+// If the POSOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSOrderMutation) OldBusinessDate(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBusinessDate is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBusinessDate requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBusinessDate: %w", err)
+	}
+	return oldValue.BusinessDate, nil
+}
+
+// ClearBusinessDate clears the value of the "business_date" field.
+func (m *POSOrderMutation) ClearBusinessDate() {
+	m.business_date = nil
+	m.clearedFields[posorder.FieldBusinessDate] = struct{}{}
+}
+
+// BusinessDateCleared returns if the "business_date" field was cleared in this mutation.
+func (m *POSOrderMutation) BusinessDateCleared() bool {
+	_, ok := m.clearedFields[posorder.FieldBusinessDate]
+	return ok
+}
+
+// ResetBusinessDate resets all changes to the "business_date" field.
+func (m *POSOrderMutation) ResetBusinessDate() {
+	m.business_date = nil
+	delete(m.clearedFields, posorder.FieldBusinessDate)
+}
+
+// SetDateMovedReason sets the "date_moved_reason" field.
+func (m *POSOrderMutation) SetDateMovedReason(s string) {
+	m.date_moved_reason = &s
+}
+
+// DateMovedReason returns the value of the "date_moved_reason" field in the mutation.
+func (m *POSOrderMutation) DateMovedReason() (r string, exists bool) {
+	v := m.date_moved_reason
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDateMovedReason returns the old "date_moved_reason" field's value of the POSOrder entity.
+// If the POSOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSOrderMutation) OldDateMovedReason(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDateMovedReason is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDateMovedReason requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDateMovedReason: %w", err)
+	}
+	return oldValue.DateMovedReason, nil
+}
+
+// ClearDateMovedReason clears the value of the "date_moved_reason" field.
+func (m *POSOrderMutation) ClearDateMovedReason() {
+	m.date_moved_reason = nil
+	m.clearedFields[posorder.FieldDateMovedReason] = struct{}{}
+}
+
+// DateMovedReasonCleared returns if the "date_moved_reason" field was cleared in this mutation.
+func (m *POSOrderMutation) DateMovedReasonCleared() bool {
+	_, ok := m.clearedFields[posorder.FieldDateMovedReason]
+	return ok
+}
+
+// ResetDateMovedReason resets all changes to the "date_moved_reason" field.
+func (m *POSOrderMutation) ResetDateMovedReason() {
+	m.date_moved_reason = nil
+	delete(m.clearedFields, posorder.FieldDateMovedReason)
+}
+
+// SetDateMovedBy sets the "date_moved_by" field.
+func (m *POSOrderMutation) SetDateMovedBy(u uuid.UUID) {
+	m.date_moved_by = &u
+}
+
+// DateMovedBy returns the value of the "date_moved_by" field in the mutation.
+func (m *POSOrderMutation) DateMovedBy() (r uuid.UUID, exists bool) {
+	v := m.date_moved_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDateMovedBy returns the old "date_moved_by" field's value of the POSOrder entity.
+// If the POSOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSOrderMutation) OldDateMovedBy(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDateMovedBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDateMovedBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDateMovedBy: %w", err)
+	}
+	return oldValue.DateMovedBy, nil
+}
+
+// ClearDateMovedBy clears the value of the "date_moved_by" field.
+func (m *POSOrderMutation) ClearDateMovedBy() {
+	m.date_moved_by = nil
+	m.clearedFields[posorder.FieldDateMovedBy] = struct{}{}
+}
+
+// DateMovedByCleared returns if the "date_moved_by" field was cleared in this mutation.
+func (m *POSOrderMutation) DateMovedByCleared() bool {
+	_, ok := m.clearedFields[posorder.FieldDateMovedBy]
+	return ok
+}
+
+// ResetDateMovedBy resets all changes to the "date_moved_by" field.
+func (m *POSOrderMutation) ResetDateMovedBy() {
+	m.date_moved_by = nil
+	delete(m.clearedFields, posorder.FieldDateMovedBy)
+}
+
+// SetDateMovedAt sets the "date_moved_at" field.
+func (m *POSOrderMutation) SetDateMovedAt(t time.Time) {
+	m.date_moved_at = &t
+}
+
+// DateMovedAt returns the value of the "date_moved_at" field in the mutation.
+func (m *POSOrderMutation) DateMovedAt() (r time.Time, exists bool) {
+	v := m.date_moved_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDateMovedAt returns the old "date_moved_at" field's value of the POSOrder entity.
+// If the POSOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSOrderMutation) OldDateMovedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDateMovedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDateMovedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDateMovedAt: %w", err)
+	}
+	return oldValue.DateMovedAt, nil
+}
+
+// ClearDateMovedAt clears the value of the "date_moved_at" field.
+func (m *POSOrderMutation) ClearDateMovedAt() {
+	m.date_moved_at = nil
+	m.clearedFields[posorder.FieldDateMovedAt] = struct{}{}
+}
+
+// DateMovedAtCleared returns if the "date_moved_at" field was cleared in this mutation.
+func (m *POSOrderMutation) DateMovedAtCleared() bool {
+	_, ok := m.clearedFields[posorder.FieldDateMovedAt]
+	return ok
+}
+
+// ResetDateMovedAt resets all changes to the "date_moved_at" field.
+func (m *POSOrderMutation) ResetDateMovedAt() {
+	m.date_moved_at = nil
+	delete(m.clearedFields, posorder.FieldDateMovedAt)
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (m *POSOrderMutation) SetCreatedAt(t time.Time) {
 	m.created_at = &t
@@ -55178,7 +55378,7 @@ func (m *POSOrderMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *POSOrderMutation) Fields() []string {
-	fields := make([]string, 0, 35)
+	fields := make([]string, 0, 39)
 	if m.tenant_id != nil {
 		fields = append(fields, posorder.FieldTenantID)
 	}
@@ -55278,6 +55478,18 @@ func (m *POSOrderMutation) Fields() []string {
 	if m.voided_at != nil {
 		fields = append(fields, posorder.FieldVoidedAt)
 	}
+	if m.business_date != nil {
+		fields = append(fields, posorder.FieldBusinessDate)
+	}
+	if m.date_moved_reason != nil {
+		fields = append(fields, posorder.FieldDateMovedReason)
+	}
+	if m.date_moved_by != nil {
+		fields = append(fields, posorder.FieldDateMovedBy)
+	}
+	if m.date_moved_at != nil {
+		fields = append(fields, posorder.FieldDateMovedAt)
+	}
 	if m.created_at != nil {
 		fields = append(fields, posorder.FieldCreatedAt)
 	}
@@ -55358,6 +55570,14 @@ func (m *POSOrderMutation) Field(name string) (ent.Value, bool) {
 		return m.VoidedBy()
 	case posorder.FieldVoidedAt:
 		return m.VoidedAt()
+	case posorder.FieldBusinessDate:
+		return m.BusinessDate()
+	case posorder.FieldDateMovedReason:
+		return m.DateMovedReason()
+	case posorder.FieldDateMovedBy:
+		return m.DateMovedBy()
+	case posorder.FieldDateMovedAt:
+		return m.DateMovedAt()
 	case posorder.FieldCreatedAt:
 		return m.CreatedAt()
 	case posorder.FieldUpdatedAt:
@@ -55437,6 +55657,14 @@ func (m *POSOrderMutation) OldField(ctx context.Context, name string) (ent.Value
 		return m.OldVoidedBy(ctx)
 	case posorder.FieldVoidedAt:
 		return m.OldVoidedAt(ctx)
+	case posorder.FieldBusinessDate:
+		return m.OldBusinessDate(ctx)
+	case posorder.FieldDateMovedReason:
+		return m.OldDateMovedReason(ctx)
+	case posorder.FieldDateMovedBy:
+		return m.OldDateMovedBy(ctx)
+	case posorder.FieldDateMovedAt:
+		return m.OldDateMovedAt(ctx)
 	case posorder.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	case posorder.FieldUpdatedAt:
@@ -55681,6 +55909,34 @@ func (m *POSOrderMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetVoidedAt(v)
 		return nil
+	case posorder.FieldBusinessDate:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBusinessDate(v)
+		return nil
+	case posorder.FieldDateMovedReason:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDateMovedReason(v)
+		return nil
+	case posorder.FieldDateMovedBy:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDateMovedBy(v)
+		return nil
+	case posorder.FieldDateMovedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDateMovedAt(v)
+		return nil
 	case posorder.FieldCreatedAt:
 		v, ok := value.(time.Time)
 		if !ok {
@@ -55905,6 +56161,18 @@ func (m *POSOrderMutation) ClearedFields() []string {
 	if m.FieldCleared(posorder.FieldVoidedAt) {
 		fields = append(fields, posorder.FieldVoidedAt)
 	}
+	if m.FieldCleared(posorder.FieldBusinessDate) {
+		fields = append(fields, posorder.FieldBusinessDate)
+	}
+	if m.FieldCleared(posorder.FieldDateMovedReason) {
+		fields = append(fields, posorder.FieldDateMovedReason)
+	}
+	if m.FieldCleared(posorder.FieldDateMovedBy) {
+		fields = append(fields, posorder.FieldDateMovedBy)
+	}
+	if m.FieldCleared(posorder.FieldDateMovedAt) {
+		fields = append(fields, posorder.FieldDateMovedAt)
+	}
 	return fields
 }
 
@@ -55951,6 +56219,18 @@ func (m *POSOrderMutation) ClearField(name string) error {
 		return nil
 	case posorder.FieldVoidedAt:
 		m.ClearVoidedAt()
+		return nil
+	case posorder.FieldBusinessDate:
+		m.ClearBusinessDate()
+		return nil
+	case posorder.FieldDateMovedReason:
+		m.ClearDateMovedReason()
+		return nil
+	case posorder.FieldDateMovedBy:
+		m.ClearDateMovedBy()
+		return nil
+	case posorder.FieldDateMovedAt:
+		m.ClearDateMovedAt()
 		return nil
 	}
 	return fmt.Errorf("unknown POSOrder nullable field %s", name)
@@ -56058,6 +56338,18 @@ func (m *POSOrderMutation) ResetField(name string) error {
 		return nil
 	case posorder.FieldVoidedAt:
 		m.ResetVoidedAt()
+		return nil
+	case posorder.FieldBusinessDate:
+		m.ResetBusinessDate()
+		return nil
+	case posorder.FieldDateMovedReason:
+		m.ResetDateMovedReason()
+		return nil
+	case posorder.FieldDateMovedBy:
+		m.ResetDateMovedBy()
+		return nil
+	case posorder.FieldDateMovedAt:
+		m.ResetDateMovedAt()
 		return nil
 	case posorder.FieldCreatedAt:
 		m.ResetCreatedAt()

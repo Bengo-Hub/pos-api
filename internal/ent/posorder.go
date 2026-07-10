@@ -85,6 +85,14 @@ type POSOrder struct {
 	VoidedBy *uuid.UUID `json:"voided_by,omitempty"`
 	// VoidedAt holds the value of the "voided_at" field.
 	VoidedAt *time.Time `json:"voided_at,omitempty"`
+	// BusinessDate holds the value of the "business_date" field.
+	BusinessDate *time.Time `json:"business_date,omitempty"`
+	// DateMovedReason holds the value of the "date_moved_reason" field.
+	DateMovedReason *string `json:"date_moved_reason,omitempty"`
+	// DateMovedBy holds the value of the "date_moved_by" field.
+	DateMovedBy *uuid.UUID `json:"date_moved_by,omitempty"`
+	// DateMovedAt holds the value of the "date_moved_at" field.
+	DateMovedAt *time.Time `json:"date_moved_at,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
@@ -140,7 +148,7 @@ func (*POSOrder) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case posorder.FieldRoomID, posorder.FieldRoomGuestID, posorder.FieldVoidedBy:
+		case posorder.FieldRoomID, posorder.FieldRoomGuestID, posorder.FieldVoidedBy, posorder.FieldDateMovedBy:
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		case posorder.FieldMetadata:
 			values[i] = new([]byte)
@@ -148,9 +156,9 @@ func (*POSOrder) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullFloat64)
 		case posorder.FieldCoversCount, posorder.FieldFiredCourses, posorder.FieldReprintCount:
 			values[i] = new(sql.NullInt64)
-		case posorder.FieldOrderNumber, posorder.FieldClientReference, posorder.FieldStatus, posorder.FieldSource, posorder.FieldCurrency, posorder.FieldOrderSubtype, posorder.FieldCustomerPhone, posorder.FieldCustomerName, posorder.FieldEtimsInvoiceNumber, posorder.FieldEtimsQrCodeURL, posorder.FieldVoidedReason:
+		case posorder.FieldOrderNumber, posorder.FieldClientReference, posorder.FieldStatus, posorder.FieldSource, posorder.FieldCurrency, posorder.FieldOrderSubtype, posorder.FieldCustomerPhone, posorder.FieldCustomerName, posorder.FieldEtimsInvoiceNumber, posorder.FieldEtimsQrCodeURL, posorder.FieldVoidedReason, posorder.FieldDateMovedReason:
 			values[i] = new(sql.NullString)
-		case posorder.FieldOfflineCreatedAt, posorder.FieldVoidedAt, posorder.FieldCreatedAt, posorder.FieldUpdatedAt:
+		case posorder.FieldOfflineCreatedAt, posorder.FieldVoidedAt, posorder.FieldBusinessDate, posorder.FieldDateMovedAt, posorder.FieldCreatedAt, posorder.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
 		case posorder.FieldID, posorder.FieldTenantID, posorder.FieldOutletID, posorder.FieldDeviceID, posorder.FieldUserID:
 			values[i] = new(uuid.UUID)
@@ -386,6 +394,34 @@ func (_m *POSOrder) assignValues(columns []string, values []any) error {
 				_m.VoidedAt = new(time.Time)
 				*_m.VoidedAt = value.Time
 			}
+		case posorder.FieldBusinessDate:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field business_date", values[i])
+			} else if value.Valid {
+				_m.BusinessDate = new(time.Time)
+				*_m.BusinessDate = value.Time
+			}
+		case posorder.FieldDateMovedReason:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field date_moved_reason", values[i])
+			} else if value.Valid {
+				_m.DateMovedReason = new(string)
+				*_m.DateMovedReason = value.String
+			}
+		case posorder.FieldDateMovedBy:
+			if value, ok := values[i].(*sql.NullScanner); !ok {
+				return fmt.Errorf("unexpected type %T for field date_moved_by", values[i])
+			} else if value.Valid {
+				_m.DateMovedBy = new(uuid.UUID)
+				*_m.DateMovedBy = *value.S.(*uuid.UUID)
+			}
+		case posorder.FieldDateMovedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field date_moved_at", values[i])
+			} else if value.Valid {
+				_m.DateMovedAt = new(time.Time)
+				*_m.DateMovedAt = value.Time
+			}
 		case posorder.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field created_at", values[i])
@@ -567,6 +603,26 @@ func (_m *POSOrder) String() string {
 	builder.WriteString(", ")
 	if v := _m.VoidedAt; v != nil {
 		builder.WriteString("voided_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.BusinessDate; v != nil {
+		builder.WriteString("business_date=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.DateMovedReason; v != nil {
+		builder.WriteString("date_moved_reason=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.DateMovedBy; v != nil {
+		builder.WriteString("date_moved_by=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.DateMovedAt; v != nil {
+		builder.WriteString("date_moved_at=")
 		builder.WriteString(v.Format(time.ANSIC))
 	}
 	builder.WriteString(", ")

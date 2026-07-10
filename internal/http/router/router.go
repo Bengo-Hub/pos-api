@@ -318,6 +318,14 @@ func New(
 						// instead of requiring a raw database fix for stale-priced sales.
 						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.orders.manage")).
 							Patch("/orders/{orderID}/lines/{lineID}", orders.EditOrderLine)
+						// Admin/platform-owner-only corrective tool: move a settled sale's reporting
+						// date (e.g. a sale rung up and synced a day late) without touching amounts,
+						// payments, or the immutable created_at audit timestamp. pos.orders.manage is
+						// the outer gate (defense in depth); MoveOrderDate itself further restricts to
+						// the tenant's admin/owner tier — a plain manager holding pos.orders.manage is
+						// NOT enough (see dateMoveAdminRoles in orders_date_move.go).
+						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.orders.manage")).
+							Patch("/orders/{orderID}/date", orders.MoveOrderDate)
 						// Upsell / set-aside: hold a wrongly-ordered (already-made) item for resale
 						// instead of voiding it. No manager approval; must be cleared before shift close.
 						pos.Post("/orders/{orderID}/lines/{lineID}/set-aside", orders.SetAsideLine)

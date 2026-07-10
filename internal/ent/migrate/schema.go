@@ -1643,6 +1643,10 @@ var (
 		{Name: "voided_reason", Type: field.TypeString, Nullable: true},
 		{Name: "voided_by", Type: field.TypeUUID, Nullable: true},
 		{Name: "voided_at", Type: field.TypeTime, Nullable: true},
+		{Name: "business_date", Type: field.TypeTime, Nullable: true},
+		{Name: "date_moved_reason", Type: field.TypeString, Nullable: true},
+		{Name: "date_moved_by", Type: field.TypeUUID, Nullable: true},
+		{Name: "date_moved_at", Type: field.TypeTime, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
 	}

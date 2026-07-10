@@ -23,6 +23,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/posrefund"
 	"github.com/bengobox/pos-service/internal/ent/posreturn"
 	entuser "github.com/bengobox/pos-service/internal/ent/user"
+	ordersmod "github.com/bengobox/pos-service/internal/modules/orders"
 )
 
 type ReportsHandler struct {
@@ -71,8 +72,8 @@ func (h *ReportsHandler) GetSummary(w http.ResponseWriter, r *http.Request) {
 		preds := append([]predicate.POSOrder{
 			posorder.TenantID(tid),
 			posorder.StatusEQ("completed"),
-			posorder.CreatedAtGTE(from),
-			posorder.CreatedAtLT(to),
+			effectiveDateGTE(from),
+			effectiveDateLT(to),
 		}, outletFilters...)
 		orders, qErr := h.db.POSOrder.Query().Where(preds...).All(r.Context())
 		if qErr != nil {
@@ -149,8 +150,8 @@ func (h *ReportsHandler) SalesSummary(w http.ResponseWriter, r *http.Request) {
 		Where(
 			posorder.TenantID(tid),
 			posorder.StatusEQ("completed"),
-			posorder.CreatedAtGTE(from),
-			posorder.CreatedAtLTE(to),
+			effectiveDateGTE(from),
+			effectiveDateLTE(to),
 		)
 
 	if outletStr := r.URL.Query().Get("outlet_id"); outletStr != "" {
@@ -251,8 +252,8 @@ func (h *ReportsHandler) DailyBreakdown(w http.ResponseWriter, r *http.Request) 
 		Where(
 			posorder.TenantID(tid),
 			posorder.StatusEQ("completed"),
-			posorder.CreatedAtGTE(from),
-			posorder.CreatedAtLTE(to),
+			effectiveDateGTE(from),
+			effectiveDateLTE(to),
 		).
 		All(r.Context())
 	if err != nil {
@@ -271,7 +272,7 @@ func (h *ReportsHandler) DailyBreakdown(w http.ResponseWriter, r *http.Request) 
 	}
 	buckets := make(map[string]*dayBucket)
 	for _, o := range orders {
-		key := granularityBucketStart(o.CreatedAt.UTC(), gran).Format("2006-01-02")
+		key := granularityBucketStart(ordersmod.EffectiveOrderDate(o).UTC(), gran).Format("2006-01-02")
 		if _, ok := buckets[key]; !ok {
 			buckets[key] = &dayBucket{}
 		}

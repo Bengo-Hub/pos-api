@@ -82,6 +82,14 @@ const (
 	FieldVoidedBy = "voided_by"
 	// FieldVoidedAt holds the string denoting the voided_at field in the database.
 	FieldVoidedAt = "voided_at"
+	// FieldBusinessDate holds the string denoting the business_date field in the database.
+	FieldBusinessDate = "business_date"
+	// FieldDateMovedReason holds the string denoting the date_moved_reason field in the database.
+	FieldDateMovedReason = "date_moved_reason"
+	// FieldDateMovedBy holds the string denoting the date_moved_by field in the database.
+	FieldDateMovedBy = "date_moved_by"
+	// FieldDateMovedAt holds the string denoting the date_moved_at field in the database.
+	FieldDateMovedAt = "date_moved_at"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
@@ -153,6 +161,10 @@ var Columns = []string{
 	FieldVoidedReason,
 	FieldVoidedBy,
 	FieldVoidedAt,
+	FieldBusinessDate,
+	FieldDateMovedReason,
+	FieldDateMovedBy,
+	FieldDateMovedAt,
 	FieldCreatedAt,
 	FieldUpdatedAt,
 }
@@ -402,6 +414,26 @@ func ByVoidedBy(opts ...sql.OrderTermOption) OrderOption {
 // ByVoidedAt orders the results by the voided_at field.
 func ByVoidedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldVoidedAt, opts...).ToFunc()
+}
+
+// ByBusinessDate orders the results by the business_date field.
+func ByBusinessDate(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBusinessDate, opts...).ToFunc()
+}
+
+// ByDateMovedReason orders the results by the date_moved_reason field.
+func ByDateMovedReason(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDateMovedReason, opts...).ToFunc()
+}
+
+// ByDateMovedBy orders the results by the date_moved_by field.
+func ByDateMovedBy(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDateMovedBy, opts...).ToFunc()
+}
+
+// ByDateMovedAt orders the results by the date_moved_at field.
+func ByDateMovedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDateMovedAt, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.

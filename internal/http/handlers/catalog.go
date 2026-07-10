@@ -763,7 +763,23 @@ func (h *CatalogHandler) assembleMenuItems(
 
 		var inventoryPrice *float64
 		var posOverridePrice *float64
-		if invPrice, ok := invPriceByID[item.ID]; ok {
+		// RECIPE items are priced from their recipe, not from a pricing-tier row — see
+		// inventory-api's own resolution order (modules/items/pricing_enrich.go
+		// effectivePrice: recipe price wins over tier price), which is also what
+		// item.SellingPrice already carries and what the inventory catalog UI displays.
+		// invPriceByID comes from the RAW ItemPricing bulk-tier endpoint, which has no
+		// concept of recipes; for a RECIPE item it can hold a stale/unrelated row (e.g.
+		// left over from before the item had a recipe) that never gets updated when the
+		// recipe's price changes. Checking it first — as a flat invPrice-wins-always merge
+		// — silently overrides the authoritative recipe price and permanently disagrees
+		// with inventory-ui, which is exactly the drift the sync-monitor price-reconcile
+		// tab is meant to catch. So for RECIPE items prefer item.SellingPrice; fall back
+		// to the tier price only when the recipe has none.
+		if strings.EqualFold(item.Type, "RECIPE") && item.SellingPrice != nil && *item.SellingPrice > 0 {
+			price = *item.SellingPrice
+			sp := *item.SellingPrice
+			inventoryPrice = &sp
+		} else if invPrice, ok := invPriceByID[item.ID]; ok {
 			price = invPrice
 			ip := invPrice
 			inventoryPrice = &ip

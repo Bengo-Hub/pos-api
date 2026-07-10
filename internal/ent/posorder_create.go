@@ -417,6 +417,62 @@ func (_c *POSOrderCreate) SetNillableVoidedAt(v *time.Time) *POSOrderCreate {
 	return _c
 }
 
+// SetBusinessDate sets the "business_date" field.
+func (_c *POSOrderCreate) SetBusinessDate(v time.Time) *POSOrderCreate {
+	_c.mutation.SetBusinessDate(v)
+	return _c
+}
+
+// SetNillableBusinessDate sets the "business_date" field if the given value is not nil.
+func (_c *POSOrderCreate) SetNillableBusinessDate(v *time.Time) *POSOrderCreate {
+	if v != nil {
+		_c.SetBusinessDate(*v)
+	}
+	return _c
+}
+
+// SetDateMovedReason sets the "date_moved_reason" field.
+func (_c *POSOrderCreate) SetDateMovedReason(v string) *POSOrderCreate {
+	_c.mutation.SetDateMovedReason(v)
+	return _c
+}
+
+// SetNillableDateMovedReason sets the "date_moved_reason" field if the given value is not nil.
+func (_c *POSOrderCreate) SetNillableDateMovedReason(v *string) *POSOrderCreate {
+	if v != nil {
+		_c.SetDateMovedReason(*v)
+	}
+	return _c
+}
+
+// SetDateMovedBy sets the "date_moved_by" field.
+func (_c *POSOrderCreate) SetDateMovedBy(v uuid.UUID) *POSOrderCreate {
+	_c.mutation.SetDateMovedBy(v)
+	return _c
+}
+
+// SetNillableDateMovedBy sets the "date_moved_by" field if the given value is not nil.
+func (_c *POSOrderCreate) SetNillableDateMovedBy(v *uuid.UUID) *POSOrderCreate {
+	if v != nil {
+		_c.SetDateMovedBy(*v)
+	}
+	return _c
+}
+
+// SetDateMovedAt sets the "date_moved_at" field.
+func (_c *POSOrderCreate) SetDateMovedAt(v time.Time) *POSOrderCreate {
+	_c.mutation.SetDateMovedAt(v)
+	return _c
+}
+
+// SetNillableDateMovedAt sets the "date_moved_at" field if the given value is not nil.
+func (_c *POSOrderCreate) SetNillableDateMovedAt(v *time.Time) *POSOrderCreate {
+	if v != nil {
+		_c.SetDateMovedAt(*v)
+	}
+	return _c
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_c *POSOrderCreate) SetCreatedAt(v time.Time) *POSOrderCreate {
 	_c.mutation.SetCreatedAt(v)
@@ -860,6 +916,22 @@ func (_c *POSOrderCreate) createSpec() (*POSOrder, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.VoidedAt(); ok {
 		_spec.SetField(posorder.FieldVoidedAt, field.TypeTime, value)
 		_node.VoidedAt = &value
+	}
+	if value, ok := _c.mutation.BusinessDate(); ok {
+		_spec.SetField(posorder.FieldBusinessDate, field.TypeTime, value)
+		_node.BusinessDate = &value
+	}
+	if value, ok := _c.mutation.DateMovedReason(); ok {
+		_spec.SetField(posorder.FieldDateMovedReason, field.TypeString, value)
+		_node.DateMovedReason = &value
+	}
+	if value, ok := _c.mutation.DateMovedBy(); ok {
+		_spec.SetField(posorder.FieldDateMovedBy, field.TypeUUID, value)
+		_node.DateMovedBy = &value
+	}
+	if value, ok := _c.mutation.DateMovedAt(); ok {
+		_spec.SetField(posorder.FieldDateMovedAt, field.TypeTime, value)
+		_node.DateMovedAt = &value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(posorder.FieldCreatedAt, field.TypeTime, value)
@@ -1500,6 +1572,78 @@ func (u *POSOrderUpsert) UpdateVoidedAt() *POSOrderUpsert {
 // ClearVoidedAt clears the value of the "voided_at" field.
 func (u *POSOrderUpsert) ClearVoidedAt() *POSOrderUpsert {
 	u.SetNull(posorder.FieldVoidedAt)
+	return u
+}
+
+// SetBusinessDate sets the "business_date" field.
+func (u *POSOrderUpsert) SetBusinessDate(v time.Time) *POSOrderUpsert {
+	u.Set(posorder.FieldBusinessDate, v)
+	return u
+}
+
+// UpdateBusinessDate sets the "business_date" field to the value that was provided on create.
+func (u *POSOrderUpsert) UpdateBusinessDate() *POSOrderUpsert {
+	u.SetExcluded(posorder.FieldBusinessDate)
+	return u
+}
+
+// ClearBusinessDate clears the value of the "business_date" field.
+func (u *POSOrderUpsert) ClearBusinessDate() *POSOrderUpsert {
+	u.SetNull(posorder.FieldBusinessDate)
+	return u
+}
+
+// SetDateMovedReason sets the "date_moved_reason" field.
+func (u *POSOrderUpsert) SetDateMovedReason(v string) *POSOrderUpsert {
+	u.Set(posorder.FieldDateMovedReason, v)
+	return u
+}
+
+// UpdateDateMovedReason sets the "date_moved_reason" field to the value that was provided on create.
+func (u *POSOrderUpsert) UpdateDateMovedReason() *POSOrderUpsert {
+	u.SetExcluded(posorder.FieldDateMovedReason)
+	return u
+}
+
+// ClearDateMovedReason clears the value of the "date_moved_reason" field.
+func (u *POSOrderUpsert) ClearDateMovedReason() *POSOrderUpsert {
+	u.SetNull(posorder.FieldDateMovedReason)
+	return u
+}
+
+// SetDateMovedBy sets the "date_moved_by" field.
+func (u *POSOrderUpsert) SetDateMovedBy(v uuid.UUID) *POSOrderUpsert {
+	u.Set(posorder.FieldDateMovedBy, v)
+	return u
+}
+
+// UpdateDateMovedBy sets the "date_moved_by" field to the value that was provided on create.
+func (u *POSOrderUpsert) UpdateDateMovedBy() *POSOrderUpsert {
+	u.SetExcluded(posorder.FieldDateMovedBy)
+	return u
+}
+
+// ClearDateMovedBy clears the value of the "date_moved_by" field.
+func (u *POSOrderUpsert) ClearDateMovedBy() *POSOrderUpsert {
+	u.SetNull(posorder.FieldDateMovedBy)
+	return u
+}
+
+// SetDateMovedAt sets the "date_moved_at" field.
+func (u *POSOrderUpsert) SetDateMovedAt(v time.Time) *POSOrderUpsert {
+	u.Set(posorder.FieldDateMovedAt, v)
+	return u
+}
+
+// UpdateDateMovedAt sets the "date_moved_at" field to the value that was provided on create.
+func (u *POSOrderUpsert) UpdateDateMovedAt() *POSOrderUpsert {
+	u.SetExcluded(posorder.FieldDateMovedAt)
+	return u
+}
+
+// ClearDateMovedAt clears the value of the "date_moved_at" field.
+func (u *POSOrderUpsert) ClearDateMovedAt() *POSOrderUpsert {
+	u.SetNull(posorder.FieldDateMovedAt)
 	return u
 }
 
@@ -2186,6 +2330,90 @@ func (u *POSOrderUpsertOne) UpdateVoidedAt() *POSOrderUpsertOne {
 func (u *POSOrderUpsertOne) ClearVoidedAt() *POSOrderUpsertOne {
 	return u.Update(func(s *POSOrderUpsert) {
 		s.ClearVoidedAt()
+	})
+}
+
+// SetBusinessDate sets the "business_date" field.
+func (u *POSOrderUpsertOne) SetBusinessDate(v time.Time) *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetBusinessDate(v)
+	})
+}
+
+// UpdateBusinessDate sets the "business_date" field to the value that was provided on create.
+func (u *POSOrderUpsertOne) UpdateBusinessDate() *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdateBusinessDate()
+	})
+}
+
+// ClearBusinessDate clears the value of the "business_date" field.
+func (u *POSOrderUpsertOne) ClearBusinessDate() *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.ClearBusinessDate()
+	})
+}
+
+// SetDateMovedReason sets the "date_moved_reason" field.
+func (u *POSOrderUpsertOne) SetDateMovedReason(v string) *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetDateMovedReason(v)
+	})
+}
+
+// UpdateDateMovedReason sets the "date_moved_reason" field to the value that was provided on create.
+func (u *POSOrderUpsertOne) UpdateDateMovedReason() *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdateDateMovedReason()
+	})
+}
+
+// ClearDateMovedReason clears the value of the "date_moved_reason" field.
+func (u *POSOrderUpsertOne) ClearDateMovedReason() *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.ClearDateMovedReason()
+	})
+}
+
+// SetDateMovedBy sets the "date_moved_by" field.
+func (u *POSOrderUpsertOne) SetDateMovedBy(v uuid.UUID) *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetDateMovedBy(v)
+	})
+}
+
+// UpdateDateMovedBy sets the "date_moved_by" field to the value that was provided on create.
+func (u *POSOrderUpsertOne) UpdateDateMovedBy() *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdateDateMovedBy()
+	})
+}
+
+// ClearDateMovedBy clears the value of the "date_moved_by" field.
+func (u *POSOrderUpsertOne) ClearDateMovedBy() *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.ClearDateMovedBy()
+	})
+}
+
+// SetDateMovedAt sets the "date_moved_at" field.
+func (u *POSOrderUpsertOne) SetDateMovedAt(v time.Time) *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetDateMovedAt(v)
+	})
+}
+
+// UpdateDateMovedAt sets the "date_moved_at" field to the value that was provided on create.
+func (u *POSOrderUpsertOne) UpdateDateMovedAt() *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdateDateMovedAt()
+	})
+}
+
+// ClearDateMovedAt clears the value of the "date_moved_at" field.
+func (u *POSOrderUpsertOne) ClearDateMovedAt() *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.ClearDateMovedAt()
 	})
 }
 
@@ -3041,6 +3269,90 @@ func (u *POSOrderUpsertBulk) UpdateVoidedAt() *POSOrderUpsertBulk {
 func (u *POSOrderUpsertBulk) ClearVoidedAt() *POSOrderUpsertBulk {
 	return u.Update(func(s *POSOrderUpsert) {
 		s.ClearVoidedAt()
+	})
+}
+
+// SetBusinessDate sets the "business_date" field.
+func (u *POSOrderUpsertBulk) SetBusinessDate(v time.Time) *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetBusinessDate(v)
+	})
+}
+
+// UpdateBusinessDate sets the "business_date" field to the value that was provided on create.
+func (u *POSOrderUpsertBulk) UpdateBusinessDate() *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdateBusinessDate()
+	})
+}
+
+// ClearBusinessDate clears the value of the "business_date" field.
+func (u *POSOrderUpsertBulk) ClearBusinessDate() *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.ClearBusinessDate()
+	})
+}
+
+// SetDateMovedReason sets the "date_moved_reason" field.
+func (u *POSOrderUpsertBulk) SetDateMovedReason(v string) *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetDateMovedReason(v)
+	})
+}
+
+// UpdateDateMovedReason sets the "date_moved_reason" field to the value that was provided on create.
+func (u *POSOrderUpsertBulk) UpdateDateMovedReason() *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdateDateMovedReason()
+	})
+}
+
+// ClearDateMovedReason clears the value of the "date_moved_reason" field.
+func (u *POSOrderUpsertBulk) ClearDateMovedReason() *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.ClearDateMovedReason()
+	})
+}
+
+// SetDateMovedBy sets the "date_moved_by" field.
+func (u *POSOrderUpsertBulk) SetDateMovedBy(v uuid.UUID) *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetDateMovedBy(v)
+	})
+}
+
+// UpdateDateMovedBy sets the "date_moved_by" field to the value that was provided on create.
+func (u *POSOrderUpsertBulk) UpdateDateMovedBy() *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdateDateMovedBy()
+	})
+}
+
+// ClearDateMovedBy clears the value of the "date_moved_by" field.
+func (u *POSOrderUpsertBulk) ClearDateMovedBy() *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.ClearDateMovedBy()
+	})
+}
+
+// SetDateMovedAt sets the "date_moved_at" field.
+func (u *POSOrderUpsertBulk) SetDateMovedAt(v time.Time) *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetDateMovedAt(v)
+	})
+}
+
+// UpdateDateMovedAt sets the "date_moved_at" field to the value that was provided on create.
+func (u *POSOrderUpsertBulk) UpdateDateMovedAt() *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdateDateMovedAt()
+	})
+}
+
+// ClearDateMovedAt clears the value of the "date_moved_at" field.
+func (u *POSOrderUpsertBulk) ClearDateMovedAt() *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.ClearDateMovedAt()
 	})
 }
 

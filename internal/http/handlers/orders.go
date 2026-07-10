@@ -190,12 +190,13 @@ func (h *POSOrderHandler) ListOrders(w http.ResponseWriter, r *http.Request) {
 	if src := q.Get("source"); src != "" && !strings.EqualFold(src, "all") {
 		filters = append(filters, posorder.Source(src))
 	}
-	// Date range on created_at (accepts RFC3339 or YYYY-MM-DD).
+	// Date range on the order's EFFECTIVE date (accepts RFC3339 or YYYY-MM-DD) — the
+	// admin business_date override when a sale's date was moved, else created_at.
 	if from := parseDateParam(q.Get("from"), false); from != nil {
-		filters = append(filters, posorder.CreatedAtGTE(*from))
+		filters = append(filters, effectiveDateGTE(*from))
 	}
 	if to := parseDateParam(q.Get("to"), true); to != nil {
-		filters = append(filters, posorder.CreatedAtLTE(*to))
+		filters = append(filters, effectiveDateLTE(*to))
 	}
 	// Customer: match phone or name (contains, case-insensitive).
 	if cust := strings.TrimSpace(q.Get("customer")); cust != "" {

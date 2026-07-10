@@ -211,6 +211,26 @@ func VoidedAt(v time.Time) predicate.POSOrder {
 	return predicate.POSOrder(sql.FieldEQ(FieldVoidedAt, v))
 }
 
+// BusinessDate applies equality check predicate on the "business_date" field. It's identical to BusinessDateEQ.
+func BusinessDate(v time.Time) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEQ(FieldBusinessDate, v))
+}
+
+// DateMovedReason applies equality check predicate on the "date_moved_reason" field. It's identical to DateMovedReasonEQ.
+func DateMovedReason(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEQ(FieldDateMovedReason, v))
+}
+
+// DateMovedBy applies equality check predicate on the "date_moved_by" field. It's identical to DateMovedByEQ.
+func DateMovedBy(v uuid.UUID) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEQ(FieldDateMovedBy, v))
+}
+
+// DateMovedAt applies equality check predicate on the "date_moved_at" field. It's identical to DateMovedAtEQ.
+func DateMovedAt(v time.Time) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEQ(FieldDateMovedAt, v))
+}
+
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.POSOrder {
 	return predicate.POSOrder(sql.FieldEQ(FieldCreatedAt, v))
@@ -1839,6 +1859,231 @@ func VoidedAtIsNil() predicate.POSOrder {
 // VoidedAtNotNil applies the NotNil predicate on the "voided_at" field.
 func VoidedAtNotNil() predicate.POSOrder {
 	return predicate.POSOrder(sql.FieldNotNull(FieldVoidedAt))
+}
+
+// BusinessDateEQ applies the EQ predicate on the "business_date" field.
+func BusinessDateEQ(v time.Time) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEQ(FieldBusinessDate, v))
+}
+
+// BusinessDateNEQ applies the NEQ predicate on the "business_date" field.
+func BusinessDateNEQ(v time.Time) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNEQ(FieldBusinessDate, v))
+}
+
+// BusinessDateIn applies the In predicate on the "business_date" field.
+func BusinessDateIn(vs ...time.Time) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldIn(FieldBusinessDate, vs...))
+}
+
+// BusinessDateNotIn applies the NotIn predicate on the "business_date" field.
+func BusinessDateNotIn(vs ...time.Time) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNotIn(FieldBusinessDate, vs...))
+}
+
+// BusinessDateGT applies the GT predicate on the "business_date" field.
+func BusinessDateGT(v time.Time) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldGT(FieldBusinessDate, v))
+}
+
+// BusinessDateGTE applies the GTE predicate on the "business_date" field.
+func BusinessDateGTE(v time.Time) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldGTE(FieldBusinessDate, v))
+}
+
+// BusinessDateLT applies the LT predicate on the "business_date" field.
+func BusinessDateLT(v time.Time) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldLT(FieldBusinessDate, v))
+}
+
+// BusinessDateLTE applies the LTE predicate on the "business_date" field.
+func BusinessDateLTE(v time.Time) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldLTE(FieldBusinessDate, v))
+}
+
+// BusinessDateIsNil applies the IsNil predicate on the "business_date" field.
+func BusinessDateIsNil() predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldIsNull(FieldBusinessDate))
+}
+
+// BusinessDateNotNil applies the NotNil predicate on the "business_date" field.
+func BusinessDateNotNil() predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNotNull(FieldBusinessDate))
+}
+
+// DateMovedReasonEQ applies the EQ predicate on the "date_moved_reason" field.
+func DateMovedReasonEQ(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEQ(FieldDateMovedReason, v))
+}
+
+// DateMovedReasonNEQ applies the NEQ predicate on the "date_moved_reason" field.
+func DateMovedReasonNEQ(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNEQ(FieldDateMovedReason, v))
+}
+
+// DateMovedReasonIn applies the In predicate on the "date_moved_reason" field.
+func DateMovedReasonIn(vs ...string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldIn(FieldDateMovedReason, vs...))
+}
+
+// DateMovedReasonNotIn applies the NotIn predicate on the "date_moved_reason" field.
+func DateMovedReasonNotIn(vs ...string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNotIn(FieldDateMovedReason, vs...))
+}
+
+// DateMovedReasonGT applies the GT predicate on the "date_moved_reason" field.
+func DateMovedReasonGT(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldGT(FieldDateMovedReason, v))
+}
+
+// DateMovedReasonGTE applies the GTE predicate on the "date_moved_reason" field.
+func DateMovedReasonGTE(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldGTE(FieldDateMovedReason, v))
+}
+
+// DateMovedReasonLT applies the LT predicate on the "date_moved_reason" field.
+func DateMovedReasonLT(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldLT(FieldDateMovedReason, v))
+}
+
+// DateMovedReasonLTE applies the LTE predicate on the "date_moved_reason" field.
+func DateMovedReasonLTE(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldLTE(FieldDateMovedReason, v))
+}
+
+// DateMovedReasonContains applies the Contains predicate on the "date_moved_reason" field.
+func DateMovedReasonContains(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldContains(FieldDateMovedReason, v))
+}
+
+// DateMovedReasonHasPrefix applies the HasPrefix predicate on the "date_moved_reason" field.
+func DateMovedReasonHasPrefix(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldHasPrefix(FieldDateMovedReason, v))
+}
+
+// DateMovedReasonHasSuffix applies the HasSuffix predicate on the "date_moved_reason" field.
+func DateMovedReasonHasSuffix(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldHasSuffix(FieldDateMovedReason, v))
+}
+
+// DateMovedReasonIsNil applies the IsNil predicate on the "date_moved_reason" field.
+func DateMovedReasonIsNil() predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldIsNull(FieldDateMovedReason))
+}
+
+// DateMovedReasonNotNil applies the NotNil predicate on the "date_moved_reason" field.
+func DateMovedReasonNotNil() predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNotNull(FieldDateMovedReason))
+}
+
+// DateMovedReasonEqualFold applies the EqualFold predicate on the "date_moved_reason" field.
+func DateMovedReasonEqualFold(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEqualFold(FieldDateMovedReason, v))
+}
+
+// DateMovedReasonContainsFold applies the ContainsFold predicate on the "date_moved_reason" field.
+func DateMovedReasonContainsFold(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldContainsFold(FieldDateMovedReason, v))
+}
+
+// DateMovedByEQ applies the EQ predicate on the "date_moved_by" field.
+func DateMovedByEQ(v uuid.UUID) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEQ(FieldDateMovedBy, v))
+}
+
+// DateMovedByNEQ applies the NEQ predicate on the "date_moved_by" field.
+func DateMovedByNEQ(v uuid.UUID) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNEQ(FieldDateMovedBy, v))
+}
+
+// DateMovedByIn applies the In predicate on the "date_moved_by" field.
+func DateMovedByIn(vs ...uuid.UUID) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldIn(FieldDateMovedBy, vs...))
+}
+
+// DateMovedByNotIn applies the NotIn predicate on the "date_moved_by" field.
+func DateMovedByNotIn(vs ...uuid.UUID) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNotIn(FieldDateMovedBy, vs...))
+}
+
+// DateMovedByGT applies the GT predicate on the "date_moved_by" field.
+func DateMovedByGT(v uuid.UUID) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldGT(FieldDateMovedBy, v))
+}
+
+// DateMovedByGTE applies the GTE predicate on the "date_moved_by" field.
+func DateMovedByGTE(v uuid.UUID) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldGTE(FieldDateMovedBy, v))
+}
+
+// DateMovedByLT applies the LT predicate on the "date_moved_by" field.
+func DateMovedByLT(v uuid.UUID) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldLT(FieldDateMovedBy, v))
+}
+
+// DateMovedByLTE applies the LTE predicate on the "date_moved_by" field.
+func DateMovedByLTE(v uuid.UUID) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldLTE(FieldDateMovedBy, v))
+}
+
+// DateMovedByIsNil applies the IsNil predicate on the "date_moved_by" field.
+func DateMovedByIsNil() predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldIsNull(FieldDateMovedBy))
+}
+
+// DateMovedByNotNil applies the NotNil predicate on the "date_moved_by" field.
+func DateMovedByNotNil() predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNotNull(FieldDateMovedBy))
+}
+
+// DateMovedAtEQ applies the EQ predicate on the "date_moved_at" field.
+func DateMovedAtEQ(v time.Time) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEQ(FieldDateMovedAt, v))
+}
+
+// DateMovedAtNEQ applies the NEQ predicate on the "date_moved_at" field.
+func DateMovedAtNEQ(v time.Time) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNEQ(FieldDateMovedAt, v))
+}
+
+// DateMovedAtIn applies the In predicate on the "date_moved_at" field.
+func DateMovedAtIn(vs ...time.Time) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldIn(FieldDateMovedAt, vs...))
+}
+
+// DateMovedAtNotIn applies the NotIn predicate on the "date_moved_at" field.
+func DateMovedAtNotIn(vs ...time.Time) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNotIn(FieldDateMovedAt, vs...))
+}
+
+// DateMovedAtGT applies the GT predicate on the "date_moved_at" field.
+func DateMovedAtGT(v time.Time) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldGT(FieldDateMovedAt, v))
+}
+
+// DateMovedAtGTE applies the GTE predicate on the "date_moved_at" field.
+func DateMovedAtGTE(v time.Time) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldGTE(FieldDateMovedAt, v))
+}
+
+// DateMovedAtLT applies the LT predicate on the "date_moved_at" field.
+func DateMovedAtLT(v time.Time) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldLT(FieldDateMovedAt, v))
+}
+
+// DateMovedAtLTE applies the LTE predicate on the "date_moved_at" field.
+func DateMovedAtLTE(v time.Time) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldLTE(FieldDateMovedAt, v))
+}
+
+// DateMovedAtIsNil applies the IsNil predicate on the "date_moved_at" field.
+func DateMovedAtIsNil() predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldIsNull(FieldDateMovedAt))
+}
+
+// DateMovedAtNotNil applies the NotNil predicate on the "date_moved_at" field.
+func DateMovedAtNotNil() predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNotNull(FieldDateMovedAt))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.

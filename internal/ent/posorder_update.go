@@ -636,6 +636,86 @@ func (_u *POSOrderUpdate) ClearVoidedAt() *POSOrderUpdate {
 	return _u
 }
 
+// SetBusinessDate sets the "business_date" field.
+func (_u *POSOrderUpdate) SetBusinessDate(v time.Time) *POSOrderUpdate {
+	_u.mutation.SetBusinessDate(v)
+	return _u
+}
+
+// SetNillableBusinessDate sets the "business_date" field if the given value is not nil.
+func (_u *POSOrderUpdate) SetNillableBusinessDate(v *time.Time) *POSOrderUpdate {
+	if v != nil {
+		_u.SetBusinessDate(*v)
+	}
+	return _u
+}
+
+// ClearBusinessDate clears the value of the "business_date" field.
+func (_u *POSOrderUpdate) ClearBusinessDate() *POSOrderUpdate {
+	_u.mutation.ClearBusinessDate()
+	return _u
+}
+
+// SetDateMovedReason sets the "date_moved_reason" field.
+func (_u *POSOrderUpdate) SetDateMovedReason(v string) *POSOrderUpdate {
+	_u.mutation.SetDateMovedReason(v)
+	return _u
+}
+
+// SetNillableDateMovedReason sets the "date_moved_reason" field if the given value is not nil.
+func (_u *POSOrderUpdate) SetNillableDateMovedReason(v *string) *POSOrderUpdate {
+	if v != nil {
+		_u.SetDateMovedReason(*v)
+	}
+	return _u
+}
+
+// ClearDateMovedReason clears the value of the "date_moved_reason" field.
+func (_u *POSOrderUpdate) ClearDateMovedReason() *POSOrderUpdate {
+	_u.mutation.ClearDateMovedReason()
+	return _u
+}
+
+// SetDateMovedBy sets the "date_moved_by" field.
+func (_u *POSOrderUpdate) SetDateMovedBy(v uuid.UUID) *POSOrderUpdate {
+	_u.mutation.SetDateMovedBy(v)
+	return _u
+}
+
+// SetNillableDateMovedBy sets the "date_moved_by" field if the given value is not nil.
+func (_u *POSOrderUpdate) SetNillableDateMovedBy(v *uuid.UUID) *POSOrderUpdate {
+	if v != nil {
+		_u.SetDateMovedBy(*v)
+	}
+	return _u
+}
+
+// ClearDateMovedBy clears the value of the "date_moved_by" field.
+func (_u *POSOrderUpdate) ClearDateMovedBy() *POSOrderUpdate {
+	_u.mutation.ClearDateMovedBy()
+	return _u
+}
+
+// SetDateMovedAt sets the "date_moved_at" field.
+func (_u *POSOrderUpdate) SetDateMovedAt(v time.Time) *POSOrderUpdate {
+	_u.mutation.SetDateMovedAt(v)
+	return _u
+}
+
+// SetNillableDateMovedAt sets the "date_moved_at" field if the given value is not nil.
+func (_u *POSOrderUpdate) SetNillableDateMovedAt(v *time.Time) *POSOrderUpdate {
+	if v != nil {
+		_u.SetDateMovedAt(*v)
+	}
+	return _u
+}
+
+// ClearDateMovedAt clears the value of the "date_moved_at" field.
+func (_u *POSOrderUpdate) ClearDateMovedAt() *POSOrderUpdate {
+	_u.mutation.ClearDateMovedAt()
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *POSOrderUpdate) SetUpdatedAt(v time.Time) *POSOrderUpdate {
 	_u.mutation.SetUpdatedAt(v)
@@ -985,6 +1065,30 @@ func (_u *POSOrderUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.VoidedAtCleared() {
 		_spec.ClearField(posorder.FieldVoidedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.BusinessDate(); ok {
+		_spec.SetField(posorder.FieldBusinessDate, field.TypeTime, value)
+	}
+	if _u.mutation.BusinessDateCleared() {
+		_spec.ClearField(posorder.FieldBusinessDate, field.TypeTime)
+	}
+	if value, ok := _u.mutation.DateMovedReason(); ok {
+		_spec.SetField(posorder.FieldDateMovedReason, field.TypeString, value)
+	}
+	if _u.mutation.DateMovedReasonCleared() {
+		_spec.ClearField(posorder.FieldDateMovedReason, field.TypeString)
+	}
+	if value, ok := _u.mutation.DateMovedBy(); ok {
+		_spec.SetField(posorder.FieldDateMovedBy, field.TypeUUID, value)
+	}
+	if _u.mutation.DateMovedByCleared() {
+		_spec.ClearField(posorder.FieldDateMovedBy, field.TypeUUID)
+	}
+	if value, ok := _u.mutation.DateMovedAt(); ok {
+		_spec.SetField(posorder.FieldDateMovedAt, field.TypeTime, value)
+	}
+	if _u.mutation.DateMovedAtCleared() {
+		_spec.ClearField(posorder.FieldDateMovedAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(posorder.FieldUpdatedAt, field.TypeTime, value)
@@ -1748,6 +1852,86 @@ func (_u *POSOrderUpdateOne) ClearVoidedAt() *POSOrderUpdateOne {
 	return _u
 }
 
+// SetBusinessDate sets the "business_date" field.
+func (_u *POSOrderUpdateOne) SetBusinessDate(v time.Time) *POSOrderUpdateOne {
+	_u.mutation.SetBusinessDate(v)
+	return _u
+}
+
+// SetNillableBusinessDate sets the "business_date" field if the given value is not nil.
+func (_u *POSOrderUpdateOne) SetNillableBusinessDate(v *time.Time) *POSOrderUpdateOne {
+	if v != nil {
+		_u.SetBusinessDate(*v)
+	}
+	return _u
+}
+
+// ClearBusinessDate clears the value of the "business_date" field.
+func (_u *POSOrderUpdateOne) ClearBusinessDate() *POSOrderUpdateOne {
+	_u.mutation.ClearBusinessDate()
+	return _u
+}
+
+// SetDateMovedReason sets the "date_moved_reason" field.
+func (_u *POSOrderUpdateOne) SetDateMovedReason(v string) *POSOrderUpdateOne {
+	_u.mutation.SetDateMovedReason(v)
+	return _u
+}
+
+// SetNillableDateMovedReason sets the "date_moved_reason" field if the given value is not nil.
+func (_u *POSOrderUpdateOne) SetNillableDateMovedReason(v *string) *POSOrderUpdateOne {
+	if v != nil {
+		_u.SetDateMovedReason(*v)
+	}
+	return _u
+}
+
+// ClearDateMovedReason clears the value of the "date_moved_reason" field.
+func (_u *POSOrderUpdateOne) ClearDateMovedReason() *POSOrderUpdateOne {
+	_u.mutation.ClearDateMovedReason()
+	return _u
+}
+
+// SetDateMovedBy sets the "date_moved_by" field.
+func (_u *POSOrderUpdateOne) SetDateMovedBy(v uuid.UUID) *POSOrderUpdateOne {
+	_u.mutation.SetDateMovedBy(v)
+	return _u
+}
+
+// SetNillableDateMovedBy sets the "date_moved_by" field if the given value is not nil.
+func (_u *POSOrderUpdateOne) SetNillableDateMovedBy(v *uuid.UUID) *POSOrderUpdateOne {
+	if v != nil {
+		_u.SetDateMovedBy(*v)
+	}
+	return _u
+}
+
+// ClearDateMovedBy clears the value of the "date_moved_by" field.
+func (_u *POSOrderUpdateOne) ClearDateMovedBy() *POSOrderUpdateOne {
+	_u.mutation.ClearDateMovedBy()
+	return _u
+}
+
+// SetDateMovedAt sets the "date_moved_at" field.
+func (_u *POSOrderUpdateOne) SetDateMovedAt(v time.Time) *POSOrderUpdateOne {
+	_u.mutation.SetDateMovedAt(v)
+	return _u
+}
+
+// SetNillableDateMovedAt sets the "date_moved_at" field if the given value is not nil.
+func (_u *POSOrderUpdateOne) SetNillableDateMovedAt(v *time.Time) *POSOrderUpdateOne {
+	if v != nil {
+		_u.SetDateMovedAt(*v)
+	}
+	return _u
+}
+
+// ClearDateMovedAt clears the value of the "date_moved_at" field.
+func (_u *POSOrderUpdateOne) ClearDateMovedAt() *POSOrderUpdateOne {
+	_u.mutation.ClearDateMovedAt()
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *POSOrderUpdateOne) SetUpdatedAt(v time.Time) *POSOrderUpdateOne {
 	_u.mutation.SetUpdatedAt(v)
@@ -2127,6 +2311,30 @@ func (_u *POSOrderUpdateOne) sqlSave(ctx context.Context) (_node *POSOrder, err 
 	}
 	if _u.mutation.VoidedAtCleared() {
 		_spec.ClearField(posorder.FieldVoidedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.BusinessDate(); ok {
+		_spec.SetField(posorder.FieldBusinessDate, field.TypeTime, value)
+	}
+	if _u.mutation.BusinessDateCleared() {
+		_spec.ClearField(posorder.FieldBusinessDate, field.TypeTime)
+	}
+	if value, ok := _u.mutation.DateMovedReason(); ok {
+		_spec.SetField(posorder.FieldDateMovedReason, field.TypeString, value)
+	}
+	if _u.mutation.DateMovedReasonCleared() {
+		_spec.ClearField(posorder.FieldDateMovedReason, field.TypeString)
+	}
+	if value, ok := _u.mutation.DateMovedBy(); ok {
+		_spec.SetField(posorder.FieldDateMovedBy, field.TypeUUID, value)
+	}
+	if _u.mutation.DateMovedByCleared() {
+		_spec.ClearField(posorder.FieldDateMovedBy, field.TypeUUID)
+	}
+	if value, ok := _u.mutation.DateMovedAt(); ok {
+		_spec.SetField(posorder.FieldDateMovedAt, field.TypeTime, value)
+	}
+	if _u.mutation.DateMovedAtCleared() {
+		_spec.ClearField(posorder.FieldDateMovedAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(posorder.FieldUpdatedAt, field.TypeTime, value)

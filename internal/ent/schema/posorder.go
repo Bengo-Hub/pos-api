@@ -127,6 +127,25 @@ func (POSOrder) Fields() []ent.Field {
 		field.Time("voided_at").
 			Optional().
 			Nillable(),
+		// business_date is an admin/platform-owner override of which calendar day this
+		// order counts toward in reports — e.g. a sale rung up and settled a day late
+		// (offline recovery, a missing recipe blocking checkout) that must be reported
+		// under the earlier day so records aren't mixed up. Deliberately separate from
+		// the immutable created_at (server ingestion time, the real audit timestamp):
+		// this field is the only reporting date admins may correct, and every move is
+		// logged via date_moved_by/at/reason. Nil = report under created_at as today.
+		field.Time("business_date").
+			Optional().
+			Nillable(),
+		field.String("date_moved_reason").
+			Optional().
+			Nillable(),
+		field.UUID("date_moved_by", uuid.UUID{}).
+			Optional().
+			Nillable(),
+		field.Time("date_moved_at").
+			Optional().
+			Nillable(),
 		field.Time("created_at").
 			Default(time.Now).
 			Immutable(),
