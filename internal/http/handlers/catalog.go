@@ -102,6 +102,29 @@ type inventoryProxyItem struct {
 	TaxRate      *float64 `json:"tax_rate,omitempty"`
 	NetPrice     *float64 `json:"net_price,omitempty"`
 	TaxAmount    *float64 `json:"tax_amount,omitempty"`
+	// ModifierGroups: this item's selectable modifiers (e.g. "Extra Honey" on a Dawa),
+	// enriched by inventory-api. Passed straight through to the terminal — see
+	// catalogModifierGroup for the exact wire shape the modal expects.
+	ModifierGroups []inventoryProxyModifierGroup `json:"modifier_groups,omitempty"`
+}
+
+// inventoryProxyModifierOption mirrors inventory-api's items.ItemModifierOption.
+type inventoryProxyModifierOption struct {
+	ID              string  `json:"id"`
+	Name            string  `json:"name"`
+	SKU             string  `json:"sku,omitempty"`
+	PriceAdjustment float64 `json:"price_adjustment"`
+	IsDefault       bool    `json:"is_default"`
+}
+
+// inventoryProxyModifierGroup mirrors inventory-api's items.ItemModifierGroup.
+type inventoryProxyModifierGroup struct {
+	ID            string                          `json:"id"`
+	Name          string                          `json:"name"`
+	IsRequired    bool                            `json:"is_required"`
+	MinSelections int                             `json:"min_selections"`
+	MaxSelections int                             `json:"max_selections"`
+	Options       []inventoryProxyModifierOption  `json:"options"`
 }
 
 // inventoryBulkPrice is one entry from GET /inventory/items/pricing.
@@ -610,6 +633,64 @@ type catalogItemDTO struct {
 	// side by side instead of only ever seeing the final Price.
 	InventoryPrice   *float64
 	POSOverridePrice *float64
+	// ModifierGroups: this item's selectable modifiers, proxied from inventory-api.
+	ModifierGroups []inventoryProxyModifierGroup
+}
+
+// catalogModifierOption is the terminal-facing wire shape for a single modifier option.
+// Deliberately camelCase (unlike every other field in this file) because pos-ui's
+// ModifierModal/terminal-context consume item.modifier_groups as-is with no remapping —
+// this is the one shape that must match the frontend's ModifierOption interface exactly.
+type catalogModifierOption struct {
+	ID        string  `json:"id"`
+	Name      string  `json:"name"`
+	Price     float64 `json:"price"`
+	IsDefault bool    `json:"isDefault,omitempty"`
+	// SKU/InventoryModifierOptionID travel with the option so the order-line-create payload
+	// can carry them straight through to POSLineModifier without a second lookup.
+	SKU                       string `json:"sku,omitempty"`
+	InventoryModifierOptionID string `json:"inventory_modifier_option_id,omitempty"`
+}
+
+// catalogModifierGroup is the terminal-facing wire shape for a modifier group — see
+// catalogModifierOption for why this breaks from the file's usual snake_case convention.
+type catalogModifierGroup struct {
+	ID            string                  `json:"id"`
+	Name          string                  `json:"name"`
+	IsRequired    bool                    `json:"isRequired"`
+	MinSelections int                     `json:"minSelections"`
+	MaxSelections int                     `json:"maxSelections"`
+	Options       []catalogModifierOption `json:"options"`
+}
+
+// toCatalogModifierGroups converts the inventory-proxy shape into the terminal wire shape.
+func toCatalogModifierGroups(groups []inventoryProxyModifierGroup) []catalogModifierGroup {
+	if len(groups) == 0 {
+		return nil
+	}
+	out := make([]catalogModifierGroup, 0, len(groups))
+	for _, g := range groups {
+		opts := make([]catalogModifierOption, 0, len(g.Options))
+		for _, o := range g.Options {
+			opts = append(opts, catalogModifierOption{
+				ID:                        o.ID,
+				Name:                      o.Name,
+				Price:                     o.PriceAdjustment,
+				IsDefault:                 o.IsDefault,
+				SKU:                       o.SKU,
+				InventoryModifierOptionID: o.ID,
+			})
+		}
+		out = append(out, catalogModifierGroup{
+			ID:            g.ID,
+			Name:          g.Name,
+			IsRequired:    g.IsRequired,
+			MinSelections: g.MinSelections,
+			MaxSelections: g.MaxSelections,
+			Options:       opts,
+		})
+	}
+	return out
 }
 
 // menuAssemblyFilters carries the optional list-time filters applied by ListCatalogItems.
@@ -925,6 +1006,7 @@ func (h *CatalogHandler) assembleMenuItems(
 			NonBillable:             nonBillable,
 			InventoryPrice:          inventoryPrice,
 			POSOverridePrice:        posOverridePrice,
+			ModifierGroups:          item.ModifierGroups,
 		})
 	}
 	return out, nil
@@ -1048,6 +1130,7 @@ func catalogItemToMapBase(item catalogItemDTO, outletID *uuid.UUID) map[string]a
 		"inventory_price":           item.InventoryPrice,
 		"pos_override_price":        item.POSOverridePrice,
 		"outlet_id":                 outletID,
+		"modifier_groups":           toCatalogModifierGroups(item.ModifierGroups),
 	}
 }
 

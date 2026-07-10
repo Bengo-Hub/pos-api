@@ -19,6 +19,8 @@ import (
 	"github.com/bengobox/pos-service/internal/ent"
 	"github.com/bengobox/pos-service/internal/ent/kdsstation"
 	"github.com/bengobox/pos-service/internal/ent/kdsticket"
+	entmodifier "github.com/bengobox/pos-service/internal/ent/modifier"
+	entmodifiergroup "github.com/bengobox/pos-service/internal/ent/modifiergroup"
 	entoutletsetting "github.com/bengobox/pos-service/internal/ent/outletsetting"
 	entoverride "github.com/bengobox/pos-service/internal/ent/poscatalogoverride"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
@@ -130,7 +132,24 @@ type OrderLineInput struct {
 	PriceIncludesTax bool           // True if UnitPrice is VAT-inclusive
 	TaxRate          *float64       // VAT % the till applied (treasury-enriched catalog); nil = not provided
 	CourseNumber     int            // 0=fire immediately, 1=Starter, 2=Main, 3=Dessert (0 = default)
-	Metadata         map[string]any // modifiers, notes, serial numbers, etc.
+	Metadata         map[string]any // notes, serial numbers, etc. (raw modifier selection also lands here — see Modifiers)
+	// Modifiers are the resolved {group,option,price} selections for this line (parsed by the
+	// HTTP handler from metadata.modifiers). Persisted as POSLineModifier rows alongside the
+	// line so pos.sale.finalized has real data to hand inventory-api for stock deduction —
+	// previously this information only ever reached the generic Metadata JSON blob and was
+	// never turned into a structured row anywhere.
+	Modifiers []LineModifierInput
+}
+
+// LineModifierInput is one selected modifier option to persist against an order line.
+// GroupID/GroupName aren't stored (POSLineModifier has no group column) but are accepted so
+// the handler can decode the full wire payload without a lossy partial struct.
+type LineModifierInput struct {
+	GroupID         string
+	GroupName       string
+	OptionID        uuid.UUID
+	OptionName      string
+	PriceAdjustment float64
 }
 
 // OrderTotals holds calculated totals for an order. The identity
@@ -726,9 +745,13 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent
 			lineCreate = lineCreate.SetKdsStationID(*stationID)
 		}
 
-		_, err = lineCreate.Save(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("orders: create line: %w", err)
+		createdLine, saveErr := lineCreate.Save(ctx)
+		if saveErr != nil {
+			err = fmt.Errorf("orders: create line: %w", saveErr)
+			return nil, err
+		}
+		if err = s.createLineModifiers(ctx, tx, req.TenantID, createdLine.ID, line.Modifiers); err != nil {
+			return nil, err
 		}
 	}
 
@@ -1126,6 +1149,100 @@ func (s *Service) createKDSTicketsForOrder(ctx context.Context, tenantID uuid.UU
 	return nil
 }
 
+// createLineModifiers persists the resolved modifier selections for one order line as
+// POSLineModifier rows, in the same transaction as the line itself. This is the ONLY writer
+// of this table today — previously modifier selections only ever reached the generic
+// Metadata JSON blob, so publishSaleFinalized (which reads the Modifiers ent edge, not
+// Metadata) always saw an empty list and inventory-api never got anything to deduct against.
+func (s *Service) createLineModifiers(ctx context.Context, tx *ent.Tx, tenantID, lineID uuid.UUID, mods []LineModifierInput) error {
+	if len(mods) == 0 {
+		return nil
+	}
+	builders := make([]*ent.POSLineModifierCreate, 0, len(mods))
+	for _, m := range mods {
+		if m.OptionID == uuid.Nil {
+			continue
+		}
+		localModifierID, err := s.resolveLocalModifier(ctx, tx, tenantID, m)
+		if err != nil {
+			s.log.Warn("orders: resolve local modifier failed, skipping",
+				zap.String("option_id", m.OptionID.String()), zap.Error(err))
+			continue
+		}
+		name := m.OptionName
+		if name == "" {
+			name = m.GroupName
+		}
+		builders = append(builders, tx.POSLineModifier.Create().
+			SetLineID(lineID).
+			SetModifierID(localModifierID).
+			SetName(name).
+			SetPriceApplied(m.PriceAdjustment))
+	}
+	if len(builders) == 0 {
+		return nil
+	}
+	if _, err := tx.POSLineModifier.CreateBulk(builders...).Save(ctx); err != nil {
+		return fmt.Errorf("orders: create line modifiers: %w", err)
+	}
+	return nil
+}
+
+// resolveLocalModifier finds — or lazily creates — the LOCAL Modifier row mirroring
+// inventory-api's real ModifierOption (m.OptionID), returning its id for POSLineModifier.
+// pos-api's Modifier/ModifierGroup tables exist specifically as a sync mirror
+// (inventory_modifier_option_id / inventory_modifier_group_id — see the ent schema comments)
+// but nothing has ever populated them: there is no event consumer syncing modifier catalog
+// changes from inventory-api into pos-api the way items/categories are synced. Rather than
+// building that whole consumer up front, create the mirror row on first reference — the
+// group/option names/ids pos-ui already sent (resolved from the live inventory-api catalog
+// at selection time) are enough to satisfy the FK the rest of the pipeline expects.
+func (s *Service) resolveLocalModifier(ctx context.Context, tx *ent.Tx, tenantID uuid.UUID, m LineModifierInput) (uuid.UUID, error) {
+	if existing, err := tx.Modifier.Query().
+		Where(entmodifier.InventoryModifierOptionID(m.OptionID)).
+		Only(ctx); err == nil {
+		return existing.ID, nil
+	} else if !ent.IsNotFound(err) {
+		return uuid.Nil, err
+	}
+
+	groupUUID, err := uuid.Parse(m.GroupID)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("invalid group_id %q: %w", m.GroupID, err)
+	}
+	group, err := tx.ModifierGroup.Query().
+		Where(entmodifiergroup.InventoryModifierGroupID(groupUUID)).
+		Only(ctx)
+	if err != nil {
+		if !ent.IsNotFound(err) {
+			return uuid.Nil, err
+		}
+		groupName := m.GroupName
+		if groupName == "" {
+			groupName = "Modifiers"
+		}
+		group, err = tx.ModifierGroup.Create().
+			SetTenantID(tenantID).
+			SetName(groupName).
+			SetInventoryModifierGroupID(groupUUID).
+			Save(ctx)
+		if err != nil {
+			return uuid.Nil, fmt.Errorf("create local modifier group: %w", err)
+		}
+	}
+
+	created, err := tx.Modifier.Create().
+		SetModifierGroupID(group.ID).
+		SetName(m.OptionName).
+		SetPriceOverride(m.PriceAdjustment).
+		SetInventoryModifierOptionID(m.OptionID).
+		Save(ctx)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("create local modifier: %w", err)
+	}
+	return created.ID, nil
+}
+
 // AddOrderLines appends new lines to an existing open order, recalculates totals,
 // and creates KDS tickets for the new course_number=0 lines (always-fire items).
 func (s *Service) AddOrderLines(ctx context.Context, tenantID uuid.UUID, tenantSlug string, orderID uuid.UUID, lines []OrderLineInput) (*ent.POSOrder, error) {
@@ -1230,6 +1347,9 @@ func (s *Service) AddOrderLines(ctx context.Context, tenantID uuid.UUID, tenantS
 		saved, saveErr := lc.Save(ctx)
 		if saveErr != nil {
 			err = fmt.Errorf("orders: create line: %w", saveErr)
+			return nil, err
+		}
+		if err = s.createLineModifiers(ctx, tx, tenantID, saved.ID, l.Modifiers); err != nil {
 			return nil, err
 		}
 		newLines = append(newLines, saved)

@@ -99,6 +99,52 @@ type createOrderLineInput struct {
 	TaxRate          *float64 `json:"tax_rate,omitempty"`
 }
 
+// lineModifierWire is the shape pos-ui sends under metadata.modifiers — one entry per
+// selected modifier option, resolved to its catalog name/price at selection time (see
+// terminal-context.tsx SelectedModifierDetail). Kept private to this file; orders.Service
+// only knows the resolved orders.LineModifierInput shape.
+type lineModifierWire struct {
+	GroupID         string  `json:"group_id"`
+	GroupName       string  `json:"group_name"`
+	OptionID        string  `json:"option_id"`
+	OptionName      string  `json:"option_name"`
+	PriceAdjustment float64 `json:"price_adjustment"`
+}
+
+// parseLineModifiers decodes metadata["modifiers"] into structured LineModifierInput rows.
+// Best-effort: a malformed/missing entry is skipped rather than failing the whole order —
+// the price is already baked into the line's unit_price/total_price regardless, so a
+// modifier that fails to parse only loses its stock-deduction/audit row, not the sale.
+func parseLineModifiers(meta map[string]interface{}) []orders.LineModifierInput {
+	raw, ok := meta["modifiers"]
+	if !ok {
+		return nil
+	}
+	encoded, err := json.Marshal(raw)
+	if err != nil {
+		return nil
+	}
+	var wire []lineModifierWire
+	if err := json.Unmarshal(encoded, &wire); err != nil {
+		return nil
+	}
+	out := make([]orders.LineModifierInput, 0, len(wire))
+	for _, w := range wire {
+		optID, err := uuid.Parse(w.OptionID)
+		if err != nil {
+			continue
+		}
+		out = append(out, orders.LineModifierInput{
+			GroupID:         w.GroupID,
+			GroupName:       w.GroupName,
+			OptionID:        optID,
+			OptionName:      w.OptionName,
+			PriceAdjustment: w.PriceAdjustment,
+		})
+	}
+	return out
+}
+
 // createOrderInput is the body for POST /pos/orders.
 type createOrderInput struct {
 	OutletID       string                 `json:"outlet_id"`
@@ -855,6 +901,7 @@ func (h *POSOrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 			TotalPrice:       l.TotalPrice,
 			CourseNumber:     l.CourseNumber,
 			Metadata:         l.Metadata,
+			Modifiers:        parseLineModifiers(l.Metadata),
 			TaxStatus:        l.TaxStatus,
 			TaxCodeID:        l.TaxCodeID,
 			PriceIncludesTax: l.PriceIncludesTax,
@@ -1200,6 +1247,7 @@ func (h *POSOrderHandler) AddOrderLines(w http.ResponseWriter, r *http.Request) 
 			TotalPrice:       l.TotalPrice,
 			CourseNumber:     l.CourseNumber,
 			Metadata:         l.Metadata,
+			Modifiers:        parseLineModifiers(l.Metadata),
 			TaxStatus:        l.TaxStatus,
 			TaxCodeID:        l.TaxCodeID,
 			PriceIncludesTax: l.PriceIncludesTax,

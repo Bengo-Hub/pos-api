@@ -880,7 +880,11 @@ func (s *Service) publishSaleFinalized(ctx context.Context, order *ent.POSOrder)
 				mod := map[string]any{
 					"modifier_id": m.ModifierID.String(),
 					"name":        m.Name,
-					"quantity":    l.Quantity,
+					// Deliberately NOT sending a "quantity" here — inventory-api resolves the
+					// authoritative per-selection deduction amount from the option's own
+					// deduction_qty. This field used to send the PARENT line's quantity, which
+					// inventory-api's modifierConsumption then multiplied by the line quantity
+					// AGAIN, double-counting every modifier with a stock-tracked SKU.
 				}
 				if optID := modifierOptionByID[m.ModifierID]; optID != nil {
 					mod["inventory_modifier_option_id"] = optID.String()
