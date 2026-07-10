@@ -1596,6 +1596,13 @@ func mapInventoryCategory(c inventoryCategory) posCategory {
 
 // resolveTenantSlug derives the tenant slug from auth claims, httpware context, or a tenant lookup.
 func (h *CatalogHandler) resolveTenantSlug(r *http.Request) string {
+	return resolveTenantSlug(r, h.client)
+}
+
+// resolveTenantSlug derives the tenant slug from auth claims, httpware context, or a tenant
+// lookup. Package-level (not tied to CatalogHandler) so any handler in this package that needs
+// to proxy inventory-api — which is keyed by slug, not tenant UUID — can resolve it the same way.
+func resolveTenantSlug(r *http.Request, client *ent.Client) string {
 	tenantSlug := ""
 	if claims, ok := authclient.ClaimsFromContext(r.Context()); ok {
 		tenantSlug = claims.GetTenantSlug()
@@ -1606,7 +1613,7 @@ func (h *CatalogHandler) resolveTenantSlug(r *http.Request) string {
 	if tenantSlug == "" {
 		tid, err := parseTenantUUID(r)
 		if err == nil {
-			if t, lookupErr := h.client.Tenant.Get(r.Context(), tid); lookupErr == nil {
+			if t, lookupErr := client.Tenant.Get(r.Context(), tid); lookupErr == nil {
 				tenantSlug = t.Slug
 			}
 		}

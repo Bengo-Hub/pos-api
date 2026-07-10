@@ -5,10 +5,8 @@ import (
 	"sort"
 	"strconv"
 
-	"github.com/google/uuid"
 	"go.uber.org/zap"
 
-	entoverride "github.com/bengobox/pos-service/internal/ent/poscatalogoverride"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
 )
 
@@ -19,10 +17,11 @@ import (
 //
 //	units_sold = sum(quantity)
 //	revenue    = sum(quantity * unit_price)
-//	unit_cost  = resolved from POSCatalogOverride.metadata["cost_price"] for the sku, else 0
-//	            (POSCatalogOverride has no dedicated cost column; cost lives in inventory-api.
-//	             When the projection later stashes a cost in metadata it is picked up here,
-//	             otherwise cost defaults to 0 and profit falls back to revenue.)
+//	unit_cost  = the item's real production/goods cost from inventory-api (see resolveUnitCosts):
+//	             GOODS/other stockable types use Item.cost_price (purchase cost); RECIPE items use
+//	             the recipe's cost_per_portion (ingredient cost — RECIPE items have no purchase
+//	             cost of their own). Falls back to 0 (and thus profit==revenue) only when
+//	             inventory-api has no cost data for that sku at all.
 //	profit     = revenue - unit_cost * units_sold
 //	margin_pct = profit / revenue   (0 when revenue is 0)
 //
@@ -90,11 +89,11 @@ func (h *ReportsHandler) MostProfitableItems(w http.ResponseWriter, r *http.Requ
 		}
 	}
 
-	// Resolve unit cost per sku from the POSCatalogOverride projection.
-	// POSCatalogOverride has no cost column; a cost may be stashed in metadata["cost_price"]
-	// by the inventory sync. When absent, unit_cost stays 0.
+	// Resolve real per-sku costs from inventory-api in one batch (not N+1) — see
+	// resolveUnitCosts for the GOODS-cost_price vs RECIPE-cost_per_portion split.
+	costBySKU := h.resolveUnitCosts(r)
 	for sku, b := range buckets {
-		b.UnitCost = h.resolveUnitCost(r, tid, sku)
+		b.UnitCost = costBySKU[sku]
 		b.Profit = b.Revenue - b.UnitCost*b.UnitsSold
 		if b.Revenue != 0 {
 			b.MarginPct = b.Profit / b.Revenue * 100
@@ -132,24 +131,32 @@ func (h *ReportsHandler) MostProfitableItems(w http.ResponseWriter, r *http.Requ
 	})
 }
 
-// resolveUnitCost looks up a per-unit cost for a sku from the tenant's POSCatalogOverride
-// projection. POSCatalogOverride carries no dedicated cost column, so the cost is read from
-// metadata["cost_price"] when the inventory sync has populated it; otherwise this returns 0.
-func (h *ReportsHandler) resolveUnitCost(r *http.Request, tid uuid.UUID, sku string) float64 {
-	ov, err := h.db.POSCatalogOverride.Query().
-		Where(
-			entoverride.TenantID(tid),
-			entoverride.InventorySku(sku),
-		).
-		First(r.Context())
-	if err != nil || ov == nil || ov.Metadata == nil {
-		return 0
+// resolveUnitCosts fetches the tenant's full inventory catalog and returns sku → real unit
+// cost: Item.cost_price (falling back to purchase_price) for GOODS/other stockable types, or
+// the recipe's cost_per_portion for RECIPE items — the same precedence inventory-api's own
+// enrichPrices now applies (items/pricing_enrich.go), and the same source pos-api's own catalog
+// assembly uses for its (view_cost-gated) CostPrice column. Degrades to an empty map (all costs
+// 0, profit falls back to revenue) on proxy failure rather than failing the whole report.
+//
+// Previously this read POSCatalogOverride.metadata["cost_price"] per-sku (N+1 queries) — a field
+// nothing in this codebase ever wrote, so unit_cost was silently always 0 and "most profitable"
+// was actually just "highest revenue".
+func (h *ReportsHandler) resolveUnitCosts(r *http.Request) map[string]float64 {
+	out := map[string]float64{}
+	tenantSlug := resolveTenantSlug(r, h.db)
+	if tenantSlug == "" {
+		h.log.Warn("most-profitable: could not resolve tenant slug for cost lookup")
+		return out
 	}
-	switch v := ov.Metadata["cost_price"].(type) {
-	case float64:
-		return v
-	case int:
-		return float64(v)
+	items, err := fetchInventoryItems(r.Context(), tenantSlug, "", "")
+	if err != nil {
+		h.log.Warn("most-profitable: inventory items fetch failed — costs will be 0", zap.Error(err))
+		return out
 	}
-	return 0
+	for _, item := range items {
+		if cp := firstNonNilFloat(item.CostPrice, item.PurchasePrice); cp != nil && *cp > 0 {
+			out[item.SKU] = *cp
+		}
+	}
+	return out
 }

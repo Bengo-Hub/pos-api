@@ -349,7 +349,9 @@ func (h *ReportPDFHandler) ResetSummary(w http.ResponseWriter, r *http.Request) 
 	for _, o := range orders {
 		grandTotal += o.TotalAmount
 		for _, l := range o.Edges.Lines {
-			cat, _ := l.Metadata["category"].(string)
+			// POSOrderLine.Category is the real, always-populated column — see the same
+			// fix in reports.go SalesByCategory (l.Metadata never carries "category").
+			cat := l.Category
 			if cat == "" {
 				cat = "Uncategorised"
 			}
@@ -510,7 +512,9 @@ func (h *ReportPDFHandler) SalesByItemType(w http.ResponseWriter, r *http.Reques
 	var grandTotal float64
 	for _, o := range orders {
 		for _, l := range o.Edges.Lines {
-			cat, _ := l.Metadata["category"].(string)
+			// POSOrderLine.Category is the real, always-populated column — see the same
+			// fix in reports.go SalesByCategory (l.Metadata never carries "category").
+			cat := l.Category
 			if cat == "" {
 				cat = "Uncategorised"
 			}

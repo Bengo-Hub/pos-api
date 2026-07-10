@@ -1008,7 +1008,11 @@ func (h *ReportsHandler) SalesByCategory(w http.ResponseWriter, r *http.Request)
 	byCategory := make(map[string]*catBucket)
 	for _, o := range orders {
 		for _, line := range o.Edges.Lines {
-			cat, _ := line.Metadata["category"].(string)
+			// POSOrderLine.Category is the real, always-populated column (set at line
+			// creation for KDS routing — see orders.Service AddOrderLines/CreateOrder).
+			// line.Metadata never carries a "category" key, so reading it here silently
+			// bucketed EVERY line as "Uncategorised" regardless of its true category.
+			cat := line.Category
 			if cat == "" {
 				cat = "Uncategorised"
 			}

@@ -138,7 +138,9 @@ func (h *ReportPDFHandler) SalesByCategoryDoc(w http.ResponseWriter, r *http.Req
 	byCategory := make(map[string]*catBucket)
 	for _, o := range orders {
 		for _, line := range o.Edges.Lines {
-			cat, _ := line.Metadata["category"].(string)
+			// POSOrderLine.Category is the real, always-populated column — see the same
+			// fix in reports.go SalesByCategory (line.Metadata never carries "category").
+			cat := line.Category
 			if cat == "" {
 				cat = "Uncategorised"
 			}
