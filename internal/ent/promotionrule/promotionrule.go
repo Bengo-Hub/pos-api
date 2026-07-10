@@ -26,6 +26,12 @@ const (
 	FieldDiscountType = "discount_type"
 	// FieldDiscountValue holds the string denoting the discount_value field in the database.
 	FieldDiscountValue = "discount_value"
+	// FieldBuyQuantity holds the string denoting the buy_quantity field in the database.
+	FieldBuyQuantity = "buy_quantity"
+	// FieldGetQuantity holds the string denoting the get_quantity field in the database.
+	FieldGetQuantity = "get_quantity"
+	// FieldGetDiscountPercent holds the string denoting the get_discount_percent field in the database.
+	FieldGetDiscountPercent = "get_discount_percent"
 	// FieldMealPeriod holds the string denoting the meal_period field in the database.
 	FieldMealPeriod = "meal_period"
 	// FieldMaxDiscount holds the string denoting the max_discount field in the database.
@@ -45,6 +51,9 @@ var Columns = []string{
 	FieldScopeIds,
 	FieldDiscountType,
 	FieldDiscountValue,
+	FieldBuyQuantity,
+	FieldGetQuantity,
+	FieldGetDiscountPercent,
 	FieldMealPeriod,
 	FieldMaxDiscount,
 	FieldRuleConfig,
@@ -65,6 +74,12 @@ var (
 	RuleTypeValidator func(string) error
 	// DefaultDiscountValue holds the default value on creation for the "discount_value" field.
 	DefaultDiscountValue float64
+	// DefaultBuyQuantity holds the default value on creation for the "buy_quantity" field.
+	DefaultBuyQuantity int
+	// DefaultGetQuantity holds the default value on creation for the "get_quantity" field.
+	DefaultGetQuantity int
+	// DefaultGetDiscountPercent holds the default value on creation for the "get_discount_percent" field.
+	DefaultGetDiscountPercent float64
 	// DefaultRuleConfig holds the default value on creation for the "rule_config" field.
 	DefaultRuleConfig map[string]interface{}
 	// DefaultID holds the default value on creation for the "id" field.
@@ -109,6 +124,7 @@ const (
 	DiscountTypePercentage  DiscountType = "percentage"
 	DiscountTypeFixedAmount DiscountType = "fixed_amount"
 	DiscountTypeFixedPrice  DiscountType = "fixed_price"
+	DiscountTypeBogo        DiscountType = "bogo"
 )
 
 func (dt DiscountType) String() string {
@@ -118,7 +134,7 @@ func (dt DiscountType) String() string {
 // DiscountTypeValidator is a validator for the "discount_type" field enum values. It is called by the builders before save.
 func DiscountTypeValidator(dt DiscountType) error {
 	switch dt {
-	case DiscountTypePercentage, DiscountTypeFixedAmount, DiscountTypeFixedPrice:
+	case DiscountTypePercentage, DiscountTypeFixedAmount, DiscountTypeFixedPrice, DiscountTypeBogo:
 		return nil
 	default:
 		return fmt.Errorf("promotionrule: invalid enum value for discount_type field: %q", dt)
@@ -182,6 +198,21 @@ func ByDiscountType(opts ...sql.OrderTermOption) OrderOption {
 // ByDiscountValue orders the results by the discount_value field.
 func ByDiscountValue(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldDiscountValue, opts...).ToFunc()
+}
+
+// ByBuyQuantity orders the results by the buy_quantity field.
+func ByBuyQuantity(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBuyQuantity, opts...).ToFunc()
+}
+
+// ByGetQuantity orders the results by the get_quantity field.
+func ByGetQuantity(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldGetQuantity, opts...).ToFunc()
+}
+
+// ByGetDiscountPercent orders the results by the get_discount_percent field.
+func ByGetDiscountPercent(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldGetDiscountPercent, opts...).ToFunc()
 }
 
 // ByMealPeriod orders the results by the meal_period field.

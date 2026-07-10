@@ -521,10 +521,16 @@ func New(
 					// Promotions
 					if promotions != nil {
 						pos.Get("/promotions", promotions.ListPromotions)
-						// Creating a promotion/happy-hour is administrative; applying a code at
-						// checkout is part of the cashier order flow and stays ungated.
+						pos.Get("/promotions/{promoID}", promotions.GetPromotion)
+						// Creating/editing/deleting a promotion/happy-hour is administrative;
+						// applying a code at checkout is part of the cashier order flow and stays
+						// ungated.
 						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.promotions.add", "pos.promotions.manage")).
 							Post("/promotions", promotions.CreatePromotion)
+						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.promotions.manage")).
+							Patch("/promotions/{promoID}", promotions.UpdatePromotion)
+						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.promotions.manage")).
+							Delete("/promotions/{promoID}", promotions.DeletePromotion)
 						pos.Post("/promotions/apply", promotions.ApplyPromoCode)
 						pos.Get("/promotions/happy-hour/active", promotions.GetActiveHappyHours)
 					}

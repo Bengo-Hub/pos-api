@@ -206,7 +206,10 @@ func New(ctx context.Context) (*App, error) {
 		func(ctx context.Context, tenantID, outletID uuid.UUID, lines []ordermodule.OrderLineInput) (uuid.UUID, decimal.Decimal) {
 			dls := make([]promommodule.DiscountLine, 0, len(lines))
 			for _, l := range lines {
-				dls = append(dls, promommodule.DiscountLine{SKU: l.SKU, Total: decimal.NewFromFloat(l.TotalPrice)})
+				dls = append(dls, promommodule.DiscountLine{
+					SKU: l.SKU, Total: decimal.NewFromFloat(l.TotalPrice),
+					Quantity: l.Quantity, UnitPrice: decimal.NewFromFloat(l.UnitPrice),
+				})
 			}
 			r := promoSvc.EvaluateAutoDiscount(ctx, tenantID, outletID, dls)
 			return r.PromoID, r.Discount

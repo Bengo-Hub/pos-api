@@ -29,10 +29,23 @@ func (PromotionRule) Fields() []ent.Field {
 			Optional().
 			Comment("Inventory category ids or skus the discount applies to (when scope_type != all)"),
 		field.Enum("discount_type").
-			Values("percentage", "fixed_amount", "fixed_price").
+			Values("percentage", "fixed_amount", "fixed_price", "bogo").
 			Default("percentage"),
 		field.Float("discount_value").
 			Default(0),
+		// BOGO ("buy X get Y [at N% off]") fields — only meaningful when discount_type=bogo.
+		// For every buy_quantity units of a scoped SKU in the cart, get_quantity more units of
+		// the SAME SKU are discounted by get_discount_percent (100 = fully free, the classic
+		// "buy one get one free"; a lower value covers "buy one get one half price" etc.).
+		field.Int("buy_quantity").
+			Default(1).
+			Comment("BOGO: units of the scoped item that must be bought to trigger the deal"),
+		field.Int("get_quantity").
+			Default(1).
+			Comment("BOGO: units of the scoped item discounted per buy_quantity bought"),
+		field.Float("get_discount_percent").
+			Default(100).
+			Comment("BOGO: how much of the \"get\" units' price is discounted (100 = free)"),
 		field.Enum("meal_period").
 			Values("breakfast", "am_break", "lunch", "pm_break", "dinner").
 			Optional().

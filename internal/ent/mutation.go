@@ -75880,25 +75880,31 @@ func (m *PromotionApplicationMutation) ResetEdge(name string) error {
 // PromotionRuleMutation represents an operation that mutates the PromotionRule nodes in the graph.
 type PromotionRuleMutation struct {
 	config
-	op                Op
-	typ               string
-	id                *uuid.UUID
-	promotion_id      *uuid.UUID
-	rule_type         *string
-	scope_type        *promotionrule.ScopeType
-	scope_ids         *[]string
-	appendscope_ids   []string
-	discount_type     *promotionrule.DiscountType
-	discount_value    *float64
-	adddiscount_value *float64
-	meal_period       *promotionrule.MealPeriod
-	max_discount      *float64
-	addmax_discount   *float64
-	rule_config       *map[string]interface{}
-	clearedFields     map[string]struct{}
-	done              bool
-	oldValue          func(context.Context) (*PromotionRule, error)
-	predicates        []predicate.PromotionRule
+	op                      Op
+	typ                     string
+	id                      *uuid.UUID
+	promotion_id            *uuid.UUID
+	rule_type               *string
+	scope_type              *promotionrule.ScopeType
+	scope_ids               *[]string
+	appendscope_ids         []string
+	discount_type           *promotionrule.DiscountType
+	discount_value          *float64
+	adddiscount_value       *float64
+	buy_quantity            *int
+	addbuy_quantity         *int
+	get_quantity            *int
+	addget_quantity         *int
+	get_discount_percent    *float64
+	addget_discount_percent *float64
+	meal_period             *promotionrule.MealPeriod
+	max_discount            *float64
+	addmax_discount         *float64
+	rule_config             *map[string]interface{}
+	clearedFields           map[string]struct{}
+	done                    bool
+	oldValue                func(context.Context) (*PromotionRule, error)
+	predicates              []predicate.PromotionRule
 }
 
 var _ ent.Mutation = (*PromotionRuleMutation)(nil)
@@ -76270,6 +76276,174 @@ func (m *PromotionRuleMutation) ResetDiscountValue() {
 	m.adddiscount_value = nil
 }
 
+// SetBuyQuantity sets the "buy_quantity" field.
+func (m *PromotionRuleMutation) SetBuyQuantity(i int) {
+	m.buy_quantity = &i
+	m.addbuy_quantity = nil
+}
+
+// BuyQuantity returns the value of the "buy_quantity" field in the mutation.
+func (m *PromotionRuleMutation) BuyQuantity() (r int, exists bool) {
+	v := m.buy_quantity
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBuyQuantity returns the old "buy_quantity" field's value of the PromotionRule entity.
+// If the PromotionRule object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PromotionRuleMutation) OldBuyQuantity(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBuyQuantity is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBuyQuantity requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBuyQuantity: %w", err)
+	}
+	return oldValue.BuyQuantity, nil
+}
+
+// AddBuyQuantity adds i to the "buy_quantity" field.
+func (m *PromotionRuleMutation) AddBuyQuantity(i int) {
+	if m.addbuy_quantity != nil {
+		*m.addbuy_quantity += i
+	} else {
+		m.addbuy_quantity = &i
+	}
+}
+
+// AddedBuyQuantity returns the value that was added to the "buy_quantity" field in this mutation.
+func (m *PromotionRuleMutation) AddedBuyQuantity() (r int, exists bool) {
+	v := m.addbuy_quantity
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetBuyQuantity resets all changes to the "buy_quantity" field.
+func (m *PromotionRuleMutation) ResetBuyQuantity() {
+	m.buy_quantity = nil
+	m.addbuy_quantity = nil
+}
+
+// SetGetQuantity sets the "get_quantity" field.
+func (m *PromotionRuleMutation) SetGetQuantity(i int) {
+	m.get_quantity = &i
+	m.addget_quantity = nil
+}
+
+// GetQuantity returns the value of the "get_quantity" field in the mutation.
+func (m *PromotionRuleMutation) GetQuantity() (r int, exists bool) {
+	v := m.get_quantity
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGetQuantity returns the old "get_quantity" field's value of the PromotionRule entity.
+// If the PromotionRule object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PromotionRuleMutation) OldGetQuantity(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGetQuantity is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGetQuantity requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGetQuantity: %w", err)
+	}
+	return oldValue.GetQuantity, nil
+}
+
+// AddGetQuantity adds i to the "get_quantity" field.
+func (m *PromotionRuleMutation) AddGetQuantity(i int) {
+	if m.addget_quantity != nil {
+		*m.addget_quantity += i
+	} else {
+		m.addget_quantity = &i
+	}
+}
+
+// AddedGetQuantity returns the value that was added to the "get_quantity" field in this mutation.
+func (m *PromotionRuleMutation) AddedGetQuantity() (r int, exists bool) {
+	v := m.addget_quantity
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetGetQuantity resets all changes to the "get_quantity" field.
+func (m *PromotionRuleMutation) ResetGetQuantity() {
+	m.get_quantity = nil
+	m.addget_quantity = nil
+}
+
+// SetGetDiscountPercent sets the "get_discount_percent" field.
+func (m *PromotionRuleMutation) SetGetDiscountPercent(f float64) {
+	m.get_discount_percent = &f
+	m.addget_discount_percent = nil
+}
+
+// GetDiscountPercent returns the value of the "get_discount_percent" field in the mutation.
+func (m *PromotionRuleMutation) GetDiscountPercent() (r float64, exists bool) {
+	v := m.get_discount_percent
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGetDiscountPercent returns the old "get_discount_percent" field's value of the PromotionRule entity.
+// If the PromotionRule object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PromotionRuleMutation) OldGetDiscountPercent(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGetDiscountPercent is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGetDiscountPercent requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGetDiscountPercent: %w", err)
+	}
+	return oldValue.GetDiscountPercent, nil
+}
+
+// AddGetDiscountPercent adds f to the "get_discount_percent" field.
+func (m *PromotionRuleMutation) AddGetDiscountPercent(f float64) {
+	if m.addget_discount_percent != nil {
+		*m.addget_discount_percent += f
+	} else {
+		m.addget_discount_percent = &f
+	}
+}
+
+// AddedGetDiscountPercent returns the value that was added to the "get_discount_percent" field in this mutation.
+func (m *PromotionRuleMutation) AddedGetDiscountPercent() (r float64, exists bool) {
+	v := m.addget_discount_percent
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetGetDiscountPercent resets all changes to the "get_discount_percent" field.
+func (m *PromotionRuleMutation) ResetGetDiscountPercent() {
+	m.get_discount_percent = nil
+	m.addget_discount_percent = nil
+}
+
 // SetMealPeriod sets the "meal_period" field.
 func (m *PromotionRuleMutation) SetMealPeriod(pp promotionrule.MealPeriod) {
 	m.meal_period = &pp
@@ -76459,7 +76633,7 @@ func (m *PromotionRuleMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *PromotionRuleMutation) Fields() []string {
-	fields := make([]string, 0, 9)
+	fields := make([]string, 0, 12)
 	if m.promotion_id != nil {
 		fields = append(fields, promotionrule.FieldPromotionID)
 	}
@@ -76477,6 +76651,15 @@ func (m *PromotionRuleMutation) Fields() []string {
 	}
 	if m.discount_value != nil {
 		fields = append(fields, promotionrule.FieldDiscountValue)
+	}
+	if m.buy_quantity != nil {
+		fields = append(fields, promotionrule.FieldBuyQuantity)
+	}
+	if m.get_quantity != nil {
+		fields = append(fields, promotionrule.FieldGetQuantity)
+	}
+	if m.get_discount_percent != nil {
+		fields = append(fields, promotionrule.FieldGetDiscountPercent)
 	}
 	if m.meal_period != nil {
 		fields = append(fields, promotionrule.FieldMealPeriod)
@@ -76507,6 +76690,12 @@ func (m *PromotionRuleMutation) Field(name string) (ent.Value, bool) {
 		return m.DiscountType()
 	case promotionrule.FieldDiscountValue:
 		return m.DiscountValue()
+	case promotionrule.FieldBuyQuantity:
+		return m.BuyQuantity()
+	case promotionrule.FieldGetQuantity:
+		return m.GetQuantity()
+	case promotionrule.FieldGetDiscountPercent:
+		return m.GetDiscountPercent()
 	case promotionrule.FieldMealPeriod:
 		return m.MealPeriod()
 	case promotionrule.FieldMaxDiscount:
@@ -76534,6 +76723,12 @@ func (m *PromotionRuleMutation) OldField(ctx context.Context, name string) (ent.
 		return m.OldDiscountType(ctx)
 	case promotionrule.FieldDiscountValue:
 		return m.OldDiscountValue(ctx)
+	case promotionrule.FieldBuyQuantity:
+		return m.OldBuyQuantity(ctx)
+	case promotionrule.FieldGetQuantity:
+		return m.OldGetQuantity(ctx)
+	case promotionrule.FieldGetDiscountPercent:
+		return m.OldGetDiscountPercent(ctx)
 	case promotionrule.FieldMealPeriod:
 		return m.OldMealPeriod(ctx)
 	case promotionrule.FieldMaxDiscount:
@@ -76591,6 +76786,27 @@ func (m *PromotionRuleMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetDiscountValue(v)
 		return nil
+	case promotionrule.FieldBuyQuantity:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBuyQuantity(v)
+		return nil
+	case promotionrule.FieldGetQuantity:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGetQuantity(v)
+		return nil
+	case promotionrule.FieldGetDiscountPercent:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGetDiscountPercent(v)
+		return nil
 	case promotionrule.FieldMealPeriod:
 		v, ok := value.(promotionrule.MealPeriod)
 		if !ok {
@@ -76623,6 +76839,15 @@ func (m *PromotionRuleMutation) AddedFields() []string {
 	if m.adddiscount_value != nil {
 		fields = append(fields, promotionrule.FieldDiscountValue)
 	}
+	if m.addbuy_quantity != nil {
+		fields = append(fields, promotionrule.FieldBuyQuantity)
+	}
+	if m.addget_quantity != nil {
+		fields = append(fields, promotionrule.FieldGetQuantity)
+	}
+	if m.addget_discount_percent != nil {
+		fields = append(fields, promotionrule.FieldGetDiscountPercent)
+	}
 	if m.addmax_discount != nil {
 		fields = append(fields, promotionrule.FieldMaxDiscount)
 	}
@@ -76636,6 +76861,12 @@ func (m *PromotionRuleMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
 	case promotionrule.FieldDiscountValue:
 		return m.AddedDiscountValue()
+	case promotionrule.FieldBuyQuantity:
+		return m.AddedBuyQuantity()
+	case promotionrule.FieldGetQuantity:
+		return m.AddedGetQuantity()
+	case promotionrule.FieldGetDiscountPercent:
+		return m.AddedGetDiscountPercent()
 	case promotionrule.FieldMaxDiscount:
 		return m.AddedMaxDiscount()
 	}
@@ -76653,6 +76884,27 @@ func (m *PromotionRuleMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddDiscountValue(v)
+		return nil
+	case promotionrule.FieldBuyQuantity:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddBuyQuantity(v)
+		return nil
+	case promotionrule.FieldGetQuantity:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddGetQuantity(v)
+		return nil
+	case promotionrule.FieldGetDiscountPercent:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddGetDiscountPercent(v)
 		return nil
 	case promotionrule.FieldMaxDiscount:
 		v, ok := value.(float64)
@@ -76726,6 +76978,15 @@ func (m *PromotionRuleMutation) ResetField(name string) error {
 		return nil
 	case promotionrule.FieldDiscountValue:
 		m.ResetDiscountValue()
+		return nil
+	case promotionrule.FieldBuyQuantity:
+		m.ResetBuyQuantity()
+		return nil
+	case promotionrule.FieldGetQuantity:
+		m.ResetGetQuantity()
+		return nil
+	case promotionrule.FieldGetDiscountPercent:
+		m.ResetGetDiscountPercent()
 		return nil
 	case promotionrule.FieldMealPeriod:
 		m.ResetMealPeriod()

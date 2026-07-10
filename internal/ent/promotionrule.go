@@ -30,6 +30,12 @@ type PromotionRule struct {
 	DiscountType promotionrule.DiscountType `json:"discount_type,omitempty"`
 	// DiscountValue holds the value of the "discount_value" field.
 	DiscountValue float64 `json:"discount_value,omitempty"`
+	// BOGO: units of the scoped item that must be bought to trigger the deal
+	BuyQuantity int `json:"buy_quantity,omitempty"`
+	// BOGO: units of the scoped item discounted per buy_quantity bought
+	GetQuantity int `json:"get_quantity,omitempty"`
+	// BOGO: how much of the "get" units' price is discounted (100 = free)
+	GetDiscountPercent float64 `json:"get_discount_percent,omitempty"`
 	// When set, the discount targets a specific meal period (negotiated lunch/dinner rate, etc.)
 	MealPeriod *promotionrule.MealPeriod `json:"meal_period,omitempty"`
 	// Cap on the computed discount amount
@@ -46,8 +52,10 @@ func (*PromotionRule) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case promotionrule.FieldScopeIds, promotionrule.FieldRuleConfig:
 			values[i] = new([]byte)
-		case promotionrule.FieldDiscountValue, promotionrule.FieldMaxDiscount:
+		case promotionrule.FieldDiscountValue, promotionrule.FieldGetDiscountPercent, promotionrule.FieldMaxDiscount:
 			values[i] = new(sql.NullFloat64)
+		case promotionrule.FieldBuyQuantity, promotionrule.FieldGetQuantity:
+			values[i] = new(sql.NullInt64)
 		case promotionrule.FieldRuleType, promotionrule.FieldScopeType, promotionrule.FieldDiscountType, promotionrule.FieldMealPeriod:
 			values[i] = new(sql.NullString)
 		case promotionrule.FieldID, promotionrule.FieldPromotionID:
@@ -110,6 +118,24 @@ func (_m *PromotionRule) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field discount_value", values[i])
 			} else if value.Valid {
 				_m.DiscountValue = value.Float64
+			}
+		case promotionrule.FieldBuyQuantity:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field buy_quantity", values[i])
+			} else if value.Valid {
+				_m.BuyQuantity = int(value.Int64)
+			}
+		case promotionrule.FieldGetQuantity:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field get_quantity", values[i])
+			} else if value.Valid {
+				_m.GetQuantity = int(value.Int64)
+			}
+		case promotionrule.FieldGetDiscountPercent:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field get_discount_percent", values[i])
+			} else if value.Valid {
+				_m.GetDiscountPercent = value.Float64
 			}
 		case promotionrule.FieldMealPeriod:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -186,6 +212,15 @@ func (_m *PromotionRule) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("discount_value=")
 	builder.WriteString(fmt.Sprintf("%v", _m.DiscountValue))
+	builder.WriteString(", ")
+	builder.WriteString("buy_quantity=")
+	builder.WriteString(fmt.Sprintf("%v", _m.BuyQuantity))
+	builder.WriteString(", ")
+	builder.WriteString("get_quantity=")
+	builder.WriteString(fmt.Sprintf("%v", _m.GetQuantity))
+	builder.WriteString(", ")
+	builder.WriteString("get_discount_percent=")
+	builder.WriteString(fmt.Sprintf("%v", _m.GetDiscountPercent))
 	builder.WriteString(", ")
 	if v := _m.MealPeriod; v != nil {
 		builder.WriteString("meal_period=")

@@ -83,6 +83,48 @@ func (_c *PromotionRuleCreate) SetNillableDiscountValue(v *float64) *PromotionRu
 	return _c
 }
 
+// SetBuyQuantity sets the "buy_quantity" field.
+func (_c *PromotionRuleCreate) SetBuyQuantity(v int) *PromotionRuleCreate {
+	_c.mutation.SetBuyQuantity(v)
+	return _c
+}
+
+// SetNillableBuyQuantity sets the "buy_quantity" field if the given value is not nil.
+func (_c *PromotionRuleCreate) SetNillableBuyQuantity(v *int) *PromotionRuleCreate {
+	if v != nil {
+		_c.SetBuyQuantity(*v)
+	}
+	return _c
+}
+
+// SetGetQuantity sets the "get_quantity" field.
+func (_c *PromotionRuleCreate) SetGetQuantity(v int) *PromotionRuleCreate {
+	_c.mutation.SetGetQuantity(v)
+	return _c
+}
+
+// SetNillableGetQuantity sets the "get_quantity" field if the given value is not nil.
+func (_c *PromotionRuleCreate) SetNillableGetQuantity(v *int) *PromotionRuleCreate {
+	if v != nil {
+		_c.SetGetQuantity(*v)
+	}
+	return _c
+}
+
+// SetGetDiscountPercent sets the "get_discount_percent" field.
+func (_c *PromotionRuleCreate) SetGetDiscountPercent(v float64) *PromotionRuleCreate {
+	_c.mutation.SetGetDiscountPercent(v)
+	return _c
+}
+
+// SetNillableGetDiscountPercent sets the "get_discount_percent" field if the given value is not nil.
+func (_c *PromotionRuleCreate) SetNillableGetDiscountPercent(v *float64) *PromotionRuleCreate {
+	if v != nil {
+		_c.SetGetDiscountPercent(*v)
+	}
+	return _c
+}
+
 // SetMealPeriod sets the "meal_period" field.
 func (_c *PromotionRuleCreate) SetMealPeriod(v promotionrule.MealPeriod) *PromotionRuleCreate {
 	_c.mutation.SetMealPeriod(v)
@@ -178,6 +220,18 @@ func (_c *PromotionRuleCreate) defaults() {
 		v := promotionrule.DefaultDiscountValue
 		_c.mutation.SetDiscountValue(v)
 	}
+	if _, ok := _c.mutation.BuyQuantity(); !ok {
+		v := promotionrule.DefaultBuyQuantity
+		_c.mutation.SetBuyQuantity(v)
+	}
+	if _, ok := _c.mutation.GetQuantity(); !ok {
+		v := promotionrule.DefaultGetQuantity
+		_c.mutation.SetGetQuantity(v)
+	}
+	if _, ok := _c.mutation.GetDiscountPercent(); !ok {
+		v := promotionrule.DefaultGetDiscountPercent
+		_c.mutation.SetGetDiscountPercent(v)
+	}
 	if _, ok := _c.mutation.RuleConfig(); !ok {
 		v := promotionrule.DefaultRuleConfig
 		_c.mutation.SetRuleConfig(v)
@@ -219,6 +273,15 @@ func (_c *PromotionRuleCreate) check() error {
 	}
 	if _, ok := _c.mutation.DiscountValue(); !ok {
 		return &ValidationError{Name: "discount_value", err: errors.New(`ent: missing required field "PromotionRule.discount_value"`)}
+	}
+	if _, ok := _c.mutation.BuyQuantity(); !ok {
+		return &ValidationError{Name: "buy_quantity", err: errors.New(`ent: missing required field "PromotionRule.buy_quantity"`)}
+	}
+	if _, ok := _c.mutation.GetQuantity(); !ok {
+		return &ValidationError{Name: "get_quantity", err: errors.New(`ent: missing required field "PromotionRule.get_quantity"`)}
+	}
+	if _, ok := _c.mutation.GetDiscountPercent(); !ok {
+		return &ValidationError{Name: "get_discount_percent", err: errors.New(`ent: missing required field "PromotionRule.get_discount_percent"`)}
 	}
 	if v, ok := _c.mutation.MealPeriod(); ok {
 		if err := promotionrule.MealPeriodValidator(v); err != nil {
@@ -287,6 +350,18 @@ func (_c *PromotionRuleCreate) createSpec() (*PromotionRule, *sqlgraph.CreateSpe
 	if value, ok := _c.mutation.DiscountValue(); ok {
 		_spec.SetField(promotionrule.FieldDiscountValue, field.TypeFloat64, value)
 		_node.DiscountValue = value
+	}
+	if value, ok := _c.mutation.BuyQuantity(); ok {
+		_spec.SetField(promotionrule.FieldBuyQuantity, field.TypeInt, value)
+		_node.BuyQuantity = value
+	}
+	if value, ok := _c.mutation.GetQuantity(); ok {
+		_spec.SetField(promotionrule.FieldGetQuantity, field.TypeInt, value)
+		_node.GetQuantity = value
+	}
+	if value, ok := _c.mutation.GetDiscountPercent(); ok {
+		_spec.SetField(promotionrule.FieldGetDiscountPercent, field.TypeFloat64, value)
+		_node.GetDiscountPercent = value
 	}
 	if value, ok := _c.mutation.MealPeriod(); ok {
 		_spec.SetField(promotionrule.FieldMealPeriod, field.TypeEnum, value)
@@ -433,6 +508,60 @@ func (u *PromotionRuleUpsert) UpdateDiscountValue() *PromotionRuleUpsert {
 // AddDiscountValue adds v to the "discount_value" field.
 func (u *PromotionRuleUpsert) AddDiscountValue(v float64) *PromotionRuleUpsert {
 	u.Add(promotionrule.FieldDiscountValue, v)
+	return u
+}
+
+// SetBuyQuantity sets the "buy_quantity" field.
+func (u *PromotionRuleUpsert) SetBuyQuantity(v int) *PromotionRuleUpsert {
+	u.Set(promotionrule.FieldBuyQuantity, v)
+	return u
+}
+
+// UpdateBuyQuantity sets the "buy_quantity" field to the value that was provided on create.
+func (u *PromotionRuleUpsert) UpdateBuyQuantity() *PromotionRuleUpsert {
+	u.SetExcluded(promotionrule.FieldBuyQuantity)
+	return u
+}
+
+// AddBuyQuantity adds v to the "buy_quantity" field.
+func (u *PromotionRuleUpsert) AddBuyQuantity(v int) *PromotionRuleUpsert {
+	u.Add(promotionrule.FieldBuyQuantity, v)
+	return u
+}
+
+// SetGetQuantity sets the "get_quantity" field.
+func (u *PromotionRuleUpsert) SetGetQuantity(v int) *PromotionRuleUpsert {
+	u.Set(promotionrule.FieldGetQuantity, v)
+	return u
+}
+
+// UpdateGetQuantity sets the "get_quantity" field to the value that was provided on create.
+func (u *PromotionRuleUpsert) UpdateGetQuantity() *PromotionRuleUpsert {
+	u.SetExcluded(promotionrule.FieldGetQuantity)
+	return u
+}
+
+// AddGetQuantity adds v to the "get_quantity" field.
+func (u *PromotionRuleUpsert) AddGetQuantity(v int) *PromotionRuleUpsert {
+	u.Add(promotionrule.FieldGetQuantity, v)
+	return u
+}
+
+// SetGetDiscountPercent sets the "get_discount_percent" field.
+func (u *PromotionRuleUpsert) SetGetDiscountPercent(v float64) *PromotionRuleUpsert {
+	u.Set(promotionrule.FieldGetDiscountPercent, v)
+	return u
+}
+
+// UpdateGetDiscountPercent sets the "get_discount_percent" field to the value that was provided on create.
+func (u *PromotionRuleUpsert) UpdateGetDiscountPercent() *PromotionRuleUpsert {
+	u.SetExcluded(promotionrule.FieldGetDiscountPercent)
+	return u
+}
+
+// AddGetDiscountPercent adds v to the "get_discount_percent" field.
+func (u *PromotionRuleUpsert) AddGetDiscountPercent(v float64) *PromotionRuleUpsert {
+	u.Add(promotionrule.FieldGetDiscountPercent, v)
 	return u
 }
 
@@ -633,6 +762,69 @@ func (u *PromotionRuleUpsertOne) AddDiscountValue(v float64) *PromotionRuleUpser
 func (u *PromotionRuleUpsertOne) UpdateDiscountValue() *PromotionRuleUpsertOne {
 	return u.Update(func(s *PromotionRuleUpsert) {
 		s.UpdateDiscountValue()
+	})
+}
+
+// SetBuyQuantity sets the "buy_quantity" field.
+func (u *PromotionRuleUpsertOne) SetBuyQuantity(v int) *PromotionRuleUpsertOne {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.SetBuyQuantity(v)
+	})
+}
+
+// AddBuyQuantity adds v to the "buy_quantity" field.
+func (u *PromotionRuleUpsertOne) AddBuyQuantity(v int) *PromotionRuleUpsertOne {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.AddBuyQuantity(v)
+	})
+}
+
+// UpdateBuyQuantity sets the "buy_quantity" field to the value that was provided on create.
+func (u *PromotionRuleUpsertOne) UpdateBuyQuantity() *PromotionRuleUpsertOne {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.UpdateBuyQuantity()
+	})
+}
+
+// SetGetQuantity sets the "get_quantity" field.
+func (u *PromotionRuleUpsertOne) SetGetQuantity(v int) *PromotionRuleUpsertOne {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.SetGetQuantity(v)
+	})
+}
+
+// AddGetQuantity adds v to the "get_quantity" field.
+func (u *PromotionRuleUpsertOne) AddGetQuantity(v int) *PromotionRuleUpsertOne {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.AddGetQuantity(v)
+	})
+}
+
+// UpdateGetQuantity sets the "get_quantity" field to the value that was provided on create.
+func (u *PromotionRuleUpsertOne) UpdateGetQuantity() *PromotionRuleUpsertOne {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.UpdateGetQuantity()
+	})
+}
+
+// SetGetDiscountPercent sets the "get_discount_percent" field.
+func (u *PromotionRuleUpsertOne) SetGetDiscountPercent(v float64) *PromotionRuleUpsertOne {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.SetGetDiscountPercent(v)
+	})
+}
+
+// AddGetDiscountPercent adds v to the "get_discount_percent" field.
+func (u *PromotionRuleUpsertOne) AddGetDiscountPercent(v float64) *PromotionRuleUpsertOne {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.AddGetDiscountPercent(v)
+	})
+}
+
+// UpdateGetDiscountPercent sets the "get_discount_percent" field to the value that was provided on create.
+func (u *PromotionRuleUpsertOne) UpdateGetDiscountPercent() *PromotionRuleUpsertOne {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.UpdateGetDiscountPercent()
 	})
 }
 
@@ -1009,6 +1201,69 @@ func (u *PromotionRuleUpsertBulk) AddDiscountValue(v float64) *PromotionRuleUpse
 func (u *PromotionRuleUpsertBulk) UpdateDiscountValue() *PromotionRuleUpsertBulk {
 	return u.Update(func(s *PromotionRuleUpsert) {
 		s.UpdateDiscountValue()
+	})
+}
+
+// SetBuyQuantity sets the "buy_quantity" field.
+func (u *PromotionRuleUpsertBulk) SetBuyQuantity(v int) *PromotionRuleUpsertBulk {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.SetBuyQuantity(v)
+	})
+}
+
+// AddBuyQuantity adds v to the "buy_quantity" field.
+func (u *PromotionRuleUpsertBulk) AddBuyQuantity(v int) *PromotionRuleUpsertBulk {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.AddBuyQuantity(v)
+	})
+}
+
+// UpdateBuyQuantity sets the "buy_quantity" field to the value that was provided on create.
+func (u *PromotionRuleUpsertBulk) UpdateBuyQuantity() *PromotionRuleUpsertBulk {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.UpdateBuyQuantity()
+	})
+}
+
+// SetGetQuantity sets the "get_quantity" field.
+func (u *PromotionRuleUpsertBulk) SetGetQuantity(v int) *PromotionRuleUpsertBulk {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.SetGetQuantity(v)
+	})
+}
+
+// AddGetQuantity adds v to the "get_quantity" field.
+func (u *PromotionRuleUpsertBulk) AddGetQuantity(v int) *PromotionRuleUpsertBulk {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.AddGetQuantity(v)
+	})
+}
+
+// UpdateGetQuantity sets the "get_quantity" field to the value that was provided on create.
+func (u *PromotionRuleUpsertBulk) UpdateGetQuantity() *PromotionRuleUpsertBulk {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.UpdateGetQuantity()
+	})
+}
+
+// SetGetDiscountPercent sets the "get_discount_percent" field.
+func (u *PromotionRuleUpsertBulk) SetGetDiscountPercent(v float64) *PromotionRuleUpsertBulk {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.SetGetDiscountPercent(v)
+	})
+}
+
+// AddGetDiscountPercent adds v to the "get_discount_percent" field.
+func (u *PromotionRuleUpsertBulk) AddGetDiscountPercent(v float64) *PromotionRuleUpsertBulk {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.AddGetDiscountPercent(v)
+	})
+}
+
+// UpdateGetDiscountPercent sets the "get_discount_percent" field to the value that was provided on create.
+func (u *PromotionRuleUpsertBulk) UpdateGetDiscountPercent() *PromotionRuleUpsertBulk {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.UpdateGetDiscountPercent()
 	})
 }
 

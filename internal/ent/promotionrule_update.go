@@ -124,6 +124,69 @@ func (_u *PromotionRuleUpdate) AddDiscountValue(v float64) *PromotionRuleUpdate 
 	return _u
 }
 
+// SetBuyQuantity sets the "buy_quantity" field.
+func (_u *PromotionRuleUpdate) SetBuyQuantity(v int) *PromotionRuleUpdate {
+	_u.mutation.ResetBuyQuantity()
+	_u.mutation.SetBuyQuantity(v)
+	return _u
+}
+
+// SetNillableBuyQuantity sets the "buy_quantity" field if the given value is not nil.
+func (_u *PromotionRuleUpdate) SetNillableBuyQuantity(v *int) *PromotionRuleUpdate {
+	if v != nil {
+		_u.SetBuyQuantity(*v)
+	}
+	return _u
+}
+
+// AddBuyQuantity adds value to the "buy_quantity" field.
+func (_u *PromotionRuleUpdate) AddBuyQuantity(v int) *PromotionRuleUpdate {
+	_u.mutation.AddBuyQuantity(v)
+	return _u
+}
+
+// SetGetQuantity sets the "get_quantity" field.
+func (_u *PromotionRuleUpdate) SetGetQuantity(v int) *PromotionRuleUpdate {
+	_u.mutation.ResetGetQuantity()
+	_u.mutation.SetGetQuantity(v)
+	return _u
+}
+
+// SetNillableGetQuantity sets the "get_quantity" field if the given value is not nil.
+func (_u *PromotionRuleUpdate) SetNillableGetQuantity(v *int) *PromotionRuleUpdate {
+	if v != nil {
+		_u.SetGetQuantity(*v)
+	}
+	return _u
+}
+
+// AddGetQuantity adds value to the "get_quantity" field.
+func (_u *PromotionRuleUpdate) AddGetQuantity(v int) *PromotionRuleUpdate {
+	_u.mutation.AddGetQuantity(v)
+	return _u
+}
+
+// SetGetDiscountPercent sets the "get_discount_percent" field.
+func (_u *PromotionRuleUpdate) SetGetDiscountPercent(v float64) *PromotionRuleUpdate {
+	_u.mutation.ResetGetDiscountPercent()
+	_u.mutation.SetGetDiscountPercent(v)
+	return _u
+}
+
+// SetNillableGetDiscountPercent sets the "get_discount_percent" field if the given value is not nil.
+func (_u *PromotionRuleUpdate) SetNillableGetDiscountPercent(v *float64) *PromotionRuleUpdate {
+	if v != nil {
+		_u.SetGetDiscountPercent(*v)
+	}
+	return _u
+}
+
+// AddGetDiscountPercent adds value to the "get_discount_percent" field.
+func (_u *PromotionRuleUpdate) AddGetDiscountPercent(v float64) *PromotionRuleUpdate {
+	_u.mutation.AddGetDiscountPercent(v)
+	return _u
+}
+
 // SetMealPeriod sets the "meal_period" field.
 func (_u *PromotionRuleUpdate) SetMealPeriod(v promotionrule.MealPeriod) *PromotionRuleUpdate {
 	_u.mutation.SetMealPeriod(v)
@@ -275,6 +338,24 @@ func (_u *PromotionRuleUpdate) sqlSave(ctx context.Context) (_node int, err erro
 	if value, ok := _u.mutation.AddedDiscountValue(); ok {
 		_spec.AddField(promotionrule.FieldDiscountValue, field.TypeFloat64, value)
 	}
+	if value, ok := _u.mutation.BuyQuantity(); ok {
+		_spec.SetField(promotionrule.FieldBuyQuantity, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedBuyQuantity(); ok {
+		_spec.AddField(promotionrule.FieldBuyQuantity, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.GetQuantity(); ok {
+		_spec.SetField(promotionrule.FieldGetQuantity, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedGetQuantity(); ok {
+		_spec.AddField(promotionrule.FieldGetQuantity, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.GetDiscountPercent(); ok {
+		_spec.SetField(promotionrule.FieldGetDiscountPercent, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedGetDiscountPercent(); ok {
+		_spec.AddField(promotionrule.FieldGetDiscountPercent, field.TypeFloat64, value)
+	}
 	if value, ok := _u.mutation.MealPeriod(); ok {
 		_spec.SetField(promotionrule.FieldMealPeriod, field.TypeEnum, value)
 	}
@@ -405,6 +486,69 @@ func (_u *PromotionRuleUpdateOne) SetNillableDiscountValue(v *float64) *Promotio
 // AddDiscountValue adds value to the "discount_value" field.
 func (_u *PromotionRuleUpdateOne) AddDiscountValue(v float64) *PromotionRuleUpdateOne {
 	_u.mutation.AddDiscountValue(v)
+	return _u
+}
+
+// SetBuyQuantity sets the "buy_quantity" field.
+func (_u *PromotionRuleUpdateOne) SetBuyQuantity(v int) *PromotionRuleUpdateOne {
+	_u.mutation.ResetBuyQuantity()
+	_u.mutation.SetBuyQuantity(v)
+	return _u
+}
+
+// SetNillableBuyQuantity sets the "buy_quantity" field if the given value is not nil.
+func (_u *PromotionRuleUpdateOne) SetNillableBuyQuantity(v *int) *PromotionRuleUpdateOne {
+	if v != nil {
+		_u.SetBuyQuantity(*v)
+	}
+	return _u
+}
+
+// AddBuyQuantity adds value to the "buy_quantity" field.
+func (_u *PromotionRuleUpdateOne) AddBuyQuantity(v int) *PromotionRuleUpdateOne {
+	_u.mutation.AddBuyQuantity(v)
+	return _u
+}
+
+// SetGetQuantity sets the "get_quantity" field.
+func (_u *PromotionRuleUpdateOne) SetGetQuantity(v int) *PromotionRuleUpdateOne {
+	_u.mutation.ResetGetQuantity()
+	_u.mutation.SetGetQuantity(v)
+	return _u
+}
+
+// SetNillableGetQuantity sets the "get_quantity" field if the given value is not nil.
+func (_u *PromotionRuleUpdateOne) SetNillableGetQuantity(v *int) *PromotionRuleUpdateOne {
+	if v != nil {
+		_u.SetGetQuantity(*v)
+	}
+	return _u
+}
+
+// AddGetQuantity adds value to the "get_quantity" field.
+func (_u *PromotionRuleUpdateOne) AddGetQuantity(v int) *PromotionRuleUpdateOne {
+	_u.mutation.AddGetQuantity(v)
+	return _u
+}
+
+// SetGetDiscountPercent sets the "get_discount_percent" field.
+func (_u *PromotionRuleUpdateOne) SetGetDiscountPercent(v float64) *PromotionRuleUpdateOne {
+	_u.mutation.ResetGetDiscountPercent()
+	_u.mutation.SetGetDiscountPercent(v)
+	return _u
+}
+
+// SetNillableGetDiscountPercent sets the "get_discount_percent" field if the given value is not nil.
+func (_u *PromotionRuleUpdateOne) SetNillableGetDiscountPercent(v *float64) *PromotionRuleUpdateOne {
+	if v != nil {
+		_u.SetGetDiscountPercent(*v)
+	}
+	return _u
+}
+
+// AddGetDiscountPercent adds value to the "get_discount_percent" field.
+func (_u *PromotionRuleUpdateOne) AddGetDiscountPercent(v float64) *PromotionRuleUpdateOne {
+	_u.mutation.AddGetDiscountPercent(v)
 	return _u
 }
 
@@ -588,6 +732,24 @@ func (_u *PromotionRuleUpdateOne) sqlSave(ctx context.Context) (_node *Promotion
 	}
 	if value, ok := _u.mutation.AddedDiscountValue(); ok {
 		_spec.AddField(promotionrule.FieldDiscountValue, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.BuyQuantity(); ok {
+		_spec.SetField(promotionrule.FieldBuyQuantity, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedBuyQuantity(); ok {
+		_spec.AddField(promotionrule.FieldBuyQuantity, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.GetQuantity(); ok {
+		_spec.SetField(promotionrule.FieldGetQuantity, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedGetQuantity(); ok {
+		_spec.AddField(promotionrule.FieldGetQuantity, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.GetDiscountPercent(); ok {
+		_spec.SetField(promotionrule.FieldGetDiscountPercent, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedGetDiscountPercent(); ok {
+		_spec.AddField(promotionrule.FieldGetDiscountPercent, field.TypeFloat64, value)
 	}
 	if value, ok := _u.mutation.MealPeriod(); ok {
 		_spec.SetField(promotionrule.FieldMealPeriod, field.TypeEnum, value)

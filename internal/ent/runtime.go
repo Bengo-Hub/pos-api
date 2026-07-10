@@ -1994,8 +1994,20 @@ func init() {
 	promotionruleDescDiscountValue := promotionruleFields[6].Descriptor()
 	// promotionrule.DefaultDiscountValue holds the default value on creation for the discount_value field.
 	promotionrule.DefaultDiscountValue = promotionruleDescDiscountValue.Default.(float64)
+	// promotionruleDescBuyQuantity is the schema descriptor for buy_quantity field.
+	promotionruleDescBuyQuantity := promotionruleFields[7].Descriptor()
+	// promotionrule.DefaultBuyQuantity holds the default value on creation for the buy_quantity field.
+	promotionrule.DefaultBuyQuantity = promotionruleDescBuyQuantity.Default.(int)
+	// promotionruleDescGetQuantity is the schema descriptor for get_quantity field.
+	promotionruleDescGetQuantity := promotionruleFields[8].Descriptor()
+	// promotionrule.DefaultGetQuantity holds the default value on creation for the get_quantity field.
+	promotionrule.DefaultGetQuantity = promotionruleDescGetQuantity.Default.(int)
+	// promotionruleDescGetDiscountPercent is the schema descriptor for get_discount_percent field.
+	promotionruleDescGetDiscountPercent := promotionruleFields[9].Descriptor()
+	// promotionrule.DefaultGetDiscountPercent holds the default value on creation for the get_discount_percent field.
+	promotionrule.DefaultGetDiscountPercent = promotionruleDescGetDiscountPercent.Default.(float64)
 	// promotionruleDescRuleConfig is the schema descriptor for rule_config field.
-	promotionruleDescRuleConfig := promotionruleFields[9].Descriptor()
+	promotionruleDescRuleConfig := promotionruleFields[12].Descriptor()
 	// promotionrule.DefaultRuleConfig holds the default value on creation for the rule_config field.
 	promotionrule.DefaultRuleConfig = promotionruleDescRuleConfig.Default.(map[string]interface{})
 	// promotionruleDescID is the schema descriptor for id field.

@@ -68,6 +68,21 @@ func DiscountValue(v float64) predicate.PromotionRule {
 	return predicate.PromotionRule(sql.FieldEQ(FieldDiscountValue, v))
 }
 
+// BuyQuantity applies equality check predicate on the "buy_quantity" field. It's identical to BuyQuantityEQ.
+func BuyQuantity(v int) predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldEQ(FieldBuyQuantity, v))
+}
+
+// GetQuantity applies equality check predicate on the "get_quantity" field. It's identical to GetQuantityEQ.
+func GetQuantity(v int) predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldEQ(FieldGetQuantity, v))
+}
+
+// GetDiscountPercent applies equality check predicate on the "get_discount_percent" field. It's identical to GetDiscountPercentEQ.
+func GetDiscountPercent(v float64) predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldEQ(FieldGetDiscountPercent, v))
+}
+
 // MaxDiscount applies equality check predicate on the "max_discount" field. It's identical to MaxDiscountEQ.
 func MaxDiscount(v float64) predicate.PromotionRule {
 	return predicate.PromotionRule(sql.FieldEQ(FieldMaxDiscount, v))
@@ -266,6 +281,126 @@ func DiscountValueLT(v float64) predicate.PromotionRule {
 // DiscountValueLTE applies the LTE predicate on the "discount_value" field.
 func DiscountValueLTE(v float64) predicate.PromotionRule {
 	return predicate.PromotionRule(sql.FieldLTE(FieldDiscountValue, v))
+}
+
+// BuyQuantityEQ applies the EQ predicate on the "buy_quantity" field.
+func BuyQuantityEQ(v int) predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldEQ(FieldBuyQuantity, v))
+}
+
+// BuyQuantityNEQ applies the NEQ predicate on the "buy_quantity" field.
+func BuyQuantityNEQ(v int) predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldNEQ(FieldBuyQuantity, v))
+}
+
+// BuyQuantityIn applies the In predicate on the "buy_quantity" field.
+func BuyQuantityIn(vs ...int) predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldIn(FieldBuyQuantity, vs...))
+}
+
+// BuyQuantityNotIn applies the NotIn predicate on the "buy_quantity" field.
+func BuyQuantityNotIn(vs ...int) predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldNotIn(FieldBuyQuantity, vs...))
+}
+
+// BuyQuantityGT applies the GT predicate on the "buy_quantity" field.
+func BuyQuantityGT(v int) predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldGT(FieldBuyQuantity, v))
+}
+
+// BuyQuantityGTE applies the GTE predicate on the "buy_quantity" field.
+func BuyQuantityGTE(v int) predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldGTE(FieldBuyQuantity, v))
+}
+
+// BuyQuantityLT applies the LT predicate on the "buy_quantity" field.
+func BuyQuantityLT(v int) predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldLT(FieldBuyQuantity, v))
+}
+
+// BuyQuantityLTE applies the LTE predicate on the "buy_quantity" field.
+func BuyQuantityLTE(v int) predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldLTE(FieldBuyQuantity, v))
+}
+
+// GetQuantityEQ applies the EQ predicate on the "get_quantity" field.
+func GetQuantityEQ(v int) predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldEQ(FieldGetQuantity, v))
+}
+
+// GetQuantityNEQ applies the NEQ predicate on the "get_quantity" field.
+func GetQuantityNEQ(v int) predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldNEQ(FieldGetQuantity, v))
+}
+
+// GetQuantityIn applies the In predicate on the "get_quantity" field.
+func GetQuantityIn(vs ...int) predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldIn(FieldGetQuantity, vs...))
+}
+
+// GetQuantityNotIn applies the NotIn predicate on the "get_quantity" field.
+func GetQuantityNotIn(vs ...int) predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldNotIn(FieldGetQuantity, vs...))
+}
+
+// GetQuantityGT applies the GT predicate on the "get_quantity" field.
+func GetQuantityGT(v int) predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldGT(FieldGetQuantity, v))
+}
+
+// GetQuantityGTE applies the GTE predicate on the "get_quantity" field.
+func GetQuantityGTE(v int) predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldGTE(FieldGetQuantity, v))
+}
+
+// GetQuantityLT applies the LT predicate on the "get_quantity" field.
+func GetQuantityLT(v int) predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldLT(FieldGetQuantity, v))
+}
+
+// GetQuantityLTE applies the LTE predicate on the "get_quantity" field.
+func GetQuantityLTE(v int) predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldLTE(FieldGetQuantity, v))
+}
+
+// GetDiscountPercentEQ applies the EQ predicate on the "get_discount_percent" field.
+func GetDiscountPercentEQ(v float64) predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldEQ(FieldGetDiscountPercent, v))
+}
+
+// GetDiscountPercentNEQ applies the NEQ predicate on the "get_discount_percent" field.
+func GetDiscountPercentNEQ(v float64) predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldNEQ(FieldGetDiscountPercent, v))
+}
+
+// GetDiscountPercentIn applies the In predicate on the "get_discount_percent" field.
+func GetDiscountPercentIn(vs ...float64) predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldIn(FieldGetDiscountPercent, vs...))
+}
+
+// GetDiscountPercentNotIn applies the NotIn predicate on the "get_discount_percent" field.
+func GetDiscountPercentNotIn(vs ...float64) predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldNotIn(FieldGetDiscountPercent, vs...))
+}
+
+// GetDiscountPercentGT applies the GT predicate on the "get_discount_percent" field.
+func GetDiscountPercentGT(v float64) predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldGT(FieldGetDiscountPercent, v))
+}
+
+// GetDiscountPercentGTE applies the GTE predicate on the "get_discount_percent" field.
+func GetDiscountPercentGTE(v float64) predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldGTE(FieldGetDiscountPercent, v))
+}
+
+// GetDiscountPercentLT applies the LT predicate on the "get_discount_percent" field.
+func GetDiscountPercentLT(v float64) predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldLT(FieldGetDiscountPercent, v))
+}
+
+// GetDiscountPercentLTE applies the LTE predicate on the "get_discount_percent" field.
+func GetDiscountPercentLTE(v float64) predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldLTE(FieldGetDiscountPercent, v))
 }
 
 // MealPeriodEQ applies the EQ predicate on the "meal_period" field.

@@ -205,9 +205,13 @@ func (s *Service) EvaluateHappyHourDiscount(ctx context.Context, tenantID, outle
 }
 
 // DiscountLine is the minimal order-line info the evaluator needs to enforce scope.
+// Quantity/UnitPrice are only needed for discount_type=bogo (percentage/fixed_amount/
+// fixed_price work off Total alone); other callers may leave them zero.
 type DiscountLine struct {
-	SKU   string
-	Total decimal.Decimal
+	SKU       string
+	Total     decimal.Decimal
+	Quantity  float64
+	UnitPrice decimal.Decimal
 }
 
 // AutoDiscountResult is the winning auto-apply discount for an order (best of all active promos).
@@ -246,6 +250,16 @@ func (s *Service) EvaluateAutoDiscount(ctx context.Context, tenantID, outletID u
 	for _, p := range active {
 		rule, rErr := s.client.PromotionRule.Query().Where(promotionrule.PromotionID(p.ID)).First(ctx)
 		if rErr != nil || rule == nil {
+			continue
+		}
+
+		// BOGO is quantity-driven (per-SKU pairing), not a simple fraction of a base total —
+		// handle it separately before the base/switch math below applies to the rest.
+		if rule.DiscountType == promotionrule.DiscountTypeBogo {
+			d := s.calculateBOGODiscount(rule, lines)
+			if d.GreaterThan(best.Discount) {
+				best = AutoDiscountResult{PromoID: p.ID, Discount: d}
+			}
 			continue
 		}
 
@@ -299,6 +313,66 @@ func (s *Service) EvaluateAutoDiscount(ctx context.Context, tenantID, outletID u
 	}
 	best.Discount = best.Discount.Round(2)
 	return best
+}
+
+// calculateBOGODiscount computes a "buy X get Y [at N% off]" discount: for every
+// buy_quantity units of a scoped SKU in the cart, get_quantity more units of the SAME SKU
+// are discounted by get_discount_percent (100 = fully free — the classic "buy one get one
+// free"). Grouped per-SKU (a cart can carry the same SKU split across multiple lines — one
+// pre-existing, one just added) rather than pooled across different scoped SKUs, matching
+// how a real "buy 1 burger get 1 burger free" deal reads: adding a second UNRELATED scoped
+// item never completes someone else's pair. scope_type must be "item" with scope_ids set —
+// a storewide/category BOGO has no well-defined "unit" to pair, so it's a no-op.
+func (s *Service) calculateBOGODiscount(rule *ent.PromotionRule, lines []DiscountLine) decimal.Decimal {
+	if rule.ScopeType != promotionrule.ScopeTypeItem || len(rule.ScopeIds) == 0 {
+		return decimal.Zero
+	}
+	inScope := map[string]struct{}{}
+	for _, id := range rule.ScopeIds {
+		inScope[id] = struct{}{}
+	}
+	buyQty := rule.BuyQuantity
+	if buyQty <= 0 {
+		buyQty = 1
+	}
+	getQty := rule.GetQuantity
+	if getQty <= 0 {
+		getQty = 1
+	}
+	getPct := rule.GetDiscountPercent
+	if getPct <= 0 {
+		getPct = 100
+	}
+	cycle := buyQty + getQty
+
+	qtyBySKU := map[string]float64{}
+	priceBySKU := map[string]decimal.Decimal{}
+	for _, l := range lines {
+		if _, ok := inScope[l.SKU]; !ok {
+			continue
+		}
+		qtyBySKU[l.SKU] += l.Quantity
+		// Assume a uniform unit price per SKU across split lines (true for every caller
+		// today — modifiers/variants carry their own SKU, so a price mismatch here would
+		// mean two different priced items sharing one SKU, which is itself a data bug).
+		priceBySKU[l.SKU] = l.UnitPrice
+	}
+
+	total := decimal.Zero
+	for sku, qty := range qtyBySKU {
+		pairs := int(qty) / cycle
+		if pairs <= 0 {
+			continue
+		}
+		freeUnits := decimal.NewFromInt(int64(pairs * getQty))
+		total = total.Add(priceBySKU[sku].Mul(freeUnits).Mul(decimal.NewFromFloat(getPct / 100)))
+	}
+	if rule.MaxDiscount != nil && *rule.MaxDiscount > 0 {
+		if cap := decimal.NewFromFloat(*rule.MaxDiscount); total.GreaterThan(cap) {
+			total = cap
+		}
+	}
+	return total
 }
 
 // RecordApplication writes a PromotionApplication audit row linking a promo to the order it discounted.
