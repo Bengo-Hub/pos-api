@@ -5,9 +5,12 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/bengobox/pos-service/internal/ent"
+	entkdsstation "github.com/bengobox/pos-service/internal/ent/kdsstation"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
 	"github.com/bengobox/pos-service/internal/ent/posorderline"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
+	"github.com/bengobox/pos-service/internal/modules/orders"
 	"github.com/google/uuid"
 )
 
@@ -103,7 +106,9 @@ func (h *ReportsHandler) VoidSummary(w http.ResponseWriter, r *http.Request) {
 }
 
 // ProductMix handles GET /{tenantID}/pos/reports/product-mix?from=&to=
-// Returns three breakdowns: by category, by order_subtype, by item.
+// Returns two breakdowns: by order_subtype, and by item — the latter also carries each item's
+// category and KDS station (resolved the same way computeKDSStationBreakdown does) so the
+// Product Mix tab can filter by category/station instead of only free-text search.
 // Permission required: pos.reports.view
 func (h *ReportsHandler) ProductMix(w http.ResponseWriter, r *http.Request) {
 	tid, err := parseTenantUUID(r)
@@ -135,37 +140,124 @@ func (h *ReportsHandler) ProductMix(w http.ResponseWriter, r *http.Request) {
 	}
 
 	type mixRow struct {
-		Label      string  `json:"label"`
-		Quantity   float64 `json:"quantity"`
-		Revenue    float64 `json:"revenue"`
-		OrderCount int     `json:"order_count"`
+		Label       string  `json:"label"`
+		Quantity    float64 `json:"quantity"`
+		Revenue     float64 `json:"revenue"`
+		OrderCount  int     `json:"order_count"`
+		Category    string  `json:"category,omitempty"`
+		StationName string  `json:"station_name,omitempty"`
+		StationType string  `json:"station_type,omitempty"`
 	}
 	bySubtype := make(map[string]*mixRow)
 	byItem := make(map[string]*mixRow)
-	seenOrders := make(map[uuid.UUID]map[string]bool)
+	byCategory := make(map[string]*mixRow)
+	byStation := make(map[string]*mixRow)
+	subtypeOrders := make(map[string]map[uuid.UUID]struct{})
+	itemOrders := make(map[string]map[uuid.UUID]struct{})
+	categoryOrders := make(map[string]map[uuid.UUID]struct{})
+	stationOrders := make(map[string]map[uuid.UUID]struct{})
+
+	// KDS station lookup, same per-outlet cache pattern as computeKDSStationBreakdown — a
+	// multi-outlet report can mix outlets with different station configs.
+	stationsByOutlet := make(map[uuid.UUID][]*ent.KDSStation)
+	stationByID := make(map[uuid.UUID]*ent.KDSStation)
+	resolveStation := func(o *ent.POSOrder, l *ent.POSOrderLine) (name, stype string) {
+		stations, ok := stationsByOutlet[o.OutletID]
+		if !ok {
+			stations, _ = h.db.KDSStation.Query().
+				Where(entkdsstation.TenantID(tid), entkdsstation.OutletID(o.OutletID), entkdsstation.IsActive(true)).
+				All(r.Context())
+			stationsByOutlet[o.OutletID] = stations
+			for _, st := range stations {
+				stationByID[st.ID] = st
+			}
+		}
+		stationID := l.KdsStationID
+		if stationID == nil {
+			stationID = orders.ResolveStationForLineOrFallback(l.Name, l.Category, nil, stations)
+		}
+		if stationID == nil {
+			return "", ""
+		}
+		if st := stationByID[*stationID]; st != nil {
+			return st.Name, string(st.StationType)
+		}
+		return "", ""
+	}
 
 	for _, l := range lines {
-		if l.Edges.Order != nil {
-			subtype := string(l.Edges.Order.OrderSubtype)
-			if _, ok := bySubtype[subtype]; !ok {
-				bySubtype[subtype] = &mixRow{Label: subtype}
-			}
-			if _, ok := seenOrders[l.Edges.Order.ID]; !ok {
-				seenOrders[l.Edges.Order.ID] = make(map[string]bool)
-			}
-			if !seenOrders[l.Edges.Order.ID][subtype] {
-				seenOrders[l.Edges.Order.ID][subtype] = true
-				bySubtype[subtype].OrderCount++
-			}
-			bySubtype[subtype].Revenue += l.TotalPrice
-			bySubtype[subtype].Quantity += l.Quantity
+		o := l.Edges.Order
+		if o == nil {
+			continue
+		}
+		subtype := string(o.OrderSubtype)
+		if _, ok := bySubtype[subtype]; !ok {
+			bySubtype[subtype] = &mixRow{Label: subtype}
+		}
+		if _, ok := subtypeOrders[subtype]; !ok {
+			subtypeOrders[subtype] = map[uuid.UUID]struct{}{}
+		}
+		subtypeOrders[subtype][o.ID] = struct{}{}
+		bySubtype[subtype].Revenue += l.TotalPrice
+		bySubtype[subtype].Quantity += l.Quantity
+
+		stationName, stationType := resolveStation(o, l)
+		category := l.Category
+		if category == "" {
+			category = "Uncategorised"
+		}
+		stationLabel := stationName
+		if stationLabel == "" {
+			stationLabel = "Unassigned"
 		}
 
-		if _, ok := byItem[l.Name]; !ok {
-			byItem[l.Name] = &mixRow{Label: l.Name}
+		row, ok := byItem[l.Name]
+		if !ok {
+			row = &mixRow{Label: l.Name, Category: category, StationName: stationName, StationType: stationType}
+			byItem[l.Name] = row
 		}
-		byItem[l.Name].Quantity += l.Quantity
-		byItem[l.Name].Revenue += l.TotalPrice
+		if _, ok := itemOrders[l.Name]; !ok {
+			itemOrders[l.Name] = map[uuid.UUID]struct{}{}
+		}
+		itemOrders[l.Name][o.ID] = struct{}{}
+		row.Quantity += l.Quantity
+		row.Revenue += l.TotalPrice
+
+		catRow, ok := byCategory[category]
+		if !ok {
+			catRow = &mixRow{Label: category}
+			byCategory[category] = catRow
+		}
+		if _, ok := categoryOrders[category]; !ok {
+			categoryOrders[category] = map[uuid.UUID]struct{}{}
+		}
+		categoryOrders[category][o.ID] = struct{}{}
+		catRow.Quantity += l.Quantity
+		catRow.Revenue += l.TotalPrice
+
+		stRow, ok := byStation[stationLabel]
+		if !ok {
+			stRow = &mixRow{Label: stationLabel, StationName: stationName, StationType: stationType}
+			byStation[stationLabel] = stRow
+		}
+		if _, ok := stationOrders[stationLabel]; !ok {
+			stationOrders[stationLabel] = map[uuid.UUID]struct{}{}
+		}
+		stationOrders[stationLabel][o.ID] = struct{}{}
+		stRow.Quantity += l.Quantity
+		stRow.Revenue += l.TotalPrice
+	}
+	for subtype, ids := range subtypeOrders {
+		bySubtype[subtype].OrderCount = len(ids)
+	}
+	for name, ids := range itemOrders {
+		byItem[name].OrderCount = len(ids)
+	}
+	for cat, ids := range categoryOrders {
+		byCategory[cat].OrderCount = len(ids)
+	}
+	for st, ids := range stationOrders {
+		byStation[st].OrderCount = len(ids)
 	}
 
 	toSlice := func(m map[string]*mixRow) []*mixRow {
@@ -184,9 +276,11 @@ func (h *ReportsHandler) ProductMix(w http.ResponseWriter, r *http.Request) {
 	}
 
 	jsonOK(w, map[string]any{
-		"from":       from.Format("2006-01-02"),
-		"to":         to.Format("2006-01-02"),
-		"by_subtype": toSlice(bySubtype),
-		"top_items":  toSlice(byItem),
+		"from":        from.Format("2006-01-02"),
+		"to":          to.Format("2006-01-02"),
+		"by_subtype":  toSlice(bySubtype),
+		"top_items":   toSlice(byItem),
+		"by_category": toSlice(byCategory),
+		"by_station":  toSlice(byStation),
 	})
 }
