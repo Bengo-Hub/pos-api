@@ -19,9 +19,9 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/posdevicesession"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
 	"github.com/bengobox/pos-service/internal/ent/posorderline"
-	"github.com/bengobox/pos-service/internal/ent/predicate"
 	"github.com/bengobox/pos-service/internal/ent/posrefund"
 	"github.com/bengobox/pos-service/internal/ent/posreturn"
+	"github.com/bengobox/pos-service/internal/ent/predicate"
 	entuser "github.com/bengobox/pos-service/internal/ent/user"
 	ordersmod "github.com/bengobox/pos-service/internal/modules/orders"
 )
@@ -125,13 +125,13 @@ func (h *ReportsHandler) GetSummary(w http.ResponseWriter, r *http.Request) {
 	}
 
 	jsonOK(w, map[string]any{
-		"total_revenue":    todayRev,
-		"total_orders":     todayOrders,
-		"avg_ticket":       avgTicket,
-		"active_staff":     activeShifts,
-		"revenue_growth":   revenueGrowth,
-		"orders_growth":    ordersGrowth,
-		"as_of":            now.Format(time.RFC3339),
+		"total_revenue":  todayRev,
+		"total_orders":   todayOrders,
+		"avg_ticket":     avgTicket,
+		"active_staff":   activeShifts,
+		"revenue_growth": revenueGrowth,
+		"orders_growth":  ordersGrowth,
+		"as_of":          now.Format(time.RFC3339),
 	})
 }
 
@@ -829,9 +829,9 @@ func (h *ReportsHandler) CommissionReport(w http.ResponseWriter, r *http.Request
 	}
 
 	type staffSummary struct {
-		StaffID         uuid.UUID `json:"staff_member_id"`
-		PendingAmount   float64   `json:"pending_amount"`
-		RecordCount     int       `json:"record_count"`
+		StaffID       uuid.UUID `json:"staff_member_id"`
+		PendingAmount float64   `json:"pending_amount"`
+		RecordCount   int       `json:"record_count"`
 	}
 	byStaff := make(map[uuid.UUID]*staffSummary)
 	for _, rec := range recs {
@@ -919,7 +919,9 @@ func (h *ReportsHandler) TaxReport(w http.ResponseWriter, r *http.Request) {
 }
 
 // SalesByHour handles GET /{tenantID}/pos/reports/sales-by-hour?date=YYYY-MM-DD
-// Returns hourly sales breakdown for a single day.
+// Returns hourly sales breakdown for a single day, including per-hour profit/margin computed from
+// each line's real unit cost (GOODS Item.cost_price vs RECIPE cost_per_portion — see
+// resolveUnitCostsBySKU), the same cost source MostProfitableItems uses.
 func (h *ReportsHandler) SalesByHour(w http.ResponseWriter, r *http.Request) {
 	tid, err := parseTenantUUID(r)
 	if err != nil {
@@ -946,7 +948,7 @@ func (h *ReportsHandler) SalesByHour(w http.ResponseWriter, r *http.Request) {
 	if outletFilter := parseOutletFilter(r); outletFilter != uuid.Nil {
 		q = q.Where(posorder.OutletID(outletFilter))
 	}
-	orders, err := q.All(r.Context())
+	orders, err := q.WithLines().All(r.Context())
 	if err != nil {
 		h.log.Error("by-hour query failed", zap.Error(err))
 		jsonError(w, "internal error", http.StatusInternalServerError)
@@ -957,15 +959,29 @@ func (h *ReportsHandler) SalesByHour(w http.ResponseWriter, r *http.Request) {
 		Hour       int     `json:"hour"`
 		OrderCount int     `json:"order_count"`
 		Revenue    float64 `json:"revenue"`
+		Cost       float64 `json:"cost"`
+		Profit     float64 `json:"profit"`
+		MarginPct  float64 `json:"margin_pct"`
 	}
 	buckets := make([]hourBucket, 24)
 	for i := range buckets {
 		buckets[i].Hour = i
 	}
+
+	costBySKU := resolveUnitCostsBySKU(r, h.db, h.log)
 	for _, o := range orders {
-		h := o.CreatedAt.UTC().Hour()
-		buckets[h].OrderCount++
-		buckets[h].Revenue += o.TotalAmount
+		hr := o.CreatedAt.UTC().Hour()
+		buckets[hr].OrderCount++
+		buckets[hr].Revenue += o.TotalAmount
+		for _, l := range o.Edges.Lines {
+			buckets[hr].Cost += costBySKU[l.Sku] * l.Quantity
+		}
+	}
+	for i := range buckets {
+		buckets[i].Profit = buckets[i].Revenue - buckets[i].Cost
+		if buckets[i].Revenue != 0 {
+			buckets[i].MarginPct = buckets[i].Profit / buckets[i].Revenue * 100
+		}
 	}
 
 	jsonOK(w, map[string]any{"date": dateStr, "hours": buckets})

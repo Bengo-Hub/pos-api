@@ -180,6 +180,18 @@ func (p *painter) textC(x, w, y float64, s, font string, sz float64, c rgb) {
 	p.pdf.Text(x+(w-p.pdf.GetStringWidth(t))/2, y+sz*0.3528*0.82, t)
 }
 
+// textIncline draws a string ending at the anchor (x, y) — like textR — but rotated `angle`
+// degrees counter-clockwise around that anchor. Used for inclined chart axis labels: a positive
+// angle (e.g. 40) swings the text down-and-left away from the anchor, so it reads bottom-left to
+// top-right and stays legible without overlapping its neighbors, the same convention spreadsheet
+// tools use for tilted category-axis labels.
+func (p *painter) textIncline(x, y float64, s, font string, sz float64, c rgb, angle float64) {
+	p.pdf.TransformBegin()
+	p.pdf.TransformRotate(angle, x, y)
+	p.textR(x, y, s, font, sz, c)
+	p.pdf.TransformEnd()
+}
+
 // hline draws a horizontal hairline in the line color.
 func (p *painter) hline(x1, y, x2 float64) {
 	p.setDraw(p.pal.line)

@@ -10,10 +10,13 @@ import (
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
+	"github.com/bengobox/pos-service/internal/ent"
+	entkdsstation "github.com/bengobox/pos-service/internal/ent/kdsstation"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
 	"github.com/bengobox/pos-service/internal/ent/posorderline"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
 	"github.com/bengobox/pos-service/internal/modules/docs"
+	ordersmod "github.com/bengobox/pos-service/internal/modules/orders"
 )
 
 // This file adds branded PDF/CSV document endpoints (via ReportPDFHandler.write, which already
@@ -56,7 +59,7 @@ func (h *ReportPDFHandler) SalesByHourDoc(w http.ResponseWriter, r *http.Request
 	if oid != nil {
 		preds = append(preds, posorder.OutletID(*oid))
 	}
-	orders, err := h.db.POSOrder.Query().Where(preds...).All(ctx)
+	orders, err := h.db.POSOrder.Query().Where(preds...).WithLines().All(ctx)
 	if err != nil {
 		h.log.Error("sales-by-hour-document: query failed", zap.Error(err))
 		jsonError(w, "failed to generate sales by hour report", http.StatusInternalServerError)
@@ -64,18 +67,27 @@ func (h *ReportPDFHandler) SalesByHourDoc(w http.ResponseWriter, r *http.Request
 	}
 
 	type hourBucket struct {
-		orders  int
-		revenue float64
+		orders        int
+		revenue, cost float64
 	}
 	buckets := make([]hourBucket, 24)
-	var totalRevenue float64
+	var totalRevenue, totalCost float64
 	var totalOrders int
+
+	// Real per-sku cost (GOODS Item.cost_price vs RECIPE cost_per_portion) — see
+	// resolveUnitCostsBySKU. Mirrors ReportsHandler.SalesByHour's profit calc exactly.
+	costBySKU := resolveUnitCostsBySKU(r, h.db, h.log)
 	for _, o := range orders {
 		hr := o.CreatedAt.UTC().Hour()
 		buckets[hr].orders++
 		buckets[hr].revenue += o.TotalAmount
 		totalOrders++
 		totalRevenue += o.TotalAmount
+		for _, l := range o.Edges.Lines {
+			c := costBySKU[l.Sku] * l.Quantity
+			buckets[hr].cost += c
+			totalCost += c
+		}
 	}
 	peakHour, peakRevenue := 0, 0.0
 	for hr, b := range buckets {
@@ -88,8 +100,21 @@ func (h *ReportPDFHandler) SalesByHourDoc(w http.ResponseWriter, r *http.Request
 	bars := make([]docs.Bar, 0, 24)
 	for hr, b := range buckets {
 		label := strconv.Itoa(hr) + ":00"
-		rows = append(rows, []docs.Cell{docs.Text(label), docs.Text(strconv.Itoa(b.orders)), docs.Text(fmtAmount(b.revenue))})
+		profit := b.revenue - b.cost
+		marginPct := 0.0
+		if b.revenue != 0 {
+			marginPct = profit / b.revenue * 100
+		}
+		rows = append(rows, []docs.Cell{
+			docs.Text(label), docs.Text(strconv.Itoa(b.orders)), docs.Text(fmtAmount(b.revenue)),
+			docs.Text(fmtAmount(profit)), docs.Text(fmtQty(marginPct) + "%"),
+		})
 		bars = append(bars, docs.Bar{Label: label, Value: b.revenue})
+	}
+	totalProfit := totalRevenue - totalCost
+	totalMarginPct := 0.0
+	if totalRevenue != 0 {
+		totalMarginPct = totalProfit / totalRevenue * 100
 	}
 
 	report := h.newReport(ctx, tid, oid, "Sales by Hour", dateStr, dayStart, dayStart, true)
@@ -97,14 +122,22 @@ func (h *ReportPDFHandler) SalesByHourDoc(w http.ResponseWriter, r *http.Request
 		{Label: "Total Revenue", Value: "KES " + fmtAmount(totalRevenue)},
 		{Label: "Orders", Value: strconv.Itoa(totalOrders)},
 		{Label: "Peak Hour", Value: strconv.Itoa(peakHour) + ":00"},
+		{Label: "Profit Margin", Value: fmtQty(totalMarginPct) + "%"},
 	}
 	report.Sections = []docs.Section{
 		{
-			Kind:    docs.SectionTable,
-			Title:   "Hourly Breakdown",
-			Columns: []docs.Column{{Header: "Hour", Weight: 1}, {Header: "Orders", Weight: 1, Align: "R"}, {Header: "Revenue", Weight: 1.4, Money: true}},
-			Rows:    rows,
-			Total:   []docs.Cell{docs.BoldText("Total"), docs.BoldText(strconv.Itoa(totalOrders)), docs.BoldText(fmtAmount(totalRevenue))},
+			Kind:  docs.SectionTable,
+			Title: "Hourly Breakdown",
+			Columns: []docs.Column{
+				{Header: "Hour", Weight: 1}, {Header: "Orders", Weight: 1, Align: "R"},
+				{Header: "Revenue", Weight: 1.4, Money: true}, {Header: "Profit", Weight: 1.4, Money: true},
+				{Header: "Margin", Weight: 1, Align: "R"},
+			},
+			Rows: rows,
+			Total: []docs.Cell{
+				docs.BoldText("Total"), docs.BoldText(strconv.Itoa(totalOrders)), docs.BoldText(fmtAmount(totalRevenue)),
+				docs.BoldText(fmtAmount(totalProfit)), docs.BoldText(fmtQty(totalMarginPct) + "%"),
+			},
 		},
 		{Kind: docs.SectionChart, Title: "Revenue by Hour", ValueUnit: "KES", Bars: bars},
 	}
@@ -193,8 +226,15 @@ func (h *ReportPDFHandler) SalesByCategoryDoc(w http.ResponseWriter, r *http.Req
 
 // ── Product Mix ───────────────────────────────────────────────────────────────────
 
-// ProductMixDoc handles GET /{tenantID}/pos/reports/product-mix-document?from=&to=&outlet_id=&format=
-// Mirrors ReportsHandler.ProductMix's byItem grouping (the table the UI actually renders).
+// ProductMixDoc handles GET /{tenantID}/pos/reports/product-mix-document?from=&to=&outlet_id=
+// &categories=&stations=&format=
+// Mirrors ReportsHandler.ProductMix's full breakdown — not just the flat top-items table — so the
+// exported document separates every sold item under its resolved category and its resolved KDS
+// station (same per-outlet resolution reports_extended.go's ProductMix/computeKDSStationBreakdown
+// use), in addition to the overall ranking. ?categories=/?stations= are comma-separated lists that
+// scope the document to the same chip-filter selections the Product Mix tab exposes on screen —
+// when supplied, only the matching categories/stations (and the lines under them) are included;
+// omitted → every category/station a line resolved to.
 func (h *ReportPDFHandler) ProductMixDoc(w http.ResponseWriter, r *http.Request) {
 	tid, err := parseTenantUUID(r)
 	if err != nil {
@@ -204,6 +244,9 @@ func (h *ReportPDFHandler) ProductMixDoc(w http.ResponseWriter, r *http.Request)
 	ctx := r.Context()
 	oid := h.outletScope(r)
 	from, to := parseReportRange(r)
+
+	catFilter := parseCommaSet(r.URL.Query().Get("categories"))
+	stationFilter := parseCommaSet(r.URL.Query().Get("stations"))
 
 	orderPreds := []predicate.POSOrder{
 		posorder.TenantID(tid),
@@ -216,6 +259,7 @@ func (h *ReportPDFHandler) ProductMixDoc(w http.ResponseWriter, r *http.Request)
 	}
 	lines, err := h.db.POSOrderLine.Query().
 		Where(posorderline.HasOrderWith(orderPreds...)).
+		WithOrder().
 		All(ctx)
 	if err != nil {
 		h.log.Error("product-mix-document: query failed", zap.Error(err))
@@ -226,41 +270,118 @@ func (h *ReportPDFHandler) ProductMixDoc(w http.ResponseWriter, r *http.Request)
 	type mixBucket struct {
 		qty, revenue float64
 	}
-	byItem := make(map[string]*mixBucket)
-	for _, l := range lines {
-		if byItem[l.Name] == nil {
-			byItem[l.Name] = &mixBucket{}
+	accumulate := func(m map[string]*mixBucket, key string, qty, revenue float64) {
+		b := m[key]
+		if b == nil {
+			b = &mixBucket{}
+			m[key] = b
 		}
-		byItem[l.Name].qty += l.Quantity
-		byItem[l.Name].revenue += l.TotalPrice
+		b.qty += qty
+		b.revenue += revenue
+	}
+
+	byItem := make(map[string]*mixBucket)
+	byCategory := make(map[string]*mixBucket)
+	byStation := make(map[string]*mixBucket)
+	itemsByCategory := make(map[string]map[string]*mixBucket)
+	itemsByStation := make(map[string]map[string]*mixBucket)
+
+	// KDS station lookup, same per-outlet cache pattern as reports_extended.go's ProductMix — a
+	// multi-outlet report can mix outlets with different station configs.
+	stationsByOutlet := make(map[uuid.UUID][]*ent.KDSStation)
+	stationByID := make(map[uuid.UUID]*ent.KDSStation)
+	resolveStation := func(o *ent.POSOrder, l *ent.POSOrderLine) string {
+		stations, ok := stationsByOutlet[o.OutletID]
+		if !ok {
+			stations, _ = h.db.KDSStation.Query().
+				Where(entkdsstation.TenantID(tid), entkdsstation.OutletID(o.OutletID), entkdsstation.IsActive(true)).
+				All(ctx)
+			stationsByOutlet[o.OutletID] = stations
+			for _, st := range stations {
+				stationByID[st.ID] = st
+			}
+		}
+		stationID := l.KdsStationID
+		if stationID == nil {
+			stationID = ordersmod.ResolveStationForLineOrFallback(l.Name, l.Category, nil, stations)
+		}
+		if stationID == nil {
+			return ""
+		}
+		if st := stationByID[*stationID]; st != nil {
+			return st.Name
+		}
+		return ""
+	}
+
+	var totalRevenue, totalQty float64
+	for _, l := range lines {
+		o := l.Edges.Order
+		if o == nil {
+			continue
+		}
+		category := l.Category
+		if category == "" {
+			category = "Uncategorised"
+		}
+		station := resolveStation(o, l)
+		if station == "" {
+			station = "Unassigned"
+		}
+		if len(catFilter) > 0 && !catFilter[category] {
+			continue
+		}
+		if len(stationFilter) > 0 && !stationFilter[station] {
+			continue
+		}
+
+		accumulate(byItem, l.Name, l.Quantity, l.TotalPrice)
+		accumulate(byCategory, category, l.Quantity, l.TotalPrice)
+		accumulate(byStation, station, l.Quantity, l.TotalPrice)
+		if itemsByCategory[category] == nil {
+			itemsByCategory[category] = make(map[string]*mixBucket)
+		}
+		accumulate(itemsByCategory[category], l.Name, l.Quantity, l.TotalPrice)
+		if itemsByStation[station] == nil {
+			itemsByStation[station] = make(map[string]*mixBucket)
+		}
+		accumulate(itemsByStation[station], l.Name, l.Quantity, l.TotalPrice)
+		totalRevenue += l.TotalPrice
+		totalQty += l.Quantity
 	}
 
 	type mixRow struct {
 		name string
 		b    *mixBucket
 	}
-	list := make([]mixRow, 0, len(byItem))
-	var totalRevenue, totalQty float64
-	for name, b := range byItem {
-		list = append(list, mixRow{name: name, b: b})
-		totalRevenue += b.revenue
-		totalQty += b.qty
+	sortedRows := func(m map[string]*mixBucket) []mixRow {
+		out := make([]mixRow, 0, len(m))
+		for name, b := range m {
+			out = append(out, mixRow{name: name, b: b})
+		}
+		sort.Slice(out, func(i, j int) bool { return out[i].b.revenue > out[j].b.revenue })
+		return out
 	}
-	sort.Slice(list, func(i, j int) bool { return list[i].b.revenue > list[j].b.revenue })
+	toTableRows := func(rows []mixRow) [][]docs.Cell {
+		out := make([][]docs.Cell, 0, len(rows))
+		for _, m := range rows {
+			out = append(out, []docs.Cell{docs.Text(m.name), docs.Text(fmtQty(m.b.qty)), docs.Text(fmtAmount(m.b.revenue))})
+		}
+		return out
+	}
+	toBars := func(rows []mixRow, limit int) []docs.Bar {
+		if limit > 0 && len(rows) > limit {
+			rows = rows[:limit]
+		}
+		out := make([]docs.Bar, 0, len(rows))
+		for _, m := range rows {
+			out = append(out, docs.Bar{Label: m.name, Value: m.b.revenue})
+		}
+		return out
+	}
 
-	rows := make([][]docs.Cell, 0, len(list))
-	for _, m := range list {
-		rows = append(rows, []docs.Cell{docs.Text(m.name), docs.Text(fmtQty(m.b.qty)), docs.Text(fmtAmount(m.b.revenue))})
-	}
-	// Chart capped to the top 12 products so bar labels stay legible; the full ranking is in the table.
-	chartList := list
-	if len(chartList) > 12 {
-		chartList = chartList[:12]
-	}
-	bars := make([]docs.Bar, 0, len(chartList))
-	for _, m := range chartList {
-		bars = append(bars, docs.Bar{Label: m.name, Value: m.b.revenue})
-	}
+	list := sortedRows(byItem)
+	itemCols := []docs.Column{{Header: "Product", Weight: 2.2}, {Header: "Qty", Weight: 1, Align: "R"}, {Header: "Revenue", Weight: 1.4, Money: true}}
 
 	report := h.newReport(ctx, tid, oid, "Product Mix", "", from, to, false)
 	report.Cards = []docs.Card{
@@ -272,13 +393,63 @@ func (h *ReportPDFHandler) ProductMixDoc(w http.ResponseWriter, r *http.Request)
 		{
 			Kind:    docs.SectionTable,
 			Title:   "Top Products",
-			Columns: []docs.Column{{Header: "Product", Weight: 2.2}, {Header: "Qty", Weight: 1, Align: "R"}, {Header: "Revenue", Weight: 1.4, Money: true}},
-			Rows:    rows,
+			Columns: itemCols,
+			Rows:    toTableRows(list),
 			Total:   []docs.Cell{docs.BoldText("Total"), docs.BoldText(fmtQty(totalQty)), docs.BoldText(fmtAmount(totalRevenue))},
 		},
-		{Kind: docs.SectionChart, Title: "Top Products by Revenue", ValueUnit: "KES", Bars: bars},
+		{Kind: docs.SectionChart, Title: "Top Products by Revenue", ValueUnit: "KES", Bars: toBars(list, 20)},
 	}
+
+	// Category breakdown — one chart summarizing every category's revenue, then a table of every
+	// item under each category (highest-revenue category first).
+	categoryTotals := sortedRows(byCategory)
+	if len(categoryTotals) > 0 {
+		report.Sections = append(report.Sections,
+			docs.Section{Kind: docs.SectionChart, Title: "Revenue by Category", ValueUnit: "KES", Bars: toBars(categoryTotals, 0)})
+		for _, cat := range categoryTotals {
+			items := sortedRows(itemsByCategory[cat.name])
+			report.Sections = append(report.Sections, docs.Section{
+				Kind:    docs.SectionTable,
+				Title:   "Category: " + cat.name,
+				Columns: itemCols,
+				Rows:    toTableRows(items),
+				Total:   []docs.Cell{docs.BoldText("Total"), docs.BoldText(fmtQty(cat.b.qty)), docs.BoldText(fmtAmount(cat.b.revenue))},
+			})
+		}
+	}
+
+	// Station breakdown — same shape, grouped by resolved KDS station instead of category.
+	stationTotals := sortedRows(byStation)
+	if len(stationTotals) > 0 {
+		report.Sections = append(report.Sections,
+			docs.Section{Kind: docs.SectionChart, Title: "Revenue by KDS Station", ValueUnit: "KES", Bars: toBars(stationTotals, 0)})
+		for _, st := range stationTotals {
+			items := sortedRows(itemsByStation[st.name])
+			report.Sections = append(report.Sections, docs.Section{
+				Kind:    docs.SectionTable,
+				Title:   "KDS Station: " + st.name,
+				Columns: itemCols,
+				Rows:    toTableRows(items),
+				Total:   []docs.Cell{docs.BoldText("Total"), docs.BoldText(fmtQty(st.b.qty)), docs.BoldText(fmtAmount(st.b.revenue))},
+			})
+		}
+	}
+
 	h.write(w, r, report, "product-mix")
+}
+
+// parseCommaSet splits a comma-separated query param into a lookup set, trimming whitespace and
+// dropping empties. Returns an empty (non-nil) map when s is blank — callers treat an empty set as
+// "no filter" (len(...) == 0), not "match nothing".
+func parseCommaSet(s string) map[string]bool {
+	out := make(map[string]bool)
+	for _, part := range strings.Split(s, ",") {
+		part = strings.TrimSpace(part)
+		if part != "" {
+			out[part] = true
+		}
+	}
+	return out
 }
 
 // ── Voids ─────────────────────────────────────────────────────────────────────────

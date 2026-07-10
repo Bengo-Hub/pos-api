@@ -18,13 +18,12 @@ import (
 	"github.com/bengobox/pos-service/internal/ent"
 	entoutlet "github.com/bengobox/pos-service/internal/ent/outlet"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
-	entoverride "github.com/bengobox/pos-service/internal/ent/poscatalogoverride"
 	"github.com/bengobox/pos-service/internal/ent/pospayment"
 	"github.com/bengobox/pos-service/internal/ent/posrefund"
 	"github.com/bengobox/pos-service/internal/ent/posreturn"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
-	enttender "github.com/bengobox/pos-service/internal/ent/tender"
 	enttenant "github.com/bengobox/pos-service/internal/ent/tenant"
+	enttender "github.com/bengobox/pos-service/internal/ent/tender"
 	entuser "github.com/bengobox/pos-service/internal/ent/user"
 	"github.com/bengobox/pos-service/internal/modules/docs"
 )
@@ -810,9 +809,9 @@ func (h *ReportPDFHandler) SalesByStaffPDF(w http.ResponseWriter, r *http.Reques
 	}
 
 	type staffBucket struct {
-		orders                  int
-		revenue, discount       float64
-		voids                   int
+		orders            int
+		revenue, discount float64
+		voids             int
 	}
 	buckets := make(map[uuid.UUID]*staffBucket)
 	for _, o := range completed {
@@ -836,8 +835,8 @@ func (h *ReportPDFHandler) SalesByStaffPDF(w http.ResponseWriter, r *http.Reques
 	names := h.resolveStaffNames(ctx, tid, ids)
 
 	type staffRow struct {
-		name              string
-		bucket            *staffBucket
+		name   string
+		bucket *staffBucket
 	}
 	list := make([]staffRow, 0, len(buckets))
 	for id, b := range buckets {
@@ -947,8 +946,8 @@ func (h *ReportPDFHandler) TaxReportPDF(w http.ResponseWriter, r *http.Request) 
 		rate float64
 	}
 	type taxBucket struct {
-		code                 string
-		rate                 float64
+		code         string
+		rate         float64
 		taxable, tax float64
 	}
 	buckets := make(map[bucketKey]*taxBucket)
@@ -1041,7 +1040,7 @@ func (h *ReportPDFHandler) MostProfitablePDF(w http.ResponseWriter, r *http.Requ
 	}
 
 	type itemAgg struct {
-		sku, name                              string
+		sku, name                                   string
 		units, revenue, unitCost, profit, marginPct float64
 	}
 	buckets := make(map[string]*itemAgg)
@@ -1063,8 +1062,11 @@ func (h *ReportPDFHandler) MostProfitablePDF(w http.ResponseWriter, r *http.Requ
 			b.revenue += l.Quantity * l.UnitPrice
 		}
 	}
+	// Batched (not N+1) — see resolveUnitCostsBySKU for the GOODS-cost_price vs
+	// RECIPE-cost_per_portion split. Mirrors ReportsHandler.MostProfitableItems exactly.
+	costBySKU := resolveUnitCostsBySKU(r, h.db, h.log)
 	for sku, b := range buckets {
-		b.unitCost = h.resolveUnitCost(ctx, tid, sku)
+		b.unitCost = costBySKU[sku]
 		b.profit = b.revenue - b.unitCost*b.units
 		if b.revenue != 0 {
 			b.marginPct = b.profit / b.revenue * 100
@@ -1132,22 +1134,4 @@ func (h *ReportPDFHandler) MostProfitablePDF(w http.ResponseWriter, r *http.Requ
 		},
 	}}
 	h.write(w, r, report, "most-profitable-document")
-}
-
-// resolveUnitCost looks up a per-unit cost for a sku from the tenant's POSCatalogOverride projection
-// (metadata["cost_price"]), mirroring ReportsHandler.resolveUnitCost. Returns 0 when absent.
-func (h *ReportPDFHandler) resolveUnitCost(ctx context.Context, tid uuid.UUID, sku string) float64 {
-	ov, err := h.db.POSCatalogOverride.Query().
-		Where(entoverride.TenantID(tid), entoverride.InventorySku(sku)).
-		First(ctx)
-	if err != nil || ov == nil || ov.Metadata == nil {
-		return 0
-	}
-	switch v := ov.Metadata["cost_price"].(type) {
-	case float64:
-		return v
-	case int:
-		return float64(v)
-	}
-	return 0
 }

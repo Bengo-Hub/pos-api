@@ -7,6 +7,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/bengobox/pos-service/internal/ent"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
 )
 
@@ -90,8 +91,8 @@ func (h *ReportsHandler) MostProfitableItems(w http.ResponseWriter, r *http.Requ
 	}
 
 	// Resolve real per-sku costs from inventory-api in one batch (not N+1) — see
-	// resolveUnitCosts for the GOODS-cost_price vs RECIPE-cost_per_portion split.
-	costBySKU := h.resolveUnitCosts(r)
+	// resolveUnitCostsBySKU for the GOODS-cost_price vs RECIPE-cost_per_portion split.
+	costBySKU := resolveUnitCostsBySKU(r, h.db, h.log)
 	for sku, b := range buckets {
 		b.UnitCost = costBySKU[sku]
 		b.Profit = b.Revenue - b.UnitCost*b.UnitsSold
@@ -131,26 +132,28 @@ func (h *ReportsHandler) MostProfitableItems(w http.ResponseWriter, r *http.Requ
 	})
 }
 
-// resolveUnitCosts fetches the tenant's full inventory catalog and returns sku → real unit
+// resolveUnitCostsBySKU fetches the tenant's full inventory catalog and returns sku → real unit
 // cost: Item.cost_price (falling back to purchase_price) for GOODS/other stockable types, or
 // the recipe's cost_per_portion for RECIPE items — the same precedence inventory-api's own
-// enrichPrices now applies (items/pricing_enrich.go), and the same source pos-api's own catalog
+// enrichPrices applies (items/pricing_enrich.go), and the same source pos-api's own catalog
 // assembly uses for its (view_cost-gated) CostPrice column. Degrades to an empty map (all costs
 // 0, profit falls back to revenue) on proxy failure rather than failing the whole report.
 //
-// Previously this read POSCatalogOverride.metadata["cost_price"] per-sku (N+1 queries) — a field
-// nothing in this codebase ever wrote, so unit_cost was silently always 0 and "most profitable"
-// was actually just "highest revenue".
-func (h *ReportsHandler) resolveUnitCosts(r *http.Request) map[string]float64 {
+// Shared by every report that needs a true per-item cost — MostProfitableItems (JSON) and
+// MostProfitablePDF/SalesByHourDoc (documents) — so the profit margin a tenant sees on screen and
+// in an exported PDF always agree. Previously the PDF path (report_pdf.go's old resolveUnitCost)
+// read POSCatalogOverride.metadata["cost_price"] per-sku — a field nothing in this codebase ever
+// wrote, so unit_cost there was silently always 0 regardless of this fix landing in the JSON path.
+func resolveUnitCostsBySKU(r *http.Request, db *ent.Client, log *zap.Logger) map[string]float64 {
 	out := map[string]float64{}
-	tenantSlug := resolveTenantSlug(r, h.db)
+	tenantSlug := resolveTenantSlug(r, db)
 	if tenantSlug == "" {
-		h.log.Warn("most-profitable: could not resolve tenant slug for cost lookup")
+		log.Warn("resolveUnitCostsBySKU: could not resolve tenant slug for cost lookup")
 		return out
 	}
 	items, err := fetchInventoryItems(r.Context(), tenantSlug, "", "")
 	if err != nil {
-		h.log.Warn("most-profitable: inventory items fetch failed — costs will be 0", zap.Error(err))
+		log.Warn("resolveUnitCostsBySKU: inventory items fetch failed — costs will be 0", zap.Error(err))
 		return out
 	}
 	for _, item := range items {
