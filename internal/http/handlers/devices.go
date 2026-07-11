@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/Bengo-Hub/pagination"
@@ -17,6 +18,7 @@ import (
 	enthelditem "github.com/bengobox/pos-service/internal/ent/helditem"
 	"github.com/bengobox/pos-service/internal/ent/posdevicesession"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
+	"github.com/bengobox/pos-service/internal/ent/predicate"
 	"github.com/bengobox/pos-service/internal/ent/tender"
 	"github.com/bengobox/pos-service/internal/modules/shifts"
 	"github.com/bengobox/pos-service/internal/platform/events"
@@ -550,13 +552,30 @@ func (h *DeviceHandler) GetSessionHistory(w http.ResponseWriter, r *http.Request
 
 	userID := currentUserID(r)
 
-	sessions, err := h.client.POSDeviceSession.Query().
-		Where(
-			posdevicesession.TenantID(tid),
-			posdevicesession.UserID(userID),
-		).
+	// Filters: date range on opened_at (YYYY-MM-DD interpreted in the tenant timezone, so a
+	// day matches the till's wall clock) + session status (open|closed).
+	preds := []predicate.POSDeviceSession{
+		posdevicesession.TenantID(tid),
+		posdevicesession.UserID(userID),
+	}
+	loc := tenantLocation(r.Context(), h.client, tid)
+	if from := parseDateParam(r.URL.Query().Get("from"), false, loc); from != nil {
+		preds = append(preds, posdevicesession.OpenedAtGTE(*from))
+	}
+	if to := parseDateParam(r.URL.Query().Get("to"), true, loc); to != nil {
+		preds = append(preds, posdevicesession.OpenedAtLTE(*to))
+	}
+	if st := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("status"))); st == "open" || st == "closed" {
+		preds = append(preds, posdevicesession.SessionStatusEQ(st))
+	}
+
+	p := pagination.Parse(r)
+	baseQ := h.client.POSDeviceSession.Query().Where(preds...)
+	total, _ := baseQ.Clone().Count(r.Context())
+	sessions, err := baseQ.
 		Order(ent.Desc(posdevicesession.FieldOpenedAt)).
-		Limit(20).
+		Limit(p.Limit).
+		Offset(p.Offset).
 		All(r.Context())
 	if err != nil {
 		h.log.Error("session history query failed", zap.Error(err))
@@ -626,7 +645,7 @@ func (h *DeviceHandler) GetSessionHistory(w http.ResponseWriter, r *http.Request
 		rows = append(rows, row)
 	}
 
-	jsonOK(w, map[string]any{"data": rows, "total": len(rows)})
+	jsonOK(w, pagination.NewResponse(rows, total, p))
 }
 
 // currentUserID extracts the user UUID from JWT claims; falls back to nil UUID.

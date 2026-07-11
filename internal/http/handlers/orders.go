@@ -314,6 +314,18 @@ func (h *POSOrderHandler) ListOrders(w http.ResponseWriter, r *http.Request) {
 			s.Where(sqljson.ValueEQ(posorder.FieldMetadata, true, sqljson.Path("is_subscription")))
 		}))
 	}
+	// KDS station — match orders that have at least one line routed to the given station
+	// (kds_station_id is stamped on every line at order creation; see resolveStationForLine).
+	if ks := strings.TrimSpace(q.Get("kds_station_id")); ks != "" && !strings.EqualFold(ks, "all") {
+		if ksID, perr := uuid.Parse(ks); perr == nil {
+			filters = append(filters, posorder.HasLinesWith(posorderline.KdsStationID(ksID)))
+		}
+	}
+	// Category — match orders with at least one line in the given catalog category
+	// (case-insensitive exact match, mirroring the reports' category grouping).
+	if cat := strings.TrimSpace(q.Get("category")); cat != "" && !strings.EqualFold(cat, "all") {
+		filters = append(filters, posorder.HasLinesWith(posorderline.CategoryEqualFold(cat)))
+	}
 
 	p := pagination.Parse(r)
 	baseQ := h.client.POSOrder.Query().Where(filters...)
