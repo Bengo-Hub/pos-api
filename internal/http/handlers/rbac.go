@@ -162,7 +162,19 @@ func (h *RBACHandler) ListAssignments(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, map[string]interface{}{"assignments": assignments})
 }
 
-// ListRoles lists all roles.
+// roleWithScope wraps a role with its resolved use_cases so the frontend can label/badge it
+// (e.g. "pharmacy only") even when the caller didn't filter by use_case.
+type roleWithScope struct {
+	*rbac.POSRoleV2
+	UseCases []string `json:"use_cases,omitempty"`
+}
+
+// ListRoles lists roles visible to the tenant, optionally filtered to a single outlet use case
+// (?use_case=hospitality|retail|services|quick_service|pharmacy). System roles are scoped via
+// a static map (rbac.systemRoleUseCases); custom roles are scoped dynamically from the modules
+// of their currently granted permissions — so a hospitality outlet's Team/Roles UI doesn't show
+// pharmacy/services/retail-exclusive roles, and vice versa. A role with only common-module
+// grants (or none yet) always matches every use case.
 func (h *RBACHandler) ListRoles(w http.ResponseWriter, r *http.Request) {
 	tenantID := httpware.GetTenantID(r.Context())
 	if tenantID == "" {
@@ -174,6 +186,7 @@ func (h *RBACHandler) ListRoles(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
 		return
 	}
+	useCase := r.URL.Query().Get("use_case")
 
 	roles, err := h.rbacRepo.ListRoles(r.Context(), tid)
 	if err != nil {
@@ -182,13 +195,38 @@ func (h *RBACHandler) ListRoles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respondJSON(w, http.StatusOK, map[string]interface{}{"roles": roles})
+	out := make([]roleWithScope, 0, len(roles))
+	for _, role := range roles {
+		var modules []string
+		if !role.IsSystemRole {
+			perms, perr := h.rbacRepo.GetRolePermissions(r.Context(), role.ID)
+			if perr == nil {
+				seen := map[string]bool{}
+				for _, p := range perms {
+					if !seen[p.Module] {
+						seen[p.Module] = true
+						modules = append(modules, p.Module)
+					}
+				}
+			}
+		}
+		scopes := rbac.RoleUseCases(role.RoleCode, role.IsSystemRole, modules)
+		if !rbac.RoleMatchesUseCase(scopes, useCase) {
+			continue
+		}
+		out = append(out, roleWithScope{POSRoleV2: role, UseCases: scopes})
+	}
+
+	respondJSON(w, http.StatusOK, map[string]interface{}{"roles": out})
 }
 
-// ListPermissions lists all permissions.
+// ListPermissions lists permissions, optionally filtered to a single outlet use case
+// (?use_case=hospitality|retail|services|quick_service|pharmacy). A module with no use-case
+// restriction (see rbac.moduleUseCases) is common and always included.
 func (h *RBACHandler) ListPermissions(w http.ResponseWriter, r *http.Request) {
 	module := r.URL.Query().Get("module")
 	action := r.URL.Query().Get("action")
+	useCase := r.URL.Query().Get("use_case")
 
 	filters := rbac.PermissionFilters{}
 	if module != "" {
@@ -199,6 +237,15 @@ func (h *RBACHandler) ListPermissions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	permissions, err := h.rbacRepo.ListPermissions(r.Context(), filters)
+	if useCase != "" && err == nil {
+		filtered := make([]*rbac.POSPermission, 0, len(permissions))
+		for _, p := range permissions {
+			if rbac.ModuleMatchesUseCase(p.Module, useCase) {
+				filtered = append(filtered, p)
+			}
+		}
+		permissions = filtered
+	}
 	if err != nil {
 		h.logger.Error("failed to list permissions", zap.Error(err))
 		jsonError(w, "failed to list permissions", http.StatusInternalServerError)
