@@ -313,5 +313,15 @@ func BuildReceiptView(order *ent.POSOrder, lines []*ent.POSOrderLine, outlet *en
 		}
 	}
 
+	// De-duplicate: a custom receipt header that was configured to just repeat the outlet's
+	// name/address (the "Urban Loft Cafe Busia" printed twice report) prints the same line a
+	// second time. Drop it when it exactly matches either — the outlet name/address already
+	// says it once. This is the single canonical builder, so the fix applies to the JSON API,
+	// server HTML/PDF, and ESC/POS thermal receipt at once.
+	if h := strings.TrimSpace(v.ReceiptHeader); h != "" &&
+		(strings.EqualFold(h, strings.TrimSpace(v.OutletName)) || strings.EqualFold(h, strings.TrimSpace(v.OutletAddress))) {
+		v.ReceiptHeader = ""
+	}
+
 	return v
 }

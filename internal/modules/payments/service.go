@@ -761,6 +761,11 @@ func (s *Service) completeOrderIfFullyPaid(ctx context.Context, order *ent.POSOr
 			// (waiter My Bills, cashier orders page, or async digital confirmation)
 			// closed it — mirrors the manual ReleaseTable endpoint.
 			s.releaseTableForOrder(ctx, order.ID)
+			// A settled order is done in the kitchen/bar regardless of whether staff ever bumped
+			// its tickets on the KDS board (quick-service counter sales skip the board entirely) —
+			// force-serve any that are still open so the live board doesn't show food for an order
+			// that's already been paid for and (usually) handed over.
+			s.orderSvc.AutoClearKDSTicketsForOrder(ctx, order.TenantID, order.ID)
 		}
 	}
 }

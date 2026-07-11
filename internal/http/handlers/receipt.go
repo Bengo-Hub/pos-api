@@ -473,7 +473,8 @@ h1{font-size:17px;letter-spacing:.5px;text-align:center;margin:3px 0}
 .divider{border-top:1px dashed #000;margin:4px 0}
 .bold{font-weight:bold}
 .tot{font-size:16px}
-.prov{font-size:9.5px;text-align:center;margin:3px 0 1px;line-height:1.3;white-space:pre-wrap}
+.prov{font-size:9px;text-align:center;margin:1px 0 2px;line-height:1.3;white-space:pre-wrap}
+.prov-lead{font-size:10.5px;font-weight:bold;letter-spacing:.3px;text-align:center;margin:4px 0 1px;white-space:pre-wrap}
 .etims-qr{display:block;margin:4px auto;width:80px;height:80px}
 .etims-num{font-size:9px;text-align:center;word-break:break-all}
 @media print{body{width:100%%}}
@@ -593,8 +594,9 @@ h1{font-size:17px;letter-spacing:.5px;text-align:center;margin:3px 0}
 		}
 	}
 	buf.WriteString(`<div class="divider"></div>`)
-	buf.WriteString(fmt.Sprintf(`<p class="prov">%s</p>`, htmlEscape(lead)))
+	buf.WriteString(fmt.Sprintf(`<p class="prov-lead">&#9733; %s &#9733;</p>`, htmlEscape(lead)))
 	buf.WriteString(fmt.Sprintf(`<p class="prov">%s</p>`, htmlEscape(contact)))
+	buf.WriteString(`<div class="divider"></div>`)
 	buf.WriteString(`</body></html>`)
 	return buf.Bytes()
 }

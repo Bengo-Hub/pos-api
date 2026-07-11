@@ -1150,6 +1150,71 @@ func (s *Service) createKDSTicketsForOrder(ctx context.Context, tenantID uuid.UU
 	return nil
 }
 
+// AutoClearKDSTicketsForOrder force-serves any of an order's KDS tickets still sitting in
+// pending/in_progress/ready once the order itself has settled (fully paid → completed).
+//
+// Normally a ticket is bumped to "served" by kitchen/bar staff on the KDS board, which is what
+// advances the order to pending_payment ahead of payment (see syncOrderOnAllTicketsServed in
+// kds.go) — so by the time an order is paid its tickets are usually already served. But several
+// legitimate flows settle an order WITHOUT that board interaction ever happening: quick/counter
+// service that takes payment immediately, a printer-only kitchen station with no screen to bump,
+// or a ticket a busy kitchen simply never got to marking served before the bill was closed. Left
+// alone those tickets sit on the live KDS board forever for food that has already gone out and
+// been paid for. This is the automatic counterpart to the manual "Clear Board" action
+// (KDSHandler.ClearTickets), scoped to one order and fired the moment it settles.
+//
+// Called from payments.Service.completeOrderIfFullyPaid — the single place a POSOrder transitions
+// to StatusCompleted — so every settlement path (cash, card, M-Pesa, split, staff credit, etc.)
+// is covered without each caller needing to remember it.
+func (s *Service) AutoClearKDSTicketsForOrder(ctx context.Context, tenantID, orderID uuid.UUID) {
+	tickets, err := s.client.KDSTicket.Query().
+		Where(
+			kdsticket.TenantID(tenantID),
+			kdsticket.OrderID(orderID),
+			kdsticket.StatusIn(kdsticket.StatusPending, kdsticket.StatusInProgress, kdsticket.StatusReady),
+		).
+		WithStation().
+		All(ctx)
+	if err != nil || len(tickets) == 0 {
+		return
+	}
+
+	now := time.Now()
+	ids := make([]uuid.UUID, 0, len(tickets))
+	for _, t := range tickets {
+		ids = append(ids, t.ID)
+	}
+	if _, err := s.client.KDSTicket.Update().
+		Where(kdsticket.IDIn(ids...)).
+		SetStatus(kdsticket.StatusServed).
+		SetCompletedAt(now).
+		Save(ctx); err != nil {
+		s.log.Warn("orders: auto-clear kds tickets on settlement failed",
+			zap.String("order_id", orderID.String()), zap.Error(err))
+		return
+	}
+
+	if s.kdsHub == nil {
+		return
+	}
+	for _, t := range tickets {
+		if t.Edges.Station == nil {
+			continue
+		}
+		s.kdsHub.BroadcastToOutlet(tenantID, t.Edges.Station.OutletID, kdsmod.Message{
+			Type: "ticket_updated",
+			Payload: map[string]any{
+				"ticket_id":    t.ID,
+				"order_id":     t.OrderID,
+				"order_number": t.OrderNumber,
+				"station_id":   t.StationID,
+				"status":       string(kdsticket.StatusServed),
+				"completed_at": now,
+			},
+		})
+	}
+}
+
 // createLineModifiers persists the resolved modifier selections for one order line as
 // POSLineModifier rows, in the same transaction as the line itself. This is the ONLY writer
 // of this table today — previously modifier selections only ever reached the generic
