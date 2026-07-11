@@ -1372,6 +1372,57 @@ func (s *Service) resolveLocalModifier(ctx context.Context, tx *ent.Tx, tenantID
 	return created.ID, nil
 }
 
+// RecomputeTotals re-derives an order's monetary totals from its CURRENT persisted lines,
+// void-aware: each line contributes only its still-active (non-voided) fraction, so a soft-voided
+// or partially-voided line drops out of subtotal, tax AND the payable. This is the same identity
+// AddOrderLines applies, centralized so VoidOrderLine (and any future line mutation) keeps
+// subtotal/tax_total/total_amount consistent — instead of hand-subtracting a single figure and
+// leaving tax_total stale, which over-stated the payable for tax-exclusive lines and desynced the
+// GL at finalization (per-item revenue+tax would not sum to the cash receipt). Returns the updated
+// order.
+func (s *Service) RecomputeTotals(ctx context.Context, tenantID, orderID uuid.UUID) (*ent.POSOrder, error) {
+	order, err := s.client.POSOrder.Query().
+		Where(posorder.ID(orderID), posorder.TenantID(tenantID)).
+		WithLines().
+		Only(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("orders: recompute totals: load order: %w", err)
+	}
+	var subtotal, taxTotal decimal.Decimal
+	for _, ol := range order.Edges.Lines {
+		activeFraction := 1.0
+		if ol.VoidedQty != nil && ol.Quantity > 0 {
+			activeFraction = (ol.Quantity - *ol.VoidedQty) / ol.Quantity
+			if activeFraction < 0 {
+				activeFraction = 0
+			}
+		}
+		subtotal = subtotal.Add(decimal.NewFromFloat(ol.TotalPrice * activeFraction))
+		// Inclusive lines already carry their tax inside total_price; only additive (exclusive)
+		// tax is summed into tax_total, matching finalizeTotals' ceiling identity.
+		if ol.TaxAmount != nil && !ol.PriceIncludesTax {
+			taxTotal = taxTotal.Add(decimal.NewFromFloat(*ol.TaxAmount * activeFraction))
+		}
+	}
+	orderTax := decimal.Zero
+	if ot, ok := order.Metadata["order_tax"].(map[string]any); ok {
+		if amt, ok := ot["amount"].(float64); ok && amt > 0 {
+			orderTax = decimal.NewFromFloat(amt)
+		}
+	}
+	totals := finalizeTotals(subtotal, taxTotal, decimal.NewFromFloat(order.DiscountTotal), decimal.NewFromFloat(order.ChargesTotal), orderTax)
+	updated, err := s.client.POSOrder.UpdateOneID(order.ID).
+		SetSubtotal(totals.Subtotal.InexactFloat64()).
+		SetTaxTotal(totals.TaxTotal.InexactFloat64()).
+		SetRoundOff(totals.RoundOff.InexactFloat64()).
+		SetTotalAmount(totals.TotalAmount.InexactFloat64()).
+		Save(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("orders: recompute totals: update: %w", err)
+	}
+	return updated, nil
+}
+
 // AddOrderLines appends new lines to an existing open order, recalculates totals,
 // and creates KDS tickets for the new course_number=0 lines (always-fire items).
 func (s *Service) AddOrderLines(ctx context.Context, tenantID uuid.UUID, tenantSlug string, orderID uuid.UUID, lines []OrderLineInput) (*ent.POSOrder, error) {

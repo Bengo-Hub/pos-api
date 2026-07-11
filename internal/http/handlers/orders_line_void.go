@@ -134,19 +134,12 @@ func (h *POSOrderHandler) VoidOrderLine(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Reduce the order headline totals by the voided value (floor at zero).
-	newSubtotal := order.Subtotal - voidedValue
-	if newSubtotal < 0 {
-		newSubtotal = 0
-	}
-	newTotal := order.TotalAmount - voidedValue
-	if newTotal < 0 {
-		newTotal = 0
-	}
-	updatedOrder, err := order.Update().
-		SetSubtotal(newSubtotal).
-		SetTotalAmount(newTotal).
-		Save(r.Context())
+	// Re-derive the order totals from its (now soft-voided) lines rather than hand-subtracting one
+	// figure: this drops the voided line's TAX from tax_total too, keeping subtotal + tax − discount
+	// + charges = total_amount. A naive subtotal/total subtraction left tax_total stale and
+	// over-stated the payable for tax-exclusive lines, which desynced treasury's GL at finalization
+	// (the per-item revenue+tax lines no longer summed to the cash receipt).
+	updatedOrder, err := h.orderSvc.RecomputeTotals(r.Context(), tid, orderID)
 	if err != nil {
 		h.log.Error("adjust order totals after line void failed", zap.Error(err))
 		jsonError(w, "internal error", http.StatusInternalServerError)

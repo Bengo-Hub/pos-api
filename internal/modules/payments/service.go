@@ -847,15 +847,33 @@ func (s *Service) publishSaleFinalized(ctx context.Context, order *ent.POSOrder)
 	items := make([]map[string]any, 0, len(lines))
 	costTotal := 0.0
 	for _, l := range lines {
+		// Void-aware: a line partially or fully voided after the order was sent (e.g. an item went
+		// out of stock) was already subtracted from the header total. Its voided portion must NOT
+		// reach treasury (revenue, VAT/eTIMS, COGS) or inventory backflush — otherwise the per-item
+		// GL/eTIMS lines would over-state the sale versus the reduced cash receipt, and stock for a
+		// voided item would be wrongly deducted. Post only the surviving (non-voided) quantity; skip
+		// lines voided in full. See VoidOrderLine in handlers/orders_line_void.go.
+		effQty := l.Quantity
+		if l.VoidedQty != nil {
+			effQty = l.Quantity - *l.VoidedQty
+		}
+		if effQty <= 0 {
+			continue // fully voided — nothing to post or backflush for this line
+		}
+		// Scale money/cost/tax to the surviving quantity on a unit-price basis.
+		effTotal := l.TotalPrice
+		if l.Quantity > 0 && effQty != l.Quantity {
+			effTotal = (l.TotalPrice / l.Quantity) * effQty
+		}
 		costAmount := costBySKU[l.Sku] // per-unit cost; 0 when not available
-		lineCost := costAmount * l.Quantity
+		lineCost := costAmount * effQty
 		costTotal += lineCost
 		item := map[string]any{
 			"sku":         l.Sku,
 			"name":        l.Name,
-			"quantity":    l.Quantity,
+			"quantity":    effQty,
 			"unit_price":  l.UnitPrice,
-			"total_price": l.TotalPrice,
+			"total_price": effTotal,
 			// The item's inventory stock unit (synced via catalog events); "" when unknown.
 			// inventory-api converts non-stock-unit quantities (incl. the bottle
 			// content-per-unit bridge) before deducting.
@@ -876,7 +894,12 @@ func (s *Service) publishSaleFinalized(ctx context.Context, order *ent.POSOrder)
 			item["tax_rate"] = *l.TaxRate
 		}
 		if l.TaxAmount != nil {
-			item["tax_amount"] = *l.TaxAmount
+			// tax_amount is for the whole line (qty × unit tax); scale to the surviving quantity.
+			taxAmt := *l.TaxAmount
+			if l.Quantity > 0 && effQty != l.Quantity {
+				taxAmt = taxAmt * effQty / l.Quantity
+			}
+			item["tax_amount"] = taxAmt
 		}
 		// Attach captured serial(s) so inventory flips the specific sold unit(s) to "sold" in its
 		// per-unit serial registry (serial-tracked items: electronics, equipment).
