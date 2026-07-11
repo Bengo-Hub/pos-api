@@ -296,18 +296,23 @@ func (h *POSOrderHandler) ListOrders(w http.ResponseWriter, r *http.Request) {
 	case "refunded", "voided", "cancelled":
 		filters = append(filters, posorder.Status(strings.ToLower(q.Get("payment_status"))))
 	}
-	// Payment method → resolve tenders of that type for the tenant, then match orders that
-	// have a payment on one of them.
+	// Payment method → the real method the terminal used is stamped on each payment's
+	// payment_data.method (the POS reuses ONE generic tender across cash/card/mpesa/…, so the
+	// tender's own type does NOT identify the method). Match orders with a payment carrying that
+	// method, OR — for legacy setups that configured a distinct tender per method — a payment on a
+	// tender of that type. Either path satisfies the filter.
 	if pm := strings.TrimSpace(q.Get("payment_method")); pm != "" && !strings.EqualFold(pm, "all") {
-		tenderIDs, _ := h.client.Tender.Query().
-			Where(tender.TenantID(tid), tender.TypeEQ(pm)).
-			IDs(r.Context())
-		if len(tenderIDs) > 0 {
-			filters = append(filters, posorder.HasPaymentsWith(pospayment.TenderIDIn(tenderIDs...)))
-		} else {
-			// No matching tender → no orders can match this method.
-			filters = append(filters, posorder.IDEQ(uuid.Nil))
+		methodFilters := []predicate.POSOrder{
+			posorder.HasPaymentsWith(predicate.POSPayment(func(s *sql.Selector) {
+				s.Where(sqljson.ValueEQ(pospayment.FieldPaymentData, pm, sqljson.Path("method")))
+			})),
 		}
+		if tenderIDs, _ := h.client.Tender.Query().
+			Where(tender.TenantID(tid), tender.TypeEQ(pm)).
+			IDs(r.Context()); len(tenderIDs) > 0 {
+			methodFilters = append(methodFilters, posorder.HasPaymentsWith(pospayment.TenderIDIn(tenderIDs...)))
+		}
+		filters = append(filters, posorder.Or(methodFilters...))
 	}
 	// Shipping status — stored in metadata.shipping_status (set by Edit Shipping).
 	if ship := strings.TrimSpace(q.Get("shipping_status")); ship != "" && !strings.EqualFold(ship, "all") {
@@ -400,10 +405,23 @@ func (h *POSOrderHandler) enrichOrderList(ctx context.Context, tenantID uuid.UUI
 		// paid_total is the stored sum of completed payments — the same value the
 		// payment-status filter queries against, so badge and filter always agree.
 		paid := o.PaidTotal
+		// The displayed method comes from what was actually SETTLED. The terminal stamps the real
+		// method on payment_data.method (the tender is a shared generic row, so its type is not the
+		// method); fall back to the tender type only for legacy per-method-tender setups.
 		methods := map[string]struct{}{}
 		for _, pay := range o.Edges.Payments {
-			if t, ok := tenderType[pay.TenderID]; ok && t != "" {
-				methods[t] = struct{}{}
+			if !strings.EqualFold(pay.Status, "completed") {
+				continue // only settled tenders define the method shown against a paid sale
+			}
+			m := ""
+			if pay.PaymentData != nil {
+				m, _ = pay.PaymentData["method"].(string)
+			}
+			if m == "" {
+				m = tenderType[pay.TenderID]
+			}
+			if m != "" {
+				methods[m] = struct{}{}
 			}
 		}
 		due := o.TotalAmount - paid
