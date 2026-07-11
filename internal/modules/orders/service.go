@@ -223,9 +223,9 @@ type Service struct {
 	kdsHub          *kdsmod.Hub
 	// happyHourFn evaluates the best auto-apply (happy-hour / negotiated-meal) discount for
 	// (tenant, outlet) on the given lines at the current time, enforcing rule scope. Returns the
-	// winning promo id (uuid.Nil if none) and the discount amount. Injected from the promotions
-	// service to keep packages decoupled.
-	happyHourFn func(ctx context.Context, tenantID, outletID uuid.UUID, lines []OrderLineInput) (uuid.UUID, decimal.Decimal)
+	// winning promo + total discount + a per-SKU breakdown (for per-line receipt annotation).
+	// Injected from the promotions service to keep packages decoupled.
+	happyHourFn func(ctx context.Context, tenantID, outletID uuid.UUID, lines []OrderLineInput) HappyHourOutcome
 	// recordPromoFn writes the PromotionApplication audit row once the order id is known.
 	recordPromoFn func(ctx context.Context, promoID, orderID uuid.UUID, amount decimal.Decimal)
 	// printQueue enqueues background print jobs for the on-site Local Print Agent (AccuPOS model).
@@ -242,9 +242,28 @@ func (s *Service) SetPrintQueue(q *printing.Queue) {
 	s.printQueue = q
 }
 
+// HappyHourLine is the per-SKU happy-hour annotation stamped onto an order line so the
+// terminal, bill, and receipt can show the deal (e.g. "Buy 1 Get 1 Free", "20% off") and the
+// KES amount saved on that item. Amount is the whole-SKU saving (split proportionally across
+// that SKU's lines at persist time).
+type HappyHourLine struct {
+	Amount  float64
+	FreeQty float64
+	Type    string
+	Label   string
+}
+
+// HappyHourOutcome is the winning auto-apply discount for an order.
+type HappyHourOutcome struct {
+	PromoID   uuid.UUID
+	PromoName string
+	Discount  decimal.Decimal
+	BySKU     map[string]HappyHourLine
+}
+
 // SetHappyHourEvaluator wires the auto-apply discount evaluator + audit recorder (from promotions service).
 func (s *Service) SetHappyHourEvaluator(
-	fn func(ctx context.Context, tenantID, outletID uuid.UUID, lines []OrderLineInput) (uuid.UUID, decimal.Decimal),
+	fn func(ctx context.Context, tenantID, outletID uuid.UUID, lines []OrderLineInput) HappyHourOutcome,
 	record func(ctx context.Context, promoID, orderID uuid.UUID, amount decimal.Decimal),
 ) {
 	s.happyHourFn = fn
@@ -537,16 +556,31 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent
 
 	discount := decimal.NewFromFloat(req.DiscountAmount)
 	// Auto-apply the best happy-hour / negotiated-meal discount (scope-enforced) on top of any
-	// explicit discount. Capture the winning promo so we can write the audit row after save.
+	// explicit discount. Capture the winning promo so we can write the audit row after save AND
+	// stamp each scoped line with its per-item saving + label (shown on bill/receipt).
 	var appliedPromoID uuid.UUID
 	var appliedPromoAmount decimal.Decimal
+	var hhBySKU map[string]HappyHourLine
+	var hhPromoName string
 	if s.happyHourFn != nil {
-		if promoID, hh := s.happyHourFn(ctx, req.TenantID, req.OutletID, req.Lines); hh.IsPositive() {
-			discount = discount.Add(hh)
-			appliedPromoID = promoID
-			appliedPromoAmount = hh
-			if meta := req.Metadata; meta != nil {
-				meta["happy_hour_discount"] = hh.InexactFloat64()
+		if outcome := s.happyHourFn(ctx, req.TenantID, req.OutletID, req.Lines); outcome.Discount.IsPositive() {
+			discount = discount.Add(outcome.Discount)
+			appliedPromoID = outcome.PromoID
+			appliedPromoAmount = outcome.Discount
+			hhBySKU = outcome.BySKU
+			hhPromoName = outcome.PromoName
+		}
+	}
+	// Per-SKU cart totals so a SKU split across several lines shares its saving proportionally.
+	hhSkuTotal := map[string]decimal.Decimal{}
+	if len(hhBySKU) > 0 {
+		for _, l := range req.Lines {
+			if _, ok := hhBySKU[l.SKU]; ok {
+				t := decimal.NewFromFloat(l.TotalPrice)
+				if t.IsZero() {
+					t = decimal.NewFromFloat(l.UnitPrice).Mul(decimal.NewFromFloat(l.Quantity))
+				}
+				hhSkuTotal[l.SKU] = hhSkuTotal[l.SKU].Add(t)
 			}
 		}
 	}
@@ -580,6 +614,15 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent
 	}
 	if req.TableID != "" {
 		meta["table_id"] = req.TableID
+	}
+	// Record the applied happy-hour discount at order level (amount + promo name) so the bill,
+	// receipt, and reports can attribute the saving even for storewide promos with no per-line
+	// scope. Per-line detail (label + item saving) is stamped on each line below.
+	if appliedPromoAmount.IsPositive() {
+		meta["happy_hour_discount"] = appliedPromoAmount.InexactFloat64()
+		if hhPromoName != "" {
+			meta["happy_hour_promo"] = hhPromoName
+		}
 	}
 	// Order-level adjustments audit trail: per-charge breakdown + the manual order-tax edit
 	// (the amounts themselves are inside charges_total / tax_total).
@@ -703,6 +746,26 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent
 		meta := line.Metadata
 		if meta == nil {
 			meta = map[string]any{}
+		}
+
+		// Stamp the happy-hour annotation on scoped lines: the deal label ("Buy 1 Get 1 Free",
+		// "20% off"), the per-item KES saving (this line's proportional share of the SKU saving),
+		// and BOGO free units. Read back by the bill/receipt/order-detail to show the deal per line.
+		if hh, ok := hhBySKU[line.SKU]; ok {
+			share := decimal.NewFromFloat(hh.Amount)
+			if skuTotal := hhSkuTotal[line.SKU]; skuTotal.IsPositive() {
+				share = decimal.NewFromFloat(hh.Amount).Mul(lineTotal).Div(skuTotal).Round(2)
+			}
+			meta["happy_hour"] = map[string]any{
+				"promo":           hhPromoName,
+				"type":            hh.Type,
+				"label":           hh.Label,
+				"discount_amount": share.InexactFloat64(),
+				"free_qty":        hh.FreeQty,
+			}
+			// Also expose a flat discount_amount so the order-line DTO/receipt column can read it
+			// without unpacking the nested object.
+			meta["discount_amount"] = share.InexactFloat64()
 		}
 
 		// Tax was resolved up-front (resolveLineTaxes) — the same numbers the header totals used.

@@ -24,6 +24,23 @@ func ServedByFromContext(ctx context.Context) string {
 	return claims.Email
 }
 
+// receiptLineName appends the applied happy-hour deal label to the item name so the printed
+// receipt shows the offer per line (e.g. "Long Island — Buy 1 Get 1 Free"). The label is
+// stamped into line metadata at order creation by the orders service.
+func receiptLineName(l *ent.POSOrderLine) string {
+	if l == nil || l.Metadata == nil {
+		return l.Name
+	}
+	hh, ok := l.Metadata["happy_hour"].(map[string]any)
+	if !ok {
+		return l.Name
+	}
+	if label, ok := hh["label"].(string); ok && strings.TrimSpace(label) != "" {
+		return l.Name + " — " + label
+	}
+	return l.Name
+}
+
 // ReceiptLine is a single priced line on a receipt/ticket.
 type ReceiptLine struct {
 	SKU        string
@@ -204,7 +221,7 @@ func BuildReceiptView(order *ent.POSOrder, lines []*ent.POSOrderLine, outlet *en
 			if !opts.SplitLineIDs[l.ID.String()] {
 				continue
 			}
-			items = append(items, ReceiptLine{SKU: l.Sku, Name: l.Name, Quantity: l.Quantity, UnitPrice: l.UnitPrice, TotalPrice: l.TotalPrice})
+			items = append(items, ReceiptLine{SKU: l.Sku, Name: receiptLineName(l), Quantity: l.Quantity, UnitPrice: l.UnitPrice, TotalPrice: l.TotalPrice})
 			splitSubtotal += l.TotalPrice
 		}
 		// A split's items are VAT-inclusive line totals; order-level tax/discount/charges/
@@ -218,7 +235,7 @@ func BuildReceiptView(order *ent.POSOrder, lines []*ent.POSOrderLine, outlet *en
 		}
 	} else {
 		for _, l := range lines {
-			items = append(items, ReceiptLine{SKU: l.Sku, Name: l.Name, Quantity: l.Quantity, UnitPrice: l.UnitPrice, TotalPrice: l.TotalPrice})
+			items = append(items, ReceiptLine{SKU: l.Sku, Name: receiptLineName(l), Quantity: l.Quantity, UnitPrice: l.UnitPrice, TotalPrice: l.TotalPrice})
 		}
 	}
 
