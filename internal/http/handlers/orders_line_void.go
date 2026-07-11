@@ -19,6 +19,9 @@ type voidLineInput struct {
 	Qty           float64 `json:"qty"`
 	Reason        string  `json:"reason"`
 	ApprovalToken string  `json:"approval_token"`
+	// VoidCode is the one-time, order-scoped code a manager generated and shared with the cashier
+	// (the "manager not around" flow) — an alternative to a live PIN/card step-up, same as VoidOrder.
+	VoidCode string `json:"void_code"`
 }
 
 // VoidOrderLine handles POST /{tenantID}/pos/orders/{orderID}/lines/{lineID}/void.
@@ -64,6 +67,16 @@ func (h *POSOrderHandler) VoidOrderLine(w http.ResponseWriter, r *http.Request) 
 			jsonError(w, "invalid or expired approval", http.StatusForbidden)
 			return
 		}
+	} else if input.VoidCode != "" {
+		// A manager-shared one-time void code (order-scoped, minted for order.void) authorizes
+		// voiding the whole bill, so it also authorizes removing a single line from it. This keeps
+		// the per-line void's approval options at parity with the whole-order void.
+		if aid, valid := h.redeemVoidCode(r.Context(), tid, orderID, input.VoidCode); valid {
+			approverID = &aid
+		} else {
+			jsonError(w, "invalid or expired void code", http.StatusForbidden)
+			return
+		}
 	}
 
 	order, err := h.client.POSOrder.Query().
@@ -73,8 +86,16 @@ func (h *POSOrderHandler) VoidOrderLine(w http.ResponseWriter, r *http.Request) 
 		jsonError(w, "order not found", http.StatusNotFound)
 		return
 	}
-	if order.Status == "voided" || order.Status == "completed" {
-		jsonError(w, "cannot modify a "+order.Status+" order", http.StatusBadRequest)
+	if order.Status == "voided" || order.Status == "cancelled" || order.Status == "refunded" {
+		jsonError(w, "order is already "+order.Status, http.StatusBadRequest)
+		return
+	}
+	// A finalized sale has already posted to the ledger and transmitted to KRA eTIMS, so a line
+	// cannot simply be voided off it — that would leave the GL entry and eTIMS receipt un-reversed.
+	// Mirrors VoidOrder: such sales must be corrected via a return/refund (which posts the ledger
+	// reversal AND an eTIMS credit note). Partial voids only apply while the bill is still open.
+	if order.Status == "completed" || order.Status == "paid" || order.Status == "closed" {
+		jsonError(w, "a finalized sale cannot have items voided — issue a refund/return instead so the ledger and KRA eTIMS are properly reversed", http.StatusConflict)
 		return
 	}
 
