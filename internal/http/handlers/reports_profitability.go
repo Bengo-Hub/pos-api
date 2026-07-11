@@ -49,8 +49,8 @@ func (h *ReportsHandler) MostProfitableItems(w http.ResponseWriter, r *http.Requ
 		Where(
 			posorder.TenantID(tid),
 			posorder.StatusEQ("completed"),
-			posorder.CreatedAtGTE(from),
-			posorder.CreatedAtLTE(to),
+			effectiveDateGTE(from),
+			effectiveDateLTE(to),
 		).
 		WithLines().
 		All(r.Context())

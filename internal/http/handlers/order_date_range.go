@@ -13,11 +13,14 @@ import (
 // buckets/filters orders by date so a moved sale reports under its corrected day instead of
 // its original server-ingestion day.
 //
-// NOT every date-ranged report in this package has been switched to these helpers yet — only
-// the primary sales-record surfaces (All-Sales list, dashboard summary, sales summary, daily
-// breakdown). The remaining analytics slices (top items, sales-by-staff/hour/category, tax,
-// commission, stock consumption, exports) still filter on raw created_at; a moved sale will
-// not yet be reflected there. Widen this list's callers if/when those need the same fix.
+// Coverage: every SALES/revenue report now buckets by the effective date — the All-Sales list,
+// dashboard/sales summaries, daily breakdown, top items, sales-by-SKU/staff/hour/category, tax,
+// stock consumption, exports, product mix, most-profitable and KDS-station reports (JSON handlers
+// in reports*.go and their PDF twins via ReportPDFHandler.completedOrders / the analytics docs).
+// Deliberately still on raw created_at (NOT reporting-date surfaces): register-session reports
+// (closings.go DailyClosing snapshot, reports_register.go, devices.go shift windows) and the
+// void/reset audit reports (voidedPreds, VoidSummary) — these track when an order was physically
+// rung up / voided at the till, which a business_date move must not retroactively shift.
 func effectiveDateGTE(t time.Time) predicate.POSOrder {
 	return posorder.Or(
 		posorder.And(posorder.BusinessDateNotNil(), posorder.BusinessDateGTE(t)),

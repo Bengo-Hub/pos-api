@@ -45,8 +45,8 @@ func computeKDSStationBreakdown(ctx context.Context, db *ent.Client, tid uuid.UU
 	preds := []predicate.POSOrder{
 		posorder.TenantID(tid),
 		posorder.StatusEQ("completed"),
-		posorder.CreatedAtGTE(from),
-		posorder.CreatedAtLTE(to),
+		effectiveDateGTE(from),
+		effectiveDateLTE(to),
 	}
 	if oid != nil {
 		preds = append(preds, posorder.OutletID(*oid))

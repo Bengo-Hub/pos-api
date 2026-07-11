@@ -122,8 +122,8 @@ func (h *ReportsHandler) ProductMix(w http.ResponseWriter, r *http.Request) {
 	orderPredicates := []predicate.POSOrder{
 		posorder.TenantID(tid),
 		posorder.StatusEQ("completed"),
-		posorder.CreatedAtGTE(from),
-		posorder.CreatedAtLTE(to),
+		effectiveDateGTE(from),
+		effectiveDateLTE(to),
 	}
 	if outletFilter := parseOutletFilter(r); outletFilter != uuid.Nil {
 		orderPredicates = append(orderPredicates, posorder.OutletID(outletFilter))

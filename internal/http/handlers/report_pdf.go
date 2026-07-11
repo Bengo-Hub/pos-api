@@ -159,8 +159,11 @@ func (h *ReportPDFHandler) completedOrders(ctx context.Context, tid uuid.UUID, o
 	preds := []predicate.POSOrder{
 		posorder.TenantID(tid),
 		posorder.StatusEQ("completed"),
-		posorder.CreatedAtGTE(from),
-		posorder.CreatedAtLTE(to),
+		// Honor the admin business_date reporting override (see orders.MoveOrderDate) so a
+		// moved sale reports under its corrected day across every PDF sales report that
+		// funnels through this helper.
+		effectiveDateGTE(from),
+		effectiveDateLTE(to),
 	}
 	if oid != nil {
 		preds = append(preds, posorder.OutletID(*oid))

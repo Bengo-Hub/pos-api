@@ -53,8 +53,8 @@ func (h *ReportPDFHandler) SalesByHourDoc(w http.ResponseWriter, r *http.Request
 	preds := []predicate.POSOrder{
 		posorder.TenantID(tid),
 		posorder.StatusEQ("completed"),
-		posorder.CreatedAtGTE(dayStart),
-		posorder.CreatedAtLT(dayEnd),
+		effectiveDateGTE(dayStart),
+		effectiveDateLT(dayEnd),
 	}
 	if oid != nil {
 		preds = append(preds, posorder.OutletID(*oid))
@@ -251,8 +251,8 @@ func (h *ReportPDFHandler) ProductMixDoc(w http.ResponseWriter, r *http.Request)
 	orderPreds := []predicate.POSOrder{
 		posorder.TenantID(tid),
 		posorder.StatusEQ("completed"),
-		posorder.CreatedAtGTE(from),
-		posorder.CreatedAtLTE(to),
+		effectiveDateGTE(from),
+		effectiveDateLTE(to),
 	}
 	if oid != nil {
 		orderPreds = append(orderPreds, posorder.OutletID(*oid))

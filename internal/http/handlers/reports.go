@@ -392,8 +392,8 @@ func (h *ReportsHandler) TopItems(w http.ResponseWriter, r *http.Request) {
 		Where(
 			posorder.TenantID(tid),
 			posorder.StatusEQ("completed"),
-			posorder.CreatedAtGTE(from),
-			posorder.CreatedAtLTE(to),
+			effectiveDateGTE(from),
+			effectiveDateLTE(to),
 		).
 		WithLines().
 		All(r.Context())
@@ -455,8 +455,8 @@ func (h *ReportsHandler) S2SSalesBySKU(w http.ResponseWriter, r *http.Request) {
 		Where(
 			posorder.TenantID(tid),
 			posorder.StatusEQ("completed"),
-			posorder.CreatedAtGTE(from),
-			posorder.CreatedAtLTE(to),
+			effectiveDateGTE(from),
+			effectiveDateLTE(to),
 		).
 		WithLines().
 		All(r.Context())
@@ -510,10 +510,10 @@ func (h *ReportsHandler) SalesByStaff(w http.ResponseWriter, r *http.Request) {
 
 	completedQ := h.db.POSOrder.Query().
 		Where(posorder.TenantID(tid), posorder.StatusEQ("completed"),
-			posorder.CreatedAtGTE(from), posorder.CreatedAtLTE(to))
+			effectiveDateGTE(from), effectiveDateLTE(to))
 	voidedQ := h.db.POSOrder.Query().
 		Where(posorder.TenantID(tid), posorder.StatusEQ("voided"),
-			posorder.CreatedAtGTE(from), posorder.CreatedAtLTE(to))
+			effectiveDateGTE(from), effectiveDateLTE(to))
 	if outletFilter != uuid.Nil {
 		completedQ = completedQ.Where(posorder.OutletID(outletFilter))
 		voidedQ = voidedQ.Where(posorder.OutletID(outletFilter))
@@ -640,8 +640,8 @@ func (h *ReportsHandler) ExportDailyReport(w http.ResponseWriter, r *http.Reques
 		Where(
 			posorder.TenantID(tid),
 			posorder.StatusEQ("completed"),
-			posorder.CreatedAtGTE(from),
-			posorder.CreatedAtLTE(to),
+			effectiveDateGTE(from),
+			effectiveDateLTE(to),
 		).
 		All(r.Context())
 	if err != nil {
@@ -864,8 +864,8 @@ func (h *ReportsHandler) TaxReport(w http.ResponseWriter, r *http.Request) {
 		Where(posorderline.HasOrderWith(
 			posorder.TenantID(tid),
 			posorder.StatusEQ("completed"),
-			posorder.CreatedAtGTE(from),
-			posorder.CreatedAtLTE(to),
+			effectiveDateGTE(from),
+			effectiveDateLTE(to),
 		)).
 		All(r.Context())
 	if err != nil {
@@ -944,7 +944,7 @@ func (h *ReportsHandler) SalesByHour(w http.ResponseWriter, r *http.Request) {
 
 	q := h.db.POSOrder.Query().
 		Where(posorder.TenantID(tid), posorder.StatusEQ("completed"),
-			posorder.CreatedAtGTE(dayStart), posorder.CreatedAtLT(dayEnd))
+			effectiveDateGTE(dayStart), effectiveDateLT(dayEnd))
 	if outletFilter := parseOutletFilter(r); outletFilter != uuid.Nil {
 		q = q.Where(posorder.OutletID(outletFilter))
 	}
@@ -1002,8 +1002,8 @@ func (h *ReportsHandler) SalesByCategory(w http.ResponseWriter, r *http.Request)
 	q := h.db.POSOrder.Query().
 		Where(posorder.TenantID(tid),
 			posorder.StatusEQ("completed"),
-			posorder.CreatedAtGTE(from),
-			posorder.CreatedAtLTE(to))
+			effectiveDateGTE(from),
+			effectiveDateLTE(to))
 	if outletFilter := parseOutletFilter(r); outletFilter != uuid.Nil {
 		q = q.Where(posorder.OutletID(outletFilter))
 	}
@@ -1061,8 +1061,8 @@ func (h *ReportsHandler) StockConsumptionReport(w http.ResponseWriter, r *http.R
 		Where(posorderline.HasOrderWith(
 			posorder.TenantID(tid),
 			posorder.StatusEQ("completed"),
-			posorder.CreatedAtGTE(from),
-			posorder.CreatedAtLT(to),
+			effectiveDateGTE(from),
+			effectiveDateLT(to),
 		)).
 		All(r.Context())
 	if err != nil {
