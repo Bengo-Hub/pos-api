@@ -42,6 +42,9 @@ func (Tenant) Fields() []ent.Field {
 			Optional().
 			Nillable().
 			Comment("Primary business use case — synced from auth-api"),
+		field.String("timezone").
+			Default("Africa/Nairobi").
+			Comment("IANA timezone (day/shift/report boundaries) — synced from auth-api"),
 		field.String("sync_status").
 			Default("synced").
 			Comment("Sync status from auth-api: synced | pending | failed"),

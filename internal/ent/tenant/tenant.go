@@ -23,6 +23,8 @@ const (
 	FieldStatus = "status"
 	// FieldUseCase holds the string denoting the use_case field in the database.
 	FieldUseCase = "use_case"
+	// FieldTimezone holds the string denoting the timezone field in the database.
+	FieldTimezone = "timezone"
 	// FieldSyncStatus holds the string denoting the sync_status field in the database.
 	FieldSyncStatus = "sync_status"
 	// FieldLastSyncAt holds the string denoting the last_sync_at field in the database.
@@ -60,6 +62,7 @@ var Columns = []string{
 	FieldSlug,
 	FieldStatus,
 	FieldUseCase,
+	FieldTimezone,
 	FieldSyncStatus,
 	FieldLastSyncAt,
 	FieldCreatedAt,
@@ -83,6 +86,8 @@ var (
 	SlugValidator func(string) error
 	// DefaultStatus holds the default value on creation for the "status" field.
 	DefaultStatus string
+	// DefaultTimezone holds the default value on creation for the "timezone" field.
+	DefaultTimezone string
 	// DefaultSyncStatus holds the default value on creation for the "sync_status" field.
 	DefaultSyncStatus string
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
@@ -121,6 +126,11 @@ func ByStatus(opts ...sql.OrderTermOption) OrderOption {
 // ByUseCase orders the results by the use_case field.
 func ByUseCase(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldUseCase, opts...).ToFunc()
+}
+
+// ByTimezone orders the results by the timezone field.
+func ByTimezone(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTimezone, opts...).ToFunc()
 }
 
 // BySyncStatus orders the results by the sync_status field.

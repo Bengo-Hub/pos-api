@@ -66,6 +66,20 @@ func (_c *TenantCreate) SetNillableUseCase(v *string) *TenantCreate {
 	return _c
 }
 
+// SetTimezone sets the "timezone" field.
+func (_c *TenantCreate) SetTimezone(v string) *TenantCreate {
+	_c.mutation.SetTimezone(v)
+	return _c
+}
+
+// SetNillableTimezone sets the "timezone" field if the given value is not nil.
+func (_c *TenantCreate) SetNillableTimezone(v *string) *TenantCreate {
+	if v != nil {
+		_c.SetTimezone(*v)
+	}
+	return _c
+}
+
 // SetSyncStatus sets the "sync_status" field.
 func (_c *TenantCreate) SetSyncStatus(v string) *TenantCreate {
 	_c.mutation.SetSyncStatus(v)
@@ -205,6 +219,10 @@ func (_c *TenantCreate) defaults() {
 		v := tenant.DefaultStatus
 		_c.mutation.SetStatus(v)
 	}
+	if _, ok := _c.mutation.Timezone(); !ok {
+		v := tenant.DefaultTimezone
+		_c.mutation.SetTimezone(v)
+	}
 	if _, ok := _c.mutation.SyncStatus(); !ok {
 		v := tenant.DefaultSyncStatus
 		_c.mutation.SetSyncStatus(v)
@@ -243,6 +261,9 @@ func (_c *TenantCreate) check() error {
 	}
 	if _, ok := _c.mutation.Status(); !ok {
 		return &ValidationError{Name: "status", err: errors.New(`ent: missing required field "Tenant.status"`)}
+	}
+	if _, ok := _c.mutation.Timezone(); !ok {
+		return &ValidationError{Name: "timezone", err: errors.New(`ent: missing required field "Tenant.timezone"`)}
 	}
 	if _, ok := _c.mutation.SyncStatus(); !ok {
 		return &ValidationError{Name: "sync_status", err: errors.New(`ent: missing required field "Tenant.sync_status"`)}
@@ -304,6 +325,10 @@ func (_c *TenantCreate) createSpec() (*Tenant, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.UseCase(); ok {
 		_spec.SetField(tenant.FieldUseCase, field.TypeString, value)
 		_node.UseCase = &value
+	}
+	if value, ok := _c.mutation.Timezone(); ok {
+		_spec.SetField(tenant.FieldTimezone, field.TypeString, value)
+		_node.Timezone = value
 	}
 	if value, ok := _c.mutation.SyncStatus(); ok {
 		_spec.SetField(tenant.FieldSyncStatus, field.TypeString, value)
@@ -456,6 +481,18 @@ func (u *TenantUpsert) UpdateUseCase() *TenantUpsert {
 // ClearUseCase clears the value of the "use_case" field.
 func (u *TenantUpsert) ClearUseCase() *TenantUpsert {
 	u.SetNull(tenant.FieldUseCase)
+	return u
+}
+
+// SetTimezone sets the "timezone" field.
+func (u *TenantUpsert) SetTimezone(v string) *TenantUpsert {
+	u.Set(tenant.FieldTimezone, v)
+	return u
+}
+
+// UpdateTimezone sets the "timezone" field to the value that was provided on create.
+func (u *TenantUpsert) UpdateTimezone() *TenantUpsert {
+	u.SetExcluded(tenant.FieldTimezone)
 	return u
 }
 
@@ -612,6 +649,20 @@ func (u *TenantUpsertOne) UpdateUseCase() *TenantUpsertOne {
 func (u *TenantUpsertOne) ClearUseCase() *TenantUpsertOne {
 	return u.Update(func(s *TenantUpsert) {
 		s.ClearUseCase()
+	})
+}
+
+// SetTimezone sets the "timezone" field.
+func (u *TenantUpsertOne) SetTimezone(v string) *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.SetTimezone(v)
+	})
+}
+
+// UpdateTimezone sets the "timezone" field to the value that was provided on create.
+func (u *TenantUpsertOne) UpdateTimezone() *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.UpdateTimezone()
 	})
 }
 
@@ -942,6 +993,20 @@ func (u *TenantUpsertBulk) UpdateUseCase() *TenantUpsertBulk {
 func (u *TenantUpsertBulk) ClearUseCase() *TenantUpsertBulk {
 	return u.Update(func(s *TenantUpsert) {
 		s.ClearUseCase()
+	})
+}
+
+// SetTimezone sets the "timezone" field.
+func (u *TenantUpsertBulk) SetTimezone(v string) *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.SetTimezone(v)
+	})
+}
+
+// UpdateTimezone sets the "timezone" field to the value that was provided on create.
+func (u *TenantUpsertBulk) UpdateTimezone() *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.UpdateTimezone()
 	})
 }
 

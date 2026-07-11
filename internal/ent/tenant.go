@@ -26,6 +26,8 @@ type Tenant struct {
 	Status string `json:"status,omitempty"`
 	// Primary business use case — synced from auth-api
 	UseCase *string `json:"use_case,omitempty"`
+	// IANA timezone (day/shift/report boundaries) — synced from auth-api
+	Timezone string `json:"timezone,omitempty"`
 	// Sync status from auth-api: synced | pending | failed
 	SyncStatus string `json:"sync_status,omitempty"`
 	// Last successful sync from auth-api
@@ -74,7 +76,7 @@ func (*Tenant) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case tenant.FieldName, tenant.FieldSlug, tenant.FieldStatus, tenant.FieldUseCase, tenant.FieldSyncStatus:
+		case tenant.FieldName, tenant.FieldSlug, tenant.FieldStatus, tenant.FieldUseCase, tenant.FieldTimezone, tenant.FieldSyncStatus:
 			values[i] = new(sql.NullString)
 		case tenant.FieldLastSyncAt, tenant.FieldCreatedAt, tenant.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -125,6 +127,12 @@ func (_m *Tenant) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.UseCase = new(string)
 				*_m.UseCase = value.String
+			}
+		case tenant.FieldTimezone:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field timezone", values[i])
+			} else if value.Valid {
+				_m.Timezone = value.String
 			}
 		case tenant.FieldSyncStatus:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -210,6 +218,9 @@ func (_m *Tenant) String() string {
 		builder.WriteString("use_case=")
 		builder.WriteString(*v)
 	}
+	builder.WriteString(", ")
+	builder.WriteString("timezone=")
+	builder.WriteString(_m.Timezone)
 	builder.WriteString(", ")
 	builder.WriteString("sync_status=")
 	builder.WriteString(_m.SyncStatus)

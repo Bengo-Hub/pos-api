@@ -24,7 +24,7 @@ func (h *ReportsHandler) VoidSummary(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	from, to := parseDateRange(r)
+	from, to := parseDateRange(r, requestTenantLocation(r, h.db))
 
 	q := h.db.POSOrder.Query().
 		Where(
@@ -117,7 +117,7 @@ func (h *ReportsHandler) ProductMix(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	from, to := parseDateRange(r)
+	from, to := parseDateRange(r, requestTenantLocation(r, h.db))
 
 	orderPredicates := []predicate.POSOrder{
 		posorder.TenantID(tid),

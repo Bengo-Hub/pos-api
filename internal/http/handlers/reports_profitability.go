@@ -36,7 +36,7 @@ func (h *ReportsHandler) MostProfitableItems(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	from, to := parseDateRange(r)
+	from, to := parseDateRange(r, requestTenantLocation(r, h.db))
 
 	limit := 20
 	if ls := r.URL.Query().Get("limit"); ls != "" {

@@ -238,10 +238,12 @@ func (h *POSOrderHandler) ListOrders(w http.ResponseWriter, r *http.Request) {
 	}
 	// Date range on the order's EFFECTIVE date (accepts RFC3339 or YYYY-MM-DD) — the
 	// admin business_date override when a sale's date was moved, else created_at.
-	if from := parseDateParam(q.Get("from"), false); from != nil {
+	// Date-only bounds are read in the tenant timezone so a day matches its wall clock.
+	loc := tenantLocation(r.Context(), h.client, tid)
+	if from := parseDateParam(q.Get("from"), false, loc); from != nil {
 		filters = append(filters, effectiveDateGTE(*from))
 	}
-	if to := parseDateParam(q.Get("to"), true); to != nil {
+	if to := parseDateParam(q.Get("to"), true, loc); to != nil {
 		filters = append(filters, effectiveDateLTE(*to))
 	}
 	// Customer: match phone or name (contains, case-insensitive).
@@ -482,17 +484,22 @@ func dominantMethod(methods map[string]struct{}) string {
 	return "multiple"
 }
 
-// parseDateParam parses a from/to query value as RFC3339 or YYYY-MM-DD. When endOfDay is
-// true and a date-only value is given, it snaps to the end of that day (inclusive range).
-func parseDateParam(v string, endOfDay bool) *time.Time {
+// parseDateParam parses a from/to query value as RFC3339 or YYYY-MM-DD. Date-only
+// values are interpreted in loc (the tenant timezone) so the day boundary matches
+// the tenant's wall clock; when endOfDay is true a date-only value snaps to the end
+// of that local day (inclusive range).
+func parseDateParam(v string, endOfDay bool, loc *time.Location) *time.Time {
 	v = strings.TrimSpace(v)
 	if v == "" {
 		return nil
 	}
+	if loc == nil {
+		loc = time.UTC
+	}
 	if t, err := time.Parse(time.RFC3339, v); err == nil {
 		return &t
 	}
-	if t, err := time.Parse("2006-01-02", v); err == nil {
+	if t, err := time.ParseInLocation("2006-01-02", v, loc); err == nil {
 		if endOfDay {
 			t = t.Add(24*time.Hour - time.Nanosecond)
 		}

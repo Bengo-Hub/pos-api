@@ -93,6 +93,20 @@ func (_u *TenantUpdate) ClearUseCase() *TenantUpdate {
 	return _u
 }
 
+// SetTimezone sets the "timezone" field.
+func (_u *TenantUpdate) SetTimezone(v string) *TenantUpdate {
+	_u.mutation.SetTimezone(v)
+	return _u
+}
+
+// SetNillableTimezone sets the "timezone" field if the given value is not nil.
+func (_u *TenantUpdate) SetNillableTimezone(v *string) *TenantUpdate {
+	if v != nil {
+		_u.SetTimezone(*v)
+	}
+	return _u
+}
+
 // SetSyncStatus sets the "sync_status" field.
 func (_u *TenantUpdate) SetSyncStatus(v string) *TenantUpdate {
 	_u.mutation.SetSyncStatus(v)
@@ -288,6 +302,9 @@ func (_u *TenantUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if _u.mutation.UseCaseCleared() {
 		_spec.ClearField(tenant.FieldUseCase, field.TypeString)
 	}
+	if value, ok := _u.mutation.Timezone(); ok {
+		_spec.SetField(tenant.FieldTimezone, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.SyncStatus(); ok {
 		_spec.SetField(tenant.FieldSyncStatus, field.TypeString, value)
 	}
@@ -469,6 +486,20 @@ func (_u *TenantUpdateOne) SetNillableUseCase(v *string) *TenantUpdateOne {
 // ClearUseCase clears the value of the "use_case" field.
 func (_u *TenantUpdateOne) ClearUseCase() *TenantUpdateOne {
 	_u.mutation.ClearUseCase()
+	return _u
+}
+
+// SetTimezone sets the "timezone" field.
+func (_u *TenantUpdateOne) SetTimezone(v string) *TenantUpdateOne {
+	_u.mutation.SetTimezone(v)
+	return _u
+}
+
+// SetNillableTimezone sets the "timezone" field if the given value is not nil.
+func (_u *TenantUpdateOne) SetNillableTimezone(v *string) *TenantUpdateOne {
+	if v != nil {
+		_u.SetTimezone(*v)
+	}
 	return _u
 }
 
@@ -696,6 +727,9 @@ func (_u *TenantUpdateOne) sqlSave(ctx context.Context) (_node *Tenant, err erro
 	}
 	if _u.mutation.UseCaseCleared() {
 		_spec.ClearField(tenant.FieldUseCase, field.TypeString)
+	}
+	if value, ok := _u.mutation.Timezone(); ok {
+		_spec.SetField(tenant.FieldTimezone, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.SyncStatus(); ok {
 		_spec.SetField(tenant.FieldSyncStatus, field.TypeString, value)

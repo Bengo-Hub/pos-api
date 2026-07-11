@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -72,13 +71,8 @@ func (h *POSOrderHandler) MoveOrderDate(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	var input moveOrderDateInput
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil || input.Reason == "" || input.NewDate == "" {
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil || strings.TrimSpace(input.Reason) == "" || strings.TrimSpace(input.NewDate) == "" {
 		jsonError(w, "new_date and reason are required", http.StatusBadRequest)
-		return
-	}
-	newDate, err := time.Parse("2006-01-02", input.NewDate)
-	if err != nil {
-		jsonError(w, "new_date must be YYYY-MM-DD", http.StatusBadRequest)
 		return
 	}
 
@@ -89,7 +83,9 @@ func (h *POSOrderHandler) MoveOrderDate(w http.ResponseWriter, r *http.Request) 
 	}
 	callerID, _ := uuid.Parse(claims.Subject)
 
-	result, err := h.orderSvc.MoveOrderDate(r.Context(), tid, orderID, callerID, newDate, input.Reason)
+	// The service parses new_date in the tenant timezone and validates the range
+	// (well-formed, not future, not absurdly far in the past).
+	result, err := h.orderSvc.MoveOrderDate(r.Context(), tid, orderID, callerID, input.NewDate, input.Reason)
 	if err != nil {
 		h.log.Warn("move order date failed", zap.Error(err))
 		jsonError(w, err.Error(), http.StatusBadRequest)

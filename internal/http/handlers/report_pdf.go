@@ -291,22 +291,27 @@ func fmtQty(v float64) string {
 	return s
 }
 
-// parseReportRange parses ?from/?to (RFC3339 or YYYY-MM-DD), defaulting to today 00:00 → now (UTC).
-func parseReportRange(r *http.Request) (from, to time.Time) {
-	now := time.Now().UTC()
-	from = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+// parseReportRange parses ?from/?to (RFC3339 or YYYY-MM-DD), defaulting to today
+// 00:00 → now in loc (the tenant timezone) so the printed PDF matches the JSON
+// reports' tenant-local day boundaries rather than UTC.
+func parseReportRange(r *http.Request, loc *time.Location) (from, to time.Time) {
+	if loc == nil {
+		loc = time.UTC
+	}
+	now := time.Now().In(loc)
+	from = startOfDayIn(now, loc)
 	to = now
 	if s := r.URL.Query().Get("from"); s != "" {
 		if t, err := time.Parse(time.RFC3339, s); err == nil {
 			from = t
-		} else if t, err := time.Parse("2006-01-02", s); err == nil {
+		} else if t, err := parseDayStartIn(s, loc); err == nil {
 			from = t
 		}
 	}
 	if s := r.URL.Query().Get("to"); s != "" {
 		if t, err := time.Parse(time.RFC3339, s); err == nil {
 			to = t
-		} else if t, err := time.Parse("2006-01-02", s); err == nil {
+		} else if t, err := parseDayStartIn(s, loc); err == nil {
 			to = t.Add(24*time.Hour - time.Second)
 		}
 	}
@@ -325,7 +330,7 @@ func (h *ReportPDFHandler) ResetSummary(w http.ResponseWriter, r *http.Request) 
 	}
 	ctx := r.Context()
 	oid := h.outletScope(r)
-	from, to := parseReportRange(r)
+	from, to := parseReportRange(r, requestTenantLocation(r, h.db))
 
 	orders, err := h.completedOrders(ctx, tid, oid, from, to, true)
 	if err != nil {
@@ -495,7 +500,7 @@ func (h *ReportPDFHandler) SalesByItemType(w http.ResponseWriter, r *http.Reques
 	}
 	ctx := r.Context()
 	oid := h.outletScope(r)
-	from, to := parseReportRange(r)
+	from, to := parseReportRange(r, requestTenantLocation(r, h.db))
 
 	orders, err := h.completedOrders(ctx, tid, oid, from, to, true)
 	if err != nil {
@@ -599,7 +604,7 @@ func (h *ReportPDFHandler) DailySales(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx := r.Context()
 	oid := h.outletScope(r)
-	from, to := parseReportRange(r)
+	from, to := parseReportRange(r, requestTenantLocation(r, h.db))
 
 	orders, err := h.completedOrders(ctx, tid, oid, from, to, false)
 	if err != nil {
@@ -795,7 +800,7 @@ func (h *ReportPDFHandler) SalesByStaffPDF(w http.ResponseWriter, r *http.Reques
 	}
 	ctx := r.Context()
 	oid := h.outletScope(r)
-	from, to := parseReportRange(r)
+	from, to := parseReportRange(r, requestTenantLocation(r, h.db))
 
 	completed, err := h.completedOrders(ctx, tid, oid, from, to, false)
 	if err != nil {
@@ -935,7 +940,7 @@ func (h *ReportPDFHandler) TaxReportPDF(w http.ResponseWriter, r *http.Request) 
 	}
 	ctx := r.Context()
 	oid := h.outletScope(r)
-	from, to := parseReportRange(r)
+	from, to := parseReportRange(r, requestTenantLocation(r, h.db))
 
 	orders, err := h.completedOrders(ctx, tid, oid, from, to, true)
 	if err != nil {
@@ -1026,7 +1031,7 @@ func (h *ReportPDFHandler) MostProfitablePDF(w http.ResponseWriter, r *http.Requ
 	}
 	ctx := r.Context()
 	oid := h.outletScope(r)
-	from, to := parseReportRange(r)
+	from, to := parseReportRange(r, requestTenantLocation(r, h.db))
 
 	limit := 20
 	if ls := r.URL.Query().Get("limit"); ls != "" {

@@ -114975,6 +114975,7 @@ type TenantMutation struct {
 	slug           *string
 	status         *string
 	use_case       *string
+	timezone       *string
 	sync_status    *string
 	last_sync_at   *time.Time
 	created_at     *time.Time
@@ -115250,6 +115251,42 @@ func (m *TenantMutation) UseCaseCleared() bool {
 func (m *TenantMutation) ResetUseCase() {
 	m.use_case = nil
 	delete(m.clearedFields, tenant.FieldUseCase)
+}
+
+// SetTimezone sets the "timezone" field.
+func (m *TenantMutation) SetTimezone(s string) {
+	m.timezone = &s
+}
+
+// Timezone returns the value of the "timezone" field in the mutation.
+func (m *TenantMutation) Timezone() (r string, exists bool) {
+	v := m.timezone
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTimezone returns the old "timezone" field's value of the Tenant entity.
+// If the Tenant object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TenantMutation) OldTimezone(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTimezone is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTimezone requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTimezone: %w", err)
+	}
+	return oldValue.Timezone, nil
+}
+
+// ResetTimezone resets all changes to the "timezone" field.
+func (m *TenantMutation) ResetTimezone() {
+	m.timezone = nil
 }
 
 // SetSyncStatus sets the "sync_status" field.
@@ -115551,7 +115588,7 @@ func (m *TenantMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *TenantMutation) Fields() []string {
-	fields := make([]string, 0, 8)
+	fields := make([]string, 0, 9)
 	if m.name != nil {
 		fields = append(fields, tenant.FieldName)
 	}
@@ -115563,6 +115600,9 @@ func (m *TenantMutation) Fields() []string {
 	}
 	if m.use_case != nil {
 		fields = append(fields, tenant.FieldUseCase)
+	}
+	if m.timezone != nil {
+		fields = append(fields, tenant.FieldTimezone)
 	}
 	if m.sync_status != nil {
 		fields = append(fields, tenant.FieldSyncStatus)
@@ -115592,6 +115632,8 @@ func (m *TenantMutation) Field(name string) (ent.Value, bool) {
 		return m.Status()
 	case tenant.FieldUseCase:
 		return m.UseCase()
+	case tenant.FieldTimezone:
+		return m.Timezone()
 	case tenant.FieldSyncStatus:
 		return m.SyncStatus()
 	case tenant.FieldLastSyncAt:
@@ -115617,6 +115659,8 @@ func (m *TenantMutation) OldField(ctx context.Context, name string) (ent.Value, 
 		return m.OldStatus(ctx)
 	case tenant.FieldUseCase:
 		return m.OldUseCase(ctx)
+	case tenant.FieldTimezone:
+		return m.OldTimezone(ctx)
 	case tenant.FieldSyncStatus:
 		return m.OldSyncStatus(ctx)
 	case tenant.FieldLastSyncAt:
@@ -115661,6 +115705,13 @@ func (m *TenantMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetUseCase(v)
+		return nil
+	case tenant.FieldTimezone:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTimezone(v)
 		return nil
 	case tenant.FieldSyncStatus:
 		v, ok := value.(string)
@@ -115765,6 +115816,9 @@ func (m *TenantMutation) ResetField(name string) error {
 		return nil
 	case tenant.FieldUseCase:
 		m.ResetUseCase()
+		return nil
+	case tenant.FieldTimezone:
+		m.ResetTimezone()
 		return nil
 	case tenant.FieldSyncStatus:
 		m.ResetSyncStatus()

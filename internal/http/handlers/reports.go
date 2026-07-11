@@ -57,8 +57,9 @@ func (h *ReportsHandler) GetSummary(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	now := time.Now().UTC()
-	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+	loc := tenantLocation(r.Context(), h.db, tid)
+	now := time.Now().In(loc)
+	todayStart := startOfDayIn(now, loc)
 	yesterdayStart := todayStart.AddDate(0, 0, -1)
 
 	var outletFilters []predicate.POSOrder
@@ -144,7 +145,7 @@ func (h *ReportsHandler) SalesSummary(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	from, to := parseDateRange(r)
+	from, to := parseDateRange(r, requestTenantLocation(r, h.db))
 
 	q := h.db.POSOrder.Query().
 		Where(
@@ -199,7 +200,7 @@ func (h *ReportsHandler) RefundSummary(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	from, to := parseDateRange(r)
+	from, to := parseDateRange(r, requestTenantLocation(r, h.db))
 
 	// Scope to this tenant's orders
 	orderIDs, err := h.db.POSOrder.Query().
@@ -246,7 +247,7 @@ func (h *ReportsHandler) DailyBreakdown(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	from, to := parseDateRange(r)
+	from, to := parseDateRange(r, requestTenantLocation(r, h.db))
 
 	orders, err := h.db.POSOrder.Query().
 		Where(
@@ -379,7 +380,7 @@ func (h *ReportsHandler) TopItems(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	from, to := parseDateRange(r)
+	from, to := parseDateRange(r, requestTenantLocation(r, h.db))
 
 	limit := 20
 	if ls := r.URL.Query().Get("limit"); ls != "" {
@@ -449,7 +450,7 @@ func (h *ReportsHandler) S2SSalesBySKU(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "invalid tenant", http.StatusBadRequest)
 		return
 	}
-	from, to := parseDateRange(r)
+	from, to := parseDateRange(r, requestTenantLocation(r, h.db))
 
 	orders, err := h.db.POSOrder.Query().
 		Where(
@@ -505,7 +506,7 @@ func (h *ReportsHandler) SalesByStaff(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	from, to := parseDateRange(r)
+	from, to := parseDateRange(r, requestTenantLocation(r, h.db))
 	outletFilter := parseOutletFilter(r)
 
 	completedQ := h.db.POSOrder.Query().
@@ -634,7 +635,7 @@ func (h *ReportsHandler) ExportDailyReport(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	from, to := parseDateRange(r)
+	from, to := parseDateRange(r, requestTenantLocation(r, h.db))
 
 	orders, err := h.db.POSOrder.Query().
 		Where(
@@ -783,7 +784,7 @@ func (h *ReportsHandler) ShiftReportList(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	from, to := parseDateRange(r)
+	from, to := parseDateRange(r, requestTenantLocation(r, h.db))
 	q := h.db.POSDeviceSession.Query().
 		Where(posdevicesession.TenantID(tid),
 			posdevicesession.OpenedAtGTE(from),
@@ -813,7 +814,7 @@ func (h *ReportsHandler) CommissionReport(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	from, to := parseDateRange(r)
+	from, to := parseDateRange(r, requestTenantLocation(r, h.db))
 	recs, err := h.db.CommissionRecord.Query().
 		Where(
 			entcommrec.TenantID(tid),
@@ -858,7 +859,7 @@ func (h *ReportsHandler) TaxReport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	from, to := parseDateRange(r)
+	from, to := parseDateRange(r, requestTenantLocation(r, h.db))
 
 	lines, err := h.db.POSOrderLine.Query().
 		Where(posorderline.HasOrderWith(
@@ -929,17 +930,16 @@ func (h *ReportsHandler) SalesByHour(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	loc := tenantLocation(r.Context(), h.db, tid)
 	dateStr := r.URL.Query().Get("date")
 	if dateStr == "" {
-		dateStr = time.Now().UTC().Format("2006-01-02")
+		dateStr = time.Now().In(loc).Format("2006-01-02")
 	}
-	date, err := time.Parse("2006-01-02", dateStr)
+	dayStart, err := parseDayStartIn(dateStr, loc)
 	if err != nil {
 		jsonError(w, "invalid date, use YYYY-MM-DD", http.StatusBadRequest)
 		return
 	}
-
-	dayStart := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.UTC)
 	dayEnd := dayStart.Add(24 * time.Hour)
 
 	q := h.db.POSOrder.Query().
@@ -970,7 +970,7 @@ func (h *ReportsHandler) SalesByHour(w http.ResponseWriter, r *http.Request) {
 
 	costBySKU := resolveUnitCostsBySKU(r, h.db, h.log)
 	for _, o := range orders {
-		hr := o.CreatedAt.UTC().Hour()
+		hr := o.CreatedAt.In(loc).Hour()
 		buckets[hr].OrderCount++
 		buckets[hr].Revenue += o.TotalAmount
 		for _, l := range o.Edges.Lines {
@@ -996,7 +996,7 @@ func (h *ReportsHandler) SalesByCategory(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	from, to := parseDateRange(r)
+	from, to := parseDateRange(r, requestTenantLocation(r, h.db))
 
 	// POSOrderLine has no tenant_id/created_at — filter through completed orders.
 	q := h.db.POSOrder.Query().
@@ -1055,7 +1055,7 @@ func (h *ReportsHandler) StockConsumptionReport(w http.ResponseWriter, r *http.R
 		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
 		return
 	}
-	from, to := parseDateRange(r)
+	from, to := parseDateRange(r, requestTenantLocation(r, h.db))
 
 	lines, err := h.db.POSOrderLine.Query().
 		Where(posorderline.HasOrderWith(
@@ -1099,7 +1099,7 @@ func (h *ReportsHandler) ReturnsSummary(w http.ResponseWriter, r *http.Request) 
 		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
 		return
 	}
-	from, to := parseDateRange(r)
+	from, to := parseDateRange(r, requestTenantLocation(r, h.db))
 
 	returns, err := h.db.POSReturn.Query().
 		Where(
@@ -1151,22 +1151,29 @@ func (h *ReportsHandler) ReturnsSummary(w http.ResponseWriter, r *http.Request) 
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
-func parseDateRange(r *http.Request) (from, to time.Time) {
-	now := time.Now().UTC()
+// parseDateRange reads the ?from=/?to= window, interpreting date-only values
+// (YYYY-MM-DD) in the tenant's timezone (loc) rather than UTC so day boundaries
+// line up with the tenant's wall clock. RFC3339 values carry their own offset and
+// are honored verbatim. The default 30-day window is anchored on "now" in loc.
+func parseDateRange(r *http.Request, loc *time.Location) (from, to time.Time) {
+	if loc == nil {
+		loc = time.UTC
+	}
+	now := time.Now().In(loc)
 	from = now.AddDate(0, 0, -30)
 	to = now
 
 	if s := r.URL.Query().Get("from"); s != "" {
 		if t, err := time.Parse(time.RFC3339, s); err == nil {
 			from = t
-		} else if t, err := time.Parse("2006-01-02", s); err == nil {
+		} else if t, err := parseDayStartIn(s, loc); err == nil {
 			from = t
 		}
 	}
 	if s := r.URL.Query().Get("to"); s != "" {
 		if t, err := time.Parse(time.RFC3339, s); err == nil {
 			to = t
-		} else if t, err := time.Parse("2006-01-02", s); err == nil {
+		} else if t, err := parseDayStartIn(s, loc); err == nil {
 			to = t.Add(24*time.Hour - time.Second)
 		}
 	}

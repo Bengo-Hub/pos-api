@@ -50,15 +50,25 @@ func NewSyncer(client *ent.Client, authURL string, c *sharedcache.Aside) *Syncer
 // SyncTenant fetches the tenant record (via shared cache / auth-api) and
 // persists the minimal reference in the local PG DB using Ent.
 func (s *Syncer) SyncTenant(ctx context.Context, slug string) (uuid.UUID, error) {
-	// Fast path: check if tenant exists locally
-	existing, err := s.client.Tenant.Query().Where(enttenant.SlugEQ(slug)).Only(ctx)
-	if err == nil && existing != nil {
-		return existing.ID, nil
-	}
-
 	authAPIURL := s.authURL
 	if envURL := os.Getenv("AUTH_API_URL"); envURL != "" {
 		authAPIURL = envURL
+	}
+
+	// Fast path: check if tenant exists locally.
+	existing, err := s.client.Tenant.Query().Where(enttenant.SlugEQ(slug)).Only(ctx)
+	if err == nil && existing != nil {
+		// Best-effort refresh of the projected timezone so an admin's change in
+		// auth-api propagates on the next auth event without a full re-sync. The
+		// read is Redis-backed (cheap); failures and no-ops are non-fatal.
+		if td, tzErr := sharedcache.GetTenantDetails(ctx, s.cache, authAPIURL, slug, sharedcache.DefaultTenantTTL); tzErr == nil {
+			if tz := strings.TrimSpace(td.Timezone); tz != "" && tz != existing.Timezone {
+				if uErr := s.client.Tenant.UpdateOneID(existing.ID).SetTimezone(tz).Exec(ctx); uErr != nil {
+					log.Printf("  [tenant-sync] timezone refresh for %s failed: %v", slug, uErr)
+				}
+			}
+		}
+		return existing.ID, nil
 	}
 
 	// Use shared cache library to get tenant details (Redis → auth-api fallback).
@@ -75,14 +85,18 @@ func (s *Syncer) SyncTenant(ctx context.Context, slug string) (uuid.UUID, error)
 	now := time.Now()
 
 	// Use Ent Upsert
-	err = s.client.Tenant.Create().
+	create := s.client.Tenant.Create().
 		SetID(realID).
 		SetName(remote.Name).
 		SetSlug(remote.Slug).
 		SetStatus(remote.Status).
 		SetNillableUseCase(nillableStr(remote.UseCase)).
 		SetSyncStatus("synced").
-		SetLastSyncAt(now).
+		SetLastSyncAt(now)
+	if tz := strings.TrimSpace(remote.Timezone); tz != "" {
+		create = create.SetTimezone(tz)
+	}
+	err = create.
 		OnConflictColumns(enttenant.FieldID).
 		UpdateNewValues().
 		Exec(ctx)

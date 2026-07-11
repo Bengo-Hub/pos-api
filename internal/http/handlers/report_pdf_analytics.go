@@ -38,16 +38,16 @@ func (h *ReportPDFHandler) SalesByHourDoc(w http.ResponseWriter, r *http.Request
 	ctx := r.Context()
 	oid := h.outletScope(r)
 
+	loc := tenantLocation(ctx, h.db, tid)
 	dateStr := r.URL.Query().Get("date")
 	if dateStr == "" {
-		dateStr = time.Now().UTC().Format("2006-01-02")
+		dateStr = time.Now().In(loc).Format("2006-01-02")
 	}
-	date, err := time.Parse("2006-01-02", dateStr)
+	dayStart, err := parseDayStartIn(dateStr, loc)
 	if err != nil {
 		jsonError(w, "invalid date, use YYYY-MM-DD", http.StatusBadRequest)
 		return
 	}
-	dayStart := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.UTC)
 	dayEnd := dayStart.Add(24 * time.Hour)
 
 	preds := []predicate.POSOrder{
@@ -78,7 +78,7 @@ func (h *ReportPDFHandler) SalesByHourDoc(w http.ResponseWriter, r *http.Request
 	// resolveUnitCostsBySKU. Mirrors ReportsHandler.SalesByHour's profit calc exactly.
 	costBySKU := resolveUnitCostsBySKU(r, h.db, h.log)
 	for _, o := range orders {
-		hr := o.CreatedAt.UTC().Hour()
+		hr := o.CreatedAt.In(loc).Hour()
 		buckets[hr].orders++
 		buckets[hr].revenue += o.TotalAmount
 		totalOrders++
@@ -156,7 +156,7 @@ func (h *ReportPDFHandler) SalesByCategoryDoc(w http.ResponseWriter, r *http.Req
 	}
 	ctx := r.Context()
 	oid := h.outletScope(r)
-	from, to := parseReportRange(r)
+	from, to := parseReportRange(r, requestTenantLocation(r, h.db))
 
 	orders, err := h.completedOrders(ctx, tid, oid, from, to, true)
 	if err != nil {
@@ -243,7 +243,7 @@ func (h *ReportPDFHandler) ProductMixDoc(w http.ResponseWriter, r *http.Request)
 	}
 	ctx := r.Context()
 	oid := h.outletScope(r)
-	from, to := parseReportRange(r)
+	from, to := parseReportRange(r, requestTenantLocation(r, h.db))
 
 	catFilter := parseCommaSet(r.URL.Query().Get("categories"))
 	stationFilter := parseCommaSet(r.URL.Query().Get("stations"))
@@ -464,7 +464,7 @@ func (h *ReportPDFHandler) VoidSummaryDoc(w http.ResponseWriter, r *http.Request
 	}
 	ctx := r.Context()
 	oid := h.outletScope(r)
-	from, to := parseReportRange(r)
+	from, to := parseReportRange(r, requestTenantLocation(r, h.db))
 
 	orders, err := h.db.POSOrder.Query().Where(voidedPreds(tid, oid, from, to)...).All(ctx)
 	if err != nil {

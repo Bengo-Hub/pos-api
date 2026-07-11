@@ -140,7 +140,7 @@ func (h *ReportsHandler) SalesByKDSStation(w http.ResponseWriter, r *http.Reques
 		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
 		return
 	}
-	from, to := parseDateRange(r)
+	from, to := parseDateRange(r, requestTenantLocation(r, h.db))
 	oid := reportOutletScope(r)
 
 	rows, err := computeKDSStationBreakdown(r.Context(), h.db, tid, oid, from, to)
@@ -163,7 +163,7 @@ func (h *ReportPDFHandler) SalesByKDSStationDoc(w http.ResponseWriter, r *http.R
 	}
 	ctx := r.Context()
 	oid := h.outletScope(r)
-	from, to := parseReportRange(r)
+	from, to := parseReportRange(r, requestTenantLocation(r, h.db))
 
 	rows, err := computeKDSStationBreakdown(ctx, h.db, tid, oid, from, to)
 	if err != nil {

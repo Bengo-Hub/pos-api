@@ -67,7 +67,7 @@ func (h *ReportsHandler) RegisterDetails(w http.ResponseWriter, r *http.Request)
 		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
 		return
 	}
-	from, to := parseDateRange(r)
+	from, to := parseDateRange(r, requestTenantLocation(r, h.db))
 
 	// Outlet scope: explicit ?outlet_id wins; else the header outlet context.
 	filters := []predicate.POSOrder{posorder.TenantID(tid), posorder.CreatedAtGTE(from), posorder.CreatedAtLTE(to)}

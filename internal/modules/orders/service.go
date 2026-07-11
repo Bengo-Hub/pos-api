@@ -25,6 +25,7 @@ import (
 	entoverride "github.com/bengobox/pos-service/internal/ent/poscatalogoverride"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
 	"github.com/bengobox/pos-service/internal/ent/posorderline"
+	enttenant "github.com/bengobox/pos-service/internal/ent/tenant"
 	kdsmod "github.com/bengobox/pos-service/internal/modules/kds"
 	"github.com/bengobox/pos-service/internal/modules/printing"
 	"github.com/bengobox/pos-service/internal/platform/events"
@@ -1607,27 +1608,73 @@ type MoveOrderDateResult struct {
 	AfterDate  time.Time
 }
 
-// MoveOrderDate sets (or clears, when newDate is zero) the admin override of which
-// calendar day an order counts toward in reports — the tool for correcting a sale
-// that was rung up/settled late (e.g. blocked by a missing recipe, or synced from an
-// offline device the next day) so it reports under the day it actually happened
-// instead of the day it landed in the system. Deliberately does NOT touch created_at
-// (immutable server-ingestion audit timestamp), amounts, payments, or stock — moving
-// the reporting date carries none of the reconciliation risk EditOrderLine's
-// completed-order guard exists for, so it is allowed on any order status. Every move
-// is logged on the order itself (date_moved_by/at/reason) in addition to the central
-// audit trail the caller writes.
-func (s *Service) MoveOrderDate(ctx context.Context, tenantID, orderID, actorID uuid.UUID, newDate time.Time, reason string) (*MoveOrderDateResult, error) {
+// maxMoveDateBackDays bounds how far into the past a sale's reporting date may be
+// moved (relative to today in the tenant timezone). A year of slack comfortably
+// covers legitimate late-sync/late-settlement corrections while rejecting obvious
+// typos (e.g. a wrong year) that would silently corrupt historical reports.
+const maxMoveDateBackDays = 366
+
+// tenantLocation resolves the tenant's IANA timezone (projected from auth-api into
+// the local tenants table, default Africa/Nairobi) to a *time.Location. Falls back
+// through Africa/Nairobi to UTC so date math never fails on a bad/missing zone.
+func (s *Service) tenantLocation(ctx context.Context, tenantID uuid.UUID) *time.Location {
+	tz := "Africa/Nairobi"
+	if t, err := s.client.Tenant.Query().Where(enttenant.ID(tenantID)).Only(ctx); err == nil && t != nil {
+		if strings.TrimSpace(t.Timezone) != "" {
+			tz = t.Timezone
+		}
+	}
+	if loc, err := time.LoadLocation(tz); err == nil {
+		return loc
+	}
+	if loc, err := time.LoadLocation("Africa/Nairobi"); err == nil {
+		return loc
+	}
+	return time.UTC
+}
+
+// MoveOrderDate sets the admin override of which calendar day an order counts toward
+// in reports — the tool for correcting a sale that was rung up/settled late (e.g.
+// blocked by a missing recipe, or synced from an offline device the next day) so it
+// reports under the day it actually happened instead of the day it landed in the
+// system. newDateStr is a "YYYY-MM-DD" calendar day interpreted in the TENANT's
+// timezone (so the stored business_date lands on the correct absolute instant for a
+// non-UTC tenant). Deliberately does NOT touch created_at (immutable server-ingestion
+// audit timestamp), amounts, payments, or stock — moving the reporting date carries
+// none of the reconciliation risk EditOrderLine's completed-order guard exists for,
+// so it is allowed on any order status. Every move is logged on the order itself
+// (date_moved_by/at/reason) in addition to the central audit trail the caller writes.
+//
+// Validation (all in the tenant timezone): the date must be well-formed, must not be
+// in the future, and must not be more than maxMoveDateBackDays before today.
+func (s *Service) MoveOrderDate(ctx context.Context, tenantID, orderID, actorID uuid.UUID, newDateStr, reason string) (*MoveOrderDateResult, error) {
+	if strings.TrimSpace(reason) == "" {
+		return nil, fmt.Errorf("orders: reason is required")
+	}
 	order, err := s.client.POSOrder.Query().
 		Where(posorder.ID(orderID), posorder.TenantID(tenantID)).
 		Only(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("orders: order not found: %w", err)
 	}
-	if reason == "" {
-		return nil, fmt.Errorf("orders: reason is required")
+
+	loc := s.tenantLocation(ctx, tenantID)
+	newDate, err := time.ParseInLocation("2006-01-02", strings.TrimSpace(newDateStr), loc)
+	if err != nil {
+		return nil, fmt.Errorf("orders: new_date must be YYYY-MM-DD")
 	}
-	before := EffectiveOrderDate(order)
+
+	// Bound the move to a sane window, computed against the tenant-local calendar day.
+	nowLocal := time.Now().In(loc)
+	today := time.Date(nowLocal.Year(), nowLocal.Month(), nowLocal.Day(), 0, 0, 0, 0, loc)
+	if newDate.After(today) {
+		return nil, fmt.Errorf("orders: cannot move a sale to a future date")
+	}
+	if newDate.Before(today.AddDate(0, 0, -maxMoveDateBackDays)) {
+		return nil, fmt.Errorf("orders: new_date is too far in the past (more than %d days before today)", maxMoveDateBackDays)
+	}
+
+	before := EffectiveOrderDate(order).In(loc)
 
 	now := time.Now().UTC()
 	updated, err := s.client.POSOrder.UpdateOneID(orderID).
