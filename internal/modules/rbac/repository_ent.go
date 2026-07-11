@@ -124,6 +124,63 @@ func (r *EntRepository) ListRoles(ctx context.Context, tenantID uuid.UUID) ([]*P
 	return roles, nil
 }
 
+// UpdateRole edits a custom role's display name/description. Only a tenant-owned row is
+// touched (tenant_id = tenantID); global/system roles cannot be edited through this path.
+func (r *EntRepository) UpdateRole(ctx context.Context, tenantID uuid.UUID, roleID uuid.UUID, name string, description *string) error {
+	upd := r.client.POSRoleV2.Update().
+		Where(
+			posrolev2.ID(roleID),
+			posrolev2.TenantID(tenantID),
+			posrolev2.IsSystemRole(false),
+		)
+	if name != "" {
+		upd = upd.SetName(name)
+	}
+	if description != nil {
+		upd = upd.SetDescription(*description)
+	}
+	n, err := upd.Save(ctx)
+	if err != nil {
+		return fmt.Errorf("update role: %w", err)
+	}
+	if n == 0 {
+		return fmt.Errorf("role not found or not editable")
+	}
+	return nil
+}
+
+// DeleteRole removes a tenant-owned custom role together with its permission grants and any
+// user role-assignments. Global/system roles (tenant_id NULL or is_system_role) are protected
+// by the WHERE clause and will never be deleted.
+func (r *EntRepository) DeleteRole(ctx context.Context, tenantID uuid.UUID, roleID uuid.UUID) error {
+	role, err := r.client.POSRoleV2.Query().
+		Where(
+			posrolev2.ID(roleID),
+			posrolev2.TenantID(tenantID),
+			posrolev2.IsSystemRole(false),
+		).
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return fmt.Errorf("role not found or not deletable")
+		}
+		return fmt.Errorf("delete role: %w", err)
+	}
+	// Clear dependents first (no DB-level cascade on these join tables).
+	if _, err := r.client.POSRolePermission.Delete().
+		Where(posrolepermission.RoleID(roleID)).Exec(ctx); err != nil {
+		return fmt.Errorf("delete role permissions: %w", err)
+	}
+	if _, err := r.client.POSUserRoleAssignment.Delete().
+		Where(posuserroleassignment.RoleID(roleID)).Exec(ctx); err != nil {
+		return fmt.Errorf("delete role assignments: %w", err)
+	}
+	if err := r.client.POSRoleV2.DeleteOne(role).Exec(ctx); err != nil {
+		return fmt.Errorf("delete role: %w", err)
+	}
+	return nil
+}
+
 // preferTenantRole returns the tenant-specific role if present, otherwise the first (global) role.
 func preferTenantRole(roles []*ent.POSRoleV2) *ent.POSRoleV2 {
 	chosen := roles[0]

@@ -248,9 +248,15 @@ func New(
 				}))
 				tenant.Use(outletmw.OutletContextMiddleware(entClient, log))
 
-				// RBAC routes
+				// RBAC routes — role/permission management. Gated so only admins/managers
+				// (pos.users.view for reads, pos.users.manage for mutations via the in-handler
+				// canManageRBAC checks) can enumerate or edit the role model. Previously these
+				// were authenticated-only, letting any tenant user grant themselves any role.
 				if rbacHandler != nil {
-					rbacHandler.RegisterRoutes(tenant)
+					tenant.Group(func(rg chi.Router) {
+						rg.Use(outletmw.RequireServicePermission(rbacSvc, "pos.users.view", "pos.users.manage"))
+						rbacHandler.RegisterRoutes(rg)
+					})
 				}
 
 				// Outlet settings + TruLoad-inspired outlet switch
@@ -561,18 +567,29 @@ func New(
 					// AuthMe requires SSO token for Trinity Layer 3.
 					// ListStaff / Login / StaffProfiles are registered in the public group above.
 					if pinAuth != nil {
-						pos.Post("/auth/pin/set", pinAuth.SetPIN)
-						pos.Post("/staff/{userID}/card-token", pinAuth.IssueStaffCardToken)
+						// SetPIN + card-token set/reset ANOTHER staff member's PIN / mint a
+						// manager override card — manager/admin only, now enforced server-side.
+						// AuthMe stays open: it only returns the CALLER's own role + permissions.
+						staffPinManage := outletmw.RequireServicePermission(rbacSvc, "pos.users.manage", "pos.staff.manage")
+						pos.With(staffPinManage).Post("/auth/pin/set", pinAuth.SetPIN)
+						pos.With(staffPinManage).Post("/staff/{userID}/card-token", pinAuth.IssueStaffCardToken)
 						pos.Get("/auth/me", pinAuth.AuthMe)
 					}
 
 					// Staff admin CRUD (requires STAFF_MANAGE permission Ã¢â‚¬â€ enforced client-side;
 					// server-side role boundary enforced in the handler itself).
 					if staffAdmin != nil {
-						pos.Get("/staff/admin", staffAdmin.ListStaffForAdmin)
-						pos.Post("/staff", staffAdmin.CreateStaff)
-						pos.Patch("/staff/{staffID}", staffAdmin.UpdateStaff)
-						pos.Post("/staff/{staffID}/deactivate", staffAdmin.DeactivateStaff)
+						// Server-side permission gate (was "enforced client-side"): reads need
+						// users/staff view, mutations need users/staff manage. The in-handler
+						// role boundary additionally stops a manager creating/editing admin staff.
+						staffView := outletmw.RequireServicePermission(rbacSvc,
+							"pos.users.view", "pos.users.manage", "pos.staff.view", "pos.staff.manage")
+						staffManage := outletmw.RequireServicePermission(rbacSvc,
+							"pos.users.manage", "pos.staff.manage")
+						pos.With(staffView).Get("/staff/admin", staffAdmin.ListStaffForAdmin)
+						pos.With(staffManage).Post("/staff", staffAdmin.CreateStaff)
+						pos.With(staffManage).Patch("/staff/{staffID}", staffAdmin.UpdateStaff)
+						pos.With(staffManage).Post("/staff/{staffID}/deactivate", staffAdmin.DeactivateStaff)
 					}
 
 					// KDS Ã¢â‚¬â€ hospitality and quick_service only; outlet must have enable_kds=true

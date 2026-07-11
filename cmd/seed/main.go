@@ -723,6 +723,8 @@ func seedRBACRoles(ctx context.Context, client *ent.Client) error {
 				"pos.tables.view",
 				"pos.gift_cards.view",
 				"pos.modifiers.view",
+				// Reports: cashiers can view sales reports (own-sales scoping applied server-side).
+				"pos.reports.view",
 				"pos.sessions.add", "pos.sessions.view_own",
 				"pos.retail.add", "pos.retail.view",
 				"pos.layaway.view", "pos.layaway.add",

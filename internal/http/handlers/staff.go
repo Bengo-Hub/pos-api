@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/Bengo-Hub/pagination"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -49,11 +50,73 @@ var managementProtectedRoles = map[string]bool{
 	"manager": true,
 }
 
-func requesterRole(r *http.Request) string {
-	if role, ok := r.Context().Value("pos_role").(string); ok {
-		return role
+// posRoleRank ranks POS roles so the highest-privilege one wins when a principal carries
+// several roles (SSO principals often carry a global role list). Used ONLY to resolve the
+// caller's effective role for the manager-authority guardrails — enforcement of access to a
+// route is done by RequireServicePermission middleware, not by this ranking.
+var posRoleRank = map[string]int{
+	"superuser": 100, "owner": 95, "super_admin": 95, "pos_admin": 92,
+	"admin": 90, "store_manager": 72, "manager": 60, "accountant": 40,
+	"receptionist": 30, "pharmacist": 30, "pharmacy_technician": 25,
+	"cashier": 20, "barista": 20, "waiter": 18, "bar": 16, "kitchen": 16,
+	"stylist": 16, "therapist": 16, "technician": 16, "viewer": 5,
+}
+
+// canonicalizeRole folds SSO/global role aliases onto the POS role vocabulary so the
+// guardrails treat an SSO "owner"/"superuser" as admin-level and "staff" as a cashier.
+func canonicalizeRole(role string) string {
+	switch strings.ToLower(strings.TrimSpace(role)) {
+	case "superuser", "owner", "super_admin", "pos_admin", "administrator":
+		return "admin"
+	case "store_manager", "supervisor":
+		return "manager"
+	case "staff":
+		return "cashier"
+	default:
+		return strings.ToLower(strings.TrimSpace(role))
 	}
-	return ""
+}
+
+// requesterRole resolves the caller's EFFECTIVE POS role from the auth claims. Both SSO JWTs
+// (global roles) and terminal PIN JWTs (Roles = [staffMember.role]) carry the role in
+// claims.Roles, so we pick the highest-privilege role after folding global aliases onto the
+// POS vocabulary. Platform owners / superusers resolve to "admin". Returns "" when unknown.
+//
+// NOTE: this replaces the previous implementation that read a `pos_role` context key which was
+// never written anywhere — the manager-authority guards below were silently inert until now.
+func requesterRole(r *http.Request) string {
+	// Legacy context key kept as an explicit override if some middleware ever sets it.
+	if role, ok := r.Context().Value("pos_role").(string); ok && role != "" {
+		return canonicalizeRole(role)
+	}
+	claims, ok := authclient.ClaimsFromContext(r.Context())
+	if !ok || claims == nil {
+		return ""
+	}
+	if claims.IsPlatformOwner || claims.IsSuperuser() {
+		return "admin"
+	}
+	best, bestRank := "", -1
+	for _, role := range claims.Roles {
+		c := canonicalizeRole(role)
+		if rank, known := posRoleRank[c]; known && rank > bestRank {
+			best, bestRank = c, rank
+		}
+	}
+	return best
+}
+
+// requesterIsAdminLevel reports whether the caller outranks a manager (admin/owner/platform).
+// Managers get a restricted subset of RBAC authority (the "guardrailed manager" policy):
+// they may manage custom roles and non-privileged staff, but may not touch system roles or
+// admin/manager-level staff — only an admin-level caller may.
+func requesterIsAdminLevel(r *http.Request) bool {
+	if claims, ok := authclient.ClaimsFromContext(r.Context()); ok && claims != nil {
+		if claims.IsPlatformOwner || claims.IsSuperuser() {
+			return true
+		}
+	}
+	return requesterRole(r) == "admin"
 }
 
 // ── GET /{tenant}/pos/staff/admin — full staff list for management UI ─────────

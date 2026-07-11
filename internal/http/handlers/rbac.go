@@ -37,6 +37,9 @@ type AssignRoleRequest struct {
 
 // AssignRole assigns a role to a user.
 func (h *RBACHandler) AssignRole(w http.ResponseWriter, r *http.Request) {
+	if !h.canManageRBAC(w, r) {
+		return
+	}
 	tenantID := httpware.GetTenantID(r.Context())
 	if tenantID == "" {
 		jsonError(w, "tenant_id required", http.StatusBadRequest)
@@ -52,6 +55,15 @@ func (h *RBACHandler) AssignRole(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		jsonError(w, "invalid request body", http.StatusBadRequest)
 		return
+	}
+
+	// Guardrail: a manager may not assign a privileged (admin/manager) role — only an
+	// admin may. Resolve the target role's code so the check works for system roles too.
+	if role, gerr := h.rbacRepo.GetRole(r.Context(), tid, req.RoleID); gerr == nil {
+		if managementProtectedRoles[canonicalizeRole(role.RoleCode)] && !requesterIsAdminLevel(r) {
+			jsonError(w, "managers cannot assign admin or manager roles", http.StatusForbidden)
+			return
+		}
 	}
 
 	claims, ok := authclient.ClaimsFromContext(r.Context())
@@ -77,6 +89,9 @@ func (h *RBACHandler) AssignRole(w http.ResponseWriter, r *http.Request) {
 
 // RevokeRole revokes a role from a user.
 func (h *RBACHandler) RevokeRole(w http.ResponseWriter, r *http.Request) {
+	if !h.canManageRBAC(w, r) {
+		return
+	}
 	tenantID := httpware.GetTenantID(r.Context())
 	if tenantID == "" {
 		jsonError(w, "tenant_id required", http.StatusBadRequest)
@@ -260,6 +275,8 @@ func (h *RBACHandler) RegisterRoutes(r chi.Router) {
 	r.Delete("/rbac/assignments/{id}", h.RevokeRole)
 	r.Get("/rbac/roles", h.ListRoles)
 	r.Post("/rbac/roles", h.CreateRole)
+	r.Patch("/rbac/roles/{roleID}", h.UpdateRole)
+	r.Delete("/rbac/roles/{roleID}", h.DeleteRole)
 	r.Get("/rbac/roles/{roleID}/permissions", h.GetRolePermissions)
 	r.Put("/rbac/roles/{roleID}/permissions", h.SetRolePermissions)
 	r.Get("/rbac/permissions", h.ListPermissions)

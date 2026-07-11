@@ -13,6 +13,11 @@ type Repository interface {
 	GetRole(ctx context.Context, tenantID uuid.UUID, roleID uuid.UUID) (*POSRoleV2, error)
 	GetRoleByCode(ctx context.Context, tenantID uuid.UUID, roleCode string) (*POSRoleV2, error)
 	ListRoles(ctx context.Context, tenantID uuid.UUID) ([]*POSRoleV2, error)
+	// UpdateRole edits a custom role's display name/description (role_code is immutable).
+	UpdateRole(ctx context.Context, tenantID uuid.UUID, roleID uuid.UUID, name string, description *string) error
+	// DeleteRole removes a tenant-owned custom role and its permission grants + user
+	// assignments. It must never delete a global/system role.
+	DeleteRole(ctx context.Context, tenantID uuid.UUID, roleID uuid.UUID) error
 
 	// Permission operations
 	CreatePermission(ctx context.Context, permission *POSPermission) error
