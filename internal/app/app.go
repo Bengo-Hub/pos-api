@@ -552,7 +552,7 @@ func New(ctx context.Context) (*App, error) {
 	paymentSvc.SetPrintQueue(printQueue)
 	printJobsHandler := handlers.NewPrintJobsHandler(log.Named("print-jobs"), entClient, printQueue)
 	printAgentAPIHandler := handlers.NewPrintAgentAPIHandler(log.Named("print-agent-api"), printQueue)
-	staffAdminHandler := handlers.NewStaffHandler(log.Named("staff-admin"), entClient)
+	staffAdminHandler := handlers.NewStaffHandler(log.Named("staff-admin"), entClient, cfg.Auth.ServiceURL, cfg.Treasury.InternalServiceKey)
 	// Repair / job-card module (device repair lifecycle: intake -> ... -> settled via POS)
 	repairHandler := handlers.NewRepairHandler(log, entClient)
 

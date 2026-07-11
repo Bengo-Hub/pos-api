@@ -1,8 +1,14 @@
 package handlers
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"os"
+	"strings"
+	"time"
 
 	"github.com/Bengo-Hub/pagination"
 	"github.com/go-chi/chi/v5"
@@ -13,18 +19,28 @@ import (
 	"github.com/bengobox/pos-service/internal/ent"
 	entstaff "github.com/bengobox/pos-service/internal/ent/staffmember"
 	entstaffoutlet "github.com/bengobox/pos-service/internal/ent/staffoutlet"
+	entuser "github.com/bengobox/pos-service/internal/ent/user"
 	"github.com/bengobox/pos-service/internal/platform/subscriptions"
 )
 
 // StaffHandler handles staff CRUD operations for the pos-ui admin/team panel.
 // Only accessible to manager and admin roles (enforced via STAFF_MANAGE permission).
 type StaffHandler struct {
-	log    *zap.Logger
-	client *ent.Client
+	log         *zap.Logger
+	client      *ent.Client
+	authURL     string
+	internalKey string
+	http        *http.Client
 }
 
-func NewStaffHandler(log *zap.Logger, client *ent.Client) *StaffHandler {
-	return &StaffHandler{log: log, client: client}
+func NewStaffHandler(log *zap.Logger, client *ent.Client, authURL, internalKey string) *StaffHandler {
+	return &StaffHandler{
+		log:         log,
+		client:      client,
+		authURL:     authURL,
+		internalKey: internalKey,
+		http:        &http.Client{Timeout: 15 * time.Second},
+	}
 }
 
 // managerRoles that may NOT be created/edited/deactivated by a manager (only admin can).
@@ -106,16 +122,78 @@ func (h *StaffHandler) ListStaffForAdmin(w http.ResponseWriter, r *http.Request)
 // ── POST /{tenant}/pos/staff — create new staff member ───────────────────────
 
 type createStaffInput struct {
-	UserID         string  `json:"user_id"` // optional — empty creates a local PIN-only staff member (no SSO account)
-	OutletID       string  `json:"outlet_id"`
-	Name           string  `json:"name"`
-	Role           string  `json:"role"`
-	EmploymentType string  `json:"employment_type"`
-	PIN            string  `json:"pin"` // optional 4-6 digit terminal PIN; set on the new member if provided
+	// Email is REQUIRED. Every staff member is provisioned in auth-service first (S2S)
+	// so the POS user is linked to the REAL auth user id, consistent across all service
+	// DBs. No service mints its own user id anymore (that produced orphan records that
+	// SSO later duplicated — see the Berita Nyambura incident). user_id, when supplied,
+	// is honoured as an override for an already-known auth user id.
+	Email          string   `json:"email"`
+	UserID         string   `json:"user_id"` // optional override; normally resolved from auth by email
+	OutletID       string   `json:"outlet_id"`
+	Name           string   `json:"name"`
+	Role           string   `json:"role"`
+	EmploymentType string   `json:"employment_type"`
+	Phone          string   `json:"phone"`
+	PIN            string   `json:"pin"` // optional 4-6 digit terminal PIN; set on the new member if provided
 	HourlyRate     *float64 `json:"hourly_rate"`
 	DailyRate      *float64 `json:"daily_rate"`
 	MonthlySalary  *float64 `json:"monthly_salary"`
 	MpesaPhone     *string  `json:"mpesa_phone"`
+}
+
+// authMemberResponse mirrors auth-api's tenantMemberResponse (only the field we need).
+type authMemberResponse struct {
+	UserID string `json:"user_id"`
+}
+
+// provisionAuthMember calls auth-api's S2S member endpoint to find-or-create the auth
+// user by email and attach the tenant membership, returning the REAL auth user id.
+// This is the single source of user identity — pos never invents its own user id.
+func (h *StaffHandler) provisionAuthMember(ctx context.Context, tenantID uuid.UUID, email, name, role, phone, outletID string) (uuid.UUID, error) {
+	authBase := h.authURL
+	if envURL := os.Getenv("AUTH_API_URL"); envURL != "" {
+		authBase = envURL // mirror tenant.Syncer's override so both S2S paths hit the same base
+	}
+	if authBase == "" || h.internalKey == "" {
+		return uuid.Nil, fmt.Errorf("auth S2S not configured (AUTH_SERVICE_URL / INTERNAL_SERVICE_KEY)")
+	}
+	body := map[string]any{
+		"email": strings.ToLower(strings.TrimSpace(email)),
+		"name":  name,
+		"roles": []string{role}, // POS role names align with SSO role names (waiter, cashier, ...)
+	}
+	if phone != "" {
+		body["phone"] = phone
+	}
+	if outletID != "" {
+		body["outlet_id"] = outletID
+	}
+	buf, _ := json.Marshal(body)
+	url := strings.TrimRight(authBase, "/") + "/api/v1/s2s/tenants/" + tenantID.String() + "/members"
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(buf))
+	if err != nil {
+		return uuid.Nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-API-Key", h.internalKey)
+
+	resp, err := h.http.Do(req)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("auth member provision: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
+		return uuid.Nil, fmt.Errorf("auth member provision: HTTP %d", resp.StatusCode)
+	}
+	var out authMemberResponse
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return uuid.Nil, fmt.Errorf("auth member provision: decode: %w", err)
+	}
+	id, err := uuid.Parse(out.UserID)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("auth member provision: bad user_id %q: %w", out.UserID, err)
+	}
+	return id, nil
 }
 
 func (h *StaffHandler) CreateStaff(w http.ResponseWriter, r *http.Request) {
@@ -128,6 +206,13 @@ func (h *StaffHandler) CreateStaff(w http.ResponseWriter, r *http.Request) {
 	var input createStaffInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil || input.Name == "" || input.Role == "" {
 		jsonError(w, "name and role are required", http.StatusBadRequest)
+		return
+	}
+	// Email is mandatory: it's the key auth-service uses to find-or-create the real
+	// user id. Without it we'd have to invent an id (the orphan bug we're eliminating).
+	input.Email = strings.ToLower(strings.TrimSpace(input.Email))
+	if input.UserID == "" && (input.Email == "" || !strings.Contains(input.Email, "@")) {
+		jsonError(w, "a valid email is required to create a staff member", http.StatusBadRequest)
 		return
 	}
 
@@ -160,17 +245,42 @@ func (h *StaffHandler) CreateStaff(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// user_id is optional. When omitted we mint a stable UUID for a local PIN-only staff
-	// member (terminal login only, no SSO account); when present it links to an existing
-	// auth-service user.
+	// Resolve the REAL auth-service user id. When a user_id override is supplied we
+	// trust it; otherwise we provision the user in auth-service by email (S2S) and use
+	// the id it returns. We NEVER mint our own id — that produced orphan users that SSO
+	// later duplicated (Berita Nyambura incident).
 	var userID uuid.UUID
-	if input.UserID == "" {
-		userID = uuid.New()
-	} else {
+	if input.UserID != "" {
 		userID, err = uuid.Parse(input.UserID)
 		if err != nil {
 			jsonError(w, "invalid user_id", http.StatusBadRequest)
 			return
+		}
+	} else {
+		userID, err = h.provisionAuthMember(r.Context(), tid, input.Email, input.Name, input.Role, input.Phone, input.OutletID)
+		if err != nil {
+			h.log.Error("provision auth member", zap.Error(err))
+			jsonError(w, "could not provision user in auth-service", http.StatusBadGateway)
+			return
+		}
+	}
+
+	// Ensure a local POS user row exists, linked to the real auth id. Idempotent: the
+	// async auth.user.created event provisions the same row, whichever lands first wins.
+	if input.Email != "" {
+		if uerr := h.client.User.Create().
+			SetID(userID).
+			SetAuthServiceUserID(userID).
+			SetTenantID(tid).
+			SetEmail(input.Email).
+			SetFullName(input.Name).
+			SetStatus("active").
+			SetSyncStatus("synced").
+			SetSyncAt(time.Now()).
+			OnConflictColumns(entuser.FieldID).
+			DoNothing().
+			Exec(r.Context()); uerr != nil && !ent.IsConstraintError(uerr) {
+			h.log.Warn("ensure pos user row", zap.Error(uerr))
 		}
 	}
 
