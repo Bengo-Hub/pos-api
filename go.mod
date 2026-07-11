@@ -12,7 +12,8 @@ require (
 	github.com/Bengo-Hub/httpware v0.5.0
 	github.com/Bengo-Hub/pagination v0.3.0
 	github.com/Bengo-Hub/shared-auth-client v0.6.0
-	github.com/Bengo-Hub/shared-events v0.6.0
+	github.com/Bengo-Hub/shared-events v0.6.1
+	github.com/alexbrainman/printer v0.0.0-20200912035444-f40f26f0bdeb
 	github.com/go-chi/chi/v5 v5.0.12
 	github.com/go-chi/cors v1.2.1
 	github.com/go-pdf/fpdf v0.9.0
@@ -20,6 +21,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.7.6
 	github.com/joho/godotenv v1.5.1
+	github.com/kardianos/service v1.2.4
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/nats-io/nats.go v1.52.0
 	github.com/prometheus/client_golang v1.23.2
@@ -31,6 +33,7 @@ require (
 	golang.org/x/crypto v0.53.0
 	golang.org/x/net v0.56.0
 	gopkg.in/yaml.v3 v3.0.1
+	modernc.org/sqlite v1.53.0
 	nhooyr.io/websocket v1.8.7
 )
 
@@ -39,7 +42,6 @@ require (
 	github.com/PuerkitoBio/purell v1.1.1 // indirect
 	github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578 // indirect
 	github.com/agext/levenshtein v1.2.3 // indirect
-	github.com/alexbrainman/printer v0.0.0-20200912035444-f40f26f0bdeb // indirect
 	github.com/apparentlymart/go-textseg/v15 v15.0.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bmatcuk/doublestar v1.3.4 // indirect
@@ -70,11 +72,9 @@ require (
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/kardianos/service v1.2.4 // indirect
 	github.com/klauspost/compress v1.18.5 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
-	github.com/lib/pq v1.12.3 // indirect
 	github.com/mailru/easyjson v0.7.6 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
@@ -109,5 +109,4 @@ require (
 	modernc.org/libc v1.73.4 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
-	modernc.org/sqlite v1.53.0 // indirect
 )
