@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -229,7 +230,13 @@ func (h *POSOrderHandler) ListOrders(w http.ResponseWriter, r *http.Request) {
 			filters = append(filters, posorder.UserID(staffUID))
 		}
 	}
-	if orderNum := q.Get("order_number"); orderNum != "" {
+	// Free-text invoice/receipt search: case-insensitive CONTAINS on order_number. Receipt
+	// numbers are just "RCT-"+order_number (see printing.ReceiptView), so a pasted receipt
+	// number matches its order once the RCT- prefix is stripped. Whitespace-trimmed so a
+	// copy-paste with stray spaces still hits.
+	if orderNum := strings.TrimSpace(q.Get("order_number")); orderNum != "" {
+		orderNum = strings.TrimPrefix(orderNum, "RCT-")
+		orderNum = strings.TrimPrefix(orderNum, "rct-")
 		filters = append(filters, posorder.OrderNumberContainsFold(orderNum))
 	}
 	// Sources: pos_terminal vs back_office.
@@ -313,6 +320,18 @@ func (h *POSOrderHandler) ListOrders(w http.ResponseWriter, r *http.Request) {
 		filters = append(filters, predicate.POSOrder(func(s *sql.Selector) {
 			s.Where(sqljson.ValueEQ(posorder.FieldMetadata, true, sqljson.Path("is_subscription")))
 		}))
+	}
+	// Order-total range — the "amount between" filter (the All-Sales slider). Bounds match on
+	// the sale's payable (total_amount); either bound is optional.
+	if v := strings.TrimSpace(q.Get("min_total")); v != "" {
+		if min, err := strconv.ParseFloat(v, 64); err == nil {
+			filters = append(filters, posorder.TotalAmountGTE(min))
+		}
+	}
+	if v := strings.TrimSpace(q.Get("max_total")); v != "" {
+		if max, err := strconv.ParseFloat(v, 64); err == nil {
+			filters = append(filters, posorder.TotalAmountLTE(max))
+		}
 	}
 	// KDS station — match orders that have at least one line routed to the given station
 	// (kds_station_id is stamped on every line at order creation; see resolveStationForLine).
@@ -510,6 +529,14 @@ func parseDateParam(v string, endOfDay bool, loc *time.Location) *time.Time {
 	}
 	if t, err := time.Parse(time.RFC3339, v); err == nil {
 		return &t
+	}
+	// datetime-local (HTML <input type="datetime-local">) — carries a wall-clock time but no
+	// zone, so interpret it in the outlet/tenant timezone. Seconds are optional. When a time is
+	// present we DON'T snap `to` to end-of-day (the caller asked for a precise minute boundary).
+	for _, layout := range []string{"2006-01-02T15:04:05", "2006-01-02T15:04"} {
+		if t, err := time.ParseInLocation(layout, v, loc); err == nil {
+			return &t
+		}
 	}
 	if t, err := time.ParseInLocation("2006-01-02", v, loc); err == nil {
 		if endOfDay {
