@@ -23,6 +23,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/posorder"
 	"github.com/bengobox/pos-service/internal/ent/pospayment"
 	enttenant "github.com/bengobox/pos-service/internal/ent/tenant"
+	entuser "github.com/bengobox/pos-service/internal/ent/user"
 	"github.com/bengobox/pos-service/internal/modules/payments"
 	"github.com/bengobox/pos-service/internal/modules/printing"
 )
@@ -143,6 +144,28 @@ func payerNameFromPayment(p *ent.POSPayment) string {
 		return full
 	}
 	return ""
+}
+
+// resolveServedBy returns the display name of the staff member who actually rang up the
+// order — the order's own user_id — NOT whoever happens to be viewing/reprinting the
+// receipt. POSOrder.user_id may be either the local pos user id or the auth-service user id,
+// so both are matched. Falls back to the caller-supplied ?served_by= value (the legacy
+// behaviour, which passed the current viewer) only when the order's user can't be resolved,
+// so an S2S/online order with no staff still shows something sensible.
+func (h *ReceiptHandler) resolveServedBy(ctx context.Context, tid, userID uuid.UUID, fallback string) string {
+	if userID != uuid.Nil {
+		if u, err := h.client.User.Query().
+			Where(entuser.TenantID(tid), entuser.Or(entuser.ID(userID), entuser.AuthServiceUserID(userID))).
+			First(ctx); err == nil && u != nil {
+			if name := strings.TrimSpace(u.FullName); name != "" {
+				return name
+			}
+			if email := strings.TrimSpace(u.Email); email != "" {
+				return email
+			}
+		}
+	}
+	return strings.TrimSpace(fallback)
 }
 
 // receiptLine is a single line item in the receipt.
@@ -371,7 +394,7 @@ func (h *ReceiptHandler) GetReceipt(w http.ResponseWriter, r *http.Request) {
 		AmountPaid:     amountPaid,
 		AmountTendered: amountPaid,
 		ChangeDue:      changeDue,
-		ServedBy:       r.URL.Query().Get("served_by"),
+		ServedBy:       h.resolveServedBy(ctx, tid, order.UserID, r.URL.Query().Get("served_by")),
 		PayerName:      payerName,
 		SplitLineIDs:   splitLineSet,
 		SplitLabel:     splitLabel,
