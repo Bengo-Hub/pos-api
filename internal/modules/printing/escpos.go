@@ -17,6 +17,13 @@ var (
 	escCenter  = []byte{0x1B, 0x61, 0x01}    // Center align
 	escLeft    = []byte{0x1B, 0x61, 0x00}    // Left align
 	escLF      = []byte{0x0A}                // Line feed
+	// Character-size control (GS ! n): the low nibble is the width multiplier and the high
+	// nibble the height multiplier. Larger glyphs print far crisper on low-DPI thermal heads
+	// than the default 1x font, so the shop name + TOTAL (the two things a customer actually
+	// reads) are emphasised. Always pair *On with escSizeReset.
+	escDoubleHW  = []byte{0x1D, 0x21, 0x11} // double width + double height
+	escDoubleH   = []byte{0x1D, 0x21, 0x01} // double height only
+	escSizeReset = []byte{0x1D, 0x21, 0x00} // back to 1x
 )
 
 // ReceiptData holds all data needed to render a receipt.
@@ -26,6 +33,7 @@ type ReceiptData struct {
 	OutletAddress      string
 	OrderNumber        string
 	BillTo             string
+	BillToLabel        string // "Customer" or "Paid by"
 	ServedBy           string
 	TableRef           string
 	DateTime           time.Time
@@ -46,6 +54,7 @@ type ReceiptData struct {
 	EtimsInvoiceNumber string
 	PaymentMethods     *ReceiptPaymentMethods // "HOW TO PAY" block (M-Pesa/bank), customer receipts only
 	VoidReason         string
+	ProviderFooter     ProviderFooter // platform-owner (Codevertex) advertisement, customer receipts only
 }
 
 // ReceiptItem is a single line on the receipt.
@@ -71,14 +80,17 @@ func BuildReceipt(d ReceiptData) []byte {
 
 	write(escInit)
 	write(escCenter)
+	// Shop name in double-height+bold — the biggest, crispest thing on the receipt so it stays
+	// legible on low-DPI thermal heads (addresses the "blurry receipt" complaint).
+	write(escDoubleHW)
 	write(escBold)
-
 	if d.OutletName != "" {
 		writeln(d.OutletName)
 	} else {
 		writeln("RECEIPT")
 	}
 	write(escBoldOff)
+	write(escSizeReset)
 	if d.OutletAddress != "" {
 		writeln(d.OutletAddress)
 	}
@@ -111,7 +123,11 @@ func BuildReceipt(d ReceiptData) []byte {
 	separator()
 	writeln(fmt.Sprintf("Order:   #%s", d.OrderNumber))
 	if (d.Type == "customer" || d.Type == "void") && d.BillTo != "" {
-		writeln(fmt.Sprintf("Customer: %s", d.BillTo))
+		label := d.BillToLabel
+		if label == "" {
+			label = "Customer"
+		}
+		writeln(fmt.Sprintf("%s: %s", label, d.BillTo))
 	}
 	if d.TableRef != "" {
 		writeln(fmt.Sprintf("Table:   %s", d.TableRef))
@@ -165,9 +181,12 @@ func BuildReceipt(d ReceiptData) []byte {
 		if d.RoundOff > 0 {
 			writeln(formatLine("Round Off", fmt.Sprintf("%s %.2f", d.Currency, d.RoundOff)))
 		}
+		// TOTAL in double-height+bold — the one figure a customer verifies at a glance.
+		write(escDoubleH)
 		write(escBold)
 		writeln(formatLine("TOTAL", fmt.Sprintf("%s %.2f", d.Currency, d.TotalAmount)))
 		write(escBoldOff)
+		write(escSizeReset)
 		if d.PaymentMethod != "" {
 			writeln(formatLine("Payment", d.PaymentMethod))
 		}
@@ -226,10 +245,19 @@ func BuildReceipt(d ReceiptData) []byte {
 		}
 	}
 
-	if d.Footer != "" && d.Type == "customer" {
+	if d.Type == "customer" {
+		if d.Footer != "" {
+			separator()
+			write(escCenter)
+			writeln(d.Footer)
+			write(escLeft)
+		}
+		// Platform-owner (Codevertex) advertisement — always printed on customer receipts.
+		pf := d.ProviderFooter.OrDefault()
 		separator()
 		write(escCenter)
-		writeln(d.Footer)
+		writeln(pf.Lead)
+		writeln(pf.Contact)
 		write(escLeft)
 	}
 

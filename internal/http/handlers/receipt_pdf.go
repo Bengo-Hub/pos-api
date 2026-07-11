@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/go-pdf/fpdf"
+
+	"github.com/bengobox/pos-service/internal/modules/printing"
 )
 
 // generateReceiptPDF renders an 80mm thermal-width PDF receipt from the receipt response, applying
@@ -85,7 +87,11 @@ func generateReceiptPDF(rec receiptResponse, brand receiptBrand) ([]byte, error)
 	line("Order:", rec.OrderNumber, "", 8)
 	line("Date:", rec.IssuedAt.Format("2006-01-02 15:04"), "", 8)
 	if rec.BillTo != "" {
-		line("Customer:", rec.BillTo, "", 8)
+		custLabel := rec.BillToLabel
+		if custLabel == "" {
+			custLabel = "Customer"
+		}
+		line(custLabel+":", rec.BillTo, "", 8)
 	}
 	if rec.ServedBy != "" {
 		line("Served by:", rec.ServedBy, "", 8)
@@ -127,7 +133,7 @@ func generateReceiptPDF(rec receiptResponse, brand receiptBrand) ([]byte, error)
 	if rec.RoundOff > 0 {
 		line("Round Off", money(rec.RoundOff), "", 8)
 	}
-	line("TOTAL", money(rec.TotalAmount), "B", 10)
+	line("TOTAL", money(rec.TotalAmount), "B", 12)
 	hr()
 
 	// Payment
@@ -183,6 +189,22 @@ func generateReceiptPDF(rec receiptResponse, brand receiptBrand) ([]byte, error)
 		pdf.Ln(2)
 		center(rec.ReceiptFooter, "I", 8)
 	}
+
+	// Platform-owner (Codevertex) advertisement — always shown.
+	lead, contact := rec.ProviderFooterLead, rec.ProviderFooterContact
+	if lead == "" || contact == "" {
+		d := printing.DefaultProviderFooter()
+		if lead == "" {
+			lead = d.Lead
+		}
+		if contact == "" {
+			contact = d.Contact
+		}
+	}
+	pdf.Ln(1)
+	hr()
+	center(lead, "B", 7.5)
+	center(contact, "", 6.8)
 
 	var buf bytes.Buffer
 	if err := pdf.Output(&buf); err != nil {

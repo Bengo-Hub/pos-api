@@ -544,7 +544,7 @@ func staffCreditFromOrder(order *ent.POSOrder) (staffID uuid.UUID, months int, o
 // captured (0 = unknown): when it differs from the pending row's opening amount, the row is
 // corrected so paid_total only ever counts money that was really collected — an intent
 // opened for the full total but partially captured must not flip the order to paid.
-func (s *Service) ConfirmPaymentByIntentID(ctx context.Context, tenantID uuid.UUID, intentID string, settledAmount float64) error {
+func (s *Service) ConfirmPaymentByIntentID(ctx context.Context, tenantID uuid.UUID, intentID string, settledAmount float64, payerName string) error {
 	payments, err := s.client.POSPayment.Query().
 		Where(pospayment.ExternalReference(intentID)).
 		WithOrder().
@@ -572,6 +572,11 @@ func (s *Service) ConfirmPaymentByIntentID(ctx context.Context, tenantID uuid.UU
 			data = map[string]any{}
 		}
 		data["settled_via"] = "treasury_gateway"
+		// Payer name resolved by the gateway (e.g. Paystack customer) so the receipt can show
+		// "Paid by: <name>" for online payments when no customer was keyed in at the till.
+		if payerName != "" {
+			data["payer_name"] = payerName
+		}
 		upd = upd.SetPaymentData(data)
 		if _, err := upd.Save(ctx); err != nil {
 			return fmt.Errorf("payments: confirm payment %s: %w", p.ID, err)

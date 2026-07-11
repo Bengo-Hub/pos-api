@@ -336,7 +336,8 @@ func (rc *reportCtx) drawKeyValue(s Section) {
 	rc.y = y
 }
 
-// drawFooter draws the generated-by footer line at the bottom of the current page.
+// drawFooter draws the generated-by line plus the platform-owner (Codevertex) advertisement at
+// the bottom of the current page.
 func (rc *reportCtx) drawFooter() {
 	p := rc.p
 	note := rc.r.Footer
@@ -347,4 +348,8 @@ func (rc *reportCtx) drawFooter() {
 	p.hline(p.leftX, fy, p.rightX)
 	p.text(p.leftX, fy+1.5, note, "", 7, p.pal.muted)
 	p.textR(p.rightX, fy+1.5, ifEmpty(rc.r.TenantName, ""), "", 7, p.pal.muted)
+	// Platform-owner advertisement, centered under the generated-by line.
+	w := p.rightX - p.leftX
+	p.textC(p.leftX, w, fy+5.0, providerFooterLead, "B", 6.6, p.pal.muted)
+	p.textC(p.leftX, w, fy+8.2, providerFooterContact, "", 6.2, p.pal.muted)
 }

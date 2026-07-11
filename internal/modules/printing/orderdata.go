@@ -72,6 +72,7 @@ func receiptDataFromView(v ReceiptView) ReceiptData {
 		OutletAddress:      v.OutletAddress,
 		OrderNumber:        v.OrderNumber,
 		BillTo:             v.BillTo,
+		BillToLabel:        v.BillToLabel,
 		ServedBy:           v.ServedBy,
 		TableRef:           v.TableRef,
 		DateTime:           v.IssuedAt,
@@ -92,5 +93,6 @@ func receiptDataFromView(v ReceiptView) ReceiptData {
 		VoidReason:         v.VoidReason,
 		EtimsInvoiceNumber: v.EtimsInvoiceNumber,
 		PaymentMethods:     pm,
+		ProviderFooter:     v.ProviderFooter,
 	}
 }

@@ -119,7 +119,10 @@ func (s *TreasurySubscriber) subscribePaymentSuccess(js nats.JetStreamContext) e
 		// so the local pending row is corrected if the captured amount differs from the
 		// intent's opening amount — a payment can only count what was really collected.
 		settled := parseEventAmount(evt.Payload["amount"])
-		if err := s.paymentSvc.ConfirmPaymentByIntentID(context.Background(), tenantID, intentID, settled); err != nil {
+		// Gateway-resolved payer name (Paystack customer; M-Pesa STK carries none) → stamped onto
+		// the POS payment so the receipt shows who paid for online payments.
+		payerName, _ := evt.Payload["payer_name"].(string)
+		if err := s.paymentSvc.ConfirmPaymentByIntentID(context.Background(), tenantID, intentID, settled, payerName); err != nil {
 			s.log.Error("treasury.payment.succeeded: confirm payment", zap.String("intent", intentID), zap.Error(err))
 		}
 	}, nats.Durable("pos-treasury-payment-succeeded"), nats.ManualAck())

@@ -69,8 +69,11 @@ type ReceiptView struct {
 	Timezone      string // outlet IANA timezone, e.g. "Africa/Nairobi"
 	IssuedAt      time.Time
 	BillTo        string
-	ServedBy      string
-	TableRef      string
+	// BillToLabel is "Customer" for a keyed-in/walk-in customer, or "Paid by" when the name was
+	// resolved from an identified online payment (M-Pesa / card / Paystack payer).
+	BillToLabel string
+	ServedBy    string
+	TableRef    string
 
 	Lines []ReceiptLine
 
@@ -92,6 +95,11 @@ type ReceiptView struct {
 	ReceiptHeader string
 	ReceiptFooter string
 	PaperWidth    string
+
+	// ProviderFooter is the platform-owner (Codevertex) advertisement printed at the very bottom
+	// of customer receipts. Resolved by the handler (which can reach the tenant cache); when left
+	// zero the renderers substitute DefaultProviderFooter() so the advertisement always prints.
+	ProviderFooter ProviderFooter
 
 	EtimsInvoiceNumber string
 	EtimsQRCodeURL     string
@@ -116,6 +124,10 @@ type ReceiptViewOpts struct {
 	// resolve this from the acting request's auth claims; explicit reprints from the currently
 	// logged-in viewer.
 	ServedBy string
+	// PayerName is the customer/payer name captured from an identified online payment
+	// (M-Pesa / card / Paystack) when the order itself carries no customer name — resolved by the
+	// caller from the payment record / treasury. Ignored for cash sales.
+	PayerName string
 	// SplitLineIDs, when non-nil, restricts the receipt to only these POSOrderLine ids (a
 	// split-by-item guest bill) and zeroes order-level tax/discount/charges/round-off/payment
 	// figures (a split's total is just the sum of its own line totals).
@@ -151,15 +163,28 @@ func BuildReceiptView(order *ent.POSOrder, lines []*ent.POSOrderLine, outlet *en
 		tableRef = v
 	}
 
-	// Bill-to: cash sales are anonymous walk-ins; M-Pesa/card/mobile-money/online payments
-	// identify a real customer, so show the captured guest/payer name.
-	billTo := "Walk-in customer"
-	if !IsCashMethod(opts.PaymentMethod) {
-		if order.CustomerName != nil && *order.CustomerName != "" {
-			billTo = *order.CustomerName
-		} else if order.CustomerPhone != nil && *order.CustomerPhone != "" {
-			billTo = *order.CustomerPhone
+	// Customer / payer shown on the receipt, in priority order:
+	//  1. A stored/keyed-in customer name always wins — the cashier or waiter can enter one at
+	//     sale time (or it comes from a linked customer record), regardless of tender.
+	//  2. Otherwise, for an IDENTIFIED (online) payment — M-Pesa / card / Paystack — use the payer
+	//     name captured from the payment (opts.PayerName), else the order's phone. Labelled
+	//     "Paid by" since it identifies who settled rather than a named account customer.
+	//  3. Otherwise it's an anonymous walk-in.
+	billTo := ""
+	billToLabel := "Customer"
+	if order.CustomerName != nil && strings.TrimSpace(*order.CustomerName) != "" {
+		billTo = strings.TrimSpace(*order.CustomerName)
+	} else if !IsCashMethod(opts.PaymentMethod) {
+		if n := strings.TrimSpace(opts.PayerName); n != "" {
+			billTo = n
+			billToLabel = "Paid by"
+		} else if order.CustomerPhone != nil && strings.TrimSpace(*order.CustomerPhone) != "" {
+			billTo = strings.TrimSpace(*order.CustomerPhone)
+			billToLabel = "Paid by"
 		}
+	}
+	if billTo == "" {
+		billTo = "Walk-in customer"
 	}
 
 	var items []ReceiptLine
@@ -204,6 +229,7 @@ func BuildReceiptView(order *ent.POSOrder, lines []*ent.POSOrderLine, outlet *en
 		OutletID:       order.OutletID,
 		IssuedAt:       order.CreatedAt,
 		BillTo:         billTo,
+		BillToLabel:    billToLabel,
 		ServedBy:       opts.ServedBy,
 		TableRef:       tableRef,
 		Lines:          items,
@@ -238,6 +264,13 @@ func BuildReceiptView(order *ent.POSOrder, lines []*ent.POSOrderLine, outlet *en
 				v.OutletAddress = city
 			}
 		}
+	}
+
+	// De-duplicate: when the outlet's address was set to the same text as its name (a common
+	// mis-configuration — see "Urban Loft Cafe Busia" printed twice), drop the address so the
+	// receipt shows each piece of information exactly once.
+	if strings.EqualFold(strings.TrimSpace(v.OutletAddress), strings.TrimSpace(v.OutletName)) {
+		v.OutletAddress = ""
 	}
 
 	if setting != nil {

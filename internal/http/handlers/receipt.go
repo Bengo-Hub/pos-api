@@ -121,6 +121,30 @@ func (h *ReceiptHandler) branding(ctx context.Context, tenantID uuid.UUID) recei
 	return b
 }
 
+// payerNameFromPayment best-effort extracts the customer/payer name captured on an online payment
+// (M-Pesa / card / Paystack), so a sale with no keyed-in customer still shows who paid. Treasury
+// stamps the resolved payer name into POSPayment.payment_data on settlement (see the treasury
+// payment-intent → POS payment sync); we read the common keys defensively. Returns "" when none.
+func payerNameFromPayment(p *ent.POSPayment) string {
+	if p == nil || p.PaymentData == nil {
+		return ""
+	}
+	for _, k := range []string{"payer_name", "customer_name", "account_name", "sender_name", "name"} {
+		if v, ok := p.PaymentData[k].(string); ok {
+			if s := strings.TrimSpace(v); s != "" {
+				return s
+			}
+		}
+	}
+	// Some gateways split the name into first/last.
+	first, _ := p.PaymentData["first_name"].(string)
+	last, _ := p.PaymentData["last_name"].(string)
+	if full := strings.TrimSpace(strings.TrimSpace(first) + " " + strings.TrimSpace(last)); full != "" {
+		return full
+	}
+	return ""
+}
+
 // receiptLine is a single line item in the receipt.
 type receiptLine struct {
 	SKU        string  `json:"sku"`
@@ -150,8 +174,9 @@ type receiptResponse struct {
 	OutletAddress string    `json:"outlet_address,omitempty"`
 	// BillTo is the customer shown on the receipt: the guest/payer name for M-Pesa / card / online
 	// payments (where a real customer is identified), or "Walk-in customer" for cash.
-	BillTo   string    `json:"bill_to,omitempty"`
-	IssuedAt time.Time `json:"issued_at"`
+	BillTo      string    `json:"bill_to,omitempty"`
+	BillToLabel string    `json:"bill_to_label,omitempty"` // "Customer" | "Paid by"
+	IssuedAt    time.Time `json:"issued_at"`
 	// Timezone is the outlet's IANA timezone (e.g. "Africa/Nairobi"). The frontend formats
 	// issued_at in this zone so the printed time matches the local wall-clock regardless of
 	// the device/browser timezone. Server-side HTML already renders issued_at in this zone.
@@ -178,6 +203,9 @@ type receiptResponse struct {
 	VatRate       float64 `json:"vat_rate,omitempty"`
 	PaperWidth    string  `json:"paper_width,omitempty"`
 	ServedBy      string  `json:"served_by,omitempty"`
+	// Platform-owner (Codevertex) advertisement lines printed at the very bottom of the receipt.
+	ProviderFooterLead    string `json:"provider_footer_lead,omitempty"`
+	ProviderFooterContact string `json:"provider_footer_contact,omitempty"`
 }
 
 // newReceiptResponse maps the canonical printing.ReceiptView onto the JSON receipt payload — the
@@ -207,6 +235,7 @@ func newReceiptResponse(v printing.ReceiptView) receiptResponse {
 		OutletName:         v.OutletName,
 		OutletAddress:      v.OutletAddress,
 		BillTo:             v.BillTo,
+		BillToLabel:        v.BillToLabel,
 		IssuedAt:           v.IssuedAt,
 		Timezone:           v.Timezone,
 		Lines:              lines,
@@ -226,10 +255,12 @@ func newReceiptResponse(v printing.ReceiptView) receiptResponse {
 		PaymentMethods:     pm,
 		ReceiptHeader:      v.ReceiptHeader,
 		ReceiptFooter:      v.ReceiptFooter,
-		VatEnabled:         v.VatEnabled,
-		VatRate:            v.VatRate,
-		PaperWidth:         v.PaperWidth,
-		ServedBy:           v.ServedBy,
+		VatEnabled:            v.VatEnabled,
+		VatRate:               v.VatRate,
+		PaperWidth:            v.PaperWidth,
+		ServedBy:              v.ServedBy,
+		ProviderFooterLead:    v.ProviderFooter.OrDefault().Lead,
+		ProviderFooterContact: v.ProviderFooter.OrDefault().Contact,
 	}
 }
 
@@ -302,10 +333,12 @@ func (h *ReceiptHandler) GetReceipt(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var amountPaid float64
+	var payerName string
 	paymentMethod := "cash"
 	if len(order.Edges.Payments) > 0 {
 		p := order.Edges.Payments[0]
 		amountPaid = p.Amount
+		payerName = payerNameFromPayment(p)
 		// Complimentary sales always stamp PaymentData["method"] reliably (unlike the Tender
 		// catalog row, which the terminal reuses generically across every tender type) — check
 		// it first so the receipt clearly discloses "no cash collected" and why.
@@ -339,9 +372,12 @@ func (h *ReceiptHandler) GetReceipt(w http.ResponseWriter, r *http.Request) {
 		AmountTendered: amountPaid,
 		ChangeDue:      changeDue,
 		ServedBy:       r.URL.Query().Get("served_by"),
+		PayerName:      payerName,
 		SplitLineIDs:   splitLineSet,
 		SplitLabel:     splitLabel,
 	})
+	// Platform-owner (Codevertex) advertisement footer — cache-first, static fallback.
+	view.ProviderFooter = printing.ResolveProviderFooter(ctx, h.cache, h.authURL)
 
 	receipt := newReceiptResponse(view)
 
@@ -425,17 +461,19 @@ func generateReceiptHTML(rec receiptResponse, logoURL string) []byte {
 	buf.WriteString(fmt.Sprintf(`<style>
 @page{size:%s auto;margin:4mm}
 *{box-sizing:border-box}
-body{font-family:'Courier New',Courier,'DejaVu Sans Mono',monospace;font-size:12px;font-weight:bold;color:#000;background:#fff;width:%s;margin:0 auto;padding:4px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{font-family:'Courier New',Courier,'DejaVu Sans Mono',monospace;font-size:13px;font-weight:bold;color:#000;background:#fff;width:%s;margin:0 auto;padding:4px;line-height:1.35;-webkit-print-color-adjust:exact;print-color-adjust:exact;text-rendering:optimizeLegibility}
 body,body *{color:#000}
-.logo{display:block;margin:0 auto 4px;max-width:48mm;max-height:20mm;object-fit:contain;filter:grayscale(1) contrast(1.2)}
-h1{font-size:13px;text-align:center;margin:2px 0}
-.sub{font-size:10px;text-align:center;margin:1px 0;color:#000}
-.hdr{font-size:10px;text-align:center;margin:2px 0;white-space:pre-wrap}
-.ftr{font-size:10px;text-align:center;margin:2px 0;white-space:pre-wrap}
+.logo{display:block;margin:0 auto 4px;max-width:48mm;max-height:22mm;object-fit:contain;filter:grayscale(1) contrast(1.4)}
+h1{font-size:17px;letter-spacing:.5px;text-align:center;margin:3px 0}
+.sub{font-size:11px;text-align:center;margin:1px 0;color:#000}
+.hdr{font-size:11px;text-align:center;margin:2px 0;white-space:pre-wrap}
+.ftr{font-size:11px;text-align:center;margin:2px 0;white-space:pre-wrap}
 .center{text-align:center}
-.line{display:flex;justify-content:space-between;margin:1px 0}
+.line{display:flex;justify-content:space-between;margin:2px 0}
 .divider{border-top:1px dashed #000;margin:4px 0}
 .bold{font-weight:bold}
+.tot{font-size:16px}
+.prov{font-size:9.5px;text-align:center;margin:3px 0 1px;line-height:1.3;white-space:pre-wrap}
 .etims-qr{display:block;margin:4px auto;width:80px;height:80px}
 .etims-num{font-size:9px;text-align:center;word-break:break-all}
 @media print{body{width:100%%}}
@@ -458,7 +496,11 @@ h1{font-size:13px;text-align:center;margin:2px 0}
 	buf.WriteString(fmt.Sprintf(`<p class="sub">%s</p>`, formatReceiptTime(rec.IssuedAt, rec.Timezone)))
 	buf.WriteString(fmt.Sprintf(`<p class="sub">Receipt: %s</p>`, rec.ReceiptNumber))
 	if rec.BillTo != "" {
-		buf.WriteString(fmt.Sprintf(`<p class="sub">Customer: %s</p>`, htmlEscape(rec.BillTo)))
+		label := rec.BillToLabel
+		if label == "" {
+			label = "Customer"
+		}
+		buf.WriteString(fmt.Sprintf(`<p class="sub">%s: %s</p>`, label, htmlEscape(rec.BillTo)))
 	}
 	if rec.ServedBy != "" {
 		buf.WriteString(fmt.Sprintf(`<p class="sub">Served by: %s</p>`, htmlEscape(rec.ServedBy)))
@@ -489,7 +531,7 @@ h1{font-size:13px;text-align:center;margin:2px 0}
 	if rec.RoundOff > 0 {
 		buf.WriteString(fmt.Sprintf(`<div class="line"><span>Round Off</span><span>%.2f</span></div>`, rec.RoundOff))
 	}
-	buf.WriteString(fmt.Sprintf(`<div class="line bold"><span>TOTAL</span><span>%.2f %s</span></div>`, rec.TotalAmount, rec.Currency))
+	buf.WriteString(fmt.Sprintf(`<div class="line bold tot"><span>TOTAL</span><span>%.2f %s</span></div>`, rec.TotalAmount, rec.Currency))
 	buf.WriteString(fmt.Sprintf(`<div class="line"><span>Paid</span><span>%.2f</span></div>`, rec.AmountPaid))
 	if rec.AmountTendered > 0 {
 		buf.WriteString(fmt.Sprintf(`<div class="line"><span>Tendered</span><span>%.2f</span></div>`, rec.AmountTendered))
@@ -539,6 +581,20 @@ h1{font-size:13px;text-align:center;margin:2px 0}
 		footer = "Thank you for your business!"
 	}
 	buf.WriteString(fmt.Sprintf(`<p class="ftr">%s</p>`, htmlEscape(footer)))
+	// Platform-owner (Codevertex) advertisement — always shown on the customer receipt.
+	lead, contact := rec.ProviderFooterLead, rec.ProviderFooterContact
+	if lead == "" || contact == "" {
+		d := printing.DefaultProviderFooter()
+		if lead == "" {
+			lead = d.Lead
+		}
+		if contact == "" {
+			contact = d.Contact
+		}
+	}
+	buf.WriteString(`<div class="divider"></div>`)
+	buf.WriteString(fmt.Sprintf(`<p class="prov">%s</p>`, htmlEscape(lead)))
+	buf.WriteString(fmt.Sprintf(`<p class="prov">%s</p>`, htmlEscape(contact)))
 	buf.WriteString(`</body></html>`)
 	return buf.Bytes()
 }
