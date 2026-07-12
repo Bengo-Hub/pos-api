@@ -23,6 +23,12 @@ import (
 // KDSStationBreakdownRow is one station's slice of a sales-by-KDS-station report — the same
 // grouping the kitchen/bar tickets use, so "how much did the bar do today" always matches what
 // actually printed/displayed at that station.
+//
+// Revenue is each station's PRORATED SHARE of its orders' actual net total_amount (the same
+// payable figure Sales-by-Staff sums) — NOT a raw sum of line.total_price. Summing Revenue
+// across every row (incl. "Unassigned") for the same date range/outlet therefore always equals
+// the Sales-by-Staff total exactly; see computeKDSStationBreakdown for why a naive line-gross
+// sum was wrong.
 type KDSStationBreakdownRow struct {
 	StationID   string  `json:"station_id"`
 	StationName string  `json:"station_name"`
@@ -41,6 +47,23 @@ type KDSStationBreakdownRow struct {
 // directly; any older/legacy line with a null kds_station_id is resolved on the fly via the same
 // priority order routeLinesToStations uses, scoped to its OWN order's outlet (a multi-outlet report
 // mixes outlets with different station configs, so this can't be hoisted out of the loop).
+//
+// Revenue attribution (fixed 2026-07-12 — diagnosed against urban-loft prod data): this used to
+// sum each line's raw total_price directly, which diverged from Sales-by-Staff (sum of
+// order.total_amount) in two ways, confirmed live:
+//  1. A partially/fully VOIDED line still contributed its full pre-void total_price — the exact
+//     bug already fixed in the order-recompute path (service.go ~L1544) but never applied here.
+//     Reproduced: 2026-07-09 station sum read 62140 vs the correct 61690 (450 = one voided line).
+//  2. Even with zero voids, line.total_price is gross (pre-tax, pre-discount, pre-charges,
+//     pre-round-off) while total_amount is the net payable — so ANY order carrying a discount
+//     (e.g. the happy-hour auto-discount) inflates the station sum by exactly that discount.
+//     Reproduced: 2026-07-11 gap of 4600 after the void fix == that day's discount_total exactly.
+//
+// Fix: each line's contribution to its order is first scaled by voided_qty (active fraction),
+// then the order's ENTIRE net total_amount is prorated across its lines by their SHARE of the
+// order's active gross value — so every tax/discount/charges/round-off cent lands on a station
+// too, and the per-station rows sum EXACTLY to the same total Sales-by-Staff reports. Staff
+// totals (order.total_amount) were always the accurate figure; this makes KDS-station agree.
 func computeKDSStationBreakdown(ctx context.Context, db *ent.Client, tid uuid.UUID, oid *uuid.UUID, from, to time.Time) ([]KDSStationBreakdownRow, error) {
 	preds := []predicate.POSOrder{
 		posorder.TenantID(tid),
@@ -79,15 +102,25 @@ func computeKDSStationBreakdown(ctx context.Context, db *ent.Client, tid uuid.UU
 			}
 		}
 
-		for _, l := range o.Edges.Lines {
+		// Attributed lines carry each line's void-adjusted quantity and its prorated share of
+		// the order's actual net total_amount (see AttributeOrderLines) — NOT raw
+		// quantity/total_price, which is what previously made this report disagree with
+		// Sales-by-Staff whenever an order had a void or a discount.
+		attributed := AttributeOrderLines(o)
+		for i, l := range o.Edges.Lines {
+			al := attributed[i]
 			stationID := l.KdsStationID
 			if stationID == nil {
 				stationID = orders.ResolveStationForLineOrFallback(l.Name, l.Category, nil, stations)
 			}
 			if stationID == nil {
-				unassigned.orderIDs[o.ID] = struct{}{}
-				unassigned.itemCount += l.Quantity
-				unassigned.revenue += l.TotalPrice
+				// A fully-voided line (activeQty 0) shouldn't count this order as having
+				// touched "Unassigned" — nothing active actually landed there.
+				if al.Quantity > 0 {
+					unassigned.orderIDs[o.ID] = struct{}{}
+				}
+				unassigned.itemCount += al.Quantity
+				unassigned.revenue += al.Revenue
 				continue
 			}
 			b, ok := byStation[*stationID]
@@ -99,9 +132,12 @@ func computeKDSStationBreakdown(ctx context.Context, db *ent.Client, tid uuid.UU
 				b = &bucket{name: name, stype: stype, orderIDs: map[uuid.UUID]struct{}{}}
 				byStation[*stationID] = b
 			}
-			b.orderIDs[o.ID] = struct{}{}
-			b.itemCount += l.Quantity
-			b.revenue += l.TotalPrice
+			// Same guard: a fully-voided line shouldn't inflate this station's order count.
+			if al.Quantity > 0 {
+				b.orderIDs[o.ID] = struct{}{}
+			}
+			b.itemCount += al.Quantity
+			b.revenue += al.Revenue
 		}
 	}
 

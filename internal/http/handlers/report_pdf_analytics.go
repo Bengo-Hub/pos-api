@@ -13,7 +13,6 @@ import (
 	"github.com/bengobox/pos-service/internal/ent"
 	entkdsstation "github.com/bengobox/pos-service/internal/ent/kdsstation"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
-	"github.com/bengobox/pos-service/internal/ent/posorderline"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
 	"github.com/bengobox/pos-service/internal/modules/docs"
 	ordersmod "github.com/bengobox/pos-service/internal/modules/orders"
@@ -83,8 +82,10 @@ func (h *ReportPDFHandler) SalesByHourDoc(w http.ResponseWriter, r *http.Request
 		buckets[hr].revenue += o.TotalAmount
 		totalOrders++
 		totalRevenue += o.TotalAmount
-		for _, l := range o.Edges.Lines {
-			c := costBySKU[l.Sku] * l.Quantity
+		// Cost must use the ACTIVE (void-adjusted) quantity — a voided line was never actually
+		// sold, so costing it overstates cost and understates the printed profit margin.
+		for _, al := range AttributeOrderLines(o) {
+			c := costBySKU[al.SKU] * al.Quantity
 			buckets[hr].cost += c
 			totalCost += c
 		}
@@ -170,7 +171,12 @@ func (h *ReportPDFHandler) SalesByCategoryDoc(w http.ResponseWriter, r *http.Req
 	}
 	byCategory := make(map[string]*catBucket)
 	for _, o := range orders {
-		for _, line := range o.Edges.Lines {
+		// AttributeOrderLines (see report_attribution.go) fixes the same two bugs found across
+		// every line-level report: a voided line no longer contributes its pre-void gross, and
+		// revenue is each line's prorated share of order.TotalAmount, not raw total_price — so
+		// this exported document now agrees with the JSON endpoint and Sales-by-Staff.
+		for i, al := range AttributeOrderLines(o) {
+			line := o.Edges.Lines[i]
 			// POSOrderLine.Category is the real, always-populated column — see the same
 			// fix in reports.go SalesByCategory (line.Metadata never carries "category").
 			cat := line.Category
@@ -180,8 +186,8 @@ func (h *ReportPDFHandler) SalesByCategoryDoc(w http.ResponseWriter, r *http.Req
 			if byCategory[cat] == nil {
 				byCategory[cat] = &catBucket{}
 			}
-			byCategory[cat].revenue += line.TotalPrice
-			byCategory[cat].qty += line.Quantity
+			byCategory[cat].revenue += al.Revenue
+			byCategory[cat].qty += al.Quantity
 		}
 	}
 
@@ -257,9 +263,11 @@ func (h *ReportPDFHandler) ProductMixDoc(w http.ResponseWriter, r *http.Request)
 	if oid != nil {
 		orderPreds = append(orderPreds, posorder.OutletID(*oid))
 	}
-	lines, err := h.db.POSOrderLine.Query().
-		Where(posorderline.HasOrderWith(orderPreds...)).
-		WithOrder().
+	// Orders-with-lines (not lines-with-order) so AttributeOrderLines can prorate each order's
+	// net total_amount across its own lines — matches reports_extended.go's ProductMix.
+	mixOrders, err := h.db.POSOrder.Query().
+		Where(orderPreds...).
+		WithLines().
 		All(ctx)
 	if err != nil {
 		h.log.Error("product-mix-document: query failed", zap.Error(err))
@@ -315,39 +323,45 @@ func (h *ReportPDFHandler) ProductMixDoc(w http.ResponseWriter, r *http.Request)
 	}
 
 	var totalRevenue, totalQty float64
-	for _, l := range lines {
-		o := l.Edges.Order
-		if o == nil {
-			continue
-		}
-		category := l.Category
-		if category == "" {
-			category = "Uncategorised"
-		}
-		station := resolveStation(o, l)
-		if station == "" {
-			station = "Unassigned"
-		}
-		if len(catFilter) > 0 && !catFilter[category] {
-			continue
-		}
-		if len(stationFilter) > 0 && !stationFilter[station] {
-			continue
-		}
+	for _, o := range mixOrders {
+		// AttributeOrderLines (see report_attribution.go) fixes the same two bugs found across
+		// every line-level report: a voided line no longer contributes its pre-void gross, and
+		// revenue is each line's prorated share of order.TotalAmount, not raw total_price — so
+		// this exported document now agrees with the JSON endpoint and Sales-by-Staff.
+		for i, al := range AttributeOrderLines(o) {
+			l := o.Edges.Lines[i]
+			if al.Quantity <= 0 && al.Revenue <= 0 {
+				continue // fully voided — nothing active to attribute
+			}
+			category := l.Category
+			if category == "" {
+				category = "Uncategorised"
+			}
+			station := resolveStation(o, l)
+			if station == "" {
+				station = "Unassigned"
+			}
+			if len(catFilter) > 0 && !catFilter[category] {
+				continue
+			}
+			if len(stationFilter) > 0 && !stationFilter[station] {
+				continue
+			}
 
-		accumulate(byItem, l.Name, l.Quantity, l.TotalPrice)
-		accumulate(byCategory, category, l.Quantity, l.TotalPrice)
-		accumulate(byStation, station, l.Quantity, l.TotalPrice)
-		if itemsByCategory[category] == nil {
-			itemsByCategory[category] = make(map[string]*mixBucket)
+			accumulate(byItem, l.Name, al.Quantity, al.Revenue)
+			accumulate(byCategory, category, al.Quantity, al.Revenue)
+			accumulate(byStation, station, al.Quantity, al.Revenue)
+			if itemsByCategory[category] == nil {
+				itemsByCategory[category] = make(map[string]*mixBucket)
+			}
+			accumulate(itemsByCategory[category], l.Name, al.Quantity, al.Revenue)
+			if itemsByStation[station] == nil {
+				itemsByStation[station] = make(map[string]*mixBucket)
+			}
+			accumulate(itemsByStation[station], l.Name, al.Quantity, al.Revenue)
+			totalRevenue += al.Revenue
+			totalQty += al.Quantity
 		}
-		accumulate(itemsByCategory[category], l.Name, l.Quantity, l.TotalPrice)
-		if itemsByStation[station] == nil {
-			itemsByStation[station] = make(map[string]*mixBucket)
-		}
-		accumulate(itemsByStation[station], l.Name, l.Quantity, l.TotalPrice)
-		totalRevenue += l.TotalPrice
-		totalQty += l.Quantity
 	}
 
 	type mixRow struct {

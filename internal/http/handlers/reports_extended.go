@@ -8,7 +8,6 @@ import (
 	"github.com/bengobox/pos-service/internal/ent"
 	entkdsstation "github.com/bengobox/pos-service/internal/ent/kdsstation"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
-	"github.com/bengobox/pos-service/internal/ent/posorderline"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
 	"github.com/bengobox/pos-service/internal/modules/orders"
 	"github.com/google/uuid"
@@ -129,9 +128,11 @@ func (h *ReportsHandler) ProductMix(w http.ResponseWriter, r *http.Request) {
 		orderPredicates = append(orderPredicates, posorder.OutletID(outletFilter))
 	}
 
-	lines, err := h.db.POSOrderLine.Query().
-		Where(posorderline.HasOrderWith(orderPredicates...)).
-		WithOrder().
+	// Orders-with-lines (not lines-with-order) so AttributeOrderLines can prorate each order's
+	// net total_amount across its own lines — matches computeKDSStationBreakdown/SalesByCategory.
+	mixOrders, err := h.db.POSOrder.Query().
+		Where(orderPredicates...).
+		WithLines().
 		All(r.Context())
 	if err != nil {
 		h.log.Error("product-mix query failed", zap.Error(err))
@@ -185,67 +186,77 @@ func (h *ReportsHandler) ProductMix(w http.ResponseWriter, r *http.Request) {
 		return "", ""
 	}
 
-	for _, l := range lines {
-		o := l.Edges.Order
-		if o == nil {
-			continue
-		}
-		subtype := string(o.OrderSubtype)
-		if _, ok := bySubtype[subtype]; !ok {
-			bySubtype[subtype] = &mixRow{Label: subtype}
-		}
-		if _, ok := subtypeOrders[subtype]; !ok {
-			subtypeOrders[subtype] = map[uuid.UUID]struct{}{}
-		}
-		subtypeOrders[subtype][o.ID] = struct{}{}
-		bySubtype[subtype].Revenue += l.TotalPrice
-		bySubtype[subtype].Quantity += l.Quantity
+	for _, o := range mixOrders {
+		// AttributeOrderLines fixes the same two bugs found in KDS-station/category: a
+		// partially/fully voided line no longer contributes its pre-void gross, and revenue is
+		// each line's prorated share of order.TotalAmount (net of discount/tax/charges/round-off)
+		// rather than raw total_price — so every sub-breakdown here now agrees with Sales-by-Staff.
+		attributed := AttributeOrderLines(o)
+		for i, l := range o.Edges.Lines {
+			al := attributed[i]
+			// A fully-voided line contributes nothing active — skip it entirely rather than
+			// still crediting its (zero) order-count membership across every dimension.
+			if al.Quantity <= 0 && al.Revenue <= 0 {
+				continue
+			}
 
-		stationName, stationType := resolveStation(o, l)
-		category := l.Category
-		if category == "" {
-			category = "Uncategorised"
-		}
-		stationLabel := stationName
-		if stationLabel == "" {
-			stationLabel = "Unassigned"
-		}
+			subtype := string(o.OrderSubtype)
+			if _, ok := bySubtype[subtype]; !ok {
+				bySubtype[subtype] = &mixRow{Label: subtype}
+			}
+			if _, ok := subtypeOrders[subtype]; !ok {
+				subtypeOrders[subtype] = map[uuid.UUID]struct{}{}
+			}
+			subtypeOrders[subtype][o.ID] = struct{}{}
+			bySubtype[subtype].Revenue += al.Revenue
+			bySubtype[subtype].Quantity += al.Quantity
 
-		row, ok := byItem[l.Name]
-		if !ok {
-			row = &mixRow{Label: l.Name, Category: category, StationName: stationName, StationType: stationType}
-			byItem[l.Name] = row
-		}
-		if _, ok := itemOrders[l.Name]; !ok {
-			itemOrders[l.Name] = map[uuid.UUID]struct{}{}
-		}
-		itemOrders[l.Name][o.ID] = struct{}{}
-		row.Quantity += l.Quantity
-		row.Revenue += l.TotalPrice
+			stationName, stationType := resolveStation(o, l)
+			category := l.Category
+			if category == "" {
+				category = "Uncategorised"
+			}
+			stationLabel := stationName
+			if stationLabel == "" {
+				stationLabel = "Unassigned"
+			}
 
-		catRow, ok := byCategory[category]
-		if !ok {
-			catRow = &mixRow{Label: category}
-			byCategory[category] = catRow
-		}
-		if _, ok := categoryOrders[category]; !ok {
-			categoryOrders[category] = map[uuid.UUID]struct{}{}
-		}
-		categoryOrders[category][o.ID] = struct{}{}
-		catRow.Quantity += l.Quantity
-		catRow.Revenue += l.TotalPrice
+			row, ok := byItem[l.Name]
+			if !ok {
+				row = &mixRow{Label: l.Name, Category: category, StationName: stationName, StationType: stationType}
+				byItem[l.Name] = row
+			}
+			if _, ok := itemOrders[l.Name]; !ok {
+				itemOrders[l.Name] = map[uuid.UUID]struct{}{}
+			}
+			itemOrders[l.Name][o.ID] = struct{}{}
+			row.Quantity += al.Quantity
+			row.Revenue += al.Revenue
 
-		stRow, ok := byStation[stationLabel]
-		if !ok {
-			stRow = &mixRow{Label: stationLabel, StationName: stationName, StationType: stationType}
-			byStation[stationLabel] = stRow
+			catRow, ok := byCategory[category]
+			if !ok {
+				catRow = &mixRow{Label: category}
+				byCategory[category] = catRow
+			}
+			if _, ok := categoryOrders[category]; !ok {
+				categoryOrders[category] = map[uuid.UUID]struct{}{}
+			}
+			categoryOrders[category][o.ID] = struct{}{}
+			catRow.Quantity += al.Quantity
+			catRow.Revenue += al.Revenue
+
+			stRow, ok := byStation[stationLabel]
+			if !ok {
+				stRow = &mixRow{Label: stationLabel, StationName: stationName, StationType: stationType}
+				byStation[stationLabel] = stRow
+			}
+			if _, ok := stationOrders[stationLabel]; !ok {
+				stationOrders[stationLabel] = map[uuid.UUID]struct{}{}
+			}
+			stationOrders[stationLabel][o.ID] = struct{}{}
+			stRow.Quantity += al.Quantity
+			stRow.Revenue += al.Revenue
 		}
-		if _, ok := stationOrders[stationLabel]; !ok {
-			stationOrders[stationLabel] = map[uuid.UUID]struct{}{}
-		}
-		stationOrders[stationLabel][o.ID] = struct{}{}
-		stRow.Quantity += l.Quantity
-		stRow.Revenue += l.TotalPrice
 	}
 	for subtype, ids := range subtypeOrders {
 		bySubtype[subtype].OrderCount = len(ids)

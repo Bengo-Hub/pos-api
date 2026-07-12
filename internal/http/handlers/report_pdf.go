@@ -1057,17 +1057,21 @@ func (h *ReportPDFHandler) MostProfitablePDF(w http.ResponseWriter, r *http.Requ
 		if o.Currency != "" {
 			currency = o.Currency
 		}
-		for _, l := range o.Edges.Lines {
-			b := buckets[l.Sku]
+		// AttributeOrderLines (see report_attribution.go) fixes a voided line contributing its
+		// pre-void units, and prices revenue as each line's prorated share of order.TotalAmount
+		// rather than quantity*unit_price — mirrors ReportsHandler.MostProfitableItems exactly.
+		for i, al := range AttributeOrderLines(o) {
+			l := o.Edges.Lines[i]
+			b := buckets[al.SKU]
 			if b == nil {
-				b = &itemAgg{sku: l.Sku, name: l.Name}
-				buckets[l.Sku] = b
+				b = &itemAgg{sku: al.SKU, name: l.Name}
+				buckets[al.SKU] = b
 			}
 			if b.name == "" {
 				b.name = l.Name
 			}
-			b.units += l.Quantity
-			b.revenue += l.Quantity * l.UnitPrice
+			b.units += al.Quantity
+			b.revenue += al.Revenue
 		}
 	}
 	// Batched (not N+1) — see resolveUnitCostsBySKU for the GOODS-cost_price vs

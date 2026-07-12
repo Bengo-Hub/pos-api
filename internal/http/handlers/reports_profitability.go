@@ -76,17 +76,23 @@ func (h *ReportsHandler) MostProfitableItems(w http.ResponseWriter, r *http.Requ
 		if o.Currency != "" {
 			currency = o.Currency
 		}
-		for _, l := range o.Edges.Lines {
-			b, ok := buckets[l.Sku]
+		// AttributeOrderLines (see report_attribution.go) fixes the same two bugs found across
+		// every line-level report: a voided line no longer contributes its pre-void units, and
+		// revenue is each line's prorated share of order.TotalAmount (net of discount/tax/
+		// charges/round-off) rather than quantity*unit_price — so profitability now agrees with
+		// Sales-by-Staff too, not just its own internal cost math.
+		for i, al := range AttributeOrderLines(o) {
+			l := o.Edges.Lines[i]
+			b, ok := buckets[al.SKU]
 			if !ok {
-				b = &itemAgg{SKU: l.Sku, Name: l.Name}
-				buckets[l.Sku] = b
+				b = &itemAgg{SKU: al.SKU, Name: l.Name}
+				buckets[al.SKU] = b
 			}
 			if b.Name == "" {
 				b.Name = l.Name
 			}
-			b.UnitsSold += l.Quantity
-			b.Revenue += l.Quantity * l.UnitPrice
+			b.UnitsSold += al.Quantity
+			b.Revenue += al.Revenue
 		}
 	}
 

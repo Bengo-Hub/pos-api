@@ -973,8 +973,10 @@ func (h *ReportsHandler) SalesByHour(w http.ResponseWriter, r *http.Request) {
 		hr := o.CreatedAt.In(loc).Hour()
 		buckets[hr].OrderCount++
 		buckets[hr].Revenue += o.TotalAmount
-		for _, l := range o.Edges.Lines {
-			buckets[hr].Cost += costBySKU[l.Sku] * l.Quantity
+		// Cost must use the ACTIVE (void-adjusted) quantity — a voided line was never actually
+		// sold, so costing it overstates cost and understates the reported profit margin.
+		for _, al := range AttributeOrderLines(o) {
+			buckets[hr].Cost += costBySKU[al.SKU] * al.Quantity
 		}
 	}
 	for i := range buckets {
@@ -1023,7 +1025,12 @@ func (h *ReportsHandler) SalesByCategory(w http.ResponseWriter, r *http.Request)
 	}
 	byCategory := make(map[string]*catBucket)
 	for _, o := range orders {
-		for _, line := range o.Edges.Lines {
+		// AttributeOrderLines fixes the same two bugs found in KDS-station/product-mix: a
+		// partially/fully voided line no longer contributes its pre-void gross, and revenue is
+		// each line's prorated share of order.TotalAmount (net of discount/tax/charges/round-off)
+		// rather than raw total_price — so this report's total now agrees with Sales-by-Staff.
+		for i, al := range AttributeOrderLines(o) {
+			line := o.Edges.Lines[i]
 			// POSOrderLine.Category is the real, always-populated column (set at line
 			// creation for KDS routing — see orders.Service AddOrderLines/CreateOrder).
 			// line.Metadata never carries a "category" key, so reading it here silently
@@ -1035,8 +1042,8 @@ func (h *ReportsHandler) SalesByCategory(w http.ResponseWriter, r *http.Request)
 			if _, ok := byCategory[cat]; !ok {
 				byCategory[cat] = &catBucket{Category: cat}
 			}
-			byCategory[cat].Revenue += line.TotalPrice
-			byCategory[cat].Quantity += line.Quantity
+			byCategory[cat].Revenue += al.Revenue
+			byCategory[cat].Quantity += al.Quantity
 		}
 	}
 
