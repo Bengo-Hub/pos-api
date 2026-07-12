@@ -22,6 +22,8 @@ const (
 	FieldScopeType = "scope_type"
 	// FieldScopeIds holds the string denoting the scope_ids field in the database.
 	FieldScopeIds = "scope_ids"
+	// FieldGetScopeIds holds the string denoting the get_scope_ids field in the database.
+	FieldGetScopeIds = "get_scope_ids"
 	// FieldDiscountType holds the string denoting the discount_type field in the database.
 	FieldDiscountType = "discount_type"
 	// FieldDiscountValue holds the string denoting the discount_value field in the database.
@@ -49,6 +51,7 @@ var Columns = []string{
 	FieldRuleType,
 	FieldScopeType,
 	FieldScopeIds,
+	FieldGetScopeIds,
 	FieldDiscountType,
 	FieldDiscountValue,
 	FieldBuyQuantity,

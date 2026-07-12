@@ -55,6 +55,12 @@ func (_c *PromotionRuleCreate) SetScopeIds(v []string) *PromotionRuleCreate {
 	return _c
 }
 
+// SetGetScopeIds sets the "get_scope_ids" field.
+func (_c *PromotionRuleCreate) SetGetScopeIds(v []string) *PromotionRuleCreate {
+	_c.mutation.SetGetScopeIds(v)
+	return _c
+}
+
 // SetDiscountType sets the "discount_type" field.
 func (_c *PromotionRuleCreate) SetDiscountType(v promotionrule.DiscountType) *PromotionRuleCreate {
 	_c.mutation.SetDiscountType(v)
@@ -343,6 +349,10 @@ func (_c *PromotionRuleCreate) createSpec() (*PromotionRule, *sqlgraph.CreateSpe
 		_spec.SetField(promotionrule.FieldScopeIds, field.TypeJSON, value)
 		_node.ScopeIds = value
 	}
+	if value, ok := _c.mutation.GetScopeIds(); ok {
+		_spec.SetField(promotionrule.FieldGetScopeIds, field.TypeJSON, value)
+		_node.GetScopeIds = value
+	}
 	if value, ok := _c.mutation.DiscountType(); ok {
 		_spec.SetField(promotionrule.FieldDiscountType, field.TypeEnum, value)
 		_node.DiscountType = value
@@ -478,6 +488,24 @@ func (u *PromotionRuleUpsert) UpdateScopeIds() *PromotionRuleUpsert {
 // ClearScopeIds clears the value of the "scope_ids" field.
 func (u *PromotionRuleUpsert) ClearScopeIds() *PromotionRuleUpsert {
 	u.SetNull(promotionrule.FieldScopeIds)
+	return u
+}
+
+// SetGetScopeIds sets the "get_scope_ids" field.
+func (u *PromotionRuleUpsert) SetGetScopeIds(v []string) *PromotionRuleUpsert {
+	u.Set(promotionrule.FieldGetScopeIds, v)
+	return u
+}
+
+// UpdateGetScopeIds sets the "get_scope_ids" field to the value that was provided on create.
+func (u *PromotionRuleUpsert) UpdateGetScopeIds() *PromotionRuleUpsert {
+	u.SetExcluded(promotionrule.FieldGetScopeIds)
+	return u
+}
+
+// ClearGetScopeIds clears the value of the "get_scope_ids" field.
+func (u *PromotionRuleUpsert) ClearGetScopeIds() *PromotionRuleUpsert {
+	u.SetNull(promotionrule.FieldGetScopeIds)
 	return u
 }
 
@@ -727,6 +755,27 @@ func (u *PromotionRuleUpsertOne) UpdateScopeIds() *PromotionRuleUpsertOne {
 func (u *PromotionRuleUpsertOne) ClearScopeIds() *PromotionRuleUpsertOne {
 	return u.Update(func(s *PromotionRuleUpsert) {
 		s.ClearScopeIds()
+	})
+}
+
+// SetGetScopeIds sets the "get_scope_ids" field.
+func (u *PromotionRuleUpsertOne) SetGetScopeIds(v []string) *PromotionRuleUpsertOne {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.SetGetScopeIds(v)
+	})
+}
+
+// UpdateGetScopeIds sets the "get_scope_ids" field to the value that was provided on create.
+func (u *PromotionRuleUpsertOne) UpdateGetScopeIds() *PromotionRuleUpsertOne {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.UpdateGetScopeIds()
+	})
+}
+
+// ClearGetScopeIds clears the value of the "get_scope_ids" field.
+func (u *PromotionRuleUpsertOne) ClearGetScopeIds() *PromotionRuleUpsertOne {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.ClearGetScopeIds()
 	})
 }
 
@@ -1166,6 +1215,27 @@ func (u *PromotionRuleUpsertBulk) UpdateScopeIds() *PromotionRuleUpsertBulk {
 func (u *PromotionRuleUpsertBulk) ClearScopeIds() *PromotionRuleUpsertBulk {
 	return u.Update(func(s *PromotionRuleUpsert) {
 		s.ClearScopeIds()
+	})
+}
+
+// SetGetScopeIds sets the "get_scope_ids" field.
+func (u *PromotionRuleUpsertBulk) SetGetScopeIds(v []string) *PromotionRuleUpsertBulk {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.SetGetScopeIds(v)
+	})
+}
+
+// UpdateGetScopeIds sets the "get_scope_ids" field to the value that was provided on create.
+func (u *PromotionRuleUpsertBulk) UpdateGetScopeIds() *PromotionRuleUpsertBulk {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.UpdateGetScopeIds()
+	})
+}
+
+// ClearGetScopeIds clears the value of the "get_scope_ids" field.
+func (u *PromotionRuleUpsertBulk) ClearGetScopeIds() *PromotionRuleUpsertBulk {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.ClearGetScopeIds()
 	})
 }
 

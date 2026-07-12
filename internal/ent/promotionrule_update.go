@@ -89,6 +89,24 @@ func (_u *PromotionRuleUpdate) ClearScopeIds() *PromotionRuleUpdate {
 	return _u
 }
 
+// SetGetScopeIds sets the "get_scope_ids" field.
+func (_u *PromotionRuleUpdate) SetGetScopeIds(v []string) *PromotionRuleUpdate {
+	_u.mutation.SetGetScopeIds(v)
+	return _u
+}
+
+// AppendGetScopeIds appends value to the "get_scope_ids" field.
+func (_u *PromotionRuleUpdate) AppendGetScopeIds(v []string) *PromotionRuleUpdate {
+	_u.mutation.AppendGetScopeIds(v)
+	return _u
+}
+
+// ClearGetScopeIds clears the value of the "get_scope_ids" field.
+func (_u *PromotionRuleUpdate) ClearGetScopeIds() *PromotionRuleUpdate {
+	_u.mutation.ClearGetScopeIds()
+	return _u
+}
+
 // SetDiscountType sets the "discount_type" field.
 func (_u *PromotionRuleUpdate) SetDiscountType(v promotionrule.DiscountType) *PromotionRuleUpdate {
 	_u.mutation.SetDiscountType(v)
@@ -329,6 +347,17 @@ func (_u *PromotionRuleUpdate) sqlSave(ctx context.Context) (_node int, err erro
 	if _u.mutation.ScopeIdsCleared() {
 		_spec.ClearField(promotionrule.FieldScopeIds, field.TypeJSON)
 	}
+	if value, ok := _u.mutation.GetScopeIds(); ok {
+		_spec.SetField(promotionrule.FieldGetScopeIds, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedGetScopeIds(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, promotionrule.FieldGetScopeIds, value)
+		})
+	}
+	if _u.mutation.GetScopeIdsCleared() {
+		_spec.ClearField(promotionrule.FieldGetScopeIds, field.TypeJSON)
+	}
 	if value, ok := _u.mutation.DiscountType(); ok {
 		_spec.SetField(promotionrule.FieldDiscountType, field.TypeEnum, value)
 	}
@@ -451,6 +480,24 @@ func (_u *PromotionRuleUpdateOne) AppendScopeIds(v []string) *PromotionRuleUpdat
 // ClearScopeIds clears the value of the "scope_ids" field.
 func (_u *PromotionRuleUpdateOne) ClearScopeIds() *PromotionRuleUpdateOne {
 	_u.mutation.ClearScopeIds()
+	return _u
+}
+
+// SetGetScopeIds sets the "get_scope_ids" field.
+func (_u *PromotionRuleUpdateOne) SetGetScopeIds(v []string) *PromotionRuleUpdateOne {
+	_u.mutation.SetGetScopeIds(v)
+	return _u
+}
+
+// AppendGetScopeIds appends value to the "get_scope_ids" field.
+func (_u *PromotionRuleUpdateOne) AppendGetScopeIds(v []string) *PromotionRuleUpdateOne {
+	_u.mutation.AppendGetScopeIds(v)
+	return _u
+}
+
+// ClearGetScopeIds clears the value of the "get_scope_ids" field.
+func (_u *PromotionRuleUpdateOne) ClearGetScopeIds() *PromotionRuleUpdateOne {
+	_u.mutation.ClearGetScopeIds()
 	return _u
 }
 
@@ -723,6 +770,17 @@ func (_u *PromotionRuleUpdateOne) sqlSave(ctx context.Context) (_node *Promotion
 	}
 	if _u.mutation.ScopeIdsCleared() {
 		_spec.ClearField(promotionrule.FieldScopeIds, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.GetScopeIds(); ok {
+		_spec.SetField(promotionrule.FieldGetScopeIds, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedGetScopeIds(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, promotionrule.FieldGetScopeIds, value)
+		})
+	}
+	if _u.mutation.GetScopeIdsCleared() {
+		_spec.ClearField(promotionrule.FieldGetScopeIds, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.DiscountType(); ok {
 		_spec.SetField(promotionrule.FieldDiscountType, field.TypeEnum, value)

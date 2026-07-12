@@ -6,6 +6,7 @@ package promotions
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -408,21 +409,26 @@ func trimNum(f float64) string {
 	return strconv.FormatFloat(f, 'f', -1, 64)
 }
 
-// calculateBOGODiscount computes a "buy X get Y [at N% off]" discount: for every
-// buy_quantity units of a scoped SKU in the cart, get_quantity more units of the SAME SKU
-// are discounted by get_discount_percent (100 = fully free — the classic "buy one get one
-// free"). Grouped per-SKU (a cart can carry the same SKU split across multiple lines — one
-// pre-existing, one just added) rather than pooled across different scoped SKUs, matching
-// how a real "buy 1 burger get 1 burger free" deal reads: adding a second UNRELATED scoped
-// item never completes someone else's pair. scope_type must be "item" with scope_ids set —
-// a storewide/category BOGO has no well-defined "unit" to pair, so it's a no-op.
+// calculateBOGODiscount computes a "buy X get Y [at N% off]" discount and dispatches to one of
+// two pairing modes depending on whether rule.GetScopeIds is set:
+//
+//   - Same-SKU (GetScopeIds empty, the original behavior): for every buy_quantity units of a
+//     scoped SKU in the cart, get_quantity more units of the SAME SKU are discounted — the
+//     classic "buy one drink get one drink free". The free unit IS another unit of the item
+//     already being bought.
+//   - Cross-item (GetScopeIds set): buying units from scope_ids (the "buy" scope) earns free/
+//     discounted units from a DIFFERENT get_scope_ids set — e.g. "buy one Large pizza, get one
+//     Small pizza free". Here the "get" item is a genuinely different catalog item (its own
+//     recipe/stock/price) that the cashier adds to the cart as its own real order line — the
+//     discount only prices that existing line correctly; no phantom unit needs to be added and
+//     no special stock handling is needed (the line's own quantity already deducts its own
+//     recipe via the normal per-SKU backflush).
+//
+// scope_type must be "item" with scope_ids set — a storewide/category BOGO has no well-defined
+// "unit" to pair, so it's a no-op.
 func (s *Service) calculateBOGODiscount(rule *ent.PromotionRule, lines []DiscountLine) (decimal.Decimal, map[string]LineDiscount) {
 	if rule.ScopeType != promotionrule.ScopeTypeItem || len(rule.ScopeIds) == 0 {
 		return decimal.Zero, nil
-	}
-	inScope := map[string]struct{}{}
-	for _, id := range rule.ScopeIds {
-		inScope[strings.ToLower(strings.TrimSpace(id))] = struct{}{}
 	}
 	buyQty := rule.BuyQuantity
 	if buyQty <= 0 {
@@ -435,6 +441,29 @@ func (s *Service) calculateBOGODiscount(rule *ent.PromotionRule, lines []Discoun
 	getPct := rule.GetDiscountPercent
 	if getPct <= 0 {
 		getPct = 100
+	}
+	freeLabel := "Free"
+	if getPct < 100 {
+		freeLabel = trimNum(getPct) + "% off"
+	}
+	label := fmt.Sprintf("Buy %d Get %d %s", buyQty, getQty, freeLabel)
+
+	if len(rule.GetScopeIds) > 0 {
+		return s.calculateCrossItemBOGO(rule, lines, buyQty, getQty, getPct, label)
+	}
+	return s.calculateSameSKUBOGO(rule, lines, buyQty, getQty, getPct, label)
+}
+
+// calculateSameSKUBOGO is the original pairing: for every buy_quantity units of a scoped SKU in
+// the cart, get_quantity more units of the SAME SKU are discounted by get_discount_percent (100
+// = fully free). Grouped per-SKU (a cart can carry the same SKU split across multiple lines —
+// one pre-existing, one just added) rather than pooled across different scoped SKUs, matching
+// how a real "buy 1 burger get 1 burger free" deal reads: adding a second UNRELATED scoped item
+// never completes someone else's pair.
+func (s *Service) calculateSameSKUBOGO(rule *ent.PromotionRule, lines []DiscountLine, buyQty, getQty int, getPct float64, label string) (decimal.Decimal, map[string]LineDiscount) {
+	inScope := map[string]struct{}{}
+	for _, id := range rule.ScopeIds {
+		inScope[strings.ToLower(strings.TrimSpace(id))] = struct{}{}
 	}
 	cycle := buyQty + getQty
 
@@ -451,12 +480,6 @@ func (s *Service) calculateBOGODiscount(rule *ent.PromotionRule, lines []Discoun
 		priceBySKU[l.SKU] = l.UnitPrice
 	}
 
-	freeLabel := "Free"
-	if getPct < 100 {
-		freeLabel = trimNum(getPct) + "% off"
-	}
-	label := fmt.Sprintf("Buy %d Get %d %s", buyQty, getQty, freeLabel)
-
 	total := decimal.Zero
 	perSKU := map[string]LineDiscount{}
 	for sku, qty := range qtyBySKU {
@@ -468,6 +491,85 @@ func (s *Service) calculateBOGODiscount(rule *ent.PromotionRule, lines []Discoun
 		amt := priceBySKU[sku].Mul(decimal.NewFromFloat(freeUnits)).Mul(decimal.NewFromFloat(getPct / 100)).Round(2)
 		total = total.Add(amt)
 		perSKU[sku] = LineDiscount{SKU: sku, Amount: amt, FreeQty: freeUnits, Type: "bogo", Label: label}
+	}
+	if rule.MaxDiscount != nil && *rule.MaxDiscount > 0 {
+		if cap := decimal.NewFromFloat(*rule.MaxDiscount); total.GreaterThan(cap) {
+			total = cap
+		}
+	}
+	return total, perSKU
+}
+
+// calculateCrossItemBOGO handles "buy X of scope_ids, get Y of get_scope_ids [at N% off]" — the
+// two scopes are DIFFERENT catalog items (e.g. buy one Large pizza SKU, get one Small pizza SKU
+// free). Every buy_quantity units bought across the WHOLE buy scope (any qualifying SKU, not
+// per-SKU — a customer buying one Margherita Large still earns the deal even if the free Small
+// they pick is Pepperoni) earns get_quantity free "get" units, capped by however many get-scope
+// units actually exist in the cart (the cashier must have actually added the free item as a real
+// line — nothing is auto-added). When multiple different get-scope items/prices are present, the
+// CHEAPEST units are discounted first (the customer-favoring convention: the free item is never
+// pricier than a same-priced alternative already in the cart).
+func (s *Service) calculateCrossItemBOGO(rule *ent.PromotionRule, lines []DiscountLine, buyQty, getQty int, getPct float64, label string) (decimal.Decimal, map[string]LineDiscount) {
+	buyScope := map[string]struct{}{}
+	for _, id := range rule.ScopeIds {
+		buyScope[strings.ToLower(strings.TrimSpace(id))] = struct{}{}
+	}
+	getScope := map[string]struct{}{}
+	for _, id := range rule.GetScopeIds {
+		getScope[strings.ToLower(strings.TrimSpace(id))] = struct{}{}
+	}
+
+	var buyTotalQty float64
+	for _, l := range lines {
+		if _, ok := buyScope[strings.ToLower(strings.TrimSpace(l.SKU))]; ok {
+			buyTotalQty += l.Quantity
+		}
+	}
+	pairs := int(buyTotalQty) / buyQty
+	if pairs <= 0 {
+		return decimal.Zero, nil
+	}
+	freeUnitsEarned := pairs * getQty
+
+	// Explode get-scope lines into individual unit slots so partial-line discounting (e.g. 2 of
+	// a get-scope SKU in the cart but only 1 free credit earned) and cheapest-first ordering
+	// both work regardless of how items are split across lines.
+	type unit struct {
+		sku   string
+		price decimal.Decimal
+	}
+	var units []unit
+	for _, l := range lines {
+		if _, ok := getScope[strings.ToLower(strings.TrimSpace(l.SKU))]; !ok {
+			continue
+		}
+		for i := 0; i < int(l.Quantity); i++ {
+			units = append(units, unit{sku: l.SKU, price: l.UnitPrice})
+		}
+	}
+	if len(units) == 0 {
+		return decimal.Zero, nil // buyer hasn't added a qualifying "get" item yet — nothing to discount
+	}
+	sort.Slice(units, func(i, j int) bool { return units[i].price.LessThan(units[j].price) })
+	if freeUnitsEarned > len(units) {
+		freeUnitsEarned = len(units)
+	}
+
+	total := decimal.Zero
+	perSKU := map[string]LineDiscount{}
+	freeQtyBySKU := map[string]float64{}
+	for i := 0; i < freeUnitsEarned; i++ {
+		u := units[i]
+		amt := u.price.Mul(decimal.NewFromFloat(getPct / 100)).Round(2)
+		total = total.Add(amt)
+		freeQtyBySKU[u.sku]++
+		existing := perSKU[u.sku]
+		existing.SKU = u.sku
+		existing.Amount = existing.Amount.Add(amt)
+		existing.FreeQty = freeQtyBySKU[u.sku]
+		existing.Type = "bogo"
+		existing.Label = label
+		perSKU[u.sku] = existing
 	}
 	if rule.MaxDiscount != nil && *rule.MaxDiscount > 0 {
 		if cap := decimal.NewFromFloat(*rule.MaxDiscount); total.GreaterThan(cap) {

@@ -2329,6 +2329,7 @@ var (
 		{Name: "rule_type", Type: field.TypeString},
 		{Name: "scope_type", Type: field.TypeEnum, Enums: []string{"all", "category", "item"}, Default: "all"},
 		{Name: "scope_ids", Type: field.TypeJSON, Nullable: true},
+		{Name: "get_scope_ids", Type: field.TypeJSON, Nullable: true},
 		{Name: "discount_type", Type: field.TypeEnum, Enums: []string{"percentage", "fixed_amount", "fixed_price", "bogo"}, Default: "percentage"},
 		{Name: "discount_value", Type: field.TypeFloat64, Default: 0},
 		{Name: "buy_quantity", Type: field.TypeInt, Default: 1},

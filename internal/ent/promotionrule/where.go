@@ -223,6 +223,16 @@ func ScopeIdsNotNil() predicate.PromotionRule {
 	return predicate.PromotionRule(sql.FieldNotNull(FieldScopeIds))
 }
 
+// GetScopeIdsIsNil applies the IsNil predicate on the "get_scope_ids" field.
+func GetScopeIdsIsNil() predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldIsNull(FieldGetScopeIds))
+}
+
+// GetScopeIdsNotNil applies the NotNil predicate on the "get_scope_ids" field.
+func GetScopeIdsNotNil() predicate.PromotionRule {
+	return predicate.PromotionRule(sql.FieldNotNull(FieldGetScopeIds))
+}
+
 // DiscountTypeEQ applies the EQ predicate on the "discount_type" field.
 func DiscountTypeEQ(v DiscountType) predicate.PromotionRule {
 	return predicate.PromotionRule(sql.FieldEQ(FieldDiscountType, v))

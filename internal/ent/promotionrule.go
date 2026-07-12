@@ -24,8 +24,10 @@ type PromotionRule struct {
 	RuleType string `json:"rule_type,omitempty"`
 	// Discount scope: all lines, specific inventory categories, or specific items/skus
 	ScopeType promotionrule.ScopeType `json:"scope_type,omitempty"`
-	// Inventory category ids or skus the discount applies to (when scope_type != all)
+	// Inventory category ids or skus the discount applies to (when scope_type != all). For BOGO this is the "buy" scope.
 	ScopeIds []string `json:"scope_ids,omitempty"`
+	// BOGO cross-item pairing: SKUs eligible for the free/discounted "get" unit, when they are DIFFERENT items from the "buy" scope_ids (e.g. buy scope_ids = Large pizzas, get_scope_ids = Small pizzas — "buy one large, get one small free"). Empty = same-SKU BOGO (the free unit is another unit of the same SKU already in the cart, the original behavior). Only meaningful when discount_type=bogo and scope_type=item.
+	GetScopeIds []string `json:"get_scope_ids,omitempty"`
 	// DiscountType holds the value of the "discount_type" field.
 	DiscountType promotionrule.DiscountType `json:"discount_type,omitempty"`
 	// DiscountValue holds the value of the "discount_value" field.
@@ -50,7 +52,7 @@ func (*PromotionRule) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case promotionrule.FieldScopeIds, promotionrule.FieldRuleConfig:
+		case promotionrule.FieldScopeIds, promotionrule.FieldGetScopeIds, promotionrule.FieldRuleConfig:
 			values[i] = new([]byte)
 		case promotionrule.FieldDiscountValue, promotionrule.FieldGetDiscountPercent, promotionrule.FieldMaxDiscount:
 			values[i] = new(sql.NullFloat64)
@@ -105,6 +107,14 @@ func (_m *PromotionRule) assignValues(columns []string, values []any) error {
 			} else if value != nil && len(*value) > 0 {
 				if err := json.Unmarshal(*value, &_m.ScopeIds); err != nil {
 					return fmt.Errorf("unmarshal field scope_ids: %w", err)
+				}
+			}
+		case promotionrule.FieldGetScopeIds:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field get_scope_ids", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.GetScopeIds); err != nil {
+					return fmt.Errorf("unmarshal field get_scope_ids: %w", err)
 				}
 			}
 		case promotionrule.FieldDiscountType:
@@ -206,6 +216,9 @@ func (_m *PromotionRule) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("scope_ids=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ScopeIds))
+	builder.WriteString(", ")
+	builder.WriteString("get_scope_ids=")
+	builder.WriteString(fmt.Sprintf("%v", _m.GetScopeIds))
 	builder.WriteString(", ")
 	builder.WriteString("discount_type=")
 	builder.WriteString(fmt.Sprintf("%v", _m.DiscountType))

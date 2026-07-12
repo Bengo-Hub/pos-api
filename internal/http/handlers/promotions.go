@@ -129,7 +129,7 @@ type createPromoInput struct {
 	WindowEnd   string `json:"window_end"`   // HH:MM
 	AutoApply   bool   `json:"auto_apply"`
 	// Discount rule
-	ScopeType     string   `json:"scope_type"`    // all | category | item
+	ScopeType     string   `json:"scope_type"`    // all | category | item — for BOGO, the "buy" scope
 	ScopeIDs      []string `json:"scope_ids"`     // inventory category ids / skus
 	DiscountType  string   `json:"discount_type"` // percentage | fixed_amount | fixed_price | bogo
 	DiscountValue float64  `json:"discount_value"`
@@ -141,6 +141,10 @@ type createPromoInput struct {
 	BuyQuantity        int     `json:"buy_quantity"`
 	GetQuantity        int     `json:"get_quantity"`
 	GetDiscountPercent float64 `json:"get_discount_percent"`
+	// GetScopeIDs enables CROSS-ITEM BOGO: SKUs eligible for the free/discounted "get" unit
+	// when they are a DIFFERENT item from ScopeIDs — e.g. ScopeIDs=Large pizzas,
+	// GetScopeIDs=Small pizzas ("buy one large, get one small free"). Empty = same-SKU BOGO.
+	GetScopeIDs []string `json:"get_scope_ids"`
 }
 
 // CreatePromotion handles POST /{tenantID}/pos/promotions
@@ -212,6 +216,7 @@ func (h *PromotionHandler) CreatePromotion(w http.ResponseWriter, r *http.Reques
 			SetRuleType("discount").
 			SetScopeType(promotionrule.ScopeType(scopeType)).
 			SetScopeIds(input.ScopeIDs).
+			SetGetScopeIds(input.GetScopeIDs).
 			SetDiscountType(promotionrule.DiscountType(discountType)).
 			SetDiscountValue(input.DiscountValue)
 		if input.MaxDiscount != nil {
@@ -384,6 +389,7 @@ func (h *PromotionHandler) UpdatePromotion(w http.ResponseWriter, r *http.Reques
 		rb = rule.Update().
 			SetScopeType(promotionrule.ScopeType(scopeType)).
 			SetScopeIds(input.ScopeIDs).
+			SetGetScopeIds(input.GetScopeIDs).
 			SetDiscountType(promotionrule.DiscountType(discountType)).
 			SetDiscountValue(input.DiscountValue)
 	}
@@ -393,6 +399,7 @@ func (h *PromotionHandler) UpdatePromotion(w http.ResponseWriter, r *http.Reques
 			SetRuleType("discount").
 			SetScopeType(promotionrule.ScopeType(scopeType)).
 			SetScopeIds(input.ScopeIDs).
+			SetGetScopeIds(input.GetScopeIDs).
 			SetDiscountType(promotionrule.DiscountType(discountType)).
 			SetDiscountValue(input.DiscountValue).
 			Save(r.Context())

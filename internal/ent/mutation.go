@@ -75888,6 +75888,8 @@ type PromotionRuleMutation struct {
 	scope_type              *promotionrule.ScopeType
 	scope_ids               *[]string
 	appendscope_ids         []string
+	get_scope_ids           *[]string
+	appendget_scope_ids     []string
 	discount_type           *promotionrule.DiscountType
 	discount_value          *float64
 	adddiscount_value       *float64
@@ -76182,6 +76184,71 @@ func (m *PromotionRuleMutation) ResetScopeIds() {
 	m.scope_ids = nil
 	m.appendscope_ids = nil
 	delete(m.clearedFields, promotionrule.FieldScopeIds)
+}
+
+// SetGetScopeIds sets the "get_scope_ids" field.
+func (m *PromotionRuleMutation) SetGetScopeIds(s []string) {
+	m.get_scope_ids = &s
+	m.appendget_scope_ids = nil
+}
+
+// GetScopeIds returns the value of the "get_scope_ids" field in the mutation.
+func (m *PromotionRuleMutation) GetScopeIds() (r []string, exists bool) {
+	v := m.get_scope_ids
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGetScopeIds returns the old "get_scope_ids" field's value of the PromotionRule entity.
+// If the PromotionRule object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PromotionRuleMutation) OldGetScopeIds(ctx context.Context) (v []string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGetScopeIds is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGetScopeIds requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGetScopeIds: %w", err)
+	}
+	return oldValue.GetScopeIds, nil
+}
+
+// AppendGetScopeIds adds s to the "get_scope_ids" field.
+func (m *PromotionRuleMutation) AppendGetScopeIds(s []string) {
+	m.appendget_scope_ids = append(m.appendget_scope_ids, s...)
+}
+
+// AppendedGetScopeIds returns the list of values that were appended to the "get_scope_ids" field in this mutation.
+func (m *PromotionRuleMutation) AppendedGetScopeIds() ([]string, bool) {
+	if len(m.appendget_scope_ids) == 0 {
+		return nil, false
+	}
+	return m.appendget_scope_ids, true
+}
+
+// ClearGetScopeIds clears the value of the "get_scope_ids" field.
+func (m *PromotionRuleMutation) ClearGetScopeIds() {
+	m.get_scope_ids = nil
+	m.appendget_scope_ids = nil
+	m.clearedFields[promotionrule.FieldGetScopeIds] = struct{}{}
+}
+
+// GetScopeIdsCleared returns if the "get_scope_ids" field was cleared in this mutation.
+func (m *PromotionRuleMutation) GetScopeIdsCleared() bool {
+	_, ok := m.clearedFields[promotionrule.FieldGetScopeIds]
+	return ok
+}
+
+// ResetGetScopeIds resets all changes to the "get_scope_ids" field.
+func (m *PromotionRuleMutation) ResetGetScopeIds() {
+	m.get_scope_ids = nil
+	m.appendget_scope_ids = nil
+	delete(m.clearedFields, promotionrule.FieldGetScopeIds)
 }
 
 // SetDiscountType sets the "discount_type" field.
@@ -76633,7 +76700,7 @@ func (m *PromotionRuleMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *PromotionRuleMutation) Fields() []string {
-	fields := make([]string, 0, 12)
+	fields := make([]string, 0, 13)
 	if m.promotion_id != nil {
 		fields = append(fields, promotionrule.FieldPromotionID)
 	}
@@ -76645,6 +76712,9 @@ func (m *PromotionRuleMutation) Fields() []string {
 	}
 	if m.scope_ids != nil {
 		fields = append(fields, promotionrule.FieldScopeIds)
+	}
+	if m.get_scope_ids != nil {
+		fields = append(fields, promotionrule.FieldGetScopeIds)
 	}
 	if m.discount_type != nil {
 		fields = append(fields, promotionrule.FieldDiscountType)
@@ -76686,6 +76756,8 @@ func (m *PromotionRuleMutation) Field(name string) (ent.Value, bool) {
 		return m.ScopeType()
 	case promotionrule.FieldScopeIds:
 		return m.ScopeIds()
+	case promotionrule.FieldGetScopeIds:
+		return m.GetScopeIds()
 	case promotionrule.FieldDiscountType:
 		return m.DiscountType()
 	case promotionrule.FieldDiscountValue:
@@ -76719,6 +76791,8 @@ func (m *PromotionRuleMutation) OldField(ctx context.Context, name string) (ent.
 		return m.OldScopeType(ctx)
 	case promotionrule.FieldScopeIds:
 		return m.OldScopeIds(ctx)
+	case promotionrule.FieldGetScopeIds:
+		return m.OldGetScopeIds(ctx)
 	case promotionrule.FieldDiscountType:
 		return m.OldDiscountType(ctx)
 	case promotionrule.FieldDiscountValue:
@@ -76771,6 +76845,13 @@ func (m *PromotionRuleMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetScopeIds(v)
+		return nil
+	case promotionrule.FieldGetScopeIds:
+		v, ok := value.([]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGetScopeIds(v)
 		return nil
 	case promotionrule.FieldDiscountType:
 		v, ok := value.(promotionrule.DiscountType)
@@ -76924,6 +77005,9 @@ func (m *PromotionRuleMutation) ClearedFields() []string {
 	if m.FieldCleared(promotionrule.FieldScopeIds) {
 		fields = append(fields, promotionrule.FieldScopeIds)
 	}
+	if m.FieldCleared(promotionrule.FieldGetScopeIds) {
+		fields = append(fields, promotionrule.FieldGetScopeIds)
+	}
 	if m.FieldCleared(promotionrule.FieldMealPeriod) {
 		fields = append(fields, promotionrule.FieldMealPeriod)
 	}
@@ -76946,6 +77030,9 @@ func (m *PromotionRuleMutation) ClearField(name string) error {
 	switch name {
 	case promotionrule.FieldScopeIds:
 		m.ClearScopeIds()
+		return nil
+	case promotionrule.FieldGetScopeIds:
+		m.ClearGetScopeIds()
 		return nil
 	case promotionrule.FieldMealPeriod:
 		m.ClearMealPeriod()
@@ -76972,6 +77059,9 @@ func (m *PromotionRuleMutation) ResetField(name string) error {
 		return nil
 	case promotionrule.FieldScopeIds:
 		m.ResetScopeIds()
+		return nil
+	case promotionrule.FieldGetScopeIds:
+		m.ResetGetScopeIds()
 		return nil
 	case promotionrule.FieldDiscountType:
 		m.ResetDiscountType()

@@ -27,7 +27,10 @@ func (PromotionRule) Fields() []ent.Field {
 			Comment("Discount scope: all lines, specific inventory categories, or specific items/skus"),
 		field.JSON("scope_ids", []string{}).
 			Optional().
-			Comment("Inventory category ids or skus the discount applies to (when scope_type != all)"),
+			Comment("Inventory category ids or skus the discount applies to (when scope_type != all). For BOGO this is the \"buy\" scope."),
+		field.JSON("get_scope_ids", []string{}).
+			Optional().
+			Comment("BOGO cross-item pairing: SKUs eligible for the free/discounted \"get\" unit, when they are DIFFERENT items from the \"buy\" scope_ids (e.g. buy scope_ids = Large pizzas, get_scope_ids = Small pizzas — \"buy one large, get one small free\"). Empty = same-SKU BOGO (the free unit is another unit of the same SKU already in the cart, the original behavior). Only meaningful when discount_type=bogo and scope_type=item."),
 		field.Enum("discount_type").
 			Values("percentage", "fixed_amount", "fixed_price", "bogo").
 			Default("percentage"),
