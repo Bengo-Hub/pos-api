@@ -697,9 +697,21 @@ func (s *Service) isWithinSchedule(p *ent.Promotion, now time.Time) bool {
 	}
 	if p.WindowStart != "" && p.WindowEnd != "" {
 		cur := now.Format("15:04")
-		// Same-day window (e.g. 16:00–18:00). Overnight windows not supported here.
-		if cur < p.WindowStart || cur > p.WindowEnd {
-			return false
+		if p.WindowStart <= p.WindowEnd {
+			// Same-day window (e.g. 16:00–18:00): active when start <= cur <= end.
+			if cur < p.WindowStart || cur > p.WindowEnd {
+				return false
+			}
+		} else {
+			// Overnight window crossing midnight (e.g. a bar happy hour 18:00–10:00): active in
+			// [start, 24:00) ∪ [00:00, end], i.e. inactive only strictly between end and start.
+			// The weekday check above is applied to `now`'s own day, so a deal listing its days
+			// (e.g. Fri/Sat/Sun) covers each listed evening plus that same date's early hours; the
+			// spill into an UNLISTED next weekday isn't matched (fine when consecutive days are
+			// listed, which is the usual bar pattern).
+			if cur > p.WindowEnd && cur < p.WindowStart {
+				return false
+			}
 		}
 	}
 	return true
