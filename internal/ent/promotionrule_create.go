@@ -61,6 +61,12 @@ func (_c *PromotionRuleCreate) SetGetScopeIds(v []string) *PromotionRuleCreate {
 	return _c
 }
 
+// SetGetPairMap sets the "get_pair_map" field.
+func (_c *PromotionRuleCreate) SetGetPairMap(v map[string]string) *PromotionRuleCreate {
+	_c.mutation.SetGetPairMap(v)
+	return _c
+}
+
 // SetDiscountType sets the "discount_type" field.
 func (_c *PromotionRuleCreate) SetDiscountType(v promotionrule.DiscountType) *PromotionRuleCreate {
 	_c.mutation.SetDiscountType(v)
@@ -353,6 +359,10 @@ func (_c *PromotionRuleCreate) createSpec() (*PromotionRule, *sqlgraph.CreateSpe
 		_spec.SetField(promotionrule.FieldGetScopeIds, field.TypeJSON, value)
 		_node.GetScopeIds = value
 	}
+	if value, ok := _c.mutation.GetPairMap(); ok {
+		_spec.SetField(promotionrule.FieldGetPairMap, field.TypeJSON, value)
+		_node.GetPairMap = value
+	}
 	if value, ok := _c.mutation.DiscountType(); ok {
 		_spec.SetField(promotionrule.FieldDiscountType, field.TypeEnum, value)
 		_node.DiscountType = value
@@ -506,6 +516,24 @@ func (u *PromotionRuleUpsert) UpdateGetScopeIds() *PromotionRuleUpsert {
 // ClearGetScopeIds clears the value of the "get_scope_ids" field.
 func (u *PromotionRuleUpsert) ClearGetScopeIds() *PromotionRuleUpsert {
 	u.SetNull(promotionrule.FieldGetScopeIds)
+	return u
+}
+
+// SetGetPairMap sets the "get_pair_map" field.
+func (u *PromotionRuleUpsert) SetGetPairMap(v map[string]string) *PromotionRuleUpsert {
+	u.Set(promotionrule.FieldGetPairMap, v)
+	return u
+}
+
+// UpdateGetPairMap sets the "get_pair_map" field to the value that was provided on create.
+func (u *PromotionRuleUpsert) UpdateGetPairMap() *PromotionRuleUpsert {
+	u.SetExcluded(promotionrule.FieldGetPairMap)
+	return u
+}
+
+// ClearGetPairMap clears the value of the "get_pair_map" field.
+func (u *PromotionRuleUpsert) ClearGetPairMap() *PromotionRuleUpsert {
+	u.SetNull(promotionrule.FieldGetPairMap)
 	return u
 }
 
@@ -776,6 +804,27 @@ func (u *PromotionRuleUpsertOne) UpdateGetScopeIds() *PromotionRuleUpsertOne {
 func (u *PromotionRuleUpsertOne) ClearGetScopeIds() *PromotionRuleUpsertOne {
 	return u.Update(func(s *PromotionRuleUpsert) {
 		s.ClearGetScopeIds()
+	})
+}
+
+// SetGetPairMap sets the "get_pair_map" field.
+func (u *PromotionRuleUpsertOne) SetGetPairMap(v map[string]string) *PromotionRuleUpsertOne {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.SetGetPairMap(v)
+	})
+}
+
+// UpdateGetPairMap sets the "get_pair_map" field to the value that was provided on create.
+func (u *PromotionRuleUpsertOne) UpdateGetPairMap() *PromotionRuleUpsertOne {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.UpdateGetPairMap()
+	})
+}
+
+// ClearGetPairMap clears the value of the "get_pair_map" field.
+func (u *PromotionRuleUpsertOne) ClearGetPairMap() *PromotionRuleUpsertOne {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.ClearGetPairMap()
 	})
 }
 
@@ -1236,6 +1285,27 @@ func (u *PromotionRuleUpsertBulk) UpdateGetScopeIds() *PromotionRuleUpsertBulk {
 func (u *PromotionRuleUpsertBulk) ClearGetScopeIds() *PromotionRuleUpsertBulk {
 	return u.Update(func(s *PromotionRuleUpsert) {
 		s.ClearGetScopeIds()
+	})
+}
+
+// SetGetPairMap sets the "get_pair_map" field.
+func (u *PromotionRuleUpsertBulk) SetGetPairMap(v map[string]string) *PromotionRuleUpsertBulk {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.SetGetPairMap(v)
+	})
+}
+
+// UpdateGetPairMap sets the "get_pair_map" field to the value that was provided on create.
+func (u *PromotionRuleUpsertBulk) UpdateGetPairMap() *PromotionRuleUpsertBulk {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.UpdateGetPairMap()
+	})
+}
+
+// ClearGetPairMap clears the value of the "get_pair_map" field.
+func (u *PromotionRuleUpsertBulk) ClearGetPairMap() *PromotionRuleUpsertBulk {
+	return u.Update(func(s *PromotionRuleUpsert) {
+		s.ClearGetPairMap()
 	})
 }
 

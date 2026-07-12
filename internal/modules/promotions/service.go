@@ -448,6 +448,9 @@ func (s *Service) calculateBOGODiscount(rule *ent.PromotionRule, lines []Discoun
 	}
 	label := fmt.Sprintf("Buy %d Get %d %s", buyQty, getQty, freeLabel)
 
+	if len(rule.GetPairMap) > 0 {
+		return s.calculateCorrespondingPairBOGO(rule, lines, buyQty, getQty, getPct, label)
+	}
 	if len(rule.GetScopeIds) > 0 {
 		return s.calculateCrossItemBOGO(rule, lines, buyQty, getQty, getPct, label)
 	}
@@ -570,6 +573,83 @@ func (s *Service) calculateCrossItemBOGO(rule *ent.PromotionRule, lines []Discou
 		existing.Type = "bogo"
 		existing.Label = label
 		perSKU[u.sku] = existing
+	}
+	if rule.MaxDiscount != nil && *rule.MaxDiscount > 0 {
+		if cap := decimal.NewFromFloat(*rule.MaxDiscount); total.GreaterThan(cap) {
+			total = cap
+		}
+	}
+	return total, perSKU
+}
+
+// calculateCorrespondingPairBOGO handles the CORRESPONDING cross-item deal: "buy a Large pizza,
+// get the SAME-FLAVOR Small free". Unlike calculateCrossItemBOGO (which frees the cheapest unit of
+// ANY get-scope item), this uses rule.GetPairMap — an explicit buy-SKU → get-SKU map (e.g. PIZ003
+// Margherita-Large → PIZ001 Margherita-Small) — so the freed item is the one that corresponds to
+// what was actually bought, never an arbitrary flavor. For each buy SKU in the cart, every
+// buy_quantity units earns get_quantity free units of ITS mapped get SKU (capped by how many of
+// that mapped SKU are actually in the cart — the terminal auto-adds it, so it normally is). Units
+// are consumed as they're freed so a get SKU that happens to be shared across two mappings isn't
+// double-counted. Mirrors the terminal's client-side calcCorrespondingPairBogo exactly.
+func (s *Service) calculateCorrespondingPairBOGO(rule *ent.PromotionRule, lines []DiscountLine, buyQty, getQty int, getPct float64, label string) (decimal.Decimal, map[string]LineDiscount) {
+	// lower(buySKU) → mapped get SKU (original case preserved for the per-SKU output).
+	pair := make(map[string]string, len(rule.GetPairMap))
+	for k, v := range rule.GetPairMap {
+		pair[strings.ToLower(strings.TrimSpace(k))] = v
+	}
+	if len(pair) == 0 {
+		return decimal.Zero, nil
+	}
+
+	// Bought quantity per buy SKU (the "Large" side).
+	buyQtyBySku := map[string]float64{}
+	for _, l := range lines {
+		lk := strings.ToLower(strings.TrimSpace(l.SKU))
+		if _, ok := pair[lk]; ok {
+			buyQtyBySku[lk] += l.Quantity
+		}
+	}
+
+	// Explode every get-scope line into individual unit prices so partial freeing + cheapest-first
+	// (within the same mapped SKU) both work regardless of line splitting.
+	getUnits := map[string][]decimal.Decimal{} // lower(getSKU) → remaining unit prices
+	getDisplaySku := map[string]string{}        // lower(getSKU) → original-case SKU for output
+	for _, l := range lines {
+		gk := strings.ToLower(strings.TrimSpace(l.SKU))
+		for i := 0; i < int(l.Quantity); i++ {
+			getUnits[gk] = append(getUnits[gk], l.UnitPrice)
+		}
+		getDisplaySku[gk] = l.SKU
+	}
+
+	total := decimal.Zero
+	freeQtyBySku := map[string]float64{}
+	amtBySku := map[string]decimal.Decimal{}
+	for buyLk, qty := range buyQtyBySku {
+		pairs := int(qty) / buyQty
+		if pairs <= 0 {
+			continue
+		}
+		earned := pairs * getQty
+		gk := strings.ToLower(strings.TrimSpace(pair[buyLk]))
+		avail := getUnits[gk]
+		sort.Slice(avail, func(i, j int) bool { return avail[i].LessThan(avail[j]) })
+		n := earned
+		if n > len(avail) {
+			n = len(avail)
+		}
+		for i := 0; i < n; i++ {
+			amt := avail[i].Mul(decimal.NewFromFloat(getPct / 100)).Round(2)
+			total = total.Add(amt)
+			freeQtyBySku[gk]++
+			amtBySku[gk] = amtBySku[gk].Add(amt)
+		}
+		getUnits[gk] = avail[n:] // consume freed units
+	}
+
+	perSKU := map[string]LineDiscount{}
+	for gk, fq := range freeQtyBySku {
+		perSKU[getDisplaySku[gk]] = LineDiscount{SKU: getDisplaySku[gk], Amount: amtBySku[gk], FreeQty: fq, Type: "bogo", Label: label}
 	}
 	if rule.MaxDiscount != nil && *rule.MaxDiscount > 0 {
 		if cap := decimal.NewFromFloat(*rule.MaxDiscount); total.GreaterThan(cap) {

@@ -31,6 +31,9 @@ func (PromotionRule) Fields() []ent.Field {
 		field.JSON("get_scope_ids", []string{}).
 			Optional().
 			Comment("BOGO cross-item pairing: SKUs eligible for the free/discounted \"get\" unit, when they are DIFFERENT items from the \"buy\" scope_ids (e.g. buy scope_ids = Large pizzas, get_scope_ids = Small pizzas — \"buy one large, get one small free\"). Empty = same-SKU BOGO (the free unit is another unit of the same SKU already in the cart, the original behavior). Only meaningful when discount_type=bogo and scope_type=item."),
+		field.JSON("get_pair_map", map[string]string{}).
+			Optional().
+			Comment("BOGO cross-item CORRESPONDING pairing: maps each \"buy\" SKU → its one specific \"get\" SKU (e.g. \"PIZ003\" (Margherita Large) → \"PIZ001\" (Margherita Small) — \"buy a Large, get the CORRESPONDING Small free\"). When set, the free unit is the mapped item for that exact buy item (not the cheapest get-scope item), and the terminal auto-adds it. scope_ids stays the map keys and get_scope_ids the map values so the scope-based paths (schedule/alert/tally) keep working. Empty (with get_scope_ids set) = un-paired cross-item BOGO (cheapest get-scope unit is freed, cashier adds it manually). Only meaningful when discount_type=bogo and scope_type=item."),
 		field.Enum("discount_type").
 			Values("percentage", "fixed_amount", "fixed_price", "bogo").
 			Default("percentage"),

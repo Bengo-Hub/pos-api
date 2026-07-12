@@ -28,6 +28,8 @@ type PromotionRule struct {
 	ScopeIds []string `json:"scope_ids,omitempty"`
 	// BOGO cross-item pairing: SKUs eligible for the free/discounted "get" unit, when they are DIFFERENT items from the "buy" scope_ids (e.g. buy scope_ids = Large pizzas, get_scope_ids = Small pizzas — "buy one large, get one small free"). Empty = same-SKU BOGO (the free unit is another unit of the same SKU already in the cart, the original behavior). Only meaningful when discount_type=bogo and scope_type=item.
 	GetScopeIds []string `json:"get_scope_ids,omitempty"`
+	// BOGO cross-item CORRESPONDING pairing: maps each "buy" SKU → its one specific "get" SKU (e.g. "PIZ003" (Margherita Large) → "PIZ001" (Margherita Small) — "buy a Large, get the CORRESPONDING Small free"). When set, the free unit is the mapped item for that exact buy item (not the cheapest get-scope item), and the terminal auto-adds it. scope_ids stays the map keys and get_scope_ids the map values so the scope-based paths (schedule/alert/tally) keep working. Empty (with get_scope_ids set) = un-paired cross-item BOGO (cheapest get-scope unit is freed, cashier adds it manually). Only meaningful when discount_type=bogo and scope_type=item.
+	GetPairMap map[string]string `json:"get_pair_map,omitempty"`
 	// DiscountType holds the value of the "discount_type" field.
 	DiscountType promotionrule.DiscountType `json:"discount_type,omitempty"`
 	// DiscountValue holds the value of the "discount_value" field.
@@ -52,7 +54,7 @@ func (*PromotionRule) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case promotionrule.FieldScopeIds, promotionrule.FieldGetScopeIds, promotionrule.FieldRuleConfig:
+		case promotionrule.FieldScopeIds, promotionrule.FieldGetScopeIds, promotionrule.FieldGetPairMap, promotionrule.FieldRuleConfig:
 			values[i] = new([]byte)
 		case promotionrule.FieldDiscountValue, promotionrule.FieldGetDiscountPercent, promotionrule.FieldMaxDiscount:
 			values[i] = new(sql.NullFloat64)
@@ -115,6 +117,14 @@ func (_m *PromotionRule) assignValues(columns []string, values []any) error {
 			} else if value != nil && len(*value) > 0 {
 				if err := json.Unmarshal(*value, &_m.GetScopeIds); err != nil {
 					return fmt.Errorf("unmarshal field get_scope_ids: %w", err)
+				}
+			}
+		case promotionrule.FieldGetPairMap:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field get_pair_map", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.GetPairMap); err != nil {
+					return fmt.Errorf("unmarshal field get_pair_map: %w", err)
 				}
 			}
 		case promotionrule.FieldDiscountType:
@@ -219,6 +229,9 @@ func (_m *PromotionRule) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("get_scope_ids=")
 	builder.WriteString(fmt.Sprintf("%v", _m.GetScopeIds))
+	builder.WriteString(", ")
+	builder.WriteString("get_pair_map=")
+	builder.WriteString(fmt.Sprintf("%v", _m.GetPairMap))
 	builder.WriteString(", ")
 	builder.WriteString("discount_type=")
 	builder.WriteString(fmt.Sprintf("%v", _m.DiscountType))

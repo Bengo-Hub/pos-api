@@ -107,6 +107,18 @@ func (_u *PromotionRuleUpdate) ClearGetScopeIds() *PromotionRuleUpdate {
 	return _u
 }
 
+// SetGetPairMap sets the "get_pair_map" field.
+func (_u *PromotionRuleUpdate) SetGetPairMap(v map[string]string) *PromotionRuleUpdate {
+	_u.mutation.SetGetPairMap(v)
+	return _u
+}
+
+// ClearGetPairMap clears the value of the "get_pair_map" field.
+func (_u *PromotionRuleUpdate) ClearGetPairMap() *PromotionRuleUpdate {
+	_u.mutation.ClearGetPairMap()
+	return _u
+}
+
 // SetDiscountType sets the "discount_type" field.
 func (_u *PromotionRuleUpdate) SetDiscountType(v promotionrule.DiscountType) *PromotionRuleUpdate {
 	_u.mutation.SetDiscountType(v)
@@ -358,6 +370,12 @@ func (_u *PromotionRuleUpdate) sqlSave(ctx context.Context) (_node int, err erro
 	if _u.mutation.GetScopeIdsCleared() {
 		_spec.ClearField(promotionrule.FieldGetScopeIds, field.TypeJSON)
 	}
+	if value, ok := _u.mutation.GetPairMap(); ok {
+		_spec.SetField(promotionrule.FieldGetPairMap, field.TypeJSON, value)
+	}
+	if _u.mutation.GetPairMapCleared() {
+		_spec.ClearField(promotionrule.FieldGetPairMap, field.TypeJSON)
+	}
 	if value, ok := _u.mutation.DiscountType(); ok {
 		_spec.SetField(promotionrule.FieldDiscountType, field.TypeEnum, value)
 	}
@@ -498,6 +516,18 @@ func (_u *PromotionRuleUpdateOne) AppendGetScopeIds(v []string) *PromotionRuleUp
 // ClearGetScopeIds clears the value of the "get_scope_ids" field.
 func (_u *PromotionRuleUpdateOne) ClearGetScopeIds() *PromotionRuleUpdateOne {
 	_u.mutation.ClearGetScopeIds()
+	return _u
+}
+
+// SetGetPairMap sets the "get_pair_map" field.
+func (_u *PromotionRuleUpdateOne) SetGetPairMap(v map[string]string) *PromotionRuleUpdateOne {
+	_u.mutation.SetGetPairMap(v)
+	return _u
+}
+
+// ClearGetPairMap clears the value of the "get_pair_map" field.
+func (_u *PromotionRuleUpdateOne) ClearGetPairMap() *PromotionRuleUpdateOne {
+	_u.mutation.ClearGetPairMap()
 	return _u
 }
 
@@ -781,6 +811,12 @@ func (_u *PromotionRuleUpdateOne) sqlSave(ctx context.Context) (_node *Promotion
 	}
 	if _u.mutation.GetScopeIdsCleared() {
 		_spec.ClearField(promotionrule.FieldGetScopeIds, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.GetPairMap(); ok {
+		_spec.SetField(promotionrule.FieldGetPairMap, field.TypeJSON, value)
+	}
+	if _u.mutation.GetPairMapCleared() {
+		_spec.ClearField(promotionrule.FieldGetPairMap, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.DiscountType(); ok {
 		_spec.SetField(promotionrule.FieldDiscountType, field.TypeEnum, value)

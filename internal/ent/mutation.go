@@ -75890,6 +75890,7 @@ type PromotionRuleMutation struct {
 	appendscope_ids         []string
 	get_scope_ids           *[]string
 	appendget_scope_ids     []string
+	get_pair_map            *map[string]string
 	discount_type           *promotionrule.DiscountType
 	discount_value          *float64
 	adddiscount_value       *float64
@@ -76249,6 +76250,55 @@ func (m *PromotionRuleMutation) ResetGetScopeIds() {
 	m.get_scope_ids = nil
 	m.appendget_scope_ids = nil
 	delete(m.clearedFields, promotionrule.FieldGetScopeIds)
+}
+
+// SetGetPairMap sets the "get_pair_map" field.
+func (m *PromotionRuleMutation) SetGetPairMap(value map[string]string) {
+	m.get_pair_map = &value
+}
+
+// GetPairMap returns the value of the "get_pair_map" field in the mutation.
+func (m *PromotionRuleMutation) GetPairMap() (r map[string]string, exists bool) {
+	v := m.get_pair_map
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGetPairMap returns the old "get_pair_map" field's value of the PromotionRule entity.
+// If the PromotionRule object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PromotionRuleMutation) OldGetPairMap(ctx context.Context) (v map[string]string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGetPairMap is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGetPairMap requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGetPairMap: %w", err)
+	}
+	return oldValue.GetPairMap, nil
+}
+
+// ClearGetPairMap clears the value of the "get_pair_map" field.
+func (m *PromotionRuleMutation) ClearGetPairMap() {
+	m.get_pair_map = nil
+	m.clearedFields[promotionrule.FieldGetPairMap] = struct{}{}
+}
+
+// GetPairMapCleared returns if the "get_pair_map" field was cleared in this mutation.
+func (m *PromotionRuleMutation) GetPairMapCleared() bool {
+	_, ok := m.clearedFields[promotionrule.FieldGetPairMap]
+	return ok
+}
+
+// ResetGetPairMap resets all changes to the "get_pair_map" field.
+func (m *PromotionRuleMutation) ResetGetPairMap() {
+	m.get_pair_map = nil
+	delete(m.clearedFields, promotionrule.FieldGetPairMap)
 }
 
 // SetDiscountType sets the "discount_type" field.
@@ -76700,7 +76750,7 @@ func (m *PromotionRuleMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *PromotionRuleMutation) Fields() []string {
-	fields := make([]string, 0, 13)
+	fields := make([]string, 0, 14)
 	if m.promotion_id != nil {
 		fields = append(fields, promotionrule.FieldPromotionID)
 	}
@@ -76715,6 +76765,9 @@ func (m *PromotionRuleMutation) Fields() []string {
 	}
 	if m.get_scope_ids != nil {
 		fields = append(fields, promotionrule.FieldGetScopeIds)
+	}
+	if m.get_pair_map != nil {
+		fields = append(fields, promotionrule.FieldGetPairMap)
 	}
 	if m.discount_type != nil {
 		fields = append(fields, promotionrule.FieldDiscountType)
@@ -76758,6 +76811,8 @@ func (m *PromotionRuleMutation) Field(name string) (ent.Value, bool) {
 		return m.ScopeIds()
 	case promotionrule.FieldGetScopeIds:
 		return m.GetScopeIds()
+	case promotionrule.FieldGetPairMap:
+		return m.GetPairMap()
 	case promotionrule.FieldDiscountType:
 		return m.DiscountType()
 	case promotionrule.FieldDiscountValue:
@@ -76793,6 +76848,8 @@ func (m *PromotionRuleMutation) OldField(ctx context.Context, name string) (ent.
 		return m.OldScopeIds(ctx)
 	case promotionrule.FieldGetScopeIds:
 		return m.OldGetScopeIds(ctx)
+	case promotionrule.FieldGetPairMap:
+		return m.OldGetPairMap(ctx)
 	case promotionrule.FieldDiscountType:
 		return m.OldDiscountType(ctx)
 	case promotionrule.FieldDiscountValue:
@@ -76852,6 +76909,13 @@ func (m *PromotionRuleMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetGetScopeIds(v)
+		return nil
+	case promotionrule.FieldGetPairMap:
+		v, ok := value.(map[string]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGetPairMap(v)
 		return nil
 	case promotionrule.FieldDiscountType:
 		v, ok := value.(promotionrule.DiscountType)
@@ -77008,6 +77072,9 @@ func (m *PromotionRuleMutation) ClearedFields() []string {
 	if m.FieldCleared(promotionrule.FieldGetScopeIds) {
 		fields = append(fields, promotionrule.FieldGetScopeIds)
 	}
+	if m.FieldCleared(promotionrule.FieldGetPairMap) {
+		fields = append(fields, promotionrule.FieldGetPairMap)
+	}
 	if m.FieldCleared(promotionrule.FieldMealPeriod) {
 		fields = append(fields, promotionrule.FieldMealPeriod)
 	}
@@ -77033,6 +77100,9 @@ func (m *PromotionRuleMutation) ClearField(name string) error {
 		return nil
 	case promotionrule.FieldGetScopeIds:
 		m.ClearGetScopeIds()
+		return nil
+	case promotionrule.FieldGetPairMap:
+		m.ClearGetPairMap()
 		return nil
 	case promotionrule.FieldMealPeriod:
 		m.ClearMealPeriod()
@@ -77062,6 +77132,9 @@ func (m *PromotionRuleMutation) ResetField(name string) error {
 		return nil
 	case promotionrule.FieldGetScopeIds:
 		m.ResetGetScopeIds()
+		return nil
+	case promotionrule.FieldGetPairMap:
+		m.ResetGetPairMap()
 		return nil
 	case promotionrule.FieldDiscountType:
 		m.ResetDiscountType()

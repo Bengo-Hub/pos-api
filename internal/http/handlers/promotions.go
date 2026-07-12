@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/Bengo-Hub/httpware"
@@ -145,6 +147,32 @@ type createPromoInput struct {
 	// when they are a DIFFERENT item from ScopeIDs — e.g. ScopeIDs=Large pizzas,
 	// GetScopeIDs=Small pizzas ("buy one large, get one small free"). Empty = same-SKU BOGO.
 	GetScopeIDs []string `json:"get_scope_ids"`
+	// GetPairMap is the CORRESPONDING cross-item pairing: each buy SKU → its one specific free
+	// get SKU (e.g. "PIZ003"→"PIZ001" = buy Margherita Large, get Margherita Small free). When
+	// set, the terminal auto-adds the mapped item and the evaluator frees exactly it (not the
+	// cheapest get-scope item). ScopeIDs/GetScopeIDs are derived from its keys/values so the
+	// scope-based paths stay consistent.
+	GetPairMap map[string]string `json:"get_pair_map"`
+}
+
+// pairMapScopes derives the buy scope_ids (keys) and get scope_ids (values) from a corresponding
+// pair map, so the two scopes can never drift from the map that actually drives the deal. Returns
+// (nil,nil) for an empty map so callers fall back to the explicitly-supplied scopes.
+func pairMapScopes(m map[string]string) (buy []string, get []string) {
+	if len(m) == 0 {
+		return nil, nil
+	}
+	for k, v := range m {
+		if k = strings.TrimSpace(k); k != "" {
+			buy = append(buy, k)
+		}
+		if v = strings.TrimSpace(v); v != "" {
+			get = append(get, v)
+		}
+	}
+	sort.Strings(buy)
+	sort.Strings(get)
+	return buy, get
 }
 
 // CreatePromotion handles POST /{tenantID}/pos/promotions
@@ -211,12 +239,17 @@ func (h *PromotionHandler) CreatePromotion(w http.ResponseWriter, r *http.Reques
 		if discountType == "" {
 			discountType = "percentage"
 		}
+		scopeIDs, getScopeIDs := input.ScopeIDs, input.GetScopeIDs
+		if b, g := pairMapScopes(input.GetPairMap); b != nil {
+			scopeIDs, getScopeIDs = b, g
+		}
 		rb := h.client.PromotionRule.Create().
 			SetPromotionID(promo.ID).
 			SetRuleType("discount").
 			SetScopeType(promotionrule.ScopeType(scopeType)).
-			SetScopeIds(input.ScopeIDs).
-			SetGetScopeIds(input.GetScopeIDs).
+			SetScopeIds(scopeIDs).
+			SetGetScopeIds(getScopeIDs).
+			SetGetPairMap(input.GetPairMap).
 			SetDiscountType(promotionrule.DiscountType(discountType)).
 			SetDiscountValue(input.DiscountValue)
 		if input.MaxDiscount != nil {
@@ -383,23 +416,35 @@ func (h *PromotionHandler) UpdatePromotion(w http.ResponseWriter, r *http.Reques
 	if discountType == "" {
 		discountType = "percentage"
 	}
+	scopeIDs, getScopeIDs := input.ScopeIDs, input.GetScopeIDs
+	if b, g := pairMapScopes(input.GetPairMap); b != nil {
+		scopeIDs, getScopeIDs = b, g
+	}
 	rule, rerr := h.client.PromotionRule.Query().Where(promotionrule.PromotionID(promoID)).First(r.Context())
 	var rb *ent.PromotionRuleUpdateOne
 	if rerr == nil && rule != nil {
 		rb = rule.Update().
 			SetScopeType(promotionrule.ScopeType(scopeType)).
-			SetScopeIds(input.ScopeIDs).
-			SetGetScopeIds(input.GetScopeIDs).
+			SetScopeIds(scopeIDs).
+			SetGetScopeIds(getScopeIDs).
 			SetDiscountType(promotionrule.DiscountType(discountType)).
 			SetDiscountValue(input.DiscountValue)
+		// Set the corresponding pair map, or clear it when the deal is no longer a paired
+		// cross-item BOGO (edit form unticked "different free item" / switched discount type).
+		if len(input.GetPairMap) > 0 {
+			rb = rb.SetGetPairMap(input.GetPairMap)
+		} else {
+			rb = rb.ClearGetPairMap()
+		}
 	}
 	if rb == nil {
 		created, cerr := h.client.PromotionRule.Create().
 			SetPromotionID(promoID).
 			SetRuleType("discount").
 			SetScopeType(promotionrule.ScopeType(scopeType)).
-			SetScopeIds(input.ScopeIDs).
-			SetGetScopeIds(input.GetScopeIDs).
+			SetScopeIds(scopeIDs).
+			SetGetScopeIds(getScopeIDs).
+			SetGetPairMap(input.GetPairMap).
 			SetDiscountType(promotionrule.DiscountType(discountType)).
 			SetDiscountValue(input.DiscountValue).
 			Save(r.Context())
