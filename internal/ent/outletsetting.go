@@ -122,6 +122,8 @@ type OutletSetting struct {
 	DefaultWarehouseID *uuid.UUID `json:"default_warehouse_id,omitempty"`
 	// Max days after purchase to allow returns. 0 = no limit.
 	ReturnWindowDays int `json:"return_window_days,omitempty"`
+	// Extra use_cases (beyond the outlet's primary use_case) whose item types/categories are also allowed on this outlet's POS catalog — enables hybrid selling.
+	CatalogUseCases []string `json:"catalog_use_cases,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
@@ -157,7 +159,7 @@ func (*OutletSetting) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case outletsetting.FieldDefaultWarehouseID:
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
-		case outletsetting.FieldReceiptsJSON, outletsetting.FieldTaxConfigJSON, outletsetting.FieldServiceChargeJSON, outletsetting.FieldOpeningHoursJSON, outletsetting.FieldMetadata, outletsetting.FieldPrinterProfiles:
+		case outletsetting.FieldReceiptsJSON, outletsetting.FieldTaxConfigJSON, outletsetting.FieldServiceChargeJSON, outletsetting.FieldOpeningHoursJSON, outletsetting.FieldMetadata, outletsetting.FieldPrinterProfiles, outletsetting.FieldCatalogUseCases:
 			values[i] = new([]byte)
 		case outletsetting.FieldShowImages, outletsetting.FieldShowBarcodeScanner, outletsetting.FieldEnableKds, outletsetting.FieldEnableAppointments, outletsetting.FieldVatEnabled, outletsetting.FieldAutoPrintOrder, outletsetting.FieldAutoPrintKitchen, outletsetting.FieldCashDrawerEnabled, outletsetting.FieldCashDrawerAutoOpen, outletsetting.FieldCardTerminalRequireRef, outletsetting.FieldShowPaymentInfoOnReceipt, outletsetting.FieldHotelModuleEnabled, outletsetting.FieldLayawayEnabled, outletsetting.FieldShiftReportsEnabled, outletsetting.FieldShiftAutoEndEnabled:
 			values[i] = new(sql.NullBool)
@@ -527,6 +529,14 @@ func (_m *OutletSetting) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.ReturnWindowDays = int(value.Int64)
 			}
+		case outletsetting.FieldCatalogUseCases:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field catalog_use_cases", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.CatalogUseCases); err != nil {
+					return fmt.Errorf("unmarshal field catalog_use_cases: %w", err)
+				}
+			}
 		case outletsetting.FieldUpdatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field updated_at", values[i])
@@ -760,6 +770,9 @@ func (_m *OutletSetting) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("return_window_days=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ReturnWindowDays))
+	builder.WriteString(", ")
+	builder.WriteString("catalog_use_cases=")
+	builder.WriteString(fmt.Sprintf("%v", _m.CatalogUseCases))
 	builder.WriteString(", ")
 	builder.WriteString("updated_at=")
 	builder.WriteString(_m.UpdatedAt.Format(time.ANSIC))

@@ -37,6 +37,20 @@ func (_c *FacilityBookingCreate) SetFacilityID(v uuid.UUID) *FacilityBookingCrea
 	return _c
 }
 
+// SetOutletID sets the "outlet_id" field.
+func (_c *FacilityBookingCreate) SetOutletID(v uuid.UUID) *FacilityBookingCreate {
+	_c.mutation.SetOutletID(v)
+	return _c
+}
+
+// SetNillableOutletID sets the "outlet_id" field if the given value is not nil.
+func (_c *FacilityBookingCreate) SetNillableOutletID(v *uuid.UUID) *FacilityBookingCreate {
+	if v != nil {
+		_c.SetOutletID(*v)
+	}
+	return _c
+}
+
 // SetRoomGuestID sets the "room_guest_id" field.
 func (_c *FacilityBookingCreate) SetRoomGuestID(v uuid.UUID) *FacilityBookingCreate {
 	_c.mutation.SetRoomGuestID(v)
@@ -91,6 +105,34 @@ func (_c *FacilityBookingCreate) SetGuestsCount(v int) *FacilityBookingCreate {
 func (_c *FacilityBookingCreate) SetNillableGuestsCount(v *int) *FacilityBookingCreate {
 	if v != nil {
 		_c.SetGuestsCount(*v)
+	}
+	return _c
+}
+
+// SetSeats sets the "seats" field.
+func (_c *FacilityBookingCreate) SetSeats(v int) *FacilityBookingCreate {
+	_c.mutation.SetSeats(v)
+	return _c
+}
+
+// SetNillableSeats sets the "seats" field if the given value is not nil.
+func (_c *FacilityBookingCreate) SetNillableSeats(v *int) *FacilityBookingCreate {
+	if v != nil {
+		_c.SetSeats(*v)
+	}
+	return _c
+}
+
+// SetPosOrderID sets the "pos_order_id" field.
+func (_c *FacilityBookingCreate) SetPosOrderID(v uuid.UUID) *FacilityBookingCreate {
+	_c.mutation.SetPosOrderID(v)
+	return _c
+}
+
+// SetNillablePosOrderID sets the "pos_order_id" field if the given value is not nil.
+func (_c *FacilityBookingCreate) SetNillablePosOrderID(v *uuid.UUID) *FacilityBookingCreate {
+	if v != nil {
+		_c.SetPosOrderID(*v)
 	}
 	return _c
 }
@@ -227,6 +269,10 @@ func (_c *FacilityBookingCreate) defaults() {
 		v := facilitybooking.DefaultGuestsCount
 		_c.mutation.SetGuestsCount(v)
 	}
+	if _, ok := _c.mutation.Seats(); !ok {
+		v := facilitybooking.DefaultSeats
+		_c.mutation.SetSeats(v)
+	}
 	if _, ok := _c.mutation.Currency(); !ok {
 		v := facilitybooking.DefaultCurrency
 		_c.mutation.SetCurrency(v)
@@ -288,6 +334,14 @@ func (_c *FacilityBookingCreate) check() error {
 	if v, ok := _c.mutation.GuestsCount(); ok {
 		if err := facilitybooking.GuestsCountValidator(v); err != nil {
 			return &ValidationError{Name: "guests_count", err: fmt.Errorf(`ent: validator failed for field "FacilityBooking.guests_count": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.Seats(); !ok {
+		return &ValidationError{Name: "seats", err: errors.New(`ent: missing required field "FacilityBooking.seats"`)}
+	}
+	if v, ok := _c.mutation.Seats(); ok {
+		if err := facilitybooking.SeatsValidator(v); err != nil {
+			return &ValidationError{Name: "seats", err: fmt.Errorf(`ent: validator failed for field "FacilityBooking.seats": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.Amount(); !ok {
@@ -361,6 +415,10 @@ func (_c *FacilityBookingCreate) createSpec() (*FacilityBooking, *sqlgraph.Creat
 		_spec.SetField(facilitybooking.FieldTenantID, field.TypeUUID, value)
 		_node.TenantID = value
 	}
+	if value, ok := _c.mutation.OutletID(); ok {
+		_spec.SetField(facilitybooking.FieldOutletID, field.TypeUUID, value)
+		_node.OutletID = &value
+	}
 	if value, ok := _c.mutation.RoomGuestID(); ok {
 		_spec.SetField(facilitybooking.FieldRoomGuestID, field.TypeUUID, value)
 		_node.RoomGuestID = &value
@@ -388,6 +446,14 @@ func (_c *FacilityBookingCreate) createSpec() (*FacilityBooking, *sqlgraph.Creat
 	if value, ok := _c.mutation.GuestsCount(); ok {
 		_spec.SetField(facilitybooking.FieldGuestsCount, field.TypeInt, value)
 		_node.GuestsCount = value
+	}
+	if value, ok := _c.mutation.Seats(); ok {
+		_spec.SetField(facilitybooking.FieldSeats, field.TypeInt, value)
+		_node.Seats = value
+	}
+	if value, ok := _c.mutation.PosOrderID(); ok {
+		_spec.SetField(facilitybooking.FieldPosOrderID, field.TypeUUID, value)
+		_node.PosOrderID = &value
 	}
 	if value, ok := _c.mutation.Amount(); ok {
 		_spec.SetField(facilitybooking.FieldAmount, field.TypeFloat64, value)
@@ -510,6 +576,24 @@ func (u *FacilityBookingUpsert) UpdateFacilityID() *FacilityBookingUpsert {
 	return u
 }
 
+// SetOutletID sets the "outlet_id" field.
+func (u *FacilityBookingUpsert) SetOutletID(v uuid.UUID) *FacilityBookingUpsert {
+	u.Set(facilitybooking.FieldOutletID, v)
+	return u
+}
+
+// UpdateOutletID sets the "outlet_id" field to the value that was provided on create.
+func (u *FacilityBookingUpsert) UpdateOutletID() *FacilityBookingUpsert {
+	u.SetExcluded(facilitybooking.FieldOutletID)
+	return u
+}
+
+// ClearOutletID clears the value of the "outlet_id" field.
+func (u *FacilityBookingUpsert) ClearOutletID() *FacilityBookingUpsert {
+	u.SetNull(facilitybooking.FieldOutletID)
+	return u
+}
+
 // SetRoomGuestID sets the "room_guest_id" field.
 func (u *FacilityBookingUpsert) SetRoomGuestID(v uuid.UUID) *FacilityBookingUpsert {
 	u.Set(facilitybooking.FieldRoomGuestID, v)
@@ -603,6 +687,42 @@ func (u *FacilityBookingUpsert) UpdateGuestsCount() *FacilityBookingUpsert {
 // AddGuestsCount adds v to the "guests_count" field.
 func (u *FacilityBookingUpsert) AddGuestsCount(v int) *FacilityBookingUpsert {
 	u.Add(facilitybooking.FieldGuestsCount, v)
+	return u
+}
+
+// SetSeats sets the "seats" field.
+func (u *FacilityBookingUpsert) SetSeats(v int) *FacilityBookingUpsert {
+	u.Set(facilitybooking.FieldSeats, v)
+	return u
+}
+
+// UpdateSeats sets the "seats" field to the value that was provided on create.
+func (u *FacilityBookingUpsert) UpdateSeats() *FacilityBookingUpsert {
+	u.SetExcluded(facilitybooking.FieldSeats)
+	return u
+}
+
+// AddSeats adds v to the "seats" field.
+func (u *FacilityBookingUpsert) AddSeats(v int) *FacilityBookingUpsert {
+	u.Add(facilitybooking.FieldSeats, v)
+	return u
+}
+
+// SetPosOrderID sets the "pos_order_id" field.
+func (u *FacilityBookingUpsert) SetPosOrderID(v uuid.UUID) *FacilityBookingUpsert {
+	u.Set(facilitybooking.FieldPosOrderID, v)
+	return u
+}
+
+// UpdatePosOrderID sets the "pos_order_id" field to the value that was provided on create.
+func (u *FacilityBookingUpsert) UpdatePosOrderID() *FacilityBookingUpsert {
+	u.SetExcluded(facilitybooking.FieldPosOrderID)
+	return u
+}
+
+// ClearPosOrderID clears the value of the "pos_order_id" field.
+func (u *FacilityBookingUpsert) ClearPosOrderID() *FacilityBookingUpsert {
+	u.SetNull(facilitybooking.FieldPosOrderID)
 	return u
 }
 
@@ -769,6 +889,27 @@ func (u *FacilityBookingUpsertOne) UpdateFacilityID() *FacilityBookingUpsertOne 
 	})
 }
 
+// SetOutletID sets the "outlet_id" field.
+func (u *FacilityBookingUpsertOne) SetOutletID(v uuid.UUID) *FacilityBookingUpsertOne {
+	return u.Update(func(s *FacilityBookingUpsert) {
+		s.SetOutletID(v)
+	})
+}
+
+// UpdateOutletID sets the "outlet_id" field to the value that was provided on create.
+func (u *FacilityBookingUpsertOne) UpdateOutletID() *FacilityBookingUpsertOne {
+	return u.Update(func(s *FacilityBookingUpsert) {
+		s.UpdateOutletID()
+	})
+}
+
+// ClearOutletID clears the value of the "outlet_id" field.
+func (u *FacilityBookingUpsertOne) ClearOutletID() *FacilityBookingUpsertOne {
+	return u.Update(func(s *FacilityBookingUpsert) {
+		s.ClearOutletID()
+	})
+}
+
 // SetRoomGuestID sets the "room_guest_id" field.
 func (u *FacilityBookingUpsertOne) SetRoomGuestID(v uuid.UUID) *FacilityBookingUpsertOne {
 	return u.Update(func(s *FacilityBookingUpsert) {
@@ -878,6 +1019,48 @@ func (u *FacilityBookingUpsertOne) AddGuestsCount(v int) *FacilityBookingUpsertO
 func (u *FacilityBookingUpsertOne) UpdateGuestsCount() *FacilityBookingUpsertOne {
 	return u.Update(func(s *FacilityBookingUpsert) {
 		s.UpdateGuestsCount()
+	})
+}
+
+// SetSeats sets the "seats" field.
+func (u *FacilityBookingUpsertOne) SetSeats(v int) *FacilityBookingUpsertOne {
+	return u.Update(func(s *FacilityBookingUpsert) {
+		s.SetSeats(v)
+	})
+}
+
+// AddSeats adds v to the "seats" field.
+func (u *FacilityBookingUpsertOne) AddSeats(v int) *FacilityBookingUpsertOne {
+	return u.Update(func(s *FacilityBookingUpsert) {
+		s.AddSeats(v)
+	})
+}
+
+// UpdateSeats sets the "seats" field to the value that was provided on create.
+func (u *FacilityBookingUpsertOne) UpdateSeats() *FacilityBookingUpsertOne {
+	return u.Update(func(s *FacilityBookingUpsert) {
+		s.UpdateSeats()
+	})
+}
+
+// SetPosOrderID sets the "pos_order_id" field.
+func (u *FacilityBookingUpsertOne) SetPosOrderID(v uuid.UUID) *FacilityBookingUpsertOne {
+	return u.Update(func(s *FacilityBookingUpsert) {
+		s.SetPosOrderID(v)
+	})
+}
+
+// UpdatePosOrderID sets the "pos_order_id" field to the value that was provided on create.
+func (u *FacilityBookingUpsertOne) UpdatePosOrderID() *FacilityBookingUpsertOne {
+	return u.Update(func(s *FacilityBookingUpsert) {
+		s.UpdatePosOrderID()
+	})
+}
+
+// ClearPosOrderID clears the value of the "pos_order_id" field.
+func (u *FacilityBookingUpsertOne) ClearPosOrderID() *FacilityBookingUpsertOne {
+	return u.Update(func(s *FacilityBookingUpsert) {
+		s.ClearPosOrderID()
 	})
 }
 
@@ -1225,6 +1408,27 @@ func (u *FacilityBookingUpsertBulk) UpdateFacilityID() *FacilityBookingUpsertBul
 	})
 }
 
+// SetOutletID sets the "outlet_id" field.
+func (u *FacilityBookingUpsertBulk) SetOutletID(v uuid.UUID) *FacilityBookingUpsertBulk {
+	return u.Update(func(s *FacilityBookingUpsert) {
+		s.SetOutletID(v)
+	})
+}
+
+// UpdateOutletID sets the "outlet_id" field to the value that was provided on create.
+func (u *FacilityBookingUpsertBulk) UpdateOutletID() *FacilityBookingUpsertBulk {
+	return u.Update(func(s *FacilityBookingUpsert) {
+		s.UpdateOutletID()
+	})
+}
+
+// ClearOutletID clears the value of the "outlet_id" field.
+func (u *FacilityBookingUpsertBulk) ClearOutletID() *FacilityBookingUpsertBulk {
+	return u.Update(func(s *FacilityBookingUpsert) {
+		s.ClearOutletID()
+	})
+}
+
 // SetRoomGuestID sets the "room_guest_id" field.
 func (u *FacilityBookingUpsertBulk) SetRoomGuestID(v uuid.UUID) *FacilityBookingUpsertBulk {
 	return u.Update(func(s *FacilityBookingUpsert) {
@@ -1334,6 +1538,48 @@ func (u *FacilityBookingUpsertBulk) AddGuestsCount(v int) *FacilityBookingUpsert
 func (u *FacilityBookingUpsertBulk) UpdateGuestsCount() *FacilityBookingUpsertBulk {
 	return u.Update(func(s *FacilityBookingUpsert) {
 		s.UpdateGuestsCount()
+	})
+}
+
+// SetSeats sets the "seats" field.
+func (u *FacilityBookingUpsertBulk) SetSeats(v int) *FacilityBookingUpsertBulk {
+	return u.Update(func(s *FacilityBookingUpsert) {
+		s.SetSeats(v)
+	})
+}
+
+// AddSeats adds v to the "seats" field.
+func (u *FacilityBookingUpsertBulk) AddSeats(v int) *FacilityBookingUpsertBulk {
+	return u.Update(func(s *FacilityBookingUpsert) {
+		s.AddSeats(v)
+	})
+}
+
+// UpdateSeats sets the "seats" field to the value that was provided on create.
+func (u *FacilityBookingUpsertBulk) UpdateSeats() *FacilityBookingUpsertBulk {
+	return u.Update(func(s *FacilityBookingUpsert) {
+		s.UpdateSeats()
+	})
+}
+
+// SetPosOrderID sets the "pos_order_id" field.
+func (u *FacilityBookingUpsertBulk) SetPosOrderID(v uuid.UUID) *FacilityBookingUpsertBulk {
+	return u.Update(func(s *FacilityBookingUpsert) {
+		s.SetPosOrderID(v)
+	})
+}
+
+// UpdatePosOrderID sets the "pos_order_id" field to the value that was provided on create.
+func (u *FacilityBookingUpsertBulk) UpdatePosOrderID() *FacilityBookingUpsertBulk {
+	return u.Update(func(s *FacilityBookingUpsert) {
+		s.UpdatePosOrderID()
+	})
+}
+
+// ClearPosOrderID clears the value of the "pos_order_id" field.
+func (u *FacilityBookingUpsertBulk) ClearPosOrderID() *FacilityBookingUpsertBulk {
+	return u.Update(func(s *FacilityBookingUpsert) {
+		s.ClearPosOrderID()
 	})
 }
 

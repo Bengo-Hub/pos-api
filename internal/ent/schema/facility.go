@@ -26,11 +26,21 @@ func (Facility) Fields() []ent.Field {
 		field.String("name").
 			NotEmpty(),
 		field.Enum("facility_type").
-			Values("pool", "gym", "conference", "spa", "kids_area", "other").
+			Values("pool", "gym", "conference", "spa", "kids_area", "coworking", "other").
 			Default("other"),
 		field.Int("capacity").
 			Default(0).
-			Min(0),
+			Min(0).
+			Comment("Total seats/desks (shared mode) or max head-count for one booking (exclusive mode)"),
+		// booking_mode decides how capacity is consumed:
+		//   exclusive — one booking holds the whole space for its time window (private meeting
+		//               room, conference hall); capacity only caps head-count in that booking.
+		//   shared    — a co-working space with `capacity` seats; MANY independent bookings can
+		//               overlap in time until the sum of their seats reaches capacity.
+		field.Enum("booking_mode").
+			Values("exclusive", "shared").
+			Default("exclusive").
+			Comment("exclusive = whole-space per time slot; shared = co-working, many bookings up to seat capacity"),
 		field.UUID("inventory_item_id", uuid.UUID{}).
 			Optional().
 			Nillable().

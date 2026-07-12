@@ -221,11 +221,12 @@ type Service struct {
 	publisher       *events.Publisher
 	taxResolver     *TaxResolver // resolves tax codes from treasury with Redis cache
 	kdsHub          *kdsmod.Hub
-	// happyHourFn evaluates the best auto-apply (happy-hour / negotiated-meal) discount for
-	// (tenant, outlet) on the given lines at the current time, enforcing rule scope. Returns the
-	// winning promo + total discount + a per-SKU breakdown (for per-line receipt annotation).
-	// Injected from the promotions service to keep packages decoupled.
-	happyHourFn func(ctx context.Context, tenantID, outletID uuid.UUID, lines []OrderLineInput) HappyHourOutcome
+	// happyHourFn evaluates the COMBINED auto-apply (happy-hour / negotiated-meal) discount for
+	// (tenant, outlet) on the given lines, stacking every applicable promo and honouring each
+	// line's own add-time window eligibility. Returns the total discount + per-SKU breakdown (for
+	// per-line receipt annotation) + the contributing promos (for audit). Injected from the
+	// promotions service to keep packages decoupled.
+	happyHourFn func(ctx context.Context, tenantID, outletID uuid.UUID, lines []TimedOrderLine) HappyHourOutcome
 	// recordPromoFn writes the PromotionApplication audit row once the order id is known.
 	recordPromoFn func(ctx context.Context, promoID, orderID uuid.UUID, amount decimal.Decimal)
 	// printQueue enqueues background print jobs for the on-site Local Print Agent (AccuPOS model).
@@ -253,21 +254,51 @@ type HappyHourLine struct {
 	Label   string
 }
 
-// HappyHourOutcome is the winning auto-apply discount for an order.
+// TimedOrderLine is an order line plus WHEN it was added to the bill, so the evaluator can decide
+// happy-hour eligibility per line (a drink rung up during the window earns the deal even on a tab
+// opened earlier). A zero AddedAt means "now".
+type TimedOrderLine struct {
+	OrderLineInput
+	AddedAt time.Time
+}
+
+// HappyHourOutcome is the COMBINED auto-apply discount for an order (all applicable promos stacked).
 type HappyHourOutcome struct {
-	PromoID   uuid.UUID
-	PromoName string
-	Discount  decimal.Decimal
-	BySKU     map[string]HappyHourLine
+	PromoID              uuid.UUID // largest contributor, for order-level attribution
+	PromoName            string
+	Discount             decimal.Decimal
+	BySKU                map[string]HappyHourLine
+	ContributingPromoIDs []uuid.UUID
+	PerPromoAmount       map[uuid.UUID]decimal.Decimal
 }
 
 // SetHappyHourEvaluator wires the auto-apply discount evaluator + audit recorder (from promotions service).
 func (s *Service) SetHappyHourEvaluator(
-	fn func(ctx context.Context, tenantID, outletID uuid.UUID, lines []OrderLineInput) HappyHourOutcome,
+	fn func(ctx context.Context, tenantID, outletID uuid.UUID, lines []TimedOrderLine) HappyHourOutcome,
 	record func(ctx context.Context, promoID, orderID uuid.UUID, amount decimal.Decimal),
 ) {
 	s.happyHourFn = fn
 	s.recordPromoFn = record
+}
+
+// recordPromoApplications writes one PromotionApplication audit row per promo that contributed to an
+// order's stacked happy-hour discount (using each promo's own share), falling back to the single
+// applied promo when no per-promo breakdown is available. No-op when nothing was discounted.
+func (s *Service) recordPromoApplications(ctx context.Context, orderID, primaryPromoID uuid.UUID, primaryAmount decimal.Decimal, contributing []uuid.UUID, perPromo map[uuid.UUID]decimal.Decimal) {
+	if s.recordPromoFn == nil {
+		return
+	}
+	if len(contributing) > 0 && perPromo != nil {
+		for _, pid := range contributing {
+			if amt, ok := perPromo[pid]; ok && amt.IsPositive() {
+				s.recordPromoFn(ctx, pid, orderID, amt)
+			}
+		}
+		return
+	}
+	if primaryPromoID != uuid.Nil && primaryAmount.IsPositive() {
+		s.recordPromoFn(ctx, primaryPromoID, orderID, primaryAmount)
+	}
 }
 
 // SetTaxResolver attaches the treasury tax resolver for per-line tax computation.
@@ -562,13 +593,25 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent
 	var appliedPromoAmount decimal.Decimal
 	var hhBySKU map[string]HappyHourLine
 	var hhPromoName string
+	var hhContributingPromos []uuid.UUID
+	var hhPerPromoAmount map[uuid.UUID]decimal.Decimal
+	// At create time every line is added NOW, so pass a zero AddedAt (the evaluator treats it as
+	// now). AddOrderLines (below) passes each existing line's real created_at so items added later
+	// during a happy-hour window still earn the deal.
+	createdAt := time.Now()
 	if s.happyHourFn != nil {
-		if outcome := s.happyHourFn(ctx, req.TenantID, req.OutletID, req.Lines); outcome.Discount.IsPositive() {
+		timed := make([]TimedOrderLine, len(req.Lines))
+		for i, l := range req.Lines {
+			timed[i] = TimedOrderLine{OrderLineInput: l, AddedAt: createdAt}
+		}
+		if outcome := s.happyHourFn(ctx, req.TenantID, req.OutletID, timed); outcome.Discount.IsPositive() {
 			discount = discount.Add(outcome.Discount)
 			appliedPromoID = outcome.PromoID
 			appliedPromoAmount = outcome.Discount
 			hhBySKU = outcome.BySKU
 			hhPromoName = outcome.PromoName
+			hhContributingPromos = outcome.ContributingPromoIDs
+			hhPerPromoAmount = outcome.PerPromoAmount
 		}
 	}
 	// Per-SKU cart totals so a SKU split across several lines shares its saving proportionally.
@@ -776,6 +819,7 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent
 
 		lineCreate := tx.POSOrderLine.Create().
 			SetOrderID(order.ID).
+			SetCreatedAt(createdAt).
 			SetCatalogItemID(line.CatalogItemID).
 			SetSku(line.SKU).
 			SetName(line.Name).
@@ -823,9 +867,10 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent
 		return nil, fmt.Errorf("orders: commit: %w", err)
 	}
 
-	// Audit the applied auto-discount (PromotionApplication) now that the order id exists.
-	if s.recordPromoFn != nil && appliedPromoID != uuid.Nil && appliedPromoAmount.IsPositive() {
-		s.recordPromoFn(ctx, appliedPromoID, order.ID, appliedPromoAmount)
+	// Audit the applied auto-discount (PromotionApplication) now that the order id exists — one row
+	// per contributing promo when several stacked, else the single applied promo.
+	if s.recordPromoFn != nil {
+		s.recordPromoApplications(ctx, order.ID, appliedPromoID, appliedPromoAmount, hhContributingPromos, hhPerPromoAmount)
 	}
 
 	// Re-query with edges loaded
@@ -1423,6 +1468,143 @@ func (s *Service) RecomputeTotals(ctx context.Context, tenantID, orderID uuid.UU
 	return updated, nil
 }
 
+// hhAmountFromMeta reads the previously-applied happy-hour discount amount off an order's metadata
+// (0 when none), so a recompute can separate the happy-hour portion of discount_total from any
+// manual discount and replace only the former.
+func hhAmountFromMeta(meta map[string]any) decimal.Decimal {
+	if meta == nil {
+		return decimal.Zero
+	}
+	if v, ok := meta["happy_hour_discount"].(float64); ok && v > 0 {
+		return decimal.NewFromFloat(v)
+	}
+	return decimal.Zero
+}
+
+// timedLinesFromPersisted converts persisted order lines into evaluator input, using each line's
+// created_at (fallback: the order's created_at, for rows predating per-line timestamps) as its
+// add-time and scaling value/quantity by the still-active (non-voided) fraction so voided units
+// never earn a deal.
+func timedLinesFromPersisted(order *ent.POSOrder, lines []*ent.POSOrderLine) []TimedOrderLine {
+	out := make([]TimedOrderLine, 0, len(lines))
+	for _, ol := range lines {
+		activeQty := ol.Quantity
+		if ol.VoidedQty != nil {
+			activeQty = ol.Quantity - *ol.VoidedQty
+		}
+		if activeQty <= 0 {
+			continue // fully voided — excluded from the deal
+		}
+		frac := 1.0
+		if ol.Quantity > 0 {
+			frac = activeQty / ol.Quantity
+		}
+		addedAt := order.CreatedAt
+		if ol.CreatedAt != nil {
+			addedAt = *ol.CreatedAt
+		}
+		out = append(out, TimedOrderLine{
+			OrderLineInput: OrderLineInput{
+				SKU:        ol.Sku,
+				Category:   ol.Category,
+				Quantity:   activeQty,
+				UnitPrice:  ol.UnitPrice,
+				TotalPrice: ol.TotalPrice * frac,
+			},
+			AddedAt: addedAt,
+		})
+	}
+	return out
+}
+
+// recomputeStackedHappyHour re-evaluates the combined (stacked, time-aware) happy-hour discount over
+// ALL of an order's lines and re-stamps each line's per-item happy_hour annotation (setting it on
+// newly-covered lines, clearing it from lines that no longer qualify). Returns the new happy-hour
+// discount total and the updated order-level metadata (happy_hour_discount / happy_hour_promo) for
+// the caller to persist. Used by AddOrderLines so a deal applies to items added during the window.
+func (s *Service) recomputeStackedHappyHour(ctx context.Context, tx *ent.Tx, order *ent.POSOrder, allLines []*ent.POSOrderLine) (decimal.Decimal, map[string]any, error) {
+	orderMeta := order.Metadata
+	if orderMeta == nil {
+		orderMeta = map[string]any{}
+	}
+	if s.happyHourFn == nil {
+		return hhAmountFromMeta(orderMeta), orderMeta, nil
+	}
+
+	outcome := s.happyHourFn(ctx, order.TenantID, order.OutletID, timedLinesFromPersisted(order, allLines))
+
+	// Per-SKU active totals so a SKU split across lines shares its saving proportionally.
+	skuActiveTotal := map[string]decimal.Decimal{}
+	for _, ol := range allLines {
+		if _, ok := outcome.BySKU[ol.Sku]; !ok {
+			continue
+		}
+		activeQty := ol.Quantity
+		if ol.VoidedQty != nil {
+			activeQty = ol.Quantity - *ol.VoidedQty
+		}
+		if activeQty <= 0 {
+			continue
+		}
+		frac := 1.0
+		if ol.Quantity > 0 {
+			frac = activeQty / ol.Quantity
+		}
+		skuActiveTotal[ol.Sku] = skuActiveTotal[ol.Sku].Add(decimal.NewFromFloat(ol.TotalPrice * frac))
+	}
+
+	for _, ol := range allLines {
+		meta := ol.Metadata
+		if meta == nil {
+			meta = map[string]any{}
+		}
+		hh, covered := outcome.BySKU[ol.Sku]
+		if covered {
+			activeQty := ol.Quantity
+			if ol.VoidedQty != nil {
+				activeQty = ol.Quantity - *ol.VoidedQty
+			}
+			frac := 1.0
+			if ol.Quantity > 0 {
+				frac = activeQty / ol.Quantity
+			}
+			lineTotal := decimal.NewFromFloat(ol.TotalPrice * frac)
+			share := decimal.NewFromFloat(hh.Amount)
+			if st := skuActiveTotal[ol.Sku]; st.IsPositive() {
+				share = decimal.NewFromFloat(hh.Amount).Mul(lineTotal).Div(st).Round(2)
+			}
+			meta["happy_hour"] = map[string]any{
+				"promo":           outcome.PromoName,
+				"type":            hh.Type,
+				"label":           hh.Label,
+				"discount_amount": share.InexactFloat64(),
+				"free_qty":        hh.FreeQty,
+			}
+			meta["discount_amount"] = share.InexactFloat64()
+		} else {
+			if _, had := meta["happy_hour"]; !had {
+				continue // nothing to change on this line
+			}
+			delete(meta, "happy_hour")
+			delete(meta, "discount_amount")
+		}
+		if _, uerr := tx.POSOrderLine.UpdateOneID(ol.ID).SetMetadata(meta).Save(ctx); uerr != nil {
+			return decimal.Zero, orderMeta, fmt.Errorf("orders: re-stamp happy-hour line: %w", uerr)
+		}
+	}
+
+	if outcome.Discount.IsPositive() {
+		orderMeta["happy_hour_discount"] = outcome.Discount.InexactFloat64()
+		if outcome.PromoName != "" {
+			orderMeta["happy_hour_promo"] = outcome.PromoName
+		}
+	} else {
+		delete(orderMeta, "happy_hour_discount")
+		delete(orderMeta, "happy_hour_promo")
+	}
+	return outcome.Discount, orderMeta, nil
+}
+
 // AddOrderLines appends new lines to an existing open order, recalculates totals,
 // and creates KDS tickets for the new course_number=0 lines (always-fire items).
 func (s *Service) AddOrderLines(ctx context.Context, tenantID uuid.UUID, tenantSlug string, orderID uuid.UUID, lines []OrderLineInput) (*ent.POSOrder, error) {
@@ -1473,6 +1655,7 @@ func (s *Service) AddOrderLines(ctx context.Context, tenantID uuid.UUID, tenantS
 	lineTaxes := s.resolveLineTaxes(ctx, tenantID, tenantSlug, lines)
 
 	newLines := make([]*ent.POSOrderLine, 0, len(lines))
+	addedAt := time.Now() // these lines are added NOW — drives their happy-hour window eligibility
 	tx, err := s.client.Tx(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("orders: begin tx: %w", err)
@@ -1495,6 +1678,7 @@ func (s *Service) AddOrderLines(ctx context.Context, tenantID uuid.UUID, tenantS
 		lt := lineTaxes[li]
 		lc := tx.POSOrderLine.Create().
 			SetOrderID(order.ID).
+			SetCreatedAt(addedAt).
 			SetCatalogItemID(l.CatalogItemID).
 			SetSku(l.SKU).
 			SetName(l.Name).
@@ -1573,11 +1757,31 @@ func (s *Service) AddOrderLines(ctx context.Context, tenantID uuid.UUID, tenantS
 			orderTax = decimal.NewFromFloat(amt)
 		}
 	}
-	totals := finalizeTotals(newSubtotal, newTaxTotal, decimal.NewFromFloat(order.DiscountTotal), decimal.NewFromFloat(order.ChargesTotal), orderTax)
+
+	// RE-EVALUATE happy hour over ALL lines using each line's own add-time. This is what makes a
+	// deal apply to items added to a bill AFTER it was opened (e.g. a tab opened at 15:30, cocktails
+	// rung up at 19:00 during the window) — the prior code carried the stored discount unchanged, so
+	// those items never earned the deal. The order's stored discount = explicit (manual) + happy
+	// hour; we recompute only the happy-hour part and keep any manual discount intact.
+	prevHH := hhAmountFromMeta(order.Metadata)
+	explicit := decimal.NewFromFloat(order.DiscountTotal).Sub(prevHH)
+	if explicit.IsNegative() {
+		explicit = decimal.Zero
+	}
+	newHH, orderMeta, hhErr := s.recomputeStackedHappyHour(ctx, tx, order, allLines)
+	if hhErr != nil {
+		err = hhErr
+		return nil, err
+	}
+	newDiscount := explicit.Add(newHH)
+
+	totals := finalizeTotals(newSubtotal, newTaxTotal, newDiscount, decimal.NewFromFloat(order.ChargesTotal), orderTax)
 
 	upd := tx.POSOrder.UpdateOneID(order.ID).
 		SetSubtotal(totals.Subtotal.InexactFloat64()).
 		SetTaxTotal(totals.TaxTotal.InexactFloat64()).
+		SetDiscountTotal(newDiscount.InexactFloat64()).
+		SetMetadata(orderMeta).
 		SetRoundOff(totals.RoundOff.InexactFloat64()).
 		SetTotalAmount(totals.TotalAmount.InexactFloat64())
 	// Adding items to a bill that was awaiting payment (or still a draft) re-opens it — there is now

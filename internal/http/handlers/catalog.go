@@ -20,8 +20,10 @@ import (
 	"github.com/Bengo-Hub/httpware"
 	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/bengobox/pos-service/internal/ent"
+	entoutletsetting "github.com/bengobox/pos-service/internal/ent/outletsetting"
 	entoverride "github.com/bengobox/pos-service/internal/ent/poscatalogoverride"
 	"github.com/bengobox/pos-service/internal/http/middleware"
+	"github.com/bengobox/pos-service/internal/platform/subscriptions"
 )
 
 // s2sHTTPClient is the shared HTTP client for service-to-service calls in this
@@ -82,6 +84,12 @@ type inventoryProxyItem struct {
 	// accompaniments like ugali, supplies like tissue/packaging); stock still deducts.
 	NonBillable             *bool                   `json:"non_billable,omitempty"`
 	DurationMinutes         int                     `json:"duration_minutes"`
+	// Hospitality / bookable-service fields (SERVICE items: co-working, conference,
+	// facility, amenity, salon). use_case drives how the terminal presents/books the item;
+	// total/booked_capacity model shared-seating availability (co-working desks).
+	UseCase                 string                  `json:"use_case,omitempty"`
+	TotalCapacity           *int                    `json:"total_capacity,omitempty"`
+	BookedCapacity          *int                    `json:"booked_capacity,omitempty"`
 	CostPrice               *float64                `json:"cost_price,omitempty"`
 	SuggestedPrice          *float64                `json:"suggested_price,omitempty"`
 	MinSellingPrice         *float64                `json:"min_selling_price,omitempty"` // hard floor enforced at sale
@@ -246,6 +254,106 @@ func useCaseItemTypes(useCase string) string {
 	}
 }
 
+// isBookableServiceUseCase reports whether an inventory item's use_case marks it as a
+// bookable service (co-working desk, conference/meeting room, facility, amenity, salon
+// service) rather than a plain ring-up product. The terminal uses this to offer an
+// "assign a space / book a session" flow and to show capacity, while still allowing a
+// quick day-pass sale through the normal order pipeline.
+func isBookableServiceUseCase(useCase string) bool {
+	switch strings.ToUpper(strings.TrimSpace(useCase)) {
+	case "HOSPITALITY_FACILITY", "CONFERENCE", "SALON_SERVICE", "AMENITY", "HOSPITALITY_ROOM":
+		return true
+	default:
+		return false
+	}
+}
+
+// effectiveCatalogUseCases returns the outlet's primary use_case plus any hybrid
+// use_cases enabled on OutletSetting.catalog_use_cases (deduped, lower-cased), in
+// order. A hospitality cafe that also sells co-working/conference SERVICE packages
+// enables "services" here so its terminal unions both allow-lists instead of being
+// reclassified away from "hospitality". Empty primary + no extras returns nil,
+// preserving the legacy "no use-case filtering" behavior.
+func effectiveCatalogUseCases(primary string, extra []string) []string {
+	seen := make(map[string]bool, 1+len(extra))
+	out := make([]string, 0, 1+len(extra))
+	add := func(uc string) {
+		uc = strings.ToLower(strings.TrimSpace(uc))
+		if uc == "" || seen[uc] {
+			return
+		}
+		seen[uc] = true
+		out = append(out, uc)
+	}
+	add(primary)
+	for _, uc := range extra {
+		add(uc)
+	}
+	return out
+}
+
+// useCaseItemTypesForSet unions useCaseItemTypes across every use_case in the set,
+// so a hybrid outlet's inventory-api item fetch requests every type any of its
+// enabled use_cases would allow (e.g. hospitality's GOODS/RECIPE/VOUCHER PLUS
+// services' SERVICE). Falls back to the single-use_case default when the set is empty.
+func useCaseItemTypesForSet(useCases []string) string {
+	if len(useCases) == 0 {
+		return useCaseItemTypes("")
+	}
+	seen := make(map[string]bool, 4)
+	order := make([]string, 0, 4)
+	for _, uc := range useCases {
+		for _, t := range strings.Split(useCaseItemTypes(uc), ",") {
+			t = strings.TrimSpace(t)
+			if t == "" || seen[t] {
+				continue
+			}
+			seen[t] = true
+			order = append(order, t)
+		}
+	}
+	return strings.Join(order, ",")
+}
+
+// categoryAllowedForUseCaseSet allows a category through if ANY use_case in the set
+// allows it — the hybrid counterpart to categoryAllowedForUseCase.
+func categoryAllowedForUseCaseSet(categoryName string, useCases []string) bool {
+	if len(useCases) == 0 {
+		return true
+	}
+	for _, uc := range useCases {
+		if categoryAllowedForUseCase(categoryName, uc) {
+			return true
+		}
+	}
+	return false
+}
+
+// resolveExtraCatalogUseCases loads the outlet's hybrid catalog_use_cases from
+// OutletSetting, gated on the tenant holding the facility_booking subscription
+// feature. This is the plan-gating hook: an outlet admin can configure
+// catalog_use_cases=["services"] at any time, but it only takes effect once the
+// tenant's plan includes facility_booking — so upgrading a subscription "picks up"
+// the hybrid catalog automatically, with zero further config, and downgrading
+// silently falls back to the primary use_case only (fail-closed, never a hard
+// failure). A missing/errored settings row is likewise treated as "no extras".
+func (h *CatalogHandler) resolveExtraCatalogUseCases(ctx context.Context, outletID *uuid.UUID) []string {
+	if outletID == nil {
+		return nil
+	}
+	claims, ok := authclient.ClaimsFromContext(ctx)
+	if !ok || !claims.HasFeature(subscriptions.FeatureFacilityBooking) {
+		return nil
+	}
+	s, err := h.client.OutletSetting.Query().
+		Where(entoutletsetting.OutletID(*outletID)).
+		Only(ctx)
+	if err != nil {
+		return nil
+	}
+	return s.CatalogUseCases
+}
+
 func doInventoryGET(ctx context.Context, path string, outletID string) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, path, nil)
 	if err != nil {
@@ -314,9 +422,10 @@ func fetchAllInventoryItemPages(ctx context.Context, baseURL, outletID string) (
 }
 
 // fetchInventoryItems calls inventory-api and returns ALL active sellable items scoped by outlet
-// and use case, paging past inventory-api's 100-row pagination cap.
-func fetchInventoryItems(ctx context.Context, tenantSlug, outletID, useCase string) ([]inventoryProxyItem, error) {
-	types := useCaseItemTypes(useCase)
+// and use-case set, paging past inventory-api's 100-row pagination cap. useCases is the outlet's
+// effective set (primary use_case + any hybrid extras) — see effectiveCatalogUseCases.
+func fetchInventoryItems(ctx context.Context, tenantSlug, outletID string, useCases []string) ([]inventoryProxyItem, error) {
+	types := useCaseItemTypesForSet(useCases)
 	// include=variants so the catalog item carries its sellable variations.
 	// include_non_billable widens the type filter so free accompaniments / supplies
 	// (tissue, packaging) reach the terminal regardless of item type.
@@ -615,6 +724,15 @@ type catalogItemDTO struct {
 	TrackSerialNumbers      bool
 	MinimumAge              *int
 	DurationMinutes         *int
+	// Bookable-service fields — surfaced so the terminal can treat co-working/conference/
+	// facility SERVICE items as bookable (assign a space + capacity) rather than a plain
+	// ring-up. UseCase mirrors the inventory item's use_case; Bookable is true when the
+	// item is a bookable SERVICE (see isBookableServiceUseCase). Total/BookedCapacity carry
+	// shared-seating availability. All nil/false for ordinary food/retail items.
+	UseCase                 string
+	Bookable                bool
+	TotalCapacity           *int
+	BookedCapacity          *int
 	StockQuantity           *float64
 	// Selling-price guardrails sourced from inventory — the terminal enforces the band and
 	// pos-api hard-blocks out-of-band sale prices (manager override required).
@@ -721,6 +839,12 @@ func (h *CatalogHandler) assembleMenuItems(
 		outletIDStr = outletID.String()
 	}
 
+	// Hybrid catalog support: union the outlet's primary use_case with any extras enabled
+	// on OutletSetting.catalog_use_cases (e.g. a hospitality cafe also selling co-working/
+	// conference SERVICE packages via "services"). Both the inventory-api type fetch and
+	// the category gate below use this set instead of the single primary use_case.
+	useCases := effectiveCatalogUseCases(useCase, h.resolveExtraCatalogUseCases(ctx, outletID))
+
 	// Fetch items + pricing from inventory-api in parallel
 	type itemsResult struct {
 		items []inventoryProxyItem
@@ -735,7 +859,7 @@ func (h *CatalogHandler) assembleMenuItems(
 	priceCh := make(chan priceResult, 1)
 
 	go func() {
-		items, err := fetchInventoryItems(ctx, tenantSlug, outletIDStr, useCase)
+		items, err := fetchInventoryItems(ctx, tenantSlug, outletIDStr, useCases)
 		itemsCh <- itemsResult{items, err}
 	}()
 	go func() {
@@ -821,8 +945,10 @@ func (h *CatalogHandler) assembleMenuItems(
 			}
 		}
 
-		// Exclude items whose category doesn't belong to this outlet's use case.
-		if useCase != "" && !categoryAllowedForUseCase(item.CategoryName, useCase) {
+		// Exclude items whose category doesn't belong to any of this outlet's use cases
+		// (primary + hybrid extras). A hospitality cafe with "services" enabled keeps its
+		// food menu AND its co-working/conference SERVICE packages.
+		if len(useCases) > 0 && !categoryAllowedForUseCaseSet(item.CategoryName, useCases) {
 			continue
 		}
 
@@ -997,6 +1123,10 @@ func (h *CatalogHandler) assembleMenuItems(
 			TrackSerialNumbers:      item.TrackSerialNumbers,
 			MinimumAge:              minimumAge,
 			DurationMinutes:         durationMinutes,
+			UseCase:                 item.UseCase,
+			Bookable:                item.Type == "SERVICE" && isBookableServiceUseCase(item.UseCase),
+			TotalCapacity:           item.TotalCapacity,
+			BookedCapacity:          item.BookedCapacity,
 			StockQuantity:           item.OnHand,
 			MinSellingPrice:         item.MinSellingPrice,
 			MaxSellingPrice:         item.MaxSellingPrice,
@@ -1122,6 +1252,12 @@ func catalogItemToMapBase(item catalogItemDTO, outletID *uuid.UUID) map[string]a
 		"track_serial_numbers":      item.TrackSerialNumbers,
 		"minimum_age":               item.MinimumAge,
 		"duration_minutes":          item.DurationMinutes,
+		// Bookable-service metadata — the terminal keys its "book / assign space" flow and
+		// capacity badge off these (nil/false/0 for ordinary products).
+		"use_case":                  item.UseCase,
+		"bookable":                  item.Bookable,
+		"total_capacity":            item.TotalCapacity,
+		"booked_capacity":           item.BookedCapacity,
 		"stock_quantity":            item.StockQuantity,
 		"min_selling_price":         item.MinSellingPrice,
 		"max_selling_price":         item.MaxSellingPrice,

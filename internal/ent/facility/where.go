@@ -331,6 +331,26 @@ func CapacityLTE(v int) predicate.Facility {
 	return predicate.Facility(sql.FieldLTE(FieldCapacity, v))
 }
 
+// BookingModeEQ applies the EQ predicate on the "booking_mode" field.
+func BookingModeEQ(v BookingMode) predicate.Facility {
+	return predicate.Facility(sql.FieldEQ(FieldBookingMode, v))
+}
+
+// BookingModeNEQ applies the NEQ predicate on the "booking_mode" field.
+func BookingModeNEQ(v BookingMode) predicate.Facility {
+	return predicate.Facility(sql.FieldNEQ(FieldBookingMode, v))
+}
+
+// BookingModeIn applies the In predicate on the "booking_mode" field.
+func BookingModeIn(vs ...BookingMode) predicate.Facility {
+	return predicate.Facility(sql.FieldIn(FieldBookingMode, vs...))
+}
+
+// BookingModeNotIn applies the NotIn predicate on the "booking_mode" field.
+func BookingModeNotIn(vs ...BookingMode) predicate.Facility {
+	return predicate.Facility(sql.FieldNotIn(FieldBookingMode, vs...))
+}
+
 // InventoryItemIDEQ applies the EQ predicate on the "inventory_item_id" field.
 func InventoryItemIDEQ(v uuid.UUID) predicate.Facility {
 	return predicate.Facility(sql.FieldEQ(FieldInventoryItemID, v))

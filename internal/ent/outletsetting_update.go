@@ -1032,6 +1032,24 @@ func (_u *OutletSettingUpdate) ClearReturnWindowDays() *OutletSettingUpdate {
 	return _u
 }
 
+// SetCatalogUseCases sets the "catalog_use_cases" field.
+func (_u *OutletSettingUpdate) SetCatalogUseCases(v []string) *OutletSettingUpdate {
+	_u.mutation.SetCatalogUseCases(v)
+	return _u
+}
+
+// AppendCatalogUseCases appends value to the "catalog_use_cases" field.
+func (_u *OutletSettingUpdate) AppendCatalogUseCases(v []string) *OutletSettingUpdate {
+	_u.mutation.AppendCatalogUseCases(v)
+	return _u
+}
+
+// ClearCatalogUseCases clears the value of the "catalog_use_cases" field.
+func (_u *OutletSettingUpdate) ClearCatalogUseCases() *OutletSettingUpdate {
+	_u.mutation.ClearCatalogUseCases()
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *OutletSettingUpdate) SetUpdatedAt(v time.Time) *OutletSettingUpdate {
 	_u.mutation.SetUpdatedAt(v)
@@ -1426,6 +1444,17 @@ func (_u *OutletSettingUpdate) sqlSave(ctx context.Context) (_node int, err erro
 	}
 	if _u.mutation.ReturnWindowDaysCleared() {
 		_spec.ClearField(outletsetting.FieldReturnWindowDays, field.TypeInt)
+	}
+	if value, ok := _u.mutation.CatalogUseCases(); ok {
+		_spec.SetField(outletsetting.FieldCatalogUseCases, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedCatalogUseCases(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, outletsetting.FieldCatalogUseCases, value)
+		})
+	}
+	if _u.mutation.CatalogUseCasesCleared() {
+		_spec.ClearField(outletsetting.FieldCatalogUseCases, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(outletsetting.FieldUpdatedAt, field.TypeTime, value)
@@ -2480,6 +2509,24 @@ func (_u *OutletSettingUpdateOne) ClearReturnWindowDays() *OutletSettingUpdateOn
 	return _u
 }
 
+// SetCatalogUseCases sets the "catalog_use_cases" field.
+func (_u *OutletSettingUpdateOne) SetCatalogUseCases(v []string) *OutletSettingUpdateOne {
+	_u.mutation.SetCatalogUseCases(v)
+	return _u
+}
+
+// AppendCatalogUseCases appends value to the "catalog_use_cases" field.
+func (_u *OutletSettingUpdateOne) AppendCatalogUseCases(v []string) *OutletSettingUpdateOne {
+	_u.mutation.AppendCatalogUseCases(v)
+	return _u
+}
+
+// ClearCatalogUseCases clears the value of the "catalog_use_cases" field.
+func (_u *OutletSettingUpdateOne) ClearCatalogUseCases() *OutletSettingUpdateOne {
+	_u.mutation.ClearCatalogUseCases()
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *OutletSettingUpdateOne) SetUpdatedAt(v time.Time) *OutletSettingUpdateOne {
 	_u.mutation.SetUpdatedAt(v)
@@ -2904,6 +2951,17 @@ func (_u *OutletSettingUpdateOne) sqlSave(ctx context.Context) (_node *OutletSet
 	}
 	if _u.mutation.ReturnWindowDaysCleared() {
 		_spec.ClearField(outletsetting.FieldReturnWindowDays, field.TypeInt)
+	}
+	if value, ok := _u.mutation.CatalogUseCases(); ok {
+		_spec.SetField(outletsetting.FieldCatalogUseCases, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedCatalogUseCases(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, outletsetting.FieldCatalogUseCases, value)
+		})
+	}
+	if _u.mutation.CatalogUseCasesCleared() {
+		_spec.ClearField(outletsetting.FieldCatalogUseCases, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(outletsetting.FieldUpdatedAt, field.TypeTime, value)

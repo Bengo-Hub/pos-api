@@ -157,7 +157,7 @@ func resolveUnitCostsBySKU(r *http.Request, db *ent.Client, log *zap.Logger) map
 		log.Warn("resolveUnitCostsBySKU: could not resolve tenant slug for cost lookup")
 		return out
 	}
-	items, err := fetchInventoryItems(r.Context(), tenantSlug, "", "")
+	items, err := fetchInventoryItems(r.Context(), tenantSlug, "", nil)
 	if err != nil {
 		log.Warn("resolveUnitCostsBySKU: inventory items fetch failed — costs will be 0", zap.Error(err))
 		return out

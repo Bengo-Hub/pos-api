@@ -943,74 +943,89 @@ func New(
 					}
 				})
 
-				// Hotel module Ã¢â‚¬â€ hospitality only
+				// Hotel module — hospitality only
 				if hotel != nil {
 					tenant.Route("/hotel", func(h chi.Router) {
 						h.Use(outletmw.RequireUseCase("hospitality"))
-						// Entire hotel vertical requires the hotel_module feature. Conference/event
-						// routes additionally require conference_events (a tenant can have hotel
-						// without conferences, e.g. Complete Professional).
-						h.Use(subscriptions.RequireFeature(subscriptions.FeatureHotelModule))
 						conferenceFeat := subscriptions.RequireFeature(subscriptions.FeatureConference)
 						// Front-desk operational actions (check-in/out, folio, bookings, room status,
 						// facility booking, amenities, housekeeping) require hotel CHANGE; admin master
 						// data (create/edit/delete rooms & facilities) requires hotel MANAGE.
 						hotelChange := outletmw.RequireServicePermission(rbacSvc, "pos.hotel.change", "pos.hotel.manage")
 						hotelManage := outletmw.RequireServicePermission(rbacSvc, "pos.hotel.manage")
-						h.Get("/rooms", hotel.ListRooms)
-						h.With(hotelManage).Post("/rooms", hotel.CreateRoom)
-						h.Get("/rooms/{id}", hotel.GetRoom)
-						h.With(hotelChange).Patch("/rooms/{id}/status", hotel.UpdateRoomStatus)
-						// Inventory master pickers (link rooms/facilities/amenities to inventory SERVICE items + packages)
+
+						// Inventory master pickers (link rooms/facilities/amenities to inventory SERVICE
+						// items + packages) — shared by both the hotel PMS and facilities forms below,
+						// so they sit outside either feature gate rather than requiring hotel_module.
 						h.Get("/inventory-service-items", hotel.ListInventoryServiceItems)
 						h.Get("/inventory-bundles", hotel.ListInventoryBundles)
-						// Multi-room / group bookings (RoomBooking header Ã¢â€ â€™ many RoomGuest)
-						h.With(hotelChange).Post("/bookings", hotel.CreateRoomBooking)
-						h.Get("/bookings", hotel.ListRoomBookings)
-						h.Get("/bookings/{id}", hotel.GetRoomBooking)
-						h.With(hotelManage).Patch("/bookings/{id}", hotel.UpdateRoomBooking)
-						h.Get("/bookings/{id}/guests", hotel.ListBookingGuests)
-						// Conference / events (BEO) + delegate meal cards — require conference_events.
-						h.With(outletmw.RequireServicePermission(rbacSvc, "pos.conference.add", "pos.conference.manage"), conferenceFeat).
-							Post("/events", hotel.CreateEventBooking)
-						h.Get("/events", hotel.ListEventBookings)
-						h.Get("/events/{id}", hotel.GetEventBooking)
-						h.With(outletmw.RequireServicePermission(rbacSvc, "pos.conference.change", "pos.conference.manage"), conferenceFeat).
-							Patch("/events/{id}", hotel.UpdateEventBooking)
-						h.Get("/events/{id}/reconciliation", hotel.ReconcileEvent)
-						h.With(outletmw.RequireServicePermission(rbacSvc, "pos.conference.manage"), conferenceFeat).
-							Post("/events/{id}/generate-mealcards", hotel.GenerateMealCards)
-						h.With(outletmw.RequireServicePermission(rbacSvc, "pos.conference.change", "pos.conference.manage"), conferenceFeat).
-							Post("/mealcards/{code}/redeem", hotel.RedeemMealCard)
-						h.With(hotelChange).Post("/rooms/{id}/check-in", hotel.CheckIn)
-						h.With(hotelChange).Post("/rooms/{id}/check-out", hotel.CheckOut)
-						h.With(hotelChange).Post("/rooms/{id}/folio", hotel.PostFolioCharge)
-						h.Get("/rooms/{id}/folio", hotel.GetRoomFolio)
-						// Checkout/settlement: full bill summary + record folio payments (with history).
-						h.Get("/rooms/{id}/folio/summary", hotel.GetFolioSummary)
-						h.With(hotelChange).Post("/rooms/{id}/settle", hotel.SettleFolio)
-						h.Get("/facilities", hotel.ListFacilities)
-						h.With(hotelManage).Post("/facilities", hotel.CreateFacility)
-						h.Get("/facilities/{id}", hotel.GetFacility)
-						h.With(hotelManage).Patch("/facilities/{id}", hotel.UpdateFacility)
-						h.With(hotelManage).Delete("/facilities/{id}", hotel.DeleteFacility)
-						h.With(hotelChange).Post("/facilities/{id}/book", hotel.BookFacility)
-						h.With(hotelChange).Patch("/facilities/bookings/{bookingID}", hotel.UpdateBooking)
-						h.With(hotelChange).Post("/facilities/bookings/{bookingID}/complete", hotel.CompleteFacilityBooking)
-						h.Get("/facilities/bookings", hotel.ListFacilityBookings)
-						// Amenity management
-						h.Get("/amenities", hotel.ListAmenities)
-						h.With(hotelManage).Post("/amenities", hotel.CreateAmenity)
-						h.Get("/rooms/{id}/amenities", hotel.ListRoomAmenities)
-						h.With(hotelChange).Post("/rooms/{id}/amenities", hotel.AssignAmenityToRoom)
-						h.With(hotelChange).Post("/rooms/{id}/amenities/{amenityId}/charge", hotel.ChargeAmenityToGuest)
-						// Late checkout and batch checkout
-						h.With(hotelChange).Post("/rooms/{id}/late-checkout", hotel.LateCheckout)
-						h.With(hotelChange).Post("/rooms/batch-checkout", hotel.BatchCheckout)
-						// Housekeeping
-						h.Get("/housekeeping", hotel.ListHousekeepingTasks)
-						h.With(hotelChange).Post("/housekeeping", hotel.CreateHousekeepingTask)
-						h.With(hotelChange).Patch("/housekeeping/{taskID}", hotel.UpdateHousekeepingTask)
+
+						// ── Full hotel PMS: rooms, group bookings, conference/events, folio,
+						// amenities, housekeeping. Requires hotel_module (Enterprise+).
+						h.Group(func(g chi.Router) {
+							g.Use(subscriptions.RequireFeature(subscriptions.FeatureHotelModule))
+							g.Get("/rooms", hotel.ListRooms)
+							g.With(hotelManage).Post("/rooms", hotel.CreateRoom)
+							g.Get("/rooms/{id}", hotel.GetRoom)
+							g.With(hotelChange).Patch("/rooms/{id}/status", hotel.UpdateRoomStatus)
+							// Multi-room / group bookings (RoomBooking header -> many RoomGuest)
+							g.With(hotelChange).Post("/bookings", hotel.CreateRoomBooking)
+							g.Get("/bookings", hotel.ListRoomBookings)
+							g.Get("/bookings/{id}", hotel.GetRoomBooking)
+							g.With(hotelManage).Patch("/bookings/{id}", hotel.UpdateRoomBooking)
+							g.Get("/bookings/{id}/guests", hotel.ListBookingGuests)
+							// Conference / events (BEO) + delegate meal cards — require conference_events.
+							g.With(outletmw.RequireServicePermission(rbacSvc, "pos.conference.add", "pos.conference.manage"), conferenceFeat).
+								Post("/events", hotel.CreateEventBooking)
+							g.Get("/events", hotel.ListEventBookings)
+							g.Get("/events/{id}", hotel.GetEventBooking)
+							g.With(outletmw.RequireServicePermission(rbacSvc, "pos.conference.change", "pos.conference.manage"), conferenceFeat).
+								Patch("/events/{id}", hotel.UpdateEventBooking)
+							g.Get("/events/{id}/reconciliation", hotel.ReconcileEvent)
+							g.With(outletmw.RequireServicePermission(rbacSvc, "pos.conference.manage"), conferenceFeat).
+								Post("/events/{id}/generate-mealcards", hotel.GenerateMealCards)
+							g.With(outletmw.RequireServicePermission(rbacSvc, "pos.conference.change", "pos.conference.manage"), conferenceFeat).
+								Post("/mealcards/{code}/redeem", hotel.RedeemMealCard)
+							g.With(hotelChange).Post("/rooms/{id}/check-in", hotel.CheckIn)
+							g.With(hotelChange).Post("/rooms/{id}/check-out", hotel.CheckOut)
+							g.With(hotelChange).Post("/rooms/{id}/folio", hotel.PostFolioCharge)
+							g.Get("/rooms/{id}/folio", hotel.GetRoomFolio)
+							// Checkout/settlement: full bill summary + record folio payments (with history).
+							g.Get("/rooms/{id}/folio/summary", hotel.GetFolioSummary)
+							g.With(hotelChange).Post("/rooms/{id}/settle", hotel.SettleFolio)
+							// Amenity management
+							g.Get("/amenities", hotel.ListAmenities)
+							g.With(hotelManage).Post("/amenities", hotel.CreateAmenity)
+							g.Get("/rooms/{id}/amenities", hotel.ListRoomAmenities)
+							g.With(hotelChange).Post("/rooms/{id}/amenities", hotel.AssignAmenityToRoom)
+							g.With(hotelChange).Post("/rooms/{id}/amenities/{amenityId}/charge", hotel.ChargeAmenityToGuest)
+							// Late checkout and batch checkout
+							g.With(hotelChange).Post("/rooms/{id}/late-checkout", hotel.LateCheckout)
+							g.With(hotelChange).Post("/rooms/batch-checkout", hotel.BatchCheckout)
+							// Housekeeping
+							g.Get("/housekeeping", hotel.ListHousekeepingTasks)
+							g.With(hotelChange).Post("/housekeeping", hotel.CreateHousekeepingTask)
+							g.With(hotelChange).Patch("/housekeeping/{taskID}", hotel.UpdateHousekeepingTask)
+						})
+
+						// ── Bookable spaces: co-working desks, conference/meeting rooms — sell +
+						// capacity-manage a Facility from the till. Requires facility_booking
+						// (POS_HOSP_PRO "Growth" and up), independent of the full hotel PMS above —
+						// a cafe with spare floor space shouldn't need rooms/check-in/folio just to
+						// sell co-working.
+						h.Group(func(g chi.Router) {
+							g.Use(subscriptions.RequireFeature(subscriptions.FeatureFacilityBooking))
+							g.Get("/facilities", hotel.ListFacilities)
+							g.With(hotelManage).Post("/facilities", hotel.CreateFacility)
+							g.Get("/facilities/{id}", hotel.GetFacility)
+							g.With(hotelManage).Patch("/facilities/{id}", hotel.UpdateFacility)
+							g.With(hotelManage).Delete("/facilities/{id}", hotel.DeleteFacility)
+							g.Get("/facilities/{id}/availability", hotel.GetFacilityAvailability)
+							g.With(hotelChange).Post("/facilities/{id}/book", hotel.BookFacility)
+							g.With(hotelChange).Patch("/facilities/bookings/{bookingID}", hotel.UpdateBooking)
+							g.With(hotelChange).Post("/facilities/bookings/{bookingID}/complete", hotel.CompleteFacilityBooking)
+							g.Get("/facilities/bookings", hotel.ListFacilityBookings)
+						})
 					})
 				}
 			})

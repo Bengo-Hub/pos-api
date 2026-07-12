@@ -32,6 +32,20 @@ func (_c *POSOrderLineCreate) SetOrderID(v uuid.UUID) *POSOrderLineCreate {
 	return _c
 }
 
+// SetCreatedAt sets the "created_at" field.
+func (_c *POSOrderLineCreate) SetCreatedAt(v time.Time) *POSOrderLineCreate {
+	_c.mutation.SetCreatedAt(v)
+	return _c
+}
+
+// SetNillableCreatedAt sets the "created_at" field if the given value is not nil.
+func (_c *POSOrderLineCreate) SetNillableCreatedAt(v *time.Time) *POSOrderLineCreate {
+	if v != nil {
+		_c.SetCreatedAt(*v)
+	}
+	return _c
+}
+
 // SetCatalogItemID sets the "catalog_item_id" field.
 func (_c *POSOrderLineCreate) SetCatalogItemID(v uuid.UUID) *POSOrderLineCreate {
 	_c.mutation.SetCatalogItemID(v)
@@ -479,6 +493,10 @@ func (_c *POSOrderLineCreate) createSpec() (*POSOrderLine, *sqlgraph.CreateSpec)
 	if id, ok := _c.mutation.ID(); ok {
 		_node.ID = id
 		_spec.ID.Value = &id
+	}
+	if value, ok := _c.mutation.CreatedAt(); ok {
+		_spec.SetField(posorderline.FieldCreatedAt, field.TypeTime, value)
+		_node.CreatedAt = &value
 	}
 	if value, ok := _c.mutation.CatalogItemID(); ok {
 		_spec.SetField(posorderline.FieldCatalogItemID, field.TypeUUID, value)
@@ -1121,6 +1139,9 @@ func (u *POSOrderLineUpsertOne) UpdateNewValues() *POSOrderLineUpsertOne {
 	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
 		if _, exists := u.create.mutation.ID(); exists {
 			s.SetIgnore(posorderline.FieldID)
+		}
+		if _, exists := u.create.mutation.CreatedAt(); exists {
+			s.SetIgnore(posorderline.FieldCreatedAt)
 		}
 	}))
 	return u
@@ -1853,6 +1874,9 @@ func (u *POSOrderLineUpsertBulk) UpdateNewValues() *POSOrderLineUpsertBulk {
 		for _, b := range u.create.builders {
 			if _, exists := b.mutation.ID(); exists {
 				s.SetIgnore(posorderline.FieldID)
+			}
+			if _, exists := b.mutation.CreatedAt(); exists {
+				s.SetIgnore(posorderline.FieldCreatedAt)
 			}
 		}
 	}))

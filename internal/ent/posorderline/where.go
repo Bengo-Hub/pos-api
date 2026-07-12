@@ -61,6 +61,11 @@ func OrderID(v uuid.UUID) predicate.POSOrderLine {
 	return predicate.POSOrderLine(sql.FieldEQ(FieldOrderID, v))
 }
 
+// CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
+func CreatedAt(v time.Time) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldEQ(FieldCreatedAt, v))
+}
+
 // CatalogItemID applies equality check predicate on the "catalog_item_id" field. It's identical to CatalogItemIDEQ.
 func CatalogItemID(v uuid.UUID) predicate.POSOrderLine {
 	return predicate.POSOrderLine(sql.FieldEQ(FieldCatalogItemID, v))
@@ -194,6 +199,56 @@ func OrderIDIn(vs ...uuid.UUID) predicate.POSOrderLine {
 // OrderIDNotIn applies the NotIn predicate on the "order_id" field.
 func OrderIDNotIn(vs ...uuid.UUID) predicate.POSOrderLine {
 	return predicate.POSOrderLine(sql.FieldNotIn(FieldOrderID, vs...))
+}
+
+// CreatedAtEQ applies the EQ predicate on the "created_at" field.
+func CreatedAtEQ(v time.Time) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldEQ(FieldCreatedAt, v))
+}
+
+// CreatedAtNEQ applies the NEQ predicate on the "created_at" field.
+func CreatedAtNEQ(v time.Time) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldNEQ(FieldCreatedAt, v))
+}
+
+// CreatedAtIn applies the In predicate on the "created_at" field.
+func CreatedAtIn(vs ...time.Time) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldIn(FieldCreatedAt, vs...))
+}
+
+// CreatedAtNotIn applies the NotIn predicate on the "created_at" field.
+func CreatedAtNotIn(vs ...time.Time) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldNotIn(FieldCreatedAt, vs...))
+}
+
+// CreatedAtGT applies the GT predicate on the "created_at" field.
+func CreatedAtGT(v time.Time) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldGT(FieldCreatedAt, v))
+}
+
+// CreatedAtGTE applies the GTE predicate on the "created_at" field.
+func CreatedAtGTE(v time.Time) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldGTE(FieldCreatedAt, v))
+}
+
+// CreatedAtLT applies the LT predicate on the "created_at" field.
+func CreatedAtLT(v time.Time) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldLT(FieldCreatedAt, v))
+}
+
+// CreatedAtLTE applies the LTE predicate on the "created_at" field.
+func CreatedAtLTE(v time.Time) predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldLTE(FieldCreatedAt, v))
+}
+
+// CreatedAtIsNil applies the IsNil predicate on the "created_at" field.
+func CreatedAtIsNil() predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldIsNull(FieldCreatedAt))
+}
+
+// CreatedAtNotNil applies the NotNil predicate on the "created_at" field.
+func CreatedAtNotNil() predicate.POSOrderLine {
+	return predicate.POSOrderLine(sql.FieldNotNull(FieldCreatedAt))
 }
 
 // CatalogItemIDEQ applies the EQ predicate on the "catalog_item_id" field.

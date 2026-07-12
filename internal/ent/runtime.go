@@ -659,39 +659,39 @@ func init() {
 	// facility.CapacityValidator is a validator for the "capacity" field. It is called by the builders before save.
 	facility.CapacityValidator = facilityDescCapacity.Validators[0].(func(int) error)
 	// facilityDescRatePerSession is the schema descriptor for rate_per_session field.
-	facilityDescRatePerSession := facilityFields[7].Descriptor()
+	facilityDescRatePerSession := facilityFields[8].Descriptor()
 	// facility.RatePerSessionValidator is a validator for the "rate_per_session" field. It is called by the builders before save.
 	facility.RatePerSessionValidator = facilityDescRatePerSession.Validators[0].(func(float64) error)
 	// facilityDescCurrency is the schema descriptor for currency field.
-	facilityDescCurrency := facilityFields[8].Descriptor()
+	facilityDescCurrency := facilityFields[9].Descriptor()
 	// facility.DefaultCurrency holds the default value on creation for the currency field.
 	facility.DefaultCurrency = facilityDescCurrency.Default.(string)
 	// facilityDescOpeningTime is the schema descriptor for opening_time field.
-	facilityDescOpeningTime := facilityFields[9].Descriptor()
+	facilityDescOpeningTime := facilityFields[10].Descriptor()
 	// facility.DefaultOpeningTime holds the default value on creation for the opening_time field.
 	facility.DefaultOpeningTime = facilityDescOpeningTime.Default.(string)
 	// facilityDescClosingTime is the schema descriptor for closing_time field.
-	facilityDescClosingTime := facilityFields[10].Descriptor()
+	facilityDescClosingTime := facilityFields[11].Descriptor()
 	// facility.DefaultClosingTime holds the default value on creation for the closing_time field.
 	facility.DefaultClosingTime = facilityDescClosingTime.Default.(string)
 	// facilityDescDivisible is the schema descriptor for divisible field.
-	facilityDescDivisible := facilityFields[13].Descriptor()
+	facilityDescDivisible := facilityFields[14].Descriptor()
 	// facility.DefaultDivisible holds the default value on creation for the divisible field.
 	facility.DefaultDivisible = facilityDescDivisible.Default.(bool)
 	// facilityDescIsActive is the schema descriptor for is_active field.
-	facilityDescIsActive := facilityFields[15].Descriptor()
+	facilityDescIsActive := facilityFields[16].Descriptor()
 	// facility.DefaultIsActive holds the default value on creation for the is_active field.
 	facility.DefaultIsActive = facilityDescIsActive.Default.(bool)
 	// facilityDescMetadata is the schema descriptor for metadata field.
-	facilityDescMetadata := facilityFields[16].Descriptor()
+	facilityDescMetadata := facilityFields[17].Descriptor()
 	// facility.DefaultMetadata holds the default value on creation for the metadata field.
 	facility.DefaultMetadata = facilityDescMetadata.Default.(map[string]interface{})
 	// facilityDescCreatedAt is the schema descriptor for created_at field.
-	facilityDescCreatedAt := facilityFields[17].Descriptor()
+	facilityDescCreatedAt := facilityFields[18].Descriptor()
 	// facility.DefaultCreatedAt holds the default value on creation for the created_at field.
 	facility.DefaultCreatedAt = facilityDescCreatedAt.Default.(func() time.Time)
 	// facilityDescUpdatedAt is the schema descriptor for updated_at field.
-	facilityDescUpdatedAt := facilityFields[18].Descriptor()
+	facilityDescUpdatedAt := facilityFields[19].Descriptor()
 	// facility.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	facility.DefaultUpdatedAt = facilityDescUpdatedAt.Default.(func() time.Time)
 	// facility.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -703,33 +703,39 @@ func init() {
 	facilitybookingFields := schema.FacilityBooking{}.Fields()
 	_ = facilitybookingFields
 	// facilitybookingDescGuestName is the schema descriptor for guest_name field.
-	facilitybookingDescGuestName := facilitybookingFields[4].Descriptor()
+	facilitybookingDescGuestName := facilitybookingFields[5].Descriptor()
 	// facilitybooking.GuestNameValidator is a validator for the "guest_name" field. It is called by the builders before save.
 	facilitybooking.GuestNameValidator = facilitybookingDescGuestName.Validators[0].(func(string) error)
 	// facilitybookingDescPhone is the schema descriptor for phone field.
-	facilitybookingDescPhone := facilitybookingFields[5].Descriptor()
+	facilitybookingDescPhone := facilitybookingFields[6].Descriptor()
 	// facilitybooking.PhoneValidator is a validator for the "phone" field. It is called by the builders before save.
 	facilitybooking.PhoneValidator = facilitybookingDescPhone.Validators[0].(func(string) error)
 	// facilitybookingDescGuestsCount is the schema descriptor for guests_count field.
-	facilitybookingDescGuestsCount := facilitybookingFields[9].Descriptor()
+	facilitybookingDescGuestsCount := facilitybookingFields[10].Descriptor()
 	// facilitybooking.DefaultGuestsCount holds the default value on creation for the guests_count field.
 	facilitybooking.DefaultGuestsCount = facilitybookingDescGuestsCount.Default.(int)
 	// facilitybooking.GuestsCountValidator is a validator for the "guests_count" field. It is called by the builders before save.
 	facilitybooking.GuestsCountValidator = facilitybookingDescGuestsCount.Validators[0].(func(int) error)
+	// facilitybookingDescSeats is the schema descriptor for seats field.
+	facilitybookingDescSeats := facilitybookingFields[11].Descriptor()
+	// facilitybooking.DefaultSeats holds the default value on creation for the seats field.
+	facilitybooking.DefaultSeats = facilitybookingDescSeats.Default.(int)
+	// facilitybooking.SeatsValidator is a validator for the "seats" field. It is called by the builders before save.
+	facilitybooking.SeatsValidator = facilitybookingDescSeats.Validators[0].(func(int) error)
 	// facilitybookingDescAmount is the schema descriptor for amount field.
-	facilitybookingDescAmount := facilitybookingFields[10].Descriptor()
+	facilitybookingDescAmount := facilitybookingFields[13].Descriptor()
 	// facilitybooking.AmountValidator is a validator for the "amount" field. It is called by the builders before save.
 	facilitybooking.AmountValidator = facilitybookingDescAmount.Validators[0].(func(float64) error)
 	// facilitybookingDescCurrency is the schema descriptor for currency field.
-	facilitybookingDescCurrency := facilitybookingFields[11].Descriptor()
+	facilitybookingDescCurrency := facilitybookingFields[14].Descriptor()
 	// facilitybooking.DefaultCurrency holds the default value on creation for the currency field.
 	facilitybooking.DefaultCurrency = facilitybookingDescCurrency.Default.(string)
 	// facilitybookingDescMetadata is the schema descriptor for metadata field.
-	facilitybookingDescMetadata := facilitybookingFields[15].Descriptor()
+	facilitybookingDescMetadata := facilitybookingFields[18].Descriptor()
 	// facilitybooking.DefaultMetadata holds the default value on creation for the metadata field.
 	facilitybooking.DefaultMetadata = facilitybookingDescMetadata.Default.(map[string]interface{})
 	// facilitybookingDescCreatedAt is the schema descriptor for created_at field.
-	facilitybookingDescCreatedAt := facilitybookingFields[16].Descriptor()
+	facilitybookingDescCreatedAt := facilitybookingFields[19].Descriptor()
 	// facilitybooking.DefaultCreatedAt holds the default value on creation for the created_at field.
 	facilitybooking.DefaultCreatedAt = facilitybookingDescCreatedAt.Default.(func() time.Time)
 	// facilitybookingDescID is the schema descriptor for id field.
@@ -1374,8 +1380,12 @@ func init() {
 	outletsettingDescReturnWindowDays := outletsettingFields[51].Descriptor()
 	// outletsetting.DefaultReturnWindowDays holds the default value on creation for the return_window_days field.
 	outletsetting.DefaultReturnWindowDays = outletsettingDescReturnWindowDays.Default.(int)
+	// outletsettingDescCatalogUseCases is the schema descriptor for catalog_use_cases field.
+	outletsettingDescCatalogUseCases := outletsettingFields[52].Descriptor()
+	// outletsetting.DefaultCatalogUseCases holds the default value on creation for the catalog_use_cases field.
+	outletsetting.DefaultCatalogUseCases = outletsettingDescCatalogUseCases.Default.([]string)
 	// outletsettingDescUpdatedAt is the schema descriptor for updated_at field.
-	outletsettingDescUpdatedAt := outletsettingFields[52].Descriptor()
+	outletsettingDescUpdatedAt := outletsettingFields[53].Descriptor()
 	// outletsetting.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	outletsetting.DefaultUpdatedAt = outletsettingDescUpdatedAt.Default.(func() time.Time)
 	// outletsetting.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -1603,23 +1613,23 @@ func init() {
 	posorderlineFields := schema.POSOrderLine{}.Fields()
 	_ = posorderlineFields
 	// posorderlineDescSku is the schema descriptor for sku field.
-	posorderlineDescSku := posorderlineFields[3].Descriptor()
+	posorderlineDescSku := posorderlineFields[4].Descriptor()
 	// posorderline.SkuValidator is a validator for the "sku" field. It is called by the builders before save.
 	posorderline.SkuValidator = posorderlineDescSku.Validators[0].(func(string) error)
 	// posorderlineDescName is the schema descriptor for name field.
-	posorderlineDescName := posorderlineFields[4].Descriptor()
+	posorderlineDescName := posorderlineFields[5].Descriptor()
 	// posorderline.NameValidator is a validator for the "name" field. It is called by the builders before save.
 	posorderline.NameValidator = posorderlineDescName.Validators[0].(func(string) error)
 	// posorderlineDescPriceIncludesTax is the schema descriptor for price_includes_tax field.
-	posorderlineDescPriceIncludesTax := posorderlineFields[18].Descriptor()
+	posorderlineDescPriceIncludesTax := posorderlineFields[19].Descriptor()
 	// posorderline.DefaultPriceIncludesTax holds the default value on creation for the price_includes_tax field.
 	posorderline.DefaultPriceIncludesTax = posorderlineDescPriceIncludesTax.Default.(bool)
 	// posorderlineDescCourseNumber is the schema descriptor for course_number field.
-	posorderlineDescCourseNumber := posorderlineFields[19].Descriptor()
+	posorderlineDescCourseNumber := posorderlineFields[20].Descriptor()
 	// posorderline.DefaultCourseNumber holds the default value on creation for the course_number field.
 	posorderline.DefaultCourseNumber = posorderlineDescCourseNumber.Default.(int)
 	// posorderlineDescMetadata is the schema descriptor for metadata field.
-	posorderlineDescMetadata := posorderlineFields[21].Descriptor()
+	posorderlineDescMetadata := posorderlineFields[22].Descriptor()
 	// posorderline.DefaultMetadata holds the default value on creation for the metadata field.
 	posorderline.DefaultMetadata = posorderlineDescMetadata.Default.(map[string]interface{})
 	// posorderlineDescID is the schema descriptor for id field.

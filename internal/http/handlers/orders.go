@@ -20,6 +20,7 @@ import (
 	"github.com/Bengo-Hub/httpware"
 	"github.com/bengobox/pos-service/internal/audit"
 	"github.com/bengobox/pos-service/internal/ent"
+	entfacility "github.com/bengobox/pos-service/internal/ent/facility"
 	"github.com/bengobox/pos-service/internal/ent/outletsetting"
 	entoverride "github.com/bengobox/pos-service/internal/ent/poscatalogoverride"
 	"github.com/bengobox/pos-service/internal/ent/pospayment"
@@ -1003,9 +1004,96 @@ func (h *POSOrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.autoAssignFacilityBookingsForOrder(r.Context(), order, lines)
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	_ = json.NewEncoder(w).Encode(order)
+}
+
+// autoAssignFacilityBookingsForOrder is the "ring up + auto-assign" side effect of a completed
+// sale: for each order line that resolves to a Facility (Facility.InventoryItemID ==
+// line.CatalogItemID — the same inventory SERVICE item link the Facilities admin form writes),
+// it creates a FacilityBooking consuming line.Quantity seats/guests against that facility for
+// today, linked back via PosOrderID. This is how selling a co-working day-pass at the till
+// becomes a tracked, capacity-counted assignment with no separate front-desk step.
+//
+// Deliberately best-effort and non-blocking: a completed, PAID sale must never be rejected or
+// rolled back because of a bookkeeping side-table write. If this oversells a shared facility it
+// logs a warning (an ops signal) rather than failing the sale — strict capacity rejection only
+// happens on the explicit "Assign Space" flow (HotelHandler.BookFacility), which front-desk uses
+// for time-boxed reservations. No-ops silently when the tenant lacks the facility_booking
+// feature or no line matches a Facility (the overwhelmingly common case for ordinary sales).
+func (h *POSOrderHandler) autoAssignFacilityBookingsForOrder(ctx context.Context, order *ent.POSOrder, lines []orders.OrderLineInput) {
+	claims, ok := authclient.ClaimsFromContext(ctx)
+	if !ok || !claims.HasFeature(subscriptions.FeatureFacilityBooking) {
+		return
+	}
+	for _, line := range lines {
+		if line.CatalogItemID == uuid.Nil || line.Quantity <= 0 {
+			continue
+		}
+		fac, err := h.client.Facility.Query().
+			Where(
+				entfacility.TenantID(order.TenantID),
+				entfacility.InventoryItemID(line.CatalogItemID),
+				entfacility.IsActive(true),
+			).
+			Only(ctx)
+		if err != nil {
+			continue // not a bookable-space line — true for nearly every order line
+		}
+
+		seats := int(line.Quantity)
+		if seats < 1 {
+			seats = 1
+		}
+		guestName := "Walk-in"
+		if order.CustomerName != nil && *order.CustomerName != "" {
+			guestName = *order.CustomerName
+		}
+		phone := ""
+		if order.CustomerPhone != nil {
+			phone = *order.CustomerPhone
+		}
+		sessionDate := time.Now()
+
+		booking, err := h.client.FacilityBooking.Create().
+			SetTenantID(order.TenantID).
+			SetFacilityID(fac.ID).
+			SetOutletID(order.OutletID).
+			SetGuestName(guestName).
+			SetPhone(phone).
+			SetSessionDate(sessionDate).
+			SetGuestsCount(seats).
+			SetSeats(seats).
+			SetAmount(line.TotalPrice).
+			SetBookedBy(order.UserID).
+			SetPosOrderID(order.ID).
+			SetNotes("Auto-assigned from POS sale " + order.OrderNumber).
+			Save(ctx)
+		if err != nil {
+			h.log.Warn("auto-assign facility booking failed",
+				zap.Error(err), zap.String("order_id", order.ID.String()), zap.String("facility_id", fac.ID.String()))
+			continue
+		}
+
+		if fac.BookingMode == entfacility.BookingModeShared && fac.Capacity > 0 {
+			booked := 0
+			for _, b := range sameDayConfirmedFacilityBookings(ctx, h.client, order.TenantID, fac.ID, sessionDate) {
+				s := b.Seats
+				if s < 1 {
+					s = 1
+				}
+				booked += s
+			}
+			if booked > fac.Capacity {
+				h.log.Warn("facility oversold by auto-assigned booking",
+					zap.String("facility_id", fac.ID.String()), zap.String("booking_id", booking.ID.String()),
+					zap.Int("booked_seats", booked), zap.Int("capacity", fac.Capacity))
+			}
+		}
+	}
 }
 
 // shippingInput is the body for PATCH /pos/orders/{orderID}/shipping (Edit Shipping action).

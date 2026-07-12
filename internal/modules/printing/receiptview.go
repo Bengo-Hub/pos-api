@@ -48,6 +48,10 @@ type ReceiptLine struct {
 	Quantity   float64
 	UnitPrice  float64
 	TotalPrice float64
+	// When this line was added to the bill (nil for rows predating per-line timestamps). Shown on
+	// the receipt for items added AFTER the order was opened, so a happy-hour deal that hinges on
+	// the add-time (e.g. drinks rung up once the window opened on a tab opened earlier) is auditable.
+	AddedAt *time.Time
 }
 
 // ReceiptPaymentMethods carries the "HOW TO PAY" payment-display info shown at the bottom of
@@ -221,7 +225,7 @@ func BuildReceiptView(order *ent.POSOrder, lines []*ent.POSOrderLine, outlet *en
 			if !opts.SplitLineIDs[l.ID.String()] {
 				continue
 			}
-			items = append(items, ReceiptLine{SKU: l.Sku, Name: receiptLineName(l), Quantity: l.Quantity, UnitPrice: l.UnitPrice, TotalPrice: l.TotalPrice})
+			items = append(items, ReceiptLine{SKU: l.Sku, Name: receiptLineName(l), Quantity: l.Quantity, UnitPrice: l.UnitPrice, TotalPrice: l.TotalPrice, AddedAt: l.CreatedAt})
 			splitSubtotal += l.TotalPrice
 		}
 		// A split's items are VAT-inclusive line totals; order-level tax/discount/charges/
@@ -235,7 +239,7 @@ func BuildReceiptView(order *ent.POSOrder, lines []*ent.POSOrderLine, outlet *en
 		}
 	} else {
 		for _, l := range lines {
-			items = append(items, ReceiptLine{SKU: l.Sku, Name: receiptLineName(l), Quantity: l.Quantity, UnitPrice: l.UnitPrice, TotalPrice: l.TotalPrice})
+			items = append(items, ReceiptLine{SKU: l.Sku, Name: receiptLineName(l), Quantity: l.Quantity, UnitPrice: l.UnitPrice, TotalPrice: l.TotalPrice, AddedAt: l.CreatedAt})
 		}
 	}
 

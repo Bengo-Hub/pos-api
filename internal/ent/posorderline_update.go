@@ -635,6 +635,9 @@ func (_u *POSOrderLineUpdate) sqlSave(ctx context.Context) (_node int, err error
 			}
 		}
 	}
+	if _u.mutation.CreatedAtCleared() {
+		_spec.ClearField(posorderline.FieldCreatedAt, field.TypeTime)
+	}
 	if value, ok := _u.mutation.CatalogItemID(); ok {
 		_spec.SetField(posorderline.FieldCatalogItemID, field.TypeUUID, value)
 	}
@@ -1506,6 +1509,9 @@ func (_u *POSOrderLineUpdateOne) sqlSave(ctx context.Context) (_node *POSOrderLi
 				ps[i](selector)
 			}
 		}
+	}
+	if _u.mutation.CreatedAtCleared() {
+		_spec.ClearField(posorderline.FieldCreatedAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.CatalogItemID(); ok {
 		_spec.SetField(posorderline.FieldCatalogItemID, field.TypeUUID, value)

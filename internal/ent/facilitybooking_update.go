@@ -58,6 +58,26 @@ func (_u *FacilityBookingUpdate) SetNillableFacilityID(v *uuid.UUID) *FacilityBo
 	return _u
 }
 
+// SetOutletID sets the "outlet_id" field.
+func (_u *FacilityBookingUpdate) SetOutletID(v uuid.UUID) *FacilityBookingUpdate {
+	_u.mutation.SetOutletID(v)
+	return _u
+}
+
+// SetNillableOutletID sets the "outlet_id" field if the given value is not nil.
+func (_u *FacilityBookingUpdate) SetNillableOutletID(v *uuid.UUID) *FacilityBookingUpdate {
+	if v != nil {
+		_u.SetOutletID(*v)
+	}
+	return _u
+}
+
+// ClearOutletID clears the value of the "outlet_id" field.
+func (_u *FacilityBookingUpdate) ClearOutletID() *FacilityBookingUpdate {
+	_u.mutation.ClearOutletID()
+	return _u
+}
+
 // SetRoomGuestID sets the "room_guest_id" field.
 func (_u *FacilityBookingUpdate) SetRoomGuestID(v uuid.UUID) *FacilityBookingUpdate {
 	_u.mutation.SetRoomGuestID(v)
@@ -166,6 +186,47 @@ func (_u *FacilityBookingUpdate) SetNillableGuestsCount(v *int) *FacilityBooking
 // AddGuestsCount adds value to the "guests_count" field.
 func (_u *FacilityBookingUpdate) AddGuestsCount(v int) *FacilityBookingUpdate {
 	_u.mutation.AddGuestsCount(v)
+	return _u
+}
+
+// SetSeats sets the "seats" field.
+func (_u *FacilityBookingUpdate) SetSeats(v int) *FacilityBookingUpdate {
+	_u.mutation.ResetSeats()
+	_u.mutation.SetSeats(v)
+	return _u
+}
+
+// SetNillableSeats sets the "seats" field if the given value is not nil.
+func (_u *FacilityBookingUpdate) SetNillableSeats(v *int) *FacilityBookingUpdate {
+	if v != nil {
+		_u.SetSeats(*v)
+	}
+	return _u
+}
+
+// AddSeats adds value to the "seats" field.
+func (_u *FacilityBookingUpdate) AddSeats(v int) *FacilityBookingUpdate {
+	_u.mutation.AddSeats(v)
+	return _u
+}
+
+// SetPosOrderID sets the "pos_order_id" field.
+func (_u *FacilityBookingUpdate) SetPosOrderID(v uuid.UUID) *FacilityBookingUpdate {
+	_u.mutation.SetPosOrderID(v)
+	return _u
+}
+
+// SetNillablePosOrderID sets the "pos_order_id" field if the given value is not nil.
+func (_u *FacilityBookingUpdate) SetNillablePosOrderID(v *uuid.UUID) *FacilityBookingUpdate {
+	if v != nil {
+		_u.SetPosOrderID(*v)
+	}
+	return _u
+}
+
+// ClearPosOrderID clears the value of the "pos_order_id" field.
+func (_u *FacilityBookingUpdate) ClearPosOrderID() *FacilityBookingUpdate {
+	_u.mutation.ClearPosOrderID()
 	return _u
 }
 
@@ -318,6 +379,11 @@ func (_u *FacilityBookingUpdate) check() error {
 			return &ValidationError{Name: "guests_count", err: fmt.Errorf(`ent: validator failed for field "FacilityBooking.guests_count": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.Seats(); ok {
+		if err := facilitybooking.SeatsValidator(v); err != nil {
+			return &ValidationError{Name: "seats", err: fmt.Errorf(`ent: validator failed for field "FacilityBooking.seats": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Amount(); ok {
 		if err := facilitybooking.AmountValidator(v); err != nil {
 			return &ValidationError{Name: "amount", err: fmt.Errorf(`ent: validator failed for field "FacilityBooking.amount": %w`, err)}
@@ -349,6 +415,12 @@ func (_u *FacilityBookingUpdate) sqlSave(ctx context.Context) (_node int, err er
 	if value, ok := _u.mutation.TenantID(); ok {
 		_spec.SetField(facilitybooking.FieldTenantID, field.TypeUUID, value)
 	}
+	if value, ok := _u.mutation.OutletID(); ok {
+		_spec.SetField(facilitybooking.FieldOutletID, field.TypeUUID, value)
+	}
+	if _u.mutation.OutletIDCleared() {
+		_spec.ClearField(facilitybooking.FieldOutletID, field.TypeUUID)
+	}
 	if value, ok := _u.mutation.RoomGuestID(); ok {
 		_spec.SetField(facilitybooking.FieldRoomGuestID, field.TypeUUID, value)
 	}
@@ -375,6 +447,18 @@ func (_u *FacilityBookingUpdate) sqlSave(ctx context.Context) (_node int, err er
 	}
 	if value, ok := _u.mutation.AddedGuestsCount(); ok {
 		_spec.AddField(facilitybooking.FieldGuestsCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.Seats(); ok {
+		_spec.SetField(facilitybooking.FieldSeats, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedSeats(); ok {
+		_spec.AddField(facilitybooking.FieldSeats, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.PosOrderID(); ok {
+		_spec.SetField(facilitybooking.FieldPosOrderID, field.TypeUUID, value)
+	}
+	if _u.mutation.PosOrderIDCleared() {
+		_spec.ClearField(facilitybooking.FieldPosOrderID, field.TypeUUID)
 	}
 	if value, ok := _u.mutation.Amount(); ok {
 		_spec.SetField(facilitybooking.FieldAmount, field.TypeFloat64, value)
@@ -474,6 +558,26 @@ func (_u *FacilityBookingUpdateOne) SetNillableFacilityID(v *uuid.UUID) *Facilit
 	if v != nil {
 		_u.SetFacilityID(*v)
 	}
+	return _u
+}
+
+// SetOutletID sets the "outlet_id" field.
+func (_u *FacilityBookingUpdateOne) SetOutletID(v uuid.UUID) *FacilityBookingUpdateOne {
+	_u.mutation.SetOutletID(v)
+	return _u
+}
+
+// SetNillableOutletID sets the "outlet_id" field if the given value is not nil.
+func (_u *FacilityBookingUpdateOne) SetNillableOutletID(v *uuid.UUID) *FacilityBookingUpdateOne {
+	if v != nil {
+		_u.SetOutletID(*v)
+	}
+	return _u
+}
+
+// ClearOutletID clears the value of the "outlet_id" field.
+func (_u *FacilityBookingUpdateOne) ClearOutletID() *FacilityBookingUpdateOne {
+	_u.mutation.ClearOutletID()
 	return _u
 }
 
@@ -585,6 +689,47 @@ func (_u *FacilityBookingUpdateOne) SetNillableGuestsCount(v *int) *FacilityBook
 // AddGuestsCount adds value to the "guests_count" field.
 func (_u *FacilityBookingUpdateOne) AddGuestsCount(v int) *FacilityBookingUpdateOne {
 	_u.mutation.AddGuestsCount(v)
+	return _u
+}
+
+// SetSeats sets the "seats" field.
+func (_u *FacilityBookingUpdateOne) SetSeats(v int) *FacilityBookingUpdateOne {
+	_u.mutation.ResetSeats()
+	_u.mutation.SetSeats(v)
+	return _u
+}
+
+// SetNillableSeats sets the "seats" field if the given value is not nil.
+func (_u *FacilityBookingUpdateOne) SetNillableSeats(v *int) *FacilityBookingUpdateOne {
+	if v != nil {
+		_u.SetSeats(*v)
+	}
+	return _u
+}
+
+// AddSeats adds value to the "seats" field.
+func (_u *FacilityBookingUpdateOne) AddSeats(v int) *FacilityBookingUpdateOne {
+	_u.mutation.AddSeats(v)
+	return _u
+}
+
+// SetPosOrderID sets the "pos_order_id" field.
+func (_u *FacilityBookingUpdateOne) SetPosOrderID(v uuid.UUID) *FacilityBookingUpdateOne {
+	_u.mutation.SetPosOrderID(v)
+	return _u
+}
+
+// SetNillablePosOrderID sets the "pos_order_id" field if the given value is not nil.
+func (_u *FacilityBookingUpdateOne) SetNillablePosOrderID(v *uuid.UUID) *FacilityBookingUpdateOne {
+	if v != nil {
+		_u.SetPosOrderID(*v)
+	}
+	return _u
+}
+
+// ClearPosOrderID clears the value of the "pos_order_id" field.
+func (_u *FacilityBookingUpdateOne) ClearPosOrderID() *FacilityBookingUpdateOne {
+	_u.mutation.ClearPosOrderID()
 	return _u
 }
 
@@ -750,6 +895,11 @@ func (_u *FacilityBookingUpdateOne) check() error {
 			return &ValidationError{Name: "guests_count", err: fmt.Errorf(`ent: validator failed for field "FacilityBooking.guests_count": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.Seats(); ok {
+		if err := facilitybooking.SeatsValidator(v); err != nil {
+			return &ValidationError{Name: "seats", err: fmt.Errorf(`ent: validator failed for field "FacilityBooking.seats": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Amount(); ok {
 		if err := facilitybooking.AmountValidator(v); err != nil {
 			return &ValidationError{Name: "amount", err: fmt.Errorf(`ent: validator failed for field "FacilityBooking.amount": %w`, err)}
@@ -798,6 +948,12 @@ func (_u *FacilityBookingUpdateOne) sqlSave(ctx context.Context) (_node *Facilit
 	if value, ok := _u.mutation.TenantID(); ok {
 		_spec.SetField(facilitybooking.FieldTenantID, field.TypeUUID, value)
 	}
+	if value, ok := _u.mutation.OutletID(); ok {
+		_spec.SetField(facilitybooking.FieldOutletID, field.TypeUUID, value)
+	}
+	if _u.mutation.OutletIDCleared() {
+		_spec.ClearField(facilitybooking.FieldOutletID, field.TypeUUID)
+	}
 	if value, ok := _u.mutation.RoomGuestID(); ok {
 		_spec.SetField(facilitybooking.FieldRoomGuestID, field.TypeUUID, value)
 	}
@@ -824,6 +980,18 @@ func (_u *FacilityBookingUpdateOne) sqlSave(ctx context.Context) (_node *Facilit
 	}
 	if value, ok := _u.mutation.AddedGuestsCount(); ok {
 		_spec.AddField(facilitybooking.FieldGuestsCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.Seats(); ok {
+		_spec.SetField(facilitybooking.FieldSeats, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedSeats(); ok {
+		_spec.AddField(facilitybooking.FieldSeats, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.PosOrderID(); ok {
+		_spec.SetField(facilitybooking.FieldPosOrderID, field.TypeUUID, value)
+	}
+	if _u.mutation.PosOrderIDCleared() {
+		_spec.ClearField(facilitybooking.FieldPosOrderID, field.TypeUUID)
 	}
 	if value, ok := _u.mutation.Amount(); ok {
 		_spec.SetField(facilitybooking.FieldAmount, field.TypeFloat64, value)

@@ -2681,6 +2681,16 @@ func ReturnWindowDaysNotNil() predicate.OutletSetting {
 	return predicate.OutletSetting(sql.FieldNotNull(FieldReturnWindowDays))
 }
 
+// CatalogUseCasesIsNil applies the IsNil predicate on the "catalog_use_cases" field.
+func CatalogUseCasesIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldCatalogUseCases))
+}
+
+// CatalogUseCasesNotNil applies the NotNil predicate on the "catalog_use_cases" field.
+func CatalogUseCasesNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldCatalogUseCases))
+}
+
 // UpdatedAtEQ applies the EQ predicate on the "updated_at" field.
 func UpdatedAtEQ(v time.Time) predicate.OutletSetting {
 	return predicate.OutletSetting(sql.FieldEQ(FieldUpdatedAt, v))

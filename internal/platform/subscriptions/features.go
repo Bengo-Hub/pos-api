@@ -12,6 +12,12 @@ const (
 	FeatureLoyalty         = "loyalty_program"
 	FeatureOnlineOrdering  = "online_ordering"
 	FeatureShiftReports    = "shift_reports"
+	// FeatureFacilityBooking gates bookable-space management (co-working desks, conference/
+	// meeting rooms) — sell + capacity-manage a Facility from the till. Seeded on POS_HOSP_PRO
+	// and up (cmd/seed/plans_pos_lines.go); Starter does not include it. Deliberately decoupled
+	// from FeatureHotelModule (rooms/check-in/folio) — a cafe with spare floor space shouldn't
+	// need the full hotel PMS just to sell co-working.
+	FeatureFacilityBooking = "facility_booking"
 )
 
 // Structural plan-limit keys (hard-block, no overage — require a plan upgrade).

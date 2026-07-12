@@ -683,6 +683,12 @@ func (_c *OutletSettingCreate) SetNillableReturnWindowDays(v *int) *OutletSettin
 	return _c
 }
 
+// SetCatalogUseCases sets the "catalog_use_cases" field.
+func (_c *OutletSettingCreate) SetCatalogUseCases(v []string) *OutletSettingCreate {
+	_c.mutation.SetCatalogUseCases(v)
+	return _c
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_c *OutletSettingCreate) SetUpdatedAt(v time.Time) *OutletSettingCreate {
 	_c.mutation.SetUpdatedAt(v)
@@ -866,6 +872,10 @@ func (_c *OutletSettingCreate) defaults() {
 	if _, ok := _c.mutation.ReturnWindowDays(); !ok {
 		v := outletsetting.DefaultReturnWindowDays
 		_c.mutation.SetReturnWindowDays(v)
+	}
+	if _, ok := _c.mutation.CatalogUseCases(); !ok {
+		v := outletsetting.DefaultCatalogUseCases
+		_c.mutation.SetCatalogUseCases(v)
 	}
 	if _, ok := _c.mutation.UpdatedAt(); !ok {
 		v := outletsetting.DefaultUpdatedAt()
@@ -1126,6 +1136,10 @@ func (_c *OutletSettingCreate) createSpec() (*OutletSetting, *sqlgraph.CreateSpe
 	if value, ok := _c.mutation.ReturnWindowDays(); ok {
 		_spec.SetField(outletsetting.FieldReturnWindowDays, field.TypeInt, value)
 		_node.ReturnWindowDays = value
+	}
+	if value, ok := _c.mutation.CatalogUseCases(); ok {
+		_spec.SetField(outletsetting.FieldCatalogUseCases, field.TypeJSON, value)
+		_node.CatalogUseCases = value
 	}
 	if value, ok := _c.mutation.UpdatedAt(); ok {
 		_spec.SetField(outletsetting.FieldUpdatedAt, field.TypeTime, value)
@@ -2133,6 +2147,24 @@ func (u *OutletSettingUpsert) AddReturnWindowDays(v int) *OutletSettingUpsert {
 // ClearReturnWindowDays clears the value of the "return_window_days" field.
 func (u *OutletSettingUpsert) ClearReturnWindowDays() *OutletSettingUpsert {
 	u.SetNull(outletsetting.FieldReturnWindowDays)
+	return u
+}
+
+// SetCatalogUseCases sets the "catalog_use_cases" field.
+func (u *OutletSettingUpsert) SetCatalogUseCases(v []string) *OutletSettingUpsert {
+	u.Set(outletsetting.FieldCatalogUseCases, v)
+	return u
+}
+
+// UpdateCatalogUseCases sets the "catalog_use_cases" field to the value that was provided on create.
+func (u *OutletSettingUpsert) UpdateCatalogUseCases() *OutletSettingUpsert {
+	u.SetExcluded(outletsetting.FieldCatalogUseCases)
+	return u
+}
+
+// ClearCatalogUseCases clears the value of the "catalog_use_cases" field.
+func (u *OutletSettingUpsert) ClearCatalogUseCases() *OutletSettingUpsert {
+	u.SetNull(outletsetting.FieldCatalogUseCases)
 	return u
 }
 
@@ -3285,6 +3317,27 @@ func (u *OutletSettingUpsertOne) UpdateReturnWindowDays() *OutletSettingUpsertOn
 func (u *OutletSettingUpsertOne) ClearReturnWindowDays() *OutletSettingUpsertOne {
 	return u.Update(func(s *OutletSettingUpsert) {
 		s.ClearReturnWindowDays()
+	})
+}
+
+// SetCatalogUseCases sets the "catalog_use_cases" field.
+func (u *OutletSettingUpsertOne) SetCatalogUseCases(v []string) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetCatalogUseCases(v)
+	})
+}
+
+// UpdateCatalogUseCases sets the "catalog_use_cases" field to the value that was provided on create.
+func (u *OutletSettingUpsertOne) UpdateCatalogUseCases() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateCatalogUseCases()
+	})
+}
+
+// ClearCatalogUseCases clears the value of the "catalog_use_cases" field.
+func (u *OutletSettingUpsertOne) ClearCatalogUseCases() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearCatalogUseCases()
 	})
 }
 
@@ -4606,6 +4659,27 @@ func (u *OutletSettingUpsertBulk) UpdateReturnWindowDays() *OutletSettingUpsertB
 func (u *OutletSettingUpsertBulk) ClearReturnWindowDays() *OutletSettingUpsertBulk {
 	return u.Update(func(s *OutletSettingUpsert) {
 		s.ClearReturnWindowDays()
+	})
+}
+
+// SetCatalogUseCases sets the "catalog_use_cases" field.
+func (u *OutletSettingUpsertBulk) SetCatalogUseCases(v []string) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetCatalogUseCases(v)
+	})
+}
+
+// UpdateCatalogUseCases sets the "catalog_use_cases" field to the value that was provided on create.
+func (u *OutletSettingUpsertBulk) UpdateCatalogUseCases() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateCatalogUseCases()
+	})
+}
+
+// ClearCatalogUseCases clears the value of the "catalog_use_cases" field.
+func (u *OutletSettingUpsertBulk) ClearCatalogUseCases() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearCatalogUseCases()
 	})
 }
 

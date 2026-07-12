@@ -71,6 +71,20 @@ func (_c *FacilityCreate) SetNillableCapacity(v *int) *FacilityCreate {
 	return _c
 }
 
+// SetBookingMode sets the "booking_mode" field.
+func (_c *FacilityCreate) SetBookingMode(v facility.BookingMode) *FacilityCreate {
+	_c.mutation.SetBookingMode(v)
+	return _c
+}
+
+// SetNillableBookingMode sets the "booking_mode" field if the given value is not nil.
+func (_c *FacilityCreate) SetNillableBookingMode(v *facility.BookingMode) *FacilityCreate {
+	if v != nil {
+		_c.SetBookingMode(*v)
+	}
+	return _c
+}
+
 // SetInventoryItemID sets the "inventory_item_id" field.
 func (_c *FacilityCreate) SetInventoryItemID(v uuid.UUID) *FacilityCreate {
 	_c.mutation.SetInventoryItemID(v)
@@ -301,6 +315,10 @@ func (_c *FacilityCreate) defaults() {
 		v := facility.DefaultCapacity
 		_c.mutation.SetCapacity(v)
 	}
+	if _, ok := _c.mutation.BookingMode(); !ok {
+		v := facility.DefaultBookingMode
+		_c.mutation.SetBookingMode(v)
+	}
 	if _, ok := _c.mutation.Currency(); !ok {
 		v := facility.DefaultCurrency
 		_c.mutation.SetCurrency(v)
@@ -373,6 +391,14 @@ func (_c *FacilityCreate) check() error {
 	if v, ok := _c.mutation.Capacity(); ok {
 		if err := facility.CapacityValidator(v); err != nil {
 			return &ValidationError{Name: "capacity", err: fmt.Errorf(`ent: validator failed for field "Facility.capacity": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.BookingMode(); !ok {
+		return &ValidationError{Name: "booking_mode", err: errors.New(`ent: missing required field "Facility.booking_mode"`)}
+	}
+	if v, ok := _c.mutation.BookingMode(); ok {
+		if err := facility.BookingModeValidator(v); err != nil {
+			return &ValidationError{Name: "booking_mode", err: fmt.Errorf(`ent: validator failed for field "Facility.booking_mode": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.RatePerSession(); !ok {
@@ -470,6 +496,10 @@ func (_c *FacilityCreate) createSpec() (*Facility, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Capacity(); ok {
 		_spec.SetField(facility.FieldCapacity, field.TypeInt, value)
 		_node.Capacity = value
+	}
+	if value, ok := _c.mutation.BookingMode(); ok {
+		_spec.SetField(facility.FieldBookingMode, field.TypeEnum, value)
+		_node.BookingMode = value
 	}
 	if value, ok := _c.mutation.InventoryItemID(); ok {
 		_spec.SetField(facility.FieldInventoryItemID, field.TypeUUID, value)
@@ -654,6 +684,18 @@ func (u *FacilityUpsert) UpdateCapacity() *FacilityUpsert {
 // AddCapacity adds v to the "capacity" field.
 func (u *FacilityUpsert) AddCapacity(v int) *FacilityUpsert {
 	u.Add(facility.FieldCapacity, v)
+	return u
+}
+
+// SetBookingMode sets the "booking_mode" field.
+func (u *FacilityUpsert) SetBookingMode(v facility.BookingMode) *FacilityUpsert {
+	u.Set(facility.FieldBookingMode, v)
+	return u
+}
+
+// UpdateBookingMode sets the "booking_mode" field to the value that was provided on create.
+func (u *FacilityUpsert) UpdateBookingMode() *FacilityUpsert {
+	u.SetExcluded(facility.FieldBookingMode)
 	return u
 }
 
@@ -950,6 +992,20 @@ func (u *FacilityUpsertOne) AddCapacity(v int) *FacilityUpsertOne {
 func (u *FacilityUpsertOne) UpdateCapacity() *FacilityUpsertOne {
 	return u.Update(func(s *FacilityUpsert) {
 		s.UpdateCapacity()
+	})
+}
+
+// SetBookingMode sets the "booking_mode" field.
+func (u *FacilityUpsertOne) SetBookingMode(v facility.BookingMode) *FacilityUpsertOne {
+	return u.Update(func(s *FacilityUpsert) {
+		s.SetBookingMode(v)
+	})
+}
+
+// UpdateBookingMode sets the "booking_mode" field to the value that was provided on create.
+func (u *FacilityUpsertOne) UpdateBookingMode() *FacilityUpsertOne {
+	return u.Update(func(s *FacilityUpsert) {
+		s.UpdateBookingMode()
 	})
 }
 
@@ -1441,6 +1497,20 @@ func (u *FacilityUpsertBulk) AddCapacity(v int) *FacilityUpsertBulk {
 func (u *FacilityUpsertBulk) UpdateCapacity() *FacilityUpsertBulk {
 	return u.Update(func(s *FacilityUpsert) {
 		s.UpdateCapacity()
+	})
+}
+
+// SetBookingMode sets the "booking_mode" field.
+func (u *FacilityUpsertBulk) SetBookingMode(v facility.BookingMode) *FacilityUpsertBulk {
+	return u.Update(func(s *FacilityUpsert) {
+		s.SetBookingMode(v)
+	})
+}
+
+// UpdateBookingMode sets the "booking_mode" field to the value that was provided on create.
+func (u *FacilityUpsertBulk) UpdateBookingMode() *FacilityUpsertBulk {
+	return u.Update(func(s *FacilityUpsert) {
+		s.UpdateBookingMode()
 	})
 }
 

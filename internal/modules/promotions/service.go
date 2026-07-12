@@ -262,59 +262,207 @@ type LineDiscount struct {
 	Label   string          `json:"label"`
 }
 
-// AutoDiscountResult is the winning auto-apply discount for an order (best of all active promos).
+// AutoDiscountResult is the combined auto-apply discount for an order. Multiple happy-hour promos
+// STACK: each covers its own scoped items, so an order with a cocktail deal AND a pizza deal gets
+// BOTH savings (a given SKU is only ever discounted by the single best promo covering it — no
+// double-dip). PromoID/PromoName name the largest contributor for order-level attribution;
+// ContributingPromoIDs + PerPromoAmount let the caller write one audit row per promo that helped.
 type AutoDiscountResult struct {
 	PromoID   uuid.UUID
 	PromoName string
 	Discount  decimal.Decimal
 	// PerSKU maps a scoped SKU → its share of the discount + a display label. Empty for
 	// storewide percentage/fixed discounts that don't attribute to specific lines.
-	PerSKU map[string]LineDiscount
+	PerSKU               map[string]LineDiscount
+	ContributingPromoIDs []uuid.UUID
+	PerPromoAmount       map[uuid.UUID]decimal.Decimal
 }
 
-// EvaluateAutoDiscount returns the best auto-apply (happy-hour / negotiated meal) discount for an
-// outlet at now, ENFORCING each rule's scope and discount type. This fixes the prior gaps:
-//   - scope_type=item → only lines whose SKU is in scope_ids are discounted (e.g. a lunch/beverages deal)
-//   - discount_type=fixed_price → the scoped lines are repriced to discount_value (negotiated meal price)
-//   - returns the promo id so the caller can write a PromotionApplication audit row
-//
-// scope_type=category is treated as "all" here (best-effort) since order lines don't carry category;
-// category targeting is handled upstream when lines are tagged. meal_period is informational metadata
-// used for reporting/targeting and does not change the math (the negotiated rate is the discount itself).
-func (s *Service) EvaluateAutoDiscount(ctx context.Context, tenantID, outletID uuid.UUID, lines []DiscountLine) AutoDiscountResult {
-	subtotal := decimal.Zero
-	for _, l := range lines {
-		subtotal = subtotal.Add(l.Total)
+// TimedDiscountLine is a DiscountLine plus WHEN it was added to the bill. Happy-hour eligibility is
+// decided per line by AddedAt (localized to the outlet), so a drink rung up during the window earns
+// the deal even on a tab opened earlier, and one added before the window does not. A zero AddedAt
+// means "now" (a line being added this moment).
+type TimedDiscountLine struct {
+	DiscountLine
+	AddedAt time.Time
+}
+
+// allHappyHourPromos loads every auto-apply happy-hour promo for the outlet REGARDLESS of the
+// current time — the timed evaluator checks each promo against each line's own add-time, so it must
+// see promos that aren't live at time.Now() (e.g. evaluating a line added earlier during the window).
+func (s *Service) allHappyHourPromos(ctx context.Context, tenantID uuid.UUID, outletID *uuid.UUID) ([]*ent.Promotion, error) {
+	promos, err := s.client.Promotion.Query().Where(
+		promotion.TenantID(tenantID),
+		promotion.PromoKindEQ(promotion.PromoKindHappyHour),
+		promotion.StatusEQ("active"),
+		promotion.AutoApply(true),
+	).All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("promotions: query happy hours: %w", err)
 	}
-	if subtotal.LessThanOrEqual(decimal.Zero) {
+	out := make([]*ent.Promotion, 0, len(promos))
+	for _, p := range promos {
+		if p.OutletID != nil && (outletID == nil || *p.OutletID != *outletID) {
+			continue
+		}
+		out = append(out, p)
+	}
+	return out, nil
+}
+
+// EvaluateTimedOrderDiscounts computes the combined happy-hour discount for an order's lines,
+// STACKING every applicable promo and honouring each line's add-time window eligibility. This is
+// the canonical evaluator: it fixes (a) only-one-promo-applies (each promo discounts its own scope,
+// summed; a SKU covered by two promos takes the better, never both) and (b) open-bill-before-window
+// (a line added inside the window qualifies even if the bill was opened earlier; one added outside
+// does not). For each promo, only the lines whose AddedAt falls in that promo's schedule take part
+// in its rule (so BOGO pairing also only counts in-window units).
+func (s *Service) EvaluateTimedOrderDiscounts(ctx context.Context, tenantID, outletID uuid.UUID, lines []TimedDiscountLine) AutoDiscountResult {
+	if len(lines) == 0 {
 		return AutoDiscountResult{}
 	}
 	var outletPtr *uuid.UUID
 	if outletID != uuid.Nil {
 		outletPtr = &outletID
 	}
-	active, err := s.ActiveHappyHours(ctx, tenantID, outletPtr, time.Now())
-	if err != nil || len(active) == 0 {
+	promos, err := s.allHappyHourPromos(ctx, tenantID, outletPtr)
+	if err != nil || len(promos) == 0 {
 		return AutoDiscountResult{}
 	}
-
-	best := AutoDiscountResult{}
-	for _, p := range active {
+	items := make([]promoWithRule, 0, len(promos))
+	for _, p := range promos {
 		rule, rErr := s.client.PromotionRule.Query().Where(promotionrule.PromotionID(p.ID)).First(ctx)
 		if rErr != nil || rule == nil {
 			continue
 		}
+		items = append(items, promoWithRule{promo: p, rule: rule})
+	}
+	return s.combineTimedDiscounts(items, lines, s.outletTimezone(ctx, outletPtr))
+}
 
-		d, perSKU := s.evaluateRule(rule, lines, subtotal)
-		if d.GreaterThan(best.Discount) {
-			best = AutoDiscountResult{PromoID: p.ID, PromoName: p.Name, Discount: d, PerSKU: perSKU}
+// promoWithRule pairs a promotion with its (single) discount rule — the loaded input to the pure
+// combiner below, kept separate so the stacking/timing logic can be unit-tested without a DB.
+type promoWithRule struct {
+	promo *ent.Promotion
+	rule  *ent.PromotionRule
+}
+
+// combineTimedDiscounts is the pure core of the timed, stacking evaluator (no DB access): given the
+// already-loaded promos+rules and the order's timed lines, it (1) filters each promo to the lines
+// added within ITS window (localized), (2) runs each rule over that subset, and (3) merges per-SKU
+// taking the single best promo per SKU (no double-dip) plus any storewide contributions, capping the
+// grand total at the order subtotal. Exhaustively unit-tested; EvaluateTimedOrderDiscounts is the
+// thin DB-loading wrapper.
+func (s *Service) combineTimedDiscounts(items []promoWithRule, lines []TimedDiscountLine, loc *time.Location) AutoDiscountResult {
+	if len(items) == 0 || len(lines) == 0 {
+		return AutoDiscountResult{}
+	}
+	if loc == nil {
+		loc = time.UTC
+	}
+	now := time.Now()
+
+	orderSubtotal := decimal.Zero
+	for _, tl := range lines {
+		orderSubtotal = orderSubtotal.Add(tl.Total)
+	}
+
+	combinedPerSKU := map[string]LineDiscount{} // sku → best discount across promos
+	promoBySKU := map[string]uuid.UUID{}        // sku → promo currently crediting it
+	promoNames := map[uuid.UUID]string{}
+	perPromo := map[uuid.UUID]decimal.Decimal{} // promo → total it contributes (net of reassignments)
+	storewideTotal := decimal.Zero              // unattributed (storewide) contributions
+
+	for _, it := range items {
+		p, rule := it.promo, it.rule
+		if rule == nil {
+			continue
+		}
+		// Keep only lines added within THIS promo's window (localized).
+		eligible := make([]DiscountLine, 0, len(lines))
+		eligSub := decimal.Zero
+		for _, tl := range lines {
+			when := tl.AddedAt
+			if when.IsZero() {
+				when = now
+			}
+			if s.isWithinSchedule(p, when.In(loc)) {
+				eligible = append(eligible, tl.DiscountLine)
+				eligSub = eligSub.Add(tl.Total)
+			}
+		}
+		if len(eligible) == 0 {
+			continue
+		}
+		total, perSKU := s.evaluateRule(rule, eligible, eligSub)
+		if len(perSKU) > 0 {
+			promoNames[p.ID] = p.Name
+			for sku, ld := range perSKU {
+				existing, ok := combinedPerSKU[sku]
+				if ok && !ld.Amount.GreaterThan(existing.Amount) {
+					continue // a better (or equal) promo already claimed this SKU — no double-dip
+				}
+				if ok { // reassign this SKU to the better promo; credit back the loser
+					prev := promoBySKU[sku]
+					perPromo[prev] = perPromo[prev].Sub(existing.Amount)
+				}
+				combinedPerSKU[sku] = ld
+				promoBySKU[sku] = p.ID
+				perPromo[p.ID] = perPromo[p.ID].Add(ld.Amount)
+			}
+		} else if total.IsPositive() {
+			// Storewide/unattributed discount (no per-SKU scope) — add additively. Real tenants run
+			// item-scoped happy hours so this path is rare; capped against the subtotal below.
+			promoNames[p.ID] = p.Name
+			perPromo[p.ID] = perPromo[p.ID].Add(total)
+			storewideTotal = storewideTotal.Add(total)
 		}
 	}
-	if best.Discount.GreaterThan(subtotal) {
-		best.Discount = subtotal
+
+	grand := storewideTotal
+	for _, ld := range combinedPerSKU {
+		grand = grand.Add(ld.Amount)
 	}
-	best.Discount = best.Discount.Round(2)
-	return best
+	if grand.LessThanOrEqual(decimal.Zero) {
+		return AutoDiscountResult{}
+	}
+	if grand.GreaterThan(orderSubtotal) {
+		grand = orderSubtotal
+	}
+
+	// Representative promo (largest contributor) + the full contributing set for audit rows.
+	var bestPromo uuid.UUID
+	bestAmt := decimal.Zero
+	contributing := make([]uuid.UUID, 0, len(perPromo))
+	for id, amt := range perPromo {
+		if amt.IsPositive() {
+			contributing = append(contributing, id)
+			if amt.GreaterThan(bestAmt) {
+				bestAmt = amt
+				bestPromo = id
+			}
+		}
+	}
+	return AutoDiscountResult{
+		PromoID:              bestPromo,
+		PromoName:            promoNames[bestPromo],
+		Discount:             grand.Round(2),
+		PerSKU:               combinedPerSKU,
+		ContributingPromoIDs: contributing,
+		PerPromoAmount:       perPromo,
+	}
+}
+
+// EvaluateAutoDiscount returns the combined auto-apply discount for an outlet, treating all lines as
+// added NOW. It delegates to EvaluateTimedOrderDiscounts (stacking + scope enforcement), so callers
+// that don't track per-line add times still get every applicable promo — not just the single best.
+// Prefer EvaluateTimedOrderDiscounts directly when you have real per-line timestamps (open bills).
+func (s *Service) EvaluateAutoDiscount(ctx context.Context, tenantID, outletID uuid.UUID, lines []DiscountLine) AutoDiscountResult {
+	timed := make([]TimedDiscountLine, len(lines))
+	for i, l := range lines {
+		timed[i] = TimedDiscountLine{DiscountLine: l} // zero AddedAt → treated as "now"
+	}
+	return s.EvaluateTimedOrderDiscounts(ctx, tenantID, outletID, timed)
 }
 
 // evaluateRule computes the discount for a single rule against the cart, returning the total

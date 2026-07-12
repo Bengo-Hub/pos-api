@@ -117,6 +117,8 @@ const (
 	FieldDefaultWarehouseID = "default_warehouse_id"
 	// FieldReturnWindowDays holds the string denoting the return_window_days field in the database.
 	FieldReturnWindowDays = "return_window_days"
+	// FieldCatalogUseCases holds the string denoting the catalog_use_cases field in the database.
+	FieldCatalogUseCases = "catalog_use_cases"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
 	FieldUpdatedAt = "updated_at"
 	// EdgeOutlet holds the string denoting the outlet edge name in mutations.
@@ -186,6 +188,7 @@ var Columns = []string{
 	FieldTableMaxOccupationMinutes,
 	FieldDefaultWarehouseID,
 	FieldReturnWindowDays,
+	FieldCatalogUseCases,
 	FieldUpdatedAt,
 }
 
@@ -258,6 +261,8 @@ var (
 	DefaultTableMaxOccupationMinutes int
 	// DefaultReturnWindowDays holds the default value on creation for the "return_window_days" field.
 	DefaultReturnWindowDays int
+	// DefaultCatalogUseCases holds the default value on creation for the "catalog_use_cases" field.
+	DefaultCatalogUseCases []string
 	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
 	DefaultUpdatedAt func() time.Time
 	// UpdateDefaultUpdatedAt holds the default value on update for the "updated_at" field.

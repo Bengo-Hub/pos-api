@@ -203,15 +203,18 @@ func New(ctx context.Context) (*App, error) {
 	// Auto-apply scope-enforced happy-hour / negotiated-meal discounts at checkout, and audit
 	// the applied promo (decoupled hooks into the orders service; app.go adapts the line types).
 	orderSvc.SetHappyHourEvaluator(
-		func(ctx context.Context, tenantID, outletID uuid.UUID, lines []ordermodule.OrderLineInput) ordermodule.HappyHourOutcome {
-			dls := make([]promommodule.DiscountLine, 0, len(lines))
+		func(ctx context.Context, tenantID, outletID uuid.UUID, lines []ordermodule.TimedOrderLine) ordermodule.HappyHourOutcome {
+			dls := make([]promommodule.TimedDiscountLine, 0, len(lines))
 			for _, l := range lines {
-				dls = append(dls, promommodule.DiscountLine{
-					SKU: l.SKU, Category: l.Category, Total: decimal.NewFromFloat(l.TotalPrice),
-					Quantity: l.Quantity, UnitPrice: decimal.NewFromFloat(l.UnitPrice),
+				dls = append(dls, promommodule.TimedDiscountLine{
+					DiscountLine: promommodule.DiscountLine{
+						SKU: l.SKU, Category: l.Category, Total: decimal.NewFromFloat(l.TotalPrice),
+						Quantity: l.Quantity, UnitPrice: decimal.NewFromFloat(l.UnitPrice),
+					},
+					AddedAt: l.AddedAt,
 				})
 			}
-			r := promoSvc.EvaluateAutoDiscount(ctx, tenantID, outletID, dls)
+			r := promoSvc.EvaluateTimedOrderDiscounts(ctx, tenantID, outletID, dls)
 			bySKU := make(map[string]ordermodule.HappyHourLine, len(r.PerSKU))
 			for sku, ld := range r.PerSKU {
 				bySKU[sku] = ordermodule.HappyHourLine{
@@ -222,10 +225,12 @@ func New(ctx context.Context) (*App, error) {
 				}
 			}
 			return ordermodule.HappyHourOutcome{
-				PromoID:   r.PromoID,
-				PromoName: r.PromoName,
-				Discount:  r.Discount,
-				BySKU:     bySKU,
+				PromoID:              r.PromoID,
+				PromoName:            r.PromoName,
+				Discount:             r.Discount,
+				BySKU:                bySKU,
+				ContributingPromoIDs: r.ContributingPromoIDs,
+				PerPromoAmount:       r.PerPromoAmount,
 			}
 		},
 		promoSvc.RecordApplication,

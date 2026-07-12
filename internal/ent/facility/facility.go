@@ -26,6 +26,8 @@ const (
 	FieldFacilityType = "facility_type"
 	// FieldCapacity holds the string denoting the capacity field in the database.
 	FieldCapacity = "capacity"
+	// FieldBookingMode holds the string denoting the booking_mode field in the database.
+	FieldBookingMode = "booking_mode"
 	// FieldInventoryItemID holds the string denoting the inventory_item_id field in the database.
 	FieldInventoryItemID = "inventory_item_id"
 	// FieldRatePerSession holds the string denoting the rate_per_session field in the database.
@@ -73,6 +75,7 @@ var Columns = []string{
 	FieldName,
 	FieldFacilityType,
 	FieldCapacity,
+	FieldBookingMode,
 	FieldInventoryItemID,
 	FieldRatePerSession,
 	FieldCurrency,
@@ -142,6 +145,7 @@ const (
 	FacilityTypeConference FacilityType = "conference"
 	FacilityTypeSpa        FacilityType = "spa"
 	FacilityTypeKidsArea   FacilityType = "kids_area"
+	FacilityTypeCoworking  FacilityType = "coworking"
 	FacilityTypeOther      FacilityType = "other"
 )
 
@@ -152,10 +156,36 @@ func (ft FacilityType) String() string {
 // FacilityTypeValidator is a validator for the "facility_type" field enum values. It is called by the builders before save.
 func FacilityTypeValidator(ft FacilityType) error {
 	switch ft {
-	case FacilityTypePool, FacilityTypeGym, FacilityTypeConference, FacilityTypeSpa, FacilityTypeKidsArea, FacilityTypeOther:
+	case FacilityTypePool, FacilityTypeGym, FacilityTypeConference, FacilityTypeSpa, FacilityTypeKidsArea, FacilityTypeCoworking, FacilityTypeOther:
 		return nil
 	default:
 		return fmt.Errorf("facility: invalid enum value for facility_type field: %q", ft)
+	}
+}
+
+// BookingMode defines the type for the "booking_mode" enum field.
+type BookingMode string
+
+// BookingModeExclusive is the default value of the BookingMode enum.
+const DefaultBookingMode = BookingModeExclusive
+
+// BookingMode values.
+const (
+	BookingModeExclusive BookingMode = "exclusive"
+	BookingModeShared    BookingMode = "shared"
+)
+
+func (bm BookingMode) String() string {
+	return string(bm)
+}
+
+// BookingModeValidator is a validator for the "booking_mode" field enum values. It is called by the builders before save.
+func BookingModeValidator(bm BookingMode) error {
+	switch bm {
+	case BookingModeExclusive, BookingModeShared:
+		return nil
+	default:
+		return fmt.Errorf("facility: invalid enum value for booking_mode field: %q", bm)
 	}
 }
 
@@ -218,6 +248,11 @@ func ByFacilityType(opts ...sql.OrderTermOption) OrderOption {
 // ByCapacity orders the results by the capacity field.
 func ByCapacity(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCapacity, opts...).ToFunc()
+}
+
+// ByBookingMode orders the results by the booking_mode field.
+func ByBookingMode(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBookingMode, opts...).ToFunc()
 }
 
 // ByInventoryItemID orders the results by the inventory_item_id field.

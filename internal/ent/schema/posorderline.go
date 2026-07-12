@@ -19,6 +19,16 @@ func (POSOrderLine) Fields() []ent.Field {
 			Default(uuid.New).
 			Immutable(),
 		field.UUID("order_id", uuid.UUID{}),
+		// When this specific line was added to the bill. Happy-hour eligibility is decided
+		// per-line by THIS timestamp (not the order's create time or the payment time), so a
+		// drink rung up during the window earns the deal even on a tab opened earlier — and one
+		// added before the window does not. Optional/Nillable so existing rows (backfilled to the
+		// order's created_at) and any client that omits it don't break; set to now on every create.
+		field.Time("created_at").
+			Optional().
+			Nillable().
+			Immutable().
+			Comment("Timestamp this line was added to the order; drives per-line happy-hour window eligibility"),
 		field.UUID("catalog_item_id", uuid.UUID{}),
 		field.String("sku").
 			NotEmpty(),

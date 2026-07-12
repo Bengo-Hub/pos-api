@@ -20,6 +20,8 @@ const (
 	FieldTenantID = "tenant_id"
 	// FieldFacilityID holds the string denoting the facility_id field in the database.
 	FieldFacilityID = "facility_id"
+	// FieldOutletID holds the string denoting the outlet_id field in the database.
+	FieldOutletID = "outlet_id"
 	// FieldRoomGuestID holds the string denoting the room_guest_id field in the database.
 	FieldRoomGuestID = "room_guest_id"
 	// FieldGuestName holds the string denoting the guest_name field in the database.
@@ -34,6 +36,10 @@ const (
 	FieldEndTime = "end_time"
 	// FieldGuestsCount holds the string denoting the guests_count field in the database.
 	FieldGuestsCount = "guests_count"
+	// FieldSeats holds the string denoting the seats field in the database.
+	FieldSeats = "seats"
+	// FieldPosOrderID holds the string denoting the pos_order_id field in the database.
+	FieldPosOrderID = "pos_order_id"
 	// FieldAmount holds the string denoting the amount field in the database.
 	FieldAmount = "amount"
 	// FieldCurrency holds the string denoting the currency field in the database.
@@ -66,6 +72,7 @@ var Columns = []string{
 	FieldID,
 	FieldTenantID,
 	FieldFacilityID,
+	FieldOutletID,
 	FieldRoomGuestID,
 	FieldGuestName,
 	FieldPhone,
@@ -73,6 +80,8 @@ var Columns = []string{
 	FieldStartTime,
 	FieldEndTime,
 	FieldGuestsCount,
+	FieldSeats,
+	FieldPosOrderID,
 	FieldAmount,
 	FieldCurrency,
 	FieldStatus,
@@ -101,6 +110,10 @@ var (
 	DefaultGuestsCount int
 	// GuestsCountValidator is a validator for the "guests_count" field. It is called by the builders before save.
 	GuestsCountValidator func(int) error
+	// DefaultSeats holds the default value on creation for the "seats" field.
+	DefaultSeats int
+	// SeatsValidator is a validator for the "seats" field. It is called by the builders before save.
+	SeatsValidator func(int) error
 	// AmountValidator is a validator for the "amount" field. It is called by the builders before save.
 	AmountValidator func(float64) error
 	// DefaultCurrency holds the default value on creation for the "currency" field.
@@ -158,6 +171,11 @@ func ByFacilityID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldFacilityID, opts...).ToFunc()
 }
 
+// ByOutletID orders the results by the outlet_id field.
+func ByOutletID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldOutletID, opts...).ToFunc()
+}
+
 // ByRoomGuestID orders the results by the room_guest_id field.
 func ByRoomGuestID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldRoomGuestID, opts...).ToFunc()
@@ -191,6 +209,16 @@ func ByEndTime(opts ...sql.OrderTermOption) OrderOption {
 // ByGuestsCount orders the results by the guests_count field.
 func ByGuestsCount(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldGuestsCount, opts...).ToFunc()
+}
+
+// BySeats orders the results by the seats field.
+func BySeats(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSeats, opts...).ToFunc()
+}
+
+// ByPosOrderID orders the results by the pos_order_id field.
+func ByPosOrderID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPosOrderID, opts...).ToFunc()
 }
 
 // ByAmount orders the results by the amount field.

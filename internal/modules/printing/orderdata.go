@@ -1,8 +1,25 @@
 package printing
 
 import (
+	"fmt"
+	"time"
+
 	"github.com/bengobox/pos-service/internal/ent"
 )
+
+// receiptLocation resolves the outlet's display timezone for receipt timestamps (schema default
+// Africa/Nairobi), falling back to that on any missing/invalid value so a line's add-time is shown
+// in the same wall-clock the rest of the receipt uses.
+func receiptLocation(outlet *ent.Outlet) *time.Location {
+	tz := "Africa/Nairobi"
+	if outlet != nil && outlet.Timezone != "" {
+		tz = outlet.Timezone
+	}
+	if loc, err := time.LoadLocation(tz); err == nil {
+		return loc
+	}
+	return time.UTC
+}
 
 // OrderReceiptData assembles the ESC/POS ReceiptData for an order — a thin adapter from the
 // canonical ReceiptView (BuildReceiptView) to the thermal-byte shape, shared by the /print
@@ -16,7 +33,7 @@ func OrderReceiptData(order *ent.POSOrder, lines []*ent.POSOrderLine, outlet *en
 		ServedBy:      servedBy,
 		VoidReason:    voidReason,
 	})
-	return receiptDataFromView(view)
+	return receiptDataFromView(view, receiptLocation(outlet))
 }
 
 // StationTicketData assembles the kitchen/bar chit for one station's routed items
@@ -55,10 +72,20 @@ func StationTicketData(order *ent.POSOrder, stationLabel string, items []map[str
 // every field the thermal printer can render (address, served-by, VAT-rate label, charges/
 // round-off, tendered/change, eTIMS, and the "HOW TO PAY" block) so an agent/background-printed
 // thermal receipt is informationally identical to the browser one.
-func receiptDataFromView(v ReceiptView) ReceiptData {
+func receiptDataFromView(v ReceiptView, loc *time.Location) ReceiptData {
+	if loc == nil {
+		loc = time.UTC
+	}
 	items := make([]ReceiptItem, 0, len(v.Lines))
 	for _, l := range v.Lines {
-		items = append(items, ReceiptItem{Name: l.Name, Quantity: l.Quantity, Price: l.UnitPrice, Total: l.TotalPrice})
+		it := ReceiptItem{Name: l.Name, Quantity: l.Quantity, Price: l.UnitPrice, Total: l.TotalPrice}
+		// Show the add-time for lines rung up meaningfully after the bill was opened (add-to-bill),
+		// so a happy-hour deal that depends on WHEN an item was added is auditable on the printout.
+		// Same-shot lines (added at order-open) carry no note, keeping simple receipts clean.
+		if l.AddedAt != nil && l.AddedAt.Sub(v.IssuedAt) >= time.Minute {
+			it.Notes = fmt.Sprintf("added %s", l.AddedAt.In(loc).Format("15:04"))
+		}
+		items = append(items, it)
 	}
 
 	var pm *ReceiptPaymentMethods

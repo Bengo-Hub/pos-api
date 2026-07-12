@@ -15,6 +15,8 @@ const (
 	FieldID = "id"
 	// FieldOrderID holds the string denoting the order_id field in the database.
 	FieldOrderID = "order_id"
+	// FieldCreatedAt holds the string denoting the created_at field in the database.
+	FieldCreatedAt = "created_at"
 	// FieldCatalogItemID holds the string denoting the catalog_item_id field in the database.
 	FieldCatalogItemID = "catalog_item_id"
 	// FieldSku holds the string denoting the sku field in the database.
@@ -89,6 +91,7 @@ const (
 var Columns = []string{
 	FieldID,
 	FieldOrderID,
+	FieldCreatedAt,
 	FieldCatalogItemID,
 	FieldSku,
 	FieldName,
@@ -151,6 +154,11 @@ func ByID(opts ...sql.OrderTermOption) OrderOption {
 // ByOrderID orders the results by the order_id field.
 func ByOrderID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldOrderID, opts...).ToFunc()
+}
+
+// ByCreatedAt orders the results by the created_at field.
+func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCreatedAt, opts...).ToFunc()
 }
 
 // ByCatalogItemID orders the results by the catalog_item_id field.

@@ -100,6 +100,17 @@ func (OutletSetting) Fields() []ent.Field {
 			Default(30).
 			Optional().
 			Comment("Max days after purchase to allow returns. 0 = no limit."),
+		// Hybrid catalog support — a single outlet often sells across more than one business
+		// vertical (e.g. a hospitality cafe that also sells co-working/conference SERVICE
+		// packages). The outlet's primary `use_case` still drives the default catalog
+		// type/category allow-list (assembleMenuItems); this field ADDITIONALLY unions in the
+		// item types + categories allowed for each listed use_case, so hybrid items reach the
+		// same terminal without reclassifying the outlet. Empty = unchanged legacy behavior
+		// (primary use_case only).
+		field.JSON("catalog_use_cases", []string{}).
+			Default([]string{}).
+			Optional().
+			Comment("Extra use_cases (beyond the outlet's primary use_case) whose item types/categories are also allowed on this outlet's POS catalog — enables hybrid selling."),
 		field.Time("updated_at").
 			Default(time.Now).
 			UpdateDefault(time.Now),

@@ -23,6 +23,10 @@ func (FacilityBooking) Fields() []ent.Field {
 			Immutable(),
 		field.UUID("tenant_id", uuid.UUID{}),
 		field.UUID("facility_id", uuid.UUID{}),
+		field.UUID("outlet_id", uuid.UUID{}).
+			Optional().
+			Nillable().
+			Comment("Outlet the booking/sale belongs to — set for terminal/co-working bookings, nil for legacy"),
 		field.UUID("room_guest_id", uuid.UUID{}).
 			Optional().
 			Nillable().
@@ -39,6 +43,19 @@ func (FacilityBooking) Fields() []ent.Field {
 		field.Int("guests_count").
 			Default(1).
 			Min(1),
+		// seats is how many of the facility's shared-capacity seats/desks THIS booking consumes
+		// (co-working). For exclusive facilities it is 1 (the booking holds the whole space).
+		field.Int("seats").
+			Default(1).
+			Min(1).
+			Comment("Seats consumed from a shared facility's capacity (co-working); 1 for exclusive spaces"),
+		// pos_order_id links the booking to the POS sale that CHARGED it, so co-working revenue
+		// flows through the normal order → payment → treasury pipeline (not a standalone amount).
+		// nil = not yet charged (walk-in/front-desk reservation pending settlement at the till).
+		field.UUID("pos_order_id", uuid.UUID{}).
+			Optional().
+			Nillable().
+			Comment("POS order that charged this booking (co-working sold at the till); nil = uncharged reservation"),
 		field.Float("amount").
 			Min(0),
 		field.String("currency").

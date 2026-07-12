@@ -108,6 +108,20 @@ func (_u *FacilityUpdate) AddCapacity(v int) *FacilityUpdate {
 	return _u
 }
 
+// SetBookingMode sets the "booking_mode" field.
+func (_u *FacilityUpdate) SetBookingMode(v facility.BookingMode) *FacilityUpdate {
+	_u.mutation.SetBookingMode(v)
+	return _u
+}
+
+// SetNillableBookingMode sets the "booking_mode" field if the given value is not nil.
+func (_u *FacilityUpdate) SetNillableBookingMode(v *facility.BookingMode) *FacilityUpdate {
+	if v != nil {
+		_u.SetBookingMode(*v)
+	}
+	return _u
+}
+
 // SetInventoryItemID sets the "inventory_item_id" field.
 func (_u *FacilityUpdate) SetInventoryItemID(v uuid.UUID) *FacilityUpdate {
 	_u.mutation.SetInventoryItemID(v)
@@ -377,6 +391,11 @@ func (_u *FacilityUpdate) check() error {
 			return &ValidationError{Name: "capacity", err: fmt.Errorf(`ent: validator failed for field "Facility.capacity": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.BookingMode(); ok {
+		if err := facility.BookingModeValidator(v); err != nil {
+			return &ValidationError{Name: "booking_mode", err: fmt.Errorf(`ent: validator failed for field "Facility.booking_mode": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.RatePerSession(); ok {
 		if err := facility.RatePerSessionValidator(v); err != nil {
 			return &ValidationError{Name: "rate_per_session", err: fmt.Errorf(`ent: validator failed for field "Facility.rate_per_session": %w`, err)}
@@ -419,6 +438,9 @@ func (_u *FacilityUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.AddedCapacity(); ok {
 		_spec.AddField(facility.FieldCapacity, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.BookingMode(); ok {
+		_spec.SetField(facility.FieldBookingMode, field.TypeEnum, value)
 	}
 	if value, ok := _u.mutation.InventoryItemID(); ok {
 		_spec.SetField(facility.FieldInventoryItemID, field.TypeUUID, value)
@@ -612,6 +634,20 @@ func (_u *FacilityUpdateOne) SetNillableCapacity(v *int) *FacilityUpdateOne {
 // AddCapacity adds value to the "capacity" field.
 func (_u *FacilityUpdateOne) AddCapacity(v int) *FacilityUpdateOne {
 	_u.mutation.AddCapacity(v)
+	return _u
+}
+
+// SetBookingMode sets the "booking_mode" field.
+func (_u *FacilityUpdateOne) SetBookingMode(v facility.BookingMode) *FacilityUpdateOne {
+	_u.mutation.SetBookingMode(v)
+	return _u
+}
+
+// SetNillableBookingMode sets the "booking_mode" field if the given value is not nil.
+func (_u *FacilityUpdateOne) SetNillableBookingMode(v *facility.BookingMode) *FacilityUpdateOne {
+	if v != nil {
+		_u.SetBookingMode(*v)
+	}
 	return _u
 }
 
@@ -897,6 +933,11 @@ func (_u *FacilityUpdateOne) check() error {
 			return &ValidationError{Name: "capacity", err: fmt.Errorf(`ent: validator failed for field "Facility.capacity": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.BookingMode(); ok {
+		if err := facility.BookingModeValidator(v); err != nil {
+			return &ValidationError{Name: "booking_mode", err: fmt.Errorf(`ent: validator failed for field "Facility.booking_mode": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.RatePerSession(); ok {
 		if err := facility.RatePerSessionValidator(v); err != nil {
 			return &ValidationError{Name: "rate_per_session", err: fmt.Errorf(`ent: validator failed for field "Facility.rate_per_session": %w`, err)}
@@ -956,6 +997,9 @@ func (_u *FacilityUpdateOne) sqlSave(ctx context.Context) (_node *Facility, err 
 	}
 	if value, ok := _u.mutation.AddedCapacity(); ok {
 		_spec.AddField(facility.FieldCapacity, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.BookingMode(); ok {
+		_spec.SetField(facility.FieldBookingMode, field.TypeEnum, value)
 	}
 	if value, ok := _u.mutation.InventoryItemID(); ok {
 		_spec.SetField(facility.FieldInventoryItemID, field.TypeUUID, value)

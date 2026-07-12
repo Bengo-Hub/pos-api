@@ -66,6 +66,11 @@ func FacilityID(v uuid.UUID) predicate.FacilityBooking {
 	return predicate.FacilityBooking(sql.FieldEQ(FieldFacilityID, v))
 }
 
+// OutletID applies equality check predicate on the "outlet_id" field. It's identical to OutletIDEQ.
+func OutletID(v uuid.UUID) predicate.FacilityBooking {
+	return predicate.FacilityBooking(sql.FieldEQ(FieldOutletID, v))
+}
+
 // RoomGuestID applies equality check predicate on the "room_guest_id" field. It's identical to RoomGuestIDEQ.
 func RoomGuestID(v uuid.UUID) predicate.FacilityBooking {
 	return predicate.FacilityBooking(sql.FieldEQ(FieldRoomGuestID, v))
@@ -99,6 +104,16 @@ func EndTime(v string) predicate.FacilityBooking {
 // GuestsCount applies equality check predicate on the "guests_count" field. It's identical to GuestsCountEQ.
 func GuestsCount(v int) predicate.FacilityBooking {
 	return predicate.FacilityBooking(sql.FieldEQ(FieldGuestsCount, v))
+}
+
+// Seats applies equality check predicate on the "seats" field. It's identical to SeatsEQ.
+func Seats(v int) predicate.FacilityBooking {
+	return predicate.FacilityBooking(sql.FieldEQ(FieldSeats, v))
+}
+
+// PosOrderID applies equality check predicate on the "pos_order_id" field. It's identical to PosOrderIDEQ.
+func PosOrderID(v uuid.UUID) predicate.FacilityBooking {
+	return predicate.FacilityBooking(sql.FieldEQ(FieldPosOrderID, v))
 }
 
 // Amount applies equality check predicate on the "amount" field. It's identical to AmountEQ.
@@ -184,6 +199,56 @@ func FacilityIDIn(vs ...uuid.UUID) predicate.FacilityBooking {
 // FacilityIDNotIn applies the NotIn predicate on the "facility_id" field.
 func FacilityIDNotIn(vs ...uuid.UUID) predicate.FacilityBooking {
 	return predicate.FacilityBooking(sql.FieldNotIn(FieldFacilityID, vs...))
+}
+
+// OutletIDEQ applies the EQ predicate on the "outlet_id" field.
+func OutletIDEQ(v uuid.UUID) predicate.FacilityBooking {
+	return predicate.FacilityBooking(sql.FieldEQ(FieldOutletID, v))
+}
+
+// OutletIDNEQ applies the NEQ predicate on the "outlet_id" field.
+func OutletIDNEQ(v uuid.UUID) predicate.FacilityBooking {
+	return predicate.FacilityBooking(sql.FieldNEQ(FieldOutletID, v))
+}
+
+// OutletIDIn applies the In predicate on the "outlet_id" field.
+func OutletIDIn(vs ...uuid.UUID) predicate.FacilityBooking {
+	return predicate.FacilityBooking(sql.FieldIn(FieldOutletID, vs...))
+}
+
+// OutletIDNotIn applies the NotIn predicate on the "outlet_id" field.
+func OutletIDNotIn(vs ...uuid.UUID) predicate.FacilityBooking {
+	return predicate.FacilityBooking(sql.FieldNotIn(FieldOutletID, vs...))
+}
+
+// OutletIDGT applies the GT predicate on the "outlet_id" field.
+func OutletIDGT(v uuid.UUID) predicate.FacilityBooking {
+	return predicate.FacilityBooking(sql.FieldGT(FieldOutletID, v))
+}
+
+// OutletIDGTE applies the GTE predicate on the "outlet_id" field.
+func OutletIDGTE(v uuid.UUID) predicate.FacilityBooking {
+	return predicate.FacilityBooking(sql.FieldGTE(FieldOutletID, v))
+}
+
+// OutletIDLT applies the LT predicate on the "outlet_id" field.
+func OutletIDLT(v uuid.UUID) predicate.FacilityBooking {
+	return predicate.FacilityBooking(sql.FieldLT(FieldOutletID, v))
+}
+
+// OutletIDLTE applies the LTE predicate on the "outlet_id" field.
+func OutletIDLTE(v uuid.UUID) predicate.FacilityBooking {
+	return predicate.FacilityBooking(sql.FieldLTE(FieldOutletID, v))
+}
+
+// OutletIDIsNil applies the IsNil predicate on the "outlet_id" field.
+func OutletIDIsNil() predicate.FacilityBooking {
+	return predicate.FacilityBooking(sql.FieldIsNull(FieldOutletID))
+}
+
+// OutletIDNotNil applies the NotNil predicate on the "outlet_id" field.
+func OutletIDNotNil() predicate.FacilityBooking {
+	return predicate.FacilityBooking(sql.FieldNotNull(FieldOutletID))
 }
 
 // RoomGuestIDEQ applies the EQ predicate on the "room_guest_id" field.
@@ -574,6 +639,96 @@ func GuestsCountLT(v int) predicate.FacilityBooking {
 // GuestsCountLTE applies the LTE predicate on the "guests_count" field.
 func GuestsCountLTE(v int) predicate.FacilityBooking {
 	return predicate.FacilityBooking(sql.FieldLTE(FieldGuestsCount, v))
+}
+
+// SeatsEQ applies the EQ predicate on the "seats" field.
+func SeatsEQ(v int) predicate.FacilityBooking {
+	return predicate.FacilityBooking(sql.FieldEQ(FieldSeats, v))
+}
+
+// SeatsNEQ applies the NEQ predicate on the "seats" field.
+func SeatsNEQ(v int) predicate.FacilityBooking {
+	return predicate.FacilityBooking(sql.FieldNEQ(FieldSeats, v))
+}
+
+// SeatsIn applies the In predicate on the "seats" field.
+func SeatsIn(vs ...int) predicate.FacilityBooking {
+	return predicate.FacilityBooking(sql.FieldIn(FieldSeats, vs...))
+}
+
+// SeatsNotIn applies the NotIn predicate on the "seats" field.
+func SeatsNotIn(vs ...int) predicate.FacilityBooking {
+	return predicate.FacilityBooking(sql.FieldNotIn(FieldSeats, vs...))
+}
+
+// SeatsGT applies the GT predicate on the "seats" field.
+func SeatsGT(v int) predicate.FacilityBooking {
+	return predicate.FacilityBooking(sql.FieldGT(FieldSeats, v))
+}
+
+// SeatsGTE applies the GTE predicate on the "seats" field.
+func SeatsGTE(v int) predicate.FacilityBooking {
+	return predicate.FacilityBooking(sql.FieldGTE(FieldSeats, v))
+}
+
+// SeatsLT applies the LT predicate on the "seats" field.
+func SeatsLT(v int) predicate.FacilityBooking {
+	return predicate.FacilityBooking(sql.FieldLT(FieldSeats, v))
+}
+
+// SeatsLTE applies the LTE predicate on the "seats" field.
+func SeatsLTE(v int) predicate.FacilityBooking {
+	return predicate.FacilityBooking(sql.FieldLTE(FieldSeats, v))
+}
+
+// PosOrderIDEQ applies the EQ predicate on the "pos_order_id" field.
+func PosOrderIDEQ(v uuid.UUID) predicate.FacilityBooking {
+	return predicate.FacilityBooking(sql.FieldEQ(FieldPosOrderID, v))
+}
+
+// PosOrderIDNEQ applies the NEQ predicate on the "pos_order_id" field.
+func PosOrderIDNEQ(v uuid.UUID) predicate.FacilityBooking {
+	return predicate.FacilityBooking(sql.FieldNEQ(FieldPosOrderID, v))
+}
+
+// PosOrderIDIn applies the In predicate on the "pos_order_id" field.
+func PosOrderIDIn(vs ...uuid.UUID) predicate.FacilityBooking {
+	return predicate.FacilityBooking(sql.FieldIn(FieldPosOrderID, vs...))
+}
+
+// PosOrderIDNotIn applies the NotIn predicate on the "pos_order_id" field.
+func PosOrderIDNotIn(vs ...uuid.UUID) predicate.FacilityBooking {
+	return predicate.FacilityBooking(sql.FieldNotIn(FieldPosOrderID, vs...))
+}
+
+// PosOrderIDGT applies the GT predicate on the "pos_order_id" field.
+func PosOrderIDGT(v uuid.UUID) predicate.FacilityBooking {
+	return predicate.FacilityBooking(sql.FieldGT(FieldPosOrderID, v))
+}
+
+// PosOrderIDGTE applies the GTE predicate on the "pos_order_id" field.
+func PosOrderIDGTE(v uuid.UUID) predicate.FacilityBooking {
+	return predicate.FacilityBooking(sql.FieldGTE(FieldPosOrderID, v))
+}
+
+// PosOrderIDLT applies the LT predicate on the "pos_order_id" field.
+func PosOrderIDLT(v uuid.UUID) predicate.FacilityBooking {
+	return predicate.FacilityBooking(sql.FieldLT(FieldPosOrderID, v))
+}
+
+// PosOrderIDLTE applies the LTE predicate on the "pos_order_id" field.
+func PosOrderIDLTE(v uuid.UUID) predicate.FacilityBooking {
+	return predicate.FacilityBooking(sql.FieldLTE(FieldPosOrderID, v))
+}
+
+// PosOrderIDIsNil applies the IsNil predicate on the "pos_order_id" field.
+func PosOrderIDIsNil() predicate.FacilityBooking {
+	return predicate.FacilityBooking(sql.FieldIsNull(FieldPosOrderID))
+}
+
+// PosOrderIDNotNil applies the NotNil predicate on the "pos_order_id" field.
+func PosOrderIDNotNil() predicate.FacilityBooking {
+	return predicate.FacilityBooking(sql.FieldNotNull(FieldPosOrderID))
 }
 
 // AmountEQ applies the EQ predicate on the "amount" field.

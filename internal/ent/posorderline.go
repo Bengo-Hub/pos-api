@@ -22,6 +22,8 @@ type POSOrderLine struct {
 	ID uuid.UUID `json:"id,omitempty"`
 	// OrderID holds the value of the "order_id" field.
 	OrderID uuid.UUID `json:"order_id,omitempty"`
+	// Timestamp this line was added to the order; drives per-line happy-hour window eligibility
+	CreatedAt *time.Time `json:"created_at,omitempty"`
 	// CatalogItemID holds the value of the "catalog_item_id" field.
 	CatalogItemID uuid.UUID `json:"catalog_item_id,omitempty"`
 	// Sku holds the value of the "sku" field.
@@ -124,7 +126,7 @@ func (*POSOrderLine) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullInt64)
 		case posorderline.FieldSku, posorderline.FieldName, posorderline.FieldCategory, posorderline.FieldLotNumber, posorderline.FieldSerialNumber, posorderline.FieldTaxCodeID, posorderline.FieldTaxKraCode, posorderline.FieldVoidedReason:
 			values[i] = new(sql.NullString)
-		case posorderline.FieldExpiryDate, posorderline.FieldVoidedAt:
+		case posorderline.FieldCreatedAt, posorderline.FieldExpiryDate, posorderline.FieldVoidedAt:
 			values[i] = new(sql.NullTime)
 		case posorderline.FieldID, posorderline.FieldOrderID, posorderline.FieldCatalogItemID:
 			values[i] = new(uuid.UUID)
@@ -154,6 +156,13 @@ func (_m *POSOrderLine) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field order_id", values[i])
 			} else if value != nil {
 				_m.OrderID = *value
+			}
+		case posorderline.FieldCreatedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field created_at", values[i])
+			} else if value.Valid {
+				_m.CreatedAt = new(time.Time)
+				*_m.CreatedAt = value.Time
 			}
 		case posorderline.FieldCatalogItemID:
 			if value, ok := values[i].(*uuid.UUID); !ok {
@@ -360,6 +369,11 @@ func (_m *POSOrderLine) String() string {
 	builder.WriteString(fmt.Sprintf("id=%v, ", _m.ID))
 	builder.WriteString("order_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.OrderID))
+	builder.WriteString(", ")
+	if v := _m.CreatedAt; v != nil {
+		builder.WriteString("created_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("catalog_item_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.CatalogItemID))

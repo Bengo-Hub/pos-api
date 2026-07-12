@@ -27,8 +27,10 @@ type Facility struct {
 	Name string `json:"name,omitempty"`
 	// FacilityType holds the value of the "facility_type" field.
 	FacilityType facility.FacilityType `json:"facility_type,omitempty"`
-	// Capacity holds the value of the "capacity" field.
+	// Total seats/desks (shared mode) or max head-count for one booking (exclusive mode)
 	Capacity int `json:"capacity,omitempty"`
+	// exclusive = whole-space per time slot; shared = co-working, many bookings up to seat capacity
+	BookingMode facility.BookingMode `json:"booking_mode,omitempty"`
 	// Ref to inventory-api SERVICE Item (use_case=HOSPITALITY_FACILITY/CONFERENCE) — authoritative facility & rate master
 	InventoryItemID *uuid.UUID `json:"inventory_item_id,omitempty"`
 	// DEPRECATED as authoritative: rate master lives in inventory-api ItemPricing. Synced/read-through snapshot; kept for transition
@@ -94,7 +96,7 @@ func (*Facility) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullFloat64)
 		case facility.FieldCapacity:
 			values[i] = new(sql.NullInt64)
-		case facility.FieldName, facility.FieldFacilityType, facility.FieldCurrency, facility.FieldOpeningTime, facility.FieldClosingTime, facility.FieldStatus:
+		case facility.FieldName, facility.FieldFacilityType, facility.FieldBookingMode, facility.FieldCurrency, facility.FieldOpeningTime, facility.FieldClosingTime, facility.FieldStatus:
 			values[i] = new(sql.NullString)
 		case facility.FieldCreatedAt, facility.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -150,6 +152,12 @@ func (_m *Facility) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field capacity", values[i])
 			} else if value.Valid {
 				_m.Capacity = int(value.Int64)
+			}
+		case facility.FieldBookingMode:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field booking_mode", values[i])
+			} else if value.Valid {
+				_m.BookingMode = facility.BookingMode(value.String)
 			}
 		case facility.FieldInventoryItemID:
 			if value, ok := values[i].(*sql.NullScanner); !ok {
@@ -290,6 +298,9 @@ func (_m *Facility) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("capacity=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Capacity))
+	builder.WriteString(", ")
+	builder.WriteString("booking_mode=")
+	builder.WriteString(fmt.Sprintf("%v", _m.BookingMode))
 	builder.WriteString(", ")
 	if v := _m.InventoryItemID; v != nil {
 		builder.WriteString("inventory_item_id=")

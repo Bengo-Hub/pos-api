@@ -579,8 +579,9 @@ var (
 		{Name: "tenant_id", Type: field.TypeUUID},
 		{Name: "outlet_id", Type: field.TypeUUID},
 		{Name: "name", Type: field.TypeString},
-		{Name: "facility_type", Type: field.TypeEnum, Enums: []string{"pool", "gym", "conference", "spa", "kids_area", "other"}, Default: "other"},
+		{Name: "facility_type", Type: field.TypeEnum, Enums: []string{"pool", "gym", "conference", "spa", "kids_area", "coworking", "other"}, Default: "other"},
 		{Name: "capacity", Type: field.TypeInt, Default: 0},
+		{Name: "booking_mode", Type: field.TypeEnum, Enums: []string{"exclusive", "shared"}, Default: "exclusive"},
 		{Name: "inventory_item_id", Type: field.TypeUUID, Nullable: true},
 		{Name: "rate_per_session", Type: field.TypeFloat64},
 		{Name: "currency", Type: field.TypeString, Default: "KES"},
@@ -609,7 +610,7 @@ var (
 			{
 				Name:    "facility_tenant_id_status",
 				Unique:  false,
-				Columns: []*schema.Column{FacilitiesColumns[1], FacilitiesColumns[11]},
+				Columns: []*schema.Column{FacilitiesColumns[1], FacilitiesColumns[12]},
 			},
 		},
 	}
@@ -617,6 +618,7 @@ var (
 	FacilityBookingsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
 		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "outlet_id", Type: field.TypeUUID, Nullable: true},
 		{Name: "room_guest_id", Type: field.TypeUUID, Nullable: true},
 		{Name: "guest_name", Type: field.TypeString},
 		{Name: "phone", Type: field.TypeString},
@@ -624,6 +626,8 @@ var (
 		{Name: "start_time", Type: field.TypeString},
 		{Name: "end_time", Type: field.TypeString},
 		{Name: "guests_count", Type: field.TypeInt, Default: 1},
+		{Name: "seats", Type: field.TypeInt, Default: 1},
+		{Name: "pos_order_id", Type: field.TypeUUID, Nullable: true},
 		{Name: "amount", Type: field.TypeFloat64},
 		{Name: "currency", Type: field.TypeString, Default: "KES"},
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"confirmed", "cancelled", "completed"}, Default: "confirmed"},
@@ -641,7 +645,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "facility_bookings_facilities_bookings",
-				Columns:    []*schema.Column{FacilityBookingsColumns[16]},
+				Columns:    []*schema.Column{FacilityBookingsColumns[19]},
 				RefColumns: []*schema.Column{FacilitiesColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -650,12 +654,12 @@ var (
 			{
 				Name:    "facilitybooking_tenant_id_facility_id",
 				Unique:  false,
-				Columns: []*schema.Column{FacilityBookingsColumns[1], FacilityBookingsColumns[16]},
+				Columns: []*schema.Column{FacilityBookingsColumns[1], FacilityBookingsColumns[19]},
 			},
 			{
 				Name:    "facilitybooking_tenant_id_session_date_status",
 				Unique:  false,
-				Columns: []*schema.Column{FacilityBookingsColumns[1], FacilityBookingsColumns[5], FacilityBookingsColumns[11]},
+				Columns: []*schema.Column{FacilityBookingsColumns[1], FacilityBookingsColumns[6], FacilityBookingsColumns[14]},
 			},
 		},
 	}
@@ -1454,6 +1458,7 @@ var (
 		{Name: "table_max_occupation_minutes", Type: field.TypeInt, Nullable: true, Default: 240},
 		{Name: "default_warehouse_id", Type: field.TypeUUID, Nullable: true},
 		{Name: "return_window_days", Type: field.TypeInt, Nullable: true, Default: 30},
+		{Name: "catalog_use_cases", Type: field.TypeJSON, Nullable: true},
 		{Name: "updated_at", Type: field.TypeTime},
 		{Name: "outlet_id", Type: field.TypeUUID, Unique: true},
 	}
@@ -1465,7 +1470,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "outlet_settings_outlets_settings",
-				Columns:    []*schema.Column{OutletSettingsColumns[52]},
+				Columns:    []*schema.Column{OutletSettingsColumns[53]},
 				RefColumns: []*schema.Column{OutletsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -1699,6 +1704,7 @@ var (
 	// PosOrderLinesColumns holds the columns for the "pos_order_lines" table.
 	PosOrderLinesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
+		{Name: "created_at", Type: field.TypeTime, Nullable: true},
 		{Name: "catalog_item_id", Type: field.TypeUUID},
 		{Name: "sku", Type: field.TypeString},
 		{Name: "name", Type: field.TypeString},
@@ -1733,7 +1739,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "pos_order_lines_pos_orders_lines",
-				Columns:    []*schema.Column{PosOrderLinesColumns[25]},
+				Columns:    []*schema.Column{PosOrderLinesColumns[26]},
 				RefColumns: []*schema.Column{PosOrdersColumns[0]},
 				OnDelete:   schema.NoAction,
 			},

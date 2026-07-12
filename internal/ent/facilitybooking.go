@@ -24,6 +24,8 @@ type FacilityBooking struct {
 	TenantID uuid.UUID `json:"tenant_id,omitempty"`
 	// FacilityID holds the value of the "facility_id" field.
 	FacilityID uuid.UUID `json:"facility_id,omitempty"`
+	// Outlet the booking/sale belongs to — set for terminal/co-working bookings, nil for legacy
+	OutletID *uuid.UUID `json:"outlet_id,omitempty"`
 	// Hotel guest reference — nil for walk-in bookings
 	RoomGuestID *uuid.UUID `json:"room_guest_id,omitempty"`
 	// GuestName holds the value of the "guest_name" field.
@@ -38,6 +40,10 @@ type FacilityBooking struct {
 	EndTime string `json:"end_time,omitempty"`
 	// GuestsCount holds the value of the "guests_count" field.
 	GuestsCount int `json:"guests_count,omitempty"`
+	// Seats consumed from a shared facility's capacity (co-working); 1 for exclusive spaces
+	Seats int `json:"seats,omitempty"`
+	// POS order that charged this booking (co-working sold at the till); nil = uncharged reservation
+	PosOrderID *uuid.UUID `json:"pos_order_id,omitempty"`
 	// Amount holds the value of the "amount" field.
 	Amount float64 `json:"amount,omitempty"`
 	// Currency holds the value of the "currency" field.
@@ -83,13 +89,13 @@ func (*FacilityBooking) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case facilitybooking.FieldRoomGuestID:
+		case facilitybooking.FieldOutletID, facilitybooking.FieldRoomGuestID, facilitybooking.FieldPosOrderID:
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		case facilitybooking.FieldMetadata:
 			values[i] = new([]byte)
 		case facilitybooking.FieldAmount:
 			values[i] = new(sql.NullFloat64)
-		case facilitybooking.FieldGuestsCount:
+		case facilitybooking.FieldGuestsCount, facilitybooking.FieldSeats:
 			values[i] = new(sql.NullInt64)
 		case facilitybooking.FieldGuestName, facilitybooking.FieldPhone, facilitybooking.FieldStartTime, facilitybooking.FieldEndTime, facilitybooking.FieldCurrency, facilitybooking.FieldStatus, facilitybooking.FieldNotes:
 			values[i] = new(sql.NullString)
@@ -129,6 +135,13 @@ func (_m *FacilityBooking) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field facility_id", values[i])
 			} else if value != nil {
 				_m.FacilityID = *value
+			}
+		case facilitybooking.FieldOutletID:
+			if value, ok := values[i].(*sql.NullScanner); !ok {
+				return fmt.Errorf("unexpected type %T for field outlet_id", values[i])
+			} else if value.Valid {
+				_m.OutletID = new(uuid.UUID)
+				*_m.OutletID = *value.S.(*uuid.UUID)
 			}
 		case facilitybooking.FieldRoomGuestID:
 			if value, ok := values[i].(*sql.NullScanner); !ok {
@@ -172,6 +185,19 @@ func (_m *FacilityBooking) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field guests_count", values[i])
 			} else if value.Valid {
 				_m.GuestsCount = int(value.Int64)
+			}
+		case facilitybooking.FieldSeats:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field seats", values[i])
+			} else if value.Valid {
+				_m.Seats = int(value.Int64)
+			}
+		case facilitybooking.FieldPosOrderID:
+			if value, ok := values[i].(*sql.NullScanner); !ok {
+				return fmt.Errorf("unexpected type %T for field pos_order_id", values[i])
+			} else if value.Valid {
+				_m.PosOrderID = new(uuid.UUID)
+				*_m.PosOrderID = *value.S.(*uuid.UUID)
 			}
 		case facilitybooking.FieldAmount:
 			if value, ok := values[i].(*sql.NullFloat64); !ok {
@@ -264,6 +290,11 @@ func (_m *FacilityBooking) String() string {
 	builder.WriteString("facility_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.FacilityID))
 	builder.WriteString(", ")
+	if v := _m.OutletID; v != nil {
+		builder.WriteString("outlet_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
 	if v := _m.RoomGuestID; v != nil {
 		builder.WriteString("room_guest_id=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
@@ -286,6 +317,14 @@ func (_m *FacilityBooking) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("guests_count=")
 	builder.WriteString(fmt.Sprintf("%v", _m.GuestsCount))
+	builder.WriteString(", ")
+	builder.WriteString("seats=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Seats))
+	builder.WriteString(", ")
+	if v := _m.PosOrderID; v != nil {
+		builder.WriteString("pos_order_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("amount=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Amount))

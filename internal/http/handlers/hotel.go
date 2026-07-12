@@ -773,14 +773,16 @@ func (h *HotelHandler) GetFacility(w http.ResponseWriter, r *http.Request) {
 }
 
 type createFacilityInput struct {
-	OutletID       string  `json:"outlet_id"`
-	Name           string  `json:"name"`
-	FacilityType   string  `json:"facility_type"`
-	Capacity       int     `json:"capacity"`
-	RatePerSession float64 `json:"rate_per_session"`
-	Currency       string  `json:"currency"`
-	OpeningTime    string  `json:"opening_time"`
-	ClosingTime    string  `json:"closing_time"`
+	OutletID        string  `json:"outlet_id"`
+	Name            string  `json:"name"`
+	FacilityType    string  `json:"facility_type"`
+	Capacity        int     `json:"capacity"`
+	RatePerSession  float64 `json:"rate_per_session"`
+	Currency        string  `json:"currency"`
+	OpeningTime     string  `json:"opening_time"`
+	ClosingTime     string  `json:"closing_time"`
+	BookingMode     string  `json:"booking_mode"`      // exclusive | shared (co-working)
+	InventoryItemID string  `json:"inventory_item_id"` // link to inventory SERVICE item (rate/package master)
 }
 
 // CreateFacility handles POST /{tenantID}/hotel/facilities
@@ -807,7 +809,7 @@ func (h *HotelHandler) CreateFacility(w http.ResponseWriter, r *http.Request) {
 
 	facilityOutletID := parseOptionalUUID(input.OutletID, r)
 
-	facility, err := h.client.Facility.Create().
+	create := h.client.Facility.Create().
 		SetTenantID(tid).
 		SetOutletID(facilityOutletID).
 		SetName(input.Name).
@@ -816,8 +818,14 @@ func (h *HotelHandler) CreateFacility(w http.ResponseWriter, r *http.Request) {
 		SetRatePerSession(input.RatePerSession).
 		SetCurrency(input.Currency).
 		SetOpeningTime(input.OpeningTime).
-		SetClosingTime(input.ClosingTime).
-		Save(r.Context())
+		SetClosingTime(input.ClosingTime)
+	if input.BookingMode != "" {
+		create = create.SetBookingMode(entfacility.BookingMode(input.BookingMode))
+	}
+	if iid, perr := uuid.Parse(strings.TrimSpace(input.InventoryItemID)); perr == nil {
+		create = create.SetInventoryItemID(iid)
+	}
+	facility, err := create.Save(r.Context())
 	if err != nil {
 		h.log.Error("create facility failed", zap.Error(err))
 		jsonError(w, "failed to create facility", http.StatusInternalServerError)
@@ -829,14 +837,16 @@ func (h *HotelHandler) CreateFacility(w http.ResponseWriter, r *http.Request) {
 }
 
 type updateFacilityInput struct {
-	Name           *string  `json:"name"`
-	FacilityType   *string  `json:"facility_type"`
-	Capacity       *int     `json:"capacity"`
-	RatePerSession *float64 `json:"rate_per_session"`
-	Currency       *string  `json:"currency"`
-	OpeningTime    *string  `json:"opening_time"`
-	ClosingTime    *string  `json:"closing_time"`
-	Status         *string  `json:"status"`
+	Name            *string  `json:"name"`
+	FacilityType    *string  `json:"facility_type"`
+	Capacity        *int     `json:"capacity"`
+	RatePerSession  *float64 `json:"rate_per_session"`
+	Currency        *string  `json:"currency"`
+	OpeningTime     *string  `json:"opening_time"`
+	ClosingTime     *string  `json:"closing_time"`
+	Status          *string  `json:"status"`
+	BookingMode     *string  `json:"booking_mode"`
+	InventoryItemID *string  `json:"inventory_item_id"`
 }
 
 // UpdateFacility handles PATCH /{tenantID}/hotel/facilities/{id}
@@ -881,6 +891,16 @@ func (h *HotelHandler) UpdateFacility(w http.ResponseWriter, r *http.Request) {
 	}
 	if input.Status != nil && *input.Status != "" {
 		upd = upd.SetStatus(entfacility.Status(*input.Status))
+	}
+	if input.BookingMode != nil && *input.BookingMode != "" {
+		upd = upd.SetBookingMode(entfacility.BookingMode(*input.BookingMode))
+	}
+	if input.InventoryItemID != nil {
+		if iid, perr := uuid.Parse(strings.TrimSpace(*input.InventoryItemID)); perr == nil {
+			upd = upd.SetInventoryItemID(iid)
+		} else if strings.TrimSpace(*input.InventoryItemID) == "" {
+			upd = upd.ClearInventoryItemID()
+		}
 	}
 	if _, err := upd.Save(r.Context()); err != nil {
 		h.log.Error("update facility failed", zap.Error(err))
@@ -936,6 +956,13 @@ type bookFacilityInput struct {
 	RoomGuestID *uuid.UUID `json:"room_guest_id,omitempty"`
 	BookedBy    string     `json:"booked_by"`
 	Notes       string     `json:"notes"`
+	// Seats consumed from a shared (co-working) facility's capacity. Defaults to guests_count
+	// when omitted so existing callers keep working.
+	Seats int `json:"seats"`
+	// OutletID / POSOrderID link the booking to the POS sale that charged it (co-working sold
+	// at the till). Optional — a front-desk reservation can be created uncharged.
+	OutletID   string `json:"outlet_id"`
+	POSOrderID string `json:"pos_order_id"`
 }
 
 // BookFacility handles POST /{tenantID}/hotel/facilities/{id}/book
@@ -995,35 +1022,56 @@ func (h *HotelHandler) BookFacility(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Availability gating: only an "available" facility can be booked. Maintenance/closed/occupied
-	// facilities are not bookable (the UI must reflect this status too).
-	if fac.Status != entfacility.StatusAvailable {
+	// Maintenance/closed facilities are never bookable, in either mode.
+	if fac.Status == entfacility.StatusMaintenance || fac.Status == entfacility.StatusClosed {
 		jsonError(w, fmt.Sprintf("facility is not available for booking (status: %s)", fac.Status), http.StatusConflict)
 		return
 	}
 
-	// Capacity gating: a session cannot exceed the hall capacity.
-	if fac.Capacity > 0 && input.GuestsCount > fac.Capacity {
-		jsonError(w, fmt.Sprintf("guests (%d) exceed the facility capacity (%d)", input.GuestsCount, fac.Capacity), http.StatusConflict)
-		return
+	// seats this booking consumes — defaults to guests_count (then 1) so existing callers keep working.
+	seats := input.Seats
+	if seats < 1 {
+		seats = input.GuestsCount
+	}
+	if seats < 1 {
+		seats = 1
 	}
 
-	// Double-booking gating: reject an overlapping confirmed booking on the same day.
-	if input.StartTime != "" && input.EndTime != "" {
-		dayStart := time.Date(sessionDate.Year(), sessionDate.Month(), sessionDate.Day(), 0, 0, 0, 0, sessionDate.Location())
-		dayEnd := dayStart.AddDate(0, 0, 1)
-		sameDay, _ := h.client.FacilityBooking.Query().
-			Where(
-				entfacilitybooking.FacilityID(facilityID),
-				entfacilitybooking.TenantID(tid),
-				entfacilitybooking.StatusEQ(entfacilitybooking.StatusConfirmed),
-				entfacilitybooking.SessionDateGTE(dayStart),
-				entfacilitybooking.SessionDateLT(dayEnd),
-			).All(r.Context())
-		for _, b := range sameDay {
-			// HH:MM strings compare lexicographically within a day; overlap = startA < endB && endA > startB.
-			if b.StartTime != "" && b.EndTime != "" && input.StartTime < b.EndTime && input.EndTime > b.StartTime {
-				jsonError(w, fmt.Sprintf("facility already booked for an overlapping time (%s–%s)", b.StartTime, b.EndTime), http.StatusConflict)
+	isShared := fac.BookingMode == entfacility.BookingModeShared
+
+	if !isShared {
+		// ── Exclusive mode (private meeting room / conference hall) ───────────────────────
+		// The booking holds the whole space; capacity only caps head-count, and ANY overlapping
+		// confirmed booking is rejected.
+		if fac.Status != entfacility.StatusAvailable {
+			jsonError(w, fmt.Sprintf("facility is not available for booking (status: %s)", fac.Status), http.StatusConflict)
+			return
+		}
+		if fac.Capacity > 0 && input.GuestsCount > fac.Capacity {
+			jsonError(w, fmt.Sprintf("guests (%d) exceed the facility capacity (%d)", input.GuestsCount, fac.Capacity), http.StatusConflict)
+			return
+		}
+		if input.StartTime != "" && input.EndTime != "" {
+			for _, b := range h.sameDayConfirmedBookings(r.Context(), tid, facilityID, sessionDate) {
+				// HH:MM strings compare lexicographically within a day; overlap = startA < endB && endA > startB.
+				if b.StartTime != "" && b.EndTime != "" && input.StartTime < b.EndTime && input.EndTime > b.StartTime {
+					jsonError(w, fmt.Sprintf("facility already booked for an overlapping time (%s–%s)", b.StartTime, b.EndTime), http.StatusConflict)
+					return
+				}
+			}
+		}
+	} else {
+		// ── Shared mode (co-working) ──────────────────────────────────────────────────────
+		// Many independent bookings may overlap in time until the SUM of their seats reaches
+		// capacity. A single booking also can't exceed total capacity.
+		if fac.Capacity > 0 && seats > fac.Capacity {
+			jsonError(w, fmt.Sprintf("requested seats (%d) exceed the space capacity (%d)", seats, fac.Capacity), http.StatusConflict)
+			return
+		}
+		if fac.Capacity > 0 {
+			booked := overlappingSeats(h.sameDayConfirmedBookings(r.Context(), tid, facilityID, sessionDate), input.StartTime, input.EndTime)
+			if booked+seats > fac.Capacity {
+				jsonError(w, fmt.Sprintf("only %d of %d seats free for that time — cannot book %d", fac.Capacity-booked, fac.Capacity, seats), http.StatusConflict)
 				return
 			}
 		}
@@ -1050,6 +1098,7 @@ func (h *HotelHandler) BookFacility(w http.ResponseWriter, r *http.Request) {
 		SetStartTime(input.StartTime).
 		SetEndTime(input.EndTime).
 		SetGuestsCount(input.GuestsCount).
+		SetSeats(seats).
 		SetAmount(amount).
 		SetBookedBy(facilityBookedBy)
 
@@ -1058,6 +1107,12 @@ func (h *HotelHandler) BookFacility(w http.ResponseWriter, r *http.Request) {
 	}
 	if input.Notes != "" {
 		c = c.SetNotes(input.Notes)
+	}
+	if oid := parseOptionalUUID(input.OutletID, r); oid != uuid.Nil {
+		c = c.SetOutletID(oid)
+	}
+	if poid, perr := uuid.Parse(strings.TrimSpace(input.POSOrderID)); perr == nil {
+		c = c.SetPosOrderID(poid)
 	}
 
 	booking, err := c.Save(r.Context())
@@ -1069,6 +1124,134 @@ func (h *HotelHandler) BookFacility(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusCreated)
 	jsonOK(w, booking)
+}
+
+// sameDayConfirmedBookings returns every confirmed booking for a facility on a given
+// calendar date — the working set for both exclusive overlap checks and shared seat counting.
+func (h *HotelHandler) sameDayConfirmedBookings(ctx context.Context, tid, facilityID uuid.UUID, sessionDate time.Time) []*ent.FacilityBooking {
+	return sameDayConfirmedFacilityBookings(ctx, h.client, tid, facilityID, sessionDate)
+}
+
+// sameDayConfirmedFacilityBookings is the free-function form so non-hotel callers (the order
+// handler's auto-assign-on-sale hook) can reuse the same seat-counting query without a
+// *HotelHandler dependency.
+func sameDayConfirmedFacilityBookings(ctx context.Context, client *ent.Client, tid, facilityID uuid.UUID, sessionDate time.Time) []*ent.FacilityBooking {
+	dayStart := time.Date(sessionDate.Year(), sessionDate.Month(), sessionDate.Day(), 0, 0, 0, 0, sessionDate.Location())
+	dayEnd := dayStart.AddDate(0, 0, 1)
+	rows, _ := client.FacilityBooking.Query().
+		Where(
+			entfacilitybooking.FacilityID(facilityID),
+			entfacilitybooking.TenantID(tid),
+			entfacilitybooking.StatusEQ(entfacilitybooking.StatusConfirmed),
+			entfacilitybooking.SessionDateGTE(dayStart),
+			entfacilitybooking.SessionDateLT(dayEnd),
+		).All(ctx)
+	return rows
+}
+
+// bookingsTimeOverlap reports whether [startA,endA) and [startB,endB) overlap. A booking
+// with no time window is treated as spanning the whole day (overlaps everything) so seat
+// counting never under-counts an all-day co-working pass.
+func bookingsTimeOverlap(startA, endA, startB, endB string) bool {
+	if startA == "" || endA == "" || startB == "" || endB == "" {
+		return true
+	}
+	// HH:MM strings compare lexicographically within a day.
+	return startA < endB && endA > startB
+}
+
+// overlappingSeats sums the seats of confirmed bookings that overlap the given time window —
+// the seats already taken for a shared (co-working) facility at that time.
+func overlappingSeats(bookings []*ent.FacilityBooking, startTime, endTime string) int {
+	total := 0
+	for _, b := range bookings {
+		if bookingsTimeOverlap(startTime, endTime, b.StartTime, b.EndTime) {
+			s := b.Seats
+			if s < 1 {
+				s = b.GuestsCount
+			}
+			if s < 1 {
+				s = 1
+			}
+			total += s
+		}
+	}
+	return total
+}
+
+// GetFacilityAvailability handles GET /{tenantID}/hotel/facilities/{id}/availability?date=&start=&end=
+// It reports how many seats are free for a shared (co-working) space at a given date/time, so the
+// terminal can gate an "Assign Space" action before charging. For exclusive facilities it reports
+// whether the window is free (available_seats = capacity or 0).
+func (h *HotelHandler) GetFacilityAvailability(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+	facilityID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		jsonError(w, "invalid facility id", http.StatusBadRequest)
+		return
+	}
+	fac, fErr := h.client.Facility.Query().
+		Where(entfacility.ID(facilityID), entfacility.TenantID(tid)).Only(r.Context())
+	if fErr != nil {
+		jsonError(w, "facility not found", http.StatusNotFound)
+		return
+	}
+
+	sessionDate, derr := parseFlexibleDate(r.URL.Query().Get("date"))
+	if derr != nil {
+		jsonError(w, "date is required (YYYY-MM-DD)", http.StatusBadRequest)
+		return
+	}
+	start := strings.TrimSpace(r.URL.Query().Get("start"))
+	end := strings.TrimSpace(r.URL.Query().Get("end"))
+
+	sameDay := h.sameDayConfirmedBookings(r.Context(), tid, facilityID, sessionDate)
+	isShared := fac.BookingMode == entfacility.BookingModeShared
+
+	booked := overlappingSeats(sameDay, start, end)
+	available := fac.Capacity - booked
+	if fac.Capacity <= 0 {
+		available = 0 // 0 capacity = unmetered; caller should treat as unlimited/not-tracked
+	}
+	if available < 0 {
+		available = 0
+	}
+
+	// Exclusive spaces are all-or-nothing: free only when no overlapping booking exists.
+	if !isShared {
+		free := true
+		if start != "" && end != "" {
+			for _, b := range sameDay {
+				if b.StartTime != "" && b.EndTime != "" && start < b.EndTime && end > b.StartTime {
+					free = false
+					break
+				}
+			}
+		} else {
+			free = len(sameDay) == 0
+		}
+		if free {
+			available = fac.Capacity
+		} else {
+			available = 0
+		}
+	}
+
+	jsonOK(w, map[string]any{
+		"facility_id":     facilityID,
+		"booking_mode":    string(fac.BookingMode),
+		"capacity":        fac.Capacity,
+		"booked_seats":    booked,
+		"available_seats": available,
+		"is_bookable":     fac.Status != entfacility.StatusMaintenance && fac.Status != entfacility.StatusClosed && (isShared || available > 0),
+		"date":            sessionDate.Format("2006-01-02"),
+		"start_time":      start,
+		"end_time":        end,
+	})
 }
 
 type updateBookingInput struct {
