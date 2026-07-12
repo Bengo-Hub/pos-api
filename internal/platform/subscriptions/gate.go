@@ -89,6 +89,7 @@ func RequireFeature(featureCode string) func(http.Handler) http.Handler {
 					"error":            "feature_not_available",
 					"message":          "This feature is not available on your current plan.",
 					"required_feature": featureCode,
+					"upgrade":          true,
 					"upgrade_url":      upgradeURL,
 				})
 				return
