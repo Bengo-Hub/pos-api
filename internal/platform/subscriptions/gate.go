@@ -70,33 +70,7 @@ func SubscriptionGate() func(http.Handler) http.Handler {
 // RequireFeature gates a route group on a subscription feature code. Exempt tokens pass.
 // The feature code must be a real code seeded by subscription-service (see features.go).
 func RequireFeature(featureCode string) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if exempt(r) {
-				next.ServeHTTP(w, r)
-				return
-			}
-			claims, ok := authclient.ClaimsFromContext(r.Context())
-			if !ok {
-				next.ServeHTTP(w, r)
-				return
-			}
-			if !claims.HasFeature(featureCode) {
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusForbidden)
-				_ = json.NewEncoder(w).Encode(map[string]any{
-					"code":             "feature_not_available",
-					"error":            "feature_not_available",
-					"message":          "This feature is not available on your current plan.",
-					"required_feature": featureCode,
-					"upgrade":          true,
-					"upgrade_url":      upgradeURL,
-				})
-				return
-			}
-			next.ServeHTTP(w, r)
-		})
-	}
+	return authclient.RequireFeatureCode(featureCode)
 }
 
 // CheckStructuralLimit enforces a hard-block structural cap (devices, tables, cashiers,
