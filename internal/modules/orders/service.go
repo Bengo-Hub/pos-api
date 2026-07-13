@@ -937,6 +937,16 @@ func (s *Service) UpdateStatus(ctx context.Context, tenantID, orderID uuid.UUID,
 		return nil, fmt.Errorf("orders: update status: %w", err)
 	}
 
+	// A terminal transition must never strand live kitchen tickets: settled orders force-serve
+	// whatever the board never bumped (e.g. the exchange-settle path completes orders through
+	// here), voided/cancelled orders void theirs so the kitchen stops preparing a dead bill.
+	switch newStatus {
+	case StatusCompleted:
+		s.AutoClearKDSTicketsForOrder(ctx, tenantID, orderID)
+	case StatusVoided, StatusCancelled:
+		s.VoidKDSTicketsForOrder(ctx, tenantID, orderID)
+	}
+
 	// Publish order status changed event
 	if s.publisher != nil {
 		_ = s.publisher.PublishOrderStatusChanged(ctx, tenantID, map[string]any{
@@ -1273,8 +1283,25 @@ func (s *Service) createKDSTicketsForOrder(ctx context.Context, tenantID uuid.UU
 //
 // Called from payments.Service.completeOrderIfFullyPaid — the single place a POSOrder transitions
 // to StatusCompleted — so every settlement path (cash, card, M-Pesa, split, staff credit, etc.)
-// is covered without each caller needing to remember it.
+// is covered without each caller needing to remember it. Also fired for an already-completed
+// order that still has open tickets (idempotent: only open tickets are touched), and by the
+// exchange-settle path (handlers/returns_exchange.go), which completes orders directly.
 func (s *Service) AutoClearKDSTicketsForOrder(ctx context.Context, tenantID, orderID uuid.UUID) {
+	s.closeKDSTicketsForOrder(ctx, tenantID, orderID, kdsticket.StatusServed)
+}
+
+// VoidKDSTicketsForOrder voids any of an order's still-open KDS tickets when the ORDER itself is
+// voided/cancelled — the kitchen must stop preparing food for a bill that no longer exists, and
+// the dead tickets must drop off the live board (previously they sat there until staff voided
+// each one by hand via the KDS UI). The voided (not served) terminal status keeps the audit story
+// straight: this food was never handed over.
+func (s *Service) VoidKDSTicketsForOrder(ctx context.Context, tenantID, orderID uuid.UUID) {
+	s.closeKDSTicketsForOrder(ctx, tenantID, orderID, kdsticket.StatusVoided)
+}
+
+// closeKDSTicketsForOrder transitions every still-open (pending/in_progress/ready) ticket of an
+// order to the given terminal status and broadcasts the update to the outlet's live KDS boards.
+func (s *Service) closeKDSTicketsForOrder(ctx context.Context, tenantID, orderID uuid.UUID, to kdsticket.Status) {
 	tickets, err := s.client.KDSTicket.Query().
 		Where(
 			kdsticket.TenantID(tenantID),
@@ -1294,11 +1321,11 @@ func (s *Service) AutoClearKDSTicketsForOrder(ctx context.Context, tenantID, ord
 	}
 	if _, err := s.client.KDSTicket.Update().
 		Where(kdsticket.IDIn(ids...)).
-		SetStatus(kdsticket.StatusServed).
+		SetStatus(to).
 		SetCompletedAt(now).
 		Save(ctx); err != nil {
-		s.log.Warn("orders: auto-clear kds tickets on settlement failed",
-			zap.String("order_id", orderID.String()), zap.Error(err))
+		s.log.Warn("orders: close kds tickets failed",
+			zap.String("order_id", orderID.String()), zap.String("to", string(to)), zap.Error(err))
 		return
 	}
 
@@ -1316,7 +1343,7 @@ func (s *Service) AutoClearKDSTicketsForOrder(ctx context.Context, tenantID, ord
 				"order_id":     t.OrderID,
 				"order_number": t.OrderNumber,
 				"station_id":   t.StationID,
-				"status":       string(kdsticket.StatusServed),
+				"status":       string(to),
 				"completed_at": now,
 			},
 		})

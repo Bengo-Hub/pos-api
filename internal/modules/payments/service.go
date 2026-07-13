@@ -794,6 +794,12 @@ func (s *Service) completeOrderIfFullyPaid(ctx context.Context, order *ent.POSOr
 			// force-serve any that are still open so the live board doesn't show food for an order
 			// that's already been paid for and (usually) handed over.
 			s.orderSvc.AutoClearKDSTicketsForOrder(ctx, order.TenantID, order.ID)
+		} else if order.Status == orders.StatusCompleted {
+			// Already completed by another path/event (e.g. a second payment confirmation, or a
+			// flow that completed the order directly): still sweep any open tickets — idempotent,
+			// only pending/in_progress/ready tickets are touched — so a settled bill can never
+			// leave food sitting on the live KDS board.
+			s.orderSvc.AutoClearKDSTicketsForOrder(ctx, order.TenantID, order.ID)
 		}
 	}
 }

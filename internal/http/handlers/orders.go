@@ -1183,6 +1183,10 @@ func (h *POSOrderHandler) VoidOrder(w http.ResponseWriter, r *http.Request) {
 		zap.String("reason", input.Reason),
 	)
 
+	// The kitchen must stop preparing a voided bill: void any of its still-open KDS tickets so
+	// they drop off the live board (previously they lingered until staff voided each by hand).
+	h.orderSvc.VoidKDSTicketsForOrder(r.Context(), tid, orderID)
+
 	if h.auditSvc != nil {
 		oid := order.OutletID
 		amt := order.TotalAmount
