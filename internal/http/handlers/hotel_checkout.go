@@ -169,7 +169,7 @@ type settleFolioInput struct {
 // confirmed M-Pesa code), so the payment is recorded completed with no online gateway round-trip.
 func isImmediateHotelMethod(method string) bool {
 	switch strings.ToLower(strings.TrimSpace(method)) {
-	case "cash", "card_manual", "pdq", "card_terminal", "mpesa", "manual":
+	case "cash", "card_manual", "pdq", "card_terminal", "mpesa", "manual", "mpesa_manual":
 		return true
 	default:
 		return false
@@ -180,8 +180,13 @@ func treasuryMethodForHotel(method string) string {
 	switch strings.ToLower(strings.TrimSpace(method)) {
 	case "card_manual", "pdq", "card_terminal":
 		return "card_manual"
-	case "cash", "mpesa", "manual":
-		return "cash" // immediate settle; M-Pesa code is reconciled like cash at the desk
+	case "cash":
+		return "cash"
+	case "mpesa", "manual", "mpesa_manual":
+		// A sighted M-Pesa Paybill/Till code settles immediately but must stay identifiable as
+		// M-Pesa money (never folded into "cash" — that made cash-vs-M-Pesa reconciliation
+		// impossible; fixed 2026-07-13 alongside the POS terminal's identical bug).
+		return "mpesa_manual"
 	case "mpesa_stk":
 		return "mpesa" // online STK push
 	default:

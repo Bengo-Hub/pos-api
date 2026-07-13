@@ -48,12 +48,27 @@ const (
 	StatusRefunded  = "refunded"
 )
 
+// canonicalTenderMethod folds legacy/alias tender strings onto their canonical method so
+// payment_data.method (which every method filter/breakdown reads) is always one of the
+// advertised payment choices. The only rewrite today: the bare "manual" that older tills and
+// queued offline payments send for the "M-Pesa Code" tender becomes "mpesa_manual" — reports
+// used to surface those KES as an unexplained "manual (unspecified)" bucket even though the
+// cashier explicitly picked M-Pesa Code (urban-loft 12 Jul audit: 84,250 of 112,180 affected).
+func canonicalTenderMethod(method string) string {
+	m := strings.ToLower(strings.TrimSpace(method))
+	if m == "manual" {
+		return "mpesa_manual"
+	}
+	return m
+}
+
 // isCashMethod returns true for tender types that settle immediately without a treasury gateway
-// round-trip: cash, manual M-Pesa code entry, room charge, and external card-terminal/PDQ swipes
-// (the standalone machine has already approved the card, so there is no online gateway step).
+// round-trip: cash, manual M-Pesa code entry (mpesa_manual, legacy "manual"), room charge, and
+// external card-terminal/PDQ swipes (the standalone machine has already approved the card, so
+// there is no online gateway step).
 func isCashMethod(method string) bool {
 	switch strings.ToLower(strings.TrimSpace(method)) {
-	case "cash", "manual", "room_charge", "card_manual", "pdq", "card_terminal":
+	case "cash", "manual", "mpesa_manual", "room_charge", "card_manual", "pdq", "card_terminal":
 		return true
 	default:
 		return false
@@ -61,12 +76,16 @@ func isCashMethod(method string) bool {
 }
 
 // treasuryMethodForImmediate maps an immediate-settle POS tender onto the payment_method treasury
-// records. Cash-equivalents (cash/manual M-Pesa code/room charge) are recorded as "cash"; external
-// card-terminal swipes are recorded as "card_manual" so treasury tags the provider correctly.
+// records. Cash/room charge are recorded as "cash"; external card-terminal swipes as "card_manual";
+// a sighted M-Pesa Paybill/Till code as "mpesa_manual" (treasury settles it immediately but keeps
+// it distinct from both "cash" and gateway "mpesa" so money-by-method reconciliation works —
+// before 2026-07-13 these were lumped into "cash").
 func treasuryMethodForImmediate(method string) string {
 	switch strings.ToLower(strings.TrimSpace(method)) {
 	case "card_manual", "pdq", "card_terminal":
 		return "card_manual"
+	case "manual", "mpesa_manual":
+		return "mpesa_manual"
 	default:
 		return "cash"
 	}
@@ -188,6 +207,11 @@ func (s *Service) CreatePaymentIntent(ctx context.Context, req RecordPaymentRequ
 	if s.treasuryClient == nil {
 		return nil, fmt.Errorf("payments: treasury client not configured")
 	}
+
+	// Canonicalize the tender before anything reads it: payment_data.method must always be one of
+	// the advertised payment choices (legacy "manual" → "mpesa_manual"), for both online captures
+	// and queued offline replays from older tills.
+	req.TenderMethod = canonicalTenderMethod(req.TenderMethod)
 
 	order, err := s.client.POSOrder.Query().
 		Where(posorder.ID(req.OrderID), posorder.TenantID(req.TenantID)).
@@ -610,6 +634,10 @@ func (s *Service) FailPaymentByIntentID(ctx context.Context, intentID string) er
 // RecordPayment is the legacy direct-record path (cash tender with no treasury intent).
 // Kept for internal use and backward compatibility with existing POS terminal flows.
 func (s *Service) RecordPayment(ctx context.Context, req RecordPaymentRequest) (*ent.POSPayment, error) {
+	// Same canonicalization as CreatePaymentIntent: payment_data.method must always be one of
+	// the advertised payment choices (legacy "manual" → "mpesa_manual").
+	req.TenderMethod = canonicalTenderMethod(req.TenderMethod)
+
 	order, err := s.client.POSOrder.Query().
 		Where(posorder.ID(req.OrderID), posorder.TenantID(req.TenantID)).
 		WithPayments().

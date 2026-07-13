@@ -60,7 +60,7 @@ func NewPaymentHandler(log *zap.Logger, paymentSvc *payments.Service, treasuryCl
 
 type createIntentInput struct {
 	TenderID     uuid.UUID `json:"tenderId"`
-	TenderMethod string    `json:"tenderMethod"` // cash | card | mpesa | manual | room_charge
+	TenderMethod string    `json:"tenderMethod"` // cash | card | mpesa | mpesa_manual (legacy alias "manual") | room_charge | ...
 	Amount       float64   `json:"amount"`
 	Currency     string    `json:"currency"`
 	ExternalRef  string    `json:"externalRef,omitempty"` // cashier-entered ref for manual/paybill payments
