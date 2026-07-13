@@ -390,6 +390,8 @@ func New(ctx context.Context) (*App, error) {
 	catalogHandler.SetRBAC(rbacSvc)
 	// Per-cashier sales visibility (pos.orders.view_own) needs the RBAC fallback on order reads.
 	orderHandler.SetRBAC(rbacSvc)
+	// The All-Sales export applies the same per-cashier scoping as the order list.
+	reportPDFHandler.SetRBAC(rbacSvc)
 
 	// Wire RBAC service into identity for JIT role assignment from JWT claims
 	identitySvc.SetRBACService(rbacSvc)

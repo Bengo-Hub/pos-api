@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
@@ -23,7 +22,6 @@ import (
 	entfacility "github.com/bengobox/pos-service/internal/ent/facility"
 	"github.com/bengobox/pos-service/internal/ent/outletsetting"
 	entoverride "github.com/bengobox/pos-service/internal/ent/poscatalogoverride"
-	"github.com/bengobox/pos-service/internal/ent/pospayment"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
 	"github.com/bengobox/pos-service/internal/ent/posorderline"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
@@ -62,21 +60,8 @@ func (h *POSOrderHandler) SetRBAC(rbac outletmw.PermissionChecker) { h.rbac = rb
 // hand-offs — a cashier settling a waiter's open bill — keep working. Full-view principals
 // (and superusers/platform owners, via HasServicePermission's bypass) get no restriction.
 func (h *POSOrderHandler) ownOrdersPredicate(r *http.Request) (predicate.POSOrder, bool) {
-	if outletmw.HasServicePermission(r, h.rbac, "pos.orders.view", "pos.orders.change", "pos.orders.manage") {
-		return nil, false
-	}
-	claims, ok := authclient.ClaimsFromContext(r.Context())
-	if !ok || claims == nil || claims.Subject == "" {
-		return nil, false
-	}
-	uid, err := uuid.Parse(claims.Subject)
-	if err != nil || uid == uuid.Nil {
-		return nil, false
-	}
-	return posorder.Or(
-		posorder.UserID(uid),
-		posorder.StatusIn(orders.StatusOpen, orders.StatusPendingPayment),
-	), true
+	// Shared with the All-Sales export (report_all_sales.go) so list and export scope identically.
+	return ownOrdersScope(r, h.rbac)
 }
 
 // SetTerminalSecret wires the HMAC secret used to verify manager step-up tokens.
@@ -190,7 +175,6 @@ func (h *POSOrderHandler) ListOrders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	q := r.URL.Query()
 	filters := []predicate.POSOrder{posorder.TenantID(tid)}
 
 	// Per-cashier scoping (REQ-007): view_own-only principals see their own orders (+ shared
@@ -199,158 +183,13 @@ func (h *POSOrderHandler) ListOrders(w http.ResponseWriter, r *http.Request) {
 		filters = append(filters, ownPred)
 	}
 
-	// Business Location: an explicit ?outlet_id= query param wins (the All-Sales location
-	// filter). "all" (admins) lists every outlet. Absent → scope to the header outlet context.
-	if outletParam := q.Get("outlet_id"); outletParam != "" {
-		if !strings.EqualFold(outletParam, "all") {
-			if oid, parseErr := uuid.Parse(outletParam); parseErr == nil {
-				filters = append(filters, posorder.OutletID(oid))
-			}
-		}
-	} else if oidStr := httpware.GetOutletID(r.Context()); oidStr != "" {
-		if oid, parseErr := uuid.Parse(oidStr); parseErr == nil {
-			filters = append(filters, posorder.OutletID(oid))
-		}
-	}
-
-	if status := q.Get("status"); status != "" {
-		statuses := strings.Split(status, ",")
-		if len(statuses) > 1 {
-			filters = append(filters, posorder.StatusIn(statuses...))
-		} else {
-			filters = append(filters, posorder.Status(statuses[0]))
-		}
-	}
-	// staff_id / user_id scope the list to orders created by a specific staff member.
-	staffFilter := q.Get("staff_id")
-	if staffFilter == "" {
-		staffFilter = q.Get("user_id")
-	}
-	if staffFilter != "" {
-		if staffUID, err := uuid.Parse(staffFilter); err == nil {
-			filters = append(filters, posorder.UserID(staffUID))
-		}
-	}
-	// Free-text invoice/receipt search: case-insensitive CONTAINS on order_number. Receipt
-	// numbers are just "RCT-"+order_number (see printing.ReceiptView), so a pasted receipt
-	// number matches its order once the RCT- prefix is stripped. Whitespace-trimmed so a
-	// copy-paste with stray spaces still hits.
-	if orderNum := strings.TrimSpace(q.Get("order_number")); orderNum != "" {
-		orderNum = strings.TrimPrefix(orderNum, "RCT-")
-		orderNum = strings.TrimPrefix(orderNum, "rct-")
-		filters = append(filters, posorder.OrderNumberContainsFold(orderNum))
-	}
-	// Sources: pos_terminal vs back_office.
-	if src := q.Get("source"); src != "" && !strings.EqualFold(src, "all") {
-		filters = append(filters, posorder.Source(src))
-	}
-	// Date range on the order's EFFECTIVE date (accepts RFC3339 or YYYY-MM-DD) — the
-	// admin business_date override when a sale's date was moved, else created_at.
-	// Date-only bounds are read in the tenant timezone so a day matches its wall clock.
+	// Every user-facing filter (outlet, status, staff, invoice search, source, effective-date
+	// range, customer, payment status/method, shipping, subscriptions, total range, KDS station,
+	// category) is built by allSalesOrderFilters — shared verbatim with the All-Sales export
+	// (report_all_sales.go AllSalesDocument) so the exported document always contains exactly
+	// the rows this list shows.
 	loc := tenantLocation(r.Context(), h.client, tid)
-	if from := parseDateParam(q.Get("from"), false, loc); from != nil {
-		filters = append(filters, effectiveDateGTE(*from))
-	}
-	if to := parseDateParam(q.Get("to"), true, loc); to != nil {
-		filters = append(filters, effectiveDateLTE(*to))
-	}
-	// Customer: match phone or name (contains, case-insensitive).
-	if cust := strings.TrimSpace(q.Get("customer")); cust != "" {
-		filters = append(filters, posorder.Or(
-			posorder.CustomerPhoneContainsFold(cust),
-			posorder.CustomerNameContainsFold(cust),
-		))
-	}
-	// Payment status — driven by the stored paid_total column (sum of completed payments,
-	// maintained by the payments service) so the filter provably agrees with the per-row
-	// badge from derivePaymentStatus: paid = settled in full, partial = 0 < paid < total,
-	// due = nothing paid yet. Terminal statuses (refunded/voided/cancelled) are filterable
-	// too, and "overdue" surfaces sales past their metadata.payment_due_date — either still
-	// owing at the till, or on-account credit sales (stamped by recordCreditSale from the
-	// customer's payment period) whose settlement lives in treasury AR.
-	switch strings.ToLower(q.Get("payment_status")) {
-	case "paid":
-		filters = append(filters, posorder.Or(
-			posorder.Status("completed"),
-			posorder.And(
-				posorder.StatusNotIn("refunded", "voided", "cancelled"),
-				paidCoversTotal(),
-			),
-		))
-	case "partial":
-		filters = append(filters, posorder.And(
-			posorder.StatusNotIn("completed", "refunded", "voided", "cancelled"),
-			posorder.PaidTotalGT(0),
-			paidBelowTotal(),
-		))
-	case "due", "unpaid":
-		filters = append(filters, posorder.And(
-			posorder.StatusNotIn("completed", "refunded", "voided", "cancelled"),
-			posorder.PaidTotalLTE(0),
-		))
-	case "overdue":
-		filters = append(filters, posorder.And(
-			posorder.StatusNotIn("refunded", "voided", "cancelled"),
-			pastPaymentDueDate(),
-			posorder.Or(paidBelowTotal(), onAccountOrder()),
-		))
-	case "refunded", "voided", "cancelled":
-		filters = append(filters, posorder.Status(strings.ToLower(q.Get("payment_status"))))
-	}
-	// Payment method → the real method the terminal used is stamped on each payment's
-	// payment_data.method (the POS reuses ONE generic tender across cash/card/mpesa/…, so the
-	// tender's own type does NOT identify the method). Match orders with a payment carrying that
-	// method, OR — for legacy setups that configured a distinct tender per method — a payment on a
-	// tender of that type. Either path satisfies the filter.
-	if pm := strings.TrimSpace(q.Get("payment_method")); pm != "" && !strings.EqualFold(pm, "all") {
-		methodFilters := []predicate.POSOrder{
-			posorder.HasPaymentsWith(predicate.POSPayment(func(s *sql.Selector) {
-				s.Where(sqljson.ValueEQ(pospayment.FieldPaymentData, pm, sqljson.Path("method")))
-			})),
-		}
-		if tenderIDs, _ := h.client.Tender.Query().
-			Where(tender.TenantID(tid), tender.TypeEQ(pm)).
-			IDs(r.Context()); len(tenderIDs) > 0 {
-			methodFilters = append(methodFilters, posorder.HasPaymentsWith(pospayment.TenderIDIn(tenderIDs...)))
-		}
-		filters = append(filters, posorder.Or(methodFilters...))
-	}
-	// Shipping status — stored in metadata.shipping_status (set by Edit Shipping).
-	if ship := strings.TrimSpace(q.Get("shipping_status")); ship != "" && !strings.EqualFold(ship, "all") {
-		filters = append(filters, predicate.POSOrder(func(s *sql.Selector) {
-			s.Where(sqljson.ValueEQ(posorder.FieldMetadata, ship, sqljson.Path("shipping_status")))
-		}))
-	}
-	// Subscriptions-only: orders flagged as subscription sales in metadata.
-	if strings.EqualFold(q.Get("subscriptions"), "true") || q.Get("subscriptions") == "1" {
-		filters = append(filters, predicate.POSOrder(func(s *sql.Selector) {
-			s.Where(sqljson.ValueEQ(posorder.FieldMetadata, true, sqljson.Path("is_subscription")))
-		}))
-	}
-	// Order-total range — the "amount between" filter (the All-Sales slider). Bounds match on
-	// the sale's payable (total_amount); either bound is optional.
-	if v := strings.TrimSpace(q.Get("min_total")); v != "" {
-		if min, err := strconv.ParseFloat(v, 64); err == nil {
-			filters = append(filters, posorder.TotalAmountGTE(min))
-		}
-	}
-	if v := strings.TrimSpace(q.Get("max_total")); v != "" {
-		if max, err := strconv.ParseFloat(v, 64); err == nil {
-			filters = append(filters, posorder.TotalAmountLTE(max))
-		}
-	}
-	// KDS station — match orders that have at least one line routed to the given station
-	// (kds_station_id is stamped on every line at order creation; see resolveStationForLine).
-	if ks := strings.TrimSpace(q.Get("kds_station_id")); ks != "" && !strings.EqualFold(ks, "all") {
-		if ksID, perr := uuid.Parse(ks); perr == nil {
-			filters = append(filters, posorder.HasLinesWith(posorderline.KdsStationID(ksID)))
-		}
-	}
-	// Category — match orders with at least one line in the given catalog category
-	// (case-insensitive exact match, mirroring the reports' category grouping).
-	if cat := strings.TrimSpace(q.Get("category")); cat != "" && !strings.EqualFold(cat, "all") {
-		filters = append(filters, posorder.HasLinesWith(posorderline.CategoryEqualFold(cat)))
-	}
+	filters = append(filters, allSalesOrderFilters(r, h.client, tid, loc)...)
 
 	p := pagination.Parse(r)
 	baseQ := h.client.POSOrder.Query().Where(filters...)

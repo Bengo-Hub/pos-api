@@ -882,6 +882,8 @@ func New(
 						pos.Get("/reports/sales-by-category-document", reportPDF.SalesByCategoryDoc)
 						pos.Get("/reports/product-mix-document", reportPDF.ProductMixDoc)
 						pos.Get("/reports/void-summary-document", reportPDF.VoidSummaryDoc)
+						// All-Sales page export — same filters + per-cashier scoping as GET /orders.
+						pos.Get("/reports/all-sales-document", reportPDF.AllSalesDocument)
 					}
 
 					// Webhook subscriptions & delivery log (Sprint 12)

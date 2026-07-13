@@ -25,6 +25,7 @@ import (
 	enttenant "github.com/bengobox/pos-service/internal/ent/tenant"
 	enttender "github.com/bengobox/pos-service/internal/ent/tender"
 	entuser "github.com/bengobox/pos-service/internal/ent/user"
+	outletmw "github.com/bengobox/pos-service/internal/http/middleware"
 	"github.com/bengobox/pos-service/internal/modules/docs"
 )
 
@@ -37,6 +38,9 @@ type ReportPDFHandler struct {
 	db      *ent.Client
 	cache   *sharedcache.Aside // tenant branding cache (auth-api source)
 	authURL string
+	// rbac backs the per-cashier visibility scoping on the All-Sales export (see SetRBAC /
+	// ownOrdersScope in report_all_sales.go) — a view_own cashier exports only their own sales.
+	rbac outletmw.PermissionChecker
 }
 
 // NewReportPDFHandler creates a new ReportPDFHandler.
