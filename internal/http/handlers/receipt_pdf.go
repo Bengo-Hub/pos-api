@@ -79,6 +79,9 @@ func generateReceiptPDF(rec receiptResponse, brand receiptBrand) ([]byte, error)
 	if rec.OutletAddress != "" {
 		center(rec.OutletAddress, "", 8)
 	}
+	if rec.OutletPhones != "" {
+		center("Mobile: "+rec.OutletPhones, "", 8)
+	}
 	pdf.Ln(1)
 	hr()
 

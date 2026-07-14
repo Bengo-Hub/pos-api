@@ -87,6 +87,10 @@ type ReceiptView struct {
 	OutletID      uuid.UUID
 	OutletName    string
 	OutletAddress string
+	// OutletPhones is the formatted labeled-phone line from the outlet's contact_phones
+	// (auth outlet metadata, mirrored into address_json) — printed as
+	// "Mobile: AIRTEL +254754300099 · MTN +256782323113 · SAF +254112626692".
+	OutletPhones string
 	Timezone      string // outlet IANA timezone, e.g. "Africa/Nairobi"
 	IssuedAt      time.Time
 	BillTo        string
@@ -172,6 +176,34 @@ type ReceiptViewOpts struct {
 	// figures (a split's total is just the sum of its own line totals).
 	SplitLineIDs map[string]bool
 	SplitLabel   string // BillTo override for a split-by-item receipt, e.g. "Guest 1"
+}
+
+// formatContactPhones renders the outlet's labeled phone list ([{label,value}, …] after a JSON
+// round-trip) as one display line: "AIRTEL +254754300099 · MTN +256782323113". Unlabeled
+// entries print just the number; junk entries are skipped. "" when there are none.
+func formatContactPhones(raw any) string {
+	list, ok := raw.([]any)
+	if !ok || len(list) == 0 {
+		return ""
+	}
+	parts := make([]string, 0, len(list))
+	for _, entry := range list {
+		m, ok := entry.(map[string]any)
+		if !ok {
+			continue
+		}
+		value, _ := m["value"].(string)
+		if strings.TrimSpace(value) == "" {
+			continue
+		}
+		label, _ := m["label"].(string)
+		if strings.TrimSpace(label) != "" {
+			parts = append(parts, strings.TrimSpace(label)+" "+strings.TrimSpace(value))
+		} else {
+			parts = append(parts, strings.TrimSpace(value))
+		}
+	}
+	return strings.Join(parts, " · ")
 }
 
 // chargesBreakdown reads the named additional-charge amounts (packaging/service/shipping…) the
@@ -346,6 +378,7 @@ func BuildReceiptView(order *ent.POSOrder, lines []*ent.POSOrderLine, outlet *en
 			} else if city, ok := addr["city"].(string); ok {
 				v.OutletAddress = city
 			}
+			v.OutletPhones = formatContactPhones(addr["contact_phones"])
 		}
 	}
 

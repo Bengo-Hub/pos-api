@@ -176,6 +176,9 @@ td.r,th.r{text-align:right}
 	if rec.OutletAddress != "" {
 		buf.WriteString(fmt.Sprintf(`<div class="sub">%s</div>`, htmlEscape(strings.ToUpper(rec.OutletAddress))))
 	}
+	if rec.OutletPhones != "" {
+		buf.WriteString(fmt.Sprintf(`<div class="sub"><b>Mobile:</b> %s</div>`, htmlEscape(rec.OutletPhones)))
+	}
 	if rec.ReceiptHeader != "" {
 		buf.WriteString(fmt.Sprintf(`<div class="sub"><b>%s</b></div>`, htmlEscape(rec.ReceiptHeader)))
 	}
@@ -319,6 +322,10 @@ func generateRetailReceiptPDF(rec receiptResponse, brand receiptBrand) ([]byte, 
 	if rec.OutletAddress != "" {
 		pdf.SetFont("Times", "", 10)
 		pdf.MultiCell(contentW, 5, strings.ToUpper(rec.OutletAddress), "", "C", false)
+	}
+	if rec.OutletPhones != "" {
+		pdf.SetFont("Times", "B", 10)
+		pdf.MultiCell(contentW, 5, "Mobile: "+rec.OutletPhones, "", "C", false)
 	}
 	if rec.ReceiptHeader != "" {
 		pdf.SetFont("Times", "B", 10)

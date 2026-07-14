@@ -114,6 +114,34 @@ func (h *AuthOutletEventHandler) SubscribeToOutletEvents(nc *nats.Conn) error {
 	return nil
 }
 
+// outletAddressJSON merges the auth event's location/contact fields into the mirror's
+// address_json: "street" = the physical address/location line ("MALABA CBD") and
+// "contact_phones" = the labeled phone list from auth outlet metadata
+// ([{label:"MTN", value:"+256782323113"}, …]) — both printed on receipt headers.
+// prev keeps any keys other writers may have stored.
+func outletAddressJSON(prev map[string]any, evt *sharedevents.Event) map[string]any {
+	address, _ := evt.Payload["address"].(string)
+	meta, _ := evt.Payload["metadata"].(map[string]any)
+	var phones any
+	if meta != nil {
+		phones = meta["contact_phones"]
+	}
+	if address == "" && phones == nil {
+		return nil // nothing to write; leave the mirror untouched
+	}
+	merged := map[string]any{}
+	for k, v := range prev {
+		merged[k] = v
+	}
+	if address != "" {
+		merged["street"] = address
+	}
+	if phones != nil {
+		merged["contact_phones"] = phones
+	}
+	return merged
+}
+
 // handleUpsert creates or updates a local outlet mirror from auth.outlet.created/updated.
 func (h *AuthOutletEventHandler) handleUpsert(ctx context.Context, evt *sharedevents.Event) error {
 	outletIDStr, _ := evt.Payload["outlet_id"].(string)
@@ -179,6 +207,9 @@ func (h *AuthOutletEventHandler) handleUpsert(ctx context.Context, evt *sharedev
 		if useCase != "" {
 			createQ = createQ.SetUseCase(useCase)
 		}
+		if addr := outletAddressJSON(nil, evt); addr != nil {
+			createQ = createQ.SetAddressJSON(addr)
+		}
 		if _, err := createQ.Save(ctx); err != nil {
 			return fmt.Errorf("create outlet mirror: %w", err)
 		}
@@ -195,6 +226,9 @@ func (h *AuthOutletEventHandler) handleUpsert(ctx context.Context, evt *sharedev
 		SetUpdatedAt(time.Now())
 	if useCase != "" {
 		upd = upd.SetUseCase(useCase)
+	}
+	if addr := outletAddressJSON(existing.AddressJSON, evt); addr != nil {
+		upd = upd.SetAddressJSON(addr)
 	}
 	if _, err := upd.Save(ctx); err != nil {
 		return fmt.Errorf("update outlet mirror: %w", err)

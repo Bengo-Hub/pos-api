@@ -110,7 +110,15 @@ func (h *ReportsHandler) RegisterDetails(w http.ResponseWriter, r *http.Request)
 		}
 	}
 
-	resp := registerDetailsResponse{From: from, To: to}
+	// List fields start as empty slices (not nil) so a quiet window serializes as [] —
+	// a JSON null here crashed the Register Details modal's .map calls.
+	resp := registerDetailsResponse{
+		From: from, To: to,
+		PaymentMethods:  []paymentMethodRow{},
+		RefundByMethod:  []paymentMethodRow{},
+		ProductsSold:    []productSoldRow{},
+		ProductsByBrand: []brandSoldRow{},
+	}
 	methodSell := map[string]float64{}
 	productAgg := map[string]*productSoldRow{}
 	orderIDs := make([]uuid.UUID, 0, len(orders))

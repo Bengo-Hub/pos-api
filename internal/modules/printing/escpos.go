@@ -31,6 +31,7 @@ type ReceiptData struct {
 	Type               string // "customer", "kitchen_ticket", "waiter_copy", "void"
 	OutletName         string
 	OutletAddress      string
+	OutletPhones       string // formatted labeled phones, printed as "Mobile: …" under the address
 	OrderNumber        string
 	BillTo             string
 	BillToLabel        string // "Customer" or "Paid by"
@@ -99,6 +100,9 @@ func BuildReceipt(d ReceiptData) []byte {
 	write(escSizeReset)
 	if d.OutletAddress != "" {
 		writeln(d.OutletAddress)
+	}
+	if d.OutletPhones != "" {
+		writeln("Mobile: " + d.OutletPhones)
 	}
 	if d.Header != "" {
 		writeln(d.Header)

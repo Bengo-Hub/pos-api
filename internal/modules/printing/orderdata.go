@@ -104,6 +104,7 @@ func receiptDataFromView(v ReceiptView, loc *time.Location) ReceiptData {
 		Type:               v.Type,
 		OutletName:         v.OutletName,
 		OutletAddress:      v.OutletAddress,
+		OutletPhones:       v.OutletPhones,
 		OrderNumber:        v.OrderNumber,
 		BillTo:             v.BillTo,
 		BillToLabel:        v.BillToLabel,

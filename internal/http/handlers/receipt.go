@@ -195,6 +195,9 @@ type receiptResponse struct {
 	OutletID      uuid.UUID `json:"outlet_id"`
 	OutletName    string    `json:"outlet_name,omitempty"`
 	OutletAddress string    `json:"outlet_address,omitempty"`
+	// Formatted labeled-phone line from the outlet's contact_phones metadata —
+	// printed under the address as "Mobile: AIRTEL +2547… · MTN +2567…".
+	OutletPhones string `json:"outlet_phones,omitempty"`
 	// BillTo is the customer shown on the receipt: the guest/payer name for M-Pesa / card / online
 	// payments (where a real customer is identified), or "Walk-in customer" for cash.
 	BillTo      string    `json:"bill_to,omitempty"`
@@ -278,6 +281,7 @@ func newReceiptResponse(v printing.ReceiptView) receiptResponse {
 		OutletID:           v.OutletID,
 		OutletName:         v.OutletName,
 		OutletAddress:      v.OutletAddress,
+		OutletPhones:       v.OutletPhones,
 		BillTo:             v.BillTo,
 		BillToLabel:        v.BillToLabel,
 		IssuedAt:           v.IssuedAt,
@@ -564,6 +568,9 @@ h1{font-size:17px;letter-spacing:.5px;text-align:center;margin:3px 0}
 	}
 	if rec.OutletAddress != "" {
 		buf.WriteString(fmt.Sprintf(`<p class="sub">%s</p>`, htmlEscape(rec.OutletAddress)))
+	}
+	if rec.OutletPhones != "" {
+		buf.WriteString(fmt.Sprintf(`<p class="sub"><b>Mobile:</b> %s</p>`, htmlEscape(rec.OutletPhones)))
 	}
 	// Custom header text configured in POS settings (business name, address, slogan…).
 	if rec.ReceiptHeader != "" {
