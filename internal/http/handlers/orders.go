@@ -15,8 +15,8 @@ import (
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
-	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/Bengo-Hub/httpware"
+	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/bengobox/pos-service/internal/audit"
 	"github.com/bengobox/pos-service/internal/ent"
 	entfacility "github.com/bengobox/pos-service/internal/ent/facility"
@@ -142,26 +142,27 @@ func parseLineModifiers(meta map[string]interface{}) []orders.LineModifierInput 
 
 // createOrderInput is the body for POST /pos/orders.
 type createOrderInput struct {
-	OutletID       string                 `json:"outlet_id"`
-	DeviceID       string                 `json:"device_id"`
-	OrderNumber    string                 `json:"order_number"`
-	ClientReference string                `json:"client_reference,omitempty"` // offline local_id — idempotency anchor
-	OfflineCreatedAt *time.Time           `json:"offline_created_at,omitempty"` // device-clock time the sale was rung up offline
-	Currency       string                 `json:"currency"`
-	Lines          []createOrderLineInput `json:"lines"`
-	Metadata       map[string]interface{} `json:"metadata"`
-	PrescriptionID *string                `json:"prescription_id,omitempty"`
-	AgeVerified    bool                   `json:"age_verified,omitempty"`   // cashier confirmed customer age for age-restricted items
-	OrderSubtype   string                 `json:"order_subtype"`            // dine_in | takeaway | room_service | delivery | bar_tab | retail
-	TableID        string                 `json:"table_id"`                 // hospitality dine-in table UUID
-	CustomerPhone  string                 `json:"customer_phone,omitempty"` // loyalty auto-earn
-	CustomerName   string                 `json:"customer_name,omitempty"`
-	DiscountAmount float64                `json:"discount_amount,omitempty"`  // order-level discount (e.g. loyalty redemption)
-	DiscountReason string                 `json:"discount_reason,omitempty"`  // free-text reason for a manual discount
-	OrderTaxAmount float64                `json:"order_tax_amount,omitempty"` // manager quick-edit: order-level tax added on top of per-line tax
-	Charges        map[string]float64     `json:"charges,omitempty"`          // manager quick-edit: additional costs (packaging/service/shipping)
-	ApprovalToken  string                 `json:"approval_token,omitempty"`   // manager step-up token for an over-limit discount / order adjustment
-	Source         string                 `json:"source,omitempty"`           // "pos_terminal" (default) | "back_office" (Add Sale flow)
+	OutletID         string                 `json:"outlet_id"`
+	DeviceID         string                 `json:"device_id"`
+	OrderNumber      string                 `json:"order_number"`
+	ClientReference  string                 `json:"client_reference,omitempty"`   // offline local_id — idempotency anchor
+	OfflineCreatedAt *time.Time             `json:"offline_created_at,omitempty"` // device-clock time the sale was rung up offline
+	Currency         string                 `json:"currency"`
+	Lines            []createOrderLineInput `json:"lines"`
+	Metadata         map[string]interface{} `json:"metadata"`
+	PrescriptionID   *string                `json:"prescription_id,omitempty"`
+	AgeVerified      bool                   `json:"age_verified,omitempty"`   // cashier confirmed customer age for age-restricted items
+	OrderSubtype     string                 `json:"order_subtype"`            // dine_in | takeaway | room_service | delivery | bar_tab | retail
+	TableID          string                 `json:"table_id"`                 // hospitality dine-in table UUID
+	CustomerPhone    string                 `json:"customer_phone,omitempty"` // loyalty auto-earn
+	CustomerName     string                 `json:"customer_name,omitempty"`
+	DiscountAmount   float64                `json:"discount_amount,omitempty"`  // order-level discount (e.g. loyalty redemption)
+	DiscountReason   string                 `json:"discount_reason,omitempty"`  // free-text reason for a manual discount
+	OrderTaxAmount   float64                `json:"order_tax_amount,omitempty"` // manager quick-edit: order-level tax added on top of per-line tax
+	Charges          map[string]float64     `json:"charges,omitempty"`          // manager quick-edit: additional costs (packaging/service/shipping)
+	ApprovalToken    string                 `json:"approval_token,omitempty"`   // manager step-up token for an over-limit discount / order adjustment
+	ApprovalCode     string                 `json:"approval_code,omitempty"`    // manager-generated one-time code (alternative to a live step-up token)
+	Source           string                 `json:"source,omitempty"`           // "pos_terminal" (default) | "back_office" (Add Sale flow)
 }
 
 // updateStatusInput is the body for PATCH /pos/orders/{id}/status.
@@ -657,9 +658,12 @@ func (h *POSOrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 			if input.ApprovalToken != "" && len(h.terminalSecret) > 0 {
 				approverID, valid = verifyApprovalToken(input.ApprovalToken, "order.discount_override", h.terminalSecret)
 			}
+			if !valid && input.ApprovalCode != "" {
+				approverID, valid = redeemActionApprovalCode(r.Context(), h.client, h.log, tid, outletID, "order.discount_override", input.ApprovalCode)
+			}
 			if !valid {
 				respondJSON(w, http.StatusUnprocessableEntity, map[string]any{
-					"error": "manager approval required: discount exceeds the allowed limit",
+					"error":             "manager approval required: discount exceeds the allowed limit",
 					"approval_required": true, "action": "order.discount_override",
 				})
 				return
@@ -689,6 +693,9 @@ func (h *POSOrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 		approverID, valid := uuid.Nil, false
 		if input.ApprovalToken != "" && len(h.terminalSecret) > 0 {
 			approverID, valid = verifyApprovalToken(input.ApprovalToken, "order.adjustment", h.terminalSecret)
+		}
+		if !valid && input.ApprovalCode != "" {
+			approverID, valid = redeemActionApprovalCode(r.Context(), h.client, h.log, tid, outletID, "order.adjustment", input.ApprovalCode)
 		}
 		if !valid {
 			respondJSON(w, http.StatusUnprocessableEntity, map[string]any{
@@ -735,9 +742,12 @@ func (h *POSOrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 			if input.ApprovalToken != "" && len(h.terminalSecret) > 0 {
 				approverID, valid = verifyApprovalToken(input.ApprovalToken, "price.override", h.terminalSecret)
 			}
+			if !valid && input.ApprovalCode != "" {
+				approverID, valid = redeemActionApprovalCode(r.Context(), h.client, h.log, tid, outletID, "price.override", input.ApprovalCode)
+			}
 			if !valid {
 				respondJSON(w, http.StatusUnprocessableEntity, map[string]any{
-					"error": "manager approval required: a line price markdown exceeds the allowed limit",
+					"error":             "manager approval required: a line price markdown exceeds the allowed limit",
 					"approval_required": true, "action": "price.override",
 				})
 				return
@@ -763,8 +773,8 @@ func (h *POSOrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 	// markdowns and over-max markups. Managers bypass (override authority).
 	if !callerIsManager {
 		type bandLine struct {
-			sku              string
-			price, min, max  float64
+			sku             string
+			price, min, max float64
 		}
 		var outOfBand []bandLine
 		for _, l := range input.Lines {
@@ -778,6 +788,9 @@ func (h *POSOrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 			approverID, valid := uuid.Nil, false
 			if input.ApprovalToken != "" && len(h.terminalSecret) > 0 {
 				approverID, valid = verifyApprovalToken(input.ApprovalToken, "price.override", h.terminalSecret)
+			}
+			if !valid && input.ApprovalCode != "" {
+				approverID, valid = redeemActionApprovalCode(r.Context(), h.client, h.log, tid, outletID, "price.override", input.ApprovalCode)
 			}
 			if !valid {
 				respondJSON(w, http.StatusUnprocessableEntity, map[string]any{
@@ -822,24 +835,24 @@ func (h *POSOrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 	}
 
 	order, err := h.orderSvc.CreateOrder(r.Context(), orders.CreateOrderRequest{
-		TenantID:       tid,
-		OutletID:       outletID,
-		DeviceID:       deviceID,
+		TenantID:         tid,
+		OutletID:         outletID,
+		DeviceID:         deviceID,
 		UserID:           userID,
 		OrderNumber:      input.OrderNumber,
 		ClientReference:  input.ClientReference,
 		OfflineCreatedAt: input.OfflineCreatedAt,
 		Currency:         input.Currency,
-		Lines:          lines,
-		Metadata:       input.Metadata,
-		OrderSubtype:   input.OrderSubtype,
-		TableID:        input.TableID,
-		CustomerPhone:  input.CustomerPhone,
-		CustomerName:   input.CustomerName,
-		DiscountAmount: input.DiscountAmount,
-		OrderTaxAmount: input.OrderTaxAmount,
-		Charges:        input.Charges,
-		Source:         input.Source,
+		Lines:            lines,
+		Metadata:         input.Metadata,
+		OrderSubtype:     input.OrderSubtype,
+		TableID:          input.TableID,
+		CustomerPhone:    input.CustomerPhone,
+		CustomerName:     input.CustomerName,
+		DiscountAmount:   input.DiscountAmount,
+		OrderTaxAmount:   input.OrderTaxAmount,
+		Charges:          input.Charges,
+		Source:           input.Source,
 	})
 	if err != nil {
 		if errors.Is(err, orders.ErrInvalidOrderSubtype) {
@@ -945,7 +958,7 @@ func (h *POSOrderHandler) autoAssignFacilityBookingsForOrder(ctx context.Context
 
 // shippingInput is the body for PATCH /pos/orders/{orderID}/shipping (Edit Shipping action).
 type shippingInput struct {
-	ShippingStatus  string   `json:"shipping_status,omitempty"`  // ordered|packed|shipped|delivered|cancelled
+	ShippingStatus  string   `json:"shipping_status,omitempty"` // ordered|packed|shipped|delivered|cancelled
 	ShippingAddress string   `json:"shipping_address,omitempty"`
 	ShippingAmount  *float64 `json:"shipping_amount,omitempty"`
 	TrackingNumber  string   `json:"tracking_number,omitempty"`
@@ -1391,4 +1404,3 @@ func (h *POSOrderHandler) FireCourse(w http.ResponseWriter, r *http.Request) {
 		"course":        input.Course,
 	})
 }
-

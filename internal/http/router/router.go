@@ -317,6 +317,12 @@ func New(
 						// bill via the Complimentary/no-charge tender when they're not at the
 						// terminal. Manager-only (handler re-checks role).
 						pos.Post("/orders/{orderID}/complimentary-code", orders.GenerateComplimentaryCode)
+						// Generic (non-order-scoped) manager approval codes for pre-order actions
+						// (over-limit discount / price override / order adjustment / out-of-stock
+						// override). Generate is manager-only (handler re-checks the override role);
+						// verify consumes a code for the client-side out-of-stock gate.
+						pos.Post("/approval-codes", orders.GenerateActionApprovalCode)
+						pos.Post("/approval-codes/verify", orders.VerifyActionApprovalCode)
 						pos.Post("/orders/{orderID}/fire-course", orders.FireCourse)
 						pos.Post("/orders/{orderID}/lines", orders.AddOrderLines)
 						pos.Post("/orders/{orderID}/lines/{lineID}/void", orders.VoidOrderLine)
