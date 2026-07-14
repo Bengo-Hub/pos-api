@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	neturl "net/url"
 	"time"
 
 	"github.com/google/uuid"
@@ -114,4 +115,69 @@ func splitName(fullName string) (string, string) {
 		}
 	}
 	return fullName, ""
+}
+
+// ContactSummary is the minimal CRM contact profile returned by S2S search.
+type ContactSummary struct {
+	ID        string `json:"id"`
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
+	Email     string `json:"email"`
+	Phone     string `json:"phone"`
+	CreatedAt string `json:"created_at"`
+}
+
+// SearchContacts finds the tenant's CRM contacts whose name, email or phone contains `q`
+// (case-insensitive). Phone callers should pass national subscriber digits (last 9) so every
+// stored format matches. Returns nil on any error or when the client is disabled — the customer
+// picker degrades to loyalty-only results rather than failing.
+func (c *Client) SearchContacts(ctx context.Context, tenantID uuid.UUID, q string, limit int) []ContactSummary {
+	if len(q) < 2 {
+		return nil
+	}
+	rows, _ := c.ListContacts(ctx, tenantID, q, limit, 0)
+	return rows
+}
+
+// ListContacts lists/searches the tenant's CRM contact directory (q == "" lists all, newest
+// first) with offset pagination, returning the page and the total match count. Returns
+// (nil, 0) on any error or when the client is disabled.
+func (c *Client) ListContacts(ctx context.Context, tenantID uuid.UUID, q string, limit, offset int) ([]ContactSummary, int) {
+	if !c.Enabled() {
+		return nil, 0
+	}
+	if limit <= 0 {
+		limit = 20
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	url := fmt.Sprintf("%s/api/v1/internal/contacts/search?tenant_id=%s&q=%s&limit=%d&offset=%d",
+		c.baseURL, tenantID.String(), neturl.QueryEscape(q), limit, offset)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, 0
+	}
+	req.Header.Set("X-API-Key", c.apiKey)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		c.log.Warn("marketflow: contact search request failed", zap.Error(err))
+		return nil, 0
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		c.log.Warn("marketflow: contact search unexpected status", zap.Int("status", resp.StatusCode))
+		return nil, 0
+	}
+
+	var result struct {
+		Data  []ContactSummary `json:"data"`
+		Total int              `json:"total"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		c.log.Warn("marketflow: decode contact search response failed", zap.Error(err))
+		return nil, 0
+	}
+	return result.Data, result.Total
 }

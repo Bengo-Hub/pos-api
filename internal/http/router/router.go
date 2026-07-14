@@ -801,6 +801,9 @@ func New(
 					// Client records
 					if clients != nil {
 						pos.Get("/clients", clients.List)
+						// Customer DIRECTORY (CRM-backed, loyalty-enriched) — the Clients page
+						// default listing + search. Distinct from /clients (POS-local records).
+						pos.Get("/customers", clients.ListCustomers)
 						pos.Post("/clients", clients.CreateOrUpsert)
 						pos.Post("/clients/bulk-import", clients.BulkImport)
 						pos.Get("/clients/{clientID}", clients.Get)

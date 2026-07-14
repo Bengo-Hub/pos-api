@@ -251,6 +251,62 @@ func (h *LoyaltyHandler) ListAccounts(w http.ResponseWriter, r *http.Request) {
 	for _, acc := range accounts {
 		out = append(out, loyaltyAccountMap(acc))
 	}
+
+	// CRM merge — the customer master is MarketFlow, and most customers (e.g. a migrated legacy
+	// base) have NO loyalty account yet. When the caller is SEARCHING (any of phone/name/email),
+	// also search CRM contacts S2S and append the ones not already represented by a loyalty
+	// account, so the POS customer picker finds every known customer, not only loyalty members.
+	// CRM rows carry id:"" + source:"crm" (no points) — the till attaches them by phone/name and
+	// can offer loyalty registration separately. First page only (CRM hits aren't paginated).
+	phoneParam := strings.TrimSpace(r.URL.Query().Get("phone"))
+	nameParam := strings.TrimSpace(r.URL.Query().Get("name"))
+	emailParam := strings.TrimSpace(r.URL.Query().Get("email"))
+	if h.marketflow != nil && h.marketflow.Enabled() && p.Offset == 0 && (phoneParam != "" || nameParam != "" || emailParam != "") {
+		needle := nameParam
+		if needle == "" {
+			needle = emailParam
+		}
+		if phoneParam != "" {
+			// Same format-agnostic phone needle as the loyalty query above.
+			if d := nationalSubscriberDigits(phoneParam); d != "" {
+				needle = d
+			} else {
+				needle = phoneParam
+			}
+		}
+		// Keys already represented: crm contact ids + last-9-digit phones of the loyalty hits.
+		seen := make(map[string]bool, len(accounts)*2)
+		for _, acc := range accounts {
+			if acc.CrmContactID != nil {
+				seen["crm:"+acc.CrmContactID.String()] = true
+			}
+			if d := nationalSubscriberDigits(acc.CustomerPhone); d != "" {
+				seen["ph:"+d] = true
+			}
+		}
+		for _, c := range h.marketflow.SearchContacts(r.Context(), tid, needle, 10) {
+			if c.ID != "" && seen["crm:"+c.ID] {
+				continue
+			}
+			if d := nationalSubscriberDigits(c.Phone); d != "" && seen["ph:"+d] {
+				continue
+			}
+			name := strings.TrimSpace(c.FirstName + " " + c.LastName)
+			out = append(out, map[string]any{
+				"id":              "",
+				"tenant_id":       tid,
+				"customer_name":   name,
+				"customer_phone":  c.Phone,
+				"customer_email":  c.Email,
+				"crm_contact_id":  c.ID,
+				"points_balance":  0,
+				"lifetime_points": 0,
+				"source":          "crm",
+			})
+			total++
+		}
+	}
+
 	jsonOK(w, pagination.NewResponse(out, total, p))
 }
 
