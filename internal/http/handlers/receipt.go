@@ -209,11 +209,19 @@ type receiptResponse struct {
 	TaxAmount          float64                `json:"tax_amount"`
 	DiscountAmount     float64                `json:"discount_amount"`
 	ChargesTotal       float64                `json:"charges_total,omitempty"`
+	// Charges is the named breakdown behind ChargesTotal (packaging/service/shipping…) so the
+	// receipt can itemise "Shipping(+)" etc. instead of one opaque charges line.
+	Charges            map[string]float64     `json:"charges,omitempty"`
 	RoundOff           float64                `json:"round_off,omitempty"`
 	TotalAmount        float64                `json:"total_amount"`
 	Currency           string                 `json:"currency"`
 	AmountPaid         float64                `json:"amount_paid"`
 	PaymentMethod      string                 `json:"payment_method"`
+	// PaymentDate is when the shown payment settled — retail receipts print it beside the
+	// method, e.g. "Cash (14-07-2026)". Omitted for unpaid bills.
+	PaymentDate        *time.Time             `json:"payment_date,omitempty"`
+	// BalanceDue = total − paid (positive: still owed / on account; negative: customer credit).
+	BalanceDue         float64                `json:"balance_due"`
 	AmountTendered     float64                `json:"amount_tendered"`
 	ChangeDue          float64                `json:"change_due"`
 	EtimsInvoiceNumber string                 `json:"etims_invoice_number,omitempty"`
@@ -226,6 +234,13 @@ type receiptResponse struct {
 	VatRate       float64 `json:"vat_rate,omitempty"`
 	PaperWidth    string  `json:"paper_width,omitempty"`
 	ServedBy      string  `json:"served_by,omitempty"`
+	// UseCase selects the receipt template ("retail" → boxed invoice-style layout with barcode).
+	UseCase string `json:"use_case,omitempty"`
+	// ShowLogo mirrors the Receipt & Printing "show logo" setting (default true).
+	ShowLogo bool `json:"show_logo"`
+	// BarcodePNG is a Code 128 barcode of the order number as a data: URI, populated for
+	// retail receipts so every surface (server HTML/PDF + client print) shows the same bars.
+	BarcodePNG string `json:"barcode_png,omitempty"`
 	// Platform-owner (Codevertex) advertisement lines printed at the very bottom of the receipt.
 	ProviderFooterLead    string `json:"provider_footer_lead,omitempty"`
 	ProviderFooterContact string `json:"provider_footer_contact,omitempty"`
@@ -251,6 +266,12 @@ func newReceiptResponse(v printing.ReceiptView) receiptResponse {
 			BankAccountName:   v.PaymentMethods.BankAccountName,
 		}
 	}
+	// Retail receipts carry a Code 128 of the order number so the server templates and the
+	// client print path all show identical bars (empty string on encode failure — never fatal).
+	barcodePNG := ""
+	if v.UseCase == "retail" && v.OrderNumber != "" {
+		barcodePNG = printing.Code128DataURI(v.OrderNumber, 320, 56)
+	}
 	return receiptResponse{
 		ReceiptNumber:      v.ReceiptNumber,
 		OrderNumber:        v.OrderNumber,
@@ -266,11 +287,14 @@ func newReceiptResponse(v printing.ReceiptView) receiptResponse {
 		TaxAmount:          v.TaxAmount,
 		DiscountAmount:     v.DiscountAmount,
 		ChargesTotal:       v.ChargesTotal,
+		Charges:            v.Charges,
 		RoundOff:           v.RoundOff,
 		TotalAmount:        v.TotalAmount,
 		Currency:           v.Currency,
 		AmountPaid:         v.AmountPaid,
 		PaymentMethod:      v.PaymentMethod,
+		PaymentDate:        v.PaymentDate,
+		BalanceDue:         v.BalanceDue,
 		AmountTendered:     v.AmountTendered,
 		ChangeDue:          v.ChangeDue,
 		EtimsInvoiceNumber: v.EtimsInvoiceNumber,
@@ -282,6 +306,9 @@ func newReceiptResponse(v printing.ReceiptView) receiptResponse {
 		VatRate:               v.VatRate,
 		PaperWidth:            v.PaperWidth,
 		ServedBy:              v.ServedBy,
+		UseCase:               v.UseCase,
+		ShowLogo:              v.ShowLogo,
+		BarcodePNG:            barcodePNG,
 		ProviderFooterLead:    v.ProviderFooter.OrDefault().Lead,
 		ProviderFooterContact: v.ProviderFooter.OrDefault().Contact,
 	}
@@ -357,11 +384,14 @@ func (h *ReceiptHandler) GetReceipt(w http.ResponseWriter, r *http.Request) {
 
 	var amountPaid float64
 	var payerName string
+	var paymentDate *time.Time
 	paymentMethod := "cash"
 	if len(order.Edges.Payments) > 0 {
 		p := order.Edges.Payments[0]
 		amountPaid = p.Amount
 		payerName = payerNameFromPayment(p)
+		occurred := p.OccurredAt
+		paymentDate = &occurred
 		// Complimentary sales always stamp PaymentData["method"] reliably (unlike the Tender
 		// catalog row, which the terminal reuses generically across every tender type) — check
 		// it first so the receipt clearly discloses "no cash collected" and why.
@@ -370,6 +400,12 @@ func (h *ReceiptHandler) GetReceipt(w http.ResponseWriter, r *http.Request) {
 			if reason, _ := p.PaymentData["reason"].(string); reason != "" {
 				paymentMethod = fmt.Sprintf("COMPLIMENTARY — NOT CHARGED (%s)", reason)
 			}
+		} else if strings.EqualFold(method, payments.TenderOnAccount) {
+			// Credit sale: the on-account row marks a DEBT, not cash collected — the receipt
+			// shows the method with nothing paid, and the balance-due line carries the amount
+			// owed (BuildReceiptView reads the order's on_account marker).
+			paymentMethod = "Credit (on account)"
+			amountPaid = 0
 		} else if t, terr := h.client.Tender.Get(ctx, p.TenderID); terr == nil {
 			if t.Type != "" {
 				paymentMethod = t.Type
@@ -396,6 +432,7 @@ func (h *ReceiptHandler) GetReceipt(w http.ResponseWriter, r *http.Request) {
 		ChangeDue:      changeDue,
 		ServedBy:       h.resolveServedBy(ctx, tid, order.UserID, r.URL.Query().Get("served_by")),
 		PayerName:      payerName,
+		PaymentDate:    paymentDate,
 		SplitLineIDs:   splitLineSet,
 		SplitLabel:     splitLabel,
 	})
@@ -407,7 +444,16 @@ func (h *ReceiptHandler) GetReceipt(w http.ResponseWriter, r *http.Request) {
 	format := r.URL.Query().Get("format")
 	if format == "pdf" {
 		brand := h.branding(r.Context(), tid)
-		pdfBytes, err := generateReceiptPDF(receipt, brand)
+		// Retail outlets get the boxed invoice-style template (BOI/GoDigital design: boxed
+		// header + customer/invoice/date table + barcode); everything else keeps the classic
+		// thermal layout.
+		var pdfBytes []byte
+		var err error
+		if receipt.UseCase == "retail" {
+			pdfBytes, err = generateRetailReceiptPDF(receipt, brand)
+		} else {
+			pdfBytes, err = generateReceiptPDF(receipt, brand)
+		}
 		if err != nil {
 			h.log.Error("generate receipt pdf", zap.Error(err))
 			jsonError(w, "Failed to generate receipt PDF", http.StatusInternalServerError)
@@ -422,7 +468,12 @@ func (h *ReceiptHandler) GetReceipt(w http.ResponseWriter, r *http.Request) {
 		// Receipts print on thermal/non-colour printers, so we take only the tenant LOGO from branding
 		// and deliberately ignore the brand primary colour (coloured text prints faint). Black-on-white.
 		brand := h.branding(r.Context(), tid)
-		htmlOut := generateReceiptHTML(receipt, brand.LogoURL)
+		var htmlOut []byte
+		if receipt.UseCase == "retail" {
+			htmlOut = generateRetailReceiptHTML(receipt, brand.LogoURL)
+		} else {
+			htmlOut = generateReceiptHTML(receipt, brand.LogoURL)
+		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Content-Disposition", fmt.Sprintf(`inline; filename="receipt-%s.html"`, order.OrderNumber))
 		_, _ = w.Write(htmlOut)
@@ -502,7 +553,8 @@ h1{font-size:17px;letter-spacing:.5px;text-align:center;margin:3px 0}
 .etims-num{font-size:9px;text-align:center;word-break:break-all}
 @media print{body{width:100%%}}
 </style></head><body>`, pageWidth, bodyWidth))
-	if logoURL != "" {
+	// Logo prints only when the Receipt & Printing "show logo" setting allows it.
+	if logoURL != "" && rec.ShowLogo {
 		buf.WriteString(fmt.Sprintf(`<img class="logo" src="%s" alt="logo">`, htmlEscape(logoURL)))
 	}
 	if rec.OutletName != "" {

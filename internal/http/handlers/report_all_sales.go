@@ -112,23 +112,32 @@ func allSalesOrderFilters(r *http.Request, client *ent.Client, tid uuid.UUID, lo
 	// customer's payment period) whose settlement lives in treasury AR.
 	switch strings.ToLower(q.Get("payment_status")) {
 	case "paid":
+		// A completed on-account (credit) sale whose money hasn't been collected is a DEBT —
+		// it must NOT match "paid" even though the order status is completed.
 		filters = append(filters, posorder.Or(
-			posorder.Status("completed"),
+			posorder.And(
+				posorder.Status("completed"),
+				posorder.Not(posorder.And(onAccountOrder(), paidBelowTotal())),
+			),
 			posorder.And(
 				posorder.StatusNotIn("refunded", "voided", "cancelled"),
 				paidCoversTotal(),
 			),
 		))
 	case "partial":
+		// Completed credit sales with partial collections surface here too (on-account only —
+		// regular completed sales are always fully settled by definition).
 		filters = append(filters, posorder.And(
-			posorder.StatusNotIn("completed", "refunded", "voided", "cancelled"),
+			posorder.StatusNotIn("refunded", "voided", "cancelled"),
 			posorder.PaidTotalGT(0),
 			paidBelowTotal(),
+			posorder.Or(posorder.StatusNEQ("completed"), onAccountOrder()),
 		))
 	case "due", "unpaid":
 		filters = append(filters, posorder.And(
-			posorder.StatusNotIn("completed", "refunded", "voided", "cancelled"),
+			posorder.StatusNotIn("refunded", "voided", "cancelled"),
 			posorder.PaidTotalLTE(0),
+			posorder.Or(posorder.StatusNEQ("completed"), onAccountOrder()),
 		))
 	case "overdue":
 		filters = append(filters, posorder.And(
@@ -340,14 +349,9 @@ func (h *ReportPDFHandler) AllSalesDocument(w http.ResponseWriter, r *http.Reque
 		if due < 0 {
 			due = 0
 		}
-		ps := derivePaymentStatus(o.Status, o.TotalAmount, paid)
-		if isOrderOverdue(o.Metadata) {
-			switch {
-			case ps == "due" || ps == "partial":
-				ps = "overdue"
-			case ps == "paid" && isOnAccount(o.Metadata):
-				ps = "overdue"
-			}
+		ps := derivePaymentStatus(o.Status, o.TotalAmount, paid, isOnAccount(o.Metadata))
+		if (ps == "due" || ps == "partial") && isOrderOverdue(o.Metadata) {
+			ps = "overdue"
 		}
 
 		// Till time in the tenant's wall clock; when an admin moved the sale's reporting date,

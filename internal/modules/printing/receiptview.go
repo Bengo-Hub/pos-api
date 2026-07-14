@@ -103,10 +103,19 @@ type ReceiptView struct {
 	TaxAmount      float64
 	DiscountAmount float64
 	ChargesTotal   float64
+	// Charges is the named breakdown behind ChargesTotal (packaging/service/shipping…), from
+	// order metadata — rendered as individual rows when present ("Shipping(+) 200").
+	Charges        map[string]float64
 	RoundOff       float64
 	TotalAmount    float64
 	AmountPaid     float64
 	PaymentMethod  string
+	// PaymentDate is when the shown payment settled (POSPayment.CreatedAt) — retail receipts
+	// print it next to the method, e.g. "Cash (14-07-2026)". Nil when unpaid/bill.
+	PaymentDate    *time.Time
+	// BalanceDue = TotalAmount − AmountPaid: positive on a partly-paid/on-account sale,
+	// negative when the customer holds credit/over-paid, zero on an exact settle.
+	BalanceDue     float64
 	AmountTendered float64
 	ChangeDue      float64
 
@@ -116,6 +125,13 @@ type ReceiptView struct {
 	ReceiptHeader string
 	ReceiptFooter string
 	PaperWidth    string
+
+	// UseCase is the outlet's use case ("retail", "hospitality", …) — the HTML/PDF renderers
+	// select the retail boxed-invoice template on it; empty falls back to the classic thermal look.
+	UseCase string
+	// ShowLogo: include the tenant/outlet logo on rendered receipts (Receipt & Printing setting;
+	// defaults to true).
+	ShowLogo bool
 
 	// ProviderFooter is the platform-owner (Codevertex) advertisement printed at the very bottom
 	// of customer receipts. Resolved by the handler (which can reach the tenant cache); when left
@@ -149,11 +165,33 @@ type ReceiptViewOpts struct {
 	// (M-Pesa / card / Paystack) when the order itself carries no customer name — resolved by the
 	// caller from the payment record / treasury. Ignored for cash sales.
 	PayerName string
+	// PaymentDate — when the payment shown on the receipt settled (nil for unpaid bills).
+	PaymentDate *time.Time
 	// SplitLineIDs, when non-nil, restricts the receipt to only these POSOrderLine ids (a
 	// split-by-item guest bill) and zeroes order-level tax/discount/charges/round-off/payment
 	// figures (a split's total is just the sum of its own line totals).
 	SplitLineIDs map[string]bool
 	SplitLabel   string // BillTo override for a split-by-item receipt, e.g. "Guest 1"
+}
+
+// chargesBreakdown reads the named additional-charge amounts (packaging/service/shipping…) the
+// order-create flow stamps into order metadata under "charges". Values arrive as float64 after a
+// JSON round-trip; anything non-positive or non-numeric is skipped. Nil when there are none.
+func chargesBreakdown(meta map[string]any) map[string]float64 {
+	raw, ok := meta["charges"].(map[string]any)
+	if !ok || len(raw) == 0 {
+		return nil
+	}
+	out := map[string]float64{}
+	for k, v := range raw {
+		if f, ok := v.(float64); ok && f > 0 {
+			out[k] = f
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 // IsCashMethod reports whether a payment method is an anonymous cash tender (no identified
@@ -243,6 +281,23 @@ func BuildReceiptView(order *ent.POSOrder, lines []*ent.POSOrderLine, outlet *en
 		}
 	}
 
+	// Balance still owed on the sale (negative = customer credit / over-payment). Keyed off the
+	// order's maintained paid_total so a credit/on-account sale correctly shows the FULL amount
+	// due on every print path (incl. background prints that pass no AmountPaid); falls back to
+	// the caller-resolved payment amount for rows predating paid_total maintenance. A split
+	// receipt zeroes payment figures, so its balance stays zero too.
+	settled := order.PaidTotal
+	if amountPaid > settled {
+		settled = amountPaid
+	}
+	// on_account marker: credit sales stamp metadata.on_account=true at create (see the
+	// pos-qa overdue-filter model) — payment status itself is derived, not a column.
+	onAccount, _ := order.Metadata["on_account"].(bool)
+	balanceDue := 0.0
+	if opts.SplitLineIDs == nil && (settled > 0 || onAccount) {
+		balanceDue = totalAmount - settled
+	}
+
 	v := ReceiptView{
 		Type:           typ,
 		ReceiptNumber:  "RCT-" + order.OrderNumber,
@@ -259,13 +314,17 @@ func BuildReceiptView(order *ent.POSOrder, lines []*ent.POSOrderLine, outlet *en
 		TaxAmount:      taxAmount,
 		DiscountAmount: discountAmount,
 		ChargesTotal:   chargesTotal,
+		Charges:        chargesBreakdown(order.Metadata),
 		RoundOff:       roundOff,
 		TotalAmount:    totalAmount,
 		AmountPaid:     amountPaid,
 		PaymentMethod:  opts.PaymentMethod,
+		PaymentDate:    opts.PaymentDate,
+		BalanceDue:     balanceDue,
 		AmountTendered: amountTendered,
 		ChangeDue:      changeDue,
 		VoidReason:     opts.VoidReason,
+		ShowLogo:       true,
 	}
 
 	if order.EtimsInvoiceNumber != nil {
@@ -278,6 +337,9 @@ func BuildReceiptView(order *ent.POSOrder, lines []*ent.POSOrderLine, outlet *en
 	if outlet != nil {
 		v.OutletName = outlet.Name
 		v.Timezone = outlet.Timezone
+		if outlet.UseCase != nil {
+			v.UseCase = *outlet.UseCase
+		}
 		if addr := outlet.AddressJSON; addr != nil {
 			if street, ok := addr["street"].(string); ok && street != "" {
 				v.OutletAddress = street
@@ -304,6 +366,10 @@ func BuildReceiptView(order *ent.POSOrder, lines []*ent.POSOrderLine, outlet *en
 		v.VatEnabled = setting.VatEnabled
 		v.VatRate = setting.VatRate
 		v.PaperWidth = setting.PaperWidth
+		// Receipt & Printing → "Show logo" toggle (freeform metadata; absent = true).
+		if b, ok := setting.Metadata["receipt_show_logo"].(bool); ok {
+			v.ShowLogo = b
+		}
 
 		if setting.ShowPaymentInfoOnReceipt {
 			pm := &ReceiptPaymentMethods{}

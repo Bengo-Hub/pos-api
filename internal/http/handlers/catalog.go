@@ -1131,8 +1131,10 @@ func (h *CatalogHandler) assembleMenuItems(
 			MinSellingPrice:         item.MinSellingPrice,
 			MaxSellingPrice:         item.MaxSellingPrice,
 			// Supplier cost (for the manager-only cart cost/margin columns). Prefer the explicit
-			// cost_price; fall back to purchase_price when cost isn't set on the item.
-			CostPrice:               firstNonNilFloat(item.CostPrice, item.PurchasePrice),
+			// cost_price; fall back to purchase_price when cost isn't set — treating a stored 0
+			// as "unset" too, so an item saved with cost 0 but a real purchase price still shows
+			// cost/margin instead of "—".
+			CostPrice:               firstPositiveFloat(item.CostPrice, item.PurchasePrice),
 			NonBillable:             nonBillable,
 			InventoryPrice:          inventoryPrice,
 			POSOverridePrice:        posOverridePrice,
@@ -1192,12 +1194,21 @@ func isAccompanimentCategory(cat string) bool {
 	return strings.Contains(c, "accompaniment") || strings.Contains(c, "side dish") || strings.Contains(c, "sides")
 }
 
-// catalogItemToMap converts an assembled DTO into the JSON map shape ListCatalogItems
-// returns. Kept here so the wire format stays identical after the assembleMenuItems refactor.
 // firstNonNilFloat returns the first non-nil *float64 (used to pick cost_price, else purchase_price).
 func firstNonNilFloat(vals ...*float64) *float64 {
 	for _, v := range vals {
 		if v != nil {
+			return v
+		}
+	}
+	return nil
+}
+
+// firstPositiveFloat returns the first pointer holding a value > 0. Used for the cost fallback
+// ladder, where a stored 0 means "never captured" and must not shadow a real purchase price.
+func firstPositiveFloat(vals ...*float64) *float64 {
+	for _, v := range vals {
+		if v != nil && *v > 0 {
 			return v
 		}
 	}

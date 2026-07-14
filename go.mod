@@ -14,6 +14,7 @@ require (
 	github.com/Bengo-Hub/shared-auth-client v0.6.0
 	github.com/Bengo-Hub/shared-events v0.6.1
 	github.com/alexbrainman/printer v0.0.0-20200912035444-f40f26f0bdeb
+	github.com/boombuler/barcode v1.0.2
 	github.com/go-chi/chi/v5 v5.0.12
 	github.com/go-chi/cors v1.2.1
 	github.com/go-pdf/fpdf v0.9.0
@@ -75,7 +76,6 @@ require (
 	github.com/klauspost/compress v1.18.5 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
-	github.com/lib/pq v1.12.3 // indirect
 	github.com/mailru/easyjson v0.7.6 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect

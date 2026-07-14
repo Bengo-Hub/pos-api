@@ -76,9 +76,12 @@ type settingsResponse struct {
 	// receipt
 	ReceiptHeader *string `json:"receipt_header"`
 	ReceiptFooter *string `json:"receipt_footer"`
-	Currency      string  `json:"currency"`
-	VATEnabled    bool    `json:"vat_enabled"`
-	VATRate       float64 `json:"vat_rate"`
+	// ShowLogoOnReceipt: include the tenant/outlet logo on generated receipts (HTML/PDF/client).
+	// Stored in the freeform metadata (receipt_show_logo); defaults to true when unset.
+	ShowLogoOnReceipt bool    `json:"show_logo_on_receipt"`
+	Currency          string  `json:"currency"`
+	VATEnabled        bool    `json:"vat_enabled"`
+	VATRate           float64 `json:"vat_rate"`
 	// printer
 	PrinterType      string  `json:"printer_type"`
 	PrinterIP        *string `json:"printer_ip"`
@@ -168,6 +171,7 @@ func toSettingsResponse(outlet *ent.Outlet, s *ent.OutletSetting) settingsRespon
 		ShiftReportsEnabled:       s.ShiftReportsEnabled,
 		ReceiptHeader:             s.ReceiptHeader,
 		ReceiptFooter:             s.ReceiptFooter,
+		ShowLogoOnReceipt:         metaBoolDefault(s.Metadata, "receipt_show_logo", true),
 		PrinterIP:                 s.PrinterIP,
 		ShiftAutoEndEnabled:       s.ShiftAutoEndEnabled,
 		ShiftMaxHours:             s.ShiftMaxHours,
@@ -202,6 +206,18 @@ func toSettingsResponse(outlet *ent.Outlet, s *ent.OutletSetting) settingsRespon
 		UpdatedAt:                 s.UpdatedAt.Format("2006-01-02T15:04:05Z"),
 	}
 	return r
+}
+
+// metaBoolDefault reads a bool from the freeform metadata JSON, falling back to def when the key
+// is absent or not a bool (settings rows predating the key keep the historical behaviour).
+func metaBoolDefault(meta map[string]any, key string, def bool) bool {
+	if meta == nil {
+		return def
+	}
+	if b, ok := meta[key].(bool); ok {
+		return b
+	}
+	return def
 }
 
 // metaStringSlice reads a string list stored in the freeform metadata JSON. It handles both shapes:
@@ -417,6 +433,7 @@ type updateSettingsInput struct {
 	DefaultView        *string          `json:"default_view"`
 	ReceiptHeader      *string          `json:"receipt_header"`
 	ReceiptFooter      *string          `json:"receipt_footer"`
+	ShowLogoOnReceipt  *bool            `json:"show_logo_on_receipt"`
 	Currency           *string          `json:"currency"`
 	VATEnabled         *bool            `json:"vat_enabled"`
 	VATRate            *float64         `json:"vat_rate"`
@@ -589,6 +606,16 @@ func (h *ServiceSettingsHandler) PutSettings(w http.ResponseWriter, r *http.Requ
 	}
 	if input.ShowPaymentInfoOnReceipt != nil {
 		upd = upd.SetShowPaymentInfoOnReceipt(*input.ShowPaymentInfoOnReceipt)
+	}
+	// Logo on receipts — freeform-metadata key (no schema migration), merged into a copy so
+	// other metadata keys (sidebar lists, booking policy, screensavers) are preserved.
+	if input.ShowLogoOnReceipt != nil {
+		meta := map[string]any{}
+		for k, v := range setting.Metadata {
+			meta[k] = v
+		}
+		meta["receipt_show_logo"] = *input.ShowLogoOnReceipt
+		upd = upd.SetMetadata(meta)
 	}
 
 	updated, err := upd.Save(r.Context())

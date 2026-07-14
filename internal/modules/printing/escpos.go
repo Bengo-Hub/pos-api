@@ -48,6 +48,9 @@ type ReceiptData struct {
 	RoundOff           float64
 	TotalAmount        float64
 	PaymentMethod      string
+	PaymentDate        *time.Time // when the payment settled — retail prints it beside the method
+	AmountPaid         float64
+	BalanceDue         float64 // total − paid; printed when non-zero (on-account / customer credit)
 	AmountTendered     float64
 	ChangeDue          float64
 	Currency           string
@@ -55,6 +58,9 @@ type ReceiptData struct {
 	PaymentMethods     *ReceiptPaymentMethods // "HOW TO PAY" block (M-Pesa/bank), customer receipts only
 	VoidReason         string
 	ProviderFooter     ProviderFooter // platform-owner (Codevertex) advertisement, customer receipts only
+	// UseCase — "retail" additionally prints a native Code 128 barcode of the order number
+	// and the payment date beside the method (the BOI/GoDigital receipt design).
+	UseCase string
 }
 
 // ReceiptItem is a single line on the receipt.
@@ -188,13 +194,28 @@ func BuildReceipt(d ReceiptData) []byte {
 		write(escBoldOff)
 		write(escSizeReset)
 		if d.PaymentMethod != "" {
-			writeln(formatLine("Payment", d.PaymentMethod))
+			// Retail prints the settle date beside the method — "Payment  Cash (14-07-2026)".
+			method := d.PaymentMethod
+			if d.UseCase == "retail" && d.PaymentDate != nil {
+				method = fmt.Sprintf("%s (%s)", method, d.PaymentDate.Format("02-01-2006"))
+			}
+			writeln(formatLine("Payment", method))
 		}
-		if d.AmountTendered > 0 {
+		if d.UseCase == "retail" && d.AmountPaid > 0 {
+			writeln(formatLine("Amount Paid", fmt.Sprintf("%s %.2f", d.Currency, d.AmountPaid)))
+		}
+		// Tendered duplicates Amount Paid on exact-settle retail receipts — print it only when it
+		// actually differs (cash over-tender) or on the classic layout.
+		if d.AmountTendered > 0 && !(d.UseCase == "retail" && d.AmountTendered == d.AmountPaid) {
 			writeln(formatLine("Tendered", fmt.Sprintf("%s %.2f", d.Currency, d.AmountTendered)))
 		}
 		if d.ChangeDue > 0 {
 			writeln(formatLine("Change", fmt.Sprintf("%s %.2f", d.Currency, d.ChangeDue)))
+		}
+		// Outstanding balance (on-account sale) or customer credit (negative) — printed so a
+		// part-paid/credit sale receipt states what is still owed.
+		if d.BalanceDue > 0.004 || d.BalanceDue < -0.004 {
+			writeln(formatLine("Balance Due", fmt.Sprintf("%s %.2f", d.Currency, d.BalanceDue)))
 		}
 	}
 
@@ -243,6 +264,22 @@ func BuildReceipt(d ReceiptData) []byte {
 			writeln(pm.BankAccountName)
 			write(escLeft)
 		}
+	}
+
+	// Retail customer receipts print a native Code 128 barcode of the order number (GS k) —
+	// scannable for returns/lookups, mirroring the barcode on the HTML/PDF retail template.
+	if d.Type == "customer" && d.UseCase == "retail" && d.OrderNumber != "" {
+		buf.Write(escLF)
+		write(escCenter)
+		write([]byte{0x1D, 0x68, 60})   // GS h — barcode height (dots)
+		write([]byte{0x1D, 0x77, 2})    // GS w — module width
+		write([]byte{0x1D, 0x48, 2})    // GS H — HRI (the number) below the bars
+		write([]byte{0x1D, 0x66, 0})    // GS f — HRI font A
+		payload := append([]byte{'{', 'B'}, []byte(d.OrderNumber)...) // CODE128 code set B
+		write([]byte{0x1D, 0x6B, 73, byte(len(payload))})             // GS k m=73 (CODE128) n
+		write(payload)
+		buf.Write(escLF)
+		write(escLeft)
 	}
 
 	if d.Type == "customer" {

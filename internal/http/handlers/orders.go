@@ -277,16 +277,12 @@ func (h *POSOrderHandler) enrichOrderList(ctx context.Context, tenantID uuid.UUI
 		if due < 0 {
 			due = 0
 		}
-		// Badge mirrors the "overdue" filter: a still-owing sale OR an on-account credit sale
-		// past its stamped payment_due_date reads "overdue" instead of due/partial/paid.
-		ps := derivePaymentStatus(o.Status, o.TotalAmount, paid)
-		if isOrderOverdue(o.Metadata) {
-			switch {
-			case ps == "due" || ps == "partial":
-				ps = "overdue"
-			case ps == "paid" && isOnAccount(o.Metadata):
-				ps = "overdue"
-			}
+		// Badge mirrors the "overdue" filter: a still-owing sale past its stamped
+		// payment_due_date reads "overdue" instead of due/partial. A credit sale that was
+		// later settled in full at the till reads "paid" (never overdue).
+		ps := derivePaymentStatus(o.Status, o.TotalAmount, paid, isOnAccount(o.Metadata))
+		if (ps == "due" || ps == "partial") && isOrderOverdue(o.Metadata) {
+			ps = "overdue"
 		}
 		items = append(items, orderListItem{
 			POSOrder:      o,
@@ -355,12 +351,24 @@ func isOnAccount(meta map[string]any) bool {
 }
 
 // derivePaymentStatus maps an order's status + paid amount to a display payment status.
-func derivePaymentStatus(status string, total, paid float64) string {
+// onAccount marks a credit sale: completion means the goods left, NOT that cash was banked —
+// paid_total excludes the on-account tender, so the sale reads due/partial (and "overdue"
+// past its due date, upgraded by the caller) until the money is actually collected.
+func derivePaymentStatus(status string, total, paid float64, onAccount bool) string {
 	switch status {
 	case "refunded", "voided", "cancelled":
 		return status
 	}
-	if status == "completed" || (total > 0 && paid+0.01 >= total) {
+	if total > 0 && paid+0.01 >= total {
+		return "paid"
+	}
+	if onAccount {
+		if paid > 0 {
+			return "partial"
+		}
+		return "due"
+	}
+	if status == "completed" {
 		return "paid"
 	}
 	if paid > 0 {
@@ -715,9 +723,13 @@ func (h *POSOrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Per-line price-override gate: a line whose unit_price is marked down from its
-	// catalog price (metadata.original_price) by more than max_discount_percent
-	// requires a manager step-up, recorded as price.override. Markups are allowed.
+	// Per-line price-override gate: ANY line priced below its preset catalog price
+	// (metadata.original_price) by a non-manager requires a manager step-up, recorded as
+	// price.override — cashiers may only sell AT or ABOVE the preset (raise margin, never
+	// discount a line on their own authority). The outlet's max_discount_percent governs the
+	// separate ORDER-level discount gate above, not per-line markdowns. Markups are allowed.
+	// The gate keys off original_price alone — a client "forgetting" the price_override flag
+	// no longer bypasses it.
 	if !callerIsManager {
 		needApproval := false
 		type ovLine struct {
@@ -727,15 +739,17 @@ func (h *POSOrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 		}
 		var overrides []ovLine
 		for _, l := range input.Lines {
+			// Non-billable lines are zeroed server-side by design — a zero price is not a markdown.
+			if metaBool(l.Metadata, "non_billable") {
+				continue
+			}
 			orig := readFloatMeta(l.Metadata, "original_price")
-			if !metaBool(l.Metadata, "price_override") || orig <= 0 || l.UnitPrice >= orig {
+			if orig <= 0 || l.UnitPrice >= orig-0.005 {
 				continue
 			}
 			dev := (orig - l.UnitPrice) / orig * 100
 			overrides = append(overrides, ovLine{sku: l.SKU, orig: orig, unit: l.UnitPrice, dev: dev})
-			if dev > maxPct+0.001 {
-				needApproval = true
-			}
+			needApproval = true
 		}
 		if needApproval {
 			approverID, valid := uuid.Nil, false
@@ -747,7 +761,7 @@ func (h *POSOrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 			}
 			if !valid {
 				respondJSON(w, http.StatusUnprocessableEntity, map[string]any{
-					"error":             "manager approval required: a line price markdown exceeds the allowed limit",
+					"error":             "manager approval required: selling below the preset price needs a manager",
 					"approval_required": true, "action": "price.override",
 				})
 				return

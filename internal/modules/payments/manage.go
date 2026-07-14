@@ -190,7 +190,9 @@ func (s *Service) VoidPayment(ctx context.Context, tenantID uuid.UUID, tenantSlu
 		return nil, fmt.Errorf("payments: void payment: %w", err)
 	}
 
-	paid, err := s.RecomputePaidTotal(ctx, orderID)
+	// Reopen keys on SETTLED (collected + on-account) — voiding a cash row on a part-credit
+	// order must reopen it, but an intact credit sale stays completed.
+	_, settled, err := s.RecomputePaidTotal(ctx, orderID)
 	if err != nil {
 		s.log.Warn("void payment: recompute paid_total failed", zap.Error(err))
 	}
@@ -201,7 +203,7 @@ func (s *Service) VoidPayment(ctx context.Context, tenantID uuid.UUID, tenantSlu
 	order, oerr := s.client.POSOrder.Query().
 		Where(posorder.ID(orderID), posorder.TenantID(tenantID)).
 		Only(ctx)
-	if oerr == nil && order.Status == orders.StatusCompleted && paid+0.01 < order.TotalAmount {
+	if oerr == nil && order.Status == orders.StatusCompleted && settled+0.01 < order.TotalAmount {
 		if _, uerr := s.client.POSOrder.UpdateOne(order).
 			SetStatus(orders.StatusPendingPayment).
 			Save(ctx); uerr != nil {

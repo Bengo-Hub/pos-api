@@ -53,8 +53,8 @@ func generateReceiptPDF(rec receiptResponse, brand receiptBrand) ([]byte, error)
 		pdf.SetY(y + 1.2)
 	}
 
-	// Header — tenant logo (centered) + company name in brand colour
-	if logo, lt := fetchReceiptLogo(brand.LogoURL); logo != nil {
+	// Header — tenant logo (centered, honours the "show logo" receipt setting) + company name
+	if logo, lt := fetchReceiptLogo(brand.LogoURL); logo != nil && rec.ShowLogo {
 		const logoW = 22.0
 		// Guard against a mislabeled/unsupported logo poisoning the whole receipt: only draw
 		// it if fpdf registered it cleanly, otherwise clear the error and skip the logo.

@@ -27,12 +27,19 @@ func receiptLocation(outlet *ent.Outlet) *time.Location {
 // escpos.ReceiptData directly for an order).
 // outlet/setting may be nil. paymentMethod/servedBy/voidReason may be empty.
 func OrderReceiptData(order *ent.POSOrder, lines []*ent.POSOrderLine, outlet *ent.Outlet, setting *ent.OutletSetting, typ, paymentMethod, servedBy, voidReason string) ReceiptData {
-	view := BuildReceiptView(order, lines, outlet, setting, ReceiptViewOpts{
+	return OrderReceiptDataOpts(order, lines, outlet, setting, ReceiptViewOpts{
 		Type:          typ,
 		PaymentMethod: paymentMethod,
 		ServedBy:      servedBy,
 		VoidReason:    voidReason,
 	})
+}
+
+// OrderReceiptDataOpts is OrderReceiptData with the full ReceiptViewOpts — callers that know the
+// payment amounts/date (e.g. the auto-print-on-payment path) pass them so the thermal receipt can
+// show Amount Paid / payment date / balance due like the browser one.
+func OrderReceiptDataOpts(order *ent.POSOrder, lines []*ent.POSOrderLine, outlet *ent.Outlet, setting *ent.OutletSetting, opts ReceiptViewOpts) ReceiptData {
+	view := BuildReceiptView(order, lines, outlet, setting, opts)
 	return receiptDataFromView(view, receiptLocation(outlet))
 }
 
@@ -114,6 +121,9 @@ func receiptDataFromView(v ReceiptView, loc *time.Location) ReceiptData {
 		RoundOff:           v.RoundOff,
 		TotalAmount:        v.TotalAmount,
 		PaymentMethod:      v.PaymentMethod,
+		PaymentDate:        v.PaymentDate,
+		AmountPaid:         v.AmountPaid,
+		BalanceDue:         v.BalanceDue,
 		AmountTendered:     v.AmountTendered,
 		ChangeDue:          v.ChangeDue,
 		Currency:           v.Currency,
@@ -121,5 +131,6 @@ func receiptDataFromView(v ReceiptView, loc *time.Location) ReceiptData {
 		EtimsInvoiceNumber: v.EtimsInvoiceNumber,
 		PaymentMethods:     pm,
 		ProviderFooter:     v.ProviderFooter,
+		UseCase:            v.UseCase,
 	}
 }

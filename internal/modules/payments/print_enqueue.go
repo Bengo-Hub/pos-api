@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/bengobox/pos-service/internal/ent"
 	entoutlet "github.com/bengobox/pos-service/internal/ent/outlet"
@@ -48,13 +49,22 @@ func (s *Service) enqueueReceiptPrint(ctx context.Context, order *ent.POSOrder) 
 		return
 	}
 
-	// Payment method label: the completed tenders on the order (e.g. "Cash", "M-Pesa + Cash").
+	// Payment method label: the completed tenders on the order (e.g. "Cash", "M-Pesa + Cash"),
+	// plus the total settled amount and last settle time so the printed receipt can show
+	// Amount Paid / "Cash (14-07-2026)" / balance due like the browser one.
 	methods := make([]string, 0, 2)
 	seen := map[string]struct{}{}
+	var amountPaid float64
+	var paymentDate *time.Time
 	if pays, perr := s.client.POSPayment.Query().
 		Where(pospayment.OrderID(order.ID), pospayment.Status(StatusCompleted)).
 		All(ctx); perr == nil {
 		for _, p := range pays {
+			amountPaid += p.Amount
+			if paymentDate == nil || p.OccurredAt.After(*paymentDate) {
+				occurred := p.OccurredAt
+				paymentDate = &occurred
+			}
 			if t, tErr := s.client.Tender.Get(ctx, p.TenderID); tErr == nil && t.Name != "" {
 				if _, dup := seen[t.Name]; !dup {
 					seen[t.Name] = struct{}{}
@@ -66,8 +76,14 @@ func (s *Service) enqueueReceiptPrint(ctx context.Context, order *ent.POSOrder) 
 
 	outlet, _ := s.client.Outlet.Query().Where(entoutlet.ID(order.OutletID)).Only(ctx)
 	servedBy := printing.ServedByFromContext(ctx)
-	payload := printing.BuildReceipt(printing.OrderReceiptData(
-		order, lines, outlet, setting, "customer", strings.Join(methods, " + "), servedBy, ""))
+	payload := printing.BuildReceipt(printing.OrderReceiptDataOpts(
+		order, lines, outlet, setting, printing.ReceiptViewOpts{
+			Type:          "customer",
+			PaymentMethod: strings.Join(methods, " + "),
+			ServedBy:      servedBy,
+			AmountPaid:    amountPaid,
+			PaymentDate:   paymentDate,
+		}))
 	_, err = s.printQueue.Enqueue(ctx, printing.EnqueueInput{
 		TenantID:  order.TenantID,
 		OutletID:  order.OutletID,

@@ -714,26 +714,31 @@ func (s *Service) outstandingBalance(ctx context.Context, order *ent.POSOrder) f
 // RecomputePaidTotal recalculates an order's paid_total from its COMPLETED payments and
 // persists it on the order. It is the single write path for paid_total — called after every
 // payment mutation (record, confirm, void/edit) — so the payment-status filter, the row
-// badge, and completeOrderIfFullyPaid all read one consistent value. Returns the new sum.
-func (s *Service) RecomputePaidTotal(ctx context.Context, orderID uuid.UUID) (float64, error) {
-	var agg []struct {
-		Sum float64 `json:"sum"`
-	}
-	err := s.client.POSPayment.Query().
+// badge, and completeOrderIfFullyPaid all read one consistent value.
+//
+// paid_total counts only money ACTUALLY COLLECTED: on-account (credit-sale) tender rows are
+// excluded — credit is a debt in treasury AR, not cash banked, so a credit sale must read
+// due/overdue on every sales surface instead of "paid". The second return value (settled)
+// additionally includes on-account rows — it is what order COMPLETION keys on, because a
+// credit sale still closes the order (goods leave; stock/GL/AR fire via pos.sale.finalized).
+func (s *Service) RecomputePaidTotal(ctx context.Context, orderID uuid.UUID) (collected float64, settled float64, err error) {
+	rows, err := s.client.POSPayment.Query().
 		Where(pospayment.OrderID(orderID), pospayment.Status(StatusCompleted)).
-		Aggregate(ent.Sum(pospayment.FieldAmount)).
-		Scan(ctx, &agg)
+		All(ctx)
 	if err != nil {
-		return 0, fmt.Errorf("payments: sum completed payments: %w", err)
+		return 0, 0, fmt.Errorf("payments: sum completed payments: %w", err)
 	}
-	paid := 0.0
-	if len(agg) > 0 {
-		paid = agg[0].Sum
+	for _, p := range rows {
+		settled += p.Amount
+		method, _ := p.PaymentData["method"].(string)
+		if !strings.EqualFold(method, TenderOnAccount) {
+			collected += p.Amount
+		}
 	}
-	if err := s.client.POSOrder.UpdateOneID(orderID).SetPaidTotal(paid).Exec(ctx); err != nil {
-		return paid, fmt.Errorf("payments: store paid_total: %w", err)
+	if err := s.client.POSOrder.UpdateOneID(orderID).SetPaidTotal(collected).Exec(ctx); err != nil {
+		return collected, settled, fmt.Errorf("payments: store paid_total: %w", err)
 	}
-	return paid, nil
+	return collected, settled, nil
 }
 
 // RecheckCompletion re-evaluates a single order's payment-completion status through the exact
@@ -765,13 +770,15 @@ func (s *Service) RecheckCompletion(ctx context.Context, tenantID, orderID uuid.
 // double-counted and any partial payment >= half the total wrongly completed the order
 // (root cause of "PAID badge with a positive Sell Due" / broken Partial filtering).
 func (s *Service) completeOrderIfFullyPaid(ctx context.Context, order *ent.POSOrder) {
-	totalPaid, err := s.RecomputePaidTotal(ctx, order.ID)
+	// Completion keys on SETTLED (collected + on-account credit): a credit sale closes the
+	// order even though paid_total (collected cash only) stays below the total.
+	_, settled, err := s.RecomputePaidTotal(ctx, order.ID)
 	if err != nil {
 		s.log.Warn("recompute paid_total failed", zap.String("order_id", order.ID.String()), zap.Error(err))
 		return
 	}
 
-	if totalPaid+0.01 >= order.TotalAmount {
+	if settled+0.01 >= order.TotalAmount {
 		if err := s.orderSvc.ValidateStatusTransition(order.Status, orders.StatusCompleted); err == nil {
 			updated, updateErr := s.client.POSOrder.UpdateOne(order).
 				SetStatus(orders.StatusCompleted).

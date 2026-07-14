@@ -87,3 +87,41 @@ compatible).
 - `terminal-context` / `terminal-modals`: client `printKitchenBarTickets` and ReceiptPreview
   auto-print are skipped when `print_agent_online` (server enqueued them already).
 - `ReceiptPreview` Print button: queue → agent/QZ silently; "Save PDF" is always the browser window.
+
+## Retail receipt template (2026-07-14)
+
+Outlets with `use_case = "retail"` render a boxed invoice-style receipt (BOI/GoDigital design)
+on every surface, selected automatically from `ReceiptView.UseCase`:
+
+- **Server HTML/PDF** — `generateRetailReceiptHTML` / `generateRetailReceiptPDF`
+  (`internal/http/handlers/receipt_retail.go`): boxed business header (logo honours the
+  show-logo setting), `Customer | INVOICE.NO | DATE` table, `SERVED BY`, bordered items table
+  (Item/Qty/Price/Subtotal), totals block (Total Quantity, TOTAL ITEMS, Subtotal, itemised
+  Discount/VAT/named charges/Round Off, TOTAL, payment method with settle date e.g.
+  `Cash (14-07-2026)`, AMOUNT PAID, `Total Due with Current`), a **Code 128 barcode** of the
+  order number (`printing.Code128PNG`, boombuler/barcode), the configurable footer text
+  (`receipt_footer` — the "IN GOD WE TRUST" position, flows below the barcode) and the provider
+  advertisement in smaller print.
+- **ESC/POS** — retail customer receipts additionally print a native `GS k` CODE128 barcode of
+  the order number, the payment date beside the method, Amount Paid and a Balance Due line.
+- **pos-ui** — `RetailReceiptPrint` (`components/pos/receipt-retail-print.tsx`) renders the same
+  design client-side (preview print root, print window, Save-PDF via an A4 document shell).
+
+New `ReceiptView`/JSON fields: `use_case`, `show_logo`, `payment_date`, `balance_due`
+(total − collected; on-account credit sales carry the full amount due), `charges` (named
+breakdown) and `barcode_png` (data URI).
+
+## Receipt settings additions
+
+- `show_logo_on_receipt` (GET/PUT `/pos/settings`) — include the tenant/outlet logo on
+  generated receipts. Stored in `OutletSetting.metadata.receipt_show_logo` (no migration);
+  defaults to true. Honoured by the classic + retail HTML/PDF renderers and the pos-ui
+  preview/print components. Toggle lives in Settings → Receipt & Printing → Receipt Content.
+
+## Credit-sale payment status (2026-07-14)
+
+`paid_total` now counts only money actually collected: the on-account tender row is excluded
+(`RecomputePaidTotal` returns `(collected, settled)`; completion/reopen key on *settled*). A
+credit sale therefore reads **due/partial → overdue** (never "paid") on All-Sales/orders lists,
+matches the paid/partial/due/overdue filters, and its receipt shows `Credit (on account)` with
+Amount Paid 0 and the full Balance Due.

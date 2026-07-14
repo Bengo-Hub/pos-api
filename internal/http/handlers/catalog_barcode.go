@@ -14,6 +14,7 @@ import (
 	"github.com/Bengo-Hub/httpware"
 	authclient "github.com/Bengo-Hub/shared-auth-client"
 	entoverride "github.com/bengobox/pos-service/internal/ent/poscatalogoverride"
+	"github.com/bengobox/pos-service/internal/http/middleware"
 )
 
 const barcodeCacheTTL = 5 * time.Minute
@@ -55,7 +56,11 @@ func (h *CatalogHandler) BarcodeLookup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cacheKey := fmt.Sprintf("pos:barcode:%s:%s", tid, barcode)
+	// Cost is SENSITIVE — same gate as the catalog list. Resolved before the cache key so a
+	// cashier's cost-stripped payload is never served to a manager (or vice versa).
+	showCost := middleware.HasServicePermission(r, h.rbac, "pos.catalog.view_cost", "pos.orders.manage")
+
+	cacheKey := fmt.Sprintf("pos:barcode:%s:%s:%t", tid, barcode, showCost)
 
 	// Try Redis cache first
 	if h.redis != nil {
@@ -87,6 +92,21 @@ func (h *CatalogHandler) BarcodeLookup(w http.ResponseWriter, r *http.Request) {
 
 	item := wrapper.Data[0]
 	sku, _ := item["sku"].(string)
+
+	// Cost parity with the catalog list (assembleMenuItems): fall back to purchase_price when
+	// cost_price is missing/0 for authorized callers, and strip BOTH for everyone else so the
+	// raw inventory payload never leaks supplier cost to a cashier's browser.
+	if showCost {
+		cost, _ := item["cost_price"].(float64)
+		if cost <= 0 {
+			if pp, ok := item["purchase_price"].(float64); ok && pp > 0 {
+				item["cost_price"] = pp
+			}
+		}
+	} else {
+		delete(item, "cost_price")
+		delete(item, "purchase_price")
+	}
 
 	// Merge price from local override
 	if sku != "" {
