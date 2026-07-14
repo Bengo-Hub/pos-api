@@ -634,6 +634,10 @@ func seedRBACPermissions(ctx context.Context, client *ent.Client) error {
 	// wildcard picks it up on the next role reconcile, admin has "*"; cashiers never get it.
 	extras := []struct{ code, name, module, action string }{
 		{"pos.catalog.view_cost", "POS catalog view cost price", "catalog", "view_cost"},
+		// Credit (on-account) sales: managers/admins get it via pos.payments.* / "*"; cashiers
+		// only see the terminal's Credit Sale tender when a tenant admin grants this explicitly
+		// in Roles & Permissions (default-hidden, decision 2026-07-15).
+		{"pos.payments.credit", "POS record credit (on-account) sale", "payments", "credit"},
 	}
 	for _, ex := range extras {
 		exists, err := client.POSPermission.Query().
