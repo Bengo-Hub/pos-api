@@ -27,6 +27,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/predicate"
 	"github.com/bengobox/pos-service/internal/ent/tender"
 	outletmw "github.com/bengobox/pos-service/internal/http/middleware"
+	"github.com/bengobox/pos-service/internal/modules/inventory"
 	"github.com/bengobox/pos-service/internal/modules/orders"
 	"github.com/bengobox/pos-service/internal/platform/subscriptions"
 )
@@ -42,6 +43,9 @@ type POSOrderHandler struct {
 	rbac outletmw.PermissionChecker
 	// terminalSecret verifies manager-PIN step-up approval tokens for sensitive actions.
 	terminalSecret []byte
+	// inventoryClient propagates order-line price corrections to the inventory catalog
+	// (EditOrderLine's update_catalog_price option). Optional — nil skips propagation.
+	inventoryClient *inventory.Client
 }
 
 func NewPOSOrderHandler(log *zap.Logger, client *ent.Client, orderSvc *orders.Service, subsClient *subscriptions.Client) *POSOrderHandler {
@@ -50,6 +54,10 @@ func NewPOSOrderHandler(log *zap.Logger, client *ent.Client, orderSvc *orders.Se
 
 // SetAuditService wires the centralized audit trail for void/line-removal events.
 func (h *POSOrderHandler) SetAuditService(a *audit.Service) { h.auditSvc = a }
+
+// SetInventoryClient wires the inventory S2S client used to propagate order-line price
+// corrections to the catalog (EditOrderLine's update_catalog_price option).
+func (h *POSOrderHandler) SetInventoryClient(c *inventory.Client) { h.inventoryClient = c }
 
 // SetRBAC wires the local RBAC fallback used by the per-cashier visibility scoping.
 func (h *POSOrderHandler) SetRBAC(rbac outletmw.PermissionChecker) { h.rbac = rbac }

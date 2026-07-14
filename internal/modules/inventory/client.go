@@ -196,6 +196,38 @@ func (c *Client) GetBundle(ctx context.Context, tenantID, bundleID string) (*Bun
 	return &b, true, nil
 }
 
+// SetItemPrice patches an inventory item's selling price by SKU — PATCH
+// /v1/{tenant}/inventory/items/{sku}/price. Inventory repoints the price everywhere its
+// POS price-resolve reads it (guardrail fields, RETAIL/WHOLESALE tier rows, and the
+// linked recipe's selling price for RECIPE items). Used by the order-line edit's
+// "also update the catalog price" option; callers treat failure as non-fatal.
+func (c *Client) SetItemPrice(ctx context.Context, tenantID, sku string, price float64) error {
+	if c == nil || c.baseURL == "" {
+		return fmt.Errorf("inventory.Client.SetItemPrice: client not configured")
+	}
+	body, err := json.Marshal(map[string]float64{"price": price})
+	if err != nil {
+		return fmt.Errorf("inventory.Client.SetItemPrice: marshal: %w", err)
+	}
+	reqURL := fmt.Sprintf("%s/v1/%s/inventory/items/%s/price", c.baseURL, tenantID, url.PathEscape(sku))
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPatch, reqURL, bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("inventory.Client.SetItemPrice: build request: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("X-API-Key", c.apiKey)
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return fmt.Errorf("inventory.Client.SetItemPrice: http: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		return fmt.Errorf("inventory.Client.SetItemPrice: status %d", resp.StatusCode)
+	}
+	return nil
+}
+
 // RecordConsumption calls inventory-api to backflush stock for a completed POS order.
 // Non-fatal: callers should log and optionally publish a retry event on error.
 func (c *Client) RecordConsumption(ctx context.Context, tenantID string, req ConsumptionRequest) error {

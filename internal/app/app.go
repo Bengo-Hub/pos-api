@@ -242,6 +242,8 @@ func New(ctx context.Context) (*App, error) {
 	// Create HTTP handlers
 	orderHandler := handlers.NewPOSOrderHandler(log, entClient, orderSvc, subsClient)
 	orderHandler.SetAuditService(auditSvc)
+	// Line-edit price corrections can optionally propagate to the inventory catalog.
+	orderHandler.SetInventoryClient(inventoryClient)
 	catalogHandler := handlers.NewCatalogHandler(log, entClient)
 	catalogHandler.SetRedisClient(redisClient)
 	tableHandler := handlers.NewTableHandler(log, entClient)

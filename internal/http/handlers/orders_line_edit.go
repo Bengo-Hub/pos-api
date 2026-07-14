@@ -10,6 +10,7 @@ import (
 
 	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/bengobox/pos-service/internal/audit"
+	entoverride "github.com/bengobox/pos-service/internal/ent/poscatalogoverride"
 	"github.com/bengobox/pos-service/internal/modules/orders"
 )
 
@@ -17,6 +18,11 @@ type editLineInput struct {
 	UnitPrice *float64 `json:"unit_price"`
 	Quantity  *float64 `json:"quantity"`
 	Reason    string   `json:"reason"`
+	// UpdateCatalogPrice additionally propagates the new unit price to the inventory
+	// catalog (item guardrails/tier rows + recipe selling price) and any local POS
+	// catalog override, so the correction applies to future sales too — not just this
+	// order. Best-effort: the line edit succeeds even if the propagation fails.
+	UpdateCatalogPrice bool `json:"update_catalog_price"`
 }
 
 // EditOrderLine handles PATCH /{tenantID}/pos/orders/{orderID}/lines/{lineID}.
@@ -93,5 +99,36 @@ func (h *POSOrderHandler) EditOrderLine(w http.ResponseWriter, r *http.Request) 
 		})
 	}
 
-	jsonOK(w, map[string]any{"order": result.Order, "line": result.Line})
+	// Optional catalog propagation: repoint the item's price in inventory (guardrails,
+	// tier rows, recipe selling price) and any local POS override carrying its own price,
+	// so the correction outlives this one order. Best-effort — the line edit already
+	// committed; a propagation failure is reported in the response, never a 4xx/5xx.
+	catalogUpdated := false
+	if input.UpdateCatalogPrice && input.UnitPrice != nil && result.Line.Sku != "" {
+		if h.inventoryClient != nil {
+			if invErr := h.inventoryClient.SetItemPrice(r.Context(), tid.String(), result.Line.Sku, *input.UnitPrice); invErr != nil {
+				h.log.Warn("edit order line: inventory price propagation failed",
+					zap.String("sku", result.Line.Sku), zap.Error(invErr))
+			} else {
+				catalogUpdated = true
+			}
+		}
+		// A local override row with its own selling_price would keep outranking the
+		// inventory price at the terminal — keep it in step.
+		if n, ovErr := h.client.POSCatalogOverride.Update().
+			Where(
+				entoverride.TenantID(tid),
+				entoverride.InventorySku(result.Line.Sku),
+				entoverride.SellingPriceNotNil(),
+			).
+			SetSellingPrice(*input.UnitPrice).
+			Save(r.Context()); ovErr != nil {
+			h.log.Warn("edit order line: catalog override price sync failed",
+				zap.String("sku", result.Line.Sku), zap.Error(ovErr))
+		} else if n > 0 {
+			catalogUpdated = true
+		}
+	}
+
+	jsonOK(w, map[string]any{"order": result.Order, "line": result.Line, "catalog_price_updated": catalogUpdated})
 }
