@@ -1998,6 +1998,78 @@ func (s *Service) EditOrderLine(ctx context.Context, tenantID, orderID, lineID u
 	}, nil
 }
 
+// SetOrderDiscountResult carries the pre-edit snapshot alongside the updated order so the
+// caller (HTTP handler) can write a complete before/after audit entry.
+type SetOrderDiscountResult struct {
+	Order          *ent.POSOrder
+	BeforeDiscount float64
+	BeforeTotal    float64
+}
+
+// SetOrderDiscount directly corrects an UNSETTLED order's order-level discount and
+// recomputes the headline totals through finalizeTotals — the same identity CreateOrder,
+// AddOrderLines and EditOrderLine use — so the discount lands on the order BEFORE payment
+// is taken. This is the server side of the resume-sale "✓ save discount" affordance: the
+// old flow only carried the typed discount through the create-order payload, so editing
+// the discount on a resumed draft silently settled at the stale stored total (root cause
+// of the POS-64E2E2E92BF7 over-collection + POS-D3E0CE5CB245 duplicate on 2026-07-14).
+func (s *Service) SetOrderDiscount(ctx context.Context, tenantID, orderID uuid.UUID, discount float64) (*SetOrderDiscountResult, error) {
+	order, err := s.client.POSOrder.Query().
+		Where(posorder.ID(orderID), posorder.TenantID(tenantID)).
+		WithLines().
+		Only(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("orders: order not found: %w", err)
+	}
+	switch order.Status {
+	case StatusCompleted, StatusCancelled, StatusVoided, StatusRefunded:
+		return nil, fmt.Errorf("orders: cannot change the discount on a %s order", order.Status)
+	}
+	if discount < 0 {
+		return nil, fmt.Errorf("orders: discount cannot be negative")
+	}
+
+	// Same voided-line-aware aggregation as EditOrderLine: voided lines' own total_price is
+	// left untouched by VoidOrderLine, so summing them back in would silently un-void them.
+	var newSubtotal, newTaxTotal decimal.Decimal
+	for _, l := range order.Edges.Lines {
+		if l.VoidedQty != nil {
+			continue
+		}
+		newSubtotal = newSubtotal.Add(decimal.NewFromFloat(l.TotalPrice))
+		if l.TaxAmount != nil && !l.PriceIncludesTax {
+			newTaxTotal = newTaxTotal.Add(decimal.NewFromFloat(*l.TaxAmount))
+		}
+	}
+	orderTax := decimal.Zero
+	if ot, ok := order.Metadata["order_tax"].(map[string]any); ok {
+		if amt, ok := ot["amount"].(float64); ok && amt > 0 {
+			orderTax = decimal.NewFromFloat(amt)
+		}
+	}
+	if decimal.NewFromFloat(discount).GreaterThan(newSubtotal.Add(newTaxTotal).Add(orderTax).Add(decimal.NewFromFloat(order.ChargesTotal))) {
+		return nil, fmt.Errorf("orders: discount exceeds the order amount")
+	}
+	totals := finalizeTotals(newSubtotal, newTaxTotal, decimal.NewFromFloat(discount), decimal.NewFromFloat(order.ChargesTotal), orderTax)
+
+	updated, err := s.client.POSOrder.UpdateOneID(order.ID).
+		SetDiscountTotal(discount).
+		SetSubtotal(totals.Subtotal.InexactFloat64()).
+		SetTaxTotal(totals.TaxTotal.InexactFloat64()).
+		SetRoundOff(totals.RoundOff.InexactFloat64()).
+		SetTotalAmount(totals.TotalAmount.InexactFloat64()).
+		Save(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("orders: update discount: %w", err)
+	}
+
+	return &SetOrderDiscountResult{
+		Order:          updated,
+		BeforeDiscount: order.DiscountTotal,
+		BeforeTotal:    order.TotalAmount,
+	}, nil
+}
+
 // EffectiveOrderDate returns the calendar day an order counts toward in reports: the
 // admin-set business_date override when present, else created_at (server ingestion
 // time). Report/list queries that need to honor a moved sale should filter on this

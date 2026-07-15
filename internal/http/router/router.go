@@ -330,6 +330,11 @@ func New(
 						// instead of requiring a raw database fix for stale-priced sales.
 						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.orders.manage")).
 							Patch("/orders/{orderID}/lines/{lineID}", orders.EditOrderLine)
+						// Manager/admin corrective tool: set an unsettled order's order-level discount
+						// in place (recomputes totals) so a resumed sale never settles at a stale
+						// pre-discount total (root cause of the 2026-07-14 duplicate-settle incident).
+						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.orders.manage")).
+							Patch("/orders/{orderID}/discount", orders.SetOrderDiscount)
 						// Admin/platform-owner-only corrective tool: move a settled sale's reporting
 						// date (e.g. a sale rung up and synced a day late) without touching amounts,
 						// payments, or the immutable created_at audit timestamp. pos.orders.manage is

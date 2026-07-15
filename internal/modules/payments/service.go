@@ -224,16 +224,32 @@ func (s *Service) CreatePaymentIntent(ctx context.Context, req RecordPaymentRequ
 	if order.Status == orders.StatusCancelled || order.Status == orders.StatusVoided {
 		return nil, fmt.Errorf("payments: cannot pay %s order", order.Status)
 	}
+	// Settle gate: a completed/refunded order is already finalized (GL posted, stock
+	// deducted, receipt issued) — recording another payment against it would double-post
+	// the sale downstream.
+	if order.Status == orders.StatusCompleted || order.Status == orders.StatusRefunded {
+		return nil, fmt.Errorf("payments: order %s is already settled and cannot be paid again", order.OrderNumber)
+	}
 
-	// Never trust a non-positive client amount: settling a bill from a list
-	// (e.g. "Settle Bill" in My Bills) can pass amount=0 when the in-memory total
-	// is stale. Derive the charge from the order's outstanding balance so we never
-	// send a zero-amount intent to treasury (which 500s on it).
-	if req.Amount <= 0 {
-		req.Amount = s.outstandingBalance(ctx, order)
+	// Never trust the client amount: settling a bill from a list (e.g. "Settle Bill" in
+	// My Bills, or a resumed back-office sale) can pass amount=0 — or a STALE total when
+	// the client's in-memory order diverged from the server (2026-07-14: a resumed sale
+	// charged the pre-discount 10,180 against a 9,180 order). Derive the charge from the
+	// order's outstanding balance when missing, and cap it there so a sale can never
+	// collect more than the order is worth.
+	outstanding := s.outstandingBalance(ctx, order)
+	if outstanding <= 0 {
+		return nil, fmt.Errorf("payments: order has no outstanding balance to charge")
 	}
 	if req.Amount <= 0 {
-		return nil, fmt.Errorf("payments: order has no outstanding balance to charge")
+		req.Amount = outstanding
+	}
+	if req.Amount > outstanding+0.01 {
+		s.log.Warn("payment amount exceeds outstanding balance — clamping to outstanding",
+			zap.String("order_id", order.ID.String()),
+			zap.Float64("requested", req.Amount),
+			zap.Float64("outstanding", outstanding))
+		req.Amount = outstanding
 	}
 
 	currency := req.Currency
@@ -649,13 +665,25 @@ func (s *Service) RecordPayment(ctx context.Context, req RecordPaymentRequest) (
 	if order.Status == orders.StatusCancelled || order.Status == orders.StatusVoided {
 		return nil, fmt.Errorf("payments: cannot pay %s order", order.Status)
 	}
+	// Same settle gate as CreatePaymentIntent: an already-finalized order must never take
+	// another payment, and the charge is derived from / capped at the outstanding balance.
+	if order.Status == orders.StatusCompleted || order.Status == orders.StatusRefunded {
+		return nil, fmt.Errorf("payments: order %s is already settled and cannot be paid again", order.OrderNumber)
+	}
 
-	// Fall back to the order's outstanding balance when no positive amount is given.
-	if req.Amount <= 0 {
-		req.Amount = s.outstandingBalance(ctx, order)
+	outstanding := s.outstandingBalance(ctx, order)
+	if outstanding <= 0 {
+		return nil, fmt.Errorf("payments: order has no outstanding balance to charge")
 	}
 	if req.Amount <= 0 {
-		return nil, fmt.Errorf("payments: order has no outstanding balance to charge")
+		req.Amount = outstanding
+	}
+	if req.Amount > outstanding+0.01 {
+		s.log.Warn("payment amount exceeds outstanding balance — clamping to outstanding",
+			zap.String("order_id", order.ID.String()),
+			zap.Float64("requested", req.Amount),
+			zap.Float64("outstanding", outstanding))
+		req.Amount = outstanding
 	}
 
 	currency := req.Currency
@@ -779,35 +807,55 @@ func (s *Service) completeOrderIfFullyPaid(ctx context.Context, order *ent.POSOr
 	}
 
 	if settled+0.01 >= order.TotalAmount {
-		if err := s.orderSvc.ValidateStatusTransition(order.Status, orders.StatusCompleted); err == nil {
-			updated, updateErr := s.client.POSOrder.UpdateOne(order).
-				SetStatus(orders.StatusCompleted).
-				Save(ctx)
-			if updateErr != nil {
-				s.log.Warn("failed to complete order after full payment",
-					zap.String("order_id", order.ID.String()),
-					zap.Error(updateErr))
-				return
-			}
-			s.publishSaleFinalized(ctx, updated)
-			s.enqueueReceiptPrint(ctx, updated)
-			s.calcCommissions(ctx, updated)
-			// Free the table once the bill is settled, regardless of which flow
-			// (waiter My Bills, cashier orders page, or async digital confirmation)
-			// closed it — mirrors the manual ReleaseTable endpoint.
-			s.releaseTableForOrder(ctx, order.ID)
-			// A settled order is done in the kitchen/bar regardless of whether staff ever bumped
-			// its tickets on the KDS board (quick-service counter sales skip the board entirely) —
-			// force-serve any that are still open so the live board doesn't show food for an order
-			// that's already been paid for and (usually) handed over.
-			s.orderSvc.AutoClearKDSTicketsForOrder(ctx, order.TenantID, order.ID)
-		} else if order.Status == orders.StatusCompleted {
-			// Already completed by another path/event (e.g. a second payment confirmation, or a
-			// flow that completed the order directly): still sweep any open tickets — idempotent,
-			// only pending/in_progress/ready tickets are touched — so a settled bill can never
-			// leave food sitting on the live KDS board.
-			s.orderSvc.AutoClearKDSTicketsForOrder(ctx, order.TenantID, order.ID)
+		// Atomically CLAIM the completion transition: the conditional UPDATE flips the order
+		// to completed only while it is still in a settleable state, so exactly ONE of any
+		// concurrent payment confirmations wins the transition. The in-memory
+		// ValidateStatusTransition check this replaces was a TOCTOU race — two near-simultaneous
+		// full payments could both pass it and publish pos.sale.finalized twice, double-posting
+		// the sale to treasury GL and inventory backflush (same family as the 2026-07-14
+		// duplicate-settle incident).
+		n, updateErr := s.client.POSOrder.Update().
+			Where(
+				posorder.ID(order.ID),
+				posorder.StatusIn(orders.StatusDraft, orders.StatusOpen, orders.StatusPendingPayment),
+			).
+			SetStatus(orders.StatusCompleted).
+			Save(ctx)
+		if updateErr != nil {
+			s.log.Warn("failed to complete order after full payment",
+				zap.String("order_id", order.ID.String()),
+				zap.Error(updateErr))
+			return
 		}
+		if n == 0 {
+			// Already completed by another path/event (e.g. a second payment confirmation, or a
+			// flow that completed the order directly), or in a state that can't complete: still
+			// sweep any open tickets — idempotent, only pending/in_progress/ready tickets are
+			// touched — so a settled bill can never leave food sitting on the live KDS board.
+			s.orderSvc.AutoClearKDSTicketsForOrder(ctx, order.TenantID, order.ID)
+			return
+		}
+		updated, gerr := s.client.POSOrder.Get(ctx, order.ID)
+		if gerr != nil {
+			// Publishing must not be skipped once the transition is claimed — fall back to the
+			// pre-update snapshot (its totals are what the settlement check validated).
+			s.log.Warn("reload completed order failed — publishing from pre-update snapshot",
+				zap.String("order_id", order.ID.String()), zap.Error(gerr))
+			updated = order
+			updated.Status = orders.StatusCompleted
+		}
+		s.publishSaleFinalized(ctx, updated)
+		s.enqueueReceiptPrint(ctx, updated)
+		s.calcCommissions(ctx, updated)
+		// Free the table once the bill is settled, regardless of which flow
+		// (waiter My Bills, cashier orders page, or async digital confirmation)
+		// closed it — mirrors the manual ReleaseTable endpoint.
+		s.releaseTableForOrder(ctx, order.ID)
+		// A settled order is done in the kitchen/bar regardless of whether staff ever bumped
+		// its tickets on the KDS board (quick-service counter sales skip the board entirely) —
+		// force-serve any that are still open so the live board doesn't show food for an order
+		// that's already been paid for and (usually) handed over.
+		s.orderSvc.AutoClearKDSTicketsForOrder(ctx, order.TenantID, order.ID)
 	}
 }
 
