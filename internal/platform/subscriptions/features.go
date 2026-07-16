@@ -18,6 +18,12 @@ const (
 	// from FeatureHotelModule (rooms/check-in/folio) — a cafe with spare floor space shouldn't
 	// need the full hotel PMS just to sell co-working.
 	FeatureFacilityBooking = "facility_booking"
+	// FeatureLayaway gates layaway plans & payments (retail T2+ per the use-case
+	// PowerSuite matrix); FeatureCommissions gates commission records/rules/payout
+	// (retail/services). Both codes are seeded in feature_catalog.go and on the
+	// POWERSUITE_DUKA_* tiers.
+	FeatureLayaway     = "layaway"
+	FeatureCommissions = "commissions"
 )
 
 // Structural plan-limit keys (hard-block, no overage — require a plan upgrade).

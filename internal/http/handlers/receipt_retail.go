@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/go-pdf/fpdf"
+	qrcode "github.com/skip2/go-qrcode"
 
 	"github.com/bengobox/pos-service/internal/modules/printing"
 )
@@ -179,6 +180,9 @@ td.r,th.r{text-align:right}
 	if rec.OutletPhones != "" {
 		buf.WriteString(fmt.Sprintf(`<div class="sub"><b>Mobile:</b> %s</div>`, htmlEscape(rec.OutletPhones)))
 	}
+	if rec.EtimsKraPin != "" {
+		buf.WriteString(fmt.Sprintf(`<div class="sub"><b>KRA PIN:</b> %s</div>`, htmlEscape(rec.EtimsKraPin)))
+	}
 	if rec.ReceiptHeader != "" {
 		buf.WriteString(fmt.Sprintf(`<div class="sub"><b>%s</b></div>`, htmlEscape(rec.ReceiptHeader)))
 	}
@@ -260,6 +264,27 @@ td.r,th.r{text-align:right}
 	}
 	buf.WriteString(`</div>`)
 
+	// ── KRA TIMS Details (fiscalised sales) — mirrors the paper ETR layout ──
+	if rec.EtimsCuInvNo != "" || rec.EtimsInvoiceNumber != "" || rec.EtimsQRPNG != "" {
+		buf.WriteString(`<div style="text-align:center;margin-top:10px">`)
+		buf.WriteString(`<div style="font-weight:bold;font-size:14px">KRA TIMS Details</div>`)
+		if rec.EtimsScuID != "" {
+			buf.WriteString(fmt.Sprintf(`<div class="sub"><b>SCU ID:</b> %s</div>`, htmlEscape(rec.EtimsScuID)))
+		}
+		if rec.EtimsCuInvNo != "" {
+			buf.WriteString(fmt.Sprintf(`<div class="sub"><b>CU_Inv No.:</b> %s</div>`, htmlEscape(rec.EtimsCuInvNo)))
+		} else if rec.EtimsInvoiceNumber != "" {
+			buf.WriteString(fmt.Sprintf(`<div class="sub"><b>CU No.:</b> %s</div>`, htmlEscape(rec.EtimsInvoiceNumber)))
+		}
+		if rec.EtimsRcptSign != "" {
+			buf.WriteString(fmt.Sprintf(`<div class="sub" style="word-break:break-all">Sign: %s</div>`, htmlEscape(rec.EtimsRcptSign)))
+		}
+		if rec.EtimsQRPNG != "" {
+			buf.WriteString(fmt.Sprintf(`<img src="%s" alt="eTIMS QR" style="height:30mm;margin-top:4px">`, rec.EtimsQRPNG))
+		}
+		buf.WriteString(`</div>`)
+	}
+
 	// ── Barcode of the invoice/order number ──
 	if rec.BarcodePNG != "" {
 		buf.WriteString(fmt.Sprintf(`<div class="barcode"><img src="%s" alt="barcode"><div class="num">%s</div></div>`,
@@ -326,6 +351,10 @@ func generateRetailReceiptPDF(rec receiptResponse, brand receiptBrand) ([]byte, 
 	if rec.OutletPhones != "" {
 		pdf.SetFont("Times", "B", 10)
 		pdf.MultiCell(contentW, 5, "Mobile: "+rec.OutletPhones, "", "C", false)
+	}
+	if rec.EtimsKraPin != "" {
+		pdf.SetFont("Times", "B", 10)
+		pdf.MultiCell(contentW, 5, "KRA PIN: "+rec.EtimsKraPin, "", "C", false)
 	}
 	if rec.ReceiptHeader != "" {
 		pdf.SetFont("Times", "B", 10)
@@ -428,6 +457,36 @@ func generateRetailReceiptPDF(rec receiptResponse, brand receiptBrand) ([]byte, 
 	}
 	if math.Abs(rec.BalanceDue) >= 0.005 {
 		trow("Total Due with Current", retailMoney(rec.Currency, rec.BalanceDue), false)
+	}
+
+	// ── KRA TIMS Details (fiscalised sales) — mirrors the paper ETR layout ──
+	if rec.EtimsCuInvNo != "" || rec.EtimsInvoiceNumber != "" || rec.EtimsQRCodeURL != "" {
+		pdf.Ln(4)
+		pdf.SetFont("Times", "B", 12)
+		pdf.CellFormat(contentW, 6, "KRA TIMS Details", "", 1, "C", false, 0, "")
+		pdf.SetFont("Times", "", 10)
+		if rec.EtimsScuID != "" {
+			pdf.CellFormat(contentW, 5, "SCU ID: "+rec.EtimsScuID, "", 1, "C", false, 0, "")
+		}
+		if rec.EtimsCuInvNo != "" {
+			pdf.CellFormat(contentW, 5, "CU_Inv No.: "+rec.EtimsCuInvNo, "", 1, "C", false, 0, "")
+		} else if rec.EtimsInvoiceNumber != "" {
+			pdf.CellFormat(contentW, 5, "CU No.: "+rec.EtimsInvoiceNumber, "", 1, "C", false, 0, "")
+		}
+		if rec.EtimsRcptSign != "" {
+			pdf.SetFont("Times", "", 8)
+			pdf.MultiCell(contentW, 4, "Sign: "+rec.EtimsRcptSign, "", "C", false)
+		}
+		if rec.EtimsQRCodeURL != "" {
+			if qrPNG, qerr := qrcode.Encode(rec.EtimsQRCodeURL, qrcode.Medium, 256); qerr == nil {
+				const qrW = 26.0
+				if info := pdf.RegisterImageOptionsReader("etimsqr", fpdf.ImageOptions{ImageType: "PNG"}, bytes.NewReader(qrPNG)); info != nil && info.Width() > 0 {
+					pdf.ImageOptions("etimsqr", (pageW-qrW)/2, pdf.GetY()+1, qrW, qrW, true, fpdf.ImageOptions{ImageType: "PNG"}, 0, "")
+				} else {
+					pdf.ClearError()
+				}
+			}
+		}
 	}
 
 	// ── Barcode of the invoice/order number ──

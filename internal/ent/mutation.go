@@ -53590,6 +53590,10 @@ type POSOrderMutation struct {
 	customer_name             *string
 	etims_invoice_number      *string
 	etims_qr_code_url         *string
+	etims_scu_id              *string
+	etims_cu_inv_no           *string
+	etims_rcpt_sign           *string
+	etims_kra_pin             *string
 	reprint_count             *int
 	addreprint_count          *int
 	voided_reason             *string
@@ -55088,6 +55092,202 @@ func (m *POSOrderMutation) ResetEtimsQrCodeURL() {
 	delete(m.clearedFields, posorder.FieldEtimsQrCodeURL)
 }
 
+// SetEtimsScuID sets the "etims_scu_id" field.
+func (m *POSOrderMutation) SetEtimsScuID(s string) {
+	m.etims_scu_id = &s
+}
+
+// EtimsScuID returns the value of the "etims_scu_id" field in the mutation.
+func (m *POSOrderMutation) EtimsScuID() (r string, exists bool) {
+	v := m.etims_scu_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEtimsScuID returns the old "etims_scu_id" field's value of the POSOrder entity.
+// If the POSOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSOrderMutation) OldEtimsScuID(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEtimsScuID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEtimsScuID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEtimsScuID: %w", err)
+	}
+	return oldValue.EtimsScuID, nil
+}
+
+// ClearEtimsScuID clears the value of the "etims_scu_id" field.
+func (m *POSOrderMutation) ClearEtimsScuID() {
+	m.etims_scu_id = nil
+	m.clearedFields[posorder.FieldEtimsScuID] = struct{}{}
+}
+
+// EtimsScuIDCleared returns if the "etims_scu_id" field was cleared in this mutation.
+func (m *POSOrderMutation) EtimsScuIDCleared() bool {
+	_, ok := m.clearedFields[posorder.FieldEtimsScuID]
+	return ok
+}
+
+// ResetEtimsScuID resets all changes to the "etims_scu_id" field.
+func (m *POSOrderMutation) ResetEtimsScuID() {
+	m.etims_scu_id = nil
+	delete(m.clearedFields, posorder.FieldEtimsScuID)
+}
+
+// SetEtimsCuInvNo sets the "etims_cu_inv_no" field.
+func (m *POSOrderMutation) SetEtimsCuInvNo(s string) {
+	m.etims_cu_inv_no = &s
+}
+
+// EtimsCuInvNo returns the value of the "etims_cu_inv_no" field in the mutation.
+func (m *POSOrderMutation) EtimsCuInvNo() (r string, exists bool) {
+	v := m.etims_cu_inv_no
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEtimsCuInvNo returns the old "etims_cu_inv_no" field's value of the POSOrder entity.
+// If the POSOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSOrderMutation) OldEtimsCuInvNo(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEtimsCuInvNo is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEtimsCuInvNo requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEtimsCuInvNo: %w", err)
+	}
+	return oldValue.EtimsCuInvNo, nil
+}
+
+// ClearEtimsCuInvNo clears the value of the "etims_cu_inv_no" field.
+func (m *POSOrderMutation) ClearEtimsCuInvNo() {
+	m.etims_cu_inv_no = nil
+	m.clearedFields[posorder.FieldEtimsCuInvNo] = struct{}{}
+}
+
+// EtimsCuInvNoCleared returns if the "etims_cu_inv_no" field was cleared in this mutation.
+func (m *POSOrderMutation) EtimsCuInvNoCleared() bool {
+	_, ok := m.clearedFields[posorder.FieldEtimsCuInvNo]
+	return ok
+}
+
+// ResetEtimsCuInvNo resets all changes to the "etims_cu_inv_no" field.
+func (m *POSOrderMutation) ResetEtimsCuInvNo() {
+	m.etims_cu_inv_no = nil
+	delete(m.clearedFields, posorder.FieldEtimsCuInvNo)
+}
+
+// SetEtimsRcptSign sets the "etims_rcpt_sign" field.
+func (m *POSOrderMutation) SetEtimsRcptSign(s string) {
+	m.etims_rcpt_sign = &s
+}
+
+// EtimsRcptSign returns the value of the "etims_rcpt_sign" field in the mutation.
+func (m *POSOrderMutation) EtimsRcptSign() (r string, exists bool) {
+	v := m.etims_rcpt_sign
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEtimsRcptSign returns the old "etims_rcpt_sign" field's value of the POSOrder entity.
+// If the POSOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSOrderMutation) OldEtimsRcptSign(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEtimsRcptSign is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEtimsRcptSign requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEtimsRcptSign: %w", err)
+	}
+	return oldValue.EtimsRcptSign, nil
+}
+
+// ClearEtimsRcptSign clears the value of the "etims_rcpt_sign" field.
+func (m *POSOrderMutation) ClearEtimsRcptSign() {
+	m.etims_rcpt_sign = nil
+	m.clearedFields[posorder.FieldEtimsRcptSign] = struct{}{}
+}
+
+// EtimsRcptSignCleared returns if the "etims_rcpt_sign" field was cleared in this mutation.
+func (m *POSOrderMutation) EtimsRcptSignCleared() bool {
+	_, ok := m.clearedFields[posorder.FieldEtimsRcptSign]
+	return ok
+}
+
+// ResetEtimsRcptSign resets all changes to the "etims_rcpt_sign" field.
+func (m *POSOrderMutation) ResetEtimsRcptSign() {
+	m.etims_rcpt_sign = nil
+	delete(m.clearedFields, posorder.FieldEtimsRcptSign)
+}
+
+// SetEtimsKraPin sets the "etims_kra_pin" field.
+func (m *POSOrderMutation) SetEtimsKraPin(s string) {
+	m.etims_kra_pin = &s
+}
+
+// EtimsKraPin returns the value of the "etims_kra_pin" field in the mutation.
+func (m *POSOrderMutation) EtimsKraPin() (r string, exists bool) {
+	v := m.etims_kra_pin
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEtimsKraPin returns the old "etims_kra_pin" field's value of the POSOrder entity.
+// If the POSOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSOrderMutation) OldEtimsKraPin(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEtimsKraPin is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEtimsKraPin requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEtimsKraPin: %w", err)
+	}
+	return oldValue.EtimsKraPin, nil
+}
+
+// ClearEtimsKraPin clears the value of the "etims_kra_pin" field.
+func (m *POSOrderMutation) ClearEtimsKraPin() {
+	m.etims_kra_pin = nil
+	m.clearedFields[posorder.FieldEtimsKraPin] = struct{}{}
+}
+
+// EtimsKraPinCleared returns if the "etims_kra_pin" field was cleared in this mutation.
+func (m *POSOrderMutation) EtimsKraPinCleared() bool {
+	_, ok := m.clearedFields[posorder.FieldEtimsKraPin]
+	return ok
+}
+
+// ResetEtimsKraPin resets all changes to the "etims_kra_pin" field.
+func (m *POSOrderMutation) ResetEtimsKraPin() {
+	m.etims_kra_pin = nil
+	delete(m.clearedFields, posorder.FieldEtimsKraPin)
+}
+
 // SetReprintCount sets the "reprint_count" field.
 func (m *POSOrderMutation) SetReprintCount(i int) {
 	m.reprint_count = &i
@@ -55755,7 +55955,7 @@ func (m *POSOrderMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *POSOrderMutation) Fields() []string {
-	fields := make([]string, 0, 39)
+	fields := make([]string, 0, 43)
 	if m.tenant_id != nil {
 		fields = append(fields, posorder.FieldTenantID)
 	}
@@ -55842,6 +56042,18 @@ func (m *POSOrderMutation) Fields() []string {
 	}
 	if m.etims_qr_code_url != nil {
 		fields = append(fields, posorder.FieldEtimsQrCodeURL)
+	}
+	if m.etims_scu_id != nil {
+		fields = append(fields, posorder.FieldEtimsScuID)
+	}
+	if m.etims_cu_inv_no != nil {
+		fields = append(fields, posorder.FieldEtimsCuInvNo)
+	}
+	if m.etims_rcpt_sign != nil {
+		fields = append(fields, posorder.FieldEtimsRcptSign)
+	}
+	if m.etims_kra_pin != nil {
+		fields = append(fields, posorder.FieldEtimsKraPin)
 	}
 	if m.reprint_count != nil {
 		fields = append(fields, posorder.FieldReprintCount)
@@ -55939,6 +56151,14 @@ func (m *POSOrderMutation) Field(name string) (ent.Value, bool) {
 		return m.EtimsInvoiceNumber()
 	case posorder.FieldEtimsQrCodeURL:
 		return m.EtimsQrCodeURL()
+	case posorder.FieldEtimsScuID:
+		return m.EtimsScuID()
+	case posorder.FieldEtimsCuInvNo:
+		return m.EtimsCuInvNo()
+	case posorder.FieldEtimsRcptSign:
+		return m.EtimsRcptSign()
+	case posorder.FieldEtimsKraPin:
+		return m.EtimsKraPin()
 	case posorder.FieldReprintCount:
 		return m.ReprintCount()
 	case posorder.FieldVoidedReason:
@@ -56026,6 +56246,14 @@ func (m *POSOrderMutation) OldField(ctx context.Context, name string) (ent.Value
 		return m.OldEtimsInvoiceNumber(ctx)
 	case posorder.FieldEtimsQrCodeURL:
 		return m.OldEtimsQrCodeURL(ctx)
+	case posorder.FieldEtimsScuID:
+		return m.OldEtimsScuID(ctx)
+	case posorder.FieldEtimsCuInvNo:
+		return m.OldEtimsCuInvNo(ctx)
+	case posorder.FieldEtimsRcptSign:
+		return m.OldEtimsRcptSign(ctx)
+	case posorder.FieldEtimsKraPin:
+		return m.OldEtimsKraPin(ctx)
 	case posorder.FieldReprintCount:
 		return m.OldReprintCount(ctx)
 	case posorder.FieldVoidedReason:
@@ -56257,6 +56485,34 @@ func (m *POSOrderMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetEtimsQrCodeURL(v)
+		return nil
+	case posorder.FieldEtimsScuID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEtimsScuID(v)
+		return nil
+	case posorder.FieldEtimsCuInvNo:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEtimsCuInvNo(v)
+		return nil
+	case posorder.FieldEtimsRcptSign:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEtimsRcptSign(v)
+		return nil
+	case posorder.FieldEtimsKraPin:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEtimsKraPin(v)
 		return nil
 	case posorder.FieldReprintCount:
 		v, ok := value.(int)
@@ -56529,6 +56785,18 @@ func (m *POSOrderMutation) ClearedFields() []string {
 	if m.FieldCleared(posorder.FieldEtimsQrCodeURL) {
 		fields = append(fields, posorder.FieldEtimsQrCodeURL)
 	}
+	if m.FieldCleared(posorder.FieldEtimsScuID) {
+		fields = append(fields, posorder.FieldEtimsScuID)
+	}
+	if m.FieldCleared(posorder.FieldEtimsCuInvNo) {
+		fields = append(fields, posorder.FieldEtimsCuInvNo)
+	}
+	if m.FieldCleared(posorder.FieldEtimsRcptSign) {
+		fields = append(fields, posorder.FieldEtimsRcptSign)
+	}
+	if m.FieldCleared(posorder.FieldEtimsKraPin) {
+		fields = append(fields, posorder.FieldEtimsKraPin)
+	}
 	if m.FieldCleared(posorder.FieldVoidedReason) {
 		fields = append(fields, posorder.FieldVoidedReason)
 	}
@@ -56587,6 +56855,18 @@ func (m *POSOrderMutation) ClearField(name string) error {
 		return nil
 	case posorder.FieldEtimsQrCodeURL:
 		m.ClearEtimsQrCodeURL()
+		return nil
+	case posorder.FieldEtimsScuID:
+		m.ClearEtimsScuID()
+		return nil
+	case posorder.FieldEtimsCuInvNo:
+		m.ClearEtimsCuInvNo()
+		return nil
+	case posorder.FieldEtimsRcptSign:
+		m.ClearEtimsRcptSign()
+		return nil
+	case posorder.FieldEtimsKraPin:
+		m.ClearEtimsKraPin()
 		return nil
 	case posorder.FieldVoidedReason:
 		m.ClearVoidedReason()
@@ -56703,6 +56983,18 @@ func (m *POSOrderMutation) ResetField(name string) error {
 		return nil
 	case posorder.FieldEtimsQrCodeURL:
 		m.ResetEtimsQrCodeURL()
+		return nil
+	case posorder.FieldEtimsScuID:
+		m.ResetEtimsScuID()
+		return nil
+	case posorder.FieldEtimsCuInvNo:
+		m.ResetEtimsCuInvNo()
+		return nil
+	case posorder.FieldEtimsRcptSign:
+		m.ResetEtimsRcptSign()
+		return nil
+	case posorder.FieldEtimsKraPin:
+		m.ResetEtimsKraPin()
 		return nil
 	case posorder.FieldReprintCount:
 		m.ResetReprintCount()

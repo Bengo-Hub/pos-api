@@ -361,6 +361,62 @@ func (_c *POSOrderCreate) SetNillableEtimsQrCodeURL(v *string) *POSOrderCreate {
 	return _c
 }
 
+// SetEtimsScuID sets the "etims_scu_id" field.
+func (_c *POSOrderCreate) SetEtimsScuID(v string) *POSOrderCreate {
+	_c.mutation.SetEtimsScuID(v)
+	return _c
+}
+
+// SetNillableEtimsScuID sets the "etims_scu_id" field if the given value is not nil.
+func (_c *POSOrderCreate) SetNillableEtimsScuID(v *string) *POSOrderCreate {
+	if v != nil {
+		_c.SetEtimsScuID(*v)
+	}
+	return _c
+}
+
+// SetEtimsCuInvNo sets the "etims_cu_inv_no" field.
+func (_c *POSOrderCreate) SetEtimsCuInvNo(v string) *POSOrderCreate {
+	_c.mutation.SetEtimsCuInvNo(v)
+	return _c
+}
+
+// SetNillableEtimsCuInvNo sets the "etims_cu_inv_no" field if the given value is not nil.
+func (_c *POSOrderCreate) SetNillableEtimsCuInvNo(v *string) *POSOrderCreate {
+	if v != nil {
+		_c.SetEtimsCuInvNo(*v)
+	}
+	return _c
+}
+
+// SetEtimsRcptSign sets the "etims_rcpt_sign" field.
+func (_c *POSOrderCreate) SetEtimsRcptSign(v string) *POSOrderCreate {
+	_c.mutation.SetEtimsRcptSign(v)
+	return _c
+}
+
+// SetNillableEtimsRcptSign sets the "etims_rcpt_sign" field if the given value is not nil.
+func (_c *POSOrderCreate) SetNillableEtimsRcptSign(v *string) *POSOrderCreate {
+	if v != nil {
+		_c.SetEtimsRcptSign(*v)
+	}
+	return _c
+}
+
+// SetEtimsKraPin sets the "etims_kra_pin" field.
+func (_c *POSOrderCreate) SetEtimsKraPin(v string) *POSOrderCreate {
+	_c.mutation.SetEtimsKraPin(v)
+	return _c
+}
+
+// SetNillableEtimsKraPin sets the "etims_kra_pin" field if the given value is not nil.
+func (_c *POSOrderCreate) SetNillableEtimsKraPin(v *string) *POSOrderCreate {
+	if v != nil {
+		_c.SetEtimsKraPin(*v)
+	}
+	return _c
+}
+
 // SetReprintCount sets the "reprint_count" field.
 func (_c *POSOrderCreate) SetReprintCount(v int) *POSOrderCreate {
 	_c.mutation.SetReprintCount(v)
@@ -900,6 +956,22 @@ func (_c *POSOrderCreate) createSpec() (*POSOrder, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.EtimsQrCodeURL(); ok {
 		_spec.SetField(posorder.FieldEtimsQrCodeURL, field.TypeString, value)
 		_node.EtimsQrCodeURL = &value
+	}
+	if value, ok := _c.mutation.EtimsScuID(); ok {
+		_spec.SetField(posorder.FieldEtimsScuID, field.TypeString, value)
+		_node.EtimsScuID = &value
+	}
+	if value, ok := _c.mutation.EtimsCuInvNo(); ok {
+		_spec.SetField(posorder.FieldEtimsCuInvNo, field.TypeString, value)
+		_node.EtimsCuInvNo = &value
+	}
+	if value, ok := _c.mutation.EtimsRcptSign(); ok {
+		_spec.SetField(posorder.FieldEtimsRcptSign, field.TypeString, value)
+		_node.EtimsRcptSign = &value
+	}
+	if value, ok := _c.mutation.EtimsKraPin(); ok {
+		_spec.SetField(posorder.FieldEtimsKraPin, field.TypeString, value)
+		_node.EtimsKraPin = &value
 	}
 	if value, ok := _c.mutation.ReprintCount(); ok {
 		_spec.SetField(posorder.FieldReprintCount, field.TypeInt, value)
@@ -1500,6 +1572,78 @@ func (u *POSOrderUpsert) UpdateEtimsQrCodeURL() *POSOrderUpsert {
 // ClearEtimsQrCodeURL clears the value of the "etims_qr_code_url" field.
 func (u *POSOrderUpsert) ClearEtimsQrCodeURL() *POSOrderUpsert {
 	u.SetNull(posorder.FieldEtimsQrCodeURL)
+	return u
+}
+
+// SetEtimsScuID sets the "etims_scu_id" field.
+func (u *POSOrderUpsert) SetEtimsScuID(v string) *POSOrderUpsert {
+	u.Set(posorder.FieldEtimsScuID, v)
+	return u
+}
+
+// UpdateEtimsScuID sets the "etims_scu_id" field to the value that was provided on create.
+func (u *POSOrderUpsert) UpdateEtimsScuID() *POSOrderUpsert {
+	u.SetExcluded(posorder.FieldEtimsScuID)
+	return u
+}
+
+// ClearEtimsScuID clears the value of the "etims_scu_id" field.
+func (u *POSOrderUpsert) ClearEtimsScuID() *POSOrderUpsert {
+	u.SetNull(posorder.FieldEtimsScuID)
+	return u
+}
+
+// SetEtimsCuInvNo sets the "etims_cu_inv_no" field.
+func (u *POSOrderUpsert) SetEtimsCuInvNo(v string) *POSOrderUpsert {
+	u.Set(posorder.FieldEtimsCuInvNo, v)
+	return u
+}
+
+// UpdateEtimsCuInvNo sets the "etims_cu_inv_no" field to the value that was provided on create.
+func (u *POSOrderUpsert) UpdateEtimsCuInvNo() *POSOrderUpsert {
+	u.SetExcluded(posorder.FieldEtimsCuInvNo)
+	return u
+}
+
+// ClearEtimsCuInvNo clears the value of the "etims_cu_inv_no" field.
+func (u *POSOrderUpsert) ClearEtimsCuInvNo() *POSOrderUpsert {
+	u.SetNull(posorder.FieldEtimsCuInvNo)
+	return u
+}
+
+// SetEtimsRcptSign sets the "etims_rcpt_sign" field.
+func (u *POSOrderUpsert) SetEtimsRcptSign(v string) *POSOrderUpsert {
+	u.Set(posorder.FieldEtimsRcptSign, v)
+	return u
+}
+
+// UpdateEtimsRcptSign sets the "etims_rcpt_sign" field to the value that was provided on create.
+func (u *POSOrderUpsert) UpdateEtimsRcptSign() *POSOrderUpsert {
+	u.SetExcluded(posorder.FieldEtimsRcptSign)
+	return u
+}
+
+// ClearEtimsRcptSign clears the value of the "etims_rcpt_sign" field.
+func (u *POSOrderUpsert) ClearEtimsRcptSign() *POSOrderUpsert {
+	u.SetNull(posorder.FieldEtimsRcptSign)
+	return u
+}
+
+// SetEtimsKraPin sets the "etims_kra_pin" field.
+func (u *POSOrderUpsert) SetEtimsKraPin(v string) *POSOrderUpsert {
+	u.Set(posorder.FieldEtimsKraPin, v)
+	return u
+}
+
+// UpdateEtimsKraPin sets the "etims_kra_pin" field to the value that was provided on create.
+func (u *POSOrderUpsert) UpdateEtimsKraPin() *POSOrderUpsert {
+	u.SetExcluded(posorder.FieldEtimsKraPin)
+	return u
+}
+
+// ClearEtimsKraPin clears the value of the "etims_kra_pin" field.
+func (u *POSOrderUpsert) ClearEtimsKraPin() *POSOrderUpsert {
+	u.SetNull(posorder.FieldEtimsKraPin)
 	return u
 }
 
@@ -2246,6 +2390,90 @@ func (u *POSOrderUpsertOne) UpdateEtimsQrCodeURL() *POSOrderUpsertOne {
 func (u *POSOrderUpsertOne) ClearEtimsQrCodeURL() *POSOrderUpsertOne {
 	return u.Update(func(s *POSOrderUpsert) {
 		s.ClearEtimsQrCodeURL()
+	})
+}
+
+// SetEtimsScuID sets the "etims_scu_id" field.
+func (u *POSOrderUpsertOne) SetEtimsScuID(v string) *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetEtimsScuID(v)
+	})
+}
+
+// UpdateEtimsScuID sets the "etims_scu_id" field to the value that was provided on create.
+func (u *POSOrderUpsertOne) UpdateEtimsScuID() *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdateEtimsScuID()
+	})
+}
+
+// ClearEtimsScuID clears the value of the "etims_scu_id" field.
+func (u *POSOrderUpsertOne) ClearEtimsScuID() *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.ClearEtimsScuID()
+	})
+}
+
+// SetEtimsCuInvNo sets the "etims_cu_inv_no" field.
+func (u *POSOrderUpsertOne) SetEtimsCuInvNo(v string) *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetEtimsCuInvNo(v)
+	})
+}
+
+// UpdateEtimsCuInvNo sets the "etims_cu_inv_no" field to the value that was provided on create.
+func (u *POSOrderUpsertOne) UpdateEtimsCuInvNo() *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdateEtimsCuInvNo()
+	})
+}
+
+// ClearEtimsCuInvNo clears the value of the "etims_cu_inv_no" field.
+func (u *POSOrderUpsertOne) ClearEtimsCuInvNo() *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.ClearEtimsCuInvNo()
+	})
+}
+
+// SetEtimsRcptSign sets the "etims_rcpt_sign" field.
+func (u *POSOrderUpsertOne) SetEtimsRcptSign(v string) *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetEtimsRcptSign(v)
+	})
+}
+
+// UpdateEtimsRcptSign sets the "etims_rcpt_sign" field to the value that was provided on create.
+func (u *POSOrderUpsertOne) UpdateEtimsRcptSign() *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdateEtimsRcptSign()
+	})
+}
+
+// ClearEtimsRcptSign clears the value of the "etims_rcpt_sign" field.
+func (u *POSOrderUpsertOne) ClearEtimsRcptSign() *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.ClearEtimsRcptSign()
+	})
+}
+
+// SetEtimsKraPin sets the "etims_kra_pin" field.
+func (u *POSOrderUpsertOne) SetEtimsKraPin(v string) *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetEtimsKraPin(v)
+	})
+}
+
+// UpdateEtimsKraPin sets the "etims_kra_pin" field to the value that was provided on create.
+func (u *POSOrderUpsertOne) UpdateEtimsKraPin() *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdateEtimsKraPin()
+	})
+}
+
+// ClearEtimsKraPin clears the value of the "etims_kra_pin" field.
+func (u *POSOrderUpsertOne) ClearEtimsKraPin() *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.ClearEtimsKraPin()
 	})
 }
 
@@ -3185,6 +3413,90 @@ func (u *POSOrderUpsertBulk) UpdateEtimsQrCodeURL() *POSOrderUpsertBulk {
 func (u *POSOrderUpsertBulk) ClearEtimsQrCodeURL() *POSOrderUpsertBulk {
 	return u.Update(func(s *POSOrderUpsert) {
 		s.ClearEtimsQrCodeURL()
+	})
+}
+
+// SetEtimsScuID sets the "etims_scu_id" field.
+func (u *POSOrderUpsertBulk) SetEtimsScuID(v string) *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetEtimsScuID(v)
+	})
+}
+
+// UpdateEtimsScuID sets the "etims_scu_id" field to the value that was provided on create.
+func (u *POSOrderUpsertBulk) UpdateEtimsScuID() *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdateEtimsScuID()
+	})
+}
+
+// ClearEtimsScuID clears the value of the "etims_scu_id" field.
+func (u *POSOrderUpsertBulk) ClearEtimsScuID() *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.ClearEtimsScuID()
+	})
+}
+
+// SetEtimsCuInvNo sets the "etims_cu_inv_no" field.
+func (u *POSOrderUpsertBulk) SetEtimsCuInvNo(v string) *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetEtimsCuInvNo(v)
+	})
+}
+
+// UpdateEtimsCuInvNo sets the "etims_cu_inv_no" field to the value that was provided on create.
+func (u *POSOrderUpsertBulk) UpdateEtimsCuInvNo() *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdateEtimsCuInvNo()
+	})
+}
+
+// ClearEtimsCuInvNo clears the value of the "etims_cu_inv_no" field.
+func (u *POSOrderUpsertBulk) ClearEtimsCuInvNo() *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.ClearEtimsCuInvNo()
+	})
+}
+
+// SetEtimsRcptSign sets the "etims_rcpt_sign" field.
+func (u *POSOrderUpsertBulk) SetEtimsRcptSign(v string) *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetEtimsRcptSign(v)
+	})
+}
+
+// UpdateEtimsRcptSign sets the "etims_rcpt_sign" field to the value that was provided on create.
+func (u *POSOrderUpsertBulk) UpdateEtimsRcptSign() *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdateEtimsRcptSign()
+	})
+}
+
+// ClearEtimsRcptSign clears the value of the "etims_rcpt_sign" field.
+func (u *POSOrderUpsertBulk) ClearEtimsRcptSign() *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.ClearEtimsRcptSign()
+	})
+}
+
+// SetEtimsKraPin sets the "etims_kra_pin" field.
+func (u *POSOrderUpsertBulk) SetEtimsKraPin(v string) *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetEtimsKraPin(v)
+	})
+}
+
+// UpdateEtimsKraPin sets the "etims_kra_pin" field to the value that was provided on create.
+func (u *POSOrderUpsertBulk) UpdateEtimsKraPin() *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdateEtimsKraPin()
+	})
+}
+
+// ClearEtimsKraPin clears the value of the "etims_kra_pin" field.
+func (u *POSOrderUpsertBulk) ClearEtimsKraPin() *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.ClearEtimsKraPin()
 	})
 }
 

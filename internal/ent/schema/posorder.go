@@ -112,6 +112,25 @@ func (POSOrder) Fields() []ent.Field {
 		field.String("etims_qr_code_url").
 			Optional().
 			Nillable(),
+		// Full fiscalisation identity for the printed "KRA TIMS Details" block (mirrors a
+		// paper ETR receipt): SCU ID (device serial), CU Inv No = {SCU ID}/{receipt no},
+		// the KRA receipt signature, and the taxpayer KRA PIN the sale transmitted under.
+		field.String("etims_scu_id").
+			Optional().
+			Nillable().
+			Comment("OSCU device serial — the SCU ID line on ETR receipts"),
+		field.String("etims_cu_inv_no").
+			Optional().
+			Nillable().
+			Comment("Formatted control-unit invoice number {SCU ID}/{rcptNo}"),
+		field.String("etims_rcpt_sign").
+			Optional().
+			Nillable().
+			Comment("KRA receipt signature (rcptSign) — fiscal signing proof"),
+		field.String("etims_kra_pin").
+			Optional().
+			Nillable().
+			Comment("Taxpayer KRA PIN the sale was fiscalised under (receipt header line)"),
 		// Receipt reprint tracking — incremented on each explicit reprint so
 		// duplicate receipts (a cash-skimming vector) are flagged + audited.
 		field.Int("reprint_count").

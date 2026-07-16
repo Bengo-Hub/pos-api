@@ -56,6 +56,11 @@ type ReceiptData struct {
 	ChangeDue          float64
 	Currency           string
 	EtimsInvoiceNumber string
+	// Fiscal identity ("KRA TIMS Details" block, mirroring paper ETR receipts).
+	EtimsKraPin   string // printed in the business header as "KRA PIN: …"
+	EtimsScuID    string // "SCU ID" line
+	EtimsCuInvNo  string // "CU Inv No." line — {SCU ID}/{receipt no}
+	EtimsRcptSign string
 	PaymentMethods     *ReceiptPaymentMethods // "HOW TO PAY" block (M-Pesa/bank), customer receipts only
 	VoidReason         string
 	ProviderFooter     ProviderFooter // platform-owner (Codevertex) advertisement, customer receipts only
@@ -103,6 +108,9 @@ func BuildReceipt(d ReceiptData) []byte {
 	}
 	if d.OutletPhones != "" {
 		writeln("Mobile: " + d.OutletPhones)
+	}
+	if d.Type == "customer" && d.EtimsKraPin != "" {
+		writeln("KRA PIN: " + d.EtimsKraPin)
 	}
 	if d.Header != "" {
 		writeln(d.Header)
@@ -228,12 +236,24 @@ func BuildReceipt(d ReceiptData) []byte {
 		writeln("Reason: " + d.VoidReason)
 	}
 
-	if d.Type == "customer" && d.EtimsInvoiceNumber != "" {
+	if d.Type == "customer" && (d.EtimsInvoiceNumber != "" || d.EtimsCuInvNo != "") {
 		separator()
 		write(escCenter)
-		writeln("KRA eTIMS Invoice")
-		writeln("CU#: " + d.EtimsInvoiceNumber)
+		write(escBold)
+		writeln("KRA TIMS Details")
+		write(escBoldOff)
 		write(escLeft)
+		if d.EtimsScuID != "" {
+			writeln("SCU ID: " + d.EtimsScuID)
+		}
+		if d.EtimsCuInvNo != "" {
+			writeln("CU Inv No.: " + d.EtimsCuInvNo)
+		} else if d.EtimsInvoiceNumber != "" {
+			writeln("CU#: " + d.EtimsInvoiceNumber)
+		}
+		if d.EtimsRcptSign != "" {
+			writeln("Sign: " + d.EtimsRcptSign)
+		}
 	}
 
 	if d.Type == "customer" && d.PaymentMethods.HasAny() {

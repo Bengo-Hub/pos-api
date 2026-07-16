@@ -35,6 +35,10 @@ type ReceiptHandler struct {
 	cache    *sharedcache.Aside // tenant branding cache (auth-api source)
 	authURL  string
 	auditSvc *audit.Service
+	// fiscalPin resolves the tenant's KRA PIN for the receipt header when (and only when)
+	// the tenant has activated eTIMS on treasury. Wired to orders.TaxResolver.FiscalPin;
+	// used as fallback when the order doesn't yet carry its own transmitted fiscal identity.
+	fiscalPin func(ctx context.Context, tenantSlug string) string
 }
 
 // NewReceiptHandler creates a new ReceiptHandler.
@@ -44,6 +48,11 @@ func NewReceiptHandler(log *zap.Logger, client *ent.Client, cache *sharedcache.A
 
 // SetAuditService wires the centralized audit trail for receipt reprints.
 func (h *ReceiptHandler) SetAuditService(a *audit.Service) { h.auditSvc = a }
+
+// SetFiscalPinResolver wires the eTIMS-gated KRA PIN lookup for receipt headers.
+func (h *ReceiptHandler) SetFiscalPinResolver(fn func(ctx context.Context, tenantSlug string) string) {
+	h.fiscalPin = fn
+}
 
 // ReprintReceipt handles POST /{tenantID}/pos/orders/{orderID}/receipt/reprint.
 // Increments the order's reprint counter and records a receipt.reprint audit
@@ -229,6 +238,16 @@ type receiptResponse struct {
 	ChangeDue          float64                `json:"change_due"`
 	EtimsInvoiceNumber string                 `json:"etims_invoice_number,omitempty"`
 	EtimsQRCodeURL     string                 `json:"etims_qr_code_url,omitempty"`
+	// Fiscal identity for the "KRA TIMS Details" block (mirrors paper ETR receipts).
+	// kra_pin prints in the business header; scu_id / cu_inv_no / rcpt_sign in the block.
+	EtimsKraPin   string                      `json:"etims_kra_pin,omitempty"`
+	EtimsScuID    string                      `json:"etims_scu_id,omitempty"`
+	EtimsCuInvNo  string                      `json:"etims_cu_inv_no,omitempty"`
+	EtimsRcptSign string                      `json:"etims_rcpt_sign,omitempty"`
+	// EtimsQRPNG is the verification QR rendered server-side as a data: URI so every
+	// surface (HTML/PDF/client print) embeds a real scannable image — etims_qr_code_url
+	// is a KRA verification LINK, not an image.
+	EtimsQRPNG string `json:"etims_qr_png,omitempty"`
 	PaymentMethods     *receiptPaymentMethods `json:"payment_methods,omitempty"`
 	// Configurable receipt/printer settings sourced from the outlet's POS settings.
 	ReceiptHeader string  `json:"receipt_header,omitempty"`
@@ -275,6 +294,12 @@ func newReceiptResponse(v printing.ReceiptView) receiptResponse {
 	if v.UseCase == "retail" && v.OrderNumber != "" {
 		barcodePNG = printing.Code128DataURI(v.OrderNumber, 320, 56)
 	}
+	// Fiscalised sales embed the KRA verification QR as a real image (the stored URL is a
+	// verification LINK — browsers can't render it via <img src>).
+	etimsQRPNG := ""
+	if v.EtimsQRCodeURL != "" {
+		etimsQRPNG = printing.QRDataURI(v.EtimsQRCodeURL, 192)
+	}
 	return receiptResponse{
 		ReceiptNumber:      v.ReceiptNumber,
 		OrderNumber:        v.OrderNumber,
@@ -303,6 +328,11 @@ func newReceiptResponse(v printing.ReceiptView) receiptResponse {
 		ChangeDue:          v.ChangeDue,
 		EtimsInvoiceNumber: v.EtimsInvoiceNumber,
 		EtimsQRCodeURL:     v.EtimsQRCodeURL,
+		EtimsKraPin:        v.EtimsKraPin,
+		EtimsScuID:         v.EtimsScuID,
+		EtimsCuInvNo:       v.EtimsCuInvNo,
+		EtimsRcptSign:      v.EtimsRcptSign,
+		EtimsQRPNG:         etimsQRPNG,
 		PaymentMethods:     pm,
 		ReceiptHeader:      v.ReceiptHeader,
 		ReceiptFooter:      v.ReceiptFooter,
@@ -442,6 +472,12 @@ func (h *ReceiptHandler) GetReceipt(w http.ResponseWriter, r *http.Request) {
 	})
 	// Platform-owner (Codevertex) advertisement footer — cache-first, static fallback.
 	view.ProviderFooter = printing.ResolveProviderFooter(ctx, h.cache, h.authURL)
+	// KRA PIN header line: the transmitted order carries its own fiscal identity; older/
+	// not-yet-transmitted sales fall back to the tenant tax profile — but ONLY when the
+	// tenant has activated eTIMS (the resolver returns "" otherwise).
+	if view.EtimsKraPin == "" && h.fiscalPin != nil && outlet != nil {
+		view.EtimsKraPin = h.fiscalPin(ctx, outlet.TenantSlug)
+	}
 
 	receipt := newReceiptResponse(view)
 
@@ -572,6 +608,9 @@ h1{font-size:17px;letter-spacing:.5px;text-align:center;margin:3px 0}
 	if rec.OutletPhones != "" {
 		buf.WriteString(fmt.Sprintf(`<p class="sub"><b>Mobile:</b> %s</p>`, htmlEscape(rec.OutletPhones)))
 	}
+	if rec.EtimsKraPin != "" {
+		buf.WriteString(fmt.Sprintf(`<p class="sub"><b>KRA PIN:</b> %s</p>`, htmlEscape(rec.EtimsKraPin)))
+	}
 	// Custom header text configured in POS settings (business name, address, slogan…).
 	if rec.ReceiptHeader != "" {
 		buf.WriteString(fmt.Sprintf(`<p class="hdr">%s</p>`, htmlEscape(rec.ReceiptHeader)))
@@ -622,13 +661,26 @@ h1{font-size:17px;letter-spacing:.5px;text-align:center;margin:3px 0}
 	if rec.ChangeDue > 0 {
 		buf.WriteString(fmt.Sprintf(`<div class="line"><span>Change</span><span>%.2f</span></div>`, rec.ChangeDue))
 	}
-	if rec.EtimsInvoiceNumber != "" || rec.EtimsQRCodeURL != "" {
+	if rec.EtimsInvoiceNumber != "" || rec.EtimsQRCodeURL != "" || rec.EtimsCuInvNo != "" {
+		// "KRA TIMS Details" block, mirroring the paper ETR layout: SCU ID + CU Inv No
+		// ({SCU}/{receipt no}) + signature above the verification QR.
 		buf.WriteString(`<div class="divider"></div>`)
-		if rec.EtimsQRCodeURL != "" {
-			buf.WriteString(fmt.Sprintf(`<img class="etims-qr" src="%s" alt="eTIMS QR">`, rec.EtimsQRCodeURL))
+		buf.WriteString(`<p class="bold" style="font-size:10px;text-align:center">KRA TIMS Details</p>`)
+		if rec.EtimsScuID != "" {
+			buf.WriteString(fmt.Sprintf(`<div class="line"><span>SCU ID:</span><span>%s</span></div>`, htmlEscape(rec.EtimsScuID)))
 		}
-		if rec.EtimsInvoiceNumber != "" {
+		if rec.EtimsCuInvNo != "" {
+			buf.WriteString(fmt.Sprintf(`<div class="line"><span>CU Inv No.:</span><span>%s</span></div>`, htmlEscape(rec.EtimsCuInvNo)))
+		} else if rec.EtimsInvoiceNumber != "" {
 			buf.WriteString(fmt.Sprintf(`<p class="etims-num">CU No: %s</p>`, rec.EtimsInvoiceNumber))
+		}
+		if rec.EtimsRcptSign != "" {
+			buf.WriteString(fmt.Sprintf(`<p class="sub" style="word-break:break-all">Sign: %s</p>`, htmlEscape(rec.EtimsRcptSign)))
+		}
+		if rec.EtimsQRPNG != "" {
+			buf.WriteString(fmt.Sprintf(`<img class="etims-qr" src="%s" alt="eTIMS QR">`, rec.EtimsQRPNG))
+		} else if rec.EtimsQRCodeURL != "" {
+			buf.WriteString(fmt.Sprintf(`<img class="etims-qr" src="%s" alt="eTIMS QR">`, rec.EtimsQRCodeURL))
 		}
 	}
 	if pm := rec.PaymentMethods; pm != nil {

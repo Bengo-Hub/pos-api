@@ -142,8 +142,15 @@ type ReceiptView struct {
 	// zero the renderers substitute DefaultProviderFooter() so the advertisement always prints.
 	ProviderFooter ProviderFooter
 
+	// eTIMS fiscalisation ("KRA TIMS Details" on the printed receipt, mirroring paper ETR
+	// receipts): KRA PIN prints in the business header; SCU ID + CU Inv No + signature + QR
+	// print in the fiscal block. All empty when the sale wasn't (yet) fiscalised.
 	EtimsInvoiceNumber string
 	EtimsQRCodeURL     string
+	EtimsKraPin        string // taxpayer KRA PIN — "KRA PIN: P0…" header line
+	EtimsScuID         string // OSCU device serial — "SCU ID" line
+	EtimsCuInvNo       string // "{SCU ID}/{receipt no}" — "CU Inv No." line
+	EtimsRcptSign      string // KRA receipt signature (fiscal signing proof)
 	PaymentMethods     *ReceiptPaymentMethods
 
 	VoidReason string
@@ -364,6 +371,18 @@ func BuildReceiptView(order *ent.POSOrder, lines []*ent.POSOrderLine, outlet *en
 	}
 	if order.EtimsQrCodeURL != nil {
 		v.EtimsQRCodeURL = *order.EtimsQrCodeURL
+	}
+	if order.EtimsKraPin != nil {
+		v.EtimsKraPin = *order.EtimsKraPin
+	}
+	if order.EtimsScuID != nil {
+		v.EtimsScuID = *order.EtimsScuID
+	}
+	if order.EtimsCuInvNo != nil {
+		v.EtimsCuInvNo = *order.EtimsCuInvNo
+	}
+	if order.EtimsRcptSign != nil {
+		v.EtimsRcptSign = *order.EtimsRcptSign
 	}
 
 	if outlet != nil {

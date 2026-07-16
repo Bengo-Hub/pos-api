@@ -191,6 +191,26 @@ func EtimsQrCodeURL(v string) predicate.POSOrder {
 	return predicate.POSOrder(sql.FieldEQ(FieldEtimsQrCodeURL, v))
 }
 
+// EtimsScuID applies equality check predicate on the "etims_scu_id" field. It's identical to EtimsScuIDEQ.
+func EtimsScuID(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEQ(FieldEtimsScuID, v))
+}
+
+// EtimsCuInvNo applies equality check predicate on the "etims_cu_inv_no" field. It's identical to EtimsCuInvNoEQ.
+func EtimsCuInvNo(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEQ(FieldEtimsCuInvNo, v))
+}
+
+// EtimsRcptSign applies equality check predicate on the "etims_rcpt_sign" field. It's identical to EtimsRcptSignEQ.
+func EtimsRcptSign(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEQ(FieldEtimsRcptSign, v))
+}
+
+// EtimsKraPin applies equality check predicate on the "etims_kra_pin" field. It's identical to EtimsKraPinEQ.
+func EtimsKraPin(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEQ(FieldEtimsKraPin, v))
+}
+
 // ReprintCount applies equality check predicate on the "reprint_count" field. It's identical to ReprintCountEQ.
 func ReprintCount(v int) predicate.POSOrder {
 	return predicate.POSOrder(sql.FieldEQ(FieldReprintCount, v))
@@ -1644,6 +1664,306 @@ func EtimsQrCodeURLEqualFold(v string) predicate.POSOrder {
 // EtimsQrCodeURLContainsFold applies the ContainsFold predicate on the "etims_qr_code_url" field.
 func EtimsQrCodeURLContainsFold(v string) predicate.POSOrder {
 	return predicate.POSOrder(sql.FieldContainsFold(FieldEtimsQrCodeURL, v))
+}
+
+// EtimsScuIDEQ applies the EQ predicate on the "etims_scu_id" field.
+func EtimsScuIDEQ(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEQ(FieldEtimsScuID, v))
+}
+
+// EtimsScuIDNEQ applies the NEQ predicate on the "etims_scu_id" field.
+func EtimsScuIDNEQ(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNEQ(FieldEtimsScuID, v))
+}
+
+// EtimsScuIDIn applies the In predicate on the "etims_scu_id" field.
+func EtimsScuIDIn(vs ...string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldIn(FieldEtimsScuID, vs...))
+}
+
+// EtimsScuIDNotIn applies the NotIn predicate on the "etims_scu_id" field.
+func EtimsScuIDNotIn(vs ...string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNotIn(FieldEtimsScuID, vs...))
+}
+
+// EtimsScuIDGT applies the GT predicate on the "etims_scu_id" field.
+func EtimsScuIDGT(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldGT(FieldEtimsScuID, v))
+}
+
+// EtimsScuIDGTE applies the GTE predicate on the "etims_scu_id" field.
+func EtimsScuIDGTE(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldGTE(FieldEtimsScuID, v))
+}
+
+// EtimsScuIDLT applies the LT predicate on the "etims_scu_id" field.
+func EtimsScuIDLT(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldLT(FieldEtimsScuID, v))
+}
+
+// EtimsScuIDLTE applies the LTE predicate on the "etims_scu_id" field.
+func EtimsScuIDLTE(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldLTE(FieldEtimsScuID, v))
+}
+
+// EtimsScuIDContains applies the Contains predicate on the "etims_scu_id" field.
+func EtimsScuIDContains(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldContains(FieldEtimsScuID, v))
+}
+
+// EtimsScuIDHasPrefix applies the HasPrefix predicate on the "etims_scu_id" field.
+func EtimsScuIDHasPrefix(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldHasPrefix(FieldEtimsScuID, v))
+}
+
+// EtimsScuIDHasSuffix applies the HasSuffix predicate on the "etims_scu_id" field.
+func EtimsScuIDHasSuffix(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldHasSuffix(FieldEtimsScuID, v))
+}
+
+// EtimsScuIDIsNil applies the IsNil predicate on the "etims_scu_id" field.
+func EtimsScuIDIsNil() predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldIsNull(FieldEtimsScuID))
+}
+
+// EtimsScuIDNotNil applies the NotNil predicate on the "etims_scu_id" field.
+func EtimsScuIDNotNil() predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNotNull(FieldEtimsScuID))
+}
+
+// EtimsScuIDEqualFold applies the EqualFold predicate on the "etims_scu_id" field.
+func EtimsScuIDEqualFold(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEqualFold(FieldEtimsScuID, v))
+}
+
+// EtimsScuIDContainsFold applies the ContainsFold predicate on the "etims_scu_id" field.
+func EtimsScuIDContainsFold(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldContainsFold(FieldEtimsScuID, v))
+}
+
+// EtimsCuInvNoEQ applies the EQ predicate on the "etims_cu_inv_no" field.
+func EtimsCuInvNoEQ(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEQ(FieldEtimsCuInvNo, v))
+}
+
+// EtimsCuInvNoNEQ applies the NEQ predicate on the "etims_cu_inv_no" field.
+func EtimsCuInvNoNEQ(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNEQ(FieldEtimsCuInvNo, v))
+}
+
+// EtimsCuInvNoIn applies the In predicate on the "etims_cu_inv_no" field.
+func EtimsCuInvNoIn(vs ...string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldIn(FieldEtimsCuInvNo, vs...))
+}
+
+// EtimsCuInvNoNotIn applies the NotIn predicate on the "etims_cu_inv_no" field.
+func EtimsCuInvNoNotIn(vs ...string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNotIn(FieldEtimsCuInvNo, vs...))
+}
+
+// EtimsCuInvNoGT applies the GT predicate on the "etims_cu_inv_no" field.
+func EtimsCuInvNoGT(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldGT(FieldEtimsCuInvNo, v))
+}
+
+// EtimsCuInvNoGTE applies the GTE predicate on the "etims_cu_inv_no" field.
+func EtimsCuInvNoGTE(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldGTE(FieldEtimsCuInvNo, v))
+}
+
+// EtimsCuInvNoLT applies the LT predicate on the "etims_cu_inv_no" field.
+func EtimsCuInvNoLT(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldLT(FieldEtimsCuInvNo, v))
+}
+
+// EtimsCuInvNoLTE applies the LTE predicate on the "etims_cu_inv_no" field.
+func EtimsCuInvNoLTE(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldLTE(FieldEtimsCuInvNo, v))
+}
+
+// EtimsCuInvNoContains applies the Contains predicate on the "etims_cu_inv_no" field.
+func EtimsCuInvNoContains(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldContains(FieldEtimsCuInvNo, v))
+}
+
+// EtimsCuInvNoHasPrefix applies the HasPrefix predicate on the "etims_cu_inv_no" field.
+func EtimsCuInvNoHasPrefix(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldHasPrefix(FieldEtimsCuInvNo, v))
+}
+
+// EtimsCuInvNoHasSuffix applies the HasSuffix predicate on the "etims_cu_inv_no" field.
+func EtimsCuInvNoHasSuffix(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldHasSuffix(FieldEtimsCuInvNo, v))
+}
+
+// EtimsCuInvNoIsNil applies the IsNil predicate on the "etims_cu_inv_no" field.
+func EtimsCuInvNoIsNil() predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldIsNull(FieldEtimsCuInvNo))
+}
+
+// EtimsCuInvNoNotNil applies the NotNil predicate on the "etims_cu_inv_no" field.
+func EtimsCuInvNoNotNil() predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNotNull(FieldEtimsCuInvNo))
+}
+
+// EtimsCuInvNoEqualFold applies the EqualFold predicate on the "etims_cu_inv_no" field.
+func EtimsCuInvNoEqualFold(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEqualFold(FieldEtimsCuInvNo, v))
+}
+
+// EtimsCuInvNoContainsFold applies the ContainsFold predicate on the "etims_cu_inv_no" field.
+func EtimsCuInvNoContainsFold(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldContainsFold(FieldEtimsCuInvNo, v))
+}
+
+// EtimsRcptSignEQ applies the EQ predicate on the "etims_rcpt_sign" field.
+func EtimsRcptSignEQ(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEQ(FieldEtimsRcptSign, v))
+}
+
+// EtimsRcptSignNEQ applies the NEQ predicate on the "etims_rcpt_sign" field.
+func EtimsRcptSignNEQ(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNEQ(FieldEtimsRcptSign, v))
+}
+
+// EtimsRcptSignIn applies the In predicate on the "etims_rcpt_sign" field.
+func EtimsRcptSignIn(vs ...string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldIn(FieldEtimsRcptSign, vs...))
+}
+
+// EtimsRcptSignNotIn applies the NotIn predicate on the "etims_rcpt_sign" field.
+func EtimsRcptSignNotIn(vs ...string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNotIn(FieldEtimsRcptSign, vs...))
+}
+
+// EtimsRcptSignGT applies the GT predicate on the "etims_rcpt_sign" field.
+func EtimsRcptSignGT(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldGT(FieldEtimsRcptSign, v))
+}
+
+// EtimsRcptSignGTE applies the GTE predicate on the "etims_rcpt_sign" field.
+func EtimsRcptSignGTE(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldGTE(FieldEtimsRcptSign, v))
+}
+
+// EtimsRcptSignLT applies the LT predicate on the "etims_rcpt_sign" field.
+func EtimsRcptSignLT(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldLT(FieldEtimsRcptSign, v))
+}
+
+// EtimsRcptSignLTE applies the LTE predicate on the "etims_rcpt_sign" field.
+func EtimsRcptSignLTE(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldLTE(FieldEtimsRcptSign, v))
+}
+
+// EtimsRcptSignContains applies the Contains predicate on the "etims_rcpt_sign" field.
+func EtimsRcptSignContains(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldContains(FieldEtimsRcptSign, v))
+}
+
+// EtimsRcptSignHasPrefix applies the HasPrefix predicate on the "etims_rcpt_sign" field.
+func EtimsRcptSignHasPrefix(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldHasPrefix(FieldEtimsRcptSign, v))
+}
+
+// EtimsRcptSignHasSuffix applies the HasSuffix predicate on the "etims_rcpt_sign" field.
+func EtimsRcptSignHasSuffix(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldHasSuffix(FieldEtimsRcptSign, v))
+}
+
+// EtimsRcptSignIsNil applies the IsNil predicate on the "etims_rcpt_sign" field.
+func EtimsRcptSignIsNil() predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldIsNull(FieldEtimsRcptSign))
+}
+
+// EtimsRcptSignNotNil applies the NotNil predicate on the "etims_rcpt_sign" field.
+func EtimsRcptSignNotNil() predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNotNull(FieldEtimsRcptSign))
+}
+
+// EtimsRcptSignEqualFold applies the EqualFold predicate on the "etims_rcpt_sign" field.
+func EtimsRcptSignEqualFold(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEqualFold(FieldEtimsRcptSign, v))
+}
+
+// EtimsRcptSignContainsFold applies the ContainsFold predicate on the "etims_rcpt_sign" field.
+func EtimsRcptSignContainsFold(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldContainsFold(FieldEtimsRcptSign, v))
+}
+
+// EtimsKraPinEQ applies the EQ predicate on the "etims_kra_pin" field.
+func EtimsKraPinEQ(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEQ(FieldEtimsKraPin, v))
+}
+
+// EtimsKraPinNEQ applies the NEQ predicate on the "etims_kra_pin" field.
+func EtimsKraPinNEQ(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNEQ(FieldEtimsKraPin, v))
+}
+
+// EtimsKraPinIn applies the In predicate on the "etims_kra_pin" field.
+func EtimsKraPinIn(vs ...string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldIn(FieldEtimsKraPin, vs...))
+}
+
+// EtimsKraPinNotIn applies the NotIn predicate on the "etims_kra_pin" field.
+func EtimsKraPinNotIn(vs ...string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNotIn(FieldEtimsKraPin, vs...))
+}
+
+// EtimsKraPinGT applies the GT predicate on the "etims_kra_pin" field.
+func EtimsKraPinGT(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldGT(FieldEtimsKraPin, v))
+}
+
+// EtimsKraPinGTE applies the GTE predicate on the "etims_kra_pin" field.
+func EtimsKraPinGTE(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldGTE(FieldEtimsKraPin, v))
+}
+
+// EtimsKraPinLT applies the LT predicate on the "etims_kra_pin" field.
+func EtimsKraPinLT(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldLT(FieldEtimsKraPin, v))
+}
+
+// EtimsKraPinLTE applies the LTE predicate on the "etims_kra_pin" field.
+func EtimsKraPinLTE(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldLTE(FieldEtimsKraPin, v))
+}
+
+// EtimsKraPinContains applies the Contains predicate on the "etims_kra_pin" field.
+func EtimsKraPinContains(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldContains(FieldEtimsKraPin, v))
+}
+
+// EtimsKraPinHasPrefix applies the HasPrefix predicate on the "etims_kra_pin" field.
+func EtimsKraPinHasPrefix(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldHasPrefix(FieldEtimsKraPin, v))
+}
+
+// EtimsKraPinHasSuffix applies the HasSuffix predicate on the "etims_kra_pin" field.
+func EtimsKraPinHasSuffix(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldHasSuffix(FieldEtimsKraPin, v))
+}
+
+// EtimsKraPinIsNil applies the IsNil predicate on the "etims_kra_pin" field.
+func EtimsKraPinIsNil() predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldIsNull(FieldEtimsKraPin))
+}
+
+// EtimsKraPinNotNil applies the NotNil predicate on the "etims_kra_pin" field.
+func EtimsKraPinNotNil() predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNotNull(FieldEtimsKraPin))
+}
+
+// EtimsKraPinEqualFold applies the EqualFold predicate on the "etims_kra_pin" field.
+func EtimsKraPinEqualFold(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEqualFold(FieldEtimsKraPin, v))
+}
+
+// EtimsKraPinContainsFold applies the ContainsFold predicate on the "etims_kra_pin" field.
+func EtimsKraPinContainsFold(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldContainsFold(FieldEtimsKraPin, v))
 }
 
 // ReprintCountEQ applies the EQ predicate on the "reprint_count" field.

@@ -1575,15 +1575,15 @@ func init() {
 	// posorder.DefaultFiredCourses holds the default value on creation for the fired_courses field.
 	posorder.DefaultFiredCourses = posorderDescFiredCourses.Default.(int)
 	// posorderDescReprintCount is the schema descriptor for reprint_count field.
-	posorderDescReprintCount := posorderFields[30].Descriptor()
+	posorderDescReprintCount := posorderFields[34].Descriptor()
 	// posorder.DefaultReprintCount holds the default value on creation for the reprint_count field.
 	posorder.DefaultReprintCount = posorderDescReprintCount.Default.(int)
 	// posorderDescCreatedAt is the schema descriptor for created_at field.
-	posorderDescCreatedAt := posorderFields[38].Descriptor()
+	posorderDescCreatedAt := posorderFields[42].Descriptor()
 	// posorder.DefaultCreatedAt holds the default value on creation for the created_at field.
 	posorder.DefaultCreatedAt = posorderDescCreatedAt.Default.(func() time.Time)
 	// posorderDescUpdatedAt is the schema descriptor for updated_at field.
-	posorderDescUpdatedAt := posorderFields[39].Descriptor()
+	posorderDescUpdatedAt := posorderFields[43].Descriptor()
 	// posorder.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	posorder.DefaultUpdatedAt = posorderDescUpdatedAt.Default.(func() time.Time)
 	// posorder.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

@@ -555,6 +555,86 @@ func (_u *POSOrderUpdate) ClearEtimsQrCodeURL() *POSOrderUpdate {
 	return _u
 }
 
+// SetEtimsScuID sets the "etims_scu_id" field.
+func (_u *POSOrderUpdate) SetEtimsScuID(v string) *POSOrderUpdate {
+	_u.mutation.SetEtimsScuID(v)
+	return _u
+}
+
+// SetNillableEtimsScuID sets the "etims_scu_id" field if the given value is not nil.
+func (_u *POSOrderUpdate) SetNillableEtimsScuID(v *string) *POSOrderUpdate {
+	if v != nil {
+		_u.SetEtimsScuID(*v)
+	}
+	return _u
+}
+
+// ClearEtimsScuID clears the value of the "etims_scu_id" field.
+func (_u *POSOrderUpdate) ClearEtimsScuID() *POSOrderUpdate {
+	_u.mutation.ClearEtimsScuID()
+	return _u
+}
+
+// SetEtimsCuInvNo sets the "etims_cu_inv_no" field.
+func (_u *POSOrderUpdate) SetEtimsCuInvNo(v string) *POSOrderUpdate {
+	_u.mutation.SetEtimsCuInvNo(v)
+	return _u
+}
+
+// SetNillableEtimsCuInvNo sets the "etims_cu_inv_no" field if the given value is not nil.
+func (_u *POSOrderUpdate) SetNillableEtimsCuInvNo(v *string) *POSOrderUpdate {
+	if v != nil {
+		_u.SetEtimsCuInvNo(*v)
+	}
+	return _u
+}
+
+// ClearEtimsCuInvNo clears the value of the "etims_cu_inv_no" field.
+func (_u *POSOrderUpdate) ClearEtimsCuInvNo() *POSOrderUpdate {
+	_u.mutation.ClearEtimsCuInvNo()
+	return _u
+}
+
+// SetEtimsRcptSign sets the "etims_rcpt_sign" field.
+func (_u *POSOrderUpdate) SetEtimsRcptSign(v string) *POSOrderUpdate {
+	_u.mutation.SetEtimsRcptSign(v)
+	return _u
+}
+
+// SetNillableEtimsRcptSign sets the "etims_rcpt_sign" field if the given value is not nil.
+func (_u *POSOrderUpdate) SetNillableEtimsRcptSign(v *string) *POSOrderUpdate {
+	if v != nil {
+		_u.SetEtimsRcptSign(*v)
+	}
+	return _u
+}
+
+// ClearEtimsRcptSign clears the value of the "etims_rcpt_sign" field.
+func (_u *POSOrderUpdate) ClearEtimsRcptSign() *POSOrderUpdate {
+	_u.mutation.ClearEtimsRcptSign()
+	return _u
+}
+
+// SetEtimsKraPin sets the "etims_kra_pin" field.
+func (_u *POSOrderUpdate) SetEtimsKraPin(v string) *POSOrderUpdate {
+	_u.mutation.SetEtimsKraPin(v)
+	return _u
+}
+
+// SetNillableEtimsKraPin sets the "etims_kra_pin" field if the given value is not nil.
+func (_u *POSOrderUpdate) SetNillableEtimsKraPin(v *string) *POSOrderUpdate {
+	if v != nil {
+		_u.SetEtimsKraPin(*v)
+	}
+	return _u
+}
+
+// ClearEtimsKraPin clears the value of the "etims_kra_pin" field.
+func (_u *POSOrderUpdate) ClearEtimsKraPin() *POSOrderUpdate {
+	_u.mutation.ClearEtimsKraPin()
+	return _u
+}
+
 // SetReprintCount sets the "reprint_count" field.
 func (_u *POSOrderUpdate) SetReprintCount(v int) *POSOrderUpdate {
 	_u.mutation.ResetReprintCount()
@@ -1041,6 +1121,30 @@ func (_u *POSOrderUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.EtimsQrCodeURLCleared() {
 		_spec.ClearField(posorder.FieldEtimsQrCodeURL, field.TypeString)
+	}
+	if value, ok := _u.mutation.EtimsScuID(); ok {
+		_spec.SetField(posorder.FieldEtimsScuID, field.TypeString, value)
+	}
+	if _u.mutation.EtimsScuIDCleared() {
+		_spec.ClearField(posorder.FieldEtimsScuID, field.TypeString)
+	}
+	if value, ok := _u.mutation.EtimsCuInvNo(); ok {
+		_spec.SetField(posorder.FieldEtimsCuInvNo, field.TypeString, value)
+	}
+	if _u.mutation.EtimsCuInvNoCleared() {
+		_spec.ClearField(posorder.FieldEtimsCuInvNo, field.TypeString)
+	}
+	if value, ok := _u.mutation.EtimsRcptSign(); ok {
+		_spec.SetField(posorder.FieldEtimsRcptSign, field.TypeString, value)
+	}
+	if _u.mutation.EtimsRcptSignCleared() {
+		_spec.ClearField(posorder.FieldEtimsRcptSign, field.TypeString)
+	}
+	if value, ok := _u.mutation.EtimsKraPin(); ok {
+		_spec.SetField(posorder.FieldEtimsKraPin, field.TypeString, value)
+	}
+	if _u.mutation.EtimsKraPinCleared() {
+		_spec.ClearField(posorder.FieldEtimsKraPin, field.TypeString)
 	}
 	if value, ok := _u.mutation.ReprintCount(); ok {
 		_spec.SetField(posorder.FieldReprintCount, field.TypeInt, value)
@@ -1771,6 +1875,86 @@ func (_u *POSOrderUpdateOne) ClearEtimsQrCodeURL() *POSOrderUpdateOne {
 	return _u
 }
 
+// SetEtimsScuID sets the "etims_scu_id" field.
+func (_u *POSOrderUpdateOne) SetEtimsScuID(v string) *POSOrderUpdateOne {
+	_u.mutation.SetEtimsScuID(v)
+	return _u
+}
+
+// SetNillableEtimsScuID sets the "etims_scu_id" field if the given value is not nil.
+func (_u *POSOrderUpdateOne) SetNillableEtimsScuID(v *string) *POSOrderUpdateOne {
+	if v != nil {
+		_u.SetEtimsScuID(*v)
+	}
+	return _u
+}
+
+// ClearEtimsScuID clears the value of the "etims_scu_id" field.
+func (_u *POSOrderUpdateOne) ClearEtimsScuID() *POSOrderUpdateOne {
+	_u.mutation.ClearEtimsScuID()
+	return _u
+}
+
+// SetEtimsCuInvNo sets the "etims_cu_inv_no" field.
+func (_u *POSOrderUpdateOne) SetEtimsCuInvNo(v string) *POSOrderUpdateOne {
+	_u.mutation.SetEtimsCuInvNo(v)
+	return _u
+}
+
+// SetNillableEtimsCuInvNo sets the "etims_cu_inv_no" field if the given value is not nil.
+func (_u *POSOrderUpdateOne) SetNillableEtimsCuInvNo(v *string) *POSOrderUpdateOne {
+	if v != nil {
+		_u.SetEtimsCuInvNo(*v)
+	}
+	return _u
+}
+
+// ClearEtimsCuInvNo clears the value of the "etims_cu_inv_no" field.
+func (_u *POSOrderUpdateOne) ClearEtimsCuInvNo() *POSOrderUpdateOne {
+	_u.mutation.ClearEtimsCuInvNo()
+	return _u
+}
+
+// SetEtimsRcptSign sets the "etims_rcpt_sign" field.
+func (_u *POSOrderUpdateOne) SetEtimsRcptSign(v string) *POSOrderUpdateOne {
+	_u.mutation.SetEtimsRcptSign(v)
+	return _u
+}
+
+// SetNillableEtimsRcptSign sets the "etims_rcpt_sign" field if the given value is not nil.
+func (_u *POSOrderUpdateOne) SetNillableEtimsRcptSign(v *string) *POSOrderUpdateOne {
+	if v != nil {
+		_u.SetEtimsRcptSign(*v)
+	}
+	return _u
+}
+
+// ClearEtimsRcptSign clears the value of the "etims_rcpt_sign" field.
+func (_u *POSOrderUpdateOne) ClearEtimsRcptSign() *POSOrderUpdateOne {
+	_u.mutation.ClearEtimsRcptSign()
+	return _u
+}
+
+// SetEtimsKraPin sets the "etims_kra_pin" field.
+func (_u *POSOrderUpdateOne) SetEtimsKraPin(v string) *POSOrderUpdateOne {
+	_u.mutation.SetEtimsKraPin(v)
+	return _u
+}
+
+// SetNillableEtimsKraPin sets the "etims_kra_pin" field if the given value is not nil.
+func (_u *POSOrderUpdateOne) SetNillableEtimsKraPin(v *string) *POSOrderUpdateOne {
+	if v != nil {
+		_u.SetEtimsKraPin(*v)
+	}
+	return _u
+}
+
+// ClearEtimsKraPin clears the value of the "etims_kra_pin" field.
+func (_u *POSOrderUpdateOne) ClearEtimsKraPin() *POSOrderUpdateOne {
+	_u.mutation.ClearEtimsKraPin()
+	return _u
+}
+
 // SetReprintCount sets the "reprint_count" field.
 func (_u *POSOrderUpdateOne) SetReprintCount(v int) *POSOrderUpdateOne {
 	_u.mutation.ResetReprintCount()
@@ -2287,6 +2471,30 @@ func (_u *POSOrderUpdateOne) sqlSave(ctx context.Context) (_node *POSOrder, err 
 	}
 	if _u.mutation.EtimsQrCodeURLCleared() {
 		_spec.ClearField(posorder.FieldEtimsQrCodeURL, field.TypeString)
+	}
+	if value, ok := _u.mutation.EtimsScuID(); ok {
+		_spec.SetField(posorder.FieldEtimsScuID, field.TypeString, value)
+	}
+	if _u.mutation.EtimsScuIDCleared() {
+		_spec.ClearField(posorder.FieldEtimsScuID, field.TypeString)
+	}
+	if value, ok := _u.mutation.EtimsCuInvNo(); ok {
+		_spec.SetField(posorder.FieldEtimsCuInvNo, field.TypeString, value)
+	}
+	if _u.mutation.EtimsCuInvNoCleared() {
+		_spec.ClearField(posorder.FieldEtimsCuInvNo, field.TypeString)
+	}
+	if value, ok := _u.mutation.EtimsRcptSign(); ok {
+		_spec.SetField(posorder.FieldEtimsRcptSign, field.TypeString, value)
+	}
+	if _u.mutation.EtimsRcptSignCleared() {
+		_spec.ClearField(posorder.FieldEtimsRcptSign, field.TypeString)
+	}
+	if value, ok := _u.mutation.EtimsKraPin(); ok {
+		_spec.SetField(posorder.FieldEtimsKraPin, field.TypeString, value)
+	}
+	if _u.mutation.EtimsKraPinCleared() {
+		_spec.ClearField(posorder.FieldEtimsKraPin, field.TypeString)
 	}
 	if value, ok := _u.mutation.ReprintCount(); ok {
 		_spec.SetField(posorder.FieldReprintCount, field.TypeInt, value)

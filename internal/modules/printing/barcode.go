@@ -7,6 +7,7 @@ import (
 
 	"github.com/boombuler/barcode"
 	"github.com/boombuler/barcode/code128"
+	qrcode "github.com/skip2/go-qrcode"
 )
 
 // Code128PNG renders text as a Code 128 barcode PNG of roughly width×height pixels.
@@ -32,6 +33,19 @@ func Code128PNG(text string, width, height int) ([]byte, error) {
 // (renderers then just print the number without bars — never fail a receipt over a barcode).
 func Code128DataURI(text string, width, height int) string {
 	b, err := Code128PNG(text, width, height)
+	if err != nil {
+		return ""
+	}
+	return "data:image/png;base64," + base64.StdEncoding.EncodeToString(b)
+}
+
+// QRDataURI renders content (e.g. the KRA eTIMS receipt-verification URL) as a QR code PNG
+// data: URI for direct <img> embedding; "" on failure — a receipt never fails over its QR.
+func QRDataURI(content string, size int) string {
+	if content == "" {
+		return ""
+	}
+	b, err := qrcode.Encode(content, qrcode.Medium, size)
 	if err != nil {
 		return ""
 	}

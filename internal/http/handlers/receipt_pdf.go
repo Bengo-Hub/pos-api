@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/go-pdf/fpdf"
+	qrcode "github.com/skip2/go-qrcode"
 
 	"github.com/bengobox/pos-service/internal/modules/printing"
 )
@@ -82,6 +83,9 @@ func generateReceiptPDF(rec receiptResponse, brand receiptBrand) ([]byte, error)
 	if rec.OutletPhones != "" {
 		center("Mobile: "+rec.OutletPhones, "", 8)
 	}
+	if rec.EtimsKraPin != "" {
+		center("KRA PIN: "+rec.EtimsKraPin, "B", 8)
+	}
 	pdf.Ln(1)
 	hr()
 
@@ -153,10 +157,31 @@ func generateReceiptPDF(rec receiptResponse, brand receiptBrand) ([]byte, error)
 		line("Change", money(rec.ChangeDue), "", 8)
 	}
 
-	// eTIMS
-	if rec.EtimsInvoiceNumber != "" {
+	// KRA TIMS Details (fiscalised sales) — mirrors the paper ETR layout.
+	if rec.EtimsInvoiceNumber != "" || rec.EtimsCuInvNo != "" {
 		hr()
-		line("eTIMS Inv", rec.EtimsInvoiceNumber, "", 7)
+		center("KRA TIMS Details", "B", 8)
+		if rec.EtimsScuID != "" {
+			line("SCU ID", rec.EtimsScuID, "", 7)
+		}
+		if rec.EtimsCuInvNo != "" {
+			line("CU Inv No.", rec.EtimsCuInvNo, "", 7)
+		} else if rec.EtimsInvoiceNumber != "" {
+			line("eTIMS Inv", rec.EtimsInvoiceNumber, "", 7)
+		}
+		if rec.EtimsRcptSign != "" {
+			line("Sign", truncate(rec.EtimsRcptSign, 34), "", 6)
+		}
+		if rec.EtimsQRCodeURL != "" {
+			if qrPNG, qerr := qrcode.Encode(rec.EtimsQRCodeURL, qrcode.Medium, 256); qerr == nil {
+				const qrW = 18.0
+				if info := pdf.RegisterImageOptionsReader("etimsqr", fpdf.ImageOptions{ImageType: "PNG"}, bytes.NewReader(qrPNG)); info != nil && info.Width() > 0 {
+					pdf.ImageOptions("etimsqr", (pageW-qrW)/2, pdf.GetY()+1, qrW, qrW, true, fpdf.ImageOptions{ImageType: "PNG"}, 0, "")
+				} else {
+					pdf.ClearError()
+				}
+			}
+		}
 	}
 
 	// Payment display ("HOW TO PAY") — M-Pesa/bank details, same block as the HTML/ESC-POS receipts.

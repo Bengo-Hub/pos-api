@@ -78,7 +78,6 @@ func New(
 	printAgentAPI *handlers.PrintAgentAPIHandler,
 	payroll *handlers.PayrollHandler,
 	staffAdmin *handlers.StaffHandler,
-	purchaseOrders *handlers.PurchaseOrdersHandler,
 	repairs *handlers.RepairHandler,
 	allowedOrigins []string,
 	redisClient *redis.Client,
@@ -656,28 +655,28 @@ func New(
 					// every seeded role already carries (no new codes → no prod seeder run):
 					// create/read for till roles, money + terminal transitions for managers.
 					if layaway != nil {
+						// Mutations also require the layaway plan feature (retail T2+ per the
+						// use-case PowerSuite matrix); reads stay open per the
+						// feature-gated-READS-pass convention.
+						layawayFeat := subscriptions.RequireFeature(subscriptions.FeatureLayaway)
 						layawayRead := outletmw.RequireServicePermission(rbacSvc,
 							"pos.orders.view", "pos.orders.view_own", "pos.orders.manage")
-						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.orders.add", "pos.orders.manage")).
+						pos.With(layawayFeat, outletmw.RequireServicePermission(rbacSvc, "pos.orders.add", "pos.orders.manage")).
 							Post("/layaways", layaway.Create)
 						pos.With(layawayRead).Get("/layaways", layaway.List)
 						// Staff fund-from-salary links (admin/reconcile view).
 						pos.With(layawayRead).Get("/staff-credit", layaway.ListStaffCredit)
 						pos.With(layawayRead).Get("/layaways/{id}", layaway.Get)
-						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.payments.add", "pos.payments.manage")).
+						pos.With(layawayFeat, outletmw.RequireServicePermission(rbacSvc, "pos.payments.add", "pos.payments.manage")).
 							Post("/layaways/{id}/payments", layaway.RecordPayment)
 						layawayManage := outletmw.RequireServicePermission(rbacSvc, "pos.orders.manage")
-						pos.With(layawayManage).Post("/layaways/{id}/cancel", layaway.Cancel)
-						pos.With(layawayManage).Post("/layaways/{id}/forfeit", layaway.Forfeit)
-						pos.With(layawayManage).Post("/layaways/{id}/complete", layaway.Complete)
+						pos.With(layawayFeat, layawayManage).Post("/layaways/{id}/cancel", layaway.Cancel)
+						pos.With(layawayFeat, layawayManage).Post("/layaways/{id}/forfeit", layaway.Forfeit)
+						pos.With(layawayFeat, layawayManage).Post("/layaways/{id}/complete", layaway.Complete)
 					}
 
-					// Purchase orders proxy (inventory-api pass-through with tenant auth)
-					if purchaseOrders != nil {
-						pos.Get("/purchase-orders", purchaseOrders.List)
-						pos.Post("/purchase-orders", purchaseOrders.Create)
-						pos.Get("/purchase-orders/{id}", purchaseOrders.Get)
-					}
+					// Purchase orders live in inventory-api/inventory-ui (the owning service);
+					// the old POS proxy duplicate was removed per the use-case PowerSuite specs.
 
 					// Weighing scale readings
 					if scale != nil {
@@ -784,6 +783,7 @@ func New(
 					if commissions != nil || commissionRules != nil {
 						pos.Group(func(cm chi.Router) {
 							cm.Use(outletmw.RequireUseCase("retail", "services"))
+							cm.Use(subscriptions.RequireFeature(subscriptions.FeatureCommissions))
 							if commissions != nil {
 								cm.Get("/commissions", commissions.List)
 								cm.Get("/commissions/{commissionID}", commissions.Get)

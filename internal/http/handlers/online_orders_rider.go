@@ -11,12 +11,27 @@ import (
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
+	authclient "github.com/Bengo-Hub/shared-auth-client"
+	"github.com/Bengo-Hub/httpware"
+
 	"github.com/bengobox/pos-service/internal/ent"
 	"github.com/bengobox/pos-service/internal/ent/orderlink"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
 	"github.com/bengobox/pos-service/internal/platform/logistics"
 	"github.com/bengobox/pos-service/internal/platform/ordering"
 )
+
+// tenantSlugFromRequest resolves the tenant slug for cross-service (S2S) calls: JWT claims
+// first, then the httpware tenant context. Empty string when neither carries a slug.
+// (Formerly lived in the purchase-orders proxy, which was removed — inventory owns POs.)
+func tenantSlugFromRequest(r *http.Request) string {
+	if claims, ok := authclient.ClaimsFromContext(r.Context()); ok {
+		if slug := claims.GetTenantSlug(); slug != "" {
+			return slug
+		}
+	}
+	return httpware.GetTenantSlug(r.Context())
+}
 
 // riderDeps carries the cross-service dependencies for the WS-D assign-rider flow.
 // They are optional: when unset, the rider endpoints return 503 rather than panicking.

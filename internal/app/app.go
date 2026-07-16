@@ -306,7 +306,6 @@ func New(ctx context.Context) (*App, error) {
 	paymentSvc.SetStaffCredit(staffCreditSvc) // staff credit sales route the debt to ERP payroll
 	layawayHandler := handlers.NewLayawayHandler(log, entClient).WithStaffCredit(staffCreditSvc)
 	scaleHandler := handlers.NewScaleHandler(log, entClient)
-	purchaseOrdersHandler := handlers.NewPurchaseOrdersHandler(log, entClient)
 
 	// Pharmacy + Service modules (Sprint 8/9)
 	pharmacyHandler := handlers.NewPharmacyHandler(log, entClient)
@@ -376,6 +375,10 @@ func New(ctx context.Context) (*App, error) {
 	// Exchange fulfilment creates the replacement order through the normal sale pipeline.
 	returnHandler.SetOrderService(orderSvc)
 	receiptHandler := handlers.NewReceiptHandler(log, entClient, tenantCache, cfg.Auth.ServiceURL)
+	// KRA PIN header line on receipts — resolved from the treasury tax profile, printed
+	// ONLY for eTIMS-activated tenants (FiscalPin returns "" otherwise). Fallback for sales
+	// whose transmitted fiscal identity hasn't landed on the order yet.
+	receiptHandler.SetFiscalPinResolver(taxResolver.FiscalPin)
 	receiptHandler.SetAuditService(auditSvc)
 	// Branded, printable customer menu document (public/tokenless — QR target). Reuses the
 	// catalog assembly + tenant branding cache, mirroring ReceiptHandler wiring.
@@ -595,7 +598,7 @@ func New(ctx context.Context) (*App, error) {
 		RetentionDays: cfg.Backup.RetentionDays,
 	}, log).Start(ctx)
 
-	chiRouter := router.New(log, healthHandler, authMiddleware, entClient, identitySvc, orderHandler, catalogHandler, tableHandler, tenderHandler, paymentHandler, drawerHandler, barTabHandler, promotionHandler, rbacHandler, rbacSvc, hotelHandler, kdsHandler, deviceHandler, pinAuthHandler, publicOutletHandler, closingHandler, returnHandler, receiptHandler, menuHandler, layawayHandler, scaleHandler, pharmacyHandler, appointmentHandler, commissionHandler, staffScheduleHandler, shiftOverrideHandler, leaveRequestHandler, shiftRotationHandler, loyaltyHandler, reportsHandler, reportPDFHandler, webhookHandler, onlineOrderHandler, serviceConfigHandler, serviceSettingsHandler, notificationsHandler, queueHandler, billSplitHandler, resourceHandler, commissionRuleHandler, packageHandler, clientHandler, channelHandler, printHandler, printJobsHandler, printAgentAPIHandler, payrollHandler, staffAdminHandler, purchaseOrdersHandler, repairHandler, cfg.HTTP.AllowedOrigins, redisClient, cfg.Treasury.InternalServiceKey, backupHandler, backupDestHandler, screensaverMediaHandler, mediaRoot)
+	chiRouter := router.New(log, healthHandler, authMiddleware, entClient, identitySvc, orderHandler, catalogHandler, tableHandler, tenderHandler, paymentHandler, drawerHandler, barTabHandler, promotionHandler, rbacHandler, rbacSvc, hotelHandler, kdsHandler, deviceHandler, pinAuthHandler, publicOutletHandler, closingHandler, returnHandler, receiptHandler, menuHandler, layawayHandler, scaleHandler, pharmacyHandler, appointmentHandler, commissionHandler, staffScheduleHandler, shiftOverrideHandler, leaveRequestHandler, shiftRotationHandler, loyaltyHandler, reportsHandler, reportPDFHandler, webhookHandler, onlineOrderHandler, serviceConfigHandler, serviceSettingsHandler, notificationsHandler, queueHandler, billSplitHandler, resourceHandler, commissionRuleHandler, packageHandler, clientHandler, channelHandler, printHandler, printJobsHandler, printAgentAPIHandler, payrollHandler, staffAdminHandler, repairHandler, cfg.HTTP.AllowedOrigins, redisClient, cfg.Treasury.InternalServiceKey, backupHandler, backupDestHandler, screensaverMediaHandler, mediaRoot)
 
 	httpServer := &http.Server{
 		Addr:              fmt.Sprintf("%s:%d", cfg.HTTP.Host, cfg.HTTP.Port),

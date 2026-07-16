@@ -131,6 +131,30 @@ func (r *TaxResolver) vatActive(ctx context.Context, tenantSlug string) bool {
 	return profile.VATActive
 }
 
+// FiscalPin returns the tenant's KRA PIN for the receipt header — but ONLY when the
+// tenant has activated eTIMS on treasury (the activation gate the whole doc→eTIMS link
+// keys on). Unactivated tenants get "" and their receipts print no fiscal identity.
+// Cached briefly in Redis alongside the VAT switch.
+func (r *TaxResolver) FiscalPin(ctx context.Context, tenantSlug string) string {
+	if r.treasury == nil || tenantSlug == "" {
+		return ""
+	}
+	cacheKey := fmt.Sprintf("pos:fiscalpin:%s", tenantSlug)
+	if r.redis != nil {
+		if v, err := r.redis.Get(ctx, cacheKey).Result(); err == nil {
+			return v // may be "" (cached negative)
+		}
+	}
+	pin := ""
+	if profile, err := r.treasury.GetTaxProfile(ctx, tenantSlug); err == nil && profile != nil && profile.EtimsActivated {
+		pin = profile.KraPin
+	}
+	if r.redis != nil {
+		_ = r.redis.Set(ctx, cacheKey, pin, taxCodeCacheTTL).Err()
+	}
+	return pin
+}
+
 // InvalidateTenant deletes all cached tax data for a single tenant slug: every
 // per-code rate (pos:tax:{slug}:*) plus the VAT-active switch (pos:vatactive:{slug}).
 // Safe to call when Redis is not configured (no-op).
@@ -139,6 +163,7 @@ func (r *TaxResolver) InvalidateTenant(ctx context.Context, tenantSlug string) {
 		return
 	}
 	r.deleteByPattern(ctx, fmt.Sprintf("pos:tax:%s:*", tenantSlug))
+	_ = r.redis.Del(ctx, fmt.Sprintf("pos:fiscalpin:%s", tenantSlug)).Err()
 	if err := r.redis.Del(ctx, fmt.Sprintf("pos:vatactive:%s", tenantSlug)).Err(); err != nil {
 		r.log.Debug("tax resolver: failed to delete vatactive key", zap.String("tenant", tenantSlug), zap.Error(err))
 	}
@@ -175,6 +200,7 @@ func (r *TaxResolver) InvalidateCodeAllTenants(ctx context.Context, code string)
 	}
 	r.deleteByPattern(ctx, fmt.Sprintf("pos:tax:*:%s", code))
 	r.deleteByPattern(ctx, "pos:vatactive:*")
+	r.deleteByPattern(ctx, "pos:fiscalpin:*")
 	r.log.Info("tax resolver: invalidated cached tax code across all tenants (no slug resolved)",
 		zap.String("code", code))
 }

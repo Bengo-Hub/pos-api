@@ -179,10 +179,16 @@ type etimsEvent struct {
 	ID       string `json:"id"`
 	TenantID string `json:"tenant_id"`
 	Data     struct {
-		ReferenceID     string `json:"reference_id"`      // pos_order UUID
-		ReferenceType   string `json:"reference_type"`    // "pos_order"
-		InvoiceNumber   string `json:"invoice_number"`
-		QRCodeURL       string `json:"qr_code_url"`
+		ReferenceID   string `json:"reference_id"`   // pos_order UUID
+		ReferenceType string `json:"reference_type"` // "pos_order"
+		InvoiceNumber string `json:"invoice_number"`
+		QRCodeURL     string `json:"qr_code_url"`
+		// Full fiscal identity (treasury ≥2026-07): drives the printed "KRA TIMS
+		// Details" block — SCU ID, CU Inv No ({SCU}/{rcptNo}), signature, KRA PIN.
+		KraPin       string `json:"kra_pin"`
+		DeviceSerial string `json:"device_serial"`
+		CuInvoiceNo  string `json:"cu_invoice_no"`
+		RcptSign     string `json:"rcpt_sign"`
 	} `json:"payload"`
 }
 
@@ -212,12 +218,17 @@ func (s *TreasurySubscriber) subscribeEtimsTransmitted(js nats.JetStreamContext)
 			return
 		}
 
-		// Persist eTIMS invoice number + QR code URL on the pos_order.
+		// Persist the fiscalisation outcome on the pos_order: invoice number + QR plus the
+		// full "KRA TIMS Details" identity (SCU ID, CU Inv No, signature, KRA PIN).
 		// The eTIMS device submission is treasury-api's responsibility; pos-api only stores the outcome.
 		_, err = s.client.POSOrder.Update().
 			Where(posorder.ID(orderID)).
 			SetNillableEtimsInvoiceNumber(nilIfEmpty(evt.Data.InvoiceNumber)).
 			SetNillableEtimsQrCodeURL(nilIfEmpty(evt.Data.QRCodeURL)).
+			SetNillableEtimsScuID(nilIfEmpty(evt.Data.DeviceSerial)).
+			SetNillableEtimsCuInvNo(nilIfEmpty(evt.Data.CuInvoiceNo)).
+			SetNillableEtimsRcptSign(nilIfEmpty(evt.Data.RcptSign)).
+			SetNillableEtimsKraPin(nilIfEmpty(evt.Data.KraPin)).
 			Save(context.Background())
 		if err != nil {
 			s.log.Error("etims: failed to store invoice data on order",

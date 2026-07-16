@@ -74,6 +74,14 @@ const (
 	FieldEtimsInvoiceNumber = "etims_invoice_number"
 	// FieldEtimsQrCodeURL holds the string denoting the etims_qr_code_url field in the database.
 	FieldEtimsQrCodeURL = "etims_qr_code_url"
+	// FieldEtimsScuID holds the string denoting the etims_scu_id field in the database.
+	FieldEtimsScuID = "etims_scu_id"
+	// FieldEtimsCuInvNo holds the string denoting the etims_cu_inv_no field in the database.
+	FieldEtimsCuInvNo = "etims_cu_inv_no"
+	// FieldEtimsRcptSign holds the string denoting the etims_rcpt_sign field in the database.
+	FieldEtimsRcptSign = "etims_rcpt_sign"
+	// FieldEtimsKraPin holds the string denoting the etims_kra_pin field in the database.
+	FieldEtimsKraPin = "etims_kra_pin"
 	// FieldReprintCount holds the string denoting the reprint_count field in the database.
 	FieldReprintCount = "reprint_count"
 	// FieldVoidedReason holds the string denoting the voided_reason field in the database.
@@ -157,6 +165,10 @@ var Columns = []string{
 	FieldCustomerName,
 	FieldEtimsInvoiceNumber,
 	FieldEtimsQrCodeURL,
+	FieldEtimsScuID,
+	FieldEtimsCuInvNo,
+	FieldEtimsRcptSign,
+	FieldEtimsKraPin,
 	FieldReprintCount,
 	FieldVoidedReason,
 	FieldVoidedBy,
@@ -394,6 +406,26 @@ func ByEtimsInvoiceNumber(opts ...sql.OrderTermOption) OrderOption {
 // ByEtimsQrCodeURL orders the results by the etims_qr_code_url field.
 func ByEtimsQrCodeURL(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldEtimsQrCodeURL, opts...).ToFunc()
+}
+
+// ByEtimsScuID orders the results by the etims_scu_id field.
+func ByEtimsScuID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldEtimsScuID, opts...).ToFunc()
+}
+
+// ByEtimsCuInvNo orders the results by the etims_cu_inv_no field.
+func ByEtimsCuInvNo(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldEtimsCuInvNo, opts...).ToFunc()
+}
+
+// ByEtimsRcptSign orders the results by the etims_rcpt_sign field.
+func ByEtimsRcptSign(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldEtimsRcptSign, opts...).ToFunc()
+}
+
+// ByEtimsKraPin orders the results by the etims_kra_pin field.
+func ByEtimsKraPin(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldEtimsKraPin, opts...).ToFunc()
 }
 
 // ByReprintCount orders the results by the reprint_count field.
