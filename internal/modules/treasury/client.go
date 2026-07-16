@@ -36,6 +36,50 @@ func NewClient(serviceURL, internalServiceKey string, timeout time.Duration) *Cl
 	}
 }
 
+// EtimsFiscal is treasury's fiscalisation evidence for a transmitted document — the data
+// the "KRA TIMS Details" block on ETR receipts prints.
+type EtimsFiscal struct {
+	KraPin        string `json:"kra_pin"`
+	BranchID      string `json:"branch_id"`
+	DeviceSerial  string `json:"device_serial"`
+	ReceiptNo     string `json:"receipt_no"`
+	CuInvoiceNo   string `json:"cu_invoice_no"`
+	InternalData  string `json:"internal_data"`
+	Signature     string `json:"signature"`
+	InvcNo        int64  `json:"invc_no"`
+	QRURL         string `json:"qr_url"`
+	TransmittedAt string `json:"transmitted_at"`
+}
+
+// GetEtimsFiscal fetches the fiscal evidence for a transmitted POS sale by its order id —
+// the PULL/backfill path used when the etims.invoice_transmitted event was missed, so
+// receipts never silently print without their fiscal identity. 404 (not fiscalised yet)
+// returns nil, nil.
+func (c *Client) GetEtimsFiscal(ctx context.Context, tenantSlug, orderID string) (*EtimsFiscal, error) {
+	fullURL := fmt.Sprintf("%s/api/v1/s2s/%s/etims-fiscal/pos_sale/%s", c.baseURL, tenantSlug, orderID)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fullURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("X-API-Key", c.apiKey)
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("treasury: get etims fiscal: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, nil
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("treasury: get etims fiscal: status %d", resp.StatusCode)
+	}
+	var out EtimsFiscal
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return nil, fmt.Errorf("treasury: decode etims fiscal: %w", err)
+	}
+	return &out, nil
+}
+
 // ListBanks proxies the treasury S2S Paystack bank list for a country (raw JSON passthrough).
 func (c *Client) ListBanks(ctx context.Context, tenantSlug, country string) (json.RawMessage, error) {
 	if country == "" {

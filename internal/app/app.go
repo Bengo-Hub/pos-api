@@ -379,6 +379,9 @@ func New(ctx context.Context) (*App, error) {
 	// ONLY for eTIMS-activated tenants (FiscalPin returns "" otherwise). Fallback for sales
 	// whose transmitted fiscal identity hasn't landed on the order yet.
 	receiptHandler.SetFiscalPinResolver(taxResolver.FiscalPin)
+	// Fiscal-identity backfill: pull the KRA TIMS details from treasury when the
+	// etims.invoice_transmitted event was missed, before a receipt renders.
+	receiptHandler.SetTreasuryClient(treasuryClient)
 	receiptHandler.SetAuditService(auditSvc)
 	// Branded, printable customer menu document (public/tokenless — QR target). Reuses the
 	// catalog assembly + tenant branding cache, mirroring ReceiptHandler wiring.

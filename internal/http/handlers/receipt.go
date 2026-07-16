@@ -17,6 +17,7 @@ import (
 
 	"github.com/bengobox/pos-service/internal/audit"
 	"github.com/bengobox/pos-service/internal/ent"
+	"github.com/bengobox/pos-service/internal/modules/treasury"
 	entbillsplit "github.com/bengobox/pos-service/internal/ent/billsplit"
 	entoutlet "github.com/bengobox/pos-service/internal/ent/outlet"
 	entoutletsetting "github.com/bengobox/pos-service/internal/ent/outletsetting"
@@ -39,6 +40,8 @@ type ReceiptHandler struct {
 	// the tenant has activated eTIMS on treasury. Wired to orders.TaxResolver.FiscalPin;
 	// used as fallback when the order doesn't yet carry its own transmitted fiscal identity.
 	fiscalPin func(ctx context.Context, tenantSlug string) string
+	// treasury backfills missing fiscal identity on receipts (see receipt_etims_backfill.go).
+	treasury *treasury.Client
 }
 
 // NewReceiptHandler creates a new ReceiptHandler.
@@ -457,6 +460,12 @@ func (h *ReceiptHandler) GetReceipt(w http.ResponseWriter, r *http.Request) {
 	// receipt surface — loaded once here and handed to the shared BuildReceiptView.
 	outlet, _ := h.client.Outlet.Query().Where(entoutlet.ID(order.OutletID)).Only(ctx)
 	setting, _ := h.client.OutletSetting.Query().Where(entoutletsetting.OutletID(order.OutletID)).Only(ctx)
+
+	// Backfill missing eTIMS fiscal identity from treasury (pull path for a missed
+	// transmission event) so the KRA TIMS block never silently disappears from a receipt.
+	if outlet != nil {
+		order = h.ensureEtimsFiscal(ctx, outlet.TenantSlug, order)
+	}
 
 	view := printing.BuildReceiptView(order, order.Edges.Lines, outlet, setting, printing.ReceiptViewOpts{
 		Type:           "customer",
