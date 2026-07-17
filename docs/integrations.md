@@ -100,6 +100,28 @@ Content-Type: application/json
 **Retry:** 3 attempts with exponential backoff  
 **Status:** ❌ HTTP call not yet wired in `orders.Service.Complete()` (Sprint 6 — remaining gap)
 
+### 1.2b Transaction Reversal (platform-owner data-repair tool, 2026-07-17)
+
+**Trigger:** Platform owner runs a reversal from pos-ui Sync Monitor → "Txn Reversals" tab
+(`POST /api/v1/{tenant}/pos/reversals`, platform-owner JWT only).
+**What it does:** Reverses a FINALIZED sale (whole order or selected items) across every
+integrated service, each step tracked on the `pos_reversals` row (steps JSON) and retryable
+(`POST /reversals/{id}/retry`):
+
+1. `pos_totals` — soft-voids the lines; partial: `RecomputeTotals` + payments/paid_total
+   netted down; full: order → `refunded`, totals/payments kept + stamped.
+2. `inventory_consumption` — `POST /v1/{tenant}/inventory/consumption/reverse` (S2S):
+   BOM-accurate add-back net of recorded shortfall, negative compensating consumption
+   lines/dailies, idempotent on `pos-reversal-{id}`.
+3. `treasury_gl` — reuses the returns settlement `POST /api/v1/s2s/{tenant}/refunds`
+   (revenue+VAT reversal, catalog-source COGS reversal, AR netting, auto credit-note doc);
+   idempotent on the reversal id.
+4. `etims_credit_note` — `GetInvoiceByReference("pos_order", orderID)` + `CreateCreditNote`
+   when the sale has a treasury tax invoice; SKIPPED otherwise.
+
+**Modules:** `internal/modules/reversals` (orchestrator), `handlers/reversals.go`,
+`ent/schema/posreversal.go`. Distinct from POSReturn (customer returns lifecycle).
+
 ### 1.3 Stock Alert Subscriber
 
 **Trigger:** NATS `inventory.stock.low` event  

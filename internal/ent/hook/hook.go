@@ -705,6 +705,18 @@ func (f POSReturnLineFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Valu
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.POSReturnLineMutation", m)
 }
 
+// The POSReversalFunc type is an adapter to allow the use of ordinary
+// function as POSReversal mutator.
+type POSReversalFunc func(context.Context, *ent.POSReversalMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f POSReversalFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.POSReversalMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.POSReversalMutation", m)
+}
+
 // The POSRoleFunc type is an adapter to allow the use of ordinary
 // function as POSRole mutator.
 type POSRoleFunc func(context.Context, *ent.POSRoleMutation) (ent.Value, error)

@@ -75,6 +75,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/posrefund"
 	"github.com/bengobox/pos-service/internal/ent/posreturn"
 	"github.com/bengobox/pos-service/internal/ent/posreturnline"
+	"github.com/bengobox/pos-service/internal/ent/posreversal"
 	"github.com/bengobox/pos-service/internal/ent/posrole"
 	"github.com/bengobox/pos-service/internal/ent/posrolepermission"
 	"github.com/bengobox/pos-service/internal/ent/posrolev2"
@@ -255,6 +256,8 @@ type Client struct {
 	POSReturn *POSReturnClient
 	// POSReturnLine is the client for interacting with the POSReturnLine builders.
 	POSReturnLine *POSReturnLineClient
+	// POSReversal is the client for interacting with the POSReversal builders.
+	POSReversal *POSReversalClient
 	// POSRole is the client for interacting with the POSRole builders.
 	POSRole *POSRoleClient
 	// POSRolePermission is the client for interacting with the POSRolePermission builders.
@@ -440,6 +443,7 @@ func (c *Client) init() {
 	c.POSRefund = NewPOSRefundClient(c.config)
 	c.POSReturn = NewPOSReturnClient(c.config)
 	c.POSReturnLine = NewPOSReturnLineClient(c.config)
+	c.POSReversal = NewPOSReversalClient(c.config)
 	c.POSRole = NewPOSRoleClient(c.config)
 	c.POSRolePermission = NewPOSRolePermissionClient(c.config)
 	c.POSRoleV2 = NewPOSRoleV2Client(c.config)
@@ -648,6 +652,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		POSRefund:                NewPOSRefundClient(cfg),
 		POSReturn:                NewPOSReturnClient(cfg),
 		POSReturnLine:            NewPOSReturnLineClient(cfg),
+		POSReversal:              NewPOSReversalClient(cfg),
 		POSRole:                  NewPOSRoleClient(cfg),
 		POSRolePermission:        NewPOSRolePermissionClient(cfg),
 		POSRoleV2:                NewPOSRoleV2Client(cfg),
@@ -783,6 +788,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		POSRefund:                NewPOSRefundClient(cfg),
 		POSReturn:                NewPOSReturnClient(cfg),
 		POSReturnLine:            NewPOSReturnLineClient(cfg),
+		POSReversal:              NewPOSReversalClient(cfg),
 		POSRole:                  NewPOSRoleClient(cfg),
 		POSRolePermission:        NewPOSRolePermissionClient(cfg),
 		POSRoleV2:                NewPOSRoleV2Client(cfg),
@@ -883,21 +889,21 @@ func (c *Client) Use(hooks ...Hook) {
 		c.OrderLink, c.OrderVoidCode, c.OutboxEvent, c.Outlet, c.OutletSetting,
 		c.POSCatalogOverride, c.POSDevice, c.POSDeviceSession, c.POSLineModifier,
 		c.POSOrder, c.POSOrderEvent, c.POSOrderLine, c.POSPayment, c.POSPermission,
-		c.POSRefund, c.POSReturn, c.POSReturnLine, c.POSRole, c.POSRolePermission,
-		c.POSRoleV2, c.POSUserRoleAssignment, c.PosNotification, c.Prescription,
-		c.PrescriptionLine, c.PriceBook, c.PriceBookItem, c.PrintAgent, c.PrintJob,
-		c.Promotion, c.PromotionApplication, c.PromotionRule, c.RateLimitConfig,
-		c.Referral, c.RepairJob, c.RepairJobEvent, c.RepairJobPart, c.Resource, c.Room,
-		c.RoomAmenity, c.RoomAmenityAssignment, c.RoomBooking, c.RoomFolioItem,
-		c.RoomFolioPayment, c.RoomGuest, c.Section, c.SerialNumberLog, c.ServiceConfig,
-		c.ServicePackage, c.ServicePackagePurchase, c.ServicePackageRedemption,
-		c.ServiceQueueEntry, c.ShiftRotation, c.ShiftRotationSlot, c.StaffAdvance,
-		c.StaffMember, c.StaffOutlet, c.StaffPayroll, c.StaffPayrollLine,
-		c.StaffPurchaseLink, c.StaffSchedule, c.StaffShiftOverride,
-		c.StockAlertSubscription, c.StockConsumptionEvent, c.SyncFailure, c.Table,
-		c.TableAssignment, c.TableReservation, c.Tenant, c.TenantSyncEvent, c.Tender,
-		c.User, c.UserPOSRole, c.WebhookDelivery, c.WebhookSubscription,
-		c.WeighingScaleReading,
+		c.POSRefund, c.POSReturn, c.POSReturnLine, c.POSReversal, c.POSRole,
+		c.POSRolePermission, c.POSRoleV2, c.POSUserRoleAssignment, c.PosNotification,
+		c.Prescription, c.PrescriptionLine, c.PriceBook, c.PriceBookItem, c.PrintAgent,
+		c.PrintJob, c.Promotion, c.PromotionApplication, c.PromotionRule,
+		c.RateLimitConfig, c.Referral, c.RepairJob, c.RepairJobEvent, c.RepairJobPart,
+		c.Resource, c.Room, c.RoomAmenity, c.RoomAmenityAssignment, c.RoomBooking,
+		c.RoomFolioItem, c.RoomFolioPayment, c.RoomGuest, c.Section, c.SerialNumberLog,
+		c.ServiceConfig, c.ServicePackage, c.ServicePackagePurchase,
+		c.ServicePackageRedemption, c.ServiceQueueEntry, c.ShiftRotation,
+		c.ShiftRotationSlot, c.StaffAdvance, c.StaffMember, c.StaffOutlet,
+		c.StaffPayroll, c.StaffPayrollLine, c.StaffPurchaseLink, c.StaffSchedule,
+		c.StaffShiftOverride, c.StockAlertSubscription, c.StockConsumptionEvent,
+		c.SyncFailure, c.Table, c.TableAssignment, c.TableReservation, c.Tenant,
+		c.TenantSyncEvent, c.Tender, c.User, c.UserPOSRole, c.WebhookDelivery,
+		c.WebhookSubscription, c.WeighingScaleReading,
 	} {
 		n.Use(hooks...)
 	}
@@ -920,21 +926,21 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.OrderLink, c.OrderVoidCode, c.OutboxEvent, c.Outlet, c.OutletSetting,
 		c.POSCatalogOverride, c.POSDevice, c.POSDeviceSession, c.POSLineModifier,
 		c.POSOrder, c.POSOrderEvent, c.POSOrderLine, c.POSPayment, c.POSPermission,
-		c.POSRefund, c.POSReturn, c.POSReturnLine, c.POSRole, c.POSRolePermission,
-		c.POSRoleV2, c.POSUserRoleAssignment, c.PosNotification, c.Prescription,
-		c.PrescriptionLine, c.PriceBook, c.PriceBookItem, c.PrintAgent, c.PrintJob,
-		c.Promotion, c.PromotionApplication, c.PromotionRule, c.RateLimitConfig,
-		c.Referral, c.RepairJob, c.RepairJobEvent, c.RepairJobPart, c.Resource, c.Room,
-		c.RoomAmenity, c.RoomAmenityAssignment, c.RoomBooking, c.RoomFolioItem,
-		c.RoomFolioPayment, c.RoomGuest, c.Section, c.SerialNumberLog, c.ServiceConfig,
-		c.ServicePackage, c.ServicePackagePurchase, c.ServicePackageRedemption,
-		c.ServiceQueueEntry, c.ShiftRotation, c.ShiftRotationSlot, c.StaffAdvance,
-		c.StaffMember, c.StaffOutlet, c.StaffPayroll, c.StaffPayrollLine,
-		c.StaffPurchaseLink, c.StaffSchedule, c.StaffShiftOverride,
-		c.StockAlertSubscription, c.StockConsumptionEvent, c.SyncFailure, c.Table,
-		c.TableAssignment, c.TableReservation, c.Tenant, c.TenantSyncEvent, c.Tender,
-		c.User, c.UserPOSRole, c.WebhookDelivery, c.WebhookSubscription,
-		c.WeighingScaleReading,
+		c.POSRefund, c.POSReturn, c.POSReturnLine, c.POSReversal, c.POSRole,
+		c.POSRolePermission, c.POSRoleV2, c.POSUserRoleAssignment, c.PosNotification,
+		c.Prescription, c.PrescriptionLine, c.PriceBook, c.PriceBookItem, c.PrintAgent,
+		c.PrintJob, c.Promotion, c.PromotionApplication, c.PromotionRule,
+		c.RateLimitConfig, c.Referral, c.RepairJob, c.RepairJobEvent, c.RepairJobPart,
+		c.Resource, c.Room, c.RoomAmenity, c.RoomAmenityAssignment, c.RoomBooking,
+		c.RoomFolioItem, c.RoomFolioPayment, c.RoomGuest, c.Section, c.SerialNumberLog,
+		c.ServiceConfig, c.ServicePackage, c.ServicePackagePurchase,
+		c.ServicePackageRedemption, c.ServiceQueueEntry, c.ShiftRotation,
+		c.ShiftRotationSlot, c.StaffAdvance, c.StaffMember, c.StaffOutlet,
+		c.StaffPayroll, c.StaffPayrollLine, c.StaffPurchaseLink, c.StaffSchedule,
+		c.StaffShiftOverride, c.StockAlertSubscription, c.StockConsumptionEvent,
+		c.SyncFailure, c.Table, c.TableAssignment, c.TableReservation, c.Tenant,
+		c.TenantSyncEvent, c.Tender, c.User, c.UserPOSRole, c.WebhookDelivery,
+		c.WebhookSubscription, c.WeighingScaleReading,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -1059,6 +1065,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.POSReturn.mutate(ctx, m)
 	case *POSReturnLineMutation:
 		return c.POSReturnLine.mutate(ctx, m)
+	case *POSReversalMutation:
+		return c.POSReversal.mutate(ctx, m)
 	case *POSRoleMutation:
 		return c.POSRole.mutate(ctx, m)
 	case *POSRolePermissionMutation:
@@ -9451,6 +9459,139 @@ func (c *POSReturnLineClient) mutate(ctx context.Context, m *POSReturnLineMutati
 		return (&POSReturnLineDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown POSReturnLine mutation op: %q", m.Op())
+	}
+}
+
+// POSReversalClient is a client for the POSReversal schema.
+type POSReversalClient struct {
+	config
+}
+
+// NewPOSReversalClient returns a client for the POSReversal from the given config.
+func NewPOSReversalClient(c config) *POSReversalClient {
+	return &POSReversalClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `posreversal.Hooks(f(g(h())))`.
+func (c *POSReversalClient) Use(hooks ...Hook) {
+	c.hooks.POSReversal = append(c.hooks.POSReversal, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `posreversal.Intercept(f(g(h())))`.
+func (c *POSReversalClient) Intercept(interceptors ...Interceptor) {
+	c.inters.POSReversal = append(c.inters.POSReversal, interceptors...)
+}
+
+// Create returns a builder for creating a POSReversal entity.
+func (c *POSReversalClient) Create() *POSReversalCreate {
+	mutation := newPOSReversalMutation(c.config, OpCreate)
+	return &POSReversalCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of POSReversal entities.
+func (c *POSReversalClient) CreateBulk(builders ...*POSReversalCreate) *POSReversalCreateBulk {
+	return &POSReversalCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *POSReversalClient) MapCreateBulk(slice any, setFunc func(*POSReversalCreate, int)) *POSReversalCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &POSReversalCreateBulk{err: fmt.Errorf("calling to POSReversalClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*POSReversalCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &POSReversalCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for POSReversal.
+func (c *POSReversalClient) Update() *POSReversalUpdate {
+	mutation := newPOSReversalMutation(c.config, OpUpdate)
+	return &POSReversalUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *POSReversalClient) UpdateOne(_m *POSReversal) *POSReversalUpdateOne {
+	mutation := newPOSReversalMutation(c.config, OpUpdateOne, withPOSReversal(_m))
+	return &POSReversalUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *POSReversalClient) UpdateOneID(id uuid.UUID) *POSReversalUpdateOne {
+	mutation := newPOSReversalMutation(c.config, OpUpdateOne, withPOSReversalID(id))
+	return &POSReversalUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for POSReversal.
+func (c *POSReversalClient) Delete() *POSReversalDelete {
+	mutation := newPOSReversalMutation(c.config, OpDelete)
+	return &POSReversalDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *POSReversalClient) DeleteOne(_m *POSReversal) *POSReversalDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *POSReversalClient) DeleteOneID(id uuid.UUID) *POSReversalDeleteOne {
+	builder := c.Delete().Where(posreversal.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &POSReversalDeleteOne{builder}
+}
+
+// Query returns a query builder for POSReversal.
+func (c *POSReversalClient) Query() *POSReversalQuery {
+	return &POSReversalQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypePOSReversal},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a POSReversal entity by its id.
+func (c *POSReversalClient) Get(ctx context.Context, id uuid.UUID) (*POSReversal, error) {
+	return c.Query().Where(posreversal.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *POSReversalClient) GetX(ctx context.Context, id uuid.UUID) *POSReversal {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *POSReversalClient) Hooks() []Hook {
+	return c.hooks.POSReversal
+}
+
+// Interceptors returns the client interceptors.
+func (c *POSReversalClient) Interceptors() []Interceptor {
+	return c.inters.POSReversal
+}
+
+func (c *POSReversalClient) mutate(ctx context.Context, m *POSReversalMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&POSReversalCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&POSReversalUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&POSReversalUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&POSReversalDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown POSReversal mutation op: %q", m.Op())
 	}
 }
 
@@ -17854,15 +17995,16 @@ type (
 		ModifierGroup, OrderLink, OrderVoidCode, OutboxEvent, Outlet, OutletSetting,
 		POSCatalogOverride, POSDevice, POSDeviceSession, POSLineModifier, POSOrder,
 		POSOrderEvent, POSOrderLine, POSPayment, POSPermission, POSRefund, POSReturn,
-		POSReturnLine, POSRole, POSRolePermission, POSRoleV2, POSUserRoleAssignment,
-		PosNotification, Prescription, PrescriptionLine, PriceBook, PriceBookItem,
-		PrintAgent, PrintJob, Promotion, PromotionApplication, PromotionRule,
-		RateLimitConfig, Referral, RepairJob, RepairJobEvent, RepairJobPart, Resource,
-		Room, RoomAmenity, RoomAmenityAssignment, RoomBooking, RoomFolioItem,
-		RoomFolioPayment, RoomGuest, Section, SerialNumberLog, ServiceConfig,
-		ServicePackage, ServicePackagePurchase, ServicePackageRedemption,
-		ServiceQueueEntry, ShiftRotation, ShiftRotationSlot, StaffAdvance, StaffMember,
-		StaffOutlet, StaffPayroll, StaffPayrollLine, StaffPurchaseLink, StaffSchedule,
+		POSReturnLine, POSReversal, POSRole, POSRolePermission, POSRoleV2,
+		POSUserRoleAssignment, PosNotification, Prescription, PrescriptionLine,
+		PriceBook, PriceBookItem, PrintAgent, PrintJob, Promotion,
+		PromotionApplication, PromotionRule, RateLimitConfig, Referral, RepairJob,
+		RepairJobEvent, RepairJobPart, Resource, Room, RoomAmenity,
+		RoomAmenityAssignment, RoomBooking, RoomFolioItem, RoomFolioPayment, RoomGuest,
+		Section, SerialNumberLog, ServiceConfig, ServicePackage,
+		ServicePackagePurchase, ServicePackageRedemption, ServiceQueueEntry,
+		ShiftRotation, ShiftRotationSlot, StaffAdvance, StaffMember, StaffOutlet,
+		StaffPayroll, StaffPayrollLine, StaffPurchaseLink, StaffSchedule,
 		StaffShiftOverride, StockAlertSubscription, StockConsumptionEvent, SyncFailure,
 		Table, TableAssignment, TableReservation, Tenant, TenantSyncEvent, Tender,
 		User, UserPOSRole, WebhookDelivery, WebhookSubscription,
@@ -17880,15 +18022,16 @@ type (
 		ModifierGroup, OrderLink, OrderVoidCode, OutboxEvent, Outlet, OutletSetting,
 		POSCatalogOverride, POSDevice, POSDeviceSession, POSLineModifier, POSOrder,
 		POSOrderEvent, POSOrderLine, POSPayment, POSPermission, POSRefund, POSReturn,
-		POSReturnLine, POSRole, POSRolePermission, POSRoleV2, POSUserRoleAssignment,
-		PosNotification, Prescription, PrescriptionLine, PriceBook, PriceBookItem,
-		PrintAgent, PrintJob, Promotion, PromotionApplication, PromotionRule,
-		RateLimitConfig, Referral, RepairJob, RepairJobEvent, RepairJobPart, Resource,
-		Room, RoomAmenity, RoomAmenityAssignment, RoomBooking, RoomFolioItem,
-		RoomFolioPayment, RoomGuest, Section, SerialNumberLog, ServiceConfig,
-		ServicePackage, ServicePackagePurchase, ServicePackageRedemption,
-		ServiceQueueEntry, ShiftRotation, ShiftRotationSlot, StaffAdvance, StaffMember,
-		StaffOutlet, StaffPayroll, StaffPayrollLine, StaffPurchaseLink, StaffSchedule,
+		POSReturnLine, POSReversal, POSRole, POSRolePermission, POSRoleV2,
+		POSUserRoleAssignment, PosNotification, Prescription, PrescriptionLine,
+		PriceBook, PriceBookItem, PrintAgent, PrintJob, Promotion,
+		PromotionApplication, PromotionRule, RateLimitConfig, Referral, RepairJob,
+		RepairJobEvent, RepairJobPart, Resource, Room, RoomAmenity,
+		RoomAmenityAssignment, RoomBooking, RoomFolioItem, RoomFolioPayment, RoomGuest,
+		Section, SerialNumberLog, ServiceConfig, ServicePackage,
+		ServicePackagePurchase, ServicePackageRedemption, ServiceQueueEntry,
+		ShiftRotation, ShiftRotationSlot, StaffAdvance, StaffMember, StaffOutlet,
+		StaffPayroll, StaffPayrollLine, StaffPurchaseLink, StaffSchedule,
 		StaffShiftOverride, StockAlertSubscription, StockConsumptionEvent, SyncFailure,
 		Table, TableAssignment, TableReservation, Tenant, TenantSyncEvent, Tender,
 		User, UserPOSRole, WebhookDelivery, WebhookSubscription,

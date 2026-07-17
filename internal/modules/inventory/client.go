@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -258,4 +259,73 @@ func (c *Client) RecordConsumption(ctx context.Context, tenantID string, req Con
 		return fmt.Errorf("inventory.Client.RecordConsumption: status %d", resp.StatusCode)
 	}
 	return nil
+}
+
+// ReverseConsumptionItem selects one sale-line SKU to reverse: Quantity of OfQuantity
+// originally sold (the ratio prorates the recorded ingredient consumption).
+type ReverseConsumptionItem struct {
+	SKU        string  `json:"sku"`
+	Quantity   float64 `json:"quantity"`
+	OfQuantity float64 `json:"of_quantity,omitempty"`
+}
+
+// ReverseConsumptionRequest is the body for POST /v1/{tenant}/inventory/consumption/reverse.
+// Empty Items reverses the order's entire recorded consumption. Idempotent on IdempotencyKey.
+type ReverseConsumptionRequest struct {
+	OrderID        string                   `json:"order_id"`
+	Items          []ReverseConsumptionItem `json:"items,omitempty"`
+	Reason         string                   `json:"reason,omitempty"`
+	IdempotencyKey string                   `json:"idempotency_key,omitempty"`
+}
+
+// ReversedIngredient reports one ingredient line's reversal outcome.
+type ReversedIngredient struct {
+	IngredientSKU    string  `json:"ingredient_sku"`
+	RecipeSKU        string  `json:"recipe_sku,omitempty"`
+	QuantityReversed float64 `json:"quantity_reversed"`
+	StockReturned    float64 `json:"stock_returned"`
+	CostReversed     float64 `json:"cost_reversed"`
+}
+
+// ReverseConsumptionResponse summarizes what inventory reversed for the order.
+type ReverseConsumptionResponse struct {
+	ID                string               `json:"id"`
+	OrderID           string               `json:"order_id"`
+	Status            string               `json:"status"`
+	AlreadyProcessed  bool                 `json:"already_processed,omitempty"`
+	TotalCostReversed float64              `json:"total_cost_reversed"`
+	Ingredients       []ReversedIngredient `json:"ingredients"`
+}
+
+// ReverseConsumption calls inventory-api to reverse (part of) an order's recorded BOM
+// consumption — the stock side of a POS sale reversal. Idempotent server-side.
+func (c *Client) ReverseConsumption(ctx context.Context, tenantID string, req ReverseConsumptionRequest) (*ReverseConsumptionResponse, error) {
+	body, err := json.Marshal(req)
+	if err != nil {
+		return nil, fmt.Errorf("inventory.Client.ReverseConsumption: marshal: %w", err)
+	}
+
+	url := fmt.Sprintf("%s/v1/%s/inventory/consumption/reverse", c.baseURL, tenantID)
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("inventory.Client.ReverseConsumption: build request: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("X-API-Key", c.apiKey)
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("inventory.Client.ReverseConsumption: http: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		msg, _ := io.ReadAll(io.LimitReader(resp.Body, 2048))
+		return nil, fmt.Errorf("inventory.Client.ReverseConsumption: status %d: %s", resp.StatusCode, strings.TrimSpace(string(msg)))
+	}
+	var out ReverseConsumptionResponse
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return nil, fmt.Errorf("inventory.Client.ReverseConsumption: decode: %w", err)
+	}
+	return &out, nil
 }

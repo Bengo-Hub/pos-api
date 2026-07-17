@@ -69,6 +69,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/posrefund"
 	"github.com/bengobox/pos-service/internal/ent/posreturn"
 	"github.com/bengobox/pos-service/internal/ent/posreturnline"
+	"github.com/bengobox/pos-service/internal/ent/posreversal"
 	"github.com/bengobox/pos-service/internal/ent/posrole"
 	"github.com/bengobox/pos-service/internal/ent/posrolepermission"
 	"github.com/bengobox/pos-service/internal/ent/posrolev2"
@@ -96,6 +97,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/roomfolioitem"
 	"github.com/bengobox/pos-service/internal/ent/roomfoliopayment"
 	"github.com/bengobox/pos-service/internal/ent/roomguest"
+	"github.com/bengobox/pos-service/internal/ent/schema"
 	"github.com/bengobox/pos-service/internal/ent/section"
 	"github.com/bengobox/pos-service/internal/ent/serialnumberlog"
 	"github.com/bengobox/pos-service/internal/ent/serviceconfig"
@@ -198,6 +200,7 @@ const (
 	TypePOSRefund                = "POSRefund"
 	TypePOSReturn                = "POSReturn"
 	TypePOSReturnLine            = "POSReturnLine"
+	TypePOSReversal              = "POSReversal"
 	TypePOSRole                  = "POSRole"
 	TypePOSRolePermission        = "POSRolePermission"
 	TypePOSRoleV2                = "POSRoleV2"
@@ -64963,6 +64966,1358 @@ func (m *POSReturnLineMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown POSReturnLine edge %s", name)
+}
+
+// POSReversalMutation represents an operation that mutates the POSReversal nodes in the graph.
+type POSReversalMutation struct {
+	config
+	op              Op
+	typ             string
+	id              *uuid.UUID
+	tenant_id       *uuid.UUID
+	order_id        *uuid.UUID
+	order_number    *string
+	reversal_number *string
+	scope           *posreversal.Scope
+	status          *posreversal.Status
+	reason          *string
+	refund_channel  *string
+	lines           *[]schema.ReversalLineJSON
+	appendlines     []schema.ReversalLineJSON
+	amount          *float64
+	addamount       *float64
+	tax_amount      *float64
+	addtax_amount   *float64
+	cost_amount     *float64
+	addcost_amount  *float64
+	steps           *[]schema.ReversalStepJSON
+	appendsteps     []schema.ReversalStepJSON
+	idempotency_key *string
+	requested_by    *uuid.UUID
+	created_at      *time.Time
+	updated_at      *time.Time
+	clearedFields   map[string]struct{}
+	done            bool
+	oldValue        func(context.Context) (*POSReversal, error)
+	predicates      []predicate.POSReversal
+}
+
+var _ ent.Mutation = (*POSReversalMutation)(nil)
+
+// posreversalOption allows management of the mutation configuration using functional options.
+type posreversalOption func(*POSReversalMutation)
+
+// newPOSReversalMutation creates new mutation for the POSReversal entity.
+func newPOSReversalMutation(c config, op Op, opts ...posreversalOption) *POSReversalMutation {
+	m := &POSReversalMutation{
+		config:        c,
+		op:            op,
+		typ:           TypePOSReversal,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withPOSReversalID sets the ID field of the mutation.
+func withPOSReversalID(id uuid.UUID) posreversalOption {
+	return func(m *POSReversalMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *POSReversal
+		)
+		m.oldValue = func(ctx context.Context) (*POSReversal, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().POSReversal.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withPOSReversal sets the old POSReversal of the mutation.
+func withPOSReversal(node *POSReversal) posreversalOption {
+	return func(m *POSReversalMutation) {
+		m.oldValue = func(context.Context) (*POSReversal, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m POSReversalMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m POSReversalMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of POSReversal entities.
+func (m *POSReversalMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *POSReversalMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *POSReversalMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().POSReversal.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *POSReversalMutation) SetTenantID(u uuid.UUID) {
+	m.tenant_id = &u
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *POSReversalMutation) TenantID() (r uuid.UUID, exists bool) {
+	v := m.tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the POSReversal entity.
+// If the POSReversal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSReversalMutation) OldTenantID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *POSReversalMutation) ResetTenantID() {
+	m.tenant_id = nil
+}
+
+// SetOrderID sets the "order_id" field.
+func (m *POSReversalMutation) SetOrderID(u uuid.UUID) {
+	m.order_id = &u
+}
+
+// OrderID returns the value of the "order_id" field in the mutation.
+func (m *POSReversalMutation) OrderID() (r uuid.UUID, exists bool) {
+	v := m.order_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOrderID returns the old "order_id" field's value of the POSReversal entity.
+// If the POSReversal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSReversalMutation) OldOrderID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOrderID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOrderID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOrderID: %w", err)
+	}
+	return oldValue.OrderID, nil
+}
+
+// ResetOrderID resets all changes to the "order_id" field.
+func (m *POSReversalMutation) ResetOrderID() {
+	m.order_id = nil
+}
+
+// SetOrderNumber sets the "order_number" field.
+func (m *POSReversalMutation) SetOrderNumber(s string) {
+	m.order_number = &s
+}
+
+// OrderNumber returns the value of the "order_number" field in the mutation.
+func (m *POSReversalMutation) OrderNumber() (r string, exists bool) {
+	v := m.order_number
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOrderNumber returns the old "order_number" field's value of the POSReversal entity.
+// If the POSReversal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSReversalMutation) OldOrderNumber(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOrderNumber is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOrderNumber requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOrderNumber: %w", err)
+	}
+	return oldValue.OrderNumber, nil
+}
+
+// ResetOrderNumber resets all changes to the "order_number" field.
+func (m *POSReversalMutation) ResetOrderNumber() {
+	m.order_number = nil
+}
+
+// SetReversalNumber sets the "reversal_number" field.
+func (m *POSReversalMutation) SetReversalNumber(s string) {
+	m.reversal_number = &s
+}
+
+// ReversalNumber returns the value of the "reversal_number" field in the mutation.
+func (m *POSReversalMutation) ReversalNumber() (r string, exists bool) {
+	v := m.reversal_number
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReversalNumber returns the old "reversal_number" field's value of the POSReversal entity.
+// If the POSReversal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSReversalMutation) OldReversalNumber(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReversalNumber is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReversalNumber requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReversalNumber: %w", err)
+	}
+	return oldValue.ReversalNumber, nil
+}
+
+// ResetReversalNumber resets all changes to the "reversal_number" field.
+func (m *POSReversalMutation) ResetReversalNumber() {
+	m.reversal_number = nil
+}
+
+// SetScope sets the "scope" field.
+func (m *POSReversalMutation) SetScope(po posreversal.Scope) {
+	m.scope = &po
+}
+
+// Scope returns the value of the "scope" field in the mutation.
+func (m *POSReversalMutation) Scope() (r posreversal.Scope, exists bool) {
+	v := m.scope
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldScope returns the old "scope" field's value of the POSReversal entity.
+// If the POSReversal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSReversalMutation) OldScope(ctx context.Context) (v posreversal.Scope, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldScope is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldScope requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldScope: %w", err)
+	}
+	return oldValue.Scope, nil
+}
+
+// ResetScope resets all changes to the "scope" field.
+func (m *POSReversalMutation) ResetScope() {
+	m.scope = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *POSReversalMutation) SetStatus(po posreversal.Status) {
+	m.status = &po
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *POSReversalMutation) Status() (r posreversal.Status, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the POSReversal entity.
+// If the POSReversal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSReversalMutation) OldStatus(ctx context.Context) (v posreversal.Status, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *POSReversalMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetReason sets the "reason" field.
+func (m *POSReversalMutation) SetReason(s string) {
+	m.reason = &s
+}
+
+// Reason returns the value of the "reason" field in the mutation.
+func (m *POSReversalMutation) Reason() (r string, exists bool) {
+	v := m.reason
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReason returns the old "reason" field's value of the POSReversal entity.
+// If the POSReversal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSReversalMutation) OldReason(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReason is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReason requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReason: %w", err)
+	}
+	return oldValue.Reason, nil
+}
+
+// ResetReason resets all changes to the "reason" field.
+func (m *POSReversalMutation) ResetReason() {
+	m.reason = nil
+}
+
+// SetRefundChannel sets the "refund_channel" field.
+func (m *POSReversalMutation) SetRefundChannel(s string) {
+	m.refund_channel = &s
+}
+
+// RefundChannel returns the value of the "refund_channel" field in the mutation.
+func (m *POSReversalMutation) RefundChannel() (r string, exists bool) {
+	v := m.refund_channel
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRefundChannel returns the old "refund_channel" field's value of the POSReversal entity.
+// If the POSReversal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSReversalMutation) OldRefundChannel(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRefundChannel is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRefundChannel requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRefundChannel: %w", err)
+	}
+	return oldValue.RefundChannel, nil
+}
+
+// ResetRefundChannel resets all changes to the "refund_channel" field.
+func (m *POSReversalMutation) ResetRefundChannel() {
+	m.refund_channel = nil
+}
+
+// SetLines sets the "lines" field.
+func (m *POSReversalMutation) SetLines(slj []schema.ReversalLineJSON) {
+	m.lines = &slj
+	m.appendlines = nil
+}
+
+// Lines returns the value of the "lines" field in the mutation.
+func (m *POSReversalMutation) Lines() (r []schema.ReversalLineJSON, exists bool) {
+	v := m.lines
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLines returns the old "lines" field's value of the POSReversal entity.
+// If the POSReversal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSReversalMutation) OldLines(ctx context.Context) (v []schema.ReversalLineJSON, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLines is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLines requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLines: %w", err)
+	}
+	return oldValue.Lines, nil
+}
+
+// AppendLines adds slj to the "lines" field.
+func (m *POSReversalMutation) AppendLines(slj []schema.ReversalLineJSON) {
+	m.appendlines = append(m.appendlines, slj...)
+}
+
+// AppendedLines returns the list of values that were appended to the "lines" field in this mutation.
+func (m *POSReversalMutation) AppendedLines() ([]schema.ReversalLineJSON, bool) {
+	if len(m.appendlines) == 0 {
+		return nil, false
+	}
+	return m.appendlines, true
+}
+
+// ResetLines resets all changes to the "lines" field.
+func (m *POSReversalMutation) ResetLines() {
+	m.lines = nil
+	m.appendlines = nil
+}
+
+// SetAmount sets the "amount" field.
+func (m *POSReversalMutation) SetAmount(f float64) {
+	m.amount = &f
+	m.addamount = nil
+}
+
+// Amount returns the value of the "amount" field in the mutation.
+func (m *POSReversalMutation) Amount() (r float64, exists bool) {
+	v := m.amount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAmount returns the old "amount" field's value of the POSReversal entity.
+// If the POSReversal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSReversalMutation) OldAmount(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAmount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAmount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAmount: %w", err)
+	}
+	return oldValue.Amount, nil
+}
+
+// AddAmount adds f to the "amount" field.
+func (m *POSReversalMutation) AddAmount(f float64) {
+	if m.addamount != nil {
+		*m.addamount += f
+	} else {
+		m.addamount = &f
+	}
+}
+
+// AddedAmount returns the value that was added to the "amount" field in this mutation.
+func (m *POSReversalMutation) AddedAmount() (r float64, exists bool) {
+	v := m.addamount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAmount resets all changes to the "amount" field.
+func (m *POSReversalMutation) ResetAmount() {
+	m.amount = nil
+	m.addamount = nil
+}
+
+// SetTaxAmount sets the "tax_amount" field.
+func (m *POSReversalMutation) SetTaxAmount(f float64) {
+	m.tax_amount = &f
+	m.addtax_amount = nil
+}
+
+// TaxAmount returns the value of the "tax_amount" field in the mutation.
+func (m *POSReversalMutation) TaxAmount() (r float64, exists bool) {
+	v := m.tax_amount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTaxAmount returns the old "tax_amount" field's value of the POSReversal entity.
+// If the POSReversal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSReversalMutation) OldTaxAmount(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTaxAmount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTaxAmount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTaxAmount: %w", err)
+	}
+	return oldValue.TaxAmount, nil
+}
+
+// AddTaxAmount adds f to the "tax_amount" field.
+func (m *POSReversalMutation) AddTaxAmount(f float64) {
+	if m.addtax_amount != nil {
+		*m.addtax_amount += f
+	} else {
+		m.addtax_amount = &f
+	}
+}
+
+// AddedTaxAmount returns the value that was added to the "tax_amount" field in this mutation.
+func (m *POSReversalMutation) AddedTaxAmount() (r float64, exists bool) {
+	v := m.addtax_amount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetTaxAmount resets all changes to the "tax_amount" field.
+func (m *POSReversalMutation) ResetTaxAmount() {
+	m.tax_amount = nil
+	m.addtax_amount = nil
+}
+
+// SetCostAmount sets the "cost_amount" field.
+func (m *POSReversalMutation) SetCostAmount(f float64) {
+	m.cost_amount = &f
+	m.addcost_amount = nil
+}
+
+// CostAmount returns the value of the "cost_amount" field in the mutation.
+func (m *POSReversalMutation) CostAmount() (r float64, exists bool) {
+	v := m.cost_amount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCostAmount returns the old "cost_amount" field's value of the POSReversal entity.
+// If the POSReversal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSReversalMutation) OldCostAmount(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCostAmount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCostAmount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCostAmount: %w", err)
+	}
+	return oldValue.CostAmount, nil
+}
+
+// AddCostAmount adds f to the "cost_amount" field.
+func (m *POSReversalMutation) AddCostAmount(f float64) {
+	if m.addcost_amount != nil {
+		*m.addcost_amount += f
+	} else {
+		m.addcost_amount = &f
+	}
+}
+
+// AddedCostAmount returns the value that was added to the "cost_amount" field in this mutation.
+func (m *POSReversalMutation) AddedCostAmount() (r float64, exists bool) {
+	v := m.addcost_amount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetCostAmount resets all changes to the "cost_amount" field.
+func (m *POSReversalMutation) ResetCostAmount() {
+	m.cost_amount = nil
+	m.addcost_amount = nil
+}
+
+// SetSteps sets the "steps" field.
+func (m *POSReversalMutation) SetSteps(ssj []schema.ReversalStepJSON) {
+	m.steps = &ssj
+	m.appendsteps = nil
+}
+
+// Steps returns the value of the "steps" field in the mutation.
+func (m *POSReversalMutation) Steps() (r []schema.ReversalStepJSON, exists bool) {
+	v := m.steps
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSteps returns the old "steps" field's value of the POSReversal entity.
+// If the POSReversal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSReversalMutation) OldSteps(ctx context.Context) (v []schema.ReversalStepJSON, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSteps is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSteps requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSteps: %w", err)
+	}
+	return oldValue.Steps, nil
+}
+
+// AppendSteps adds ssj to the "steps" field.
+func (m *POSReversalMutation) AppendSteps(ssj []schema.ReversalStepJSON) {
+	m.appendsteps = append(m.appendsteps, ssj...)
+}
+
+// AppendedSteps returns the list of values that were appended to the "steps" field in this mutation.
+func (m *POSReversalMutation) AppendedSteps() ([]schema.ReversalStepJSON, bool) {
+	if len(m.appendsteps) == 0 {
+		return nil, false
+	}
+	return m.appendsteps, true
+}
+
+// ResetSteps resets all changes to the "steps" field.
+func (m *POSReversalMutation) ResetSteps() {
+	m.steps = nil
+	m.appendsteps = nil
+}
+
+// SetIdempotencyKey sets the "idempotency_key" field.
+func (m *POSReversalMutation) SetIdempotencyKey(s string) {
+	m.idempotency_key = &s
+}
+
+// IdempotencyKey returns the value of the "idempotency_key" field in the mutation.
+func (m *POSReversalMutation) IdempotencyKey() (r string, exists bool) {
+	v := m.idempotency_key
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIdempotencyKey returns the old "idempotency_key" field's value of the POSReversal entity.
+// If the POSReversal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSReversalMutation) OldIdempotencyKey(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIdempotencyKey is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIdempotencyKey requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIdempotencyKey: %w", err)
+	}
+	return oldValue.IdempotencyKey, nil
+}
+
+// ClearIdempotencyKey clears the value of the "idempotency_key" field.
+func (m *POSReversalMutation) ClearIdempotencyKey() {
+	m.idempotency_key = nil
+	m.clearedFields[posreversal.FieldIdempotencyKey] = struct{}{}
+}
+
+// IdempotencyKeyCleared returns if the "idempotency_key" field was cleared in this mutation.
+func (m *POSReversalMutation) IdempotencyKeyCleared() bool {
+	_, ok := m.clearedFields[posreversal.FieldIdempotencyKey]
+	return ok
+}
+
+// ResetIdempotencyKey resets all changes to the "idempotency_key" field.
+func (m *POSReversalMutation) ResetIdempotencyKey() {
+	m.idempotency_key = nil
+	delete(m.clearedFields, posreversal.FieldIdempotencyKey)
+}
+
+// SetRequestedBy sets the "requested_by" field.
+func (m *POSReversalMutation) SetRequestedBy(u uuid.UUID) {
+	m.requested_by = &u
+}
+
+// RequestedBy returns the value of the "requested_by" field in the mutation.
+func (m *POSReversalMutation) RequestedBy() (r uuid.UUID, exists bool) {
+	v := m.requested_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRequestedBy returns the old "requested_by" field's value of the POSReversal entity.
+// If the POSReversal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSReversalMutation) OldRequestedBy(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRequestedBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRequestedBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRequestedBy: %w", err)
+	}
+	return oldValue.RequestedBy, nil
+}
+
+// ResetRequestedBy resets all changes to the "requested_by" field.
+func (m *POSReversalMutation) ResetRequestedBy() {
+	m.requested_by = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *POSReversalMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *POSReversalMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the POSReversal entity.
+// If the POSReversal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSReversalMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *POSReversalMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *POSReversalMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *POSReversalMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the POSReversal entity.
+// If the POSReversal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSReversalMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *POSReversalMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the POSReversalMutation builder.
+func (m *POSReversalMutation) Where(ps ...predicate.POSReversal) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the POSReversalMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *POSReversalMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.POSReversal, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *POSReversalMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *POSReversalMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (POSReversal).
+func (m *POSReversalMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *POSReversalMutation) Fields() []string {
+	fields := make([]string, 0, 17)
+	if m.tenant_id != nil {
+		fields = append(fields, posreversal.FieldTenantID)
+	}
+	if m.order_id != nil {
+		fields = append(fields, posreversal.FieldOrderID)
+	}
+	if m.order_number != nil {
+		fields = append(fields, posreversal.FieldOrderNumber)
+	}
+	if m.reversal_number != nil {
+		fields = append(fields, posreversal.FieldReversalNumber)
+	}
+	if m.scope != nil {
+		fields = append(fields, posreversal.FieldScope)
+	}
+	if m.status != nil {
+		fields = append(fields, posreversal.FieldStatus)
+	}
+	if m.reason != nil {
+		fields = append(fields, posreversal.FieldReason)
+	}
+	if m.refund_channel != nil {
+		fields = append(fields, posreversal.FieldRefundChannel)
+	}
+	if m.lines != nil {
+		fields = append(fields, posreversal.FieldLines)
+	}
+	if m.amount != nil {
+		fields = append(fields, posreversal.FieldAmount)
+	}
+	if m.tax_amount != nil {
+		fields = append(fields, posreversal.FieldTaxAmount)
+	}
+	if m.cost_amount != nil {
+		fields = append(fields, posreversal.FieldCostAmount)
+	}
+	if m.steps != nil {
+		fields = append(fields, posreversal.FieldSteps)
+	}
+	if m.idempotency_key != nil {
+		fields = append(fields, posreversal.FieldIdempotencyKey)
+	}
+	if m.requested_by != nil {
+		fields = append(fields, posreversal.FieldRequestedBy)
+	}
+	if m.created_at != nil {
+		fields = append(fields, posreversal.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, posreversal.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *POSReversalMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case posreversal.FieldTenantID:
+		return m.TenantID()
+	case posreversal.FieldOrderID:
+		return m.OrderID()
+	case posreversal.FieldOrderNumber:
+		return m.OrderNumber()
+	case posreversal.FieldReversalNumber:
+		return m.ReversalNumber()
+	case posreversal.FieldScope:
+		return m.Scope()
+	case posreversal.FieldStatus:
+		return m.Status()
+	case posreversal.FieldReason:
+		return m.Reason()
+	case posreversal.FieldRefundChannel:
+		return m.RefundChannel()
+	case posreversal.FieldLines:
+		return m.Lines()
+	case posreversal.FieldAmount:
+		return m.Amount()
+	case posreversal.FieldTaxAmount:
+		return m.TaxAmount()
+	case posreversal.FieldCostAmount:
+		return m.CostAmount()
+	case posreversal.FieldSteps:
+		return m.Steps()
+	case posreversal.FieldIdempotencyKey:
+		return m.IdempotencyKey()
+	case posreversal.FieldRequestedBy:
+		return m.RequestedBy()
+	case posreversal.FieldCreatedAt:
+		return m.CreatedAt()
+	case posreversal.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *POSReversalMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case posreversal.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case posreversal.FieldOrderID:
+		return m.OldOrderID(ctx)
+	case posreversal.FieldOrderNumber:
+		return m.OldOrderNumber(ctx)
+	case posreversal.FieldReversalNumber:
+		return m.OldReversalNumber(ctx)
+	case posreversal.FieldScope:
+		return m.OldScope(ctx)
+	case posreversal.FieldStatus:
+		return m.OldStatus(ctx)
+	case posreversal.FieldReason:
+		return m.OldReason(ctx)
+	case posreversal.FieldRefundChannel:
+		return m.OldRefundChannel(ctx)
+	case posreversal.FieldLines:
+		return m.OldLines(ctx)
+	case posreversal.FieldAmount:
+		return m.OldAmount(ctx)
+	case posreversal.FieldTaxAmount:
+		return m.OldTaxAmount(ctx)
+	case posreversal.FieldCostAmount:
+		return m.OldCostAmount(ctx)
+	case posreversal.FieldSteps:
+		return m.OldSteps(ctx)
+	case posreversal.FieldIdempotencyKey:
+		return m.OldIdempotencyKey(ctx)
+	case posreversal.FieldRequestedBy:
+		return m.OldRequestedBy(ctx)
+	case posreversal.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case posreversal.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown POSReversal field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *POSReversalMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case posreversal.FieldTenantID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case posreversal.FieldOrderID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOrderID(v)
+		return nil
+	case posreversal.FieldOrderNumber:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOrderNumber(v)
+		return nil
+	case posreversal.FieldReversalNumber:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReversalNumber(v)
+		return nil
+	case posreversal.FieldScope:
+		v, ok := value.(posreversal.Scope)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetScope(v)
+		return nil
+	case posreversal.FieldStatus:
+		v, ok := value.(posreversal.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case posreversal.FieldReason:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReason(v)
+		return nil
+	case posreversal.FieldRefundChannel:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRefundChannel(v)
+		return nil
+	case posreversal.FieldLines:
+		v, ok := value.([]schema.ReversalLineJSON)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLines(v)
+		return nil
+	case posreversal.FieldAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAmount(v)
+		return nil
+	case posreversal.FieldTaxAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTaxAmount(v)
+		return nil
+	case posreversal.FieldCostAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCostAmount(v)
+		return nil
+	case posreversal.FieldSteps:
+		v, ok := value.([]schema.ReversalStepJSON)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSteps(v)
+		return nil
+	case posreversal.FieldIdempotencyKey:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIdempotencyKey(v)
+		return nil
+	case posreversal.FieldRequestedBy:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRequestedBy(v)
+		return nil
+	case posreversal.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case posreversal.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown POSReversal field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *POSReversalMutation) AddedFields() []string {
+	var fields []string
+	if m.addamount != nil {
+		fields = append(fields, posreversal.FieldAmount)
+	}
+	if m.addtax_amount != nil {
+		fields = append(fields, posreversal.FieldTaxAmount)
+	}
+	if m.addcost_amount != nil {
+		fields = append(fields, posreversal.FieldCostAmount)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *POSReversalMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case posreversal.FieldAmount:
+		return m.AddedAmount()
+	case posreversal.FieldTaxAmount:
+		return m.AddedTaxAmount()
+	case posreversal.FieldCostAmount:
+		return m.AddedCostAmount()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *POSReversalMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case posreversal.FieldAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAmount(v)
+		return nil
+	case posreversal.FieldTaxAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTaxAmount(v)
+		return nil
+	case posreversal.FieldCostAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCostAmount(v)
+		return nil
+	}
+	return fmt.Errorf("unknown POSReversal numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *POSReversalMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(posreversal.FieldIdempotencyKey) {
+		fields = append(fields, posreversal.FieldIdempotencyKey)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *POSReversalMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *POSReversalMutation) ClearField(name string) error {
+	switch name {
+	case posreversal.FieldIdempotencyKey:
+		m.ClearIdempotencyKey()
+		return nil
+	}
+	return fmt.Errorf("unknown POSReversal nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *POSReversalMutation) ResetField(name string) error {
+	switch name {
+	case posreversal.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case posreversal.FieldOrderID:
+		m.ResetOrderID()
+		return nil
+	case posreversal.FieldOrderNumber:
+		m.ResetOrderNumber()
+		return nil
+	case posreversal.FieldReversalNumber:
+		m.ResetReversalNumber()
+		return nil
+	case posreversal.FieldScope:
+		m.ResetScope()
+		return nil
+	case posreversal.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case posreversal.FieldReason:
+		m.ResetReason()
+		return nil
+	case posreversal.FieldRefundChannel:
+		m.ResetRefundChannel()
+		return nil
+	case posreversal.FieldLines:
+		m.ResetLines()
+		return nil
+	case posreversal.FieldAmount:
+		m.ResetAmount()
+		return nil
+	case posreversal.FieldTaxAmount:
+		m.ResetTaxAmount()
+		return nil
+	case posreversal.FieldCostAmount:
+		m.ResetCostAmount()
+		return nil
+	case posreversal.FieldSteps:
+		m.ResetSteps()
+		return nil
+	case posreversal.FieldIdempotencyKey:
+		m.ResetIdempotencyKey()
+		return nil
+	case posreversal.FieldRequestedBy:
+		m.ResetRequestedBy()
+		return nil
+	case posreversal.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case posreversal.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown POSReversal field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *POSReversalMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *POSReversalMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *POSReversalMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *POSReversalMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *POSReversalMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *POSReversalMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *POSReversalMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown POSReversal unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *POSReversalMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown POSReversal edge %s", name)
 }
 
 // POSRoleMutation represents an operation that mutates the POSRole nodes in the graph.

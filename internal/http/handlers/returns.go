@@ -901,25 +901,7 @@ func (h *ReturnHandler) resolveReturnCost(ctx context.Context, tenantID uuid.UUI
 	if len(skus) == 0 {
 		return 0
 	}
-	overrides, err := h.client.POSCatalogOverride.Query().
-		Where(entoverride.TenantID(tenantID), entoverride.InventorySkuIn(skus...)).
-		All(ctx)
-	if err != nil {
-		h.log.Warn("return refund: failed to resolve item costs (defaulting to 0)", zap.Error(err))
-		return 0
-	}
-	costBySKU := make(map[string]float64, len(overrides))
-	for _, ov := range overrides {
-		if ov.Metadata == nil {
-			continue
-		}
-		switch v := ov.Metadata["cost_price"].(type) {
-		case float64:
-			costBySKU[ov.InventorySku] = v
-		case int:
-			costBySKU[ov.InventorySku] = float64(v)
-		}
-	}
+	costBySKU := orders.CatalogCostBySKU(ctx, h.client, tenantID, skus)
 	var total float64
 	for _, l := range lines {
 		total += costBySKU[l.Sku] * l.Quantity

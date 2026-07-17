@@ -47,6 +47,7 @@ func New(
 	publicOutlet *handlers.PublicOutletHandler,
 	closings *handlers.DailyClosingHandler,
 	returns *handlers.ReturnHandler,
+	reversalsH *handlers.ReversalHandler,
 	receipt *handlers.ReceiptHandler,
 	menu *handlers.MenuHandler,
 	layaway *handlers.LayawayHandler,
@@ -647,6 +648,20 @@ func New(
 						}
 						pos.Get("/returns", returns.ListReturns)
 						pos.Get("/returns/{returnID}", returns.GetReturn)
+						// Transaction reversals — the platform-owner data-repair tool for
+						// FINALIZED sales (whole order or items), orchestrating pos totals,
+						// inventory consumption, treasury GL and the eTIMS credit note with a
+						// tracked per-step ledger (sync-monitor "Txn Reversals" tab). A tenant
+						// superuser is NOT enough: this rewrites money records on tenant request.
+						if reversalsH != nil {
+							pos.Group(func(rv chi.Router) {
+								rv.Use(requirePlatformOwner)
+								rv.Post("/reversals", reversalsH.CreateReversal)
+								rv.Get("/reversals", reversalsH.ListReversals)
+								rv.Get("/reversals/{reversalID}", reversalsH.GetReversal)
+								rv.Post("/reversals/{reversalID}/retry", reversalsH.RetryReversal)
+							})
+						}
 						// Approval / rejection is a manager decision.
 						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.orders.manage")).
 							Patch("/returns/{returnID}/approve", returns.ApproveReturn)

@@ -128,6 +128,8 @@ type Tx struct {
 	POSReturn *POSReturnClient
 	// POSReturnLine is the client for interacting with the POSReturnLine builders.
 	POSReturnLine *POSReturnLineClient
+	// POSReversal is the client for interacting with the POSReversal builders.
+	POSReversal *POSReversalClient
 	// POSRole is the client for interacting with the POSRole builders.
 	POSRole *POSRoleClient
 	// POSRolePermission is the client for interacting with the POSRolePermission builders.
@@ -433,6 +435,7 @@ func (tx *Tx) init() {
 	tx.POSRefund = NewPOSRefundClient(tx.config)
 	tx.POSReturn = NewPOSReturnClient(tx.config)
 	tx.POSReturnLine = NewPOSReturnLineClient(tx.config)
+	tx.POSReversal = NewPOSReversalClient(tx.config)
 	tx.POSRole = NewPOSRoleClient(tx.config)
 	tx.POSRolePermission = NewPOSRolePermissionClient(tx.config)
 	tx.POSRoleV2 = NewPOSRoleV2Client(tx.config)

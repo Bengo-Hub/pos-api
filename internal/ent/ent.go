@@ -71,6 +71,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/posrefund"
 	"github.com/bengobox/pos-service/internal/ent/posreturn"
 	"github.com/bengobox/pos-service/internal/ent/posreturnline"
+	"github.com/bengobox/pos-service/internal/ent/posreversal"
 	"github.com/bengobox/pos-service/internal/ent/posrole"
 	"github.com/bengobox/pos-service/internal/ent/posrolepermission"
 	"github.com/bengobox/pos-service/internal/ent/posrolev2"
@@ -246,6 +247,7 @@ func checkColumn(t, c string) error {
 			posrefund.Table:                posrefund.ValidColumn,
 			posreturn.Table:                posreturn.ValidColumn,
 			posreturnline.Table:            posreturnline.ValidColumn,
+			posreversal.Table:              posreversal.ValidColumn,
 			posrole.Table:                  posrole.ValidColumn,
 			posrolepermission.Table:        posrolepermission.ValidColumn,
 			posrolev2.Table:                posrolev2.ValidColumn,

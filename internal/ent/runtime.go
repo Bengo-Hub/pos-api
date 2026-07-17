@@ -62,6 +62,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/posrefund"
 	"github.com/bengobox/pos-service/internal/ent/posreturn"
 	"github.com/bengobox/pos-service/internal/ent/posreturnline"
+	"github.com/bengobox/pos-service/internal/ent/posreversal"
 	"github.com/bengobox/pos-service/internal/ent/posrole"
 	"github.com/bengobox/pos-service/internal/ent/posrolev2"
 	"github.com/bengobox/pos-service/internal/ent/posuserroleassignment"
@@ -1728,6 +1729,54 @@ func init() {
 	posreturnlineDescID := posreturnlineFields[0].Descriptor()
 	// posreturnline.DefaultID holds the default value on creation for the id field.
 	posreturnline.DefaultID = posreturnlineDescID.Default.(func() uuid.UUID)
+	posreversalFields := schema.POSReversal{}.Fields()
+	_ = posreversalFields
+	// posreversalDescReversalNumber is the schema descriptor for reversal_number field.
+	posreversalDescReversalNumber := posreversalFields[4].Descriptor()
+	// posreversal.ReversalNumberValidator is a validator for the "reversal_number" field. It is called by the builders before save.
+	posreversal.ReversalNumberValidator = posreversalDescReversalNumber.Validators[0].(func(string) error)
+	// posreversalDescReason is the schema descriptor for reason field.
+	posreversalDescReason := posreversalFields[7].Descriptor()
+	// posreversal.ReasonValidator is a validator for the "reason" field. It is called by the builders before save.
+	posreversal.ReasonValidator = posreversalDescReason.Validators[0].(func(string) error)
+	// posreversalDescRefundChannel is the schema descriptor for refund_channel field.
+	posreversalDescRefundChannel := posreversalFields[8].Descriptor()
+	// posreversal.DefaultRefundChannel holds the default value on creation for the refund_channel field.
+	posreversal.DefaultRefundChannel = posreversalDescRefundChannel.Default.(string)
+	// posreversalDescLines is the schema descriptor for lines field.
+	posreversalDescLines := posreversalFields[9].Descriptor()
+	// posreversal.DefaultLines holds the default value on creation for the lines field.
+	posreversal.DefaultLines = posreversalDescLines.Default.([]schema.ReversalLineJSON)
+	// posreversalDescAmount is the schema descriptor for amount field.
+	posreversalDescAmount := posreversalFields[10].Descriptor()
+	// posreversal.DefaultAmount holds the default value on creation for the amount field.
+	posreversal.DefaultAmount = posreversalDescAmount.Default.(float64)
+	// posreversalDescTaxAmount is the schema descriptor for tax_amount field.
+	posreversalDescTaxAmount := posreversalFields[11].Descriptor()
+	// posreversal.DefaultTaxAmount holds the default value on creation for the tax_amount field.
+	posreversal.DefaultTaxAmount = posreversalDescTaxAmount.Default.(float64)
+	// posreversalDescCostAmount is the schema descriptor for cost_amount field.
+	posreversalDescCostAmount := posreversalFields[12].Descriptor()
+	// posreversal.DefaultCostAmount holds the default value on creation for the cost_amount field.
+	posreversal.DefaultCostAmount = posreversalDescCostAmount.Default.(float64)
+	// posreversalDescSteps is the schema descriptor for steps field.
+	posreversalDescSteps := posreversalFields[13].Descriptor()
+	// posreversal.DefaultSteps holds the default value on creation for the steps field.
+	posreversal.DefaultSteps = posreversalDescSteps.Default.([]schema.ReversalStepJSON)
+	// posreversalDescCreatedAt is the schema descriptor for created_at field.
+	posreversalDescCreatedAt := posreversalFields[16].Descriptor()
+	// posreversal.DefaultCreatedAt holds the default value on creation for the created_at field.
+	posreversal.DefaultCreatedAt = posreversalDescCreatedAt.Default.(func() time.Time)
+	// posreversalDescUpdatedAt is the schema descriptor for updated_at field.
+	posreversalDescUpdatedAt := posreversalFields[17].Descriptor()
+	// posreversal.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	posreversal.DefaultUpdatedAt = posreversalDescUpdatedAt.Default.(func() time.Time)
+	// posreversal.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	posreversal.UpdateDefaultUpdatedAt = posreversalDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// posreversalDescID is the schema descriptor for id field.
+	posreversalDescID := posreversalFields[0].Descriptor()
+	// posreversal.DefaultID holds the default value on creation for the id field.
+	posreversal.DefaultID = posreversalDescID.Default.(func() uuid.UUID)
 	posroleFields := schema.POSRole{}.Fields()
 	_ = posroleFields
 	// posroleDescName is the schema descriptor for name field.

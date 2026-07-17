@@ -180,6 +180,9 @@ type POSReturn func(*sql.Selector)
 // POSReturnLine is the predicate function for posreturnline builders.
 type POSReturnLine func(*sql.Selector)
 
+// POSReversal is the predicate function for posreversal builders.
+type POSReversal func(*sql.Selector)
+
 // POSRole is the predicate function for posrole builders.
 type POSRole func(*sql.Selector)
 
