@@ -104,6 +104,56 @@ func (c *Client) ListQuotations(ctx context.Context, tenantSlug, rawQuery string
 	return c.getRaw(ctx, u)
 }
 
+// GetQuotation proxies the treasury S2S quotation detail (raw JSON passthrough) — pos
+// surfaces render the SAME document treasury-ui manages.
+func (c *Client) GetQuotation(ctx context.Context, tenantSlug, quotationID string) (json.RawMessage, error) {
+	return c.getRaw(ctx, fmt.Sprintf("%s/api/v1/s2s/%s/quotations/%s", c.baseURL, tenantSlug, url.PathEscape(quotationID)))
+}
+
+// UpdateQuotation proxies a PUT/PATCH quotation update (raw body passthrough) to treasury's
+// S2S UpdateQuotation — the exact handler treasury-ui edits through, so validation and
+// draft-only rules stay identical.
+func (c *Client) UpdateQuotation(ctx context.Context, tenantSlug, quotationID, method string, body []byte) (json.RawMessage, error) {
+	if method != http.MethodPatch {
+		method = http.MethodPut
+	}
+	return c.rawRequest(ctx, method, fmt.Sprintf("%s/api/v1/s2s/%s/quotations/%s", c.baseURL, tenantSlug, url.PathEscape(quotationID)), body)
+}
+
+// QuotationAction proxies a quotation lifecycle action (send | accept | decline | cancel)
+// to treasury's S2S routes — same handlers treasury-ui's action menu calls.
+func (c *Client) QuotationAction(ctx context.Context, tenantSlug, quotationID, action string) (json.RawMessage, error) {
+	return c.rawRequest(ctx, http.MethodPost,
+		fmt.Sprintf("%s/api/v1/s2s/%s/quotations/%s/%s", c.baseURL, tenantSlug, url.PathEscape(quotationID), url.PathEscape(action)), nil)
+}
+
+// rawRequest performs an arbitrary-method S2S call with an optional raw JSON body and
+// returns the raw response (passthrough proxying — pos never reshapes treasury documents).
+func (c *Client) rawRequest(ctx context.Context, method, fullURL string, body []byte) (json.RawMessage, error) {
+	var reader io.Reader
+	if len(body) > 0 {
+		reader = bytes.NewReader(body)
+	}
+	req, err := http.NewRequestWithContext(ctx, method, fullURL, reader)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("X-API-Key", c.apiKey)
+	if len(body) > 0 {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	respBody, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode >= 400 {
+		return nil, fmt.Errorf("treasury: %s %s status %d: %s", method, fullURL, resp.StatusCode, strings.TrimSpace(string(respBody)))
+	}
+	return respBody, nil
+}
+
 func (c *Client) getRaw(ctx context.Context, fullURL string) (json.RawMessage, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fullURL, nil)
 	if err != nil {

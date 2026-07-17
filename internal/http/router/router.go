@@ -517,6 +517,16 @@ func New(
 							Post("/quotations", payments.CreateQuotationFromCart)
 						// Quotation transactions tab — proxies the treasury quotation list.
 						pos.Get("/quotations", payments.ListQuotationsProxy)
+						// Full quotation sync (get/put/patch + send/accept/decline/cancel) — the
+						// SAME treasury S2S handlers treasury-ui manages the document through.
+						// Mutations keep the manager gate the create carries.
+						pos.Get("/quotations/{quotationID}", payments.GetQuotationProxy)
+						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.orders.manage")).
+							Put("/quotations/{quotationID}", payments.UpdateQuotationProxy)
+						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.orders.manage")).
+							Patch("/quotations/{quotationID}", payments.UpdateQuotationProxy)
+						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.orders.manage")).
+							Post("/quotations/{quotationID}/{action}", payments.QuotationActionProxy)
 					}
 
 					// Cash Drawers
