@@ -349,6 +349,10 @@ func New(
 						pos.Post("/held-items/{id}/claim", orders.ClaimHeldItem)
 						pos.Post("/held-items/{id}/void", orders.VoidHeldItem)
 						pos.Post("/orders/{orderID}/lines/{lineID}/serials", orders.CaptureSerial)
+						// Bulk import of HISTORICAL sales (migration) — idempotent on external_ref,
+						// no stock/loyalty/GL side effects (see sales_import.go). Manager/admin only.
+						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.orders.manage")).
+							Post("/sales/import", orders.ImportSales)
 					}
 					if print != nil {
 						pos.Post("/orders/{orderID}/print", print.PrintReceipt)
@@ -938,6 +942,10 @@ func New(
 						pos.Get("/online-orders/riders", onlineOrders.ListAvailableRiders)
 						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.orders.change", "pos.orders.manage"), onlineFeat).
 							Post("/online-orders/{orderID}/assign-rider", onlineOrders.AssignRider)
+						// Shipments: hand a sale with shipping details to logistics-api (delivery-
+						// execution source of truth) — creates a delivery task, pos keeps the reference.
+						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.orders.change", "pos.orders.manage")).
+							Post("/orders/{orderID}/dispatch-delivery", onlineOrders.DispatchShipment)
 					}
 
 					// Daily closings (ERP reconciliation)
@@ -1053,7 +1061,7 @@ func New(
 		// INTERNAL_SERVICE_KEY sent as the X-API-Key header (no user JWT). pos-api is the
 		// loyalty source-of-truth (balances keyed on tenant + customer_phone), so other
 		// services (e.g. ordering-backend) earn/redeem against these endpoints.
-		if internalServiceKey != "" && (loyalty != nil || reports != nil || payments != nil) {
+		if internalServiceKey != "" && (loyalty != nil || reports != nil || payments != nil || promotions != nil) {
 			api.Group(func(s2s chi.Router) {
 				s2s.Use(requireInternalServiceKey(internalServiceKey))
 				s2s.Route("/s2s/{tenant}", func(t chi.Router) {
@@ -1061,6 +1069,14 @@ func New(
 						t.Post("/loyalty/earn", loyalty.S2SEarn)
 						t.Post("/loyalty/redeem", loyalty.S2SRedeem)
 						t.Get("/loyalty/balance", loyalty.S2SBalance)
+					}
+					if promotions != nil {
+						// pos-api is the DISCOUNT source of truth (Promotion+PromotionRule).
+						// Other services list/create/apply discounts here — never define a
+						// parallel discount entity (see promotions_s2s.go).
+						t.Get("/discounts", promotions.S2SListDiscounts)
+						t.Post("/discounts", promotions.S2SCreateDiscount)
+						t.Post("/discounts/apply", promotions.S2SApplyDiscount)
 					}
 					if reports != nil {
 						// POS units sold per SKU — consumed by inventory-api menu-engineering/variance

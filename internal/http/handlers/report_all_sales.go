@@ -166,11 +166,18 @@ func allSalesOrderFilters(r *http.Request, client *ent.Client, tid uuid.UUID, lo
 		}
 		filters = append(filters, posorder.Or(methodFilters...))
 	}
-	// Shipping status — stored in metadata.shipping_status (set by Edit Shipping).
+	// Shipping status — stored in metadata.shipping_status (set by Edit Shipping / Add Sale).
+	// "any" matches every order that HAS shipping info (the Sell → Shipments page's base set).
 	if ship := strings.TrimSpace(q.Get("shipping_status")); ship != "" && !strings.EqualFold(ship, "all") {
-		filters = append(filters, predicate.POSOrder(func(s *sql.Selector) {
-			s.Where(sqljson.ValueEQ(posorder.FieldMetadata, ship, sqljson.Path("shipping_status")))
-		}))
+		if strings.EqualFold(ship, "any") {
+			filters = append(filters, predicate.POSOrder(func(s *sql.Selector) {
+				s.Where(sqljson.ValueIsNotNull(posorder.FieldMetadata, sqljson.Path("shipping_status")))
+			}))
+		} else {
+			filters = append(filters, predicate.POSOrder(func(s *sql.Selector) {
+				s.Where(sqljson.ValueEQ(posorder.FieldMetadata, ship, sqljson.Path("shipping_status")))
+			}))
+		}
 	}
 	// Subscriptions-only: orders flagged as subscription sales in metadata.
 	if strings.EqualFold(q.Get("subscriptions"), "true") || q.Get("subscriptions") == "1" {

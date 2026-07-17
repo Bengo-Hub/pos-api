@@ -390,6 +390,12 @@ func (h *ReturnHandler) ListReturns(w http.ResponseWriter, r *http.Request) {
 			baseQ = baseQ.Where(posreturn.RequestedBy(staffUID))
 		}
 	}
+	// order_id scopes to one original sale — used by the sale-details modal's Returns section.
+	if orderIDStr := urlq.Get("order_id"); orderIDStr != "" {
+		if orderUID, err := uuid.Parse(orderIDStr); err == nil {
+			baseQ = baseQ.Where(posreturn.OrderID(orderUID))
+		}
+	}
 
 	total, _ := baseQ.Clone().Count(r.Context())
 	returns, err := baseQ.WithLines().Order(ent.Desc(posreturn.FieldCreatedAt)).Limit(p.Limit).Offset(p.Offset).All(r.Context())

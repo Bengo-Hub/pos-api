@@ -203,6 +203,83 @@ func (h *OnlineOrderHandler) AssignRider(w http.ResponseWriter, r *http.Request)
 	})
 }
 
+// DispatchShipment handles POST /{tenantID}/pos/orders/{orderID}/dispatch-delivery —
+// hands a sale carrying shipping details over to logistics-api (the delivery-execution
+// SOURCE OF TRUTH: riders, dispatch tasks, live tracking) by creating a delivery task
+// from the order's shipping annotation. pos-api keeps ONLY the task reference
+// (metadata.logistics_task_id + tracking_code); rider assignment and tracking continue
+// in logistics-ui/dispatch. Idempotent — an already-dispatched order returns its
+// existing task instead of creating a duplicate.
+func (h *OnlineOrderHandler) DispatchShipment(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+	oid, err := uuid.Parse(chi.URLParam(r, "orderID"))
+	if err != nil {
+		jsonError(w, "invalid order_id", http.StatusBadRequest)
+		return
+	}
+	order, err := h.db.POSOrder.Get(r.Context(), oid)
+	if err != nil || order.TenantID != tid {
+		jsonError(w, "order not found", http.StatusNotFound)
+		return
+	}
+	if h.rider == nil || h.rider.logistics == nil || !h.rider.logistics.Enabled() {
+		jsonError(w, "logistics dispatch not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	meta := order.Metadata
+	if meta == nil {
+		meta = map[string]any{}
+	}
+	if s, _ := meta["logistics_task_id"].(string); s != "" {
+		jsonOK(w, map[string]any{
+			"status": "already_dispatched", "order_id": oid.String(),
+			"logistics_task_id": s, "tracking_code": meta["tracking_code"],
+		})
+		return
+	}
+	// A dispatch needs somewhere to deliver TO.
+	addr, _ := meta["shipping_address"].(string)
+	if daddr, _ := meta["delivery_address"].(string); daddr != "" {
+		addr = daddr
+	}
+	if addr == "" {
+		jsonError(w, "shipping_address required — add it via Edit Shipping first", http.StatusBadRequest)
+		return
+	}
+
+	task, cErr := h.rider.logistics.CreateDeliveryTask(r.Context(), tid, buildDeliveryTaskRequest(order))
+	if cErr != nil {
+		h.log.Error("dispatch-delivery: create logistics task failed", zap.Error(cErr), zap.String("order_id", oid.String()))
+		jsonError(w, "failed to create delivery task", http.StatusBadGateway)
+		return
+	}
+	meta["logistics_task_id"] = task.ID
+	meta["dispatch_status"] = "dispatched"
+	if task.TrackingCode != "" {
+		meta["tracking_code"] = task.TrackingCode
+		if tn, _ := meta["tracking_number"].(string); tn == "" {
+			meta["tracking_number"] = task.TrackingCode
+		}
+	}
+	// A freshly-dispatched shipment is on its way — advance a still-pending status.
+	if st, _ := meta["shipping_status"].(string); st == "" || st == "ordered" || st == "packed" {
+		meta["shipping_status"] = "shipped"
+	}
+	if _, uErr := h.db.POSOrder.UpdateOne(order).SetMetadata(meta).Save(r.Context()); uErr != nil {
+		h.log.Warn("dispatch-delivery: failed to stamp order metadata", zap.Error(uErr))
+	}
+
+	jsonOK(w, map[string]any{
+		"status": "dispatched", "order_id": oid.String(),
+		"logistics_task_id": task.ID, "tracking_code": task.TrackingCode,
+	})
+}
+
 // buildDeliveryTaskRequest maps a POS delivery order onto a logistics delivery task. Customer
 // name/phone come from the order; the dropoff address + coords + notes come from order metadata
 // (delivery_address / delivery_lat / delivery_lng / delivery_notes), captured at order time.
@@ -230,18 +307,33 @@ func buildDeliveryTaskRequest(order *ent.POSOrder) logistics.CreateTaskRequest {
 		}
 		return *p
 	}
+	// Address/instructions fall back to the SHIPPING annotation keys (Add Sale /
+	// Edit Shipping) so back-office shipped sales dispatch as well as terminal
+	// delivery orders (which capture delivery_* at order time).
+	dropoff := str("delivery_address")
+	if dropoff == "" {
+		dropoff = str("shipping_address")
+	}
+	instructions := str("delivery_notes")
+	if instructions == "" {
+		instructions = str("shipping_details")
+	}
+	contact := str("delivered_to")
+	if contact == "" {
+		contact = deref(order.CustomerName)
+	}
 	return logistics.CreateTaskRequest{
 		ExternalReference: order.ID.String(),
 		SourceService:     "pos",
 		TaskType:          "delivery",
 		Priority:          1,
-		DropoffAddress:    str("delivery_address"),
+		DropoffAddress:    dropoff,
 		DropoffLat:        num("delivery_lat"),
 		DropoffLng:        num("delivery_lng"),
-		DropoffContact:    deref(order.CustomerName),
+		DropoffContact:    contact,
 		CustomerName:      deref(order.CustomerName),
 		CustomerPhone:     deref(order.CustomerPhone),
-		Instructions:      str("delivery_notes"),
+		Instructions:      instructions,
 		Metadata: map[string]any{
 			"order_number": order.OrderNumber,
 			"outlet_id":    order.OutletID.String(),

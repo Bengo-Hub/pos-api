@@ -77,10 +77,15 @@ func (h *PromotionHandler) ListPromotions(w http.ResponseWriter, r *http.Request
 
 	query := h.client.Promotion.Query().Where(promotion.TenantID(tid))
 
-	if status := r.URL.Query().Get("status"); status != "" {
-		query = query.Where(promotion.Status(status))
-	} else {
+	// status="" keeps the legacy active-only default; status=all lists every status
+	// (the Discounts management page needs inactive/expired rows too).
+	switch status := r.URL.Query().Get("status"); status {
+	case "":
 		query = query.Where(promotion.Status("active"))
+	case "all":
+		// no status filter
+	default:
+		query = query.Where(promotion.Status(status))
 	}
 
 	p := pagination.Parse(r)
@@ -123,6 +128,13 @@ type createPromoInput struct {
 	StartAt    *time.Time `json:"startAt"`
 	EndAt      *time.Time `json:"endAt"`
 	UsageLimit int        `json:"usageLimit"`
+	// Snake-case aliases: the frontends serialize start_at/end_at/promo_code (mirroring the
+	// ent READ shape), while the original fields above keep the legacy camelCase contract.
+	// Without these, one-time promotion dates sent as start_at/end_at were silently dropped
+	// (StartAt defaulted to now, EndAt to nil). normalize() merges them.
+	PromoCodeAlias string     `json:"promo_code"`
+	StartAtAlias   *time.Time `json:"start_at"`
+	EndAtAlias     *time.Time `json:"end_at"`
 	// Happy-hour / auto-apply fields
 	PromoKind   string `json:"promo_kind"`   // code | happy_hour | auto
 	OutletID    string `json:"outlet_id"`    // optional outlet scope
@@ -153,6 +165,20 @@ type createPromoInput struct {
 	// cheapest get-scope item). ScopeIDs/GetScopeIDs are derived from its keys/values so the
 	// scope-based paths stay consistent.
 	GetPairMap map[string]string `json:"get_pair_map"`
+}
+
+// normalize merges the snake_case alias fields into the canonical ones so every consumer
+// (create, update, S2S create) sees one shape regardless of which key style the caller used.
+func (in *createPromoInput) normalize() {
+	if in.PromoCode == "" {
+		in.PromoCode = in.PromoCodeAlias
+	}
+	if in.StartAt == nil {
+		in.StartAt = in.StartAtAlias
+	}
+	if in.EndAt == nil {
+		in.EndAt = in.EndAtAlias
+	}
 }
 
 // pairMapScopes derives the buy scope_ids (keys) and get scope_ids (values) from a corresponding
@@ -189,6 +215,22 @@ func (h *PromotionHandler) CreatePromotion(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	promo, err := h.createPromotionFromInput(r.Context(), tid, input)
+	if err != nil {
+		h.log.Error("create promotion failed", zap.Error(err))
+		jsonError(w, "failed to create promotion: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	jsonOK(w, promo)
+}
+
+// createPromotionFromInput persists a promotion + its discount rule from one input payload.
+// Shared by the tenant-facing CreatePromotion handler and the S2S discount create endpoint
+// (promotions_s2s.go) so the discount source-of-truth write path lives in exactly one place.
+func (h *PromotionHandler) createPromotionFromInput(ctx context.Context, tid uuid.UUID, input createPromoInput) (*ent.Promotion, error) {
+	input.normalize()
 	if input.PromoCode == "" {
 		input.PromoCode = "PROMO-" + uuid.New().String()[:8]
 	}
@@ -220,11 +262,9 @@ func (h *PromotionHandler) CreatePromotion(w http.ResponseWriter, r *http.Reques
 	if input.EndAt != nil {
 		builder.SetEndAt(*input.EndAt)
 	}
-	promo, err := builder.Save(r.Context())
+	promo, err := builder.Save(ctx)
 	if err != nil {
-		h.log.Error("create promotion failed", zap.Error(err))
-		jsonError(w, "failed to create promotion: "+err.Error(), http.StatusInternalServerError)
-		return
+		return nil, err
 	}
 
 	// Persist the discount rule when provided (scope + discount type/value/cap). BOGO
@@ -274,13 +314,12 @@ func (h *PromotionHandler) CreatePromotion(w http.ResponseWriter, r *http.Reques
 			}
 			rb = rb.SetBuyQuantity(buyQty).SetGetQuantity(getQty).SetGetDiscountPercent(getPct)
 		}
-		if _, rerr := rb.Save(r.Context()); rerr != nil {
+		if _, rerr := rb.Save(ctx); rerr != nil {
 			h.log.Error("create promotion rule failed", zap.Error(rerr))
 		}
 	}
 
-	w.WriteHeader(http.StatusCreated)
-	jsonOK(w, promo)
+	return promo, nil
 }
 
 // GetActiveHappyHours handles GET /{tenantID}/pos/promotions/happy-hour/active —
@@ -377,6 +416,7 @@ func (h *PromotionHandler) UpdatePromotion(w http.ResponseWriter, r *http.Reques
 		jsonError(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
+	input.normalize()
 
 	upd := existing.Update().
 		SetName(input.Name).

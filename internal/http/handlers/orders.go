@@ -24,6 +24,7 @@ import (
 	entoverride "github.com/bengobox/pos-service/internal/ent/poscatalogoverride"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
 	"github.com/bengobox/pos-service/internal/ent/posorderline"
+	"github.com/bengobox/pos-service/internal/ent/posreturn"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
 	"github.com/bengobox/pos-service/internal/ent/tender"
 	outletmw "github.com/bengobox/pos-service/internal/http/middleware"
@@ -224,6 +225,11 @@ type orderListItem struct {
 	AmountDue     float64 `json:"amount_due"`
 	PaymentStatus string  `json:"payment_status"` // paid | partial | due | overdue | refunded | voided | cancelled
 	PaymentMethod string  `json:"payment_method"` // dominant tender type, or "multiple"
+	// Sell-return rollup (rejected returns excluded): lets the list flag returned
+	// sales (red return arrow) and show the returned amount without N+1 lookups.
+	ReturnCount  int     `json:"return_count"`
+	ReturnTotal  float64 `json:"return_total"`
+	ReturnStatus string  `json:"return_status,omitempty"` // pending | approved | completed (most-advanced across the order's returns)
 }
 
 // enrichOrderList computes the derived display columns for a page of orders, resolving
@@ -245,6 +251,44 @@ func (h *POSOrderHandler) enrichOrderList(ctx context.Context, tenantID uuid.UUI
 		if tenders, err := h.client.Tender.Query().Where(tender.IDIn(ids...)).All(ctx); err == nil {
 			for _, t := range tenders {
 				tenderType[t.ID] = t.Type
+			}
+		}
+	}
+
+	// Batched sell-return rollup: one query for the whole page (mirrors the tender batch
+	// above). Rejected returns are excluded — a rejected request never happened financially.
+	type returnAgg struct {
+		count  int
+		total  float64
+		status string
+	}
+	returnRank := map[posreturn.Status]int{posreturn.StatusPending: 1, posreturn.StatusApproved: 2, posreturn.StatusCompleted: 3}
+	returnsByOrder := map[uuid.UUID]*returnAgg{}
+	if len(list) > 0 {
+		orderIDs := make([]uuid.UUID, 0, len(list))
+		for _, o := range list {
+			orderIDs = append(orderIDs, o.ID)
+		}
+		rets, err := h.client.POSReturn.Query().
+			Where(
+				posreturn.TenantID(tenantID),
+				posreturn.OrderIDIn(orderIDs...),
+				posreturn.StatusNEQ(posreturn.StatusRejected),
+			).
+			All(ctx)
+		if err != nil {
+			h.log.Warn("order list return rollup failed", zap.Error(err))
+		}
+		for _, ret := range rets {
+			agg := returnsByOrder[ret.OrderID]
+			if agg == nil {
+				agg = &returnAgg{}
+				returnsByOrder[ret.OrderID] = agg
+			}
+			agg.count++
+			agg.total += ret.RefundAmount
+			if returnRank[ret.Status] > returnRank[posreturn.Status(agg.status)] {
+				agg.status = string(ret.Status)
 			}
 		}
 	}
@@ -284,14 +328,20 @@ func (h *POSOrderHandler) enrichOrderList(ctx context.Context, tenantID uuid.UUI
 		if (ps == "due" || ps == "partial") && isOrderOverdue(o.Metadata) {
 			ps = "overdue"
 		}
-		items = append(items, orderListItem{
+		item := orderListItem{
 			POSOrder:      o,
 			ItemCount:     len(o.Edges.Lines),
 			TotalPaid:     paid,
 			AmountDue:     due,
 			PaymentStatus: ps,
 			PaymentMethod: dominantMethod(methods),
-		})
+		}
+		if agg := returnsByOrder[o.ID]; agg != nil {
+			item.ReturnCount = agg.count
+			item.ReturnTotal = agg.total
+			item.ReturnStatus = agg.status
+		}
+		items = append(items, item)
 	}
 	return items
 }
@@ -974,8 +1024,10 @@ func (h *POSOrderHandler) autoAssignFacilityBookingsForOrder(ctx context.Context
 type shippingInput struct {
 	ShippingStatus  string   `json:"shipping_status,omitempty"` // ordered|packed|shipped|delivered|cancelled
 	ShippingAddress string   `json:"shipping_address,omitempty"`
+	ShippingDetails string   `json:"shipping_details,omitempty"` // courier/vehicle/instructions free text
 	ShippingAmount  *float64 `json:"shipping_amount,omitempty"`
 	TrackingNumber  string   `json:"tracking_number,omitempty"`
+	DeliveredTo     string   `json:"delivered_to,omitempty"`
 	DeliveryPerson  string   `json:"delivery_person,omitempty"`
 	DeliveryPhone   string   `json:"delivery_phone,omitempty"`
 }
@@ -1026,8 +1078,14 @@ func (h *POSOrderHandler) UpdateShipping(w http.ResponseWriter, r *http.Request)
 	if input.ShippingAmount != nil {
 		meta["shipping_amount"] = *input.ShippingAmount
 	}
+	if input.ShippingDetails != "" {
+		meta["shipping_details"] = input.ShippingDetails
+	}
 	if input.TrackingNumber != "" {
 		meta["tracking_number"] = input.TrackingNumber
+	}
+	if input.DeliveredTo != "" {
+		meta["delivered_to"] = input.DeliveredTo
 	}
 	if input.DeliveryPerson != "" {
 		meta["delivery_person"] = input.DeliveryPerson
