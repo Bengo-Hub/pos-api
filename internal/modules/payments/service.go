@@ -844,19 +844,54 @@ func (s *Service) completeOrderIfFullyPaid(ctx context.Context, order *ent.POSOr
 			updated = order
 			updated.Status = orders.StatusCompleted
 		}
-		s.publishSaleFinalized(ctx, updated)
-		s.enqueueReceiptPrint(ctx, updated)
-		s.calcCommissions(ctx, updated)
-		// Free the table once the bill is settled, regardless of which flow
-		// (waiter My Bills, cashier orders page, or async digital confirmation)
-		// closed it — mirrors the manual ReleaseTable endpoint.
-		s.releaseTableForOrder(ctx, order.ID)
-		// A settled order is done in the kitchen/bar regardless of whether staff ever bumped
-		// its tickets on the KDS board (quick-service counter sales skip the board entirely) —
-		// force-serve any that are still open so the live board doesn't show food for an order
-		// that's already been paid for and (usually) handed over.
-		s.orderSvc.AutoClearKDSTicketsForOrder(ctx, order.TenantID, order.ID)
+		// Hand the post-settlement fan-out (event publish, receipt print, commissions, table
+		// release, KDS clear) to a background worker so the cashier's "Confirm" returns the
+		// moment the sale is claimed completed — none of this needs to block the response. The
+		// single-winner UPDATE above already ran, so exactly one dispatch happens per order.
+		s.dispatchPostFinalize(updated)
 	}
+}
+
+// dispatchPostFinalize runs the post-settlement fan-out OFF the payment request path so a cash
+// (or async digital) confirmation returns as soon as the sale is claimed completed, instead of
+// waiting on the event publish, receipt enqueue, commission calc, table release and KDS sweep.
+//
+// Safe because the atomic single-winner completion UPDATE in completeOrderIfFullyPaid has already
+// committed before this is called: exactly one dispatch happens per order, so nothing here can
+// double-post the sale to treasury GL / inventory backflush. Runs on a DETACHED, timeout-bounded
+// context (never the request context — that is cancelled the instant the handler responds; see
+// feedback_background_notifications_scope) with panic recovery so a fan-out error can never crash
+// the process or unwind a settled sale.
+func (s *Service) dispatchPostFinalize(order *ent.POSOrder) {
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				s.log.Error("post-finalize panic recovered",
+					zap.String("order_id", order.ID.String()), zap.Any("panic", r))
+			}
+		}()
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		s.runPostFinalize(ctx, order)
+	}()
+}
+
+// runPostFinalize performs the best-effort downstream work after an order settles. Each step
+// logs its own errors and never blocks the others. Split out from completeOrderIfFullyPaid so it
+// can run asynchronously via dispatchPostFinalize.
+func (s *Service) runPostFinalize(ctx context.Context, order *ent.POSOrder) {
+	// pos.sale.finalized → treasury GL posting + inventory stock backflush (both async NATS
+	// consumers). This writes to the NATS outbox, so once the row is inserted delivery is durable.
+	s.publishSaleFinalized(ctx, order)
+	s.enqueueReceiptPrint(ctx, order)
+	s.calcCommissions(ctx, order)
+	// Free the table once the bill is settled, regardless of which flow (waiter My Bills, cashier
+	// orders page, or async digital confirmation) closed it — mirrors the manual ReleaseTable endpoint.
+	s.releaseTableForOrder(ctx, order.ID)
+	// A settled order is done in the kitchen/bar regardless of whether staff ever bumped its tickets
+	// on the KDS board (quick-service counter sales skip the board entirely) — force-serve any that
+	// are still open so the live board doesn't show food for an order that's already been paid for.
+	s.orderSvc.AutoClearKDSTicketsForOrder(ctx, order.TenantID, order.ID)
 }
 
 // releaseTableForOrder frees any table occupied by this order: it closes the
