@@ -206,12 +206,12 @@ func (s *TreasurySubscriber) subscribeEtimsTransmitted(js nats.JetStreamContext)
 			return
 		}
 
-		if !s.entitled(context.Background(), evt.TenantID, "etims_integration") {
-			s.log.Debug("treasury.etims.invoice_transmitted: tenant lacks etims_integration — skipping POS sync",
-				zap.String("tenant_id", evt.TenantID))
-			return
-		}
-
+		// NO entitlement gate here — treasury is the single authority on eTIMS activation
+		// (tax service etimsActivated: fully-provisioned active device). This event only
+		// exists because treasury ALREADY signed the sale with KRA, so a subscription-
+		// entitlement check could only produce false negatives (a KRA-signed sale whose
+		// printed receipt silently lacks the fiscal identity whenever the entitlement
+		// lookup diverges or fails). Store the fiscal outcome unconditionally.
 		orderID, err := uuid.Parse(evt.Data.ReferenceID)
 		if err != nil {
 			s.log.Warn("etims event: invalid order id", zap.String("reference_id", evt.Data.ReferenceID))

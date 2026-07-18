@@ -61,6 +61,12 @@ type ReceiptData struct {
 	EtimsScuID    string // "SCU ID" line
 	EtimsCuInvNo  string // "CU Inv No." line — {SCU ID}/{receipt no}
 	EtimsRcptSign string
+	// EtimsQRCodeURL is the KRA receipt-verification link — printed as a scannable QR at
+	// the bottom of the fiscal block (native GS ( k, or GS v 0 raster when QRRaster).
+	EtimsQRCodeURL string
+	// QRRaster selects the raster bit-image QR encoding for printers whose firmware lacks
+	// GS ( k (printer_profiles JSON `"qr_native": false`).
+	QRRaster bool
 	PaymentMethods     *ReceiptPaymentMethods // "HOW TO PAY" block (M-Pesa/bank), customer receipts only
 	VoidReason         string
 	// Banner is an attention line under the ticket-type heading — e.g.
@@ -263,6 +269,8 @@ func BuildReceipt(d ReceiptData) []byte {
 		if d.EtimsRcptSign != "" {
 			writeln("Sign: " + d.EtimsRcptSign)
 		}
+		// KRA verification QR — the scannable proof on compliant ETR paper receipts.
+		appendEtimsQR(&buf, d.EtimsQRCodeURL, d.QRRaster)
 	}
 
 	if d.Type == "customer" && d.PaymentMethods.HasAny() {

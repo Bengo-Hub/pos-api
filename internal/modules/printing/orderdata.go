@@ -40,7 +40,28 @@ func OrderReceiptData(order *ent.POSOrder, lines []*ent.POSOrderLine, outlet *en
 // show Amount Paid / payment date / balance due like the browser one.
 func OrderReceiptDataOpts(order *ent.POSOrder, lines []*ent.POSOrderLine, outlet *ent.Outlet, setting *ent.OutletSetting, opts ReceiptViewOpts) ReceiptData {
 	view := BuildReceiptView(order, lines, outlet, setting, opts)
-	return receiptDataFromView(view, receiptLocation(outlet))
+	d := receiptDataFromView(view, receiptLocation(outlet))
+	d.QRRaster = qrRasterFromSetting(setting)
+	return d
+}
+
+// qrRasterFromSetting reads the customer/bill printer profile's `qr_native` capability
+// flag (printer_profiles JSON): false selects the GS v 0 raster QR for firmwares lacking
+// GS ( k. Default (absent/true) keeps the crisp native QR.
+func qrRasterFromSetting(setting *ent.OutletSetting) bool {
+	if setting == nil {
+		return false
+	}
+	for _, p := range setting.PrinterProfiles {
+		id, _ := p["id"].(string)
+		if id != "" && id != "customer" {
+			continue
+		}
+		if native, ok := p["qr_native"].(bool); ok && !native {
+			return true
+		}
+	}
+	return false
 }
 
 // StationTicketData assembles the kitchen/bar chit for one station's routed items
@@ -143,6 +164,7 @@ func receiptDataFromView(v ReceiptView, loc *time.Location) ReceiptData {
 		EtimsScuID:         v.EtimsScuID,
 		EtimsCuInvNo:       v.EtimsCuInvNo,
 		EtimsRcptSign:      v.EtimsRcptSign,
+		EtimsQRCodeURL:     v.EtimsQRCodeURL,
 		PaymentMethods:     pm,
 		ProviderFooter:     v.ProviderFooter,
 		UseCase:            v.UseCase,
