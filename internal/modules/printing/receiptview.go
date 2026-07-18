@@ -233,6 +233,28 @@ func chargesBreakdown(meta map[string]any) map[string]float64 {
 	return out
 }
 
+// FiscalBarcodeValue returns the value the printed Code 128 barcode encodes — the single
+// decision point every renderer (ESC/POS, thermal HTML/PDF, A4 HTML/PDF) and the client
+// (pos-ui) reads from, so a barcode can never diverge per surface:
+//   - Fiscalised sale (eTIMS): the KRA CU Invoice Number (falls back to the legacy invoice
+//     number) — mirrors the barcode printed on a genuine KRA ETR paper receipt (see the
+//     Jazaribu Retail reference receipt, whose barcode HRI text is its own fiscal number,
+//     never the internal till transaction id).
+//   - Non-fiscalised retail sale: the POS order number, as a scan-for-lookup convenience.
+//   - Everything else (non-fiscalised, non-retail): "" — no barcode printed.
+func (v ReceiptView) FiscalBarcodeValue() string {
+	if v.EtimsCuInvNo != "" {
+		return v.EtimsCuInvNo
+	}
+	if v.EtimsInvoiceNumber != "" {
+		return v.EtimsInvoiceNumber
+	}
+	if v.UseCase == "retail" {
+		return v.OrderNumber
+	}
+	return ""
+}
+
 // IsCashMethod reports whether a payment method is an anonymous cash tender (no identified
 // customer). Everything else — M-Pesa, card, mobile money, bank, online — identifies a payer.
 func IsCashMethod(method string) bool {

@@ -172,33 +172,6 @@ func renderThermalPDF(rec Receipt, brand Brand, layout string) ([]byte, error) {
 		line("Balance Due", moneyLine(rec.BalanceDue), "", 9)
 	}
 
-	// KRA TIMS Details (fiscalised sales) — mirrors the paper ETR layout.
-	if rec.EtimsInvoiceNumber != "" || rec.EtimsCuInvNo != "" {
-		hr()
-		center("KRA TIMS Details", "B", 9)
-		if rec.EtimsScuID != "" {
-			line("SCU ID", rec.EtimsScuID, "", 8)
-		}
-		if rec.EtimsCuInvNo != "" {
-			line("CU Inv No.", rec.EtimsCuInvNo, "", 8)
-		} else if rec.EtimsInvoiceNumber != "" {
-			line("eTIMS Inv", rec.EtimsInvoiceNumber, "", 8)
-		}
-		if rec.EtimsRcptSign != "" {
-			line("Sign", truncate(rec.EtimsRcptSign, 34), "", 8)
-		}
-		if rec.EtimsQRCodeURL != "" {
-			if qrPNG, qerr := qrcode.Encode(rec.EtimsQRCodeURL, qrcode.Medium, 256); qerr == nil {
-				const qrW = 18.0
-				if info := pdf.RegisterImageOptionsReader("etimsqr", fpdf.ImageOptions{ImageType: "PNG"}, bytes.NewReader(qrPNG)); info != nil && info.Width() > 0 {
-					pdf.ImageOptions("etimsqr", (pageW-qrW)/2, pdf.GetY()+1, qrW, qrW, true, fpdf.ImageOptions{ImageType: "PNG"}, 0, "")
-				} else {
-					pdf.ClearError()
-				}
-			}
-		}
-	}
-
 	// Payment display ("HOW TO PAY") — M-Pesa/bank details, same block as the HTML/ESC-POS receipts.
 	if pm := rec.PaymentMethods; pm != nil {
 		hr()
@@ -227,15 +200,45 @@ func renderThermalPDF(rec Receipt, brand Brand, layout string) ([]byte, error) {
 		}
 	}
 
-	// Code 128 barcode of the order number (retail) — scannable for returns/lookups.
-	if rec.UseCase == "retail" && rec.OrderNumber != "" {
-		if bcPNG, err := printing.Code128PNG(rec.OrderNumber, 400, 70); err == nil {
+	// "KRA TIMS Details" fiscal block, adapted from the KRA-issued paper ETR receipt (see the
+	// Jazaribu Retail reference): SCU ID + CU Inv No, then the verification QR, then — right
+	// after, no other content between — the fiscal barcode below. The receipt SIGNATURE is
+	// deliberately never printed as plain text (it's already encoded in the QR).
+	if rec.EtimsInvoiceNumber != "" || rec.EtimsCuInvNo != "" {
+		hr()
+		center("KRA TIMS Details", "B", 9)
+		if rec.EtimsScuID != "" {
+			line("SCU ID", rec.EtimsScuID, "", 8)
+		}
+		if rec.EtimsCuInvNo != "" {
+			line("CU Inv No.", rec.EtimsCuInvNo, "", 8)
+		} else if rec.EtimsInvoiceNumber != "" {
+			line("eTIMS Inv", rec.EtimsInvoiceNumber, "", 8)
+		}
+		if rec.EtimsQRCodeURL != "" {
+			if qrPNG, qerr := qrcode.Encode(rec.EtimsQRCodeURL, qrcode.Medium, 256); qerr == nil {
+				const qrW = 22.0
+				if info := pdf.RegisterImageOptionsReader("etimsqr", fpdf.ImageOptions{ImageType: "PNG"}, bytes.NewReader(qrPNG)); info != nil && info.Width() > 0 {
+					pdf.ImageOptions("etimsqr", (pageW-qrW)/2, pdf.GetY()+1, qrW, qrW, true, fpdf.ImageOptions{ImageType: "PNG"}, 0, "")
+					pdf.SetY(pdf.GetY() + qrW + 1)
+				} else {
+					pdf.ClearError()
+				}
+			}
+		}
+	}
+
+	// Fiscal barcode: encodes rec.BarcodeValue (the eTIMS CU Invoice Number once fiscalised,
+	// else the order number for non-fiscalised retail — ReceiptView.FiscalBarcodeValue, the
+	// ONE place this decision is made; no longer independently regenerated here from OrderNumber).
+	if rec.BarcodeValue != "" {
+		if bcPNG, err := printing.Code128PNG(rec.BarcodeValue, 400, 70); err == nil {
 			const bcW, bcH = 48.0, 10.0
 			pdf.Ln(2)
 			if info := pdf.RegisterImageOptionsReader("orderbarcode", fpdf.ImageOptions{ImageType: "PNG"}, bytes.NewReader(bcPNG)); info != nil && info.Width() > 0 {
 				pdf.ImageOptions("orderbarcode", (pageW-bcW)/2, pdf.GetY(), bcW, bcH, true, fpdf.ImageOptions{ImageType: "PNG"}, 0, "")
 				pdf.SetFont(font, "", 9)
-				pdf.CellFormat(contentW, 4.5, rec.OrderNumber, "", 1, "C", false, 0, "")
+				pdf.CellFormat(contentW, 4.5, rec.BarcodeValue, "", 1, "C", false, 0, "")
 			} else {
 				pdf.ClearError()
 			}

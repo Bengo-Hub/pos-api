@@ -115,9 +115,13 @@ type Receipt struct {
 	Layout string `json:"layout,omitempty"`
 	// ShowLogo mirrors the Receipt & Printing "show logo" setting (default true).
 	ShowLogo bool `json:"show_logo"`
-	// BarcodePNG is a Code 128 barcode of the order number as a data: URI, populated for
-	// retail receipts so every surface (server HTML/PDF + client print) shows the same bars.
+	// BarcodePNG is a Code 128 barcode of BarcodeValue as a data: URI — computed ONCE
+	// (ReceiptView.FiscalBarcodeValue via the handler) so every surface (ESC/POS, server
+	// HTML/PDF, client print) renders identical bars for identical data.
 	BarcodePNG string `json:"barcode_png,omitempty"`
+	// BarcodeValue is the human-readable text under the barcode (and the value it encodes):
+	// the eTIMS CU Invoice Number once fiscalised, else the POS order number for retail.
+	BarcodeValue string `json:"barcode_value,omitempty"`
 	// Platform-owner (Codevertex) advertisement lines printed at the very bottom of the receipt.
 	ProviderFooterLead    string `json:"provider_footer_lead,omitempty"`
 	ProviderFooterContact string `json:"provider_footer_contact,omitempty"`

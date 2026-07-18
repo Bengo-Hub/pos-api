@@ -152,7 +152,10 @@ td.r,th.r{text-align:right}
 	}
 	buf.WriteString(`</div>`)
 
-	// ── KRA TIMS Details (fiscalised sales) — mirrors the paper ETR layout ──
+	// ── KRA TIMS Details, adapted from the KRA-issued paper ETR receipt (see the Jazaribu
+	// Retail reference): SCU ID + CU Inv No, then the verification QR, then — right after,
+	// no other content between — the fiscal barcode below. The receipt SIGNATURE is
+	// deliberately never printed as plain text (it's already encoded in the QR). ──
 	if rec.EtimsCuInvNo != "" || rec.EtimsInvoiceNumber != "" || rec.EtimsQRPNG != "" {
 		buf.WriteString(`<div style="text-align:center;margin-top:10px">`)
 		buf.WriteString(`<div style="font-weight:bold;font-size:14px">KRA TIMS Details</div>`)
@@ -164,19 +167,19 @@ td.r,th.r{text-align:right}
 		} else if rec.EtimsInvoiceNumber != "" {
 			buf.WriteString(fmt.Sprintf(`<div class="sub"><b>CU No.:</b> %s</div>`, escape(rec.EtimsInvoiceNumber)))
 		}
-		if rec.EtimsRcptSign != "" {
-			buf.WriteString(fmt.Sprintf(`<div class="sub" style="word-break:break-all">Sign: %s</div>`, escape(rec.EtimsRcptSign)))
-		}
+		// Server-generated QR only (EtimsQRPNG, a data: URI) — the verification LINK
+		// (EtimsQRCodeURL) is never rendered as an <img src>; a URL is not image bytes.
 		if rec.EtimsQRPNG != "" {
-			buf.WriteString(fmt.Sprintf(`<img src="%s" alt="eTIMS QR" style="height:30mm;margin-top:4px">`, rec.EtimsQRPNG))
+			buf.WriteString(fmt.Sprintf(`<img src="%s" alt="eTIMS QR" style="height:32mm;margin-top:4px">`, rec.EtimsQRPNG))
 		}
 		buf.WriteString(`</div>`)
 	}
 
-	// ── Barcode of the invoice/order number ──
+	// ── Fiscal barcode: encodes rec.BarcodeValue (the eTIMS CU Invoice Number once
+	// fiscalised, else the order number for non-fiscalised retail sales). ──
 	if rec.BarcodePNG != "" {
 		buf.WriteString(fmt.Sprintf(`<div class="barcode"><img src="%s" alt="barcode"><div class="num">%s</div></div>`,
-			rec.BarcodePNG, escape(rec.OrderNumber)))
+			rec.BarcodePNG, escape(rec.BarcodeValue)))
 	}
 
 	// ── Configurable footer text ("IN GOD WE TRUST" position — flows below the barcode) ──

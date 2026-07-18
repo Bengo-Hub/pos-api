@@ -158,7 +158,10 @@ func renderA4PDF(rec Receipt, brand Brand) ([]byte, error) {
 		trow("Total Due with Current", money(rec.Currency, rec.BalanceDue), false)
 	}
 
-	// ── KRA TIMS Details (fiscalised sales) — mirrors the paper ETR layout ──
+	// ── KRA TIMS Details, adapted from the KRA-issued paper ETR receipt (see the Jazaribu
+	// Retail reference): SCU ID + CU Inv No, then the verification QR, then — right after,
+	// no other content between — the fiscal barcode below. The receipt SIGNATURE is
+	// deliberately never printed as plain text (it's already encoded in the QR). ──
 	if rec.EtimsCuInvNo != "" || rec.EtimsInvoiceNumber != "" || rec.EtimsQRCodeURL != "" {
 		pdf.Ln(4)
 		pdf.SetFont("Helvetica", "B", 12)
@@ -172,15 +175,12 @@ func renderA4PDF(rec Receipt, brand Brand) ([]byte, error) {
 		} else if rec.EtimsInvoiceNumber != "" {
 			pdf.CellFormat(contentW, 5, "CU No.: "+rec.EtimsInvoiceNumber, "", 1, "C", false, 0, "")
 		}
-		if rec.EtimsRcptSign != "" {
-			pdf.SetFont("Helvetica", "", 8)
-			pdf.MultiCell(contentW, 4, "Sign: "+rec.EtimsRcptSign, "", "C", false)
-		}
 		if rec.EtimsQRCodeURL != "" {
 			if qrPNG, qerr := qrcode.Encode(rec.EtimsQRCodeURL, qrcode.Medium, 256); qerr == nil {
-				const qrW = 26.0
+				const qrW = 28.0
 				if info := pdf.RegisterImageOptionsReader("etimsqr", fpdf.ImageOptions{ImageType: "PNG"}, bytes.NewReader(qrPNG)); info != nil && info.Width() > 0 {
 					pdf.ImageOptions("etimsqr", (pageW-qrW)/2, pdf.GetY()+1, qrW, qrW, true, fpdf.ImageOptions{ImageType: "PNG"}, 0, "")
+					pdf.SetY(pdf.GetY() + qrW + 1)
 				} else {
 					pdf.ClearError()
 				}
@@ -188,15 +188,17 @@ func renderA4PDF(rec Receipt, brand Brand) ([]byte, error) {
 		}
 	}
 
-	// ── Barcode of the invoice/order number ──
-	if rec.OrderNumber != "" {
-		if bcPNG, err := printing.Code128PNG(rec.OrderNumber, 400, 70); err == nil {
+	// ── Fiscal barcode: encodes rec.BarcodeValue (the eTIMS CU Invoice Number once
+	// fiscalised, else the order number for non-fiscalised retail — ReceiptView.
+	// FiscalBarcodeValue, the ONE place this decision is made). ──
+	if rec.BarcodeValue != "" {
+		if bcPNG, err := printing.Code128PNG(rec.BarcodeValue, 400, 70); err == nil {
 			const bcW, bcH = 55.0, 12.0
 			pdf.Ln(4)
 			if info := pdf.RegisterImageOptionsReader("orderbarcode", fpdf.ImageOptions{ImageType: "PNG"}, bytes.NewReader(bcPNG)); info != nil && info.Width() > 0 {
 				pdf.ImageOptions("orderbarcode", (pageW-bcW)/2, pdf.GetY(), bcW, bcH, true, fpdf.ImageOptions{ImageType: "PNG"}, 0, "")
 				pdf.SetFont("Helvetica", "", 10)
-				pdf.CellFormat(contentW, 5, rec.OrderNumber, "", 1, "C", false, 0, "")
+				pdf.CellFormat(contentW, 5, rec.BarcodeValue, "", 1, "C", false, 0, "")
 			} else {
 				pdf.ClearError()
 			}

@@ -168,5 +168,6 @@ func receiptDataFromView(v ReceiptView, loc *time.Location) ReceiptData {
 		PaymentMethods:     pm,
 		ProviderFooter:     v.ProviderFooter,
 		UseCase:            v.UseCase,
+		BarcodeValue:       v.FiscalBarcodeValue(),
 	}
 }

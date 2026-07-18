@@ -194,11 +194,14 @@ func newReceiptResponse(v printing.ReceiptView, layout string) receiptResponse {
 			BankAccountName:   v.PaymentMethods.BankAccountName,
 		}
 	}
-	// Retail receipts carry a Code 128 of the order number so the server templates and the
-	// client print path all show identical bars (empty string on encode failure — never fatal).
+	// The printed barcode encodes the sale's fiscal identity once eTIMS-signed (matching a
+	// genuine KRA ETR receipt's own barcode), else the POS order number for retail sales —
+	// ReceiptView.FiscalBarcodeValue is the ONE place this decision is made (ESC/POS mirrors
+	// it via receiptDataFromView). Empty string on encode failure — never fatal.
+	barcodeValue := v.FiscalBarcodeValue()
 	barcodePNG := ""
-	if v.UseCase == "retail" && v.OrderNumber != "" {
-		barcodePNG = printing.Code128DataURI(v.OrderNumber, 320, 56)
+	if barcodeValue != "" {
+		barcodePNG = printing.Code128DataURI(barcodeValue, 320, 56)
 	}
 	// Fiscalised sales embed the KRA verification QR as a real image (the stored URL is a
 	// verification LINK — browsers can't render it via <img src>).
@@ -250,6 +253,7 @@ func newReceiptResponse(v printing.ReceiptView, layout string) receiptResponse {
 		Layout:                layout,
 		ShowLogo:              v.ShowLogo,
 		BarcodePNG:            barcodePNG,
+		BarcodeValue:          barcodeValue,
 		ProviderFooterLead:    v.ProviderFooter.OrDefault().Lead,
 		ProviderFooterContact: v.ProviderFooter.OrDefault().Contact,
 	}

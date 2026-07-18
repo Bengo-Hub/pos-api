@@ -54,9 +54,9 @@ h1{font-size:17px;letter-spacing:.5px;text-align:center;margin:3px 0}
 .tot{font-size:16px}
 .prov{font-size:9px;text-align:center;margin:1px 0 2px;line-height:1.3;white-space:pre-wrap}
 .prov-lead{font-size:10.5px;font-weight:bold;letter-spacing:.3px;text-align:center;margin:4px 0 1px;white-space:pre-wrap}
-.etims-qr{display:block;margin:4px auto;width:80px;height:80px}
+.etims-qr{display:block;margin:5px auto;width:100px;height:100px}
 .etims-num{font-size:9px;text-align:center;word-break:break-all}
-.barcode{text-align:center;margin:6px 0 2px}
+.barcode{text-align:center;margin:4px 0 2px}
 .barcode img{height:11mm;max-width:100%%}
 .barcode .num{font-size:11px;letter-spacing:2px;margin-top:1px}
 @media print{body{width:100%%}}
@@ -139,28 +139,6 @@ h1{font-size:17px;letter-spacing:.5px;text-align:center;margin:3px 0}
 	if rec.BalanceDue > 0.004 || rec.BalanceDue < -0.004 {
 		buf.WriteString(fmt.Sprintf(`<div class="line"><span>Balance Due</span><span>%.2f</span></div>`, rec.BalanceDue))
 	}
-	if rec.EtimsInvoiceNumber != "" || rec.EtimsQRCodeURL != "" || rec.EtimsCuInvNo != "" {
-		// "KRA TIMS Details" block, mirroring the paper ETR layout: SCU ID + CU Inv No
-		// ({SCU}/{receipt no}) + signature above the verification QR.
-		buf.WriteString(`<div class="divider"></div>`)
-		buf.WriteString(`<p class="bold" style="font-size:10px;text-align:center">KRA TIMS Details</p>`)
-		if rec.EtimsScuID != "" {
-			buf.WriteString(fmt.Sprintf(`<div class="line"><span>SCU ID:</span><span>%s</span></div>`, escape(rec.EtimsScuID)))
-		}
-		if rec.EtimsCuInvNo != "" {
-			buf.WriteString(fmt.Sprintf(`<div class="line"><span>CU Inv No.:</span><span>%s</span></div>`, escape(rec.EtimsCuInvNo)))
-		} else if rec.EtimsInvoiceNumber != "" {
-			buf.WriteString(fmt.Sprintf(`<p class="etims-num">CU No: %s</p>`, escape(rec.EtimsInvoiceNumber)))
-		}
-		if rec.EtimsRcptSign != "" {
-			buf.WriteString(fmt.Sprintf(`<p class="sub" style="word-break:break-all">Sign: %s</p>`, escape(rec.EtimsRcptSign)))
-		}
-		if rec.EtimsQRPNG != "" {
-			buf.WriteString(fmt.Sprintf(`<img class="etims-qr" src="%s" alt="eTIMS QR">`, rec.EtimsQRPNG))
-		} else if rec.EtimsQRCodeURL != "" {
-			buf.WriteString(fmt.Sprintf(`<img class="etims-qr" src="%s" alt="eTIMS QR">`, escape(rec.EtimsQRCodeURL)))
-		}
-	}
 	if pm := rec.PaymentMethods; pm != nil {
 		buf.WriteString(`<div class="divider"></div>`)
 		buf.WriteString(`<p class="bold" style="font-size:10px;text-align:center">HOW TO PAY</p>`)
@@ -187,11 +165,35 @@ h1{font-size:17px;letter-spacing:.5px;text-align:center;margin:3px 0}
 			buf.WriteString(fmt.Sprintf(`<p class="sub">%s</p>`, escape(pm.BankAccountName)))
 		}
 	}
-	// Code 128 barcode of the order number (retail receipts populate BarcodePNG) —
-	// scannable for returns/lookups, matching the ESC/POS + A4 surfaces.
+	// "KRA TIMS Details" fiscal block, adapted from the KRA-issued paper ETR receipt (see the
+	// Jazaribu Retail reference): SCU ID + CU Inv No, then the verification QR immediately
+	// below, then — right after, no other content between — the fiscal barcode (the same
+	// adjacency a genuine ETR receipt uses). The receipt SIGNATURE is deliberately never
+	// printed as plain text: it's already encoded in the QR, and printing it in the clear is
+	// an avoidable exposure of KRA-issued fiscal proof with no benefit to the operator.
+	if rec.EtimsInvoiceNumber != "" || rec.EtimsQRPNG != "" || rec.EtimsCuInvNo != "" {
+		buf.WriteString(`<div class="divider"></div>`)
+		buf.WriteString(`<p class="bold" style="font-size:10px;text-align:center">KRA TIMS Details</p>`)
+		if rec.EtimsScuID != "" {
+			buf.WriteString(fmt.Sprintf(`<div class="line"><span>SCU ID:</span><span>%s</span></div>`, escape(rec.EtimsScuID)))
+		}
+		if rec.EtimsCuInvNo != "" {
+			buf.WriteString(fmt.Sprintf(`<div class="line"><span>CU Inv No.:</span><span>%s</span></div>`, escape(rec.EtimsCuInvNo)))
+		} else if rec.EtimsInvoiceNumber != "" {
+			buf.WriteString(fmt.Sprintf(`<p class="etims-num">CU No: %s</p>`, escape(rec.EtimsInvoiceNumber)))
+		}
+		// The QR is server-generated (EtimsQRPNG, a data: URI) — never render the raw
+		// verification LINK (EtimsQRCodeURL) as an <img src>; a URL is not image bytes.
+		if rec.EtimsQRPNG != "" {
+			buf.WriteString(fmt.Sprintf(`<img class="etims-qr" src="%s" alt="eTIMS QR">`, rec.EtimsQRPNG))
+		}
+	}
+	// Fiscal barcode — encodes rec.BarcodeValue (the eTIMS CU Invoice Number once fiscalised,
+	// else the order number for non-fiscalised retail sales; ReceiptView.FiscalBarcodeValue).
+	// Printed immediately after the fiscal block, mirroring the ETR reference layout.
 	if rec.BarcodePNG != "" {
 		buf.WriteString(fmt.Sprintf(`<div class="barcode"><img src="%s" alt="barcode"><div class="num">%s</div></div>`,
-			rec.BarcodePNG, escape(rec.OrderNumber)))
+			rec.BarcodePNG, escape(rec.BarcodeValue)))
 	}
 	buf.WriteString(`<div class="divider"></div>`)
 	// Custom footer text configured in POS settings; fall back to a friendly default.

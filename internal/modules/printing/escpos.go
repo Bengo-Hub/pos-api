@@ -74,9 +74,14 @@ type ReceiptData struct {
 	// to an open bill, so the kitchen never mistakes it for a brand-new order.
 	Banner             string
 	ProviderFooter     ProviderFooter // platform-owner (Codevertex) advertisement, customer receipts only
-	// UseCase — "retail" additionally prints a native Code 128 barcode of the order number
-	// and the payment date beside the method (the BOI/GoDigital receipt design).
+	// UseCase — "retail" additionally prints the payment date beside the method
+	// (the BOI/GoDigital receipt design).
 	UseCase string
+	// BarcodeValue — when non-empty, a native Code 128 barcode of this value is printed:
+	// the eTIMS CU Invoice Number once fiscalised, else the order number for retail sales.
+	// Computed once by ReceiptView.FiscalBarcodeValue so ESC/POS never diverges from the
+	// server HTML/PDF/client barcode. Empty = no barcode.
+	BarcodeValue string
 }
 
 // ReceiptItem is a single line on the receipt.
@@ -252,27 +257,6 @@ func BuildReceipt(d ReceiptData) []byte {
 		writeln("Reason: " + d.VoidReason)
 	}
 
-	if d.Type == "customer" && (d.EtimsInvoiceNumber != "" || d.EtimsCuInvNo != "") {
-		separator()
-		write(escCenter)
-		write(escBold)
-		writeln("KRA TIMS Details")
-		write(escLeft)
-		if d.EtimsScuID != "" {
-			writeln("SCU ID: " + d.EtimsScuID)
-		}
-		if d.EtimsCuInvNo != "" {
-			writeln("CU Inv No.: " + d.EtimsCuInvNo)
-		} else if d.EtimsInvoiceNumber != "" {
-			writeln("CU#: " + d.EtimsInvoiceNumber)
-		}
-		if d.EtimsRcptSign != "" {
-			writeln("Sign: " + d.EtimsRcptSign)
-		}
-		// KRA verification QR — the scannable proof on compliant ETR paper receipts.
-		appendEtimsQR(&buf, d.EtimsQRCodeURL, d.QRRaster)
-	}
-
 	if d.Type == "customer" && d.PaymentMethods.HasAny() {
 		separator()
 		write(escCenter)
@@ -306,17 +290,42 @@ func BuildReceipt(d ReceiptData) []byte {
 		}
 	}
 
-	// Retail customer receipts print a native Code 128 barcode of the order number (GS k) —
-	// scannable for returns/lookups, mirroring the barcode on the HTML/PDF retail template.
-	if d.Type == "customer" && d.UseCase == "retail" && d.OrderNumber != "" {
+	// KRA TIMS Details — the fiscal block, adapted from the KRA-issued paper ETR receipt
+	// (see the Jazaribu Retail reference): SCU ID + CU Inv No, THEN the verification QR
+	// immediately below, THEN (right after, no other content between) the fiscal barcode —
+	// exactly the adjacency a genuine ETR receipt uses. The receipt SIGNATURE is deliberately
+	// NEVER printed as plain text (it's already encoded in the QR; printing it in the clear
+	// is an avoidable exposure of KRA-issued fiscal proof for no operator benefit).
+	if d.Type == "customer" && (d.EtimsInvoiceNumber != "" || d.EtimsCuInvNo != "") {
+		separator()
+		write(escCenter)
+		write(escBold)
+		writeln("KRA TIMS Details")
+		write(escLeft)
+		if d.EtimsScuID != "" {
+			writeln("SCU ID: " + d.EtimsScuID)
+		}
+		if d.EtimsCuInvNo != "" {
+			writeln("CU Inv No.: " + d.EtimsCuInvNo)
+		} else if d.EtimsInvoiceNumber != "" {
+			writeln("CU#: " + d.EtimsInvoiceNumber)
+		}
+		// KRA verification QR — the scannable proof on compliant ETR paper receipts.
+		appendEtimsQR(&buf, d.EtimsQRCodeURL, d.QRRaster)
+	}
+
+	// Fiscal barcode: the eTIMS CU Invoice Number once fiscalised, else the order number for
+	// non-fiscalised retail sales (ReceiptView.FiscalBarcodeValue — one decision, every
+	// surface). Printed immediately after the fiscal block, mirroring the ETR reference layout.
+	if d.Type == "customer" && d.BarcodeValue != "" {
 		buf.Write(escLF)
 		write(escCenter)
 		write([]byte{0x1D, 0x68, 60})   // GS h — barcode height (dots)
 		write([]byte{0x1D, 0x77, 2})    // GS w — module width
 		write([]byte{0x1D, 0x48, 2})    // GS H — HRI (the number) below the bars
 		write([]byte{0x1D, 0x66, 0})    // GS f — HRI font A
-		payload := append([]byte{'{', 'B'}, []byte(d.OrderNumber)...) // CODE128 code set B
-		write([]byte{0x1D, 0x6B, 73, byte(len(payload))})             // GS k m=73 (CODE128) n
+		payload := append([]byte{'{', 'B'}, []byte(d.BarcodeValue)...) // CODE128 code set B
+		write([]byte{0x1D, 0x6B, 73, byte(len(payload))})              // GS k m=73 (CODE128) n
 		write(payload)
 		buf.Write(escLF)
 		write(escLeft)

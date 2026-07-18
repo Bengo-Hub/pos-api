@@ -33,12 +33,17 @@ func fixtureReceipt(useCase string) Receipt {
 		EtimsRcptSign: "ABC1DEF2GHI3JKL4",
 		EtimsQRCodeURL: "https://etims-sbx.kra.go.ke/common/link/etims/receipt/indexEtimsReceiptData?Data=P052257611W00ABC1DEF2GHI3JKL4",
 		EtimsQRPNG:     "data:image/png;base64,iVBORw0KGgo=",
-		BarcodePNG:     "data:image/png;base64,iVBORw0KGgo=",
-		ReceiptFooter:  "Thank you for shopping with us",
+		// Mirrors what handlers.newReceiptResponse computes via ReceiptView.FiscalBarcodeValue:
+		// once fiscalised, the barcode encodes the CU Invoice Number, never the order number.
+		BarcodePNG:    "data:image/png;base64,iVBORw0KGgo=",
+		BarcodeValue:  "KRACU0300003541/340368",
+		ReceiptFooter: "Thank you for shopping with us",
 	}
 }
 
-// Every layout must render the KRA TIMS fiscal block when the sale is fiscalised.
+// Every layout must render the KRA TIMS fiscal block when the sale is fiscalised, the KRA
+// PIN in the header (not buried in the fiscal block), and the fiscal barcode (CU Invoice
+// Number, NOT the order number) — but must NEVER print the receipt signature in the clear.
 func TestAllLayoutsRenderEtimsBlock(t *testing.T) {
 	rec := fixtureReceipt("retail")
 	for _, l := range All() {
@@ -49,6 +54,18 @@ func TestAllLayoutsRenderEtimsBlock(t *testing.T) {
 				t.Errorf("layout %s HTML missing fiscal detail %q", l.ID, want)
 			}
 		}
+		if strings.Contains(html, "ABC1DEF2GHI3JKL4") {
+			t.Errorf("layout %s HTML must NOT print the raw receipt signature", l.ID)
+		}
+		// The barcode caption must be the fiscal CU Inv No — never the internal order number
+		// (OrderNumber legitimately appears elsewhere, e.g. the a4_invoice INVOICE.NO cell, so
+		// check the barcode caption class specifically, not a bare substring of the page).
+		if !strings.Contains(html, `class="num">`+rec.BarcodeValue+`<`) {
+			t.Errorf("layout %s HTML barcode caption must be the fiscal CU Inv No %q", l.ID, rec.BarcodeValue)
+		}
+		if strings.Contains(html, `class="num">`+rec.OrderNumber+`<`) {
+			t.Errorf("layout %s HTML barcode caption must not be the order number", l.ID)
+		}
 		pdf, err := RenderPDF(rec, Brand{})
 		if err != nil {
 			t.Fatalf("layout %s PDF: %v", l.ID, err)
@@ -56,6 +73,48 @@ func TestAllLayoutsRenderEtimsBlock(t *testing.T) {
 		if len(pdf) == 0 || !strings.HasPrefix(string(pdf[:5]), "%PDF-") {
 			t.Errorf("layout %s PDF: not a PDF", l.ID)
 		}
+	}
+}
+
+// The QR must always come from the server-generated PNG data: URI — never the raw KRA
+// verification URL used directly as an <img src> (a URL is not image bytes; this was the
+// broken-QR-icon bug). And the fiscal barcode must encode the CU Invoice Number once
+// fiscalised, appearing immediately after the fiscal block (ETR-style adjacency).
+func TestFiscalQRAndBarcodeAdjacency(t *testing.T) {
+	rec := fixtureReceipt("retail")
+	for _, id := range []string{ThermalClassic, ThermalModern, A4Invoice} {
+		rec.Layout = id
+		html := string(RenderHTML(rec, ""))
+		if strings.Contains(html, `src="https://etims-sbx.kra.go.ke`) {
+			t.Errorf("layout %s HTML must not use the verification URL as an <img src>", id)
+		}
+		if !strings.Contains(html, `src="data:image/png;base64,iVBORw0KGgo="`) {
+			t.Errorf("layout %s HTML must render the QR from the data: URI", id)
+		}
+		fiscalIdx := strings.Index(html, "KRA TIMS Details")
+		barcodeIdx := strings.Index(html, `class="barcode"`)
+		if fiscalIdx == -1 || barcodeIdx == -1 || barcodeIdx < fiscalIdx {
+			t.Errorf("layout %s: fiscal block must precede the barcode block", id)
+		}
+	}
+}
+
+// A non-fiscalised retail sale falls back to the order number as the barcode value (no
+// eTIMS block at all); a fiscalised sale in ANY use case gets the fiscal barcode.
+func TestFiscalBarcodeValueFallback(t *testing.T) {
+	rec := fixtureReceipt("hospitality")
+	rec.EtimsKraPin, rec.EtimsScuID, rec.EtimsCuInvNo = "", "", ""
+	rec.EtimsInvoiceNumber, rec.EtimsRcptSign, rec.EtimsQRCodeURL, rec.EtimsQRPNG = "", "", "", ""
+	// A real receipt.go response only ever sets these when FiscalBarcodeValue() is non-empty
+	// (a non-fiscalised, non-retail sale never gets a barcode) — mirror that here.
+	rec.BarcodePNG, rec.BarcodeValue = "", ""
+	rec.Layout = ThermalClassic
+	html := string(RenderHTML(rec, ""))
+	if strings.Contains(html, "KRA TIMS Details") {
+		t.Error("non-fiscalised sale must not render the fiscal block")
+	}
+	if strings.Contains(html, `class="barcode"`) {
+		t.Error("non-fiscalised, non-retail sale must not render a barcode")
 	}
 }
 
