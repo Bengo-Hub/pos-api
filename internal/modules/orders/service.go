@@ -1838,6 +1838,10 @@ func (s *Service) AddOrderLines(ctx context.Context, tenantID uuid.UUID, tenantS
 	// a waiter taps "Add to Bill" on a live order, the kitchen needs to know now.
 	if len(newLines) > 0 {
 		_ = s.createKDSTicketsForNewLines(ctx, tenantID, result, newLines)
+		// Delta kitchen/bar chits for ONLY the added lines (batch-tagged by the first
+		// new line's ID so a retried request dedupes but a later add still prints).
+		s.enqueueStationTicketsForLines(ctx, tenantID, result, newLines,
+			newLines[0].ID.String(), "*** ADDITIONAL ITEMS ***")
 	}
 
 	return result, nil
@@ -2290,5 +2294,10 @@ func (s *Service) FireCourseKDS(ctx context.Context, tenantID uuid.UUID, order *
 			})
 		}
 	}
+	// Printer-only stations get the fired course as a delta chit too (same gap as
+	// add-to-bill: KDS screens got the ticket, paper kitchens got nothing). A re-fire
+	// of the same course intentionally dedupes on the course-number batch tag.
+	s.enqueueStationTicketsForLines(ctx, tenantID, order, courseLines,
+		fmt.Sprintf("course-%d", course), fmt.Sprintf("*** COURSE %d FIRED ***", course))
 	return nil
 }
