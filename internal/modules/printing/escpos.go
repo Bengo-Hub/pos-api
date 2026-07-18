@@ -63,6 +63,10 @@ type ReceiptData struct {
 	EtimsRcptSign string
 	PaymentMethods     *ReceiptPaymentMethods // "HOW TO PAY" block (M-Pesa/bank), customer receipts only
 	VoidReason         string
+	// Banner is an attention line under the ticket-type heading — e.g.
+	// "*** ADDITIONAL ITEMS ***" on a delta kitchen chit fired when a waiter adds
+	// to an open bill, so the kitchen never mistakes it for a brand-new order.
+	Banner             string
 	ProviderFooter     ProviderFooter // platform-owner (Codevertex) advertisement, customer receipts only
 	// UseCase — "retail" additionally prints a native Code 128 barcode of the order number
 	// and the payment date beside the method (the BOI/GoDigital receipt design).
@@ -126,6 +130,12 @@ func BuildReceipt(d ReceiptData) []byte {
 		write(escCenter)
 		write(escBold)
 		writeln("** KITCHEN **")
+		if d.Banner != "" {
+			// Double-size so a delta chit ("ADDITIONAL ITEMS") is unmissable at the pass.
+			write(escDoubleHW)
+			writeln(d.Banner)
+			write(escSizeReset)
+		}
 		write(escLeft)
 	case "waiter_copy":
 		write(escCenter)

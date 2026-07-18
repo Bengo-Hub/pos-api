@@ -200,6 +200,56 @@ func (h *PaymentHandler) CreatePaymentIntent(w http.ResponseWriter, r *http.Requ
 	})
 }
 
+// settleCreditInput is the body for POST /{tenantID}/pos/orders/{orderID}/payments/settle-credit.
+type settleCreditInput struct {
+	TenderID     uuid.UUID `json:"tenderId"`
+	TenderMethod string    `json:"tenderMethod"`
+	Amount       float64   `json:"amount"` // 0 → full outstanding balance
+	ExternalRef  string    `json:"externalRef,omitempty"`
+	Currency     string    `json:"currency,omitempty"`
+}
+
+// SettleCreditPayment handles POST /{tenantID}/pos/orders/{orderID}/payments/settle-credit —
+// records money collected against a completed on-account (credit) sale: local collected
+// payment row (paid_total/payment_status flip) + treasury AR receipt over S2S. Deliberately
+// NOT the normal intent path — the sale's GL/stock already posted at finalization.
+func (h *PaymentHandler) SettleCreditPayment(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+	orderID, err := uuid.Parse(chi.URLParam(r, "orderID"))
+	if err != nil {
+		jsonError(w, "invalid order_id", http.StatusBadRequest)
+		return
+	}
+	var input settleCreditInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		jsonError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	if strings.TrimSpace(input.TenderMethod) == "" {
+		jsonError(w, "tenderMethod is required", http.StatusBadRequest)
+		return
+	}
+	res, err := h.paymentSvc.SettleCreditPayment(r.Context(), payments.SettleCreditRequest{
+		TenantID:     tid,
+		TenantSlug:   chi.URLParam(r, "tenantID"),
+		OrderID:      orderID,
+		TenderID:     input.TenderID,
+		TenderMethod: input.TenderMethod,
+		Amount:       input.Amount,
+		ExternalRef:  strings.TrimSpace(input.ExternalRef),
+		Currency:     input.Currency,
+	})
+	if err != nil {
+		jsonError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	jsonOK(w, res)
+}
+
 type initiateInput struct {
 	IntentID      string `json:"intent_id"`
 	PaymentMethod string `json:"payment_method"`

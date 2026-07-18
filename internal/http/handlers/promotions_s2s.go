@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -45,6 +46,9 @@ func (h *PromotionHandler) S2SListDiscounts(w http.ResponseWriter, r *http.Reque
 	}
 	if kind := r.URL.Query().Get("kind"); kind != "" {
 		query = query.Where(promotion.PromoKindEQ(promotion.PromoKind(kind)))
+	}
+	if q := strings.TrimSpace(r.URL.Query().Get("q")); q != "" {
+		query = query.Where(promotion.NameContainsFold(q))
 	}
 
 	p := pagination.Parse(r)

@@ -329,6 +329,30 @@ func (c *Client) GetCreditTerms(ctx context.Context, tenantSlug, contactIDOrIden
 // treasury-api PATCH /ar/customers/{id}/credit-terms). The old S2S SetCreditTerms proxy
 // method was removed with the duplicate POS credit-terms editor.
 
+// ARPaymentRequest is the body for POST /api/v1/s2s/{tenant}/ar/customers/{key}/payment —
+// settling (part of) a customer's on-account debt collected at the till.
+type ARPaymentRequest struct {
+	Amount        float64 `json:"amount"`
+	PaymentMethod string  `json:"payment_method,omitempty"`
+	Reference     string  `json:"reference,omitempty"`
+}
+
+// ARPaymentResponse is the updated treasury customer-balance row.
+type ARPaymentResponse struct {
+	ID         string `json:"id"`
+	BalanceDue string `json:"balance_due"`
+	Currency   string `json:"currency"`
+}
+
+// RecordARPayment posts a customer AR repayment to treasury (decrements balance_due and posts
+// the Dr Cash / Cr AR journal there — pos-api must NOT post any GL for a credit settlement,
+// or the receipt would double-post). contactIDOrIdentifier follows the credit-terms convention:
+// CRM contact UUID preferred, phone identifier fallback.
+func (c *Client) RecordARPayment(ctx context.Context, tenantSlug, contactIDOrIdentifier string, req ARPaymentRequest) (*ARPaymentResponse, error) {
+	u := fmt.Sprintf("%s/api/v1/s2s/%s/ar/customers/%s/payment", c.baseURL, tenantSlug, url.PathEscape(contactIDOrIdentifier))
+	return doRequest[ARPaymentResponse](ctx, c.httpClient, http.MethodPost, u, c.apiKey, req)
+}
+
 // QuotationLine is one line on an S2S quotation create. Quantity/UnitPrice go as JSON numbers;
 // treasury's decimal.Decimal fields parse them.
 type QuotationLine struct {

@@ -75,6 +75,15 @@ func StationTicketData(order *ent.POSOrder, stationLabel string, items []map[str
 	}
 }
 
+// StationTicketDataWithBanner is StationTicketData plus an attention banner (e.g.
+// "*** ADDITIONAL ITEMS ***") for delta chits — items added to an already-fired
+// order — so the station never re-prepares the whole bill.
+func StationTicketDataWithBanner(order *ent.POSOrder, stationLabel string, items []map[string]any, banner string) ReceiptData {
+	d := StationTicketData(order, stationLabel, items)
+	d.Banner = banner
+	return d
+}
+
 // receiptDataFromView maps the canonical ReceiptView onto the ESC/POS ReceiptData shape, carrying
 // every field the thermal printer can render (address, served-by, VAT-rate label, charges/
 // round-off, tendered/change, eTIMS, and the "HOW TO PAY" block) so an agent/background-printed

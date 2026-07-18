@@ -44713,6 +44713,8 @@ type OutletSettingMutation struct {
 	currency                        *string
 	max_discount_percent            *float64
 	addmax_discount_percent         *float64
+	max_discount_amount             *float64
+	addmax_discount_amount          *float64
 	allow_price_above_base          *bool
 	require_approval_below_base     *bool
 	vat_enabled                     *bool
@@ -44721,6 +44723,7 @@ type OutletSettingMutation struct {
 	printer_type                    *string
 	printer_ip                      *string
 	paper_width                     *string
+	receipt_format                  *outletsetting.ReceiptFormat
 	auto_print_order                *bool
 	auto_print_kitchen              *bool
 	printer_profiles                *[]map[string]interface{}
@@ -45745,6 +45748,76 @@ func (m *OutletSettingMutation) ResetMaxDiscountPercent() {
 	delete(m.clearedFields, outletsetting.FieldMaxDiscountPercent)
 }
 
+// SetMaxDiscountAmount sets the "max_discount_amount" field.
+func (m *OutletSettingMutation) SetMaxDiscountAmount(f float64) {
+	m.max_discount_amount = &f
+	m.addmax_discount_amount = nil
+}
+
+// MaxDiscountAmount returns the value of the "max_discount_amount" field in the mutation.
+func (m *OutletSettingMutation) MaxDiscountAmount() (r float64, exists bool) {
+	v := m.max_discount_amount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMaxDiscountAmount returns the old "max_discount_amount" field's value of the OutletSetting entity.
+// If the OutletSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OutletSettingMutation) OldMaxDiscountAmount(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMaxDiscountAmount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMaxDiscountAmount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMaxDiscountAmount: %w", err)
+	}
+	return oldValue.MaxDiscountAmount, nil
+}
+
+// AddMaxDiscountAmount adds f to the "max_discount_amount" field.
+func (m *OutletSettingMutation) AddMaxDiscountAmount(f float64) {
+	if m.addmax_discount_amount != nil {
+		*m.addmax_discount_amount += f
+	} else {
+		m.addmax_discount_amount = &f
+	}
+}
+
+// AddedMaxDiscountAmount returns the value that was added to the "max_discount_amount" field in this mutation.
+func (m *OutletSettingMutation) AddedMaxDiscountAmount() (r float64, exists bool) {
+	v := m.addmax_discount_amount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearMaxDiscountAmount clears the value of the "max_discount_amount" field.
+func (m *OutletSettingMutation) ClearMaxDiscountAmount() {
+	m.max_discount_amount = nil
+	m.addmax_discount_amount = nil
+	m.clearedFields[outletsetting.FieldMaxDiscountAmount] = struct{}{}
+}
+
+// MaxDiscountAmountCleared returns if the "max_discount_amount" field was cleared in this mutation.
+func (m *OutletSettingMutation) MaxDiscountAmountCleared() bool {
+	_, ok := m.clearedFields[outletsetting.FieldMaxDiscountAmount]
+	return ok
+}
+
+// ResetMaxDiscountAmount resets all changes to the "max_discount_amount" field.
+func (m *OutletSettingMutation) ResetMaxDiscountAmount() {
+	m.max_discount_amount = nil
+	m.addmax_discount_amount = nil
+	delete(m.clearedFields, outletsetting.FieldMaxDiscountAmount)
+}
+
 // SetAllowPriceAboveBase sets the "allow_price_above_base" field.
 func (m *OutletSettingMutation) SetAllowPriceAboveBase(b bool) {
 	m.allow_price_above_base = &b
@@ -46107,6 +46180,55 @@ func (m *OutletSettingMutation) PaperWidthCleared() bool {
 func (m *OutletSettingMutation) ResetPaperWidth() {
 	m.paper_width = nil
 	delete(m.clearedFields, outletsetting.FieldPaperWidth)
+}
+
+// SetReceiptFormat sets the "receipt_format" field.
+func (m *OutletSettingMutation) SetReceiptFormat(of outletsetting.ReceiptFormat) {
+	m.receipt_format = &of
+}
+
+// ReceiptFormat returns the value of the "receipt_format" field in the mutation.
+func (m *OutletSettingMutation) ReceiptFormat() (r outletsetting.ReceiptFormat, exists bool) {
+	v := m.receipt_format
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReceiptFormat returns the old "receipt_format" field's value of the OutletSetting entity.
+// If the OutletSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OutletSettingMutation) OldReceiptFormat(ctx context.Context) (v outletsetting.ReceiptFormat, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReceiptFormat is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReceiptFormat requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReceiptFormat: %w", err)
+	}
+	return oldValue.ReceiptFormat, nil
+}
+
+// ClearReceiptFormat clears the value of the "receipt_format" field.
+func (m *OutletSettingMutation) ClearReceiptFormat() {
+	m.receipt_format = nil
+	m.clearedFields[outletsetting.FieldReceiptFormat] = struct{}{}
+}
+
+// ReceiptFormatCleared returns if the "receipt_format" field was cleared in this mutation.
+func (m *OutletSettingMutation) ReceiptFormatCleared() bool {
+	_, ok := m.clearedFields[outletsetting.FieldReceiptFormat]
+	return ok
+}
+
+// ResetReceiptFormat resets all changes to the "receipt_format" field.
+func (m *OutletSettingMutation) ResetReceiptFormat() {
+	m.receipt_format = nil
+	delete(m.clearedFields, outletsetting.FieldReceiptFormat)
 }
 
 // SetAutoPrintOrder sets the "auto_print_order" field.
@@ -47722,7 +47844,7 @@ func (m *OutletSettingMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *OutletSettingMutation) Fields() []string {
-	fields := make([]string, 0, 55)
+	fields := make([]string, 0, 57)
 	if m.outlet != nil {
 		fields = append(fields, outletsetting.FieldOutletID)
 	}
@@ -47777,6 +47899,9 @@ func (m *OutletSettingMutation) Fields() []string {
 	if m.max_discount_percent != nil {
 		fields = append(fields, outletsetting.FieldMaxDiscountPercent)
 	}
+	if m.max_discount_amount != nil {
+		fields = append(fields, outletsetting.FieldMaxDiscountAmount)
+	}
 	if m.allow_price_above_base != nil {
 		fields = append(fields, outletsetting.FieldAllowPriceAboveBase)
 	}
@@ -47797,6 +47922,9 @@ func (m *OutletSettingMutation) Fields() []string {
 	}
 	if m.paper_width != nil {
 		fields = append(fields, outletsetting.FieldPaperWidth)
+	}
+	if m.receipt_format != nil {
+		fields = append(fields, outletsetting.FieldReceiptFormat)
 	}
 	if m.auto_print_order != nil {
 		fields = append(fields, outletsetting.FieldAutoPrintOrder)
@@ -47932,6 +48060,8 @@ func (m *OutletSettingMutation) Field(name string) (ent.Value, bool) {
 		return m.Currency()
 	case outletsetting.FieldMaxDiscountPercent:
 		return m.MaxDiscountPercent()
+	case outletsetting.FieldMaxDiscountAmount:
+		return m.MaxDiscountAmount()
 	case outletsetting.FieldAllowPriceAboveBase:
 		return m.AllowPriceAboveBase()
 	case outletsetting.FieldRequireApprovalBelowBase:
@@ -47946,6 +48076,8 @@ func (m *OutletSettingMutation) Field(name string) (ent.Value, bool) {
 		return m.PrinterIP()
 	case outletsetting.FieldPaperWidth:
 		return m.PaperWidth()
+	case outletsetting.FieldReceiptFormat:
+		return m.ReceiptFormat()
 	case outletsetting.FieldAutoPrintOrder:
 		return m.AutoPrintOrder()
 	case outletsetting.FieldAutoPrintKitchen:
@@ -48051,6 +48183,8 @@ func (m *OutletSettingMutation) OldField(ctx context.Context, name string) (ent.
 		return m.OldCurrency(ctx)
 	case outletsetting.FieldMaxDiscountPercent:
 		return m.OldMaxDiscountPercent(ctx)
+	case outletsetting.FieldMaxDiscountAmount:
+		return m.OldMaxDiscountAmount(ctx)
 	case outletsetting.FieldAllowPriceAboveBase:
 		return m.OldAllowPriceAboveBase(ctx)
 	case outletsetting.FieldRequireApprovalBelowBase:
@@ -48065,6 +48199,8 @@ func (m *OutletSettingMutation) OldField(ctx context.Context, name string) (ent.
 		return m.OldPrinterIP(ctx)
 	case outletsetting.FieldPaperWidth:
 		return m.OldPaperWidth(ctx)
+	case outletsetting.FieldReceiptFormat:
+		return m.OldReceiptFormat(ctx)
 	case outletsetting.FieldAutoPrintOrder:
 		return m.OldAutoPrintOrder(ctx)
 	case outletsetting.FieldAutoPrintKitchen:
@@ -48260,6 +48396,13 @@ func (m *OutletSettingMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetMaxDiscountPercent(v)
 		return nil
+	case outletsetting.FieldMaxDiscountAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMaxDiscountAmount(v)
+		return nil
 	case outletsetting.FieldAllowPriceAboveBase:
 		v, ok := value.(bool)
 		if !ok {
@@ -48308,6 +48451,13 @@ func (m *OutletSettingMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetPaperWidth(v)
+		return nil
+	case outletsetting.FieldReceiptFormat:
+		v, ok := value.(outletsetting.ReceiptFormat)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReceiptFormat(v)
 		return nil
 	case outletsetting.FieldAutoPrintOrder:
 		v, ok := value.(bool)
@@ -48530,6 +48680,9 @@ func (m *OutletSettingMutation) AddedFields() []string {
 	if m.addmax_discount_percent != nil {
 		fields = append(fields, outletsetting.FieldMaxDiscountPercent)
 	}
+	if m.addmax_discount_amount != nil {
+		fields = append(fields, outletsetting.FieldMaxDiscountAmount)
+	}
 	if m.addvat_rate != nil {
 		fields = append(fields, outletsetting.FieldVatRate)
 	}
@@ -48552,6 +48705,8 @@ func (m *OutletSettingMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
 	case outletsetting.FieldMaxDiscountPercent:
 		return m.AddedMaxDiscountPercent()
+	case outletsetting.FieldMaxDiscountAmount:
+		return m.AddedMaxDiscountAmount()
 	case outletsetting.FieldVatRate:
 		return m.AddedVatRate()
 	case outletsetting.FieldShiftMaxHours:
@@ -48575,6 +48730,13 @@ func (m *OutletSettingMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddMaxDiscountPercent(v)
+		return nil
+	case outletsetting.FieldMaxDiscountAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddMaxDiscountAmount(v)
 		return nil
 	case outletsetting.FieldVatRate:
 		v, ok := value.(float64)
@@ -48660,6 +48822,9 @@ func (m *OutletSettingMutation) ClearedFields() []string {
 	if m.FieldCleared(outletsetting.FieldMaxDiscountPercent) {
 		fields = append(fields, outletsetting.FieldMaxDiscountPercent)
 	}
+	if m.FieldCleared(outletsetting.FieldMaxDiscountAmount) {
+		fields = append(fields, outletsetting.FieldMaxDiscountAmount)
+	}
 	if m.FieldCleared(outletsetting.FieldAllowPriceAboveBase) {
 		fields = append(fields, outletsetting.FieldAllowPriceAboveBase)
 	}
@@ -48680,6 +48845,9 @@ func (m *OutletSettingMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(outletsetting.FieldPaperWidth) {
 		fields = append(fields, outletsetting.FieldPaperWidth)
+	}
+	if m.FieldCleared(outletsetting.FieldReceiptFormat) {
+		fields = append(fields, outletsetting.FieldReceiptFormat)
 	}
 	if m.FieldCleared(outletsetting.FieldAutoPrintOrder) {
 		fields = append(fields, outletsetting.FieldAutoPrintOrder)
@@ -48830,6 +48998,9 @@ func (m *OutletSettingMutation) ClearField(name string) error {
 	case outletsetting.FieldMaxDiscountPercent:
 		m.ClearMaxDiscountPercent()
 		return nil
+	case outletsetting.FieldMaxDiscountAmount:
+		m.ClearMaxDiscountAmount()
+		return nil
 	case outletsetting.FieldAllowPriceAboveBase:
 		m.ClearAllowPriceAboveBase()
 		return nil
@@ -48850,6 +49021,9 @@ func (m *OutletSettingMutation) ClearField(name string) error {
 		return nil
 	case outletsetting.FieldPaperWidth:
 		m.ClearPaperWidth()
+		return nil
+	case outletsetting.FieldReceiptFormat:
+		m.ClearReceiptFormat()
 		return nil
 	case outletsetting.FieldAutoPrintOrder:
 		m.ClearAutoPrintOrder()
@@ -49000,6 +49174,9 @@ func (m *OutletSettingMutation) ResetField(name string) error {
 	case outletsetting.FieldMaxDiscountPercent:
 		m.ResetMaxDiscountPercent()
 		return nil
+	case outletsetting.FieldMaxDiscountAmount:
+		m.ResetMaxDiscountAmount()
+		return nil
 	case outletsetting.FieldAllowPriceAboveBase:
 		m.ResetAllowPriceAboveBase()
 		return nil
@@ -49020,6 +49197,9 @@ func (m *OutletSettingMutation) ResetField(name string) error {
 		return nil
 	case outletsetting.FieldPaperWidth:
 		m.ResetPaperWidth()
+		return nil
+	case outletsetting.FieldReceiptFormat:
+		m.ResetReceiptFormat()
 		return nil
 	case outletsetting.FieldAutoPrintOrder:
 		m.ResetAutoPrintOrder()

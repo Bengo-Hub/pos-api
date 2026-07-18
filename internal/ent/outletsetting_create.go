@@ -229,6 +229,20 @@ func (_c *OutletSettingCreate) SetNillableMaxDiscountPercent(v *float64) *Outlet
 	return _c
 }
 
+// SetMaxDiscountAmount sets the "max_discount_amount" field.
+func (_c *OutletSettingCreate) SetMaxDiscountAmount(v float64) *OutletSettingCreate {
+	_c.mutation.SetMaxDiscountAmount(v)
+	return _c
+}
+
+// SetNillableMaxDiscountAmount sets the "max_discount_amount" field if the given value is not nil.
+func (_c *OutletSettingCreate) SetNillableMaxDiscountAmount(v *float64) *OutletSettingCreate {
+	if v != nil {
+		_c.SetMaxDiscountAmount(*v)
+	}
+	return _c
+}
+
 // SetAllowPriceAboveBase sets the "allow_price_above_base" field.
 func (_c *OutletSettingCreate) SetAllowPriceAboveBase(v bool) *OutletSettingCreate {
 	_c.mutation.SetAllowPriceAboveBase(v)
@@ -323,6 +337,20 @@ func (_c *OutletSettingCreate) SetPaperWidth(v string) *OutletSettingCreate {
 func (_c *OutletSettingCreate) SetNillablePaperWidth(v *string) *OutletSettingCreate {
 	if v != nil {
 		_c.SetPaperWidth(*v)
+	}
+	return _c
+}
+
+// SetReceiptFormat sets the "receipt_format" field.
+func (_c *OutletSettingCreate) SetReceiptFormat(v outletsetting.ReceiptFormat) *OutletSettingCreate {
+	_c.mutation.SetReceiptFormat(v)
+	return _c
+}
+
+// SetNillableReceiptFormat sets the "receipt_format" field if the given value is not nil.
+func (_c *OutletSettingCreate) SetNillableReceiptFormat(v *outletsetting.ReceiptFormat) *OutletSettingCreate {
+	if v != nil {
+		_c.SetReceiptFormat(*v)
 	}
 	return _c
 }
@@ -821,6 +849,10 @@ func (_c *OutletSettingCreate) defaults() {
 		v := outletsetting.DefaultMaxDiscountPercent
 		_c.mutation.SetMaxDiscountPercent(v)
 	}
+	if _, ok := _c.mutation.MaxDiscountAmount(); !ok {
+		v := outletsetting.DefaultMaxDiscountAmount
+		_c.mutation.SetMaxDiscountAmount(v)
+	}
 	if _, ok := _c.mutation.AllowPriceAboveBase(); !ok {
 		v := outletsetting.DefaultAllowPriceAboveBase
 		_c.mutation.SetAllowPriceAboveBase(v)
@@ -844,6 +876,10 @@ func (_c *OutletSettingCreate) defaults() {
 	if _, ok := _c.mutation.PaperWidth(); !ok {
 		v := outletsetting.DefaultPaperWidth
 		_c.mutation.SetPaperWidth(v)
+	}
+	if _, ok := _c.mutation.ReceiptFormat(); !ok {
+		v := outletsetting.DefaultReceiptFormat
+		_c.mutation.SetReceiptFormat(v)
 	}
 	if _, ok := _c.mutation.AutoPrintOrder(); !ok {
 		v := outletsetting.DefaultAutoPrintOrder
@@ -930,6 +966,11 @@ func (_c *OutletSettingCreate) check() error {
 	}
 	if _, ok := _c.mutation.Metadata(); !ok {
 		return &ValidationError{Name: "metadata", err: errors.New(`ent: missing required field "OutletSetting.metadata"`)}
+	}
+	if v, ok := _c.mutation.ReceiptFormat(); ok {
+		if err := outletsetting.ReceiptFormatValidator(v); err != nil {
+			return &ValidationError{Name: "receipt_format", err: fmt.Errorf(`ent: validator failed for field "OutletSetting.receipt_format": %w`, err)}
+		}
 	}
 	if _, ok := _c.mutation.UpdatedAt(); !ok {
 		return &ValidationError{Name: "updated_at", err: errors.New(`ent: missing required field "OutletSetting.updated_at"`)}
@@ -1041,6 +1082,10 @@ func (_c *OutletSettingCreate) createSpec() (*OutletSetting, *sqlgraph.CreateSpe
 		_spec.SetField(outletsetting.FieldMaxDiscountPercent, field.TypeFloat64, value)
 		_node.MaxDiscountPercent = value
 	}
+	if value, ok := _c.mutation.MaxDiscountAmount(); ok {
+		_spec.SetField(outletsetting.FieldMaxDiscountAmount, field.TypeFloat64, value)
+		_node.MaxDiscountAmount = value
+	}
 	if value, ok := _c.mutation.AllowPriceAboveBase(); ok {
 		_spec.SetField(outletsetting.FieldAllowPriceAboveBase, field.TypeBool, value)
 		_node.AllowPriceAboveBase = value
@@ -1068,6 +1113,10 @@ func (_c *OutletSettingCreate) createSpec() (*OutletSetting, *sqlgraph.CreateSpe
 	if value, ok := _c.mutation.PaperWidth(); ok {
 		_spec.SetField(outletsetting.FieldPaperWidth, field.TypeString, value)
 		_node.PaperWidth = value
+	}
+	if value, ok := _c.mutation.ReceiptFormat(); ok {
+		_spec.SetField(outletsetting.FieldReceiptFormat, field.TypeEnum, value)
+		_node.ReceiptFormat = value
 	}
 	if value, ok := _c.mutation.AutoPrintOrder(); ok {
 		_spec.SetField(outletsetting.FieldAutoPrintOrder, field.TypeBool, value)
@@ -1576,6 +1625,30 @@ func (u *OutletSettingUpsert) ClearMaxDiscountPercent() *OutletSettingUpsert {
 	return u
 }
 
+// SetMaxDiscountAmount sets the "max_discount_amount" field.
+func (u *OutletSettingUpsert) SetMaxDiscountAmount(v float64) *OutletSettingUpsert {
+	u.Set(outletsetting.FieldMaxDiscountAmount, v)
+	return u
+}
+
+// UpdateMaxDiscountAmount sets the "max_discount_amount" field to the value that was provided on create.
+func (u *OutletSettingUpsert) UpdateMaxDiscountAmount() *OutletSettingUpsert {
+	u.SetExcluded(outletsetting.FieldMaxDiscountAmount)
+	return u
+}
+
+// AddMaxDiscountAmount adds v to the "max_discount_amount" field.
+func (u *OutletSettingUpsert) AddMaxDiscountAmount(v float64) *OutletSettingUpsert {
+	u.Add(outletsetting.FieldMaxDiscountAmount, v)
+	return u
+}
+
+// ClearMaxDiscountAmount clears the value of the "max_discount_amount" field.
+func (u *OutletSettingUpsert) ClearMaxDiscountAmount() *OutletSettingUpsert {
+	u.SetNull(outletsetting.FieldMaxDiscountAmount)
+	return u
+}
+
 // SetAllowPriceAboveBase sets the "allow_price_above_base" field.
 func (u *OutletSettingUpsert) SetAllowPriceAboveBase(v bool) *OutletSettingUpsert {
 	u.Set(outletsetting.FieldAllowPriceAboveBase, v)
@@ -1705,6 +1778,24 @@ func (u *OutletSettingUpsert) UpdatePaperWidth() *OutletSettingUpsert {
 // ClearPaperWidth clears the value of the "paper_width" field.
 func (u *OutletSettingUpsert) ClearPaperWidth() *OutletSettingUpsert {
 	u.SetNull(outletsetting.FieldPaperWidth)
+	return u
+}
+
+// SetReceiptFormat sets the "receipt_format" field.
+func (u *OutletSettingUpsert) SetReceiptFormat(v outletsetting.ReceiptFormat) *OutletSettingUpsert {
+	u.Set(outletsetting.FieldReceiptFormat, v)
+	return u
+}
+
+// UpdateReceiptFormat sets the "receipt_format" field to the value that was provided on create.
+func (u *OutletSettingUpsert) UpdateReceiptFormat() *OutletSettingUpsert {
+	u.SetExcluded(outletsetting.FieldReceiptFormat)
+	return u
+}
+
+// ClearReceiptFormat clears the value of the "receipt_format" field.
+func (u *OutletSettingUpsert) ClearReceiptFormat() *OutletSettingUpsert {
+	u.SetNull(outletsetting.FieldReceiptFormat)
 	return u
 }
 
@@ -2679,6 +2770,34 @@ func (u *OutletSettingUpsertOne) ClearMaxDiscountPercent() *OutletSettingUpsertO
 	})
 }
 
+// SetMaxDiscountAmount sets the "max_discount_amount" field.
+func (u *OutletSettingUpsertOne) SetMaxDiscountAmount(v float64) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetMaxDiscountAmount(v)
+	})
+}
+
+// AddMaxDiscountAmount adds v to the "max_discount_amount" field.
+func (u *OutletSettingUpsertOne) AddMaxDiscountAmount(v float64) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.AddMaxDiscountAmount(v)
+	})
+}
+
+// UpdateMaxDiscountAmount sets the "max_discount_amount" field to the value that was provided on create.
+func (u *OutletSettingUpsertOne) UpdateMaxDiscountAmount() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateMaxDiscountAmount()
+	})
+}
+
+// ClearMaxDiscountAmount clears the value of the "max_discount_amount" field.
+func (u *OutletSettingUpsertOne) ClearMaxDiscountAmount() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearMaxDiscountAmount()
+	})
+}
+
 // SetAllowPriceAboveBase sets the "allow_price_above_base" field.
 func (u *OutletSettingUpsertOne) SetAllowPriceAboveBase(v bool) *OutletSettingUpsertOne {
 	return u.Update(func(s *OutletSettingUpsert) {
@@ -2830,6 +2949,27 @@ func (u *OutletSettingUpsertOne) UpdatePaperWidth() *OutletSettingUpsertOne {
 func (u *OutletSettingUpsertOne) ClearPaperWidth() *OutletSettingUpsertOne {
 	return u.Update(func(s *OutletSettingUpsert) {
 		s.ClearPaperWidth()
+	})
+}
+
+// SetReceiptFormat sets the "receipt_format" field.
+func (u *OutletSettingUpsertOne) SetReceiptFormat(v outletsetting.ReceiptFormat) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetReceiptFormat(v)
+	})
+}
+
+// UpdateReceiptFormat sets the "receipt_format" field to the value that was provided on create.
+func (u *OutletSettingUpsertOne) UpdateReceiptFormat() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateReceiptFormat()
+	})
+}
+
+// ClearReceiptFormat clears the value of the "receipt_format" field.
+func (u *OutletSettingUpsertOne) ClearReceiptFormat() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearReceiptFormat()
 	})
 }
 
@@ -4063,6 +4203,34 @@ func (u *OutletSettingUpsertBulk) ClearMaxDiscountPercent() *OutletSettingUpsert
 	})
 }
 
+// SetMaxDiscountAmount sets the "max_discount_amount" field.
+func (u *OutletSettingUpsertBulk) SetMaxDiscountAmount(v float64) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetMaxDiscountAmount(v)
+	})
+}
+
+// AddMaxDiscountAmount adds v to the "max_discount_amount" field.
+func (u *OutletSettingUpsertBulk) AddMaxDiscountAmount(v float64) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.AddMaxDiscountAmount(v)
+	})
+}
+
+// UpdateMaxDiscountAmount sets the "max_discount_amount" field to the value that was provided on create.
+func (u *OutletSettingUpsertBulk) UpdateMaxDiscountAmount() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateMaxDiscountAmount()
+	})
+}
+
+// ClearMaxDiscountAmount clears the value of the "max_discount_amount" field.
+func (u *OutletSettingUpsertBulk) ClearMaxDiscountAmount() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearMaxDiscountAmount()
+	})
+}
+
 // SetAllowPriceAboveBase sets the "allow_price_above_base" field.
 func (u *OutletSettingUpsertBulk) SetAllowPriceAboveBase(v bool) *OutletSettingUpsertBulk {
 	return u.Update(func(s *OutletSettingUpsert) {
@@ -4214,6 +4382,27 @@ func (u *OutletSettingUpsertBulk) UpdatePaperWidth() *OutletSettingUpsertBulk {
 func (u *OutletSettingUpsertBulk) ClearPaperWidth() *OutletSettingUpsertBulk {
 	return u.Update(func(s *OutletSettingUpsert) {
 		s.ClearPaperWidth()
+	})
+}
+
+// SetReceiptFormat sets the "receipt_format" field.
+func (u *OutletSettingUpsertBulk) SetReceiptFormat(v outletsetting.ReceiptFormat) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetReceiptFormat(v)
+	})
+}
+
+// UpdateReceiptFormat sets the "receipt_format" field to the value that was provided on create.
+func (u *OutletSettingUpsertBulk) UpdateReceiptFormat() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateReceiptFormat()
+	})
+}
+
+// ClearReceiptFormat clears the value of the "receipt_format" field.
+func (u *OutletSettingUpsertBulk) ClearReceiptFormat() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearReceiptFormat()
 	})
 }
 

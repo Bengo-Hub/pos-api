@@ -56,33 +56,7 @@ func (s *Service) enqueueAutoPrintJobs(ctx context.Context, tenantID uuid.UUID, 
 
 	// Kitchen/bar station tickets — same routing as KDS tickets.
 	if setting.AutoPrintKitchen {
-		stations, _ := s.client.KDSStation.Query().
-			Where(
-				kdsstation.TenantID(tenantID),
-				kdsstation.OutletID(order.OutletID),
-				kdsstation.IsActive(true),
-			).
-			All(ctx)
-		if len(stations) > 0 {
-			stationItems := routeLinesToStations(lines, stations)
-			for _, station := range stations {
-				items := stationItems[station.ID]
-				if len(items) == 0 {
-					continue
-				}
-				profile := printing.ProfileForStation(profiles, station.ID.String())
-				if profile == nil {
-					continue // station has no real printer assigned — KDS screen (or client path) covers it
-				}
-				jobType := "kitchen"
-				if station.StationType == "bar" {
-					jobType = "bar"
-				}
-				payload := printing.BuildReceipt(printing.StationTicketData(order, station.Name, items))
-				s.enqueueJob(ctx, tenantID, order, jobType, profile, payload,
-					fmt.Sprintf("%s:%s:%s", order.ID, jobType, station.ID))
-			}
-		}
+		s.enqueueStationTickets(ctx, tenantID, order, profiles, lines, "", "")
 	}
 
 	// Customer bill (dine-in pro-forma) — owned here so the till can log the waiter out instantly.
@@ -97,21 +71,10 @@ func (s *Service) enqueueAutoPrintJobs(ctx context.Context, tenantID uuid.UUID, 
 	}
 }
 
-// enqueueJob enqueues one job, logging (never propagating) failures.
-func (s *Service) enqueueJob(ctx context.Context, tenantID uuid.UUID, order *ent.POSOrder, jobType string, profile *printing.PrinterProfile, payload []byte, dedupe string) {
-	_, err := s.printQueue.Enqueue(ctx, printing.EnqueueInput{
-		TenantID:  tenantID,
-		OutletID:  order.OutletID,
-		OrderID:   &order.ID,
-		JobType:   jobType,
-		Target:    printing.TargetFromProfile(profile),
-		Payload:   payload,
-		DedupeKey: dedupe,
-	})
-	if err != nil {
-		s.log.Warn("orders: print job enqueue failed",
-			zap.String("order_id", order.ID.String()),
-			zap.String("job_type", jobType),
-			zap.Error(err))
-	}
-}
+// enqueueStationTickets routes the given lines to the outlet's active KDS stations and
+// enqueues one kitchen/bar chit per station that received items. batchTag disambiguates
+// the dedupe key: "" for the order-create pass (one chit per order+station, retry-safe),
+// a stable per-batch value (e.g. the first added line's ID) for delta chits so a SECOND
+// add-to-bill on the same order still prints while a replay of the SAME batch dedupes.
+// banner is stamped on the chit ("*** ADDITIONAL ITEMS ***" / "*** COURSE N FIRED ***").
+func (s *Service) enqueueStationTickets(ctx context.Context, tenantID uuid.UUID, order *ent.POSOrder, profiles []printing.PrinterProfile,

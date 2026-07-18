@@ -121,6 +121,11 @@ func MaxDiscountPercent(v float64) predicate.OutletSetting {
 	return predicate.OutletSetting(sql.FieldEQ(FieldMaxDiscountPercent, v))
 }
 
+// MaxDiscountAmount applies equality check predicate on the "max_discount_amount" field. It's identical to MaxDiscountAmountEQ.
+func MaxDiscountAmount(v float64) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldMaxDiscountAmount, v))
+}
+
 // AllowPriceAboveBase applies equality check predicate on the "allow_price_above_base" field. It's identical to AllowPriceAboveBaseEQ.
 func AllowPriceAboveBase(v bool) predicate.OutletSetting {
 	return predicate.OutletSetting(sql.FieldEQ(FieldAllowPriceAboveBase, v))
@@ -1011,6 +1016,56 @@ func MaxDiscountPercentNotNil() predicate.OutletSetting {
 	return predicate.OutletSetting(sql.FieldNotNull(FieldMaxDiscountPercent))
 }
 
+// MaxDiscountAmountEQ applies the EQ predicate on the "max_discount_amount" field.
+func MaxDiscountAmountEQ(v float64) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldMaxDiscountAmount, v))
+}
+
+// MaxDiscountAmountNEQ applies the NEQ predicate on the "max_discount_amount" field.
+func MaxDiscountAmountNEQ(v float64) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNEQ(FieldMaxDiscountAmount, v))
+}
+
+// MaxDiscountAmountIn applies the In predicate on the "max_discount_amount" field.
+func MaxDiscountAmountIn(vs ...float64) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIn(FieldMaxDiscountAmount, vs...))
+}
+
+// MaxDiscountAmountNotIn applies the NotIn predicate on the "max_discount_amount" field.
+func MaxDiscountAmountNotIn(vs ...float64) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotIn(FieldMaxDiscountAmount, vs...))
+}
+
+// MaxDiscountAmountGT applies the GT predicate on the "max_discount_amount" field.
+func MaxDiscountAmountGT(v float64) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGT(FieldMaxDiscountAmount, v))
+}
+
+// MaxDiscountAmountGTE applies the GTE predicate on the "max_discount_amount" field.
+func MaxDiscountAmountGTE(v float64) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGTE(FieldMaxDiscountAmount, v))
+}
+
+// MaxDiscountAmountLT applies the LT predicate on the "max_discount_amount" field.
+func MaxDiscountAmountLT(v float64) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLT(FieldMaxDiscountAmount, v))
+}
+
+// MaxDiscountAmountLTE applies the LTE predicate on the "max_discount_amount" field.
+func MaxDiscountAmountLTE(v float64) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLTE(FieldMaxDiscountAmount, v))
+}
+
+// MaxDiscountAmountIsNil applies the IsNil predicate on the "max_discount_amount" field.
+func MaxDiscountAmountIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldMaxDiscountAmount))
+}
+
+// MaxDiscountAmountNotNil applies the NotNil predicate on the "max_discount_amount" field.
+func MaxDiscountAmountNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldMaxDiscountAmount))
+}
+
 // AllowPriceAboveBaseEQ applies the EQ predicate on the "allow_price_above_base" field.
 func AllowPriceAboveBaseEQ(v bool) predicate.OutletSetting {
 	return predicate.OutletSetting(sql.FieldEQ(FieldAllowPriceAboveBase, v))
@@ -1344,6 +1399,36 @@ func PaperWidthEqualFold(v string) predicate.OutletSetting {
 // PaperWidthContainsFold applies the ContainsFold predicate on the "paper_width" field.
 func PaperWidthContainsFold(v string) predicate.OutletSetting {
 	return predicate.OutletSetting(sql.FieldContainsFold(FieldPaperWidth, v))
+}
+
+// ReceiptFormatEQ applies the EQ predicate on the "receipt_format" field.
+func ReceiptFormatEQ(v ReceiptFormat) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldReceiptFormat, v))
+}
+
+// ReceiptFormatNEQ applies the NEQ predicate on the "receipt_format" field.
+func ReceiptFormatNEQ(v ReceiptFormat) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNEQ(FieldReceiptFormat, v))
+}
+
+// ReceiptFormatIn applies the In predicate on the "receipt_format" field.
+func ReceiptFormatIn(vs ...ReceiptFormat) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIn(FieldReceiptFormat, vs...))
+}
+
+// ReceiptFormatNotIn applies the NotIn predicate on the "receipt_format" field.
+func ReceiptFormatNotIn(vs ...ReceiptFormat) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotIn(FieldReceiptFormat, vs...))
+}
+
+// ReceiptFormatIsNil applies the IsNil predicate on the "receipt_format" field.
+func ReceiptFormatIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldReceiptFormat))
+}
+
+// ReceiptFormatNotNil applies the NotNil predicate on the "receipt_format" field.
+func ReceiptFormatNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldReceiptFormat))
 }
 
 // AutoPrintOrderEQ applies the EQ predicate on the "auto_print_order" field.

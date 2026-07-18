@@ -688,11 +688,13 @@ func (h *POSOrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 	// Resolve the outlet's discount/override limits + pricing policy + whether the caller
 	// may bypass them (managers/admins), used by the discount and price-override gates.
 	maxPct := 100.0
+	maxAmount := 0.0                 // 0 = no absolute-amount limit
 	allowAboveBase := true           // cashiers may raise a line price above base (up-sell)
 	requireApprovalBelowBase := true // selling below base needs a manager step-up
 	if outletID != uuid.Nil {
 		if s, sErr := h.client.OutletSetting.Query().Where(outletsetting.OutletID(outletID)).Only(r.Context()); sErr == nil {
 			maxPct = s.MaxDiscountPercent
+			maxAmount = s.MaxDiscountAmount
 			allowAboveBase = s.AllowPriceAboveBase
 			requireApprovalBelowBase = s.RequireApprovalBelowBase
 		}
@@ -704,8 +706,9 @@ func (h *POSOrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Manual-discount gate: a discount above max_discount_percent requires a
-	// manager step-up; over-limit discounts are recorded as order.discount_override.
+	// Manual-discount gate: a discount above max_discount_percent OR above the absolute
+	// max_discount_amount (when configured) requires a manager step-up; over-limit
+	// discounts are recorded as order.discount_override.
 	if input.DiscountAmount > 0 && !callerIsManager {
 		var subtotal float64
 		for _, l := range input.Lines {
@@ -715,7 +718,8 @@ func (h *POSOrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 		if subtotal > 0 {
 			discountPct = input.DiscountAmount / subtotal * 100
 		}
-		if discountPct > maxPct+0.001 {
+		overAmount := maxAmount > 0 && input.DiscountAmount > maxAmount+0.001
+		if discountPct > maxPct+0.001 || overAmount {
 			approverID, valid := uuid.Nil, false
 			if input.ApprovalToken != "" && len(h.terminalSecret) > 0 {
 				approverID, valid = verifyApprovalToken(input.ApprovalToken, "order.discount_override", h.terminalSecret)
@@ -736,7 +740,7 @@ func (h *POSOrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 				h.auditSvc.Record(r.Context(), audit.Entry{
 					TenantID: tid, OutletID: &oid, ActorUserID: userID, ApproverID: &approverID,
 					Action: "order.discount_override", EntityType: "pos_order", Reason: input.DiscountReason, Amount: &amt,
-					After: map[string]any{"discount_percent": discountPct, "max_percent": maxPct},
+					After: map[string]any{"discount_percent": discountPct, "max_percent": maxPct, "max_amount": maxAmount},
 				})
 			}
 		}

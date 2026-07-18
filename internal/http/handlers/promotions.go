@@ -87,6 +87,9 @@ func (h *PromotionHandler) ListPromotions(w http.ResponseWriter, r *http.Request
 	default:
 		query = query.Where(promotion.Status(status))
 	}
+	if q := strings.TrimSpace(r.URL.Query().Get("q")); q != "" {
+		query = query.Where(promotion.NameContainsFold(q))
+	}
 
 	p := pagination.Parse(r)
 	total, _ := query.Clone().Count(r.Context())

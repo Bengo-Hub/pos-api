@@ -16,8 +16,9 @@ var moduleUseCases = map[string][]string{
 	// Hospitality-exclusive (Hotel group, table service).
 	"hotel":      {"hospitality"},
 	"conference": {"hospitality"},
-	"promotions": {"hospitality"}, // Happy Hour — surfaced only under the Hotel nav group today
-	"tables":     {"hospitality"},
+	// "promotions" is deliberately ABSENT (common): discounts are a cross-use-case
+	// Sell surface since the happy-hour editor was folded into Sell → Discounts.
+	"tables": {"hospitality"},
 	// Shared between hospitality (table service + counter) and quick_service.
 	"kds": {"hospitality", "quick_service"},
 	// Shared between hospitality (dine-in reservations/room service) and services (bookings).

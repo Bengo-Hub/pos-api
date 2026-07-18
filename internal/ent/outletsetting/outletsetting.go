@@ -3,6 +3,7 @@
 package outletsetting
 
 import (
+	"fmt"
 	"time"
 
 	"entgo.io/ent/dialect/sql"
@@ -51,6 +52,8 @@ const (
 	FieldCurrency = "currency"
 	// FieldMaxDiscountPercent holds the string denoting the max_discount_percent field in the database.
 	FieldMaxDiscountPercent = "max_discount_percent"
+	// FieldMaxDiscountAmount holds the string denoting the max_discount_amount field in the database.
+	FieldMaxDiscountAmount = "max_discount_amount"
 	// FieldAllowPriceAboveBase holds the string denoting the allow_price_above_base field in the database.
 	FieldAllowPriceAboveBase = "allow_price_above_base"
 	// FieldRequireApprovalBelowBase holds the string denoting the require_approval_below_base field in the database.
@@ -65,6 +68,8 @@ const (
 	FieldPrinterIP = "printer_ip"
 	// FieldPaperWidth holds the string denoting the paper_width field in the database.
 	FieldPaperWidth = "paper_width"
+	// FieldReceiptFormat holds the string denoting the receipt_format field in the database.
+	FieldReceiptFormat = "receipt_format"
 	// FieldAutoPrintOrder holds the string denoting the auto_print_order field in the database.
 	FieldAutoPrintOrder = "auto_print_order"
 	// FieldAutoPrintKitchen holds the string denoting the auto_print_kitchen field in the database.
@@ -159,6 +164,7 @@ var Columns = []string{
 	FieldReceiptFooter,
 	FieldCurrency,
 	FieldMaxDiscountPercent,
+	FieldMaxDiscountAmount,
 	FieldAllowPriceAboveBase,
 	FieldRequireApprovalBelowBase,
 	FieldVatEnabled,
@@ -166,6 +172,7 @@ var Columns = []string{
 	FieldPrinterType,
 	FieldPrinterIP,
 	FieldPaperWidth,
+	FieldReceiptFormat,
 	FieldAutoPrintOrder,
 	FieldAutoPrintKitchen,
 	FieldPrinterProfiles,
@@ -227,6 +234,8 @@ var (
 	DefaultCurrency string
 	// DefaultMaxDiscountPercent holds the default value on creation for the "max_discount_percent" field.
 	DefaultMaxDiscountPercent float64
+	// DefaultMaxDiscountAmount holds the default value on creation for the "max_discount_amount" field.
+	DefaultMaxDiscountAmount float64
 	// DefaultAllowPriceAboveBase holds the default value on creation for the "allow_price_above_base" field.
 	DefaultAllowPriceAboveBase bool
 	// DefaultRequireApprovalBelowBase holds the default value on creation for the "require_approval_below_base" field.
@@ -280,6 +289,34 @@ var (
 	// DefaultID holds the default value on creation for the "id" field.
 	DefaultID func() uuid.UUID
 )
+
+// ReceiptFormat defines the type for the "receipt_format" enum field.
+type ReceiptFormat string
+
+// ReceiptFormatAuto is the default value of the ReceiptFormat enum.
+const DefaultReceiptFormat = ReceiptFormatAuto
+
+// ReceiptFormat values.
+const (
+	ReceiptFormatAuto           ReceiptFormat = "auto"
+	ReceiptFormatThermalClassic ReceiptFormat = "thermal_classic"
+	ReceiptFormatThermalModern  ReceiptFormat = "thermal_modern"
+	ReceiptFormatA4Invoice      ReceiptFormat = "a4_invoice"
+)
+
+func (rf ReceiptFormat) String() string {
+	return string(rf)
+}
+
+// ReceiptFormatValidator is a validator for the "receipt_format" field enum values. It is called by the builders before save.
+func ReceiptFormatValidator(rf ReceiptFormat) error {
+	switch rf {
+	case ReceiptFormatAuto, ReceiptFormatThermalClassic, ReceiptFormatThermalModern, ReceiptFormatA4Invoice:
+		return nil
+	default:
+		return fmt.Errorf("outletsetting: invalid enum value for receipt_format field: %q", rf)
+	}
+}
 
 // OrderOption defines the ordering options for the OutletSetting queries.
 type OrderOption func(*sql.Selector)
@@ -354,6 +391,11 @@ func ByMaxDiscountPercent(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldMaxDiscountPercent, opts...).ToFunc()
 }
 
+// ByMaxDiscountAmount orders the results by the max_discount_amount field.
+func ByMaxDiscountAmount(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldMaxDiscountAmount, opts...).ToFunc()
+}
+
 // ByAllowPriceAboveBase orders the results by the allow_price_above_base field.
 func ByAllowPriceAboveBase(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldAllowPriceAboveBase, opts...).ToFunc()
@@ -387,6 +429,11 @@ func ByPrinterIP(opts ...sql.OrderTermOption) OrderOption {
 // ByPaperWidth orders the results by the paper_width field.
 func ByPaperWidth(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldPaperWidth, opts...).ToFunc()
+}
+
+// ByReceiptFormat orders the results by the receipt_format field.
+func ByReceiptFormat(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldReceiptFormat, opts...).ToFunc()
 }
 
 // ByAutoPrintOrder orders the results by the auto_print_order field.

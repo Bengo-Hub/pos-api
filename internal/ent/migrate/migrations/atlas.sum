@@ -1,4 +1,4 @@
-h1:W/IL9nDxKtH1JrTH1kk6au9G/0p3OQD+6gX0ReyIaQg=
+h1:bwGWIorGpTIpfz+JY1+r8bKvKQnjZ+P+Z0cZH3nhvQk=
 20260324210314_initial_schema.sql h1:L7ICP+7BHePtjHfQRRY9yP85A6Q9SyiYsqSvGK7paxA=
 20260403120000_fix_outbox_events_schema.sql h1:VNlTFTGCLBkz4+UvvvqZf5y5tyS0FfS1AXy770Ybc8o=
 20260507090905_hotel_module.sql h1:PGKqdzMQaeFLALmRXUmGsXjha3Rt42EldWJceFVNGDo=
@@ -79,3 +79,5 @@ h1:W/IL9nDxKtH1JrTH1kk6au9G/0p3OQD+6gX0ReyIaQg=
 20260716194359_add_etims_fiscalisation_identity.sql h1:1ES3b/jDlB2oYt5c4aiDmcdzxNf3AXlPE2dqlDLIpLo=
 20260717083233_add_pos_reversals.sql h1:9LLxHFMAXkJopMD1UGJ/OJnrQvJfd/8At5pPdEs4vOs=
 20260718075255_outlet_pricing_policy.sql h1:NIqKkDyoFJcw6KzZj6z9oxvYRVfn+XG2MBme6WQ24I0=
+20260718174343_outlet_setting_max_discount_amount.sql h1:x/rWAnEQnF0O+zUSOtnoOZrROBwuBb/N57wn8+24CXM=
+20260718213358_outlet_receipt_format.sql h1:c3xO5bDoDX7/GBO4X3oPdY63XzYfBJKEeqHfayf4ICU=

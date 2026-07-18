@@ -346,6 +346,33 @@ func (_u *OutletSettingUpdate) ClearMaxDiscountPercent() *OutletSettingUpdate {
 	return _u
 }
 
+// SetMaxDiscountAmount sets the "max_discount_amount" field.
+func (_u *OutletSettingUpdate) SetMaxDiscountAmount(v float64) *OutletSettingUpdate {
+	_u.mutation.ResetMaxDiscountAmount()
+	_u.mutation.SetMaxDiscountAmount(v)
+	return _u
+}
+
+// SetNillableMaxDiscountAmount sets the "max_discount_amount" field if the given value is not nil.
+func (_u *OutletSettingUpdate) SetNillableMaxDiscountAmount(v *float64) *OutletSettingUpdate {
+	if v != nil {
+		_u.SetMaxDiscountAmount(*v)
+	}
+	return _u
+}
+
+// AddMaxDiscountAmount adds value to the "max_discount_amount" field.
+func (_u *OutletSettingUpdate) AddMaxDiscountAmount(v float64) *OutletSettingUpdate {
+	_u.mutation.AddMaxDiscountAmount(v)
+	return _u
+}
+
+// ClearMaxDiscountAmount clears the value of the "max_discount_amount" field.
+func (_u *OutletSettingUpdate) ClearMaxDiscountAmount() *OutletSettingUpdate {
+	_u.mutation.ClearMaxDiscountAmount()
+	return _u
+}
+
 // SetAllowPriceAboveBase sets the "allow_price_above_base" field.
 func (_u *OutletSettingUpdate) SetAllowPriceAboveBase(v bool) *OutletSettingUpdate {
 	_u.mutation.SetAllowPriceAboveBase(v)
@@ -490,6 +517,26 @@ func (_u *OutletSettingUpdate) SetNillablePaperWidth(v *string) *OutletSettingUp
 // ClearPaperWidth clears the value of the "paper_width" field.
 func (_u *OutletSettingUpdate) ClearPaperWidth() *OutletSettingUpdate {
 	_u.mutation.ClearPaperWidth()
+	return _u
+}
+
+// SetReceiptFormat sets the "receipt_format" field.
+func (_u *OutletSettingUpdate) SetReceiptFormat(v outletsetting.ReceiptFormat) *OutletSettingUpdate {
+	_u.mutation.SetReceiptFormat(v)
+	return _u
+}
+
+// SetNillableReceiptFormat sets the "receipt_format" field if the given value is not nil.
+func (_u *OutletSettingUpdate) SetNillableReceiptFormat(v *outletsetting.ReceiptFormat) *OutletSettingUpdate {
+	if v != nil {
+		_u.SetReceiptFormat(*v)
+	}
+	return _u
+}
+
+// ClearReceiptFormat clears the value of the "receipt_format" field.
+func (_u *OutletSettingUpdate) ClearReceiptFormat() *OutletSettingUpdate {
+	_u.mutation.ClearReceiptFormat()
 	return _u
 }
 
@@ -1150,6 +1197,11 @@ func (_u *OutletSettingUpdate) defaults() {
 
 // check runs all checks and user-defined validators on the builder.
 func (_u *OutletSettingUpdate) check() error {
+	if v, ok := _u.mutation.ReceiptFormat(); ok {
+		if err := outletsetting.ReceiptFormatValidator(v); err != nil {
+			return &ValidationError{Name: "receipt_format", err: fmt.Errorf(`ent: validator failed for field "OutletSetting.receipt_format": %w`, err)}
+		}
+	}
 	if _u.mutation.OutletCleared() && len(_u.mutation.OutletIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "OutletSetting.outlet"`)
 	}
@@ -1270,6 +1322,15 @@ func (_u *OutletSettingUpdate) sqlSave(ctx context.Context) (_node int, err erro
 	if _u.mutation.MaxDiscountPercentCleared() {
 		_spec.ClearField(outletsetting.FieldMaxDiscountPercent, field.TypeFloat64)
 	}
+	if value, ok := _u.mutation.MaxDiscountAmount(); ok {
+		_spec.SetField(outletsetting.FieldMaxDiscountAmount, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedMaxDiscountAmount(); ok {
+		_spec.AddField(outletsetting.FieldMaxDiscountAmount, field.TypeFloat64, value)
+	}
+	if _u.mutation.MaxDiscountAmountCleared() {
+		_spec.ClearField(outletsetting.FieldMaxDiscountAmount, field.TypeFloat64)
+	}
 	if value, ok := _u.mutation.AllowPriceAboveBase(); ok {
 		_spec.SetField(outletsetting.FieldAllowPriceAboveBase, field.TypeBool, value)
 	}
@@ -1314,6 +1375,12 @@ func (_u *OutletSettingUpdate) sqlSave(ctx context.Context) (_node int, err erro
 	}
 	if _u.mutation.PaperWidthCleared() {
 		_spec.ClearField(outletsetting.FieldPaperWidth, field.TypeString)
+	}
+	if value, ok := _u.mutation.ReceiptFormat(); ok {
+		_spec.SetField(outletsetting.FieldReceiptFormat, field.TypeEnum, value)
+	}
+	if _u.mutation.ReceiptFormatCleared() {
+		_spec.ClearField(outletsetting.FieldReceiptFormat, field.TypeEnum)
 	}
 	if value, ok := _u.mutation.AutoPrintOrder(); ok {
 		_spec.SetField(outletsetting.FieldAutoPrintOrder, field.TypeBool, value)
@@ -1875,6 +1942,33 @@ func (_u *OutletSettingUpdateOne) ClearMaxDiscountPercent() *OutletSettingUpdate
 	return _u
 }
 
+// SetMaxDiscountAmount sets the "max_discount_amount" field.
+func (_u *OutletSettingUpdateOne) SetMaxDiscountAmount(v float64) *OutletSettingUpdateOne {
+	_u.mutation.ResetMaxDiscountAmount()
+	_u.mutation.SetMaxDiscountAmount(v)
+	return _u
+}
+
+// SetNillableMaxDiscountAmount sets the "max_discount_amount" field if the given value is not nil.
+func (_u *OutletSettingUpdateOne) SetNillableMaxDiscountAmount(v *float64) *OutletSettingUpdateOne {
+	if v != nil {
+		_u.SetMaxDiscountAmount(*v)
+	}
+	return _u
+}
+
+// AddMaxDiscountAmount adds value to the "max_discount_amount" field.
+func (_u *OutletSettingUpdateOne) AddMaxDiscountAmount(v float64) *OutletSettingUpdateOne {
+	_u.mutation.AddMaxDiscountAmount(v)
+	return _u
+}
+
+// ClearMaxDiscountAmount clears the value of the "max_discount_amount" field.
+func (_u *OutletSettingUpdateOne) ClearMaxDiscountAmount() *OutletSettingUpdateOne {
+	_u.mutation.ClearMaxDiscountAmount()
+	return _u
+}
+
 // SetAllowPriceAboveBase sets the "allow_price_above_base" field.
 func (_u *OutletSettingUpdateOne) SetAllowPriceAboveBase(v bool) *OutletSettingUpdateOne {
 	_u.mutation.SetAllowPriceAboveBase(v)
@@ -2019,6 +2113,26 @@ func (_u *OutletSettingUpdateOne) SetNillablePaperWidth(v *string) *OutletSettin
 // ClearPaperWidth clears the value of the "paper_width" field.
 func (_u *OutletSettingUpdateOne) ClearPaperWidth() *OutletSettingUpdateOne {
 	_u.mutation.ClearPaperWidth()
+	return _u
+}
+
+// SetReceiptFormat sets the "receipt_format" field.
+func (_u *OutletSettingUpdateOne) SetReceiptFormat(v outletsetting.ReceiptFormat) *OutletSettingUpdateOne {
+	_u.mutation.SetReceiptFormat(v)
+	return _u
+}
+
+// SetNillableReceiptFormat sets the "receipt_format" field if the given value is not nil.
+func (_u *OutletSettingUpdateOne) SetNillableReceiptFormat(v *outletsetting.ReceiptFormat) *OutletSettingUpdateOne {
+	if v != nil {
+		_u.SetReceiptFormat(*v)
+	}
+	return _u
+}
+
+// ClearReceiptFormat clears the value of the "receipt_format" field.
+func (_u *OutletSettingUpdateOne) ClearReceiptFormat() *OutletSettingUpdateOne {
+	_u.mutation.ClearReceiptFormat()
 	return _u
 }
 
@@ -2692,6 +2806,11 @@ func (_u *OutletSettingUpdateOne) defaults() {
 
 // check runs all checks and user-defined validators on the builder.
 func (_u *OutletSettingUpdateOne) check() error {
+	if v, ok := _u.mutation.ReceiptFormat(); ok {
+		if err := outletsetting.ReceiptFormatValidator(v); err != nil {
+			return &ValidationError{Name: "receipt_format", err: fmt.Errorf(`ent: validator failed for field "OutletSetting.receipt_format": %w`, err)}
+		}
+	}
 	if _u.mutation.OutletCleared() && len(_u.mutation.OutletIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "OutletSetting.outlet"`)
 	}
@@ -2829,6 +2948,15 @@ func (_u *OutletSettingUpdateOne) sqlSave(ctx context.Context) (_node *OutletSet
 	if _u.mutation.MaxDiscountPercentCleared() {
 		_spec.ClearField(outletsetting.FieldMaxDiscountPercent, field.TypeFloat64)
 	}
+	if value, ok := _u.mutation.MaxDiscountAmount(); ok {
+		_spec.SetField(outletsetting.FieldMaxDiscountAmount, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedMaxDiscountAmount(); ok {
+		_spec.AddField(outletsetting.FieldMaxDiscountAmount, field.TypeFloat64, value)
+	}
+	if _u.mutation.MaxDiscountAmountCleared() {
+		_spec.ClearField(outletsetting.FieldMaxDiscountAmount, field.TypeFloat64)
+	}
 	if value, ok := _u.mutation.AllowPriceAboveBase(); ok {
 		_spec.SetField(outletsetting.FieldAllowPriceAboveBase, field.TypeBool, value)
 	}
@@ -2873,6 +3001,12 @@ func (_u *OutletSettingUpdateOne) sqlSave(ctx context.Context) (_node *OutletSet
 	}
 	if _u.mutation.PaperWidthCleared() {
 		_spec.ClearField(outletsetting.FieldPaperWidth, field.TypeString)
+	}
+	if value, ok := _u.mutation.ReceiptFormat(); ok {
+		_spec.SetField(outletsetting.FieldReceiptFormat, field.TypeEnum, value)
+	}
+	if _u.mutation.ReceiptFormatCleared() {
+		_spec.ClearField(outletsetting.FieldReceiptFormat, field.TypeEnum)
 	}
 	if value, ok := _u.mutation.AutoPrintOrder(); ok {
 		_spec.SetField(outletsetting.FieldAutoPrintOrder, field.TypeBool, value)

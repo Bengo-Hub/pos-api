@@ -483,6 +483,10 @@ func New(
 						// money-movement action Ã¢â‚¬â€ gate on payments.add (cashier, waiter, manager+).
 						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.payments.add", "pos.payments.manage")).
 							Post("/orders/{orderID}/payments/intent", payments.CreatePaymentIntent)
+						// Settle an on-account (credit) sale: collected row + treasury AR receipt.
+						// Separate from the intent path — the finalized sale's GL/stock never re-post.
+						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.payments.add", "pos.payments.manage")).
+							Post("/orders/{orderID}/payments/settle-credit", payments.SettleCreditPayment)
 						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.payments.add", "pos.payments.manage")).
 							Post("/orders/{orderID}/payments", payments.RecordPayment)
 						pos.With(outletmw.RequireServicePermission(rbacSvc,

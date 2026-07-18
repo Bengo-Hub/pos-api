@@ -20,6 +20,7 @@ import (
 	entstaffoutlet "github.com/bengobox/pos-service/internal/ent/staffoutlet"
 	outletmw "github.com/bengobox/pos-service/internal/http/middleware"
 	"github.com/bengobox/pos-service/internal/modules/printing"
+	"github.com/bengobox/pos-service/internal/modules/printing/layouts"
 )
 
 // ServiceSettingsHandler manages tenant/outlet POS configuration.
@@ -88,6 +89,11 @@ type settingsResponse struct {
 	PaperWidth       string  `json:"paper_width"`
 	AutoPrintOrder   bool    `json:"auto_print_order"`
 	AutoPrintKitchen bool    `json:"auto_print_kitchen"`
+	// receipt layout — the outlet's receipt_format setting ("auto" = best layout per use
+	// case) plus the selectable layouts from the printing/layouts registry, so the settings
+	// UI picker is registry-driven rather than hardcoded.
+	ReceiptFormat           string           `json:"receipt_format"`
+	AvailableReceiptFormats []layouts.Layout `json:"available_receipt_formats"`
 	// modules
 	EnableKDS           bool `json:"enable_kds"`
 	EnableAppointments  bool `json:"enable_appointments"`
@@ -109,8 +115,9 @@ type settingsResponse struct {
 	TableMaxOccupationMinutes int `json:"table_max_occupation_minutes"`
 	// returns policy
 	ReturnWindowDays int `json:"return_window_days"`
-	// discount control
+	// discount control (exceeding EITHER limit triggers the manager step-up)
 	MaxDiscountPercent float64 `json:"max_discount_percent"`
+	MaxDiscountAmount  float64 `json:"max_discount_amount"`
 	// pricing policy — cashier price-edit rules (see OutletSetting schema comments)
 	AllowPriceAboveBase      bool `json:"allow_price_above_base"`
 	RequireApprovalBelowBase bool `json:"require_approval_below_base"`
@@ -165,6 +172,8 @@ func toSettingsResponse(outlet *ent.Outlet, s *ent.OutletSetting) settingsRespon
 		VATRate:                   s.VatRate,
 		PrinterType:               s.PrinterType,
 		PaperWidth:                s.PaperWidth,
+		ReceiptFormat:             string(s.ReceiptFormat),
+		AvailableReceiptFormats:   layouts.All(),
 		AutoPrintOrder:            s.AutoPrintOrder,
 		AutoPrintKitchen:          s.AutoPrintKitchen,
 		EnableKDS:                 s.EnableKds,
@@ -181,6 +190,7 @@ func toSettingsResponse(outlet *ent.Outlet, s *ent.OutletSetting) settingsRespon
 		TableMaxOccupationMinutes: s.TableMaxOccupationMinutes,
 		ReturnWindowDays:          s.ReturnWindowDays,
 		MaxDiscountPercent:        s.MaxDiscountPercent,
+		MaxDiscountAmount:         s.MaxDiscountAmount,
 		AllowPriceAboveBase:       s.AllowPriceAboveBase,
 		RequireApprovalBelowBase:  s.RequireApprovalBelowBase,
 		PrinterProfiles:           s.PrinterProfiles,
@@ -445,6 +455,7 @@ type updateSettingsInput struct {
 	PrinterType        *string          `json:"printer_type"`
 	PrinterIP          *string          `json:"printer_ip"`
 	PaperWidth         *string          `json:"paper_width"`
+	ReceiptFormat      *string          `json:"receipt_format"`
 	AutoPrintOrder     *bool            `json:"auto_print_order"`
 	AutoPrintKitchen   *bool            `json:"auto_print_kitchen"`
 	PrinterProfiles    []map[string]any `json:"printer_profiles"`
@@ -452,6 +463,7 @@ type updateSettingsInput struct {
 	ScreensaverURL     *string          `json:"screensaver_url"`
 	ReturnWindowDays   *int             `json:"return_window_days"`
 	MaxDiscountPercent *float64         `json:"max_discount_percent"`
+	MaxDiscountAmount  *float64         `json:"max_discount_amount"`
 	// pricing policy
 	AllowPriceAboveBase      *bool `json:"allow_price_above_base"`
 	RequireApprovalBelowBase *bool `json:"require_approval_below_base"`
@@ -531,6 +543,9 @@ func (h *ServiceSettingsHandler) PutSettings(w http.ResponseWriter, r *http.Requ
 	if input.MaxDiscountPercent != nil {
 		upd = upd.SetMaxDiscountPercent(*input.MaxDiscountPercent)
 	}
+	if input.MaxDiscountAmount != nil {
+		upd = upd.SetMaxDiscountAmount(*input.MaxDiscountAmount)
+	}
 	if input.AllowPriceAboveBase != nil {
 		upd = upd.SetAllowPriceAboveBase(*input.AllowPriceAboveBase)
 	}
@@ -551,6 +566,19 @@ func (h *ServiceSettingsHandler) PutSettings(w http.ResponseWriter, r *http.Requ
 	}
 	if input.PaperWidth != nil {
 		upd = upd.SetPaperWidth(*input.PaperWidth)
+	}
+	if input.ReceiptFormat != nil {
+		// Validate against the layouts registry so an unknown/misspelled format can never be
+		// stored ("" and "auto" both mean the auto default).
+		if !layouts.Valid(*input.ReceiptFormat) {
+			jsonError(w, "invalid receipt_format", http.StatusBadRequest)
+			return
+		}
+		v := *input.ReceiptFormat
+		if v == "" {
+			v = layouts.FormatAuto
+		}
+		upd = upd.SetReceiptFormat(entoutletsetting.ReceiptFormat(v))
 	}
 	if input.AutoPrintOrder != nil {
 		upd = upd.SetAutoPrintOrder(*input.AutoPrintOrder)
