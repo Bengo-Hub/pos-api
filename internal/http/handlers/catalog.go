@@ -82,19 +82,19 @@ type inventoryProxyItem struct {
 	TrackSerialNumbers      bool                    `json:"track_serial_numbers"`
 	// NonBillable: never charged at the till even when a selling price exists (free
 	// accompaniments like ugali, supplies like tissue/packaging); stock still deducts.
-	NonBillable             *bool                   `json:"non_billable,omitempty"`
-	DurationMinutes         int                     `json:"duration_minutes"`
+	NonBillable     *bool `json:"non_billable,omitempty"`
+	DurationMinutes int   `json:"duration_minutes"`
 	// Hospitality / bookable-service fields (SERVICE items: co-working, conference,
 	// facility, amenity, salon). use_case drives how the terminal presents/books the item;
 	// total/booked_capacity model shared-seating availability (co-working desks).
-	UseCase                 string                  `json:"use_case,omitempty"`
-	TotalCapacity           *int                    `json:"total_capacity,omitempty"`
-	BookedCapacity          *int                    `json:"booked_capacity,omitempty"`
-	CostPrice               *float64                `json:"cost_price,omitempty"`
-	SuggestedPrice          *float64                `json:"suggested_price,omitempty"`
-	MinSellingPrice         *float64                `json:"min_selling_price,omitempty"` // hard floor enforced at sale
-	MaxSellingPrice         *float64                `json:"max_selling_price,omitempty"` // hard ceiling enforced at sale
-	OnHand                  *float64                `json:"on_hand,omitempty"`           // stock on hand from inventory balances (StockBadge)
+	UseCase         string   `json:"use_case,omitempty"`
+	TotalCapacity   *int     `json:"total_capacity,omitempty"`
+	BookedCapacity  *int     `json:"booked_capacity,omitempty"`
+	CostPrice       *float64 `json:"cost_price,omitempty"`
+	SuggestedPrice  *float64 `json:"suggested_price,omitempty"`
+	MinSellingPrice *float64 `json:"min_selling_price,omitempty"` // hard floor enforced at sale
+	MaxSellingPrice *float64 `json:"max_selling_price,omitempty"` // hard ceiling enforced at sale
+	OnHand          *float64 `json:"on_hand,omitempty"`           // stock on hand from inventory balances (StockBadge)
 	// Recipe-costing fields (added 2026-06-01)
 	SellingPrice   *float64 `json:"selling_price,omitempty"`
 	FoodCostPct    *float64 `json:"food_cost_pct,omitempty"`
@@ -127,12 +127,12 @@ type inventoryProxyModifierOption struct {
 
 // inventoryProxyModifierGroup mirrors inventory-api's items.ItemModifierGroup.
 type inventoryProxyModifierGroup struct {
-	ID            string                          `json:"id"`
-	Name          string                          `json:"name"`
-	IsRequired    bool                            `json:"is_required"`
-	MinSelections int                             `json:"min_selections"`
-	MaxSelections int                             `json:"max_selections"`
-	Options       []inventoryProxyModifierOption  `json:"options"`
+	ID            string                         `json:"id"`
+	Name          string                         `json:"name"`
+	IsRequired    bool                           `json:"is_required"`
+	MinSelections int                            `json:"min_selections"`
+	MaxSelections int                            `json:"max_selections"`
+	Options       []inventoryProxyModifierOption `json:"options"`
 }
 
 // inventoryBulkPrice is one entry from GET /inventory/items/pricing.
@@ -685,28 +685,28 @@ func (h *CatalogHandler) ResolvePrice(w http.ResponseWriter, r *http.Request) {
 // inventory-sourced display fields (name/description/image/category) plus the
 // POS-resolved selling price, availability and compliance flags.
 type catalogItemDTO struct {
-	ID                      string
-	SKU                     string
-	Name                    string
-	Description             string
-	CategoryName            string
-	BrandName               string
-	BrandCode               string
-	Manufacturer            string
-	Model                   string
-	HasVariants             bool
-	Variants                []inventoryProxyVariant
-	ItemType                string
-	IsActive                bool
-	IsAvailable             bool
+	ID           string
+	SKU          string
+	Name         string
+	Description  string
+	CategoryName string
+	BrandName    string
+	BrandCode    string
+	Manufacturer string
+	Model        string
+	HasVariants  bool
+	Variants     []inventoryProxyVariant
+	ItemType     string
+	IsActive     bool
+	IsAvailable  bool
 	// IsComplimentary marks a no-charge accompaniment: price 0 but explicitly enabled, shown as
 	// "Free" and not charged, while its recipe/BOM stock is still deducted on sale.
-	IsComplimentary         bool
-	IsFeatured              bool
-	DisplayOrder            int
-	ImageURL                string
-	Barcode                 string
-	Price                   float64
+	IsComplimentary bool
+	IsFeatured      bool
+	DisplayOrder    int
+	ImageURL        string
+	Barcode         string
+	Price           float64
 	// Prices carries the per-pricing-profile price keyed by tier code (e.g. {"RETAIL":320,
 	// "WHOLESALE":290}) so the terminal can switch profiles without re-fetching. Default-profile
 	// price stays in Price (override-merged).
@@ -729,22 +729,22 @@ type catalogItemDTO struct {
 	// ring-up. UseCase mirrors the inventory item's use_case; Bookable is true when the
 	// item is a bookable SERVICE (see isBookableServiceUseCase). Total/BookedCapacity carry
 	// shared-seating availability. All nil/false for ordinary food/retail items.
-	UseCase                 string
-	Bookable                bool
-	TotalCapacity           *int
-	BookedCapacity          *int
-	StockQuantity           *float64
+	UseCase        string
+	Bookable       bool
+	TotalCapacity  *int
+	BookedCapacity *int
+	StockQuantity  *float64
 	// Selling-price guardrails sourced from inventory — the terminal enforces the band and
 	// pos-api hard-blocks out-of-band sale prices (manager override required).
-	MinSellingPrice         *float64
-	MaxSellingPrice         *float64
+	MinSellingPrice *float64
+	MaxSellingPrice *float64
 	// CostPrice is the supplier/purchase cost from inventory. It is SENSITIVE — only serialized to
 	// callers with pos.catalog.view_cost (manager/admin) so the cart can show cost + margin; never
 	// exposed on a cashier terminal or the public menu document.
-	CostPrice               *float64
+	CostPrice *float64
 	// NonBillable mirrors inventory Item.non_billable: rung up at a forced KES 0
 	// (IsComplimentary is also set) — free accompaniments and supplies.
-	NonBillable             bool
+	NonBillable bool
 	// InventoryPrice and POSOverridePrice are the RAW inputs to the Price merge above
 	// (nil when that source had no value for this item), exposed so the sync-monitor
 	// price-reconcile tab can show inventory vs. POS-DB-override vs. the merged result
@@ -819,6 +819,74 @@ type menuAssemblyFilters struct {
 	ItemType string // comma-separated, case-insensitive match on item type (already upper-cased)
 }
 
+// catalogSourceSet is the cacheable upstream slice of the catalog: the full inventory item
+// sweep + resolved pricing maps. Local POSCatalogOverride data is deliberately NOT part of
+// it — overrides are cheap local rows and must apply live (availability toggles, price
+// edits) even while the upstream sweep is cached.
+type catalogSourceSet struct {
+	Items  []inventoryProxyItem          `json:"items"`
+	Prices map[string]float64            `json:"prices"`
+	Tiers  map[string]map[string]float64 `json:"tiers"`
+}
+
+// catalogSourceTTL — see the cache rationale in assembleMenuItems. Roughly one terminal
+// version-poll interval: fresh enough for inventory edits, long enough that a paged
+// full-catalog load (8–20 requests in a few seconds) hits upstream exactly once.
+const catalogSourceTTL = 60 * time.Second
+
+// cachedCatalogSource returns the (items + pricing) upstream fetch through a per-
+// (tenant, outlet, use-case-set) Redis cache. Fail-open on every cache path: no Redis or
+// a decode error just means a live upstream fetch. A degraded fetch (pricing failed) is
+// served but NOT cached, so the next request retries pricing instead of pinning zeros.
+func (h *CatalogHandler) cachedCatalogSource(ctx context.Context, tid uuid.UUID, tenantSlug, outletIDStr string, useCases []string) (*catalogSourceSet, error) {
+	key := fmt.Sprintf("pos:catalogsrc:%s:%s:%s", tid, outletIDStr, strings.Join(useCases, ","))
+	if h.redis != nil {
+		if raw, err := h.redis.Get(ctx, key).Bytes(); err == nil {
+			var cached catalogSourceSet
+			if json.Unmarshal(raw, &cached) == nil {
+				return &cached, nil
+			}
+		}
+	}
+
+	// Fetch items + pricing from inventory-api in parallel.
+	type itemsResult struct {
+		items []inventoryProxyItem
+		err   error
+	}
+	type priceResult struct {
+		prices map[string]float64
+		tiers  map[string]map[string]float64
+		err    error
+	}
+	itemsCh := make(chan itemsResult, 1)
+	priceCh := make(chan priceResult, 1)
+	go func() {
+		items, err := fetchInventoryItems(ctx, tenantSlug, outletIDStr, useCases)
+		itemsCh <- itemsResult{items, err}
+	}()
+	go func() {
+		prices, tiers, err := fetchInventoryPricing(ctx, tenantSlug, outletIDStr)
+		priceCh <- priceResult{prices, tiers, err}
+	}()
+	ir := <-itemsCh
+	pr := <-priceCh
+	if ir.err != nil {
+		return nil, ir.err
+	}
+	if pr.err != nil {
+		h.log.Warn("inventory pricing fetch failed — prices will be 0", zap.Error(pr.err))
+	}
+
+	src := &catalogSourceSet{Items: ir.items, Prices: pr.prices, Tiers: pr.tiers}
+	if h.redis != nil && pr.err == nil {
+		if raw, err := json.Marshal(src); err == nil {
+			_ = h.redis.Set(ctx, key, raw, catalogSourceTTL).Err()
+		}
+	}
+	return src, nil
+}
+
 // assembleMenuItems is the single source of truth for turning inventory-api items +
 // POS overrides into display-ready catalog items. It performs the inventory items +
 // pricing fetch, override merge, use-case category filtering, and price resolution.
@@ -845,38 +913,23 @@ func (h *CatalogHandler) assembleMenuItems(
 	// the category gate below use this set instead of the single primary use_case.
 	useCases := effectiveCatalogUseCases(useCase, h.resolveExtraCatalogUseCases(ctx, outletID))
 
-	// Fetch items + pricing from inventory-api in parallel
-	type itemsResult struct {
-		items []inventoryProxyItem
-		err   error
+	// Fetch items + pricing from inventory-api — through a short-TTL Redis cache.
+	//
+	// WHY THE CACHE IS LOAD-BEARING: this sweep pages the tenant's ENTIRE inventory at
+	// inventory-api's 100-row cap (a 3,800-item retail tenant = ~39 serial upstream calls,
+	// plus pricing pages). The terminal's cold full-catalog load requests ~8–20 pages of
+	// THIS endpoint, and without the cache EVERY page repeated the whole upstream sweep —
+	// hundreds of serial S2S calls that left big-catalog terminals stuck on "Loading
+	// menu…" (observed live at boi-enterprises). With it, one sweep serves the whole
+	// paged load; local overrides below stay UNCACHED so availability/price edits still
+	// apply on the next request. TTL 60s ≈ the terminal's 45s version poll, so inventory
+	// edits surface on the same cadence they always did.
+	src, err := h.cachedCatalogSource(ctx, tid, tenantSlug, outletIDStr, useCases)
+	if err != nil {
+		return nil, err
 	}
-	type priceResult struct {
-		prices map[string]float64
-		tiers  map[string]map[string]float64
-		err    error
-	}
-	itemsCh := make(chan itemsResult, 1)
-	priceCh := make(chan priceResult, 1)
-
-	go func() {
-		items, err := fetchInventoryItems(ctx, tenantSlug, outletIDStr, useCases)
-		itemsCh <- itemsResult{items, err}
-	}()
-	go func() {
-		prices, tiers, err := fetchInventoryPricing(ctx, tenantSlug, outletIDStr)
-		priceCh <- priceResult{prices, tiers, err}
-	}()
-
-	ir := <-itemsCh
-	pr := <-priceCh
-	if ir.err != nil {
-		return nil, ir.err
-	}
-	if pr.err != nil {
-		h.log.Warn("inventory pricing fetch failed — prices will be 0", zap.Error(pr.err))
-	}
-	invPriceByID := pr.prices
-	invTierPricesByID := pr.tiers // itemID → {tierCode: price}
+	invPriceByID := src.Prices
+	invTierPricesByID := src.Tiers // itemID → {tierCode: price}
 
 	// Load all POS overrides for this tenant
 	overrides, _ := h.client.POSCatalogOverride.Query().
@@ -923,8 +976,8 @@ func (h *CatalogHandler) assembleMenuItems(
 		}
 	}
 
-	out := make([]catalogItemDTO, 0, len(ir.items))
-	for _, item := range ir.items {
+	out := make([]catalogItemDTO, 0, len(src.Items))
+	for _, item := range src.Items {
 		// Apply filters
 		if filters.Category != "" && !strings.EqualFold(item.CategoryName, filters.Category) {
 			continue
@@ -1134,11 +1187,11 @@ func (h *CatalogHandler) assembleMenuItems(
 			// cost_price; fall back to purchase_price when cost isn't set — treating a stored 0
 			// as "unset" too, so an item saved with cost 0 but a real purchase price still shows
 			// cost/margin instead of "—".
-			CostPrice:               firstPositiveFloat(item.CostPrice, item.PurchasePrice),
-			NonBillable:             nonBillable,
-			InventoryPrice:          inventoryPrice,
-			POSOverridePrice:        posOverridePrice,
-			ModifierGroups:          item.ModifierGroups,
+			CostPrice:        firstPositiveFloat(item.CostPrice, item.PurchasePrice),
+			NonBillable:      nonBillable,
+			InventoryPrice:   inventoryPrice,
+			POSOverridePrice: posOverridePrice,
+			ModifierGroups:   item.ModifierGroups,
 		})
 	}
 	return out, nil
@@ -1265,19 +1318,19 @@ func catalogItemToMapBase(item catalogItemDTO, outletID *uuid.UUID) map[string]a
 		"duration_minutes":          item.DurationMinutes,
 		// Bookable-service metadata — the terminal keys its "book / assign space" flow and
 		// capacity badge off these (nil/false/0 for ordinary products).
-		"use_case":                  item.UseCase,
-		"bookable":                  item.Bookable,
-		"total_capacity":            item.TotalCapacity,
-		"booked_capacity":           item.BookedCapacity,
-		"stock_quantity":            item.StockQuantity,
-		"min_selling_price":         item.MinSellingPrice,
-		"max_selling_price":         item.MaxSellingPrice,
+		"use_case":          item.UseCase,
+		"bookable":          item.Bookable,
+		"total_capacity":    item.TotalCapacity,
+		"booked_capacity":   item.BookedCapacity,
+		"stock_quantity":    item.StockQuantity,
+		"min_selling_price": item.MinSellingPrice,
+		"max_selling_price": item.MaxSellingPrice,
 		// Raw inputs to the price merge above — powers the sync-monitor price-reconcile tab's
 		// inventory-vs-POS-DB-override-vs-merged compare. Nil when that source had no value.
-		"inventory_price":           item.InventoryPrice,
-		"pos_override_price":        item.POSOverridePrice,
-		"outlet_id":                 outletID,
-		"modifier_groups":           toCatalogModifierGroups(item.ModifierGroups),
+		"inventory_price":    item.InventoryPrice,
+		"pos_override_price": item.POSOverridePrice,
+		"outlet_id":          outletID,
+		"modifier_groups":    toCatalogModifierGroups(item.ModifierGroups),
 	}
 }
 
