@@ -40,6 +40,12 @@ func NewDispatcher(db *ent.Client, logger *zap.Logger) *Dispatcher {
 func (d *Dispatcher) Start(conn *nats.Conn) error {
 	// QueueSubscribe (own group, separate from the loyalty consumer's group): with
 	// >1 replica only one pod fans each pos.* event out to webhooks — no double POSTs.
+	//
+	// DELIBERATELY core NATS (at-most-once), NOT a durable JetStream consumer: webhook
+	// fan-out POSTs to EXTERNAL endpoints, and JetStream redelivery after an ack gap
+	// would double-POST third parties. An event published while no replica is
+	// subscribed is simply not fanned out — acceptable for best-effort webhooks.
+	// (Fleet uniform-consumer rule exception, audited 2026-07-18.)
 	sub, err := conn.QueueSubscribe("pos.>", "pos-webhooks", d.handle)
 	if err != nil {
 		return err
