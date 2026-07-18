@@ -346,6 +346,46 @@ func (_u *OutletSettingUpdate) ClearMaxDiscountPercent() *OutletSettingUpdate {
 	return _u
 }
 
+// SetAllowPriceAboveBase sets the "allow_price_above_base" field.
+func (_u *OutletSettingUpdate) SetAllowPriceAboveBase(v bool) *OutletSettingUpdate {
+	_u.mutation.SetAllowPriceAboveBase(v)
+	return _u
+}
+
+// SetNillableAllowPriceAboveBase sets the "allow_price_above_base" field if the given value is not nil.
+func (_u *OutletSettingUpdate) SetNillableAllowPriceAboveBase(v *bool) *OutletSettingUpdate {
+	if v != nil {
+		_u.SetAllowPriceAboveBase(*v)
+	}
+	return _u
+}
+
+// ClearAllowPriceAboveBase clears the value of the "allow_price_above_base" field.
+func (_u *OutletSettingUpdate) ClearAllowPriceAboveBase() *OutletSettingUpdate {
+	_u.mutation.ClearAllowPriceAboveBase()
+	return _u
+}
+
+// SetRequireApprovalBelowBase sets the "require_approval_below_base" field.
+func (_u *OutletSettingUpdate) SetRequireApprovalBelowBase(v bool) *OutletSettingUpdate {
+	_u.mutation.SetRequireApprovalBelowBase(v)
+	return _u
+}
+
+// SetNillableRequireApprovalBelowBase sets the "require_approval_below_base" field if the given value is not nil.
+func (_u *OutletSettingUpdate) SetNillableRequireApprovalBelowBase(v *bool) *OutletSettingUpdate {
+	if v != nil {
+		_u.SetRequireApprovalBelowBase(*v)
+	}
+	return _u
+}
+
+// ClearRequireApprovalBelowBase clears the value of the "require_approval_below_base" field.
+func (_u *OutletSettingUpdate) ClearRequireApprovalBelowBase() *OutletSettingUpdate {
+	_u.mutation.ClearRequireApprovalBelowBase()
+	return _u
+}
+
 // SetVatEnabled sets the "vat_enabled" field.
 func (_u *OutletSettingUpdate) SetVatEnabled(v bool) *OutletSettingUpdate {
 	_u.mutation.SetVatEnabled(v)
@@ -1230,6 +1270,18 @@ func (_u *OutletSettingUpdate) sqlSave(ctx context.Context) (_node int, err erro
 	if _u.mutation.MaxDiscountPercentCleared() {
 		_spec.ClearField(outletsetting.FieldMaxDiscountPercent, field.TypeFloat64)
 	}
+	if value, ok := _u.mutation.AllowPriceAboveBase(); ok {
+		_spec.SetField(outletsetting.FieldAllowPriceAboveBase, field.TypeBool, value)
+	}
+	if _u.mutation.AllowPriceAboveBaseCleared() {
+		_spec.ClearField(outletsetting.FieldAllowPriceAboveBase, field.TypeBool)
+	}
+	if value, ok := _u.mutation.RequireApprovalBelowBase(); ok {
+		_spec.SetField(outletsetting.FieldRequireApprovalBelowBase, field.TypeBool, value)
+	}
+	if _u.mutation.RequireApprovalBelowBaseCleared() {
+		_spec.ClearField(outletsetting.FieldRequireApprovalBelowBase, field.TypeBool)
+	}
 	if value, ok := _u.mutation.VatEnabled(); ok {
 		_spec.SetField(outletsetting.FieldVatEnabled, field.TypeBool, value)
 	}
@@ -1820,6 +1872,46 @@ func (_u *OutletSettingUpdateOne) AddMaxDiscountPercent(v float64) *OutletSettin
 // ClearMaxDiscountPercent clears the value of the "max_discount_percent" field.
 func (_u *OutletSettingUpdateOne) ClearMaxDiscountPercent() *OutletSettingUpdateOne {
 	_u.mutation.ClearMaxDiscountPercent()
+	return _u
+}
+
+// SetAllowPriceAboveBase sets the "allow_price_above_base" field.
+func (_u *OutletSettingUpdateOne) SetAllowPriceAboveBase(v bool) *OutletSettingUpdateOne {
+	_u.mutation.SetAllowPriceAboveBase(v)
+	return _u
+}
+
+// SetNillableAllowPriceAboveBase sets the "allow_price_above_base" field if the given value is not nil.
+func (_u *OutletSettingUpdateOne) SetNillableAllowPriceAboveBase(v *bool) *OutletSettingUpdateOne {
+	if v != nil {
+		_u.SetAllowPriceAboveBase(*v)
+	}
+	return _u
+}
+
+// ClearAllowPriceAboveBase clears the value of the "allow_price_above_base" field.
+func (_u *OutletSettingUpdateOne) ClearAllowPriceAboveBase() *OutletSettingUpdateOne {
+	_u.mutation.ClearAllowPriceAboveBase()
+	return _u
+}
+
+// SetRequireApprovalBelowBase sets the "require_approval_below_base" field.
+func (_u *OutletSettingUpdateOne) SetRequireApprovalBelowBase(v bool) *OutletSettingUpdateOne {
+	_u.mutation.SetRequireApprovalBelowBase(v)
+	return _u
+}
+
+// SetNillableRequireApprovalBelowBase sets the "require_approval_below_base" field if the given value is not nil.
+func (_u *OutletSettingUpdateOne) SetNillableRequireApprovalBelowBase(v *bool) *OutletSettingUpdateOne {
+	if v != nil {
+		_u.SetRequireApprovalBelowBase(*v)
+	}
+	return _u
+}
+
+// ClearRequireApprovalBelowBase clears the value of the "require_approval_below_base" field.
+func (_u *OutletSettingUpdateOne) ClearRequireApprovalBelowBase() *OutletSettingUpdateOne {
+	_u.mutation.ClearRequireApprovalBelowBase()
 	return _u
 }
 
@@ -2736,6 +2828,18 @@ func (_u *OutletSettingUpdateOne) sqlSave(ctx context.Context) (_node *OutletSet
 	}
 	if _u.mutation.MaxDiscountPercentCleared() {
 		_spec.ClearField(outletsetting.FieldMaxDiscountPercent, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.AllowPriceAboveBase(); ok {
+		_spec.SetField(outletsetting.FieldAllowPriceAboveBase, field.TypeBool, value)
+	}
+	if _u.mutation.AllowPriceAboveBaseCleared() {
+		_spec.ClearField(outletsetting.FieldAllowPriceAboveBase, field.TypeBool)
+	}
+	if value, ok := _u.mutation.RequireApprovalBelowBase(); ok {
+		_spec.SetField(outletsetting.FieldRequireApprovalBelowBase, field.TypeBool, value)
+	}
+	if _u.mutation.RequireApprovalBelowBaseCleared() {
+		_spec.ClearField(outletsetting.FieldRequireApprovalBelowBase, field.TypeBool)
 	}
 	if value, ok := _u.mutation.VatEnabled(); ok {
 		_spec.SetField(outletsetting.FieldVatEnabled, field.TypeBool, value)

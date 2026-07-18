@@ -78,40 +78,40 @@ func generateReceiptPDF(rec receiptResponse, brand receiptBrand) ([]byte, error)
 		center(rec.OutletName, "B", 11)
 	}
 	if rec.OutletAddress != "" {
-		center(rec.OutletAddress, "", 8)
+		center(rec.OutletAddress, "", 9)
 	}
 	if rec.OutletPhones != "" {
-		center("Mobile: "+rec.OutletPhones, "", 8)
+		center("Mobile: "+rec.OutletPhones, "", 9)
 	}
 	if rec.EtimsKraPin != "" {
-		center("KRA PIN: "+rec.EtimsKraPin, "B", 8)
+		center("KRA PIN: "+rec.EtimsKraPin, "B", 9)
 	}
 	pdf.Ln(1)
 	hr()
 
 	// Meta
-	line("Receipt:", rec.ReceiptNumber, "", 8)
-	line("Order:", rec.OrderNumber, "", 8)
-	line("Date:", rec.IssuedAt.Format("2006-01-02 15:04"), "", 8)
+	line("Receipt:", rec.ReceiptNumber, "", 9)
+	line("Order:", rec.OrderNumber, "", 9)
+	line("Date:", rec.IssuedAt.Format("2006-01-02 15:04"), "", 9)
 	if rec.BillTo != "" {
 		custLabel := rec.BillToLabel
 		if custLabel == "" {
 			custLabel = "Customer"
 		}
-		line(custLabel+":", rec.BillTo, "", 8)
+		line(custLabel+":", rec.BillTo, "", 9)
 	}
 	if rec.ServedBy != "" {
-		line("Served by:", rec.ServedBy, "", 8)
+		line("Served by:", rec.ServedBy, "", 9)
 	}
 	hr()
 
 	// Line items
-	pdf.SetFont("Helvetica", "B", 8)
+	pdf.SetFont("Helvetica", "B", 9)
 	pdf.CellFormat(contentW*0.5, 4, "Item", "", 0, "L", false, 0, "")
 	pdf.CellFormat(contentW*0.2, 4, "Qty", "", 0, "R", false, 0, "")
 	pdf.CellFormat(contentW*0.3, 4, "Total", "", 1, "R", false, 0, "")
 	for _, l := range rec.Lines {
-		pdf.SetFont("Helvetica", "", 8)
+		pdf.SetFont("Helvetica", "", 9)
 		name := l.Name
 		if name == "" {
 			name = l.SKU
@@ -123,54 +123,54 @@ func generateReceiptPDF(rec receiptResponse, brand receiptBrand) ([]byte, error)
 	hr()
 
 	// Totals
-	line("Subtotal", money(rec.Subtotal), "", 8)
+	line("Subtotal", money(rec.Subtotal), "", 9)
 	if rec.DiscountAmount > 0 {
-		line("Discount", "-"+money(rec.DiscountAmount), "", 8)
+		line("Discount", "-"+money(rec.DiscountAmount), "", 9)
 	}
 	if rec.VatEnabled || rec.TaxAmount > 0 {
 		taxLabel := "Tax"
 		if rec.VatRate > 0 {
 			taxLabel = fmt.Sprintf("VAT (%.0f%%)", rec.VatRate)
 		}
-		line(taxLabel, money(rec.TaxAmount), "", 8)
+		line(taxLabel, money(rec.TaxAmount), "", 9)
 	}
 	if rec.ChargesTotal > 0 {
-		line("Charges", money(rec.ChargesTotal), "", 8)
+		line("Charges", money(rec.ChargesTotal), "", 9)
 	}
 	if rec.RoundOff > 0 {
-		line("Round Off", money(rec.RoundOff), "", 8)
+		line("Round Off", money(rec.RoundOff), "", 9)
 	}
 	line("TOTAL", money(rec.TotalAmount), "B", 12)
 	hr()
 
 	// Payment
 	if rec.PaymentMethod != "" {
-		line("Paid via", strings.ReplaceAll(rec.PaymentMethod, "_", " "), "", 8)
+		line("Paid via", strings.ReplaceAll(rec.PaymentMethod, "_", " "), "", 9)
 	}
 	if rec.AmountPaid > 0 {
-		line("Amount paid", money(rec.AmountPaid), "", 8)
+		line("Amount paid", money(rec.AmountPaid), "", 9)
 	}
 	if rec.AmountTendered > 0 {
-		line("Tendered", money(rec.AmountTendered), "", 8)
+		line("Tendered", money(rec.AmountTendered), "", 9)
 	}
 	if rec.ChangeDue > 0 {
-		line("Change", money(rec.ChangeDue), "", 8)
+		line("Change", money(rec.ChangeDue), "", 9)
 	}
 
 	// KRA TIMS Details (fiscalised sales) — mirrors the paper ETR layout.
 	if rec.EtimsInvoiceNumber != "" || rec.EtimsCuInvNo != "" {
 		hr()
-		center("KRA TIMS Details", "B", 8)
+		center("KRA TIMS Details", "B", 9)
 		if rec.EtimsScuID != "" {
-			line("SCU ID", rec.EtimsScuID, "", 7)
+			line("SCU ID", rec.EtimsScuID, "", 8)
 		}
 		if rec.EtimsCuInvNo != "" {
-			line("CU Inv No.", rec.EtimsCuInvNo, "", 7)
+			line("CU Inv No.", rec.EtimsCuInvNo, "", 8)
 		} else if rec.EtimsInvoiceNumber != "" {
-			line("eTIMS Inv", rec.EtimsInvoiceNumber, "", 7)
+			line("eTIMS Inv", rec.EtimsInvoiceNumber, "", 8)
 		}
 		if rec.EtimsRcptSign != "" {
-			line("Sign", truncate(rec.EtimsRcptSign, 34), "", 6)
+			line("Sign", truncate(rec.EtimsRcptSign, 34), "", 7)
 		}
 		if rec.EtimsQRCodeURL != "" {
 			if qrPNG, qerr := qrcode.Encode(rec.EtimsQRCodeURL, qrcode.Medium, 256); qerr == nil {
@@ -187,28 +187,28 @@ func generateReceiptPDF(rec receiptResponse, brand receiptBrand) ([]byte, error)
 	// Payment display ("HOW TO PAY") — M-Pesa/bank details, same block as the HTML/ESC-POS receipts.
 	if pm := rec.PaymentMethods; pm != nil {
 		hr()
-		center("HOW TO PAY", "B", 8)
+		center("HOW TO PAY", "B", 9)
 		if pm.MpesaPaybill != "" {
-			line("M-PESA Paybill", pm.MpesaPaybill, "", 8)
+			line("M-PESA Paybill", pm.MpesaPaybill, "", 9)
 		}
 		if pm.MpesaAccountRef != "" {
-			line("Account No.", pm.MpesaAccountRef, "", 8)
+			line("Account No.", pm.MpesaAccountRef, "", 9)
 		}
 		if pm.MpesaTill != "" {
-			line("M-PESA Till", pm.MpesaTill, "", 8)
+			line("M-PESA Till", pm.MpesaTill, "", 9)
 		}
 		if pm.MpesaPochi != "" {
-			line("M-PESA Pochi", pm.MpesaPochi, "", 8)
+			line("M-PESA Pochi", pm.MpesaPochi, "", 9)
 		}
 		if pm.BankName != "" || pm.BankAccountNumber != "" {
 			label := pm.BankName
 			if label == "" {
 				label = "Bank"
 			}
-			line(label, pm.BankAccountNumber, "", 8)
+			line(label, pm.BankAccountNumber, "", 9)
 		}
 		if pm.BankAccountName != "" {
-			center(pm.BankAccountName, "", 7)
+			center(pm.BankAccountName, "", 8)
 		}
 	}
 
@@ -229,10 +229,11 @@ func generateReceiptPDF(rec receiptResponse, brand receiptBrand) ([]byte, error)
 			contact = d.Contact
 		}
 	}
+	// Never below ~8pt — sub-7pt text disappears on low-quality/low-toner printers.
 	pdf.Ln(1)
 	hr()
-	center(lead, "B", 7.5)
-	center(contact, "", 6.8)
+	center(lead, "B", 8.2)
+	center(contact, "", 7.6)
 
 	var buf bytes.Buffer
 	if err := pdf.Output(&buf); err != nil {

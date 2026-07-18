@@ -62,28 +62,46 @@ func MapGlobalRolesToServiceRole(roles []string) string {
 }
 
 // HasAnyPermissionViaGlobalRoles resolves permissions the way /auth/me does — from the
-// POS service role mapped off the caller's GLOBAL JWT roles — for SSO principals that
+// POS service role(s) matching the caller's GLOBAL JWT roles — for SSO principals that
 // have no POSUserRoleAssignment rows. Third leg of the middleware resolution:
 // JWT canonical perms → per-user assignments → role-mapped service role.
+//
+// Candidates, in order: each RAW global role name tried as a POS role code first (a
+// tenant-admin-created CUSTOM role assigned on the auth side carries its own code, which
+// the fixed mapping below cannot know — trying only the mapped code collapsed every custom
+// role to "cashier" and denied its real grants), then the fixed global→POS mapping.
 func (s *Service) HasAnyPermissionViaGlobalRoles(ctx context.Context, tenantID uuid.UUID, globalRoles []string, permissionCodes ...string) (bool, error) {
 	if len(permissionCodes) == 0 || len(globalRoles) == 0 {
 		return false, nil
-	}
-	role, err := s.repo.GetRoleByCode(ctx, tenantID, MapGlobalRolesToServiceRole(globalRoles))
-	if err != nil || role == nil {
-		return false, nil // role not seeded — deny, never error the request
-	}
-	perms, err := s.repo.GetRolePermissions(ctx, role.ID)
-	if err != nil {
-		return false, fmt.Errorf("get role permissions: %w", err)
 	}
 	want := make(map[string]struct{}, len(permissionCodes))
 	for _, code := range permissionCodes {
 		want[code] = struct{}{}
 	}
-	for _, perm := range perms {
-		if _, ok := want[perm.PermissionCode]; ok {
-			return true, nil
+	candidates := make([]string, 0, len(globalRoles)+1)
+	candidates = append(candidates, globalRoles...)
+	candidates = append(candidates, MapGlobalRolesToServiceRole(globalRoles))
+	seen := make(map[string]struct{}, len(candidates))
+	for _, code := range candidates {
+		if code == "" {
+			continue
+		}
+		if _, dup := seen[code]; dup {
+			continue
+		}
+		seen[code] = struct{}{}
+		role, err := s.repo.GetRoleByCode(ctx, tenantID, code)
+		if err != nil || role == nil {
+			continue // not a POS role code — try the next candidate, never error the request
+		}
+		perms, err := s.repo.GetRolePermissions(ctx, role.ID)
+		if err != nil {
+			continue
+		}
+		for _, perm := range perms {
+			if _, ok := want[perm.PermissionCode]; ok {
+				return true, nil
+			}
 		}
 	}
 	return false, nil

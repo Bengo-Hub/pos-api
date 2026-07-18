@@ -10,13 +10,13 @@ import (
 
 // ESC/POS control bytes
 var (
-	escInit    = []byte{0x1B, 0x40}          // Initialize printer
-	escCut     = []byte{0x1D, 0x56, 0x42, 0} // Full cut
-	escBold    = []byte{0x1B, 0x45, 0x01}    // Bold on
-	escBoldOff = []byte{0x1B, 0x45, 0x00}    // Bold off
-	escCenter  = []byte{0x1B, 0x61, 0x01}    // Center align
-	escLeft    = []byte{0x1B, 0x61, 0x00}    // Left align
-	escLF      = []byte{0x0A}                // Line feed
+	escInit   = []byte{0x1B, 0x40}          // Initialize printer
+	escCut    = []byte{0x1D, 0x56, 0x42, 0} // Full cut
+	escBold   = []byte{0x1B, 0x45, 0x01}    // Bold on
+	escFontA  = []byte{0x1B, 0x4D, 0x00}    // ESC M 0 — select Font A (12x24); some printers default to the condensed Font B
+	escCenter = []byte{0x1B, 0x61, 0x01}    // Center align
+	escLeft   = []byte{0x1B, 0x61, 0x00}    // Left align
+	escLF     = []byte{0x0A}                // Line feed
 	// Character-size control (GS ! n): the low nibble is the width multiplier and the high
 	// nibble the height multiplier. Larger glyphs print far crisper on low-DPI thermal heads
 	// than the default 1x font, so the shop name + TOTAL (the two things a customer actually
@@ -91,17 +91,21 @@ func BuildReceipt(d ReceiptData) []byte {
 	separator := func() { writeln(strings.Repeat("-", 32)) }
 
 	write(escInit)
+	// Whole-ticket legibility baseline: Font A (never the condensed Font B some printers
+	// default to) + emphasis ON for EVERY line. Faded/low-density thermal heads print 1x
+	// unemphasised text almost invisibly — the "barely visible receipt" complaint — so the
+	// body never drops back to unemphasised text; bigger sections stack on top of this.
+	write(escFontA)
+	write(escBold)
 	write(escCenter)
 	// Shop name in double-height+bold — the biggest, crispest thing on the receipt so it stays
 	// legible on low-DPI thermal heads (addresses the "blurry receipt" complaint).
 	write(escDoubleHW)
-	write(escBold)
 	if d.OutletName != "" {
 		writeln(d.OutletName)
 	} else {
 		writeln("RECEIPT")
 	}
-	write(escBoldOff)
 	write(escSizeReset)
 	if d.OutletAddress != "" {
 		writeln(d.OutletAddress)
@@ -122,19 +126,16 @@ func BuildReceipt(d ReceiptData) []byte {
 		write(escCenter)
 		write(escBold)
 		writeln("** KITCHEN **")
-		write(escBoldOff)
 		write(escLeft)
 	case "waiter_copy":
 		write(escCenter)
 		write(escBold)
 		writeln("** WAITER COPY **")
-		write(escBoldOff)
 		write(escLeft)
 	case "void":
 		write(escCenter)
 		write(escBold)
 		writeln("** VOID RECEIPT **")
-		write(escBoldOff)
 		write(escLeft)
 	}
 
@@ -203,7 +204,6 @@ func BuildReceipt(d ReceiptData) []byte {
 		write(escDoubleH)
 		write(escBold)
 		writeln(formatLine("TOTAL", fmt.Sprintf("%s %.2f", d.Currency, d.TotalAmount)))
-		write(escBoldOff)
 		write(escSizeReset)
 		if d.PaymentMethod != "" {
 			// Retail prints the settle date beside the method — "Payment  Cash (14-07-2026)".
@@ -241,7 +241,6 @@ func BuildReceipt(d ReceiptData) []byte {
 		write(escCenter)
 		write(escBold)
 		writeln("KRA TIMS Details")
-		write(escBoldOff)
 		write(escLeft)
 		if d.EtimsScuID != "" {
 			writeln("SCU ID: " + d.EtimsScuID)
@@ -261,7 +260,6 @@ func BuildReceipt(d ReceiptData) []byte {
 		write(escCenter)
 		write(escBold)
 		writeln("HOW TO PAY")
-		write(escBoldOff)
 		write(escLeft)
 		pm := d.PaymentMethods
 		if pm.MpesaPaybill != "" {
@@ -344,10 +342,10 @@ func BuildTestTicket(stationLabel, paper string, when time.Time) []byte {
 	separator := func() { writeln(strings.Repeat("-", 32)) }
 
 	write(escInit)
+	write(escFontA)
+	write(escBold) // whole-ticket emphasis — same legibility baseline as BuildReceipt
 	write(escCenter)
-	write(escBold)
 	writeln("*** PRINTER TEST ***")
-	write(escBoldOff)
 	write(escLeft)
 	separator()
 	if stationLabel != "" {

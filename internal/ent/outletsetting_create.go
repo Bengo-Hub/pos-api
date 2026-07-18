@@ -229,6 +229,34 @@ func (_c *OutletSettingCreate) SetNillableMaxDiscountPercent(v *float64) *Outlet
 	return _c
 }
 
+// SetAllowPriceAboveBase sets the "allow_price_above_base" field.
+func (_c *OutletSettingCreate) SetAllowPriceAboveBase(v bool) *OutletSettingCreate {
+	_c.mutation.SetAllowPriceAboveBase(v)
+	return _c
+}
+
+// SetNillableAllowPriceAboveBase sets the "allow_price_above_base" field if the given value is not nil.
+func (_c *OutletSettingCreate) SetNillableAllowPriceAboveBase(v *bool) *OutletSettingCreate {
+	if v != nil {
+		_c.SetAllowPriceAboveBase(*v)
+	}
+	return _c
+}
+
+// SetRequireApprovalBelowBase sets the "require_approval_below_base" field.
+func (_c *OutletSettingCreate) SetRequireApprovalBelowBase(v bool) *OutletSettingCreate {
+	_c.mutation.SetRequireApprovalBelowBase(v)
+	return _c
+}
+
+// SetNillableRequireApprovalBelowBase sets the "require_approval_below_base" field if the given value is not nil.
+func (_c *OutletSettingCreate) SetNillableRequireApprovalBelowBase(v *bool) *OutletSettingCreate {
+	if v != nil {
+		_c.SetRequireApprovalBelowBase(*v)
+	}
+	return _c
+}
+
 // SetVatEnabled sets the "vat_enabled" field.
 func (_c *OutletSettingCreate) SetVatEnabled(v bool) *OutletSettingCreate {
 	_c.mutation.SetVatEnabled(v)
@@ -793,6 +821,14 @@ func (_c *OutletSettingCreate) defaults() {
 		v := outletsetting.DefaultMaxDiscountPercent
 		_c.mutation.SetMaxDiscountPercent(v)
 	}
+	if _, ok := _c.mutation.AllowPriceAboveBase(); !ok {
+		v := outletsetting.DefaultAllowPriceAboveBase
+		_c.mutation.SetAllowPriceAboveBase(v)
+	}
+	if _, ok := _c.mutation.RequireApprovalBelowBase(); !ok {
+		v := outletsetting.DefaultRequireApprovalBelowBase
+		_c.mutation.SetRequireApprovalBelowBase(v)
+	}
 	if _, ok := _c.mutation.VatEnabled(); !ok {
 		v := outletsetting.DefaultVatEnabled
 		_c.mutation.SetVatEnabled(v)
@@ -1004,6 +1040,14 @@ func (_c *OutletSettingCreate) createSpec() (*OutletSetting, *sqlgraph.CreateSpe
 	if value, ok := _c.mutation.MaxDiscountPercent(); ok {
 		_spec.SetField(outletsetting.FieldMaxDiscountPercent, field.TypeFloat64, value)
 		_node.MaxDiscountPercent = value
+	}
+	if value, ok := _c.mutation.AllowPriceAboveBase(); ok {
+		_spec.SetField(outletsetting.FieldAllowPriceAboveBase, field.TypeBool, value)
+		_node.AllowPriceAboveBase = value
+	}
+	if value, ok := _c.mutation.RequireApprovalBelowBase(); ok {
+		_spec.SetField(outletsetting.FieldRequireApprovalBelowBase, field.TypeBool, value)
+		_node.RequireApprovalBelowBase = value
 	}
 	if value, ok := _c.mutation.VatEnabled(); ok {
 		_spec.SetField(outletsetting.FieldVatEnabled, field.TypeBool, value)
@@ -1529,6 +1573,42 @@ func (u *OutletSettingUpsert) AddMaxDiscountPercent(v float64) *OutletSettingUps
 // ClearMaxDiscountPercent clears the value of the "max_discount_percent" field.
 func (u *OutletSettingUpsert) ClearMaxDiscountPercent() *OutletSettingUpsert {
 	u.SetNull(outletsetting.FieldMaxDiscountPercent)
+	return u
+}
+
+// SetAllowPriceAboveBase sets the "allow_price_above_base" field.
+func (u *OutletSettingUpsert) SetAllowPriceAboveBase(v bool) *OutletSettingUpsert {
+	u.Set(outletsetting.FieldAllowPriceAboveBase, v)
+	return u
+}
+
+// UpdateAllowPriceAboveBase sets the "allow_price_above_base" field to the value that was provided on create.
+func (u *OutletSettingUpsert) UpdateAllowPriceAboveBase() *OutletSettingUpsert {
+	u.SetExcluded(outletsetting.FieldAllowPriceAboveBase)
+	return u
+}
+
+// ClearAllowPriceAboveBase clears the value of the "allow_price_above_base" field.
+func (u *OutletSettingUpsert) ClearAllowPriceAboveBase() *OutletSettingUpsert {
+	u.SetNull(outletsetting.FieldAllowPriceAboveBase)
+	return u
+}
+
+// SetRequireApprovalBelowBase sets the "require_approval_below_base" field.
+func (u *OutletSettingUpsert) SetRequireApprovalBelowBase(v bool) *OutletSettingUpsert {
+	u.Set(outletsetting.FieldRequireApprovalBelowBase, v)
+	return u
+}
+
+// UpdateRequireApprovalBelowBase sets the "require_approval_below_base" field to the value that was provided on create.
+func (u *OutletSettingUpsert) UpdateRequireApprovalBelowBase() *OutletSettingUpsert {
+	u.SetExcluded(outletsetting.FieldRequireApprovalBelowBase)
+	return u
+}
+
+// ClearRequireApprovalBelowBase clears the value of the "require_approval_below_base" field.
+func (u *OutletSettingUpsert) ClearRequireApprovalBelowBase() *OutletSettingUpsert {
+	u.SetNull(outletsetting.FieldRequireApprovalBelowBase)
 	return u
 }
 
@@ -2596,6 +2676,48 @@ func (u *OutletSettingUpsertOne) UpdateMaxDiscountPercent() *OutletSettingUpsert
 func (u *OutletSettingUpsertOne) ClearMaxDiscountPercent() *OutletSettingUpsertOne {
 	return u.Update(func(s *OutletSettingUpsert) {
 		s.ClearMaxDiscountPercent()
+	})
+}
+
+// SetAllowPriceAboveBase sets the "allow_price_above_base" field.
+func (u *OutletSettingUpsertOne) SetAllowPriceAboveBase(v bool) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetAllowPriceAboveBase(v)
+	})
+}
+
+// UpdateAllowPriceAboveBase sets the "allow_price_above_base" field to the value that was provided on create.
+func (u *OutletSettingUpsertOne) UpdateAllowPriceAboveBase() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateAllowPriceAboveBase()
+	})
+}
+
+// ClearAllowPriceAboveBase clears the value of the "allow_price_above_base" field.
+func (u *OutletSettingUpsertOne) ClearAllowPriceAboveBase() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearAllowPriceAboveBase()
+	})
+}
+
+// SetRequireApprovalBelowBase sets the "require_approval_below_base" field.
+func (u *OutletSettingUpsertOne) SetRequireApprovalBelowBase(v bool) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetRequireApprovalBelowBase(v)
+	})
+}
+
+// UpdateRequireApprovalBelowBase sets the "require_approval_below_base" field to the value that was provided on create.
+func (u *OutletSettingUpsertOne) UpdateRequireApprovalBelowBase() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateRequireApprovalBelowBase()
+	})
+}
+
+// ClearRequireApprovalBelowBase clears the value of the "require_approval_below_base" field.
+func (u *OutletSettingUpsertOne) ClearRequireApprovalBelowBase() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearRequireApprovalBelowBase()
 	})
 }
 
@@ -3938,6 +4060,48 @@ func (u *OutletSettingUpsertBulk) UpdateMaxDiscountPercent() *OutletSettingUpser
 func (u *OutletSettingUpsertBulk) ClearMaxDiscountPercent() *OutletSettingUpsertBulk {
 	return u.Update(func(s *OutletSettingUpsert) {
 		s.ClearMaxDiscountPercent()
+	})
+}
+
+// SetAllowPriceAboveBase sets the "allow_price_above_base" field.
+func (u *OutletSettingUpsertBulk) SetAllowPriceAboveBase(v bool) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetAllowPriceAboveBase(v)
+	})
+}
+
+// UpdateAllowPriceAboveBase sets the "allow_price_above_base" field to the value that was provided on create.
+func (u *OutletSettingUpsertBulk) UpdateAllowPriceAboveBase() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateAllowPriceAboveBase()
+	})
+}
+
+// ClearAllowPriceAboveBase clears the value of the "allow_price_above_base" field.
+func (u *OutletSettingUpsertBulk) ClearAllowPriceAboveBase() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearAllowPriceAboveBase()
+	})
+}
+
+// SetRequireApprovalBelowBase sets the "require_approval_below_base" field.
+func (u *OutletSettingUpsertBulk) SetRequireApprovalBelowBase(v bool) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetRequireApprovalBelowBase(v)
+	})
+}
+
+// UpdateRequireApprovalBelowBase sets the "require_approval_below_base" field to the value that was provided on create.
+func (u *OutletSettingUpsertBulk) UpdateRequireApprovalBelowBase() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateRequireApprovalBelowBase()
+	})
+}
+
+// ClearRequireApprovalBelowBase clears the value of the "require_approval_below_base" field.
+func (u *OutletSettingUpsertBulk) ClearRequireApprovalBelowBase() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearRequireApprovalBelowBase()
 	})
 }
 

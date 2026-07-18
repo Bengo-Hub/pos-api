@@ -325,20 +325,9 @@ func (c *Client) GetCreditTerms(ctx context.Context, tenantSlug, contactIDOrIden
 	return doRequest[CreditTermsResponse](ctx, c.httpClient, http.MethodGet, u, c.apiKey, nil)
 }
 
-// SetCreditTermsRequest is the body for PATCH /ar/customers/{id}/credit-terms. Zero values
-// clear the respective term; nil leaves it unchanged.
-type SetCreditTermsRequest struct {
-	CustomerIdentifier string   `json:"customer_identifier,omitempty"`
-	CustomerName       string   `json:"customer_name,omitempty"`
-	CreditLimit        *float64 `json:"credit_limit,omitempty"`
-	CreditPeriodDays   *int     `json:"credit_period_days,omitempty"`
-}
-
-// SetCreditTerms sets a customer's credit limit / payment period in treasury over S2S.
-func (c *Client) SetCreditTerms(ctx context.Context, tenantSlug, contactIDOrIdentifier string, req SetCreditTermsRequest) (*CreditTermsResponse, error) {
-	u := fmt.Sprintf("%s/api/v1/s2s/%s/ar/customers/%s/credit-terms", c.baseURL, tenantSlug, url.PathEscape(contactIDOrIdentifier))
-	return doRequest[CreditTermsResponse](ctx, c.httpClient, http.MethodPatch, u, c.apiKey, req)
-}
+// NOTE: credit terms are WRITTEN only from the treasury Customers page (treasury-ui →
+// treasury-api PATCH /ar/customers/{id}/credit-terms). The old S2S SetCreditTerms proxy
+// method was removed with the duplicate POS credit-terms editor.
 
 // QuotationLine is one line on an S2S quotation create. Quantity/UnitPrice go as JSON numbers;
 // treasury's decimal.Decimal fields parse them.

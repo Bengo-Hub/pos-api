@@ -44,6 +44,11 @@ func (OutletSetting) Fields() []ent.Field {
 		field.String("receipt_footer").Optional().Nillable().Comment("Custom footer text (e.g. return policy) printed on receipts"),
 		field.String("currency").Default("KES").Optional().Comment("ISO 4217 currency code for this outlet"),
 		field.Float("max_discount_percent").Default(100).Optional().Comment("Max order discount % a cashier may apply without manager approval; above this requires a step-up (100 = no limit)"),
+		// Pricing policy (retail/pharmacy ask, 2026-07-18): selling ABOVE the catalog/base
+		// price is a normal cashier move (negotiated up-sell), selling BELOW it is margin
+		// leakage that needs a manager. Both knobs are tenant-configurable per outlet.
+		field.Bool("allow_price_above_base").Default(true).Optional().Comment("Cashiers may RAISE a line's unit price above the catalog/base price without approval (default on; off = raising also needs a price.override step-up)"),
+		field.Bool("require_approval_below_base").Default(true).Optional().Comment("Selling below the catalog/base price (markdown or price-lowering discount) requires a manager/admin price.override step-up (default on; off = free markdowns)"),
 		field.Bool("vat_enabled").Default(true).Optional().Comment("Whether to apply VAT on orders"),
 		field.Float("vat_rate").Default(16.0).Optional().Comment("VAT percentage rate, e.g. 16.0 for 16%"),
 		field.String("printer_type").Default("thermal").Optional().Comment("thermal | network | bluetooth | none"),

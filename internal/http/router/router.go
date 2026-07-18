@@ -838,22 +838,19 @@ func New(
 						})
 					}
 
-					// Client records
+					// Client records. The customer DIRECTORY + credit-terms EDITING are centralized
+					// on the treasury Customers page (pos-ui's Clients nav links there) — the old
+					// /customers CRM-directory endpoint and PUT credit editor were removed with it.
 					if clients != nil {
 						pos.Get("/clients", clients.List)
-						// Customer DIRECTORY (CRM-backed, loyalty-enriched) — the Clients page
-						// default listing + search. Distinct from /clients (POS-local records).
-						pos.Get("/customers", clients.ListCustomers)
 						pos.Post("/clients", clients.CreateOrUpsert)
 						pos.Post("/clients/bulk-import", clients.BulkImport)
 						pos.Get("/clients/{clientID}", clients.Get)
 						pos.Patch("/clients/{clientID}", clients.Update)
 						pos.Get("/clients/{phone}/orders", clients.GetOrdersByPhone)
-						// Credit terms (treasury AR proxy): balance + limit + payment period.
-						// Setting terms = manager action (same permission that approves credit sales).
+						// Credit terms (treasury AR proxy, READ-ONLY here): balance + limit + period
+						// for the checkout credit hint; terms are edited on the treasury Customers page.
 						pos.Get("/clients/{accountID}/credit", clients.GetCredit)
-						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.orders.manage")).
-							Put("/clients/{accountID}/credit", clients.SetCredit)
 					}
 
 					// Loyalty programs & accounts — gated on the loyalty_program feature

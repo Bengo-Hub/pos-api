@@ -44713,6 +44713,8 @@ type OutletSettingMutation struct {
 	currency                        *string
 	max_discount_percent            *float64
 	addmax_discount_percent         *float64
+	allow_price_above_base          *bool
+	require_approval_below_base     *bool
 	vat_enabled                     *bool
 	vat_rate                        *float64
 	addvat_rate                     *float64
@@ -45741,6 +45743,104 @@ func (m *OutletSettingMutation) ResetMaxDiscountPercent() {
 	m.max_discount_percent = nil
 	m.addmax_discount_percent = nil
 	delete(m.clearedFields, outletsetting.FieldMaxDiscountPercent)
+}
+
+// SetAllowPriceAboveBase sets the "allow_price_above_base" field.
+func (m *OutletSettingMutation) SetAllowPriceAboveBase(b bool) {
+	m.allow_price_above_base = &b
+}
+
+// AllowPriceAboveBase returns the value of the "allow_price_above_base" field in the mutation.
+func (m *OutletSettingMutation) AllowPriceAboveBase() (r bool, exists bool) {
+	v := m.allow_price_above_base
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAllowPriceAboveBase returns the old "allow_price_above_base" field's value of the OutletSetting entity.
+// If the OutletSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OutletSettingMutation) OldAllowPriceAboveBase(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAllowPriceAboveBase is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAllowPriceAboveBase requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAllowPriceAboveBase: %w", err)
+	}
+	return oldValue.AllowPriceAboveBase, nil
+}
+
+// ClearAllowPriceAboveBase clears the value of the "allow_price_above_base" field.
+func (m *OutletSettingMutation) ClearAllowPriceAboveBase() {
+	m.allow_price_above_base = nil
+	m.clearedFields[outletsetting.FieldAllowPriceAboveBase] = struct{}{}
+}
+
+// AllowPriceAboveBaseCleared returns if the "allow_price_above_base" field was cleared in this mutation.
+func (m *OutletSettingMutation) AllowPriceAboveBaseCleared() bool {
+	_, ok := m.clearedFields[outletsetting.FieldAllowPriceAboveBase]
+	return ok
+}
+
+// ResetAllowPriceAboveBase resets all changes to the "allow_price_above_base" field.
+func (m *OutletSettingMutation) ResetAllowPriceAboveBase() {
+	m.allow_price_above_base = nil
+	delete(m.clearedFields, outletsetting.FieldAllowPriceAboveBase)
+}
+
+// SetRequireApprovalBelowBase sets the "require_approval_below_base" field.
+func (m *OutletSettingMutation) SetRequireApprovalBelowBase(b bool) {
+	m.require_approval_below_base = &b
+}
+
+// RequireApprovalBelowBase returns the value of the "require_approval_below_base" field in the mutation.
+func (m *OutletSettingMutation) RequireApprovalBelowBase() (r bool, exists bool) {
+	v := m.require_approval_below_base
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRequireApprovalBelowBase returns the old "require_approval_below_base" field's value of the OutletSetting entity.
+// If the OutletSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OutletSettingMutation) OldRequireApprovalBelowBase(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRequireApprovalBelowBase is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRequireApprovalBelowBase requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRequireApprovalBelowBase: %w", err)
+	}
+	return oldValue.RequireApprovalBelowBase, nil
+}
+
+// ClearRequireApprovalBelowBase clears the value of the "require_approval_below_base" field.
+func (m *OutletSettingMutation) ClearRequireApprovalBelowBase() {
+	m.require_approval_below_base = nil
+	m.clearedFields[outletsetting.FieldRequireApprovalBelowBase] = struct{}{}
+}
+
+// RequireApprovalBelowBaseCleared returns if the "require_approval_below_base" field was cleared in this mutation.
+func (m *OutletSettingMutation) RequireApprovalBelowBaseCleared() bool {
+	_, ok := m.clearedFields[outletsetting.FieldRequireApprovalBelowBase]
+	return ok
+}
+
+// ResetRequireApprovalBelowBase resets all changes to the "require_approval_below_base" field.
+func (m *OutletSettingMutation) ResetRequireApprovalBelowBase() {
+	m.require_approval_below_base = nil
+	delete(m.clearedFields, outletsetting.FieldRequireApprovalBelowBase)
 }
 
 // SetVatEnabled sets the "vat_enabled" field.
@@ -47622,7 +47722,7 @@ func (m *OutletSettingMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *OutletSettingMutation) Fields() []string {
-	fields := make([]string, 0, 53)
+	fields := make([]string, 0, 55)
 	if m.outlet != nil {
 		fields = append(fields, outletsetting.FieldOutletID)
 	}
@@ -47676,6 +47776,12 @@ func (m *OutletSettingMutation) Fields() []string {
 	}
 	if m.max_discount_percent != nil {
 		fields = append(fields, outletsetting.FieldMaxDiscountPercent)
+	}
+	if m.allow_price_above_base != nil {
+		fields = append(fields, outletsetting.FieldAllowPriceAboveBase)
+	}
+	if m.require_approval_below_base != nil {
+		fields = append(fields, outletsetting.FieldRequireApprovalBelowBase)
 	}
 	if m.vat_enabled != nil {
 		fields = append(fields, outletsetting.FieldVatEnabled)
@@ -47826,6 +47932,10 @@ func (m *OutletSettingMutation) Field(name string) (ent.Value, bool) {
 		return m.Currency()
 	case outletsetting.FieldMaxDiscountPercent:
 		return m.MaxDiscountPercent()
+	case outletsetting.FieldAllowPriceAboveBase:
+		return m.AllowPriceAboveBase()
+	case outletsetting.FieldRequireApprovalBelowBase:
+		return m.RequireApprovalBelowBase()
 	case outletsetting.FieldVatEnabled:
 		return m.VatEnabled()
 	case outletsetting.FieldVatRate:
@@ -47941,6 +48051,10 @@ func (m *OutletSettingMutation) OldField(ctx context.Context, name string) (ent.
 		return m.OldCurrency(ctx)
 	case outletsetting.FieldMaxDiscountPercent:
 		return m.OldMaxDiscountPercent(ctx)
+	case outletsetting.FieldAllowPriceAboveBase:
+		return m.OldAllowPriceAboveBase(ctx)
+	case outletsetting.FieldRequireApprovalBelowBase:
+		return m.OldRequireApprovalBelowBase(ctx)
 	case outletsetting.FieldVatEnabled:
 		return m.OldVatEnabled(ctx)
 	case outletsetting.FieldVatRate:
@@ -48145,6 +48259,20 @@ func (m *OutletSettingMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetMaxDiscountPercent(v)
+		return nil
+	case outletsetting.FieldAllowPriceAboveBase:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAllowPriceAboveBase(v)
+		return nil
+	case outletsetting.FieldRequireApprovalBelowBase:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRequireApprovalBelowBase(v)
 		return nil
 	case outletsetting.FieldVatEnabled:
 		v, ok := value.(bool)
@@ -48532,6 +48660,12 @@ func (m *OutletSettingMutation) ClearedFields() []string {
 	if m.FieldCleared(outletsetting.FieldMaxDiscountPercent) {
 		fields = append(fields, outletsetting.FieldMaxDiscountPercent)
 	}
+	if m.FieldCleared(outletsetting.FieldAllowPriceAboveBase) {
+		fields = append(fields, outletsetting.FieldAllowPriceAboveBase)
+	}
+	if m.FieldCleared(outletsetting.FieldRequireApprovalBelowBase) {
+		fields = append(fields, outletsetting.FieldRequireApprovalBelowBase)
+	}
 	if m.FieldCleared(outletsetting.FieldVatEnabled) {
 		fields = append(fields, outletsetting.FieldVatEnabled)
 	}
@@ -48696,6 +48830,12 @@ func (m *OutletSettingMutation) ClearField(name string) error {
 	case outletsetting.FieldMaxDiscountPercent:
 		m.ClearMaxDiscountPercent()
 		return nil
+	case outletsetting.FieldAllowPriceAboveBase:
+		m.ClearAllowPriceAboveBase()
+		return nil
+	case outletsetting.FieldRequireApprovalBelowBase:
+		m.ClearRequireApprovalBelowBase()
+		return nil
 	case outletsetting.FieldVatEnabled:
 		m.ClearVatEnabled()
 		return nil
@@ -48859,6 +48999,12 @@ func (m *OutletSettingMutation) ResetField(name string) error {
 		return nil
 	case outletsetting.FieldMaxDiscountPercent:
 		m.ResetMaxDiscountPercent()
+		return nil
+	case outletsetting.FieldAllowPriceAboveBase:
+		m.ResetAllowPriceAboveBase()
+		return nil
+	case outletsetting.FieldRequireApprovalBelowBase:
+		m.ResetRequireApprovalBelowBase()
 		return nil
 	case outletsetting.FieldVatEnabled:
 		m.ResetVatEnabled()

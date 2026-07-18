@@ -51,6 +51,10 @@ const (
 	FieldCurrency = "currency"
 	// FieldMaxDiscountPercent holds the string denoting the max_discount_percent field in the database.
 	FieldMaxDiscountPercent = "max_discount_percent"
+	// FieldAllowPriceAboveBase holds the string denoting the allow_price_above_base field in the database.
+	FieldAllowPriceAboveBase = "allow_price_above_base"
+	// FieldRequireApprovalBelowBase holds the string denoting the require_approval_below_base field in the database.
+	FieldRequireApprovalBelowBase = "require_approval_below_base"
 	// FieldVatEnabled holds the string denoting the vat_enabled field in the database.
 	FieldVatEnabled = "vat_enabled"
 	// FieldVatRate holds the string denoting the vat_rate field in the database.
@@ -155,6 +159,8 @@ var Columns = []string{
 	FieldReceiptFooter,
 	FieldCurrency,
 	FieldMaxDiscountPercent,
+	FieldAllowPriceAboveBase,
+	FieldRequireApprovalBelowBase,
 	FieldVatEnabled,
 	FieldVatRate,
 	FieldPrinterType,
@@ -221,6 +227,10 @@ var (
 	DefaultCurrency string
 	// DefaultMaxDiscountPercent holds the default value on creation for the "max_discount_percent" field.
 	DefaultMaxDiscountPercent float64
+	// DefaultAllowPriceAboveBase holds the default value on creation for the "allow_price_above_base" field.
+	DefaultAllowPriceAboveBase bool
+	// DefaultRequireApprovalBelowBase holds the default value on creation for the "require_approval_below_base" field.
+	DefaultRequireApprovalBelowBase bool
 	// DefaultVatEnabled holds the default value on creation for the "vat_enabled" field.
 	DefaultVatEnabled bool
 	// DefaultVatRate holds the default value on creation for the "vat_rate" field.
@@ -342,6 +352,16 @@ func ByCurrency(opts ...sql.OrderTermOption) OrderOption {
 // ByMaxDiscountPercent orders the results by the max_discount_percent field.
 func ByMaxDiscountPercent(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldMaxDiscountPercent, opts...).ToFunc()
+}
+
+// ByAllowPriceAboveBase orders the results by the allow_price_above_base field.
+func ByAllowPriceAboveBase(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAllowPriceAboveBase, opts...).ToFunc()
+}
+
+// ByRequireApprovalBelowBase orders the results by the require_approval_below_base field.
+func ByRequireApprovalBelowBase(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRequireApprovalBelowBase, opts...).ToFunc()
 }
 
 // ByVatEnabled orders the results by the vat_enabled field.

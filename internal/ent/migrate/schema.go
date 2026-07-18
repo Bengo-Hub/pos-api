@@ -1425,6 +1425,8 @@ var (
 		{Name: "receipt_footer", Type: field.TypeString, Nullable: true},
 		{Name: "currency", Type: field.TypeString, Nullable: true, Default: "KES"},
 		{Name: "max_discount_percent", Type: field.TypeFloat64, Nullable: true, Default: 100},
+		{Name: "allow_price_above_base", Type: field.TypeBool, Nullable: true, Default: true},
+		{Name: "require_approval_below_base", Type: field.TypeBool, Nullable: true, Default: true},
 		{Name: "vat_enabled", Type: field.TypeBool, Nullable: true, Default: true},
 		{Name: "vat_rate", Type: field.TypeFloat64, Nullable: true, Default: 16},
 		{Name: "printer_type", Type: field.TypeString, Nullable: true, Default: "thermal"},
@@ -1470,7 +1472,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "outlet_settings_outlets_settings",
-				Columns:    []*schema.Column{OutletSettingsColumns[53]},
+				Columns:    []*schema.Column{OutletSettingsColumns[55]},
 				RefColumns: []*schema.Column{OutletsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},

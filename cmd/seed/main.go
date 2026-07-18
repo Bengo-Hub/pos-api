@@ -638,6 +638,10 @@ func seedRBACPermissions(ctx context.Context, client *ent.Client) error {
 		// only see the terminal's Credit Sale tender when a tenant admin grants this explicitly
 		// in Roles & Permissions (default-hidden, decision 2026-07-15).
 		{"pos.payments.credit", "POS record credit (on-account) sale", "payments", "credit"},
+		// Line/order discount entry (pos-ui gates the Discount column + cart "Add discount" on
+		// this OR pos.orders.manage). It was checked by the UI but never seeded, so a tenant
+		// admin could not grant discounting to a custom role at all.
+		{"pos.discounts.add", "POS apply discount", "discounts", "add"},
 	}
 	for _, ex := range extras {
 		exists, err := client.POSPermission.Query().

@@ -685,12 +685,16 @@ func (h *POSOrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Resolve the outlet's discount/override limit + whether the caller may bypass
-	// it (managers/admins), used by both the discount and price-override gates.
+	// Resolve the outlet's discount/override limits + pricing policy + whether the caller
+	// may bypass them (managers/admins), used by the discount and price-override gates.
 	maxPct := 100.0
+	allowAboveBase := true           // cashiers may raise a line price above base (up-sell)
+	requireApprovalBelowBase := true // selling below base needs a manager step-up
 	if outletID != uuid.Nil {
 		if s, sErr := h.client.OutletSetting.Query().Where(outletsetting.OutletID(outletID)).Only(r.Context()); sErr == nil {
 			maxPct = s.MaxDiscountPercent
+			allowAboveBase = s.AllowPriceAboveBase
+			requireApprovalBelowBase = s.RequireApprovalBelowBase
 		}
 	}
 	callerIsManager := overrideRoles[requesterRole(r)]
@@ -773,13 +777,15 @@ func (h *POSOrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Per-line price-override gate: ANY line priced below its preset catalog price
-	// (metadata.original_price) by a non-manager requires a manager step-up, recorded as
-	// price.override — cashiers may only sell AT or ABOVE the preset (raise margin, never
-	// discount a line on their own authority). The outlet's max_discount_percent governs the
-	// separate ORDER-level discount gate above, not per-line markdowns. Markups are allowed.
-	// The gate keys off original_price alone — a client "forgetting" the price_override flag
-	// no longer bypasses it.
+	// Per-line price-override gate, driven by the outlet's PRICING POLICY:
+	//  - below base (metadata.original_price): needs a manager step-up while
+	//    require_approval_below_base is ON (the default) — cashiers never markdown on
+	//    their own authority; toggling it OFF allows free markdowns.
+	//  - above base: allowed by default (allow_price_above_base — the retail/pharmacy
+	//    negotiated up-sell); toggling it OFF makes markups need the same step-up.
+	// The outlet's max_discount_percent governs the separate ORDER-level discount gate
+	// above, not per-line edits. The gate keys off original_price alone — a client
+	// "forgetting" the price_override flag no longer bypasses it.
 	if !callerIsManager {
 		needApproval := false
 		type ovLine struct {
@@ -794,12 +800,16 @@ func (h *POSOrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 			orig := readFloatMeta(l.Metadata, "original_price")
-			if orig <= 0 || l.UnitPrice >= orig-0.005 {
+			if orig <= 0 {
 				continue
 			}
-			dev := (orig - l.UnitPrice) / orig * 100
-			overrides = append(overrides, ovLine{sku: l.SKU, orig: orig, unit: l.UnitPrice, dev: dev})
-			needApproval = true
+			below := l.UnitPrice < orig-0.005
+			above := l.UnitPrice > orig+0.005
+			if (below && requireApprovalBelowBase) || (above && !allowAboveBase) {
+				dev := (orig - l.UnitPrice) / orig * 100
+				overrides = append(overrides, ovLine{sku: l.SKU, orig: orig, unit: l.UnitPrice, dev: dev})
+				needApproval = true
+			}
 		}
 		if needApproval {
 			approverID, valid := uuid.Nil, false

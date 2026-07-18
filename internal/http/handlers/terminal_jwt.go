@@ -13,6 +13,7 @@ import (
 	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/bengobox/pos-service/internal/ent"
 	"github.com/bengobox/pos-service/internal/ent/posrolev2"
+	"github.com/bengobox/pos-service/internal/ent/posuserroleassignment"
 )
 
 // terminalClaims are embedded in short-lived JWTs issued to POS terminals after PIN login.
@@ -61,7 +62,7 @@ type terminalEntitlements struct {
 }
 
 func issueTerminalJWT(member *ent.StaffMember, tenantID uuid.UUID, sessionOutletID uuid.UUID, secret []byte, client *ent.Client, ctx context.Context, ent2 terminalEntitlements) (string, error) {
-	permissions := resolveRolePermissions(ctx, client, tenantID, member.Role)
+	permissions := resolveEffectivePermissions(ctx, client, tenantID, member.UserID, member.Role, nil)
 
 	// Load outlet to include use_case and is_hq in terminal JWT claims
 	outletCode := ""
@@ -185,6 +186,107 @@ func (h *PINAuthHandler) RequireAnyAuth(ssoAuth *authclient.AuthMiddleware) func
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+// resolveEffectivePermissions returns the UNION of every permission source a principal holds:
+//  1. the staff/system role's grants (StaffMember.Role, or the mapped global role for SSO
+//     users with no staff record) — resolveRolePermissions;
+//  2. per-user POSUserRoleAssignment rows — the CUSTOM roles a tenant admin creates and
+//     assigns via the permission-matrix UI. These were previously ignored by /auth/me and
+//     the terminal JWT, so a user holding only a custom role surfaced ZERO permissions and
+//     the UI collapsed to dashboard-only even though the role carried full grants;
+//  3. tenant/custom POS roles whose role_code matches a raw global JWT role name — covers
+//     custom roles assigned on the auth side that the fixed global→POS mapping can't know.
+func resolveEffectivePermissions(ctx context.Context, client *ent.Client, tenantID, userID uuid.UUID, roleCode string, globalRoles []string) []string {
+	set := map[string]struct{}{}
+	add := func(codes []string) {
+		for _, c := range codes {
+			set[c] = struct{}{}
+		}
+	}
+	add(resolveRolePermissions(ctx, client, tenantID, roleCode))
+
+	// Per-user assignments → their roles' grants (custom roles included).
+	if userID != uuid.Nil {
+		roleIDs, err := client.POSUserRoleAssignment.Query().
+			Where(
+				posuserroleassignment.TenantID(tenantID),
+				posuserroleassignment.UserID(userID),
+			).
+			Select(posuserroleassignment.FieldRoleID).
+			Strings(ctx)
+		if err == nil && len(roleIDs) > 0 {
+			ids := make([]uuid.UUID, 0, len(roleIDs))
+			for _, s := range roleIDs {
+				if id, perr := uuid.Parse(s); perr == nil {
+					ids = append(ids, id)
+				}
+			}
+			if len(ids) > 0 {
+				roles, rerr := client.POSRoleV2.Query().
+					Where(posrolev2.IDIn(ids...)).
+					WithPermissions().
+					All(ctx)
+				if rerr == nil {
+					for _, role := range roles {
+						for _, p := range role.Edges.Permissions {
+							set[p.PermissionCode] = struct{}{}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Raw global role names that ARE a POS role code (tenant custom or shared).
+	for _, gr := range globalRoles {
+		if gr == "" || gr == roleCode {
+			continue
+		}
+		add(resolveRolePermissions(ctx, client, tenantID, gr))
+	}
+
+	out := make([]string, 0, len(set))
+	for c := range set {
+		out = append(out, c)
+	}
+	return out
+}
+
+// resolveAssignedRoleCodes returns the role codes a user holds via POSUserRoleAssignment
+// rows (system + custom roles) — surfaced on /auth/me so the UI can show what's assigned.
+func resolveAssignedRoleCodes(ctx context.Context, client *ent.Client, tenantID, userID uuid.UUID) []string {
+	codes := []string{}
+	if userID == uuid.Nil {
+		return codes
+	}
+	roleIDs, err := client.POSUserRoleAssignment.Query().
+		Where(
+			posuserroleassignment.TenantID(tenantID),
+			posuserroleassignment.UserID(userID),
+		).
+		Select(posuserroleassignment.FieldRoleID).
+		Strings(ctx)
+	if err != nil || len(roleIDs) == 0 {
+		return codes
+	}
+	ids := make([]uuid.UUID, 0, len(roleIDs))
+	for _, s := range roleIDs {
+		if id, perr := uuid.Parse(s); perr == nil {
+			ids = append(ids, id)
+		}
+	}
+	if len(ids) == 0 {
+		return codes
+	}
+	roles, err := client.POSRoleV2.Query().Where(posrolev2.IDIn(ids...)).All(ctx)
+	if err != nil {
+		return codes
+	}
+	for _, ro := range roles {
+		codes = append(codes, ro.RoleCode)
+	}
+	return codes
 }
 
 // resolveRolePermissions looks up the POSRoleV2 for the given roleCode and returns its permission

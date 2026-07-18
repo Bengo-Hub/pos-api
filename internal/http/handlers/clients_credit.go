@@ -1,9 +1,7 @@
 package handlers
 
 import (
-	"encoding/json"
 	"net/http"
-	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -70,59 +68,6 @@ func (h *ClientHandler) GetCredit(w http.ResponseWriter, r *http.Request) {
 	jsonOK(w, terms)
 }
 
-// setCreditInput is the body for PUT /{tenantID}/pos/clients/{accountID}/credit.
-type setCreditInput struct {
-	CreditLimit      *float64 `json:"credit_limit,omitempty"`
-	CreditPeriodDays *int     `json:"credit_period_days,omitempty"`
-}
-
-// SetCredit handles PUT /{tenantID}/pos/clients/{accountID}/credit — a manager/admin sets
-// the customer's credit limit (amount) and payment period (days). Route-gated on
-// pos.orders.manage (the same permission that approves credit sales).
-func (h *ClientHandler) SetCredit(w http.ResponseWriter, r *http.Request) {
-	tid, err := parseTenantUUID(r)
-	if err != nil {
-		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
-		return
-	}
-	if h.treasury == nil {
-		jsonError(w, "treasury client not configured", http.StatusServiceUnavailable)
-		return
-	}
-	var input setCreditInput
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		jsonError(w, "invalid request body", http.StatusBadRequest)
-		return
-	}
-	if input.CreditLimit == nil && input.CreditPeriodDays == nil {
-		jsonError(w, "credit_limit or credit_period_days is required", http.StatusBadRequest)
-		return
-	}
-	if (input.CreditLimit != nil && *input.CreditLimit < 0) || (input.CreditPeriodDays != nil && *input.CreditPeriodDays < 0) {
-		jsonError(w, "credit terms cannot be negative", http.StatusBadRequest)
-		return
-	}
-	key, name, ok := h.creditKeyForAccount(r, tid)
-	if !ok {
-		jsonError(w, "customer account not found", http.StatusNotFound)
-		return
-	}
-	tenantSlug := chi.URLParam(r, "tenantID")
-	req := treasury.SetCreditTermsRequest{
-		CustomerName:     name,
-		CreditLimit:      input.CreditLimit,
-		CreditPeriodDays: input.CreditPeriodDays,
-	}
-	// When the account has no CRM link the key IS the phone identifier; pass it in the body
-	// too so treasury can stamp it on a newly-created balance row.
-	if _, perr := uuid.Parse(key); perr != nil {
-		req.CustomerIdentifier = strings.TrimSpace(key)
-	}
-	terms, err := h.treasury.SetCreditTerms(r.Context(), tenantSlug, key, req)
-	if err != nil {
-		h.log.Error("set credit terms proxy failed", zap.Error(err))
-		jsonError(w, "failed to set credit terms", http.StatusBadGateway)
-		return
-	}
-	jsonOK(w, terms)
-}
+// NOTE: credit terms are EDITED on the central treasury Customers page (treasury-ui →
+// PATCH /ar/customers/{id}/credit-terms). The old PUT /clients/{accountID}/credit editor
+// proxy was removed with the duplicate POS clients pages — this file is read-only now.

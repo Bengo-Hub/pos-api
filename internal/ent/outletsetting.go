@@ -56,6 +56,10 @@ type OutletSetting struct {
 	Currency string `json:"currency,omitempty"`
 	// Max order discount % a cashier may apply without manager approval; above this requires a step-up (100 = no limit)
 	MaxDiscountPercent float64 `json:"max_discount_percent,omitempty"`
+	// Cashiers may RAISE a line's unit price above the catalog/base price without approval (default on; off = raising also needs a price.override step-up)
+	AllowPriceAboveBase bool `json:"allow_price_above_base,omitempty"`
+	// Selling below the catalog/base price (markdown or price-lowering discount) requires a manager/admin price.override step-up (default on; off = free markdowns)
+	RequireApprovalBelowBase bool `json:"require_approval_below_base,omitempty"`
 	// Whether to apply VAT on orders
 	VatEnabled bool `json:"vat_enabled,omitempty"`
 	// VAT percentage rate, e.g. 16.0 for 16%
@@ -161,7 +165,7 @@ func (*OutletSetting) scanValues(columns []string) ([]any, error) {
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		case outletsetting.FieldReceiptsJSON, outletsetting.FieldTaxConfigJSON, outletsetting.FieldServiceChargeJSON, outletsetting.FieldOpeningHoursJSON, outletsetting.FieldMetadata, outletsetting.FieldPrinterProfiles, outletsetting.FieldCatalogUseCases:
 			values[i] = new([]byte)
-		case outletsetting.FieldShowImages, outletsetting.FieldShowBarcodeScanner, outletsetting.FieldEnableKds, outletsetting.FieldEnableAppointments, outletsetting.FieldVatEnabled, outletsetting.FieldAutoPrintOrder, outletsetting.FieldAutoPrintKitchen, outletsetting.FieldCashDrawerEnabled, outletsetting.FieldCashDrawerAutoOpen, outletsetting.FieldCardTerminalRequireRef, outletsetting.FieldShowPaymentInfoOnReceipt, outletsetting.FieldHotelModuleEnabled, outletsetting.FieldLayawayEnabled, outletsetting.FieldShiftReportsEnabled, outletsetting.FieldShiftAutoEndEnabled:
+		case outletsetting.FieldShowImages, outletsetting.FieldShowBarcodeScanner, outletsetting.FieldEnableKds, outletsetting.FieldEnableAppointments, outletsetting.FieldAllowPriceAboveBase, outletsetting.FieldRequireApprovalBelowBase, outletsetting.FieldVatEnabled, outletsetting.FieldAutoPrintOrder, outletsetting.FieldAutoPrintKitchen, outletsetting.FieldCashDrawerEnabled, outletsetting.FieldCashDrawerAutoOpen, outletsetting.FieldCardTerminalRequireRef, outletsetting.FieldShowPaymentInfoOnReceipt, outletsetting.FieldHotelModuleEnabled, outletsetting.FieldLayawayEnabled, outletsetting.FieldShiftReportsEnabled, outletsetting.FieldShiftAutoEndEnabled:
 			values[i] = new(sql.NullBool)
 		case outletsetting.FieldMaxDiscountPercent, outletsetting.FieldVatRate:
 			values[i] = new(sql.NullFloat64)
@@ -315,6 +319,18 @@ func (_m *OutletSetting) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field max_discount_percent", values[i])
 			} else if value.Valid {
 				_m.MaxDiscountPercent = value.Float64
+			}
+		case outletsetting.FieldAllowPriceAboveBase:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field allow_price_above_base", values[i])
+			} else if value.Valid {
+				_m.AllowPriceAboveBase = value.Bool
+			}
+		case outletsetting.FieldRequireApprovalBelowBase:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field require_approval_below_base", values[i])
+			} else if value.Valid {
+				_m.RequireApprovalBelowBase = value.Bool
 			}
 		case outletsetting.FieldVatEnabled:
 			if value, ok := values[i].(*sql.NullBool); !ok {
@@ -645,6 +661,12 @@ func (_m *OutletSetting) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("max_discount_percent=")
 	builder.WriteString(fmt.Sprintf("%v", _m.MaxDiscountPercent))
+	builder.WriteString(", ")
+	builder.WriteString("allow_price_above_base=")
+	builder.WriteString(fmt.Sprintf("%v", _m.AllowPriceAboveBase))
+	builder.WriteString(", ")
+	builder.WriteString("require_approval_below_base=")
+	builder.WriteString(fmt.Sprintf("%v", _m.RequireApprovalBelowBase))
 	builder.WriteString(", ")
 	builder.WriteString("vat_enabled=")
 	builder.WriteString(fmt.Sprintf("%v", _m.VatEnabled))

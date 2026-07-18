@@ -366,17 +366,24 @@ func (h *PINAuthHandler) AuthMe(w http.ResponseWriter, r *http.Request) {
 		displayName = claims.Email
 	}
 
-	perms := resolveRolePermissions(r.Context(), h.client, tid, posRole)
+	// UNION of the staff/system role's grants + per-user assignments (custom roles) +
+	// raw-JWT-role-code matches — resolveRolePermissions alone dropped custom-role grants,
+	// leaving those users with an empty permission list and a dashboard-only UI.
+	perms := resolveEffectivePermissions(r.Context(), h.client, tid, uid, posRole, claims.Roles)
+
+	// Expose the assigned role codes too (system + custom) so the UI can display them.
+	assignedRoles := resolveAssignedRoleCodes(r.Context(), h.client, tid, uid)
 
 	jsonOK(w, map[string]any{
-		"user_id":      claims.Subject,
-		"email":        claims.Email,
-		"name":         displayName,
-		"tenant_id":    claims.TenantID,
-		"tenant_slug":  claims.GetTenantSlug(),
-		"global_roles": claims.Roles,
-		"pos_role":     posRole,
-		"permissions":  perms,
+		"user_id":        claims.Subject,
+		"email":          claims.Email,
+		"name":           displayName,
+		"tenant_id":      claims.TenantID,
+		"tenant_slug":    claims.GetTenantSlug(),
+		"global_roles":   claims.Roles,
+		"pos_role":       posRole,
+		"assigned_roles": assignedRoles,
+		"permissions":    perms,
 	})
 }
 

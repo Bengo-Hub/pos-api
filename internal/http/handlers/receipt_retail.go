@@ -139,28 +139,31 @@ func generateRetailReceiptHTML(rec receiptResponse, logoURL string) []byte {
 	var buf bytes.Buffer
 	buf.WriteString(`<!DOCTYPE html><html><head><meta charset="utf-8">`)
 	buf.WriteString(`<title>Receipt ` + htmlEscape(rec.ReceiptNumber) + `</title>`)
+	// Typography: Helvetica Neue sans stack at >=13px with a medium (500) baseline and bold
+	// (700) emphasis — thin serif strokes (the old Times New Roman) printed almost invisibly
+	// on low-quality/low-toner office printers, the "barely visible receipt" complaint.
 	buf.WriteString(`<style>
 @page{size:A4 portrait;margin:12mm}
 *{box-sizing:border-box}
-body{font-family:'Times New Roman',Georgia,serif;font-size:13px;color:#000;background:#fff;max-width:186mm;margin:0 auto;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.box{border:1.5px solid #000;padding:6px 10px;text-align:center}
-.biz{font-size:24px;font-weight:bold;letter-spacing:.5px;margin:2px 0}
-.sub{font-size:12px;margin:1px 0;white-space:pre-wrap}
+body{font-family:'Helvetica Neue',Helvetica,Arial,'Segoe UI',sans-serif;font-size:14px;font-weight:500;color:#000;background:#fff;max-width:186mm;margin:0 auto;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.box{border:2px solid #000;padding:6px 10px;text-align:center}
+.biz{font-size:24px;font-weight:700;letter-spacing:.5px;margin:2px 0}
+.sub{font-size:13px;margin:1px 0;white-space:pre-wrap}
 .logo{display:block;margin:2px auto;max-height:22mm;max-width:60mm;object-fit:contain}
 table{width:100%;border-collapse:collapse;margin-top:6px}
-th,td{border:1.5px solid #000;padding:4px 8px;font-size:13px}
-th{font-weight:bold;text-align:left}
+th,td{border:2px solid #000;padding:4px 8px;font-size:14px}
+th{font-weight:700;text-align:left}
 td.c,th.c{text-align:center}
 td.r,th.r{text-align:right}
-.served{display:flex;justify-content:space-between;border-bottom:1px solid #000;padding:5px 2px;font-size:12px;margin-top:4px}
+.served{display:flex;justify-content:space-between;border-bottom:1.5px solid #000;padding:5px 2px;font-size:13px;margin-top:4px}
 .totals{margin-top:8px}
-.trow{display:flex;justify-content:space-between;padding:1.5px 2px;font-size:13px}
-.trow.b{font-weight:bold}
+.trow{display:flex;justify-content:space-between;padding:1.5px 2px;font-size:14px}
+.trow.b{font-weight:700}
 .barcode{text-align:center;margin:14px 0 4px}
 .barcode img{height:14mm}
-.barcode .num{font-size:12px;letter-spacing:2px;margin-top:1px}
-.ftr{font-size:13px;margin:12px 0 4px;white-space:pre-wrap}
-.prov{font-size:8.5px;text-align:center;color:#000;margin-top:10px;line-height:1.4}
+.barcode .num{font-size:13px;letter-spacing:2px;margin-top:1px}
+.ftr{font-size:14px;margin:12px 0 4px;white-space:pre-wrap}
+.prov{font-size:10px;text-align:center;color:#000;margin-top:10px;line-height:1.4}
 @media print{body{max-width:100%}}
 </style></head><body>`)
 
@@ -342,22 +345,22 @@ func generateRetailReceiptPDF(rec receiptResponse, brand receiptBrand) ([]byte, 
 	if name == "" {
 		name = "RECEIPT"
 	}
-	pdf.SetFont("Times", "B", 18)
+	pdf.SetFont("Helvetica", "B", 18)
 	pdf.MultiCell(contentW, 8, strings.ToUpper(name), "", "C", false)
 	if rec.OutletAddress != "" {
-		pdf.SetFont("Times", "", 10)
+		pdf.SetFont("Helvetica", "", 10)
 		pdf.MultiCell(contentW, 5, strings.ToUpper(rec.OutletAddress), "", "C", false)
 	}
 	if rec.OutletPhones != "" {
-		pdf.SetFont("Times", "B", 10)
+		pdf.SetFont("Helvetica", "B", 10)
 		pdf.MultiCell(contentW, 5, "Mobile: "+rec.OutletPhones, "", "C", false)
 	}
 	if rec.EtimsKraPin != "" {
-		pdf.SetFont("Times", "B", 10)
+		pdf.SetFont("Helvetica", "B", 10)
 		pdf.MultiCell(contentW, 5, "KRA PIN: "+rec.EtimsKraPin, "", "C", false)
 	}
 	if rec.ReceiptHeader != "" {
-		pdf.SetFont("Times", "B", 10)
+		pdf.SetFont("Helvetica", "B", 10)
 		pdf.MultiCell(contentW, 5, rec.ReceiptHeader, "", "C", false)
 	}
 	pdf.Ln(1)
@@ -371,34 +374,34 @@ func generateRetailReceiptPDF(rec receiptResponse, brand receiptBrand) ([]byte, 
 		billLabel = "Customer"
 	}
 	custW, invW, dateW := contentW*0.45, contentW*0.22, contentW*0.33
-	pdf.SetFont("Times", "B", 11)
+	pdf.SetFont("Helvetica", "B", 11)
 	pdf.CellFormat(custW, 7, billLabel, "1", 0, "L", false, 0, "")
 	pdf.CellFormat(invW, 7, "INVOICE.NO", "1", 0, "C", false, 0, "")
 	pdf.CellFormat(dateW, 7, "DATE", "1", 1, "C", false, 0, "")
-	pdf.SetFont("Times", "B", 10)
+	pdf.SetFont("Helvetica", "B", 10)
 	pdf.CellFormat(custW, 8, strings.ToUpper(truncate(rec.BillTo, 38)), "1", 0, "L", false, 0, "")
-	pdf.SetFont("Times", "", 10)
+	pdf.SetFont("Helvetica", "", 10)
 	pdf.CellFormat(invW, 8, rec.OrderNumber, "1", 0, "C", false, 0, "")
 	pdf.CellFormat(dateW, 8, retailDateTime(rec.IssuedAt, rec.Timezone), "1", 1, "C", false, 0, "")
 	pdf.Ln(2)
 
 	// ── SERVED BY ──
 	if rec.ServedBy != "" {
-		pdf.SetFont("Times", "B", 10)
+		pdf.SetFont("Helvetica", "B", 10)
 		pdf.CellFormat(contentW/2, 6, "SERVED BY", "B", 0, "L", false, 0, "")
-		pdf.SetFont("Times", "", 10)
+		pdf.SetFont("Helvetica", "", 10)
 		pdf.CellFormat(contentW/2, 6, rec.ServedBy, "B", 1, "R", false, 0, "")
 		pdf.Ln(2)
 	}
 
 	// ── Items table ──
 	itemW, qtyW, priceW, subW := contentW*0.48, contentW*0.14, contentW*0.18, contentW*0.20
-	pdf.SetFont("Times", "B", 11)
+	pdf.SetFont("Helvetica", "B", 11)
 	pdf.CellFormat(itemW, 7, "Item Name", "1", 0, "L", false, 0, "")
 	pdf.CellFormat(qtyW, 7, "Qty", "1", 0, "C", false, 0, "")
 	pdf.CellFormat(priceW, 7, "Price", "1", 0, "R", false, 0, "")
 	pdf.CellFormat(subW, 7, "Subtotal", "1", 1, "R", false, 0, "")
-	pdf.SetFont("Times", "", 10)
+	pdf.SetFont("Helvetica", "", 10)
 	var totalQty float64
 	for _, l := range rec.Lines {
 		totalQty += l.Quantity
@@ -424,7 +427,7 @@ func generateRetailReceiptPDF(rec receiptResponse, brand receiptBrand) ([]byte, 
 		if bold {
 			style = "B"
 		}
-		pdf.SetFont("Times", style, 10.5)
+		pdf.SetFont("Helvetica", style, 10.5)
 		pdf.CellFormat(contentW*0.6, 5.5, label, "", 0, "L", false, 0, "")
 		pdf.CellFormat(contentW*0.4, 5.5, value, "", 1, "R", false, 0, "")
 	}
@@ -462,9 +465,9 @@ func generateRetailReceiptPDF(rec receiptResponse, brand receiptBrand) ([]byte, 
 	// ── KRA TIMS Details (fiscalised sales) — mirrors the paper ETR layout ──
 	if rec.EtimsCuInvNo != "" || rec.EtimsInvoiceNumber != "" || rec.EtimsQRCodeURL != "" {
 		pdf.Ln(4)
-		pdf.SetFont("Times", "B", 12)
+		pdf.SetFont("Helvetica", "B", 12)
 		pdf.CellFormat(contentW, 6, "KRA TIMS Details", "", 1, "C", false, 0, "")
-		pdf.SetFont("Times", "", 10)
+		pdf.SetFont("Helvetica", "", 10)
 		if rec.EtimsScuID != "" {
 			pdf.CellFormat(contentW, 5, "SCU ID: "+rec.EtimsScuID, "", 1, "C", false, 0, "")
 		}
@@ -474,7 +477,7 @@ func generateRetailReceiptPDF(rec receiptResponse, brand receiptBrand) ([]byte, 
 			pdf.CellFormat(contentW, 5, "CU No.: "+rec.EtimsInvoiceNumber, "", 1, "C", false, 0, "")
 		}
 		if rec.EtimsRcptSign != "" {
-			pdf.SetFont("Times", "", 8)
+			pdf.SetFont("Helvetica", "", 8)
 			pdf.MultiCell(contentW, 4, "Sign: "+rec.EtimsRcptSign, "", "C", false)
 		}
 		if rec.EtimsQRCodeURL != "" {
@@ -496,7 +499,7 @@ func generateRetailReceiptPDF(rec receiptResponse, brand receiptBrand) ([]byte, 
 			pdf.Ln(4)
 			if info := pdf.RegisterImageOptionsReader("orderbarcode", fpdf.ImageOptions{ImageType: "PNG"}, bytes.NewReader(bcPNG)); info != nil && info.Width() > 0 {
 				pdf.ImageOptions("orderbarcode", (pageW-bcW)/2, pdf.GetY(), bcW, bcH, true, fpdf.ImageOptions{ImageType: "PNG"}, 0, "")
-				pdf.SetFont("Times", "", 10)
+				pdf.SetFont("Helvetica", "", 10)
 				pdf.CellFormat(contentW, 5, rec.OrderNumber, "", 1, "C", false, 0, "")
 			} else {
 				pdf.ClearError()
@@ -510,10 +513,11 @@ func generateRetailReceiptPDF(rec receiptResponse, brand receiptBrand) ([]byte, 
 		footer = "Thank you for your business!"
 	}
 	pdf.Ln(4)
-	pdf.SetFont("Times", "", 11)
+	pdf.SetFont("Helvetica", "", 11)
 	pdf.MultiCell(contentW, 5.5, strings.ToUpper(footer), "", "L", false)
 
-	// ── Provider advertisement — smaller print ──
+	// ── Provider advertisement — smaller print, but never below ~8pt (sub-7pt text
+	// disappears entirely on low-quality office printers) ──
 	lead, contact := rec.ProviderFooterLead, rec.ProviderFooterContact
 	if lead == "" || contact == "" {
 		d := printing.DefaultProviderFooter()
@@ -525,10 +529,10 @@ func generateRetailReceiptPDF(rec receiptResponse, brand receiptBrand) ([]byte, 
 		}
 	}
 	pdf.Ln(3)
-	pdf.SetFont("Helvetica", "B", 6.8)
-	pdf.MultiCell(contentW, 3.4, lead, "", "C", false)
-	pdf.SetFont("Helvetica", "", 6.2)
-	pdf.MultiCell(contentW, 3.2, contact, "", "C", false)
+	pdf.SetFont("Helvetica", "B", 8.2)
+	pdf.MultiCell(contentW, 4, lead, "", "C", false)
+	pdf.SetFont("Helvetica", "", 7.6)
+	pdf.MultiCell(contentW, 3.8, contact, "", "C", false)
 
 	var buf bytes.Buffer
 	if err := pdf.Output(&buf); err != nil {

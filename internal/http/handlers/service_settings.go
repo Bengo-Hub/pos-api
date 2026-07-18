@@ -111,6 +111,9 @@ type settingsResponse struct {
 	ReturnWindowDays int `json:"return_window_days"`
 	// discount control
 	MaxDiscountPercent float64 `json:"max_discount_percent"`
+	// pricing policy — cashier price-edit rules (see OutletSetting schema comments)
+	AllowPriceAboveBase      bool `json:"allow_price_above_base"`
+	RequireApprovalBelowBase bool `json:"require_approval_below_base"`
 	// printer profiles (multi-printer support)
 	PrinterProfiles []map[string]any `json:"printer_profiles"`
 	// cash drawer (ESC/POS drawer kick via assigned printer)
@@ -178,6 +181,8 @@ func toSettingsResponse(outlet *ent.Outlet, s *ent.OutletSetting) settingsRespon
 		TableMaxOccupationMinutes: s.TableMaxOccupationMinutes,
 		ReturnWindowDays:          s.ReturnWindowDays,
 		MaxDiscountPercent:        s.MaxDiscountPercent,
+		AllowPriceAboveBase:       s.AllowPriceAboveBase,
+		RequireApprovalBelowBase:  s.RequireApprovalBelowBase,
 		PrinterProfiles:           s.PrinterProfiles,
 		CashDrawerEnabled:         s.CashDrawerEnabled,
 		CashDrawerPrinter:         s.CashDrawerPrinter,
@@ -447,6 +452,9 @@ type updateSettingsInput struct {
 	ScreensaverURL     *string          `json:"screensaver_url"`
 	ReturnWindowDays   *int             `json:"return_window_days"`
 	MaxDiscountPercent *float64         `json:"max_discount_percent"`
+	// pricing policy
+	AllowPriceAboveBase      *bool `json:"allow_price_above_base"`
+	RequireApprovalBelowBase *bool `json:"require_approval_below_base"`
 	// cash drawer
 	CashDrawerEnabled  *bool   `json:"cash_drawer_enabled"`
 	CashDrawerPrinter  *string `json:"cash_drawer_printer"`
@@ -522,6 +530,12 @@ func (h *ServiceSettingsHandler) PutSettings(w http.ResponseWriter, r *http.Requ
 	}
 	if input.MaxDiscountPercent != nil {
 		upd = upd.SetMaxDiscountPercent(*input.MaxDiscountPercent)
+	}
+	if input.AllowPriceAboveBase != nil {
+		upd = upd.SetAllowPriceAboveBase(*input.AllowPriceAboveBase)
+	}
+	if input.RequireApprovalBelowBase != nil {
+		upd = upd.SetRequireApprovalBelowBase(*input.RequireApprovalBelowBase)
 	}
 	if input.VATEnabled != nil {
 		upd = upd.SetVatEnabled(*input.VATEnabled)

@@ -121,6 +121,16 @@ func MaxDiscountPercent(v float64) predicate.OutletSetting {
 	return predicate.OutletSetting(sql.FieldEQ(FieldMaxDiscountPercent, v))
 }
 
+// AllowPriceAboveBase applies equality check predicate on the "allow_price_above_base" field. It's identical to AllowPriceAboveBaseEQ.
+func AllowPriceAboveBase(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldAllowPriceAboveBase, v))
+}
+
+// RequireApprovalBelowBase applies equality check predicate on the "require_approval_below_base" field. It's identical to RequireApprovalBelowBaseEQ.
+func RequireApprovalBelowBase(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldRequireApprovalBelowBase, v))
+}
+
 // VatEnabled applies equality check predicate on the "vat_enabled" field. It's identical to VatEnabledEQ.
 func VatEnabled(v bool) predicate.OutletSetting {
 	return predicate.OutletSetting(sql.FieldEQ(FieldVatEnabled, v))
@@ -999,6 +1009,46 @@ func MaxDiscountPercentIsNil() predicate.OutletSetting {
 // MaxDiscountPercentNotNil applies the NotNil predicate on the "max_discount_percent" field.
 func MaxDiscountPercentNotNil() predicate.OutletSetting {
 	return predicate.OutletSetting(sql.FieldNotNull(FieldMaxDiscountPercent))
+}
+
+// AllowPriceAboveBaseEQ applies the EQ predicate on the "allow_price_above_base" field.
+func AllowPriceAboveBaseEQ(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldAllowPriceAboveBase, v))
+}
+
+// AllowPriceAboveBaseNEQ applies the NEQ predicate on the "allow_price_above_base" field.
+func AllowPriceAboveBaseNEQ(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNEQ(FieldAllowPriceAboveBase, v))
+}
+
+// AllowPriceAboveBaseIsNil applies the IsNil predicate on the "allow_price_above_base" field.
+func AllowPriceAboveBaseIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldAllowPriceAboveBase))
+}
+
+// AllowPriceAboveBaseNotNil applies the NotNil predicate on the "allow_price_above_base" field.
+func AllowPriceAboveBaseNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldAllowPriceAboveBase))
+}
+
+// RequireApprovalBelowBaseEQ applies the EQ predicate on the "require_approval_below_base" field.
+func RequireApprovalBelowBaseEQ(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldRequireApprovalBelowBase, v))
+}
+
+// RequireApprovalBelowBaseNEQ applies the NEQ predicate on the "require_approval_below_base" field.
+func RequireApprovalBelowBaseNEQ(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNEQ(FieldRequireApprovalBelowBase, v))
+}
+
+// RequireApprovalBelowBaseIsNil applies the IsNil predicate on the "require_approval_below_base" field.
+func RequireApprovalBelowBaseIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldRequireApprovalBelowBase))
+}
+
+// RequireApprovalBelowBaseNotNil applies the NotNil predicate on the "require_approval_below_base" field.
+func RequireApprovalBelowBaseNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldRequireApprovalBelowBase))
 }
 
 // VatEnabledEQ applies the EQ predicate on the "vat_enabled" field.
