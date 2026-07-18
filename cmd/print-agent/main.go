@@ -31,7 +31,7 @@ import (
 	"github.com/bengobox/pos-service/internal/modules/printing/discovery"
 )
 
-const version = "1.2.0"
+const version = "1.3.0"
 
 func main() {
 	var (
@@ -56,7 +56,7 @@ func main() {
 		log.Fatalf("print-agent: service init: %v", err)
 	}
 
-	// Subcommand: install | uninstall | start | stop | restart | status | run (default).
+	// Subcommand: install | uninstall | start | stop | restart | status | purge-config | run (default).
 	if cmd := flag.Arg(0); cmd != "" && cmd != "run" {
 		if cmd == "status" {
 			st, sErr := svc.Status()
@@ -64,6 +64,15 @@ func main() {
 				log.Fatalf("print-agent: status: %v", sErr)
 			}
 			log.Printf("print-agent service status: %s", statusText(st))
+			return
+		}
+		// purge-config wipes the persisted pairing from every location it may live in —
+		// run by the UNINSTALLER only (never on upgrade: an upgrade must keep its pairing
+		// so the reinstalled agent resumes the SAME server identity instead of forcing a
+		// re-pair that would mint a fresh print_agents row).
+		if cmd == "purge-config" {
+			purgeConfig()
+			log.Printf("print-agent: purge-config ok")
 			return
 		}
 		if ctlErr := service.Control(svc, cmd); ctlErr != nil {

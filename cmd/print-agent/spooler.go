@@ -56,6 +56,37 @@ func saveConfig(cfg agentConfig) error {
 	return os.WriteFile(configPath(), b, 0o600)
 }
 
+// purgeConfig removes the persisted pairing from EVERY location configPath may have used
+// across run contexts — the uninstaller runs as an elevated user while the service runs as
+// LocalSystem, so os.UserConfigDir resolves differently between them and deleting only the
+// caller's own path would leave the service-profile copy behind (a later reinstall would then
+// silently resume the OLD pairing after the operator expected a clean slate). Best-effort:
+// reports what it removed, never fails the uninstall.
+func purgeConfig() {
+	dirs := make([]string, 0, 4)
+	if dir, err := os.UserConfigDir(); err == nil && dir != "" {
+		dirs = append(dirs, filepath.Join(dir, "codevertex-print-agent"))
+	}
+	// Windows service (LocalSystem) profile config dirs — both bitness views.
+	if sysRoot := os.Getenv("SystemRoot"); sysRoot != "" {
+		for _, sys := range []string{"System32", "SysWOW64"} {
+			dirs = append(dirs, filepath.Join(sysRoot, sys, "config", "systemprofile", "AppData", "Roaming", "codevertex-print-agent"))
+		}
+	}
+	for _, d := range dirs {
+		if err := os.RemoveAll(d); err == nil {
+			log.Printf("print-agent: purged config dir %s", d)
+		}
+	}
+	// Legacy fallback location: agent.json beside the executable.
+	if exe, err := os.Executable(); err == nil {
+		p := filepath.Join(filepath.Dir(exe), "agent.json")
+		if os.Remove(p) == nil {
+			log.Printf("print-agent: purged legacy config %s", p)
+		}
+	}
+}
+
 // spooler is the AccuPOS-style background print loop: long-poll pos-api for queued jobs, print
 // them (network 9100 or local OS printer by name), ack the outcome. Pairing can be (re)applied at
 // runtime via POST /pair without restarting the service.

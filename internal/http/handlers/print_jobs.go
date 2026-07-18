@@ -208,18 +208,53 @@ func (h *PrintJobsHandler) PairAgent(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "key generation failed", http.StatusInternalServerError)
 		return
 	}
-	agent, err := h.client.PrintAgent.Create().
+	// ONE live agent per outlet — enforced at pairing time. The claim loop lets ANY online
+	// agent take ANY of the outlet's jobs regardless of which printers that machine can
+	// physically reach, so two live pairings (a re-install that re-paired, or a second
+	// machine) race for the queue and produce intermittent "some chits print, some don't"
+	// failures (observed live at urban-loft: ~44% kitchen success with two agents racing).
+	// The NEWEST pairing always wins; older ones are revoked in the same transaction.
+	tx, err := h.client.Tx(r.Context())
+	if err != nil {
+		jsonError(w, "failed to pair agent", http.StatusInternalServerError)
+		return
+	}
+	revoked, err := tx.PrintAgent.Update().
+		Where(
+			entprintagent.TenantID(tid),
+			entprintagent.OutletID(outletID),
+			entprintagent.Revoked(false),
+		).
+		SetRevoked(true).
+		Save(r.Context())
+	if err != nil {
+		_ = tx.Rollback()
+		h.log.Warn("pair print agent: revoke predecessors failed", zap.Error(err))
+		jsonError(w, "failed to pair agent", http.StatusInternalServerError)
+		return
+	}
+	agent, err := tx.PrintAgent.Create().
 		SetTenantID(tid).
 		SetOutletID(outletID).
 		SetName(in.Name).
 		SetKeyHash(hash).
 		Save(r.Context())
 	if err != nil {
+		_ = tx.Rollback()
 		h.log.Warn("pair print agent failed", zap.Error(err))
 		jsonError(w, "failed to pair agent", http.StatusInternalServerError)
 		return
 	}
-	jsonOK(w, map[string]any{"id": agent.ID, "name": agent.Name, "key": plaintext})
+	if err := tx.Commit(); err != nil {
+		jsonError(w, "failed to pair agent", http.StatusInternalServerError)
+		return
+	}
+	if revoked > 0 {
+		h.log.Info("pair print agent: revoked predecessor pairings",
+			zap.Int("revoked", revoked),
+			zap.String("outlet_id", outletID.String()))
+	}
+	jsonOK(w, map[string]any{"id": agent.ID, "name": agent.Name, "key": plaintext, "revoked_predecessors": revoked})
 }
 
 // ListAgents handles GET /{tenantID}/pos/printing/agents?outlet_id= — paired agents + liveness.
