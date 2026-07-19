@@ -1009,6 +1009,21 @@ func seedRBACRoles(ctx context.Context, client *ent.Client) error {
 		if err != nil {
 			return fmt.Errorf("list roles for code %s: %w", rd.code, err)
 		}
+		// ADD-ONLY for every role bearing this system code — global (shared, tenant_id NULL)
+		// AND tenant-scoped copies alike. The seed guarantees every role has AT LEAST the
+		// permissions its code definition lists; it never revokes one.
+		//
+		// This used to run an "exact reconcile" (revoke any grant not in the code definition)
+		// for the GLOBAL role specifically. That silently discarded a tenant admin's edits made
+		// via the Roles & Permissions matrix on the VERY NEXT pos-api deploy (the entrypoint
+		// re-runs this seed on every pod boot) — an admin unchecking e.g. pos.payments.add for
+		// "waiter" would see it correctly removed, then have it silently restored a few minutes
+		// later when the next deploy's seed ran, with no error or indication anything reverted.
+		// The UI must be a trustworthy, durable reflection of "what this role currently grants"
+		// — an admin's deliberate edit is the more authoritative signal than the code's default
+		// definition once the role already exists. If a permission is later retired from a role's
+		// code definition, remove it from anyone who still holds it via a one-off admin action or
+		// migration, not a standing behavior that also erases every tenant's customizations.
 		for _, role := range matchingRoles {
 			for _, permID := range permIDs {
 				_, err = client.POSRolePermission.Create().
@@ -1018,20 +1033,6 @@ func seedRBACRoles(ctx context.Context, client *ent.Client) error {
 				if err != nil {
 					// Ignore duplicates (unique constraint violation)
 					continue
-				}
-			}
-			// Exact reconcile for the shared GLOBAL system role: revoke grants that were
-			// REMOVED from the definition (e.g. cashier lost pos.orders.view for REQ-007
-			// per-cashier scoping). Tenant-scoped copies stay add-only — they may carry
-			// deliberate per-tenant customizations we must not strip.
-			if role.TenantID == nil && len(permIDs) > 0 {
-				if _, derr := client.POSRolePermission.Delete().
-					Where(
-						posrolepermission.RoleID(role.ID),
-						posrolepermission.PermissionIDNotIn(permIDs...),
-					).
-					Exec(ctx); derr != nil {
-					return fmt.Errorf("reconcile (revoke) perms for global role %s: %w", rd.code, derr)
 				}
 			}
 		}
