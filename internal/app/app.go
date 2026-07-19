@@ -35,11 +35,11 @@ import (
 	inventorymodule "github.com/bengobox/pos-service/internal/modules/inventory"
 	kdsmodule "github.com/bengobox/pos-service/internal/modules/kds"
 	ordermodule "github.com/bengobox/pos-service/internal/modules/orders"
-	"github.com/bengobox/pos-service/internal/modules/reversals"
 	paymentmodule "github.com/bengobox/pos-service/internal/modules/payments"
 	"github.com/bengobox/pos-service/internal/modules/printing"
 	promommodule "github.com/bengobox/pos-service/internal/modules/promotions"
 	rbacmodule "github.com/bengobox/pos-service/internal/modules/rbac"
+	"github.com/bengobox/pos-service/internal/modules/reversals"
 	shiftsmodule "github.com/bengobox/pos-service/internal/modules/shifts"
 	"github.com/bengobox/pos-service/internal/modules/staffcredit"
 	"github.com/bengobox/pos-service/internal/modules/tenant"
@@ -390,6 +390,9 @@ func New(ctx context.Context) (*App, error) {
 	// etims.invoice_transmitted event was missed, before a receipt renders.
 	receiptHandler.SetTreasuryClient(treasuryClient)
 	receiptHandler.SetAuditService(auditSvc)
+	// Customer account-balance line: key the lookup on the SAME CRM contact a credit sale/return
+	// would resolve to, so the receipt reads the identical treasury CustomerBalance row.
+	receiptHandler.SetCrmContactResolver(paymentSvc.ResolveCrmContactID)
 	// Branded, printable customer menu document (public/tokenless — QR target). Reuses the
 	// catalog assembly + tenant branding cache, mirroring ReceiptHandler wiring.
 	menuHandler := handlers.NewMenuHandler(log, entClient, tenantCache, cfg.Auth.ServiceURL, catalogHandler)

@@ -95,6 +95,12 @@ func treasuryMethodForImmediate(method string) string {
 // the amount is posted to the customer's AR balance in treasury instead.
 const TenderOnAccount = "on_account"
 
+// TenderCustomerCredit draws down a customer's EXISTING stored credit (a negative treasury AR
+// balance) against this sale — the inverse-direction sibling of TenderOnAccount, which only ever
+// CREATES a debt. Settles immediately like cash (no deferred settlement), usable on any sale type
+// alongside other tenders in a split payment, not only on a fully-credit sale.
+const TenderCustomerCredit = "customer_credit"
+
 // TenderComplimentary is the "no-charge" tender: no money is taken and no debt is created —
 // the bill is closed as a complimentary/goodwill gesture (staff meals, director's order,
 // goodwill for a visiting team). Requires a mandatory reason and manager approval, enforced by
@@ -267,6 +273,12 @@ func (s *Service) CreatePaymentIntent(ctx context.Context, req RecordPaymentRequ
 	// Reason + manager approval are already enforced by the HTTP handler before this is called.
 	if strings.EqualFold(req.TenderMethod, TenderComplimentary) {
 		return s.recordComplimentarySale(ctx, order, req, currency)
+	}
+
+	// Apply existing stored credit: settle (part of) the sale from the customer's treasury credit
+	// balance instead of collecting cash. Treasury enforces the available-credit cap.
+	if strings.EqualFold(req.TenderMethod, TenderCustomerCredit) {
+		return s.applyCustomerCreditTender(ctx, order, req, currency)
 	}
 
 	cash := isCashMethod(req.TenderMethod)

@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -70,4 +71,38 @@ func (h *ClientHandler) GetCredit(w http.ResponseWriter, r *http.Request) {
 
 // NOTE: credit terms are EDITED on the central treasury Customers page (treasury-ui →
 // PATCH /ar/customers/{id}/credit-terms). The old PUT /clients/{accountID}/credit editor
-// proxy was removed with the duplicate POS clients pages — this file is read-only now.
+// proxy was removed with the duplicate POS clients pages — this file is read-only for terms.
+
+// PayoutCredit handles POST /{tenantID}/pos/clients/{accountID}/payout-credit — pays out some/all
+// of a customer's EXISTING stored credit (a negative balance_due) via a real channel, independent
+// of any return/sale. Proxied over S2S for the same reason GetCredit is: the INTERNAL_SERVICE_KEY
+// must never reach the browser.
+func (h *ClientHandler) PayoutCredit(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+	if h.treasury == nil {
+		jsonError(w, "treasury client not configured", http.StatusServiceUnavailable)
+		return
+	}
+	key, _, ok := h.creditKeyForAccount(r, tid)
+	if !ok {
+		jsonError(w, "customer account not found", http.StatusNotFound)
+		return
+	}
+	var body treasury.PayoutCreditRequest
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		jsonError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	tenantSlug := chi.URLParam(r, "tenantID")
+	resp, err := h.treasury.PayoutCustomerCredit(r.Context(), tenantSlug, key, body)
+	if err != nil {
+		h.log.Error("payout customer credit proxy failed", zap.Error(err))
+		jsonError(w, "failed to pay out credit", http.StatusBadGateway)
+		return
+	}
+	jsonOK(w, resp)
+}

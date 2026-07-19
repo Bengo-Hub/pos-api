@@ -41,8 +41,13 @@ type ReceiptHandler struct {
 	// the tenant has activated eTIMS on treasury. Wired to orders.TaxResolver.FiscalPin;
 	// used as fallback when the order doesn't yet carry its own transmitted fiscal identity.
 	fiscalPin func(ctx context.Context, tenantSlug string) string
-	// treasury backfills missing fiscal identity on receipts (see receipt_etims_backfill.go).
+	// treasury backfills missing fiscal identity on receipts (see receipt_etims_backfill.go) and
+	// resolves the customer account-balance line (see ensureCustomerAccountBalance below).
 	treasury *treasury.Client
+	// resolveCrmContact resolves a phone's CRM contact id the SAME way a credit sale/return does
+	// (payments.Service.ResolveCrmContactID), so the receipt balance line reads the identical
+	// treasury CustomerBalance row those flows write to. Nil-safe: falls back to the raw phone.
+	resolveCrmContact func(ctx context.Context, tenantID uuid.UUID, phone string) string
 }
 
 // NewReceiptHandler creates a new ReceiptHandler.
@@ -56,6 +61,12 @@ func (h *ReceiptHandler) SetAuditService(a *audit.Service) { h.auditSvc = a }
 // SetFiscalPinResolver wires the eTIMS-gated KRA PIN lookup for receipt headers.
 func (h *ReceiptHandler) SetFiscalPinResolver(fn func(ctx context.Context, tenantSlug string) string) {
 	h.fiscalPin = fn
+}
+
+// SetCrmContactResolver wires the CRM-contact lookup used to key the receipt's customer
+// account-balance line — the same resolver credit sales/returns use.
+func (h *ReceiptHandler) SetCrmContactResolver(fn func(ctx context.Context, tenantID uuid.UUID, phone string) string) {
+	h.resolveCrmContact = fn
 }
 
 // ReprintReceipt handles POST /{tenantID}/pos/orders/{orderID}/receipt/reprint.
@@ -210,52 +221,54 @@ func newReceiptResponse(v printing.ReceiptView, layout string) receiptResponse {
 		etimsQRPNG = printing.QRDataURI(v.EtimsQRCodeURL, 192)
 	}
 	return receiptResponse{
-		ReceiptNumber:      v.ReceiptNumber,
-		OrderNumber:        v.OrderNumber,
-		OutletID:           v.OutletID,
-		OutletName:         v.OutletName,
-		OutletAddress:      v.OutletAddress,
-		OutletPhones:       v.OutletPhones,
-		BillTo:             v.BillTo,
-		BillToLabel:        v.BillToLabel,
-		IssuedAt:           v.IssuedAt,
-		Timezone:           v.Timezone,
-		Lines:              lines,
-		Subtotal:           v.Subtotal,
-		TaxAmount:          v.TaxAmount,
-		DiscountAmount:     v.DiscountAmount,
-		ChargesTotal:       v.ChargesTotal,
-		Charges:            v.Charges,
-		RoundOff:           v.RoundOff,
-		TotalAmount:        v.TotalAmount,
-		Currency:           v.Currency,
-		AmountPaid:         v.AmountPaid,
-		PaymentMethod:      v.PaymentMethod,
-		PaymentDate:        v.PaymentDate,
-		BalanceDue:         v.BalanceDue,
-		AmountTendered:     v.AmountTendered,
-		ChangeDue:          v.ChangeDue,
-		EtimsInvoiceNumber: v.EtimsInvoiceNumber,
-		EtimsQRCodeURL:     v.EtimsQRCodeURL,
-		EtimsKraPin:        v.EtimsKraPin,
-		EtimsScuID:         v.EtimsScuID,
-		EtimsCuInvNo:       v.EtimsCuInvNo,
-		EtimsRcptSign:      v.EtimsRcptSign,
-		EtimsQRPNG:         etimsQRPNG,
-		PaymentMethods:     pm,
-		ReceiptHeader:      v.ReceiptHeader,
-		ReceiptFooter:      v.ReceiptFooter,
-		VatEnabled:            v.VatEnabled,
-		VatRate:               v.VatRate,
-		PaperWidth:            v.PaperWidth,
-		ServedBy:              v.ServedBy,
-		UseCase:               v.UseCase,
-		Layout:                layout,
-		ShowLogo:              v.ShowLogo,
-		BarcodePNG:            barcodePNG,
-		BarcodeValue:          barcodeValue,
-		ProviderFooterLead:    v.ProviderFooter.OrDefault().Lead,
-		ProviderFooterContact: v.ProviderFooter.OrDefault().Contact,
+		ReceiptNumber:               v.ReceiptNumber,
+		OrderNumber:                 v.OrderNumber,
+		OutletID:                    v.OutletID,
+		OutletName:                  v.OutletName,
+		OutletAddress:               v.OutletAddress,
+		OutletPhones:                v.OutletPhones,
+		BillTo:                      v.BillTo,
+		BillToLabel:                 v.BillToLabel,
+		IssuedAt:                    v.IssuedAt,
+		Timezone:                    v.Timezone,
+		Lines:                       lines,
+		Subtotal:                    v.Subtotal,
+		TaxAmount:                   v.TaxAmount,
+		DiscountAmount:              v.DiscountAmount,
+		ChargesTotal:                v.ChargesTotal,
+		Charges:                     v.Charges,
+		RoundOff:                    v.RoundOff,
+		TotalAmount:                 v.TotalAmount,
+		Currency:                    v.Currency,
+		AmountPaid:                  v.AmountPaid,
+		PaymentMethod:               v.PaymentMethod,
+		PaymentDate:                 v.PaymentDate,
+		BalanceDue:                  v.BalanceDue,
+		CustomerAccountBalance:      v.CustomerAccountBalance,
+		CustomerAccountBalanceLabel: v.CustomerAccountBalanceLabel,
+		AmountTendered:              v.AmountTendered,
+		ChangeDue:                   v.ChangeDue,
+		EtimsInvoiceNumber:          v.EtimsInvoiceNumber,
+		EtimsQRCodeURL:              v.EtimsQRCodeURL,
+		EtimsKraPin:                 v.EtimsKraPin,
+		EtimsScuID:                  v.EtimsScuID,
+		EtimsCuInvNo:                v.EtimsCuInvNo,
+		EtimsRcptSign:               v.EtimsRcptSign,
+		EtimsQRPNG:                  etimsQRPNG,
+		PaymentMethods:              pm,
+		ReceiptHeader:               v.ReceiptHeader,
+		ReceiptFooter:               v.ReceiptFooter,
+		VatEnabled:                  v.VatEnabled,
+		VatRate:                     v.VatRate,
+		PaperWidth:                  v.PaperWidth,
+		ServedBy:                    v.ServedBy,
+		UseCase:                     v.UseCase,
+		Layout:                      layout,
+		ShowLogo:                    v.ShowLogo,
+		BarcodePNG:                  barcodePNG,
+		BarcodeValue:                barcodeValue,
+		ProviderFooterLead:          v.ProviderFooter.OrDefault().Lead,
+		ProviderFooterContact:       v.ProviderFooter.OrDefault().Contact,
 	}
 }
 
@@ -403,6 +416,11 @@ func (h *ReceiptHandler) GetReceipt(w http.ResponseWriter, r *http.Request) {
 	// tenant has activated eTIMS (the resolver returns "" otherwise).
 	if view.EtimsKraPin == "" && h.fiscalPin != nil && outlet != nil {
 		view.EtimsKraPin = h.fiscalPin(ctx, outlet.TenantSlug)
+	}
+	// Customer account-balance line: the customer's overall treasury AR position (store credit
+	// available or amount owing), independent of whether THIS sale was cash or credit.
+	if outlet != nil {
+		h.ensureCustomerAccountBalance(ctx, outlet.TenantSlug, order, &view)
 	}
 
 	// Resolve the outlet's receipt layout: the receipt_format setting wins; "auto" (the

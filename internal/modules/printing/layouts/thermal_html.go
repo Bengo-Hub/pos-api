@@ -203,6 +203,9 @@ h1{font-size:17px;letter-spacing:.5px;text-align:center;margin:3px 0}
 	if rec.BalanceDue > 0.004 || rec.BalanceDue < -0.004 {
 		buf.WriteString(fmt.Sprintf(`<div class="line"><span>Balance Due</span><span>%s</span></div>`, amount(rec.BalanceDue)))
 	}
+	if rec.CustomerAccountBalance != nil {
+		buf.WriteString(fmt.Sprintf(`<div class="line"><span>%s</span><span>%s</span></div>`, rec.CustomerAccountBalanceLabel, amount(*rec.CustomerAccountBalance)))
+	}
 	if pm := rec.PaymentMethods; pm != nil {
 		buf.WriteString(`<div class="divider"></div>`)
 		buf.WriteString(`<p class="bold" style="font-size:10px;text-align:center">HOW TO PAY</p>`)

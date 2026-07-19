@@ -872,6 +872,9 @@ func New(
 						// Credit terms (treasury AR proxy, READ-ONLY here): balance + limit + period
 						// for the checkout credit hint; terms are edited on the treasury Customers page.
 						pos.Get("/clients/{accountID}/credit", clients.GetCredit)
+						// Stand-alone pay-out of a customer's existing stored credit (independent of any
+						// return/sale) — proxied to treasury the same way GetCredit is.
+						pos.Post("/clients/{accountID}/payout-credit", clients.PayoutCredit)
 					}
 
 					// Loyalty programs & accounts — gated on the loyalty_program feature

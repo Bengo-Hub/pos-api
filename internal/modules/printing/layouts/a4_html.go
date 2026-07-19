@@ -150,6 +150,9 @@ td.r,th.r{text-align:right}
 	if math.Abs(rec.BalanceDue) >= 0.005 {
 		trow("Total Due with Current", money(rec.Currency, rec.BalanceDue), false)
 	}
+	if rec.CustomerAccountBalance != nil {
+		trow(rec.CustomerAccountBalanceLabel, money(rec.Currency, *rec.CustomerAccountBalance), false)
+	}
 	buf.WriteString(`</div>`)
 
 	// ── KRA TIMS Details, adapted from the KRA-issued paper ETR receipt (see the Jazaribu

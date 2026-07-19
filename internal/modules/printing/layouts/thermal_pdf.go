@@ -239,6 +239,9 @@ func renderThermalPDF(rec Receipt, brand Brand, layout string) ([]byte, error) {
 	if rec.BalanceDue > 0.004 || rec.BalanceDue < -0.004 {
 		line("Balance Due", moneyLine(rec.BalanceDue), "", 9)
 	}
+	if rec.CustomerAccountBalance != nil {
+		line(rec.CustomerAccountBalanceLabel, moneyLine(*rec.CustomerAccountBalance), "", 9)
+	}
 
 	// Payment display ("HOW TO PAY") — M-Pesa/bank details, same block as the HTML/ESC-POS receipts.
 	if pm := rec.PaymentMethods; pm != nil {

@@ -329,6 +329,30 @@ func (c *Client) GetCreditTerms(ctx context.Context, tenantSlug, contactIDOrIden
 // treasury-api PATCH /ar/customers/{id}/credit-terms). The old S2S SetCreditTerms proxy
 // method was removed with the duplicate POS credit-terms editor.
 
+// ApplyCreditRequest is the body for POST /api/v1/s2s/{tenant}/ar/customers/{key}/apply-credit —
+// drawing down a customer's EXISTING stored credit against a NEW sale, as a checkout tender.
+type ApplyCreditRequest struct {
+	Amount     float64 `json:"amount"`
+	POSOrderID string  `json:"pos_order_id,omitempty"`
+	Reference  string  `json:"reference,omitempty"`
+	UserID     string  `json:"user_id,omitempty"`
+}
+
+// ApplyCreditResponse is the updated treasury customer-balance row.
+type ApplyCreditResponse struct {
+	ID         string `json:"id"`
+	BalanceDue string `json:"balance_due"`
+	Currency   string `json:"currency"`
+}
+
+// ApplyCustomerCredit draws down a customer's EXISTING stored credit against a NEW sale — the
+// inverse-direction sibling of RecordCreditSale, which only ever CREATES a debt. Treasury enforces
+// the available-credit cap (rejects if amount exceeds it); pos-api never duplicates that check.
+func (c *Client) ApplyCustomerCredit(ctx context.Context, tenantSlug, contactIDOrIdentifier string, req ApplyCreditRequest) (*ApplyCreditResponse, error) {
+	u := fmt.Sprintf("%s/api/v1/s2s/%s/ar/customers/%s/apply-credit", c.baseURL, tenantSlug, url.PathEscape(contactIDOrIdentifier))
+	return doRequest[ApplyCreditResponse](ctx, c.httpClient, http.MethodPost, u, c.apiKey, req)
+}
+
 // ARPaymentRequest is the body for POST /api/v1/s2s/{tenant}/ar/customers/{key}/payment —
 // settling (part of) a customer's on-account debt collected at the till.
 type ARPaymentRequest struct {
@@ -351,6 +375,30 @@ type ARPaymentResponse struct {
 func (c *Client) RecordARPayment(ctx context.Context, tenantSlug, contactIDOrIdentifier string, req ARPaymentRequest) (*ARPaymentResponse, error) {
 	u := fmt.Sprintf("%s/api/v1/s2s/%s/ar/customers/%s/payment", c.baseURL, tenantSlug, url.PathEscape(contactIDOrIdentifier))
 	return doRequest[ARPaymentResponse](ctx, c.httpClient, http.MethodPost, u, c.apiKey, req)
+}
+
+// PayoutCreditRequest is the body for POST /api/v1/s2s/{tenant}/ar/customers/{key}/payout-credit —
+// paying out (part of) a customer's EXISTING stored credit (a negative balance_due) via a real
+// channel, independent of any return/sale.
+type PayoutCreditRequest struct {
+	Amount        float64 `json:"amount"`
+	PayoutChannel string  `json:"payout_channel"`
+	Reference     string  `json:"reference,omitempty"`
+}
+
+// PayoutCreditResponse is the updated treasury customer-balance row.
+type PayoutCreditResponse struct {
+	ID         string `json:"id"`
+	BalanceDue string `json:"balance_due"`
+	Currency   string `json:"currency"`
+}
+
+// PayoutCustomerCredit pays out existing stored credit to the customer for real (cash/mpesa/bank/
+// cheque) — the standalone counterpart to RecordARPayment, which only ever pays DOWN a positive
+// debt. Same key convention: CRM contact UUID preferred, phone identifier fallback.
+func (c *Client) PayoutCustomerCredit(ctx context.Context, tenantSlug, contactIDOrIdentifier string, req PayoutCreditRequest) (*PayoutCreditResponse, error) {
+	u := fmt.Sprintf("%s/api/v1/s2s/%s/ar/customers/%s/payout-credit", c.baseURL, tenantSlug, url.PathEscape(contactIDOrIdentifier))
+	return doRequest[PayoutCreditResponse](ctx, c.httpClient, http.MethodPost, u, c.apiKey, req)
 }
 
 // QuotationLine is one line on an S2S quotation create. Quantity/UnitPrice go as JSON numbers;

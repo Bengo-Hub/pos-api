@@ -73,21 +73,26 @@ type Receipt struct {
 	ChargesTotal   float64 `json:"charges_total,omitempty"`
 	// Charges is the named breakdown behind ChargesTotal (packaging/service/shipping…) so the
 	// receipt can itemise "Shipping(+)" etc. instead of one opaque charges line.
-	Charges     map[string]float64 `json:"charges,omitempty"`
-	RoundOff    float64            `json:"round_off,omitempty"`
-	TotalAmount float64            `json:"total_amount"`
-	Currency    string             `json:"currency"`
-	AmountPaid  float64            `json:"amount_paid"`
-	PaymentMethod string           `json:"payment_method"`
+	Charges       map[string]float64 `json:"charges,omitempty"`
+	RoundOff      float64            `json:"round_off,omitempty"`
+	TotalAmount   float64            `json:"total_amount"`
+	Currency      string             `json:"currency"`
+	AmountPaid    float64            `json:"amount_paid"`
+	PaymentMethod string             `json:"payment_method"`
 	// PaymentDate is when the shown payment settled — retail receipts print it beside the
 	// method, e.g. "Cash (14-07-2026)". Omitted for unpaid bills.
 	PaymentDate *time.Time `json:"payment_date,omitempty"`
 	// BalanceDue = total − paid (positive: still owed / on account; negative: customer credit).
-	BalanceDue         float64 `json:"balance_due"`
-	AmountTendered     float64 `json:"amount_tendered"`
-	ChangeDue          float64 `json:"change_due"`
-	EtimsInvoiceNumber string  `json:"etims_invoice_number,omitempty"`
-	EtimsQRCodeURL     string  `json:"etims_qr_code_url,omitempty"`
+	BalanceDue float64 `json:"balance_due"`
+	// CustomerAccountBalance is the customer's OVERALL treasury AR position — distinct from
+	// BalanceDue, which is scoped to this one order — shown regardless of this sale's own tender.
+	// Omitted (nil) for a walk-in sale or when the balance is exactly zero.
+	CustomerAccountBalance      *float64 `json:"customer_account_balance,omitempty"`
+	CustomerAccountBalanceLabel string   `json:"customer_account_balance_label,omitempty"`
+	AmountTendered              float64  `json:"amount_tendered"`
+	ChangeDue                   float64  `json:"change_due"`
+	EtimsInvoiceNumber          string   `json:"etims_invoice_number,omitempty"`
+	EtimsQRCodeURL              string   `json:"etims_qr_code_url,omitempty"`
 	// Fiscal identity for the "KRA TIMS Details" block (mirrors paper ETR receipts).
 	// kra_pin prints in the business header; scu_id / cu_inv_no / rcpt_sign in the block.
 	EtimsKraPin   string `json:"etims_kra_pin,omitempty"`

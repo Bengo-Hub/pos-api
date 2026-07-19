@@ -157,6 +157,9 @@ func renderA4PDF(rec Receipt, brand Brand) ([]byte, error) {
 	if math.Abs(rec.BalanceDue) >= 0.005 {
 		trow("Total Due with Current", money(rec.Currency, rec.BalanceDue), false)
 	}
+	if rec.CustomerAccountBalance != nil {
+		trow(rec.CustomerAccountBalanceLabel, money(rec.Currency, *rec.CustomerAccountBalance), false)
+	}
 
 	// ── KRA TIMS Details, adapted from the KRA-issued paper ETR receipt (see the Jazaribu
 	// Retail reference): SCU ID + CU Inv No, then the verification QR, then — right after,

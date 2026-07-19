@@ -28,34 +28,38 @@ var (
 
 // ReceiptData holds all data needed to render a receipt.
 type ReceiptData struct {
-	Type               string // "customer", "kitchen_ticket", "waiter_copy", "void"
-	OutletName         string
-	OutletAddress      string
-	OutletPhones       string // formatted labeled phones, printed as "Mobile: …" under the address
-	OrderNumber        string
-	BillTo             string
-	BillToLabel        string // "Customer" or "Paid by"
-	ServedBy           string
-	TableRef           string
-	DateTime           time.Time
-	Header             string // custom header text from OutletSetting
-	Footer             string // custom footer text from OutletSetting
-	Items              []ReceiptItem
-	Subtotal           float64
-	TaxTotal           float64
-	VatRate            float64 // percentage, e.g. 16 — 0 means "unknown", falls back to the plain "Tax" label
-	DiscountTotal      float64
-	ChargesTotal       float64
-	RoundOff           float64
-	TotalAmount        float64
-	PaymentMethod      string
-	PaymentDate        *time.Time // when the payment settled — retail prints it beside the method
-	AmountPaid         float64
-	BalanceDue         float64 // total − paid; printed when non-zero (on-account / customer credit)
-	AmountTendered     float64
-	ChangeDue          float64
-	Currency           string
-	EtimsInvoiceNumber string
+	Type          string // "customer", "kitchen_ticket", "waiter_copy", "void"
+	OutletName    string
+	OutletAddress string
+	OutletPhones  string // formatted labeled phones, printed as "Mobile: …" under the address
+	OrderNumber   string
+	BillTo        string
+	BillToLabel   string // "Customer" or "Paid by"
+	ServedBy      string
+	TableRef      string
+	DateTime      time.Time
+	Header        string // custom header text from OutletSetting
+	Footer        string // custom footer text from OutletSetting
+	Items         []ReceiptItem
+	Subtotal      float64
+	TaxTotal      float64
+	VatRate       float64 // percentage, e.g. 16 — 0 means "unknown", falls back to the plain "Tax" label
+	DiscountTotal float64
+	ChargesTotal  float64
+	RoundOff      float64
+	TotalAmount   float64
+	PaymentMethod string
+	PaymentDate   *time.Time // when the payment settled — retail prints it beside the method
+	AmountPaid    float64
+	BalanceDue    float64 // total − paid; printed when non-zero (on-account / customer credit)
+	// CustomerAccountBalance is the customer's OVERALL treasury AR position (distinct from
+	// BalanceDue, which is scoped to this order) — nil when not applicable/resolved.
+	CustomerAccountBalance      *float64
+	CustomerAccountBalanceLabel string
+	AmountTendered              float64
+	ChangeDue                   float64
+	Currency                    string
+	EtimsInvoiceNumber          string
 	// Fiscal identity ("KRA TIMS Details" block, mirroring paper ETR receipts).
 	EtimsKraPin   string // printed in the business header as "KRA PIN: …"
 	EtimsScuID    string // "SCU ID" line
@@ -66,14 +70,14 @@ type ReceiptData struct {
 	EtimsQRCodeURL string
 	// QRRaster selects the raster bit-image QR encoding for printers whose firmware lacks
 	// GS ( k (printer_profiles JSON `"qr_native": false`).
-	QRRaster bool
-	PaymentMethods     *ReceiptPaymentMethods // "HOW TO PAY" block (M-Pesa/bank), customer receipts only
-	VoidReason         string
+	QRRaster       bool
+	PaymentMethods *ReceiptPaymentMethods // "HOW TO PAY" block (M-Pesa/bank), customer receipts only
+	VoidReason     string
 	// Banner is an attention line under the ticket-type heading — e.g.
 	// "*** ADDITIONAL ITEMS ***" on a delta kitchen chit fired when a waiter adds
 	// to an open bill, so the kitchen never mistakes it for a brand-new order.
-	Banner             string
-	ProviderFooter     ProviderFooter // platform-owner (Codevertex) advertisement, customer receipts only
+	Banner         string
+	ProviderFooter ProviderFooter // platform-owner (Codevertex) advertisement, customer receipts only
 	// UseCase — "retail" additionally prints the payment date beside the method
 	// (the BOI/GoDigital receipt design).
 	UseCase string
@@ -264,6 +268,11 @@ func BuildReceipt(d ReceiptData) []byte {
 		if d.BalanceDue > 0.004 || d.BalanceDue < -0.004 {
 			writeln(formatLine("Balance Due", fmt.Sprintf("%s %.2f", d.Currency, d.BalanceDue)))
 		}
+		// Customer's overall account position (store credit or amount owing), independent of
+		// whether THIS sale was cash or credit.
+		if d.CustomerAccountBalance != nil {
+			writeln(formatLine(d.CustomerAccountBalanceLabel, fmt.Sprintf("%s %.2f", d.Currency, *d.CustomerAccountBalance)))
+		}
 	}
 
 	if d.Type == "void" && d.VoidReason != "" {
@@ -334,10 +343,10 @@ func BuildReceipt(d ReceiptData) []byte {
 	if d.Type == "customer" && d.BarcodeValue != "" {
 		buf.Write(escLF)
 		write(escCenter)
-		write([]byte{0x1D, 0x68, 60})   // GS h — barcode height (dots)
-		write([]byte{0x1D, 0x77, 2})    // GS w — module width
-		write([]byte{0x1D, 0x48, 2})    // GS H — HRI (the number) below the bars
-		write([]byte{0x1D, 0x66, 0})    // GS f — HRI font A
+		write([]byte{0x1D, 0x68, 60})                                  // GS h — barcode height (dots)
+		write([]byte{0x1D, 0x77, 2})                                   // GS w — module width
+		write([]byte{0x1D, 0x48, 2})                                   // GS H — HRI (the number) below the bars
+		write([]byte{0x1D, 0x66, 0})                                   // GS f — HRI font A
 		payload := append([]byte{'{', 'B'}, []byte(d.BarcodeValue)...) // CODE128 code set B
 		write([]byte{0x1D, 0x6B, 73, byte(len(payload))})              // GS k m=73 (CODE128) n
 		write(payload)

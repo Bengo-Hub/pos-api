@@ -91,9 +91,9 @@ type ReceiptView struct {
 	// (auth outlet metadata, mirrored into address_json) — printed as
 	// "Mobile: AIRTEL +254754300099 · MTN +256782323113 · SAF +254112626692".
 	OutletPhones string
-	Timezone      string // outlet IANA timezone, e.g. "Africa/Nairobi"
-	IssuedAt      time.Time
-	BillTo        string
+	Timezone     string // outlet IANA timezone, e.g. "Africa/Nairobi"
+	IssuedAt     time.Time
+	BillTo       string
 	// BillToLabel is "Customer" for a keyed-in/walk-in customer, or "Paid by" when the name was
 	// resolved from an identified online payment (M-Pesa / card / Paystack payer).
 	BillToLabel string
@@ -109,14 +109,14 @@ type ReceiptView struct {
 	ChargesTotal   float64
 	// Charges is the named breakdown behind ChargesTotal (packaging/service/shipping…), from
 	// order metadata — rendered as individual rows when present ("Shipping(+) 200").
-	Charges        map[string]float64
-	RoundOff       float64
-	TotalAmount    float64
-	AmountPaid     float64
-	PaymentMethod  string
+	Charges       map[string]float64
+	RoundOff      float64
+	TotalAmount   float64
+	AmountPaid    float64
+	PaymentMethod string
 	// PaymentDate is when the shown payment settled (POSPayment.CreatedAt) — retail receipts
 	// print it next to the method, e.g. "Cash (14-07-2026)". Nil when unpaid/bill.
-	PaymentDate    *time.Time
+	PaymentDate *time.Time
 	// BalanceDue = TotalAmount − AmountPaid: positive on a partly-paid/on-account sale,
 	// negative when the customer holds credit/over-paid, zero on an exact settle.
 	BalanceDue     float64
@@ -152,6 +152,13 @@ type ReceiptView struct {
 	EtimsCuInvNo       string // "{SCU ID}/{receipt no}" — "CU Inv No." line
 	EtimsRcptSign      string // KRA receipt signature (fiscal signing proof)
 	PaymentMethods     *ReceiptPaymentMethods
+
+	// CustomerAccountBalance is the customer's overall treasury AR position (distinct from
+	// BalanceDue, which is scoped to THIS order) — set by the caller (GetReceipt), never here,
+	// since BuildReceiptView has no treasury dependency. Nil when not resolved/applicable
+	// (walk-in customer, treasury unreachable, or the balance is exactly zero).
+	CustomerAccountBalance      *float64
+	CustomerAccountBalanceLabel string // "Amount Owing" | "Store Credit Available"
 
 	VoidReason string
 }
