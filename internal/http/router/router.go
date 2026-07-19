@@ -392,6 +392,7 @@ func New(
 					// Bill/Receipt/Test-print buttons + Local Print Agent pairing/status.
 					if printJobs != nil {
 						pos.Post("/printing/jobs", printJobs.EnqueueJob)
+						pos.Get("/printing/jobs/status", printJobs.JobsStatus)
 						pos.Get("/printing/agents", printJobs.ListAgents)
 						pos.Post("/printing/agents", printJobs.PairAgent)
 						pos.Delete("/printing/agents/{agentID}", printJobs.RevokeAgent)

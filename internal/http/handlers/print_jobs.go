@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -160,6 +161,51 @@ func (h *PrintJobsHandler) EnqueueJob(w http.ResponseWriter, r *http.Request) {
 		"agent_online": true,
 		"jobs":         []map[string]any{{"id": job.ID, "job_type": job.JobType, "status": job.Status}},
 	})
+}
+
+// JobsStatus handles GET /{tenantID}/pos/printing/jobs/status?ids=<uuid>,<uuid>,... — lets the till
+// confirm an enqueued job actually reached the printer ("printed") rather than trusting acceptance
+// into the queue as proof of printing. Unknown/foreign ids are simply omitted from the response
+// (expired beyond JobTTL, or already swept) so the caller can treat them as unresolved.
+func (h *PrintJobsHandler) JobsStatus(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+	raw := r.URL.Query().Get("ids")
+	if raw == "" {
+		jsonOK(w, map[string]any{"jobs": []any{}})
+		return
+	}
+	var ids []uuid.UUID
+	for _, part := range strings.Split(raw, ",") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		id, perr := uuid.Parse(part)
+		if perr != nil {
+			jsonError(w, "invalid job id: "+part, http.StatusBadRequest)
+			return
+		}
+		ids = append(ids, id)
+	}
+	jobs, err := h.queue.JobsStatus(r.Context(), tid, ids)
+	if err != nil {
+		jsonError(w, "failed to look up print jobs", http.StatusInternalServerError)
+		return
+	}
+	out := make([]map[string]any, 0, len(jobs))
+	for _, j := range jobs {
+		out = append(out, map[string]any{
+			"id":         j.ID,
+			"job_type":   j.JobType,
+			"status":     j.Status,
+			"last_error": j.LastError,
+		})
+	}
+	jsonOK(w, map[string]any{"jobs": out})
 }
 
 // drawerKickBytes returns the outlet's configured ESC/POS drawer-kick pulse (hex) or the default.

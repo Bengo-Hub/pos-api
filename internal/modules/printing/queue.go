@@ -132,6 +132,20 @@ func (q *Queue) Enqueue(ctx context.Context, in EnqueueInput) (*ent.PrintJob, er
 	return job, nil
 }
 
+// JobsStatus looks up the current status/last_error of a set of jobs (scoped to the tenant) — used
+// by the till to confirm a job it just enqueued actually reached "printed" before trusting a
+// success toast, instead of treating "accepted into the queue" as "printed" (the two are NOT the
+// same: the on-site agent still has to reach the physical printer, which is where real failures —
+// bad printer name/driver, unreachable IP — happen).
+func (q *Queue) JobsStatus(ctx context.Context, tenantID uuid.UUID, ids []uuid.UUID) ([]*ent.PrintJob, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	return q.client.PrintJob.Query().
+		Where(entprintjob.TenantID(tenantID), entprintjob.IDIn(ids...)).
+		All(ctx)
+}
+
 // AgentOnline reports whether any paired, non-revoked agent for the outlet polled recently.
 func (q *Queue) AgentOnline(ctx context.Context, tenantID, outletID uuid.UUID) bool {
 	ok, err := q.client.PrintAgent.Query().
