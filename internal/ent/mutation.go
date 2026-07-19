@@ -44759,6 +44759,9 @@ type OutletSettingMutation struct {
 	addreturn_window_days           *int
 	catalog_use_cases               *[]string
 	appendcatalog_use_cases         []string
+	cashier_sales_visibility        *string
+	auto_logout_after_sale          *bool
+	cashier_terminal_surface        *string
 	updated_at                      *time.Time
 	clearedFields                   map[string]struct{}
 	outlet                          *uuid.UUID
@@ -47797,6 +47800,153 @@ func (m *OutletSettingMutation) ResetCatalogUseCases() {
 	delete(m.clearedFields, outletsetting.FieldCatalogUseCases)
 }
 
+// SetCashierSalesVisibility sets the "cashier_sales_visibility" field.
+func (m *OutletSettingMutation) SetCashierSalesVisibility(s string) {
+	m.cashier_sales_visibility = &s
+}
+
+// CashierSalesVisibility returns the value of the "cashier_sales_visibility" field in the mutation.
+func (m *OutletSettingMutation) CashierSalesVisibility() (r string, exists bool) {
+	v := m.cashier_sales_visibility
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCashierSalesVisibility returns the old "cashier_sales_visibility" field's value of the OutletSetting entity.
+// If the OutletSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OutletSettingMutation) OldCashierSalesVisibility(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCashierSalesVisibility is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCashierSalesVisibility requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCashierSalesVisibility: %w", err)
+	}
+	return oldValue.CashierSalesVisibility, nil
+}
+
+// ClearCashierSalesVisibility clears the value of the "cashier_sales_visibility" field.
+func (m *OutletSettingMutation) ClearCashierSalesVisibility() {
+	m.cashier_sales_visibility = nil
+	m.clearedFields[outletsetting.FieldCashierSalesVisibility] = struct{}{}
+}
+
+// CashierSalesVisibilityCleared returns if the "cashier_sales_visibility" field was cleared in this mutation.
+func (m *OutletSettingMutation) CashierSalesVisibilityCleared() bool {
+	_, ok := m.clearedFields[outletsetting.FieldCashierSalesVisibility]
+	return ok
+}
+
+// ResetCashierSalesVisibility resets all changes to the "cashier_sales_visibility" field.
+func (m *OutletSettingMutation) ResetCashierSalesVisibility() {
+	m.cashier_sales_visibility = nil
+	delete(m.clearedFields, outletsetting.FieldCashierSalesVisibility)
+}
+
+// SetAutoLogoutAfterSale sets the "auto_logout_after_sale" field.
+func (m *OutletSettingMutation) SetAutoLogoutAfterSale(b bool) {
+	m.auto_logout_after_sale = &b
+}
+
+// AutoLogoutAfterSale returns the value of the "auto_logout_after_sale" field in the mutation.
+func (m *OutletSettingMutation) AutoLogoutAfterSale() (r bool, exists bool) {
+	v := m.auto_logout_after_sale
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAutoLogoutAfterSale returns the old "auto_logout_after_sale" field's value of the OutletSetting entity.
+// If the OutletSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OutletSettingMutation) OldAutoLogoutAfterSale(ctx context.Context) (v *bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAutoLogoutAfterSale is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAutoLogoutAfterSale requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAutoLogoutAfterSale: %w", err)
+	}
+	return oldValue.AutoLogoutAfterSale, nil
+}
+
+// ClearAutoLogoutAfterSale clears the value of the "auto_logout_after_sale" field.
+func (m *OutletSettingMutation) ClearAutoLogoutAfterSale() {
+	m.auto_logout_after_sale = nil
+	m.clearedFields[outletsetting.FieldAutoLogoutAfterSale] = struct{}{}
+}
+
+// AutoLogoutAfterSaleCleared returns if the "auto_logout_after_sale" field was cleared in this mutation.
+func (m *OutletSettingMutation) AutoLogoutAfterSaleCleared() bool {
+	_, ok := m.clearedFields[outletsetting.FieldAutoLogoutAfterSale]
+	return ok
+}
+
+// ResetAutoLogoutAfterSale resets all changes to the "auto_logout_after_sale" field.
+func (m *OutletSettingMutation) ResetAutoLogoutAfterSale() {
+	m.auto_logout_after_sale = nil
+	delete(m.clearedFields, outletsetting.FieldAutoLogoutAfterSale)
+}
+
+// SetCashierTerminalSurface sets the "cashier_terminal_surface" field.
+func (m *OutletSettingMutation) SetCashierTerminalSurface(s string) {
+	m.cashier_terminal_surface = &s
+}
+
+// CashierTerminalSurface returns the value of the "cashier_terminal_surface" field in the mutation.
+func (m *OutletSettingMutation) CashierTerminalSurface() (r string, exists bool) {
+	v := m.cashier_terminal_surface
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCashierTerminalSurface returns the old "cashier_terminal_surface" field's value of the OutletSetting entity.
+// If the OutletSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OutletSettingMutation) OldCashierTerminalSurface(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCashierTerminalSurface is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCashierTerminalSurface requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCashierTerminalSurface: %w", err)
+	}
+	return oldValue.CashierTerminalSurface, nil
+}
+
+// ClearCashierTerminalSurface clears the value of the "cashier_terminal_surface" field.
+func (m *OutletSettingMutation) ClearCashierTerminalSurface() {
+	m.cashier_terminal_surface = nil
+	m.clearedFields[outletsetting.FieldCashierTerminalSurface] = struct{}{}
+}
+
+// CashierTerminalSurfaceCleared returns if the "cashier_terminal_surface" field was cleared in this mutation.
+func (m *OutletSettingMutation) CashierTerminalSurfaceCleared() bool {
+	_, ok := m.clearedFields[outletsetting.FieldCashierTerminalSurface]
+	return ok
+}
+
+// ResetCashierTerminalSurface resets all changes to the "cashier_terminal_surface" field.
+func (m *OutletSettingMutation) ResetCashierTerminalSurface() {
+	m.cashier_terminal_surface = nil
+	delete(m.clearedFields, outletsetting.FieldCashierTerminalSurface)
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (m *OutletSettingMutation) SetUpdatedAt(t time.Time) {
 	m.updated_at = &t
@@ -47894,7 +48044,7 @@ func (m *OutletSettingMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *OutletSettingMutation) Fields() []string {
-	fields := make([]string, 0, 58)
+	fields := make([]string, 0, 61)
 	if m.outlet != nil {
 		fields = append(fields, outletsetting.FieldOutletID)
 	}
@@ -48066,6 +48216,15 @@ func (m *OutletSettingMutation) Fields() []string {
 	if m.catalog_use_cases != nil {
 		fields = append(fields, outletsetting.FieldCatalogUseCases)
 	}
+	if m.cashier_sales_visibility != nil {
+		fields = append(fields, outletsetting.FieldCashierSalesVisibility)
+	}
+	if m.auto_logout_after_sale != nil {
+		fields = append(fields, outletsetting.FieldAutoLogoutAfterSale)
+	}
+	if m.cashier_terminal_surface != nil {
+		fields = append(fields, outletsetting.FieldCashierTerminalSurface)
+	}
 	if m.updated_at != nil {
 		fields = append(fields, outletsetting.FieldUpdatedAt)
 	}
@@ -48191,6 +48350,12 @@ func (m *OutletSettingMutation) Field(name string) (ent.Value, bool) {
 		return m.ReturnWindowDays()
 	case outletsetting.FieldCatalogUseCases:
 		return m.CatalogUseCases()
+	case outletsetting.FieldCashierSalesVisibility:
+		return m.CashierSalesVisibility()
+	case outletsetting.FieldAutoLogoutAfterSale:
+		return m.AutoLogoutAfterSale()
+	case outletsetting.FieldCashierTerminalSurface:
+		return m.CashierTerminalSurface()
 	case outletsetting.FieldUpdatedAt:
 		return m.UpdatedAt()
 	}
@@ -48316,6 +48481,12 @@ func (m *OutletSettingMutation) OldField(ctx context.Context, name string) (ent.
 		return m.OldReturnWindowDays(ctx)
 	case outletsetting.FieldCatalogUseCases:
 		return m.OldCatalogUseCases(ctx)
+	case outletsetting.FieldCashierSalesVisibility:
+		return m.OldCashierSalesVisibility(ctx)
+	case outletsetting.FieldAutoLogoutAfterSale:
+		return m.OldAutoLogoutAfterSale(ctx)
+	case outletsetting.FieldCashierTerminalSurface:
+		return m.OldCashierTerminalSurface(ctx)
 	case outletsetting.FieldUpdatedAt:
 		return m.OldUpdatedAt(ctx)
 	}
@@ -48726,6 +48897,27 @@ func (m *OutletSettingMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetCatalogUseCases(v)
 		return nil
+	case outletsetting.FieldCashierSalesVisibility:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCashierSalesVisibility(v)
+		return nil
+	case outletsetting.FieldAutoLogoutAfterSale:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAutoLogoutAfterSale(v)
+		return nil
+	case outletsetting.FieldCashierTerminalSurface:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCashierTerminalSurface(v)
+		return nil
 	case outletsetting.FieldUpdatedAt:
 		v, ok := value.(time.Time)
 		if !ok {
@@ -49003,6 +49195,15 @@ func (m *OutletSettingMutation) ClearedFields() []string {
 	if m.FieldCleared(outletsetting.FieldCatalogUseCases) {
 		fields = append(fields, outletsetting.FieldCatalogUseCases)
 	}
+	if m.FieldCleared(outletsetting.FieldCashierSalesVisibility) {
+		fields = append(fields, outletsetting.FieldCashierSalesVisibility)
+	}
+	if m.FieldCleared(outletsetting.FieldAutoLogoutAfterSale) {
+		fields = append(fields, outletsetting.FieldAutoLogoutAfterSale)
+	}
+	if m.FieldCleared(outletsetting.FieldCashierTerminalSurface) {
+		fields = append(fields, outletsetting.FieldCashierTerminalSurface)
+	}
 	return fields
 }
 
@@ -49182,6 +49383,15 @@ func (m *OutletSettingMutation) ClearField(name string) error {
 	case outletsetting.FieldCatalogUseCases:
 		m.ClearCatalogUseCases()
 		return nil
+	case outletsetting.FieldCashierSalesVisibility:
+		m.ClearCashierSalesVisibility()
+		return nil
+	case outletsetting.FieldAutoLogoutAfterSale:
+		m.ClearAutoLogoutAfterSale()
+		return nil
+	case outletsetting.FieldCashierTerminalSurface:
+		m.ClearCashierTerminalSurface()
+		return nil
 	}
 	return fmt.Errorf("unknown OutletSetting nullable field %s", name)
 }
@@ -49360,6 +49570,15 @@ func (m *OutletSettingMutation) ResetField(name string) error {
 		return nil
 	case outletsetting.FieldCatalogUseCases:
 		m.ResetCatalogUseCases()
+		return nil
+	case outletsetting.FieldCashierSalesVisibility:
+		m.ResetCashierSalesVisibility()
+		return nil
+	case outletsetting.FieldAutoLogoutAfterSale:
+		m.ResetAutoLogoutAfterSale()
+		return nil
+	case outletsetting.FieldCashierTerminalSurface:
+		m.ResetCashierTerminalSurface()
 		return nil
 	case outletsetting.FieldUpdatedAt:
 		m.ResetUpdatedAt()

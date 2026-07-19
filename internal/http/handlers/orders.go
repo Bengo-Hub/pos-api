@@ -70,7 +70,7 @@ func (h *POSOrderHandler) SetRBAC(rbac outletmw.PermissionChecker) { h.rbac = rb
 // (and superusers/platform owners, via HasServicePermission's bypass) get no restriction.
 func (h *POSOrderHandler) ownOrdersPredicate(r *http.Request) (predicate.POSOrder, bool) {
 	// Shared with the All-Sales export (report_all_sales.go) so list and export scope identically.
-	return ownOrdersScope(r, h.rbac)
+	return ownOrdersScope(r, h.rbac, h.client)
 }
 
 // SetTerminalSecret wires the HMAC secret used to verify manager step-up tokens.

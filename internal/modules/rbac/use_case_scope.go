@@ -64,6 +64,7 @@ func ModuleMatchesUseCase(module, useCase string) bool {
 // their cross-cutting seeded permission grants.
 var systemRoleUseCases = map[string][]string{
 	"waiter":              {"hospitality"},
+	"floor_supervisor":    {"hospitality"},
 	"kitchen":             {"hospitality", "quick_service"},
 	"bar":                 {"hospitality"},
 	"receptionist":        {"hospitality"},

@@ -296,6 +296,21 @@ func ReturnWindowDays(v int) predicate.OutletSetting {
 	return predicate.OutletSetting(sql.FieldEQ(FieldReturnWindowDays, v))
 }
 
+// CashierSalesVisibility applies equality check predicate on the "cashier_sales_visibility" field. It's identical to CashierSalesVisibilityEQ.
+func CashierSalesVisibility(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldCashierSalesVisibility, v))
+}
+
+// AutoLogoutAfterSale applies equality check predicate on the "auto_logout_after_sale" field. It's identical to AutoLogoutAfterSaleEQ.
+func AutoLogoutAfterSale(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldAutoLogoutAfterSale, v))
+}
+
+// CashierTerminalSurface applies equality check predicate on the "cashier_terminal_surface" field. It's identical to CashierTerminalSurfaceEQ.
+func CashierTerminalSurface(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldCashierTerminalSurface, v))
+}
+
 // UpdatedAt applies equality check predicate on the "updated_at" field. It's identical to UpdatedAtEQ.
 func UpdatedAt(v time.Time) predicate.OutletSetting {
 	return predicate.OutletSetting(sql.FieldEQ(FieldUpdatedAt, v))
@@ -2854,6 +2869,176 @@ func CatalogUseCasesIsNil() predicate.OutletSetting {
 // CatalogUseCasesNotNil applies the NotNil predicate on the "catalog_use_cases" field.
 func CatalogUseCasesNotNil() predicate.OutletSetting {
 	return predicate.OutletSetting(sql.FieldNotNull(FieldCatalogUseCases))
+}
+
+// CashierSalesVisibilityEQ applies the EQ predicate on the "cashier_sales_visibility" field.
+func CashierSalesVisibilityEQ(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldCashierSalesVisibility, v))
+}
+
+// CashierSalesVisibilityNEQ applies the NEQ predicate on the "cashier_sales_visibility" field.
+func CashierSalesVisibilityNEQ(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNEQ(FieldCashierSalesVisibility, v))
+}
+
+// CashierSalesVisibilityIn applies the In predicate on the "cashier_sales_visibility" field.
+func CashierSalesVisibilityIn(vs ...string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIn(FieldCashierSalesVisibility, vs...))
+}
+
+// CashierSalesVisibilityNotIn applies the NotIn predicate on the "cashier_sales_visibility" field.
+func CashierSalesVisibilityNotIn(vs ...string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotIn(FieldCashierSalesVisibility, vs...))
+}
+
+// CashierSalesVisibilityGT applies the GT predicate on the "cashier_sales_visibility" field.
+func CashierSalesVisibilityGT(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGT(FieldCashierSalesVisibility, v))
+}
+
+// CashierSalesVisibilityGTE applies the GTE predicate on the "cashier_sales_visibility" field.
+func CashierSalesVisibilityGTE(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGTE(FieldCashierSalesVisibility, v))
+}
+
+// CashierSalesVisibilityLT applies the LT predicate on the "cashier_sales_visibility" field.
+func CashierSalesVisibilityLT(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLT(FieldCashierSalesVisibility, v))
+}
+
+// CashierSalesVisibilityLTE applies the LTE predicate on the "cashier_sales_visibility" field.
+func CashierSalesVisibilityLTE(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLTE(FieldCashierSalesVisibility, v))
+}
+
+// CashierSalesVisibilityContains applies the Contains predicate on the "cashier_sales_visibility" field.
+func CashierSalesVisibilityContains(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldContains(FieldCashierSalesVisibility, v))
+}
+
+// CashierSalesVisibilityHasPrefix applies the HasPrefix predicate on the "cashier_sales_visibility" field.
+func CashierSalesVisibilityHasPrefix(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldHasPrefix(FieldCashierSalesVisibility, v))
+}
+
+// CashierSalesVisibilityHasSuffix applies the HasSuffix predicate on the "cashier_sales_visibility" field.
+func CashierSalesVisibilityHasSuffix(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldHasSuffix(FieldCashierSalesVisibility, v))
+}
+
+// CashierSalesVisibilityIsNil applies the IsNil predicate on the "cashier_sales_visibility" field.
+func CashierSalesVisibilityIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldCashierSalesVisibility))
+}
+
+// CashierSalesVisibilityNotNil applies the NotNil predicate on the "cashier_sales_visibility" field.
+func CashierSalesVisibilityNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldCashierSalesVisibility))
+}
+
+// CashierSalesVisibilityEqualFold applies the EqualFold predicate on the "cashier_sales_visibility" field.
+func CashierSalesVisibilityEqualFold(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEqualFold(FieldCashierSalesVisibility, v))
+}
+
+// CashierSalesVisibilityContainsFold applies the ContainsFold predicate on the "cashier_sales_visibility" field.
+func CashierSalesVisibilityContainsFold(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldContainsFold(FieldCashierSalesVisibility, v))
+}
+
+// AutoLogoutAfterSaleEQ applies the EQ predicate on the "auto_logout_after_sale" field.
+func AutoLogoutAfterSaleEQ(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldAutoLogoutAfterSale, v))
+}
+
+// AutoLogoutAfterSaleNEQ applies the NEQ predicate on the "auto_logout_after_sale" field.
+func AutoLogoutAfterSaleNEQ(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNEQ(FieldAutoLogoutAfterSale, v))
+}
+
+// AutoLogoutAfterSaleIsNil applies the IsNil predicate on the "auto_logout_after_sale" field.
+func AutoLogoutAfterSaleIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldAutoLogoutAfterSale))
+}
+
+// AutoLogoutAfterSaleNotNil applies the NotNil predicate on the "auto_logout_after_sale" field.
+func AutoLogoutAfterSaleNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldAutoLogoutAfterSale))
+}
+
+// CashierTerminalSurfaceEQ applies the EQ predicate on the "cashier_terminal_surface" field.
+func CashierTerminalSurfaceEQ(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldCashierTerminalSurface, v))
+}
+
+// CashierTerminalSurfaceNEQ applies the NEQ predicate on the "cashier_terminal_surface" field.
+func CashierTerminalSurfaceNEQ(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNEQ(FieldCashierTerminalSurface, v))
+}
+
+// CashierTerminalSurfaceIn applies the In predicate on the "cashier_terminal_surface" field.
+func CashierTerminalSurfaceIn(vs ...string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIn(FieldCashierTerminalSurface, vs...))
+}
+
+// CashierTerminalSurfaceNotIn applies the NotIn predicate on the "cashier_terminal_surface" field.
+func CashierTerminalSurfaceNotIn(vs ...string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotIn(FieldCashierTerminalSurface, vs...))
+}
+
+// CashierTerminalSurfaceGT applies the GT predicate on the "cashier_terminal_surface" field.
+func CashierTerminalSurfaceGT(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGT(FieldCashierTerminalSurface, v))
+}
+
+// CashierTerminalSurfaceGTE applies the GTE predicate on the "cashier_terminal_surface" field.
+func CashierTerminalSurfaceGTE(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGTE(FieldCashierTerminalSurface, v))
+}
+
+// CashierTerminalSurfaceLT applies the LT predicate on the "cashier_terminal_surface" field.
+func CashierTerminalSurfaceLT(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLT(FieldCashierTerminalSurface, v))
+}
+
+// CashierTerminalSurfaceLTE applies the LTE predicate on the "cashier_terminal_surface" field.
+func CashierTerminalSurfaceLTE(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLTE(FieldCashierTerminalSurface, v))
+}
+
+// CashierTerminalSurfaceContains applies the Contains predicate on the "cashier_terminal_surface" field.
+func CashierTerminalSurfaceContains(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldContains(FieldCashierTerminalSurface, v))
+}
+
+// CashierTerminalSurfaceHasPrefix applies the HasPrefix predicate on the "cashier_terminal_surface" field.
+func CashierTerminalSurfaceHasPrefix(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldHasPrefix(FieldCashierTerminalSurface, v))
+}
+
+// CashierTerminalSurfaceHasSuffix applies the HasSuffix predicate on the "cashier_terminal_surface" field.
+func CashierTerminalSurfaceHasSuffix(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldHasSuffix(FieldCashierTerminalSurface, v))
+}
+
+// CashierTerminalSurfaceIsNil applies the IsNil predicate on the "cashier_terminal_surface" field.
+func CashierTerminalSurfaceIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldCashierTerminalSurface))
+}
+
+// CashierTerminalSurfaceNotNil applies the NotNil predicate on the "cashier_terminal_surface" field.
+func CashierTerminalSurfaceNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldCashierTerminalSurface))
+}
+
+// CashierTerminalSurfaceEqualFold applies the EqualFold predicate on the "cashier_terminal_surface" field.
+func CashierTerminalSurfaceEqualFold(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEqualFold(FieldCashierTerminalSurface, v))
+}
+
+// CashierTerminalSurfaceContainsFold applies the ContainsFold predicate on the "cashier_terminal_surface" field.
+func CashierTerminalSurfaceContainsFold(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldContainsFold(FieldCashierTerminalSurface, v))
 }
 
 // UpdatedAtEQ applies the EQ predicate on the "updated_at" field.

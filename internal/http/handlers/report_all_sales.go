@@ -25,6 +25,7 @@ import (
 	outletmw "github.com/bengobox/pos-service/internal/http/middleware"
 	"github.com/bengobox/pos-service/internal/modules/docs"
 	"github.com/bengobox/pos-service/internal/modules/orders"
+	"github.com/bengobox/pos-service/internal/modules/outletpolicy"
 )
 
 // ── Shared All-Sales filter building ─────────────────────────────────────────
@@ -216,8 +217,19 @@ func allSalesOrderFilters(r *http.Request, client *ent.Client, tid uuid.UUID, lo
 // principal only holds pos.orders.view_own — the server-side backing of the "My Sales" view.
 // Shared by ListOrders and the All-Sales export so a view_own cashier can never export other
 // cashiers' sales either.
-func ownOrdersScope(r *http.Request, rbac outletmw.PermissionChecker) (predicate.POSOrder, bool) {
-	if outletmw.HasServicePermission(r, rbac, "pos.orders.view", "pos.orders.change", "pos.orders.manage") {
+//
+// Full-view = pos.orders.view / pos.orders.manage (NOT change — a waiter holds change but should
+// still be own-scoped by default; granting pos.orders.view is the "super waiter" lever). When the
+// principal is NOT full-view, the per-outlet cashier_sales_visibility policy decides: "outlet"
+// widens a view_own cashier to all sales at their (tenant/outlet-bounded) outlet; "own" (the
+// hospitality default) keeps the own + shared-active-bill scope. Server-authoritative.
+func ownOrdersScope(r *http.Request, rbac outletmw.PermissionChecker, db *ent.Client) (predicate.POSOrder, bool) {
+	if outletmw.HasServicePermission(r, rbac, "pos.orders.view", "pos.orders.manage") {
+		return nil, false
+	}
+	// Per-outlet policy: an outlet configured (or defaulting) to "outlet" visibility lets a
+	// view_own cashier see every sale at the active outlet (the retail/supermarket default).
+	if resolveCashierSalesVisibility(r, db) == outletpolicy.VisibilityOutlet {
 		return nil, false
 	}
 	claims, ok := authclient.ClaimsFromContext(r.Context())
@@ -232,6 +244,48 @@ func ownOrdersScope(r *http.Request, rbac outletmw.PermissionChecker) (predicate
 		posorder.UserID(uid),
 		posorder.StatusIn(orders.StatusOpen, orders.StatusPendingPayment),
 	), true
+}
+
+// resolveCashierSalesVisibility resolves the active outlet's cashier_sales_visibility policy
+// (outlet override → per-use-case default). The active outlet is the ?outlet_id= param (unless
+// "all") else the X-Outlet-ID header. With no resolvable outlet (e.g. an HQ all-outlets view) we
+// default to the safe/restrictive "own". Best-effort: any lookup error also yields "own".
+func resolveCashierSalesVisibility(r *http.Request, db *ent.Client) string {
+	if db == nil {
+		return outletpolicy.VisibilityOwn
+	}
+	var outletID uuid.UUID
+	if p := strings.TrimSpace(r.URL.Query().Get("outlet_id")); p != "" && !strings.EqualFold(p, "all") {
+		if oid, err := uuid.Parse(p); err == nil {
+			outletID = oid
+		}
+	}
+	if outletID == uuid.Nil {
+		if hv := strings.TrimSpace(httpware.GetOutletID(r.Context())); hv != "" && !strings.EqualFold(hv, "all") {
+			if oid, err := uuid.Parse(hv); err == nil {
+				outletID = oid
+			}
+		}
+	}
+	if outletID == uuid.Nil {
+		return outletpolicy.VisibilityOwn
+	}
+	o, err := db.Outlet.Query().
+		Where(entoutlet.ID(outletID)).
+		WithSettings().
+		Only(r.Context())
+	if err != nil || o == nil {
+		return outletpolicy.VisibilityOwn
+	}
+	useCase := ""
+	if o.UseCase != nil {
+		useCase = *o.UseCase
+	}
+	var override *string
+	if o.Edges.Settings != nil {
+		override = o.Edges.Settings.CashierSalesVisibility
+	}
+	return outletpolicy.ResolveCashierSalesVisibility(useCase, override)
 }
 
 // ── All-Sales export document ────────────────────────────────────────────────
@@ -280,7 +334,7 @@ func (h *ReportPDFHandler) AllSalesDocument(w http.ResponseWriter, r *http.Reque
 	loc := tenantLocation(ctx, h.db, tid)
 
 	preds := []predicate.POSOrder{posorder.TenantID(tid)}
-	if ownPred, scoped := ownOrdersScope(r, h.rbac); scoped {
+	if ownPred, scoped := ownOrdersScope(r, h.rbac, h.db); scoped {
 		preds = append(preds, ownPred)
 	}
 	preds = append(preds, allSalesOrderFilters(r, h.db, tid, loc)...)

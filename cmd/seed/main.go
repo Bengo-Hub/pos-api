@@ -768,6 +768,28 @@ func seedRBACRoles(ctx context.Context, client *ent.Client) error {
 			},
 		},
 		{
+			code:        "floor_supervisor",
+			name:        "Floor Supervisor (Super Waiter)",
+			description: "A senior waiter who can see and settle/close ALL waiters' bills — a central point of accountability for closing orders, without becoming a cashier. Assign additively to a waiter (Team → Additional roles).",
+			permissions: []string{
+				// Orders: view ALL bills (the "see all waiters' bills" lever), plus full
+				// change/settle to close them. view (not view_own) is what widens the sales
+				// list + Tables My-Bills to every waiter's orders (server + client).
+				"pos.orders.add", "pos.orders.view", "pos.orders.change", "pos.orders.change_own",
+				"pos.orders.void",
+				"pos.payments.add", "pos.payments.view", "pos.payments.view_own",
+				"pos.catalog.view",
+				// Tables: settle/transfer/clear ANY table (not just own).
+				"pos.tables.view", "pos.tables.change", "pos.tables.change_own", "pos.tables.manage",
+				"pos.modifiers.view",
+				"pos.sessions.add", "pos.sessions.view_own",
+				"pos.cash_drawers.add", "pos.cash_drawers.view_own", "pos.cash_drawers.change_own",
+				"pos.kds.view",
+				// Reports: central accountability for closing orders (all-sales visibility).
+				"pos.reports.view",
+			},
+		},
+		{
 			code:        "kitchen",
 			name:        "Kitchen Staff",
 			description: "View KDS queue and update item preparation status",

@@ -1157,6 +1157,66 @@ func (_u *OutletSettingUpdate) ClearCatalogUseCases() *OutletSettingUpdate {
 	return _u
 }
 
+// SetCashierSalesVisibility sets the "cashier_sales_visibility" field.
+func (_u *OutletSettingUpdate) SetCashierSalesVisibility(v string) *OutletSettingUpdate {
+	_u.mutation.SetCashierSalesVisibility(v)
+	return _u
+}
+
+// SetNillableCashierSalesVisibility sets the "cashier_sales_visibility" field if the given value is not nil.
+func (_u *OutletSettingUpdate) SetNillableCashierSalesVisibility(v *string) *OutletSettingUpdate {
+	if v != nil {
+		_u.SetCashierSalesVisibility(*v)
+	}
+	return _u
+}
+
+// ClearCashierSalesVisibility clears the value of the "cashier_sales_visibility" field.
+func (_u *OutletSettingUpdate) ClearCashierSalesVisibility() *OutletSettingUpdate {
+	_u.mutation.ClearCashierSalesVisibility()
+	return _u
+}
+
+// SetAutoLogoutAfterSale sets the "auto_logout_after_sale" field.
+func (_u *OutletSettingUpdate) SetAutoLogoutAfterSale(v bool) *OutletSettingUpdate {
+	_u.mutation.SetAutoLogoutAfterSale(v)
+	return _u
+}
+
+// SetNillableAutoLogoutAfterSale sets the "auto_logout_after_sale" field if the given value is not nil.
+func (_u *OutletSettingUpdate) SetNillableAutoLogoutAfterSale(v *bool) *OutletSettingUpdate {
+	if v != nil {
+		_u.SetAutoLogoutAfterSale(*v)
+	}
+	return _u
+}
+
+// ClearAutoLogoutAfterSale clears the value of the "auto_logout_after_sale" field.
+func (_u *OutletSettingUpdate) ClearAutoLogoutAfterSale() *OutletSettingUpdate {
+	_u.mutation.ClearAutoLogoutAfterSale()
+	return _u
+}
+
+// SetCashierTerminalSurface sets the "cashier_terminal_surface" field.
+func (_u *OutletSettingUpdate) SetCashierTerminalSurface(v string) *OutletSettingUpdate {
+	_u.mutation.SetCashierTerminalSurface(v)
+	return _u
+}
+
+// SetNillableCashierTerminalSurface sets the "cashier_terminal_surface" field if the given value is not nil.
+func (_u *OutletSettingUpdate) SetNillableCashierTerminalSurface(v *string) *OutletSettingUpdate {
+	if v != nil {
+		_u.SetCashierTerminalSurface(*v)
+	}
+	return _u
+}
+
+// ClearCashierTerminalSurface clears the value of the "cashier_terminal_surface" field.
+func (_u *OutletSettingUpdate) ClearCashierTerminalSurface() *OutletSettingUpdate {
+	_u.mutation.ClearCashierTerminalSurface()
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *OutletSettingUpdate) SetUpdatedAt(v time.Time) *OutletSettingUpdate {
 	_u.mutation.SetUpdatedAt(v)
@@ -1605,6 +1665,24 @@ func (_u *OutletSettingUpdate) sqlSave(ctx context.Context) (_node int, err erro
 	}
 	if _u.mutation.CatalogUseCasesCleared() {
 		_spec.ClearField(outletsetting.FieldCatalogUseCases, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.CashierSalesVisibility(); ok {
+		_spec.SetField(outletsetting.FieldCashierSalesVisibility, field.TypeString, value)
+	}
+	if _u.mutation.CashierSalesVisibilityCleared() {
+		_spec.ClearField(outletsetting.FieldCashierSalesVisibility, field.TypeString)
+	}
+	if value, ok := _u.mutation.AutoLogoutAfterSale(); ok {
+		_spec.SetField(outletsetting.FieldAutoLogoutAfterSale, field.TypeBool, value)
+	}
+	if _u.mutation.AutoLogoutAfterSaleCleared() {
+		_spec.ClearField(outletsetting.FieldAutoLogoutAfterSale, field.TypeBool)
+	}
+	if value, ok := _u.mutation.CashierTerminalSurface(); ok {
+		_spec.SetField(outletsetting.FieldCashierTerminalSurface, field.TypeString, value)
+	}
+	if _u.mutation.CashierTerminalSurfaceCleared() {
+		_spec.ClearField(outletsetting.FieldCashierTerminalSurface, field.TypeString)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(outletsetting.FieldUpdatedAt, field.TypeTime, value)
@@ -2784,6 +2862,66 @@ func (_u *OutletSettingUpdateOne) ClearCatalogUseCases() *OutletSettingUpdateOne
 	return _u
 }
 
+// SetCashierSalesVisibility sets the "cashier_sales_visibility" field.
+func (_u *OutletSettingUpdateOne) SetCashierSalesVisibility(v string) *OutletSettingUpdateOne {
+	_u.mutation.SetCashierSalesVisibility(v)
+	return _u
+}
+
+// SetNillableCashierSalesVisibility sets the "cashier_sales_visibility" field if the given value is not nil.
+func (_u *OutletSettingUpdateOne) SetNillableCashierSalesVisibility(v *string) *OutletSettingUpdateOne {
+	if v != nil {
+		_u.SetCashierSalesVisibility(*v)
+	}
+	return _u
+}
+
+// ClearCashierSalesVisibility clears the value of the "cashier_sales_visibility" field.
+func (_u *OutletSettingUpdateOne) ClearCashierSalesVisibility() *OutletSettingUpdateOne {
+	_u.mutation.ClearCashierSalesVisibility()
+	return _u
+}
+
+// SetAutoLogoutAfterSale sets the "auto_logout_after_sale" field.
+func (_u *OutletSettingUpdateOne) SetAutoLogoutAfterSale(v bool) *OutletSettingUpdateOne {
+	_u.mutation.SetAutoLogoutAfterSale(v)
+	return _u
+}
+
+// SetNillableAutoLogoutAfterSale sets the "auto_logout_after_sale" field if the given value is not nil.
+func (_u *OutletSettingUpdateOne) SetNillableAutoLogoutAfterSale(v *bool) *OutletSettingUpdateOne {
+	if v != nil {
+		_u.SetAutoLogoutAfterSale(*v)
+	}
+	return _u
+}
+
+// ClearAutoLogoutAfterSale clears the value of the "auto_logout_after_sale" field.
+func (_u *OutletSettingUpdateOne) ClearAutoLogoutAfterSale() *OutletSettingUpdateOne {
+	_u.mutation.ClearAutoLogoutAfterSale()
+	return _u
+}
+
+// SetCashierTerminalSurface sets the "cashier_terminal_surface" field.
+func (_u *OutletSettingUpdateOne) SetCashierTerminalSurface(v string) *OutletSettingUpdateOne {
+	_u.mutation.SetCashierTerminalSurface(v)
+	return _u
+}
+
+// SetNillableCashierTerminalSurface sets the "cashier_terminal_surface" field if the given value is not nil.
+func (_u *OutletSettingUpdateOne) SetNillableCashierTerminalSurface(v *string) *OutletSettingUpdateOne {
+	if v != nil {
+		_u.SetCashierTerminalSurface(*v)
+	}
+	return _u
+}
+
+// ClearCashierTerminalSurface clears the value of the "cashier_terminal_surface" field.
+func (_u *OutletSettingUpdateOne) ClearCashierTerminalSurface() *OutletSettingUpdateOne {
+	_u.mutation.ClearCashierTerminalSurface()
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *OutletSettingUpdateOne) SetUpdatedAt(v time.Time) *OutletSettingUpdateOne {
 	_u.mutation.SetUpdatedAt(v)
@@ -3262,6 +3400,24 @@ func (_u *OutletSettingUpdateOne) sqlSave(ctx context.Context) (_node *OutletSet
 	}
 	if _u.mutation.CatalogUseCasesCleared() {
 		_spec.ClearField(outletsetting.FieldCatalogUseCases, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.CashierSalesVisibility(); ok {
+		_spec.SetField(outletsetting.FieldCashierSalesVisibility, field.TypeString, value)
+	}
+	if _u.mutation.CashierSalesVisibilityCleared() {
+		_spec.ClearField(outletsetting.FieldCashierSalesVisibility, field.TypeString)
+	}
+	if value, ok := _u.mutation.AutoLogoutAfterSale(); ok {
+		_spec.SetField(outletsetting.FieldAutoLogoutAfterSale, field.TypeBool, value)
+	}
+	if _u.mutation.AutoLogoutAfterSaleCleared() {
+		_spec.ClearField(outletsetting.FieldAutoLogoutAfterSale, field.TypeBool)
+	}
+	if value, ok := _u.mutation.CashierTerminalSurface(); ok {
+		_spec.SetField(outletsetting.FieldCashierTerminalSurface, field.TypeString, value)
+	}
+	if _u.mutation.CashierTerminalSurfaceCleared() {
+		_spec.ClearField(outletsetting.FieldCashierTerminalSurface, field.TypeString)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(outletsetting.FieldUpdatedAt, field.TypeTime, value)

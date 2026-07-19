@@ -259,6 +259,48 @@ func (h *StaffHandler) provisionAuthMember(ctx context.Context, tenantID uuid.UU
 	return id, nil
 }
 
+// syncAuthMemberRoles pushes a staff member's (base) role to auth-service by user_id so the SSO
+// JWT `roles` claim reflects a role change made in the POS Team UI. Without this, editing a
+// member's role via UpdateStaff only touched the local StaffMember.Role and the JWT roles claim
+// went stale — breaking JWT-role-name resolution of custom roles (the urban-loft custom-role
+// "can't access reports/modules" gap). auth-api AddTenantMember find-or-updates the membership
+// and SetRoles(roles) on the existing row, so this is idempotent. Best-effort: a sync failure is
+// logged by the caller and does NOT fail the local update (pos /auth/me still resolves via
+// StaffMember.Role).
+func (h *StaffHandler) syncAuthMemberRoles(ctx context.Context, tenantID, userID uuid.UUID, role, outletID string) error {
+	authBase := h.authURL
+	if envURL := os.Getenv("AUTH_API_URL"); envURL != "" {
+		authBase = envURL
+	}
+	if authBase == "" || h.internalKey == "" {
+		return fmt.Errorf("auth S2S not configured (AUTH_SERVICE_URL / INTERNAL_SERVICE_KEY)")
+	}
+	body := map[string]any{
+		"user_id": userID.String(),
+		"roles":   []string{role},
+	}
+	if outletID != "" {
+		body["outlet_id"] = outletID
+	}
+	buf, _ := json.Marshal(body)
+	url := strings.TrimRight(authBase, "/") + "/api/v1/s2s/tenants/" + tenantID.String() + "/members"
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(buf))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-API-Key", h.internalKey)
+	resp, err := h.http.Do(req)
+	if err != nil {
+		return fmt.Errorf("auth member role sync: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("auth member role sync: HTTP %d", resp.StatusCode)
+	}
+	return nil
+}
+
 func (h *StaffHandler) CreateStaff(w http.ResponseWriter, r *http.Request) {
 	tid, err := parseTenantUUID(r)
 	if err != nil {
@@ -497,6 +539,19 @@ func (h *StaffHandler) UpdateStaff(w http.ResponseWriter, r *http.Request) {
 		h.log.Error("update staff", zap.Error(err))
 		jsonError(w, "failed to update staff member", http.StatusInternalServerError)
 		return
+	}
+
+	// Role changed → sync the new base role to auth-service so the SSO JWT `roles` claim stays
+	// current (otherwise custom/elevated roles never reach terminal_jwt.go leg-3 resolution).
+	// Best-effort: a sync failure is logged, not fatal (pos /auth/me still resolves the role).
+	if input.Role != nil && *input.Role != "" && *input.Role != member.Role {
+		outletID := ""
+		if input.OutletID != nil {
+			outletID = *input.OutletID
+		}
+		if serr := h.syncAuthMemberRoles(r.Context(), tid, member.UserID, *input.Role, outletID); serr != nil {
+			h.log.Warn("update staff: auth role sync failed (non-fatal)", zap.Error(serr), zap.String("staff_id", staffID.String()))
+		}
 	}
 
 	w.WriteHeader(http.StatusNoContent)

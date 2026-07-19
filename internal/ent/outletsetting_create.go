@@ -759,6 +759,48 @@ func (_c *OutletSettingCreate) SetCatalogUseCases(v []string) *OutletSettingCrea
 	return _c
 }
 
+// SetCashierSalesVisibility sets the "cashier_sales_visibility" field.
+func (_c *OutletSettingCreate) SetCashierSalesVisibility(v string) *OutletSettingCreate {
+	_c.mutation.SetCashierSalesVisibility(v)
+	return _c
+}
+
+// SetNillableCashierSalesVisibility sets the "cashier_sales_visibility" field if the given value is not nil.
+func (_c *OutletSettingCreate) SetNillableCashierSalesVisibility(v *string) *OutletSettingCreate {
+	if v != nil {
+		_c.SetCashierSalesVisibility(*v)
+	}
+	return _c
+}
+
+// SetAutoLogoutAfterSale sets the "auto_logout_after_sale" field.
+func (_c *OutletSettingCreate) SetAutoLogoutAfterSale(v bool) *OutletSettingCreate {
+	_c.mutation.SetAutoLogoutAfterSale(v)
+	return _c
+}
+
+// SetNillableAutoLogoutAfterSale sets the "auto_logout_after_sale" field if the given value is not nil.
+func (_c *OutletSettingCreate) SetNillableAutoLogoutAfterSale(v *bool) *OutletSettingCreate {
+	if v != nil {
+		_c.SetAutoLogoutAfterSale(*v)
+	}
+	return _c
+}
+
+// SetCashierTerminalSurface sets the "cashier_terminal_surface" field.
+func (_c *OutletSettingCreate) SetCashierTerminalSurface(v string) *OutletSettingCreate {
+	_c.mutation.SetCashierTerminalSurface(v)
+	return _c
+}
+
+// SetNillableCashierTerminalSurface sets the "cashier_terminal_surface" field if the given value is not nil.
+func (_c *OutletSettingCreate) SetNillableCashierTerminalSurface(v *string) *OutletSettingCreate {
+	if v != nil {
+		_c.SetCashierTerminalSurface(*v)
+	}
+	return _c
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_c *OutletSettingCreate) SetUpdatedAt(v time.Time) *OutletSettingCreate {
 	_c.mutation.SetUpdatedAt(v)
@@ -1260,6 +1302,18 @@ func (_c *OutletSettingCreate) createSpec() (*OutletSetting, *sqlgraph.CreateSpe
 	if value, ok := _c.mutation.CatalogUseCases(); ok {
 		_spec.SetField(outletsetting.FieldCatalogUseCases, field.TypeJSON, value)
 		_node.CatalogUseCases = value
+	}
+	if value, ok := _c.mutation.CashierSalesVisibility(); ok {
+		_spec.SetField(outletsetting.FieldCashierSalesVisibility, field.TypeString, value)
+		_node.CashierSalesVisibility = &value
+	}
+	if value, ok := _c.mutation.AutoLogoutAfterSale(); ok {
+		_spec.SetField(outletsetting.FieldAutoLogoutAfterSale, field.TypeBool, value)
+		_node.AutoLogoutAfterSale = &value
+	}
+	if value, ok := _c.mutation.CashierTerminalSurface(); ok {
+		_spec.SetField(outletsetting.FieldCashierTerminalSurface, field.TypeString, value)
+		_node.CashierTerminalSurface = &value
 	}
 	if value, ok := _c.mutation.UpdatedAt(); ok {
 		_spec.SetField(outletsetting.FieldUpdatedAt, field.TypeTime, value)
@@ -2381,6 +2435,60 @@ func (u *OutletSettingUpsert) UpdateCatalogUseCases() *OutletSettingUpsert {
 // ClearCatalogUseCases clears the value of the "catalog_use_cases" field.
 func (u *OutletSettingUpsert) ClearCatalogUseCases() *OutletSettingUpsert {
 	u.SetNull(outletsetting.FieldCatalogUseCases)
+	return u
+}
+
+// SetCashierSalesVisibility sets the "cashier_sales_visibility" field.
+func (u *OutletSettingUpsert) SetCashierSalesVisibility(v string) *OutletSettingUpsert {
+	u.Set(outletsetting.FieldCashierSalesVisibility, v)
+	return u
+}
+
+// UpdateCashierSalesVisibility sets the "cashier_sales_visibility" field to the value that was provided on create.
+func (u *OutletSettingUpsert) UpdateCashierSalesVisibility() *OutletSettingUpsert {
+	u.SetExcluded(outletsetting.FieldCashierSalesVisibility)
+	return u
+}
+
+// ClearCashierSalesVisibility clears the value of the "cashier_sales_visibility" field.
+func (u *OutletSettingUpsert) ClearCashierSalesVisibility() *OutletSettingUpsert {
+	u.SetNull(outletsetting.FieldCashierSalesVisibility)
+	return u
+}
+
+// SetAutoLogoutAfterSale sets the "auto_logout_after_sale" field.
+func (u *OutletSettingUpsert) SetAutoLogoutAfterSale(v bool) *OutletSettingUpsert {
+	u.Set(outletsetting.FieldAutoLogoutAfterSale, v)
+	return u
+}
+
+// UpdateAutoLogoutAfterSale sets the "auto_logout_after_sale" field to the value that was provided on create.
+func (u *OutletSettingUpsert) UpdateAutoLogoutAfterSale() *OutletSettingUpsert {
+	u.SetExcluded(outletsetting.FieldAutoLogoutAfterSale)
+	return u
+}
+
+// ClearAutoLogoutAfterSale clears the value of the "auto_logout_after_sale" field.
+func (u *OutletSettingUpsert) ClearAutoLogoutAfterSale() *OutletSettingUpsert {
+	u.SetNull(outletsetting.FieldAutoLogoutAfterSale)
+	return u
+}
+
+// SetCashierTerminalSurface sets the "cashier_terminal_surface" field.
+func (u *OutletSettingUpsert) SetCashierTerminalSurface(v string) *OutletSettingUpsert {
+	u.Set(outletsetting.FieldCashierTerminalSurface, v)
+	return u
+}
+
+// UpdateCashierTerminalSurface sets the "cashier_terminal_surface" field to the value that was provided on create.
+func (u *OutletSettingUpsert) UpdateCashierTerminalSurface() *OutletSettingUpsert {
+	u.SetExcluded(outletsetting.FieldCashierTerminalSurface)
+	return u
+}
+
+// ClearCashierTerminalSurface clears the value of the "cashier_terminal_surface" field.
+func (u *OutletSettingUpsert) ClearCashierTerminalSurface() *OutletSettingUpsert {
+	u.SetNull(outletsetting.FieldCashierTerminalSurface)
 	return u
 }
 
@@ -3666,6 +3774,69 @@ func (u *OutletSettingUpsertOne) UpdateCatalogUseCases() *OutletSettingUpsertOne
 func (u *OutletSettingUpsertOne) ClearCatalogUseCases() *OutletSettingUpsertOne {
 	return u.Update(func(s *OutletSettingUpsert) {
 		s.ClearCatalogUseCases()
+	})
+}
+
+// SetCashierSalesVisibility sets the "cashier_sales_visibility" field.
+func (u *OutletSettingUpsertOne) SetCashierSalesVisibility(v string) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetCashierSalesVisibility(v)
+	})
+}
+
+// UpdateCashierSalesVisibility sets the "cashier_sales_visibility" field to the value that was provided on create.
+func (u *OutletSettingUpsertOne) UpdateCashierSalesVisibility() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateCashierSalesVisibility()
+	})
+}
+
+// ClearCashierSalesVisibility clears the value of the "cashier_sales_visibility" field.
+func (u *OutletSettingUpsertOne) ClearCashierSalesVisibility() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearCashierSalesVisibility()
+	})
+}
+
+// SetAutoLogoutAfterSale sets the "auto_logout_after_sale" field.
+func (u *OutletSettingUpsertOne) SetAutoLogoutAfterSale(v bool) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetAutoLogoutAfterSale(v)
+	})
+}
+
+// UpdateAutoLogoutAfterSale sets the "auto_logout_after_sale" field to the value that was provided on create.
+func (u *OutletSettingUpsertOne) UpdateAutoLogoutAfterSale() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateAutoLogoutAfterSale()
+	})
+}
+
+// ClearAutoLogoutAfterSale clears the value of the "auto_logout_after_sale" field.
+func (u *OutletSettingUpsertOne) ClearAutoLogoutAfterSale() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearAutoLogoutAfterSale()
+	})
+}
+
+// SetCashierTerminalSurface sets the "cashier_terminal_surface" field.
+func (u *OutletSettingUpsertOne) SetCashierTerminalSurface(v string) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetCashierTerminalSurface(v)
+	})
+}
+
+// UpdateCashierTerminalSurface sets the "cashier_terminal_surface" field to the value that was provided on create.
+func (u *OutletSettingUpsertOne) UpdateCashierTerminalSurface() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateCashierTerminalSurface()
+	})
+}
+
+// ClearCashierTerminalSurface clears the value of the "cashier_terminal_surface" field.
+func (u *OutletSettingUpsertOne) ClearCashierTerminalSurface() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearCashierTerminalSurface()
 	})
 }
 
@@ -5120,6 +5291,69 @@ func (u *OutletSettingUpsertBulk) UpdateCatalogUseCases() *OutletSettingUpsertBu
 func (u *OutletSettingUpsertBulk) ClearCatalogUseCases() *OutletSettingUpsertBulk {
 	return u.Update(func(s *OutletSettingUpsert) {
 		s.ClearCatalogUseCases()
+	})
+}
+
+// SetCashierSalesVisibility sets the "cashier_sales_visibility" field.
+func (u *OutletSettingUpsertBulk) SetCashierSalesVisibility(v string) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetCashierSalesVisibility(v)
+	})
+}
+
+// UpdateCashierSalesVisibility sets the "cashier_sales_visibility" field to the value that was provided on create.
+func (u *OutletSettingUpsertBulk) UpdateCashierSalesVisibility() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateCashierSalesVisibility()
+	})
+}
+
+// ClearCashierSalesVisibility clears the value of the "cashier_sales_visibility" field.
+func (u *OutletSettingUpsertBulk) ClearCashierSalesVisibility() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearCashierSalesVisibility()
+	})
+}
+
+// SetAutoLogoutAfterSale sets the "auto_logout_after_sale" field.
+func (u *OutletSettingUpsertBulk) SetAutoLogoutAfterSale(v bool) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetAutoLogoutAfterSale(v)
+	})
+}
+
+// UpdateAutoLogoutAfterSale sets the "auto_logout_after_sale" field to the value that was provided on create.
+func (u *OutletSettingUpsertBulk) UpdateAutoLogoutAfterSale() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateAutoLogoutAfterSale()
+	})
+}
+
+// ClearAutoLogoutAfterSale clears the value of the "auto_logout_after_sale" field.
+func (u *OutletSettingUpsertBulk) ClearAutoLogoutAfterSale() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearAutoLogoutAfterSale()
+	})
+}
+
+// SetCashierTerminalSurface sets the "cashier_terminal_surface" field.
+func (u *OutletSettingUpsertBulk) SetCashierTerminalSurface(v string) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetCashierTerminalSurface(v)
+	})
+}
+
+// UpdateCashierTerminalSurface sets the "cashier_terminal_surface" field to the value that was provided on create.
+func (u *OutletSettingUpsertBulk) UpdateCashierTerminalSurface() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateCashierTerminalSurface()
+	})
+}
+
+// ClearCashierTerminalSurface clears the value of the "cashier_terminal_surface" field.
+func (u *OutletSettingUpsertBulk) ClearCashierTerminalSurface() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearCashierTerminalSurface()
 	})
 }
 

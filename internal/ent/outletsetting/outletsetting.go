@@ -130,6 +130,12 @@ const (
 	FieldReturnWindowDays = "return_window_days"
 	// FieldCatalogUseCases holds the string denoting the catalog_use_cases field in the database.
 	FieldCatalogUseCases = "catalog_use_cases"
+	// FieldCashierSalesVisibility holds the string denoting the cashier_sales_visibility field in the database.
+	FieldCashierSalesVisibility = "cashier_sales_visibility"
+	// FieldAutoLogoutAfterSale holds the string denoting the auto_logout_after_sale field in the database.
+	FieldAutoLogoutAfterSale = "auto_logout_after_sale"
+	// FieldCashierTerminalSurface holds the string denoting the cashier_terminal_surface field in the database.
+	FieldCashierTerminalSurface = "cashier_terminal_surface"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
 	FieldUpdatedAt = "updated_at"
 	// EdgeOutlet holds the string denoting the outlet edge name in mutations.
@@ -205,6 +211,9 @@ var Columns = []string{
 	FieldDefaultWarehouseID,
 	FieldReturnWindowDays,
 	FieldCatalogUseCases,
+	FieldCashierSalesVisibility,
+	FieldAutoLogoutAfterSale,
+	FieldCashierTerminalSurface,
 	FieldUpdatedAt,
 }
 
@@ -604,6 +613,21 @@ func ByDefaultWarehouseID(opts ...sql.OrderTermOption) OrderOption {
 // ByReturnWindowDays orders the results by the return_window_days field.
 func ByReturnWindowDays(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldReturnWindowDays, opts...).ToFunc()
+}
+
+// ByCashierSalesVisibility orders the results by the cashier_sales_visibility field.
+func ByCashierSalesVisibility(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCashierSalesVisibility, opts...).ToFunc()
+}
+
+// ByAutoLogoutAfterSale orders the results by the auto_logout_after_sale field.
+func ByAutoLogoutAfterSale(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAutoLogoutAfterSale, opts...).ToFunc()
+}
+
+// ByCashierTerminalSurface orders the results by the cashier_terminal_surface field.
+func ByCashierTerminalSurface(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCashierTerminalSurface, opts...).ToFunc()
 }
 
 // ByUpdatedAt orders the results by the updated_at field.

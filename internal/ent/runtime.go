@@ -1398,7 +1398,7 @@ func init() {
 	// outletsetting.DefaultCatalogUseCases holds the default value on creation for the catalog_use_cases field.
 	outletsetting.DefaultCatalogUseCases = outletsettingDescCatalogUseCases.Default.([]string)
 	// outletsettingDescUpdatedAt is the schema descriptor for updated_at field.
-	outletsettingDescUpdatedAt := outletsettingFields[58].Descriptor()
+	outletsettingDescUpdatedAt := outletsettingFields[61].Descriptor()
 	// outletsetting.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	outletsetting.DefaultUpdatedAt = outletsettingDescUpdatedAt.Default.(func() time.Time)
 	// outletsetting.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

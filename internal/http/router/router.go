@@ -303,11 +303,19 @@ func New(
 						// view_own-only principals (cashiers) to their OWN sales (REQ-007).
 						orderRead := outletmw.RequireServicePermission(rbacSvc,
 							"pos.orders.view", "pos.orders.view_own", "pos.orders.change", "pos.orders.manage")
+						// Creating/mutating a bill requires an order-write permission (cashier/waiter
+						// hold pos.orders.add). Previously ungated — any authenticated outlet user
+						// could POST an order.
+						orderWrite := outletmw.RequireServicePermission(rbacSvc,
+							"pos.orders.add", "pos.orders.change", "pos.orders.change_own", "pos.orders.manage")
 						pos.With(orderRead).Get("/orders", orders.ListOrders)
-						pos.Post("/orders", orders.CreateOrder)
+						pos.With(orderWrite).Post("/orders", orders.CreateOrder)
 						pos.With(orderRead).Get("/orders/by-number/{orderNumber}", orders.GetOrderByNumber)
 						pos.With(orderRead).Get("/orders/{orderID}", orders.GetOrder)
-						pos.Patch("/orders/{orderID}/status", orders.UpdateStatus)
+						// Closing / completing / cancelling an order (the bill-clear action). Gated so a
+						// principal must hold an order-write permission; a super-waiter granted
+						// pos.orders.view can see + close others' bills, a plain waiter only their own.
+						pos.With(orderWrite).Patch("/orders/{orderID}/status", orders.UpdateStatus)
 						// All-Sales "Edit Shipping": update shipping status/address/charges (metadata).
 						pos.Patch("/orders/{orderID}/shipping", orders.UpdateShipping)
 						// All-Sales "New Sale Notification": (re)send the customer their receipt/invoice.
@@ -327,7 +335,7 @@ func New(
 						pos.Post("/approval-codes", orders.GenerateActionApprovalCode)
 						pos.Post("/approval-codes/verify", orders.VerifyActionApprovalCode)
 						pos.Post("/orders/{orderID}/fire-course", orders.FireCourse)
-						pos.Post("/orders/{orderID}/lines", orders.AddOrderLines)
+						pos.With(orderWrite).Post("/orders/{orderID}/lines", orders.AddOrderLines)
 						pos.Post("/orders/{orderID}/lines/{lineID}/void", orders.VoidOrderLine)
 						// Manager/admin corrective tool: directly edit a persisted line's price/qty
 						// instead of requiring a raw database fix for stale-priced sales.
@@ -440,15 +448,20 @@ func New(
 							tbl.Post("/tables", tables.CreateTable)
 							tbl.Put("/tables/{id}", tables.UpdateTable)
 							tbl.Delete("/tables/{id}", tables.DeleteTable)
-							tbl.Patch("/tables/{id}/status", tables.UpdateTableStatus)
-							tbl.Post("/tables/{id}/assign", tables.AssignTable)
-							tbl.Post("/tables/{id}/release", tables.ReleaseTable)
-							tbl.Post("/tables/{id}/transfer", tables.TransferTable)
-							tbl.Post("/tables/merge", tables.MergeTables)
-							tbl.Post("/tables/unmerge", tables.UnmergeTables)
+							// Operational floor actions (clear/assign/transfer/merge/split a table &
+							// its bill) require a table-change permission — previously ungated (any
+							// hospitality user could clear/transfer another waiter's table).
+							tablesChange := outletmw.RequireServicePermission(rbacSvc,
+								"pos.tables.change", "pos.tables.change_own", "pos.tables.manage")
+							tbl.With(tablesChange).Patch("/tables/{id}/status", tables.UpdateTableStatus)
+							tbl.With(tablesChange).Post("/tables/{id}/assign", tables.AssignTable)
+							tbl.With(tablesChange).Post("/tables/{id}/release", tables.ReleaseTable)
+							tbl.With(tablesChange).Post("/tables/{id}/transfer", tables.TransferTable)
+							tbl.With(tablesChange).Post("/tables/merge", tables.MergeTables)
+							tbl.With(tablesChange).Post("/tables/unmerge", tables.UnmergeTables)
 							// Order split + service charge live here (use TableHandler, need nil guard)
-							tbl.Post("/orders/{orderID}/split", tables.SplitOrder)
-							tbl.Patch("/orders/{orderID}/service-charge", tables.SetServiceCharge)
+							tbl.With(tablesChange).Post("/orders/{orderID}/split", tables.SplitOrder)
+							tbl.With(tablesChange).Patch("/orders/{orderID}/service-charge", tables.SetServiceCharge)
 							// Reservations (staff-managed)
 							tbl.Get("/reservations", tables.ListReservations)
 							tbl.Get("/reservations/available", tables.GetAvailableSlots)
@@ -883,55 +896,62 @@ func New(
 						})
 					}
 
-					// Reports & Analytics
+					// Reports & Analytics — gated on pos.reports.view/manage (cashier holds
+					// reports.view; the per-cashier own-sales scoping on the All-Sales export
+					// remains the data authority within that gate).
+					reportsView := outletmw.RequireServicePermission(rbacSvc, "pos.reports.view", "pos.reports.manage")
 					if reports != nil {
-						pos.Get("/reports/summary", reports.GetSummary)
-						pos.Get("/reports/audit-logs", reports.ListAuditLogs)
-						pos.Get("/reports/exceptions", reports.Exceptions)
-						pos.Get("/reports/sales-summary", reports.SalesSummary)
-						pos.Get("/reports/refund-summary", reports.RefundSummary)
-						pos.Get("/reports/daily-breakdown", reports.DailyBreakdown)
-						pos.Get("/reports/top-items", reports.TopItems)
-						pos.Get("/reports/register-details", reports.RegisterDetails)
-						pos.Get("/reports/sales-by-staff", reports.SalesByStaff)
-						pos.Get("/reports/export", reports.ExportDailyReport)
-						// Sprint 11: additional report endpoints
-						pos.Get("/reports/shifts", reports.ShiftReportList)
-						pos.Get("/reports/shifts/{sessionID}", reports.ShiftReport)
-						pos.Get("/reports/commissions", reports.CommissionReport)
-						pos.Get("/reports/tax", reports.TaxReport)
-						// Hyphenated (matching every other report route + the pos-ui hooks, which
-						// have always requested these two exact paths) — NOT the nested
-						// "/sales/by-hour" form these two used to register under, which the
-						// frontend never called and 404'd unconditionally.
-						pos.Get("/reports/sales-by-hour", reports.SalesByHour)
-						pos.Get("/reports/sales-by-category", reports.SalesByCategory)
-						pos.Get("/reports/sales/by-kds-station", reports.SalesByKDSStation)
-						pos.Get("/reports/stock-consumption", reports.StockConsumptionReport)
-						pos.Get("/reports/returns", reports.ReturnsSummary)
-						pos.Get("/reports/void-summary", reports.VoidSummary)
-						pos.Get("/reports/product-mix", reports.ProductMix)
-						pos.Get("/reports/most-profitable", reports.MostProfitableItems)
+						pos.With(reportsView).Group(func(rp chi.Router) {
+							rp.Get("/reports/summary", reports.GetSummary)
+							rp.Get("/reports/audit-logs", reports.ListAuditLogs)
+							rp.Get("/reports/exceptions", reports.Exceptions)
+							rp.Get("/reports/sales-summary", reports.SalesSummary)
+							rp.Get("/reports/refund-summary", reports.RefundSummary)
+							rp.Get("/reports/daily-breakdown", reports.DailyBreakdown)
+							rp.Get("/reports/top-items", reports.TopItems)
+							rp.Get("/reports/register-details", reports.RegisterDetails)
+							rp.Get("/reports/sales-by-staff", reports.SalesByStaff)
+							rp.Get("/reports/export", reports.ExportDailyReport)
+							// Sprint 11: additional report endpoints
+							rp.Get("/reports/shifts", reports.ShiftReportList)
+							rp.Get("/reports/shifts/{sessionID}", reports.ShiftReport)
+							rp.Get("/reports/commissions", reports.CommissionReport)
+							rp.Get("/reports/tax", reports.TaxReport)
+							// Hyphenated (matching every other report route + the pos-ui hooks, which
+							// have always requested these two exact paths) — NOT the nested
+							// "/sales/by-hour" form these two used to register under, which the
+							// frontend never called and 404'd unconditionally.
+							rp.Get("/reports/sales-by-hour", reports.SalesByHour)
+							rp.Get("/reports/sales-by-category", reports.SalesByCategory)
+							rp.Get("/reports/sales/by-kds-station", reports.SalesByKDSStation)
+							rp.Get("/reports/stock-consumption", reports.StockConsumptionReport)
+							rp.Get("/reports/returns", reports.ReturnsSummary)
+							rp.Get("/reports/void-summary", reports.VoidSummary)
+							rp.Get("/reports/product-mix", reports.ProductMix)
+							rp.Get("/reports/most-profitable", reports.MostProfitableItems)
+						})
 					}
 
 					// Branded report documents (PDF/CSV via ?format=) — reset summary, item-type,
-					// daily sales, shift X, staff, tax and profitability reports.
+					// daily sales, shift X, staff, tax and profitability reports. Same reports gate.
 					if reportPDF != nil {
-						pos.Get("/reports/reset-summary", reportPDF.ResetSummary)
-						pos.Get("/reports/sales-by-item-type", reportPDF.SalesByItemType)
-						pos.Get("/reports/sales-by-kds-station-document", reportPDF.SalesByKDSStationDoc)
-						pos.Get("/reports/daily-sales", reportPDF.DailySales)
-						pos.Get("/reports/shift/{sessionID}", reportPDF.ShiftReportPDF)
-						pos.Get("/reports/staff", reportPDF.SalesByStaffPDF)
-						pos.Get("/reports/tax-document", reportPDF.TaxReportPDF)
-						pos.Get("/reports/most-profitable-document", reportPDF.MostProfitablePDF)
-						// Analytics-page reports (cards + table + bar chart; ?format=pdf|csv).
-						pos.Get("/reports/sales-by-hour-document", reportPDF.SalesByHourDoc)
-						pos.Get("/reports/sales-by-category-document", reportPDF.SalesByCategoryDoc)
-						pos.Get("/reports/product-mix-document", reportPDF.ProductMixDoc)
-						pos.Get("/reports/void-summary-document", reportPDF.VoidSummaryDoc)
-						// All-Sales page export — same filters + per-cashier scoping as GET /orders.
-						pos.Get("/reports/all-sales-document", reportPDF.AllSalesDocument)
+						pos.With(reportsView).Group(func(rp chi.Router) {
+							rp.Get("/reports/reset-summary", reportPDF.ResetSummary)
+							rp.Get("/reports/sales-by-item-type", reportPDF.SalesByItemType)
+							rp.Get("/reports/sales-by-kds-station-document", reportPDF.SalesByKDSStationDoc)
+							rp.Get("/reports/daily-sales", reportPDF.DailySales)
+							rp.Get("/reports/shift/{sessionID}", reportPDF.ShiftReportPDF)
+							rp.Get("/reports/staff", reportPDF.SalesByStaffPDF)
+							rp.Get("/reports/tax-document", reportPDF.TaxReportPDF)
+							rp.Get("/reports/most-profitable-document", reportPDF.MostProfitablePDF)
+							// Analytics-page reports (cards + table + bar chart; ?format=pdf|csv).
+							rp.Get("/reports/sales-by-hour-document", reportPDF.SalesByHourDoc)
+							rp.Get("/reports/sales-by-category-document", reportPDF.SalesByCategoryDoc)
+							rp.Get("/reports/product-mix-document", reportPDF.ProductMixDoc)
+							rp.Get("/reports/void-summary-document", reportPDF.VoidSummaryDoc)
+							// All-Sales page export — same filters + per-cashier scoping as GET /orders.
+							rp.Get("/reports/all-sales-document", reportPDF.AllSalesDocument)
+						})
 					}
 
 					// Webhook subscriptions & delivery log (Sprint 12)

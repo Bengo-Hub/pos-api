@@ -132,6 +132,22 @@ func (OutletSetting) Fields() []ent.Field {
 			Default([]string{}).
 			Optional().
 			Comment("Extra use_cases (beyond the outlet's primary use_case) whose item types/categories are also allowed on this outlet's POS catalog — enables hybrid selling."),
+		// Cashier / terminal policy (2026-07-19). All three are Nillable so NULL means
+		// "not overridden → inherit the per-use-case default" (resolved by internal/modules/outletpolicy).
+		// Kept as typed columns (not metadata JSON) because cashier_sales_visibility is resolved
+		// server-side inside the ListOrders/AllSales scope predicate.
+		field.String("cashier_sales_visibility").
+			Optional().
+			Nillable().
+			Comment("own | outlet — how far a cashier/waiter (view_own principal) can see sales. NULL => use-case default (hospitality=own, others=outlet). Server-authoritative in ownOrdersScope."),
+		field.Bool("auto_logout_after_sale").
+			Optional().
+			Nillable().
+			Comment("Log the waiter/cashier out after completing a sale (shared-terminal). NULL => use-case default (hospitality+quick_service=true, others=false). Managers/admins are always exempt."),
+		field.String("cashier_terminal_surface").
+			Optional().
+			Nillable().
+			Comment("full_till | bills_only — the hospitality-cashier menu surface. full_till shows POS Terminal + Add Sale + Tables; bills_only hides them (settle from Orders/Tables). NULL => use-case default (full_till)."),
 		field.Time("updated_at").
 			Default(time.Now).
 			UpdateDefault(time.Now),

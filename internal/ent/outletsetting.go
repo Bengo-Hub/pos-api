@@ -134,6 +134,12 @@ type OutletSetting struct {
 	ReturnWindowDays int `json:"return_window_days,omitempty"`
 	// Extra use_cases (beyond the outlet's primary use_case) whose item types/categories are also allowed on this outlet's POS catalog — enables hybrid selling.
 	CatalogUseCases []string `json:"catalog_use_cases,omitempty"`
+	// own | outlet — how far a cashier/waiter (view_own principal) can see sales. NULL => use-case default (hospitality=own, others=outlet). Server-authoritative in ownOrdersScope.
+	CashierSalesVisibility *string `json:"cashier_sales_visibility,omitempty"`
+	// Log the waiter/cashier out after completing a sale (shared-terminal). NULL => use-case default (hospitality+quick_service=true, others=false). Managers/admins are always exempt.
+	AutoLogoutAfterSale *bool `json:"auto_logout_after_sale,omitempty"`
+	// full_till | bills_only — the hospitality-cashier menu surface. full_till shows POS Terminal + Add Sale + Tables; bills_only hides them (settle from Orders/Tables). NULL => use-case default (full_till).
+	CashierTerminalSurface *string `json:"cashier_terminal_surface,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
@@ -171,13 +177,13 @@ func (*OutletSetting) scanValues(columns []string) ([]any, error) {
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		case outletsetting.FieldReceiptsJSON, outletsetting.FieldTaxConfigJSON, outletsetting.FieldServiceChargeJSON, outletsetting.FieldOpeningHoursJSON, outletsetting.FieldMetadata, outletsetting.FieldPrinterProfiles, outletsetting.FieldCatalogUseCases:
 			values[i] = new([]byte)
-		case outletsetting.FieldShowImages, outletsetting.FieldShowBarcodeScanner, outletsetting.FieldEnableKds, outletsetting.FieldEnableAppointments, outletsetting.FieldAllowPriceAboveBase, outletsetting.FieldRequireApprovalBelowBase, outletsetting.FieldVatEnabled, outletsetting.FieldAutoPrintOrder, outletsetting.FieldAutoPrintKitchen, outletsetting.FieldCashDrawerEnabled, outletsetting.FieldCashDrawerAutoOpen, outletsetting.FieldCardTerminalRequireRef, outletsetting.FieldShowPaymentInfoOnReceipt, outletsetting.FieldHotelModuleEnabled, outletsetting.FieldLayawayEnabled, outletsetting.FieldShiftReportsEnabled, outletsetting.FieldShiftAutoEndEnabled:
+		case outletsetting.FieldShowImages, outletsetting.FieldShowBarcodeScanner, outletsetting.FieldEnableKds, outletsetting.FieldEnableAppointments, outletsetting.FieldAllowPriceAboveBase, outletsetting.FieldRequireApprovalBelowBase, outletsetting.FieldVatEnabled, outletsetting.FieldAutoPrintOrder, outletsetting.FieldAutoPrintKitchen, outletsetting.FieldCashDrawerEnabled, outletsetting.FieldCashDrawerAutoOpen, outletsetting.FieldCardTerminalRequireRef, outletsetting.FieldShowPaymentInfoOnReceipt, outletsetting.FieldHotelModuleEnabled, outletsetting.FieldLayawayEnabled, outletsetting.FieldShiftReportsEnabled, outletsetting.FieldShiftAutoEndEnabled, outletsetting.FieldAutoLogoutAfterSale:
 			values[i] = new(sql.NullBool)
 		case outletsetting.FieldMaxDiscountPercent, outletsetting.FieldMaxDiscountAmount, outletsetting.FieldVatRate:
 			values[i] = new(sql.NullFloat64)
 		case outletsetting.FieldShiftMaxHours, outletsetting.FieldTableMaxOccupationMinutes, outletsetting.FieldReturnWindowDays:
 			values[i] = new(sql.NullInt64)
-		case outletsetting.FieldPinLoginMessage, outletsetting.FieldScreensaverURL, outletsetting.FieldDisplayMode, outletsetting.FieldDefaultView, outletsetting.FieldReceiptHeader, outletsetting.FieldReceiptFooter, outletsetting.FieldCurrency, outletsetting.FieldDiscountLimitType, outletsetting.FieldPrinterType, outletsetting.FieldPrinterIP, outletsetting.FieldPaperWidth, outletsetting.FieldReceiptFormat, outletsetting.FieldCashDrawerPrinter, outletsetting.FieldCashDrawerKickCode, outletsetting.FieldCardTerminalMode, outletsetting.FieldCardTerminalProvider, outletsetting.FieldCardTerminalTid, outletsetting.FieldMpesaPaybill, outletsetting.FieldMpesaAccountReference, outletsetting.FieldAirtelMoneyNumber, outletsetting.FieldMpesaTill, outletsetting.FieldMpesaPochi, outletsetting.FieldBankName, outletsetting.FieldBankAccountNumber, outletsetting.FieldBankAccountName:
+		case outletsetting.FieldPinLoginMessage, outletsetting.FieldScreensaverURL, outletsetting.FieldDisplayMode, outletsetting.FieldDefaultView, outletsetting.FieldReceiptHeader, outletsetting.FieldReceiptFooter, outletsetting.FieldCurrency, outletsetting.FieldDiscountLimitType, outletsetting.FieldPrinterType, outletsetting.FieldPrinterIP, outletsetting.FieldPaperWidth, outletsetting.FieldReceiptFormat, outletsetting.FieldCashDrawerPrinter, outletsetting.FieldCashDrawerKickCode, outletsetting.FieldCardTerminalMode, outletsetting.FieldCardTerminalProvider, outletsetting.FieldCardTerminalTid, outletsetting.FieldMpesaPaybill, outletsetting.FieldMpesaAccountReference, outletsetting.FieldAirtelMoneyNumber, outletsetting.FieldMpesaTill, outletsetting.FieldMpesaPochi, outletsetting.FieldBankName, outletsetting.FieldBankAccountNumber, outletsetting.FieldBankAccountName, outletsetting.FieldCashierSalesVisibility, outletsetting.FieldCashierTerminalSurface:
 			values[i] = new(sql.NullString)
 		case outletsetting.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -577,6 +583,27 @@ func (_m *OutletSetting) assignValues(columns []string, values []any) error {
 					return fmt.Errorf("unmarshal field catalog_use_cases: %w", err)
 				}
 			}
+		case outletsetting.FieldCashierSalesVisibility:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field cashier_sales_visibility", values[i])
+			} else if value.Valid {
+				_m.CashierSalesVisibility = new(string)
+				*_m.CashierSalesVisibility = value.String
+			}
+		case outletsetting.FieldAutoLogoutAfterSale:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field auto_logout_after_sale", values[i])
+			} else if value.Valid {
+				_m.AutoLogoutAfterSale = new(bool)
+				*_m.AutoLogoutAfterSale = value.Bool
+			}
+		case outletsetting.FieldCashierTerminalSurface:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field cashier_terminal_surface", values[i])
+			} else if value.Valid {
+				_m.CashierTerminalSurface = new(string)
+				*_m.CashierTerminalSurface = value.String
+			}
 		case outletsetting.FieldUpdatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field updated_at", values[i])
@@ -828,6 +855,21 @@ func (_m *OutletSetting) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("catalog_use_cases=")
 	builder.WriteString(fmt.Sprintf("%v", _m.CatalogUseCases))
+	builder.WriteString(", ")
+	if v := _m.CashierSalesVisibility; v != nil {
+		builder.WriteString("cashier_sales_visibility=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.AutoLogoutAfterSale; v != nil {
+		builder.WriteString("auto_logout_after_sale=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.CashierTerminalSurface; v != nil {
+		builder.WriteString("cashier_terminal_surface=")
+		builder.WriteString(*v)
+	}
 	builder.WriteString(", ")
 	builder.WriteString("updated_at=")
 	builder.WriteString(_m.UpdatedAt.Format(time.ANSIC))

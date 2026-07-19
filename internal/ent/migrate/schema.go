@@ -1464,6 +1464,9 @@ var (
 		{Name: "default_warehouse_id", Type: field.TypeUUID, Nullable: true},
 		{Name: "return_window_days", Type: field.TypeInt, Nullable: true, Default: 30},
 		{Name: "catalog_use_cases", Type: field.TypeJSON, Nullable: true},
+		{Name: "cashier_sales_visibility", Type: field.TypeString, Nullable: true},
+		{Name: "auto_logout_after_sale", Type: field.TypeBool, Nullable: true},
+		{Name: "cashier_terminal_surface", Type: field.TypeString, Nullable: true},
 		{Name: "updated_at", Type: field.TypeTime},
 		{Name: "outlet_id", Type: field.TypeUUID, Unique: true},
 	}
@@ -1475,7 +1478,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "outlet_settings_outlets_settings",
-				Columns:    []*schema.Column{OutletSettingsColumns[58]},
+				Columns:    []*schema.Column{OutletSettingsColumns[61]},
 				RefColumns: []*schema.Column{OutletsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},

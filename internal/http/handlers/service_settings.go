@@ -19,6 +19,7 @@ import (
 	entstaff "github.com/bengobox/pos-service/internal/ent/staffmember"
 	entstaffoutlet "github.com/bengobox/pos-service/internal/ent/staffoutlet"
 	outletmw "github.com/bengobox/pos-service/internal/http/middleware"
+	"github.com/bengobox/pos-service/internal/modules/outletpolicy"
 	"github.com/bengobox/pos-service/internal/modules/printing"
 	"github.com/bengobox/pos-service/internal/modules/printing/layouts"
 )
@@ -155,8 +156,15 @@ type settingsResponse struct {
 	ShowPaymentInfoOnReceipt bool    `json:"show_payment_info_on_receipt"`
 	// print_agent_online: a paired Local Print Agent polled recently — the till should rely on
 	// server-side background print jobs instead of its client-side transports.
-	PrintAgentOnline bool   `json:"print_agent_online"`
-	UpdatedAt        string `json:"updated_at"`
+	PrintAgentOnline bool `json:"print_agent_online"`
+	// cashier / terminal policy — RESOLVED values (outlet override → per-use-case default).
+	// CashierPolicyOverrides flags which of the three are explicitly overridden at this outlet
+	// (column non-nil) vs inheriting the default, so the settings UI can show an "Overridden" badge.
+	CashierSalesVisibility string          `json:"cashier_sales_visibility"`
+	AutoLogoutAfterSale    bool            `json:"auto_logout_after_sale"`
+	CashierTerminalSurface string          `json:"cashier_terminal_surface"`
+	CashierPolicyOverrides map[string]bool `json:"cashier_policy_overrides"`
+	UpdatedAt              string          `json:"updated_at"`
 }
 
 func toSettingsResponse(outlet *ent.Outlet, s *ent.OutletSetting) settingsResponse {
@@ -223,7 +231,15 @@ func toSettingsResponse(outlet *ent.Outlet, s *ent.OutletSetting) settingsRespon
 		HiddenItems:               metaStringSlice(s.Metadata, "hidden_items"),
 		DisabledModulesByRole:     metaStringSliceMap(s.Metadata, "disabled_modules_by_role"),
 		HiddenItemsByRole:         metaStringSliceMap(s.Metadata, "hidden_items_by_role"),
-		UpdatedAt:                 s.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+		CashierSalesVisibility:    outletpolicy.ResolveCashierSalesVisibility(useCase, s.CashierSalesVisibility),
+		AutoLogoutAfterSale:       outletpolicy.ResolveAutoLogoutAfterSale(useCase, s.AutoLogoutAfterSale),
+		CashierTerminalSurface:    outletpolicy.ResolveCashierTerminalSurface(useCase, s.CashierTerminalSurface),
+		CashierPolicyOverrides: map[string]bool{
+			"cashier_sales_visibility": s.CashierSalesVisibility != nil,
+			"auto_logout_after_sale":   s.AutoLogoutAfterSale != nil,
+			"cashier_terminal_surface": s.CashierTerminalSurface != nil,
+		},
+		UpdatedAt: s.UpdatedAt.Format("2006-01-02T15:04:05Z"),
 	}
 	return r
 }
@@ -493,6 +509,15 @@ type updateSettingsInput struct {
 	BankAccountNumber        *string `json:"bank_account_number"`
 	BankAccountName          *string `json:"bank_account_name"`
 	ShowPaymentInfoOnReceipt *bool   `json:"show_payment_info_on_receipt"`
+	// cashier / terminal policy — tri-state strings so the UI can reset an override back to the
+	// per-use-case default. For each: a valid value SETS the override; "" or "default" CLEARS it
+	// (column → NULL → inherit default); an absent field (nil) leaves it unchanged.
+	//   cashier_sales_visibility: "own" | "outlet"
+	//   cashier_terminal_surface: "full_till" | "bills_only"
+	//   auto_logout_after_sale:   "on"/"true"/"1" | "off"/"false"/"0"
+	CashierSalesVisibility *string `json:"cashier_sales_visibility"`
+	AutoLogoutAfterSale    *string `json:"auto_logout_after_sale"`
+	CashierTerminalSurface *string `json:"cashier_terminal_surface"`
 }
 
 // PutSettings handles PUT /{tenantID}/pos/settings and PUT /{tenantID}/pos/outlets/{outletID}/settings
@@ -675,6 +700,47 @@ func (h *ServiceSettingsHandler) PutSettings(w http.ResponseWriter, r *http.Requ
 		}
 		meta["receipt_show_logo"] = *input.ShowLogoOnReceipt
 		upd = upd.SetMetadata(meta)
+	}
+
+	// Cashier / terminal policy — SET a valid value, CLEAR (reset to use-case default) on
+	// ""/"default", leave unchanged when absent.
+	if input.CashierSalesVisibility != nil {
+		v := strings.ToLower(strings.TrimSpace(*input.CashierSalesVisibility))
+		switch {
+		case v == "" || v == "default":
+			upd = upd.ClearCashierSalesVisibility()
+		case outletpolicy.ValidCashierSalesVisibility(v):
+			upd = upd.SetCashierSalesVisibility(v)
+		default:
+			jsonError(w, "invalid cashier_sales_visibility (own|outlet)", http.StatusBadRequest)
+			return
+		}
+	}
+	if input.CashierTerminalSurface != nil {
+		v := strings.ToLower(strings.TrimSpace(*input.CashierTerminalSurface))
+		switch {
+		case v == "" || v == "default":
+			upd = upd.ClearCashierTerminalSurface()
+		case outletpolicy.ValidCashierTerminalSurface(v):
+			upd = upd.SetCashierTerminalSurface(v)
+		default:
+			jsonError(w, "invalid cashier_terminal_surface (full_till|bills_only)", http.StatusBadRequest)
+			return
+		}
+	}
+	if input.AutoLogoutAfterSale != nil {
+		v := strings.ToLower(strings.TrimSpace(*input.AutoLogoutAfterSale))
+		switch v {
+		case "", "default":
+			upd = upd.ClearAutoLogoutAfterSale()
+		case "on", "true", "1", "yes":
+			upd = upd.SetAutoLogoutAfterSale(true)
+		case "off", "false", "0", "no":
+			upd = upd.SetAutoLogoutAfterSale(false)
+		default:
+			jsonError(w, "invalid auto_logout_after_sale (on|off)", http.StatusBadRequest)
+			return
+		}
 	}
 
 	updated, err := upd.Save(r.Context())
