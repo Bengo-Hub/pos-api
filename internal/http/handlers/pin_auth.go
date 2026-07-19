@@ -369,7 +369,18 @@ func (h *PINAuthHandler) AuthMe(w http.ResponseWriter, r *http.Request) {
 	// UNION of the staff/system role's grants + per-user assignments (custom roles) +
 	// raw-JWT-role-code matches — resolveRolePermissions alone dropped custom-role grants,
 	// leaving those users with an empty permission list and a dashboard-only UI.
-	perms := resolveEffectivePermissions(r.Context(), h.client, tid, uid, posRole, claims.Roles)
+	//
+	// A genuine resolution failure (DB hiccup, not "role has no grants") MUST surface as a
+	// retryable error, never as a 200 with a silently-degraded (possibly empty) permission
+	// set — pos-ui's refreshServicePermissions polls this endpoint every 60s and trusts a
+	// successful response's permissions as authoritative; a masked failure here was the root
+	// cause of a 2026-07-19 fleet-wide waiter lockout.
+	perms, permErr := resolveEffectivePermissions(r.Context(), h.client, tid, uid, posRole, claims.Roles)
+	if permErr != nil {
+		h.log.Error("auth/me: permission resolution failed", zap.Error(permErr), zap.String("tenant_id", tid.String()), zap.String("user_id", uid.String()))
+		jsonError(w, "permission resolution temporarily unavailable", http.StatusServiceUnavailable)
+		return
+	}
 
 	// Expose the assigned role codes too (system + custom) so the UI can display them.
 	assignedRoles := resolveAssignedRoleCodes(r.Context(), h.client, tid, uid)

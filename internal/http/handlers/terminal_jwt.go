@@ -62,7 +62,12 @@ type terminalEntitlements struct {
 }
 
 func issueTerminalJWT(member *ent.StaffMember, tenantID uuid.UUID, sessionOutletID uuid.UUID, secret []byte, client *ent.Client, ctx context.Context, ent2 terminalEntitlements) (string, error) {
-	permissions := resolveEffectivePermissions(ctx, client, tenantID, member.UserID, member.Role, nil)
+	// A genuine resolution failure here MUST fail the login rather than mint a 4h JWT with a
+	// silently-degraded (possibly empty) permission set baked in — see resolveEffectivePermissions.
+	permissions, err := resolveEffectivePermissions(ctx, client, tenantID, member.UserID, member.Role, nil)
+	if err != nil {
+		return "", fmt.Errorf("resolve permissions for terminal JWT: %w", err)
+	}
 
 	// Load outlet to include use_case and is_hq in terminal JWT claims
 	outletCode := ""
@@ -197,14 +202,31 @@ func (h *PINAuthHandler) RequireAnyAuth(ssoAuth *authclient.AuthMiddleware) func
 //     the UI collapsed to dashboard-only even though the role carried full grants;
 //  3. tenant/custom POS roles whose role_code matches a raw global JWT role name — covers
 //     custom roles assigned on the auth side that the fixed global→POS mapping can't know.
-func resolveEffectivePermissions(ctx context.Context, client *ent.Client, tenantID, userID uuid.UUID, roleCode string, globalRoles []string) []string {
+// resolveEffectivePermissions returns (permissions, err). err is non-nil ONLY when a genuine
+// query failure occurred somewhere in the resolution chain (DB error/timeout/connection issue) —
+// NEVER when a role simply doesn't exist or a user has no assignments (those are legitimate empty
+// contributions, not failures). This distinction matters: callers embed the result directly in a
+// 4h terminal JWT (issueTerminalJWT) and serve it from /auth/me, which pos-ui's
+// refreshServicePermissions polls every 60s and trusts as authoritative. Before this fix, EVERY
+// underlying query here silently swallowed its error into "contribute nothing" — so a transient
+// DB hiccup (pool exhaustion, a slow query, a pod restart mid-request) produced a 200 OK with a
+// degraded-toward-empty permission set, indistinguishable from "this role genuinely has zero
+// grants." That masked-as-legitimate empty response was the root cause of a 2026-07-19 fleet-wide
+// waiter lockout once the client started trusting an empty array outright. Callers MUST treat a
+// non-nil err as "resolution unavailable right now" (503/no-op-keep-current), never as "empty".
+func resolveEffectivePermissions(ctx context.Context, client *ent.Client, tenantID, userID uuid.UUID, roleCode string, globalRoles []string) ([]string, error) {
 	set := map[string]struct{}{}
 	add := func(codes []string) {
 		for _, c := range codes {
 			set[c] = struct{}{}
 		}
 	}
-	add(resolveRolePermissions(ctx, client, tenantID, roleCode))
+
+	baseCodes, err := resolveRolePermissions(ctx, client, tenantID, roleCode)
+	if err != nil {
+		return nil, fmt.Errorf("resolve base role %q permissions: %w", roleCode, err)
+	}
+	add(baseCodes)
 
 	// Per-user assignments → their roles' grants (custom roles included).
 	if userID != uuid.Nil {
@@ -215,7 +237,10 @@ func resolveEffectivePermissions(ctx context.Context, client *ent.Client, tenant
 			).
 			Select(posuserroleassignment.FieldRoleID).
 			Strings(ctx)
-		if err == nil && len(roleIDs) > 0 {
+		if err != nil {
+			return nil, fmt.Errorf("resolve user role assignments: %w", err)
+		}
+		if len(roleIDs) > 0 {
 			ids := make([]uuid.UUID, 0, len(roleIDs))
 			for _, s := range roleIDs {
 				if id, perr := uuid.Parse(s); perr == nil {
@@ -227,11 +252,12 @@ func resolveEffectivePermissions(ctx context.Context, client *ent.Client, tenant
 					Where(posrolev2.IDIn(ids...)).
 					WithPermissions().
 					All(ctx)
-				if rerr == nil {
-					for _, role := range roles {
-						for _, p := range role.Edges.Permissions {
-							set[p.PermissionCode] = struct{}{}
-						}
+				if rerr != nil {
+					return nil, fmt.Errorf("resolve assigned roles: %w", rerr)
+				}
+				for _, role := range roles {
+					for _, p := range role.Edges.Permissions {
+						set[p.PermissionCode] = struct{}{}
 					}
 				}
 			}
@@ -243,14 +269,18 @@ func resolveEffectivePermissions(ctx context.Context, client *ent.Client, tenant
 		if gr == "" || gr == roleCode {
 			continue
 		}
-		add(resolveRolePermissions(ctx, client, tenantID, gr))
+		codes, err := resolveRolePermissions(ctx, client, tenantID, gr)
+		if err != nil {
+			return nil, fmt.Errorf("resolve global-role-as-pos-role %q permissions: %w", gr, err)
+		}
+		add(codes)
 	}
 
 	out := make([]string, 0, len(set))
 	for c := range set {
 		out = append(out, c)
 	}
-	return out
+	return out, nil
 }
 
 // resolveAssignedRoleCodes returns the role codes a user holds via POSUserRoleAssignment
@@ -292,8 +322,10 @@ func resolveAssignedRoleCodes(ctx context.Context, client *ent.Client, tenantID,
 // resolveRolePermissions looks up the POSRoleV2 for the given roleCode and returns its permission
 // codes. Roles are platform-wide (shared): it matches the shared global/system role (tenant_id NULL)
 // OR a tenant-specific custom role of the same code, preferring the tenant-specific override when both
-// exist. Returns an empty slice if the role is not found or an error occurs.
-func resolveRolePermissions(ctx context.Context, client *ent.Client, tenantID uuid.UUID, roleCode string) []string {
+// exist. Returns (nil, err) ONLY on a genuine query failure. A role that legitimately doesn't exist
+// (zero rows, no error) returns ([]string{}, nil) — that empty result is valid data, not a failure,
+// and callers must not conflate the two (see resolveEffectivePermissions doc comment).
+func resolveRolePermissions(ctx context.Context, client *ent.Client, tenantID uuid.UUID, roleCode string) ([]string, error) {
 	roles, err := client.POSRoleV2.Query().
 		Where(
 			posrolev2.RoleCode(roleCode),
@@ -304,9 +336,12 @@ func resolveRolePermissions(ctx context.Context, client *ent.Client, tenantID uu
 		).
 		WithPermissions().
 		All(ctx)
-	if err != nil || len(roles) == 0 {
-		// Role not found or error — fall back to empty permissions
-		return []string{}
+	if err != nil {
+		return nil, err
+	}
+	if len(roles) == 0 {
+		// Role not found — legitimate empty, not an error.
+		return []string{}, nil
 	}
 
 	// Prefer the tenant-specific override; otherwise use the shared global role.
@@ -322,5 +357,5 @@ func resolveRolePermissions(ctx context.Context, client *ent.Client, tenantID uu
 	for _, p := range role.Edges.Permissions {
 		codes = append(codes, p.PermissionCode)
 	}
-	return codes
+	return codes, nil
 }
