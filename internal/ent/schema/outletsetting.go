@@ -45,6 +45,16 @@ func (OutletSetting) Fields() []ent.Field {
 		field.String("currency").Default("KES").Optional().Comment("ISO 4217 currency code for this outlet"),
 		field.Float("max_discount_percent").Default(100).Optional().Comment("Max order discount % a cashier may apply without manager approval; above this requires a step-up (100 = no limit)"),
 		field.Float("max_discount_amount").Default(0).Optional().Comment("Max order discount AMOUNT (currency) a cashier may apply without manager approval; above this requires a step-up (0 = no amount limit). Enforced alongside max_discount_percent — exceeding EITHER limit triggers approval"),
+		// discount_limit_type is a UI-only selector: which of the two fields above the operator
+		// configures (the Settings page shows ONE input at a time — percentage OR a fixed
+		// amount, never both). The inactive field is always saved at its no-op sentinel (100%
+		// or 0 amount), so the order-create enforcement gate (checks both fields, OR) needs no
+		// changes — this field only lets the settings page round-trip which mode was selected.
+		field.Enum("discount_limit_type").
+			Values("percent", "amount").
+			Default("percent").
+			Optional().
+			Comment("Which discount-limit field is the active one in the Settings UI: percent (max_discount_percent) or amount (max_discount_amount) — the other is kept at its no-limit sentinel"),
 		// Pricing policy (retail/pharmacy ask, 2026-07-18): selling ABOVE the catalog/base
 		// price is a normal cashier move (negotiated up-sell), selling BELOW it is margin
 		// leakage that needs a manager. Both knobs are tenant-configurable per outlet.
@@ -56,10 +66,10 @@ func (OutletSetting) Fields() []ent.Field {
 		field.String("printer_ip").Optional().Nillable().Comment("Network printer IP address (only for printer_type=network)"),
 		field.String("paper_width").Default("80mm").Optional().Comment("Receipt paper width: 58mm | 80mm"),
 		field.Enum("receipt_format").
-			Values("auto", "thermal_classic", "thermal_modern", "a4_invoice").
+			Values("auto", "thermal_classic", "thermal_modern", "a4_invoice", "thermal_grid").
 			Default("auto").
 			Optional().
-			Comment("Receipt layout (printing/layouts registry): auto = best layout per use case (thermal), thermal_classic = monospace roll, thermal_modern = bold sans roll, a4_invoice = boxed A4 sheet"),
+			Comment("Receipt layout (printing/layouts registry): auto = best layout per use case (thermal), thermal_classic = monospace roll, thermal_modern = bold sans roll, a4_invoice = boxed A4 sheet, thermal_grid = bordered-table roll (opt-in)"),
 		field.Bool("auto_print_order").Default(false).Optional().Comment("Automatically print receipt when order is completed"),
 		field.Bool("auto_print_kitchen").Default(false).Optional().Comment("Automatically print kitchen ticket on order creation"),
 		field.JSON("printer_profiles", []map[string]any{}).

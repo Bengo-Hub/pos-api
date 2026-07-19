@@ -21,8 +21,11 @@ func fixtureReceipt(useCase string) Receipt {
 		Lines: []Line{
 			{SKU: "DWL750", Name: "Dish Washing Liquid 750ml", Quantity: 1, UnitPrice: 86, TotalPrice: 86},
 			{SKU: "FREE1", Name: "Carrier Bag", Quantity: 1, UnitPrice: 0, TotalPrice: 0},
+			// Multi-quantity line — asserts the qty × unit-price sub-line renders on every
+			// flex/line-based layout (classic/modern/a4) the same way the pos-ui client does.
+			{SKU: "BW500", Name: "Body Wash 500ml", Quantity: 2, UnitPrice: 400, TotalPrice: 800},
 		},
-		Subtotal: 86, TaxAmount: 0, TotalAmount: 86, AmountPaid: 86,
+		Subtotal: 886, TaxAmount: 0, TotalAmount: 886, AmountPaid: 886,
 		Currency: "KES", PaymentMethod: "cash", PaymentDate: &paid,
 		VatEnabled: false, PaperWidth: "80mm", ShowLogo: true,
 		UseCase: useCase,
@@ -82,7 +85,7 @@ func TestAllLayoutsRenderEtimsBlock(t *testing.T) {
 // fiscalised, appearing immediately after the fiscal block (ETR-style adjacency).
 func TestFiscalQRAndBarcodeAdjacency(t *testing.T) {
 	rec := fixtureReceipt("retail")
-	for _, id := range []string{ThermalClassic, ThermalModern, A4Invoice} {
+	for _, id := range []string{ThermalClassic, ThermalModern, ThermalGrid, A4Invoice} {
 		rec.Layout = id
 		html := string(RenderHTML(rec, ""))
 		if strings.Contains(html, `src="https://etims-sbx.kra.go.ke`) {
@@ -142,6 +145,8 @@ func TestResolve(t *testing.T) {
 		{A4Invoice, "retail", A4Invoice},
 		{ThermalClassic, "retail", ThermalClassic},
 		{ThermalModern, "hospitality", ThermalModern},
+		{ThermalGrid, "retail", ThermalGrid},
+		{ThermalGrid, "hospitality", ThermalGrid},
 		{"bogus", "retail", ThermalModern},
 	}
 	for _, c := range cases {
@@ -149,13 +154,20 @@ func TestResolve(t *testing.T) {
 			t.Errorf("Resolve(%q,%q) = %q, want %q", c.setting, c.useCase, got, c.want)
 		}
 	}
-	if !Valid("") || !Valid("auto") || !Valid(ThermalModern) || Valid("bogus") {
+	if !Valid("") || !Valid("auto") || !Valid(ThermalModern) || !Valid(ThermalGrid) || Valid("bogus") {
 		t.Error("Valid() acceptance set wrong")
+	}
+	// thermal_grid is opt-in ONLY — auto must never resolve to it regardless of use case.
+	for _, uc := range []string{"retail", "hospitality", "pharmacy", ""} {
+		if got := Resolve("auto", uc); got == ThermalGrid {
+			t.Errorf("Resolve(auto,%q) must never pick thermal_grid (opt-in only), got %q", uc, got)
+		}
 	}
 }
 
 // Thermal variants: classic renders monospace, modern renders the sans stack; retail
-// thermal receipts carry the barcode + payment-date labelled method.
+// thermal receipts carry the barcode + payment-date labelled method + the qty × unit-price
+// sub-line for any line with quantity != 1 (parity with the pos-ui client renderer).
 func TestThermalVariants(t *testing.T) {
 	rec := fixtureReceipt("retail")
 	rec.Layout = ThermalClassic
@@ -177,6 +189,55 @@ func TestThermalVariants(t *testing.T) {
 		}
 		if !strings.Contains(html, "FREE") {
 			t.Error("zero-charge line must print FREE")
+		}
+		// qty × unit-price sub-line for the 2-quantity Body Wash line.
+		if !strings.Contains(html, `class="line-sub">2 &times; 400`) {
+			t.Error("a line with quantity != 1 must render the qty x unit-price sub-line")
+		}
+	}
+}
+
+// The opt-in bordered-grid layout: uses the sans font (like modern), renders the
+// customer/receipt-no and item list as real bordered <table>s, and — since Qty/Price are
+// already separate table columns — does NOT render the flex-layout qty-subline.
+func TestThermalGridLayout(t *testing.T) {
+	rec := fixtureReceipt("retail")
+	rec.Layout = ThermalGrid
+	html := string(RenderHTML(rec, ""))
+	if !strings.Contains(html, "Helvetica Neue") {
+		t.Error("thermal_grid must use the Helvetica stack")
+	}
+	if !strings.Contains(html, `class="gtable"`) {
+		t.Error("thermal_grid must render bordered <table class=\"gtable\"> elements")
+	}
+	if strings.Contains(html, `class="line-sub"`) {
+		t.Error("thermal_grid has Qty/Price as table columns — it must not also render the flex qty-subline")
+	}
+	if !strings.Contains(html, "RECEIPT NO") {
+		t.Error("thermal_grid must render the bordered Customer|Receipt No meta table")
+	}
+	pdf, err := RenderPDF(rec, Brand{})
+	if err != nil {
+		t.Fatalf("thermal_grid PDF: %v", err)
+	}
+	if len(pdf) == 0 || !strings.HasPrefix(string(pdf[:5]), "%PDF-") {
+		t.Error("thermal_grid PDF: not a PDF")
+	}
+}
+
+// Content must not be silently clipped: long item/payment names wrap instead of being
+// ellipsis-truncated on the HTML renderers (a full fix, unlike the fixed-width PDF cells).
+func TestLongContentWrapsNotClips(t *testing.T) {
+	rec := fixtureReceipt("retail")
+	rec.Lines = append(rec.Lines, Line{
+		SKU: "LONG1", Name: "A Genuinely Very Long Product Name That Would Have Been Ellipsis-Truncated Before",
+		Quantity: 1, UnitPrice: 10, TotalPrice: 10,
+	})
+	for _, id := range []string{ThermalClassic, ThermalModern, ThermalGrid} {
+		rec.Layout = id
+		html := string(RenderHTML(rec, ""))
+		if !strings.Contains(html, "Ellipsis-Truncated Before") {
+			t.Errorf("layout %s must not clip a long item name in its own HTML output", id)
 		}
 	}
 }

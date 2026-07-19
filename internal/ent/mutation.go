@@ -44715,6 +44715,7 @@ type OutletSettingMutation struct {
 	addmax_discount_percent         *float64
 	max_discount_amount             *float64
 	addmax_discount_amount          *float64
+	discount_limit_type             *outletsetting.DiscountLimitType
 	allow_price_above_base          *bool
 	require_approval_below_base     *bool
 	vat_enabled                     *bool
@@ -45816,6 +45817,55 @@ func (m *OutletSettingMutation) ResetMaxDiscountAmount() {
 	m.max_discount_amount = nil
 	m.addmax_discount_amount = nil
 	delete(m.clearedFields, outletsetting.FieldMaxDiscountAmount)
+}
+
+// SetDiscountLimitType sets the "discount_limit_type" field.
+func (m *OutletSettingMutation) SetDiscountLimitType(olt outletsetting.DiscountLimitType) {
+	m.discount_limit_type = &olt
+}
+
+// DiscountLimitType returns the value of the "discount_limit_type" field in the mutation.
+func (m *OutletSettingMutation) DiscountLimitType() (r outletsetting.DiscountLimitType, exists bool) {
+	v := m.discount_limit_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDiscountLimitType returns the old "discount_limit_type" field's value of the OutletSetting entity.
+// If the OutletSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OutletSettingMutation) OldDiscountLimitType(ctx context.Context) (v outletsetting.DiscountLimitType, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDiscountLimitType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDiscountLimitType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDiscountLimitType: %w", err)
+	}
+	return oldValue.DiscountLimitType, nil
+}
+
+// ClearDiscountLimitType clears the value of the "discount_limit_type" field.
+func (m *OutletSettingMutation) ClearDiscountLimitType() {
+	m.discount_limit_type = nil
+	m.clearedFields[outletsetting.FieldDiscountLimitType] = struct{}{}
+}
+
+// DiscountLimitTypeCleared returns if the "discount_limit_type" field was cleared in this mutation.
+func (m *OutletSettingMutation) DiscountLimitTypeCleared() bool {
+	_, ok := m.clearedFields[outletsetting.FieldDiscountLimitType]
+	return ok
+}
+
+// ResetDiscountLimitType resets all changes to the "discount_limit_type" field.
+func (m *OutletSettingMutation) ResetDiscountLimitType() {
+	m.discount_limit_type = nil
+	delete(m.clearedFields, outletsetting.FieldDiscountLimitType)
 }
 
 // SetAllowPriceAboveBase sets the "allow_price_above_base" field.
@@ -47844,7 +47894,7 @@ func (m *OutletSettingMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *OutletSettingMutation) Fields() []string {
-	fields := make([]string, 0, 57)
+	fields := make([]string, 0, 58)
 	if m.outlet != nil {
 		fields = append(fields, outletsetting.FieldOutletID)
 	}
@@ -47901,6 +47951,9 @@ func (m *OutletSettingMutation) Fields() []string {
 	}
 	if m.max_discount_amount != nil {
 		fields = append(fields, outletsetting.FieldMaxDiscountAmount)
+	}
+	if m.discount_limit_type != nil {
+		fields = append(fields, outletsetting.FieldDiscountLimitType)
 	}
 	if m.allow_price_above_base != nil {
 		fields = append(fields, outletsetting.FieldAllowPriceAboveBase)
@@ -48062,6 +48115,8 @@ func (m *OutletSettingMutation) Field(name string) (ent.Value, bool) {
 		return m.MaxDiscountPercent()
 	case outletsetting.FieldMaxDiscountAmount:
 		return m.MaxDiscountAmount()
+	case outletsetting.FieldDiscountLimitType:
+		return m.DiscountLimitType()
 	case outletsetting.FieldAllowPriceAboveBase:
 		return m.AllowPriceAboveBase()
 	case outletsetting.FieldRequireApprovalBelowBase:
@@ -48185,6 +48240,8 @@ func (m *OutletSettingMutation) OldField(ctx context.Context, name string) (ent.
 		return m.OldMaxDiscountPercent(ctx)
 	case outletsetting.FieldMaxDiscountAmount:
 		return m.OldMaxDiscountAmount(ctx)
+	case outletsetting.FieldDiscountLimitType:
+		return m.OldDiscountLimitType(ctx)
 	case outletsetting.FieldAllowPriceAboveBase:
 		return m.OldAllowPriceAboveBase(ctx)
 	case outletsetting.FieldRequireApprovalBelowBase:
@@ -48402,6 +48459,13 @@ func (m *OutletSettingMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetMaxDiscountAmount(v)
+		return nil
+	case outletsetting.FieldDiscountLimitType:
+		v, ok := value.(outletsetting.DiscountLimitType)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDiscountLimitType(v)
 		return nil
 	case outletsetting.FieldAllowPriceAboveBase:
 		v, ok := value.(bool)
@@ -48825,6 +48889,9 @@ func (m *OutletSettingMutation) ClearedFields() []string {
 	if m.FieldCleared(outletsetting.FieldMaxDiscountAmount) {
 		fields = append(fields, outletsetting.FieldMaxDiscountAmount)
 	}
+	if m.FieldCleared(outletsetting.FieldDiscountLimitType) {
+		fields = append(fields, outletsetting.FieldDiscountLimitType)
+	}
 	if m.FieldCleared(outletsetting.FieldAllowPriceAboveBase) {
 		fields = append(fields, outletsetting.FieldAllowPriceAboveBase)
 	}
@@ -49001,6 +49068,9 @@ func (m *OutletSettingMutation) ClearField(name string) error {
 	case outletsetting.FieldMaxDiscountAmount:
 		m.ClearMaxDiscountAmount()
 		return nil
+	case outletsetting.FieldDiscountLimitType:
+		m.ClearDiscountLimitType()
+		return nil
 	case outletsetting.FieldAllowPriceAboveBase:
 		m.ClearAllowPriceAboveBase()
 		return nil
@@ -49176,6 +49246,9 @@ func (m *OutletSettingMutation) ResetField(name string) error {
 		return nil
 	case outletsetting.FieldMaxDiscountAmount:
 		m.ResetMaxDiscountAmount()
+		return nil
+	case outletsetting.FieldDiscountLimitType:
+		m.ResetDiscountLimitType()
 		return nil
 	case outletsetting.FieldAllowPriceAboveBase:
 		m.ResetAllowPriceAboveBase()

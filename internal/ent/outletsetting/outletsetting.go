@@ -54,6 +54,8 @@ const (
 	FieldMaxDiscountPercent = "max_discount_percent"
 	// FieldMaxDiscountAmount holds the string denoting the max_discount_amount field in the database.
 	FieldMaxDiscountAmount = "max_discount_amount"
+	// FieldDiscountLimitType holds the string denoting the discount_limit_type field in the database.
+	FieldDiscountLimitType = "discount_limit_type"
 	// FieldAllowPriceAboveBase holds the string denoting the allow_price_above_base field in the database.
 	FieldAllowPriceAboveBase = "allow_price_above_base"
 	// FieldRequireApprovalBelowBase holds the string denoting the require_approval_below_base field in the database.
@@ -165,6 +167,7 @@ var Columns = []string{
 	FieldCurrency,
 	FieldMaxDiscountPercent,
 	FieldMaxDiscountAmount,
+	FieldDiscountLimitType,
 	FieldAllowPriceAboveBase,
 	FieldRequireApprovalBelowBase,
 	FieldVatEnabled,
@@ -290,6 +293,32 @@ var (
 	DefaultID func() uuid.UUID
 )
 
+// DiscountLimitType defines the type for the "discount_limit_type" enum field.
+type DiscountLimitType string
+
+// DiscountLimitTypePercent is the default value of the DiscountLimitType enum.
+const DefaultDiscountLimitType = DiscountLimitTypePercent
+
+// DiscountLimitType values.
+const (
+	DiscountLimitTypePercent DiscountLimitType = "percent"
+	DiscountLimitTypeAmount  DiscountLimitType = "amount"
+)
+
+func (dlt DiscountLimitType) String() string {
+	return string(dlt)
+}
+
+// DiscountLimitTypeValidator is a validator for the "discount_limit_type" field enum values. It is called by the builders before save.
+func DiscountLimitTypeValidator(dlt DiscountLimitType) error {
+	switch dlt {
+	case DiscountLimitTypePercent, DiscountLimitTypeAmount:
+		return nil
+	default:
+		return fmt.Errorf("outletsetting: invalid enum value for discount_limit_type field: %q", dlt)
+	}
+}
+
 // ReceiptFormat defines the type for the "receipt_format" enum field.
 type ReceiptFormat string
 
@@ -302,6 +331,7 @@ const (
 	ReceiptFormatThermalClassic ReceiptFormat = "thermal_classic"
 	ReceiptFormatThermalModern  ReceiptFormat = "thermal_modern"
 	ReceiptFormatA4Invoice      ReceiptFormat = "a4_invoice"
+	ReceiptFormatThermalGrid    ReceiptFormat = "thermal_grid"
 )
 
 func (rf ReceiptFormat) String() string {
@@ -311,7 +341,7 @@ func (rf ReceiptFormat) String() string {
 // ReceiptFormatValidator is a validator for the "receipt_format" field enum values. It is called by the builders before save.
 func ReceiptFormatValidator(rf ReceiptFormat) error {
 	switch rf {
-	case ReceiptFormatAuto, ReceiptFormatThermalClassic, ReceiptFormatThermalModern, ReceiptFormatA4Invoice:
+	case ReceiptFormatAuto, ReceiptFormatThermalClassic, ReceiptFormatThermalModern, ReceiptFormatA4Invoice, ReceiptFormatThermalGrid:
 		return nil
 	default:
 		return fmt.Errorf("outletsetting: invalid enum value for receipt_format field: %q", rf)
@@ -394,6 +424,11 @@ func ByMaxDiscountPercent(opts ...sql.OrderTermOption) OrderOption {
 // ByMaxDiscountAmount orders the results by the max_discount_amount field.
 func ByMaxDiscountAmount(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldMaxDiscountAmount, opts...).ToFunc()
+}
+
+// ByDiscountLimitType orders the results by the discount_limit_type field.
+func ByDiscountLimitType(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDiscountLimitType, opts...).ToFunc()
 }
 
 // ByAllowPriceAboveBase orders the results by the allow_price_above_base field.

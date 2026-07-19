@@ -58,6 +58,8 @@ type OutletSetting struct {
 	MaxDiscountPercent float64 `json:"max_discount_percent,omitempty"`
 	// Max order discount AMOUNT (currency) a cashier may apply without manager approval; above this requires a step-up (0 = no amount limit). Enforced alongside max_discount_percent — exceeding EITHER limit triggers approval
 	MaxDiscountAmount float64 `json:"max_discount_amount,omitempty"`
+	// Which discount-limit field is the active one in the Settings UI: percent (max_discount_percent) or amount (max_discount_amount) — the other is kept at its no-limit sentinel
+	DiscountLimitType outletsetting.DiscountLimitType `json:"discount_limit_type,omitempty"`
 	// Cashiers may RAISE a line's unit price above the catalog/base price without approval (default on; off = raising also needs a price.override step-up)
 	AllowPriceAboveBase bool `json:"allow_price_above_base,omitempty"`
 	// Selling below the catalog/base price (markdown or price-lowering discount) requires a manager/admin price.override step-up (default on; off = free markdowns)
@@ -72,7 +74,7 @@ type OutletSetting struct {
 	PrinterIP *string `json:"printer_ip,omitempty"`
 	// Receipt paper width: 58mm | 80mm
 	PaperWidth string `json:"paper_width,omitempty"`
-	// Receipt layout (printing/layouts registry): auto = best layout per use case (thermal), thermal_classic = monospace roll, thermal_modern = bold sans roll, a4_invoice = boxed A4 sheet
+	// Receipt layout (printing/layouts registry): auto = best layout per use case (thermal), thermal_classic = monospace roll, thermal_modern = bold sans roll, a4_invoice = boxed A4 sheet, thermal_grid = bordered-table roll (opt-in)
 	ReceiptFormat outletsetting.ReceiptFormat `json:"receipt_format,omitempty"`
 	// Automatically print receipt when order is completed
 	AutoPrintOrder bool `json:"auto_print_order,omitempty"`
@@ -175,7 +177,7 @@ func (*OutletSetting) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullFloat64)
 		case outletsetting.FieldShiftMaxHours, outletsetting.FieldTableMaxOccupationMinutes, outletsetting.FieldReturnWindowDays:
 			values[i] = new(sql.NullInt64)
-		case outletsetting.FieldPinLoginMessage, outletsetting.FieldScreensaverURL, outletsetting.FieldDisplayMode, outletsetting.FieldDefaultView, outletsetting.FieldReceiptHeader, outletsetting.FieldReceiptFooter, outletsetting.FieldCurrency, outletsetting.FieldPrinterType, outletsetting.FieldPrinterIP, outletsetting.FieldPaperWidth, outletsetting.FieldReceiptFormat, outletsetting.FieldCashDrawerPrinter, outletsetting.FieldCashDrawerKickCode, outletsetting.FieldCardTerminalMode, outletsetting.FieldCardTerminalProvider, outletsetting.FieldCardTerminalTid, outletsetting.FieldMpesaPaybill, outletsetting.FieldMpesaAccountReference, outletsetting.FieldAirtelMoneyNumber, outletsetting.FieldMpesaTill, outletsetting.FieldMpesaPochi, outletsetting.FieldBankName, outletsetting.FieldBankAccountNumber, outletsetting.FieldBankAccountName:
+		case outletsetting.FieldPinLoginMessage, outletsetting.FieldScreensaverURL, outletsetting.FieldDisplayMode, outletsetting.FieldDefaultView, outletsetting.FieldReceiptHeader, outletsetting.FieldReceiptFooter, outletsetting.FieldCurrency, outletsetting.FieldDiscountLimitType, outletsetting.FieldPrinterType, outletsetting.FieldPrinterIP, outletsetting.FieldPaperWidth, outletsetting.FieldReceiptFormat, outletsetting.FieldCashDrawerPrinter, outletsetting.FieldCashDrawerKickCode, outletsetting.FieldCardTerminalMode, outletsetting.FieldCardTerminalProvider, outletsetting.FieldCardTerminalTid, outletsetting.FieldMpesaPaybill, outletsetting.FieldMpesaAccountReference, outletsetting.FieldAirtelMoneyNumber, outletsetting.FieldMpesaTill, outletsetting.FieldMpesaPochi, outletsetting.FieldBankName, outletsetting.FieldBankAccountNumber, outletsetting.FieldBankAccountName:
 			values[i] = new(sql.NullString)
 		case outletsetting.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -329,6 +331,12 @@ func (_m *OutletSetting) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field max_discount_amount", values[i])
 			} else if value.Valid {
 				_m.MaxDiscountAmount = value.Float64
+			}
+		case outletsetting.FieldDiscountLimitType:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field discount_limit_type", values[i])
+			} else if value.Valid {
+				_m.DiscountLimitType = outletsetting.DiscountLimitType(value.String)
 			}
 		case outletsetting.FieldAllowPriceAboveBase:
 			if value, ok := values[i].(*sql.NullBool); !ok {
@@ -680,6 +688,9 @@ func (_m *OutletSetting) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("max_discount_amount=")
 	builder.WriteString(fmt.Sprintf("%v", _m.MaxDiscountAmount))
+	builder.WriteString(", ")
+	builder.WriteString("discount_limit_type=")
+	builder.WriteString(fmt.Sprintf("%v", _m.DiscountLimitType))
 	builder.WriteString(", ")
 	builder.WriteString("allow_price_above_base=")
 	builder.WriteString(fmt.Sprintf("%v", _m.AllowPriceAboveBase))

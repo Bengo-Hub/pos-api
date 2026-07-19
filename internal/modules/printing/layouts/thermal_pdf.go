@@ -12,7 +12,7 @@ import (
 )
 
 // thermalPDFFont maps the thermal layout variant to an fpdf core font family.
-// Classic = Courier (monospace, the classic POS look); Modern = Helvetica.
+// Classic = Courier (monospace, the classic POS look); Modern/Grid = Helvetica.
 func thermalPDFFont(layout string) string {
 	if layout == ThermalClassic {
 		return "Courier"
@@ -20,13 +20,24 @@ func thermalPDFFont(layout string) string {
 	return "Helvetica"
 }
 
+// thermalItemNameWidth is the practical (not hard) truncation limit for an item name on the
+// receipt-roll PDF, proportioned to the ~72mm content width at 9pt Helvetica/Courier — wide
+// enough that ordinary item names never clip; only pathologically long names still ellipsize
+// (fpdf CellFormat is a fixed single-line cell with no wrap, so SOME limit is unavoidable).
+const thermalItemNameWidth = 34
+
 // renderThermalPDF renders the receipt-roll layout as a real PDF on an 80mm-wide strip,
 // applying tenant branding (logo). Mirrors renderThermalHTML.
+//
+// Grid mode (layout == ThermalGrid, opt-in per tenant): the customer/order/date meta and the
+// item list render as bordered fpdf cells (border code "1", same as a4_pdf.go's grid) instead
+// of the plain line()/center() flow — the clearest layout for less-tech-savvy customers.
 func renderThermalPDF(rec Receipt, brand Brand, layout string) ([]byte, error) {
 	const pageW = 80.0 // 80mm thermal paper
 	const margin = 4.0
 	contentW := pageW - 2*margin
 	font := thermalPDFFont(layout)
+	isGrid := layout == ThermalGrid
 
 	pdf := fpdf.NewCustom(&fpdf.InitType{
 		UnitStr: "mm",
@@ -37,11 +48,7 @@ func renderThermalPDF(rec Receipt, brand Brand, layout string) ([]byte, error) {
 	pdf.SetAutoPageBreak(true, 6)
 	pdf.AddPage()
 
-	currency := rec.Currency
-	if currency == "" {
-		currency = "KES"
-	}
-	moneyLine := func(v float64) string { return fmt.Sprintf("%s %0.2f", currency, v) }
+	moneyLine := func(v float64) string { return money(rec.Currency, v) }
 
 	center := func(s string, style string, size float64) {
 		pdf.SetFont(font, style, size)
@@ -93,44 +100,105 @@ func renderThermalPDF(rec Receipt, brand Brand, layout string) ([]byte, error) {
 		center("KRA PIN: "+rec.EtimsKraPin, "B", 9)
 	}
 	pdf.Ln(1)
-	hr()
 
-	// Meta
-	line("Receipt:", rec.ReceiptNumber, "", 9)
-	line("Order:", rec.OrderNumber, "", 9)
-	line("Date:", shortDateTime(rec.IssuedAt, rec.Timezone), "", 9)
-	if rec.BillTo != "" {
-		custLabel := rec.BillToLabel
-		if custLabel == "" {
-			custLabel = "Customer"
+	if isGrid {
+		// Bordered Customer | Receipt No mini-table (mirrors a4_pdf.go's grid, narrowed).
+		billLabel := rec.BillToLabel
+		if billLabel == "" {
+			billLabel = "Customer"
 		}
-		line(custLabel+":", rec.BillTo, "", 9)
+		half := contentW / 2
+		pdf.SetFont(font, "B", 8)
+		pdf.CellFormat(half, 5, billLabel, "1", 0, "L", false, 0, "")
+		pdf.CellFormat(half, 5, "RECEIPT NO", "1", 1, "C", false, 0, "")
+		pdf.SetFont(font, "", 8)
+		billTo := rec.BillTo
+		if billTo == "" {
+			billTo = "Walk-in customer"
+		}
+		pdf.CellFormat(half, 5.5, truncate(billTo, 20), "1", 0, "L", false, 0, "")
+		pdf.CellFormat(half, 5.5, rec.ReceiptNumber, "1", 1, "C", false, 0, "")
+		pdf.Ln(1)
+		center(receiptTime(rec.IssuedAt, rec.Timezone), "", 8)
+		if rec.ServedBy != "" {
+			pdf.SetFont(font, "B", 8)
+			pdf.CellFormat(half, 5, "SERVED BY", "B", 0, "L", false, 0, "")
+			pdf.SetFont(font, "", 8)
+			pdf.CellFormat(half, 5, rec.ServedBy, "B", 1, "R", false, 0, "")
+		}
+		pdf.Ln(1)
+	} else {
+		hr()
+		// Meta
+		line("Receipt:", rec.ReceiptNumber, "", 9)
+		line("Order:", rec.OrderNumber, "", 9)
+		line("Date:", shortDateTime(rec.IssuedAt, rec.Timezone), "", 9)
+		if rec.BillTo != "" {
+			custLabel := rec.BillToLabel
+			if custLabel == "" {
+				custLabel = "Customer"
+			}
+			line(custLabel+":", rec.BillTo, "", 9)
+		}
+		if rec.ServedBy != "" {
+			line("Served by:", rec.ServedBy, "", 9)
+		}
+		hr()
 	}
-	if rec.ServedBy != "" {
-		line("Served by:", rec.ServedBy, "", 9)
-	}
-	hr()
 
 	// Line items
-	pdf.SetFont(font, "B", 9)
-	pdf.CellFormat(contentW*0.5, 4, "Item", "", 0, "L", false, 0, "")
-	pdf.CellFormat(contentW*0.2, 4, "Qty", "", 0, "R", false, 0, "")
-	pdf.CellFormat(contentW*0.3, 4, "Total", "", 1, "R", false, 0, "")
-	for _, l := range rec.Lines {
-		pdf.SetFont(font, "", 9)
-		name := l.Name
-		if name == "" {
-			name = l.SKU
+	if isGrid {
+		// Bordered Item | Qty | Price | Total table — Qty and Price are their own columns,
+		// so (unlike the flex/line layout) no separate qty-subline is needed here.
+		itemW, qtyW, priceW, totW := contentW*0.42, contentW*0.14, contentW*0.20, contentW*0.24
+		pdf.SetFont(font, "B", 8)
+		pdf.CellFormat(itemW, 5, "Item", "1", 0, "L", false, 0, "")
+		pdf.CellFormat(qtyW, 5, "Qty", "1", 0, "C", false, 0, "")
+		pdf.CellFormat(priceW, 5, "Price", "1", 0, "R", false, 0, "")
+		pdf.CellFormat(totW, 5, "Total", "1", 1, "R", false, 0, "")
+		pdf.SetFont(font, "", 8)
+		for _, l := range rec.Lines {
+			name := l.Name
+			if name == "" {
+				name = l.SKU
+			}
+			price, total := amount(l.UnitPrice), amount(l.TotalPrice)
+			if l.TotalPrice == 0 {
+				price, total = "FREE", "FREE"
+			}
+			pdf.CellFormat(itemW, 5, truncate(name, 20), "1", 0, "L", false, 0, "")
+			pdf.CellFormat(qtyW, 5, fmt.Sprintf("%g", l.Quantity), "1", 0, "C", false, 0, "")
+			pdf.CellFormat(priceW, 5, price, "1", 0, "R", false, 0, "")
+			pdf.CellFormat(totW, 5, total, "1", 1, "R", false, 0, "")
 		}
-		total := fmt.Sprintf("%0.2f", l.TotalPrice)
-		if l.TotalPrice == 0 {
-			total = "FREE"
+		pdf.Ln(1)
+	} else {
+		pdf.SetFont(font, "B", 9)
+		pdf.CellFormat(contentW*0.5, 4, "Item", "", 0, "L", false, 0, "")
+		pdf.CellFormat(contentW*0.2, 4, "Qty", "", 0, "R", false, 0, "")
+		pdf.CellFormat(contentW*0.3, 4, "Total", "", 1, "R", false, 0, "")
+		for _, l := range rec.Lines {
+			pdf.SetFont(font, "", 9)
+			name := l.Name
+			if name == "" {
+				name = l.SKU
+			}
+			total := amount(l.TotalPrice)
+			if l.TotalPrice == 0 {
+				total = "FREE"
+			}
+			pdf.CellFormat(contentW*0.5, 4, truncate(name, thermalItemNameWidth), "", 0, "L", false, 0, "")
+			pdf.CellFormat(contentW*0.2, 4, fmt.Sprintf("%.0f", l.Quantity), "", 0, "R", false, 0, "")
+			pdf.CellFormat(contentW*0.3, 4, total, "", 1, "R", false, 0, "")
+			// Qty × unit-price sub-line whenever qty ≠ 1 — the clearest way to show quantity
+			// (matches the pos-ui client thermal renderer's existing pattern).
+			if l.Quantity != 1 {
+				pdf.SetFont(font, "", 7.5)
+				pdf.CellFormat(contentW, 3.5, fmt.Sprintf("  %g x %s", l.Quantity, amount(l.UnitPrice)), "", 1, "L", false, 0, "")
+			}
 		}
-		pdf.CellFormat(contentW*0.5, 4, truncate(name, 24), "", 0, "L", false, 0, "")
-		pdf.CellFormat(contentW*0.2, 4, fmt.Sprintf("%.0f", l.Quantity), "", 0, "R", false, 0, "")
-		pdf.CellFormat(contentW*0.3, 4, total, "", 1, "R", false, 0, "")
+		hr()
 	}
-	hr()
 
 	// Totals
 	line("Subtotal", moneyLine(rec.Subtotal), "", 9)
@@ -140,8 +208,8 @@ func renderThermalPDF(rec Receipt, brand Brand, layout string) ([]byte, error) {
 	if rec.VatEnabled || rec.TaxAmount > 0 {
 		line(taxLabel(rec), moneyLine(rec.TaxAmount), "", 9)
 	}
-	if rec.ChargesTotal > 0 {
-		line("Charges", moneyLine(rec.ChargesTotal), "", 9)
+	for _, cr := range chargeRows(rec) {
+		line(cr[0].(string), moneyLine(cr[1].(float64)), "", 9)
 	}
 	if rec.RoundOff > 0 {
 		line("Round Off", moneyLine(rec.RoundOff), "", 9)

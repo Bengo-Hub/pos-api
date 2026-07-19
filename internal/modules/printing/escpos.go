@@ -183,18 +183,32 @@ func BuildReceipt(d ReceiptData) []byte {
 		if item.Quantity != float64(int(item.Quantity)) {
 			qty = fmt.Sprintf("%.2fx", item.Quantity)
 		}
-		nameQty := fmt.Sprintf("%-3s %s", qty, item.Name)
+		prefix := fmt.Sprintf("%-3s ", qty)
 		if d.Type == "kitchen_ticket" || d.Type == "waiter_copy" {
-			// Kitchen/waiter tickets show no prices
-			writeln(nameQty)
+			// Kitchen/waiter tickets show no prices — the name still gets the full 32-col
+			// budget minus the qty prefix, clamped so a long name wraps cleanly rather than
+			// overflowing past the printer's own line width.
+			writeln(prefix + trimField(item.Name, 32-len(prefix)))
 		} else {
 			total := fmt.Sprintf("%s %.2f", d.Currency, item.Total)
-			// Right-align price in 32-char width
+			// Right-align price in 32-char width. Clamp the NAME (not just the gap) so
+			// label+value never silently overflows column 32 — a long item name is
+			// truncated rather than misaligning the printer's own wrap.
+			maxName := 32 - len(prefix) - len(total) - 1
+			if maxName < 1 {
+				maxName = 1
+			}
+			nameQty := prefix + trimField(item.Name, maxName)
 			gap := 32 - len(nameQty) - len(total)
 			if gap < 1 {
 				gap = 1
 			}
 			writeln(nameQty + strings.Repeat(" ", gap) + total)
+			// Qty × unit-price sub-line whenever qty ≠ 1 — the clearest way to show quantity
+			// (matches the pos-ui client thermal renderer's existing pattern).
+			if item.Quantity != 1 {
+				writeln(fmt.Sprintf("   @ %s %.2f", d.Currency, item.Price))
+			}
 		}
 		if item.Notes != "" {
 			writeln(fmt.Sprintf("  * %s", item.Notes))
@@ -405,8 +419,15 @@ func trimField(s string, n int) string {
 	return string(r[:n])
 }
 
-// formatLine returns a 32-char wide label+value line with right-aligned value.
+// formatLine returns a 32-char wide label+value line with right-aligned value. The LABEL is
+// clamped (via trimField) when label+value+1-space-gap would exceed the 32-col budget — labels
+// are more often the long, freeform side (a long bank name, a long custom payment label) while
+// values are short, so clamping the label avoids silently overflowing past column 32 and
+// misaligning the printer's own physical line-wrap.
 func formatLine(label, value string) string {
+	if maxLabel := 32 - len(value) - 1; maxLabel > 0 && len(label) > maxLabel {
+		label = trimField(label, maxLabel)
+	}
 	gap := 32 - len(label) - len(value)
 	if gap < 1 {
 		gap = 1

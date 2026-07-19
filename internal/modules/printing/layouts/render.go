@@ -8,6 +8,8 @@ func RenderHTML(rec Receipt, logoURL string) []byte {
 		return renderA4HTML(rec, logoURL)
 	case ThermalModern:
 		return renderThermalHTML(rec, logoURL, ThermalModern)
+	case ThermalGrid:
+		return renderThermalHTML(rec, logoURL, ThermalGrid)
 	default:
 		return renderThermalHTML(rec, logoURL, ThermalClassic)
 	}
@@ -20,6 +22,8 @@ func RenderPDF(rec Receipt, brand Brand) ([]byte, error) {
 		return renderA4PDF(rec, brand)
 	case ThermalModern:
 		return renderThermalPDF(rec, brand, ThermalModern)
+	case ThermalGrid:
+		return renderThermalPDF(rec, brand, ThermalGrid)
 	default:
 		return renderThermalPDF(rec, brand, ThermalClassic)
 	}

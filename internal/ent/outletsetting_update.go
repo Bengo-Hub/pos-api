@@ -373,6 +373,26 @@ func (_u *OutletSettingUpdate) ClearMaxDiscountAmount() *OutletSettingUpdate {
 	return _u
 }
 
+// SetDiscountLimitType sets the "discount_limit_type" field.
+func (_u *OutletSettingUpdate) SetDiscountLimitType(v outletsetting.DiscountLimitType) *OutletSettingUpdate {
+	_u.mutation.SetDiscountLimitType(v)
+	return _u
+}
+
+// SetNillableDiscountLimitType sets the "discount_limit_type" field if the given value is not nil.
+func (_u *OutletSettingUpdate) SetNillableDiscountLimitType(v *outletsetting.DiscountLimitType) *OutletSettingUpdate {
+	if v != nil {
+		_u.SetDiscountLimitType(*v)
+	}
+	return _u
+}
+
+// ClearDiscountLimitType clears the value of the "discount_limit_type" field.
+func (_u *OutletSettingUpdate) ClearDiscountLimitType() *OutletSettingUpdate {
+	_u.mutation.ClearDiscountLimitType()
+	return _u
+}
+
 // SetAllowPriceAboveBase sets the "allow_price_above_base" field.
 func (_u *OutletSettingUpdate) SetAllowPriceAboveBase(v bool) *OutletSettingUpdate {
 	_u.mutation.SetAllowPriceAboveBase(v)
@@ -1197,6 +1217,11 @@ func (_u *OutletSettingUpdate) defaults() {
 
 // check runs all checks and user-defined validators on the builder.
 func (_u *OutletSettingUpdate) check() error {
+	if v, ok := _u.mutation.DiscountLimitType(); ok {
+		if err := outletsetting.DiscountLimitTypeValidator(v); err != nil {
+			return &ValidationError{Name: "discount_limit_type", err: fmt.Errorf(`ent: validator failed for field "OutletSetting.discount_limit_type": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.ReceiptFormat(); ok {
 		if err := outletsetting.ReceiptFormatValidator(v); err != nil {
 			return &ValidationError{Name: "receipt_format", err: fmt.Errorf(`ent: validator failed for field "OutletSetting.receipt_format": %w`, err)}
@@ -1330,6 +1355,12 @@ func (_u *OutletSettingUpdate) sqlSave(ctx context.Context) (_node int, err erro
 	}
 	if _u.mutation.MaxDiscountAmountCleared() {
 		_spec.ClearField(outletsetting.FieldMaxDiscountAmount, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.DiscountLimitType(); ok {
+		_spec.SetField(outletsetting.FieldDiscountLimitType, field.TypeEnum, value)
+	}
+	if _u.mutation.DiscountLimitTypeCleared() {
+		_spec.ClearField(outletsetting.FieldDiscountLimitType, field.TypeEnum)
 	}
 	if value, ok := _u.mutation.AllowPriceAboveBase(); ok {
 		_spec.SetField(outletsetting.FieldAllowPriceAboveBase, field.TypeBool, value)
@@ -1966,6 +1997,26 @@ func (_u *OutletSettingUpdateOne) AddMaxDiscountAmount(v float64) *OutletSetting
 // ClearMaxDiscountAmount clears the value of the "max_discount_amount" field.
 func (_u *OutletSettingUpdateOne) ClearMaxDiscountAmount() *OutletSettingUpdateOne {
 	_u.mutation.ClearMaxDiscountAmount()
+	return _u
+}
+
+// SetDiscountLimitType sets the "discount_limit_type" field.
+func (_u *OutletSettingUpdateOne) SetDiscountLimitType(v outletsetting.DiscountLimitType) *OutletSettingUpdateOne {
+	_u.mutation.SetDiscountLimitType(v)
+	return _u
+}
+
+// SetNillableDiscountLimitType sets the "discount_limit_type" field if the given value is not nil.
+func (_u *OutletSettingUpdateOne) SetNillableDiscountLimitType(v *outletsetting.DiscountLimitType) *OutletSettingUpdateOne {
+	if v != nil {
+		_u.SetDiscountLimitType(*v)
+	}
+	return _u
+}
+
+// ClearDiscountLimitType clears the value of the "discount_limit_type" field.
+func (_u *OutletSettingUpdateOne) ClearDiscountLimitType() *OutletSettingUpdateOne {
+	_u.mutation.ClearDiscountLimitType()
 	return _u
 }
 
@@ -2806,6 +2857,11 @@ func (_u *OutletSettingUpdateOne) defaults() {
 
 // check runs all checks and user-defined validators on the builder.
 func (_u *OutletSettingUpdateOne) check() error {
+	if v, ok := _u.mutation.DiscountLimitType(); ok {
+		if err := outletsetting.DiscountLimitTypeValidator(v); err != nil {
+			return &ValidationError{Name: "discount_limit_type", err: fmt.Errorf(`ent: validator failed for field "OutletSetting.discount_limit_type": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.ReceiptFormat(); ok {
 		if err := outletsetting.ReceiptFormatValidator(v); err != nil {
 			return &ValidationError{Name: "receipt_format", err: fmt.Errorf(`ent: validator failed for field "OutletSetting.receipt_format": %w`, err)}
@@ -2956,6 +3012,12 @@ func (_u *OutletSettingUpdateOne) sqlSave(ctx context.Context) (_node *OutletSet
 	}
 	if _u.mutation.MaxDiscountAmountCleared() {
 		_spec.ClearField(outletsetting.FieldMaxDiscountAmount, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.DiscountLimitType(); ok {
+		_spec.SetField(outletsetting.FieldDiscountLimitType, field.TypeEnum, value)
+	}
+	if _u.mutation.DiscountLimitTypeCleared() {
+		_spec.ClearField(outletsetting.FieldDiscountLimitType, field.TypeEnum)
 	}
 	if value, ok := _u.mutation.AllowPriceAboveBase(); ok {
 		_spec.SetField(outletsetting.FieldAllowPriceAboveBase, field.TypeBool, value)

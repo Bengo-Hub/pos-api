@@ -1066,6 +1066,36 @@ func MaxDiscountAmountNotNil() predicate.OutletSetting {
 	return predicate.OutletSetting(sql.FieldNotNull(FieldMaxDiscountAmount))
 }
 
+// DiscountLimitTypeEQ applies the EQ predicate on the "discount_limit_type" field.
+func DiscountLimitTypeEQ(v DiscountLimitType) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldDiscountLimitType, v))
+}
+
+// DiscountLimitTypeNEQ applies the NEQ predicate on the "discount_limit_type" field.
+func DiscountLimitTypeNEQ(v DiscountLimitType) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNEQ(FieldDiscountLimitType, v))
+}
+
+// DiscountLimitTypeIn applies the In predicate on the "discount_limit_type" field.
+func DiscountLimitTypeIn(vs ...DiscountLimitType) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIn(FieldDiscountLimitType, vs...))
+}
+
+// DiscountLimitTypeNotIn applies the NotIn predicate on the "discount_limit_type" field.
+func DiscountLimitTypeNotIn(vs ...DiscountLimitType) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotIn(FieldDiscountLimitType, vs...))
+}
+
+// DiscountLimitTypeIsNil applies the IsNil predicate on the "discount_limit_type" field.
+func DiscountLimitTypeIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldDiscountLimitType))
+}
+
+// DiscountLimitTypeNotNil applies the NotNil predicate on the "discount_limit_type" field.
+func DiscountLimitTypeNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldDiscountLimitType))
+}
+
 // AllowPriceAboveBaseEQ applies the EQ predicate on the "allow_price_above_base" field.
 func AllowPriceAboveBaseEQ(v bool) predicate.OutletSetting {
 	return predicate.OutletSetting(sql.FieldEQ(FieldAllowPriceAboveBase, v))

@@ -17,6 +17,11 @@ const (
 	// A4Invoice is the boxed invoice-style sheet (bordered tables, Code 128 barcode) for
 	// outlets that print receipts on regular A4/letter office printers.
 	A4Invoice = "a4_invoice"
+	// ThermalGrid is the receipt-roll layout with BORDERED TABLES for the customer/date meta
+	// and the item list (same 2px-solid-black border styling already used by A4Invoice, just
+	// narrowed to 58/80mm) — the clearest layout for less-tech-savvy customers, opted into
+	// explicitly per tenant (never chosen by Resolve's "auto" heuristic).
+	ThermalGrid = "thermal_grid"
 )
 
 // Layout describes a selectable receipt layout — the registry is the single source the
@@ -53,6 +58,12 @@ func All() []Layout {
 			Description: "Boxed invoice-style sheet with bordered tables and barcode, for regular A4 printers.",
 			Paper:       "a4",
 		},
+		{
+			ID:          ThermalGrid,
+			Label:       "Thermal — Grid Lines",
+			Description: "Receipt-roll layout with bordered tables for the customer/date and item list — the clearest layout for less-tech-savvy customers.",
+			Paper:       "thermal",
+		},
 	}
 }
 
@@ -77,7 +88,7 @@ func Valid(v string) bool {
 // monospace look hospitality tenants already print today.
 func Resolve(setting, useCase string) string {
 	switch setting {
-	case ThermalClassic, ThermalModern, A4Invoice:
+	case ThermalClassic, ThermalModern, A4Invoice, ThermalGrid:
 		return setting
 	}
 	if useCase == "retail" {

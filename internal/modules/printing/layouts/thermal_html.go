@@ -8,13 +8,14 @@ import (
 )
 
 // thermalFontCSS returns the body font stack for the thermal layout variant.
-// Classic = bold monospace (the proven hospitality receipt look); Modern = bold
-// sans-serif (crisper glyphs on browser/PDF prints — the ETR-style retail look).
+// Classic = bold monospace (the proven hospitality receipt look); Modern and Grid = bold
+// sans-serif (crisper glyphs on browser/PDF prints — the ETR-style retail look; bordered
+// tables also read best in a sans face).
 func thermalFontCSS(layout string) (family string, weight string) {
-	if layout == ThermalModern {
-		return `'Helvetica Neue',Helvetica,Arial,'Segoe UI',sans-serif`, "700"
+	if layout == ThermalClassic {
+		return `'Courier New',Courier,'DejaVu Sans Mono',monospace`, "bold"
 	}
-	return `'Courier New',Courier,'DejaVu Sans Mono',monospace`, "bold"
+	return `'Helvetica Neue',Helvetica,Arial,'Segoe UI',sans-serif`, "700"
 }
 
 // renderThermalHTML renders the receipt-roll HTML layout (58/80mm). Designed for
@@ -23,6 +24,13 @@ func thermalFontCSS(layout string) (family string, weight string) {
 // Print pipeline note: @page margin is 0 — a zero page margin is what suppresses the
 // browser's own header/footer chrome (the "about:blank + date/URL" lines that ruined
 // printed receipts); the visual margin is inner body padding instead.
+//
+// Grid mode (layout == ThermalGrid, opt-in per tenant): the customer/order/date meta and
+// the item list render as bordered tables (same 2px-solid-black border styling as
+// a4_html.go's grid, narrowed to thermal width) instead of flex "label ... value" lines —
+// the clearest layout for less-tech-savvy customers. Totals/fiscal/HOW-TO-PAY/footer stay
+// flex rows in every variant (matches the reference receipt this was modelled on, which
+// only boxes the header/meta/items, not the totals or fine print).
 func renderThermalHTML(rec Receipt, logoURL string, layout string) []byte {
 	// Paper width drives the @page size and body width. Default 80mm.
 	pageWidth, bodyWidth := "80mm", "72mm"
@@ -30,6 +38,7 @@ func renderThermalHTML(rec Receipt, logoURL string, layout string) []byte {
 		pageWidth, bodyWidth = "58mm", "50mm"
 	}
 	family, weight := thermalFontCSS(layout)
+	isGrid := layout == ThermalGrid
 
 	var buf bytes.Buffer
 	buf.WriteString(`<!DOCTYPE html><html><head><meta charset="utf-8">`)
@@ -48,7 +57,10 @@ h1{font-size:17px;letter-spacing:.5px;text-align:center;margin:3px 0}
 .hdr{font-size:11px;text-align:center;margin:2px 0;white-space:pre-wrap}
 .ftr{font-size:11px;text-align:center;margin:2px 0;white-space:pre-wrap}
 .center{text-align:center}
-.line{display:flex;justify-content:space-between;margin:2px 0}
+.line{display:flex;justify-content:space-between;margin:2px 0;gap:6px}
+.line span:first-child{flex:1;min-width:0;word-break:break-word;white-space:normal}
+.line span:last-child{flex-shrink:0;white-space:nowrap}
+.line-sub{font-size:10px;color:#000;padding-left:8px;margin:0 0 2px}
 .divider{border-top:1px dashed #000;margin:4px 0}
 .bold{font-weight:bold}
 .tot{font-size:16px}
@@ -59,11 +71,21 @@ h1{font-size:17px;letter-spacing:.5px;text-align:center;margin:3px 0}
 .barcode{text-align:center;margin:4px 0 2px}
 .barcode img{height:11mm;max-width:100%%}
 .barcode .num{font-size:11px;letter-spacing:2px;margin-top:1px}
+.gbox{border:2px solid #000;padding:4px 6px;text-align:center;margin-bottom:3px}
+.gtable{width:100%%;border-collapse:collapse;margin:4px 0}
+.gtable th,.gtable td{border:2px solid #000;padding:2px 4px;font-size:10px;word-break:break-word}
+.gtable th{font-weight:700;text-align:left}
+.gtable td.c,.gtable th.c{text-align:center}
+.gtable td.r,.gtable th.r{text-align:right}
+.gserved{display:flex;justify-content:space-between;border-bottom:1.5px solid #000;padding:2px 1px;font-size:10px;margin-bottom:3px}
 @media print{body{width:100%%}}
 </style></head><body>`, pageWidth, family, weight, bodyWidth))
 	// Logo prints only when the Receipt & Printing "show logo" setting allows it.
 	if logoURL != "" && rec.ShowLogo {
 		buf.WriteString(fmt.Sprintf(`<img class="logo" src="%s" alt="logo">`, escape(logoURL)))
+	}
+	if isGrid {
+		buf.WriteString(`<div class="gbox">`)
 	}
 	if rec.OutletName != "" {
 		buf.WriteString(fmt.Sprintf(`<h1>%s</h1>`, escape(rec.OutletName)))
@@ -83,61 +105,103 @@ h1{font-size:17px;letter-spacing:.5px;text-align:center;margin:3px 0}
 	if rec.ReceiptHeader != "" {
 		buf.WriteString(fmt.Sprintf(`<p class="hdr">%s</p>`, escape(rec.ReceiptHeader)))
 	}
-	buf.WriteString(fmt.Sprintf(`<p class="sub">%s</p>`, receiptTime(rec.IssuedAt, rec.Timezone)))
-	buf.WriteString(fmt.Sprintf(`<p class="sub">Receipt: %s</p>`, escape(rec.ReceiptNumber)))
-	if rec.BillTo != "" {
-		label := rec.BillToLabel
-		if label == "" {
-			label = "Customer"
+	if isGrid {
+		buf.WriteString(`</div>`)
+	}
+
+	billLabel := rec.BillToLabel
+	if billLabel == "" {
+		billLabel = "Customer"
+	}
+	if isGrid {
+		// Bordered Customer | Receipt No | Date mini-table — same grid pattern as the A4
+		// invoice's Customer|INVOICE.NO|DATE header, narrowed to thermal width.
+		buf.WriteString(`<table class="gtable"><tr>`)
+		buf.WriteString(fmt.Sprintf(`<th>%s</th><th class="c">RECEIPT NO</th></tr><tr>`, escape(billLabel)))
+		if rec.BillTo != "" {
+			buf.WriteString(fmt.Sprintf(`<td>%s</td>`, escape(rec.BillTo)))
+		} else {
+			buf.WriteString(`<td>Walk-in customer</td>`)
 		}
-		buf.WriteString(fmt.Sprintf(`<p class="sub">%s: %s</p>`, escape(label), escape(rec.BillTo)))
-	}
-	if rec.ServedBy != "" {
-		buf.WriteString(fmt.Sprintf(`<p class="sub">Served by: %s</p>`, escape(rec.ServedBy)))
-	}
-	buf.WriteString(`<div class="divider"></div>`)
-	for _, l := range rec.Lines {
-		// A zero-charge line (complimentary accompaniment / bundled side) prints "FREE" rather than
-		// "0.00" so the bill clearly shows it was included at no charge.
-		amt := fmt.Sprintf("%.2f", l.TotalPrice)
-		if l.TotalPrice == 0 {
-			amt = "FREE"
+		buf.WriteString(fmt.Sprintf(`<td class="c">%s</td></tr></table>`, escape(rec.ReceiptNumber)))
+		buf.WriteString(fmt.Sprintf(`<p class="sub">%s</p>`, receiptTime(rec.IssuedAt, rec.Timezone)))
+		if rec.ServedBy != "" {
+			buf.WriteString(fmt.Sprintf(`<div class="gserved"><b>SERVED BY</b><span>%s</span></div>`, escape(rec.ServedBy)))
 		}
-		buf.WriteString(fmt.Sprintf(`<div class="line"><span>%s x%.0f</span><span>%s</span></div>`, escape(l.Name), l.Quantity, amt))
+	} else {
+		buf.WriteString(fmt.Sprintf(`<p class="sub">%s</p>`, receiptTime(rec.IssuedAt, rec.Timezone)))
+		buf.WriteString(fmt.Sprintf(`<p class="sub">Receipt: %s</p>`, escape(rec.ReceiptNumber)))
+		if rec.BillTo != "" {
+			buf.WriteString(fmt.Sprintf(`<p class="sub">%s: %s</p>`, escape(billLabel), escape(rec.BillTo)))
+		}
+		if rec.ServedBy != "" {
+			buf.WriteString(fmt.Sprintf(`<p class="sub">Served by: %s</p>`, escape(rec.ServedBy)))
+		}
+		buf.WriteString(`<div class="divider"></div>`)
 	}
-	buf.WriteString(`<div class="divider"></div>`)
-	buf.WriteString(fmt.Sprintf(`<div class="line"><span>Subtotal</span><span>%.2f</span></div>`, rec.Subtotal))
+
+	if isGrid {
+		// Bordered Item Name | Qty | Price | Subtotal table — Qty and Price are their own
+		// columns, so (unlike the flex layouts) no separate qty-subline is needed here.
+		buf.WriteString(`<table class="gtable"><tr><th>Item</th><th class="c">Qty</th><th class="r">Price</th><th class="r">Total</th></tr>`)
+		for _, l := range rec.Lines {
+			price, total := amount(l.UnitPrice), amount(l.TotalPrice)
+			if l.TotalPrice == 0 {
+				price, total = "FREE", "FREE"
+			}
+			buf.WriteString(fmt.Sprintf(`<tr><td>%s</td><td class="c">%g</td><td class="r">%s</td><td class="r">%s</td></tr>`,
+				escape(l.Name), l.Quantity, price, total))
+		}
+		buf.WriteString(`</table>`)
+	} else {
+		for _, l := range rec.Lines {
+			// A zero-charge line (complimentary accompaniment / bundled side) prints "FREE" rather than
+			// "0.00" so the bill clearly shows it was included at no charge.
+			amt := amount(l.TotalPrice)
+			if l.TotalPrice == 0 {
+				amt = "FREE"
+			}
+			buf.WriteString(fmt.Sprintf(`<div class="line"><span>%s</span><span>%s</span></div>`, escape(l.Name), amt))
+			// Qty × unit-price sub-line whenever qty ≠ 1 — the clearest way to show quantity
+			// (matches the pos-ui client thermal renderer's existing pattern).
+			if l.Quantity != 1 {
+				buf.WriteString(fmt.Sprintf(`<div class="line-sub">%g &times; %s</div>`, l.Quantity, amount(l.UnitPrice)))
+			}
+		}
+		buf.WriteString(`<div class="divider"></div>`)
+	}
+	buf.WriteString(fmt.Sprintf(`<div class="line"><span>Subtotal</span><span>%s</span></div>`, amount(rec.Subtotal)))
 	tl := "Tax"
 	if rec.VatEnabled && rec.VatRate > 0 {
 		tl = taxLabel(rec)
 	}
-	buf.WriteString(fmt.Sprintf(`<div class="line"><span>%s</span><span>%.2f</span></div>`, tl, rec.TaxAmount))
+	buf.WriteString(fmt.Sprintf(`<div class="line"><span>%s</span><span>%s</span></div>`, tl, amount(rec.TaxAmount)))
 	if rec.DiscountAmount > 0 {
-		buf.WriteString(fmt.Sprintf(`<div class="line"><span>Discount</span><span>-%.2f</span></div>`, rec.DiscountAmount))
+		buf.WriteString(fmt.Sprintf(`<div class="line"><span>Discount</span><span>-%s</span></div>`, amount(rec.DiscountAmount)))
 	}
-	if rec.ChargesTotal > 0 {
-		buf.WriteString(fmt.Sprintf(`<div class="line"><span>Charges</span><span>%.2f</span></div>`, rec.ChargesTotal))
+	for _, cr := range chargeRows(rec) {
+		buf.WriteString(fmt.Sprintf(`<div class="line"><span>%s</span><span>%s</span></div>`, escape(cr[0].(string)), amount(cr[1].(float64))))
 	}
 	if rec.RoundOff > 0 {
-		buf.WriteString(fmt.Sprintf(`<div class="line"><span>Round Off</span><span>%.2f</span></div>`, rec.RoundOff))
+		buf.WriteString(fmt.Sprintf(`<div class="line"><span>Round Off</span><span>%s</span></div>`, amount(rec.RoundOff)))
 	}
-	buf.WriteString(fmt.Sprintf(`<div class="line bold tot"><span>TOTAL</span><span>%.2f %s</span></div>`, rec.TotalAmount, escape(rec.Currency)))
+	buf.WriteString(fmt.Sprintf(`<div class="line bold tot"><span>TOTAL</span><span>%s %s</span></div>`, amount(rec.TotalAmount), escape(rec.Currency)))
 	// Payment method with settle date on retail ("Cash (14-07-2026)") — matches ESC/POS.
 	if rec.UseCase == "retail" {
 		if pl := paymentMethodLabel(rec); pl != "" {
 			buf.WriteString(fmt.Sprintf(`<div class="line"><span>Payment</span><span>%s</span></div>`, escape(pl)))
 		}
 	}
-	buf.WriteString(fmt.Sprintf(`<div class="line"><span>Paid</span><span>%.2f</span></div>`, rec.AmountPaid))
+	buf.WriteString(fmt.Sprintf(`<div class="line"><span>Paid</span><span>%s</span></div>`, amount(rec.AmountPaid)))
 	// Tendered duplicates Paid on exact-settle retail receipts — print only when it differs.
 	if rec.AmountTendered > 0 && !(rec.UseCase == "retail" && rec.AmountTendered == rec.AmountPaid) {
-		buf.WriteString(fmt.Sprintf(`<div class="line"><span>Tendered</span><span>%.2f</span></div>`, rec.AmountTendered))
+		buf.WriteString(fmt.Sprintf(`<div class="line"><span>Tendered</span><span>%s</span></div>`, amount(rec.AmountTendered)))
 	}
 	if rec.ChangeDue > 0 {
-		buf.WriteString(fmt.Sprintf(`<div class="line"><span>Change</span><span>%.2f</span></div>`, rec.ChangeDue))
+		buf.WriteString(fmt.Sprintf(`<div class="line"><span>Change</span><span>%s</span></div>`, amount(rec.ChangeDue)))
 	}
 	if rec.BalanceDue > 0.004 || rec.BalanceDue < -0.004 {
-		buf.WriteString(fmt.Sprintf(`<div class="line"><span>Balance Due</span><span>%.2f</span></div>`, rec.BalanceDue))
+		buf.WriteString(fmt.Sprintf(`<div class="line"><span>Balance Due</span><span>%s</span></div>`, amount(rec.BalanceDue)))
 	}
 	if pm := rec.PaymentMethods; pm != nil {
 		buf.WriteString(`<div class="divider"></div>`)

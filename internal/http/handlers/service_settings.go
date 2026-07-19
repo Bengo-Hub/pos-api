@@ -115,9 +115,13 @@ type settingsResponse struct {
 	TableMaxOccupationMinutes int `json:"table_max_occupation_minutes"`
 	// returns policy
 	ReturnWindowDays int `json:"return_window_days"`
-	// discount control (exceeding EITHER limit triggers the manager step-up)
+	// discount control (exceeding EITHER limit triggers the manager step-up). DiscountLimitType
+	// is the Settings-page UI selector for which field is the ACTIVE one (percent XOR amount —
+	// the page shows a single input at a time); the inactive field is always saved at its
+	// no-op sentinel (100% / 0), so the order-create enforcement gate is unaffected.
 	MaxDiscountPercent float64 `json:"max_discount_percent"`
 	MaxDiscountAmount  float64 `json:"max_discount_amount"`
+	DiscountLimitType  string  `json:"discount_limit_type"`
 	// pricing policy — cashier price-edit rules (see OutletSetting schema comments)
 	AllowPriceAboveBase      bool `json:"allow_price_above_base"`
 	RequireApprovalBelowBase bool `json:"require_approval_below_base"`
@@ -191,6 +195,7 @@ func toSettingsResponse(outlet *ent.Outlet, s *ent.OutletSetting) settingsRespon
 		ReturnWindowDays:          s.ReturnWindowDays,
 		MaxDiscountPercent:        s.MaxDiscountPercent,
 		MaxDiscountAmount:         s.MaxDiscountAmount,
+		DiscountLimitType:         string(s.DiscountLimitType),
 		AllowPriceAboveBase:       s.AllowPriceAboveBase,
 		RequireApprovalBelowBase:  s.RequireApprovalBelowBase,
 		PrinterProfiles:           s.PrinterProfiles,
@@ -464,6 +469,7 @@ type updateSettingsInput struct {
 	ReturnWindowDays   *int             `json:"return_window_days"`
 	MaxDiscountPercent *float64         `json:"max_discount_percent"`
 	MaxDiscountAmount  *float64         `json:"max_discount_amount"`
+	DiscountLimitType  *string          `json:"discount_limit_type"`
 	// pricing policy
 	AllowPriceAboveBase      *bool `json:"allow_price_above_base"`
 	RequireApprovalBelowBase *bool `json:"require_approval_below_base"`
@@ -545,6 +551,17 @@ func (h *ServiceSettingsHandler) PutSettings(w http.ResponseWriter, r *http.Requ
 	}
 	if input.MaxDiscountAmount != nil {
 		upd = upd.SetMaxDiscountAmount(*input.MaxDiscountAmount)
+	}
+	if input.DiscountLimitType != nil {
+		switch *input.DiscountLimitType {
+		case "percent":
+			upd = upd.SetDiscountLimitType(entoutletsetting.DiscountLimitTypePercent)
+		case "amount":
+			upd = upd.SetDiscountLimitType(entoutletsetting.DiscountLimitTypeAmount)
+		default:
+			jsonError(w, "invalid discount_limit_type", http.StatusBadRequest)
+			return
+		}
 	}
 	if input.AllowPriceAboveBase != nil {
 		upd = upd.SetAllowPriceAboveBase(*input.AllowPriceAboveBase)

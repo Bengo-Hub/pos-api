@@ -1426,6 +1426,7 @@ var (
 		{Name: "currency", Type: field.TypeString, Nullable: true, Default: "KES"},
 		{Name: "max_discount_percent", Type: field.TypeFloat64, Nullable: true, Default: 100},
 		{Name: "max_discount_amount", Type: field.TypeFloat64, Nullable: true, Default: 0},
+		{Name: "discount_limit_type", Type: field.TypeEnum, Nullable: true, Enums: []string{"percent", "amount"}, Default: "percent"},
 		{Name: "allow_price_above_base", Type: field.TypeBool, Nullable: true, Default: true},
 		{Name: "require_approval_below_base", Type: field.TypeBool, Nullable: true, Default: true},
 		{Name: "vat_enabled", Type: field.TypeBool, Nullable: true, Default: true},
@@ -1433,7 +1434,7 @@ var (
 		{Name: "printer_type", Type: field.TypeString, Nullable: true, Default: "thermal"},
 		{Name: "printer_ip", Type: field.TypeString, Nullable: true},
 		{Name: "paper_width", Type: field.TypeString, Nullable: true, Default: "80mm"},
-		{Name: "receipt_format", Type: field.TypeEnum, Nullable: true, Enums: []string{"auto", "thermal_classic", "thermal_modern", "a4_invoice"}, Default: "auto"},
+		{Name: "receipt_format", Type: field.TypeEnum, Nullable: true, Enums: []string{"auto", "thermal_classic", "thermal_modern", "a4_invoice", "thermal_grid"}, Default: "auto"},
 		{Name: "auto_print_order", Type: field.TypeBool, Nullable: true, Default: false},
 		{Name: "auto_print_kitchen", Type: field.TypeBool, Nullable: true, Default: false},
 		{Name: "printer_profiles", Type: field.TypeJSON, Nullable: true},
@@ -1474,7 +1475,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "outlet_settings_outlets_settings",
-				Columns:    []*schema.Column{OutletSettingsColumns[57]},
+				Columns:    []*schema.Column{OutletSettingsColumns[58]},
 				RefColumns: []*schema.Column{OutletsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},

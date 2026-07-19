@@ -243,6 +243,20 @@ func (_c *OutletSettingCreate) SetNillableMaxDiscountAmount(v *float64) *OutletS
 	return _c
 }
 
+// SetDiscountLimitType sets the "discount_limit_type" field.
+func (_c *OutletSettingCreate) SetDiscountLimitType(v outletsetting.DiscountLimitType) *OutletSettingCreate {
+	_c.mutation.SetDiscountLimitType(v)
+	return _c
+}
+
+// SetNillableDiscountLimitType sets the "discount_limit_type" field if the given value is not nil.
+func (_c *OutletSettingCreate) SetNillableDiscountLimitType(v *outletsetting.DiscountLimitType) *OutletSettingCreate {
+	if v != nil {
+		_c.SetDiscountLimitType(*v)
+	}
+	return _c
+}
+
 // SetAllowPriceAboveBase sets the "allow_price_above_base" field.
 func (_c *OutletSettingCreate) SetAllowPriceAboveBase(v bool) *OutletSettingCreate {
 	_c.mutation.SetAllowPriceAboveBase(v)
@@ -853,6 +867,10 @@ func (_c *OutletSettingCreate) defaults() {
 		v := outletsetting.DefaultMaxDiscountAmount
 		_c.mutation.SetMaxDiscountAmount(v)
 	}
+	if _, ok := _c.mutation.DiscountLimitType(); !ok {
+		v := outletsetting.DefaultDiscountLimitType
+		_c.mutation.SetDiscountLimitType(v)
+	}
 	if _, ok := _c.mutation.AllowPriceAboveBase(); !ok {
 		v := outletsetting.DefaultAllowPriceAboveBase
 		_c.mutation.SetAllowPriceAboveBase(v)
@@ -966,6 +984,11 @@ func (_c *OutletSettingCreate) check() error {
 	}
 	if _, ok := _c.mutation.Metadata(); !ok {
 		return &ValidationError{Name: "metadata", err: errors.New(`ent: missing required field "OutletSetting.metadata"`)}
+	}
+	if v, ok := _c.mutation.DiscountLimitType(); ok {
+		if err := outletsetting.DiscountLimitTypeValidator(v); err != nil {
+			return &ValidationError{Name: "discount_limit_type", err: fmt.Errorf(`ent: validator failed for field "OutletSetting.discount_limit_type": %w`, err)}
+		}
 	}
 	if v, ok := _c.mutation.ReceiptFormat(); ok {
 		if err := outletsetting.ReceiptFormatValidator(v); err != nil {
@@ -1085,6 +1108,10 @@ func (_c *OutletSettingCreate) createSpec() (*OutletSetting, *sqlgraph.CreateSpe
 	if value, ok := _c.mutation.MaxDiscountAmount(); ok {
 		_spec.SetField(outletsetting.FieldMaxDiscountAmount, field.TypeFloat64, value)
 		_node.MaxDiscountAmount = value
+	}
+	if value, ok := _c.mutation.DiscountLimitType(); ok {
+		_spec.SetField(outletsetting.FieldDiscountLimitType, field.TypeEnum, value)
+		_node.DiscountLimitType = value
 	}
 	if value, ok := _c.mutation.AllowPriceAboveBase(); ok {
 		_spec.SetField(outletsetting.FieldAllowPriceAboveBase, field.TypeBool, value)
@@ -1646,6 +1673,24 @@ func (u *OutletSettingUpsert) AddMaxDiscountAmount(v float64) *OutletSettingUpse
 // ClearMaxDiscountAmount clears the value of the "max_discount_amount" field.
 func (u *OutletSettingUpsert) ClearMaxDiscountAmount() *OutletSettingUpsert {
 	u.SetNull(outletsetting.FieldMaxDiscountAmount)
+	return u
+}
+
+// SetDiscountLimitType sets the "discount_limit_type" field.
+func (u *OutletSettingUpsert) SetDiscountLimitType(v outletsetting.DiscountLimitType) *OutletSettingUpsert {
+	u.Set(outletsetting.FieldDiscountLimitType, v)
+	return u
+}
+
+// UpdateDiscountLimitType sets the "discount_limit_type" field to the value that was provided on create.
+func (u *OutletSettingUpsert) UpdateDiscountLimitType() *OutletSettingUpsert {
+	u.SetExcluded(outletsetting.FieldDiscountLimitType)
+	return u
+}
+
+// ClearDiscountLimitType clears the value of the "discount_limit_type" field.
+func (u *OutletSettingUpsert) ClearDiscountLimitType() *OutletSettingUpsert {
+	u.SetNull(outletsetting.FieldDiscountLimitType)
 	return u
 }
 
@@ -2795,6 +2840,27 @@ func (u *OutletSettingUpsertOne) UpdateMaxDiscountAmount() *OutletSettingUpsertO
 func (u *OutletSettingUpsertOne) ClearMaxDiscountAmount() *OutletSettingUpsertOne {
 	return u.Update(func(s *OutletSettingUpsert) {
 		s.ClearMaxDiscountAmount()
+	})
+}
+
+// SetDiscountLimitType sets the "discount_limit_type" field.
+func (u *OutletSettingUpsertOne) SetDiscountLimitType(v outletsetting.DiscountLimitType) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetDiscountLimitType(v)
+	})
+}
+
+// UpdateDiscountLimitType sets the "discount_limit_type" field to the value that was provided on create.
+func (u *OutletSettingUpsertOne) UpdateDiscountLimitType() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateDiscountLimitType()
+	})
+}
+
+// ClearDiscountLimitType clears the value of the "discount_limit_type" field.
+func (u *OutletSettingUpsertOne) ClearDiscountLimitType() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearDiscountLimitType()
 	})
 }
 
@@ -4228,6 +4294,27 @@ func (u *OutletSettingUpsertBulk) UpdateMaxDiscountAmount() *OutletSettingUpsert
 func (u *OutletSettingUpsertBulk) ClearMaxDiscountAmount() *OutletSettingUpsertBulk {
 	return u.Update(func(s *OutletSettingUpsert) {
 		s.ClearMaxDiscountAmount()
+	})
+}
+
+// SetDiscountLimitType sets the "discount_limit_type" field.
+func (u *OutletSettingUpsertBulk) SetDiscountLimitType(v outletsetting.DiscountLimitType) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetDiscountLimitType(v)
+	})
+}
+
+// UpdateDiscountLimitType sets the "discount_limit_type" field to the value that was provided on create.
+func (u *OutletSettingUpsertBulk) UpdateDiscountLimitType() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateDiscountLimitType()
+	})
+}
+
+// ClearDiscountLimitType clears the value of the "discount_limit_type" field.
+func (u *OutletSettingUpsertBulk) ClearDiscountLimitType() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearDiscountLimitType()
 	})
 }
 
