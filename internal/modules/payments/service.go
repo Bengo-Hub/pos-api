@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -856,16 +857,11 @@ func (s *Service) completeOrderIfFullyPaid(ctx context.Context, order *ent.POSOr
 			updated = order
 			updated.Status = orders.StatusCompleted
 		}
-		// Sign the sale with KRA eTIMS SYNCHRONOUSLY (treasury S2S) before the fan-out, so the ETR
-		// receipt the terminal prints next is already fiscalised instead of printing unsigned while
-		// the async worker catches up. Best-effort + idempotent: on any failure the eTIMS fields stay
-		// empty and the async pos.sale.finalized path (dispatched below) signs the sale, with
-		// GetReceipt's pull backfilling on reprint.
-		s.signEtimsSync(ctx, updated)
-		// Hand the post-settlement fan-out (event publish, receipt print, commissions, table
-		// release, KDS clear) to a background worker so the cashier's "Confirm" returns the
-		// moment the sale is claimed completed — none of this needs to block the response. The
-		// single-winner UPDATE above already ran, so exactly one dispatch happens per order.
+		// Hand the post-settlement fan-out (eTIMS sign + receipt print, event publish, commissions,
+		// table release, KDS clear) to a background worker so the cashier's "Confirm" returns the
+		// moment the sale is claimed completed — none of this needs to block the response, INCLUDING
+		// the KRA eTIMS sign (its sandbox latency was hanging Confirm ~30s). The single-winner UPDATE
+		// above already ran, so exactly one dispatch happens per order.
 		s.dispatchPostFinalize(updated)
 	}
 }
@@ -894,22 +890,49 @@ func (s *Service) dispatchPostFinalize(order *ent.POSOrder) {
 	}()
 }
 
-// runPostFinalize performs the best-effort downstream work after an order settles. Each step
-// logs its own errors and never blocks the others. Split out from completeOrderIfFullyPaid so it
-// can run asynchronously via dispatchPostFinalize.
+// runPostFinalize performs the best-effort downstream work after an order settles. It runs OFF the
+// payment request path (dispatchPostFinalize spawns it on a detached, timeout-bounded context), so
+// none of it delays the cashier's Confirm. The independent steps fan out concurrently to minimise
+// total settle time; only the eTIMS sign → receipt-print chain runs in sequence, because the printed
+// bill must carry the fiscal block. Each step logs its own errors and is individually panic-guarded.
 func (s *Service) runPostFinalize(ctx context.Context, order *ent.POSOrder) {
-	// pos.sale.finalized → treasury GL posting + inventory stock backflush (both async NATS
-	// consumers). This writes to the NATS outbox, so once the row is inserted delivery is durable.
-	s.publishSaleFinalized(ctx, order)
-	s.enqueueReceiptPrint(ctx, order)
-	s.calcCommissions(ctx, order)
+	var wg sync.WaitGroup
+	// pos.sale.finalized → treasury GL posting + inventory stock backflush (async NATS consumers,
+	// via the durable outbox). Independent of the rest.
+	s.goSafe(&wg, order, "publish", func() { s.publishSaleFinalized(ctx, order) })
+	s.goSafe(&wg, order, "commissions", func() { s.calcCommissions(ctx, order) })
 	// Free the table once the bill is settled, regardless of which flow (waiter My Bills, cashier
 	// orders page, or async digital confirmation) closed it — mirrors the manual ReleaseTable endpoint.
-	s.releaseTableForOrder(ctx, order.ID)
+	s.goSafe(&wg, order, "release-table", func() { s.releaseTableForOrder(ctx, order.ID) })
 	// A settled order is done in the kitchen/bar regardless of whether staff ever bumped its tickets
 	// on the KDS board (quick-service counter sales skip the board entirely) — force-serve any that
 	// are still open so the live board doesn't show food for an order that's already been paid for.
-	s.orderSvc.AutoClearKDSTicketsForOrder(ctx, order.TenantID, order.ID)
+	s.goSafe(&wg, order, "kds-clear", func() { s.orderSvc.AutoClearKDSTicketsForOrder(ctx, order.TenantID, order.ID) })
+
+	// eTIMS sign → receipt print, in sequence (the printed bill must be fiscalised first). Runs here
+	// on the fan-out goroutine — NOT the confirm request path — so KRA latency never hangs Confirm;
+	// the terminal's receipt poll merges the TIMS block into the on-screen receipt when it lands.
+	s.signEtimsSync(ctx, order)
+	s.enqueueReceiptPrint(ctx, order)
+
+	wg.Wait()
+}
+
+// goSafe runs one post-finalize step in its own panic-guarded goroutine and tracks it on wg. A
+// panic in a bare goroutine would crash the process, so each parallel step is individually recovered
+// (dispatchPostFinalize's recover only covers its own stack, not children it spawns).
+func (s *Service) goSafe(wg *sync.WaitGroup, order *ent.POSOrder, step string, fn func()) {
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		defer func() {
+			if r := recover(); r != nil {
+				s.log.Error("post-finalize step panic recovered",
+					zap.String("step", step), zap.String("order_id", order.ID.String()), zap.Any("panic", r))
+			}
+		}()
+		fn()
+	}()
 }
 
 // releaseTableForOrder frees any table occupied by this order: it closes the

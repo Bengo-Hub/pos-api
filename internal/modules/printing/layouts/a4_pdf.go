@@ -182,7 +182,10 @@ func renderA4PDF(rec Receipt, brand Brand) ([]byte, error) {
 			if qrPNG, qerr := qrcode.Encode(rec.EtimsQRCodeURL, qrcode.Medium, 256); qerr == nil {
 				const qrW = 28.0
 				if info := pdf.RegisterImageOptionsReader("etimsqr", fpdf.ImageOptions{ImageType: "PNG"}, bytes.NewReader(qrPNG)); info != nil && info.Width() > 0 {
-					pdf.ImageOptions("etimsqr", (pageW-qrW)/2, pdf.GetY()+1, qrW, qrW, true, fpdf.ImageOptions{ImageType: "PNG"}, 0, "")
+					// flow=false: the SetY below already advances past the QR by qrW+1. flow=true
+					// double-advanced Y (image height PLUS the manual SetY), leaving a full QR-height
+					// blank gap before the barcode. See thermal_pdf.go for the same fix.
+					pdf.ImageOptions("etimsqr", (pageW-qrW)/2, pdf.GetY()+1, qrW, qrW, false, fpdf.ImageOptions{ImageType: "PNG"}, 0, "")
 					pdf.SetY(pdf.GetY() + qrW + 1)
 				} else {
 					pdf.ClearError()

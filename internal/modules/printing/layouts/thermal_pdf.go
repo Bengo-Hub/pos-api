@@ -290,7 +290,11 @@ func renderThermalPDF(rec Receipt, brand Brand, layout string) ([]byte, error) {
 			if qrPNG, qerr := qrcode.Encode(rec.EtimsQRCodeURL, qrcode.Medium, 256); qerr == nil {
 				const qrW = 22.0
 				if info := pdf.RegisterImageOptionsReader("etimsqr", fpdf.ImageOptions{ImageType: "PNG"}, bytes.NewReader(qrPNG)); info != nil && info.Width() > 0 {
-					pdf.ImageOptions("etimsqr", (pageW-qrW)/2, pdf.GetY()+1, qrW, qrW, true, fpdf.ImageOptions{ImageType: "PNG"}, 0, "")
+					// flow=false: the image must NOT auto-advance Y, because the SetY below already
+					// advances past it by exactly qrW+1. flow=true here double-advanced Y (image height
+					// PLUS the manual SetY), leaving a full QR-height blank gap before the barcode that
+					// made the fiscal receipt needlessly long.
+					pdf.ImageOptions("etimsqr", (pageW-qrW)/2, pdf.GetY()+1, qrW, qrW, false, fpdf.ImageOptions{ImageType: "PNG"}, 0, "")
 					pdf.SetY(pdf.GetY() + qrW + 1)
 				} else {
 					pdf.ClearError()
