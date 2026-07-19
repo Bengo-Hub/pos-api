@@ -23,6 +23,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/posrolev2"
 	"github.com/bengobox/pos-service/internal/ent/posuserroleassignment"
 	"github.com/bengobox/pos-service/internal/ent/section"
+	"github.com/bengobox/pos-service/internal/ent/staffmember"
 	enttable "github.com/bengobox/pos-service/internal/ent/table"
 	"github.com/bengobox/pos-service/internal/ent/tender"
 	"github.com/bengobox/pos-service/internal/modules/rbac"
@@ -1040,8 +1041,12 @@ func seedRBACRoles(ctx context.Context, client *ent.Client) error {
 
 	// Consolidate redundant legacy per-tenant system roles. Before roles were made global, each tenant
 	// got its own copy of every system role. Now that a shared global role exists, delete the per-tenant
-	// copies that are safe to remove (no user assignments reference them) — the global role serves them.
-	// Tenant rows that still have assignments, or genuine custom roles (non-system codes), are kept.
+	// copies that are safe to remove — the global role serves them. A copy is "safe to remove" only
+	// when NOTHING references it: no additive POSUserRoleAssignment rows, AND no staff member's BASE
+	// role (StaffMember.Role) points at it — a tenant-scoped override used as someone's primary role
+	// never shows up in POSUserRoleAssignment (that table is for ADDITIVE extra roles only), so
+	// checking assignments alone could delete a role real staff are actively using. Tenant rows that
+	// are still referenced either way, or genuine custom roles (non-system codes), are kept.
 	legacy, err := client.POSRoleV2.Query().
 		Where(
 			posrolev2.IsSystemRole(true),
@@ -1063,7 +1068,19 @@ func seedRBACRoles(ctx context.Context, client *ent.Client) error {
 			return fmt.Errorf("count assignments for legacy role %s: %w", lr.ID, err)
 		}
 		if assignCount > 0 {
-			continue // still referenced — leave it (its perms were reconciled above)
+			continue // still referenced via an additive assignment — leave it
+		}
+		var baseRoleCount int
+		if lr.TenantID != nil {
+			baseRoleCount, err = client.StaffMember.Query().
+				Where(staffmember.TenantID(*lr.TenantID), staffmember.Role(lr.RoleCode)).
+				Count(ctx)
+			if err != nil {
+				return fmt.Errorf("count staff using legacy role %s as base role: %w", lr.ID, err)
+			}
+		}
+		if baseRoleCount > 0 {
+			continue // still referenced as a staff member's base role — leave it
 		}
 		if _, err := client.POSRolePermission.Delete().
 			Where(posrolepermission.RoleID(lr.ID)).
