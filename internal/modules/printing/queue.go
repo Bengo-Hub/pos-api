@@ -43,6 +43,9 @@ type Queue struct {
 	// postgres enables FOR UPDATE SKIP LOCKED claims (multi-replica safety). The sqlite test
 	// driver doesn't support row locks, so tests construct the queue with postgres=false.
 	postgres bool
+	// hub, when set, is nudged on every successful Enqueue so a connected agent claims the job in
+	// real time instead of on its next poll tick. Optional — nil keeps the pure-polling behavior.
+	hub *Hub
 	// lastSweepNs gates the hygiene sweeps (unix nanos of the last run in this process).
 	lastSweepNs atomic.Int64
 }
@@ -51,6 +54,9 @@ type Queue struct {
 func NewQueue(client *ent.Client, log *zap.Logger, postgres bool) *Queue {
 	return &Queue{client: client, log: log, postgres: postgres}
 }
+
+// SetHub wires the real-time wake-up hub so Enqueue can nudge connected agents. Optional.
+func (q *Queue) SetHub(hub *Hub) { q.hub = hub }
 
 // Target is the printer snapshot stamped on a job at enqueue time.
 type Target struct {
@@ -124,10 +130,21 @@ func (q *Queue) Enqueue(ctx context.Context, in EnqueueInput) (*ent.PrintJob, er
 				Where(entprintjob.TenantID(in.TenantID), entprintjob.DedupeKey(in.DedupeKey)).
 				Only(ctx)
 			if qerr == nil {
+				// A dedupe hit means the job is already queued (and the agent was already woken for
+				// it) — nudge again anyway in case the earlier wake-up was missed while the agent was
+				// reconnecting. Cheap and idempotent (wake-ups coalesce).
+				if q.hub != nil {
+					q.hub.WakeOutlet(in.TenantID, in.OutletID)
+				}
 				return existing, nil
 			}
 		}
 		return nil, fmt.Errorf("printing: enqueue: %w", err)
+	}
+	// Real-time nudge: a connected agent claims this within milliseconds instead of on its next
+	// poll. Never fatal / never blocks — the poll fallback still covers a missed or absent socket.
+	if q.hub != nil {
+		q.hub.WakeOutlet(in.TenantID, in.OutletID)
 	}
 	return job, nil
 }

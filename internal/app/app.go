@@ -70,6 +70,7 @@ type App struct {
 	webhookWorker            *webhookmodule.DeliveryWorker
 	shiftAutoEndWorker       *shiftsmodule.AutoEndWorker
 	kdsHub                   *kdsmodule.Hub
+	printHub                 *printing.Hub
 	layawayReminderScheduler *scheduler.LayawayReminderScheduler
 }
 
@@ -583,10 +584,17 @@ func New(ctx context.Context) (*App, error) {
 	// jobs; the on-site Local Print Agent polls, claims and prints them. Postgres row locks
 	// (FOR UPDATE SKIP LOCKED) keep claims multi-replica-safe.
 	printQueue := printing.NewQueue(entClient, log.Named("print-queue"), true)
+	// Real-time agent wake-up hub (push-with-poll-fallback): Enqueue nudges connected agents so a
+	// job is claimed in ms instead of on the next poll; Redis relays the nudge across replicas (the
+	// enqueue and the agent socket can live on different pods). Agents without a socket keep polling.
+	printHub := printing.NewHub(log)
+	printHub.SetRedis(redisClient)
+	printQueue.SetHub(printHub)
 	orderSvc.SetPrintQueue(printQueue)
 	paymentSvc.SetPrintQueue(printQueue)
 	printJobsHandler := handlers.NewPrintJobsHandler(log.Named("print-jobs"), entClient, printQueue)
 	printAgentAPIHandler := handlers.NewPrintAgentAPIHandler(log.Named("print-agent-api"), printQueue)
+	printAgentAPIHandler.SetHub(printHub)
 	staffAdminHandler := handlers.NewStaffHandler(log.Named("staff-admin"), entClient, cfg.Auth.ServiceURL, cfg.Treasury.InternalServiceKey)
 	// Repair / job-card module (device repair lifecycle: intake -> ... -> settled via POS)
 	repairHandler := handlers.NewRepairHandler(log, entClient)
@@ -630,6 +638,7 @@ func New(ctx context.Context) (*App, error) {
 		webhookWorker:            webhookWorker,
 		shiftAutoEndWorker:       shiftAutoEndWorker,
 		kdsHub:                   kdsHub,
+		printHub:                 printHub,
 		layawayReminderScheduler: layawayReminder,
 	}, nil
 }
@@ -658,6 +667,7 @@ func (a *App) Run(ctx context.Context) error {
 
 	// Start KDS hub Redis pub/sub relay — no-op if Redis is not configured
 	go a.kdsHub.Start(ctx)
+	go a.printHub.Start(ctx)
 
 	// Start layaway payment-due reminder scheduler — fires once at startup then every 24h
 	if a.layawayReminderScheduler != nil {

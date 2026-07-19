@@ -16,7 +16,7 @@
 
 #define AppVersion GetEnv("AGENT_VERSION")
 #if AppVersion == ""
-  #define AppVersion "1.3.1"
+  #define AppVersion "1.4.0"
 #endif
 
 #define ServiceName "CodevertexPrintAgent"

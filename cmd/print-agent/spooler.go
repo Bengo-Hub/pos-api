@@ -12,7 +12,10 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
+
+	"nhooyr.io/websocket"
 )
 
 // agentConfig is the persisted pairing: which pos-api to poll and the pairing key that
@@ -95,11 +98,14 @@ type spooler struct {
 	cfg    agentConfig
 	cancel context.CancelFunc
 	client *http.Client
+	// wsUp reports whether the real-time wake-up socket is currently connected. When true the
+	// claim loop waits for a push (with a slow safety-net tick) instead of continuously long-polling.
+	wsUp atomic.Bool
 }
 
 func newSpooler() *spooler {
 	return &spooler{
-		// Read timeout must exceed the server's 25s long-poll window.
+		// Read timeout must exceed the server's long-poll window (10s) with margin.
 		client: &http.Client{Timeout: 40 * time.Second},
 	}
 }
@@ -159,11 +165,40 @@ type agentJob struct {
 	PayloadHex  string `json:"payload_hex"`
 }
 
+// safetyNetInterval is how often the claim loop polls anyway while the real-time socket is up — a
+// belt-and-braces sweep in case a wake-up was ever missed (it shouldn't be, but printing must never
+// silently stall on a dropped nudge). Short poll wait, infrequent, so it's nearly free.
+const safetyNetInterval = 45 * time.Second
+
+// run is the print loop with a push-with-poll-fallback design:
+//   - A background wsLoop holds a real-time wake-up socket open. When connected (wsUp), the claim
+//     loop blocks on a wake-up signal (or the slow safety-net tick) and then drains all ready jobs
+//     with an immediate (wait=0) claim — jobs print within milliseconds of being enqueued.
+//   - When the socket is down/unavailable, the claim loop reverts to the classic short long-poll
+//     (wait=10), so an older server without the /ws route, or a flaky socket, loses nothing.
 func (sp *spooler) run(ctx context.Context, cfg agentConfig) {
-	log.Printf("print-agent: spooler polling %s", cfg.Server)
+	log.Printf("print-agent: spooler started for %s (real-time + poll fallback)", cfg.Server)
+
+	// Wake-up signal from the WS loop (buffered depth 1 — wake-ups coalesce into "drain now").
+	wake := make(chan struct{}, 1)
+	go sp.wsLoop(ctx, cfg, wake)
+
 	backoff := time.Second
 	for ctx.Err() == nil {
-		job, err := sp.nextJob(ctx, cfg)
+		if sp.wsUp.Load() {
+			// Real-time mode: wait for a push or the safety-net tick, then drain everything ready.
+			select {
+			case <-ctx.Done():
+				return
+			case <-wake:
+			case <-time.After(safetyNetInterval):
+			}
+			sp.drainJobs(ctx, cfg)
+			continue
+		}
+
+		// Fallback mode: classic short long-poll. One job per pass, immediate re-poll on empty.
+		job, err := sp.nextJob(ctx, cfg, 10)
 		if err != nil {
 			if ctx.Err() != nil {
 				return
@@ -183,22 +218,117 @@ func (sp *spooler) run(ctx context.Context, cfg agentConfig) {
 		if job == nil {
 			continue // long-poll returned empty — poll again immediately
 		}
-
-		printErr := dispatchJob(job)
-		if printErr != nil {
-			log.Printf("print-agent: job %s (%s) failed: %v", job.ID, job.JobType, printErr)
-		} else {
-			log.Printf("print-agent: printed job %s (%s)", job.ID, job.JobType)
-		}
-		sp.ackJob(ctx, cfg, job.ID, printErr)
+		sp.printAndAck(ctx, cfg, job)
 	}
 }
 
-func (sp *spooler) nextJob(ctx context.Context, cfg agentConfig) (*agentJob, error) {
-	// wait=10 matches the server's maxAgentWait (print_agent_api.go) — kept comfortably under the
-	// router's global 30s request timeout after a live incident where longer long-polls (25s) were
-	// getting canceled ~13-15s in, tripping the agent's exponential backoff and delaying job claims.
-	url := fmt.Sprintf("%s/api/v1/pos/printing/agent/jobs?wait=10&version=%s", cfg.Server, version)
+// drainJobs claims and prints every job currently ready for this agent's outlet, using an immediate
+// (wait=0) claim so a real-time wake-up empties the queue in one pass. Stops on the first empty
+// response (204) or an error (the loop reverts to polling / retries on the next signal).
+func (sp *spooler) drainJobs(ctx context.Context, cfg agentConfig) {
+	for ctx.Err() == nil {
+		job, err := sp.nextJob(ctx, cfg, 0)
+		if err != nil {
+			if ctx.Err() == nil {
+				log.Printf("print-agent: drain claim failed: %v", err)
+			}
+			return
+		}
+		if job == nil {
+			return // nothing left ready
+		}
+		sp.printAndAck(ctx, cfg, job)
+	}
+}
+
+// printAndAck dispatches one claimed job to its printer and reports the outcome back to the server.
+func (sp *spooler) printAndAck(ctx context.Context, cfg agentConfig, job *agentJob) {
+	printErr := dispatchJob(job)
+	if printErr != nil {
+		log.Printf("print-agent: job %s (%s) failed: %v", job.ID, job.JobType, printErr)
+	} else {
+		log.Printf("print-agent: printed job %s (%s)", job.ID, job.JobType)
+	}
+	sp.ackJob(ctx, cfg, job.ID, printErr)
+}
+
+// wsLoop maintains the real-time wake-up socket, reconnecting with backoff. While connected it sets
+// wsUp=true and signals `wake` on every server push (and once on connect, to drain anything enqueued
+// while it was reconnecting). A server without the /ws route (older pos-api) fails the dial and the
+// loop keeps retrying slowly while the poll fallback carries printing — nothing is lost.
+func (sp *spooler) wsLoop(ctx context.Context, cfg agentConfig, wake chan<- struct{}) {
+	wsURL := toWebSocketURL(cfg.Server) + "/api/v1/pos/printing/agent/ws?version=" + version
+	backoff := time.Second
+	for ctx.Err() == nil {
+		conn, _, err := websocket.Dial(ctx, wsURL, &websocket.DialOptions{
+			HTTPHeader: http.Header{"X-Agent-Key": {cfg.Key}},
+		})
+		if err != nil {
+			if ctx.Err() != nil {
+				return
+			}
+			// Quietly retry — an old server (no /ws) or a transient network blip both land here, and
+			// the poll fallback is already covering printing. Cap the backoff so reconnection stays
+			// responsive once the endpoint becomes available.
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(backoff):
+			}
+			if backoff < 30*time.Second {
+				backoff *= 2
+			}
+			continue
+		}
+
+		backoff = time.Second
+		sp.wsUp.Store(true)
+		log.Printf("print-agent: real-time wake-up socket connected")
+		signalWake(wake) // drain anything queued while we were (re)connecting
+
+		// Read loop — any inbound frame (job_available push or the connect ping) means "claim now".
+		for ctx.Err() == nil {
+			_, _, rerr := conn.Read(ctx)
+			if rerr != nil {
+				break
+			}
+			signalWake(wake)
+		}
+
+		sp.wsUp.Store(false)
+		_ = conn.Close(websocket.StatusNormalClosure, "")
+		if ctx.Err() != nil {
+			return
+		}
+		log.Printf("print-agent: real-time socket dropped — reverting to polling, will reconnect")
+	}
+}
+
+// signalWake does a non-blocking send so overlapping wake-ups coalesce into a single "drain" pass.
+func signalWake(wake chan<- struct{}) {
+	select {
+	case wake <- struct{}{}:
+	default:
+	}
+}
+
+// toWebSocketURL rewrites an http(s) base URL to its ws(s) equivalent for the wake-up socket.
+func toWebSocketURL(server string) string {
+	s := strings.TrimRight(strings.TrimSpace(server), "/")
+	switch {
+	case strings.HasPrefix(s, "https://"):
+		return "wss://" + strings.TrimPrefix(s, "https://")
+	case strings.HasPrefix(s, "http://"):
+		return "ws://" + strings.TrimPrefix(s, "http://")
+	default:
+		return s // already ws(s):// or bare host — pass through
+	}
+}
+
+// nextJob long-polls (wait seconds; 0 = return immediately) for the next claimable job. version is
+// reported so the server can track agent versions on the liveness record.
+func (sp *spooler) nextJob(ctx context.Context, cfg agentConfig, wait int) (*agentJob, error) {
+	url := fmt.Sprintf("%s/api/v1/pos/printing/agent/jobs?wait=%d&version=%s", cfg.Server, wait, version)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err

@@ -155,6 +155,9 @@ func New(
 		if printAgentAPI != nil {
 			api.Get("/pos/printing/agent/jobs", printAgentAPI.NextJob)
 			api.Post("/pos/printing/agent/jobs/{jobID}/ack", printAgentAPI.AckJob)
+			// Real-time wake-up socket (push-with-poll-fallback): agent claims the instant a job is
+			// enqueued instead of on its next poll. Same X-Agent-Key auth as the poll/ack routes.
+			api.Get("/pos/printing/agent/ws", printAgentAPI.StreamAgent)
 		}
 
 		api.Group(func(pub chi.Router) {

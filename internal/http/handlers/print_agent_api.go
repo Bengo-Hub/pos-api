@@ -9,6 +9,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
+	"nhooyr.io/websocket"
 
 	"github.com/bengobox/pos-service/internal/ent"
 	"github.com/bengobox/pos-service/internal/modules/printing"
@@ -20,11 +21,16 @@ import (
 type PrintAgentAPIHandler struct {
 	log   *zap.Logger
 	queue *printing.Queue
+	hub   *printing.Hub
 }
 
 func NewPrintAgentAPIHandler(log *zap.Logger, queue *printing.Queue) *PrintAgentAPIHandler {
 	return &PrintAgentAPIHandler{log: log, queue: queue}
 }
+
+// SetHub wires the real-time wake-up hub used by the agent WebSocket endpoint. Optional — without
+// it the /ws route reports 503 and agents stay on polling.
+func (h *PrintAgentAPIHandler) SetHub(hub *printing.Hub) { h.hub = hub }
 
 // maxAgentWait caps the long-poll so LB/ingress idle timeouts never kill the request mid-flight.
 //
@@ -118,4 +124,37 @@ func (h *PrintAgentAPIHandler) AckJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	jsonOK(w, map[string]any{"id": job.ID, "status": job.Status})
+}
+
+// StreamAgent handles GET /pos/printing/agent/ws — the real-time wake-up socket. The agent connects
+// once and holds it open; the hub pushes a "job_available" nudge the instant a job is enqueued for
+// the agent's outlet, so the agent claims it (via the same NextJob/ack HTTP flow) within
+// milliseconds instead of on its next poll tick. Auth is the pairing key (X-Agent-Key), same as the
+// poll/ack endpoints. This is purely an optimization: the socket carries no job data and the agent
+// keeps a slow safety-net poll, so a dropped/absent socket only reverts to the (correct) polling
+// behavior — it never loses a job.
+func (h *PrintAgentAPIHandler) StreamAgent(w http.ResponseWriter, r *http.Request) {
+	if h.hub == nil {
+		jsonError(w, "real-time wake-up not available", http.StatusServiceUnavailable)
+		return
+	}
+	agent := h.authAgent(w, r)
+	if agent == nil {
+		return
+	}
+	conn, wsErr := websocket.Accept(w, r, &websocket.AcceptOptions{
+		OriginPatterns: []string{"*"}, // the agent is a native app, not a browser — no Origin to police
+	})
+	if wsErr != nil {
+		h.log.Warn("print-agent ws: upgrade failed", zap.Error(wsErr))
+		return
+	}
+	defer conn.Close(websocket.StatusNormalClosure, "")
+	h.log.Info("print-agent ws: connected",
+		zap.Stringer("tenant_id", agent.TenantID),
+		zap.Stringer("outlet_id", agent.OutletID))
+	h.hub.ServeWS(r.Context(), conn, agent.TenantID, agent.OutletID)
+	h.log.Debug("print-agent ws: disconnected",
+		zap.Stringer("tenant_id", agent.TenantID),
+		zap.Stringer("outlet_id", agent.OutletID))
 }
