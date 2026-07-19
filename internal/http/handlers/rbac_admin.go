@@ -94,6 +94,18 @@ func (h *RBACHandler) CreateRole(w http.ResponseWriter, r *http.Request) {
 		respondJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to create role"})
 		return
 	}
+	// Best-effort: register the new tenant custom role in auth's shared Role registry (scope "pos")
+	// so it's assignable via auth-ui (SSO) too. Idempotent upsert by role_code on the auth side.
+	// Never blocks role creation — pos resolves custom roles locally by role_code regardless.
+	desc := ""
+	if role.Description != nil {
+		desc = *role.Description
+	}
+	if perr := rbac.PushRolesToAuthRegistry(r.Context(), h.authURL, h.authAPIKey, []rbac.RegistryRole{
+		{RoleCode: role.RoleCode, Name: role.Name, Description: desc, Scope: "pos"},
+	}); perr != nil {
+		h.logger.Warn("push custom role to auth registry failed (non-fatal)", zap.Error(perr), zap.String("role_code", role.RoleCode))
+	}
 	respondJSON(w, http.StatusCreated, role)
 }
 

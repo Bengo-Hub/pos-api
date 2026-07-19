@@ -18,14 +18,21 @@ type RBACHandler struct {
 	logger      *zap.Logger
 	rbacService *rbac.Service
 	rbacRepo    rbac.Repository
+	// authURL + authAPIKey enable best-effort push of tenant CUSTOM roles to auth's Role registry
+	// on create, so admins can also assign them via auth-ui (SSO). Empty = skip (pos still resolves
+	// custom roles locally by role_code).
+	authURL    string
+	authAPIKey string
 }
 
 // NewRBACHandler creates a new RBAC handler.
-func NewRBACHandler(logger *zap.Logger, rbacService *rbac.Service, rbacRepo rbac.Repository) *RBACHandler {
+func NewRBACHandler(logger *zap.Logger, rbacService *rbac.Service, rbacRepo rbac.Repository, authURL, authAPIKey string) *RBACHandler {
 	return &RBACHandler{
 		logger:      logger,
 		rbacService: rbacService,
 		rbacRepo:    rbacRepo,
+		authURL:     authURL,
+		authAPIKey:  authAPIKey,
 	}
 }
 

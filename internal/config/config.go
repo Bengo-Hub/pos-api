@@ -146,6 +146,9 @@ type AuthConfig struct {
 	JWKSRefreshInterval time.Duration `envconfig:"AUTH_JWKS_REFRESH_INTERVAL" default:"300s"`
 	// EnableAPIKeyAuth allows S2S callers to authenticate with INTERNAL_SERVICE_KEY via X-API-Key header.
 	EnableAPIKeyAuth bool `envconfig:"AUTH_ENABLE_API_KEY_AUTH" default:"true"`
+	// APIKey is the shared S2S key (X-API-Key) used for OUTBOUND calls to auth-api (e.g. the
+	// role-registry sync POST /api/v1/s2s/roles/sync). Same INTERNAL_SERVICE_KEY as inbound.
+	APIKey string `envconfig:"INTERNAL_SERVICE_KEY"`
 	// TerminalJWTSecret is the HMAC-SHA256 secret for signing short-lived terminal JWTs issued after PIN login.
 	// Falls back to INTERNAL_SERVICE_KEY when not set.
 	TerminalJWTSecret string `envconfig:"TERMINAL_JWT_SECRET"`

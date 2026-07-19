@@ -400,7 +400,7 @@ func New(ctx context.Context) (*App, error) {
 	// Initialize RBAC
 	rbacRepo := rbacmodule.NewEntRepository(entClient)
 	rbacSvc := rbacmodule.NewService(rbacRepo, log)
-	rbacHandler := handlers.NewRBACHandler(log, rbacSvc, rbacRepo)
+	rbacHandler := handlers.NewRBACHandler(log, rbacSvc, rbacRepo, cfg.Auth.ServiceURL, cfg.Auth.APIKey)
 	// Credit sale (sell on account) is gated in-handler on pos.orders.manage (same as approving sale
 	// returns) because the tender is in the request body, not the route.
 	paymentHandler.SetRBAC(rbacSvc)

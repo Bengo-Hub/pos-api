@@ -25,6 +25,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/section"
 	enttable "github.com/bengobox/pos-service/internal/ent/table"
 	"github.com/bengobox/pos-service/internal/ent/tender"
+	"github.com/bengobox/pos-service/internal/modules/rbac"
 	"github.com/bengobox/pos-service/internal/modules/tenant"
 )
 
@@ -93,6 +94,16 @@ func main() {
 	}
 	if err := seedRBACRoles(ctx, client); err != nil {
 		log.Fatalf("seed RBAC roles: %v", err)
+	}
+	// Push pos's system role catalogue to auth-api's shared Role registry (idempotent upsert by
+	// role_code, scope "pos") so auth-ui can assign these roles to members and global→service role
+	// resolution stays consistent. Best-effort: logged, never fatal (pos resolves by role_code
+	// regardless of whether auth knows the role). Fixes newer roles (e.g. floor_supervisor) being
+	// absent from auth's registry.
+	if err := pushSystemRolesToAuth(ctx, client, cfg); err != nil {
+		log.Printf("⚠️  push roles to auth registry: %v (non-fatal)", err)
+	} else {
+		log.Printf("✅ pushed pos system roles to auth registry")
 	}
 
 	// Platform-wide configs (rate limits, service configs) — seeded once.
@@ -1071,6 +1082,36 @@ func seedRBACRoles(ctx context.Context, client *ent.Client) error {
 // globalRoleUUID returns the deterministic ID for a shared, platform-wide (global) POS role.
 func globalRoleUUID(roleCode string) uuid.UUID {
 	return uuid.NewSHA1(uuid.NameSpaceURL, []byte(fmt.Sprintf("bengobox:pos:role:global:%s", roleCode)))
+}
+
+// pushSystemRolesToAuth reads the just-seeded GLOBAL system roles (tenant_id NULL) and pushes their
+// catalogue to auth-api's Role registry via S2S. Pushing what's in the DB (rather than a hardcoded
+// list) means the registry can never drift from the seed. Resolution across the boundary is by
+// role_code (auth mints its own Role.id), so this only makes the roles assignable in auth-ui and
+// keeps the scope-tagged catalogue current — no id needs to match.
+func pushSystemRolesToAuth(ctx context.Context, client *ent.Client, cfg *config.Config) error {
+	roles, err := client.POSRoleV2.Query().
+		Where(posrolev2.IsSystemRole(true), posrolev2.TenantIDIsNil()).
+		All(ctx)
+	if err != nil {
+		return err
+	}
+	// admin/manager are PLATFORM-level cross-service roles owned by auth's own platform seed
+	// (scope "platform") — do NOT push them under scope "pos" or we'd reclassify them.
+	platformOwned := map[string]bool{"admin": true, "manager": true}
+	reg := make([]rbac.RegistryRole, 0, len(roles))
+	for _, r := range roles {
+		if platformOwned[r.RoleCode] {
+			continue
+		}
+		reg = append(reg, rbac.RegistryRole{
+			RoleCode:    r.RoleCode,
+			Name:        r.Name,
+			Description: r.Description,
+			Scope:       "pos",
+		})
+	}
+	return rbac.PushRolesToAuthRegistry(ctx, cfg.Auth.ServiceURL, cfg.Auth.APIKey, reg)
 }
 
 // resolvePermissions expands wildcard patterns into concrete permission IDs.
