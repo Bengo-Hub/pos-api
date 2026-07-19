@@ -215,6 +215,88 @@ func (h *POSOrderHandler) ListOrders(w http.ResponseWriter, r *http.Request) {
 	jsonOK(w, pagination.NewResponse(items, total, p))
 }
 
+// ordersSummary is the aggregate footer for the All-Sales / POS-Sales list: money-column
+// totals plus payment-status and payment-method breakdowns across the WHOLE filtered set
+// (every page), not just the visible page. Derived through enrichOrderList so every count
+// and amount matches the per-row badges exactly.
+type ordersSummary struct {
+	Count         int            `json:"count"`          // rows actually aggregated (== TotalMatching unless capped)
+	TotalMatching int            `json:"total_matching"` // full count of rows matching the filters
+	Truncated     bool           `json:"truncated"`      // TotalMatching exceeded the aggregation cap
+	ItemCount     int            `json:"item_count"`
+	SumTotal      float64        `json:"sum_total"`
+	SumPaid       float64        `json:"sum_paid"`
+	SumDue        float64        `json:"sum_due"`
+	SumReturn     float64        `json:"sum_return"`
+	StatusCounts  map[string]int `json:"status_counts"` // paid|partial|due|overdue|refunded|voided|cancelled -> n
+	MethodCounts  map[string]int `json:"method_counts"` // cash|card|mpesa|...|multiple -> n (settled method only)
+}
+
+// OrdersSummary handles GET /{tenantID}/pos/orders/summary — the totals footer for the
+// All-Sales / POS-Sales list. It applies the IDENTICAL filter set as ListOrders (shared
+// allSalesOrderFilters + per-cashier scoping) but aggregates every matching row instead of
+// paginating, so the footer reflects the full filtered / drilled-in dataset rather than the
+// 25 rows on screen. Bounded by ordersSummaryCap (== the export cap) so the footer and the
+// All-Sales export never disagree; a range past the cap is flagged, never silently under-counted.
+func (h *POSOrderHandler) OrdersSummary(w http.ResponseWriter, r *http.Request) {
+	tenantID := httpware.GetTenantID(r.Context())
+	if tenantID == "" {
+		jsonError(w, "tenant_id required", http.StatusBadRequest)
+		return
+	}
+	tid, err := uuid.Parse(tenantID)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+
+	// Same predicates as ListOrders: tenant + per-cashier "My Sales" scoping + every
+	// user-facing filter (shared allSalesOrderFilters), so totals track the list one-to-one.
+	filters := []predicate.POSOrder{posorder.TenantID(tid)}
+	if ownPred, scoped := h.ownOrdersPredicate(r); scoped {
+		filters = append(filters, ownPred)
+	}
+	loc := tenantLocation(r.Context(), h.client, tid)
+	filters = append(filters, allSalesOrderFilters(r, h.client, tid, loc)...)
+
+	baseQ := h.client.POSOrder.Query().Where(filters...)
+	totalMatching, _ := baseQ.Clone().Count(r.Context())
+	list, err := baseQ.WithLines().WithPayments().
+		Order(ent.Desc(posorder.FieldCreatedAt)).
+		Limit(allSalesExportCap).
+		All(r.Context())
+	if err != nil {
+		h.log.Error("orders summary query failed", zap.Error(err))
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	items := h.enrichOrderList(r.Context(), tid, list)
+	sum := ordersSummary{
+		Count:         len(items),
+		TotalMatching: totalMatching,
+		Truncated:     totalMatching > len(items),
+		StatusCounts:  map[string]int{},
+		MethodCounts:  map[string]int{},
+	}
+	for _, it := range items {
+		sum.ItemCount += it.ItemCount
+		sum.SumTotal += it.TotalAmount
+		sum.SumPaid += it.TotalPaid
+		sum.SumDue += it.AmountDue
+		sum.SumReturn += it.ReturnTotal
+		if it.PaymentStatus != "" {
+			sum.StatusCounts[it.PaymentStatus]++
+		}
+		// Only settled sales contribute a method; unpaid/due sales have no tender yet and are
+		// captured by the status breakdown instead (so the two breakdowns need not sum equal).
+		if it.PaymentMethod != "" {
+			sum.MethodCounts[it.PaymentMethod]++
+		}
+	}
+	jsonOK(w, sum)
+}
+
 // orderListItem wraps a POSOrder with the derived columns the All-Sales table needs
 // (payment status/method, paid vs due, item count). The embedded *ent.POSOrder promotes
 // all original fields + edges, so existing consumers (terminal, drafts) are unaffected.

@@ -318,6 +318,9 @@ func New(
 						orderWrite := outletmw.RequireServicePermission(rbacSvc,
 							"pos.orders.add", "pos.orders.change", "pos.orders.change_own", "pos.orders.manage")
 						pos.With(orderRead).Get("/orders", orders.ListOrders)
+						// Totals footer for the All-Sales / POS-Sales list: aggregates the full
+						// filtered set (all pages), not just the visible page. Same read gate + filters.
+						pos.With(orderRead).Get("/orders/summary", orders.OrdersSummary)
 						pos.With(orderWrite).Post("/orders", orders.CreateOrder)
 						pos.With(orderRead).Get("/orders/by-number/{orderNumber}", orders.GetOrderByNumber)
 						pos.With(orderRead).Get("/orders/{orderID}", orders.GetOrder)
