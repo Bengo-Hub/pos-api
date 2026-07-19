@@ -22,6 +22,7 @@ import (
 	entposorderline "github.com/bengobox/pos-service/internal/ent/posorderline"
 	"github.com/bengobox/pos-service/internal/ent/posreturn"
 	"github.com/bengobox/pos-service/internal/ent/posreturnline"
+	"github.com/bengobox/pos-service/internal/modules/documents"
 	"github.com/bengobox/pos-service/internal/modules/orders"
 	"github.com/bengobox/pos-service/internal/modules/treasury"
 	"github.com/bengobox/pos-service/internal/platform/events"
@@ -36,6 +37,9 @@ type ReturnHandler struct {
 	auditSvc       *audit.Service
 	// orderSvc creates exchange replacement orders through the normal sale pipeline.
 	orderSvc *orders.Service
+	// seq, when wired, mints return numbers through the tenant-configurable document sequence
+	// (numeric by default), falling back to the legacy RET-<epoch-ms> format.
+	seq *documents.SequenceService
 }
 
 func NewReturnHandler(log *zap.Logger, client *ent.Client, treasuryClient *treasury.Client, publisher *events.Publisher) *ReturnHandler {
@@ -44,6 +48,13 @@ func NewReturnHandler(log *zap.Logger, client *ent.Client, treasuryClient *treas
 
 // SetAuditService wires the centralized audit trail for refunds/returns.
 func (h *ReturnHandler) SetAuditService(a *audit.Service) { h.auditSvc = a }
+
+// WithSequence wires the document-sequence service so return numbers are minted through the
+// tenant's pos_return sequence (numeric by default), falling back to the legacy format.
+func (h *ReturnHandler) WithSequence(seq *documents.SequenceService) *ReturnHandler {
+	h.seq = seq
+	return h
+}
 
 type returnLineInput struct {
 	OrderLineID uuid.UUID `json:"order_line_id"`
@@ -278,9 +289,15 @@ func (h *ReturnHandler) CreateReturn(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Generate return number. Human-readable, order-number style (RET-<epoch-ms>) — never
-	// embed the tenant UUID prefix, which read as a raw id on the returns UI.
+	// Generate return number. Numeric-by-default via the tenant's pos_return document sequence;
+	// falls back to the legacy human-readable order-number style (RET-<epoch-ms>) when the
+	// sequence service is unwired or errors. Never embed the tenant UUID prefix.
 	returnNumber := fmt.Sprintf("RET-%d", time.Now().UnixMilli())
+	if h.seq != nil {
+		if n, err := h.seq.GenerateNumber(ctx, tid, documents.DocTypePosReturn); err == nil && n != "" {
+			returnNumber = n
+		}
+	}
 
 	// Compute refund amount.
 	var refundAmount float64

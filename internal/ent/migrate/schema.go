@@ -482,6 +482,34 @@ var (
 			},
 		},
 	}
+	// DocumentSequencesColumns holds the columns for the "document_sequences" table.
+	DocumentSequencesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "doc_type", Type: field.TypeString},
+		{Name: "prefix", Type: field.TypeString, Nullable: true},
+		{Name: "separator", Type: field.TypeString, Default: "-"},
+		{Name: "date_format", Type: field.TypeString, Nullable: true},
+		{Name: "padding", Type: field.TypeInt, Default: 6},
+		{Name: "reset_freq", Type: field.TypeString, Default: "never"},
+		{Name: "current_val", Type: field.TypeInt64, Default: 0},
+		{Name: "last_reset", Type: field.TypeTime, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// DocumentSequencesTable holds the schema information for the "document_sequences" table.
+	DocumentSequencesTable = &schema.Table{
+		Name:       "document_sequences",
+		Columns:    DocumentSequencesColumns,
+		PrimaryKey: []*schema.Column{DocumentSequencesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "documentsequence_tenant_id_doc_type",
+				Unique:  true,
+				Columns: []*schema.Column{DocumentSequencesColumns[1], DocumentSequencesColumns[2]},
+			},
+		},
+	}
 	// DrugInteractionChecksColumns holds the columns for the "drug_interaction_checks" table.
 	DrugInteractionChecksColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -3988,6 +4016,7 @@ var (
 		CommissionRulesTable,
 		ControlledSubstanceLogsTable,
 		DailyClosingsTable,
+		DocumentSequencesTable,
 		DrugInteractionChecksTable,
 		EventBookingsTable,
 		FacilitiesTable,

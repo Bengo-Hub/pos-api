@@ -26,6 +26,7 @@ import (
 	entposorderline "github.com/bengobox/pos-service/internal/ent/posorderline"
 	entposreversal "github.com/bengobox/pos-service/internal/ent/posreversal"
 	entschema "github.com/bengobox/pos-service/internal/ent/schema"
+	"github.com/bengobox/pos-service/internal/modules/documents"
 	"github.com/bengobox/pos-service/internal/modules/inventory"
 	"github.com/bengobox/pos-service/internal/modules/orders"
 	"github.com/bengobox/pos-service/internal/modules/treasury"
@@ -55,6 +56,9 @@ type Service struct {
 	treasuryClient  *treasury.Client
 	inventoryClient *inventory.Client
 	auditSvc        *audit.Service
+	// seq, when wired, mints reversal numbers through the tenant-configurable document sequence
+	// (numeric by default), falling back to the legacy REV-<epoch-ms> format.
+	seq *documents.SequenceService
 }
 
 // NewService wires the reversal orchestrator.
@@ -70,6 +74,13 @@ func NewService(log *zap.Logger, client *ent.Client, orderSvc *orders.Service, t
 
 // SetAuditService wires the centralized audit trail.
 func (s *Service) SetAuditService(a *audit.Service) { s.auditSvc = a }
+
+// WithSequence wires the document-sequence service so reversal numbers are minted through the
+// tenant's pos_reversal sequence (numeric by default), falling back to the legacy format.
+func (s *Service) WithSequence(seq *documents.SequenceService) *Service {
+	s.seq = seq
+	return s
+}
 
 // Client exposes the ent client for the handler's read-only list/detail queries.
 func (s *Service) Client() *ent.Client { return s.client }
@@ -149,11 +160,20 @@ func (s *Service) Execute(ctx context.Context, tenantID uuid.UUID, req CreateReq
 		{Step: StepEtimsCreditNote, Service: "treasury", Status: StatusPending},
 	}
 
+	// Reversal number: numeric-by-default via the tenant's pos_reversal document sequence,
+	// falling back to the legacy REV-<epoch-ms> format when the sequence is unwired/errors.
+	reversalNumber := fmt.Sprintf("REV-%d", time.Now().UnixMilli())
+	if s.seq != nil {
+		if n, err := s.seq.GenerateNumber(ctx, tenantID, documents.DocTypePosReversal); err == nil && n != "" {
+			reversalNumber = n
+		}
+	}
+
 	create := s.client.POSReversal.Create().
 		SetTenantID(tenantID).
 		SetOrderID(order.ID).
 		SetOrderNumber(order.OrderNumber).
-		SetReversalNumber(fmt.Sprintf("REV-%d", time.Now().UnixMilli())).
+		SetReversalNumber(reversalNumber).
 		SetScope(entposreversal.Scope(req.Scope)).
 		SetStatus(entposreversal.StatusPending).
 		SetReason(req.Reason).

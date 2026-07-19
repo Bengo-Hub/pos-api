@@ -13,6 +13,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent"
 	"github.com/bengobox/pos-service/internal/ent/repairjob"
 	"github.com/bengobox/pos-service/internal/ent/repairjobpart"
+	"github.com/bengobox/pos-service/internal/modules/documents"
 )
 
 // Sentinel errors returned by the service.
@@ -28,6 +29,9 @@ var (
 type Service struct {
 	client *ent.Client
 	log    *zap.Logger
+	// seq, when wired, mints job-card numbers through the tenant-configurable document sequence
+	// (numeric by default), falling back to the legacy JOB-<epoch-ms> format.
+	seq *documents.SequenceService
 }
 
 // NewService creates a new repairs service.
@@ -36,6 +40,13 @@ func NewService(client *ent.Client, log *zap.Logger) *Service {
 		client: client,
 		log:    log.Named("repairs.service"),
 	}
+}
+
+// WithSequence wires the document-sequence service so job-card numbers are minted through the
+// tenant's repair_job sequence (numeric by default), falling back to the legacy format.
+func (s *Service) WithSequence(seq *documents.SequenceService) *Service {
+	s.seq = seq
+	return s
 }
 
 // List returns repair jobs matching the filter plus the total count.
@@ -64,8 +75,15 @@ func (s *Service) Events(ctx context.Context, tenantID, jobID uuid.UUID) ([]*ent
 	return s.listEvents(ctx, jobID)
 }
 
-// generateJobNumber creates a unique, human-readable job-card number.
-func (s *Service) generateJobNumber() string {
+// generateJobNumber creates a unique job-card number: numeric-by-default via the tenant's
+// repair_job document sequence, falling back to the legacy JOB-<epoch-ms> format when the
+// sequence service is unwired or errors.
+func (s *Service) generateJobNumber(ctx context.Context, tenantID uuid.UUID) string {
+	if s.seq != nil {
+		if n, err := s.seq.GenerateNumber(ctx, tenantID, documents.DocTypeRepairJob); err == nil && n != "" {
+			return n
+		}
+	}
 	return fmt.Sprintf("JOB-%d", time.Now().UnixMilli())
 }
 
@@ -73,7 +91,7 @@ func (s *Service) generateJobNumber() string {
 func (s *Service) Create(ctx context.Context, tenantID uuid.UUID, in CreateInput) (*ent.RepairJob, error) {
 	creator := s.client.RepairJob.Create().
 		SetTenantID(tenantID).
-		SetJobNumber(s.generateJobNumber()).
+		SetJobNumber(s.generateJobNumber(ctx, tenantID)).
 		SetCustomerPhone(in.CustomerPhone).
 		SetCustomerName(in.CustomerName).
 		SetDeviceDescription(in.DeviceDescription).

@@ -66,6 +66,7 @@ func New(
 	onlineOrders *handlers.OnlineOrderHandler,
 	serviceConfig *handlers.ServiceConfigHandler,
 	serviceSettings *handlers.ServiceSettingsHandler,
+	docSequences *handlers.DocumentSequenceHandler,
 	notifications *handlers.NotificationsHandler,
 	queue *handlers.QueueHandler,
 	billSplits *handlers.BillSplitHandler,
@@ -265,6 +266,14 @@ func New(
 				// Outlet settings + TruLoad-inspired outlet switch
 				if serviceSettings != nil {
 					serviceSettings.RegisterRoutes(tenant)
+				}
+
+				// Per-tenant document numbering (Settings → Documents): numeric-by-default POS
+				// order/receipt/return/reversal/repair-job numbers, per-tenant configurable. Reads
+				// are tenant-scoped; the mutating PUT is config-gated like other POS settings.
+				if docSequences != nil {
+					docSequences.RegisterRoutes(tenant,
+						outletmw.RequireServicePermission(rbacSvc, "pos.config.change", "pos.config.manage"))
 				}
 
 				// Tenant-scoped backups (this tenant's data only) — config/admin-gated.

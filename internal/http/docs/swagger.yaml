@@ -1,11 +1,220 @@
 basePath: /api/v1
+definitions:
+  github_com_bengobox_pos-service_internal_modules_documents.SeqConfigDTO:
+    properties:
+      current_val:
+        type: integer
+      date_format:
+        type: string
+      doc_type:
+        type: string
+      next_number:
+        type: string
+      padding:
+        type: integer
+      prefix:
+        type: string
+      reset_freq:
+        type: string
+      separator:
+        type: string
+    type: object
+  internal_http_handlers.bulkClientImportResult:
+    properties:
+      created:
+        type: integer
+      failed:
+        type: integer
+      results:
+        items:
+          $ref: '#/definitions/internal_http_handlers.bulkClientRowResult'
+        type: array
+      updated:
+        type: integer
+    type: object
+  internal_http_handlers.bulkClientRowResult:
+    properties:
+      client_id:
+        type: string
+      error:
+        type: string
+      external_ref:
+        type: string
+      status:
+        description: created | updated | failed
+        type: string
+    type: object
+  internal_http_handlers.livenessResponse:
+    properties:
+      service:
+        example: pos-service
+        type: string
+      status:
+        example: ok
+        type: string
+    type: object
+  internal_http_handlers.readinessResponse:
+    properties:
+      dependencies:
+        additionalProperties:
+          type: string
+        type: object
+      status:
+        example: OK
+        type: string
+    type: object
 info:
   contact: {}
   description: HTTP API for the Codevertex POS service. Provides point-of-sale operations,
     order management, and cash drawer management.
   title: POS Service API
   version: 0.1.0
-paths: {}
+paths:
+  /{tenantID}/pos/clients/bulk-import:
+    post:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_http_handlers.bulkClientImportResult'
+      summary: Bulk import/upsert POS client records
+      tags:
+      - clients
+  /{tenantID}/pos/document-sequences:
+    get:
+      description: Per-doc-type sequence configuration (numeric by default) for order,
+        receipt, return, reversal and repair-job numbers.
+      parameters:
+      - description: Tenant ID
+        in: path
+        name: tenantID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: List POS document-numbering configs
+      tags:
+      - document-numbering
+  /{tenantID}/pos/document-sequences/{docType}:
+    put:
+      consumes:
+      - application/json
+      description: Sets prefix/separator/date format/padding for a doc type. Empty
+        prefix + empty date_format = pure numeric.
+      parameters:
+      - description: Tenant ID
+        in: path
+        name: tenantID
+        required: true
+        type: string
+      - description: Document type
+        in: path
+        name: docType
+        required: true
+        type: string
+      - description: Format settings
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_bengobox_pos-service_internal_modules_documents.SeqConfigDTO'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_bengobox_pos-service_internal_modules_documents.SeqConfigDTO'
+      security:
+      - bearerAuth: []
+      summary: Update a POS document-numbering config
+      tags:
+      - document-numbering
+  /{tenantID}/pos/document-sequences/{docType}/preview:
+    get:
+      description: Returns the next number for a doc type without incrementing the
+        counter.
+      parameters:
+      - description: Tenant ID
+        in: path
+        name: tenantID
+        required: true
+        type: string
+      - description: Document type (order, pos_receipt, pos_return, pos_reversal,
+          repair_job)
+        in: path
+        name: docType
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Preview next POS document number
+      tags:
+      - document-numbering
+  /healthz:
+    get:
+      description: Returns OK when the POS API process is running.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_http_handlers.livenessResponse'
+      summary: Service liveness probe
+      tags:
+      - Health
+  /metrics:
+    get:
+      description: Exposes Prometheus metrics for scraping.
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: Prometheus metrics payload
+          schema:
+            type: string
+      summary: Prometheus metrics
+      tags:
+      - Health
+  /readyz:
+    get:
+      description: Validates connectivity to Postgres, Redis, and NATS backends.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_http_handlers.readinessResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/internal_http_handlers.readinessResponse'
+      summary: Readiness probe
+      tags:
+      - Health
 schemes:
 - http
 - https

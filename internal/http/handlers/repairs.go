@@ -13,6 +13,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/bengobox/pos-service/internal/ent"
+	"github.com/bengobox/pos-service/internal/modules/documents"
 	repairsmod "github.com/bengobox/pos-service/internal/modules/repairs"
 )
 
@@ -28,6 +29,13 @@ func NewRepairHandler(log *zap.Logger, db *ent.Client) *RepairHandler {
 		log: log.Named("repairs"),
 		svc: repairsmod.NewService(db, log),
 	}
+}
+
+// WithSequence wires the document-sequence service into the underlying repairs service so
+// job-card numbers are minted through the tenant's repair_job sequence (numeric by default).
+func (h *RepairHandler) WithSequence(seq *documents.SequenceService) *RepairHandler {
+	h.svc.WithSequence(seq)
+	return h
 }
 
 // actorID returns the authenticated caller's user ID, if present.

@@ -11,7 +11,325 @@
         "version": "0.1.0"
     },
     "basePath": "/api/v1",
-    "paths": {},
+    "paths": {
+        "/healthz": {
+            "get": {
+                "description": "Returns OK when the POS API process is running.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Health"
+                ],
+                "summary": "Service liveness probe",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_http_handlers.livenessResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/metrics": {
+            "get": {
+                "description": "Exposes Prometheus metrics for scraping.",
+                "produces": [
+                    "text/plain"
+                ],
+                "tags": [
+                    "Health"
+                ],
+                "summary": "Prometheus metrics",
+                "responses": {
+                    "200": {
+                        "description": "Prometheus metrics payload",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/readyz": {
+            "get": {
+                "description": "Validates connectivity to Postgres, Redis, and NATS backends.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Health"
+                ],
+                "summary": "Readiness probe",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_http_handlers.readinessResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/internal_http_handlers.readinessResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/{tenantID}/pos/clients/bulk-import": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "clients"
+                ],
+                "summary": "Bulk import/upsert POS client records",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_http_handlers.bulkClientImportResult"
+                        }
+                    }
+                }
+            }
+        },
+        "/{tenantID}/pos/document-sequences": {
+            "get": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "description": "Per-doc-type sequence configuration (numeric by default) for order, receipt, return, reversal and repair-job numbers.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "document-numbering"
+                ],
+                "summary": "List POS document-numbering configs",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "tenantID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/{tenantID}/pos/document-sequences/{docType}": {
+            "put": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "description": "Sets prefix/separator/date format/padding for a doc type. Empty prefix + empty date_format = pure numeric.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "document-numbering"
+                ],
+                "summary": "Update a POS document-numbering config",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "tenantID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Document type",
+                        "name": "docType",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Format settings",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_bengobox_pos-service_internal_modules_documents.SeqConfigDTO"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_bengobox_pos-service_internal_modules_documents.SeqConfigDTO"
+                        }
+                    }
+                }
+            }
+        },
+        "/{tenantID}/pos/document-sequences/{docType}/preview": {
+            "get": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "description": "Returns the next number for a doc type without incrementing the counter.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "document-numbering"
+                ],
+                "summary": "Preview next POS document number",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "tenantID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Document type (order, pos_receipt, pos_return, pos_reversal, repair_job)",
+                        "name": "docType",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "github_com_bengobox_pos-service_internal_modules_documents.SeqConfigDTO": {
+            "type": "object",
+            "properties": {
+                "current_val": {
+                    "type": "integer"
+                },
+                "date_format": {
+                    "type": "string"
+                },
+                "doc_type": {
+                    "type": "string"
+                },
+                "next_number": {
+                    "type": "string"
+                },
+                "padding": {
+                    "type": "integer"
+                },
+                "prefix": {
+                    "type": "string"
+                },
+                "reset_freq": {
+                    "type": "string"
+                },
+                "separator": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_http_handlers.bulkClientImportResult": {
+            "type": "object",
+            "properties": {
+                "created": {
+                    "type": "integer"
+                },
+                "failed": {
+                    "type": "integer"
+                },
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_http_handlers.bulkClientRowResult"
+                    }
+                },
+                "updated": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_http_handlers.bulkClientRowResult": {
+            "type": "object",
+            "properties": {
+                "client_id": {
+                    "type": "string"
+                },
+                "error": {
+                    "type": "string"
+                },
+                "external_ref": {
+                    "type": "string"
+                },
+                "status": {
+                    "description": "created | updated | failed",
+                    "type": "string"
+                }
+            }
+        },
+        "internal_http_handlers.livenessResponse": {
+            "type": "object",
+            "properties": {
+                "service": {
+                    "type": "string",
+                    "example": "pos-service"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "ok"
+                }
+            }
+        },
+        "internal_http_handlers.readinessResponse": {
+            "type": "object",
+            "properties": {
+                "dependencies": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "status": {
+                    "type": "string",
+                    "example": "OK"
+                }
+            }
+        }
+    },
     "securityDefinitions": {
         "bearerAuth": {
             "description": "JWT token from auth-service. Format: Bearer {token}",

@@ -28,6 +28,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/commissionrule"
 	"github.com/bengobox/pos-service/internal/ent/controlledsubstancelog"
 	"github.com/bengobox/pos-service/internal/ent/dailyclosing"
+	"github.com/bengobox/pos-service/internal/ent/documentsequence"
 	"github.com/bengobox/pos-service/internal/ent/druginteractioncheck"
 	"github.com/bengobox/pos-service/internal/ent/eventbooking"
 	"github.com/bengobox/pos-service/internal/ent/facility"
@@ -205,6 +206,7 @@ func checkColumn(t, c string) error {
 			commissionrule.Table:           commissionrule.ValidColumn,
 			controlledsubstancelog.Table:   controlledsubstancelog.ValidColumn,
 			dailyclosing.Table:             dailyclosing.ValidColumn,
+			documentsequence.Table:         documentsequence.ValidColumn,
 			druginteractioncheck.Table:     druginteractioncheck.ValidColumn,
 			eventbooking.Table:             eventbooking.ValidColumn,
 			facility.Table:                 facility.ValidColumn,

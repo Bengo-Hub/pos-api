@@ -44,6 +44,8 @@ type Tx struct {
 	ControlledSubstanceLog *ControlledSubstanceLogClient
 	// DailyClosing is the client for interacting with the DailyClosing builders.
 	DailyClosing *DailyClosingClient
+	// DocumentSequence is the client for interacting with the DocumentSequence builders.
+	DocumentSequence *DocumentSequenceClient
 	// DrugInteractionCheck is the client for interacting with the DrugInteractionCheck builders.
 	DrugInteractionCheck *DrugInteractionCheckClient
 	// EventBooking is the client for interacting with the EventBooking builders.
@@ -393,6 +395,7 @@ func (tx *Tx) init() {
 	tx.CommissionRule = NewCommissionRuleClient(tx.config)
 	tx.ControlledSubstanceLog = NewControlledSubstanceLogClient(tx.config)
 	tx.DailyClosing = NewDailyClosingClient(tx.config)
+	tx.DocumentSequence = NewDocumentSequenceClient(tx.config)
 	tx.DrugInteractionCheck = NewDrugInteractionCheckClient(tx.config)
 	tx.EventBooking = NewEventBookingClient(tx.config)
 	tx.Facility = NewFacilityClient(tx.config)

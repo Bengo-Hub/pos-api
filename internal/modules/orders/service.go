@@ -26,6 +26,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/posorder"
 	"github.com/bengobox/pos-service/internal/ent/posorderline"
 	enttenant "github.com/bengobox/pos-service/internal/ent/tenant"
+	"github.com/bengobox/pos-service/internal/modules/documents"
 	kdsmod "github.com/bengobox/pos-service/internal/modules/kds"
 	"github.com/bengobox/pos-service/internal/modules/printing"
 	"github.com/bengobox/pos-service/internal/platform/events"
@@ -231,6 +232,17 @@ type Service struct {
 	recordPromoFn func(ctx context.Context, promoID, orderID uuid.UUID, amount decimal.Decimal)
 	// printQueue enqueues background print jobs for the on-site Local Print Agent (AccuPOS model).
 	printQueue *printing.Queue
+	// seq, when wired, mints ONLINE order numbers through the tenant-configurable document
+	// sequence (numeric by default) instead of the legacy ad-hoc POS-<epoch-ms> format. The
+	// offline/deterministic client-ref path is unaffected.
+	seq *documents.SequenceService
+}
+
+// WithSequence wires the document-sequence service so online order numbers are minted through
+// the tenant's order sequence (numeric by default), falling back to the legacy time-based number.
+func (s *Service) WithSequence(seq *documents.SequenceService) *Service {
+	s.seq = seq
+	return s
 }
 
 // SetPublisher sets the event publisher for order lifecycle events.
@@ -523,9 +535,23 @@ func (s *Service) calculateTotalsWithTaxes(lines []OrderLineInput, taxes []resol
 	return finalizeTotals(subtotal, addedTax, discountAmount, chargesTotal, orderTax)
 }
 
-// GenerateOrderNumber creates a unique order number.
+// GenerateOrderNumber creates a unique order number using the legacy time-based format. It is
+// the FALLBACK used when no document-sequence service is wired (see GenerateOrderNumberCtx).
 func (s *Service) GenerateOrderNumber() string {
 	return fmt.Sprintf("%s-%d", s.orderPrefix, time.Now().UnixMilli())
+}
+
+// GenerateOrderNumberCtx mints an ONLINE order number through the tenant-configurable document
+// sequence (numeric by default), falling back to the legacy time-based GenerateOrderNumber when
+// no sequence service is wired or it errors. The offline/deterministic client-ref path is
+// generated separately (deterministicOrderNumber) and never routes through here.
+func (s *Service) GenerateOrderNumberCtx(ctx context.Context, tenantID uuid.UUID) string {
+	if s.seq != nil {
+		if n, err := s.seq.GenerateNumber(ctx, tenantID, documents.DocTypeOrder); err == nil && n != "" {
+			return n
+		}
+	}
+	return s.GenerateOrderNumber()
 }
 
 // deterministicOrderNumber derives a stable, collision-free order number from an offline
@@ -570,7 +596,7 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent
 		if req.ClientReference != "" {
 			orderNumber = s.deterministicOrderNumber(req.ClientReference)
 		} else {
-			orderNumber = s.GenerateOrderNumber()
+			orderNumber = s.GenerateOrderNumberCtx(ctx, req.TenantID)
 		}
 	}
 

@@ -21,6 +21,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/commissionrule"
 	"github.com/bengobox/pos-service/internal/ent/controlledsubstancelog"
 	"github.com/bengobox/pos-service/internal/ent/dailyclosing"
+	"github.com/bengobox/pos-service/internal/ent/documentsequence"
 	"github.com/bengobox/pos-service/internal/ent/druginteractioncheck"
 	"github.com/bengobox/pos-service/internal/ent/eventbooking"
 	"github.com/bengobox/pos-service/internal/ent/facility"
@@ -557,6 +558,42 @@ func init() {
 	dailyclosingDescID := dailyclosingFields[0].Descriptor()
 	// dailyclosing.DefaultID holds the default value on creation for the id field.
 	dailyclosing.DefaultID = dailyclosingDescID.Default.(func() uuid.UUID)
+	documentsequenceFields := schema.DocumentSequence{}.Fields()
+	_ = documentsequenceFields
+	// documentsequenceDescDocType is the schema descriptor for doc_type field.
+	documentsequenceDescDocType := documentsequenceFields[2].Descriptor()
+	// documentsequence.DocTypeValidator is a validator for the "doc_type" field. It is called by the builders before save.
+	documentsequence.DocTypeValidator = documentsequenceDescDocType.Validators[0].(func(string) error)
+	// documentsequenceDescSeparator is the schema descriptor for separator field.
+	documentsequenceDescSeparator := documentsequenceFields[4].Descriptor()
+	// documentsequence.DefaultSeparator holds the default value on creation for the separator field.
+	documentsequence.DefaultSeparator = documentsequenceDescSeparator.Default.(string)
+	// documentsequenceDescPadding is the schema descriptor for padding field.
+	documentsequenceDescPadding := documentsequenceFields[6].Descriptor()
+	// documentsequence.DefaultPadding holds the default value on creation for the padding field.
+	documentsequence.DefaultPadding = documentsequenceDescPadding.Default.(int)
+	// documentsequenceDescResetFreq is the schema descriptor for reset_freq field.
+	documentsequenceDescResetFreq := documentsequenceFields[7].Descriptor()
+	// documentsequence.DefaultResetFreq holds the default value on creation for the reset_freq field.
+	documentsequence.DefaultResetFreq = documentsequenceDescResetFreq.Default.(string)
+	// documentsequenceDescCurrentVal is the schema descriptor for current_val field.
+	documentsequenceDescCurrentVal := documentsequenceFields[8].Descriptor()
+	// documentsequence.DefaultCurrentVal holds the default value on creation for the current_val field.
+	documentsequence.DefaultCurrentVal = documentsequenceDescCurrentVal.Default.(int64)
+	// documentsequenceDescCreatedAt is the schema descriptor for created_at field.
+	documentsequenceDescCreatedAt := documentsequenceFields[10].Descriptor()
+	// documentsequence.DefaultCreatedAt holds the default value on creation for the created_at field.
+	documentsequence.DefaultCreatedAt = documentsequenceDescCreatedAt.Default.(func() time.Time)
+	// documentsequenceDescUpdatedAt is the schema descriptor for updated_at field.
+	documentsequenceDescUpdatedAt := documentsequenceFields[11].Descriptor()
+	// documentsequence.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	documentsequence.DefaultUpdatedAt = documentsequenceDescUpdatedAt.Default.(func() time.Time)
+	// documentsequence.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	documentsequence.UpdateDefaultUpdatedAt = documentsequenceDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// documentsequenceDescID is the schema descriptor for id field.
+	documentsequenceDescID := documentsequenceFields[0].Descriptor()
+	// documentsequence.DefaultID holds the default value on creation for the id field.
+	documentsequence.DefaultID = documentsequenceDescID.Default.(func() uuid.UUID)
 	druginteractioncheckFields := schema.DrugInteractionCheck{}.Fields()
 	_ = druginteractioncheckFields
 	// druginteractioncheckDescResult is the schema descriptor for result field.

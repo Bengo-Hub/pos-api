@@ -190,6 +190,11 @@ type ReceiptViewOpts struct {
 	// figures (a split's total is just the sum of its own line totals).
 	SplitLineIDs map[string]bool
 	SplitLabel   string // BillTo override for a split-by-item receipt, e.g. "Guest 1"
+	// ReceiptNumber, when set, is the pre-minted receipt number the caller resolved through the
+	// tenant-configurable pos_receipt document sequence (numeric by default). Empty falls back to
+	// the persisted order.Metadata["receipt_number"], then the legacy "RCT-"+OrderNumber form —
+	// keeping BuildReceiptView free of the ent.Client dependency it deliberately doesn't hold.
+	ReceiptNumber string
 }
 
 // formatContactPhones renders the outlet's labeled phone list ([{label,value}, …] after a JSON
@@ -276,6 +281,18 @@ func BuildReceiptView(order *ent.POSOrder, lines []*ent.POSOrderLine, outlet *en
 	typ := opts.Type
 	if typ == "" {
 		typ = "customer"
+	}
+
+	// Receipt number precedence: caller-minted (pos_receipt sequence) → persisted metadata
+	// (stable across reprints/render surfaces) → legacy "RCT-"+OrderNumber fallback.
+	receiptNumber := opts.ReceiptNumber
+	if receiptNumber == "" {
+		if rn, ok := order.Metadata["receipt_number"].(string); ok && rn != "" {
+			receiptNumber = rn
+		}
+	}
+	if receiptNumber == "" {
+		receiptNumber = "RCT-" + order.OrderNumber
 	}
 
 	currency := order.Currency
@@ -368,7 +385,7 @@ func BuildReceiptView(order *ent.POSOrder, lines []*ent.POSOrderLine, outlet *en
 
 	v := ReceiptView{
 		Type:           typ,
-		ReceiptNumber:  "RCT-" + order.OrderNumber,
+		ReceiptNumber:  receiptNumber,
 		OrderNumber:    order.OrderNumber,
 		OutletID:       order.OutletID,
 		IssuedAt:       order.CreatedAt,

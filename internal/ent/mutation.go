@@ -28,6 +28,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/commissionrule"
 	"github.com/bengobox/pos-service/internal/ent/controlledsubstancelog"
 	"github.com/bengobox/pos-service/internal/ent/dailyclosing"
+	"github.com/bengobox/pos-service/internal/ent/documentsequence"
 	"github.com/bengobox/pos-service/internal/ent/druginteractioncheck"
 	"github.com/bengobox/pos-service/internal/ent/eventbooking"
 	"github.com/bengobox/pos-service/internal/ent/facility"
@@ -158,6 +159,7 @@ const (
 	TypeCommissionRule           = "CommissionRule"
 	TypeControlledSubstanceLog   = "ControlledSubstanceLog"
 	TypeDailyClosing             = "DailyClosing"
+	TypeDocumentSequence         = "DocumentSequence"
 	TypeDrugInteractionCheck     = "DrugInteractionCheck"
 	TypeEventBooking             = "EventBooking"
 	TypeFacility                 = "Facility"
@@ -15894,6 +15896,1007 @@ func (m *DailyClosingMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown DailyClosing edge %s", name)
+}
+
+// DocumentSequenceMutation represents an operation that mutates the DocumentSequence nodes in the graph.
+type DocumentSequenceMutation struct {
+	config
+	op             Op
+	typ            string
+	id             *uuid.UUID
+	tenant_id      *uuid.UUID
+	doc_type       *string
+	prefix         *string
+	separator      *string
+	date_format    *string
+	padding        *int
+	addpadding     *int
+	reset_freq     *string
+	current_val    *int64
+	addcurrent_val *int64
+	last_reset     *time.Time
+	created_at     *time.Time
+	updated_at     *time.Time
+	clearedFields  map[string]struct{}
+	done           bool
+	oldValue       func(context.Context) (*DocumentSequence, error)
+	predicates     []predicate.DocumentSequence
+}
+
+var _ ent.Mutation = (*DocumentSequenceMutation)(nil)
+
+// documentsequenceOption allows management of the mutation configuration using functional options.
+type documentsequenceOption func(*DocumentSequenceMutation)
+
+// newDocumentSequenceMutation creates new mutation for the DocumentSequence entity.
+func newDocumentSequenceMutation(c config, op Op, opts ...documentsequenceOption) *DocumentSequenceMutation {
+	m := &DocumentSequenceMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeDocumentSequence,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withDocumentSequenceID sets the ID field of the mutation.
+func withDocumentSequenceID(id uuid.UUID) documentsequenceOption {
+	return func(m *DocumentSequenceMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *DocumentSequence
+		)
+		m.oldValue = func(ctx context.Context) (*DocumentSequence, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().DocumentSequence.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withDocumentSequence sets the old DocumentSequence of the mutation.
+func withDocumentSequence(node *DocumentSequence) documentsequenceOption {
+	return func(m *DocumentSequenceMutation) {
+		m.oldValue = func(context.Context) (*DocumentSequence, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m DocumentSequenceMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m DocumentSequenceMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of DocumentSequence entities.
+func (m *DocumentSequenceMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *DocumentSequenceMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *DocumentSequenceMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().DocumentSequence.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *DocumentSequenceMutation) SetTenantID(u uuid.UUID) {
+	m.tenant_id = &u
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *DocumentSequenceMutation) TenantID() (r uuid.UUID, exists bool) {
+	v := m.tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the DocumentSequence entity.
+// If the DocumentSequence object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DocumentSequenceMutation) OldTenantID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *DocumentSequenceMutation) ResetTenantID() {
+	m.tenant_id = nil
+}
+
+// SetDocType sets the "doc_type" field.
+func (m *DocumentSequenceMutation) SetDocType(s string) {
+	m.doc_type = &s
+}
+
+// DocType returns the value of the "doc_type" field in the mutation.
+func (m *DocumentSequenceMutation) DocType() (r string, exists bool) {
+	v := m.doc_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDocType returns the old "doc_type" field's value of the DocumentSequence entity.
+// If the DocumentSequence object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DocumentSequenceMutation) OldDocType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDocType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDocType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDocType: %w", err)
+	}
+	return oldValue.DocType, nil
+}
+
+// ResetDocType resets all changes to the "doc_type" field.
+func (m *DocumentSequenceMutation) ResetDocType() {
+	m.doc_type = nil
+}
+
+// SetPrefix sets the "prefix" field.
+func (m *DocumentSequenceMutation) SetPrefix(s string) {
+	m.prefix = &s
+}
+
+// Prefix returns the value of the "prefix" field in the mutation.
+func (m *DocumentSequenceMutation) Prefix() (r string, exists bool) {
+	v := m.prefix
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPrefix returns the old "prefix" field's value of the DocumentSequence entity.
+// If the DocumentSequence object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DocumentSequenceMutation) OldPrefix(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPrefix is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPrefix requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPrefix: %w", err)
+	}
+	return oldValue.Prefix, nil
+}
+
+// ClearPrefix clears the value of the "prefix" field.
+func (m *DocumentSequenceMutation) ClearPrefix() {
+	m.prefix = nil
+	m.clearedFields[documentsequence.FieldPrefix] = struct{}{}
+}
+
+// PrefixCleared returns if the "prefix" field was cleared in this mutation.
+func (m *DocumentSequenceMutation) PrefixCleared() bool {
+	_, ok := m.clearedFields[documentsequence.FieldPrefix]
+	return ok
+}
+
+// ResetPrefix resets all changes to the "prefix" field.
+func (m *DocumentSequenceMutation) ResetPrefix() {
+	m.prefix = nil
+	delete(m.clearedFields, documentsequence.FieldPrefix)
+}
+
+// SetSeparator sets the "separator" field.
+func (m *DocumentSequenceMutation) SetSeparator(s string) {
+	m.separator = &s
+}
+
+// Separator returns the value of the "separator" field in the mutation.
+func (m *DocumentSequenceMutation) Separator() (r string, exists bool) {
+	v := m.separator
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSeparator returns the old "separator" field's value of the DocumentSequence entity.
+// If the DocumentSequence object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DocumentSequenceMutation) OldSeparator(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSeparator is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSeparator requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSeparator: %w", err)
+	}
+	return oldValue.Separator, nil
+}
+
+// ResetSeparator resets all changes to the "separator" field.
+func (m *DocumentSequenceMutation) ResetSeparator() {
+	m.separator = nil
+}
+
+// SetDateFormat sets the "date_format" field.
+func (m *DocumentSequenceMutation) SetDateFormat(s string) {
+	m.date_format = &s
+}
+
+// DateFormat returns the value of the "date_format" field in the mutation.
+func (m *DocumentSequenceMutation) DateFormat() (r string, exists bool) {
+	v := m.date_format
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDateFormat returns the old "date_format" field's value of the DocumentSequence entity.
+// If the DocumentSequence object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DocumentSequenceMutation) OldDateFormat(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDateFormat is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDateFormat requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDateFormat: %w", err)
+	}
+	return oldValue.DateFormat, nil
+}
+
+// ClearDateFormat clears the value of the "date_format" field.
+func (m *DocumentSequenceMutation) ClearDateFormat() {
+	m.date_format = nil
+	m.clearedFields[documentsequence.FieldDateFormat] = struct{}{}
+}
+
+// DateFormatCleared returns if the "date_format" field was cleared in this mutation.
+func (m *DocumentSequenceMutation) DateFormatCleared() bool {
+	_, ok := m.clearedFields[documentsequence.FieldDateFormat]
+	return ok
+}
+
+// ResetDateFormat resets all changes to the "date_format" field.
+func (m *DocumentSequenceMutation) ResetDateFormat() {
+	m.date_format = nil
+	delete(m.clearedFields, documentsequence.FieldDateFormat)
+}
+
+// SetPadding sets the "padding" field.
+func (m *DocumentSequenceMutation) SetPadding(i int) {
+	m.padding = &i
+	m.addpadding = nil
+}
+
+// Padding returns the value of the "padding" field in the mutation.
+func (m *DocumentSequenceMutation) Padding() (r int, exists bool) {
+	v := m.padding
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPadding returns the old "padding" field's value of the DocumentSequence entity.
+// If the DocumentSequence object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DocumentSequenceMutation) OldPadding(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPadding is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPadding requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPadding: %w", err)
+	}
+	return oldValue.Padding, nil
+}
+
+// AddPadding adds i to the "padding" field.
+func (m *DocumentSequenceMutation) AddPadding(i int) {
+	if m.addpadding != nil {
+		*m.addpadding += i
+	} else {
+		m.addpadding = &i
+	}
+}
+
+// AddedPadding returns the value that was added to the "padding" field in this mutation.
+func (m *DocumentSequenceMutation) AddedPadding() (r int, exists bool) {
+	v := m.addpadding
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetPadding resets all changes to the "padding" field.
+func (m *DocumentSequenceMutation) ResetPadding() {
+	m.padding = nil
+	m.addpadding = nil
+}
+
+// SetResetFreq sets the "reset_freq" field.
+func (m *DocumentSequenceMutation) SetResetFreq(s string) {
+	m.reset_freq = &s
+}
+
+// ResetFreq returns the value of the "reset_freq" field in the mutation.
+func (m *DocumentSequenceMutation) ResetFreq() (r string, exists bool) {
+	v := m.reset_freq
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldResetFreq returns the old "reset_freq" field's value of the DocumentSequence entity.
+// If the DocumentSequence object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DocumentSequenceMutation) OldResetFreq(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldResetFreq is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldResetFreq requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldResetFreq: %w", err)
+	}
+	return oldValue.ResetFreq, nil
+}
+
+// ResetResetFreq resets all changes to the "reset_freq" field.
+func (m *DocumentSequenceMutation) ResetResetFreq() {
+	m.reset_freq = nil
+}
+
+// SetCurrentVal sets the "current_val" field.
+func (m *DocumentSequenceMutation) SetCurrentVal(i int64) {
+	m.current_val = &i
+	m.addcurrent_val = nil
+}
+
+// CurrentVal returns the value of the "current_val" field in the mutation.
+func (m *DocumentSequenceMutation) CurrentVal() (r int64, exists bool) {
+	v := m.current_val
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCurrentVal returns the old "current_val" field's value of the DocumentSequence entity.
+// If the DocumentSequence object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DocumentSequenceMutation) OldCurrentVal(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCurrentVal is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCurrentVal requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCurrentVal: %w", err)
+	}
+	return oldValue.CurrentVal, nil
+}
+
+// AddCurrentVal adds i to the "current_val" field.
+func (m *DocumentSequenceMutation) AddCurrentVal(i int64) {
+	if m.addcurrent_val != nil {
+		*m.addcurrent_val += i
+	} else {
+		m.addcurrent_val = &i
+	}
+}
+
+// AddedCurrentVal returns the value that was added to the "current_val" field in this mutation.
+func (m *DocumentSequenceMutation) AddedCurrentVal() (r int64, exists bool) {
+	v := m.addcurrent_val
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetCurrentVal resets all changes to the "current_val" field.
+func (m *DocumentSequenceMutation) ResetCurrentVal() {
+	m.current_val = nil
+	m.addcurrent_val = nil
+}
+
+// SetLastReset sets the "last_reset" field.
+func (m *DocumentSequenceMutation) SetLastReset(t time.Time) {
+	m.last_reset = &t
+}
+
+// LastReset returns the value of the "last_reset" field in the mutation.
+func (m *DocumentSequenceMutation) LastReset() (r time.Time, exists bool) {
+	v := m.last_reset
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastReset returns the old "last_reset" field's value of the DocumentSequence entity.
+// If the DocumentSequence object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DocumentSequenceMutation) OldLastReset(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastReset is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastReset requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastReset: %w", err)
+	}
+	return oldValue.LastReset, nil
+}
+
+// ClearLastReset clears the value of the "last_reset" field.
+func (m *DocumentSequenceMutation) ClearLastReset() {
+	m.last_reset = nil
+	m.clearedFields[documentsequence.FieldLastReset] = struct{}{}
+}
+
+// LastResetCleared returns if the "last_reset" field was cleared in this mutation.
+func (m *DocumentSequenceMutation) LastResetCleared() bool {
+	_, ok := m.clearedFields[documentsequence.FieldLastReset]
+	return ok
+}
+
+// ResetLastReset resets all changes to the "last_reset" field.
+func (m *DocumentSequenceMutation) ResetLastReset() {
+	m.last_reset = nil
+	delete(m.clearedFields, documentsequence.FieldLastReset)
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *DocumentSequenceMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *DocumentSequenceMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the DocumentSequence entity.
+// If the DocumentSequence object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DocumentSequenceMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *DocumentSequenceMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *DocumentSequenceMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *DocumentSequenceMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the DocumentSequence entity.
+// If the DocumentSequence object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DocumentSequenceMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *DocumentSequenceMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the DocumentSequenceMutation builder.
+func (m *DocumentSequenceMutation) Where(ps ...predicate.DocumentSequence) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the DocumentSequenceMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *DocumentSequenceMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.DocumentSequence, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *DocumentSequenceMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *DocumentSequenceMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (DocumentSequence).
+func (m *DocumentSequenceMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *DocumentSequenceMutation) Fields() []string {
+	fields := make([]string, 0, 11)
+	if m.tenant_id != nil {
+		fields = append(fields, documentsequence.FieldTenantID)
+	}
+	if m.doc_type != nil {
+		fields = append(fields, documentsequence.FieldDocType)
+	}
+	if m.prefix != nil {
+		fields = append(fields, documentsequence.FieldPrefix)
+	}
+	if m.separator != nil {
+		fields = append(fields, documentsequence.FieldSeparator)
+	}
+	if m.date_format != nil {
+		fields = append(fields, documentsequence.FieldDateFormat)
+	}
+	if m.padding != nil {
+		fields = append(fields, documentsequence.FieldPadding)
+	}
+	if m.reset_freq != nil {
+		fields = append(fields, documentsequence.FieldResetFreq)
+	}
+	if m.current_val != nil {
+		fields = append(fields, documentsequence.FieldCurrentVal)
+	}
+	if m.last_reset != nil {
+		fields = append(fields, documentsequence.FieldLastReset)
+	}
+	if m.created_at != nil {
+		fields = append(fields, documentsequence.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, documentsequence.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *DocumentSequenceMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case documentsequence.FieldTenantID:
+		return m.TenantID()
+	case documentsequence.FieldDocType:
+		return m.DocType()
+	case documentsequence.FieldPrefix:
+		return m.Prefix()
+	case documentsequence.FieldSeparator:
+		return m.Separator()
+	case documentsequence.FieldDateFormat:
+		return m.DateFormat()
+	case documentsequence.FieldPadding:
+		return m.Padding()
+	case documentsequence.FieldResetFreq:
+		return m.ResetFreq()
+	case documentsequence.FieldCurrentVal:
+		return m.CurrentVal()
+	case documentsequence.FieldLastReset:
+		return m.LastReset()
+	case documentsequence.FieldCreatedAt:
+		return m.CreatedAt()
+	case documentsequence.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *DocumentSequenceMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case documentsequence.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case documentsequence.FieldDocType:
+		return m.OldDocType(ctx)
+	case documentsequence.FieldPrefix:
+		return m.OldPrefix(ctx)
+	case documentsequence.FieldSeparator:
+		return m.OldSeparator(ctx)
+	case documentsequence.FieldDateFormat:
+		return m.OldDateFormat(ctx)
+	case documentsequence.FieldPadding:
+		return m.OldPadding(ctx)
+	case documentsequence.FieldResetFreq:
+		return m.OldResetFreq(ctx)
+	case documentsequence.FieldCurrentVal:
+		return m.OldCurrentVal(ctx)
+	case documentsequence.FieldLastReset:
+		return m.OldLastReset(ctx)
+	case documentsequence.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case documentsequence.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown DocumentSequence field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *DocumentSequenceMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case documentsequence.FieldTenantID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case documentsequence.FieldDocType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDocType(v)
+		return nil
+	case documentsequence.FieldPrefix:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPrefix(v)
+		return nil
+	case documentsequence.FieldSeparator:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSeparator(v)
+		return nil
+	case documentsequence.FieldDateFormat:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDateFormat(v)
+		return nil
+	case documentsequence.FieldPadding:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPadding(v)
+		return nil
+	case documentsequence.FieldResetFreq:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetResetFreq(v)
+		return nil
+	case documentsequence.FieldCurrentVal:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCurrentVal(v)
+		return nil
+	case documentsequence.FieldLastReset:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastReset(v)
+		return nil
+	case documentsequence.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case documentsequence.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown DocumentSequence field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *DocumentSequenceMutation) AddedFields() []string {
+	var fields []string
+	if m.addpadding != nil {
+		fields = append(fields, documentsequence.FieldPadding)
+	}
+	if m.addcurrent_val != nil {
+		fields = append(fields, documentsequence.FieldCurrentVal)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *DocumentSequenceMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case documentsequence.FieldPadding:
+		return m.AddedPadding()
+	case documentsequence.FieldCurrentVal:
+		return m.AddedCurrentVal()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *DocumentSequenceMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case documentsequence.FieldPadding:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddPadding(v)
+		return nil
+	case documentsequence.FieldCurrentVal:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCurrentVal(v)
+		return nil
+	}
+	return fmt.Errorf("unknown DocumentSequence numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *DocumentSequenceMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(documentsequence.FieldPrefix) {
+		fields = append(fields, documentsequence.FieldPrefix)
+	}
+	if m.FieldCleared(documentsequence.FieldDateFormat) {
+		fields = append(fields, documentsequence.FieldDateFormat)
+	}
+	if m.FieldCleared(documentsequence.FieldLastReset) {
+		fields = append(fields, documentsequence.FieldLastReset)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *DocumentSequenceMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *DocumentSequenceMutation) ClearField(name string) error {
+	switch name {
+	case documentsequence.FieldPrefix:
+		m.ClearPrefix()
+		return nil
+	case documentsequence.FieldDateFormat:
+		m.ClearDateFormat()
+		return nil
+	case documentsequence.FieldLastReset:
+		m.ClearLastReset()
+		return nil
+	}
+	return fmt.Errorf("unknown DocumentSequence nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *DocumentSequenceMutation) ResetField(name string) error {
+	switch name {
+	case documentsequence.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case documentsequence.FieldDocType:
+		m.ResetDocType()
+		return nil
+	case documentsequence.FieldPrefix:
+		m.ResetPrefix()
+		return nil
+	case documentsequence.FieldSeparator:
+		m.ResetSeparator()
+		return nil
+	case documentsequence.FieldDateFormat:
+		m.ResetDateFormat()
+		return nil
+	case documentsequence.FieldPadding:
+		m.ResetPadding()
+		return nil
+	case documentsequence.FieldResetFreq:
+		m.ResetResetFreq()
+		return nil
+	case documentsequence.FieldCurrentVal:
+		m.ResetCurrentVal()
+		return nil
+	case documentsequence.FieldLastReset:
+		m.ResetLastReset()
+		return nil
+	case documentsequence.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case documentsequence.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown DocumentSequence field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *DocumentSequenceMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *DocumentSequenceMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *DocumentSequenceMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *DocumentSequenceMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *DocumentSequenceMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *DocumentSequenceMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *DocumentSequenceMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown DocumentSequence unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *DocumentSequenceMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown DocumentSequence edge %s", name)
 }
 
 // DrugInteractionCheckMutation represents an operation that mutates the DrugInteractionCheck nodes in the graph.

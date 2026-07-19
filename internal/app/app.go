@@ -31,6 +31,7 @@ import (
 	router "github.com/bengobox/pos-service/internal/http/router"
 	backupmod "github.com/bengobox/pos-service/internal/modules/backup"
 	catalogmodule "github.com/bengobox/pos-service/internal/modules/catalog"
+	"github.com/bengobox/pos-service/internal/modules/documents"
 	"github.com/bengobox/pos-service/internal/modules/identity"
 	inventorymodule "github.com/bengobox/pos-service/internal/modules/inventory"
 	kdsmodule "github.com/bengobox/pos-service/internal/modules/kds"
@@ -158,6 +159,12 @@ func New(ctx context.Context) (*App, error) {
 		TaxRatePercent:  cfg.App.TaxRatePercent,
 		OrderPrefix:     cfg.App.OrderPrefix,
 	}, log)
+
+	// Per-tenant, numeric-by-default document numbering (order/receipt/return/reversal/repair-job).
+	// One SequenceService fans out to every generator + the Settings → Documents config API,
+	// mirroring inventory-api's DocumentSequence wiring.
+	docSeqSvc := documents.NewSequenceService(entClient)
+	orderSvc.WithSequence(docSeqSvc) // online order numbers via the order sequence (offline path unchanged)
 
 	// Wire event publisher for POS order lifecycle events (shared-events outbox pattern)
 	var outboxPub *eventslib.Publisher
@@ -374,14 +381,17 @@ func New(ctx context.Context) (*App, error) {
 	}
 	returnHandler := handlers.NewReturnHandler(log, entClient, treasuryClient, returnEventPub)
 	returnHandler.SetAuditService(auditSvc)
+	returnHandler.WithSequence(docSeqSvc) // pos_return numbers via the document sequence
 	// Exchange fulfilment creates the replacement order through the normal sale pipeline.
 	returnHandler.SetOrderService(orderSvc)
 	// Transaction reversals (platform-owner data-repair tool): orchestrates pos totals,
 	// inventory consumption reversal, treasury GL and eTIMS credit note per reversal.
 	reversalSvc := reversals.NewService(log, entClient, orderSvc, treasuryClient, inventoryClient)
 	reversalSvc.SetAuditService(auditSvc)
+	reversalSvc.WithSequence(docSeqSvc) // pos_reversal numbers via the document sequence
 	reversalHandler := handlers.NewReversalHandler(log, reversalSvc)
 	receiptHandler := handlers.NewReceiptHandler(log, entClient, tenantCache, cfg.Auth.ServiceURL)
+	receiptHandler.WithSequence(docSeqSvc) // pos_receipt numbers via the document sequence
 	// KRA PIN header line on receipts — resolved from the treasury tax profile, printed
 	// ONLY for eTIMS-activated tenants (FiscalPin returns "" otherwise). Fallback for sales
 	// whose transmitted fiscal identity hasn't landed on the order yet.
@@ -601,6 +611,10 @@ func New(ctx context.Context) (*App, error) {
 	staffAdminHandler := handlers.NewStaffHandler(log.Named("staff-admin"), entClient, cfg.Auth.ServiceURL, cfg.Treasury.InternalServiceKey)
 	// Repair / job-card module (device repair lifecycle: intake -> ... -> settled via POS)
 	repairHandler := handlers.NewRepairHandler(log, entClient)
+	repairHandler.WithSequence(docSeqSvc) // repair_job numbers via the document sequence
+
+	// Settings → Documents: per-tenant document-numbering config API (numeric by default).
+	docSequenceHandler := handlers.NewDocumentSequenceHandler(log, docSeqSvc)
 
 	// Pluggable backup destination (OneDrive/GDrive/S3/WebDAV/SFTP/SMB) — encrypted
 	// at rest with a SECRET_KEY-derived key. The handler owns the destination Store;
@@ -618,7 +632,7 @@ func New(ctx context.Context) (*App, error) {
 		RetentionDays: cfg.Backup.RetentionDays,
 	}, log).Start(ctx)
 
-	chiRouter := router.New(log, healthHandler, authMiddleware, entClient, identitySvc, orderHandler, catalogHandler, tableHandler, tenderHandler, paymentHandler, drawerHandler, barTabHandler, promotionHandler, rbacHandler, rbacSvc, hotelHandler, kdsHandler, deviceHandler, pinAuthHandler, publicOutletHandler, closingHandler, returnHandler, reversalHandler, receiptHandler, menuHandler, layawayHandler, scaleHandler, pharmacyHandler, appointmentHandler, commissionHandler, staffScheduleHandler, shiftOverrideHandler, leaveRequestHandler, shiftRotationHandler, loyaltyHandler, reportsHandler, reportPDFHandler, webhookHandler, onlineOrderHandler, serviceConfigHandler, serviceSettingsHandler, notificationsHandler, queueHandler, billSplitHandler, resourceHandler, commissionRuleHandler, packageHandler, clientHandler, channelHandler, printHandler, printJobsHandler, printAgentAPIHandler, payrollHandler, staffAdminHandler, repairHandler, cfg.HTTP.AllowedOrigins, redisClient, cfg.Treasury.InternalServiceKey, backupHandler, backupDestHandler, screensaverMediaHandler, mediaRoot)
+	chiRouter := router.New(log, healthHandler, authMiddleware, entClient, identitySvc, orderHandler, catalogHandler, tableHandler, tenderHandler, paymentHandler, drawerHandler, barTabHandler, promotionHandler, rbacHandler, rbacSvc, hotelHandler, kdsHandler, deviceHandler, pinAuthHandler, publicOutletHandler, closingHandler, returnHandler, reversalHandler, receiptHandler, menuHandler, layawayHandler, scaleHandler, pharmacyHandler, appointmentHandler, commissionHandler, staffScheduleHandler, shiftOverrideHandler, leaveRequestHandler, shiftRotationHandler, loyaltyHandler, reportsHandler, reportPDFHandler, webhookHandler, onlineOrderHandler, serviceConfigHandler, serviceSettingsHandler, docSequenceHandler, notificationsHandler, queueHandler, billSplitHandler, resourceHandler, commissionRuleHandler, packageHandler, clientHandler, channelHandler, printHandler, printJobsHandler, printAgentAPIHandler, payrollHandler, staffAdminHandler, repairHandler, cfg.HTTP.AllowedOrigins, redisClient, cfg.Treasury.InternalServiceKey, backupHandler, backupDestHandler, screensaverMediaHandler, mediaRoot)
 
 	httpServer := &http.Server{
 		Addr:              fmt.Sprintf("%s:%d", cfg.HTTP.Host, cfg.HTTP.Port),

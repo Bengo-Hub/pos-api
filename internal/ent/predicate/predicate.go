@@ -54,6 +54,9 @@ type ControlledSubstanceLog func(*sql.Selector)
 // DailyClosing is the predicate function for dailyclosing builders.
 type DailyClosing func(*sql.Selector)
 
+// DocumentSequence is the predicate function for documentsequence builders.
+type DocumentSequence func(*sql.Selector)
+
 // DrugInteractionCheck is the predicate function for druginteractioncheck builders.
 type DrugInteractionCheck func(*sql.Selector)
 

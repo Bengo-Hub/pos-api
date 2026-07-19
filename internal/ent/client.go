@@ -32,6 +32,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/commissionrule"
 	"github.com/bengobox/pos-service/internal/ent/controlledsubstancelog"
 	"github.com/bengobox/pos-service/internal/ent/dailyclosing"
+	"github.com/bengobox/pos-service/internal/ent/documentsequence"
 	"github.com/bengobox/pos-service/internal/ent/druginteractioncheck"
 	"github.com/bengobox/pos-service/internal/ent/eventbooking"
 	"github.com/bengobox/pos-service/internal/ent/facility"
@@ -172,6 +173,8 @@ type Client struct {
 	ControlledSubstanceLog *ControlledSubstanceLogClient
 	// DailyClosing is the client for interacting with the DailyClosing builders.
 	DailyClosing *DailyClosingClient
+	// DocumentSequence is the client for interacting with the DocumentSequence builders.
+	DocumentSequence *DocumentSequenceClient
 	// DrugInteractionCheck is the client for interacting with the DrugInteractionCheck builders.
 	DrugInteractionCheck *DrugInteractionCheckClient
 	// EventBooking is the client for interacting with the EventBooking builders.
@@ -401,6 +404,7 @@ func (c *Client) init() {
 	c.CommissionRule = NewCommissionRuleClient(c.config)
 	c.ControlledSubstanceLog = NewControlledSubstanceLogClient(c.config)
 	c.DailyClosing = NewDailyClosingClient(c.config)
+	c.DocumentSequence = NewDocumentSequenceClient(c.config)
 	c.DrugInteractionCheck = NewDrugInteractionCheckClient(c.config)
 	c.EventBooking = NewEventBookingClient(c.config)
 	c.Facility = NewFacilityClient(c.config)
@@ -610,6 +614,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		CommissionRule:           NewCommissionRuleClient(cfg),
 		ControlledSubstanceLog:   NewControlledSubstanceLogClient(cfg),
 		DailyClosing:             NewDailyClosingClient(cfg),
+		DocumentSequence:         NewDocumentSequenceClient(cfg),
 		DrugInteractionCheck:     NewDrugInteractionCheckClient(cfg),
 		EventBooking:             NewEventBookingClient(cfg),
 		Facility:                 NewFacilityClient(cfg),
@@ -746,6 +751,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		CommissionRule:           NewCommissionRuleClient(cfg),
 		ControlledSubstanceLog:   NewControlledSubstanceLogClient(cfg),
 		DailyClosing:             NewDailyClosingClient(cfg),
+		DocumentSequence:         NewDocumentSequenceClient(cfg),
 		DrugInteractionCheck:     NewDrugInteractionCheckClient(cfg),
 		EventBooking:             NewEventBookingClient(cfg),
 		Facility:                 NewFacilityClient(cfg),
@@ -879,31 +885,32 @@ func (c *Client) Use(hooks ...Hook) {
 		c.Appointment, c.AuditLog, c.Backup, c.BackupSetting, c.BarTab, c.BarTabEvent,
 		c.BillSplit, c.CashDrawer, c.CashDrawerEvent, c.ChannelIntegration,
 		c.ChannelSyncJob, c.ClientRecord, c.CommissionRecord, c.CommissionRule,
-		c.ControlledSubstanceLog, c.DailyClosing, c.DrugInteractionCheck,
-		c.EventBooking, c.Facility, c.FacilityBooking, c.FeatureOverride, c.GiftCard,
-		c.GiftCardTransaction, c.HeldItem, c.HousekeepingTask, c.IdempotencyKey,
-		c.IntegrationSetting, c.InventorySnapshot, c.KDSStation, c.KDSSyncFailure,
-		c.KDSTicket, c.LayawayPayment, c.LayawayPlan, c.LeaveRequest,
-		c.LicenseUsageSnapshot, c.LoyaltyAccount, c.LoyaltyProgram,
-		c.LoyaltyTransaction, c.MealEntitlement, c.Modifier, c.ModifierGroup,
-		c.OrderLink, c.OrderVoidCode, c.OutboxEvent, c.Outlet, c.OutletSetting,
-		c.POSCatalogOverride, c.POSDevice, c.POSDeviceSession, c.POSLineModifier,
-		c.POSOrder, c.POSOrderEvent, c.POSOrderLine, c.POSPayment, c.POSPermission,
-		c.POSRefund, c.POSReturn, c.POSReturnLine, c.POSReversal, c.POSRole,
-		c.POSRolePermission, c.POSRoleV2, c.POSUserRoleAssignment, c.PosNotification,
-		c.Prescription, c.PrescriptionLine, c.PriceBook, c.PriceBookItem, c.PrintAgent,
-		c.PrintJob, c.Promotion, c.PromotionApplication, c.PromotionRule,
-		c.RateLimitConfig, c.Referral, c.RepairJob, c.RepairJobEvent, c.RepairJobPart,
-		c.Resource, c.Room, c.RoomAmenity, c.RoomAmenityAssignment, c.RoomBooking,
-		c.RoomFolioItem, c.RoomFolioPayment, c.RoomGuest, c.Section, c.SerialNumberLog,
-		c.ServiceConfig, c.ServicePackage, c.ServicePackagePurchase,
-		c.ServicePackageRedemption, c.ServiceQueueEntry, c.ShiftRotation,
-		c.ShiftRotationSlot, c.StaffAdvance, c.StaffMember, c.StaffOutlet,
-		c.StaffPayroll, c.StaffPayrollLine, c.StaffPurchaseLink, c.StaffSchedule,
-		c.StaffShiftOverride, c.StockAlertSubscription, c.StockConsumptionEvent,
-		c.SyncFailure, c.Table, c.TableAssignment, c.TableReservation, c.Tenant,
-		c.TenantSyncEvent, c.Tender, c.User, c.UserPOSRole, c.WebhookDelivery,
-		c.WebhookSubscription, c.WeighingScaleReading,
+		c.ControlledSubstanceLog, c.DailyClosing, c.DocumentSequence,
+		c.DrugInteractionCheck, c.EventBooking, c.Facility, c.FacilityBooking,
+		c.FeatureOverride, c.GiftCard, c.GiftCardTransaction, c.HeldItem,
+		c.HousekeepingTask, c.IdempotencyKey, c.IntegrationSetting,
+		c.InventorySnapshot, c.KDSStation, c.KDSSyncFailure, c.KDSTicket,
+		c.LayawayPayment, c.LayawayPlan, c.LeaveRequest, c.LicenseUsageSnapshot,
+		c.LoyaltyAccount, c.LoyaltyProgram, c.LoyaltyTransaction, c.MealEntitlement,
+		c.Modifier, c.ModifierGroup, c.OrderLink, c.OrderVoidCode, c.OutboxEvent,
+		c.Outlet, c.OutletSetting, c.POSCatalogOverride, c.POSDevice,
+		c.POSDeviceSession, c.POSLineModifier, c.POSOrder, c.POSOrderEvent,
+		c.POSOrderLine, c.POSPayment, c.POSPermission, c.POSRefund, c.POSReturn,
+		c.POSReturnLine, c.POSReversal, c.POSRole, c.POSRolePermission, c.POSRoleV2,
+		c.POSUserRoleAssignment, c.PosNotification, c.Prescription, c.PrescriptionLine,
+		c.PriceBook, c.PriceBookItem, c.PrintAgent, c.PrintJob, c.Promotion,
+		c.PromotionApplication, c.PromotionRule, c.RateLimitConfig, c.Referral,
+		c.RepairJob, c.RepairJobEvent, c.RepairJobPart, c.Resource, c.Room,
+		c.RoomAmenity, c.RoomAmenityAssignment, c.RoomBooking, c.RoomFolioItem,
+		c.RoomFolioPayment, c.RoomGuest, c.Section, c.SerialNumberLog, c.ServiceConfig,
+		c.ServicePackage, c.ServicePackagePurchase, c.ServicePackageRedemption,
+		c.ServiceQueueEntry, c.ShiftRotation, c.ShiftRotationSlot, c.StaffAdvance,
+		c.StaffMember, c.StaffOutlet, c.StaffPayroll, c.StaffPayrollLine,
+		c.StaffPurchaseLink, c.StaffSchedule, c.StaffShiftOverride,
+		c.StockAlertSubscription, c.StockConsumptionEvent, c.SyncFailure, c.Table,
+		c.TableAssignment, c.TableReservation, c.Tenant, c.TenantSyncEvent, c.Tender,
+		c.User, c.UserPOSRole, c.WebhookDelivery, c.WebhookSubscription,
+		c.WeighingScaleReading,
 	} {
 		n.Use(hooks...)
 	}
@@ -916,31 +923,32 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.Appointment, c.AuditLog, c.Backup, c.BackupSetting, c.BarTab, c.BarTabEvent,
 		c.BillSplit, c.CashDrawer, c.CashDrawerEvent, c.ChannelIntegration,
 		c.ChannelSyncJob, c.ClientRecord, c.CommissionRecord, c.CommissionRule,
-		c.ControlledSubstanceLog, c.DailyClosing, c.DrugInteractionCheck,
-		c.EventBooking, c.Facility, c.FacilityBooking, c.FeatureOverride, c.GiftCard,
-		c.GiftCardTransaction, c.HeldItem, c.HousekeepingTask, c.IdempotencyKey,
-		c.IntegrationSetting, c.InventorySnapshot, c.KDSStation, c.KDSSyncFailure,
-		c.KDSTicket, c.LayawayPayment, c.LayawayPlan, c.LeaveRequest,
-		c.LicenseUsageSnapshot, c.LoyaltyAccount, c.LoyaltyProgram,
-		c.LoyaltyTransaction, c.MealEntitlement, c.Modifier, c.ModifierGroup,
-		c.OrderLink, c.OrderVoidCode, c.OutboxEvent, c.Outlet, c.OutletSetting,
-		c.POSCatalogOverride, c.POSDevice, c.POSDeviceSession, c.POSLineModifier,
-		c.POSOrder, c.POSOrderEvent, c.POSOrderLine, c.POSPayment, c.POSPermission,
-		c.POSRefund, c.POSReturn, c.POSReturnLine, c.POSReversal, c.POSRole,
-		c.POSRolePermission, c.POSRoleV2, c.POSUserRoleAssignment, c.PosNotification,
-		c.Prescription, c.PrescriptionLine, c.PriceBook, c.PriceBookItem, c.PrintAgent,
-		c.PrintJob, c.Promotion, c.PromotionApplication, c.PromotionRule,
-		c.RateLimitConfig, c.Referral, c.RepairJob, c.RepairJobEvent, c.RepairJobPart,
-		c.Resource, c.Room, c.RoomAmenity, c.RoomAmenityAssignment, c.RoomBooking,
-		c.RoomFolioItem, c.RoomFolioPayment, c.RoomGuest, c.Section, c.SerialNumberLog,
-		c.ServiceConfig, c.ServicePackage, c.ServicePackagePurchase,
-		c.ServicePackageRedemption, c.ServiceQueueEntry, c.ShiftRotation,
-		c.ShiftRotationSlot, c.StaffAdvance, c.StaffMember, c.StaffOutlet,
-		c.StaffPayroll, c.StaffPayrollLine, c.StaffPurchaseLink, c.StaffSchedule,
-		c.StaffShiftOverride, c.StockAlertSubscription, c.StockConsumptionEvent,
-		c.SyncFailure, c.Table, c.TableAssignment, c.TableReservation, c.Tenant,
-		c.TenantSyncEvent, c.Tender, c.User, c.UserPOSRole, c.WebhookDelivery,
-		c.WebhookSubscription, c.WeighingScaleReading,
+		c.ControlledSubstanceLog, c.DailyClosing, c.DocumentSequence,
+		c.DrugInteractionCheck, c.EventBooking, c.Facility, c.FacilityBooking,
+		c.FeatureOverride, c.GiftCard, c.GiftCardTransaction, c.HeldItem,
+		c.HousekeepingTask, c.IdempotencyKey, c.IntegrationSetting,
+		c.InventorySnapshot, c.KDSStation, c.KDSSyncFailure, c.KDSTicket,
+		c.LayawayPayment, c.LayawayPlan, c.LeaveRequest, c.LicenseUsageSnapshot,
+		c.LoyaltyAccount, c.LoyaltyProgram, c.LoyaltyTransaction, c.MealEntitlement,
+		c.Modifier, c.ModifierGroup, c.OrderLink, c.OrderVoidCode, c.OutboxEvent,
+		c.Outlet, c.OutletSetting, c.POSCatalogOverride, c.POSDevice,
+		c.POSDeviceSession, c.POSLineModifier, c.POSOrder, c.POSOrderEvent,
+		c.POSOrderLine, c.POSPayment, c.POSPermission, c.POSRefund, c.POSReturn,
+		c.POSReturnLine, c.POSReversal, c.POSRole, c.POSRolePermission, c.POSRoleV2,
+		c.POSUserRoleAssignment, c.PosNotification, c.Prescription, c.PrescriptionLine,
+		c.PriceBook, c.PriceBookItem, c.PrintAgent, c.PrintJob, c.Promotion,
+		c.PromotionApplication, c.PromotionRule, c.RateLimitConfig, c.Referral,
+		c.RepairJob, c.RepairJobEvent, c.RepairJobPart, c.Resource, c.Room,
+		c.RoomAmenity, c.RoomAmenityAssignment, c.RoomBooking, c.RoomFolioItem,
+		c.RoomFolioPayment, c.RoomGuest, c.Section, c.SerialNumberLog, c.ServiceConfig,
+		c.ServicePackage, c.ServicePackagePurchase, c.ServicePackageRedemption,
+		c.ServiceQueueEntry, c.ShiftRotation, c.ShiftRotationSlot, c.StaffAdvance,
+		c.StaffMember, c.StaffOutlet, c.StaffPayroll, c.StaffPayrollLine,
+		c.StaffPurchaseLink, c.StaffSchedule, c.StaffShiftOverride,
+		c.StockAlertSubscription, c.StockConsumptionEvent, c.SyncFailure, c.Table,
+		c.TableAssignment, c.TableReservation, c.Tenant, c.TenantSyncEvent, c.Tender,
+		c.User, c.UserPOSRole, c.WebhookDelivery, c.WebhookSubscription,
+		c.WeighingScaleReading,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -981,6 +989,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.ControlledSubstanceLog.mutate(ctx, m)
 	case *DailyClosingMutation:
 		return c.DailyClosing.mutate(ctx, m)
+	case *DocumentSequenceMutation:
+		return c.DocumentSequence.mutate(ctx, m)
 	case *DrugInteractionCheckMutation:
 		return c.DrugInteractionCheck.mutate(ctx, m)
 	case *EventBookingMutation:
@@ -3393,6 +3403,139 @@ func (c *DailyClosingClient) mutate(ctx context.Context, m *DailyClosingMutation
 		return (&DailyClosingDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown DailyClosing mutation op: %q", m.Op())
+	}
+}
+
+// DocumentSequenceClient is a client for the DocumentSequence schema.
+type DocumentSequenceClient struct {
+	config
+}
+
+// NewDocumentSequenceClient returns a client for the DocumentSequence from the given config.
+func NewDocumentSequenceClient(c config) *DocumentSequenceClient {
+	return &DocumentSequenceClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `documentsequence.Hooks(f(g(h())))`.
+func (c *DocumentSequenceClient) Use(hooks ...Hook) {
+	c.hooks.DocumentSequence = append(c.hooks.DocumentSequence, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `documentsequence.Intercept(f(g(h())))`.
+func (c *DocumentSequenceClient) Intercept(interceptors ...Interceptor) {
+	c.inters.DocumentSequence = append(c.inters.DocumentSequence, interceptors...)
+}
+
+// Create returns a builder for creating a DocumentSequence entity.
+func (c *DocumentSequenceClient) Create() *DocumentSequenceCreate {
+	mutation := newDocumentSequenceMutation(c.config, OpCreate)
+	return &DocumentSequenceCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of DocumentSequence entities.
+func (c *DocumentSequenceClient) CreateBulk(builders ...*DocumentSequenceCreate) *DocumentSequenceCreateBulk {
+	return &DocumentSequenceCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *DocumentSequenceClient) MapCreateBulk(slice any, setFunc func(*DocumentSequenceCreate, int)) *DocumentSequenceCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &DocumentSequenceCreateBulk{err: fmt.Errorf("calling to DocumentSequenceClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*DocumentSequenceCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &DocumentSequenceCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for DocumentSequence.
+func (c *DocumentSequenceClient) Update() *DocumentSequenceUpdate {
+	mutation := newDocumentSequenceMutation(c.config, OpUpdate)
+	return &DocumentSequenceUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *DocumentSequenceClient) UpdateOne(_m *DocumentSequence) *DocumentSequenceUpdateOne {
+	mutation := newDocumentSequenceMutation(c.config, OpUpdateOne, withDocumentSequence(_m))
+	return &DocumentSequenceUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *DocumentSequenceClient) UpdateOneID(id uuid.UUID) *DocumentSequenceUpdateOne {
+	mutation := newDocumentSequenceMutation(c.config, OpUpdateOne, withDocumentSequenceID(id))
+	return &DocumentSequenceUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for DocumentSequence.
+func (c *DocumentSequenceClient) Delete() *DocumentSequenceDelete {
+	mutation := newDocumentSequenceMutation(c.config, OpDelete)
+	return &DocumentSequenceDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *DocumentSequenceClient) DeleteOne(_m *DocumentSequence) *DocumentSequenceDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *DocumentSequenceClient) DeleteOneID(id uuid.UUID) *DocumentSequenceDeleteOne {
+	builder := c.Delete().Where(documentsequence.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &DocumentSequenceDeleteOne{builder}
+}
+
+// Query returns a query builder for DocumentSequence.
+func (c *DocumentSequenceClient) Query() *DocumentSequenceQuery {
+	return &DocumentSequenceQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeDocumentSequence},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a DocumentSequence entity by its id.
+func (c *DocumentSequenceClient) Get(ctx context.Context, id uuid.UUID) (*DocumentSequence, error) {
+	return c.Query().Where(documentsequence.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *DocumentSequenceClient) GetX(ctx context.Context, id uuid.UUID) *DocumentSequence {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *DocumentSequenceClient) Hooks() []Hook {
+	return c.hooks.DocumentSequence
+}
+
+// Interceptors returns the client interceptors.
+func (c *DocumentSequenceClient) Interceptors() []Interceptor {
+	return c.inters.DocumentSequence
+}
+
+func (c *DocumentSequenceClient) mutate(ctx context.Context, m *DocumentSequenceMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&DocumentSequenceCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&DocumentSequenceUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&DocumentSequenceUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&DocumentSequenceDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown DocumentSequence mutation op: %q", m.Op())
 	}
 }
 
@@ -17987,24 +18130,24 @@ type (
 		Appointment, AuditLog, Backup, BackupSetting, BarTab, BarTabEvent, BillSplit,
 		CashDrawer, CashDrawerEvent, ChannelIntegration, ChannelSyncJob, ClientRecord,
 		CommissionRecord, CommissionRule, ControlledSubstanceLog, DailyClosing,
-		DrugInteractionCheck, EventBooking, Facility, FacilityBooking, FeatureOverride,
-		GiftCard, GiftCardTransaction, HeldItem, HousekeepingTask, IdempotencyKey,
-		IntegrationSetting, InventorySnapshot, KDSStation, KDSSyncFailure, KDSTicket,
-		LayawayPayment, LayawayPlan, LeaveRequest, LicenseUsageSnapshot,
-		LoyaltyAccount, LoyaltyProgram, LoyaltyTransaction, MealEntitlement, Modifier,
-		ModifierGroup, OrderLink, OrderVoidCode, OutboxEvent, Outlet, OutletSetting,
-		POSCatalogOverride, POSDevice, POSDeviceSession, POSLineModifier, POSOrder,
-		POSOrderEvent, POSOrderLine, POSPayment, POSPermission, POSRefund, POSReturn,
-		POSReturnLine, POSReversal, POSRole, POSRolePermission, POSRoleV2,
-		POSUserRoleAssignment, PosNotification, Prescription, PrescriptionLine,
-		PriceBook, PriceBookItem, PrintAgent, PrintJob, Promotion,
-		PromotionApplication, PromotionRule, RateLimitConfig, Referral, RepairJob,
-		RepairJobEvent, RepairJobPart, Resource, Room, RoomAmenity,
-		RoomAmenityAssignment, RoomBooking, RoomFolioItem, RoomFolioPayment, RoomGuest,
-		Section, SerialNumberLog, ServiceConfig, ServicePackage,
-		ServicePackagePurchase, ServicePackageRedemption, ServiceQueueEntry,
-		ShiftRotation, ShiftRotationSlot, StaffAdvance, StaffMember, StaffOutlet,
-		StaffPayroll, StaffPayrollLine, StaffPurchaseLink, StaffSchedule,
+		DocumentSequence, DrugInteractionCheck, EventBooking, Facility,
+		FacilityBooking, FeatureOverride, GiftCard, GiftCardTransaction, HeldItem,
+		HousekeepingTask, IdempotencyKey, IntegrationSetting, InventorySnapshot,
+		KDSStation, KDSSyncFailure, KDSTicket, LayawayPayment, LayawayPlan,
+		LeaveRequest, LicenseUsageSnapshot, LoyaltyAccount, LoyaltyProgram,
+		LoyaltyTransaction, MealEntitlement, Modifier, ModifierGroup, OrderLink,
+		OrderVoidCode, OutboxEvent, Outlet, OutletSetting, POSCatalogOverride,
+		POSDevice, POSDeviceSession, POSLineModifier, POSOrder, POSOrderEvent,
+		POSOrderLine, POSPayment, POSPermission, POSRefund, POSReturn, POSReturnLine,
+		POSReversal, POSRole, POSRolePermission, POSRoleV2, POSUserRoleAssignment,
+		PosNotification, Prescription, PrescriptionLine, PriceBook, PriceBookItem,
+		PrintAgent, PrintJob, Promotion, PromotionApplication, PromotionRule,
+		RateLimitConfig, Referral, RepairJob, RepairJobEvent, RepairJobPart, Resource,
+		Room, RoomAmenity, RoomAmenityAssignment, RoomBooking, RoomFolioItem,
+		RoomFolioPayment, RoomGuest, Section, SerialNumberLog, ServiceConfig,
+		ServicePackage, ServicePackagePurchase, ServicePackageRedemption,
+		ServiceQueueEntry, ShiftRotation, ShiftRotationSlot, StaffAdvance, StaffMember,
+		StaffOutlet, StaffPayroll, StaffPayrollLine, StaffPurchaseLink, StaffSchedule,
 		StaffShiftOverride, StockAlertSubscription, StockConsumptionEvent, SyncFailure,
 		Table, TableAssignment, TableReservation, Tenant, TenantSyncEvent, Tender,
 		User, UserPOSRole, WebhookDelivery, WebhookSubscription,
@@ -18014,24 +18157,24 @@ type (
 		Appointment, AuditLog, Backup, BackupSetting, BarTab, BarTabEvent, BillSplit,
 		CashDrawer, CashDrawerEvent, ChannelIntegration, ChannelSyncJob, ClientRecord,
 		CommissionRecord, CommissionRule, ControlledSubstanceLog, DailyClosing,
-		DrugInteractionCheck, EventBooking, Facility, FacilityBooking, FeatureOverride,
-		GiftCard, GiftCardTransaction, HeldItem, HousekeepingTask, IdempotencyKey,
-		IntegrationSetting, InventorySnapshot, KDSStation, KDSSyncFailure, KDSTicket,
-		LayawayPayment, LayawayPlan, LeaveRequest, LicenseUsageSnapshot,
-		LoyaltyAccount, LoyaltyProgram, LoyaltyTransaction, MealEntitlement, Modifier,
-		ModifierGroup, OrderLink, OrderVoidCode, OutboxEvent, Outlet, OutletSetting,
-		POSCatalogOverride, POSDevice, POSDeviceSession, POSLineModifier, POSOrder,
-		POSOrderEvent, POSOrderLine, POSPayment, POSPermission, POSRefund, POSReturn,
-		POSReturnLine, POSReversal, POSRole, POSRolePermission, POSRoleV2,
-		POSUserRoleAssignment, PosNotification, Prescription, PrescriptionLine,
-		PriceBook, PriceBookItem, PrintAgent, PrintJob, Promotion,
-		PromotionApplication, PromotionRule, RateLimitConfig, Referral, RepairJob,
-		RepairJobEvent, RepairJobPart, Resource, Room, RoomAmenity,
-		RoomAmenityAssignment, RoomBooking, RoomFolioItem, RoomFolioPayment, RoomGuest,
-		Section, SerialNumberLog, ServiceConfig, ServicePackage,
-		ServicePackagePurchase, ServicePackageRedemption, ServiceQueueEntry,
-		ShiftRotation, ShiftRotationSlot, StaffAdvance, StaffMember, StaffOutlet,
-		StaffPayroll, StaffPayrollLine, StaffPurchaseLink, StaffSchedule,
+		DocumentSequence, DrugInteractionCheck, EventBooking, Facility,
+		FacilityBooking, FeatureOverride, GiftCard, GiftCardTransaction, HeldItem,
+		HousekeepingTask, IdempotencyKey, IntegrationSetting, InventorySnapshot,
+		KDSStation, KDSSyncFailure, KDSTicket, LayawayPayment, LayawayPlan,
+		LeaveRequest, LicenseUsageSnapshot, LoyaltyAccount, LoyaltyProgram,
+		LoyaltyTransaction, MealEntitlement, Modifier, ModifierGroup, OrderLink,
+		OrderVoidCode, OutboxEvent, Outlet, OutletSetting, POSCatalogOverride,
+		POSDevice, POSDeviceSession, POSLineModifier, POSOrder, POSOrderEvent,
+		POSOrderLine, POSPayment, POSPermission, POSRefund, POSReturn, POSReturnLine,
+		POSReversal, POSRole, POSRolePermission, POSRoleV2, POSUserRoleAssignment,
+		PosNotification, Prescription, PrescriptionLine, PriceBook, PriceBookItem,
+		PrintAgent, PrintJob, Promotion, PromotionApplication, PromotionRule,
+		RateLimitConfig, Referral, RepairJob, RepairJobEvent, RepairJobPart, Resource,
+		Room, RoomAmenity, RoomAmenityAssignment, RoomBooking, RoomFolioItem,
+		RoomFolioPayment, RoomGuest, Section, SerialNumberLog, ServiceConfig,
+		ServicePackage, ServicePackagePurchase, ServicePackageRedemption,
+		ServiceQueueEntry, ShiftRotation, ShiftRotationSlot, StaffAdvance, StaffMember,
+		StaffOutlet, StaffPayroll, StaffPayrollLine, StaffPurchaseLink, StaffSchedule,
 		StaffShiftOverride, StockAlertSubscription, StockConsumptionEvent, SyncFailure,
 		Table, TableAssignment, TableReservation, Tenant, TenantSyncEvent, Tender,
 		User, UserPOSRole, WebhookDelivery, WebhookSubscription,
