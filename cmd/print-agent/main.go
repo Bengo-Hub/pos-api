@@ -31,7 +31,7 @@ import (
 	"github.com/bengobox/pos-service/internal/modules/printing/discovery"
 )
 
-const version = "1.3.0"
+const version = "1.3.1"
 
 func main() {
 	var (

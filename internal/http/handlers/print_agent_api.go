@@ -27,7 +27,20 @@ func NewPrintAgentAPIHandler(log *zap.Logger, queue *printing.Queue) *PrintAgent
 }
 
 // maxAgentWait caps the long-poll so LB/ingress idle timeouts never kill the request mid-flight.
-const maxAgentWait = 25 * time.Second
+//
+// 2026-07-19 live incident: pos-api logs showed "agent job claim failed: context canceled" (500s)
+// recurring every 15-90s across every replica, ALWAYS at a ~13-15s request duration — never at the
+// full 25s wait. Root cause: the router's global `middleware.Timeout(30*time.Second)` (router.go)
+// only left ~5s of margin over the old 25s wait, and something in the path (proxy/GC/scheduling
+// jitter under the shared node) was eating into that margin consistently enough to cancel the
+// request before it could return its own 204. Every cancellation makes the print-agent's poll loop
+// back off exponentially (1s→2s→4s...→30s, spooler.go), during which it claims NOTHING — so a
+// freshly enqueued print job can sit unclaimed well past a few seconds, which is exactly what
+// produced "printer did not confirm printing" in the till (the till's own confirmation window is
+// only ~7s). Shortened to well under half the global timeout for real headroom; the agent
+// re-polls immediately on a 204 (spooler.go run()), so shorter waits just mean more frequent
+// round trips, not slower job pickup.
+const maxAgentWait = 10 * time.Second
 
 func (h *PrintAgentAPIHandler) authAgent(w http.ResponseWriter, r *http.Request) *ent.PrintAgent {
 	agent, err := h.queue.AuthAgent(r.Context(), r.Header.Get("X-Agent-Key"))

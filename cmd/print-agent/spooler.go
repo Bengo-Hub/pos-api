@@ -195,7 +195,10 @@ func (sp *spooler) run(ctx context.Context, cfg agentConfig) {
 }
 
 func (sp *spooler) nextJob(ctx context.Context, cfg agentConfig) (*agentJob, error) {
-	url := fmt.Sprintf("%s/api/v1/pos/printing/agent/jobs?wait=25&version=%s", cfg.Server, version)
+	// wait=10 matches the server's maxAgentWait (print_agent_api.go) — kept comfortably under the
+	// router's global 30s request timeout after a live incident where longer long-polls (25s) were
+	// getting canceled ~13-15s in, tripping the agent's exponential backoff and delaying job claims.
+	url := fmt.Sprintf("%s/api/v1/pos/printing/agent/jobs?wait=10&version=%s", cfg.Server, version)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
