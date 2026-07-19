@@ -1357,13 +1357,23 @@ func (h *CatalogHandler) GetCatalogVersion(w http.ResponseWriter, r *http.Reques
 		Where(entoverride.TenantID(tid)).
 		Aggregate(ent.Count(), ent.Max(entoverride.FieldUpdatedAt)).
 		Scan(r.Context(), &agg)
+	// Stock version: a per-tenant marker bumped by the inventory.stock.updated consumer, folded in
+	// so a pure restock/adjustment/sale (which does NOT touch POSCatalogOverride) still changes the
+	// version and makes terminals refresh their on_hand. "0" when Redis is unavailable or unset.
+	stockVer := "0"
+	if h.redis != nil {
+		// Key mirrors catalog.CatalogStockVersionKey (inlined to avoid a handlers->module import).
+		if v, gerr := h.redis.Get(r.Context(), "pos:catver:"+tid.String()).Result(); gerr == nil && v != "" {
+			stockVer = v
+		}
+	}
 	if err != nil || len(agg) == 0 {
-		// Degrade to a constant version — pollers just see "no change" rather than an error loop.
-		jsonOK(w, map[string]any{"version": "0-0", "count": 0})
+		// Degrade to a constant catalog part — pollers still see the stock version change.
+		jsonOK(w, map[string]any{"version": "0-0-" + stockVer, "count": 0})
 		return
 	}
 	jsonOK(w, map[string]any{
-		"version": fmt.Sprintf("%d-%d", agg[0].Count, agg[0].Max.UTC().UnixMilli()),
+		"version": fmt.Sprintf("%d-%d-%s", agg[0].Count, agg[0].Max.UTC().UnixMilli(), stockVer),
 		"count":   agg[0].Count,
 	})
 }

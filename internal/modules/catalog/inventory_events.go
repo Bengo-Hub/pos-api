@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/nats-io/nats.go"
+	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 
 	sharedevents "github.com/Bengo-Hub/shared-events"
@@ -14,6 +15,13 @@ import (
 	"github.com/bengobox/pos-service/internal/ent"
 	entoverride "github.com/bengobox/pos-service/internal/ent/poscatalogoverride"
 )
+
+// CatalogStockVersionKey is the Redis key holding a per-tenant "stock version" (a millisecond
+// timestamp) that GetCatalogVersion folds into the /pos/catalog/version fingerprint. Bumped when
+// inventory stock changes so the terminal's version poll force-refreshes its catalog — without it a
+// pure restock never changed the version (which hashes only POSCatalogOverride), so a cached
+// out-of-stock row survived in the terminal's IndexedDB until the 5-min sweep.
+func CatalogStockVersionKey(tenant string) string { return "pos:catver:" + tenant }
 
 // uuidFromPayload parses a UUID from an event payload value (string after JSON round-trip).
 func uuidFromPayload(v any) *uuid.UUID {
@@ -63,13 +71,15 @@ func floatPtrFromPayload(v any) *float64 {
 // Only flags that POS needs to enforce locally (pharmacy, age-gate, etc.) are stored.
 type InventoryEventHandler struct {
 	client *ent.Client
+	redis  *redis.Client
 	logger *zap.Logger
 }
 
 // NewInventoryEventHandler creates a new inventory event handler.
-func NewInventoryEventHandler(client *ent.Client, logger *zap.Logger) *InventoryEventHandler {
+func NewInventoryEventHandler(client *ent.Client, redisClient *redis.Client, logger *zap.Logger) *InventoryEventHandler {
 	return &InventoryEventHandler{
 		client: client,
+		redis:  redisClient,
 		logger: logger.Named("pos.catalog.inventory_events"),
 	}
 }
@@ -116,6 +126,8 @@ func (h *InventoryEventHandler) SubscribeToInventoryEvents(nc *nats.Conn) error 
 		switch evt.EventType {
 		case "bundle.created", "bundle.updated":
 			handleErr = h.syncBundle(context.Background(), evt)
+		case "stock.updated":
+			handleErr = h.onStockUpdated(context.Background(), evt)
 		default:
 			handleErr = h.syncCatalogItem(context.Background(), evt)
 		}
@@ -137,6 +149,10 @@ func (h *InventoryEventHandler) SubscribeToInventoryEvents(nc *nats.Conn) error 
 		{"inventory.item.updated", "pos-inv-item-updated"},
 		{"inventory.bundle.created", "pos-inv-bundle-created"},
 		{"inventory.bundle.updated", "pos-inv-bundle-updated"},
+		// Stock-level changes (restock / adjustment / stock-take / sale deduction) bump the catalog
+		// version so the terminal auto-refreshes its stock within ~45s instead of showing a stale
+		// out-of-stock row until the 5-min sweep.
+		{"inventory.stock.updated", "pos-inv-stock-updated"},
 	}
 	for _, s := range subs {
 		// Multi-layer rebind: settle buffer + retry-on-"already bound" so a
@@ -151,8 +167,57 @@ func (h *InventoryEventHandler) SubscribeToInventoryEvents(nc *nats.Conn) error 
 	}
 
 	h.logger.Info("inventory catalog sync subscriptions active",
-		zap.String("subjects", "inventory.item.created/updated, inventory.bundle.created/updated"))
+		zap.String("subjects", "inventory.item.created/updated, inventory.bundle.created/updated, inventory.stock.updated"))
 	return nil
+}
+
+// onStockUpdated reacts to an inventory stock-level change by bumping the tenant's catalog stock
+// version (folded into GetCatalogVersion) so terminals force-refresh their catalog, and busting the
+// per-(tenant,outlet,use-case) catalog source cache so that refresh reads fresh on_hand instead of
+// the up-to-60s-stale Redis snapshot.
+//
+// Debounced to at most once per tenant per 30s: a busy till emits a stock.updated per sale, and an
+// un-debounced version bump would make every terminal refetch the whole (potentially multi-thousand
+// item) catalog on every sale. 30s bounds the refetch rate while still healing a stale row quickly.
+func (h *InventoryEventHandler) onStockUpdated(ctx context.Context, evt *sharedevents.Event) error {
+	if h.redis == nil {
+		return nil
+	}
+	tenant := evt.TenantID.String()
+	if tenant == "" || tenant == "00000000-0000-0000-0000-000000000000" {
+		return nil
+	}
+	// Debounce lock — skip (still Ack) when another stock event bumped this tenant in the last 30s.
+	ok, err := h.redis.SetNX(ctx, "pos:catver-lock:"+tenant, "1", 30*time.Second).Result()
+	if err != nil || !ok {
+		return nil
+	}
+	// Bump the stock version → /pos/catalog/version changes → terminals force-refresh.
+	if err := h.redis.Set(ctx, CatalogStockVersionKey(tenant), fmt.Sprintf("%d", time.Now().UnixMilli()), 0).Err(); err != nil {
+		h.logger.Debug("catalog stock version bump failed", zap.String("tenant", tenant), zap.Error(err))
+	}
+	h.bustCatalogSourceCache(ctx, tenant)
+	return nil
+}
+
+// bustCatalogSourceCache deletes all pos:catalogsrc:{tenant}:* cache entries (one per outlet /
+// use-case set) so the next catalog fetch reads fresh on_hand from inventory-api.
+func (h *InventoryEventHandler) bustCatalogSourceCache(ctx context.Context, tenant string) {
+	pattern := "pos:catalogsrc:" + tenant + ":*"
+	var cursor uint64
+	for {
+		keys, cur, err := h.redis.Scan(ctx, cursor, pattern, 100).Result()
+		if err != nil {
+			return
+		}
+		if len(keys) > 0 {
+			_ = h.redis.Del(ctx, keys...).Err()
+		}
+		cursor = cur
+		if cursor == 0 {
+			return
+		}
+	}
 }
 
 // syncCatalogItem upserts the POSCatalogOverride projection for an inventory item.
