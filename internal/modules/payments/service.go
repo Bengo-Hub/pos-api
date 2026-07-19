@@ -856,6 +856,12 @@ func (s *Service) completeOrderIfFullyPaid(ctx context.Context, order *ent.POSOr
 			updated = order
 			updated.Status = orders.StatusCompleted
 		}
+		// Sign the sale with KRA eTIMS SYNCHRONOUSLY (treasury S2S) before the fan-out, so the ETR
+		// receipt the terminal prints next is already fiscalised instead of printing unsigned while
+		// the async worker catches up. Best-effort + idempotent: on any failure the eTIMS fields stay
+		// empty and the async pos.sale.finalized path (dispatched below) signs the sale, with
+		// GetReceipt's pull backfilling on reprint.
+		s.signEtimsSync(ctx, updated)
 		// Hand the post-settlement fan-out (event publish, receipt print, commissions, table
 		// release, KDS clear) to a background worker so the cashier's "Confirm" returns the
 		// moment the sale is claimed completed — none of this needs to block the response. The
@@ -928,6 +934,132 @@ func (s *Service) releaseTableForOrder(ctx context.Context, orderID uuid.UUID) {
 			s.log.Warn("release table: set available failed", zap.Error(uerr))
 		}
 	}
+}
+
+// signEtimsSync signs the sale with KRA eTIMS synchronously (treasury S2S) at checkout, so the
+// terminal prints an eTIMS-signed ETR receipt immediately instead of waiting for the async
+// pos.sale.finalized → 30s-worker path. Best-effort: on any failure the eTIMS fields are left empty
+// and the async event path (still published in the fan-out) signs the sale, with GetReceipt's pull
+// backfilling on reprint. Idempotent end-to-end — treasury unique-keys the sale and returns the
+// existing fiscal record for an already-signed sale. Mutates `order` in place on success so the
+// fan-out's receipt print carries the fiscal block.
+func (s *Service) signEtimsSync(ctx context.Context, order *ent.POSOrder) {
+	if s.treasuryClient == nil || order == nil {
+		return
+	}
+	// Complimentary (no-charge) sales carry no taxable supply — never transmitted, mirroring the
+	// pos.sale.finalized subscriber's skip.
+	if order.Metadata != nil {
+		if comp, _ := order.Metadata["complimentary"].(bool); comp {
+			return
+		}
+	}
+	// Already fiscalised (re-entry / event beat us) — nothing to do.
+	if order.EtimsInvoiceNumber != nil && *order.EtimsInvoiceNumber != "" {
+		return
+	}
+
+	lines, err := s.client.POSOrderLine.Query().Where(posorderline.OrderID(order.ID)).All(ctx)
+	if err != nil || len(lines) == 0 {
+		return
+	}
+	items := make([]treasury.SignPOSSaleItem, 0, len(lines))
+	for _, l := range lines {
+		// Void-aware: post only the surviving (non-voided) quantity — mirrors publishSaleFinalized so
+		// the sync and async eTIMS payloads match.
+		effQty := l.Quantity
+		if l.VoidedQty != nil {
+			effQty = l.Quantity - *l.VoidedQty
+		}
+		if effQty <= 0 {
+			continue
+		}
+		effTotal := l.TotalPrice
+		if l.Quantity > 0 && effQty != l.Quantity {
+			effTotal = (l.TotalPrice / l.Quantity) * effQty
+		}
+		it := treasury.SignPOSSaleItem{
+			SKU:              l.Sku,
+			Name:             l.Name,
+			Quantity:         effQty,
+			UnitPrice:        l.UnitPrice,
+			TotalPrice:       effTotal,
+			PriceIncludesTax: l.PriceIncludesTax,
+			TaxCodeID:        l.TaxCodeID,
+			TaxKRACode:       l.TaxKraCode,
+		}
+		if l.TaxRate != nil {
+			it.TaxRate = *l.TaxRate
+		}
+		if l.TaxAmount != nil {
+			ta := *l.TaxAmount
+			if l.Quantity > 0 && effQty != l.Quantity {
+				ta = ta * effQty / l.Quantity
+			}
+			it.TaxAmount = ta
+		}
+		items = append(items, it)
+	}
+	if len(items) == 0 {
+		return
+	}
+
+	tenantSlug := ""
+	if outlet, oErr := s.client.Outlet.Get(ctx, order.OutletID); oErr == nil {
+		tenantSlug = outlet.TenantSlug
+	}
+	if tenantSlug == "" {
+		return
+	}
+
+	fi, err := s.treasuryClient.SignPOSSale(ctx, tenantSlug, treasury.SignPOSSaleRequest{
+		OrderID:     order.ID.String(),
+		OrderNumber: order.OrderNumber,
+		TotalAmount: order.TotalAmount,
+		Currency:    order.Currency,
+		Items:       items,
+	})
+	if err != nil {
+		s.log.Warn("etims: synchronous sign failed — falling back to async pos.sale.finalized",
+			zap.String("order_id", order.ID.String()), zap.Error(err))
+		return
+	}
+	if fi == nil { // tenant not eTIMS-activated — plain receipt, nothing to persist
+		return
+	}
+
+	upd := s.client.POSOrder.UpdateOneID(order.ID).
+		SetEtimsInvoiceNumber(fi.ReceiptNo).
+		SetEtimsCuInvNo(fi.CuInvoiceNo).
+		SetEtimsKraPin(fi.KraPin)
+	if fi.DeviceSerial != "" {
+		upd = upd.SetEtimsScuID(fi.DeviceSerial)
+	}
+	if fi.Signature != "" {
+		upd = upd.SetEtimsRcptSign(fi.Signature)
+	}
+	if fi.QRURL != "" {
+		upd = upd.SetEtimsQrCodeURL(fi.QRURL)
+	}
+	if _, uerr := upd.Save(ctx); uerr != nil {
+		s.log.Warn("etims: persist synchronous fiscal identity failed",
+			zap.String("order_id", order.ID.String()), zap.Error(uerr))
+	}
+	// Reflect on the in-memory order so the fan-out's receipt print carries the fiscal block.
+	order.EtimsInvoiceNumber = &fi.ReceiptNo
+	order.EtimsCuInvNo = &fi.CuInvoiceNo
+	order.EtimsKraPin = &fi.KraPin
+	if fi.DeviceSerial != "" {
+		order.EtimsScuID = &fi.DeviceSerial
+	}
+	if fi.Signature != "" {
+		order.EtimsRcptSign = &fi.Signature
+	}
+	if fi.QRURL != "" {
+		order.EtimsQrCodeURL = &fi.QRURL
+	}
+	s.log.Info("etims: pos sale signed synchronously at checkout",
+		zap.String("order_id", order.ID.String()), zap.String("cu_inv_no", fi.CuInvoiceNo))
 }
 
 // publishSaleFinalized emits pos.sale.finalized to the NATS outbox.

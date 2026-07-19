@@ -80,6 +80,48 @@ func (c *Client) GetEtimsFiscal(ctx context.Context, tenantSlug, orderID string)
 	return &out, nil
 }
 
+// SignPOSSaleItem mirrors one line of the pos.sale.finalized payload for synchronous signing.
+type SignPOSSaleItem struct {
+	SKU              string  `json:"sku"`
+	Name             string  `json:"name"`
+	Quantity         float64 `json:"quantity"`
+	UnitPrice        float64 `json:"unit_price"`
+	TotalPrice       float64 `json:"total_price"`
+	TaxCodeID        string  `json:"tax_code_id,omitempty"`
+	TaxKRACode       string  `json:"tax_kra_code,omitempty"`
+	TaxRate          float64 `json:"tax_rate,omitempty"`
+	TaxAmount        float64 `json:"tax_amount,omitempty"`
+	PriceIncludesTax bool    `json:"price_includes_tax"`
+}
+
+// SignPOSSaleRequest is the body for POST /api/v1/s2s/{tenant}/etims/sign-pos-sale — the same
+// shape as the pos.sale.finalized event so the synchronous and async signing paths are identical.
+type SignPOSSaleRequest struct {
+	OrderID     string            `json:"order_id"`
+	OrderNumber string            `json:"order_number"`
+	TotalAmount float64           `json:"total_amount"`
+	Currency    string            `json:"currency"`
+	Items       []SignPOSSaleItem `json:"items"`
+}
+
+// SignPOSSale signs a POS sale synchronously at checkout and returns its fiscal evidence, so the
+// terminal can print an eTIMS-signed ETR receipt immediately instead of waiting for the background
+// worker. Returns (nil, nil) when the tenant isn't eTIMS-activated (nothing to sign — print a plain
+// receipt). Returns an error on transport / 5xx failure so the caller falls back to the async
+// pos.sale.finalized path. Idempotent: treasury returns the existing fiscal record for a sale it has
+// already signed.
+func (c *Client) SignPOSSale(ctx context.Context, tenantSlug string, req SignPOSSaleRequest) (*EtimsFiscal, error) {
+	url := fmt.Sprintf("%s/api/v1/s2s/%s/etims/sign-pos-sale", c.baseURL, tenantSlug)
+	fi, err := doRequest[EtimsFiscal](ctx, c.httpClient, http.MethodPost, url, c.apiKey, req)
+	if err != nil {
+		return nil, err
+	}
+	if fi == nil || fi.ReceiptNo == "" { // {"signed": false} — tenant not activated
+		return nil, nil
+	}
+	return fi, nil
+}
+
 // ListBanks proxies the treasury S2S Paystack bank list for a country (raw JSON passthrough).
 func (c *Client) ListBanks(ctx context.Context, tenantSlug, country string) (json.RawMessage, error) {
 	if country == "" {
