@@ -993,7 +993,13 @@ func (h *CatalogHandler) assembleMenuItems(
 		if filters.Category != "" && !strings.EqualFold(item.CategoryName, filters.Category) {
 			continue
 		}
-		if filters.Search != "" && !strings.Contains(strings.ToLower(item.Name), filters.Search) {
+		// Match name, SKU or barcode (barcode/SKU are exact identifiers a scanner enters) — the
+		// filter value is already lower-cased by the caller. Matching name only meant a barcode
+		// search returned nothing.
+		if filters.Search != "" &&
+			!strings.Contains(strings.ToLower(item.Name), filters.Search) &&
+			!strings.Contains(strings.ToLower(item.SKU), filters.Search) &&
+			!strings.Contains(strings.ToLower(item.Barcode), filters.Search) {
 			continue
 		}
 		if filters.ItemType != "" {

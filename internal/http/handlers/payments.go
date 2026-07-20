@@ -250,6 +250,50 @@ func (h *PaymentHandler) SettleCreditPayment(w http.ResponseWriter, r *http.Requ
 	jsonOK(w, res)
 }
 
+// closeOnAccountInput is the body for POST /{tenantID}/pos/orders/{orderID}/close-on-account.
+// All fields are optional — an empty body books the full outstanding balance on account with a
+// default due date.
+type closeOnAccountInput struct {
+	TenderID       uuid.UUID  `json:"tenderId,omitempty"`
+	PaymentDueDate *time.Time `json:"paymentDueDate,omitempty"`
+	Notes          string     `json:"notes,omitempty"`
+}
+
+// CloseOnAccount handles POST /{tenantID}/pos/orders/{orderID}/close-on-account — books a
+// partially-paid (or unpaid) sale's OUTSTANDING remainder to the customer's treasury AR as a
+// credit sale and finalizes the order, so the debtor becomes visible + collectible on the
+// treasury Customers page. Requires a real customer (phone); Walk-in sales are rejected.
+func (h *PaymentHandler) CloseOnAccount(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+	orderID, err := uuid.Parse(chi.URLParam(r, "orderID"))
+	if err != nil {
+		jsonError(w, "invalid order_id", http.StatusBadRequest)
+		return
+	}
+	// Body is optional — tolerate an empty/absent payload (defaults apply).
+	var input closeOnAccountInput
+	if r.Body != nil {
+		_ = json.NewDecoder(r.Body).Decode(&input)
+	}
+	res, err := h.paymentSvc.CloseOnAccount(r.Context(), payments.CloseOnAccountRequest{
+		TenantID:       tid,
+		TenantSlug:     chi.URLParam(r, "tenantID"),
+		OrderID:        orderID,
+		TenderID:       input.TenderID,
+		PaymentDueDate: input.PaymentDueDate,
+		CreditNotes:    strings.TrimSpace(input.Notes),
+	})
+	if err != nil {
+		jsonError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	jsonOK(w, res)
+}
+
 type initiateInput struct {
 	IntentID      string `json:"intent_id"`
 	PaymentMethod string `json:"payment_method"`

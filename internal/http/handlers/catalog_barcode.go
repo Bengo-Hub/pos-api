@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -73,8 +75,11 @@ func (h *CatalogHandler) BarcodeLookup(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Fetch from inventory-api by barcode
-	invURL := fmt.Sprintf("%s/v1/%s/inventory/items?barcode=%s&limit=1", inventoryURL(), tenantSlug, barcode)
+	// Fetch from inventory-api by barcode. inventory-api's `search` param matches name/sku/barcode
+	// (contains, case-insensitive) — its list handler does NOT read a `barcode=` param, so the old
+	// `?barcode=` returned an arbitrary first item. Use `search=` and then pick the row whose
+	// barcode EXACTLY equals the scanned code (search is a contains match, so a few rows may match).
+	invURL := fmt.Sprintf("%s/v1/%s/inventory/items?search=%s&limit=10", inventoryURL(), tenantSlug, url.QueryEscape(barcode))
 	body, err := doInventoryGET(r.Context(), invURL, "")
 	if err != nil {
 		h.log.Warn("barcode lookup: inventory-api error", zap.String("barcode", barcode), zap.Error(err))
@@ -90,7 +95,24 @@ func (h *CatalogHandler) BarcodeLookup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	item := wrapper.Data[0]
+	// Exact-barcode select (case-insensitive). Falls back to the sole result when the payload
+	// carries no barcode field but the search returned exactly one item.
+	scanned := strings.TrimSpace(barcode)
+	var item map[string]any
+	for _, cand := range wrapper.Data {
+		if bc, _ := cand["barcode"].(string); strings.EqualFold(strings.TrimSpace(bc), scanned) {
+			item = cand
+			break
+		}
+	}
+	if item == nil {
+		if len(wrapper.Data) == 1 {
+			item = wrapper.Data[0]
+		} else {
+			jsonError(w, "item not found", http.StatusNotFound)
+			return
+		}
+	}
 
 	// not_for_sale items (inventory-only stock: ingredients, internal supplies) must never be
 	// sellable — scanning one at the till reads as "not found", mirroring the catalog list

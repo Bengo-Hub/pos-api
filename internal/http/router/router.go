@@ -532,6 +532,11 @@ func New(
 						// Separate from the intent path — the finalized sale's GL/stock never re-post.
 						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.payments.add", "pos.payments.manage")).
 							Post("/orders/{orderID}/payments/settle-credit", payments.SettleCreditPayment)
+						// Put a partially-paid (or unpaid) sale's outstanding balance on account:
+						// books the remainder to the customer's treasury AR + finalizes the sale, so
+						// the debtor becomes visible + collectible on the treasury Customers page.
+						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.payments.add", "pos.payments.manage")).
+							Post("/orders/{orderID}/close-on-account", payments.CloseOnAccount)
 						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.payments.add", "pos.payments.manage")).
 							Post("/orders/{orderID}/payments", payments.RecordPayment)
 						pos.With(outletmw.RequireServicePermission(rbacSvc,
