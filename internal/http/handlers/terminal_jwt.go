@@ -61,12 +61,19 @@ type terminalEntitlements struct {
 	Limits          map[string]int
 }
 
-func issueTerminalJWT(member *ent.StaffMember, tenantID uuid.UUID, sessionOutletID uuid.UUID, secret []byte, client *ent.Client, ctx context.Context, ent2 terminalEntitlements) (string, error) {
+// issueTerminalJWT returns the signed token AND the resolved permission set it baked in, so the
+// PIN-login handlers can echo permissions in the `user` response. That makes pos-ui's session
+// server-authoritative from the FIRST render — without it, the login `user` object carried no
+// permissions, the store started empty, and usePermissions fell back to the hardcoded client
+// ROLE_PERMISSIONS[role] map (which still lists e.g. pos.payments.add for waiter) until a later
+// /auth/me refresh landed — surfacing actions a tenant had removed (the "Settle Bill still shows
+// for waiter" report).
+func issueTerminalJWT(member *ent.StaffMember, tenantID uuid.UUID, sessionOutletID uuid.UUID, secret []byte, client *ent.Client, ctx context.Context, ent2 terminalEntitlements) (string, []string, error) {
 	// A genuine resolution failure here MUST fail the login rather than mint a 4h JWT with a
 	// silently-degraded (possibly empty) permission set baked in — see resolveEffectivePermissions.
 	permissions, err := resolveEffectivePermissions(ctx, client, tenantID, member.UserID, member.Role, nil)
 	if err != nil {
-		return "", fmt.Errorf("resolve permissions for terminal JWT: %w", err)
+		return "", nil, fmt.Errorf("resolve permissions for terminal JWT: %w", err)
 	}
 
 	// Load outlet to include use_case and is_hq in terminal JWT claims
@@ -108,7 +115,11 @@ func issueTerminalJWT(member *ent.StaffMember, tenantID uuid.UUID, sessionOutlet
 		},
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString(secret)
+	signed, serr := token.SignedString(secret)
+	if serr != nil {
+		return "", nil, serr
+	}
+	return signed, permissions, nil
 }
 
 // validateTerminalJWT parses and validates an HMAC-signed terminal JWT.

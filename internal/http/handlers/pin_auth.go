@@ -235,7 +235,7 @@ func (h *PINAuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	subEnt := h.resolveTerminalEntitlements(r.Context(), tid)
 
 	// Issue a short-lived terminal JWT (4 hours)
-	token, err := issueTerminalJWT(member, tid, sessionOutletID, h.jwtSecret, h.client, r.Context(), subEnt)
+	token, permissions, err := issueTerminalJWT(member, tid, sessionOutletID, h.jwtSecret, h.client, r.Context(), subEnt)
 	if err != nil {
 		h.log.Error("failed to issue terminal JWT", zap.Error(err))
 		jsonError(w, "internal error", http.StatusInternalServerError)
@@ -265,6 +265,10 @@ func (h *PINAuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 			"outlet_id":       sessionOutletID.String(),
 			"outlet_use_case": outletUseCase,
 			"is_hq_user":      isHQ,
+			// Echo the resolved permissions so pos-ui's session is server-authoritative from the
+			// first render (no fallback to the hardcoded client ROLE_PERMISSIONS[role] map, which
+			// still lists perms a tenant may have removed via a per-tenant role override).
+			"permissions": permissions,
 			// Surface the bypass flags so pos-ui's useSubscription exempts demo/platform
 			// PIN sessions (it derives isDemo/isPlatformOwner from the user object).
 			"is_demo":           subEnt.IsDemo,
@@ -518,7 +522,7 @@ func (h *PINAuthHandler) IdentifyByPIN(w http.ResponseWriter, r *http.Request) {
 
 	// Issue terminal JWT — same shape as Login (carry subscription entitlements + bypass).
 	subEnt := h.resolveTerminalEntitlements(r.Context(), tid)
-	token, err := issueTerminalJWT(member, tid, outletID, h.jwtSecret, h.client, r.Context(), subEnt)
+	token, permissions, err := issueTerminalJWT(member, tid, outletID, h.jwtSecret, h.client, r.Context(), subEnt)
 	if err != nil {
 		h.log.Error("failed to issue terminal JWT", zap.Error(err))
 		jsonError(w, "internal error", http.StatusInternalServerError)
@@ -554,7 +558,10 @@ func (h *PINAuthHandler) IdentifyByPIN(w http.ResponseWriter, r *http.Request) {
 			"outlet_id":       outletID.String(),
 			"outlet_use_case": outletUseCase,
 			"is_hq_user":      isHQ,
-			"pin_hash":        pinHash,
+			// Server-authoritative permission set so pos-ui never falls back to the hardcoded
+			// client role map (see the Login handler + issueTerminalJWT for the full rationale).
+			"permissions": permissions,
+			"pin_hash":    pinHash,
 		},
 	})
 }
