@@ -125,11 +125,26 @@ func (h *ReportsHandler) GetSummary(w http.ResponseWriter, r *http.Request) {
 		ordersGrowth = float64(todayOrders-yesterdayOrders) / float64(yesterdayOrders) * 100
 	}
 
+	// Total UNITS sold today (outlet-scoped, same completed-order predicate) — a meaningful,
+	// never-misleading retail throughput stat that replaced the old tenant-wide "items below
+	// reorder" card (which counted every catalogue item across all outlets and read as a scary,
+	// meaningless 200). Best-effort: a query hiccup just yields 0.
+	itemsSold, _ := h.db.POSOrderLine.Query().
+		Where(posorderline.HasOrderWith(append([]predicate.POSOrder{
+			posorder.TenantID(tid),
+			posorder.StatusEQ("completed"),
+			effectiveDateGTE(todayStart),
+			effectiveDateLT(now),
+		}, outletFilters...)...)).
+		Aggregate(ent.Sum(posorderline.FieldQuantity)).
+		Float64(r.Context())
+
 	jsonOK(w, map[string]any{
 		"total_revenue":  todayRev,
 		"total_orders":   todayOrders,
 		"avg_ticket":     avgTicket,
 		"active_staff":   activeShifts,
+		"items_sold":     itemsSold,
 		"revenue_growth": revenueGrowth,
 		"orders_growth":  ordersGrowth,
 		"as_of":          now.Format(time.RFC3339),

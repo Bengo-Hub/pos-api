@@ -385,6 +385,28 @@ func (h *PINAuthHandler) AuthMe(w http.ResponseWriter, r *http.Request) {
 	// Expose the assigned role codes too (system + custom) so the UI can display them.
 	assignedRoles := resolveAssignedRoleCodes(r.Context(), h.client, tid, uid)
 
+	// Assigned outlets + the home outlet, so the UI can PRESELECT the outlet this staff member is
+	// tied to on login (falling back to the tenant default/HQ when unassigned) instead of an
+	// arbitrary first/HQ outlet. Only resolvable when we matched a local StaffMember record.
+	homeOutletID := ""
+	assignedOutlets := []string{}
+	if memberErr == nil {
+		if links, lerr := h.client.StaffOutlet.Query().
+			Where(entstaffoutlet.TenantID(tid), entstaffoutlet.StaffMemberID(member.ID)).
+			All(r.Context()); lerr == nil {
+			for _, l := range links {
+				assignedOutlets = append(assignedOutlets, l.OutletID.String())
+				if l.IsHomeOutlet && homeOutletID == "" {
+					homeOutletID = l.OutletID.String()
+				}
+			}
+			// No explicit home flag but exactly one assignment → that is the home outlet.
+			if homeOutletID == "" && len(assignedOutlets) == 1 {
+				homeOutletID = assignedOutlets[0]
+			}
+		}
+	}
+
 	jsonOK(w, map[string]any{
 		"user_id":        claims.Subject,
 		"email":          claims.Email,
@@ -395,6 +417,10 @@ func (h *PINAuthHandler) AuthMe(w http.ResponseWriter, r *http.Request) {
 		"pos_role":       posRole,
 		"assigned_roles": assignedRoles,
 		"permissions":    perms,
+		// Outlet assignment for UI preselect (empty when the user has no StaffOutlet links —
+		// e.g. an HQ/admin who works across all outlets; UI then falls back to default/HQ).
+		"home_outlet_id": homeOutletID,
+		"outlets":        assignedOutlets,
 	})
 }
 
