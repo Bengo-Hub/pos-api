@@ -1,6 +1,6 @@
 basePath: /api/v1
 definitions:
-  github_com_bengobox_pos-service_internal_modules_documents.SeqConfigDTO:
+  documents.SeqConfigDTO:
     properties:
       current_val:
         type: integer
@@ -19,7 +19,7 @@ definitions:
       separator:
         type: string
     type: object
-  internal_http_handlers.bulkClientImportResult:
+  handlers.bulkClientImportResult:
     properties:
       created:
         type: integer
@@ -27,12 +27,12 @@ definitions:
         type: integer
       results:
         items:
-          $ref: '#/definitions/internal_http_handlers.bulkClientRowResult'
+          $ref: '#/definitions/handlers.bulkClientRowResult'
         type: array
       updated:
         type: integer
     type: object
-  internal_http_handlers.bulkClientRowResult:
+  handlers.bulkClientRowResult:
     properties:
       client_id:
         type: string
@@ -44,7 +44,48 @@ definitions:
         description: created | updated | failed
         type: string
     type: object
-  internal_http_handlers.livenessResponse:
+  handlers.bulkDeleteOrdersInput:
+    properties:
+      order_ids:
+        items:
+          type: string
+        type: array
+    type: object
+  handlers.bulkDeleteOrdersResult:
+    properties:
+      deleted:
+        type: integer
+      skipped:
+        items:
+          $ref: '#/definitions/handlers.bulkSkippedItem'
+        type: array
+    type: object
+  handlers.bulkSkippedItem:
+    properties:
+      id:
+        type: string
+      reason:
+        type: string
+    type: object
+  handlers.bulkVoidOrdersInput:
+    properties:
+      order_ids:
+        items:
+          type: string
+        type: array
+      reason:
+        type: string
+    type: object
+  handlers.bulkVoidOrdersResult:
+    properties:
+      skipped:
+        items:
+          $ref: '#/definitions/handlers.bulkSkippedItem'
+        type: array
+      voided:
+        type: integer
+    type: object
+  handlers.livenessResponse:
     properties:
       service:
         example: pos-service
@@ -53,7 +94,7 @@ definitions:
         example: ok
         type: string
     type: object
-  internal_http_handlers.readinessResponse:
+  handlers.readinessResponse:
     properties:
       dependencies:
         additionalProperties:
@@ -80,7 +121,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_http_handlers.bulkClientImportResult'
+            $ref: '#/definitions/handlers.bulkClientImportResult'
       summary: Bulk import/upsert POS client records
       tags:
       - clients
@@ -129,14 +170,14 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/github_com_bengobox_pos-service_internal_modules_documents.SeqConfigDTO'
+          $ref: '#/definitions/documents.SeqConfigDTO'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_bengobox_pos-service_internal_modules_documents.SeqConfigDTO'
+            $ref: '#/definitions/documents.SeqConfigDTO'
       security:
       - bearerAuth: []
       summary: Update a POS document-numbering config
@@ -172,6 +213,48 @@ paths:
       summary: Preview next POS document number
       tags:
       - document-numbering
+  /{tenantID}/pos/orders/bulk-delete:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: IDs of the draft orders to delete
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.bulkDeleteOrdersInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.bulkDeleteOrdersResult'
+      summary: Bulk-delete draft (parked) sales
+      tags:
+      - orders
+  /{tenantID}/pos/orders/bulk-void:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: IDs of the orders to void + the shared void reason
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.bulkVoidOrdersInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.bulkVoidOrdersResult'
+      summary: Bulk-void unsettled orders
+      tags:
+      - orders
   /healthz:
     get:
       description: Returns OK when the POS API process is running.
@@ -181,7 +264,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_http_handlers.livenessResponse'
+            $ref: '#/definitions/handlers.livenessResponse'
       summary: Service liveness probe
       tags:
       - Health
@@ -207,11 +290,11 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_http_handlers.readinessResponse'
+            $ref: '#/definitions/handlers.readinessResponse'
         "503":
           description: Service Unavailable
           schema:
-            $ref: '#/definitions/internal_http_handlers.readinessResponse'
+            $ref: '#/definitions/handlers.readinessResponse'
       summary: Readiness probe
       tags:
       - Health

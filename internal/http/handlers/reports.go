@@ -22,7 +22,6 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/posrefund"
 	"github.com/bengobox/pos-service/internal/ent/posreturn"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
-	entuser "github.com/bengobox/pos-service/internal/ent/user"
 	ordersmod "github.com/bengobox/pos-service/internal/modules/orders"
 )
 
@@ -583,7 +582,7 @@ func (h *ReportsHandler) SalesByStaff(w http.ResponseWriter, r *http.Request) {
 	for id := range buckets {
 		ids = append(ids, id)
 	}
-	names := h.resolveStaffNames(r.Context(), tid, ids)
+	names := resolveStaffNames(r.Context(), h.db, h.log, tid, ids)
 	for id, b := range buckets {
 		if n := names[id]; n != "" {
 			b.StaffName = n
@@ -605,39 +604,6 @@ func (h *ReportsHandler) SalesByStaff(w http.ResponseWriter, r *http.Request) {
 	}
 
 	jsonOK(w, rows)
-}
-
-// resolveStaffNames maps POS order user_ids to human staff names. Order.user_id is the auth
-// service user id (JWT subject); the local User projection carries full_name keyed by BOTH
-// its own id and auth_service_user_id, so match on either. Returns id → name (best effort;
-// missing ids are simply absent from the map).
-func (h *ReportsHandler) resolveStaffNames(ctx context.Context, tid uuid.UUID, ids []uuid.UUID) map[uuid.UUID]string {
-	out := make(map[uuid.UUID]string, len(ids))
-	if len(ids) == 0 {
-		return out
-	}
-	users, err := h.db.User.Query().
-		Where(
-			entuser.TenantID(tid),
-			entuser.Or(entuser.IDIn(ids...), entuser.AuthServiceUserIDIn(ids...)),
-		).
-		All(ctx)
-	if err != nil {
-		h.log.Warn("resolve staff names failed", zap.Error(err))
-		return out
-	}
-	for _, u := range users {
-		name := strings.TrimSpace(u.FullName)
-		if name == "" {
-			name = strings.TrimSpace(u.Email)
-		}
-		if name == "" {
-			continue
-		}
-		out[u.ID] = name
-		out[u.AuthServiceUserID] = name
-	}
-	return out
 }
 
 // ExportDailyReport handles GET /{tenantID}/pos/reports/export

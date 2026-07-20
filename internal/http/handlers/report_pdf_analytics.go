@@ -517,7 +517,7 @@ func (h *ReportPDFHandler) VoidSummaryDoc(w http.ResponseWriter, r *http.Request
 			ids = append(ids, id)
 		}
 	}
-	names := h.resolveStaffNames(ctx, tid, ids)
+	names := resolveStaffNames(ctx, h.db, h.log, tid, ids)
 
 	type voidRow struct {
 		name string

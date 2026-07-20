@@ -365,7 +365,7 @@ func (h *ReportPDFHandler) AllSalesDocument(w http.ResponseWriter, r *http.Reque
 	for id := range uidSet {
 		uids = append(uids, id)
 	}
-	staffNames := h.resolveStaffNames(ctx, tid, uids)
+	staffNames := resolveStaffNames(ctx, h.db, h.log, tid, uids)
 	tenderType := map[uuid.UUID]string{}
 	if len(tenderIDSet) > 0 {
 		ids := make([]uuid.UUID, 0, len(tenderIDSet))

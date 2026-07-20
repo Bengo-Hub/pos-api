@@ -22,11 +22,8 @@ import (
 	entfacility "github.com/bengobox/pos-service/internal/ent/facility"
 	"github.com/bengobox/pos-service/internal/ent/outletsetting"
 	entoverride "github.com/bengobox/pos-service/internal/ent/poscatalogoverride"
-	"github.com/bengobox/pos-service/internal/ent/poslinemodifier"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
-	"github.com/bengobox/pos-service/internal/ent/posorderevent"
 	"github.com/bengobox/pos-service/internal/ent/posorderline"
-	"github.com/bengobox/pos-service/internal/ent/pospayment"
 	"github.com/bengobox/pos-service/internal/ent/posreturn"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
 	"github.com/bengobox/pos-service/internal/ent/tender"
@@ -310,6 +307,10 @@ type orderListItem struct {
 	AmountDue     float64 `json:"amount_due"`
 	PaymentStatus string  `json:"payment_status"` // paid | partial | due | overdue | refunded | voided | cancelled
 	PaymentMethod string  `json:"payment_method"` // dominant tender type, or "multiple"
+	// CashierName is the human display name of the staff member who rang up the order
+	// (resolved from user_id via the shared resolveStaffNames helper — same mapping the
+	// staff reports use). Empty when the user projection has no name for the id.
+	CashierName string `json:"cashier_name"`
 	// Sell-return rollup (rejected returns excluded): lets the list flag returned
 	// sales (red return arrow) and show the returned amount without N+1 lookups.
 	ReturnCount  int     `json:"return_count"`
@@ -318,8 +319,21 @@ type orderListItem struct {
 }
 
 // enrichOrderList computes the derived display columns for a page of orders, resolving
-// payment-method labels via a single batched Tender lookup (id → type).
+// payment-method labels via a single batched Tender lookup (id → type) and cashier display
+// names via a single batched User lookup (shared resolveStaffNames helper).
 func (h *POSOrderHandler) enrichOrderList(ctx context.Context, tenantID uuid.UUID, list []*ent.POSOrder) []orderListItem {
+	// Batch-resolve cashier names so every list row (drafts, recent transactions, all
+	// sales) shows WHO rang the sale up without an N+1 user lookup.
+	uidSet := map[uuid.UUID]struct{}{}
+	for _, o := range list {
+		uidSet[o.UserID] = struct{}{}
+	}
+	uids := make([]uuid.UUID, 0, len(uidSet))
+	for id := range uidSet {
+		uids = append(uids, id)
+	}
+	staffNames := resolveStaffNames(ctx, h.client, h.log, tenantID, uids)
+
 	// Collect every tender_id referenced by this page's payments, then resolve types once.
 	tenderIDSet := map[uuid.UUID]struct{}{}
 	for _, o := range list {
@@ -420,6 +434,7 @@ func (h *POSOrderHandler) enrichOrderList(ctx context.Context, tenantID uuid.UUI
 			AmountDue:     due,
 			PaymentStatus: ps,
 			PaymentMethod: dominantMethod(methods),
+			CashierName:   staffNames[o.UserID], // "" when unknown — the UI falls back gracefully
 		}
 		if agg := returnsByOrder[o.ID]; agg != nil {
 			item.ReturnCount = agg.count
@@ -1342,59 +1357,26 @@ func (h *POSOrderHandler) VoidOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if order.Status == "voided" {
+	// Eligibility rule shared with the bulk endpoint (voidSkipReason): already-voided is a
+	// no-op, and a finalized sale has already been posted to the ledger and transmitted to
+	// KRA eTIMS (pos.sale.finalized). Voiding it here would only flip the status — leaving
+	// the GL entry and the eTIMS receipt un-reversed. Such sales must be reversed via a
+	// return/refund, which posts the ledger reversal AND transmits an eTIMS credit note
+	// (rcptTyCd=R).
+	switch voidSkipReason(order.Status) {
+	case "already_voided":
 		jsonError(w, "order is already voided", http.StatusBadRequest)
 		return
-	}
-
-	// A finalized sale has already been posted to the ledger and transmitted to KRA eTIMS
-	// (pos.sale.finalized). Voiding it here would only flip the status — leaving the GL entry
-	// and the eTIMS receipt un-reversed. Such sales must be reversed via a return/refund, which
-	// posts the ledger reversal AND transmits an eTIMS credit note (rcptTyCd=R).
-	if order.Status == "completed" || order.Status == "paid" || order.Status == "closed" {
+	case "finalized":
 		jsonError(w, "a finalized sale cannot be voided — issue a refund/return instead so the ledger and KRA eTIMS are properly reversed", http.StatusConflict)
 		return
 	}
 
-	now := time.Now()
-	updated, err := order.Update().
-		SetStatus("voided").
-		SetVoidedReason(input.Reason).
-		SetVoidedBy(callerID).
-		SetVoidedAt(now).
-		Save(r.Context())
+	updated, err := h.applyVoid(r.Context(), tid, order, callerID, approverID, input.Reason)
 	if err != nil {
 		h.log.Error("void order failed", zap.Error(err))
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
-	}
-
-	h.log.Info("order voided",
-		zap.Stringer("order_id", orderID),
-		zap.Stringer("voided_by", callerID),
-		zap.String("reason", input.Reason),
-	)
-
-	// The kitchen must stop preparing a voided bill: void any of its still-open KDS tickets so
-	// they drop off the live board (previously they lingered until staff voided each by hand).
-	h.orderSvc.VoidKDSTicketsForOrder(r.Context(), tid, orderID)
-
-	if h.auditSvc != nil {
-		oid := order.OutletID
-		amt := order.TotalAmount
-		h.auditSvc.Record(r.Context(), audit.Entry{
-			TenantID:    tid,
-			OutletID:    &oid,
-			ActorUserID: callerID,
-			ApproverID:  approverID,
-			Action:      "order.void",
-			EntityType:  "pos_order",
-			EntityID:    orderID.String(),
-			Reason:      input.Reason,
-			Amount:      &amt,
-			Before:      map[string]any{"status": order.Status, "order_number": order.OrderNumber},
-			After:       map[string]any{"status": "voided"},
-		})
 	}
 	jsonOK(w, updated)
 }
@@ -1442,91 +1424,26 @@ func (h *POSOrderHandler) DeleteDraft(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if order.Status != "draft" {
-		jsonError(w, "only draft orders can be deleted — void or return a finalized sale instead", http.StatusConflict)
-		return
-	}
-
+	// Eligibility rule shared with the bulk endpoint (draftDeleteSkipReason):
 	// pos.orders.manage → delete any; otherwise the caller must own the draft. HasServicePermission
 	// bypasses for superusers/platform owners, exactly like the read-scoping full-view check.
 	canDeleteAny := outletmw.HasServicePermission(r, h.rbac, "pos.orders.manage")
-	if !canDeleteAny && order.UserID != callerID {
+	switch draftDeleteSkipReason(order.Status, order.UserID, callerID, canDeleteAny) {
+	case "not_draft":
+		jsonError(w, "only draft orders can be deleted — void or return a finalized sale instead", http.StatusConflict)
+		return
+	case "not_owner":
 		jsonError(w, "you can only delete your own drafts", http.StatusForbidden)
 		return
 	}
 
-	tx, err := h.client.Tx(r.Context())
-	if err != nil {
-		h.log.Error("delete draft: begin tx failed", zap.Error(err))
-		jsonError(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-	lineIDs, err := tx.POSOrderLine.Query().Where(posorderline.OrderID(orderID)).IDs(r.Context())
-	if err != nil {
-		_ = tx.Rollback()
-		h.log.Error("delete draft: query lines failed", zap.Error(err))
-		jsonError(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-	if len(lineIDs) > 0 {
-		if _, err := tx.POSLineModifier.Delete().Where(poslinemodifier.LineIDIn(lineIDs...)).Exec(r.Context()); err != nil {
-			_ = tx.Rollback()
-			h.log.Error("delete draft: delete modifiers failed", zap.Error(err))
-			jsonError(w, "internal error", http.StatusInternalServerError)
-			return
-		}
-	}
-	if _, err := tx.POSOrderLine.Delete().Where(posorderline.OrderID(orderID)).Exec(r.Context()); err != nil {
-		_ = tx.Rollback()
-		h.log.Error("delete draft: delete lines failed", zap.Error(err))
-		jsonError(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-	if _, err := tx.POSPayment.Delete().Where(pospayment.OrderID(orderID)).Exec(r.Context()); err != nil {
-		_ = tx.Rollback()
-		h.log.Error("delete draft: delete payments failed", zap.Error(err))
-		jsonError(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-	if _, err := tx.POSOrderEvent.Delete().Where(posorderevent.OrderID(orderID)).Exec(r.Context()); err != nil {
-		_ = tx.Rollback()
-		h.log.Error("delete draft: delete events failed", zap.Error(err))
-		jsonError(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-	if err := tx.POSOrder.DeleteOneID(orderID).Exec(r.Context()); err != nil {
-		_ = tx.Rollback()
-		h.log.Error("delete draft: delete order failed", zap.Error(err))
-		jsonError(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-	if err := tx.Commit(); err != nil {
-		h.log.Error("delete draft: commit failed", zap.Error(err))
+	if err := h.hardDeleteDraft(r.Context(), orderID); err != nil {
+		h.log.Error("delete draft failed", zap.Stringer("order_id", orderID), zap.Error(err))
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 
-	h.log.Info("draft deleted",
-		zap.Stringer("order_id", orderID),
-		zap.Stringer("deleted_by", callerID),
-		zap.String("order_number", order.OrderNumber),
-	)
-
-	if h.auditSvc != nil {
-		oid := order.OutletID
-		amt := order.TotalAmount
-		h.auditSvc.Record(r.Context(), audit.Entry{
-			TenantID:    tid,
-			OutletID:    &oid,
-			ActorUserID: callerID,
-			Action:      "order.draft_deleted",
-			EntityType:  "pos_order",
-			EntityID:    orderID.String(),
-			Amount:      &amt,
-			Before:      map[string]any{"status": order.Status, "order_number": order.OrderNumber},
-			After:       map[string]any{"deleted": true},
-		})
-	}
+	h.recordDraftDeleted(r.Context(), tid, order, callerID)
 
 	jsonOK(w, map[string]any{"deleted": true, "order_number": order.OrderNumber})
 }

@@ -24,7 +24,6 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/predicate"
 	enttenant "github.com/bengobox/pos-service/internal/ent/tenant"
 	enttender "github.com/bengobox/pos-service/internal/ent/tender"
-	entuser "github.com/bengobox/pos-service/internal/ent/user"
 	outletmw "github.com/bengobox/pos-service/internal/http/middleware"
 	"github.com/bengobox/pos-service/internal/modules/docs"
 )
@@ -177,33 +176,6 @@ func (h *ReportPDFHandler) completedOrders(ctx context.Context, tid uuid.UUID, o
 		q = q.WithLines()
 	}
 	return q.All(ctx)
-}
-
-// resolveStaffNames maps POS user_ids to human staff names (mirrors ReportsHandler.resolveStaffNames).
-func (h *ReportPDFHandler) resolveStaffNames(ctx context.Context, tid uuid.UUID, ids []uuid.UUID) map[uuid.UUID]string {
-	out := make(map[uuid.UUID]string, len(ids))
-	if len(ids) == 0 {
-		return out
-	}
-	users, err := h.db.User.Query().
-		Where(entuser.TenantID(tid), entuser.Or(entuser.IDIn(ids...), entuser.AuthServiceUserIDIn(ids...))).
-		All(ctx)
-	if err != nil {
-		h.log.Warn("report: resolve staff names failed", zap.Error(err))
-		return out
-	}
-	for _, u := range users {
-		name := strings.TrimSpace(u.FullName)
-		if name == "" {
-			name = strings.TrimSpace(u.Email)
-		}
-		if name == "" {
-			continue
-		}
-		out[u.ID] = name
-		out[u.AuthServiceUserID] = name
-	}
-	return out
 }
 
 // tenderBreakdown groups completed payments for the given order ids by tender, returning ordered
@@ -445,7 +417,7 @@ func (h *ReportPDFHandler) ResetSummary(w http.ResponseWriter, r *http.Request) 
 	for id := range byUser {
 		uids = append(uids, id)
 	}
-	names := h.resolveStaffNames(ctx, tid, uids)
+	names := resolveStaffNames(ctx, h.db, h.log, tid, uids)
 	serverPairs := make([]docs.KV, 0, len(byUser))
 	for id, net := range byUser {
 		n := names[id]
@@ -844,7 +816,7 @@ func (h *ReportPDFHandler) SalesByStaffPDF(w http.ResponseWriter, r *http.Reques
 	for id := range buckets {
 		ids = append(ids, id)
 	}
-	names := h.resolveStaffNames(ctx, tid, ids)
+	names := resolveStaffNames(ctx, h.db, h.log, tid, ids)
 
 	type staffRow struct {
 		name   string

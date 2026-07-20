@@ -74,7 +74,7 @@ func (h *ReportsHandler) VoidSummary(w http.ResponseWriter, r *http.Request) {
 	for id := range buckets {
 		ids = append(ids, id)
 	}
-	names := h.resolveStaffNames(r.Context(), tid, ids)
+	names := resolveStaffNames(r.Context(), h.db, h.log, tid, ids)
 	for id, b := range buckets {
 		if id == unattributed {
 			b.StaffName = "Unattributed"

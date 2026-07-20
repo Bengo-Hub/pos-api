@@ -82,8 +82,12 @@ type inventoryProxyItem struct {
 	TrackSerialNumbers      bool                    `json:"track_serial_numbers"`
 	// NonBillable: never charged at the till even when a selling price exists (free
 	// accompaniments like ugali, supplies like tissue/packaging); stock still deducts.
-	NonBillable     *bool `json:"non_billable,omitempty"`
-	DurationMinutes int   `json:"duration_minutes"`
+	NonBillable *bool `json:"non_billable,omitempty"`
+	// NotForSale: inventory-only stock (ingredients, internal supplies) that must NEVER
+	// appear on any POS sales surface — excluded from the terminal catalog, menus and
+	// barcode lookup entirely (unlike NonBillable, which stays sellable at KES 0).
+	NotForSale      bool `json:"not_for_sale"`
+	DurationMinutes int  `json:"duration_minutes"`
 	// Hospitality / bookable-service fields (SERVICE items: co-working, conference,
 	// facility, amenity, salon). use_case drives how the terminal presents/books the item;
 	// total/booked_capacity model shared-seating availability (co-working desks).
@@ -978,6 +982,13 @@ func (h *CatalogHandler) assembleMenuItems(
 
 	out := make([]catalogItemDTO, 0, len(src.Items))
 	for _, item := range src.Items {
+		// NOT-FOR-SALE (inventory Item.not_for_sale): inventory-only stock (ingredients,
+		// internal supplies) must never surface on ANY POS sales surface — dropped before any
+		// filter/override so no local override can resurrect it. Distinct from non_billable,
+		// which stays on the menu as a free (KES 0) item.
+		if item.NotForSale {
+			continue
+		}
 		// Apply filters
 		if filters.Category != "" && !strings.EqualFold(item.CategoryName, filters.Category) {
 			continue
@@ -1514,6 +1525,20 @@ func (h *CatalogHandler) GetCatalogItem(w http.ResponseWriter, r *http.Request) 
 	if err := json.Unmarshal(body, &item); err != nil {
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
+	}
+
+	// not_for_sale items must never surface on a POS sales surface — treat a direct item
+	// fetch like a miss, mirroring the catalog list (assembleMenuItems) and barcode lookup.
+	// Handles both the bare-object and {"data": {...}} response shapes.
+	if nfs, _ := item["not_for_sale"].(bool); nfs {
+		jsonError(w, "item not found", http.StatusNotFound)
+		return
+	}
+	if data, ok := item["data"].(map[string]any); ok {
+		if nfs, _ := data["not_for_sale"].(bool); nfs {
+			jsonError(w, "item not found", http.StatusNotFound)
+			return
+		}
 	}
 
 	jsonOK(w, item)

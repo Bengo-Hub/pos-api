@@ -29,7 +29,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_http_handlers.livenessResponse"
+                            "$ref": "#/definitions/handlers.livenessResponse"
                         }
                     }
                 }
@@ -69,13 +69,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_http_handlers.readinessResponse"
+                            "$ref": "#/definitions/handlers.readinessResponse"
                         }
                     },
                     "503": {
                         "description": "Service Unavailable",
                         "schema": {
-                            "$ref": "#/definitions/internal_http_handlers.readinessResponse"
+                            "$ref": "#/definitions/handlers.readinessResponse"
                         }
                     }
                 }
@@ -97,7 +97,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_http_handlers.bulkClientImportResult"
+                            "$ref": "#/definitions/handlers.bulkClientImportResult"
                         }
                     }
                 }
@@ -177,7 +177,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_bengobox_pos-service_internal_modules_documents.SeqConfigDTO"
+                            "$ref": "#/definitions/documents.SeqConfigDTO"
                         }
                     }
                 ],
@@ -185,7 +185,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_bengobox_pos-service_internal_modules_documents.SeqConfigDTO"
+                            "$ref": "#/definitions/documents.SeqConfigDTO"
                         }
                     }
                 }
@@ -234,10 +234,76 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/{tenantID}/pos/orders/bulk-delete": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "orders"
+                ],
+                "summary": "Bulk-delete draft (parked) sales",
+                "parameters": [
+                    {
+                        "description": "IDs of the draft orders to delete",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.bulkDeleteOrdersInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.bulkDeleteOrdersResult"
+                        }
+                    }
+                }
+            }
+        },
+        "/{tenantID}/pos/orders/bulk-void": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "orders"
+                ],
+                "summary": "Bulk-void unsettled orders",
+                "parameters": [
+                    {
+                        "description": "IDs of the orders to void + the shared void reason",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.bulkVoidOrdersInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.bulkVoidOrdersResult"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
-        "github_com_bengobox_pos-service_internal_modules_documents.SeqConfigDTO": {
+        "documents.SeqConfigDTO": {
             "type": "object",
             "properties": {
                 "current_val": {
@@ -266,7 +332,7 @@ const docTemplate = `{
                 }
             }
         },
-        "internal_http_handlers.bulkClientImportResult": {
+        "handlers.bulkClientImportResult": {
             "type": "object",
             "properties": {
                 "created": {
@@ -278,7 +344,7 @@ const docTemplate = `{
                 "results": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/internal_http_handlers.bulkClientRowResult"
+                        "$ref": "#/definitions/handlers.bulkClientRowResult"
                     }
                 },
                 "updated": {
@@ -286,7 +352,7 @@ const docTemplate = `{
                 }
             }
         },
-        "internal_http_handlers.bulkClientRowResult": {
+        "handlers.bulkClientRowResult": {
             "type": "object",
             "properties": {
                 "client_id": {
@@ -304,7 +370,71 @@ const docTemplate = `{
                 }
             }
         },
-        "internal_http_handlers.livenessResponse": {
+        "handlers.bulkDeleteOrdersInput": {
+            "type": "object",
+            "properties": {
+                "order_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "handlers.bulkDeleteOrdersResult": {
+            "type": "object",
+            "properties": {
+                "deleted": {
+                    "type": "integer"
+                },
+                "skipped": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handlers.bulkSkippedItem"
+                    }
+                }
+            }
+        },
+        "handlers.bulkSkippedItem": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "reason": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.bulkVoidOrdersInput": {
+            "type": "object",
+            "properties": {
+                "order_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "reason": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.bulkVoidOrdersResult": {
+            "type": "object",
+            "properties": {
+                "skipped": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handlers.bulkSkippedItem"
+                    }
+                },
+                "voided": {
+                    "type": "integer"
+                }
+            }
+        },
+        "handlers.livenessResponse": {
             "type": "object",
             "properties": {
                 "service": {
@@ -317,7 +447,7 @@ const docTemplate = `{
                 }
             }
         },
-        "internal_http_handlers.readinessResponse": {
+        "handlers.readinessResponse": {
             "type": "object",
             "properties": {
                 "dependencies": {

@@ -339,6 +339,16 @@ func New(
 						// waiter) only their OWN. Only draft-status orders are deletable (finalized
 						// sales must be voided/returned so the ledger + eTIMS stay consistent).
 						pos.With(orderWrite).Delete("/orders/{orderID}", orders.DeleteDraft)
+						// Bulk draft delete — same middleware + per-order rules as the single
+						// DeleteDraft above (manage deletes any draft, others only their own);
+						// missing/ineligible ids are reported as skipped, never as errors.
+						pos.With(orderWrite).Post("/orders/bulk-delete", orders.BulkDeleteDrafts)
+						// Bulk void — a back-office manager action, so it is route-gated to
+						// pos.orders.manage (no terminal step-up token: the caller IS the
+						// manager). Per-order eligibility mirrors the single void exactly
+						// (already-voided → skipped, finalized sales must go via return/refund).
+						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.orders.manage")).
+							Post("/orders/bulk-void", orders.BulkVoidOrders)
 						// Manager generates a one-time code (shareable) to authorize voiding this
 						// order when they're not at the terminal. Manager-only (handler re-checks role).
 						pos.Post("/orders/{orderID}/void-code", orders.GenerateVoidCode)

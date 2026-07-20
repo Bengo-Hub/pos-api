@@ -91,6 +91,15 @@ func (h *CatalogHandler) BarcodeLookup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	item := wrapper.Data[0]
+
+	// not_for_sale items (inventory-only stock: ingredients, internal supplies) must never be
+	// sellable — scanning one at the till reads as "not found", mirroring the catalog list
+	// which drops them in assembleMenuItems.
+	if nfs, _ := item["not_for_sale"].(bool); nfs {
+		jsonError(w, "item not found", http.StatusNotFound)
+		return
+	}
+
 	sku, _ := item["sku"].(string)
 
 	// Cost parity with the catalog list (assembleMenuItems): fall back to purchase_price when
