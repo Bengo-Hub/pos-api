@@ -1010,22 +1010,26 @@ func seedRBACRoles(ctx context.Context, client *ent.Client) error {
 		if err != nil {
 			return fmt.Errorf("list roles for code %s: %w", rd.code, err)
 		}
-		// ADD-ONLY for every role bearing this system code — global (shared, tenant_id NULL)
-		// AND tenant-scoped copies alike. The seed guarantees every role has AT LEAST the
-		// permissions its code definition lists; it never revokes one.
+		// ADD-ONLY, and ONLY to the GLOBAL row (tenant_id NULL). The global role is the platform-wide
+		// DEFAULT/template: it must always carry at least its code-defined permissions so a new pos-api
+		// release can introduce a new default grant and new/uncustomized tenants inherit it.
 		//
-		// This used to run an "exact reconcile" (revoke any grant not in the code definition)
-		// for the GLOBAL role specifically. That silently discarded a tenant admin's edits made
-		// via the Roles & Permissions matrix on the VERY NEXT pos-api deploy (the entrypoint
-		// re-runs this seed on every pod boot) — an admin unchecking e.g. pos.payments.add for
-		// "waiter" would see it correctly removed, then have it silently restored a few minutes
-		// later when the next deploy's seed ran, with no error or indication anything reverted.
-		// The UI must be a trustworthy, durable reflection of "what this role currently grants"
-		// — an admin's deliberate edit is the more authoritative signal than the code's default
-		// definition once the role already exists. If a permission is later retired from a role's
-		// code definition, remove it from anyone who still holds it via a one-off admin action or
-		// migration, not a standing behavior that also erases every tenant's customizations.
+		// Tenant-scoped copies are per-tenant OVERRIDES (copy-on-write, materialized when a tenant admin
+		// edits a shared role's matrix — see rbac.EnsureTenantRoleOverride). They are owned entirely by
+		// the tenant and must NEVER be touched here: re-adding a code default would silently revert a
+		// deliberate edit (e.g. an admin unchecking pos.payments.add for "waiter") on the very next pod
+		// boot, since the entrypoint re-runs this seed on every deploy. That was the exact recurring
+		// "the uncheck didn't stick after logout/login" bug — the previous "additive-only for ALL roles"
+		// fix stopped the DELETE side but STILL re-added removed defaults on the ADD side. An admin's
+		// deliberate override is more authoritative than the code default once it exists.
+		//
+		// This also used to run an "exact reconcile" (revoke any grant not in the code definition) on the
+		// global role; that was removed earlier. If a permission is later retired from a role's code
+		// definition, remove it via a one-off admin action or migration, not a standing per-boot behavior.
 		for _, role := range matchingRoles {
+			if role.TenantID != nil {
+				continue // per-tenant override — leave it entirely to the tenant
+			}
 			for _, permID := range permIDs {
 				_, err = client.POSRolePermission.Create().
 					SetRoleID(role.ID).
@@ -1082,6 +1086,27 @@ func seedRBACRoles(ctx context.Context, client *ent.Client) error {
 		if baseRoleCount > 0 {
 			continue // still referenced as a staff member's base role — leave it
 		}
+		// FINAL safeguard for the per-tenant override feature: only delete a tenant-scoped system-role
+		// copy whose permission set is IDENTICAL to the shared global role of the same code — a genuine
+		// redundant LEGACY duplicate (resolution would serve identical perms either way). A copy whose
+		// perms DIFFER is an intentional per-tenant OVERRIDE (copy-on-write matrix edit) and must be
+		// preserved, or we would re-introduce the exact "the admin's uncheck didn't stick" bug this
+		// change fixes. This holds even for an override on a role no staff currently hold as a base role.
+		globalPermIDs, err := client.POSRoleV2.Query().
+			Where(posrolev2.RoleCode(lr.RoleCode), posrolev2.TenantIDIsNil()).
+			QueryPermissions().IDs(ctx)
+		if err != nil {
+			return fmt.Errorf("read global perms for code %s: %w", lr.RoleCode, err)
+		}
+		copyPermIDs, err := client.POSRoleV2.Query().
+			Where(posrolev2.ID(lr.ID)).
+			QueryPermissions().IDs(ctx)
+		if err != nil {
+			return fmt.Errorf("read copy perms for legacy role %s: %w", lr.ID, err)
+		}
+		if !samePermSet(globalPermIDs, copyPermIDs) {
+			continue // intentional per-tenant override — never delete
+		}
 		if _, err := client.POSRolePermission.Delete().
 			Where(posrolepermission.RoleID(lr.ID)).
 			Exec(ctx); err != nil {
@@ -1095,6 +1120,23 @@ func seedRBACRoles(ctx context.Context, client *ent.Client) error {
 
 	log.Printf("  ✓ RBAC roles seeded: %d global system roles, permissions reconciled across all matching roles, %d legacy per-tenant duplicates consolidated", len(roles), consolidated)
 	return nil
+}
+
+// samePermSet reports whether two permission-ID slices contain exactly the same set (order-agnostic).
+func samePermSet(a, b []uuid.UUID) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	set := make(map[uuid.UUID]struct{}, len(a))
+	for _, id := range a {
+		set[id] = struct{}{}
+	}
+	for _, id := range b {
+		if _, ok := set[id]; !ok {
+			return false
+		}
+	}
+	return true
 }
 
 // globalRoleUUID returns the deterministic ID for a shared, platform-wide (global) POS role.

@@ -181,6 +181,68 @@ func (r *EntRepository) DeleteRole(ctx context.Context, tenantID uuid.UUID, role
 	return nil
 }
 
+// EnsureTenantRoleOverride implements copy-on-write for per-tenant customization of a shared role.
+// See the Repository interface doc. Returns the ID to apply subsequent permission edits to.
+func (r *EntRepository) EnsureTenantRoleOverride(ctx context.Context, tenantID uuid.UUID, roleID uuid.UUID) (uuid.UUID, error) {
+	src, err := r.client.POSRoleV2.Get(ctx, roleID)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return uuid.Nil, fmt.Errorf("role not found: %w", err)
+		}
+		return uuid.Nil, fmt.Errorf("load role: %w", err)
+	}
+	// Already tenant-owned — edit it in place. Guard against cross-tenant edits.
+	if src.TenantID != nil {
+		if *src.TenantID != tenantID {
+			return uuid.Nil, fmt.Errorf("role belongs to another tenant")
+		}
+		return src.ID, nil
+	}
+	// Global/shared role: reuse an existing override for this tenant if one already exists.
+	if existing, xerr := r.client.POSRoleV2.Query().
+		Where(posrolev2.RoleCode(src.RoleCode), posrolev2.TenantID(tenantID)).
+		Only(ctx); xerr == nil {
+		return existing.ID, nil
+	} else if !ent.IsNotFound(xerr) {
+		return uuid.Nil, fmt.Errorf("lookup existing override: %w", xerr)
+	}
+	// Materialize the override as a copy of the global role, cloning its current permissions,
+	// atomically so a partial copy can never surface.
+	tx, err := r.client.Tx(ctx)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("begin tx: %w", err)
+	}
+	newID := uuid.New()
+	create := tx.POSRoleV2.Create().
+		SetID(newID).
+		SetTenantID(tenantID).
+		SetRoleCode(src.RoleCode).
+		SetName(src.Name).
+		SetIsSystemRole(src.IsSystemRole)
+	if src.Description != "" {
+		create.SetDescription(src.Description)
+	}
+	if _, err := create.Save(ctx); err != nil {
+		_ = tx.Rollback()
+		return uuid.Nil, fmt.Errorf("create override role: %w", err)
+	}
+	permIDs, err := tx.POSRoleV2.Query().Where(posrolev2.ID(roleID)).QueryPermissions().IDs(ctx)
+	if err != nil {
+		_ = tx.Rollback()
+		return uuid.Nil, fmt.Errorf("read source permissions: %w", err)
+	}
+	for _, pid := range permIDs {
+		if _, err := tx.POSRolePermission.Create().SetRoleID(newID).SetPermissionID(pid).Save(ctx); err != nil {
+			_ = tx.Rollback()
+			return uuid.Nil, fmt.Errorf("clone permission %s: %w", pid, err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return uuid.Nil, fmt.Errorf("commit override: %w", err)
+	}
+	return newID, nil
+}
+
 // preferTenantRole returns the tenant-specific role if present, otherwise the first (global) role.
 func preferTenantRole(roles []*ent.POSRoleV2) *ent.POSRoleV2 {
 	chosen := roles[0]

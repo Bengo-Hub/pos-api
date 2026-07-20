@@ -116,7 +116,18 @@ func (h *RBACHandler) GetRolePermissions(w http.ResponseWriter, r *http.Request)
 		respondJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid role id"})
 		return
 	}
-	perms, err := h.rbacRepo.GetRolePermissions(r.Context(), roleID)
+	ctx := r.Context()
+	// Resolve to the tenant's EFFECTIVE role: a per-tenant override (copy-on-write) wins over the
+	// shared global row of the same code. This keeps the matrix showing what the tenant actually
+	// grants even when the client is still holding the global role id (before it refetches the list).
+	if tid, terr := uuid.Parse(httpware.GetTenantID(ctx)); terr == nil {
+		if role, gerr := h.rbacRepo.GetRole(ctx, tid, roleID); gerr == nil {
+			if eff, eerr := h.rbacRepo.GetRoleByCode(ctx, tid, role.RoleCode); eerr == nil {
+				roleID = eff.ID
+			}
+		}
+	}
+	perms, err := h.rbacRepo.GetRolePermissions(ctx, roleID)
 	if err != nil {
 		respondJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to load role permissions"})
 		return
@@ -144,11 +155,13 @@ func (h *RBACHandler) SetRolePermissions(w http.ResponseWriter, r *http.Request)
 	// (admin/manager/cashier/…) — only an admin may. This blocks a manager from, e.g.,
 	// granting the cashier role admin-level permissions or de-fanging the admin role.
 	tid, terr := uuid.Parse(httpware.GetTenantID(ctx))
-	if terr == nil {
-		if role, gerr := h.rbacRepo.GetRole(ctx, tid, roleID); gerr == nil {
-			if !h.requireAdminForSystemRole(w, r, role.IsSystemRole) {
-				return
-			}
+	if terr != nil {
+		respondJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid tenant_id"})
+		return
+	}
+	if role, gerr := h.rbacRepo.GetRole(ctx, tid, roleID); gerr == nil {
+		if !h.requireAdminForSystemRole(w, r, role.IsSystemRole) {
+			return
 		}
 	}
 	var req setPOSRolePermissionsRequest
@@ -156,7 +169,19 @@ func (h *RBACHandler) SetRolePermissions(w http.ResponseWriter, r *http.Request)
 		respondJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
 		return
 	}
-	current, err := h.rbacRepo.GetRolePermissions(ctx, roleID)
+	// Copy-on-write: a shared/global role (tenant_id NULL) is the platform-wide default and must
+	// NEVER be mutated by a tenant's matrix edit — that would change every other tenant's users of
+	// the same role. Materialize (or reuse) a per-tenant override of the role and apply the edit
+	// there. The read path (resolveRolePermissions/GetRoleByCode/ListRoles) already prefers the
+	// tenant override, and the seed never touches it — so the edit takes effect immediately and is
+	// durable across deploys. A role that is already tenant-owned is edited in place unchanged.
+	effectiveRoleID, err := h.rbacRepo.EnsureTenantRoleOverride(ctx, tid, roleID)
+	if err != nil {
+		h.logger.Error("ensure tenant role override failed", zap.Error(err), zap.String("role_id", roleID.String()))
+		respondJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to scope role permissions to tenant"})
+		return
+	}
+	current, err := h.rbacRepo.GetRolePermissions(ctx, effectiveRoleID)
 	if err != nil {
 		respondJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to load role permissions"})
 		return
@@ -171,19 +196,24 @@ func (h *RBACHandler) SetRolePermissions(w http.ResponseWriter, r *http.Request)
 	}
 	for id := range want {
 		if !have[id] {
-			if err := h.rbacRepo.AssignPermissionToRole(ctx, roleID, id); err != nil {
+			if err := h.rbacRepo.AssignPermissionToRole(ctx, effectiveRoleID, id); err != nil {
 				h.logger.Warn("assign permission failed", zap.String("permission", id.String()), zap.Error(err))
 			}
 		}
 	}
 	for id := range have {
 		if !want[id] {
-			if err := h.rbacRepo.RemovePermissionFromRole(ctx, roleID, id); err != nil {
+			if err := h.rbacRepo.RemovePermissionFromRole(ctx, effectiveRoleID, id); err != nil {
 				h.logger.Warn("remove permission failed", zap.String("permission", id.String()), zap.Error(err))
 			}
 		}
 	}
-	respondJSON(w, http.StatusOK, map[string]string{"message": "role permissions updated"})
+	// Return the effective (possibly newly-materialized tenant-override) role id so the UI can
+	// re-target its matrix at the override instead of the shared global row.
+	respondJSON(w, http.StatusOK, map[string]any{
+		"message": "role permissions updated",
+		"role_id": effectiveRoleID.String(),
+	})
 }
 
 type updatePOSRoleRequest struct {
