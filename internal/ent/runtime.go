@@ -1015,11 +1015,11 @@ func init() {
 	// layawayplan.DefaultStatus holds the default value on creation for the status field.
 	layawayplan.DefaultStatus = layawayplanDescStatus.Default.(string)
 	// layawayplanDescCreatedAt is the schema descriptor for created_at field.
-	layawayplanDescCreatedAt := layawayplanFields[18].Descriptor()
+	layawayplanDescCreatedAt := layawayplanFields[19].Descriptor()
 	// layawayplan.DefaultCreatedAt holds the default value on creation for the created_at field.
 	layawayplan.DefaultCreatedAt = layawayplanDescCreatedAt.Default.(func() time.Time)
 	// layawayplanDescUpdatedAt is the schema descriptor for updated_at field.
-	layawayplanDescUpdatedAt := layawayplanFields[19].Descriptor()
+	layawayplanDescUpdatedAt := layawayplanFields[20].Descriptor()
 	// layawayplan.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	layawayplan.DefaultUpdatedAt = layawayplanDescUpdatedAt.Default.(func() time.Time)
 	// layawayplan.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

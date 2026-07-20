@@ -94,6 +94,13 @@ type SignPOSSaleItem struct {
 	PriceIncludesTax bool    `json:"price_includes_tax"`
 }
 
+// SignPOSSaleTender mirrors one settled tender of the sale so treasury declares the real KRA
+// pmtTyCd (card/mobile/cash) on the ETR receipt.
+type SignPOSSaleTender struct {
+	Type   string  `json:"type"`
+	Amount float64 `json:"amount"`
+}
+
 // SignPOSSaleRequest is the body for POST /api/v1/s2s/{tenant}/etims/sign-pos-sale — the same
 // shape as the pos.sale.finalized event so the synchronous and async signing paths are identical.
 type SignPOSSaleRequest struct {
@@ -101,7 +108,14 @@ type SignPOSSaleRequest struct {
 	OrderNumber string            `json:"order_number"`
 	TotalAmount float64           `json:"total_amount"`
 	Currency    string            `json:"currency"`
+	// OutletID is the selling outlet so treasury signs the sale under that branch's eTIMS device
+	// (multi-branch fiscalisation). Omitted → treasury uses the tenant main/default device.
+	OutletID    string            `json:"outlet_id,omitempty"`
 	Items       []SignPOSSaleItem `json:"items"`
+	// SellingScheme + Tenders carry the mode(s) of payment (credit/card/mobile/cash) so the ETR
+	// receipt's pmtTyCd is the real instrument rather than a blanket cash. Omitted → 01 Cash.
+	SellingScheme string              `json:"selling_scheme,omitempty"`
+	Tenders       []SignPOSSaleTender `json:"tenders,omitempty"`
 }
 
 // SignPOSSale signs a POS sale synchronously at checkout and returns its fiscal evidence, so the

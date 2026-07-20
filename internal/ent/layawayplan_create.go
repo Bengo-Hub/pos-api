@@ -179,6 +179,12 @@ func (_c *LayawayPlanCreate) SetNillableStatus(v *string) *LayawayPlanCreate {
 	return _c
 }
 
+// SetItems sets the "items" field.
+func (_c *LayawayPlanCreate) SetItems(v []map[string]interface{}) *LayawayPlanCreate {
+	_c.mutation.SetItems(v)
+	return _c
+}
+
 // SetNotes sets the "notes" field.
 func (_c *LayawayPlanCreate) SetNotes(v string) *LayawayPlanCreate {
 	_c.mutation.SetNotes(v)
@@ -453,6 +459,10 @@ func (_c *LayawayPlanCreate) createSpec() (*LayawayPlan, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Status(); ok {
 		_spec.SetField(layawayplan.FieldStatus, field.TypeString, value)
 		_node.Status = value
+	}
+	if value, ok := _c.mutation.Items(); ok {
+		_spec.SetField(layawayplan.FieldItems, field.TypeJSON, value)
+		_node.Items = value
 	}
 	if value, ok := _c.mutation.Notes(); ok {
 		_spec.SetField(layawayplan.FieldNotes, field.TypeString, value)
@@ -753,6 +763,24 @@ func (u *LayawayPlanUpsert) SetStatus(v string) *LayawayPlanUpsert {
 // UpdateStatus sets the "status" field to the value that was provided on create.
 func (u *LayawayPlanUpsert) UpdateStatus() *LayawayPlanUpsert {
 	u.SetExcluded(layawayplan.FieldStatus)
+	return u
+}
+
+// SetItems sets the "items" field.
+func (u *LayawayPlanUpsert) SetItems(v []map[string]interface{}) *LayawayPlanUpsert {
+	u.Set(layawayplan.FieldItems, v)
+	return u
+}
+
+// UpdateItems sets the "items" field to the value that was provided on create.
+func (u *LayawayPlanUpsert) UpdateItems() *LayawayPlanUpsert {
+	u.SetExcluded(layawayplan.FieldItems)
+	return u
+}
+
+// ClearItems clears the value of the "items" field.
+func (u *LayawayPlanUpsert) ClearItems() *LayawayPlanUpsert {
+	u.SetNull(layawayplan.FieldItems)
 	return u
 }
 
@@ -1125,6 +1153,27 @@ func (u *LayawayPlanUpsertOne) SetStatus(v string) *LayawayPlanUpsertOne {
 func (u *LayawayPlanUpsertOne) UpdateStatus() *LayawayPlanUpsertOne {
 	return u.Update(func(s *LayawayPlanUpsert) {
 		s.UpdateStatus()
+	})
+}
+
+// SetItems sets the "items" field.
+func (u *LayawayPlanUpsertOne) SetItems(v []map[string]interface{}) *LayawayPlanUpsertOne {
+	return u.Update(func(s *LayawayPlanUpsert) {
+		s.SetItems(v)
+	})
+}
+
+// UpdateItems sets the "items" field to the value that was provided on create.
+func (u *LayawayPlanUpsertOne) UpdateItems() *LayawayPlanUpsertOne {
+	return u.Update(func(s *LayawayPlanUpsert) {
+		s.UpdateItems()
+	})
+}
+
+// ClearItems clears the value of the "items" field.
+func (u *LayawayPlanUpsertOne) ClearItems() *LayawayPlanUpsertOne {
+	return u.Update(func(s *LayawayPlanUpsert) {
+		s.ClearItems()
 	})
 }
 
@@ -1672,6 +1721,27 @@ func (u *LayawayPlanUpsertBulk) SetStatus(v string) *LayawayPlanUpsertBulk {
 func (u *LayawayPlanUpsertBulk) UpdateStatus() *LayawayPlanUpsertBulk {
 	return u.Update(func(s *LayawayPlanUpsert) {
 		s.UpdateStatus()
+	})
+}
+
+// SetItems sets the "items" field.
+func (u *LayawayPlanUpsertBulk) SetItems(v []map[string]interface{}) *LayawayPlanUpsertBulk {
+	return u.Update(func(s *LayawayPlanUpsert) {
+		s.SetItems(v)
+	})
+}
+
+// UpdateItems sets the "items" field to the value that was provided on create.
+func (u *LayawayPlanUpsertBulk) UpdateItems() *LayawayPlanUpsertBulk {
+	return u.Update(func(s *LayawayPlanUpsert) {
+		s.UpdateItems()
+	})
+}
+
+// ClearItems clears the value of the "items" field.
+func (u *LayawayPlanUpsertBulk) ClearItems() *LayawayPlanUpsertBulk {
+	return u.Update(func(s *LayawayPlanUpsert) {
+		s.ClearItems()
 	})
 }
 

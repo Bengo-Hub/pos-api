@@ -45,6 +45,8 @@ const (
 	FieldRemainingAmount = "remaining_amount"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
+	// FieldItems holds the string denoting the items field in the database.
+	FieldItems = "items"
 	// FieldNotes holds the string denoting the notes field in the database.
 	FieldNotes = "notes"
 	// FieldDueDate holds the string denoting the due_date field in the database.
@@ -75,6 +77,7 @@ var Columns = []string{
 	FieldPaidAmount,
 	FieldRemainingAmount,
 	FieldStatus,
+	FieldItems,
 	FieldNotes,
 	FieldDueDate,
 	FieldCreatedAt,

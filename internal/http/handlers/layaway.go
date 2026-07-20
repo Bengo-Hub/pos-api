@@ -20,11 +20,20 @@ import (
 	"github.com/bengobox/pos-service/internal/modules/staffcredit"
 )
 
+// SaleFinalizer publishes the post-sale fan-out (GL posting, inventory stock backflush, eTIMS
+// fiscalisation) for a completed order. Implemented by payments.Service.FinalizeExternalOrder so
+// layaway completion syncs identically to a normal sale, without the handler depending on the whole
+// payments module surface.
+type SaleFinalizer interface {
+	FinalizeExternalOrder(order *ent.POSOrder)
+}
+
 // LayawayHandler handles layaway plan and payment endpoints.
 type LayawayHandler struct {
 	log         *zap.Logger
 	db          *ent.Client
 	staffCredit *staffcredit.Service
+	finalizer   SaleFinalizer
 }
 
 func NewLayawayHandler(log *zap.Logger, db *ent.Client) *LayawayHandler {
@@ -38,15 +47,42 @@ func (h *LayawayHandler) WithStaffCredit(s *staffcredit.Service) *LayawayHandler
 	return h
 }
 
+// WithFinalizer wires the post-sale fan-out so a completed layaway posts GL/stock/eTIMS. Optional;
+// nil = the plan is marked completed and the order created, but nothing is synced downstream (the
+// legacy behaviour).
+func (h *LayawayHandler) WithFinalizer(f SaleFinalizer) *LayawayHandler {
+	h.finalizer = f
+	return h
+}
+
+// layawayItemInput is one cart line captured on a layaway so completion posts GL/stock/eTIMS with
+// the real SKU (not a single opaque LAYAWAY line). Optional — omitting items keeps the total-only
+// summary-line behaviour.
+type layawayItemInput struct {
+	SKU              string  `json:"sku"`
+	Name             string  `json:"name"`
+	CatalogItemID    string  `json:"catalog_item_id,omitempty"`
+	Category         string  `json:"category,omitempty"`
+	Quantity         float64 `json:"quantity"`
+	UnitPrice        float64 `json:"unit_price"`
+	TotalPrice       float64 `json:"total_price"`
+	TaxCodeID        string  `json:"tax_code_id,omitempty"`
+	TaxKRACode       string  `json:"tax_kra_code,omitempty"`
+	TaxRate          float64 `json:"tax_rate,omitempty"`
+	TaxAmount        float64 `json:"tax_amount,omitempty"`
+	PriceIncludesTax bool    `json:"price_includes_tax,omitempty"`
+}
+
 type createLayawayInput struct {
-	OutletID      string          `json:"outlet_id"`
-	CustomerName  string          `json:"customer_name"`
-	CustomerPhone string          `json:"customer_phone"`
-	CustomerEmail string          `json:"customer_email"`
-	TotalAmount   decimal.Decimal `json:"total_amount"`
-	DepositAmount decimal.Decimal `json:"deposit_amount"`
-	Notes         string          `json:"notes"`
-	DueDate       *string         `json:"due_date"`
+	OutletID      string             `json:"outlet_id"`
+	CustomerName  string             `json:"customer_name"`
+	CustomerPhone string             `json:"customer_phone"`
+	CustomerEmail string             `json:"customer_email"`
+	TotalAmount   decimal.Decimal    `json:"total_amount"`
+	DepositAmount decimal.Decimal    `json:"deposit_amount"`
+	Items         []layawayItemInput `json:"items"`
+	Notes         string             `json:"notes"`
+	DueDate       *string            `json:"due_date"`
 	// Party selection: an existing customer (default) or a staff member funded from salary.
 	PartyType         string `json:"party_type"`         // customer | staff
 	StaffMemberID     string `json:"staff_member_id"`    // required when party_type=staff
@@ -116,6 +152,9 @@ func (h *LayawayHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 	if input.Notes != "" {
 		c.SetNotes(input.Notes)
+	}
+	if len(input.Items) > 0 {
+		c.SetItems(layawayItemsToJSON(input.Items))
 	}
 
 	// Party: staff (funded from salary) vs customer (default). Staff id + loyalty id are snapshots.
@@ -536,19 +575,59 @@ func (h *LayawayHandler) Complete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Single line summarising the layaway.
-	_, err = h.db.POSOrderLine.Create().
-		SetOrderID(order.ID).
-		SetCatalogItemID(uuid.Nil).
-		SetSku("LAYAWAY").
-		SetName("Layaway: " + plan.CustomerName).
-		SetQuantity(1).
-		SetUnitPrice(totalFloat).
-		SetTotalPrice(totalFloat).
-		SetMetadata(map[string]any{}).
-		Save(ctx)
-	if err != nil {
-		h.log.Error("create layaway order line failed", zap.Error(err))
+	// Rebuild the real order lines from the captured cart snapshot so the sale posts GL, backflushes
+	// stock, and fiscalises eTIMS with real SKUs. Legacy/total-only plans (no items) keep the single
+	// opaque LAYAWAY summary line — GL still posts, but there is nothing to backflush/fiscalise.
+	if len(plan.Items) > 0 {
+		for _, raw := range plan.Items {
+			it := layawayItemFromJSON(raw)
+			if it.SKU == "" || it.Quantity <= 0 {
+				continue
+			}
+			lc := h.db.POSOrderLine.Create().
+				SetOrderID(order.ID).
+				SetCatalogItemID(parseUUIDOrNil(it.CatalogItemID)).
+				SetSku(it.SKU).
+				SetName(it.Name).
+				SetQuantity(it.Quantity).
+				SetUnitPrice(it.UnitPrice).
+				SetTotalPrice(it.TotalPrice).
+				SetPriceIncludesTax(it.PriceIncludesTax).
+				SetMetadata(map[string]any{})
+			if it.Category != "" {
+				lc.SetCategory(it.Category)
+			}
+			if it.TaxCodeID != "" {
+				lc.SetTaxCodeID(it.TaxCodeID)
+			}
+			if it.TaxKRACode != "" {
+				lc.SetTaxKraCode(it.TaxKRACode)
+			}
+			if it.TaxRate != 0 {
+				lc.SetTaxRate(it.TaxRate)
+			}
+			if it.TaxAmount != 0 {
+				lc.SetTaxAmount(it.TaxAmount)
+			}
+			if _, lerr := lc.Save(ctx); lerr != nil {
+				h.log.Error("create layaway order line failed", zap.String("sku", it.SKU), zap.Error(lerr))
+			}
+		}
+	} else {
+		// Single line summarising the layaway (legacy total-only plan).
+		_, err = h.db.POSOrderLine.Create().
+			SetOrderID(order.ID).
+			SetCatalogItemID(uuid.Nil).
+			SetSku("LAYAWAY").
+			SetName("Layaway: " + plan.CustomerName).
+			SetQuantity(1).
+			SetUnitPrice(totalFloat).
+			SetTotalPrice(totalFloat).
+			SetMetadata(map[string]any{}).
+			Save(ctx)
+		if err != nil {
+			h.log.Error("create layaway order line failed", zap.Error(err))
+		}
 	}
 
 	// Link order to plan and mark completed.
@@ -560,5 +639,50 @@ func (h *LayawayHandler) Complete(w http.ResponseWriter, r *http.Request) {
 		h.log.Error("update layaway plan after completion failed", zap.Error(err))
 	}
 
+	// Sync the completed sale downstream (GL posting, inventory backflush, eTIMS) exactly like a
+	// normal sale. Best-effort/detached — a completed layaway is never blocked on the fan-out.
+	if h.finalizer != nil {
+		h.finalizer.FinalizeExternalOrder(order)
+	}
+
 	jsonOK(w, map[string]any{"order_id": order.ID, "order_number": orderNumber})
+}
+
+// layawayItemsToJSON converts the typed create input into the JSON slice stored on the plan.
+func layawayItemsToJSON(items []layawayItemInput) []map[string]any {
+	out := make([]map[string]any, 0, len(items))
+	for _, it := range items {
+		out = append(out, map[string]any{
+			"sku": it.SKU, "name": it.Name, "catalog_item_id": it.CatalogItemID,
+			"category": it.Category, "quantity": it.Quantity, "unit_price": it.UnitPrice,
+			"total_price": it.TotalPrice, "tax_code_id": it.TaxCodeID, "tax_kra_code": it.TaxKRACode,
+			"tax_rate": it.TaxRate, "tax_amount": it.TaxAmount, "price_includes_tax": it.PriceIncludesTax,
+		})
+	}
+	return out
+}
+
+// layawayItemFromJSON reads one stored line snapshot back into the typed struct (numbers arrive as
+// float64 from JSON unmarshalling).
+func layawayItemFromJSON(m map[string]any) layawayItemInput {
+	str := func(k string) string { s, _ := m[k].(string); return s }
+	num := func(k string) float64 { f, _ := m[k].(float64); return f }
+	b, _ := m["price_includes_tax"].(bool)
+	return layawayItemInput{
+		SKU: str("sku"), Name: str("name"), CatalogItemID: str("catalog_item_id"),
+		Category: str("category"), Quantity: num("quantity"), UnitPrice: num("unit_price"),
+		TotalPrice: num("total_price"), TaxCodeID: str("tax_code_id"), TaxKRACode: str("tax_kra_code"),
+		TaxRate: num("tax_rate"), TaxAmount: num("tax_amount"), PriceIncludesTax: b,
+	}
+}
+
+// parseUUIDOrNil parses a UUID string, returning uuid.Nil on empty/invalid input.
+func parseUUIDOrNil(s string) uuid.UUID {
+	if s == "" {
+		return uuid.Nil
+	}
+	if id, err := uuid.Parse(s); err == nil {
+		return id
+	}
+	return uuid.Nil
 }

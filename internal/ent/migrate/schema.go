@@ -1038,6 +1038,7 @@ var (
 		{Name: "paid_amount", Type: field.TypeFloat64},
 		{Name: "remaining_amount", Type: field.TypeFloat64},
 		{Name: "status", Type: field.TypeString, Default: "active"},
+		{Name: "items", Type: field.TypeJSON, Nullable: true},
 		{Name: "notes", Type: field.TypeString, Nullable: true},
 		{Name: "due_date", Type: field.TypeTime, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime},

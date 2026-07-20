@@ -1,4 +1,4 @@
-h1:Ty76KZbq+6yNXUhnFOtYXSmlwtwxeC0sUzH/HgUE1Dk=
+h1:TFyi/H3bUWaOhgFWq0nzOYFAg24d4mwRXgwFd+UttxE=
 20260324210314_initial_schema.sql h1:L7ICP+7BHePtjHfQRRY9yP85A6Q9SyiYsqSvGK7paxA=
 20260403120000_fix_outbox_events_schema.sql h1:VNlTFTGCLBkz4+UvvvqZf5y5tyS0FfS1AXy770Ybc8o=
 20260507090905_hotel_module.sql h1:PGKqdzMQaeFLALmRXUmGsXjha3Rt42EldWJceFVNGDo=
@@ -84,3 +84,4 @@ h1:Ty76KZbq+6yNXUhnFOtYXSmlwtwxeC0sUzH/HgUE1Dk=
 20260719091103_outlet_thermal_grid_discount_limit_type.sql h1:YftiEEsQxAutqGDV5HTuprBoF9aic6I9hVBKO1Tf3Ow=
 20260719115635_outlet_cashier_terminal_policy.sql h1:mrGxaeqrcBJUbGFby7w3iFNsb/JyL91iNrc7jx1gqOM=
 20260719180642_add_document_sequences.sql h1:LrouN9I4JHY91q0hfys2moA+iafVxNRoAmh9V4Uh/hc=
+20260720080740_add_layaway_items.sql h1:GsvixJQQKrAP+XJ2EtqForeCvIoZyi7RT6qbWgl9kIA=

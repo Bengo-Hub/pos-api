@@ -313,7 +313,7 @@ func New(ctx context.Context) (*App, error) {
 	erpClient := erp.NewClient(cfg.ERP.ServiceURL, cfg.ERP.APIKey, cfg.ERP.RequestTimeout, log)
 	staffCreditSvc := staffcredit.NewService(entClient, erpClient, eventPub, subsClient, log)
 	paymentSvc.SetStaffCredit(staffCreditSvc) // staff credit sales route the debt to ERP payroll
-	layawayHandler := handlers.NewLayawayHandler(log, entClient).WithStaffCredit(staffCreditSvc)
+	layawayHandler := handlers.NewLayawayHandler(log, entClient).WithStaffCredit(staffCreditSvc).WithFinalizer(paymentSvc)
 	scaleHandler := handlers.NewScaleHandler(log, entClient)
 
 	// Pharmacy + Service modules (Sprint 8/9)

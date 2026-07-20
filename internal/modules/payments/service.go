@@ -876,6 +876,16 @@ func (s *Service) completeOrderIfFullyPaid(ctx context.Context, order *ent.POSOr
 // context (never the request context — that is cancelled the instant the handler responds; see
 // feedback_background_notifications_scope) with panic recovery so a fan-out error can never crash
 // the process or unwind a settled sale.
+// FinalizeExternalOrder runs the post-finalize fan-out (GL posting, inventory stock backflush, and
+// eTIMS fiscalisation) for an already-completed order created OUTSIDE the payment-intent flow — the
+// layaway completion path, where installments accrued on the plan rather than as POSPayments. It
+// reuses the exact same detached, panic-guarded fan-out as a normal sale so a fully-paid layaway is
+// synced identically to any other completed sale. Idempotency is the subscribers' responsibility
+// (all keyed on order id).
+func (s *Service) FinalizeExternalOrder(order *ent.POSOrder) {
+	s.dispatchPostFinalize(order)
+}
+
 func (s *Service) dispatchPostFinalize(order *ent.POSOrder) {
 	go func() {
 		defer func() {
@@ -966,6 +976,55 @@ func (s *Service) releaseTableForOrder(ctx context.Context, orderID uuid.UUID) {
 // backfilling on reprint. Idempotent end-to-end — treasury unique-keys the sale and returns the
 // existing fiscal record for an already-signed sale. Mutates `order` in place on success so the
 // fan-out's receipt print carries the fiscal block.
+// saleTender is the per-tender breakdown shared by the pos.sale.finalized event and the
+// synchronous eTIMS sign request, so the mode of payment treasury sees is identical on both paths.
+type saleTender struct {
+	Type   string
+	Amount float64
+	Status string
+}
+
+// resolveSaleSettlement inspects an order's payments and returns its selling scheme plus the
+// on-account / complimentary amounts and the per-tender breakdown. Shared by publishSaleFinalized
+// (async event → GL routing) and signEtimsSync (sync ETR sign → KRA pmtTyCd) so both declare the
+// same mode of payment. Type falls back to the PaymentData method when the Tender catalog Type is
+// blank, so digital instruments (card/mpesa) are still identifiable.
+func (s *Service) resolveSaleSettlement(ctx context.Context, order *ent.POSOrder) (scheme string, onAccount, comp float64, compReason string, tenders []saleTender) {
+	scheme = "cash"
+	if pays, perr := s.client.POSPayment.Query().Where(pospayment.OrderID(order.ID)).All(ctx); perr == nil {
+		for _, p := range pays {
+			tType := ""
+			if t, tErr := s.client.Tender.Get(ctx, p.TenderID); tErr == nil {
+				tType = t.Type
+			}
+			method, _ := p.PaymentData["method"].(string)
+			typ := tType
+			if typ == "" {
+				typ = method
+			}
+			tenders = append(tenders, saleTender{Type: typ, Amount: p.Amount, Status: p.Status})
+			if strings.EqualFold(tType, TenderOnAccount) && p.Status == StatusCompleted {
+				onAccount += p.Amount
+			}
+			if strings.EqualFold(method, TenderComplimentary) && p.Status == StatusCompleted {
+				comp += p.Amount
+				if reason, ok := p.PaymentData["reason"].(string); ok && reason != "" {
+					compReason = reason
+				}
+			}
+		}
+	}
+	switch {
+	case comp > 0 && comp >= order.TotalAmount-0.01:
+		scheme = "complimentary"
+	case onAccount > 0 && onAccount >= order.TotalAmount-0.01:
+		scheme = "credit"
+	case onAccount > 0 || comp > 0:
+		scheme = "mixed"
+	}
+	return
+}
+
 func (s *Service) signEtimsSync(ctx context.Context, order *ent.POSOrder) {
 	if s.treasuryClient == nil || order == nil {
 		return
@@ -1035,12 +1094,20 @@ func (s *Service) signEtimsSync(ctx context.Context, order *ent.POSOrder) {
 		return
 	}
 
+	scheme, _, _, _, saleTenders := s.resolveSaleSettlement(ctx, order)
+	reqTenders := make([]treasury.SignPOSSaleTender, 0, len(saleTenders))
+	for _, t := range saleTenders {
+		reqTenders = append(reqTenders, treasury.SignPOSSaleTender{Type: t.Type, Amount: t.Amount})
+	}
 	fi, err := s.treasuryClient.SignPOSSale(ctx, tenantSlug, treasury.SignPOSSaleRequest{
-		OrderID:     order.ID.String(),
-		OrderNumber: order.OrderNumber,
-		TotalAmount: order.TotalAmount,
-		Currency:    order.Currency,
-		Items:       items,
+		OrderID:       order.ID.String(),
+		OrderNumber:   order.OrderNumber,
+		TotalAmount:   order.TotalAmount,
+		Currency:      order.Currency,
+		OutletID:      order.OutletID.String(),
+		Items:         items,
+		SellingScheme: scheme,
+		Tenders:       reqTenders,
 	})
 	if err != nil {
 		s.log.Warn("etims: synchronous sign failed — falling back to async pos.sale.finalized",
@@ -1225,45 +1292,16 @@ func (s *Service) publishSaleFinalized(ctx context.Context, order *ent.POSOrder)
 	// treasury (recordCreditSale); treasury's sale.finalized subscriber must therefore NOT also post
 	// a cash receipt for it (that double-counted credit sales as cash). We surface the scheme, the
 	// on-account amount, and a per-tender breakdown for accurate GL posting.
-	sellingScheme := "cash"
-	onAccountAmount := 0.0
-	complimentaryAmount := 0.0
-	complimentaryReason := ""
-	tenderBreakdown := make([]map[string]any, 0)
-	if pays, perr := s.client.POSPayment.Query().Where(pospayment.OrderID(order.ID)).All(ctx); perr == nil {
-		for _, p := range pays {
-			tType := ""
-			if t, tErr := s.client.Tender.Get(ctx, p.TenderID); tErr == nil {
-				tType = t.Type
-			}
-			// The complimentary tender doesn't rely on the Tender catalog row's Type (the same
-			// generic tenderId is reused across cash/manual/card/on_account/etc. from the POS
-			// terminal) — recordComplimentarySale always stamps PaymentData["method"] reliably,
-			// so read that back instead for this specific detection.
-			method, _ := p.PaymentData["method"].(string)
-			tenderBreakdown = append(tenderBreakdown, map[string]any{
-				"type":   tType,
-				"amount": p.Amount,
-				"status": p.Status,
-			})
-			if strings.EqualFold(tType, TenderOnAccount) && p.Status == StatusCompleted {
-				onAccountAmount += p.Amount
-			}
-			if strings.EqualFold(method, TenderComplimentary) && p.Status == StatusCompleted {
-				complimentaryAmount += p.Amount
-				if reason, ok := p.PaymentData["reason"].(string); ok && reason != "" {
-					complimentaryReason = reason
-				}
-			}
-		}
-	}
-	switch {
-	case complimentaryAmount > 0 && complimentaryAmount >= order.TotalAmount-0.01:
-		sellingScheme = "complimentary" // fully comped, no charge
-	case onAccountAmount > 0 && onAccountAmount >= order.TotalAmount-0.01:
-		sellingScheme = "credit" // fully on account
-	case onAccountAmount > 0 || complimentaryAmount > 0:
-		sellingScheme = "mixed" // part cash / part on account / part complimentary
+	// Shared with signEtimsSync so the async event and the sync ETR sign declare the identical
+	// mode of payment (scheme + tender breakdown).
+	sellingScheme, onAccountAmount, complimentaryAmount, complimentaryReason, saleTenders := s.resolveSaleSettlement(ctx, order)
+	tenderBreakdown := make([]map[string]any, 0, len(saleTenders))
+	for _, t := range saleTenders {
+		tenderBreakdown = append(tenderBreakdown, map[string]any{
+			"type":   t.Type,
+			"amount": t.Amount,
+			"status": t.Status,
+		})
 	}
 
 	data := map[string]any{

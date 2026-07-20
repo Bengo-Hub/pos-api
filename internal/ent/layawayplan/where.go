@@ -846,6 +846,16 @@ func StatusContainsFold(v string) predicate.LayawayPlan {
 	return predicate.LayawayPlan(sql.FieldContainsFold(FieldStatus, v))
 }
 
+// ItemsIsNil applies the IsNil predicate on the "items" field.
+func ItemsIsNil() predicate.LayawayPlan {
+	return predicate.LayawayPlan(sql.FieldIsNull(FieldItems))
+}
+
+// ItemsNotNil applies the NotNil predicate on the "items" field.
+func ItemsNotNil() predicate.LayawayPlan {
+	return predicate.LayawayPlan(sql.FieldNotNull(FieldItems))
+}
+
 // NotesEQ applies the EQ predicate on the "notes" field.
 func NotesEQ(v string) predicate.LayawayPlan {
 	return predicate.LayawayPlan(sql.FieldEQ(FieldNotes, v))

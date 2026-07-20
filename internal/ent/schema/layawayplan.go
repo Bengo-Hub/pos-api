@@ -36,6 +36,11 @@ func (LayawayPlan) Fields() []ent.Field {
 		field.Float("paid_amount").GoType(decimal.Decimal{}),
 		field.Float("remaining_amount").GoType(decimal.Decimal{}),
 		field.String("status").Default("active").Comment("active, completed, cancelled, forfeited"),
+		// Cart line snapshot captured at create so Complete rebuilds real order lines and the sale
+		// posts GL, backflushes stock, and fiscalises eTIMS with real SKUs (not a single opaque
+		// LAYAWAY line). Optional — legacy/total-only plans keep the summary-line behaviour.
+		field.JSON("items", []map[string]any{}).Optional().
+			Comment("Line snapshot [{sku,name,quantity,unit_price,total_price,tax_*}] for completion sync"),
 		field.String("notes").Optional(),
 		field.Time("due_date").Optional().Nillable(),
 		field.Time("created_at").Default(time.Now).Immutable(),

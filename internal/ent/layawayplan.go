@@ -3,6 +3,7 @@
 package ent
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -49,6 +50,8 @@ type LayawayPlan struct {
 	RemainingAmount decimal.Decimal `json:"remaining_amount,omitempty"`
 	// active, completed, cancelled, forfeited
 	Status string `json:"status,omitempty"`
+	// Line snapshot [{sku,name,quantity,unit_price,total_price,tax_*}] for completion sync
+	Items []map[string]interface{} `json:"items,omitempty"`
 	// Notes holds the value of the "notes" field.
 	Notes string `json:"notes,omitempty"`
 	// DueDate holds the value of the "due_date" field.
@@ -67,6 +70,8 @@ func (*LayawayPlan) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case layawayplan.FieldOrderID, layawayplan.FieldStaffMemberID, layawayplan.FieldLoyaltyAccountID:
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
+		case layawayplan.FieldItems:
+			values[i] = new([]byte)
 		case layawayplan.FieldTotalAmount, layawayplan.FieldDepositAmount, layawayplan.FieldPaidAmount, layawayplan.FieldRemainingAmount:
 			values[i] = new(decimal.Decimal)
 		case layawayplan.FieldFundFromSalary:
@@ -191,6 +196,14 @@ func (_m *LayawayPlan) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.Status = value.String
 			}
+		case layawayplan.FieldItems:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field items", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.Items); err != nil {
+					return fmt.Errorf("unmarshal field items: %w", err)
+				}
+			}
 		case layawayplan.FieldNotes:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field notes", values[i])
@@ -302,6 +315,9 @@ func (_m *LayawayPlan) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("status=")
 	builder.WriteString(_m.Status)
+	builder.WriteString(", ")
+	builder.WriteString("items=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Items))
 	builder.WriteString(", ")
 	builder.WriteString("notes=")
 	builder.WriteString(_m.Notes)

@@ -10,6 +10,7 @@ import (
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"entgo.io/ent/dialect/sql/sqljson"
 	"entgo.io/ent/schema/field"
 	"github.com/bengobox/pos-service/internal/ent/layawayplan"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
@@ -298,6 +299,24 @@ func (_u *LayawayPlanUpdate) SetNillableStatus(v *string) *LayawayPlanUpdate {
 	return _u
 }
 
+// SetItems sets the "items" field.
+func (_u *LayawayPlanUpdate) SetItems(v []map[string]interface{}) *LayawayPlanUpdate {
+	_u.mutation.SetItems(v)
+	return _u
+}
+
+// AppendItems appends value to the "items" field.
+func (_u *LayawayPlanUpdate) AppendItems(v []map[string]interface{}) *LayawayPlanUpdate {
+	_u.mutation.AppendItems(v)
+	return _u
+}
+
+// ClearItems clears the value of the "items" field.
+func (_u *LayawayPlanUpdate) ClearItems() *LayawayPlanUpdate {
+	_u.mutation.ClearItems()
+	return _u
+}
+
 // SetNotes sets the "notes" field.
 func (_u *LayawayPlanUpdate) SetNotes(v string) *LayawayPlanUpdate {
 	_u.mutation.SetNotes(v)
@@ -483,6 +502,17 @@ func (_u *LayawayPlanUpdate) sqlSave(ctx context.Context) (_node int, err error)
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(layawayplan.FieldStatus, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Items(); ok {
+		_spec.SetField(layawayplan.FieldItems, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedItems(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, layawayplan.FieldItems, value)
+		})
+	}
+	if _u.mutation.ItemsCleared() {
+		_spec.ClearField(layawayplan.FieldItems, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.Notes(); ok {
 		_spec.SetField(layawayplan.FieldNotes, field.TypeString, value)
@@ -787,6 +817,24 @@ func (_u *LayawayPlanUpdateOne) SetNillableStatus(v *string) *LayawayPlanUpdateO
 	return _u
 }
 
+// SetItems sets the "items" field.
+func (_u *LayawayPlanUpdateOne) SetItems(v []map[string]interface{}) *LayawayPlanUpdateOne {
+	_u.mutation.SetItems(v)
+	return _u
+}
+
+// AppendItems appends value to the "items" field.
+func (_u *LayawayPlanUpdateOne) AppendItems(v []map[string]interface{}) *LayawayPlanUpdateOne {
+	_u.mutation.AppendItems(v)
+	return _u
+}
+
+// ClearItems clears the value of the "items" field.
+func (_u *LayawayPlanUpdateOne) ClearItems() *LayawayPlanUpdateOne {
+	_u.mutation.ClearItems()
+	return _u
+}
+
 // SetNotes sets the "notes" field.
 func (_u *LayawayPlanUpdateOne) SetNotes(v string) *LayawayPlanUpdateOne {
 	_u.mutation.SetNotes(v)
@@ -1002,6 +1050,17 @@ func (_u *LayawayPlanUpdateOne) sqlSave(ctx context.Context) (_node *LayawayPlan
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(layawayplan.FieldStatus, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Items(); ok {
+		_spec.SetField(layawayplan.FieldItems, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedItems(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, layawayplan.FieldItems, value)
+		})
+	}
+	if _u.mutation.ItemsCleared() {
+		_spec.ClearField(layawayplan.FieldItems, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.Notes(); ok {
 		_spec.SetField(layawayplan.FieldNotes, field.TypeString, value)

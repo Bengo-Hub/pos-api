@@ -33120,6 +33120,8 @@ type LayawayPlanMutation struct {
 	remaining_amount    *decimal.Decimal
 	addremaining_amount *decimal.Decimal
 	status              *string
+	items               *[]map[string]interface{}
+	appenditems         []map[string]interface{}
 	notes               *string
 	due_date            *time.Time
 	created_at          *time.Time
@@ -33919,6 +33921,71 @@ func (m *LayawayPlanMutation) ResetStatus() {
 	m.status = nil
 }
 
+// SetItems sets the "items" field.
+func (m *LayawayPlanMutation) SetItems(value []map[string]interface{}) {
+	m.items = &value
+	m.appenditems = nil
+}
+
+// Items returns the value of the "items" field in the mutation.
+func (m *LayawayPlanMutation) Items() (r []map[string]interface{}, exists bool) {
+	v := m.items
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldItems returns the old "items" field's value of the LayawayPlan entity.
+// If the LayawayPlan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LayawayPlanMutation) OldItems(ctx context.Context) (v []map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldItems is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldItems requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldItems: %w", err)
+	}
+	return oldValue.Items, nil
+}
+
+// AppendItems adds value to the "items" field.
+func (m *LayawayPlanMutation) AppendItems(value []map[string]interface{}) {
+	m.appenditems = append(m.appenditems, value...)
+}
+
+// AppendedItems returns the list of values that were appended to the "items" field in this mutation.
+func (m *LayawayPlanMutation) AppendedItems() ([]map[string]interface{}, bool) {
+	if len(m.appenditems) == 0 {
+		return nil, false
+	}
+	return m.appenditems, true
+}
+
+// ClearItems clears the value of the "items" field.
+func (m *LayawayPlanMutation) ClearItems() {
+	m.items = nil
+	m.appenditems = nil
+	m.clearedFields[layawayplan.FieldItems] = struct{}{}
+}
+
+// ItemsCleared returns if the "items" field was cleared in this mutation.
+func (m *LayawayPlanMutation) ItemsCleared() bool {
+	_, ok := m.clearedFields[layawayplan.FieldItems]
+	return ok
+}
+
+// ResetItems resets all changes to the "items" field.
+func (m *LayawayPlanMutation) ResetItems() {
+	m.items = nil
+	m.appenditems = nil
+	delete(m.clearedFields, layawayplan.FieldItems)
+}
+
 // SetNotes sets the "notes" field.
 func (m *LayawayPlanMutation) SetNotes(s string) {
 	m.notes = &s
@@ -34123,7 +34190,7 @@ func (m *LayawayPlanMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *LayawayPlanMutation) Fields() []string {
-	fields := make([]string, 0, 19)
+	fields := make([]string, 0, 20)
 	if m.tenant_id != nil {
 		fields = append(fields, layawayplan.FieldTenantID)
 	}
@@ -34168,6 +34235,9 @@ func (m *LayawayPlanMutation) Fields() []string {
 	}
 	if m.status != nil {
 		fields = append(fields, layawayplan.FieldStatus)
+	}
+	if m.items != nil {
+		fields = append(fields, layawayplan.FieldItems)
 	}
 	if m.notes != nil {
 		fields = append(fields, layawayplan.FieldNotes)
@@ -34219,6 +34289,8 @@ func (m *LayawayPlanMutation) Field(name string) (ent.Value, bool) {
 		return m.RemainingAmount()
 	case layawayplan.FieldStatus:
 		return m.Status()
+	case layawayplan.FieldItems:
+		return m.Items()
 	case layawayplan.FieldNotes:
 		return m.Notes()
 	case layawayplan.FieldDueDate:
@@ -34266,6 +34338,8 @@ func (m *LayawayPlanMutation) OldField(ctx context.Context, name string) (ent.Va
 		return m.OldRemainingAmount(ctx)
 	case layawayplan.FieldStatus:
 		return m.OldStatus(ctx)
+	case layawayplan.FieldItems:
+		return m.OldItems(ctx)
 	case layawayplan.FieldNotes:
 		return m.OldNotes(ctx)
 	case layawayplan.FieldDueDate:
@@ -34387,6 +34461,13 @@ func (m *LayawayPlanMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetStatus(v)
+		return nil
+	case layawayplan.FieldItems:
+		v, ok := value.([]map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetItems(v)
 		return nil
 	case layawayplan.FieldNotes:
 		v, ok := value.(string)
@@ -34512,6 +34593,9 @@ func (m *LayawayPlanMutation) ClearedFields() []string {
 	if m.FieldCleared(layawayplan.FieldCustomerEmail) {
 		fields = append(fields, layawayplan.FieldCustomerEmail)
 	}
+	if m.FieldCleared(layawayplan.FieldItems) {
+		fields = append(fields, layawayplan.FieldItems)
+	}
 	if m.FieldCleared(layawayplan.FieldNotes) {
 		fields = append(fields, layawayplan.FieldNotes)
 	}
@@ -34546,6 +34630,9 @@ func (m *LayawayPlanMutation) ClearField(name string) error {
 		return nil
 	case layawayplan.FieldCustomerEmail:
 		m.ClearCustomerEmail()
+		return nil
+	case layawayplan.FieldItems:
+		m.ClearItems()
 		return nil
 	case layawayplan.FieldNotes:
 		m.ClearNotes()
@@ -34605,6 +34692,9 @@ func (m *LayawayPlanMutation) ResetField(name string) error {
 		return nil
 	case layawayplan.FieldStatus:
 		m.ResetStatus()
+		return nil
+	case layawayplan.FieldItems:
+		m.ResetItems()
 		return nil
 	case layawayplan.FieldNotes:
 		m.ResetNotes()
