@@ -333,6 +333,12 @@ func New(
 						// All-Sales "New Sale Notification": (re)send the customer their receipt/invoice.
 						pos.Post("/orders/{orderID}/notify", orders.NotifySale)
 						pos.Patch("/orders/{orderID}/void", orders.VoidOrder)
+						// Delete a DRAFT (saved-but-unpaid) sale. Route-gated to an order-write
+						// permission; DeleteDraft then enforces the RBAC boundary server-side —
+						// pos.orders.manage deletes ANY draft, any other write principal (cashier/
+						// waiter) only their OWN. Only draft-status orders are deletable (finalized
+						// sales must be voided/returned so the ledger + eTIMS stay consistent).
+						pos.With(orderWrite).Delete("/orders/{orderID}", orders.DeleteDraft)
 						// Manager generates a one-time code (shareable) to authorize voiding this
 						// order when they're not at the terminal. Manager-only (handler re-checks role).
 						pos.Post("/orders/{orderID}/void-code", orders.GenerateVoidCode)

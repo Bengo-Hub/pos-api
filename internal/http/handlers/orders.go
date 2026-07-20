@@ -22,8 +22,11 @@ import (
 	entfacility "github.com/bengobox/pos-service/internal/ent/facility"
 	"github.com/bengobox/pos-service/internal/ent/outletsetting"
 	entoverride "github.com/bengobox/pos-service/internal/ent/poscatalogoverride"
+	"github.com/bengobox/pos-service/internal/ent/poslinemodifier"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
+	"github.com/bengobox/pos-service/internal/ent/posorderevent"
 	"github.com/bengobox/pos-service/internal/ent/posorderline"
+	"github.com/bengobox/pos-service/internal/ent/pospayment"
 	"github.com/bengobox/pos-service/internal/ent/posreturn"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
 	"github.com/bengobox/pos-service/internal/ent/tender"
@@ -1394,6 +1397,138 @@ func (h *POSOrderHandler) VoidOrder(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	jsonOK(w, updated)
+}
+
+// DeleteDraft handles DELETE /{tenantID}/pos/orders/{orderID} — permanently removes a DRAFT
+// (saved-but-unpaid) sale. RBAC enforced server-side (never trust the client): a manager/admin
+// holding pos.orders.manage may delete ANY draft; any other order-write principal (cashier/
+// waiter) may delete only their OWN draft (order.user_id == caller). This mirrors the full-view
+// test ownOrdersScope uses for the "My Sales" boundary.
+//
+// Only draft-status orders are deletable here. A finalized/settled sale carries ledger + KRA
+// eTIMS state and must be reversed via void/return instead, so those are rejected with 409.
+// A draft was never posted to the ledger or fiscalised, so it is hard-deleted along with its
+// child rows (line modifiers, lines, any stray payments, events) in one transaction — nothing
+// to reverse, nothing worth keeping for audit beyond the audit-log entry recorded below.
+func (h *POSOrderHandler) DeleteDraft(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+	orderID, err := uuid.Parse(chi.URLParam(r, "orderID"))
+	if err != nil {
+		jsonError(w, "invalid order id", http.StatusBadRequest)
+		return
+	}
+
+	claims, ok := authclient.ClaimsFromContext(r.Context())
+	if !ok || claims == nil || claims.Subject == "" {
+		jsonError(w, "unauthenticated", http.StatusUnauthorized)
+		return
+	}
+	callerID, _ := uuid.Parse(claims.Subject)
+
+	order, err := h.client.POSOrder.Query().
+		Where(posorder.ID(orderID), posorder.TenantID(tid)).
+		Only(r.Context())
+	if err != nil {
+		if ent.IsNotFound(err) {
+			jsonError(w, "order not found", http.StatusNotFound)
+			return
+		}
+		h.log.Error("delete draft: query order failed", zap.Error(err))
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	if order.Status != "draft" {
+		jsonError(w, "only draft orders can be deleted — void or return a finalized sale instead", http.StatusConflict)
+		return
+	}
+
+	// pos.orders.manage → delete any; otherwise the caller must own the draft. HasServicePermission
+	// bypasses for superusers/platform owners, exactly like the read-scoping full-view check.
+	canDeleteAny := outletmw.HasServicePermission(r, h.rbac, "pos.orders.manage")
+	if !canDeleteAny && order.UserID != callerID {
+		jsonError(w, "you can only delete your own drafts", http.StatusForbidden)
+		return
+	}
+
+	tx, err := h.client.Tx(r.Context())
+	if err != nil {
+		h.log.Error("delete draft: begin tx failed", zap.Error(err))
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	lineIDs, err := tx.POSOrderLine.Query().Where(posorderline.OrderID(orderID)).IDs(r.Context())
+	if err != nil {
+		_ = tx.Rollback()
+		h.log.Error("delete draft: query lines failed", zap.Error(err))
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	if len(lineIDs) > 0 {
+		if _, err := tx.POSLineModifier.Delete().Where(poslinemodifier.LineIDIn(lineIDs...)).Exec(r.Context()); err != nil {
+			_ = tx.Rollback()
+			h.log.Error("delete draft: delete modifiers failed", zap.Error(err))
+			jsonError(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+	}
+	if _, err := tx.POSOrderLine.Delete().Where(posorderline.OrderID(orderID)).Exec(r.Context()); err != nil {
+		_ = tx.Rollback()
+		h.log.Error("delete draft: delete lines failed", zap.Error(err))
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	if _, err := tx.POSPayment.Delete().Where(pospayment.OrderID(orderID)).Exec(r.Context()); err != nil {
+		_ = tx.Rollback()
+		h.log.Error("delete draft: delete payments failed", zap.Error(err))
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	if _, err := tx.POSOrderEvent.Delete().Where(posorderevent.OrderID(orderID)).Exec(r.Context()); err != nil {
+		_ = tx.Rollback()
+		h.log.Error("delete draft: delete events failed", zap.Error(err))
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	if err := tx.POSOrder.DeleteOneID(orderID).Exec(r.Context()); err != nil {
+		_ = tx.Rollback()
+		h.log.Error("delete draft: delete order failed", zap.Error(err))
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	if err := tx.Commit(); err != nil {
+		h.log.Error("delete draft: commit failed", zap.Error(err))
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	h.log.Info("draft deleted",
+		zap.Stringer("order_id", orderID),
+		zap.Stringer("deleted_by", callerID),
+		zap.String("order_number", order.OrderNumber),
+	)
+
+	if h.auditSvc != nil {
+		oid := order.OutletID
+		amt := order.TotalAmount
+		h.auditSvc.Record(r.Context(), audit.Entry{
+			TenantID:    tid,
+			OutletID:    &oid,
+			ActorUserID: callerID,
+			Action:      "order.draft_deleted",
+			EntityType:  "pos_order",
+			EntityID:    orderID.String(),
+			Amount:      &amt,
+			Before:      map[string]any{"status": order.Status, "order_number": order.OrderNumber},
+			After:       map[string]any{"deleted": true},
+		})
+	}
+
+	jsonOK(w, map[string]any{"deleted": true, "order_number": order.OrderNumber})
 }
 
 // AddOrderLines handles POST /{tenantID}/pos/orders/{orderID}/lines
