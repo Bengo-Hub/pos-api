@@ -740,11 +740,17 @@ func (h *ReturnHandler) CompleteReturn(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// eTIMS credit note: a returned, tax-invoiced sale needs a VAT-reversal credit note in treasury.
-	// Best-effort + non-fatal: find the original sale's invoice by reference, then issue the credit
-	// note. Treasury owns it; pos only logs the number for audit.
+	// eTIMS credit note: a returned, tax-invoiced sale needs a VAT-reversal credit note in treasury —
+	// including an EXCHANGE, which was previously excluded here even though the exchanged-away item's
+	// original sale is just as fiscally reversed as a refund's; the replacement item already gets its
+	// own new fiscalised sale via the normal order pipeline (fulfilExchange), so without this the
+	// original item's VAT was never reversed at KRA — the tenant over-reported output VAT on every
+	// exchange. Best-effort + non-fatal: find the original sale's invoice by reference, then issue the
+	// credit note. Treasury owns it; pos only logs the number for audit. (Known existing limitation,
+	// not introduced here: CreateCreditNote always reverses the FULL original invoice — a partial
+	// return/exchange of just some lines is not yet split at this call site for any return type.)
 	if h.treasuryClient != nil &&
-		(ret.ReturnType == posreturn.ReturnTypeRefund || ret.ReturnType == posreturn.ReturnTypeStoreCredit) {
+		(ret.ReturnType == posreturn.ReturnTypeRefund || ret.ReturnType == posreturn.ReturnTypeStoreCredit || ret.ReturnType == posreturn.ReturnTypeExchange) {
 		slug := chi.URLParam(r, "tenantID")
 		if inv, invErr := h.treasuryClient.GetInvoiceByReference(ctx, slug, "pos_order", ret.OrderID.String()); invErr == nil && inv != nil && inv.ID != "" {
 			if cn, cnErr := h.treasuryClient.CreateCreditNote(ctx, slug, inv.ID); cnErr != nil {
