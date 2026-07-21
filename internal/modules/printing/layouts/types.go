@@ -6,13 +6,10 @@
 package layouts
 
 import (
-	"bytes"
 	"html"
-	"io"
-	"net/http"
-	"strings"
 	"time"
 
+	sharedcache "github.com/Bengo-Hub/cache"
 	"github.com/google/uuid"
 )
 
@@ -139,46 +136,12 @@ func escape(s string) string { return html.EscapeString(s) }
 // Escape is the exported form for other packages sharing receipt/menu HTML generation.
 func Escape(s string) string { return escape(s) }
 
-// brandImageHTTPClient is a shared, connection-pooling client for downloading branding/menu
-// images. A menu render fetches ~50 images; reusing keep-alive connections (instead of a fresh
-// client + TLS handshake per image) and a tighter timeout keeps the render fast and bounded.
-// It is safe for concurrent use.
-var brandImageHTTPClient = &http.Client{
-	Timeout: 4 * time.Second,
-	Transport: &http.Transport{
-		MaxIdleConns:        64,
-		MaxIdleConnsPerHost: 32,
-		IdleConnTimeout:     30 * time.Second,
-		TLSHandshakeTimeout: 3 * time.Second,
-	},
-}
-
-// FetchLogo best-effort downloads a logo/menu image (PNG/JPG); returns nil on any failure.
-// The image type is sniffed from the ACTUAL BYTES, not the HTTP Content-Type / extension —
-// logos are frequently mislabeled (a JPEG uploaded as "logo.png"), and fpdf rejects a
-// declared-type/real-bytes mismatch with "not a PNG buffer", poisoning the whole document.
+// FetchLogo best-effort resolves a logo/menu image (PNG/JPG/GIF) to its bytes + fpdf image type via
+// the shared cache.FetchLogo — the single resolver shared by every service. It handles a hosted URL
+// as well as an inline base64 data: URI (http.Get cannot fetch a data: URI, which silently dropped
+// inline logos), and sniffs the image type from the ACTUAL BYTES, not the HTTP Content-Type — logos
+// are frequently mislabeled (a JPEG uploaded as "logo.png"), and fpdf rejects a declared-type/real-
+// bytes mismatch with "not a PNG buffer", poisoning the whole document. Returns nil on any failure.
 func FetchLogo(url string) ([]byte, string) {
-	if url == "" {
-		return nil, ""
-	}
-	resp, err := brandImageHTTPClient.Get(url) //nolint:noctx
-	if err != nil {
-		return nil, ""
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return nil, ""
-	}
-	var buf bytes.Buffer
-	if _, err := buf.ReadFrom(&io.LimitedReader{R: resp.Body, N: 5 << 20}); err != nil {
-		return nil, ""
-	}
-	switch ct := http.DetectContentType(buf.Bytes()); {
-	case strings.Contains(ct, "png"):
-		return buf.Bytes(), "PNG"
-	case strings.Contains(ct, "jpeg"), strings.Contains(ct, "jpg"):
-		return buf.Bytes(), "JPG"
-	default:
-		return nil, ""
-	}
+	return sharedcache.FetchLogo(url)
 }

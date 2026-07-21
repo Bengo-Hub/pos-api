@@ -162,7 +162,9 @@ func (rc *reportCtx) drawCards(y float64) float64 {
 		p.box(x, y, cw, ch)
 		p.fillRect(x, y, 1.4, ch, p.pal.blue) // accent bar
 		p.text(x+4, y+3.0, upper(c.Label), "B", 7, p.pal.muted)
-		p.text(x+4, y+8.0, p.clip(c.Value, "B", 13, cw-8), "B", 13, p.pal.navy)
+		// Shrink-to-fit (not clip): a large money value like "KES 12,345,678.00" must render in
+		// full inside the narrow tile, never truncated to "KES 12,345,6…".
+		p.textFit(x+4, y+8.0, c.Value, "B", 13, 8.0, cw-8, p.pal.navy)
 		if c.Sub != "" {
 			p.text(x+4, y+14.0, p.clip(c.Sub, "", 7.5, cw-8), "", 7.5, p.pal.grey)
 		}

@@ -221,6 +221,28 @@ func (p *painter) clip(s, font string, sz, w float64) string {
 	return t + "…"
 }
 
+// textFit draws s with its top at y, shrinking the font from sz down to minSz until the WHOLE string
+// fits within width w — so large values (e.g. "KES 12,345,678.00" in a summary card) render in full
+// instead of being clipped to an ellipsis. Only if the value still overflows at minSz is it clipped
+// as a last resort. Use this (not clip) for figures that must stay legible in narrow tiles.
+func (p *painter) textFit(x, y float64, s, font string, sz, minSz, w float64, c rgb) {
+	t := p.tr(s)
+	size := sz
+	for size > minSz {
+		p.pdf.SetFont("Helvetica", font, size)
+		if p.pdf.GetStringWidth(t) <= w {
+			break
+		}
+		size -= 0.25
+	}
+	p.pdf.SetFont("Helvetica", font, size)
+	if p.pdf.GetStringWidth(t) > w {
+		t = p.clip(s, font, size, w)
+	}
+	p.setText(c)
+	p.pdf.Text(x, y+size*0.3528*0.82, t)
+}
+
 // ── formatting ────────────────────────────────────────────────────────────────
 
 // formatFloat formats a float64 with 2 decimals and thousand separators.
