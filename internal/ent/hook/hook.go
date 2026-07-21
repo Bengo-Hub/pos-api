@@ -189,6 +189,18 @@ func (f ControlledSubstanceLogFunc) Mutate(ctx context.Context, m ent.Mutation) 
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ControlledSubstanceLogMutation", m)
 }
 
+// The CustomerBalanceCacheFunc type is an adapter to allow the use of ordinary
+// function as CustomerBalanceCache mutator.
+type CustomerBalanceCacheFunc func(context.Context, *ent.CustomerBalanceCacheMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f CustomerBalanceCacheFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.CustomerBalanceCacheMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.CustomerBalanceCacheMutation", m)
+}
+
 // The DailyClosingFunc type is an adapter to allow the use of ordinary
 // function as DailyClosing mutator.
 type DailyClosingFunc func(context.Context, *ent.DailyClosingMutation) (ent.Value, error)

@@ -430,6 +430,37 @@ var (
 			},
 		},
 	}
+	// CustomerBalanceCachesColumns holds the columns for the "customer_balance_caches" table.
+	CustomerBalanceCachesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "crm_contact_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "customer_identifier", Type: field.TypeString, Nullable: true},
+		{Name: "customer_name", Type: field.TypeString, Nullable: true},
+		{Name: "balance_due", Type: field.TypeString, Default: "0"},
+		{Name: "outstanding_debit", Type: field.TypeString, Default: "0"},
+		{Name: "store_credit_balance", Type: field.TypeString, Default: "0"},
+		{Name: "currency", Type: field.TypeString, Default: "KES"},
+		{Name: "synced_at", Type: field.TypeTime},
+	}
+	// CustomerBalanceCachesTable holds the schema information for the "customer_balance_caches" table.
+	CustomerBalanceCachesTable = &schema.Table{
+		Name:       "customer_balance_caches",
+		Columns:    CustomerBalanceCachesColumns,
+		PrimaryKey: []*schema.Column{CustomerBalanceCachesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "customerbalancecache_tenant_id_crm_contact_id",
+				Unique:  true,
+				Columns: []*schema.Column{CustomerBalanceCachesColumns[1], CustomerBalanceCachesColumns[2]},
+			},
+			{
+				Name:    "customerbalancecache_tenant_id_customer_identifier",
+				Unique:  false,
+				Columns: []*schema.Column{CustomerBalanceCachesColumns[1], CustomerBalanceCachesColumns[3]},
+			},
+		},
+	}
 	// DailyClosingsColumns holds the columns for the "daily_closings" table.
 	DailyClosingsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -4016,6 +4047,7 @@ var (
 		CommissionRecordsTable,
 		CommissionRulesTable,
 		ControlledSubstanceLogsTable,
+		CustomerBalanceCachesTable,
 		DailyClosingsTable,
 		DocumentSequencesTable,
 		DrugInteractionChecksTable,

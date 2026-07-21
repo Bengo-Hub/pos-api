@@ -20,6 +20,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/commissionrecord"
 	"github.com/bengobox/pos-service/internal/ent/commissionrule"
 	"github.com/bengobox/pos-service/internal/ent/controlledsubstancelog"
+	"github.com/bengobox/pos-service/internal/ent/customerbalancecache"
 	"github.com/bengobox/pos-service/internal/ent/dailyclosing"
 	"github.com/bengobox/pos-service/internal/ent/documentsequence"
 	"github.com/bengobox/pos-service/internal/ent/druginteractioncheck"
@@ -466,6 +467,34 @@ func init() {
 	controlledsubstancelogDescID := controlledsubstancelogFields[0].Descriptor()
 	// controlledsubstancelog.DefaultID holds the default value on creation for the id field.
 	controlledsubstancelog.DefaultID = controlledsubstancelogDescID.Default.(func() uuid.UUID)
+	customerbalancecacheFields := schema.CustomerBalanceCache{}.Fields()
+	_ = customerbalancecacheFields
+	// customerbalancecacheDescBalanceDue is the schema descriptor for balance_due field.
+	customerbalancecacheDescBalanceDue := customerbalancecacheFields[5].Descriptor()
+	// customerbalancecache.DefaultBalanceDue holds the default value on creation for the balance_due field.
+	customerbalancecache.DefaultBalanceDue = customerbalancecacheDescBalanceDue.Default.(string)
+	// customerbalancecacheDescOutstandingDebit is the schema descriptor for outstanding_debit field.
+	customerbalancecacheDescOutstandingDebit := customerbalancecacheFields[6].Descriptor()
+	// customerbalancecache.DefaultOutstandingDebit holds the default value on creation for the outstanding_debit field.
+	customerbalancecache.DefaultOutstandingDebit = customerbalancecacheDescOutstandingDebit.Default.(string)
+	// customerbalancecacheDescStoreCreditBalance is the schema descriptor for store_credit_balance field.
+	customerbalancecacheDescStoreCreditBalance := customerbalancecacheFields[7].Descriptor()
+	// customerbalancecache.DefaultStoreCreditBalance holds the default value on creation for the store_credit_balance field.
+	customerbalancecache.DefaultStoreCreditBalance = customerbalancecacheDescStoreCreditBalance.Default.(string)
+	// customerbalancecacheDescCurrency is the schema descriptor for currency field.
+	customerbalancecacheDescCurrency := customerbalancecacheFields[8].Descriptor()
+	// customerbalancecache.DefaultCurrency holds the default value on creation for the currency field.
+	customerbalancecache.DefaultCurrency = customerbalancecacheDescCurrency.Default.(string)
+	// customerbalancecacheDescSyncedAt is the schema descriptor for synced_at field.
+	customerbalancecacheDescSyncedAt := customerbalancecacheFields[9].Descriptor()
+	// customerbalancecache.DefaultSyncedAt holds the default value on creation for the synced_at field.
+	customerbalancecache.DefaultSyncedAt = customerbalancecacheDescSyncedAt.Default.(func() time.Time)
+	// customerbalancecache.UpdateDefaultSyncedAt holds the default value on update for the synced_at field.
+	customerbalancecache.UpdateDefaultSyncedAt = customerbalancecacheDescSyncedAt.UpdateDefault.(func() time.Time)
+	// customerbalancecacheDescID is the schema descriptor for id field.
+	customerbalancecacheDescID := customerbalancecacheFields[0].Descriptor()
+	// customerbalancecache.DefaultID holds the default value on creation for the id field.
+	customerbalancecache.DefaultID = customerbalancecacheDescID.Default.(func() uuid.UUID)
 	dailyclosingFields := schema.DailyClosing{}.Fields()
 	_ = dailyclosingFields
 	// dailyclosingDescTotalSales is the schema descriptor for total_sales field.

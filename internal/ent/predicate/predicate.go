@@ -51,6 +51,9 @@ type CommissionRule func(*sql.Selector)
 // ControlledSubstanceLog is the predicate function for controlledsubstancelog builders.
 type ControlledSubstanceLog func(*sql.Selector)
 
+// CustomerBalanceCache is the predicate function for customerbalancecache builders.
+type CustomerBalanceCache func(*sql.Selector)
+
 // DailyClosing is the predicate function for dailyclosing builders.
 type DailyClosing func(*sql.Selector)
 

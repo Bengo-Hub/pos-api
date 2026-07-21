@@ -80,6 +80,9 @@ func (s *TreasurySubscriber) SubscribeToTreasuryEvents(nc *nats.Conn) error {
 	if err := s.subscribeEtimsTransmitted(js); err != nil {
 		return err
 	}
+	if err := s.subscribeCustomerBalanceUpdated(js); err != nil {
+		return err
+	}
 
 	s.log.Info("treasury event subscriptions registered")
 	return nil

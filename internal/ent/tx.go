@@ -42,6 +42,8 @@ type Tx struct {
 	CommissionRule *CommissionRuleClient
 	// ControlledSubstanceLog is the client for interacting with the ControlledSubstanceLog builders.
 	ControlledSubstanceLog *ControlledSubstanceLogClient
+	// CustomerBalanceCache is the client for interacting with the CustomerBalanceCache builders.
+	CustomerBalanceCache *CustomerBalanceCacheClient
 	// DailyClosing is the client for interacting with the DailyClosing builders.
 	DailyClosing *DailyClosingClient
 	// DocumentSequence is the client for interacting with the DocumentSequence builders.
@@ -394,6 +396,7 @@ func (tx *Tx) init() {
 	tx.CommissionRecord = NewCommissionRecordClient(tx.config)
 	tx.CommissionRule = NewCommissionRuleClient(tx.config)
 	tx.ControlledSubstanceLog = NewControlledSubstanceLogClient(tx.config)
+	tx.CustomerBalanceCache = NewCustomerBalanceCacheClient(tx.config)
 	tx.DailyClosing = NewDailyClosingClient(tx.config)
 	tx.DocumentSequence = NewDocumentSequenceClient(tx.config)
 	tx.DrugInteractionCheck = NewDrugInteractionCheckClient(tx.config)

@@ -31,6 +31,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/commissionrecord"
 	"github.com/bengobox/pos-service/internal/ent/commissionrule"
 	"github.com/bengobox/pos-service/internal/ent/controlledsubstancelog"
+	"github.com/bengobox/pos-service/internal/ent/customerbalancecache"
 	"github.com/bengobox/pos-service/internal/ent/dailyclosing"
 	"github.com/bengobox/pos-service/internal/ent/documentsequence"
 	"github.com/bengobox/pos-service/internal/ent/druginteractioncheck"
@@ -171,6 +172,8 @@ type Client struct {
 	CommissionRule *CommissionRuleClient
 	// ControlledSubstanceLog is the client for interacting with the ControlledSubstanceLog builders.
 	ControlledSubstanceLog *ControlledSubstanceLogClient
+	// CustomerBalanceCache is the client for interacting with the CustomerBalanceCache builders.
+	CustomerBalanceCache *CustomerBalanceCacheClient
 	// DailyClosing is the client for interacting with the DailyClosing builders.
 	DailyClosing *DailyClosingClient
 	// DocumentSequence is the client for interacting with the DocumentSequence builders.
@@ -403,6 +406,7 @@ func (c *Client) init() {
 	c.CommissionRecord = NewCommissionRecordClient(c.config)
 	c.CommissionRule = NewCommissionRuleClient(c.config)
 	c.ControlledSubstanceLog = NewControlledSubstanceLogClient(c.config)
+	c.CustomerBalanceCache = NewCustomerBalanceCacheClient(c.config)
 	c.DailyClosing = NewDailyClosingClient(c.config)
 	c.DocumentSequence = NewDocumentSequenceClient(c.config)
 	c.DrugInteractionCheck = NewDrugInteractionCheckClient(c.config)
@@ -613,6 +617,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		CommissionRecord:         NewCommissionRecordClient(cfg),
 		CommissionRule:           NewCommissionRuleClient(cfg),
 		ControlledSubstanceLog:   NewControlledSubstanceLogClient(cfg),
+		CustomerBalanceCache:     NewCustomerBalanceCacheClient(cfg),
 		DailyClosing:             NewDailyClosingClient(cfg),
 		DocumentSequence:         NewDocumentSequenceClient(cfg),
 		DrugInteractionCheck:     NewDrugInteractionCheckClient(cfg),
@@ -750,6 +755,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		CommissionRecord:         NewCommissionRecordClient(cfg),
 		CommissionRule:           NewCommissionRuleClient(cfg),
 		ControlledSubstanceLog:   NewControlledSubstanceLogClient(cfg),
+		CustomerBalanceCache:     NewCustomerBalanceCacheClient(cfg),
 		DailyClosing:             NewDailyClosingClient(cfg),
 		DocumentSequence:         NewDocumentSequenceClient(cfg),
 		DrugInteractionCheck:     NewDrugInteractionCheckClient(cfg),
@@ -885,10 +891,10 @@ func (c *Client) Use(hooks ...Hook) {
 		c.Appointment, c.AuditLog, c.Backup, c.BackupSetting, c.BarTab, c.BarTabEvent,
 		c.BillSplit, c.CashDrawer, c.CashDrawerEvent, c.ChannelIntegration,
 		c.ChannelSyncJob, c.ClientRecord, c.CommissionRecord, c.CommissionRule,
-		c.ControlledSubstanceLog, c.DailyClosing, c.DocumentSequence,
-		c.DrugInteractionCheck, c.EventBooking, c.Facility, c.FacilityBooking,
-		c.FeatureOverride, c.GiftCard, c.GiftCardTransaction, c.HeldItem,
-		c.HousekeepingTask, c.IdempotencyKey, c.IntegrationSetting,
+		c.ControlledSubstanceLog, c.CustomerBalanceCache, c.DailyClosing,
+		c.DocumentSequence, c.DrugInteractionCheck, c.EventBooking, c.Facility,
+		c.FacilityBooking, c.FeatureOverride, c.GiftCard, c.GiftCardTransaction,
+		c.HeldItem, c.HousekeepingTask, c.IdempotencyKey, c.IntegrationSetting,
 		c.InventorySnapshot, c.KDSStation, c.KDSSyncFailure, c.KDSTicket,
 		c.LayawayPayment, c.LayawayPlan, c.LeaveRequest, c.LicenseUsageSnapshot,
 		c.LoyaltyAccount, c.LoyaltyProgram, c.LoyaltyTransaction, c.MealEntitlement,
@@ -923,10 +929,10 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.Appointment, c.AuditLog, c.Backup, c.BackupSetting, c.BarTab, c.BarTabEvent,
 		c.BillSplit, c.CashDrawer, c.CashDrawerEvent, c.ChannelIntegration,
 		c.ChannelSyncJob, c.ClientRecord, c.CommissionRecord, c.CommissionRule,
-		c.ControlledSubstanceLog, c.DailyClosing, c.DocumentSequence,
-		c.DrugInteractionCheck, c.EventBooking, c.Facility, c.FacilityBooking,
-		c.FeatureOverride, c.GiftCard, c.GiftCardTransaction, c.HeldItem,
-		c.HousekeepingTask, c.IdempotencyKey, c.IntegrationSetting,
+		c.ControlledSubstanceLog, c.CustomerBalanceCache, c.DailyClosing,
+		c.DocumentSequence, c.DrugInteractionCheck, c.EventBooking, c.Facility,
+		c.FacilityBooking, c.FeatureOverride, c.GiftCard, c.GiftCardTransaction,
+		c.HeldItem, c.HousekeepingTask, c.IdempotencyKey, c.IntegrationSetting,
 		c.InventorySnapshot, c.KDSStation, c.KDSSyncFailure, c.KDSTicket,
 		c.LayawayPayment, c.LayawayPlan, c.LeaveRequest, c.LicenseUsageSnapshot,
 		c.LoyaltyAccount, c.LoyaltyProgram, c.LoyaltyTransaction, c.MealEntitlement,
@@ -987,6 +993,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.CommissionRule.mutate(ctx, m)
 	case *ControlledSubstanceLogMutation:
 		return c.ControlledSubstanceLog.mutate(ctx, m)
+	case *CustomerBalanceCacheMutation:
+		return c.CustomerBalanceCache.mutate(ctx, m)
 	case *DailyClosingMutation:
 		return c.DailyClosing.mutate(ctx, m)
 	case *DocumentSequenceMutation:
@@ -3254,6 +3262,139 @@ func (c *ControlledSubstanceLogClient) mutate(ctx context.Context, m *Controlled
 		return (&ControlledSubstanceLogDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown ControlledSubstanceLog mutation op: %q", m.Op())
+	}
+}
+
+// CustomerBalanceCacheClient is a client for the CustomerBalanceCache schema.
+type CustomerBalanceCacheClient struct {
+	config
+}
+
+// NewCustomerBalanceCacheClient returns a client for the CustomerBalanceCache from the given config.
+func NewCustomerBalanceCacheClient(c config) *CustomerBalanceCacheClient {
+	return &CustomerBalanceCacheClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `customerbalancecache.Hooks(f(g(h())))`.
+func (c *CustomerBalanceCacheClient) Use(hooks ...Hook) {
+	c.hooks.CustomerBalanceCache = append(c.hooks.CustomerBalanceCache, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `customerbalancecache.Intercept(f(g(h())))`.
+func (c *CustomerBalanceCacheClient) Intercept(interceptors ...Interceptor) {
+	c.inters.CustomerBalanceCache = append(c.inters.CustomerBalanceCache, interceptors...)
+}
+
+// Create returns a builder for creating a CustomerBalanceCache entity.
+func (c *CustomerBalanceCacheClient) Create() *CustomerBalanceCacheCreate {
+	mutation := newCustomerBalanceCacheMutation(c.config, OpCreate)
+	return &CustomerBalanceCacheCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of CustomerBalanceCache entities.
+func (c *CustomerBalanceCacheClient) CreateBulk(builders ...*CustomerBalanceCacheCreate) *CustomerBalanceCacheCreateBulk {
+	return &CustomerBalanceCacheCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *CustomerBalanceCacheClient) MapCreateBulk(slice any, setFunc func(*CustomerBalanceCacheCreate, int)) *CustomerBalanceCacheCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &CustomerBalanceCacheCreateBulk{err: fmt.Errorf("calling to CustomerBalanceCacheClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*CustomerBalanceCacheCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &CustomerBalanceCacheCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for CustomerBalanceCache.
+func (c *CustomerBalanceCacheClient) Update() *CustomerBalanceCacheUpdate {
+	mutation := newCustomerBalanceCacheMutation(c.config, OpUpdate)
+	return &CustomerBalanceCacheUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *CustomerBalanceCacheClient) UpdateOne(_m *CustomerBalanceCache) *CustomerBalanceCacheUpdateOne {
+	mutation := newCustomerBalanceCacheMutation(c.config, OpUpdateOne, withCustomerBalanceCache(_m))
+	return &CustomerBalanceCacheUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *CustomerBalanceCacheClient) UpdateOneID(id uuid.UUID) *CustomerBalanceCacheUpdateOne {
+	mutation := newCustomerBalanceCacheMutation(c.config, OpUpdateOne, withCustomerBalanceCacheID(id))
+	return &CustomerBalanceCacheUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for CustomerBalanceCache.
+func (c *CustomerBalanceCacheClient) Delete() *CustomerBalanceCacheDelete {
+	mutation := newCustomerBalanceCacheMutation(c.config, OpDelete)
+	return &CustomerBalanceCacheDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *CustomerBalanceCacheClient) DeleteOne(_m *CustomerBalanceCache) *CustomerBalanceCacheDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *CustomerBalanceCacheClient) DeleteOneID(id uuid.UUID) *CustomerBalanceCacheDeleteOne {
+	builder := c.Delete().Where(customerbalancecache.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &CustomerBalanceCacheDeleteOne{builder}
+}
+
+// Query returns a query builder for CustomerBalanceCache.
+func (c *CustomerBalanceCacheClient) Query() *CustomerBalanceCacheQuery {
+	return &CustomerBalanceCacheQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeCustomerBalanceCache},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a CustomerBalanceCache entity by its id.
+func (c *CustomerBalanceCacheClient) Get(ctx context.Context, id uuid.UUID) (*CustomerBalanceCache, error) {
+	return c.Query().Where(customerbalancecache.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *CustomerBalanceCacheClient) GetX(ctx context.Context, id uuid.UUID) *CustomerBalanceCache {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *CustomerBalanceCacheClient) Hooks() []Hook {
+	return c.hooks.CustomerBalanceCache
+}
+
+// Interceptors returns the client interceptors.
+func (c *CustomerBalanceCacheClient) Interceptors() []Interceptor {
+	return c.inters.CustomerBalanceCache
+}
+
+func (c *CustomerBalanceCacheClient) mutate(ctx context.Context, m *CustomerBalanceCacheMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&CustomerBalanceCacheCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&CustomerBalanceCacheUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&CustomerBalanceCacheUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&CustomerBalanceCacheDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown CustomerBalanceCache mutation op: %q", m.Op())
 	}
 }
 
@@ -18129,8 +18270,8 @@ type (
 	hooks struct {
 		Appointment, AuditLog, Backup, BackupSetting, BarTab, BarTabEvent, BillSplit,
 		CashDrawer, CashDrawerEvent, ChannelIntegration, ChannelSyncJob, ClientRecord,
-		CommissionRecord, CommissionRule, ControlledSubstanceLog, DailyClosing,
-		DocumentSequence, DrugInteractionCheck, EventBooking, Facility,
+		CommissionRecord, CommissionRule, ControlledSubstanceLog, CustomerBalanceCache,
+		DailyClosing, DocumentSequence, DrugInteractionCheck, EventBooking, Facility,
 		FacilityBooking, FeatureOverride, GiftCard, GiftCardTransaction, HeldItem,
 		HousekeepingTask, IdempotencyKey, IntegrationSetting, InventorySnapshot,
 		KDSStation, KDSSyncFailure, KDSTicket, LayawayPayment, LayawayPlan,
@@ -18156,8 +18297,8 @@ type (
 	inters struct {
 		Appointment, AuditLog, Backup, BackupSetting, BarTab, BarTabEvent, BillSplit,
 		CashDrawer, CashDrawerEvent, ChannelIntegration, ChannelSyncJob, ClientRecord,
-		CommissionRecord, CommissionRule, ControlledSubstanceLog, DailyClosing,
-		DocumentSequence, DrugInteractionCheck, EventBooking, Facility,
+		CommissionRecord, CommissionRule, ControlledSubstanceLog, CustomerBalanceCache,
+		DailyClosing, DocumentSequence, DrugInteractionCheck, EventBooking, Facility,
 		FacilityBooking, FeatureOverride, GiftCard, GiftCardTransaction, HeldItem,
 		HousekeepingTask, IdempotencyKey, IntegrationSetting, InventorySnapshot,
 		KDSStation, KDSSyncFailure, KDSTicket, LayawayPayment, LayawayPlan,

@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 
@@ -8,6 +9,8 @@ import (
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
+	"github.com/bengobox/pos-service/internal/ent"
+	"github.com/bengobox/pos-service/internal/ent/customerbalancecache"
 	entla "github.com/bengobox/pos-service/internal/ent/loyaltyaccount"
 	"github.com/bengobox/pos-service/internal/modules/treasury"
 )
@@ -62,11 +65,53 @@ func (h *ClientHandler) GetCredit(w http.ResponseWriter, r *http.Request) {
 	tenantSlug := chi.URLParam(r, "tenantID")
 	terms, err := h.treasury.GetCreditTerms(r.Context(), tenantSlug, key)
 	if err != nil {
+		// Self-healing fallback (Phase D): the live S2S call is ALWAYS tried first — treasury
+		// remains the single source of truth — but when it fails, fall back to the
+		// CustomerBalanceCache kept fresh by the treasury.customer.balance_updated event
+		// consumer, instead of hard-failing the terminal's credit check.
+		if cached, cerr := h.creditFromCache(r.Context(), tid, key); cerr == nil && cached != nil {
+			h.log.Warn("get credit terms proxy failed — serving cached balance", zap.Error(err))
+			jsonOK(w, cached)
+			return
+		}
 		h.log.Error("get credit terms proxy failed", zap.Error(err))
 		jsonError(w, "failed to load credit terms", http.StatusBadGateway)
 		return
 	}
 	jsonOK(w, terms)
+}
+
+// creditFromCache resolves a CustomerBalanceCache row by crm_contact_id (when key parses as a
+// UUID) or customer_identifier, shaped as treasury.CreditTermsResponse so the response envelope
+// matches the live path exactly. Returns (nil, nil) when no cached row exists yet (nothing to
+// fall back to).
+func (h *ClientHandler) creditFromCache(ctx context.Context, tenantID uuid.UUID, key string) (*treasury.CreditTermsResponse, error) {
+	q := h.db.CustomerBalanceCache.Query().Where(customerbalancecache.TenantID(tenantID))
+	if cid, err := uuid.Parse(key); err == nil {
+		q = q.Where(customerbalancecache.CrmContactID(cid))
+	} else {
+		q = q.Where(customerbalancecache.CustomerIdentifier(key))
+	}
+	row, err := q.First(ctx)
+	if ent.IsNotFound(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &treasury.CreditTermsResponse{
+		CrmContactID: uuidOrEmpty(row.CrmContactID),
+		CustomerName: row.CustomerName,
+		BalanceDue:   row.BalanceDue,
+		Currency:     row.Currency,
+	}, nil
+}
+
+func uuidOrEmpty(id *uuid.UUID) string {
+	if id == nil {
+		return ""
+	}
+	return id.String()
 }
 
 // NOTE: credit terms are EDITED on the central treasury Customers page (treasury-ui →
