@@ -499,14 +499,29 @@ func BuildReceiptView(order *ent.POSOrder, lines []*ent.POSOrderLine, outlet *en
 	}
 
 	// De-duplicate: a custom receipt header that was configured to just repeat the outlet's
-	// name/address (the "Urban Loft Cafe Busia" printed twice report) prints the same line a
-	// second time. Drop it when it exactly matches either — the outlet name/address already
-	// says it once. This is the single canonical builder, so the fix applies to the JSON API,
-	// server HTML/PDF, and ESC/POS thermal receipt at once.
-	if h := strings.TrimSpace(v.ReceiptHeader); h != "" &&
-		(strings.EqualFold(h, strings.TrimSpace(v.OutletName)) || strings.EqualFold(h, strings.TrimSpace(v.OutletAddress))) {
+	// name/address (the "Urban Loft Cafe Busia" printed twice report, and later the "Gachie"
+	// outlet printing THREE location-ish lines) prints the same information again. Exact-match
+	// covers a header set to literally the outlet name/address; the outlet-name SUBSTRING check
+	// catches a richer free-text header that embeds the outlet name in a fuller description
+	// (e.g. header "Red Hill - Westbay Mall, Gachie" when the outlet is named "Gachie") — a case
+	// exact-match alone would miss. This is the single canonical builder, so the fix applies to
+	// the JSON API, server HTML/PDF, and ESC/POS thermal receipt at once.
+	if h := strings.TrimSpace(v.ReceiptHeader); h != "" && headerRepeatsOutletIdentity(h, v.OutletName, v.OutletAddress) {
 		v.ReceiptHeader = ""
 	}
 
 	return v
+}
+
+// headerRepeatsOutletIdentity reports whether a custom receipt-header string just repeats the
+// outlet identity already printed above it on every renderer (name, then address).
+func headerRepeatsOutletIdentity(header, outletName, outletAddress string) bool {
+	h := strings.ToLower(header)
+	if eq := strings.ToLower(strings.TrimSpace(outletAddress)); eq != "" && h == eq {
+		return true
+	}
+	if name := strings.ToLower(strings.TrimSpace(outletName)); name != "" && strings.Contains(h, name) {
+		return true
+	}
+	return false
 }

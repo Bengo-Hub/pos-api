@@ -124,6 +124,29 @@ func truncate(s string, n int) string {
 	return s[:n-1] + "…"
 }
 
+// headerDuplicatesLocation reports whether a custom receipt-header string just repeats the
+// business/outlet identity already printed above it — e.g. an outlet's receipt_header set to
+// "Red Hill - Westbay Mall, Gachie" when the outlet itself is already named "Gachie" and/or has
+// its own address "Red Hill, Gachie" configured. Exact-match (case-insensitive) covers the
+// simple case; the outlet-name SUBSTRING check catches richer free-text headers that embed the
+// outlet name inside a fuller description, which an exact-match comparison would miss.
+func headerDuplicatesLocation(header, companyName, outletName, outletAddress string) bool {
+	h := strings.ToLower(strings.TrimSpace(header))
+	if h == "" {
+		return false
+	}
+	if eq := strings.ToLower(strings.TrimSpace(companyName)); eq != "" && h == eq {
+		return true
+	}
+	if eq := strings.ToLower(strings.TrimSpace(outletAddress)); eq != "" && h == eq {
+		return true
+	}
+	if name := strings.ToLower(strings.TrimSpace(outletName)); name != "" && strings.Contains(h, name) {
+		return true
+	}
+	return false
+}
+
 // taxLabel is the shared "VAT (16%)" / "Tax" label used by every layout.
 func taxLabel(rec Receipt) string {
 	if rec.VatRate > 0 {

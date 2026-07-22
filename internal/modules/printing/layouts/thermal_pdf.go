@@ -84,9 +84,6 @@ func renderThermalPDF(rec Receipt, brand Brand, layout string) ([]byte, error) {
 		// printers where coloured text comes out faint.
 		center(brand.CompanyName, "B", 12)
 	}
-	if rec.ReceiptHeader != "" {
-		center(rec.ReceiptHeader, "B", 9)
-	}
 	if rec.OutletName != "" && rec.OutletName != brand.CompanyName {
 		center(rec.OutletName, "B", 11)
 	}
@@ -98,6 +95,16 @@ func renderThermalPDF(rec Receipt, brand Brand, layout string) ([]byte, error) {
 	}
 	if rec.EtimsKraPin != "" {
 		center("KRA PIN: "+rec.EtimsKraPin, "B", 9)
+	}
+	// Custom header LAST, same canonical order every other renderer uses (Name → Outlet →
+	// Address → Phones → KRA PIN → Header) — this used to print SECOND, ahead of the outlet's
+	// own name/address, which is how a header configured with a full address (e.g. "Red Hill -
+	// Westbay Mall, Gachie") ended up reading as a confusing extra location line stacked on top
+	// of the real outlet name + address instead of a trailing note. Also skip it outright when
+	// it just repeats info already shown above (contains the outlet name, or exactly matches the
+	// company name/outlet address) — the outlet's own name/address already say it once.
+	if h := strings.TrimSpace(rec.ReceiptHeader); h != "" && !headerDuplicatesLocation(h, brand.CompanyName, rec.OutletName, rec.OutletAddress) {
+		center(h, "B", 9)
 	}
 	pdf.Ln(1)
 
