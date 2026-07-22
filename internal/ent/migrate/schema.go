@@ -2229,6 +2229,7 @@ var (
 		{Name: "notes", Type: field.TypeString, Nullable: true},
 		{Name: "dispensed_at", Type: field.TypeTime, Nullable: true},
 		{Name: "dispensed_by", Type: field.TypeUUID, Nullable: true},
+		{Name: "metadata", Type: field.TypeJSON},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
 	}

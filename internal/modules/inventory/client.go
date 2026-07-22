@@ -229,36 +229,62 @@ func (c *Client) SetItemPrice(ctx context.Context, tenantID, sku string, price f
 	return nil
 }
 
+// ConsumedLot is one InventoryLot's contribution to a SKU's consumption within a sale —
+// mirrors inventory-api's stock.ConsumedLot. Populated only when the tenant's costing method
+// is lot-ordered (fifo/lifo/fefo); empty for wavg-costed items.
+type ConsumedLot struct {
+	SKU        string     `json:"sku"`
+	LotID      string     `json:"lot_id"`
+	LotNumber  string     `json:"lot_number,omitempty"`
+	ExpiryDate *time.Time `json:"expiry_date,omitempty"`
+	Quantity   float64    `json:"quantity"`
+}
+
+// ConsumptionResult mirrors inventory-api's stock.ConsumptionResponse (the fields pos-api
+// actually consumes — id/tenant/order/status/processed_at are dropped as unused here).
+type ConsumptionResult struct {
+	LotsConsumed []ConsumedLot `json:"lots_consumed,omitempty"`
+}
+
 // RecordConsumption calls inventory-api to backflush stock for a completed POS order.
-// Non-fatal: callers should log and optionally publish a retry event on error.
-func (c *Client) RecordConsumption(ctx context.Context, tenantID string, req ConsumptionRequest) error {
+// Non-fatal: callers should log and optionally publish a retry event on error. Returns the
+// lot(s) actually drawn per SKU (Phase 2 FEFO traceability) so the caller can stamp
+// POSOrderLine.lot_number/expiry_date and the controlled-substance dispense log.
+func (c *Client) RecordConsumption(ctx context.Context, tenantID string, req ConsumptionRequest) (*ConsumptionResult, error) {
 	if len(req.Items) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	body, err := json.Marshal(req)
 	if err != nil {
-		return fmt.Errorf("inventory.Client.RecordConsumption: marshal: %w", err)
+		return nil, fmt.Errorf("inventory.Client.RecordConsumption: marshal: %w", err)
 	}
 
 	url := fmt.Sprintf("%s/v1/%s/inventory/consumption", c.baseURL, tenantID)
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
 	if err != nil {
-		return fmt.Errorf("inventory.Client.RecordConsumption: build request: %w", err)
+		return nil, fmt.Errorf("inventory.Client.RecordConsumption: build request: %w", err)
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("X-API-Key", c.apiKey)
 
 	resp, err := c.httpClient.Do(httpReq)
 	if err != nil {
-		return fmt.Errorf("inventory.Client.RecordConsumption: http: %w", err)
+		return nil, fmt.Errorf("inventory.Client.RecordConsumption: http: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 400 {
-		return fmt.Errorf("inventory.Client.RecordConsumption: status %d", resp.StatusCode)
+		return nil, fmt.Errorf("inventory.Client.RecordConsumption: status %d", resp.StatusCode)
 	}
-	return nil
+	var out ConsumptionResult
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		// Response decode failure doesn't undo the consumption that already succeeded
+		// server-side — log-equivalent: return no lots, not an error, so callers don't
+		// treat a successful backflush as failed just because lot data was unreadable.
+		return nil, nil
+	}
+	return &out, nil
 }
 
 // ReverseConsumptionItem selects one sale-line SKU to reverse: Quantity of OfQuantity
@@ -295,6 +321,84 @@ type ReverseConsumptionResponse struct {
 	AlreadyProcessed  bool                 `json:"already_processed,omitempty"`
 	TotalCostReversed float64              `json:"total_cost_reversed"`
 	Ingredients       []ReversedIngredient `json:"ingredients"`
+}
+
+// ResolvedDrugItem is one item's pharmacy classification, resolved by inventory-api.
+type ResolvedDrugItem struct {
+	ItemID           string `json:"item_id,omitempty"`
+	SKU              string `json:"sku"`
+	DrugClass        string `json:"drug_class,omitempty"`
+	ActiveIngredient string `json:"active_ingredient,omitempty"`
+	GenericName      string `json:"generic_name,omitempty"`
+}
+
+// DrugInteractionFinding is one flagged interaction between two dispensed SKUs.
+type DrugInteractionFinding struct {
+	ClassA                 string `json:"class_a"`
+	ClassB                 string `json:"class_b"`
+	SKUA                   string `json:"sku_a"`
+	SKUB                   string `json:"sku_b"`
+	Severity               string `json:"severity"`
+	Description            string `json:"description,omitempty"`
+	ClinicalRecommendation string `json:"clinical_recommendation,omitempty"`
+}
+
+// AllergyMatch flags a dispensed SKU whose drug_class matched a patient-declared allergy flag.
+type AllergyMatch struct {
+	SKU              string `json:"sku"`
+	ActiveIngredient string `json:"active_ingredient,omitempty"`
+	AllergyFlag      string `json:"allergy_flag"`
+}
+
+// CheckInteractionsRequest is the body for POST /v1/{tenant}/inventory/items/check-interactions.
+// PrescriptionLine only carries catalog_item_id (not SKU), so ItemIDs is the primary path;
+// SKUs is supported for other callers (e.g. an OTC-item interaction check at checkout).
+type CheckInteractionsRequest struct {
+	SKUs         []string `json:"skus,omitempty"`
+	ItemIDs      []string `json:"item_ids,omitempty"`
+	AllergyFlags []string `json:"allergy_flags,omitempty"`
+}
+
+// CheckInteractionsResponse mirrors inventory-api's response — resolved drug classifications
+// plus any DrugInteractionRule matches and allergy-flag hits across the given SKU set.
+type CheckInteractionsResponse struct {
+	Resolved       []ResolvedDrugItem       `json:"resolved"`
+	Interactions   []DrugInteractionFinding `json:"interactions"`
+	AllergyMatches []AllergyMatch           `json:"allergy_matches"`
+}
+
+// CheckInteractions calls inventory-api to resolve drug classes for a set of SKUs and cross-join
+// them against the curated interaction-rule table + patient allergy flags. inventory-api owns
+// both Item classification and DrugInteractionRule, so the match happens there, not here.
+func (c *Client) CheckInteractions(ctx context.Context, tenantID string, req CheckInteractionsRequest) (*CheckInteractionsResponse, error) {
+	body, err := json.Marshal(req)
+	if err != nil {
+		return nil, fmt.Errorf("inventory.Client.CheckInteractions: marshal: %w", err)
+	}
+
+	url := fmt.Sprintf("%s/v1/%s/inventory/items/check-interactions", c.baseURL, tenantID)
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("inventory.Client.CheckInteractions: build request: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("X-API-Key", c.apiKey)
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("inventory.Client.CheckInteractions: http: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		msg, _ := io.ReadAll(io.LimitReader(resp.Body, 2048))
+		return nil, fmt.Errorf("inventory.Client.CheckInteractions: status %d: %s", resp.StatusCode, strings.TrimSpace(string(msg)))
+	}
+	var out CheckInteractionsResponse
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return nil, fmt.Errorf("inventory.Client.CheckInteractions: decode: %w", err)
+	}
+	return &out, nil
 }
 
 // ReverseConsumption calls inventory-api to reverse (part of) an order's recorded BOM

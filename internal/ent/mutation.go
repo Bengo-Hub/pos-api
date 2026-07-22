@@ -72587,6 +72587,7 @@ type PrescriptionMutation struct {
 	notes               *string
 	dispensed_at        *time.Time
 	dispensed_by        *uuid.UUID
+	metadata            *map[string]interface{}
 	created_at          *time.Time
 	updated_at          *time.Time
 	clearedFields       map[string]struct{}
@@ -73271,6 +73272,42 @@ func (m *PrescriptionMutation) ResetDispensedBy() {
 	delete(m.clearedFields, prescription.FieldDispensedBy)
 }
 
+// SetMetadata sets the "metadata" field.
+func (m *PrescriptionMutation) SetMetadata(value map[string]interface{}) {
+	m.metadata = &value
+}
+
+// Metadata returns the value of the "metadata" field in the mutation.
+func (m *PrescriptionMutation) Metadata() (r map[string]interface{}, exists bool) {
+	v := m.metadata
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMetadata returns the old "metadata" field's value of the Prescription entity.
+// If the Prescription object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PrescriptionMutation) OldMetadata(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMetadata is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMetadata requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMetadata: %w", err)
+	}
+	return oldValue.Metadata, nil
+}
+
+// ResetMetadata resets all changes to the "metadata" field.
+func (m *PrescriptionMutation) ResetMetadata() {
+	m.metadata = nil
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (m *PrescriptionMutation) SetCreatedAt(t time.Time) {
 	m.created_at = &t
@@ -73377,7 +73414,7 @@ func (m *PrescriptionMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *PrescriptionMutation) Fields() []string {
-	fields := make([]string, 0, 15)
+	fields := make([]string, 0, 16)
 	if m.tenant_id != nil {
 		fields = append(fields, prescription.FieldTenantID)
 	}
@@ -73416,6 +73453,9 @@ func (m *PrescriptionMutation) Fields() []string {
 	}
 	if m.dispensed_by != nil {
 		fields = append(fields, prescription.FieldDispensedBy)
+	}
+	if m.metadata != nil {
+		fields = append(fields, prescription.FieldMetadata)
 	}
 	if m.created_at != nil {
 		fields = append(fields, prescription.FieldCreatedAt)
@@ -73457,6 +73497,8 @@ func (m *PrescriptionMutation) Field(name string) (ent.Value, bool) {
 		return m.DispensedAt()
 	case prescription.FieldDispensedBy:
 		return m.DispensedBy()
+	case prescription.FieldMetadata:
+		return m.Metadata()
 	case prescription.FieldCreatedAt:
 		return m.CreatedAt()
 	case prescription.FieldUpdatedAt:
@@ -73496,6 +73538,8 @@ func (m *PrescriptionMutation) OldField(ctx context.Context, name string) (ent.V
 		return m.OldDispensedAt(ctx)
 	case prescription.FieldDispensedBy:
 		return m.OldDispensedBy(ctx)
+	case prescription.FieldMetadata:
+		return m.OldMetadata(ctx)
 	case prescription.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	case prescription.FieldUpdatedAt:
@@ -73599,6 +73643,13 @@ func (m *PrescriptionMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetDispensedBy(v)
+		return nil
+	case prescription.FieldMetadata:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMetadata(v)
 		return nil
 	case prescription.FieldCreatedAt:
 		v, ok := value.(time.Time)
@@ -73752,6 +73803,9 @@ func (m *PrescriptionMutation) ResetField(name string) error {
 		return nil
 	case prescription.FieldDispensedBy:
 		m.ResetDispensedBy()
+		return nil
+	case prescription.FieldMetadata:
+		m.ResetMetadata()
 		return nil
 	case prescription.FieldCreatedAt:
 		m.ResetCreatedAt()

@@ -1965,12 +1965,16 @@ func init() {
 	prescriptionDescStatus := prescriptionFields[10].Descriptor()
 	// prescription.DefaultStatus holds the default value on creation for the status field.
 	prescription.DefaultStatus = prescriptionDescStatus.Default.(string)
+	// prescriptionDescMetadata is the schema descriptor for metadata field.
+	prescriptionDescMetadata := prescriptionFields[14].Descriptor()
+	// prescription.DefaultMetadata holds the default value on creation for the metadata field.
+	prescription.DefaultMetadata = prescriptionDescMetadata.Default.(map[string]interface{})
 	// prescriptionDescCreatedAt is the schema descriptor for created_at field.
-	prescriptionDescCreatedAt := prescriptionFields[14].Descriptor()
+	prescriptionDescCreatedAt := prescriptionFields[15].Descriptor()
 	// prescription.DefaultCreatedAt holds the default value on creation for the created_at field.
 	prescription.DefaultCreatedAt = prescriptionDescCreatedAt.Default.(func() time.Time)
 	// prescriptionDescUpdatedAt is the schema descriptor for updated_at field.
-	prescriptionDescUpdatedAt := prescriptionFields[15].Descriptor()
+	prescriptionDescUpdatedAt := prescriptionFields[16].Descriptor()
 	// prescription.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	prescription.DefaultUpdatedAt = prescriptionDescUpdatedAt.Default.(func() time.Time)
 	// prescription.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

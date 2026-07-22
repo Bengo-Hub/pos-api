@@ -317,7 +317,7 @@ func New(ctx context.Context) (*App, error) {
 	scaleHandler := handlers.NewScaleHandler(log, entClient)
 
 	// Pharmacy + Service modules (Sprint 8/9)
-	pharmacyHandler := handlers.NewPharmacyHandler(log, entClient)
+	pharmacyHandler := handlers.NewPharmacyHandler(log, entClient, inventoryClient)
 	appointmentHandler := handlers.NewAppointmentHandler(log, entClient)
 	commissionHandler := handlers.NewCommissionHandler(log, entClient)
 	staffScheduleHandler := handlers.NewStaffScheduleHandler(log, entClient)

@@ -1420,7 +1420,7 @@ func (s *Service) backflushInventory(parent context.Context, order *ent.POSOrder
 		return
 	}
 
-	err := s.inventoryClient.RecordConsumption(ctx, order.TenantID.String(), inventory.ConsumptionRequest{
+	result, err := s.inventoryClient.RecordConsumption(ctx, order.TenantID.String(), inventory.ConsumptionRequest{
 		OrderID: order.ID.String(),
 		Items:   items,
 	})
@@ -1435,6 +1435,39 @@ func (s *Service) backflushInventory(parent context.Context, order *ent.POSOrder
 				"items":     items,
 				"error":     err.Error(),
 			})
+		}
+		return
+	}
+
+	s.stampOrderLineLots(ctx, lines, result)
+}
+
+// stampOrderLineLots writes the FEFO/FIFO/LIFO-selected lot's number/expiry back onto each
+// sold POSOrderLine (Phase 2 traceability — previously these fields existed on the schema but
+// were never populated). When a SKU's quantity spans two lots at a draw boundary, the largest
+// contribution wins for display purposes; ConsumptionLine (inventory-api) retains the full,
+// accurate per-lot split regardless — this is a display simplification, not a data loss.
+func (s *Service) stampOrderLineLots(ctx context.Context, lines []*ent.POSOrderLine, result *inventory.ConsumptionResult) {
+	if result == nil || len(result.LotsConsumed) == 0 {
+		return
+	}
+	bestBySKU := make(map[string]inventory.ConsumedLot, len(result.LotsConsumed))
+	for _, lot := range result.LotsConsumed {
+		if cur, ok := bestBySKU[lot.SKU]; !ok || lot.Quantity > cur.Quantity {
+			bestBySKU[lot.SKU] = lot
+		}
+	}
+	for _, l := range lines {
+		lot, ok := bestBySKU[l.Sku]
+		if !ok {
+			continue
+		}
+		upd := s.client.POSOrderLine.UpdateOneID(l.ID).SetLotNumber(lot.LotNumber)
+		if lot.ExpiryDate != nil {
+			upd = upd.SetExpiryDate(*lot.ExpiryDate)
+		}
+		if _, err := upd.Save(ctx); err != nil {
+			s.log.Warn("failed to stamp order line lot", zap.String("order_line_id", l.ID.String()), zap.Error(err))
 		}
 	}
 }

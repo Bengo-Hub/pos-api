@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
+	"sort"
 	"time"
 
 	"github.com/Bengo-Hub/pagination"
@@ -16,15 +17,17 @@ import (
 	entoverride "github.com/bengobox/pos-service/internal/ent/poscatalogoverride"
 	entpx "github.com/bengobox/pos-service/internal/ent/prescription"
 	entpxl "github.com/bengobox/pos-service/internal/ent/prescriptionline"
+	"github.com/bengobox/pos-service/internal/modules/inventory"
 )
 
 type PharmacyHandler struct {
-	log *zap.Logger
-	db  *ent.Client
+	log       *zap.Logger
+	db        *ent.Client
+	inventory *inventory.Client
 }
 
-func NewPharmacyHandler(log *zap.Logger, db *ent.Client) *PharmacyHandler {
-	return &PharmacyHandler{log: log, db: db}
+func NewPharmacyHandler(log *zap.Logger, db *ent.Client, inventoryClient *inventory.Client) *PharmacyHandler {
+	return &PharmacyHandler{log: log, db: db, inventory: inventoryClient}
 }
 
 type prescriptionLineInput struct {
@@ -39,16 +42,17 @@ type prescriptionLineInput struct {
 }
 
 type createPrescriptionInput struct {
-	OutletID          string                  `json:"outlet_id"`
-	OrderID           *string                 `json:"order_id"`
-	PrescriptionNumber string                 `json:"prescription_number"`
-	PrescriberName    string                  `json:"prescriber_name"`
-	PrescriberLicense string                  `json:"prescriber_license"`
-	PatientName       string                  `json:"patient_name"`
-	PatientDOB        string                  `json:"patient_dob"`
-	PatientIDNumber   string                  `json:"patient_id_number"`
-	Notes             string                  `json:"notes"`
-	Lines             []prescriptionLineInput `json:"lines"`
+	OutletID           string                  `json:"outlet_id"`
+	OrderID            *string                 `json:"order_id"`
+	PrescriptionNumber string                  `json:"prescription_number"`
+	PrescriberName     string                  `json:"prescriber_name"`
+	PrescriberLicense  string                  `json:"prescriber_license"`
+	PatientName        string                  `json:"patient_name"`
+	PatientDOB         string                  `json:"patient_dob"`
+	PatientIDNumber    string                  `json:"patient_id_number"`
+	Notes              string                  `json:"notes"`
+	AllergyFlags       []string                `json:"allergy_flags"`
+	Lines              []prescriptionLineInput `json:"lines"`
 }
 
 type interactionCheckInput struct {
@@ -81,6 +85,11 @@ func (h *PharmacyHandler) CreatePrescription(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	md := map[string]any{}
+	if len(input.AllergyFlags) > 0 {
+		md["allergy_flags"] = input.AllergyFlags
+	}
+
 	creator := h.db.Prescription.Create().
 		SetTenantID(tid).
 		SetOutletID(outletID).
@@ -90,7 +99,8 @@ func (h *PharmacyHandler) CreatePrescription(w http.ResponseWriter, r *http.Requ
 		SetPatientName(input.PatientName).
 		SetPatientDob(input.PatientDOB).
 		SetPatientIDNumber(input.PatientIDNumber).
-		SetNotes(input.Notes)
+		SetNotes(input.Notes).
+		SetMetadata(md)
 
 	if input.OrderID != nil {
 		oid, err := uuid.Parse(*input.OrderID)
@@ -106,6 +116,7 @@ func (h *PharmacyHandler) CreatePrescription(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	catalogItemIDs := make([]string, 0, len(input.Lines))
 	for _, li := range input.Lines {
 		if li.DrugName == "" || li.QuantityPrescribed <= 0 {
 			continue
@@ -122,6 +133,7 @@ func (h *PharmacyHandler) CreatePrescription(w http.ResponseWriter, r *http.Requ
 			cid, err := uuid.Parse(*li.CatalogItemID)
 			if err == nil {
 				lc = lc.SetCatalogItemID(cid)
+				catalogItemIDs = append(catalogItemIDs, cid.String())
 			}
 		}
 		if li.UnitPrice != nil {
@@ -129,6 +141,26 @@ func (h *PharmacyHandler) CreatePrescription(w http.ResponseWriter, r *http.Requ
 		}
 		if _, err := lc.Save(r.Context()); err != nil {
 			h.log.Warn("failed to create prescription line", zap.Error(err))
+		}
+	}
+
+	// Automatic pre-approval safety check: run the DDI/allergy engine over every
+	// catalog-linked line the moment the prescription is captured, so the pharmacist sees
+	// flagged status immediately rather than needing to trigger it separately.
+	if len(catalogItemIDs) > 1 || (len(catalogItemIDs) >= 1 && len(input.AllergyFlags) > 0) {
+		result, details, severity := h.runInteractionCheckByItemIDs(r, tid, catalogItemIDs, input.AllergyFlags)
+		checkCreator := h.db.DrugInteractionCheck.Create().
+			SetTenantID(tid).
+			SetPrescriptionID(px.ID).
+			SetDrugSkus(catalogItemIDs).
+			SetResult(result).
+			SetDetails(details).
+			SetCheckedAt(time.Now())
+		if check, err := checkCreator.Save(r.Context()); err == nil {
+			h.recordInteractionCheckOnPrescription(r, px.ID, check.ID, severity)
+			px, _ = h.db.Prescription.Get(r.Context(), px.ID) // reflect status="flagged" if set
+		} else {
+			h.log.Warn("auto interaction check failed to save", zap.Error(err))
 		}
 	}
 
@@ -211,6 +243,10 @@ func (h *PharmacyHandler) Dispense(w http.ResponseWriter, r *http.Request) {
 	px, err := h.db.Prescription.Get(r.Context(), pxID)
 	if err != nil || px.TenantID != tid {
 		jsonError(w, "prescription not found", http.StatusNotFound)
+		return
+	}
+	if px.Status != "approved" && px.Status != "locked" {
+		jsonError(w, "prescription must be approved (and locked, if required) before dispensing", http.StatusConflict)
 		return
 	}
 
@@ -315,6 +351,9 @@ func (h *PharmacyHandler) ListPatients(w http.ResponseWriter, r *http.Request) {
 }
 
 // CreateInteractionCheck handles POST /{tenantID}/pos/pharmacy/interaction-checks
+// Runs the real inventory-api-backed DDI/allergy engine (S2S) and records the result.
+// When PrescriptionID is set and a moderate+ finding comes back, the prescription is
+// moved to status="flagged", blocking Approve until a pharmacist override is recorded.
 func (h *PharmacyHandler) CreateInteractionCheck(w http.ResponseWriter, r *http.Request) {
 	tid, err := parseTenantUUID(r)
 	if err != nil {
@@ -332,14 +371,20 @@ func (h *PharmacyHandler) CreateInteractionCheck(w http.ResponseWriter, r *http.
 		return
 	}
 
+	result, resultDetails, severity := h.runInteractionCheck(r, tid, input.DrugSKUs, nil)
+
 	creator := h.db.DrugInteractionCheck.Create().
 		SetTenantID(tid).
 		SetDrugSkus(input.DrugSKUs).
+		SetResult(result).
+		SetDetails(resultDetails).
 		SetCheckedAt(time.Now())
 
+	var pxID *uuid.UUID
 	if input.PrescriptionID != nil {
 		if pid, err := uuid.Parse(*input.PrescriptionID); err == nil {
 			creator = creator.SetPrescriptionID(pid)
+			pxID = &pid
 		}
 	}
 	if input.OrderID != nil {
@@ -355,8 +400,200 @@ func (h *PharmacyHandler) CreateInteractionCheck(w http.ResponseWriter, r *http.
 		return
 	}
 
+	if pxID != nil {
+		h.recordInteractionCheckOnPrescription(r, *pxID, check.ID, severity)
+	}
+
 	_ = entdic.TenantID(tid)
 	jsonOK(w, check)
+}
+
+// runInteractionCheck calls inventory-api's check-interactions S2S endpoint for the given
+// item IDs (falls back to SKUs when itemIDs is empty) plus the patient's allergy flags, and
+// reduces the response to a DrugInteractionCheck-compatible (result, details, severity) triple.
+// Best-effort: an unreachable inventory-api returns result="clear" with an explanatory detail
+// rather than blocking dispensing on an infrastructure hiccup.
+func (h *PharmacyHandler) runInteractionCheck(r *http.Request, tenantID uuid.UUID, skus []string, allergyFlags []string) (result, details, severity string) {
+	if h.inventory == nil {
+		return "clear", "interaction engine not configured", ""
+	}
+	resp, err := h.inventory.CheckInteractions(r.Context(), tenantID.String(), inventory.CheckInteractionsRequest{
+		SKUs:         skus,
+		AllergyFlags: allergyFlags,
+	})
+	if err != nil {
+		h.log.Warn("interaction check S2S call failed", zap.Error(err))
+		return "clear", "interaction check unavailable: " + err.Error(), ""
+	}
+	return reduceInteractionFindings(resp)
+}
+
+// runInteractionCheckByItemIDs is the PrescriptionLine-facing variant (lines carry
+// catalog_item_id, not SKU).
+func (h *PharmacyHandler) runInteractionCheckByItemIDs(r *http.Request, tenantID uuid.UUID, itemIDs []string, allergyFlags []string) (result, details, severity string) {
+	if h.inventory == nil {
+		return "clear", "interaction engine not configured", ""
+	}
+	resp, err := h.inventory.CheckInteractions(r.Context(), tenantID.String(), inventory.CheckInteractionsRequest{
+		ItemIDs:      itemIDs,
+		AllergyFlags: allergyFlags,
+	})
+	if err != nil {
+		h.log.Warn("interaction check S2S call failed", zap.Error(err))
+		return "clear", "interaction check unavailable: " + err.Error(), ""
+	}
+	return reduceInteractionFindings(resp)
+}
+
+var severityRank = map[string]int{"minor": 1, "moderate": 2, "major": 3, "contraindicated": 4}
+
+func reduceInteractionFindings(resp *inventory.CheckInteractionsResponse) (result, details, severity string) {
+	if len(resp.Interactions) == 0 && len(resp.AllergyMatches) == 0 {
+		return "clear", "", ""
+	}
+	lines := make([]string, 0, len(resp.Interactions)+len(resp.AllergyMatches))
+	worst := ""
+	for _, f := range resp.Interactions {
+		lines = append(lines, f.Severity+": "+f.ClassA+" + "+f.ClassB+" ("+f.SKUA+", "+f.SKUB+") — "+f.Description)
+		if severityRank[f.Severity] > severityRank[worst] {
+			worst = f.Severity
+		}
+	}
+	for _, m := range resp.AllergyMatches {
+		lines = append(lines, "allergy: "+m.SKU+" matches declared allergy "+m.AllergyFlag)
+		if severityRank["major"] > severityRank[worst] {
+			worst = "major" // allergy hits are treated as at least major severity
+		}
+	}
+	sort.Strings(lines)
+	detail := ""
+	for i, l := range lines {
+		if i > 0 {
+			detail += "; "
+		}
+		detail += l
+	}
+	return "flagged", detail, worst
+}
+
+// recordInteractionCheckOnPrescription stamps the check reference into Prescription.metadata
+// and, on a moderate+ finding, moves status to "flagged" (best-effort; logged, not fatal).
+func (h *PharmacyHandler) recordInteractionCheckOnPrescription(r *http.Request, pxID, checkID uuid.UUID, severity string) {
+	px, err := h.db.Prescription.Get(r.Context(), pxID)
+	if err != nil {
+		return
+	}
+	md := cloneMetadata(px.Metadata)
+	md["interaction_check_id"] = checkID.String()
+	upd := h.db.Prescription.UpdateOneID(pxID).SetMetadata(md)
+	if severityRank[severity] >= severityRank["moderate"] && px.Status == "pending" {
+		upd = upd.SetStatus("flagged")
+	}
+	if _, err := upd.Save(r.Context()); err != nil {
+		h.log.Warn("failed to record interaction check on prescription", zap.Error(err))
+	}
+}
+
+func cloneMetadata(m map[string]any) map[string]any {
+	out := make(map[string]any, len(m)+2)
+	for k, v := range m {
+		out[k] = v
+	}
+	return out
+}
+
+type approvePrescriptionInput struct {
+	ApprovedBy     *string `json:"approved_by"`
+	OverrideReason string  `json:"override_reason"`
+}
+
+// ApprovePrescription handles POST /{tenantID}/pos/pharmacy/prescriptions/{id}/approve.
+// Blocks on status="flagged" unless an override_reason is supplied (the pharmacist's
+// documented clinical judgment call), per the Phase 1 approval workflow.
+func (h *PharmacyHandler) ApprovePrescription(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+	pxID, err := uuid.Parse(chi.URLParam(r, "prescriptionID"))
+	if err != nil {
+		jsonError(w, "invalid prescription_id", http.StatusBadRequest)
+		return
+	}
+	px, err := h.db.Prescription.Get(r.Context(), pxID)
+	if err != nil || px.TenantID != tid {
+		jsonError(w, "prescription not found", http.StatusNotFound)
+		return
+	}
+	if px.Status != "pending" && px.Status != "flagged" && px.Status != "pharmacist_review" {
+		jsonError(w, "prescription is not in an approvable state", http.StatusConflict)
+		return
+	}
+
+	var input approvePrescriptionInput
+	_ = json.NewDecoder(r.Body).Decode(&input)
+
+	if px.Status == "flagged" && input.OverrideReason == "" {
+		jsonError(w, "prescription is flagged for a drug interaction/allergy — an override_reason is required to approve", http.StatusUnprocessableEntity)
+		return
+	}
+
+	md := cloneMetadata(px.Metadata)
+	now := time.Now()
+	md["approved_at"] = now.Format(time.RFC3339)
+	if input.OverrideReason != "" {
+		md["approval_override_reason"] = input.OverrideReason
+	}
+	upd := h.db.Prescription.UpdateOneID(pxID).
+		SetStatus("approved").
+		SetMetadata(md)
+	if input.ApprovedBy != nil {
+		if aid, err := uuid.Parse(*input.ApprovedBy); err == nil {
+			md["approved_by"] = aid.String()
+			upd = upd.SetMetadata(md)
+		}
+	}
+
+	updated, err := upd.Save(r.Context())
+	if err != nil {
+		h.log.Error("approve prescription failed", zap.Error(err))
+		jsonError(w, "failed to approve prescription", http.StatusInternalServerError)
+		return
+	}
+	jsonOK(w, updated)
+}
+
+// LockPrescription handles POST /{tenantID}/pos/pharmacy/prescriptions/{id}/lock.
+// Optional final pharmacist sign-off step (tenant-configurable, off by default — see
+// OutletSetting.metadata["pharmacy"]["require_dispense_lock"]) between approval and dispense.
+func (h *PharmacyHandler) LockPrescription(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+	pxID, err := uuid.Parse(chi.URLParam(r, "prescriptionID"))
+	if err != nil {
+		jsonError(w, "invalid prescription_id", http.StatusBadRequest)
+		return
+	}
+	px, err := h.db.Prescription.Get(r.Context(), pxID)
+	if err != nil || px.TenantID != tid {
+		jsonError(w, "prescription not found", http.StatusNotFound)
+		return
+	}
+	if px.Status != "approved" {
+		jsonError(w, "only an approved prescription can be locked", http.StatusConflict)
+		return
+	}
+	updated, err := h.db.Prescription.UpdateOneID(pxID).SetStatus("locked").Save(r.Context())
+	if err != nil {
+		h.log.Error("lock prescription failed", zap.Error(err))
+		jsonError(w, "failed to lock prescription", http.StatusInternalServerError)
+		return
+	}
+	jsonOK(w, updated)
 }
 
 type ageVerifyInput struct {

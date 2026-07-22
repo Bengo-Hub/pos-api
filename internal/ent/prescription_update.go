@@ -259,6 +259,12 @@ func (_u *PrescriptionUpdate) ClearDispensedBy() *PrescriptionUpdate {
 	return _u
 }
 
+// SetMetadata sets the "metadata" field.
+func (_u *PrescriptionUpdate) SetMetadata(v map[string]interface{}) *PrescriptionUpdate {
+	_u.mutation.SetMetadata(v)
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *PrescriptionUpdate) SetUpdatedAt(v time.Time) *PrescriptionUpdate {
 	_u.mutation.SetUpdatedAt(v)
@@ -395,6 +401,9 @@ func (_u *PrescriptionUpdate) sqlSave(ctx context.Context) (_node int, err error
 	}
 	if _u.mutation.DispensedByCleared() {
 		_spec.ClearField(prescription.FieldDispensedBy, field.TypeUUID)
+	}
+	if value, ok := _u.mutation.Metadata(); ok {
+		_spec.SetField(prescription.FieldMetadata, field.TypeJSON, value)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(prescription.FieldUpdatedAt, field.TypeTime, value)
@@ -649,6 +658,12 @@ func (_u *PrescriptionUpdateOne) ClearDispensedBy() *PrescriptionUpdateOne {
 	return _u
 }
 
+// SetMetadata sets the "metadata" field.
+func (_u *PrescriptionUpdateOne) SetMetadata(v map[string]interface{}) *PrescriptionUpdateOne {
+	_u.mutation.SetMetadata(v)
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *PrescriptionUpdateOne) SetUpdatedAt(v time.Time) *PrescriptionUpdateOne {
 	_u.mutation.SetUpdatedAt(v)
@@ -815,6 +830,9 @@ func (_u *PrescriptionUpdateOne) sqlSave(ctx context.Context) (_node *Prescripti
 	}
 	if _u.mutation.DispensedByCleared() {
 		_spec.ClearField(prescription.FieldDispensedBy, field.TypeUUID)
+	}
+	if value, ok := _u.mutation.Metadata(); ok {
+		_spec.SetField(prescription.FieldMetadata, field.TypeJSON, value)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(prescription.FieldUpdatedAt, field.TypeTime, value)

@@ -30,6 +30,11 @@ func (ControlledSubstanceLog) Fields() []ent.Field {
 		field.String("patient_id_number").Optional().Comment("National ID / passport"),
 		field.UUID("witness_staff_id", uuid.UUID{}).Optional().Nillable().Comment("Witnessing pharmacist for dual-person requirement"),
 		field.String("notes").Optional(),
+		// Batch traceability for the regulator export (Phase 9): which lot this controlled
+		// dispense was drawn from, populated from POSOrderLine.lot_number/expiry_date once
+		// the sale-finalize consumption response reports the FEFO-selected lot.
+		field.String("lot_number").Optional(),
+		field.Time("lot_expiry_date").Optional().Nillable(),
 		field.Time("dispensed_at").Default(time.Now).Immutable(),
 	}
 }

@@ -658,7 +658,7 @@ func (h *HotelHandler) PostFolioCharge(w http.ResponseWriter, r *http.Request) {
 		go func(sku string, q float64) {
 			ctx, cancel := context.WithTimeout(bgCtx, 10*time.Second)
 			defer cancel()
-			if cErr := h.inventoryClient.RecordConsumption(ctx, tid.String(), inventory.ConsumptionRequest{
+			if _, cErr := h.inventoryClient.RecordConsumption(ctx, tid.String(), inventory.ConsumptionRequest{
 				OrderID: item.ID.String(),
 				Items:   []inventory.ConsumptionItem{{SKU: sku, Quantity: q}},
 			}); cErr != nil {

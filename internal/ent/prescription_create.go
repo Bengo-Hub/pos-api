@@ -174,6 +174,12 @@ func (_c *PrescriptionCreate) SetNillableDispensedBy(v *uuid.UUID) *Prescription
 	return _c
 }
 
+// SetMetadata sets the "metadata" field.
+func (_c *PrescriptionCreate) SetMetadata(v map[string]interface{}) *PrescriptionCreate {
+	_c.mutation.SetMetadata(v)
+	return _c
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_c *PrescriptionCreate) SetCreatedAt(v time.Time) *PrescriptionCreate {
 	_c.mutation.SetCreatedAt(v)
@@ -255,6 +261,10 @@ func (_c *PrescriptionCreate) defaults() {
 		v := prescription.DefaultStatus
 		_c.mutation.SetStatus(v)
 	}
+	if _, ok := _c.mutation.Metadata(); !ok {
+		v := prescription.DefaultMetadata
+		_c.mutation.SetMetadata(v)
+	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		v := prescription.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
@@ -295,6 +305,9 @@ func (_c *PrescriptionCreate) check() error {
 	}
 	if _, ok := _c.mutation.Status(); !ok {
 		return &ValidationError{Name: "status", err: errors.New(`ent: missing required field "Prescription.status"`)}
+	}
+	if _, ok := _c.mutation.Metadata(); !ok {
+		return &ValidationError{Name: "metadata", err: errors.New(`ent: missing required field "Prescription.metadata"`)}
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "Prescription.created_at"`)}
@@ -389,6 +402,10 @@ func (_c *PrescriptionCreate) createSpec() (*Prescription, *sqlgraph.CreateSpec)
 	if value, ok := _c.mutation.DispensedBy(); ok {
 		_spec.SetField(prescription.FieldDispensedBy, field.TypeUUID, value)
 		_node.DispensedBy = &value
+	}
+	if value, ok := _c.mutation.Metadata(); ok {
+		_spec.SetField(prescription.FieldMetadata, field.TypeJSON, value)
+		_node.Metadata = value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(prescription.FieldCreatedAt, field.TypeTime, value)
@@ -651,6 +668,18 @@ func (u *PrescriptionUpsert) UpdateDispensedBy() *PrescriptionUpsert {
 // ClearDispensedBy clears the value of the "dispensed_by" field.
 func (u *PrescriptionUpsert) ClearDispensedBy() *PrescriptionUpsert {
 	u.SetNull(prescription.FieldDispensedBy)
+	return u
+}
+
+// SetMetadata sets the "metadata" field.
+func (u *PrescriptionUpsert) SetMetadata(v map[string]interface{}) *PrescriptionUpsert {
+	u.Set(prescription.FieldMetadata, v)
+	return u
+}
+
+// UpdateMetadata sets the "metadata" field to the value that was provided on create.
+func (u *PrescriptionUpsert) UpdateMetadata() *PrescriptionUpsert {
+	u.SetExcluded(prescription.FieldMetadata)
 	return u
 }
 
@@ -952,6 +981,20 @@ func (u *PrescriptionUpsertOne) UpdateDispensedBy() *PrescriptionUpsertOne {
 func (u *PrescriptionUpsertOne) ClearDispensedBy() *PrescriptionUpsertOne {
 	return u.Update(func(s *PrescriptionUpsert) {
 		s.ClearDispensedBy()
+	})
+}
+
+// SetMetadata sets the "metadata" field.
+func (u *PrescriptionUpsertOne) SetMetadata(v map[string]interface{}) *PrescriptionUpsertOne {
+	return u.Update(func(s *PrescriptionUpsert) {
+		s.SetMetadata(v)
+	})
+}
+
+// UpdateMetadata sets the "metadata" field to the value that was provided on create.
+func (u *PrescriptionUpsertOne) UpdateMetadata() *PrescriptionUpsertOne {
+	return u.Update(func(s *PrescriptionUpsert) {
+		s.UpdateMetadata()
 	})
 }
 
@@ -1422,6 +1465,20 @@ func (u *PrescriptionUpsertBulk) UpdateDispensedBy() *PrescriptionUpsertBulk {
 func (u *PrescriptionUpsertBulk) ClearDispensedBy() *PrescriptionUpsertBulk {
 	return u.Update(func(s *PrescriptionUpsert) {
 		s.ClearDispensedBy()
+	})
+}
+
+// SetMetadata sets the "metadata" field.
+func (u *PrescriptionUpsertBulk) SetMetadata(v map[string]interface{}) *PrescriptionUpsertBulk {
+	return u.Update(func(s *PrescriptionUpsert) {
+		s.SetMetadata(v)
+	})
+}
+
+// UpdateMetadata sets the "metadata" field to the value that was provided on create.
+func (u *PrescriptionUpsertBulk) UpdateMetadata() *PrescriptionUpsertBulk {
+	return u.Update(func(s *PrescriptionUpsert) {
+		s.UpdateMetadata()
 	})
 }
 

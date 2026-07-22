@@ -40,6 +40,8 @@ const (
 	FieldDispensedAt = "dispensed_at"
 	// FieldDispensedBy holds the string denoting the dispensed_by field in the database.
 	FieldDispensedBy = "dispensed_by"
+	// FieldMetadata holds the string denoting the metadata field in the database.
+	FieldMetadata = "metadata"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
@@ -64,6 +66,7 @@ var Columns = []string{
 	FieldNotes,
 	FieldDispensedAt,
 	FieldDispensedBy,
+	FieldMetadata,
 	FieldCreatedAt,
 	FieldUpdatedAt,
 }
@@ -85,6 +88,8 @@ var (
 	PatientNameValidator func(string) error
 	// DefaultStatus holds the default value on creation for the "status" field.
 	DefaultStatus string
+	// DefaultMetadata holds the default value on creation for the "metadata" field.
+	DefaultMetadata map[string]interface{}
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.

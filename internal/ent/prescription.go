@@ -3,6 +3,7 @@
 package ent
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -44,6 +45,8 @@ type Prescription struct {
 	DispensedAt *time.Time `json:"dispensed_at,omitempty"`
 	// DispensedBy holds the value of the "dispensed_by" field.
 	DispensedBy *uuid.UUID `json:"dispensed_by,omitempty"`
+	// Metadata holds the value of the "metadata" field.
+	Metadata map[string]interface{} `json:"metadata,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
@@ -58,6 +61,8 @@ func (*Prescription) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case prescription.FieldOrderID, prescription.FieldDispensedBy:
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
+		case prescription.FieldMetadata:
+			values[i] = new([]byte)
 		case prescription.FieldPrescriptionNumber, prescription.FieldPrescriberName, prescription.FieldPrescriberLicense, prescription.FieldPatientName, prescription.FieldPatientDob, prescription.FieldPatientIDNumber, prescription.FieldStatus, prescription.FieldNotes:
 			values[i] = new(sql.NullString)
 		case prescription.FieldDispensedAt, prescription.FieldCreatedAt, prescription.FieldUpdatedAt:
@@ -166,6 +171,14 @@ func (_m *Prescription) assignValues(columns []string, values []any) error {
 				_m.DispensedBy = new(uuid.UUID)
 				*_m.DispensedBy = *value.S.(*uuid.UUID)
 			}
+		case prescription.FieldMetadata:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field metadata", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.Metadata); err != nil {
+					return fmt.Errorf("unmarshal field metadata: %w", err)
+				}
+			}
 		case prescription.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field created_at", values[i])
@@ -258,6 +271,9 @@ func (_m *Prescription) String() string {
 		builder.WriteString("dispensed_by=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
+	builder.WriteString(", ")
+	builder.WriteString("metadata=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Metadata))
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))

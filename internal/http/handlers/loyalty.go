@@ -332,6 +332,15 @@ func (h *LoyaltyHandler) CreateAccount(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "customer_phone and customer_name are required", http.StatusBadRequest)
 		return
 	}
+	// Pre-check: this customer may already have a loyalty account (tenant_id, customer_phone
+	// is unique). Return the existing account instead of racing the DB constraint, so the
+	// client can treat "already registered" as a normal success path, not an error.
+	if existing, existErr := h.db.LoyaltyAccount.Query().
+		Where(entla.TenantID(tid), entla.CustomerPhone(body.CustomerPhone)).
+		First(r.Context()); existErr == nil {
+		jsonOK(w, existing)
+		return
+	}
 	creator := h.db.LoyaltyAccount.Create().
 		SetTenantID(tid).
 		SetCustomerPhone(body.CustomerPhone).
@@ -358,6 +367,17 @@ func (h *LoyaltyHandler) CreateAccount(w http.ResponseWriter, r *http.Request) {
 	}
 	acc, err := creator.Save(r.Context())
 	if err != nil {
+		if ent.IsConstraintError(err) {
+			// Lost a race against a concurrent registration of the same phone number.
+			if existing, existErr := h.db.LoyaltyAccount.Query().
+				Where(entla.TenantID(tid), entla.CustomerPhone(body.CustomerPhone)).
+				First(r.Context()); existErr == nil {
+				jsonOK(w, existing)
+				return
+			}
+			jsonError(w, "customer already registered for loyalty", http.StatusConflict)
+			return
+		}
 		h.log.Error("create loyalty account failed", zap.Error(err))
 		jsonError(w, "failed to create account", http.StatusInternalServerError)
 		return

@@ -654,6 +654,12 @@ func seedRBACPermissions(ctx context.Context, client *ent.Client) error {
 		// this OR pos.orders.manage). It was checked by the UI but never seeded, so a tenant
 		// admin could not grant discounting to a custom role at all.
 		{"pos.discounts.add", "POS apply discount", "discounts", "add"},
+		// Pharmacy prescription-approval gate (pharmacist-only clinical sign-off, Phase 1 of
+		// the DAWA safety workflow). Picked up automatically by the pharmacist role's existing
+		// "pos.pharmacy.*" wildcard; pharmacy_technician's explicit view/change grants do not
+		// include it, so technicians can never approve.
+		{"pos.pharmacy.approve", "POS pharmacy approve prescription", "pharmacy", "approve"},
+		{"pos.pharmacy.interaction_override", "POS pharmacy override drug interaction flag", "pharmacy", "interaction_override"},
 	}
 	for _, ex := range extras {
 		exists, err := client.POSPermission.Query().

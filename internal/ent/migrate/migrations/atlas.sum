@@ -1,4 +1,4 @@
-h1:0VrTE5EuB+c7YD2+VuzxCCALxfzoCMeKG5mkmi1GTPk=
+h1:IbRuOfzg/ywRppdqRJ0bFjRzTK5MZk/vnvFOp/UJXRw=
 20260324210314_initial_schema.sql h1:L7ICP+7BHePtjHfQRRY9yP85A6Q9SyiYsqSvGK7paxA=
 20260403120000_fix_outbox_events_schema.sql h1:VNlTFTGCLBkz4+UvvvqZf5y5tyS0FfS1AXy770Ybc8o=
 20260507090905_hotel_module.sql h1:PGKqdzMQaeFLALmRXUmGsXjha3Rt42EldWJceFVNGDo=
@@ -86,3 +86,4 @@ h1:0VrTE5EuB+c7YD2+VuzxCCALxfzoCMeKG5mkmi1GTPk=
 20260719180642_add_document_sequences.sql h1:LrouN9I4JHY91q0hfys2moA+iafVxNRoAmh9V4Uh/hc=
 20260720080740_add_layaway_items.sql h1:GsvixJQQKrAP+XJ2EtqForeCvIoZyi7RT6qbWgl9kIA=
 20260721210405_add_customer_balance_cache.sql h1:58SXBRjowu8NuXJK6WzIqCvlyN7H/Ph03nzaifTyGt0=
+20260721220942_prescription_metadata.sql h1:25J+3bWWZid2535ekaoyQWJyWb53KHht5RRniP32vJE=
