@@ -179,6 +179,8 @@ func (h *ReceiptHandler) branding(ctx context.Context, tenantID uuid.UUID) recei
 	}
 	b.LogoURL = tb.LogoURL
 	b.PrimaryColor = tb.PrimaryColor
+	b.Phone = tb.Phone
+	b.Email = tb.Email
 	return b
 }
 
@@ -270,6 +272,7 @@ func newReceiptResponse(v printing.ReceiptView, layout string) receiptResponse {
 		OutletName:                  v.OutletName,
 		OutletAddress:               v.OutletAddress,
 		OutletPhones:                v.OutletPhones,
+		OutletEmail:                 v.OutletEmail,
 		BillTo:                      v.BillTo,
 		BillToLabel:                 v.BillToLabel,
 		IssuedAt:                    v.IssuedAt,
@@ -462,6 +465,16 @@ func (h *ReceiptHandler) GetReceipt(w http.ResponseWriter, r *http.Request) {
 		SplitLineIDs:   splitLineSet,
 		SplitLabel:     splitLabel,
 	})
+	// Tenant branding — fetched once, used for the logo (html/pdf), the PDF-only company-name
+	// line, and as the contact-line FALLBACK below (most tenants only ever configure contact
+	// info at the tenant level, not per-branch).
+	brand := h.branding(ctx, tid)
+	if view.OutletPhones == "" {
+		view.OutletPhones = brand.Phone
+	}
+	if view.OutletEmail == "" {
+		view.OutletEmail = brand.Email
+	}
 	// Platform-owner (Codevertex) advertisement footer — cache-first, static fallback.
 	view.ProviderFooter = printing.ResolveProviderFooter(ctx, h.cache, h.authURL)
 	// KRA PIN header line: the transmitted order carries its own fiscal identity; older/
@@ -484,7 +497,6 @@ func (h *ReceiptHandler) GetReceipt(w http.ResponseWriter, r *http.Request) {
 
 	switch r.URL.Query().Get("format") {
 	case "pdf":
-		brand := h.branding(ctx, tid)
 		pdfBytes, err := layouts.RenderPDF(receipt, brand)
 		if err != nil {
 			h.log.Error("generate receipt pdf", zap.Error(err))
@@ -497,7 +509,6 @@ func (h *ReceiptHandler) GetReceipt(w http.ResponseWriter, r *http.Request) {
 	case "html":
 		// Receipts print on thermal/non-colour printers, so we take only the tenant LOGO from
 		// branding and deliberately ignore the brand primary colour (coloured text prints faint).
-		brand := h.branding(ctx, tid)
 		htmlOut := layouts.RenderHTML(receipt, brand.LogoURL)
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Content-Disposition", fmt.Sprintf(`inline; filename="receipt-%s.html"`, order.OrderNumber))

@@ -93,6 +93,9 @@ func renderThermalPDF(rec Receipt, brand Brand, layout string) ([]byte, error) {
 	if rec.OutletPhones != "" {
 		center("Mobile: "+rec.OutletPhones, "", 9)
 	}
+	if rec.OutletEmail != "" {
+		center("Email: "+rec.OutletEmail, "", 9)
+	}
 	if rec.EtimsKraPin != "" {
 		center("KRA PIN: "+rec.EtimsKraPin, "B", 9)
 	}

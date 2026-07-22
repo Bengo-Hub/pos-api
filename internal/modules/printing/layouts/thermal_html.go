@@ -98,6 +98,9 @@ h1{font-size:17px;letter-spacing:.5px;text-align:center;margin:3px 0}
 	if rec.OutletPhones != "" {
 		buf.WriteString(fmt.Sprintf(`<p class="sub"><b>Mobile:</b> %s</p>`, escape(rec.OutletPhones)))
 	}
+	if rec.OutletEmail != "" {
+		buf.WriteString(fmt.Sprintf(`<p class="sub"><b>Email:</b> %s</p>`, escape(rec.OutletEmail)))
+	}
 	if rec.EtimsKraPin != "" {
 		buf.WriteString(fmt.Sprintf(`<p class="sub"><b>KRA PIN:</b> %s</p>`, escape(rec.EtimsKraPin)))
 	}

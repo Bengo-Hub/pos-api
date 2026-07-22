@@ -115,18 +115,21 @@ func (h *AuthOutletEventHandler) SubscribeToOutletEvents(nc *nats.Conn) error {
 }
 
 // outletAddressJSON merges the auth event's location/contact fields into the mirror's
-// address_json: "street" = the physical address/location line ("MALABA CBD") and
-// "contact_phones" = the labeled phone list from auth outlet metadata
-// ([{label:"MTN", value:"+256782323113"}, …]) — both printed on receipt headers.
-// prev keeps any keys other writers may have stored.
+// address_json: "street" = the physical address/location line ("MALABA CBD"), "contact_phones"
+// = the labeled phone list from auth outlet metadata ([{label:"MTN", value:"+256782323113"}, …]),
+// and "contact_email" = the branch's own email — all printed on receipt headers, with the
+// receipt view-model falling back to the tenant's general contact when a branch hasn't set its
+// own. prev keeps any keys other writers may have stored.
 func outletAddressJSON(prev map[string]any, evt *sharedevents.Event) map[string]any {
 	address, _ := evt.Payload["address"].(string)
 	meta, _ := evt.Payload["metadata"].(map[string]any)
 	var phones any
+	var email string
 	if meta != nil {
 		phones = meta["contact_phones"]
+		email, _ = meta["contact_email"].(string)
 	}
-	if address == "" && phones == nil {
+	if address == "" && phones == nil && email == "" {
 		return nil // nothing to write; leave the mirror untouched
 	}
 	merged := map[string]any{}
@@ -138,6 +141,9 @@ func outletAddressJSON(prev map[string]any, evt *sharedevents.Event) map[string]
 	}
 	if phones != nil {
 		merged["contact_phones"] = phones
+	}
+	if email != "" {
+		merged["contact_email"] = email
 	}
 	return merged
 }

@@ -32,6 +32,7 @@ type ReceiptData struct {
 	OutletName    string
 	OutletAddress string
 	OutletPhones  string // formatted labeled phones, printed as "Mobile: …" under the address
+	OutletEmail   string // branch contact email (falls back to the tenant's general email)
 	OrderNumber   string
 	BillTo        string
 	BillToLabel   string // "Customer" or "Paid by"
@@ -131,6 +132,9 @@ func BuildReceipt(d ReceiptData) []byte {
 	}
 	if d.OutletPhones != "" {
 		writeln("Mobile: " + d.OutletPhones)
+	}
+	if d.OutletEmail != "" {
+		writeln("Email: " + d.OutletEmail)
 	}
 	if d.Type == "customer" && d.EtimsKraPin != "" {
 		writeln("KRA PIN: " + d.EtimsKraPin)

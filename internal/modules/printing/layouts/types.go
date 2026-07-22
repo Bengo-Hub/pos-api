@@ -40,6 +40,11 @@ type Brand struct {
 	CompanyName  string
 	LogoURL      string
 	PrimaryColor string
+	// Phone/Email — the TENANT's general contact info, used as the receipt's contact-line
+	// fallback when the specific outlet/branch has no contact_phones/contact_email of its own
+	// configured (most tenants only ever set contact info at the tenant level).
+	Phone string
+	Email string
 }
 
 // Receipt is the full receipt payload rendered by every layout — and, JSON-encoded, the
@@ -54,6 +59,9 @@ type Receipt struct {
 	// Formatted labeled-phone line from the outlet's contact_phones metadata —
 	// printed under the address as "Mobile: AIRTEL +2547… · MTN +2567…".
 	OutletPhones string `json:"outlet_phones,omitempty"`
+	// OutletEmail — the branch's own contact email, falling back to the tenant's general
+	// contact_email when the branch hasn't set one (see receipt.go's branding fallback).
+	OutletEmail string `json:"outlet_email,omitempty"`
 	// BillTo is the customer shown on the receipt: the guest/payer name for M-Pesa / card / online
 	// payments (where a real customer is identified), or "Walk-in customer" for cash.
 	BillTo      string    `json:"bill_to,omitempty"`

@@ -91,6 +91,10 @@ type ReceiptView struct {
 	// (auth outlet metadata, mirrored into address_json) — printed as
 	// "Mobile: AIRTEL +254754300099 · MTN +256782323113 · SAF +254112626692".
 	OutletPhones string
+	// OutletEmail is the branch's own contact_email (auth outlet metadata). Both this and
+	// OutletPhones fall back to the tenant's general contact info in receipt.go when the branch
+	// hasn't configured its own (see printing.Brand.Phone/Email).
+	OutletEmail string
 	Timezone     string // outlet IANA timezone, e.g. "Africa/Nairobi"
 	IssuedAt     time.Time
 	BillTo       string
@@ -444,6 +448,9 @@ func BuildReceiptView(order *ent.POSOrder, lines []*ent.POSOrderLine, outlet *en
 				v.OutletAddress = city
 			}
 			v.OutletPhones = formatContactPhones(addr["contact_phones"])
+			if email, ok := addr["contact_email"].(string); ok {
+				v.OutletEmail = strings.TrimSpace(email)
+			}
 		}
 	}
 

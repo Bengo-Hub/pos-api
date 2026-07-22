@@ -68,6 +68,9 @@ td.r,th.r{text-align:right}
 	if rec.OutletPhones != "" {
 		buf.WriteString(fmt.Sprintf(`<div class="sub"><b>Mobile:</b> %s</div>`, escape(rec.OutletPhones)))
 	}
+	if rec.OutletEmail != "" {
+		buf.WriteString(fmt.Sprintf(`<div class="sub"><b>Email:</b> %s</div>`, escape(rec.OutletEmail)))
+	}
 	if rec.EtimsKraPin != "" {
 		buf.WriteString(fmt.Sprintf(`<div class="sub"><b>KRA PIN:</b> %s</div>`, escape(rec.EtimsKraPin)))
 	}

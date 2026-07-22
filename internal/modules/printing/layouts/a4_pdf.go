@@ -51,6 +51,10 @@ func renderA4PDF(rec Receipt, brand Brand) ([]byte, error) {
 		pdf.SetFont("Helvetica", "B", 10)
 		pdf.MultiCell(contentW, 5, "Mobile: "+rec.OutletPhones, "", "C", false)
 	}
+	if rec.OutletEmail != "" {
+		pdf.SetFont("Helvetica", "", 10)
+		pdf.MultiCell(contentW, 5, "Email: "+rec.OutletEmail, "", "C", false)
+	}
 	if rec.EtimsKraPin != "" {
 		pdf.SetFont("Helvetica", "B", 10)
 		pdf.MultiCell(contentW, 5, "KRA PIN: "+rec.EtimsKraPin, "", "C", false)

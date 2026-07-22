@@ -111,12 +111,39 @@ func (s *Syncer) SyncTenant(ctx context.Context, slug string) (uuid.UUID, error)
 
 // authOutletItem is the shape of one entry from GET /api/v1/tenants/{slug}/outlets.
 type authOutletItem struct {
-	ID      string `json:"id"`
-	Code    string `json:"code"`
-	Name    string `json:"name"`
-	UseCase string `json:"use_case"`
-	IsHQ    bool   `json:"is_hq"`
-	Status  string `json:"status"`
+	ID       string         `json:"id"`
+	Code     string         `json:"code"`
+	Name     string         `json:"name"`
+	UseCase  string         `json:"use_case"`
+	IsHQ     bool           `json:"is_hq"`
+	Status   string         `json:"status"`
+	Address  string         `json:"address,omitempty"`
+	Metadata map[string]any `json:"metadata,omitempty"`
+}
+
+// addressJSONFrom builds the outlet mirror's address_json ("street" + "contact_phones" +
+// "contact_email") from auth-api's plain address string + metadata blob — the same shape the
+// NATS event path writes (identity.outletAddressJSON), so an outlet synced via this REST pull
+// (fresh DB, no event backlog yet) isn't missing address/contact info until the next
+// auth.outlet.updated event arrives.
+func addressJSONFrom(address string, meta map[string]any) map[string]any {
+	if address == "" && len(meta) == 0 {
+		return nil
+	}
+	out := map[string]any{}
+	if address != "" {
+		out["street"] = address
+	}
+	if phones, ok := meta["contact_phones"]; ok {
+		out["contact_phones"] = phones
+	}
+	if email, ok := meta["contact_email"].(string); ok && email != "" {
+		out["contact_email"] = email
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 // SyncOutlets calls auth-api's public outlet list endpoint and upserts every
@@ -179,6 +206,9 @@ func (s *Syncer) SyncOutlets(ctx context.Context, tenantID uuid.UUID, tenantSlug
 			SetStatus(status)
 		if item.UseCase != "" {
 			q = q.SetUseCase(item.UseCase)
+		}
+		if addrJSON := addressJSONFrom(item.Address, item.Metadata); addrJSON != nil {
+			q = q.SetAddressJSON(addrJSON)
 		}
 
 		if err := q.OnConflict().DoNothing().Exec(ctx); err != nil {
