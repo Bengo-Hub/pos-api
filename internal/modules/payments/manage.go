@@ -293,9 +293,14 @@ func (s *Service) loadManagedPayment(ctx context.Context, tenantID, orderID, pay
 	if err != nil {
 		return nil, "", fmt.Errorf("payments: payment not found")
 	}
-	tenderType := ""
-	if t, terr := s.client.Tender.Query().Where(tender.ID(p.TenderID)).Only(ctx); terr == nil {
-		tenderType = t.Type
+	// PaymentData["method"] is stamped reliably for every tender (cash/card_manual/mpesa_manual/
+	// ...) at settlement time — the Tender catalog lookup is only a fallback for older rows
+	// that predate this field, since the terminal UI doesn't resolve a real per-method Tender id.
+	tenderType, _ := p.PaymentData["method"].(string)
+	if tenderType == "" {
+		if t, terr := s.client.Tender.Query().Where(tender.ID(p.TenderID)).Only(ctx); terr == nil {
+			tenderType = t.Type
+		}
 	}
 	return p, tenderType, nil
 }

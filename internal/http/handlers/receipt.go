@@ -345,7 +345,10 @@ func (h *ReceiptHandler) GetReceipt(w http.ResponseWriter, r *http.Request) {
 		Where(posorder.ID(orderID), posorder.TenantID(tid)).
 		WithLines().
 		WithPayments(func(q *ent.POSPaymentQuery) {
-			q.Where(pospayment.StatusEQ("completed")).Limit(1)
+			// Deterministic: the LATEST completed payment, not whatever order the DB happens to
+			// return — matters when a retry (e.g. an auth hiccup) left more than one completed
+			// row on the same order.
+			q.Where(pospayment.StatusEQ("completed")).Order(ent.Desc(pospayment.FieldOccurredAt)).Limit(1)
 		}).
 		Only(ctx)
 	if err != nil {
@@ -402,9 +405,13 @@ func (h *ReceiptHandler) GetReceipt(w http.ResponseWriter, r *http.Request) {
 		payerName = payerNameFromPayment(p)
 		occurred := p.OccurredAt
 		paymentDate = &occurred
-		// Complimentary sales always stamp PaymentData["method"] reliably (unlike the Tender
-		// catalog row, which the terminal reuses generically across every tender type) — check
-		// it first so the receipt clearly discloses "no cash collected" and why.
+		// PaymentData["method"] is stamped reliably by CreatePaymentIntent for EVERY tender
+		// (cash/card_manual/mpesa_manual/...) — unlike the Tender catalog row, which the terminal
+		// UI never actually resolves to a real per-method row (it sends a nil placeholder id), so
+		// a Tender.Get lookup keyed by TenderID silently misses for ordinary sales and used to
+		// leave paymentMethod stuck on the "cash" default regardless of the real tender. Trust the
+		// stamped method first; only fall back to the Tender catalog row (then "cash") if it's
+		// somehow missing (e.g. very old orders predating this field).
 		if method, _ := p.PaymentData["method"].(string); strings.EqualFold(method, payments.TenderComplimentary) {
 			paymentMethod = "COMPLIMENTARY — NOT CHARGED"
 			if reason, _ := p.PaymentData["reason"].(string); reason != "" {
@@ -416,6 +423,8 @@ func (h *ReceiptHandler) GetReceipt(w http.ResponseWriter, r *http.Request) {
 			// owed (BuildReceiptView reads the order's on_account marker).
 			paymentMethod = "Credit (on account)"
 			amountPaid = 0
+		} else if method != "" {
+			paymentMethod = exportMethodLabel(method)
 		} else if t, terr := h.client.Tender.Get(ctx, p.TenderID); terr == nil {
 			if t.Type != "" {
 				paymentMethod = t.Type
