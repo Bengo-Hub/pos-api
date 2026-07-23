@@ -1,4 +1,4 @@
-h1:IbRuOfzg/ywRppdqRJ0bFjRzTK5MZk/vnvFOp/UJXRw=
+h1:h0ZBuT8ZUGgPBT6JVCu+V18vcyKB41EFMv2ntlmcF0k=
 20260324210314_initial_schema.sql h1:L7ICP+7BHePtjHfQRRY9yP85A6Q9SyiYsqSvGK7paxA=
 20260403120000_fix_outbox_events_schema.sql h1:VNlTFTGCLBkz4+UvvvqZf5y5tyS0FfS1AXy770Ybc8o=
 20260507090905_hotel_module.sql h1:PGKqdzMQaeFLALmRXUmGsXjha3Rt42EldWJceFVNGDo=
@@ -87,3 +87,4 @@ h1:IbRuOfzg/ywRppdqRJ0bFjRzTK5MZk/vnvFOp/UJXRw=
 20260720080740_add_layaway_items.sql h1:GsvixJQQKrAP+XJ2EtqForeCvIoZyi7RT6qbWgl9kIA=
 20260721210405_add_customer_balance_cache.sql h1:58SXBRjowu8NuXJK6WzIqCvlyN7H/Ph03nzaifTyGt0=
 20260721220942_prescription_metadata.sql h1:25J+3bWWZid2535ekaoyQWJyWb53KHht5RRniP32vJE=
+20260723141538_controlled_substance_log_lot_fields.sql h1:xBMQY/eL3raYqg2mGvV+d2V+stDAxikjmVkWSh/+D18=

@@ -128,6 +128,34 @@ func (_c *ControlledSubstanceLogCreate) SetNillableNotes(v *string) *ControlledS
 	return _c
 }
 
+// SetLotNumber sets the "lot_number" field.
+func (_c *ControlledSubstanceLogCreate) SetLotNumber(v string) *ControlledSubstanceLogCreate {
+	_c.mutation.SetLotNumber(v)
+	return _c
+}
+
+// SetNillableLotNumber sets the "lot_number" field if the given value is not nil.
+func (_c *ControlledSubstanceLogCreate) SetNillableLotNumber(v *string) *ControlledSubstanceLogCreate {
+	if v != nil {
+		_c.SetLotNumber(*v)
+	}
+	return _c
+}
+
+// SetLotExpiryDate sets the "lot_expiry_date" field.
+func (_c *ControlledSubstanceLogCreate) SetLotExpiryDate(v time.Time) *ControlledSubstanceLogCreate {
+	_c.mutation.SetLotExpiryDate(v)
+	return _c
+}
+
+// SetNillableLotExpiryDate sets the "lot_expiry_date" field if the given value is not nil.
+func (_c *ControlledSubstanceLogCreate) SetNillableLotExpiryDate(v *time.Time) *ControlledSubstanceLogCreate {
+	if v != nil {
+		_c.SetLotExpiryDate(*v)
+	}
+	return _c
+}
+
 // SetDispensedAt sets the "dispensed_at" field.
 func (_c *ControlledSubstanceLogCreate) SetDispensedAt(v time.Time) *ControlledSubstanceLogCreate {
 	_c.mutation.SetDispensedAt(v)
@@ -328,6 +356,14 @@ func (_c *ControlledSubstanceLogCreate) createSpec() (*ControlledSubstanceLog, *
 	if value, ok := _c.mutation.Notes(); ok {
 		_spec.SetField(controlledsubstancelog.FieldNotes, field.TypeString, value)
 		_node.Notes = value
+	}
+	if value, ok := _c.mutation.LotNumber(); ok {
+		_spec.SetField(controlledsubstancelog.FieldLotNumber, field.TypeString, value)
+		_node.LotNumber = value
+	}
+	if value, ok := _c.mutation.LotExpiryDate(); ok {
+		_spec.SetField(controlledsubstancelog.FieldLotExpiryDate, field.TypeTime, value)
+		_node.LotExpiryDate = &value
 	}
 	if value, ok := _c.mutation.DispensedAt(); ok {
 		_spec.SetField(controlledsubstancelog.FieldDispensedAt, field.TypeTime, value)
@@ -556,6 +592,42 @@ func (u *ControlledSubstanceLogUpsert) UpdateNotes() *ControlledSubstanceLogUpse
 // ClearNotes clears the value of the "notes" field.
 func (u *ControlledSubstanceLogUpsert) ClearNotes() *ControlledSubstanceLogUpsert {
 	u.SetNull(controlledsubstancelog.FieldNotes)
+	return u
+}
+
+// SetLotNumber sets the "lot_number" field.
+func (u *ControlledSubstanceLogUpsert) SetLotNumber(v string) *ControlledSubstanceLogUpsert {
+	u.Set(controlledsubstancelog.FieldLotNumber, v)
+	return u
+}
+
+// UpdateLotNumber sets the "lot_number" field to the value that was provided on create.
+func (u *ControlledSubstanceLogUpsert) UpdateLotNumber() *ControlledSubstanceLogUpsert {
+	u.SetExcluded(controlledsubstancelog.FieldLotNumber)
+	return u
+}
+
+// ClearLotNumber clears the value of the "lot_number" field.
+func (u *ControlledSubstanceLogUpsert) ClearLotNumber() *ControlledSubstanceLogUpsert {
+	u.SetNull(controlledsubstancelog.FieldLotNumber)
+	return u
+}
+
+// SetLotExpiryDate sets the "lot_expiry_date" field.
+func (u *ControlledSubstanceLogUpsert) SetLotExpiryDate(v time.Time) *ControlledSubstanceLogUpsert {
+	u.Set(controlledsubstancelog.FieldLotExpiryDate, v)
+	return u
+}
+
+// UpdateLotExpiryDate sets the "lot_expiry_date" field to the value that was provided on create.
+func (u *ControlledSubstanceLogUpsert) UpdateLotExpiryDate() *ControlledSubstanceLogUpsert {
+	u.SetExcluded(controlledsubstancelog.FieldLotExpiryDate)
+	return u
+}
+
+// ClearLotExpiryDate clears the value of the "lot_expiry_date" field.
+func (u *ControlledSubstanceLogUpsert) ClearLotExpiryDate() *ControlledSubstanceLogUpsert {
+	u.SetNull(controlledsubstancelog.FieldLotExpiryDate)
 	return u
 }
 
@@ -810,6 +882,48 @@ func (u *ControlledSubstanceLogUpsertOne) UpdateNotes() *ControlledSubstanceLogU
 func (u *ControlledSubstanceLogUpsertOne) ClearNotes() *ControlledSubstanceLogUpsertOne {
 	return u.Update(func(s *ControlledSubstanceLogUpsert) {
 		s.ClearNotes()
+	})
+}
+
+// SetLotNumber sets the "lot_number" field.
+func (u *ControlledSubstanceLogUpsertOne) SetLotNumber(v string) *ControlledSubstanceLogUpsertOne {
+	return u.Update(func(s *ControlledSubstanceLogUpsert) {
+		s.SetLotNumber(v)
+	})
+}
+
+// UpdateLotNumber sets the "lot_number" field to the value that was provided on create.
+func (u *ControlledSubstanceLogUpsertOne) UpdateLotNumber() *ControlledSubstanceLogUpsertOne {
+	return u.Update(func(s *ControlledSubstanceLogUpsert) {
+		s.UpdateLotNumber()
+	})
+}
+
+// ClearLotNumber clears the value of the "lot_number" field.
+func (u *ControlledSubstanceLogUpsertOne) ClearLotNumber() *ControlledSubstanceLogUpsertOne {
+	return u.Update(func(s *ControlledSubstanceLogUpsert) {
+		s.ClearLotNumber()
+	})
+}
+
+// SetLotExpiryDate sets the "lot_expiry_date" field.
+func (u *ControlledSubstanceLogUpsertOne) SetLotExpiryDate(v time.Time) *ControlledSubstanceLogUpsertOne {
+	return u.Update(func(s *ControlledSubstanceLogUpsert) {
+		s.SetLotExpiryDate(v)
+	})
+}
+
+// UpdateLotExpiryDate sets the "lot_expiry_date" field to the value that was provided on create.
+func (u *ControlledSubstanceLogUpsertOne) UpdateLotExpiryDate() *ControlledSubstanceLogUpsertOne {
+	return u.Update(func(s *ControlledSubstanceLogUpsert) {
+		s.UpdateLotExpiryDate()
+	})
+}
+
+// ClearLotExpiryDate clears the value of the "lot_expiry_date" field.
+func (u *ControlledSubstanceLogUpsertOne) ClearLotExpiryDate() *ControlledSubstanceLogUpsertOne {
+	return u.Update(func(s *ControlledSubstanceLogUpsert) {
+		s.ClearLotExpiryDate()
 	})
 }
 
@@ -1231,6 +1345,48 @@ func (u *ControlledSubstanceLogUpsertBulk) UpdateNotes() *ControlledSubstanceLog
 func (u *ControlledSubstanceLogUpsertBulk) ClearNotes() *ControlledSubstanceLogUpsertBulk {
 	return u.Update(func(s *ControlledSubstanceLogUpsert) {
 		s.ClearNotes()
+	})
+}
+
+// SetLotNumber sets the "lot_number" field.
+func (u *ControlledSubstanceLogUpsertBulk) SetLotNumber(v string) *ControlledSubstanceLogUpsertBulk {
+	return u.Update(func(s *ControlledSubstanceLogUpsert) {
+		s.SetLotNumber(v)
+	})
+}
+
+// UpdateLotNumber sets the "lot_number" field to the value that was provided on create.
+func (u *ControlledSubstanceLogUpsertBulk) UpdateLotNumber() *ControlledSubstanceLogUpsertBulk {
+	return u.Update(func(s *ControlledSubstanceLogUpsert) {
+		s.UpdateLotNumber()
+	})
+}
+
+// ClearLotNumber clears the value of the "lot_number" field.
+func (u *ControlledSubstanceLogUpsertBulk) ClearLotNumber() *ControlledSubstanceLogUpsertBulk {
+	return u.Update(func(s *ControlledSubstanceLogUpsert) {
+		s.ClearLotNumber()
+	})
+}
+
+// SetLotExpiryDate sets the "lot_expiry_date" field.
+func (u *ControlledSubstanceLogUpsertBulk) SetLotExpiryDate(v time.Time) *ControlledSubstanceLogUpsertBulk {
+	return u.Update(func(s *ControlledSubstanceLogUpsert) {
+		s.SetLotExpiryDate(v)
+	})
+}
+
+// UpdateLotExpiryDate sets the "lot_expiry_date" field to the value that was provided on create.
+func (u *ControlledSubstanceLogUpsertBulk) UpdateLotExpiryDate() *ControlledSubstanceLogUpsertBulk {
+	return u.Update(func(s *ControlledSubstanceLogUpsert) {
+		s.UpdateLotExpiryDate()
+	})
+}
+
+// ClearLotExpiryDate clears the value of the "lot_expiry_date" field.
+func (u *ControlledSubstanceLogUpsertBulk) ClearLotExpiryDate() *ControlledSubstanceLogUpsertBulk {
+	return u.Update(func(s *ControlledSubstanceLogUpsert) {
+		s.ClearLotExpiryDate()
 	})
 }
 

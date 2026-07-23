@@ -42,6 +42,10 @@ type ControlledSubstanceLog struct {
 	WitnessStaffID *uuid.UUID `json:"witness_staff_id,omitempty"`
 	// Notes holds the value of the "notes" field.
 	Notes string `json:"notes,omitempty"`
+	// LotNumber holds the value of the "lot_number" field.
+	LotNumber string `json:"lot_number,omitempty"`
+	// LotExpiryDate holds the value of the "lot_expiry_date" field.
+	LotExpiryDate *time.Time `json:"lot_expiry_date,omitempty"`
 	// DispensedAt holds the value of the "dispensed_at" field.
 	DispensedAt  time.Time `json:"dispensed_at,omitempty"`
 	selectValues sql.SelectValues
@@ -56,9 +60,9 @@ func (*ControlledSubstanceLog) scanValues(columns []string) ([]any, error) {
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		case controlledsubstancelog.FieldQuantityDispensed:
 			values[i] = new(sql.NullFloat64)
-		case controlledsubstancelog.FieldItemSku, controlledsubstancelog.FieldItemName, controlledsubstancelog.FieldPatientName, controlledsubstancelog.FieldPatientIDNumber, controlledsubstancelog.FieldNotes:
+		case controlledsubstancelog.FieldItemSku, controlledsubstancelog.FieldItemName, controlledsubstancelog.FieldPatientName, controlledsubstancelog.FieldPatientIDNumber, controlledsubstancelog.FieldNotes, controlledsubstancelog.FieldLotNumber:
 			values[i] = new(sql.NullString)
-		case controlledsubstancelog.FieldDispensedAt:
+		case controlledsubstancelog.FieldLotExpiryDate, controlledsubstancelog.FieldDispensedAt:
 			values[i] = new(sql.NullTime)
 		case controlledsubstancelog.FieldID, controlledsubstancelog.FieldTenantID, controlledsubstancelog.FieldOutletID, controlledsubstancelog.FieldCatalogItemID, controlledsubstancelog.FieldDispensedBy:
 			values[i] = new(uuid.UUID)
@@ -157,6 +161,19 @@ func (_m *ControlledSubstanceLog) assignValues(columns []string, values []any) e
 			} else if value.Valid {
 				_m.Notes = value.String
 			}
+		case controlledsubstancelog.FieldLotNumber:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field lot_number", values[i])
+			} else if value.Valid {
+				_m.LotNumber = value.String
+			}
+		case controlledsubstancelog.FieldLotExpiryDate:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field lot_expiry_date", values[i])
+			} else if value.Valid {
+				_m.LotExpiryDate = new(time.Time)
+				*_m.LotExpiryDate = value.Time
+			}
 		case controlledsubstancelog.FieldDispensedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field dispensed_at", values[i])
@@ -238,6 +255,14 @@ func (_m *ControlledSubstanceLog) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("notes=")
 	builder.WriteString(_m.Notes)
+	builder.WriteString(", ")
+	builder.WriteString("lot_number=")
+	builder.WriteString(_m.LotNumber)
+	builder.WriteString(", ")
+	if v := _m.LotExpiryDate; v != nil {
+		builder.WriteString("lot_expiry_date=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("dispensed_at=")
 	builder.WriteString(_m.DispensedAt.Format(time.ANSIC))

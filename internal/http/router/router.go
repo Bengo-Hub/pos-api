@@ -779,6 +779,8 @@ func New(
 								Post("/pharmacy/prescriptions/{prescriptionID}/approve", pharmacy.ApprovePrescription)
 							ph.With(outletmw.RequireServicePermission(rbacSvc, "pos.pharmacy.approve")).
 								Post("/pharmacy/prescriptions/{prescriptionID}/lock", pharmacy.LockPrescription)
+							ph.With(outletmw.RequireServicePermission(rbacSvc, "pos.pharmacy.change")).
+								Post("/pharmacy/prescriptions/{prescriptionID}/reject", pharmacy.RejectPrescription)
 							ph.Post("/pharmacy/interaction-checks", pharmacy.CreateInteractionCheck)
 							ph.Post("/pharmacy/age-verify", pharmacy.AgeVerify)
 							ph.Get("/pharmacy/patients", pharmacy.ListPatients)

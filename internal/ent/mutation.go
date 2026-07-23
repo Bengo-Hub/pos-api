@@ -12394,6 +12394,8 @@ type ControlledSubstanceLogMutation struct {
 	patient_id_number     *string
 	witness_staff_id      *uuid.UUID
 	notes                 *string
+	lot_number            *string
+	lot_expiry_date       *time.Time
 	dispensed_at          *time.Time
 	clearedFields         map[string]struct{}
 	done                  bool
@@ -13009,6 +13011,104 @@ func (m *ControlledSubstanceLogMutation) ResetNotes() {
 	delete(m.clearedFields, controlledsubstancelog.FieldNotes)
 }
 
+// SetLotNumber sets the "lot_number" field.
+func (m *ControlledSubstanceLogMutation) SetLotNumber(s string) {
+	m.lot_number = &s
+}
+
+// LotNumber returns the value of the "lot_number" field in the mutation.
+func (m *ControlledSubstanceLogMutation) LotNumber() (r string, exists bool) {
+	v := m.lot_number
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLotNumber returns the old "lot_number" field's value of the ControlledSubstanceLog entity.
+// If the ControlledSubstanceLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ControlledSubstanceLogMutation) OldLotNumber(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLotNumber is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLotNumber requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLotNumber: %w", err)
+	}
+	return oldValue.LotNumber, nil
+}
+
+// ClearLotNumber clears the value of the "lot_number" field.
+func (m *ControlledSubstanceLogMutation) ClearLotNumber() {
+	m.lot_number = nil
+	m.clearedFields[controlledsubstancelog.FieldLotNumber] = struct{}{}
+}
+
+// LotNumberCleared returns if the "lot_number" field was cleared in this mutation.
+func (m *ControlledSubstanceLogMutation) LotNumberCleared() bool {
+	_, ok := m.clearedFields[controlledsubstancelog.FieldLotNumber]
+	return ok
+}
+
+// ResetLotNumber resets all changes to the "lot_number" field.
+func (m *ControlledSubstanceLogMutation) ResetLotNumber() {
+	m.lot_number = nil
+	delete(m.clearedFields, controlledsubstancelog.FieldLotNumber)
+}
+
+// SetLotExpiryDate sets the "lot_expiry_date" field.
+func (m *ControlledSubstanceLogMutation) SetLotExpiryDate(t time.Time) {
+	m.lot_expiry_date = &t
+}
+
+// LotExpiryDate returns the value of the "lot_expiry_date" field in the mutation.
+func (m *ControlledSubstanceLogMutation) LotExpiryDate() (r time.Time, exists bool) {
+	v := m.lot_expiry_date
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLotExpiryDate returns the old "lot_expiry_date" field's value of the ControlledSubstanceLog entity.
+// If the ControlledSubstanceLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ControlledSubstanceLogMutation) OldLotExpiryDate(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLotExpiryDate is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLotExpiryDate requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLotExpiryDate: %w", err)
+	}
+	return oldValue.LotExpiryDate, nil
+}
+
+// ClearLotExpiryDate clears the value of the "lot_expiry_date" field.
+func (m *ControlledSubstanceLogMutation) ClearLotExpiryDate() {
+	m.lot_expiry_date = nil
+	m.clearedFields[controlledsubstancelog.FieldLotExpiryDate] = struct{}{}
+}
+
+// LotExpiryDateCleared returns if the "lot_expiry_date" field was cleared in this mutation.
+func (m *ControlledSubstanceLogMutation) LotExpiryDateCleared() bool {
+	_, ok := m.clearedFields[controlledsubstancelog.FieldLotExpiryDate]
+	return ok
+}
+
+// ResetLotExpiryDate resets all changes to the "lot_expiry_date" field.
+func (m *ControlledSubstanceLogMutation) ResetLotExpiryDate() {
+	m.lot_expiry_date = nil
+	delete(m.clearedFields, controlledsubstancelog.FieldLotExpiryDate)
+}
+
 // SetDispensedAt sets the "dispensed_at" field.
 func (m *ControlledSubstanceLogMutation) SetDispensedAt(t time.Time) {
 	m.dispensed_at = &t
@@ -13079,7 +13179,7 @@ func (m *ControlledSubstanceLogMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ControlledSubstanceLogMutation) Fields() []string {
-	fields := make([]string, 0, 13)
+	fields := make([]string, 0, 15)
 	if m.tenant_id != nil {
 		fields = append(fields, controlledsubstancelog.FieldTenantID)
 	}
@@ -13116,6 +13216,12 @@ func (m *ControlledSubstanceLogMutation) Fields() []string {
 	if m.notes != nil {
 		fields = append(fields, controlledsubstancelog.FieldNotes)
 	}
+	if m.lot_number != nil {
+		fields = append(fields, controlledsubstancelog.FieldLotNumber)
+	}
+	if m.lot_expiry_date != nil {
+		fields = append(fields, controlledsubstancelog.FieldLotExpiryDate)
+	}
 	if m.dispensed_at != nil {
 		fields = append(fields, controlledsubstancelog.FieldDispensedAt)
 	}
@@ -13151,6 +13257,10 @@ func (m *ControlledSubstanceLogMutation) Field(name string) (ent.Value, bool) {
 		return m.WitnessStaffID()
 	case controlledsubstancelog.FieldNotes:
 		return m.Notes()
+	case controlledsubstancelog.FieldLotNumber:
+		return m.LotNumber()
+	case controlledsubstancelog.FieldLotExpiryDate:
+		return m.LotExpiryDate()
 	case controlledsubstancelog.FieldDispensedAt:
 		return m.DispensedAt()
 	}
@@ -13186,6 +13296,10 @@ func (m *ControlledSubstanceLogMutation) OldField(ctx context.Context, name stri
 		return m.OldWitnessStaffID(ctx)
 	case controlledsubstancelog.FieldNotes:
 		return m.OldNotes(ctx)
+	case controlledsubstancelog.FieldLotNumber:
+		return m.OldLotNumber(ctx)
+	case controlledsubstancelog.FieldLotExpiryDate:
+		return m.OldLotExpiryDate(ctx)
 	case controlledsubstancelog.FieldDispensedAt:
 		return m.OldDispensedAt(ctx)
 	}
@@ -13281,6 +13395,20 @@ func (m *ControlledSubstanceLogMutation) SetField(name string, value ent.Value) 
 		}
 		m.SetNotes(v)
 		return nil
+	case controlledsubstancelog.FieldLotNumber:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLotNumber(v)
+		return nil
+	case controlledsubstancelog.FieldLotExpiryDate:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLotExpiryDate(v)
+		return nil
 	case controlledsubstancelog.FieldDispensedAt:
 		v, ok := value.(time.Time)
 		if !ok {
@@ -13345,6 +13473,12 @@ func (m *ControlledSubstanceLogMutation) ClearedFields() []string {
 	if m.FieldCleared(controlledsubstancelog.FieldNotes) {
 		fields = append(fields, controlledsubstancelog.FieldNotes)
 	}
+	if m.FieldCleared(controlledsubstancelog.FieldLotNumber) {
+		fields = append(fields, controlledsubstancelog.FieldLotNumber)
+	}
+	if m.FieldCleared(controlledsubstancelog.FieldLotExpiryDate) {
+		fields = append(fields, controlledsubstancelog.FieldLotExpiryDate)
+	}
 	return fields
 }
 
@@ -13370,6 +13504,12 @@ func (m *ControlledSubstanceLogMutation) ClearField(name string) error {
 		return nil
 	case controlledsubstancelog.FieldNotes:
 		m.ClearNotes()
+		return nil
+	case controlledsubstancelog.FieldLotNumber:
+		m.ClearLotNumber()
+		return nil
+	case controlledsubstancelog.FieldLotExpiryDate:
+		m.ClearLotExpiryDate()
 		return nil
 	}
 	return fmt.Errorf("unknown ControlledSubstanceLog nullable field %s", name)
@@ -13414,6 +13554,12 @@ func (m *ControlledSubstanceLogMutation) ResetField(name string) error {
 		return nil
 	case controlledsubstancelog.FieldNotes:
 		m.ResetNotes()
+		return nil
+	case controlledsubstancelog.FieldLotNumber:
+		m.ResetLotNumber()
+		return nil
+	case controlledsubstancelog.FieldLotExpiryDate:
+		m.ResetLotExpiryDate()
 		return nil
 	case controlledsubstancelog.FieldDispensedAt:
 		m.ResetDispensedAt()

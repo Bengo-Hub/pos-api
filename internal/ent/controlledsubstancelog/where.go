@@ -115,6 +115,16 @@ func Notes(v string) predicate.ControlledSubstanceLog {
 	return predicate.ControlledSubstanceLog(sql.FieldEQ(FieldNotes, v))
 }
 
+// LotNumber applies equality check predicate on the "lot_number" field. It's identical to LotNumberEQ.
+func LotNumber(v string) predicate.ControlledSubstanceLog {
+	return predicate.ControlledSubstanceLog(sql.FieldEQ(FieldLotNumber, v))
+}
+
+// LotExpiryDate applies equality check predicate on the "lot_expiry_date" field. It's identical to LotExpiryDateEQ.
+func LotExpiryDate(v time.Time) predicate.ControlledSubstanceLog {
+	return predicate.ControlledSubstanceLog(sql.FieldEQ(FieldLotExpiryDate, v))
+}
+
 // DispensedAt applies equality check predicate on the "dispensed_at" field. It's identical to DispensedAtEQ.
 func DispensedAt(v time.Time) predicate.ControlledSubstanceLog {
 	return predicate.ControlledSubstanceLog(sql.FieldEQ(FieldDispensedAt, v))
@@ -763,6 +773,131 @@ func NotesEqualFold(v string) predicate.ControlledSubstanceLog {
 // NotesContainsFold applies the ContainsFold predicate on the "notes" field.
 func NotesContainsFold(v string) predicate.ControlledSubstanceLog {
 	return predicate.ControlledSubstanceLog(sql.FieldContainsFold(FieldNotes, v))
+}
+
+// LotNumberEQ applies the EQ predicate on the "lot_number" field.
+func LotNumberEQ(v string) predicate.ControlledSubstanceLog {
+	return predicate.ControlledSubstanceLog(sql.FieldEQ(FieldLotNumber, v))
+}
+
+// LotNumberNEQ applies the NEQ predicate on the "lot_number" field.
+func LotNumberNEQ(v string) predicate.ControlledSubstanceLog {
+	return predicate.ControlledSubstanceLog(sql.FieldNEQ(FieldLotNumber, v))
+}
+
+// LotNumberIn applies the In predicate on the "lot_number" field.
+func LotNumberIn(vs ...string) predicate.ControlledSubstanceLog {
+	return predicate.ControlledSubstanceLog(sql.FieldIn(FieldLotNumber, vs...))
+}
+
+// LotNumberNotIn applies the NotIn predicate on the "lot_number" field.
+func LotNumberNotIn(vs ...string) predicate.ControlledSubstanceLog {
+	return predicate.ControlledSubstanceLog(sql.FieldNotIn(FieldLotNumber, vs...))
+}
+
+// LotNumberGT applies the GT predicate on the "lot_number" field.
+func LotNumberGT(v string) predicate.ControlledSubstanceLog {
+	return predicate.ControlledSubstanceLog(sql.FieldGT(FieldLotNumber, v))
+}
+
+// LotNumberGTE applies the GTE predicate on the "lot_number" field.
+func LotNumberGTE(v string) predicate.ControlledSubstanceLog {
+	return predicate.ControlledSubstanceLog(sql.FieldGTE(FieldLotNumber, v))
+}
+
+// LotNumberLT applies the LT predicate on the "lot_number" field.
+func LotNumberLT(v string) predicate.ControlledSubstanceLog {
+	return predicate.ControlledSubstanceLog(sql.FieldLT(FieldLotNumber, v))
+}
+
+// LotNumberLTE applies the LTE predicate on the "lot_number" field.
+func LotNumberLTE(v string) predicate.ControlledSubstanceLog {
+	return predicate.ControlledSubstanceLog(sql.FieldLTE(FieldLotNumber, v))
+}
+
+// LotNumberContains applies the Contains predicate on the "lot_number" field.
+func LotNumberContains(v string) predicate.ControlledSubstanceLog {
+	return predicate.ControlledSubstanceLog(sql.FieldContains(FieldLotNumber, v))
+}
+
+// LotNumberHasPrefix applies the HasPrefix predicate on the "lot_number" field.
+func LotNumberHasPrefix(v string) predicate.ControlledSubstanceLog {
+	return predicate.ControlledSubstanceLog(sql.FieldHasPrefix(FieldLotNumber, v))
+}
+
+// LotNumberHasSuffix applies the HasSuffix predicate on the "lot_number" field.
+func LotNumberHasSuffix(v string) predicate.ControlledSubstanceLog {
+	return predicate.ControlledSubstanceLog(sql.FieldHasSuffix(FieldLotNumber, v))
+}
+
+// LotNumberIsNil applies the IsNil predicate on the "lot_number" field.
+func LotNumberIsNil() predicate.ControlledSubstanceLog {
+	return predicate.ControlledSubstanceLog(sql.FieldIsNull(FieldLotNumber))
+}
+
+// LotNumberNotNil applies the NotNil predicate on the "lot_number" field.
+func LotNumberNotNil() predicate.ControlledSubstanceLog {
+	return predicate.ControlledSubstanceLog(sql.FieldNotNull(FieldLotNumber))
+}
+
+// LotNumberEqualFold applies the EqualFold predicate on the "lot_number" field.
+func LotNumberEqualFold(v string) predicate.ControlledSubstanceLog {
+	return predicate.ControlledSubstanceLog(sql.FieldEqualFold(FieldLotNumber, v))
+}
+
+// LotNumberContainsFold applies the ContainsFold predicate on the "lot_number" field.
+func LotNumberContainsFold(v string) predicate.ControlledSubstanceLog {
+	return predicate.ControlledSubstanceLog(sql.FieldContainsFold(FieldLotNumber, v))
+}
+
+// LotExpiryDateEQ applies the EQ predicate on the "lot_expiry_date" field.
+func LotExpiryDateEQ(v time.Time) predicate.ControlledSubstanceLog {
+	return predicate.ControlledSubstanceLog(sql.FieldEQ(FieldLotExpiryDate, v))
+}
+
+// LotExpiryDateNEQ applies the NEQ predicate on the "lot_expiry_date" field.
+func LotExpiryDateNEQ(v time.Time) predicate.ControlledSubstanceLog {
+	return predicate.ControlledSubstanceLog(sql.FieldNEQ(FieldLotExpiryDate, v))
+}
+
+// LotExpiryDateIn applies the In predicate on the "lot_expiry_date" field.
+func LotExpiryDateIn(vs ...time.Time) predicate.ControlledSubstanceLog {
+	return predicate.ControlledSubstanceLog(sql.FieldIn(FieldLotExpiryDate, vs...))
+}
+
+// LotExpiryDateNotIn applies the NotIn predicate on the "lot_expiry_date" field.
+func LotExpiryDateNotIn(vs ...time.Time) predicate.ControlledSubstanceLog {
+	return predicate.ControlledSubstanceLog(sql.FieldNotIn(FieldLotExpiryDate, vs...))
+}
+
+// LotExpiryDateGT applies the GT predicate on the "lot_expiry_date" field.
+func LotExpiryDateGT(v time.Time) predicate.ControlledSubstanceLog {
+	return predicate.ControlledSubstanceLog(sql.FieldGT(FieldLotExpiryDate, v))
+}
+
+// LotExpiryDateGTE applies the GTE predicate on the "lot_expiry_date" field.
+func LotExpiryDateGTE(v time.Time) predicate.ControlledSubstanceLog {
+	return predicate.ControlledSubstanceLog(sql.FieldGTE(FieldLotExpiryDate, v))
+}
+
+// LotExpiryDateLT applies the LT predicate on the "lot_expiry_date" field.
+func LotExpiryDateLT(v time.Time) predicate.ControlledSubstanceLog {
+	return predicate.ControlledSubstanceLog(sql.FieldLT(FieldLotExpiryDate, v))
+}
+
+// LotExpiryDateLTE applies the LTE predicate on the "lot_expiry_date" field.
+func LotExpiryDateLTE(v time.Time) predicate.ControlledSubstanceLog {
+	return predicate.ControlledSubstanceLog(sql.FieldLTE(FieldLotExpiryDate, v))
+}
+
+// LotExpiryDateIsNil applies the IsNil predicate on the "lot_expiry_date" field.
+func LotExpiryDateIsNil() predicate.ControlledSubstanceLog {
+	return predicate.ControlledSubstanceLog(sql.FieldIsNull(FieldLotExpiryDate))
+}
+
+// LotExpiryDateNotNil applies the NotNil predicate on the "lot_expiry_date" field.
+func LotExpiryDateNotNil() predicate.ControlledSubstanceLog {
+	return predicate.ControlledSubstanceLog(sql.FieldNotNull(FieldLotExpiryDate))
 }
 
 // DispensedAtEQ applies the EQ predicate on the "dispensed_at" field.

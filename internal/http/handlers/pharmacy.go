@@ -281,6 +281,17 @@ func (h *PharmacyHandler) Dispense(w http.ResponseWriter, r *http.Request) {
 		SetStatus("dispensed").
 		SaveX(r.Context())
 
+	// Dispense is the moment stock physically leaves the shelf — convert the hold created at
+	// approval (Phase 3) into an actual depletion via inventory-api's existing
+	// ConsumeReservation, rather than a fresh ad-hoc decrement. Best-effort: a failure here is
+	// logged, not fatal — the prescription is already marked dispensed since the physical
+	// handover already happened.
+	if resID, ok := updated.Metadata["reservation_id"].(string); ok && resID != "" && h.inventory != nil {
+		if err := h.inventory.ConsumeReservation(r.Context(), tid.String(), resID); err != nil {
+			h.log.Warn("consume reservation on dispense failed", zap.Error(err))
+		}
+	}
+
 	jsonOK(w, updated)
 }
 
@@ -559,6 +570,121 @@ func (h *PharmacyHandler) ApprovePrescription(w http.ResponseWriter, r *http.Req
 	if err != nil {
 		h.log.Error("approve prescription failed", zap.Error(err))
 		jsonError(w, "failed to approve prescription", http.StatusInternalServerError)
+		return
+	}
+
+	// Phase 3: hold the stock the moment a pharmacist signs off, so it can't sell out from
+	// under this prescription before checkout. Best-effort — a reservation failure doesn't
+	// block the approval itself (the sale-finalize backflush still runs the ad-hoc path).
+	if resID := h.createReservationForPrescription(r, tid, updated); resID != "" {
+		md2 := cloneMetadata(updated.Metadata)
+		md2["reservation_id"] = resID
+		if updated2, err := h.db.Prescription.UpdateOneID(pxID).SetMetadata(md2).Save(r.Context()); err == nil {
+			updated = updated2
+		}
+	}
+
+	jsonOK(w, updated)
+}
+
+// createReservationForPrescription reserves stock for every catalog-linked PrescriptionLine
+// via inventory-api's existing Reservation state machine (Available→Reserved) — reused as-is,
+// not a new hold mechanism. Returns the reservation ID, or "" on any failure (logged, non-fatal).
+func (h *PharmacyHandler) createReservationForPrescription(r *http.Request, tenantID uuid.UUID, px *ent.Prescription) string {
+	if h.inventory == nil {
+		return ""
+	}
+	lines, err := h.db.PrescriptionLine.Query().Where(entpxl.PrescriptionID(px.ID)).All(r.Context())
+	if err != nil || len(lines) == 0 {
+		return ""
+	}
+	itemIDs := make([]string, 0, len(lines))
+	qtyByItemID := make(map[string]float64, len(lines))
+	for _, l := range lines {
+		if l.CatalogItemID == nil {
+			continue
+		}
+		id := l.CatalogItemID.String()
+		itemIDs = append(itemIDs, id)
+		qtyByItemID[id] = float64(l.QuantityPrescribed - l.QuantityDispensed)
+	}
+	if len(itemIDs) == 0 {
+		return ""
+	}
+
+	// Reuse the drug-classification resolver purely for its item_id→sku mapping (it already
+	// resolves every requested item; interactions/allergies are irrelevant here).
+	resolved, err := h.inventory.CheckInteractions(r.Context(), tenantID.String(), inventory.CheckInteractionsRequest{
+		ItemIDs: itemIDs,
+	})
+	if err != nil {
+		h.log.Warn("prescription reservation: sku resolution failed", zap.Error(err))
+		return ""
+	}
+	items := make([]inventory.ReservationItem, 0, len(resolved.Resolved))
+	for _, it := range resolved.Resolved {
+		qty := qtyByItemID[it.ItemID]
+		if qty <= 0 || it.SKU == "" {
+			continue
+		}
+		items = append(items, inventory.ReservationItem{SKU: it.SKU, Quantity: qty})
+	}
+	if len(items) == 0 {
+		return ""
+	}
+
+	expiresAt := time.Now().Add(48 * time.Hour) // default hold window; see Open Items in the build plan
+	res, err := h.inventory.CreateReservation(r.Context(), tenantID.String(), inventory.CreateReservationRequest{
+		OrderID:        px.ID.String(),
+		Items:          items,
+		ExpiresAt:      &expiresAt,
+		IdempotencyKey: "prescription:" + px.ID.String(),
+	})
+	if err != nil {
+		h.log.Warn("prescription reservation: create failed", zap.Error(err))
+		return ""
+	}
+	return res.ID
+}
+
+// RejectPrescription handles POST /{tenantID}/pos/pharmacy/prescriptions/{id}/reject.
+// Releases any stock reservation held for this prescription back to available.
+func (h *PharmacyHandler) RejectPrescription(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+	pxID, err := uuid.Parse(chi.URLParam(r, "prescriptionID"))
+	if err != nil {
+		jsonError(w, "invalid prescription_id", http.StatusBadRequest)
+		return
+	}
+	px, err := h.db.Prescription.Get(r.Context(), pxID)
+	if err != nil || px.TenantID != tid {
+		jsonError(w, "prescription not found", http.StatusNotFound)
+		return
+	}
+	if px.Status == "dispensed" || px.Status == "partially_dispensed" {
+		jsonError(w, "a dispensed prescription cannot be rejected", http.StatusConflict)
+		return
+	}
+
+	var body struct {
+		Reason string `json:"reason"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&body)
+
+	if resID, ok := px.Metadata["reservation_id"].(string); ok && resID != "" && h.inventory != nil {
+		if err := h.inventory.ReleaseReservation(r.Context(), tid.String(), resID, body.Reason); err != nil {
+			h.log.Warn("release reservation on reject failed", zap.Error(err))
+		}
+	}
+
+	updated, err := h.db.Prescription.UpdateOneID(pxID).SetStatus("rejected").SetNotes(body.Reason).Save(r.Context())
+	if err != nil {
+		h.log.Error("reject prescription failed", zap.Error(err))
+		jsonError(w, "failed to reject prescription", http.StatusInternalServerError)
 		return
 	}
 	jsonOK(w, updated)

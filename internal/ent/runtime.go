@@ -460,7 +460,7 @@ func init() {
 	// controlledsubstancelog.PatientNameValidator is a validator for the "patient_name" field. It is called by the builders before save.
 	controlledsubstancelog.PatientNameValidator = controlledsubstancelogDescPatientName.Validators[0].(func(string) error)
 	// controlledsubstancelogDescDispensedAt is the schema descriptor for dispensed_at field.
-	controlledsubstancelogDescDispensedAt := controlledsubstancelogFields[13].Descriptor()
+	controlledsubstancelogDescDispensedAt := controlledsubstancelogFields[15].Descriptor()
 	// controlledsubstancelog.DefaultDispensedAt holds the default value on creation for the dispensed_at field.
 	controlledsubstancelog.DefaultDispensedAt = controlledsubstancelogDescDispensedAt.Default.(func() time.Time)
 	// controlledsubstancelogDescID is the schema descriptor for id field.

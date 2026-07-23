@@ -220,16 +220,33 @@ func (h *POSOrderHandler) ListOrders(w http.ResponseWriter, r *http.Request) {
 // (every page), not just the visible page. Derived through enrichOrderList so every count
 // and amount matches the per-row badges exactly.
 type ordersSummary struct {
-	Count         int            `json:"count"`          // rows actually aggregated (== TotalMatching unless capped)
-	TotalMatching int            `json:"total_matching"` // full count of rows matching the filters
-	Truncated     bool           `json:"truncated"`      // TotalMatching exceeded the aggregation cap
-	ItemCount     int            `json:"item_count"`
-	SumTotal      float64        `json:"sum_total"`
-	SumPaid       float64        `json:"sum_paid"`
-	SumDue        float64        `json:"sum_due"`
-	SumReturn     float64        `json:"sum_return"`
-	StatusCounts  map[string]int `json:"status_counts"` // paid|partial|due|overdue|refunded|voided|cancelled -> n
-	MethodCounts  map[string]int `json:"method_counts"` // cash|card|mpesa|...|multiple -> n (settled method only)
+	Count         int                `json:"count"`          // rows actually aggregated (== TotalMatching unless capped)
+	TotalMatching int                `json:"total_matching"` // full count of rows matching the filters
+	Truncated     bool               `json:"truncated"`      // TotalMatching exceeded the aggregation cap
+	ItemCount     int                `json:"item_count"`
+	SumTotal      float64            `json:"sum_total"`
+	SumPaid       float64            `json:"sum_paid"`
+	SumDue        float64            `json:"sum_due"`
+	SumReturn     float64            `json:"sum_return"`
+	StatusCounts  map[string]int     `json:"status_counts"`  // paid|partial|due|overdue|refunded|voided|cancelled|draft -> n
+	StatusAmounts map[string]float64 `json:"status_amounts"` // same keys -> KSh total_amount (every status, incl. voided/draft, for visibility)
+	MethodCounts  map[string]int     `json:"method_counts"`  // cash|card|mpesa|...|multiple -> n (settled method only)
+	MethodAmounts map[string]float64 `json:"method_amounts"` // same keys -> KSh total_amount actually settled by that method
+}
+
+// nonCommittedOrderStatus reports whether a payment-status label represents an order with NO
+// real financial effect — voided/cancelled were reversed, draft was never finalized. These are
+// excluded from the headline Total/Paid/Due/Items sums (which must agree with the Retail
+// Overview dashboard and treasury's AR figures) but still counted in StatusCounts/StatusAmounts
+// so nothing is hidden from the cashier — they just aren't double-counted as real sales.
+// "refunded" is deliberately NOT included: the original sale really happened and its total/paid
+// stay in the headline figures; the refunded amount is surfaced separately via Sell Return.
+func nonCommittedOrderStatus(ps string) bool {
+	switch ps {
+	case "voided", "cancelled", "draft":
+		return true
+	}
+	return false
 }
 
 // OrdersSummary handles GET /{tenantID}/pos/orders/summary — the totals footer for the
@@ -277,22 +294,34 @@ func (h *POSOrderHandler) OrdersSummary(w http.ResponseWriter, r *http.Request) 
 		TotalMatching: totalMatching,
 		Truncated:     totalMatching > len(items),
 		StatusCounts:  map[string]int{},
+		StatusAmounts: map[string]float64{},
 		MethodCounts:  map[string]int{},
+		MethodAmounts: map[string]float64{},
 	}
 	for _, it := range items {
-		sum.ItemCount += it.ItemCount
-		sum.SumTotal += it.TotalAmount
-		sum.SumPaid += it.TotalPaid
-		sum.SumDue += it.AmountDue
-		sum.SumReturn += it.ReturnTotal
 		if it.PaymentStatus != "" {
 			sum.StatusCounts[it.PaymentStatus]++
+			sum.StatusAmounts[it.PaymentStatus] += it.TotalAmount
 		}
 		// Only settled sales contribute a method; unpaid/due sales have no tender yet and are
 		// captured by the status breakdown instead (so the two breakdowns need not sum equal).
 		if it.PaymentMethod != "" {
 			sum.MethodCounts[it.PaymentMethod]++
+			sum.MethodAmounts[it.PaymentMethod] += it.TotalAmount
 		}
+		// Voided/cancelled/draft rows stay visible above (status counts/amounts) but never
+		// contribute to the headline Total/Paid/Due/Items figures — those must reconcile with
+		// the Retail Overview dashboard (which only counts status=="completed") and with
+		// treasury's AR outstanding figure, neither of which recognizes a reversed or
+		// not-yet-finalized order as a real sale.
+		if nonCommittedOrderStatus(it.PaymentStatus) {
+			continue
+		}
+		sum.ItemCount += it.ItemCount
+		sum.SumTotal += it.TotalAmount
+		sum.SumPaid += it.TotalPaid
+		sum.SumDue += it.AmountDue
+		sum.SumReturn += it.ReturnTotal
 	}
 	jsonOK(w, sum)
 }
@@ -416,16 +445,27 @@ func (h *POSOrderHandler) enrichOrderList(ctx context.Context, tenantID uuid.UUI
 				methods[m] = struct{}{}
 			}
 		}
-		due := o.TotalAmount - paid
-		if due < 0 {
-			due = 0
-		}
 		// Badge mirrors the "overdue" filter: a still-owing sale past its stamped
 		// payment_due_date reads "overdue" instead of due/partial. A credit sale that was
 		// later settled in full at the till reads "paid" (never overdue).
 		ps := derivePaymentStatus(o.Status, o.TotalAmount, paid, isOnAccount(o.Metadata))
 		if (ps == "due" || ps == "partial") && isOrderOverdue(o.Metadata) {
 			ps = "overdue"
+		}
+		// A reversed/not-yet-committed sale owes nothing: a voided/cancelled order never
+		// happened financially and a draft was never finalized, so neither can be "due" —
+		// computing due as a raw total-minus-paid here (ignoring status) previously let a
+		// voided sale's full total inflate "Sell Due" as if the business were still owed
+		// that money, even though the sale was reversed to zero.
+		var due float64
+		switch ps {
+		case "voided", "cancelled", "draft":
+			due = 0
+		default:
+			due = o.TotalAmount - paid
+			if due < 0 {
+				due = 0
+			}
 		}
 		item := orderListItem{
 			POSOrder:      o,
@@ -506,7 +546,10 @@ func isOnAccount(meta map[string]any) bool {
 // past its due date, upgraded by the caller) until the money is actually collected.
 func derivePaymentStatus(status string, total, paid float64, onAccount bool) string {
 	switch status {
-	case "refunded", "voided", "cancelled":
+	case "refunded", "voided", "cancelled", "draft":
+		// Terminal/non-committed statuses always read as themselves — a voided or
+		// cancelled sale never happened financially, and a draft (parked) order isn't a
+		// finalized sale yet, even if a deposit happens to already cover its total.
 		return status
 	}
 	if total > 0 && paid+0.01 >= total {

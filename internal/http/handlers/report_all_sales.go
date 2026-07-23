@@ -107,10 +107,13 @@ func allSalesOrderFilters(r *http.Request, client *ent.Client, tid uuid.UUID, lo
 	// Payment status — driven by the stored paid_total column (sum of completed payments,
 	// maintained by the payments service) so the filter provably agrees with the per-row
 	// badge from derivePaymentStatus: paid = settled in full, partial = 0 < paid < total,
-	// due = nothing paid yet. Terminal statuses (refunded/voided/cancelled) are filterable
-	// too, and "overdue" surfaces sales past their metadata.payment_due_date — either still
-	// owing at the till, or on-account credit sales (stamped by recordCreditSale from the
-	// customer's payment period) whose settlement lives in treasury AR.
+	// due = nothing paid yet. Terminal/non-committed statuses (refunded/voided/cancelled/
+	// draft) are filterable too, and "overdue" surfaces sales past their
+	// metadata.payment_due_date — either still owing at the till, or on-account credit sales
+	// (stamped by recordCreditSale from the customer's payment period) whose settlement lives
+	// in treasury AR. A "draft" (parked, not yet finalized) order must never match paid/
+	// partial/due/overdue even if it happens to carry a deposit — derivePaymentStatus always
+	// labels it "draft" regardless of paid amount, so the filter mirrors that here.
 	switch strings.ToLower(q.Get("payment_status")) {
 	case "paid":
 		// A completed on-account (credit) sale whose money hasn't been collected is a DEBT —
@@ -121,7 +124,7 @@ func allSalesOrderFilters(r *http.Request, client *ent.Client, tid uuid.UUID, lo
 				posorder.Not(posorder.And(onAccountOrder(), paidBelowTotal())),
 			),
 			posorder.And(
-				posorder.StatusNotIn("refunded", "voided", "cancelled"),
+				posorder.StatusNotIn("refunded", "voided", "cancelled", "draft"),
 				paidCoversTotal(),
 			),
 		))
@@ -129,24 +132,24 @@ func allSalesOrderFilters(r *http.Request, client *ent.Client, tid uuid.UUID, lo
 		// Completed credit sales with partial collections surface here too (on-account only —
 		// regular completed sales are always fully settled by definition).
 		filters = append(filters, posorder.And(
-			posorder.StatusNotIn("refunded", "voided", "cancelled"),
+			posorder.StatusNotIn("refunded", "voided", "cancelled", "draft"),
 			posorder.PaidTotalGT(0),
 			paidBelowTotal(),
 			posorder.Or(posorder.StatusNEQ("completed"), onAccountOrder()),
 		))
 	case "due", "unpaid":
 		filters = append(filters, posorder.And(
-			posorder.StatusNotIn("refunded", "voided", "cancelled"),
+			posorder.StatusNotIn("refunded", "voided", "cancelled", "draft"),
 			posorder.PaidTotalLTE(0),
 			posorder.Or(posorder.StatusNEQ("completed"), onAccountOrder()),
 		))
 	case "overdue":
 		filters = append(filters, posorder.And(
-			posorder.StatusNotIn("refunded", "voided", "cancelled"),
+			posorder.StatusNotIn("refunded", "voided", "cancelled", "draft"),
 			pastPaymentDueDate(),
 			posorder.Or(paidBelowTotal(), onAccountOrder()),
 		))
-	case "refunded", "voided", "cancelled":
+	case "refunded", "voided", "cancelled", "draft":
 		filters = append(filters, posorder.Status(strings.ToLower(q.Get("payment_status"))))
 	}
 	// Payment method → the real method the terminal used is stamped on each payment's
@@ -406,13 +409,19 @@ func (h *ReportPDFHandler) AllSalesDocument(w http.ResponseWriter, r *http.Reque
 			}
 		}
 		paid := o.PaidTotal
-		due := o.TotalAmount - paid
-		if due < 0 {
-			due = 0
-		}
 		ps := derivePaymentStatus(o.Status, o.TotalAmount, paid, isOnAccount(o.Metadata))
 		if (ps == "due" || ps == "partial") && isOrderOverdue(o.Metadata) {
 			ps = "overdue"
+		}
+		// A reversed/not-yet-committed sale owes nothing — see the identical fix + rationale
+		// in OrdersSummary/enrichOrderList (orders.go); kept in sync so the export never
+		// disagrees with the on-screen All-Sales list.
+		var due float64
+		if !nonCommittedOrderStatus(ps) {
+			due = o.TotalAmount - paid
+			if due < 0 {
+				due = 0
+			}
 		}
 
 		// Till time in the tenant's wall clock; when an admin moved the sale's reporting date,
@@ -461,12 +470,18 @@ func (h *ReportPDFHandler) AllSalesDocument(w http.ResponseWriter, r *http.Reque
 			docs.Text(fmtAmount(paid)),
 			docs.Text(fmtAmount(due)),
 		})
-		sumSubtotal += o.Subtotal
-		sumDiscount += o.DiscountTotal
-		sumTax += o.TaxTotal
-		sumTotal += o.TotalAmount
-		sumPaid += paid
-		sumDue += due
+		// Voided/cancelled/draft rows print on their own line above (so the audit trail stays
+		// complete) but are excluded from the grand-total footer for the same reason as the
+		// JSON summary (OrdersSummary, orders.go) — they carry no real financial effect and
+		// must not inflate the report's Net Total/Paid figures.
+		if !nonCommittedOrderStatus(ps) {
+			sumSubtotal += o.Subtotal
+			sumDiscount += o.DiscountTotal
+			sumTax += o.TaxTotal
+			sumTotal += o.TotalAmount
+			sumPaid += paid
+			sumDue += due
+		}
 	}
 
 	// Report period for the header: the explicit range when given, else the fetched rows' span.

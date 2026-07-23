@@ -287,6 +287,114 @@ func (c *Client) RecordConsumption(ctx context.Context, tenantID string, req Con
 	return &out, nil
 }
 
+// ReservationItem is one SKU to reserve.
+type ReservationItem struct {
+	SKU      string  `json:"sku"`
+	Quantity float64 `json:"quantity"`
+}
+
+// CreateReservationRequest is the body for POST /v1/{tenant}/inventory/reservations.
+type CreateReservationRequest struct {
+	OrderID        string            `json:"order_id"`
+	Items          []ReservationItem `json:"items"`
+	ExpiresAt      *time.Time        `json:"expires_at,omitempty"`
+	IdempotencyKey string            `json:"idempotency_key,omitempty"`
+}
+
+// ReservedItem mirrors inventory-api's stock.ReservedItem.
+type ReservedItem struct {
+	SKU             string  `json:"sku"`
+	RequestedQty    float64 `json:"requested_qty"`
+	ReservedQty     float64 `json:"reserved_qty"`
+	AvailableQty    float64 `json:"available_qty"`
+	IsFullyReserved bool    `json:"is_fully_reserved"`
+}
+
+// Reservation mirrors inventory-api's stock.ReservationResponse.
+type Reservation struct {
+	ID        string         `json:"id"`
+	OrderID   string         `json:"order_id"`
+	Status    string         `json:"status"`
+	Items     []ReservedItem `json:"items"`
+	ExpiresAt *time.Time     `json:"expires_at,omitempty"`
+}
+
+// CreateReservation reserves stock for a prescription's catalog-linked lines at
+// pharmacist-approval time (Phase 3: Available→Reserved, reusing inventory-api's existing
+// Reservation state machine rather than a new one).
+func (c *Client) CreateReservation(ctx context.Context, tenantID string, req CreateReservationRequest) (*Reservation, error) {
+	body, err := json.Marshal(req)
+	if err != nil {
+		return nil, fmt.Errorf("inventory.Client.CreateReservation: marshal: %w", err)
+	}
+	url := fmt.Sprintf("%s/v1/%s/inventory/reservations", c.baseURL, tenantID)
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("inventory.Client.CreateReservation: build request: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("X-API-Key", c.apiKey)
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("inventory.Client.CreateReservation: http: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		msg, _ := io.ReadAll(io.LimitReader(resp.Body, 2048))
+		return nil, fmt.Errorf("inventory.Client.CreateReservation: status %d: %s", resp.StatusCode, strings.TrimSpace(string(msg)))
+	}
+	var out Reservation
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return nil, fmt.Errorf("inventory.Client.CreateReservation: decode: %w", err)
+	}
+	return &out, nil
+}
+
+// ReleaseReservation releases a held reservation (prescription rejected/cancelled),
+// restoring reserved stock back to available.
+func (c *Client) ReleaseReservation(ctx context.Context, tenantID, reservationID, reason string) error {
+	body, _ := json.Marshal(map[string]string{"reason": reason})
+	url := fmt.Sprintf("%s/v1/%s/inventory/reservations/%s/release", c.baseURL, tenantID, reservationID)
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("inventory.Client.ReleaseReservation: build request: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("X-API-Key", c.apiKey)
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return fmt.Errorf("inventory.Client.ReleaseReservation: http: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		msg, _ := io.ReadAll(io.LimitReader(resp.Body, 2048))
+		return fmt.Errorf("inventory.Client.ReleaseReservation: status %d: %s", resp.StatusCode, strings.TrimSpace(string(msg)))
+	}
+	return nil
+}
+
+// ConsumeReservation converts a held reservation into an actual stock depletion at payment
+// finalize — the reserved units become sold, atomically, rather than a fresh ad-hoc decrement.
+func (c *Client) ConsumeReservation(ctx context.Context, tenantID, reservationID string) error {
+	url := fmt.Sprintf("%s/v1/%s/inventory/reservations/%s/consume", c.baseURL, tenantID, reservationID)
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, nil)
+	if err != nil {
+		return fmt.Errorf("inventory.Client.ConsumeReservation: build request: %w", err)
+	}
+	httpReq.Header.Set("X-API-Key", c.apiKey)
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return fmt.Errorf("inventory.Client.ConsumeReservation: http: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		msg, _ := io.ReadAll(io.LimitReader(resp.Body, 2048))
+		return fmt.Errorf("inventory.Client.ConsumeReservation: status %d: %s", resp.StatusCode, strings.TrimSpace(string(msg)))
+	}
+	return nil
+}
+
 // ReverseConsumptionItem selects one sale-line SKU to reverse: Quantity of OfQuantity
 // originally sold (the ratio prorates the recorded ingredient consumption).
 type ReverseConsumptionItem struct {

@@ -38,6 +38,10 @@ const (
 	FieldWitnessStaffID = "witness_staff_id"
 	// FieldNotes holds the string denoting the notes field in the database.
 	FieldNotes = "notes"
+	// FieldLotNumber holds the string denoting the lot_number field in the database.
+	FieldLotNumber = "lot_number"
+	// FieldLotExpiryDate holds the string denoting the lot_expiry_date field in the database.
+	FieldLotExpiryDate = "lot_expiry_date"
 	// FieldDispensedAt holds the string denoting the dispensed_at field in the database.
 	FieldDispensedAt = "dispensed_at"
 	// Table holds the table name of the controlledsubstancelog in the database.
@@ -59,6 +63,8 @@ var Columns = []string{
 	FieldPatientIDNumber,
 	FieldWitnessStaffID,
 	FieldNotes,
+	FieldLotNumber,
+	FieldLotExpiryDate,
 	FieldDispensedAt,
 }
 
@@ -151,6 +157,16 @@ func ByWitnessStaffID(opts ...sql.OrderTermOption) OrderOption {
 // ByNotes orders the results by the notes field.
 func ByNotes(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldNotes, opts...).ToFunc()
+}
+
+// ByLotNumber orders the results by the lot_number field.
+func ByLotNumber(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLotNumber, opts...).ToFunc()
+}
+
+// ByLotExpiryDate orders the results by the lot_expiry_date field.
+func ByLotExpiryDate(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLotExpiryDate, opts...).ToFunc()
 }
 
 // ByDispensedAt orders the results by the dispensed_at field.

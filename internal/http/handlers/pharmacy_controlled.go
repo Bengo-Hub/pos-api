@@ -11,6 +11,7 @@ import (
 
 	"github.com/bengobox/pos-service/internal/ent"
 	entcsl "github.com/bengobox/pos-service/internal/ent/controlledsubstancelog"
+	entpxl "github.com/bengobox/pos-service/internal/ent/prescriptionline"
 )
 
 // ListControlledLogs handles GET /{tenantID}/pos/pharmacy/controlled-substances
@@ -53,6 +54,7 @@ type createControlledLogInput struct {
 	PatientIDNumber  string   `json:"patient_id_number,omitempty"`
 	WitnessStaffID   string   `json:"witness_staff_id,omitempty"`
 	Notes            string   `json:"notes,omitempty"`
+	LotNumber        string   `json:"lot_number,omitempty"`
 }
 
 // CreateControlledLog handles POST /{tenantID}/pos/pharmacy/controlled-substances
@@ -99,10 +101,30 @@ func (h *PharmacyHandler) CreateControlledLog(w http.ResponseWriter, r *http.Req
 		SetDispensedBy(dispensedBy).
 		SetPatientName(input.PatientName)
 
+	lotNumber := input.LotNumber
+	var lotExpiry *ent.PrescriptionLine
 	if input.PrescriptionID != "" {
 		if pid, parseErr := uuid.Parse(input.PrescriptionID); parseErr == nil {
 			c.SetPrescriptionID(pid)
+			// Batch traceability: a controlled-substance dispense almost always originates
+			// from a prescription line, which already carries the lot the pharmacist filled
+			// from (Sprint 8 field). Prefer the caller-supplied lot_number (explicit correction)
+			// but fall back to the prescription line so this is populated automatically.
+			if lotNumber == "" {
+				if line, lerr := h.db.PrescriptionLine.Query().
+					Where(entpxl.PrescriptionID(pid), entpxl.CatalogItemID(itemID)).
+					First(r.Context()); lerr == nil && line != nil {
+					lotNumber = line.LotNumber
+					lotExpiry = line
+				}
+			}
 		}
+	}
+	if lotNumber != "" {
+		c.SetLotNumber(lotNumber)
+	}
+	if lotExpiry != nil && lotExpiry.ExpiryDate != nil {
+		c.SetLotExpiryDate(*lotExpiry.ExpiryDate)
 	}
 	if input.PatientIDNumber != "" {
 		c.SetPatientIDNumber(input.PatientIDNumber)

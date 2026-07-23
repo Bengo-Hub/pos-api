@@ -366,7 +366,20 @@ func BuildReceiptView(order *ent.POSOrder, lines []*ent.POSOrderLine, outlet *en
 		}
 	} else {
 		for _, l := range lines {
-			items = append(items, ReceiptLine{SKU: l.Sku, Name: receiptLineName(l), Quantity: l.Quantity, UnitPrice: l.UnitPrice, TotalPrice: l.TotalPrice, AddedAt: l.CreatedAt})
+			// A voided line (fully or partially) must print its remaining ACTIVE quantity, not
+			// the original order quantity — the order total already nets voided_qty out (see
+			// orders.Service's activeQty/activeFraction convention), so printing the raw
+			// l.Quantity/l.TotalPrice here made a voided item still appear in full on the
+			// receipt even though the customer was never charged for it. A fully voided line
+			// (activeQty <= 0) is dropped entirely.
+			activeQty := l.Quantity
+			if l.VoidedQty != nil {
+				activeQty -= *l.VoidedQty
+			}
+			if activeQty <= 0 {
+				continue
+			}
+			items = append(items, ReceiptLine{SKU: l.Sku, Name: receiptLineName(l), Quantity: activeQty, UnitPrice: l.UnitPrice, TotalPrice: l.UnitPrice * activeQty, AddedAt: l.CreatedAt})
 		}
 	}
 

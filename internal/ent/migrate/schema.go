@@ -405,6 +405,8 @@ var (
 		{Name: "patient_id_number", Type: field.TypeString, Nullable: true},
 		{Name: "witness_staff_id", Type: field.TypeUUID, Nullable: true},
 		{Name: "notes", Type: field.TypeString, Nullable: true},
+		{Name: "lot_number", Type: field.TypeString, Nullable: true},
+		{Name: "lot_expiry_date", Type: field.TypeTime, Nullable: true},
 		{Name: "dispensed_at", Type: field.TypeTime},
 	}
 	// ControlledSubstanceLogsTable holds the schema information for the "controlled_substance_logs" table.
@@ -426,7 +428,7 @@ var (
 			{
 				Name:    "controlledsubstancelog_tenant_id_dispensed_at",
 				Unique:  false,
-				Columns: []*schema.Column{ControlledSubstanceLogsColumns[1], ControlledSubstanceLogsColumns[13]},
+				Columns: []*schema.Column{ControlledSubstanceLogsColumns[1], ControlledSubstanceLogsColumns[15]},
 			},
 		},
 	}

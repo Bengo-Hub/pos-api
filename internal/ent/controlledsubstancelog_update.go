@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
@@ -227,6 +228,46 @@ func (_u *ControlledSubstanceLogUpdate) ClearNotes() *ControlledSubstanceLogUpda
 	return _u
 }
 
+// SetLotNumber sets the "lot_number" field.
+func (_u *ControlledSubstanceLogUpdate) SetLotNumber(v string) *ControlledSubstanceLogUpdate {
+	_u.mutation.SetLotNumber(v)
+	return _u
+}
+
+// SetNillableLotNumber sets the "lot_number" field if the given value is not nil.
+func (_u *ControlledSubstanceLogUpdate) SetNillableLotNumber(v *string) *ControlledSubstanceLogUpdate {
+	if v != nil {
+		_u.SetLotNumber(*v)
+	}
+	return _u
+}
+
+// ClearLotNumber clears the value of the "lot_number" field.
+func (_u *ControlledSubstanceLogUpdate) ClearLotNumber() *ControlledSubstanceLogUpdate {
+	_u.mutation.ClearLotNumber()
+	return _u
+}
+
+// SetLotExpiryDate sets the "lot_expiry_date" field.
+func (_u *ControlledSubstanceLogUpdate) SetLotExpiryDate(v time.Time) *ControlledSubstanceLogUpdate {
+	_u.mutation.SetLotExpiryDate(v)
+	return _u
+}
+
+// SetNillableLotExpiryDate sets the "lot_expiry_date" field if the given value is not nil.
+func (_u *ControlledSubstanceLogUpdate) SetNillableLotExpiryDate(v *time.Time) *ControlledSubstanceLogUpdate {
+	if v != nil {
+		_u.SetLotExpiryDate(*v)
+	}
+	return _u
+}
+
+// ClearLotExpiryDate clears the value of the "lot_expiry_date" field.
+func (_u *ControlledSubstanceLogUpdate) ClearLotExpiryDate() *ControlledSubstanceLogUpdate {
+	_u.mutation.ClearLotExpiryDate()
+	return _u
+}
+
 // Mutation returns the ControlledSubstanceLogMutation object of the builder.
 func (_u *ControlledSubstanceLogUpdate) Mutation() *ControlledSubstanceLogMutation {
 	return _u.mutation
@@ -341,6 +382,18 @@ func (_u *ControlledSubstanceLogUpdate) sqlSave(ctx context.Context) (_node int,
 	}
 	if _u.mutation.NotesCleared() {
 		_spec.ClearField(controlledsubstancelog.FieldNotes, field.TypeString)
+	}
+	if value, ok := _u.mutation.LotNumber(); ok {
+		_spec.SetField(controlledsubstancelog.FieldLotNumber, field.TypeString, value)
+	}
+	if _u.mutation.LotNumberCleared() {
+		_spec.ClearField(controlledsubstancelog.FieldLotNumber, field.TypeString)
+	}
+	if value, ok := _u.mutation.LotExpiryDate(); ok {
+		_spec.SetField(controlledsubstancelog.FieldLotExpiryDate, field.TypeTime, value)
+	}
+	if _u.mutation.LotExpiryDateCleared() {
+		_spec.ClearField(controlledsubstancelog.FieldLotExpiryDate, field.TypeTime)
 	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -561,6 +614,46 @@ func (_u *ControlledSubstanceLogUpdateOne) ClearNotes() *ControlledSubstanceLogU
 	return _u
 }
 
+// SetLotNumber sets the "lot_number" field.
+func (_u *ControlledSubstanceLogUpdateOne) SetLotNumber(v string) *ControlledSubstanceLogUpdateOne {
+	_u.mutation.SetLotNumber(v)
+	return _u
+}
+
+// SetNillableLotNumber sets the "lot_number" field if the given value is not nil.
+func (_u *ControlledSubstanceLogUpdateOne) SetNillableLotNumber(v *string) *ControlledSubstanceLogUpdateOne {
+	if v != nil {
+		_u.SetLotNumber(*v)
+	}
+	return _u
+}
+
+// ClearLotNumber clears the value of the "lot_number" field.
+func (_u *ControlledSubstanceLogUpdateOne) ClearLotNumber() *ControlledSubstanceLogUpdateOne {
+	_u.mutation.ClearLotNumber()
+	return _u
+}
+
+// SetLotExpiryDate sets the "lot_expiry_date" field.
+func (_u *ControlledSubstanceLogUpdateOne) SetLotExpiryDate(v time.Time) *ControlledSubstanceLogUpdateOne {
+	_u.mutation.SetLotExpiryDate(v)
+	return _u
+}
+
+// SetNillableLotExpiryDate sets the "lot_expiry_date" field if the given value is not nil.
+func (_u *ControlledSubstanceLogUpdateOne) SetNillableLotExpiryDate(v *time.Time) *ControlledSubstanceLogUpdateOne {
+	if v != nil {
+		_u.SetLotExpiryDate(*v)
+	}
+	return _u
+}
+
+// ClearLotExpiryDate clears the value of the "lot_expiry_date" field.
+func (_u *ControlledSubstanceLogUpdateOne) ClearLotExpiryDate() *ControlledSubstanceLogUpdateOne {
+	_u.mutation.ClearLotExpiryDate()
+	return _u
+}
+
 // Mutation returns the ControlledSubstanceLogMutation object of the builder.
 func (_u *ControlledSubstanceLogUpdateOne) Mutation() *ControlledSubstanceLogMutation {
 	return _u.mutation
@@ -705,6 +798,18 @@ func (_u *ControlledSubstanceLogUpdateOne) sqlSave(ctx context.Context) (_node *
 	}
 	if _u.mutation.NotesCleared() {
 		_spec.ClearField(controlledsubstancelog.FieldNotes, field.TypeString)
+	}
+	if value, ok := _u.mutation.LotNumber(); ok {
+		_spec.SetField(controlledsubstancelog.FieldLotNumber, field.TypeString, value)
+	}
+	if _u.mutation.LotNumberCleared() {
+		_spec.ClearField(controlledsubstancelog.FieldLotNumber, field.TypeString)
+	}
+	if value, ok := _u.mutation.LotExpiryDate(); ok {
+		_spec.SetField(controlledsubstancelog.FieldLotExpiryDate, field.TypeTime, value)
+	}
+	if _u.mutation.LotExpiryDateCleared() {
+		_spec.ClearField(controlledsubstancelog.FieldLotExpiryDate, field.TypeTime)
 	}
 	_node = &ControlledSubstanceLog{config: _u.config}
 	_spec.Assign = _node.assignValues
