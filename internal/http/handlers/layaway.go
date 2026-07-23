@@ -18,6 +18,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/layawayplan"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
 	"github.com/bengobox/pos-service/internal/modules/staffcredit"
+	"github.com/bengobox/pos-service/internal/modules/treasury"
 )
 
 // SaleFinalizer publishes the post-sale fan-out (GL posting, inventory stock backflush, eTIMS
@@ -30,14 +31,23 @@ type SaleFinalizer interface {
 
 // LayawayHandler handles layaway plan and payment endpoints.
 type LayawayHandler struct {
-	log         *zap.Logger
-	db          *ent.Client
-	staffCredit *staffcredit.Service
-	finalizer   SaleFinalizer
+	log            *zap.Logger
+	db             *ent.Client
+	staffCredit    *staffcredit.Service
+	finalizer      SaleFinalizer
+	treasuryClient *treasury.Client
 }
 
 func NewLayawayHandler(log *zap.Logger, db *ent.Client) *LayawayHandler {
 	return &LayawayHandler{log: log, db: db}
+}
+
+// WithTreasuryClient wires the treasury S2S client so Cancel can refund any deposit/installments
+// already collected. Optional; nil = the plan is cancelled with no refund attempted (the legacy
+// behaviour — money already collected silently stayed uncredited to the customer).
+func (h *LayawayHandler) WithTreasuryClient(c *treasury.Client) *LayawayHandler {
+	h.treasuryClient = c
+	return h
 }
 
 // WithStaffCredit wires the staff fund-from-salary provisioner (premium). Optional; nil = staff
@@ -436,6 +446,20 @@ func (h *LayawayHandler) Cancel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Cashier's choice of how to give back any deposit/installments already collected — cash/
+	// mpesa/bank/cheque hands the money back, store_credit keeps it as credit for a future visit.
+	// Defaults to cash. This mirrors the sell-returns refund-channel input; there's no "on
+	// account" concept here (a layaway is money already IN, not a debt), so no offset_invoice
+	// netting logic is needed the way returns.go needs it.
+	var body struct {
+		RefundChannel string `json:"refund_channel,omitempty"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&body) // optional body; absent/empty => cash default
+	refundChannel := strings.TrimSpace(body.RefundChannel)
+	if refundChannel == "" {
+		refundChannel = "cash"
+	}
+
 	updated, err := plan.Update().SetStatus("cancelled").Save(r.Context())
 	if err != nil {
 		h.log.Error("cancel layaway plan failed", zap.Error(err))
@@ -443,7 +467,41 @@ func (h *LayawayHandler) Cancel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	jsonOK(w, updated)
+	// Refund whatever deposit/installments were already collected — a clean cancellation must
+	// give that money back (or credit it), never just silently keep it. Previously this endpoint
+	// only flipped the status; cash/mpesa/bank already collected from the customer had no refund
+	// path at all, so the business ended up keeping a paid-for-but-never-delivered deposit.
+	// Best-effort: a failed refund never blocks the cancellation (it can be retried/handled
+	// manually), but IS surfaced in the response so the till doesn't silently lose track of it.
+	var refundWarning string
+	if h.treasuryClient != nil && plan.PaidAmount.IsPositive() {
+		tenantSlug := chi.URLParam(r, "tenantID")
+		amt, _ := plan.PaidAmount.Float64()
+		_, refundErr := h.treasuryClient.CreateRefund(r.Context(), tenantSlug, plan.ID.String(), treasury.RefundRequest{
+			SourceService:      "pos",
+			ReferenceID:        plan.ID.String(),
+			ReferenceType:      "pos_layaway_cancel",
+			Reference:          plan.ID.String(),
+			Amount:             amt,
+			Currency:           "KES",
+			Reason:             "layaway_cancelled",
+			RefundChannel:      refundChannel,
+			CustomerIdentifier: plan.CustomerPhone,
+			CustomerName:       plan.CustomerName,
+			CustomerEmail:      plan.CustomerEmail,
+		})
+		if refundErr != nil {
+			h.log.Error("layaway cancel: treasury refund call failed (non-fatal; can be retried)",
+				zap.Error(refundErr), zap.String("plan_id", plan.ID.String()), zap.Float64("amount", amt))
+			refundWarning = "Plan cancelled, but the deposit refund failed and needs to be recorded manually: " + refundErr.Error()
+		}
+	}
+
+	resp := map[string]any{"plan": updated}
+	if refundWarning != "" {
+		resp["warning"] = refundWarning
+	}
+	jsonOK(w, resp)
 }
 
 // Forfeit handles POST /{tenantID}/pos/layaways/{id}/forfeit

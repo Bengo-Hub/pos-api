@@ -38,12 +38,13 @@ func validateRefundChannel(reasonCode *posreturn.ReasonCode, returnType posretur
 	}
 
 	// An on-account (credit) sale was never paid — handing out cash would refund money the
-	// business never received. The return must reduce what the customer owes instead.
-	if onAccount && channel != "" && channel != "offset_invoice" && channel != "store_credit" {
-		return fmt.Errorf("this sale was on account (unpaid) — settle the return by offsetting the customer's balance (offset_invoice), not by paying out %s", channel)
-	}
-	if onAccount && wantsStoreCredit && reasonCode != nil && storeCreditBlockedReasons[*reasonCode] {
-		return fmt.Errorf("this %s return is against an unpaid credit sale — use offset_invoice so the customer's balance is reduced", *reasonCode)
+	// business never received, and store credit is not a substitute either: it stacks a NEW
+	// credit balance on top of the still-open debt instead of reducing it, leaving the customer
+	// simultaneously owing money AND owed store credit for the same transaction (the exact
+	// "phantom credit" bug this guard exists to prevent). The return must always reduce what the
+	// customer owes (offset_invoice) — never store_credit, regardless of reason code.
+	if onAccount && channel != "" && channel != "offset_invoice" {
+		return fmt.Errorf("this sale was on account (unpaid) — settle the return by offsetting the customer's balance (offset_invoice), not %s", channel)
 	}
 	return nil
 }

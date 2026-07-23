@@ -670,11 +670,17 @@ func (h *ReturnHandler) CompleteReturn(w http.ResponseWriter, r *http.Request) {
 
 	// Money movement: settle in treasury for a cash/mpesa/bank refund, a store-credit return,
 	// an offset_invoice (credit-sale) return — and the LEFTOVER of an exchange whose
-	// replacement is cheaper than the returned goods. A store-credit return has no channel of
-	// its own, so force the store_credit channel — treasury then reverses revenue+VAT AND
-	// credits the customer's AR account, so a KES 800 store-credit return against a KES 2000
-	// credit sale nets to KES 1200 owed. For an exchange the replacement order's
-	// exchange-credit discount already nets the revenue, so only the leftover moves money.
+	// replacement is cheaper than the returned goods. A store-credit return type with no
+	// channel persisted yet defaults to the store_credit channel — but ONLY when the original
+	// sale was NOT on account. For an on-account sale, refundChannel was already correctly
+	// resolved to "offset_invoice" above (defaultRefundChannel checks onAccount first) and
+	// validated at that value — forcing it back to store_credit here, after validation already
+	// ran, used to silently reroute the money: instead of reducing what the customer still owes,
+	// the full return value was ADDED as a brand-new store-credit balance on top of the unpaid
+	// debt, leaving the customer simultaneously owing the original amount AND owed store credit
+	// for goods that were already used to cover part of that same debt. For an exchange the
+	// replacement order's exchange-credit discount already nets the revenue, so only the
+	// leftover moves money.
 	settleAmount := ret.RefundAmount
 	if ret.ReturnType == posreturn.ReturnTypeExchange {
 		settleAmount = 0
@@ -685,7 +691,7 @@ func (h *ReturnHandler) CompleteReturn(w http.ResponseWriter, r *http.Request) {
 	var treasuryRefundRef string
 	if settleAmount > 0.009 && h.treasuryClient != nil {
 		tenantSlug := chi.URLParam(r, "tenantID")
-		if ret.ReturnType == posreturn.ReturnTypeStoreCredit {
+		if ret.ReturnType == posreturn.ReturnTypeStoreCredit && !onAccount {
 			refundChannel = "store_credit"
 		}
 
