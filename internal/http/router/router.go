@@ -88,6 +88,7 @@ func New(
 	backupDest *handlers.BackupDestinationHandler,
 	screensaverMedia *handlers.ScreensaverMediaHandler,
 	mediaRoot string,
+	recipeCOGSBackfill *handlers.RecipeCOGSBackfillHandler,
 ) http.Handler {
 	r := chi.NewRouter()
 
@@ -132,10 +133,17 @@ func New(
 
 				// Platform-default backup destination (OneDrive/GDrive/S3/WebDAV/
 				// SFTP/SMB) — platform-owner only. Secret params encrypted at rest.
-				if backupDest != nil {
+				if backupDest != nil || recipeCOGSBackfill != nil {
 					admin.Group(func(platform chi.Router) {
 						platform.Use(requirePlatformOwner)
-						backupDest.RegisterPlatformRoutes(platform)
+						if backupDest != nil {
+							backupDest.RegisterPlatformRoutes(platform)
+						}
+						// One-time recipe-COGS backfill (see pos_cogs_backfill.go) — fleet-wide,
+						// platform-owner only, same gate as the backup-destination routes above.
+						if recipeCOGSBackfill != nil {
+							recipeCOGSBackfill.RegisterRoutes(platform)
+						}
 					})
 				}
 			})

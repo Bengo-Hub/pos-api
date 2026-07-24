@@ -541,3 +541,64 @@ func (c *Client) ReverseConsumption(ctx context.Context, tenantID string, req Re
 	}
 	return &out, nil
 }
+
+// RecipeItemCost is one RECIPE-type item's SKU and current cost — for RECIPE items the enriched
+// item list already returns the recipe's cost_per_portion under the cost_price field (see
+// recipe-costing-unit-conversion notes), so this is the authoritative per-portion ingredient cost,
+// no separate call to the recipes endpoint needed.
+type RecipeItemCost struct {
+	SKU       string  `json:"sku"`
+	CostPrice float64 `json:"cost_price"`
+}
+
+type listItemsPage struct {
+	Data  []RecipeItemCost `json:"data"`
+	Total int              `json:"total"`
+}
+
+// ListRecipeCosts fetches every RECIPE-type item's current cost_price for a tenant, paginating
+// until exhausted. Used by the recipe-COGS backfill job to compute what a historical order's
+// recipe-type lines SHOULD have cost, using today's ingredient costs (the best available
+// approximation — no historical cost snapshot exists for a sale that never recorded one).
+func (c *Client) ListRecipeCosts(ctx context.Context, tenantID string) (map[string]float64, error) {
+	const pageSize = 200
+	out := map[string]float64{}
+	for offset := 0; ; offset += pageSize {
+		page, err := c.fetchRecipeCostPage(ctx, tenantID, pageSize, offset)
+		if err != nil {
+			return nil, err
+		}
+		for _, item := range page {
+			if item.SKU != "" && item.CostPrice > 0 {
+				out[item.SKU] = item.CostPrice
+			}
+		}
+		if len(page) < pageSize {
+			return out, nil
+		}
+	}
+}
+
+func (c *Client) fetchRecipeCostPage(ctx context.Context, tenantID string, limit, offset int) ([]RecipeItemCost, error) {
+	reqURL := fmt.Sprintf("%s/v1/%s/inventory/items?type=RECIPE&limit=%d&offset=%d", c.baseURL, tenantID, limit, offset)
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("inventory.Client.ListRecipeCosts: build request: %w", err)
+	}
+	httpReq.Header.Set("X-API-Key", c.apiKey)
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("inventory.Client.ListRecipeCosts: http: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		return nil, fmt.Errorf("inventory.Client.ListRecipeCosts: status %d", resp.StatusCode)
+	}
+	var page listItemsPage
+	if err := json.NewDecoder(resp.Body).Decode(&page); err != nil {
+		return nil, fmt.Errorf("inventory.Client.ListRecipeCosts: decode: %w", err)
+	}
+	return page.Data, nil
+}

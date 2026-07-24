@@ -864,3 +864,27 @@ func (c *Client) ClaimC2BPayment(ctx context.Context, tenantSlug, transID, posOr
 	}
 	return *resp, nil
 }
+
+// COGSBackfillRequest is the body for POST /api/v1/s2s/{tenant}/pos/cogs-backfill — see
+// ledger.go's S2SPostRecipeCOGSBackfill on the treasury side.
+type COGSBackfillRequest struct {
+	ReferenceID string  `json:"reference_id"` // the historical POS order id
+	Amount      float64 `json:"amount"`       // the missing recipe cost for that order
+	Currency    string  `json:"currency,omitempty"`
+	Description string  `json:"description,omitempty"`
+	OutletID    string  `json:"outlet_id,omitempty"`
+}
+
+// COGSBackfillResponse reports whether PostCOGS actually created a new entry (false = a
+// "cogs_recipe_backfill" entry already existed for this order — idempotent no-op).
+type COGSBackfillResponse struct {
+	Posted bool            `json:"posted"`
+	Entry  json.RawMessage `json:"entry"`
+}
+
+// PostCOGSBackfill posts one historical order's missing recipe COGS. Called once per qualifying
+// order by the recipe-COGS backfill job (platform-owner only) — see pos_cogs_backfill.go.
+func (c *Client) PostCOGSBackfill(ctx context.Context, tenantSlug string, req COGSBackfillRequest) (*COGSBackfillResponse, error) {
+	url := fmt.Sprintf("%s/api/v1/s2s/%s/pos/cogs-backfill", c.baseURL, tenantSlug)
+	return doRequest[COGSBackfillResponse](ctx, c.httpClient, http.MethodPost, url, c.apiKey, req)
+}
