@@ -563,6 +563,16 @@ func New(ctx context.Context) (*App, error) {
 		}
 	}
 
+	// Subscribe to crm.contact.merged → repoint pos-api's own crm_contact_id-bearing rows
+	// (client_records, loyalty_accounts, appointments, bookings, room guests) when marketflow
+	// folds a duplicate CRM contact into a survivor.
+	if natsConn != nil {
+		crmMergeSub := events.NewCRMContactMergedSubscriber(sqlDB, log)
+		if err := crmMergeSub.Subscribe(natsConn); err != nil {
+			log.Warn("app: failed to subscribe to crm.contact.merged events", zap.Error(err))
+		}
+	}
+
 	// Webhook dispatcher: fan-out pos.> NATS events to matching webhook subscriptions with HTTP delivery + backoff
 	if natsConn != nil {
 		webhookDispatcher := webhookspkg.NewDispatcher(entClient, log)
