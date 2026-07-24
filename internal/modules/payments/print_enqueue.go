@@ -11,8 +11,10 @@ import (
 	outletsettingpredicate "github.com/bengobox/pos-service/internal/ent/outletsetting"
 	"github.com/bengobox/pos-service/internal/ent/posorderline"
 	"github.com/bengobox/pos-service/internal/ent/pospayment"
+	"github.com/bengobox/pos-service/internal/ent/tender"
 	"github.com/bengobox/pos-service/internal/modules/printing"
 
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
 
@@ -59,16 +61,29 @@ func (s *Service) enqueueReceiptPrint(ctx context.Context, order *ent.POSOrder) 
 	if pays, perr := s.client.POSPayment.Query().
 		Where(pospayment.OrderID(order.ID), pospayment.Status(StatusCompleted)).
 		All(ctx); perr == nil {
+		// Preload the referenced tenders in ONE query (was a Tender.Get per payment — N+1).
+		tenderName := make(map[uuid.UUID]string, len(pays))
+		ids := make([]uuid.UUID, 0, len(pays))
+		for _, p := range pays {
+			ids = append(ids, p.TenderID)
+		}
+		if len(ids) > 0 {
+			if ts, terr := s.client.Tender.Query().Where(tender.IDIn(ids...)).All(ctx); terr == nil {
+				for _, t := range ts {
+					tenderName[t.ID] = t.Name
+				}
+			}
+		}
 		for _, p := range pays {
 			amountPaid += p.Amount
 			if paymentDate == nil || p.OccurredAt.After(*paymentDate) {
 				occurred := p.OccurredAt
 				paymentDate = &occurred
 			}
-			if t, tErr := s.client.Tender.Get(ctx, p.TenderID); tErr == nil && t.Name != "" {
-				if _, dup := seen[t.Name]; !dup {
-					seen[t.Name] = struct{}{}
-					methods = append(methods, t.Name)
+			if name := tenderName[p.TenderID]; name != "" {
+				if _, dup := seen[name]; !dup {
+					seen[name] = struct{}{}
+					methods = append(methods, name)
 				}
 			}
 		}
