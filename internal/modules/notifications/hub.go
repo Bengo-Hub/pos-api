@@ -115,6 +115,24 @@ func (h *Hub) BroadcastToUser(tenantID, userID uuid.UUID, msg Message) {
 	}
 }
 
+// BroadcastToTenant delivers a message to EVERY active session for the tenant — used for
+// tenant-wide signals like a catalog change, so all connected terminals refresh via push
+// instead of waiting on their periodic version poll.
+func (h *Hub) BroadcastToTenant(tenantID uuid.UUID, msg Message) {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	for c := range h.clients {
+		if c.tenantID == tenantID {
+			select {
+			case c.send <- msg:
+			default:
+				h.log.Warn("notif.hub: send buffer full, dropping tenant broadcast",
+					zap.Stringer("tenant_id", tenantID))
+			}
+		}
+	}
+}
+
 // BroadcastToOutlet delivers a message to every active session in the outlet (e.g. all floor staff).
 func (h *Hub) BroadcastToOutlet(tenantID, outletID uuid.UUID, msg Message) {
 	// outletID not tracked per-client; kept for future use — use BroadcastToUser per waiter.

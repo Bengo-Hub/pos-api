@@ -517,6 +517,9 @@ func New(ctx context.Context) (*App, error) {
 
 	// Subscribe to inventory events for catalog projection sync + initial sync
 	inventoryEventHandler := catalogmodule.NewInventoryEventHandler(entClient, redisClient, log)
+	// Push a catalog-changed signal to every terminal on the tenant the instant inventory changes,
+	// so they refresh via WS instead of waiting on the ~45s catalog-version poll.
+	inventoryEventHandler.SetNotifHub(notificationsHandler.Hub())
 	if natsConn != nil {
 		if err := inventoryEventHandler.SubscribeToInventoryEvents(natsConn); err != nil {
 			log.Warn("app: failed to subscribe to inventory events for catalog sync", zap.Error(err))

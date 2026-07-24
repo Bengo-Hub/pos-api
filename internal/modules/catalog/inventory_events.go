@@ -14,6 +14,7 @@ import (
 
 	"github.com/bengobox/pos-service/internal/ent"
 	entoverride "github.com/bengobox/pos-service/internal/ent/poscatalogoverride"
+	"github.com/bengobox/pos-service/internal/modules/notifications"
 )
 
 // CatalogStockVersionKey is the Redis key holding a per-tenant "stock version" (a millisecond
@@ -70,10 +71,21 @@ func floatPtrFromPayload(v any) *float64 {
 // Item data (name, description, image) is always fetched fresh from inventory-api at request time.
 // Only flags that POS needs to enforce locally (pharmacy, age-gate, etc.) are stored.
 type InventoryEventHandler struct {
-	client *ent.Client
-	redis  *redis.Client
-	logger *zap.Logger
+	client   *ent.Client
+	redis    *redis.Client
+	logger   *zap.Logger
+	notifHub catalogNotifHub
 }
+
+// catalogNotifHub is the slice of the notifications hub this consumer needs: a tenant-wide push
+// so all connected terminals refresh their catalog the instant inventory changes, instead of
+// waiting up to ~45s for their version poll. Kept as an interface to avoid a module import cycle.
+type catalogNotifHub interface {
+	BroadcastToTenant(tenantID uuid.UUID, msg notifications.Message)
+}
+
+// SetNotifHub wires the notification hub for real-time catalog-change push (optional).
+func (h *InventoryEventHandler) SetNotifHub(hub catalogNotifHub) { h.notifHub = hub }
 
 // NewInventoryEventHandler creates a new inventory event handler.
 func NewInventoryEventHandler(client *ent.Client, redisClient *redis.Client, logger *zap.Logger) *InventoryEventHandler {
@@ -197,6 +209,16 @@ func (h *InventoryEventHandler) onStockUpdated(ctx context.Context, evt *sharede
 		h.logger.Debug("catalog stock version bump failed", zap.String("tenant", tenant), zap.Error(err))
 	}
 	h.bustCatalogSourceCache(ctx, tenant)
+	// Real-time: push a catalog-changed signal to every terminal on this tenant so they refresh
+	// immediately instead of waiting up to ~45s for their version poll. Debounced by the 30s lock
+	// above, so this fires at most once per tenant per 30s (no WS spam). The version poll stays as
+	// a fallback for terminals whose socket is momentarily down.
+	if h.notifHub != nil {
+		h.notifHub.BroadcastToTenant(evt.TenantID, notifications.Message{
+			Type:    "catalog_changed",
+			Payload: map[string]any{"tenant_id": tenant},
+		})
+	}
 	return nil
 }
 
