@@ -276,7 +276,8 @@ func (h *ReturnHandler) CreateReturn(w http.ResponseWriter, r *http.Request) {
 	// against an unpaid on-account (credit) sale must offset the customer's balance, never
 	// pay out cash the business never received.
 	onAccount := h.orderSettledOnAccount(ctx, tid, orderID)
-	if perr := validateRefundChannel(reasonCodePtr(input.ReasonCode), posreturn.ReturnType(returnType), input.RefundChannel, onAccount); perr != nil {
+	restrictOnAccount := h.creditSaleRefundRestricted(ctx, tid, orderID)
+	if perr := validateRefundChannel(reasonCodePtr(input.ReasonCode), posreturn.ReturnType(returnType), input.RefundChannel, onAccount, restrictOnAccount); perr != nil {
 		jsonError(w, perr.Error(), http.StatusUnprocessableEntity)
 		return
 	}
@@ -526,7 +527,8 @@ func (h *ReturnHandler) ApproveReturn(w http.ResponseWriter, r *http.Request) {
 	// The override must still satisfy the reason/settlement policy.
 	if rc := refundChannelPtr(input.RefundChannel); rc != nil {
 		onAccount := h.orderSettledOnAccount(ctx, tid, ret.OrderID)
-		if perr := validateRefundChannel(ret.ReasonCode, ret.ReturnType, string(*rc), onAccount); perr != nil {
+		restrictOnAccount := h.creditSaleRefundRestricted(ctx, tid, ret.OrderID)
+		if perr := validateRefundChannel(ret.ReasonCode, ret.ReturnType, string(*rc), onAccount, restrictOnAccount); perr != nil {
 			jsonError(w, perr.Error(), http.StatusUnprocessableEntity)
 			return
 		}
@@ -651,7 +653,8 @@ func (h *ReturnHandler) CompleteReturn(w http.ResponseWriter, r *http.Request) {
 			update = update.SetNillableRefundChannel(rc)
 		}
 	}
-	if perr := validateRefundChannel(ret.ReasonCode, ret.ReturnType, refundChannel, onAccount); perr != nil {
+	restrictOnAccount := h.creditSaleRefundRestricted(ctx, tid, ret.OrderID)
+	if perr := validateRefundChannel(ret.ReasonCode, ret.ReturnType, refundChannel, onAccount, restrictOnAccount); perr != nil {
 		jsonError(w, perr.Error(), http.StatusUnprocessableEntity)
 		return
 	}

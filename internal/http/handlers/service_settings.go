@@ -116,6 +116,12 @@ type settingsResponse struct {
 	TableMaxOccupationMinutes int `json:"table_max_occupation_minutes"`
 	// returns policy
 	ReturnWindowDays int `json:"return_window_days"`
+	// RestrictCreditSaleRefundToOffset: when true (default — unchanged behaviour), a return
+	// against an unpaid on-account sale may ONLY offset the customer's balance (never cash/
+	// mpesa/bank/cheque/store_credit) — the anti-phantom-debt guard. A tenant may opt out to let
+	// cashiers choose any refund channel for such a return. Freeform-metadata key
+	// (restrict_credit_sale_refund_to_offset), no schema migration.
+	RestrictCreditSaleRefundToOffset bool `json:"restrict_credit_sale_refund_to_offset"`
 	// discount control (exceeding EITHER limit triggers the manager step-up). DiscountLimitType
 	// is the Settings-page UI selector for which field is the ACTIVE one (percent XOR amount —
 	// the page shows a single input at a time); the inactive field is always saved at its
@@ -173,67 +179,68 @@ func toSettingsResponse(outlet *ent.Outlet, s *ent.OutletSetting) settingsRespon
 		useCase = *outlet.UseCase
 	}
 	r := settingsResponse{
-		OutletID:                  outlet.ID.String(),
-		UseCase:                   useCase,
-		DisplayMode:               s.DisplayMode,
-		ShowImages:                s.ShowImages,
-		ShowBarcodeScanner:        s.ShowBarcodeScanner,
-		DefaultView:               s.DefaultView,
-		Currency:                  s.Currency,
-		VATEnabled:                s.VatEnabled,
-		VATRate:                   s.VatRate,
-		PrinterType:               s.PrinterType,
-		PaperWidth:                s.PaperWidth,
-		ReceiptFormat:             string(s.ReceiptFormat),
-		AvailableReceiptFormats:   layouts.All(),
-		AutoPrintOrder:            s.AutoPrintOrder,
-		AutoPrintKitchen:          s.AutoPrintKitchen,
-		EnableKDS:                 s.EnableKds,
-		EnableAppointments:        s.EnableAppointments,
-		HotelModuleEnabled:        s.HotelModuleEnabled,
-		LayawayEnabled:            s.LayawayEnabled,
-		ShiftReportsEnabled:       s.ShiftReportsEnabled,
-		ReceiptHeader:             s.ReceiptHeader,
-		ReceiptFooter:             s.ReceiptFooter,
-		ShowLogoOnReceipt:         metaBoolDefault(s.Metadata, "receipt_show_logo", true),
-		PrinterIP:                 s.PrinterIP,
-		ShiftAutoEndEnabled:       s.ShiftAutoEndEnabled,
-		ShiftMaxHours:             s.ShiftMaxHours,
-		TableMaxOccupationMinutes: s.TableMaxOccupationMinutes,
-		ReturnWindowDays:          s.ReturnWindowDays,
-		MaxDiscountPercent:        s.MaxDiscountPercent,
-		MaxDiscountAmount:         s.MaxDiscountAmount,
-		DiscountLimitType:         string(s.DiscountLimitType),
-		AllowPriceAboveBase:       s.AllowPriceAboveBase,
-		RequireApprovalBelowBase:  s.RequireApprovalBelowBase,
-		PrinterProfiles:           s.PrinterProfiles,
-		CashDrawerEnabled:         s.CashDrawerEnabled,
-		CashDrawerPrinter:         s.CashDrawerPrinter,
-		CashDrawerAutoOpen:        s.CashDrawerAutoOpen,
-		CashDrawerKickCode:        s.CashDrawerKickCode,
-		CardTerminalMode:          s.CardTerminalMode,
-		CardTerminalProvider:      s.CardTerminalProvider,
-		CardTerminalTID:           s.CardTerminalTid,
-		CardTerminalRequireRef:    s.CardTerminalRequireRef,
-		PINLoginMessage:           s.PinLoginMessage,
-		ScreensaverURL:            s.ScreensaverURL,
-		ScreensaverURLs:           metaStringSlice(s.Metadata, "screensaver_urls"),
-		MpesaPaybill:              s.MpesaPaybill,
-		MpesaAccountReference:     s.MpesaAccountReference,
-		AirtelMoneyNumber:         s.AirtelMoneyNumber,
-		MpesaTill:                 s.MpesaTill,
-		MpesaPochi:                s.MpesaPochi,
-		BankName:                  s.BankName,
-		BankAccountNumber:         s.BankAccountNumber,
-		BankAccountName:           s.BankAccountName,
-		ShowPaymentInfoOnReceipt:  s.ShowPaymentInfoOnReceipt,
-		DisabledModules:           metaStringSlice(s.Metadata, "disabled_modules"),
-		HiddenItems:               metaStringSlice(s.Metadata, "hidden_items"),
-		DisabledModulesByRole:     metaStringSliceMap(s.Metadata, "disabled_modules_by_role"),
-		HiddenItemsByRole:         metaStringSliceMap(s.Metadata, "hidden_items_by_role"),
-		CashierSalesVisibility:    outletpolicy.ResolveCashierSalesVisibility(useCase, s.CashierSalesVisibility),
-		AutoLogoutAfterSale:       outletpolicy.ResolveAutoLogoutAfterSale(useCase, s.AutoLogoutAfterSale),
-		CashierTerminalSurface:    outletpolicy.ResolveCashierTerminalSurface(useCase, s.CashierTerminalSurface),
+		OutletID:                         outlet.ID.String(),
+		UseCase:                          useCase,
+		DisplayMode:                      s.DisplayMode,
+		ShowImages:                       s.ShowImages,
+		ShowBarcodeScanner:               s.ShowBarcodeScanner,
+		DefaultView:                      s.DefaultView,
+		Currency:                         s.Currency,
+		VATEnabled:                       s.VatEnabled,
+		VATRate:                          s.VatRate,
+		PrinterType:                      s.PrinterType,
+		PaperWidth:                       s.PaperWidth,
+		ReceiptFormat:                    string(s.ReceiptFormat),
+		AvailableReceiptFormats:          layouts.All(),
+		AutoPrintOrder:                   s.AutoPrintOrder,
+		AutoPrintKitchen:                 s.AutoPrintKitchen,
+		EnableKDS:                        s.EnableKds,
+		EnableAppointments:               s.EnableAppointments,
+		HotelModuleEnabled:               s.HotelModuleEnabled,
+		LayawayEnabled:                   s.LayawayEnabled,
+		ShiftReportsEnabled:              s.ShiftReportsEnabled,
+		ReceiptHeader:                    s.ReceiptHeader,
+		ReceiptFooter:                    s.ReceiptFooter,
+		ShowLogoOnReceipt:                metaBoolDefault(s.Metadata, "receipt_show_logo", true),
+		PrinterIP:                        s.PrinterIP,
+		ShiftAutoEndEnabled:              s.ShiftAutoEndEnabled,
+		ShiftMaxHours:                    s.ShiftMaxHours,
+		TableMaxOccupationMinutes:        s.TableMaxOccupationMinutes,
+		ReturnWindowDays:                 s.ReturnWindowDays,
+		RestrictCreditSaleRefundToOffset: metaBoolDefault(s.Metadata, "restrict_credit_sale_refund_to_offset", true),
+		MaxDiscountPercent:               s.MaxDiscountPercent,
+		MaxDiscountAmount:                s.MaxDiscountAmount,
+		DiscountLimitType:                string(s.DiscountLimitType),
+		AllowPriceAboveBase:              s.AllowPriceAboveBase,
+		RequireApprovalBelowBase:         s.RequireApprovalBelowBase,
+		PrinterProfiles:                  s.PrinterProfiles,
+		CashDrawerEnabled:                s.CashDrawerEnabled,
+		CashDrawerPrinter:                s.CashDrawerPrinter,
+		CashDrawerAutoOpen:               s.CashDrawerAutoOpen,
+		CashDrawerKickCode:               s.CashDrawerKickCode,
+		CardTerminalMode:                 s.CardTerminalMode,
+		CardTerminalProvider:             s.CardTerminalProvider,
+		CardTerminalTID:                  s.CardTerminalTid,
+		CardTerminalRequireRef:           s.CardTerminalRequireRef,
+		PINLoginMessage:                  s.PinLoginMessage,
+		ScreensaverURL:                   s.ScreensaverURL,
+		ScreensaverURLs:                  metaStringSlice(s.Metadata, "screensaver_urls"),
+		MpesaPaybill:                     s.MpesaPaybill,
+		MpesaAccountReference:            s.MpesaAccountReference,
+		AirtelMoneyNumber:                s.AirtelMoneyNumber,
+		MpesaTill:                        s.MpesaTill,
+		MpesaPochi:                       s.MpesaPochi,
+		BankName:                         s.BankName,
+		BankAccountNumber:                s.BankAccountNumber,
+		BankAccountName:                  s.BankAccountName,
+		ShowPaymentInfoOnReceipt:         s.ShowPaymentInfoOnReceipt,
+		DisabledModules:                  metaStringSlice(s.Metadata, "disabled_modules"),
+		HiddenItems:                      metaStringSlice(s.Metadata, "hidden_items"),
+		DisabledModulesByRole:            metaStringSliceMap(s.Metadata, "disabled_modules_by_role"),
+		HiddenItemsByRole:                metaStringSliceMap(s.Metadata, "hidden_items_by_role"),
+		CashierSalesVisibility:           outletpolicy.ResolveCashierSalesVisibility(useCase, s.CashierSalesVisibility),
+		AutoLogoutAfterSale:              outletpolicy.ResolveAutoLogoutAfterSale(useCase, s.AutoLogoutAfterSale),
+		CashierTerminalSurface:           outletpolicy.ResolveCashierTerminalSurface(useCase, s.CashierTerminalSurface),
 		CashierPolicyOverrides: map[string]bool{
 			"cashier_sales_visibility": s.CashierSalesVisibility != nil,
 			"auto_logout_after_sale":   s.AutoLogoutAfterSale != nil,
@@ -483,9 +490,11 @@ type updateSettingsInput struct {
 	PINLoginMessage    *string          `json:"pin_login_message"`
 	ScreensaverURL     *string          `json:"screensaver_url"`
 	ReturnWindowDays   *int             `json:"return_window_days"`
-	MaxDiscountPercent *float64         `json:"max_discount_percent"`
-	MaxDiscountAmount  *float64         `json:"max_discount_amount"`
-	DiscountLimitType  *string          `json:"discount_limit_type"`
+	// returns policy
+	RestrictCreditSaleRefundToOffset *bool    `json:"restrict_credit_sale_refund_to_offset"`
+	MaxDiscountPercent               *float64 `json:"max_discount_percent"`
+	MaxDiscountAmount                *float64 `json:"max_discount_amount"`
+	DiscountLimitType                *string  `json:"discount_limit_type"`
 	// pricing policy
 	AllowPriceAboveBase      *bool `json:"allow_price_above_base"`
 	RequireApprovalBelowBase *bool `json:"require_approval_below_base"`
@@ -691,14 +700,22 @@ func (h *ServiceSettingsHandler) PutSettings(w http.ResponseWriter, r *http.Requ
 	if input.ShowPaymentInfoOnReceipt != nil {
 		upd = upd.SetShowPaymentInfoOnReceipt(*input.ShowPaymentInfoOnReceipt)
 	}
-	// Logo on receipts — freeform-metadata key (no schema migration), merged into a copy so
-	// other metadata keys (sidebar lists, booking policy, screensavers) are preserved.
-	if input.ShowLogoOnReceipt != nil {
+	// Freeform-metadata keys (no schema migration) — logo-on-receipts + the credit-sale refund
+	// policy. Merged from a SINGLE copy of the existing metadata and written with ONE SetMetadata
+	// call: this handler has only one metadata-writing point, so a second independent
+	// copy-then-SetMetadata block here would silently discard whichever field the OTHER block
+	// wrote first (ent's builder keeps only the last SetMetadata call, not a merge of both).
+	if input.ShowLogoOnReceipt != nil || input.RestrictCreditSaleRefundToOffset != nil {
 		meta := map[string]any{}
 		for k, v := range setting.Metadata {
 			meta[k] = v
 		}
-		meta["receipt_show_logo"] = *input.ShowLogoOnReceipt
+		if input.ShowLogoOnReceipt != nil {
+			meta["receipt_show_logo"] = *input.ShowLogoOnReceipt
+		}
+		if input.RestrictCreditSaleRefundToOffset != nil {
+			meta["restrict_credit_sale_refund_to_offset"] = *input.RestrictCreditSaleRefundToOffset
+		}
 		upd = upd.SetMetadata(meta)
 	}
 
@@ -763,10 +780,10 @@ type modulesInput struct {
 	// pointer leaves the stored list untouched; a non-nil (possibly empty) list replaces it.
 	// The flat lists apply tenant-wide; the *ByRole maps (role code → hrefs/module keys) hide
 	// additionally for a specific role only. A nil map pointer leaves the stored map untouched.
-	DisabledModules       *[]string             `json:"disabled_modules"`
-	HiddenItems           *[]string             `json:"hidden_items"`
-	DisabledModulesByRole *map[string][]string  `json:"disabled_modules_by_role"`
-	HiddenItemsByRole     *map[string][]string  `json:"hidden_items_by_role"`
+	DisabledModules       *[]string            `json:"disabled_modules"`
+	HiddenItems           *[]string            `json:"hidden_items"`
+	DisabledModulesByRole *map[string][]string `json:"disabled_modules_by_role"`
+	HiddenItemsByRole     *map[string][]string `json:"hidden_items_by_role"`
 }
 
 // PatchModules handles PATCH /{tenantID}/pos/settings/modules

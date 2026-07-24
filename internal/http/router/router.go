@@ -919,6 +919,11 @@ func New(
 						// Credit terms (treasury AR proxy, READ-ONLY here): balance + limit + period
 						// for the checkout credit hint; terms are edited on the treasury Customers page.
 						pos.Get("/clients/{accountID}/credit", clients.GetCredit)
+						// Identifier-based variant (no POS LoyaltyAccount required) — most customers have
+						// no loyalty account yet, but treasury's AR/CustomerBalance is keyed by
+						// crm_contact_id/phone regardless of loyalty membership, so a customer attached
+						// via a CRM-only search match can still show their real balance.
+						pos.Get("/clients/credit", clients.GetCreditByIdentifier)
 						// Stand-alone pay-out of a customer's existing stored credit (independent of any
 						// return/sale) — proxied to treasury the same way GetCredit is.
 						pos.Post("/clients/{accountID}/payout-credit", clients.PayoutCredit)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -75,6 +76,46 @@ func (h *ClientHandler) GetCredit(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		h.log.Error("get credit terms proxy failed", zap.Error(err))
+		jsonError(w, "failed to load credit terms", http.StatusBadGateway)
+		return
+	}
+	jsonOK(w, terms)
+}
+
+// GetCreditByIdentifier handles GET /{tenantID}/pos/clients/credit?crm_contact_id=&phone=&name=
+// — the same customer AR balance as GetCredit, but keyed directly off a CRM contact id or phone
+// instead of a POS LoyaltyAccount id. Most attached customers have NO loyalty account yet (the
+// common CRM-merge search result, source:"crm" with an empty account id) — treasury's AR ledger
+// has nothing to do with loyalty membership, so requiring an account id there hid the balance for
+// exactly the customers most likely to have one. crm_contact_id wins when both are given (mirrors
+// creditKeyForAccount's own crm_contact_id-first resolution).
+func (h *ClientHandler) GetCreditByIdentifier(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+	if h.treasury == nil {
+		jsonError(w, "treasury client not configured", http.StatusServiceUnavailable)
+		return
+	}
+	key := strings.TrimSpace(r.URL.Query().Get("crm_contact_id"))
+	if key == "" {
+		key = strings.TrimSpace(r.URL.Query().Get("phone"))
+	}
+	if key == "" {
+		jsonError(w, "crm_contact_id or phone required", http.StatusBadRequest)
+		return
+	}
+	tenantSlug := chi.URLParam(r, "tenantID")
+	terms, err := h.treasury.GetCreditTerms(r.Context(), tenantSlug, key)
+	if err != nil {
+		if cached, cerr := h.creditFromCache(r.Context(), tid, key); cerr == nil && cached != nil {
+			h.log.Warn("get credit terms by identifier proxy failed — serving cached balance", zap.Error(err))
+			jsonOK(w, cached)
+			return
+		}
+		h.log.Error("get credit terms by identifier proxy failed", zap.Error(err))
 		jsonError(w, "failed to load credit terms", http.StatusBadGateway)
 		return
 	}
