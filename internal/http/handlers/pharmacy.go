@@ -19,6 +19,7 @@ import (
 	entpx "github.com/bengobox/pos-service/internal/ent/prescription"
 	entpxl "github.com/bengobox/pos-service/internal/ent/prescriptionline"
 	"github.com/bengobox/pos-service/internal/modules/inventory"
+	"github.com/bengobox/pos-service/internal/modules/orders"
 	"github.com/bengobox/pos-service/internal/platform/marketflow"
 )
 
@@ -34,6 +35,10 @@ type PharmacyHandler struct {
 	// a pointer stored in Prescription.metadata["crm_contact_id"] — CRM remains the SoT for
 	// patient identity, no PII is duplicated here).
 	marketflow *marketflow.Client
+	// orderSvc creates the payable POSOrder for a dispensed prescription's checkout (see
+	// pharmacy_checkout.go) — the SAME order-creation path the terminal/back-office use, so a
+	// prescription sale gets identical tax/GL/eTIMS/receipt treatment to any other POS sale.
+	orderSvc *orders.Service
 }
 
 func NewPharmacyHandler(log *zap.Logger, db *ent.Client, inventoryClient *inventory.Client) *PharmacyHandler {
@@ -48,6 +53,9 @@ func (h *PharmacyHandler) SetMarketFlowClient(mf *marketflow.Client) { h.marketf
 
 // SetAuditService wires the centralized audit trail writer.
 func (h *PharmacyHandler) SetAuditService(svc *audit.Service) { h.auditSvc = svc }
+
+// SetOrderService wires the shared order-creation service used by the prescription checkout step.
+func (h *PharmacyHandler) SetOrderService(svc *orders.Service) { h.orderSvc = svc }
 
 type prescriptionLineInput struct {
 	DrugName           string   `json:"drug_name"`
@@ -295,10 +303,19 @@ func (h *PharmacyHandler) Dispense(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.db.PrescriptionLine.Update().
+	// Dispense is currently all-or-nothing (no partial-quantity dispensing yet), so the dispensed
+	// quantity always equals what was prescribed — stamped per line so the UI's Dispensed column
+	// (and any downstream checkout/report reading quantity_dispensed) reflects reality instead of
+	// staying permanently 0.
+	pendingLines, _ := h.db.PrescriptionLine.Query().
 		Where(entpxl.PrescriptionID(pxID), entpxl.StatusEQ("pending")).
-		SetStatus("dispensed").
-		SaveX(r.Context())
+		All(r.Context())
+	for _, l := range pendingLines {
+		h.db.PrescriptionLine.UpdateOneID(l.ID).
+			SetStatus("dispensed").
+			SetQuantityDispensed(l.QuantityPrescribed).
+			SaveX(r.Context())
+	}
 
 	// Dispense is the moment stock physically leaves the shelf — convert the hold created at
 	// approval (Phase 3) into an actual depletion via inventory-api's existing

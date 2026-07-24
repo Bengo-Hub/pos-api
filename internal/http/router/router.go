@@ -791,6 +791,8 @@ func New(
 							ph.Get("/pharmacy/prescriptions", pharmacy.ListPrescriptions)
 							ph.Get("/pharmacy/prescriptions/{prescriptionID}", pharmacy.GetPrescription)
 							ph.Post("/pharmacy/prescriptions/{prescriptionID}/dispense", pharmacy.Dispense)
+							ph.With(outletmw.RequireServicePermission(rbacSvc, "pos.pharmacy.change")).
+								Post("/pharmacy/prescriptions/{prescriptionID}/checkout", pharmacy.CheckoutPrescription)
 							ph.With(outletmw.RequireServicePermission(rbacSvc, "pos.pharmacy.approve")).
 								Post("/pharmacy/prescriptions/{prescriptionID}/approve", pharmacy.ApprovePrescription)
 							ph.With(outletmw.RequireServicePermission(rbacSvc, "pos.pharmacy.approve")).
