@@ -389,6 +389,10 @@ func (h *POSOrderHandler) enrichOrderList(ctx context.Context, tenantID uuid.UUI
 		count  int
 		total  float64
 		status string
+		// completedTotal is the subset of total that has actually SETTLED (money/AR already
+		// moved — see the 3-stage lifecycle: initiate→approve→complete). Only this portion may
+		// reduce AmountDue below; a merely pending/approved return hasn't settled anything yet.
+		completedTotal float64
 	}
 	returnRank := map[posreturn.Status]int{posreturn.StatusPending: 1, posreturn.StatusApproved: 2, posreturn.StatusCompleted: 3}
 	returnsByOrder := map[uuid.UUID]*returnAgg{}
@@ -415,6 +419,9 @@ func (h *POSOrderHandler) enrichOrderList(ctx context.Context, tenantID uuid.UUI
 			}
 			agg.count++
 			agg.total += ret.RefundAmount
+			if ret.Status == posreturn.StatusCompleted {
+				agg.completedTotal += ret.RefundAmount
+			}
 			if returnRank[ret.Status] > returnRank[posreturn.Status(agg.status)] {
 				agg.status = string(ret.Status)
 			}
@@ -426,6 +433,7 @@ func (h *POSOrderHandler) enrichOrderList(ctx context.Context, tenantID uuid.UUI
 		// paid_total is the stored sum of completed payments — the same value the
 		// payment-status filter queries against, so badge and filter always agree.
 		paid := o.PaidTotal
+		retAgg := returnsByOrder[o.ID]
 		// The displayed method comes from what was actually SETTLED. The terminal stamps the real
 		// method on payment_data.method (the tender is a shared generic row, so its type is not the
 		// method); fall back to the tender type only for legacy per-method-tender setups.
@@ -463,6 +471,18 @@ func (h *POSOrderHandler) enrichOrderList(ctx context.Context, tenantID uuid.UUI
 			due = 0
 		default:
 			due = o.TotalAmount - paid
+			// A COMPLETED return against this sale (refund/credit-note/offset-invoice already
+			// settled — see the 3-stage lifecycle) reduces what's actually still owed on it.
+			// Without this, a partial return against an on-account (credit) sale left AmountDue
+			// permanently at the pre-return total forever: the return offsets the customer's AR
+			// balance directly (never touches this order's own paid_total), so "Owed on sales"
+			// and the Record-Payment prefill both kept showing the FULL original amount even
+			// after the customer's real remaining debt had gone down — risking an overpayment if
+			// the cashier didn't catch it. Pending/approved-but-not-yet-completed returns are
+			// deliberately excluded (nothing has settled yet).
+			if retAgg != nil {
+				due -= retAgg.completedTotal
+			}
 			if due < 0 {
 				due = 0
 			}
@@ -476,7 +496,7 @@ func (h *POSOrderHandler) enrichOrderList(ctx context.Context, tenantID uuid.UUI
 			PaymentMethod: dominantMethod(methods),
 			CashierName:   staffNames[o.UserID], // "" when unknown — the UI falls back gracefully
 		}
-		if agg := returnsByOrder[o.ID]; agg != nil {
+		if agg := retAgg; agg != nil {
 			item.ReturnCount = agg.count
 			item.ReturnTotal = agg.total
 			item.ReturnStatus = agg.status
