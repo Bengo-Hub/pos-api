@@ -12,6 +12,7 @@ import (
 	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 
+	"github.com/bengobox/pos-service/internal/audit"
 	"github.com/bengobox/pos-service/internal/ent"
 	entdic "github.com/bengobox/pos-service/internal/ent/druginteractioncheck"
 	entoverride "github.com/bengobox/pos-service/internal/ent/poscatalogoverride"
@@ -24,11 +25,21 @@ type PharmacyHandler struct {
 	log       *zap.Logger
 	db        *ent.Client
 	inventory *inventory.Client
+	// terminalSecret verifies manager/pharmacist-witness PIN step-up approval tokens
+	// (Phase 5: gates CreateControlledLog). Mirrors POSOrderHandler.terminalSecret.
+	terminalSecret []byte
+	auditSvc       *audit.Service
 }
 
 func NewPharmacyHandler(log *zap.Logger, db *ent.Client, inventoryClient *inventory.Client) *PharmacyHandler {
 	return &PharmacyHandler{log: log, db: db, inventory: inventoryClient}
 }
+
+// SetTerminalSecret wires the step-up JWT secret (mirrors POSOrderHandler.SetTerminalSecret).
+func (h *PharmacyHandler) SetTerminalSecret(s []byte) { h.terminalSecret = s }
+
+// SetAuditService wires the centralized audit trail writer.
+func (h *PharmacyHandler) SetAuditService(svc *audit.Service) { h.auditSvc = svc }
 
 type prescriptionLineInput struct {
 	DrugName           string   `json:"drug_name"`

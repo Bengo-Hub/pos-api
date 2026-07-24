@@ -9,10 +9,17 @@ import (
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
+	"github.com/bengobox/pos-service/internal/audit"
 	"github.com/bengobox/pos-service/internal/ent"
 	entcsl "github.com/bengobox/pos-service/internal/ent/controlledsubstancelog"
 	entpxl "github.com/bengobox/pos-service/internal/ent/prescriptionline"
+	entstaff "github.com/bengobox/pos-service/internal/ent/staffmember"
 )
+
+// controlledSubstanceDispenseAction is the step-up action name a witness must be issued a
+// token for (see canApproveAction in step_up.go — pharmacist role is witness-eligible for
+// this action specifically, not for manager-only actions like void/discount override).
+const controlledSubstanceDispenseAction = "controlled_substance_dispense"
 
 // ListControlledLogs handles GET /{tenantID}/pos/pharmacy/controlled-substances
 func (h *PharmacyHandler) ListControlledLogs(w http.ResponseWriter, r *http.Request) {
@@ -43,18 +50,19 @@ func (h *PharmacyHandler) ListControlledLogs(w http.ResponseWriter, r *http.Requ
 }
 
 type createControlledLogInput struct {
-	OutletID         string   `json:"outlet_id"`
-	PrescriptionID   string   `json:"prescription_id,omitempty"`
-	CatalogItemID    string   `json:"catalog_item_id"`
-	ItemSku          string   `json:"item_sku"`
-	ItemName         string   `json:"item_name"`
+	OutletID          string  `json:"outlet_id"`
+	PrescriptionID    string  `json:"prescription_id,omitempty"`
+	CatalogItemID     string  `json:"catalog_item_id"`
+	ItemSku           string  `json:"item_sku"`
+	ItemName          string  `json:"item_name"`
 	QuantityDispensed float64 `json:"quantity_dispensed"`
-	DispensedBy      string   `json:"dispensed_by"`
-	PatientName      string   `json:"patient_name"`
-	PatientIDNumber  string   `json:"patient_id_number,omitempty"`
-	WitnessStaffID   string   `json:"witness_staff_id,omitempty"`
-	Notes            string   `json:"notes,omitempty"`
-	LotNumber        string   `json:"lot_number,omitempty"`
+	DispensedBy       string  `json:"dispensed_by"`
+	PatientName       string  `json:"patient_name"`
+	PatientIDNumber   string  `json:"patient_id_number,omitempty"`
+	WitnessStaffID    string  `json:"witness_staff_id,omitempty"`
+	Notes             string  `json:"notes,omitempty"`
+	LotNumber         string  `json:"lot_number,omitempty"`
+	ApprovalToken     string  `json:"approval_token"`
 }
 
 // CreateControlledLog handles POST /{tenantID}/pos/pharmacy/controlled-substances
@@ -91,6 +99,24 @@ func (h *PharmacyHandler) CreateControlledLog(w http.ResponseWriter, r *http.Req
 		return
 	}
 
+	// Dual-person dispensing requirement: the witness must be verified via the platform's
+	// existing step-up mechanism (PIN or QR manager-card), not merely named in the request
+	// body. canApproveAction (step_up.go) already restricted token ISSUANCE for this action to
+	// managers or pharmacists, so a valid token here is proof the approver was eligible —
+	// no further role check needed.
+	approverUserID, tokenOK := verifyApprovalToken(input.ApprovalToken, controlledSubstanceDispenseAction, h.terminalSecret)
+	if !tokenOK {
+		jsonError(w, "a valid witness approval (step-up PIN or manager card) is required to dispense a controlled substance", http.StatusForbidden)
+		return
+	}
+	witness, werr := h.db.StaffMember.Query().
+		Where(entstaff.TenantID(tid), entstaff.UserID(approverUserID)).
+		Only(r.Context())
+	if werr != nil {
+		jsonError(w, "witness staff record not found", http.StatusForbidden)
+		return
+	}
+
 	c := h.db.ControlledSubstanceLog.Create().
 		SetTenantID(tid).
 		SetOutletID(outletID).
@@ -99,7 +125,8 @@ func (h *PharmacyHandler) CreateControlledLog(w http.ResponseWriter, r *http.Req
 		SetItemName(input.ItemName).
 		SetQuantityDispensed(input.QuantityDispensed).
 		SetDispensedBy(dispensedBy).
-		SetPatientName(input.PatientName)
+		SetPatientName(input.PatientName).
+		SetWitnessStaffID(witness.ID) // authoritative — from the verified token, not the request body
 
 	lotNumber := input.LotNumber
 	var lotExpiry *ent.PrescriptionLine
@@ -129,11 +156,9 @@ func (h *PharmacyHandler) CreateControlledLog(w http.ResponseWriter, r *http.Req
 	if input.PatientIDNumber != "" {
 		c.SetPatientIDNumber(input.PatientIDNumber)
 	}
-	if input.WitnessStaffID != "" {
-		if wid, parseErr := uuid.Parse(input.WitnessStaffID); parseErr == nil {
-			c.SetWitnessStaffID(wid)
-		}
-	}
+	// NOTE: witness_staff_id is intentionally NOT re-read from input.WitnessStaffID here —
+	// it was already set above from the verified step-up token. Trusting the request body
+	// would let a client claim any witness without actually authorizing them.
 	if input.Notes != "" {
 		c.SetNotes(input.Notes)
 	}
@@ -143,6 +168,19 @@ func (h *PharmacyHandler) CreateControlledLog(w http.ResponseWriter, r *http.Req
 		h.log.Error("create controlled substance log failed", zap.Error(err))
 		jsonError(w, "failed to create log entry: "+err.Error(), http.StatusInternalServerError)
 		return
+	}
+
+	if h.auditSvc != nil {
+		h.auditSvc.Record(r.Context(), audit.Entry{
+			TenantID:    tid,
+			OutletID:    &outletID,
+			ActorUserID: dispensedBy,
+			ApproverID:  &approverUserID,
+			Action:      "pharmacy.controlled_substance.dispense",
+			EntityType:  "controlled_substance_log",
+			EntityID:    logEntry.ID.String(),
+			Reason:      "dual-person controlled substance dispense",
+		})
 	}
 
 	w.WriteHeader(http.StatusCreated)

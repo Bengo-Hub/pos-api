@@ -26,6 +26,23 @@ var overrideRoles = map[string]bool{
 	"owner": true, "super_admin": true, "superuser": true,
 }
 
+// witnessEligibleActions maps an action to the additional (non-manager) roles allowed to
+// issue a step-up token for it. Kept separate from overrideRoles so granting a pharmacist
+// the ability to witness a controlled-substance dispense doesn't also hand them manager-level
+// void/discount/price-override powers across the rest of the POS.
+var witnessEligibleActions = map[string]map[string]bool{
+	"controlled_substance_dispense": {"pharmacist": true},
+}
+
+// canApproveAction reports whether role may complete a step-up for action — the general
+// overrideRoles set, plus any action-specific witness role.
+func canApproveAction(role, action string) bool {
+	if overrideRoles[role] {
+		return true
+	}
+	return witnessEligibleActions[action][role]
+}
+
 // approvalClaims is the short-lived, single-action token issued after a manager
 // PIN step-up and consumed by the sensitive-action handler.
 type approvalClaims struct {
@@ -128,7 +145,7 @@ func (h *PINAuthHandler) StepUp(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "invalid credentials", http.StatusUnauthorized)
 		return
 	}
-	if !overrideRoles[member.Role] {
+	if !canApproveAction(member.Role, input.Action) {
 		jsonError(w, "this PIN is not authorized to approve", http.StatusForbidden)
 		return
 	}
@@ -293,7 +310,7 @@ func (h *PINAuthHandler) StepUpByCard(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "card not authorized for this outlet", http.StatusForbidden)
 		return
 	}
-	if !overrideRoles[member.Role] {
+	if !canApproveAction(member.Role, input.Action) {
 		jsonError(w, "this card is not authorized to approve", http.StatusForbidden)
 		return
 	}
