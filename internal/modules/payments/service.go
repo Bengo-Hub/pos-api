@@ -513,6 +513,13 @@ func (s *Service) recordCreditSale(ctx context.Context, order *ent.POSOrder, req
 		Amount:             req.Amount,
 		Currency:           currency,
 		UserID:             order.UserID.String(),
+		// order.Status is read BEFORE this call completes the order. Not yet completed → this call
+		// is part of finalizing the sale, so pos.sale.finalized (selling_scheme=credit/mixed) will
+		// post Dr AR/Cr Revenue itself once completeOrderIfFullyPaid runs below — skip the legacy
+		// reclass to avoid double-posting AR. Already completed (a prior cash sale now having its
+		// remainder put on account) → no new sale.finalized fires, so the reclass IS the only AR
+		// posting for this amount — keep it.
+		SkipARReclass: order.Status != orders.StatusCompleted,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("payments: credit sale rejected: %w", err)
@@ -793,22 +800,19 @@ func (s *Service) ListOrderPayments(ctx context.Context, tenantID, orderID uuid.
 		All(ctx)
 }
 
-// outstandingBalance returns the order total minus all completed payments (>= 0).
+// outstandingBalance returns the order total minus money actually collected minus settled
+// returns (>= 0) — via the canonical orders.ComputeSettlement choke point, so "put on account"
+// books exactly what the customer still owes, net of any completed return already settled.
 func (s *Service) outstandingBalance(ctx context.Context, order *ent.POSOrder) float64 {
-	payments, err := s.client.POSPayment.Query().
-		Where(pospayment.OrderID(order.ID), pospayment.Status(StatusCompleted)).
-		All(ctx)
+	if _, _, err := s.RecomputePaidTotal(ctx, order.ID); err != nil {
+		return order.TotalAmount
+	}
+	fresh, err := s.client.POSOrder.Get(ctx, order.ID)
 	if err != nil {
 		return order.TotalAmount
 	}
-	var paid float64
-	for _, p := range payments {
-		paid += p.Amount
-	}
-	if remaining := order.TotalAmount - paid; remaining > 0 {
-		return remaining
-	}
-	return 0
+	completedReturns, _ := s.completedReturnsTotal(ctx, order.ID)
+	return orders.ComputeSettlement(fresh, completedReturns).AmountDue
 }
 
 // RecomputePaidTotal recalculates an order's paid_total from its COMPLETED payments and

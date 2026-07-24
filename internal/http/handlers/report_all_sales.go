@@ -388,6 +388,16 @@ func (h *ReportPDFHandler) AllSalesDocument(w http.ResponseWriter, r *http.Reque
 		}
 	}
 
+	// Completed-return rollup for the whole page (ONE query) so the export nets settled returns
+	// out of Sell Due EXACTLY like the on-screen All-Sales list — via the shared choke point,
+	// not a hand-copied formula that drifts (the old comment claimed "kept in sync" but omitted
+	// the return offset, so the CSV overstated due for any sale with a completed partial return).
+	allSalesOrderIDs := make([]uuid.UUID, 0, len(list))
+	for _, o := range list {
+		allSalesOrderIDs = append(allSalesOrderIDs, o.ID)
+	}
+	allSalesReturns := returnsRollupFor(ctx, h.db, h.log, tid, allSalesOrderIDs)
+
 	rows := make([][]docs.Cell, 0, len(list))
 	var sumSubtotal, sumDiscount, sumTax, sumTotal, sumPaid, sumDue float64
 	for _, o := range list {
@@ -408,21 +418,14 @@ func (h *ReportPDFHandler) AllSalesDocument(w http.ResponseWriter, r *http.Reque
 				methods[m] = struct{}{}
 			}
 		}
-		paid := o.PaidTotal
-		ps := derivePaymentStatus(o.Status, o.TotalAmount, paid, isOnAccount(o.Metadata))
-		if (ps == "due" || ps == "partial") && isOrderOverdue(o.Metadata) {
-			ps = "overdue"
+		var completedReturns float64
+		if agg := allSalesReturns[o.ID]; agg != nil {
+			completedReturns = agg.completedTotal
 		}
-		// A reversed/not-yet-committed sale owes nothing — see the identical fix + rationale
-		// in OrdersSummary/enrichOrderList (orders.go); kept in sync so the export never
-		// disagrees with the on-screen All-Sales list.
-		var due float64
-		if !nonCommittedOrderStatus(ps) {
-			due = o.TotalAmount - paid
-			if due < 0 {
-				due = 0
-			}
-		}
+		st := orders.ComputeSettlement(o, completedReturns)
+		paid := st.Collected
+		ps := st.PaymentStatus
+		due := st.AmountDue
 
 		// Till time in the tenant's wall clock; when an admin moved the sale's reporting date,
 		// show both so the audit trail keeps the physical ring-up time AND the reported day.

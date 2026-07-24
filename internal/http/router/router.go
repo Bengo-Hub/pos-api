@@ -545,6 +545,14 @@ func New(
 						// the debtor becomes visible + collectible on the treasury Customers page.
 						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.payments.add", "pos.payments.manage")).
 							Post("/orders/{orderID}/close-on-account", payments.CloseOnAccount)
+						// Treasury→POS AR data-heal: settles a customer's open POS credit orders down to
+						// treasury's live authoritative balance (reduce-only, FIFO). Platform-owner only —
+						// this is a fleet/tenant data-repair tool, not a cashier action; the automatic
+						// per-event reconcile (treasury_balance_subscriber.go) covers the steady state.
+						pos.Group(func(rc chi.Router) {
+							rc.Use(requirePlatformOwner)
+							rc.Post("/ar/reconcile", payments.ReconcileAR)
+						})
 						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.payments.add", "pos.payments.manage")).
 							Post("/orders/{orderID}/payments", payments.RecordPayment)
 						pos.With(outletmw.RequireServicePermission(rbacSvc,

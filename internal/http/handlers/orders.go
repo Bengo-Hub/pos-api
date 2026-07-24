@@ -241,13 +241,7 @@ type ordersSummary struct {
 // so nothing is hidden from the cashier — they just aren't double-counted as real sales.
 // "refunded" is deliberately NOT included: the original sale really happened and its total/paid
 // stay in the headline figures; the refunded amount is surfaced separately via Sell Return.
-func nonCommittedOrderStatus(ps string) bool {
-	switch ps {
-	case "voided", "cancelled", "draft":
-		return true
-	}
-	return false
-}
+func nonCommittedOrderStatus(ps string) bool { return orders.NonCommittedStatus(ps) }
 
 // OrdersSummary handles GET /{tenantID}/pos/orders/summary — the totals footer for the
 // All-Sales / POS-Sales list. It applies the IDENTICAL filter set as ListOrders (shared
@@ -347,6 +341,102 @@ type orderListItem struct {
 	ReturnStatus string  `json:"return_status,omitempty"` // pending | approved | completed (most-advanced across the order's returns)
 }
 
+// returnAgg is the per-order sell-return rollup. completedTotal is the subset of total that has
+// actually SETTLED (money/AR already moved — see the 3-stage lifecycle initiate→approve→complete);
+// only that portion may net down AmountDue. A pending/approved return hasn't settled anything yet.
+type returnAgg struct {
+	count          int
+	total          float64
+	status         string
+	completedTotal float64
+}
+
+// returnsRollup batch-loads the sell-return rollup for a set of orders (rejected returns excluded —
+// a rejected request never happened financially). One query, no N+1. Shared by the list enrichment
+// and the single-order (Sell Details) enrichment so both net completed returns identically.
+func (h *POSOrderHandler) returnsRollup(ctx context.Context, tenantID uuid.UUID, orderIDs []uuid.UUID) map[uuid.UUID]*returnAgg {
+	return returnsRollupFor(ctx, h.client, h.log, tenantID, orderIDs)
+}
+
+// returnsRollupFor is the package-level implementation so BOTH the POSOrderHandler (list/detail) and
+// the ReportPDFHandler (CSV/PDF export) net completed returns from ONE code path — the export can
+// never disagree with the on-screen list again (the report_all_sales "kept in sync" comment that
+// wasn't).
+func returnsRollupFor(ctx context.Context, client *ent.Client, log *zap.Logger, tenantID uuid.UUID, orderIDs []uuid.UUID) map[uuid.UUID]*returnAgg {
+	returnsByOrder := map[uuid.UUID]*returnAgg{}
+	if len(orderIDs) == 0 {
+		return returnsByOrder
+	}
+	returnRank := map[posreturn.Status]int{posreturn.StatusPending: 1, posreturn.StatusApproved: 2, posreturn.StatusCompleted: 3}
+	rets, err := client.POSReturn.Query().
+		Where(
+			posreturn.TenantID(tenantID),
+			posreturn.OrderIDIn(orderIDs...),
+			posreturn.StatusNEQ(posreturn.StatusRejected),
+		).
+		All(ctx)
+	if err != nil {
+		log.Warn("order return rollup failed", zap.Error(err))
+		return returnsByOrder
+	}
+	for _, ret := range rets {
+		agg := returnsByOrder[ret.OrderID]
+		if agg == nil {
+			agg = &returnAgg{}
+			returnsByOrder[ret.OrderID] = agg
+		}
+		agg.count++
+		agg.total += ret.RefundAmount
+		if ret.Status == posreturn.StatusCompleted {
+			agg.completedTotal += ret.RefundAmount
+		}
+		if returnRank[ret.Status] > returnRank[posreturn.Status(agg.status)] {
+			agg.status = string(ret.Status)
+		}
+	}
+	return returnsByOrder
+}
+
+// enrichSingleOrder wraps ONE order in the same orderListItem shape the All-Sales list returns —
+// so the Sell Details modal (and any single-order consumer) reads the SERVER's canonical amount_due/
+// payment_status/return_total instead of re-deriving them client-side (the root of the "footer says
+// 8,000, list says 4,000" divergence). Delegates owed math to orders.ComputeSettlement.
+func (h *POSOrderHandler) enrichSingleOrder(ctx context.Context, tenantID uuid.UUID, order *ent.POSOrder) orderListItem {
+	retAgg := h.returnsRollup(ctx, tenantID, []uuid.UUID{order.ID})[order.ID]
+	var completedReturns float64
+	methods := map[string]struct{}{}
+	for _, pay := range order.Edges.Payments {
+		if !strings.EqualFold(pay.Status, "completed") {
+			continue
+		}
+		m := ""
+		if pay.PaymentData != nil {
+			m, _ = pay.PaymentData["method"].(string)
+		}
+		if m != "" {
+			methods[m] = struct{}{}
+		}
+	}
+	if retAgg != nil {
+		completedReturns = retAgg.completedTotal
+	}
+	st := orders.ComputeSettlement(order, completedReturns)
+	item := orderListItem{
+		POSOrder:      order,
+		ItemCount:     len(order.Edges.Lines),
+		TotalPaid:     st.Collected,
+		AmountDue:     st.AmountDue,
+		PaymentStatus: st.PaymentStatus,
+		PaymentMethod: dominantMethod(methods),
+	}
+	if retAgg != nil {
+		item.ReturnCount = retAgg.count
+		item.ReturnTotal = retAgg.total
+		item.ReturnStatus = retAgg.status
+	}
+	return item
+}
+
 // enrichOrderList computes the derived display columns for a page of orders, resolving
 // payment-method labels via a single batched Tender lookup (id → type) and cashier display
 // names via a single batched User lookup (shared resolveStaffNames helper).
@@ -383,56 +473,15 @@ func (h *POSOrderHandler) enrichOrderList(ctx context.Context, tenantID uuid.UUI
 		}
 	}
 
-	// Batched sell-return rollup: one query for the whole page (mirrors the tender batch
-	// above). Rejected returns are excluded — a rejected request never happened financially.
-	type returnAgg struct {
-		count  int
-		total  float64
-		status string
-		// completedTotal is the subset of total that has actually SETTLED (money/AR already
-		// moved — see the 3-stage lifecycle: initiate→approve→complete). Only this portion may
-		// reduce AmountDue below; a merely pending/approved return hasn't settled anything yet.
-		completedTotal float64
+	// Batched sell-return rollup: one query for the whole page (mirrors the tender batch above).
+	orderIDs := make([]uuid.UUID, 0, len(list))
+	for _, o := range list {
+		orderIDs = append(orderIDs, o.ID)
 	}
-	returnRank := map[posreturn.Status]int{posreturn.StatusPending: 1, posreturn.StatusApproved: 2, posreturn.StatusCompleted: 3}
-	returnsByOrder := map[uuid.UUID]*returnAgg{}
-	if len(list) > 0 {
-		orderIDs := make([]uuid.UUID, 0, len(list))
-		for _, o := range list {
-			orderIDs = append(orderIDs, o.ID)
-		}
-		rets, err := h.client.POSReturn.Query().
-			Where(
-				posreturn.TenantID(tenantID),
-				posreturn.OrderIDIn(orderIDs...),
-				posreturn.StatusNEQ(posreturn.StatusRejected),
-			).
-			All(ctx)
-		if err != nil {
-			h.log.Warn("order list return rollup failed", zap.Error(err))
-		}
-		for _, ret := range rets {
-			agg := returnsByOrder[ret.OrderID]
-			if agg == nil {
-				agg = &returnAgg{}
-				returnsByOrder[ret.OrderID] = agg
-			}
-			agg.count++
-			agg.total += ret.RefundAmount
-			if ret.Status == posreturn.StatusCompleted {
-				agg.completedTotal += ret.RefundAmount
-			}
-			if returnRank[ret.Status] > returnRank[posreturn.Status(agg.status)] {
-				agg.status = string(ret.Status)
-			}
-		}
-	}
+	returnsByOrder := h.returnsRollup(ctx, tenantID, orderIDs)
 
 	items := make([]orderListItem, 0, len(list))
 	for _, o := range list {
-		// paid_total is the stored sum of completed payments — the same value the
-		// payment-status filter queries against, so badge and filter always agree.
-		paid := o.PaidTotal
 		retAgg := returnsByOrder[o.ID]
 		// The displayed method comes from what was actually SETTLED. The terminal stamps the real
 		// method on payment_data.method (the tender is a shared generic row, so its type is not the
@@ -453,46 +502,23 @@ func (h *POSOrderHandler) enrichOrderList(ctx context.Context, tenantID uuid.UUI
 				methods[m] = struct{}{}
 			}
 		}
-		// Badge mirrors the "overdue" filter: a still-owing sale past its stamped
-		// payment_due_date reads "overdue" instead of due/partial. A credit sale that was
-		// later settled in full at the till reads "paid" (never overdue).
-		ps := derivePaymentStatus(o.Status, o.TotalAmount, paid, isOnAccount(o.Metadata))
-		if (ps == "due" || ps == "partial") && isOrderOverdue(o.Metadata) {
-			ps = "overdue"
+		// Owed-state is derived ONCE, by the canonical orders.ComputeSettlement choke point, so
+		// this list, the Sell Details endpoint, the CSV/register/P&L exports and the treasury→POS
+		// reconciler can never disagree about the same sale. It nets a COMPLETED return (refund/
+		// credit-note/offset-invoice already settled — see the 3-stage lifecycle) out of what is
+		// still owed; pending/approved-but-not-yet-completed returns are excluded (nothing settled
+		// yet). Badge upgrades to "overdue" past the stamped payment_due_date, all inside the helper.
+		var completedReturns float64
+		if retAgg != nil {
+			completedReturns = retAgg.completedTotal
 		}
-		// A reversed/not-yet-committed sale owes nothing: a voided/cancelled order never
-		// happened financially and a draft was never finalized, so neither can be "due" —
-		// computing due as a raw total-minus-paid here (ignoring status) previously let a
-		// voided sale's full total inflate "Sell Due" as if the business were still owed
-		// that money, even though the sale was reversed to zero.
-		var due float64
-		switch ps {
-		case "voided", "cancelled", "draft":
-			due = 0
-		default:
-			due = o.TotalAmount - paid
-			// A COMPLETED return against this sale (refund/credit-note/offset-invoice already
-			// settled — see the 3-stage lifecycle) reduces what's actually still owed on it.
-			// Without this, a partial return against an on-account (credit) sale left AmountDue
-			// permanently at the pre-return total forever: the return offsets the customer's AR
-			// balance directly (never touches this order's own paid_total), so "Owed on sales"
-			// and the Record-Payment prefill both kept showing the FULL original amount even
-			// after the customer's real remaining debt had gone down — risking an overpayment if
-			// the cashier didn't catch it. Pending/approved-but-not-yet-completed returns are
-			// deliberately excluded (nothing has settled yet).
-			if retAgg != nil {
-				due -= retAgg.completedTotal
-			}
-			if due < 0 {
-				due = 0
-			}
-		}
+		st := orders.ComputeSettlement(o, completedReturns)
 		item := orderListItem{
 			POSOrder:      o,
 			ItemCount:     len(o.Edges.Lines),
-			TotalPaid:     paid,
-			AmountDue:     due,
-			PaymentStatus: ps,
+			TotalPaid:     st.Collected,
+			AmountDue:     st.AmountDue,
+			PaymentStatus: st.PaymentStatus,
 			PaymentMethod: dominantMethod(methods),
 			CashierName:   staffNames[o.UserID], // "" when unknown — the UI falls back gracefully
 		}
@@ -544,50 +570,16 @@ func onAccountOrder() predicate.POSOrder {
 	})
 }
 
-// isOrderOverdue reports whether an order is past its stamped payment_due_date. Used to
-// upgrade the display payment status to "overdue" for still-owing or on-account sales.
-func isOrderOverdue(meta map[string]any) bool {
-	raw, ok := meta["payment_due_date"].(string)
-	if !ok || raw == "" {
-		return false
-	}
-	due, err := time.Parse(time.RFC3339, raw)
-	return err == nil && due.Before(time.Now())
-}
+// isOrderOverdue / isOnAccount / derivePaymentStatus delegate to the canonical
+// orders.ComputeSettlement choke point (internal/modules/orders/settlement.go) so the list, the
+// exports and the reconciler share ONE owed-amount definition. Kept as thin package-local adapters
+// only because the SQL predicate helpers above and the report handlers already reference these names.
+func isOrderOverdue(meta map[string]any) bool { return orders.IsOrderOverdue(meta) }
 
-func isOnAccount(meta map[string]any) bool {
-	v, ok := meta["on_account"].(bool)
-	return ok && v
-}
+func isOnAccount(meta map[string]any) bool { return orders.IsOnAccount(meta) }
 
-// derivePaymentStatus maps an order's status + paid amount to a display payment status.
-// onAccount marks a credit sale: completion means the goods left, NOT that cash was banked —
-// paid_total excludes the on-account tender, so the sale reads due/partial (and "overdue"
-// past its due date, upgraded by the caller) until the money is actually collected.
 func derivePaymentStatus(status string, total, paid float64, onAccount bool) string {
-	switch status {
-	case "refunded", "voided", "cancelled", "draft":
-		// Terminal/non-committed statuses always read as themselves — a voided or
-		// cancelled sale never happened financially, and a draft (parked) order isn't a
-		// finalized sale yet, even if a deposit happens to already cover its total.
-		return status
-	}
-	if total > 0 && paid+0.01 >= total {
-		return "paid"
-	}
-	if onAccount {
-		if paid > 0 {
-			return "partial"
-		}
-		return "due"
-	}
-	if status == "completed" {
-		return "paid"
-	}
-	if paid > 0 {
-		return "partial"
-	}
-	return "due"
+	return orders.DerivePaymentStatus(status, total, paid, onAccount)
 }
 
 // dominantMethod returns the single tender type used, "multiple" if several, "" if none.
@@ -678,7 +670,11 @@ func (h *POSOrderHandler) GetOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	jsonOK(w, order)
+	// Return the enriched item (canonical amount_due/payment_status/return_total) — NOT the raw
+	// entity — so the Sell Details modal reads the SAME server-computed owed figure as the All-Sales
+	// list. The embedded *ent.POSOrder still promotes every original field + edge, so existing
+	// consumers (terminal, drafts) that read total_amount/edges.lines/edges.payments are unaffected.
+	jsonOK(w, h.enrichSingleOrder(r.Context(), tid, order))
 }
 
 // GetOrderByNumber handles GET /{tenantID}/pos/orders/by-number/{orderNumber} — used by the POS
@@ -722,7 +718,8 @@ func (h *POSOrderHandler) GetOrderByNumber(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	jsonOK(w, order)
+	// Enriched item (see GetOrder) so Return-by-Invoice / Sell Details read the canonical amount_due.
+	jsonOK(w, h.enrichSingleOrder(r.Context(), tid, order))
 }
 
 // CreateOrder handles POST /{tenantID}/pos/orders

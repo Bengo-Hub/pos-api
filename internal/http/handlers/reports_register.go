@@ -15,6 +15,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/posrefund"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
 	"github.com/bengobox/pos-service/internal/ent/tender"
+	"github.com/bengobox/pos-service/internal/modules/orders"
 	"github.com/bengobox/pos-service/internal/modules/payments"
 )
 
@@ -81,7 +82,7 @@ func (h *ReportsHandler) RegisterDetails(w http.ResponseWriter, r *http.Request)
 		}
 	}
 
-	orders, err := h.db.POSOrder.Query().Where(filters...).WithLines().WithPayments().All(r.Context())
+	orderList, err := h.db.POSOrder.Query().Where(filters...).WithLines().WithPayments().All(r.Context())
 	if err != nil {
 		h.log.Error("register-details orders query failed", zap.Error(err))
 		jsonError(w, "failed to build register details", http.StatusInternalServerError)
@@ -92,7 +93,7 @@ func (h *ReportsHandler) RegisterDetails(w http.ResponseWriter, r *http.Request)
 	tenderType := map[uuid.UUID]string{}
 	{
 		idSet := map[uuid.UUID]struct{}{}
-		for _, o := range orders {
+		for _, o := range orderList {
 			for _, p := range o.Edges.Payments {
 				idSet[p.TenderID] = struct{}{}
 			}
@@ -121,9 +122,17 @@ func (h *ReportsHandler) RegisterDetails(w http.ResponseWriter, r *http.Request)
 	}
 	methodSell := map[string]float64{}
 	productAgg := map[string]*productSoldRow{}
-	orderIDs := make([]uuid.UUID, 0, len(orders))
+	orderIDs := make([]uuid.UUID, 0, len(orderList))
+	allIDs := make([]uuid.UUID, 0, len(orderList))
+	for _, o := range orderList {
+		allIDs = append(allIDs, o.ID)
+	}
+	// Completed-return rollup so CreditSales is the TRUE outstanding on credit sales (net of settled
+	// returns) via the shared choke point — not total-minus-all-payments, which counted the
+	// on-account tender itself as "paid" and under-reported credit sales as ~0.
+	registerReturns := returnsRollupFor(r.Context(), h.db, h.log, tid, allIDs)
 
-	for _, o := range orders {
+	for _, o := range orderList {
 		orderIDs = append(orderIDs, o.ID)
 		if o.Status != "completed" {
 			continue
@@ -157,7 +166,11 @@ func (h *ReportsHandler) RegisterDetails(w http.ResponseWriter, r *http.Request)
 			methodSell[method] += p.Amount
 			resp.TotalPayment += p.Amount
 		}
-		if due := o.TotalAmount - paid; due > 0.009 {
+		var completedReturns float64
+		if agg := registerReturns[o.ID]; agg != nil {
+			completedReturns = agg.completedTotal
+		}
+		if due := orders.ComputeSettlement(o, completedReturns).AmountDue; due > 0.009 {
 			resp.CreditSales += due
 		}
 

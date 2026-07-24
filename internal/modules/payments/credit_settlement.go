@@ -64,12 +64,20 @@ func (s *Service) SettleCreditPayment(ctx context.Context, req SettleCreditReque
 		return nil, fmt.Errorf("payments: order %s is not an on-account (credit) sale", order.OrderNumber)
 	}
 
-	// Outstanding = total − money ACTUALLY collected (paid_total excludes on-account rows).
+	// Outstanding = total − money ACTUALLY collected − settled returns (paid_total excludes
+	// on-account rows; a COMPLETED return already reduced the customer's real debt but never
+	// touches paid_total — see orders.ComputeSettlement, the one owed-amount definition). Without
+	// netting the return here, a credit sale with a completed partial return could still be
+	// "settled" against its full pre-return balance, overcollecting from the customer.
 	collected, _, err := s.RecomputePaidTotal(ctx, order.ID)
 	if err != nil {
 		return nil, err
 	}
-	outstanding := order.TotalAmount - collected
+	completedReturns, rerr := s.completedReturnsTotal(ctx, order.ID)
+	if rerr != nil {
+		s.log.Warn("credit settlement: completed-returns lookup failed", zap.String("order", order.OrderNumber), zap.Error(rerr))
+	}
+	outstanding := order.TotalAmount - collected - completedReturns
 	if outstanding <= 0.01 {
 		return nil, fmt.Errorf("payments: order %s has no outstanding credit balance", order.OrderNumber)
 	}
@@ -98,7 +106,7 @@ func (s *Service) SettleCreditPayment(ctx context.Context, req SettleCreditReque
 		return nil, fmt.Errorf("payments: record credit settlement: %w", err)
 	}
 	collectedAfter, _, _ := s.RecomputePaidTotal(ctx, order.ID)
-	outstandingAfter := order.TotalAmount - collectedAfter
+	outstandingAfter := order.TotalAmount - collectedAfter - completedReturns
 	if outstandingAfter < 0 {
 		outstandingAfter = 0
 	}

@@ -343,6 +343,13 @@ type CreditSaleRequest struct {
 	// UserID is the cashier/manager (global auth-service user id) who rang the sale — treasury
 	// records them as the journal entry's creator ("Recorded By").
 	UserID string `json:"user_id,omitempty"`
+	// SkipARReclass is true when this credit sale is part of a FRESH order finalize — the
+	// pos.sale.finalized event (selling_scheme=credit/mixed) posts Dr AR/Cr Revenue for it via the
+	// subscriber, so treasury must NOT also post the legacy Dr AR/Cr Cash "reclass" here (that
+	// double-posted AR — see the 2026-07-25 GL integrity fix). false ONLY for close-on-account of
+	// an ALREADY-completed cash sale, where the subscriber posted Dr Cash and the reclass is the
+	// correct (and only) way to move that cash into AR.
+	SkipARReclass bool `json:"skip_ar_reclass,omitempty"`
 }
 
 // CreditSaleResponse is the treasury customer-balance row returned after posting a credit sale.
