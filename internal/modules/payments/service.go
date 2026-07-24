@@ -801,18 +801,26 @@ func (s *Service) ListOrderPayments(ctx context.Context, tenantID, orderID uuid.
 }
 
 // outstandingBalance returns the order total minus money actually collected minus settled
-// returns (>= 0) — via the canonical orders.ComputeSettlement choke point, so "put on account"
-// books exactly what the customer still owes, net of any completed return already settled.
+// returns (>= 0). Deliberately does NOT go through orders.ComputeSettlement/NonCommittedStatus:
+// that status-based zeroing (draft/voided/cancelled → 0) is correct for READ/reporting views,
+// where "draft" means a parked, never-committed sale — but WRONG here. outstandingBalance is
+// called mid-CHECKOUT (CreatePaymentIntent, both tender branches, and CloseOnAccount), where
+// draft/open/pending_payment are the everyday pre-payment states of a real, in-progress sale
+// (see completeOrderIfFullyPaid's own status list). Routing through ComputeSettlement zeroed the
+// outstanding balance for every brand-new order still in draft status, breaking EVERY tender
+// (cash/card/credit) with "order has no outstanding balance to charge" — a live regression,
+// fixed same-day it shipped (2026-07-25).
 func (s *Service) outstandingBalance(ctx context.Context, order *ent.POSOrder) float64 {
-	if _, _, err := s.RecomputePaidTotal(ctx, order.ID); err != nil {
-		return order.TotalAmount
-	}
-	fresh, err := s.client.POSOrder.Get(ctx, order.ID)
+	collected, _, err := s.RecomputePaidTotal(ctx, order.ID)
 	if err != nil {
 		return order.TotalAmount
 	}
 	completedReturns, _ := s.completedReturnsTotal(ctx, order.ID)
-	return orders.ComputeSettlement(fresh, completedReturns).AmountDue
+	remaining := order.TotalAmount - collected - completedReturns
+	if remaining > 0 {
+		return remaining
+	}
+	return 0
 }
 
 // RecomputePaidTotal recalculates an order's paid_total from its COMPLETED payments and
