@@ -23,6 +23,7 @@ import (
 	staffmemberent "github.com/bengobox/pos-service/internal/ent/staffmember"
 	enttable "github.com/bengobox/pos-service/internal/ent/table"
 	"github.com/bengobox/pos-service/internal/ent/tableassignment"
+	"github.com/bengobox/pos-service/internal/ent/tender"
 	"github.com/bengobox/pos-service/internal/modules/inventory"
 	"github.com/bengobox/pos-service/internal/modules/notifications"
 	"github.com/bengobox/pos-service/internal/modules/orders"
@@ -200,14 +201,14 @@ func (s *Service) pushEtimsFiscalized(order *ent.POSOrder) {
 	s.notifHub.BroadcastToUser(order.TenantID, order.UserID, notifications.Message{
 		Type: "etims_fiscalized",
 		Payload: map[string]any{
-			"order_id":        order.ID.String(),
-			"order_number":    order.OrderNumber,
-			"invoice_number":  inv,
-			"cu_invoice_no":   cu,
-			"scu_id":          derefStr(order.EtimsScuID),
-			"rcpt_sign":       derefStr(order.EtimsRcptSign),
-			"qr_code_url":     derefStr(order.EtimsQrCodeURL),
-			"kra_pin":         derefStr(order.EtimsKraPin),
+			"order_id":       order.ID.String(),
+			"order_number":   order.OrderNumber,
+			"invoice_number": inv,
+			"cu_invoice_no":  cu,
+			"scu_id":         derefStr(order.EtimsScuID),
+			"rcpt_sign":      derefStr(order.EtimsRcptSign),
+			"qr_code_url":    derefStr(order.EtimsQrCodeURL),
+			"kra_pin":        derefStr(order.EtimsKraPin),
 		},
 	})
 }
@@ -1042,11 +1043,22 @@ type saleTender struct {
 func (s *Service) resolveSaleSettlement(ctx context.Context, order *ent.POSOrder) (scheme string, onAccount, comp float64, compReason string, tenders []saleTender) {
 	scheme = "cash"
 	if pays, perr := s.client.POSPayment.Query().Where(pospayment.OrderID(order.ID)).All(ctx); perr == nil {
+		// Preload every referenced tender in ONE query instead of a Tender.Get per payment
+		// (N+1 on the hot sign / sale-finalize path). Reuses the IDIn preload in manage.go.
+		tenderType := make(map[uuid.UUID]string, len(pays))
+		ids := make([]uuid.UUID, 0, len(pays))
 		for _, p := range pays {
-			tType := ""
-			if t, tErr := s.client.Tender.Get(ctx, p.TenderID); tErr == nil {
-				tType = t.Type
+			ids = append(ids, p.TenderID)
+		}
+		if len(ids) > 0 {
+			if ts, terr := s.client.Tender.Query().Where(tender.IDIn(ids...)).All(ctx); terr == nil {
+				for _, t := range ts {
+					tenderType[t.ID] = t.Type
+				}
 			}
+		}
+		for _, p := range pays {
+			tType := tenderType[p.TenderID]
 			method, _ := p.PaymentData["method"].(string)
 			typ := tType
 			if typ == "" {
