@@ -789,6 +789,8 @@ func New(
 								Post("/pharmacy/prescriptions/{prescriptionID}/lock", pharmacy.LockPrescription)
 							ph.With(outletmw.RequireServicePermission(rbacSvc, "pos.pharmacy.change")).
 								Post("/pharmacy/prescriptions/{prescriptionID}/reject", pharmacy.RejectPrescription)
+							ph.Post("/pharmacy/prescriptions/{prescriptionID}/link-crm-contact", pharmacy.LinkCRMContact)
+							ph.Get("/pharmacy/crm-contacts", pharmacy.SearchCRMContacts)
 							ph.Post("/pharmacy/interaction-checks", pharmacy.CreateInteractionCheck)
 							ph.Post("/pharmacy/age-verify", pharmacy.AgeVerify)
 							ph.Get("/pharmacy/patients", pharmacy.ListPatients)
@@ -1006,6 +1008,8 @@ func New(
 							rp.Get("/reports/void-summary-document", reportPDF.VoidSummaryDoc)
 							// All-Sales page export — same filters + per-cashier scoping as GET /orders.
 							rp.Get("/reports/all-sales-document", reportPDF.AllSalesDocument)
+							// Pharmacy-only: dual-person controlled-substance dispensing register export.
+							rp.Get("/reports/controlled-substances", reportPDF.ControlledSubstanceExport)
 						})
 					}
 

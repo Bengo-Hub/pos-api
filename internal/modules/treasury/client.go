@@ -104,14 +104,14 @@ type SignPOSSaleTender struct {
 // SignPOSSaleRequest is the body for POST /api/v1/s2s/{tenant}/etims/sign-pos-sale — the same
 // shape as the pos.sale.finalized event so the synchronous and async signing paths are identical.
 type SignPOSSaleRequest struct {
-	OrderID     string            `json:"order_id"`
-	OrderNumber string            `json:"order_number"`
-	TotalAmount float64           `json:"total_amount"`
-	Currency    string            `json:"currency"`
+	OrderID     string  `json:"order_id"`
+	OrderNumber string  `json:"order_number"`
+	TotalAmount float64 `json:"total_amount"`
+	Currency    string  `json:"currency"`
 	// OutletID is the selling outlet so treasury signs the sale under that branch's eTIMS device
 	// (multi-branch fiscalisation). Omitted → treasury uses the tenant main/default device.
-	OutletID    string            `json:"outlet_id,omitempty"`
-	Items       []SignPOSSaleItem `json:"items"`
+	OutletID string            `json:"outlet_id,omitempty"`
+	Items    []SignPOSSaleItem `json:"items"`
 	// SellingScheme + Tenders carry the mode(s) of payment (credit/card/mobile/cash) so the ETR
 	// receipt's pmtTyCd is the real instrument rather than a blanket cash. Omitted → 01 Cash.
 	SellingScheme string              `json:"selling_scheme,omitempty"`
@@ -698,6 +698,49 @@ type PayoutResponse struct {
 func (c *Client) DisbursePayout(ctx context.Context, tenantSlug string, req PayoutRequest) (*PayoutResponse, error) {
 	url := fmt.Sprintf("%s/api/v1/%s/payouts/disburse", c.baseURL, tenantSlug)
 	return doRequest[PayoutResponse](ctx, c.httpClient, http.MethodPost, url, c.apiKey, req)
+}
+
+// InsuranceCoverage mirrors treasury's ent.PatientCoverage — a patient's payer link, resolved
+// at checkout before an insurance-tender sale can be split.
+type InsuranceCoverage struct {
+	ID         string `json:"id"`
+	ProviderID string `json:"provider_id"`
+	PlanID     string `json:"plan_id,omitempty"`
+	MemberID   string `json:"member_id"`
+}
+
+// ListPatientCoverages fetches every active payer link for a patient (S2S,
+// GET /api/v1/s2s/{tenant}/insurance/coverages?patient_id_number=...) — the checkout screen's
+// payer picker for a prescription-linked sale.
+func (c *Client) ListPatientCoverages(ctx context.Context, tenantSlug, patientIDNumber string) ([]InsuranceCoverage, error) {
+	u := fmt.Sprintf("%s/api/v1/s2s/%s/insurance/coverages?patient_id_number=%s", c.baseURL, tenantSlug, url.QueryEscape(patientIDNumber))
+	resp, err := doRequest[struct {
+		Data []InsuranceCoverage `json:"data"`
+	}](ctx, c.httpClient, http.MethodGet, u, c.apiKey, nil)
+	if err != nil {
+		return nil, err
+	}
+	return resp.Data, nil
+}
+
+// InsuranceEligibilityResult is the (possibly estimated) co-pay/eligibility outcome — treasury
+// falls back to the provider's default_copay_percent/fixed when the insurer connector call
+// fails or none is configured, so checkout always has some estimate to show.
+type InsuranceEligibilityResult map[string]any
+
+// CheckInsuranceEligibility calls treasury's eligibility-check S2S endpoint (which itself calls
+// the insurer's configured connector, or falls back to the provider default) so the cashier can
+// show an estimated co-pay before collecting payment.
+func (c *Client) CheckInsuranceEligibility(ctx context.Context, tenantSlug, providerID string, fields map[string]string) (InsuranceEligibilityResult, error) {
+	u := fmt.Sprintf("%s/api/v1/s2s/%s/insurance/eligibility-check", c.baseURL, tenantSlug)
+	body := map[string]any{"provider_id": providerID, "fields": fields}
+	resp, err := doRequest[struct {
+		Data InsuranceEligibilityResult `json:"data"`
+	}](ctx, c.httpClient, http.MethodPost, u, c.apiKey, body)
+	if err != nil {
+		return nil, err
+	}
+	return resp.Data, nil
 }
 
 func isNotFound(err error) bool {

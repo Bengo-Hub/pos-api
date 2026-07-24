@@ -324,6 +324,7 @@ func New(ctx context.Context) (*App, error) {
 	pharmacyHandler := handlers.NewPharmacyHandler(log, entClient, inventoryClient)
 	pharmacyHandler.SetTerminalSecret(terminalJWTSecret)
 	pharmacyHandler.SetAuditService(auditSvc)
+	pharmacyHandler.SetMarketFlowClient(mfClient)
 	appointmentHandler := handlers.NewAppointmentHandler(log, entClient)
 	commissionHandler := handlers.NewCommissionHandler(log, entClient)
 	staffScheduleHandler := handlers.NewStaffScheduleHandler(log, entClient)

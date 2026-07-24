@@ -44,6 +44,10 @@ func (h *ReportsHandler) MostProfitableItems(w http.ResponseWriter, r *http.Requ
 			limit = n
 		}
 	}
+	// groupBy: "manufacturer" or "category" rolls the same per-sku profitability numbers up to
+	// their manufacturer/category instead of ranking individual items — same cost/profit math,
+	// different aggregation key. Empty (default) keeps the existing per-item ranking.
+	groupBy := r.URL.Query().Get("group_by")
 
 	orders, err := h.db.POSOrder.Query().
 		Where(
@@ -107,12 +111,75 @@ func (h *ReportsHandler) MostProfitableItems(w http.ResponseWriter, r *http.Requ
 		}
 	}
 
-	rows := make([]*itemAgg, 0, len(buckets))
 	var totalRevenue, totalProfit float64
 	for _, b := range buckets {
-		rows = append(rows, b)
 		totalRevenue += b.Revenue
 		totalProfit += b.Profit
+	}
+
+	resp := map[string]any{
+		"currency":      currency,
+		"from":          from.Format("2006-01-02"),
+		"to":            to.Format("2006-01-02"),
+		"total_revenue": totalRevenue,
+		"total_profit":  totalProfit,
+	}
+
+	if groupBy == "manufacturer" || groupBy == "category" {
+		// Roll the same per-sku profitability numbers up to their manufacturer/category —
+		// same cost/profit math as the item-level ranking, coarser grouping key.
+		metaBySKU := resolveManufacturerCategoryBySKU(r, h.db, h.log)
+		type groupAggT struct {
+			Group     string  `json:"group"`
+			UnitsSold float64 `json:"units_sold"`
+			Revenue   float64 `json:"revenue"`
+			Profit    float64 `json:"profit"`
+			MarginPct float64 `json:"margin_pct"`
+		}
+		groups := make(map[string]*groupAggT)
+		for sku, b := range buckets {
+			key := "Unspecified"
+			if meta, ok := metaBySKU[sku]; ok {
+				if groupBy == "manufacturer" && meta.Manufacturer != "" {
+					key = meta.Manufacturer
+				} else if groupBy == "category" && meta.CategoryName != "" {
+					key = meta.CategoryName
+				}
+			}
+			g, ok := groups[key]
+			if !ok {
+				g = &groupAggT{Group: key}
+				groups[key] = g
+			}
+			g.UnitsSold += b.UnitsSold
+			g.Revenue += b.Revenue
+			g.Profit += b.Profit
+		}
+		groupRows := make([]*groupAggT, 0, len(groups))
+		for _, g := range groups {
+			if g.Revenue != 0 {
+				g.MarginPct = g.Profit / g.Revenue * 100
+			}
+			groupRows = append(groupRows, g)
+		}
+		sort.Slice(groupRows, func(i, j int) bool {
+			if groupRows[i].Profit != groupRows[j].Profit {
+				return groupRows[i].Profit > groupRows[j].Profit
+			}
+			return groupRows[i].Revenue > groupRows[j].Revenue
+		})
+		if len(groupRows) > limit {
+			groupRows = groupRows[:limit]
+		}
+		resp["group_by"] = groupBy
+		resp["groups"] = groupRows
+		jsonOK(w, resp)
+		return
+	}
+
+	rows := make([]*itemAgg, 0, len(buckets))
+	for _, b := range buckets {
+		rows = append(rows, b)
 	}
 
 	// Sort by profit DESC; tie-break on revenue DESC so that with no cost data
@@ -128,14 +195,8 @@ func (h *ReportsHandler) MostProfitableItems(w http.ResponseWriter, r *http.Requ
 		rows = rows[:limit]
 	}
 
-	jsonOK(w, map[string]any{
-		"currency":      currency,
-		"from":          from.Format("2006-01-02"),
-		"to":            to.Format("2006-01-02"),
-		"total_revenue": totalRevenue,
-		"total_profit":  totalProfit,
-		"items":         rows,
-	})
+	resp["items"] = rows
+	jsonOK(w, resp)
 }
 
 // resolveUnitCostsBySKU fetches the tenant's full inventory catalog and returns sku → real unit
@@ -166,6 +227,31 @@ func resolveUnitCostsBySKU(r *http.Request, db *ent.Client, log *zap.Logger) map
 		if cp := firstNonNilFloat(item.CostPrice, item.PurchasePrice); cp != nil && *cp > 0 {
 			out[item.SKU] = *cp
 		}
+	}
+	return out
+}
+
+type skuMeta struct {
+	Manufacturer string
+	CategoryName string
+}
+
+// resolveManufacturerCategoryBySKU fetches the tenant's inventory catalog and returns
+// sku → {manufacturer, category_name}, for the group_by=manufacturer|category rollup on
+// MostProfitableItems. Degrades to an empty map on proxy failure (falls back to "Unspecified").
+func resolveManufacturerCategoryBySKU(r *http.Request, db *ent.Client, log *zap.Logger) map[string]skuMeta {
+	out := map[string]skuMeta{}
+	tenantSlug := resolveTenantSlug(r, db)
+	if tenantSlug == "" {
+		return out
+	}
+	items, err := fetchInventoryItems(r.Context(), tenantSlug, "", nil)
+	if err != nil {
+		log.Warn("resolveManufacturerCategoryBySKU: inventory items fetch failed", zap.Error(err))
+		return out
+	}
+	for _, item := range items {
+		out[item.SKU] = skuMeta{Manufacturer: item.Manufacturer, CategoryName: item.CategoryName}
 	}
 	return out
 }

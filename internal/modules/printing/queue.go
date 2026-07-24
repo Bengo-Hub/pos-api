@@ -14,9 +14,9 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/bengobox/pos-service/internal/ent"
+	"github.com/bengobox/pos-service/internal/ent/predicate"
 	entprintagent "github.com/bengobox/pos-service/internal/ent/printagent"
 	entprintjob "github.com/bengobox/pos-service/internal/ent/printjob"
-	"github.com/bengobox/pos-service/internal/ent/predicate"
 )
 
 const (

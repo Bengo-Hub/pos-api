@@ -95,9 +95,9 @@ type ReceiptView struct {
 	// OutletPhones fall back to the tenant's general contact info in receipt.go when the branch
 	// hasn't configured its own (see printing.Brand.Phone/Email).
 	OutletEmail string
-	Timezone     string // outlet IANA timezone, e.g. "Africa/Nairobi"
-	IssuedAt     time.Time
-	BillTo       string
+	Timezone    string // outlet IANA timezone, e.g. "Africa/Nairobi"
+	IssuedAt    time.Time
+	BillTo      string
 	// BillToLabel is "Customer" for a keyed-in/walk-in customer, or "Paid by" when the name was
 	// resolved from an identified online payment (M-Pesa / card / Paystack payer).
 	BillToLabel string

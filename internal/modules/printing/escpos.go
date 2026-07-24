@@ -10,13 +10,14 @@ import (
 
 // ESC/POS control bytes
 var (
-	escInit   = []byte{0x1B, 0x40}          // Initialize printer
-	escCut    = []byte{0x1D, 0x56, 0x42, 0} // Full cut
-	escBold   = []byte{0x1B, 0x45, 0x01}    // Bold on
-	escFontA  = []byte{0x1B, 0x4D, 0x00}    // ESC M 0 — select Font A (12x24); some printers default to the condensed Font B
-	escCenter = []byte{0x1B, 0x61, 0x01}    // Center align
-	escLeft   = []byte{0x1B, 0x61, 0x00}    // Left align
-	escLF     = []byte{0x0A}                // Line feed
+	escInit    = []byte{0x1B, 0x40}          // Initialize printer
+	escCut     = []byte{0x1D, 0x56, 0x42, 0} // Full cut
+	escBold    = []byte{0x1B, 0x45, 0x01}    // Bold on
+	escBoldOff = []byte{0x1B, 0x45, 0x00}    // Bold off
+	escFontA   = []byte{0x1B, 0x4D, 0x00}    // ESC M 0 — select Font A (12x24); some printers default to the condensed Font B
+	escCenter  = []byte{0x1B, 0x61, 0x01}    // Center align
+	escLeft    = []byte{0x1B, 0x61, 0x00}    // Left align
+	escLF      = []byte{0x0A}                // Line feed
 	// Character-size control (GS ! n): the low nibble is the width multiplier and the high
 	// nibble the height multiplier. Larger glyphs print far crisper on low-DPI thermal heads
 	// than the default 1x font, so the shop name + TOTAL (the two things a customer actually

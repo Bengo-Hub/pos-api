@@ -112,6 +112,14 @@ const TenderCustomerCredit = "customer_credit"
 // Complimentary & Goodwill Expense account instead of Cash, so the cost stays visible on the P&L.
 const TenderComplimentary = "complimentary"
 
+// TenderInsurance is the pharmacy insurance/co-pay tender (Phase 7 DAWA): the PAYER portion of
+// a sale is recorded as this tender (no cash taken, mirroring TenderOnAccount's "deferred, not
+// paid" semantics) while the PATIENT co-pay portion settles immediately via a normal tender
+// (cash/mpesa/card) alongside it in the same split payment. PaymentData carries
+// insurance_provider_id/insurance_coverage_id/prescription_id so the sale-finalized event can
+// route the payer amount to treasury's insurance claim + GL posting instead of AR.
+const TenderInsurance = "insurance"
+
 // RecordPaymentRequest holds input for recording a POS payment.
 type RecordPaymentRequest struct {
 	TenantID      uuid.UUID
@@ -1040,7 +1048,25 @@ type saleTender struct {
 // (async event → GL routing) and signEtimsSync (sync ETR sign → KRA pmtTyCd) so both declare the
 // same mode of payment. Type falls back to the PaymentData method when the Tender catalog Type is
 // blank, so digital instruments (card/mpesa) are still identifiable.
+// InsuranceSettlement carries the payer-side detail extracted from an "insurance" tender's
+// PaymentData, threaded through to the pos.sale.finalized event payload.
+type InsuranceSettlement struct {
+	ProviderID     string
+	CoverageID     string
+	PrescriptionID string
+	PayerAmount    float64
+}
+
 func (s *Service) resolveSaleSettlement(ctx context.Context, order *ent.POSOrder) (scheme string, onAccount, comp float64, compReason string, tenders []saleTender) {
+	scheme, onAccount, comp, compReason, tenders, _ = s.resolveSaleSettlementWithInsurance(ctx, order)
+	return
+}
+
+// resolveSaleSettlementWithInsurance is resolveSaleSettlement's superset: also detects an
+// "insurance" tender and extracts its payer-side detail (Phase 7 DAWA). Kept as a separate
+// function (rather than widening every existing caller's return signature) so
+// resolveSaleSettlement's callers (eTIMS sync-sign, etc.) are unaffected.
+func (s *Service) resolveSaleSettlementWithInsurance(ctx context.Context, order *ent.POSOrder) (scheme string, onAccount, comp float64, compReason string, tenders []saleTender, ins *InsuranceSettlement) {
 	scheme = "cash"
 	if pays, perr := s.client.POSPayment.Query().Where(pospayment.OrderID(order.ID)).All(ctx); perr == nil {
 		// Preload every referenced tender in ONE query instead of a Tender.Get per payment
@@ -1074,9 +1100,22 @@ func (s *Service) resolveSaleSettlement(ctx context.Context, order *ent.POSOrder
 					compReason = reason
 				}
 			}
+			if strings.EqualFold(tType, TenderInsurance) && p.Status == StatusCompleted {
+				providerID, _ := p.PaymentData["insurance_provider_id"].(string)
+				coverageID, _ := p.PaymentData["insurance_coverage_id"].(string)
+				prescriptionID, _ := p.PaymentData["prescription_id"].(string)
+				ins = &InsuranceSettlement{
+					ProviderID:     providerID,
+					CoverageID:     coverageID,
+					PrescriptionID: prescriptionID,
+					PayerAmount:    p.Amount,
+				}
+			}
 		}
 	}
 	switch {
+	case ins != nil:
+		scheme = "insurance"
 	case comp > 0 && comp >= order.TotalAmount-0.01:
 		scheme = "complimentary"
 	case onAccount > 0 && onAccount >= order.TotalAmount-0.01:
@@ -1359,7 +1398,7 @@ func (s *Service) publishSaleFinalized(ctx context.Context, order *ent.POSOrder)
 	// on-account amount, and a per-tender breakdown for accurate GL posting.
 	// Shared with signEtimsSync so the async event and the sync ETR sign declare the identical
 	// mode of payment (scheme + tender breakdown).
-	sellingScheme, onAccountAmount, complimentaryAmount, complimentaryReason, saleTenders := s.resolveSaleSettlement(ctx, order)
+	sellingScheme, onAccountAmount, complimentaryAmount, complimentaryReason, saleTenders, insSettlement := s.resolveSaleSettlementWithInsurance(ctx, order)
 	tenderBreakdown := make([]map[string]any, 0, len(saleTenders))
 	for _, t := range saleTenders {
 		tenderBreakdown = append(tenderBreakdown, map[string]any{
@@ -1367,6 +1406,19 @@ func (s *Service) publishSaleFinalized(ctx context.Context, order *ent.POSOrder)
 			"amount": t.Amount,
 			"status": t.Status,
 		})
+	}
+
+	var insuranceProviderID, insuranceCoverageID, insurancePrescriptionID string
+	var insurancePayerAmount, insuranceCopayAmount float64
+	if insSettlement != nil {
+		insuranceProviderID = insSettlement.ProviderID
+		insuranceCoverageID = insSettlement.CoverageID
+		insurancePrescriptionID = insSettlement.PrescriptionID
+		insurancePayerAmount = insSettlement.PayerAmount
+		insuranceCopayAmount = order.TotalAmount - insSettlement.PayerAmount
+		if insuranceCopayAmount < 0 {
+			insuranceCopayAmount = 0
+		}
 	}
 
 	data := map[string]any{
@@ -1389,6 +1441,14 @@ func (s *Service) publishSaleFinalized(ctx context.Context, order *ent.POSOrder)
 		"complimentary_amount": complimentaryAmount,
 		"complimentary_reason": complimentaryReason,
 		"tenders":              tenderBreakdown,
+		// Insurance/co-pay (Phase 7 DAWA): non-empty only when selling_scheme=="insurance".
+		// copay_amount is derived as total-minus-payer so treasury never has to trust two
+		// independently-summed figures that could drift apart.
+		"insurance_provider_id": insuranceProviderID,
+		"insurance_coverage_id": insuranceCoverageID,
+		"prescription_id":       insurancePrescriptionID,
+		"payer_amount":          insurancePayerAmount,
+		"copay_amount":          insuranceCopayAmount,
 		"customer_phone": func() string {
 			if order.CustomerPhone != nil {
 				return *order.CustomerPhone

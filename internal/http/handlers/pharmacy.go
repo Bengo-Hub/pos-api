@@ -19,6 +19,7 @@ import (
 	entpx "github.com/bengobox/pos-service/internal/ent/prescription"
 	entpxl "github.com/bengobox/pos-service/internal/ent/prescriptionline"
 	"github.com/bengobox/pos-service/internal/modules/inventory"
+	"github.com/bengobox/pos-service/internal/platform/marketflow"
 )
 
 type PharmacyHandler struct {
@@ -29,6 +30,10 @@ type PharmacyHandler struct {
 	// (Phase 5: gates CreateControlledLog). Mirrors POSOrderHandler.terminalSecret.
 	terminalSecret []byte
 	auditSvc       *audit.Service
+	// marketflow resolves/searches CRM contacts (Phase 8: optional Prescription->CRM link,
+	// a pointer stored in Prescription.metadata["crm_contact_id"] — CRM remains the SoT for
+	// patient identity, no PII is duplicated here).
+	marketflow *marketflow.Client
 }
 
 func NewPharmacyHandler(log *zap.Logger, db *ent.Client, inventoryClient *inventory.Client) *PharmacyHandler {
@@ -37,6 +42,9 @@ func NewPharmacyHandler(log *zap.Logger, db *ent.Client, inventoryClient *invent
 
 // SetTerminalSecret wires the step-up JWT secret (mirrors POSOrderHandler.SetTerminalSecret).
 func (h *PharmacyHandler) SetTerminalSecret(s []byte) { h.terminalSecret = s }
+
+// SetMarketFlowClient wires the CRM S2S client for the optional patient<->CRM-contact link.
+func (h *PharmacyHandler) SetMarketFlowClient(mf *marketflow.Client) { h.marketflow = mf }
 
 // SetAuditService wires the centralized audit trail writer.
 func (h *PharmacyHandler) SetAuditService(svc *audit.Service) { h.auditSvc = svc }
@@ -784,4 +792,73 @@ func (h *PharmacyHandler) AgeVerify(w http.ResponseWriter, r *http.Request) {
 		"minimum_age":  minimumAge,
 		"customer_age": ageYears,
 	})
+}
+
+// SearchCRMContacts handles GET /{tenantID}/pos/pharmacy/crm-contacts?q=...
+// Typeahead search over the tenant's CRM (marketflow) contact directory, used to optionally
+// link a prescription's patient to an existing CRM contact (Phase 8).
+func (h *PharmacyHandler) SearchCRMContacts(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+	if h.marketflow == nil {
+		jsonOK(w, map[string]any{"contacts": []marketflow.ContactSummary{}})
+		return
+	}
+	q := r.URL.Query().Get("q")
+	contacts := h.marketflow.SearchContacts(r.Context(), tid, q, 10)
+	if contacts == nil {
+		contacts = []marketflow.ContactSummary{}
+	}
+	jsonOK(w, map[string]any{"contacts": contacts})
+}
+
+type linkCRMContactInput struct {
+	CRMContactID string `json:"crm_contact_id"`
+}
+
+// LinkCRMContact handles POST /{tenantID}/pos/pharmacy/prescriptions/{id}/link-crm-contact.
+// Stores a pointer to the CRM contact in Prescription.metadata["crm_contact_id"] — CRM
+// (marketflow) remains the source of truth for patient identity; no PII is duplicated here.
+// Passing an empty crm_contact_id unlinks.
+func (h *PharmacyHandler) LinkCRMContact(w http.ResponseWriter, r *http.Request) {
+	_, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+	pxID, err := uuid.Parse(chi.URLParam(r, "prescriptionID"))
+	if err != nil {
+		jsonError(w, "invalid prescription_id", http.StatusBadRequest)
+		return
+	}
+	var input linkCRMContactInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		jsonError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	px, err := h.db.Prescription.Get(r.Context(), pxID)
+	if err != nil {
+		jsonError(w, "prescription not found", http.StatusNotFound)
+		return
+	}
+	md := cloneMetadata(px.Metadata)
+	if input.CRMContactID == "" {
+		delete(md, "crm_contact_id")
+	} else {
+		if _, err := uuid.Parse(input.CRMContactID); err != nil {
+			jsonError(w, "invalid crm_contact_id", http.StatusBadRequest)
+			return
+		}
+		md["crm_contact_id"] = input.CRMContactID
+	}
+	updated, err := h.db.Prescription.UpdateOneID(pxID).SetMetadata(md).Save(r.Context())
+	if err != nil {
+		h.log.Error("failed to link crm contact", zap.Error(err))
+		jsonError(w, "failed to update prescription", http.StatusInternalServerError)
+		return
+	}
+	jsonOK(w, map[string]any{"prescription": updated})
 }

@@ -16,6 +16,8 @@ import (
 	entoutletsetting "github.com/bengobox/pos-service/internal/ent/outletsetting"
 	entposorder "github.com/bengobox/pos-service/internal/ent/posorder"
 	entposorderline "github.com/bengobox/pos-service/internal/ent/posorderline"
+	entprescription "github.com/bengobox/pos-service/internal/ent/prescription"
+	entprescriptionline "github.com/bengobox/pos-service/internal/ent/prescriptionline"
 	entprintagent "github.com/bengobox/pos-service/internal/ent/printagent"
 	"github.com/bengobox/pos-service/internal/modules/printing"
 )
@@ -33,12 +35,13 @@ func NewPrintJobsHandler(log *zap.Logger, client *ent.Client, queue *printing.Qu
 }
 
 type enqueueJobInput struct {
-	JobType       string `json:"job_type"` // bill | receipt | test | drawer
-	OrderID       string `json:"order_id"`
-	OutletID      string `json:"outlet_id"`  // required for test/drawer (no order to derive it from)
-	ProfileID     string `json:"profile_id"` // explicit target; empty = resolved bill printer
-	PaymentMethod string `json:"payment_method"`
-	Station       string `json:"station"` // label shown on a test ticket
+	JobType        string `json:"job_type"` // bill | receipt | test | drawer | dispensing_label
+	OrderID        string `json:"order_id"`
+	OutletID       string `json:"outlet_id"`  // required for test/drawer/dispensing_label (no order to derive it from)
+	ProfileID      string `json:"profile_id"` // explicit target; empty = resolved bill printer
+	PaymentMethod  string `json:"payment_method"`
+	Station        string `json:"station"`         // label shown on a test ticket
+	PrescriptionID string `json:"prescription_id"` // required for dispensing_label
 }
 
 // EnqueueJob handles POST /{tenantID}/pos/printing/jobs — enqueue a background print job for the
@@ -60,6 +63,7 @@ func (h *PrintJobsHandler) EnqueueJob(w http.ResponseWriter, r *http.Request) {
 
 	// Resolve order + outlet.
 	var order *ent.POSOrder
+	var prescription *ent.Prescription
 	outletID := uuid.Nil
 	if in.OrderID != "" {
 		oid, perr := uuid.Parse(in.OrderID)
@@ -75,6 +79,20 @@ func (h *PrintJobsHandler) EnqueueJob(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		outletID = order.OutletID
+	} else if in.PrescriptionID != "" {
+		pid, perr := uuid.Parse(in.PrescriptionID)
+		if perr != nil {
+			jsonError(w, "invalid prescription_id", http.StatusBadRequest)
+			return
+		}
+		prescription, err = h.client.Prescription.Query().
+			Where(entprescription.ID(pid), entprescription.TenantID(tid)).
+			Only(ctx)
+		if err != nil {
+			jsonError(w, "prescription not found", http.StatusNotFound)
+			return
+		}
+		outletID = prescription.OutletID
 	} else if in.OutletID != "" {
 		outletID, err = uuid.Parse(in.OutletID)
 		if err != nil {
@@ -137,10 +155,49 @@ func (h *PrintJobsHandler) EnqueueJob(w http.ResponseWriter, r *http.Request) {
 			label = profile.Label
 		}
 		payload = printing.BuildTestTicket(label, profile.Paper(), time.Now())
+	case printing.DispensingLabelJobType:
+		if prescription == nil {
+			jsonError(w, "prescription_id required for dispensing_label jobs", http.StatusBadRequest)
+			return
+		}
+		outlet, _ := h.client.Outlet.Query().Where(entoutlet.ID(outletID)).Only(ctx)
+		outletName := ""
+		if outlet != nil {
+			outletName = outlet.Name
+		}
+		lines, _ := h.client.PrescriptionLine.Query().
+			Where(entprescriptionline.PrescriptionID(prescription.ID)).
+			All(ctx)
+		dispensedBy := printing.ServedByFromContext(ctx)
+		var buf []byte
+		for _, l := range lines {
+			if l.QuantityDispensed <= 0 {
+				continue // only print labels for lines actually dispensed
+			}
+			buf = append(buf, printing.BuildDispensingLabel(printing.DispensingLabelData{
+				OutletName:     outletName,
+				DrugName:       l.DrugName,
+				Dosage:         l.Dosage,
+				Instructions:   l.Instructions,
+				Quantity:       l.QuantityDispensed,
+				PatientName:    prescription.PatientName,
+				LotNumber:      l.LotNumber,
+				ExpiryDate:     l.ExpiryDate,
+				PrescriberName: prescription.PrescriberName,
+				DispensedBy:    dispensedBy,
+				DispensedAt:    time.Now(),
+				BarcodeValue:   prescription.PrescriptionNumber,
+			})...)
+		}
+		if len(buf) == 0 {
+			jsonError(w, "no dispensed lines to print labels for", http.StatusUnprocessableEntity)
+			return
+		}
+		payload = buf
 	case "drawer":
 		payload = drawerKickBytes(setting)
 	default:
-		jsonError(w, "invalid job_type: must be bill, receipt, test or drawer", http.StatusBadRequest)
+		jsonError(w, "invalid job_type: must be bill, receipt, test, drawer or dispensing_label", http.StatusBadRequest)
 		return
 	}
 
