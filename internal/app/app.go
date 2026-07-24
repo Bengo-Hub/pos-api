@@ -287,6 +287,10 @@ func New(ctx context.Context) (*App, error) {
 		deviceHandler.SetPublisher(pub)
 	}
 	notificationsHandler := handlers.NewNotificationsHandler(log, entClient)
+	// Push the eTIMS fiscal block to the selling cashier's terminal the instant a sale is signed
+	// (sync checkout sign OR async treasury.etims.invoice_transmitted), so the receipt's KRA TIMS
+	// details appear via WebSocket push instead of the terminal polling the receipt endpoint.
+	paymentSvc.SetNotifHub(notificationsHandler.Hub())
 	// Wire the shared notification hub so KDS can push real-time alerts to floor staff.
 	kdsHandler.SetNotifHub(notificationsHandler.Hub())
 	queueHandler := handlers.NewQueueHandler(log, entClient)

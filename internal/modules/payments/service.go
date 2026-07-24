@@ -24,6 +24,7 @@ import (
 	enttable "github.com/bengobox/pos-service/internal/ent/table"
 	"github.com/bengobox/pos-service/internal/ent/tableassignment"
 	"github.com/bengobox/pos-service/internal/modules/inventory"
+	"github.com/bengobox/pos-service/internal/modules/notifications"
 	"github.com/bengobox/pos-service/internal/modules/orders"
 	"github.com/bengobox/pos-service/internal/modules/printing"
 	"github.com/bengobox/pos-service/internal/modules/staffcredit"
@@ -155,6 +156,10 @@ type Service struct {
 	defaultCurrency string
 	// printQueue enqueues the final customer receipt for the on-site Local Print Agent.
 	printQueue *printing.Queue
+	// notifHub pushes the KRA eTIMS fiscal block to the selling cashier's terminal the instant
+	// a sale is signed — so the receipt's TIMS details appear via WS PUSH instead of the terminal
+	// polling the receipt endpoint for ~30-50s waiting for the async fiscalisation to land.
+	notifHub *notifications.Hub
 }
 
 // NewService creates a new payment service.
@@ -168,6 +173,51 @@ func NewService(client *ent.Client, orderSvc *orders.Service, defaultCurrency st
 		log:             log.Named("payments.service"),
 		defaultCurrency: defaultCurrency,
 	}
+}
+
+// SetNotifHub injects the notification WebSocket hub used to PUSH the eTIMS fiscal block to the
+// selling cashier's terminal the instant a sale is signed (replaces the terminal's receipt poll).
+func (s *Service) SetNotifHub(h *notifications.Hub) {
+	s.notifHub = h
+}
+
+// pushEtimsFiscalized pushes the order's KRA eTIMS fiscal identity to the selling cashier's
+// terminal over the notification WebSocket, so the open receipt merges the "KRA TIMS Details"
+// block immediately instead of polling the receipt endpoint. Best-effort + idempotent: a no-op
+// when the hub is unset, the order carries no cashier, or the sale isn't fiscalised yet; the
+// terminal keeps a short fallback poll for the case where its socket is momentarily down. Called
+// from BOTH sign paths — the synchronous checkout sign (signEtimsSync) and the async
+// treasury.etims.invoice_transmitted subscriber — so whichever lands first delivers the block.
+func (s *Service) pushEtimsFiscalized(order *ent.POSOrder) {
+	if s.notifHub == nil || order == nil || order.UserID == uuid.Nil {
+		return
+	}
+	inv := derefStr(order.EtimsInvoiceNumber)
+	cu := derefStr(order.EtimsCuInvNo)
+	if inv == "" && cu == "" {
+		return // nothing fiscalised yet — no block to push
+	}
+	s.notifHub.BroadcastToUser(order.TenantID, order.UserID, notifications.Message{
+		Type: "etims_fiscalized",
+		Payload: map[string]any{
+			"order_id":        order.ID.String(),
+			"order_number":    order.OrderNumber,
+			"invoice_number":  inv,
+			"cu_invoice_no":   cu,
+			"scu_id":          derefStr(order.EtimsScuID),
+			"rcpt_sign":       derefStr(order.EtimsRcptSign),
+			"qr_code_url":     derefStr(order.EtimsQrCodeURL),
+			"kra_pin":         derefStr(order.EtimsKraPin),
+		},
+	})
+}
+
+// derefStr safely dereferences an optional string field.
+func derefStr(p *string) string {
+	if p == nil {
+		return ""
+	}
+	return *p
 }
 
 // SetTreasuryClient injects the treasury S2S client after construction (avoids circular init).
@@ -1150,6 +1200,9 @@ func (s *Service) signEtimsSync(ctx context.Context, order *ent.POSOrder) {
 	}
 	s.log.Info("etims: pos sale signed synchronously at checkout",
 		zap.String("order_id", order.ID.String()), zap.String("cu_inv_no", fi.CuInvoiceNo))
+	// PUSH the fiscal block to the terminal so the open receipt shows the KRA TIMS details
+	// immediately, instead of the terminal polling the receipt endpoint until it lands.
+	s.pushEtimsFiscalized(order)
 }
 
 // publishSaleFinalized emits pos.sale.finalized to the NATS outbox.

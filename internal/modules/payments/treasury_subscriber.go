@@ -236,6 +236,13 @@ func (s *TreasurySubscriber) subscribeEtimsTransmitted(js nats.JetStreamContext)
 		if err != nil {
 			s.log.Error("etims: failed to store invoice data on order",
 				zap.String("order_id", orderID.String()), zap.Error(err))
+			return
+		}
+		// PUSH the fiscal block to the selling cashier's terminal so the open receipt merges the
+		// KRA TIMS details instantly (this async path is the fallback for a sale whose synchronous
+		// sign at checkout didn't land). Shares Service.pushEtimsFiscalized with the sync path.
+		if o, e := s.client.POSOrder.Get(context.Background(), orderID); e == nil {
+			s.paymentSvc.pushEtimsFiscalized(o)
 		}
 	}, nats.Durable("pos-etims-invoice"), nats.ManualAck())
 	return nil
