@@ -18,6 +18,7 @@ import (
 	entoverride "github.com/bengobox/pos-service/internal/ent/poscatalogoverride"
 	entpx "github.com/bengobox/pos-service/internal/ent/prescription"
 	entpxl "github.com/bengobox/pos-service/internal/ent/prescriptionline"
+	"github.com/bengobox/pos-service/internal/modules/documents"
 	"github.com/bengobox/pos-service/internal/modules/inventory"
 	"github.com/bengobox/pos-service/internal/modules/orders"
 	"github.com/bengobox/pos-service/internal/platform/marketflow"
@@ -39,6 +40,10 @@ type PharmacyHandler struct {
 	// pharmacy_checkout.go) — the SAME order-creation path the terminal/back-office use, so a
 	// prescription sale gets identical tax/GL/eTIMS/receipt treatment to any other POS sale.
 	orderSvc *orders.Service
+	// seq mints tenant-configurable prescription numbers (Settings -> Documents), the same
+	// per-tenant atomic sequence every other POS document type uses — CreatePrescription no
+	// longer trusts a client-typed prescription_number.
+	seq *documents.SequenceService
 }
 
 func NewPharmacyHandler(log *zap.Logger, db *ent.Client, inventoryClient *inventory.Client) *PharmacyHandler {
@@ -56,6 +61,10 @@ func (h *PharmacyHandler) SetAuditService(svc *audit.Service) { h.auditSvc = svc
 
 // SetOrderService wires the shared order-creation service used by the prescription checkout step.
 func (h *PharmacyHandler) SetOrderService(svc *orders.Service) { h.orderSvc = svc }
+
+// SetSequenceService wires the document-number sequence service used to auto-generate
+// prescription numbers.
+func (h *PharmacyHandler) SetSequenceService(svc *documents.SequenceService) { h.seq = svc }
 
 type prescriptionLineInput struct {
 	DrugName           string   `json:"drug_name"`
@@ -101,14 +110,30 @@ func (h *PharmacyHandler) CreatePrescription(w http.ResponseWriter, r *http.Requ
 		jsonError(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
-	if input.PrescriptionNumber == "" || input.PatientName == "" {
-		jsonError(w, "prescription_number and patient_name are required", http.StatusBadRequest)
+	if input.PatientName == "" {
+		jsonError(w, "patient_name is required", http.StatusBadRequest)
 		return
 	}
 
 	outletID, err := uuid.Parse(input.OutletID)
 	if err != nil {
 		jsonError(w, "invalid outlet_id", http.StatusBadRequest)
+		return
+	}
+
+	// Prescription # is server-generated via the tenant's document sequence (Settings ->
+	// Documents), same as order/receipt/return numbers — never trusted from the client. A
+	// client-supplied value is only honored as a fallback when no sequence service is wired.
+	prescriptionNumber := input.PrescriptionNumber
+	if h.seq != nil {
+		if n, err := h.seq.GenerateNumber(r.Context(), tid, documents.DocTypePrescription); err == nil && n != "" {
+			prescriptionNumber = n
+		} else if err != nil {
+			h.log.Warn("prescription number sequence generation failed, falling back to client value", zap.Error(err))
+		}
+	}
+	if prescriptionNumber == "" {
+		jsonError(w, "prescription_number is required", http.StatusBadRequest)
 		return
 	}
 
@@ -120,7 +145,7 @@ func (h *PharmacyHandler) CreatePrescription(w http.ResponseWriter, r *http.Requ
 	creator := h.db.Prescription.Create().
 		SetTenantID(tid).
 		SetOutletID(outletID).
-		SetPrescriptionNumber(input.PrescriptionNumber).
+		SetPrescriptionNumber(prescriptionNumber).
 		SetPrescriberName(input.PrescriberName).
 		SetPrescriberLicense(input.PrescriberLicense).
 		SetPatientName(input.PatientName).

@@ -326,6 +326,7 @@ func New(ctx context.Context) (*App, error) {
 	pharmacyHandler.SetAuditService(auditSvc)
 	pharmacyHandler.SetMarketFlowClient(mfClient)
 	pharmacyHandler.SetOrderService(orderSvc)
+	pharmacyHandler.SetSequenceService(docSeqSvc)
 	appointmentHandler := handlers.NewAppointmentHandler(log, entClient)
 	commissionHandler := handlers.NewCommissionHandler(log, entClient)
 	staffScheduleHandler := handlers.NewStaffScheduleHandler(log, entClient)

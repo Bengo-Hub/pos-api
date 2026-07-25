@@ -19,11 +19,12 @@ import (
 
 // Doc type constants — must match DocumentSequence.doc_type values.
 const (
-	DocTypeOrder       = "order"
-	DocTypePosReceipt  = "pos_receipt"
-	DocTypePosReturn   = "pos_return"
-	DocTypePosReversal = "pos_reversal"
-	DocTypeRepairJob   = "repair_job"
+	DocTypeOrder        = "order"
+	DocTypePosReceipt   = "pos_receipt"
+	DocTypePosReturn    = "pos_return"
+	DocTypePosReversal  = "pos_reversal"
+	DocTypeRepairJob    = "repair_job"
+	DocTypePrescription = "prescription"
 )
 
 type seqConfig struct {
@@ -38,21 +39,23 @@ type seqConfig struct {
 // the zero-padded counter (e.g. "000001"). Tenants who prefer the prefixed/dated style (POS-260707-
 // 000013) opt in per doc type in Settings → Documents, which sets a prefix and/or date_format.
 var seqDefaults = map[string]seqConfig{
-	DocTypeOrder:       {Separator: "-", Padding: 6, ResetFreq: "never"},
-	DocTypePosReceipt:  {Separator: "-", Padding: 6, ResetFreq: "never"},
-	DocTypePosReturn:   {Separator: "-", Padding: 6, ResetFreq: "never"},
-	DocTypePosReversal: {Separator: "-", Padding: 6, ResetFreq: "never"},
-	DocTypeRepairJob:   {Separator: "-", Padding: 6, ResetFreq: "never"},
+	DocTypeOrder:        {Separator: "-", Padding: 6, ResetFreq: "never"},
+	DocTypePosReceipt:   {Separator: "-", Padding: 6, ResetFreq: "never"},
+	DocTypePosReturn:    {Separator: "-", Padding: 6, ResetFreq: "never"},
+	DocTypePosReversal:  {Separator: "-", Padding: 6, ResetFreq: "never"},
+	DocTypeRepairJob:    {Separator: "-", Padding: 6, ResetFreq: "never"},
+	DocTypePrescription: {Separator: "-", Padding: 6, ResetFreq: "never"},
 }
 
 // SuggestedPrefixes are the pre-fill hints the Settings UI offers when a tenant switches a doc
 // type to the prefixed format. NOT applied automatically — the platform default is numeric.
 var SuggestedPrefixes = map[string]string{
-	DocTypeOrder:       "POS",
-	DocTypePosReceipt:  "RCT",
-	DocTypePosReturn:   "RET",
-	DocTypePosReversal: "REV",
-	DocTypeRepairJob:   "JOB",
+	DocTypeOrder:        "POS",
+	DocTypePosReceipt:   "RCT",
+	DocTypePosReturn:    "RET",
+	DocTypePosReversal:  "REV",
+	DocTypeRepairJob:    "JOB",
+	DocTypePrescription: "RX",
 }
 
 // SequenceService generates per-tenant atomic document numbers using optimistic
@@ -112,7 +115,7 @@ type SeqConfigDTO struct {
 // configuredDocTypes is the set of POS document types that carry a configurable sequence,
 // surfaced in the Settings → Documents tab.
 var configuredDocTypes = []string{
-	DocTypeOrder, DocTypePosReceipt, DocTypePosReturn, DocTypePosReversal, DocTypeRepairJob,
+	DocTypeOrder, DocTypePosReceipt, DocTypePosReturn, DocTypePosReversal, DocTypeRepairJob, DocTypePrescription,
 }
 
 func toSeqDTO(row *ent.DocumentSequence) SeqConfigDTO {
