@@ -33,8 +33,10 @@ type StaffMember struct {
 	CommissionRate *float64 `json:"commission_rate,omitempty"`
 	// IsActive holds the value of the "is_active" field.
 	IsActive bool `json:"is_active,omitempty"`
-	// POS role: admin (unrestricted)|manager (RBAC scoped)|cashier|waiter|kitchen|bar|receptionist|pharmacist|stylist|therapist
+	// POS role: admin (unrestricted)|manager (RBAC scoped)|cashier|waiter|kitchen|bar|receptionist|pharmacist|doctor|stylist|therapist
 	Role string `json:"role,omitempty"`
+	// LicenseNumber holds the value of the "license_number" field.
+	LicenseNumber *string `json:"license_number,omitempty"`
 	// EmploymentType holds the value of the "employment_type" field.
 	EmploymentType staffmember.EmploymentType `json:"employment_type,omitempty"`
 	// Compensation per hour (for hourly/casual staff)
@@ -100,7 +102,7 @@ func (*StaffMember) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullFloat64)
 		case staffmember.FieldPinFailedAttempts:
 			values[i] = new(sql.NullInt64)
-		case staffmember.FieldName, staffmember.FieldRole, staffmember.FieldEmploymentType, staffmember.FieldMpesaPhone, staffmember.FieldBankAccountNumber, staffmember.FieldBankName, staffmember.FieldErpEmployeeNumber, staffmember.FieldPinHash, staffmember.FieldPinFastHash:
+		case staffmember.FieldName, staffmember.FieldRole, staffmember.FieldLicenseNumber, staffmember.FieldEmploymentType, staffmember.FieldMpesaPhone, staffmember.FieldBankAccountNumber, staffmember.FieldBankName, staffmember.FieldErpEmployeeNumber, staffmember.FieldPinHash, staffmember.FieldPinFastHash:
 			values[i] = new(sql.NullString)
 		case staffmember.FieldPinLockedUntil, staffmember.FieldCreatedAt, staffmember.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -179,6 +181,13 @@ func (_m *StaffMember) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field role", values[i])
 			} else if value.Valid {
 				_m.Role = value.String
+			}
+		case staffmember.FieldLicenseNumber:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field license_number", values[i])
+			} else if value.Valid {
+				_m.LicenseNumber = new(string)
+				*_m.LicenseNumber = value.String
 			}
 		case staffmember.FieldEmploymentType:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -340,6 +349,11 @@ func (_m *StaffMember) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("role=")
 	builder.WriteString(_m.Role)
+	builder.WriteString(", ")
+	if v := _m.LicenseNumber; v != nil {
+		builder.WriteString("license_number=")
+		builder.WriteString(*v)
+	}
 	builder.WriteString(", ")
 	builder.WriteString("employment_type=")
 	builder.WriteString(fmt.Sprintf("%v", _m.EmploymentType))

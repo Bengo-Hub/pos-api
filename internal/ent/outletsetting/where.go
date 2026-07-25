@@ -271,6 +271,36 @@ func ShiftReportsEnabled(v bool) predicate.OutletSetting {
 	return predicate.OutletSetting(sql.FieldEQ(FieldShiftReportsEnabled, v))
 }
 
+// EnableRecordsModule applies equality check predicate on the "enable_records_module" field. It's identical to EnableRecordsModuleEQ.
+func EnableRecordsModule(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldEnableRecordsModule, v))
+}
+
+// EnableTriageModule applies equality check predicate on the "enable_triage_module" field. It's identical to EnableTriageModuleEQ.
+func EnableTriageModule(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldEnableTriageModule, v))
+}
+
+// EnableExaminationModule applies equality check predicate on the "enable_examination_module" field. It's identical to EnableExaminationModuleEQ.
+func EnableExaminationModule(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldEnableExaminationModule, v))
+}
+
+// EnableLabModule applies equality check predicate on the "enable_lab_module" field. It's identical to EnableLabModuleEQ.
+func EnableLabModule(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldEnableLabModule, v))
+}
+
+// RequireRegistrationFee applies equality check predicate on the "require_registration_fee" field. It's identical to RequireRegistrationFeeEQ.
+func RequireRegistrationFee(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldRequireRegistrationFee, v))
+}
+
+// RegistrationFeeCatalogItemID applies equality check predicate on the "registration_fee_catalog_item_id" field. It's identical to RegistrationFeeCatalogItemIDEQ.
+func RegistrationFeeCatalogItemID(v uuid.UUID) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldRegistrationFeeCatalogItemID, v))
+}
+
 // ShiftAutoEndEnabled applies equality check predicate on the "shift_auto_end_enabled" field. It's identical to ShiftAutoEndEnabledEQ.
 func ShiftAutoEndEnabled(v bool) predicate.OutletSetting {
 	return predicate.OutletSetting(sql.FieldEQ(FieldShiftAutoEndEnabled, v))
@@ -2639,6 +2669,156 @@ func ShiftReportsEnabledIsNil() predicate.OutletSetting {
 // ShiftReportsEnabledNotNil applies the NotNil predicate on the "shift_reports_enabled" field.
 func ShiftReportsEnabledNotNil() predicate.OutletSetting {
 	return predicate.OutletSetting(sql.FieldNotNull(FieldShiftReportsEnabled))
+}
+
+// EnableRecordsModuleEQ applies the EQ predicate on the "enable_records_module" field.
+func EnableRecordsModuleEQ(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldEnableRecordsModule, v))
+}
+
+// EnableRecordsModuleNEQ applies the NEQ predicate on the "enable_records_module" field.
+func EnableRecordsModuleNEQ(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNEQ(FieldEnableRecordsModule, v))
+}
+
+// EnableRecordsModuleIsNil applies the IsNil predicate on the "enable_records_module" field.
+func EnableRecordsModuleIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldEnableRecordsModule))
+}
+
+// EnableRecordsModuleNotNil applies the NotNil predicate on the "enable_records_module" field.
+func EnableRecordsModuleNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldEnableRecordsModule))
+}
+
+// EnableTriageModuleEQ applies the EQ predicate on the "enable_triage_module" field.
+func EnableTriageModuleEQ(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldEnableTriageModule, v))
+}
+
+// EnableTriageModuleNEQ applies the NEQ predicate on the "enable_triage_module" field.
+func EnableTriageModuleNEQ(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNEQ(FieldEnableTriageModule, v))
+}
+
+// EnableTriageModuleIsNil applies the IsNil predicate on the "enable_triage_module" field.
+func EnableTriageModuleIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldEnableTriageModule))
+}
+
+// EnableTriageModuleNotNil applies the NotNil predicate on the "enable_triage_module" field.
+func EnableTriageModuleNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldEnableTriageModule))
+}
+
+// EnableExaminationModuleEQ applies the EQ predicate on the "enable_examination_module" field.
+func EnableExaminationModuleEQ(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldEnableExaminationModule, v))
+}
+
+// EnableExaminationModuleNEQ applies the NEQ predicate on the "enable_examination_module" field.
+func EnableExaminationModuleNEQ(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNEQ(FieldEnableExaminationModule, v))
+}
+
+// EnableExaminationModuleIsNil applies the IsNil predicate on the "enable_examination_module" field.
+func EnableExaminationModuleIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldEnableExaminationModule))
+}
+
+// EnableExaminationModuleNotNil applies the NotNil predicate on the "enable_examination_module" field.
+func EnableExaminationModuleNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldEnableExaminationModule))
+}
+
+// EnableLabModuleEQ applies the EQ predicate on the "enable_lab_module" field.
+func EnableLabModuleEQ(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldEnableLabModule, v))
+}
+
+// EnableLabModuleNEQ applies the NEQ predicate on the "enable_lab_module" field.
+func EnableLabModuleNEQ(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNEQ(FieldEnableLabModule, v))
+}
+
+// EnableLabModuleIsNil applies the IsNil predicate on the "enable_lab_module" field.
+func EnableLabModuleIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldEnableLabModule))
+}
+
+// EnableLabModuleNotNil applies the NotNil predicate on the "enable_lab_module" field.
+func EnableLabModuleNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldEnableLabModule))
+}
+
+// RequireRegistrationFeeEQ applies the EQ predicate on the "require_registration_fee" field.
+func RequireRegistrationFeeEQ(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldRequireRegistrationFee, v))
+}
+
+// RequireRegistrationFeeNEQ applies the NEQ predicate on the "require_registration_fee" field.
+func RequireRegistrationFeeNEQ(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNEQ(FieldRequireRegistrationFee, v))
+}
+
+// RequireRegistrationFeeIsNil applies the IsNil predicate on the "require_registration_fee" field.
+func RequireRegistrationFeeIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldRequireRegistrationFee))
+}
+
+// RequireRegistrationFeeNotNil applies the NotNil predicate on the "require_registration_fee" field.
+func RequireRegistrationFeeNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldRequireRegistrationFee))
+}
+
+// RegistrationFeeCatalogItemIDEQ applies the EQ predicate on the "registration_fee_catalog_item_id" field.
+func RegistrationFeeCatalogItemIDEQ(v uuid.UUID) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldRegistrationFeeCatalogItemID, v))
+}
+
+// RegistrationFeeCatalogItemIDNEQ applies the NEQ predicate on the "registration_fee_catalog_item_id" field.
+func RegistrationFeeCatalogItemIDNEQ(v uuid.UUID) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNEQ(FieldRegistrationFeeCatalogItemID, v))
+}
+
+// RegistrationFeeCatalogItemIDIn applies the In predicate on the "registration_fee_catalog_item_id" field.
+func RegistrationFeeCatalogItemIDIn(vs ...uuid.UUID) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIn(FieldRegistrationFeeCatalogItemID, vs...))
+}
+
+// RegistrationFeeCatalogItemIDNotIn applies the NotIn predicate on the "registration_fee_catalog_item_id" field.
+func RegistrationFeeCatalogItemIDNotIn(vs ...uuid.UUID) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotIn(FieldRegistrationFeeCatalogItemID, vs...))
+}
+
+// RegistrationFeeCatalogItemIDGT applies the GT predicate on the "registration_fee_catalog_item_id" field.
+func RegistrationFeeCatalogItemIDGT(v uuid.UUID) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGT(FieldRegistrationFeeCatalogItemID, v))
+}
+
+// RegistrationFeeCatalogItemIDGTE applies the GTE predicate on the "registration_fee_catalog_item_id" field.
+func RegistrationFeeCatalogItemIDGTE(v uuid.UUID) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGTE(FieldRegistrationFeeCatalogItemID, v))
+}
+
+// RegistrationFeeCatalogItemIDLT applies the LT predicate on the "registration_fee_catalog_item_id" field.
+func RegistrationFeeCatalogItemIDLT(v uuid.UUID) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLT(FieldRegistrationFeeCatalogItemID, v))
+}
+
+// RegistrationFeeCatalogItemIDLTE applies the LTE predicate on the "registration_fee_catalog_item_id" field.
+func RegistrationFeeCatalogItemIDLTE(v uuid.UUID) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLTE(FieldRegistrationFeeCatalogItemID, v))
+}
+
+// RegistrationFeeCatalogItemIDIsNil applies the IsNil predicate on the "registration_fee_catalog_item_id" field.
+func RegistrationFeeCatalogItemIDIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldRegistrationFeeCatalogItemID))
+}
+
+// RegistrationFeeCatalogItemIDNotNil applies the NotNil predicate on the "registration_fee_catalog_item_id" field.
+func RegistrationFeeCatalogItemIDNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldRegistrationFeeCatalogItemID))
 }
 
 // ShiftAutoEndEnabledEQ applies the EQ predicate on the "shift_auto_end_enabled" field.

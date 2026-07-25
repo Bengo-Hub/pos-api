@@ -18,6 +18,15 @@ func (Prescription) Fields() []ent.Field {
 		field.UUID("tenant_id", uuid.UUID{}),
 		field.UUID("outlet_id", uuid.UUID{}),
 		field.UUID("order_id", uuid.UUID{}).Optional().Nillable(),
+		// Set when this prescription came out of the OPD clinical workflow (Examination) rather
+		// than a standalone/external-Rx counter entry — links back to the registered Patient and
+		// the visit episode so the pharmacy step can trace a script to its full clinical journey.
+		field.UUID("patient_id", uuid.UUID{}).Optional().Nillable(),
+		field.UUID("visit_id", uuid.UUID{}).Optional().Nillable(),
+		// Set only for a prescription written by an OUTSIDE facility and brought in by the
+		// patient — the cashier/pharmacist keys in the source instead of running the local
+		// clinical safety/approval workflow a locally-written script requires.
+		field.String("external_facility_name").Optional(),
 		field.String("prescription_number").NotEmpty(),
 		field.String("prescriber_name").Optional(),
 		field.String("prescriber_license").Optional(),
@@ -49,5 +58,7 @@ func (Prescription) Indexes() []ent.Index {
 		index.Fields("prescription_number"),
 		index.Fields("status"),
 		index.Fields("order_id"),
+		index.Fields("tenant_id", "patient_id"),
+		index.Fields("tenant_id", "visit_id"),
 	}
 }

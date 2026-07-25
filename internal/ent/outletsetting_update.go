@@ -1018,6 +1018,126 @@ func (_u *OutletSettingUpdate) ClearShiftReportsEnabled() *OutletSettingUpdate {
 	return _u
 }
 
+// SetEnableRecordsModule sets the "enable_records_module" field.
+func (_u *OutletSettingUpdate) SetEnableRecordsModule(v bool) *OutletSettingUpdate {
+	_u.mutation.SetEnableRecordsModule(v)
+	return _u
+}
+
+// SetNillableEnableRecordsModule sets the "enable_records_module" field if the given value is not nil.
+func (_u *OutletSettingUpdate) SetNillableEnableRecordsModule(v *bool) *OutletSettingUpdate {
+	if v != nil {
+		_u.SetEnableRecordsModule(*v)
+	}
+	return _u
+}
+
+// ClearEnableRecordsModule clears the value of the "enable_records_module" field.
+func (_u *OutletSettingUpdate) ClearEnableRecordsModule() *OutletSettingUpdate {
+	_u.mutation.ClearEnableRecordsModule()
+	return _u
+}
+
+// SetEnableTriageModule sets the "enable_triage_module" field.
+func (_u *OutletSettingUpdate) SetEnableTriageModule(v bool) *OutletSettingUpdate {
+	_u.mutation.SetEnableTriageModule(v)
+	return _u
+}
+
+// SetNillableEnableTriageModule sets the "enable_triage_module" field if the given value is not nil.
+func (_u *OutletSettingUpdate) SetNillableEnableTriageModule(v *bool) *OutletSettingUpdate {
+	if v != nil {
+		_u.SetEnableTriageModule(*v)
+	}
+	return _u
+}
+
+// ClearEnableTriageModule clears the value of the "enable_triage_module" field.
+func (_u *OutletSettingUpdate) ClearEnableTriageModule() *OutletSettingUpdate {
+	_u.mutation.ClearEnableTriageModule()
+	return _u
+}
+
+// SetEnableExaminationModule sets the "enable_examination_module" field.
+func (_u *OutletSettingUpdate) SetEnableExaminationModule(v bool) *OutletSettingUpdate {
+	_u.mutation.SetEnableExaminationModule(v)
+	return _u
+}
+
+// SetNillableEnableExaminationModule sets the "enable_examination_module" field if the given value is not nil.
+func (_u *OutletSettingUpdate) SetNillableEnableExaminationModule(v *bool) *OutletSettingUpdate {
+	if v != nil {
+		_u.SetEnableExaminationModule(*v)
+	}
+	return _u
+}
+
+// ClearEnableExaminationModule clears the value of the "enable_examination_module" field.
+func (_u *OutletSettingUpdate) ClearEnableExaminationModule() *OutletSettingUpdate {
+	_u.mutation.ClearEnableExaminationModule()
+	return _u
+}
+
+// SetEnableLabModule sets the "enable_lab_module" field.
+func (_u *OutletSettingUpdate) SetEnableLabModule(v bool) *OutletSettingUpdate {
+	_u.mutation.SetEnableLabModule(v)
+	return _u
+}
+
+// SetNillableEnableLabModule sets the "enable_lab_module" field if the given value is not nil.
+func (_u *OutletSettingUpdate) SetNillableEnableLabModule(v *bool) *OutletSettingUpdate {
+	if v != nil {
+		_u.SetEnableLabModule(*v)
+	}
+	return _u
+}
+
+// ClearEnableLabModule clears the value of the "enable_lab_module" field.
+func (_u *OutletSettingUpdate) ClearEnableLabModule() *OutletSettingUpdate {
+	_u.mutation.ClearEnableLabModule()
+	return _u
+}
+
+// SetRequireRegistrationFee sets the "require_registration_fee" field.
+func (_u *OutletSettingUpdate) SetRequireRegistrationFee(v bool) *OutletSettingUpdate {
+	_u.mutation.SetRequireRegistrationFee(v)
+	return _u
+}
+
+// SetNillableRequireRegistrationFee sets the "require_registration_fee" field if the given value is not nil.
+func (_u *OutletSettingUpdate) SetNillableRequireRegistrationFee(v *bool) *OutletSettingUpdate {
+	if v != nil {
+		_u.SetRequireRegistrationFee(*v)
+	}
+	return _u
+}
+
+// ClearRequireRegistrationFee clears the value of the "require_registration_fee" field.
+func (_u *OutletSettingUpdate) ClearRequireRegistrationFee() *OutletSettingUpdate {
+	_u.mutation.ClearRequireRegistrationFee()
+	return _u
+}
+
+// SetRegistrationFeeCatalogItemID sets the "registration_fee_catalog_item_id" field.
+func (_u *OutletSettingUpdate) SetRegistrationFeeCatalogItemID(v uuid.UUID) *OutletSettingUpdate {
+	_u.mutation.SetRegistrationFeeCatalogItemID(v)
+	return _u
+}
+
+// SetNillableRegistrationFeeCatalogItemID sets the "registration_fee_catalog_item_id" field if the given value is not nil.
+func (_u *OutletSettingUpdate) SetNillableRegistrationFeeCatalogItemID(v *uuid.UUID) *OutletSettingUpdate {
+	if v != nil {
+		_u.SetRegistrationFeeCatalogItemID(*v)
+	}
+	return _u
+}
+
+// ClearRegistrationFeeCatalogItemID clears the value of the "registration_fee_catalog_item_id" field.
+func (_u *OutletSettingUpdate) ClearRegistrationFeeCatalogItemID() *OutletSettingUpdate {
+	_u.mutation.ClearRegistrationFeeCatalogItemID()
+	return _u
+}
+
 // SetShiftAutoEndEnabled sets the "shift_auto_end_enabled" field.
 func (_u *OutletSettingUpdate) SetShiftAutoEndEnabled(v bool) *OutletSettingUpdate {
 	_u.mutation.SetShiftAutoEndEnabled(v)
@@ -1615,6 +1735,42 @@ func (_u *OutletSettingUpdate) sqlSave(ctx context.Context) (_node int, err erro
 	}
 	if _u.mutation.ShiftReportsEnabledCleared() {
 		_spec.ClearField(outletsetting.FieldShiftReportsEnabled, field.TypeBool)
+	}
+	if value, ok := _u.mutation.EnableRecordsModule(); ok {
+		_spec.SetField(outletsetting.FieldEnableRecordsModule, field.TypeBool, value)
+	}
+	if _u.mutation.EnableRecordsModuleCleared() {
+		_spec.ClearField(outletsetting.FieldEnableRecordsModule, field.TypeBool)
+	}
+	if value, ok := _u.mutation.EnableTriageModule(); ok {
+		_spec.SetField(outletsetting.FieldEnableTriageModule, field.TypeBool, value)
+	}
+	if _u.mutation.EnableTriageModuleCleared() {
+		_spec.ClearField(outletsetting.FieldEnableTriageModule, field.TypeBool)
+	}
+	if value, ok := _u.mutation.EnableExaminationModule(); ok {
+		_spec.SetField(outletsetting.FieldEnableExaminationModule, field.TypeBool, value)
+	}
+	if _u.mutation.EnableExaminationModuleCleared() {
+		_spec.ClearField(outletsetting.FieldEnableExaminationModule, field.TypeBool)
+	}
+	if value, ok := _u.mutation.EnableLabModule(); ok {
+		_spec.SetField(outletsetting.FieldEnableLabModule, field.TypeBool, value)
+	}
+	if _u.mutation.EnableLabModuleCleared() {
+		_spec.ClearField(outletsetting.FieldEnableLabModule, field.TypeBool)
+	}
+	if value, ok := _u.mutation.RequireRegistrationFee(); ok {
+		_spec.SetField(outletsetting.FieldRequireRegistrationFee, field.TypeBool, value)
+	}
+	if _u.mutation.RequireRegistrationFeeCleared() {
+		_spec.ClearField(outletsetting.FieldRequireRegistrationFee, field.TypeBool)
+	}
+	if value, ok := _u.mutation.RegistrationFeeCatalogItemID(); ok {
+		_spec.SetField(outletsetting.FieldRegistrationFeeCatalogItemID, field.TypeUUID, value)
+	}
+	if _u.mutation.RegistrationFeeCatalogItemIDCleared() {
+		_spec.ClearField(outletsetting.FieldRegistrationFeeCatalogItemID, field.TypeUUID)
 	}
 	if value, ok := _u.mutation.ShiftAutoEndEnabled(); ok {
 		_spec.SetField(outletsetting.FieldShiftAutoEndEnabled, field.TypeBool, value)
@@ -2723,6 +2879,126 @@ func (_u *OutletSettingUpdateOne) ClearShiftReportsEnabled() *OutletSettingUpdat
 	return _u
 }
 
+// SetEnableRecordsModule sets the "enable_records_module" field.
+func (_u *OutletSettingUpdateOne) SetEnableRecordsModule(v bool) *OutletSettingUpdateOne {
+	_u.mutation.SetEnableRecordsModule(v)
+	return _u
+}
+
+// SetNillableEnableRecordsModule sets the "enable_records_module" field if the given value is not nil.
+func (_u *OutletSettingUpdateOne) SetNillableEnableRecordsModule(v *bool) *OutletSettingUpdateOne {
+	if v != nil {
+		_u.SetEnableRecordsModule(*v)
+	}
+	return _u
+}
+
+// ClearEnableRecordsModule clears the value of the "enable_records_module" field.
+func (_u *OutletSettingUpdateOne) ClearEnableRecordsModule() *OutletSettingUpdateOne {
+	_u.mutation.ClearEnableRecordsModule()
+	return _u
+}
+
+// SetEnableTriageModule sets the "enable_triage_module" field.
+func (_u *OutletSettingUpdateOne) SetEnableTriageModule(v bool) *OutletSettingUpdateOne {
+	_u.mutation.SetEnableTriageModule(v)
+	return _u
+}
+
+// SetNillableEnableTriageModule sets the "enable_triage_module" field if the given value is not nil.
+func (_u *OutletSettingUpdateOne) SetNillableEnableTriageModule(v *bool) *OutletSettingUpdateOne {
+	if v != nil {
+		_u.SetEnableTriageModule(*v)
+	}
+	return _u
+}
+
+// ClearEnableTriageModule clears the value of the "enable_triage_module" field.
+func (_u *OutletSettingUpdateOne) ClearEnableTriageModule() *OutletSettingUpdateOne {
+	_u.mutation.ClearEnableTriageModule()
+	return _u
+}
+
+// SetEnableExaminationModule sets the "enable_examination_module" field.
+func (_u *OutletSettingUpdateOne) SetEnableExaminationModule(v bool) *OutletSettingUpdateOne {
+	_u.mutation.SetEnableExaminationModule(v)
+	return _u
+}
+
+// SetNillableEnableExaminationModule sets the "enable_examination_module" field if the given value is not nil.
+func (_u *OutletSettingUpdateOne) SetNillableEnableExaminationModule(v *bool) *OutletSettingUpdateOne {
+	if v != nil {
+		_u.SetEnableExaminationModule(*v)
+	}
+	return _u
+}
+
+// ClearEnableExaminationModule clears the value of the "enable_examination_module" field.
+func (_u *OutletSettingUpdateOne) ClearEnableExaminationModule() *OutletSettingUpdateOne {
+	_u.mutation.ClearEnableExaminationModule()
+	return _u
+}
+
+// SetEnableLabModule sets the "enable_lab_module" field.
+func (_u *OutletSettingUpdateOne) SetEnableLabModule(v bool) *OutletSettingUpdateOne {
+	_u.mutation.SetEnableLabModule(v)
+	return _u
+}
+
+// SetNillableEnableLabModule sets the "enable_lab_module" field if the given value is not nil.
+func (_u *OutletSettingUpdateOne) SetNillableEnableLabModule(v *bool) *OutletSettingUpdateOne {
+	if v != nil {
+		_u.SetEnableLabModule(*v)
+	}
+	return _u
+}
+
+// ClearEnableLabModule clears the value of the "enable_lab_module" field.
+func (_u *OutletSettingUpdateOne) ClearEnableLabModule() *OutletSettingUpdateOne {
+	_u.mutation.ClearEnableLabModule()
+	return _u
+}
+
+// SetRequireRegistrationFee sets the "require_registration_fee" field.
+func (_u *OutletSettingUpdateOne) SetRequireRegistrationFee(v bool) *OutletSettingUpdateOne {
+	_u.mutation.SetRequireRegistrationFee(v)
+	return _u
+}
+
+// SetNillableRequireRegistrationFee sets the "require_registration_fee" field if the given value is not nil.
+func (_u *OutletSettingUpdateOne) SetNillableRequireRegistrationFee(v *bool) *OutletSettingUpdateOne {
+	if v != nil {
+		_u.SetRequireRegistrationFee(*v)
+	}
+	return _u
+}
+
+// ClearRequireRegistrationFee clears the value of the "require_registration_fee" field.
+func (_u *OutletSettingUpdateOne) ClearRequireRegistrationFee() *OutletSettingUpdateOne {
+	_u.mutation.ClearRequireRegistrationFee()
+	return _u
+}
+
+// SetRegistrationFeeCatalogItemID sets the "registration_fee_catalog_item_id" field.
+func (_u *OutletSettingUpdateOne) SetRegistrationFeeCatalogItemID(v uuid.UUID) *OutletSettingUpdateOne {
+	_u.mutation.SetRegistrationFeeCatalogItemID(v)
+	return _u
+}
+
+// SetNillableRegistrationFeeCatalogItemID sets the "registration_fee_catalog_item_id" field if the given value is not nil.
+func (_u *OutletSettingUpdateOne) SetNillableRegistrationFeeCatalogItemID(v *uuid.UUID) *OutletSettingUpdateOne {
+	if v != nil {
+		_u.SetRegistrationFeeCatalogItemID(*v)
+	}
+	return _u
+}
+
+// ClearRegistrationFeeCatalogItemID clears the value of the "registration_fee_catalog_item_id" field.
+func (_u *OutletSettingUpdateOne) ClearRegistrationFeeCatalogItemID() *OutletSettingUpdateOne {
+	_u.mutation.ClearRegistrationFeeCatalogItemID()
+	return _u
+}
+
 // SetShiftAutoEndEnabled sets the "shift_auto_end_enabled" field.
 func (_u *OutletSettingUpdateOne) SetShiftAutoEndEnabled(v bool) *OutletSettingUpdateOne {
 	_u.mutation.SetShiftAutoEndEnabled(v)
@@ -3350,6 +3626,42 @@ func (_u *OutletSettingUpdateOne) sqlSave(ctx context.Context) (_node *OutletSet
 	}
 	if _u.mutation.ShiftReportsEnabledCleared() {
 		_spec.ClearField(outletsetting.FieldShiftReportsEnabled, field.TypeBool)
+	}
+	if value, ok := _u.mutation.EnableRecordsModule(); ok {
+		_spec.SetField(outletsetting.FieldEnableRecordsModule, field.TypeBool, value)
+	}
+	if _u.mutation.EnableRecordsModuleCleared() {
+		_spec.ClearField(outletsetting.FieldEnableRecordsModule, field.TypeBool)
+	}
+	if value, ok := _u.mutation.EnableTriageModule(); ok {
+		_spec.SetField(outletsetting.FieldEnableTriageModule, field.TypeBool, value)
+	}
+	if _u.mutation.EnableTriageModuleCleared() {
+		_spec.ClearField(outletsetting.FieldEnableTriageModule, field.TypeBool)
+	}
+	if value, ok := _u.mutation.EnableExaminationModule(); ok {
+		_spec.SetField(outletsetting.FieldEnableExaminationModule, field.TypeBool, value)
+	}
+	if _u.mutation.EnableExaminationModuleCleared() {
+		_spec.ClearField(outletsetting.FieldEnableExaminationModule, field.TypeBool)
+	}
+	if value, ok := _u.mutation.EnableLabModule(); ok {
+		_spec.SetField(outletsetting.FieldEnableLabModule, field.TypeBool, value)
+	}
+	if _u.mutation.EnableLabModuleCleared() {
+		_spec.ClearField(outletsetting.FieldEnableLabModule, field.TypeBool)
+	}
+	if value, ok := _u.mutation.RequireRegistrationFee(); ok {
+		_spec.SetField(outletsetting.FieldRequireRegistrationFee, field.TypeBool, value)
+	}
+	if _u.mutation.RequireRegistrationFeeCleared() {
+		_spec.ClearField(outletsetting.FieldRequireRegistrationFee, field.TypeBool)
+	}
+	if value, ok := _u.mutation.RegistrationFeeCatalogItemID(); ok {
+		_spec.SetField(outletsetting.FieldRegistrationFeeCatalogItemID, field.TypeUUID, value)
+	}
+	if _u.mutation.RegistrationFeeCatalogItemIDCleared() {
+		_spec.ClearField(outletsetting.FieldRegistrationFeeCatalogItemID, field.TypeUUID)
 	}
 	if value, ok := _u.mutation.ShiftAutoEndEnabled(); ok {
 		_spec.SetField(outletsetting.FieldShiftAutoEndEnabled, field.TypeBool, value)

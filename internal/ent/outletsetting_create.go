@@ -683,6 +683,90 @@ func (_c *OutletSettingCreate) SetNillableShiftReportsEnabled(v *bool) *OutletSe
 	return _c
 }
 
+// SetEnableRecordsModule sets the "enable_records_module" field.
+func (_c *OutletSettingCreate) SetEnableRecordsModule(v bool) *OutletSettingCreate {
+	_c.mutation.SetEnableRecordsModule(v)
+	return _c
+}
+
+// SetNillableEnableRecordsModule sets the "enable_records_module" field if the given value is not nil.
+func (_c *OutletSettingCreate) SetNillableEnableRecordsModule(v *bool) *OutletSettingCreate {
+	if v != nil {
+		_c.SetEnableRecordsModule(*v)
+	}
+	return _c
+}
+
+// SetEnableTriageModule sets the "enable_triage_module" field.
+func (_c *OutletSettingCreate) SetEnableTriageModule(v bool) *OutletSettingCreate {
+	_c.mutation.SetEnableTriageModule(v)
+	return _c
+}
+
+// SetNillableEnableTriageModule sets the "enable_triage_module" field if the given value is not nil.
+func (_c *OutletSettingCreate) SetNillableEnableTriageModule(v *bool) *OutletSettingCreate {
+	if v != nil {
+		_c.SetEnableTriageModule(*v)
+	}
+	return _c
+}
+
+// SetEnableExaminationModule sets the "enable_examination_module" field.
+func (_c *OutletSettingCreate) SetEnableExaminationModule(v bool) *OutletSettingCreate {
+	_c.mutation.SetEnableExaminationModule(v)
+	return _c
+}
+
+// SetNillableEnableExaminationModule sets the "enable_examination_module" field if the given value is not nil.
+func (_c *OutletSettingCreate) SetNillableEnableExaminationModule(v *bool) *OutletSettingCreate {
+	if v != nil {
+		_c.SetEnableExaminationModule(*v)
+	}
+	return _c
+}
+
+// SetEnableLabModule sets the "enable_lab_module" field.
+func (_c *OutletSettingCreate) SetEnableLabModule(v bool) *OutletSettingCreate {
+	_c.mutation.SetEnableLabModule(v)
+	return _c
+}
+
+// SetNillableEnableLabModule sets the "enable_lab_module" field if the given value is not nil.
+func (_c *OutletSettingCreate) SetNillableEnableLabModule(v *bool) *OutletSettingCreate {
+	if v != nil {
+		_c.SetEnableLabModule(*v)
+	}
+	return _c
+}
+
+// SetRequireRegistrationFee sets the "require_registration_fee" field.
+func (_c *OutletSettingCreate) SetRequireRegistrationFee(v bool) *OutletSettingCreate {
+	_c.mutation.SetRequireRegistrationFee(v)
+	return _c
+}
+
+// SetNillableRequireRegistrationFee sets the "require_registration_fee" field if the given value is not nil.
+func (_c *OutletSettingCreate) SetNillableRequireRegistrationFee(v *bool) *OutletSettingCreate {
+	if v != nil {
+		_c.SetRequireRegistrationFee(*v)
+	}
+	return _c
+}
+
+// SetRegistrationFeeCatalogItemID sets the "registration_fee_catalog_item_id" field.
+func (_c *OutletSettingCreate) SetRegistrationFeeCatalogItemID(v uuid.UUID) *OutletSettingCreate {
+	_c.mutation.SetRegistrationFeeCatalogItemID(v)
+	return _c
+}
+
+// SetNillableRegistrationFeeCatalogItemID sets the "registration_fee_catalog_item_id" field if the given value is not nil.
+func (_c *OutletSettingCreate) SetNillableRegistrationFeeCatalogItemID(v *uuid.UUID) *OutletSettingCreate {
+	if v != nil {
+		_c.SetRegistrationFeeCatalogItemID(*v)
+	}
+	return _c
+}
+
 // SetShiftAutoEndEnabled sets the "shift_auto_end_enabled" field.
 func (_c *OutletSettingCreate) SetShiftAutoEndEnabled(v bool) *OutletSettingCreate {
 	_c.mutation.SetShiftAutoEndEnabled(v)
@@ -989,6 +1073,26 @@ func (_c *OutletSettingCreate) defaults() {
 		v := outletsetting.DefaultShiftReportsEnabled
 		_c.mutation.SetShiftReportsEnabled(v)
 	}
+	if _, ok := _c.mutation.EnableRecordsModule(); !ok {
+		v := outletsetting.DefaultEnableRecordsModule
+		_c.mutation.SetEnableRecordsModule(v)
+	}
+	if _, ok := _c.mutation.EnableTriageModule(); !ok {
+		v := outletsetting.DefaultEnableTriageModule
+		_c.mutation.SetEnableTriageModule(v)
+	}
+	if _, ok := _c.mutation.EnableExaminationModule(); !ok {
+		v := outletsetting.DefaultEnableExaminationModule
+		_c.mutation.SetEnableExaminationModule(v)
+	}
+	if _, ok := _c.mutation.EnableLabModule(); !ok {
+		v := outletsetting.DefaultEnableLabModule
+		_c.mutation.SetEnableLabModule(v)
+	}
+	if _, ok := _c.mutation.RequireRegistrationFee(); !ok {
+		v := outletsetting.DefaultRequireRegistrationFee
+		_c.mutation.SetRequireRegistrationFee(v)
+	}
 	if _, ok := _c.mutation.ShiftAutoEndEnabled(); !ok {
 		v := outletsetting.DefaultShiftAutoEndEnabled
 		_c.mutation.SetShiftAutoEndEnabled(v)
@@ -1278,6 +1382,30 @@ func (_c *OutletSettingCreate) createSpec() (*OutletSetting, *sqlgraph.CreateSpe
 	if value, ok := _c.mutation.ShiftReportsEnabled(); ok {
 		_spec.SetField(outletsetting.FieldShiftReportsEnabled, field.TypeBool, value)
 		_node.ShiftReportsEnabled = value
+	}
+	if value, ok := _c.mutation.EnableRecordsModule(); ok {
+		_spec.SetField(outletsetting.FieldEnableRecordsModule, field.TypeBool, value)
+		_node.EnableRecordsModule = value
+	}
+	if value, ok := _c.mutation.EnableTriageModule(); ok {
+		_spec.SetField(outletsetting.FieldEnableTriageModule, field.TypeBool, value)
+		_node.EnableTriageModule = value
+	}
+	if value, ok := _c.mutation.EnableExaminationModule(); ok {
+		_spec.SetField(outletsetting.FieldEnableExaminationModule, field.TypeBool, value)
+		_node.EnableExaminationModule = value
+	}
+	if value, ok := _c.mutation.EnableLabModule(); ok {
+		_spec.SetField(outletsetting.FieldEnableLabModule, field.TypeBool, value)
+		_node.EnableLabModule = value
+	}
+	if value, ok := _c.mutation.RequireRegistrationFee(); ok {
+		_spec.SetField(outletsetting.FieldRequireRegistrationFee, field.TypeBool, value)
+		_node.RequireRegistrationFee = value
+	}
+	if value, ok := _c.mutation.RegistrationFeeCatalogItemID(); ok {
+		_spec.SetField(outletsetting.FieldRegistrationFeeCatalogItemID, field.TypeUUID, value)
+		_node.RegistrationFeeCatalogItemID = &value
 	}
 	if value, ok := _c.mutation.ShiftAutoEndEnabled(); ok {
 		_spec.SetField(outletsetting.FieldShiftAutoEndEnabled, field.TypeBool, value)
@@ -2309,6 +2437,114 @@ func (u *OutletSettingUpsert) UpdateShiftReportsEnabled() *OutletSettingUpsert {
 // ClearShiftReportsEnabled clears the value of the "shift_reports_enabled" field.
 func (u *OutletSettingUpsert) ClearShiftReportsEnabled() *OutletSettingUpsert {
 	u.SetNull(outletsetting.FieldShiftReportsEnabled)
+	return u
+}
+
+// SetEnableRecordsModule sets the "enable_records_module" field.
+func (u *OutletSettingUpsert) SetEnableRecordsModule(v bool) *OutletSettingUpsert {
+	u.Set(outletsetting.FieldEnableRecordsModule, v)
+	return u
+}
+
+// UpdateEnableRecordsModule sets the "enable_records_module" field to the value that was provided on create.
+func (u *OutletSettingUpsert) UpdateEnableRecordsModule() *OutletSettingUpsert {
+	u.SetExcluded(outletsetting.FieldEnableRecordsModule)
+	return u
+}
+
+// ClearEnableRecordsModule clears the value of the "enable_records_module" field.
+func (u *OutletSettingUpsert) ClearEnableRecordsModule() *OutletSettingUpsert {
+	u.SetNull(outletsetting.FieldEnableRecordsModule)
+	return u
+}
+
+// SetEnableTriageModule sets the "enable_triage_module" field.
+func (u *OutletSettingUpsert) SetEnableTriageModule(v bool) *OutletSettingUpsert {
+	u.Set(outletsetting.FieldEnableTriageModule, v)
+	return u
+}
+
+// UpdateEnableTriageModule sets the "enable_triage_module" field to the value that was provided on create.
+func (u *OutletSettingUpsert) UpdateEnableTriageModule() *OutletSettingUpsert {
+	u.SetExcluded(outletsetting.FieldEnableTriageModule)
+	return u
+}
+
+// ClearEnableTriageModule clears the value of the "enable_triage_module" field.
+func (u *OutletSettingUpsert) ClearEnableTriageModule() *OutletSettingUpsert {
+	u.SetNull(outletsetting.FieldEnableTriageModule)
+	return u
+}
+
+// SetEnableExaminationModule sets the "enable_examination_module" field.
+func (u *OutletSettingUpsert) SetEnableExaminationModule(v bool) *OutletSettingUpsert {
+	u.Set(outletsetting.FieldEnableExaminationModule, v)
+	return u
+}
+
+// UpdateEnableExaminationModule sets the "enable_examination_module" field to the value that was provided on create.
+func (u *OutletSettingUpsert) UpdateEnableExaminationModule() *OutletSettingUpsert {
+	u.SetExcluded(outletsetting.FieldEnableExaminationModule)
+	return u
+}
+
+// ClearEnableExaminationModule clears the value of the "enable_examination_module" field.
+func (u *OutletSettingUpsert) ClearEnableExaminationModule() *OutletSettingUpsert {
+	u.SetNull(outletsetting.FieldEnableExaminationModule)
+	return u
+}
+
+// SetEnableLabModule sets the "enable_lab_module" field.
+func (u *OutletSettingUpsert) SetEnableLabModule(v bool) *OutletSettingUpsert {
+	u.Set(outletsetting.FieldEnableLabModule, v)
+	return u
+}
+
+// UpdateEnableLabModule sets the "enable_lab_module" field to the value that was provided on create.
+func (u *OutletSettingUpsert) UpdateEnableLabModule() *OutletSettingUpsert {
+	u.SetExcluded(outletsetting.FieldEnableLabModule)
+	return u
+}
+
+// ClearEnableLabModule clears the value of the "enable_lab_module" field.
+func (u *OutletSettingUpsert) ClearEnableLabModule() *OutletSettingUpsert {
+	u.SetNull(outletsetting.FieldEnableLabModule)
+	return u
+}
+
+// SetRequireRegistrationFee sets the "require_registration_fee" field.
+func (u *OutletSettingUpsert) SetRequireRegistrationFee(v bool) *OutletSettingUpsert {
+	u.Set(outletsetting.FieldRequireRegistrationFee, v)
+	return u
+}
+
+// UpdateRequireRegistrationFee sets the "require_registration_fee" field to the value that was provided on create.
+func (u *OutletSettingUpsert) UpdateRequireRegistrationFee() *OutletSettingUpsert {
+	u.SetExcluded(outletsetting.FieldRequireRegistrationFee)
+	return u
+}
+
+// ClearRequireRegistrationFee clears the value of the "require_registration_fee" field.
+func (u *OutletSettingUpsert) ClearRequireRegistrationFee() *OutletSettingUpsert {
+	u.SetNull(outletsetting.FieldRequireRegistrationFee)
+	return u
+}
+
+// SetRegistrationFeeCatalogItemID sets the "registration_fee_catalog_item_id" field.
+func (u *OutletSettingUpsert) SetRegistrationFeeCatalogItemID(v uuid.UUID) *OutletSettingUpsert {
+	u.Set(outletsetting.FieldRegistrationFeeCatalogItemID, v)
+	return u
+}
+
+// UpdateRegistrationFeeCatalogItemID sets the "registration_fee_catalog_item_id" field to the value that was provided on create.
+func (u *OutletSettingUpsert) UpdateRegistrationFeeCatalogItemID() *OutletSettingUpsert {
+	u.SetExcluded(outletsetting.FieldRegistrationFeeCatalogItemID)
+	return u
+}
+
+// ClearRegistrationFeeCatalogItemID clears the value of the "registration_fee_catalog_item_id" field.
+func (u *OutletSettingUpsert) ClearRegistrationFeeCatalogItemID() *OutletSettingUpsert {
+	u.SetNull(outletsetting.FieldRegistrationFeeCatalogItemID)
 	return u
 }
 
@@ -3627,6 +3863,132 @@ func (u *OutletSettingUpsertOne) UpdateShiftReportsEnabled() *OutletSettingUpser
 func (u *OutletSettingUpsertOne) ClearShiftReportsEnabled() *OutletSettingUpsertOne {
 	return u.Update(func(s *OutletSettingUpsert) {
 		s.ClearShiftReportsEnabled()
+	})
+}
+
+// SetEnableRecordsModule sets the "enable_records_module" field.
+func (u *OutletSettingUpsertOne) SetEnableRecordsModule(v bool) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetEnableRecordsModule(v)
+	})
+}
+
+// UpdateEnableRecordsModule sets the "enable_records_module" field to the value that was provided on create.
+func (u *OutletSettingUpsertOne) UpdateEnableRecordsModule() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateEnableRecordsModule()
+	})
+}
+
+// ClearEnableRecordsModule clears the value of the "enable_records_module" field.
+func (u *OutletSettingUpsertOne) ClearEnableRecordsModule() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearEnableRecordsModule()
+	})
+}
+
+// SetEnableTriageModule sets the "enable_triage_module" field.
+func (u *OutletSettingUpsertOne) SetEnableTriageModule(v bool) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetEnableTriageModule(v)
+	})
+}
+
+// UpdateEnableTriageModule sets the "enable_triage_module" field to the value that was provided on create.
+func (u *OutletSettingUpsertOne) UpdateEnableTriageModule() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateEnableTriageModule()
+	})
+}
+
+// ClearEnableTriageModule clears the value of the "enable_triage_module" field.
+func (u *OutletSettingUpsertOne) ClearEnableTriageModule() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearEnableTriageModule()
+	})
+}
+
+// SetEnableExaminationModule sets the "enable_examination_module" field.
+func (u *OutletSettingUpsertOne) SetEnableExaminationModule(v bool) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetEnableExaminationModule(v)
+	})
+}
+
+// UpdateEnableExaminationModule sets the "enable_examination_module" field to the value that was provided on create.
+func (u *OutletSettingUpsertOne) UpdateEnableExaminationModule() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateEnableExaminationModule()
+	})
+}
+
+// ClearEnableExaminationModule clears the value of the "enable_examination_module" field.
+func (u *OutletSettingUpsertOne) ClearEnableExaminationModule() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearEnableExaminationModule()
+	})
+}
+
+// SetEnableLabModule sets the "enable_lab_module" field.
+func (u *OutletSettingUpsertOne) SetEnableLabModule(v bool) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetEnableLabModule(v)
+	})
+}
+
+// UpdateEnableLabModule sets the "enable_lab_module" field to the value that was provided on create.
+func (u *OutletSettingUpsertOne) UpdateEnableLabModule() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateEnableLabModule()
+	})
+}
+
+// ClearEnableLabModule clears the value of the "enable_lab_module" field.
+func (u *OutletSettingUpsertOne) ClearEnableLabModule() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearEnableLabModule()
+	})
+}
+
+// SetRequireRegistrationFee sets the "require_registration_fee" field.
+func (u *OutletSettingUpsertOne) SetRequireRegistrationFee(v bool) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetRequireRegistrationFee(v)
+	})
+}
+
+// UpdateRequireRegistrationFee sets the "require_registration_fee" field to the value that was provided on create.
+func (u *OutletSettingUpsertOne) UpdateRequireRegistrationFee() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateRequireRegistrationFee()
+	})
+}
+
+// ClearRequireRegistrationFee clears the value of the "require_registration_fee" field.
+func (u *OutletSettingUpsertOne) ClearRequireRegistrationFee() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearRequireRegistrationFee()
+	})
+}
+
+// SetRegistrationFeeCatalogItemID sets the "registration_fee_catalog_item_id" field.
+func (u *OutletSettingUpsertOne) SetRegistrationFeeCatalogItemID(v uuid.UUID) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetRegistrationFeeCatalogItemID(v)
+	})
+}
+
+// UpdateRegistrationFeeCatalogItemID sets the "registration_fee_catalog_item_id" field to the value that was provided on create.
+func (u *OutletSettingUpsertOne) UpdateRegistrationFeeCatalogItemID() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateRegistrationFeeCatalogItemID()
+	})
+}
+
+// ClearRegistrationFeeCatalogItemID clears the value of the "registration_fee_catalog_item_id" field.
+func (u *OutletSettingUpsertOne) ClearRegistrationFeeCatalogItemID() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearRegistrationFeeCatalogItemID()
 	})
 }
 
@@ -5144,6 +5506,132 @@ func (u *OutletSettingUpsertBulk) UpdateShiftReportsEnabled() *OutletSettingUpse
 func (u *OutletSettingUpsertBulk) ClearShiftReportsEnabled() *OutletSettingUpsertBulk {
 	return u.Update(func(s *OutletSettingUpsert) {
 		s.ClearShiftReportsEnabled()
+	})
+}
+
+// SetEnableRecordsModule sets the "enable_records_module" field.
+func (u *OutletSettingUpsertBulk) SetEnableRecordsModule(v bool) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetEnableRecordsModule(v)
+	})
+}
+
+// UpdateEnableRecordsModule sets the "enable_records_module" field to the value that was provided on create.
+func (u *OutletSettingUpsertBulk) UpdateEnableRecordsModule() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateEnableRecordsModule()
+	})
+}
+
+// ClearEnableRecordsModule clears the value of the "enable_records_module" field.
+func (u *OutletSettingUpsertBulk) ClearEnableRecordsModule() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearEnableRecordsModule()
+	})
+}
+
+// SetEnableTriageModule sets the "enable_triage_module" field.
+func (u *OutletSettingUpsertBulk) SetEnableTriageModule(v bool) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetEnableTriageModule(v)
+	})
+}
+
+// UpdateEnableTriageModule sets the "enable_triage_module" field to the value that was provided on create.
+func (u *OutletSettingUpsertBulk) UpdateEnableTriageModule() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateEnableTriageModule()
+	})
+}
+
+// ClearEnableTriageModule clears the value of the "enable_triage_module" field.
+func (u *OutletSettingUpsertBulk) ClearEnableTriageModule() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearEnableTriageModule()
+	})
+}
+
+// SetEnableExaminationModule sets the "enable_examination_module" field.
+func (u *OutletSettingUpsertBulk) SetEnableExaminationModule(v bool) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetEnableExaminationModule(v)
+	})
+}
+
+// UpdateEnableExaminationModule sets the "enable_examination_module" field to the value that was provided on create.
+func (u *OutletSettingUpsertBulk) UpdateEnableExaminationModule() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateEnableExaminationModule()
+	})
+}
+
+// ClearEnableExaminationModule clears the value of the "enable_examination_module" field.
+func (u *OutletSettingUpsertBulk) ClearEnableExaminationModule() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearEnableExaminationModule()
+	})
+}
+
+// SetEnableLabModule sets the "enable_lab_module" field.
+func (u *OutletSettingUpsertBulk) SetEnableLabModule(v bool) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetEnableLabModule(v)
+	})
+}
+
+// UpdateEnableLabModule sets the "enable_lab_module" field to the value that was provided on create.
+func (u *OutletSettingUpsertBulk) UpdateEnableLabModule() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateEnableLabModule()
+	})
+}
+
+// ClearEnableLabModule clears the value of the "enable_lab_module" field.
+func (u *OutletSettingUpsertBulk) ClearEnableLabModule() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearEnableLabModule()
+	})
+}
+
+// SetRequireRegistrationFee sets the "require_registration_fee" field.
+func (u *OutletSettingUpsertBulk) SetRequireRegistrationFee(v bool) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetRequireRegistrationFee(v)
+	})
+}
+
+// UpdateRequireRegistrationFee sets the "require_registration_fee" field to the value that was provided on create.
+func (u *OutletSettingUpsertBulk) UpdateRequireRegistrationFee() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateRequireRegistrationFee()
+	})
+}
+
+// ClearRequireRegistrationFee clears the value of the "require_registration_fee" field.
+func (u *OutletSettingUpsertBulk) ClearRequireRegistrationFee() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearRequireRegistrationFee()
+	})
+}
+
+// SetRegistrationFeeCatalogItemID sets the "registration_fee_catalog_item_id" field.
+func (u *OutletSettingUpsertBulk) SetRegistrationFeeCatalogItemID(v uuid.UUID) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetRegistrationFeeCatalogItemID(v)
+	})
+}
+
+// UpdateRegistrationFeeCatalogItemID sets the "registration_fee_catalog_item_id" field to the value that was provided on create.
+func (u *OutletSettingUpsertBulk) UpdateRegistrationFeeCatalogItemID() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateRegistrationFeeCatalogItemID()
+	})
+}
+
+// ClearRegistrationFeeCatalogItemID clears the value of the "registration_fee_catalog_item_id" field.
+func (u *OutletSettingUpsertBulk) ClearRegistrationFeeCatalogItemID() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearRegistrationFeeCatalogItemID()
 	})
 }
 

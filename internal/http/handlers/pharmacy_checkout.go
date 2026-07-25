@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
+	entvisit "github.com/bengobox/pos-service/internal/ent/patientvisit"
 	entpxl "github.com/bengobox/pos-service/internal/ent/prescriptionline"
 	"github.com/bengobox/pos-service/internal/modules/orders"
 )
@@ -129,6 +130,14 @@ func (h *PharmacyHandler) CheckoutPrescription(w http.ResponseWriter, r *http.Re
 
 	if _, err := h.db.Prescription.UpdateOneID(pxID).SetOrderID(order.ID).Save(r.Context()); err != nil {
 		h.log.Warn("prescription checkout: failed to link order_id", zap.Error(err))
+	}
+
+	// OPD-originated prescription: checkout is the final step of the clinical journey (payment
+	// itself is tracked on the order/payment records, not re-tracked on the visit).
+	if px.VisitID != nil {
+		if _, err := h.db.PatientVisit.UpdateOneID(*px.VisitID).SetStatus(entvisit.StatusCompleted).Save(r.Context()); err != nil {
+			h.log.Warn("failed to complete visit after checkout", zap.Error(err))
+		}
 	}
 
 	jsonOK(w, map[string]any{

@@ -106,6 +106,18 @@ func (OutletSetting) Fields() []ent.Field {
 		field.Bool("hotel_module_enabled").Default(false).Optional().Comment("Hotel/room management module (hospitality use case)"),
 		field.Bool("layaway_enabled").Default(false).Optional().Comment("Layaway plan / instalment payment module"),
 		field.Bool("shift_reports_enabled").Default(false).Optional().Comment("Shift reports & daily closing module"),
+		// OPD clinical workflow toggles (pharmacy use case) — a small chemist leaves all four
+		// off and keeps the direct New Prescription / Walk-In Sale flow; a facility with an
+		// attached clinic turns them on to run the full Records -> Triage -> Examination ->
+		// (optional) Lab -> Pharmacy journey. Independently switchable so a mid-tier pharmacy can
+		// e.g. run Records+Examination without Triage or Lab.
+		field.Bool("enable_records_module").Default(false).Optional().Comment("OPD patient registration (Records)"),
+		field.Bool("enable_triage_module").Default(false).Optional().Comment("OPD vitals capture (Triage)"),
+		field.Bool("enable_examination_module").Default(false).Optional().Comment("OPD doctor/pharmacist examination + diagnosis"),
+		field.Bool("enable_lab_module").Default(false).Optional().Comment("OPD lab test ordering + results"),
+		field.Bool("require_registration_fee").Default(false).Optional().Comment("Block triage until the registration/consultation fee order is paid"),
+		field.UUID("registration_fee_catalog_item_id", uuid.UUID{}).Optional().Nillable().
+			Comment("SERVICE catalog item billed as the registration/consultation fee at Records intake"),
 		// Shift duration enforcement
 		field.Bool("shift_auto_end_enabled").Default(false).Optional().Comment("Automatically end shift after shift_max_hours to prevent forgotten open sessions"),
 		field.Int("shift_max_hours").Default(12).Optional().Comment("Maximum shift length in hours before auto-end (1–24, default 12)"),

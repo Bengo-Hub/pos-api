@@ -97,6 +97,20 @@ func (_c *StaffMemberCreate) SetNillableRole(v *string) *StaffMemberCreate {
 	return _c
 }
 
+// SetLicenseNumber sets the "license_number" field.
+func (_c *StaffMemberCreate) SetLicenseNumber(v string) *StaffMemberCreate {
+	_c.mutation.SetLicenseNumber(v)
+	return _c
+}
+
+// SetNillableLicenseNumber sets the "license_number" field if the given value is not nil.
+func (_c *StaffMemberCreate) SetNillableLicenseNumber(v *string) *StaffMemberCreate {
+	if v != nil {
+		_c.SetLicenseNumber(*v)
+	}
+	return _c
+}
+
 // SetEmploymentType sets the "employment_type" field.
 func (_c *StaffMemberCreate) SetEmploymentType(v staffmember.EmploymentType) *StaffMemberCreate {
 	_c.mutation.SetEmploymentType(v)
@@ -491,6 +505,10 @@ func (_c *StaffMemberCreate) createSpec() (*StaffMember, *sqlgraph.CreateSpec) {
 		_spec.SetField(staffmember.FieldRole, field.TypeString, value)
 		_node.Role = value
 	}
+	if value, ok := _c.mutation.LicenseNumber(); ok {
+		_spec.SetField(staffmember.FieldLicenseNumber, field.TypeString, value)
+		_node.LicenseNumber = &value
+	}
 	if value, ok := _c.mutation.EmploymentType(); ok {
 		_spec.SetField(staffmember.FieldEmploymentType, field.TypeEnum, value)
 		_node.EmploymentType = value
@@ -732,6 +750,24 @@ func (u *StaffMemberUpsert) SetRole(v string) *StaffMemberUpsert {
 // UpdateRole sets the "role" field to the value that was provided on create.
 func (u *StaffMemberUpsert) UpdateRole() *StaffMemberUpsert {
 	u.SetExcluded(staffmember.FieldRole)
+	return u
+}
+
+// SetLicenseNumber sets the "license_number" field.
+func (u *StaffMemberUpsert) SetLicenseNumber(v string) *StaffMemberUpsert {
+	u.Set(staffmember.FieldLicenseNumber, v)
+	return u
+}
+
+// UpdateLicenseNumber sets the "license_number" field to the value that was provided on create.
+func (u *StaffMemberUpsert) UpdateLicenseNumber() *StaffMemberUpsert {
+	u.SetExcluded(staffmember.FieldLicenseNumber)
+	return u
+}
+
+// ClearLicenseNumber clears the value of the "license_number" field.
+func (u *StaffMemberUpsert) ClearLicenseNumber() *StaffMemberUpsert {
+	u.SetNull(staffmember.FieldLicenseNumber)
 	return u
 }
 
@@ -1169,6 +1205,27 @@ func (u *StaffMemberUpsertOne) SetRole(v string) *StaffMemberUpsertOne {
 func (u *StaffMemberUpsertOne) UpdateRole() *StaffMemberUpsertOne {
 	return u.Update(func(s *StaffMemberUpsert) {
 		s.UpdateRole()
+	})
+}
+
+// SetLicenseNumber sets the "license_number" field.
+func (u *StaffMemberUpsertOne) SetLicenseNumber(v string) *StaffMemberUpsertOne {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.SetLicenseNumber(v)
+	})
+}
+
+// UpdateLicenseNumber sets the "license_number" field to the value that was provided on create.
+func (u *StaffMemberUpsertOne) UpdateLicenseNumber() *StaffMemberUpsertOne {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.UpdateLicenseNumber()
+	})
+}
+
+// ClearLicenseNumber clears the value of the "license_number" field.
+func (u *StaffMemberUpsertOne) ClearLicenseNumber() *StaffMemberUpsertOne {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.ClearLicenseNumber()
 	})
 }
 
@@ -1814,6 +1871,27 @@ func (u *StaffMemberUpsertBulk) SetRole(v string) *StaffMemberUpsertBulk {
 func (u *StaffMemberUpsertBulk) UpdateRole() *StaffMemberUpsertBulk {
 	return u.Update(func(s *StaffMemberUpsert) {
 		s.UpdateRole()
+	})
+}
+
+// SetLicenseNumber sets the "license_number" field.
+func (u *StaffMemberUpsertBulk) SetLicenseNumber(v string) *StaffMemberUpsertBulk {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.SetLicenseNumber(v)
+	})
+}
+
+// UpdateLicenseNumber sets the "license_number" field to the value that was provided on create.
+func (u *StaffMemberUpsertBulk) UpdateLicenseNumber() *StaffMemberUpsertBulk {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.UpdateLicenseNumber()
+	})
+}
+
+// ClearLicenseNumber clears the value of the "license_number" field.
+func (u *StaffMemberUpsertBulk) ClearLicenseNumber() *StaffMemberUpsertBulk {
+	return u.Update(func(s *StaffMemberUpsert) {
+		s.ClearLicenseNumber()
 	})
 }
 

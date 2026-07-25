@@ -634,6 +634,39 @@ var (
 			},
 		},
 	}
+	// ExaminationRecordsColumns holds the columns for the "examination_records" table.
+	ExaminationRecordsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "visit_id", Type: field.TypeUUID},
+		{Name: "examined_by", Type: field.TypeUUID},
+		{Name: "chief_complaint", Type: field.TypeString, Nullable: true},
+		{Name: "diagnosis", Type: field.TypeString, Nullable: true},
+		{Name: "clinical_notes", Type: field.TypeString, Nullable: true},
+		{Name: "lab_requested", Type: field.TypeBool, Default: false},
+		{Name: "prescription_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"in_progress", "awaiting_lab", "completed"}, Default: "in_progress"},
+		{Name: "examined_at", Type: field.TypeTime},
+		{Name: "completed_at", Type: field.TypeTime, Nullable: true},
+	}
+	// ExaminationRecordsTable holds the schema information for the "examination_records" table.
+	ExaminationRecordsTable = &schema.Table{
+		Name:       "examination_records",
+		Columns:    ExaminationRecordsColumns,
+		PrimaryKey: []*schema.Column{ExaminationRecordsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "examinationrecord_tenant_id_visit_id",
+				Unique:  false,
+				Columns: []*schema.Column{ExaminationRecordsColumns[1], ExaminationRecordsColumns[2]},
+			},
+			{
+				Name:    "examinationrecord_tenant_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{ExaminationRecordsColumns[1], ExaminationRecordsColumns[9]},
+			},
+		},
+	}
 	// FacilitiesColumns holds the columns for the "facilities" table.
 	FacilitiesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -1019,6 +1052,63 @@ var (
 				Name:    "kdsticket_order_id",
 				Unique:  false,
 				Columns: []*schema.Column{KdsTicketsColumns[2]},
+			},
+		},
+	}
+	// LabOrdersColumns holds the columns for the "lab_orders" table.
+	LabOrdersColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "visit_id", Type: field.TypeUUID},
+		{Name: "examination_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "ordered_by", Type: field.TypeUUID},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"ordered", "in_progress", "completed", "cancelled"}, Default: "ordered"},
+		{Name: "notes", Type: field.TypeString, Nullable: true},
+		{Name: "ordered_at", Type: field.TypeTime},
+		{Name: "completed_at", Type: field.TypeTime, Nullable: true},
+	}
+	// LabOrdersTable holds the schema information for the "lab_orders" table.
+	LabOrdersTable = &schema.Table{
+		Name:       "lab_orders",
+		Columns:    LabOrdersColumns,
+		PrimaryKey: []*schema.Column{LabOrdersColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "laborder_tenant_id_visit_id",
+				Unique:  false,
+				Columns: []*schema.Column{LabOrdersColumns[1], LabOrdersColumns[2]},
+			},
+			{
+				Name:    "laborder_tenant_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{LabOrdersColumns[1], LabOrdersColumns[5]},
+			},
+		},
+	}
+	// LabOrderLinesColumns holds the columns for the "lab_order_lines" table.
+	LabOrderLinesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "lab_order_id", Type: field.TypeUUID},
+		{Name: "test_name", Type: field.TypeString},
+		{Name: "result", Type: field.TypeString, Nullable: true},
+		{Name: "unit", Type: field.TypeString, Nullable: true},
+		{Name: "reference_range", Type: field.TypeString, Nullable: true},
+		{Name: "flag", Type: field.TypeEnum, Enums: []string{"pending", "normal", "abnormal", "critical"}, Default: "pending"},
+		{Name: "notes", Type: field.TypeString, Nullable: true},
+		{Name: "resulted_by", Type: field.TypeUUID, Nullable: true},
+		{Name: "resulted_at", Type: field.TypeTime, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+	}
+	// LabOrderLinesTable holds the schema information for the "lab_order_lines" table.
+	LabOrderLinesTable = &schema.Table{
+		Name:       "lab_order_lines",
+		Columns:    LabOrderLinesColumns,
+		PrimaryKey: []*schema.Column{LabOrderLinesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "laborderline_lab_order_id",
+				Unique:  false,
+				Columns: []*schema.Column{LabOrderLinesColumns[1]},
 			},
 		},
 	}
@@ -1520,6 +1610,12 @@ var (
 		{Name: "hotel_module_enabled", Type: field.TypeBool, Nullable: true, Default: false},
 		{Name: "layaway_enabled", Type: field.TypeBool, Nullable: true, Default: false},
 		{Name: "shift_reports_enabled", Type: field.TypeBool, Nullable: true, Default: false},
+		{Name: "enable_records_module", Type: field.TypeBool, Nullable: true, Default: false},
+		{Name: "enable_triage_module", Type: field.TypeBool, Nullable: true, Default: false},
+		{Name: "enable_examination_module", Type: field.TypeBool, Nullable: true, Default: false},
+		{Name: "enable_lab_module", Type: field.TypeBool, Nullable: true, Default: false},
+		{Name: "require_registration_fee", Type: field.TypeBool, Nullable: true, Default: false},
+		{Name: "registration_fee_catalog_item_id", Type: field.TypeUUID, Nullable: true},
 		{Name: "shift_auto_end_enabled", Type: field.TypeBool, Nullable: true, Default: false},
 		{Name: "shift_max_hours", Type: field.TypeInt, Nullable: true, Default: 12},
 		{Name: "table_max_occupation_minutes", Type: field.TypeInt, Nullable: true, Default: 240},
@@ -1540,7 +1636,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "outlet_settings_outlets_settings",
-				Columns:    []*schema.Column{OutletSettingsColumns[61]},
+				Columns:    []*schema.Column{OutletSettingsColumns[67]},
 				RefColumns: []*schema.Column{OutletsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -2184,6 +2280,93 @@ var (
 			},
 		},
 	}
+	// PatientsColumns holds the columns for the "patients" table.
+	PatientsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "outlet_id", Type: field.TypeUUID},
+		{Name: "patient_number", Type: field.TypeString},
+		{Name: "full_name", Type: field.TypeString},
+		{Name: "dob", Type: field.TypeTime, Nullable: true},
+		{Name: "gender", Type: field.TypeString, Nullable: true},
+		{Name: "phone", Type: field.TypeString, Nullable: true},
+		{Name: "id_number", Type: field.TypeString, Nullable: true},
+		{Name: "address", Type: field.TypeString, Nullable: true},
+		{Name: "allergy_flags", Type: field.TypeJSON, Nullable: true},
+		{Name: "crm_contact_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// PatientsTable holds the schema information for the "patients" table.
+	PatientsTable = &schema.Table{
+		Name:       "patients",
+		Columns:    PatientsColumns,
+		PrimaryKey: []*schema.Column{PatientsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "patient_tenant_id_patient_number",
+				Unique:  true,
+				Columns: []*schema.Column{PatientsColumns[1], PatientsColumns[3]},
+			},
+			{
+				Name:    "patient_tenant_id_phone",
+				Unique:  false,
+				Columns: []*schema.Column{PatientsColumns[1], PatientsColumns[7]},
+			},
+			{
+				Name:    "patient_tenant_id_id_number",
+				Unique:  false,
+				Columns: []*schema.Column{PatientsColumns[1], PatientsColumns[8]},
+			},
+			{
+				Name:    "patient_tenant_id_full_name",
+				Unique:  false,
+				Columns: []*schema.Column{PatientsColumns[1], PatientsColumns[4]},
+			},
+		},
+	}
+	// PatientVisitsColumns holds the columns for the "patient_visits" table.
+	PatientVisitsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "outlet_id", Type: field.TypeUUID},
+		{Name: "patient_id", Type: field.TypeUUID},
+		{Name: "visit_number", Type: field.TypeString},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"registered", "triaged", "in_examination", "awaiting_lab", "lab_complete", "prescribed", "dispensed", "completed", "cancelled"}, Default: "registered"},
+		{Name: "registration_fee_order_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "chief_complaint", Type: field.TypeString, Nullable: true},
+		{Name: "registered_by", Type: field.TypeUUID, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// PatientVisitsTable holds the schema information for the "patient_visits" table.
+	PatientVisitsTable = &schema.Table{
+		Name:       "patient_visits",
+		Columns:    PatientVisitsColumns,
+		PrimaryKey: []*schema.Column{PatientVisitsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "patientvisit_tenant_id_visit_number",
+				Unique:  true,
+				Columns: []*schema.Column{PatientVisitsColumns[1], PatientVisitsColumns[4]},
+			},
+			{
+				Name:    "patientvisit_tenant_id_patient_id",
+				Unique:  false,
+				Columns: []*schema.Column{PatientVisitsColumns[1], PatientVisitsColumns[3]},
+			},
+			{
+				Name:    "patientvisit_tenant_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{PatientVisitsColumns[1], PatientVisitsColumns[5]},
+			},
+			{
+				Name:    "patientvisit_tenant_id_outlet_id",
+				Unique:  false,
+				Columns: []*schema.Column{PatientVisitsColumns[1], PatientVisitsColumns[2]},
+			},
+		},
+	}
 	// PosNotificationsColumns holds the columns for the "pos_notifications" table.
 	PosNotificationsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -2221,6 +2404,9 @@ var (
 		{Name: "tenant_id", Type: field.TypeUUID},
 		{Name: "outlet_id", Type: field.TypeUUID},
 		{Name: "order_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "patient_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "visit_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "external_facility_name", Type: field.TypeString, Nullable: true},
 		{Name: "prescription_number", Type: field.TypeString},
 		{Name: "prescriber_name", Type: field.TypeString, Nullable: true},
 		{Name: "prescriber_license", Type: field.TypeString, Nullable: true},
@@ -2254,17 +2440,27 @@ var (
 			{
 				Name:    "prescription_prescription_number",
 				Unique:  false,
-				Columns: []*schema.Column{PrescriptionsColumns[4]},
+				Columns: []*schema.Column{PrescriptionsColumns[7]},
 			},
 			{
 				Name:    "prescription_status",
 				Unique:  false,
-				Columns: []*schema.Column{PrescriptionsColumns[10]},
+				Columns: []*schema.Column{PrescriptionsColumns[13]},
 			},
 			{
 				Name:    "prescription_order_id",
 				Unique:  false,
 				Columns: []*schema.Column{PrescriptionsColumns[3]},
+			},
+			{
+				Name:    "prescription_tenant_id_patient_id",
+				Unique:  false,
+				Columns: []*schema.Column{PrescriptionsColumns[1], PrescriptionsColumns[4]},
+			},
+			{
+				Name:    "prescription_tenant_id_visit_id",
+				Unique:  false,
+				Columns: []*schema.Column{PrescriptionsColumns[1], PrescriptionsColumns[5]},
 			},
 		},
 	}
@@ -3352,6 +3548,7 @@ var (
 		{Name: "commission_rate", Type: field.TypeFloat64, Nullable: true},
 		{Name: "is_active", Type: field.TypeBool, Default: true},
 		{Name: "role", Type: field.TypeString, Default: "cashier"},
+		{Name: "license_number", Type: field.TypeString, Nullable: true},
 		{Name: "employment_type", Type: field.TypeEnum, Nullable: true, Enums: []string{"full_time", "part_time", "casual", "contractor"}, Default: "full_time"},
 		{Name: "hourly_rate", Type: field.TypeFloat64, Nullable: true},
 		{Name: "daily_rate", Type: field.TypeFloat64, Nullable: true},
@@ -3381,7 +3578,7 @@ var (
 			{
 				Name:    "staffmember_tenant_id_pin_fast_hash",
 				Unique:  true,
-				Columns: []*schema.Column{StaffMembersColumns[1], StaffMembersColumns[18]},
+				Columns: []*schema.Column{StaffMembersColumns[1], StaffMembersColumns[19]},
 			},
 		},
 	}
@@ -3850,6 +4047,36 @@ var (
 			},
 		},
 	}
+	// TriageRecordsColumns holds the columns for the "triage_records" table.
+	TriageRecordsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "visit_id", Type: field.TypeUUID},
+		{Name: "taken_by", Type: field.TypeUUID},
+		{Name: "bp_systolic", Type: field.TypeInt, Nullable: true},
+		{Name: "bp_diastolic", Type: field.TypeInt, Nullable: true},
+		{Name: "temperature_celsius", Type: field.TypeFloat64, Nullable: true},
+		{Name: "pulse_bpm", Type: field.TypeInt, Nullable: true},
+		{Name: "respiration_rate", Type: field.TypeInt, Nullable: true},
+		{Name: "spo2_percent", Type: field.TypeFloat64, Nullable: true},
+		{Name: "weight_kg", Type: field.TypeFloat64, Nullable: true},
+		{Name: "height_cm", Type: field.TypeFloat64, Nullable: true},
+		{Name: "notes", Type: field.TypeString, Nullable: true},
+		{Name: "taken_at", Type: field.TypeTime},
+	}
+	// TriageRecordsTable holds the schema information for the "triage_records" table.
+	TriageRecordsTable = &schema.Table{
+		Name:       "triage_records",
+		Columns:    TriageRecordsColumns,
+		PrimaryKey: []*schema.Column{TriageRecordsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "triagerecord_tenant_id_visit_id",
+				Unique:  false,
+				Columns: []*schema.Column{TriageRecordsColumns[1], TriageRecordsColumns[2]},
+			},
+		},
+	}
 	// UsersColumns holds the columns for the "users" table.
 	UsersColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -4055,6 +4282,7 @@ var (
 		DocumentSequencesTable,
 		DrugInteractionChecksTable,
 		EventBookingsTable,
+		ExaminationRecordsTable,
 		FacilitiesTable,
 		FacilityBookingsTable,
 		FeatureOverridesTable,
@@ -4068,6 +4296,8 @@ var (
 		KdsStationsTable,
 		KdsSyncFailuresTable,
 		KdsTicketsTable,
+		LabOrdersTable,
+		LabOrderLinesTable,
 		LayawayPaymentsTable,
 		LayawayPlansTable,
 		LeaveRequestsTable,
@@ -4100,6 +4330,8 @@ var (
 		PosRolePermissionsTable,
 		PosRoleV2sTable,
 		PosUserRoleAssignmentsTable,
+		PatientsTable,
+		PatientVisitsTable,
 		PosNotificationsTable,
 		PrescriptionsTable,
 		PrescriptionLinesTable,
@@ -4149,6 +4381,7 @@ var (
 		TenantsTable,
 		TenantSyncEventsTable,
 		TendersTable,
+		TriageRecordsTable,
 		UsersTable,
 		UserPosRolesTable,
 		WebhookDeliveriesTable,

@@ -158,6 +158,26 @@ func (_u *StaffMemberUpdate) SetNillableRole(v *string) *StaffMemberUpdate {
 	return _u
 }
 
+// SetLicenseNumber sets the "license_number" field.
+func (_u *StaffMemberUpdate) SetLicenseNumber(v string) *StaffMemberUpdate {
+	_u.mutation.SetLicenseNumber(v)
+	return _u
+}
+
+// SetNillableLicenseNumber sets the "license_number" field if the given value is not nil.
+func (_u *StaffMemberUpdate) SetNillableLicenseNumber(v *string) *StaffMemberUpdate {
+	if v != nil {
+		_u.SetLicenseNumber(*v)
+	}
+	return _u
+}
+
+// ClearLicenseNumber clears the value of the "license_number" field.
+func (_u *StaffMemberUpdate) ClearLicenseNumber() *StaffMemberUpdate {
+	_u.mutation.ClearLicenseNumber()
+	return _u
+}
+
 // SetEmploymentType sets the "employment_type" field.
 func (_u *StaffMemberUpdate) SetEmploymentType(v staffmember.EmploymentType) *StaffMemberUpdate {
 	_u.mutation.SetEmploymentType(v)
@@ -571,6 +591,12 @@ func (_u *StaffMemberUpdate) sqlSave(ctx context.Context) (_node int, err error)
 	if value, ok := _u.mutation.Role(); ok {
 		_spec.SetField(staffmember.FieldRole, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.LicenseNumber(); ok {
+		_spec.SetField(staffmember.FieldLicenseNumber, field.TypeString, value)
+	}
+	if _u.mutation.LicenseNumberCleared() {
+		_spec.ClearField(staffmember.FieldLicenseNumber, field.TypeString)
+	}
 	if value, ok := _u.mutation.EmploymentType(); ok {
 		_spec.SetField(staffmember.FieldEmploymentType, field.TypeEnum, value)
 	}
@@ -844,6 +870,26 @@ func (_u *StaffMemberUpdateOne) SetNillableRole(v *string) *StaffMemberUpdateOne
 	if v != nil {
 		_u.SetRole(*v)
 	}
+	return _u
+}
+
+// SetLicenseNumber sets the "license_number" field.
+func (_u *StaffMemberUpdateOne) SetLicenseNumber(v string) *StaffMemberUpdateOne {
+	_u.mutation.SetLicenseNumber(v)
+	return _u
+}
+
+// SetNillableLicenseNumber sets the "license_number" field if the given value is not nil.
+func (_u *StaffMemberUpdateOne) SetNillableLicenseNumber(v *string) *StaffMemberUpdateOne {
+	if v != nil {
+		_u.SetLicenseNumber(*v)
+	}
+	return _u
+}
+
+// ClearLicenseNumber clears the value of the "license_number" field.
+func (_u *StaffMemberUpdateOne) ClearLicenseNumber() *StaffMemberUpdateOne {
+	_u.mutation.ClearLicenseNumber()
 	return _u
 }
 
@@ -1289,6 +1335,12 @@ func (_u *StaffMemberUpdateOne) sqlSave(ctx context.Context) (_node *StaffMember
 	}
 	if value, ok := _u.mutation.Role(); ok {
 		_spec.SetField(staffmember.FieldRole, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.LicenseNumber(); ok {
+		_spec.SetField(staffmember.FieldLicenseNumber, field.TypeString, value)
+	}
+	if _u.mutation.LicenseNumberCleared() {
+		_spec.ClearField(staffmember.FieldLicenseNumber, field.TypeString)
 	}
 	if value, ok := _u.mutation.EmploymentType(); ok {
 		_spec.SetField(staffmember.FieldEmploymentType, field.TypeEnum, value)

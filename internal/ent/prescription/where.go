@@ -70,6 +70,21 @@ func OrderID(v uuid.UUID) predicate.Prescription {
 	return predicate.Prescription(sql.FieldEQ(FieldOrderID, v))
 }
 
+// PatientID applies equality check predicate on the "patient_id" field. It's identical to PatientIDEQ.
+func PatientID(v uuid.UUID) predicate.Prescription {
+	return predicate.Prescription(sql.FieldEQ(FieldPatientID, v))
+}
+
+// VisitID applies equality check predicate on the "visit_id" field. It's identical to VisitIDEQ.
+func VisitID(v uuid.UUID) predicate.Prescription {
+	return predicate.Prescription(sql.FieldEQ(FieldVisitID, v))
+}
+
+// ExternalFacilityName applies equality check predicate on the "external_facility_name" field. It's identical to ExternalFacilityNameEQ.
+func ExternalFacilityName(v string) predicate.Prescription {
+	return predicate.Prescription(sql.FieldEQ(FieldExternalFacilityName, v))
+}
+
 // PrescriptionNumber applies equality check predicate on the "prescription_number" field. It's identical to PrescriptionNumberEQ.
 func PrescriptionNumber(v string) predicate.Prescription {
 	return predicate.Prescription(sql.FieldEQ(FieldPrescriptionNumber, v))
@@ -258,6 +273,181 @@ func OrderIDIsNil() predicate.Prescription {
 // OrderIDNotNil applies the NotNil predicate on the "order_id" field.
 func OrderIDNotNil() predicate.Prescription {
 	return predicate.Prescription(sql.FieldNotNull(FieldOrderID))
+}
+
+// PatientIDEQ applies the EQ predicate on the "patient_id" field.
+func PatientIDEQ(v uuid.UUID) predicate.Prescription {
+	return predicate.Prescription(sql.FieldEQ(FieldPatientID, v))
+}
+
+// PatientIDNEQ applies the NEQ predicate on the "patient_id" field.
+func PatientIDNEQ(v uuid.UUID) predicate.Prescription {
+	return predicate.Prescription(sql.FieldNEQ(FieldPatientID, v))
+}
+
+// PatientIDIn applies the In predicate on the "patient_id" field.
+func PatientIDIn(vs ...uuid.UUID) predicate.Prescription {
+	return predicate.Prescription(sql.FieldIn(FieldPatientID, vs...))
+}
+
+// PatientIDNotIn applies the NotIn predicate on the "patient_id" field.
+func PatientIDNotIn(vs ...uuid.UUID) predicate.Prescription {
+	return predicate.Prescription(sql.FieldNotIn(FieldPatientID, vs...))
+}
+
+// PatientIDGT applies the GT predicate on the "patient_id" field.
+func PatientIDGT(v uuid.UUID) predicate.Prescription {
+	return predicate.Prescription(sql.FieldGT(FieldPatientID, v))
+}
+
+// PatientIDGTE applies the GTE predicate on the "patient_id" field.
+func PatientIDGTE(v uuid.UUID) predicate.Prescription {
+	return predicate.Prescription(sql.FieldGTE(FieldPatientID, v))
+}
+
+// PatientIDLT applies the LT predicate on the "patient_id" field.
+func PatientIDLT(v uuid.UUID) predicate.Prescription {
+	return predicate.Prescription(sql.FieldLT(FieldPatientID, v))
+}
+
+// PatientIDLTE applies the LTE predicate on the "patient_id" field.
+func PatientIDLTE(v uuid.UUID) predicate.Prescription {
+	return predicate.Prescription(sql.FieldLTE(FieldPatientID, v))
+}
+
+// PatientIDIsNil applies the IsNil predicate on the "patient_id" field.
+func PatientIDIsNil() predicate.Prescription {
+	return predicate.Prescription(sql.FieldIsNull(FieldPatientID))
+}
+
+// PatientIDNotNil applies the NotNil predicate on the "patient_id" field.
+func PatientIDNotNil() predicate.Prescription {
+	return predicate.Prescription(sql.FieldNotNull(FieldPatientID))
+}
+
+// VisitIDEQ applies the EQ predicate on the "visit_id" field.
+func VisitIDEQ(v uuid.UUID) predicate.Prescription {
+	return predicate.Prescription(sql.FieldEQ(FieldVisitID, v))
+}
+
+// VisitIDNEQ applies the NEQ predicate on the "visit_id" field.
+func VisitIDNEQ(v uuid.UUID) predicate.Prescription {
+	return predicate.Prescription(sql.FieldNEQ(FieldVisitID, v))
+}
+
+// VisitIDIn applies the In predicate on the "visit_id" field.
+func VisitIDIn(vs ...uuid.UUID) predicate.Prescription {
+	return predicate.Prescription(sql.FieldIn(FieldVisitID, vs...))
+}
+
+// VisitIDNotIn applies the NotIn predicate on the "visit_id" field.
+func VisitIDNotIn(vs ...uuid.UUID) predicate.Prescription {
+	return predicate.Prescription(sql.FieldNotIn(FieldVisitID, vs...))
+}
+
+// VisitIDGT applies the GT predicate on the "visit_id" field.
+func VisitIDGT(v uuid.UUID) predicate.Prescription {
+	return predicate.Prescription(sql.FieldGT(FieldVisitID, v))
+}
+
+// VisitIDGTE applies the GTE predicate on the "visit_id" field.
+func VisitIDGTE(v uuid.UUID) predicate.Prescription {
+	return predicate.Prescription(sql.FieldGTE(FieldVisitID, v))
+}
+
+// VisitIDLT applies the LT predicate on the "visit_id" field.
+func VisitIDLT(v uuid.UUID) predicate.Prescription {
+	return predicate.Prescription(sql.FieldLT(FieldVisitID, v))
+}
+
+// VisitIDLTE applies the LTE predicate on the "visit_id" field.
+func VisitIDLTE(v uuid.UUID) predicate.Prescription {
+	return predicate.Prescription(sql.FieldLTE(FieldVisitID, v))
+}
+
+// VisitIDIsNil applies the IsNil predicate on the "visit_id" field.
+func VisitIDIsNil() predicate.Prescription {
+	return predicate.Prescription(sql.FieldIsNull(FieldVisitID))
+}
+
+// VisitIDNotNil applies the NotNil predicate on the "visit_id" field.
+func VisitIDNotNil() predicate.Prescription {
+	return predicate.Prescription(sql.FieldNotNull(FieldVisitID))
+}
+
+// ExternalFacilityNameEQ applies the EQ predicate on the "external_facility_name" field.
+func ExternalFacilityNameEQ(v string) predicate.Prescription {
+	return predicate.Prescription(sql.FieldEQ(FieldExternalFacilityName, v))
+}
+
+// ExternalFacilityNameNEQ applies the NEQ predicate on the "external_facility_name" field.
+func ExternalFacilityNameNEQ(v string) predicate.Prescription {
+	return predicate.Prescription(sql.FieldNEQ(FieldExternalFacilityName, v))
+}
+
+// ExternalFacilityNameIn applies the In predicate on the "external_facility_name" field.
+func ExternalFacilityNameIn(vs ...string) predicate.Prescription {
+	return predicate.Prescription(sql.FieldIn(FieldExternalFacilityName, vs...))
+}
+
+// ExternalFacilityNameNotIn applies the NotIn predicate on the "external_facility_name" field.
+func ExternalFacilityNameNotIn(vs ...string) predicate.Prescription {
+	return predicate.Prescription(sql.FieldNotIn(FieldExternalFacilityName, vs...))
+}
+
+// ExternalFacilityNameGT applies the GT predicate on the "external_facility_name" field.
+func ExternalFacilityNameGT(v string) predicate.Prescription {
+	return predicate.Prescription(sql.FieldGT(FieldExternalFacilityName, v))
+}
+
+// ExternalFacilityNameGTE applies the GTE predicate on the "external_facility_name" field.
+func ExternalFacilityNameGTE(v string) predicate.Prescription {
+	return predicate.Prescription(sql.FieldGTE(FieldExternalFacilityName, v))
+}
+
+// ExternalFacilityNameLT applies the LT predicate on the "external_facility_name" field.
+func ExternalFacilityNameLT(v string) predicate.Prescription {
+	return predicate.Prescription(sql.FieldLT(FieldExternalFacilityName, v))
+}
+
+// ExternalFacilityNameLTE applies the LTE predicate on the "external_facility_name" field.
+func ExternalFacilityNameLTE(v string) predicate.Prescription {
+	return predicate.Prescription(sql.FieldLTE(FieldExternalFacilityName, v))
+}
+
+// ExternalFacilityNameContains applies the Contains predicate on the "external_facility_name" field.
+func ExternalFacilityNameContains(v string) predicate.Prescription {
+	return predicate.Prescription(sql.FieldContains(FieldExternalFacilityName, v))
+}
+
+// ExternalFacilityNameHasPrefix applies the HasPrefix predicate on the "external_facility_name" field.
+func ExternalFacilityNameHasPrefix(v string) predicate.Prescription {
+	return predicate.Prescription(sql.FieldHasPrefix(FieldExternalFacilityName, v))
+}
+
+// ExternalFacilityNameHasSuffix applies the HasSuffix predicate on the "external_facility_name" field.
+func ExternalFacilityNameHasSuffix(v string) predicate.Prescription {
+	return predicate.Prescription(sql.FieldHasSuffix(FieldExternalFacilityName, v))
+}
+
+// ExternalFacilityNameIsNil applies the IsNil predicate on the "external_facility_name" field.
+func ExternalFacilityNameIsNil() predicate.Prescription {
+	return predicate.Prescription(sql.FieldIsNull(FieldExternalFacilityName))
+}
+
+// ExternalFacilityNameNotNil applies the NotNil predicate on the "external_facility_name" field.
+func ExternalFacilityNameNotNil() predicate.Prescription {
+	return predicate.Prescription(sql.FieldNotNull(FieldExternalFacilityName))
+}
+
+// ExternalFacilityNameEqualFold applies the EqualFold predicate on the "external_facility_name" field.
+func ExternalFacilityNameEqualFold(v string) predicate.Prescription {
+	return predicate.Prescription(sql.FieldEqualFold(FieldExternalFacilityName, v))
+}
+
+// ExternalFacilityNameContainsFold applies the ContainsFold predicate on the "external_facility_name" field.
+func ExternalFacilityNameContainsFold(v string) predicate.Prescription {
+	return predicate.Prescription(sql.FieldContainsFold(FieldExternalFacilityName, v))
 }
 
 // PrescriptionNumberEQ applies the EQ predicate on the "prescription_number" field.

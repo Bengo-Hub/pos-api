@@ -249,6 +249,18 @@ func (f EventBookingFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EventBookingMutation", m)
 }
 
+// The ExaminationRecordFunc type is an adapter to allow the use of ordinary
+// function as ExaminationRecord mutator.
+type ExaminationRecordFunc func(context.Context, *ent.ExaminationRecordMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ExaminationRecordFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ExaminationRecordMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ExaminationRecordMutation", m)
+}
+
 // The FacilityFunc type is an adapter to allow the use of ordinary
 // function as Facility mutator.
 type FacilityFunc func(context.Context, *ent.FacilityMutation) (ent.Value, error)
@@ -403,6 +415,30 @@ func (f KDSTicketFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, e
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.KDSTicketMutation", m)
+}
+
+// The LabOrderFunc type is an adapter to allow the use of ordinary
+// function as LabOrder mutator.
+type LabOrderFunc func(context.Context, *ent.LabOrderMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f LabOrderFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.LabOrderMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.LabOrderMutation", m)
+}
+
+// The LabOrderLineFunc type is an adapter to allow the use of ordinary
+// function as LabOrderLine mutator.
+type LabOrderLineFunc func(context.Context, *ent.LabOrderLineMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f LabOrderLineFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.LabOrderLineMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.LabOrderLineMutation", m)
 }
 
 // The LayawayPaymentFunc type is an adapter to allow the use of ordinary
@@ -787,6 +823,30 @@ func (f POSUserRoleAssignmentFunc) Mutate(ctx context.Context, m ent.Mutation) (
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.POSUserRoleAssignmentMutation", m)
+}
+
+// The PatientFunc type is an adapter to allow the use of ordinary
+// function as Patient mutator.
+type PatientFunc func(context.Context, *ent.PatientMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f PatientFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.PatientMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.PatientMutation", m)
+}
+
+// The PatientVisitFunc type is an adapter to allow the use of ordinary
+// function as PatientVisit mutator.
+type PatientVisitFunc func(context.Context, *ent.PatientVisitMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f PatientVisitFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.PatientVisitMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.PatientVisitMutation", m)
 }
 
 // The PosNotificationFunc type is an adapter to allow the use of ordinary
@@ -1375,6 +1435,18 @@ func (f TenderFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, erro
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.TenderMutation", m)
+}
+
+// The TriageRecordFunc type is an adapter to allow the use of ordinary
+// function as TriageRecord mutator.
+type TriageRecordFunc func(context.Context, *ent.TriageRecordMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f TriageRecordFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.TriageRecordMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.TriageRecordMutation", m)
 }
 
 // The UserFunc type is an adapter to allow the use of ordinary

@@ -77,6 +77,66 @@ func (_u *PrescriptionUpdate) ClearOrderID() *PrescriptionUpdate {
 	return _u
 }
 
+// SetPatientID sets the "patient_id" field.
+func (_u *PrescriptionUpdate) SetPatientID(v uuid.UUID) *PrescriptionUpdate {
+	_u.mutation.SetPatientID(v)
+	return _u
+}
+
+// SetNillablePatientID sets the "patient_id" field if the given value is not nil.
+func (_u *PrescriptionUpdate) SetNillablePatientID(v *uuid.UUID) *PrescriptionUpdate {
+	if v != nil {
+		_u.SetPatientID(*v)
+	}
+	return _u
+}
+
+// ClearPatientID clears the value of the "patient_id" field.
+func (_u *PrescriptionUpdate) ClearPatientID() *PrescriptionUpdate {
+	_u.mutation.ClearPatientID()
+	return _u
+}
+
+// SetVisitID sets the "visit_id" field.
+func (_u *PrescriptionUpdate) SetVisitID(v uuid.UUID) *PrescriptionUpdate {
+	_u.mutation.SetVisitID(v)
+	return _u
+}
+
+// SetNillableVisitID sets the "visit_id" field if the given value is not nil.
+func (_u *PrescriptionUpdate) SetNillableVisitID(v *uuid.UUID) *PrescriptionUpdate {
+	if v != nil {
+		_u.SetVisitID(*v)
+	}
+	return _u
+}
+
+// ClearVisitID clears the value of the "visit_id" field.
+func (_u *PrescriptionUpdate) ClearVisitID() *PrescriptionUpdate {
+	_u.mutation.ClearVisitID()
+	return _u
+}
+
+// SetExternalFacilityName sets the "external_facility_name" field.
+func (_u *PrescriptionUpdate) SetExternalFacilityName(v string) *PrescriptionUpdate {
+	_u.mutation.SetExternalFacilityName(v)
+	return _u
+}
+
+// SetNillableExternalFacilityName sets the "external_facility_name" field if the given value is not nil.
+func (_u *PrescriptionUpdate) SetNillableExternalFacilityName(v *string) *PrescriptionUpdate {
+	if v != nil {
+		_u.SetExternalFacilityName(*v)
+	}
+	return _u
+}
+
+// ClearExternalFacilityName clears the value of the "external_facility_name" field.
+func (_u *PrescriptionUpdate) ClearExternalFacilityName() *PrescriptionUpdate {
+	_u.mutation.ClearExternalFacilityName()
+	return _u
+}
+
 // SetPrescriptionNumber sets the "prescription_number" field.
 func (_u *PrescriptionUpdate) SetPrescriptionNumber(v string) *PrescriptionUpdate {
 	_u.mutation.SetPrescriptionNumber(v)
@@ -351,6 +411,24 @@ func (_u *PrescriptionUpdate) sqlSave(ctx context.Context) (_node int, err error
 	if _u.mutation.OrderIDCleared() {
 		_spec.ClearField(prescription.FieldOrderID, field.TypeUUID)
 	}
+	if value, ok := _u.mutation.PatientID(); ok {
+		_spec.SetField(prescription.FieldPatientID, field.TypeUUID, value)
+	}
+	if _u.mutation.PatientIDCleared() {
+		_spec.ClearField(prescription.FieldPatientID, field.TypeUUID)
+	}
+	if value, ok := _u.mutation.VisitID(); ok {
+		_spec.SetField(prescription.FieldVisitID, field.TypeUUID, value)
+	}
+	if _u.mutation.VisitIDCleared() {
+		_spec.ClearField(prescription.FieldVisitID, field.TypeUUID)
+	}
+	if value, ok := _u.mutation.ExternalFacilityName(); ok {
+		_spec.SetField(prescription.FieldExternalFacilityName, field.TypeString, value)
+	}
+	if _u.mutation.ExternalFacilityNameCleared() {
+		_spec.ClearField(prescription.FieldExternalFacilityName, field.TypeString)
+	}
 	if value, ok := _u.mutation.PrescriptionNumber(); ok {
 		_spec.SetField(prescription.FieldPrescriptionNumber, field.TypeString, value)
 	}
@@ -473,6 +551,66 @@ func (_u *PrescriptionUpdateOne) SetNillableOrderID(v *uuid.UUID) *PrescriptionU
 // ClearOrderID clears the value of the "order_id" field.
 func (_u *PrescriptionUpdateOne) ClearOrderID() *PrescriptionUpdateOne {
 	_u.mutation.ClearOrderID()
+	return _u
+}
+
+// SetPatientID sets the "patient_id" field.
+func (_u *PrescriptionUpdateOne) SetPatientID(v uuid.UUID) *PrescriptionUpdateOne {
+	_u.mutation.SetPatientID(v)
+	return _u
+}
+
+// SetNillablePatientID sets the "patient_id" field if the given value is not nil.
+func (_u *PrescriptionUpdateOne) SetNillablePatientID(v *uuid.UUID) *PrescriptionUpdateOne {
+	if v != nil {
+		_u.SetPatientID(*v)
+	}
+	return _u
+}
+
+// ClearPatientID clears the value of the "patient_id" field.
+func (_u *PrescriptionUpdateOne) ClearPatientID() *PrescriptionUpdateOne {
+	_u.mutation.ClearPatientID()
+	return _u
+}
+
+// SetVisitID sets the "visit_id" field.
+func (_u *PrescriptionUpdateOne) SetVisitID(v uuid.UUID) *PrescriptionUpdateOne {
+	_u.mutation.SetVisitID(v)
+	return _u
+}
+
+// SetNillableVisitID sets the "visit_id" field if the given value is not nil.
+func (_u *PrescriptionUpdateOne) SetNillableVisitID(v *uuid.UUID) *PrescriptionUpdateOne {
+	if v != nil {
+		_u.SetVisitID(*v)
+	}
+	return _u
+}
+
+// ClearVisitID clears the value of the "visit_id" field.
+func (_u *PrescriptionUpdateOne) ClearVisitID() *PrescriptionUpdateOne {
+	_u.mutation.ClearVisitID()
+	return _u
+}
+
+// SetExternalFacilityName sets the "external_facility_name" field.
+func (_u *PrescriptionUpdateOne) SetExternalFacilityName(v string) *PrescriptionUpdateOne {
+	_u.mutation.SetExternalFacilityName(v)
+	return _u
+}
+
+// SetNillableExternalFacilityName sets the "external_facility_name" field if the given value is not nil.
+func (_u *PrescriptionUpdateOne) SetNillableExternalFacilityName(v *string) *PrescriptionUpdateOne {
+	if v != nil {
+		_u.SetExternalFacilityName(*v)
+	}
+	return _u
+}
+
+// ClearExternalFacilityName clears the value of the "external_facility_name" field.
+func (_u *PrescriptionUpdateOne) ClearExternalFacilityName() *PrescriptionUpdateOne {
+	_u.mutation.ClearExternalFacilityName()
 	return _u
 }
 
@@ -779,6 +917,24 @@ func (_u *PrescriptionUpdateOne) sqlSave(ctx context.Context) (_node *Prescripti
 	}
 	if _u.mutation.OrderIDCleared() {
 		_spec.ClearField(prescription.FieldOrderID, field.TypeUUID)
+	}
+	if value, ok := _u.mutation.PatientID(); ok {
+		_spec.SetField(prescription.FieldPatientID, field.TypeUUID, value)
+	}
+	if _u.mutation.PatientIDCleared() {
+		_spec.ClearField(prescription.FieldPatientID, field.TypeUUID)
+	}
+	if value, ok := _u.mutation.VisitID(); ok {
+		_spec.SetField(prescription.FieldVisitID, field.TypeUUID, value)
+	}
+	if _u.mutation.VisitIDCleared() {
+		_spec.ClearField(prescription.FieldVisitID, field.TypeUUID)
+	}
+	if value, ok := _u.mutation.ExternalFacilityName(); ok {
+		_spec.SetField(prescription.FieldExternalFacilityName, field.TypeString, value)
+	}
+	if _u.mutation.ExternalFacilityNameCleared() {
+		_spec.ClearField(prescription.FieldExternalFacilityName, field.TypeString)
 	}
 	if value, ok := _u.mutation.PrescriptionNumber(); ok {
 		_spec.SetField(prescription.FieldPrescriptionNumber, field.TypeString, value)

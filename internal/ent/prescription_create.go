@@ -50,6 +50,48 @@ func (_c *PrescriptionCreate) SetNillableOrderID(v *uuid.UUID) *PrescriptionCrea
 	return _c
 }
 
+// SetPatientID sets the "patient_id" field.
+func (_c *PrescriptionCreate) SetPatientID(v uuid.UUID) *PrescriptionCreate {
+	_c.mutation.SetPatientID(v)
+	return _c
+}
+
+// SetNillablePatientID sets the "patient_id" field if the given value is not nil.
+func (_c *PrescriptionCreate) SetNillablePatientID(v *uuid.UUID) *PrescriptionCreate {
+	if v != nil {
+		_c.SetPatientID(*v)
+	}
+	return _c
+}
+
+// SetVisitID sets the "visit_id" field.
+func (_c *PrescriptionCreate) SetVisitID(v uuid.UUID) *PrescriptionCreate {
+	_c.mutation.SetVisitID(v)
+	return _c
+}
+
+// SetNillableVisitID sets the "visit_id" field if the given value is not nil.
+func (_c *PrescriptionCreate) SetNillableVisitID(v *uuid.UUID) *PrescriptionCreate {
+	if v != nil {
+		_c.SetVisitID(*v)
+	}
+	return _c
+}
+
+// SetExternalFacilityName sets the "external_facility_name" field.
+func (_c *PrescriptionCreate) SetExternalFacilityName(v string) *PrescriptionCreate {
+	_c.mutation.SetExternalFacilityName(v)
+	return _c
+}
+
+// SetNillableExternalFacilityName sets the "external_facility_name" field if the given value is not nil.
+func (_c *PrescriptionCreate) SetNillableExternalFacilityName(v *string) *PrescriptionCreate {
+	if v != nil {
+		_c.SetExternalFacilityName(*v)
+	}
+	return _c
+}
+
 // SetPrescriptionNumber sets the "prescription_number" field.
 func (_c *PrescriptionCreate) SetPrescriptionNumber(v string) *PrescriptionCreate {
 	_c.mutation.SetPrescriptionNumber(v)
@@ -363,6 +405,18 @@ func (_c *PrescriptionCreate) createSpec() (*Prescription, *sqlgraph.CreateSpec)
 		_spec.SetField(prescription.FieldOrderID, field.TypeUUID, value)
 		_node.OrderID = &value
 	}
+	if value, ok := _c.mutation.PatientID(); ok {
+		_spec.SetField(prescription.FieldPatientID, field.TypeUUID, value)
+		_node.PatientID = &value
+	}
+	if value, ok := _c.mutation.VisitID(); ok {
+		_spec.SetField(prescription.FieldVisitID, field.TypeUUID, value)
+		_node.VisitID = &value
+	}
+	if value, ok := _c.mutation.ExternalFacilityName(); ok {
+		_spec.SetField(prescription.FieldExternalFacilityName, field.TypeString, value)
+		_node.ExternalFacilityName = value
+	}
 	if value, ok := _c.mutation.PrescriptionNumber(); ok {
 		_spec.SetField(prescription.FieldPrescriptionNumber, field.TypeString, value)
 		_node.PrescriptionNumber = value
@@ -506,6 +560,60 @@ func (u *PrescriptionUpsert) UpdateOrderID() *PrescriptionUpsert {
 // ClearOrderID clears the value of the "order_id" field.
 func (u *PrescriptionUpsert) ClearOrderID() *PrescriptionUpsert {
 	u.SetNull(prescription.FieldOrderID)
+	return u
+}
+
+// SetPatientID sets the "patient_id" field.
+func (u *PrescriptionUpsert) SetPatientID(v uuid.UUID) *PrescriptionUpsert {
+	u.Set(prescription.FieldPatientID, v)
+	return u
+}
+
+// UpdatePatientID sets the "patient_id" field to the value that was provided on create.
+func (u *PrescriptionUpsert) UpdatePatientID() *PrescriptionUpsert {
+	u.SetExcluded(prescription.FieldPatientID)
+	return u
+}
+
+// ClearPatientID clears the value of the "patient_id" field.
+func (u *PrescriptionUpsert) ClearPatientID() *PrescriptionUpsert {
+	u.SetNull(prescription.FieldPatientID)
+	return u
+}
+
+// SetVisitID sets the "visit_id" field.
+func (u *PrescriptionUpsert) SetVisitID(v uuid.UUID) *PrescriptionUpsert {
+	u.Set(prescription.FieldVisitID, v)
+	return u
+}
+
+// UpdateVisitID sets the "visit_id" field to the value that was provided on create.
+func (u *PrescriptionUpsert) UpdateVisitID() *PrescriptionUpsert {
+	u.SetExcluded(prescription.FieldVisitID)
+	return u
+}
+
+// ClearVisitID clears the value of the "visit_id" field.
+func (u *PrescriptionUpsert) ClearVisitID() *PrescriptionUpsert {
+	u.SetNull(prescription.FieldVisitID)
+	return u
+}
+
+// SetExternalFacilityName sets the "external_facility_name" field.
+func (u *PrescriptionUpsert) SetExternalFacilityName(v string) *PrescriptionUpsert {
+	u.Set(prescription.FieldExternalFacilityName, v)
+	return u
+}
+
+// UpdateExternalFacilityName sets the "external_facility_name" field to the value that was provided on create.
+func (u *PrescriptionUpsert) UpdateExternalFacilityName() *PrescriptionUpsert {
+	u.SetExcluded(prescription.FieldExternalFacilityName)
+	return u
+}
+
+// ClearExternalFacilityName clears the value of the "external_facility_name" field.
+func (u *PrescriptionUpsert) ClearExternalFacilityName() *PrescriptionUpsert {
+	u.SetNull(prescription.FieldExternalFacilityName)
 	return u
 }
 
@@ -792,6 +900,69 @@ func (u *PrescriptionUpsertOne) UpdateOrderID() *PrescriptionUpsertOne {
 func (u *PrescriptionUpsertOne) ClearOrderID() *PrescriptionUpsertOne {
 	return u.Update(func(s *PrescriptionUpsert) {
 		s.ClearOrderID()
+	})
+}
+
+// SetPatientID sets the "patient_id" field.
+func (u *PrescriptionUpsertOne) SetPatientID(v uuid.UUID) *PrescriptionUpsertOne {
+	return u.Update(func(s *PrescriptionUpsert) {
+		s.SetPatientID(v)
+	})
+}
+
+// UpdatePatientID sets the "patient_id" field to the value that was provided on create.
+func (u *PrescriptionUpsertOne) UpdatePatientID() *PrescriptionUpsertOne {
+	return u.Update(func(s *PrescriptionUpsert) {
+		s.UpdatePatientID()
+	})
+}
+
+// ClearPatientID clears the value of the "patient_id" field.
+func (u *PrescriptionUpsertOne) ClearPatientID() *PrescriptionUpsertOne {
+	return u.Update(func(s *PrescriptionUpsert) {
+		s.ClearPatientID()
+	})
+}
+
+// SetVisitID sets the "visit_id" field.
+func (u *PrescriptionUpsertOne) SetVisitID(v uuid.UUID) *PrescriptionUpsertOne {
+	return u.Update(func(s *PrescriptionUpsert) {
+		s.SetVisitID(v)
+	})
+}
+
+// UpdateVisitID sets the "visit_id" field to the value that was provided on create.
+func (u *PrescriptionUpsertOne) UpdateVisitID() *PrescriptionUpsertOne {
+	return u.Update(func(s *PrescriptionUpsert) {
+		s.UpdateVisitID()
+	})
+}
+
+// ClearVisitID clears the value of the "visit_id" field.
+func (u *PrescriptionUpsertOne) ClearVisitID() *PrescriptionUpsertOne {
+	return u.Update(func(s *PrescriptionUpsert) {
+		s.ClearVisitID()
+	})
+}
+
+// SetExternalFacilityName sets the "external_facility_name" field.
+func (u *PrescriptionUpsertOne) SetExternalFacilityName(v string) *PrescriptionUpsertOne {
+	return u.Update(func(s *PrescriptionUpsert) {
+		s.SetExternalFacilityName(v)
+	})
+}
+
+// UpdateExternalFacilityName sets the "external_facility_name" field to the value that was provided on create.
+func (u *PrescriptionUpsertOne) UpdateExternalFacilityName() *PrescriptionUpsertOne {
+	return u.Update(func(s *PrescriptionUpsert) {
+		s.UpdateExternalFacilityName()
+	})
+}
+
+// ClearExternalFacilityName clears the value of the "external_facility_name" field.
+func (u *PrescriptionUpsertOne) ClearExternalFacilityName() *PrescriptionUpsertOne {
+	return u.Update(func(s *PrescriptionUpsert) {
+		s.ClearExternalFacilityName()
 	})
 }
 
@@ -1276,6 +1447,69 @@ func (u *PrescriptionUpsertBulk) UpdateOrderID() *PrescriptionUpsertBulk {
 func (u *PrescriptionUpsertBulk) ClearOrderID() *PrescriptionUpsertBulk {
 	return u.Update(func(s *PrescriptionUpsert) {
 		s.ClearOrderID()
+	})
+}
+
+// SetPatientID sets the "patient_id" field.
+func (u *PrescriptionUpsertBulk) SetPatientID(v uuid.UUID) *PrescriptionUpsertBulk {
+	return u.Update(func(s *PrescriptionUpsert) {
+		s.SetPatientID(v)
+	})
+}
+
+// UpdatePatientID sets the "patient_id" field to the value that was provided on create.
+func (u *PrescriptionUpsertBulk) UpdatePatientID() *PrescriptionUpsertBulk {
+	return u.Update(func(s *PrescriptionUpsert) {
+		s.UpdatePatientID()
+	})
+}
+
+// ClearPatientID clears the value of the "patient_id" field.
+func (u *PrescriptionUpsertBulk) ClearPatientID() *PrescriptionUpsertBulk {
+	return u.Update(func(s *PrescriptionUpsert) {
+		s.ClearPatientID()
+	})
+}
+
+// SetVisitID sets the "visit_id" field.
+func (u *PrescriptionUpsertBulk) SetVisitID(v uuid.UUID) *PrescriptionUpsertBulk {
+	return u.Update(func(s *PrescriptionUpsert) {
+		s.SetVisitID(v)
+	})
+}
+
+// UpdateVisitID sets the "visit_id" field to the value that was provided on create.
+func (u *PrescriptionUpsertBulk) UpdateVisitID() *PrescriptionUpsertBulk {
+	return u.Update(func(s *PrescriptionUpsert) {
+		s.UpdateVisitID()
+	})
+}
+
+// ClearVisitID clears the value of the "visit_id" field.
+func (u *PrescriptionUpsertBulk) ClearVisitID() *PrescriptionUpsertBulk {
+	return u.Update(func(s *PrescriptionUpsert) {
+		s.ClearVisitID()
+	})
+}
+
+// SetExternalFacilityName sets the "external_facility_name" field.
+func (u *PrescriptionUpsertBulk) SetExternalFacilityName(v string) *PrescriptionUpsertBulk {
+	return u.Update(func(s *PrescriptionUpsert) {
+		s.SetExternalFacilityName(v)
+	})
+}
+
+// UpdateExternalFacilityName sets the "external_facility_name" field to the value that was provided on create.
+func (u *PrescriptionUpsertBulk) UpdateExternalFacilityName() *PrescriptionUpsertBulk {
+	return u.Update(func(s *PrescriptionUpsert) {
+		s.UpdateExternalFacilityName()
+	})
+}
+
+// ClearExternalFacilityName clears the value of the "external_facility_name" field.
+func (u *PrescriptionUpsertBulk) ClearExternalFacilityName() *PrescriptionUpsertBulk {
+	return u.Update(func(s *PrescriptionUpsert) {
+		s.ClearExternalFacilityName()
 	})
 }
 

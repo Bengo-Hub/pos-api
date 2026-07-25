@@ -86,6 +86,11 @@ func Role(v string) predicate.StaffMember {
 	return predicate.StaffMember(sql.FieldEQ(FieldRole, v))
 }
 
+// LicenseNumber applies equality check predicate on the "license_number" field. It's identical to LicenseNumberEQ.
+func LicenseNumber(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldEQ(FieldLicenseNumber, v))
+}
+
 // HourlyRate applies equality check predicate on the "hourly_rate" field. It's identical to HourlyRateEQ.
 func HourlyRate(v float64) predicate.StaffMember {
 	return predicate.StaffMember(sql.FieldEQ(FieldHourlyRate, v))
@@ -439,6 +444,81 @@ func RoleEqualFold(v string) predicate.StaffMember {
 // RoleContainsFold applies the ContainsFold predicate on the "role" field.
 func RoleContainsFold(v string) predicate.StaffMember {
 	return predicate.StaffMember(sql.FieldContainsFold(FieldRole, v))
+}
+
+// LicenseNumberEQ applies the EQ predicate on the "license_number" field.
+func LicenseNumberEQ(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldEQ(FieldLicenseNumber, v))
+}
+
+// LicenseNumberNEQ applies the NEQ predicate on the "license_number" field.
+func LicenseNumberNEQ(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldNEQ(FieldLicenseNumber, v))
+}
+
+// LicenseNumberIn applies the In predicate on the "license_number" field.
+func LicenseNumberIn(vs ...string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldIn(FieldLicenseNumber, vs...))
+}
+
+// LicenseNumberNotIn applies the NotIn predicate on the "license_number" field.
+func LicenseNumberNotIn(vs ...string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldNotIn(FieldLicenseNumber, vs...))
+}
+
+// LicenseNumberGT applies the GT predicate on the "license_number" field.
+func LicenseNumberGT(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldGT(FieldLicenseNumber, v))
+}
+
+// LicenseNumberGTE applies the GTE predicate on the "license_number" field.
+func LicenseNumberGTE(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldGTE(FieldLicenseNumber, v))
+}
+
+// LicenseNumberLT applies the LT predicate on the "license_number" field.
+func LicenseNumberLT(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldLT(FieldLicenseNumber, v))
+}
+
+// LicenseNumberLTE applies the LTE predicate on the "license_number" field.
+func LicenseNumberLTE(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldLTE(FieldLicenseNumber, v))
+}
+
+// LicenseNumberContains applies the Contains predicate on the "license_number" field.
+func LicenseNumberContains(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldContains(FieldLicenseNumber, v))
+}
+
+// LicenseNumberHasPrefix applies the HasPrefix predicate on the "license_number" field.
+func LicenseNumberHasPrefix(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldHasPrefix(FieldLicenseNumber, v))
+}
+
+// LicenseNumberHasSuffix applies the HasSuffix predicate on the "license_number" field.
+func LicenseNumberHasSuffix(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldHasSuffix(FieldLicenseNumber, v))
+}
+
+// LicenseNumberIsNil applies the IsNil predicate on the "license_number" field.
+func LicenseNumberIsNil() predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldIsNull(FieldLicenseNumber))
+}
+
+// LicenseNumberNotNil applies the NotNil predicate on the "license_number" field.
+func LicenseNumberNotNil() predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldNotNull(FieldLicenseNumber))
+}
+
+// LicenseNumberEqualFold applies the EqualFold predicate on the "license_number" field.
+func LicenseNumberEqualFold(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldEqualFold(FieldLicenseNumber, v))
+}
+
+// LicenseNumberContainsFold applies the ContainsFold predicate on the "license_number" field.
+func LicenseNumberContainsFold(v string) predicate.StaffMember {
+	return predicate.StaffMember(sql.FieldContainsFold(FieldLicenseNumber, v))
 }
 
 // EmploymentTypeEQ applies the EQ predicate on the "employment_type" field.

@@ -32,6 +32,8 @@ const (
 	FieldIsActive = "is_active"
 	// FieldRole holds the string denoting the role field in the database.
 	FieldRole = "role"
+	// FieldLicenseNumber holds the string denoting the license_number field in the database.
+	FieldLicenseNumber = "license_number"
 	// FieldEmploymentType holds the string denoting the employment_type field in the database.
 	FieldEmploymentType = "employment_type"
 	// FieldHourlyRate holds the string denoting the hourly_rate field in the database.
@@ -84,6 +86,7 @@ var Columns = []string{
 	FieldCommissionRate,
 	FieldIsActive,
 	FieldRole,
+	FieldLicenseNumber,
 	FieldEmploymentType,
 	FieldHourlyRate,
 	FieldDailyRate,
@@ -193,6 +196,11 @@ func ByIsActive(opts ...sql.OrderTermOption) OrderOption {
 // ByRole orders the results by the role field.
 func ByRole(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldRole, opts...).ToFunc()
+}
+
+// ByLicenseNumber orders the results by the license_number field.
+func ByLicenseNumber(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLicenseNumber, opts...).ToFunc()
 }
 
 // ByEmploymentType orders the results by the employment_type field.

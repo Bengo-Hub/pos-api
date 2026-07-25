@@ -327,6 +327,12 @@ func New(ctx context.Context) (*App, error) {
 	pharmacyHandler.SetMarketFlowClient(mfClient)
 	pharmacyHandler.SetOrderService(orderSvc)
 	pharmacyHandler.SetSequenceService(docSeqSvc)
+	// OPD clinical workflow (Records -> Triage -> Examination -> Lab), each stage independently
+	// toggleable per outlet — see ClinicalHandler's doc comment. Reuses pharmacyHandler's
+	// prescription-creation core for the Examination "prescribe" step.
+	clinicalHandler := handlers.NewClinicalHandler(log, entClient, inventoryClient, orderSvc, docSeqSvc)
+	clinicalHandler.SetAuditService(auditSvc)
+	clinicalHandler.SetPharmacyHandler(pharmacyHandler)
 	appointmentHandler := handlers.NewAppointmentHandler(log, entClient)
 	commissionHandler := handlers.NewCommissionHandler(log, entClient)
 	staffScheduleHandler := handlers.NewStaffScheduleHandler(log, entClient)
@@ -657,7 +663,7 @@ func New(ctx context.Context) (*App, error) {
 	// One-time recovery tool: fleet-wide recipe-COGS backfill (platform-owner only).
 	recipeCOGSBackfillHandler := handlers.NewRecipeCOGSBackfillHandler(entClient, inventoryClient, treasuryClient, log)
 
-	chiRouter := router.New(log, healthHandler, authMiddleware, entClient, identitySvc, orderHandler, catalogHandler, tableHandler, tenderHandler, paymentHandler, drawerHandler, barTabHandler, promotionHandler, rbacHandler, rbacSvc, hotelHandler, kdsHandler, deviceHandler, pinAuthHandler, publicOutletHandler, closingHandler, returnHandler, reversalHandler, receiptHandler, menuHandler, layawayHandler, scaleHandler, pharmacyHandler, appointmentHandler, commissionHandler, staffScheduleHandler, shiftOverrideHandler, leaveRequestHandler, shiftRotationHandler, loyaltyHandler, reportsHandler, reportPDFHandler, webhookHandler, onlineOrderHandler, serviceConfigHandler, serviceSettingsHandler, docSequenceHandler, notificationsHandler, queueHandler, billSplitHandler, resourceHandler, commissionRuleHandler, packageHandler, clientHandler, channelHandler, printHandler, printJobsHandler, printAgentAPIHandler, payrollHandler, staffAdminHandler, repairHandler, cfg.HTTP.AllowedOrigins, redisClient, cfg.Treasury.InternalServiceKey, backupHandler, backupDestHandler, screensaverMediaHandler, mediaRoot, recipeCOGSBackfillHandler)
+	chiRouter := router.New(log, healthHandler, authMiddleware, entClient, identitySvc, orderHandler, catalogHandler, tableHandler, tenderHandler, paymentHandler, drawerHandler, barTabHandler, promotionHandler, rbacHandler, rbacSvc, hotelHandler, kdsHandler, deviceHandler, pinAuthHandler, publicOutletHandler, closingHandler, returnHandler, reversalHandler, receiptHandler, menuHandler, layawayHandler, scaleHandler, pharmacyHandler, clinicalHandler, appointmentHandler, commissionHandler, staffScheduleHandler, shiftOverrideHandler, leaveRequestHandler, shiftRotationHandler, loyaltyHandler, reportsHandler, reportPDFHandler, webhookHandler, onlineOrderHandler, serviceConfigHandler, serviceSettingsHandler, docSequenceHandler, notificationsHandler, queueHandler, billSplitHandler, resourceHandler, commissionRuleHandler, packageHandler, clientHandler, channelHandler, printHandler, printJobsHandler, printAgentAPIHandler, payrollHandler, staffAdminHandler, repairHandler, cfg.HTTP.AllowedOrigins, redisClient, cfg.Treasury.InternalServiceKey, backupHandler, backupDestHandler, screensaverMediaHandler, mediaRoot, recipeCOGSBackfillHandler)
 
 	httpServer := &http.Server{
 		Addr:              fmt.Sprintf("%s:%d", cfg.HTTP.Host, cfg.HTTP.Port),

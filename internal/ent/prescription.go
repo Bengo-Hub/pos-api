@@ -25,6 +25,12 @@ type Prescription struct {
 	OutletID uuid.UUID `json:"outlet_id,omitempty"`
 	// OrderID holds the value of the "order_id" field.
 	OrderID *uuid.UUID `json:"order_id,omitempty"`
+	// PatientID holds the value of the "patient_id" field.
+	PatientID *uuid.UUID `json:"patient_id,omitempty"`
+	// VisitID holds the value of the "visit_id" field.
+	VisitID *uuid.UUID `json:"visit_id,omitempty"`
+	// ExternalFacilityName holds the value of the "external_facility_name" field.
+	ExternalFacilityName string `json:"external_facility_name,omitempty"`
 	// PrescriptionNumber holds the value of the "prescription_number" field.
 	PrescriptionNumber string `json:"prescription_number,omitempty"`
 	// PrescriberName holds the value of the "prescriber_name" field.
@@ -59,11 +65,11 @@ func (*Prescription) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case prescription.FieldOrderID, prescription.FieldDispensedBy:
+		case prescription.FieldOrderID, prescription.FieldPatientID, prescription.FieldVisitID, prescription.FieldDispensedBy:
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		case prescription.FieldMetadata:
 			values[i] = new([]byte)
-		case prescription.FieldPrescriptionNumber, prescription.FieldPrescriberName, prescription.FieldPrescriberLicense, prescription.FieldPatientName, prescription.FieldPatientDob, prescription.FieldPatientIDNumber, prescription.FieldStatus, prescription.FieldNotes:
+		case prescription.FieldExternalFacilityName, prescription.FieldPrescriptionNumber, prescription.FieldPrescriberName, prescription.FieldPrescriberLicense, prescription.FieldPatientName, prescription.FieldPatientDob, prescription.FieldPatientIDNumber, prescription.FieldStatus, prescription.FieldNotes:
 			values[i] = new(sql.NullString)
 		case prescription.FieldDispensedAt, prescription.FieldCreatedAt, prescription.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -108,6 +114,26 @@ func (_m *Prescription) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.OrderID = new(uuid.UUID)
 				*_m.OrderID = *value.S.(*uuid.UUID)
+			}
+		case prescription.FieldPatientID:
+			if value, ok := values[i].(*sql.NullScanner); !ok {
+				return fmt.Errorf("unexpected type %T for field patient_id", values[i])
+			} else if value.Valid {
+				_m.PatientID = new(uuid.UUID)
+				*_m.PatientID = *value.S.(*uuid.UUID)
+			}
+		case prescription.FieldVisitID:
+			if value, ok := values[i].(*sql.NullScanner); !ok {
+				return fmt.Errorf("unexpected type %T for field visit_id", values[i])
+			} else if value.Valid {
+				_m.VisitID = new(uuid.UUID)
+				*_m.VisitID = *value.S.(*uuid.UUID)
+			}
+		case prescription.FieldExternalFacilityName:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field external_facility_name", values[i])
+			} else if value.Valid {
+				_m.ExternalFacilityName = value.String
 			}
 		case prescription.FieldPrescriptionNumber:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -237,6 +263,19 @@ func (_m *Prescription) String() string {
 		builder.WriteString("order_id=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
+	builder.WriteString(", ")
+	if v := _m.PatientID; v != nil {
+		builder.WriteString("patient_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.VisitID; v != nil {
+		builder.WriteString("visit_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("external_facility_name=")
+	builder.WriteString(_m.ExternalFacilityName)
 	builder.WriteString(", ")
 	builder.WriteString("prescription_number=")
 	builder.WriteString(_m.PrescriptionNumber)

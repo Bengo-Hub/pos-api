@@ -122,6 +122,18 @@ type OutletSetting struct {
 	LayawayEnabled bool `json:"layaway_enabled,omitempty"`
 	// Shift reports & daily closing module
 	ShiftReportsEnabled bool `json:"shift_reports_enabled,omitempty"`
+	// OPD patient registration (Records)
+	EnableRecordsModule bool `json:"enable_records_module,omitempty"`
+	// OPD vitals capture (Triage)
+	EnableTriageModule bool `json:"enable_triage_module,omitempty"`
+	// OPD doctor/pharmacist examination + diagnosis
+	EnableExaminationModule bool `json:"enable_examination_module,omitempty"`
+	// OPD lab test ordering + results
+	EnableLabModule bool `json:"enable_lab_module,omitempty"`
+	// Block triage until the registration/consultation fee order is paid
+	RequireRegistrationFee bool `json:"require_registration_fee,omitempty"`
+	// SERVICE catalog item billed as the registration/consultation fee at Records intake
+	RegistrationFeeCatalogItemID *uuid.UUID `json:"registration_fee_catalog_item_id,omitempty"`
 	// Automatically end shift after shift_max_hours to prevent forgotten open sessions
 	ShiftAutoEndEnabled bool `json:"shift_auto_end_enabled,omitempty"`
 	// Maximum shift length in hours before auto-end (1–24, default 12)
@@ -173,11 +185,11 @@ func (*OutletSetting) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case outletsetting.FieldDefaultWarehouseID:
+		case outletsetting.FieldRegistrationFeeCatalogItemID, outletsetting.FieldDefaultWarehouseID:
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		case outletsetting.FieldReceiptsJSON, outletsetting.FieldTaxConfigJSON, outletsetting.FieldServiceChargeJSON, outletsetting.FieldOpeningHoursJSON, outletsetting.FieldMetadata, outletsetting.FieldPrinterProfiles, outletsetting.FieldCatalogUseCases:
 			values[i] = new([]byte)
-		case outletsetting.FieldShowImages, outletsetting.FieldShowBarcodeScanner, outletsetting.FieldEnableKds, outletsetting.FieldEnableAppointments, outletsetting.FieldAllowPriceAboveBase, outletsetting.FieldRequireApprovalBelowBase, outletsetting.FieldVatEnabled, outletsetting.FieldAutoPrintOrder, outletsetting.FieldAutoPrintKitchen, outletsetting.FieldCashDrawerEnabled, outletsetting.FieldCashDrawerAutoOpen, outletsetting.FieldCardTerminalRequireRef, outletsetting.FieldShowPaymentInfoOnReceipt, outletsetting.FieldHotelModuleEnabled, outletsetting.FieldLayawayEnabled, outletsetting.FieldShiftReportsEnabled, outletsetting.FieldShiftAutoEndEnabled, outletsetting.FieldAutoLogoutAfterSale:
+		case outletsetting.FieldShowImages, outletsetting.FieldShowBarcodeScanner, outletsetting.FieldEnableKds, outletsetting.FieldEnableAppointments, outletsetting.FieldAllowPriceAboveBase, outletsetting.FieldRequireApprovalBelowBase, outletsetting.FieldVatEnabled, outletsetting.FieldAutoPrintOrder, outletsetting.FieldAutoPrintKitchen, outletsetting.FieldCashDrawerEnabled, outletsetting.FieldCashDrawerAutoOpen, outletsetting.FieldCardTerminalRequireRef, outletsetting.FieldShowPaymentInfoOnReceipt, outletsetting.FieldHotelModuleEnabled, outletsetting.FieldLayawayEnabled, outletsetting.FieldShiftReportsEnabled, outletsetting.FieldEnableRecordsModule, outletsetting.FieldEnableTriageModule, outletsetting.FieldEnableExaminationModule, outletsetting.FieldEnableLabModule, outletsetting.FieldRequireRegistrationFee, outletsetting.FieldShiftAutoEndEnabled, outletsetting.FieldAutoLogoutAfterSale:
 			values[i] = new(sql.NullBool)
 		case outletsetting.FieldMaxDiscountPercent, outletsetting.FieldMaxDiscountAmount, outletsetting.FieldVatRate:
 			values[i] = new(sql.NullFloat64)
@@ -544,6 +556,43 @@ func (_m *OutletSetting) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.ShiftReportsEnabled = value.Bool
 			}
+		case outletsetting.FieldEnableRecordsModule:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field enable_records_module", values[i])
+			} else if value.Valid {
+				_m.EnableRecordsModule = value.Bool
+			}
+		case outletsetting.FieldEnableTriageModule:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field enable_triage_module", values[i])
+			} else if value.Valid {
+				_m.EnableTriageModule = value.Bool
+			}
+		case outletsetting.FieldEnableExaminationModule:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field enable_examination_module", values[i])
+			} else if value.Valid {
+				_m.EnableExaminationModule = value.Bool
+			}
+		case outletsetting.FieldEnableLabModule:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field enable_lab_module", values[i])
+			} else if value.Valid {
+				_m.EnableLabModule = value.Bool
+			}
+		case outletsetting.FieldRequireRegistrationFee:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field require_registration_fee", values[i])
+			} else if value.Valid {
+				_m.RequireRegistrationFee = value.Bool
+			}
+		case outletsetting.FieldRegistrationFeeCatalogItemID:
+			if value, ok := values[i].(*sql.NullScanner); !ok {
+				return fmt.Errorf("unexpected type %T for field registration_fee_catalog_item_id", values[i])
+			} else if value.Valid {
+				_m.RegistrationFeeCatalogItemID = new(uuid.UUID)
+				*_m.RegistrationFeeCatalogItemID = *value.S.(*uuid.UUID)
+			}
 		case outletsetting.FieldShiftAutoEndEnabled:
 			if value, ok := values[i].(*sql.NullBool); !ok {
 				return fmt.Errorf("unexpected type %T for field shift_auto_end_enabled", values[i])
@@ -835,6 +884,26 @@ func (_m *OutletSetting) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("shift_reports_enabled=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ShiftReportsEnabled))
+	builder.WriteString(", ")
+	builder.WriteString("enable_records_module=")
+	builder.WriteString(fmt.Sprintf("%v", _m.EnableRecordsModule))
+	builder.WriteString(", ")
+	builder.WriteString("enable_triage_module=")
+	builder.WriteString(fmt.Sprintf("%v", _m.EnableTriageModule))
+	builder.WriteString(", ")
+	builder.WriteString("enable_examination_module=")
+	builder.WriteString(fmt.Sprintf("%v", _m.EnableExaminationModule))
+	builder.WriteString(", ")
+	builder.WriteString("enable_lab_module=")
+	builder.WriteString(fmt.Sprintf("%v", _m.EnableLabModule))
+	builder.WriteString(", ")
+	builder.WriteString("require_registration_fee=")
+	builder.WriteString(fmt.Sprintf("%v", _m.RequireRegistrationFee))
+	builder.WriteString(", ")
+	if v := _m.RegistrationFeeCatalogItemID; v != nil {
+		builder.WriteString("registration_fee_catalog_item_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("shift_auto_end_enabled=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ShiftAutoEndEnabled))

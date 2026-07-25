@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"sort"
 	"time"
@@ -15,6 +16,7 @@ import (
 	"github.com/bengobox/pos-service/internal/audit"
 	"github.com/bengobox/pos-service/internal/ent"
 	entdic "github.com/bengobox/pos-service/internal/ent/druginteractioncheck"
+	entvisit "github.com/bengobox/pos-service/internal/ent/patientvisit"
 	entoverride "github.com/bengobox/pos-service/internal/ent/poscatalogoverride"
 	entpx "github.com/bengobox/pos-service/internal/ent/prescription"
 	entpxl "github.com/bengobox/pos-service/internal/ent/prescriptionline"
@@ -89,6 +91,8 @@ type createPrescriptionInput struct {
 	Notes              string                  `json:"notes"`
 	AllergyFlags       []string                `json:"allergy_flags"`
 	Lines              []prescriptionLineInput `json:"lines"`
+	// Set only for a prescription written by an OUTSIDE facility and brought in by the patient.
+	ExternalFacilityName string `json:"external_facility_name"`
 }
 
 type interactionCheckInput struct {
@@ -121,6 +125,22 @@ func (h *PharmacyHandler) CreatePrescription(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	px, lines, err := h.createPrescriptionCore(r, tid, outletID, input, nil, nil, input.ExternalFacilityName)
+	if err != nil {
+		jsonError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	jsonOK(w, map[string]any{"prescription": px, "lines": lines})
+}
+
+// createPrescriptionCore is the shared prescription-creation path behind both the standalone
+// pharmacy-counter CreatePrescription HTTP handler and the OPD Examination stage's "prescribe"
+// step (clinical_examination.go) — same server-generated numbering, same drug-line persistence,
+// same automatic DDI/allergy pre-approval check. patientID/visitID are non-nil only when the
+// prescription originates from a clinical visit; externalFacility is set only for a script
+// brought in from an outside facility (never both).
+func (h *PharmacyHandler) createPrescriptionCore(r *http.Request, tid, outletID uuid.UUID, input createPrescriptionInput, patientID, visitID *uuid.UUID, externalFacility string) (*ent.Prescription, []*ent.PrescriptionLine, error) {
 	// Prescription # is server-generated via the tenant's document sequence (Settings ->
 	// Documents), same as order/receipt/return numbers — never trusted from the client. A
 	// client-supplied value is only honored as a fallback when no sequence service is wired.
@@ -133,8 +153,7 @@ func (h *PharmacyHandler) CreatePrescription(w http.ResponseWriter, r *http.Requ
 		}
 	}
 	if prescriptionNumber == "" {
-		jsonError(w, "prescription_number is required", http.StatusBadRequest)
-		return
+		return nil, nil, fmt.Errorf("prescription_number is required")
 	}
 
 	md := map[string]any{}
@@ -155,17 +174,24 @@ func (h *PharmacyHandler) CreatePrescription(w http.ResponseWriter, r *http.Requ
 		SetMetadata(md)
 
 	if input.OrderID != nil {
-		oid, err := uuid.Parse(*input.OrderID)
-		if err == nil {
+		if oid, err := uuid.Parse(*input.OrderID); err == nil {
 			creator = creator.SetOrderID(oid)
 		}
+	}
+	if patientID != nil {
+		creator = creator.SetPatientID(*patientID)
+	}
+	if visitID != nil {
+		creator = creator.SetVisitID(*visitID)
+	}
+	if externalFacility != "" {
+		creator = creator.SetExternalFacilityName(externalFacility)
 	}
 
 	px, err := creator.Save(r.Context())
 	if err != nil {
 		h.log.Error("create prescription failed", zap.Error(err))
-		jsonError(w, "failed to create prescription", http.StatusInternalServerError)
-		return
+		return nil, nil, fmt.Errorf("failed to create prescription")
 	}
 
 	catalogItemIDs := make([]string, 0, len(input.Lines))
@@ -198,7 +224,8 @@ func (h *PharmacyHandler) CreatePrescription(w http.ResponseWriter, r *http.Requ
 
 	// Automatic pre-approval safety check: run the DDI/allergy engine over every
 	// catalog-linked line the moment the prescription is captured, so the pharmacist sees
-	// flagged status immediately rather than needing to trigger it separately.
+	// flagged status immediately rather than needing to trigger it separately. Skipped for
+	// externally-written scripts with no catalog-linked lines (nothing local to check against).
 	if len(catalogItemIDs) > 1 || (len(catalogItemIDs) >= 1 && len(input.AllergyFlags) > 0) {
 		result, details, severity := h.runInteractionCheckByItemIDs(r, tid, catalogItemIDs, input.AllergyFlags)
 		checkCreator := h.db.DrugInteractionCheck.Create().
@@ -220,7 +247,7 @@ func (h *PharmacyHandler) CreatePrescription(w http.ResponseWriter, r *http.Requ
 		Where(entpxl.PrescriptionID(px.ID)).
 		All(r.Context())
 
-	jsonOK(w, map[string]any{"prescription": px, "lines": lines})
+	return px, lines, nil
 }
 
 // ListPrescriptions handles GET /{tenantID}/pos/pharmacy/prescriptions
@@ -350,6 +377,14 @@ func (h *PharmacyHandler) Dispense(w http.ResponseWriter, r *http.Request) {
 	if resID, ok := updated.Metadata["reservation_id"].(string); ok && resID != "" && h.inventory != nil {
 		if err := h.inventory.ConsumeReservation(r.Context(), tid.String(), resID); err != nil {
 			h.log.Warn("consume reservation on dispense failed", zap.Error(err))
+		}
+	}
+
+	// OPD-originated prescription (Examination -> prescribe): reflect the pharmacy handover back
+	// onto the visit so Records/Triage/Examination all see the journey has reached dispensing.
+	if updated.VisitID != nil {
+		if _, err := h.db.PatientVisit.UpdateOneID(*updated.VisitID).SetStatus(entvisit.StatusDispensed).Save(r.Context()); err != nil {
+			h.log.Warn("failed to advance visit to dispensed", zap.Error(err))
 		}
 	}
 

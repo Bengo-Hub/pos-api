@@ -118,6 +118,18 @@ const (
 	FieldLayawayEnabled = "layaway_enabled"
 	// FieldShiftReportsEnabled holds the string denoting the shift_reports_enabled field in the database.
 	FieldShiftReportsEnabled = "shift_reports_enabled"
+	// FieldEnableRecordsModule holds the string denoting the enable_records_module field in the database.
+	FieldEnableRecordsModule = "enable_records_module"
+	// FieldEnableTriageModule holds the string denoting the enable_triage_module field in the database.
+	FieldEnableTriageModule = "enable_triage_module"
+	// FieldEnableExaminationModule holds the string denoting the enable_examination_module field in the database.
+	FieldEnableExaminationModule = "enable_examination_module"
+	// FieldEnableLabModule holds the string denoting the enable_lab_module field in the database.
+	FieldEnableLabModule = "enable_lab_module"
+	// FieldRequireRegistrationFee holds the string denoting the require_registration_fee field in the database.
+	FieldRequireRegistrationFee = "require_registration_fee"
+	// FieldRegistrationFeeCatalogItemID holds the string denoting the registration_fee_catalog_item_id field in the database.
+	FieldRegistrationFeeCatalogItemID = "registration_fee_catalog_item_id"
 	// FieldShiftAutoEndEnabled holds the string denoting the shift_auto_end_enabled field in the database.
 	FieldShiftAutoEndEnabled = "shift_auto_end_enabled"
 	// FieldShiftMaxHours holds the string denoting the shift_max_hours field in the database.
@@ -205,6 +217,12 @@ var Columns = []string{
 	FieldHotelModuleEnabled,
 	FieldLayawayEnabled,
 	FieldShiftReportsEnabled,
+	FieldEnableRecordsModule,
+	FieldEnableTriageModule,
+	FieldEnableExaminationModule,
+	FieldEnableLabModule,
+	FieldRequireRegistrationFee,
+	FieldRegistrationFeeCatalogItemID,
 	FieldShiftAutoEndEnabled,
 	FieldShiftMaxHours,
 	FieldTableMaxOccupationMinutes,
@@ -284,6 +302,16 @@ var (
 	DefaultLayawayEnabled bool
 	// DefaultShiftReportsEnabled holds the default value on creation for the "shift_reports_enabled" field.
 	DefaultShiftReportsEnabled bool
+	// DefaultEnableRecordsModule holds the default value on creation for the "enable_records_module" field.
+	DefaultEnableRecordsModule bool
+	// DefaultEnableTriageModule holds the default value on creation for the "enable_triage_module" field.
+	DefaultEnableTriageModule bool
+	// DefaultEnableExaminationModule holds the default value on creation for the "enable_examination_module" field.
+	DefaultEnableExaminationModule bool
+	// DefaultEnableLabModule holds the default value on creation for the "enable_lab_module" field.
+	DefaultEnableLabModule bool
+	// DefaultRequireRegistrationFee holds the default value on creation for the "require_registration_fee" field.
+	DefaultRequireRegistrationFee bool
 	// DefaultShiftAutoEndEnabled holds the default value on creation for the "shift_auto_end_enabled" field.
 	DefaultShiftAutoEndEnabled bool
 	// DefaultShiftMaxHours holds the default value on creation for the "shift_max_hours" field.
@@ -588,6 +616,36 @@ func ByLayawayEnabled(opts ...sql.OrderTermOption) OrderOption {
 // ByShiftReportsEnabled orders the results by the shift_reports_enabled field.
 func ByShiftReportsEnabled(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldShiftReportsEnabled, opts...).ToFunc()
+}
+
+// ByEnableRecordsModule orders the results by the enable_records_module field.
+func ByEnableRecordsModule(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldEnableRecordsModule, opts...).ToFunc()
+}
+
+// ByEnableTriageModule orders the results by the enable_triage_module field.
+func ByEnableTriageModule(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldEnableTriageModule, opts...).ToFunc()
+}
+
+// ByEnableExaminationModule orders the results by the enable_examination_module field.
+func ByEnableExaminationModule(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldEnableExaminationModule, opts...).ToFunc()
+}
+
+// ByEnableLabModule orders the results by the enable_lab_module field.
+func ByEnableLabModule(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldEnableLabModule, opts...).ToFunc()
+}
+
+// ByRequireRegistrationFee orders the results by the require_registration_fee field.
+func ByRequireRegistrationFee(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRequireRegistrationFee, opts...).ToFunc()
+}
+
+// ByRegistrationFeeCatalogItemID orders the results by the registration_fee_catalog_item_id field.
+func ByRegistrationFeeCatalogItemID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRegistrationFeeCatalogItemID, opts...).ToFunc()
 }
 
 // ByShiftAutoEndEnabled orders the results by the shift_auto_end_enabled field.

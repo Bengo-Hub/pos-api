@@ -25,6 +25,8 @@ const (
 	DocTypePosReversal  = "pos_reversal"
 	DocTypeRepairJob    = "repair_job"
 	DocTypePrescription = "prescription"
+	DocTypePatient      = "patient"
+	DocTypeVisit        = "visit"
 )
 
 type seqConfig struct {
@@ -45,6 +47,8 @@ var seqDefaults = map[string]seqConfig{
 	DocTypePosReversal:  {Separator: "-", Padding: 6, ResetFreq: "never"},
 	DocTypeRepairJob:    {Separator: "-", Padding: 6, ResetFreq: "never"},
 	DocTypePrescription: {Separator: "-", Padding: 6, ResetFreq: "never"},
+	DocTypePatient:      {Separator: "-", Padding: 6, ResetFreq: "never"},
+	DocTypeVisit:        {Separator: "-", Padding: 6, ResetFreq: "never"},
 }
 
 // SuggestedPrefixes are the pre-fill hints the Settings UI offers when a tenant switches a doc
@@ -56,6 +60,8 @@ var SuggestedPrefixes = map[string]string{
 	DocTypePosReversal:  "REV",
 	DocTypeRepairJob:    "JOB",
 	DocTypePrescription: "RX",
+	DocTypePatient:      "PT",
+	DocTypeVisit:        "VN",
 }
 
 // SequenceService generates per-tenant atomic document numbers using optimistic
@@ -116,6 +122,7 @@ type SeqConfigDTO struct {
 // surfaced in the Settings → Documents tab.
 var configuredDocTypes = []string{
 	DocTypeOrder, DocTypePosReceipt, DocTypePosReturn, DocTypePosReversal, DocTypeRepairJob, DocTypePrescription,
+	DocTypePatient, DocTypeVisit,
 }
 
 func toSeqDTO(row *ent.DocumentSequence) SeqConfigDTO {

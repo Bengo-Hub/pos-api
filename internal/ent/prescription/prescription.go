@@ -20,6 +20,12 @@ const (
 	FieldOutletID = "outlet_id"
 	// FieldOrderID holds the string denoting the order_id field in the database.
 	FieldOrderID = "order_id"
+	// FieldPatientID holds the string denoting the patient_id field in the database.
+	FieldPatientID = "patient_id"
+	// FieldVisitID holds the string denoting the visit_id field in the database.
+	FieldVisitID = "visit_id"
+	// FieldExternalFacilityName holds the string denoting the external_facility_name field in the database.
+	FieldExternalFacilityName = "external_facility_name"
 	// FieldPrescriptionNumber holds the string denoting the prescription_number field in the database.
 	FieldPrescriptionNumber = "prescription_number"
 	// FieldPrescriberName holds the string denoting the prescriber_name field in the database.
@@ -56,6 +62,9 @@ var Columns = []string{
 	FieldTenantID,
 	FieldOutletID,
 	FieldOrderID,
+	FieldPatientID,
+	FieldVisitID,
+	FieldExternalFacilityName,
 	FieldPrescriptionNumber,
 	FieldPrescriberName,
 	FieldPrescriberLicense,
@@ -121,6 +130,21 @@ func ByOutletID(opts ...sql.OrderTermOption) OrderOption {
 // ByOrderID orders the results by the order_id field.
 func ByOrderID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldOrderID, opts...).ToFunc()
+}
+
+// ByPatientID orders the results by the patient_id field.
+func ByPatientID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPatientID, opts...).ToFunc()
+}
+
+// ByVisitID orders the results by the visit_id field.
+func ByVisitID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldVisitID, opts...).ToFunc()
+}
+
+// ByExternalFacilityName orders the results by the external_facility_name field.
+func ByExternalFacilityName(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldExternalFacilityName, opts...).ToFunc()
 }
 
 // ByPrescriptionNumber orders the results by the prescription_number field.

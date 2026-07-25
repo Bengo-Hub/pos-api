@@ -163,12 +163,31 @@ func serviceAPIKey() string {
 // categoryAllowedForUseCase checks whether an item's category is appropriate for the outlet use case.
 // Uses case-insensitive substring matching so that minor category name variations don't break filtering.
 // Items with no category are always allowed.
+// isPharmacyCategory matches any category name a tenant might plausibly have chosen for their
+// drug/health catalog (the seeded default is "Pharmacy", but tenants rename categories freely) —
+// shared by categoryAllowedForUseCase (use-case gating) and the /catalog/items ?category= filter
+// (pharmacyCategoryAliases below), so a pharmacy-flavored search never depends on matching one
+// exact, hardcoded string.
+func isPharmacyCategory(categoryName string) bool {
+	cat := strings.ToLower(strings.TrimSpace(categoryName))
+	return strings.Contains(cat, "pharmacy") || strings.Contains(cat, "chemist") || strings.Contains(cat, "drug") || strings.Contains(cat, "medicine") || strings.Contains(cat, "pharmaceutical") || strings.Contains(cat, "medication")
+}
+
+// pharmacyCategoryAliases are ?category= values a caller might reasonably send when searching for
+// drugs — matched via isPharmacyCategory (substring/alias) instead of the strict exact-match every
+// other category filter value uses, since the actual seeded/tenant category name ("Pharmacy") never
+// equals generic terms like "pharmaceutical" or "medication" a client might search with.
+var pharmacyCategoryAliases = map[string]bool{
+	"pharmacy": true, "pharmaceutical": true, "pharmaceuticals": true,
+	"medication": true, "medications": true, "drug": true, "drugs": true, "chemist": true, "medicine": true,
+}
+
 func categoryAllowedForUseCase(categoryName, useCase string) bool {
 	cat := strings.ToLower(strings.TrimSpace(categoryName))
 	if cat == "" || useCase == "" {
 		return true
 	}
-	isPharmacyCat := strings.Contains(cat, "pharmacy") || strings.Contains(cat, "chemist") || strings.Contains(cat, "drug") || strings.Contains(cat, "medicine") || strings.Contains(cat, "pharmaceutical")
+	isPharmacyCat := isPharmacyCategory(categoryName)
 	isFoodCat := strings.Contains(cat, "breakfast") ||
 		strings.Contains(cat, "beverage") ||
 		strings.Contains(cat, "pastry") ||
@@ -818,7 +837,7 @@ func toCatalogModifierGroups(groups []inventoryProxyModifierGroup) []catalogModi
 // menuAssemblyFilters carries the optional list-time filters applied by ListCatalogItems.
 // The menu document renderer leaves these empty (it wants the full active menu).
 type menuAssemblyFilters struct {
-	Category string // case-insensitive exact match on category name
+	Category string // case-insensitive exact match on category name, EXCEPT pharmacy aliases (see pharmacyCategoryAliases), which match via isPharmacyCategory substring
 	Search   string // case-insensitive substring match on item name (already lower-cased)
 	ItemType string // comma-separated, case-insensitive match on item type (already upper-cased)
 }
@@ -990,8 +1009,14 @@ func (h *CatalogHandler) assembleMenuItems(
 			continue
 		}
 		// Apply filters
-		if filters.Category != "" && !strings.EqualFold(item.CategoryName, filters.Category) {
-			continue
+		if filters.Category != "" {
+			if pharmacyCategoryAliases[strings.ToLower(strings.TrimSpace(filters.Category))] {
+				if !isPharmacyCategory(item.CategoryName) {
+					continue
+				}
+			} else if !strings.EqualFold(item.CategoryName, filters.Category) {
+				continue
+			}
 		}
 		// Match name, SKU or barcode (barcode/SKU are exact identifiers a scanner enters) — the
 		// filter value is already lower-cased by the caller. Matching name only meant a barcode

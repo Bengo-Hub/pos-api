@@ -30,6 +30,14 @@ type ServiceSettingsHandler struct {
 	db  *ent.Client
 }
 
+func registrationFeeItemIDString(id *uuid.UUID) *string {
+	if id == nil {
+		return nil
+	}
+	s := id.String()
+	return &s
+}
+
 // requireConfigPermission checks that the caller holds pos.config.change (or pos.config.manage
 // when requireManage is true). Platform owners and superuser/admin roles bypass the check.
 // Returns true if the check passes; on failure it writes a 401/403 response and returns false.
@@ -101,6 +109,13 @@ type settingsResponse struct {
 	HotelModuleEnabled  bool `json:"hotel_module_enabled"`
 	LayawayEnabled      bool `json:"layaway_enabled"`
 	ShiftReportsEnabled bool `json:"shift_reports_enabled"`
+	// OPD clinical workflow (pharmacy use case)
+	EnableRecordsModule     bool    `json:"enable_records_module"`
+	EnableTriageModule      bool    `json:"enable_triage_module"`
+	EnableExaminationModule bool    `json:"enable_examination_module"`
+	EnableLabModule         bool    `json:"enable_lab_module"`
+	RequireRegistrationFee  bool    `json:"require_registration_fee"`
+	RegistrationFeeItemID   *string `json:"registration_fee_catalog_item_id,omitempty"`
 	// sidebar visibility — outlet admins hide whole modules (by moduleKey) or individual sidebar
 	// items (by href) to declutter the app to only the screens they use. Stored in metadata.
 	// The flat lists apply to ALL roles (tenant-wide); the *ByRole maps hide additionally for a
@@ -199,6 +214,12 @@ func toSettingsResponse(outlet *ent.Outlet, s *ent.OutletSetting) settingsRespon
 		HotelModuleEnabled:               s.HotelModuleEnabled,
 		LayawayEnabled:                   s.LayawayEnabled,
 		ShiftReportsEnabled:              s.ShiftReportsEnabled,
+		EnableRecordsModule:              s.EnableRecordsModule,
+		EnableTriageModule:               s.EnableTriageModule,
+		EnableExaminationModule:          s.EnableExaminationModule,
+		EnableLabModule:                  s.EnableLabModule,
+		RequireRegistrationFee:           s.RequireRegistrationFee,
+		RegistrationFeeItemID:            registrationFeeItemIDString(s.RegistrationFeeCatalogItemID),
 		ReceiptHeader:                    s.ReceiptHeader,
 		ReceiptFooter:                    s.ReceiptFooter,
 		ShowLogoOnReceipt:                metaBoolDefault(s.Metadata, "receipt_show_logo", true),
@@ -776,6 +797,13 @@ type modulesInput struct {
 	HotelModuleEnabled  *bool `json:"hotel_module_enabled"`
 	LayawayEnabled      *bool `json:"layaway_enabled"`
 	ShiftReportsEnabled *bool `json:"shift_reports_enabled"`
+	// OPD clinical workflow (pharmacy use case)
+	EnableRecordsModule     *bool   `json:"enable_records_module"`
+	EnableTriageModule      *bool   `json:"enable_triage_module"`
+	EnableExaminationModule *bool   `json:"enable_examination_module"`
+	EnableLabModule         *bool   `json:"enable_lab_module"`
+	RequireRegistrationFee  *bool   `json:"require_registration_fee"`
+	RegistrationFeeItemID   *string `json:"registration_fee_catalog_item_id"`
 	// Sidebar visibility (whole-module by moduleKey / individual sidebar item by href). A nil
 	// pointer leaves the stored list untouched; a non-nil (possibly empty) list replaces it.
 	// The flat lists apply tenant-wide; the *ByRole maps (role code → hrefs/module keys) hide
@@ -831,6 +859,28 @@ func (h *ServiceSettingsHandler) PatchModules(w http.ResponseWriter, r *http.Req
 	}
 	if input.ShiftReportsEnabled != nil {
 		upd = upd.SetShiftReportsEnabled(*input.ShiftReportsEnabled)
+	}
+	if input.EnableRecordsModule != nil {
+		upd = upd.SetEnableRecordsModule(*input.EnableRecordsModule)
+	}
+	if input.EnableTriageModule != nil {
+		upd = upd.SetEnableTriageModule(*input.EnableTriageModule)
+	}
+	if input.EnableExaminationModule != nil {
+		upd = upd.SetEnableExaminationModule(*input.EnableExaminationModule)
+	}
+	if input.EnableLabModule != nil {
+		upd = upd.SetEnableLabModule(*input.EnableLabModule)
+	}
+	if input.RequireRegistrationFee != nil {
+		upd = upd.SetRequireRegistrationFee(*input.RequireRegistrationFee)
+	}
+	if input.RegistrationFeeItemID != nil {
+		if *input.RegistrationFeeItemID == "" {
+			upd = upd.ClearRegistrationFeeCatalogItemID()
+		} else if id, err := uuid.Parse(*input.RegistrationFeeItemID); err == nil {
+			upd = upd.SetRegistrationFeeCatalogItemID(id)
+		}
 	}
 
 	// Sidebar visibility lists live in the freeform metadata (no schema migration). Merge into a

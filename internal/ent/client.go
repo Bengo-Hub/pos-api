@@ -36,6 +36,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/documentsequence"
 	"github.com/bengobox/pos-service/internal/ent/druginteractioncheck"
 	"github.com/bengobox/pos-service/internal/ent/eventbooking"
+	"github.com/bengobox/pos-service/internal/ent/examinationrecord"
 	"github.com/bengobox/pos-service/internal/ent/facility"
 	"github.com/bengobox/pos-service/internal/ent/facilitybooking"
 	"github.com/bengobox/pos-service/internal/ent/featureoverride"
@@ -49,6 +50,8 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/kdsstation"
 	"github.com/bengobox/pos-service/internal/ent/kdssyncfailure"
 	"github.com/bengobox/pos-service/internal/ent/kdsticket"
+	"github.com/bengobox/pos-service/internal/ent/laborder"
+	"github.com/bengobox/pos-service/internal/ent/laborderline"
 	"github.com/bengobox/pos-service/internal/ent/layawaypayment"
 	"github.com/bengobox/pos-service/internal/ent/layawayplan"
 	"github.com/bengobox/pos-service/internal/ent/leaverequest"
@@ -64,6 +67,8 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/outboxevent"
 	"github.com/bengobox/pos-service/internal/ent/outlet"
 	"github.com/bengobox/pos-service/internal/ent/outletsetting"
+	"github.com/bengobox/pos-service/internal/ent/patient"
+	"github.com/bengobox/pos-service/internal/ent/patientvisit"
 	"github.com/bengobox/pos-service/internal/ent/poscatalogoverride"
 	"github.com/bengobox/pos-service/internal/ent/posdevice"
 	"github.com/bengobox/pos-service/internal/ent/posdevicesession"
@@ -130,6 +135,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/tenant"
 	"github.com/bengobox/pos-service/internal/ent/tenantsyncevent"
 	"github.com/bengobox/pos-service/internal/ent/tender"
+	"github.com/bengobox/pos-service/internal/ent/triagerecord"
 	"github.com/bengobox/pos-service/internal/ent/user"
 	"github.com/bengobox/pos-service/internal/ent/userposrole"
 	"github.com/bengobox/pos-service/internal/ent/webhookdelivery"
@@ -182,6 +188,8 @@ type Client struct {
 	DrugInteractionCheck *DrugInteractionCheckClient
 	// EventBooking is the client for interacting with the EventBooking builders.
 	EventBooking *EventBookingClient
+	// ExaminationRecord is the client for interacting with the ExaminationRecord builders.
+	ExaminationRecord *ExaminationRecordClient
 	// Facility is the client for interacting with the Facility builders.
 	Facility *FacilityClient
 	// FacilityBooking is the client for interacting with the FacilityBooking builders.
@@ -208,6 +216,10 @@ type Client struct {
 	KDSSyncFailure *KDSSyncFailureClient
 	// KDSTicket is the client for interacting with the KDSTicket builders.
 	KDSTicket *KDSTicketClient
+	// LabOrder is the client for interacting with the LabOrder builders.
+	LabOrder *LabOrderClient
+	// LabOrderLine is the client for interacting with the LabOrderLine builders.
+	LabOrderLine *LabOrderLineClient
 	// LayawayPayment is the client for interacting with the LayawayPayment builders.
 	LayawayPayment *LayawayPaymentClient
 	// LayawayPlan is the client for interacting with the LayawayPlan builders.
@@ -272,6 +284,10 @@ type Client struct {
 	POSRoleV2 *POSRoleV2Client
 	// POSUserRoleAssignment is the client for interacting with the POSUserRoleAssignment builders.
 	POSUserRoleAssignment *POSUserRoleAssignmentClient
+	// Patient is the client for interacting with the Patient builders.
+	Patient *PatientClient
+	// PatientVisit is the client for interacting with the PatientVisit builders.
+	PatientVisit *PatientVisitClient
 	// PosNotification is the client for interacting with the PosNotification builders.
 	PosNotification *PosNotificationClient
 	// Prescription is the client for interacting with the Prescription builders.
@@ -370,6 +386,8 @@ type Client struct {
 	TenantSyncEvent *TenantSyncEventClient
 	// Tender is the client for interacting with the Tender builders.
 	Tender *TenderClient
+	// TriageRecord is the client for interacting with the TriageRecord builders.
+	TriageRecord *TriageRecordClient
 	// User is the client for interacting with the User builders.
 	User *UserClient
 	// UserPOSRole is the client for interacting with the UserPOSRole builders.
@@ -411,6 +429,7 @@ func (c *Client) init() {
 	c.DocumentSequence = NewDocumentSequenceClient(c.config)
 	c.DrugInteractionCheck = NewDrugInteractionCheckClient(c.config)
 	c.EventBooking = NewEventBookingClient(c.config)
+	c.ExaminationRecord = NewExaminationRecordClient(c.config)
 	c.Facility = NewFacilityClient(c.config)
 	c.FacilityBooking = NewFacilityBookingClient(c.config)
 	c.FeatureOverride = NewFeatureOverrideClient(c.config)
@@ -424,6 +443,8 @@ func (c *Client) init() {
 	c.KDSStation = NewKDSStationClient(c.config)
 	c.KDSSyncFailure = NewKDSSyncFailureClient(c.config)
 	c.KDSTicket = NewKDSTicketClient(c.config)
+	c.LabOrder = NewLabOrderClient(c.config)
+	c.LabOrderLine = NewLabOrderLineClient(c.config)
 	c.LayawayPayment = NewLayawayPaymentClient(c.config)
 	c.LayawayPlan = NewLayawayPlanClient(c.config)
 	c.LeaveRequest = NewLeaveRequestClient(c.config)
@@ -456,6 +477,8 @@ func (c *Client) init() {
 	c.POSRolePermission = NewPOSRolePermissionClient(c.config)
 	c.POSRoleV2 = NewPOSRoleV2Client(c.config)
 	c.POSUserRoleAssignment = NewPOSUserRoleAssignmentClient(c.config)
+	c.Patient = NewPatientClient(c.config)
+	c.PatientVisit = NewPatientVisitClient(c.config)
 	c.PosNotification = NewPosNotificationClient(c.config)
 	c.Prescription = NewPrescriptionClient(c.config)
 	c.PrescriptionLine = NewPrescriptionLineClient(c.config)
@@ -505,6 +528,7 @@ func (c *Client) init() {
 	c.Tenant = NewTenantClient(c.config)
 	c.TenantSyncEvent = NewTenantSyncEventClient(c.config)
 	c.Tender = NewTenderClient(c.config)
+	c.TriageRecord = NewTriageRecordClient(c.config)
 	c.User = NewUserClient(c.config)
 	c.UserPOSRole = NewUserPOSRoleClient(c.config)
 	c.WebhookDelivery = NewWebhookDeliveryClient(c.config)
@@ -622,6 +646,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		DocumentSequence:         NewDocumentSequenceClient(cfg),
 		DrugInteractionCheck:     NewDrugInteractionCheckClient(cfg),
 		EventBooking:             NewEventBookingClient(cfg),
+		ExaminationRecord:        NewExaminationRecordClient(cfg),
 		Facility:                 NewFacilityClient(cfg),
 		FacilityBooking:          NewFacilityBookingClient(cfg),
 		FeatureOverride:          NewFeatureOverrideClient(cfg),
@@ -635,6 +660,8 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		KDSStation:               NewKDSStationClient(cfg),
 		KDSSyncFailure:           NewKDSSyncFailureClient(cfg),
 		KDSTicket:                NewKDSTicketClient(cfg),
+		LabOrder:                 NewLabOrderClient(cfg),
+		LabOrderLine:             NewLabOrderLineClient(cfg),
 		LayawayPayment:           NewLayawayPaymentClient(cfg),
 		LayawayPlan:              NewLayawayPlanClient(cfg),
 		LeaveRequest:             NewLeaveRequestClient(cfg),
@@ -667,6 +694,8 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		POSRolePermission:        NewPOSRolePermissionClient(cfg),
 		POSRoleV2:                NewPOSRoleV2Client(cfg),
 		POSUserRoleAssignment:    NewPOSUserRoleAssignmentClient(cfg),
+		Patient:                  NewPatientClient(cfg),
+		PatientVisit:             NewPatientVisitClient(cfg),
 		PosNotification:          NewPosNotificationClient(cfg),
 		Prescription:             NewPrescriptionClient(cfg),
 		PrescriptionLine:         NewPrescriptionLineClient(cfg),
@@ -716,6 +745,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		Tenant:                   NewTenantClient(cfg),
 		TenantSyncEvent:          NewTenantSyncEventClient(cfg),
 		Tender:                   NewTenderClient(cfg),
+		TriageRecord:             NewTriageRecordClient(cfg),
 		User:                     NewUserClient(cfg),
 		UserPOSRole:              NewUserPOSRoleClient(cfg),
 		WebhookDelivery:          NewWebhookDeliveryClient(cfg),
@@ -760,6 +790,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		DocumentSequence:         NewDocumentSequenceClient(cfg),
 		DrugInteractionCheck:     NewDrugInteractionCheckClient(cfg),
 		EventBooking:             NewEventBookingClient(cfg),
+		ExaminationRecord:        NewExaminationRecordClient(cfg),
 		Facility:                 NewFacilityClient(cfg),
 		FacilityBooking:          NewFacilityBookingClient(cfg),
 		FeatureOverride:          NewFeatureOverrideClient(cfg),
@@ -773,6 +804,8 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		KDSStation:               NewKDSStationClient(cfg),
 		KDSSyncFailure:           NewKDSSyncFailureClient(cfg),
 		KDSTicket:                NewKDSTicketClient(cfg),
+		LabOrder:                 NewLabOrderClient(cfg),
+		LabOrderLine:             NewLabOrderLineClient(cfg),
 		LayawayPayment:           NewLayawayPaymentClient(cfg),
 		LayawayPlan:              NewLayawayPlanClient(cfg),
 		LeaveRequest:             NewLeaveRequestClient(cfg),
@@ -805,6 +838,8 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		POSRolePermission:        NewPOSRolePermissionClient(cfg),
 		POSRoleV2:                NewPOSRoleV2Client(cfg),
 		POSUserRoleAssignment:    NewPOSUserRoleAssignmentClient(cfg),
+		Patient:                  NewPatientClient(cfg),
+		PatientVisit:             NewPatientVisitClient(cfg),
 		PosNotification:          NewPosNotificationClient(cfg),
 		Prescription:             NewPrescriptionClient(cfg),
 		PrescriptionLine:         NewPrescriptionLineClient(cfg),
@@ -854,6 +889,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		Tenant:                   NewTenantClient(cfg),
 		TenantSyncEvent:          NewTenantSyncEventClient(cfg),
 		Tender:                   NewTenderClient(cfg),
+		TriageRecord:             NewTriageRecordClient(cfg),
 		User:                     NewUserClient(cfg),
 		UserPOSRole:              NewUserPOSRoleClient(cfg),
 		WebhookDelivery:          NewWebhookDeliveryClient(cfg),
@@ -892,21 +928,22 @@ func (c *Client) Use(hooks ...Hook) {
 		c.BillSplit, c.CashDrawer, c.CashDrawerEvent, c.ChannelIntegration,
 		c.ChannelSyncJob, c.ClientRecord, c.CommissionRecord, c.CommissionRule,
 		c.ControlledSubstanceLog, c.CustomerBalanceCache, c.DailyClosing,
-		c.DocumentSequence, c.DrugInteractionCheck, c.EventBooking, c.Facility,
-		c.FacilityBooking, c.FeatureOverride, c.GiftCard, c.GiftCardTransaction,
-		c.HeldItem, c.HousekeepingTask, c.IdempotencyKey, c.IntegrationSetting,
-		c.InventorySnapshot, c.KDSStation, c.KDSSyncFailure, c.KDSTicket,
-		c.LayawayPayment, c.LayawayPlan, c.LeaveRequest, c.LicenseUsageSnapshot,
-		c.LoyaltyAccount, c.LoyaltyProgram, c.LoyaltyTransaction, c.MealEntitlement,
-		c.Modifier, c.ModifierGroup, c.OrderLink, c.OrderVoidCode, c.OutboxEvent,
-		c.Outlet, c.OutletSetting, c.POSCatalogOverride, c.POSDevice,
-		c.POSDeviceSession, c.POSLineModifier, c.POSOrder, c.POSOrderEvent,
-		c.POSOrderLine, c.POSPayment, c.POSPermission, c.POSRefund, c.POSReturn,
-		c.POSReturnLine, c.POSReversal, c.POSRole, c.POSRolePermission, c.POSRoleV2,
-		c.POSUserRoleAssignment, c.PosNotification, c.Prescription, c.PrescriptionLine,
-		c.PriceBook, c.PriceBookItem, c.PrintAgent, c.PrintJob, c.Promotion,
-		c.PromotionApplication, c.PromotionRule, c.RateLimitConfig, c.Referral,
-		c.RepairJob, c.RepairJobEvent, c.RepairJobPart, c.Resource, c.Room,
+		c.DocumentSequence, c.DrugInteractionCheck, c.EventBooking,
+		c.ExaminationRecord, c.Facility, c.FacilityBooking, c.FeatureOverride,
+		c.GiftCard, c.GiftCardTransaction, c.HeldItem, c.HousekeepingTask,
+		c.IdempotencyKey, c.IntegrationSetting, c.InventorySnapshot, c.KDSStation,
+		c.KDSSyncFailure, c.KDSTicket, c.LabOrder, c.LabOrderLine, c.LayawayPayment,
+		c.LayawayPlan, c.LeaveRequest, c.LicenseUsageSnapshot, c.LoyaltyAccount,
+		c.LoyaltyProgram, c.LoyaltyTransaction, c.MealEntitlement, c.Modifier,
+		c.ModifierGroup, c.OrderLink, c.OrderVoidCode, c.OutboxEvent, c.Outlet,
+		c.OutletSetting, c.POSCatalogOverride, c.POSDevice, c.POSDeviceSession,
+		c.POSLineModifier, c.POSOrder, c.POSOrderEvent, c.POSOrderLine, c.POSPayment,
+		c.POSPermission, c.POSRefund, c.POSReturn, c.POSReturnLine, c.POSReversal,
+		c.POSRole, c.POSRolePermission, c.POSRoleV2, c.POSUserRoleAssignment,
+		c.Patient, c.PatientVisit, c.PosNotification, c.Prescription,
+		c.PrescriptionLine, c.PriceBook, c.PriceBookItem, c.PrintAgent, c.PrintJob,
+		c.Promotion, c.PromotionApplication, c.PromotionRule, c.RateLimitConfig,
+		c.Referral, c.RepairJob, c.RepairJobEvent, c.RepairJobPart, c.Resource, c.Room,
 		c.RoomAmenity, c.RoomAmenityAssignment, c.RoomBooking, c.RoomFolioItem,
 		c.RoomFolioPayment, c.RoomGuest, c.Section, c.SerialNumberLog, c.ServiceConfig,
 		c.ServicePackage, c.ServicePackagePurchase, c.ServicePackageRedemption,
@@ -915,8 +952,8 @@ func (c *Client) Use(hooks ...Hook) {
 		c.StaffPurchaseLink, c.StaffSchedule, c.StaffShiftOverride,
 		c.StockAlertSubscription, c.StockConsumptionEvent, c.SyncFailure, c.Table,
 		c.TableAssignment, c.TableReservation, c.Tenant, c.TenantSyncEvent, c.Tender,
-		c.User, c.UserPOSRole, c.WebhookDelivery, c.WebhookSubscription,
-		c.WeighingScaleReading,
+		c.TriageRecord, c.User, c.UserPOSRole, c.WebhookDelivery,
+		c.WebhookSubscription, c.WeighingScaleReading,
 	} {
 		n.Use(hooks...)
 	}
@@ -930,21 +967,22 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.BillSplit, c.CashDrawer, c.CashDrawerEvent, c.ChannelIntegration,
 		c.ChannelSyncJob, c.ClientRecord, c.CommissionRecord, c.CommissionRule,
 		c.ControlledSubstanceLog, c.CustomerBalanceCache, c.DailyClosing,
-		c.DocumentSequence, c.DrugInteractionCheck, c.EventBooking, c.Facility,
-		c.FacilityBooking, c.FeatureOverride, c.GiftCard, c.GiftCardTransaction,
-		c.HeldItem, c.HousekeepingTask, c.IdempotencyKey, c.IntegrationSetting,
-		c.InventorySnapshot, c.KDSStation, c.KDSSyncFailure, c.KDSTicket,
-		c.LayawayPayment, c.LayawayPlan, c.LeaveRequest, c.LicenseUsageSnapshot,
-		c.LoyaltyAccount, c.LoyaltyProgram, c.LoyaltyTransaction, c.MealEntitlement,
-		c.Modifier, c.ModifierGroup, c.OrderLink, c.OrderVoidCode, c.OutboxEvent,
-		c.Outlet, c.OutletSetting, c.POSCatalogOverride, c.POSDevice,
-		c.POSDeviceSession, c.POSLineModifier, c.POSOrder, c.POSOrderEvent,
-		c.POSOrderLine, c.POSPayment, c.POSPermission, c.POSRefund, c.POSReturn,
-		c.POSReturnLine, c.POSReversal, c.POSRole, c.POSRolePermission, c.POSRoleV2,
-		c.POSUserRoleAssignment, c.PosNotification, c.Prescription, c.PrescriptionLine,
-		c.PriceBook, c.PriceBookItem, c.PrintAgent, c.PrintJob, c.Promotion,
-		c.PromotionApplication, c.PromotionRule, c.RateLimitConfig, c.Referral,
-		c.RepairJob, c.RepairJobEvent, c.RepairJobPart, c.Resource, c.Room,
+		c.DocumentSequence, c.DrugInteractionCheck, c.EventBooking,
+		c.ExaminationRecord, c.Facility, c.FacilityBooking, c.FeatureOverride,
+		c.GiftCard, c.GiftCardTransaction, c.HeldItem, c.HousekeepingTask,
+		c.IdempotencyKey, c.IntegrationSetting, c.InventorySnapshot, c.KDSStation,
+		c.KDSSyncFailure, c.KDSTicket, c.LabOrder, c.LabOrderLine, c.LayawayPayment,
+		c.LayawayPlan, c.LeaveRequest, c.LicenseUsageSnapshot, c.LoyaltyAccount,
+		c.LoyaltyProgram, c.LoyaltyTransaction, c.MealEntitlement, c.Modifier,
+		c.ModifierGroup, c.OrderLink, c.OrderVoidCode, c.OutboxEvent, c.Outlet,
+		c.OutletSetting, c.POSCatalogOverride, c.POSDevice, c.POSDeviceSession,
+		c.POSLineModifier, c.POSOrder, c.POSOrderEvent, c.POSOrderLine, c.POSPayment,
+		c.POSPermission, c.POSRefund, c.POSReturn, c.POSReturnLine, c.POSReversal,
+		c.POSRole, c.POSRolePermission, c.POSRoleV2, c.POSUserRoleAssignment,
+		c.Patient, c.PatientVisit, c.PosNotification, c.Prescription,
+		c.PrescriptionLine, c.PriceBook, c.PriceBookItem, c.PrintAgent, c.PrintJob,
+		c.Promotion, c.PromotionApplication, c.PromotionRule, c.RateLimitConfig,
+		c.Referral, c.RepairJob, c.RepairJobEvent, c.RepairJobPart, c.Resource, c.Room,
 		c.RoomAmenity, c.RoomAmenityAssignment, c.RoomBooking, c.RoomFolioItem,
 		c.RoomFolioPayment, c.RoomGuest, c.Section, c.SerialNumberLog, c.ServiceConfig,
 		c.ServicePackage, c.ServicePackagePurchase, c.ServicePackageRedemption,
@@ -953,8 +991,8 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.StaffPurchaseLink, c.StaffSchedule, c.StaffShiftOverride,
 		c.StockAlertSubscription, c.StockConsumptionEvent, c.SyncFailure, c.Table,
 		c.TableAssignment, c.TableReservation, c.Tenant, c.TenantSyncEvent, c.Tender,
-		c.User, c.UserPOSRole, c.WebhookDelivery, c.WebhookSubscription,
-		c.WeighingScaleReading,
+		c.TriageRecord, c.User, c.UserPOSRole, c.WebhookDelivery,
+		c.WebhookSubscription, c.WeighingScaleReading,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -1003,6 +1041,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.DrugInteractionCheck.mutate(ctx, m)
 	case *EventBookingMutation:
 		return c.EventBooking.mutate(ctx, m)
+	case *ExaminationRecordMutation:
+		return c.ExaminationRecord.mutate(ctx, m)
 	case *FacilityMutation:
 		return c.Facility.mutate(ctx, m)
 	case *FacilityBookingMutation:
@@ -1029,6 +1069,10 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.KDSSyncFailure.mutate(ctx, m)
 	case *KDSTicketMutation:
 		return c.KDSTicket.mutate(ctx, m)
+	case *LabOrderMutation:
+		return c.LabOrder.mutate(ctx, m)
+	case *LabOrderLineMutation:
+		return c.LabOrderLine.mutate(ctx, m)
 	case *LayawayPaymentMutation:
 		return c.LayawayPayment.mutate(ctx, m)
 	case *LayawayPlanMutation:
@@ -1093,6 +1137,10 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.POSRoleV2.mutate(ctx, m)
 	case *POSUserRoleAssignmentMutation:
 		return c.POSUserRoleAssignment.mutate(ctx, m)
+	case *PatientMutation:
+		return c.Patient.mutate(ctx, m)
+	case *PatientVisitMutation:
+		return c.PatientVisit.mutate(ctx, m)
 	case *PosNotificationMutation:
 		return c.PosNotification.mutate(ctx, m)
 	case *PrescriptionMutation:
@@ -1191,6 +1239,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.TenantSyncEvent.mutate(ctx, m)
 	case *TenderMutation:
 		return c.Tender.mutate(ctx, m)
+	case *TriageRecordMutation:
+		return c.TriageRecord.mutate(ctx, m)
 	case *UserMutation:
 		return c.User.mutate(ctx, m)
 	case *UserPOSRoleMutation:
@@ -3962,6 +4012,139 @@ func (c *EventBookingClient) mutate(ctx context.Context, m *EventBookingMutation
 	}
 }
 
+// ExaminationRecordClient is a client for the ExaminationRecord schema.
+type ExaminationRecordClient struct {
+	config
+}
+
+// NewExaminationRecordClient returns a client for the ExaminationRecord from the given config.
+func NewExaminationRecordClient(c config) *ExaminationRecordClient {
+	return &ExaminationRecordClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `examinationrecord.Hooks(f(g(h())))`.
+func (c *ExaminationRecordClient) Use(hooks ...Hook) {
+	c.hooks.ExaminationRecord = append(c.hooks.ExaminationRecord, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `examinationrecord.Intercept(f(g(h())))`.
+func (c *ExaminationRecordClient) Intercept(interceptors ...Interceptor) {
+	c.inters.ExaminationRecord = append(c.inters.ExaminationRecord, interceptors...)
+}
+
+// Create returns a builder for creating a ExaminationRecord entity.
+func (c *ExaminationRecordClient) Create() *ExaminationRecordCreate {
+	mutation := newExaminationRecordMutation(c.config, OpCreate)
+	return &ExaminationRecordCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of ExaminationRecord entities.
+func (c *ExaminationRecordClient) CreateBulk(builders ...*ExaminationRecordCreate) *ExaminationRecordCreateBulk {
+	return &ExaminationRecordCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ExaminationRecordClient) MapCreateBulk(slice any, setFunc func(*ExaminationRecordCreate, int)) *ExaminationRecordCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ExaminationRecordCreateBulk{err: fmt.Errorf("calling to ExaminationRecordClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ExaminationRecordCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ExaminationRecordCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for ExaminationRecord.
+func (c *ExaminationRecordClient) Update() *ExaminationRecordUpdate {
+	mutation := newExaminationRecordMutation(c.config, OpUpdate)
+	return &ExaminationRecordUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ExaminationRecordClient) UpdateOne(_m *ExaminationRecord) *ExaminationRecordUpdateOne {
+	mutation := newExaminationRecordMutation(c.config, OpUpdateOne, withExaminationRecord(_m))
+	return &ExaminationRecordUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ExaminationRecordClient) UpdateOneID(id uuid.UUID) *ExaminationRecordUpdateOne {
+	mutation := newExaminationRecordMutation(c.config, OpUpdateOne, withExaminationRecordID(id))
+	return &ExaminationRecordUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for ExaminationRecord.
+func (c *ExaminationRecordClient) Delete() *ExaminationRecordDelete {
+	mutation := newExaminationRecordMutation(c.config, OpDelete)
+	return &ExaminationRecordDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ExaminationRecordClient) DeleteOne(_m *ExaminationRecord) *ExaminationRecordDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ExaminationRecordClient) DeleteOneID(id uuid.UUID) *ExaminationRecordDeleteOne {
+	builder := c.Delete().Where(examinationrecord.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ExaminationRecordDeleteOne{builder}
+}
+
+// Query returns a query builder for ExaminationRecord.
+func (c *ExaminationRecordClient) Query() *ExaminationRecordQuery {
+	return &ExaminationRecordQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeExaminationRecord},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a ExaminationRecord entity by its id.
+func (c *ExaminationRecordClient) Get(ctx context.Context, id uuid.UUID) (*ExaminationRecord, error) {
+	return c.Query().Where(examinationrecord.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ExaminationRecordClient) GetX(ctx context.Context, id uuid.UUID) *ExaminationRecord {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *ExaminationRecordClient) Hooks() []Hook {
+	return c.hooks.ExaminationRecord
+}
+
+// Interceptors returns the client interceptors.
+func (c *ExaminationRecordClient) Interceptors() []Interceptor {
+	return c.inters.ExaminationRecord
+}
+
+func (c *ExaminationRecordClient) mutate(ctx context.Context, m *ExaminationRecordMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ExaminationRecordCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ExaminationRecordUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ExaminationRecordUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ExaminationRecordDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown ExaminationRecord mutation op: %q", m.Op())
+	}
+}
+
 // FacilityClient is a client for the Facility schema.
 type FacilityClient struct {
 	config
@@ -5768,6 +5951,272 @@ func (c *KDSTicketClient) mutate(ctx context.Context, m *KDSTicketMutation) (Val
 		return (&KDSTicketDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown KDSTicket mutation op: %q", m.Op())
+	}
+}
+
+// LabOrderClient is a client for the LabOrder schema.
+type LabOrderClient struct {
+	config
+}
+
+// NewLabOrderClient returns a client for the LabOrder from the given config.
+func NewLabOrderClient(c config) *LabOrderClient {
+	return &LabOrderClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `laborder.Hooks(f(g(h())))`.
+func (c *LabOrderClient) Use(hooks ...Hook) {
+	c.hooks.LabOrder = append(c.hooks.LabOrder, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `laborder.Intercept(f(g(h())))`.
+func (c *LabOrderClient) Intercept(interceptors ...Interceptor) {
+	c.inters.LabOrder = append(c.inters.LabOrder, interceptors...)
+}
+
+// Create returns a builder for creating a LabOrder entity.
+func (c *LabOrderClient) Create() *LabOrderCreate {
+	mutation := newLabOrderMutation(c.config, OpCreate)
+	return &LabOrderCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of LabOrder entities.
+func (c *LabOrderClient) CreateBulk(builders ...*LabOrderCreate) *LabOrderCreateBulk {
+	return &LabOrderCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *LabOrderClient) MapCreateBulk(slice any, setFunc func(*LabOrderCreate, int)) *LabOrderCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &LabOrderCreateBulk{err: fmt.Errorf("calling to LabOrderClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*LabOrderCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &LabOrderCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for LabOrder.
+func (c *LabOrderClient) Update() *LabOrderUpdate {
+	mutation := newLabOrderMutation(c.config, OpUpdate)
+	return &LabOrderUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *LabOrderClient) UpdateOne(_m *LabOrder) *LabOrderUpdateOne {
+	mutation := newLabOrderMutation(c.config, OpUpdateOne, withLabOrder(_m))
+	return &LabOrderUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *LabOrderClient) UpdateOneID(id uuid.UUID) *LabOrderUpdateOne {
+	mutation := newLabOrderMutation(c.config, OpUpdateOne, withLabOrderID(id))
+	return &LabOrderUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for LabOrder.
+func (c *LabOrderClient) Delete() *LabOrderDelete {
+	mutation := newLabOrderMutation(c.config, OpDelete)
+	return &LabOrderDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *LabOrderClient) DeleteOne(_m *LabOrder) *LabOrderDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *LabOrderClient) DeleteOneID(id uuid.UUID) *LabOrderDeleteOne {
+	builder := c.Delete().Where(laborder.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &LabOrderDeleteOne{builder}
+}
+
+// Query returns a query builder for LabOrder.
+func (c *LabOrderClient) Query() *LabOrderQuery {
+	return &LabOrderQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeLabOrder},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a LabOrder entity by its id.
+func (c *LabOrderClient) Get(ctx context.Context, id uuid.UUID) (*LabOrder, error) {
+	return c.Query().Where(laborder.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *LabOrderClient) GetX(ctx context.Context, id uuid.UUID) *LabOrder {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *LabOrderClient) Hooks() []Hook {
+	return c.hooks.LabOrder
+}
+
+// Interceptors returns the client interceptors.
+func (c *LabOrderClient) Interceptors() []Interceptor {
+	return c.inters.LabOrder
+}
+
+func (c *LabOrderClient) mutate(ctx context.Context, m *LabOrderMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&LabOrderCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&LabOrderUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&LabOrderUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&LabOrderDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown LabOrder mutation op: %q", m.Op())
+	}
+}
+
+// LabOrderLineClient is a client for the LabOrderLine schema.
+type LabOrderLineClient struct {
+	config
+}
+
+// NewLabOrderLineClient returns a client for the LabOrderLine from the given config.
+func NewLabOrderLineClient(c config) *LabOrderLineClient {
+	return &LabOrderLineClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `laborderline.Hooks(f(g(h())))`.
+func (c *LabOrderLineClient) Use(hooks ...Hook) {
+	c.hooks.LabOrderLine = append(c.hooks.LabOrderLine, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `laborderline.Intercept(f(g(h())))`.
+func (c *LabOrderLineClient) Intercept(interceptors ...Interceptor) {
+	c.inters.LabOrderLine = append(c.inters.LabOrderLine, interceptors...)
+}
+
+// Create returns a builder for creating a LabOrderLine entity.
+func (c *LabOrderLineClient) Create() *LabOrderLineCreate {
+	mutation := newLabOrderLineMutation(c.config, OpCreate)
+	return &LabOrderLineCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of LabOrderLine entities.
+func (c *LabOrderLineClient) CreateBulk(builders ...*LabOrderLineCreate) *LabOrderLineCreateBulk {
+	return &LabOrderLineCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *LabOrderLineClient) MapCreateBulk(slice any, setFunc func(*LabOrderLineCreate, int)) *LabOrderLineCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &LabOrderLineCreateBulk{err: fmt.Errorf("calling to LabOrderLineClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*LabOrderLineCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &LabOrderLineCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for LabOrderLine.
+func (c *LabOrderLineClient) Update() *LabOrderLineUpdate {
+	mutation := newLabOrderLineMutation(c.config, OpUpdate)
+	return &LabOrderLineUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *LabOrderLineClient) UpdateOne(_m *LabOrderLine) *LabOrderLineUpdateOne {
+	mutation := newLabOrderLineMutation(c.config, OpUpdateOne, withLabOrderLine(_m))
+	return &LabOrderLineUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *LabOrderLineClient) UpdateOneID(id uuid.UUID) *LabOrderLineUpdateOne {
+	mutation := newLabOrderLineMutation(c.config, OpUpdateOne, withLabOrderLineID(id))
+	return &LabOrderLineUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for LabOrderLine.
+func (c *LabOrderLineClient) Delete() *LabOrderLineDelete {
+	mutation := newLabOrderLineMutation(c.config, OpDelete)
+	return &LabOrderLineDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *LabOrderLineClient) DeleteOne(_m *LabOrderLine) *LabOrderLineDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *LabOrderLineClient) DeleteOneID(id uuid.UUID) *LabOrderLineDeleteOne {
+	builder := c.Delete().Where(laborderline.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &LabOrderLineDeleteOne{builder}
+}
+
+// Query returns a query builder for LabOrderLine.
+func (c *LabOrderLineClient) Query() *LabOrderLineQuery {
+	return &LabOrderLineQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeLabOrderLine},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a LabOrderLine entity by its id.
+func (c *LabOrderLineClient) Get(ctx context.Context, id uuid.UUID) (*LabOrderLine, error) {
+	return c.Query().Where(laborderline.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *LabOrderLineClient) GetX(ctx context.Context, id uuid.UUID) *LabOrderLine {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *LabOrderLineClient) Hooks() []Hook {
+	return c.hooks.LabOrderLine
+}
+
+// Interceptors returns the client interceptors.
+func (c *LabOrderLineClient) Interceptors() []Interceptor {
+	return c.inters.LabOrderLine
+}
+
+func (c *LabOrderLineClient) mutate(ctx context.Context, m *LabOrderLineMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&LabOrderLineCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&LabOrderLineUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&LabOrderLineUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&LabOrderLineDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown LabOrderLine mutation op: %q", m.Op())
 	}
 }
 
@@ -10536,6 +10985,272 @@ func (c *POSUserRoleAssignmentClient) mutate(ctx context.Context, m *POSUserRole
 		return (&POSUserRoleAssignmentDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown POSUserRoleAssignment mutation op: %q", m.Op())
+	}
+}
+
+// PatientClient is a client for the Patient schema.
+type PatientClient struct {
+	config
+}
+
+// NewPatientClient returns a client for the Patient from the given config.
+func NewPatientClient(c config) *PatientClient {
+	return &PatientClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `patient.Hooks(f(g(h())))`.
+func (c *PatientClient) Use(hooks ...Hook) {
+	c.hooks.Patient = append(c.hooks.Patient, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `patient.Intercept(f(g(h())))`.
+func (c *PatientClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Patient = append(c.inters.Patient, interceptors...)
+}
+
+// Create returns a builder for creating a Patient entity.
+func (c *PatientClient) Create() *PatientCreate {
+	mutation := newPatientMutation(c.config, OpCreate)
+	return &PatientCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Patient entities.
+func (c *PatientClient) CreateBulk(builders ...*PatientCreate) *PatientCreateBulk {
+	return &PatientCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *PatientClient) MapCreateBulk(slice any, setFunc func(*PatientCreate, int)) *PatientCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &PatientCreateBulk{err: fmt.Errorf("calling to PatientClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*PatientCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &PatientCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Patient.
+func (c *PatientClient) Update() *PatientUpdate {
+	mutation := newPatientMutation(c.config, OpUpdate)
+	return &PatientUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *PatientClient) UpdateOne(_m *Patient) *PatientUpdateOne {
+	mutation := newPatientMutation(c.config, OpUpdateOne, withPatient(_m))
+	return &PatientUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *PatientClient) UpdateOneID(id uuid.UUID) *PatientUpdateOne {
+	mutation := newPatientMutation(c.config, OpUpdateOne, withPatientID(id))
+	return &PatientUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Patient.
+func (c *PatientClient) Delete() *PatientDelete {
+	mutation := newPatientMutation(c.config, OpDelete)
+	return &PatientDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *PatientClient) DeleteOne(_m *Patient) *PatientDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *PatientClient) DeleteOneID(id uuid.UUID) *PatientDeleteOne {
+	builder := c.Delete().Where(patient.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &PatientDeleteOne{builder}
+}
+
+// Query returns a query builder for Patient.
+func (c *PatientClient) Query() *PatientQuery {
+	return &PatientQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypePatient},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a Patient entity by its id.
+func (c *PatientClient) Get(ctx context.Context, id uuid.UUID) (*Patient, error) {
+	return c.Query().Where(patient.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *PatientClient) GetX(ctx context.Context, id uuid.UUID) *Patient {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *PatientClient) Hooks() []Hook {
+	return c.hooks.Patient
+}
+
+// Interceptors returns the client interceptors.
+func (c *PatientClient) Interceptors() []Interceptor {
+	return c.inters.Patient
+}
+
+func (c *PatientClient) mutate(ctx context.Context, m *PatientMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&PatientCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&PatientUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&PatientUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&PatientDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown Patient mutation op: %q", m.Op())
+	}
+}
+
+// PatientVisitClient is a client for the PatientVisit schema.
+type PatientVisitClient struct {
+	config
+}
+
+// NewPatientVisitClient returns a client for the PatientVisit from the given config.
+func NewPatientVisitClient(c config) *PatientVisitClient {
+	return &PatientVisitClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `patientvisit.Hooks(f(g(h())))`.
+func (c *PatientVisitClient) Use(hooks ...Hook) {
+	c.hooks.PatientVisit = append(c.hooks.PatientVisit, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `patientvisit.Intercept(f(g(h())))`.
+func (c *PatientVisitClient) Intercept(interceptors ...Interceptor) {
+	c.inters.PatientVisit = append(c.inters.PatientVisit, interceptors...)
+}
+
+// Create returns a builder for creating a PatientVisit entity.
+func (c *PatientVisitClient) Create() *PatientVisitCreate {
+	mutation := newPatientVisitMutation(c.config, OpCreate)
+	return &PatientVisitCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of PatientVisit entities.
+func (c *PatientVisitClient) CreateBulk(builders ...*PatientVisitCreate) *PatientVisitCreateBulk {
+	return &PatientVisitCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *PatientVisitClient) MapCreateBulk(slice any, setFunc func(*PatientVisitCreate, int)) *PatientVisitCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &PatientVisitCreateBulk{err: fmt.Errorf("calling to PatientVisitClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*PatientVisitCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &PatientVisitCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for PatientVisit.
+func (c *PatientVisitClient) Update() *PatientVisitUpdate {
+	mutation := newPatientVisitMutation(c.config, OpUpdate)
+	return &PatientVisitUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *PatientVisitClient) UpdateOne(_m *PatientVisit) *PatientVisitUpdateOne {
+	mutation := newPatientVisitMutation(c.config, OpUpdateOne, withPatientVisit(_m))
+	return &PatientVisitUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *PatientVisitClient) UpdateOneID(id uuid.UUID) *PatientVisitUpdateOne {
+	mutation := newPatientVisitMutation(c.config, OpUpdateOne, withPatientVisitID(id))
+	return &PatientVisitUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for PatientVisit.
+func (c *PatientVisitClient) Delete() *PatientVisitDelete {
+	mutation := newPatientVisitMutation(c.config, OpDelete)
+	return &PatientVisitDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *PatientVisitClient) DeleteOne(_m *PatientVisit) *PatientVisitDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *PatientVisitClient) DeleteOneID(id uuid.UUID) *PatientVisitDeleteOne {
+	builder := c.Delete().Where(patientvisit.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &PatientVisitDeleteOne{builder}
+}
+
+// Query returns a query builder for PatientVisit.
+func (c *PatientVisitClient) Query() *PatientVisitQuery {
+	return &PatientVisitQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypePatientVisit},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a PatientVisit entity by its id.
+func (c *PatientVisitClient) Get(ctx context.Context, id uuid.UUID) (*PatientVisit, error) {
+	return c.Query().Where(patientvisit.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *PatientVisitClient) GetX(ctx context.Context, id uuid.UUID) *PatientVisit {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *PatientVisitClient) Hooks() []Hook {
+	return c.hooks.PatientVisit
+}
+
+// Interceptors returns the client interceptors.
+func (c *PatientVisitClient) Interceptors() []Interceptor {
+	return c.inters.PatientVisit
+}
+
+func (c *PatientVisitClient) mutate(ctx context.Context, m *PatientVisitMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&PatientVisitCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&PatientVisitUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&PatientVisitUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&PatientVisitDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown PatientVisit mutation op: %q", m.Op())
 	}
 }
 
@@ -17536,6 +18251,139 @@ func (c *TenderClient) mutate(ctx context.Context, m *TenderMutation) (Value, er
 	}
 }
 
+// TriageRecordClient is a client for the TriageRecord schema.
+type TriageRecordClient struct {
+	config
+}
+
+// NewTriageRecordClient returns a client for the TriageRecord from the given config.
+func NewTriageRecordClient(c config) *TriageRecordClient {
+	return &TriageRecordClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `triagerecord.Hooks(f(g(h())))`.
+func (c *TriageRecordClient) Use(hooks ...Hook) {
+	c.hooks.TriageRecord = append(c.hooks.TriageRecord, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `triagerecord.Intercept(f(g(h())))`.
+func (c *TriageRecordClient) Intercept(interceptors ...Interceptor) {
+	c.inters.TriageRecord = append(c.inters.TriageRecord, interceptors...)
+}
+
+// Create returns a builder for creating a TriageRecord entity.
+func (c *TriageRecordClient) Create() *TriageRecordCreate {
+	mutation := newTriageRecordMutation(c.config, OpCreate)
+	return &TriageRecordCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of TriageRecord entities.
+func (c *TriageRecordClient) CreateBulk(builders ...*TriageRecordCreate) *TriageRecordCreateBulk {
+	return &TriageRecordCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *TriageRecordClient) MapCreateBulk(slice any, setFunc func(*TriageRecordCreate, int)) *TriageRecordCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &TriageRecordCreateBulk{err: fmt.Errorf("calling to TriageRecordClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*TriageRecordCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &TriageRecordCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for TriageRecord.
+func (c *TriageRecordClient) Update() *TriageRecordUpdate {
+	mutation := newTriageRecordMutation(c.config, OpUpdate)
+	return &TriageRecordUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *TriageRecordClient) UpdateOne(_m *TriageRecord) *TriageRecordUpdateOne {
+	mutation := newTriageRecordMutation(c.config, OpUpdateOne, withTriageRecord(_m))
+	return &TriageRecordUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *TriageRecordClient) UpdateOneID(id uuid.UUID) *TriageRecordUpdateOne {
+	mutation := newTriageRecordMutation(c.config, OpUpdateOne, withTriageRecordID(id))
+	return &TriageRecordUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for TriageRecord.
+func (c *TriageRecordClient) Delete() *TriageRecordDelete {
+	mutation := newTriageRecordMutation(c.config, OpDelete)
+	return &TriageRecordDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *TriageRecordClient) DeleteOne(_m *TriageRecord) *TriageRecordDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *TriageRecordClient) DeleteOneID(id uuid.UUID) *TriageRecordDeleteOne {
+	builder := c.Delete().Where(triagerecord.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &TriageRecordDeleteOne{builder}
+}
+
+// Query returns a query builder for TriageRecord.
+func (c *TriageRecordClient) Query() *TriageRecordQuery {
+	return &TriageRecordQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeTriageRecord},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a TriageRecord entity by its id.
+func (c *TriageRecordClient) Get(ctx context.Context, id uuid.UUID) (*TriageRecord, error) {
+	return c.Query().Where(triagerecord.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *TriageRecordClient) GetX(ctx context.Context, id uuid.UUID) *TriageRecord {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *TriageRecordClient) Hooks() []Hook {
+	return c.hooks.TriageRecord
+}
+
+// Interceptors returns the client interceptors.
+func (c *TriageRecordClient) Interceptors() []Interceptor {
+	return c.inters.TriageRecord
+}
+
+func (c *TriageRecordClient) mutate(ctx context.Context, m *TriageRecordMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&TriageRecordCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&TriageRecordUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&TriageRecordUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&TriageRecordDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown TriageRecord mutation op: %q", m.Op())
+	}
+}
+
 // UserClient is a client for the User schema.
 type UserClient struct {
 	config
@@ -18271,54 +19119,56 @@ type (
 		Appointment, AuditLog, Backup, BackupSetting, BarTab, BarTabEvent, BillSplit,
 		CashDrawer, CashDrawerEvent, ChannelIntegration, ChannelSyncJob, ClientRecord,
 		CommissionRecord, CommissionRule, ControlledSubstanceLog, CustomerBalanceCache,
-		DailyClosing, DocumentSequence, DrugInteractionCheck, EventBooking, Facility,
-		FacilityBooking, FeatureOverride, GiftCard, GiftCardTransaction, HeldItem,
-		HousekeepingTask, IdempotencyKey, IntegrationSetting, InventorySnapshot,
-		KDSStation, KDSSyncFailure, KDSTicket, LayawayPayment, LayawayPlan,
-		LeaveRequest, LicenseUsageSnapshot, LoyaltyAccount, LoyaltyProgram,
-		LoyaltyTransaction, MealEntitlement, Modifier, ModifierGroup, OrderLink,
-		OrderVoidCode, OutboxEvent, Outlet, OutletSetting, POSCatalogOverride,
-		POSDevice, POSDeviceSession, POSLineModifier, POSOrder, POSOrderEvent,
-		POSOrderLine, POSPayment, POSPermission, POSRefund, POSReturn, POSReturnLine,
-		POSReversal, POSRole, POSRolePermission, POSRoleV2, POSUserRoleAssignment,
-		PosNotification, Prescription, PrescriptionLine, PriceBook, PriceBookItem,
-		PrintAgent, PrintJob, Promotion, PromotionApplication, PromotionRule,
-		RateLimitConfig, Referral, RepairJob, RepairJobEvent, RepairJobPart, Resource,
-		Room, RoomAmenity, RoomAmenityAssignment, RoomBooking, RoomFolioItem,
-		RoomFolioPayment, RoomGuest, Section, SerialNumberLog, ServiceConfig,
-		ServicePackage, ServicePackagePurchase, ServicePackageRedemption,
-		ServiceQueueEntry, ShiftRotation, ShiftRotationSlot, StaffAdvance, StaffMember,
-		StaffOutlet, StaffPayroll, StaffPayrollLine, StaffPurchaseLink, StaffSchedule,
-		StaffShiftOverride, StockAlertSubscription, StockConsumptionEvent, SyncFailure,
-		Table, TableAssignment, TableReservation, Tenant, TenantSyncEvent, Tender,
-		User, UserPOSRole, WebhookDelivery, WebhookSubscription,
-		WeighingScaleReading []ent.Hook
+		DailyClosing, DocumentSequence, DrugInteractionCheck, EventBooking,
+		ExaminationRecord, Facility, FacilityBooking, FeatureOverride, GiftCard,
+		GiftCardTransaction, HeldItem, HousekeepingTask, IdempotencyKey,
+		IntegrationSetting, InventorySnapshot, KDSStation, KDSSyncFailure, KDSTicket,
+		LabOrder, LabOrderLine, LayawayPayment, LayawayPlan, LeaveRequest,
+		LicenseUsageSnapshot, LoyaltyAccount, LoyaltyProgram, LoyaltyTransaction,
+		MealEntitlement, Modifier, ModifierGroup, OrderLink, OrderVoidCode,
+		OutboxEvent, Outlet, OutletSetting, POSCatalogOverride, POSDevice,
+		POSDeviceSession, POSLineModifier, POSOrder, POSOrderEvent, POSOrderLine,
+		POSPayment, POSPermission, POSRefund, POSReturn, POSReturnLine, POSReversal,
+		POSRole, POSRolePermission, POSRoleV2, POSUserRoleAssignment, Patient,
+		PatientVisit, PosNotification, Prescription, PrescriptionLine, PriceBook,
+		PriceBookItem, PrintAgent, PrintJob, Promotion, PromotionApplication,
+		PromotionRule, RateLimitConfig, Referral, RepairJob, RepairJobEvent,
+		RepairJobPart, Resource, Room, RoomAmenity, RoomAmenityAssignment, RoomBooking,
+		RoomFolioItem, RoomFolioPayment, RoomGuest, Section, SerialNumberLog,
+		ServiceConfig, ServicePackage, ServicePackagePurchase,
+		ServicePackageRedemption, ServiceQueueEntry, ShiftRotation, ShiftRotationSlot,
+		StaffAdvance, StaffMember, StaffOutlet, StaffPayroll, StaffPayrollLine,
+		StaffPurchaseLink, StaffSchedule, StaffShiftOverride, StockAlertSubscription,
+		StockConsumptionEvent, SyncFailure, Table, TableAssignment, TableReservation,
+		Tenant, TenantSyncEvent, Tender, TriageRecord, User, UserPOSRole,
+		WebhookDelivery, WebhookSubscription, WeighingScaleReading []ent.Hook
 	}
 	inters struct {
 		Appointment, AuditLog, Backup, BackupSetting, BarTab, BarTabEvent, BillSplit,
 		CashDrawer, CashDrawerEvent, ChannelIntegration, ChannelSyncJob, ClientRecord,
 		CommissionRecord, CommissionRule, ControlledSubstanceLog, CustomerBalanceCache,
-		DailyClosing, DocumentSequence, DrugInteractionCheck, EventBooking, Facility,
-		FacilityBooking, FeatureOverride, GiftCard, GiftCardTransaction, HeldItem,
-		HousekeepingTask, IdempotencyKey, IntegrationSetting, InventorySnapshot,
-		KDSStation, KDSSyncFailure, KDSTicket, LayawayPayment, LayawayPlan,
-		LeaveRequest, LicenseUsageSnapshot, LoyaltyAccount, LoyaltyProgram,
-		LoyaltyTransaction, MealEntitlement, Modifier, ModifierGroup, OrderLink,
-		OrderVoidCode, OutboxEvent, Outlet, OutletSetting, POSCatalogOverride,
-		POSDevice, POSDeviceSession, POSLineModifier, POSOrder, POSOrderEvent,
-		POSOrderLine, POSPayment, POSPermission, POSRefund, POSReturn, POSReturnLine,
-		POSReversal, POSRole, POSRolePermission, POSRoleV2, POSUserRoleAssignment,
-		PosNotification, Prescription, PrescriptionLine, PriceBook, PriceBookItem,
-		PrintAgent, PrintJob, Promotion, PromotionApplication, PromotionRule,
-		RateLimitConfig, Referral, RepairJob, RepairJobEvent, RepairJobPart, Resource,
-		Room, RoomAmenity, RoomAmenityAssignment, RoomBooking, RoomFolioItem,
-		RoomFolioPayment, RoomGuest, Section, SerialNumberLog, ServiceConfig,
-		ServicePackage, ServicePackagePurchase, ServicePackageRedemption,
-		ServiceQueueEntry, ShiftRotation, ShiftRotationSlot, StaffAdvance, StaffMember,
-		StaffOutlet, StaffPayroll, StaffPayrollLine, StaffPurchaseLink, StaffSchedule,
-		StaffShiftOverride, StockAlertSubscription, StockConsumptionEvent, SyncFailure,
-		Table, TableAssignment, TableReservation, Tenant, TenantSyncEvent, Tender,
-		User, UserPOSRole, WebhookDelivery, WebhookSubscription,
-		WeighingScaleReading []ent.Interceptor
+		DailyClosing, DocumentSequence, DrugInteractionCheck, EventBooking,
+		ExaminationRecord, Facility, FacilityBooking, FeatureOverride, GiftCard,
+		GiftCardTransaction, HeldItem, HousekeepingTask, IdempotencyKey,
+		IntegrationSetting, InventorySnapshot, KDSStation, KDSSyncFailure, KDSTicket,
+		LabOrder, LabOrderLine, LayawayPayment, LayawayPlan, LeaveRequest,
+		LicenseUsageSnapshot, LoyaltyAccount, LoyaltyProgram, LoyaltyTransaction,
+		MealEntitlement, Modifier, ModifierGroup, OrderLink, OrderVoidCode,
+		OutboxEvent, Outlet, OutletSetting, POSCatalogOverride, POSDevice,
+		POSDeviceSession, POSLineModifier, POSOrder, POSOrderEvent, POSOrderLine,
+		POSPayment, POSPermission, POSRefund, POSReturn, POSReturnLine, POSReversal,
+		POSRole, POSRolePermission, POSRoleV2, POSUserRoleAssignment, Patient,
+		PatientVisit, PosNotification, Prescription, PrescriptionLine, PriceBook,
+		PriceBookItem, PrintAgent, PrintJob, Promotion, PromotionApplication,
+		PromotionRule, RateLimitConfig, Referral, RepairJob, RepairJobEvent,
+		RepairJobPart, Resource, Room, RoomAmenity, RoomAmenityAssignment, RoomBooking,
+		RoomFolioItem, RoomFolioPayment, RoomGuest, Section, SerialNumberLog,
+		ServiceConfig, ServicePackage, ServicePackagePurchase,
+		ServicePackageRedemption, ServiceQueueEntry, ShiftRotation, ShiftRotationSlot,
+		StaffAdvance, StaffMember, StaffOutlet, StaffPayroll, StaffPayrollLine,
+		StaffPurchaseLink, StaffSchedule, StaffShiftOverride, StockAlertSubscription,
+		StockConsumptionEvent, SyncFailure, Table, TableAssignment, TableReservation,
+		Tenant, TenantSyncEvent, Tender, TriageRecord, User, UserPOSRole,
+		WebhookDelivery, WebhookSubscription, WeighingScaleReading []ent.Interceptor
 	}
 )

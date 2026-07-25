@@ -53,6 +53,7 @@ func New(
 	layaway *handlers.LayawayHandler,
 	scale *handlers.ScaleHandler,
 	pharmacy *handlers.PharmacyHandler,
+	clinical *handlers.ClinicalHandler,
 	appointments *handlers.AppointmentHandler,
 	commissions *handlers.CommissionHandler,
 	staffSchedule *handlers.StaffScheduleHandler,
@@ -807,6 +808,35 @@ func New(
 							ph.Get("/pharmacy/controlled-substances", pharmacy.ListControlledLogs)
 							ph.Post("/pharmacy/controlled-substances", pharmacy.CreateControlledLog)
 							ph.Get("/pharmacy/controlled-substances/{logID}", pharmacy.GetControlledLog)
+							if clinical != nil {
+								ph.Get("/pharmacy/prescribers", clinical.ListPrescribers)
+							}
+						})
+					}
+
+					// OPD clinical workflow (Records -> Triage -> Examination -> Lab) — pharmacy
+					// use_case only, and each stage additionally gated per-outlet by its own
+					// enable_*_module toggle (checked inside the handlers, since it's an outlet-level
+					// not tenant-level setting — a chain can run the full workflow at one branch and
+					// none of it at another).
+					if clinical != nil {
+						pos.Group(func(cl chi.Router) {
+							cl.Use(outletmw.RequireUseCase("pharmacy"))
+							recordsChange := outletmw.RequireServicePermission(rbacSvc, "pos.records.add", "pos.records.change", "pos.records.manage")
+							cl.With(recordsChange).Post("/clinical/patients", clinical.CreatePatient)
+							cl.Get("/clinical/patients", clinical.ListPatients)
+							cl.Get("/clinical/patients/{patientID}", clinical.GetPatient)
+							cl.With(recordsChange).Post("/clinical/visits", clinical.CreateVisit)
+							cl.Get("/clinical/visits", clinical.ListVisits)
+							cl.Get("/clinical/visits/{visitID}", clinical.GetVisit)
+							cl.With(outletmw.RequireServicePermission(rbacSvc, "pos.triage.add", "pos.triage.change", "pos.triage.manage")).
+								Post("/clinical/visits/{visitID}/triage", clinical.CreateTriage)
+							examChange := outletmw.RequireServicePermission(rbacSvc, "pos.examination.add", "pos.examination.change", "pos.examination.manage")
+							cl.With(examChange).Post("/clinical/visits/{visitID}/examination", clinical.CreateExamination)
+							cl.With(examChange).Post("/clinical/visits/{visitID}/prescribe", clinical.PrescribeFromExamination)
+							cl.Get("/clinical/lab-orders", clinical.ListLabOrders)
+							cl.With(outletmw.RequireServicePermission(rbacSvc, "pos.lab.add", "pos.lab.change", "pos.lab.manage")).
+								Post("/clinical/lab-orders/{labOrderID}/results", clinical.SubmitLabResults)
 						})
 					}
 

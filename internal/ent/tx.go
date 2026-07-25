@@ -52,6 +52,8 @@ type Tx struct {
 	DrugInteractionCheck *DrugInteractionCheckClient
 	// EventBooking is the client for interacting with the EventBooking builders.
 	EventBooking *EventBookingClient
+	// ExaminationRecord is the client for interacting with the ExaminationRecord builders.
+	ExaminationRecord *ExaminationRecordClient
 	// Facility is the client for interacting with the Facility builders.
 	Facility *FacilityClient
 	// FacilityBooking is the client for interacting with the FacilityBooking builders.
@@ -78,6 +80,10 @@ type Tx struct {
 	KDSSyncFailure *KDSSyncFailureClient
 	// KDSTicket is the client for interacting with the KDSTicket builders.
 	KDSTicket *KDSTicketClient
+	// LabOrder is the client for interacting with the LabOrder builders.
+	LabOrder *LabOrderClient
+	// LabOrderLine is the client for interacting with the LabOrderLine builders.
+	LabOrderLine *LabOrderLineClient
 	// LayawayPayment is the client for interacting with the LayawayPayment builders.
 	LayawayPayment *LayawayPaymentClient
 	// LayawayPlan is the client for interacting with the LayawayPlan builders.
@@ -142,6 +148,10 @@ type Tx struct {
 	POSRoleV2 *POSRoleV2Client
 	// POSUserRoleAssignment is the client for interacting with the POSUserRoleAssignment builders.
 	POSUserRoleAssignment *POSUserRoleAssignmentClient
+	// Patient is the client for interacting with the Patient builders.
+	Patient *PatientClient
+	// PatientVisit is the client for interacting with the PatientVisit builders.
+	PatientVisit *PatientVisitClient
 	// PosNotification is the client for interacting with the PosNotification builders.
 	PosNotification *PosNotificationClient
 	// Prescription is the client for interacting with the Prescription builders.
@@ -240,6 +250,8 @@ type Tx struct {
 	TenantSyncEvent *TenantSyncEventClient
 	// Tender is the client for interacting with the Tender builders.
 	Tender *TenderClient
+	// TriageRecord is the client for interacting with the TriageRecord builders.
+	TriageRecord *TriageRecordClient
 	// User is the client for interacting with the User builders.
 	User *UserClient
 	// UserPOSRole is the client for interacting with the UserPOSRole builders.
@@ -401,6 +413,7 @@ func (tx *Tx) init() {
 	tx.DocumentSequence = NewDocumentSequenceClient(tx.config)
 	tx.DrugInteractionCheck = NewDrugInteractionCheckClient(tx.config)
 	tx.EventBooking = NewEventBookingClient(tx.config)
+	tx.ExaminationRecord = NewExaminationRecordClient(tx.config)
 	tx.Facility = NewFacilityClient(tx.config)
 	tx.FacilityBooking = NewFacilityBookingClient(tx.config)
 	tx.FeatureOverride = NewFeatureOverrideClient(tx.config)
@@ -414,6 +427,8 @@ func (tx *Tx) init() {
 	tx.KDSStation = NewKDSStationClient(tx.config)
 	tx.KDSSyncFailure = NewKDSSyncFailureClient(tx.config)
 	tx.KDSTicket = NewKDSTicketClient(tx.config)
+	tx.LabOrder = NewLabOrderClient(tx.config)
+	tx.LabOrderLine = NewLabOrderLineClient(tx.config)
 	tx.LayawayPayment = NewLayawayPaymentClient(tx.config)
 	tx.LayawayPlan = NewLayawayPlanClient(tx.config)
 	tx.LeaveRequest = NewLeaveRequestClient(tx.config)
@@ -446,6 +461,8 @@ func (tx *Tx) init() {
 	tx.POSRolePermission = NewPOSRolePermissionClient(tx.config)
 	tx.POSRoleV2 = NewPOSRoleV2Client(tx.config)
 	tx.POSUserRoleAssignment = NewPOSUserRoleAssignmentClient(tx.config)
+	tx.Patient = NewPatientClient(tx.config)
+	tx.PatientVisit = NewPatientVisitClient(tx.config)
 	tx.PosNotification = NewPosNotificationClient(tx.config)
 	tx.Prescription = NewPrescriptionClient(tx.config)
 	tx.PrescriptionLine = NewPrescriptionLineClient(tx.config)
@@ -495,6 +512,7 @@ func (tx *Tx) init() {
 	tx.Tenant = NewTenantClient(tx.config)
 	tx.TenantSyncEvent = NewTenantSyncEventClient(tx.config)
 	tx.Tender = NewTenderClient(tx.config)
+	tx.TriageRecord = NewTriageRecordClient(tx.config)
 	tx.User = NewUserClient(tx.config)
 	tx.UserPOSRole = NewUserPOSRoleClient(tx.config)
 	tx.WebhookDelivery = NewWebhookDeliveryClient(tx.config)

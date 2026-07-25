@@ -27,7 +27,11 @@ func (StaffMember) Fields() []ent.Field {
 		field.Float("commission_rate").Optional().Nillable().Comment("Commission percentage on services"),
 		field.Bool("is_active").Default(true),
 		field.String("role").Default("cashier").
-			Comment("POS role: admin (unrestricted)|manager (RBAC scoped)|cashier|waiter|kitchen|bar|receptionist|pharmacist|stylist|therapist"),
+			Comment("POS role: admin (unrestricted)|manager (RBAC scoped)|cashier|waiter|kitchen|bar|receptionist|pharmacist|doctor|stylist|therapist"),
+		// Professional license/registration # (pharmacist/doctor) — printed on prescriptions this
+		// staff member writes/dispenses and auto-filled onto the Rx form when they're selected as
+		// prescriber, so it never has to be manually retyped per script.
+		field.String("license_number").Optional().Nillable(),
 		// Employment & compensation
 		field.Enum("employment_type").
 			Values("full_time", "part_time", "casual", "contractor").
