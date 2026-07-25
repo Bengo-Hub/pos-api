@@ -195,9 +195,12 @@ td.r,th.r{text-align:right}
 	}
 	buf.WriteString(fmt.Sprintf(`<div class="ftr">%s</div>`, escape(strings.ToUpper(footer))))
 
-	// ── Provider advertisement — deliberately smaller than everything above ──
-	lead, contact := providerFooter(rec)
-	buf.WriteString(fmt.Sprintf(`<div class="prov"><b>%s</b><br>%s</div>`, escape(lead), escape(contact)))
+	// ── Provider advertisement — platform default ON, per-tenant opt-out. Deliberately smaller
+	// than everything above ──
+	if rec.ShowProviderFooter {
+		lead, contact := providerFooter(rec)
+		buf.WriteString(fmt.Sprintf(`<div class="prov"><b>%s</b><br>%s</div>`, escape(lead), escape(contact)))
+	}
 	buf.WriteString(`</body></html>`)
 	return buf.Bytes()
 }

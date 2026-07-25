@@ -80,6 +80,9 @@ type ReceiptData struct {
 	// to an open bill, so the kitchen never mistakes it for a brand-new order.
 	Banner         string
 	ProviderFooter ProviderFooter // platform-owner (Codevertex) advertisement, customer receipts only
+	// ShowProviderFooter gates whether ProviderFooter prints at all — platform default (ON) with
+	// an optional per-tenant override (see modules/providerfooter.Resolve).
+	ShowProviderFooter bool
 	// UseCase — "retail" additionally prints the payment date beside the method
 	// (the BOI/GoDigital receipt design).
 	UseCase string
@@ -366,13 +369,15 @@ func BuildReceipt(d ReceiptData) []byte {
 			writeln(d.Footer)
 			write(escLeft)
 		}
-		// Platform-owner (Codevertex) advertisement — always printed on customer receipts.
-		pf := d.ProviderFooter.OrDefault()
-		separator()
-		write(escCenter)
-		writeln(pf.Lead)
-		writeln(pf.Contact)
-		write(escLeft)
+		// Platform-owner (Codevertex) advertisement — platform default ON, per-tenant opt-out.
+		if d.ShowProviderFooter {
+			pf := d.ProviderFooter.OrDefault()
+			separator()
+			write(escCenter)
+			writeln(pf.Lead)
+			writeln(pf.Contact)
+			write(escLeft)
+		}
 	}
 
 	buf.Write(escLF)

@@ -13,6 +13,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/pospayment"
 	"github.com/bengobox/pos-service/internal/ent/tender"
 	"github.com/bengobox/pos-service/internal/modules/printing"
+	"github.com/bengobox/pos-service/internal/modules/providerfooter"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -91,13 +92,15 @@ func (s *Service) enqueueReceiptPrint(ctx context.Context, order *ent.POSOrder) 
 
 	outlet, _ := s.client.Outlet.Query().Where(entoutlet.ID(order.OutletID)).Only(ctx)
 	servedBy := printing.ServedByFromContext(ctx)
+	showProviderFooter := providerfooter.Resolve(ctx, s.client, order.TenantID)
 	payload := printing.BuildReceipt(printing.OrderReceiptDataOpts(
 		order, lines, outlet, setting, printing.ReceiptViewOpts{
-			Type:          "customer",
-			PaymentMethod: strings.Join(methods, " + "),
-			ServedBy:      servedBy,
-			AmountPaid:    amountPaid,
-			PaymentDate:   paymentDate,
+			Type:               "customer",
+			PaymentMethod:      strings.Join(methods, " + "),
+			ServedBy:           servedBy,
+			AmountPaid:         amountPaid,
+			PaymentDate:        paymentDate,
+			ShowProviderFooter: &showProviderFooter,
 		}))
 	_, err = s.printQueue.Enqueue(ctx, printing.EnqueueInput{
 		TenantID:  order.TenantID,

@@ -578,8 +578,8 @@ func isOrderOverdue(meta map[string]any) bool { return orders.IsOrderOverdue(met
 
 func isOnAccount(meta map[string]any) bool { return orders.IsOnAccount(meta) }
 
-func derivePaymentStatus(status string, total, paid float64, onAccount bool) string {
-	return orders.DerivePaymentStatus(status, total, paid, onAccount)
+func derivePaymentStatus(status string, total, paid, completedReturns float64, onAccount bool) string {
+	return orders.DerivePaymentStatus(status, total, paid, completedReturns, onAccount)
 }
 
 // dominantMethod returns the single tender type used, "multiple" if several, "" if none.

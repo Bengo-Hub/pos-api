@@ -360,6 +360,10 @@ type CreditSaleResponse struct {
 	// CreditPeriodDays is the customer's configured payment period — pos-api uses it to stamp
 	// the order's payment_due_date so the All-Sales "Overdue" filter can find late credit sales.
 	CreditPeriodDays *int `json:"credit_period_days,omitempty"`
+	// StoreCreditBalance is the customer's stored credit AS OF right after this sale posted —
+	// used to net available store credit into the fresh debt just created (see
+	// payments.recordCreditSale's ApplyStoreCredit composition).
+	StoreCreditBalance string `json:"store_credit_balance"`
 }
 
 // RecordCreditSale posts a POS on-account ("credit sale") charge to the customer's AR balance in
@@ -369,9 +373,12 @@ func (c *Client) RecordCreditSale(ctx context.Context, tenantSlug string, req Cr
 	return doRequest[CreditSaleResponse](ctx, c.httpClient, http.MethodPost, url, c.apiKey, req)
 }
 
-// CreditTermsResponse is a treasury customer-balance row scoped to what the POS credit card
-// needs: balance due + configured credit limit / payment period. Decimal fields arrive as
-// quoted strings (treasury serializes decimal.Decimal that way).
+// CreditTermsResponse is a treasury customer-balance row. Decimal fields arrive as quoted
+// strings (treasury serializes decimal.Decimal that way). Mirrors arpa.CustomerBalanceDTO's
+// fields the POS credit card / customer chip need — do not narrow this further; a prior
+// narrower version silently dropped store_credit_balance/opening_balance/outstanding_debit via
+// plain encoding/json decode, breaking both the customer-balance display and the "Apply Credit"
+// tender's availability check (both read these fields).
 type CreditTermsResponse struct {
 	CrmContactID     string `json:"crm_contact_id,omitempty"`
 	CustomerName     string `json:"customer_name,omitempty"`
@@ -379,6 +386,15 @@ type CreditTermsResponse struct {
 	CreditLimit      string `json:"credit_limit,omitempty"`
 	CreditPeriodDays *int   `json:"credit_period_days,omitempty"`
 	Currency         string `json:"currency"`
+	// OpeningBalance is the AR balance carried in at onboarding (nil = never set).
+	OpeningBalance string `json:"opening_balance,omitempty"`
+	// StoreCreditBalance is the customer's currently-DRAWABLE stored credit (money the
+	// business owes them, e.g. from a return issued as store credit) — tracked independently
+	// of BalanceDue. Always >= 0.
+	StoreCreditBalance string `json:"store_credit_balance"`
+	// OutstandingDebit is max(0, BalanceDue) — what the customer owes the business.
+	OutstandingDebit string `json:"outstanding_debit"`
+	OverdueAmount    string `json:"overdue_amount,omitempty"`
 }
 
 // GetCreditTerms fetches a customer's AR balance + credit terms from treasury over S2S.
@@ -414,6 +430,32 @@ type ApplyCreditResponse struct {
 func (c *Client) ApplyCustomerCredit(ctx context.Context, tenantSlug, contactIDOrIdentifier string, req ApplyCreditRequest) (*ApplyCreditResponse, error) {
 	u := fmt.Sprintf("%s/api/v1/s2s/%s/ar/customers/%s/apply-credit", c.baseURL, tenantSlug, url.PathEscape(contactIDOrIdentifier))
 	return doRequest[ApplyCreditResponse](ctx, c.httpClient, http.MethodPost, u, c.apiKey, req)
+}
+
+// ApplyToDebtRequest is the body for POST /api/v1/s2s/{tenant}/ar/customers/{key}/apply-to-debt —
+// netting a customer's EXISTING stored credit against their OWN outstanding debit (the debit must
+// already exist; used right after RecordCreditSale to net a fresh credit sale's debt down by any
+// available store credit — see payments.recordCreditSale).
+type ApplyToDebtRequest struct {
+	Amount    float64 `json:"amount"`
+	Reference string  `json:"reference,omitempty"`
+	UserID    string  `json:"user_id,omitempty"`
+}
+
+// ApplyToDebtResponse is the updated treasury customer-balance row.
+type ApplyToDebtResponse struct {
+	ID                 string `json:"id"`
+	BalanceDue         string `json:"balance_due"`
+	StoreCreditBalance string `json:"store_credit_balance"`
+	Currency           string `json:"currency"`
+}
+
+// ApplyCustomerCreditToDebt nets EXISTING stored credit against the SAME customer's own
+// outstanding debit — the composition primitive that lets a fresh credit sale net down by any
+// store credit the business already owed the customer.
+func (c *Client) ApplyCustomerCreditToDebt(ctx context.Context, tenantSlug, contactIDOrIdentifier string, req ApplyToDebtRequest) (*ApplyToDebtResponse, error) {
+	u := fmt.Sprintf("%s/api/v1/s2s/%s/ar/customers/%s/apply-to-debt", c.baseURL, tenantSlug, url.PathEscape(contactIDOrIdentifier))
+	return doRequest[ApplyToDebtResponse](ctx, c.httpClient, http.MethodPost, u, c.apiKey, req)
 }
 
 // ARPaymentRequest is the body for POST /api/v1/s2s/{tenant}/ar/customers/{key}/payment —

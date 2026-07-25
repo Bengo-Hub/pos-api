@@ -88,10 +88,14 @@ type settingsResponse struct {
 	ReceiptFooter *string `json:"receipt_footer"`
 	// ShowLogoOnReceipt: include the tenant/outlet logo on generated receipts (HTML/PDF/client).
 	// Stored in the freeform metadata (receipt_show_logo); defaults to true when unset.
-	ShowLogoOnReceipt bool    `json:"show_logo_on_receipt"`
-	Currency          string  `json:"currency"`
-	VATEnabled        bool    `json:"vat_enabled"`
-	VATRate           float64 `json:"vat_rate"`
+	ShowLogoOnReceipt bool `json:"show_logo_on_receipt"`
+	// ShowTenantEmailOnReceipt: print the tenant/outlet contact email on generated receipts.
+	// Stored in the freeform metadata (receipt_show_tenant_email); defaults to FALSE when unset —
+	// the email only prints once a tenant explicitly opts in (unlike the logo, which defaults on).
+	ShowTenantEmailOnReceipt bool    `json:"show_tenant_email_on_receipt"`
+	Currency                 string  `json:"currency"`
+	VATEnabled               bool    `json:"vat_enabled"`
+	VATRate                  float64 `json:"vat_rate"`
 	// printer
 	PrinterType      string  `json:"printer_type"`
 	PrinterIP        *string `json:"printer_ip"`
@@ -223,6 +227,7 @@ func toSettingsResponse(outlet *ent.Outlet, s *ent.OutletSetting) settingsRespon
 		ReceiptHeader:                    s.ReceiptHeader,
 		ReceiptFooter:                    s.ReceiptFooter,
 		ShowLogoOnReceipt:                metaBoolDefault(s.Metadata, "receipt_show_logo", true),
+		ShowTenantEmailOnReceipt:         metaBoolDefault(s.Metadata, "receipt_show_tenant_email", false),
 		PrinterIP:                        s.PrinterIP,
 		ShiftAutoEndEnabled:              s.ShiftAutoEndEnabled,
 		ShiftMaxHours:                    s.ShiftMaxHours,
@@ -491,26 +496,27 @@ func (h *ServiceSettingsHandler) printAgentOnline(ctx context.Context, tenantID,
 
 // updateSettingsInput covers all writable fields.
 type updateSettingsInput struct {
-	DisplayMode        *string          `json:"display_mode"`
-	ShowImages         *bool            `json:"show_images"`
-	ShowBarcodeScanner *bool            `json:"show_barcode_scanner"`
-	DefaultView        *string          `json:"default_view"`
-	ReceiptHeader      *string          `json:"receipt_header"`
-	ReceiptFooter      *string          `json:"receipt_footer"`
-	ShowLogoOnReceipt  *bool            `json:"show_logo_on_receipt"`
-	Currency           *string          `json:"currency"`
-	VATEnabled         *bool            `json:"vat_enabled"`
-	VATRate            *float64         `json:"vat_rate"`
-	PrinterType        *string          `json:"printer_type"`
-	PrinterIP          *string          `json:"printer_ip"`
-	PaperWidth         *string          `json:"paper_width"`
-	ReceiptFormat      *string          `json:"receipt_format"`
-	AutoPrintOrder     *bool            `json:"auto_print_order"`
-	AutoPrintKitchen   *bool            `json:"auto_print_kitchen"`
-	PrinterProfiles    []map[string]any `json:"printer_profiles"`
-	PINLoginMessage    *string          `json:"pin_login_message"`
-	ScreensaverURL     *string          `json:"screensaver_url"`
-	ReturnWindowDays   *int             `json:"return_window_days"`
+	DisplayMode              *string          `json:"display_mode"`
+	ShowImages               *bool            `json:"show_images"`
+	ShowBarcodeScanner       *bool            `json:"show_barcode_scanner"`
+	DefaultView              *string          `json:"default_view"`
+	ReceiptHeader            *string          `json:"receipt_header"`
+	ReceiptFooter            *string          `json:"receipt_footer"`
+	ShowLogoOnReceipt        *bool            `json:"show_logo_on_receipt"`
+	ShowTenantEmailOnReceipt *bool            `json:"show_tenant_email_on_receipt"`
+	Currency                 *string          `json:"currency"`
+	VATEnabled               *bool            `json:"vat_enabled"`
+	VATRate                  *float64         `json:"vat_rate"`
+	PrinterType              *string          `json:"printer_type"`
+	PrinterIP                *string          `json:"printer_ip"`
+	PaperWidth               *string          `json:"paper_width"`
+	ReceiptFormat            *string          `json:"receipt_format"`
+	AutoPrintOrder           *bool            `json:"auto_print_order"`
+	AutoPrintKitchen         *bool            `json:"auto_print_kitchen"`
+	PrinterProfiles          []map[string]any `json:"printer_profiles"`
+	PINLoginMessage          *string          `json:"pin_login_message"`
+	ScreensaverURL           *string          `json:"screensaver_url"`
+	ReturnWindowDays         *int             `json:"return_window_days"`
 	// returns policy
 	RestrictCreditSaleRefundToOffset *bool    `json:"restrict_credit_sale_refund_to_offset"`
 	MaxDiscountPercent               *float64 `json:"max_discount_percent"`
@@ -721,18 +727,22 @@ func (h *ServiceSettingsHandler) PutSettings(w http.ResponseWriter, r *http.Requ
 	if input.ShowPaymentInfoOnReceipt != nil {
 		upd = upd.SetShowPaymentInfoOnReceipt(*input.ShowPaymentInfoOnReceipt)
 	}
-	// Freeform-metadata keys (no schema migration) — logo-on-receipts + the credit-sale refund
-	// policy. Merged from a SINGLE copy of the existing metadata and written with ONE SetMetadata
-	// call: this handler has only one metadata-writing point, so a second independent
-	// copy-then-SetMetadata block here would silently discard whichever field the OTHER block
-	// wrote first (ent's builder keeps only the last SetMetadata call, not a merge of both).
-	if input.ShowLogoOnReceipt != nil || input.RestrictCreditSaleRefundToOffset != nil {
+	// Freeform-metadata keys (no schema migration) — logo-on-receipts, tenant-email-on-receipt +
+	// the credit-sale refund policy. Merged from a SINGLE copy of the existing metadata and
+	// written with ONE SetMetadata call: this handler has only one metadata-writing point, so a
+	// second independent copy-then-SetMetadata block here would silently discard whichever field
+	// the OTHER block wrote first (ent's builder keeps only the last SetMetadata call, not a
+	// merge of both). Any FUTURE freeform-metadata setting must be added to THIS block.
+	if input.ShowLogoOnReceipt != nil || input.ShowTenantEmailOnReceipt != nil || input.RestrictCreditSaleRefundToOffset != nil {
 		meta := map[string]any{}
 		for k, v := range setting.Metadata {
 			meta[k] = v
 		}
 		if input.ShowLogoOnReceipt != nil {
 			meta["receipt_show_logo"] = *input.ShowLogoOnReceipt
+		}
+		if input.ShowTenantEmailOnReceipt != nil {
+			meta["receipt_show_tenant_email"] = *input.ShowTenantEmailOnReceipt
 		}
 		if input.RestrictCreditSaleRefundToOffset != nil {
 			meta["restrict_credit_sale_refund_to_offset"] = *input.RestrictCreditSaleRefundToOffset

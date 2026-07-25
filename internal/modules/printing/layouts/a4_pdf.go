@@ -224,14 +224,16 @@ func renderA4PDF(rec Receipt, brand Brand) ([]byte, error) {
 	pdf.SetFont("Helvetica", "", 11)
 	pdf.MultiCell(contentW, 5.5, strings.ToUpper(footer), "", "L", false)
 
-	// ── Provider advertisement — smaller print, but never below ~8pt (sub-7pt text
-	// disappears entirely on low-quality office printers) ──
-	lead, contact := providerFooter(rec)
-	pdf.Ln(3)
-	pdf.SetFont("Helvetica", "B", 8.2)
-	pdf.MultiCell(contentW, 4, lead, "", "C", false)
-	pdf.SetFont("Helvetica", "", 7.6)
-	pdf.MultiCell(contentW, 3.8, contact, "", "C", false)
+	// ── Provider advertisement — platform default ON, per-tenant opt-out. Smaller print, but
+	// never below ~8pt (sub-7pt text disappears entirely on low-quality office printers) ──
+	if rec.ShowProviderFooter {
+		lead, contact := providerFooter(rec)
+		pdf.Ln(3)
+		pdf.SetFont("Helvetica", "B", 8.2)
+		pdf.MultiCell(contentW, 4, lead, "", "C", false)
+		pdf.SetFont("Helvetica", "", 7.6)
+		pdf.MultiCell(contentW, 3.8, contact, "", "C", false)
+	}
 
 	var buf bytes.Buffer
 	if err := pdf.Output(&buf); err != nil {

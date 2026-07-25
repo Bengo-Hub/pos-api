@@ -4,6 +4,8 @@ package payments
 import (
 	"context"
 	"fmt"
+	"math"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -143,6 +145,12 @@ type RecordPaymentRequest struct {
 	// who authorized it (via PIN/card step-up or a one-time approval code).
 	ComplimentaryReason string
 	ApprovedByUserID    *uuid.UUID
+	// ApplyStoreCredit, when true on a credit-sale (on_account) tender, nets the customer's
+	// EXISTING store credit (money the business already owed them) into the fresh debt this
+	// sale creates — e.g. owed 5,000 + a 10,000 credit sale nets to only 5,000 owed, not
+	// 15,000. Best-effort: a netting failure never fails the (already-recorded) sale, it just
+	// leaves the debt un-netted for a later manual reconcile.
+	ApplyStoreCredit bool
 }
 
 // CreateIntentResult is returned to the caller when a digital payment intent is created.
@@ -524,6 +532,35 @@ func (s *Service) recordCreditSale(ctx context.Context, order *ent.POSOrder, req
 	if err != nil {
 		return nil, fmt.Errorf("payments: credit sale rejected: %w", err)
 	}
+
+	// Offset AR workflow: if the business already owes this customer store credit and the
+	// cashier opted in, net it into the debt RecordCreditSale just posted — e.g. owed 5,000 +
+	// a 10,000 credit sale nets to 5,000 owed, not 15,000. Composes two existing treasury
+	// primitives sequentially (the debt must exist before it can be netted): RecordCreditSale
+	// above posted the FULL amount; ApplyCustomerCreditToDebt now nets min(available, amount)
+	// back off, reducing both the fresh debt and the store credit in one journal entry (Dr
+	// Refunds Payable / Cr AR). Best-effort — never fails an already-recorded sale.
+	var storeCreditApplied float64
+	if req.ApplyStoreCredit {
+		available, _ := strconv.ParseFloat(creditResp.StoreCreditBalance, 64)
+		offset := math.Min(available, req.Amount)
+		if offset > 0.005 {
+			key := crmContactID
+			if key == "" {
+				key = phone
+			}
+			if _, aerr := s.treasuryClient.ApplyCustomerCreditToDebt(ctx, req.TenantSlug, key, treasury.ApplyToDebtRequest{
+				Amount:    offset,
+				Reference: order.OrderNumber,
+				UserID:    order.UserID.String(),
+			}); aerr != nil {
+				s.log.Warn("payments: store-credit offset failed — debt left un-netted", zap.Error(aerr), zap.String("order_id", order.ID.String()))
+			} else {
+				storeCreditApplied = offset
+			}
+		}
+	}
+
 	// Mark the order as an on-account sale and stamp when the credit falls due, so the
 	// All-Sales "Overdue" filter/badge can surface late credit sales. Precedence: the
 	// cashier's explicit due date (credit-sale details modal) → the customer's treasury
@@ -534,6 +571,9 @@ func (s *Service) recordCreditSale(ctx context.Context, order *ent.POSOrder, req
 		meta = map[string]any{}
 	}
 	meta["on_account"] = true
+	if storeCreditApplied > 0 {
+		meta["store_credit_applied"] = storeCreditApplied
+	}
 	switch {
 	case req.PaymentDueDate != nil:
 		meta["payment_due_date"] = req.PaymentDueDate.Format(time.RFC3339)

@@ -26,6 +26,7 @@ import (
 	enttender "github.com/bengobox/pos-service/internal/ent/tender"
 	outletmw "github.com/bengobox/pos-service/internal/http/middleware"
 	"github.com/bengobox/pos-service/internal/modules/docs"
+	"github.com/bengobox/pos-service/internal/modules/providerfooter"
 )
 
 // ReportPDFHandler renders professional, tenant-branded POS report documents (PDF/CSV) via the
@@ -116,19 +117,20 @@ func (h *ReportPDFHandler) newReport(ctx context.Context, tid uuid.UUID, oid *uu
 	logo, logoType := fetchReceiptLogo(brand.LogoURL)
 	outletName, outletAddr := h.outletInfo(ctx, tid, oid)
 	return &docs.Report{
-		Title:        title,
-		Subtitle:     subtitle,
-		TenantName:   brand.CompanyName,
-		OutletName:   outletName,
-		Address:      outletAddr,
-		PrimaryColor: brand.PrimaryColor,
-		LogoPNG:      logo,
-		LogoType:     logoType,
-		PeriodFrom:   from,
-		PeriodTo:     to,
-		GeneratedAt:  time.Now().UTC(),
-		Currency:     "KES",
-		Landscape:    landscape,
+		Title:                 title,
+		Subtitle:              subtitle,
+		TenantName:            brand.CompanyName,
+		OutletName:            outletName,
+		Address:               outletAddr,
+		PrimaryColor:          brand.PrimaryColor,
+		LogoPNG:               logo,
+		LogoType:              logoType,
+		ProviderFooterEnabled: providerfooter.Resolve(ctx, h.db, tid),
+		PeriodFrom:            from,
+		PeriodTo:              to,
+		GeneratedAt:           time.Now().UTC(),
+		Currency:              "KES",
+		Landscape:             landscape,
 	}
 }
 

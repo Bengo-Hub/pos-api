@@ -132,9 +132,11 @@ type Receipt struct {
 	// BarcodeValue is the human-readable text under the barcode (and the value it encodes):
 	// the eTIMS CU Invoice Number once fiscalised, else the POS order number for retail.
 	BarcodeValue string `json:"barcode_value,omitempty"`
-	// Platform-owner (Codevertex) advertisement lines printed at the very bottom of the receipt.
+	// Platform-owner (Codevertex) advertisement lines printed at the very bottom of the receipt,
+	// and whether they should render at all (platform default + per-tenant override).
 	ProviderFooterLead    string `json:"provider_footer_lead,omitempty"`
 	ProviderFooterContact string `json:"provider_footer_contact,omitempty"`
+	ShowProviderFooter    bool   `json:"show_provider_footer"`
 }
 
 // escape escapes user-configured text (header/footer/item names) before embedding it in

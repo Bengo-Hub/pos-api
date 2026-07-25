@@ -141,10 +141,15 @@ func (h *ClientHandler) creditFromCache(ctx context.Context, tenantID uuid.UUID,
 		return nil, err
 	}
 	return &treasury.CreditTermsResponse{
-		CrmContactID: uuidOrEmpty(row.CrmContactID),
-		CustomerName: row.CustomerName,
-		BalanceDue:   row.BalanceDue,
-		Currency:     row.Currency,
+		CrmContactID:       uuidOrEmpty(row.CrmContactID),
+		CustomerName:       row.CustomerName,
+		BalanceDue:         row.BalanceDue,
+		Currency:           row.Currency,
+		StoreCreditBalance: row.StoreCreditBalance,
+		OutstandingDebit:   row.OutstandingDebit,
+		// OpeningBalance has no cache column (a rarely-changing, onboarding-only figure) —
+		// left unset on this offline-degraded fallback path only; the live treasury call
+		// (tried first, always) returns it.
 	}, nil
 }
 

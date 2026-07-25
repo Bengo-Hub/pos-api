@@ -22,9 +22,9 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/pospayment"
 	enttenant "github.com/bengobox/pos-service/internal/ent/tenant"
 	entuser "github.com/bengobox/pos-service/internal/ent/user"
-	"github.com/bengobox/pos-service/internal/modules/documents"
 	"github.com/bengobox/pos-service/internal/modules/payments"
 	"github.com/bengobox/pos-service/internal/modules/printing"
+	"github.com/bengobox/pos-service/internal/modules/providerfooter"
 	"github.com/bengobox/pos-service/internal/modules/printing/layouts"
 	"github.com/bengobox/pos-service/internal/modules/treasury"
 )
@@ -49,10 +49,6 @@ type ReceiptHandler struct {
 	// (payments.Service.ResolveCrmContactID), so the receipt balance line reads the identical
 	// treasury CustomerBalance row those flows write to. Nil-safe: falls back to the raw phone.
 	resolveCrmContact func(ctx context.Context, tenantID uuid.UUID, phone string) string
-	// seq, when wired, mints receipt numbers through the tenant-configurable pos_receipt
-	// document sequence (numeric by default). Minted once per order and persisted to
-	// order.Metadata["receipt_number"] so reprints/other render surfaces stay stable.
-	seq *documents.SequenceService
 }
 
 // NewReceiptHandler creates a new ReceiptHandler.
@@ -60,42 +56,15 @@ func NewReceiptHandler(log *zap.Logger, client *ent.Client, cache *sharedcache.A
 	return &ReceiptHandler{log: log, client: client, cache: cache, authURL: authURL}
 }
 
-// WithSequence wires the document-sequence service so receipt numbers are minted through the
-// tenant's pos_receipt sequence (numeric by default), falling back to the legacy RCT- form.
-func (h *ReceiptHandler) WithSequence(seq *documents.SequenceService) *ReceiptHandler {
-	h.seq = seq
-	return h
-}
-
-// ensureReceiptNumber returns a stable receipt number for the order: the value already persisted
-// on order.Metadata["receipt_number"] if present, otherwise a freshly minted pos_receipt sequence
-// number (persisted for reprint stability). Returns "" when no sequence service is wired or it
-// errors — callers then fall back to the legacy "RCT-"+OrderNumber form in BuildReceiptView.
-func (h *ReceiptHandler) ensureReceiptNumber(ctx context.Context, tenantID uuid.UUID, order *ent.POSOrder) string {
+// ensureReceiptNumber returns the order's own number as the receipt number — uniform document
+// numbering (see documents.DocTypeOrder / orders.Service.GenerateOrderNumberCtx): the order and
+// the receipt printed for it are always the same document, so they carry the same number. No
+// separate sequence/counter or metadata persistence needed.
+func (h *ReceiptHandler) ensureReceiptNumber(order *ent.POSOrder) string {
 	if order == nil {
 		return ""
 	}
-	if rn, ok := order.Metadata["receipt_number"].(string); ok && rn != "" {
-		return rn
-	}
-	if h.seq == nil {
-		return ""
-	}
-	n, err := h.seq.GenerateNumber(ctx, tenantID, documents.DocTypePosReceipt)
-	if err != nil || n == "" {
-		return ""
-	}
-	meta := order.Metadata
-	if meta == nil {
-		meta = map[string]any{}
-	}
-	meta["receipt_number"] = n
-	if _, uerr := h.client.POSOrder.UpdateOneID(order.ID).SetMetadata(meta).Save(ctx); uerr != nil {
-		h.log.Warn("persist receipt_number failed", zap.Error(uerr))
-	} else {
-		order.Metadata = meta
-	}
-	return n
+	return order.OrderNumber
 }
 
 // SetAuditService wires the centralized audit trail for receipt reprints.
@@ -315,6 +284,7 @@ func newReceiptResponse(v printing.ReceiptView, layout string) receiptResponse {
 		BarcodeValue:                barcodeValue,
 		ProviderFooterLead:          v.ProviderFooter.OrDefault().Lead,
 		ProviderFooterContact:       v.ProviderFooter.OrDefault().Contact,
+		ShowProviderFooter:          v.ShowProviderFooter,
 	}
 }
 
@@ -454,7 +424,7 @@ func (h *ReceiptHandler) GetReceipt(w http.ResponseWriter, r *http.Request) {
 
 	view := printing.BuildReceiptView(order, order.Edges.Lines, outlet, setting, printing.ReceiptViewOpts{
 		Type:           "customer",
-		ReceiptNumber:  h.ensureReceiptNumber(ctx, tid, order),
+		ReceiptNumber:  h.ensureReceiptNumber(order),
 		PaymentMethod:  paymentMethod,
 		AmountPaid:     amountPaid,
 		AmountTendered: amountPaid,
@@ -475,8 +445,19 @@ func (h *ReceiptHandler) GetReceipt(w http.ResponseWriter, r *http.Request) {
 	if view.OutletEmail == "" {
 		view.OutletEmail = brand.Email
 	}
-	// Platform-owner (Codevertex) advertisement footer — cache-first, static fallback.
+	// Receipt & Printing → "Show tenant email" toggle (freeform metadata; absent = false — the
+	// tenant's email only prints once they explicitly opt in).
+	var settingMeta map[string]any
+	if setting != nil {
+		settingMeta = setting.Metadata
+	}
+	if !metaBoolDefault(settingMeta, "receipt_show_tenant_email", false) {
+		view.OutletEmail = ""
+	}
+	// Platform-owner (Codevertex) advertisement footer — cache-first, static fallback for the
+	// CONTENT; whether it shows at all is a separate platform-default + per-tenant-override gate.
 	view.ProviderFooter = printing.ResolveProviderFooter(ctx, h.cache, h.authURL)
+	view.ShowProviderFooter = providerfooter.Resolve(ctx, h.client, tid)
 	// KRA PIN header line: the transmitted order carries its own fiscal identity; older/
 	// not-yet-transmitted sales fall back to the tenant tax profile — but ONLY when the
 	// tenant has activated eTIMS (the resolver returns "" otherwise).

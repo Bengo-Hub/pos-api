@@ -15,6 +15,7 @@ import (
 	entposorder "github.com/bengobox/pos-service/internal/ent/posorder"
 	entposorderline "github.com/bengobox/pos-service/internal/ent/posorderline"
 	"github.com/bengobox/pos-service/internal/modules/printing"
+	"github.com/bengobox/pos-service/internal/modules/providerfooter"
 )
 
 // PrintHandler handles receipt printing requests.
@@ -93,6 +94,7 @@ func (h *PrintHandler) PrintReceipt(w http.ResponseWriter, r *http.Request) {
 	outlet, _ := h.client.Outlet.Query().Where(entoutlet.ID(order.OutletID)).Only(r.Context())
 	servedBy := printing.ServedByFromContext(r.Context())
 	data := printing.OrderReceiptData(order, lines, outlet, outletSetting, input.Type, "", servedBy, input.Reason)
+	data.ShowProviderFooter = providerfooter.Resolve(r.Context(), h.client, tid)
 
 	// Build-only: return the ESC/POS bytes (hex) for the browser to relay to the Local Print Agent.
 	// This is how a network printer prints from a cloud deployment (the server can't reach the LAN).

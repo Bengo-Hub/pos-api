@@ -145,6 +145,11 @@ type ReceiptView struct {
 	// of customer receipts. Resolved by the handler (which can reach the tenant cache); when left
 	// zero the renderers substitute DefaultProviderFooter() so the advertisement always prints.
 	ProviderFooter ProviderFooter
+	// ShowProviderFooter gates whether ProviderFooter renders at all — platform-level default
+	// (ON) with an optional per-tenant override, resolved by the handler via
+	// modules/providerfooter.Resolve (which can reach the DB). Defaults to true (unset means
+	// "show") so any caller that doesn't explicitly resolve it keeps today's behavior.
+	ShowProviderFooter bool
 
 	// eTIMS fiscalisation ("KRA TIMS Details" on the printed receipt, mirroring paper ETR
 	// receipts): KRA PIN prints in the business header; SCU ID + CU Inv No + signature + QR
@@ -194,10 +199,12 @@ type ReceiptViewOpts struct {
 	// figures (a split's total is just the sum of its own line totals).
 	SplitLineIDs map[string]bool
 	SplitLabel   string // BillTo override for a split-by-item receipt, e.g. "Guest 1"
-	// ReceiptNumber, when set, is the pre-minted receipt number the caller resolved through the
-	// tenant-configurable pos_receipt document sequence (numeric by default). Empty falls back to
-	// the persisted order.Metadata["receipt_number"], then the legacy "RCT-"+OrderNumber form —
-	// keeping BuildReceiptView free of the ent.Client dependency it deliberately doesn't hold.
+	// ShowProviderFooter, when non-nil, overrides the default (true — platform-owner footer
+	// shown). Callers that can resolve modules/providerfooter.Resolve (they hold an *ent.Client
+	// + tenant id) should set this explicitly; nil leaves the platform-wide default in effect.
+	ShowProviderFooter *bool
+	// ReceiptNumber, when set, overrides the default. Empty falls back to order.OrderNumber —
+	// the receipt and the order it's printed from always carry the same number.
 	ReceiptNumber string
 }
 
@@ -287,16 +294,12 @@ func BuildReceiptView(order *ent.POSOrder, lines []*ent.POSOrderLine, outlet *en
 		typ = "customer"
 	}
 
-	// Receipt number precedence: caller-minted (pos_receipt sequence) → persisted metadata
-	// (stable across reprints/render surfaces) → legacy "RCT-"+OrderNumber fallback.
+	// Receipt number is always the order's own number — uniform document numbering (see
+	// documents.DocTypeOrder / handlers.ReceiptHandler.ensureReceiptNumber): the order and the
+	// receipt printed for it are the same document, one number.
 	receiptNumber := opts.ReceiptNumber
 	if receiptNumber == "" {
-		if rn, ok := order.Metadata["receipt_number"].(string); ok && rn != "" {
-			receiptNumber = rn
-		}
-	}
-	if receiptNumber == "" {
-		receiptNumber = "RCT-" + order.OrderNumber
+		receiptNumber = order.OrderNumber
 	}
 
 	currency := order.Currency
@@ -425,8 +428,12 @@ func BuildReceiptView(order *ent.POSOrder, lines []*ent.POSOrderLine, outlet *en
 		BalanceDue:     balanceDue,
 		AmountTendered: amountTendered,
 		ChangeDue:      changeDue,
-		VoidReason:     opts.VoidReason,
-		ShowLogo:       true,
+		VoidReason:         opts.VoidReason,
+		ShowLogo:           true,
+		ShowProviderFooter: true,
+	}
+	if opts.ShowProviderFooter != nil {
+		v.ShowProviderFooter = *opts.ShowProviderFooter
 	}
 
 	if order.EtimsInvoiceNumber != nil {

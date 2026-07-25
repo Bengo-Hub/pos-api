@@ -31,6 +31,11 @@ type Report struct {
 	Cards    []Card    // optional summary tiles across the top
 	Sections []Section // the body, rendered in order
 	Footer   string    // footer note (defaults to a generated-by line)
+
+	// ProviderFooterEnabled gates the platform-owner ("Developed & maintained by CodeVertex...")
+	// advertisement footer — platform default ON with an optional per-tenant override (see
+	// modules/providerfooter.Resolve). Resolved by the handler, not this package (pure renderer).
+	ProviderFooterEnabled bool
 }
 
 // Card is a summary tile (label + big value + optional sub-caption).

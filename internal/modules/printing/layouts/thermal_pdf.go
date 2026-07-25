@@ -336,13 +336,15 @@ func renderThermalPDF(rec Receipt, brand Brand, layout string) ([]byte, error) {
 		center(rec.ReceiptFooter, "I", 8)
 	}
 
-	// Platform-owner (Codevertex) advertisement — always shown.
+	// Platform-owner (Codevertex) advertisement — platform default ON, per-tenant opt-out.
 	// Never below ~8pt — sub-7pt text disappears on low-quality/low-toner printers.
-	lead, contact := providerFooter(rec)
-	pdf.Ln(1)
-	hr()
-	center(lead, "B", 8.2)
-	center(contact, "", 7.6)
+	if rec.ShowProviderFooter {
+		lead, contact := providerFooter(rec)
+		pdf.Ln(1)
+		hr()
+		center(lead, "B", 8.2)
+		center(contact, "", 7.6)
+	}
 
 	var buf bytes.Buffer
 	if err := pdf.Output(&buf); err != nil {

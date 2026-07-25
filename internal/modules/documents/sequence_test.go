@@ -46,7 +46,7 @@ func TestSeqDefaults_AreNumeric(t *testing.T) {
 			t.Errorf("seqDefaults[%s].DateFormat = %q, want empty (numeric default)", docType, cfg.DateFormat)
 		}
 	}
-	for _, dt := range []string{DocTypeOrder, DocTypePosReceipt, DocTypePosReturn, DocTypePosReversal, DocTypeRepairJob} {
+	for _, dt := range []string{DocTypeOrder, DocTypePosReturn, DocTypePosReversal, DocTypeRepairJob} {
 		if _, ok := seqDefaults[dt]; !ok {
 			t.Errorf("seqDefaults missing doc type %q", dt)
 		}

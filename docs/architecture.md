@@ -237,13 +237,14 @@ Per-tenant, per-doc-type document numbers are minted through the `DocumentSequen
 - **Numeric by default.** A new tenant's sequences seed with an empty prefix and empty date
   format, so `formatNumber` emits just the zero-padded counter (e.g. `000001`). A tenant can opt
   any doc type into a prefixed/dated format (e.g. `POS-260625-000001`) from **Settings → Document
-  Numbering** (pos-ui); `SuggestedPrefixes` supplies the pre-fill hint (order→POS, receipt→RCT,
-  return→RET, reversal→REV, repair→JOB).
-- **Doc types:** `order`, `pos_receipt`, `pos_return`, `pos_reversal`, `repair_job`.
-- **Wiring:** order (online path only — the offline deterministic sha256 number is unchanged),
-  receipt (minted once and persisted to `order.Metadata["receipt_number"]` so reprints don't burn
-  a counter), return, reversal, and repair-job numbers all route through the sequence, each keeping
-  its legacy ad-hoc format as a fallback when the sequence service is unavailable.
+  Numbering** (pos-ui); `SuggestedPrefixes` supplies the pre-fill hint (order→POS, return→RET,
+  reversal→REV, repair→JOB). There is no separate receipt doc type — a receipt always carries its
+  order's own number (uniform order-number/receipt-number, see handlers.ReceiptHandler.
+  ensureReceiptNumber).
+- **Doc types:** `order`, `pos_return`, `pos_reversal`, `repair_job`.
+- **Wiring:** order, return, reversal, and repair-job numbers all route through the sequence, each
+  keeping its legacy ad-hoc format as a fallback when the sequence service is unavailable. The
+  receipt printed for an order simply reads that order's number back — no counter of its own.
 - **API:** `GET/PUT /api/v1/{tenantID}/pos/document-sequences` (+ `/{docType}/preview`); `PUT` is
   gated by `pos.config.change` / `pos.config.manage`. Backed by the `document_sequences` table
   (unique on `(tenant_id, doc_type)`), migration `20260719180642_add_document_sequences.sql`.

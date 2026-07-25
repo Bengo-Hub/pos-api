@@ -32,7 +32,7 @@ type Settlement struct {
 // this order (0 when none); callers batch-resolve it once via CompletedReturnsTotal semantics.
 func ComputeSettlement(o *ent.POSOrder, completedReturns float64) Settlement {
 	collected := o.PaidTotal
-	ps := DerivePaymentStatus(o.Status, o.TotalAmount, collected, IsOnAccount(o.Metadata))
+	ps := DerivePaymentStatus(o.Status, o.TotalAmount, collected, completedReturns, IsOnAccount(o.Metadata))
 	if (ps == "due" || ps == "partial") && IsOrderOverdue(o.Metadata) {
 		ps = "overdue"
 	}
@@ -83,16 +83,23 @@ func IsOrderOverdue(meta map[string]any) bool {
 // onAccount marks a credit sale: completion means the goods left, NOT that cash was banked —
 // paid_total excludes the on-account tender, so the sale reads due/partial (and "overdue" past its
 // due date, upgraded above) until the money is actually collected.
-func DerivePaymentStatus(status string, total, collected float64, onAccount bool) string {
+//
+// completedReturns is folded into "settled" alongside collected — a return-offset never touches
+// paid_total (it settles directly against the customer's treasury AR), so without this a credit
+// sale part-settled by a return and part by a real payment could reach AmountDue==0 (see
+// ComputeSettlement, which nets the same completedReturns into `due`) while this function still
+// read only `collected` and got stuck reporting "partial" forever.
+func DerivePaymentStatus(status string, total, collected, completedReturns float64, onAccount bool) string {
 	switch status {
 	case "refunded", "voided", "cancelled", "draft":
 		return status
 	}
-	if total > 0 && collected+0.01 >= total {
+	settled := collected + completedReturns
+	if total > 0 && settled+0.01 >= total {
 		return "paid"
 	}
 	if onAccount {
-		if collected > 0 {
+		if settled > 0 {
 			return "partial"
 		}
 		return "due"
@@ -100,7 +107,7 @@ func DerivePaymentStatus(status string, total, collected float64, onAccount bool
 	if status == "completed" {
 		return "paid"
 	}
-	if collected > 0 {
+	if settled > 0 {
 		return "partial"
 	}
 	return "due"

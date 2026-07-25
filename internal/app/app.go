@@ -406,7 +406,6 @@ func New(ctx context.Context) (*App, error) {
 	reversalSvc.WithSequence(docSeqSvc) // pos_reversal numbers via the document sequence
 	reversalHandler := handlers.NewReversalHandler(log, reversalSvc)
 	receiptHandler := handlers.NewReceiptHandler(log, entClient, tenantCache, cfg.Auth.ServiceURL)
-	receiptHandler.WithSequence(docSeqSvc) // pos_receipt numbers via the document sequence
 	// KRA PIN header line on receipts — resolved from the treasury tax profile, printed
 	// ONLY for eTIMS-activated tenants (FiscalPin returns "" otherwise). Fallback for sales
 	// whose transmitted fiscal identity hasn't landed on the order yet.

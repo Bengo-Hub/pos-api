@@ -69,6 +69,10 @@ type createIntentInput struct {
 	// period, which wins over the +30-day default) and free-text notes.
 	PaymentDueDate string `json:"paymentDueDate,omitempty"`
 	CreditNotes    string `json:"creditNotes,omitempty"`
+	// ApplyStoreCredit nets the customer's existing store credit into a NEW credit-sale debt
+	// (the offset-AR workflow) — captured by the same credit-sale details modal that captures
+	// PaymentDueDate/CreditNotes. Ignored for any tender other than on_account.
+	ApplyStoreCredit bool `json:"applyStoreCredit,omitempty"`
 	// Complimentary (no-charge) extras: a mandatory reason, plus ONE of a live manager
 	// PIN/card step-up token or a manager-generated one-time code — mirrors Void's dual
 	// approval path (see step_up.go / order_void_code.go).
@@ -123,17 +127,18 @@ func (h *PaymentHandler) CreatePaymentIntent(w http.ResponseWriter, r *http.Requ
 	}
 
 	req := payments.RecordPaymentRequest{
-		TenantID:       tid,
-		TenantSlug:     tenantSlug,
-		OrderID:        orderID,
-		TenderID:       input.TenderID,
-		TenderMethod:   input.TenderMethod,
-		Amount:         input.Amount,
-		Currency:       input.Currency,
-		ExternalRef:    input.ExternalRef,
-		PublicBaseURL:  h.publicBaseURL,
-		PaymentDueDate: dueDate,
-		CreditNotes:    strings.TrimSpace(input.CreditNotes),
+		TenantID:         tid,
+		TenantSlug:       tenantSlug,
+		OrderID:          orderID,
+		TenderID:         input.TenderID,
+		TenderMethod:     input.TenderMethod,
+		Amount:           input.Amount,
+		Currency:         input.Currency,
+		ExternalRef:      input.ExternalRef,
+		PublicBaseURL:    h.publicBaseURL,
+		PaymentDueDate:   dueDate,
+		CreditNotes:      strings.TrimSpace(input.CreditNotes),
+		ApplyStoreCredit: input.ApplyStoreCredit,
 	}
 
 	// Complimentary (no-charge): mandatory reason + mandatory manager approval (live PIN/card

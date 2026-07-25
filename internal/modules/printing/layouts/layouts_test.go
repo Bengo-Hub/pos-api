@@ -27,7 +27,7 @@ func fixtureReceipt(useCase string) Receipt {
 		},
 		Subtotal: 886, TaxAmount: 0, TotalAmount: 886, AmountPaid: 886,
 		Currency: "KES", PaymentMethod: "cash", PaymentDate: &paid,
-		VatEnabled: false, PaperWidth: "80mm", ShowLogo: true,
+		VatEnabled: false, PaperWidth: "80mm", ShowLogo: true, ShowProviderFooter: true,
 		UseCase: useCase,
 		// eTIMS fiscal identity (the KRA TIMS Details block).
 		EtimsKraPin:   "P052257611W",

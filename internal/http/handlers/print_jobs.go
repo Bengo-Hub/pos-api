@@ -20,6 +20,7 @@ import (
 	entprescriptionline "github.com/bengobox/pos-service/internal/ent/prescriptionline"
 	entprintagent "github.com/bengobox/pos-service/internal/ent/printagent"
 	"github.com/bengobox/pos-service/internal/modules/printing"
+	"github.com/bengobox/pos-service/internal/modules/providerfooter"
 )
 
 // PrintJobsHandler exposes the background print queue to the till UI: explicit job enqueue
@@ -147,7 +148,9 @@ func (h *PrintJobsHandler) EnqueueJob(w http.ResponseWriter, r *http.Request) {
 			All(ctx)
 		outlet, _ := h.client.Outlet.Query().Where(entoutlet.ID(outletID)).Only(ctx)
 		servedBy := printing.ServedByFromContext(ctx)
-		payload = printing.BuildReceipt(printing.OrderReceiptData(order, lines, outlet, setting, "customer", in.PaymentMethod, servedBy, ""))
+		rdata := printing.OrderReceiptData(order, lines, outlet, setting, "customer", in.PaymentMethod, servedBy, "")
+		rdata.ShowProviderFooter = providerfooter.Resolve(ctx, h.client, tid)
+		payload = printing.BuildReceipt(rdata)
 		orderID = &order.ID
 	case "test":
 		label := in.Station

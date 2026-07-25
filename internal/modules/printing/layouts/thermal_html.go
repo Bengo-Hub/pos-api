@@ -272,12 +272,14 @@ h1{font-size:17px;letter-spacing:.5px;text-align:center;margin:3px 0}
 		footer = "Thank you for your business!"
 	}
 	buf.WriteString(fmt.Sprintf(`<p class="ftr">%s</p>`, escape(footer)))
-	// Platform-owner (Codevertex) advertisement — always shown on the customer receipt.
-	lead, contact := providerFooter(rec)
-	buf.WriteString(`<div class="divider"></div>`)
-	buf.WriteString(fmt.Sprintf(`<p class="prov-lead">&#9733; %s &#9733;</p>`, escape(lead)))
-	buf.WriteString(fmt.Sprintf(`<p class="prov">%s</p>`, escape(contact)))
-	buf.WriteString(`<div class="divider"></div>`)
+	// Platform-owner (Codevertex) advertisement — platform default ON, per-tenant opt-out.
+	if rec.ShowProviderFooter {
+		lead, contact := providerFooter(rec)
+		buf.WriteString(`<div class="divider"></div>`)
+		buf.WriteString(fmt.Sprintf(`<p class="prov-lead">&#9733; %s &#9733;</p>`, escape(lead)))
+		buf.WriteString(fmt.Sprintf(`<p class="prov">%s</p>`, escape(contact)))
+		buf.WriteString(`<div class="divider"></div>`)
+	}
 	buf.WriteString(`</body></html>`)
 	return buf.Bytes()
 }

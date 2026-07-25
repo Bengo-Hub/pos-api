@@ -5,8 +5,6 @@ package orders
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"strings"
@@ -541,10 +539,12 @@ func (s *Service) GenerateOrderNumber() string {
 	return fmt.Sprintf("%s-%d", s.orderPrefix, time.Now().UnixMilli())
 }
 
-// GenerateOrderNumberCtx mints an ONLINE order number through the tenant-configurable document
-// sequence (numeric by default), falling back to the legacy time-based GenerateOrderNumber when
-// no sequence service is wired or it errors. The offline/deterministic client-ref path is
-// generated separately (deterministicOrderNumber) and never routes through here.
+// GenerateOrderNumberCtx mints an order number through the tenant-configurable document sequence
+// (numeric by default; see documents.DocTypeOrder), falling back to the legacy time-based
+// GenerateOrderNumber when no sequence service is wired or it errors. Used for both online and
+// offline-synced orders alike — the receipt printed for an order always shows this same number
+// (see http/handlers/receipt.go ensureReceiptNumber), so order number and receipt number stay
+// uniformly derived from the one document sequence.
 func (s *Service) GenerateOrderNumberCtx(ctx context.Context, tenantID uuid.UUID) string {
 	if s.seq != nil {
 		if n, err := s.seq.GenerateNumber(ctx, tenantID, documents.DocTypeOrder); err == nil && n != "" {
@@ -552,14 +552,6 @@ func (s *Service) GenerateOrderNumberCtx(ctx context.Context, tenantID uuid.UUID
 		}
 	}
 	return s.GenerateOrderNumber()
-}
-
-// deterministicOrderNumber derives a stable, collision-free order number from an offline
-// client reference, so the same offline sale always maps to the same order number on
-// every sync attempt (and two sales rung up in the same millisecond never collide).
-func (s *Service) deterministicOrderNumber(clientRef string) string {
-	sum := sha256.Sum256([]byte(clientRef))
-	return fmt.Sprintf("%s-%s", s.orderPrefix, strings.ToUpper(hex.EncodeToString(sum[:6])))
 }
 
 // DefaultCurrency returns the configured default currency.
@@ -590,14 +582,10 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent
 	}
 	orderNumber := req.OrderNumber
 	if orderNumber == "" {
-		// For offline sales derive a deterministic, collision-free number from the client
-		// reference so two sales rung up in the same millisecond can't share a number
-		// (GenerateOrderNumber is time-based). Online sales keep the time-based number.
-		if req.ClientReference != "" {
-			orderNumber = s.deterministicOrderNumber(req.ClientReference)
-		} else {
-			orderNumber = s.GenerateOrderNumberCtx(ctx, req.TenantID)
-		}
+		// Online and offline-synced orders alike mint through the same tenant document
+		// sequence — the client-reference idempotency lookup above already guarantees this
+		// only runs once per real sale, so there's no need for a client-ref-derived hash here.
+		orderNumber = s.GenerateOrderNumberCtx(ctx, req.TenantID)
 	}
 
 	// Non-billable / complimentary lines (free accompaniments like ugali, supplies like
