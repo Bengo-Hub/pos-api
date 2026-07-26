@@ -28,6 +28,7 @@ import (
 	kdsmod "github.com/bengobox/pos-service/internal/modules/kds"
 	"github.com/bengobox/pos-service/internal/modules/printing"
 	"github.com/bengobox/pos-service/internal/platform/events"
+	"github.com/bengobox/pos-service/internal/shorttoken"
 )
 
 // OrderStatus defines valid order states.
@@ -997,6 +998,10 @@ func (s *Service) UpdateStatus(ctx context.Context, tenantID, orderID uuid.UUID,
 // cannot determine a public origin; the share flow will still work for the in-app action if the
 // client can fall back to the authenticated receipt endpoint, but the public link is preferred for
 // WhatsApp because it opens directly in the customer's browser without needing the POS session.
+// Uses the SHORT form (/api/v1/r/{code}, see internal/shorttoken + receipt_short.go) — a ~22-char
+// base58 encoding of the same public_token, not a new/weaker secret — so the link a customer taps
+// in WhatsApp/SMS doesn't look like a scary raw API URL. The long-form
+// /api/v1/public/receipts/{token}/pdf route keeps serving unchanged for any already-sent links.
 func (s *Service) receiptDownloadLink(order *ent.POSOrder) string {
 	if order == nil {
 		return ""
@@ -1005,7 +1010,7 @@ func (s *Service) receiptDownloadLink(order *ent.POSOrder) string {
 	if base == "" {
 		return ""
 	}
-	return fmt.Sprintf("%s/api/v1/public/receipts/%s/pdf?download=true", base, order.PublicToken)
+	return fmt.Sprintf("%s/api/v1/r/%s", base, shorttoken.Encode(order.PublicToken))
 }
 
 // GetReceiptShareLink resolves an order's durable public receipt-download link and customer

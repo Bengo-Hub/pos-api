@@ -167,6 +167,15 @@ func New(
 			api.Route("/public", func(pubDoc chi.Router) {
 				receipt.RegisterPublicRoutes(pubDoc)
 			})
+
+			// Short receipt-download link (/api/v1/r/{code}) — same public_token capability model
+			// as above, just base58-encoded to a ~22-char code instead of the full
+			// /public/receipts/{uuid}/pdf?download=true path, for a link that looks less alarming
+			// in a WhatsApp/SMS message. No new secret/entropy: it's the SAME public_token, so the
+			// long-form route above keeps serving any already-sent historical links unchanged.
+			api.Route("/r", func(short chi.Router) {
+				receipt.RegisterShortReceiptRoute(short)
+			})
 		}
 
 		// Local Print Agent job polling (AccuPOS-style spooler). The agent lives on the shop LAN
