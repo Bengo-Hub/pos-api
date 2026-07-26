@@ -41,7 +41,7 @@ type BackupConfig struct {
 // ordering-backend owns customer orders + the rider-assignment flow; pos-api delegates
 // rider assignment for delivery online orders to its canonical admin endpoint.
 type OrderingConfig struct {
-	ServiceURL     string        `envconfig:"ORDERING_SERVICE_URL" default:"https://orderingapi.codevertexitsolutions.com"`
+	ServiceURL     string        `envconfig:"ORDERING_SERVICE_URL" default:"https://orderingapi.codevertexafrica.com"`
 	APIKey         string        `envconfig:"INTERNAL_SERVICE_KEY"`
 	RequestTimeout time.Duration `envconfig:"ORDERING_REQUEST_TIMEOUT" default:"15s"`
 }
@@ -49,7 +49,7 @@ type OrderingConfig struct {
 // LogisticsConfig holds configuration for the logistics-api S2S client.
 // logistics-api owns riders/fleet; pos-api only proxies the available-riders list (read-only).
 type LogisticsConfig struct {
-	ServiceURL     string        `envconfig:"LOGISTICS_SERVICE_URL" default:"https://logisticsapi.codevertexitsolutions.com"`
+	ServiceURL     string        `envconfig:"LOGISTICS_SERVICE_URL" default:"https://logisticsapi.codevertexafrica.com"`
 	APIKey         string        `envconfig:"INTERNAL_SERVICE_KEY"`
 	RequestTimeout time.Duration `envconfig:"LOGISTICS_REQUEST_TIMEOUT" default:"15s"`
 }
@@ -57,7 +57,7 @@ type LogisticsConfig struct {
 // ERPConfig holds configuration for the erp-api S2S client (staff fund-from-salary credit).
 // erp-api owns HR/payroll; pos-api pushes a staff purchase to become a payroll recoverable.
 type ERPConfig struct {
-	ServiceURL     string        `envconfig:"ERP_SERVICE_URL" default:"https://erpapi.codevertexitsolutions.com"`
+	ServiceURL     string        `envconfig:"ERP_SERVICE_URL" default:"https://erpapi.codevertexafrica.com"`
 	APIKey         string        `envconfig:"INTERNAL_SERVICE_KEY"`
 	RequestTimeout time.Duration `envconfig:"ERP_REQUEST_TIMEOUT" default:"15s"`
 }
@@ -70,21 +70,21 @@ type MarketFlowConfig struct {
 
 // SubscriptionsConfig holds configuration for the subscriptions enforcement client.
 type SubscriptionsConfig struct {
-	ServiceURL     string        `envconfig:"SUBSCRIPTIONS_SERVICE_URL" default:"https://pricingapi.codevertexitsolutions.com"`
+	ServiceURL     string        `envconfig:"SUBSCRIPTIONS_SERVICE_URL" default:"https://pricingapi.codevertexafrica.com"`
 	RequestTimeout time.Duration `envconfig:"SUBSCRIPTIONS_REQUEST_TIMEOUT" default:"10s"`
 	APIKey         string        `envconfig:"INTERNAL_SERVICE_KEY"`
 }
 
 // TreasuryConfig holds configuration for the treasury-api S2S client.
 type TreasuryConfig struct {
-	ServiceURL         string        `envconfig:"TREASURY_SERVICE_URL" default:"https://booksapi.codevertexitsolutions.com"`
+	ServiceURL         string        `envconfig:"TREASURY_SERVICE_URL" default:"https://booksapi.codevertexafrica.com"`
 	InternalServiceKey string        `envconfig:"INTERNAL_SERVICE_KEY"`
 	RequestTimeout     time.Duration `envconfig:"TREASURY_REQUEST_TIMEOUT" default:"30s"`
-	PublicBaseURL      string        `envconfig:"HTTP_PUBLIC_BASE_URL" default:"https://posapi.codevertexitsolutions.com"`
+	PublicBaseURL      string        `envconfig:"HTTP_PUBLIC_BASE_URL" default:"https://posapi.codevertexafrica.com"`
 	// ShortLinkBaseURL fronts receipt-share links with a branded, bit.ly-style host instead of
 	// exposing PublicBaseURL's raw posapi.<domain>/api/v1 shape to customers (WhatsApp/SMS links).
 	// The devops-k8s Ingress at this host rewrites /{code} -> pos-api's own /api/v1/r/{code} route.
-	ShortLinkBaseURL string `envconfig:"HTTP_SHORT_LINK_BASE_URL" default:"https://r.codevertexitsolutions.com"`
+	ShortLinkBaseURL string `envconfig:"HTTP_SHORT_LINK_BASE_URL" default:"https://r.codevertexafrica.com"`
 }
 
 type AppConfig struct {
@@ -103,7 +103,7 @@ type HTTPConfig struct {
 	ReadTimeout    time.Duration `envconfig:"HTTP_READ_TIMEOUT" default:"20s"`
 	WriteTimeout   time.Duration `envconfig:"HTTP_WRITE_TIMEOUT" default:"20s"`
 	IdleTimeout    time.Duration `envconfig:"HTTP_IDLE_TIMEOUT" default:"90s"`
-	AllowedOrigins []string      `envconfig:"HTTP_ALLOWED_ORIGINS" default:"https://pos.codevertexitsolutions.com,https://accounts.codevertexitsolutions.com,https://theurbanloftcafe.com,https://books.codevertexitsolutions.com"`
+	AllowedOrigins []string      `envconfig:"HTTP_ALLOWED_ORIGINS" default:"https://pos.codevertexafrica.com,https://accounts.codevertexafrica.com,https://theurbanloftcafe.com,https://books.codevertexafrica.com"`
 }
 
 type PostgresConfig struct {

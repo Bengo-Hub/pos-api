@@ -21,7 +21,7 @@ import (
 // agentConfig is the persisted pairing: which pos-api to poll and the pairing key that
 // authenticates this agent (X-Agent-Key). Written by POST /pair; loaded on service start.
 type agentConfig struct {
-	Server string `json:"server"` // e.g. https://posapi.codevertexitsolutions.com
+	Server string `json:"server"` // e.g. https://posapi.codevertexafrica.com
 	Key    string `json:"key"`    // pak_… pairing key from POS Settings → Receipt & Printing
 }
 

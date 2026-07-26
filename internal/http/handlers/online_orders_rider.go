@@ -38,7 +38,7 @@ func tenantSlugFromRequest(r *http.Request) string {
 type riderDeps struct {
 	ordering     *ordering.Client
 	logistics    *logistics.Client // direct dispatch for POS-native delivery orders
-	logisticsURL string            // LOGISTICS_SERVICE_URL base (e.g. https://logisticsapi.codevertexitsolutions.com)
+	logisticsURL string            // LOGISTICS_SERVICE_URL base (e.g. https://logisticsapi.codevertexafrica.com)
 	apiKey       string            // shared INTERNAL_SERVICE_KEY
 }
 

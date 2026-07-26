@@ -222,10 +222,10 @@ pos-ui → POST /{tenant}/pos/orders/{id}/payments
 | `DEFAULT_CURRENCY` | `KES` |
 | `ORDER_PREFIX` | Order number prefix (e.g., `BNG`) |
 | `INTERNAL_SERVICE_KEY` | Single shared S2S key (`X-API-Key` header) |
-| `INVENTORY_SERVICE_URL` | `https://inventoryapi.codevertexitsolutions.com` |
-| `TREASURY_SERVICE_URL` | `https://booksapi.codevertexitsolutions.com` |
-| `NOTIFICATIONS_SERVICE_URL` | `https://notificationsapi.codevertexitsolutions.com` |
-| `ORDERING_SERVICE_URL` | `https://orderingapi.codevertexitsolutions.com` |
+| `INVENTORY_SERVICE_URL` | `https://inventoryapi.codevertexafrica.com` |
+| `TREASURY_SERVICE_URL` | `https://booksapi.codevertexafrica.com` |
+| `NOTIFICATIONS_SERVICE_URL` | `https://notificationsapi.codevertexafrica.com` |
+| `ORDERING_SERVICE_URL` | `https://orderingapi.codevertexafrica.com` |
 
 ---
 

@@ -112,12 +112,12 @@ func (f *menuImageFetcher) prefetch(urls []string) {
 }
 
 // internalInventoryImageURL rewrites a PUBLIC inventory media URL (the host that item image_urls
-// use, e.g. https://inventoryapi.codevertexitsolutions.com/media/...) to the in-cluster inventory
+// use, e.g. https://inventoryapi.codevertexafrica.com/media/...) to the in-cluster inventory
 // service. A menu PDF downloads ~50 thumbnails; going through the public ingress (TLS, latency,
 // rate-limiting) made the cold render ~47s and intermittently dropped images to placeholders.
 // Non-inventory URLs (e.g. the auth-hosted logo) are returned unchanged.
 func internalInventoryImageURL(url string) string {
-	const knownPublic = "https://inventoryapi.codevertexitsolutions.com"
+	const knownPublic = "https://inventoryapi.codevertexafrica.com"
 	if pub := strings.TrimRight(os.Getenv("INVENTORY_SERVICE_URL"), "/"); pub != "" && strings.HasPrefix(url, pub) {
 		return inventoryURL() + url[len(pub):]
 	}

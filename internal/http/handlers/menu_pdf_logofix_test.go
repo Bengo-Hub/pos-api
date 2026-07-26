@@ -25,7 +25,7 @@ func tinyJPEG(t *testing.T) []byte {
 
 // TestFetchReceiptLogoSniffsBytesNotContentType reproduces the production bug: a logo that is
 // actually a JPEG but is served with Content-Type: image/png (exactly how
-// accounts.codevertexitsolutions.com serves urban-loft.png). The old code trusted the header
+// accounts.codevertexafrica.com serves urban-loft.png). The old code trusted the header
 // and told fpdf "PNG", producing "not a PNG buffer" which poisoned the whole menu document.
 // The fix sniffs the real bytes, so the type must come back as JPG and embed cleanly.
 func TestFetchReceiptLogoSniffsBytesNotContentType(t *testing.T) {

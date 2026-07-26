@@ -82,7 +82,7 @@ See also: [Sprint 12](sprints/sprint-12-integrations-webhooks.md) and [Sprint 5]
 **Action:** pos-api calls `POST /v1/{tenant}/inventory/consumption`
 
 ```
-POST https://inventoryapi.codevertexitsolutions.com/v1/{tenant}/inventory/consumption
+POST https://inventoryapi.codevertexafrica.com/v1/{tenant}/inventory/consumption
 X-API-Key: {INTERNAL_SERVICE_KEY}
 Content-Type: application/json
 
@@ -144,7 +144,7 @@ For non-cash tenders, pos-api creates a payment intent in treasury-api before re
 2. pos-api payments handler:
    if cash → record immediately, auto-complete order
    if card/mpesa:
-     → POST https://booksapi.codevertexitsolutions.com/api/v1/s2s/{tenant}/payments/intents
+     → POST https://booksapi.codevertexafrica.com/api/v1/s2s/{tenant}/payments/intents
        X-API-Key: {INTERNAL_SERVICE_KEY}
        {
          "source_service": "pos",
@@ -174,7 +174,7 @@ For non-cash tenders, pos-api creates a payment intent in treasury-api before re
 ```
 
 **Client:** `internal/modules/treasury/client.go`  
-**Env vars:** `TREASURY_SERVICE_URL=https://booksapi.codevertexitsolutions.com`, `INTERNAL_SERVICE_KEY`  
+**Env vars:** `TREASURY_SERVICE_URL=https://booksapi.codevertexafrica.com`, `INTERNAL_SERVICE_KEY`  
 **Auth:** `X-API-Key: {INTERNAL_SERVICE_KEY}` header (S2S) — same shared key for all services  
 **Status:** ❌ S2S intent creation not yet wired in `payments.Service.Record()` (Sprint 6)
 
@@ -387,10 +387,10 @@ Registered in router under `/{tenantID}/pos/online-orders/`:
 INTERNAL_SERVICE_KEY=<platform shared S2S key>
 
 # Service URLs
-INVENTORY_SERVICE_URL=https://inventoryapi.codevertexitsolutions.com
-TREASURY_SERVICE_URL=https://booksapi.codevertexitsolutions.com
-NOTIFICATIONS_SERVICE_URL=https://notificationsapi.codevertexitsolutions.com
-ORDERING_SERVICE_URL=https://orderingapi.codevertexitsolutions.com
+INVENTORY_SERVICE_URL=https://inventoryapi.codevertexafrica.com
+TREASURY_SERVICE_URL=https://booksapi.codevertexafrica.com
+NOTIFICATIONS_SERVICE_URL=https://notificationsapi.codevertexafrica.com
+ORDERING_SERVICE_URL=https://orderingapi.codevertexafrica.com
 ```
 
 **S2S Auth Standard**: All Codevertex internal services use a single `INTERNAL_SERVICE_KEY` env var. The same key value is sent as `X-API-Key` header on every S2S call regardless of the target service. Each receiving service validates it against its own `INTERNAL_SERVICE_KEY`. There are no per-service API keys.

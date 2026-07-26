@@ -18,15 +18,15 @@ const (
 	ProviderSlug = "codevertex"
 
 	providerDefaultName  = "Codevertex Africa Limited"
-	providerDefaultWeb   = "www.codevertexitsolutions.com"
-	providerDefaultEmail = "info@codevertexitsolutions.com"
+	providerDefaultWeb   = "www.codevertexafrica.com"
+	providerDefaultEmail = "info@codevertexafrica.com"
 	providerDefaultPhone = "+254 742 201 368"
 )
 
 // ProviderFooter is the resolved two-line platform-owner advertisement:
 //
 //	Developed & maintained by Codevertex Africa Limited
-//	www.codevertexitsolutions.com  ·  info@codevertexitsolutions.com  ·  +254 742 201 368
+//	www.codevertexafrica.com  ·  info@codevertexafrica.com  ·  +254 742 201 368
 type ProviderFooter struct {
 	Lead    string // "Developed & maintained by <provider name>"
 	Contact string // "<website>  ·  <email>  ·  <phone>"
@@ -90,7 +90,7 @@ func firstNonEmpty(vals ...string) string {
 }
 
 // cleanWebDisplay strips the scheme + trailing slash for a compact printed website (e.g.
-// "https://codevertexitsolutions.com/" → "codevertexitsolutions.com").
+// "https://codevertexafrica.com/" → "codevertexafrica.com").
 func cleanWebDisplay(raw string) string {
 	s := strings.TrimSpace(raw)
 	s = strings.TrimPrefix(s, "https://")

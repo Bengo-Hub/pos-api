@@ -125,7 +125,7 @@ func renderMenuPDF(groups []menuGroup, brand receiptBrand, tenantName, outletNam
 	pdf.SetFont("Helvetica", "", 7.5)
 	pdf.SetTextColor(pal.muted.r, pal.muted.g, pal.muted.b)
 	pdf.CellFormat(contentW, 4, tr(pdf, "ERP · POS · TruLoad · ISP Billing · Books · AI & Automation"), "", 1, "C", false, 0, "")
-	pdf.CellFormat(contentW, 4, tr(pdf, "www.codevertexitsolutions.com   ·   +254 742 201 368   ·   info@codevertexitsolutions.com"), "", 1, "C", false, 0, "")
+	pdf.CellFormat(contentW, 4, tr(pdf, "www.codevertexafrica.com   ·   +254 742 201 368   ·   info@codevertexafrica.com"), "", 1, "C", false, 0, "")
 
 	var buf bytes.Buffer
 	if err := pdf.Output(&buf); err != nil {

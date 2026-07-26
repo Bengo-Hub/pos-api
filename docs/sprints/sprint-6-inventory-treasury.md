@@ -77,7 +77,7 @@ pos-ui → POST /{tenant}/pos/orders/{id}/payments {tender_type: "card"|"mpesa",
   → pos-api payments handler
     → if cash: record immediately, auto-complete order
     → if card/mpesa:
-        call treasury-api POST https://booksapi.codevertexitsolutions.com/api/v1/s2s/{tenant}/payments/intents
+        call treasury-api POST https://booksapi.codevertexafrica.com/api/v1/s2s/{tenant}/payments/intents
         X-API-Key: {INTERNAL_SERVICE_KEY}
         {source_service: "pos", reference_id: order_id, reference_type: "pos_order",
          amount, currency: "KES", payment_method: "paystack"|"mpesa", customer_id}
@@ -91,7 +91,7 @@ pos-ui → POST /{tenant}/pos/orders/{id}/payments {tender_type: "card"|"mpesa",
 ```
 
 **Environment variables needed:**
-- `TREASURY_SERVICE_URL` — e.g., `https://booksapi.codevertexitsolutions.com`
+- `TREASURY_SERVICE_URL` — e.g., `https://booksapi.codevertexafrica.com`
 - `INTERNAL_SERVICE_KEY` — shared platform S2S key (same for all services)
 
 **Treasury client:**
@@ -128,10 +128,10 @@ type TreasuryClient interface {
 ## Environment Variables to Add
 ```bash
 INTERNAL_SERVICE_KEY=<platform shared S2S key>
-INVENTORY_SERVICE_URL=https://inventoryapi.codevertexitsolutions.com
-TREASURY_SERVICE_URL=https://booksapi.codevertexitsolutions.com
-NOTIFICATIONS_SERVICE_URL=https://notificationsapi.codevertexitsolutions.com
-ORDERING_SERVICE_URL=https://orderingapi.codevertexitsolutions.com
+INVENTORY_SERVICE_URL=https://inventoryapi.codevertexafrica.com
+TREASURY_SERVICE_URL=https://booksapi.codevertexafrica.com
+NOTIFICATIONS_SERVICE_URL=https://notificationsapi.codevertexafrica.com
+ORDERING_SERVICE_URL=https://orderingapi.codevertexafrica.com
 ```
 
 **S2S Auth Standard**: All Codevertex services use a single `INTERNAL_SERVICE_KEY` env var. The same key value is sent as `X-API-Key` header to every internal service. Do not create per-service key env vars (e.g., no `TREASURY_API_KEY` or `INVENTORY_API_KEY` — they all use `INTERNAL_SERVICE_KEY`).
