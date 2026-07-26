@@ -20,7 +20,7 @@ type DocumentSequence struct {
 	ID uuid.UUID `json:"id,omitempty"`
 	// Tenant this sequence belongs to
 	TenantID uuid.UUID `json:"tenant_id,omitempty"`
-	// order, pos_receipt, pos_return, pos_reversal, repair_job, ...
+	// order, pos_return, pos_reversal, repair_job, ...
 	DocType string `json:"doc_type,omitempty"`
 	// Number prefix, e.g. POS, RCT
 	Prefix string `json:"prefix,omitempty"`

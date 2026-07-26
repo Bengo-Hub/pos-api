@@ -25,9 +25,16 @@ func (POSOrder) Fields() []ent.Field {
 		field.UUID("outlet_id", uuid.UUID{}),
 		field.UUID("device_id", uuid.UUID{}),
 		field.UUID("user_id", uuid.UUID{}),
+		// order_number is unique per-TENANT only (enforced by the composite
+		// posorder_tenant_id_order_number index below), never globally — a bare .Unique()
+		// here ALSO emits a second, global single-column unique index/constraint
+		// (pos_orders_order_number_key), which is wrong: the tenant document sequence
+		// (documents.DocTypeOrder) is pure numeric per-tenant by default, so tenant A's and
+		// tenant B's "000001" collide on that global constraint the instant more than one
+		// tenant places an order. Root cause of the 2026-07-26 "duplicate key value violates
+		// unique constraint pos_orders_order_number_key" outage. Do not re-add .Unique() here.
 		field.String("order_number").
-			NotEmpty().
-			Unique(),
+			NotEmpty(),
 		// client_reference is the offline client's locally-generated id (uuid). It is the
 		// idempotency anchor for offline-created sales: CreateOrder is get-or-create on
 		// (tenant_id, client_reference), so a replayed sync returns the existing order

@@ -1785,7 +1785,7 @@ var (
 		{Name: "outlet_id", Type: field.TypeUUID},
 		{Name: "device_id", Type: field.TypeUUID},
 		{Name: "user_id", Type: field.TypeUUID},
-		{Name: "order_number", Type: field.TypeString, Unique: true},
+		{Name: "order_number", Type: field.TypeString},
 		{Name: "client_reference", Type: field.TypeString, Nullable: true},
 		{Name: "offline_created_at", Type: field.TypeTime, Nullable: true},
 		{Name: "status", Type: field.TypeString, Default: "draft"},
