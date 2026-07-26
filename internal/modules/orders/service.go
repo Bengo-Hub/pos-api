@@ -993,13 +993,19 @@ func (s *Service) UpdateStatus(ctx context.Context, tenantID, orderID uuid.UUID,
 }
 
 // receiptDownloadLink builds the durable, unauthenticated receipt-share download link (the
-// order's own public_token is the auth — see receipt_public.go). Returns "" when publicAPIBase
-// isn't wired (e.g. a dev environment without HTTP_PUBLIC_BASE_URL set).
+// order's own public_token is the auth — see receipt_public.go). Returns "" if the service
+// cannot determine a public origin; the share flow will still work for the in-app action if the
+// client can fall back to the authenticated receipt endpoint, but the public link is preferred for
+// WhatsApp because it opens directly in the customer's browser without needing the POS session.
 func (s *Service) receiptDownloadLink(order *ent.POSOrder) string {
-	if s.publicAPIBase == "" {
+	if order == nil {
 		return ""
 	}
-	return fmt.Sprintf("%s/api/v1/public/receipts/%s/pdf?download=true", s.publicAPIBase, order.PublicToken)
+	base := strings.TrimRight(s.publicAPIBase, "/")
+	if base == "" {
+		return ""
+	}
+	return fmt.Sprintf("%s/api/v1/public/receipts/%s/pdf?download=true", base, order.PublicToken)
 }
 
 // GetReceiptShareLink resolves an order's durable public receipt-download link and customer

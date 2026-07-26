@@ -1339,6 +1339,9 @@ func (h *POSOrderHandler) GetReceiptShareLink(w http.ResponseWriter, r *http.Req
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
 	}
+	if link == "" {
+		h.log.Warn("receipt share link unavailable; missing public api base", zap.String("order_id", orderID.String()))
+	}
 	jsonOK(w, map[string]any{"download_link": link, "customer_phone": phone})
 }
 
