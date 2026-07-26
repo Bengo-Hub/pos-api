@@ -1731,6 +1731,10 @@ func init() {
 	posorder.DefaultUpdatedAt = posorderDescUpdatedAt.Default.(func() time.Time)
 	// posorder.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	posorder.UpdateDefaultUpdatedAt = posorderDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// posorderDescPublicToken is the schema descriptor for public_token field.
+	posorderDescPublicToken := posorderFields[44].Descriptor()
+	// posorder.DefaultPublicToken holds the default value on creation for the public_token field.
+	posorder.DefaultPublicToken = posorderDescPublicToken.Default.(func() uuid.UUID)
 	// posorderDescID is the schema descriptor for id field.
 	posorderDescID := posorderFields[0].Descriptor()
 	// posorder.DefaultID holds the default value on creation for the id field.

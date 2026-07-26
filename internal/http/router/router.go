@@ -159,6 +159,16 @@ func New(
 		// credential-free binary). 302-redirects to the GitHub release asset.
 		api.Get("/pos/print-agent/download", handlers.PrintAgentDownload)
 
+		// Public receipt-share routes — no auth, no tenant_id in the URL. The order's own
+		// public_token capability column IS the auth (mirrors treasury-api's /api/v1/public
+		// document links). Registered here, ahead of the tenantID-scoped `pub`/`prot` blocks
+		// below, so a WhatsApp/Email/SMS "download your receipt" link never needs a JWT.
+		if receipt != nil {
+			api.Route("/public", func(pubDoc chi.Router) {
+				receipt.RegisterPublicRoutes(pubDoc)
+			})
+		}
+
 		// Local Print Agent job polling (AccuPOS-style spooler). The agent lives on the shop LAN
 		// and polls OUT; auth is its pairing key (X-Agent-Key), not a user JWT — hence outside the
 		// tenant JWT group. Long-poll claim + ack.
@@ -341,6 +351,9 @@ func New(
 						pos.Patch("/orders/{orderID}/shipping", orders.UpdateShipping)
 						// All-Sales "New Sale Notification": (re)send the customer their receipt/invoice.
 						pos.Post("/orders/{orderID}/notify", orders.NotifySale)
+						// "Share via WhatsApp" wa.me quick action: resolves the durable public receipt
+						// link client-side (no notifications-service round-trip for this path).
+						pos.Get("/orders/{orderID}/receipt/share-link", orders.GetReceiptShareLink)
 						pos.Patch("/orders/{orderID}/void", orders.VoidOrder)
 						// Delete a DRAFT (saved-but-unpaid) sale. Route-gated to an order-write
 						// permission; DeleteDraft then enforces the RBAC boundary server-side —

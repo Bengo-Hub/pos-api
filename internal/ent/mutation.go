@@ -59416,6 +59416,7 @@ type POSOrderMutation struct {
 	date_moved_at             *time.Time
 	created_at                *time.Time
 	updated_at                *time.Time
+	public_token              *uuid.UUID
 	clearedFields             map[string]struct{}
 	lines                     map[uuid.UUID]struct{}
 	removedlines              map[uuid.UUID]struct{}
@@ -61570,6 +61571,42 @@ func (m *POSOrderMutation) ResetUpdatedAt() {
 	m.updated_at = nil
 }
 
+// SetPublicToken sets the "public_token" field.
+func (m *POSOrderMutation) SetPublicToken(u uuid.UUID) {
+	m.public_token = &u
+}
+
+// PublicToken returns the value of the "public_token" field in the mutation.
+func (m *POSOrderMutation) PublicToken() (r uuid.UUID, exists bool) {
+	v := m.public_token
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPublicToken returns the old "public_token" field's value of the POSOrder entity.
+// If the POSOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSOrderMutation) OldPublicToken(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPublicToken is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPublicToken requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPublicToken: %w", err)
+	}
+	return oldValue.PublicToken, nil
+}
+
+// ResetPublicToken resets all changes to the "public_token" field.
+func (m *POSOrderMutation) ResetPublicToken() {
+	m.public_token = nil
+}
+
 // AddLineIDs adds the "lines" edge to the POSOrderLine entity by ids.
 func (m *POSOrderMutation) AddLineIDs(ids ...uuid.UUID) {
 	if m.lines == nil {
@@ -61766,7 +61803,7 @@ func (m *POSOrderMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *POSOrderMutation) Fields() []string {
-	fields := make([]string, 0, 43)
+	fields := make([]string, 0, 44)
 	if m.tenant_id != nil {
 		fields = append(fields, posorder.FieldTenantID)
 	}
@@ -61896,6 +61933,9 @@ func (m *POSOrderMutation) Fields() []string {
 	if m.updated_at != nil {
 		fields = append(fields, posorder.FieldUpdatedAt)
 	}
+	if m.public_token != nil {
+		fields = append(fields, posorder.FieldPublicToken)
+	}
 	return fields
 }
 
@@ -61990,6 +62030,8 @@ func (m *POSOrderMutation) Field(name string) (ent.Value, bool) {
 		return m.CreatedAt()
 	case posorder.FieldUpdatedAt:
 		return m.UpdatedAt()
+	case posorder.FieldPublicToken:
+		return m.PublicToken()
 	}
 	return nil, false
 }
@@ -62085,6 +62127,8 @@ func (m *POSOrderMutation) OldField(ctx context.Context, name string) (ent.Value
 		return m.OldCreatedAt(ctx)
 	case posorder.FieldUpdatedAt:
 		return m.OldUpdatedAt(ctx)
+	case posorder.FieldPublicToken:
+		return m.OldPublicToken(ctx)
 	}
 	return nil, fmt.Errorf("unknown POSOrder field %s", name)
 }
@@ -62394,6 +62438,13 @@ func (m *POSOrderMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetUpdatedAt(v)
+		return nil
+	case posorder.FieldPublicToken:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPublicToken(v)
 		return nil
 	}
 	return fmt.Errorf("unknown POSOrder field %s", name)
@@ -62836,6 +62887,9 @@ func (m *POSOrderMutation) ResetField(name string) error {
 		return nil
 	case posorder.FieldUpdatedAt:
 		m.ResetUpdatedAt()
+		return nil
+	case posorder.FieldPublicToken:
+		m.ResetPublicToken()
 		return nil
 	}
 	return fmt.Errorf("unknown POSOrder field %s", name)

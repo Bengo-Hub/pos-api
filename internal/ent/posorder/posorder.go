@@ -102,6 +102,8 @@ const (
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
 	FieldUpdatedAt = "updated_at"
+	// FieldPublicToken holds the string denoting the public_token field in the database.
+	FieldPublicToken = "public_token"
 	// EdgeLines holds the string denoting the lines edge name in mutations.
 	EdgeLines = "lines"
 	// EdgePayments holds the string denoting the payments edge name in mutations.
@@ -179,6 +181,7 @@ var Columns = []string{
 	FieldDateMovedAt,
 	FieldCreatedAt,
 	FieldUpdatedAt,
+	FieldPublicToken,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -226,6 +229,8 @@ var (
 	DefaultUpdatedAt func() time.Time
 	// UpdateDefaultUpdatedAt holds the default value on update for the "updated_at" field.
 	UpdateDefaultUpdatedAt func() time.Time
+	// DefaultPublicToken holds the default value on creation for the "public_token" field.
+	DefaultPublicToken func() uuid.UUID
 	// DefaultID holds the default value on creation for the "id" field.
 	DefaultID func() uuid.UUID
 )
@@ -476,6 +481,11 @@ func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
 // ByUpdatedAt orders the results by the updated_at field.
 func ByUpdatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldUpdatedAt, opts...).ToFunc()
+}
+
+// ByPublicToken orders the results by the public_token field.
+func ByPublicToken(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPublicToken, opts...).ToFunc()
 }
 
 // ByLinesCount orders the results by lines count.

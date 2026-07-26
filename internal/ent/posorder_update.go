@@ -802,6 +802,20 @@ func (_u *POSOrderUpdate) SetUpdatedAt(v time.Time) *POSOrderUpdate {
 	return _u
 }
 
+// SetPublicToken sets the "public_token" field.
+func (_u *POSOrderUpdate) SetPublicToken(v uuid.UUID) *POSOrderUpdate {
+	_u.mutation.SetPublicToken(v)
+	return _u
+}
+
+// SetNillablePublicToken sets the "public_token" field if the given value is not nil.
+func (_u *POSOrderUpdate) SetNillablePublicToken(v *uuid.UUID) *POSOrderUpdate {
+	if v != nil {
+		_u.SetPublicToken(*v)
+	}
+	return _u
+}
+
 // AddLineIDs adds the "lines" edge to the POSOrderLine entity by IDs.
 func (_u *POSOrderUpdate) AddLineIDs(ids ...uuid.UUID) *POSOrderUpdate {
 	_u.mutation.AddLineIDs(ids...)
@@ -1196,6 +1210,9 @@ func (_u *POSOrderUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(posorder.FieldUpdatedAt, field.TypeTime, value)
+	}
+	if value, ok := _u.mutation.PublicToken(); ok {
+		_spec.SetField(posorder.FieldPublicToken, field.TypeUUID, value)
 	}
 	if _u.mutation.LinesCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -2122,6 +2139,20 @@ func (_u *POSOrderUpdateOne) SetUpdatedAt(v time.Time) *POSOrderUpdateOne {
 	return _u
 }
 
+// SetPublicToken sets the "public_token" field.
+func (_u *POSOrderUpdateOne) SetPublicToken(v uuid.UUID) *POSOrderUpdateOne {
+	_u.mutation.SetPublicToken(v)
+	return _u
+}
+
+// SetNillablePublicToken sets the "public_token" field if the given value is not nil.
+func (_u *POSOrderUpdateOne) SetNillablePublicToken(v *uuid.UUID) *POSOrderUpdateOne {
+	if v != nil {
+		_u.SetPublicToken(*v)
+	}
+	return _u
+}
+
 // AddLineIDs adds the "lines" edge to the POSOrderLine entity by IDs.
 func (_u *POSOrderUpdateOne) AddLineIDs(ids ...uuid.UUID) *POSOrderUpdateOne {
 	_u.mutation.AddLineIDs(ids...)
@@ -2546,6 +2577,9 @@ func (_u *POSOrderUpdateOne) sqlSave(ctx context.Context) (_node *POSOrder, err 
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(posorder.FieldUpdatedAt, field.TypeTime, value)
+	}
+	if value, ok := _u.mutation.PublicToken(); ok {
+		_spec.SetField(posorder.FieldPublicToken, field.TypeUUID, value)
 	}
 	if _u.mutation.LinesCleared() {
 		edge := &sqlgraph.EdgeSpec{

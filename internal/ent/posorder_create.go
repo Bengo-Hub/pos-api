@@ -557,6 +557,20 @@ func (_c *POSOrderCreate) SetNillableUpdatedAt(v *time.Time) *POSOrderCreate {
 	return _c
 }
 
+// SetPublicToken sets the "public_token" field.
+func (_c *POSOrderCreate) SetPublicToken(v uuid.UUID) *POSOrderCreate {
+	_c.mutation.SetPublicToken(v)
+	return _c
+}
+
+// SetNillablePublicToken sets the "public_token" field if the given value is not nil.
+func (_c *POSOrderCreate) SetNillablePublicToken(v *uuid.UUID) *POSOrderCreate {
+	if v != nil {
+		_c.SetPublicToken(*v)
+	}
+	return _c
+}
+
 // SetID sets the "id" field.
 func (_c *POSOrderCreate) SetID(v uuid.UUID) *POSOrderCreate {
 	_c.mutation.SetID(v)
@@ -715,6 +729,10 @@ func (_c *POSOrderCreate) defaults() {
 		v := posorder.DefaultUpdatedAt()
 		_c.mutation.SetUpdatedAt(v)
 	}
+	if _, ok := _c.mutation.PublicToken(); !ok {
+		v := posorder.DefaultPublicToken()
+		_c.mutation.SetPublicToken(v)
+	}
 	if _, ok := _c.mutation.ID(); !ok {
 		v := posorder.DefaultID()
 		_c.mutation.SetID(v)
@@ -804,6 +822,9 @@ func (_c *POSOrderCreate) check() error {
 	}
 	if _, ok := _c.mutation.UpdatedAt(); !ok {
 		return &ValidationError{Name: "updated_at", err: errors.New(`ent: missing required field "POSOrder.updated_at"`)}
+	}
+	if _, ok := _c.mutation.PublicToken(); !ok {
+		return &ValidationError{Name: "public_token", err: errors.New(`ent: missing required field "POSOrder.public_token"`)}
 	}
 	return nil
 }
@@ -1012,6 +1033,10 @@ func (_c *POSOrderCreate) createSpec() (*POSOrder, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.UpdatedAt(); ok {
 		_spec.SetField(posorder.FieldUpdatedAt, field.TypeTime, value)
 		_node.UpdatedAt = value
+	}
+	if value, ok := _c.mutation.PublicToken(); ok {
+		_spec.SetField(posorder.FieldPublicToken, field.TypeUUID, value)
+		_node.PublicToken = value
 	}
 	if nodes := _c.mutation.LinesIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
@@ -1800,6 +1825,18 @@ func (u *POSOrderUpsert) SetUpdatedAt(v time.Time) *POSOrderUpsert {
 // UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
 func (u *POSOrderUpsert) UpdateUpdatedAt() *POSOrderUpsert {
 	u.SetExcluded(posorder.FieldUpdatedAt)
+	return u
+}
+
+// SetPublicToken sets the "public_token" field.
+func (u *POSOrderUpsert) SetPublicToken(v uuid.UUID) *POSOrderUpsert {
+	u.Set(posorder.FieldPublicToken, v)
+	return u
+}
+
+// UpdatePublicToken sets the "public_token" field to the value that was provided on create.
+func (u *POSOrderUpsert) UpdatePublicToken() *POSOrderUpsert {
+	u.SetExcluded(posorder.FieldPublicToken)
 	return u
 }
 
@@ -2656,6 +2693,20 @@ func (u *POSOrderUpsertOne) SetUpdatedAt(v time.Time) *POSOrderUpsertOne {
 func (u *POSOrderUpsertOne) UpdateUpdatedAt() *POSOrderUpsertOne {
 	return u.Update(func(s *POSOrderUpsert) {
 		s.UpdateUpdatedAt()
+	})
+}
+
+// SetPublicToken sets the "public_token" field.
+func (u *POSOrderUpsertOne) SetPublicToken(v uuid.UUID) *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetPublicToken(v)
+	})
+}
+
+// UpdatePublicToken sets the "public_token" field to the value that was provided on create.
+func (u *POSOrderUpsertOne) UpdatePublicToken() *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdatePublicToken()
 	})
 }
 
@@ -3679,6 +3730,20 @@ func (u *POSOrderUpsertBulk) SetUpdatedAt(v time.Time) *POSOrderUpsertBulk {
 func (u *POSOrderUpsertBulk) UpdateUpdatedAt() *POSOrderUpsertBulk {
 	return u.Update(func(s *POSOrderUpsert) {
 		s.UpdateUpdatedAt()
+	})
+}
+
+// SetPublicToken sets the "public_token" field.
+func (u *POSOrderUpsertBulk) SetPublicToken(v uuid.UUID) *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetPublicToken(v)
+	})
+}
+
+// UpdatePublicToken sets the "public_token" field to the value that was provided on create.
+func (u *POSOrderUpsertBulk) UpdatePublicToken() *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdatePublicToken()
 	})
 }
 

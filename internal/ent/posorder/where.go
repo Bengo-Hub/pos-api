@@ -261,6 +261,11 @@ func UpdatedAt(v time.Time) predicate.POSOrder {
 	return predicate.POSOrder(sql.FieldEQ(FieldUpdatedAt, v))
 }
 
+// PublicToken applies equality check predicate on the "public_token" field. It's identical to PublicTokenEQ.
+func PublicToken(v uuid.UUID) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEQ(FieldPublicToken, v))
+}
+
 // TenantIDEQ applies the EQ predicate on the "tenant_id" field.
 func TenantIDEQ(v uuid.UUID) predicate.POSOrder {
 	return predicate.POSOrder(sql.FieldEQ(FieldTenantID, v))
@@ -2484,6 +2489,46 @@ func UpdatedAtLT(v time.Time) predicate.POSOrder {
 // UpdatedAtLTE applies the LTE predicate on the "updated_at" field.
 func UpdatedAtLTE(v time.Time) predicate.POSOrder {
 	return predicate.POSOrder(sql.FieldLTE(FieldUpdatedAt, v))
+}
+
+// PublicTokenEQ applies the EQ predicate on the "public_token" field.
+func PublicTokenEQ(v uuid.UUID) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEQ(FieldPublicToken, v))
+}
+
+// PublicTokenNEQ applies the NEQ predicate on the "public_token" field.
+func PublicTokenNEQ(v uuid.UUID) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNEQ(FieldPublicToken, v))
+}
+
+// PublicTokenIn applies the In predicate on the "public_token" field.
+func PublicTokenIn(vs ...uuid.UUID) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldIn(FieldPublicToken, vs...))
+}
+
+// PublicTokenNotIn applies the NotIn predicate on the "public_token" field.
+func PublicTokenNotIn(vs ...uuid.UUID) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNotIn(FieldPublicToken, vs...))
+}
+
+// PublicTokenGT applies the GT predicate on the "public_token" field.
+func PublicTokenGT(v uuid.UUID) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldGT(FieldPublicToken, v))
+}
+
+// PublicTokenGTE applies the GTE predicate on the "public_token" field.
+func PublicTokenGTE(v uuid.UUID) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldGTE(FieldPublicToken, v))
+}
+
+// PublicTokenLT applies the LT predicate on the "public_token" field.
+func PublicTokenLT(v uuid.UUID) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldLT(FieldPublicToken, v))
+}
+
+// PublicTokenLTE applies the LTE predicate on the "public_token" field.
+func PublicTokenLTE(v uuid.UUID) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldLTE(FieldPublicToken, v))
 }
 
 // HasLines applies the HasEdge predicate on the "lines" edge.

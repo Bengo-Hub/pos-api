@@ -234,6 +234,19 @@ type Service struct {
 	// sequence (numeric by default) instead of the legacy ad-hoc POS-<epoch-ms> format. The
 	// offline/deterministic client-ref path is unaffected.
 	seq *documents.SequenceService
+	// publicAPIBase is pos-api's own public-facing origin (e.g.
+	// https://posapi.codevertexitsolutions.com), used to build the durable, unauthenticated
+	// receipt-share link (public_token capability URL) embedded in sale-notification events.
+	// Reuses the same value already wired for the payments-initiate callback URL (see
+	// cfg.Treasury.PublicBaseURL / HTTP_PUBLIC_BASE_URL) rather than a second config knob.
+	publicAPIBase string
+}
+
+// WithPublicAPIBase wires pos-api's own public base URL so RequestSaleNotification can build a
+// durable receipt-share download link (public_token capability URL, no auth required).
+func (s *Service) WithPublicAPIBase(base string) *Service {
+	s.publicAPIBase = strings.TrimRight(base, "/")
+	return s
 }
 
 // WithSequence wires the document-sequence service so online order numbers are minted through
@@ -979,11 +992,40 @@ func (s *Service) UpdateStatus(ctx context.Context, tenantID, orderID uuid.UUID,
 	return updated, nil
 }
 
+// receiptDownloadLink builds the durable, unauthenticated receipt-share download link (the
+// order's own public_token is the auth — see receipt_public.go). Returns "" when publicAPIBase
+// isn't wired (e.g. a dev environment without HTTP_PUBLIC_BASE_URL set).
+func (s *Service) receiptDownloadLink(order *ent.POSOrder) string {
+	if s.publicAPIBase == "" {
+		return ""
+	}
+	return fmt.Sprintf("%s/api/v1/public/receipts/%s/pdf?download=true", s.publicAPIBase, order.PublicToken)
+}
+
+// GetReceiptShareLink resolves an order's durable public receipt-download link and customer
+// phone — used by the pos-ui "Share via WhatsApp" wa.me quick action, which needs the link
+// client-side to build the wa.me deep link WITHOUT going through notifications-service (no
+// message is queued/sent server-side for this path; the cashier's own WhatsApp app sends it).
+func (s *Service) GetReceiptShareLink(ctx context.Context, tenantID, orderID uuid.UUID) (link, phone string, err error) {
+	order, err := s.client.POSOrder.Query().
+		Where(posorder.ID(orderID), posorder.TenantID(tenantID)).
+		Only(ctx)
+	if err != nil {
+		return "", "", fmt.Errorf("orders: not found: %w", err)
+	}
+	if order.CustomerPhone != nil {
+		phone = *order.CustomerPhone
+	}
+	return s.receiptDownloadLink(order), phone, nil
+}
+
 // RequestSaleNotification publishes pos.sale.notification_requested for an order — the
 // All-Sales "New Sale Notification" action. notifications-service consumes it and sends the
 // customer their receipt/invoice (SMS/email/WhatsApp). It does NOT re-post to the ledger.
 // overridePhone/overrideEmail let the cashier redirect the notification if the order has none.
-func (s *Service) RequestSaleNotification(ctx context.Context, tenantID, orderID uuid.UUID, overridePhone, overrideEmail string) (*ent.POSOrder, error) {
+// channel picks the delivery channel ("sms" | "email" | "whatsapp" | "" for the notifications-
+// service default of SMS-with-fallback).
+func (s *Service) RequestSaleNotification(ctx context.Context, tenantID, orderID uuid.UUID, overridePhone, overrideEmail, channel string) (*ent.POSOrder, error) {
 	order, err := s.client.POSOrder.Query().
 		Where(posorder.ID(orderID), posorder.TenantID(tenantID)).
 		WithLines().
@@ -996,6 +1038,7 @@ func (s *Service) RequestSaleNotification(ctx context.Context, tenantID, orderID
 	if phone == "" && order.CustomerPhone != nil {
 		phone = *order.CustomerPhone
 	}
+	email := overrideEmail
 	name := ""
 	if order.CustomerName != nil {
 		name = *order.CustomerName
@@ -1007,6 +1050,12 @@ func (s *Service) RequestSaleNotification(ctx context.Context, tenantID, orderID
 		})
 	}
 
+	// Durable, unauthenticated download link for the receipt PDF — the order's own
+	// public_token IS the auth (see receipt_public.go). Empty when publicAPIBase isn't wired
+	// (e.g. a dev environment without HTTP_PUBLIC_BASE_URL set) so the notification still sends,
+	// just without the link.
+	downloadLink := s.receiptDownloadLink(order)
+
 	if s.publisher != nil {
 		_ = s.publisher.PublishSaleNotificationRequested(ctx, tenantID, map[string]any{
 			"order_id":             orderID.String(),
@@ -1015,11 +1064,13 @@ func (s *Service) RequestSaleNotification(ctx context.Context, tenantID, orderID
 			"outlet_id":            order.OutletID.String(),
 			"customer_name":        name,
 			"customer_phone":       phone,
-			"customer_email":       overrideEmail,
+			"customer_email":       email,
 			"total_amount":         order.TotalAmount,
 			"currency":             order.Currency,
 			"items":                items,
 			"etims_invoice_number": derefStr(order.EtimsInvoiceNumber),
+			"download_link":        downloadLink,
+			"channel":              strings.ToLower(strings.TrimSpace(channel)),
 		})
 	}
 	return order, nil

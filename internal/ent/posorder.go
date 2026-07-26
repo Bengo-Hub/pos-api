@@ -105,6 +105,8 @@ type POSOrder struct {
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
+	// PublicToken holds the value of the "public_token" field.
+	PublicToken uuid.UUID `json:"public_token,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the POSOrderQuery when eager-loading is set.
 	Edges        POSOrderEdges `json:"edges"`
@@ -168,7 +170,7 @@ func (*POSOrder) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullString)
 		case posorder.FieldOfflineCreatedAt, posorder.FieldVoidedAt, posorder.FieldBusinessDate, posorder.FieldDateMovedAt, posorder.FieldCreatedAt, posorder.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
-		case posorder.FieldID, posorder.FieldTenantID, posorder.FieldOutletID, posorder.FieldDeviceID, posorder.FieldUserID:
+		case posorder.FieldID, posorder.FieldTenantID, posorder.FieldOutletID, posorder.FieldDeviceID, posorder.FieldUserID, posorder.FieldPublicToken:
 			values[i] = new(uuid.UUID)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -470,6 +472,12 @@ func (_m *POSOrder) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.UpdatedAt = value.Time
 			}
+		case posorder.FieldPublicToken:
+			if value, ok := values[i].(*uuid.UUID); !ok {
+				return fmt.Errorf("unexpected type %T for field public_token", values[i])
+			} else if value != nil {
+				_m.PublicToken = *value
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -687,6 +695,9 @@ func (_m *POSOrder) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("updated_at=")
 	builder.WriteString(_m.UpdatedAt.Format(time.ANSIC))
+	builder.WriteString(", ")
+	builder.WriteString("public_token=")
+	builder.WriteString(fmt.Sprintf("%v", _m.PublicToken))
 	builder.WriteByte(')')
 	return builder.String()
 }

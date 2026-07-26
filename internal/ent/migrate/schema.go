@@ -1824,6 +1824,7 @@ var (
 		{Name: "date_moved_at", Type: field.TypeTime, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "public_token", Type: field.TypeUUID, Unique: true},
 	}
 	// PosOrdersTable holds the schema information for the "pos_orders" table.
 	PosOrdersTable = &schema.Table{

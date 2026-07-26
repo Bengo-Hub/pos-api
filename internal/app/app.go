@@ -165,6 +165,10 @@ func New(ctx context.Context) (*App, error) {
 	// mirroring inventory-api's DocumentSequence wiring.
 	docSeqSvc := documents.NewSequenceService(entClient)
 	orderSvc.WithSequence(docSeqSvc) // online order numbers via the order sequence (offline path unchanged)
+	// Same public base URL already used to build the payments-initiate callback URL — reused here
+	// to build the durable, unauthenticated receipt-share download link (public_token capability
+	// URL) embedded in pos.sale.notification_requested for notifications-service.
+	orderSvc.WithPublicAPIBase(cfg.Treasury.PublicBaseURL)
 
 	// Wire event publisher for POS order lifecycle events (shared-events outbox pattern)
 	var outboxPub *eventslib.Publisher

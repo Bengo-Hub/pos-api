@@ -1277,10 +1277,12 @@ func (h *POSOrderHandler) UpdateShipping(w http.ResponseWriter, r *http.Request)
 	jsonOK(w, updated)
 }
 
-// notifySaleInput optionally redirects the sale notification to a specific phone/email.
+// notifySaleInput optionally redirects the sale notification to a specific phone/email and
+// picks the delivery channel (sms | email | whatsapp; empty = notifications-service default).
 type notifySaleInput struct {
-	Phone string `json:"phone,omitempty"`
-	Email string `json:"email,omitempty"`
+	Phone   string `json:"phone,omitempty"`
+	Email   string `json:"email,omitempty"`
+	Channel string `json:"channel,omitempty"`
 }
 
 // NotifySale handles POST /{tenantID}/pos/orders/{orderID}/notify — the All-Sales
@@ -1300,7 +1302,7 @@ func (h *POSOrderHandler) NotifySale(w http.ResponseWriter, r *http.Request) {
 	var input notifySaleInput
 	_ = json.NewDecoder(r.Body).Decode(&input) // body optional
 
-	if _, err := h.orderSvc.RequestSaleNotification(r.Context(), tid, orderID, input.Phone, input.Email); err != nil {
+	if _, err := h.orderSvc.RequestSaleNotification(r.Context(), tid, orderID, input.Phone, input.Email, input.Channel); err != nil {
 		if ent.IsNotFound(err) {
 			jsonError(w, "order not found", http.StatusNotFound)
 			return
@@ -1310,6 +1312,34 @@ func (h *POSOrderHandler) NotifySale(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	jsonOK(w, map[string]any{"status": "queued"})
+}
+
+// GetReceiptShareLink handles GET /{tenantID}/pos/orders/{orderID}/receipt/share-link — resolves
+// the order's durable public receipt-download link (+ its on-file customer phone) so the
+// "Share via WhatsApp" wa.me quick action can build its deep link client-side, without going
+// through notifications-service (no message is queued/sent server-side for this path).
+func (h *POSOrderHandler) GetReceiptShareLink(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+	orderID, err := uuid.Parse(chi.URLParam(r, "orderID"))
+	if err != nil {
+		jsonError(w, "invalid order_id", http.StatusBadRequest)
+		return
+	}
+	link, phone, err := h.orderSvc.GetReceiptShareLink(r.Context(), tid, orderID)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			jsonError(w, "order not found", http.StatusNotFound)
+			return
+		}
+		h.log.Error("get receipt share link failed", zap.Error(err))
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	jsonOK(w, map[string]any{"download_link": link, "customer_phone": phone})
 }
 
 // UpdateStatus handles PATCH /{tenantID}/pos/orders/{orderID}/status

@@ -296,25 +296,11 @@ func receiptFormatSetting(setting *ent.OutletSetting) string {
 	return string(setting.ReceiptFormat)
 }
 
-// GetReceipt handles GET /{tenantID}/pos/orders/{orderID}/receipt
-// Query param ?format=pdf|html renders the receipt with the outlet's resolved layout
-// (printing/layouts registry); default returns the JSON receipt data (incl. `layout`).
-func (h *ReceiptHandler) GetReceipt(w http.ResponseWriter, r *http.Request) {
-	tid, err := parseTenantUUID(r)
-	if err != nil {
-		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
-		return
-	}
-
-	orderIDStr := chi.URLParam(r, "orderID")
-	orderID, err := uuid.Parse(orderIDStr)
-	if err != nil {
-		jsonError(w, "invalid order_id", http.StatusBadRequest)
-		return
-	}
-
-	ctx := r.Context()
-	order, err := h.client.POSOrder.Query().
+// loadReceiptOrder loads a POSOrder with the Lines + latest-completed-Payment edges needed to
+// build a receipt view, scoped to (tenant, order id) — used by the authenticated receipt
+// endpoints (GetReceipt/HTML/PDF).
+func (h *ReceiptHandler) loadReceiptOrder(ctx context.Context, tid, orderID uuid.UUID) (*ent.POSOrder, error) {
+	return h.client.POSOrder.Query().
 		Where(posorder.ID(orderID), posorder.TenantID(tid)).
 		WithLines().
 		WithPayments(func(q *ent.POSPaymentQuery) {
@@ -324,16 +310,30 @@ func (h *ReceiptHandler) GetReceipt(w http.ResponseWriter, r *http.Request) {
 			q.Where(pospayment.StatusEQ("completed")).Order(ent.Desc(pospayment.FieldOccurredAt)).Limit(1)
 		}).
 		Only(ctx)
-	if err != nil {
-		if ent.IsNotFound(err) {
-			jsonError(w, "order not found", http.StatusNotFound)
-			return
-		}
-		h.log.Error("get receipt: query order", zap.Error(err))
-		jsonError(w, "failed to get order", http.StatusInternalServerError)
-		return
-	}
+}
 
+// loadReceiptOrderByPublicToken loads a POSOrder the same way as loadReceiptOrder, but resolved
+// by its public_token capability column instead of (tenant, id) — used by the unauthenticated
+// public receipt-share endpoints (receipt_public.go). No tenant_id in the WHERE: the token
+// itself IS the auth, and public_token is already globally unique.
+func (h *ReceiptHandler) loadReceiptOrderByPublicToken(ctx context.Context, token uuid.UUID) (*ent.POSOrder, error) {
+	return h.client.POSOrder.Query().
+		Where(posorder.PublicToken(token)).
+		WithLines().
+		WithPayments(func(q *ent.POSPaymentQuery) {
+			q.Where(pospayment.StatusEQ("completed")).Order(ent.Desc(pospayment.FieldOccurredAt)).Limit(1)
+		}).
+		Only(ctx)
+}
+
+// buildReceiptForOrder resolves the outlet/settings, applies the optional split-by-item filter,
+// determines the payment method/amount, backfills eTIMS fiscal identity + tenant branding +
+// customer account balance, and returns the fully-rendered receipt payload — the single
+// conversion point shared by the authenticated (GetReceipt) and public (receipt_public.go)
+// receipt endpoints so both surfaces render byte-identical receipts with zero duplicated logic.
+// r is only consulted for the optional ?split_id=/?served_by= query params (harmless when absent,
+// e.g. on the public endpoint).
+func (h *ReceiptHandler) buildReceiptForOrder(ctx context.Context, tid uuid.UUID, order *ent.POSOrder, r *http.Request) (receiptResponse, receiptBrand) {
 	// Optional split-by-item receipt: ?split_id=<billsplit> filters the receipt to only the
 	// order lines assigned to that split, so each payer gets their own itemised bill.
 	var splitLineSet map[string]bool
@@ -341,7 +341,7 @@ func (h *ReceiptHandler) GetReceipt(w http.ResponseWriter, r *http.Request) {
 	if splitParam := r.URL.Query().Get("split_id"); splitParam != "" {
 		if splitID, perr := uuid.Parse(splitParam); perr == nil {
 			if split, serr := h.client.BillSplit.Query().
-				Where(entbillsplit.ID(splitID), entbillsplit.TenantID(tid), entbillsplit.OrderID(orderID)).
+				Where(entbillsplit.ID(splitID), entbillsplit.TenantID(tid), entbillsplit.OrderID(order.ID)).
 				Only(ctx); serr == nil && len(split.OrderLineIds) > 0 {
 				splitLineSet = make(map[string]bool, len(split.OrderLineIds))
 				for _, id := range split.OrderLineIds {
@@ -475,28 +475,73 @@ func (h *ReceiptHandler) GetReceipt(w http.ResponseWriter, r *http.Request) {
 	// crisp on receipt printers. The A4 invoice sheet is strictly opt-in via settings.
 	layout := layouts.Resolve(receiptFormatSetting(setting), view.UseCase)
 	receipt := newReceiptResponse(view, layout)
+	return receipt, brand
+}
 
-	switch r.URL.Query().Get("format") {
+// writeReceiptResponse renders an already-built receipt in the requested format (json|html|pdf)
+// — the tail shared by the authenticated and public receipt endpoints. attachment controls the
+// PDF Content-Disposition: true = "attachment" (forces a download dialog, the authenticated
+// download's long-standing behaviour), false = "inline" (opens in-browser, the public share-link
+// default so a tapped WhatsApp/email link previews before the customer chooses to save it).
+func writeReceiptResponse(w http.ResponseWriter, log *zap.Logger, receipt receiptResponse, brand receiptBrand, orderNumber, format string, attachment bool) {
+	switch format {
 	case "pdf":
 		pdfBytes, err := layouts.RenderPDF(receipt, brand)
 		if err != nil {
-			h.log.Error("generate receipt pdf", zap.Error(err))
+			log.Error("generate receipt pdf", zap.Error(err))
 			jsonError(w, "Failed to generate receipt PDF", http.StatusInternalServerError)
 			return
 		}
+		disposition := "inline"
+		if attachment {
+			disposition = "attachment"
+		}
 		w.Header().Set("Content-Type", "application/pdf")
-		w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="receipt-%s.pdf"`, order.OrderNumber))
+		w.Header().Set("Content-Disposition", fmt.Sprintf(`%s; filename="receipt-%s.pdf"`, disposition, orderNumber))
 		_, _ = w.Write(pdfBytes)
 	case "html":
 		// Receipts print on thermal/non-colour printers, so we take only the tenant LOGO from
 		// branding and deliberately ignore the brand primary colour (coloured text prints faint).
 		htmlOut := layouts.RenderHTML(receipt, brand.LogoURL)
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.Header().Set("Content-Disposition", fmt.Sprintf(`inline; filename="receipt-%s.html"`, order.OrderNumber))
+		w.Header().Set("Content-Disposition", fmt.Sprintf(`inline; filename="receipt-%s.html"`, orderNumber))
 		_, _ = w.Write(htmlOut)
 	default:
 		jsonOK(w, receipt)
 	}
+}
+
+// GetReceipt handles GET /{tenantID}/pos/orders/{orderID}/receipt
+// Query param ?format=pdf|html renders the receipt with the outlet's resolved layout
+// (printing/layouts registry); default returns the JSON receipt data (incl. `layout`).
+func (h *ReceiptHandler) GetReceipt(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+
+	orderID, err := uuid.Parse(chi.URLParam(r, "orderID"))
+	if err != nil {
+		jsonError(w, "invalid order_id", http.StatusBadRequest)
+		return
+	}
+
+	ctx := r.Context()
+	order, err := h.loadReceiptOrder(ctx, tid, orderID)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			jsonError(w, "order not found", http.StatusNotFound)
+			return
+		}
+		h.log.Error("get receipt: query order", zap.Error(err))
+		jsonError(w, "failed to get order", http.StatusInternalServerError)
+		return
+	}
+
+	receipt, brand := h.buildReceiptForOrder(ctx, tid, order, r)
+	// The authenticated PDF download has always forced "attachment" (Save As dialog).
+	writeReceiptResponse(w, h.log, receipt, brand, order.OrderNumber, r.URL.Query().Get("format"), true)
 }
 
 // GetReceiptHTML handles GET /{tenantID}/pos/orders/{orderID}/receipt/html

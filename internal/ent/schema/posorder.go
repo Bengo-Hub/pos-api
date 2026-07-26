@@ -178,6 +178,14 @@ func (POSOrder) Fields() []ent.Field {
 		field.Time("updated_at").
 			Default(time.Now).
 			UpdateDefault(time.Now),
+		// public_token is the capability token for the unauthenticated receipt-share link
+		// (WhatsApp/Email/SMS "download your receipt" flow) -- mirrors treasury-api's
+		// Invoice.PublicToken pattern. The token itself IS the auth: GetPublicReceipt(PDF)
+		// resolves an order by this column with no tenant_id in the URL. Auto-generated,
+		// never exposed anywhere except inside the durable share link.
+		field.UUID("public_token", uuid.UUID{}).
+			Default(uuid.New).
+			Unique(),
 	}
 }
 
