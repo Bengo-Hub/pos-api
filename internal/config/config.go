@@ -81,6 +81,10 @@ type TreasuryConfig struct {
 	InternalServiceKey string        `envconfig:"INTERNAL_SERVICE_KEY"`
 	RequestTimeout     time.Duration `envconfig:"TREASURY_REQUEST_TIMEOUT" default:"30s"`
 	PublicBaseURL      string        `envconfig:"HTTP_PUBLIC_BASE_URL" default:"https://posapi.codevertexitsolutions.com"`
+	// ShortLinkBaseURL fronts receipt-share links with a branded, bit.ly-style host instead of
+	// exposing PublicBaseURL's raw posapi.<domain>/api/v1 shape to customers (WhatsApp/SMS links).
+	// The devops-k8s Ingress at this host rewrites /{code} -> pos-api's own /api/v1/r/{code} route.
+	ShortLinkBaseURL string `envconfig:"HTTP_SHORT_LINK_BASE_URL" default:"https://r.codevertexitsolutions.com"`
 }
 
 type AppConfig struct {

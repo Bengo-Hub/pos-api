@@ -241,12 +241,24 @@ type Service struct {
 	// Reuses the same value already wired for the payments-initiate callback URL (see
 	// cfg.Treasury.PublicBaseURL / HTTP_PUBLIC_BASE_URL) rather than a second config knob.
 	publicAPIBase string
+	// shortLinkBase, when set, fronts the receipt-share link with a branded short-link host (e.g.
+	// https://r.codevertexitsolutions.com) instead of publicAPIBase — same public_token capability,
+	// just a friendlier customer-facing domain (see internal/shorttoken + receipt_short.go). Falls
+	// back to publicAPIBase's long form if unset, so this is purely additive/optional.
+	shortLinkBase string
 }
 
 // WithPublicAPIBase wires pos-api's own public base URL so RequestSaleNotification can build a
 // durable receipt-share download link (public_token capability URL, no auth required).
 func (s *Service) WithPublicAPIBase(base string) *Service {
 	s.publicAPIBase = strings.TrimRight(base, "/")
+	return s
+}
+
+// WithShortLinkBase wires the branded short-link host (see ShortLinkBaseURL above) used to build
+// the customer-facing receipt-download link instead of the raw API origin.
+func (s *Service) WithShortLinkBase(base string) *Service {
+	s.shortLinkBase = strings.TrimRight(base, "/")
 	return s
 }
 
@@ -998,19 +1010,25 @@ func (s *Service) UpdateStatus(ctx context.Context, tenantID, orderID uuid.UUID,
 // cannot determine a public origin; the share flow will still work for the in-app action if the
 // client can fall back to the authenticated receipt endpoint, but the public link is preferred for
 // WhatsApp because it opens directly in the customer's browser without needing the POS session.
-// Uses the SHORT form (/api/v1/r/{code}, see internal/shorttoken + receipt_short.go) — a ~22-char
-// base58 encoding of the same public_token, not a new/weaker secret — so the link a customer taps
-// in WhatsApp/SMS doesn't look like a scary raw API URL. The long-form
+// Prefers shortLinkBase (e.g. https://r.codevertexitsolutions.com/{code}) — a branded host that
+// doesn't expose the raw posapi.<domain>/api/v1 API shape to a customer reading a WhatsApp/SMS
+// message — falling back to publicAPIBase's own /api/v1/r/{code} route if shortLinkBase isn't
+// wired. Either way it's the SAME ~22-char base58 encoding of the same public_token (see
+// internal/shorttoken + receipt_short.go), not a new/weaker secret. The long-form
 // /api/v1/public/receipts/{token}/pdf route keeps serving unchanged for any already-sent links.
 func (s *Service) receiptDownloadLink(order *ent.POSOrder) string {
 	if order == nil {
 		return ""
 	}
+	code := shorttoken.Encode(order.PublicToken)
+	if s.shortLinkBase != "" {
+		return fmt.Sprintf("%s/%s", s.shortLinkBase, code)
+	}
 	base := strings.TrimRight(s.publicAPIBase, "/")
 	if base == "" {
 		return ""
 	}
-	return fmt.Sprintf("%s/api/v1/r/%s", base, shorttoken.Encode(order.PublicToken))
+	return fmt.Sprintf("%s/api/v1/r/%s", base, code)
 }
 
 // GetReceiptShareLink resolves an order's durable public receipt-download link and customer

@@ -169,6 +169,7 @@ func New(ctx context.Context) (*App, error) {
 	// to build the durable, unauthenticated receipt-share download link (public_token capability
 	// URL) embedded in pos.sale.notification_requested for notifications-service.
 	orderSvc.WithPublicAPIBase(cfg.Treasury.PublicBaseURL)
+	orderSvc.WithShortLinkBase(cfg.Treasury.ShortLinkBaseURL)
 
 	// Wire event publisher for POS order lifecycle events (shared-events outbox pattern)
 	var outboxPub *eventslib.Publisher
