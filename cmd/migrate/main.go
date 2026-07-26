@@ -31,7 +31,7 @@ func main() {
 		dbURL = cfg.Postgres.MigrateURL
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 
 	db, err := sql.Open("pgx", dbURL)
@@ -40,9 +40,26 @@ func main() {
 	}
 	defer db.Close()
 
-	db.SetMaxOpenConns(4)
-	db.SetMaxIdleConns(2)
+	// Every replica runs this binary on startup — without coordination, N pods launching at once
+	// each run their own Schema.Create concurrently against the same tables. Reproduced in
+	// production 2026-07-26: concurrent migrate attempts from multiple starting replicas corrupted
+	// a nullable-then-backfill migration on the live pos_orders table. A single physical
+	// connection (MaxOpenConns=1) + a session-level advisory lock ensures only ONE pod across the
+	// whole cluster ever executes the migration at a time; the rest block here until it finishes,
+	// then find nothing pending and return immediately.
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(1)
 	db.SetConnMaxLifetime(5 * time.Minute)
+
+	const migrationLockKey = 727271001
+	if _, err := db.ExecContext(ctx, "SELECT pg_advisory_lock($1)", migrationLockKey); err != nil {
+		log.Fatalf("acquire migration lock: %v", err)
+	}
+	defer func() {
+		if _, err := db.ExecContext(context.Background(), "SELECT pg_advisory_unlock($1)", migrationLockKey); err != nil {
+			log.Printf("release migration lock: %v", err)
+		}
+	}()
 
 	drv := entsql.OpenDB(dialect.Postgres, db)
 	client := ent.NewClient(ent.Driver(drv))
