@@ -65,9 +65,18 @@ func main() {
 	client := ent.NewClient(ent.Driver(drv))
 	defer client.Close()
 
+	// WithDropIndex must be explicit — without it, ent's live diff (schema.WithDir here compares
+	// the CURRENT ent/schema/*.go structs against the live DB, it does not replay the checked-in
+	// .sql files verbatim; there is no schema-revisions table) silently SKIPS any index/constraint
+	// removal a struct change implies. Confirmed the actual outage mechanism in production
+	// 2026-07-26: the stray global pos_orders_order_number_key unique index was removed from
+	// posorder.go and a migration file was written to drop it hours earlier, but the live DB still
+	// had it (verified via psql) — the runtime migrate binary never dropped it because this flag
+	// was missing, so the SAME "duplicate key" outage recurred after looking fixed for hours.
 	if err := client.Schema.Create(ctx,
 		schema.WithDir(migrate.Dir),
 		schema.WithDropColumn(true),
+		schema.WithDropIndex(true),
 	); err != nil {
 		log.Fatalf("migrate: %v", err)
 	}
