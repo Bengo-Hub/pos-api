@@ -291,9 +291,18 @@ func (h *AuthEventHandler) handleUserPINSet(ctx context.Context, evt *sharedeven
 		return fmt.Errorf("pin_hash is required")
 	}
 
+	// Look up by user_id only — evt.TenantID is auth-api's own tenant UUID, which
+	// is NOT guaranteed to equal pos-api's locally-synced tenant ID for the same
+	// tenant (e.g. after the tenant is deleted/recreated upstream and gets a new
+	// UUID there). Scoping this existence check to evt.TenantID caused it to
+	// permanently miss an already-created StaffMember row (created via the
+	// correctly slug-resolved auth.user.created handler), which sent every
+	// pin_set retry down the create-fallback path where it collided with the
+	// existing row on the (tenant_id, user_id) unique constraint — so the PIN
+	// hash was never applied.
 	existing, err := h.client.StaffMember.Query().
-		Where(staffmember.TenantID(evt.TenantID), staffmember.UserID(authServiceUserID)).
-		Only(ctx)
+		Where(staffmember.UserID(authServiceUserID)).
+		First(ctx)
 	if err != nil {
 		if !ent.IsNotFound(err) {
 			return fmt.Errorf("query StaffMember: %w", err)
