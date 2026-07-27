@@ -849,13 +849,11 @@ func (h *POSOrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 	// may bypass them (managers/admins), used by the discount and price-override gates.
 	maxPct := 100.0
 	maxAmount := 0.0                 // 0 = no absolute-amount limit
-	allowAboveBase := true           // cashiers may raise a line price above base (up-sell)
 	requireApprovalBelowBase := true // selling below base needs a manager step-up
 	if outletID != uuid.Nil {
 		if s, sErr := h.client.OutletSetting.Query().Where(outletsetting.OutletID(outletID)).Only(r.Context()); sErr == nil {
 			maxPct = s.MaxDiscountPercent
 			maxAmount = s.MaxDiscountAmount
-			allowAboveBase = s.AllowPriceAboveBase
 			requireApprovalBelowBase = s.RequireApprovalBelowBase
 		}
 	}
@@ -945,8 +943,10 @@ func (h *POSOrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 	//  - below base (metadata.original_price): needs a manager step-up while
 	//    require_approval_below_base is ON (the default) — cashiers never markdown on
 	//    their own authority; toggling it OFF allows free markdowns.
-	//  - above base: allowed by default (allow_price_above_base — the retail/pharmacy
-	//    negotiated up-sell); toggling it OFF makes markups need the same step-up.
+	//  - above base: ALWAYS allowed, no approval, ever (2026-07-27 policy: a markup is
+	//    never a loss to the business, so it never needs a step-up — only markdowns and
+	//    over-limit discounts do). allow_price_above_base only controls whether the pos-ui
+	//    price-edit control is even shown to a non-manager; it is not an approval gate.
 	// The outlet's max_discount_percent governs the separate ORDER-level discount gate
 	// above, not per-line edits. The gate keys off original_price alone — a client
 	// "forgetting" the price_override flag no longer bypasses it.
@@ -968,8 +968,7 @@ func (h *POSOrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 			below := l.UnitPrice < orig-0.005
-			above := l.UnitPrice > orig+0.005
-			if (below && requireApprovalBelowBase) || (above && !allowAboveBase) {
+			if below && requireApprovalBelowBase {
 				dev := (orig - l.UnitPrice) / orig * 100
 				overrides = append(overrides, ovLine{sku: l.SKU, orig: orig, unit: l.UnitPrice, dev: dev})
 				needApproval = true
@@ -1004,25 +1003,35 @@ func (h *POSOrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Min/Max selling-price hard guardrail: a line priced outside the item's configured
-	// [min,max] band (carried on the catalog item, echoed by the till in line metadata as
-	// min_price / max_price) is blocked unless a manager approves it (price.override). This is
-	// absolute — independent of the discount-percent gate above — and covers both under-min
-	// markdowns and over-max markups. Managers bypass (override authority).
+	// Min selling-price hard guardrail: a line priced BELOW the item's configured floor
+	// (carried on the catalog item, echoed by the till in line metadata as min_price) is
+	// blocked unless a manager approves it (price.override). This is absolute — independent
+	// of the discount-percent gate above. Managers bypass (override authority).
+	//
+	// 2026-07-27 policy fix: this used to ALSO gate the ceiling (max_price) the exact same
+	// way — a markup got the identical approval_required 422 as a markdown. But nothing in
+	// pos-ui's inline/GoDigital payment bar (createOrderAsync, used by every tender incl.
+	// Cash) actually handled that 422: it only showed a toast and left the cashier stuck at
+	// the "Confirm Cash" screen with no ApprovalDialog and no way to proceed (the
+	// approval-retry wiring only ever existed on the OLDER handlePlaceOrder path). Rather
+	// than also wire the ceiling case into the new flow, the ceiling check is removed
+	// entirely per product decision: a markup is never a loss to the business and must
+	// never require a manager step-up — only markdowns (below min_price) and over-limit
+	// discounts do. max_price / max_selling_price no longer gates anything server-side.
 	if !callerIsManager {
 		type bandLine struct {
-			sku             string
-			price, min, max float64
+			sku   string
+			price float64
+			min   float64
 		}
-		var outOfBand []bandLine
+		var underMin []bandLine
 		for _, l := range input.Lines {
 			min := readFloatMeta(l.Metadata, "min_price")
-			max := readFloatMeta(l.Metadata, "max_price")
-			if (min > 0 && l.UnitPrice < min) || (max > 0 && l.UnitPrice > max) {
-				outOfBand = append(outOfBand, bandLine{sku: l.SKU, price: l.UnitPrice, min: min, max: max})
+			if min > 0 && l.UnitPrice < min {
+				underMin = append(underMin, bandLine{sku: l.SKU, price: l.UnitPrice, min: min})
 			}
 		}
-		if len(outOfBand) > 0 {
+		if len(underMin) > 0 {
 			approverID, valid := uuid.Nil, false
 			if input.ApprovalToken != "" && len(h.terminalSecret) > 0 {
 				approverID, valid = verifyApprovalToken(input.ApprovalToken, "price.override", h.terminalSecret)
@@ -1032,19 +1041,19 @@ func (h *POSOrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 			}
 			if !valid {
 				respondJSON(w, http.StatusUnprocessableEntity, map[string]any{
-					"error":             "manager approval required: a line price is outside the allowed min/max",
+					"error":             "manager approval required: a line price is below the allowed minimum",
 					"approval_required": true, "action": "price.override",
 				})
 				return
 			}
 			if h.auditSvc != nil {
 				oid := outletID
-				for _, o := range outOfBand {
+				for _, o := range underMin {
 					price := o.price
 					h.auditSvc.Record(r.Context(), audit.Entry{
 						TenantID: tid, OutletID: &oid, ActorUserID: userID, ApproverID: &approverID,
 						Action: "price.override", EntityType: "pos_order_line", EntityID: o.sku, Reason: "out_of_band", Amount: &price,
-						After: map[string]any{"unit_price": o.price, "min_price": o.min, "max_price": o.max},
+						After: map[string]any{"unit_price": o.price, "min_price": o.min},
 					})
 				}
 			}
