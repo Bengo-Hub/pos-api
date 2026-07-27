@@ -1248,6 +1248,9 @@ func New(
 						t.Get("/discounts", promotions.S2SListDiscounts)
 						t.Post("/discounts", promotions.S2SCreateDiscount)
 						t.Post("/discounts/apply", promotions.S2SApplyDiscount)
+						// Storefront marketing banners — promotions flagged via metadata["banner"]
+						// .show_on_storefront, consumed by ordering-frontend's banner widget.
+						t.Get("/discounts/banners", promotions.S2SListBanners)
 					}
 					if reports != nil {
 						// POS units sold per SKU — consumed by inventory-api menu-engineering/variance

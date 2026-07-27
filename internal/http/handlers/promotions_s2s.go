@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -13,6 +14,7 @@ import (
 	"github.com/Bengo-Hub/pagination"
 	"github.com/bengobox/pos-service/internal/ent"
 	"github.com/bengobox/pos-service/internal/ent/promotion"
+	promotions "github.com/bengobox/pos-service/internal/modules/promotions"
 )
 
 // S2S discount endpoints — pos-api's Promotion + PromotionRule are the platform's
@@ -124,4 +126,86 @@ func (h *PromotionHandler) S2SApplyDiscount(w http.ResponseWriter, r *http.Reque
 		"promoId":        result.PromoID,
 		"discountAmount": result.DiscountAmount.StringFixed(2),
 	})
+}
+
+// s2sBanner is one active storefront-marketing-banner entry returned by S2SListBanners —
+// only the fields the ordering-frontend banner widget needs to render, not the full
+// promotion/rule shape (that's what /discounts already returns).
+type s2sBanner struct {
+	PromoID        uuid.UUID  `json:"promo_id"`
+	Name           string     `json:"name"`
+	BannerTitle    string     `json:"banner_title,omitempty"`
+	BannerSubtitle string     `json:"banner_subtitle,omitempty"`
+	BannerImageURL string     `json:"banner_image_url,omitempty"`
+	CTALabel       string     `json:"cta_label,omitempty"`
+	CTALink        string     `json:"cta_link,omitempty"`
+	BannerColor    string     `json:"banner_color,omitempty"`
+	TextColor      string     `json:"text_color,omitempty"`
+	OutletID       *uuid.UUID `json:"outlet_id,omitempty"`
+}
+
+// S2SListBanners handles GET /api/v1/s2s/{tenant}/discounts/banners?use_case=
+// Returns active promotions flagged (via metadata["banner"].show_on_storefront, set by the
+// POS Discounts page) to also surface as a marketing banner on the customer-facing ordering
+// storefront (ordering-frontend, a separate app — it consumes this endpoint, never a parallel
+// banner entity). "Active" mirrors the /discounts default: status=active and now within
+// [start_at, end_at] (end_at nil = no upper bound). A promo whose banner.use_cases is
+// non-empty only matches when the caller's use_case query param is in that list; an empty
+// use_cases list means "show for every outlet use_case".
+func (h *PromotionHandler) S2SListBanners(w http.ResponseWriter, r *http.Request) {
+	tid, err := uuid.Parse(chi.URLParam(r, "tenant"))
+	if err != nil {
+		jsonError(w, "invalid tenant", http.StatusBadRequest)
+		return
+	}
+	useCase := strings.TrimSpace(r.URL.Query().Get("use_case"))
+
+	now := time.Now()
+	promos, err := h.client.Promotion.Query().
+		Where(
+			promotion.TenantID(tid),
+			promotion.Status("active"),
+			promotion.StartAtLTE(now),
+			promotion.Or(promotion.EndAtIsNil(), promotion.EndAtGTE(now)),
+		).
+		Order(ent.Desc(promotion.FieldStartAt)).
+		All(r.Context())
+	if err != nil {
+		h.log.Error("s2s list banners failed", zap.Error(err))
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	out := make([]s2sBanner, 0, len(promos))
+	for _, p := range promos {
+		banner := promotions.BannerFromMetadata(p.Metadata)
+		if !banner.ShowOnStorefront {
+			continue
+		}
+		if len(banner.UseCases) > 0 {
+			matched := false
+			for _, uc := range banner.UseCases {
+				if uc == useCase {
+					matched = true
+					break
+				}
+			}
+			if !matched {
+				continue
+			}
+		}
+		out = append(out, s2sBanner{
+			PromoID:        p.ID,
+			Name:           p.Name,
+			BannerTitle:    banner.BannerTitle,
+			BannerSubtitle: banner.BannerSubtitle,
+			BannerImageURL: banner.BannerImageURL,
+			CTALabel:       banner.CTALabel,
+			CTALink:        banner.CTALink,
+			BannerColor:    banner.BannerColor,
+			TextColor:      banner.TextColor,
+			OutletID:       p.OutletID,
+		})
+	}
+	jsonOK(w, out)
 }

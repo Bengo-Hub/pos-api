@@ -79,13 +79,28 @@ func (h *PromotionHandler) ListPromotions(w http.ResponseWriter, r *http.Request
 
 	// status="" keeps the legacy active-only default; status=all lists every status
 	// (the Discounts management page needs inactive/expired rows too).
-	switch status := r.URL.Query().Get("status"); status {
+	status := r.URL.Query().Get("status")
+	switch status {
 	case "":
 		query = query.Where(promotion.Status("active"))
 	case "all":
 		// no status filter
 	default:
 		query = query.Where(promotion.Status(status))
+	}
+	// Outlet scoping — ONLY for the checkout-consumption case (ApplyDiscountModal's active list),
+	// never for status=all (the Discounts management page, which must show every tenant-wide AND
+	// every other outlet's discount so an admin can manage them all from one place). A promo with
+	// no outlet_id applies everywhere; one with an outlet_id must match the requesting outlet —
+	// otherwise a discount scoped to Outlet B was still manually appliable at Outlet A's checkout
+	// (the auto-apply path was already outlet-filtered via ActiveHappyHours; this closes the same
+	// gap on the manual "Apply Discount" list).
+	if status != "all" {
+		if oidStr := httpware.GetOutletID(r.Context()); oidStr != "" {
+			if oid, perr := uuid.Parse(oidStr); perr == nil {
+				query = query.Where(promotion.Or(promotion.OutletIDIsNil(), promotion.OutletID(oid)))
+			}
+		}
 	}
 	if q := strings.TrimSpace(r.URL.Query().Get("q")); q != "" {
 		query = query.Where(promotion.NameContainsFold(q))
@@ -168,6 +183,11 @@ type createPromoInput struct {
 	// cheapest get-scope item). ScopeIDs/GetScopeIDs are derived from its keys/values so the
 	// scope-based paths stay consistent.
 	GetPairMap map[string]string `json:"get_pair_map"`
+	// Banner optionally flags this promotion to also appear as a marketing banner on the
+	// customer-facing ordering storefront. Nil = caller didn't touch banner config (leave
+	// whatever's already in metadata alone on update; create simply omits it). Stored via
+	// read-merge-write into Promotion.metadata["banner"] — see promotions.MergeBannerMetadata.
+	Banner *promotions.PromotionBannerConfig `json:"banner"`
 }
 
 // normalize merges the snake_case alias fields into the canonical ones so every consumer
@@ -264,6 +284,9 @@ func (h *PromotionHandler) createPromotionFromInput(ctx context.Context, tid uui
 	}
 	if input.EndAt != nil {
 		builder.SetEndAt(*input.EndAt)
+	}
+	if input.Banner != nil {
+		builder = builder.SetMetadata(promotions.MergeBannerMetadata(nil, *input.Banner))
 	}
 	promo, err := builder.Save(ctx)
 	if err != nil {
@@ -442,6 +465,9 @@ func (h *PromotionHandler) UpdatePromotion(w http.ResponseWriter, r *http.Reques
 		upd = upd.SetOutletID(oid)
 	} else {
 		upd = upd.ClearOutletID()
+	}
+	if input.Banner != nil {
+		upd = upd.SetMetadata(promotions.MergeBannerMetadata(existing.Metadata, *input.Banner))
 	}
 	promo, err := upd.Save(r.Context())
 	if err != nil {
