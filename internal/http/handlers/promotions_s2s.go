@@ -12,9 +12,11 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/Bengo-Hub/pagination"
+	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/bengobox/pos-service/internal/ent"
 	"github.com/bengobox/pos-service/internal/ent/promotion"
 	promotions "github.com/bengobox/pos-service/internal/modules/promotions"
+	"github.com/bengobox/pos-service/internal/platform/subscriptions"
 )
 
 // S2S discount endpoints — pos-api's Promotion + PromotionRule are the platform's
@@ -80,6 +82,12 @@ func (h *PromotionHandler) S2SCreateDiscount(w http.ResponseWriter, r *http.Requ
 	}
 	if input.Name == "" {
 		jsonError(w, "name required", http.StatusBadRequest)
+		return
+	}
+	// S2S calls carry no user JWT (X-API-Key only), so bannerFeatureLocked falls back to the
+	// tenant-id entitlement lookup (h.subs.ConsumerHasFeature) rather than claims.FeatureEnabled.
+	if h.bannerFeatureLocked(r.Context(), tid, input) {
+		authclient.WriteFeatureLocked(w, subscriptions.FeatureStorefrontBanner, "")
 		return
 	}
 	promo, err := h.createPromotionFromInput(r.Context(), tid, input)
@@ -160,6 +168,13 @@ func (h *PromotionHandler) S2SListBanners(w http.ResponseWriter, r *http.Request
 	}
 	useCase := strings.TrimSpace(r.URL.Query().Get("use_case"))
 
+	// Live entitlement re-check: a banner set while the tenant was on Pro/Gold must stop being
+	// served the moment the tenant drops to Basic (or the feature is otherwise revoked) — no
+	// separate cleanup job, just don't include it on the next read. Computed once per request
+	// (one tenant per call) via the same fail-open consumer-entitlement lookup used at the point
+	// of write. h.subs == nil (not wired) fails open, matching every other consumer gate.
+	bannerEntitled := h.subs == nil || h.subs.ConsumerHasFeature(r.Context(), tid.String(), subscriptions.FeatureStorefrontBanner)
+
 	now := time.Now()
 	promos, err := h.client.Promotion.Query().
 		Where(
@@ -180,6 +195,9 @@ func (h *PromotionHandler) S2SListBanners(w http.ResponseWriter, r *http.Request
 	for _, p := range promos {
 		banner := promotions.BannerFromMetadata(p.Metadata)
 		if !banner.ShowOnStorefront {
+			continue
+		}
+		if !bannerEntitled {
 			continue
 		}
 		if len(banner.UseCases) > 0 {

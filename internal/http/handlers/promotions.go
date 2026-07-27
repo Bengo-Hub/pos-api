@@ -10,6 +10,7 @@ import (
 
 	"github.com/Bengo-Hub/httpware"
 	"github.com/Bengo-Hub/pagination"
+	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
@@ -19,6 +20,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/promotion"
 	"github.com/bengobox/pos-service/internal/ent/promotionrule"
 	promotions "github.com/bengobox/pos-service/internal/modules/promotions"
+	"github.com/bengobox/pos-service/internal/platform/subscriptions"
 )
 
 // PromotionHandler handles promotion management endpoints.
@@ -26,10 +28,42 @@ type PromotionHandler struct {
 	log      *zap.Logger
 	client   *ent.Client
 	promoSvc *promotions.Service
+	subs     *subscriptions.Client
 }
 
 func NewPromotionHandler(log *zap.Logger, client *ent.Client, promoSvc *promotions.Service) *PromotionHandler {
 	return &PromotionHandler{log: log, client: client, promoSvc: promoSvc}
+}
+
+// SetSubscriptionsClient injects the subscriptions S2S client used to enforce the
+// storefront-banner feature gate (subscriptions.FeatureStorefrontBanner, Pro/Gold PowerSuite
+// only) both at the point of write (create/update, via bannerFeatureLocked) and the point of
+// read (S2SListBanners, promotions_s2s.go).
+func (h *PromotionHandler) SetSubscriptionsClient(c *subscriptions.Client) {
+	h.subs = c
+}
+
+// bannerFeatureLocked reports whether input turns ON the storefront banner
+// (banner.show_on_storefront) while the tenant is NOT entitled to
+// subscriptions.FeatureStorefrontBanner. It checks the request's JWT claims first — the
+// tenant-facing POST/PUT /pos/promotions path carries a user token, so this is a real,
+// non-fail-open entitlement check via the same claims.FeatureEnabled the fleet-wide
+// RequireFeatureCode middleware uses. When no claims are present (the S2S create path,
+// authenticated only by X-API-Key — see promotions_s2s.go) it falls back to the tenant-id
+// entitlement lookup (h.subs.ConsumerHasFeature), which mirrors the HTTP gate but fails OPEN
+// on a subscriptions-api outage or when no subscriptions client is wired, matching every
+// other consumer-side entitlement check in this codebase (see consumer_gate.go).
+func (h *PromotionHandler) bannerFeatureLocked(ctx context.Context, tid uuid.UUID, input createPromoInput) bool {
+	if input.Banner == nil || !input.Banner.ShowOnStorefront {
+		return false
+	}
+	if claims, ok := authclient.ClaimsFromContext(ctx); ok {
+		return !claims.FeatureEnabled(subscriptions.FeatureStorefrontBanner)
+	}
+	if h.subs == nil {
+		return false
+	}
+	return !h.subs.ConsumerHasFeature(ctx, tid.String(), subscriptions.FeatureStorefrontBanner)
 }
 
 // promotionWithRule is a Promotion embedding its discount PromotionRule (nil if none was
@@ -238,6 +272,11 @@ func (h *PromotionHandler) CreatePromotion(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	if h.bannerFeatureLocked(r.Context(), tid, input) {
+		authclient.WriteFeatureLocked(w, subscriptions.FeatureStorefrontBanner, "")
+		return
+	}
+
 	promo, err := h.createPromotionFromInput(r.Context(), tid, input)
 	if err != nil {
 		h.log.Error("create promotion failed", zap.Error(err))
@@ -443,6 +482,11 @@ func (h *PromotionHandler) UpdatePromotion(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	input.normalize()
+
+	if h.bannerFeatureLocked(r.Context(), tid, input) {
+		authclient.WriteFeatureLocked(w, subscriptions.FeatureStorefrontBanner, "")
+		return
+	}
 
 	upd := existing.Update().
 		SetName(input.Name).

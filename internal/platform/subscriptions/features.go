@@ -24,6 +24,15 @@ const (
 	// POWERSUITE_DUKA_* tiers.
 	FeatureLayaway     = "layaway"
 	FeatureCommissions = "commissions"
+	// FeatureStorefrontBanner gates the storefront promotions banner (Promotion.metadata
+	// ["banner"].show_on_storefront, see internal/modules/promotions/banner.go), surfaced to
+	// the customer-facing ordering storefront via S2SListBanners. Checked inline at the point
+	// of write (createPromotionFromInput's callers in promotions.go/promotions_s2s.go) and at
+	// the point of read (S2SListBanners) rather than as a route-group middleware, since
+	// POST/PUT /pos/promotions handles both gated-banner and ungated-plain-discount fields in
+	// one payload. Seeded on POWERSUITE_{HOSP|DUKA|DAWA}_{PRO|GOLD} in subscriptions-api
+	// (cmd/seed/plans_powersuite_usecase.go); deliberately absent from BASIC.
+	FeatureStorefrontBanner = "storefront_banner"
 )
 
 // Structural plan-limit keys (hard-block, no overage — require a plan upgrade).

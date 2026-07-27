@@ -274,6 +274,9 @@ func New(ctx context.Context) (*App, error) {
 	drawerHandler.SetAuditService(auditSvc)
 	barTabHandler := handlers.NewBarTabHandler(log, entClient)
 	promotionHandler := handlers.NewPromotionHandler(log, entClient, promoSvc)
+	// Storefront-banner feature gate (subscriptions.FeatureStorefrontBanner) — enforced inline
+	// at the point of write/read in the promotions handlers, not a route-group middleware.
+	promotionHandler.SetSubscriptionsClient(subsClient)
 
 	// Hotel, KDS and device session handlers
 	var hotelEventPub *events.Publisher
