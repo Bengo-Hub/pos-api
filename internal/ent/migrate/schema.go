@@ -1785,6 +1785,7 @@ var (
 		{Name: "outlet_id", Type: field.TypeUUID},
 		{Name: "device_id", Type: field.TypeUUID},
 		{Name: "user_id", Type: field.TypeUUID},
+		{Name: "served_by_user_id", Type: field.TypeUUID, Nullable: true},
 		{Name: "order_number", Type: field.TypeString},
 		{Name: "client_reference", Type: field.TypeString, Nullable: true},
 		{Name: "offline_created_at", Type: field.TypeTime, Nullable: true},
@@ -1835,17 +1836,17 @@ var (
 			{
 				Name:    "posorder_tenant_id_order_number",
 				Unique:  true,
-				Columns: []*schema.Column{PosOrdersColumns[1], PosOrdersColumns[5]},
+				Columns: []*schema.Column{PosOrdersColumns[1], PosOrdersColumns[6]},
 			},
 			{
 				Name:    "posorder_tenant_id_client_reference",
 				Unique:  true,
-				Columns: []*schema.Column{PosOrdersColumns[1], PosOrdersColumns[6]},
+				Columns: []*schema.Column{PosOrdersColumns[1], PosOrdersColumns[7]},
 			},
 			{
 				Name:    "posorder_tenant_id_source",
 				Unique:  false,
-				Columns: []*schema.Column{PosOrdersColumns[1], PosOrdersColumns[9]},
+				Columns: []*schema.Column{PosOrdersColumns[1], PosOrdersColumns[10]},
 			},
 		},
 	}

@@ -88,6 +88,26 @@ func (_u *POSOrderUpdate) SetNillableUserID(v *uuid.UUID) *POSOrderUpdate {
 	return _u
 }
 
+// SetServedByUserID sets the "served_by_user_id" field.
+func (_u *POSOrderUpdate) SetServedByUserID(v uuid.UUID) *POSOrderUpdate {
+	_u.mutation.SetServedByUserID(v)
+	return _u
+}
+
+// SetNillableServedByUserID sets the "served_by_user_id" field if the given value is not nil.
+func (_u *POSOrderUpdate) SetNillableServedByUserID(v *uuid.UUID) *POSOrderUpdate {
+	if v != nil {
+		_u.SetServedByUserID(*v)
+	}
+	return _u
+}
+
+// ClearServedByUserID clears the value of the "served_by_user_id" field.
+func (_u *POSOrderUpdate) ClearServedByUserID() *POSOrderUpdate {
+	_u.mutation.ClearServedByUserID()
+	return _u
+}
+
 // SetOrderNumber sets the "order_number" field.
 func (_u *POSOrderUpdate) SetOrderNumber(v string) *POSOrderUpdate {
 	_u.mutation.SetOrderNumber(v)
@@ -1004,6 +1024,12 @@ func (_u *POSOrderUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.UserID(); ok {
 		_spec.SetField(posorder.FieldUserID, field.TypeUUID, value)
 	}
+	if value, ok := _u.mutation.ServedByUserID(); ok {
+		_spec.SetField(posorder.FieldServedByUserID, field.TypeUUID, value)
+	}
+	if _u.mutation.ServedByUserIDCleared() {
+		_spec.ClearField(posorder.FieldServedByUserID, field.TypeUUID)
+	}
 	if value, ok := _u.mutation.OrderNumber(); ok {
 		_spec.SetField(posorder.FieldOrderNumber, field.TypeString, value)
 	}
@@ -1422,6 +1448,26 @@ func (_u *POSOrderUpdateOne) SetNillableUserID(v *uuid.UUID) *POSOrderUpdateOne 
 	if v != nil {
 		_u.SetUserID(*v)
 	}
+	return _u
+}
+
+// SetServedByUserID sets the "served_by_user_id" field.
+func (_u *POSOrderUpdateOne) SetServedByUserID(v uuid.UUID) *POSOrderUpdateOne {
+	_u.mutation.SetServedByUserID(v)
+	return _u
+}
+
+// SetNillableServedByUserID sets the "served_by_user_id" field if the given value is not nil.
+func (_u *POSOrderUpdateOne) SetNillableServedByUserID(v *uuid.UUID) *POSOrderUpdateOne {
+	if v != nil {
+		_u.SetServedByUserID(*v)
+	}
+	return _u
+}
+
+// ClearServedByUserID clears the value of the "served_by_user_id" field.
+func (_u *POSOrderUpdateOne) ClearServedByUserID() *POSOrderUpdateOne {
+	_u.mutation.ClearServedByUserID()
 	return _u
 }
 
@@ -2370,6 +2416,12 @@ func (_u *POSOrderUpdateOne) sqlSave(ctx context.Context) (_node *POSOrder, err 
 	}
 	if value, ok := _u.mutation.UserID(); ok {
 		_spec.SetField(posorder.FieldUserID, field.TypeUUID, value)
+	}
+	if value, ok := _u.mutation.ServedByUserID(); ok {
+		_spec.SetField(posorder.FieldServedByUserID, field.TypeUUID, value)
+	}
+	if _u.mutation.ServedByUserIDCleared() {
+		_spec.ClearField(posorder.FieldServedByUserID, field.TypeUUID)
 	}
 	if value, ok := _u.mutation.OrderNumber(); ok {
 		_spec.SetField(posorder.FieldOrderNumber, field.TypeString, value)

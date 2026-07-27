@@ -24,6 +24,8 @@ const (
 	FieldDeviceID = "device_id"
 	// FieldUserID holds the string denoting the user_id field in the database.
 	FieldUserID = "user_id"
+	// FieldServedByUserID holds the string denoting the served_by_user_id field in the database.
+	FieldServedByUserID = "served_by_user_id"
 	// FieldOrderNumber holds the string denoting the order_number field in the database.
 	FieldOrderNumber = "order_number"
 	// FieldClientReference holds the string denoting the client_reference field in the database.
@@ -142,6 +144,7 @@ var Columns = []string{
 	FieldOutletID,
 	FieldDeviceID,
 	FieldUserID,
+	FieldServedByUserID,
 	FieldOrderNumber,
 	FieldClientReference,
 	FieldOfflineCreatedAt,
@@ -291,6 +294,11 @@ func ByDeviceID(opts ...sql.OrderTermOption) OrderOption {
 // ByUserID orders the results by the user_id field.
 func ByUserID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldUserID, opts...).ToFunc()
+}
+
+// ByServedByUserID orders the results by the served_by_user_id field.
+func ByServedByUserID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldServedByUserID, opts...).ToFunc()
 }
 
 // ByOrderNumber orders the results by the order_number field.

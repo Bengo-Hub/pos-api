@@ -154,12 +154,31 @@ func (s *Service) outletTimezone(ctx context.Context, outletID *uuid.UUID) *time
 	return loc
 }
 
-// ActiveHappyHours returns auto-apply happy-hour promotions that are live at `now`
-// for the given outlet (nil outlet promos apply to all outlets). A promo is live when:
-//   - promo_kind = happy_hour, status = active, auto_apply = true
+// autoApplyPromoKinds are the promo_kind values eligible for AUTOMATIC evaluation at checkout
+// (ActiveHappyHours / allHappyHourPromos) — deliberately excludes "code" (which only ever applies
+// when a customer/cashier enters it via ApplyPromoCode). Pulled out as its own function, not an
+// inline literal, so a regression test can assert both kinds are present without needing a DB —
+// see TestAutoApplyPromoKinds. Do not narrow this back to happy_hour-only: that was the root cause
+// of "auto"-kind discounts (the shape retail/pharmacy/quick_service/services tenants use, since
+// "happy hour" is a hospitality-only concept) never firing at checkout no matter the use case.
+func autoApplyPromoKinds() []promotion.PromoKind {
+	return []promotion.PromoKind{promotion.PromoKindHappyHour, promotion.PromoKindAuto}
+}
+
+// ActiveHappyHours returns auto-apply promotions that are live at `now` for the given outlet
+// (nil outlet promos apply to all outlets) — BOTH promo_kind=happy_hour (time-windowed, the
+// hospitality "happy hour"/meal-deal concept) and promo_kind=auto (no time window; storewide
+// or scoped auto-apply deals, the shape a retail/pharmacy/quick_service/services tenant reaches
+// for since "happy hour" has no meaning for them). Name/route kept for compatibility — this is
+// the same evaluator, just no longer hard-restricted to one vertical's promo kind (that
+// restriction was the root cause of "only hospitality discounts work": an auto-apply promo of
+// kind=auto was created and shown as active, but silently never loaded here, so it never fired
+// at checkout no matter the use case). A promo is live when:
+//   - promo_kind IN (happy_hour, auto), status = active, auto_apply = true
 //   - now is within [start_at, end_at] (date range, if set)
 //   - now's weekday is in days_of_week (or days_of_week empty = every day)
-//   - now's HH:MM is within [window_start, window_end]
+//   - now's HH:MM is within [window_start, window_end] (or both empty = no time restriction —
+//     the normal case for promo_kind=auto)
 //
 // Schedule fields (days_of_week/window_start/window_end) are configured by the tenant in the
 // OUTLET'S LOCAL wall-clock time (e.g. "18:00" means 6pm Nairobi time), so `now` — which
@@ -171,7 +190,7 @@ func (s *Service) outletTimezone(ctx context.Context, outletID *uuid.UUID) *time
 func (s *Service) ActiveHappyHours(ctx context.Context, tenantID uuid.UUID, outletID *uuid.UUID, now time.Time) ([]*ent.Promotion, error) {
 	q := s.client.Promotion.Query().Where(
 		promotion.TenantID(tenantID),
-		promotion.PromoKindEQ(promotion.PromoKindHappyHour),
+		promotion.PromoKindIn(autoApplyPromoKinds()...),
 		promotion.StatusEQ("active"),
 		promotion.AutoApply(true),
 	)
@@ -287,13 +306,15 @@ type TimedDiscountLine struct {
 	AddedAt time.Time
 }
 
-// allHappyHourPromos loads every auto-apply happy-hour promo for the outlet REGARDLESS of the
-// current time — the timed evaluator checks each promo against each line's own add-time, so it must
-// see promos that aren't live at time.Now() (e.g. evaluating a line added earlier during the window).
+// allHappyHourPromos loads every auto-apply promo (happy_hour OR auto kind, see ActiveHappyHours)
+// for the outlet REGARDLESS of the current time — the timed evaluator checks each promo against
+// each line's own add-time, so it must see promos that aren't live at time.Now() (e.g. evaluating
+// a line added earlier during the window). auto-kind promos have no schedule, so isWithinSchedule
+// treats them as always eligible.
 func (s *Service) allHappyHourPromos(ctx context.Context, tenantID uuid.UUID, outletID *uuid.UUID) ([]*ent.Promotion, error) {
 	promos, err := s.client.Promotion.Query().Where(
 		promotion.TenantID(tenantID),
-		promotion.PromoKindEQ(promotion.PromoKindHappyHour),
+		promotion.PromoKindIn(autoApplyPromoKinds()...),
 		promotion.StatusEQ("active"),
 		promotion.AutoApply(true),
 	).All(ctx)

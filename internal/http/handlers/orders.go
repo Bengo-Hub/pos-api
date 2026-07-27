@@ -157,6 +157,11 @@ type createOrderInput struct {
 	TableID          string                 `json:"table_id"`                 // hospitality dine-in table UUID
 	CustomerPhone    string                 `json:"customer_phone,omitempty"` // loyalty auto-earn
 	CustomerName     string                 `json:"customer_name,omitempty"`
+	// ServedByUserID lets the caller carry forward WHO SERVED the sale when it doesn't match the
+	// current session (UserID) — used only by the resume-and-modify supersede flow (Add Sale),
+	// which creates a NEW order for the edited draft and needs the original drafter's attribution
+	// to survive instead of resetting to whoever finalizes it. Blank/invalid = fall back to UserID.
+	ServedByUserID string `json:"served_by_user_id,omitempty"`
 	DiscountAmount   float64                `json:"discount_amount,omitempty"`  // order-level discount (e.g. loyalty redemption)
 	DiscountReason   string                 `json:"discount_reason,omitempty"`  // free-text reason for a manual discount
 	OrderTaxAmount   float64                `json:"order_tax_amount,omitempty"` // manager quick-edit: order-level tax added on top of per-line tax
@@ -330,10 +335,16 @@ type orderListItem struct {
 	AmountDue     float64 `json:"amount_due"`
 	PaymentStatus string  `json:"payment_status"` // paid | partial | due | overdue | refunded | voided | cancelled
 	PaymentMethod string  `json:"payment_method"` // dominant tender type, or "multiple"
-	// CashierName is the human display name of the staff member who rang up the order
+	// CashierName is the human display name of the staff member who CREATED the order row
 	// (resolved from user_id via the shared resolveStaffNames helper — same mapping the
 	// staff reports use). Empty when the user projection has no name for the id.
 	CashierName string `json:"cashier_name"`
+	// ServedByName is who is CREDITED with serving the sale (resolved from served_by_user_id,
+	// falling back to user_id for pre-existing rows with no served_by_user_id set) — the field
+	// that survives a resumed-and-modified draft's supersede-to-a-new-order and the one admins
+	// correct via the sale-info edit tool. Prefer this over CashierName everywhere a "Cashier"/
+	// "Served by" column is shown; CashierName remains available as the strict row-creator fact.
+	ServedByName string `json:"served_by_name"`
 	// Sell-return rollup (rejected returns excluded): lets the list flag returned
 	// sales (red return arrow) and show the returned amount without N+1 lookups.
 	ReturnCount  int     `json:"return_count"`
@@ -397,12 +408,28 @@ func returnsRollupFor(ctx context.Context, client *ent.Client, log *zap.Logger, 
 	return returnsByOrder
 }
 
+// servedByName resolves the display name credited with SERVING an order — served_by_user_id when
+// set, falling back to user_id for rows created before the field existed (nil served_by_user_id).
+func servedByName(o *ent.POSOrder, staffNames map[uuid.UUID]string) string {
+	if o.ServedByUserID != nil {
+		if name := staffNames[*o.ServedByUserID]; name != "" {
+			return name
+		}
+	}
+	return staffNames[o.UserID]
+}
+
 // enrichSingleOrder wraps ONE order in the same orderListItem shape the All-Sales list returns —
 // so the Sell Details modal (and any single-order consumer) reads the SERVER's canonical amount_due/
 // payment_status/return_total instead of re-deriving them client-side (the root of the "footer says
 // 8,000, list says 4,000" divergence). Delegates owed math to orders.ComputeSettlement.
 func (h *POSOrderHandler) enrichSingleOrder(ctx context.Context, tenantID uuid.UUID, order *ent.POSOrder) orderListItem {
 	retAgg := h.returnsRollup(ctx, tenantID, []uuid.UUID{order.ID})[order.ID]
+	uids := []uuid.UUID{order.UserID}
+	if order.ServedByUserID != nil {
+		uids = append(uids, *order.ServedByUserID)
+	}
+	staffNames := resolveStaffNames(ctx, h.client, h.log, tenantID, uids)
 	var completedReturns float64
 	methods := map[string]struct{}{}
 	for _, pay := range order.Edges.Payments {
@@ -428,6 +455,8 @@ func (h *POSOrderHandler) enrichSingleOrder(ctx context.Context, tenantID uuid.U
 		AmountDue:     st.AmountDue,
 		PaymentStatus: st.PaymentStatus,
 		PaymentMethod: dominantMethod(methods),
+		CashierName:   staffNames[order.UserID],
+		ServedByName:  servedByName(order, staffNames),
 	}
 	if retAgg != nil {
 		item.ReturnCount = retAgg.count
@@ -441,11 +470,14 @@ func (h *POSOrderHandler) enrichSingleOrder(ctx context.Context, tenantID uuid.U
 // payment-method labels via a single batched Tender lookup (id → type) and cashier display
 // names via a single batched User lookup (shared resolveStaffNames helper).
 func (h *POSOrderHandler) enrichOrderList(ctx context.Context, tenantID uuid.UUID, list []*ent.POSOrder) []orderListItem {
-	// Batch-resolve cashier names so every list row (drafts, recent transactions, all
-	// sales) shows WHO rang the sale up without an N+1 user lookup.
+	// Batch-resolve cashier + served-by names so every list row (drafts, recent transactions, all
+	// sales) shows WHO rang the sale up / who served it without an N+1 user lookup.
 	uidSet := map[uuid.UUID]struct{}{}
 	for _, o := range list {
 		uidSet[o.UserID] = struct{}{}
+		if o.ServedByUserID != nil {
+			uidSet[*o.ServedByUserID] = struct{}{}
+		}
 	}
 	uids := make([]uuid.UUID, 0, len(uidSet))
 	for id := range uidSet {
@@ -521,6 +553,7 @@ func (h *POSOrderHandler) enrichOrderList(ctx context.Context, tenantID uuid.UUI
 			PaymentStatus: st.PaymentStatus,
 			PaymentMethod: dominantMethod(methods),
 			CashierName:   staffNames[o.UserID], // "" when unknown — the UI falls back gracefully
+			ServedByName:  servedByName(o, staffNames),
 		}
 		if agg := retAgg; agg != nil {
 			item.ReturnCount = agg.count
@@ -1081,11 +1114,14 @@ func (h *POSOrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	servedByUserID, _ := uuid.Parse(input.ServedByUserID) // zero value on blank/invalid = fall back to userID
+
 	order, err := h.orderSvc.CreateOrder(r.Context(), orders.CreateOrderRequest{
 		TenantID:         tid,
 		OutletID:         outletID,
 		DeviceID:         deviceID,
 		UserID:           userID,
+		ServedByUserID:   servedByUserID,
 		OrderNumber:      input.OrderNumber,
 		ClientReference:  input.ClientReference,
 		OfflineCreatedAt: input.OfflineCreatedAt,

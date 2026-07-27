@@ -51,6 +51,20 @@ func (_c *POSOrderCreate) SetUserID(v uuid.UUID) *POSOrderCreate {
 	return _c
 }
 
+// SetServedByUserID sets the "served_by_user_id" field.
+func (_c *POSOrderCreate) SetServedByUserID(v uuid.UUID) *POSOrderCreate {
+	_c.mutation.SetServedByUserID(v)
+	return _c
+}
+
+// SetNillableServedByUserID sets the "served_by_user_id" field if the given value is not nil.
+func (_c *POSOrderCreate) SetNillableServedByUserID(v *uuid.UUID) *POSOrderCreate {
+	if v != nil {
+		_c.SetServedByUserID(*v)
+	}
+	return _c
+}
+
 // SetOrderNumber sets the "order_number" field.
 func (_c *POSOrderCreate) SetOrderNumber(v string) *POSOrderCreate {
 	_c.mutation.SetOrderNumber(v)
@@ -878,6 +892,10 @@ func (_c *POSOrderCreate) createSpec() (*POSOrder, *sqlgraph.CreateSpec) {
 		_spec.SetField(posorder.FieldUserID, field.TypeUUID, value)
 		_node.UserID = value
 	}
+	if value, ok := _c.mutation.ServedByUserID(); ok {
+		_spec.SetField(posorder.FieldServedByUserID, field.TypeUUID, value)
+		_node.ServedByUserID = &value
+	}
 	if value, ok := _c.mutation.OrderNumber(); ok {
 		_spec.SetField(posorder.FieldOrderNumber, field.TypeString, value)
 		_node.OrderNumber = value
@@ -1183,6 +1201,24 @@ func (u *POSOrderUpsert) SetUserID(v uuid.UUID) *POSOrderUpsert {
 // UpdateUserID sets the "user_id" field to the value that was provided on create.
 func (u *POSOrderUpsert) UpdateUserID() *POSOrderUpsert {
 	u.SetExcluded(posorder.FieldUserID)
+	return u
+}
+
+// SetServedByUserID sets the "served_by_user_id" field.
+func (u *POSOrderUpsert) SetServedByUserID(v uuid.UUID) *POSOrderUpsert {
+	u.Set(posorder.FieldServedByUserID, v)
+	return u
+}
+
+// UpdateServedByUserID sets the "served_by_user_id" field to the value that was provided on create.
+func (u *POSOrderUpsert) UpdateServedByUserID() *POSOrderUpsert {
+	u.SetExcluded(posorder.FieldServedByUserID)
+	return u
+}
+
+// ClearServedByUserID clears the value of the "served_by_user_id" field.
+func (u *POSOrderUpsert) ClearServedByUserID() *POSOrderUpsert {
+	u.SetNull(posorder.FieldServedByUserID)
 	return u
 }
 
@@ -1944,6 +1980,27 @@ func (u *POSOrderUpsertOne) SetUserID(v uuid.UUID) *POSOrderUpsertOne {
 func (u *POSOrderUpsertOne) UpdateUserID() *POSOrderUpsertOne {
 	return u.Update(func(s *POSOrderUpsert) {
 		s.UpdateUserID()
+	})
+}
+
+// SetServedByUserID sets the "served_by_user_id" field.
+func (u *POSOrderUpsertOne) SetServedByUserID(v uuid.UUID) *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetServedByUserID(v)
+	})
+}
+
+// UpdateServedByUserID sets the "served_by_user_id" field to the value that was provided on create.
+func (u *POSOrderUpsertOne) UpdateServedByUserID() *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdateServedByUserID()
+	})
+}
+
+// ClearServedByUserID clears the value of the "served_by_user_id" field.
+func (u *POSOrderUpsertOne) ClearServedByUserID() *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.ClearServedByUserID()
 	})
 }
 
@@ -2981,6 +3038,27 @@ func (u *POSOrderUpsertBulk) SetUserID(v uuid.UUID) *POSOrderUpsertBulk {
 func (u *POSOrderUpsertBulk) UpdateUserID() *POSOrderUpsertBulk {
 	return u.Update(func(s *POSOrderUpsert) {
 		s.UpdateUserID()
+	})
+}
+
+// SetServedByUserID sets the "served_by_user_id" field.
+func (u *POSOrderUpsertBulk) SetServedByUserID(v uuid.UUID) *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetServedByUserID(v)
+	})
+}
+
+// UpdateServedByUserID sets the "served_by_user_id" field to the value that was provided on create.
+func (u *POSOrderUpsertBulk) UpdateServedByUserID() *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdateServedByUserID()
+	})
+}
+
+// ClearServedByUserID clears the value of the "served_by_user_id" field.
+func (u *POSOrderUpsertBulk) ClearServedByUserID() *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.ClearServedByUserID()
 	})
 }
 

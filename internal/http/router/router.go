@@ -413,6 +413,12 @@ func New(
 						// NOT enough (see dateMoveAdminRoles in orders_date_move.go).
 						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.orders.manage")).
 							Patch("/orders/{orderID}/date", orders.MoveOrderDate)
+						// Admin/manager correction tool: who served a sale + the customer on file
+						// (draft, open, OR completed — never voided/cancelled/refunded). Narrower
+						// scope than MoveOrderDate's route+service double-gate — pos.orders.manage
+						// alone is sufficient here (see orders.Service.UpdateSaleInfo).
+						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.orders.manage")).
+							Patch("/orders/{orderID}/sale-info", orders.UpdateSaleInfo)
 						// Upsell / set-aside: hold a wrongly-ordered (already-made) item for resale
 						// instead of voiding it. No manager approval; must be cleared before shift close.
 						pos.Post("/orders/{orderID}/lines/{lineID}/set-aside", orders.SetAsideLine)

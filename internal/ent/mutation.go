@@ -59365,6 +59365,7 @@ type POSOrderMutation struct {
 	outlet_id                 *uuid.UUID
 	device_id                 *uuid.UUID
 	user_id                   *uuid.UUID
+	served_by_user_id         *uuid.UUID
 	order_number              *string
 	client_reference          *string
 	offline_created_at        *time.Time
@@ -59678,6 +59679,55 @@ func (m *POSOrderMutation) OldUserID(ctx context.Context) (v uuid.UUID, err erro
 // ResetUserID resets all changes to the "user_id" field.
 func (m *POSOrderMutation) ResetUserID() {
 	m.user_id = nil
+}
+
+// SetServedByUserID sets the "served_by_user_id" field.
+func (m *POSOrderMutation) SetServedByUserID(u uuid.UUID) {
+	m.served_by_user_id = &u
+}
+
+// ServedByUserID returns the value of the "served_by_user_id" field in the mutation.
+func (m *POSOrderMutation) ServedByUserID() (r uuid.UUID, exists bool) {
+	v := m.served_by_user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldServedByUserID returns the old "served_by_user_id" field's value of the POSOrder entity.
+// If the POSOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSOrderMutation) OldServedByUserID(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldServedByUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldServedByUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldServedByUserID: %w", err)
+	}
+	return oldValue.ServedByUserID, nil
+}
+
+// ClearServedByUserID clears the value of the "served_by_user_id" field.
+func (m *POSOrderMutation) ClearServedByUserID() {
+	m.served_by_user_id = nil
+	m.clearedFields[posorder.FieldServedByUserID] = struct{}{}
+}
+
+// ServedByUserIDCleared returns if the "served_by_user_id" field was cleared in this mutation.
+func (m *POSOrderMutation) ServedByUserIDCleared() bool {
+	_, ok := m.clearedFields[posorder.FieldServedByUserID]
+	return ok
+}
+
+// ResetServedByUserID resets all changes to the "served_by_user_id" field.
+func (m *POSOrderMutation) ResetServedByUserID() {
+	m.served_by_user_id = nil
+	delete(m.clearedFields, posorder.FieldServedByUserID)
 }
 
 // SetOrderNumber sets the "order_number" field.
@@ -61803,7 +61853,7 @@ func (m *POSOrderMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *POSOrderMutation) Fields() []string {
-	fields := make([]string, 0, 44)
+	fields := make([]string, 0, 45)
 	if m.tenant_id != nil {
 		fields = append(fields, posorder.FieldTenantID)
 	}
@@ -61815,6 +61865,9 @@ func (m *POSOrderMutation) Fields() []string {
 	}
 	if m.user_id != nil {
 		fields = append(fields, posorder.FieldUserID)
+	}
+	if m.served_by_user_id != nil {
+		fields = append(fields, posorder.FieldServedByUserID)
 	}
 	if m.order_number != nil {
 		fields = append(fields, posorder.FieldOrderNumber)
@@ -61952,6 +62005,8 @@ func (m *POSOrderMutation) Field(name string) (ent.Value, bool) {
 		return m.DeviceID()
 	case posorder.FieldUserID:
 		return m.UserID()
+	case posorder.FieldServedByUserID:
+		return m.ServedByUserID()
 	case posorder.FieldOrderNumber:
 		return m.OrderNumber()
 	case posorder.FieldClientReference:
@@ -62049,6 +62104,8 @@ func (m *POSOrderMutation) OldField(ctx context.Context, name string) (ent.Value
 		return m.OldDeviceID(ctx)
 	case posorder.FieldUserID:
 		return m.OldUserID(ctx)
+	case posorder.FieldServedByUserID:
+		return m.OldServedByUserID(ctx)
 	case posorder.FieldOrderNumber:
 		return m.OldOrderNumber(ctx)
 	case posorder.FieldClientReference:
@@ -62165,6 +62222,13 @@ func (m *POSOrderMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetUserID(v)
+		return nil
+	case posorder.FieldServedByUserID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetServedByUserID(v)
 		return nil
 	case posorder.FieldOrderNumber:
 		v, ok := value.(string)
@@ -62623,6 +62687,9 @@ func (m *POSOrderMutation) AddField(name string, value ent.Value) error {
 // mutation.
 func (m *POSOrderMutation) ClearedFields() []string {
 	var fields []string
+	if m.FieldCleared(posorder.FieldServedByUserID) {
+		fields = append(fields, posorder.FieldServedByUserID)
+	}
 	if m.FieldCleared(posorder.FieldClientReference) {
 		fields = append(fields, posorder.FieldClientReference)
 	}
@@ -62694,6 +62761,9 @@ func (m *POSOrderMutation) FieldCleared(name string) bool {
 // error if the field is not defined in the schema.
 func (m *POSOrderMutation) ClearField(name string) error {
 	switch name {
+	case posorder.FieldServedByUserID:
+		m.ClearServedByUserID()
+		return nil
 	case posorder.FieldClientReference:
 		m.ClearClientReference()
 		return nil
@@ -62770,6 +62840,9 @@ func (m *POSOrderMutation) ResetField(name string) error {
 		return nil
 	case posorder.FieldUserID:
 		m.ResetUserID()
+		return nil
+	case posorder.FieldServedByUserID:
+		m.ResetServedByUserID()
 		return nil
 	case posorder.FieldOrderNumber:
 		m.ResetOrderNumber()

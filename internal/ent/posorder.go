@@ -27,6 +27,8 @@ type POSOrder struct {
 	DeviceID uuid.UUID `json:"device_id,omitempty"`
 	// UserID holds the value of the "user_id" field.
 	UserID uuid.UUID `json:"user_id,omitempty"`
+	// ServedByUserID holds the value of the "served_by_user_id" field.
+	ServedByUserID *uuid.UUID `json:"served_by_user_id,omitempty"`
 	// OrderNumber holds the value of the "order_number" field.
 	OrderNumber string `json:"order_number,omitempty"`
 	// ClientReference holds the value of the "client_reference" field.
@@ -158,7 +160,7 @@ func (*POSOrder) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case posorder.FieldRoomID, posorder.FieldRoomGuestID, posorder.FieldVoidedBy, posorder.FieldDateMovedBy:
+		case posorder.FieldServedByUserID, posorder.FieldRoomID, posorder.FieldRoomGuestID, posorder.FieldVoidedBy, posorder.FieldDateMovedBy:
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		case posorder.FieldMetadata:
 			values[i] = new([]byte)
@@ -216,6 +218,13 @@ func (_m *POSOrder) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field user_id", values[i])
 			} else if value != nil {
 				_m.UserID = *value
+			}
+		case posorder.FieldServedByUserID:
+			if value, ok := values[i].(*sql.NullScanner); !ok {
+				return fmt.Errorf("unexpected type %T for field served_by_user_id", values[i])
+			} else if value.Valid {
+				_m.ServedByUserID = new(uuid.UUID)
+				*_m.ServedByUserID = *value.S.(*uuid.UUID)
 			}
 		case posorder.FieldOrderNumber:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -540,6 +549,11 @@ func (_m *POSOrder) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("user_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.UserID))
+	builder.WriteString(", ")
+	if v := _m.ServedByUserID; v != nil {
+		builder.WriteString("served_by_user_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("order_number=")
 	builder.WriteString(_m.OrderNumber)

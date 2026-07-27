@@ -93,7 +93,13 @@ type CreateOrderRequest struct {
 	OutletID    uuid.UUID
 	DeviceID    uuid.UUID
 	UserID      uuid.UUID
-	OrderNumber string
+	// ServedByUserID is who is credited with SERVING this sale — distinct from UserID (who
+	// created this DB row). Defaults to UserID when zero (the historical behavior for every
+	// normal order). Callers set it explicitly when finalizing a resumed-and-modified draft as a
+	// NEW order, so the sale still credits the original drafter instead of silently reassigning
+	// to whoever happens to finish it (see sell/add/page.tsx's supersede-on-modify flow).
+	ServedByUserID uuid.UUID
+	OrderNumber    string
 	// ClientReference is the offline device's local id (uuid). When set, CreateOrder is
 	// get-or-create on it, making replayed offline sales idempotent.
 	ClientReference string
@@ -748,11 +754,21 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent
 		source = "pos_terminal"
 	}
 
+	// servedByUserID defaults to the creating user — the historical, still-correct behavior for
+	// every normal (non-supersede) order. Only the resume-and-modify supersede flow ever passes a
+	// different, explicit ServedByUserID (the original drafter), so the finalized sale keeps
+	// crediting them instead of the cashier who happened to finish it.
+	servedByUserID := req.UserID
+	if req.ServedByUserID != uuid.Nil {
+		servedByUserID = req.ServedByUserID
+	}
+
 	orderBuilder := tx.POSOrder.Create().
 		SetTenantID(req.TenantID).
 		SetOutletID(req.OutletID).
 		SetDeviceID(req.DeviceID).
 		SetUserID(req.UserID).
+		SetServedByUserID(servedByUserID).
 		SetOrderNumber(orderNumber).
 		SetStatus(initialStatus).
 		SetSource(source).
@@ -2272,6 +2288,89 @@ func (s *Service) MoveOrderDate(ctx context.Context, tenantID, orderID, actorID 
 		BeforeDate: before,
 		AfterDate:  newDate,
 	}, nil
+}
+
+// UpdateSaleInfoInput is the body for the admin/manager "Edit Sale Info" tool — deliberately
+// narrow (never totals/lines/discounts/tax/payment; those stay guarded by the immutability
+// checks elsewhere in this file, keyed to eTIMS fiscal signing and GL postings). Pointers
+// distinguish "not sent" from "clear to empty" (customer name/phone may be intentionally blanked).
+type UpdateSaleInfoInput struct {
+	ServedByUserID *uuid.UUID
+	CustomerName   *string
+	CustomerPhone  *string
+	Reason         string
+}
+
+// UpdateSaleInfoResult carries the pre-edit snapshot for a complete before/after audit entry.
+type UpdateSaleInfoResult struct {
+	Order  *ent.POSOrder
+	Before map[string]any
+	After  map[string]any
+}
+
+// updateSaleInfoBlockedStatuses — the ONLY statuses this tool refuses. Unlike EditOrderLine/
+// SetOrderDiscount (which lock out at completion because they touch money), served-by/customer
+// are non-financial attribution fields safe to correct on a draft, an open bill, OR a completed
+// sale — voided/cancelled/refunded sales are reversed/dead records not worth correcting.
+var updateSaleInfoBlockedStatuses = map[string]bool{
+	StatusVoided: true, StatusCancelled: true, StatusRefunded: true,
+}
+
+// UpdateSaleInfo lets an admin/manager (pos.orders.manage — enforced at the route) correct WHO
+// served a sale and the customer on file, e.g. a cashier forgot to log in as themselves, or a
+// walk-in's name/phone was mistyped. Deliberately narrow: never totals, line items, discounts,
+// tax, or payments — those remain immutable once completed (see EditOrderLine/SetOrderDiscount's
+// status guards, keyed to eTIMS fiscal signing and GL postings). Unlike MoveOrderDate, this tool
+// has no dedicated *_by/*_at/*_reason columns on the order itself — the caller writes a complete
+// audit.Entry from this result's Before/After instead, which is sufficient since no OTHER code
+// path needs to read "who last corrected the served-by/customer fields" back off the order.
+func (s *Service) UpdateSaleInfo(ctx context.Context, tenantID, orderID uuid.UUID, input UpdateSaleInfoInput) (*UpdateSaleInfoResult, error) {
+	if strings.TrimSpace(input.Reason) == "" {
+		return nil, fmt.Errorf("orders: reason is required")
+	}
+	order, err := s.client.POSOrder.Query().
+		Where(posorder.ID(orderID), posorder.TenantID(tenantID)).
+		Only(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("orders: order not found: %w", err)
+	}
+	if updateSaleInfoBlockedStatuses[string(order.Status)] {
+		return nil, fmt.Errorf("orders: cannot edit sale info on a %s order", order.Status)
+	}
+
+	before := map[string]any{
+		"served_by_user_id": order.ServedByUserID,
+		"customer_name":     order.CustomerName,
+		"customer_phone":    order.CustomerPhone,
+	}
+	after := map[string]any{}
+
+	upd := s.client.POSOrder.UpdateOneID(orderID)
+	changed := false
+	if input.ServedByUserID != nil {
+		upd = upd.SetServedByUserID(*input.ServedByUserID)
+		after["served_by_user_id"] = *input.ServedByUserID
+		changed = true
+	}
+	if input.CustomerName != nil {
+		upd = upd.SetCustomerName(*input.CustomerName)
+		after["customer_name"] = *input.CustomerName
+		changed = true
+	}
+	if input.CustomerPhone != nil {
+		upd = upd.SetCustomerPhone(*input.CustomerPhone)
+		after["customer_phone"] = *input.CustomerPhone
+		changed = true
+	}
+	if !changed {
+		return nil, fmt.Errorf("orders: nothing to update")
+	}
+
+	updated, err := upd.Save(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("orders: update sale info: %w", err)
+	}
+	return &UpdateSaleInfoResult{Order: updated, Before: before, After: after}, nil
 }
 
 // createKDSTicketsForNewLines creates KDS tickets for a specific subset of lines

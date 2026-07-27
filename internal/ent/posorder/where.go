@@ -76,6 +76,11 @@ func UserID(v uuid.UUID) predicate.POSOrder {
 	return predicate.POSOrder(sql.FieldEQ(FieldUserID, v))
 }
 
+// ServedByUserID applies equality check predicate on the "served_by_user_id" field. It's identical to ServedByUserIDEQ.
+func ServedByUserID(v uuid.UUID) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEQ(FieldServedByUserID, v))
+}
+
 // OrderNumber applies equality check predicate on the "order_number" field. It's identical to OrderNumberEQ.
 func OrderNumber(v string) predicate.POSOrder {
 	return predicate.POSOrder(sql.FieldEQ(FieldOrderNumber, v))
@@ -424,6 +429,56 @@ func UserIDLT(v uuid.UUID) predicate.POSOrder {
 // UserIDLTE applies the LTE predicate on the "user_id" field.
 func UserIDLTE(v uuid.UUID) predicate.POSOrder {
 	return predicate.POSOrder(sql.FieldLTE(FieldUserID, v))
+}
+
+// ServedByUserIDEQ applies the EQ predicate on the "served_by_user_id" field.
+func ServedByUserIDEQ(v uuid.UUID) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEQ(FieldServedByUserID, v))
+}
+
+// ServedByUserIDNEQ applies the NEQ predicate on the "served_by_user_id" field.
+func ServedByUserIDNEQ(v uuid.UUID) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNEQ(FieldServedByUserID, v))
+}
+
+// ServedByUserIDIn applies the In predicate on the "served_by_user_id" field.
+func ServedByUserIDIn(vs ...uuid.UUID) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldIn(FieldServedByUserID, vs...))
+}
+
+// ServedByUserIDNotIn applies the NotIn predicate on the "served_by_user_id" field.
+func ServedByUserIDNotIn(vs ...uuid.UUID) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNotIn(FieldServedByUserID, vs...))
+}
+
+// ServedByUserIDGT applies the GT predicate on the "served_by_user_id" field.
+func ServedByUserIDGT(v uuid.UUID) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldGT(FieldServedByUserID, v))
+}
+
+// ServedByUserIDGTE applies the GTE predicate on the "served_by_user_id" field.
+func ServedByUserIDGTE(v uuid.UUID) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldGTE(FieldServedByUserID, v))
+}
+
+// ServedByUserIDLT applies the LT predicate on the "served_by_user_id" field.
+func ServedByUserIDLT(v uuid.UUID) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldLT(FieldServedByUserID, v))
+}
+
+// ServedByUserIDLTE applies the LTE predicate on the "served_by_user_id" field.
+func ServedByUserIDLTE(v uuid.UUID) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldLTE(FieldServedByUserID, v))
+}
+
+// ServedByUserIDIsNil applies the IsNil predicate on the "served_by_user_id" field.
+func ServedByUserIDIsNil() predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldIsNull(FieldServedByUserID))
+}
+
+// ServedByUserIDNotNil applies the NotNil predicate on the "served_by_user_id" field.
+func ServedByUserIDNotNil() predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNotNull(FieldServedByUserID))
 }
 
 // OrderNumberEQ applies the EQ predicate on the "order_number" field.

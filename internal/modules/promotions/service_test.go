@@ -7,8 +7,42 @@ import (
 	"github.com/shopspring/decimal"
 
 	"github.com/bengobox/pos-service/internal/ent"
+	"github.com/bengobox/pos-service/internal/ent/promotion"
 	"github.com/bengobox/pos-service/internal/ent/promotionrule"
 )
+
+// autoApplyPromoKinds must include BOTH happy_hour (hospitality time-window deals) and auto
+// (the generic "applies without a code" kind every other use case reaches for) — regression test
+// for the "only hospitality discounts work" bug, where the query only ever loaded promo_kind=
+// happy_hour and a retail/pharmacy/quick_service/services tenant's "Automatic" discount silently
+// never fired at checkout. Must NOT include "code" (that only applies via ApplyPromoCode).
+func TestAutoApplyPromoKinds(t *testing.T) {
+	kinds := autoApplyPromoKinds()
+	want := map[promotion.PromoKind]bool{promotion.PromoKindHappyHour: true, promotion.PromoKindAuto: true}
+	if len(kinds) != len(want) {
+		t.Fatalf("expected exactly %d auto-apply kinds, got %v", len(want), kinds)
+	}
+	for _, k := range kinds {
+		if !want[k] {
+			t.Errorf("unexpected auto-apply kind %q", k)
+		}
+		if k == promotion.PromoKindCode {
+			t.Error("promo_kind=code must never be auto-evaluated — it only applies via ApplyPromoCode")
+		}
+	}
+	for k := range want {
+		found := false
+		for _, got := range kinds {
+			if got == k {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("expected auto-apply kinds to include %q, got %v", k, kinds)
+		}
+	}
+}
 
 // isWithinSchedule must treat a window whose start > end as crossing midnight (e.g. a bar happy
 // hour 18:00–10:00) — the earlier code rejected these outright, so an overnight promo never fired.

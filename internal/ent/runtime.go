@@ -1666,73 +1666,73 @@ func init() {
 	posorderFields := schema.POSOrder{}.Fields()
 	_ = posorderFields
 	// posorderDescOrderNumber is the schema descriptor for order_number field.
-	posorderDescOrderNumber := posorderFields[5].Descriptor()
+	posorderDescOrderNumber := posorderFields[6].Descriptor()
 	// posorder.OrderNumberValidator is a validator for the "order_number" field. It is called by the builders before save.
 	posorder.OrderNumberValidator = posorderDescOrderNumber.Validators[0].(func(string) error)
 	// posorderDescStatus is the schema descriptor for status field.
-	posorderDescStatus := posorderFields[8].Descriptor()
+	posorderDescStatus := posorderFields[9].Descriptor()
 	// posorder.DefaultStatus holds the default value on creation for the status field.
 	posorder.DefaultStatus = posorderDescStatus.Default.(string)
 	// posorderDescSource is the schema descriptor for source field.
-	posorderDescSource := posorderFields[9].Descriptor()
+	posorderDescSource := posorderFields[10].Descriptor()
 	// posorder.DefaultSource holds the default value on creation for the source field.
 	posorder.DefaultSource = posorderDescSource.Default.(string)
 	// posorderDescDiscountTotal is the schema descriptor for discount_total field.
-	posorderDescDiscountTotal := posorderFields[12].Descriptor()
+	posorderDescDiscountTotal := posorderFields[13].Descriptor()
 	// posorder.DefaultDiscountTotal holds the default value on creation for the discount_total field.
 	posorder.DefaultDiscountTotal = posorderDescDiscountTotal.Default.(float64)
 	// posorderDescChargesTotal is the schema descriptor for charges_total field.
-	posorderDescChargesTotal := posorderFields[14].Descriptor()
+	posorderDescChargesTotal := posorderFields[15].Descriptor()
 	// posorder.DefaultChargesTotal holds the default value on creation for the charges_total field.
 	posorder.DefaultChargesTotal = posorderDescChargesTotal.Default.(float64)
 	// posorderDescRoundOff is the schema descriptor for round_off field.
-	posorderDescRoundOff := posorderFields[15].Descriptor()
+	posorderDescRoundOff := posorderFields[16].Descriptor()
 	// posorder.DefaultRoundOff holds the default value on creation for the round_off field.
 	posorder.DefaultRoundOff = posorderDescRoundOff.Default.(float64)
 	// posorderDescPaidTotal is the schema descriptor for paid_total field.
-	posorderDescPaidTotal := posorderFields[16].Descriptor()
+	posorderDescPaidTotal := posorderFields[17].Descriptor()
 	// posorder.DefaultPaidTotal holds the default value on creation for the paid_total field.
 	posorder.DefaultPaidTotal = posorderDescPaidTotal.Default.(float64)
 	// posorderDescCurrency is the schema descriptor for currency field.
-	posorderDescCurrency := posorderFields[17].Descriptor()
+	posorderDescCurrency := posorderFields[18].Descriptor()
 	// posorder.DefaultCurrency holds the default value on creation for the currency field.
 	posorder.DefaultCurrency = posorderDescCurrency.Default.(string)
 	// posorderDescMetadata is the schema descriptor for metadata field.
-	posorderDescMetadata := posorderFields[21].Descriptor()
+	posorderDescMetadata := posorderFields[22].Descriptor()
 	// posorder.DefaultMetadata holds the default value on creation for the metadata field.
 	posorder.DefaultMetadata = posorderDescMetadata.Default.(map[string]interface{})
 	// posorderDescCoversCount is the schema descriptor for covers_count field.
-	posorderDescCoversCount := posorderFields[22].Descriptor()
+	posorderDescCoversCount := posorderFields[23].Descriptor()
 	// posorder.DefaultCoversCount holds the default value on creation for the covers_count field.
 	posorder.DefaultCoversCount = posorderDescCoversCount.Default.(int)
 	// posorderDescServiceChargePercent is the schema descriptor for service_charge_percent field.
-	posorderDescServiceChargePercent := posorderFields[23].Descriptor()
+	posorderDescServiceChargePercent := posorderFields[24].Descriptor()
 	// posorder.DefaultServiceChargePercent holds the default value on creation for the service_charge_percent field.
 	posorder.DefaultServiceChargePercent = posorderDescServiceChargePercent.Default.(float64)
 	// posorderDescServiceChargeAmount is the schema descriptor for service_charge_amount field.
-	posorderDescServiceChargeAmount := posorderFields[24].Descriptor()
+	posorderDescServiceChargeAmount := posorderFields[25].Descriptor()
 	// posorder.DefaultServiceChargeAmount holds the default value on creation for the service_charge_amount field.
 	posorder.DefaultServiceChargeAmount = posorderDescServiceChargeAmount.Default.(float64)
 	// posorderDescFiredCourses is the schema descriptor for fired_courses field.
-	posorderDescFiredCourses := posorderFields[25].Descriptor()
+	posorderDescFiredCourses := posorderFields[26].Descriptor()
 	// posorder.DefaultFiredCourses holds the default value on creation for the fired_courses field.
 	posorder.DefaultFiredCourses = posorderDescFiredCourses.Default.(int)
 	// posorderDescReprintCount is the schema descriptor for reprint_count field.
-	posorderDescReprintCount := posorderFields[34].Descriptor()
+	posorderDescReprintCount := posorderFields[35].Descriptor()
 	// posorder.DefaultReprintCount holds the default value on creation for the reprint_count field.
 	posorder.DefaultReprintCount = posorderDescReprintCount.Default.(int)
 	// posorderDescCreatedAt is the schema descriptor for created_at field.
-	posorderDescCreatedAt := posorderFields[42].Descriptor()
+	posorderDescCreatedAt := posorderFields[43].Descriptor()
 	// posorder.DefaultCreatedAt holds the default value on creation for the created_at field.
 	posorder.DefaultCreatedAt = posorderDescCreatedAt.Default.(func() time.Time)
 	// posorderDescUpdatedAt is the schema descriptor for updated_at field.
-	posorderDescUpdatedAt := posorderFields[43].Descriptor()
+	posorderDescUpdatedAt := posorderFields[44].Descriptor()
 	// posorder.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	posorder.DefaultUpdatedAt = posorderDescUpdatedAt.Default.(func() time.Time)
 	// posorder.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	posorder.UpdateDefaultUpdatedAt = posorderDescUpdatedAt.UpdateDefault.(func() time.Time)
 	// posorderDescPublicToken is the schema descriptor for public_token field.
-	posorderDescPublicToken := posorderFields[44].Descriptor()
+	posorderDescPublicToken := posorderFields[45].Descriptor()
 	// posorder.DefaultPublicToken holds the default value on creation for the public_token field.
 	posorder.DefaultPublicToken = posorderDescPublicToken.Default.(func() uuid.UUID)
 	// posorderDescID is the schema descriptor for id field.

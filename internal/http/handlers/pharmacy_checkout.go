@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"net/http"
 
 	authclient "github.com/Bengo-Hub/shared-auth-client"
@@ -12,6 +13,15 @@ import (
 	entpxl "github.com/bengobox/pos-service/internal/ent/prescriptionline"
 	"github.com/bengobox/pos-service/internal/modules/orders"
 )
+
+// checkoutPrescriptionInput is the OPTIONAL body for CheckoutPrescription — a manual/coded
+// discount to apply at checkout. Mirrors createOrderInput's discount fields so pharmacy sales
+// carry discounts the same way every other order-creation path does (auto-apply promotions
+// already apply regardless, since that evaluation lives inside CreateOrder itself).
+type checkoutPrescriptionInput struct {
+	DiscountAmount float64 `json:"discount_amount,omitempty"`
+	DiscountReason string  `json:"discount_reason,omitempty"`
+}
 
 // CheckoutPrescription handles POST /{tenantID}/pos/pharmacy/prescriptions/{prescriptionID}/checkout
 //
@@ -107,20 +117,30 @@ func (h *PharmacyHandler) CheckoutPrescription(w http.ResponseWriter, r *http.Re
 		userID, _ = uuid.Parse(claims.Subject)
 	}
 
+	// Body is optional — a plain checkout (no discount) still works with no request body, as before.
+	var input checkoutPrescriptionInput
+	_ = json.NewDecoder(r.Body).Decode(&input)
+
+	metadata := map[string]any{
+		// Marks every line on this order as already stock-committed (Dispense's
+		// ConsumeReservation call) — see payments/service.go's skip_inventory tagging.
+		"prescription_id": px.ID.String(),
+	}
+	if input.DiscountAmount > 0 && input.DiscountReason != "" {
+		metadata["discount_reason"] = input.DiscountReason
+	}
+
 	order, err := h.orderSvc.CreateOrder(r.Context(), orders.CreateOrderRequest{
-		TenantID:     tid,
-		TenantSlug:   tenantSlug,
-		OutletID:     px.OutletID,
-		UserID:       userID,
-		Lines:        orderLines,
-		OrderSubtype: "retail",
-		Source:       "pos_terminal",
-		CustomerName: px.PatientName,
-		Metadata: map[string]any{
-			// Marks every line on this order as already stock-committed (Dispense's
-			// ConsumeReservation call) — see payments/service.go's skip_inventory tagging.
-			"prescription_id": px.ID.String(),
-		},
+		TenantID:       tid,
+		TenantSlug:     tenantSlug,
+		OutletID:       px.OutletID,
+		UserID:         userID,
+		Lines:          orderLines,
+		OrderSubtype:   "retail",
+		Source:         "pos_terminal",
+		CustomerName:   px.PatientName,
+		DiscountAmount: input.DiscountAmount,
+		Metadata:       metadata,
 	})
 	if err != nil {
 		h.log.Error("prescription checkout: create order failed", zap.Error(err))

@@ -25,6 +25,18 @@ func (POSOrder) Fields() []ent.Field {
 		field.UUID("outlet_id", uuid.UUID{}),
 		field.UUID("device_id", uuid.UUID{}),
 		field.UUID("user_id", uuid.UUID{}),
+		// served_by_user_id is WHO IS CREDITED with serving this sale — distinct from the
+		// immutable user_id (who created this DB row). They start equal at creation, but
+		// served_by_user_id is the one explicitly carried forward when a parked draft is
+		// resumed, edited, and finalized as a new order (see orders.Service.CreateOrder's
+		// ServedByUserID), so the finalized sale still credits the original drafter instead of
+		// silently reassigning to whoever happened to finish it. Nil = fall back to user_id at
+		// read time (every pre-existing row). Also the field admins correct via the
+		// sale-info edit tool (orders_sale_info_edit.go) when a cashier forgot to log in as
+		// themselves.
+		field.UUID("served_by_user_id", uuid.UUID{}).
+			Optional().
+			Nillable(),
 		// order_number is unique per-TENANT only (enforced by the composite
 		// posorder_tenant_id_order_number index below), never globally — a bare .Unique()
 		// here ALSO emits a second, global single-column unique index/constraint
