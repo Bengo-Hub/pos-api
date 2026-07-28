@@ -10,6 +10,7 @@ import (
 	entoutlet "github.com/bengobox/pos-service/internal/ent/outlet"
 	entstaff "github.com/bengobox/pos-service/internal/ent/staffmember"
 	entstaffoutlet "github.com/bengobox/pos-service/internal/ent/staffoutlet"
+	"github.com/bengobox/pos-service/internal/posrole"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
@@ -60,7 +61,10 @@ func OutletContextMiddleware(client *ent.Client, log *zap.Logger) func(http.Hand
 			}
 
 			// ── Determine whether user is HQ/admin (can see all outlets) ─────
-			isHQUser := hasClaims && claims.CanAccessAllOutlets()
+			// claims.CanAccessAllOutlets() covers platform owner / IsAdmin() / the session's own
+			// outlet being HQ, but the vendored auth-client claims helper doesn't recognize the
+			// "manager" role — so also allow via the caller's own role list.
+			isHQUser := hasClaims && (claims.CanAccessAllOutlets() || posrole.IsAdminLevelAny(claims.Roles))
 
 			// ── Resolve requested outlet from header ──────────────────────────
 			var requestedOutletID uuid.UUID

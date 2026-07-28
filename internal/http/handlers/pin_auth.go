@@ -459,14 +459,28 @@ func (h *PINAuthHandler) IdentifyByPIN(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Scan active staff assigned to the requested outlet and bcrypt-compare.
-	// PIN uniqueness is per-outlet, so we only compare staff at this outlet.
+	// Verify the outlet belongs to this tenant before we consider admin-level bypass below —
+	// otherwise an admin-level PIN could be replayed against an outlet_id from another tenant.
+	if outletExists, oerr := h.client.Outlet.Query().
+		Where(entoutlet.ID(outletID), entoutlet.TenantID(tid)).
+		Exist(r.Context()); oerr != nil || !outletExists {
+		jsonError(w, "invalid outlet_id", http.StatusBadRequest)
+		return
+	}
+
+	// Scan active staff who can authenticate at this outlet and bcrypt-compare. PIN uniqueness
+	// is per-outlet for ordinary staff, so we normally only compare staff assigned to this
+	// outlet — but admin/manager (and equivalent) roles can log into ANY outlet in the tenant,
+	// so they're included regardless of their StaffOutlet assignments.
 	candidates, scanErr := h.client.StaffMember.Query().
 		Where(
 			entstaff.TenantID(tid),
 			entstaff.IsActive(true),
 			entstaff.PinHashNotNil(),
-			entstaff.HasOutletsWith(entstaffoutlet.OutletID(outletID)),
+			entstaff.Or(
+				entstaff.HasOutletsWith(entstaffoutlet.OutletID(outletID)),
+				entstaff.RoleIn(adminLevelStaffRoles...),
+			),
 		).
 		All(r.Context())
 	if scanErr != nil {

@@ -1025,7 +1025,7 @@ func (h *ServiceSettingsHandler) SwitchOutlet(w http.ResponseWriter, r *http.Req
 		isHQ := claims.CanAccessAllOutlets()
 		isSuper := false
 		for _, role := range claims.Roles {
-			if role == "superuser" || role == "admin" || role == "pos_admin" {
+			if isAdminLevelRole(role) {
 				isSuper = true
 				break
 			}

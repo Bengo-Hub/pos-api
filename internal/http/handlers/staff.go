@@ -22,6 +22,7 @@ import (
 	entstaffoutlet "github.com/bengobox/pos-service/internal/ent/staffoutlet"
 	entuser "github.com/bengobox/pos-service/internal/ent/user"
 	"github.com/bengobox/pos-service/internal/platform/subscriptions"
+	"github.com/bengobox/pos-service/internal/posrole"
 )
 
 // StaffHandler handles staff CRUD operations for the pos-ui admin/team panel.
@@ -62,19 +63,25 @@ var posRoleRank = map[string]int{
 	"stylist": 16, "therapist": 16, "technician": 16, "viewer": 5,
 }
 
+// adminLevelStaffRoles lists every raw StaffMember.Role value (current names + legacy aliases,
+// see posrole.Canonicalize) that grants admin/manager-tier outlet access — e.g. PIN login into,
+// or SwitchOutlet to, any outlet in the tenant rather than only outlets a StaffOutlet row assigns.
+var adminLevelStaffRoles = []string{
+	"admin", "manager",
+	"superuser", "owner", "super_admin", "pos_admin", "tenant_admin", "system_admin", "administrator",
+	"store_manager", "outlet_manager", "supervisor",
+}
+
+// isAdminLevelRole reports whether a raw StaffMember.Role (or claims role) grants admin/manager
+// tier outlet access. Thin wrapper kept for call-site readability in this package.
+func isAdminLevelRole(role string) bool {
+	return posrole.IsAdminLevel(role)
+}
+
 // canonicalizeRole folds SSO/global role aliases onto the POS role vocabulary so the
 // guardrails treat an SSO "owner"/"superuser" as admin-level and "staff" as a cashier.
 func canonicalizeRole(role string) string {
-	switch strings.ToLower(strings.TrimSpace(role)) {
-	case "superuser", "owner", "super_admin", "pos_admin", "administrator":
-		return "admin"
-	case "store_manager", "supervisor":
-		return "manager"
-	case "staff":
-		return "cashier"
-	default:
-		return strings.ToLower(strings.TrimSpace(role))
-	}
+	return posrole.Canonicalize(role)
 }
 
 // requesterRole resolves the caller's EFFECTIVE POS role from the auth claims. Both SSO JWTs
