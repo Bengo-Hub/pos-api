@@ -3,6 +3,7 @@
 package ent
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -28,6 +29,8 @@ type ExaminationRecord struct {
 	ChiefComplaint string `json:"chief_complaint,omitempty"`
 	// Diagnosis holds the value of the "diagnosis" field.
 	Diagnosis string `json:"diagnosis,omitempty"`
+	// DiagnosisCatalog names/codes selected for this examination
+	DiagnosisCodes []string `json:"diagnosis_codes,omitempty"`
 	// ClinicalNotes holds the value of the "clinical_notes" field.
 	ClinicalNotes string `json:"clinical_notes,omitempty"`
 	// LabRequested holds the value of the "lab_requested" field.
@@ -50,6 +53,8 @@ func (*ExaminationRecord) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case examinationrecord.FieldPrescriptionID:
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
+		case examinationrecord.FieldDiagnosisCodes:
+			values[i] = new([]byte)
 		case examinationrecord.FieldLabRequested:
 			values[i] = new(sql.NullBool)
 		case examinationrecord.FieldChiefComplaint, examinationrecord.FieldDiagnosis, examinationrecord.FieldClinicalNotes, examinationrecord.FieldStatus:
@@ -108,6 +113,14 @@ func (_m *ExaminationRecord) assignValues(columns []string, values []any) error 
 				return fmt.Errorf("unexpected type %T for field diagnosis", values[i])
 			} else if value.Valid {
 				_m.Diagnosis = value.String
+			}
+		case examinationrecord.FieldDiagnosisCodes:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field diagnosis_codes", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.DiagnosisCodes); err != nil {
+					return fmt.Errorf("unmarshal field diagnosis_codes: %w", err)
+				}
 			}
 		case examinationrecord.FieldClinicalNotes:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -197,6 +210,9 @@ func (_m *ExaminationRecord) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("diagnosis=")
 	builder.WriteString(_m.Diagnosis)
+	builder.WriteString(", ")
+	builder.WriteString("diagnosis_codes=")
+	builder.WriteString(fmt.Sprintf("%v", _m.DiagnosisCodes))
 	builder.WriteString(", ")
 	builder.WriteString("clinical_notes=")
 	builder.WriteString(_m.ClinicalNotes)

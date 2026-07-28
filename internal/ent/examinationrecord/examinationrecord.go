@@ -25,6 +25,8 @@ const (
 	FieldChiefComplaint = "chief_complaint"
 	// FieldDiagnosis holds the string denoting the diagnosis field in the database.
 	FieldDiagnosis = "diagnosis"
+	// FieldDiagnosisCodes holds the string denoting the diagnosis_codes field in the database.
+	FieldDiagnosisCodes = "diagnosis_codes"
 	// FieldClinicalNotes holds the string denoting the clinical_notes field in the database.
 	FieldClinicalNotes = "clinical_notes"
 	// FieldLabRequested holds the string denoting the lab_requested field in the database.
@@ -49,6 +51,7 @@ var Columns = []string{
 	FieldExaminedBy,
 	FieldChiefComplaint,
 	FieldDiagnosis,
+	FieldDiagnosisCodes,
 	FieldClinicalNotes,
 	FieldLabRequested,
 	FieldPrescriptionID,
@@ -68,6 +71,8 @@ func ValidColumn(column string) bool {
 }
 
 var (
+	// DefaultDiagnosisCodes holds the default value on creation for the "diagnosis_codes" field.
+	DefaultDiagnosisCodes []string
 	// DefaultLabRequested holds the default value on creation for the "lab_requested" field.
 	DefaultLabRequested bool
 	// DefaultExaminedAt holds the default value on creation for the "examined_at" field.

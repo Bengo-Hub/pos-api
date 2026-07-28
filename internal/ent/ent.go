@@ -29,6 +29,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/controlledsubstancelog"
 	"github.com/bengobox/pos-service/internal/ent/customerbalancecache"
 	"github.com/bengobox/pos-service/internal/ent/dailyclosing"
+	"github.com/bengobox/pos-service/internal/ent/diagnosiscatalog"
 	"github.com/bengobox/pos-service/internal/ent/documentsequence"
 	"github.com/bengobox/pos-service/internal/ent/druginteractioncheck"
 	"github.com/bengobox/pos-service/internal/ent/eventbooking"
@@ -48,6 +49,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/kdsticket"
 	"github.com/bengobox/pos-service/internal/ent/laborder"
 	"github.com/bengobox/pos-service/internal/ent/laborderline"
+	"github.com/bengobox/pos-service/internal/ent/labtest"
 	"github.com/bengobox/pos-service/internal/ent/layawaypayment"
 	"github.com/bengobox/pos-service/internal/ent/layawayplan"
 	"github.com/bengobox/pos-service/internal/ent/leaverequest"
@@ -214,6 +216,7 @@ func checkColumn(t, c string) error {
 			controlledsubstancelog.Table:   controlledsubstancelog.ValidColumn,
 			customerbalancecache.Table:     customerbalancecache.ValidColumn,
 			dailyclosing.Table:             dailyclosing.ValidColumn,
+			diagnosiscatalog.Table:         diagnosiscatalog.ValidColumn,
 			documentsequence.Table:         documentsequence.ValidColumn,
 			druginteractioncheck.Table:     druginteractioncheck.ValidColumn,
 			eventbooking.Table:             eventbooking.ValidColumn,
@@ -233,6 +236,7 @@ func checkColumn(t, c string) error {
 			kdsticket.Table:                kdsticket.ValidColumn,
 			laborder.Table:                 laborder.ValidColumn,
 			laborderline.Table:             laborderline.ValidColumn,
+			labtest.Table:                  labtest.ValidColumn,
 			layawaypayment.Table:           layawaypayment.ValidColumn,
 			layawayplan.Table:              layawayplan.ValidColumn,
 			leaverequest.Table:             leaverequest.ValidColumn,

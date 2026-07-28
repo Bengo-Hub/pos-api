@@ -14,6 +14,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/bengobox/pos-service/internal/ent/laborder"
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 )
 
 // LabOrderCreate is the builder for creating a LabOrder entity.
@@ -66,6 +67,34 @@ func (_c *LabOrderCreate) SetStatus(v laborder.Status) *LabOrderCreate {
 func (_c *LabOrderCreate) SetNillableStatus(v *laborder.Status) *LabOrderCreate {
 	if v != nil {
 		_c.SetStatus(*v)
+	}
+	return _c
+}
+
+// SetPaymentOrderID sets the "payment_order_id" field.
+func (_c *LabOrderCreate) SetPaymentOrderID(v uuid.UUID) *LabOrderCreate {
+	_c.mutation.SetPaymentOrderID(v)
+	return _c
+}
+
+// SetNillablePaymentOrderID sets the "payment_order_id" field if the given value is not nil.
+func (_c *LabOrderCreate) SetNillablePaymentOrderID(v *uuid.UUID) *LabOrderCreate {
+	if v != nil {
+		_c.SetPaymentOrderID(*v)
+	}
+	return _c
+}
+
+// SetTotalAmount sets the "total_amount" field.
+func (_c *LabOrderCreate) SetTotalAmount(v decimal.Decimal) *LabOrderCreate {
+	_c.mutation.SetTotalAmount(v)
+	return _c
+}
+
+// SetNillableTotalAmount sets the "total_amount" field if the given value is not nil.
+func (_c *LabOrderCreate) SetNillableTotalAmount(v *decimal.Decimal) *LabOrderCreate {
+	if v != nil {
+		_c.SetTotalAmount(*v)
 	}
 	return _c
 }
@@ -253,6 +282,14 @@ func (_c *LabOrderCreate) createSpec() (*LabOrder, *sqlgraph.CreateSpec) {
 		_spec.SetField(laborder.FieldStatus, field.TypeEnum, value)
 		_node.Status = value
 	}
+	if value, ok := _c.mutation.PaymentOrderID(); ok {
+		_spec.SetField(laborder.FieldPaymentOrderID, field.TypeUUID, value)
+		_node.PaymentOrderID = &value
+	}
+	if value, ok := _c.mutation.TotalAmount(); ok {
+		_spec.SetField(laborder.FieldTotalAmount, field.TypeFloat64, value)
+		_node.TotalAmount = value
+	}
 	if value, ok := _c.mutation.Notes(); ok {
 		_spec.SetField(laborder.FieldNotes, field.TypeString, value)
 		_node.Notes = value
@@ -380,6 +417,48 @@ func (u *LabOrderUpsert) SetStatus(v laborder.Status) *LabOrderUpsert {
 // UpdateStatus sets the "status" field to the value that was provided on create.
 func (u *LabOrderUpsert) UpdateStatus() *LabOrderUpsert {
 	u.SetExcluded(laborder.FieldStatus)
+	return u
+}
+
+// SetPaymentOrderID sets the "payment_order_id" field.
+func (u *LabOrderUpsert) SetPaymentOrderID(v uuid.UUID) *LabOrderUpsert {
+	u.Set(laborder.FieldPaymentOrderID, v)
+	return u
+}
+
+// UpdatePaymentOrderID sets the "payment_order_id" field to the value that was provided on create.
+func (u *LabOrderUpsert) UpdatePaymentOrderID() *LabOrderUpsert {
+	u.SetExcluded(laborder.FieldPaymentOrderID)
+	return u
+}
+
+// ClearPaymentOrderID clears the value of the "payment_order_id" field.
+func (u *LabOrderUpsert) ClearPaymentOrderID() *LabOrderUpsert {
+	u.SetNull(laborder.FieldPaymentOrderID)
+	return u
+}
+
+// SetTotalAmount sets the "total_amount" field.
+func (u *LabOrderUpsert) SetTotalAmount(v decimal.Decimal) *LabOrderUpsert {
+	u.Set(laborder.FieldTotalAmount, v)
+	return u
+}
+
+// UpdateTotalAmount sets the "total_amount" field to the value that was provided on create.
+func (u *LabOrderUpsert) UpdateTotalAmount() *LabOrderUpsert {
+	u.SetExcluded(laborder.FieldTotalAmount)
+	return u
+}
+
+// AddTotalAmount adds v to the "total_amount" field.
+func (u *LabOrderUpsert) AddTotalAmount(v decimal.Decimal) *LabOrderUpsert {
+	u.Add(laborder.FieldTotalAmount, v)
+	return u
+}
+
+// ClearTotalAmount clears the value of the "total_amount" field.
+func (u *LabOrderUpsert) ClearTotalAmount() *LabOrderUpsert {
+	u.SetNull(laborder.FieldTotalAmount)
 	return u
 }
 
@@ -544,6 +623,55 @@ func (u *LabOrderUpsertOne) SetStatus(v laborder.Status) *LabOrderUpsertOne {
 func (u *LabOrderUpsertOne) UpdateStatus() *LabOrderUpsertOne {
 	return u.Update(func(s *LabOrderUpsert) {
 		s.UpdateStatus()
+	})
+}
+
+// SetPaymentOrderID sets the "payment_order_id" field.
+func (u *LabOrderUpsertOne) SetPaymentOrderID(v uuid.UUID) *LabOrderUpsertOne {
+	return u.Update(func(s *LabOrderUpsert) {
+		s.SetPaymentOrderID(v)
+	})
+}
+
+// UpdatePaymentOrderID sets the "payment_order_id" field to the value that was provided on create.
+func (u *LabOrderUpsertOne) UpdatePaymentOrderID() *LabOrderUpsertOne {
+	return u.Update(func(s *LabOrderUpsert) {
+		s.UpdatePaymentOrderID()
+	})
+}
+
+// ClearPaymentOrderID clears the value of the "payment_order_id" field.
+func (u *LabOrderUpsertOne) ClearPaymentOrderID() *LabOrderUpsertOne {
+	return u.Update(func(s *LabOrderUpsert) {
+		s.ClearPaymentOrderID()
+	})
+}
+
+// SetTotalAmount sets the "total_amount" field.
+func (u *LabOrderUpsertOne) SetTotalAmount(v decimal.Decimal) *LabOrderUpsertOne {
+	return u.Update(func(s *LabOrderUpsert) {
+		s.SetTotalAmount(v)
+	})
+}
+
+// AddTotalAmount adds v to the "total_amount" field.
+func (u *LabOrderUpsertOne) AddTotalAmount(v decimal.Decimal) *LabOrderUpsertOne {
+	return u.Update(func(s *LabOrderUpsert) {
+		s.AddTotalAmount(v)
+	})
+}
+
+// UpdateTotalAmount sets the "total_amount" field to the value that was provided on create.
+func (u *LabOrderUpsertOne) UpdateTotalAmount() *LabOrderUpsertOne {
+	return u.Update(func(s *LabOrderUpsert) {
+		s.UpdateTotalAmount()
+	})
+}
+
+// ClearTotalAmount clears the value of the "total_amount" field.
+func (u *LabOrderUpsertOne) ClearTotalAmount() *LabOrderUpsertOne {
+	return u.Update(func(s *LabOrderUpsert) {
+		s.ClearTotalAmount()
 	})
 }
 
@@ -881,6 +1009,55 @@ func (u *LabOrderUpsertBulk) SetStatus(v laborder.Status) *LabOrderUpsertBulk {
 func (u *LabOrderUpsertBulk) UpdateStatus() *LabOrderUpsertBulk {
 	return u.Update(func(s *LabOrderUpsert) {
 		s.UpdateStatus()
+	})
+}
+
+// SetPaymentOrderID sets the "payment_order_id" field.
+func (u *LabOrderUpsertBulk) SetPaymentOrderID(v uuid.UUID) *LabOrderUpsertBulk {
+	return u.Update(func(s *LabOrderUpsert) {
+		s.SetPaymentOrderID(v)
+	})
+}
+
+// UpdatePaymentOrderID sets the "payment_order_id" field to the value that was provided on create.
+func (u *LabOrderUpsertBulk) UpdatePaymentOrderID() *LabOrderUpsertBulk {
+	return u.Update(func(s *LabOrderUpsert) {
+		s.UpdatePaymentOrderID()
+	})
+}
+
+// ClearPaymentOrderID clears the value of the "payment_order_id" field.
+func (u *LabOrderUpsertBulk) ClearPaymentOrderID() *LabOrderUpsertBulk {
+	return u.Update(func(s *LabOrderUpsert) {
+		s.ClearPaymentOrderID()
+	})
+}
+
+// SetTotalAmount sets the "total_amount" field.
+func (u *LabOrderUpsertBulk) SetTotalAmount(v decimal.Decimal) *LabOrderUpsertBulk {
+	return u.Update(func(s *LabOrderUpsert) {
+		s.SetTotalAmount(v)
+	})
+}
+
+// AddTotalAmount adds v to the "total_amount" field.
+func (u *LabOrderUpsertBulk) AddTotalAmount(v decimal.Decimal) *LabOrderUpsertBulk {
+	return u.Update(func(s *LabOrderUpsert) {
+		s.AddTotalAmount(v)
+	})
+}
+
+// UpdateTotalAmount sets the "total_amount" field to the value that was provided on create.
+func (u *LabOrderUpsertBulk) UpdateTotalAmount() *LabOrderUpsertBulk {
+	return u.Update(func(s *LabOrderUpsert) {
+		s.UpdateTotalAmount()
+	})
+}
+
+// ClearTotalAmount clears the value of the "total_amount" field.
+func (u *LabOrderUpsertBulk) ClearTotalAmount() *LabOrderUpsertBulk {
+	return u.Update(func(s *LabOrderUpsert) {
+		s.ClearTotalAmount()
 	})
 }
 

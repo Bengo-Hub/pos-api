@@ -213,6 +213,18 @@ func (f DailyClosingFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.DailyClosingMutation", m)
 }
 
+// The DiagnosisCatalogFunc type is an adapter to allow the use of ordinary
+// function as DiagnosisCatalog mutator.
+type DiagnosisCatalogFunc func(context.Context, *ent.DiagnosisCatalogMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f DiagnosisCatalogFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.DiagnosisCatalogMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.DiagnosisCatalogMutation", m)
+}
+
 // The DocumentSequenceFunc type is an adapter to allow the use of ordinary
 // function as DocumentSequence mutator.
 type DocumentSequenceFunc func(context.Context, *ent.DocumentSequenceMutation) (ent.Value, error)
@@ -439,6 +451,18 @@ func (f LabOrderLineFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.LabOrderLineMutation", m)
+}
+
+// The LabTestFunc type is an adapter to allow the use of ordinary
+// function as LabTest mutator.
+type LabTestFunc func(context.Context, *ent.LabTestMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f LabTestFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.LabTestMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.LabTestMutation", m)
 }
 
 // The LayawayPaymentFunc type is an adapter to allow the use of ordinary

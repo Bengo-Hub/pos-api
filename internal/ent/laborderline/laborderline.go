@@ -17,6 +17,10 @@ const (
 	FieldID = "id"
 	// FieldLabOrderID holds the string denoting the lab_order_id field in the database.
 	FieldLabOrderID = "lab_order_id"
+	// FieldLabTestID holds the string denoting the lab_test_id field in the database.
+	FieldLabTestID = "lab_test_id"
+	// FieldPrice holds the string denoting the price field in the database.
+	FieldPrice = "price"
 	// FieldTestName holds the string denoting the test_name field in the database.
 	FieldTestName = "test_name"
 	// FieldResult holds the string denoting the result field in the database.
@@ -43,6 +47,8 @@ const (
 var Columns = []string{
 	FieldID,
 	FieldLabOrderID,
+	FieldLabTestID,
+	FieldPrice,
 	FieldTestName,
 	FieldResult,
 	FieldUnit,
@@ -112,6 +118,16 @@ func ByID(opts ...sql.OrderTermOption) OrderOption {
 // ByLabOrderID orders the results by the lab_order_id field.
 func ByLabOrderID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldLabOrderID, opts...).ToFunc()
+}
+
+// ByLabTestID orders the results by the lab_test_id field.
+func ByLabTestID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLabTestID, opts...).ToFunc()
+}
+
+// ByPrice orders the results by the price field.
+func ByPrice(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPrice, opts...).ToFunc()
 }
 
 // ByTestName orders the results by the test_name field.

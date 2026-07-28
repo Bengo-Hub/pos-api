@@ -53,8 +53,16 @@ func (h *PharmacyHandler) CheckoutPrescription(w http.ResponseWriter, r *http.Re
 		jsonError(w, "prescription not found", http.StatusNotFound)
 		return
 	}
-	if px.Status != "dispensed" {
-		jsonError(w, "prescription must be dispensed before checkout", http.StatusConflict)
+	// Two valid orders of operation, both landing on the same order+stock model:
+	//   direct mode  — dispense first (stock consumed via the reservation), then take payment.
+	//   billing mode — a cashier picks the approved script off the Bills queue, takes payment,
+	//                  and dispenses on handover.
+	// Either way stock moves exactly once, at Dispense (ConsumeReservation), and the resulting
+	// order is always tagged skip_inventory so payment never deducts a second time.
+	switch px.Status {
+	case "approved", "locked", "dispensed":
+	default:
+		jsonError(w, "prescription must be approved before checkout", http.StatusConflict)
 		return
 	}
 	if px.OrderID != nil {
@@ -62,11 +70,13 @@ func (h *PharmacyHandler) CheckoutPrescription(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	// Pending lines are included so a pre-dispense (billing-mode) checkout bills the prescribed
+	// quantity; the per-line qty fallback below already prefers dispensed-qty when it exists.
 	lines, err := h.db.PrescriptionLine.Query().
-		Where(entpxl.PrescriptionID(pxID), entpxl.StatusEQ("dispensed")).
+		Where(entpxl.PrescriptionID(pxID), entpxl.StatusIn("pending", "dispensed")).
 		All(r.Context())
 	if err != nil || len(lines) == 0 {
-		jsonError(w, "no dispensed drug lines to check out", http.StatusUnprocessableEntity)
+		jsonError(w, "no drug lines to check out", http.StatusUnprocessableEntity)
 		return
 	}
 

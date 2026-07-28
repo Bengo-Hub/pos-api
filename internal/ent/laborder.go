@@ -11,6 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"github.com/bengobox/pos-service/internal/ent/laborder"
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 )
 
 // LabOrder is the model entity for the LabOrder schema.
@@ -28,6 +29,10 @@ type LabOrder struct {
 	OrderedBy uuid.UUID `json:"ordered_by,omitempty"`
 	// Status holds the value of the "status" field.
 	Status laborder.Status `json:"status,omitempty"`
+	// PaymentOrderID holds the value of the "payment_order_id" field.
+	PaymentOrderID *uuid.UUID `json:"payment_order_id,omitempty"`
+	// TotalAmount holds the value of the "total_amount" field.
+	TotalAmount decimal.Decimal `json:"total_amount,omitempty"`
 	// Notes holds the value of the "notes" field.
 	Notes string `json:"notes,omitempty"`
 	// OrderedAt holds the value of the "ordered_at" field.
@@ -42,8 +47,10 @@ func (*LabOrder) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case laborder.FieldExaminationID:
+		case laborder.FieldExaminationID, laborder.FieldPaymentOrderID:
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
+		case laborder.FieldTotalAmount:
+			values[i] = new(decimal.Decimal)
 		case laborder.FieldStatus, laborder.FieldNotes:
 			values[i] = new(sql.NullString)
 		case laborder.FieldOrderedAt, laborder.FieldCompletedAt:
@@ -101,6 +108,19 @@ func (_m *LabOrder) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field status", values[i])
 			} else if value.Valid {
 				_m.Status = laborder.Status(value.String)
+			}
+		case laborder.FieldPaymentOrderID:
+			if value, ok := values[i].(*sql.NullScanner); !ok {
+				return fmt.Errorf("unexpected type %T for field payment_order_id", values[i])
+			} else if value.Valid {
+				_m.PaymentOrderID = new(uuid.UUID)
+				*_m.PaymentOrderID = *value.S.(*uuid.UUID)
+			}
+		case laborder.FieldTotalAmount:
+			if value, ok := values[i].(*decimal.Decimal); !ok {
+				return fmt.Errorf("unexpected type %T for field total_amount", values[i])
+			} else if value != nil {
+				_m.TotalAmount = *value
 			}
 		case laborder.FieldNotes:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -173,6 +193,14 @@ func (_m *LabOrder) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("status=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Status))
+	builder.WriteString(", ")
+	if v := _m.PaymentOrderID; v != nil {
+		builder.WriteString("payment_order_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("total_amount=")
+	builder.WriteString(fmt.Sprintf("%v", _m.TotalAmount))
 	builder.WriteString(", ")
 	builder.WriteString("notes=")
 	builder.WriteString(_m.Notes)

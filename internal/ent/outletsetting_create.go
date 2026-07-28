@@ -767,6 +767,34 @@ func (_c *OutletSettingCreate) SetNillableRegistrationFeeCatalogItemID(v *uuid.U
 	return _c
 }
 
+// SetPharmacyWorkflowMode sets the "pharmacy_workflow_mode" field.
+func (_c *OutletSettingCreate) SetPharmacyWorkflowMode(v outletsetting.PharmacyWorkflowMode) *OutletSettingCreate {
+	_c.mutation.SetPharmacyWorkflowMode(v)
+	return _c
+}
+
+// SetNillablePharmacyWorkflowMode sets the "pharmacy_workflow_mode" field if the given value is not nil.
+func (_c *OutletSettingCreate) SetNillablePharmacyWorkflowMode(v *outletsetting.PharmacyWorkflowMode) *OutletSettingCreate {
+	if v != nil {
+		_c.SetPharmacyWorkflowMode(*v)
+	}
+	return _c
+}
+
+// SetRequireLabPrepayment sets the "require_lab_prepayment" field.
+func (_c *OutletSettingCreate) SetRequireLabPrepayment(v bool) *OutletSettingCreate {
+	_c.mutation.SetRequireLabPrepayment(v)
+	return _c
+}
+
+// SetNillableRequireLabPrepayment sets the "require_lab_prepayment" field if the given value is not nil.
+func (_c *OutletSettingCreate) SetNillableRequireLabPrepayment(v *bool) *OutletSettingCreate {
+	if v != nil {
+		_c.SetRequireLabPrepayment(*v)
+	}
+	return _c
+}
+
 // SetShiftAutoEndEnabled sets the "shift_auto_end_enabled" field.
 func (_c *OutletSettingCreate) SetShiftAutoEndEnabled(v bool) *OutletSettingCreate {
 	_c.mutation.SetShiftAutoEndEnabled(v)
@@ -1093,6 +1121,14 @@ func (_c *OutletSettingCreate) defaults() {
 		v := outletsetting.DefaultRequireRegistrationFee
 		_c.mutation.SetRequireRegistrationFee(v)
 	}
+	if _, ok := _c.mutation.PharmacyWorkflowMode(); !ok {
+		v := outletsetting.DefaultPharmacyWorkflowMode
+		_c.mutation.SetPharmacyWorkflowMode(v)
+	}
+	if _, ok := _c.mutation.RequireLabPrepayment(); !ok {
+		v := outletsetting.DefaultRequireLabPrepayment
+		_c.mutation.SetRequireLabPrepayment(v)
+	}
 	if _, ok := _c.mutation.ShiftAutoEndEnabled(); !ok {
 		v := outletsetting.DefaultShiftAutoEndEnabled
 		_c.mutation.SetShiftAutoEndEnabled(v)
@@ -1139,6 +1175,11 @@ func (_c *OutletSettingCreate) check() error {
 	if v, ok := _c.mutation.ReceiptFormat(); ok {
 		if err := outletsetting.ReceiptFormatValidator(v); err != nil {
 			return &ValidationError{Name: "receipt_format", err: fmt.Errorf(`ent: validator failed for field "OutletSetting.receipt_format": %w`, err)}
+		}
+	}
+	if v, ok := _c.mutation.PharmacyWorkflowMode(); ok {
+		if err := outletsetting.PharmacyWorkflowModeValidator(v); err != nil {
+			return &ValidationError{Name: "pharmacy_workflow_mode", err: fmt.Errorf(`ent: validator failed for field "OutletSetting.pharmacy_workflow_mode": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.UpdatedAt(); !ok {
@@ -1406,6 +1447,14 @@ func (_c *OutletSettingCreate) createSpec() (*OutletSetting, *sqlgraph.CreateSpe
 	if value, ok := _c.mutation.RegistrationFeeCatalogItemID(); ok {
 		_spec.SetField(outletsetting.FieldRegistrationFeeCatalogItemID, field.TypeUUID, value)
 		_node.RegistrationFeeCatalogItemID = &value
+	}
+	if value, ok := _c.mutation.PharmacyWorkflowMode(); ok {
+		_spec.SetField(outletsetting.FieldPharmacyWorkflowMode, field.TypeEnum, value)
+		_node.PharmacyWorkflowMode = value
+	}
+	if value, ok := _c.mutation.RequireLabPrepayment(); ok {
+		_spec.SetField(outletsetting.FieldRequireLabPrepayment, field.TypeBool, value)
+		_node.RequireLabPrepayment = value
 	}
 	if value, ok := _c.mutation.ShiftAutoEndEnabled(); ok {
 		_spec.SetField(outletsetting.FieldShiftAutoEndEnabled, field.TypeBool, value)
@@ -2545,6 +2594,42 @@ func (u *OutletSettingUpsert) UpdateRegistrationFeeCatalogItemID() *OutletSettin
 // ClearRegistrationFeeCatalogItemID clears the value of the "registration_fee_catalog_item_id" field.
 func (u *OutletSettingUpsert) ClearRegistrationFeeCatalogItemID() *OutletSettingUpsert {
 	u.SetNull(outletsetting.FieldRegistrationFeeCatalogItemID)
+	return u
+}
+
+// SetPharmacyWorkflowMode sets the "pharmacy_workflow_mode" field.
+func (u *OutletSettingUpsert) SetPharmacyWorkflowMode(v outletsetting.PharmacyWorkflowMode) *OutletSettingUpsert {
+	u.Set(outletsetting.FieldPharmacyWorkflowMode, v)
+	return u
+}
+
+// UpdatePharmacyWorkflowMode sets the "pharmacy_workflow_mode" field to the value that was provided on create.
+func (u *OutletSettingUpsert) UpdatePharmacyWorkflowMode() *OutletSettingUpsert {
+	u.SetExcluded(outletsetting.FieldPharmacyWorkflowMode)
+	return u
+}
+
+// ClearPharmacyWorkflowMode clears the value of the "pharmacy_workflow_mode" field.
+func (u *OutletSettingUpsert) ClearPharmacyWorkflowMode() *OutletSettingUpsert {
+	u.SetNull(outletsetting.FieldPharmacyWorkflowMode)
+	return u
+}
+
+// SetRequireLabPrepayment sets the "require_lab_prepayment" field.
+func (u *OutletSettingUpsert) SetRequireLabPrepayment(v bool) *OutletSettingUpsert {
+	u.Set(outletsetting.FieldRequireLabPrepayment, v)
+	return u
+}
+
+// UpdateRequireLabPrepayment sets the "require_lab_prepayment" field to the value that was provided on create.
+func (u *OutletSettingUpsert) UpdateRequireLabPrepayment() *OutletSettingUpsert {
+	u.SetExcluded(outletsetting.FieldRequireLabPrepayment)
+	return u
+}
+
+// ClearRequireLabPrepayment clears the value of the "require_lab_prepayment" field.
+func (u *OutletSettingUpsert) ClearRequireLabPrepayment() *OutletSettingUpsert {
+	u.SetNull(outletsetting.FieldRequireLabPrepayment)
 	return u
 }
 
@@ -3989,6 +4074,48 @@ func (u *OutletSettingUpsertOne) UpdateRegistrationFeeCatalogItemID() *OutletSet
 func (u *OutletSettingUpsertOne) ClearRegistrationFeeCatalogItemID() *OutletSettingUpsertOne {
 	return u.Update(func(s *OutletSettingUpsert) {
 		s.ClearRegistrationFeeCatalogItemID()
+	})
+}
+
+// SetPharmacyWorkflowMode sets the "pharmacy_workflow_mode" field.
+func (u *OutletSettingUpsertOne) SetPharmacyWorkflowMode(v outletsetting.PharmacyWorkflowMode) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetPharmacyWorkflowMode(v)
+	})
+}
+
+// UpdatePharmacyWorkflowMode sets the "pharmacy_workflow_mode" field to the value that was provided on create.
+func (u *OutletSettingUpsertOne) UpdatePharmacyWorkflowMode() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdatePharmacyWorkflowMode()
+	})
+}
+
+// ClearPharmacyWorkflowMode clears the value of the "pharmacy_workflow_mode" field.
+func (u *OutletSettingUpsertOne) ClearPharmacyWorkflowMode() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearPharmacyWorkflowMode()
+	})
+}
+
+// SetRequireLabPrepayment sets the "require_lab_prepayment" field.
+func (u *OutletSettingUpsertOne) SetRequireLabPrepayment(v bool) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetRequireLabPrepayment(v)
+	})
+}
+
+// UpdateRequireLabPrepayment sets the "require_lab_prepayment" field to the value that was provided on create.
+func (u *OutletSettingUpsertOne) UpdateRequireLabPrepayment() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateRequireLabPrepayment()
+	})
+}
+
+// ClearRequireLabPrepayment clears the value of the "require_lab_prepayment" field.
+func (u *OutletSettingUpsertOne) ClearRequireLabPrepayment() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearRequireLabPrepayment()
 	})
 }
 
@@ -5632,6 +5759,48 @@ func (u *OutletSettingUpsertBulk) UpdateRegistrationFeeCatalogItemID() *OutletSe
 func (u *OutletSettingUpsertBulk) ClearRegistrationFeeCatalogItemID() *OutletSettingUpsertBulk {
 	return u.Update(func(s *OutletSettingUpsert) {
 		s.ClearRegistrationFeeCatalogItemID()
+	})
+}
+
+// SetPharmacyWorkflowMode sets the "pharmacy_workflow_mode" field.
+func (u *OutletSettingUpsertBulk) SetPharmacyWorkflowMode(v outletsetting.PharmacyWorkflowMode) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetPharmacyWorkflowMode(v)
+	})
+}
+
+// UpdatePharmacyWorkflowMode sets the "pharmacy_workflow_mode" field to the value that was provided on create.
+func (u *OutletSettingUpsertBulk) UpdatePharmacyWorkflowMode() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdatePharmacyWorkflowMode()
+	})
+}
+
+// ClearPharmacyWorkflowMode clears the value of the "pharmacy_workflow_mode" field.
+func (u *OutletSettingUpsertBulk) ClearPharmacyWorkflowMode() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearPharmacyWorkflowMode()
+	})
+}
+
+// SetRequireLabPrepayment sets the "require_lab_prepayment" field.
+func (u *OutletSettingUpsertBulk) SetRequireLabPrepayment(v bool) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetRequireLabPrepayment(v)
+	})
+}
+
+// UpdateRequireLabPrepayment sets the "require_lab_prepayment" field to the value that was provided on create.
+func (u *OutletSettingUpsertBulk) UpdateRequireLabPrepayment() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateRequireLabPrepayment()
+	})
+}
+
+// ClearRequireLabPrepayment clears the value of the "require_lab_prepayment" field.
+func (u *OutletSettingUpsertBulk) ClearRequireLabPrepayment() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearRequireLabPrepayment()
 	})
 }
 

@@ -97,6 +97,11 @@ func main() {
 	if err := seedRBACRoles(ctx, client); err != nil {
 		log.Fatalf("seed RBAC roles: %v", err)
 	}
+	// Curated diagnosis list is SHARED reference data (tenant_id = uuid.Nil), so it seeds once
+	// platform-wide rather than per tenant — same rule as roles/permissions above.
+	if err := seedGlobalDiagnoses(ctx, client); err != nil {
+		log.Printf("⚠️  seed global diagnoses: %v (non-fatal)", err)
+	}
 	// Push pos's system role catalogue to auth-api's shared Role registry (idempotent upsert by
 	// role_code, scope "pos") so auth-ui can assign these roles to members and global→service role
 	// resolution stays consistent. Best-effort: logged, never fatal (pos resolves by role_code
@@ -172,6 +177,11 @@ func runSeed(ctx context.Context, client *ent.Client, tenantID uuid.UUID, tc ten
 	// license_number field the OPD prescriber picker needs, idempotent/non-destructive).
 	if err := seedPharmacyDemoStaffLicenses(ctx, client, tenantID); err != nil {
 		log.Printf("  ⚠️  seed pharmacy staff licenses: %v (non-fatal)", err)
+	}
+
+	// Starter lab-test price list so the Examination test picker isn't empty on day one.
+	if err := seedLabTests(ctx, client, tenantID); err != nil {
+		log.Printf("  ⚠️  seed lab tests: %v (non-fatal)", err)
 	}
 
 	// Sample OPD patients + in-flight visits so Records/Triage/Examination/Lab have something to

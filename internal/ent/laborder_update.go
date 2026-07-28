@@ -14,6 +14,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/laborder"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 )
 
 // LabOrderUpdate is the builder for updating LabOrder entities.
@@ -102,6 +103,53 @@ func (_u *LabOrderUpdate) SetNillableStatus(v *laborder.Status) *LabOrderUpdate 
 	if v != nil {
 		_u.SetStatus(*v)
 	}
+	return _u
+}
+
+// SetPaymentOrderID sets the "payment_order_id" field.
+func (_u *LabOrderUpdate) SetPaymentOrderID(v uuid.UUID) *LabOrderUpdate {
+	_u.mutation.SetPaymentOrderID(v)
+	return _u
+}
+
+// SetNillablePaymentOrderID sets the "payment_order_id" field if the given value is not nil.
+func (_u *LabOrderUpdate) SetNillablePaymentOrderID(v *uuid.UUID) *LabOrderUpdate {
+	if v != nil {
+		_u.SetPaymentOrderID(*v)
+	}
+	return _u
+}
+
+// ClearPaymentOrderID clears the value of the "payment_order_id" field.
+func (_u *LabOrderUpdate) ClearPaymentOrderID() *LabOrderUpdate {
+	_u.mutation.ClearPaymentOrderID()
+	return _u
+}
+
+// SetTotalAmount sets the "total_amount" field.
+func (_u *LabOrderUpdate) SetTotalAmount(v decimal.Decimal) *LabOrderUpdate {
+	_u.mutation.ResetTotalAmount()
+	_u.mutation.SetTotalAmount(v)
+	return _u
+}
+
+// SetNillableTotalAmount sets the "total_amount" field if the given value is not nil.
+func (_u *LabOrderUpdate) SetNillableTotalAmount(v *decimal.Decimal) *LabOrderUpdate {
+	if v != nil {
+		_u.SetTotalAmount(*v)
+	}
+	return _u
+}
+
+// AddTotalAmount adds value to the "total_amount" field.
+func (_u *LabOrderUpdate) AddTotalAmount(v decimal.Decimal) *LabOrderUpdate {
+	_u.mutation.AddTotalAmount(v)
+	return _u
+}
+
+// ClearTotalAmount clears the value of the "total_amount" field.
+func (_u *LabOrderUpdate) ClearTotalAmount() *LabOrderUpdate {
+	_u.mutation.ClearTotalAmount()
 	return _u
 }
 
@@ -217,6 +265,21 @@ func (_u *LabOrderUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(laborder.FieldStatus, field.TypeEnum, value)
 	}
+	if value, ok := _u.mutation.PaymentOrderID(); ok {
+		_spec.SetField(laborder.FieldPaymentOrderID, field.TypeUUID, value)
+	}
+	if _u.mutation.PaymentOrderIDCleared() {
+		_spec.ClearField(laborder.FieldPaymentOrderID, field.TypeUUID)
+	}
+	if value, ok := _u.mutation.TotalAmount(); ok {
+		_spec.SetField(laborder.FieldTotalAmount, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedTotalAmount(); ok {
+		_spec.AddField(laborder.FieldTotalAmount, field.TypeFloat64, value)
+	}
+	if _u.mutation.TotalAmountCleared() {
+		_spec.ClearField(laborder.FieldTotalAmount, field.TypeFloat64)
+	}
 	if value, ok := _u.mutation.Notes(); ok {
 		_spec.SetField(laborder.FieldNotes, field.TypeString, value)
 	}
@@ -322,6 +385,53 @@ func (_u *LabOrderUpdateOne) SetNillableStatus(v *laborder.Status) *LabOrderUpda
 	if v != nil {
 		_u.SetStatus(*v)
 	}
+	return _u
+}
+
+// SetPaymentOrderID sets the "payment_order_id" field.
+func (_u *LabOrderUpdateOne) SetPaymentOrderID(v uuid.UUID) *LabOrderUpdateOne {
+	_u.mutation.SetPaymentOrderID(v)
+	return _u
+}
+
+// SetNillablePaymentOrderID sets the "payment_order_id" field if the given value is not nil.
+func (_u *LabOrderUpdateOne) SetNillablePaymentOrderID(v *uuid.UUID) *LabOrderUpdateOne {
+	if v != nil {
+		_u.SetPaymentOrderID(*v)
+	}
+	return _u
+}
+
+// ClearPaymentOrderID clears the value of the "payment_order_id" field.
+func (_u *LabOrderUpdateOne) ClearPaymentOrderID() *LabOrderUpdateOne {
+	_u.mutation.ClearPaymentOrderID()
+	return _u
+}
+
+// SetTotalAmount sets the "total_amount" field.
+func (_u *LabOrderUpdateOne) SetTotalAmount(v decimal.Decimal) *LabOrderUpdateOne {
+	_u.mutation.ResetTotalAmount()
+	_u.mutation.SetTotalAmount(v)
+	return _u
+}
+
+// SetNillableTotalAmount sets the "total_amount" field if the given value is not nil.
+func (_u *LabOrderUpdateOne) SetNillableTotalAmount(v *decimal.Decimal) *LabOrderUpdateOne {
+	if v != nil {
+		_u.SetTotalAmount(*v)
+	}
+	return _u
+}
+
+// AddTotalAmount adds value to the "total_amount" field.
+func (_u *LabOrderUpdateOne) AddTotalAmount(v decimal.Decimal) *LabOrderUpdateOne {
+	_u.mutation.AddTotalAmount(v)
+	return _u
+}
+
+// ClearTotalAmount clears the value of the "total_amount" field.
+func (_u *LabOrderUpdateOne) ClearTotalAmount() *LabOrderUpdateOne {
+	_u.mutation.ClearTotalAmount()
 	return _u
 }
 
@@ -466,6 +576,21 @@ func (_u *LabOrderUpdateOne) sqlSave(ctx context.Context) (_node *LabOrder, err 
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(laborder.FieldStatus, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.PaymentOrderID(); ok {
+		_spec.SetField(laborder.FieldPaymentOrderID, field.TypeUUID, value)
+	}
+	if _u.mutation.PaymentOrderIDCleared() {
+		_spec.ClearField(laborder.FieldPaymentOrderID, field.TypeUUID)
+	}
+	if value, ok := _u.mutation.TotalAmount(); ok {
+		_spec.SetField(laborder.FieldTotalAmount, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedTotalAmount(); ok {
+		_spec.AddField(laborder.FieldTotalAmount, field.TypeFloat64, value)
+	}
+	if _u.mutation.TotalAmountCleared() {
+		_spec.ClearField(laborder.FieldTotalAmount, field.TypeFloat64)
 	}
 	if value, ok := _u.mutation.Notes(); ok {
 		_spec.SetField(laborder.FieldNotes, field.TypeString, value)

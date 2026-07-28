@@ -118,6 +118,18 @@ func (OutletSetting) Fields() []ent.Field {
 		field.Bool("require_registration_fee").Default(false).Optional().Comment("Block triage until the registration/consultation fee order is paid"),
 		field.UUID("registration_fee_catalog_item_id", uuid.UUID{}).Optional().Nillable().
 			Comment("SERVICE catalog item billed as the registration/consultation fee at Records intake"),
+		// How a prescription reaches payment, independent of the OPD module toggles above:
+		//   direct  — whoever writes the prescription also takes payment and hands over the
+		//             medicine (small chemist: one person behind the counter).
+		//   billing — the prescriber posts the script to a shared Bills queue; ANY cashier picks
+		//             it up, takes payment and issues the medicine (mid-size pharmacy, mirrors the
+		//             hospitality waiter-posts / cashier-settles split).
+		field.Enum("pharmacy_workflow_mode").
+			Values("direct", "billing").
+			Default("direct").
+			Optional(),
+		field.Bool("require_lab_prepayment").Default(true).Optional().
+			Comment("Lab orders stay awaiting_payment (invisible to the Lab module) until their bill is settled"),
 		// Shift duration enforcement
 		field.Bool("shift_auto_end_enabled").Default(false).Optional().Comment("Automatically end shift after shift_max_hours to prevent forgotten open sessions"),
 		field.Int("shift_max_hours").Default(12).Optional().Comment("Maximum shift length in hours before auto-end (1–24, default 12)"),

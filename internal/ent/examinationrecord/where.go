@@ -375,6 +375,16 @@ func DiagnosisContainsFold(v string) predicate.ExaminationRecord {
 	return predicate.ExaminationRecord(sql.FieldContainsFold(FieldDiagnosis, v))
 }
 
+// DiagnosisCodesIsNil applies the IsNil predicate on the "diagnosis_codes" field.
+func DiagnosisCodesIsNil() predicate.ExaminationRecord {
+	return predicate.ExaminationRecord(sql.FieldIsNull(FieldDiagnosisCodes))
+}
+
+// DiagnosisCodesNotNil applies the NotNil predicate on the "diagnosis_codes" field.
+func DiagnosisCodesNotNil() predicate.ExaminationRecord {
+	return predicate.ExaminationRecord(sql.FieldNotNull(FieldDiagnosisCodes))
+}
+
 // ClinicalNotesEQ applies the EQ predicate on the "clinical_notes" field.
 func ClinicalNotesEQ(v string) predicate.ExaminationRecord {
 	return predicate.ExaminationRecord(sql.FieldEQ(FieldClinicalNotes, v))

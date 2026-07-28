@@ -48,6 +48,11 @@ func (h *ClinicalHandler) ListLabOrders(w http.ResponseWriter, r *http.Request) 
 	q := h.db.LabOrder.Query().Where(entlaborder.TenantID(tid))
 	if status := r.URL.Query().Get("status"); status != "" {
 		q = q.Where(entlaborder.StatusEQ(entlaborder.Status(status)))
+	} else {
+		// The Lab module never shows unpaid work: an awaiting_payment order only becomes visible
+		// once its bill is settled (see ActivateLabOrderIfPaid). Callers that specifically want to
+		// inspect unpaid orders can still ask for ?status=awaiting_payment.
+		q = q.Where(entlaborder.StatusNEQ(entlaborder.StatusAwaitingPayment))
 	}
 	rows, err := q.Order(ent.Desc(entlaborder.FieldOrderedAt)).Limit(100).All(r.Context())
 	if err != nil {

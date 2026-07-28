@@ -70,6 +70,12 @@ func (_c *ExaminationRecordCreate) SetNillableDiagnosis(v *string) *ExaminationR
 	return _c
 }
 
+// SetDiagnosisCodes sets the "diagnosis_codes" field.
+func (_c *ExaminationRecordCreate) SetDiagnosisCodes(v []string) *ExaminationRecordCreate {
+	_c.mutation.SetDiagnosisCodes(v)
+	return _c
+}
+
 // SetClinicalNotes sets the "clinical_notes" field.
 func (_c *ExaminationRecordCreate) SetClinicalNotes(v string) *ExaminationRecordCreate {
 	_c.mutation.SetClinicalNotes(v)
@@ -203,6 +209,10 @@ func (_c *ExaminationRecordCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *ExaminationRecordCreate) defaults() {
+	if _, ok := _c.mutation.DiagnosisCodes(); !ok {
+		v := examinationrecord.DefaultDiagnosisCodes
+		_c.mutation.SetDiagnosisCodes(v)
+	}
 	if _, ok := _c.mutation.LabRequested(); !ok {
 		v := examinationrecord.DefaultLabRequested
 		_c.mutation.SetLabRequested(v)
@@ -301,6 +311,10 @@ func (_c *ExaminationRecordCreate) createSpec() (*ExaminationRecord, *sqlgraph.C
 	if value, ok := _c.mutation.Diagnosis(); ok {
 		_spec.SetField(examinationrecord.FieldDiagnosis, field.TypeString, value)
 		_node.Diagnosis = value
+	}
+	if value, ok := _c.mutation.DiagnosisCodes(); ok {
+		_spec.SetField(examinationrecord.FieldDiagnosisCodes, field.TypeJSON, value)
+		_node.DiagnosisCodes = value
 	}
 	if value, ok := _c.mutation.ClinicalNotes(); ok {
 		_spec.SetField(examinationrecord.FieldClinicalNotes, field.TypeString, value)
@@ -447,6 +461,24 @@ func (u *ExaminationRecordUpsert) UpdateDiagnosis() *ExaminationRecordUpsert {
 // ClearDiagnosis clears the value of the "diagnosis" field.
 func (u *ExaminationRecordUpsert) ClearDiagnosis() *ExaminationRecordUpsert {
 	u.SetNull(examinationrecord.FieldDiagnosis)
+	return u
+}
+
+// SetDiagnosisCodes sets the "diagnosis_codes" field.
+func (u *ExaminationRecordUpsert) SetDiagnosisCodes(v []string) *ExaminationRecordUpsert {
+	u.Set(examinationrecord.FieldDiagnosisCodes, v)
+	return u
+}
+
+// UpdateDiagnosisCodes sets the "diagnosis_codes" field to the value that was provided on create.
+func (u *ExaminationRecordUpsert) UpdateDiagnosisCodes() *ExaminationRecordUpsert {
+	u.SetExcluded(examinationrecord.FieldDiagnosisCodes)
+	return u
+}
+
+// ClearDiagnosisCodes clears the value of the "diagnosis_codes" field.
+func (u *ExaminationRecordUpsert) ClearDiagnosisCodes() *ExaminationRecordUpsert {
+	u.SetNull(examinationrecord.FieldDiagnosisCodes)
 	return u
 }
 
@@ -669,6 +701,27 @@ func (u *ExaminationRecordUpsertOne) UpdateDiagnosis() *ExaminationRecordUpsertO
 func (u *ExaminationRecordUpsertOne) ClearDiagnosis() *ExaminationRecordUpsertOne {
 	return u.Update(func(s *ExaminationRecordUpsert) {
 		s.ClearDiagnosis()
+	})
+}
+
+// SetDiagnosisCodes sets the "diagnosis_codes" field.
+func (u *ExaminationRecordUpsertOne) SetDiagnosisCodes(v []string) *ExaminationRecordUpsertOne {
+	return u.Update(func(s *ExaminationRecordUpsert) {
+		s.SetDiagnosisCodes(v)
+	})
+}
+
+// UpdateDiagnosisCodes sets the "diagnosis_codes" field to the value that was provided on create.
+func (u *ExaminationRecordUpsertOne) UpdateDiagnosisCodes() *ExaminationRecordUpsertOne {
+	return u.Update(func(s *ExaminationRecordUpsert) {
+		s.UpdateDiagnosisCodes()
+	})
+}
+
+// ClearDiagnosisCodes clears the value of the "diagnosis_codes" field.
+func (u *ExaminationRecordUpsertOne) ClearDiagnosisCodes() *ExaminationRecordUpsertOne {
+	return u.Update(func(s *ExaminationRecordUpsert) {
+		s.ClearDiagnosisCodes()
 	})
 }
 
@@ -1073,6 +1126,27 @@ func (u *ExaminationRecordUpsertBulk) UpdateDiagnosis() *ExaminationRecordUpsert
 func (u *ExaminationRecordUpsertBulk) ClearDiagnosis() *ExaminationRecordUpsertBulk {
 	return u.Update(func(s *ExaminationRecordUpsert) {
 		s.ClearDiagnosis()
+	})
+}
+
+// SetDiagnosisCodes sets the "diagnosis_codes" field.
+func (u *ExaminationRecordUpsertBulk) SetDiagnosisCodes(v []string) *ExaminationRecordUpsertBulk {
+	return u.Update(func(s *ExaminationRecordUpsert) {
+		s.SetDiagnosisCodes(v)
+	})
+}
+
+// UpdateDiagnosisCodes sets the "diagnosis_codes" field to the value that was provided on create.
+func (u *ExaminationRecordUpsertBulk) UpdateDiagnosisCodes() *ExaminationRecordUpsertBulk {
+	return u.Update(func(s *ExaminationRecordUpsert) {
+		s.UpdateDiagnosisCodes()
+	})
+}
+
+// ClearDiagnosisCodes clears the value of the "diagnosis_codes" field.
+func (u *ExaminationRecordUpsertBulk) ClearDiagnosisCodes() *ExaminationRecordUpsertBulk {
+	return u.Update(func(s *ExaminationRecordUpsert) {
+		s.ClearDiagnosisCodes()
 	})
 }
 

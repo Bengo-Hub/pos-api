@@ -8,6 +8,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 )
 
 // ID filters vertices based on their ID field.
@@ -73,6 +74,16 @@ func ExaminationID(v uuid.UUID) predicate.LabOrder {
 // OrderedBy applies equality check predicate on the "ordered_by" field. It's identical to OrderedByEQ.
 func OrderedBy(v uuid.UUID) predicate.LabOrder {
 	return predicate.LabOrder(sql.FieldEQ(FieldOrderedBy, v))
+}
+
+// PaymentOrderID applies equality check predicate on the "payment_order_id" field. It's identical to PaymentOrderIDEQ.
+func PaymentOrderID(v uuid.UUID) predicate.LabOrder {
+	return predicate.LabOrder(sql.FieldEQ(FieldPaymentOrderID, v))
+}
+
+// TotalAmount applies equality check predicate on the "total_amount" field. It's identical to TotalAmountEQ.
+func TotalAmount(v decimal.Decimal) predicate.LabOrder {
+	return predicate.LabOrder(sql.FieldEQ(FieldTotalAmount, v))
 }
 
 // Notes applies equality check predicate on the "notes" field. It's identical to NotesEQ.
@@ -278,6 +289,106 @@ func StatusIn(vs ...Status) predicate.LabOrder {
 // StatusNotIn applies the NotIn predicate on the "status" field.
 func StatusNotIn(vs ...Status) predicate.LabOrder {
 	return predicate.LabOrder(sql.FieldNotIn(FieldStatus, vs...))
+}
+
+// PaymentOrderIDEQ applies the EQ predicate on the "payment_order_id" field.
+func PaymentOrderIDEQ(v uuid.UUID) predicate.LabOrder {
+	return predicate.LabOrder(sql.FieldEQ(FieldPaymentOrderID, v))
+}
+
+// PaymentOrderIDNEQ applies the NEQ predicate on the "payment_order_id" field.
+func PaymentOrderIDNEQ(v uuid.UUID) predicate.LabOrder {
+	return predicate.LabOrder(sql.FieldNEQ(FieldPaymentOrderID, v))
+}
+
+// PaymentOrderIDIn applies the In predicate on the "payment_order_id" field.
+func PaymentOrderIDIn(vs ...uuid.UUID) predicate.LabOrder {
+	return predicate.LabOrder(sql.FieldIn(FieldPaymentOrderID, vs...))
+}
+
+// PaymentOrderIDNotIn applies the NotIn predicate on the "payment_order_id" field.
+func PaymentOrderIDNotIn(vs ...uuid.UUID) predicate.LabOrder {
+	return predicate.LabOrder(sql.FieldNotIn(FieldPaymentOrderID, vs...))
+}
+
+// PaymentOrderIDGT applies the GT predicate on the "payment_order_id" field.
+func PaymentOrderIDGT(v uuid.UUID) predicate.LabOrder {
+	return predicate.LabOrder(sql.FieldGT(FieldPaymentOrderID, v))
+}
+
+// PaymentOrderIDGTE applies the GTE predicate on the "payment_order_id" field.
+func PaymentOrderIDGTE(v uuid.UUID) predicate.LabOrder {
+	return predicate.LabOrder(sql.FieldGTE(FieldPaymentOrderID, v))
+}
+
+// PaymentOrderIDLT applies the LT predicate on the "payment_order_id" field.
+func PaymentOrderIDLT(v uuid.UUID) predicate.LabOrder {
+	return predicate.LabOrder(sql.FieldLT(FieldPaymentOrderID, v))
+}
+
+// PaymentOrderIDLTE applies the LTE predicate on the "payment_order_id" field.
+func PaymentOrderIDLTE(v uuid.UUID) predicate.LabOrder {
+	return predicate.LabOrder(sql.FieldLTE(FieldPaymentOrderID, v))
+}
+
+// PaymentOrderIDIsNil applies the IsNil predicate on the "payment_order_id" field.
+func PaymentOrderIDIsNil() predicate.LabOrder {
+	return predicate.LabOrder(sql.FieldIsNull(FieldPaymentOrderID))
+}
+
+// PaymentOrderIDNotNil applies the NotNil predicate on the "payment_order_id" field.
+func PaymentOrderIDNotNil() predicate.LabOrder {
+	return predicate.LabOrder(sql.FieldNotNull(FieldPaymentOrderID))
+}
+
+// TotalAmountEQ applies the EQ predicate on the "total_amount" field.
+func TotalAmountEQ(v decimal.Decimal) predicate.LabOrder {
+	return predicate.LabOrder(sql.FieldEQ(FieldTotalAmount, v))
+}
+
+// TotalAmountNEQ applies the NEQ predicate on the "total_amount" field.
+func TotalAmountNEQ(v decimal.Decimal) predicate.LabOrder {
+	return predicate.LabOrder(sql.FieldNEQ(FieldTotalAmount, v))
+}
+
+// TotalAmountIn applies the In predicate on the "total_amount" field.
+func TotalAmountIn(vs ...decimal.Decimal) predicate.LabOrder {
+	return predicate.LabOrder(sql.FieldIn(FieldTotalAmount, vs...))
+}
+
+// TotalAmountNotIn applies the NotIn predicate on the "total_amount" field.
+func TotalAmountNotIn(vs ...decimal.Decimal) predicate.LabOrder {
+	return predicate.LabOrder(sql.FieldNotIn(FieldTotalAmount, vs...))
+}
+
+// TotalAmountGT applies the GT predicate on the "total_amount" field.
+func TotalAmountGT(v decimal.Decimal) predicate.LabOrder {
+	return predicate.LabOrder(sql.FieldGT(FieldTotalAmount, v))
+}
+
+// TotalAmountGTE applies the GTE predicate on the "total_amount" field.
+func TotalAmountGTE(v decimal.Decimal) predicate.LabOrder {
+	return predicate.LabOrder(sql.FieldGTE(FieldTotalAmount, v))
+}
+
+// TotalAmountLT applies the LT predicate on the "total_amount" field.
+func TotalAmountLT(v decimal.Decimal) predicate.LabOrder {
+	return predicate.LabOrder(sql.FieldLT(FieldTotalAmount, v))
+}
+
+// TotalAmountLTE applies the LTE predicate on the "total_amount" field.
+func TotalAmountLTE(v decimal.Decimal) predicate.LabOrder {
+	return predicate.LabOrder(sql.FieldLTE(FieldTotalAmount, v))
+}
+
+// TotalAmountIsNil applies the IsNil predicate on the "total_amount" field.
+func TotalAmountIsNil() predicate.LabOrder {
+	return predicate.LabOrder(sql.FieldIsNull(FieldTotalAmount))
+}
+
+// TotalAmountNotNil applies the NotNil predicate on the "total_amount" field.
+func TotalAmountNotNil() predicate.LabOrder {
+	return predicate.LabOrder(sql.FieldNotNull(FieldTotalAmount))
 }
 
 // NotesEQ applies the EQ predicate on the "notes" field.

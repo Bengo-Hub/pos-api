@@ -10,6 +10,7 @@ import (
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"entgo.io/ent/dialect/sql/sqljson"
 	"entgo.io/ent/schema/field"
 	"github.com/bengobox/pos-service/internal/ent/examinationrecord"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
@@ -108,6 +109,24 @@ func (_u *ExaminationRecordUpdate) SetNillableDiagnosis(v *string) *ExaminationR
 // ClearDiagnosis clears the value of the "diagnosis" field.
 func (_u *ExaminationRecordUpdate) ClearDiagnosis() *ExaminationRecordUpdate {
 	_u.mutation.ClearDiagnosis()
+	return _u
+}
+
+// SetDiagnosisCodes sets the "diagnosis_codes" field.
+func (_u *ExaminationRecordUpdate) SetDiagnosisCodes(v []string) *ExaminationRecordUpdate {
+	_u.mutation.SetDiagnosisCodes(v)
+	return _u
+}
+
+// AppendDiagnosisCodes appends value to the "diagnosis_codes" field.
+func (_u *ExaminationRecordUpdate) AppendDiagnosisCodes(v []string) *ExaminationRecordUpdate {
+	_u.mutation.AppendDiagnosisCodes(v)
+	return _u
+}
+
+// ClearDiagnosisCodes clears the value of the "diagnosis_codes" field.
+func (_u *ExaminationRecordUpdate) ClearDiagnosisCodes() *ExaminationRecordUpdate {
+	_u.mutation.ClearDiagnosisCodes()
 	return _u
 }
 
@@ -288,6 +307,17 @@ func (_u *ExaminationRecordUpdate) sqlSave(ctx context.Context) (_node int, err 
 	if _u.mutation.DiagnosisCleared() {
 		_spec.ClearField(examinationrecord.FieldDiagnosis, field.TypeString)
 	}
+	if value, ok := _u.mutation.DiagnosisCodes(); ok {
+		_spec.SetField(examinationrecord.FieldDiagnosisCodes, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedDiagnosisCodes(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, examinationrecord.FieldDiagnosisCodes, value)
+		})
+	}
+	if _u.mutation.DiagnosisCodesCleared() {
+		_spec.ClearField(examinationrecord.FieldDiagnosisCodes, field.TypeJSON)
+	}
 	if value, ok := _u.mutation.ClinicalNotes(); ok {
 		_spec.SetField(examinationrecord.FieldClinicalNotes, field.TypeString, value)
 	}
@@ -414,6 +444,24 @@ func (_u *ExaminationRecordUpdateOne) SetNillableDiagnosis(v *string) *Examinati
 // ClearDiagnosis clears the value of the "diagnosis" field.
 func (_u *ExaminationRecordUpdateOne) ClearDiagnosis() *ExaminationRecordUpdateOne {
 	_u.mutation.ClearDiagnosis()
+	return _u
+}
+
+// SetDiagnosisCodes sets the "diagnosis_codes" field.
+func (_u *ExaminationRecordUpdateOne) SetDiagnosisCodes(v []string) *ExaminationRecordUpdateOne {
+	_u.mutation.SetDiagnosisCodes(v)
+	return _u
+}
+
+// AppendDiagnosisCodes appends value to the "diagnosis_codes" field.
+func (_u *ExaminationRecordUpdateOne) AppendDiagnosisCodes(v []string) *ExaminationRecordUpdateOne {
+	_u.mutation.AppendDiagnosisCodes(v)
+	return _u
+}
+
+// ClearDiagnosisCodes clears the value of the "diagnosis_codes" field.
+func (_u *ExaminationRecordUpdateOne) ClearDiagnosisCodes() *ExaminationRecordUpdateOne {
+	_u.mutation.ClearDiagnosisCodes()
 	return _u
 }
 
@@ -623,6 +671,17 @@ func (_u *ExaminationRecordUpdateOne) sqlSave(ctx context.Context) (_node *Exami
 	}
 	if _u.mutation.DiagnosisCleared() {
 		_spec.ClearField(examinationrecord.FieldDiagnosis, field.TypeString)
+	}
+	if value, ok := _u.mutation.DiagnosisCodes(); ok {
+		_spec.SetField(examinationrecord.FieldDiagnosisCodes, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedDiagnosisCodes(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, examinationrecord.FieldDiagnosisCodes, value)
+		})
+	}
+	if _u.mutation.DiagnosisCodesCleared() {
+		_spec.ClearField(examinationrecord.FieldDiagnosisCodes, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.ClinicalNotes(); ok {
 		_spec.SetField(examinationrecord.FieldClinicalNotes, field.TypeString, value)

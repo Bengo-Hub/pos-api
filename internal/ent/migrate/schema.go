@@ -515,6 +515,41 @@ var (
 			},
 		},
 	}
+	// DiagnosisCatalogsColumns holds the columns for the "diagnosis_catalogs" table.
+	DiagnosisCatalogsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "is_global", Type: field.TypeBool, Default: false},
+		{Name: "name", Type: field.TypeString},
+		{Name: "code", Type: field.TypeString, Nullable: true},
+		{Name: "category", Type: field.TypeString, Nullable: true},
+		{Name: "is_active", Type: field.TypeBool, Default: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// DiagnosisCatalogsTable holds the schema information for the "diagnosis_catalogs" table.
+	DiagnosisCatalogsTable = &schema.Table{
+		Name:       "diagnosis_catalogs",
+		Columns:    DiagnosisCatalogsColumns,
+		PrimaryKey: []*schema.Column{DiagnosisCatalogsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "diagnosiscatalog_tenant_id_name",
+				Unique:  true,
+				Columns: []*schema.Column{DiagnosisCatalogsColumns[1], DiagnosisCatalogsColumns[3]},
+			},
+			{
+				Name:    "diagnosiscatalog_tenant_id_category",
+				Unique:  false,
+				Columns: []*schema.Column{DiagnosisCatalogsColumns[1], DiagnosisCatalogsColumns[5]},
+			},
+			{
+				Name:    "diagnosiscatalog_is_global",
+				Unique:  false,
+				Columns: []*schema.Column{DiagnosisCatalogsColumns[2]},
+			},
+		},
+	}
 	// DocumentSequencesColumns holds the columns for the "document_sequences" table.
 	DocumentSequencesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -642,6 +677,7 @@ var (
 		{Name: "examined_by", Type: field.TypeUUID},
 		{Name: "chief_complaint", Type: field.TypeString, Nullable: true},
 		{Name: "diagnosis", Type: field.TypeString, Nullable: true},
+		{Name: "diagnosis_codes", Type: field.TypeJSON, Nullable: true},
 		{Name: "clinical_notes", Type: field.TypeString, Nullable: true},
 		{Name: "lab_requested", Type: field.TypeBool, Default: false},
 		{Name: "prescription_id", Type: field.TypeUUID, Nullable: true},
@@ -663,7 +699,7 @@ var (
 			{
 				Name:    "examinationrecord_tenant_id_status",
 				Unique:  false,
-				Columns: []*schema.Column{ExaminationRecordsColumns[1], ExaminationRecordsColumns[9]},
+				Columns: []*schema.Column{ExaminationRecordsColumns[1], ExaminationRecordsColumns[10]},
 			},
 		},
 	}
@@ -1062,7 +1098,9 @@ var (
 		{Name: "visit_id", Type: field.TypeUUID},
 		{Name: "examination_id", Type: field.TypeUUID, Nullable: true},
 		{Name: "ordered_by", Type: field.TypeUUID},
-		{Name: "status", Type: field.TypeEnum, Enums: []string{"ordered", "in_progress", "completed", "cancelled"}, Default: "ordered"},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"awaiting_payment", "ordered", "in_progress", "completed", "cancelled"}, Default: "ordered"},
+		{Name: "payment_order_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "total_amount", Type: field.TypeFloat64, Nullable: true},
 		{Name: "notes", Type: field.TypeString, Nullable: true},
 		{Name: "ordered_at", Type: field.TypeTime},
 		{Name: "completed_at", Type: field.TypeTime, Nullable: true},
@@ -1089,6 +1127,8 @@ var (
 	LabOrderLinesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
 		{Name: "lab_order_id", Type: field.TypeUUID},
+		{Name: "lab_test_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "price", Type: field.TypeFloat64, Nullable: true},
 		{Name: "test_name", Type: field.TypeString},
 		{Name: "result", Type: field.TypeString, Nullable: true},
 		{Name: "unit", Type: field.TypeString, Nullable: true},
@@ -1109,6 +1149,45 @@ var (
 				Name:    "laborderline_lab_order_id",
 				Unique:  false,
 				Columns: []*schema.Column{LabOrderLinesColumns[1]},
+			},
+		},
+	}
+	// LabTestsColumns holds the columns for the "lab_tests" table.
+	LabTestsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "name", Type: field.TypeString},
+		{Name: "code", Type: field.TypeString, Nullable: true},
+		{Name: "category", Type: field.TypeString, Nullable: true},
+		{Name: "price", Type: field.TypeFloat64},
+		{Name: "sample_type", Type: field.TypeString, Nullable: true},
+		{Name: "reference_range", Type: field.TypeString, Nullable: true},
+		{Name: "unit", Type: field.TypeString, Nullable: true},
+		{Name: "turnaround_hours", Type: field.TypeInt, Nullable: true},
+		{Name: "is_active", Type: field.TypeBool, Default: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// LabTestsTable holds the schema information for the "lab_tests" table.
+	LabTestsTable = &schema.Table{
+		Name:       "lab_tests",
+		Columns:    LabTestsColumns,
+		PrimaryKey: []*schema.Column{LabTestsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "labtest_tenant_id_is_active",
+				Unique:  false,
+				Columns: []*schema.Column{LabTestsColumns[1], LabTestsColumns[10]},
+			},
+			{
+				Name:    "labtest_tenant_id_category",
+				Unique:  false,
+				Columns: []*schema.Column{LabTestsColumns[1], LabTestsColumns[4]},
+			},
+			{
+				Name:    "labtest_tenant_id_name",
+				Unique:  true,
+				Columns: []*schema.Column{LabTestsColumns[1], LabTestsColumns[2]},
 			},
 		},
 	}
@@ -1616,6 +1695,8 @@ var (
 		{Name: "enable_lab_module", Type: field.TypeBool, Nullable: true, Default: false},
 		{Name: "require_registration_fee", Type: field.TypeBool, Nullable: true, Default: false},
 		{Name: "registration_fee_catalog_item_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "pharmacy_workflow_mode", Type: field.TypeEnum, Nullable: true, Enums: []string{"direct", "billing"}, Default: "direct"},
+		{Name: "require_lab_prepayment", Type: field.TypeBool, Nullable: true, Default: true},
 		{Name: "shift_auto_end_enabled", Type: field.TypeBool, Nullable: true, Default: false},
 		{Name: "shift_max_hours", Type: field.TypeInt, Nullable: true, Default: 12},
 		{Name: "table_max_occupation_minutes", Type: field.TypeInt, Nullable: true, Default: 240},
@@ -1636,7 +1717,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "outlet_settings_outlets_settings",
-				Columns:    []*schema.Column{OutletSettingsColumns[67]},
+				Columns:    []*schema.Column{OutletSettingsColumns[69]},
 				RefColumns: []*schema.Column{OutletsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -4281,6 +4362,7 @@ var (
 		ControlledSubstanceLogsTable,
 		CustomerBalanceCachesTable,
 		DailyClosingsTable,
+		DiagnosisCatalogsTable,
 		DocumentSequencesTable,
 		DrugInteractionChecksTable,
 		EventBookingsTable,
@@ -4300,6 +4382,7 @@ var (
 		KdsTicketsTable,
 		LabOrdersTable,
 		LabOrderLinesTable,
+		LabTestsTable,
 		LayawayPaymentsTable,
 		LayawayPlansTable,
 		LeaveRequestsTable,

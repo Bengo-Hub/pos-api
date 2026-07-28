@@ -1138,6 +1138,46 @@ func (_u *OutletSettingUpdate) ClearRegistrationFeeCatalogItemID() *OutletSettin
 	return _u
 }
 
+// SetPharmacyWorkflowMode sets the "pharmacy_workflow_mode" field.
+func (_u *OutletSettingUpdate) SetPharmacyWorkflowMode(v outletsetting.PharmacyWorkflowMode) *OutletSettingUpdate {
+	_u.mutation.SetPharmacyWorkflowMode(v)
+	return _u
+}
+
+// SetNillablePharmacyWorkflowMode sets the "pharmacy_workflow_mode" field if the given value is not nil.
+func (_u *OutletSettingUpdate) SetNillablePharmacyWorkflowMode(v *outletsetting.PharmacyWorkflowMode) *OutletSettingUpdate {
+	if v != nil {
+		_u.SetPharmacyWorkflowMode(*v)
+	}
+	return _u
+}
+
+// ClearPharmacyWorkflowMode clears the value of the "pharmacy_workflow_mode" field.
+func (_u *OutletSettingUpdate) ClearPharmacyWorkflowMode() *OutletSettingUpdate {
+	_u.mutation.ClearPharmacyWorkflowMode()
+	return _u
+}
+
+// SetRequireLabPrepayment sets the "require_lab_prepayment" field.
+func (_u *OutletSettingUpdate) SetRequireLabPrepayment(v bool) *OutletSettingUpdate {
+	_u.mutation.SetRequireLabPrepayment(v)
+	return _u
+}
+
+// SetNillableRequireLabPrepayment sets the "require_lab_prepayment" field if the given value is not nil.
+func (_u *OutletSettingUpdate) SetNillableRequireLabPrepayment(v *bool) *OutletSettingUpdate {
+	if v != nil {
+		_u.SetRequireLabPrepayment(*v)
+	}
+	return _u
+}
+
+// ClearRequireLabPrepayment clears the value of the "require_lab_prepayment" field.
+func (_u *OutletSettingUpdate) ClearRequireLabPrepayment() *OutletSettingUpdate {
+	_u.mutation.ClearRequireLabPrepayment()
+	return _u
+}
+
 // SetShiftAutoEndEnabled sets the "shift_auto_end_enabled" field.
 func (_u *OutletSettingUpdate) SetShiftAutoEndEnabled(v bool) *OutletSettingUpdate {
 	_u.mutation.SetShiftAutoEndEnabled(v)
@@ -1405,6 +1445,11 @@ func (_u *OutletSettingUpdate) check() error {
 	if v, ok := _u.mutation.ReceiptFormat(); ok {
 		if err := outletsetting.ReceiptFormatValidator(v); err != nil {
 			return &ValidationError{Name: "receipt_format", err: fmt.Errorf(`ent: validator failed for field "OutletSetting.receipt_format": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.PharmacyWorkflowMode(); ok {
+		if err := outletsetting.PharmacyWorkflowModeValidator(v); err != nil {
+			return &ValidationError{Name: "pharmacy_workflow_mode", err: fmt.Errorf(`ent: validator failed for field "OutletSetting.pharmacy_workflow_mode": %w`, err)}
 		}
 	}
 	if _u.mutation.OutletCleared() && len(_u.mutation.OutletIDs()) > 0 {
@@ -1771,6 +1816,18 @@ func (_u *OutletSettingUpdate) sqlSave(ctx context.Context) (_node int, err erro
 	}
 	if _u.mutation.RegistrationFeeCatalogItemIDCleared() {
 		_spec.ClearField(outletsetting.FieldRegistrationFeeCatalogItemID, field.TypeUUID)
+	}
+	if value, ok := _u.mutation.PharmacyWorkflowMode(); ok {
+		_spec.SetField(outletsetting.FieldPharmacyWorkflowMode, field.TypeEnum, value)
+	}
+	if _u.mutation.PharmacyWorkflowModeCleared() {
+		_spec.ClearField(outletsetting.FieldPharmacyWorkflowMode, field.TypeEnum)
+	}
+	if value, ok := _u.mutation.RequireLabPrepayment(); ok {
+		_spec.SetField(outletsetting.FieldRequireLabPrepayment, field.TypeBool, value)
+	}
+	if _u.mutation.RequireLabPrepaymentCleared() {
+		_spec.ClearField(outletsetting.FieldRequireLabPrepayment, field.TypeBool)
 	}
 	if value, ok := _u.mutation.ShiftAutoEndEnabled(); ok {
 		_spec.SetField(outletsetting.FieldShiftAutoEndEnabled, field.TypeBool, value)
@@ -2999,6 +3056,46 @@ func (_u *OutletSettingUpdateOne) ClearRegistrationFeeCatalogItemID() *OutletSet
 	return _u
 }
 
+// SetPharmacyWorkflowMode sets the "pharmacy_workflow_mode" field.
+func (_u *OutletSettingUpdateOne) SetPharmacyWorkflowMode(v outletsetting.PharmacyWorkflowMode) *OutletSettingUpdateOne {
+	_u.mutation.SetPharmacyWorkflowMode(v)
+	return _u
+}
+
+// SetNillablePharmacyWorkflowMode sets the "pharmacy_workflow_mode" field if the given value is not nil.
+func (_u *OutletSettingUpdateOne) SetNillablePharmacyWorkflowMode(v *outletsetting.PharmacyWorkflowMode) *OutletSettingUpdateOne {
+	if v != nil {
+		_u.SetPharmacyWorkflowMode(*v)
+	}
+	return _u
+}
+
+// ClearPharmacyWorkflowMode clears the value of the "pharmacy_workflow_mode" field.
+func (_u *OutletSettingUpdateOne) ClearPharmacyWorkflowMode() *OutletSettingUpdateOne {
+	_u.mutation.ClearPharmacyWorkflowMode()
+	return _u
+}
+
+// SetRequireLabPrepayment sets the "require_lab_prepayment" field.
+func (_u *OutletSettingUpdateOne) SetRequireLabPrepayment(v bool) *OutletSettingUpdateOne {
+	_u.mutation.SetRequireLabPrepayment(v)
+	return _u
+}
+
+// SetNillableRequireLabPrepayment sets the "require_lab_prepayment" field if the given value is not nil.
+func (_u *OutletSettingUpdateOne) SetNillableRequireLabPrepayment(v *bool) *OutletSettingUpdateOne {
+	if v != nil {
+		_u.SetRequireLabPrepayment(*v)
+	}
+	return _u
+}
+
+// ClearRequireLabPrepayment clears the value of the "require_lab_prepayment" field.
+func (_u *OutletSettingUpdateOne) ClearRequireLabPrepayment() *OutletSettingUpdateOne {
+	_u.mutation.ClearRequireLabPrepayment()
+	return _u
+}
+
 // SetShiftAutoEndEnabled sets the "shift_auto_end_enabled" field.
 func (_u *OutletSettingUpdateOne) SetShiftAutoEndEnabled(v bool) *OutletSettingUpdateOne {
 	_u.mutation.SetShiftAutoEndEnabled(v)
@@ -3279,6 +3376,11 @@ func (_u *OutletSettingUpdateOne) check() error {
 	if v, ok := _u.mutation.ReceiptFormat(); ok {
 		if err := outletsetting.ReceiptFormatValidator(v); err != nil {
 			return &ValidationError{Name: "receipt_format", err: fmt.Errorf(`ent: validator failed for field "OutletSetting.receipt_format": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.PharmacyWorkflowMode(); ok {
+		if err := outletsetting.PharmacyWorkflowModeValidator(v); err != nil {
+			return &ValidationError{Name: "pharmacy_workflow_mode", err: fmt.Errorf(`ent: validator failed for field "OutletSetting.pharmacy_workflow_mode": %w`, err)}
 		}
 	}
 	if _u.mutation.OutletCleared() && len(_u.mutation.OutletIDs()) > 0 {
@@ -3662,6 +3764,18 @@ func (_u *OutletSettingUpdateOne) sqlSave(ctx context.Context) (_node *OutletSet
 	}
 	if _u.mutation.RegistrationFeeCatalogItemIDCleared() {
 		_spec.ClearField(outletsetting.FieldRegistrationFeeCatalogItemID, field.TypeUUID)
+	}
+	if value, ok := _u.mutation.PharmacyWorkflowMode(); ok {
+		_spec.SetField(outletsetting.FieldPharmacyWorkflowMode, field.TypeEnum, value)
+	}
+	if _u.mutation.PharmacyWorkflowModeCleared() {
+		_spec.ClearField(outletsetting.FieldPharmacyWorkflowMode, field.TypeEnum)
+	}
+	if value, ok := _u.mutation.RequireLabPrepayment(); ok {
+		_spec.SetField(outletsetting.FieldRequireLabPrepayment, field.TypeBool, value)
+	}
+	if _u.mutation.RequireLabPrepaymentCleared() {
+		_spec.ClearField(outletsetting.FieldRequireLabPrepayment, field.TypeBool)
 	}
 	if value, ok := _u.mutation.ShiftAutoEndEnabled(); ok {
 		_spec.SetField(outletsetting.FieldShiftAutoEndEnabled, field.TypeBool, value)

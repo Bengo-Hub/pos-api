@@ -33,6 +33,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/controlledsubstancelog"
 	"github.com/bengobox/pos-service/internal/ent/customerbalancecache"
 	"github.com/bengobox/pos-service/internal/ent/dailyclosing"
+	"github.com/bengobox/pos-service/internal/ent/diagnosiscatalog"
 	"github.com/bengobox/pos-service/internal/ent/documentsequence"
 	"github.com/bengobox/pos-service/internal/ent/druginteractioncheck"
 	"github.com/bengobox/pos-service/internal/ent/eventbooking"
@@ -52,6 +53,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/kdsticket"
 	"github.com/bengobox/pos-service/internal/ent/laborder"
 	"github.com/bengobox/pos-service/internal/ent/laborderline"
+	"github.com/bengobox/pos-service/internal/ent/labtest"
 	"github.com/bengobox/pos-service/internal/ent/layawaypayment"
 	"github.com/bengobox/pos-service/internal/ent/layawayplan"
 	"github.com/bengobox/pos-service/internal/ent/leaverequest"
@@ -182,6 +184,8 @@ type Client struct {
 	CustomerBalanceCache *CustomerBalanceCacheClient
 	// DailyClosing is the client for interacting with the DailyClosing builders.
 	DailyClosing *DailyClosingClient
+	// DiagnosisCatalog is the client for interacting with the DiagnosisCatalog builders.
+	DiagnosisCatalog *DiagnosisCatalogClient
 	// DocumentSequence is the client for interacting with the DocumentSequence builders.
 	DocumentSequence *DocumentSequenceClient
 	// DrugInteractionCheck is the client for interacting with the DrugInteractionCheck builders.
@@ -220,6 +224,8 @@ type Client struct {
 	LabOrder *LabOrderClient
 	// LabOrderLine is the client for interacting with the LabOrderLine builders.
 	LabOrderLine *LabOrderLineClient
+	// LabTest is the client for interacting with the LabTest builders.
+	LabTest *LabTestClient
 	// LayawayPayment is the client for interacting with the LayawayPayment builders.
 	LayawayPayment *LayawayPaymentClient
 	// LayawayPlan is the client for interacting with the LayawayPlan builders.
@@ -426,6 +432,7 @@ func (c *Client) init() {
 	c.ControlledSubstanceLog = NewControlledSubstanceLogClient(c.config)
 	c.CustomerBalanceCache = NewCustomerBalanceCacheClient(c.config)
 	c.DailyClosing = NewDailyClosingClient(c.config)
+	c.DiagnosisCatalog = NewDiagnosisCatalogClient(c.config)
 	c.DocumentSequence = NewDocumentSequenceClient(c.config)
 	c.DrugInteractionCheck = NewDrugInteractionCheckClient(c.config)
 	c.EventBooking = NewEventBookingClient(c.config)
@@ -445,6 +452,7 @@ func (c *Client) init() {
 	c.KDSTicket = NewKDSTicketClient(c.config)
 	c.LabOrder = NewLabOrderClient(c.config)
 	c.LabOrderLine = NewLabOrderLineClient(c.config)
+	c.LabTest = NewLabTestClient(c.config)
 	c.LayawayPayment = NewLayawayPaymentClient(c.config)
 	c.LayawayPlan = NewLayawayPlanClient(c.config)
 	c.LeaveRequest = NewLeaveRequestClient(c.config)
@@ -643,6 +651,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		ControlledSubstanceLog:   NewControlledSubstanceLogClient(cfg),
 		CustomerBalanceCache:     NewCustomerBalanceCacheClient(cfg),
 		DailyClosing:             NewDailyClosingClient(cfg),
+		DiagnosisCatalog:         NewDiagnosisCatalogClient(cfg),
 		DocumentSequence:         NewDocumentSequenceClient(cfg),
 		DrugInteractionCheck:     NewDrugInteractionCheckClient(cfg),
 		EventBooking:             NewEventBookingClient(cfg),
@@ -662,6 +671,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		KDSTicket:                NewKDSTicketClient(cfg),
 		LabOrder:                 NewLabOrderClient(cfg),
 		LabOrderLine:             NewLabOrderLineClient(cfg),
+		LabTest:                  NewLabTestClient(cfg),
 		LayawayPayment:           NewLayawayPaymentClient(cfg),
 		LayawayPlan:              NewLayawayPlanClient(cfg),
 		LeaveRequest:             NewLeaveRequestClient(cfg),
@@ -787,6 +797,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		ControlledSubstanceLog:   NewControlledSubstanceLogClient(cfg),
 		CustomerBalanceCache:     NewCustomerBalanceCacheClient(cfg),
 		DailyClosing:             NewDailyClosingClient(cfg),
+		DiagnosisCatalog:         NewDiagnosisCatalogClient(cfg),
 		DocumentSequence:         NewDocumentSequenceClient(cfg),
 		DrugInteractionCheck:     NewDrugInteractionCheckClient(cfg),
 		EventBooking:             NewEventBookingClient(cfg),
@@ -806,6 +817,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		KDSTicket:                NewKDSTicketClient(cfg),
 		LabOrder:                 NewLabOrderClient(cfg),
 		LabOrderLine:             NewLabOrderLineClient(cfg),
+		LabTest:                  NewLabTestClient(cfg),
 		LayawayPayment:           NewLayawayPaymentClient(cfg),
 		LayawayPlan:              NewLayawayPlanClient(cfg),
 		LeaveRequest:             NewLeaveRequestClient(cfg),
@@ -928,32 +940,32 @@ func (c *Client) Use(hooks ...Hook) {
 		c.BillSplit, c.CashDrawer, c.CashDrawerEvent, c.ChannelIntegration,
 		c.ChannelSyncJob, c.ClientRecord, c.CommissionRecord, c.CommissionRule,
 		c.ControlledSubstanceLog, c.CustomerBalanceCache, c.DailyClosing,
-		c.DocumentSequence, c.DrugInteractionCheck, c.EventBooking,
+		c.DiagnosisCatalog, c.DocumentSequence, c.DrugInteractionCheck, c.EventBooking,
 		c.ExaminationRecord, c.Facility, c.FacilityBooking, c.FeatureOverride,
 		c.GiftCard, c.GiftCardTransaction, c.HeldItem, c.HousekeepingTask,
 		c.IdempotencyKey, c.IntegrationSetting, c.InventorySnapshot, c.KDSStation,
-		c.KDSSyncFailure, c.KDSTicket, c.LabOrder, c.LabOrderLine, c.LayawayPayment,
-		c.LayawayPlan, c.LeaveRequest, c.LicenseUsageSnapshot, c.LoyaltyAccount,
-		c.LoyaltyProgram, c.LoyaltyTransaction, c.MealEntitlement, c.Modifier,
-		c.ModifierGroup, c.OrderLink, c.OrderVoidCode, c.OutboxEvent, c.Outlet,
-		c.OutletSetting, c.POSCatalogOverride, c.POSDevice, c.POSDeviceSession,
-		c.POSLineModifier, c.POSOrder, c.POSOrderEvent, c.POSOrderLine, c.POSPayment,
-		c.POSPermission, c.POSRefund, c.POSReturn, c.POSReturnLine, c.POSReversal,
-		c.POSRole, c.POSRolePermission, c.POSRoleV2, c.POSUserRoleAssignment,
-		c.Patient, c.PatientVisit, c.PosNotification, c.Prescription,
-		c.PrescriptionLine, c.PriceBook, c.PriceBookItem, c.PrintAgent, c.PrintJob,
-		c.Promotion, c.PromotionApplication, c.PromotionRule, c.RateLimitConfig,
-		c.Referral, c.RepairJob, c.RepairJobEvent, c.RepairJobPart, c.Resource, c.Room,
-		c.RoomAmenity, c.RoomAmenityAssignment, c.RoomBooking, c.RoomFolioItem,
-		c.RoomFolioPayment, c.RoomGuest, c.Section, c.SerialNumberLog, c.ServiceConfig,
-		c.ServicePackage, c.ServicePackagePurchase, c.ServicePackageRedemption,
-		c.ServiceQueueEntry, c.ShiftRotation, c.ShiftRotationSlot, c.StaffAdvance,
-		c.StaffMember, c.StaffOutlet, c.StaffPayroll, c.StaffPayrollLine,
-		c.StaffPurchaseLink, c.StaffSchedule, c.StaffShiftOverride,
-		c.StockAlertSubscription, c.StockConsumptionEvent, c.SyncFailure, c.Table,
-		c.TableAssignment, c.TableReservation, c.Tenant, c.TenantSyncEvent, c.Tender,
-		c.TriageRecord, c.User, c.UserPOSRole, c.WebhookDelivery,
-		c.WebhookSubscription, c.WeighingScaleReading,
+		c.KDSSyncFailure, c.KDSTicket, c.LabOrder, c.LabOrderLine, c.LabTest,
+		c.LayawayPayment, c.LayawayPlan, c.LeaveRequest, c.LicenseUsageSnapshot,
+		c.LoyaltyAccount, c.LoyaltyProgram, c.LoyaltyTransaction, c.MealEntitlement,
+		c.Modifier, c.ModifierGroup, c.OrderLink, c.OrderVoidCode, c.OutboxEvent,
+		c.Outlet, c.OutletSetting, c.POSCatalogOverride, c.POSDevice,
+		c.POSDeviceSession, c.POSLineModifier, c.POSOrder, c.POSOrderEvent,
+		c.POSOrderLine, c.POSPayment, c.POSPermission, c.POSRefund, c.POSReturn,
+		c.POSReturnLine, c.POSReversal, c.POSRole, c.POSRolePermission, c.POSRoleV2,
+		c.POSUserRoleAssignment, c.Patient, c.PatientVisit, c.PosNotification,
+		c.Prescription, c.PrescriptionLine, c.PriceBook, c.PriceBookItem, c.PrintAgent,
+		c.PrintJob, c.Promotion, c.PromotionApplication, c.PromotionRule,
+		c.RateLimitConfig, c.Referral, c.RepairJob, c.RepairJobEvent, c.RepairJobPart,
+		c.Resource, c.Room, c.RoomAmenity, c.RoomAmenityAssignment, c.RoomBooking,
+		c.RoomFolioItem, c.RoomFolioPayment, c.RoomGuest, c.Section, c.SerialNumberLog,
+		c.ServiceConfig, c.ServicePackage, c.ServicePackagePurchase,
+		c.ServicePackageRedemption, c.ServiceQueueEntry, c.ShiftRotation,
+		c.ShiftRotationSlot, c.StaffAdvance, c.StaffMember, c.StaffOutlet,
+		c.StaffPayroll, c.StaffPayrollLine, c.StaffPurchaseLink, c.StaffSchedule,
+		c.StaffShiftOverride, c.StockAlertSubscription, c.StockConsumptionEvent,
+		c.SyncFailure, c.Table, c.TableAssignment, c.TableReservation, c.Tenant,
+		c.TenantSyncEvent, c.Tender, c.TriageRecord, c.User, c.UserPOSRole,
+		c.WebhookDelivery, c.WebhookSubscription, c.WeighingScaleReading,
 	} {
 		n.Use(hooks...)
 	}
@@ -967,32 +979,32 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.BillSplit, c.CashDrawer, c.CashDrawerEvent, c.ChannelIntegration,
 		c.ChannelSyncJob, c.ClientRecord, c.CommissionRecord, c.CommissionRule,
 		c.ControlledSubstanceLog, c.CustomerBalanceCache, c.DailyClosing,
-		c.DocumentSequence, c.DrugInteractionCheck, c.EventBooking,
+		c.DiagnosisCatalog, c.DocumentSequence, c.DrugInteractionCheck, c.EventBooking,
 		c.ExaminationRecord, c.Facility, c.FacilityBooking, c.FeatureOverride,
 		c.GiftCard, c.GiftCardTransaction, c.HeldItem, c.HousekeepingTask,
 		c.IdempotencyKey, c.IntegrationSetting, c.InventorySnapshot, c.KDSStation,
-		c.KDSSyncFailure, c.KDSTicket, c.LabOrder, c.LabOrderLine, c.LayawayPayment,
-		c.LayawayPlan, c.LeaveRequest, c.LicenseUsageSnapshot, c.LoyaltyAccount,
-		c.LoyaltyProgram, c.LoyaltyTransaction, c.MealEntitlement, c.Modifier,
-		c.ModifierGroup, c.OrderLink, c.OrderVoidCode, c.OutboxEvent, c.Outlet,
-		c.OutletSetting, c.POSCatalogOverride, c.POSDevice, c.POSDeviceSession,
-		c.POSLineModifier, c.POSOrder, c.POSOrderEvent, c.POSOrderLine, c.POSPayment,
-		c.POSPermission, c.POSRefund, c.POSReturn, c.POSReturnLine, c.POSReversal,
-		c.POSRole, c.POSRolePermission, c.POSRoleV2, c.POSUserRoleAssignment,
-		c.Patient, c.PatientVisit, c.PosNotification, c.Prescription,
-		c.PrescriptionLine, c.PriceBook, c.PriceBookItem, c.PrintAgent, c.PrintJob,
-		c.Promotion, c.PromotionApplication, c.PromotionRule, c.RateLimitConfig,
-		c.Referral, c.RepairJob, c.RepairJobEvent, c.RepairJobPart, c.Resource, c.Room,
-		c.RoomAmenity, c.RoomAmenityAssignment, c.RoomBooking, c.RoomFolioItem,
-		c.RoomFolioPayment, c.RoomGuest, c.Section, c.SerialNumberLog, c.ServiceConfig,
-		c.ServicePackage, c.ServicePackagePurchase, c.ServicePackageRedemption,
-		c.ServiceQueueEntry, c.ShiftRotation, c.ShiftRotationSlot, c.StaffAdvance,
-		c.StaffMember, c.StaffOutlet, c.StaffPayroll, c.StaffPayrollLine,
-		c.StaffPurchaseLink, c.StaffSchedule, c.StaffShiftOverride,
-		c.StockAlertSubscription, c.StockConsumptionEvent, c.SyncFailure, c.Table,
-		c.TableAssignment, c.TableReservation, c.Tenant, c.TenantSyncEvent, c.Tender,
-		c.TriageRecord, c.User, c.UserPOSRole, c.WebhookDelivery,
-		c.WebhookSubscription, c.WeighingScaleReading,
+		c.KDSSyncFailure, c.KDSTicket, c.LabOrder, c.LabOrderLine, c.LabTest,
+		c.LayawayPayment, c.LayawayPlan, c.LeaveRequest, c.LicenseUsageSnapshot,
+		c.LoyaltyAccount, c.LoyaltyProgram, c.LoyaltyTransaction, c.MealEntitlement,
+		c.Modifier, c.ModifierGroup, c.OrderLink, c.OrderVoidCode, c.OutboxEvent,
+		c.Outlet, c.OutletSetting, c.POSCatalogOverride, c.POSDevice,
+		c.POSDeviceSession, c.POSLineModifier, c.POSOrder, c.POSOrderEvent,
+		c.POSOrderLine, c.POSPayment, c.POSPermission, c.POSRefund, c.POSReturn,
+		c.POSReturnLine, c.POSReversal, c.POSRole, c.POSRolePermission, c.POSRoleV2,
+		c.POSUserRoleAssignment, c.Patient, c.PatientVisit, c.PosNotification,
+		c.Prescription, c.PrescriptionLine, c.PriceBook, c.PriceBookItem, c.PrintAgent,
+		c.PrintJob, c.Promotion, c.PromotionApplication, c.PromotionRule,
+		c.RateLimitConfig, c.Referral, c.RepairJob, c.RepairJobEvent, c.RepairJobPart,
+		c.Resource, c.Room, c.RoomAmenity, c.RoomAmenityAssignment, c.RoomBooking,
+		c.RoomFolioItem, c.RoomFolioPayment, c.RoomGuest, c.Section, c.SerialNumberLog,
+		c.ServiceConfig, c.ServicePackage, c.ServicePackagePurchase,
+		c.ServicePackageRedemption, c.ServiceQueueEntry, c.ShiftRotation,
+		c.ShiftRotationSlot, c.StaffAdvance, c.StaffMember, c.StaffOutlet,
+		c.StaffPayroll, c.StaffPayrollLine, c.StaffPurchaseLink, c.StaffSchedule,
+		c.StaffShiftOverride, c.StockAlertSubscription, c.StockConsumptionEvent,
+		c.SyncFailure, c.Table, c.TableAssignment, c.TableReservation, c.Tenant,
+		c.TenantSyncEvent, c.Tender, c.TriageRecord, c.User, c.UserPOSRole,
+		c.WebhookDelivery, c.WebhookSubscription, c.WeighingScaleReading,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -1035,6 +1047,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.CustomerBalanceCache.mutate(ctx, m)
 	case *DailyClosingMutation:
 		return c.DailyClosing.mutate(ctx, m)
+	case *DiagnosisCatalogMutation:
+		return c.DiagnosisCatalog.mutate(ctx, m)
 	case *DocumentSequenceMutation:
 		return c.DocumentSequence.mutate(ctx, m)
 	case *DrugInteractionCheckMutation:
@@ -1073,6 +1087,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.LabOrder.mutate(ctx, m)
 	case *LabOrderLineMutation:
 		return c.LabOrderLine.mutate(ctx, m)
+	case *LabTestMutation:
+		return c.LabTest.mutate(ctx, m)
 	case *LayawayPaymentMutation:
 		return c.LayawayPayment.mutate(ctx, m)
 	case *LayawayPlanMutation:
@@ -3594,6 +3610,139 @@ func (c *DailyClosingClient) mutate(ctx context.Context, m *DailyClosingMutation
 		return (&DailyClosingDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown DailyClosing mutation op: %q", m.Op())
+	}
+}
+
+// DiagnosisCatalogClient is a client for the DiagnosisCatalog schema.
+type DiagnosisCatalogClient struct {
+	config
+}
+
+// NewDiagnosisCatalogClient returns a client for the DiagnosisCatalog from the given config.
+func NewDiagnosisCatalogClient(c config) *DiagnosisCatalogClient {
+	return &DiagnosisCatalogClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `diagnosiscatalog.Hooks(f(g(h())))`.
+func (c *DiagnosisCatalogClient) Use(hooks ...Hook) {
+	c.hooks.DiagnosisCatalog = append(c.hooks.DiagnosisCatalog, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `diagnosiscatalog.Intercept(f(g(h())))`.
+func (c *DiagnosisCatalogClient) Intercept(interceptors ...Interceptor) {
+	c.inters.DiagnosisCatalog = append(c.inters.DiagnosisCatalog, interceptors...)
+}
+
+// Create returns a builder for creating a DiagnosisCatalog entity.
+func (c *DiagnosisCatalogClient) Create() *DiagnosisCatalogCreate {
+	mutation := newDiagnosisCatalogMutation(c.config, OpCreate)
+	return &DiagnosisCatalogCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of DiagnosisCatalog entities.
+func (c *DiagnosisCatalogClient) CreateBulk(builders ...*DiagnosisCatalogCreate) *DiagnosisCatalogCreateBulk {
+	return &DiagnosisCatalogCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *DiagnosisCatalogClient) MapCreateBulk(slice any, setFunc func(*DiagnosisCatalogCreate, int)) *DiagnosisCatalogCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &DiagnosisCatalogCreateBulk{err: fmt.Errorf("calling to DiagnosisCatalogClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*DiagnosisCatalogCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &DiagnosisCatalogCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for DiagnosisCatalog.
+func (c *DiagnosisCatalogClient) Update() *DiagnosisCatalogUpdate {
+	mutation := newDiagnosisCatalogMutation(c.config, OpUpdate)
+	return &DiagnosisCatalogUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *DiagnosisCatalogClient) UpdateOne(_m *DiagnosisCatalog) *DiagnosisCatalogUpdateOne {
+	mutation := newDiagnosisCatalogMutation(c.config, OpUpdateOne, withDiagnosisCatalog(_m))
+	return &DiagnosisCatalogUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *DiagnosisCatalogClient) UpdateOneID(id uuid.UUID) *DiagnosisCatalogUpdateOne {
+	mutation := newDiagnosisCatalogMutation(c.config, OpUpdateOne, withDiagnosisCatalogID(id))
+	return &DiagnosisCatalogUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for DiagnosisCatalog.
+func (c *DiagnosisCatalogClient) Delete() *DiagnosisCatalogDelete {
+	mutation := newDiagnosisCatalogMutation(c.config, OpDelete)
+	return &DiagnosisCatalogDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *DiagnosisCatalogClient) DeleteOne(_m *DiagnosisCatalog) *DiagnosisCatalogDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *DiagnosisCatalogClient) DeleteOneID(id uuid.UUID) *DiagnosisCatalogDeleteOne {
+	builder := c.Delete().Where(diagnosiscatalog.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &DiagnosisCatalogDeleteOne{builder}
+}
+
+// Query returns a query builder for DiagnosisCatalog.
+func (c *DiagnosisCatalogClient) Query() *DiagnosisCatalogQuery {
+	return &DiagnosisCatalogQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeDiagnosisCatalog},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a DiagnosisCatalog entity by its id.
+func (c *DiagnosisCatalogClient) Get(ctx context.Context, id uuid.UUID) (*DiagnosisCatalog, error) {
+	return c.Query().Where(diagnosiscatalog.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *DiagnosisCatalogClient) GetX(ctx context.Context, id uuid.UUID) *DiagnosisCatalog {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *DiagnosisCatalogClient) Hooks() []Hook {
+	return c.hooks.DiagnosisCatalog
+}
+
+// Interceptors returns the client interceptors.
+func (c *DiagnosisCatalogClient) Interceptors() []Interceptor {
+	return c.inters.DiagnosisCatalog
+}
+
+func (c *DiagnosisCatalogClient) mutate(ctx context.Context, m *DiagnosisCatalogMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&DiagnosisCatalogCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&DiagnosisCatalogUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&DiagnosisCatalogUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&DiagnosisCatalogDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown DiagnosisCatalog mutation op: %q", m.Op())
 	}
 }
 
@@ -6217,6 +6366,139 @@ func (c *LabOrderLineClient) mutate(ctx context.Context, m *LabOrderLineMutation
 		return (&LabOrderLineDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown LabOrderLine mutation op: %q", m.Op())
+	}
+}
+
+// LabTestClient is a client for the LabTest schema.
+type LabTestClient struct {
+	config
+}
+
+// NewLabTestClient returns a client for the LabTest from the given config.
+func NewLabTestClient(c config) *LabTestClient {
+	return &LabTestClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `labtest.Hooks(f(g(h())))`.
+func (c *LabTestClient) Use(hooks ...Hook) {
+	c.hooks.LabTest = append(c.hooks.LabTest, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `labtest.Intercept(f(g(h())))`.
+func (c *LabTestClient) Intercept(interceptors ...Interceptor) {
+	c.inters.LabTest = append(c.inters.LabTest, interceptors...)
+}
+
+// Create returns a builder for creating a LabTest entity.
+func (c *LabTestClient) Create() *LabTestCreate {
+	mutation := newLabTestMutation(c.config, OpCreate)
+	return &LabTestCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of LabTest entities.
+func (c *LabTestClient) CreateBulk(builders ...*LabTestCreate) *LabTestCreateBulk {
+	return &LabTestCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *LabTestClient) MapCreateBulk(slice any, setFunc func(*LabTestCreate, int)) *LabTestCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &LabTestCreateBulk{err: fmt.Errorf("calling to LabTestClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*LabTestCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &LabTestCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for LabTest.
+func (c *LabTestClient) Update() *LabTestUpdate {
+	mutation := newLabTestMutation(c.config, OpUpdate)
+	return &LabTestUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *LabTestClient) UpdateOne(_m *LabTest) *LabTestUpdateOne {
+	mutation := newLabTestMutation(c.config, OpUpdateOne, withLabTest(_m))
+	return &LabTestUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *LabTestClient) UpdateOneID(id uuid.UUID) *LabTestUpdateOne {
+	mutation := newLabTestMutation(c.config, OpUpdateOne, withLabTestID(id))
+	return &LabTestUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for LabTest.
+func (c *LabTestClient) Delete() *LabTestDelete {
+	mutation := newLabTestMutation(c.config, OpDelete)
+	return &LabTestDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *LabTestClient) DeleteOne(_m *LabTest) *LabTestDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *LabTestClient) DeleteOneID(id uuid.UUID) *LabTestDeleteOne {
+	builder := c.Delete().Where(labtest.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &LabTestDeleteOne{builder}
+}
+
+// Query returns a query builder for LabTest.
+func (c *LabTestClient) Query() *LabTestQuery {
+	return &LabTestQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeLabTest},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a LabTest entity by its id.
+func (c *LabTestClient) Get(ctx context.Context, id uuid.UUID) (*LabTest, error) {
+	return c.Query().Where(labtest.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *LabTestClient) GetX(ctx context.Context, id uuid.UUID) *LabTest {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *LabTestClient) Hooks() []Hook {
+	return c.hooks.LabTest
+}
+
+// Interceptors returns the client interceptors.
+func (c *LabTestClient) Interceptors() []Interceptor {
+	return c.inters.LabTest
+}
+
+func (c *LabTestClient) mutate(ctx context.Context, m *LabTestMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&LabTestCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&LabTestUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&LabTestUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&LabTestDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown LabTest mutation op: %q", m.Op())
 	}
 }
 
@@ -19119,11 +19401,11 @@ type (
 		Appointment, AuditLog, Backup, BackupSetting, BarTab, BarTabEvent, BillSplit,
 		CashDrawer, CashDrawerEvent, ChannelIntegration, ChannelSyncJob, ClientRecord,
 		CommissionRecord, CommissionRule, ControlledSubstanceLog, CustomerBalanceCache,
-		DailyClosing, DocumentSequence, DrugInteractionCheck, EventBooking,
-		ExaminationRecord, Facility, FacilityBooking, FeatureOverride, GiftCard,
-		GiftCardTransaction, HeldItem, HousekeepingTask, IdempotencyKey,
+		DailyClosing, DiagnosisCatalog, DocumentSequence, DrugInteractionCheck,
+		EventBooking, ExaminationRecord, Facility, FacilityBooking, FeatureOverride,
+		GiftCard, GiftCardTransaction, HeldItem, HousekeepingTask, IdempotencyKey,
 		IntegrationSetting, InventorySnapshot, KDSStation, KDSSyncFailure, KDSTicket,
-		LabOrder, LabOrderLine, LayawayPayment, LayawayPlan, LeaveRequest,
+		LabOrder, LabOrderLine, LabTest, LayawayPayment, LayawayPlan, LeaveRequest,
 		LicenseUsageSnapshot, LoyaltyAccount, LoyaltyProgram, LoyaltyTransaction,
 		MealEntitlement, Modifier, ModifierGroup, OrderLink, OrderVoidCode,
 		OutboxEvent, Outlet, OutletSetting, POSCatalogOverride, POSDevice,
@@ -19147,11 +19429,11 @@ type (
 		Appointment, AuditLog, Backup, BackupSetting, BarTab, BarTabEvent, BillSplit,
 		CashDrawer, CashDrawerEvent, ChannelIntegration, ChannelSyncJob, ClientRecord,
 		CommissionRecord, CommissionRule, ControlledSubstanceLog, CustomerBalanceCache,
-		DailyClosing, DocumentSequence, DrugInteractionCheck, EventBooking,
-		ExaminationRecord, Facility, FacilityBooking, FeatureOverride, GiftCard,
-		GiftCardTransaction, HeldItem, HousekeepingTask, IdempotencyKey,
+		DailyClosing, DiagnosisCatalog, DocumentSequence, DrugInteractionCheck,
+		EventBooking, ExaminationRecord, Facility, FacilityBooking, FeatureOverride,
+		GiftCard, GiftCardTransaction, HeldItem, HousekeepingTask, IdempotencyKey,
 		IntegrationSetting, InventorySnapshot, KDSStation, KDSSyncFailure, KDSTicket,
-		LabOrder, LabOrderLine, LayawayPayment, LayawayPlan, LeaveRequest,
+		LabOrder, LabOrderLine, LabTest, LayawayPayment, LayawayPlan, LeaveRequest,
 		LicenseUsageSnapshot, LoyaltyAccount, LoyaltyProgram, LoyaltyTransaction,
 		MealEntitlement, Modifier, ModifierGroup, OrderLink, OrderVoidCode,
 		OutboxEvent, Outlet, OutletSetting, POSCatalogOverride, POSDevice,

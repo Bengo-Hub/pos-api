@@ -21,7 +21,12 @@ func (ExaminationRecord) Fields() []ent.Field {
 		field.UUID("visit_id", uuid.UUID{}),
 		field.UUID("examined_by", uuid.UUID{}).Comment("Doctor/pharmacist staff member"),
 		field.String("chief_complaint").Optional(),
+		// diagnosis stays the human-readable summary (comma-joined when several were picked) so
+		// every existing reader/report keeps working; diagnosis_codes carries the structured
+		// multi-select behind it — a visit can legitimately carry a COMBINATION of diagnoses.
 		field.String("diagnosis").Optional(),
+		field.JSON("diagnosis_codes", []string{}).Optional().Default([]string{}).
+			Comment("DiagnosisCatalog names/codes selected for this examination"),
 		field.String("clinical_notes").Optional(),
 		field.Bool("lab_requested").Default(false),
 		field.UUID("prescription_id", uuid.UUID{}).Optional().Nillable(),

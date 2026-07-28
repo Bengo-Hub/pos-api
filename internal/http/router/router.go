@@ -838,6 +838,9 @@ func New(
 							ph.Get("/pharmacy/controlled-substances/{logID}", pharmacy.GetControlledLog)
 							if clinical != nil {
 								ph.Get("/pharmacy/prescribers", clinical.ListPrescribers)
+								// Cashier-facing bills queue ("billing" workflow mode): approved but
+								// unpaid scripts from ANY prescriber. Read-only, so plain view rights.
+								ph.Get("/pharmacy/bills", clinical.ListBills)
 							}
 						})
 					}
@@ -863,8 +866,30 @@ func New(
 							cl.With(examChange).Post("/clinical/visits/{visitID}/examination", clinical.CreateExamination)
 							cl.With(examChange).Post("/clinical/visits/{visitID}/prescribe", clinical.PrescribeFromExamination)
 							cl.Get("/clinical/lab-orders", clinical.ListLabOrders)
-							cl.With(outletmw.RequireServicePermission(rbacSvc, "pos.lab.add", "pos.lab.change", "pos.lab.manage")).
-								Post("/clinical/lab-orders/{labOrderID}/results", clinical.SubmitLabResults)
+							labChange := outletmw.RequireServicePermission(rbacSvc, "pos.lab.add", "pos.lab.change", "pos.lab.manage")
+							cl.With(labChange).Post("/clinical/lab-orders/{labOrderID}/results", clinical.SubmitLabResults)
+							// Flips an awaiting_payment lab order live once its bill is settled.
+							cl.With(labChange).Post("/clinical/lab-orders/{labOrderID}/activate", clinical.ActivateLabOrderIfPaid)
+
+							// Lab-test catalogue: readable by anyone who can examine/lab (the
+							// Examination picker needs it); mutations are a config-level action.
+							labCatalogManage := outletmw.RequireServicePermission(rbacSvc, "pos.config.change", "pos.config.manage", "pos.lab.manage")
+							cl.Get("/clinical/lab-tests", clinical.ListLabTests)
+							cl.With(labCatalogManage).Post("/clinical/lab-tests", clinical.CreateLabTest)
+							cl.With(labCatalogManage).Put("/clinical/lab-tests/{labTestID}", clinical.UpdateLabTest)
+							cl.With(labCatalogManage).Delete("/clinical/lab-tests/{labTestID}", clinical.DeleteLabTest)
+
+							// Diagnosis catalogue: any examiner may add one (the list grows as
+							// clinicians type diagnoses that aren't curated yet).
+							cl.Get("/clinical/diagnoses", clinical.ListDiagnoses)
+							cl.With(examChange).Post("/clinical/diagnoses", clinical.CreateDiagnosis)
+
+							// Pharmacy dispensing-workflow config (direct vs posted-to-bills, lab
+							// pre-payment). Own endpoint rather than the generic settings patch —
+							// service_settings.go is already well past the file-length limit.
+							cl.Get("/clinical/workflow-config", clinical.GetPharmacyWorkflow)
+							cl.With(outletmw.RequireServicePermission(rbacSvc, "pos.config.change", "pos.config.manage")).
+								Patch("/clinical/workflow-config", clinical.UpdatePharmacyWorkflow)
 						})
 					}
 

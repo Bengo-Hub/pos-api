@@ -11,6 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"github.com/bengobox/pos-service/internal/ent/laborderline"
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 )
 
 // LabOrderLine is the model entity for the LabOrderLine schema.
@@ -20,6 +21,10 @@ type LabOrderLine struct {
 	ID uuid.UUID `json:"id,omitempty"`
 	// LabOrderID holds the value of the "lab_order_id" field.
 	LabOrderID uuid.UUID `json:"lab_order_id,omitempty"`
+	// LabTestID holds the value of the "lab_test_id" field.
+	LabTestID *uuid.UUID `json:"lab_test_id,omitempty"`
+	// Price holds the value of the "price" field.
+	Price decimal.Decimal `json:"price,omitempty"`
 	// TestName holds the value of the "test_name" field.
 	TestName string `json:"test_name,omitempty"`
 	// Result holds the value of the "result" field.
@@ -46,8 +51,10 @@ func (*LabOrderLine) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case laborderline.FieldResultedBy:
+		case laborderline.FieldLabTestID, laborderline.FieldResultedBy:
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
+		case laborderline.FieldPrice:
+			values[i] = new(decimal.Decimal)
 		case laborderline.FieldTestName, laborderline.FieldResult, laborderline.FieldUnit, laborderline.FieldReferenceRange, laborderline.FieldFlag, laborderline.FieldNotes:
 			values[i] = new(sql.NullString)
 		case laborderline.FieldResultedAt, laborderline.FieldCreatedAt:
@@ -80,6 +87,19 @@ func (_m *LabOrderLine) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field lab_order_id", values[i])
 			} else if value != nil {
 				_m.LabOrderID = *value
+			}
+		case laborderline.FieldLabTestID:
+			if value, ok := values[i].(*sql.NullScanner); !ok {
+				return fmt.Errorf("unexpected type %T for field lab_test_id", values[i])
+			} else if value.Valid {
+				_m.LabTestID = new(uuid.UUID)
+				*_m.LabTestID = *value.S.(*uuid.UUID)
+			}
+		case laborderline.FieldPrice:
+			if value, ok := values[i].(*decimal.Decimal); !ok {
+				return fmt.Errorf("unexpected type %T for field price", values[i])
+			} else if value != nil {
+				_m.Price = *value
 			}
 		case laborderline.FieldTestName:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -175,6 +195,14 @@ func (_m *LabOrderLine) String() string {
 	builder.WriteString(fmt.Sprintf("id=%v, ", _m.ID))
 	builder.WriteString("lab_order_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.LabOrderID))
+	builder.WriteString(", ")
+	if v := _m.LabTestID; v != nil {
+		builder.WriteString("lab_test_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("price=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Price))
 	builder.WriteString(", ")
 	builder.WriteString("test_name=")
 	builder.WriteString(_m.TestName)

@@ -46,6 +46,8 @@ type Tx struct {
 	CustomerBalanceCache *CustomerBalanceCacheClient
 	// DailyClosing is the client for interacting with the DailyClosing builders.
 	DailyClosing *DailyClosingClient
+	// DiagnosisCatalog is the client for interacting with the DiagnosisCatalog builders.
+	DiagnosisCatalog *DiagnosisCatalogClient
 	// DocumentSequence is the client for interacting with the DocumentSequence builders.
 	DocumentSequence *DocumentSequenceClient
 	// DrugInteractionCheck is the client for interacting with the DrugInteractionCheck builders.
@@ -84,6 +86,8 @@ type Tx struct {
 	LabOrder *LabOrderClient
 	// LabOrderLine is the client for interacting with the LabOrderLine builders.
 	LabOrderLine *LabOrderLineClient
+	// LabTest is the client for interacting with the LabTest builders.
+	LabTest *LabTestClient
 	// LayawayPayment is the client for interacting with the LayawayPayment builders.
 	LayawayPayment *LayawayPaymentClient
 	// LayawayPlan is the client for interacting with the LayawayPlan builders.
@@ -410,6 +414,7 @@ func (tx *Tx) init() {
 	tx.ControlledSubstanceLog = NewControlledSubstanceLogClient(tx.config)
 	tx.CustomerBalanceCache = NewCustomerBalanceCacheClient(tx.config)
 	tx.DailyClosing = NewDailyClosingClient(tx.config)
+	tx.DiagnosisCatalog = NewDiagnosisCatalogClient(tx.config)
 	tx.DocumentSequence = NewDocumentSequenceClient(tx.config)
 	tx.DrugInteractionCheck = NewDrugInteractionCheckClient(tx.config)
 	tx.EventBooking = NewEventBookingClient(tx.config)
@@ -429,6 +434,7 @@ func (tx *Tx) init() {
 	tx.KDSTicket = NewKDSTicketClient(tx.config)
 	tx.LabOrder = NewLabOrderClient(tx.config)
 	tx.LabOrderLine = NewLabOrderLineClient(tx.config)
+	tx.LabTest = NewLabTestClient(tx.config)
 	tx.LayawayPayment = NewLayawayPaymentClient(tx.config)
 	tx.LayawayPlan = NewLayawayPlanClient(tx.config)
 	tx.LeaveRequest = NewLeaveRequestClient(tx.config)

@@ -134,6 +134,10 @@ type OutletSetting struct {
 	RequireRegistrationFee bool `json:"require_registration_fee,omitempty"`
 	// SERVICE catalog item billed as the registration/consultation fee at Records intake
 	RegistrationFeeCatalogItemID *uuid.UUID `json:"registration_fee_catalog_item_id,omitempty"`
+	// PharmacyWorkflowMode holds the value of the "pharmacy_workflow_mode" field.
+	PharmacyWorkflowMode outletsetting.PharmacyWorkflowMode `json:"pharmacy_workflow_mode,omitempty"`
+	// Lab orders stay awaiting_payment (invisible to the Lab module) until their bill is settled
+	RequireLabPrepayment bool `json:"require_lab_prepayment,omitempty"`
 	// Automatically end shift after shift_max_hours to prevent forgotten open sessions
 	ShiftAutoEndEnabled bool `json:"shift_auto_end_enabled,omitempty"`
 	// Maximum shift length in hours before auto-end (1–24, default 12)
@@ -189,13 +193,13 @@ func (*OutletSetting) scanValues(columns []string) ([]any, error) {
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		case outletsetting.FieldReceiptsJSON, outletsetting.FieldTaxConfigJSON, outletsetting.FieldServiceChargeJSON, outletsetting.FieldOpeningHoursJSON, outletsetting.FieldMetadata, outletsetting.FieldPrinterProfiles, outletsetting.FieldCatalogUseCases:
 			values[i] = new([]byte)
-		case outletsetting.FieldShowImages, outletsetting.FieldShowBarcodeScanner, outletsetting.FieldEnableKds, outletsetting.FieldEnableAppointments, outletsetting.FieldAllowPriceAboveBase, outletsetting.FieldRequireApprovalBelowBase, outletsetting.FieldVatEnabled, outletsetting.FieldAutoPrintOrder, outletsetting.FieldAutoPrintKitchen, outletsetting.FieldCashDrawerEnabled, outletsetting.FieldCashDrawerAutoOpen, outletsetting.FieldCardTerminalRequireRef, outletsetting.FieldShowPaymentInfoOnReceipt, outletsetting.FieldHotelModuleEnabled, outletsetting.FieldLayawayEnabled, outletsetting.FieldShiftReportsEnabled, outletsetting.FieldEnableRecordsModule, outletsetting.FieldEnableTriageModule, outletsetting.FieldEnableExaminationModule, outletsetting.FieldEnableLabModule, outletsetting.FieldRequireRegistrationFee, outletsetting.FieldShiftAutoEndEnabled, outletsetting.FieldAutoLogoutAfterSale:
+		case outletsetting.FieldShowImages, outletsetting.FieldShowBarcodeScanner, outletsetting.FieldEnableKds, outletsetting.FieldEnableAppointments, outletsetting.FieldAllowPriceAboveBase, outletsetting.FieldRequireApprovalBelowBase, outletsetting.FieldVatEnabled, outletsetting.FieldAutoPrintOrder, outletsetting.FieldAutoPrintKitchen, outletsetting.FieldCashDrawerEnabled, outletsetting.FieldCashDrawerAutoOpen, outletsetting.FieldCardTerminalRequireRef, outletsetting.FieldShowPaymentInfoOnReceipt, outletsetting.FieldHotelModuleEnabled, outletsetting.FieldLayawayEnabled, outletsetting.FieldShiftReportsEnabled, outletsetting.FieldEnableRecordsModule, outletsetting.FieldEnableTriageModule, outletsetting.FieldEnableExaminationModule, outletsetting.FieldEnableLabModule, outletsetting.FieldRequireRegistrationFee, outletsetting.FieldRequireLabPrepayment, outletsetting.FieldShiftAutoEndEnabled, outletsetting.FieldAutoLogoutAfterSale:
 			values[i] = new(sql.NullBool)
 		case outletsetting.FieldMaxDiscountPercent, outletsetting.FieldMaxDiscountAmount, outletsetting.FieldVatRate:
 			values[i] = new(sql.NullFloat64)
 		case outletsetting.FieldShiftMaxHours, outletsetting.FieldTableMaxOccupationMinutes, outletsetting.FieldReturnWindowDays:
 			values[i] = new(sql.NullInt64)
-		case outletsetting.FieldPinLoginMessage, outletsetting.FieldScreensaverURL, outletsetting.FieldDisplayMode, outletsetting.FieldDefaultView, outletsetting.FieldReceiptHeader, outletsetting.FieldReceiptFooter, outletsetting.FieldCurrency, outletsetting.FieldDiscountLimitType, outletsetting.FieldPrinterType, outletsetting.FieldPrinterIP, outletsetting.FieldPaperWidth, outletsetting.FieldReceiptFormat, outletsetting.FieldCashDrawerPrinter, outletsetting.FieldCashDrawerKickCode, outletsetting.FieldCardTerminalMode, outletsetting.FieldCardTerminalProvider, outletsetting.FieldCardTerminalTid, outletsetting.FieldMpesaPaybill, outletsetting.FieldMpesaAccountReference, outletsetting.FieldAirtelMoneyNumber, outletsetting.FieldMpesaTill, outletsetting.FieldMpesaPochi, outletsetting.FieldBankName, outletsetting.FieldBankAccountNumber, outletsetting.FieldBankAccountName, outletsetting.FieldCashierSalesVisibility, outletsetting.FieldCashierTerminalSurface:
+		case outletsetting.FieldPinLoginMessage, outletsetting.FieldScreensaverURL, outletsetting.FieldDisplayMode, outletsetting.FieldDefaultView, outletsetting.FieldReceiptHeader, outletsetting.FieldReceiptFooter, outletsetting.FieldCurrency, outletsetting.FieldDiscountLimitType, outletsetting.FieldPrinterType, outletsetting.FieldPrinterIP, outletsetting.FieldPaperWidth, outletsetting.FieldReceiptFormat, outletsetting.FieldCashDrawerPrinter, outletsetting.FieldCashDrawerKickCode, outletsetting.FieldCardTerminalMode, outletsetting.FieldCardTerminalProvider, outletsetting.FieldCardTerminalTid, outletsetting.FieldMpesaPaybill, outletsetting.FieldMpesaAccountReference, outletsetting.FieldAirtelMoneyNumber, outletsetting.FieldMpesaTill, outletsetting.FieldMpesaPochi, outletsetting.FieldBankName, outletsetting.FieldBankAccountNumber, outletsetting.FieldBankAccountName, outletsetting.FieldPharmacyWorkflowMode, outletsetting.FieldCashierSalesVisibility, outletsetting.FieldCashierTerminalSurface:
 			values[i] = new(sql.NullString)
 		case outletsetting.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -593,6 +597,18 @@ func (_m *OutletSetting) assignValues(columns []string, values []any) error {
 				_m.RegistrationFeeCatalogItemID = new(uuid.UUID)
 				*_m.RegistrationFeeCatalogItemID = *value.S.(*uuid.UUID)
 			}
+		case outletsetting.FieldPharmacyWorkflowMode:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field pharmacy_workflow_mode", values[i])
+			} else if value.Valid {
+				_m.PharmacyWorkflowMode = outletsetting.PharmacyWorkflowMode(value.String)
+			}
+		case outletsetting.FieldRequireLabPrepayment:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field require_lab_prepayment", values[i])
+			} else if value.Valid {
+				_m.RequireLabPrepayment = value.Bool
+			}
 		case outletsetting.FieldShiftAutoEndEnabled:
 			if value, ok := values[i].(*sql.NullBool); !ok {
 				return fmt.Errorf("unexpected type %T for field shift_auto_end_enabled", values[i])
@@ -904,6 +920,12 @@ func (_m *OutletSetting) String() string {
 		builder.WriteString("registration_fee_catalog_item_id=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
+	builder.WriteString(", ")
+	builder.WriteString("pharmacy_workflow_mode=")
+	builder.WriteString(fmt.Sprintf("%v", _m.PharmacyWorkflowMode))
+	builder.WriteString(", ")
+	builder.WriteString("require_lab_prepayment=")
+	builder.WriteString(fmt.Sprintf("%v", _m.RequireLabPrepayment))
 	builder.WriteString(", ")
 	builder.WriteString("shift_auto_end_enabled=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ShiftAutoEndEnabled))

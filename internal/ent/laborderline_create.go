@@ -14,6 +14,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/bengobox/pos-service/internal/ent/laborderline"
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 )
 
 // LabOrderLineCreate is the builder for creating a LabOrderLine entity.
@@ -27,6 +28,34 @@ type LabOrderLineCreate struct {
 // SetLabOrderID sets the "lab_order_id" field.
 func (_c *LabOrderLineCreate) SetLabOrderID(v uuid.UUID) *LabOrderLineCreate {
 	_c.mutation.SetLabOrderID(v)
+	return _c
+}
+
+// SetLabTestID sets the "lab_test_id" field.
+func (_c *LabOrderLineCreate) SetLabTestID(v uuid.UUID) *LabOrderLineCreate {
+	_c.mutation.SetLabTestID(v)
+	return _c
+}
+
+// SetNillableLabTestID sets the "lab_test_id" field if the given value is not nil.
+func (_c *LabOrderLineCreate) SetNillableLabTestID(v *uuid.UUID) *LabOrderLineCreate {
+	if v != nil {
+		_c.SetLabTestID(*v)
+	}
+	return _c
+}
+
+// SetPrice sets the "price" field.
+func (_c *LabOrderLineCreate) SetPrice(v decimal.Decimal) *LabOrderLineCreate {
+	_c.mutation.SetPrice(v)
+	return _c
+}
+
+// SetNillablePrice sets the "price" field if the given value is not nil.
+func (_c *LabOrderLineCreate) SetNillablePrice(v *decimal.Decimal) *LabOrderLineCreate {
+	if v != nil {
+		_c.SetPrice(*v)
+	}
 	return _c
 }
 
@@ -275,6 +304,14 @@ func (_c *LabOrderLineCreate) createSpec() (*LabOrderLine, *sqlgraph.CreateSpec)
 		_spec.SetField(laborderline.FieldLabOrderID, field.TypeUUID, value)
 		_node.LabOrderID = value
 	}
+	if value, ok := _c.mutation.LabTestID(); ok {
+		_spec.SetField(laborderline.FieldLabTestID, field.TypeUUID, value)
+		_node.LabTestID = &value
+	}
+	if value, ok := _c.mutation.Price(); ok {
+		_spec.SetField(laborderline.FieldPrice, field.TypeFloat64, value)
+		_node.Price = value
+	}
 	if value, ok := _c.mutation.TestName(); ok {
 		_spec.SetField(laborderline.FieldTestName, field.TypeString, value)
 		_node.TestName = value
@@ -372,6 +409,48 @@ func (u *LabOrderLineUpsert) SetLabOrderID(v uuid.UUID) *LabOrderLineUpsert {
 // UpdateLabOrderID sets the "lab_order_id" field to the value that was provided on create.
 func (u *LabOrderLineUpsert) UpdateLabOrderID() *LabOrderLineUpsert {
 	u.SetExcluded(laborderline.FieldLabOrderID)
+	return u
+}
+
+// SetLabTestID sets the "lab_test_id" field.
+func (u *LabOrderLineUpsert) SetLabTestID(v uuid.UUID) *LabOrderLineUpsert {
+	u.Set(laborderline.FieldLabTestID, v)
+	return u
+}
+
+// UpdateLabTestID sets the "lab_test_id" field to the value that was provided on create.
+func (u *LabOrderLineUpsert) UpdateLabTestID() *LabOrderLineUpsert {
+	u.SetExcluded(laborderline.FieldLabTestID)
+	return u
+}
+
+// ClearLabTestID clears the value of the "lab_test_id" field.
+func (u *LabOrderLineUpsert) ClearLabTestID() *LabOrderLineUpsert {
+	u.SetNull(laborderline.FieldLabTestID)
+	return u
+}
+
+// SetPrice sets the "price" field.
+func (u *LabOrderLineUpsert) SetPrice(v decimal.Decimal) *LabOrderLineUpsert {
+	u.Set(laborderline.FieldPrice, v)
+	return u
+}
+
+// UpdatePrice sets the "price" field to the value that was provided on create.
+func (u *LabOrderLineUpsert) UpdatePrice() *LabOrderLineUpsert {
+	u.SetExcluded(laborderline.FieldPrice)
+	return u
+}
+
+// AddPrice adds v to the "price" field.
+func (u *LabOrderLineUpsert) AddPrice(v decimal.Decimal) *LabOrderLineUpsert {
+	u.Add(laborderline.FieldPrice, v)
+	return u
+}
+
+// ClearPrice clears the value of the "price" field.
+func (u *LabOrderLineUpsert) ClearPrice() *LabOrderLineUpsert {
+	u.SetNull(laborderline.FieldPrice)
 	return u
 }
 
@@ -569,6 +648,55 @@ func (u *LabOrderLineUpsertOne) SetLabOrderID(v uuid.UUID) *LabOrderLineUpsertOn
 func (u *LabOrderLineUpsertOne) UpdateLabOrderID() *LabOrderLineUpsertOne {
 	return u.Update(func(s *LabOrderLineUpsert) {
 		s.UpdateLabOrderID()
+	})
+}
+
+// SetLabTestID sets the "lab_test_id" field.
+func (u *LabOrderLineUpsertOne) SetLabTestID(v uuid.UUID) *LabOrderLineUpsertOne {
+	return u.Update(func(s *LabOrderLineUpsert) {
+		s.SetLabTestID(v)
+	})
+}
+
+// UpdateLabTestID sets the "lab_test_id" field to the value that was provided on create.
+func (u *LabOrderLineUpsertOne) UpdateLabTestID() *LabOrderLineUpsertOne {
+	return u.Update(func(s *LabOrderLineUpsert) {
+		s.UpdateLabTestID()
+	})
+}
+
+// ClearLabTestID clears the value of the "lab_test_id" field.
+func (u *LabOrderLineUpsertOne) ClearLabTestID() *LabOrderLineUpsertOne {
+	return u.Update(func(s *LabOrderLineUpsert) {
+		s.ClearLabTestID()
+	})
+}
+
+// SetPrice sets the "price" field.
+func (u *LabOrderLineUpsertOne) SetPrice(v decimal.Decimal) *LabOrderLineUpsertOne {
+	return u.Update(func(s *LabOrderLineUpsert) {
+		s.SetPrice(v)
+	})
+}
+
+// AddPrice adds v to the "price" field.
+func (u *LabOrderLineUpsertOne) AddPrice(v decimal.Decimal) *LabOrderLineUpsertOne {
+	return u.Update(func(s *LabOrderLineUpsert) {
+		s.AddPrice(v)
+	})
+}
+
+// UpdatePrice sets the "price" field to the value that was provided on create.
+func (u *LabOrderLineUpsertOne) UpdatePrice() *LabOrderLineUpsertOne {
+	return u.Update(func(s *LabOrderLineUpsert) {
+		s.UpdatePrice()
+	})
+}
+
+// ClearPrice clears the value of the "price" field.
+func (u *LabOrderLineUpsertOne) ClearPrice() *LabOrderLineUpsertOne {
+	return u.Update(func(s *LabOrderLineUpsert) {
+		s.ClearPrice()
 	})
 }
 
@@ -955,6 +1083,55 @@ func (u *LabOrderLineUpsertBulk) SetLabOrderID(v uuid.UUID) *LabOrderLineUpsertB
 func (u *LabOrderLineUpsertBulk) UpdateLabOrderID() *LabOrderLineUpsertBulk {
 	return u.Update(func(s *LabOrderLineUpsert) {
 		s.UpdateLabOrderID()
+	})
+}
+
+// SetLabTestID sets the "lab_test_id" field.
+func (u *LabOrderLineUpsertBulk) SetLabTestID(v uuid.UUID) *LabOrderLineUpsertBulk {
+	return u.Update(func(s *LabOrderLineUpsert) {
+		s.SetLabTestID(v)
+	})
+}
+
+// UpdateLabTestID sets the "lab_test_id" field to the value that was provided on create.
+func (u *LabOrderLineUpsertBulk) UpdateLabTestID() *LabOrderLineUpsertBulk {
+	return u.Update(func(s *LabOrderLineUpsert) {
+		s.UpdateLabTestID()
+	})
+}
+
+// ClearLabTestID clears the value of the "lab_test_id" field.
+func (u *LabOrderLineUpsertBulk) ClearLabTestID() *LabOrderLineUpsertBulk {
+	return u.Update(func(s *LabOrderLineUpsert) {
+		s.ClearLabTestID()
+	})
+}
+
+// SetPrice sets the "price" field.
+func (u *LabOrderLineUpsertBulk) SetPrice(v decimal.Decimal) *LabOrderLineUpsertBulk {
+	return u.Update(func(s *LabOrderLineUpsert) {
+		s.SetPrice(v)
+	})
+}
+
+// AddPrice adds v to the "price" field.
+func (u *LabOrderLineUpsertBulk) AddPrice(v decimal.Decimal) *LabOrderLineUpsertBulk {
+	return u.Update(func(s *LabOrderLineUpsert) {
+		s.AddPrice(v)
+	})
+}
+
+// UpdatePrice sets the "price" field to the value that was provided on create.
+func (u *LabOrderLineUpsertBulk) UpdatePrice() *LabOrderLineUpsertBulk {
+	return u.Update(func(s *LabOrderLineUpsert) {
+		s.UpdatePrice()
+	})
+}
+
+// ClearPrice clears the value of the "price" field.
+func (u *LabOrderLineUpsertBulk) ClearPrice() *LabOrderLineUpsertBulk {
+	return u.Update(func(s *LabOrderLineUpsert) {
+		s.ClearPrice()
 	})
 }
 

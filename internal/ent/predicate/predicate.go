@@ -57,6 +57,9 @@ type CustomerBalanceCache func(*sql.Selector)
 // DailyClosing is the predicate function for dailyclosing builders.
 type DailyClosing func(*sql.Selector)
 
+// DiagnosisCatalog is the predicate function for diagnosiscatalog builders.
+type DiagnosisCatalog func(*sql.Selector)
+
 // DocumentSequence is the predicate function for documentsequence builders.
 type DocumentSequence func(*sql.Selector)
 
@@ -113,6 +116,9 @@ type LabOrder func(*sql.Selector)
 
 // LabOrderLine is the predicate function for laborderline builders.
 type LabOrderLine func(*sql.Selector)
+
+// LabTest is the predicate function for labtest builders.
+type LabTest func(*sql.Selector)
 
 // LayawayPayment is the predicate function for layawaypayment builders.
 type LayawayPayment func(*sql.Selector)

@@ -25,6 +25,10 @@ const (
 	FieldOrderedBy = "ordered_by"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
+	// FieldPaymentOrderID holds the string denoting the payment_order_id field in the database.
+	FieldPaymentOrderID = "payment_order_id"
+	// FieldTotalAmount holds the string denoting the total_amount field in the database.
+	FieldTotalAmount = "total_amount"
 	// FieldNotes holds the string denoting the notes field in the database.
 	FieldNotes = "notes"
 	// FieldOrderedAt holds the string denoting the ordered_at field in the database.
@@ -43,6 +47,8 @@ var Columns = []string{
 	FieldExaminationID,
 	FieldOrderedBy,
 	FieldStatus,
+	FieldPaymentOrderID,
+	FieldTotalAmount,
 	FieldNotes,
 	FieldOrderedAt,
 	FieldCompletedAt,
@@ -73,10 +79,11 @@ const DefaultStatus = StatusOrdered
 
 // Status values.
 const (
-	StatusOrdered    Status = "ordered"
-	StatusInProgress Status = "in_progress"
-	StatusCompleted  Status = "completed"
-	StatusCancelled  Status = "cancelled"
+	StatusAwaitingPayment Status = "awaiting_payment"
+	StatusOrdered         Status = "ordered"
+	StatusInProgress      Status = "in_progress"
+	StatusCompleted       Status = "completed"
+	StatusCancelled       Status = "cancelled"
 )
 
 func (s Status) String() string {
@@ -86,7 +93,7 @@ func (s Status) String() string {
 // StatusValidator is a validator for the "status" field enum values. It is called by the builders before save.
 func StatusValidator(s Status) error {
 	switch s {
-	case StatusOrdered, StatusInProgress, StatusCompleted, StatusCancelled:
+	case StatusAwaitingPayment, StatusOrdered, StatusInProgress, StatusCompleted, StatusCancelled:
 		return nil
 	default:
 		return fmt.Errorf("laborder: invalid enum value for status field: %q", s)
@@ -124,6 +131,16 @@ func ByOrderedBy(opts ...sql.OrderTermOption) OrderOption {
 // ByStatus orders the results by the status field.
 func ByStatus(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldStatus, opts...).ToFunc()
+}
+
+// ByPaymentOrderID orders the results by the payment_order_id field.
+func ByPaymentOrderID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPaymentOrderID, opts...).ToFunc()
+}
+
+// ByTotalAmount orders the results by the total_amount field.
+func ByTotalAmount(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTotalAmount, opts...).ToFunc()
 }
 
 // ByNotes orders the results by the notes field.

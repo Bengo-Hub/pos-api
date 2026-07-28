@@ -14,6 +14,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/laborderline"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 )
 
 // LabOrderLineUpdate is the builder for updating LabOrderLine entities.
@@ -40,6 +41,53 @@ func (_u *LabOrderLineUpdate) SetNillableLabOrderID(v *uuid.UUID) *LabOrderLineU
 	if v != nil {
 		_u.SetLabOrderID(*v)
 	}
+	return _u
+}
+
+// SetLabTestID sets the "lab_test_id" field.
+func (_u *LabOrderLineUpdate) SetLabTestID(v uuid.UUID) *LabOrderLineUpdate {
+	_u.mutation.SetLabTestID(v)
+	return _u
+}
+
+// SetNillableLabTestID sets the "lab_test_id" field if the given value is not nil.
+func (_u *LabOrderLineUpdate) SetNillableLabTestID(v *uuid.UUID) *LabOrderLineUpdate {
+	if v != nil {
+		_u.SetLabTestID(*v)
+	}
+	return _u
+}
+
+// ClearLabTestID clears the value of the "lab_test_id" field.
+func (_u *LabOrderLineUpdate) ClearLabTestID() *LabOrderLineUpdate {
+	_u.mutation.ClearLabTestID()
+	return _u
+}
+
+// SetPrice sets the "price" field.
+func (_u *LabOrderLineUpdate) SetPrice(v decimal.Decimal) *LabOrderLineUpdate {
+	_u.mutation.ResetPrice()
+	_u.mutation.SetPrice(v)
+	return _u
+}
+
+// SetNillablePrice sets the "price" field if the given value is not nil.
+func (_u *LabOrderLineUpdate) SetNillablePrice(v *decimal.Decimal) *LabOrderLineUpdate {
+	if v != nil {
+		_u.SetPrice(*v)
+	}
+	return _u
+}
+
+// AddPrice adds value to the "price" field.
+func (_u *LabOrderLineUpdate) AddPrice(v decimal.Decimal) *LabOrderLineUpdate {
+	_u.mutation.AddPrice(v)
+	return _u
+}
+
+// ClearPrice clears the value of the "price" field.
+func (_u *LabOrderLineUpdate) ClearPrice() *LabOrderLineUpdate {
+	_u.mutation.ClearPrice()
 	return _u
 }
 
@@ -253,6 +301,21 @@ func (_u *LabOrderLineUpdate) sqlSave(ctx context.Context) (_node int, err error
 	if value, ok := _u.mutation.LabOrderID(); ok {
 		_spec.SetField(laborderline.FieldLabOrderID, field.TypeUUID, value)
 	}
+	if value, ok := _u.mutation.LabTestID(); ok {
+		_spec.SetField(laborderline.FieldLabTestID, field.TypeUUID, value)
+	}
+	if _u.mutation.LabTestIDCleared() {
+		_spec.ClearField(laborderline.FieldLabTestID, field.TypeUUID)
+	}
+	if value, ok := _u.mutation.Price(); ok {
+		_spec.SetField(laborderline.FieldPrice, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedPrice(); ok {
+		_spec.AddField(laborderline.FieldPrice, field.TypeFloat64, value)
+	}
+	if _u.mutation.PriceCleared() {
+		_spec.ClearField(laborderline.FieldPrice, field.TypeFloat64)
+	}
 	if value, ok := _u.mutation.TestName(); ok {
 		_spec.SetField(laborderline.FieldTestName, field.TypeString, value)
 	}
@@ -326,6 +389,53 @@ func (_u *LabOrderLineUpdateOne) SetNillableLabOrderID(v *uuid.UUID) *LabOrderLi
 	if v != nil {
 		_u.SetLabOrderID(*v)
 	}
+	return _u
+}
+
+// SetLabTestID sets the "lab_test_id" field.
+func (_u *LabOrderLineUpdateOne) SetLabTestID(v uuid.UUID) *LabOrderLineUpdateOne {
+	_u.mutation.SetLabTestID(v)
+	return _u
+}
+
+// SetNillableLabTestID sets the "lab_test_id" field if the given value is not nil.
+func (_u *LabOrderLineUpdateOne) SetNillableLabTestID(v *uuid.UUID) *LabOrderLineUpdateOne {
+	if v != nil {
+		_u.SetLabTestID(*v)
+	}
+	return _u
+}
+
+// ClearLabTestID clears the value of the "lab_test_id" field.
+func (_u *LabOrderLineUpdateOne) ClearLabTestID() *LabOrderLineUpdateOne {
+	_u.mutation.ClearLabTestID()
+	return _u
+}
+
+// SetPrice sets the "price" field.
+func (_u *LabOrderLineUpdateOne) SetPrice(v decimal.Decimal) *LabOrderLineUpdateOne {
+	_u.mutation.ResetPrice()
+	_u.mutation.SetPrice(v)
+	return _u
+}
+
+// SetNillablePrice sets the "price" field if the given value is not nil.
+func (_u *LabOrderLineUpdateOne) SetNillablePrice(v *decimal.Decimal) *LabOrderLineUpdateOne {
+	if v != nil {
+		_u.SetPrice(*v)
+	}
+	return _u
+}
+
+// AddPrice adds value to the "price" field.
+func (_u *LabOrderLineUpdateOne) AddPrice(v decimal.Decimal) *LabOrderLineUpdateOne {
+	_u.mutation.AddPrice(v)
+	return _u
+}
+
+// ClearPrice clears the value of the "price" field.
+func (_u *LabOrderLineUpdateOne) ClearPrice() *LabOrderLineUpdateOne {
+	_u.mutation.ClearPrice()
 	return _u
 }
 
@@ -568,6 +678,21 @@ func (_u *LabOrderLineUpdateOne) sqlSave(ctx context.Context) (_node *LabOrderLi
 	}
 	if value, ok := _u.mutation.LabOrderID(); ok {
 		_spec.SetField(laborderline.FieldLabOrderID, field.TypeUUID, value)
+	}
+	if value, ok := _u.mutation.LabTestID(); ok {
+		_spec.SetField(laborderline.FieldLabTestID, field.TypeUUID, value)
+	}
+	if _u.mutation.LabTestIDCleared() {
+		_spec.ClearField(laborderline.FieldLabTestID, field.TypeUUID)
+	}
+	if value, ok := _u.mutation.Price(); ok {
+		_spec.SetField(laborderline.FieldPrice, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedPrice(); ok {
+		_spec.AddField(laborderline.FieldPrice, field.TypeFloat64, value)
+	}
+	if _u.mutation.PriceCleared() {
+		_spec.ClearField(laborderline.FieldPrice, field.TypeFloat64)
 	}
 	if value, ok := _u.mutation.TestName(); ok {
 		_spec.SetField(laborderline.FieldTestName, field.TypeString, value)

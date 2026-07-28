@@ -8,6 +8,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 )
 
 // ID filters vertices based on their ID field.
@@ -58,6 +59,16 @@ func IDLTE(id uuid.UUID) predicate.LabOrderLine {
 // LabOrderID applies equality check predicate on the "lab_order_id" field. It's identical to LabOrderIDEQ.
 func LabOrderID(v uuid.UUID) predicate.LabOrderLine {
 	return predicate.LabOrderLine(sql.FieldEQ(FieldLabOrderID, v))
+}
+
+// LabTestID applies equality check predicate on the "lab_test_id" field. It's identical to LabTestIDEQ.
+func LabTestID(v uuid.UUID) predicate.LabOrderLine {
+	return predicate.LabOrderLine(sql.FieldEQ(FieldLabTestID, v))
+}
+
+// Price applies equality check predicate on the "price" field. It's identical to PriceEQ.
+func Price(v decimal.Decimal) predicate.LabOrderLine {
+	return predicate.LabOrderLine(sql.FieldEQ(FieldPrice, v))
 }
 
 // TestName applies equality check predicate on the "test_name" field. It's identical to TestNameEQ.
@@ -138,6 +149,106 @@ func LabOrderIDLT(v uuid.UUID) predicate.LabOrderLine {
 // LabOrderIDLTE applies the LTE predicate on the "lab_order_id" field.
 func LabOrderIDLTE(v uuid.UUID) predicate.LabOrderLine {
 	return predicate.LabOrderLine(sql.FieldLTE(FieldLabOrderID, v))
+}
+
+// LabTestIDEQ applies the EQ predicate on the "lab_test_id" field.
+func LabTestIDEQ(v uuid.UUID) predicate.LabOrderLine {
+	return predicate.LabOrderLine(sql.FieldEQ(FieldLabTestID, v))
+}
+
+// LabTestIDNEQ applies the NEQ predicate on the "lab_test_id" field.
+func LabTestIDNEQ(v uuid.UUID) predicate.LabOrderLine {
+	return predicate.LabOrderLine(sql.FieldNEQ(FieldLabTestID, v))
+}
+
+// LabTestIDIn applies the In predicate on the "lab_test_id" field.
+func LabTestIDIn(vs ...uuid.UUID) predicate.LabOrderLine {
+	return predicate.LabOrderLine(sql.FieldIn(FieldLabTestID, vs...))
+}
+
+// LabTestIDNotIn applies the NotIn predicate on the "lab_test_id" field.
+func LabTestIDNotIn(vs ...uuid.UUID) predicate.LabOrderLine {
+	return predicate.LabOrderLine(sql.FieldNotIn(FieldLabTestID, vs...))
+}
+
+// LabTestIDGT applies the GT predicate on the "lab_test_id" field.
+func LabTestIDGT(v uuid.UUID) predicate.LabOrderLine {
+	return predicate.LabOrderLine(sql.FieldGT(FieldLabTestID, v))
+}
+
+// LabTestIDGTE applies the GTE predicate on the "lab_test_id" field.
+func LabTestIDGTE(v uuid.UUID) predicate.LabOrderLine {
+	return predicate.LabOrderLine(sql.FieldGTE(FieldLabTestID, v))
+}
+
+// LabTestIDLT applies the LT predicate on the "lab_test_id" field.
+func LabTestIDLT(v uuid.UUID) predicate.LabOrderLine {
+	return predicate.LabOrderLine(sql.FieldLT(FieldLabTestID, v))
+}
+
+// LabTestIDLTE applies the LTE predicate on the "lab_test_id" field.
+func LabTestIDLTE(v uuid.UUID) predicate.LabOrderLine {
+	return predicate.LabOrderLine(sql.FieldLTE(FieldLabTestID, v))
+}
+
+// LabTestIDIsNil applies the IsNil predicate on the "lab_test_id" field.
+func LabTestIDIsNil() predicate.LabOrderLine {
+	return predicate.LabOrderLine(sql.FieldIsNull(FieldLabTestID))
+}
+
+// LabTestIDNotNil applies the NotNil predicate on the "lab_test_id" field.
+func LabTestIDNotNil() predicate.LabOrderLine {
+	return predicate.LabOrderLine(sql.FieldNotNull(FieldLabTestID))
+}
+
+// PriceEQ applies the EQ predicate on the "price" field.
+func PriceEQ(v decimal.Decimal) predicate.LabOrderLine {
+	return predicate.LabOrderLine(sql.FieldEQ(FieldPrice, v))
+}
+
+// PriceNEQ applies the NEQ predicate on the "price" field.
+func PriceNEQ(v decimal.Decimal) predicate.LabOrderLine {
+	return predicate.LabOrderLine(sql.FieldNEQ(FieldPrice, v))
+}
+
+// PriceIn applies the In predicate on the "price" field.
+func PriceIn(vs ...decimal.Decimal) predicate.LabOrderLine {
+	return predicate.LabOrderLine(sql.FieldIn(FieldPrice, vs...))
+}
+
+// PriceNotIn applies the NotIn predicate on the "price" field.
+func PriceNotIn(vs ...decimal.Decimal) predicate.LabOrderLine {
+	return predicate.LabOrderLine(sql.FieldNotIn(FieldPrice, vs...))
+}
+
+// PriceGT applies the GT predicate on the "price" field.
+func PriceGT(v decimal.Decimal) predicate.LabOrderLine {
+	return predicate.LabOrderLine(sql.FieldGT(FieldPrice, v))
+}
+
+// PriceGTE applies the GTE predicate on the "price" field.
+func PriceGTE(v decimal.Decimal) predicate.LabOrderLine {
+	return predicate.LabOrderLine(sql.FieldGTE(FieldPrice, v))
+}
+
+// PriceLT applies the LT predicate on the "price" field.
+func PriceLT(v decimal.Decimal) predicate.LabOrderLine {
+	return predicate.LabOrderLine(sql.FieldLT(FieldPrice, v))
+}
+
+// PriceLTE applies the LTE predicate on the "price" field.
+func PriceLTE(v decimal.Decimal) predicate.LabOrderLine {
+	return predicate.LabOrderLine(sql.FieldLTE(FieldPrice, v))
+}
+
+// PriceIsNil applies the IsNil predicate on the "price" field.
+func PriceIsNil() predicate.LabOrderLine {
+	return predicate.LabOrderLine(sql.FieldIsNull(FieldPrice))
+}
+
+// PriceNotNil applies the NotNil predicate on the "price" field.
+func PriceNotNil() predicate.LabOrderLine {
+	return predicate.LabOrderLine(sql.FieldNotNull(FieldPrice))
 }
 
 // TestNameEQ applies the EQ predicate on the "test_name" field.

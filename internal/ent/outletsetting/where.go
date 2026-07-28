@@ -301,6 +301,11 @@ func RegistrationFeeCatalogItemID(v uuid.UUID) predicate.OutletSetting {
 	return predicate.OutletSetting(sql.FieldEQ(FieldRegistrationFeeCatalogItemID, v))
 }
 
+// RequireLabPrepayment applies equality check predicate on the "require_lab_prepayment" field. It's identical to RequireLabPrepaymentEQ.
+func RequireLabPrepayment(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldRequireLabPrepayment, v))
+}
+
 // ShiftAutoEndEnabled applies equality check predicate on the "shift_auto_end_enabled" field. It's identical to ShiftAutoEndEnabledEQ.
 func ShiftAutoEndEnabled(v bool) predicate.OutletSetting {
 	return predicate.OutletSetting(sql.FieldEQ(FieldShiftAutoEndEnabled, v))
@@ -2819,6 +2824,56 @@ func RegistrationFeeCatalogItemIDIsNil() predicate.OutletSetting {
 // RegistrationFeeCatalogItemIDNotNil applies the NotNil predicate on the "registration_fee_catalog_item_id" field.
 func RegistrationFeeCatalogItemIDNotNil() predicate.OutletSetting {
 	return predicate.OutletSetting(sql.FieldNotNull(FieldRegistrationFeeCatalogItemID))
+}
+
+// PharmacyWorkflowModeEQ applies the EQ predicate on the "pharmacy_workflow_mode" field.
+func PharmacyWorkflowModeEQ(v PharmacyWorkflowMode) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldPharmacyWorkflowMode, v))
+}
+
+// PharmacyWorkflowModeNEQ applies the NEQ predicate on the "pharmacy_workflow_mode" field.
+func PharmacyWorkflowModeNEQ(v PharmacyWorkflowMode) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNEQ(FieldPharmacyWorkflowMode, v))
+}
+
+// PharmacyWorkflowModeIn applies the In predicate on the "pharmacy_workflow_mode" field.
+func PharmacyWorkflowModeIn(vs ...PharmacyWorkflowMode) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIn(FieldPharmacyWorkflowMode, vs...))
+}
+
+// PharmacyWorkflowModeNotIn applies the NotIn predicate on the "pharmacy_workflow_mode" field.
+func PharmacyWorkflowModeNotIn(vs ...PharmacyWorkflowMode) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotIn(FieldPharmacyWorkflowMode, vs...))
+}
+
+// PharmacyWorkflowModeIsNil applies the IsNil predicate on the "pharmacy_workflow_mode" field.
+func PharmacyWorkflowModeIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldPharmacyWorkflowMode))
+}
+
+// PharmacyWorkflowModeNotNil applies the NotNil predicate on the "pharmacy_workflow_mode" field.
+func PharmacyWorkflowModeNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldPharmacyWorkflowMode))
+}
+
+// RequireLabPrepaymentEQ applies the EQ predicate on the "require_lab_prepayment" field.
+func RequireLabPrepaymentEQ(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldRequireLabPrepayment, v))
+}
+
+// RequireLabPrepaymentNEQ applies the NEQ predicate on the "require_lab_prepayment" field.
+func RequireLabPrepaymentNEQ(v bool) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNEQ(FieldRequireLabPrepayment, v))
+}
+
+// RequireLabPrepaymentIsNil applies the IsNil predicate on the "require_lab_prepayment" field.
+func RequireLabPrepaymentIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldRequireLabPrepayment))
+}
+
+// RequireLabPrepaymentNotNil applies the NotNil predicate on the "require_lab_prepayment" field.
+func RequireLabPrepaymentNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldRequireLabPrepayment))
 }
 
 // ShiftAutoEndEnabledEQ applies the EQ predicate on the "shift_auto_end_enabled" field.
