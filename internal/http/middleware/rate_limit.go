@@ -84,3 +84,59 @@ func IPRateLimit(rc *redis.Client, cfg RateLimitConfig) func(http.Handler) http.
 		})
 	}
 }
+
+// DefaultPINRateLimitConfig throttles PIN identify/login attempts much harder than ordinary
+// traffic (see PINRateLimit) — 8 requests/minute per IP. Generous enough for a cashier fumbling
+// their own PIN a few times, far too tight to scan a common/guessed PIN across many tenant IDs.
+func DefaultPINRateLimitConfig() RateLimitConfig {
+	return RateLimitConfig{Requests: 8, Window: 60 * time.Second}
+}
+
+// PINRateLimit is a Redis sliding-window rate limiter keyed by client IP, dedicated to PIN
+// authentication routes (identify/login/step-up). It uses its own Redis key namespace ("rl:pin:"
+// vs IPRateLimit's "rl:pos:") so it counts independently of — and stacks with — the general
+// per-IP limiter rather than sharing/racing its counter.
+//
+// Why this exists: PIN uniqueness is enforced per-tenant, not globally, so the SAME weak/common
+// PIN (e.g. "1111") can independently be valid for two entirely unrelated tenants' admin
+// accounts — confirmed live in production. Without a much stricter limit specifically on these
+// routes, the generous general-purpose budget (100 req/60s) lets an attacker who knows or
+// guesses one tenant's PIN cheaply try it against hundreds of other tenant IDs per minute,
+// looking for a collision. This does not fix any single request's tenant isolation (each lookup
+// was already correctly scoped to its own tenant) — it makes that scanning pattern impractical.
+func PINRateLimit(rc *redis.Client, cfg RateLimitConfig) func(http.Handler) http.Handler {
+	if rc == nil {
+		return func(next http.Handler) http.Handler { return next }
+	}
+	if cfg.Requests <= 0 {
+		cfg = DefaultPINRateLimitConfig()
+	}
+
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ip := r.RemoteAddr
+			if forwarded := r.Header.Get("X-Real-IP"); forwarded != "" {
+				ip = forwarded
+			}
+
+			windowSec := int(cfg.Window.Seconds())
+			key := fmt.Sprintf("rl:pin:%s:%d", ip, time.Now().Unix()/int64(windowSec))
+
+			ctx := context.Background()
+			count, err := rc.Incr(ctx, key).Result()
+			if err == nil && count == 1 {
+				rc.Expire(ctx, key, cfg.Window+time.Second)
+			}
+
+			reset := (time.Now().Unix()/int64(windowSec)+1)*int64(windowSec) - time.Now().Unix()
+
+			if err == nil && int(count) > cfg.Requests {
+				w.Header().Set("Retry-After", strconv.FormatInt(reset, 10))
+				http.Error(w, `{"error":"too many PIN login attempts — please wait and try again"}`, http.StatusTooManyRequests)
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	}
+}

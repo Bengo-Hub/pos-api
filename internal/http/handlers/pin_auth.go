@@ -21,7 +21,22 @@ import (
 	entstaffoutlet "github.com/bengobox/pos-service/internal/ent/staffoutlet"
 	"github.com/bengobox/pos-service/internal/modules/rbac"
 	"github.com/bengobox/pos-service/internal/platform/subscriptions"
+	"github.com/bengobox/pos-service/internal/posrole"
 )
+
+// weakPINs blocks the handful of trivially guessable 4-digit PINs (every digit the same, or a
+// sequential run) for admin/manager-tier staff. PIN uniqueness is enforced only PER TENANT, not
+// globally, so two unrelated tenants both defaulting their admin account to "1111" means anyone
+// who learns/guesses tenant A's admin PIN can log in as tenant B's admin too, by simply trying
+// the same PIN against tenant B's PIN-login endpoint — confirmed live against two real
+// production tenants. Mirrors auth-api's weakServicePINs (the primary provisioning path);
+// enforced here too since this endpoint lets pos-api set/change a PIN directly.
+var weakPINs = map[string]bool{
+	"0000": true, "1111": true, "2222": true, "3333": true, "4444": true,
+	"5555": true, "6666": true, "7777": true, "8888": true, "9999": true,
+	"0123": true, "1234": true, "2345": true, "3456": true, "4567": true, "5678": true, "6789": true,
+	"9876": true, "8765": true, "7654": true, "6543": true, "5432": true, "4321": true, "3210": true,
+}
 
 // pinFastHash computes hex(SHA256(tenantID+":"+userID+":"+pin)) for O(1) PIN lookup.
 // Scoped to tenant+user so a single PIN works across all outlets the user is assigned to.
@@ -303,13 +318,6 @@ func (h *PINAuthHandler) SetPIN(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	hash, err := bcrypt.GenerateFromPassword([]byte(input.PIN), bcrypt.DefaultCost)
-	if err != nil {
-		jsonError(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-	hashStr := string(hash)
-
 	member, err := h.client.StaffMember.Query().
 		Where(entstaff.TenantID(tid), entstaff.UserID(userID)).
 		Only(r.Context())
@@ -317,6 +325,20 @@ func (h *PINAuthHandler) SetPIN(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "staff member not found", http.StatusNotFound)
 		return
 	}
+
+	// Admin/manager PINs are a much higher-value target than a cashier's — a collision with
+	// another tenant's admin PIN grants full cross-tenant business access.
+	if posrole.IsAdminLevel(member.Role) && weakPINs[input.PIN] {
+		jsonError(w, "this PIN is too common for an admin/manager account — choose a less predictable PIN", http.StatusBadRequest)
+		return
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(input.PIN), bcrypt.DefaultCost)
+	if err != nil {
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	hashStr := string(hash)
 
 	fastHash := pinFastHash(tid, member.UserID, input.PIN)
 

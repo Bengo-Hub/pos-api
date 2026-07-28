@@ -197,10 +197,17 @@ func New(
 			}))
 			if pinAuth != nil {
 				pub.Get("/{tenantID}/pos/staff", pinAuth.ListStaff)
-				pub.Post("/{tenantID}/pos/auth/pin", pinAuth.Login)
-				pub.Post("/{tenantID}/pos/auth/pin/identify", pinAuth.IdentifyByPIN)
-				pub.Post("/{tenantID}/pos/auth/pin/step-up", pinAuth.StepUp)
-				pub.Post("/{tenantID}/pos/auth/pin/step-up-card", pinAuth.StepUpByCard)
+				// Dedicated, much stricter per-IP limit on the actual PIN-guess surface (bcrypt
+				// compare against a candidate set), stacked on top of the general limiter above —
+				// see PINRateLimit's doc comment for why (PIN uniqueness is per-tenant only, so a
+				// common/guessed PIN can collide across unrelated tenants' admin accounts).
+				pub.Group(func(pinGroup chi.Router) {
+					pinGroup.Use(outletmw.PINRateLimit(redisClient, outletmw.DefaultPINRateLimitConfig()))
+					pinGroup.Post("/{tenantID}/pos/auth/pin", pinAuth.Login)
+					pinGroup.Post("/{tenantID}/pos/auth/pin/identify", pinAuth.IdentifyByPIN)
+					pinGroup.Post("/{tenantID}/pos/auth/pin/step-up", pinAuth.StepUp)
+					pinGroup.Post("/{tenantID}/pos/auth/pin/step-up-card", pinAuth.StepUpByCard)
+				})
 				pub.Get("/{tenantID}/pos/auth/pin/profile", pinAuth.StaffProfiles)
 			}
 			if publicOutlet != nil {
