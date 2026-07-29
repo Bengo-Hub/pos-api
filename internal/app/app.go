@@ -41,6 +41,8 @@ import (
 	promommodule "github.com/bengobox/pos-service/internal/modules/promotions"
 	rbacmodule "github.com/bengobox/pos-service/internal/modules/rbac"
 	"github.com/bengobox/pos-service/internal/modules/reversals"
+	"github.com/bengobox/pos-service/internal/modules/saledelete"
+	"github.com/bengobox/pos-service/internal/modules/saleedit"
 	shiftsmodule "github.com/bengobox/pos-service/internal/modules/shifts"
 	"github.com/bengobox/pos-service/internal/modules/staffcredit"
 	"github.com/bengobox/pos-service/internal/modules/tenant"
@@ -150,7 +152,7 @@ func New(ctx context.Context) (*App, error) {
 	})
 
 	tenantCache := sharedcache.New(redisClient, log)
-	tenantSyncer := tenant.NewSyncer(entClient, cfg.Auth.ServiceURL, tenantCache)
+	tenantSyncer := tenant.NewSyncer(entClient, cfg.Auth.ServiceURL, tenantCache).WithDB(sqlDB)
 	identitySvc := identity.NewService(entClient, tenantSyncer)
 
 	// Initialize business services
@@ -413,6 +415,17 @@ func New(ctx context.Context) (*App, error) {
 	reversalSvc.SetAuditService(auditSvc)
 	reversalSvc.WithSequence(docSeqSvc) // pos_reversal numbers via the document sequence
 	reversalHandler := handlers.NewReversalHandler(log, reversalSvc)
+	// Tenant-admin Delete-Sale ("shred") tool — built on the SAME reversal engine (reversalSvc)
+	// for the fiscalised branch; the non-fiscalised branch additionally hard-deletes the treasury
+	// ledger and pos-api's own rows. See internal/modules/saledelete.
+	saleDeleteSvc := saledelete.NewService(log, entClient, reversalSvc, treasuryClient, inventoryClient)
+	saleDeleteSvc.SetAuditService(auditSvc)
+	saleDeleteHandler := handlers.NewSaleDeleteHandler(log, saleDeleteSvc)
+	// Tenant-admin Edit-Sale "prepare" step — reverses the original via the SAME reversalSvc;
+	// pos-ui's existing Add Sale pipeline creates the replacement. See internal/modules/saleedit.
+	saleEditSvc := saleedit.NewService(log, entClient, reversalSvc)
+	saleEditSvc.SetAuditService(auditSvc)
+	saleEditHandler := handlers.NewSaleEditHandler(log, saleEditSvc)
 	receiptHandler := handlers.NewReceiptHandler(log, entClient, tenantCache, cfg.Auth.ServiceURL)
 	// KRA PIN header line on receipts — resolved from the treasury tax profile, printed
 	// ONLY for eTIMS-activated tenants (FiscalPin returns "" otherwise). Fallback for sales
@@ -670,7 +683,7 @@ func New(ctx context.Context) (*App, error) {
 	// One-time recovery tool: fleet-wide recipe-COGS backfill (platform-owner only).
 	recipeCOGSBackfillHandler := handlers.NewRecipeCOGSBackfillHandler(entClient, inventoryClient, treasuryClient, log)
 
-	chiRouter := router.New(log, healthHandler, authMiddleware, entClient, identitySvc, orderHandler, catalogHandler, tableHandler, tenderHandler, paymentHandler, drawerHandler, barTabHandler, promotionHandler, rbacHandler, rbacSvc, hotelHandler, kdsHandler, deviceHandler, pinAuthHandler, publicOutletHandler, closingHandler, returnHandler, reversalHandler, receiptHandler, menuHandler, layawayHandler, scaleHandler, pharmacyHandler, clinicalHandler, appointmentHandler, commissionHandler, staffScheduleHandler, shiftOverrideHandler, leaveRequestHandler, shiftRotationHandler, loyaltyHandler, reportsHandler, reportPDFHandler, webhookHandler, onlineOrderHandler, serviceConfigHandler, serviceSettingsHandler, docSequenceHandler, notificationsHandler, queueHandler, billSplitHandler, resourceHandler, commissionRuleHandler, packageHandler, clientHandler, channelHandler, printHandler, printJobsHandler, printAgentAPIHandler, payrollHandler, staffAdminHandler, repairHandler, cfg.HTTP.AllowedOrigins, redisClient, cfg.Treasury.InternalServiceKey, backupHandler, backupDestHandler, screensaverMediaHandler, mediaRoot, recipeCOGSBackfillHandler)
+	chiRouter := router.New(log, healthHandler, authMiddleware, entClient, identitySvc, orderHandler, catalogHandler, tableHandler, tenderHandler, paymentHandler, drawerHandler, barTabHandler, promotionHandler, rbacHandler, rbacSvc, hotelHandler, kdsHandler, deviceHandler, pinAuthHandler, publicOutletHandler, closingHandler, returnHandler, reversalHandler, saleDeleteHandler, saleEditHandler, receiptHandler, menuHandler, layawayHandler, scaleHandler, pharmacyHandler, clinicalHandler, appointmentHandler, commissionHandler, staffScheduleHandler, shiftOverrideHandler, leaveRequestHandler, shiftRotationHandler, loyaltyHandler, reportsHandler, reportPDFHandler, webhookHandler, onlineOrderHandler, serviceConfigHandler, serviceSettingsHandler, docSequenceHandler, notificationsHandler, queueHandler, billSplitHandler, resourceHandler, commissionRuleHandler, packageHandler, clientHandler, channelHandler, printHandler, printJobsHandler, printAgentAPIHandler, payrollHandler, staffAdminHandler, repairHandler, cfg.HTTP.AllowedOrigins, redisClient, cfg.Treasury.InternalServiceKey, backupHandler, backupDestHandler, screensaverMediaHandler, mediaRoot, recipeCOGSBackfillHandler)
 
 	httpServer := &http.Server{
 		Addr:              fmt.Sprintf("%s:%d", cfg.HTTP.Host, cfg.HTTP.Port),

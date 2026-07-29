@@ -103,6 +103,8 @@ type POSOrder struct {
 	DateMovedBy *uuid.UUID `json:"date_moved_by,omitempty"`
 	// DateMovedAt holds the value of the "date_moved_at" field.
 	DateMovedAt *time.Time `json:"date_moved_at,omitempty"`
+	// DeletedAt holds the value of the "deleted_at" field.
+	DeletedAt *time.Time `json:"deleted_at,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
@@ -170,7 +172,7 @@ func (*POSOrder) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullInt64)
 		case posorder.FieldOrderNumber, posorder.FieldClientReference, posorder.FieldStatus, posorder.FieldSource, posorder.FieldCurrency, posorder.FieldOrderSubtype, posorder.FieldCustomerPhone, posorder.FieldCustomerName, posorder.FieldEtimsInvoiceNumber, posorder.FieldEtimsQrCodeURL, posorder.FieldEtimsScuID, posorder.FieldEtimsCuInvNo, posorder.FieldEtimsRcptSign, posorder.FieldEtimsKraPin, posorder.FieldVoidedReason, posorder.FieldDateMovedReason:
 			values[i] = new(sql.NullString)
-		case posorder.FieldOfflineCreatedAt, posorder.FieldVoidedAt, posorder.FieldBusinessDate, posorder.FieldDateMovedAt, posorder.FieldCreatedAt, posorder.FieldUpdatedAt:
+		case posorder.FieldOfflineCreatedAt, posorder.FieldVoidedAt, posorder.FieldBusinessDate, posorder.FieldDateMovedAt, posorder.FieldDeletedAt, posorder.FieldCreatedAt, posorder.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
 		case posorder.FieldID, posorder.FieldTenantID, posorder.FieldOutletID, posorder.FieldDeviceID, posorder.FieldUserID, posorder.FieldPublicToken:
 			values[i] = new(uuid.UUID)
@@ -469,6 +471,13 @@ func (_m *POSOrder) assignValues(columns []string, values []any) error {
 				_m.DateMovedAt = new(time.Time)
 				*_m.DateMovedAt = value.Time
 			}
+		case posorder.FieldDeletedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field deleted_at", values[i])
+			} else if value.Valid {
+				_m.DeletedAt = new(time.Time)
+				*_m.DeletedAt = value.Time
+			}
 		case posorder.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field created_at", values[i])
@@ -701,6 +710,11 @@ func (_m *POSOrder) String() string {
 	builder.WriteString(", ")
 	if v := _m.DateMovedAt; v != nil {
 		builder.WriteString("date_moved_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.DeletedAt; v != nil {
+		builder.WriteString("deleted_at=")
 		builder.WriteString(v.Format(time.ANSIC))
 	}
 	builder.WriteString(", ")

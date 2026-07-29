@@ -216,11 +216,8 @@ func BuildReceipt(d ReceiptData) []byte {
 				gap = 1
 			}
 			writeln(nameQty + strings.Repeat(" ", gap) + total)
-			// Qty × unit-price sub-line whenever qty ≠ 1 — the clearest way to show quantity
-			// (matches the pos-ui client thermal renderer's existing pattern).
-			if item.Quantity != 1 {
-				writeln(fmt.Sprintf("   @ %s %.2f", d.Currency, item.Price))
-			}
+			// Qty × unit-price sub-line on EVERY item (always visible, not just multi-qty).
+			writeln(fmt.Sprintf("   @ %s %.2f", d.Currency, item.Price))
 		}
 		if item.Notes != "" {
 			writeln(fmt.Sprintf("  * %s", item.Notes))

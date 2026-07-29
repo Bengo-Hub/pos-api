@@ -165,11 +165,9 @@ h1{font-size:17px;letter-spacing:.5px;text-align:center;margin:3px 0}
 				amt = "FREE"
 			}
 			buf.WriteString(fmt.Sprintf(`<div class="line"><span>%s</span><span>%s</span></div>`, escape(l.Name), amt))
-			// Qty × unit-price sub-line whenever qty ≠ 1 — the clearest way to show quantity
-			// (matches the pos-ui client thermal renderer's existing pattern).
-			if l.Quantity != 1 {
-				buf.WriteString(fmt.Sprintf(`<div class="line-sub">%g &times; %s</div>`, l.Quantity, amount(l.UnitPrice)))
-			}
+			// Qty × unit-price sub-line on EVERY item (always visible, not just multi-qty) so a
+			// customer can always see how many of an item they were charged for.
+			buf.WriteString(fmt.Sprintf(`<div class="line-sub">%g &times; %s</div>`, l.Quantity, amount(l.UnitPrice)))
 		}
 		buf.WriteString(`<div class="divider"></div>`)
 	}

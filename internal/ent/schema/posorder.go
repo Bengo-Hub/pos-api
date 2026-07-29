@@ -184,6 +184,17 @@ func (POSOrder) Fields() []ent.Field {
 		field.Time("date_moved_at").
 			Optional().
 			Nillable(),
+		// deleted_at marks a sale removed via the admin Delete-Sale tool (saledelete package).
+		// For a FISCALISED sale (has a KRA eTIMS-signed treasury invoice) this is the ONLY
+		// trace of deletion — the row itself, its lines and payments are kept (a transmitted
+		// tax record can never be destroyed, only reversed/credit-noted), just excluded from
+		// ListOrders/reports by default. Non-fiscalised sales are instead HARD-deleted
+		// (POSOrder row removed entirely, see POSSaleShred) so deleted_at never gets set for
+		// them. deleted_by/delete_reason live in metadata.deletion (no schema change needed
+		// for those two — see saledelete.Service).
+		field.Time("deleted_at").
+			Optional().
+			Nillable(),
 		field.Time("created_at").
 			Default(time.Now).
 			Immutable(),

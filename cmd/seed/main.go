@@ -68,7 +68,7 @@ func main() {
 	client := ent.NewClient(ent.Driver(driver))
 	defer client.Close()
 
-	syncer := tenant.NewSyncer(client, cfg.Auth.ServiceURL, nil)
+	syncer := tenant.NewSyncer(client, cfg.Auth.ServiceURL, nil).WithDB(db)
 
 	tenantConfigs := []tenantSeedConfig{
 		{slug: "codevertex-demo", seedTables: true},
@@ -794,6 +794,16 @@ func seedRBACPermissions(ctx context.Context, client *ent.Client) error {
 		// include it, so technicians can never approve.
 		{"pos.pharmacy.approve", "POS pharmacy approve prescription", "pharmacy", "approve"},
 		{"pos.pharmacy.interaction_override", "POS pharmacy override drug interaction flag", "pharmacy", "interaction_override"},
+		// Self-approve a void without a manager step-up (scan card/PIN/one-time code). Replaces
+		// the old hardcoded VOID_SELF_ROLES role-name list (pos-ui rbac-constants.ts) so a
+		// tenant admin can grant/revoke self-approval per role via the permission matrix instead
+		// of it being baked into a fixed role-name list that ignored custom roles entirely.
+		{"pos.orders.void_self", "POS self-approve void without manager step-up", "orders", "void_self"},
+		// Full edit of a FINALIZED sale (lines/qty/price/customer/payment/date) with automatic
+		// GL/inventory/eTIMS resync — see internal/modules/saleedit. Deliberately admin-only by
+		// default (carved out of manager's "pos.orders.*" wildcard above); a tenant can grant it
+		// to manager/a custom role via the matrix.
+		{"pos.orders.edit_finalized", "POS edit a finalized sale (lines/price/qty) with resync", "orders", "edit_finalized"},
 	}
 	for _, ex := range extras {
 		exists, err := client.POSPermission.Query().
@@ -849,7 +859,13 @@ func seedRBACRoles(ctx context.Context, client *ent.Client) error {
 			name:        "Store Manager",
 			description: "Manage store operations, staff, and reporting",
 			permissions: []string{
-				"pos.orders.*", "pos.payments.*", "pos.catalog.*",
+				// pos.orders.* covers void_self and every ordinary order action, but hard-delete
+				// and full-finalized-edit are money/stock/eTIMS-rewriting tools that default to
+				// admin only — a tenant can still grant either to manager via the Roles &
+				// Permissions matrix (per-tenant copy-on-write override), so this is a DEFAULT,
+				// not a hard limit. See resolvePermissions' "!" exclusion pass.
+				"pos.orders.*", "!pos.orders.delete", "!pos.orders.edit_finalized",
+				"pos.payments.*", "pos.catalog.*",
 				"pos.outlets.*",
 				"pos.devices.*", "pos.sessions.*", "pos.cash_drawers.*",
 				"pos.tables.*", "pos.gift_cards.*", "pos.price_books.*",
@@ -1371,7 +1387,19 @@ func pushSystemRolesToAuth(ctx context.Context, client *ent.Client, cfg *config.
 func resolvePermissions(patterns []string, permByCode map[string]uuid.UUID) []uuid.UUID {
 	ids := make(map[uuid.UUID]bool)
 
+	// Exclusions ("!pos.orders.delete") are applied in a SECOND pass after every inclusive
+	// pattern (including module wildcards like "pos.orders.*") has been resolved, so order
+	// within the patterns slice never matters — a wildcard always loses to an explicit
+	// exclusion for the same role. This lets a role keep a broad "pos.orders.*" grant (so it
+	// automatically picks up any future action/extra added under that module) while carving
+	// out one or two specific high-risk codes (e.g. hard-delete) that should default to a
+	// narrower role. Never affects other roles or other tenants' overrides.
+	var excludes []string
 	for _, pattern := range patterns {
+		if len(pattern) > 1 && pattern[0] == '!' {
+			excludes = append(excludes, pattern[1:])
+			continue
+		}
 		if pattern == "*" {
 			// All permissions
 			for _, id := range permByCode {
@@ -1394,6 +1422,12 @@ func resolvePermissions(patterns []string, permByCode map[string]uuid.UUID) []uu
 		// Exact match
 		if id, ok := permByCode[pattern]; ok {
 			ids[id] = true
+		}
+	}
+
+	for _, pattern := range excludes {
+		if id, ok := permByCode[pattern]; ok {
+			delete(ids, id)
 		}
 	}
 

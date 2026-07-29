@@ -74,6 +74,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/posreversal"
 	"github.com/bengobox/pos-service/internal/ent/posrole"
 	"github.com/bengobox/pos-service/internal/ent/posrolev2"
+	"github.com/bengobox/pos-service/internal/ent/possaleshred"
 	"github.com/bengobox/pos-service/internal/ent/posuserroleassignment"
 	"github.com/bengobox/pos-service/internal/ent/prescription"
 	"github.com/bengobox/pos-service/internal/ent/prescriptionline"
@@ -1784,17 +1785,17 @@ func init() {
 	// posorder.DefaultReprintCount holds the default value on creation for the reprint_count field.
 	posorder.DefaultReprintCount = posorderDescReprintCount.Default.(int)
 	// posorderDescCreatedAt is the schema descriptor for created_at field.
-	posorderDescCreatedAt := posorderFields[43].Descriptor()
+	posorderDescCreatedAt := posorderFields[44].Descriptor()
 	// posorder.DefaultCreatedAt holds the default value on creation for the created_at field.
 	posorder.DefaultCreatedAt = posorderDescCreatedAt.Default.(func() time.Time)
 	// posorderDescUpdatedAt is the schema descriptor for updated_at field.
-	posorderDescUpdatedAt := posorderFields[44].Descriptor()
+	posorderDescUpdatedAt := posorderFields[45].Descriptor()
 	// posorder.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	posorder.DefaultUpdatedAt = posorderDescUpdatedAt.Default.(func() time.Time)
 	// posorder.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	posorder.UpdateDefaultUpdatedAt = posorderDescUpdatedAt.UpdateDefault.(func() time.Time)
 	// posorderDescPublicToken is the schema descriptor for public_token field.
-	posorderDescPublicToken := posorderFields[45].Descriptor()
+	posorderDescPublicToken := posorderFields[46].Descriptor()
 	// posorder.DefaultPublicToken holds the default value on creation for the public_token field.
 	posorder.DefaultPublicToken = posorderDescPublicToken.Default.(func() uuid.UUID)
 	// posorderDescID is the schema descriptor for id field.
@@ -2041,6 +2042,34 @@ func init() {
 	posrolev2DescID := posrolev2Fields[0].Descriptor()
 	// posrolev2.DefaultID holds the default value on creation for the id field.
 	posrolev2.DefaultID = posrolev2DescID.Default.(func() uuid.UUID)
+	possaleshredFields := schema.POSSaleShred{}.Fields()
+	_ = possaleshredFields
+	// possaleshredDescReason is the schema descriptor for reason field.
+	possaleshredDescReason := possaleshredFields[4].Descriptor()
+	// possaleshred.ReasonValidator is a validator for the "reason" field. It is called by the builders before save.
+	possaleshred.ReasonValidator = possaleshredDescReason.Validators[0].(func(string) error)
+	// possaleshredDescSnapshot is the schema descriptor for snapshot field.
+	possaleshredDescSnapshot := possaleshredFields[6].Descriptor()
+	// possaleshred.DefaultSnapshot holds the default value on creation for the snapshot field.
+	possaleshred.DefaultSnapshot = possaleshredDescSnapshot.Default.(map[string]interface{})
+	// possaleshredDescSteps is the schema descriptor for steps field.
+	possaleshredDescSteps := possaleshredFields[7].Descriptor()
+	// possaleshred.DefaultSteps holds the default value on creation for the steps field.
+	possaleshred.DefaultSteps = possaleshredDescSteps.Default.([]schema.ReversalStepJSON)
+	// possaleshredDescCreatedAt is the schema descriptor for created_at field.
+	possaleshredDescCreatedAt := possaleshredFields[10].Descriptor()
+	// possaleshred.DefaultCreatedAt holds the default value on creation for the created_at field.
+	possaleshred.DefaultCreatedAt = possaleshredDescCreatedAt.Default.(func() time.Time)
+	// possaleshredDescUpdatedAt is the schema descriptor for updated_at field.
+	possaleshredDescUpdatedAt := possaleshredFields[11].Descriptor()
+	// possaleshred.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	possaleshred.DefaultUpdatedAt = possaleshredDescUpdatedAt.Default.(func() time.Time)
+	// possaleshred.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	possaleshred.UpdateDefaultUpdatedAt = possaleshredDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// possaleshredDescID is the schema descriptor for id field.
+	possaleshredDescID := possaleshredFields[0].Descriptor()
+	// possaleshred.DefaultID holds the default value on creation for the id field.
+	possaleshred.DefaultID = possaleshredDescID.Default.(func() uuid.UUID)
 	posuserroleassignmentFields := schema.POSUserRoleAssignment{}.Fields()
 	_ = posuserroleassignmentFields
 	// posuserroleassignmentDescAssignedAt is the schema descriptor for assigned_at field.

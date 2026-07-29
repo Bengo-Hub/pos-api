@@ -816,6 +816,26 @@ func (_u *POSOrderUpdate) ClearDateMovedAt() *POSOrderUpdate {
 	return _u
 }
 
+// SetDeletedAt sets the "deleted_at" field.
+func (_u *POSOrderUpdate) SetDeletedAt(v time.Time) *POSOrderUpdate {
+	_u.mutation.SetDeletedAt(v)
+	return _u
+}
+
+// SetNillableDeletedAt sets the "deleted_at" field if the given value is not nil.
+func (_u *POSOrderUpdate) SetNillableDeletedAt(v *time.Time) *POSOrderUpdate {
+	if v != nil {
+		_u.SetDeletedAt(*v)
+	}
+	return _u
+}
+
+// ClearDeletedAt clears the value of the "deleted_at" field.
+func (_u *POSOrderUpdate) ClearDeletedAt() *POSOrderUpdate {
+	_u.mutation.ClearDeletedAt()
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *POSOrderUpdate) SetUpdatedAt(v time.Time) *POSOrderUpdate {
 	_u.mutation.SetUpdatedAt(v)
@@ -1233,6 +1253,12 @@ func (_u *POSOrderUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.DateMovedAtCleared() {
 		_spec.ClearField(posorder.FieldDateMovedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.DeletedAt(); ok {
+		_spec.SetField(posorder.FieldDeletedAt, field.TypeTime, value)
+	}
+	if _u.mutation.DeletedAtCleared() {
+		_spec.ClearField(posorder.FieldDeletedAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(posorder.FieldUpdatedAt, field.TypeTime, value)
@@ -2179,6 +2205,26 @@ func (_u *POSOrderUpdateOne) ClearDateMovedAt() *POSOrderUpdateOne {
 	return _u
 }
 
+// SetDeletedAt sets the "deleted_at" field.
+func (_u *POSOrderUpdateOne) SetDeletedAt(v time.Time) *POSOrderUpdateOne {
+	_u.mutation.SetDeletedAt(v)
+	return _u
+}
+
+// SetNillableDeletedAt sets the "deleted_at" field if the given value is not nil.
+func (_u *POSOrderUpdateOne) SetNillableDeletedAt(v *time.Time) *POSOrderUpdateOne {
+	if v != nil {
+		_u.SetDeletedAt(*v)
+	}
+	return _u
+}
+
+// ClearDeletedAt clears the value of the "deleted_at" field.
+func (_u *POSOrderUpdateOne) ClearDeletedAt() *POSOrderUpdateOne {
+	_u.mutation.ClearDeletedAt()
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *POSOrderUpdateOne) SetUpdatedAt(v time.Time) *POSOrderUpdateOne {
 	_u.mutation.SetUpdatedAt(v)
@@ -2626,6 +2672,12 @@ func (_u *POSOrderUpdateOne) sqlSave(ctx context.Context) (_node *POSOrder, err 
 	}
 	if _u.mutation.DateMovedAtCleared() {
 		_spec.ClearField(posorder.FieldDateMovedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.DeletedAt(); ok {
+		_spec.SetField(posorder.FieldDeletedAt, field.TypeTime, value)
+	}
+	if _u.mutation.DeletedAtCleared() {
+		_spec.ClearField(posorder.FieldDeletedAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(posorder.FieldUpdatedAt, field.TypeTime, value)

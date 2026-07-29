@@ -48,6 +48,8 @@ func New(
 	closings *handlers.DailyClosingHandler,
 	returns *handlers.ReturnHandler,
 	reversalsH *handlers.ReversalHandler,
+	saleDeleteH *handlers.SaleDeleteHandler,
+	saleEditH *handlers.SaleEditHandler,
 	receipt *handlers.ReceiptHandler,
 	menu *handlers.MenuHandler,
 	layaway *handlers.LayawayHandler,
@@ -426,6 +428,26 @@ func New(
 						// alone is sufficient here (see orders.Service.UpdateSaleInfo).
 						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.orders.manage")).
 							Patch("/orders/{orderID}/sale-info", orders.UpdateSaleInfo)
+						// Tenant-admin Delete-Sale ("shred") tool for a FINALIZED sale — admin-only by
+						// default (carved out of manager's pos.orders.* wildcard in the seed),
+						// tenant-configurable via the Roles & Permissions matrix. POST, not DELETE:
+						// DELETE /orders/{orderID} is already taken by DeleteDraft (draft-status sales
+						// only, 409s on anything finalized) — this is a distinct capability for a
+						// SETTLED sale, not a route override. Distinct from the platform-owner-only
+						// /reversals routes below: this is a routine business action a tenant admin
+						// can take on their own sale, not a platform data-repair tool. See
+						// saledelete.Service for the fiscalised-vs-hard-delete branching.
+						if saleDeleteH != nil {
+							pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.orders.delete")).
+								Post("/orders/{orderID}/delete", saleDeleteH.DeleteSale)
+						}
+						// Tenant-admin Edit-Sale "prepare" step — reverses a finalized sale so pos-ui's
+						// existing Add Sale pipeline can create the replacement. Admin-only by default
+						// (carved out of manager's pos.orders.* wildcard), tenant-configurable.
+						if saleEditH != nil {
+							pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.orders.edit_finalized")).
+								Post("/orders/{orderID}/prepare-edit", saleEditH.PrepareEdit)
+						}
 						// Upsell / set-aside: hold a wrongly-ordered (already-made) item for resale
 						// instead of voiding it. No manager approval; must be cleared before shift close.
 						pos.Post("/orders/{orderID}/lines/{lineID}/set-aside", orders.SetAsideLine)

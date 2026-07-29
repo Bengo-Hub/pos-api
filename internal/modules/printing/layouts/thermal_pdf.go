@@ -200,12 +200,9 @@ func renderThermalPDF(rec Receipt, brand Brand, layout string) ([]byte, error) {
 			pdf.CellFormat(contentW*0.5, 4, truncate(name, thermalItemNameWidth), "", 0, "L", false, 0, "")
 			pdf.CellFormat(contentW*0.2, 4, fmt.Sprintf("%.0f", l.Quantity), "", 0, "R", false, 0, "")
 			pdf.CellFormat(contentW*0.3, 4, total, "", 1, "R", false, 0, "")
-			// Qty × unit-price sub-line whenever qty ≠ 1 — the clearest way to show quantity
-			// (matches the pos-ui client thermal renderer's existing pattern).
-			if l.Quantity != 1 {
-				pdf.SetFont(font, "", 7.5)
-				pdf.CellFormat(contentW, 3.5, fmt.Sprintf("  %g x %s", l.Quantity, amount(l.UnitPrice)), "", 1, "L", false, 0, "")
-			}
+			// Qty × unit-price sub-line on EVERY item (always visible, not just multi-qty).
+			pdf.SetFont(font, "", 7.5)
+			pdf.CellFormat(contentW, 3.5, fmt.Sprintf("  %g x %s", l.Quantity, amount(l.UnitPrice)), "", 1, "L", false, 0, "")
 		}
 		hr()
 	}

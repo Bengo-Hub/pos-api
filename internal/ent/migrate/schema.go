@@ -1904,6 +1904,7 @@ var (
 		{Name: "date_moved_reason", Type: field.TypeString, Nullable: true},
 		{Name: "date_moved_by", Type: field.TypeUUID, Nullable: true},
 		{Name: "date_moved_at", Type: field.TypeTime, Nullable: true},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
 		{Name: "public_token", Type: field.TypeUUID, Unique: true},
@@ -2296,6 +2297,44 @@ var (
 				Name:    "posrolev2_is_system_role",
 				Unique:  false,
 				Columns: []*schema.Column{PosRoleV2sColumns[5]},
+			},
+		},
+	}
+	// PosSaleShredsColumns holds the columns for the "pos_sale_shreds" table.
+	PosSaleShredsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "order_id", Type: field.TypeUUID},
+		{Name: "order_number", Type: field.TypeString},
+		{Name: "reason", Type: field.TypeString},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending", "completed", "partial_failure", "failed"}, Default: "pending"},
+		{Name: "snapshot", Type: field.TypeJSON},
+		{Name: "steps", Type: field.TypeJSON},
+		{Name: "idempotency_key", Type: field.TypeString, Nullable: true},
+		{Name: "requested_by", Type: field.TypeUUID},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// PosSaleShredsTable holds the schema information for the "pos_sale_shreds" table.
+	PosSaleShredsTable = &schema.Table{
+		Name:       "pos_sale_shreds",
+		Columns:    PosSaleShredsColumns,
+		PrimaryKey: []*schema.Column{PosSaleShredsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "possaleshred_tenant_id_order_number",
+				Unique:  false,
+				Columns: []*schema.Column{PosSaleShredsColumns[1], PosSaleShredsColumns[3]},
+			},
+			{
+				Name:    "possaleshred_tenant_id_order_id",
+				Unique:  false,
+				Columns: []*schema.Column{PosSaleShredsColumns[1], PosSaleShredsColumns[2]},
+			},
+			{
+				Name:    "possaleshred_idempotency_key",
+				Unique:  true,
+				Columns: []*schema.Column{PosSaleShredsColumns[8]},
 			},
 		},
 	}
@@ -4414,6 +4453,7 @@ var (
 		PosRolesTable,
 		PosRolePermissionsTable,
 		PosRoleV2sTable,
+		PosSaleShredsTable,
 		PosUserRoleAssignmentsTable,
 		PatientsTable,
 		PatientVisitsTable,

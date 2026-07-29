@@ -100,6 +100,8 @@ const (
 	FieldDateMovedBy = "date_moved_by"
 	// FieldDateMovedAt holds the string denoting the date_moved_at field in the database.
 	FieldDateMovedAt = "date_moved_at"
+	// FieldDeletedAt holds the string denoting the deleted_at field in the database.
+	FieldDeletedAt = "deleted_at"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
@@ -182,6 +184,7 @@ var Columns = []string{
 	FieldDateMovedReason,
 	FieldDateMovedBy,
 	FieldDateMovedAt,
+	FieldDeletedAt,
 	FieldCreatedAt,
 	FieldUpdatedAt,
 	FieldPublicToken,
@@ -479,6 +482,11 @@ func ByDateMovedBy(opts ...sql.OrderTermOption) OrderOption {
 // ByDateMovedAt orders the results by the date_moved_at field.
 func ByDateMovedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldDateMovedAt, opts...).ToFunc()
+}
+
+// ByDeletedAt orders the results by the deleted_at field.
+func ByDeletedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDeletedAt, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.

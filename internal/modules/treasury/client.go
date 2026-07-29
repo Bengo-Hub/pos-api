@@ -558,6 +558,24 @@ func (c *Client) GetInvoiceByReference(ctx context.Context, tenantSlug, refType,
 	return doRequest[InvoiceRef](ctx, c.httpClient, http.MethodGet, url, c.apiKey, nil)
 }
 
+// ShredLedgerResponse reports what treasury physically deleted.
+type ShredLedgerResponse struct {
+	OrderID        string   `json:"order_id"`
+	EntriesDeleted int      `json:"entries_deleted"`
+	ReferenceTypes []string `json:"reference_types"`
+}
+
+// ShredLedger HARD-DELETES every journal entry (and lines) treasury posted for this order —
+// used ONLY by saledelete's non-fiscalised branch, after pos-api itself has already confirmed
+// (via GetInvoiceByReference) that this sale carries no tax invoice. Treasury re-verifies the
+// same thing server-side and refuses (409) if it disagrees — never trust the caller alone for a
+// physically irreversible operation. Unlike CreateRefund/CreateCreditNote, this leaves no contra
+// entry; it is the genuine ledger deletion the "shred" tool provides.
+func (c *Client) ShredLedger(ctx context.Context, tenantSlug, orderID string) (*ShredLedgerResponse, error) {
+	url := fmt.Sprintf("%s/api/v1/s2s/%s/pos/orders/%s/shred-ledger", c.baseURL, tenantSlug, orderID)
+	return doRequest[ShredLedgerResponse](ctx, c.httpClient, http.MethodPost, url, c.apiKey, nil)
+}
+
 // CreditNoteResponse is the treasury credit note returned after creation.
 type CreditNoteResponse struct {
 	ID     string `json:"id"`

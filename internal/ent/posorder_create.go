@@ -543,6 +543,20 @@ func (_c *POSOrderCreate) SetNillableDateMovedAt(v *time.Time) *POSOrderCreate {
 	return _c
 }
 
+// SetDeletedAt sets the "deleted_at" field.
+func (_c *POSOrderCreate) SetDeletedAt(v time.Time) *POSOrderCreate {
+	_c.mutation.SetDeletedAt(v)
+	return _c
+}
+
+// SetNillableDeletedAt sets the "deleted_at" field if the given value is not nil.
+func (_c *POSOrderCreate) SetNillableDeletedAt(v *time.Time) *POSOrderCreate {
+	if v != nil {
+		_c.SetDeletedAt(*v)
+	}
+	return _c
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_c *POSOrderCreate) SetCreatedAt(v time.Time) *POSOrderCreate {
 	_c.mutation.SetCreatedAt(v)
@@ -1043,6 +1057,10 @@ func (_c *POSOrderCreate) createSpec() (*POSOrder, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.DateMovedAt(); ok {
 		_spec.SetField(posorder.FieldDateMovedAt, field.TypeTime, value)
 		_node.DateMovedAt = &value
+	}
+	if value, ok := _c.mutation.DeletedAt(); ok {
+		_spec.SetField(posorder.FieldDeletedAt, field.TypeTime, value)
+		_node.DeletedAt = &value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(posorder.FieldCreatedAt, field.TypeTime, value)
@@ -1849,6 +1867,24 @@ func (u *POSOrderUpsert) UpdateDateMovedAt() *POSOrderUpsert {
 // ClearDateMovedAt clears the value of the "date_moved_at" field.
 func (u *POSOrderUpsert) ClearDateMovedAt() *POSOrderUpsert {
 	u.SetNull(posorder.FieldDateMovedAt)
+	return u
+}
+
+// SetDeletedAt sets the "deleted_at" field.
+func (u *POSOrderUpsert) SetDeletedAt(v time.Time) *POSOrderUpsert {
+	u.Set(posorder.FieldDeletedAt, v)
+	return u
+}
+
+// UpdateDeletedAt sets the "deleted_at" field to the value that was provided on create.
+func (u *POSOrderUpsert) UpdateDeletedAt() *POSOrderUpsert {
+	u.SetExcluded(posorder.FieldDeletedAt)
+	return u
+}
+
+// ClearDeletedAt clears the value of the "deleted_at" field.
+func (u *POSOrderUpsert) ClearDeletedAt() *POSOrderUpsert {
+	u.SetNull(posorder.FieldDeletedAt)
 	return u
 }
 
@@ -2736,6 +2772,27 @@ func (u *POSOrderUpsertOne) UpdateDateMovedAt() *POSOrderUpsertOne {
 func (u *POSOrderUpsertOne) ClearDateMovedAt() *POSOrderUpsertOne {
 	return u.Update(func(s *POSOrderUpsert) {
 		s.ClearDateMovedAt()
+	})
+}
+
+// SetDeletedAt sets the "deleted_at" field.
+func (u *POSOrderUpsertOne) SetDeletedAt(v time.Time) *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetDeletedAt(v)
+	})
+}
+
+// UpdateDeletedAt sets the "deleted_at" field to the value that was provided on create.
+func (u *POSOrderUpsertOne) UpdateDeletedAt() *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdateDeletedAt()
+	})
+}
+
+// ClearDeletedAt clears the value of the "deleted_at" field.
+func (u *POSOrderUpsertOne) ClearDeletedAt() *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.ClearDeletedAt()
 	})
 }
 
@@ -3794,6 +3851,27 @@ func (u *POSOrderUpsertBulk) UpdateDateMovedAt() *POSOrderUpsertBulk {
 func (u *POSOrderUpsertBulk) ClearDateMovedAt() *POSOrderUpsertBulk {
 	return u.Update(func(s *POSOrderUpsert) {
 		s.ClearDateMovedAt()
+	})
+}
+
+// SetDeletedAt sets the "deleted_at" field.
+func (u *POSOrderUpsertBulk) SetDeletedAt(v time.Time) *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetDeletedAt(v)
+	})
+}
+
+// UpdateDeletedAt sets the "deleted_at" field to the value that was provided on create.
+func (u *POSOrderUpsertBulk) UpdateDeletedAt() *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdateDeletedAt()
+	})
+}
+
+// ClearDeletedAt clears the value of the "deleted_at" field.
+func (u *POSOrderUpsertBulk) ClearDeletedAt() *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.ClearDeletedAt()
 	})
 }
 

@@ -88,6 +88,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/posrole"
 	"github.com/bengobox/pos-service/internal/ent/posrolepermission"
 	"github.com/bengobox/pos-service/internal/ent/posrolev2"
+	"github.com/bengobox/pos-service/internal/ent/possaleshred"
 	"github.com/bengobox/pos-service/internal/ent/posuserroleassignment"
 	"github.com/bengobox/pos-service/internal/ent/prescription"
 	"github.com/bengobox/pos-service/internal/ent/prescriptionline"
@@ -288,6 +289,8 @@ type Client struct {
 	POSRolePermission *POSRolePermissionClient
 	// POSRoleV2 is the client for interacting with the POSRoleV2 builders.
 	POSRoleV2 *POSRoleV2Client
+	// POSSaleShred is the client for interacting with the POSSaleShred builders.
+	POSSaleShred *POSSaleShredClient
 	// POSUserRoleAssignment is the client for interacting with the POSUserRoleAssignment builders.
 	POSUserRoleAssignment *POSUserRoleAssignmentClient
 	// Patient is the client for interacting with the Patient builders.
@@ -484,6 +487,7 @@ func (c *Client) init() {
 	c.POSRole = NewPOSRoleClient(c.config)
 	c.POSRolePermission = NewPOSRolePermissionClient(c.config)
 	c.POSRoleV2 = NewPOSRoleV2Client(c.config)
+	c.POSSaleShred = NewPOSSaleShredClient(c.config)
 	c.POSUserRoleAssignment = NewPOSUserRoleAssignmentClient(c.config)
 	c.Patient = NewPatientClient(c.config)
 	c.PatientVisit = NewPatientVisitClient(c.config)
@@ -703,6 +707,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		POSRole:                  NewPOSRoleClient(cfg),
 		POSRolePermission:        NewPOSRolePermissionClient(cfg),
 		POSRoleV2:                NewPOSRoleV2Client(cfg),
+		POSSaleShred:             NewPOSSaleShredClient(cfg),
 		POSUserRoleAssignment:    NewPOSUserRoleAssignmentClient(cfg),
 		Patient:                  NewPatientClient(cfg),
 		PatientVisit:             NewPatientVisitClient(cfg),
@@ -849,6 +854,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		POSRole:                  NewPOSRoleClient(cfg),
 		POSRolePermission:        NewPOSRolePermissionClient(cfg),
 		POSRoleV2:                NewPOSRoleV2Client(cfg),
+		POSSaleShred:             NewPOSSaleShredClient(cfg),
 		POSUserRoleAssignment:    NewPOSUserRoleAssignmentClient(cfg),
 		Patient:                  NewPatientClient(cfg),
 		PatientVisit:             NewPatientVisitClient(cfg),
@@ -952,13 +958,13 @@ func (c *Client) Use(hooks ...Hook) {
 		c.POSDeviceSession, c.POSLineModifier, c.POSOrder, c.POSOrderEvent,
 		c.POSOrderLine, c.POSPayment, c.POSPermission, c.POSRefund, c.POSReturn,
 		c.POSReturnLine, c.POSReversal, c.POSRole, c.POSRolePermission, c.POSRoleV2,
-		c.POSUserRoleAssignment, c.Patient, c.PatientVisit, c.PosNotification,
-		c.Prescription, c.PrescriptionLine, c.PriceBook, c.PriceBookItem, c.PrintAgent,
-		c.PrintJob, c.Promotion, c.PromotionApplication, c.PromotionRule,
-		c.RateLimitConfig, c.Referral, c.RepairJob, c.RepairJobEvent, c.RepairJobPart,
-		c.Resource, c.Room, c.RoomAmenity, c.RoomAmenityAssignment, c.RoomBooking,
-		c.RoomFolioItem, c.RoomFolioPayment, c.RoomGuest, c.Section, c.SerialNumberLog,
-		c.ServiceConfig, c.ServicePackage, c.ServicePackagePurchase,
+		c.POSSaleShred, c.POSUserRoleAssignment, c.Patient, c.PatientVisit,
+		c.PosNotification, c.Prescription, c.PrescriptionLine, c.PriceBook,
+		c.PriceBookItem, c.PrintAgent, c.PrintJob, c.Promotion, c.PromotionApplication,
+		c.PromotionRule, c.RateLimitConfig, c.Referral, c.RepairJob, c.RepairJobEvent,
+		c.RepairJobPart, c.Resource, c.Room, c.RoomAmenity, c.RoomAmenityAssignment,
+		c.RoomBooking, c.RoomFolioItem, c.RoomFolioPayment, c.RoomGuest, c.Section,
+		c.SerialNumberLog, c.ServiceConfig, c.ServicePackage, c.ServicePackagePurchase,
 		c.ServicePackageRedemption, c.ServiceQueueEntry, c.ShiftRotation,
 		c.ShiftRotationSlot, c.StaffAdvance, c.StaffMember, c.StaffOutlet,
 		c.StaffPayroll, c.StaffPayrollLine, c.StaffPurchaseLink, c.StaffSchedule,
@@ -991,13 +997,13 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.POSDeviceSession, c.POSLineModifier, c.POSOrder, c.POSOrderEvent,
 		c.POSOrderLine, c.POSPayment, c.POSPermission, c.POSRefund, c.POSReturn,
 		c.POSReturnLine, c.POSReversal, c.POSRole, c.POSRolePermission, c.POSRoleV2,
-		c.POSUserRoleAssignment, c.Patient, c.PatientVisit, c.PosNotification,
-		c.Prescription, c.PrescriptionLine, c.PriceBook, c.PriceBookItem, c.PrintAgent,
-		c.PrintJob, c.Promotion, c.PromotionApplication, c.PromotionRule,
-		c.RateLimitConfig, c.Referral, c.RepairJob, c.RepairJobEvent, c.RepairJobPart,
-		c.Resource, c.Room, c.RoomAmenity, c.RoomAmenityAssignment, c.RoomBooking,
-		c.RoomFolioItem, c.RoomFolioPayment, c.RoomGuest, c.Section, c.SerialNumberLog,
-		c.ServiceConfig, c.ServicePackage, c.ServicePackagePurchase,
+		c.POSSaleShred, c.POSUserRoleAssignment, c.Patient, c.PatientVisit,
+		c.PosNotification, c.Prescription, c.PrescriptionLine, c.PriceBook,
+		c.PriceBookItem, c.PrintAgent, c.PrintJob, c.Promotion, c.PromotionApplication,
+		c.PromotionRule, c.RateLimitConfig, c.Referral, c.RepairJob, c.RepairJobEvent,
+		c.RepairJobPart, c.Resource, c.Room, c.RoomAmenity, c.RoomAmenityAssignment,
+		c.RoomBooking, c.RoomFolioItem, c.RoomFolioPayment, c.RoomGuest, c.Section,
+		c.SerialNumberLog, c.ServiceConfig, c.ServicePackage, c.ServicePackagePurchase,
 		c.ServicePackageRedemption, c.ServiceQueueEntry, c.ShiftRotation,
 		c.ShiftRotationSlot, c.StaffAdvance, c.StaffMember, c.StaffOutlet,
 		c.StaffPayroll, c.StaffPayrollLine, c.StaffPurchaseLink, c.StaffSchedule,
@@ -1151,6 +1157,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.POSRolePermission.mutate(ctx, m)
 	case *POSRoleV2Mutation:
 		return c.POSRoleV2.mutate(ctx, m)
+	case *POSSaleShredMutation:
+		return c.POSSaleShred.mutate(ctx, m)
 	case *POSUserRoleAssignmentMutation:
 		return c.POSUserRoleAssignment.mutate(ctx, m)
 	case *PatientMutation:
@@ -11105,6 +11113,139 @@ func (c *POSRoleV2Client) mutate(ctx context.Context, m *POSRoleV2Mutation) (Val
 	}
 }
 
+// POSSaleShredClient is a client for the POSSaleShred schema.
+type POSSaleShredClient struct {
+	config
+}
+
+// NewPOSSaleShredClient returns a client for the POSSaleShred from the given config.
+func NewPOSSaleShredClient(c config) *POSSaleShredClient {
+	return &POSSaleShredClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `possaleshred.Hooks(f(g(h())))`.
+func (c *POSSaleShredClient) Use(hooks ...Hook) {
+	c.hooks.POSSaleShred = append(c.hooks.POSSaleShred, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `possaleshred.Intercept(f(g(h())))`.
+func (c *POSSaleShredClient) Intercept(interceptors ...Interceptor) {
+	c.inters.POSSaleShred = append(c.inters.POSSaleShred, interceptors...)
+}
+
+// Create returns a builder for creating a POSSaleShred entity.
+func (c *POSSaleShredClient) Create() *POSSaleShredCreate {
+	mutation := newPOSSaleShredMutation(c.config, OpCreate)
+	return &POSSaleShredCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of POSSaleShred entities.
+func (c *POSSaleShredClient) CreateBulk(builders ...*POSSaleShredCreate) *POSSaleShredCreateBulk {
+	return &POSSaleShredCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *POSSaleShredClient) MapCreateBulk(slice any, setFunc func(*POSSaleShredCreate, int)) *POSSaleShredCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &POSSaleShredCreateBulk{err: fmt.Errorf("calling to POSSaleShredClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*POSSaleShredCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &POSSaleShredCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for POSSaleShred.
+func (c *POSSaleShredClient) Update() *POSSaleShredUpdate {
+	mutation := newPOSSaleShredMutation(c.config, OpUpdate)
+	return &POSSaleShredUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *POSSaleShredClient) UpdateOne(_m *POSSaleShred) *POSSaleShredUpdateOne {
+	mutation := newPOSSaleShredMutation(c.config, OpUpdateOne, withPOSSaleShred(_m))
+	return &POSSaleShredUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *POSSaleShredClient) UpdateOneID(id uuid.UUID) *POSSaleShredUpdateOne {
+	mutation := newPOSSaleShredMutation(c.config, OpUpdateOne, withPOSSaleShredID(id))
+	return &POSSaleShredUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for POSSaleShred.
+func (c *POSSaleShredClient) Delete() *POSSaleShredDelete {
+	mutation := newPOSSaleShredMutation(c.config, OpDelete)
+	return &POSSaleShredDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *POSSaleShredClient) DeleteOne(_m *POSSaleShred) *POSSaleShredDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *POSSaleShredClient) DeleteOneID(id uuid.UUID) *POSSaleShredDeleteOne {
+	builder := c.Delete().Where(possaleshred.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &POSSaleShredDeleteOne{builder}
+}
+
+// Query returns a query builder for POSSaleShred.
+func (c *POSSaleShredClient) Query() *POSSaleShredQuery {
+	return &POSSaleShredQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypePOSSaleShred},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a POSSaleShred entity by its id.
+func (c *POSSaleShredClient) Get(ctx context.Context, id uuid.UUID) (*POSSaleShred, error) {
+	return c.Query().Where(possaleshred.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *POSSaleShredClient) GetX(ctx context.Context, id uuid.UUID) *POSSaleShred {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *POSSaleShredClient) Hooks() []Hook {
+	return c.hooks.POSSaleShred
+}
+
+// Interceptors returns the client interceptors.
+func (c *POSSaleShredClient) Interceptors() []Interceptor {
+	return c.inters.POSSaleShred
+}
+
+func (c *POSSaleShredClient) mutate(ctx context.Context, m *POSSaleShredMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&POSSaleShredCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&POSSaleShredUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&POSSaleShredUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&POSSaleShredDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown POSSaleShred mutation op: %q", m.Op())
+	}
+}
+
 // POSUserRoleAssignmentClient is a client for the POSUserRoleAssignment schema.
 type POSUserRoleAssignmentClient struct {
 	config
@@ -19411,19 +19552,20 @@ type (
 		OutboxEvent, Outlet, OutletSetting, POSCatalogOverride, POSDevice,
 		POSDeviceSession, POSLineModifier, POSOrder, POSOrderEvent, POSOrderLine,
 		POSPayment, POSPermission, POSRefund, POSReturn, POSReturnLine, POSReversal,
-		POSRole, POSRolePermission, POSRoleV2, POSUserRoleAssignment, Patient,
-		PatientVisit, PosNotification, Prescription, PrescriptionLine, PriceBook,
-		PriceBookItem, PrintAgent, PrintJob, Promotion, PromotionApplication,
-		PromotionRule, RateLimitConfig, Referral, RepairJob, RepairJobEvent,
-		RepairJobPart, Resource, Room, RoomAmenity, RoomAmenityAssignment, RoomBooking,
-		RoomFolioItem, RoomFolioPayment, RoomGuest, Section, SerialNumberLog,
-		ServiceConfig, ServicePackage, ServicePackagePurchase,
-		ServicePackageRedemption, ServiceQueueEntry, ShiftRotation, ShiftRotationSlot,
-		StaffAdvance, StaffMember, StaffOutlet, StaffPayroll, StaffPayrollLine,
-		StaffPurchaseLink, StaffSchedule, StaffShiftOverride, StockAlertSubscription,
-		StockConsumptionEvent, SyncFailure, Table, TableAssignment, TableReservation,
-		Tenant, TenantSyncEvent, Tender, TriageRecord, User, UserPOSRole,
-		WebhookDelivery, WebhookSubscription, WeighingScaleReading []ent.Hook
+		POSRole, POSRolePermission, POSRoleV2, POSSaleShred, POSUserRoleAssignment,
+		Patient, PatientVisit, PosNotification, Prescription, PrescriptionLine,
+		PriceBook, PriceBookItem, PrintAgent, PrintJob, Promotion,
+		PromotionApplication, PromotionRule, RateLimitConfig, Referral, RepairJob,
+		RepairJobEvent, RepairJobPart, Resource, Room, RoomAmenity,
+		RoomAmenityAssignment, RoomBooking, RoomFolioItem, RoomFolioPayment, RoomGuest,
+		Section, SerialNumberLog, ServiceConfig, ServicePackage,
+		ServicePackagePurchase, ServicePackageRedemption, ServiceQueueEntry,
+		ShiftRotation, ShiftRotationSlot, StaffAdvance, StaffMember, StaffOutlet,
+		StaffPayroll, StaffPayrollLine, StaffPurchaseLink, StaffSchedule,
+		StaffShiftOverride, StockAlertSubscription, StockConsumptionEvent, SyncFailure,
+		Table, TableAssignment, TableReservation, Tenant, TenantSyncEvent, Tender,
+		TriageRecord, User, UserPOSRole, WebhookDelivery, WebhookSubscription,
+		WeighingScaleReading []ent.Hook
 	}
 	inters struct {
 		Appointment, AuditLog, Backup, BackupSetting, BarTab, BarTabEvent, BillSplit,
@@ -19439,18 +19581,19 @@ type (
 		OutboxEvent, Outlet, OutletSetting, POSCatalogOverride, POSDevice,
 		POSDeviceSession, POSLineModifier, POSOrder, POSOrderEvent, POSOrderLine,
 		POSPayment, POSPermission, POSRefund, POSReturn, POSReturnLine, POSReversal,
-		POSRole, POSRolePermission, POSRoleV2, POSUserRoleAssignment, Patient,
-		PatientVisit, PosNotification, Prescription, PrescriptionLine, PriceBook,
-		PriceBookItem, PrintAgent, PrintJob, Promotion, PromotionApplication,
-		PromotionRule, RateLimitConfig, Referral, RepairJob, RepairJobEvent,
-		RepairJobPart, Resource, Room, RoomAmenity, RoomAmenityAssignment, RoomBooking,
-		RoomFolioItem, RoomFolioPayment, RoomGuest, Section, SerialNumberLog,
-		ServiceConfig, ServicePackage, ServicePackagePurchase,
-		ServicePackageRedemption, ServiceQueueEntry, ShiftRotation, ShiftRotationSlot,
-		StaffAdvance, StaffMember, StaffOutlet, StaffPayroll, StaffPayrollLine,
-		StaffPurchaseLink, StaffSchedule, StaffShiftOverride, StockAlertSubscription,
-		StockConsumptionEvent, SyncFailure, Table, TableAssignment, TableReservation,
-		Tenant, TenantSyncEvent, Tender, TriageRecord, User, UserPOSRole,
-		WebhookDelivery, WebhookSubscription, WeighingScaleReading []ent.Interceptor
+		POSRole, POSRolePermission, POSRoleV2, POSSaleShred, POSUserRoleAssignment,
+		Patient, PatientVisit, PosNotification, Prescription, PrescriptionLine,
+		PriceBook, PriceBookItem, PrintAgent, PrintJob, Promotion,
+		PromotionApplication, PromotionRule, RateLimitConfig, Referral, RepairJob,
+		RepairJobEvent, RepairJobPart, Resource, Room, RoomAmenity,
+		RoomAmenityAssignment, RoomBooking, RoomFolioItem, RoomFolioPayment, RoomGuest,
+		Section, SerialNumberLog, ServiceConfig, ServicePackage,
+		ServicePackagePurchase, ServicePackageRedemption, ServiceQueueEntry,
+		ShiftRotation, ShiftRotationSlot, StaffAdvance, StaffMember, StaffOutlet,
+		StaffPayroll, StaffPayrollLine, StaffPurchaseLink, StaffSchedule,
+		StaffShiftOverride, StockAlertSubscription, StockConsumptionEvent, SyncFailure,
+		Table, TableAssignment, TableReservation, Tenant, TenantSyncEvent, Tender,
+		TriageRecord, User, UserPOSRole, WebhookDelivery, WebhookSubscription,
+		WeighingScaleReading []ent.Interceptor
 	}
 )

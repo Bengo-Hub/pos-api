@@ -82,6 +82,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/posrole"
 	"github.com/bengobox/pos-service/internal/ent/posrolepermission"
 	"github.com/bengobox/pos-service/internal/ent/posrolev2"
+	"github.com/bengobox/pos-service/internal/ent/possaleshred"
 	"github.com/bengobox/pos-service/internal/ent/posuserroleassignment"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
 	"github.com/bengobox/pos-service/internal/ent/prescription"
@@ -221,6 +222,7 @@ const (
 	TypePOSRole                  = "POSRole"
 	TypePOSRolePermission        = "POSRolePermission"
 	TypePOSRoleV2                = "POSRoleV2"
+	TypePOSSaleShred             = "POSSaleShred"
 	TypePOSUserRoleAssignment    = "POSUserRoleAssignment"
 	TypePatient                  = "Patient"
 	TypePatientVisit             = "PatientVisit"
@@ -61885,6 +61887,7 @@ type POSOrderMutation struct {
 	date_moved_reason         *string
 	date_moved_by             *uuid.UUID
 	date_moved_at             *time.Time
+	deleted_at                *time.Time
 	created_at                *time.Time
 	updated_at                *time.Time
 	public_token              *uuid.UUID
@@ -64019,6 +64022,55 @@ func (m *POSOrderMutation) ResetDateMovedAt() {
 	delete(m.clearedFields, posorder.FieldDateMovedAt)
 }
 
+// SetDeletedAt sets the "deleted_at" field.
+func (m *POSOrderMutation) SetDeletedAt(t time.Time) {
+	m.deleted_at = &t
+}
+
+// DeletedAt returns the value of the "deleted_at" field in the mutation.
+func (m *POSOrderMutation) DeletedAt() (r time.Time, exists bool) {
+	v := m.deleted_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDeletedAt returns the old "deleted_at" field's value of the POSOrder entity.
+// If the POSOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSOrderMutation) OldDeletedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDeletedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDeletedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDeletedAt: %w", err)
+	}
+	return oldValue.DeletedAt, nil
+}
+
+// ClearDeletedAt clears the value of the "deleted_at" field.
+func (m *POSOrderMutation) ClearDeletedAt() {
+	m.deleted_at = nil
+	m.clearedFields[posorder.FieldDeletedAt] = struct{}{}
+}
+
+// DeletedAtCleared returns if the "deleted_at" field was cleared in this mutation.
+func (m *POSOrderMutation) DeletedAtCleared() bool {
+	_, ok := m.clearedFields[posorder.FieldDeletedAt]
+	return ok
+}
+
+// ResetDeletedAt resets all changes to the "deleted_at" field.
+func (m *POSOrderMutation) ResetDeletedAt() {
+	m.deleted_at = nil
+	delete(m.clearedFields, posorder.FieldDeletedAt)
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (m *POSOrderMutation) SetCreatedAt(t time.Time) {
 	m.created_at = &t
@@ -64323,7 +64375,7 @@ func (m *POSOrderMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *POSOrderMutation) Fields() []string {
-	fields := make([]string, 0, 45)
+	fields := make([]string, 0, 46)
 	if m.tenant_id != nil {
 		fields = append(fields, posorder.FieldTenantID)
 	}
@@ -64450,6 +64502,9 @@ func (m *POSOrderMutation) Fields() []string {
 	if m.date_moved_at != nil {
 		fields = append(fields, posorder.FieldDateMovedAt)
 	}
+	if m.deleted_at != nil {
+		fields = append(fields, posorder.FieldDeletedAt)
+	}
 	if m.created_at != nil {
 		fields = append(fields, posorder.FieldCreatedAt)
 	}
@@ -64551,6 +64606,8 @@ func (m *POSOrderMutation) Field(name string) (ent.Value, bool) {
 		return m.DateMovedBy()
 	case posorder.FieldDateMovedAt:
 		return m.DateMovedAt()
+	case posorder.FieldDeletedAt:
+		return m.DeletedAt()
 	case posorder.FieldCreatedAt:
 		return m.CreatedAt()
 	case posorder.FieldUpdatedAt:
@@ -64650,6 +64707,8 @@ func (m *POSOrderMutation) OldField(ctx context.Context, name string) (ent.Value
 		return m.OldDateMovedBy(ctx)
 	case posorder.FieldDateMovedAt:
 		return m.OldDateMovedAt(ctx)
+	case posorder.FieldDeletedAt:
+		return m.OldDeletedAt(ctx)
 	case posorder.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	case posorder.FieldUpdatedAt:
@@ -64959,6 +65018,13 @@ func (m *POSOrderMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetDateMovedAt(v)
 		return nil
+	case posorder.FieldDeletedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDeletedAt(v)
+		return nil
 	case posorder.FieldCreatedAt:
 		v, ok := value.(time.Time)
 		if !ok {
@@ -65217,6 +65283,9 @@ func (m *POSOrderMutation) ClearedFields() []string {
 	if m.FieldCleared(posorder.FieldDateMovedAt) {
 		fields = append(fields, posorder.FieldDateMovedAt)
 	}
+	if m.FieldCleared(posorder.FieldDeletedAt) {
+		fields = append(fields, posorder.FieldDeletedAt)
+	}
 	return fields
 }
 
@@ -65290,6 +65359,9 @@ func (m *POSOrderMutation) ClearField(name string) error {
 		return nil
 	case posorder.FieldDateMovedAt:
 		m.ClearDateMovedAt()
+		return nil
+	case posorder.FieldDeletedAt:
+		m.ClearDeletedAt()
 		return nil
 	}
 	return fmt.Errorf("unknown POSOrder nullable field %s", name)
@@ -65424,6 +65496,9 @@ func (m *POSOrderMutation) ResetField(name string) error {
 		return nil
 	case posorder.FieldDateMovedAt:
 		m.ResetDateMovedAt()
+		return nil
+	case posorder.FieldDeletedAt:
+		m.ResetDeletedAt()
 		return nil
 	case posorder.FieldCreatedAt:
 		m.ResetCreatedAt()
@@ -76946,6 +77021,916 @@ func (m *POSRoleV2Mutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown POSRoleV2 edge %s", name)
+}
+
+// POSSaleShredMutation represents an operation that mutates the POSSaleShred nodes in the graph.
+type POSSaleShredMutation struct {
+	config
+	op              Op
+	typ             string
+	id              *uuid.UUID
+	tenant_id       *uuid.UUID
+	order_id        *uuid.UUID
+	order_number    *string
+	reason          *string
+	status          *possaleshred.Status
+	snapshot        *map[string]interface{}
+	steps           *[]schema.ReversalStepJSON
+	appendsteps     []schema.ReversalStepJSON
+	idempotency_key *string
+	requested_by    *uuid.UUID
+	created_at      *time.Time
+	updated_at      *time.Time
+	clearedFields   map[string]struct{}
+	done            bool
+	oldValue        func(context.Context) (*POSSaleShred, error)
+	predicates      []predicate.POSSaleShred
+}
+
+var _ ent.Mutation = (*POSSaleShredMutation)(nil)
+
+// possaleshredOption allows management of the mutation configuration using functional options.
+type possaleshredOption func(*POSSaleShredMutation)
+
+// newPOSSaleShredMutation creates new mutation for the POSSaleShred entity.
+func newPOSSaleShredMutation(c config, op Op, opts ...possaleshredOption) *POSSaleShredMutation {
+	m := &POSSaleShredMutation{
+		config:        c,
+		op:            op,
+		typ:           TypePOSSaleShred,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withPOSSaleShredID sets the ID field of the mutation.
+func withPOSSaleShredID(id uuid.UUID) possaleshredOption {
+	return func(m *POSSaleShredMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *POSSaleShred
+		)
+		m.oldValue = func(ctx context.Context) (*POSSaleShred, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().POSSaleShred.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withPOSSaleShred sets the old POSSaleShred of the mutation.
+func withPOSSaleShred(node *POSSaleShred) possaleshredOption {
+	return func(m *POSSaleShredMutation) {
+		m.oldValue = func(context.Context) (*POSSaleShred, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m POSSaleShredMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m POSSaleShredMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of POSSaleShred entities.
+func (m *POSSaleShredMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *POSSaleShredMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *POSSaleShredMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().POSSaleShred.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *POSSaleShredMutation) SetTenantID(u uuid.UUID) {
+	m.tenant_id = &u
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *POSSaleShredMutation) TenantID() (r uuid.UUID, exists bool) {
+	v := m.tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the POSSaleShred entity.
+// If the POSSaleShred object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSSaleShredMutation) OldTenantID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *POSSaleShredMutation) ResetTenantID() {
+	m.tenant_id = nil
+}
+
+// SetOrderID sets the "order_id" field.
+func (m *POSSaleShredMutation) SetOrderID(u uuid.UUID) {
+	m.order_id = &u
+}
+
+// OrderID returns the value of the "order_id" field in the mutation.
+func (m *POSSaleShredMutation) OrderID() (r uuid.UUID, exists bool) {
+	v := m.order_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOrderID returns the old "order_id" field's value of the POSSaleShred entity.
+// If the POSSaleShred object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSSaleShredMutation) OldOrderID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOrderID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOrderID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOrderID: %w", err)
+	}
+	return oldValue.OrderID, nil
+}
+
+// ResetOrderID resets all changes to the "order_id" field.
+func (m *POSSaleShredMutation) ResetOrderID() {
+	m.order_id = nil
+}
+
+// SetOrderNumber sets the "order_number" field.
+func (m *POSSaleShredMutation) SetOrderNumber(s string) {
+	m.order_number = &s
+}
+
+// OrderNumber returns the value of the "order_number" field in the mutation.
+func (m *POSSaleShredMutation) OrderNumber() (r string, exists bool) {
+	v := m.order_number
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOrderNumber returns the old "order_number" field's value of the POSSaleShred entity.
+// If the POSSaleShred object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSSaleShredMutation) OldOrderNumber(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOrderNumber is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOrderNumber requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOrderNumber: %w", err)
+	}
+	return oldValue.OrderNumber, nil
+}
+
+// ResetOrderNumber resets all changes to the "order_number" field.
+func (m *POSSaleShredMutation) ResetOrderNumber() {
+	m.order_number = nil
+}
+
+// SetReason sets the "reason" field.
+func (m *POSSaleShredMutation) SetReason(s string) {
+	m.reason = &s
+}
+
+// Reason returns the value of the "reason" field in the mutation.
+func (m *POSSaleShredMutation) Reason() (r string, exists bool) {
+	v := m.reason
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReason returns the old "reason" field's value of the POSSaleShred entity.
+// If the POSSaleShred object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSSaleShredMutation) OldReason(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReason is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReason requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReason: %w", err)
+	}
+	return oldValue.Reason, nil
+}
+
+// ResetReason resets all changes to the "reason" field.
+func (m *POSSaleShredMutation) ResetReason() {
+	m.reason = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *POSSaleShredMutation) SetStatus(po possaleshred.Status) {
+	m.status = &po
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *POSSaleShredMutation) Status() (r possaleshred.Status, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the POSSaleShred entity.
+// If the POSSaleShred object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSSaleShredMutation) OldStatus(ctx context.Context) (v possaleshred.Status, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *POSSaleShredMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetSnapshot sets the "snapshot" field.
+func (m *POSSaleShredMutation) SetSnapshot(value map[string]interface{}) {
+	m.snapshot = &value
+}
+
+// Snapshot returns the value of the "snapshot" field in the mutation.
+func (m *POSSaleShredMutation) Snapshot() (r map[string]interface{}, exists bool) {
+	v := m.snapshot
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSnapshot returns the old "snapshot" field's value of the POSSaleShred entity.
+// If the POSSaleShred object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSSaleShredMutation) OldSnapshot(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSnapshot is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSnapshot requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSnapshot: %w", err)
+	}
+	return oldValue.Snapshot, nil
+}
+
+// ResetSnapshot resets all changes to the "snapshot" field.
+func (m *POSSaleShredMutation) ResetSnapshot() {
+	m.snapshot = nil
+}
+
+// SetSteps sets the "steps" field.
+func (m *POSSaleShredMutation) SetSteps(ssj []schema.ReversalStepJSON) {
+	m.steps = &ssj
+	m.appendsteps = nil
+}
+
+// Steps returns the value of the "steps" field in the mutation.
+func (m *POSSaleShredMutation) Steps() (r []schema.ReversalStepJSON, exists bool) {
+	v := m.steps
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSteps returns the old "steps" field's value of the POSSaleShred entity.
+// If the POSSaleShred object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSSaleShredMutation) OldSteps(ctx context.Context) (v []schema.ReversalStepJSON, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSteps is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSteps requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSteps: %w", err)
+	}
+	return oldValue.Steps, nil
+}
+
+// AppendSteps adds ssj to the "steps" field.
+func (m *POSSaleShredMutation) AppendSteps(ssj []schema.ReversalStepJSON) {
+	m.appendsteps = append(m.appendsteps, ssj...)
+}
+
+// AppendedSteps returns the list of values that were appended to the "steps" field in this mutation.
+func (m *POSSaleShredMutation) AppendedSteps() ([]schema.ReversalStepJSON, bool) {
+	if len(m.appendsteps) == 0 {
+		return nil, false
+	}
+	return m.appendsteps, true
+}
+
+// ResetSteps resets all changes to the "steps" field.
+func (m *POSSaleShredMutation) ResetSteps() {
+	m.steps = nil
+	m.appendsteps = nil
+}
+
+// SetIdempotencyKey sets the "idempotency_key" field.
+func (m *POSSaleShredMutation) SetIdempotencyKey(s string) {
+	m.idempotency_key = &s
+}
+
+// IdempotencyKey returns the value of the "idempotency_key" field in the mutation.
+func (m *POSSaleShredMutation) IdempotencyKey() (r string, exists bool) {
+	v := m.idempotency_key
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIdempotencyKey returns the old "idempotency_key" field's value of the POSSaleShred entity.
+// If the POSSaleShred object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSSaleShredMutation) OldIdempotencyKey(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIdempotencyKey is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIdempotencyKey requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIdempotencyKey: %w", err)
+	}
+	return oldValue.IdempotencyKey, nil
+}
+
+// ClearIdempotencyKey clears the value of the "idempotency_key" field.
+func (m *POSSaleShredMutation) ClearIdempotencyKey() {
+	m.idempotency_key = nil
+	m.clearedFields[possaleshred.FieldIdempotencyKey] = struct{}{}
+}
+
+// IdempotencyKeyCleared returns if the "idempotency_key" field was cleared in this mutation.
+func (m *POSSaleShredMutation) IdempotencyKeyCleared() bool {
+	_, ok := m.clearedFields[possaleshred.FieldIdempotencyKey]
+	return ok
+}
+
+// ResetIdempotencyKey resets all changes to the "idempotency_key" field.
+func (m *POSSaleShredMutation) ResetIdempotencyKey() {
+	m.idempotency_key = nil
+	delete(m.clearedFields, possaleshred.FieldIdempotencyKey)
+}
+
+// SetRequestedBy sets the "requested_by" field.
+func (m *POSSaleShredMutation) SetRequestedBy(u uuid.UUID) {
+	m.requested_by = &u
+}
+
+// RequestedBy returns the value of the "requested_by" field in the mutation.
+func (m *POSSaleShredMutation) RequestedBy() (r uuid.UUID, exists bool) {
+	v := m.requested_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRequestedBy returns the old "requested_by" field's value of the POSSaleShred entity.
+// If the POSSaleShred object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSSaleShredMutation) OldRequestedBy(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRequestedBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRequestedBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRequestedBy: %w", err)
+	}
+	return oldValue.RequestedBy, nil
+}
+
+// ResetRequestedBy resets all changes to the "requested_by" field.
+func (m *POSSaleShredMutation) ResetRequestedBy() {
+	m.requested_by = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *POSSaleShredMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *POSSaleShredMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the POSSaleShred entity.
+// If the POSSaleShred object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSSaleShredMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *POSSaleShredMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *POSSaleShredMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *POSSaleShredMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the POSSaleShred entity.
+// If the POSSaleShred object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSSaleShredMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *POSSaleShredMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the POSSaleShredMutation builder.
+func (m *POSSaleShredMutation) Where(ps ...predicate.POSSaleShred) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the POSSaleShredMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *POSSaleShredMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.POSSaleShred, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *POSSaleShredMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *POSSaleShredMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (POSSaleShred).
+func (m *POSSaleShredMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *POSSaleShredMutation) Fields() []string {
+	fields := make([]string, 0, 11)
+	if m.tenant_id != nil {
+		fields = append(fields, possaleshred.FieldTenantID)
+	}
+	if m.order_id != nil {
+		fields = append(fields, possaleshred.FieldOrderID)
+	}
+	if m.order_number != nil {
+		fields = append(fields, possaleshred.FieldOrderNumber)
+	}
+	if m.reason != nil {
+		fields = append(fields, possaleshred.FieldReason)
+	}
+	if m.status != nil {
+		fields = append(fields, possaleshred.FieldStatus)
+	}
+	if m.snapshot != nil {
+		fields = append(fields, possaleshred.FieldSnapshot)
+	}
+	if m.steps != nil {
+		fields = append(fields, possaleshred.FieldSteps)
+	}
+	if m.idempotency_key != nil {
+		fields = append(fields, possaleshred.FieldIdempotencyKey)
+	}
+	if m.requested_by != nil {
+		fields = append(fields, possaleshred.FieldRequestedBy)
+	}
+	if m.created_at != nil {
+		fields = append(fields, possaleshred.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, possaleshred.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *POSSaleShredMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case possaleshred.FieldTenantID:
+		return m.TenantID()
+	case possaleshred.FieldOrderID:
+		return m.OrderID()
+	case possaleshred.FieldOrderNumber:
+		return m.OrderNumber()
+	case possaleshred.FieldReason:
+		return m.Reason()
+	case possaleshred.FieldStatus:
+		return m.Status()
+	case possaleshred.FieldSnapshot:
+		return m.Snapshot()
+	case possaleshred.FieldSteps:
+		return m.Steps()
+	case possaleshred.FieldIdempotencyKey:
+		return m.IdempotencyKey()
+	case possaleshred.FieldRequestedBy:
+		return m.RequestedBy()
+	case possaleshred.FieldCreatedAt:
+		return m.CreatedAt()
+	case possaleshred.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *POSSaleShredMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case possaleshred.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case possaleshred.FieldOrderID:
+		return m.OldOrderID(ctx)
+	case possaleshred.FieldOrderNumber:
+		return m.OldOrderNumber(ctx)
+	case possaleshred.FieldReason:
+		return m.OldReason(ctx)
+	case possaleshred.FieldStatus:
+		return m.OldStatus(ctx)
+	case possaleshred.FieldSnapshot:
+		return m.OldSnapshot(ctx)
+	case possaleshred.FieldSteps:
+		return m.OldSteps(ctx)
+	case possaleshred.FieldIdempotencyKey:
+		return m.OldIdempotencyKey(ctx)
+	case possaleshred.FieldRequestedBy:
+		return m.OldRequestedBy(ctx)
+	case possaleshred.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case possaleshred.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown POSSaleShred field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *POSSaleShredMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case possaleshred.FieldTenantID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case possaleshred.FieldOrderID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOrderID(v)
+		return nil
+	case possaleshred.FieldOrderNumber:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOrderNumber(v)
+		return nil
+	case possaleshred.FieldReason:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReason(v)
+		return nil
+	case possaleshred.FieldStatus:
+		v, ok := value.(possaleshred.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case possaleshred.FieldSnapshot:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSnapshot(v)
+		return nil
+	case possaleshred.FieldSteps:
+		v, ok := value.([]schema.ReversalStepJSON)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSteps(v)
+		return nil
+	case possaleshred.FieldIdempotencyKey:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIdempotencyKey(v)
+		return nil
+	case possaleshred.FieldRequestedBy:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRequestedBy(v)
+		return nil
+	case possaleshred.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case possaleshred.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown POSSaleShred field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *POSSaleShredMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *POSSaleShredMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *POSSaleShredMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown POSSaleShred numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *POSSaleShredMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(possaleshred.FieldIdempotencyKey) {
+		fields = append(fields, possaleshred.FieldIdempotencyKey)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *POSSaleShredMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *POSSaleShredMutation) ClearField(name string) error {
+	switch name {
+	case possaleshred.FieldIdempotencyKey:
+		m.ClearIdempotencyKey()
+		return nil
+	}
+	return fmt.Errorf("unknown POSSaleShred nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *POSSaleShredMutation) ResetField(name string) error {
+	switch name {
+	case possaleshred.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case possaleshred.FieldOrderID:
+		m.ResetOrderID()
+		return nil
+	case possaleshred.FieldOrderNumber:
+		m.ResetOrderNumber()
+		return nil
+	case possaleshred.FieldReason:
+		m.ResetReason()
+		return nil
+	case possaleshred.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case possaleshred.FieldSnapshot:
+		m.ResetSnapshot()
+		return nil
+	case possaleshred.FieldSteps:
+		m.ResetSteps()
+		return nil
+	case possaleshred.FieldIdempotencyKey:
+		m.ResetIdempotencyKey()
+		return nil
+	case possaleshred.FieldRequestedBy:
+		m.ResetRequestedBy()
+		return nil
+	case possaleshred.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case possaleshred.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown POSSaleShred field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *POSSaleShredMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *POSSaleShredMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *POSSaleShredMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *POSSaleShredMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *POSSaleShredMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *POSSaleShredMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *POSSaleShredMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown POSSaleShred unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *POSSaleShredMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown POSSaleShred edge %s", name)
 }
 
 // POSUserRoleAssignmentMutation represents an operation that mutates the POSUserRoleAssignment nodes in the graph.
