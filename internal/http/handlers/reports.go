@@ -22,6 +22,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/posrefund"
 	"github.com/bengobox/pos-service/internal/ent/posreturn"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
+	outletmw "github.com/bengobox/pos-service/internal/http/middleware"
 	ordersmod "github.com/bengobox/pos-service/internal/modules/orders"
 )
 
@@ -29,7 +30,13 @@ type ReportsHandler struct {
 	log       *zap.Logger
 	db        *ent.Client
 	inventory brandResolver
+	rbac      outletmw.PermissionChecker
 }
+
+// SetRBAC wires the permission checker so GetSummary can scope a cashier's KPI card to their own
+// sales (same ownOrdersScope predicate ListOrders/OrdersSummary already use) instead of always
+// showing the whole outlet's day totals regardless of role.
+func (h *ReportsHandler) SetRBAC(rbac outletmw.PermissionChecker) { h.rbac = rbac }
 
 // brandResolver resolves sku → brand name (satisfied by the inventory S2S client). Kept as a
 // narrow interface so reports don't depend on the whole inventory client and it can be nil.
@@ -66,6 +73,14 @@ func (h *ReportsHandler) GetSummary(w http.ResponseWriter, r *http.Request) {
 		if oid, parseErr := uuid.Parse(oidStr); parseErr == nil {
 			outletFilters = []predicate.POSOrder{posorder.OutletID(oid)}
 		}
+	}
+	// A view_own-only principal (plain cashier, outlet not configured for outlet-wide visibility)
+	// gets THEIR OWN sales summary here, not the whole outlet/tenant's day totals — the same
+	// ownOrdersScope predicate ListOrders/OrdersSummary already apply to the sales list, so the
+	// Dashboard KPI card a cashier lands on can never disagree with what they're allowed to see
+	// on the Sales list itself.
+	if ownPred, scoped := ownOrdersScope(r, h.rbac, h.db); scoped {
+		outletFilters = append(outletFilters, ownPred)
 	}
 
 	queryRevenue := func(from, to time.Time) (float64, int, error) {

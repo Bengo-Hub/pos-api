@@ -455,6 +455,8 @@ func New(ctx context.Context) (*App, error) {
 	orderHandler.SetRBAC(rbacSvc)
 	// The All-Sales export applies the same per-cashier scoping as the order list.
 	reportPDFHandler.SetRBAC(rbacSvc)
+	// Dashboard KPI summary applies the same per-cashier scoping as the order list/export.
+	reportsHandler.SetRBAC(rbacSvc)
 
 	// Wire RBAC service into identity for JIT role assignment from JWT claims
 	identitySvc.SetRBACService(rbacSvc)
