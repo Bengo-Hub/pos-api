@@ -2,6 +2,7 @@ package tenant
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -38,6 +39,7 @@ type Syncer struct {
 	client  *ent.Client
 	authURL string
 	cache   *sharedcache.Aside
+	db      *sql.DB
 }
 
 // NewSyncer creates a new TenantSyncer.
@@ -45,6 +47,112 @@ type Syncer struct {
 // c may be nil — in that case every call falls through to auth-api directly.
 func NewSyncer(client *ent.Client, authURL string, c *sharedcache.Aside) *Syncer {
 	return &Syncer{client: client, authURL: authURL, cache: c}
+}
+
+// WithDB attaches the raw database handle the drift self-heal needs. Without it a detected
+// tenant-UUID drift is reported but not repaired (the stale local UUID is still returned),
+// because re-keying spans every tenant-scoped table and cannot be expressed through Ent.
+func (s *Syncer) WithDB(db *sql.DB) *Syncer {
+	s.db = db
+	return s
+}
+
+// sqlLiteral renders s as a single-quoted Postgres string literal, doubling embedded quotes.
+func sqlLiteral(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", "''") + "'"
+}
+
+// adoptTenantIDSQL re-keys every tenant-scoped row from oldID onto newID in one transaction.
+//
+// Columns are discovered from the live catalog rather than hard-coded, using two sources:
+// any column literally named tenant_id (most projections carry no FK at all), plus any column
+// with a real FK to tenants(id) — Ent names one-to-one edge columns after the edge, not the
+// entity, so a name-only sweep misses those and the final DELETE then fails on the FK.
+//
+// The clone lands on a throwaway slug so the unique(slug) index does not fire mid-transaction;
+// the real slug is restored once the stale row is gone. Where a unique index makes a rewrite
+// impossible (a row already exists under the new UUID with the same key — per-tenant sync
+// bookkeeping), the stale duplicate is dropped instead.
+const adoptTenantIDSQL = `
+DO $$
+DECLARE
+  old_id text := %s;
+  new_id text := %s;
+  slug_v text := %s;
+  r record;
+  cols text;
+  vals text;
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM tenants WHERE id::text = old_id) THEN RETURN; END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM tenants WHERE id::text = new_id) THEN
+    SELECT string_agg(quote_ident(column_name), ', ' ORDER BY ordinal_position) INTO cols
+      FROM information_schema.columns
+     WHERE table_schema='public' AND table_name='tenants';
+    SELECT string_agg(CASE WHEN column_name='id'   THEN quote_literal(new_id)
+                           WHEN column_name='slug' THEN quote_literal('__drift_migrating__')
+                           ELSE quote_ident(column_name) END, ', ' ORDER BY ordinal_position) INTO vals
+      FROM information_schema.columns
+     WHERE table_schema='public' AND table_name='tenants';
+    EXECUTE format('INSERT INTO tenants (%%s) SELECT %%s FROM tenants WHERE id::text = %%L', cols, vals, old_id);
+  END IF;
+
+  FOR r IN
+    SELECT c.table_name AS tbl, c.column_name AS col
+      FROM information_schema.columns c
+      JOIN information_schema.tables t
+        ON t.table_schema=c.table_schema AND t.table_name=c.table_name AND t.table_type='BASE TABLE'
+     WHERE c.table_schema='public' AND c.column_name='tenant_id'
+    UNION
+    SELECT con.conrelid::regclass::text, a.attname
+      FROM pg_constraint con
+      JOIN unnest(con.conkey) k ON true
+      JOIN pg_attribute a ON a.attrelid=con.conrelid AND a.attnum=k
+     WHERE con.confrelid='tenants'::regclass AND con.contype='f'
+  LOOP
+    BEGIN
+      EXECUTE format('UPDATE %%I SET %%I = %%L WHERE %%I = %%L', r.tbl, r.col, new_id, r.col, old_id);
+    EXCEPTION WHEN unique_violation OR foreign_key_violation THEN
+      EXECUTE format('DELETE FROM %%I WHERE %%I = %%L', r.tbl, r.col, old_id);
+      RAISE WARNING 'tenant drift: dropped stale rows from %% (collided under new UUID)', r.tbl;
+    END;
+  END LOOP;
+
+  EXECUTE format('DELETE FROM tenants WHERE id::text = %%L', old_id);
+  EXECUTE format('UPDATE tenants SET slug = %%L WHERE id::text = %%L', slug_v, new_id);
+END $$;`
+
+// adoptAuthTenantID re-keys the locally projected tenant onto the UUID auth-api reports,
+// then returns that UUID. When no raw DB handle is wired up it degrades to a loud warning
+// and keeps returning the local UUID — a partial rewrite would be worse than none.
+func (s *Syncer) adoptAuthTenantID(ctx context.Context, localID, remoteID uuid.UUID, slug, name, timezone string) (uuid.UUID, error) {
+	if s.db == nil {
+		log.Printf("  [tenant-sync] cannot self-heal drift for %s: no DB handle wired (still using local %s)", slug, localID)
+		return localID, nil
+	}
+
+	// A DO block takes no bind parameters, so the three values are inlined as quoted SQL
+	// literals. localID/remoteID are already-parsed UUIDs; slug is quoted defensively.
+	stmt := fmt.Sprintf(adoptTenantIDSQL,
+		sqlLiteral(localID.String()), sqlLiteral(remoteID.String()), sqlLiteral(slug))
+	if _, err := s.db.ExecContext(ctx, stmt); err != nil {
+		log.Printf("  [tenant-sync] self-heal for %s FAILED (still using local %s): %v", slug, localID, err)
+		return localID, nil
+	}
+
+	upd := s.client.Tenant.UpdateOneID(remoteID).SetSyncStatus("synced").SetLastSyncAt(time.Now())
+	if n := strings.TrimSpace(name); n != "" {
+		upd = upd.SetName(n)
+	}
+	if tz := strings.TrimSpace(timezone); tz != "" {
+		upd = upd.SetTimezone(tz)
+	}
+	if err := upd.Exec(ctx); err != nil {
+		log.Printf("  [tenant-sync] post-heal metadata refresh for %s failed: %v", slug, err)
+	}
+
+	log.Printf("  [tenant-sync] self-healed %s: %s -> %s", slug, localID, remoteID)
+	return remoteID, nil
 }
 
 // SyncTenant fetches the tenant record (via shared cache / auth-api) and
@@ -62,6 +170,16 @@ func (s *Syncer) SyncTenant(ctx context.Context, slug string) (uuid.UUID, error)
 		// auth-api propagates on the next auth event without a full re-sync. The
 		// read is Redis-backed (cheap); failures and no-ops are non-fatal.
 		if td, tzErr := sharedcache.GetTenantDetails(ctx, s.cache, authAPIURL, slug, sharedcache.DefaultTenantTTL); tzErr == nil {
+			// Drift guard: auth-api owns the tenant UUID. If the tenant is deleted and
+			// recreated upstream it comes back with a NEW UUID, and returning the locally
+			// cached one silently forks the tenant — seed/slug-resolved writes land under
+			// the stale UUID while event-driven writes land under auth's, so PIN login and
+			// every other tenant-scoped read miss their own data. Report the mismatch and
+			// let auth win rather than pinning the stale ID forever.
+			if remoteID, parseErr := uuid.Parse(strings.TrimSpace(td.ID)); parseErr == nil && remoteID != uuid.Nil && remoteID != existing.ID {
+				log.Printf("  [tenant-sync] DRIFT: %s is %s locally but %s in auth-api — adopting auth's UUID", slug, existing.ID, remoteID)
+				return s.adoptAuthTenantID(ctx, existing.ID, remoteID, slug, td.Name, td.Timezone)
+			}
 			if tz := strings.TrimSpace(td.Timezone); tz != "" && tz != existing.Timezone {
 				if uErr := s.client.Tenant.UpdateOneID(existing.ID).SetTimezone(tz).Exec(ctx); uErr != nil {
 					log.Printf("  [tenant-sync] timezone refresh for %s failed: %v", slug, uErr)
