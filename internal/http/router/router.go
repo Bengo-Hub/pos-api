@@ -447,6 +447,11 @@ func New(
 						if saleEditH != nil {
 							pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.orders.edit_finalized")).
 								Post("/orders/{orderID}/prepare-edit", saleEditH.PrepareEdit)
+							// True in-place edit: reduce/remove specific lines via a partial reversal,
+							// order status untouched. The everyday Edit Sale path; prepare-edit (above,
+							// full reversal + replacement order) is kept for callers that still need it.
+							pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.orders.edit_finalized")).
+								Post("/orders/{orderID}/edit-reduce", saleEditH.ApplyEdit)
 						}
 						// Upsell / set-aside: hold a wrongly-ordered (already-made) item for resale
 						// instead of voiding it. No manager approval; must be cleared before shift close.

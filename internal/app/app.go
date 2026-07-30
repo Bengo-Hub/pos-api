@@ -260,6 +260,8 @@ func New(ctx context.Context) (*App, error) {
 	orderHandler.SetAuditService(auditSvc)
 	// Line-edit price corrections can optionally propagate to the inventory catalog.
 	orderHandler.SetInventoryClient(inventoryClient)
+	// Only used to confirm actual fiscal status before a void-refusal message mentions KRA eTIMS.
+	orderHandler.SetTreasuryClient(treasuryClient)
 	catalogHandler := handlers.NewCatalogHandler(log, entClient)
 	catalogHandler.SetRedisClient(redisClient)
 	tableHandler := handlers.NewTableHandler(log, entClient)

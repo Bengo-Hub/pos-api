@@ -24,8 +24,10 @@ import (
 	"github.com/bengobox/pos-service/internal/ent"
 	entposorder "github.com/bengobox/pos-service/internal/ent/posorder"
 	entposorderline "github.com/bengobox/pos-service/internal/ent/posorderline"
+	entpospayment "github.com/bengobox/pos-service/internal/ent/pospayment"
 	entposreversal "github.com/bengobox/pos-service/internal/ent/posreversal"
 	entschema "github.com/bengobox/pos-service/internal/ent/schema"
+	enttender "github.com/bengobox/pos-service/internal/ent/tender"
 	"github.com/bengobox/pos-service/internal/modules/documents"
 	"github.com/bengobox/pos-service/internal/modules/inventory"
 	"github.com/bengobox/pos-service/internal/modules/orders"
@@ -34,10 +36,11 @@ import (
 
 // Step names — one per integrated service touch-point.
 const (
-	StepPOSTotals       = "pos_totals"
-	StepInventory       = "inventory_consumption"
-	StepTreasuryGL      = "treasury_gl"
-	StepEtimsCreditNote = "etims_credit_note"
+	StepPOSTotals         = "pos_totals"
+	StepInventory         = "inventory_consumption"
+	StepTreasuryGL        = "treasury_gl"
+	StepEtimsCreditNote   = "etims_credit_note"
+	StepLoyaltyCommission = "loyalty_commission"
 )
 
 // Step statuses.
@@ -158,6 +161,7 @@ func (s *Service) Execute(ctx context.Context, tenantID uuid.UUID, req CreateReq
 		{Step: StepInventory, Service: "inventory", Status: StatusPending},
 		{Step: StepTreasuryGL, Service: "treasury", Status: StatusPending},
 		{Step: StepEtimsCreditNote, Service: "treasury", Status: StatusPending},
+		{Step: StepLoyaltyCommission, Service: "pos", Status: StatusPending},
 	}
 
 	// Reversal number: numeric-by-default via the tenant's pos_reversal document sequence,
@@ -177,7 +181,7 @@ func (s *Service) Execute(ctx context.Context, tenantID uuid.UUID, req CreateReq
 		SetScope(entposreversal.Scope(req.Scope)).
 		SetStatus(entposreversal.StatusPending).
 		SetReason(req.Reason).
-		SetRefundChannel(coalesce(req.RefundChannel, "cash")).
+		SetRefundChannel(s.resolveRefundChannel(ctx, tenantID, order.ID, req.RefundChannel)).
 		SetLines(revLines).
 		SetAmount(round2(amount)).
 		SetTaxAmount(round2(tax)).
@@ -322,11 +326,39 @@ func (s *Service) audit(ctx context.Context, rev *ent.POSReversal) {
 	})
 }
 
-func coalesce(v, def string) string {
-	if v == "" {
-		return def
+// resolveRefundChannel picks the treasury refund channel: whatever the caller explicitly
+// requested, or — when unset — "offset_invoice" for a sale that was settled on account (an
+// unpaid credit sale), otherwise "cash". Mirrors handlers/returns_policy.go's proven
+// orderSettledOnAccount/defaultRefundChannel used by the customer-return flow; without this,
+// reversing/editing a credit sale posted a CASH refund in treasury's GL for money the business
+// never received, instead of reducing the customer's AR balance.
+func (s *Service) resolveRefundChannel(ctx context.Context, tenantID, orderID uuid.UUID, requested string) string {
+	if requested != "" {
+		return requested
 	}
-	return v
+	if s.orderSettledOnAccount(ctx, tenantID, orderID) {
+		return "offset_invoice"
+	}
+	return "cash"
+}
+
+// orderSettledOnAccount reports whether the original sale was settled on account (credit sale):
+// any completed payment on an on_account tender. Best-effort — false on errors.
+func (s *Service) orderSettledOnAccount(ctx context.Context, tenantID, orderID uuid.UUID) bool {
+	pays, err := s.client.POSPayment.Query().
+		Where(entpospayment.OrderID(orderID), entpospayment.Status("completed")).
+		All(ctx)
+	if err != nil || len(pays) == 0 {
+		return false
+	}
+	ids := make([]uuid.UUID, 0, len(pays))
+	for _, p := range pays {
+		ids = append(ids, p.TenderID)
+	}
+	n, err := s.client.Tender.Query().
+		Where(enttender.IDIn(ids...), enttender.TenantID(tenantID), enttender.TypeEQ("on_account")).
+		Count(ctx)
+	return err == nil && n > 0
 }
 
 func round2(v float64) float64 { return math.Round(v*100) / 100 }

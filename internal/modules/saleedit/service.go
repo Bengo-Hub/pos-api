@@ -15,6 +15,7 @@ package saleedit
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -110,11 +111,11 @@ func (s *Service) PrepareEdit(ctx context.Context, tenantID uuid.UUID, req Reque
 		md[k] = v
 	}
 	md["edit"] = map[string]any{
-		"edited_by":         req.RequestedBy.String(),
-		"edit_reason":       req.Reason,
-		"edited_at":         time.Now().UTC().Format(time.RFC3339),
-		"reversal_id":       rev.ID.String(),
-		"reversal_number":   rev.ReversalNumber,
+		"edited_by":           req.RequestedBy.String(),
+		"edit_reason":         req.Reason,
+		"edited_at":           time.Now().UTC().Format(time.RFC3339),
+		"reversal_id":         rev.ID.String(),
+		"reversal_number":     rev.ReversalNumber,
 		"replacement_pending": true,
 	}
 	if _, err := order.Update().SetMetadata(md).Save(ctx); err != nil {
@@ -143,6 +144,108 @@ func (s *Service) hasCorrectionHistory(ctx context.Context, tenantID, orderID uu
 		return true, nil
 	}
 	return false, nil
+}
+
+// EditRequest describes an in-place edit: zero or more existing lines to remove/reduce.
+// Added value (new items, or raising an existing line's qty/price) is NOT expressed here —
+// pos-ui posts that as a separate, linked addendum sale through the normal create-order
+// pipeline (see ApplyEdit's doc comment).
+type EditRequest struct {
+	OrderID     uuid.UUID
+	Reason      string
+	RequestedBy uuid.UUID
+	TenantSlug  string
+	Reductions  []reversals.LineSelection
+}
+
+// EditResult is what ApplyEdit returns to the caller.
+type EditResult struct {
+	OrderID        uuid.UUID  `json:"order_id"`
+	ReversalID     *uuid.UUID `json:"reversal_id,omitempty"`
+	ReversalNumber string     `json:"reversal_number,omitempty"`
+}
+
+// ApplyEdit performs a TRUE in-place edit of a finalized sale: reducing/removing the given
+// lines runs a PARTIAL reversal (reversals.Service, scope "partial") — inventory add-back,
+// treasury GL refund, an eTIMS credit note only if the tenant is actually fiscalized, and
+// loyalty/commission clawback are all prorated to just the reduced value, and the order's
+// status is left exactly as it was (never flipped to "refunded" — that partial-scope
+// behavior already exists in reversals.stepPOSTotals). Unlike PrepareEdit (the full-reversal
+// tool this replaces for everyday edits), a sale with prior edit/return/reversal history is
+// NOT refused — repeat corrections over time are expected. Increases (a new item, or raising
+// an existing line's qty/price) are intentionally out of scope here: they can't be posted onto
+// an already-signed eTIMS invoice / already-posted GL entry in place, so pos-ui creates a small
+// linked addendum sale for them (metadata.related_order_id) through the ordinary, already-correct
+// create -> finalize pipeline instead — no new treasury/inventory endpoints needed for that side.
+func (s *Service) ApplyEdit(ctx context.Context, tenantID uuid.UUID, req EditRequest) (*EditResult, error) {
+	if req.Reason == "" {
+		return nil, fmt.Errorf("reason is required")
+	}
+
+	order, err := s.client.POSOrder.Query().
+		Where(entposorder.ID(req.OrderID), entposorder.TenantID(tenantID)).
+		Only(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("order not found")
+	}
+	if order.DeletedAt != nil {
+		return nil, fmt.Errorf("sale is deleted and cannot be edited")
+	}
+	if !finalizedStatuses[order.Status] {
+		return nil, fmt.Errorf("only a finalized sale (completed/paid/closed) can be edited — this order is %q", order.Status)
+	}
+	if order.Status == "refunded" {
+		return nil, fmt.Errorf("this sale has already been fully reversed — there is nothing left to edit")
+	}
+
+	result := &EditResult{OrderID: order.ID}
+	if len(req.Reductions) == 0 {
+		// A pure-increase edit needs no backend call here — pos-ui goes straight to creating
+		// the addendum sale.
+		return result, nil
+	}
+
+	rev, err := s.reversalSvc.Execute(ctx, tenantID, reversals.CreateRequest{
+		OrderID:     order.ID,
+		Scope:       "partial",
+		Lines:       req.Reductions,
+		Reason:      fmt.Sprintf("Edit Sale: %s", req.Reason),
+		RequestedBy: req.RequestedBy,
+		TenantSlug:  req.TenantSlug,
+	})
+	if err != nil {
+		// resolveLines refuses a line already carrying ANY voided_qty ("line already voided")
+		// — the reversal engine's per-line idempotency guard means a line can only be
+		// reduced once, ever, through this path. Surface that plainly rather than the raw
+		// engine error, since "already voided" reads like a bug report otherwise.
+		if strings.Contains(err.Error(), "already voided") {
+			return nil, fmt.Errorf("one of these lines was already adjusted by a previous edit and can't be reduced again — remove it and add the corrected quantity as a new line instead")
+		}
+		return nil, fmt.Errorf("reduce line(s): %w", err)
+	}
+	result.ReversalID = &rev.ID
+	result.ReversalNumber = rev.ReversalNumber
+
+	md := map[string]any{}
+	for k, v := range order.Metadata {
+		md[k] = v
+	}
+	edits, _ := md["edits"].([]any)
+	edits = append(edits, map[string]any{
+		"edited_by":       req.RequestedBy.String(),
+		"edit_reason":     req.Reason,
+		"edited_at":       time.Now().UTC().Format(time.RFC3339),
+		"reversal_id":     rev.ID.String(),
+		"reversal_number": rev.ReversalNumber,
+	})
+	md["edits"] = edits
+	if _, err := order.Update().SetMetadata(md).Save(ctx); err != nil {
+		s.log.Warn("apply-edit: failed to stamp edit history", zap.Error(err))
+	}
+
+	s.audit(ctx, tenantID, req.RequestedBy, order.OrderNumber, order.ID, req.Reason, rev.ID)
+
+	return result, nil
 }
 
 func (s *Service) audit(ctx context.Context, tenantID, actorID uuid.UUID, orderNumber string, orderID uuid.UUID, reason string, reversalID uuid.UUID) {

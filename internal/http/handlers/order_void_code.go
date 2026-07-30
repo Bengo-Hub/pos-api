@@ -56,7 +56,7 @@ func (h *POSOrderHandler) GenerateVoidCode(w http.ResponseWriter, r *http.Reques
 		case "voided":
 			return newApprovalStatusError(http.StatusBadRequest, "order is already voided")
 		case "completed", "paid", "closed":
-			return newApprovalStatusError(http.StatusConflict, "a finalized sale cannot be voided — issue a refund/return instead")
+			return newApprovalStatusError(http.StatusConflict, "a finalized sale cannot be voided directly — use Edit Sale to adjust it or Delete Sale to remove it")
 		}
 		return nil
 	})

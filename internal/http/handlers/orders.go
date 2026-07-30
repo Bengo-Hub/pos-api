@@ -30,6 +30,7 @@ import (
 	outletmw "github.com/bengobox/pos-service/internal/http/middleware"
 	"github.com/bengobox/pos-service/internal/modules/inventory"
 	"github.com/bengobox/pos-service/internal/modules/orders"
+	"github.com/bengobox/pos-service/internal/modules/treasury"
 	"github.com/bengobox/pos-service/internal/platform/subscriptions"
 )
 
@@ -47,6 +48,12 @@ type POSOrderHandler struct {
 	// inventoryClient propagates order-line price corrections to the inventory catalog
 	// (EditOrderLine's update_catalog_price option). Optional — nil skips propagation.
 	inventoryClient *inventory.Client
+	// treasuryClient is used ONLY to check whether a specific order actually has a KRA
+	// eTIMS-signed invoice before a void-refusal message mentions eTIMS at all — many
+	// tenants are not eTIMS-integrated, and an unconditional "KRA" mention scared them
+	// into thinking they were being monitored. Optional — nil means the message never
+	// mentions eTIMS (safer default than a false claim).
+	treasuryClient *treasury.Client
 }
 
 func NewPOSOrderHandler(log *zap.Logger, client *ent.Client, orderSvc *orders.Service, subsClient *subscriptions.Client) *POSOrderHandler {
@@ -59,6 +66,32 @@ func (h *POSOrderHandler) SetAuditService(a *audit.Service) { h.auditSvc = a }
 // SetInventoryClient wires the inventory S2S client used to propagate order-line price
 // corrections to the catalog (EditOrderLine's update_catalog_price option).
 func (h *POSOrderHandler) SetInventoryClient(c *inventory.Client) { h.inventoryClient = c }
+
+// SetTreasuryClient wires the treasury S2S client used only to confirm fiscal status before a
+// void-refusal message mentions KRA eTIMS (see isFiscalized).
+func (h *POSOrderHandler) SetTreasuryClient(c *treasury.Client) { h.treasuryClient = c }
+
+// isFiscalized reports whether this order has a KRA eTIMS-signed treasury invoice — the same
+// criterion saledelete.Service.isFiscalized uses. Best-effort: nil client or a lookup error
+// means "don't claim eTIMS involvement", never the reverse, so a non-integrated tenant is never
+// told their sale was reported to KRA.
+func (h *POSOrderHandler) isFiscalized(ctx context.Context, tenantSlug string, orderID uuid.UUID) bool {
+	if h.treasuryClient == nil {
+		return false
+	}
+	inv, err := h.treasuryClient.GetInvoiceByReference(ctx, tenantSlug, "pos_order", orderID.String())
+	return err == nil && inv != nil && inv.ID != ""
+}
+
+// finalizedVoidRefusalMessage builds the "can't void a finalized sale" message, only mentioning
+// KRA eTIMS when this specific order actually has a signed invoice — see isFiscalized.
+func (h *POSOrderHandler) finalizedVoidRefusalMessage(ctx context.Context, tenantSlug string, orderID uuid.UUID) string {
+	msg := "this sale is already finalized and can't be voided directly — use Edit Sale to adjust its items/amounts, or Delete Sale to remove it entirely"
+	if h.isFiscalized(ctx, tenantSlug, orderID) {
+		msg += " (this sale was reported to KRA eTIMS, so removing it issues a credit note rather than a plain void)"
+	}
+	return msg
+}
 
 // SetRBAC wires the local RBAC fallback used by the per-cashier visibility scoping.
 func (h *POSOrderHandler) SetRBAC(rbac outletmw.PermissionChecker) { h.rbac = rbac }
@@ -1496,17 +1529,21 @@ func (h *POSOrderHandler) VoidOrder(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Eligibility rule shared with the bulk endpoint (voidSkipReason): already-voided is a
-	// no-op, and a finalized sale has already been posted to the ledger and transmitted to
-	// KRA eTIMS (pos.sale.finalized). Voiding it here would only flip the status — leaving
-	// the GL entry and the eTIMS receipt un-reversed. Such sales must be reversed via a
-	// return/refund, which posts the ledger reversal AND transmits an eTIMS credit note
-	// (rcptTyCd=R).
+	// no-op, and a finalized sale has already posted to the ledger (and, only if this tenant
+	// is actually eTIMS-integrated, transmitted to KRA). Voiding it here would only flip the
+	// status — leaving the GL entry (and any eTIMS receipt) un-reversed. Such sales must go
+	// through Edit Sale (in-place adjustment) or Delete Sale (full removal, which reverses the
+	// ledger and, only when fiscalized, issues an eTIMS credit note).
 	switch voidSkipReason(order.Status) {
 	case "already_voided":
 		jsonError(w, "order is already voided", http.StatusBadRequest)
 		return
 	case "finalized":
-		jsonError(w, "a finalized sale cannot be voided — issue a refund/return instead so the ledger and KRA eTIMS are properly reversed", http.StatusConflict)
+		tenantSlug := ""
+		if claims, ok := authclient.ClaimsFromContext(r.Context()); ok {
+			tenantSlug = claims.GetTenantSlug()
+		}
+		jsonError(w, h.finalizedVoidRefusalMessage(r.Context(), tenantSlug, order.ID), http.StatusConflict)
 		return
 	}
 

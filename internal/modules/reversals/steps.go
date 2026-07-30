@@ -3,13 +3,17 @@ package reversals
 import (
 	"context"
 	"fmt"
+	"math"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
 	"github.com/bengobox/pos-service/internal/ent"
+	entcommissionrecord "github.com/bengobox/pos-service/internal/ent/commissionrecord"
 	entla "github.com/bengobox/pos-service/internal/ent/loyaltyaccount"
+	entloyaltytransaction "github.com/bengobox/pos-service/internal/ent/loyaltytransaction"
 	entposorder "github.com/bengobox/pos-service/internal/ent/posorder"
 	entposorderline "github.com/bengobox/pos-service/internal/ent/posorderline"
 	entpospayment "github.com/bengobox/pos-service/internal/ent/pospayment"
@@ -52,6 +56,7 @@ func (s *Service) runSteps(ctx context.Context, rev *ent.POSReversal, tenantSlug
 	run(StepInventory, func() (string, string, bool, error) { return s.stepInventory(ctx, rev) })
 	run(StepTreasuryGL, func() (string, string, bool, error) { return s.stepTreasuryGL(ctx, rev, tenantSlug) })
 	run(StepEtimsCreditNote, func() (string, string, bool, error) { return s.stepEtimsCreditNote(ctx, rev, tenantSlug) })
+	run(StepLoyaltyCommission, func() (string, string, bool, error) { return s.stepLoyaltyCommission(ctx, rev) })
 
 	return s.finalizeStatus(ctx, rev, steps)
 }
@@ -322,6 +327,166 @@ func (s *Service) stepEtimsCreditNote(ctx context.Context, rev *ent.POSReversal,
 		return "", "", false, err
 	}
 	return cn.Number, "credit note raised against invoice " + inv.ID, false, nil
+}
+
+// stepLoyaltyCommission claws back loyalty points and voids staff commission earned on the
+// reversed portion of the sale, so a replacement/addendum sale (or the plain passage of time on
+// a soft-voided-but-kept fiscalized order) never lets the customer/staff double-earn for the same
+// underlying value. Prorated by rev.Amount / order.total_amount for a partial reversal; the full
+// amount for a full reversal. Never fails the reversal — a lookup/write error just skips its half
+// with a logged warning, since loyalty/commission are not money the business owes anyone.
+func (s *Service) stepLoyaltyCommission(ctx context.Context, rev *ent.POSReversal) (string, string, bool, error) {
+	order, err := s.client.POSOrder.Query().
+		Where(entposorder.ID(rev.OrderID), entposorder.TenantID(rev.TenantID)).
+		Only(ctx)
+	if err != nil {
+		return "", "", false, fmt.Errorf("load order: %w", err)
+	}
+
+	ratio := 1.0
+	if rev.Scope == entposreversal.ScopePartial {
+		if order.TotalAmount <= 0.009 {
+			return "", "order has no total to prorate against", true, nil
+		}
+		ratio = rev.Amount / order.TotalAmount
+		if ratio > 1 {
+			ratio = 1
+		}
+	}
+
+	parts := make([]string, 0, 2)
+	if d := s.reverseLoyalty(ctx, rev, order, ratio); d != "" {
+		parts = append(parts, d)
+	}
+	if d := s.reverseCommission(ctx, rev, order); d != "" {
+		parts = append(parts, d)
+	}
+	if len(parts) == 0 {
+		return "", "nothing to reverse (no loyalty earn / commission on this sale)", true, nil
+	}
+	return rev.ReversalNumber, strings.Join(parts, "; "), false, nil
+}
+
+// reverseLoyalty claws back a prorated share of the points this order earned (auto-earn +
+// referral bonus, both keyed on order_id — see sale_finalized.go), floored at 0 so a balance
+// already spent elsewhere never goes negative. Records a "reversal"-typed LoyaltyTransaction
+// (type_field is free-text — earn/redeem/adjust/expire/reversal, no schema change) for audit.
+func (s *Service) reverseLoyalty(ctx context.Context, rev *ent.POSReversal, order *ent.POSOrder, ratio float64) string {
+	txns, err := s.client.LoyaltyTransaction.Query().
+		Where(
+			entloyaltytransaction.TenantID(rev.TenantID),
+			entloyaltytransaction.OrderID(order.ID),
+			entloyaltytransaction.TypeFieldIn("earn", "referral"),
+		).
+		All(ctx)
+	if err != nil || len(txns) == 0 {
+		return ""
+	}
+
+	byAccount := map[uuid.UUID]int{}
+	for _, t := range txns {
+		if t.Points > 0 {
+			byAccount[t.AccountID] += t.Points
+		}
+	}
+
+	var parts []string
+	for accountID, earned := range byAccount {
+		clawback := int(math.Round(float64(earned) * ratio))
+		if clawback <= 0 {
+			continue
+		}
+		acc, err := s.client.LoyaltyAccount.Get(ctx, accountID)
+		if err != nil {
+			s.log.Warn("reversal: loyalty account lookup failed", zap.String("account_id", accountID.String()), zap.Error(err))
+			continue
+		}
+		actual := clawback
+		if actual > acc.PointsBalance {
+			actual = acc.PointsBalance // can't claw into points already redeemed elsewhere
+		}
+		if actual <= 0 {
+			continue
+		}
+		newBalance := acc.PointsBalance - actual
+		newLifetime := acc.LifetimePoints - actual
+		if newLifetime < 0 {
+			newLifetime = 0
+		}
+		if _, err := acc.Update().SetPointsBalance(newBalance).SetLifetimePoints(newLifetime).Save(ctx); err != nil {
+			s.log.Warn("reversal: loyalty balance update failed", zap.String("account_id", accountID.String()), zap.Error(err))
+			continue
+		}
+		if _, err := s.client.LoyaltyTransaction.Create().
+			SetTenantID(rev.TenantID).
+			SetAccountID(accountID).
+			SetOrderID(order.ID).
+			SetTypeField("reversal").
+			SetPoints(-actual).
+			SetBalanceAfter(newBalance).
+			SetNotes(fmt.Sprintf("Reversal %s: clawed back %d of %d earned point(s)", rev.ReversalNumber, actual, earned)).
+			Save(ctx); err != nil {
+			s.log.Warn("reversal: loyalty transaction write failed", zap.Error(err))
+		}
+		parts = append(parts, fmt.Sprintf("%d loyalty pt(s) clawed back", actual))
+	}
+	return strings.Join(parts, ", ")
+}
+
+// reverseCommission voids the still-pending CommissionRecord(s) tied to this order (or, for a
+// partial reversal, tied to the reversed lines' SKUs — CommissionRecord.order_line_id is never
+// populated by the auto-create path, so SKU is the reliable correlation key). Already-paid
+// commissions are left untouched (can't claw back a payout automatically) and counted separately
+// so the step detail is honest about what wasn't recovered.
+func (s *Service) reverseCommission(ctx context.Context, rev *ent.POSReversal, order *ent.POSOrder) string {
+	skus := map[string]bool{}
+	for _, rl := range rev.Lines {
+		if rl.SKU != "" {
+			skus[rl.SKU] = true
+		}
+	}
+
+	recs, err := s.client.CommissionRecord.Query().
+		Where(entcommissionrecord.TenantID(rev.TenantID), entcommissionrecord.OrderID(order.ID)).
+		All(ctx)
+	if err != nil || len(recs) == 0 {
+		return ""
+	}
+
+	inScope := func(r *ent.CommissionRecord) bool {
+		return rev.Scope != entposreversal.ScopePartial || len(skus) == 0 || skus[r.ServiceSku]
+	}
+
+	voided, paidSkipped := 0, 0
+	for _, r := range recs {
+		if !inScope(r) {
+			continue
+		}
+		switch r.Status {
+		case "pending":
+			note := r.Notes
+			if note != "" {
+				note += " | "
+			}
+			note += fmt.Sprintf("voided by reversal %s", rev.ReversalNumber)
+			if _, err := r.Update().SetStatus("voided").SetNotes(note).Save(ctx); err != nil {
+				s.log.Warn("reversal: commission void failed", zap.String("commission_id", r.ID.String()), zap.Error(err))
+				continue
+			}
+			voided++
+		case "paid":
+			paidSkipped++
+		}
+	}
+
+	var parts []string
+	if voided > 0 {
+		parts = append(parts, fmt.Sprintf("%d commission record(s) voided", voided))
+	}
+	if paidSkipped > 0 {
+		parts = append(parts, fmt.Sprintf("%d already-paid commission(s) left untouched — recover manually", paidSkipped))
+	}
+	return strings.Join(parts, "; ")
 }
 
 // resolveOrderCustomer returns the original buyer's CRM contact (via the phone-matched

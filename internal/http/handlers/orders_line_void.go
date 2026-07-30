@@ -90,12 +90,16 @@ func (h *POSOrderHandler) VoidOrderLine(w http.ResponseWriter, r *http.Request) 
 		jsonError(w, "order is already "+order.Status, http.StatusBadRequest)
 		return
 	}
-	// A finalized sale has already posted to the ledger and transmitted to KRA eTIMS, so a line
-	// cannot simply be voided off it — that would leave the GL entry and eTIMS receipt un-reversed.
-	// Mirrors VoidOrder: such sales must be corrected via a return/refund (which posts the ledger
-	// reversal AND an eTIMS credit note). Partial voids only apply while the bill is still open.
+	// A finalized sale has already posted to the ledger (and, only if this tenant is actually
+	// eTIMS-integrated, transmitted to KRA), so a line cannot simply be voided off it — that
+	// would leave the GL entry un-reversed. Mirrors VoidOrder: such sales go through Edit Sale
+	// (in-place adjustment) instead. Partial voids only apply while the bill is still open.
 	if order.Status == "completed" || order.Status == "paid" || order.Status == "closed" {
-		jsonError(w, "a finalized sale cannot have items voided — issue a refund/return instead so the ledger and KRA eTIMS are properly reversed", http.StatusConflict)
+		tenantSlug := ""
+		if claims, ok := authclient.ClaimsFromContext(r.Context()); ok {
+			tenantSlug = claims.GetTenantSlug()
+		}
+		jsonError(w, h.finalizedVoidRefusalMessage(r.Context(), tenantSlug, order.ID), http.StatusConflict)
 		return
 	}
 
