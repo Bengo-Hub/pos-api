@@ -459,6 +459,10 @@ func New(ctx context.Context) (*App, error) {
 	reportPDFHandler.SetRBAC(rbacSvc)
 	// Dashboard KPI summary applies the same per-cashier scoping as the order list/export.
 	reportsHandler.SetRBAC(rbacSvc)
+	// Approving a "pharmacist_review" (contraindicated interaction) prescription additionally
+	// requires pos.pharmacy.interaction_override, checked in-handler since it depends on the
+	// prescription's current status, not the route alone.
+	pharmacyHandler.SetRBAC(rbacSvc)
 
 	// Wire RBAC service into identity for JIT role assignment from JWT claims
 	identitySvc.SetRBACService(rbacSvc)

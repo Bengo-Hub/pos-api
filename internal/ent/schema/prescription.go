@@ -43,7 +43,7 @@ func (Prescription) Fields() []ent.Field {
 		// stock-reservation ref, optional CRM link) to one migration instead of one per field.
 		// Known keys: allergy_flags ([]string), interaction_check_id (uuid string),
 		// approved_by (uuid string), approved_at (RFC3339 string), reservation_id (uuid string),
-		// crm_contact_id (uuid string).
+		// crm_contact_id (uuid string), approval_override_reason (string), cancel_reason (string).
 		field.JSON("metadata", map[string]any{}).
 			Default(map[string]any{}),
 		field.Time("created_at").Default(time.Now).Immutable(),

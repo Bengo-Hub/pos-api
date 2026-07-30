@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/Bengo-Hub/pagination"
@@ -16,10 +17,12 @@ import (
 	"github.com/bengobox/pos-service/internal/audit"
 	"github.com/bengobox/pos-service/internal/ent"
 	entdic "github.com/bengobox/pos-service/internal/ent/druginteractioncheck"
+	entoutletsetting "github.com/bengobox/pos-service/internal/ent/outletsetting"
 	entvisit "github.com/bengobox/pos-service/internal/ent/patientvisit"
 	entoverride "github.com/bengobox/pos-service/internal/ent/poscatalogoverride"
 	entpx "github.com/bengobox/pos-service/internal/ent/prescription"
 	entpxl "github.com/bengobox/pos-service/internal/ent/prescriptionline"
+	"github.com/bengobox/pos-service/internal/http/middleware"
 	"github.com/bengobox/pos-service/internal/modules/documents"
 	"github.com/bengobox/pos-service/internal/modules/inventory"
 	"github.com/bengobox/pos-service/internal/modules/orders"
@@ -46,6 +49,10 @@ type PharmacyHandler struct {
 	// per-tenant atomic sequence every other POS document type uses — CreatePrescription no
 	// longer trusts a client-typed prescription_number.
 	seq *documents.SequenceService
+	// rbac resolves in-handler permission checks whose requirement depends on prescription
+	// state rather than the route alone (e.g. pos.pharmacy.interaction_override is only
+	// required to approve a prescription in "pharmacist_review", not every Approve call).
+	rbac middleware.PermissionChecker
 }
 
 func NewPharmacyHandler(log *zap.Logger, db *ent.Client, inventoryClient *inventory.Client) *PharmacyHandler {
@@ -67,6 +74,10 @@ func (h *PharmacyHandler) SetOrderService(svc *orders.Service) { h.orderSvc = sv
 // SetSequenceService wires the document-number sequence service used to auto-generate
 // prescription numbers.
 func (h *PharmacyHandler) SetSequenceService(svc *documents.SequenceService) { h.seq = svc }
+
+// SetRBAC wires the permission checker used for in-handler checks (e.g. the
+// pos.pharmacy.interaction_override gate on approving a pharmacist_review prescription).
+func (h *PharmacyHandler) SetRBAC(rbac middleware.PermissionChecker) { h.rbac = rbac }
 
 type prescriptionLineInput struct {
 	DrugName           string   `json:"drug_name"`
@@ -305,6 +316,42 @@ func (h *PharmacyHandler) GetPrescription(w http.ResponseWriter, r *http.Request
 	jsonOK(w, map[string]any{"prescription": px, "lines": lines})
 }
 
+type dispenseLineInput struct {
+	LineID   string `json:"line_id"`
+	Quantity int    `json:"quantity"`
+}
+
+type dispenseInput struct {
+	DispensedBy *string `json:"dispensed_by"`
+	Notes       string  `json:"notes"`
+	// Lines, when present, dispenses only the given quantity per line (partial dispensing —
+	// e.g. the pharmacy is out of stock on one drug but can fill the rest). Omit entirely for
+	// the "Dispense All" fast path, which fills every remaining line in full.
+	Lines []dispenseLineInput `json:"lines"`
+}
+
+// requireDispenseLock reports whether the outlet has opted into the optional final
+// pharmacist sign-off step between approval and dispense (tenant-configurable, off by
+// default) — see OutletSetting.metadata["pharmacy"]["require_dispense_lock"].
+func (h *PharmacyHandler) requireDispenseLock(r *http.Request, outletID uuid.UUID) bool {
+	s, err := h.db.OutletSetting.Query().Where(entoutletsetting.OutletID(outletID)).Only(r.Context())
+	if err != nil || s.Metadata == nil {
+		return false
+	}
+	pharmacyMeta, ok := s.Metadata["pharmacy"].(map[string]any)
+	if !ok {
+		return false
+	}
+	switch v := pharmacyMeta["require_dispense_lock"].(type) {
+	case bool:
+		return v
+	case string:
+		return strings.EqualFold(v, "true")
+	default:
+		return false
+	}
+}
+
 // Dispense handles POST /{tenantID}/pos/pharmacy/prescriptions/{id}/dispense
 func (h *PharmacyHandler) Dispense(w http.ResponseWriter, r *http.Request) {
 	tid, err := parseTenantUUID(r)
@@ -324,21 +371,100 @@ func (h *PharmacyHandler) Dispense(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "prescription not found", http.StatusNotFound)
 		return
 	}
-	if px.Status != "approved" && px.Status != "locked" {
+	if px.Status != "approved" && px.Status != "locked" && px.Status != "partially_dispensed" {
 		jsonError(w, "prescription must be approved (and locked, if required) before dispensing", http.StatusConflict)
 		return
 	}
-
-	var body struct {
-		DispensedBy *string `json:"dispensed_by"`
-		Notes       string  `json:"notes"`
+	if px.Status == "approved" && h.requireDispenseLock(r, px.OutletID) {
+		jsonError(w, "this pharmacy requires locking a prescription before it can be dispensed", http.StatusConflict)
+		return
 	}
+
+	var body dispenseInput
 	_ = json.NewDecoder(r.Body).Decode(&body)
 
-	now := time.Now()
-	upd := h.db.Prescription.UpdateOneID(pxID).
-		SetStatus("dispensed").
-		SetDispensedAt(now)
+	allLines, err := h.db.PrescriptionLine.Query().Where(entpxl.PrescriptionID(pxID)).All(r.Context())
+	if err != nil {
+		h.log.Error("dispense: load lines failed", zap.Error(err))
+		jsonError(w, "failed to dispense prescription", http.StatusInternalServerError)
+		return
+	}
+
+	if len(body.Lines) > 0 {
+		// Selective/partial dispense: only the given lines/quantities move, capped at what's
+		// actually still owed on that line.
+		byID := make(map[uuid.UUID]*ent.PrescriptionLine, len(allLines))
+		for _, l := range allLines {
+			byID[l.ID] = l
+		}
+		for _, li := range body.Lines {
+			lid, perr := uuid.Parse(li.LineID)
+			if perr != nil {
+				continue
+			}
+			line, ok := byID[lid]
+			if !ok || li.Quantity <= 0 {
+				continue
+			}
+			remaining := line.QuantityPrescribed - line.QuantityDispensed
+			qty := li.Quantity
+			if qty > remaining {
+				qty = remaining
+			}
+			if qty <= 0 {
+				continue
+			}
+			newDispensed := line.QuantityDispensed + qty
+			lineStatus := "partially_dispensed"
+			if newDispensed >= line.QuantityPrescribed {
+				lineStatus = "dispensed"
+			}
+			h.db.PrescriptionLine.UpdateOneID(lid).
+				SetQuantityDispensed(newDispensed).
+				SetStatus(lineStatus).
+				SaveX(r.Context())
+		}
+	} else {
+		// "Dispense All" fast path — every remaining line goes to fully dispensed.
+		for _, l := range allLines {
+			if l.QuantityDispensed >= l.QuantityPrescribed {
+				continue
+			}
+			h.db.PrescriptionLine.UpdateOneID(l.ID).
+				SetStatus("dispensed").
+				SetQuantityDispensed(l.QuantityPrescribed).
+				SaveX(r.Context())
+		}
+	}
+
+	// Recompute the prescription-level status from the lines' actual state rather than
+	// assuming completion — this is what makes "partially_dispensed" a real, reachable status.
+	refreshedLines, _ := h.db.PrescriptionLine.Query().Where(entpxl.PrescriptionID(pxID)).All(r.Context())
+	fullyDispensed := true
+	anyDispensed := false
+	for _, l := range refreshedLines {
+		if l.QuantityDispensed > 0 {
+			anyDispensed = true
+		}
+		if l.QuantityDispensed < l.QuantityPrescribed {
+			fullyDispensed = false
+		}
+	}
+	if !anyDispensed {
+		// Nothing actually moved (e.g. every requested line_id was invalid or already fully
+		// dispensed) — don't touch prescription status, just return it as-is.
+		jsonOK(w, px)
+		return
+	}
+	newStatus := "partially_dispensed"
+	if fullyDispensed {
+		newStatus = "dispensed"
+	}
+
+	upd := h.db.Prescription.UpdateOneID(pxID).SetStatus(newStatus)
+	if fullyDispensed {
+		upd = upd.SetDispensedAt(time.Now())
+	}
 	if body.DispensedBy != nil {
 		if dbID, err := uuid.Parse(*body.DispensedBy); err == nil {
 			upd = upd.SetDispensedBy(dbID)
@@ -355,36 +481,24 @@ func (h *PharmacyHandler) Dispense(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Dispense is currently all-or-nothing (no partial-quantity dispensing yet), so the dispensed
-	// quantity always equals what was prescribed — stamped per line so the UI's Dispensed column
-	// (and any downstream checkout/report reading quantity_dispensed) reflects reality instead of
-	// staying permanently 0.
-	pendingLines, _ := h.db.PrescriptionLine.Query().
-		Where(entpxl.PrescriptionID(pxID), entpxl.StatusEQ("pending")).
-		All(r.Context())
-	for _, l := range pendingLines {
-		h.db.PrescriptionLine.UpdateOneID(l.ID).
-			SetStatus("dispensed").
-			SetQuantityDispensed(l.QuantityPrescribed).
-			SaveX(r.Context())
-	}
-
-	// Dispense is the moment stock physically leaves the shelf — convert the hold created at
-	// approval (Phase 3) into an actual depletion via inventory-api's existing
-	// ConsumeReservation, rather than a fresh ad-hoc decrement. Best-effort: a failure here is
-	// logged, not fatal — the prescription is already marked dispensed since the physical
-	// handover already happened.
-	if resID, ok := updated.Metadata["reservation_id"].(string); ok && resID != "" && h.inventory != nil {
-		if err := h.inventory.ConsumeReservation(r.Context(), tid.String(), resID); err != nil {
-			h.log.Warn("consume reservation on dispense failed", zap.Error(err))
+	// Only the FINAL dispense (every line now fully filled) converts the stock hold into an
+	// actual depletion — inventory-api's ConsumeReservation is all-or-nothing on the whole
+	// reservation, so a partial dispense intentionally leaves the hold in place (the remaining
+	// reserved stock still can't be sold out from under this prescription) rather than
+	// prematurely booking units that haven't all been handed over yet.
+	if fullyDispensed {
+		if resID, ok := updated.Metadata["reservation_id"].(string); ok && resID != "" && h.inventory != nil {
+			if err := h.inventory.ConsumeReservation(r.Context(), tid.String(), resID); err != nil {
+				h.log.Warn("consume reservation on dispense failed", zap.Error(err))
+			}
 		}
-	}
-
-	// OPD-originated prescription (Examination -> prescribe): reflect the pharmacy handover back
-	// onto the visit so Records/Triage/Examination all see the journey has reached dispensing.
-	if updated.VisitID != nil {
-		if _, err := h.db.PatientVisit.UpdateOneID(*updated.VisitID).SetStatus(entvisit.StatusDispensed).Save(r.Context()); err != nil {
-			h.log.Warn("failed to advance visit to dispensed", zap.Error(err))
+		// OPD-originated prescription (Examination -> prescribe): reflect the pharmacy handover
+		// back onto the visit so Records/Triage/Examination all see the journey has reached
+		// dispensing.
+		if updated.VisitID != nil {
+			if _, err := h.db.PatientVisit.UpdateOneID(*updated.VisitID).SetStatus(entvisit.StatusDispensed).Save(r.Context()); err != nil {
+				h.log.Warn("failed to advance visit to dispensed", zap.Error(err))
+			}
 		}
 	}
 
@@ -583,8 +697,21 @@ func reduceInteractionFindings(resp *inventory.CheckInteractionsResponse) (resul
 	return "flagged", detail, worst
 }
 
-// recordInteractionCheckOnPrescription stamps the check reference into Prescription.metadata
-// and, on a moderate+ finding, moves status to "flagged" (best-effort; logged, not fatal).
+// blockableForInteractionCheck are the prescription states a new drug-interaction/allergy
+// finding is still allowed to move to "flagged"/"pharmacist_review" from. Deliberately includes
+// "approved" and "locked" — a manual re-check run after approval (e.g. a late-disclosed allergy)
+// must be able to re-block dispensing, not just silently record the check. Terminal states
+// (dispensed/partially_dispensed/rejected/cancelled) are excluded: the drug has already left, or
+// the script is already closed out, so flipping status there would be meaningless/unsafe.
+var blockableForInteractionCheck = map[string]bool{
+	"pending": true, "flagged": true, "pharmacist_review": true, "approved": true, "locked": true,
+}
+
+// recordInteractionCheckOnPrescription stamps the check reference into Prescription.metadata and,
+// depending on severity, moves status to "flagged" (moderate/major — pharmacist override + reason
+// required to approve) or "pharmacist_review" (contraindicated — the strictest tier, additionally
+// requiring the pos.pharmacy.interaction_override permission to approve past it; see
+// ApprovePrescription). Best-effort: a failure here is logged, not fatal.
 func (h *PharmacyHandler) recordInteractionCheckOnPrescription(r *http.Request, pxID, checkID uuid.UUID, severity string) {
 	px, err := h.db.Prescription.Get(r.Context(), pxID)
 	if err != nil {
@@ -593,7 +720,10 @@ func (h *PharmacyHandler) recordInteractionCheckOnPrescription(r *http.Request, 
 	md := cloneMetadata(px.Metadata)
 	md["interaction_check_id"] = checkID.String()
 	upd := h.db.Prescription.UpdateOneID(pxID).SetMetadata(md)
-	if severityRank[severity] >= severityRank["moderate"] && px.Status == "pending" {
+	switch {
+	case severityRank[severity] >= severityRank["contraindicated"] && blockableForInteractionCheck[px.Status]:
+		upd = upd.SetStatus("pharmacist_review")
+	case severityRank[severity] >= severityRank["moderate"] && blockableForInteractionCheck[px.Status]:
 		upd = upd.SetStatus("flagged")
 	}
 	if _, err := upd.Save(r.Context()); err != nil {
@@ -644,6 +774,20 @@ func (h *PharmacyHandler) ApprovePrescription(w http.ResponseWriter, r *http.Req
 	if px.Status == "flagged" && input.OverrideReason == "" {
 		jsonError(w, "prescription is flagged for a drug interaction/allergy — an override_reason is required to approve", http.StatusUnprocessableEntity)
 		return
+	}
+	if px.Status == "pharmacist_review" {
+		// The strictest interaction tier (contraindicated) requires both a documented reason AND
+		// the pos.pharmacy.interaction_override permission — not just whatever role can normally
+		// approve. This is what gives the previously-unused interaction_override permission (and
+		// the pharmacist_review status itself) real teeth instead of being cosmetic.
+		if input.OverrideReason == "" {
+			jsonError(w, "prescription requires pharmacist review for a contraindicated drug interaction/allergy — an override_reason is required to approve", http.StatusUnprocessableEntity)
+			return
+		}
+		if !middleware.HasServicePermission(r, h.rbac, "pos.pharmacy.interaction_override") {
+			jsonError(w, "approving a contraindicated-interaction prescription requires the pharmacy interaction-override permission", http.StatusForbidden)
+			return
+		}
 	}
 
 	md := cloneMetadata(px.Metadata)
@@ -781,6 +925,58 @@ func (h *PharmacyHandler) RejectPrescription(w http.ResponseWriter, r *http.Requ
 	if err != nil {
 		h.log.Error("reject prescription failed", zap.Error(err))
 		jsonError(w, "failed to reject prescription", http.StatusInternalServerError)
+		return
+	}
+	jsonOK(w, updated)
+}
+
+// CancelPrescription handles POST /{tenantID}/pos/pharmacy/prescriptions/{id}/cancel.
+// Administrative withdrawal — the patient changed their mind, the script was superseded, or the
+// order was opened in error. Distinct from RejectPrescription, which is the pharmacist's clinical
+// refusal to fill it; cancellation carries no clinical judgment and is available up to the point
+// anything has actually been dispensed. Releases any stock reservation, same as Reject.
+func (h *PharmacyHandler) CancelPrescription(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+	pxID, err := uuid.Parse(chi.URLParam(r, "prescriptionID"))
+	if err != nil {
+		jsonError(w, "invalid prescription_id", http.StatusBadRequest)
+		return
+	}
+	px, err := h.db.Prescription.Get(r.Context(), pxID)
+	if err != nil || px.TenantID != tid {
+		jsonError(w, "prescription not found", http.StatusNotFound)
+		return
+	}
+	if px.Status == "dispensed" || px.Status == "partially_dispensed" || px.Status == "rejected" || px.Status == "cancelled" {
+		jsonError(w, "prescription cannot be cancelled from its current state", http.StatusConflict)
+		return
+	}
+
+	var body struct {
+		Reason string `json:"reason"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&body)
+	if strings.TrimSpace(body.Reason) == "" {
+		jsonError(w, "reason is required", http.StatusBadRequest)
+		return
+	}
+
+	if resID, ok := px.Metadata["reservation_id"].(string); ok && resID != "" && h.inventory != nil {
+		if err := h.inventory.ReleaseReservation(r.Context(), tid.String(), resID, body.Reason); err != nil {
+			h.log.Warn("release reservation on cancel failed", zap.Error(err))
+		}
+	}
+
+	md := cloneMetadata(px.Metadata)
+	md["cancel_reason"] = body.Reason
+	updated, err := h.db.Prescription.UpdateOneID(pxID).SetStatus("cancelled").SetMetadata(md).Save(r.Context())
+	if err != nil {
+		h.log.Error("cancel prescription failed", zap.Error(err))
+		jsonError(w, "failed to cancel prescription", http.StatusInternalServerError)
 		return
 	}
 	jsonOK(w, updated)

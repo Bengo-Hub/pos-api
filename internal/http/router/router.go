@@ -850,10 +850,14 @@ func New(
 					if pharmacy != nil {
 						pos.Group(func(ph chi.Router) {
 							ph.Use(outletmw.RequireUseCase("pharmacy"))
-							ph.Post("/pharmacy/prescriptions", pharmacy.CreatePrescription)
-							ph.Get("/pharmacy/prescriptions", pharmacy.ListPrescriptions)
-							ph.Get("/pharmacy/prescriptions/{prescriptionID}", pharmacy.GetPrescription)
-							ph.Post("/pharmacy/prescriptions/{prescriptionID}/dispense", pharmacy.Dispense)
+							ph.With(outletmw.RequireServicePermission(rbacSvc, "pos.pharmacy.add")).
+								Post("/pharmacy/prescriptions", pharmacy.CreatePrescription)
+							ph.With(outletmw.RequireServicePermission(rbacSvc, "pos.pharmacy.view")).
+								Get("/pharmacy/prescriptions", pharmacy.ListPrescriptions)
+							ph.With(outletmw.RequireServicePermission(rbacSvc, "pos.pharmacy.view")).
+								Get("/pharmacy/prescriptions/{prescriptionID}", pharmacy.GetPrescription)
+							ph.With(outletmw.RequireServicePermission(rbacSvc, "pos.pharmacy.change")).
+								Post("/pharmacy/prescriptions/{prescriptionID}/dispense", pharmacy.Dispense)
 							ph.With(outletmw.RequireServicePermission(rbacSvc, "pos.pharmacy.change")).
 								Post("/pharmacy/prescriptions/{prescriptionID}/checkout", pharmacy.CheckoutPrescription)
 							ph.With(outletmw.RequireServicePermission(rbacSvc, "pos.pharmacy.approve")).
@@ -862,14 +866,19 @@ func New(
 								Post("/pharmacy/prescriptions/{prescriptionID}/lock", pharmacy.LockPrescription)
 							ph.With(outletmw.RequireServicePermission(rbacSvc, "pos.pharmacy.change")).
 								Post("/pharmacy/prescriptions/{prescriptionID}/reject", pharmacy.RejectPrescription)
+							ph.With(outletmw.RequireServicePermission(rbacSvc, "pos.pharmacy.change")).
+								Post("/pharmacy/prescriptions/{prescriptionID}/cancel", pharmacy.CancelPrescription)
 							ph.Post("/pharmacy/prescriptions/{prescriptionID}/link-crm-contact", pharmacy.LinkCRMContact)
 							ph.Get("/pharmacy/crm-contacts", pharmacy.SearchCRMContacts)
 							ph.Post("/pharmacy/interaction-checks", pharmacy.CreateInteractionCheck)
 							ph.Post("/pharmacy/age-verify", pharmacy.AgeVerify)
 							ph.Get("/pharmacy/patients", pharmacy.ListPatients)
-							ph.Get("/pharmacy/controlled-substances", pharmacy.ListControlledLogs)
-							ph.Post("/pharmacy/controlled-substances", pharmacy.CreateControlledLog)
-							ph.Get("/pharmacy/controlled-substances/{logID}", pharmacy.GetControlledLog)
+							ph.With(outletmw.RequireServicePermission(rbacSvc, "pos.pharmacy.view")).
+								Get("/pharmacy/controlled-substances", pharmacy.ListControlledLogs)
+							ph.With(outletmw.RequireServicePermission(rbacSvc, "pos.pharmacy.change")).
+								Post("/pharmacy/controlled-substances", pharmacy.CreateControlledLog)
+							ph.With(outletmw.RequireServicePermission(rbacSvc, "pos.pharmacy.view")).
+								Get("/pharmacy/controlled-substances/{logID}", pharmacy.GetControlledLog)
 							if clinical != nil {
 								ph.Get("/pharmacy/prescribers", clinical.ListPrescribers)
 								// Cashier-facing bills queue ("billing" workflow mode): approved but
@@ -1062,9 +1071,10 @@ func New(
 					// (bundles include it from Starter; POS-device plans do not).
 					if loyalty != nil {
 						pos.Group(func(ly chi.Router) {
-							// Loyalty is a retail/services concept — not hospitality/QSR/pharmacy.
-							// Gate by use case (matches the pos-ui module map) in addition to the plan feature.
-							ly.Use(outletmw.RequireUseCase("retail", "services"))
+							// Loyalty is a retail/services concept, but pharmacy also needs the same
+							// accounts directory for its patient search (CustomerSearch). Gate by use case
+							// (matches the pos-ui module map) in addition to the plan feature.
+							ly.Use(outletmw.RequireUseCase("retail", "services", "pharmacy"))
 							ly.Use(subscriptions.RequireFeature(subscriptions.FeatureLoyalty))
 							ly.Get("/loyalty/programs", loyalty.ListPrograms)
 							ly.Post("/loyalty/programs", loyalty.CreateProgram)

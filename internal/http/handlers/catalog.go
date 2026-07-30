@@ -61,19 +61,23 @@ type inventoryProxyVariant struct {
 
 // inventoryProxyItem is the shape returned by inventory-api /items list.
 type inventoryProxyItem struct {
-	ID                      string                  `json:"id"`
-	SKU                     string                  `json:"sku"`
-	Name                    string                  `json:"name"`
-	Description             string                  `json:"description"`
-	Type                    string                  `json:"type"`
-	IsActive                bool                    `json:"is_active"`
-	ImageURL                string                  `json:"image_url"`
-	CategoryName            string                  `json:"category_name"`
-	BrandID                 string                  `json:"brand_id"`
-	BrandName               string                  `json:"brand_name"`
-	BrandCode               string                  `json:"brand_code"`
-	Manufacturer            string                  `json:"manufacturer"`
-	Model                   string                  `json:"model"`
+	ID           string `json:"id"`
+	SKU          string `json:"sku"`
+	Name         string `json:"name"`
+	Description  string `json:"description"`
+	Type         string `json:"type"`
+	IsActive     bool   `json:"is_active"`
+	ImageURL     string `json:"image_url"`
+	CategoryName string `json:"category_name"`
+	BrandID      string `json:"brand_id"`
+	BrandName    string `json:"brand_name"`
+	BrandCode    string `json:"brand_code"`
+	Manufacturer string `json:"manufacturer"`
+	Model        string `json:"model"`
+	// Drug-master fields (pharmacy) — let the POS prescription drug picker auto-fill
+	// dosage/form from the catalog item instead of requiring manual re-entry.
+	DosageForm              string                  `json:"dosage_form,omitempty"`
+	Strength                string                  `json:"strength,omitempty"`
 	HasVariants             bool                    `json:"has_variants"`
 	Variants                []inventoryProxyVariant `json:"variants,omitempty"`
 	Barcode                 string                  `json:"barcode"`
@@ -717,11 +721,14 @@ type catalogItemDTO struct {
 	BrandCode    string
 	Manufacturer string
 	Model        string
-	HasVariants  bool
-	Variants     []inventoryProxyVariant
-	ItemType     string
-	IsActive     bool
-	IsAvailable  bool
+	// Drug-master fields (pharmacy) — surfaced for the POS prescription drug picker.
+	DosageForm  string
+	Strength    string
+	HasVariants bool
+	Variants    []inventoryProxyVariant
+	ItemType    string
+	IsActive    bool
+	IsAvailable bool
 	// IsComplimentary marks a no-charge accompaniment: price 0 but explicitly enabled, shown as
 	// "Free" and not charged, while its recipe/BOM stock is still deducted on sale.
 	IsComplimentary bool
@@ -1194,6 +1201,8 @@ func (h *CatalogHandler) assembleMenuItems(
 			BrandCode:               item.BrandCode,
 			Manufacturer:            item.Manufacturer,
 			Model:                   item.Model,
+			DosageForm:              item.DosageForm,
+			Strength:                item.Strength,
 			HasVariants:             item.HasVariants,
 			Variants:                item.Variants,
 			ItemType:                item.Type,
@@ -1332,6 +1341,8 @@ func catalogItemToMapBase(item catalogItemDTO, outletID *uuid.UUID) map[string]a
 		"brand_code":                item.BrandCode,
 		"manufacturer":              item.Manufacturer,
 		"model":                     item.Model,
+		"dosage_form":               item.DosageForm,
+		"strength":                  item.Strength,
 		"has_variants":              item.HasVariants,
 		"variants":                  item.Variants,
 		"item_type":                 item.ItemType,
