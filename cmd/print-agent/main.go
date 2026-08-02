@@ -31,7 +31,10 @@ import (
 	"github.com/bengobox/pos-service/internal/modules/printing/discovery"
 )
 
-const version = "1.4.0"
+// version is overridden at build time via -ldflags "-X main.version=X.Y.Z" by
+// .github/workflows/print-agent-release.yml (resolved from the print-agent-vX.Y.Z tag) — the
+// fallback here is only what a local `go build`/`go run` reports.
+var version = "dev"
 
 func main() {
 	var (
