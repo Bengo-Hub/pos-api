@@ -365,31 +365,40 @@ func (h *AuthEventHandler) handleUserPINSet(ctx context.Context, evt *sharedeven
 		if oErr != nil {
 			return fmt.Errorf("no active outlet found for tenant %s, cannot create StaffMember: %w", tenantID, oErr)
 		}
-		created, createErr := h.client.StaffMember.Create().
+		// auth.user.created and auth.user.pin_set can be consumed concurrently
+		// (e.g. different pos-api replicas, back-to-back events during tenant
+		// registration for the owner/admin account) — both racing to create the
+		// same StaffMember row. Upsert on the (tenant_id, user_id) unique index
+		// instead of plain Create so the loser of the race gracefully no-ops
+		// instead of erroring the whole handler out. Use Exec (not .ID), since
+		// Postgres DO NOTHING has no RETURNING row to give back on conflict —
+		// re-query below for the authoritative row either way.
+		if createErr := h.client.StaffMember.Create().
 			SetTenantID(tenantID).
 			SetUserID(authServiceUserID).
 			SetName(name).
 			SetRole(role).
 			SetIsActive(true).
 			SetPinFailedAttempts(0).
-			Save(ctx)
-		if createErr != nil {
+			OnConflictColumns(staffmember.FieldTenantID, staffmember.FieldUserID).
+			DoNothing().
+			Exec(ctx); createErr != nil {
 			return fmt.Errorf("create StaffMember for PIN set: %w", createErr)
 		}
-		// Assign home outlet via join table.
-		_ = h.client.StaffOutlet.Create().
-			SetTenantID(tenantID).
-			SetStaffMemberID(created.ID).
-			SetOutletID(homeOutlet.ID).
-			SetIsHomeOutlet(true).
-			OnConflict().DoNothing().Exec(ctx)
-		// Now try again
+		// Re-fetch: either our own insert, or the row the concurrent racer created.
 		existing, err = h.client.StaffMember.Query().
 			Where(staffmember.TenantID(tenantID), staffmember.UserID(authServiceUserID)).
 			Only(ctx)
 		if err != nil {
 			return fmt.Errorf("StaffMember not found after upsert: %w", err)
 		}
+		// Assign home outlet via join table.
+		_ = h.client.StaffOutlet.Create().
+			SetTenantID(tenantID).
+			SetStaffMemberID(existing.ID).
+			SetOutletID(homeOutlet.ID).
+			SetIsHomeOutlet(true).
+			OnConflict().DoNothing().Exec(ctx)
 	}
 
 	upd := existing.Update().SetPinHash(pinHash)
@@ -478,16 +487,30 @@ func (h *AuthEventHandler) upsertStaffMember(ctx context.Context, userID, tenant
 		return
 	}
 
-	created, err := h.client.StaffMember.Create().
+	// Racy against handleUserPINSet's create-fallback path when auth.user.created
+	// and auth.user.pin_set land close together (e.g. tenant registration for the
+	// owner/admin account) — upsert on the unique index instead of a plain Create
+	// so the loser of the race no-ops instead of failing on the unique constraint.
+	// Exec (not .ID): Postgres DO NOTHING has no RETURNING row on conflict, so
+	// re-query below for the authoritative row either way.
+	if createErr := h.client.StaffMember.Create().
 		SetTenantID(tenantID).
 		SetUserID(userID).
 		SetName(name).
 		SetRole(posRole).
 		SetIsActive(true).
 		SetPinFailedAttempts(0).
-		Save(ctx)
+		OnConflictColumns(staffmember.FieldTenantID, staffmember.FieldUserID).
+		DoNothing().
+		Exec(ctx); createErr != nil {
+		h.logger.Warn("failed to create StaffMember from auth event", zap.Error(createErr))
+		return
+	}
+	created, err := h.client.StaffMember.Query().
+		Where(staffmember.TenantID(tenantID), staffmember.UserID(userID)).
+		Only(ctx)
 	if err != nil {
-		h.logger.Warn("failed to create StaffMember from auth event", zap.Error(err))
+		h.logger.Warn("StaffMember not found after upsert", zap.Error(err))
 		return
 	}
 	h.upsertStaffOutlets(ctx, created.ID, tenantID, outletIDs)
