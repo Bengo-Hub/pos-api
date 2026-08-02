@@ -7,10 +7,22 @@ import (
 	"sync"
 	"time"
 
+	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/bengobox/pos-service/internal/ent"
 	entoutletsetting "github.com/bengobox/pos-service/internal/ent/outletsetting"
 	"github.com/google/uuid"
 )
+
+// isSuperUserOrPlatformOwner mirrors the bypass already used by RequireServicePermission
+// (see permission.go) — superusers/platform owners must always be able to reach a tenant's
+// use-case-scoped screens for support, oversight, and configuring on the tenant's behalf,
+// exactly like the frontend's hasModule() already assumes (see pos-ui's use-module-access.ts).
+// Without this, a superuser browsing an outlet whose use_case/toggle doesn't match got 403'd
+// even though the UI showed them the tab.
+func isSuperUserOrPlatformOwner(ctx context.Context) bool {
+	claims, ok := authclient.ClaimsFromContext(ctx)
+	return ok && claims != nil && (claims.IsSuperuser() || claims.IsPlatformOwner)
+}
 
 // ── OutletSetting toggle cache ────────────────────────────────────────────────
 
@@ -51,6 +63,10 @@ func getOutletSetting(ctx context.Context, client *ent.Client, outletID uuid.UUI
 func RequireKDSEnabled(client *ent.Client) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if isSuperUserOrPlatformOwner(r.Context()) {
+				next.ServeHTTP(w, r)
+				return
+			}
 			outlet := OutletFromContext(r.Context())
 			if outlet == nil {
 				next.ServeHTTP(w, r)
@@ -75,6 +91,10 @@ func RequireKDSEnabled(client *ent.Client) func(http.Handler) http.Handler {
 func RequireAppointmentsEnabled(client *ent.Client) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if isSuperUserOrPlatformOwner(r.Context()) {
+				next.ServeHTTP(w, r)
+				return
+			}
 			outlet := OutletFromContext(r.Context())
 			if outlet == nil {
 				next.ServeHTTP(w, r)
@@ -110,6 +130,10 @@ func RequireUseCase(allowed ...string) func(http.Handler) http.Handler {
 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if isSuperUserOrPlatformOwner(r.Context()) {
+				next.ServeHTTP(w, r)
+				return
+			}
 			outlet := OutletFromContext(r.Context())
 			if outlet == nil || outlet.UseCase == "" {
 				// No outlet context — let RBAC/auth handle it
