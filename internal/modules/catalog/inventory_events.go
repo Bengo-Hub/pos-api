@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"time"
 
@@ -72,6 +73,7 @@ func floatPtrFromPayload(v any) *float64 {
 // Only flags that POS needs to enforce locally (pharmacy, age-gate, etc.) are stored.
 type InventoryEventHandler struct {
 	client   *ent.Client
+	db       *sql.DB
 	redis    *redis.Client
 	logger   *zap.Logger
 	notifHub catalogNotifHub
@@ -87,10 +89,14 @@ type catalogNotifHub interface {
 // SetNotifHub wires the notification hub for real-time catalog-change push (optional).
 func (h *InventoryEventHandler) SetNotifHub(hub catalogNotifHub) { h.notifHub = hub }
 
-// NewInventoryEventHandler creates a new inventory event handler.
-func NewInventoryEventHandler(client *ent.Client, redisClient *redis.Client, logger *zap.Logger) *InventoryEventHandler {
+// NewInventoryEventHandler creates a new inventory event handler. db is the raw *sql.DB backing
+// entClient's driver -- syncCatalogItem needs it directly for an atomic ON CONFLICT upsert that
+// ent's typed query API can't express (a jsonb `||` merge in the DO UPDATE clause). May be nil in
+// tests that don't exercise syncCatalogItem.
+func NewInventoryEventHandler(client *ent.Client, db *sql.DB, redisClient *redis.Client, logger *zap.Logger) *InventoryEventHandler {
 	return &InventoryEventHandler{
 		client: client,
+		db:     db,
 		redis:  redisClient,
 		logger: logger.Named("pos.catalog.inventory_events"),
 	}
@@ -278,77 +284,32 @@ func (h *InventoryEventHandler) syncCatalogItem(ctx context.Context, evt *shared
 	// (inventory converts non-stock-unit sale quantities before deducting).
 	unitName, _ := evt.Payload["unit_name"].(string)
 
-	existing, _ := h.client.POSCatalogOverride.Query().
-		Where(entoverride.TenantID(tenantID), entoverride.InventorySku(sku)).
-		First(ctx)
-
-	if existing != nil {
-		upd := existing.Update().
-			SetRequiresAgeVerification(requiresAgeVerification).
-			SetIsControlledSubstance(isControlledSubstance).
-			SetIsAvailable(isActive).
-			SetItemUseCase(useCase)
-		if itemID != nil {
-			upd = upd.SetInventoryItemID(*itemID)
-		}
-		if taxCodeID != "" {
-			upd = upd.SetTaxCodeID(taxCodeID)
-		}
-		if durationMinutes != nil {
-			upd = upd.SetDurationMinutes(*durationMinutes)
-		}
-		if costPrice != nil || unitName != "" {
-			md := existing.Metadata
-			if md == nil {
-				md = map[string]any{}
-			}
-			if costPrice != nil {
-				md["cost_price"] = *costPrice
-			}
-			if unitName != "" {
-				md["uom"] = unitName
-			}
-			upd = upd.SetMetadata(md)
-		}
-		if _, err := upd.Save(ctx); err != nil {
-			return fmt.Errorf("update catalog override for %s: %w", sku, err)
-		}
-		h.logger.Debug("POS catalog override updated", zap.String("sku", sku), zap.String("use_case", useCase))
-		return nil
+	md := map[string]any{}
+	if costPrice != nil {
+		md["cost_price"] = *costPrice
+	}
+	if unitName != "" {
+		md["uom"] = unitName
 	}
 
-	// Create the projection row so the item is sellable in POS without a manual price step.
-	// selling_price stays nil → POS falls back to inventory-api pricing tiers.
-	create := h.client.POSCatalogOverride.Create().
-		SetTenantID(tenantID).
-		SetInventorySku(sku).
-		SetItemUseCase(useCase).
-		SetRequiresAgeVerification(requiresAgeVerification).
-		SetIsControlledSubstance(isControlledSubstance).
-		SetIsAvailable(isActive)
-	if itemID != nil {
-		create = create.SetInventoryItemID(*itemID)
+	// Atomic create-or-update against the tenant-wide (outlet_id IS NULL) row — see upsert.go for
+	// why this must be a single DB-level upsert rather than a query-then-create/update: the latter
+	// raced under concurrent event delivery and produced duplicate rows, which is what silently
+	// broke sale-time COGS cost lookups for a large share of items (see migration
+	// 20260803191626_pos_catalog_override_dedupe_guard.sql).
+	if err := upsertSyncedCatalogOverride(ctx, h.db, tenantID, sku, upsertSyncedItemFields{
+		ItemUseCase:             useCase,
+		TaxCodeID:               taxCodeID,
+		DurationMinutes:         durationMinutes,
+		RequiresAgeVerification: requiresAgeVerification,
+		IsControlledSubstance:   isControlledSubstance,
+		IsAvailable:             isActive,
+		InventoryItemID:         itemID,
+		Metadata:                md,
+	}); err != nil {
+		return err
 	}
-	if taxCodeID != "" {
-		create = create.SetTaxCodeID(taxCodeID)
-	}
-	if durationMinutes != nil {
-		create = create.SetDurationMinutes(*durationMinutes)
-	}
-	if costPrice != nil || unitName != "" {
-		md := map[string]any{}
-		if costPrice != nil {
-			md["cost_price"] = *costPrice
-		}
-		if unitName != "" {
-			md["uom"] = unitName
-		}
-		create = create.SetMetadata(md)
-	}
-	if _, err := create.Save(ctx); err != nil {
-		return fmt.Errorf("create catalog override for %s: %w", sku, err)
-	}
-	h.logger.Debug("POS catalog override created", zap.String("sku", sku), zap.String("use_case", useCase))
+	h.logger.Debug("POS catalog override synced", zap.String("sku", sku), zap.String("use_case", useCase))
 	return nil
 }
 

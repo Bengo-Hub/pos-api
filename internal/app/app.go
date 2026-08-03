@@ -552,7 +552,7 @@ func New(ctx context.Context) (*App, error) {
 	}
 
 	// Subscribe to inventory events for catalog projection sync + initial sync
-	inventoryEventHandler := catalogmodule.NewInventoryEventHandler(entClient, redisClient, log)
+	inventoryEventHandler := catalogmodule.NewInventoryEventHandler(entClient, sqlDB, redisClient, log)
 	// Push a catalog-changed signal to every terminal on the tenant the instant inventory changes,
 	// so they refresh via WS instead of waiting on the ~45s catalog-version poll.
 	inventoryEventHandler.SetNotifHub(notificationsHandler.Hub())

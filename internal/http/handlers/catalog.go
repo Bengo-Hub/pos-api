@@ -1616,15 +1616,20 @@ func (h *CatalogHandler) SetCatalogItemPrice(w http.ResponseWriter, r *http.Requ
 		}
 	}
 
-	existing, _ := h.client.POSCatalogOverride.Query().
-		Where(entoverride.TenantID(tid), entoverride.InventorySku(input.SKU)).
-		First(r.Context())
+	// Scope the existing-row lookup by outlet too — a tenant can have both a tenant-wide (outlet_id
+	// NULL) override and per-outlet overrides for the same SKU; matching on (tenant, sku) alone let
+	// this handler find-and-mutate the WRONG row for a multi-outlet tenant (e.g. overwrite the
+	// tenant-wide row's price when the caller asked for one specific outlet).
+	lookup := h.client.POSCatalogOverride.Query().Where(entoverride.TenantID(tid), entoverride.InventorySku(input.SKU))
+	if outletID != nil {
+		lookup = lookup.Where(entoverride.OutletID(*outletID))
+	} else {
+		lookup = lookup.Where(entoverride.OutletIDIsNil())
+	}
+	existing, _ := lookup.First(r.Context())
 
 	if existing != nil {
 		upd := existing.Update().SetSellingPrice(input.SellingPrice)
-		if outletID != nil {
-			upd.SetOutletID(*outletID)
-		}
 		if input.Complimentary != nil {
 			meta := existing.Metadata
 			if meta == nil {
@@ -1698,9 +1703,15 @@ func (h *CatalogHandler) BulkSetCatalogPrices(w http.ResponseWriter, r *http.Req
 	for i, p := range input.Prices {
 		skus[i] = p.SKU
 	}
-	existing, _ := h.client.POSCatalogOverride.Query().
-		Where(entoverride.TenantID(tid), entoverride.InventorySkuIn(skus...)).
-		All(r.Context())
+	// Scoped by outlet the same way SetCatalogItemPrice is (see its comment) — matching on
+	// (tenant, sku) alone can find the wrong one of a tenant-wide vs. per-outlet override pair.
+	outletLookup := h.client.POSCatalogOverride.Query().Where(entoverride.TenantID(tid), entoverride.InventorySkuIn(skus...))
+	if outletID != nil {
+		outletLookup = outletLookup.Where(entoverride.OutletID(*outletID))
+	} else {
+		outletLookup = outletLookup.Where(entoverride.OutletIDIsNil())
+	}
+	existing, _ := outletLookup.All(r.Context())
 	existingBySKU := make(map[string]*ent.POSCatalogOverride, len(existing))
 	for _, e := range existing {
 		existingBySKU[e.InventorySku] = e
@@ -1709,11 +1720,7 @@ func (h *CatalogHandler) BulkSetCatalogPrices(w http.ResponseWriter, r *http.Req
 	updated := 0
 	for _, p := range input.Prices {
 		if e, ok := existingBySKU[p.SKU]; ok {
-			upd := e.Update().SetSellingPrice(p.SellingPrice)
-			if outletID != nil {
-				upd.SetOutletID(*outletID)
-			}
-			if _, saveErr := upd.Save(r.Context()); saveErr == nil {
+			if _, saveErr := e.Update().SetSellingPrice(p.SellingPrice).Save(r.Context()); saveErr == nil {
 				updated++
 			}
 		} else {

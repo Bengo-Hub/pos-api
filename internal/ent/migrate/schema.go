@@ -3,6 +3,7 @@
 package migrate
 
 import (
+	"entgo.io/ent/dialect/entsql"
 	"entgo.io/ent/dialect/sql/schema"
 	"entgo.io/ent/schema/field"
 )
@@ -1758,9 +1759,20 @@ var (
 		PrimaryKey: []*schema.Column{PosCatalogOverridesColumns[0]},
 		Indexes: []*schema.Index{
 			{
-				Name:    "poscatalogoverride_tenant_id_inventory_sku_outlet_id",
-				Unique:  false,
+				Name:    "poscatalogoverride_tenant_sku_no_outlet",
+				Unique:  true,
+				Columns: []*schema.Column{PosCatalogOverridesColumns[1], PosCatalogOverridesColumns[3]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "outlet_id IS NULL",
+				},
+			},
+			{
+				Name:    "poscatalogoverride_tenant_sku_outlet",
+				Unique:  true,
 				Columns: []*schema.Column{PosCatalogOverridesColumns[1], PosCatalogOverridesColumns[3], PosCatalogOverridesColumns[2]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "outlet_id IS NOT NULL",
+				},
 			},
 			{
 				Name:    "poscatalogoverride_tenant_id_outlet_id",

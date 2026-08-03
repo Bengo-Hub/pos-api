@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"entgo.io/ent"
+	"entgo.io/ent/dialect/entsql"
 	"entgo.io/ent/schema/field"
 	"entgo.io/ent/schema/index"
 	"github.com/google/uuid"
@@ -109,8 +110,24 @@ func (POSCatalogOverride) Fields() []ent.Field {
 // Indexes of the POSCatalogOverride.
 func (POSCatalogOverride) Indexes() []ent.Index {
 	return []ent.Index{
-		// Unique override per tenant+outlet+sku (outlet nil = tenant-wide)
-		index.Fields("tenant_id", "inventory_sku", "outlet_id"),
+		// Unique override per tenant+sku, split into two partial indexes because a plain multi-column
+		// UNIQUE constraint never treats two NULL outlet_ids as equal -- it would silently miss the
+		// tenant-wide (outlet_id IS NULL) case, which is the one the inventory-event catalog sync
+		// (syncCatalogItem) actually writes on every event. Without this, a create-then-update race
+		// under concurrent event delivery could produce duplicate rows for the same (tenant, sku),
+		// and the sale-time COGS cost lookup (which reads all matching rows with no defined order)
+		// would then resolve to whichever duplicate landed last in an unordered scan -- silently
+		// posting zero cost roughly at random. See migration
+		// 20260803191626_pos_catalog_override_dedupe_guard.sql for the incident writeup and the
+		// one-time data cleanup that preceded this constraint.
+		index.Fields("tenant_id", "inventory_sku").
+			Unique().
+			StorageKey("poscatalogoverride_tenant_sku_no_outlet").
+			Annotations(entsql.IndexWhere("outlet_id IS NULL")),
+		index.Fields("tenant_id", "inventory_sku", "outlet_id").
+			Unique().
+			StorageKey("poscatalogoverride_tenant_sku_outlet").
+			Annotations(entsql.IndexWhere("outlet_id IS NOT NULL")),
 		index.Fields("tenant_id", "outlet_id"),
 		index.Fields("tenant_id", "inventory_item_id"),
 	}
