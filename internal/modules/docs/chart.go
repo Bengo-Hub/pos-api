@@ -43,7 +43,9 @@ func (rc *reportCtx) drawChart(s Section) {
 // item/category names stay legible instead of being clipped to a slot-width sliver.
 func (rc *reportCtx) drawVerticalChart(s Section) {
 	p := rc.p
-	rc.ensure(chartH + chartLabelH + 8)
+	// No ensure() here: drawSection's combined heading+body check (sectionMinBodyH) already reserved
+	// chartH+chartLabelH+8 together with the heading, so this is guaranteed to fit. Re-checking here
+	// would only ever pass a no-op or, worse, page the chart away from a heading already drawn above it.
 
 	// Max value → axis scale (rounded up to a "nice" number).
 	var maxV float64

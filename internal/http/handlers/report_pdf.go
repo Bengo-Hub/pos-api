@@ -54,14 +54,17 @@ func NewReportPDFHandler(log *zap.Logger, db *ent.Client, cache *sharedcache.Asi
 // exact copy of ReceiptHandler.branding — best-effort, returns a zero-value brand on any failure.
 func (h *ReportPDFHandler) branding(ctx context.Context, tenantID uuid.UUID) receiptBrand {
 	var b receiptBrand
-	if h.cache == nil || h.authURL == "" {
-		return b
-	}
+	// Read the local tenant name FIRST, independent of the cache lookup below — otherwise a report
+	// generated while the cache/authURL isn't configured renders with a fully blank brand (no name
+	// at all) even though the tenant's name is sitting right there in the local DB.
 	t, err := h.db.Tenant.Query().Where(enttenant.ID(tenantID)).Only(ctx)
 	if err != nil {
 		return b
 	}
 	b.CompanyName = t.Name
+	if h.cache == nil || h.authURL == "" {
+		return b
+	}
 	td, err := sharedcache.GetTenantDetails(ctx, h.cache, h.authURL, t.Slug, sharedcache.DefaultTenantTTL)
 	if err != nil {
 		return b
@@ -91,6 +94,49 @@ func (h *ReportPDFHandler) outletScope(r *http.Request) *uuid.UUID {
 	return nil
 }
 
+// tenantAddress resolves a display address line from tenant metadata (street/city/country),
+// mirroring inventory-api's addressLines — used as the fallback when a report isn't scoped to a
+// single outlet (or the outlet has no address of its own), so tenant-wide reports (e.g. Shift
+// Report with no outlet, or any report run without ?outlet_id=) still show a location instead of a
+// blank address block.
+func (h *ReportPDFHandler) tenantAddress(ctx context.Context, tid uuid.UUID) string {
+	if h.cache == nil || h.authURL == "" {
+		return ""
+	}
+	t, err := h.db.Tenant.Query().Where(enttenant.ID(tid)).Only(ctx)
+	if err != nil {
+		return ""
+	}
+	td, err := sharedcache.GetTenantDetails(ctx, h.cache, h.authURL, t.Slug, sharedcache.DefaultTenantTTL)
+	if err != nil {
+		return ""
+	}
+	meta := func(k string) string {
+		if td.Metadata == nil {
+			return ""
+		}
+		v, _ := td.Metadata[k].(string)
+		return v
+	}
+	var cityParts []string
+	for _, p := range []string{meta("postal_code"), meta("city")} {
+		if p != "" {
+			cityParts = append(cityParts, p)
+		}
+	}
+	country := meta("country_name")
+	if country == "" {
+		country = td.Country
+	}
+	var parts []string
+	for _, p := range []string{meta("address"), strings.Join(cityParts, " · "), country} {
+		if p != "" {
+			parts = append(parts, p)
+		}
+	}
+	return strings.Join(parts, ", ")
+}
+
 // outletInfo resolves the display name + address line for an outlet in scope (empty when none).
 func (h *ReportPDFHandler) outletInfo(ctx context.Context, tid uuid.UUID, oid *uuid.UUID) (name, addr string) {
 	if oid == nil {
@@ -116,12 +162,16 @@ func (h *ReportPDFHandler) newReport(ctx context.Context, tid uuid.UUID, oid *uu
 	brand := h.branding(ctx, tid)
 	logo, logoType := fetchReceiptLogo(brand.LogoURL)
 	outletName, outletAddr := h.outletInfo(ctx, tid, oid)
+	addr := outletAddr
+	if addr == "" {
+		addr = h.tenantAddress(ctx, tid)
+	}
 	return &docs.Report{
 		Title:                 title,
 		Subtitle:              subtitle,
 		TenantName:            brand.CompanyName,
 		OutletName:            outletName,
-		Address:               outletAddr,
+		Address:               addr,
 		PrimaryColor:          brand.PrimaryColor,
 		LogoPNG:               logo,
 		LogoType:              logoType,
@@ -683,6 +733,13 @@ func (h *ReportPDFHandler) ShiftReportPDF(w http.ResponseWriter, r *http.Request
 		jsonError(w, "session not found", http.StatusNotFound)
 		return
 	}
+	// Resolve the device's outlet so the shift/X-report — inherently a single-drawer, single-outlet
+	// document — carries its outlet name + address instead of rendering tenant-wide with a blank
+	// scope.
+	var shiftOutletID *uuid.UUID
+	if device, derr := h.db.POSDevice.Get(ctx, session.DeviceID); derr == nil {
+		shiftOutletID = &device.OutletID
+	}
 
 	orders, err := h.db.POSOrder.Query().
 		Where(posorder.TenantID(tid), posorder.DeviceID(session.DeviceID), posorder.StatusEQ("completed")).
@@ -726,7 +783,7 @@ func (h *ReportPDFHandler) ShiftReportPDF(w http.ResponseWriter, r *http.Request
 		variance = *session.Variance
 	}
 
-	report := h.newReport(ctx, tid, nil, "Shift Report", "X Report", session.OpenedAt.UTC(), timeOrNow(session.ClosedAt), false)
+	report := h.newReport(ctx, tid, shiftOutletID, "Shift Report", "X Report", session.OpenedAt.UTC(), timeOrNow(session.ClosedAt), false)
 	report.Cards = []docs.Card{
 		{Label: "Net Sales", Value: "KES " + fmtAmount(totalRevenue-totalRefunds), Sub: fmt.Sprintf("%d order(s)", len(orders))},
 		{Label: "Refunds", Value: "KES " + fmtAmount(totalRefunds)},

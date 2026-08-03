@@ -173,11 +173,27 @@ func (rc *reportCtx) drawCards(y float64) float64 {
 	return y + ch
 }
 
-// drawSection dispatches to the right renderer for the section kind.
+// minOrphanRows is the minimum number of table/key-value body rows that must be kept together with
+// a section's heading (and, for tables, its column-header row) so a page break never stands a bare
+// heading at the bottom of one page with the whole body pushed to the next.
+const minOrphanRows = 3
+
+// drawSection dispatches to the right renderer for the section kind. It first reserves the combined
+// height of the heading plus a minimum viable slice of the body (sectionMinBodyH) and breaks the page
+// up front if that doesn't fit, instead of checking the heading and body separately — checking them
+// separately is what let a heading + table-header row get committed near the bottom of a page only
+// for the very next row to overflow onto a new page.
 func (rc *reportCtx) drawSection(s Section) {
 	rc.y += 6.0
+	headingH := 0.0
 	if s.Title != "" {
-		rc.ensure(10)
+		headingH = 8.0
+		if s.Note != "" {
+			headingH += 5.0
+		}
+	}
+	rc.ensure(headingH + rc.sectionMinBodyH(s))
+	if s.Title != "" {
 		rc.p.text(rc.p.leftX, rc.y, upper(s.Title), "B", 10.5, rc.p.pal.navy)
 		rc.p.gradient(rc.p.leftX, rc.y+5.2, 26.0, 0.9, 0.4, rc.p.pal.sky, rc.p.pal.navy)
 		rc.y += 8.0
@@ -193,6 +209,42 @@ func (rc *reportCtx) drawSection(s Section) {
 		rc.drawKeyValue(s)
 	case SectionChart:
 		rc.drawChart(s)
+	}
+}
+
+// sectionMinBodyH returns the minimum body height that must stay attached to the section heading:
+// a table's header row plus up to minOrphanRows data rows, a key/value block's first few pairs, or a
+// chart's full plot height (charts are always drawn as one atomic block, never split).
+func (rc *reportCtx) sectionMinBodyH(s Section) float64 {
+	switch s.Kind {
+	case SectionTable:
+		const headH, rowH = 7.0, 6.2
+		n := minOrphanRows
+		if len(s.Rows) < n {
+			n = len(s.Rows)
+		}
+		return headH + rowH*float64(n)
+	case SectionKeyValue:
+		const rowH = 6.0
+		n := minOrphanRows
+		if len(s.Pairs) < n {
+			n = len(s.Pairs)
+		}
+		return rowH*float64(n) + 4
+	case SectionChart:
+		// drawChart dispatches on bar count: at/under maxVerticalBars it draws one atomic vertical
+		// chart (chartH + chartLabelH + margin, never split); beyond that it flips to the horizontal,
+		// row-per-item layout, which paginates like a table, so only reserve a few rows for it.
+		if len(s.Bars) > maxVerticalBars {
+			n := minOrphanRows
+			if len(s.Bars) < n {
+				n = len(s.Bars)
+			}
+			return hRowH * float64(n)
+		}
+		return chartH + chartLabelH + 8.0
+	default:
+		return 0
 	}
 }
 
@@ -225,7 +277,9 @@ func (rc *reportCtx) drawTable(s Section) {
 	const rowH = 6.2
 
 	drawHeaderRow := func() {
-		rc.ensure(headH + rowH)
+		// No ensure() here: the first call is already guaranteed room by drawSection's combined
+		// heading+body check, and every later call happens right after rc.newPage(), i.e. on a fresh
+		// page. An ensure() here would (re-)introduce the orphan-heading bug it was meant to fix.
 		p.fillRect(p.leftX, rc.y, p.contentW, headH, p.pal.lightBlue)
 		for i, c := range s.Columns {
 			rc.drawCellText(c.Header, xs[i], xs[i+1], rc.y+1.8, "B", 7.6, p.pal.navy, colAlign(c))
@@ -311,7 +365,9 @@ func (rc *reportCtx) drawKeyValue(s Section) {
 	if boxW > 120 {
 		boxW = 120
 	}
-	rc.ensure(float64(len(s.Pairs))*rowH + 4)
+	// No whole-block ensure() here: drawSection's combined heading+body check already guarantees
+	// room for the heading plus minOrphanRows pairs. An ensure() for the FULL block would re-orphan
+	// the heading (already drawn) by paging the whole box away whenever it's longer than that.
 	top := rc.y
 	y := rc.y
 	for _, kv := range s.Pairs {

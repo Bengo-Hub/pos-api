@@ -48,14 +48,17 @@ func NewMenuHandler(log *zap.Logger, client *ent.Client, cache *sharedcache.Asid
 // (receiptBrand is reused from receipt.go — same package — to avoid a duplicate brand type.)
 func (h *MenuHandler) branding(ctx context.Context, tenantID uuid.UUID) receiptBrand {
 	var b receiptBrand
-	if h.cache == nil || h.authURL == "" {
-		return b
-	}
+	// Read the local tenant name FIRST, independent of the cache lookup below — otherwise a menu PDF
+	// generated while the cache/authURL isn't configured renders with a fully blank brand (no name
+	// at all) even though the tenant's name is sitting right there in the local DB.
 	t, err := h.client.Tenant.Query().Where(enttenant.ID(tenantID)).Only(ctx)
 	if err != nil {
 		return b
 	}
 	b.CompanyName = t.Name
+	if h.cache == nil || h.authURL == "" {
+		return b
+	}
 	td, err := sharedcache.GetTenantDetails(ctx, h.cache, h.authURL, t.Slug, sharedcache.DefaultTenantTTL)
 	if err != nil {
 		return b

@@ -130,14 +130,17 @@ func (h *ReceiptHandler) ReprintReceipt(w http.ResponseWriter, r *http.Request) 
 // documents module. Best-effort: returns a zero-value brand if anything is unavailable.
 func (h *ReceiptHandler) branding(ctx context.Context, tenantID uuid.UUID) receiptBrand {
 	var b receiptBrand
-	if h.cache == nil || h.authURL == "" {
-		return b
-	}
+	// Read the local tenant name FIRST, independent of the cache lookup below — otherwise a receipt
+	// generated while the cache/authURL isn't configured renders with a fully blank brand (no name
+	// at all) even though the tenant's name is sitting right there in the local DB.
 	t, err := h.client.Tenant.Query().Where(enttenant.ID(tenantID)).Only(ctx)
 	if err != nil {
 		return b
 	}
 	b.CompanyName = t.Name
+	if h.cache == nil || h.authURL == "" {
+		return b
+	}
 	td, err := sharedcache.GetTenantDetails(ctx, h.cache, h.authURL, t.Slug, sharedcache.DefaultTenantTTL)
 	if err != nil {
 		return b
