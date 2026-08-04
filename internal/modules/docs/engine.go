@@ -18,10 +18,17 @@ import (
 	"github.com/go-pdf/fpdf"
 )
 
-// Page geometry (A4 portrait / landscape, mm).
+// Page geometry (A4 portrait / landscape, mm). Width and height SWAP between orientations — an A4
+// landscape page is 297mm wide but only 210mm tall, not 297mm tall. Getting this wrong silently
+// drops content: page-break math that assumes a 297mm-tall page keeps drawing rows for ~87mm past
+// the actual bottom of a landscape page, where they land outside the page's physical canvas and
+// simply never render, before a break finally triggers and resumes drawing further into the data
+// than what got skipped — i.e. rows vanish rather than merely mis-paginating.
 const (
 	pageWP   = 210.0 // portrait width
 	pageWL   = 297.0 // landscape width
+	pageHP   = 297.0 // portrait height
+	pageHL   = 210.0 // landscape height
 	margin   = 13.0
 	topY     = 12.0
 	bottomMg = 14.0
