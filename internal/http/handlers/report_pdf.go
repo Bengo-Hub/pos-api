@@ -75,6 +75,8 @@ func (h *ReportPDFHandler) branding(ctx context.Context, tenantID uuid.UUID) rec
 	}
 	b.LogoURL = tb.LogoURL
 	b.PrimaryColor = tb.PrimaryColor
+	b.Email = tb.Email
+	b.Phone = tb.Phone
 	return b
 }
 
@@ -166,6 +168,16 @@ func (h *ReportPDFHandler) newReport(ctx context.Context, tid uuid.UUID, oid *uu
 	if addr == "" {
 		addr = h.tenantAddress(ctx, tid)
 	}
+	// branding() already fetches Phone/Email from the tenant cache, but docs.Report has no
+	// dedicated fields for them — without this they'd be silently dropped even though the data is
+	// right there. The meta box already renders arbitrary [][2]string rows, so surface them there.
+	var meta [][2]string
+	if brand.Phone != "" {
+		meta = append(meta, [2]string{"Phone", brand.Phone})
+	}
+	if brand.Email != "" {
+		meta = append(meta, [2]string{"Email", brand.Email})
+	}
 	return &docs.Report{
 		Title:                 title,
 		Subtitle:              subtitle,
@@ -176,6 +188,7 @@ func (h *ReportPDFHandler) newReport(ctx context.Context, tid uuid.UUID, oid *uu
 		LogoPNG:               logo,
 		LogoType:              logoType,
 		ProviderFooterEnabled: providerfooter.Resolve(ctx, h.db, tid),
+		Meta:                  meta,
 		PeriodFrom:            from,
 		PeriodTo:              to,
 		GeneratedAt:           time.Now().UTC(),
