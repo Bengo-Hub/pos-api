@@ -521,6 +521,8 @@ func New(
 							// Price management endpoints (must come before /{id} routes)
 							cat.Patch("/items/prices", catalog.SetCatalogItemPrice)
 							cat.Post("/items/prices/bulk", catalog.BulkSetCatalogPrices)
+							// KDS station assignment — the priority-1 explicit per-item routing override.
+							cat.Patch("/items/kds-station", catalog.SetCatalogItemKDSStation)
 							cat.Get("/items/{id}", catalog.GetCatalogItem)
 							cat.Put("/items/{id}", catalog.UpdateCatalogItem)
 							cat.Delete("/items/{id}", catalog.DeleteCatalogItem)

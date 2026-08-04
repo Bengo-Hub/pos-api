@@ -20,6 +20,7 @@ import (
 	"github.com/Bengo-Hub/httpware"
 	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/bengobox/pos-service/internal/ent"
+	entkdsstation "github.com/bengobox/pos-service/internal/ent/kdsstation"
 	entoutletsetting "github.com/bengobox/pos-service/internal/ent/outletsetting"
 	entoverride "github.com/bengobox/pos-service/internal/ent/poscatalogoverride"
 	"github.com/bengobox/pos-service/internal/http/middleware"
@@ -1662,6 +1663,113 @@ func (h *CatalogHandler) SetCatalogItemPrice(w http.ResponseWriter, r *http.Requ
 		if *input.Complimentary {
 			creator.SetIsAvailable(true)
 		}
+	}
+	created, saveErr := creator.Save(r.Context())
+	if saveErr != nil {
+		jsonError(w, "create failed: "+saveErr.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusCreated)
+	jsonOK(w, created)
+}
+
+// SetCatalogItemKDSStation handles PATCH /{tenantID}/pos/catalog/items/kds-station
+// Upserts an item's explicit KDS station assignment (POSCatalogOverride.kds_station_id) — the
+// PRIMARY routing mechanism (resolveStationForLine priority 1 in modules/orders/service.go),
+// which wins over both the hot-beverage guard and category_filter matching. This is the "managers
+// assign items to stations in POS settings" escape hatch the routing code has always assumed
+// exists; until this handler, nothing actually let a manager set it. StationID nil/empty clears
+// the override, reverting the item to category_filter/hot-beverage routing.
+func (h *CatalogHandler) SetCatalogItemKDSStation(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+
+	var input struct {
+		SKU       string `json:"sku"`
+		StationID string `json:"station_id,omitempty"` // empty/omitted clears the override
+		OutletID  string `json:"outlet_id,omitempty"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil || input.SKU == "" {
+		jsonError(w, "sku is required", http.StatusBadRequest)
+		return
+	}
+
+	var outletID *uuid.UUID
+	if input.OutletID != "" {
+		if oid, parseErr := uuid.Parse(input.OutletID); parseErr == nil {
+			outletID = &oid
+		}
+	}
+
+	var stationID *uuid.UUID
+	if input.StationID != "" {
+		sid, parseErr := uuid.Parse(input.StationID)
+		if parseErr != nil {
+			jsonError(w, "invalid station_id", http.StatusBadRequest)
+			return
+		}
+		// Validate the station belongs to this tenant (and outlet, when given) before linking it —
+		// an override pointing at a nonexistent/foreign station would silently never match in
+		// resolveStationForLine's station list lookup (scoped by tenant+outlet), routing the item
+		// nowhere instead of failing loudly here.
+		stationQ := h.client.KDSStation.Query().Where(entkdsstation.TenantID(tid), entkdsstation.ID(sid))
+		if outletID != nil {
+			stationQ = stationQ.Where(entkdsstation.OutletID(*outletID))
+		}
+		exists, existErr := stationQ.Exist(r.Context())
+		if existErr != nil {
+			jsonError(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		if !exists {
+			jsonError(w, "station not found for this tenant/outlet", http.StatusNotFound)
+			return
+		}
+		stationID = &sid
+	}
+
+	// Scope the existing-row lookup by outlet too, mirroring SetCatalogItemPrice — a tenant can
+	// have both a tenant-wide (outlet_id NULL) override and per-outlet overrides for the same SKU.
+	lookup := h.client.POSCatalogOverride.Query().Where(entoverride.TenantID(tid), entoverride.InventorySku(input.SKU))
+	if outletID != nil {
+		lookup = lookup.Where(entoverride.OutletID(*outletID))
+	} else {
+		lookup = lookup.Where(entoverride.OutletIDIsNil())
+	}
+	existing, _ := lookup.First(r.Context())
+
+	if existing != nil {
+		upd := existing.Update()
+		if stationID != nil {
+			upd = upd.SetKdsStationID(*stationID)
+		} else {
+			upd = upd.ClearKdsStationID()
+		}
+		updated, saveErr := upd.Save(r.Context())
+		if saveErr != nil {
+			jsonError(w, "update failed: "+saveErr.Error(), http.StatusInternalServerError)
+			return
+		}
+		jsonOK(w, updated)
+		return
+	}
+
+	if stationID == nil {
+		// Clearing a station override that was never set — nothing to do, don't create an
+		// otherwise-empty override row just to hold a clear.
+		jsonOK(w, map[string]any{"sku": input.SKU, "kds_station_id": nil})
+		return
+	}
+
+	creator := h.client.POSCatalogOverride.Create().
+		SetTenantID(tid).
+		SetInventorySku(input.SKU).
+		SetKdsStationID(*stationID)
+	if outletID != nil {
+		creator.SetOutletID(*outletID)
 	}
 	created, saveErr := creator.Save(r.Context())
 	if saveErr != nil {
