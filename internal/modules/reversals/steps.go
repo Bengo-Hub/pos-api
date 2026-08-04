@@ -396,8 +396,19 @@ func (s *Service) reverseLoyalty(ctx context.Context, rev *ent.POSReversal, orde
 		if clawback <= 0 {
 			continue
 		}
-		acc, err := s.client.LoyaltyAccount.Get(ctx, accountID)
+		// Locked read-modify-write: Retry re-runs any non-completed step (see runSteps), and two
+		// concurrent Retry calls for the same reversal (admin double-click) would otherwise both
+		// load the same acc.PointsBalance here and both compute/save from it — a lost update that
+		// claws back points twice. ForUpdate() makes the second caller wait for the first commit,
+		// so it re-derives from the already-decremented balance.
+		tx, txErr := s.client.Tx(ctx)
+		if txErr != nil {
+			s.log.Warn("reversal: loyalty tx start failed", zap.String("account_id", accountID.String()), zap.Error(txErr))
+			continue
+		}
+		acc, err := tx.LoyaltyAccount.Query().Where(entla.ID(accountID), entla.TenantID(rev.TenantID)).ForUpdate().Only(ctx)
 		if err != nil {
+			_ = tx.Rollback()
 			s.log.Warn("reversal: loyalty account lookup failed", zap.String("account_id", accountID.String()), zap.Error(err))
 			continue
 		}
@@ -406,6 +417,7 @@ func (s *Service) reverseLoyalty(ctx context.Context, rev *ent.POSReversal, orde
 			actual = acc.PointsBalance // can't claw into points already redeemed elsewhere
 		}
 		if actual <= 0 {
+			_ = tx.Rollback()
 			continue
 		}
 		newBalance := acc.PointsBalance - actual
@@ -413,11 +425,12 @@ func (s *Service) reverseLoyalty(ctx context.Context, rev *ent.POSReversal, orde
 		if newLifetime < 0 {
 			newLifetime = 0
 		}
-		if _, err := acc.Update().SetPointsBalance(newBalance).SetLifetimePoints(newLifetime).Save(ctx); err != nil {
+		if _, err := tx.LoyaltyAccount.UpdateOneID(accountID).SetPointsBalance(newBalance).SetLifetimePoints(newLifetime).Save(ctx); err != nil {
+			_ = tx.Rollback()
 			s.log.Warn("reversal: loyalty balance update failed", zap.String("account_id", accountID.String()), zap.Error(err))
 			continue
 		}
-		if _, err := s.client.LoyaltyTransaction.Create().
+		if _, err := tx.LoyaltyTransaction.Create().
 			SetTenantID(rev.TenantID).
 			SetAccountID(accountID).
 			SetOrderID(order.ID).
@@ -427,6 +440,10 @@ func (s *Service) reverseLoyalty(ctx context.Context, rev *ent.POSReversal, orde
 			SetNotes(fmt.Sprintf("Reversal %s: clawed back %d of %d earned point(s)", rev.ReversalNumber, actual, earned)).
 			Save(ctx); err != nil {
 			s.log.Warn("reversal: loyalty transaction write failed", zap.Error(err))
+		}
+		if err := tx.Commit(); err != nil {
+			s.log.Warn("reversal: loyalty tx commit failed", zap.String("account_id", accountID.String()), zap.Error(err))
+			continue
 		}
 		parts = append(parts, fmt.Sprintf("%d loyalty pt(s) clawed back", actual))
 	}

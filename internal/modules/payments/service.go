@@ -420,7 +420,48 @@ func (s *Service) CreatePaymentIntent(ctx context.Context, req RecordPaymentRequ
 	if req.ExternalRef != "" {
 		cashRef = req.ExternalRef
 	}
-	_, err = s.client.POSPayment.Create().
+	// Lock the order row for a fresh outstanding-balance check + payment insert: two concurrent
+	// cash submissions for the same order (double-tap "Pay", or two tenders racing in a fast
+	// split-payment flow) previously both used the outstanding balance computed once at the top
+	// of this function and both created a completed payment against it — overpaying the order
+	// (both rows land, sum exceeds the total) and potentially double-firing completeOrderIfFullyPaid's
+	// one-time side effects. ForUpdate() blocks a second racing request until the first commits,
+	// so its re-check below sees the first payment already landed and clamps/rejects accordingly.
+	completedReturns, _ := s.completedReturnsTotal(ctx, order.ID)
+	tx, txErr := s.client.Tx(ctx)
+	if txErr != nil {
+		return nil, fmt.Errorf("payments: start transaction: %w", txErr)
+	}
+	if _, err = tx.POSOrder.Query().Where(posorder.ID(order.ID), posorder.TenantID(req.TenantID)).ForUpdate().Only(ctx); err != nil {
+		_ = tx.Rollback()
+		return nil, fmt.Errorf("payments: lock order: %w", err)
+	}
+	completedRows, err := tx.POSPayment.Query().
+		Where(pospayment.OrderID(order.ID), pospayment.Status(StatusCompleted)).
+		All(ctx)
+	if err != nil {
+		_ = tx.Rollback()
+		return nil, fmt.Errorf("payments: re-check outstanding: %w", err)
+	}
+	var collected float64
+	for _, p := range completedRows {
+		method, _ := p.PaymentData["method"].(string)
+		if !strings.EqualFold(method, TenderOnAccount) {
+			collected += p.Amount
+		}
+	}
+	freshOutstanding := order.TotalAmount - collected - completedReturns
+	if freshOutstanding < 0 {
+		freshOutstanding = 0
+	}
+	if freshOutstanding <= 0 {
+		_ = tx.Rollback()
+		return nil, fmt.Errorf("payments: order %s is already fully paid", order.OrderNumber)
+	}
+	if req.Amount > freshOutstanding+0.01 {
+		req.Amount = freshOutstanding
+	}
+	_, err = tx.POSPayment.Create().
 		SetOrderID(req.OrderID).
 		SetTenderID(req.TenderID).
 		SetAmount(req.Amount).
@@ -430,7 +471,11 @@ func (s *Service) CreatePaymentIntent(ctx context.Context, req RecordPaymentRequ
 		SetNillableExternalReference(nilIfEmpty(cashRef)).
 		Save(ctx)
 	if err != nil {
+		_ = tx.Rollback()
 		return nil, fmt.Errorf("payments: record cash payment: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("payments: commit cash payment: %w", err)
 	}
 
 	s.completeOrderIfFullyPaid(ctx, order)

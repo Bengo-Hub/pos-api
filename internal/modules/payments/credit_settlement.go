@@ -11,6 +11,7 @@ import (
 
 	"github.com/bengobox/pos-service/internal/ent"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
+	"github.com/bengobox/pos-service/internal/ent/pospayment"
 	"github.com/bengobox/pos-service/internal/modules/orders"
 	"github.com/bengobox/pos-service/internal/modules/treasury"
 )
@@ -97,13 +98,53 @@ func (s *Service) SettleCreditPayment(ctx context.Context, req SettleCreditReque
 
 	// Local collection row first: the till has the money in hand; treasury sync below is
 	// surfaced (never silently dropped) but must not lose the collected cash record.
-	if _, err := s.client.POSPayment.Create().
+	//
+	// Locked inside a transaction: two concurrent settlements against the same credit order
+	// (settled from two surfaces at once, or a retried request) previously both used the
+	// outstanding balance computed above and both created a completed payment row against it,
+	// overcollecting from the customer. ForUpdate() blocks a second racing request until the
+	// first commits, so its re-check sees the first settlement already landed and clamps.
+	tx, txErr := s.client.Tx(ctx)
+	if txErr != nil {
+		return nil, fmt.Errorf("payments: start transaction: %w", txErr)
+	}
+	if _, err := tx.POSOrder.Query().Where(posorder.ID(order.ID), posorder.TenantID(req.TenantID)).ForUpdate().Only(ctx); err != nil {
+		_ = tx.Rollback()
+		return nil, fmt.Errorf("payments: lock order: %w", err)
+	}
+	completedRows, err := tx.POSPayment.Query().
+		Where(pospayment.OrderID(order.ID), pospayment.Status(StatusCompleted)).
+		All(ctx)
+	if err != nil {
+		_ = tx.Rollback()
+		return nil, fmt.Errorf("payments: re-check outstanding: %w", err)
+	}
+	var freshCollected float64
+	for _, p := range completedRows {
+		method, _ := p.PaymentData["method"].(string)
+		if !strings.EqualFold(method, TenderOnAccount) {
+			freshCollected += p.Amount
+		}
+	}
+	freshOutstanding := order.TotalAmount - freshCollected - completedReturns
+	if freshOutstanding <= 0.01 {
+		_ = tx.Rollback()
+		return nil, fmt.Errorf("payments: order %s has no outstanding credit balance", order.OrderNumber)
+	}
+	if req.Amount > freshOutstanding+0.01 {
+		req.Amount = freshOutstanding
+	}
+	if _, err := tx.POSPayment.Create().
 		SetOrderID(order.ID).SetTenderID(req.TenderID).SetAmount(req.Amount).
 		SetCurrency(currency).SetStatus(StatusCompleted).
 		SetPaymentData(map[string]any{"method": req.TenderMethod, "credit_settlement": true}).
 		SetNillableExternalReference(nilIfEmpty(req.ExternalRef)).
 		Save(ctx); err != nil {
+		_ = tx.Rollback()
 		return nil, fmt.Errorf("payments: record credit settlement: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("payments: commit credit settlement: %w", err)
 	}
 	collectedAfter, _, _ := s.RecomputePaidTotal(ctx, order.ID)
 	outstandingAfter := order.TotalAmount - collectedAfter - completedReturns
