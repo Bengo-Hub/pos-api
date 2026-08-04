@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
 
@@ -107,7 +108,7 @@ func (h *LoyaltyHandler) S2SEarn(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "failed to resolve loyalty account", http.StatusInternalServerError)
 		return
 	}
-	newBalance, tx, err := h.applyEarn(r.Context(), tid, acc, body.Points, body.OrderID, "Earned via S2S (ordering)")
+	newBalance, tx, err := h.applyEarn(r.Context(), tid, acc.ID, body.Points, body.OrderID, "Earned via S2S (ordering)")
 	if err != nil {
 		h.log.Error("s2s earn: update failed", zap.Error(err))
 		jsonError(w, "failed to credit points", http.StatusInternalServerError)
@@ -149,12 +150,17 @@ func (h *LoyaltyHandler) S2SRedeem(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "failed to resolve loyalty account", http.StatusInternalServerError)
 		return
 	}
+	// Cheap early-reject; applyRedeem re-validates the authoritative locked balance itself.
 	if acc.PointsBalance < body.Points {
 		jsonError(w, "insufficient points balance", http.StatusUnprocessableEntity)
 		return
 	}
-	newBalance, tx, err := h.applyRedeem(r.Context(), tid, acc, body.Points, body.OrderID, "Redeemed via S2S (ordering)")
+	newBalance, tx, err := h.applyRedeem(r.Context(), tid, acc.ID, body.Points, body.OrderID, "Redeemed via S2S (ordering)")
 	if err != nil {
+		if errors.Is(err, ErrInsufficientLoyaltyPoints) {
+			jsonError(w, "insufficient points balance", http.StatusUnprocessableEntity)
+			return
+		}
 		h.log.Error("s2s redeem: update failed", zap.Error(err))
 		jsonError(w, "failed to debit points", http.StatusInternalServerError)
 		return

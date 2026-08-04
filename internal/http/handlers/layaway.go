@@ -351,8 +351,30 @@ func (h *LayawayHandler) RecordPayment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	plan, err := h.db.LayawayPlan.Query().
+	// The read-plan / create-payment / update-balance sequence used to run outside any
+	// transaction or lock: a plain Create() with no idempotency key, unique constraint, or CAS
+	// guard of any kind. A client-side double-submit or network retry (nothing unusual for a
+	// cashier tapping "Record Payment" on a flaky connection) created two LayawayPayment rows and
+	// double-decremented remaining_amount -- potentially auto-completing the plan for money
+	// collected only once. ForUpdate() locks the plan row for the transaction's lifetime, so a
+	// second concurrent call blocks until the first commits and then sees the updated balance,
+	// same pattern used for CustomerBalance/PaymentIntent races elsewhere in this codebase.
+	tx, err := h.db.Tx(r.Context())
+	if err != nil {
+		h.log.Error("begin tx failed", zap.Error(err))
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_ = tx.Rollback()
+		}
+	}()
+
+	plan, err := tx.LayawayPlan.Query().
 		Where(layawayplan.ID(planID), layawayplan.TenantID(tid)).
+		ForUpdate().
 		Only(r.Context())
 	if err != nil {
 		if ent.IsNotFound(err) {
@@ -370,7 +392,7 @@ func (h *LayawayHandler) RecordPayment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create the payment record
-	pc := h.db.LayawayPayment.Create().
+	pc := tx.LayawayPayment.Create().
 		SetLayawayPlanID(planID).
 		SetTenantID(tid).
 		SetAmount(input.Amount)
@@ -409,6 +431,13 @@ func (h *LayawayHandler) RecordPayment(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "payment recorded but plan update failed", http.StatusInternalServerError)
 		return
 	}
+
+	if err := tx.Commit(); err != nil {
+		h.log.Error("commit layaway payment failed", zap.Error(err))
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	committed = true
 
 	w.WriteHeader(http.StatusCreated)
 	jsonOK(w, map[string]any{"payment": payment, "plan": updatedPlan})

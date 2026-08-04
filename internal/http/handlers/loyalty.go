@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -453,7 +454,7 @@ func (h *LoyaltyHandler) Earn(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "points must be positive", http.StatusBadRequest)
 		return
 	}
-	newBalance, tx, err := h.applyEarn(r.Context(), tid, acc, body.Points, body.OrderID, body.Notes)
+	newBalance, tx, err := h.applyEarn(r.Context(), tid, acc.ID, body.Points, body.OrderID, body.Notes)
 	if err != nil {
 		h.log.Error("earn points update failed", zap.Error(err))
 		jsonError(w, "failed to update account", http.StatusInternalServerError)
@@ -466,15 +467,42 @@ func (h *LoyaltyHandler) Earn(w http.ResponseWriter, r *http.Request) {
 // points + lifetime balances, records an "earn" loyalty transaction, and publishes the
 // loyalty.points.earned event. It is reused by both the staff-facing Earn handler and the
 // S2S earn endpoint so the earn logic lives in exactly one place.
-func (h *LoyaltyHandler) applyEarn(ctx context.Context, tid uuid.UUID, acc *ent.LoyaltyAccount, points int, orderID *string, notes string) (int, *ent.LoyaltyTransaction, error) {
+//
+// Takes accountID rather than a pre-fetched *ent.LoyaltyAccount and re-reads it itself under
+// ForUpdate() inside a transaction: the old signature computed newBalance from whatever balance
+// the CALLER happened to read earlier, then blindly SET it -- two concurrent earn calls for the
+// same account (a retried request, or two order-finalize paths both crediting the same customer)
+// each read the same starting balance, each add their own points to it, and the second SET simply
+// overwrote the first's effect, silently losing one of the two credits. Locking here (not just at
+// the caller) is what actually closes the race for every caller of this shared function.
+func (h *LoyaltyHandler) applyEarn(ctx context.Context, tid, accountID uuid.UUID, points int, orderID *string, notes string) (int, *ent.LoyaltyTransaction, error) {
+	tx, err := h.db.Tx(ctx)
+	if err != nil {
+		return 0, nil, err
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_ = tx.Rollback()
+		}
+	}()
+
+	acc, err := tx.LoyaltyAccount.Query().
+		Where(entla.ID(accountID), entla.TenantID(tid)).
+		ForUpdate().
+		Only(ctx)
+	if err != nil {
+		return 0, nil, err
+	}
+
 	newBalance := acc.PointsBalance + points
-	if _, err := h.db.LoyaltyAccount.UpdateOneID(acc.ID).
+	if _, err := tx.LoyaltyAccount.UpdateOneID(acc.ID).
 		SetPointsBalance(newBalance).
 		SetLifetimePoints(acc.LifetimePoints + points).
 		Save(ctx); err != nil {
 		return 0, nil, err
 	}
-	txCreator := h.db.LoyaltyTransaction.Create().
+	txCreator := tx.LoyaltyTransaction.Create().
 		SetTenantID(tid).
 		SetAccountID(acc.ID).
 		SetTypeField("earn").
@@ -488,11 +516,18 @@ func (h *LoyaltyHandler) applyEarn(ctx context.Context, tid uuid.UUID, acc *ent.
 	if notes != "" {
 		txCreator = txCreator.SetNotes(notes)
 	}
-	tx, err := txCreator.Save(ctx)
+	ltx, err := txCreator.Save(ctx)
 	if err != nil {
 		h.log.Warn("earn: failed to create transaction record", zap.Error(err))
 	}
+
+	if err := tx.Commit(); err != nil {
+		return 0, nil, err
+	}
+	committed = true
+
 	// Publish event for notifications-service (WhatsApp/SMS "You earned X pts" message).
+	// Best-effort, after commit so a publish failure never rolls back a real balance change.
 	if h.publisher != nil {
 		payload := map[string]any{
 			"account_id":     acc.ID.String(),
@@ -508,7 +543,7 @@ func (h *LoyaltyHandler) applyEarn(ctx context.Context, tid uuid.UUID, acc *ent.
 			h.log.Warn("earn: failed to publish loyalty.points.earned event", zap.Error(pubErr))
 		}
 	}
-	return newBalance, tx, nil
+	return newBalance, ltx, nil
 }
 
 // Redeem handles POST /{tenantID}/pos/loyalty/accounts/{accountID}/redeem
@@ -541,12 +576,19 @@ func (h *LoyaltyHandler) Redeem(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "points must be positive", http.StatusBadRequest)
 		return
 	}
+	// The authoritative balance check now happens inside applyRedeem, under the same lock as the
+	// deduction (see its doc comment) -- this pre-check is just a cheap early-reject for the
+	// common case so a request that's obviously going to fail doesn't even open a transaction.
 	if acc.PointsBalance < body.Points {
 		jsonError(w, "insufficient points balance", http.StatusUnprocessableEntity)
 		return
 	}
-	newBalance, tx, err := h.applyRedeem(r.Context(), tid, acc, body.Points, body.OrderID, body.Notes)
+	newBalance, tx, err := h.applyRedeem(r.Context(), tid, acc.ID, body.Points, body.OrderID, body.Notes)
 	if err != nil {
+		if errors.Is(err, ErrInsufficientLoyaltyPoints) {
+			jsonError(w, "insufficient points balance", http.StatusUnprocessableEntity)
+			return
+		}
 		h.log.Error("redeem points update failed", zap.Error(err))
 		jsonError(w, "failed to update account", http.StatusInternalServerError)
 		return
@@ -554,18 +596,53 @@ func (h *LoyaltyHandler) Redeem(w http.ResponseWriter, r *http.Request) {
 	jsonOK(w, map[string]any{"balance": newBalance, "transaction": tx})
 }
 
+// ErrInsufficientLoyaltyPoints is returned by applyRedeem when the account's LOCKED (authoritative,
+// not a caller's possibly-stale pre-read) balance can't cover the redemption.
+var ErrInsufficientLoyaltyPoints = errors.New("insufficient loyalty points balance")
+
 // applyRedeem is the shared core for debiting loyalty points from an account: it updates the
-// balance and records a "redeem" loyalty transaction. Callers MUST validate that the account
-// has a sufficient balance (acc.PointsBalance >= points) before calling. Reused by both the
-// staff-facing Redeem handler and the S2S redeem endpoint.
-func (h *LoyaltyHandler) applyRedeem(ctx context.Context, tid uuid.UUID, acc *ent.LoyaltyAccount, points int, orderID *string, notes string) (int, *ent.LoyaltyTransaction, error) {
+// balance and records a "redeem" loyalty transaction. Reused by both the staff-facing Redeem
+// handler and the S2S redeem endpoint.
+//
+// Takes accountID rather than a pre-fetched *ent.LoyaltyAccount and re-reads it itself under
+// ForUpdate() inside a transaction, re-validating the balance there -- the old contract required
+// callers to pre-check acc.PointsBalance >= points themselves, but that check and this deduction
+// ran against two different (potentially stale) reads with nothing serializing them: two
+// concurrent redeem calls could each pass their own pre-check against the same starting balance,
+// then each blindly SET newBalance = thatStaleBalance - points, with the second SET clobbering the
+// first's effect -- silently redeeming points without properly debiting them (or worse, if the
+// two writes race the other direction, letting the balance go negative). Locking + re-validating
+// here is what actually makes "sufficient balance" an atomic, enforced guarantee.
+func (h *LoyaltyHandler) applyRedeem(ctx context.Context, tid, accountID uuid.UUID, points int, orderID *string, notes string) (int, *ent.LoyaltyTransaction, error) {
+	tx, err := h.db.Tx(ctx)
+	if err != nil {
+		return 0, nil, err
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_ = tx.Rollback()
+		}
+	}()
+
+	acc, err := tx.LoyaltyAccount.Query().
+		Where(entla.ID(accountID), entla.TenantID(tid)).
+		ForUpdate().
+		Only(ctx)
+	if err != nil {
+		return 0, nil, err
+	}
+	if acc.PointsBalance < points {
+		return 0, nil, ErrInsufficientLoyaltyPoints
+	}
+
 	newBalance := acc.PointsBalance - points
-	if _, err := h.db.LoyaltyAccount.UpdateOneID(acc.ID).
+	if _, err := tx.LoyaltyAccount.UpdateOneID(acc.ID).
 		SetPointsBalance(newBalance).
 		Save(ctx); err != nil {
 		return 0, nil, err
 	}
-	txCreator := h.db.LoyaltyTransaction.Create().
+	txCreator := tx.LoyaltyTransaction.Create().
 		SetTenantID(tid).
 		SetAccountID(acc.ID).
 		SetTypeField("redeem").
@@ -579,11 +656,16 @@ func (h *LoyaltyHandler) applyRedeem(ctx context.Context, tid uuid.UUID, acc *en
 	if notes != "" {
 		txCreator = txCreator.SetNotes(notes)
 	}
-	tx, err := txCreator.Save(ctx)
+	ltx, err := txCreator.Save(ctx)
 	if err != nil {
 		h.log.Warn("redeem: failed to create transaction record", zap.Error(err))
 	}
-	return newBalance, tx, nil
+
+	if err := tx.Commit(); err != nil {
+		return 0, nil, err
+	}
+	committed = true
+	return newBalance, ltx, nil
 }
 
 const defaultReferralBonus = 100
@@ -770,13 +852,47 @@ func (h *LoyaltyHandler) RedeemToOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newBalance := acc.PointsBalance - body.Points
-	if _, err := h.db.LoyaltyAccount.UpdateOneID(aid).SetPointsBalance(newBalance).Save(r.Context()); err != nil {
+	// Locked, re-validated balance check + deduct + transaction + payment, all in one transaction:
+	// the old code read acc.PointsBalance once (well before this point — program/tender resolution
+	// happens in between), then blindly SET newBalance from that stale read with no lock, and
+	// separately created a real completed POSPayment for the redeemed amount. Two concurrent
+	// "pay with points" taps (or a client retry) could each pass the earlier pre-check, each
+	// create their OWN POSPayment for the full amount, and have their balance SETs clobber each
+	// other — paying out currency-equivalent value for points debited only once (or not at all).
+	tx, txErr := h.db.Tx(r.Context())
+	if txErr != nil {
+		h.log.Error("redeem-to-order: begin tx failed", zap.Error(txErr))
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_ = tx.Rollback()
+		}
+	}()
+
+	lockedAcc, err := tx.LoyaltyAccount.Query().
+		Where(entla.ID(aid), entla.TenantID(tid)).
+		ForUpdate().
+		Only(r.Context())
+	if err != nil {
+		h.log.Error("redeem-to-order: lock account failed", zap.Error(err))
+		jsonError(w, "failed to update account", http.StatusInternalServerError)
+		return
+	}
+	if lockedAcc.PointsBalance < body.Points {
+		jsonError(w, "insufficient points balance", http.StatusUnprocessableEntity)
+		return
+	}
+
+	newBalance := lockedAcc.PointsBalance - body.Points
+	if _, err := tx.LoyaltyAccount.UpdateOneID(aid).SetPointsBalance(newBalance).Save(r.Context()); err != nil {
 		h.log.Error("redeem-to-order: balance update failed", zap.Error(err))
 		jsonError(w, "failed to update account", http.StatusInternalServerError)
 		return
 	}
-	tx, err := h.db.LoyaltyTransaction.Create().
+	ltx, err := tx.LoyaltyTransaction.Create().
 		SetTenantID(tid).
 		SetAccountID(aid).
 		SetOrderID(orderID).
@@ -789,7 +905,7 @@ func (h *LoyaltyHandler) RedeemToOrder(w http.ResponseWriter, r *http.Request) {
 		h.log.Warn("redeem-to-order: failed to create loyalty transaction", zap.Error(err))
 	}
 
-	pay, err := h.db.POSPayment.Create().
+	pay, err := tx.POSPayment.Create().
 		SetOrderID(orderID).
 		SetTenderID(tender.ID).
 		SetAmount(amount).
@@ -803,12 +919,19 @@ func (h *LoyaltyHandler) RedeemToOrder(w http.ResponseWriter, r *http.Request) {
 	}
 	// Keep the order's stored paid_total (payment-status source of truth) in sync — this
 	// handler records a completed payment outside the payments service's recompute path.
-	if paid, aggErr := h.db.POSPayment.Query().
+	if paid, aggErr := tx.POSPayment.Query().
 		Where(entpospayment.OrderID(orderID), entpospayment.Status("completed")).
 		Aggregate(ent.Sum(entpospayment.FieldAmount)).
 		Float64(r.Context()); aggErr == nil {
-		_ = h.db.POSOrder.UpdateOneID(orderID).SetPaidTotal(paid).Exec(r.Context())
+		_ = tx.POSOrder.UpdateOneID(orderID).SetPaidTotal(paid).Exec(r.Context())
 	}
+
+	if err := tx.Commit(); err != nil {
+		h.log.Error("redeem-to-order: commit failed", zap.Error(err))
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	committed = true
 
 	jsonOK(w, map[string]any{
 		"balance":        newBalance,
@@ -816,6 +939,6 @@ func (h *LoyaltyHandler) RedeemToOrder(w http.ResponseWriter, r *http.Request) {
 		"currency":       "KES",
 		"tender_id":      tender.ID,
 		"payment":        pay,
-		"transaction":    tx,
+		"transaction":    ltx,
 	})
 }
