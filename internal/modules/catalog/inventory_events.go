@@ -310,6 +310,27 @@ func (h *InventoryEventHandler) syncCatalogItem(ctx context.Context, evt *shared
 		return err
 	}
 	h.logger.Debug("POS catalog override synced", zap.String("sku", sku), zap.String("use_case", useCase))
+
+	// item.updated (incl. a price-only change — see inventory-api pricing_enrich.go
+	// setSellingPrice) already bumps GetCatalogVersion's fingerprint via the upsert above
+	// (ON CONFLICT ... updated_at=now()), but until now that was the ONLY signal: no Redis
+	// cache-bust, no real-time WS push, so a price edit relied purely on the ~45s version poll
+	// outliving the 60s cachedCatalogSource TTL. Give item.updated the SAME low-latency path
+	// stock.updated already gets, so a price correction shows up on the terminal immediately
+	// instead of "eventually, maybe" — this was the root cause of "I changed the price and POS
+	// never reflects it, even after refresh."
+	if h.redis != nil {
+		tenant := tenantID.String()
+		if ok, lockErr := h.redis.SetNX(ctx, "pos:catsync-lock:"+tenant, "1", 30*time.Second).Result(); lockErr == nil && ok {
+			h.bustCatalogSourceCache(ctx, tenant)
+			if h.notifHub != nil {
+				h.notifHub.BroadcastToTenant(tenantID, notifications.Message{
+					Type:    "catalog_changed",
+					Payload: map[string]any{"tenant_id": tenant},
+				})
+			}
+		}
+	}
 	return nil
 }
 

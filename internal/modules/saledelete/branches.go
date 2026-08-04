@@ -29,6 +29,7 @@ import (
 	enttableassignment "github.com/bengobox/pos-service/internal/ent/tableassignment"
 	"github.com/bengobox/pos-service/internal/modules/inventory"
 	"github.com/bengobox/pos-service/internal/modules/reversals"
+	"github.com/bengobox/pos-service/internal/modules/treasury"
 )
 
 // deleteFiscalized handles a sale that has a KRA eTIMS-signed treasury invoice: "sales
@@ -88,6 +89,7 @@ func (s *Service) deleteNonFiscalized(ctx context.Context, tenantID uuid.UUID, o
 	steps := []entschema.ReversalStepJSON{
 		nowStep(StepInventory, "inventory", StatusSkipped, "pending", ""),
 		nowStep(StepTreasuryLedger, "treasury", StatusSkipped, "pending", ""),
+		nowStep(StepARWriteoff, "treasury", StatusSkipped, "pending", ""),
 		nowStep(StepPOSHardDelete, "pos", StatusSkipped, "pending", ""),
 	}
 
@@ -143,16 +145,55 @@ func (s *Service) deleteNonFiscalized(ctx context.Context, tenantID uuid.UUID, o
 	}
 	shred = s.persistShredSteps(ctx, shred, steps, "")
 
+	// Step: reduce the customer's AR when this sale was settled on account — the gap this fix
+	// closes. The ledger step above HARD-DELETES the sale's GL entries (never reverses them), so
+	// there is nothing left to post a reversal against; only the operational CustomerBalance row
+	// needs correcting. Outstanding amount is simply total-paid (never returns-netted: DeleteSale
+	// already refuses any order with return/refund/reversal history before either branch runs).
+	if s.reversalSvc != nil && s.treasuryClient != nil && s.reversalSvc.OrderSettledOnAccount(ctx, tenantID, order.ID) {
+		outstanding := order.TotalAmount - order.PaidTotal
+		if outstanding > 0.009 {
+			crmContactID, _, customerPhone := s.reversalSvc.ResolveOrderCustomer(ctx, tenantID, order.ID)
+			if crmContactID == "" && customerPhone == "" {
+				steps[2] = nowStep(StepARWriteoff, "treasury", StatusFailed,
+					fmt.Sprintf("owed %.2f but no customer identity on the order to write it off against", outstanding), "")
+				shred = s.persistShredSteps(ctx, shred, steps, "")
+				return s.failResult(shred, order.ID), fmt.Errorf("write off AR: order %s has no resolvable customer", order.ID)
+			}
+			key := crmContactID
+			if key == "" {
+				key = customerPhone
+			}
+			resp, aerr := s.treasuryClient.WriteOffDebt(ctx, req.TenantSlug, key, treasury.WriteOffDebtRequest{
+				Amount:    outstanding,
+				Reason:    fmt.Sprintf("Delete Sale (shred) of on-account order %s: %s", order.OrderNumber, req.Reason),
+				Reference: order.OrderNumber,
+			})
+			if aerr != nil {
+				steps[2] = nowStep(StepARWriteoff, "treasury", StatusFailed, aerr.Error(), "")
+				shred = s.persistShredSteps(ctx, shred, steps, "")
+				return s.failResult(shred, order.ID), fmt.Errorf("write off AR: %w", aerr)
+			}
+			steps[2] = nowStep(StepARWriteoff, "treasury", StatusCompleted,
+				fmt.Sprintf("wrote off %.2f owed; balance now %s", outstanding, resp.BalanceDue), "")
+		} else {
+			steps[2] = nowStep(StepARWriteoff, "treasury", StatusSkipped, "on-account sale but nothing outstanding (already settled)", "")
+		}
+	} else {
+		steps[2] = nowStep(StepARWriteoff, "treasury", StatusSkipped, "not an on-account sale", "")
+	}
+	shred = s.persistShredSteps(ctx, shred, steps, "")
+
 	// Step: hard-delete pos-api's own rows in one transaction. Lines/payments/the order itself
 	// must succeed; the long tail of secondary tables (KDS tickets, print jobs, loyalty points,
 	// commissions, etc.) is deleted best-effort — a stray orphaned row there is a cosmetic leftover,
 	// never a correctness or double-count risk, since the order they reference is already gone.
 	if err := s.hardDeleteOrder(ctx, tenantID, order.ID); err != nil {
-		steps[2] = nowStep(StepPOSHardDelete, "pos", StatusFailed, err.Error(), "")
+		steps[3] = nowStep(StepPOSHardDelete, "pos", StatusFailed, err.Error(), "")
 		shred = s.persistShredSteps(ctx, shred, steps, "")
 		return s.failResult(shred, order.ID), fmt.Errorf("hard delete order: %w", err)
 	}
-	steps[2] = nowStep(StepPOSHardDelete, "pos", StatusCompleted, "order, lines, payments and related records removed", "")
+	steps[3] = nowStep(StepPOSHardDelete, "pos", StatusCompleted, "order, lines, payments and related records removed", "")
 	shred = s.persistShredSteps(ctx, shred, steps, entpossaleshred.StatusCompleted)
 
 	s.audit(ctx, tenantID, req.RequestedBy, order.OrderNumber, order.ID, req.Reason, "non_fiscalized", &shred.ID)

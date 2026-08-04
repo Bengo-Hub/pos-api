@@ -482,6 +482,30 @@ func (c *Client) RecordARPayment(ctx context.Context, tenantSlug, contactIDOrIde
 	return doRequest[ARPaymentResponse](ctx, c.httpClient, http.MethodPost, u, c.apiKey, req)
 }
 
+// WriteOffDebtRequest is the body for POST /api/v1/s2s/{tenant}/ar/customers/{key}/write-off.
+type WriteOffDebtRequest struct {
+	Amount    float64 `json:"amount"`
+	Reason    string  `json:"reason,omitempty"`
+	Reference string  `json:"reference,omitempty"`
+}
+
+// WriteOffDebtResponse is the updated treasury customer-balance row.
+type WriteOffDebtResponse struct {
+	ID         string `json:"id"`
+	BalanceDue string `json:"balance_due"`
+	Currency   string `json:"currency"`
+}
+
+// WriteOffDebt reduces a customer's outstanding debit with NO GL posting — for saledelete's
+// non-fiscalised branch, when the deleted sale was settled on account: the sale's own GL entries
+// are hard-deleted (ShredLedger), not reversed, so there is nothing to post a Dr-Cash reversal
+// against (unlike RecordARPayment, which assumes real cash arrived). Reduce-only, capped
+// server-side at the customer's current outstanding debit.
+func (c *Client) WriteOffDebt(ctx context.Context, tenantSlug, contactIDOrIdentifier string, req WriteOffDebtRequest) (*WriteOffDebtResponse, error) {
+	u := fmt.Sprintf("%s/api/v1/s2s/%s/ar/customers/%s/write-off", c.baseURL, tenantSlug, url.PathEscape(contactIDOrIdentifier))
+	return doRequest[WriteOffDebtResponse](ctx, c.httpClient, http.MethodPost, u, c.apiKey, req)
+}
+
 // PayoutCreditRequest is the body for POST /api/v1/s2s/{tenant}/ar/customers/{key}/payout-credit —
 // paying out (part of) a customer's EXISTING stored credit (a negative balance_due) via a real
 // channel, independent of any return/sale.

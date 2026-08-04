@@ -342,6 +342,19 @@ func (s *Service) resolveRefundChannel(ctx context.Context, tenantID, orderID uu
 	return "cash"
 }
 
+// OrderSettledOnAccount is the exported form of orderSettledOnAccount — for callers outside this
+// package (saledelete's non-fiscalized "shred" branch) that need the exact same on-account
+// detection this package's own resolveRefundChannel uses, so a deleted credit sale gets its AR
+// reduced through the identical rule a reversed/edited one already does.
+func (s *Service) OrderSettledOnAccount(ctx context.Context, tenantID, orderID uuid.UUID) bool {
+	return s.orderSettledOnAccount(ctx, tenantID, orderID)
+}
+
+// ResolveOrderCustomer is the exported form of resolveOrderCustomer — see OrderSettledOnAccount.
+func (s *Service) ResolveOrderCustomer(ctx context.Context, tenantID, orderID uuid.UUID) (crmContactID, name, phone string) {
+	return s.resolveOrderCustomer(ctx, tenantID, orderID)
+}
+
 // orderSettledOnAccount reports whether the original sale was settled on account (credit sale):
 // any completed payment on an on_account tender. Best-effort — false on errors.
 func (s *Service) orderSettledOnAccount(ctx context.Context, tenantID, orderID uuid.UUID) bool {

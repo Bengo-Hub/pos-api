@@ -67,6 +67,15 @@ func voidSkipReason(status string) string {
 	return ""
 }
 
+// voidNeedsApproval reports whether a void action must be rejected with 422 approval_required —
+// true only when the caller is not manager-tier AND no valid approval (live token, void code, or
+// generic approval code) was captured. Shared by VoidOrder and VoidOrderLine so a cashier can
+// never void either the whole bill or a single line without manager sign-off through one gate
+// drifting out of sync with the other.
+func voidNeedsApproval(callerIsManager bool, approverID *uuid.UUID) bool {
+	return approverID == nil && !callerIsManager
+}
+
 // ── shared side-effect helpers (used by the single and bulk endpoints) ──────────
 
 // applyVoid performs the void side effects for ONE order exactly as the single VoidOrder

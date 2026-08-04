@@ -43,6 +43,12 @@ const (
 	StepReversal      = "reversal"       // fiscalised branch: delegates to reversals.Service
 	StepInventory     = "inventory_restore"
 	StepTreasuryLedger = "treasury_ledger_shred"
+	// StepARWriteoff reduces the customer's outstanding AR when the deleted sale was settled on
+	// account — a real gap fixed 2026: previously deleteNonFiscalized only shredded GL journal
+	// entries and left CustomerBalance.balance_due exactly as it was, stranding debt for a sale
+	// that no longer existed anywhere. See treasury.Client.WriteOffDebt's doc comment for why
+	// this is a distinct, GL-free call rather than RecordARPayment.
+	StepARWriteoff    = "ar_writeoff"
 	StepPOSHardDelete = "pos_hard_delete"
 )
 

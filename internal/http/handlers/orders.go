@@ -1487,6 +1487,9 @@ func (h *POSOrderHandler) VoidOrder(w http.ResponseWriter, r *http.Request) {
 		// VoidCode is the one-time, order-scoped code a manager generated and shared with the
 		// cashier (the "manager not around" flow) — an alternative to the live PIN/card step-up.
 		VoidCode string `json:"void_code"`
+		// ApprovalCode is the generic outlet-scoped manager approval code (the same primitive
+		// the discount/price-override gates use), tried as a third fallback alongside VoidCode.
+		ApprovalCode string `json:"approval_code"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil || input.Reason == "" {
 		jsonError(w, "reason is required", http.StatusBadRequest)
@@ -1500,9 +1503,36 @@ func (h *POSOrderHandler) VoidOrder(w http.ResponseWriter, r *http.Request) {
 	}
 	callerID, _ := uuid.Parse(claims.Subject)
 
-	// Capture the manager approver. Two ways:
-	//  1) a live step-up approval token (manager scanned a card / typed a PIN at the terminal), or
-	//  2) a one-time void code the manager generated remotely and shared with the cashier.
+	order, err := h.client.POSOrder.Query().
+		Where(posorder.ID(orderID), posorder.TenantID(tid)).
+		Only(r.Context())
+	if err != nil {
+		jsonError(w, "order not found", http.StatusNotFound)
+		return
+	}
+
+	// Manager/admin/platform-owner bypass entirely — a cashier's void must always be approved
+	// (see below), matching the seeded pos.orders.void_self permission's intent ("cashier may
+	// INITIATE a void; they are not a manager override role, so it still requires manager
+	// approval before it lands" — cmd/seed/main.go). pos.orders.void_self is checked first
+	// (via the standard superuser/JWT/DB-fallback resolution) so a tenant that grants it to a
+	// custom role via the permission matrix gets the bypass too, not just the fixed role-name
+	// set the discount/price gates still use; that role-name set is kept as a fallback so an
+	// existing manager/admin role never regresses.
+	callerIsManager := outletmw.HasServicePermission(r, h.rbac, "pos.orders.void_self")
+	if !callerIsManager {
+		callerIsManager = overrideRoles[requesterRole(r)]
+	}
+	if !callerIsManager {
+		callerIsManager = claims.IsPlatformOwner || hasOverrideRole(claims.Roles)
+	}
+
+	// Capture the manager approver. Three ways, in order:
+	//  1) a live step-up approval token (manager scanned a card / typed a PIN at the terminal),
+	//  2) a one-time void code the manager generated remotely and shared with the cashier, or
+	//  3) a generic outlet-scoped approval code (same primitive the discount/price gates use).
+	// A cashier (not callerIsManager) MUST produce one of these — void was previously allowed to
+	// proceed with no approval at all when none was supplied.
 	var approverID *uuid.UUID
 	if input.ApprovalToken != "" && len(h.terminalSecret) > 0 {
 		if aid, valid := verifyApprovalToken(input.ApprovalToken, "order.void", h.terminalSecret); valid {
@@ -1518,13 +1548,20 @@ func (h *POSOrderHandler) VoidOrder(w http.ResponseWriter, r *http.Request) {
 			jsonError(w, "invalid or expired void code", http.StatusForbidden)
 			return
 		}
+	} else if input.ApprovalCode != "" {
+		if aid, valid := redeemActionApprovalCode(r.Context(), h.client, h.log, tid, order.OutletID, "order.void", input.ApprovalCode); valid {
+			approverID = &aid
+		} else {
+			jsonError(w, "invalid or expired approval code", http.StatusForbidden)
+			return
+		}
 	}
 
-	order, err := h.client.POSOrder.Query().
-		Where(posorder.ID(orderID), posorder.TenantID(tid)).
-		Only(r.Context())
-	if err != nil {
-		jsonError(w, "order not found", http.StatusNotFound)
+	if voidNeedsApproval(callerIsManager, approverID) {
+		respondJSON(w, http.StatusUnprocessableEntity, map[string]any{
+			"error":             "manager approval required to void this sale",
+			"approval_required": true, "action": "order.void",
+		})
 		return
 	}
 

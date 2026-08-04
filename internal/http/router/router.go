@@ -372,7 +372,12 @@ func New(
 						// "Share via WhatsApp" wa.me quick action: resolves the durable public receipt
 						// link client-side (no notifications-service round-trip for this path).
 						pos.Get("/orders/{orderID}/receipt/share-link", orders.GetReceiptShareLink)
-						pos.Patch("/orders/{orderID}/void", orders.VoidOrder)
+						// pos.orders.void lets a cashier INITIATE a void; the handler itself then
+						// requires manager approval (pos.orders.void_self / an override role /
+						// a live approval token or code) unless the caller already holds
+						// manager-level authority — see VoidOrder's mandatory-approval gate.
+						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.orders.void", "pos.orders.manage")).
+							Patch("/orders/{orderID}/void", orders.VoidOrder)
 						// Delete a DRAFT (saved-but-unpaid) sale. Route-gated to an order-write
 						// permission; DeleteDraft then enforces the RBAC boundary server-side —
 						// pos.orders.manage deletes ANY draft, any other write principal (cashier/
@@ -404,7 +409,10 @@ func New(
 						pos.Post("/approval-codes/verify", orders.VerifyActionApprovalCode)
 						pos.Post("/orders/{orderID}/fire-course", orders.FireCourse)
 						pos.With(orderWrite).Post("/orders/{orderID}/lines", orders.AddOrderLines)
-						pos.Post("/orders/{orderID}/lines/{lineID}/void", orders.VoidOrderLine)
+						// Same gate as the whole-order void above — cashier may initiate, the
+						// handler requires manager approval unless the caller already has it.
+						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.orders.void", "pos.orders.manage")).
+							Post("/orders/{orderID}/lines/{lineID}/void", orders.VoidOrderLine)
 						// Manager/admin corrective tool: directly edit a persisted line's price/qty
 						// instead of requiring a raw database fix for stale-priced sales.
 						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.orders.manage")).

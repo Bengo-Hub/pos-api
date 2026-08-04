@@ -47,6 +47,34 @@ func TestDraftDeleteSkipReason(t *testing.T) {
 	}
 }
 
+func TestVoidNeedsApproval(t *testing.T) {
+	someID := uuid.New()
+	tests := []struct {
+		name            string
+		callerIsManager bool
+		approverID      *uuid.UUID
+		want            bool
+	}{
+		// The bug this fix closes: a cashier with no captured approval could void freely.
+		{"cashier with no approval MUST be blocked", false, nil, true},
+		// A cashier who DID capture a valid approval (token/void-code/approval-code all set
+		// approverID the same way) is cleared.
+		{"cashier with a captured approval is cleared", false, &someID, false},
+		// Manager/admin/platform-owner bypass entirely — no approval needed even if none given.
+		{"manager with no approval is cleared (bypass)", true, nil, false},
+		// A manager who happens to also carry an approval is still cleared, obviously.
+		{"manager with an approval is cleared", true, &someID, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := voidNeedsApproval(tt.callerIsManager, tt.approverID); got != tt.want {
+				t.Fatalf("voidNeedsApproval(managerBypass=%v, approverID=%v) = %v, want %v",
+					tt.callerIsManager, tt.approverID, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestVoidSkipReason(t *testing.T) {
 	tests := []struct {
 		status string

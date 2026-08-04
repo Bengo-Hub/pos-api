@@ -13,6 +13,7 @@ import (
 	"github.com/bengobox/pos-service/internal/audit"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
 	"github.com/bengobox/pos-service/internal/ent/posorderline"
+	outletmw "github.com/bengobox/pos-service/internal/http/middleware"
 )
 
 type voidLineInput struct {
@@ -22,6 +23,9 @@ type voidLineInput struct {
 	// VoidCode is the one-time, order-scoped code a manager generated and shared with the cashier
 	// (the "manager not around" flow) — an alternative to a live PIN/card step-up, same as VoidOrder.
 	VoidCode string `json:"void_code"`
+	// ApprovalCode is the generic outlet-scoped manager approval code (same primitive the
+	// discount/price-override gates use), tried as a third fallback alongside VoidCode.
+	ApprovalCode string `json:"approval_code"`
 }
 
 // VoidOrderLine handles POST /{tenantID}/pos/orders/{orderID}/lines/{lineID}/void.
@@ -59,6 +63,24 @@ func (h *POSOrderHandler) VoidOrderLine(w http.ResponseWriter, r *http.Request) 
 	}
 	callerID, _ := uuid.Parse(claims.Subject)
 
+	order, err := h.client.POSOrder.Query().
+		Where(posorder.ID(orderID), posorder.TenantID(tid)).
+		Only(r.Context())
+	if err != nil {
+		jsonError(w, "order not found", http.StatusNotFound)
+		return
+	}
+
+	// Manager/admin/platform-owner bypass entirely; a cashier removing a sent line must be
+	// approved — see the mandatory check below. Mirrors VoidOrder's gate exactly.
+	callerIsManager := outletmw.HasServicePermission(r, h.rbac, "pos.orders.void_self")
+	if !callerIsManager {
+		callerIsManager = overrideRoles[requesterRole(r)]
+	}
+	if !callerIsManager {
+		callerIsManager = claims.IsPlatformOwner || hasOverrideRole(claims.Roles)
+	}
+
 	var approverID *uuid.UUID
 	if input.ApprovalToken != "" && len(h.terminalSecret) > 0 {
 		if aid, valid := verifyApprovalToken(input.ApprovalToken, "order.line_remove", h.terminalSecret); valid {
@@ -77,15 +99,23 @@ func (h *POSOrderHandler) VoidOrderLine(w http.ResponseWriter, r *http.Request) 
 			jsonError(w, "invalid or expired void code", http.StatusForbidden)
 			return
 		}
+	} else if input.ApprovalCode != "" {
+		if aid, valid := redeemActionApprovalCode(r.Context(), h.client, h.log, tid, order.OutletID, "order.line_remove", input.ApprovalCode); valid {
+			approverID = &aid
+		} else {
+			jsonError(w, "invalid or expired approval code", http.StatusForbidden)
+			return
+		}
 	}
 
-	order, err := h.client.POSOrder.Query().
-		Where(posorder.ID(orderID), posorder.TenantID(tid)).
-		Only(r.Context())
-	if err != nil {
-		jsonError(w, "order not found", http.StatusNotFound)
+	if voidNeedsApproval(callerIsManager, approverID) {
+		respondJSON(w, http.StatusUnprocessableEntity, map[string]any{
+			"error":             "manager approval required to remove this line",
+			"approval_required": true, "action": "order.line_remove",
+		})
 		return
 	}
+
 	if order.Status == "voided" || order.Status == "cancelled" || order.Status == "refunded" {
 		jsonError(w, "order is already "+order.Status, http.StatusBadRequest)
 		return

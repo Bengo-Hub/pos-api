@@ -671,10 +671,7 @@ func (h *CatalogHandler) ResolvePrice(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "item_id is required", http.StatusBadRequest)
 		return
 	}
-	quantity := 1
-	if q, e := strconv.Atoi(r.URL.Query().Get("quantity")); e == nil && q > 0 {
-		quantity = q
-	}
+	quantity := parseQuantityParam(r.URL.Query().Get("quantity"))
 	profile := strings.ToUpper(strings.TrimSpace(r.URL.Query().Get("profile")))
 
 	tenantSlug := ""
@@ -694,7 +691,7 @@ func (h *CatalogHandler) ResolvePrice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	url := fmt.Sprintf("%s/v1/%s/inventory/items/%s/price?quantity=%d", inventoryURL(), tenantSlug, itemID, quantity)
+	url := fmt.Sprintf("%s/v1/%s/inventory/items/%s/price?quantity=%g", inventoryURL(), tenantSlug, itemID, quantity)
 	if profile != "" {
 		url += "&tier=" + profile
 	}
@@ -784,6 +781,11 @@ type catalogItemDTO struct {
 	POSOverridePrice *float64
 	// ModifierGroups: this item's selectable modifiers, proxied from inventory-api.
 	ModifierGroups []inventoryProxyModifierGroup
+	// Unit is the item's stock unit abbreviation (e.g. "ml", "kg", "pc"), sourced from the
+	// synced POSCatalogOverride metadata cache (see overrideEntry.uom). Lets the terminal
+	// allow decimal quantity entry only for continuous units (ml/l/g/kg/m/cm), never for
+	// discretely-counted items.
+	Unit string
 }
 
 // catalogModifierOption is the terminal-facing wire shape for a single modifier option.
@@ -981,6 +983,11 @@ func (h *CatalogHandler) assembleMenuItems(
 		minimumAge              *int
 		durationMinutes         *int
 		complimentary           bool
+		// uom = the item's stock unit abbreviation (e.g. "ml", "kg"), cached at catalog-sync
+		// time by the inventory.item.* consumer (inventory_events.go) purely so
+		// pos.sale.finalized can carry a real uom_code. Reused here to surface it to the
+		// terminal too, so the UI can allow decimal-qty entry only for continuous units.
+		uom string
 	}
 	overrideMap := make(map[string]overrideEntry)
 	for _, o := range overrides {
@@ -1001,6 +1008,7 @@ func (h *CatalogHandler) assembleMenuItems(
 				minimumAge:              o.MinimumAge,
 				durationMinutes:         o.DurationMinutes,
 				complimentary:           metaBool(o.Metadata, "complimentary"),
+				uom:                     metaString(o.Metadata, "uom"),
 			}
 		} else {
 			_ = prev
@@ -1244,6 +1252,7 @@ func (h *CatalogHandler) assembleMenuItems(
 			InventoryPrice:   inventoryPrice,
 			POSOverridePrice: posOverridePrice,
 			ModifierGroups:   item.ModifierGroups,
+			Unit:             o.uom,
 		})
 	}
 	return out, nil
@@ -1264,6 +1273,18 @@ func metaBool(m map[string]any, key string) bool {
 	default:
 		return false
 	}
+}
+
+// metaString reads a string value from a POSCatalogOverride.metadata map, returning "" when
+// absent or not a string (e.g. "uom", cached at catalog-sync time — see overrideEntry.uom).
+func metaString(m map[string]any, key string) string {
+	if m == nil {
+		return ""
+	}
+	if v, ok := m[key].(string); ok {
+		return v
+	}
+	return ""
 }
 
 // readFloatMeta reads a numeric value from a metadata map, tolerating float64,
@@ -1379,6 +1400,9 @@ func catalogItemToMapBase(item catalogItemDTO, outletID *uuid.UUID) map[string]a
 		"stock_quantity":    item.StockQuantity,
 		"min_selling_price": item.MinSellingPrice,
 		"max_selling_price": item.MaxSellingPrice,
+		// Stock unit abbreviation (e.g. "ml", "kg") — lets the terminal allow decimal
+		// quantity entry only for continuous units. Empty for items with no synced unit.
+		"unit": item.Unit,
 		// Raw inputs to the price merge above — powers the sync-monitor price-reconcile tab's
 		// inventory-vs-POS-DB-override-vs-merged compare. Nil when that source had no value.
 		"inventory_price":    item.InventoryPrice,
