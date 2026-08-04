@@ -321,6 +321,90 @@ func TestDelete_NonFiscalized_OnAccount_WritesOffAR(t *testing.T) {
 	}
 }
 
+// TestDelete_NonFiscalized_OnAccount_NoTenderRow_StillWritesOffAR is the regression test for a
+// live gap found 2026-08-05: a tenant that has never configured a real Tender row of type
+// "on_account" (confirmed live on boi-enterprises — GET /pos/tenders returns zero rows) still
+// runs credit sales fine via payments.recordCreditSale, which stamps order.Metadata["on_account"]
+// = true but never requires (or sets) a real tender_id on the payment row. The OLD detection
+// logic (a join from the payment's tender_id to a Tender row of type "on_account") always
+// returned false in this — the ACTUAL production — configuration, silently skipping the
+// ar_writeoff step and stranding real customer debt on Delete Sale. This test deliberately does
+// NOT seed any Tender row at all (seedLineAndPayment's payment carries an unresolvable random
+// tender_id, exactly like a real recordCreditSale payment does when no Tender catalog exists) —
+// only the order's metadata says on_account. The write-off must still fire.
+func TestDelete_NonFiscalized_OnAccount_NoTenderRow_StillWritesOffAR(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", fmt.Sprintf("file:saledeletetest_%s?mode=memory&cache=shared", uuid.NewString()))
+	t.Cleanup(func() { _ = client.Close() })
+	tid := uuid.New()
+
+	phone := "+254700000999"
+	order, err := client.POSOrder.Create().
+		SetTenantID(tid).
+		SetOutletID(uuid.New()).
+		SetDeviceID(uuid.New()).
+		SetUserID(uuid.New()).
+		SetOrderNumber("ORD-" + uuid.NewString()[:8]).
+		SetStatus("completed").
+		SetSubtotal(500).
+		SetTaxTotal(0).
+		SetTotalAmount(500).
+		SetPaidTotal(0).
+		SetCustomerPhone(phone).
+		SetMetadata(map[string]any{"on_account": true}).
+		Save(context.Background())
+	if err != nil {
+		t.Fatalf("seed order: %v", err)
+	}
+	seedLineAndPayment(t, client, order) // tender_id is a random, never-created UUID — no Tender row exists anywhere in this test
+
+	var writeOffCalled bool
+	var capturedAmount float64
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.Contains(r.URL.Path, "shred-ledger"):
+			_ = json.NewEncoder(w).Encode(map[string]any{"entries_deleted": 2})
+		case strings.Contains(r.URL.Path, "write-off"):
+			writeOffCalled = true
+			var body struct {
+				Amount float64 `json:"amount"`
+			}
+			_ = json.NewDecoder(r.Body).Decode(&body)
+			capturedAmount = body.Amount
+			_ = json.NewEncoder(w).Encode(map[string]any{"id": "bal-1", "balance_due": "0.00", "currency": "KES"})
+		default:
+			http.Error(w, "unexpected path: "+r.URL.Path, http.StatusNotFound)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	orderSvc := orders.NewService(client, orders.Config{DefaultCurrency: "KES"}, zap.NewNop())
+	revSvc := reversals.NewService(zap.NewNop(), client, orderSvc, nil, nil)
+	treasuryClient := treasury.NewClient(server.URL, "fake-key", 5*time.Second)
+	svc := NewService(zap.NewNop(), client, revSvc, treasuryClient, nil)
+
+	result, err := svc.Delete(context.Background(), tid, Request{OrderID: order.ID, Reason: "test on-account shred, no tender catalog", RequestedBy: uuid.New()})
+	if err != nil {
+		t.Fatalf("Delete failed: %v", err)
+	}
+	if !writeOffCalled {
+		t.Fatalf("expected the AR write-off endpoint to be called even with no configured Tender row (metadata-based detection)")
+	}
+	if capturedAmount != 500 {
+		t.Fatalf("expected write-off amount 500 (total - paid), got %v", capturedAmount)
+	}
+
+	var arStep *string
+	for _, s := range result.Steps {
+		if s.Step == StepARWriteoff {
+			v := s.Status
+			arStep = &v
+		}
+	}
+	if arStep == nil || *arStep != StatusCompleted {
+		t.Fatalf("expected a completed %s step, got: %+v", StepARWriteoff, result.Steps)
+	}
+}
+
 // TestDelete_NonFiscalized_CashSale_SkipsARWriteoff confirms a plain cash sale (no on_account
 // tender) never calls the write-off endpoint — the fix must not affect the common cash-sale path.
 func TestDelete_NonFiscalized_CashSale_SkipsARWriteoff(t *testing.T) {

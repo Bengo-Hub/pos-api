@@ -24,10 +24,8 @@ import (
 	"github.com/bengobox/pos-service/internal/ent"
 	entposorder "github.com/bengobox/pos-service/internal/ent/posorder"
 	entposorderline "github.com/bengobox/pos-service/internal/ent/posorderline"
-	entpospayment "github.com/bengobox/pos-service/internal/ent/pospayment"
 	entposreversal "github.com/bengobox/pos-service/internal/ent/posreversal"
 	entschema "github.com/bengobox/pos-service/internal/ent/schema"
-	enttender "github.com/bengobox/pos-service/internal/ent/tender"
 	"github.com/bengobox/pos-service/internal/modules/documents"
 	"github.com/bengobox/pos-service/internal/modules/inventory"
 	"github.com/bengobox/pos-service/internal/modules/orders"
@@ -355,23 +353,12 @@ func (s *Service) ResolveOrderCustomer(ctx context.Context, tenantID, orderID uu
 	return s.resolveOrderCustomer(ctx, tenantID, orderID)
 }
 
-// orderSettledOnAccount reports whether the original sale was settled on account (credit sale):
-// any completed payment on an on_account tender. Best-effort — false on errors.
+// orderSettledOnAccount reports whether the original sale was settled on account (credit sale).
+// Delegates to orders.SettledOnAccount — see that function's doc comment for the 2026-08-05
+// live bug (Tender-row-only detection silently false for tenants with no configured Tender
+// catalog) this centralization fixes for every caller at once.
 func (s *Service) orderSettledOnAccount(ctx context.Context, tenantID, orderID uuid.UUID) bool {
-	pays, err := s.client.POSPayment.Query().
-		Where(entpospayment.OrderID(orderID), entpospayment.Status("completed")).
-		All(ctx)
-	if err != nil || len(pays) == 0 {
-		return false
-	}
-	ids := make([]uuid.UUID, 0, len(pays))
-	for _, p := range pays {
-		ids = append(ids, p.TenderID)
-	}
-	n, err := s.client.Tender.Query().
-		Where(enttender.IDIn(ids...), enttender.TenantID(tenantID), enttender.TypeEQ("on_account")).
-		Count(ctx)
-	return err == nil && n > 0
+	return orders.SettledOnAccount(ctx, s.client, tenantID, orderID)
 }
 
 func round2(v float64) float64 { return math.Round(v*100) / 100 }

@@ -1,9 +1,15 @@
 package orders
 
 import (
+	"context"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/bengobox/pos-service/internal/ent"
+	entposorder "github.com/bengobox/pos-service/internal/ent/posorder"
+	entpospayment "github.com/bengobox/pos-service/internal/ent/pospayment"
+	enttender "github.com/bengobox/pos-service/internal/ent/tender"
 )
 
 // This file is the SINGLE authoritative definition of "how much a POS order still owes" and the
@@ -67,6 +73,41 @@ func NonCommittedStatus(ps string) bool {
 func IsOnAccount(meta map[string]any) bool {
 	v, ok := meta["on_account"].(bool)
 	return ok && v
+}
+
+// SettledOnAccount is THE authoritative "was this sale a credit sale" check — the DB-querying
+// sibling of IsOnAccount, centralized here (rather than duplicated per-caller) after a live bug
+// was found 2026-08-05: two independent copies (reversals.Service and handlers.ReturnHandler)
+// each queried ONLY the Tender table for a completed payment whose tender_id resolves to a real
+// Tender row of type "on_account" — which silently returns false for any tenant that has never
+// bothered to configure a Tender catalog (confirmed live on boi-enterprises: GET /pos/tenders
+// returns zero rows), since payments.recordCreditSale never requires a real tender_id. That gap
+// let deleteNonFiscalized's ar_writeoff step skip ("not an on-account sale") and strand real AR
+// debt for a sale that had just been hard-deleted. The primary signal here — order.Metadata via
+// IsOnAccount — is stamped unconditionally by recordCreditSale regardless of Tender configuration;
+// the Tender-row join is kept only as a fallback for legacy orders that predate the metadata
+// stamp. Best-effort — false on any query error.
+func SettledOnAccount(ctx context.Context, client *ent.Client, tenantID, orderID uuid.UUID) bool {
+	if order, err := client.POSOrder.Query().
+		Where(entposorder.ID(orderID), entposorder.TenantID(tenantID)).
+		Only(ctx); err == nil && IsOnAccount(order.Metadata) {
+		return true
+	}
+
+	pays, err := client.POSPayment.Query().
+		Where(entpospayment.OrderID(orderID), entpospayment.Status("completed")).
+		All(ctx)
+	if err != nil || len(pays) == 0 {
+		return false
+	}
+	ids := make([]uuid.UUID, 0, len(pays))
+	for _, p := range pays {
+		ids = append(ids, p.TenderID)
+	}
+	n, err := client.Tender.Query().
+		Where(enttender.IDIn(ids...), enttender.TenantID(tenantID), enttender.TypeEQ("on_account")).
+		Count(ctx)
+	return err == nil && n > 0
 }
 
 // IsOrderOverdue reports whether an order is past its stamped metadata.payment_due_date (RFC3339).

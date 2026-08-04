@@ -8,9 +8,8 @@ import (
 
 	entoutletsetting "github.com/bengobox/pos-service/internal/ent/outletsetting"
 	entposorder "github.com/bengobox/pos-service/internal/ent/posorder"
-	entpospayment "github.com/bengobox/pos-service/internal/ent/pospayment"
 	"github.com/bengobox/pos-service/internal/ent/posreturn"
-	enttender "github.com/bengobox/pos-service/internal/ent/tender"
+	"github.com/bengobox/pos-service/internal/modules/orders"
 )
 
 // Refund-method policy: which settlement channels are valid for a return, given WHY the
@@ -86,21 +85,11 @@ func defaultRefundChannel(returnType posreturn.ReturnType, onAccount bool) strin
 	return "cash"
 }
 
-// orderSettledOnAccount reports whether the original sale was settled on account (credit
-// sale): any completed payment on an on_account tender. Best-effort — false on errors.
+// orderSettledOnAccount reports whether the original sale was settled on account (credit sale).
+// Delegates to orders.SettledOnAccount — see that function's doc comment for the 2026-08-05 live
+// bug (Tender-row-only detection silently false for tenants with no configured Tender catalog)
+// this centralization fixes for every caller at once, including reversals.Service's identical
+// former copy of this same logic.
 func (h *ReturnHandler) orderSettledOnAccount(ctx context.Context, tenantID, orderID uuid.UUID) bool {
-	pays, err := h.client.POSPayment.Query().
-		Where(entpospayment.OrderID(orderID), entpospayment.Status("completed")).
-		All(ctx)
-	if err != nil || len(pays) == 0 {
-		return false
-	}
-	ids := make([]uuid.UUID, 0, len(pays))
-	for _, p := range pays {
-		ids = append(ids, p.TenderID)
-	}
-	n, err := h.client.Tender.Query().
-		Where(enttender.IDIn(ids...), enttender.TenantID(tenantID), enttender.TypeEQ("on_account")).
-		Count(ctx)
-	return err == nil && n > 0
+	return orders.SettledOnAccount(ctx, h.client, tenantID, orderID)
 }
